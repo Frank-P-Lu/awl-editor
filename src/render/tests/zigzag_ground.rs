@@ -1,25 +1,22 @@
-//! ITEM 86 — REAL-PIXEL proofs for `Background::Zigzag`, the repeating
-//! chevron mark ground that replaced Quokka's dot grid AND Gumtree's
-//! grass-bands field in one light-worlds taste round. The round's own brief:
-//! the two worlds must NOT look like recolours of one asset — vary scale,
+//! REAL-PIXEL proofs for `Background::Zigzag`, the repeating
+//! chevron mark ground used by Quokka and Gumtree. The two worlds must NOT
+//! look like recolours of one asset — they vary scale,
 //! profile/direction, spacing, and contrast through world DATA read by the
 //! ONE renderer (`shaders/background.wgsl`'s `pattern_coverage`, shader id
 //! 7). Mirrors `bands_waves.rs`'s pattern — drive `BackgroundPipeline`
 //! directly (the purest reachable seam, no text/markdown involved) and read
 //! the real GPU output back, reusing its `headless_dq` device helper rather
-//! than re-deriving it, and item 89's `mark_field` differential oracle for the
+//! than re-deriving it, and the `mark_field` differential oracle for the
 //! one pixel measurement left here.
 //!
-//! **Post item-89 note:** this ground was reopened as a CORRECTNESS repair —
-//! item 86's chevron repeated its teeth ALONG one travel line but never tiled
-//! that line ACROSS the margin field, so a page margin carried a single
-//! wandering stroke with large blank areas; and the fold that first tiled it
-//! stacked rows every `period_px`, which left a blank LANE between rows
-//! wherever the excursion did not span the period. The field laws (per-cell
+//! **Coverage mechanism:** the chevron repeats its teeth ALONG each travel line
+//! and tiles those lines ACROSS the margin field. Rows use the abutment pitch;
+//! stacking them every `period_px` would leave a blank LANE wherever the
+//! excursion did not span the period. The field laws (per-cell
 //! occupancy SWEPT over viewport geometry, the no-blank-lane law, the abutment
 //! theorem, row rhythm, height scaling, column exclusion, determinism) all live
 //! in `zigzag_ground.rs`; the per-world dials were re-derived there too
-//! (Quokka 100/24 unchanged, Gumtree 170/60). What stays here is item 86's
+//! (Quokka 100/24 unchanged, Gumtree 170/60). What stays here is the
 //! DESIGN brief — the roster, and the four dials' authored distinctness.
 //!
 //! Per the project tripwire (the sidecar is a STATE oracle, never an
@@ -64,7 +61,7 @@ fn zigzag_ships_on_quokka_and_gumtree_alone_no_wildcard() {
             }
             _ => assert_ne!(
                 kind, "zigzag",
-                "{} must NOT ship Background::Zigzag (item 86 is Quokka/Gumtree-only)",
+                "{} must NOT ship Background::Zigzag (it is Quokka/Gumtree-only)",
                 t.name
             ),
         }
@@ -75,22 +72,21 @@ fn zigzag_ships_on_quokka_and_gumtree_alone_no_wildcard() {
 // Zigzag field coverage and geometry laws.
 // ---------------------------------------------------------------------------
 
-// ITEM 89 — REAL-PIXEL FIELD laws for `Background::Zigzag`, the correctness
-// repair of item 86's chevron margin ground.
+// REAL-PIXEL FIELD laws for `Background::Zigzag`.
 //
-// **Defect 1 — the field did not tile.** Item 86's shader computed the
+// **Defect 1 — the field did not tile.** The shader computed the
 // chevron's centerline as `center = tri(rx) * amp` and its coverage as
 // `abs(ry - center)` — a function of the ALONG-travel coordinate alone. That
 // describes ONE continuous "V" curve embedded in the plane: the teeth repeat
 // along the travel direction, but nothing repeats the curve ACROSS it, so a
 // page margin showed a single wandering stroke with large blank areas, and a
 // taller window did not gain a second row — it only let that same lone stroke
-// travel further before running off the bottom. Item 89 folds `(ry - center)`
+// travel further before running off the bottom. The repair folds `(ry - center)`
 // through a row pitch, turning the single curve into the infinite family
 // `center + k * pitch`.
 //
 // **Defect 2 — the tiled field still did not COVER, and the law could not see
-// it.** Item 89's first cut set `pitch = period_px` (a square lattice in the
+// it.** The first tiled cut set `pitch = period_px` (a square lattice in the
 // travel frame). Row `k`'s ribbon only ever visits `ry` in
 // `[k*pitch - amp - t, k*pitch + amp + t]`, so whenever `2*amp + 2*t <
 // period_px` the field carried a hard BLANK LANE of `period_px - 2*amp - 2*t`
@@ -117,7 +113,7 @@ fn zigzag_ships_on_quokka_and_gumtree_alone_no_wildcard() {
 // mirrored color math to drift out of lockstep. `INK_FLOOR` is the per-pixel
 // total-channel difference that counts as material.
 //
-// **ITEM 100 — the teeth.** Item 89's own independent re-verify reverted the
+// **THE TEETH.** An independent re-verification reverted the
 // pitch rule to the broken `row_h = period_px` and five of the thirteen laws
 // here went red — but the HEADLINE one,
 // [`zigzag_field_covers_every_margin_cell_across_a_viewport_sweep_on_both_worlds`],
@@ -132,7 +128,7 @@ fn zigzag_ships_on_quokka_and_gumtree_alone_no_wildcard() {
 // own structural areal density rather than a bare non-zero. With the shader's
 // pitch rule reverted it now fails on 1595 blank cells.
 //
-// Item 100 also records the RESIDUAL that grid deliberately does not grade:
+// The fine grid also records the RESIDUAL it deliberately does not grade:
 // below the minimal cell, voids DO exist and
 // [`zigzag_sub_pitch_voids_stay_isolated_pockets_never_a_lane`] pins their
 // shape (isolated, never adjacent) and population rather than hiding them.
@@ -218,7 +214,7 @@ fn zigzag_worlds() -> [(&'static str, theme::Background); 2] {
 /// The DIFFERENTIAL mark field: per-pixel total-channel deviation between the
 /// world as authored and the same world with its mark coverage zeroed. See the
 /// module doc — this isolates the chevron ink from the gradient/dither exactly,
-/// with no host-side color mirror. The ONE owner of that measurement: item 86's
+/// with no host-side color mirror. The ONE owner of that measurement: the
 /// sibling module reuses it for its CONTRAST law rather than re-deriving a
 /// weaker distance-from-the-gradient-endpoints proxy.
 pub(super) fn mark_field(
@@ -235,7 +231,7 @@ pub(super) fn mark_field(
         density: 0.0,
         ..inked
     };
-    // `drift` is item 87's Waves-only phase slot — inert `0.0` for this static
+    // `drift` is the Waves-only phase slot — inert `0.0` for this static
     // ground, and structurally unable to touch Zigzag's `params` dials.
     let a = render_bg(device, queue, inked, w, h, col_left, col_w, 0.0);
     let b = render_bg(device, queue, bare, w, h, col_left, col_w, 0.0);
@@ -294,7 +290,7 @@ fn row_crossings(field: &[i32], w: u32, h: u32, x: u32, peak: i32) -> usize {
 /// ANYTHING SMALLER IS UNSATISFIABLE BY ANY SPARSE ROW FIELD — a narrower or
 /// shorter rect can lie wholly between two neighbouring ribbons no matter how
 /// perfect the coverage — so a law grading finer would be pinning noise, and a
-/// law grading coarser (item 89's 3x3, up to 116x266 px) is the slack the
+/// law grading coarser (the former 3x3 grid, up to 116x266 px) is the slack the
 /// broken pitch rule hid inside. The measured population at exactly this
 /// granularity is 4712 cells over the sweep, ZERO of them blank; at the broken
 /// pitch rule, 1595 blank.
@@ -391,9 +387,9 @@ pub(super) fn margins(w: u32, col_left: f32, col_w: f32) -> [(u32, u32); 2] {
 /// AND a local peak at least half the field's own global peak (an actual ribbon
 /// core crosses it, not a feather tail leaking in from a neighbour).
 ///
-/// **ITEM 100 — why the grid moved.** As item 89 shipped it, this law graded a
+/// **WHY THE GRID MOVED.** The first law graded a
 /// 3x3 partition of each margin: 324 cells of up to 116x266 px, each needing 1%
-/// of its own area inked. Item 89's independent re-verify reverted the shader's
+/// of its own area inked. Independent re-verification reverted the shader's
 /// pitch rule to the broken `row_h = period_px` — a field with a hard 38px lane
 /// no chevron enters — and this law STILL PASSED, at 1.43x its floor against
 /// 5.48x healthy: cells that big catch a row somewhere no matter how sparse the
@@ -478,14 +474,14 @@ fn zigzag_field_covers_every_margin_cell_across_a_viewport_sweep_on_both_worlds(
 
     // NON-VACUITY: the sweep really did grade a substantial population of
     // cells (a geometry list that silently produced no margins would pass
-    // every assertion above). Measured 4712 at item 100's derived cell — the
+    // every assertion above). Measured 4712 at the derived cell — the
     // bound is set well under it so an authored dial change may move the cell
     // size without tripping a bookkeeping assert, but a grid that collapsed
-    // back toward item 89's 324 could not survive it.
+    // back toward the coarse grid's 324 could not survive it.
     assert!(
         graded >= 2_000,
         "the viewport sweep graded only {graded} margin cells — it is not exercising \
-         the geometry axis it exists for at the granularity item 100 set"
+         the geometry axis it exists for at the required granularity"
     );
     eprintln!(
         "zigzag sweep: {graded} margin cells graded, tightest occupancy {tightest:.2}x the floor"
@@ -599,7 +595,7 @@ fn widest_blank_band(field: &[i32], w: u32, x0: u32, x1: u32, y0: u32, y1: u32, 
 ///
 /// | field | widest blank margin band |
 /// |---|---|
-/// | item 89 as it shipped in 49a84d5 (period lattice, 250/85) | 174px |
+/// | period lattice at its original dials (250/85) | 174px |
 /// | the same pitch rule at TODAY's dials (170/60) — the controlled arm | 102px |
 /// | shipped abutment rule, 170/60 | 57px (60px at real GPU pixels) |
 /// | shipped abutment rule, Quokka 100/24 | 19px |
@@ -670,7 +666,7 @@ fn widest_blank_ry_lane(field: &[i32], w: u32, h: u32, angle: f32, core: i32) ->
 /// the across-travel axis against a pitch of `2*amp + t`, so consecutive rows
 /// OVERLAP and the family covers every value of `ry`.
 ///
-/// Item 89's first cut (pitch = `period_px`) left a lane of
+/// The first tiled cut (pitch = `period_px`) left a lane of
 /// `period_px - 2*amp - 2*t` — the host mirror below reproduces it, so this
 /// law is proven capable of failing.
 #[test]
@@ -699,7 +695,7 @@ fn the_zigzag_family_leaves_no_blank_lane_across_its_travel_axis() {
     }
 }
 
-/// THE TOOTH BOUND on the no-lane guarantee (item 100) — the fixture behind
+/// THE TOOTH BOUND on the no-lane guarantee — the fixture behind
 /// the honest wording of `Background::zigzag_row_pitch_px`'s own doc comment.
 ///
 /// That comment used to claim the abutment rule leaves no blank lane "at ANY
@@ -787,7 +783,7 @@ fn the_no_lane_guarantee_is_bounded_by_the_tooth_the_viewport_can_hold() {
 }
 
 /// The sub-pitch grid the RESIDUAL is graded on: [`MIN_CELL`] wide by this
-/// tall, the granularity item 89's re-verify reported its pockets at. It is
+/// tall, the granularity the re-verification reported its pockets at. It is
 /// deliberately FINER than [`occupancy_cell_px`] on at least one axis for both
 /// worlds (Quokka's cell needs 41px of width, Gumtree's 122px of height), i.e.
 /// finer than any sparse row field can guarantee.
@@ -797,13 +793,13 @@ const SUB_PITCH_CELL_H: u32 = 100;
 /// the broken `row_h = period_px` pitch rule, 15.4% and 18.9%.
 const MAX_SUB_PITCH_VOID_FRAC: f32 = 0.08;
 
-/// THE RESIDUAL, PINNED (item 100) — what the occupancy law deliberately does
+/// THE RESIDUAL, PINNED — what the occupancy law deliberately does
 /// not claim, measured rather than left unspoken.
 ///
 /// Grade the same swept margins on a grid FINER than the field's own row pitch
 /// can fill ([`MIN_CELL`] x [`SUB_PITCH_CELL_H`]) and blank cells do appear:
 /// ~30x100px lens-shaped pockets between two neighbouring ribbons, flanked by
-/// ink on both sides. Item 89's re-verify named three of them on Gumtree
+/// ink on both sides. Re-verification found three of them on Gumtree
 /// (1200x800@m70 `x[32,64) y[300,400)`, 1400x700@m86 `x[1346,1373) y[0,100)`
 /// and `x[1373,1400) y[500,600)`); this sweep's own tiling finds 67 of 1424,
 /// the same shape at more offsets, and 3 on Quokka.
@@ -915,7 +911,7 @@ fn zigzag_sub_pitch_voids_stay_isolated_pockets_never_a_lane() {
         assert!(
             frac <= MAX_SUB_PITCH_VOID_FRAC,
             "{name}: {blank} of {total} sub-pitch cells ({:.2}%) are blank, past the \
-             {:.0}% bound item 100 pinned the residual at — the pockets stopped being a \
+             {:.0}% residual bound — the pockets stopped being a \
              residual and became the field's character",
             100.0 * frac,
             100.0 * MAX_SUB_PITCH_VOID_FRAC
@@ -979,7 +975,7 @@ fn zigzag_margin_bands_stay_even_across_the_sweep() {
     assert!(
         worst.0 <= MAX_BLANK_BAND_PX,
         "{} carries a {}px fully-blank horizontal band — past the {MAX_BLANK_BAND_PX}px \
-         evenness bound item 89's coverage repair bought",
+         evenness bound the coverage repair bought",
         worst.1,
         worst.0
     );
@@ -999,10 +995,9 @@ fn zigzag_margin_bands_stay_even_across_the_sweep() {
 /// The bands moved with the coverage repair, and the move is the honest record
 /// of its cost: the row pitch is no longer free to be as broad as the tooth
 /// wavelength (that freedom WAS the blank lane), so Gumtree reads ~5 broad rows
-/// down an ordinary window where item 89's first cut read ~3. Its BROADNESS now
+/// down an ordinary window where the first tiled cut read ~3. Its BROADNESS now
 /// lives in the tooth wavelength (170px against Quokka's 100px) and in a row
-/// pitch still 2.5x Quokka's. (The two numbers read 480px and 2.7x until item
-/// 100 — a stale record of a dial pair that never shipped.)
+/// pitch still 2.5x Quokka's.
 #[test]
 fn zigzag_reads_as_broad_rows_on_gumtree_and_a_tighter_field_on_quokka() {
     let _g = crate::testlock::serial();
@@ -1167,7 +1162,7 @@ fn zigzag_row_count_scales_with_the_canvas_height() {
             assert!(
                 b as f32 >= 1.6 * a as f32,
                 "{name}: x={x} — a canvas twice as tall shows {b} chevron rows against {a}; \
-                 a tiled field must gain rows with the height (item 86's single stroke did not)"
+                 a tiled field must gain rows with the height (the single stroke did not)"
             );
             assert!(
                 b as f32 <= 2.4 * a as f32,
@@ -1232,8 +1227,8 @@ fn zigzag_contributes_zero_ink_inside_the_writing_column_on_both_worlds() {
 
 /// DETERMINISM: two independent renders of the identical desc are byte-for-byte
 /// equal, at two canvas sizes (the field is a pure function of the pixel
-/// coordinate — no clock, no randomness, and item 87's `drift` slot is
-/// structurally unreachable from this ground). Supersedes item 86's
+/// coordinate — no clock, no randomness, and the Waves `drift` slot is
+/// structurally unreachable from this ground). Supersedes the
 /// single-size version.
 #[test]
 fn zigzag_renders_byte_identically_across_independent_draws_at_two_canvas_sizes() {
@@ -1270,7 +1265,7 @@ fn zigzag_renders_byte_identically_across_independent_draws_at_two_canvas_sizes(
 
 /// Which rule sets the field's row pitch. `Abut` is what ships (the pitch is
 /// derived from the profile, `theme::Background::zigzag_row_pitch_px`);
-/// `PeriodLattice` is item 89's FIRST cut (pitch = `period_px`), kept ONLY so
+/// `PeriodLattice` is the FIRST tiled cut (pitch = `period_px`), kept ONLY so
 /// the laws above can be proven capable of catching the defect it caused.
 #[derive(Clone, Copy, PartialEq)]
 enum PitchRule {
@@ -1319,7 +1314,7 @@ fn zigzag_coverage(x: f32, y: f32, bg: theme::Background, rule: PitchRule) -> f3
 /// the wavelength), the ribbon CORE's own across-travel sweep
 /// (`2*amp + 1.2*thickness`) is at least the row pitch (`2*amp + thickness`) —
 /// so consecutive rows always overlap and a blank lane is IMPOSSIBLE, at any
-/// dials, any angle, any viewport. Item 89's first cut satisfied this for NO
+/// dials, any angle, any viewport. The first tiled cut satisfied this for NO
 /// dial pair with `period_px > 2*amp + 2*thickness`, which is where both
 /// shipping worlds sat.
 #[test]
@@ -1364,7 +1359,7 @@ fn the_abutment_rule_forbids_a_blank_lane_at_every_dial_setting() {
     );
     assert!(
         first_cut_lanes * 3 >= checked,
-        "item 89's first cut (pitch = period_px) must leave a blank lane across a large part \
+        "the first tiled cut (pitch = period_px) must leave a blank lane across a large part \
          of the dial space ({first_cut_lanes} of {checked}) — otherwise this theorem proves \
          nothing"
     );
@@ -1536,7 +1531,7 @@ fn authored_zigzag_row_pitch_stays_fine_grained_against_a_page_margin() {
 /// can be dropped in a refactor on a machine where the GPU laws above skip: the
 /// `shader == 7u` branch must fold the ACROSS-travel coordinate through a row
 /// pitch, that pitch must be the ABUTMENT rule (not `period`), the stroke
-/// fraction must be the constant the host mirror pins, and item 86's unfolded
+/// fraction must be the constant the host mirror pins, and the unfolded
 /// distance must stay gone.
 #[test]
 fn the_wgsl_zigzag_branch_abuts_its_rows() {
@@ -1555,16 +1550,16 @@ fn the_wgsl_zigzag_branch_abuts_its_rows() {
             src.contains(needle),
             "shaders/background.wgsl lost the zigzag field fold / abutment rule (missing \
              `{needle}`) — the ground would fall back to one wandering stroke, or to rows that \
-             leave a blank lane between them (item 89)"
+             leave a blank lane between them"
         );
     }
     assert!(
         !src.contains("letd=abs(ry-center);"),
-        "shaders/background.wgsl reintroduced item 86's UNFOLDED chevron distance"
+        "shaders/background.wgsl reintroduced the UNFOLDED chevron distance"
     );
     assert!(
         !src.contains("letrow_h=period;"),
-        "shaders/background.wgsl reintroduced item 89's first-cut PERIOD lattice pitch — the \
+        "shaders/background.wgsl reintroduced the first-cut PERIOD lattice pitch — the \
          rule that left a blank lane of `period - 2*amp - 2*thickness` between rows"
     );
     // The host mirror's own constant must be the shader's.
@@ -1637,11 +1632,11 @@ fn quokka_alone_uses_horizontal_filled_zigzag_bands() {
 // REAL-PIXEL LAWS
 // ---------------------------------------------------------------------------
 
-// SUPERSEDED BY ITEM 89: this file's original column-exclusion law lived here.
+// SUPERSEDED: this file's original column-exclusion law lived here.
 // Its negative half (nothing paints inside the page column) was sound; its
 // POSITIVE half was `margin_has_mark = true` if ANY single pixel of a strided
 // margin scan differed from the two gradient endpoints — which one wandering
-// chevron stroke satisfies trivially, and which is exactly why item 86's
+// chevron stroke satisfies trivially, and which is exactly why the
 // non-tiling field (60-95% of a tall margin blank) shipped green. Both halves
 // now live, strengthened and differential, in `zigzag_ground.rs`
 // (`zigzag_contributes_zero_ink_inside_the_writing_column_on_both_worlds` +
@@ -1652,7 +1647,7 @@ fn quokka_alone_uses_horizontal_filled_zigzag_bands() {
 /// geometry, Quokka's higher-`density` chevron field lays down BOLDER ink than
 /// Gumtree's lower-`density` one — the real-GPU-output confirmation of the
 /// data-level `density` inequality above (never trusted from the struct
-/// literal alone — the Wagtail lesson). Measured through item 89's
+/// literal alone — the Wagtail lesson). Measured through the
 /// DIFFERENTIAL oracle (`zigzag_ground::mark_field`: the world rendered
 /// as authored minus the same world with its mark coverage zeroed), so the
 /// number really is the MARK's own peak deviation. The original form of this
@@ -1703,7 +1698,7 @@ fn quokka_zigzag_reads_higher_contrast_than_gumtrees_over_real_pixels() {
 }
 
 /// THE VISIBILITY FLOOR: Gumtree remains a quiet ground, but its mark cannot
-/// return to the imperceptible pre-item-108 blend. This is deliberately a
+/// return to the former imperceptible blend. This is deliberately a
 /// differential real-pixel floor (the same world with density zeroed is
 /// subtracted), across the narrow and generous page geometries represented in
 /// the review dashboard. It pins authored visibility without changing any
