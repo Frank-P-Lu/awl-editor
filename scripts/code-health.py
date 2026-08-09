@@ -764,10 +764,16 @@ def native_gate_audit(script: str, ci: str) -> list[str]:
     required_script_lines = {
         'canary_command=(cargo test --test native_gate_canary)':
             "native-gate-audit: missing named integration-only canary",
-        'mac_command=(env AWL_CONVENTION_FORCE=mac cargo test)':
-            "native-gate-audit: native suite command for mac must be unfiltered",
-        'linux_command=(env AWL_CONVENTION_FORCE=linux cargo test)':
-            "native-gate-audit: missing Linux full-suite convention",
+        'cargo test --no-run --message-format=json >"$cargo_json"':
+            "native-gate-audit: native suite artifacts must come from Cargo JSON",
+        'python3 "$gate_root/scripts/native-test-shards.py" verify':
+            "native-gate-audit: sharded binary coverage must prove its own completeness",
+        'cargo test "${integration_args[@]}"':
+            "native-gate-audit: sharding the binary must preserve every integration target",
+        'gate_launch mac_pid tracked gate_run_convention mac gate_run_native_suite mac':
+            "native-gate-audit: missing mac sharded full-suite convention",
+        'gate_launch linux_pid tracked gate_run_convention linux gate_run_native_suite linux':
+            "native-gate-audit: missing Linux sharded full-suite convention",
         'export RUST_TEST_THREADS':
             "native-gate-audit: gate must bound per-convention test-thread concurrency",
         'native-gate-env cpus=':
@@ -809,7 +815,7 @@ def native_gate_audit(script: str, ci: str) -> list[str]:
             "native-gate-audit: gate must await the Linux convention",
         'if (( mac_status != 0 || linux_status != 0 )); then':
             "native-gate-audit: either convention failure must suppress the receipt",
-        "printf 'native-gate-receipt commit=%s conventions=mac,linux scope=all-targets\\n' \"$end_commit\"":
+        "printf 'native-gate-receipt commit=%s conventions=mac,linux scope=all-targets unit_tests=%s unit_shards=%s integration_targets=%s\\n'":
             "native-gate-audit: receipt must name the exact commit, both conventions, and all-target scope",
     }
     for required, failure in required_script_lines.items():
@@ -817,8 +823,8 @@ def native_gate_audit(script: str, ci: str) -> list[str]:
             failures.append(failure)
 
     canary = script.find('"${canary_command[@]}"')
-    mac = script.find('"${mac_command[@]}"')
-    linux = script.find('"${linux_command[@]}"')
+    mac = script.find("gate_launch mac_pid tracked gate_run_convention mac gate_run_native_suite mac")
+    linux = script.find("gate_launch linux_pid tracked gate_run_convention linux gate_run_native_suite linux")
     receipt = script.find("native-gate-receipt")
     mac_wait = script.find('wait "$mac_pid"')
     linux_wait = script.find('wait "$linux_pid"')
@@ -1582,11 +1588,12 @@ def self_test() -> int:
             globals()["ROOT"] = root
     script = '''if (( $# != 0 )); then
 canary_command=(cargo test --test native_gate_canary)
-mac_command=(env AWL_CONVENTION_FORCE=mac cargo test)
-linux_command=(env AWL_CONVENTION_FORCE=linux cargo test)
 start_commit="$(git rev-parse HEAD)"
 export RUST_TEST_THREADS
 printf 'native-gate-env cpus=%s\\n' "$gate_cpus"
+cargo test --no-run --message-format=json >"$cargo_json"
+python3 "$gate_root/scripts/native-test-shards.py" verify
+cargo test "${integration_args[@]}"
 ps -A -o pid=,pgid=,etime=,time=,comm=
 ps -A -o pid=,ppid=,pgid=,etime=,time=,rss=,stat=,comm=
 gate_cpu_sample >"$gate_cpu_prev"
@@ -1597,10 +1604,8 @@ printf 'native-gate-phase label=%s event=%s elapsed_seconds=%s %s\\n' "$1" "$2" 
 kill "-$signal" "-$pgid"
 gate_launch budget_pid untracked gate_sleep_then "$gate_budget_seconds" gate_budget_expired
 "${canary_command[@]}"
-"${mac_command[@]}" &
-mac_pid=$!
-"${linux_command[@]}" &
-linux_pid=$!
+gate_launch mac_pid tracked gate_run_convention mac gate_run_native_suite mac
+gate_launch linux_pid tracked gate_run_convention linux gate_run_native_suite linux
 set +e
 wait "$mac_pid"
 mac_status=$?
@@ -1614,7 +1619,7 @@ if (( mac_status != 0 || linux_status != 0 )); then
   exit 1
 fi
 end_commit="$(git rev-parse HEAD)"
-printf 'native-gate-receipt commit=%s conventions=mac,linux scope=all-targets\\n' "$end_commit"
+printf 'native-gate-receipt commit=%s conventions=mac,linux scope=all-targets unit_tests=%s unit_shards=%s integration_targets=%s\\n' "$end_commit"
 '''
     ci = '''  linux:
     steps:
@@ -1623,10 +1628,14 @@ printf 'native-gate-receipt commit=%s conventions=mac,linux scope=all-targets\\n
     if native_gate_audit(script, ci):
         raise AssertionError("canonical native-gate shape must pass its external audit")
     mutations = {
-        "--bin": (script.replace("env AWL_CONVENTION_FORCE=mac cargo test", "cargo test --bin awl"), ci,
-                   "native suite command for mac must be unfiltered"),
-        "omitted Linux convention": (script.replace("linux_command=(env AWL_CONVENTION_FORCE=linux cargo test)\n", ""), ci,
-                                       "missing Linux full-suite convention"),
+        "unproved shard partition": (
+            script.replace('python3 "$gate_root/scripts/native-test-shards.py" verify\n', ""),
+            ci,
+            "sharded binary coverage must prove its own completeness"),
+        "omitted Linux convention": (
+            script.replace("gate_launch linux_pid tracked gate_run_convention linux gate_run_native_suite linux\n", ""),
+            ci,
+            "missing Linux sharded full-suite convention"),
         "skipped canary": (script.replace("canary_command=(cargo test --test native_gate_canary)\n", ""), ci,
                            "missing named integration-only canary"),
         "stale SHA": (script.replace('end_commit="$(git rev-parse HEAD)"', 'end_commit="$start_commit"'), ci,
@@ -1645,7 +1654,9 @@ printf 'native-gate-receipt commit=%s conventions=mac,linux scope=all-targets\\n
                                    "an exhausted budget must suppress the receipt"),
         "bound applied after launch": (
             script.replace("export RUST_TEST_THREADS\n", "")
-                  .replace('linux_pid=$!\n', 'linux_pid=$!\nexport RUST_TEST_THREADS\n'),
+                  .replace(
+                      'gate_launch linux_pid tracked gate_run_convention linux gate_run_native_suite linux\n',
+                      'gate_launch linux_pid tracked gate_run_convention linux gate_run_native_suite linux\nexport RUST_TEST_THREADS\n'),
             ci,
             "thread bound and the machine receipt must precede both suites"),
         # The 2026-08-02 repairs. Each mutation is the shape the defect actually
@@ -1656,8 +1667,9 @@ printf 'native-gate-receipt commit=%s conventions=mac,linux scope=all-targets\\n
             "must honour an absolute caller deadline"),
         "budget armed after the canary": (
             script.replace('gate_launch budget_pid untracked gate_sleep_then "$gate_budget_seconds" gate_budget_expired\n', "")
-                  .replace('linux_pid=$!\n',
-                           'linux_pid=$!\ngate_launch budget_pid untracked gate_sleep_then "$gate_budget_seconds" gate_budget_expired\n'),
+                  .replace(
+                      'gate_launch linux_pid tracked gate_run_convention linux gate_run_native_suite linux\n',
+                      'gate_launch linux_pid tracked gate_run_convention linux gate_run_native_suite linux\ngate_launch budget_pid untracked gate_sleep_then "$gate_budget_seconds" gate_budget_expired\n'),
             ci,
             "budget must be armed before the canary"),
         "kills lone pids": (
