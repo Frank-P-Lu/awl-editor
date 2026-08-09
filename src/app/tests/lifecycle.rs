@@ -138,7 +138,7 @@ fn a_band_ease_started_inside_prepare_keeps_the_loop_hot_by_itself() {
         keep_gpu_loop_hot(false, true, true),
         "a presented frame whose `prepare` STARTED a selection-band ease must \
          schedule the follow-up frame — `advance` ran before `prepare` and \
-         cannot have seen it (item 211)"
+         cannot have seen it"
     );
     for stepped in [false, true] {
         for band in [false, true] {

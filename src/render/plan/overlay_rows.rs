@@ -6,7 +6,7 @@
 //! begins. Both card families are planned by the same code — the FLAT window
 //! (`items[top_idx .. top_idx + visible]`, one display line each) and the GROUPED
 //! window (an explicit [`PlanLine`] sequence whose section headers push the item
-//! rows down) — so "which display line is item 3" has exactly one answer.
+//! rows down) — so each logical item has exactly one display line.
 
 use super::PlannedHeader;
 use super::row_extent::{RowExtent, RowSpan, apply_row_extent};
