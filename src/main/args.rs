@@ -931,10 +931,12 @@ pub(crate) fn parse_args() -> Result<Mode> {
     })
 }
 
-/// Resolve the DEFAULT FOLDER (the first-run launch fallback ONLY,
-/// never the active folder once running): explicit `--default-folder`, else
-/// `~/notes` (`$HOME/notes`), else `./notes` if HOME is unset. The directory is
-/// created lazily on first use.
+/// Resolve the DEFAULT-FOLDER CANDIDATE: explicit `--default-folder`, else
+/// `~/notes` (`$HOME/notes`), else `./notes` if HOME is unset.
+///
+/// The candidate is a first-run launch fallback only when the CLI or config
+/// explicitly supplied the setting. An unconfigured launch uses awl's data
+/// root; `run::location::resolve_launch_context` owns and tests that gate.
 pub(crate) fn resolve_default_folder(default_folder: &Option<PathBuf>) -> PathBuf {
     if let Some(n) = default_folder {
         return n.clone();

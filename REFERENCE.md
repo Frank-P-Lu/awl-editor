@@ -428,13 +428,13 @@ At most one capture mode per run: awl refuses a second rather than silently pref
 | `--capture-dpi` | `N` | renderer scale factor (default 1.0); WxH at dpi N == (W/N)x(H/N) logical retina window |
 | `--measure` | `N` | page-mode column width in chars (default 70 for prose, 100 for code; implies --page on) |
 | `--page` | `on\|off` | page mode: centered column (on, default) vs edge-to-edge (off) |
-| `--debug` | — | DEBUG: draw the dim top-left dev panel — frametime/zoom/viewport/cursor/theme/md+syn (OFF by default; frametime is a fixed placeholder in a headless capture) |
+| `--debug` | — | DEBUG: draw the dim top-right dev panel — frametime/zoom/viewport/cursor/theme/md+syn (OFF by default; frametime is a fixed placeholder in a headless capture) |
 | `--hud` | — | summon the HELD stats HUD (live: hold Option-Cmd-I; clock/file-date fields are fixed placeholders in a capture) |
 | `--menu-bar` | — | show the web/Linux MENU BAR (default on web/Linux, off on macOS which has the native bar); --menu-open N drops menu N's dropdown |
 | `--peek` | — | summon the HOLD-⌘ shortcut peek (live: hold the convention's bare arming modifier — ⌘ on Mac, Ctrl on Linux — ~600ms; a capture shows the curated starter six) |
 | `--streaks` | — | summon the WRITING STREAKS card (live: palette "Writing streaks"; a capture shows a fixed synthetic year + streak numbers) |
 | `--whichkey` | — | summon the WHICH-KEY panel: the C-x prefix's follow-up keys (live: press C-x and pause ~500ms) |
-| `--default-folder` | `DIR` | fallback active folder for a first launch with nothing remembered (default ~/notes) |
+| `--default-folder` | `DIR` | set the fallback active folder for a first launch with nothing remembered |
 | `--config` | `PATH` | load settings from PATH (default ~/.config/awl/config.toml) |
 | `--wait` | — | windowed editor only: single-instance daemon — hand `file` to an already-running awl and block until "Finish file" finishes it (EDITOR=awl --wait for git) |
 | `--keys` | `"SPEC"` | replay emacs chords (e.g. "C-n C-n M->") then capture |

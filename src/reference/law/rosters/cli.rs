@@ -150,23 +150,10 @@ fn every_default_a_flag_states_matches_the_owner_of_that_default() {
             f.summary_text()
         );
     }
-    // The two PATH claims, from the resolvers that produce them rather than from
-    // a retyped path. Both are `$HOME`-derived, so the law states its own
+    // The config PATH claim, from the resolver that produces it rather than
+    // from a retyped path. It is `$HOME`-derived, so the law states its own
     // precondition instead of asserting against an absent variable.
     if let Some(home) = home {
-        let folder = crate::args::resolve_default_folder(&None);
-        assert_eq!(
-            folder,
-            home.join("notes"),
-            "`resolve_default_folder` no longer answers ~/notes"
-        );
-        assert!(
-            lookup("--default-folder")
-                .expect("--default-folder is a flag")
-                .summary_text()
-                .contains("default ~/notes"),
-            "--default-folder's description stopped naming the default the resolver returns"
-        );
         // `config_path` reads `$AWL_CONFIG` and `$XDG_CONFIG_HOME` first, so the
         // documented path is only the HOME branch's answer — assert against that
         // branch's construction rather than calling the resolver under whatever
@@ -184,6 +171,51 @@ fn every_default_a_flag_states_matches_the_owner_of_that_default() {
             "the documented config path shape changed"
         );
     }
+}
+
+/// `--default-folder` is an opt-in SETTING, not awl's implicit first-launch
+/// destination. `resolve_default_folder(None)` still produces a candidate path
+/// for shared argument plumbing, but `run::location::resolve_launch_context`
+/// admits it only when the CLI/config key was actually supplied; its two-sided
+/// launch-context law owns that behavior. The public help must not promote the
+/// unused candidate into a shipped default again.
+#[test]
+fn default_folder_help_does_not_invent_an_implicit_notes_folder() {
+    let text = lookup("--default-folder")
+        .expect("--default-folder is a flag")
+        .summary_text();
+    assert!(
+        text.contains("set the fallback active folder"),
+        "the description must say this flag sets the fallback: {text}"
+    );
+    assert!(
+        !text.contains("default ~/notes"),
+        "an unconfigured first launch uses awl's data root, not ~/notes: {text}"
+    );
+}
+
+/// The debug panel's position is a generated-reference claim, so checking only
+/// that the reference regenerates faithfully would preserve a lie forever.
+/// Pin the prose to the production call site: `prepare_debug` must pass the
+/// top-right anchor, and the flag description must say the same thing.
+#[test]
+fn debug_help_names_the_production_panels_anchor() {
+    let text = lookup("--debug")
+        .expect("--debug is a flag")
+        .summary_text();
+    assert!(
+        text.contains("top-right dev panel"),
+        "--debug must name the panel's production anchor: {text}"
+    );
+    let production = include_str!("../../../render/chrome/debug_text.rs");
+    let body = production
+        .split("fn prepare_debug")
+        .nth(1)
+        .expect("debug_text.rs carries prepare_debug");
+    assert!(
+        body.contains("CornerAnchor::TopRight"),
+        "prepare_debug no longer routes through the top-right corner anchor"
+    );
 }
 
 /// `--measure`'s description claims it IMPLIES page mode. Both halves of the

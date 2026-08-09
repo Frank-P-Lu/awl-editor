@@ -132,7 +132,7 @@ flag_roster! {
         "page mode: centered column (on, default) vs edge-to-edge (off)";
     Debug: &["--debug"], Options, Shown, &[],
         concat!(
-            "DEBUG: draw the dim top-left dev panel — frametime/zoom/viewport/cursor/theme/",
+            "DEBUG: draw the dim top-right dev panel — frametime/zoom/viewport/cursor/theme/",
             "md+syn (OFF by default; frametime is a fixed placeholder in a headless capture)",
         );
     Hud: &["--hud"], Options, Shown, &[],
@@ -163,7 +163,7 @@ flag_roster! {
         );
     DefaultFolder: &["--default-folder"], Options, Shown,
         &[Operand::req("DIR", "requires a directory")],
-        "fallback active folder for a first launch with nothing remembered (default ~/notes)";
+        "set the fallback active folder for a first launch with nothing remembered";
     Config: &["--config"], Options, Shown,
         &[Operand::req("PATH", "requires a path")],
         "load settings from PATH (default ~/.config/awl/config.toml)";
