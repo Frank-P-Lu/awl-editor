@@ -261,9 +261,8 @@ list instead of re-checking the tree.** Every entry in the previous list was
 verified landed via `git log --grep` before this re-derivation (292/293/299/303,
 294/298, 305, 291, 296+300, 273's residuals, 302, 227, 131e+303 — all merged).
 
-1. **369** — finish the theme-data-model cleanup already in flight.
-2. **174** — multi-round refactor, continues by slices.
-3. **🔵 HUMAN / LIVE, none of which a lane can close** — see BLOCKED and OWED above. **231**
+1. **174** — finish the pure render-planning owners already in flight.
+2. **🔵 HUMAN / LIVE, none of which a lane can close** — see BLOCKED and OWED above. **231**
    needs the approved macOS guest-VM spend; **251** needs a human at a Linux desktop with
    Orca. **327** and the landed taste calls
    (338/342/345/346, carried in OWED) close on the user's eye.
@@ -293,24 +292,6 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
      containment laws over staggered rows (Saltpan publishes `x` left of `band_x`); the first
      slice's bench delta read as contention noise, so confirmation is owed on a quiet host.
      **Routing:** deep owner with a production-tier outcome audit.
-
-369. 🟡 **IN PROGRESS — codex (gpt-5.6-sol high), branch
-     `codex/item-369-theme-data-model`. Clean the theme data model before the custom-world composer makes it a public
-     contract.** Census every `Theme`/`RenderCaps` capability × adopting worlds; zero/one
-     adopter is a classification prompt, not an auto-delete (Rules, Diagonal, chamfer,
-     ambient stars, background kinds stay data at one wearer; tiny corrective geometry and
-     no-variation fields go to the shared renderer owner). Audit `selection_ui` (delete only
-     if the derived answer covers every consumer), fold lifts, Firetail `icon_ground`,
-     Cassowary `pane_split`, zero-variation frost/motion fields. `spell_underline_gap` is
-     resolved (355) — excluded. Replace Wagtail-shaped switches with one general arbitrary
-     TWO-COLOUR resolver (palette-role swap, not `1 - dst`; inverse selection and inverse
-     block caret independently selectable); all colours in the token section; the resolved
-     renderer has no world-name branches. **Done:** a roster law reports every zero/single-
-     adopter capability by name and fails on an unclassified new field; each removal/
-     promotion has a consumer census + mutation-proven law; the two-colour path proven with
-     a non-black/white pair; worlds pixel-identical except separately approved corrections;
-     THEMES.md + docs/render.md updated. **Dependency:** before the composer. **Routing:**
-     deep tier.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
