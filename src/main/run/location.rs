@@ -1,5 +1,5 @@
 //! WHERE AM I WORKING — the launch root, the workspace scope, the capture
-//! sidecar's project block, and (queue item 189) `ReplaySession`'s own
+//! sidecar's project block, and `ReplaySession`'s own
 //! re-scope on a Switch-project accept. One owner each, lifted out of
 //! `run.rs` whole — this module IS the location-derivation owner, so a
 //! derivation belongs here even when the struct it mutates is declared in
@@ -34,7 +34,7 @@ pub(crate) fn resolve_root(root: &Option<PathBuf>, file: &Option<PathBuf>) -> Pa
     crate::fs::current_dir().unwrap_or_else(|_| PathBuf::from("."))
 }
 
-/// THE ONE launch-precedence law (item 76), for the WINDOWED launch door
+/// THE ONE launch-precedence law for the WINDOWED launch door
 /// only (`Mode::Windowed` in [`run`]):
 ///
 /// 1. **EXPLICIT TARGET WINS** — `--root`, or a file/dir argument (`awl .`
@@ -77,10 +77,10 @@ pub(crate) fn resolve_launch_context(
 /// Project, ..)` — the same effect that reaches `App::switch_project` live).
 /// Those were two hand-rolled sites, and the second re-derived `name`/`branch`/
 /// `dirty` from the new root while carrying the OLD root's `workspace` forward:
-/// item 180's defect exactly, in the harness's own copy of the rule, still live
-/// after item 180 fixed the App. A capture of a Switch-project therefore
+/// a stale workspace defect exactly, in the harness's own copy of the rule. A
+/// capture of a Switch-project therefore
 /// reported a workspace the running editor no longer had — an oracle that lies
-/// about the very transition it is asked to witness (queue item 183).
+/// about the very transition it is asked to witness.
 ///
 /// One builder, both sites. `workspace` is the ALREADY-FOLDED flag-over-config
 /// value (`main/args.rs`), matching what `App` folds for itself; the fallback to
@@ -114,12 +114,12 @@ pub(crate) fn resolve_workspace(workspace: &Option<PathBuf>, root: &std::path::P
 }
 
 impl<'a> ReplaySession<'a> {
-    /// THE ONE RE-SCOPING OWNER (queue item 189) — re-derive `root`,
+    /// THE ONE RE-SCOPING OWNER — re-derive `root`,
     /// `workspace`, and the file `corpus` for a NEW project root, the
     /// session's mirror of the live `App::resync_project_location`
     /// (`app/files/open.rs`) and for the identical reason: before this fn
     /// existed, a Switch-project accept re-derived the SIDECAR's project
-    /// block through [`project_info`] (item 183) but left these three
+    /// block through [`project_info`] but left these three
     /// fields fixed at their launch values, so a chord applied after the
     /// accept — a Cmd-O opening Goto against `corpus`, a Browse summon
     /// against `root`/`workspace` — silently kept testing the OLD tree.
@@ -132,7 +132,7 @@ impl<'a> ReplaySession<'a> {
     /// the NEW root: an explicit `--workspace` stays pinned across the
     /// switch; an unset one re-derives the new root's parent, covering both
     /// the same-parent coincidence and the no-parent (filesystem-root) edge
-    /// item 180 named, rather than carrying the OLD resolved value forward.
+    /// stale-workspace defect, rather than carrying the OLD resolved value forward.
     pub(super) fn resync_project_location(&mut self, new_root: PathBuf) {
         self.corpus = crate::index::build_index(&new_root);
         self.workspace = resolve_workspace(&self.workspace_flag, &new_root);
@@ -156,7 +156,7 @@ pub(crate) fn launch_windowed(
     wait: bool,
     live: Option<crate::probe::LiveScript>,
 ) -> anyhow::Result<()> {
-    // THE ONE LAUNCH-PRECEDENCE LAW (item 76): explicit --root/file wins;
+    // THE ONE LAUNCH-PRECEDENCE LAW: explicit --root/file wins;
     // else a bare launch restores the remembered active folder (the
     // session's one owner, native + kill-switch gated); else (first run,
     // or the switch is off) the configured default folder.
@@ -181,7 +181,7 @@ pub(crate) fn launch_windowed(
         &default_folder_resolved,
         default_folder_configured,
     );
-    // THE DOCUMENT HALF OF THE SAME LAW (item 24): a launch that took
+    // THE DOCUMENT HALF OF THE SAME LAW: a launch that took
     // branch 3 above — nothing asked for, nothing remembered, never
     // welcomed — opens one real Markdown file in that folder instead of
     // an empty scratch buffer. `crate::firstrun` seeds it write-if-
