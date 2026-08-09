@@ -332,13 +332,7 @@ fn rich_styles_are_proven_by_their_emitted_content_stream_operators() {
     );
 }
 
-#[test]
-fn manifest_roster_and_actual_page_text_cover_every_model_element() {
-    let (markdown, bytes) = rich_bytes();
-    let doc = model::parse(&markdown);
-    let pdf = Pdf::parse(&bytes);
-    let metadata_id = reference(pdf.object(1).text(), "/Metadata ");
-    let metadata = std::str::from_utf8(pdf.object(metadata_id).stream().unwrap()).unwrap();
+fn assert_manifest(metadata: &str, doc: &model::Document) {
     let expected = expected_kinds(&doc);
     let actual = manifest_elements(metadata);
     assert_eq!(
@@ -414,6 +408,16 @@ fn manifest_roster_and_actual_page_text_cover_every_model_element() {
             .all(|text| *text != "excluded"),
         "frontmatter never enters the manifest"
     );
+}
+
+#[test]
+fn manifest_roster_and_actual_page_text_cover_every_model_element() {
+    let (markdown, bytes) = rich_bytes();
+    let doc = model::parse(&markdown);
+    let pdf = Pdf::parse(&bytes);
+    let metadata_id = reference(pdf.object(1).text(), "/Metadata ");
+    let metadata = std::str::from_utf8(pdf.object(metadata_id).stream().unwrap()).unwrap();
+    assert_manifest(metadata, &doc);
 
     let page_text = recover_page_text(&pdf).join("");
     let fragments = text_fragments(&doc);
