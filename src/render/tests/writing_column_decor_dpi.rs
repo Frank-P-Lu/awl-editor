@@ -64,7 +64,7 @@ const AUTHORED_SPELL_THICKNESS: f32 = 3.6;
 /// chrome constant — which is exactly why no declaration sweep reached it while
 /// the three shape terms above were being repaired, and why the amplitude and
 /// the gap it is measured from could end up on different pipelines.
-const AUTHORED_SPELL_GAP: f32 = 1.0;
+const AUTHORED_SPELL_GAP: f32 = -1.0;
 /// The nit underline's own gap, the same quantity for the straight muted line.
 const AUTHORED_NIT_GAP: f32 = 1.0;
 /// The resting block caret's corner radius, and the travelling streak's. ⚠️ NOT

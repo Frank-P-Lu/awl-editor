@@ -613,10 +613,9 @@ fn spell_squiggle_thickens_at_default_zoom_matching_the_old_200pct_look() {
 /// underline, which shares the exact same row geometry (`row_band_for`) but
 /// rides its OWN, UNCHANGED `cell_bottom + 1.0*zoom` formula (see
 /// `render::rects`'s nit-underline builder). On a DEFAULT-dial world
-/// (`RenderCaps::spell_underline_gap == SPELL_UNDERLINE_GAP_DEFAULT == 1.0`)
-/// the two underlines must land at the EXACT SAME y; on Bilby's tighter dial
-/// the squiggle must sit measurably HIGHER (closer to the baseline) by
-/// exactly the dial's 2px delta at zoom 1.0 — proof the per-world offset is
+/// (`RenderCaps::spell_underline_gap == SPELL_UNDERLINE_GAP_DEFAULT == -1.0`)
+/// the spelling band must sit 2px higher; Bilby's tighter dial remains another
+/// 2px higher — proof the per-world offset is
 /// live DATA driving real geometry, not a comment.
 #[test]
 fn spell_squiggle_baseline_dial_pulls_bilby_tighter_than_the_shared_default() {
@@ -651,9 +650,8 @@ fn spell_squiggle_baseline_dial_pulls_bilby_tighter_than_the_shared_default() {
         "one nit + one squiggle on line0"
     );
     assert!(
-        (n_ctrl[0].y - s_ctrl[0].y).abs() < 0.01,
-        "on the DEFAULT dial the squiggle must sit at the SAME y as the nit \
-         underline (both cell_bottom + 1.0*zoom): nit y={}, squiggle y={}",
+        ((n_ctrl[0].y - s_ctrl[0].y) - 2.0).abs() < 0.01,
+        "the raised DEFAULT spelling band must sit 2px above the unchanged nit: nit y={}, squiggle y={}",
         n_ctrl[0].y,
         s_ctrl[0].y
     );
@@ -671,9 +669,9 @@ fn spell_squiggle_baseline_dial_pulls_bilby_tighter_than_the_shared_default() {
     );
     let delta = n_bilby[0].y - s_bilby[0].y;
     assert!(
-        (delta - 2.0).abs() < 0.05,
-        "Bilby's squiggle must sit exactly 2px ABOVE the nit underline's y \
-         (the dial's delta at zoom 1.0) — nit y={}, squiggle y={}, delta={delta}",
+        (delta - 4.0).abs() < 0.05,
+        "Bilby's preserved tighter dial must sit exactly 4px ABOVE the unchanged nit \
+         after the shared 2px raise — nit y={}, squiggle y={}, delta={delta}",
         n_bilby[0].y,
         s_bilby[0].y
     );
@@ -693,8 +691,8 @@ fn spell_squiggle_baseline_dial_pulls_bilby_tighter_than_the_shared_default() {
             t.name
         );
         assert!(
-            (n[0].y - s[0].y).abs() < 0.01,
-            "{}: not Bilby, so the squiggle must sit at the SAME y as the nit \
+            ((n[0].y - s[0].y) - 2.0).abs() < 0.01,
+            "{}: the shared spelling band must sit 2px above the unchanged nit \
              underline (nit y={}, squiggle y={})",
             t.name,
             n[0].y,
@@ -1040,9 +1038,8 @@ fn revealed_via_selection_link_destination_nit_dropped_label_nit_kept() {
     );
 }
 
-/// SQUIGGLE PHASE: the wave BEGINS AT ITS TOP (crest) under the word's
-/// FIRST glyph — a cosine start (`-cos`), not the old sine zero-crossing that
-/// dived DOWN first. This is a shader-level fact (the `wave_y` phase in
+/// SQUIGGLE PHASE: after leaving the tapered centreline, the wave first travels
+/// toward the glyphs. This is a shader-level fact (the `wave_y` phase in
 /// `spellunderline.wgsl`), so it can only be pinned in real pixels: render a
 /// flagged word and diff it against the UNflagged frame (identical text, so the
 /// squiggle ink is the ONLY difference), then measure the ink's vertical CENTROID
@@ -1051,11 +1048,11 @@ fn revealed_via_selection_link_destination_nit_dropped_label_nit_kept() {
 /// glyphs); the retired sine phase put it clearly BELOW — so the `< center` margin
 /// below is exactly the phase-pinning assertion, and it FAILS on the old shader.
 #[test]
-fn spell_squiggle_wave_begins_at_its_crest_under_the_first_glyph() {
+fn spell_squiggle_wave_leaves_the_centerline_toward_the_glyphs() {
     let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!(
-            "skipping spell_squiggle_wave_begins_at_its_crest_under_the_first_glyph: no wgpu adapter"
+            "skipping spell_squiggle_wave_leaves_the_centerline_toward_the_glyphs: no wgpu adapter"
         );
         return;
     };
@@ -1086,9 +1083,8 @@ fn spell_squiggle_wave_begins_at_its_crest_under_the_first_glyph() {
     p.prepare(&device, &queue, w, h).unwrap();
     let b = pixeldiff::render_frame(&mut p, &device, &queue, w, h);
 
-    // The wave band's vertical center, and a horizontal window covering the FIRST
-    // QUARTER-period after the word's left edge (x0 == s.x): where a crest-start
-    // (`-cos`) wave rides the TOP half and a sine-start wave the BOTTOM half.
+    // The wave band's vertical center, and a horizontal window covering the first
+    // quarter-period after the word's left edge: the tapered cosine lobe rides top.
     let cy = (s.y + s.h * 0.5) as f64;
     let x_lo = s.x.round() as i64;
     let x_hi = (s.x + s.period * 0.25).round() as i64;
@@ -1116,12 +1112,11 @@ fn spell_squiggle_wave_begins_at_its_crest_under_the_first_glyph() {
         "the squiggle paints ink under the first glyph: only {n} px"
     );
     let centroid_y = sum_y / n;
-    // CREST-START: the ink's centroid sits ABOVE the band center by a clear
-    // fraction of the amplitude. The old sine phase put it the SAME fraction
-    // BELOW center — this margin is what fails on the retired shader.
+    // The first lobe must sit above the centerline; its endpoint itself remains
+    // centered and is graded by the shader enrollment law.
     assert!(
-        centroid_y < cy - s.amp as f64 * 0.2,
-        "the wave begins at its TOP (crest) under the first glyph: \
+        centroid_y < cy,
+        "the tapered wave must leave its centerline toward the glyphs: \
          ink centroid_y={centroid_y:.1} must be above band center={cy:.1} (amp={})",
         s.amp,
     );

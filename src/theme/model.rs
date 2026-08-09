@@ -434,7 +434,7 @@ pub struct RenderCaps {
     pub card_shape: CardShape,
 }
 
-pub const SPELL_UNDERLINE_GAP_DEFAULT: crate::render::Logical = crate::render::Logical(1.0);
+pub const SPELL_UNDERLINE_GAP_DEFAULT: crate::render::Logical = crate::render::Logical(-1.0);
 
 /// Bilby's tighter dial, two logical px in from the shared default — the world
 /// whose report was that the squiggle floated too far below the baseline. Named

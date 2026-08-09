@@ -6,11 +6,9 @@
 // (taken about the band's vertical center) and shades a soft, ~`thickness`-wide
 // antialiased stroke. Drawn UNDER the text so glyphs stay crisp on top.
 //
-// PHASE: the wave BEGINS AT ITS TOP under the word's first glyph. `x0`
-// is the band's left edge (the first glyph), so at `px.x == x0` the phase is 0 and
-// `-cos(0) == -1` puts the curve at `center.y - amp` — the crest (top, since y is
-// screen-DOWN). A plain `sin` would start at the vertical center (a zero-crossing)
-// and dive DOWN first; the cosine start lands a crest right under the first letter.
+// The cosine phase remains anchored to the first glyph, while its amplitude
+// tapers from the centreline over the nearest end half-cycle. Thus a spelling
+// mark begins and ends at the centreline instead of cutting through a crest.
 //
 // Coordinates are in PIXELS (top-left origin). `viewport` maps pixel space to
 // clip space ([-1,1], y-up) in the vertex stage, identical to selection.wgsl.
@@ -98,28 +96,50 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     // soft edge at each end so it doesn't hard-cut mid-crest).
     let left = in.center.x - in.hsize.x;
     let right = in.center.x + in.hsize.x;
-    let phase = (in.px.x - in.x0) * (2.0 * PI / in.period);
+    let curve_x = clamp(in.px.x, left, right);
+    let phase = (curve_x - in.x0) * (2.0 * PI / in.period);
     // Curve height about the band's vertical center. `-cos` so the wave BEGINS at
     // its TOP (crest) under the first glyph (phase 0 → center.y - amp); see the
     // header note.
-    let wave_y = in.center.y - in.amp * cos(phase);
+    var taper = 1.0;
+    var taper_slope = 0.0;
+    if (in.amp > 0.0) {
+        let half_cycle = in.period * 0.5;
+        let from_left = curve_x - left;
+        let from_right = right - curve_x;
+        taper = clamp(min(from_left, from_right) / half_cycle, 0.0, 1.0);
+        if (from_left < half_cycle && from_left <= from_right) {
+            taper_slope = 1.0 / half_cycle;
+        } else if (from_right < half_cycle) {
+            taper_slope = -1.0 / half_cycle;
+        }
+    }
+    let wave_y = in.center.y - in.amp * taper * cos(phase);
 
     // Distance from this fragment to the curve. We approximate the true
     // perpendicular distance by dividing the vertical gap by the local slope
     // magnitude sqrt(1 + dy/dx^2), which keeps the stroke an even width even
     // on the steep parts of the wave (a plain vertical |dy| would fatten the
     // flats and thin the slopes). Slope of `-amp*cos(phase)` is `+amp*(…)*sin(phase)`.
-    let dydx = in.amp * (2.0 * PI / in.period) * sin(phase);
-    let dist = abs(in.px.y - wave_y) / sqrt(1.0 + dydx * dydx);
+    let dydx = in.amp * (
+        taper * (2.0 * PI / in.period) * sin(phase) - taper_slope * cos(phase)
+    );
+    let perpendicular = abs(in.px.y - wave_y) / sqrt(1.0 + dydx * dydx);
+    let beyond_end = max(max(left - in.px.x, in.px.x - right), 0.0);
+    let dist = length(vec2<f32>(perpendicular, beyond_end));
 
     // Antialiased stroke of half-width thickness/2 with a ~1px feather.
     let half_w = in.thickness * 0.5;
     var a = 1.0 - smoothstep(half_w - 0.75, half_w + 0.75, dist);
 
-    // Fade the very ends so the squiggle starts/stops softly within the word.
-    let edge = 1.5;
-    a = a * smoothstep(left - 0.5, left + edge, in.px.x);
-    a = a * (1.0 - smoothstep(right - edge, right + 0.5, in.px.x));
+    // The zero-amplitude writing-nit path deliberately retains its shipped
+    // byte-for-byte end treatment. Wavy spelling marks instead finish their
+    // geometry at the centreline; `beyond_end` gives that curve a round cap.
+    if (in.amp == 0.0) {
+        let edge = 1.5;
+        a = a * smoothstep(left - 0.5, left + edge, in.px.x);
+        a = a * (1.0 - smoothstep(right - edge, right + 0.5, in.px.x));
+    }
 
     a = clamp(a, 0.0, 1.0) * in.color.a;
     return vec4<f32>(in.color.rgb, a);
