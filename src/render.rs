@@ -2387,11 +2387,8 @@ pub struct TextPipeline {
     pub streak_cells: SelectionPipeline,
     pub hud_renderer: TextRenderer,
     pub hud_buffer: GlyphBuffer,
-    hud_stats: Option<crate::hud::HudStats>,
+    hud: HudDefaults,
     streaks_view: Option<crate::streaks::StreaksView>,
-    hud_saved: Option<crate::hud::HudSaved>,
-    hud_update_checked: Option<crate::updates::UpdateChecked>,
-    hud_pending_crash: bool,
     peek_rows: Vec<crate::peek::PeekRow>,
     keybindings_tips: Vec<String>,
     pub wk_shadow: SelectionPipeline,
@@ -2565,6 +2562,14 @@ pub struct TextPipeline {
     /// headless `--keys` replay path calls (see `main/run.rs`'s `Effect::CopyPulse`
     /// no-op arm).
     copy_pulse_t: f32,
+}
+
+#[derive(Default)]
+struct HudDefaults {
+    stats: Option<crate::hud::HudStats>,
+    saved: Option<crate::hud::HudSaved>,
+    update_checked: Option<crate::updates::UpdateChecked>,
+    pending_crash: bool,
 }
 
 /// Flatten the ACTIVE world's [`crate::theme::Background`] into the host-side

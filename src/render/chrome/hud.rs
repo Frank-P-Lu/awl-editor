@@ -3,7 +3,7 @@ use super::*;
 impl TextPipeline {
     #[cfg(not(target_arch = "wasm32"))]
     pub fn set_hud_stats(&mut self, stats: Option<crate::hud::HudStats>) {
-        self.hud_stats = stats;
+        self.hud.stats = stats;
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -13,24 +13,24 @@ impl TextPipeline {
 
     #[cfg(not(target_arch = "wasm32"))]
     pub fn set_hud_saved(&mut self, state: Option<crate::hud::HudSaved>) {
-        self.hud_saved = state;
+        self.hud.saved = state;
     }
 
     #[cfg(not(target_arch = "wasm32"))]
     pub fn set_update_checked(&mut self, state: Option<crate::updates::UpdateChecked>) {
-        self.hud_update_checked = state;
+        self.hud.update_checked = state;
     }
 
     pub fn hud_update_checked(&self) -> Option<crate::updates::UpdateChecked> {
-        self.hud_update_checked
+        self.hud.update_checked
     }
 
     pub fn set_pending_crash(&mut self, pending: bool) {
-        self.hud_pending_crash = pending;
+        self.hud.pending_crash = pending;
     }
 
     pub fn hud_pending_crash(&self) -> bool {
-        self.hud_pending_crash
+        self.hud.pending_crash
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -59,13 +59,13 @@ impl TextPipeline {
             percent: crate::card::figures::through_doc_percent(&text, cursor_line, cursor_col),
             lang: crate::card::figures::frontmatter_lang(&text),
             eol: self.eol,
-            saved: crate::hud::saved_readout(self.hud_saved),
+            saved: crate::hud::saved_readout(self.hud.saved),
         }
     }
 
     pub fn lifetime_report(&self) -> LifetimeReport {
         let [chars, writing, files, caret_travel, world] =
-            crate::hud::odometer_rows(self.hud_stats.as_ref()).map(|(_, v)| v);
+            crate::hud::odometer_rows(self.hud.stats.as_ref()).map(|(_, v)| v);
         LifetimeReport {
             open: crate::lifetime::lifetime_open(),
             chars,

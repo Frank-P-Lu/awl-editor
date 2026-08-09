@@ -62,12 +62,12 @@ impl TextPipeline {
     /// all-absent reading of a pipeline nobody has fed.
     pub fn card_live(&self) -> crate::card::CardLive {
         crate::card::CardLive {
-            stats: self.hud_stats.clone(),
+            stats: self.hud.stats.clone(),
             streaks: self.streaks_view.clone(),
-            saved: self.hud_saved,
+            saved: self.hud.saved,
             peek_rows: self.peek_rows.clone(),
-            update_checked: self.hud_update_checked,
-            pending_crash: self.hud_pending_crash,
+            update_checked: self.hud.update_checked,
+            pending_crash: self.hud.pending_crash,
         }
     }
 
