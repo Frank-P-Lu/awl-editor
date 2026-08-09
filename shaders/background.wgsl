@@ -897,6 +897,7 @@ fn deckle_rgb(px: vec2<f32>) -> vec3<f32> {
     return deckle_strata(px, pitch, wander, density);
 }
 
+// --- 5: BANDS — RESPONSIVE MARGIN GEOMETRY. ---
 // AUDIT FINDING: the plain corner-to-corner projection
 // below reads fine at a NARROW or SQUARE canvas, but at a wide CANONICAL
 // aspect (~1200x800) the projection is dominated by the width term, so a

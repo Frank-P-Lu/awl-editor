@@ -948,7 +948,7 @@ fn deckle_shader_constants_match_their_host_mirrors() {
         .find("// --- 9: DECKLE")
         .expect("the deckle section must be findable");
     let end = wgsl[start..]
-        .find("// ITEM 69 FOLLOW-UP")
+        .find("// --- 5: BANDS — RESPONSIVE MARGIN GEOMETRY. ---")
         .expect("the deckle section must end at its neighbour");
     // ...in its CODE. The prose above `deckle_rgb` names its assignee, exactly
     // as every other ground's comments do; what must never happen is a world
