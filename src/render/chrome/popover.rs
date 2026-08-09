@@ -28,33 +28,9 @@
 
 use super::*;
 use crate::popover::PopoverButton;
-
-/// One button's laid-out pixel span (absolute, physical px) + its lit state.
-#[derive(Clone, Debug)]
-pub(in crate::render) struct PopoverButtonGeom {
-    pub button: PopoverButton,
-    pub x0: f32,
-    pub x1: f32,
-    pub active: bool,
-    pub label: String,
-}
-
-/// The popover's whole laid-out geometry for a frame: the card rect + each
-/// button's pixel span. Read by the hit-test + the sidecar.
-#[derive(Clone, Debug)]
-pub(in crate::render) struct PopoverGeom {
-    pub card: [f32; 4],
-    /// The label buffer's upload origin (TextArea `top`), chosen so the button
-    /// glyphs' ink band lands exactly `VPAD` below the card top.
-    pub text_top: f32,
-    /// Top of the button glyphs' actual ink band, absolute px (`card_y + VPAD`) —
-    /// the reference the lit-button washes hug.
-    pub band_top: f32,
-    /// Height of that ink band (tallest glyph's ink top → lowest glyph's ink
-    /// bottom). The card is `band_h + 2·VPAD`, so it hugs the row with uniform pad.
-    pub band_h: f32,
-    pub buttons: Vec<PopoverButtonGeom>,
-}
+use crate::render::plan::{
+    MeasuredPopoverButton, PopoverButtonGeom, PopoverGeom, PopoverPlanInput,
+};
 
 /// Inner horizontal pad from the card edge to the first/last button glyph.
 const HPAD: Logical = Logical(12.0);
@@ -349,65 +325,32 @@ impl TextPipeline {
         }
         let band_h = band_bot_rel - band_top_rel;
 
-        let gap = self.metrics.px(ANCHOR_GAP);
-        let card_w = total_w + 2.0 * self.metrics.px(HPAD);
-        let card_h = band_h + 2.0 * self.metrics.px(VPAD);
-
         // Anchor: the selection's first endpoint, in screen space.
         let sel_x = self.text_left() + self.col_x_and_advance(line0, col0).0;
         let sel_top = self.visual_row_top(line0, col0);
         let sel_row_h = self.row_height_px(self.visual_row_of(line0, col0));
-
-        // Prefer ABOVE the selection; drop BELOW when there's no room.
-        let mut card_y = sel_top - gap - card_h;
-        if card_y < gap {
-            card_y = sel_top + sel_row_h + gap;
-        }
-        // Clamp within the canvas (never off the bottom either).
-        card_y = card_y.min(height as f32 - card_h - gap).max(gap);
-
-        // Center horizontally over the selection start, clamped to the canvas.
-        let pad = self.metrics.px(EDGE_PAD);
-        let card_x = (sel_x - card_w * 0.5)
-            .min(width as f32 - card_w - pad)
-            .max(pad);
-
-        let text_left = card_x + self.metrics.px(HPAD);
-        // The glyph ink band sits a uniform `VPAD` below the card top; the label
-        // buffer uploads at an origin chosen so `band_top_rel` lands exactly there.
-        let band_top = card_y + self.metrics.px(VPAD);
-        let text_top = band_top - band_top_rel;
-
         let buttons = model
             .buttons
             .iter()
             .enumerate()
-            .map(|(bi, b)| {
-                let (rx0, rx1) = spans_px[bi];
-                // A degenerate (unmeasured) span never happens for a non-empty label,
-                // but stay safe: fall back to a thin cell at the card center.
-                let (rx0, rx1) = if rx0 <= rx1 {
-                    (rx0, rx1)
-                } else {
-                    (0.0, total_w)
-                };
-                PopoverButtonGeom {
-                    button: b.button,
-                    x0: text_left + rx0,
-                    x1: text_left + rx1,
-                    active: b.active,
-                    label: b.label.clone(),
-                }
+            .map(|(bi, b)| MeasuredPopoverButton {
+                button: b.button,
+                span: [spans_px[bi].0, spans_px[bi].1],
+                active: b.active,
+                label: b.label.clone(),
             })
             .collect();
-
-        Some(PopoverGeom {
-            card: [card_x, card_y, card_w, card_h],
-            text_top,
-            band_top,
+        Some(crate::render::plan::plan_popover(PopoverPlanInput {
+            canvas: [width as f32, height as f32],
+            measured_width: total_w,
+            band_top_rel,
             band_h,
+            pad: [self.metrics.px(HPAD), self.metrics.px(VPAD)],
+            anchor_gap: self.metrics.px(ANCHOR_GAP),
+            edge_pad: self.metrics.px(EDGE_PAD),
+            anchor: [sel_x, sel_top, sel_row_h],
             buttons,
-        })
+        }))
     }
 
     /// Upload the shaped button labels over the card.
@@ -510,30 +453,7 @@ impl TextPipeline {
     /// `button.action()` through `App::apply`.
     pub fn popover_hit(&self, px: f32, py: f32) -> Option<PopoverButton> {
         let geom = self.popover_geom.as_ref()?;
-        let [cx, cy, cw, ch] = geom.card;
-        if px < cx || px > cx + cw || py < cy || py > cy + ch {
-            return None;
-        }
-        // Extend each button's clickable span to the midpoint of the gap to its
-        // neighbours (and to the card edges at the ends), so the inter-button gaps
-        // are not dead zones.
-        let n = geom.buttons.len();
-        for (i, b) in geom.buttons.iter().enumerate() {
-            let lo = if i == 0 {
-                cx
-            } else {
-                (geom.buttons[i - 1].x1 + b.x0) * 0.5
-            };
-            let hi = if i + 1 == n {
-                cx + cw
-            } else {
-                (b.x1 + geom.buttons[i + 1].x0) * 0.5
-            };
-            if px >= lo && px <= hi {
-                return Some(b.button);
-            }
-        }
-        None
+        geom.hit(px, py)
     }
 
     /// Whether the physical pointer is anywhere over the popover CARD (for the
@@ -541,10 +461,7 @@ impl TextPipeline {
     /// when the popover is down.
     pub fn over_popover(&self, px: f32, py: f32) -> bool {
         match self.popover_geom.as_ref() {
-            Some(g) => {
-                let [cx, cy, cw, ch] = g.card;
-                px >= cx && px <= cx + cw && py >= cy && py <= cy + ch
-            }
+            Some(g) => g.contains(px, py),
             None => false,
         }
     }

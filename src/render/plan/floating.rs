@@ -193,4 +193,25 @@ mod tests {
         assert_eq!(p.dots_y + 8.0 + 18.0, p.text[1]);
         assert!(p.text[1] + 90.0 <= p.card[1] + p.card[3] - 20.0 + 0.001);
     }
+
+    #[test]
+    fn floating_chrome_production_paths_route_through_the_planner() {
+        let hud = include_str!("../chrome/hud.rs");
+        let whichkey = include_str!("../chrome/whichkey.rs");
+        assert_eq!(hud.matches("plan::plan_float_card(").count(), 1);
+        assert_eq!(hud.matches("plan::plan_streaks_card(").count(), 1);
+        assert_eq!(whichkey.matches("plan::plan_whichkey_card(").count(), 1);
+        assert!(
+            !hud.contains("let card_w = block_w + pad_x * 2.0"),
+            "HUD card placement must not regain its retired parallel formula"
+        );
+        assert!(
+            !hud.contains("let content_h = grid_h + gap_dots + dot + gap_between + text_h"),
+            "streaks must not regain its retired parallel formula"
+        );
+        assert!(
+            !whichkey.contains("let card_y = (height as f32 - margin - card_h).max(margin)"),
+            "which-key must not regain its retired parallel formula"
+        );
+    }
 }

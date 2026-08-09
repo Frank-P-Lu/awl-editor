@@ -58,6 +58,7 @@ mod overlay_header;
 mod overlay_row_plan;
 mod overlay_rows;
 mod panel_report;
+mod popover;
 mod row_extent;
 mod row_report;
 
@@ -81,6 +82,10 @@ pub(in crate::render) use overlay_rows::{
 };
 #[cfg(test)]
 pub(in crate::render) use overlay_rows::{test_header_plan, test_row_top, test_rows};
+pub(in crate::render) use popover::{
+    MeasuredPopoverButton, PopoverButtonGeom, PopoverGeom, PopoverPlanInput, plan_popover,
+    plan_spell_anchor,
+};
 #[cfg(test)]
 pub(in crate::render) use row_extent::RowExtent;
 pub(in crate::render) use row_extent::{ClusterExtent, RowSpan};

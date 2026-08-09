@@ -359,10 +359,10 @@ mod popover;
 mod preview;
 mod readout;
 mod whichkey;
+#[allow(unused_imports)] // PopoverButtonGeom named only inside the popover module
+pub(in crate::render) use crate::render::plan::{PopoverButtonGeom, PopoverGeom};
 #[cfg(test)]
 pub(crate) use popover::VPAD as POPOVER_VPAD;
-#[allow(unused_imports)] // PopoverButtonGeom named only inside the popover module
-pub(in crate::render) use popover::{PopoverButtonGeom, PopoverGeom};
 /// THE CALM NOTICE plate's padding owner — re-exported so the notice's own laws
 /// read the same function `prepare_notice` does instead of re-deriving it.
 #[cfg(test)]

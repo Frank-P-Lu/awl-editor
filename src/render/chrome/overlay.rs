@@ -510,17 +510,13 @@ impl TextPipeline {
         let rows = header_rows + visible.max(1) + hint_rows;
         let card_h = self.overlay_card_h(rows, 0.0, 0, 0, pad);
 
-        let mut card_x = word_x;
-        if card_x + card_w > width as f32 - margin {
-            card_x = (width as f32 - margin - card_w).max(margin);
-        }
-        card_x = card_x.max(margin);
-        let below_y = word_top + word_h + gap;
-        let card_y = if below_y + card_h <= self.window_h - margin {
-            below_y
-        } else {
-            (word_top - gap - card_h).max(margin)
-        };
+        let [card_x, card_y] = crate::render::plan::plan_spell_anchor(
+            [width as f32, self.window_h],
+            [word_x, word_top, _word_w, word_h],
+            [card_w, card_h],
+            margin,
+            gap,
+        );
         let text_left = card_x + pad;
         let text_top = card_y + pad;
         OverlayGeom {
