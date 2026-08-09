@@ -261,8 +261,10 @@ list instead of re-checking the tree.** Every entry in the previous list was
 verified landed via `git log --grep` before this re-derivation (292/293/299/303,
 294/298, 305, 291, 296+300, 273's residuals, 302, 227, 131e+303 — all merged).
 
-1. **174** — finish the pure render-planning owners already in flight.
-2. **🔵 HUMAN / LIVE, none of which a lane can close** — see BLOCKED and OWED above. **231**
+1. **377, 378, 379, 380** — independent closure wave for machine-doable
+   residuals recovered from OWED.
+2. **🔵 HUMAN / LIVE** — only after the closure wave reclassifies every
+   remaining OWED entry by evidence. **231**
    needs the approved macOS guest-VM spend; **251** needs a human at a Linux desktop with
    Orca. **327** and the landed taste calls
    (338/342/345/346, carried in OWED) close on the user's eye.
@@ -271,27 +273,42 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
 
 ## Open items
 
-174. 🟡 **IN PROGRESS — codex (gpt-5.6-sol high), branch
-     `codex/item-174-finish-planning`. Separate pure render planning from shaping/caches and GPU execution — multi-round;
-     slices 1–3 landed 2026-08-08, the item stays open.** Landed so far: `src/render/plan/`
-     (device-free; `plan_overlay_rows` emits `PlannedRow`s; the forward/inverse row arithmetic
-     is module-private and the chrome bypasses are deleted); the sidecar publishes row geometry
-     (schema /201), the accessory cluster's three lanes (/202, `null` ≠ zero-width — the width
-     where the pair turns `null` IS the measurement), and the find/replace panel's geometry
-     (/203, with `PanelRowBands` as the one owner of the row-band step and its inverse).
-     **Left, stated:** document-content surfaces, search panel, HUD, gutter, outline, popover,
-     whichkey and readout still own their geometry; the spell popup's anchor is unplanned;
-     `overlay_secondary_top`/`overlay_split_bounds`/`overlay_strip_band` are separate owners —
-     folding the strip band + secondary column in is the natural next slice.
-     **Constraints that hold for every slice:** O(visible), buffer-identity cache keys,
-     rowlayout ownership, deterministic capture, exact output for migrated surfaces; no
-     retained widget tree, no general scene framework, no duplicate CPU renderer, no per-frame
-     document plan. Lessons the next slice inherits: probe TRANSITIONS not centres (a
-     20%-wider-pitch mutation survives centre probes at 32 px rows); grade published extents
-     against INK, not origin (a uniform width scaling survives origin-only laws); don't write
-     containment laws over staggered rows (Saltpan publishes `x` left of `band_x`); the first
-     slice's bench delta read as contention noise, so confirmation is owed on a quiet host.
-     **Routing:** deep owner with a production-tier outcome audit.
+377. 🟡 **IN PROGRESS — codex (gpt-5.6-sol high), branch
+     `codex/item-377-public-facts`. Close the machine-verifiable public-doc and reference-page debt.**
+     Fix item 344's four independently verified contradictions; parse/verify all 25 additional
+     census claims against their code owners before changing any of them. Add maintainable
+     source/roster laws where they protect generated or enumerated facts. Render
+     `site/reference.html` at representative desktop and narrow widths, inspect the actual page
+     and link targets, and repair objective layout/link defects. Taste-only placement/caption
+     calls stay blocked and are not silently chosen. **Done:** every changed fact traces to code,
+     browser QA has screenshots and explicit findings, targeted laws are mutation-proven, and
+     the corresponding OWED bullets are removed or narrowed to the human choice.
+
+378. 🟡 **IN PROGRESS — codex (gpt-5.6-sol high), branch
+     `codex/item-378-render-residuals`. Close objective render residuals without making taste calls.**
+     Reproduce and clamp the find/replace panel's negative x at the 560 px narrow transition;
+     keep its physical-vs-logical pad choice blocked. Inventory remaining inline pixel literals,
+     and run the owed 1x/2x all-anchor plus notice-clamp sweep for `readout::CANVAS_INSET` without
+     promoting it. Generate and pixel-audit forced non-mac menu-bar and Retina margin/outline
+     galleries for items 321/323/314; aesthetic accept/revert remains the user's call.
+     **Done:** objective overflow has a mutation-proven law, machine evidence is recorded outside
+     tracked personal paths, and each taste residual is narrowed to a concrete visual choice.
+
+379. 🟡 **IN PROGRESS — codex (gpt-5.6-sol high), branch
+     `codex/item-379-view-lifetime`. Close item 249's view-lifetime allocation-oracle gap.**
+     Verify the premise against the live wgpu backend rather than source assumptions. Extend the
+     device-probed allocation law to witness a view-only pin if the backend exposes a responding
+     class; otherwise prove the backend limitation on the present adapters and document the exact
+     honest boundary. Never turn an unsupported counter into a fabricated portable claim.
+     **Done:** a deliberate retained-view mutation goes red on every enrolled backend, or the item
+     is moved to BLOCKED with repeatable evidence that no available oracle can observe it.
+
+380. 🟡 **IN PROGRESS — root, branch `main`. Close deferred verification residuals.**
+     Perform item 263's production construction-site document-seed mutation and restore it; run
+     item 242's formal affordance-locating vision smoke; measure item 241's exact 4530x2756@2x
+     headless geometry/perf case; and classify the Linux drawn-menu export arm by an actual
+     reachable harness attempt. Each successful check removes its OWED line; genuine display,
+     platform, or human-feel limits move to BLOCKED with precise evidence.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
