@@ -29,6 +29,10 @@ const EXPECTED: &[(&str, usize)] = &[
     // `--bench-a11y`'s report table — hidden CLI performance harness output,
     // like the `render/*bench.rs` entries below.
     ("app/semantic/bench.rs", 7),
+    // The hidden persistence fault probe's autosave/export completion markers
+    // and large-save bytes/time/RSS receipt are CLI test protocol output. The
+    // probe is native-only and cannot reach the interactive App.
+    ("app/persistence/fault_probe.rs", 4),
     ("app/apply.rs", 1),
     // Best-effort background bookkeeping failures (config/credits/guide
     // write, a sticky-pref/rebind write, the recent-files/projects MRU

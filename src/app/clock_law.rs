@@ -51,6 +51,10 @@ const ALLOWED: &[(&str, usize)] = &[
     // not a scheduled deadline. `set_dictionary` lives in
     // `app/files/dictionary.rs` (the former `app/files.rs` monolith's split).
     ("app/files/dictionary.rs", 1),
+    // The hidden persistence fault probe times the real 12 MiB save arm. Its
+    // result is a work-duration receipt, never an App deadline or animation
+    // input, so a virtual clock would make the measurement fictional.
+    ("app/persistence/fault_probe.rs", 1),
     // The `--soak-gpu` recovery-latency feed (`observe_recovered(kind, ..)`):
     // records WHEN a GPU-fault recovery presented so the soak report can measure
     // its real duration. `--soak-gpu` is an isolated, live-only stress harness

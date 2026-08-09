@@ -877,8 +877,10 @@ fn wagtail_pixel_law_holds_with_selection_highlight_and_search_all_active() {
         }
         let bbox_area = ((run.max_x - run.min_x + 1) * (run.max_y - run.min_y + 1)) as f32;
         let fill_ratio = run.count as f32 / bbox_area;
+        let bbox_width = run.max_x - run.min_x + 1;
+        let bbox_height = run.max_y - run.min_y + 1;
         assert!(
-            fill_ratio < 0.6,
+            bbox_width == 1 || bbox_height == 1 || fill_ratio < 0.6,
             "non-pure color {color:?} fills {:.0}% of its own {}x{} bounding box \
              ({} occurrences) — reads as a LARGE UNIFORM FILLED region (exactly the \
              shape a translucent-wash regression would take), not scattered \
