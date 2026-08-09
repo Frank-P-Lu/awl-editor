@@ -24,7 +24,7 @@ pub(in crate::render) const OVERLAY_QUERY_BEAT: Rows = Rows(1.55);
 
 pub(in crate::render) const OVERLAY_HINT_ROW: Rows = Rows(0.70);
 
-/// ITEM 293 — the blank separator `overlay_hint_gap_rows` reserves ahead of
+/// The blank separator `overlay_hint_gap_rows` reserves ahead of
 /// the hint, as a fraction of a row. Smaller than [`OVERLAY_HINT_ROW`]
 /// deliberately: the separator's whole job is to stop the hint sitting flush
 /// against the last row, not to read as a second hint-weight line — the
@@ -236,7 +236,7 @@ impl TextPipeline {
     /// divider is negative space, never a drawn rule). Sized off the overlay row
     /// height so it scales with zoom/DPI like every other overlay metric.
     ///
-    /// COMPOSITION ROUND (item 4) widened it from ~0.55 to [`OVERLAY_QUERY_BEAT`]
+    /// [`OVERLAY_QUERY_BEAT`] sets it above ~0.55
     /// of a row — a clearer beat between the input line and the first result,
     /// still short of the "fat lip" of a whole blank row. It is STRUCTURAL, not a
     /// leading newline (the f2cb656 tripwire): the shaper inflates the last
@@ -254,7 +254,7 @@ impl TextPipeline {
         (self.overlay_lh() * OVERLAY_HINT_ROW.0).round()
     }
 
-    /// ITEM 293 — the blank separator's own (shorter still) row height.
+    /// The blank separator's own (shorter still) row height.
     pub(in crate::render) fn overlay_hint_gap_h(&self) -> f32 {
         (self.overlay_lh() * OVERLAY_HINT_GAP_ROW.0).round()
     }
@@ -262,7 +262,7 @@ impl TextPipeline {
     /// Reclaims the dead space `hint_rows` (`overlay_hint_h`-tall) and
     /// `gap_rows` (`overlay_hint_gap_h`-tall) COMPACT rows leave behind in a
     /// row budget that allocated each of them a full `overlay_lh` slot — the
-    /// hint's own row, and (item 293) the blank separator ahead of it, each
+    /// hint's own row and the blank separator ahead of it, each
     /// reclaimed at its OWN compact height rather than one borrowing the
     /// other's. ONE trailing [`OVERLAY_FOOTER_PAD`] survives regardless of how
     /// many compact rows there are, never one per row: the pad is the
@@ -313,7 +313,7 @@ impl TextPipeline {
         if let Some((line, start_col, end_col)) = self.overlay_spell {
             return self.spell_overlay_geometry(width, line, start_col, end_col);
         }
-        // ITEM 114 — the THIRD family. Checked before the faceted one because a
+        // The THIRD family. Checked before the faceted one because a
         // workspace's rail IS its facet strip, stood on its end: the same data
         // reaches a different presentation, and there is no card to place.
         if self.overlay_is_workspace() {
@@ -353,7 +353,7 @@ impl TextPipeline {
             .overlay_context_anchor
             .map(|(_, y)| y + self.metrics.px(CONTEXT_ANCHOR_DROP))
             .unwrap_or(margin + self.metrics.px(CARD_TOP_DROP) + self.menubar_reserve());
-        // ITEM 181 — cap the item window to what the canvas fits, same owner the
+        // Cap the item window to what the canvas fits, same owner the
         // grouped family reads (`theme_overlay_geometry`).
         let avail_px = if contextual {
             (self.window_h - 2.0 * margin).max(self.overlay_lh())
@@ -374,8 +374,8 @@ impl TextPipeline {
         let hpad = self.overlay_text_hpad();
         let text_w = card_w - 2.0 * hpad;
         let mut card_h = self.overlay_card_h(total_rows, header_gap, hint_rows, hint_gap_rows, pad);
-        // ITEM 293's gap is decorative breathing room, not load-bearing chrome:
-        // in the ITEM-184 starvation corner (a `min_items: 1` floor still
+        // The gap is decorative breathing room, not load-bearing chrome: in the
+        // starvation corner (a `min_items: 1` floor still
         // outgrows the canvas at an extreme zoom — the flat family's own
         // arm), drop it rather than push the card past the canvas the way a
         // sectioned header's own overhead already degrades at the grouped
@@ -446,7 +446,7 @@ impl TextPipeline {
 
         let (word_x, word_top, _word_w, word_h) = self.spell_word_rect(line, start_col, end_col);
 
-        // ITEM 181 — the popup's own budget: whichever side (above/below the
+        // The popup's own budget: whichever side (above/below the
         // word) is roomier.
         let below_avail = self.window_h - (word_top + word_h + gap) - margin;
         let above_avail = word_top - gap - margin;
@@ -461,7 +461,7 @@ impl TextPipeline {
         // pinched; the card stays capped small and clamped on-canvas. (Falls back to
         // the char-count estimate only if a measurement has not run yet.)
         //
-        // ITEM 49 — MEASURE EVERY ROW IN THE ELISION'S OWN UNITS: the shaped
+        // MEASURE EVERY ROW IN THE ELISION'S OWN UNITS: the shaped
         // `overlay_spell_w` is in the UI/chrome face, but the row-elision budget
         // (`overlay_shape_text` → `rowlayout::plan`) divides `text_w` by the DOCUMENT
         // mono `char_width` and then charges the primary for the `…` cell AND the
@@ -497,7 +497,7 @@ impl TextPipeline {
         // contextual sibling. Grow-only (`scale.max(1.0)`): byte-identical at every
         // scale ≤ 1.0 (the shipped 0.8 default + all captures untouched). The MAX is
         // wide enough to hold a whole add-to-dictionary row for an ordinary word
-        // (~24 mono cells) so it never elides at wide width (item 49); a genuinely
+        // (~24 mono cells) so it never elides at wide width; a genuinely
         // long adversarial word still overruns it and elides — a small popup, never a
         // takeover card.
         let card_w = (content_w + 2.0 * pad)
@@ -600,7 +600,7 @@ impl TextPipeline {
         }
         let geom = self.overlay_geometry(self.window_w as u32);
         let canvas_h = self.window_h;
-        // ITEM 174 — the sidecar reports the PLAN, not a parallel count: `lines`
+        // The sidecar reports the PLAN, not a parallel count: `lines`
         // is the planned candidate band's own length and `sel_row` its planned
         // selected display line. A report can no longer claim a window the drawn
         // rows and the hit-test don't share.
@@ -614,7 +614,7 @@ impl TextPipeline {
         ))
     }
 
-    /// ITEM 174 — THE ONE PLANNING SEAM for the candidate-row band. Hands the
+    /// THE ONE PLANNING SEAM for the candidate-row band. Hands the
     /// already-resolved [`OverlayGeom`] (card box + window + header metrics) and
     /// the row pitch to the device-free scene planner, which emits one
     /// [`PlannedRow`] per candidate display line and its interaction geometry.
@@ -647,7 +647,7 @@ impl TextPipeline {
         })
     }
 
-    /// ITEM 94 — THE RAIL GEOMETRY OWNER for the whole card: every VISIBLE range
+    /// THE RAIL GEOMETRY OWNER for the whole card: every VISIBLE range
     /// row's `(item index, rail)` pair, resolved through `rowlayout::rail_geom`
     /// against the SAME shaped-glyph measurements the value column draws from
     /// (`overlay_row_secondary_px` / `overlay_row_primary_px`) and the SAME row-y
@@ -747,7 +747,7 @@ impl TextPipeline {
         self.overlay_row_plan(&geom).row_at(px, py)
     }
 
-    /// ITEM 106 — THE ONE HOVER-RESOLUTION SEAM: hit-test `(px, py)` against
+    /// THE ONE HOVER-RESOLUTION SEAM: hit-test `(px, py)` against
     /// this pipeline's live overlay row geometry ([`Self::overlay_row_at`]),
     /// then run the result through [`crate::overlay::OverlayState::hover_at`]'s
     /// real-motion + movement-slop gate. Both `App::overlay_hover` (the live

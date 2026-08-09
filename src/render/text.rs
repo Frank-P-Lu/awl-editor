@@ -19,7 +19,7 @@ pub(super) struct ScriptFonts {
 ///
 /// Existing as a VALUE is the whole mechanism: the sidecar takes one snapshot
 /// and reads every block out of it, so no two fields of a single sidecar can
-/// come from two different active themes (queue item 98).
+/// come from two different active themes.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct ScriptFontReports {
     pub ja: Option<(&'static str, bool)>,
@@ -179,7 +179,7 @@ impl TextPipeline {
     /// All four resolve against ONE `theme::active()` snapshot, so a reshape's
     /// four override spans — and the sidecar block derived from them — always
     /// describe a single world, never a mix of the world before a concurrent
-    /// flip and the world after (queue item 98).
+    /// flip and the world after.
     pub(super) fn resolve_script_fonts(&self) -> ScriptFonts {
         let world = theme::active();
         ScriptFonts {
@@ -201,7 +201,7 @@ impl TextPipeline {
     /// `cjk_report()` call plus four `script_font_report()` calls, FIVE separate
     /// reads spread across the sidecar write — could observe a theme FLIP
     /// between them and emit a sidecar whose `font.cjk.family` disagreed with
-    /// its own `font.scripts.ja.family` (queue item 98's flake). One snapshot makes
+    /// its own `font.scripts.ja.family`. One snapshot makes
     /// that DISAGREEMENT UNREPRESENTABLE: the sidecar is now atomic with
     /// respect to the active world.
     ///
@@ -402,12 +402,12 @@ impl TextPipeline {
     /// GLYPH is the next phase).
     /// Returns an all-`None` table when the feature is off / not markdown / on wasm,
     /// so the render stays byte-identical (no tall row is ever reserved). ALSO
-    /// populates [`Self::image_force`] (item 5 rework — see its field doc) for
+    /// populates [`Self::image_force`] (see its field doc) for
     /// MIXED off-cursor lines; that table is a separate, PARALLEL mechanism, never
     /// a value in this returned `heights` table (a mixed line's OWN row is never
     /// inflated any more — see the field doc for why).
     ///
-    /// `selection_touch` (SELECTION REVEAL regression fix, item 16 follow-up) is
+    /// `selection_touch` is
     /// the caller's already-computed [`super::spans::selection_touch_bytes`]
     /// extent: each image's `revealed_now` is true when the caret's line OR the
     /// active selection touches its span, via [`super::spans::selection_touches`]
@@ -485,7 +485,7 @@ impl TextPipeline {
                     &text[found.line_start..found.line_end],
                     local,
                 );
-                // SELECTION REVEAL (regression fix, item 16 follow-up): an
+                // SELECTION REVEAL: an
                 // image line PARKS (see below) when the caret is on it OR the
                 // active selection touches its own span â the SAME overlap
                 // test `wysiwyg_reveals` applies to this exact span for the raw-
@@ -563,7 +563,7 @@ impl TextPipeline {
         heights
     }
 
-    /// ITEM 5 REWORK: the safety margin (px) added on top of the measured
+    /// The safety margin (px) added on top of the measured
     /// remaining space when sizing a mixed image line's forcing `letter_spacing`
     /// (see [`Self::image_force`]'s field doc) — absorbs float rounding and the
     /// small residual inaccuracy of measuring the prefix in ISOLATION (matched
@@ -572,7 +572,7 @@ impl TextPipeline {
     /// never itself risks overflowing a fresh row.
     const IMAGE_FORCE_MARGIN_PX: f32 = 4.0;
 
-    /// ITEM 5 REWORK: the rendered pixel width of `text`'s own LAST visual row when
+    /// The rendered pixel width of `text`'s own LAST visual row when
     /// word-wrapped at `wrap_width` — i.e. how much of a fresh `wrap_width`-wide row
     /// is already used by `text` (a mixed image line's marker+caption PREFIX, up to
     /// but not including the image markup) if it were laid out alone. Shapes `text`
@@ -622,7 +622,7 @@ impl TextPipeline {
             || self.image_force.get(line).copied().flatten().is_some()
     }
 
-    /// ITEM 5c (theme-switch slowdown probe): the running count of actual image
+    /// The running count of actual image
     /// DECODES this pipeline has performed (never a cache hit — see
     /// `image_cache::ImageCache::decode_count`'s doc). A theme switch
     /// (`sync_theme`/`sync_theme_colors`/`sync_theme_font`) never touches the
@@ -651,7 +651,7 @@ impl TextPipeline {
     /// the last reshape's stored flag — otherwise a pure caret/selection move onto
     /// an off-cursor MIXED image line (no reshape, so `compute_image_layout` never
     /// re-runs) would leave a stale `revealed: false`, and the skip below would arm
-    /// a handle for a line that no longer reserves a draw position (item 27).
+    /// a handle for a line that no longer reserves a draw position.
     /// Empty when the feature is off / no drawn images.
     ///
     /// REVEALED images ARM TOO (no blanket `im.revealed` exclusion): the caption
@@ -728,7 +728,7 @@ impl TextPipeline {
         // still the STALE pre-edit text at this point in the splice) — see
         // `selection_touch_bytes`'s own doc comment for why this is the ONE
         // owner every reveal decision below reads (now including
-        // `compute_image_layout`'s inline-image reveal, item 16 follow-up).
+        // `compute_image_layout`'s inline-image reveal).
         let selection_touch = selection_touch_bytes(
             self.selection,
             |i| line_starts.get(i).copied().unwrap_or(0),
@@ -901,7 +901,7 @@ impl TextPipeline {
         let md_spans = std::mem::take(&mut self.md_spans);
         let syn_spans = std::mem::take(&mut self.syn_spans);
         let image_heights = std::mem::take(&mut self.image_heights);
-        // ITEM 5 REWORK: same "reuse the last reshape's table" treatment as
+        // Same "reuse the last reshape's table" treatment as
         // `image_heights` above — a zoom/DPI restyle doesn't re-measure the
         // forcing `letter_spacing` (no text/wrap change), it just re-applies it.
         let image_force = std::mem::take(&mut self.image_force);
@@ -1230,7 +1230,7 @@ impl TextPipeline {
     /// purpose; cosmic-text simply lays out all rows that fit and these documents
     /// are small.
     ///
-    /// ITEM 42 — RESERVE TALL ROWS IN THE BUDGET DOC-WIDE: an inline IMAGE (or a
+    /// RESERVE TALL ROWS IN THE BUDGET DOC-WIDE: an inline IMAGE (or a
     /// wrapped TABLE) reserves a row TALLER than a line of text — an image up to
     /// [`super::spans::IMAGE_MAX_VIEWPORT_FRAC`] of the window height. The uniform
     /// `rows * line_height` estimate alone UNDER-budgets an image-DENSE document,
