@@ -261,11 +261,10 @@ list instead of re-checking the tree.** Every entry in the previous list was
 verified landed via `git log --grep` before this re-derivation (292/293/299/303,
 294/298, 305, 291, 296+300, 273's residuals, 302, 227, 131e+303 — all merged).
 
-1. **375** — raise the lane ceiling and install the gate arbiter on the landed six-way shard owner.
-2. **372** — the citation stock, after 365. Production tier; 1,700 judgement calls, not a sed script.
-3. **358, 369, 370, 371's lane-half** — independent, no ordering constraint among them.
-4. **174** — multi-round refactor, continues by slices.
-5. **🔵 HUMAN / LIVE, none of which a lane can close** — see BLOCKED and OWED above. **231**
+1. **372** — the citation stock, after 365. Production tier; 1,700 judgement calls, not a sed script.
+2. **358, 369, 370, 371's lane-half** — independent, no ordering constraint among them.
+3. **174** — multi-round refactor, continues by slices.
+4. **🔵 HUMAN / LIVE, none of which a lane can close** — see BLOCKED and OWED above. **231**
    needs the approved macOS guest-VM spend; **251** needs a human at a Linux desktop with
    Orca. **327** and the landed taste calls
    (338/342/345/346, carried in OWED) close on the user's eye.
@@ -295,7 +294,8 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
      slice's bench delta read as contention noise, so confirmation is owed on a quiet host.
      **Routing:** deep owner with a production-tier outcome audit.
 
-358. **Persistence fault matrix over the file lifecycle** — fakes for precise failures, real
+358. 🟡 **IN PROGRESS — codex (gpt-5.6-sol high), branch
+     `codex/item-358-persistence-fault-matrix`. Persistence fault matrix over the file lifecycle** — fakes for precise failures, real
      processes only where a fake cannot prove the claim. Existing coverage stands
      (`tests/fault_kill9.rs`, `external_item204`, live-App save/autosave/conflict suites) —
      census first, do not rebuild those journeys. The missing matrix is failure by PHASE ×
@@ -327,7 +327,8 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
      converted assertion proven non-vacuous by breaking the field it reads. **Routing:**
      production tier.
 
-369. **Clean the theme data model before the custom-world composer makes it a public
+369. 🟡 **IN PROGRESS — codex (gpt-5.6-sol high), branch
+     `codex/item-369-theme-data-model`. Clean the theme data model before the custom-world composer makes it a public
      contract.** Census every `Theme`/`RenderCaps` capability × adopting worlds; zero/one
      adopter is a classification prompt, not an auto-delete (Rules, Diagonal, chamfer,
      ambient stars, background kinds stay data at one wearer; tiny corrective geometry and
@@ -394,35 +395,6 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
      full native + wasm (phase 3 touches shaders). **Routing:** production tier — 1,700
      judgement calls; the repeatable tier will produce 1,700 comments with a hole where the
      number was.
-
-375. 🟡 **IN PROGRESS — codex (gpt-5.6-terra medium), branch
-     `codex/item-375-gate-arbiter`. Raise the lane ceiling to 6–8, put a queue in front of
-     the gate, and partition lanes
-     by MECHANISM, not file.** ⚠️ Gated on 373 — short gates are the enabler. (User decision
-     2026-08-09.) The four-lane ceiling is gate contention, not editing: each gate runs four
-     full-suite passes each pinned to ~1 core by `testlock::serial()`, so four lanes gating
-     = ~16 sustained test cores on ten (the measured load-69.79 wave). With 373 a gate is
-     ~1–2 min and gates stagger. Three parts:
-     **(a)** README ceiling 6–8 lanes; `worker-build.sh` budget stays; disk ~5 GB/worktree ⇒
-     eight lanes ≈ 40 GB+, governed by the existing disk-preflight section — cite it.
-     **(b)** Gate ARBITER: extend `.orchestrator/native-gate.marker` from advisory to a
-     blocking queue — at most 1–2 gates (lane or train) at once, each at full shard width;
-     marker names holder PID/sha/start. Replaces "wait for the wave to quiesce"; also
-     structurally retires the CPU-heartbeat false-red class (that self-test fails from
-     gate-collision load alone).
-     **(c)** README §8 at MECHANISM granularity: keep "two lanes on one mechanism are one
-     lane"; stop serializing on hub files (`keymap.rs` `Action` enum, `commands/catalog/*`,
-     `mod` lists, `code-health.toml`, `assets/keymap-defaults.toml`) whose edits are
-     append-shaped and merge cleanly. Evidence: ~5 files/action and ~10/setting means every
-     feature crosses hubs, so file partitioning transitively serializes nearly everything;
-     and the partition's recorded bill — a lane duplicating a chrome geometry around a held
-     file — is the "same behavior ⇒ same code" violation it was meant to prevent. The serial
-     merge train, re-gating every landing on the exact combined candidate, stays the
-     collision catcher.
-     **Verify:** README states ceiling/arbiter/rule with the measured numbers; arbiter
-     demonstrated live (second gate queues, naming the holder); heartbeat-flake note
-     repointed at the arbiter. **Routing:** production tier — protocol prose + one small
-     scripts change.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
