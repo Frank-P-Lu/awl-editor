@@ -65,6 +65,14 @@ this heading exists; `git log -S"BLOCKED ON THE USER"` finds who took it.
     prototype the shared-ease arm only if the current snap reads detached; keep
     the instant mark if it reads as the destination indicator rather than part
     of the moving band.
+13. **Hosted-mac Metal diagnosis (item 231)** needs a macOS guest VM with
+    paravirtualised Metal. No VM tooling is installed; creating that rig is a
+    real storage/time spend. The next engineering step begins only after that
+    spend is approved. A negative reproduction is publishable; no speculative
+    product fix lands under the diagnosis item.
+14. **The AT-SPI journey (item 251)** needs a real Linux desktop session with
+    Orca. This Mac and its headless/Linux CI arms cannot perform the human
+    document-read, caret/selection, overlay, and editing-burst journey.
 
 ## 🔵 OWED — live work that nothing above implies. Never cleared by a compression.
 
@@ -242,9 +250,9 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
 2. **372** — the citation stock, after 365. Production tier; 1,700 judgement calls, not a sed script.
 3. **358, 369, 370, 371's lane-half** — independent, no ordering constraint among them.
 4. **174** — multi-round refactor, continues by slices.
-5. **231** — no live lead; its named next step is a macOS guest VM, a spend decision, not work to absorb.
-6. **🔵 HUMAN / LIVE, none of which a lane can close** — see BLOCKED and OWED above. **251** is
-   hardware-gated (a human at a Linux desktop with Orca). **327** and the landed taste calls
+5. **🔵 HUMAN / LIVE, none of which a lane can close** — see BLOCKED and OWED above. **231**
+   needs the approved macOS guest-VM spend; **251** needs a human at a Linux desktop with
+   Orca. **327** and the landed taste calls
    (338/342/345/346, carried in OWED) close on the user's eye.
 
 ---
@@ -271,57 +279,6 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
      containment laws over staggered rows (Saltpan publishes `x` left of `band_x`); the first
      slice's bench delta read as contention noise, so confirmation is owed on a quiet host.
      **Routing:** deep owner with a production-tier outcome audit.
-
-231. **Name the CAUSE of the hosted-macOS gate hang; the fix is a SECOND item.** Reframed by
-     user decision from "fix" to "diagnose". `mac (render::tests)` HANGS (never fails): exactly
-     3 tests (the runner's vCPUs) park simultaneously in `poll(wait_indefinitely)`, surviving
-     SIGTERM. Bisected to `8207e519` (Kite, `Background::WarpedGrid`), both boundaries measured.
-     **Eliminated by measurement — do not re-derive:** the shader itself; a single bad test
-     (victim varies); concurrency (`RUST_TEST_THREADS=1` wedges); a per-device resource (mac
-     and linux conventions on separate devices stopped within 10 ms — the contended resource
-     is the VM's virtualised Metal stack, system-wide); program-build volume (a 9.3× cut did
-     not clear it; `--skip render::tests::` completes while building MORE programs — but on
-     churned, destroyed devices); RAM (steady 2.37 GB); software adapters (two lavapipe stacks
-     never hang — no system-wide GPU resource to exhaust); shader-source size (HEAD carries the
-     largest wgsl and gets 2.6× further).
-     **Unknown, and the whole item: WHICH resource the virtualised Metal stack exhausts.**
-     First deliverable: a LOCAL reproduction — the untried arm is a macOS guest VM on this
-     host (tart/UTM, paravirtualised Metal; no VM tooling installed, a real spend). A negative
-     is publishable too.
-     **Decision gate (the item is not done without it):** is the PRODUCT exposed, or is this
-     harness-only? The live app builds `BackgroundPipeline` once; the per-frame program churn
-     is test-helper-only — but that rests on the churn hypothesis, which the 9.3× null result
-     weakened. **Do not land a fix under this item** — recycling the shared test device would
-     turn CI green without anyone learning what was exhausted.
-     Carry-forwards: wgpu 29.0.3 `Device::PartialEq` reports two live devices EQUAL (no
-     device-keyed cache); a `cfg(test)` cache must not be thread-local (libtest = thread per
-     test); one leak law only fires if all twenty worlds build+prepare BEFORE any draws; `gh`
-     encodes unfinished steps as `conclusion:""` and ceiling-killed steps as
-     `completed/cancelled` — enumerate accepted values, never test inequality; cross-commit
-     probes need a target dir per tree plus a provenance assertion (same-second extraction let
-     Cargo reuse the other tree's artifacts).
-     **Done:** the resource is NAMED with a confirming measurement; the product/harness
-     question has an evidenced answer; the fix is scoped as its own item. **Verify:** the
-     diagnosis must PREDICT the boundary (why `36707d06` survives, why `--skip render::tests::`
-     survives doing more work, why two processes stop within 10 ms). **Routing:** deep tier.
-     Rig: `scripts/oom-budget-container.sh` (diagnostic, not a gate).
-
-251. **Item 207's AT-SPI journey needs a LINUX machine** — AT-SPI2 is the Linux accessibility
-     API; no unlock of this Mac reaches it, and `ACCESSIBILITY.md:110` says honestly that no
-     AT-SPI journey has ever run. **Build:** a real Linux desktop session + Orca + the native
-     build, running the VoiceOver sitting's journeys (document read, caret/selection
-     announcement, overlay summon/dismiss, editing burst); findings recorded in
-     ACCESSIBILITY.md. Defects found earn their own items. **Done:** run and recorded, or
-     parked with the hardware requirement stated. **Routing:** human, on Linux. (The AT-SPI
-     tree itself was verified correct — AccessKit filters `Role::TextRun` by design.)
-
-283. **`ListStyle::Rules` graduated — two handbacks remain.** (1) A second carrier world:
-     taste call on WHICH world (deliberately out of scope here); needs a findability check for
-     `faint()` hairlines on a DARK ground (asserted only on cream today) and a `FacetStyle`
-     decision that doesn't put a filled pill back on the strip (Paperbark is `Text`; nothing
-     forbids `Chips(FilledActive)`). Requirements recorded in `theme/tests/personality.rs`
-     beside Paperbark. (2) ⚠️ `Rules` must not reach a second world whose users default to
-     Retina before item 289 closes — a half-weight rule is a half-legible affordance.
 
 327. 🔵 **The Settings accessory-column width budget is a design call, with numbers.** As a
      `Range` setting's card narrows, `overlay_right_shown` drops the entire accessory column
