@@ -46,6 +46,13 @@ const QUOTE_MARK_SCALE: f32 = 2.0;
 /// real type, not a symbol-font ornament.
 const QUOTE_MARK_GLYPH: char = '\u{201C}';
 
+#[cfg(not(target_arch = "wasm32"))]
+struct MissingImagePlaceholder {
+    dst: [f32; 4],
+    path: String,
+    alt: String,
+}
+
 fn fold_tail_text(n: usize) -> String {
     if n == 1 {
         "\u{2026} 1 line".to_string()
@@ -934,6 +941,64 @@ impl TextPipeline {
         }
     }
 
+    /// Shape the filename and optional alt labels for missing image placeholders.
+    /// The caller retains these buffers until glyphon's preparation has borrowed
+    /// them into text areas.
+    #[cfg(not(target_arch = "wasm32"))]
+    fn build_missing_placeholder_text_buffers(
+        &mut self,
+        missing: &[MissingImagePlaceholder],
+    ) -> Vec<(GlyphBuffer, f32, f32, glyphon::Color)> {
+        let m = self.metrics;
+        let label = crate::markdown::type_scale::LABEL;
+        let gm = GlyphMetrics::new(m.font_size * label, m.line_height * label);
+        let line_h = m.line_height * label;
+        let muted = theme::muted().to_glyphon();
+        let faint = theme::faint().to_glyphon();
+        let center = Some(glyphon::cosmic_text::Align::Center);
+        let name_attrs = self.doc_attrs().color(muted);
+        let alt_attrs = self.doc_attrs().color(faint);
+        let mut buffers = Vec::new();
+        for placeholder in missing {
+            let filename = std::path::Path::new(&placeholder.path)
+                .file_name()
+                .and_then(|s| s.to_str())
+                .unwrap_or(placeholder.path.as_str());
+            let box_w = placeholder.dst[2].max(1.0);
+            let box_left = placeholder.dst[0];
+            let box_top = placeholder.dst[1];
+            let box_h = placeholder.dst[3];
+            let two = !placeholder.alt.trim().is_empty();
+            let block_h = if two { line_h * 2.0 } else { line_h };
+            let start_y = box_top + (box_h - block_h).max(0.0) * 0.5;
+            let mut name_buf = GlyphBuffer::new(&mut self.font_system, gm);
+            name_buf.set_size(&mut self.font_system, Some(box_w), Some(line_h));
+            name_buf.set_text(
+                &mut self.font_system,
+                filename,
+                &name_attrs,
+                Shaping::Advanced,
+                center,
+            );
+            name_buf.shape_until_scroll(&mut self.font_system, false);
+            buffers.push((name_buf, box_left, start_y, muted));
+            if two {
+                let mut alt_buf = GlyphBuffer::new(&mut self.font_system, gm);
+                alt_buf.set_size(&mut self.font_system, Some(box_w), Some(line_h));
+                alt_buf.set_text(
+                    &mut self.font_system,
+                    placeholder.alt.trim(),
+                    &alt_attrs,
+                    Shaping::Advanced,
+                    center,
+                );
+                alt_buf.shape_until_scroll(&mut self.font_system, false);
+                buffers.push((alt_buf, box_left, start_y + line_h, faint));
+            }
+        }
+        buffers
+    }
+
     /// The deterministic per-image layout the last [`Self::rebuild_image_rows`]
     /// (via `compute_image_layout`) produced, for the capture `images` sidecar
     /// block + the next-phase draw. `revealed` is recomputed here against the
@@ -1008,13 +1073,8 @@ impl TextPipeline {
             alpha: f32,
             key: std::path::PathBuf,
         }
-        struct Missing {
-            dst: [f32; 4],
-            path: String,
-            alt: String,
-        }
         let mut ready: Vec<Ready> = Vec::new();
-        let mut missing: Vec<Missing> = Vec::new();
+        let mut missing: Vec<MissingImagePlaceholder> = Vec::new();
         let mut scrim_bands: Vec<[f32; 4]> = Vec::new();
         for im in &report {
             if im.revealed && (!wysiwyg || !self.image_row_reserved(im.line)) {
@@ -1042,7 +1102,7 @@ impl TextPipeline {
                 self.push_caption_scrim(im.line, &mut scrim_bands);
             }
             if im.missing {
-                missing.push(Missing {
+                missing.push(MissingImagePlaceholder {
                     dst,
                     path: im.path.clone(),
                     alt: im.alt.clone(),
@@ -1056,7 +1116,7 @@ impl TextPipeline {
                 .ensure(device, queue, &resolved, dw, max_dim)
             {
                 ImageState::Ready { .. } => ready.push(Ready { dst, alpha, key }),
-                ImageState::Missing => missing.push(Missing {
+                ImageState::Missing => missing.push(MissingImagePlaceholder {
                     dst,
                     path: im.path.clone(),
                     alt: im.alt.clone(),
@@ -1092,53 +1152,7 @@ impl TextPipeline {
         self.image_scrim_pipeline
             .prepare(device, queue, width, height, &scrim_bands);
 
-        let m = self.metrics;
-        let label = crate::markdown::type_scale::LABEL;
-        let gm = GlyphMetrics::new(m.font_size * label, m.line_height * label);
-        let line_h = m.line_height * label;
-        let muted = theme::muted().to_glyphon();
-        let faint = theme::faint().to_glyphon();
-        let center = Some(glyphon::cosmic_text::Align::Center);
-        let name_attrs = self.doc_attrs().color(muted);
-        let alt_attrs = self.doc_attrs().color(faint);
-        let mut buffers: Vec<(GlyphBuffer, f32, f32, glyphon::Color)> = Vec::new();
-        for mss in &missing {
-            let filename = std::path::Path::new(&mss.path)
-                .file_name()
-                .and_then(|s| s.to_str())
-                .unwrap_or(mss.path.as_str());
-            let box_w = mss.dst[2].max(1.0);
-            let box_left = mss.dst[0];
-            let box_top = mss.dst[1];
-            let box_h = mss.dst[3];
-            let two = !mss.alt.trim().is_empty();
-            let block_h = if two { line_h * 2.0 } else { line_h };
-            let start_y = box_top + (box_h - block_h).max(0.0) * 0.5;
-            let mut name_buf = GlyphBuffer::new(&mut self.font_system, gm);
-            name_buf.set_size(&mut self.font_system, Some(box_w), Some(line_h));
-            name_buf.set_text(
-                &mut self.font_system,
-                filename,
-                &name_attrs,
-                Shaping::Advanced,
-                center,
-            );
-            name_buf.shape_until_scroll(&mut self.font_system, false);
-            buffers.push((name_buf, box_left, start_y, muted));
-            if two {
-                let mut alt_buf = GlyphBuffer::new(&mut self.font_system, gm);
-                alt_buf.set_size(&mut self.font_system, Some(box_w), Some(line_h));
-                alt_buf.set_text(
-                    &mut self.font_system,
-                    mss.alt.trim(),
-                    &alt_attrs,
-                    Shaping::Advanced,
-                    center,
-                );
-                alt_buf.shape_until_scroll(&mut self.font_system, false);
-                buffers.push((alt_buf, box_left, start_y + line_h, faint));
-            }
-        }
+        let buffers = self.build_missing_placeholder_text_buffers(&missing);
         let bounds = self.clip_text_bounds(TextBounds {
             left: 0,
             top: 0,
