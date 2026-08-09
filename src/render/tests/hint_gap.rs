@@ -71,6 +71,10 @@ fn overlay_view(kind: OverlayKind, shape: Shape) -> ViewState {
         _ => 0,
     };
     v.overlay_empty = (shape == Shape::Empty).then(|| kind.empty_corpus_message().to_string());
+    // Reproduce the product's presentation discriminator. The spell picker is
+    // a word-anchored popup, not a card with a foot band; enrolment below asks
+    // this state rather than naming the kind again.
+    v.overlay_spell = (kind == OverlayKind::Spell).then_some((0, 0, 3));
     if crate::facets::scheme(kind).is_some() {
         v.overlay_lens = vec![("All".into(), true), ("File".into(), false)];
         // CONTIGUOUS blocks, not alternating: a grouped card plans one header
@@ -149,8 +153,9 @@ fn grade_hint_gap(p: &TextPipeline, width: u32, lh: f32, ctx: &str, graded: &mut
 }
 
 /// THE HEADLINE LAW. Over the whole `OverlayKind` roster (every family the
-/// flat/grouped shapers reach — `Spell` is excluded, it structurally never
-/// draws a hint), both list styles, both DPIs, and full/empty candidate
+/// flat/grouped shapers reach; the word-anchored popup is excluded by its
+/// product presentation state because it structurally never draws a foot
+/// hint), both list styles, both DPIs, and full/empty candidate
 /// shapes (the empty-state notice shares this band — the known
 /// collision).
 #[test]
@@ -181,11 +186,20 @@ fn the_hint_sits_a_full_row_below_the_content_band() {
         for (sname, style) in styles {
             crate::render::set_list_style_test_override(style);
             for kind in OverlayKind::ALL {
-                if kind == OverlayKind::Spell {
-                    continue;
-                }
                 for shape in [Shape::Full, Shape::Empty] {
                     let v = overlay_view(kind, shape);
+                    if v.overlay_spell.is_some() {
+                        assert!(
+                            !v.overlay_hint.is_empty(),
+                            "{kind:?}: the excluded popup must carry a real hint; otherwise the exclusion is vacuous"
+                        );
+                        p.set_view(&v);
+                        assert!(
+                            p.overlay_hint_gap_probe(cw).is_none(),
+                            "{kind:?}: a word-anchored popup unexpectedly enrolled in the card foot-band law"
+                        );
+                        continue;
+                    }
                     p.set_view(&v);
                     p.prepare(&device, &queue, cw, ch).unwrap();
                     let lh = p.overlay_lh();
@@ -301,6 +315,22 @@ fn the_hint_gap_holds_when_filtered_scrolled_or_in_a_workspace() {
 /// law must never be satisfiable by having no rows to cost, so each reading
 /// carries its own presence floor.
 #[test]
+fn a_nonempty_hint_enrols_exactly_one_separator_row() {
+    assert_eq!(
+        super::super::chrome::overlay_hint_gap_rows(0),
+        0,
+        "an absent hint must not reserve a separator"
+    );
+    for hint_rows in 1..=4 {
+        assert_eq!(
+            super::super::chrome::overlay_hint_gap_rows(hint_rows),
+            hint_rows,
+            "{hint_rows} hint rows must enrol the same number of separator rows"
+        );
+    }
+}
+
+#[test]
 fn a_hint_reserves_exactly_two_rows_from_the_candidate_window() {
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
@@ -336,57 +366,46 @@ fn a_hint_reserves_exactly_two_rows_from_the_candidate_window() {
             n
         };
 
-        // FLAT — `Caret` carries no facet scheme (`facets::scheme`), so
-        // `overlay_view` leaves `overlay_lens` empty and the dispatcher takes the
-        // flat path.
-        let mut flat = overlay_view(OverlayKind::Caret, Shape::Scrolled);
-        flat.overlay_hint = String::new();
-        let flat_bare = visible_rows(&mut p, &flat);
-        flat.overlay_hint = OverlayKind::Caret.hint();
-        let flat_hinted = visible_rows(&mut p, &flat);
+        let mut enrolled = 0usize;
+        let mut excluded_popups = 0usize;
+        for kind in OverlayKind::ALL {
+            let mut v = overlay_view(kind, Shape::Scrolled);
+            if v.overlay_spell.is_some() {
+                excluded_popups += 1;
+                continue;
+            }
+            if let Some(shape) = kind.workspace_shape() {
+                v.overlay_workspace = true;
+                v.overlay_rows_primary = shape.rows_are_primary();
+            }
+            // Section headers are a coupled row cost, not the hint's cost. Keep
+            // the real grouped family but ask it on its section-free home lens.
+            v.overlay_sections.clear();
+            let hint = v.overlay_hint.clone();
+            assert!(
+                !hint.is_empty(),
+                "{kind:?}: an enrolled surface must carry a real product hint"
+            );
+            v.overlay_hint.clear();
+            let bare = visible_rows(&mut p, &v);
+            v.overlay_hint = hint;
+            let hinted = visible_rows(&mut p, &v);
+            assert_eq!(
+                bare.saturating_sub(hinted),
+                2,
+                "{kind:?} menu_bar={bar}: a hint must cost exactly 2 rows of the candidate \
+                 window (bare={bare}, hinted={hinted})"
+            );
+            enrolled += 1;
+        }
         assert_eq!(
-            flat_bare.saturating_sub(flat_hinted),
-            2,
-            "flat menu_bar={bar}: a hint must cost exactly 2 rows of the candidate \
-         window (bare={flat_bare}, hinted={flat_hinted})"
+            enrolled + excluded_popups,
+            OverlayKind::ALL.len(),
+            "every roster member must be enrolled or excluded by its presentation"
         );
-
-        // GROUPED — `Command` carries a real facet scheme, so `overlay_view` sets
-        // `overlay_lens` and the dispatcher takes the grouped (faceted) path —
-        // the same card the very first screenshot of this item showed crowded. On
-        // its "All" HOME lens, where a grouped picker spends most of its open time:
-        // SECTIONS ARE THE OTHER AXIS, as the fixture's own note above already
-        // says. A sectioned card's header charge scales with how many items its
-        // window holds (`fit_sectioned_item_rows`), so removing two item rows can
-        // remove a header charge with them and the hint then reads as costing one
-        // row — a true measurement of a coupled quantity, and not this law's
-        // subject.
-        let mut grouped = overlay_view(OverlayKind::Command, Shape::Scrolled);
-        grouped.overlay_sections.clear();
-        grouped.overlay_hint = String::new();
-        let grouped_bare = visible_rows(&mut p, &grouped);
-        grouped.overlay_hint = OverlayKind::Command.hint();
-        let grouped_hinted = visible_rows(&mut p, &grouped);
-        assert_eq!(
-            grouped_bare.saturating_sub(grouped_hinted),
-            2,
-            "grouped menu_bar={bar}: a hint must cost exactly 2 rows of the candidate \
-         window (bare={grouped_bare}, hinted={grouped_hinted})"
-        );
-
-        // WORKSPACE — Settings' rail-over-rows stage, canvas-sized card.
-        let mut ws = overlay_view(OverlayKind::Settings, Shape::Scrolled);
-        ws.overlay_workspace = true;
-        ws.overlay_rows_primary = false;
-        ws.overlay_hint = String::new();
-        let ws_bare = visible_rows(&mut p, &ws);
-        ws.overlay_hint = OverlayKind::Settings.hint();
-        let ws_hinted = visible_rows(&mut p, &ws);
-        assert_eq!(
-            ws_bare.saturating_sub(ws_hinted),
-            2,
-            "workspace menu_bar={bar}: a hint must cost exactly 2 rows of the candidate \
-         window (bare={ws_bare}, hinted={ws_hinted})"
+        assert!(
+            enrolled > 10 && excluded_popups > 0,
+            "the roster sweep and its popup exclusion must both be non-vacuous"
         );
     }
     crate::menubar::set_menu_bar_on(ambient_menu_bar);
