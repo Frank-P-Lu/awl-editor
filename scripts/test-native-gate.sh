@@ -3,13 +3,71 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PYTHONDONTWRITEBYTECODE=1 python3 "$ROOT/scripts/test-native-test-shards.py"
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/awl-native-gate-test.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
+
+PYTHONDONTWRITEBYTECODE=1 python3 - "$ROOT/scripts/native-test-shards.py" \
+  >"$WORK/awl-test-list" <<'PY'
+import importlib.util
+import sys
+
+spec = importlib.util.spec_from_file_location("shards", sys.argv[1])
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+for hints in module.HINTS:
+    for prefix in hints:
+        print(prefix + "probe: test")
+print("firstrun::tests::probe: test")
+print("other::tests::remainder: test")
+PY
+
+cat >"$WORK/awl-test-bin" <<'EOF'
+#!/usr/bin/env bash
+set -eo pipefail
+tests=()
+while IFS= read -r test; do tests+=("${test%: test}"); done \
+  <"$AWL_NATIVE_GATE_PROBE_TEST_LIST"
+filters=()
+skips=()
+listing=0
+while (( $# )); do
+  case "$1" in
+    --list) listing=1 ;;
+    --format) shift ;;
+    --skip) shift; skips+=("$1") ;;
+    --*) : ;;
+    *) filters+=("$1") ;;
+  esac
+  shift
+done
+selected=()
+for test in "${tests[@]}"; do
+  match=0
+  (( ${#filters[@]} == 0 )) && match=1
+  for filter in "${filters[@]}"; do [[ "$test" == *"$filter"* ]] && match=1; done
+  for skip in "${skips[@]}"; do [[ "$test" == *"$skip"* ]] && match=0; done
+  (( match )) && selected+=("$test")
+done
+if (( listing )); then
+  for test in "${selected[@]}"; do printf '%s: test\n' "$test"; done
+  exit 0
+fi
+printf 'shard %s %s\n' "${AWL_CONVENTION_FORCE:-unset}" "$$" >>"$AWL_NATIVE_GATE_PROBE_LOG"
+printf '\nrunning %s tests\n' "${#selected[@]}"
+printf 'test result: ok. %s passed; 0 failed; 0 ignored; 0 measured\n' "${#selected[@]}"
+EOF
+chmod +x "$WORK/awl-test-bin"
 
 cat >"$WORK/cargo" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 convention="${AWL_CONVENTION_FORCE:-canary}"
+if [[ " $* " == *" --no-run "* ]]; then
+  printf '{"reason":"compiler-artifact","target":{"kind":["bin"],"name":"awl"},"profile":{"test":true},"executable":"%s"}\n' "$AWL_NATIVE_GATE_PROBE_TEST_BINARY"
+  printf '{"reason":"compiler-artifact","target":{"kind":["test"],"name":"native_gate_canary"},"profile":{"test":true},"executable":"%s"}\n' "$AWL_NATIVE_GATE_PROBE_TEST_BINARY"
+  exit 0
+fi
 printf 'start %s\n' "$convention" >>"$AWL_NATIVE_GATE_PROBE_LOG"
 printf 'threads %s %s\n' "$convention" "${RUST_TEST_THREADS:-unset}" >>"$AWL_NATIVE_GATE_PROBE_LOG"
 # The MENU-BAR axis, recorded per invocation. `unset` is a real answer and the
@@ -93,6 +151,8 @@ run_probe() {
   set +e
   PATH="$WORK:$PATH" \
     AWL_NATIVE_GATE_PROBE_LOG="$WORK/events" \
+    AWL_NATIVE_GATE_PROBE_TEST_BINARY="$WORK/awl-test-bin" \
+    AWL_NATIVE_GATE_PROBE_TEST_LIST="$WORK/awl-test-list" \
     AWL_NATIVE_GATE_FAIL_CONVENTION="$failing" \
     AWL_NATIVE_GATE_FAIL_STATUS="$status" \
     AWL_DISK_PREFLIGHT_TEST_MODE=1 \
@@ -117,6 +177,8 @@ probe_bound() {
     AWL_NATIVE_GATE_CPUS="$cpus" \
     AWL_NATIVE_GATE_MEM_BYTES="$mem_bytes" \
     AWL_NATIVE_GATE_PROBE_LOG="$WORK/events" \
+    AWL_NATIVE_GATE_PROBE_TEST_BINARY="$WORK/awl-test-bin" \
+    AWL_NATIVE_GATE_PROBE_TEST_LIST="$WORK/awl-test-list" \
     AWL_DISK_PREFLIGHT_TEST_MODE=1 \
     AWL_DISK_PREFLIGHT_FREE_BYTES_COMMAND="$WORK/free-oracle" \
     AWL_DISK_PREFLIGHT_LOCK_DIR="$WORK/disk-lock-$label" \
@@ -131,6 +193,7 @@ assert_bound() {
   probe_bound "$cpus" "$mem_bytes" "$caller"
   (( probe_status == 0 )) || {
     echo "test-native-gate: bound probe cpus=$cpus mem=$mem_bytes failed ($probe_status)" >&2
+    tail -n 20 "$bound_output" >&2
     exit 1
   }
   for convention in mac linux; do
@@ -167,6 +230,8 @@ env -u RUST_TEST_THREADS \
   AWL_NATIVE_GATE_BUDGET_SECONDS=1 \
   AWL_NATIVE_GATE_PROBE_SLEEP=60 \
   AWL_NATIVE_GATE_PROBE_LOG="$WORK/events" \
+  AWL_NATIVE_GATE_PROBE_TEST_BINARY="$WORK/awl-test-bin" \
+  AWL_NATIVE_GATE_PROBE_TEST_LIST="$WORK/awl-test-list" \
   AWL_DISK_PREFLIGHT_TEST_MODE=1 \
   AWL_DISK_PREFLIGHT_FREE_BYTES_COMMAND="$WORK/free-oracle" \
   AWL_DISK_PREFLIGHT_LOCK_DIR="$WORK/disk-lock-budget" \
@@ -200,6 +265,8 @@ probe() {
   env -u RUST_TEST_THREADS -u AWL_NATIVE_GATE_BUDGET_SECONDS -u AWL_NATIVE_GATE_DEADLINE_EPOCH \
     PATH="$WORK:$PATH" \
     AWL_NATIVE_GATE_PROBE_LOG="$WORK/events" \
+    AWL_NATIVE_GATE_PROBE_TEST_BINARY="$WORK/awl-test-bin" \
+    AWL_NATIVE_GATE_PROBE_TEST_LIST="$WORK/awl-test-list" \
     AWL_DISK_PREFLIGHT_TEST_MODE=1 \
     AWL_DISK_PREFLIGHT_FREE_BYTES_COMMAND="$WORK/free-oracle" \
     AWL_DISK_PREFLIGHT_LOCK_DIR="$WORK/disk-lock-$label" \
@@ -430,6 +497,8 @@ env -u RUST_TEST_THREADS \
   AWL_NATIVE_GATE_VITALS_SECONDS=1 \
   AWL_NATIVE_GATE_PROBE_SLEEP=3 \
   AWL_NATIVE_GATE_PROBE_LOG="$WORK/events" \
+  AWL_NATIVE_GATE_PROBE_TEST_BINARY="$WORK/awl-test-bin" \
+  AWL_NATIVE_GATE_PROBE_TEST_LIST="$WORK/awl-test-list" \
   AWL_DISK_PREFLIGHT_TEST_MODE=1 \
   AWL_DISK_PREFLIGHT_FREE_BYTES_COMMAND="$WORK/free-oracle" \
   AWL_DISK_PREFLIGHT_LOCK_DIR="$WORK/disk-lock-vitals" \
@@ -599,6 +668,41 @@ grep -Fq 'native-gate-receipt' "$WORK/output-success" || {
   echo "test-native-gate: successful sibling suites emitted no receipt" >&2
   exit 1
 }
+grep -Fq "unit_tests=$(wc -l <"$WORK/awl-test-list") unit_shards=6 integration_targets=1" \
+  "$WORK/output-success" || {
+    echo "test-native-gate: receipt did not state its proved unit/shard/integration scope" >&2
+    exit 1
+  }
+for convention in mac linux; do
+  [[ "$(awk -v c="$convention" '$1 == "shard" && $2 == c { count++ } END { print count + 0 }' "$WORK/events")" == 6 ]] || {
+    echo "test-native-gate: $convention did not execute all six proved binary shards" >&2
+    exit 1
+  }
+done
+grep -Fq 'native-test-shards verified full=' "$WORK/output-success" || {
+  echo "test-native-gate: the successful receipt carried no binary completeness proof" >&2
+  exit 1
+}
+
+probe one-shard AWL_NATIVE_GATE_SHARDS=1
+(( probe_status == 0 )) || { echo "test-native-gate: one-shard probe failed ($probe_status)" >&2; exit 1; }
+for convention in mac linux; do
+  [[ "$(awk -v c="$convention" '$1 == "shard" && $2 == c { count++ } END { print count + 0 }' "$WORK/events")" == 1 ]] || {
+    echo "test-native-gate: AWL_NATIVE_GATE_SHARDS=1 did not run one binary process for $convention" >&2
+    exit 1
+  }
+done
+
+probe shard-mutation AWL_NATIVE_GATE_PROBE_DELETE_PREFIX=1
+(( probe_status == 1 )) || {
+  echo "test-native-gate: deleting a generated prefix returned $probe_status, expected refusal status 1" >&2
+  exit 1
+}
+require "shard mutation" "native-test-shards: completeness refusal"
+require "shard mutation" "missing="
+refuse "shard mutation" "native-gate-receipt"
+
+echo "test-native-gate: six shards are complete, the one-shard wave knob is live, and deleting one generated prefix refuses by missing test name"
 
 for failing in mac linux; do
   run_probe "$failing" 23
@@ -675,6 +779,8 @@ PATH="$WORK:$PATH" \
   AWL_NATIVE_GATE_MARKER="$marker" \
   AWL_NATIVE_GATE_PROBE_SLEEP=4 \
   AWL_NATIVE_GATE_PROBE_LOG="$WORK/events" \
+  AWL_NATIVE_GATE_PROBE_TEST_BINARY="$WORK/awl-test-bin" \
+  AWL_NATIVE_GATE_PROBE_TEST_LIST="$WORK/awl-test-list" \
   AWL_DISK_PREFLIGHT_TEST_MODE=1 \
   AWL_DISK_PREFLIGHT_FREE_BYTES_COMMAND="$WORK/free-oracle" \
   AWL_DISK_PREFLIGHT_LOCK_DIR="$WORK/disk-lock-marker-live" \
@@ -769,6 +875,8 @@ PATH="$WORK:$PATH" \
   AWL_NATIVE_GATE_MARKER="$sigint_marker" \
   AWL_NATIVE_GATE_PROBE_SLEEP=4 \
   AWL_NATIVE_GATE_PROBE_LOG="$WORK/events" \
+  AWL_NATIVE_GATE_PROBE_TEST_BINARY="$WORK/awl-test-bin" \
+  AWL_NATIVE_GATE_PROBE_TEST_LIST="$WORK/awl-test-list" \
   AWL_DISK_PREFLIGHT_TEST_MODE=1 \
   AWL_DISK_PREFLIGHT_FREE_BYTES_COMMAND="$WORK/free-oracle" \
   AWL_DISK_PREFLIGHT_LOCK_DIR="$WORK/disk-lock-sigint" \
@@ -811,6 +919,8 @@ set +e
 PATH="$WORK:$PATH" \
   AWL_NATIVE_GATE_MARKER="$marker_clean" \
   AWL_NATIVE_GATE_PROBE_LOG="$WORK/events" \
+  AWL_NATIVE_GATE_PROBE_TEST_BINARY="$WORK/awl-test-bin" \
+  AWL_NATIVE_GATE_PROBE_TEST_LIST="$WORK/awl-test-list" \
   AWL_DISK_PREFLIGHT_TEST_MODE=1 \
   AWL_DISK_PREFLIGHT_FREE_BYTES_COMMAND="$WORK/free-oracle" \
   AWL_DISK_PREFLIGHT_LOCK_DIR="$WORK/disk-lock-marker-clean" \

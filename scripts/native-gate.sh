@@ -461,11 +461,89 @@ gate_run_convention() {
   "$@" 2>&1 | gate_stamp_phases "$label"
 }
 
+gate_shard_count="${AWL_NATIVE_GATE_SHARDS:-6}"
+if [[ "$gate_shard_count" != 1 && "$gate_shard_count" != 6 ]]; then
+  echo "native-gate: AWL_NATIVE_GATE_SHARDS must be 1 or 6 (got $gate_shard_count)" >&2
+  exit 2
+fi
+
+gate_prepare_tests() {
+  local cargo_json="$gate_run_dir/cargo-tests.json"
+  cargo test --no-run --message-format=json >"$cargo_json"
+  python3 "$gate_root/scripts/native-test-shards.py" artifacts \
+    "$cargo_json" "$gate_run_dir/artifacts"
+
+  gate_binary="$(sed -n 's/^binary=//p' "$gate_run_dir/artifacts")"
+  [[ -x "$gate_binary" ]] || {
+    echo "native-gate: discovered binary is not executable: $gate_binary" >&2
+    return 1
+  }
+  "$gate_binary" --list --format terse >"$gate_run_dir/full.list"
+  python3 "$gate_root/scripts/native-test-shards.py" partition \
+    "$gate_run_dir/full.list" "$gate_run_dir/shards" "$gate_shard_count"
+
+  # Self-test seam: prove the completeness oracle rejects a missing generated
+  # prefix. It is deliberately after partitioning and before the shard lists,
+  # so the mutation attacks the subject the gate will actually execute.
+  if [[ -n "${AWL_NATIVE_GATE_PROBE_DELETE_PREFIX:-}" ]]; then
+    sed '1d' "$gate_run_dir/shards/shard-1.filters" \
+      >"$gate_run_dir/shards/shard-1.filters.mutated"
+    mv "$gate_run_dir/shards/shard-1.filters.mutated" \
+      "$gate_run_dir/shards/shard-1.filters"
+  fi
+
+  local shard filter skip
+  for (( shard = 1; shard <= gate_shard_count; shard++ )); do
+    local args=()
+    while IFS= read -r filter; do [[ -n "$filter" ]] && args+=("$filter"); done \
+      <"$gate_run_dir/shards/shard-$shard.filters"
+    while IFS= read -r skip; do [[ -n "$skip" ]] && args+=(--skip "$skip"); done \
+      <"$gate_run_dir/shards/shard-$shard.skips"
+    "$gate_binary" "${args[@]}" --list --format terse \
+      >"$gate_run_dir/shards/shard-$shard.list"
+  done
+  local shard_lists=()
+  for (( shard = 1; shard <= gate_shard_count; shard++ )); do
+    shard_lists+=("$gate_run_dir/shards/shard-$shard.list")
+  done
+  python3 "$gate_root/scripts/native-test-shards.py" verify \
+    "$gate_run_dir/full.list" "${shard_lists[@]}"
+  printf 'native-gate-shards count=%s binary=%s integrations=%s\n' \
+    "$gate_shard_count" "$gate_binary" "$(grep -c '^integration=' "$gate_run_dir/artifacts")"
+}
+
+gate_run_native_suite() {
+  local convention="$1" shard filter skip status=0 shard_status
+  local shard_pids=()
+  export AWL_CONVENTION_FORCE="$convention"
+  for (( shard = 1; shard <= gate_shard_count; shard++ )); do
+    local args=()
+    while IFS= read -r filter; do [[ -n "$filter" ]] && args+=("$filter"); done \
+      <"$gate_run_dir/shards/shard-$shard.filters"
+    while IFS= read -r skip; do [[ -n "$skip" ]] && args+=(--skip "$skip"); done \
+      <"$gate_run_dir/shards/shard-$shard.skips"
+    "$gate_binary" "${args[@]}" &
+    shard_pids+=("$!")
+  done
+  set +e
+  for shard in "${!shard_pids[@]}"; do
+    wait "${shard_pids[$shard]}"
+    shard_status=$?
+    (( shard_status == 0 )) || status=$shard_status
+  done
+  set -e
+  (( status == 0 )) || return "$status"
+
+  local integration_args=()
+  while IFS= read -r filter; do
+    [[ "$filter" == integration=* ]] && integration_args+=(--test "${filter#integration=}")
+  done <"$gate_run_dir/artifacts"
+  cargo test "${integration_args[@]}"
+}
+
 # This is deliberately an integration target, outside the binary unit-test
 # target. Its first position makes integration-test discovery disappear loudly.
 canary_command=(cargo test --test native_gate_canary)
-mac_command=(env AWL_CONVENTION_FORCE=mac cargo test)
-linux_command=(env AWL_CONVENTION_FORCE=linux cargo test)
 
 # ── THE MENU-BAR AXIS: both arms, every gate ─────────────────────────────────
 # `menubar::MENU_BAR_ON` is the ONE platform-forked sticky default in the tree —
@@ -582,12 +660,35 @@ if (( canary_status != 0 )); then
   exit 1
 fi
 
+echo "==> discover and prove the binary unit-test shards"
+gate_phase prepare begin
+gate_launch prepare_pid tracked gate_run_convention prepare gate_prepare_tests
+set +e
+wait "$prepare_pid"
+prepare_status=$?
+set -e
+gate_phase prepare end "status=$prepare_status"
+if gate_aborted_on_budget; then
+  gate_finish_abort "prepare_status=$prepare_status (budget expired during shard preparation)"
+fi
+if (( prepare_status != 0 )); then
+  printf 'native-gate: shard preparation or completeness proof failed (status=%s); no receipt issued\n' \
+    "$prepare_status" >&2
+  kill -TERM "$vitals_pid" 2>/dev/null || true
+  exit 1
+fi
+# The preparation runs in a child process, so publish its discovered path into
+# this parent from the artifact manifest rather than relying on shell state.
+gate_binary="$(sed -n 's/^binary=//p' "$gate_run_dir/artifacts")"
+gate_unit_tests="$(grep -c ': test$' "$gate_run_dir/full.list")"
+gate_integration_targets="$(grep -c '^integration=' "$gate_run_dir/artifacts")"
+
 # The canary fronts dependency and library compilation. Cargo's shared-target
 # lock prevents duplicate remaining compilation when these siblings start; in
 # worker lanes both also inherit the orchestration-owned Cargo cap.
 echo "==> native suites (mac and linux conventions, concurrent)"
-gate_launch mac_pid tracked gate_run_convention mac "${mac_command[@]}"
-gate_launch linux_pid tracked gate_run_convention linux "${linux_command[@]}"
+gate_launch mac_pid tracked gate_run_convention mac gate_run_native_suite mac
+gate_launch linux_pid tracked gate_run_convention linux gate_run_native_suite linux
 # The menu-bar arms ride alongside the two conventions rather than after them:
 # every one of the four shares the target dir, so Cargo's own lock serializes
 # their builds and only the FIRST of them compiles anything. What is left is test
@@ -643,4 +744,5 @@ if [[ "$start_commit" != "$end_commit" ]]; then
   exit 1
 fi
 
-printf 'native-gate-receipt commit=%s conventions=mac,linux scope=all-targets\n' "$end_commit"
+printf 'native-gate-receipt commit=%s conventions=mac,linux scope=all-targets unit_tests=%s unit_shards=%s integration_targets=%s\n' \
+  "$end_commit" "$gate_unit_tests" "$gate_shard_count" "$gate_integration_targets"
