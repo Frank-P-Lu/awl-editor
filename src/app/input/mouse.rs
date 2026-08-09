@@ -37,7 +37,7 @@ impl App {
         self.document.buffer().fold_tail_hit(line, col)
     }
 
-    /// item 81 — THE FOLD CHEVRON's own click/hover target: if the pointer lands on a
+    /// THE FOLD CHEVRON's own click/hover target: if the pointer lands on a
     /// currently-REVEALED chevron (any foldable heading, expanded OR collapsed —
     /// [`crate::render::TextPipeline::fold_chevron_hit`]), the FULL-document heading
     /// line to toggle; else `None`. `None` with no GPU pipeline up (headless has no
@@ -90,7 +90,7 @@ impl App {
         if !over_writing_column {
             return;
         }
-        // FOLD CHEVRON CLICK (item 81): a plain click on a REVEALED fold chevron
+        // FOLD CHEVRON CLICK: a plain click on a REVEALED fold chevron
         // toggles that heading's section EITHER direction (fold an expanded heading,
         // unfold a collapsed one) through the ONE owner
         // (`Buffer::toggle_fold_at_line`) — never starts a text selection or a drag.
@@ -103,7 +103,7 @@ impl App {
             self.document.clear_mark();
             return;
         }
-        // CLICK-TO-EXPAND (item 47c): a plain click on a collapsed heading's "… N lines"
+        // CLICK-TO-EXPAND: a plain click on a collapsed heading's "… N lines"
         // tail (past the heading text) OPENS that fold and parks the caret on the
         // heading — it never starts a text selection or a drag (returns before
         // `self.input.pointer.dragging`). The caller's `sync_view(true)` repaints the now-expanded
@@ -174,7 +174,7 @@ impl App {
         self.document.reveal_placement();
     }
 
-    /// item 74 FIX: resolve an Outline row's hit-tested line (as
+    /// Resolve an Outline row's hit-tested line (as
     /// `TextPipeline::outline_hit_line` returns it) to the RAW document line
     /// `jump_to_line` must receive. `outline_hit_line`'s line is FOLD-FILTERED
     /// space — the render shapes the fold-filtered document, and `outline_headings`
@@ -234,7 +234,7 @@ impl App {
 
     pub(in crate::app) fn overlay_hover(&mut self) {
         let (px, py) = self.input.pointer.cursor_px;
-        // ITEM 85/106 — `TextPipeline::resolve_overlay_hover` hit-tests THEN runs
+        // `TextPipeline::resolve_overlay_hover` hit-tests THEN runs
         // `OverlayState::hover_at`'s REAL-MOTION + MOVEMENT-SLOP GATE: it
         // re-hit-tests + re-highlights ONLY when `(px, py)` travelled PAST the
         // slop since the last hover check (or the last keyboard action —
@@ -272,8 +272,8 @@ impl App {
         let prev = crate::theme::active();
         if let Some(ov) = self.workspace_state.overlay() {
             // BARE preview — NOT `preview_move`: a passive HOVER re-tints the world but
-            // must NOT re-anchor the card (item 52 — no spatial chase under a wandering
-            // pointer; the item-45 freeze holds the card put). Deliberate crossings
+            // must NOT re-anchor the card (no spatial chase under a wandering
+            // pointer; the summon-time freeze holds the card put). Deliberate crossings
             // (keyboard nav, wheel) re-anchor; hover alone does not.
             crate::actions::preview_overlay(ov);
         }
@@ -305,7 +305,7 @@ impl App {
         if let Some(ov) = self.workspace_state.overlay_mut() {
             crate::actions::preview_move(ov);
         }
-        // ITEM 106: the wheel drives `move_sel` exactly like a keyboard press (it
+        // The wheel drives `move_sel` exactly like a keyboard press (it
         // is one of the "deliberate crossing" input classes, same as ↑/↓), so it
         // must re-anchor `hover_at`'s movement-slop gate to the pointer's CURRENT
         // resting position too — mirroring `App::apply`'s stamp after every
@@ -403,7 +403,7 @@ impl App {
             {
                 ov.selected = idx;
             }
-            // ITEM 94 — A RANGE ROW'S LABEL SELECTS WITHOUT CHANGING. Every other
+            // A RANGE ROW'S LABEL SELECTS WITHOUT CHANGING. Every other
             // kind treats a row click as Enter; a range row must not, because its
             // Enter opens the modal numeric edit — so clicking the row's NAME (to
             // then use the arrows, or just to look) would hijack the keyboard. The
@@ -594,7 +594,7 @@ impl App {
     /// Called on every `CursorMoved`, and again from the two doors that change this
     /// context WITHOUT any mouse motion: a page-edge drag beginning/ending
     /// (`begin_page_resize_if_hovering` / `end_page_resize`) and a summoned overlay
-    /// opening/closing (`App::apply`'s one shared-core slot lend — item 172).
+    /// opening/closing (`App::apply`'s shared-core slot lend).
     ///
     /// COMPOSES with pointer auto-hide: while the OS pointer is `Hidden`
     /// (`pointer_hide::PointerHide`), the `set_cursor` call is skipped outright (there
@@ -620,7 +620,7 @@ impl App {
         // hit-test the strip's click handling uses (`overlay_click`), so a hovered
         // facet can never disagree with a clickable one. `None` for a non-faceting
         // picker (no strip drawn) or off the strip row.
-        // ITEM 114 — a workspace's RAIL entry is clickable, so it earns the same
+        // A workspace's RAIL entry is clickable, so it earns the same
         // pointing hand through the same owner its click handling uses.
         let over_clickable_lens = overlay_open
             && (gpu.pipeline.overlay_lens_at(px, py).is_some()
@@ -653,7 +653,7 @@ impl App {
         // The RAW summon bit, deliberately ladder-free — see its own doc.
         let summoned = self.workspace_state.popover_summon_bit();
         let over_popover_button = summoned && gpu.pipeline.popover_hit(px, py).is_some();
-        // item 81: a REVEALED fold chevron (any foldable heading, expanded OR
+        // A REVEALED fold chevron (any foldable heading, expanded OR
         // collapsed) reads as click-to-toggle (the pointing hand) — reuses the SAME
         // `fold_chevron_hit` the press path uses, so a hover can never disagree with
         // where a click would land. Only while no overlay is open (its scrim covers
@@ -726,7 +726,7 @@ impl App {
             gpu.window.set_cursor_visible(visible);
         }
         if self.input.pointer.range_drag.is_some() {
-            // ITEM 94 — a live SETTINGS RAIL SCRUB owns the pointer outright (it is
+            // A live SETTINGS RAIL SCRUB owns the pointer outright (it is
             // a grabbed control): the value tracks the pointer through the range
             // spec, and the hover below must NOT also re-select rows under the
             // travelling pointer mid-gesture.
@@ -757,7 +757,7 @@ impl App {
     }
 
     /// Mirror the FILTERED document row under the pointer into the pipeline so a
-    /// heading's fold CHEVRON reveals on hover — item 81 widened this from a
+    /// heading's fold CHEVRON reveals on hover — it applies to a
     /// collapsed heading's tail-row-only reveal to EVERY foldable heading, expanded
     /// or collapsed (LIVE only — the headless capture has no pointer, so this never
     /// runs there and only the caret-on-heading reveal fires). Gated on
@@ -1013,7 +1013,7 @@ impl App {
             if lines.abs() >= 1.0 {
                 let dir = lines.signum();
                 let before = self.frame.zoom();
-                // ITEM 94: one AUTHORED step per notch, through the range spec (the
+                // One AUTHORED step per notch, through the range spec (the
                 // same owner ⌘± and the Settings rail step through).
                 self.set_zoom(crate::range::ZOOM.stepped(self.frame.zoom(), dir as i32));
                 // Anchor the wheel zoom on the POINTER (captured against the OLD
