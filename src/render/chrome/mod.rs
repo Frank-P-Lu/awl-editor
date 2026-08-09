@@ -1,9 +1,9 @@
 //! Document chrome: overlays, gutter, and corner readouts.
 
 use super::*;
-// ITEM 174 — the scene planner owns the candidate-row geometry every overlay
+// The scene planner owns the candidate-row geometry every overlay
 // consumer here reads (its forward/inverse row<->y arithmetic stays private to
-// `crate::render::plan`); item 181 adds the shared item-row HEIGHT clamp.
+// `crate::render::plan`) and adds the shared item-row HEIGHT clamp.
 pub(super) use crate::render::plan::{
     ClusterExtent, OverlayRowPlan, OverlayRowPlanInput, PlanLine, PlannedRow, RowSpan,
     fit_item_rows, fit_sectioned_item_rows, plan_overlay_rows,
@@ -213,12 +213,12 @@ pub(super) struct OverlayGeom {
     pub(super) text_top: f32,
     pub(super) text_w: f32,
     card_narrow: bool,
-    /// ITEM 114 — this card is drawn as a SUMMONED WORKSPACE. `false` for every
+    /// This card is drawn as a SUMMONED WORKSPACE. `false` for every
     /// contextual card, which keeps every arm reading it byte-identical there.
     /// The family's own doc is `render/chrome/workspace.rs`.
     pub(super) workspace: bool,
     /// The navigation RAIL's COLUMN (`[x, w]`), or `None` when no LABEL rail is
-    /// drawn — off a workspace, on the narrow detail stage, or (item 116a) on
+    /// drawn — off a workspace, on the narrow detail stage, or on
     /// a shape whose primary column carries rows instead of labels. Only the
     /// column: its vertical grid comes from the ROW PLAN's band origin
     /// (`workspace_rail_box`), so a rail entry and the row beside it share a line.
@@ -305,8 +305,8 @@ pub(in crate::render) mod diagonal;
 mod overlay;
 mod overlay_clamp;
 mod panel;
-// ITEM 114 — the SUMMONED WORKSPACE family: geometry, navigation rail, hit-test.
-// ITEM 116b — its two regions' shared box arithmetic, and the RELOCATED
+// The SUMMONED WORKSPACE family: geometry, navigation rail, hit-test, its two
+// regions' shared box arithmetic, and the RELOCATED
 // DOCUMENT VIEWPORT one of them can become (`comparison_viewport`).
 mod comparison;
 mod workspace;
@@ -336,7 +336,7 @@ mod overlay_selection_probe;
 mod overlay_shape;
 pub(in crate::render) mod roster;
 mod rotated_location;
-// ITEM 164 — the ONE visual-selection transaction every selected visual reads.
+// The ONE visual-selection transaction every selected visual reads.
 mod overlay_visual_sel;
 #[cfg(test)]
 pub(in crate::render) use overlay_shape::snap_placard_size;
@@ -413,7 +413,7 @@ impl TextPipeline {
     /// race the caret-preview panel / spell popup / search panel. "Summoned,
     /// not furniture" (DESIGN §5).
     ///
-    /// `chamfer_px`/`texture` (item 70): `0.0`/`None` for every non-card
+    /// `chamfer_px`/`texture`: `0.0`/`None` for every non-card
     /// caller (the caret-style preview panel, the search panel, the format
     /// popover — byte-identical); the SPELL POPUP arm of `overlay_draw_card`
     /// is the one caller that ever passes a real chamfer/texture (Quokka's
@@ -465,13 +465,13 @@ impl TextPipeline {
         );
     }
 
-    /// **THE DOCUMENT CONTENT CLIP's VERTICAL HALF (item 84, re-owned by item
-    /// 116b).** The band (`(top, bottom)` in px) document content may paint
+    /// **THE DOCUMENT CONTENT CLIP's VERTICAL HALF.** The band (`(top, bottom)`
+    /// in px) document content may paint
     /// into, or `None` on an ordinary frame (the whole canvas, no clipping).
     ///
-    /// Item 84 derived it from the diff-preview panel's own card rect — the one
-    /// place a document ever drew somewhere other than the canvas. Item 116b
-    /// replaced that composition with a real relocated viewport, so the band is
+    /// A diff-preview panel once derived it from its own card rect — the one place
+    /// a document ever drew somewhere other than the canvas. The relocated viewport
+    /// replaces that composition, so the band is
     /// now [`Self::comparison_viewport`]'s own vertical extent and the LAW is
     /// unchanged: applied at every content emitter — the text layer's
     /// `TextBounds`, the wash / pill / fence-panel quads, the strike / squiggle
@@ -654,11 +654,11 @@ pub(super) fn grow_span(x: f32, w: f32, grow: f32, mirror: bool) -> (f32, f32) {
 }
 
 /// PURE geometry (SLANT-ON-BARS) — a bar's `(x, w)` extended by its display
-/// row's two-sided extent `(dx, dw)` (item 131a). A `hug` plate (never at the
+/// row's two-sided extent `(dx, dw)`. A `hug` plate (never at the
 /// card's right edge) simply translates by `dx` — `dw` cannot mean anything to
 /// it, since a hug plate's own width already comes from its measured content,
 /// not from the band's width, and a right-hugging mirror plate is a
-/// COMPOSITION concern (item 131c/d), not this primitive's. A FULL-WIDTH plate
+/// COMPOSITION concern, not this primitive's. A FULL-WIDTH plate
 /// keeps whichever edge is untouched flush and sheds the other: `dx` steps the
 /// left edge in with the right held at `x + w` (mirroring the Pane band's
 /// `[card_x + dx, w - dx]`), `dw` steps the right edge in with the left held at
@@ -734,7 +734,7 @@ pub(super) fn field_caret_byte(text: &str, caret_char: usize) -> usize {
         .unwrap_or(text.len())
 }
 
-/// ITEM 80 — THE ONE FIXED-WIDTH FIELD RULE: given a panel VALUE field's FULL
+/// THE ONE FIXED-WIDTH FIELD RULE: given a panel VALUE field's FULL
 /// `text` and its CHAR-index `caret_char`, returns `(view, view_caret)` — a
 /// WINDOW of EXACTLY `cap` chars that always contains the caret. Typing or
 /// pasting past `cap` chars into the find query / replace text used to widen
