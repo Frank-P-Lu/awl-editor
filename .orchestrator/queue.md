@@ -223,10 +223,9 @@ list instead of re-checking the tree.** Every entry in the previous list was
 verified landed via `git log --grep` before this re-derivation (292/293/299/303,
 294/298, 305, 291, 296+300, 273's residuals, 302, 227, 131e+303 — all merged).
 
-1. **373 then 375** — shard the gate, then raise the lane ceiling and install the gate arbiter.
-   Item 374 measured the two slow atoms as irreducible coverage cost, so they set 373's floor.
+1. **375** — raise the lane ceiling and install the gate arbiter on the landed six-way shard owner.
 2. **372** — the citation stock, after 365. Production tier; 1,700 judgement calls, not a sed script.
-3. **357, 358, 369, 370, 359, 360, 371's lane-half** — independent, no ordering constraint among them.
+3. **358, 369, 370, 359, 360, 371's lane-half** — independent, no ordering constraint among them.
 4. **174** — multi-round refactor, continues by slices.
 5. **231** — no live lead; its named next step is a macOS guest VM, a spend decision, not work to absorb.
 6. **🔵 HUMAN / LIVE, none of which a lane can close** — see BLOCKED and OWED above. **251** is
@@ -324,18 +323,6 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
      question is upstream (it changes the width this divides) — decide together.
      **Routing:** production tier, then the user.
 
-357. 🟡 **IN PROGRESS — codex (codex), branch `codex/item-357-world-gallery`.**
-     **Generate the public world gallery from the product, so pictures and roster cannot
-     drift.** Render every member of `theme::THEMES` over one canonical authored document
-     (prose, headings, emphasis, link, code, list, table, inline image) through the real
-     headless capture door; publish on the site's themes page. One script owns regeneration
-     and ordering; the roster derives from `theme::THEMES`, never copied into shell/HTML.
-     No personal paths, zero network. **Done:** regeneration repeatable; a stale-gallery law
-     fails by world name on add/remove/rename/reorder; generated entries spot-checked against
-     the roster and sidecars rather than the generator's own HTML; five-shot vision smoke on
-     samples. **Do not deploy** — outward-facing, separate authorization. **Routing:**
-     production tier + vision smoke.
-
 358. **Persistence fault matrix over the file lifecycle** — fakes for precise failures, real
      processes only where a fake cannot prove the claim. Existing coverage stands
      (`tests/fault_kill9.rs`, `external_item204`, live-App save/autosave/conflict suites) —
@@ -353,7 +340,8 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
      **Done:** matrix report names every owner × phase and every exclusion; each law
      mutation-proven; POSIX-only arms gated, not pretended portable. **Routing:** deep tier.
 
-359. 🔵 **Two card dials are dpi-correct and zoom-blind** (mirror of 355's axis):
+359. 🟡 **IN PROGRESS — codex (codex), branch `codex/item-359-card-scale`.**
+     **Two card dials are dpi-correct and zoom-blind** (mirror of 355's axis):
      `CardShape::Chamfered{cut_px}` and `CardTexture::HalftoneDots{cell_px}` resolve as
      `* dpi.max(1.0)` — they ignore zoom entirely, and unlike 355's lengths they move visible
      card FORM on carrier worlds at any zoom ≠ 1. A taste call with a unit argument, not a
@@ -449,41 +437,6 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
      full native + wasm (phase 3 touches shaders). **Routing:** production tier — 1,700
      judgement calls; the repeatable tier will produce 1,700 comments with a hole where the
      number was.
-
-373. 🟡 **IN PROGRESS — codex (codex), branch `codex/item-373-native-shards`.**
-     **Shard the gate's test execution across processes — 214 s → 52 s measured — and make
-     the partition prove its own completeness.** Measured 2026-08-09 on this 10-core host:
-     `cargo test --bin awl` runs at ~1× parallelism (`testlock::serial()`,
-     `src/testlock/mod.rs:210`) — 214.4 s wall at ~100% CPU (3992 passed/17 ignored). The
-     same binary as N concurrent PROCESSES with disjoint filters works (own lock, own GPU
-     device per process): count-balanced 4-way only 1.61×; **duration-balanced 6-way 52.2 s,
-     4.10×, 458% CPU**, pass/ignored sums exact in every configuration, zero filter-induced
-     failures anywhere.
-     ✅ **The non-negotiable:** a provably-complete partition is not a "filtered invocation" —
-     but only if the proof RUNS. At run time, assert per-shard `--list` counts sum exactly to
-     the binary's full `--list` (4009 today); fail loudly on drift.
-     ‼ Libtest filters are SUBSTRING matches with real collisions here (`markdown::`/
-     `theme::`/`overlay::` match inside `render::tests::`; `run::` matches `firstrun::`) —
-     use full trailing-`::` prefixes + explicit `--skip` lists, as the winning composition
-     does. ‼ `native-gate.sh` runs FOUR concurrent passes (two conventions × two menu-bar
-     arms, `:589–609`), so 6 shards ⇒ **14 concurrent GPU-holding processes** — that is what
-     the shard-count knob is sized against. And `mac_command`/`linux_command` are bare
-     `cargo test` (`:467–468`) including the 13 integration binaries: **sharding must not
-     narrow the gate to `--bin awl`**; the completeness assertion covers the sharded binary
-     only.
-     **Build:** derive the partition from `--list` at run time with the measured composition
-     as balance hints only (a verified static list still needs a human per drift); locate the
-     binary via `cargo test --no-run --message-format=json`, never a literal hash path;
-     env knob dialling shards to 1 for multi-worktree waves. The measured composition is
-     EPHEMERAL (`/tmp/awl-final/{R1..R4,C,D}.sh`) — capture or regenerate it in the first
-     commit. R4 carries both slow atoms (≥37 s of the 52.2 s wall) — item 374 raises this
-     item's ceiling; judge together.
-     **Verify:** count-sum assertion proven non-vacuous (delete a prefix, watch the gate
-     refuse by name); pass/ignored equal to an unsharded baseline on the same commit;
-     `scripts/test-native-gate.sh` green — its CPU-heartbeat law flakes under exactly this
-     load, so a red heartbeat is contention first, rerun alone. Report new wall time and
-     process count. **Routing:** deep tier — this edits the script that issues the receipt;
-     the failure mode is a green gate that tested less than it claimed.
 
 375. **Raise the lane ceiling to 6–8, put a queue in front of the gate, and partition lanes
      by MECHANISM, not file.** ⚠️ Gated on 373 — short gates are the enabler. (User decision
