@@ -84,6 +84,30 @@ impl<'a> MarkupDoc<'a> {
         })
     }
 
+    fn has_attr_prefix(&self, tag_name: &str, name: &str, prefix: &str) -> bool {
+        self.tags.iter().any(|tag| {
+            tag.name == tag_name
+                && attr_value(tag.attrs, name).is_some_and(|actual| actual.starts_with(prefix))
+        })
+    }
+
+    fn has_element_text(&self, name: &str, text: &str) -> bool {
+        let open = format!("<{name}");
+        let close = format!("</{name}>");
+        self.source.match_indices(&open).any(|(start, _)| {
+            let Some(body_start) = self.source[start..].find('>').map(|i| start + i + 1) else {
+                return false;
+            };
+            let Some(body_end) = self.source[body_start..]
+                .find(&close)
+                .map(|i| body_start + i)
+            else {
+                return false;
+            };
+            self.source[body_start..body_end] == *text
+        })
+    }
+
     fn has_text(&self, text: &str) -> bool {
         self.source
             .split('<')
@@ -520,10 +544,7 @@ fn html_has_the_expected_structure() {
         ("mark", "highlighted"),
         ("code", "inline code"),
     ] {
-        assert!(
-            doc.has_tag(tag) && doc.has_text(text),
-            "{tag} carries {text:?}"
-        );
+        assert!(doc.has_element_text(tag, text), "{tag} carries {text:?}");
     }
     assert!(doc.has_attr("a", "href", Some("https://example.com/path?q=1&amp;r=2")));
     for tag in ["blockquote", "hr", "table", "pre"] {
@@ -532,9 +553,11 @@ fn html_has_the_expected_structure() {
     assert!(doc.has_source_text("text-align:center"));
     assert!(doc.has_attr("code", "class", Some("language-rust")));
     assert!(
-        doc.has_attr("input", "type", Some("checkbox")) && doc.has_attr("input", "checked", None)
+        doc.has_attr("input", "type", Some("checkbox"))
+            && doc.has_attr("input", "disabled", None)
+            && doc.has_attr("input", "checked", None)
     );
-    assert!(doc.has_attr("img", "src", None));
+    assert!(doc.has_attr_prefix("img", "src", "data:image/png;base64,"));
     assert!(doc.has_attr("img", "width", Some("48"))); // the |48 size hint won
     assert!(doc.has_source_text("@page"));
     assert!(doc.has_source_text("break-inside: avoid"));
@@ -978,7 +1001,7 @@ fn export_html_strikethrough_gate() {
     let struck = to_html("~~x~~", &NoImages);
     let struck_doc = MarkupDoc::html(&struck);
     assert!(
-        struck_doc.has_tag("del") && struck_doc.has_text("x"),
+        struck_doc.has_element_text("del", "x"),
         "engaged ~~x~~ must render <del>: {struck}"
     );
 
@@ -989,7 +1012,7 @@ fn export_html_strikethrough_gate() {
         "inert ~x~ must NOT render <del>: {inert}"
     );
     assert!(
-        inert_doc.has_tag("p") && inert_doc.has_text("x"),
+        inert_doc.has_element_text("p", "x"),
         "inert ~x~ content still exported: {inert}"
     );
 
@@ -1143,7 +1166,7 @@ fn export_html_highlight_gate() {
     let marked = to_html("==x==", &NoImages);
     let marked_doc = MarkupDoc::html(&marked);
     assert!(
-        marked_doc.has_tag("mark") && marked_doc.has_text("x"),
+        marked_doc.has_element_text("mark", "x"),
         "engaged ==x== must render <mark>: {marked}"
     );
 
