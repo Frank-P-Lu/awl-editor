@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Item 191 — BEFORE/AFTER sheet for Bowerbird's `Finds` spacing/size tuning.
+# BEFORE/AFTER sheet for Bowerbird's `Finds` spacing/size tuning.
 #
-# "Before" is item 176's dormant `Finds` preview exactly as it landed (cell
+# "Before" is the dormant `Finds` preview (cell
 # pitch 156, the original anchor radius band, the original unconstrained
 # per-cell dropout) — not the old `Masses` control, which is a separate,
-# already-approved decision (item 176) that this round does not revisit.
+# already-approved decision that this comparison does not revisit.
 # "After" is the current tree: the anchor/companion/cut-out composition grown
 # ~15% as one move, the cell pitch opened separately to 195, and the dropout
 # gate replaced with the decorrelated, void-bounded one
@@ -58,11 +58,11 @@ capture_arm() {
     --keys 's-Down' "$SPECIMEN" >/dev/null
 }
 
-echo "building AFTER (the current tree — item 191's tuning)..."
+echo "building AFTER (the current tree's tuning)..."
 cargo build --release >/dev/null
 capture_arm after
 
-echo "building BEFORE (item 176's dormant Finds preview: pitch 156, the original anchor band, the original unconstrained dropout)..."
+echo "building BEFORE (dormant Finds preview: pitch 156, the original anchor band, the original unconstrained dropout)..."
 python3 - "$WORLDS" "$SHADER" <<'PY'
 import pathlib, sys
 worlds_path, shader_path = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2])
@@ -97,9 +97,9 @@ cargo build --release >/dev/null
 
 sheet="$RUN_DIR/sheet.md"
 {
-  echo "# Bowerbird — Finds spacing/size, before item 191's tuning vs after"
+  echo "# Bowerbird — Finds spacing/size, before tuning vs after"
   echo
-  echo "BEFORE is item 176's dormant \`Finds\` preview exactly as landed (156px"
+  echo "BEFORE is the dormant \`Finds\` preview (156px"
   echo "cell, the original anchor band, the original unconstrained per-cell"
   echo "dropout). AFTER is the current tree (composition ~15% larger as one"
   echo "hierarchy-preserving move, cell pitch opened separately to 195px, and"
