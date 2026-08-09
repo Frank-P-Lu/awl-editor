@@ -401,13 +401,14 @@ fn tight_list_item_text_survives_into_both_emitters() {
     let html_doc = MarkupDoc::html(&html);
     let docx = to_docx(FIXTURE, &fixture_images());
     let doc_xml = String::from_utf8(unzip_stored(&docx)["word/document.xml"].clone()).unwrap();
+    let docx_doc = MarkupDoc::xml(&doc_xml);
     for w in words {
         assert!(
             html_doc.has_text(w),
             "HTML export dropped list item text {w:?}"
         );
         assert!(
-            doc_xml.contains(w),
+            docx_doc.has_text(w),
             "DOCX export dropped list item text {w:?}"
         );
     }
