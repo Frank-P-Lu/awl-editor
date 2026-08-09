@@ -651,7 +651,8 @@ fn spell_squiggle_baseline_dial_pulls_bilby_tighter_than_the_shared_default() {
     );
     assert!(
         ((n_ctrl[0].y - s_ctrl[0].y) - 2.0).abs() < 0.01,
-        "the raised DEFAULT spelling band must sit 2px above the unchanged nit: nit y={}, squiggle y={}",
+        "the raised DEFAULT spelling band must sit 2px above the unchanged nit: \
+         nit y={}, squiggle y={}",
         n_ctrl[0].y,
         s_ctrl[0].y
     );
