@@ -342,16 +342,10 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
      explicitly accepted shared rule; footprint + diagonal/frost suites green. Reversible
      taste change. **Routing:** production tier + vision smoke.
 
-371. 🟡 **IN PROGRESS — root production lane for 293/319; 349 follows item 369.
-     Residuals harvested from the 2026-08-09 compression** — five live threads whose
+371. 🟡 **IN PROGRESS — root production lane; 349 follows item 369.
+     Residuals harvested from the 2026-08-09 compression** — one live thread whose
      parent bodies went to history (`git log --grep` by parent number reaches the full
-     bodies). Independent; take any one alone.
-     - (293) `OVERLAY_HINT_GAP_ROW = 0.45` was tuned against a law, never judged by eye; its
-       laws also disclosed a name-based `OverlayKind::Spell` exclusion and a three-kinds-not-
-       roster row-count law — both enrolment shapes this repo has been bitten by.
-     - (319) At zoom 1.0 (not the shipped 0.8) Mangrove's plain hint overflows the card's
-       right edge ~7.7 logical px; advance-based budget vs wider symbol cells.
-       `foot_band_no_clip_item319.rs:48` names the residual and is positioned to grow the arm.
+     body.
      - (349) The pairwise-distinctness floor: comparison-set candidates are graded against
        the page but nothing asserts a minimum ΔE BETWEEN adjacent candidates at judging size
        — a comparison set can pass every floor and be useless as a comparison. Generalises
