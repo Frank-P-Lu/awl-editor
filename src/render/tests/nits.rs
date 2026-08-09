@@ -712,8 +712,13 @@ fn spell_squiggle_baseline_dial_pulls_bilby_tighter_than_the_shared_default() {
             p.set_view(&v);
             let n = p.nit_underlines();
             let s = p.spell_squiggles();
-            assert_eq!((n.len(), s.len()), (1, 1), "{} zoom {zoom}: enrolled", t.name);
-            let authored_delta = if t.name == "Bilby" { 4.0 } else { 2.0 };
+            assert_eq!(
+                (n.len(), s.len()),
+                (1, 1),
+                "{} zoom {zoom}: enrolled",
+                t.name
+            );
+            let authored_delta = 1.0 - t.render_caps.spell_underline_gap.0;
             let delta = n[0].y - s[0].y;
             assert!(
                 (delta - authored_delta * zoom).abs() < 0.05,
@@ -1067,10 +1072,8 @@ fn revealed_via_selection_link_destination_nit_dropped_label_nit_kept() {
 /// `spellunderline.wgsl`), so it can only be pinned in real pixels: render a
 /// flagged word and diff it against the UNflagged frame (identical text, so the
 /// squiggle ink is the ONLY difference), then measure the ink's vertical CENTROID
-/// over the first quarter-period after the word's left edge. With the crest-start
-/// phase the ink rides clearly ABOVE the band's vertical center (toward the
-/// glyphs); the retired sine phase put it clearly BELOW — so the `< center` margin
-/// below is exactly the phase-pinning assertion, and it FAILS on the old shader.
+/// over the first quarter-period after the word's left edge. The tapered first
+/// lobe rides above the band's vertical center (toward the glyphs).
 #[test]
 fn spell_squiggle_wave_leaves_the_centerline_toward_the_glyphs() {
     let _g = crate::testlock::serial();

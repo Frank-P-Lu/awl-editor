@@ -98,9 +98,8 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     let right = in.center.x + in.hsize.x;
     let curve_x = clamp(in.px.x, left, right);
     let phase = (curve_x - in.x0) * (2.0 * PI / in.period);
-    // Curve height about the band's vertical center. `-cos` so the wave BEGINS at
-    // its TOP (crest) under the first glyph (phase 0 → center.y - amp); see the
-    // header note.
+    // Curve height about the band's vertical center. The end taper is zero at
+    // the boundary, then the anchored `-cos` phase sends the first lobe upward.
     var taper = 1.0;
     var taper_slope = 0.0;
     if (in.amp > 0.0) {
