@@ -24,7 +24,7 @@
 //!
 //! * **THE POSITIVE CLAIM the user asked for.** The card box's two OFF-RAKE corners are
 //!   not frosted, so the document showing through them is SHARP — carrying real glyph
-//!   edges at item 294's own threshold. A rectangle has no such corners, which is why this
+//!   edges at the same threshold. A rectangle has no such corners, which is why this
 //!   is the one figure that could not be satisfied before the union was retired.
 //! * **THE COVERAGE FLOOR, over the card's own drawn INK rather than over an enumeration
 //!   of it.** Every pixel the card draws must sit inside the frost. The ink is DERIVED (the
@@ -51,7 +51,7 @@ use super::frost_card_ink::{CardInk, INK_GRADIENT, luma, step};
 use super::frost_feather::{DENSE, enrolled_worlds, render_frame, theme_picker};
 use super::headless_dqp;
 
-/// A local luma step that only a document EDGE produces — item 294's threshold, at the
+/// A local luma step that only a document EDGE produces — the threshold at the
 /// same place in the same measured valley (that tree's frosted residue peaks near 5 and
 /// its sharp residue near 190, so it is not load-bearing to within a factor of four).
 pub(super) const STRONG_GRADIENT: f32 = 24.0;
@@ -75,12 +75,12 @@ fn mask_at(frost: crate::render::blur::Frost, dpi: f32, px: f32, py: f32) -> f32
     crate::render::blur::footprint_mask_for(frost, dpi, px, py)
 }
 
-/// THE TWO FRAMES ONE CELL OF THESE SWEEPS NEEDS — the SAME pair item 294 uses, for the
+/// THE TWO FRAMES ONE CELL OF THESE SWEEPS NEEDS — the SAME pair used for the
 /// same reason.
 ///
 /// `open` is the picker over dense prose; `empty` is the identical picker over an EMPTY
 /// document. The card's drawing is bit-identical between them, so their residue is the
-/// DOCUMENT alone, and `ink` is item 294's derived veto over the card's own pixels.
+/// DOCUMENT alone, and `ink` is the derived veto over the card's own pixels.
 struct Frame {
     open: Vec<[u8; 4]>,
     empty: Vec<[u8; 4]>,
@@ -101,7 +101,7 @@ struct Frame {
 /// THE THEME PICKER WITH A TYPED QUERY — the shipping state the user photographed, and the
 /// one that gives this file's subject a real width.
 ///
-/// Item 312's shared fixture leaves the query EMPTY, which shapes a head band of the bare
+/// The shared fixture leaves the query EMPTY, which shapes a head band of the bare
 /// `›` sigil: 10.4 logical px of ink on Magpie, and 142 non-ink pixels behind it. A coverage
 /// floor over a band that small is nearly a floor over nothing, and its own presence guard
 /// said so on the first run. A typed query is also the state whose CARET the head band's
@@ -450,7 +450,7 @@ fn tightest_coverage(frost: crate::render::blur::Frost, dpi: f32, b: [f32; 4]) -
 ///    mask at or above [`INK_FROST_FLOOR`]. Read through `footprint_mask_for`, so it grades
 ///    the coverage the composite pass was actually handed.
 /// 2. **PIXELS.** Behind that band, no glyph edge of the DOCUMENT survives — the same
-///    statistic and the same threshold item 294's headline law uses, over the residue
+///    statistic and the same threshold the headline law uses, over the residue
 ///    between the picker-over-prose frame and the picker-over-empty one. Arithmetic alone
 ///    would pass a mask that was right about a shape the shader never drew.
 ///
@@ -473,8 +473,8 @@ fn tightest_coverage(frost: crate::render::blur::Frost, dpi: f32, b: [f32; 4]) -
 /// So the subject is the box the PRODUCTION owner declares
 /// (`TextPipeline::overlay_head_band_ink`), which is also the box `footprint_box` is handed
 /// — the two cannot drift, and a third upright surface is a change to that owner rather than
-/// to this law. The broad net over everything else is item 294's own headline law, whose
-/// interior region item 318 narrowed to the parallelogram.
+/// to this law. The broad net over everything else is the headline law, whose
+/// interior region narrows to the parallelogram.
 #[test]
 fn the_cards_upright_chrome_is_frosted_and_no_document_edge_survives_behind_it() {
     let _g = crate::testlock::serial();
