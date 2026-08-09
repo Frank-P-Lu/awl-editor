@@ -227,7 +227,7 @@ fn save_as_note_second_call_is_a_plain_save_same_path() {
 }
 
 #[test]
-fn one_shot_naming_a_later_first_line_edit_never_renames_item_76() {
+fn one_shot_naming_a_later_first_line_edit_never_renames() {
     // The one-shot naming law: `Buffer::save` derives the filename
     // from the first line EXACTLY ONCE. Editing the first line AFTER that
     // first save — even before a second save — never re-derives or

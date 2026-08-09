@@ -261,7 +261,7 @@ fn thematic_break_ornament_tracks_the_syntax_per_line() {
 /// this test was added: the assertion trips on the swapped pair, not on some
 /// unrelated invariant.
 #[test]
-fn mulga_star_conceals_to_the_literal_asterism_item_88() {
+fn mulga_star_conceals_to_the_literal_asterism() {
     // WRITES the process-global active theme (the pin below); hold the theme
     // lock so it can't yank the world out from under a concurrent theme test.
     let _t = crate::testlock::serial();
@@ -1159,7 +1159,7 @@ fn fence_lang_label_paints_real_pixels_on_the_fence_row() {
 /// Caret parked OFF both task rows so neither reveals raw (the old test's
 /// other trap — a caret-on-line render shows source, not the styled preview).
 #[test]
-fn checked_task_body_recedes_from_open_task_body_real_pixels_item_29() {
+fn checked_task_body_recedes_from_open_task_body_real_pixels() {
     let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!(

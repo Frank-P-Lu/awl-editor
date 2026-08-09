@@ -866,7 +866,7 @@ fn off_cursor_image_conceal_emits_no_spell_or_nit_underline() {
 /// does. Fixture `![wrold](assets/pasted-18.png)`: alt "wrold" cols 2..7,
 /// destination "pasted" cols 16..22 (inside the `(...)`).
 #[test]
-fn revealed_image_destination_never_squiggles_but_alt_text_still_does_item_60() {
+fn revealed_image_destination_never_squiggles_but_alt_text_still_does() {
     let _g = crate::testlock::serial();
     let prev_img = crate::markdown::inline_images_on();
     crate::markdown::set_inline_images_on(true);
@@ -932,7 +932,7 @@ fn revealed_image_destination_never_squiggles_but_alt_text_still_does_item_60() 
 /// `See [wrold](https://example.com/pasted18) end.`: label "wrold" cols
 /// 5..10, destination word "pasted18" cols 32..40.
 #[test]
-fn off_cursor_link_destination_never_squiggles_but_label_text_still_does_item_60() {
+fn off_cursor_link_destination_never_squiggles_but_label_text_still_does() {
     let _g = crate::testlock::serial();
     crate::markdown::set_wysiwyg_on(true);
     let Some(mut p) = headless_pipeline() else {
@@ -981,7 +981,7 @@ fn off_cursor_link_destination_never_squiggles_but_label_text_still_does_item_60
 /// (never hand-counted columns), so the test can't silently drift from the
 /// scanner's own rules.
 #[test]
-fn revealed_via_selection_link_destination_nit_dropped_label_nit_kept_item_60() {
+fn revealed_via_selection_link_destination_nit_dropped_label_nit_kept() {
     let _g = crate::testlock::serial();
     crate::markdown::set_wysiwyg_on(true);
     crate::nits::set_nits_on(true);

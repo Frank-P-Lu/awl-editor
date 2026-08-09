@@ -97,7 +97,7 @@ fn load_path_switches_to_already_open_buffer_preserving_edits_and_cursor() {
 }
 
 #[test]
-fn buffer_switch_clears_the_list_continuation_provenance_flag_item_78() {
+fn buffer_switch_clears_the_list_continuation_provenance_flag() {
     // The short-lived "awl just generated this empty list continuation"
     // flag must NOT survive a park/activate round trip (`load_path`'s switch) —
     // even though the buffer's cursor/text/undo history all correctly DO survive

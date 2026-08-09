@@ -532,7 +532,7 @@ fn nested_list_marker_fix_is_content_independent() {
 /// the plain nested list, a task parent, and a blockquote nested under a parent,
 /// where bugs cluster.
 #[test]
-fn nested_parent_item_content_stays_body_weight_item_41() {
+fn nested_parent_item_content_stays_body_weight() {
     // A span whose KIND re-weights or re-slants the run it covers — the exact
     // set `render::md_attrs` turns into a non-body face. `ListMarker`/`Quote`
     // recolour only, so they are deliberately NOT here.

@@ -182,7 +182,7 @@ fn frost_seed_geometry_is_dpi_invariant_in_logical_space() {
 /// ordinary multi-word heading, at 100% zoom / 1x DPI, page mode + outline on.
 /// The shared fixture for the punctuation-aware / bounded-end-pad law
 /// tests below.
-fn item61_seeds(p: &mut TextPipeline, height: u32) -> (Vec<[f32; 4]>, Vec<[f32; 4]>) {
+fn frost_seeds(p: &mut TextPipeline, height: u32) -> (Vec<[f32; 4]>, Vec<[f32; 4]>) {
     let text = "# &\n\n## Button-free\n\n### The quick brown fox jumps\n\n#### A\n\n##### Getting Started Guide\n";
     let mut v = view_md(text, 0, 0);
     v.zoom = 1.0;
@@ -228,7 +228,7 @@ fn isolated_punctuation_run_radius_is_bounded_below_a_normal_runs() {
     p.sync_theme();
     p.set_size(960.0, 640.0);
 
-    let (seeds, _gutter) = item61_seeds(&mut p, 640);
+    let (seeds, _gutter) = frost_seeds(&mut p, 640);
     crate::theme::set_active(was_theme);
     crate::outline::set_outline_on(was_outline_on);
     crate::page::set_page_on(was_page_on);
@@ -334,7 +334,7 @@ fn nearby_ordinary_runs_still_merge_after_the_bounded_radius_round() {
     p.sync_theme();
     p.set_size(960.0, 640.0);
 
-    let (seeds, _gutter) = item61_seeds(&mut p, 640);
+    let (seeds, _gutter) = frost_seeds(&mut p, 640);
     crate::theme::set_active(was_theme);
     crate::outline::set_outline_on(was_outline_on);
     crate::page::set_page_on(was_page_on);

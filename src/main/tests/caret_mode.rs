@@ -149,7 +149,7 @@ fn caret_render_is_a_pure_function_of_mode_and_world_across_a_wagtail_detour() {
 /// hazard deterministically and headlessly, through the sidecar-adjacent
 /// `ReplaySession::overlay()` state oracle.
 #[test]
-fn item_106_pointer_replay_seam_reproduces_a_keyboard_scroll_stealing_a_stationary_pointer_check() {
+fn pointer_replay_seam_reproduces_keyboard_scroll_stealing_a_stationary_pointer_check() {
     let _g = crate::testlock::serial();
     let mut buffer = Buffer::scratch();
     let corpus: Vec<String> = (0..40).map(|i| format!("row{i}.md")).collect();
