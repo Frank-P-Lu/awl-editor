@@ -37,13 +37,13 @@ impl TextPipeline {
         self.placard_stipple
             .prepare(device, queue, width, height, &stipple_rects);
         let selected_ink = super::overlay_selected_primary_ink();
-        // ITEM 164 — RESOLVE THE VISUAL-SELECTION TRANSACTION ONCE, here, before
+        // RESOLVE THE VISUAL-SELECTION TRANSACTION ONCE, here, before
         // anything is shaped or emitted. This is the ONLY call that runs a band
         // animator for this frame; every consumer below reads the result, so the
         // band, both ink columns, the accessory plates and the sidecar give ONE
         // answer to "which row is selected" at every intermediate frame.
         let vis = self.resolve_visual_selection(&geom, &plan);
-        // ITEM 114 — the workspace's navigation rail shapes into its own column
+        // The workspace's navigation rail shapes into its own column
         // buffer before the content pane does, so its measured mark rect is in
         // hand by the time `overlay_draw_card` asks the facet-mark owner for it.
         let has_rail = self.workspace_shape_rail(&geom, &plan);
@@ -97,7 +97,7 @@ impl TextPipeline {
         // a closed picker carries no stale crossing quad into the next frame.
         self.overlay_cross
             .prepare(device, queue, width, height, &[]);
-        // ITEM 94: the range rail's track + thumb park empty too, so a closed
+        // The range rail's track + thumb park empty too, so a closed
         // Settings menu carries no stale rail quads into the next frame.
         self.overlay_range_track
             .prepare(device, queue, width, height, &[]);
@@ -105,7 +105,7 @@ impl TextPipeline {
             .prepare(device, queue, width, height, &[]);
         self.overlay_lens_underline
             .prepare(device, queue, width, height, &[]);
-        // ITEM 114 — the workspace rail's placement and its active mark park with
+        // The workspace rail's placement and its active mark park with
         // the card, so the frame after a workspace closes carries neither.
         self.workspace_rail_placement = None;
         self.workspace_rail_rows.clear();
@@ -352,7 +352,7 @@ impl TextPipeline {
                 }
             }
         }
-        // ITEM 114 — the navigation rail, in the card's own z-slot.
+        // The navigation rail, in the card's own z-slot.
         if has_rail && let Some((left, top, bounds)) = self.workspace_rail_area(geom, width, height)
         {
             areas.push(TextArea {

@@ -14,7 +14,7 @@
 //!
 //! The lifecycle's focus stage (`Surface::Workspace` = the rail,
 //! `Surface::WorkspaceDetail` = the content) is width-blind by construction —
-//! item 173 kept width out of `landing_of` so Back could not branch on it. This
+//! `landing_of` keeps width out so Back cannot branch on it. This
 //! file is where width finally enters, and it enters once, in
 //! [`TextPipeline::workspace_geometry`]:
 //!
@@ -177,17 +177,17 @@ impl TextPipeline {
         let lh = self.overlay_lh();
         let pad = self.metrics.px(WORKSPACE_PAD);
         let n_items = self.overlay_items.len();
-        // ITEM 116b — the POSITIONAL half lives in `comparison.rs`, so the row
+        // The POSITIONAL half lives in `comparison.rs`, so the row
         // geometry below and the relocated document viewport read ONE
         // derivation of the card box, the primary column and the content pane.
         let regions = self.workspace_regions(width);
         let rows_focused = regions.content_focused;
 
-        // ITEM 116a — THE ONE FACT THE TWO REGIONS' ROLES REDUCE TO.
+        // THE ONE FACT THE TWO REGIONS' ROLES REDUCE TO.
         // `RailOverRows` (Settings, today) keeps the row list in the CONTENT
         // pane behind a PRIMARY column of labels; `TimelineOverComparison`
-        // (item 116d, unreached) keeps it in the PRIMARY column instead,
-        // behind a content region this module never draws into — item 116b's
+        // keeps it in the PRIMARY column instead, behind a content region this
+        // module never draws into —
         // `comparison_viewport`, which the document layer itself relocates to.
         // `primary_visible`/`content_visible` are which REGION is on screen —
         // unchanged by the shape; `show_rows` is whichever owns the rows.

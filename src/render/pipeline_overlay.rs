@@ -114,7 +114,7 @@ impl TextPipeline {
         }
     }
 
-    /// ITEM 48 — THE HYBRID glide+snap ARBITER (the user's decision), the ONE
+    /// THE HYBRID glide+snap ARBITER (the user's decision), the ONE
     /// door both band seams ([`Self::overlay_band_drawn`] +
     /// [`Self::living_band_phase`]) route their re-target through. It picks
     /// between the [`Self::retarget_band`] GLIDE (untouched — the correct,
@@ -223,7 +223,7 @@ impl TextPipeline {
     ///   `--screenshot` dumps a byte-stable mid-flight frame.
     /// * LIVE (`force.phase` absent): reuses the SAME `overlay_band_from/last/t`
     ///   tracking the ordinary slide uses, through the ONE hybrid arbiter
-    ///   [`Self::chase_or_snap`] (ITEM 48). A fresh overlay settles; a single
+    ///   [`Self::chase_or_snap`]. A fresh overlay settles; a single
     ///   deliberate move GLIDES via [`Self::retarget_band`] from where the band
     ///   is actually drawn (never the stale previous target); a move that outruns
     ///   the in-flight glide SNAPS straight to the freshest target so the band
@@ -323,7 +323,7 @@ impl TextPipeline {
     }
 
     /// THE ROW COMPOSITION'S HORIZONTAL STEP this frame, in canvas px — how much
-    /// further IN each successive display row sits, SIGNED (item 131a): positive
+    /// further IN each successive display row sits, SIGNED: positive
     /// steps the row's left edge in from the band's own left; negative steps its
     /// right edge in from the band's own right (the mirrored composition). `0.0`
     /// for every shipping world. Fed to the row planner, which is where a row's
@@ -353,7 +353,7 @@ impl TextPipeline {
         crate::lava::lava_phase_for(self.lava_phase, crate::motion::reduced(), env)
     }
 
-    // Item 163: the third consumer of the same shared-clock env-override door
+    // The third consumer of the same shared-clock env-override door
     // (mirrors the two above — see `crate::background::env_phase`'s own doc for
     // why one knob drives both Waves and Organic).
     pub fn waves_render_phase(&self) -> f32 {
@@ -375,7 +375,7 @@ impl TextPipeline {
         crate::warpgrid::forward_cells(self.warp_render_phase())
     }
 
-    /// THE TWO AMBIENT ADVANCE DOORS, and why item 199 made it two. The
+    /// THE TWO AMBIENT ADVANCE DOORS. The
     /// DRIFTING grounds ride the slow ~10 fps tick (`App::about_to_wait`) —
     /// that cadence is what they are. The TRAVELLING one rides the live App's
     /// hot per-frame loop, under the same gates (`warpgrid::should_travel`),

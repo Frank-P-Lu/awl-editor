@@ -1,4 +1,4 @@
-//! tests/bullet_blank_line_nit_pixels.rs — queue item 72: THE STRAY-MARK PIXEL LAW
+//! tests/bullet_blank_line_nit_pixels.rs — THE STRAY-MARK PIXEL LAW
 //! for a blank line immediately after an OFF-CURSOR empty unordered bullet marker.
 //!
 //! ROOT CAUSE (see the fix, `render::rects::TextPipeline::nit_hidden_by_bullet_glyph`):
@@ -34,8 +34,8 @@ mod common;
 use common::ScratchDir;
 
 /// A fresh, uniquely-named tempdir under the OS temp root, owned by a
-/// [`ScratchDir`] guard that removes it on drop (queue item 168; this fixture
-/// used to never remove it at all).
+/// [`ScratchDir`] guard that removes it on drop; this fixture used to never
+/// remove it at all.
 fn tmp_dir(tag: &str) -> ScratchDir {
     let dir =
         std::env::temp_dir().join(format!("awl-bullet72-pixels-{tag}-{}", std::process::id()));
@@ -64,15 +64,15 @@ const CONTROL_DOC: &str = "a\n\nsomething\n";
 /// `C-n`, which is the Linux-native "New note" chord that displaces emacs
 /// next-line on `Convention::Linux` (see `docs/config.md`'s `linux_keep_emacs`
 /// door) and left this exact test failing under CI's real Linux convention
-/// (item 75) while passing on a macOS dev box. Returns `false` iff no GPU
+/// while passing on a macOS dev box. Returns `false` iff no GPU
 /// adapter was available (mirrors the suite's `adapter_available()` tolerance).
 ///
-/// ZOOM IS PINNED TO 1.0 for a byte-stable canonical specimen. Item 96 corrected
+/// ZOOM IS PINNED TO 1.0 for a byte-stable canonical specimen. The
 /// the sidecar's `font.line_height` to the EFFECTIVE zoom×DPI pixel metric, so
 /// the row-band arithmetic below is now scale-safe even if this pin changes.
 /// Historically the field reported the base constant while `text_origin` /
 /// `page.column` were effective pixels; a personal `zoom = 1.5` then aimed this
-/// test's band at row 0 and reported 118 phantom pixels (item 93).
+/// test's band at row 0 and reported 118 phantom pixels.
 fn capture(out: &Path, doc: &Path, theme: &str) -> bool {
     let sandbox = out.parent().expect("capture target has a parent dir");
     let output = common::awl(sandbox)

@@ -39,7 +39,7 @@ use crate::theme::{IconCursor, IconGround, THEMES, Theme};
 ///   ([`crate::theme::IconCursor`]), so the exporter's "what actually ships"
 ///   sheet reads the assignment from `worlds.rs` instead of a second list.
 /// * 3 — each world also carries `ground`, the tile's ACTUAL ground color
-///   ([`crate::theme::Theme::icon_ground_color`], item 121): `base_100`
+///   ([`crate::theme::Theme::icon_ground_color`]): `base_100`
 ///   unless the world opts into a blend toward `base_300`. `base_100` still
 ///   ships too (the same token under both names for every world that has not
 ///   opted in), but every consumer painting the tile's ground reads `ground`.
@@ -238,8 +238,8 @@ pub fn manifest_json(fonts_dir: &Path) -> anyhow::Result<String> {
     ))
 }
 
-/// Item 121: a Block-cursor GROUND comparison for one named world, at the
-/// exact A/B/C states the item names (`IconGround::ALL` — `base_100`, 25%
+/// A Block-cursor GROUND comparison for one named world, at the
+/// exact A/B/C states (`IconGround::ALL` — `base_100`, 25%
 /// and 40% toward `base_300`). Every hex comes from
 /// [`crate::theme::Theme::icon_ground_color`], the SAME blend a world's real
 /// `icon_ground` field would compute if it opted in — never a hand-picked
@@ -249,7 +249,7 @@ pub fn manifest_json(fonts_dir: &Path) -> anyhow::Result<String> {
 /// canonical export uses — it writes nothing under `assets/macos/`.
 ///
 /// Forces the comparison onto the Block preset regardless of the named
-/// world's own shipped `icon_cursor`: item 121's whole point is auditioning
+/// world's own shipped `icon_cursor`: the point is auditioning
 /// candidate GROUNDS against the one silhouette already picked, not
 /// re-litigating the cursor shape mid-comparison.
 pub fn ground_audition_json(world_name: &str, fonts_dir: &Path) -> anyhow::Result<String> {
@@ -260,7 +260,7 @@ pub fn ground_audition_json(world_name: &str, fonts_dir: &Path) -> anyhow::Resul
             anyhow::anyhow!("no shipped world named {world_name:?} (see `awl --list-worlds`)")
         })?;
     let faces = faces_for(std::slice::from_ref(theme), fonts_dir)?;
-    // The A/B/C lettering is the audition's own framing (item 121's board
+    // The A/B/C lettering is the audition's own framing (the board
     // text), not a fact `IconGround` itself carries — `IconGround::ALL` is
     // already in A/B/C order (`Base100`, `Blend25`, `Blend40`).
     let letters = ["A", "B", "C"];
@@ -406,7 +406,7 @@ mod tests {
         );
     }
 
-    /// Item 121's ground audition: names the world, forces every entry onto
+    /// The ground audition names the world, forces every entry onto
     /// Block, and carries the three A/B/C ground hexes computed by the SAME
     /// `Theme::icon_ground_color` the manifest itself calls — never a second
     /// copy of the blend math.

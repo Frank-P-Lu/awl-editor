@@ -1,4 +1,4 @@
-//! ITEM 191 — Bowerbird's shipped `Finds` ground, tuned from rendered pixels.
+//! Bowerbird's shipped `Finds` ground, tuned from rendered pixels.
 //!
 //! Three changes, each verified separately here:
 //!   * the anchor/companion/cut-out composition grew ~15% as ONE
@@ -193,7 +193,7 @@ fn render_finds(
 /// Not a law — a measurement dump. Run with
 /// `cargo test --bin awl bowerbird_spacing::measure -- --ignored --nocapture`
 /// before and after a tuning edit to get the real before/after distributions
-/// item 191 asks for (role size, nearest-neighbour spacing, its worst case),
+/// needed here (role size, nearest-neighbour spacing, its worst case),
 /// across wide/narrow, 1x/2x and three drift phases.
 #[test]
 #[ignore]
@@ -292,7 +292,7 @@ fn finds_cell_pitch_opened_by_a_separately_authored_amount() {
     );
 }
 
-/// LAW (the defect item 191 exists to fix — see the module doc for why this
+/// LAW (the defect this file fixes — see the module doc for why this
 /// reads nearest-neighbour spacing rather than an inscribed circle or a
 /// re-derived lattice grid): the WORST nearest-neighbour gap between any two
 /// surviving collections never exceeds `MAX_NN_CELLS` cell-pitches — wide and
@@ -352,11 +352,11 @@ fn finds_dropout_never_opens_a_gap_much_larger_than_ordinary_spacing() {
 }
 
 /// LAW: `density: 0.0` still collapses the tuned arrangement to the flat open
-/// ground exactly — item 191 touched the anchor scale, the pitch and the
-/// dropout gate, none of which the density collapse depends on, but this is
+/// ground exactly. The anchor scale, pitch and dropout gate do not affect the
+/// density collapse, but this is
 /// the differential oracle every size/void measurement above implicitly
 /// leans on, so it is checked directly rather than assumed carried over from
-/// item 176.
+/// the original arrangement laws.
 #[test]
 fn finds_tuned_density_zero_is_still_exactly_the_flat_ground() {
     let _g = crate::testlock::serial();

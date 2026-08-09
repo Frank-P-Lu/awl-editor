@@ -1,4 +1,4 @@
-//! ITEM 186 — THE GROUND'S TWO COORDINATE SPACES, over real GPU pixels.
+//! THE GROUND'S TWO COORDINATE SPACES, over real GPU pixels.
 //!
 //! Every procedural ground used to author its composition in PHYSICAL pixels,
 //! so a 2x display rendered it at half its logical size and showed roughly
@@ -14,7 +14,7 @@
 //!      canvas, scale-normalized, are the same composition. Swept over the
 //!      whole `Background` roster with NO wildcard, so a newly added ground
 //!      cannot dodge it.
-//!   2. THE FEATHER STAYS PHYSICAL — item 176's 0.75px crisp edge measures
+//!   2. THE FEATHER STAYS PHYSICAL — the 0.75px crisp edge measures
 //!      0.75px on the GLASS at both ratios, so a 2x display resolves that same
 //!      composition MORE FINELY. A law that only checked (1) would be passed by
 //!      a blanket conversion of every quantity to logical space, which is the
@@ -440,7 +440,7 @@ fn the_sweep_covers_every_member_of_the_background_roster() {
 // 2. THE SAMPLING FEATHER STAYS PHYSICAL
 // ---------------------------------------------------------------------------
 
-/// A ground whose edges are hard by design — item 176's crisp three-object
+/// A ground whose edges are hard by design — the crisp three-object
 /// arrangement — at the cell Bowerbird authored.
 fn finds_ground() -> Background {
     dormant()
@@ -481,7 +481,7 @@ fn finds_high_contrast() -> Background {
 /// dividing the ramp POPULATION by the crossing COUNT (rather than by the image
 /// area) makes it independent of how much boundary the picture holds — so the
 /// composition changing size cannot be mistaken for the feather changing width.
-// pub(super) (item 201): the same ramp-run-length oracle measures Deckle's
+// pub(super): the same ramp-run-length oracle measures Deckle's
 // edge, which (unlike Finds') is COMPOSITION and must scale WITH the device
 // ratio — reused rather than re-derived.
 pub(super) fn mean_edge_ramp_px(
@@ -600,7 +600,7 @@ fn every_authored_ground_quantity_declares_its_space_and_says_why() {
 }
 
 /// The two classes must BOTH be populated across the family. A table that is
-/// all-logical is precisely the blanket conversion item 186 forbids; an
+/// all-logical is precisely the forbidden blanket conversion; an
 /// all-physical one is the defect it fixes.
 #[test]
 fn the_family_declares_both_classes_and_neither_swallowed_the_other() {

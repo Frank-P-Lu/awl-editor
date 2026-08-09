@@ -1,13 +1,13 @@
-//! ITEM 52 — THEME SELECTION DROPS YOU INTO THE COMPLETE DESTINATION WORLD.
+//! THEME SELECTION DROPS YOU INTO THE COMPLETE DESTINATION WORLD.
 //!
-//! Item 45 froze the summoned card's alignment so a theme-preview crossing never
-//! relocated it. Item 52 SUPERSEDES that for a DELIBERATE selection movement: a
-//! keyboard nav / wheel crossing RE-ANCHORS the open theme picker into the
+//! The summoned card's alignment stays frozen during passive preview, but a
+//! DELIBERATE keyboard-nav / wheel selection movement RE-ANCHORS the open
+//! theme picker into the
 //! destination world's own left/center/right rail (choosing a world drops you
 //! inside it), while EVERY other theme-owned property (palette, background,
 //! Pane/Bars, chrome face, motion) already re-applies live off `theme::active()`.
 //! PASSIVE pointer hover is the one exception — it re-tints the world but must NOT
-//! start a spatial chase (the item-45 freeze still holds the card put).
+//! start a spatial chase (the passive-preview rule still holds the card put).
 //!
 //! These laws pin the crossing at the render seam (real card x-extents, not the
 //! sidecar alone), spanning left↔center↔right AND Pane↔Bars:
@@ -87,7 +87,7 @@ fn anchor_of(name: &str) -> theme::CardAnchor {
 
 const WW: f32 = 1200.0;
 
-/// Assert the card `[x, _, w, _]` hugs the rail its `anchor` names — item 67's
+/// Assert the card `[x, _, w, _]` hugs the rail its `anchor` names — the
 /// interior-rail inset, cw-INDEPENDENT (a pure function of `WW` alone), so both
 /// arms below read the exact SAME inset regardless of the card's own width.
 fn assert_on_rail(rect: [f32; 4], anchor: theme::CardAnchor, world: &str) {
@@ -146,7 +146,7 @@ fn deliberate_crossing_snaps_the_card_into_the_destination_rail() {
     let names: Vec<String> = theme::THEMES.iter().map(|t| t.name.to_string()).collect();
     let mut ov = OverlayState::new_theme(names, theme::active_index());
 
-    // The interaction state that must SURVIVE every crossing (item 52).
+    // The interaction state that must SURVIVE every crossing.
     let query_snapshot = ov.query.clone();
     let corpus_len = ov.rows.len();
 
