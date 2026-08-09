@@ -993,7 +993,7 @@ fn footer_plate_clears_the_notice_channels_presence_floor_on_every_bars_world() 
         "the plate-drawing `Bars` roster moved — this law's enrolment must move with it"
     );
 
-    // The SAME logical room at two device scales (`rotated_rail_item297.rs`'s
+    // The SAME logical room at two device scales (`rotated_rail.rs`'s
     // own tier shape) — a device-pixel bug in a one-px rim is exactly the
     // class `--capture-dpi 1` alone cannot see.
     const TIERS: [(u32, u32, f32); 2] = [(1200, 800, 1.0), (2400, 1600, 2.0)];

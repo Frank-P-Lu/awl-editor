@@ -14,7 +14,7 @@
 //! ⚠️ **THIS FILE DOES NOT OWN `RotatedRail`'s PLACEMENT.** That style is
 //! composed against the ROOM — the wordmark placard's own outer margin, at ⅔
 //! of its type — and its composition, presence, non-overlap and park laws live
-//! in the sibling `rotated_rail_item297` module. What remains here is what both
+//! in the sibling `rotated_rail` module. What remains here is what both
 //! expressions still share: the PURE placement/fit solvers, the byte-identity
 //! oracles that hold `Raked` to the retired formulas it was calibrated under,
 //! and the All-home law.
@@ -318,7 +318,7 @@ fn render_view(
 /// (`Some("Files")` vs `None`) at strip index 0 (All) — where the two must be
 /// BYTE IDENTICAL, because `overlay_location` is already `None` at the All home
 /// (`FacetScheme::location`'s own contract) and forcing it to `None` again is a
-/// no-op. Non-vacuity is inherited from `rotated_rail_item297`'s composition
+/// no-op. Non-vacuity is inherited from `rotated_rail`'s composition
 /// law, which proves this same differential sees a real diff when one exists.
 #[test]
 fn cassowary_all_home_draws_no_rotated_cue() {

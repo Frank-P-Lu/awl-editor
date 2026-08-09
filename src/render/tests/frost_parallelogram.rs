@@ -48,7 +48,7 @@
 
 use super::super::*;
 use super::frost_card_ink::{CardInk, INK_GRADIENT, luma, step};
-use super::frost_feather_item312::{DENSE, enrolled_worlds, render_frame, theme_picker};
+use super::frost_feather::{DENSE, enrolled_worlds, render_frame, theme_picker};
 use super::headless_dqp;
 
 /// A local luma step that only a document EDGE produces — item 294's threshold, at the

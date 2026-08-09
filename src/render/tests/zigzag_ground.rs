@@ -1,70 +1,147 @@
-//! ITEM 89 — REAL-PIXEL FIELD laws for `Background::Zigzag`, the correctness
-//! repair of item 86's chevron margin ground.
+//! ITEM 86 — REAL-PIXEL proofs for `Background::Zigzag`, the repeating
+//! chevron mark ground that replaced Quokka's dot grid AND Gumtree's
+//! grass-bands field in one light-worlds taste round. The round's own brief:
+//! the two worlds must NOT look like recolours of one asset — vary scale,
+//! profile/direction, spacing, and contrast through world DATA read by the
+//! ONE renderer (`shaders/background.wgsl`'s `pattern_coverage`, shader id
+//! 7). Mirrors `bands_waves.rs`'s pattern — drive `BackgroundPipeline`
+//! directly (the purest reachable seam, no text/markdown involved) and read
+//! the real GPU output back, reusing its `headless_dq` device helper rather
+//! than re-deriving it, and item 89's `mark_field` differential oracle for the
+//! one pixel measurement left here.
 //!
-//! **Defect 1 — the field did not tile.** Item 86's shader computed the
-//! chevron's centerline as `center = tri(rx) * amp` and its coverage as
-//! `abs(ry - center)` — a function of the ALONG-travel coordinate alone. That
-//! describes ONE continuous "V" curve embedded in the plane: the teeth repeat
-//! along the travel direction, but nothing repeats the curve ACROSS it, so a
-//! page margin showed a single wandering stroke with large blank areas, and a
-//! taller window did not gain a second row — it only let that same lone stroke
-//! travel further before running off the bottom. Item 89 folds `(ry - center)`
-//! through a row pitch, turning the single curve into the infinite family
-//! `center + k * pitch`.
+//! **Post item-89 note:** this ground was reopened as a CORRECTNESS repair —
+//! item 86's chevron repeated its teeth ALONG one travel line but never tiled
+//! that line ACROSS the margin field, so a page margin carried a single
+//! wandering stroke with large blank areas; and the fold that first tiled it
+//! stacked rows every `period_px`, which left a blank LANE between rows
+//! wherever the excursion did not span the period. The field laws (per-cell
+//! occupancy SWEPT over viewport geometry, the no-blank-lane law, the abutment
+//! theorem, row rhythm, height scaling, column exclusion, determinism) all live
+//! in `zigzag_ground.rs`; the per-world dials were re-derived there too
+//! (Quokka 100/24 unchanged, Gumtree 170/60). What stays here is item 86's
+//! DESIGN brief — the roster, and the four dials' authored distinctness.
 //!
-//! **Defect 2 — the tiled field still did not COVER, and the law could not see
-//! it.** Item 89's first cut set `pitch = period_px` (a square lattice in the
-//! travel frame). Row `k`'s ribbon only ever visits `ry` in
-//! `[k*pitch - amp - t, k*pitch + amp + t]`, so whenever `2*amp + 2*t <
-//! period_px` the field carried a hard BLANK LANE of `period_px - 2*amp - 2*t`
-//! px that NO chevron entered at ANY `rx` — on the then-authored Gumtree
-//! (250/85) a ~70px lane every 250px. A short window's narrow margin could sit
-//! wholly inside one: measured at the app's real adaptive column geometry, an
-//! 80x182px band of a 1600x600 right margin and a 27x234px cell of a 1400x700
-//! left margin at literally ZERO deviation. That shipped green because the
-//! occupancy law of the day graded ONE fixed geometry (a 1200x800 canvas with
-//! a synthetic 350/500 column) and never varied the aspect ratio — a law that
-//! only tests the geometry its author happened to pick is how this class of
-//! bug survives. Both halves are repaired here: the shader derives the pitch
-//! from the profile (`row_h = 2*amp + thickness`, so consecutive rows ABUT by
-//! construction at ANY dials — see `theme::Background::zigzag_row_pitch_px`),
-//! and the occupancy law below SWEEPS window geometry.
-//!
-//! **The oracle.** Every appearance claim here is PIXEL arithmetic (the project
-//! tripwire: the sidecar is a state oracle, never an appearance oracle), and it
-//! is DIFFERENTIAL: the same world is rendered twice, once as authored and once
-//! with `density: 0.0` (which zeroes the mark's coverage exactly —
-//! `mix(rgb, tint, 0.0) == rgb` — and touches nothing else), then subtracted.
-//! The gradient, its ordered dither, and the sRGB quantization are bit-identical
-//! between the two passes, so the difference image is the MARK ALONE, with no
-//! mirrored color math to drift out of lockstep. `INK_FLOOR` is the per-pixel
-//! total-channel difference that counts as material.
-//!
-//! **ITEM 100 — the teeth.** Item 89's own independent re-verify reverted the
-//! pitch rule to the broken `row_h = period_px` and five of the thirteen laws
-//! here went red — but the HEADLINE one,
-//! [`zigzag_field_covers_every_margin_cell_across_a_viewport_sweep_on_both_worlds`],
-//! survived it, at 1.43x its floor against 5.48x healthy. Its grid was a 3x3
-//! partition of each margin — cells up to ~116x266 px, coarse enough that a
-//! field with hard 38px blank lanes still dropped material into every one of
-//! them. A headline law that survives the exact regression it names is
-//! decorative. It is regraded here on a grid DERIVED from the field's own
-//! geometry (see [`occupancy_cell_px`]) — 4712 cells across the same sweep
-//! instead of 324, at the finest granularity the field's own claimed rhythm
-//! can fill — and on a per-cell ink floor stated as a fraction of the field's
-//! own structural areal density rather than a bare non-zero. With the shader's
-//! pitch rule reverted it now fails on 1595 blank cells.
-//!
-//! Item 100 also records the RESIDUAL that grid deliberately does not grade:
-//! below the minimal cell, voids DO exist and
-//! [`zigzag_sub_pitch_voids_stay_isolated_pockets_never_a_lane`] pins their
-//! shape (isolated, never adjacent) and population rather than hiding them.
+//! Per the project tripwire (the sidecar is a STATE oracle, never an
+//! APPEARANCE oracle), every contrast/distinctness/column-exclusion claim
+//! here is proven by PIXEL arithmetic over the rendered bytes.
 //!
 //! Skips (with a printed note, not a failure) on a machine with no wgpu
 //! adapter, exactly like every other GPU-backed render test in this tree.
 
+use super::bands_waves::headless_dq;
+use crate::theme;
+
+// ---------------------------------------------------------------------------
+// STRUCTURAL ROSTER — exhaustive, no wildcard (background-ground half of the
+// round's required law; the card-cap half already lives in
+// `card_texture_shape.rs::card_caps_are_flat_rectangular_for_every_world_but_quokka`).
+// ---------------------------------------------------------------------------
+
+/// EXHAUSTIVE, no-wildcard match over the closed [`theme::Background`] enum:
+/// `Zigzag` ships on Quokka and Gumtree ALONE, every other world ships
+/// something else. A newly added `Background` variant must extend this match
+/// (compile error) before it can silently dodge the sweep.
+#[test]
+fn zigzag_ships_on_quokka_and_gumtree_alone_no_wildcard() {
+    for t in theme::THEMES {
+        let kind = match t.background {
+            theme::Background::Gradient { .. } => "gradient",
+            theme::Background::Dots { .. } => "dots",
+            theme::Background::Pinstripe { .. } => "pinstripe",
+            theme::Background::Stripes { .. } => "stripes",
+            theme::Background::Lava { .. } => "lava",
+            theme::Background::Bands { .. } => "bands",
+            theme::Background::Waves { .. } => "waves",
+            theme::Background::Zigzag { .. } => "zigzag",
+            theme::Background::Organic { .. } => "organic",
+            theme::Background::Deckle { .. } => "deckle",
+            theme::Background::WarpedGrid { .. } => "warped-grid",
+        };
+        match t.name {
+            "Quokka" | "Gumtree" => {
+                assert_eq!(kind, "zigzag", "{} must ship Background::Zigzag", t.name)
+            }
+            _ => assert_ne!(
+                kind, "zigzag",
+                "{} must NOT ship Background::Zigzag (item 86 is Quokka/Gumtree-only)",
+                t.name
+            ),
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Zigzag field coverage and geometry laws.
+// ---------------------------------------------------------------------------
+
+// ITEM 89 — REAL-PIXEL FIELD laws for `Background::Zigzag`, the correctness
+// repair of item 86's chevron margin ground.
+//
+// **Defect 1 — the field did not tile.** Item 86's shader computed the
+// chevron's centerline as `center = tri(rx) * amp` and its coverage as
+// `abs(ry - center)` — a function of the ALONG-travel coordinate alone. That
+// describes ONE continuous "V" curve embedded in the plane: the teeth repeat
+// along the travel direction, but nothing repeats the curve ACROSS it, so a
+// page margin showed a single wandering stroke with large blank areas, and a
+// taller window did not gain a second row — it only let that same lone stroke
+// travel further before running off the bottom. Item 89 folds `(ry - center)`
+// through a row pitch, turning the single curve into the infinite family
+// `center + k * pitch`.
+//
+// **Defect 2 — the tiled field still did not COVER, and the law could not see
+// it.** Item 89's first cut set `pitch = period_px` (a square lattice in the
+// travel frame). Row `k`'s ribbon only ever visits `ry` in
+// `[k*pitch - amp - t, k*pitch + amp + t]`, so whenever `2*amp + 2*t <
+// period_px` the field carried a hard BLANK LANE of `period_px - 2*amp - 2*t`
+// px that NO chevron entered at ANY `rx` — on the then-authored Gumtree
+// (250/85) a ~70px lane every 250px. A short window's narrow margin could sit
+// wholly inside one: measured at the app's real adaptive column geometry, an
+// 80x182px band of a 1600x600 right margin and a 27x234px cell of a 1400x700
+// left margin at literally ZERO deviation. That shipped green because the
+// occupancy law of the day graded ONE fixed geometry (a 1200x800 canvas with
+// a synthetic 350/500 column) and never varied the aspect ratio — a law that
+// only tests the geometry its author happened to pick is how this class of
+// bug survives. Both halves are repaired here: the shader derives the pitch
+// from the profile (`row_h = 2*amp + thickness`, so consecutive rows ABUT by
+// construction at ANY dials — see `theme::Background::zigzag_row_pitch_px`),
+// and the occupancy law below SWEEPS window geometry.
+//
+// **The oracle.** Every appearance claim here is PIXEL arithmetic (the project
+// tripwire: the sidecar is a state oracle, never an appearance oracle), and it
+// is DIFFERENTIAL: the same world is rendered twice, once as authored and once
+// with `density: 0.0` (which zeroes the mark's coverage exactly —
+// `mix(rgb, tint, 0.0) == rgb` — and touches nothing else), then subtracted.
+// The gradient, its ordered dither, and the sRGB quantization are bit-identical
+// between the two passes, so the difference image is the MARK ALONE, with no
+// mirrored color math to drift out of lockstep. `INK_FLOOR` is the per-pixel
+// total-channel difference that counts as material.
+//
+// **ITEM 100 — the teeth.** Item 89's own independent re-verify reverted the
+// pitch rule to the broken `row_h = period_px` and five of the thirteen laws
+// here went red — but the HEADLINE one,
+// [`zigzag_field_covers_every_margin_cell_across_a_viewport_sweep_on_both_worlds`],
+// survived it, at 1.43x its floor against 5.48x healthy. Its grid was a 3x3
+// partition of each margin — cells up to ~116x266 px, coarse enough that a
+// field with hard 38px blank lanes still dropped material into every one of
+// them. A headline law that survives the exact regression it names is
+// decorative. It is regraded here on a grid DERIVED from the field's own
+// geometry (see [`occupancy_cell_px`]) — 4712 cells across the same sweep
+// instead of 324, at the finest granularity the field's own claimed rhythm
+// can fill — and on a per-cell ink floor stated as a fraction of the field's
+// own structural areal density rather than a bare non-zero. With the shader's
+// pitch rule reverted it now fails on 1595 blank cells.
+//
+// Item 100 also records the RESIDUAL that grid deliberately does not grade:
+// below the minimal cell, voids DO exist and
+// [`zigzag_sub_pitch_voids_stay_isolated_pockets_never_a_lane`] pins their
+// shape (isolated, never adjacent) and population rather than hiding them.
+//
+// Skips (with a printed note, not a failure) on a machine with no wgpu
+// adapter, exactly like every other GPU-backed render test in this tree.
+
 use super::super::*;
-use super::backgrounds_item69::{bg_desc_for, headless_dq, render_bg};
+use super::bands_waves::{bg_desc_for, headless_dq, render_bg};
 use super::{headless_dqp, view, view_md};
 
 /// The deterministic single-canvas scan surface used by the laws that are
@@ -131,7 +208,7 @@ const CELL_INK_FRAC_OF_STRUCTURAL: f32 = 0.05;
 const MIN_INKED_FLOOR: usize = 8;
 
 /// The two worlds that wear this ground (the exhaustive no-wildcard roster law
-/// lives in `backgrounds_item86.rs`).
+/// lives in `zigzag_ground.rs`).
 fn zigzag_worlds() -> [(&'static str, theme::Background); 2] {
     [
         ("Quokka", theme::QUOKKA.background),
@@ -1497,4 +1574,240 @@ fn the_wgsl_zigzag_branch_abuts_its_rows() {
             && (theme::ZIGZAG_MIN_STROKE_PX - 1.2).abs() < 1e-6,
         "theme::ZIGZAG_STROKE_FRAC/ZIGZAG_MIN_STROKE_PX drifted from the WGSL literals above"
     );
+}
+
+/// NON-VACUITY SELF-PROOF: the exact four-dial inequality check
+/// [`zigzag_dials_are_measurably_distinct_between_quokka_and_gumtree`] below
+/// uses, run here against a pair of DELIBERATELY IDENTICAL literals — proving
+/// the law is capable of failing (a copy-pasted recolor would trip it), not
+/// just capable of passing the real authored data.
+#[test]
+fn distinctness_check_fails_on_identical_dials_proving_it_is_non_vacuous() {
+    let a = (50.0f32, 10.0f32, 0.95f32, 0.60f32);
+    let b = a; // an identical copy — exactly the "recolor of one asset" bug.
+    let all_distinct = a.0 != b.0 && a.1 != b.1 && a.2 != b.2 && a.3 != b.3;
+    assert!(
+        !all_distinct,
+        "identical dials must NOT pass the distinctness check"
+    );
+}
+
+/// THE DISTINCTNESS LAW (data half): every one of the four authored dials —
+/// `period_px` (scale/spacing), `amplitude_px` (profile), `angle`
+/// (direction), `density` (contrast) — differs between Quokka's and
+/// Gumtree's `Zigzag`, and Gumtree's is the "broader and quieter" of the
+/// pair per the round's own brief (broader spacing, lower contrast).
+#[test]
+fn zigzag_dials_are_measurably_distinct_between_quokka_and_gumtree() {
+    let (
+        theme::Background::Zigzag {
+            period_px: qp,
+            amplitude_px: qa,
+            angle: qang,
+            density: qd,
+            ..
+        },
+        theme::Background::Zigzag {
+            period_px: gp,
+            amplitude_px: ga,
+            angle: gang,
+            density: gd,
+            ..
+        },
+    ) = (theme::QUOKKA.background, theme::GUMTREE.background)
+    else {
+        panic!("both Quokka and Gumtree must ship Background::Zigzag");
+    };
+    assert_ne!(qp, gp, "period_px (scale/spacing) must differ");
+    assert_ne!(qa, ga, "amplitude_px (profile) must differ");
+    assert_ne!(qang, gang, "angle (direction) must differ");
+    assert_ne!(qd, gd, "density (contrast) must differ");
+    assert!(gp > qp, "Gumtree's period must be BROADER than Quokka's");
+    assert!(gd < qd, "Gumtree's density must be QUIETER than Quokka's");
+}
+
+#[test]
+fn quokka_alone_uses_horizontal_filled_zigzag_bands() {
+    assert!(theme::QUOKKA.background.zigzag_banded());
+    assert!(!theme::GUMTREE.background.zigzag_banded());
+    assert_eq!(theme::QUOKKA.background.angle(), 0.0);
+    assert_eq!(theme::GUMTREE.background.angle(), 0.26);
+}
+
+// ---------------------------------------------------------------------------
+// REAL-PIXEL LAWS
+// ---------------------------------------------------------------------------
+
+// SUPERSEDED BY ITEM 89: this file's original column-exclusion law lived here.
+// Its negative half (nothing paints inside the page column) was sound; its
+// POSITIVE half was `margin_has_mark = true` if ANY single pixel of a strided
+// margin scan differed from the two gradient endpoints — which one wandering
+// chevron stroke satisfies trivially, and which is exactly why item 86's
+// non-tiling field (60-95% of a tall margin blank) shipped green. Both halves
+// now live, strengthened and differential, in `zigzag_ground.rs`
+// (`zigzag_contributes_zero_ink_inside_the_writing_column_on_both_worlds` +
+// the 18-cell occupancy grid). The determinism law that followed it moved
+// there too, widened to two canvas sizes.
+
+/// THE DISTINCTNESS LAW (real-pixel half, CONTRAST): over the SAME canvas
+/// geometry, Quokka's higher-`density` chevron field lays down BOLDER ink than
+/// Gumtree's lower-`density` one — the real-GPU-output confirmation of the
+/// data-level `density` inequality above (never trusted from the struct
+/// literal alone — the Wagtail lesson). Measured through item 89's
+/// DIFFERENTIAL oracle (`zigzag_ground::mark_field`: the world rendered
+/// as authored minus the same world with its mark coverage zeroed), so the
+/// number really is the MARK's own peak deviation. The original form of this
+/// law measured each pixel's distance from the nearer gradient ENDPOINT, which
+/// on a two-tone gradient is dominated by the mid-gradient tone itself (up to
+/// half the endpoint span — 24 on Gumtree, against a mark that only reaches
+/// 11), i.e. it compared the two worlds' gradient spans as much as their
+/// marks; the differential field has no such confound.
+///
+/// Peak deviation (not total marked-pixel AREA) is the right proxy for
+/// "bolder/quieter": `line * density` peaks exactly AT `density` on a
+/// chevron's own centerline regardless of the ribbon's width, so this isolates
+/// the CONTRAST dial from the PROFILE dial's own (also authored, also
+/// distinct) effect on ribbon thickness / marked area.
+#[test]
+fn quokka_zigzag_reads_higher_contrast_than_gumtrees_over_real_pixels() {
+    let _g = crate::testlock::serial();
+    let Some((device, queue)) = headless_dq() else {
+        eprintln!(
+            "skipping quokka_zigzag_reads_higher_contrast_than_gumtrees_over_real_pixels: no wgpu adapter"
+        );
+        return;
+    };
+    let _g = crate::testlock::serial();
+    let (w, h) = (1200u32, 800u32);
+
+    // No page hole (col_w = 0): the WHOLE canvas is margin, the purest scan
+    // surface for a peak-intensity measurement.
+    let peak_ink = |bg: theme::Background| -> i32 {
+        super::zigzag_ground::mark_field(&device, &queue, bg, w, h, 0.0, 0.0)
+            .into_iter()
+            .max()
+            .unwrap_or(0)
+    };
+
+    let quokka_peak = peak_ink(theme::QUOKKA.background);
+    let gumtree_peak = peak_ink(theme::GUMTREE.background);
+    assert!(quokka_peak > 0, "Quokka's zigzag must reach SOME real ink");
+    assert!(
+        gumtree_peak > 0,
+        "Gumtree's zigzag must reach SOME real ink"
+    );
+    assert!(
+        quokka_peak >= gumtree_peak + 8,
+        "Quokka's louder zigzag (peak mark deviation {quokka_peak}) must retain a material \
+         contrast lead over Gumtree ({gumtree_peak})"
+    );
+}
+
+/// THE VISIBILITY FLOOR: Gumtree remains a quiet ground, but its mark cannot
+/// return to the imperceptible pre-item-108 blend. This is deliberately a
+/// differential real-pixel floor (the same world with density zeroed is
+/// subtracted), across the narrow and generous page geometries represented in
+/// the review dashboard. It pins authored visibility without changing any
+/// shared Zigzag geometry or tint machinery.
+fn gumtree_visibility_floor(field: &[i32]) -> i32 {
+    field.iter().copied().max().unwrap_or(0)
+}
+
+#[test]
+fn gumtree_zigzag_is_visibly_present_across_dashboard_geometries() {
+    let _g = crate::testlock::serial();
+    let Some((device, queue)) = headless_dq() else {
+        eprintln!(
+            "skipping gumtree_zigzag_is_visibly_present_across_dashboard_geometries: \
+             no wgpu adapter"
+        );
+        return;
+    };
+    let _g = crate::testlock::serial();
+    for (w, h, col_left, col_w) in [(900, 700, 125.0, 650.0), (1800, 1000, 350.0, 1100.0)] {
+        let field = super::zigzag_ground::mark_field(
+            &device,
+            &queue,
+            theme::GUMTREE.background,
+            w,
+            h,
+            col_left,
+            col_w,
+        );
+        let peak = gumtree_visibility_floor(&field);
+        assert!(
+            peak >= 18,
+            "Gumtree {w}x{h}: mark peak deviation {peak} must clear the visible-background floor 18"
+        );
+    }
+}
+
+#[test]
+fn gumtree_visibility_floor_rejects_the_imperceptible_density_mutation() {
+    let _g = crate::testlock::serial();
+    let Some((device, queue)) = headless_dq() else {
+        return;
+    };
+    let _g = crate::testlock::serial();
+    let theme::Background::Zigzag {
+        from,
+        to,
+        dir,
+        tint,
+        period_px,
+        amplitude_px,
+        angle,
+        ..
+    } = theme::GUMTREE.background
+    else {
+        unreachable!("Gumtree must remain a Zigzag world");
+    };
+    let imperceptible = theme::Background::Zigzag {
+        from,
+        to,
+        dir,
+        tint,
+        period_px,
+        amplitude_px,
+        angle,
+        density: 0.20,
+        banded: false,
+    };
+    let field = super::zigzag_ground::mark_field(
+        &device,
+        &queue,
+        imperceptible,
+        900,
+        700,
+        125.0,
+        650.0,
+    );
+    let peak = gumtree_visibility_floor(&field);
+    assert!(
+        peak < 18,
+        "mutation witness must remain below the visibility floor, got {peak}"
+    );
+}
+
+/// SANE, POSITIVE DIALS: both worlds' `period_px`/`amplitude_px` are finite
+/// and strictly positive (a zero/negative period would divide-by-zero-adjacent
+/// degenerate the shader's `fract(rx / period)`, guarded by `max(.., 1.0)`
+/// there, but the AUTHORED data itself should never rely on that floor), and
+/// `density` sits in the documented `[0,1]` contrast range.
+#[test]
+fn zigzag_dials_are_sane_and_positive_on_both_worlds() {
+    for (name, bg) in [
+        ("Quokka", theme::QUOKKA.background),
+        ("Gumtree", theme::GUMTREE.background),
+    ] {
+        assert!(bg.period_px() > 0.0, "{name}: period_px must be positive");
+        assert!(
+            bg.amplitude_px() > 0.0,
+            "{name}: amplitude_px must be positive"
+        );
+        assert!(
+            (0.0..=1.0).contains(&bg.density()),
+            "{name}: density must sit in [0,1]"
+        );
+    }
 }

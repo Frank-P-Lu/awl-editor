@@ -2,7 +2,7 @@
 //! active-lens mark's THICKNESS in raw device pixels while every other term of
 //! the same rect (position, span) crossed the `Logical` -> `Metrics::px`
 //! boundary — the chrome-pixel-space rule (author in logical units, multiply
-//! once at the boundary; see `chrome_pixel_space_item242`) with two dials that
+//! once at the boundary; see `chrome_pixel_space`) with two dials that
 //! never got the memo: on a 2x panel the mark's x/y/width doubled and its
 //! height stayed put, so the mark rendered at half its tuned weight on every
 //! Retina display. `--capture-dpi 1` is the one scale every ordinary capture
@@ -13,7 +13,7 @@
 //!   1. THE DRAWN RESULT — the actual rendered ink band, measured in PNG-frame
 //!      pixels (not a computed length), is roughly twice as thick at 2x as at
 //!      1x on a canvas that is the SAME LOGICAL size at both tiers (the
-//!      `chrome_pixel_space_item242` discipline — a canvas held at one
+//!      `chrome_pixel_space` discipline — a canvas held at one
 //!      physical size across DPI shrinks its LOGICAL content and reflows the
 //!      strip, which is a different bug's shape than the one under test).
 //!      Grading only `overlay_theme_underline`'s recorded rect would stay
@@ -104,7 +104,7 @@ fn mark_rect(
 /// label's own glyph ink at 1x and on clean ground at 2x — the same fixed
 /// offset reading two different things at the two tiers this law compares.
 /// Independent of the geometry claim on purpose — see the module doc's
-/// non-vacuity note in `chrome_pixel_space_item242`.
+/// non-vacuity note in `chrome_pixel_space`.
 fn drawn_thickness_px(frame: &[[u8; 4]], w: u32, h: u32, rect: [f32; 4], dpi: f32) -> Option<f32> {
     let n = 5usize;
     let lo = rect[0] + rect[2] * 0.25;
@@ -250,7 +250,7 @@ fn every_enrolled_world_scales_its_facet_mark_by_dpi() {
             // A style whose mark is not a rect (`Chips(Bracket)`'s corner
             // ticks). Every `Logical`-typed tick length already crosses the
             // pixel-space boundary (enforced roster-wide by
-            // `chrome_pixel_space_item242`'s declaration sweep), so there is
+            // `chrome_pixel_space`'s declaration sweep), so there is
             // nothing this law can additionally grade here — record it and
             // move on rather than fail a check the style structurally can't
             // answer.

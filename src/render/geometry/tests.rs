@@ -990,11 +990,11 @@ fn adaptive_column_left_is_dpi_invariant_at_matched_logical_geometry() {
 }
 
 /// `visible_lines_z`'s vertical inset is a LOGICAL quantity, at every display scale.
-/// The PURE half; `text_top_dpi_item315.rs`'s
+/// The PURE half; `text_top_dpi.rs`'s
 /// `text_origin_top_is_dpi_invariant_at_matched_logical_geometry_menu_bar_off` is the
 /// live-pipeline half that exercises `TextPipeline::text_origin_top` / `doc_top` /
 /// `hit_test_scroll` together, over the same file split as `adaptive_column_left`'s
-/// own pure/live-pipeline pair above and in `column_left_dpi_item314.rs`.
+/// own pure/live-pipeline pair above and in `column_left_dpi.rs`.
 ///
 /// Same shape as `adaptive_column_left`'s DPI law above: TWO claims, because
 /// invariance ALONE is satisfiable by deleting the pad (`0 * dpi` is perfectly

@@ -7,7 +7,7 @@
 //!
 //! **The Bands laws below drive a SYNTHETIC literal, and that is deliberate.**
 //! Gumtree's own ground moved from Bands to a repeating chevron
-//! `Background::Zigzag` (see `backgrounds_item86.rs` for that ground's own
+//! `Background::Zigzag` (see `zigzag_ground.rs` for that ground's own
 //! real-pixel laws), leaving Bands unworn for a time; the laws were repointed
 //! at an explicit literal — Gumtree's old tones/angle, preserved verbatim —
 //! rather than deleted, because the geometry/continuity/determinism properties
@@ -24,7 +24,7 @@
 //! 21 and 24 apart on their dominant channel, Magpie's ladder rungs are 10 and
 //! 13, so running the shape proof on Magpie would halve the classifier's margin
 //! to buy nothing. Magpie's own instance is proved separately, at real pixels
-//! and at that narrow separation, by `magpie_bands_item260` — the two files ask
+//! and at that narrow separation, by `magpie_bands` — the two files ask
 //! different questions and both answers are wanted.
 //!
 //! Per the project tripwire (the sidecar is a STATE oracle, never an
@@ -675,7 +675,7 @@ fn bombora_wave_wobble_is_a_fixed_logical_pixel_amplitude_not_canvas_scaled() {
     // viewport would show. (ITEM 186 renamed this law: it sweeps CANVAS SIZE at
     // one device ratio and always has, so "physical pixel" was never what it
     // proved. `WAVE_AMP` is a fixed LOGICAL px constant — the device-ratio half
-    // of the claim is `ground_space_item186`'s to make.)
+    // of the claim is `ground_space`'s to make.)
     for (label, amp) in [("small", small), ("large", large)] {
         assert!(
             (30..60).contains(&amp),
@@ -783,7 +783,7 @@ fn every_world_reports_its_authored_shader_id() {
         );
     }
     // The item-86 Zigzag worlds carry their NEW id, never their old ones
-    // (Quokka was Dots/1, Gumtree was Bands/5 — see `backgrounds_item86.rs`).
+    // (Quokka was Dots/1, Gumtree was Bands/5 — see `zigzag_ground.rs`).
     assert_eq!(
         theme::QUOKKA.background.shader_id(),
         7,

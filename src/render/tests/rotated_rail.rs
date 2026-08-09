@@ -71,7 +71,7 @@ fn roster_cells() -> Vec<(OverlayKind, usize, &'static str)> {
 
 /// A faceted card of `kind` at lens `i`, folded the way `App::sync_view` folds
 /// one. The sections are `vec![label; n]` because that IS what every lens
-/// produces — `palette_location_item220`'s premise law pins that every lens
+/// produces — `palette_location`'s premise law pins that every lens
 /// groups into exactly one section whose label is the lens's own.
 fn faceted_view(kind: OverlayKind, lens: usize) -> ViewState {
     let scheme = crate::facets::scheme(kind).expect("a faceting kind");

@@ -36,7 +36,7 @@
 // laws can be unit-tested without a GPU — the shipping renderer reads the
 // WGSL's own copies (`shaders/background.wgsl`'s `waves_rgb`), never these. They
 // are therefore `#[cfg(test)]`-gated and module-PRIVATE (no cross-module test
-// calls them; `render/tests/backgrounds_item69.rs` only mentions `WAVE_AMP` in a
+// calls them; `render/tests/bands_waves.rs` only mentions `WAVE_AMP` in a
 // comment) rather than carrying an `allow(dead_code)` that would hide a genuinely
 // dead constant. `WAVE_DRIFT_CYCLES` stays ungated: it feeds
 // the RUNTIME [`waves_drift_radians`].

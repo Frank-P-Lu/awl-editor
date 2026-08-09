@@ -29,13 +29,13 @@
 //! reader that assigns "anchor" to whichever region is bigger would otherwise
 //! report `anchor > companion` for any two blobs at all.
 
-use super::backgrounds_item69::{bg_desc_for, headless_dq, render_bg};
+use super::bands_waves::{bg_desc_for, headless_dq, render_bg};
 use crate::theme;
 
 /// A `Background::Organic` at an explicit cell scale, on Bowerbird's own
 /// authored tones and density — the direct-injection seam, so every claim
 /// below is about the MECHANISM rather than one world's literal.
-/// `pub(super)`: item 191's spacing/void laws (`bowerbird_spacing_item191.rs`)
+/// `pub(super)`: item 191's spacing/void laws (`bowerbird_spacing.rs`)
 /// reuse this and the field reader below rather than duplicating them —
 /// same-behavior-same-code.
 pub(super) fn organic_bg(scale_px: f32) -> theme::Background {
@@ -192,7 +192,7 @@ const MIN_MINOR_PX: usize = 90;
 /// off — so this gates a MISSING hole, not a small one. At this file's own
 /// 156px reference cell (item 176's own scale; item 191 later opened
 /// Bowerbird's shipped `scale_px` to 195, read dynamically by
-/// `bowerbird_spacing_item191.rs` rather than duplicated here) the same
+/// `bowerbird_spacing.rs` rather than duplicated here) the same
 /// cut-outs measure five to ten times this.
 const MIN_CUTOUT_PX: usize = 8;
 /// A real hierarchy. The authored companion is at most `COMPANION_HI` of the
@@ -608,7 +608,7 @@ fn finds_variation_does_not_repeat_and_the_scatter_is_not_a_grid() {
 // `organic_rgb` deletes the `drift` vec2 outright, both terms, so the field
 // never translates. Its replacement claim — the field's own silhouette must
 // be IDENTICAL at every ambient phase, with only the companion's own VALUE
-// free to change — is proved in `bowerbird_breathe_item244.rs`'s
+// free to change — is proved in `bowerbird_breathe.rs`'s
 // `bowerbird_organic_field_never_translates_across_the_ambient_clock`.
 
 /// LAW (the worst-phase sweep, re-stated for the new arrangement: now
@@ -630,7 +630,7 @@ fn finds_worst_phase_stays_cool_and_off_the_page() {
     let wrap = crate::lava::LAVA_LOOP_CYCLES;
     for i in 0..24 {
         let phase = wrap * (i as f32) / 24.0;
-        let pixels = super::backgrounds_item69::render_bg_ambient(
+        let pixels = super::bands_waves::render_bg_ambient(
             &device,
             &queue,
             bg_desc_for(bg),
@@ -802,7 +802,7 @@ fn finds_edges_stay_antialiased_and_crisp_at_1x_and_2x() {
 /// keeps the whole freeze truth table already pinned by
 /// `theme::tests::bowerbird_organic_schedules_zero_frames_under_every_freeze_
 /// condition` (Reduce Motion, `ambient_motion = false`, focus lost, paused) and
-/// the real-pixel Reduce Motion proof in `bowerbird_breathe_item244` applicable
+/// the real-pixel Reduce Motion proof in `bowerbird_breathe` applicable
 /// to the field at any authored cell. This law used to sweep the two
 /// arrangements to make that point; with one arrangement left it sweeps the
 /// authored SCALE instead, which is the dial the ground still has — a revival

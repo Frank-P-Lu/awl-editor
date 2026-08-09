@@ -102,7 +102,7 @@ impl WorkspaceShape {
     /// primary column carries labels.
     ///
     /// This is the only match over [`WorkspaceShape`]'s variants anywhere in
-    /// the crate — a grep-law (`render::tests::workspace_shape_item116a`)
+    /// the crate — a grep-law (`render::tests::workspace_shape`)
     /// keeps it that way, so a third shape cannot silently carry a different
     /// answer in two places.
     pub(crate) fn rows_are_primary(self) -> bool {

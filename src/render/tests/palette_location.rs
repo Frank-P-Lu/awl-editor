@@ -333,7 +333,7 @@ fn the_location_heading_reads_stronger_than_the_faint_header_it_replaced_in_ever
     // so the card band scanned below holds no cue ink at all — the claim there
     // is not "stronger than the whisper" but "the inline slot stays glyph-free",
     // asserted as such, with the cue's own strength graded against the
-    // wordmark's ink by `rotated_rail_item297`. The roster of such worlds is
+    // wordmark's ink by `rotated_rail`. The roster of such worlds is
     // PINNED, so a second one has to arrive here and say so.
     let mut off_card: Vec<String> = Vec::new();
     for world in theme::THEMES.iter().map(|t| t.name) {

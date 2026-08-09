@@ -17,9 +17,9 @@
 //! too-short list here would leave real chrome over sharp document. Two laws bound it
 //! from both ends, and neither is a reading of this file:
 //!
-//! * `frost_parallelogram_item318`'s coverage floor requires the card's upright chrome to
+//! * `frost_parallelogram`'s coverage floor requires the card's upright chrome to
 //!   be frosted, over the box its own production owner declares.
-//! * `frost_width_item343`'s coverage law renders the picker with the frost SUPPRESSED
+//! * `frost_width`'s coverage law renders the picker with the frost SUPPRESSED
 //!   over an empty document and differences it against the same frame with the picker
 //!   closed — the two are identical but for the card's own drawing, so the residue IS that
 //!   drawing — then requires every pixel of it to have the frost's shipping mask at or

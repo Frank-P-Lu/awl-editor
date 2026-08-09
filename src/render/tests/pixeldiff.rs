@@ -294,7 +294,7 @@ pub(super) fn pairwise_delta_e_report(
 
 /// At least this many pixels must clear the JND for a pair to count as
 /// distinct — one lucky anti-aliased pixel cannot stand in for a real shape
-/// difference. Mirrors `marker_side_item303.rs`'s own `MARK_MIN_COVERED_CELLS`
+/// difference. Mirrors `marker_side.rs`'s own `MARK_MIN_COVERED_CELLS`
 /// (also 4, chosen there for the identical reason: a thin stroke against a
 /// mostly-empty ground must not pass on population size alone).
 pub(super) const PAIRWISE_MIN_COVERED_PX: usize = 4;

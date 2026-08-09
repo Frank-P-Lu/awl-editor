@@ -218,7 +218,7 @@ fn ends(seg: ([f32; 2], [f32; 2], [f32; 2])) -> ([f32; 2], [f32; 2]) {
 /// instance count.
 ///
 /// ⚠️ The three shipping laws that already touch this mark (`list_surfaces`,
-/// `settings_row_reach_law`, `row_offset_item131`) each assert
+/// `settings_row_reach_law`, `row_offset`) each assert
 /// `overlay_spine_selected.instance_count() == 2`. **A chevron is ALSO two
 /// segments, and it deliberately inscribes the SAME bounding box** as the
 /// tick-plus-connector pair it replaced — so all three stay green across a total

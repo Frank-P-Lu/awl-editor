@@ -494,7 +494,7 @@ fn every_setting_changes_and_persists_through_the_real_workspace_door() {
 /// keeps the first from being satisfied by an empty file.
 #[test]
 fn the_sweep_drives_the_picker_door_and_names_no_app_side_door() {
-    let src = include_str!("workspace_item114.rs");
+    let src = include_str!("workspace.rs");
     // THE SWEEP is its dispatcher plus its five per-kind arms, so the scan is
     // this whole file up to (but excluding) THIS test — whose own prose names
     // the very doors it bans and would otherwise fail the law it belongs to.

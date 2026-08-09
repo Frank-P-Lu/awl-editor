@@ -90,7 +90,7 @@ fn proportional_punctuation_keeps_the_shared_horizontal_body_hug() {
 /// entered on a mono world. That is a fact about the GATE, provable directly
 /// at the unit seam with no GPU pixel read needed — and more reliable than
 /// one, since a real glyph's raster shape (this test tried, in the sibling
-/// pixel-level law `tests/caret_punctuation_color_item200.rs`) varies enough
+/// pixel-level law `tests/caret_punctuation_color.rs`) varies enough
 /// per punctuation mark that geometry/colour heuristics built to catch a
 /// WRONG colour cannot also cleanly prove an ABSENT code path — this test is
 /// that proof instead, swept over the full mono subset and the full

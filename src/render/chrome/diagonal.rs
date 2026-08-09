@@ -95,7 +95,7 @@ fn spine_travel(composition: DiagonalComposition, geom: &OverlayGeom, rows: usiz
 /// THE SELECTED ROW'S MARK — a CHEVRON, and the one owner of its geometry: it
 /// IS the [`crate::selection::chevron_arms`] shared owner at a derived
 /// parameterization, rather than a shape that merely resembles it (see
-/// `render/tests/marker_chevron_owner_item247.rs`'s Law 1, which binds the two
+/// `render/tests/marker_chevron_owner.rs`'s Law 1, which binds the two
 /// point-for-point).
 ///
 /// Its VERTEX sits at `vertex_x` — the mark's row-facing end, one gap outward

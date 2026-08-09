@@ -22,7 +22,7 @@
 //!   alias or a renamed re-export of `SettingsValues` would not spell the
 //!   needle this scans for.
 //! - `fs::read_dir` has no wasm32-unknown-unknown counterpart (no OS
-//!   filesystem there), the same reason `font_licence_item255` gates itself
+//!   filesystem there), the same reason `font_licence` gates itself
 //!   the same way — so this only runs on the native test target.
 #![cfg(not(target_arch = "wasm32"))]
 

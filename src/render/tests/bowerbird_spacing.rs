@@ -37,7 +37,7 @@
 //!     threshold, that the GPU still rendered empty). Reusing that same
 //!     `hash21` for anything host-side would silently inherit the bug.
 //!
-//! The law instead uses ONLY what `bowerbird_finds_item176.rs`'s pixel reader
+//! The law instead uses ONLY what `bowerbird_finds.rs`'s pixel reader
 //! already proves reliable: each collection's own centre. In an undropped
 //! lattice a collection's nearest surviving neighbour sits about one cell
 //! pitch away (jitter is bounded to a small fraction of a cell); dropping ONE
@@ -49,14 +49,14 @@
 //! shape the other two approaches missed, and it needs no re-derivation of
 //! the shader's own hash.
 //!
-//! Reuses the field reader `bowerbird_finds_item176.rs` already built and
+//! Reuses the field reader `bowerbird_finds.rs` already built and
 //! proved (`Collection`, `read_collections`, `organic_bg`) rather than
 //! re-implementing it. Per the project's own tripwire (the sidecar is a
 //! state oracle, never an appearance oracle), every claim below is measured
 //! over rendered bytes.
 
-use super::backgrounds_item69::{bg_desc_for, headless_dq, render_bg_scaled};
-use super::bowerbird_finds_item176::{Collection, organic_bg, read_collections};
+use super::bands_waves::{bg_desc_for, headless_dq, render_bg_scaled};
+use super::bowerbird_finds::{Collection, organic_bg, read_collections};
 use crate::theme;
 
 // --- Size and spacing readers ------------------------------------------------
@@ -191,7 +191,7 @@ fn render_finds(
 // --- The diagnostic: BEFORE/AFTER numbers, printed not asserted -------------
 
 /// Not a law — a measurement dump. Run with
-/// `cargo test --bin awl bowerbird_spacing_item191::measure -- --ignored --nocapture`
+/// `cargo test --bin awl bowerbird_spacing::measure -- --ignored --nocapture`
 /// before and after a tuning edit to get the real before/after distributions
 /// item 191 asks for (role size, nearest-neighbour spacing, its worst case),
 /// across wide/narrow, 1x/2x and three drift phases.

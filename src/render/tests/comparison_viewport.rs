@@ -21,7 +21,7 @@
 //!    it).
 //!
 //! COMPOSITION — whether any of it reaches the screen — is item 116d's, in
-//! `render/tests/comparison_composite_item116d.rs`. This file's own boundary
+//! `render/tests/comparison_composite.rs`. This file's own boundary
 //! law (`the_relocated_document_is_geometrically_placed_but_not_yet_composited`)
 //! asked to be deleted and replaced by a containment-and-visibility law the day
 //! the workspace drew comparison content; that day is 116d, and it was.

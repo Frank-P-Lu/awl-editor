@@ -47,7 +47,7 @@
 //! The TRANSITION law itself — swept over the full proportional roster, every
 //! representative glyph class, Block/Morph rest, a wrapped-line boundary, two
 //! zooms and 1x/2x DPI, with an explicit non-vacuity proof against the pre-105
-//! formula — lives in `render/tests/caret_transition_item105.rs`, a sibling
+//! formula — lives in `render/tests/caret_transition.rs`, a sibling
 //! file rather than an addition here, because it is a different KIND of law
 //! (adjacent-column diffs, not single-column measurements).
 
@@ -615,7 +615,7 @@ fn moving_caret_streak_is_unaffected_by_the_ink_box() {
 /// pinned to `caret.pos.y` (a row-box-geometric-centre convention) — was the
 /// root cause of a visible cell jump the instant a proportional caret left a
 /// real glyph for an adjacent glyphless column (the user's `aaa`->EOL report;
-/// see `render/tests/caret_transition_item105.rs`). The fallback now reads a
+/// see `render/tests/caret_transition.rs`). The fallback now reads a
 /// SYNTHETIC typical-letter box through the SAME baseline-relative formula the
 /// ink-box arm above uses, so this test pins the NEW formula directly rather
 /// than re-asserting the convention that caused the bug. The space bar and

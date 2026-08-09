@@ -142,7 +142,7 @@ fn one_test_shaped_workload(bg: theme::Background) {
     let mut ground = crate::background::BackgroundPipeline::new(
         &device,
         dither::FMT,
-        super::backgrounds_item69::bg_desc_for(bg),
+        super::bands_waves::bg_desc_for(bg),
     );
     ground.prepare(&queue, W, H, 0.0, 0.0, Default::default(), 1.0);
 }

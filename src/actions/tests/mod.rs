@@ -14,7 +14,7 @@ use crate::caret::RecoilDir::{Left, Right};
 use crate::overlay::OverlayKind;
 
 /// ITEM 116c — the alternate-accept (⇧↵) byte-identity law over `disk_bytes`.
-mod alternate_accept_item116c;
+mod alternate_accept;
 mod export_gate;
 mod folds;
 mod format_editing;
@@ -25,10 +25,10 @@ mod pickers_nav;
 mod recoil_flinch;
 mod save_feedback;
 mod settings_reach;
-mod workspace_esc_item116d;
+mod workspace_esc;
 /// ITEM 114 — the summoned workspace's state, focus and back, in the lifecycle's
 /// own vocabulary. Tier 1, fully capturable (`docs/harness-reach.md`).
-mod workspace_item114;
+mod workspace;
 
 /// A tiny in-memory tree for the browse navigator: root has `docs/` (dir) and
 /// `README.md` (file); `docs/` has `guide.md` (file) and `api/` (dir). The

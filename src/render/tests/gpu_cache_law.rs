@@ -212,7 +212,7 @@ fn every_world_renders_identically_through_cached_and_fresh_programs() {
 
     let descs: Vec<_> = theme::THEMES
         .iter()
-        .map(|t| super::backgrounds_item69::bg_desc_for(t.background))
+        .map(|t| super::bands_waves::bg_desc_for(t.background))
         .collect();
 
     // FRESH: nothing armed, one world at a time — every program built from

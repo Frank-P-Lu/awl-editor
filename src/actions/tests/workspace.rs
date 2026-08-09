@@ -9,7 +9,7 @@
 //! because that is the thing a capture reports.
 //!
 //! The VALUE side is deliberately absent — `SettingToggle` and friends are
-//! replay-Unsupported and live in `app::tests::workspace_item114`.
+//! replay-Unsupported and live in `app::tests::workspace`.
 
 use super::overlay_drive::command_overlay_with_settings;
 use super::*;

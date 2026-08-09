@@ -1,6 +1,6 @@
 //! MAGPIE'S `Background::Bands` — the REAL-PIXEL laws for the live world.
 //!
-//! `backgrounds_item69` proves what the Bands SHAPE must do, and deliberately
+//! `bands_waves` proves what the Bands SHAPE must do, and deliberately
 //! drives a synthetic high-contrast literal to do it: three broad regions, two
 //! transitions, continuity across the hidden page, proportional scaling. Those
 //! are properties of the geometry and must not become hostage to whichever

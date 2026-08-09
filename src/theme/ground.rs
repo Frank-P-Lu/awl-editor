@@ -195,7 +195,7 @@ impl Background {
     /// branch, and an unissued id falls through to the plain gradient), while
     /// closing it would have to renumber Pinstripe(3) through WarpedGrid(10),
     /// every one of them a live wire value. It also keeps a piece of evidence
-    /// standing: `render::tests::backgrounds_item69` pins that Bombora carries
+    /// standing: `render::tests::bands_waves` pins that Bombora carries
     /// its OWN id `6` rather than recycling the star ground's `2`, and that
     /// claim only means anything while `2` stays unissued. **Retiring a ground
     /// vacates its id; it never renumbers its neighbours.**
@@ -391,7 +391,7 @@ impl Background {
     /// also author. Exhaustive with no wildcard so a new variant must be
     /// classified here before it compiles, the same discipline `density()`
     /// itself holds to. The one owner of "does this ground bear density";
-    /// `render/tests/backgrounds_item158.rs`'s density sweep asks here
+    /// `render/tests/deckle_ground.rs`'s density sweep asks here
     /// instead of keeping its own copy of this classification.
     pub fn bears_density(&self) -> bool {
         match self {

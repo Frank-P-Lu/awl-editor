@@ -24,8 +24,8 @@
 //! Skips (with a printed note, not a failure) on a machine with no wgpu
 //! adapter, like every other GPU-backed render test in this tree.
 
-use super::backgrounds_item69::{bg_desc_for, headless_dq, render_bg};
-use super::backgrounds_item89::{SWEEP, margins, mark_field};
+use super::bands_waves::{bg_desc_for, headless_dq, render_bg};
+use super::zigzag_ground::{SWEEP, margins, mark_field};
 use super::{headless_dqp, view};
 use crate::theme::{self, Background, Weave};
 
@@ -1162,7 +1162,7 @@ fn density_bearing_worlds_show_a_material_gap_between_full_and_half_density() {
     }
 }
 
-/// NON-VACUITY SELF-PROOF, same shape as `backgrounds_item86`'s
+/// NON-VACUITY SELF-PROOF, same shape as `zigzag_ground`'s
 /// `distinctness_check_fails_on_identical_dials_proving_it_is_non_vacuous`:
 /// run the law's own inequality against a DEGENERATE pair (both sides at the
 /// same density) and confirm it fails, so the material-gap law above is

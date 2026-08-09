@@ -1,5 +1,5 @@
 //! The ambient wrap-continuity law — the owed, UNCONDITIONAL replacement for
-//! `backgrounds_item117.rs`'s deleted `organic_phase_moves_and_wraps_without_
+//! `organic_ground.rs`'s deleted `organic_phase_moves_and_wraps_without_
 //! a_catchup_jump`.
 //!
 //! **Why the old law was vacuous — the sharpest instance of this class found
@@ -33,7 +33,7 @@
 //! `LAVA_LOOP_CYCLES` at all (`docs/render.md`'s own note: "this one
 //! travels"), so "continuity at the wrap" is not a claim that applies to it.
 
-use super::backgrounds_item69::{bg_desc_for, headless_dq, render_bg_ambient};
+use super::bands_waves::{bg_desc_for, headless_dq, render_bg_ambient};
 use crate::background::AmbientUpload;
 use crate::theme;
 

@@ -17,8 +17,8 @@
 //! Nothing here trusts the sidecar for how the field LOOKS — CAPTURE.md's
 //! "state oracle, not an appearance oracle" tripwire.
 
-use super::backgrounds_item69::{bg_desc_for, headless_dq};
-use super::backgrounds_item89::{SWEEP, margins};
+use super::bands_waves::{bg_desc_for, headless_dq};
+use super::zigzag_ground::{SWEEP, margins};
 use crate::background::BgDesc;
 use crate::theme;
 use crate::warpgrid;

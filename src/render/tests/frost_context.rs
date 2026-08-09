@@ -43,8 +43,8 @@
 
 use super::super::*;
 use super::frost_card_ink::{CardInk, luma, step};
-use super::frost_feather_item312::{DENSE, render_frame};
-use super::frost_parallelogram_item318::STRONG_GRADIENT;
+use super::frost_feather::{DENSE, render_frame};
+use super::frost_parallelogram::STRONG_GRADIENT;
 use super::{headless_dqp, view_md};
 use crate::context_menu::{ContextState, ContextTarget};
 
@@ -467,7 +467,7 @@ fn inside_the_menus_own_footprint_no_document_edge_survives() {
 /// on. Run it explicitly, and read the four PNGs it names:
 ///
 /// ```sh
-/// cargo test --bin awl frost_context_item298::gallery -- --ignored --nocapture
+/// cargo test --bin awl frost_context::gallery -- --ignored --nocapture
 /// ```
 ///
 /// It writes into `gallery/item-298/` (untracked) at 1× on the two compositions that answer

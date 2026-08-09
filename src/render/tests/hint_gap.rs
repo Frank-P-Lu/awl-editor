@@ -23,7 +23,7 @@
 //! `overlay_hint_gap_h` (deliberately smaller than a full row — see
 //! `OVERLAY_HINT_GAP_ROW`'s doc — so the footer reads as one composed unit
 //! rather than a wide gap floating over a pinned chin,
-//! `overlay_rhythm_item112.rs`'s own law). This file is the device-level law
+//! `overlay_rhythm.rs`'s own law). This file is the device-level law
 //! that the two agree: the gap the shaper DRAWS is a real, measurable
 //! separation — never the near-zero gap the bug produced — over the whole
 //! `OverlayKind` roster, every list style, both DPIs, and four candidate-list

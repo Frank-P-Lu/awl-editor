@@ -1,7 +1,7 @@
 //! THE `RenderCaps` FAMILY'S UNITS — the question a chrome declaration sweep
 //! structurally cannot ask.
 //!
-//! `render/tests/chrome_pixel_space_item242.rs` grades authored CONSTANTS in a
+//! `render/tests/chrome_pixel_space.rs` grades authored CONSTANTS in a
 //! set of swept source files: every one states its unit family in its type, and
 //! no length is resolved against `zoom` alone. A theme capability is neither —
 //! it is a FIELD carrying per-world DATA, so widening that sweep's file list

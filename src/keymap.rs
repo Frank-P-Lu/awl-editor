@@ -26,7 +26,7 @@ pub enum Action {
     /// "yes, really" (restores a History row; bare `Enter` no longer does).
     /// Resolved in [`KeymapState::resolve_named`], never a catalog chord. IN
     /// THE EDITOR it rides the exact same arm as [`Action::Newline`] — see
-    /// `actions::tests::alternate_accept_item116c`.
+    /// `actions::tests::alternate_accept`.
     AcceptAlternate,
     InsertTab,
     Outdent,

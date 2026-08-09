@@ -16,7 +16,7 @@ mod dock_icon;
 /// Every door that could write to, leave, or rename a file that changed
 /// underneath awl, plus both resolutions and relaunch recovery. Why this tier
 /// and not a capture: that file's own module doc.
-mod external_item204;
+mod external;
 mod files;
 mod history;
 mod lifecycle;
@@ -24,7 +24,7 @@ mod lifecycle;
 /// chain read back off the flight recorder's own lines. Native-only — the
 /// recorder is (`crate::probe`), like the daemon and the live probe.
 #[cfg(not(target_arch = "wasm32"))]
-mod nav_trace_item211;
+mod nav_trace;
 mod openable;
 /// THE SEMANTIC FOLD'S REACH BOUNDARY: the tree-building path sees a narrow
 /// `SemanticView`, not the live `App`. Native-only, like `crate::app::semantic`.
@@ -36,6 +36,6 @@ mod which_key;
 /// ITEM 114's TIER-2 SWEEP: every setting changed and persisted through the
 /// Settings WORKSPACE's own door, by real chords into the live `App`. Why this
 /// tier and not a capture: `docs/harness-reach.md`.
-mod workspace_item114;
+mod workspace;
 
 use common::*;

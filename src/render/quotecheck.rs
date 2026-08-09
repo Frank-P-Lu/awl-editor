@@ -24,7 +24,7 @@
 //! by ~1%) sits nowhere near Sour Gummy's transposed ~20% deficit the other
 //! way, so this is not a coin-flip threshold.
 //!
-//! THE ROSTER. `render::tests::quote_orientation_item253` sweeps
+//! THE ROSTER. `render::tests::quote_orientation` sweeps
 //! [`crate::render::bundled_display_faces`] — the SAME "every face a
 //! `Theme::font` can name" roster `facepitch`'s own laws sweep — never a
 //! hand-kept list, so the next face that ships a font-file bug like this one

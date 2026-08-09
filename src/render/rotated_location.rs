@@ -86,7 +86,7 @@ pub(in crate::render) const ROTATED_RAIL_PLACARD_GAP_EM: f32 = 0.12;
 /// its main and its shrink-to-fit path). The rail is handed the placard's
 /// drawn BOX and converts back through this, so [`ROTATED_RAIL_PLACARD_
 /// FRACTION`] is a claim about the two runs' LETTERS rather than about a box.
-/// Pinned by `render::tests::rotated_location_item221`'s cap-ratio law: a
+/// Pinned by `render::tests::rotated_location`'s cap-ratio law: a
 /// change to the placard's leading that this constant did not follow moves the
 /// measured cap height out of the face's own band and fails there by name.
 const PLACARD_LINE_BOX_RATIO: f32 = 1.1;

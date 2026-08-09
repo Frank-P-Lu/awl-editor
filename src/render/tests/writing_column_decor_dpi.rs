@@ -1,7 +1,7 @@
 //! THE WRITING COLUMN'S DECORATIONS, AT EVERY PANEL DENSITY.
 //!
-//! The vertical/horizontal origin laws (`text_top_dpi_item315.rs`,
-//! `column_left_dpi_item314.rs`) grade where the text column STARTS. This grades
+//! The vertical/horizontal origin laws (`text_top_dpi.rs`,
+//! `column_left_dpi.rs`) grade where the text column STARTS. This grades
 //! the decorations drawn INSIDE it — the inline-code pill's inset, the fence
 //! panel's overhang, the spell squiggle's amplitude, period and stroke, and the
 //! GAP both underline families hang their band by. The gap arrived last and for

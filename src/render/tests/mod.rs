@@ -16,43 +16,42 @@ use super::*;
 /// buffer/texture-view counts — the oracle that travels where RSS does not.
 /// Native-only for the same reason `test_gpu::shared_device_queue` is `None` on
 /// wasm: the wasm test runner is Node and has no adapter to allocate on.
-mod accessory_ink_item299;
+mod accessory_ink;
 #[cfg(not(target_arch = "wasm32"))]
 mod alloc_bound_law;
 mod ambient_wrap_law;
-mod backgrounds_item117;
-mod backgrounds_item132;
-mod backgrounds_item158;
-mod backgrounds_item69;
-mod backgrounds_item86;
-mod backgrounds_item89;
-mod bowerbird_breathe_item244;
-mod bowerbird_finds_item176;
-mod bowerbird_spacing_item191;
+mod organic_ground;
+mod warped_grid;
+mod deckle_ground;
+mod bands_waves;
+mod zigzag_ground;
+mod bowerbird_breathe;
+mod bowerbird_finds;
+mod bowerbird_spacing;
 mod build_integrity;
 mod card_texture_shape;
 mod caret;
 mod caret_block;
 mod caret_ink_box;
-mod caret_transition_item105;
+mod caret_transition;
 mod caret_visual_body;
-mod chip_plate_floor_item292;
+mod chip_plate_floor;
 mod chrome_overlay;
 mod chrome_panels;
-mod chrome_pixel_space_item242;
+mod chrome_pixel_space;
 mod cjk;
 /// The mirrored diagonal row cluster: which end of it a name hangs on, which
 /// end its accessory does, and that a mirrored name is clickable where it draws.
-mod cluster_mirror_item222;
+mod cluster_mirror;
 /// ITEM 314 — the writing column's left edge is a LOGICAL quantity: the same
 /// logical window seats it at the same logical x on every display scale, and the
 /// caret / hit test / rail affordance move with it rather than after it.
-mod column_left_dpi_item314;
-mod comparison_composite_item116d;
+mod column_left_dpi;
+mod comparison_composite;
 /// ITEM 116b — the RELOCATED DOCUMENT VIEWPORT: the one owner all four
 /// document-geometry owners read, the private page-column bypass, the total
 /// relocation, and the margin-orientation surfaces that yield to it.
-mod comparison_viewport_item116b;
+mod comparison_viewport;
 mod date_picker_ink;
 mod diagonal_composition;
 /// THE DIAGONAL COMPOSITION IN REAL PIXELS: orientation, line continuity, the
@@ -63,11 +62,11 @@ mod distinguishability;
 mod dither;
 mod eotf_bit_identity;
 mod facepitch;
-mod facet_mark_dpi_item289;
+mod facet_mark_dpi;
 mod firetail_showcase;
 mod float_surface_law;
-mod fold_chevron_center_item127;
-mod fold_chevron_direction_item248;
+mod fold_chevron_center;
+mod fold_chevron_direction;
 mod folds;
 /// `ttf_parser` (this law's `name`-table reader) and
 /// `embedded_docs::FONT_LICENSES_MD` are both `cfg(not(target_arch =
@@ -76,9 +75,9 @@ mod folds;
 /// — so the roster read this law does (`std::fs::read_dir` over
 /// `assets/fonts`) has no wasm counterpart to be honest about either.
 #[cfg(not(target_arch = "wasm32"))]
-mod font_licence_item255;
-mod foot_band_no_clip_item319;
-mod foot_hint_lean_item313;
+mod font_licence;
+mod foot_band_no_clip;
+mod foot_hint_lean;
 mod frost;
 /// The card-ink VETO every frost pixel law measures through, and the contract that
 /// keeps it one-directional: its flagged set is a superset of the card's drawing whose
@@ -86,21 +85,21 @@ mod frost;
 mod frost_card_ink;
 /// A POINTER-ANCHORED menu is not a takeover of the room: the full arm is not its arm,
 /// and the roster's own backing question then answers a footprint or nothing at all.
-mod frost_context_item298;
-mod frost_feather_item312;
-mod frost_footprint_item294;
-mod frost_parallelogram_item318;
+mod frost_context;
+mod frost_feather;
+mod frost_footprint;
+mod frost_parallelogram;
 /// THE FROST'S WIDTH — the drawn surfaces bound it from the tight side, and the
 /// enumeration's completeness is measured off a frost-suppressed frame.
-mod frost_width_item343;
+mod frost_width;
 mod geometry;
 mod geometry_reshape;
 mod glide_anchor_law;
 /// The GPU program cache: amortised, single-owner, and world-neutral.
 mod gpu_cache_law;
 mod grapheme_click;
-mod ground_space_item186;
-mod hint_gap_item293;
+mod ground_space;
+mod hint_gap;
 mod hit_test;
 mod hover_slop_law;
 mod hud;
@@ -111,18 +110,18 @@ mod list_surfaces;
 /// The idle-loudness map's drift anchor: every world's ground data
 /// snapshotted, so a future ground change fails this BY NAME instead of
 /// leaving `docs/loudness-map.md`'s score for that world silently stale.
-mod loudness_map_item118;
-mod magpie_bands_item260;
+mod loudness_map;
+mod magpie_bands;
 mod markdown;
 mod markdown_headings;
 /// The overlay's selected-row marker and the fold chevron are ONE rotatable
 /// symbol with two entry points; the mark's turn is legible at rest because the
 /// shape has no rotational symmetry.
-mod marker_chevron_owner_item247;
+mod marker_chevron_owner;
 /// The selected-row mark stands on the row's OUTER edge, on the side the row
 /// planner's own signed inset names, and each diagonal world paints the mark its
 /// display face asks for.
-mod marker_side_item303;
+mod marker_side;
 mod nits;
 /// THE CALM NOTICE: where it draws, whether it can be seen, and whether a
 /// HELD notice can be told from a self-clearing one — three floors, no one of
@@ -137,39 +136,39 @@ mod overlay_height_clamp_law;
 mod overlay_hover_stability_law;
 /// A `Bars` location row that plans no glyph (a style whose cue moved
 /// off-card, e.g. Cassowary's `RotatedRail`) draws no plate either.
-mod overlay_location_plate_item316;
+mod overlay_location_plate;
 mod overlay_personality;
 mod overlay_plan_law;
 pub(super) mod overlay_probe;
 mod overlay_rail_thirds_law;
-mod overlay_rhythm_item112;
+mod overlay_rhythm;
 mod overlay_right_hug_law;
 mod page_frame;
 /// The drawn page IS the authored `base_100`, over the whole roster at 1×/2× —
 /// the PIXEL half of the clear colour's transfer function
 /// (`theme::tests::clear` is the arithmetic half).
 mod page_ground_law;
-mod palette_location_item220;
-mod palette_scroll_anchor_item222;
-mod palette_shortcuts_item223;
-mod paperbark_retina_item201;
+mod palette_location;
+mod palette_scroll_anchor;
+mod palette_shortcuts;
+mod paperbark_retina;
 mod pixeldiff;
 mod plan_pass_law;
 mod popover;
 pub(in crate::render) mod potoroo_pane;
-mod quote_orientation_item253;
-mod raked_location_item224;
+mod quote_orientation;
+mod raked_location;
 mod range_rail;
 mod reanchor_crossing_law;
-mod rotated_label_item235;
-mod rotated_location_item221;
-mod rotated_rail_item297;
-mod row_offset_item131;
+mod rotated_label;
+mod rotated_location;
+mod rotated_rail;
+mod row_offset;
 mod row_pitch_dpi_law;
 /// The `Rules` composition: the full `OverlayKind` row-surface sweep, the
 /// Settings workspace (both regions), every `SettingId × SettingKind`,
 /// drawn-equals-clickable at both DPIs, and the pixel laws.
-mod rules_composition_item283;
+mod rules_composition;
 mod scroll_pos;
 /// The SELECTED row's secondary column against the ground it is actually drawn
 /// on — the floor the range rail's own "is there a fill under me" answer never
@@ -187,35 +186,35 @@ mod settings_fixture_law;
 mod settings_row_reach_law;
 mod split_pane;
 mod stars;
-mod surfaces_item219;
-mod surfaces_item225;
+mod query_field;
+mod workspace_footer_plate;
 mod syntax_ligatures;
 mod syntax_roles;
 mod tables;
 /// The document's first-row vertical origin (`TextPipeline::text_origin_top`,
 /// `doc_top`, `hit_test_scroll`), through the live pipeline, at every DPI and
-/// both `MENU_BAR_ON` states — the vertical twin of `column_left_dpi_item314`.
-mod text_top_dpi_item315;
+/// both `MENU_BAR_ON` states — the vertical twin of `column_left_dpi`.
+mod text_top_dpi;
 mod theme;
 mod theme_caps_law;
 /// The TIMELINE half of the comparison workspace: the two regions never
 /// overlap, every row is clickable where it is drawn, and the footer fits the
 /// narrow column it rides.
-mod timeline_workspace_item116d;
+mod timeline_workspace;
 mod visual_selection_law;
-mod warp_one_tunnel_item268;
-mod warp_tunnel_item194;
+mod warp_one_tunnel;
+mod warp_tunnel;
 mod washes;
-mod waves_drift_item87;
+mod waves_drift;
 #[cfg(not(target_arch = "wasm32"))]
 mod webgl_shader_validation;
 /// ITEM 114 — the summoned workspace's presentation: two regions, wide/narrow
 /// staging, drawn-equals-clickable, and a focus cue asserted in real pixels.
-mod workspace_item114;
-mod workspace_plate_item234;
+mod workspace;
+mod workspace_plate;
 /// ITEM 116a — the shape: `workspace_shape() -> Option<WorkspaceShape>`'s
 /// roster and the `rows_are_primary()` bypass-is-module-private law.
-mod workspace_shape_item116a;
+mod workspace_shape;
 /// The narrow regime: a workspace stages its two regions, and neither stage is
 /// ever blank — an empty planned row window is always a staged card whose other
 /// region draws, and some stage always has rows at every reachable window.

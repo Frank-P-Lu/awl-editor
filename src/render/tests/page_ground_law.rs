@@ -49,7 +49,7 @@ use super::{headless_dqp, pixeldiff, view};
 
 /// The LOGICAL canvas both tiers render, so the adaptive column makes the same
 /// layout decision at 1× and 2× and only the device resolution changes (the
-/// `chrome_pixel_space_item242` discipline: a canvas held at one PHYSICAL size
+/// `chrome_pixel_space` discipline: a canvas held at one PHYSICAL size
 /// across DPI reflows its content, which is a different question).
 const LOGICAL: (f32, f32) = (600.0, 400.0);
 

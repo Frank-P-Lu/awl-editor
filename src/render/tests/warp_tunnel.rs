@@ -1,7 +1,7 @@
 //! Fixed-framing and forward-travel laws for Kite's warped grid.
 
-use super::backgrounds_item69::headless_dq;
-use super::backgrounds_item132::{H, INK_FLOOR, W, field, kite, with_tunnel};
+use super::bands_waves::headless_dq;
+use super::warped_grid::{H, INK_FLOOR, W, field, kite, with_tunnel};
 use crate::{theme, warpgrid};
 
 const OUTER_BAND: u32 = 180;

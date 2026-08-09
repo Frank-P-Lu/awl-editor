@@ -37,4 +37,4 @@ mod selection_ui;
 #[cfg(not(target_arch = "wasm32"))]
 mod themes_md;
 mod tokens;
-mod world_pin_item94;
+mod world_pin;

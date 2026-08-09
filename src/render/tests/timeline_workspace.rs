@@ -1,6 +1,6 @@
 //! THE TIMELINE HALF OF THE COMPARISON WORKSPACE.
 //!
-//! `comparison_composite_item116d` owns the CONTENT region — that the relocated
+//! `comparison_composite` owns the CONTENT region — that the relocated
 //! document is visible inside it and nowhere else. This file owns the other
 //! region and the seam between them:
 //!
@@ -289,7 +289,7 @@ fn a_timeline_with_nothing_to_compare_leaves_the_document_where_it_was() {
 
         let arm = |payload: bool| {
             let mut v = timeline_view(6);
-            v.text = super::comparison_composite_item116d::sample_transcript();
+            v.text = super::comparison_composite::sample_transcript();
             v.overlay_comparison = payload;
             v
         };

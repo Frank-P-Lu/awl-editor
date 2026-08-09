@@ -11,7 +11,7 @@
 //! a parallel geometry scattered through the tree.
 //! [`TextPipeline::page_column_left`] / [`TextPipeline::page_column_width`] stay
 //! crate-render-private and their call sites are ENUMERATED by
-//! `render::tests::comparison_viewport_item116b::
+//! `render::tests::comparison_viewport::
 //! the_unrelocated_page_column_has_exactly_the_named_consumers`.
 //! Every other consumer reads `column_left()`/`column_width()` and follows the
 //! document, or yields with the margin-orientation family

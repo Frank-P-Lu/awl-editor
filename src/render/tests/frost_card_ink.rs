@@ -43,7 +43,7 @@
 //! module, which is what keeps the paragraphs above measured rather than remembered.
 
 use super::super::*;
-use super::frost_feather_item312::{DENSE, enrolled_worlds, render_frame, theme_picker};
+use super::frost_feather::{DENSE, enrolled_worlds, render_frame, theme_picker};
 use super::{headless_dqp, view_md};
 
 /// A local luma step (of 255) that only an EDGE produces — the empty frame's backdrop is
@@ -147,7 +147,7 @@ impl CardInk {
 /// used the one way it is sound: inside the frost, where a blur of a blank page has no step
 /// in it.
 ///
-/// Its completeness is `frost_width_item343`'s coverage law, not this comment: that law
+/// Its completeness is `frost_width`'s coverage law, not this comment: that law
 /// renders the card with the frost SUPPRESSED and requires every pixel of the residue to
 /// carry the shipping mask, so a surface nobody remembered fails there by existing.
 pub(super) fn declared_card_surfaces(p: &TextPipeline, w: u32) -> Vec<[f32; 4]> {

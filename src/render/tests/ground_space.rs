@@ -26,7 +26,7 @@
 use crate::background::BgDesc;
 use crate::theme::{self, Background, GroundSpace};
 
-use super::backgrounds_item69::{bg_desc_for, headless_dq, render_bg_scaled};
+use super::bands_waves::{bg_desc_for, headless_dq, render_bg_scaled};
 
 /// The 1x canvas every sweep below uses, in LOGICAL pixels, with a page column
 /// generous enough that both margins are real fields rather than slivers. The
@@ -457,7 +457,7 @@ fn finds_ground() -> Background {
 /// shipped whisper contrast a doubled-width ramp gets GENTLER per pixel and
 /// disappears under the noise floor instead of reading as wider — which is
 /// exactly how the first cut of this law passed its own mutation. Driving a
-/// high-contrast literal is the same move `backgrounds_item69` makes for its
+/// high-contrast literal is the same move `bands_waves` makes for its
 /// `Bands` geometry laws: the geometric property a feather must hold belongs to
 /// the SHAPE, not to whichever tones a world happens to wear.
 fn finds_high_contrast() -> Background {

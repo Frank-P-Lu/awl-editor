@@ -24,8 +24,8 @@
 //! Everything here is pixel arithmetic on real GPU output. The sidecar is a
 //! state oracle and cannot see any of it.
 
-use super::backgrounds_item69::{bg_desc_for, headless_dq};
-use super::backgrounds_item132::{COL_LEFT, COL_W, H, INK_FLOOR, W, field, kite};
+use super::bands_waves::{bg_desc_for, headless_dq};
+use super::warped_grid::{COL_LEFT, COL_W, H, INK_FLOOR, W, field, kite};
 use crate::theme;
 use crate::warpgrid;
 
@@ -368,7 +368,7 @@ fn the_ring_ladder_is_the_same_in_logical_units_at_both_scale_factors() {
     }
 }
 
-/// The differential field at an explicit scale factor. `backgrounds_item132`'s
+/// The differential field at an explicit scale factor. `warped_grid`'s
 /// own `field` pins `dpi 1`, which is the single configuration CLAUDE.md warns
 /// every check quietly runs in.
 #[allow(clippy::too_many_arguments)]

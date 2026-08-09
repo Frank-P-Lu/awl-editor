@@ -25,7 +25,7 @@
 //! [`TextPipeline::page_column_left`] / [`TextPipeline::page_column_width`] are
 //! that second idea. They stay crate-render-private and their call sites are
 //! ENUMERATED by
-//! `render::tests::comparison_viewport_item116b`'s
+//! `render::tests::comparison_viewport`'s
 //! `the_unrelocated_page_column_has_exactly_the_named_consumers`
 //! — the two definitions, the one public seam `TextPipeline::page_geometry`,
 //! and the page-resize hit-test, which reads the canvas edges in order to
@@ -87,7 +87,7 @@ impl WorkspaceRegions {
     /// [`crate::render::plan::header_band_height`] rather than being re-summed
     /// here: `comparison_viewport` is called from `column_left()`, which cannot
     /// afford to build a plan, but it can afford the plan's own arithmetic owner.
-    /// The two are held to agree by `render::tests::comparison_viewport_item116b`'s
+    /// The two are held to agree by `render::tests::comparison_viewport`'s
     /// `the_comparison_viewport_opens_on_the_same_line_the_rows_do`.
     fn content_top(&self, header_band: f32, pad: f32) -> f32 {
         self.card[1] + pad + header_band

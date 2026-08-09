@@ -245,7 +245,7 @@ fn fold_chevron_turn_progresses_on_injected_dt_and_settles_exactly() {
 
 /// THE HEADLINE STILL-FRAME LAW, on real rendered pixels rather than only the
 /// pure formula above. Isolates the mark exactly as
-/// `fold_chevron_center_item127.rs` does (differenced against a no-hover REST
+/// `fold_chevron_center.rs` does (differenced against a no-hover REST
 /// frame, so only the mark's own ink survives), then measures each state's
 /// own ink BOUNDING BOX. `fold_chevron.rs`'s `REACH_CHARS`/`SPREAD_CHARS` are
 /// deliberately unequal, so the collapsed mark's box reads WIDER than tall and

@@ -7,7 +7,7 @@
 //! keeps a second reader from silently disagreeing with it.
 //!
 //! History still returns `None` from `workspace_shape` — nothing routes to
-//! `TimelineOverComparison` yet, so `render::tests::workspace_item114`'s
+//! `TimelineOverComparison` yet, so `render::tests::workspace`'s
 //! existing pixel laws are this slice's byte-identity proof: unmodified, and
 //! still green, over the one kind (`Settings`) that reaches this geometry.
 
@@ -93,7 +93,7 @@ fn workspace_shape_roster_is_exact() {
 fn workspace_shape_variants_are_named_in_exactly_two_files() {
     let allowed = [
         "src/overlay/workspace.rs",
-        "src/render/tests/workspace_shape_item116a.rs",
+        "src/render/tests/workspace_shape.rs",
     ];
     let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src");
     let mut offenders: Vec<String> = Vec::new();

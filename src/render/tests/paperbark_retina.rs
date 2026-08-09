@@ -3,7 +3,7 @@
 //! **The regression.** Item 186 made every ground's authored composition
 //! LOGICAL, so a matched-logical 1x/2x pair now draws the identical
 //! composition — correct, and item 186's own roster sweep
-//! (`ground_space_item186.rs`) proves it holds for Paperbark exactly as it
+//! (`ground_space.rs`) proves it holds for Paperbark exactly as it
 //! does for every other world. But `period_px`/`wander_px` were never
 //! misclassified: item 158 tuned their NUMBERS (94.0 / 13.0) by eye against
 //! the PRE-186 convention, where they were consumed as PHYSICAL pixels. On
@@ -34,9 +34,9 @@
 //! is a whisper-contrast cream world, so its own tones are not trusted for a
 //! feather-width claim until proven not to be the whisper-contrast trap.
 
-use super::backgrounds_item69::{bg_desc_for, headless_dq, render_bg_scaled};
-use super::backgrounds_item89::margins;
-use super::backgrounds_item158::{MarginStats, margin_stats};
+use super::bands_waves::{bg_desc_for, headless_dq, render_bg_scaled};
+use super::zigzag_ground::margins;
+use super::deckle_ground::{MarginStats, margin_stats};
 use crate::background::BgDesc;
 use crate::theme::{self, Background, Weave};
 
@@ -264,7 +264,7 @@ fn paperbark_contour_separation_matches_the_restored_density_at_1x_and_2x() {
 
 /// The Strata weave at Paperbark's restored dials, but with tones pulled far
 /// apart — the item-186 "high-contrast literal" idiom
-/// (`ground_space_item186::finds_high_contrast`), required because Paperbark's
+/// (`ground_space::finds_high_contrast`), required because Paperbark's
 /// own whisper tones are exactly the contrast regime where a run-length
 /// measurement can be fooled by 8-bit quantization.
 /// Deliberately NOT Paperbark's own (tight, 47px) pitch: the deckle edge is a
@@ -469,8 +469,8 @@ fn pre_201_dial_would_fail_the_separation_law() {
 //
 //    `density` is deliberately NOT asserted here. It is a loudness dial with
 //    its own owner — a band law plus a roster-wide "the dial does material
-//    work" sweep in `backgrounds_item158.rs`, and a byte-exact snapshot of
-//    this whole ground in `loudness_map_item118.rs` that names the world when
+//    work" sweep in `deckle_ground.rs`, and a byte-exact snapshot of
+//    this whole ground in `loudness_map.rs` that names the world when
 //    it moves. Pinning the value here as well made this file a SECOND owner of
 //    someone else's constant: a later, deliberate retune of the dial (0.10 ->
 //    0.12) failed this test, whose subject is the fibre GEOMETRY rather than

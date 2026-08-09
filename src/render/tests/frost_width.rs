@@ -25,7 +25,7 @@
 //! * **COVERAGE** — every pixel the card draws has the shipping mask at or above
 //!   [`INK_FROST_FLOOR`] beneath it. A tightness bound alone gets strictly HAPPIER as the
 //!   frost shrinks, and an over-narrow frost strands real chrome over sharp document, which
-//!   is worse than the reported defect. `frost_parallelogram_item318`'s own coverage floor
+//!   is worse than the reported defect. `frost_parallelogram`'s own coverage floor
 //!   over the card's declared upright chrome stays exactly as it was; this is the broader net
 //!   beside it.
 //!
@@ -60,7 +60,7 @@
 
 use super::super::*;
 use super::frost_card_ink::luma;
-use super::frost_feather_item312::{DENSE, enrolled_worlds, render_frame, theme_picker};
+use super::frost_feather::{DENSE, enrolled_worlds, render_frame, theme_picker};
 use super::headless_dqp;
 
 /// HOW FAR THE FROST'S BOX MAY EXCEED THE DRAWN SURFACES' OWN UNION, in LOGICAL px — the
@@ -82,7 +82,7 @@ use super::headless_dqp;
 const TIGHTNESS_ALLOWANCE_PX: f32 = 2.0;
 
 /// THE COVERAGE FLOOR under a pixel the card draws — the same quantity, for the same
-/// arithmetic reason, that `frost_parallelogram_item318` floors its head band at.
+/// arithmetic reason, that `frost_parallelogram` floors its head band at.
 ///
 /// Not `1.0`: the box lands exactly ON the outermost surface's own edge, where the mask is
 /// exactly 1.0, and a quad's anti-aliased skirt reaches a fraction of a pixel past the edge

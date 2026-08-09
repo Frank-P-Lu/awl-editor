@@ -49,7 +49,7 @@ fn plated_roster() -> Vec<&'static str> {
 }
 
 /// A faceted card of `kind` at its first place-naming lens, real content, one
-/// location line — `rotated_rail_item297.rs`'s own `faceted_view` shape.
+/// location line — `rotated_rail.rs`'s own `faceted_view` shape.
 fn faceted_view(kind: OverlayKind) -> Option<ViewState> {
     let scheme = crate::facets::scheme(kind)?;
     let lens = (1..scheme.strip.len()).find(|&i| scheme.location(i).is_some())?;

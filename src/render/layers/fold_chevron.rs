@@ -202,7 +202,7 @@ impl TextPipeline {
     /// renders the settled state); `dt` is an INJECTED delta rather than a real
     /// clock, so a direct call — the same shape `--capture-timeline`/
     /// `--capture-held` drive the caret spring with — steps it deterministically
-    /// (see `render/tests/fold_chevron_direction_item248.rs`'s injected-dt law).
+    /// (see `render/tests/fold_chevron_direction.rs`'s injected-dt law).
     /// What that cannot reach is the real-time GLIDE's FEEL — flagged for human
     /// confirmation, not claimed verified by any capture.
     pub(in crate::render) fn step_fold_chevrons(&mut self, dt: f32) -> bool {

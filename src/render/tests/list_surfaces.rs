@@ -990,7 +990,7 @@ fn spell_popup_floats_bare_on_bars_keeps_the_card_on_pane() {
             // including the one thing neither selection treatment is allowed to
             // do. The composition's own suite — the full `OverlayKind` sweep,
             // the workspace, `SettingId × SettingKind`, the pixel laws — is
-            // `render/tests/rules_composition_item283.rs`.
+            // `render/tests/rules_composition.rs`.
             theme::ListStyle::Rules(_) => {
                 assert_eq!(
                     float_n, 0,

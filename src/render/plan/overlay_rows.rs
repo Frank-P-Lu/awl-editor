@@ -244,7 +244,7 @@ pub(in crate::render) fn fit_item_rows(
 /// conservative charge only ever costs a row nobody misses, and re-billing it
 /// tightly EVERYWHERE would move shipped row counts on cards that already work
 /// (including the contract that a hint costs exactly two rows of the candidate
-/// window, pinned by `hint_gap_item293`). It is not harmless at the one
+/// window, pinned by `hint_gap`). It is not harmless at the one
 /// outcome that is never
 /// acceptable — a card that plans NO candidate rows at all. A 900x460 canvas
 /// with the drawn menu bar's own vertical reserve taken out fits 7 display

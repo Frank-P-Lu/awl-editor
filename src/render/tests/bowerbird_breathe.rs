@@ -33,7 +33,7 @@
 //! per-cell phase offset).
 
 use super::super::*;
-use super::backgrounds_item69::{bg_desc_for, headless_dq, render_bg_ambient};
+use super::bands_waves::{bg_desc_for, headless_dq, render_bg_ambient};
 use super::dither::{offscreen, read_pixels};
 use super::{headless_dqp, view};
 use crate::background::AmbientUpload;

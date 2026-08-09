@@ -23,7 +23,7 @@ pub(crate) mod facepitch;
 /// Geometric curly-quote orientation check — the permanent roster law that a
 /// font-file bug like a transposed pair of raised quote outlines cannot ship
 /// silently again. Test-only: its one consumer is
-/// `render::tests::quote_orientation_item253`, a font-QA sweep, not a
+/// `render::tests::quote_orientation`, a font-QA sweep, not a
 /// runtime path.
 #[cfg(test)]
 pub(crate) mod quotecheck;

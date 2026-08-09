@@ -1,4 +1,4 @@
-//! tests/seed_data_slot_item204.rs — THE DATA-ROOT SEED SLOT, on the real binary.
+//! tests/seed_data_slot.rs — THE DATA-ROOT SEED SLOT, on the real binary.
 //!
 //! Item 204 slice 1 measured, and wrote into `docs/harness-reach.md`, that **no
 //! capture tier could reach an external-change conflict**. Tier 1 never builds a

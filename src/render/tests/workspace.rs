@@ -11,7 +11,7 @@
 //! The VALUE side of Settings is not here and cannot be: `SettingToggle`,
 //! `SettingValueCommit` and `SettingPathPick` are replay-Unsupported
 //! (`docs/harness-reach.md`), so they live in
-//! `app::tests::workspace_item114`, driven through the live `App`.
+//! `app::tests::workspace`, driven through the live `App`.
 
 use super::super::*;
 use super::pixeldiff::{Region, render_frame};

@@ -151,7 +151,7 @@ fn live_app_first_new_document_asks_for_a_folder_before_creating_a_file() {
 /// names `SettingToggle{key: "keymap"}` as the ONE key that stays Unsupported
 /// even under item 190's `FilesystemCapability::Isolated` grant, because it
 /// needs a LIVE keymap rebuild no filesystem capability can supply. Before
-/// this item it was provable only in Rust (`app::tests::workspace_item114`'s
+/// this item it was provable only in Rust (`app::tests::workspace`'s
 /// tier-2 sweep, asserting `App` + config state directly).
 ///
 /// BOTH HALVES ARE ASSERTED IN ONE TEST, and the second is what makes the

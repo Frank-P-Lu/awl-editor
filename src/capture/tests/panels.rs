@@ -1756,7 +1756,7 @@ fn popover_labels_demonstrate_their_own_effects() {
 /// moves nothing" were claims about a composition that no longer exists, and the
 /// relocation's own pixel claims — containment, visibility, the whole world
 /// roster, the whole geometry range — live at the render tier in
-/// `render::tests::comparison_composite_item116d`.
+/// `render::tests::comparison_composite`.
 ///
 /// What is left here is what only THIS tier can see: the capture path's own
 /// derivation of the workspace shape. A sidecar carries `workspace` and a mode,
