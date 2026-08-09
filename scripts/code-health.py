@@ -132,36 +132,21 @@ def real_item_numbers() -> set[str]:
     return numbers
 
 
-def check_index_named_test_files(real_items: set[str]) -> list[str]:
-    """`TEST_FILENAME_ITEM_INDEX` exempts an index-named test file's internal
-    citations from the comment-citation ratchet on the strength of the
-    filename alone, but the ratchet only ever looks at newly-ADDED comment
-    lines — a file whose citation lives ONLY in its filename, with no
-    in-body `item N` line to ratchet against, is invisible to it for its
-    entire life (`world_pin_item254.rs` carried no such line and so was
-    never checked by anything). This runs over every tracked index-named
-    test file, every run, and fails one whose number is not a real item
-    anywhere in the board's two halves. It cannot tell a wrong-but-real
-    number from the right one (94 vs. 254 are both real items) — that is a
-    semantic call about the file's own content, not a fact `git log` states;
-    it catches a fabricated or mistyped number, which the exemption
-    previously accepted unconditionally.
+def check_index_named_test_files() -> list[str]:
+    """Forbid test filenames that encode board indexes.
+
+    A file name is durable product structure, not a pointer into the mutable
+    queue. Name the mechanism under test instead; `git log --follow` retains
+    the archaeology without making a future board compression misleading.
     """
     failures: list[str] = []
     for path in sorted(tracked_rust()):
         if not is_index_named_test_file(path):
             continue
-        match = TEST_FILENAME_ITEM_NUMBER.search(Path(path).name)
-        if not match:
-            continue
-        number = match.group(1)
-        if number not in real_items:
-            failures.append(
-                f"{path}: filename cites item {number}, which is not a real item "
-                "number in .orchestrator/queue.md or git log — an index-named test "
-                "file's number must point at something real, not merely be a "
-                "well-formed digit string"
-            )
+        failures.append(
+            f"{path}: index-named test files are forbidden; name the mechanism "
+            "under test instead"
+        )
     return failures
 
 
@@ -1484,20 +1469,17 @@ def self_test() -> int:
                 "-m",
                 "fixture: items 8 and 12 landed together, never cited singly",
             )
-            real_items = real_item_numbers()
-            if not {"5", "7", "8", "12"} <= real_items:
-                raise AssertionError(
-                    f"real_item_numbers must find the open queue.md entry, the singly-cited "
-                    f"closed one, and both halves of a plural list citation: {real_items!r}"
-                )
-            if "999999" in real_items:
-                raise AssertionError("real_item_numbers must not invent membership")
-            failures = check_index_named_test_files(real_items)
+            failures = check_index_named_test_files()
             failing_paths = {f.split(":", 1)[0] for f in failures}
-            if failing_paths != {"src/widget/tests/invented_item999999.rs"}:
+            if failing_paths != {
+                "src/widget/tests/open_item5.rs",
+                "src/widget/tests/closed_item7.rs",
+                "src/widget/tests/plural_item12.rs",
+                "src/widget/tests/invented_item999999.rs",
+            }:
                 raise AssertionError(
-                    f"only the fabricated item number must fail, both the still-open and "
-                    f"the closed-and-compressed real numbers must pass: {failures}"
+                    f"every index-named test file must fail, regardless of whether its number "
+                    f"once existed on the board: {failures}"
                 )
         finally:
             globals()["ROOT"] = root
@@ -1864,7 +1846,7 @@ def main() -> int:
     allowed, structural_failures = structural_exceptions()
     failures.extend(structural_failures)
     failures.extend(check_structural(allowed, file_size_marks, mark_reasons))
-    failures.extend(check_index_named_test_files(real_item_numbers()))
+    failures.extend(check_index_named_test_files())
     previous, previous_status = previous_marks()
     if previous_status == "unresolvable":
         print(
