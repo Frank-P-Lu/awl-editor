@@ -50,13 +50,9 @@ struct Globals {
     /// a 16-byte boundary — MUST match the equal-sized `_pad2: vec2<f32>` in
     /// the WGSL `Globals` (see that struct's doc for the exact byte math).
     _pad2: [f32; 2],
-    /// HALFTONE dot ink, LINEAR RGBA — derived Rust-side from the
-    /// theme's own surface ladder (`theme::derive::card_texture_ink`), never
-    /// a raw/amber literal. `[0.0; 4]` (construction default, fully
-    /// transparent) is a no-op paired with `halftone == 0.0`. A former shared
-    /// field for Bowerbird's retired JAGGED-WAVE texture is gone; `dot_color`
-    /// ends the struct at byte 64, already a multiple of the largest
-    /// member's 16-byte alignment, so no further tail padding is needed.)
+    /// HALFTONE dot ink, LINEAR RGBA, derived Rust-side from the theme's own
+    /// surface ladder (`theme::derive::card_texture_ink`), never a raw/amber
+    /// literal. Fully transparent is a no-op paired with `halftone == 0.0`.
     dot_color: [f32; 4],
     /// The additive second source for a two-colour swap. Zero on ordinary
     /// pipelines; see [`SelectionPipeline::set_two_colour`].
