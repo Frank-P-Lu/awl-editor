@@ -1,14 +1,13 @@
-//! Cassowary's Filled caret is a lit cell with the covered glyph knocked back
-//! through in the ground colour. The block is already the affordance, so its
-//! knockout must retain the source mask's true weight; ordinary Morph keeps the
-//! deliberately bolder, hard-dilated silhouette.
+//! Cassowary's Filled caret is a lit cell with the covered glyph knocked back in
+//! the ground colour. Its knockout retains true source weight; ordinary Morph
+//! keeps the deliberately bolder, hard-dilated silhouette.
 
 use super::super::*;
 use super::{headless_dqp, pixeldiff};
 
 const W: u32 = 420;
 const H: u32 = 240;
-const _: () = assert!(CARET_MORPH_DILATE_PX.0 > CARET_FILLED_KNOCKOUT_DILATE_PX.0);
+const _: () = assert!(CARET_MORPH_DILATE_PX.0 > CaretGlyphPipeline::FILLED_KNOCKOUT_DILATE_PX);
 
 #[derive(Clone, Copy)]
 struct Cell {
@@ -69,8 +68,7 @@ const CELLS: [Cell; 8] = [
         has_glyph: false,
         code: false,
     },
-    // Iosevka's coding ligature: `calt` substitutes the two source glyph shapes
-    // while retaining one fixed-pitch glyph per source column.
+    // `calt` substitutes shapes while retaining one glyph per fixed-pitch cell.
     Cell {
         name: "ligature",
         text: "=>",
@@ -79,8 +77,7 @@ const CELLS: [Cell; 8] = [
         has_glyph: true,
         code: true,
     },
-    // Morph folds to the Filled block on Cassowary, but its line-start rule still
-    // declines a glyph mask and leaves the insertion cell unobscured.
+    // Folded Morph declines a line-start mask, leaving its cell unobscured.
     Cell {
         name: "line-start",
         text: "o",
@@ -171,6 +168,222 @@ fn near(mask: &[bool], x: i32, y: i32, radius: i32) -> bool {
     false
 }
 
+fn assert_ligature_substitution(
+    p: &mut TextPipeline,
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    text: &str,
+    cell: Cell,
+    zoom: f32,
+    what: &str,
+) {
+    let ligature_pixels = pixeldiff::render_frame(p, device, queue, W, H);
+    crate::render::set_code_ligatures_on(false);
+    let perturb = format!("{text} ");
+    prepare(
+        p,
+        device,
+        queue,
+        PreparedView {
+            text: &perturb,
+            line: 0,
+            col: cell.col,
+            look: cell.look,
+            zoom,
+            code: false,
+        },
+    );
+    prepare(
+        p,
+        device,
+        queue,
+        PreparedView {
+            text,
+            line: 0,
+            col: cell.col,
+            look: cell.look,
+            zoom,
+            code: true,
+        },
+    );
+    let plain_pixels = pixeldiff::render_frame(p, device, queue, W, H);
+    let substitution = pixeldiff::diff_region(
+        &ligature_pixels,
+        &plain_pixels,
+        W as i64,
+        H as i64,
+        pixeldiff::Region::canvas(W as i64, H as i64),
+    );
+    assert!(
+        substitution.differing >= 2 && substitution.max_channel_delta >= 5,
+        "{what}: code-ligature forcing must visibly substitute Iosevka's => glyphs; \
+         got {substitution:?}"
+    );
+
+    crate::render::set_code_ligatures_on(true);
+    let perturb = format!("{text}  ");
+    prepare(
+        p,
+        device,
+        queue,
+        PreparedView {
+            text: &perturb,
+            line: 0,
+            col: cell.col,
+            look: cell.look,
+            zoom,
+            code: false,
+        },
+    );
+    prepare(
+        p,
+        device,
+        queue,
+        PreparedView {
+            text,
+            line: 0,
+            col: cell.col,
+            look: cell.look,
+            zoom,
+            code: true,
+        },
+    );
+}
+
+fn assert_true_weight_mask(
+    p: &mut TextPipeline,
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    actual: &[[u8; 4]],
+    what: &str,
+) {
+    // A block-only diff isolates the knockout without assuming world colours.
+    p.caret_glyph_pipeline.clear();
+    let block_only = pixeldiff::render_frame(p, device, queue, W, H);
+
+    // Independently render the same uploaded source mask white on black with
+    // zero dilation: this is the true-weight pixel oracle.
+    let (from_box, to_box, morph_t) = p.caret_glyph_geometry();
+    p.caret_glyph_pipeline.set_color([255, 255, 255]);
+    p.caret_glyph_pipeline.prepare(
+        device,
+        queue,
+        W,
+        H,
+        p.caret_mask_from.as_ref(),
+        from_box,
+        p.caret_mask_to.as_ref(),
+        to_box,
+        morph_t,
+        1.0,
+        0.0,
+    );
+    let source = render_glyph_only(&p.caret_glyph_pipeline, device, queue);
+
+    let n = (W * H) as usize;
+    let source_mask: Vec<bool> = (0..n)
+        .map(|i| source[i][0] >= 16 || source[i][1] >= 16 || source[i][2] >= 16)
+        .collect();
+    let knockout_mask: Vec<bool> = (0..n)
+        .map(|i| differing(actual, &block_only, i, 2))
+        .collect();
+    let source_n = source_mask.iter().filter(|&&on| on).count();
+    let knockout_n = knockout_mask.iter().filter(|&&on| on).count();
+    assert!(
+        source_n >= 4 && knockout_n >= 4,
+        "{what}: empty mask populations"
+    );
+
+    let mut knockout_outside_source = 0usize;
+    let mut source_without_knockout = 0usize;
+    for y in 0..H as i32 {
+        for x in 0..W as i32 {
+            let i = (y as u32 * W + x as u32) as usize;
+            if knockout_mask[i] && !near(&source_mask, x, y, 1) {
+                knockout_outside_source += 1;
+            }
+            if source_mask[i] && !near(&knockout_mask, x, y, 1) {
+                source_without_knockout += 1;
+            }
+        }
+    }
+    assert_eq!(
+        knockout_outside_source, 0,
+        "{what}: knockout expanded beyond the source glyph's one-pixel AA allowance \
+         (source={source_n}, knockout={knockout_n}, outside={knockout_outside_source})"
+    );
+    assert_eq!(
+        source_without_knockout, 0,
+        "{what}: source glyph lost from the Filled cell \
+         (source={source_n}, knockout={knockout_n}, missing={source_without_knockout})"
+    );
+}
+
+fn exercise_cell(
+    p: &mut TextPipeline,
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    cell: Cell,
+    zoom: f32,
+    dpi: f32,
+) -> bool {
+    let text = format!("{}\npark", cell.text);
+    let what = format!("cell={} zoom={zoom} dpi={dpi}", cell.name);
+
+    // Parking on row 1 is the appearance baseline for the cell body's presence.
+    prepare(
+        p,
+        device,
+        queue,
+        PreparedView {
+            text: &text,
+            line: 1,
+            col: 0,
+            look: CaretMode::Block,
+            zoom,
+            code: cell.code,
+        },
+    );
+    let parked = pixeldiff::render_frame(p, device, queue, W, H);
+    prepare(
+        p,
+        device,
+        queue,
+        PreparedView {
+            text: &text,
+            line: 0,
+            col: cell.col,
+            look: cell.look,
+            zoom,
+            code: cell.code,
+        },
+    );
+    if cell.name == "ligature" {
+        assert_ligature_substitution(p, device, queue, &text, cell, zoom, &what);
+    }
+
+    let (cx, cy, cw, ch, ..) = p.caret_geometry();
+    let actual = pixeldiff::render_frame(p, device, queue, W, H);
+    let body = pixeldiff::diff_region(
+        &actual,
+        &parked,
+        W as i64,
+        H as i64,
+        pixeldiff::Region::new(cx - cw, cy - ch, cw * 2.0, ch * 2.0),
+    );
+    assert!(
+        body.differing >= 8 && body.max_channel_delta >= 20,
+        "{what}: the filled cell must remain visibly present, got {body:?}"
+    );
+
+    let drew = p.caret_glyph_pipeline.is_drawn();
+    assert_eq!(drew, cell.has_glyph, "{what}: glyph-mask enrolment drift");
+    if drew {
+        assert_true_weight_mask(p, device, queue, &actual, &what);
+    }
+    drew
+}
+
 /// Compare the composited knockout to the glyph pipeline's own zero-dilation
 /// source mask. A one-device-pixel allowance admits only raster/composite AA
 /// quantisation; restoring Morph's 2-logical-pixel dilation creates a real ring
@@ -189,7 +402,7 @@ fn cassowary_filled_knockout_keeps_source_weight_across_cells_zoom_and_dpi() {
     let saved_ligatures = crate::render::code_ligatures_on();
     crate::render::set_code_ligatures_on(true);
 
-    assert_eq!(CARET_FILLED_KNOCKOUT_DILATE_PX.0, 0.0);
+    assert_eq!(CaretGlyphPipeline::FILLED_KNOCKOUT_DILATE_PX, 0.0);
 
     let mut glyph_cells = 0usize;
     let mut glyphless_cells = 0usize;
@@ -197,195 +410,11 @@ fn cassowary_filled_knockout_keeps_source_weight_across_cells_zoom_and_dpi() {
         p.set_dpi(dpi);
         for zoom in [0.8_f32, 1.0, 2.0] {
             for cell in CELLS {
-                let text = format!("{}\npark", cell.text);
-                let what = format!("cell={} zoom={zoom} dpi={dpi}", cell.name);
-
-                // The same target cell with the caret parked on row 1 is the
-                // appearance baseline for the Filled body's presence.
-                prepare(
-                    &mut p,
-                    &device,
-                    &queue,
-                    PreparedView {
-                        text: &text,
-                        line: 1,
-                        col: 0,
-                        look: CaretMode::Block,
-                        zoom,
-                        code: cell.code,
-                    },
-                );
-                let parked = pixeldiff::render_frame(&mut p, &device, &queue, W, H);
-
-                prepare(
-                    &mut p,
-                    &device,
-                    &queue,
-                    PreparedView {
-                        text: &text,
-                        line: 0,
-                        col: cell.col,
-                        look: cell.look,
-                        zoom,
-                        code: cell.code,
-                    },
-                );
-                if cell.name == "ligature" {
-                    let ligature_pixels = pixeldiff::render_frame(&mut p, &device, &queue, W, H);
-                    crate::render::set_code_ligatures_on(false);
-                    let perturb = format!("{text} ");
-                    prepare(
-                        &mut p,
-                        &device,
-                        &queue,
-                        PreparedView {
-                            text: &perturb,
-                            line: 0,
-                            col: cell.col,
-                            look: cell.look,
-                            zoom,
-                            code: false,
-                        },
-                    );
-                    prepare(
-                        &mut p,
-                        &device,
-                        &queue,
-                        PreparedView {
-                            text: &text,
-                            line: 0,
-                            col: cell.col,
-                            look: cell.look,
-                            zoom,
-                            code: true,
-                        },
-                    );
-                    let plain_pixels = pixeldiff::render_frame(&mut p, &device, &queue, W, H);
-                    let substitution = pixeldiff::diff_region(
-                        &ligature_pixels,
-                        &plain_pixels,
-                        W as i64,
-                        H as i64,
-                        pixeldiff::Region::canvas(W as i64, H as i64),
-                    );
-                    assert!(
-                        substitution.differing >= 2 && substitution.max_channel_delta >= 5,
-                        "{what}: code-ligature forcing must visibly substitute Iosevka's => glyphs; \
-                         got {substitution:?}"
-                    );
-                    crate::render::set_code_ligatures_on(true);
-                    let perturb = format!("{text}  ");
-                    prepare(
-                        &mut p,
-                        &device,
-                        &queue,
-                        PreparedView {
-                            text: &perturb,
-                            line: 0,
-                            col: cell.col,
-                            look: cell.look,
-                            zoom,
-                            code: false,
-                        },
-                    );
-                    prepare(
-                        &mut p,
-                        &device,
-                        &queue,
-                        PreparedView {
-                            text: &text,
-                            line: 0,
-                            col: cell.col,
-                            look: cell.look,
-                            zoom,
-                            code: true,
-                        },
-                    );
-                }
-                let (cx, cy, cw, ch, ..) = p.caret_geometry();
-                let actual = pixeldiff::render_frame(&mut p, &device, &queue, W, H);
-                let body = pixeldiff::diff_region(
-                    &actual,
-                    &parked,
-                    W as i64,
-                    H as i64,
-                    pixeldiff::Region::new(cx - cw, cy - ch, cw * 2.0, ch * 2.0),
-                );
-                assert!(
-                    body.differing >= 8 && body.max_channel_delta >= 20,
-                    "{what}: the filled cell must remain visibly present, got {body:?}"
-                );
-
-                let drew = p.caret_glyph_pipeline.is_drawn();
-                assert_eq!(drew, cell.has_glyph, "{what}: glyph-mask enrolment drift");
-                if !drew {
+                if exercise_cell(&mut p, &device, &queue, cell, zoom, dpi) {
+                    glyph_cells += 1;
+                } else {
                     glyphless_cells += 1;
-                    continue;
                 }
-                glyph_cells += 1;
-
-                // The block-only frame is the exact destination the knockout
-                // composites over. Diffing it from the real frame isolates the
-                // knockout's visible pixels without assuming Cassowary's colours.
-                p.caret_glyph_pipeline.clear();
-                let block_only = pixeldiff::render_frame(&mut p, &device, &queue, W, H);
-
-                // Re-render the same uploaded source mask alone, white on black,
-                // with zero dilation. This is the independent true-weight oracle.
-                let (from_box, to_box, morph_t) = p.caret_glyph_geometry();
-                p.caret_glyph_pipeline.set_color([255, 255, 255]);
-                p.caret_glyph_pipeline.prepare(
-                    &device,
-                    &queue,
-                    W,
-                    H,
-                    p.caret_mask_from.as_ref(),
-                    from_box,
-                    p.caret_mask_to.as_ref(),
-                    to_box,
-                    morph_t,
-                    1.0,
-                    0.0,
-                );
-                let source = render_glyph_only(&p.caret_glyph_pipeline, &device, &queue);
-
-                let n = (W * H) as usize;
-                let source_mask: Vec<bool> = (0..n)
-                    .map(|i| source[i][0] >= 16 || source[i][1] >= 16 || source[i][2] >= 16)
-                    .collect();
-                let knockout_mask: Vec<bool> = (0..n)
-                    .map(|i| differing(&actual, &block_only, i, 2))
-                    .collect();
-                let source_n = source_mask.iter().filter(|&&on| on).count();
-                let knockout_n = knockout_mask.iter().filter(|&&on| on).count();
-                assert!(
-                    source_n >= 4 && knockout_n >= 4,
-                    "{what}: empty mask populations"
-                );
-
-                let mut knockout_outside_source = 0usize;
-                let mut source_without_knockout = 0usize;
-                for y in 0..H as i32 {
-                    for x in 0..W as i32 {
-                        let i = (y as u32 * W + x as u32) as usize;
-                        if knockout_mask[i] && !near(&source_mask, x, y, 1) {
-                            knockout_outside_source += 1;
-                        }
-                        if source_mask[i] && !near(&knockout_mask, x, y, 1) {
-                            source_without_knockout += 1;
-                        }
-                    }
-                }
-                assert_eq!(
-                    knockout_outside_source, 0,
-                    "{what}: knockout expanded beyond the source glyph's one-pixel AA allowance \
-                     (source={source_n}, knockout={knockout_n}, outside={knockout_outside_source})"
-                );
-                assert_eq!(
-                    source_without_knockout, 0,
-                    "{what}: source glyph lost from the Filled cell \
-                     (source={source_n}, knockout={knockout_n}, missing={source_without_knockout})"
-                );
             }
         }
     }

@@ -633,17 +633,11 @@ impl TextPipeline {
 
         match theme::active().render_caps.caret_block_style {
             theme::CaretBlockStyle::Filled => {
-                // THE AUTHENTIC CRT PHOSPHOR BLOCK (an ink-caret world, `primary ==
-                // base_content`; Cassowary): an opaque `primary` cell drawn UNDER the
-                // text exactly like an ORDINARY world's block (below), PLUS the covered
-                // glyph knocked back through in the GROUND colour. A plain block here
-                // would paint green-on-green and ERASE the letter (unlike an amber-vs-ink
-                // block, whose value contrast keeps the letter legible); the knockout
-                // fixes that WITHOUT the `InverseVideo` photo-negative (which on a
-                // chromatic ink would flip green → magenta, not a lit cell). The
-                // knockout is the glyph's TRUE raster weight: Morph's authored hard
-                // dilation belongs to an accent silhouette, not to this legibility
-                // restoration pass.
+                // The CRT phosphor block is an opaque `primary` cell under the text,
+                // with its covered glyph knocked through in the ground colour. That
+                // keeps chromatic ink legible without InverseVideo's photo-negative;
+                // the knockout retains true raster weight because the block, unlike
+                // Morph's dilated silhouette, is already the accent affordance.
                 self.caret_pipeline
                     .prepare_directed(queue, width, height, cx, cy, cw, ch, ccorner, ax, ay);
                 let settled = self.caret.settle_factor() >= CARET_MORPH_SETTLE_SHOW;
@@ -662,7 +656,7 @@ impl TextPipeline {
                         to_box,
                         morph_t,
                         1.0,
-                        self.metrics.px(CARET_FILLED_KNOCKOUT_DILATE_PX),
+                        CaretGlyphPipeline::FILLED_KNOCKOUT_DILATE_PX,
                     );
                 } else {
                     self.caret_glyph_pipeline.clear();

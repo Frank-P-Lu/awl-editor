@@ -187,13 +187,6 @@ pub const CARET_MORPH_SETTLE_SHOW: f32 = 0.65;
 /// [`Metrics::px`] on the CPU and passed per-instance to the shader.
 pub const CARET_MORPH_DILATE_PX: Logical = Logical(2.0);
 
-/// The Filled block's after-text glyph knockout keeps the source glyph's true
-/// raster weight. Unlike Morph, this pass is restoring legibility inside an
-/// already-lit cell, not turning the glyph itself into the accent affordance.
-/// Zero is deliberate: the shader's center tap preserves the mask's own
-/// anti-aliasing without expanding its footprint.
-pub const CARET_FILLED_KNOCKOUT_DILATE_PX: Logical = Logical(0.0);
-
 /// Zoom clamps and step. Effective metrics = base metric * zoom. 1.0 is the
 /// default — but NOT, despite what this comment used to claim, the only zoom the
 /// `--screenshot` path ever sees: `--zoom` sets it, and STICKY ZOOM folds
