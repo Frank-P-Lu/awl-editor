@@ -247,8 +247,6 @@ this heading exists; `git log -S"BLOCKED ON THE USER"` finds who took it.
   the remaining ones get found.
 - **241 —** live numbers came from a 900×600 probe window; the user's 4530×2756
   @2x window is unmeasured, and the dense pointer/wheel cadence is unproven.
-- **249 —** stated cost: nothing in `PendingWrites` pins a *view*, so a leak
-  pinning only textures is invisible to the portable unit.
 - **245 —** one constant: 200 wpm.
 - **263 —** the construction-site document-seed mutation was deferred (gate
   contention), inferred rather than measured. Worth closing.
@@ -262,7 +260,7 @@ list instead of re-checking the tree.** Every entry in the previous list was
 verified landed via `git log --grep` before this re-derivation (292/293/299/303,
 294/298, 305, 291, 296+300, 273's residuals, 302, 227, 131e+303 — all merged).
 
-1. **378, 379, 380** — independent closure wave for machine-doable
+1. **378, 380** — independent closure wave for machine-doable
    residuals recovered from OWED.
 2. **🔵 HUMAN / LIVE** — only after the closure wave reclassifies every
    remaining OWED entry by evidence. **231**
@@ -283,15 +281,6 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
      galleries for items 321/323/314; aesthetic accept/revert remains the user's call.
      **Done:** objective overflow has a mutation-proven law, machine evidence is recorded outside
      tracked personal paths, and each taste residual is narrowed to a concrete visual choice.
-
-379. 🟡 **IN PROGRESS — codex (gpt-5.6-sol high), branch
-     `codex/item-379-view-lifetime`. Close item 249's view-lifetime allocation-oracle gap.**
-     Verify the premise against the live wgpu backend rather than source assumptions. Extend the
-     device-probed allocation law to witness a view-only pin if the backend exposes a responding
-     class; otherwise prove the backend limitation on the present adapters and document the exact
-     honest boundary. Never turn an unsupported counter into a fabricated portable claim.
-     **Done:** a deliberate retained-view mutation goes red on every enrolled backend, or the item
-     is moved to BLOCKED with repeatable evidence that no available oracle can observe it.
 
 380. 🟡 **IN PROGRESS — root, branch `main`. Close deferred verification residuals.**
      Perform item 263's production construction-site document-seed mutation and restore it; run
