@@ -36,7 +36,8 @@ this heading exists; `git log -S"BLOCKED ON THE USER"` finds who took it.
 4. **Item 261's open call: delete-outright vs a `cfg(test)` fixture** for
    `DeckleAnchor::Page`'s mutation witness. The delete branch was taken;
    reverting is re-adding one small shader function.
-5. **Mulga and Magpie grounds want a visual judge** — see OWED.
+5. **Mulga and Magpie grounds want a visual judge** — see the visual/live
+   blocked section below.
 6. **Kite's facet tag:** its doc calls it a "technical room" but its only facet
    is `voice: Modern`, and Technical belongs to Cassowary. Picker facets are
    curated and capped, so the change is yours.
@@ -113,7 +114,10 @@ this heading exists; `git log -S"BLOCKED ON THE USER"` finds who took it.
     and no visual clipping. A settled capture cannot establish interactive
     cadence; that last arm needs a human at the live window.
 
-## 🔵 OWED — live work that nothing above implies. Never cleared by a compression.
+## 🔵 BLOCKED ON THE USER — visual verdicts and live journeys
+
+The mechanical evidence for these is complete. What remains is an aesthetic
+choice, a live-feel judgement, or hardware/session access an agent does not have.
 
 - 🔵 **Four things on `main` awaiting your eye, each revertible in one commit or
   line:**
@@ -245,12 +249,11 @@ this heading exists; `git log -S"BLOCKED ON THE USER"` finds who took it.
 - **284 — the live glide's feel** and `MARKER_TRAVEL_TILT_DEG = 20°`; plus
   whether a wrap's transient (indistinguishable from an ordinary step) deserves
   a distinct flourish. Live judgement.
-- **242 — residuals:** the formal affordance-locating vision smoke (an eyes-on
-  pass happened; the structured version is owed), and `readout::CANVAS_INSET`
-  is declared `Physical` with its reason — promoting it to `Logical` doubles
-  the inset on Retina (almost certainly correct) and owes a 1×/2× sweep across
-  every anchor arm plus the notice plate's clamp. Naming inline literals is how
-  the remaining ones get found.
+- **242 — `readout::CANVAS_INSET` remains a visual choice.** The formal
+  five-shot affordance smoke and the 1×/2× anchor/menu/margin/outline sweeps are
+  complete; every affordance was locatable and all objective geometry laws
+  passed. The inset is declared `Physical`; promoting it to `Logical` doubles
+  it on Retina and is now purely an appearance decision.
 - **271/283 —** `Rules` ships on one carrier; second-carrier requirements live
   in `theme/tests/personality.rs`.
 
@@ -261,28 +264,15 @@ list instead of re-checking the tree.** Every entry in the previous list was
 verified landed via `git log --grep` before this re-derivation (292/293/299/303,
 294/298, 305, 291, 296+300, 273's residuals, 302, 227, 131e+303 — all merged).
 
-1. **382** — finish the machine-visible Retina/gallery audit already in flight.
-   residuals recovered from OWED.
-2. **🔵 HUMAN / LIVE** — only after the closure wave reclassifies every
-   remaining OWED entry by evidence. **231**
+1. **🔵 HUMAN / LIVE — all remaining work is explicitly blocked in the two
+   sections above.** **231**
    needs the approved macOS guest-VM spend; **251** needs a human at a Linux desktop with
    Orca. **327** and the landed taste calls
-   (338/342/345/346, carried in OWED) close on the user's eye.
+   (338/342/345/346, carried in the visual/live blocked section) close on the user's eye.
 
 ---
 
 ## Open items
-
-382. 🟡 **IN PROGRESS — codex (gpt-5.6-sol high), branch
-     `codex/item-382-retina-audit`. Close the machine-visible gallery debt without choosing taste.**
-     Run the 1x/2x all-anchor plus notice-clamp sweep for `readout::CANVAS_INSET`; generate and
-     pixel-audit forced non-mac menu-bar/dropdown and Retina margin/outline galleries for items
-     321/323/314. Include item 242's formal five-shot affordance-locating questions, and confirm
-     item 241's exact 4530x2756@2 release cell. Record objective geometry/visibility findings;
-     aesthetic accept/revert and live cadence remain BLOCKED. **Done:** every cell has sidecar and
-     pixel evidence outside tracked personal paths, explicit affordance answers, and any objective
-     defect earns a law/fix rather than being passed to taste.
-
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
