@@ -399,6 +399,13 @@ impl CaretGlyphPipeline {
         self.color = crate::caret::srgb_u8_to_linear(caret_srgb);
     }
 
+    /// The linear tint currently held by this baked pipeline. Test-only: theme
+    /// construction must use the same retint owner as a live world switch.
+    #[cfg(test)]
+    pub(crate) fn test_color(&self) -> [f32; 3] {
+        self.color
+    }
+
     /// Mark this pipeline as drawing nothing this frame (e.g. block mode active, or
     /// the cursor is on a glyphless cell where we fall back to the block caret).
     pub fn clear(&mut self) {

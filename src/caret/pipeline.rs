@@ -233,6 +233,13 @@ impl CaretPipeline {
         self.color = srgb_u8_to_linear(caret_srgb);
     }
 
+    /// The linear tint currently held by this baked pipeline. Test-only: theme
+    /// construction must use the same retint owner as a live world switch.
+    #[cfg(test)]
+    pub(crate) fn test_color(&self) -> [f32; 3] {
+        self.color
+    }
+
     /// Build the single caret instance and upload globals + instance.
     ///
     /// `center_x`/`center_y` are the caret rect CENTER in pixels (the renderer

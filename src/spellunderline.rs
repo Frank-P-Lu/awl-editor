@@ -222,6 +222,13 @@ impl SpellUnderlinePipeline {
         self.color = srgba_u8_to_linear(srgba);
     }
 
+    /// The linear tint currently held by this baked pipeline. Test-only: theme
+    /// construction must use the same retint owner as a live world switch.
+    #[cfg(test)]
+    pub(crate) fn test_color(&self) -> [f32; 4] {
+        self.color
+    }
+
     /// How many squiggle instances the last `prepare` uploaded (0 = nothing drawn).
     /// A cheap headless assertion hook, mirroring
     /// [`crate::selection::SelectionPipeline::instance_count`] (used by the grow
