@@ -40,19 +40,55 @@ fn sync_owned_tints(p: &TextPipeline) -> Vec<(&'static str, Vec<f32>)> {
 fn sync_owned_surface_tints(p: &TextPipeline) -> Vec<(&'static str, Vec<f32>)> {
     vec![
         ("caret_pipeline", p.caret_pipeline.test_color().to_vec()),
-        ("caret_trail_pipeline", p.caret_trail_pipeline.test_color().to_vec()),
-        ("caret_glyph_pipeline", p.caret_glyph_pipeline.test_color().to_vec()),
-        ("selection_pipeline", p.selection_pipeline.test_color().to_vec()),
+        (
+            "caret_trail_pipeline",
+            p.caret_trail_pipeline.test_color().to_vec(),
+        ),
+        (
+            "caret_glyph_pipeline",
+            p.caret_glyph_pipeline.test_color().to_vec(),
+        ),
+        (
+            "selection_pipeline",
+            p.selection_pipeline.test_color().to_vec(),
+        ),
         ("match_pipeline", p.match_pipeline.test_color().to_vec()),
-        ("wash_comment_pipeline", p.wash_comment_pipeline.test_color().to_vec()),
-        ("wash_string_pipeline", p.wash_string_pipeline.test_color().to_vec()),
-        ("wash_highlight_pipeline", p.wash_highlight_pipeline.test_color().to_vec()),
-        ("fence_panel_pipeline", p.fence_panel_pipeline.test_color().to_vec()),
-        ("code_pill_pipeline", p.code_pill_pipeline.test_color().to_vec()),
-        ("image_placeholder_pipeline", p.image_placeholder_pipeline.test_color().to_vec()),
-        ("image_scrim_pipeline", p.image_scrim_pipeline.test_color().to_vec()),
-        ("table_rule_pipeline", p.table_rule_pipeline.test_color().to_vec()),
-        ("fold_chevron_pipeline", p.fold_chevron_pipeline.test_color().to_vec()),
+        (
+            "wash_comment_pipeline",
+            p.wash_comment_pipeline.test_color().to_vec(),
+        ),
+        (
+            "wash_string_pipeline",
+            p.wash_string_pipeline.test_color().to_vec(),
+        ),
+        (
+            "wash_highlight_pipeline",
+            p.wash_highlight_pipeline.test_color().to_vec(),
+        ),
+        (
+            "fence_panel_pipeline",
+            p.fence_panel_pipeline.test_color().to_vec(),
+        ),
+        (
+            "code_pill_pipeline",
+            p.code_pill_pipeline.test_color().to_vec(),
+        ),
+        (
+            "image_placeholder_pipeline",
+            p.image_placeholder_pipeline.test_color().to_vec(),
+        ),
+        (
+            "image_scrim_pipeline",
+            p.image_scrim_pipeline.test_color().to_vec(),
+        ),
+        (
+            "table_rule_pipeline",
+            p.table_rule_pipeline.test_color().to_vec(),
+        ),
+        (
+            "fold_chevron_pipeline",
+            p.fold_chevron_pipeline.test_color().to_vec(),
+        ),
         ("panel_card", p.panel_card.test_color().to_vec()),
         ("panel_shadow", p.panel_shadow.test_color().to_vec()),
         ("panel_border", p.panel_border.test_color().to_vec()),
@@ -72,8 +108,14 @@ fn sync_owned_surface_tints(p: &TextPipeline) -> Vec<(&'static str, Vec<f32>)> {
         ("menu_drop_card", p.menu_drop_card.test_color().to_vec()),
         ("menu_drop_sep", p.menu_drop_sep.test_color().to_vec()),
         ("panel_caret", p.panel_caret.test_color().to_vec()),
-        ("caret_preview_pipeline", p.caret_preview_pipeline.test_color().to_vec()),
-        ("caret_preview_glyph_pipeline", p.caret_preview_glyph_pipeline.test_color().to_vec()),
+        (
+            "caret_preview_pipeline",
+            p.caret_preview_pipeline.test_color().to_vec(),
+        ),
+        (
+            "caret_preview_glyph_pipeline",
+            p.caret_preview_glyph_pipeline.test_color().to_vec(),
+        ),
         ("float_shadow", p.float_shadow.test_color().to_vec()),
         ("float_border", p.float_border.test_color().to_vec()),
         ("float_card", p.float_card.test_color().to_vec()),
@@ -106,8 +148,14 @@ fn sync_owned_annotation_tints(p: &TextPipeline) -> Vec<(&'static str, Vec<f32>)
         ("spell_pipeline", p.spell_pipeline.test_color().to_vec()),
         ("nit_pipeline", p.nit_pipeline.test_color().to_vec()),
         ("strike_pipeline", p.strike_pipeline.test_color().to_vec()),
-        ("link_underline_pipeline", p.link_underline_pipeline.test_color().to_vec()),
-        ("page_frame_pipeline", p.page_frame_pipeline.test_color().to_vec()),
+        (
+            "link_underline_pipeline",
+            p.link_underline_pipeline.test_color().to_vec(),
+        ),
+        (
+            "page_frame_pipeline",
+            p.page_frame_pipeline.test_color().to_vec(),
+        ),
         ("placard_stipple", p.placard_stipple.test_color().to_vec()),
     ]
 }

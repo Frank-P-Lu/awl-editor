@@ -22,11 +22,11 @@ impl TextPipeline {
         still: bool,
         budget_ms: Option<f32>,
     ) {
-        self.debug_frame_cost = cost;
-        self.debug_latency_ms = latency_ms;
-        self.debug_redraws = redraws;
+        self.debug.frame_cost = cost;
+        self.debug.latency_ms = latency_ms;
+        self.debug.redraws = redraws;
         self.debug_still = still;
-        self.debug_budget_ms = budget_ms;
+        self.debug.budget_ms = budget_ms;
     }
 
     /// The panel's MACHINE-READABLE perf state for the capture sidecar — the same
@@ -36,13 +36,13 @@ impl TextPipeline {
     /// is byte-stable across machines.
     pub fn debug_perf_report(&self) -> DebugPerfReport {
         DebugPerfReport {
-            frame_ms: self.debug_frame_cost.map(|(last, _)| last),
-            worst_ms: self.debug_frame_cost.map(|(_, worst)| worst),
-            budget_ms: self.debug_budget_ms,
-            key_px_ms: self.debug_latency_ms,
-            redraws: self.debug_redraws,
+            frame_ms: self.debug.frame_cost.map(|(last, _)| last),
+            worst_ms: self.debug.frame_cost.map(|(_, worst)| worst),
+            budget_ms: self.debug.budget_ms,
+            key_px_ms: self.debug.latency_ms,
+            redraws: self.debug.redraws,
             still: self.debug_still,
-            autosave: self.debug_autosave,
+            autosave: self.debug.autosave,
         }
     }
 
@@ -50,7 +50,7 @@ impl TextPipeline {
     /// line. `None` (no query — non-macOS backend, or a capture) leaves the fixed
     /// `gpu —` placeholder. Live-only device state, exactly like the frametime.
     pub fn set_debug_gpu_bytes(&mut self, bytes: Option<u64>) {
-        self.debug_gpu_bytes = bytes;
+        self.debug.gpu_bytes = bytes;
     }
 
     /// Feed the debug panel the AUTOSAVE ENGINE's current state (see
@@ -61,7 +61,7 @@ impl TextPipeline {
     /// headless capture's only reachable value, since the engine is structurally
     /// live-App-only) leaves the fixed `"autosave —"` placeholder.
     pub fn set_debug_autosave(&mut self, state: Option<crate::debug::AutosaveState>) {
-        self.debug_autosave = state;
+        self.debug.autosave = state;
     }
 
     /// Feed the debug panel the live theme-switch window report — latest and recent
@@ -72,7 +72,7 @@ impl TextPipeline {
     /// lines — the readout is absent, keeping a `--debug` capture byte-identical. The
     /// live loop refreshes this on naturally occurring redraws, so expiry needs no tick.
     pub fn set_debug_theme_settle(&mut self, settle: Option<crate::themeswitch::SwitchReport>) {
-        self.debug_theme_settle = settle;
+        self.debug.theme_settle = settle;
     }
 
     /// LIVE-ONLY: set (or clear) the PAGE-WIDTH DRAG READOUT — the pointer position
@@ -130,9 +130,9 @@ impl TextPipeline {
         let m = self.metrics;
         // Lines 1-3 (clock-bearing): the only non-deterministic lines — fixed
         // still-form placeholders in a capture, live numbers in the window.
-        let frame = crate::debug::frame_readout(self.debug_frame_cost, self.debug_still);
-        let latency = crate::debug::latency_readout(self.debug_latency_ms);
-        let redraws = crate::debug::activity_readout(self.debug_redraws);
+        let frame = crate::debug::frame_readout(self.debug.frame_cost, self.debug_still);
+        let latency = crate::debug::latency_readout(self.debug.latency_ms);
+        let redraws = crate::debug::activity_readout(self.debug.redraws);
         let zoom = format!("zoom {}%", (m.zoom * 100.0).round() as i64);
         // Physical canvas WxH at the display scale (1.0 in a capture).
         let (width, height) = (self.window_w as u32, self.window_h as u32);
@@ -158,12 +158,12 @@ impl TextPipeline {
         // GPU-memory line (clock/device-state-ish, like the frametime): a live number
         // on macOS (Metal's currentAllocatedSize), the fixed `gpu —` placeholder
         // everywhere else and in a capture, so a `--debug` capture stays deterministic.
-        let gpu = crate::debug::gpu_readout(self.debug_gpu_bytes);
+        let gpu = crate::debug::gpu_readout(self.debug.gpu_bytes);
         // AUTOSAVE-ENGINE line: the engine's own truth, fed EXCLUSIVELY through
         // `App::autosave_flush`'s one door — never a fresh guess. `None` (no live
         // App has ever fed this — the only value a capture ever sees) renders the
         // fixed `autosave —` placeholder, exactly like the perf triad + gpu line.
-        let autosave = crate::debug::autosave_readout(self.debug_autosave);
+        let autosave = crate::debug::autosave_readout(self.debug.autosave);
         let mut lines = vec![
             frame, latency, redraws, zoom, viewport, cursor, modes, mdsyn, gpu, autosave,
         ];
@@ -171,7 +171,7 @@ impl TextPipeline {
         // input→settled-present latency + the per-phase breakdown — but ONLY once a
         // real switch has settled. A capture never feeds one (`None`), so
         // `settle_lines` yields nothing and the panel text is byte-identical to before.
-        lines.extend(crate::themeswitch::settle_lines(self.debug_theme_settle));
+        lines.extend(crate::themeswitch::settle_lines(self.debug.theme_settle));
         lines.join("\n")
     }
 

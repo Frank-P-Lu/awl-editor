@@ -2449,17 +2449,11 @@ pub struct TextPipeline {
     band_ease_started: bool,
     page_drag_readout: Option<(f32, f32, usize)>,
     zoom_readout: Option<(f32, f32, f32)>,
-    debug_frame_cost: Option<(f32, f32)>,
-    debug_latency_ms: Option<f32>,
-    debug_redraws: Option<u64>,
+    debug: DebugDefaults,
     debug_still: bool,
-    debug_budget_ms: Option<f32>,
     /// Latest queried GPU memory (bytes) the live loop feeds in for the debug panel's
     /// `gpu <n> MB` line, or `None` when there is no query (non-macOS backend, or the
     /// clockless headless capture) — both render the fixed `gpu —` placeholder.
-    debug_gpu_bytes: Option<u64>,
-    debug_autosave: Option<crate::debug::AutosaveState>,
-    debug_theme_settle: Option<crate::themeswitch::SwitchReport>,
     overlay_active: bool,
     overlay_align: Option<theme::CardAnchor>,
     overlay_crisp: bool,
@@ -2575,6 +2569,17 @@ struct HudDefaults {
 #[derive(Default)]
 struct WhichKeyDefaults {
     rows: Option<Vec<(String, String)>>,
+}
+
+#[derive(Default)]
+struct DebugDefaults {
+    frame_cost: Option<(f32, f32)>,
+    latency_ms: Option<f32>,
+    redraws: Option<u64>,
+    budget_ms: Option<f32>,
+    gpu_bytes: Option<u64>,
+    autosave: Option<crate::debug::AutosaveState>,
+    theme_settle: Option<crate::themeswitch::SwitchReport>,
 }
 
 /// Flatten the ACTIVE world's [`crate::theme::Background`] into the host-side
