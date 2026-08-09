@@ -162,6 +162,20 @@ scans the source and fails on any new one.
 | `app/lifecycle.rs` | `user_event`, `resumed`, `suspended`, `window_event`, `exiting`, `about_to_wait` | winit's own `ApplicationHandler` signatures |
 | `app/window.rs` | `handle_gpu_fault`, `handle_gpu_frame_outcome`, `on_resized`, `on_redraw_requested` | rebuilds the surface, sets `ControlFlow` |
 
+### Surface- and platform-only export doors
+
+Two export paths sit at tier 3 without taking `&ActiveEventLoop`, so they are
+not members of the fourteen-function signature census above:
+
+| Platform / door | Owner | Why no headless oracle reaches it |
+| --- | --- | --- |
+| macOS File-menu Export | `App::handle_menu_event` → `run_native_panel` → `export_via_platform_panel` | Opens a real modal `NSSavePanel`. The surface gate deliberately refuses a GPU-less `App`; otherwise `--screenshot-app` and tests would block their main thread waiting for a human. Chords and command-palette export remain tier-2-drivable because they use the in-app destination navigator instead. |
+| Linux drawn-menu Export | `App::menubar_press` → `App::apply` | The click door starts with the live renderer's menu hit-test. macOS never draws this menu, so this platform arm cannot be exercised on the design host; a headless state capture can prove the routed export transition, but not that a real Linux menu click reaches it. |
+
+The macOS arm needs a person to accept or cancel the platform panel. The Linux
+arm needs a real Linux window and pointer click. Neither may be claimed from a
+`--keys` or `--screenshot-app` capture.
+
 The same law asserts the **input-dispatch chain is empty** — `app/apply.rs`,
 `app/input/keys.rs`, `app/input/mouse.rs`, `app/input/drags.rs`, `app/menu.rs`,
 `app/probe.rs` may never take an `&ActiveEventLoop` again. One such parameter

@@ -398,8 +398,6 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
      - (293) `OVERLAY_HINT_GAP_ROW = 0.45` was tuned against a law, never judged by eye; its
        laws also disclosed a name-based `OverlayKind::Spell` exclusion and a three-kinds-not-
        roster row-count law — both enrolment shapes this repo has been bitten by.
-     - (301) File the `NSSavePanel` + drawn-Linux-menu export paths in
-       `docs/harness-reach.md`'s live-only census — the filing is the deliverable.
      - (303) Proposal, not decision: let the selected mark ride the selection band's ease
        between rows (two `Diagonal` worlds only). Feel is live-only; closes on a human.
      - (319) At zoom 1.0 (not the shipped 0.8) Mangrove's plain hint overflows the card's
