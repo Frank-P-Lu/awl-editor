@@ -30,10 +30,10 @@ jobs:
       # Vulkan adapter to run against on a headless GitHub runner (there is
       # no real GPU here).
       #
-      # ‼ THIS IS NOT A VIRTUALISED-GPU ARM, and item 232 measured that rather
+      # ‼ THIS IS NOT A VIRTUALISED-GPU ARM; measurement established that rather
       # than assuming it. lavapipe is a CPU rasteriser: each process gets its
       # own llvmpipe in its own address space, with no driver-internal pipeline
-      # table and nothing shared between processes. Item 231's wedge is a
+      # table and nothing shared between processes. The wedge is a
       # SYSTEM-WIDE contention (two processes with two separate wgpu devices
       # stopped within 10 ms of each other), so there is no resource here for
       # it to exhaust. The evidence, not the argument: this job ran the same
@@ -50,13 +50,13 @@ jobs:
       # coverage and buys NOTHING on the virtualised-GPU axis; do not cite it as
       # that axis's arm. The `mac` job below is it.
       #
-      # ‼ WHAT THAT CONTAINER *DID* SEE, and item 231 should have it: under a
+      # ‼ WHAT THAT CONTAINER *DID* SEE under a
       # FIXED 4 GiB ceiling at `--test-threads=1`, `render::tests::` walks RSS
       # up monotonically and is OOM-killed — and how far it gets is exactly
       # commit-correlated. `36707d06` reaches test 199; `8207e519` reaches test
       # 160. Twice each, identical both times. The same suite peaks at 448 MiB
       # on the dev host's Metal (CLAUDE.md's gate note), so this is not portable
-      # as an RSS number — but it is item 231's own residual suspects
+      # as an RSS number — but it makes the residual suspects
       # (per-call `glyphon::Cache` + `TextAtlas`, `offscreen()` textures and
       # readback buffers, reclaimed only on poll) made visible and deterministic
       # in ~4 local minutes. It does NOT prove that bounding the growth would
@@ -74,7 +74,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
-      # sccache installs AFTER the cache restore (item 196): install-sccache.sh
+      # sccache installs AFTER the cache restore: install-sccache.sh
       # short-circuits when the pinned version is already on PATH, but nothing
       # puts it there before this step runs — so with this step first, every
       # job did a full `cargo install sccache` (~4-7 wall-minutes) even though
