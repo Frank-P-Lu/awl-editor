@@ -116,7 +116,7 @@ pub fn write(record: &Record) -> bool {
     if let Some(parent) = path.parent() {
         let _ = fs.create_dir_all(parent);
     }
-    crate::fs::write_atomic(&path, body.as_bytes()).is_ok()
+    crate::durable::write(crate::durable::Owner::Recovery, &path, body.as_bytes()).is_ok()
 }
 
 /// READ THE RECORD, if there is one. A present-but-unparseable record is

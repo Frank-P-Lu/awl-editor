@@ -216,7 +216,7 @@ impl App {
             return;
         }
         let bytes = self.document.buffer().disk_bytes();
-        match crate::fs::write_atomic(&path, &bytes) {
+        match crate::durable::write(crate::durable::Owner::ManualSave, &path, &bytes) {
             Ok(()) => {
                 let version = self.document.buffer().version();
                 self.document.record_document_saved(

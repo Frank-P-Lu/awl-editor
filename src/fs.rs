@@ -973,6 +973,11 @@ impl FileSystem for UnwritableFs {
 }
 
 #[cfg(test)]
+mod scripted;
+#[cfg(test)]
+pub(crate) use scripted::{ScriptedFailure, ScriptedFs, ScriptedOperation};
+
+#[cfg(test)]
 mod tests {
     use super::*;
 

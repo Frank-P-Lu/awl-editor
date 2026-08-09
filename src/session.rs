@@ -125,7 +125,11 @@ pub fn save(path: &Path, state: &SessionState) -> std::io::Result<()> {
     if let Some(parent) = path.parent() {
         let _ = crate::fs::active().create_dir_all(parent);
     }
-    crate::fs::write_atomic(path, to_toml(state).as_bytes())
+    crate::durable::write(
+        crate::durable::Owner::Session,
+        path,
+        to_toml(state).as_bytes(),
+    )
 }
 
 /// Serialize `state` to the on-disk TOML shape — pure, no fs. Hand-rolled

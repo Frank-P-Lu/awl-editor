@@ -277,7 +277,7 @@ fn history_root() -> PathBuf {
 /// hash is a stable FNV-1a of the full path string (so the store is keyed by the
 /// file, and two files never collide). Stable across runs (unlike a randomly-
 /// seeded `DefaultHasher`), so yesterday's snapshots are still findable today.
-pub(super) fn log_path(path: &Path) -> PathBuf {
+pub(crate) fn log_path(path: &Path) -> PathBuf {
     history_root().join(format!("{:016x}.log", fnv1a(&path.to_string_lossy())))
 }
 
@@ -332,7 +332,7 @@ pub(super) fn write_log(path: &Path, entries: &[Entry]) {
     if let Some(parent) = lp.parent() {
         let _ = fs.create_dir_all(parent);
     }
-    let _ = crate::fs::write_atomic(&lp, &serialize_log(entries));
+    let _ = crate::durable::write(crate::durable::Owner::History, &lp, &serialize_log(entries));
 }
 
 /// Frame `entries` into the log format: a `MAGIC` line, then per snapshot a

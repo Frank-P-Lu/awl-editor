@@ -62,6 +62,8 @@ pub(crate) use prune::prune_ladder;
 // (prune.rs, tests.rs) rather than this re-export today — kept for parity with
 // its pre-split reachability at `crate::history::Entry`.
 pub(crate) use store::Entry;
+#[cfg(test)]
+pub(crate) use store::log_path;
 #[allow(unused_imports)] // record_at: pub(crate) API surface (the shared
 // record/record_pinned/prune-ladder shell, injected-clock testable), reached
 // in-crate via `store::record_at` directly (store.rs's own record/record_pinned,

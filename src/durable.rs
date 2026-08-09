@@ -34,6 +34,56 @@
 
 use std::path::Path;
 
+/// Every production owner whose write can replace user work or app state that
+/// is needed after relaunch.  The fault matrix iterates this roster directly;
+/// a new owner therefore cannot arrive outside the sweep by being added only
+/// to a test fixture.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Owner {
+    ManualSave,
+    Autosave,
+    Scratch,
+    Recovery,
+    History,
+    Config,
+    Session,
+    Export,
+}
+
+pub const OWNERS: &[Owner] = &[
+    Owner::ManualSave,
+    Owner::Autosave,
+    Owner::Scratch,
+    Owner::Recovery,
+    Owner::History,
+    Owner::Config,
+    Owner::Session,
+    Owner::Export,
+];
+
+impl Owner {
+    pub const fn name(self) -> &'static str {
+        match self {
+            Owner::ManualSave => "manual-save",
+            Owner::Autosave => "autosave",
+            Owner::Scratch => "scratch",
+            Owner::Recovery => "recovery",
+            Owner::History => "history",
+            Owner::Config => "config",
+            Owner::Session => "session",
+            Owner::Export => "export",
+        }
+    }
+}
+
+/// The named durable-write door.  `fs::write_atomic` remains the deliberately
+/// small mechanism; the owner argument exists so production enrolment is data,
+/// rather than a test's hand-maintained list of call sites.
+pub fn write(owner: Owner, path: &Path, data: &[u8]) -> std::io::Result<()> {
+    let _ = owner;
+    crate::fs::write_atomic(path, data)
+}
+
 /// How many `.corrupt-*` siblings a single store keeps — a generous but
 /// bounded window (mirrors `crashlog::MAX_CRASH_LOGS`'s "look back across a
 /// bad week, never an unbounded pile" reasoning, just narrower: a corrupt

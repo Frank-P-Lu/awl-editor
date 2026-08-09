@@ -805,6 +805,10 @@ impl Buffer {
     /// never re-derives or renames it (the old LIVE-rename-to-title behavior is
     /// retired — Rename is now the one, explicit, generic verb for that).
     pub fn save(&mut self) -> anyhow::Result<()> {
+        self.save_owned(crate::durable::Owner::ManualSave)
+    }
+
+    pub(crate) fn save_owned(&mut self, owner: crate::durable::Owner) -> anyhow::Result<()> {
         if self.path.is_none()
             && let Some(dir) = self.note_dir.clone()
         {
@@ -831,7 +835,7 @@ impl Buffer {
                 // old file or the new one — never a truncated half-write. The
                 // buffer's remembered line ending is restored here ([`disk_bytes`]),
                 // so a CRLF file round-trips byte-for-byte.
-                crate::fs::write_atomic(p, &self.disk_bytes())?;
+                crate::durable::write(owner, p, &self.disk_bytes())?;
                 self.dirty = false;
                 Ok(())
             }

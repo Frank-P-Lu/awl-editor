@@ -302,6 +302,13 @@ impl DocumentSession {
     pub(in crate::app) fn save(&mut self) -> anyhow::Result<()> {
         self.active.buffer.save()
     }
+
+    pub(in crate::app) fn save_owned(
+        &mut self,
+        owner: crate::durable::Owner,
+    ) -> anyhow::Result<()> {
+        self.active.buffer.save_owned(owner)
+    }
     pub(in crate::app) fn save_into_folder(&mut self, folder: &Path) -> anyhow::Result<()> {
         self.active.buffer.save_into_folder(folder)
     }

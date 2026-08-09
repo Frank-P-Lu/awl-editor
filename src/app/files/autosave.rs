@@ -155,7 +155,7 @@ impl App {
         if !self.document.buffer().is_unnamed_fresh() {
             return;
         }
-        if let Ok(()) = self.document.save() {
+        if let Ok(()) = self.document.save_owned(crate::durable::Owner::Autosave) {
             // `Buffer::save` only returns `Ok` here having derived + bound a
             // path (an empty document, the ONLY other `Ok`-less case, bails
             // into the `Err` arm below instead) — so `path()` is always
@@ -289,7 +289,7 @@ impl App {
         // Restore the buffer's remembered line ending on the way out (CRLF files
         // round-trip byte-for-byte; LF is byte-identical to `text().as_bytes()`).
         let bytes = self.document.buffer().disk_bytes();
-        match crate::fs::write_atomic(&path, &bytes) {
+        match crate::durable::write(crate::durable::Owner::Autosave, &path, &bytes) {
             Ok(()) => {
                 self.document.record_document_saved(
                     version,
@@ -307,7 +307,10 @@ impl App {
                 // Every save records a snapshot (dedup + the git gate live inside).
                 self.snapshot_after_save();
             }
-            Err(e) => eprintln!("autosave failed ({}): {e}", path.display()),
+            Err(e) => {
+                self.set_sticky_notice(format!("autosave held: {e} — changes remain in editor"));
+                eprintln!("autosave failed ({}): {e}", path.display());
+            }
         }
     }
 
@@ -340,7 +343,7 @@ impl App {
         // encoder for uniformity; the history snapshot stays the internal pure-`\n`
         // `text` (awl's own store — see the "Line endings" note in CLAUDE.md).
         let bytes = self.document.buffer().disk_bytes();
-        match crate::fs::write_atomic(&path, &bytes) {
+        match crate::durable::write(crate::durable::Owner::Scratch, &path, &bytes) {
             Ok(()) => {
                 self.document.record_scratch_saved(
                     version,
@@ -358,7 +361,12 @@ impl App {
                 // The persistent scratch grows a timeline of its own.
                 crate::history::record(&path, &text, &self.config);
             }
-            Err(e) => eprintln!("scratch stash failed ({}): {e}", path.display()),
+            Err(e) => {
+                self.set_sticky_notice(format!(
+                    "scratch save held: {e} — changes remain in editor"
+                ));
+                eprintln!("scratch stash failed ({}): {e}", path.display());
+            }
         }
     }
 }

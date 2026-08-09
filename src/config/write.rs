@@ -233,7 +233,11 @@ impl Config {
         if let Some(parent) = path.parent() {
             crate::fs::active().create_dir_all(parent)?;
         }
-        crate::fs::write_atomic(path, DEFAULT_TEMPLATE.as_bytes())
+        crate::durable::write(
+            crate::durable::Owner::Config,
+            path,
+            DEFAULT_TEMPLATE.as_bytes(),
+        )
     }
 
     /// Merge a freshly-captured `binding` into a command's EXISTING config slots,
@@ -310,7 +314,7 @@ impl Config {
         }
         let mut out = lines.join("\n");
         out.push('\n');
-        crate::fs::write_atomic(path, out.as_bytes())
+        crate::durable::write(crate::durable::Owner::Config, path, out.as_bytes())
     }
 
     /// PERSIST a TOP-LEVEL scalar PREFERENCE (theme/zoom/page_mode/caret_mode) to
@@ -356,7 +360,7 @@ impl Config {
         }
         let mut out = lines.join("\n");
         out.push('\n');
-        crate::fs::write_atomic(path, out.as_bytes())
+        crate::durable::write(crate::durable::Owner::Config, path, out.as_bytes())
     }
 
     /// REMOVE a top-level scalar PREFERENCE entirely, format-preservingly — the
@@ -380,7 +384,7 @@ impl Config {
         lines.remove(i);
         let mut out = lines.join("\n");
         out.push('\n');
-        crate::fs::write_atomic(path, out.as_bytes())
+        crate::durable::write(crate::durable::Owner::Config, path, out.as_bytes())
     }
 }
 

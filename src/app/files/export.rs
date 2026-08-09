@@ -215,7 +215,7 @@ impl App {
         if let Some(parent) = target.path.parent() {
             let _ = crate::fs::active().create_dir_all(parent);
         }
-        match crate::fs::write_atomic(&target.path, bytes) {
+        match crate::durable::write(crate::durable::Owner::Export, &target.path, bytes) {
             Ok(()) => {
                 let shown = if target.show_full {
                     target.path.display().to_string()
