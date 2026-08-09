@@ -6,6 +6,11 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PYTHONDONTWRITEBYTECODE=1 python3 "$ROOT/scripts/test-native-test-shards.py"
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/awl-native-gate-test.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
+# Every fixture gate inherits its own arbiter state. Besides keeping this test
+# hermetic, that lets the concurrent-holder law choose a fresh marker without
+# ever touching a real orchestrator's queue.
+export AWL_NATIVE_GATE_MARKER="$WORK/default-marker"
+export AWL_NATIVE_GATE_ARBITER_LOCK="$WORK/default-arbiter.lock"
 
 PYTHONDONTWRITEBYTECODE=1 python3 - "$ROOT/scripts/native-test-shards.py" \
   >"$WORK/awl-test-list" <<'PY'
@@ -144,6 +149,17 @@ cat >"$WORK/free-oracle" <<'EOF'
 printf '%s\n' $((40 * 1024 * 1024 * 1024))
 EOF
 chmod +x "$WORK/free-oracle"
+
+cat >"$WORK/git" <<'EOF'
+#!/usr/bin/env bash
+if [[ "$*" == 'rev-parse --path-format=absolute --git-common-dir' \
+  && -n "${AWL_NATIVE_GATE_PROBE_COMMON_GIT_DIR:-}" ]]; then
+  printf '%s\n' "$AWL_NATIVE_GATE_PROBE_COMMON_GIT_DIR"
+else
+  /usr/bin/git "$@"
+fi
+EOF
+chmod +x "$WORK/git"
 
 run_probe() {
   local failing="${1:-}" status="${2:-0}" output="$WORK/output-${1:-success}"
@@ -766,13 +782,196 @@ done
 
 echo "test-native-gate: the menu-bar axis runs both arms with the conventions unforced, and either arm's failure suppresses the receipt"
 
-# ── The in-flight marker: a signal a second orchestrator session can read ────
-# The board explicitly supports two concurrent orchestrator sessions in one
-# working tree, and only the session that started a gate can obey "don't
-# commit while it runs" — a second session has no way to observe that fact on
-# its own. The gate writes .orchestrator/native-gate.marker (redirected here
-# via AWL_NATIVE_GATE_MARKER so this test never touches the real one) naming
-# its pid, start commit, and start time, and removes it on every exit path.
+# ── The full-gate arbiter: one holder, a visible queue, safe stale recovery ──
+# Two full gates must not recreate the contention that sharding removed. The
+# second probe has its own event log, so an empty log while it reports the first
+# holder is evidence that it has not begun a canary or a suite behind our back.
+arbiter_marker="$WORK/arbiter-marker"
+arbiter_lock="$WORK/arbiter-lock"
+: >"$WORK/events-arbiter-first"
+PATH="$WORK:$PATH" \
+  AWL_NATIVE_GATE_MARKER="$arbiter_marker" \
+  AWL_NATIVE_GATE_ARBITER_LOCK="$arbiter_lock" \
+  AWL_NATIVE_GATE_PROBE_SLEEP=4 \
+  AWL_NATIVE_GATE_PROBE_LOG="$WORK/events-arbiter-first" \
+  AWL_NATIVE_GATE_PROBE_TEST_BINARY="$WORK/awl-test-bin" \
+  AWL_NATIVE_GATE_PROBE_TEST_LIST="$WORK/awl-test-list" \
+  AWL_DISK_PREFLIGHT_TEST_MODE=1 \
+  AWL_DISK_PREFLIGHT_FREE_BYTES_COMMAND="$WORK/free-oracle" \
+  AWL_DISK_PREFLIGHT_LOCK_DIR="$WORK/disk-lock-arbiter-first" \
+  "$ROOT/scripts/native-gate.sh" >"$WORK/output-arbiter-first" 2>&1 &
+arbiter_first_pid=$!
+
+for _ in $(seq 1 50); do
+  [[ -s "$arbiter_marker" ]] && break
+  sleep 0.1
+done
+[[ -s "$arbiter_marker" ]] || {
+  echo "test-native-gate: the first arbiter probe never published a holder" >&2
+  kill -TERM "$arbiter_first_pid" 2>/dev/null || true
+  exit 1
+}
+arbiter_holder="$(cat "$arbiter_marker")"
+arbiter_holder_pid="${arbiter_holder#pid=}"; arbiter_holder_pid="${arbiter_holder_pid%% *}"
+kill -0 "$arbiter_holder_pid" 2>/dev/null || {
+  echo "test-native-gate: arbiter holder pid=$arbiter_holder_pid was not alive" >&2
+  exit 1
+}
+
+: >"$WORK/events-arbiter-second"
+arbiter_second_arrival="$(date +%s)"
+PATH="$WORK:$PATH" \
+  AWL_NATIVE_GATE_MARKER="$arbiter_marker" \
+  AWL_NATIVE_GATE_ARBITER_LOCK="$arbiter_lock" \
+  AWL_NATIVE_GATE_PROBE_LOG="$WORK/events-arbiter-second" \
+  AWL_NATIVE_GATE_PROBE_TEST_BINARY="$WORK/awl-test-bin" \
+  AWL_NATIVE_GATE_PROBE_TEST_LIST="$WORK/awl-test-list" \
+  AWL_DISK_PREFLIGHT_TEST_MODE=1 \
+  AWL_DISK_PREFLIGHT_FREE_BYTES_COMMAND="$WORK/free-oracle" \
+  AWL_DISK_PREFLIGHT_LOCK_DIR="$WORK/disk-lock-arbiter-second" \
+  "$ROOT/scripts/native-gate.sh" >"$WORK/output-arbiter-second" 2>&1 &
+arbiter_second_pid=$!
+
+for _ in $(seq 1 50); do
+  grep -Fq "native-gate: waiting for arbiter holder $arbiter_holder" "$WORK/output-arbiter-second" && break
+  sleep 0.1
+done
+grep -Fq "native-gate: waiting for arbiter holder $arbiter_holder" "$WORK/output-arbiter-second" || {
+  echo "test-native-gate: the second full gate neither queued nor named its holder" >&2
+  kill -TERM "$arbiter_first_pid" "$arbiter_second_pid" 2>/dev/null || true
+  exit 1
+}
+[[ ! -s "$WORK/events-arbiter-second" ]] || {
+  echo "test-native-gate: the queued second gate began work before the holder released" >&2
+  kill -TERM "$arbiter_first_pid" "$arbiter_second_pid" 2>/dev/null || true
+  exit 1
+}
+wait "$arbiter_first_pid"
+wait "$arbiter_second_pid"
+[[ ! -e "$arbiter_marker" ]] || {
+  echo "test-native-gate: clean arbiter probes left admission state behind" >&2
+  exit 1
+}
+grep -Fq 'native-gate-arbiter capacity=1 holder ' "$WORK/output-arbiter-second" || {
+  echo "test-native-gate: the queued gate never acquired the arbiter" >&2
+  exit 1
+}
+arbiter_second_epoch="$(awk '/^native-gate-arbiter capacity=1 holder / { for (i = 1; i <= NF; i++) if ($i ~ /^start_epoch=/) { sub(/^start_epoch=/, "", $i); print $i; exit } }' "$WORK/output-arbiter-second")"
+[[ "$arbiter_second_epoch" =~ ^[0-9]+$ && "$arbiter_second_epoch" -gt "$arbiter_second_arrival" ]] || {
+  echo "test-native-gate: queued gate published start_epoch=$arbiter_second_epoch from arrival=$arbiter_second_arrival — it measured queue time instead of admitted work" >&2
+  exit 1
+}
+
+# Mutation: the holder is killed while its test descendant ignores TERM. The
+# waiter must acquire before that owned orphan is reaped; otherwise fd 8 leaked
+# through a child and the claimed kernel-release guarantee is false.
+arbiter_orphan_marker="$WORK/arbiter-orphan-marker"
+arbiter_orphan_lock="$WORK/arbiter-orphan.lock"
+: >"$WORK/arbiter-orphans"
+PATH="$WORK:$PATH" \
+  AWL_NATIVE_GATE_MARKER="$arbiter_orphan_marker" \
+  AWL_NATIVE_GATE_ARBITER_LOCK="$arbiter_orphan_lock" \
+  AWL_NATIVE_GATE_PROBE_SLEEP=30 \
+  AWL_NATIVE_GATE_PROBE_ORPHAN_FILE="$WORK/arbiter-orphans" \
+  AWL_NATIVE_GATE_PROBE_LOG="$WORK/events-arbiter-orphan-first" \
+  AWL_NATIVE_GATE_PROBE_TEST_BINARY="$WORK/awl-test-bin" \
+  AWL_NATIVE_GATE_PROBE_TEST_LIST="$WORK/awl-test-list" \
+  AWL_DISK_PREFLIGHT_TEST_MODE=1 \
+  AWL_DISK_PREFLIGHT_FREE_BYTES_COMMAND="$WORK/free-oracle" \
+  AWL_DISK_PREFLIGHT_LOCK_DIR="$WORK/disk-lock-arbiter-orphan-first" \
+  "$ROOT/scripts/native-gate.sh" >"$WORK/output-arbiter-orphan-first" 2>&1 &
+arbiter_orphan_first_pid=$!
+for _ in $(seq 1 50); do
+  [[ -s "$arbiter_orphan_marker" && -s "$WORK/arbiter-orphans" ]] && break
+  sleep 0.1
+done
+[[ -s "$WORK/arbiter-orphans" ]] || {
+  echo "test-native-gate: orphan-holder fixture never created its surviving descendant" >&2
+  kill -TERM "$arbiter_orphan_first_pid" 2>/dev/null || true
+  exit 1
+}
+PATH="$WORK:$PATH" \
+  AWL_NATIVE_GATE_MARKER="$arbiter_orphan_marker" \
+  AWL_NATIVE_GATE_ARBITER_LOCK="$arbiter_orphan_lock" \
+  AWL_NATIVE_GATE_PROBE_LOG="$WORK/events-arbiter-orphan-second" \
+  AWL_NATIVE_GATE_PROBE_TEST_BINARY="$WORK/awl-test-bin" \
+  AWL_NATIVE_GATE_PROBE_TEST_LIST="$WORK/awl-test-list" \
+  AWL_DISK_PREFLIGHT_TEST_MODE=1 \
+  AWL_DISK_PREFLIGHT_FREE_BYTES_COMMAND="$WORK/free-oracle" \
+  AWL_DISK_PREFLIGHT_LOCK_DIR="$WORK/disk-lock-arbiter-orphan-second" \
+  "$ROOT/scripts/native-gate.sh" >"$WORK/output-arbiter-orphan-second" 2>&1 &
+arbiter_orphan_second_pid=$!
+kill -TERM "$arbiter_orphan_first_pid"
+set +e
+wait "$arbiter_orphan_first_pid"
+set -e
+for _ in $(seq 1 50); do
+  grep -Fq 'native-gate-arbiter capacity=1 holder ' "$WORK/output-arbiter-orphan-second" && break
+  sleep 0.1
+done
+grep -Fq 'native-gate-arbiter capacity=1 holder ' "$WORK/output-arbiter-orphan-second" || {
+  echo "test-native-gate: waiter stayed behind a killed holder's surviving descendant — fd 8 leaked" >&2
+  kill -TERM "$arbiter_orphan_second_pid" 2>/dev/null || true
+  exit 1
+}
+while read -r orphan; do kill -KILL "$orphan" 2>/dev/null || true; done <"$WORK/arbiter-orphans"
+wait "$arbiter_orphan_second_pid"
+
+# This is the failure-shaped mutation: a killed holder leaves stale marker
+# text. The kernel releases its flock, so the next holder overwrites the text
+# without PID-reuse guessing or deleting a path another gate may be publishing.
+printf 'pid=99999999 start_commit=stale start_epoch=1\n' >"$arbiter_marker"
+probe arbiter-stale AWL_NATIVE_GATE_MARKER="$arbiter_marker" \
+  AWL_NATIVE_GATE_ARBITER_LOCK="$arbiter_lock"
+(( probe_status == 0 )) || {
+  echo "test-native-gate: stale arbiter recovery probe failed ($probe_status)" >&2
+  exit 1
+}
+require "arbiter stale recovery" "native-gate-arbiter capacity=1 holder"
+[[ ! -e "$arbiter_marker" ]] || {
+  echo "test-native-gate: a recovered stale holder still blocked later gates" >&2
+  exit 1
+}
+
+echo "test-native-gate: full gates queue behind a named live holder, then proceed; a stale marker cannot wedge the kernel arbiter"
+
+# A durable worktree's own .orchestrator directory is private. This hostile
+# git seam reports a distinct common Git directory and proves the default path
+# follows that fleet root instead, without an explicit marker/lock override.
+fleet_root="$WORK/fleet-root"
+fleet_common="$fleet_root/.git"
+fleet_marker="$fleet_root/.orchestrator/native-gate.marker"
+mkdir -p "$fleet_common" "$fleet_root/.orchestrator"
+: >"$WORK/events-fleet-default"
+set +e
+env -u AWL_NATIVE_GATE_MARKER -u AWL_NATIVE_GATE_ARBITER_LOCK \
+  PATH="$WORK:$PATH" \
+  AWL_NATIVE_GATE_PROBE_COMMON_GIT_DIR="$fleet_common" \
+  AWL_NATIVE_GATE_PROBE_LOG="$WORK/events-fleet-default" \
+  AWL_NATIVE_GATE_PROBE_TEST_BINARY="$WORK/awl-test-bin" \
+  AWL_NATIVE_GATE_PROBE_TEST_LIST="$WORK/awl-test-list" \
+  AWL_DISK_PREFLIGHT_TEST_MODE=1 \
+  AWL_DISK_PREFLIGHT_FREE_BYTES_COMMAND="$WORK/free-oracle" \
+  AWL_DISK_PREFLIGHT_LOCK_DIR="$WORK/disk-lock-fleet-default" \
+  "$ROOT/scripts/native-gate.sh" >"$WORK/output-fleet-default" 2>&1
+fleet_default_status=$?
+set -e
+(( fleet_default_status == 0 )) || {
+  echo "test-native-gate: fleet-default path probe failed ($fleet_default_status)" >&2
+  exit 1
+}
+[[ ! -e "$fleet_marker" ]] || {
+  echo "test-native-gate: fleet-default probe left its common marker behind" >&2
+  exit 1
+}
+grep -Fq 'native-gate-arbiter capacity=1 holder ' "$WORK/output-fleet-default" || {
+  echo "test-native-gate: fleet-default probe never entered its derived arbiter" >&2
+  exit 1
+}
+
+echo "test-native-gate: the default arbiter path follows Git's common directory, not a worktree-local marker"
+
+# ── The in-flight marker: holder identity and signal cleanup ─────────────────
 marker="$WORK/marker"
 : >"$WORK/events"
 PATH="$WORK:$PATH" \

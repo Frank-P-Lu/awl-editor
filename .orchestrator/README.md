@@ -64,16 +64,15 @@ lanes schedule **16 on ten cores** — over-subscribed, not headroom-leaving.
 the same way and is consistent). Derived from the gate's source and confirmed
 against `ps`, because the old figure was asserted rather than computed.
 
-**Consequences for a dispatching orchestrator, in order of usefulness:**
-- **Four lanes is the practical ceiling on this host, and only because gates
-  stagger.** Do not read "eight jobs, interactive headroom" as spare capacity —
-  there is none once two or more lanes reach a gate together.
-- **Never run the root merge-train gate while lanes are gating.** It is
-  deliberately hardware-adaptive and unbounded, so it lands on top of an already
-  over-subscribed host. Check `sysctl -n vm.loadavg` and
-  `ps aux | grep -cE "[c]argo|[r]ustc"` first; wait for the wave to quiesce.
-- This is the load that makes `test-native-gate.sh`'s CPU-heartbeat self-test
-  flake (see below) — the two facts are the same fact.
+**Six to eight lanes is the practical ceiling on this host.** The worker-build
+budget remains `CARGO_BUILD_JOBS=2` and `RUST_TEST_THREADS=1`; it is not spare
+capacity to spend. Six-way sharding cut the binary-unit wave from **231 s to
+60 s**. Recent whole native gates remain roughly **181–236 s**, because they
+also compile, run integration targets, and sweep the menu-bar arms. Full gates
+now enter the native-gate arbiter one at a time, so lane count no longer turns
+their short overlap into a sixteen-core collision. The merge train uses that
+same door; do not wait for a wave to quiesce or launch a second full gate by
+hand.
 
 **`CARGO_BUILD_JOBS` bounds compilation only, not test-execution parallelism**
 (item 277, measured 2026-08-05: load average 49.6 on this ten-core host with
@@ -90,18 +89,12 @@ core count. `native-gate.sh` already deferred to a caller-supplied
 derived default when the variable is unset — so this needed no change inside
 the gate script itself; the wrapper remains the sole owner of both bounds.
 
-⚠️ **ONE CHECK IN THIS REPO FAILS FROM ORCHESTRATION LOAD ALONE, AND READS AS A
-CODE DEFECT.** `scripts/test-native-gate.sh`'s CPU-heartbeat self-test — *"the
-busiest NEW process … dropped instead of measured over its own age"* — went red
-for a lane at load average 33–42 on this ten-core host with concurrent lanes at
-the gate phase, on a diff that could not touch it, and passed on a rerun once
-contention eased. **The wrapper's bounds do not prevent this**: they cap Cargo's
-build jobs and test threads, not the number of short-lived processes a heartbeat
-probe has to measure against its own age. So a red heartbeat self-test during a
-multi-lane wave is classified as contention **before** it is attributed to a
-diff — check the load average first, then rerun alone. It is the same
-classify-before-blaming rule as an incremental failure or a `SIGKILL`, applied
-to a check whose own configuration is the thing that failed.
+⚠️ **THE CPU-HEARTBEAT SELF-TEST'S OLD FALSE-RED CLASS IS NOW STRUCTURALLY
+BLOCKED.** It flaked only when full gates collided at load 33–42: the build and
+test-thread bounds cannot limit the short-lived processes a heartbeat samples.
+The arbiter queues those gates before they start, naming the live holder, so a
+second full gate cannot recreate that configuration. A red heartbeat law is now
+diagnosed from its own evidence, not waived as a multi-lane-wave artefact.
 
 The root's isolated merge-train gate, CI, and a developer's lone build do not
 use the wrapper and remain hardware-adaptive. The wrapper is intentionally a
@@ -274,6 +267,12 @@ reserve, so an undersized hosted runner fails before Cargo instead of attempting
 host cleanup. WebAssembly remains portable because its worker launch inherits the
 same preflight, while standalone `scripts/web-smoke.sh` stays a normal
 cross-platform build script with no macOS-specific disk policy.
+
+Each durable worktree consumes about **5 GiB**, so an eight-lane wave needs
+**40 GiB+** before shared artifacts and ordinary working room. The preflight is
+the authority: it measures capacity, recovers below its healthy floor through
+its one deletion owner, and refuses below its truthful minimum. Do not bypass it
+to reach the lane ceiling.
 
 ## Mutation proof is part of the deliverable
 
@@ -627,16 +626,18 @@ mentions it, not the board.** The board is a claim about the tree; the tree is t
    blocks can carry identical messages, and a `file` that no longer exists is the
    stale-exemption class item 288 was written to kill.
 
-8. **Partition parallel lanes by FILE, but treat a hold as a DEBT, not a
-   boundary.** The partition is what lets several lanes run at once without
-   collision, and its bill is duplicated shapes: one lane duplicated a chrome
-   geometry because another held the file it would otherwise have called into,
-   and said so in its own module doc. A later lane could then not wire its
-   headline at all, because the call site sat in a held file — and it correctly
-   **reported the block rather than inventing a second owner.** A route around a
-   lock is a worse design adopted only to dodge the lock. **When a lane says it
-   needs a held file, sequence the two. Two lanes that both need one file are one
-   lane.**
+8. **Partition parallel lanes by MECHANISM, not by file.** Two lanes changing
+   the same behavior are one lane: sequence them or give one owner the rule,
+   rather than letting a hold manufacture a second implementation. Hub files —
+   `keymap.rs`'s `Action` enum, `commands/catalog/*`, module lists,
+   `scripts/code-health.toml`, and `assets/keymap-defaults.toml` — are
+   append-shaped integration points, not automatic serialization boundaries.
+   A feature crosses about five files and a setting about ten; file ownership
+   would therefore serialize nearly every feature transitively. The recorded
+   cost was worse than a merge conflict: a lane duplicated chrome geometry to
+   avoid a held file, violating “same behavior ⇒ same code.” Make the direct
+   shared-owner edit, keep it reviewable, and let the serial merge train catch
+   real collisions by re-gating the exact combined candidate.
 
 Only the orchestrator writes the board, from the main working tree. Workers
 report shas and outcomes.
@@ -753,25 +754,26 @@ gate and threw away a full native run: every test passed, no receipt. Write the
 board note first or hold it until the receipt lands; the gate is the one thing
 that cannot be redone cheaply.
 
-**That rule only binds the session that started the gate — a second, concurrent
-orchestrator session cannot obey a fact it has no way to observe**, and this
-board explicitly supports two of them at once, so check before every commit to
-`main`: `.orchestrator/native-gate.marker` (gitignored) names the PID, start
-sha, and start time of any gate the root's `native-gate.sh` currently has in
-flight, written while it runs and removed on every exit path including
-failure and interrupt. Read it and test liveness with `kill -0`, since a
-marker can outlive a killed run and its mere existence carries no authority:
+**Every full native gate — lane or merge train — enters the same blocking
+arbiter.** `.orchestrator/native-gate.marker` (gitignored) names the holder PID,
+start sha, and start time while it owns the one full-width slot. An arriving
+gate waits and prints that identity before it proceeds. The companion admission
+flock is released by the kernel when its holder exits or is killed, so a stale
+marker cannot wedge the queue or require PID-reuse guessing. The EXIT trap
+removes the readable marker on success, failure, TERM, and INT. Targeted tests
+never enter this queue.
+
+The marker is still useful before a commit:
 
 ```sh
 cat .orchestrator/native-gate.marker 2>/dev/null   # pid=… start_commit=… start_epoch=…
 kill -0 <pid> 2>/dev/null && echo "gate PID <pid> is alive" || echo "marker is stale"
 ```
 
-This is advisory, not a lock — a gate is not entitled to freeze the
-repository. A live marker on the sha you're about to move means: wait, or
-commit deliberately and accept that the in-flight run's receipt will refuse
-itself (`HEAD changed while the suite ran`) and need a rerun. No marker, or a
-dead PID, means commit freely.
+The arbiter serializes gates, not commits. A live marker on the sha you are
+about to move still means wait, or commit deliberately and accept that the
+holder's receipt will refuse itself (`HEAD changed while the suite ran`) and
+need a rerun. No marker, or a dead PID, means commit freely.
 
 Integrate one branch at a time. Two branches each green alone can be red
 together — a roster or ownership law is designed to cause exactly that. For

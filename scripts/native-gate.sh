@@ -10,36 +10,73 @@ if (( $# != 0 )); then
 fi
 
 gate_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-AWL_DISK_PREFLIGHT_CALLER=native-gate "$gate_root/.orchestrator/disk-preflight.sh"
+# ── The full-gate arbiter ─────────────────────────────────────────────────────
+# Full gates contend for the same GPU and test processes; targeted tests do not
+# enter here. An inherited kernel flock is the admission door, while the marker
+# is the readable holder identity an arriving gate reports. Capacity is deliberately
+# one: six shards shortened a unit wave from 231 s to 60 s, but no measurement
+# establishes that two full-width gates are safe together.
+# Worktree-local paths would give every lane a private queue. The common Git
+# directory names the fleet, so every linked worktree resolves the main checkout
+# and shares this one readable holder marker and kernel lock.
+gate_common_dir="$(git rev-parse --path-format=absolute --git-common-dir)"
+gate_fleet_root="$(cd "$gate_common_dir/.." && pwd -P)"
+gate_marker="${AWL_NATIVE_GATE_MARKER:-$gate_fleet_root/.orchestrator/native-gate.marker}"
+gate_arbiter_lock="${AWL_NATIVE_GATE_ARBITER_LOCK:-${gate_marker}.lock}"
 
+gate_holder_field() {
+  local field="$1" holder="${2:-}"
+  holder="${holder#*$field=}"
+  printf '%s\n' "${holder%% *}"
+}
+
+gate_arbiter_acquire() {
+  local holder holder_pid
+  # The lock lives on fd 8. `flock` applies to its shared open-file description,
+  # so the short Perl probe leaves it held by this shell; the kernel releases it
+  # even after SIGKILL. That is safer than inferring stale ownership from a PID.
+  exec 8>>"$gate_arbiter_lock"
+  while ! perl -e 'use Fcntl qw(:flock); open my $lock, ">&=8" or exit 1; flock($lock, LOCK_EX | LOCK_NB) or exit 1;' 2>/dev/null; do
+    holder="$(cat "$gate_marker" 2>/dev/null || true)"
+    holder_pid="$(gate_holder_field pid "$holder")"
+    if [[ "$holder_pid" =~ ^[0-9]+$ ]] && kill -0 "$holder_pid" 2>/dev/null; then
+      printf 'native-gate: waiting for arbiter holder %s\n' "$holder" >&2
+    elif [[ "$holder_pid" =~ ^[0-9]+$ ]]; then
+      # The marker can outlive a killed holder, but the flock cannot. The next
+      # successful acquisition overwrites this stale identity without stealing
+      # a live slot or deleting a path another process might be publishing.
+      printf 'native-gate: waiting for arbiter to recover stale holder %s\n' "$holder" >&2
+    else
+      # An owner creates the directory before publishing its identity. Do not
+      # reclaim that tiny window: missing metadata is not stale evidence.
+      printf 'native-gate: waiting for arbiter holder identity to publish\n' >&2
+    fi
+    sleep 1
+  done
+}
+
+gate_arbiter_publish() {
+  # These identify work that has actually been admitted. Capturing them before
+  # queueing would spend a caller's budget in line and could certify a SHA that
+  # changed while it waited.
+  printf 'pid=%s start_commit=%s start_epoch=%s\n' "$$" "$start_commit" "$gate_started_epoch" \
+    >"$gate_marker"
+  printf 'native-gate-arbiter capacity=1 holder pid=%s start_commit=%s start_epoch=%s\n' \
+    "$$" "$start_commit" "$gate_started_epoch"
+}
+
+gate_arbiter_release() {
+  rm -f "$gate_marker"
+  # Closing fd 8 returns the admission slot. The lock file itself carries no
+  # authority and may persist, just like disk-preflight's lock file.
+  exec 8>&-
+}
+
+gate_arbiter_acquire
 start_commit="$(git rev-parse HEAD)"
-
 gate_started_epoch="$(date +%s)"
 gate_run_dir="$(mktemp -d "${TMPDIR:-/tmp}/awl-native-gate.XXXXXX")"
-
-# ── The in-flight marker: a signal, not a lock ────────────────────────────────
-# The board explicitly supports two concurrent orchestrator sessions in the same
-# working tree, and only ONE of them can ever be the one that started a given
-# gate — so "don't commit while the gate you started is running" cannot bind
-# the other session; it has no way to observe a fact that lives only in the
-# first session's memory. This marker moves that fact onto disk where a second
-# session can read it before it commits.
-#
-# It is a plain file, not `disk-preflight.sh`'s flock, on purpose. That lock
-# exists to serialize MUTATION — several launchers about to run `sweep.sh`
-# against the same disk, where only the kernel can arbitrate who goes first.
-# Nothing here contends for a resource: this gate is the only writer, every
-# reader only wants a point-in-time answer to "is a run alive, and since when,
-# and on what commit", and the brief is explicit that a gate must never block a
-# commit outright. A flock's blocking acquire (`LOCK_EX`) fights that directly,
-# and a non-blocking probe would just reimplement `kill -0` on a PID with extra
-# steps. A stale marker left by a killed run carries no authority of its own —
-# same principle as the disk-preflight lock file — but the check that proves it
-# stale is simpler here: read the PID back out of the marker's own contents and
-# ask the kernel with `kill -0`, rather than compare file descriptors.
-gate_marker="${AWL_NATIVE_GATE_MARKER:-$gate_root/.orchestrator/native-gate.marker}"
-printf 'pid=%s start_commit=%s start_epoch=%s\n' "$$" "$start_commit" "$gate_started_epoch" \
-  >"$gate_marker"
+gate_arbiter_publish
 
 # The vitals heartbeat launched below (`gate_vitals_loop`) is put in its own
 # process group by `gate_launch`, same as every phase, so a signal aimed only
@@ -66,7 +103,23 @@ gate_kill_vitals() {
   kill -TERM "$vitals_pid" 2>/dev/null || true
 }
 
-trap 'gate_kill_vitals; rm -rf "$gate_run_dir"; rm -f "$gate_marker"' EXIT
+gate_teardown() {
+  gate_kill_vitals
+  # A signal to the top-level gate otherwise leaves phase leaders reparented to
+  # init. End their groups before releasing the arbiter or removing diagnostics.
+  if [[ -n "${gate_pgid_file:-}" && -f "$gate_pgid_file" ]]; then
+    gate_kill_groups TERM
+    sleep 1
+    gate_kill_groups KILL
+  fi
+  rm -rf "$gate_run_dir"
+  gate_arbiter_release
+}
+
+trap gate_teardown EXIT
+
+# The preflight has no reason to retain gate admission after it returns.
+( exec 8>&-; AWL_DISK_PREFLIGHT_CALLER=native-gate "$gate_root/.orchestrator/disk-preflight.sh" )
 
 gate_elapsed() { printf '%s\n' $(( $(date +%s) - gate_started_epoch )); }
 
@@ -440,7 +493,10 @@ gate_launch() {
   local var="$1" tracked="$2"
   shift 2
   set -m
-  "$@" &
+  # fd 8 is the parent gate's admission lease. No phase, watchdog, test binary,
+  # or orphan fixture may inherit it: killing the holder must release the queue
+  # even while a descendant takes time to die.
+  ( exec 8>&-; "$@" ) &
   local launched=$!
   set +m
   [[ "$tracked" == tracked ]] && printf '%s\n' "$launched" >>"$gate_pgid_file"
