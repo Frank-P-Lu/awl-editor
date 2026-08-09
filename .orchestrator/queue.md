@@ -94,6 +94,14 @@ this heading exists; `git log -S"BLOCKED ON THE USER"` finds who took it.
     varies by machine. Recommendation: elide the path like other row text and
     delay two-column mode until the accessory survives; staging one region a
     little longer is calmer than showing both regions with controls missing.
+17. **The Linux drawn-menu Export click needs a real window/compositor.**
+    `AWL_MENU_BAR_FORCE=on` reaches the production menu geometry and hit-test on
+    this Mac (15 forced menu laws pass), but every hermetic `App` is deliberately
+    GPU-less and `App::menubar_press` returns before hit-testing without the
+    window-bound `Gpu`. Constructing that object requires a real winit window,
+    display handle and wgpu surface; the live script has no pointer-press event.
+    Close this on a Linux desktop with a real rendered-menu click, or after an
+    explicitly approved live GUI harness gains press input plus observable state.
 
 ## 🔵 OWED — live work that nothing above implies. Never cleared by a compression.
 
@@ -167,8 +175,8 @@ this heading exists; `git log -S"BLOCKED ON THE USER"` finds who took it.
   dangling links. `gallery/item-273r1/ref-cli.png`. Cheap to move.
 - 🔵 **The export save panel wants your eye on macOS** (item 301) — an AppKit
   modal is unobservable from any test. Right folder? Right pre-filled name?
-  Cancel leaves the document untouched? Try `Export as PDF…`. The Linux arm
-  (drawn menu bar firing export) is separately unreached.
+  Cancel leaves the document untouched? Try `Export as PDF…`. The separately
+  diagnosed Linux rendered-menu click is recorded under BLOCKED.
 - 🔵 **Should exporting bring the Finder forward at all?** (item 301) The reveal
   takes focus — DESIGN's no-nagging boundary. If no, the honest alternative is
   a palette row, not an automatic reveal. Live-only.
@@ -254,7 +262,7 @@ list instead of re-checking the tree.** Every entry in the previous list was
 verified landed via `git log --grep` before this re-derivation (292/293/299/303,
 294/298, 305, 291, 296+300, 273's residuals, 302, 227, 131e+303 — all merged).
 
-1. **378, 379, 380, 381** — independent closure wave for machine-doable
+1. **378, 379, 380** — independent closure wave for machine-doable
    residuals recovered from OWED.
 2. **🔵 HUMAN / LIVE** — only after the closure wave reclassifies every
    remaining OWED entry by evidence. **231**
@@ -291,14 +299,6 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
      headless geometry/perf case. Each successful check removes its OWED line; genuine display,
      platform, or human-feel limits move to BLOCKED with precise evidence.
 
-381. 🟡 **IN PROGRESS — codex (gpt-5.6-sol high), branch
-     `codex/item-381-linux-menu-export`. Close the Linux drawn-menu export click arm.**
-     Test whether `AWL_MENU_BAR_FORCE=on` makes the real rendered-menu hit path reachable through
-     a hermetic GPU-backed `App` on this host. If reachable, drive an actual Export row click and
-     assert the `ExportDest` journey/format through `menubar_press`, with a mutation that breaks
-     the click-to-action route. If OS event delivery or a Linux compositor remains the only
-     unreachable layer, move the residual to BLOCKED with exact evidence rather than claiming the
-     action seam as the platform journey. Do not exercise or choose the macOS save-panel behavior.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
