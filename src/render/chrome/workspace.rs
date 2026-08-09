@@ -187,8 +187,8 @@ impl TextPipeline {
         // `RailOverRows` (Settings, today) keeps the row list in the CONTENT
         // pane behind a PRIMARY column of labels; `TimelineOverComparison`
         // keeps it in the PRIMARY column instead, behind a content region this
-        // module never draws into —
-        // `comparison_viewport`, which the document layer itself relocates to.
+        // module never draws into: `comparison_viewport`, which the document
+        // layer itself relocates to.
         // `primary_visible`/`content_visible` are which REGION is on screen —
         // unchanged by the shape; `show_rows` is whichever owns the rows.
         let rows_primary = self.overlay_rows_primary;

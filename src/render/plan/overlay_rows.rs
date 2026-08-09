@@ -54,7 +54,7 @@ pub(in crate::render) enum PlanLine {
 /// drawn and not clickable where it was. DESIGN.md §8: drawn geometry and
 /// hit-test geometry have one owner.
 ///
-/// ITEM 131a — ONE OFFSET COULD NOT EXPRESS THE MIRROR. Mangrove's descending
+/// ONE OFFSET COULD NOT EXPRESS THE MIRROR. Mangrove's descending
 /// `\` composition steps each successive row's LEFT edge further right, right
 /// edge flush (`dx > 0`, `dw == 0`) — the shape `dx` alone already described.
 /// Magpie's ascending `/` composition, with clusters right-aligned, steps each
@@ -167,7 +167,7 @@ pub(in crate::render) fn plan_witness() -> (u64, u64) {
 }
 
 /// THE FORWARD ROW-Y ARITHMETIC. Deliberately PRIVATE to this module: the whole
-/// point of item 174 is that a consumer cannot re-derive a row's y from loose
+/// point of the plan is that a consumer cannot re-derive a row's y from loose
 /// scalars, only read it off the plan that drew it.
 fn row_top(text_top: f32, header_rows: usize, header_gap: f32, row: usize, lh: f32) -> f32 {
     text_top
@@ -175,7 +175,7 @@ fn row_top(text_top: f32, header_rows: usize, header_gap: f32, row: usize, lh: f
         + row as f32 * lh
 }
 
-/// THE ONE HEIGHT-CLAMP OWNER (item 181). Before item 181 the GROUPED family
+/// THE ONE HEIGHT-CLAMP OWNER. The GROUPED family previously
 /// (`theme_overlay_geometry`) alone divided its own available pixels by the row
 /// pitch to bound its item window; the FLAT family (`overlay_geometry`) capped
 /// its window only at a per-kind row COUNT (`OverlayKind::window_rows`) that
@@ -200,17 +200,16 @@ fn row_top(text_top: f32, header_rows: usize, header_gap: f32, row: usize, lh: f
 /// `min_items` is the FAMILY's own floor, never a bare constant: the FLAT
 /// family and the spell popup pass `1` — "a card always attempts to show its
 /// own selection" — because their fixed overhead (one query line, no lens
-/// strip) never grows past what a real canvas holds. ITEM 184: the GROUPED
+/// strip) never grows past what a real canvas holds. The GROUPED
 /// family passes `0`. Its own fixed overhead (the query line, the lens strip,
 /// and the query BEAT between them — `theme_overlay_geometry`'s
 /// `header_rows * lh + header_gap`) has no independent zoom ceiling, so at
 /// the documented zoom limit on a short canvas that overhead ALONE can already
 /// exceed `avail_px` before a single item or section header is counted (the
 /// 900x460/zoom-3.0 sectioned command-palette case, `render/tests/
-/// overlay_height_clamp_law.rs`). Forcing `.max(1)` there regardless, as item
-/// 181 originally did for both families, cannot be satisfied without
-/// overrunning the canvas — item 181's own doc named this "a chrome-overhead
-/// sizing question, not a row-count one" and left it to item 184. Below the
+/// overlay_height_clamp_law.rs`). Forcing `.max(1)` there regardless cannot be
+/// satisfied without overrunning the canvas: this is a chrome-overhead sizing
+/// question, not a row-count one. Below the
 /// floor no amount of item-count clamping can help either way; the difference
 /// is only whether the family is CONTRACTUALLY guaranteed a row at that
 /// floor (flat/spell) or willing to show an empty candidate band rather than
@@ -424,7 +423,7 @@ pub(in crate::render) fn plan_overlay_rows(input: &OverlayRowPlanInput<'_>) -> O
     // visual-selection transaction's answer (`overlay_visual_sel`), which reads
     // this as its target.
     //
-    // ITEM 184: `rows.is_empty()` is its own `None` case, checked before either
+    // `rows.is_empty()` is its own `None` case, checked before either
     // branch — a GROUPED card whose own chrome overhead already exceeds
     // `avail_px` (`fit_item_rows`'s `min_items: 0` floor) plans NO display
     // lines at all, item or header, even though `n_items > 0`. Both branches'
