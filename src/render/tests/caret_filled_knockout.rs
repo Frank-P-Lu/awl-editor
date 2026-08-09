@@ -8,6 +8,7 @@ use super::{headless_dqp, pixeldiff};
 
 const W: u32 = 420;
 const H: u32 = 240;
+const _: () = assert!(CARET_MORPH_DILATE_PX.0 > CARET_FILLED_KNOCKOUT_DILATE_PX.0);
 
 #[derive(Clone, Copy)]
 struct Cell {
@@ -90,21 +91,25 @@ const CELLS: [Cell; 8] = [
     },
 ];
 
-fn prepare(
-    p: &mut TextPipeline,
-    device: &wgpu::Device,
-    queue: &wgpu::Queue,
-    text: &str,
+struct PreparedView<'a> {
+    text: &'a str,
     line: usize,
     col: usize,
     look: CaretMode,
     zoom: f32,
     code: bool,
+}
+
+fn prepare(
+    p: &mut TextPipeline,
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    prepared: PreparedView<'_>,
 ) {
-    crate::caret::set_mode(look);
-    let mut v = super::view(text, line, col);
-    v.zoom = zoom;
-    if code {
+    crate::caret::set_mode(prepared.look);
+    let mut v = super::view(prepared.text, prepared.line, prepared.col);
+    v.zoom = prepared.zoom;
+    if prepared.code {
         v.syn_lang = Some(crate::syntax::Lang::Rust);
     }
     p.set_view(&v);
@@ -185,7 +190,6 @@ fn cassowary_filled_knockout_keeps_source_weight_across_cells_zoom_and_dpi() {
     crate::render::set_code_ligatures_on(true);
 
     assert_eq!(CARET_FILLED_KNOCKOUT_DILATE_PX.0, 0.0);
-    assert!(CARET_MORPH_DILATE_PX.0 > CARET_FILLED_KNOCKOUT_DILATE_PX.0);
 
     let mut glyph_cells = 0usize;
     let mut glyphless_cells = 0usize;
@@ -202,27 +206,59 @@ fn cassowary_filled_knockout_keeps_source_weight_across_cells_zoom_and_dpi() {
                     &mut p,
                     &device,
                     &queue,
-                    &text,
-                    1,
-                    0,
-                    CaretMode::Block,
-                    zoom,
-                    cell.code,
+                    PreparedView {
+                        text: &text,
+                        line: 1,
+                        col: 0,
+                        look: CaretMode::Block,
+                        zoom,
+                        code: cell.code,
+                    },
                 );
                 let parked = pixeldiff::render_frame(&mut p, &device, &queue, W, H);
 
                 prepare(
-                    &mut p, &device, &queue, &text, 0, cell.col, cell.look, zoom, cell.code,
+                    &mut p,
+                    &device,
+                    &queue,
+                    PreparedView {
+                        text: &text,
+                        line: 0,
+                        col: cell.col,
+                        look: cell.look,
+                        zoom,
+                        code: cell.code,
+                    },
                 );
                 if cell.name == "ligature" {
                     let ligature_pixels = pixeldiff::render_frame(&mut p, &device, &queue, W, H);
                     crate::render::set_code_ligatures_on(false);
                     let perturb = format!("{text} ");
                     prepare(
-                        &mut p, &device, &queue, &perturb, 0, cell.col, cell.look, zoom, false,
+                        &mut p,
+                        &device,
+                        &queue,
+                        PreparedView {
+                            text: &perturb,
+                            line: 0,
+                            col: cell.col,
+                            look: cell.look,
+                            zoom,
+                            code: false,
+                        },
                     );
                     prepare(
-                        &mut p, &device, &queue, &text, 0, cell.col, cell.look, zoom, true,
+                        &mut p,
+                        &device,
+                        &queue,
+                        PreparedView {
+                            text: &text,
+                            line: 0,
+                            col: cell.col,
+                            look: cell.look,
+                            zoom,
+                            code: true,
+                        },
                     );
                     let plain_pixels = pixeldiff::render_frame(&mut p, &device, &queue, W, H);
                     let substitution = pixeldiff::diff_region(
@@ -240,10 +276,30 @@ fn cassowary_filled_knockout_keeps_source_weight_across_cells_zoom_and_dpi() {
                     crate::render::set_code_ligatures_on(true);
                     let perturb = format!("{text}  ");
                     prepare(
-                        &mut p, &device, &queue, &perturb, 0, cell.col, cell.look, zoom, false,
+                        &mut p,
+                        &device,
+                        &queue,
+                        PreparedView {
+                            text: &perturb,
+                            line: 0,
+                            col: cell.col,
+                            look: cell.look,
+                            zoom,
+                            code: false,
+                        },
                     );
                     prepare(
-                        &mut p, &device, &queue, &text, 0, cell.col, cell.look, zoom, true,
+                        &mut p,
+                        &device,
+                        &queue,
+                        PreparedView {
+                            text: &text,
+                            line: 0,
+                            col: cell.col,
+                            look: cell.look,
+                            zoom,
+                            code: true,
+                        },
                     );
                 }
                 let (cx, cy, cw, ch, ..) = p.caret_geometry();
@@ -367,12 +423,14 @@ fn ordinary_morph_keeps_its_dilated_pixels_byte_identical() {
                 &mut p,
                 &device,
                 &queue,
-                text,
-                0,
-                2,
-                CaretMode::Morph,
-                zoom,
-                false,
+                PreparedView {
+                    text,
+                    line: 0,
+                    col: 2,
+                    look: CaretMode::Morph,
+                    zoom,
+                    code: false,
+                },
             );
             assert!(
                 p.caret_glyph_pipeline.is_drawn(),
