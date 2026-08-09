@@ -34,7 +34,7 @@ fn hover_only_highlights_visible_rows_and_never_scrolls() {
     assert!(!ov.hover_select(19));
 }
 
-/// ITEM 85 — THE REAL-MOTION GATE LAW: a world's re-layout under a STATIONARY
+/// THE REAL-MOTION GATE LAW: a world's re-layout under a STATIONARY
 /// pointer must never synthesize a new hover selection. `hover_at` is the
 /// production seam `app/input/mouse.rs::overlay_hover` calls on every
 /// `CursorMoved` (real travel OR a platform-synthesized duplicate at the
@@ -106,7 +106,7 @@ fn hover_at_gates_on_real_pointer_motion_not_a_relayout_hit_test_change() {
     assert!(!ov.hover_at(100.0, 200.0, Some(2)));
     assert_eq!(ov.selected, 3);
 
-    // ITEM 106 — ORDINARY HARDWARE JITTER under a resting hand (a real, but
+    // ORDINARY HARDWARE JITTER under a resting hand (a real, but
     // sub-slop, pixel of travel) must likewise stay inert: a stationary hand's
     // mouse routinely emits a physical pixel or two of noise, and that must
     // never read as "the user moved the pointer".
@@ -134,7 +134,7 @@ fn hover_at_gates_on_real_pointer_motion_not_a_relayout_hit_test_change() {
     assert_eq!(ov.last_hover_px, Some((past_slop, 200.0)));
 }
 
-/// ITEM 106 — THE MOVEMENT-SLOP BOUNDARY LAW, in both directions: a real move
+/// THE MOVEMENT-SLOP BOUNDARY LAW, in both directions: a real move
 /// of exactly `HOVER_MOVE_SLOP_PX - 1` (still within the slop) must NOT take
 /// over; `HOVER_MOVE_SLOP_PX + 1` (just past it) MUST — on that very event,
 /// no added latency. Pure distance math (no clock, no pipeline), mirroring
@@ -212,7 +212,7 @@ fn hover_at_movement_slop_boundary_law() {
     assert_eq!(diag_over.selected, 5);
 }
 
-/// ITEM 106 — THE KEYBOARD-BASELINE STAMP LAW: a PURE keyboard session (the
+/// THE KEYBOARD-BASELINE STAMP LAW: a PURE keyboard session (the
 /// pointer never explicitly hovered a row, so `last_hover_px` is `None`) must
 /// not hand its selection to wherever a motionless pointer happens to rest.
 /// This is a DIFFERENT hazard than the movement-slop distance gate proven
@@ -273,7 +273,7 @@ fn keyboard_baseline_stamp_protects_a_pointer_that_was_never_explicitly_hovered(
 
 /// A cold-start regression guard: with NO keyboard action ever having run (so
 /// `arm_hover_baseline` never fired either), a picker's very first genuine
-/// hover must still select immediately — item 106's slop/baseline widening
+/// hover must still select immediately — the slop/baseline widening
 /// must never turn into added latency or a dead zone for ordinary mouse-only
 /// use.
 #[test]
@@ -287,7 +287,7 @@ fn hover_still_works_normally_from_a_cold_start_with_no_prior_keyboard_action() 
     assert_eq!(ov.selected, 6);
 }
 
-/// ITEM 106 — KEYBOARD NAV SURVIVES A POINTER PARKED ANYWHERE: sweeps the
+/// KEYBOARD NAV SURVIVES A POINTER PARKED ANYWHERE: sweeps the
 /// pointer's parked position across four representative cases relative to
 /// where the keyboard ends up — the row ABOVE it, the row BELOW it, a FAR row
 /// (the opposite end of the list), and the row the keyboard landed ON itself
@@ -430,7 +430,7 @@ fn hover_at_off_a_row_records_position_without_selecting() {
     );
 }
 
-/// ITEM 85 — the keyboard half of the law: ↓/↑ (`move_sel(±1)`, what
+/// The keyboard half of the law: ↓/↑ (`move_sel(±1)`, what
 /// `Action::NextLine`/`PreviousLine` drive) advances EXACTLY one visible row per
 /// press, from wherever the selection actually sits — including right after a
 /// mouse hover moved it, proving the two input kinds compose cleanly (a hover's
