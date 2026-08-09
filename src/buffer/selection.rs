@@ -20,7 +20,7 @@ impl Buffer {
     /// C-g: clear the mark (cancel the selection). Cursor unchanged.
     pub fn clear_mark(&mut self) {
         self.anchor = None;
-        // Item 78: a selection change — this bypasses `clear_kill_flag`, so the
+        // A selection change bypasses `clear_kill_flag`, so the
         // list-continuation provenance flag needs its own clear here.
         self.list_continuation_generated = false;
     }
@@ -170,7 +170,7 @@ impl Buffer {
         // (mirrors `clear_kill_flag`, which this method deliberately bypasses to
         // KEEP goal_x): landing on a boundary via Up/Down renders on the LOWER row.
         self.affinity = crate::caret::Affinity::Downstream;
-        // Item 78: a vertical move is still MOVEMENT — this deliberately bypasses
+        // A vertical move is still MOVEMENT — this deliberately bypasses
         // `clear_kill_flag` to keep `goal_x`, but the list-continuation
         // provenance flag has no such exemption.
         self.list_continuation_generated = false;

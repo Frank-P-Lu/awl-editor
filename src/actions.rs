@@ -15,7 +15,7 @@ mod motion; // the oracle-aware caret motions + page scroll + search open
 mod overlay_nav; // the modal overlay intercept + browse-path helpers + live preview
 pub(crate) mod popover; // the format-popover pure plan (reads format.rs's active-state)
 mod rebind; // the game-style rebind-menu key handling
-mod workspace_nav; // ITEM 114 — the workspace's two-region keys + the Cmd-P deep link
+mod workspace_nav; // the workspace's two-region keys + the Cmd-P deep link
 use deferred::*;
 use edit::*;
 pub use effects::*;
@@ -523,7 +523,7 @@ fn apply_overlay_open_action(ctx: &mut ActionCtx, action: &Action) -> bool {
         // caller's `make_overlay` gathers the file's versions (via
         // `history::timeline_rows`); an empty history still opens (the calm "no
         // history yet" row), so this is never a silent no-op. `AcceptAlternate`
-        // (⇧↵) then RESTORES the highlighted version as an undoable edit — item 116c.
+        // (⇧↵) then RESTORES the highlighted version as an undoable edit.
         Action::OpenHistory => {
             ctx.journey.enter((ctx.make_overlay)(OverlayKind::History));
         }
@@ -535,7 +535,7 @@ fn apply_overlay_open_action(ctx: &mut ActionCtx, action: &Action) -> bool {
         Action::OpenAssetClean => {
             ctx.journey.enter((ctx.make_overlay)(OverlayKind::Assets));
         }
-        // ITEM 116c — see `workspace_nav::open_keep_version`'s own doc: parks
+        // See `workspace_nav::open_keep_version`'s own doc: this parks
         // whatever is already open rather than `enter`-ing over it.
         Action::KeepVersion => workspace_nav::open_keep_version(ctx),
         // "Compare with version…" from the BUFFER: the SAME workspace

@@ -1,11 +1,11 @@
-//! ITEM 10 — ONE SHARED SINGLE-LINE TEXTBOX MODEL: text + CHAR-index caret +
+//! ONE SHARED SINGLE-LINE TEXTBOX MODEL: text + CHAR-index caret +
 //! motion/edit/word rules, shared by the 7 end-only single-line fields this
-//! item routes through it — picker query, Rename, Insert-link URL,
+//! model routes through it — picker query, Rename, Insert-link URL,
 //! Keep-version name, Settings value, Find query, Replace text (see
 //! [`TextField::ALL`]). Pure text + caret + motion — NO char filtering (a
 //! Settings digit/`.`/`%` gate, a Rename `/`-reject), NO refilter/recompute/
 //! commit; those stay owned by each surface (`overlay::capture`,
-//! `overlay::nav`, `search::mod` respectively) exactly as before item 10.
+//! `overlay::nav`, `search::mod` respectively).
 //!
 //! CHAR-INDEX DISCIPLINE: `caret` is a CHAR index into `text`
 //! (`0..=text.chars().count()`), NEVER a byte offset — `String::insert` /
@@ -53,7 +53,7 @@ impl TextBox {
     }
 
     /// A field pre-filled with `s`, caret at the END — the seeding every
-    /// existing minibuffer used before item 10 (Rename / Insert-link /
+    /// existing seeded minibuffer uses (Rename / Insert-link /
     /// Settings all start from the current value, caret ready to backspace
     /// it; only Keep-version seeds empty, via [`Self::new`]).
     pub fn seeded(s: &str) -> Self {

@@ -212,9 +212,9 @@ pub fn classify_for(effect: &Effect, filesystem: FilesystemCapability) -> Classi
                 "the config write + live keymap reload are live-App-only; the reset would not take effect",
             ),
         ),
-        // ITEM 190 — the same grant item 171 gave `save`/`finish_save`, extracted
-        // to `typed::classify_settings` for the same reason `classify_persistence`
-        // is: this match's own line budget.
+        // Settings persistence gets the same capability grant as
+        // `save`/`finish_save`, classified in `typed::classify_settings` to keep
+        // this match within its line budget.
         Effect::SettingToggle { key } => classify_settings(
             "setting_toggle",
             "flipping the live global + persisting it are live-App-only; \
@@ -234,7 +234,7 @@ pub fn classify_for(effect: &Effect, filesystem: FilesystemCapability) -> Classi
             filesystem,
             None,
         ),
-        // ITEM 94 — a RANGE row's step: unlike its Toggle/Value siblings above, the
+        // A RANGE row's step: unlike its Toggle/Value siblings above, the
         // VALUE CHANGE ITSELF already happened in the shared core (`apply_transition`
         // stepped `ActionCtx::zoom` through the range spec and mirrored the row's
         // readout + thumb), so the replay session observes exactly what live does —
@@ -267,9 +267,9 @@ fn accept_class(kind: OverlayKind) -> EffectClass {
     match kind {
         // Applied for real: Goto drives the multi-buffer registry switch inline in the
         // replay loop; Project re-roots (whole sidecar block re-derived from the accepted
-        // root by the ONE builder `run::project_info` — item 183; the session's OWN
-        // root/workspace/corpus re-scope through `ReplaySession::resync_project_location`
-        // — item 189 — so a chord applied after the accept reads the new tree too) and
+        // root by the ONE builder `run::project_info`; the session's OWN
+        // root/workspace/corpus re-scope through `ReplaySession::resync_project_location`,
+        // so a chord applied after the accept reads the new tree too) and
         // History restores, both in `capture_screenshot`'s accept stage; Theme / Caret /
         // Dictionary / CjkLang / Date set their process-global CORE-level, so the replay
         // observes them exactly as live (`actions/overlay_nav.rs`).

@@ -25,7 +25,7 @@ pub enum StepOutcome {
 /// Live isearch state. Owned by `App` as `Option<SearchState>`; the query is its
 /// OWN String, never spliced into the rope.
 pub struct SearchState {
-    /// ITEM 10 — the search needle + its CHAR-index caret, one shared [`TextBox`].
+    /// The search needle + its CHAR-index caret, one shared [`TextBox`].
     query: TextBox,
     case_sensitive: bool,
     matches: Vec<Match>,
@@ -37,7 +37,7 @@ pub struct SearchState {
     /// a replace fires, so a search that never reveals replace behaves exactly as
     /// before.
     replace_active: bool,
-    /// ITEM 10 — the replacement text + its OWN CHAR-index caret, one shared
+    /// The replacement text + its OWN CHAR-index caret, one shared
     /// [`TextBox`] like `query` — never spliced into the rope until
     /// replace-current / replace-all is invoked, and its caret/word motion
     /// NEVER recomputes or jumps (the deliberate query/replacement asymmetry —
@@ -95,7 +95,7 @@ impl SearchState {
         self.recompute(haystack);
     }
 
-    /// ITEM 10 — QUERY char/word caret motion. Pure motion, so it does NOT
+    /// QUERY char/word caret motion. Pure motion, so it does NOT
     /// recompute the match set (the text is unchanged) — the caller still
     /// re-anchors the visible caret from `self`, never the buffer.
     pub fn query_char_left(&mut self) {
@@ -226,7 +226,7 @@ impl SearchState {
     /// Insert a char at the replacement field's caret. The replacement is NOT
     /// searched, so the match set is unchanged (no recompute) — the deliberate
     /// query/replacement asymmetry (`SearchState`'s own doc): this is the ONE
-    /// field item 10 must NEVER wire into a recompute/jump.
+    /// field that must NEVER wire into a recompute/jump.
     pub fn push_replace_char(&mut self, c: char) {
         self.replacement.insert(c);
     }
@@ -235,7 +235,7 @@ impl SearchState {
         self.replacement.delete_back();
     }
 
-    /// ITEM 10 — REPLACEMENT char/word caret motion + word-delete. NONE of
+    /// REPLACEMENT char/word caret motion + word-delete. NONE of
     /// these ever recompute or jump — the replacement is never searched, and a
     /// replace commit reads its CURRENT text regardless of where the caret
     /// sits. Preserves the deliberate query/replacement asymmetry.

@@ -22,7 +22,7 @@ const EXPECTED: &[(&str, usize)] = &[
     // init failures above; when the recorder can't open its file it says so and
     // stays off rather than failing the launch.
     ("probe.rs", 3),
-    // ITEM 85 adds TWO: the `LIVE-PROBE latency …` protocol line's ok/none arms
+    // TWO entries cover the `LIVE-PROBE latency …` protocol line's ok/none arms
     // (`ProbeEvent::Latency`) — the movement-latency distribution report,
     // mirroring the existing per-shot line's fate (c) exactly.
     ("app/probe.rs", 7),
@@ -38,12 +38,12 @@ const EXPECTED: &[(&str, usize)] = &[
     // keep the round's own diff focused on the reported bug (manual Save +
     // the toggle-chatter class it named explicitly). The USER GUIDE round
     // added ONE more (`open_guide`'s on-disk-refresh failure), mirroring
-    // `open_credits`'s existing one verbatim. Item 39 (Add to dictionary) adds
-    // ONE more: `add_to_dictionary`'s rare personal-dictionary FILE-append
+    // `open_credits`'s existing one verbatim. ONE more covers
+    // `add_to_dictionary`'s rare personal-dictionary FILE-append
     // failure (I/O error, unresolvable path) — non-fatal by design (the word is
     // already silenced in memory that session), same best-effort-write class as
     // the sticky-pref writes above; a future notice-routing candidate.
-    // Item 56: the former `app/files.rs` monolith split into `app/files/`;
+    // The former `app/files.rs` monolith is split into `app/files/`;
     // the same 14 best-effort-write sites, redistributed by which submodule
     // now owns each verb (open/credits/guide + the recent MRUs in
     // `open.rs`; sticky-pref + page-width-reset in `settings.rs`; the
@@ -82,10 +82,10 @@ const EXPECTED: &[(&str, usize)] = &[
     ("config/model.rs", 1),
     ("keymap.rs", 4),
     ("main.rs", 2),
-    // `--help`'s big usage dump, plus `--list-worlds` (item 68): a
+    // `--help`'s big usage dump, plus `--list-worlds`: a
     // machine-readable roster dump for `scripts/capture-worlds.sh` and any
     // other script that wants the world list without parsing --help. Plus
-    // `--pack-icns`'s two lines (item 92): the per-world byte table and the
+    // `--pack-icns`'s two lines: the per-world byte table and the
     // summary the icon export prints as its deliverable receipt. Plus
     // `--export-linux-icon`'s own one-line deliverable receipt, same shape
     // as `--pack-icns`'s summary line. All five are fate (c) — genuine
@@ -98,16 +98,16 @@ const EXPECTED: &[(&str, usize)] = &[
     // an Unsupported/Intercepted effect; CLI diagnostic output by design, and the
     // same string is recorded in the replay result so tests pin it). (The 8th is the
     // virtual-clock frame-loop capture's own "wrote N frame(s)…" deliverable line.)
-    // ITEM 77 FOLLOW-UP: `load_buffer`'s own refusal line is the
+    // `load_buffer`'s own refusal line is the
     // headless capture door's analog of `App::new`'s sticky notice (there is
     // no live App/notice seam here to route through), reported the same way
     // every other CLI-only diagnostic in this file is: a stderr line naming
     // what happened before the capture proceeds on a scratch buffer instead.
-    // Item 171 moved the permissive replay warning into the typed effect
-    // interpreter; the total count stays unchanged across the two files.
+    // The permissive replay warning lives in the typed effect interpreter;
+    // the total count spans both files.
     ("main/run.rs", 8),
     ("main/run/effect_interpreter.rs", 1),
-    // Item 188's live-`App` capture mode: the one "wrote OUT.png (+ sidecar
+    // The live-`App` capture mode's one "wrote OUT.png (+ sidecar
     // .json)" deliverable line, worded identically to `capture_screenshot`'s in
     // `main/run.rs` above. CLI product output, not a diagnostic — a capture
     // mode's whole job is to say where it put the artifact.

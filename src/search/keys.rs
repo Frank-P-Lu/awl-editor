@@ -169,13 +169,13 @@ fn intercept_named(
         // Cmd-F / Cmd-Shift-F), so you can pass over a match you don't want changed.
         NamedKey::ArrowDown => return step(search, buffer, Direction::Forward),
         NamedKey::ArrowUp => return step(search, buffer, Direction::Backward),
-        // ITEM 10 — Left/Right move the FOCUSED field's own caret (char, or a
+        // Left/Right move the FOCUSED field's own caret (char, or a
         // WORD at a time held with Alt/Option) — previously a no-op. Pure
         // motion: never recomputes/jumps, on EITHER field (the replacement
         // NEVER does regardless; the query's text is unchanged by a move).
         NamedKey::ArrowLeft => move_field(search, editing_replacement, alt, false),
         NamedKey::ArrowRight => move_field(search, editing_replacement, alt, true),
-        // ITEM 10 — ⌥⌫ word-delete (the word-DELETE rule, distinct from the
+        // ⌥⌫ word-delete (the word-DELETE rule, distinct from the
         // word-MOTION arrows above): checked BEFORE the plain-Backspace arm so
         // Alt wins. The replacement's word-delete NEVER recomputes/jumps
         // (mirrors `pop_replace_char`'s own asymmetry); the query's DOES (an
