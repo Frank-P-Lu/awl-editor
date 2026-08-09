@@ -305,6 +305,7 @@ pub(in crate::render) mod diagonal;
 mod overlay;
 mod overlay_clamp;
 mod panel;
+pub(in crate::render) use panel::{PANEL_MARGIN, PANEL_PAD};
 // The SUMMONED WORKSPACE family: geometry, navigation rail, hit-test, its two
 // regions' shared box arithmetic, and the RELOCATED
 // DOCUMENT VIEWPORT one of them can become (`comparison_viewport`).

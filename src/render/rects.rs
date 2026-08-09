@@ -1383,8 +1383,8 @@ impl TextPipeline {
         caret_row: f32,
     ) -> ([f32; 4], f32, f32, f32) {
         let m = &self.metrics;
-        let pad = 12.0;
-        let margin = 12.0;
+        let pad = m.px_physical(crate::render::chrome::PANEL_PAD);
+        let margin = m.px_physical(crate::render::chrome::PANEL_MARGIN);
         let mut text_w = 0.0_f32;
         let mut rows = 0usize;
         for run in self.panel_buffer.layout_runs() {
@@ -1392,9 +1392,13 @@ impl TextPipeline {
             rows += 1;
         }
         let rows = rows.max(1) as f32;
-        let card_w = text_w + 2.0 * pad;
+        // Preserve the ordinary content-sized card, but on a narrow canvas cap
+        // it to the room between the two outer margins. `panel_shape_text`
+        // independently fits every shaped row to the corresponding inner width,
+        // so this clamp cannot trade a negative left edge for clipped right ink.
+        let card_w = (text_w + 2.0 * pad).min((width as f32 - 2.0 * margin).max(0.0));
         let card_h = rows * m.line_height + 2.0 * pad;
-        let card_x = width as f32 - card_w - margin;
+        let card_x = (width as f32 - card_w - margin).max(0.0);
         let card_y = margin + self.menubar_reserve();
         let text_left = card_x + pad;
         let text_top = card_y + pad;

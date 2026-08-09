@@ -6,6 +6,14 @@
 
 use super::*;
 
+/// The search card's inner breathing room and outer canvas inset, preserving
+/// their existing DEVICE-pixel behavior. Promoting either to `Logical` would
+/// change the Retina composition and remains a visual decision; naming them is
+/// what lets the pending 1x/2x comparison find both consumers without another
+/// inline-literal census.
+pub(in crate::render) const PANEL_PAD: Physical = Physical(12.0);
+pub(in crate::render) const PANEL_MARGIN: Physical = Physical(12.0);
+
 impl TextPipeline {
     /// Shape + upload the top-right search panel for this frame: the opaque
     /// BASE_300 card, the panel text (calm BASE_CONTENT, or ERROR-red on the
@@ -72,12 +80,27 @@ impl TextPipeline {
         let total = self.search_matches.len();
         let n = self.search_current.map(|i| i + 1).unwrap_or(0);
         let query = self.search_query.clone();
-        // The query never shapes as its raw, unbounded self: it's always
-        // exactly `PANEL_FIELD_CHARS` chars (scrolled/padded by the one shared rule,
-        // `field_view_window`), so typing/pasting a long query can never widen the
-        // card. See the constant's own doc.
+        // The query never shapes as its raw, unbounded self: it is a fixed visible
+        // field, scrolled/padded by `field_view_window`. At ordinary widths that
+        // field is `PANEL_FIELD_CHARS`; on a narrow canvas it yields enough cells
+        // for the labelled row to remain inside the card instead of pushing the
+        // right-anchored card to a negative x.
+        let panel_text_w =
+            (width as f32 - 2.0 * m.px_physical(PANEL_MARGIN) - 2.0 * m.px_physical(PANEL_PAD))
+                .max(m.char_width);
+        let panel_cells = (panel_text_w / m.char_width).floor() as usize;
+        // The label, reserved caret gap, largest counter and `Aa` cell consume
+        // just under twenty base cells on the widest shipping chrome face.
+        // Reserve the roster maximum rather than tuning to the default world.
+        const PANEL_FIXED_CELLS: usize = 20;
+        const PANEL_MIN_FIELD_CHARS: usize = 8;
+        let field_chars = PANEL_FIELD_CHARS.min(
+            panel_cells
+                .saturating_sub(PANEL_FIXED_CELLS)
+                .max(PANEL_MIN_FIELD_CHARS),
+        );
         let (query_view, query_view_caret) =
-            field_view_window(&query, self.search_query_caret, PANEL_FIELD_CHARS);
+            field_view_window(&query, self.search_query_caret, field_chars);
 
         // Labels, padded to a shared width so `query` and `replacement` start in the
         // same column (ASCII, so byte len == char count — the caret-offset math below
@@ -123,16 +146,21 @@ impl TextPipeline {
         let field = |c| Attrs::new().family(Family::Monospace).color(c);
 
         let replacement = self.search_replacement.clone();
-        let (replacement_view, replacement_view_caret) = field_view_window(
-            &replacement,
-            self.search_replacement_caret,
-            PANEL_FIELD_CHARS,
-        );
+        let (replacement_view, replacement_view_caret) =
+            field_view_window(&replacement, self.search_replacement_caret, field_chars);
         let replace_active = self.search_replace_active;
         let editing_replacement = replace_active && self.search_editing_replacement;
         // The dim key-hint line that teaches the replace actions — muted ink, present
         // only once the replace row is up (a plain find keeps the terse counter panel).
-        let hint = "\u{21B5} replace+next   \u{2318}\u{21B5} all   \u{21E5} switch   \u{2318}\u{2325}c case   Esc done";
+        const HINT_WIDE: &str = "\u{21B5} replace+next   \u{2318}\u{21B5} all   \u{21E5} switch   \u{2318}\u{2325}c case   Esc done";
+        const HINT_NARROW: &str = "\u{21B5} replace+next   \u{2318}\u{21B5} all\n\u{21E5} switch   \u{2318}\u{2325}c case\nEsc done";
+        // Keep the teaching copy whole. A narrow card spends vertical room on
+        // semantic line breaks rather than clipping or silently dropping a key.
+        let hint = if panel_cells >= 61 {
+            HINT_WIDE
+        } else {
+            HINT_NARROW
+        };
         // DISCOVERABILITY: the "⌘⌥c case" chunk BRIGHTENS from muted to full ink when
         // case-sensitivity is ON — the same value cue the `Aa` indicator carries (never
         // amber; state by value), pointing the eye at the exact chord that toggles it.
@@ -198,7 +226,11 @@ impl TextPipeline {
                 emit(&mut spans, last, hint.len(), false);
             }
         }
-        let rows = if replace_active { 3.0 } else { 1.0 };
+        let rows = if replace_active {
+            2.0 + hint.lines().count() as f32
+        } else {
+            1.0
+        };
         // Give the buffer generous width + one line height per row so it never wraps.
         self.panel_buffer.set_size(
             &mut self.font_system,

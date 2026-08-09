@@ -883,6 +883,87 @@ fn panel_card_yields_to_shown_menu_bar() {
     crate::menubar::set_menu_bar_on(ambient_menu_bar);
 }
 
+/// A narrow find/replace panel stays wholly on-canvas without trading the old
+/// negative origin for clipped ink on the opposite edge. The transition is
+/// swept on both sides of the ordinary card's natural-width threshold, and the
+/// real shaped rows are the oracle: every row must fit inside the card the frame
+/// draws, not merely inside a separately-computed width budget.
+#[test]
+fn find_replace_panel_clamps_and_fits_its_shaped_rows_across_the_narrow_transition() {
+    let _g = crate::testlock::serial();
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!(
+            "skipping find_replace_panel_clamps_and_fits_its_shaped_rows_across_the_narrow_transition: no wgpu adapter"
+        );
+        return;
+    };
+    let ambient = theme::active_index();
+    let mut v = view("hello\nhello\n", 0, 0);
+    v.search_active = true;
+    v.search_query = "hello".into();
+    v.search_matches = vec![((0, 0), (0, 5)), ((1, 0), (1, 5))];
+    v.search_current = Some(0);
+    v.search_replace_active = true;
+    v.search_replacement = "goodbye".into();
+
+    for (world_i, world) in theme::THEMES.iter().enumerate() {
+        theme::set_active(world_i);
+        p.sync_theme_font();
+        p.set_view(&v);
+
+        // Learn the existing ordinary card's natural threshold from its shaped
+        // output, then probe immediately below, at and above it, plus the
+        // reported 560px reproduction and the app's supported logical floor.
+        p.panel_shape_text(1200);
+        let ([_, _, natural_w, _], ..) = p.panel_layout(1200, 0, 0, 0.0);
+        let threshold = (natural_w + 12.0).ceil() as u32;
+        let widths = [
+            464,
+            560,
+            threshold.saturating_sub(1),
+            threshold,
+            threshold + 1,
+            1200,
+        ];
+
+        for width in widths {
+            let shape = p.panel_shape_text(width);
+            let ([x, _y, w, _h], text_left, _text_top, _caret_x) = p.panel_layout(
+                width,
+                shape.caret_byte,
+                shape.caret_fallback_chars,
+                shape.caret_row,
+            );
+            assert!(
+                x >= 0.0 && x + w <= width as f32 + 0.01,
+                "{} at {width}px: card [{x}, {}] escapes the canvas",
+                world.name,
+                x + w
+            );
+            let runs: Vec<(usize, f32)> = p
+                .panel_buffer
+                .layout_runs()
+                .map(|run| (run.line_i, run.line_w))
+                .collect();
+            assert!(
+                runs.len() >= 3,
+                "{} at {width}px: replace panel lost a row",
+                world.name
+            );
+            for (line, line_w) in runs {
+                assert!(
+                    text_left >= x && text_left + line_w <= x + w + 0.01,
+                    "{} at {width}px: shaped row {line} spans [{text_left}, {}] outside card [{x}, {}]",
+                    world.name,
+                    text_left + line_w,
+                    x + w
+                );
+            }
+        }
+    }
+    theme::set_active(ambient);
+}
+
 /// WEB/LINUX MENU BAR YIELD, the SWEEP's own two remaining stragglers: the centered
 /// command-palette/picker card ([`TextPipeline::overlay_geometry`]) and the faceted
 /// theme/caret picker card ([`TextPipeline::theme_overlay_geometry`]) both used a
