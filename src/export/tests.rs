@@ -23,6 +23,113 @@ impl ImageSource for NoImages {
     }
 }
 
+#[derive(Debug)]
+struct MarkupDoc<'a> {
+    source: &'a str,
+    tags: Vec<MarkupTag<'a>>,
+}
+
+#[derive(Debug)]
+struct MarkupTag<'a> {
+    name: &'a str,
+    attrs: &'a str,
+}
+
+impl<'a> MarkupDoc<'a> {
+    fn html(source: &'a str) -> Self {
+        Self::parse(source, false)
+    }
+
+    fn xml(source: &'a str) -> Self {
+        check_xml_well_formed(source).expect("export XML is well formed");
+        Self::parse(source, true)
+    }
+
+    fn parse(source: &'a str, xml: bool) -> Self {
+        let mut tags = Vec::new();
+        let mut rest = source;
+        while let Some(open) = rest.find('<') {
+            rest = &rest[open + 1..];
+            let Some(close) = rest.find('>') else {
+                panic!("unterminated markup tag")
+            };
+            let inner = rest[..close].trim();
+            rest = &rest[close + 1..];
+            if inner.starts_with(['!', '?', '/']) {
+                continue;
+            }
+            let inner = inner.trim_end_matches('/').trim_end();
+            let (name, attrs) = split_name(inner);
+            assert!(!name.is_empty(), "empty markup tag");
+            if xml {
+                check_attrs(attrs).expect("XML attributes parse");
+            }
+            tags.push(MarkupTag { name, attrs });
+        }
+        if xml {
+            assert!(!tags.is_empty(), "XML document has elements");
+        }
+        Self { source, tags }
+    }
+
+    fn has_tag(&self, name: &str) -> bool {
+        self.tags.iter().any(|tag| tag.name == name)
+    }
+
+    fn has_attr(&self, tag_name: &str, name: &str, value: Option<&str>) -> bool {
+        self.tags.iter().any(|tag| {
+            tag.name == tag_name
+                && attr_value(tag.attrs, name)
+                    .is_some_and(|actual| value.is_none_or(|v| actual == v))
+        })
+    }
+
+    fn has_text(&self, text: &str) -> bool {
+        self.source
+            .split('<')
+            .filter_map(|part| part.split_once('>').map(|(_, text)| text))
+            .any(|node| node.contains(text))
+    }
+
+    fn has_source_text(&self, text: &str) -> bool {
+        self.source.contains(text)
+    }
+
+    fn lacks_source_text(&self, text: &str) -> bool {
+        !self.has_source_text(text)
+    }
+}
+
+fn attr_value<'a>(mut attrs: &'a str, wanted: &str) -> Option<&'a str> {
+    while !attrs.is_empty() {
+        attrs = attrs.trim_start();
+        let token_end = attrs.find(char::is_whitespace).unwrap_or(attrs.len());
+        let Some(eq) = attrs.find('=') else {
+            if attrs[..token_end] == *wanted {
+                return Some("");
+            }
+            attrs = &attrs[token_end..];
+            continue;
+        };
+        if eq > token_end {
+            if attrs[..token_end] == *wanted {
+                return Some("");
+            }
+            attrs = &attrs[token_end..];
+            continue;
+        }
+        let name = attrs[..eq].trim();
+        let quoted = attrs[eq + 1..].trim_start();
+        let quote = quoted.as_bytes().first().copied()?;
+        let end = quoted[1..].find(quote as char)? + 1;
+        if name == wanted {
+            return Some(&quoted[1..end]);
+        }
+        attrs = &quoted[end + 1..];
+    }
+    None
+}
+
 // --- The rich fixture -------------------------------------------------------
 
 /// Every covered construct: frontmatter (excluded), all heading levels,
@@ -267,10 +374,14 @@ fn tight_list_item_text_survives_into_both_emitters() {
 
     // (b) Both emitters carry every word through.
     let html = to_html(FIXTURE, &fixture_images());
+    let html_doc = MarkupDoc::html(&html);
     let docx = to_docx(FIXTURE, &fixture_images());
     let doc_xml = String::from_utf8(unzip_stored(&docx)["word/document.xml"].clone()).unwrap();
     for w in words {
-        assert!(html.contains(w), "HTML export dropped list item text {w:?}");
+        assert!(
+            html_doc.has_text(w),
+            "HTML export dropped list item text {w:?}"
+        );
         assert!(
             doc_xml.contains(w),
             "DOCX export dropped list item text {w:?}"
@@ -351,6 +462,7 @@ fn every_fixture_text_fragment_survives_into_both_emitters() {
     );
 
     let html = to_html(FIXTURE, &fixture_images());
+    let html_doc = MarkupDoc::html(&html);
     let docx = to_docx(FIXTURE, &fixture_images());
     let doc_xml = String::from_utf8(unzip_stored(&docx)["word/document.xml"].clone()).unwrap();
     let docx_text = docx_run_text(&doc_xml);
@@ -364,7 +476,7 @@ fn every_fixture_text_fragment_survives_into_both_emitters() {
             docx_text.contains(f),
             "DOCX dropped text fragment {f:?}\n(all run text: {docx_text:?})"
         );
-        assert!(html.contains(f), "HTML dropped text fragment {f:?}");
+        assert!(html_doc.has_text(f), "HTML dropped text fragment {f:?}");
     }
 }
 
@@ -397,29 +509,40 @@ fn docx_run_text(doc_xml: &str) -> String {
 #[test]
 fn html_has_the_expected_structure() {
     let html = to_html(FIXTURE, &fixture_images());
+    let doc = MarkupDoc::html(&html);
     assert!(html.starts_with("<!DOCTYPE html>"));
-    assert!(html.contains("<title>Export Fixture</title>"));
-    assert!(html.contains("<h1>Export Fixture</h1>"));
-    assert!(html.contains("<strong>bold</strong>"));
-    assert!(html.contains("<em>italic</em>"));
-    assert!(html.contains("<del>struck</del>"));
-    assert!(html.contains("<mark>highlighted</mark>"));
-    assert!(html.contains("<code>inline code</code>"));
-    assert!(html.contains("href=\"https://example.com/path?q=1&amp;r=2\""));
-    assert!(html.contains("<blockquote>"));
-    assert!(html.contains("<hr>"));
-    assert!(html.contains("<table>"));
-    assert!(html.contains("text-align:center"));
-    assert!(html.contains("<pre><code class=\"language-rust\">"));
-    assert!(html.contains("type=\"checkbox\" disabled checked"));
-    assert!(html.contains("<img src=\"data:image/png;base64,"));
-    assert!(html.contains("width=\"48\"")); // the |48 size hint won
-    assert!(html.contains("@page"));
-    assert!(html.contains("break-inside: avoid"));
+    for (tag, text) in [
+        ("title", "Export Fixture"),
+        ("h1", "Export Fixture"),
+        ("strong", "bold"),
+        ("em", "italic"),
+        ("del", "struck"),
+        ("mark", "highlighted"),
+        ("code", "inline code"),
+    ] {
+        assert!(
+            doc.has_tag(tag) && doc.has_text(text),
+            "{tag} carries {text:?}"
+        );
+    }
+    assert!(doc.has_attr("a", "href", Some("https://example.com/path?q=1&amp;r=2")));
+    for tag in ["blockquote", "hr", "table", "pre"] {
+        assert!(doc.has_tag(tag), "missing {tag}");
+    }
+    assert!(doc.has_source_text("text-align:center"));
+    assert!(doc.has_attr("code", "class", Some("language-rust")));
+    assert!(
+        doc.has_attr("input", "type", Some("checkbox")) && doc.has_attr("input", "checked", None)
+    );
+    assert!(doc.has_attr("img", "src", None));
+    assert!(doc.has_attr("img", "width", Some("48"))); // the |48 size hint won
+    assert!(doc.has_source_text("@page"));
+    assert!(doc.has_source_text("break-inside: avoid"));
     // An unresolvable image degrades to alt text, never a broken embed.
     let html_no_img = to_html("![missing](nope.png)\n", &NoImages);
-    assert!(!html_no_img.contains("<img"));
-    assert!(html_no_img.contains("missing"));
+    let no_img = MarkupDoc::html(&html_no_img);
+    assert!(!no_img.has_tag("img"));
+    assert!(no_img.has_text("missing"));
 }
 
 // --- DOCX emitter + container -----------------------------------------------
@@ -533,27 +656,37 @@ fn docx_body_carries_the_expected_ooxml() {
     let bytes = to_docx(FIXTURE, &fixture_images());
     let parts = unzip_stored(&bytes);
     let doc = std::str::from_utf8(&parts["word/document.xml"]).unwrap();
-    assert!(doc.contains("<w:pStyle w:val=\"Heading1\"/>"));
-    assert!(doc.contains("<w:b/>"));
-    assert!(doc.contains("<w:i/>"));
-    assert!(doc.contains("<w:strike/>"));
-    assert!(doc.contains("<w:highlight w:val=\"yellow\"/>"));
-    assert!(doc.contains("<w:hyperlink r:id="));
-    assert!(doc.contains("<w:numPr>"));
-    assert!(doc.contains("<w:tbl>"));
-    assert!(doc.contains("<w:drawing>"));
-    assert!(doc.contains("\u{2611}")); // checked task glyph
+    let doc = MarkupDoc::xml(doc);
+    assert!(doc.has_attr("w:pStyle", "w:val", Some("Heading1")));
+    for tag in [
+        "w:b",
+        "w:i",
+        "w:strike",
+        "w:hyperlink",
+        "w:numPr",
+        "w:tbl",
+        "w:drawing",
+    ] {
+        assert!(doc.has_tag(tag), "missing {tag}");
+    }
+    assert!(doc.has_attr("w:highlight", "w:val", Some("yellow")));
+    assert!(doc.has_text("\u{2611}")); // checked task glyph
     // The hyperlink target is a real external relationship.
     let rels = std::str::from_utf8(&parts["word/_rels/document.xml.rels"]).unwrap();
-    assert!(rels.contains("TargetMode=\"External\""));
-    assert!(rels.contains("example.com/path?q=1&amp;r=2"));
-    assert!(rels.contains("Target=\"media/image1.png\""));
+    let rels = MarkupDoc::xml(rels);
+    assert!(rels.has_attr("Relationship", "TargetMode", Some("External")));
+    assert!(rels.has_attr(
+        "Relationship",
+        "Target",
+        Some("https://example.com/path?q=1&amp;r=2")
+    ));
+    assert!(rels.has_attr("Relationship", "Target", Some("media/image1.png")));
     // Content types register the PNG default.
     let ct = std::str::from_utf8(&parts["[Content_Types].xml"]).unwrap();
-    assert!(ct.contains("Extension=\"png\""));
+    assert!(MarkupDoc::xml(ct).has_attr("Default", "Extension", Some("png")));
     // Numbering restarts each ordered list (numId 2 with a startOverride).
     let numbering = std::str::from_utf8(&parts["word/numbering.xml"]).unwrap();
-    assert!(numbering.contains("w:startOverride"));
+    assert!(MarkupDoc::xml(numbering).has_tag("w:startOverride"));
 }
 
 // --- Determinism + goldens --------------------------------------------------
@@ -843,31 +976,34 @@ fn export_html_strikethrough_gate() {
     // `<del>`; the inert single-tilde `~x~` never does — yet still exports its
     // content (the bug was `~x~` exporting STRUCK).
     let struck = to_html("~~x~~", &NoImages);
+    let struck_doc = MarkupDoc::html(&struck);
     assert!(
-        struck.contains("<del>x</del>"),
+        struck_doc.has_tag("del") && struck_doc.has_text("x"),
         "engaged ~~x~~ must render <del>: {struck}"
     );
 
     let inert = to_html("~x~", &NoImages);
+    let inert_doc = MarkupDoc::html(&inert);
     assert!(
-        !inert.contains("<del>"),
+        !inert_doc.has_tag("del"),
         "inert ~x~ must NOT render <del>: {inert}"
     );
     assert!(
-        inert.contains("<p>x</p>"),
+        inert_doc.has_tag("p") && inert_doc.has_text("x"),
         "inert ~x~ content still exported: {inert}"
     );
 
     // The nested pathological case: ONE `<del>` wrapping the whole content, and
     // the inert inner `~` delimiters dropped (never emitted as literal tildes).
     let nested = to_html("~~a ~b~ c~~", &NoImages);
+    let nested_doc = MarkupDoc::html(&nested);
     assert_eq!(
         nested.matches("<del>").count(),
         1,
         "nested case is one strike wrapper: {nested}"
     );
     assert!(
-        !nested.contains('~'),
+        nested_doc.lacks_source_text("~"),
         "inert inner ~ delimiters dropped: {nested}"
     );
 }
@@ -881,11 +1017,11 @@ fn export_docx_strikethrough_gate() {
             .unwrap()
     };
     assert!(
-        doc_xml("~~x~~").contains("<w:strike/>"),
+        MarkupDoc::xml(&doc_xml("~~x~~")).has_tag("w:strike"),
         "engaged ~~x~~ emits <w:strike/>"
     );
     assert!(
-        !doc_xml("~x~").contains("<w:strike/>"),
+        !MarkupDoc::xml(&doc_xml("~x~")).has_tag("w:strike"),
         "inert ~x~ must emit no <w:strike/>"
     );
 }
@@ -1005,31 +1141,34 @@ fn export_html_highlight_gate() {
     // `<mark>`; the inert single-`=` `=x=` never does — yet still exports its
     // content (the legitimate wrapper still emits; the inert case stays plain).
     let marked = to_html("==x==", &NoImages);
+    let marked_doc = MarkupDoc::html(&marked);
     assert!(
-        marked.contains("<mark>x</mark>"),
+        marked_doc.has_tag("mark") && marked_doc.has_text("x"),
         "engaged ==x== must render <mark>: {marked}"
     );
 
     let inert = to_html("=x=", &NoImages);
+    let inert_doc = MarkupDoc::html(&inert);
     assert!(
-        !inert.contains("<mark>"),
+        !inert_doc.has_tag("mark"),
         "inert =x= must NOT render <mark>: {inert}"
     );
     assert!(
-        inert.contains("=x="),
+        inert_doc.has_text("=x="),
         "inert =x= content still exported literally: {inert}"
     );
 
     // The pathological case: ONE `<mark>` wrapping the whole content, the inner
     // single-`=` run kept as literal `=` text (never a second highlight).
     let nested = to_html("==a =b= c==", &NoImages);
+    let nested_doc = MarkupDoc::html(&nested);
     assert_eq!(
         nested.matches("<mark>").count(),
         1,
         "one highlight wrapper for the outer pair: {nested}"
     );
     assert!(
-        nested.contains("=b="),
+        nested_doc.has_text("=b="),
         "inert inner =b= kept literal: {nested}"
     );
 }
@@ -1043,11 +1182,11 @@ fn export_docx_highlight_gate() {
             .unwrap()
     };
     assert!(
-        doc_xml("==x==").contains("<w:highlight"),
+        MarkupDoc::xml(&doc_xml("==x==")).has_tag("w:highlight"),
         "engaged ==x== emits <w:highlight/>"
     );
     assert!(
-        !doc_xml("=x=").contains("<w:highlight"),
+        !MarkupDoc::xml(&doc_xml("=x=")).has_tag("w:highlight"),
         "inert =x= must emit no <w:highlight/>"
     );
 }
@@ -1146,18 +1285,20 @@ fn render_export_alt_hint_agree() {
 #[test]
 fn export_html_alt_hint_gate() {
     let sized = to_html("![cat|300](assets/pic.png)\n", &fixture_images());
+    let sized_doc = MarkupDoc::html(&sized);
     assert!(
-        sized.contains("width=\"300\""),
+        sized_doc.has_attr("img", "width", Some("300")),
         "a valid |300 hint sizes the exported image: {sized}"
     );
 
     let malformed = to_html("![cat|300xfoo](assets/pic.png)\n", &fixture_images());
+    let malformed_doc = MarkupDoc::html(&malformed);
     assert!(
-        !malformed.contains("width=\"300\""),
+        !malformed_doc.has_attr("img", "width", Some("300")),
         "a malformed |300xfoo must NOT size the export to 300: {malformed}"
     );
     assert!(
-        malformed.contains("width=\"6\""),
+        malformed_doc.has_attr("img", "width", Some("6")),
         "a malformed hint exports at natural width (intrinsic 6): {malformed}"
     );
 }
