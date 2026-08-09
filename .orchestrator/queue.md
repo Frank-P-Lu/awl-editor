@@ -348,7 +348,9 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
      **Done:** matrix report names every owner × phase and every exclusion; each law
      mutation-proven; POSIX-only arms gated, not pretended portable. **Routing:** deep tier.
 
-360. 🔵 **`Frost::feather_px` is a dial the product does not honour** — every consumer reads
+360. 🟡 **IN PROGRESS — codex (gpt-5.6-terra medium), branch
+     `codex/item-360-frost-feather`. `Frost::feather_px` is a dial the product does not
+     honour** — every consumer reads
      bare `lava::FROST_FEATHER_PX`; the field is written by world literals and read by
      nothing. Route the consumers through the field or delete it, and add the census arm that
      makes an unread `RenderCaps` field fail rather than earn a verdict.
