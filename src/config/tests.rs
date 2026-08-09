@@ -19,6 +19,100 @@ fn absent_config_is_all_defaults() {
 }
 
 #[test]
+fn absent_config_load_is_empty_with_its_path() {
+    // `load` must start from the sole default owner. Otherwise a new field can
+    // silently receive different absent-config values in the two constructors.
+    let _tg = crate::testlock::serial();
+    let path = PathBuf::from("/nonexistent/awl/config.toml");
+    let loaded = Config::load(path.clone());
+    let mut empty = Config::empty();
+    empty.path = path;
+
+    assert_eq!(
+        (
+            &loaded.default_folder,
+            &loaded.workspace,
+            &loaded.theme,
+            loaded.zoom,
+            loaded.scroll_sensitivity,
+            loaded.page_mode,
+            loaded.page_width_prose,
+            loaded.page_width_code,
+            &loaded.caret_mode,
+            &loaded.dictionary
+        ),
+        (
+            &empty.default_folder,
+            &empty.workspace,
+            &empty.theme,
+            empty.zoom,
+            empty.scroll_sensitivity,
+            empty.page_mode,
+            empty.page_width_prose,
+            empty.page_width_code,
+            &empty.caret_mode,
+            &empty.dictionary
+        ),
+    );
+    assert_eq!(
+        (
+            loaded.writing_nits,
+            loaded.spellcheck,
+            loaded.history,
+            loaded.autosave,
+            loaded.wysiwyg,
+            loaded.popover,
+            loaded.inline_images,
+            loaded.code_ligatures,
+            &loaded.cjk_priority,
+            loaded.session_restore
+        ),
+        (
+            empty.writing_nits,
+            empty.spellcheck,
+            empty.history,
+            empty.autosave,
+            empty.wysiwyg,
+            empty.popover,
+            empty.inline_images,
+            empty.code_ligatures,
+            &empty.cjk_priority,
+            empty.session_restore
+        ),
+    );
+    assert_eq!(
+        (
+            loaded.outline,
+            loaded.menu_bar,
+            loaded.typewriter_scroll,
+            loaded.file_visibility,
+            loaded.stats,
+            loaded.reduce_motion,
+            loaded.ambient_motion,
+            &loaded.keymap,
+            &loaded.date_format,
+            &loaded.keys,
+            &loaded.linux_keep_emacs,
+            &loaded.path
+        ),
+        (
+            empty.outline,
+            empty.menu_bar,
+            empty.typewriter_scroll,
+            empty.file_visibility,
+            empty.stats,
+            empty.reduce_motion,
+            empty.ambient_motion,
+            &empty.keymap,
+            &empty.date_format,
+            &empty.keys,
+            &empty.linux_keep_emacs,
+            &empty.path
+        ),
+    );
+}
+
+#[test]
 fn load_reads_folders_and_keys() {
     // Routed through the FILESYSTEM SEAM: a HashMap-backed InMemoryFs stands in
     // for the disk, so the load logic is exercised with NO real file (proves the

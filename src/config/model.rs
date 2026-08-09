@@ -147,40 +147,8 @@ impl Config {
     }
 
     pub fn load(path: PathBuf) -> Self {
-        let mut cfg = Config {
-            default_folder: None,
-            workspace: None,
-            theme: None,
-            zoom: None,
-            scroll_sensitivity: None,
-            page_mode: None,
-            page_width_prose: None,
-            page_width_code: None,
-            caret_mode: None,
-            dictionary: None,
-            writing_nits: None,
-            spellcheck: None,
-            history: None,
-            autosave: None,
-            wysiwyg: None,
-            popover: None,
-            inline_images: None,
-            code_ligatures: None,
-            cjk_priority: None,
-            session_restore: None,
-            outline: None,
-            menu_bar: None,
-            typewriter_scroll: None,
-            file_visibility: None,
-            stats: None,
-            reduce_motion: None,
-            ambient_motion: None,
-            keymap: None,
-            date_format: None,
-            keys: Vec::new(),
-            linux_keep_emacs: Vec::new(),
-            path,
-        };
+        let mut cfg = Self::empty();
+        cfg.path = path;
         let src = match crate::fs::active().read_to_string(&cfg.path) {
             Ok(s) => s,
             Err(_) => return cfg, // absent/unreadable: pure defaults, no behaviour change
