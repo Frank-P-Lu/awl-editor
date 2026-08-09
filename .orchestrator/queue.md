@@ -58,6 +58,13 @@ this heading exists; `git log -S"BLOCKED ON THE USER"` finds who took it.
     which draws them compact — 65 px unspent at zoom 3, a whole row. Crediting
     it changes shipped row counts on cards that already fit. The question is how
     many rows a card should show; the arithmetic is ready either way.
+12. **Should the selected diagonal mark travel with the selection band?** Today
+    it snaps directly to the destination row while the band eases there. The
+    alternative makes the mark ride that same ease on the two Diagonal worlds.
+    This is a live feel decision no settled capture can make. Recommendation:
+    prototype the shared-ease arm only if the current snap reads detached; keep
+    the instant mark if it reads as the destination indicator rather than part
+    of the moving band.
 
 ## 🔵 OWED — live work that nothing above implies. Never cleared by a compression.
 
@@ -398,8 +405,6 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
      - (293) `OVERLAY_HINT_GAP_ROW = 0.45` was tuned against a law, never judged by eye; its
        laws also disclosed a name-based `OverlayKind::Spell` exclusion and a three-kinds-not-
        roster row-count law — both enrolment shapes this repo has been bitten by.
-     - (303) Proposal, not decision: let the selected mark ride the selection band's ease
-       between rows (two `Diagonal` worlds only). Feel is live-only; closes on a human.
      - (319) At zoom 1.0 (not the shipped 0.8) Mangrove's plain hint overflows the card's
        right edge ~7.7 logical px; advance-based budget vs wider symbol cells.
        `foot_band_no_clip_item319.rs:48` names the residual and is positioned to grow the arm.
