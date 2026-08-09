@@ -700,6 +700,30 @@ fn spell_squiggle_baseline_dial_pulls_bilby_tighter_than_the_shared_default() {
         );
     }
 
+    // FULL ROSTER × ZOOM AXIS: the raised gap remains logical geometry at the
+    // three capture tiers. The unchanged nit supplies the same row/cell owner,
+    // so this delta also proves the spelling band cannot drift toward the next
+    // row as zoom changes.
+    for &zoom in &[0.8_f32, 1.0, 2.0] {
+        v.zoom = zoom;
+        for t in theme::THEMES {
+            theme::set_active_by_name(t.name).unwrap();
+            p.sync_theme();
+            p.set_view(&v);
+            let n = p.nit_underlines();
+            let s = p.spell_squiggles();
+            assert_eq!((n.len(), s.len()), (1, 1), "{} zoom {zoom}: enrolled", t.name);
+            let authored_delta = if t.name == "Bilby" { 4.0 } else { 2.0 };
+            let delta = n[0].y - s[0].y;
+            assert!(
+                (delta - authored_delta * zoom).abs() < 0.05,
+                "{} zoom {zoom}: spelling-to-nit gap delta {delta} must be {} logical px",
+                t.name,
+                authored_delta
+            );
+        }
+    }
+
     theme::set_active(theme::DEFAULT_THEME);
     p.sync_theme();
     crate::nits::set_nits_on(true);
