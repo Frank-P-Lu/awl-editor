@@ -3,10 +3,10 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 
-/// One entry of a directory listing — the cross-backend stand-in for
-/// `std::fs::DirEntry`. The walk / browse code needs only the leaf NAME, the full
-/// PATH, and whether the entry is a dir or a file, so that is all this carries
-/// (a `read_dir` consumer never re-stats it).
+mod fault;
+
+/// Cross-backend directory entry: leaf name, full path, and kind are all the
+/// walk/browse code consumes.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DirEntry {
     pub path: PathBuf,
@@ -666,9 +666,6 @@ pub fn install_web_fs() {
 /// no-op the rest of the time; reading the env var on every call is cheap
 /// enough that a `#[cfg(test)]` gate isn't worth the code-path divergence
 /// between test and release builds this primitive most needs to stay honest.
-/// `AWL_FAULT_OBSERVED_WRITE`, used only by the paired real-process tests,
-/// prints and flushes a line after that write has RETURNED. The parent kills on
-/// this observation rather than guessing from a timer.
 pub fn write_atomic(path: &Path, data: &[u8]) -> io::Result<()> {
     let fs = active();
     let name = path
@@ -681,19 +678,7 @@ pub fn write_atomic(path: &Path, data: &[u8]) -> io::Result<()> {
         _ => PathBuf::from(tmp_name),
     };
     fs.write(&tmp, data)?;
-    #[cfg(not(target_arch = "wasm32"))]
-    if std::env::var_os("AWL_FAULT_OBSERVED_WRITE").is_some() {
-        use std::io::Write;
-        let mut out = std::io::stdout().lock();
-        let _ = writeln!(out, "fault-observed tmp-write {}", tmp.display());
-        let _ = out.flush();
-    }
-    #[cfg(not(target_arch = "wasm32"))]
-    if let Ok(ms) = std::env::var("AWL_FAULT_DELAY_MS")
-        && let Ok(ms) = ms.parse::<u64>()
-    {
-        std::thread::sleep(std::time::Duration::from_millis(ms));
-    }
+    fault::after_tmp_write(&tmp);
     fs.rename(&tmp, path)
 }
 

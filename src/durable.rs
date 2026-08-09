@@ -28,62 +28,11 @@
 //! corruption check colocated with its own parser
 //! (`history::store::read_log`) — see that module for the "does this log
 //! look trustworthy" logic — but calls the SAME [`preserve_corrupt`] here.
-//! Likewise the scratch stash, which isn't structured data at all (plain
-//! markdown text): its one possible "failed to parse" is the file existing
-//! but not being valid UTF-8, checked at its own read site in `app.rs`.
+//! Scratch's one possible parse failure (invalid UTF-8) is checked in `app.rs`.
 
+pub(crate) mod owner;
+pub use owner::{Owner, write};
 use std::path::Path;
-
-/// Every production owner whose write can replace user work or app state that
-/// is needed after relaunch.  The fault matrix iterates this roster directly;
-/// a new owner therefore cannot arrive outside the sweep by being added only
-/// to a test fixture.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Owner {
-    ManualSave,
-    Autosave,
-    Scratch,
-    Recovery,
-    History,
-    Config,
-    Session,
-    Export,
-}
-
-#[allow(dead_code)] // production roster; its exhaustive consumer is the fault matrix
-pub const OWNERS: &[Owner] = &[
-    Owner::ManualSave,
-    Owner::Autosave,
-    Owner::Scratch,
-    Owner::Recovery,
-    Owner::History,
-    Owner::Config,
-    Owner::Session,
-    Owner::Export,
-];
-
-impl Owner {
-    pub const fn name(self) -> &'static str {
-        match self {
-            Owner::ManualSave => "manual-save",
-            Owner::Autosave => "autosave",
-            Owner::Scratch => "scratch",
-            Owner::Recovery => "recovery",
-            Owner::History => "history",
-            Owner::Config => "config",
-            Owner::Session => "session",
-            Owner::Export => "export",
-        }
-    }
-}
-
-/// The named durable-write door.  `fs::write_atomic` remains the deliberately
-/// small mechanism; the owner argument exists so production enrolment is data,
-/// rather than a test's hand-maintained list of call sites.
-pub fn write(owner: Owner, path: &Path, data: &[u8]) -> std::io::Result<()> {
-    let _ = owner.name();
-    crate::fs::write_atomic(path, data)
-}
 
 /// How many `.corrupt-*` siblings a single store keeps — a generous but
 /// bounded window (mirrors `crashlog::MAX_CRASH_LOGS`'s "look back across a

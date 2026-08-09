@@ -375,12 +375,6 @@ mod menu;
 /// The APP-GLOBAL SAVE LEDGER: the fresh-document autosave
 /// debounce+version pair, the save-feedback clocks, the title dirty cache.
 mod persistence;
-/// Real-process persistence probes used only where an in-memory backend cannot
-/// witness process death or resident memory.
-#[cfg(not(target_arch = "wasm32"))]
-mod persistence_fault_probe;
-#[cfg(not(target_arch = "wasm32"))]
-pub(crate) use persistence_fault_probe::run_persistence_fault_probe;
 /// The HEADLESS PRESS DOOR — real chords into the live `App`, off-window.
 #[cfg(any(test, not(target_arch = "wasm32")))]
 mod press;

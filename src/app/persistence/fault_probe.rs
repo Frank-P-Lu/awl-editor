@@ -1,6 +1,6 @@
 //! Killable, GPU-less `App` journeys for the persistence integration laws.
 
-use super::*;
+use super::super::*;
 use anyhow::{Context, bail};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -35,7 +35,7 @@ fn payload(path: &Path) -> anyhow::Result<String> {
 
 /// One hidden diagnostic with four bounded operations.  Tests kill the process
 /// only after observing the atomic writer's temporary sibling on disk.
-pub(crate) fn run_persistence_fault_probe(operation: &str, args: &[PathBuf]) -> anyhow::Result<()> {
+pub(super) fn run(operation: &str, args: &[PathBuf]) -> anyhow::Result<()> {
     match (operation, args) {
         ("autosave", [target, payload_path]) => {
             let mut app = app_on(target, false);

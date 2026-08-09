@@ -411,7 +411,7 @@ fn main() -> Result<()> {
             .next()
             .ok_or_else(|| anyhow::anyhow!("--persistence-fault-probe needs an operation"))?;
         let paths: Vec<PathBuf> = rest.map(PathBuf::from).collect();
-        app::run_persistence_fault_probe(&operation, &paths)?;
+        app::App::run_persistence_fault_probe(&operation, &paths)?;
         return Ok(());
     }
     run::run(args::parse_args()?)

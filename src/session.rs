@@ -19,6 +19,7 @@
 //! STRUCTURALLY incapable of reading or writing this file. See the tripwire
 //! test `main::run::tests::headless_replay_never_touches_the_session_file`.
 
+use crate::durable::{Owner, write};
 use std::path::{Path, PathBuf};
 
 /// One open buffer's remembered position: SMALL ints, never a content
@@ -119,17 +120,12 @@ pub fn load(path: &Path) -> SessionState {
 }
 
 /// Persist `state` to `path` ATOMICALLY (temp-sibling + rename, via
-/// [`crate::fs::write_atomic`] — the same primitive the autosave engine and
-/// the scratch stash use).
+/// the same primitive the autosave engine and scratch stash use.
 pub fn save(path: &Path, state: &SessionState) -> std::io::Result<()> {
     if let Some(parent) = path.parent() {
         let _ = crate::fs::active().create_dir_all(parent);
     }
-    crate::durable::write(
-        crate::durable::Owner::Session,
-        path,
-        to_toml(state).as_bytes(),
-    )
+    write(Owner::Session, path, to_toml(state).as_bytes())
 }
 
 /// Serialize `state` to the on-disk TOML shape — pure, no fs. Hand-rolled

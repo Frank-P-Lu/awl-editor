@@ -790,80 +790,9 @@ impl Buffer {
         self.anchor = Some(start.min(max));
         self.cursor = end.min(max);
     }
-
-    /// Save to the bound path. For an UNNAMED FRESH DOCUMENT that has not been
-    /// named yet (`path` is None but `note_dir` is set), DERIVE the filename from
-    /// the first non-empty line — slugified, collision-suffixed — under
-    /// `note_dir`, bind it, and write there; an EMPTY document bails (no file
-    /// written, no litter). Returns Err if there is no path and no name can be
-    /// derived.
-    ///
-    /// **ONE-SHOT NAMING:** this is the ONLY place a fresh document's
-    /// filename is ever derived. Once bound, `note_dir` is cleared in the SAME
-    /// step — [`Self::is_unnamed_fresh`] is false from this call on, so it reads
-    /// as an ORDINARY pathed file thereafter. A later edit to the first line
-    /// never re-derives or renames it (the old LIVE-rename-to-title behavior is
-    /// retired — Rename is now the one, explicit, generic verb for that).
-    pub fn save(&mut self) -> anyhow::Result<()> {
-        self.save_owned(crate::durable::Owner::ManualSave)
-    }
-
-    pub(crate) fn save_owned(&mut self, owner: crate::durable::Owner) -> anyhow::Result<()> {
-        if self.path.is_none()
-            && let Some(dir) = self.note_dir.clone()
-        {
-            let text = self.rope.to_string();
-            match first_nonempty_line(&text) {
-                Some(line) => {
-                    let stem = note_stem(line);
-                    crate::fs::active().create_dir_all(&dir)?;
-                    let path = unique_path(&dir, &stem, "md");
-                    self.path = Some(path);
-                    // ONE-SHOT: the name is derived exactly once — clear the
-                    // fresh-document marker so a later first-line edit never
-                    // re-triggers a rename.
-                    self.note_dir = None;
-                }
-                // A truly empty document (no non-whitespace anywhere) is
-                // NEVER written — no litter.
-                None => anyhow::bail!("empty note: nothing to save yet"),
-            }
-        }
-        match &self.path {
-            Some(p) => {
-                // ATOMIC: temp sibling + rename, so a crash mid-save leaves the
-                // old file or the new one — never a truncated half-write. The
-                // buffer's remembered line ending is restored here ([`disk_bytes`]),
-                // so a CRLF file round-trips byte-for-byte.
-                crate::durable::write(owner, p, &self.disk_bytes())?;
-                self.dirty = false;
-                Ok(())
-            }
-            None => anyhow::bail!("no file bound to this buffer (scratch)"),
-        }
-    }
-
-    /// SAVE-FEEDBACK round: manual save on the TRUE scratch surface (no path,
-    /// never a fresh-document marker) converts it into an unnamed fresh document
-    /// bound to `folder` FIRST, then saves — reusing the exact auto-name recipe
-    /// [`Self::set_note_dir`] + [`Self::save`] already give Cmd-N (the same one
-    /// `App::ensure_note_named_before_paste` established for the paste-image
-    /// door, generalized here to manual save). A buffer that is ALREADY an
-    /// unnamed fresh document, or already pathed, is left untouched — this only
-    /// ever promotes a true scratch buffer, and only once (`is_unnamed_fresh()`
-    /// is true from then on, so a second call is a plain `save()`). `folder`
-    /// need not exist yet: creating it is best-effort (mirroring
-    /// `App::new_document`); if it truly can't be created or written to, that
-    /// failure surfaces as the same `Err` `save` already returns, for the caller
-    /// to turn into a calm notice — never a terminal print.
-    pub fn save_into_folder(&mut self, folder: &Path) -> anyhow::Result<()> {
-        if !self.is_unnamed_fresh() {
-            let _ = crate::fs::active().create_dir_all(folder);
-            self.set_note_dir(folder.to_path_buf());
-        }
-        self.save()
-    }
 }
+
+mod save;
 
 mod selection;
 

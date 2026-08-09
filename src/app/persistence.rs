@@ -47,6 +47,19 @@
 
 use crate::clock::Instant;
 
+#[cfg(not(target_arch = "wasm32"))]
+mod fault_probe;
+
+#[cfg(not(target_arch = "wasm32"))]
+impl super::App {
+    pub(crate) fn run_persistence_fault_probe(
+        operation: &str,
+        args: &[std::path::PathBuf],
+    ) -> anyhow::Result<()> {
+        fault_probe::run(operation, args)
+    }
+}
+
 /// The app-global save ledger. Fields are private: every write is a named
 /// transition, so the two fields of the fresh-document ledger cannot drift
 /// apart.

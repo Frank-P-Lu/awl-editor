@@ -60,6 +60,16 @@ fn editable_buffer_stays_dirty() {
     assert!(buffer.is_dirty(), "metadata failure never blocks editing");
 }
 
+fn notice_starts(app: &App, prefix: &str, law: &str) {
+    assert!(
+        app.frame
+            .notice()
+            .text()
+            .is_some_and(|text| text.starts_with(prefix)),
+        "{law}"
+    );
+}
+
 fn seed_owner(inner: &InMemoryFs, owner: crate::durable::Owner) -> (PathBuf, Vec<u8>) {
     inner.write(Path::new(SIBLING), SIBLING_BYTES).unwrap();
     let target = match owner {
@@ -131,12 +141,10 @@ fn invoke_owner(owner: crate::durable::Owner, target: &Path) {
             app.document.set_text("new dirty manual bytes\n");
             app.manual_save();
             assert!(app.is_document_dirty(), "failed manual save remains dirty");
-            assert!(
-                app.frame
-                    .notice()
-                    .text()
-                    .is_some_and(|text| text.starts_with("save failed:")),
-                "explicit failure is a calm durable notice"
+            notice_starts(
+                &app,
+                "save failed:",
+                "explicit failure is a calm durable notice",
             );
         }
         crate::durable::Owner::Autosave => {
@@ -145,12 +153,10 @@ fn invoke_owner(owner: crate::durable::Owner, target: &Path) {
             app.document.set_text("new dirty autosave bytes\n");
             app.autosave_flush();
             assert!(app.is_document_dirty(), "failed autosave remains dirty");
-            assert!(
-                app.frame
-                    .notice()
-                    .text()
-                    .is_some_and(|text| text.starts_with("autosave held:")),
-                "background failure is calm, durable, and visible"
+            notice_starts(
+                &app,
+                "autosave held:",
+                "background failure is calm, durable, and visible",
             );
         }
         crate::durable::Owner::Scratch => {
@@ -161,12 +167,10 @@ fn invoke_owner(owner: crate::durable::Owner, target: &Path) {
                 app.is_document_dirty(),
                 "failed scratch stash remains dirty"
             );
-            assert!(
-                app.frame
-                    .notice()
-                    .text()
-                    .is_some_and(|text| text.starts_with("scratch save held:")),
-                "scratch failure is calm, durable, and visible"
+            notice_starts(
+                &app,
+                "scratch save held:",
+                "scratch failure is calm, durable, and visible",
             );
         }
         crate::durable::Owner::Recovery => {
@@ -219,12 +223,10 @@ fn invoke_owner(owner: crate::durable::Owner, target: &Path) {
                 app.is_document_dirty(),
                 "export never launders source dirtiness"
             );
-            assert!(
-                app.frame
-                    .notice()
-                    .text()
-                    .is_some_and(|text| text.starts_with("export failed:")),
-                "export failure is calm, durable, and visible"
+            notice_starts(
+                &app,
+                "export failed:",
+                "export failure is calm, durable, and visible",
             );
         }
     }
@@ -235,7 +237,7 @@ fn every_durable_owner_keeps_old_complete_bytes_and_recoverable_edit_state_at_ev
 {
     let _serial = crate::testlock::serial();
     let mut report = Vec::new();
-    for &owner in crate::durable::OWNERS {
+    for &owner in crate::durable::owner::OWNERS {
         for phase in FAILURE_PHASES {
             let inner = InMemoryFs::new();
             let (target, old) = seed_owner(&inner, owner);
@@ -285,7 +287,7 @@ fn every_durable_owner_keeps_old_complete_bytes_and_recoverable_edit_state_at_ev
 
     assert_eq!(
         report.len(),
-        crate::durable::OWNERS.len() * FAILURE_PHASES.len(),
+        crate::durable::owner::OWNERS.len() * FAILURE_PHASES.len(),
         "the report is the full production roster cross product"
     );
     eprintln!("persistence-fault-matrix rows={}", report.len());
@@ -301,7 +303,7 @@ fn every_durable_owner_keeps_old_complete_bytes_and_recoverable_edit_state_at_ev
 
 #[test]
 fn the_failure_matrix_enrols_from_the_exact_production_owner_roster() {
-    let names: Vec<&str> = crate::durable::OWNERS
+    let names: Vec<&str> = crate::durable::owner::OWNERS
         .iter()
         .copied()
         .map(crate::durable::Owner::name)
