@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# capture-worlds.sh — item 68: the ROSTER-DRIVEN WORLD GALLERY. A sibling to
+# capture-worlds.sh — the ROSTER-DRIVEN WORLD GALLERY. A sibling to
 # capture.sh (which sweeps samples/*.md once each), this sweeps every CURRENT
 # world instead: for each, the canonical taste specimen ("Room") plus the same
 # summoned command-palette overlay ("Frame"), at a fixed wide page-mode canvas.
@@ -31,7 +31,7 @@
 # "unknown" world — the binary itself rejected the very name it just
 # printed), a written sidecar whose `theme.name` doesn't match the world it
 # was asked to render, or Room page/margin geometry that isn't the generous,
-# non-edge-to-edge shape item 68 requires.
+# non-edge-to-edge shape the gallery requires.
 set -euo pipefail
 
 # Make cargo findable (mirrors capture.sh).
@@ -83,7 +83,7 @@ NO_CONFIG="$RUN_DIR/.unseeded-config.toml"
 
 # Fixed WIDE canvas + a narrower fixed measure, explicitly page-on: generous
 # margins on both sides for the page edges + the default persistent Outline
-# rail, so the writing column never reads edge-to-edge (item 68's own
+# rail, so the writing column never reads edge-to-edge (the
 # unacceptable case). MARGIN_FLOOR is the geometry law's floor, in px.
 CANVAS="1600x1000"
 MEASURE=66
