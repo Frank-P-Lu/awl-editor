@@ -402,7 +402,7 @@ impl TextPipeline {
         if geom.theme {
             return self.shape_faceted(geom, plan, ink, muted, selected_ink, vis, elide);
         }
-        // ITEM 174 — the shaped line `k` and the PLANNED row `k` are one object: a
+        // The shaped line `k` and the PLANNED row `k` are one object: a
         // row's item comes off the plan, never a second `top_idx + k` computed here.
         let items: Vec<Option<usize>> = plan.rows().iter().map(|r| r.item).collect();
         let label = |i: &Option<usize>| i.and_then(|i| self.overlay_items.get(i)).cloned();
@@ -588,7 +588,7 @@ impl TextPipeline {
         }
         self.shape_overlay_right(&shaped_geom, ink, muted, vis, &bind_strs);
 
-        // ITEM 83 — THE NO-OVERLAP LAW, extended to the faceted path: unlike the
+        // THE NO-OVERLAP LAW, extended to the faceted path: unlike the
         // flat shaper, `shape_theme_spans`'s primary NEVER reserves budget for a
         // secondary at all (its char estimate is always `full_budget`), so a
         // genuinely long chord/time/git label beside a full-width primary had NO
@@ -726,7 +726,7 @@ impl TextPipeline {
                 spans.push(("\n", mk(ink)));
             }
             let flip = vis.reads_selected(row);
-            // ITEM 64 — the spell popup's fixed, terminal "Add '<word>' to
+            // The spell popup's fixed, terminal "Add '<word>' to
             // dictionary" row recedes to MUTED ink (unselected) so it reads as
             // VISUALLY SEPARATED from the ranked corrections above it — the same
             // figure/ground-by-value language the directory-prefix split already
@@ -798,7 +798,7 @@ impl TextPipeline {
     /// The SECONDARY column (shortcut chord / time / git value), one right-aligned
     /// label per display row.
     ///
-    /// ITEM 164 — its on-band recolor reads the shared [`VisualSelection`], NOT
+    /// Its on-band recolor reads the shared [`VisualSelection`], NOT
     /// the logical selected row. Reading the logical row here was the split that
     /// let a pointer move recolor "Switch project…"'s shortcut while the band and
     /// the label it annotates were still on "Go to file…" — two simultaneous

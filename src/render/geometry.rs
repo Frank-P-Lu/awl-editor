@@ -614,7 +614,7 @@ impl TextPipeline {
     }
 
     /// The WRITING COLUMN's width (px) — the ONE owner every document consumer
-    /// reads, [`Self::comparison_viewport`]'s override folded in (item 116b).
+    /// reads, [`Self::comparison_viewport`]'s override folded in.
     pub fn column_width(&self) -> f32 {
         match self.comparison_viewport() {
             Some([_, _, w, _]) => w,
@@ -626,7 +626,7 @@ impl TextPipeline {
     /// downstream reader (caret/selection/washes, hit-test, the page-edge drag
     /// handle, the corner readouts, the margin outline + gutter) goes through, so
     /// the ADAPTIVE-COLUMN placement policy ([`adaptive_column_left`]) and the
-    /// RELOCATED document viewport ([`Self::comparison_viewport`], item 116b)
+    /// RELOCATED document viewport ([`Self::comparison_viewport`])
     /// both compose for free everywhere without a parallel geometry to keep in
     /// sync.
     pub fn column_left(&self) -> f32 {
@@ -728,7 +728,7 @@ impl TextPipeline {
 
     /// The canvas y of the document's own first row at scroll 0, less the
     /// rendered scroll offset — the ONE vertical origin every row, caret,
-    /// ornament and wash composes off. ITEM 116b: the relocated comparison
+    /// ornament and wash composes off. The relocated comparison
     /// viewport supplies its own top, so the transcript begins inside the
     /// content pane instead of at the canvas's `TEXT_TOP`; scrolling still
     /// subtracts identically, so the whole document layer moves as one.
@@ -1248,7 +1248,7 @@ impl TextPipeline {
     }
 }
 
-/// ITEM 116b — the PAGE's own column on the canvas: the geometry the relocated
+/// The PAGE's own column on the canvas: the geometry the relocated
 /// document viewport deliberately does NOT move, and the direct-manipulation
 /// affordances that describe it.
 mod page;

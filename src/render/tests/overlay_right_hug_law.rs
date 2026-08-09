@@ -1,4 +1,4 @@
-//! ITEM 51 — RIGHT-ANCHORED PICKERS ARE ONE COMPACT CONTENT-WIDTH GROUP.
+//! RIGHT-ANCHORED PICKERS ARE ONE COMPACT CONTENT-WIDTH GROUP.
 //!
 //! A right-anchored (`CardAnchor::mirrors_growth` — `TopRight`) takeover card no
 //! longer seats a WIDE `CARD_MAX_W` card against the right edge (leaving a 300–400px
@@ -12,7 +12,7 @@
 //!
 //! 1. **ONE right edge** — a plain right-anchored card AND a secondary-bearing one
 //!    share the SAME right edge (one full interior-rail inset in from the window
-//!    edge, item 67 — the inset is a pure function of the window width alone,
+//!    edge; the inset is a pure function of the window width alone,
 //!    never the card's own content width); the group grows LEFTWARD as content
 //!    widens, never off the right rail.
 //! 2. **content-hug, no dead middle** — a right-anchored card is far NARROWER than
@@ -328,7 +328,7 @@ fn non_right_anchored_cards_keep_the_fixed_wide_cap() {
 }
 
 // ---------------------------------------------------------------------------
-// 6. ITEM 83 — a long primary with NO secondary of its own is never squeezed
+// 6. A long primary with NO secondary of its own is never squeezed
 //    by some OTHER row's long chord ("Compare with version…" beside "Toggle
 //    outline"'s real compound keybinding, the reported specimen).
 // ---------------------------------------------------------------------------
@@ -401,7 +401,7 @@ fn right_anchored_long_primary_with_no_secondary_of_its_own_is_not_squeezed_by_a
 }
 
 // ---------------------------------------------------------------------------
-// 7. ITEM 83 ADJUST (Fable's audit, item83-mangrove-plain-picker.png) — a
+// 7. Fable's audit — a
 //    right-anchored card's content width, when DRIVEN by a candidate row's own
 //    widest primary (no query/lens/footer line is wider), still shows that
 //    exact row whole.

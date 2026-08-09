@@ -1,4 +1,4 @@
-//! ITEM 174 — the overlay LAW PROBE, in the test tier where it belongs.
+//! The overlay LAW PROBE, in the test tier where it belongs.
 //!
 //! `overlay_row_y_probe` reports what a rendered overlay frame actually
 //! committed: the shaped primary/secondary line tops read back out of the
@@ -35,7 +35,7 @@ impl TextPipeline {
     pub(in crate::render) fn overlay_row_y_probe(&self) -> OverlayYProbe {
         use std::collections::BTreeMap;
         let geom = self.overlay_geometry(self.window_w as u32);
-        // ITEM 174 — the probe reports the PLAN. It used to re-derive the row
+        // The probe reports the PLAN. It used to re-derive the row
         // pitch, the candidate-line count AND the selected display line from
         // `geom` with its own (differently clamped) arithmetic, so a law asserting
         // "the band sits on row k" was checking a second calculation rather than
@@ -112,7 +112,7 @@ impl TextPipeline {
         }
     }
 
-    /// ITEM 293 — the DRAWN gap between the candidate/empty-state band and the
+    /// The DRAWN gap between the candidate/empty-state band and the
     /// foot hint's own shaped line: `(content_bottom, hint_top, hint_bottom)`,
     /// or `None` when this frame draws no hint. `content_bottom` is
     /// `plan.footer_top()` — the same y the Bars footer plate and the footer
@@ -161,7 +161,7 @@ impl TextPipeline {
     }
 }
 
-/// ITEM 114 — the SUMMONED WORKSPACE's law probe: what the frame just committed
+/// The SUMMONED WORKSPACE's law probe: what the frame just committed
 /// for its two regions, read off the same owners the draw and the hit-test read.
 ///
 /// Reported rather than re-derived, for the reason this module exists: a law that

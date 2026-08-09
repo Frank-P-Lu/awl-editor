@@ -13,14 +13,14 @@
 //!    selection, clip), and returns together;
 //! 4. the region opens on the same line the workspace's own rows do;
 //! 5. every MARGIN-ORIENTATION surface yields while it is up — including the
-//!    two that reach that conclusion through item 34's `overlay_active` gate,
+//!    two that reach that conclusion through the `overlay_active` gate,
 //!    which is proven here rather than trusted;
 //! 6. the relocated document is contained by a surface a reader can SEE, in
 //!    every world including the one-bit Wagtail (the claim inherited from item
 //!    84's diff-panel dressing law, re-aimed at the composition that replaced
 //!    it).
 //!
-//! COMPOSITION — whether any of it reaches the screen — is item 116d's, in
+//! COMPOSITION — whether any of it reaches the screen — belongs in
 //! `render/tests/comparison_composite.rs`. This file's own boundary
 //! law (`the_relocated_document_is_geometrically_placed_but_not_yet_composited`)
 //! asked to be deleted and replaced by a containment-and-visibility law the day
@@ -326,8 +326,8 @@ fn the_comparison_viewport_relocates_the_entire_document_layer_and_returns_it() 
 
 /// LAW 4 — THE REGION OPENS ON THE LINE THE ROWS DO.
 ///
-/// `comparison_viewport` derives its own top (item 174 forbids a consumer
-/// re-deriving a candidate ROW's slot, and a document region is not one — but
+/// `comparison_viewport` derives its own top (a consumer must not re-derive a
+/// candidate ROW's slot, and a document region is not one — but
 /// two independent derivations of "below the header beat" is exactly the drift
 /// shape that law exists to prevent). So the two are pinned to each other here,
 /// against the real plan the frame drew, across canvases and zooms.
@@ -416,7 +416,7 @@ fn assert_control_frame_draws_the_margin_family(p: &mut TextPipeline, world: &st
 /// anything true to say about a read-only comparison of two versions the user
 /// is not editing. The roster is NAMED, not globbed — and it deliberately
 /// includes the outline and the gutter, which reach the same conclusion through
-/// item 34's `overlay_active` gate: a subsumption is only worth relying on once
+/// the `overlay_active` gate: a subsumption is only worth relying on once
 /// it is watched.
 ///
 /// Swept over the whole world roster, because the lava worlds carry a margin

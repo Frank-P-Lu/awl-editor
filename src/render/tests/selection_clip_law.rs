@@ -1,4 +1,4 @@
-//! ITEM 84 — THE SELECTION-QUAD CONTENT-CLIP LAW, RE-AIMED BY ITEM 116b.
+//! THE SELECTION-QUAD CONTENT-CLIP LAW, RE-AIMED FOR THE RELOCATED VIEWPORT.
 //!
 //! Every quad that rides the SAME translucent-quad family as the document
 //! selection wash — the search-match highlight (both via `range_rects`), the
@@ -11,7 +11,7 @@
 //! ONE owner — bounding PAINT only, never the SELECTABLE range itself (the
 //! document positions above are untouched by any of this).
 //!
-//! **WHAT ITEM 116b CHANGED, AND WHAT IT DID NOT.** Item 84's vertical bound
+//! **WHAT THE RELOCATION CHANGED, AND WHAT IT DID NOT.** The vertical bound
 //! came from the diff-as-preview panel's own card rect: the single case where
 //! the document drew somewhere other than the whole canvas. That composition —
 //! a card drawn AROUND the page column while the transcript rendered inside it
@@ -27,7 +27,7 @@
 //! emitter that skips the clip has to dodge an explicit line here, not a
 //! generic loop that would silently pass it by.
 //!
-//! NON-VACUOUS: before item 84, `range_rects` (feeding both `selection_rects`
+//! NON-VACUOUS: before the shared clip, `range_rects` (feeding both `selection_rects`
 //! and `search_match_rects`), `preedit_rects`, and the caret's own gate in
 //! `prepare_caret_layer` never read the clip at all for the WIDTH axis, and
 //! `range_rects`/`preedit_rects` never read it on EITHER axis — a
@@ -87,7 +87,7 @@ fn selection_and_search_rects_never_paint_past_the_comparison_viewport() {
     // leading between two rows — a genuine PARTIAL trim, not just a whole-row
     // drop. Derived rather than hardcoded: the region's own top moves with the
     // workspace's header beat, so a fixed height stops straddling the moment any
-    // overlay metric is retuned (it did, when item 116b re-aimed this law off the
+    // overlay metric is retuned (as when this law moved off the
     // diff panel's fixed 8px inset).
     let text = tall_doc(60);
     let mut v = comparison_view(&text, 0, 0);

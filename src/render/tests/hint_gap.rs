@@ -1,4 +1,4 @@
-//! ITEM 293 — THE FOOT HINT NO LONGER SITS FLUSH AGAINST THE LAST CANDIDATE
+//! THE FOOT HINT NO LONGER SITS FLUSH AGAINST THE LAST CANDIDATE
 //! ROW (OR THE EMPTY-STATE NOTICE, WHICH SHARES ITS BAND).
 //!
 //! `OverlayGeom`'s own `footer_rows` doc names the pattern this defect broke:
@@ -28,7 +28,7 @@
 //! separation — never the near-zero gap the bug produced — over the whole
 //! `OverlayKind` roster, every list style, both DPIs, and four candidate-list
 //! shapes (full, filtered, scrolled, empty) — the empty-state notice shares
-//! this band and has collided with the footer before (item 174).
+//! this band and has collided with the footer before.
 //!
 //! The oracle is read back out of the shaped `panel_buffer`
 //! (`overlay_hint_gap_probe`, `overlay_probe.rs`), never re-derived from row
@@ -127,8 +127,8 @@ fn grade_hint_gap(p: &TextPipeline, width: u32, lh: f32, ctx: &str, graded: &mut
         "{ctx}: the content band's own bottom ({content_bottom}) reads as \
          collapsed"
     );
-    // THE CLAIM — a real, DELIBERATELY compact row separates them (item 293's
-    // own `overlay_hint_gap_h`, smaller than a full row by design — see
+    // THE CLAIM — a real, DELIBERATELY compact row separates them (the shared
+    // `overlay_hint_gap_h`, smaller than a full row by design — see
     // `OVERLAY_HINT_GAP_ROW`'s doc), not the near-zero gap the bug produced
     // (single `\n`, i.e. ordinary line spacing only).
     let gap = hint_top - content_bottom;
@@ -151,7 +151,7 @@ fn grade_hint_gap(p: &TextPipeline, width: u32, lh: f32, ctx: &str, graded: &mut
 /// THE HEADLINE LAW. Over the whole `OverlayKind` roster (every family the
 /// flat/grouped shapers reach — `Spell` is excluded, it structurally never
 /// draws a hint), both list styles, both DPIs, and full/empty candidate
-/// shapes (the empty-state notice shares this band — item 174's own
+/// shapes (the empty-state notice shares this band — the known
 /// collision).
 #[test]
 fn the_hint_sits_a_full_row_below_the_content_band() {

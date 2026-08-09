@@ -1,4 +1,4 @@
-//! ITEM 116b — THE PAGE'S OWN COLUMN ON THE CANVAS.
+//! THE PAGE'S OWN COLUMN ON THE CANVAS.
 //!
 //! Two ideas of "the writing column" exist and they are not the same. The
 //! DOCUMENT's column relocates when a summoned workspace hands the document
@@ -35,7 +35,7 @@ impl TextPipeline {
     }
 
     /// THE PAGE's own column on the CANVAS, never relocated — the module-private
-    /// bypass item 116b's one owner leaves for the two consumers that genuinely
+    /// bypass left for the two consumers that genuinely
     /// mean the backdrop rather than the document: [`Self::page_geometry`] (the
     /// ground punch, the star margin band, the frost seed key) and the sidecar's
     /// `page` block through it. Everything else stays on [`Self::column_width`]
@@ -74,7 +74,7 @@ impl TextPipeline {
     /// THE PAGE ON THE CANVAS — page state, measure, and the page column's own
     /// unrelocated left/width. Read by the ground punch, the star margin band,
     /// the frost seed key and the sidecar's `page` block: all of them describe
-    /// the BACKDROP, which item 116b's relocated document viewport deliberately
+    /// the BACKDROP, which the relocated document viewport deliberately
     /// does not move. (The document's own column is [`Self::column_left`].)
     pub fn page_geometry(&self) -> (bool, usize, f32, f32) {
         (
@@ -99,7 +99,7 @@ impl TextPipeline {
         self.page_resize_edge_at(pointer_x).is_some()
     }
 
-    /// ITEM 116b — a DRAGGABLE page edge is margin orientation in the direct-
+    /// A DRAGGABLE page edge is margin orientation in the direct-
     /// manipulation register: it asks "how wide is my page?" of a document the
     /// user is writing. While the document layer is relocated into a read-only
     /// comparison ([`Self::margin_orientation_yields`]) there is no such page on

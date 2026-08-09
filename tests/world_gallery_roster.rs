@@ -1,4 +1,4 @@
-//! tests/world_gallery_roster.rs — item 68's ROSTER-ADDITION LAW, proven on the
+//! tests/world_gallery_roster.rs — the ROSTER-ADDITION LAW, proven on the
 //! REAL `awl` binary (`CARGO_BIN_EXE_awl`, the same subprocess mechanism as
 //! `tests/hermetic_canary.rs`), not an in-process approximation.
 //!
@@ -15,7 +15,7 @@
 //! snapshot independent of the roster's own source.
 mod common;
 
-/// The roster as of item 68, in `theme::THEMES` cycle order. Update this list
+/// The roster in `theme::THEMES` cycle order. Update this list
 /// (and `scripts/capture-worlds.sh`'s expectations, and CAPTURE.md if the
 /// count changes) the moment this test fails — that failure IS the law.
 const EXPECTED_WORLDS: [&str; 20] = [
@@ -42,7 +42,7 @@ const EXPECTED_WORLDS: [&str; 20] = [
 ];
 
 /// The real binary with its config ladder pinned inside a test-owned sandbox
-/// (item 93 — `tests/common/mod.rs` owns that rule for the whole suite). These
+/// (`tests/common/mod.rs` owns that rule for the whole suite). These
 /// three probes print-and-exit or fail on `--theme`, so today no personal
 /// setting could bend their stdout; routing them through the one door anyway is
 /// what makes the law in `tests/spawn_config_law.rs` a clean sweep with no
@@ -90,7 +90,7 @@ fn help_text_names_every_world_and_advertises_list_worlds() {
     assert!(out.status.success(), "--help should exit 0");
     let stdout = String::from_utf8(out.stdout).expect("--help stdout is UTF-8");
 
-    // The historical bug (item 68): --help advertised only ten of twenty
+    // The historical bug: --help advertised only ten of twenty
     // worlds because its theme line was a separately hand-copied list. Every
     // name in the roster must appear in the help text now that both routes
     // read the same `theme::world_names()`.
