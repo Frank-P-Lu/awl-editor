@@ -237,7 +237,7 @@ fn every_durable_owner_keeps_old_complete_bytes_and_recoverable_edit_state_at_ev
 {
     let _serial = crate::testlock::serial();
     let mut report = Vec::new();
-    for &owner in crate::durable::owner::OWNERS {
+    for owner in crate::durable::Owner::ALL {
         for phase in FAILURE_PHASES {
             let inner = InMemoryFs::new();
             let (target, old) = seed_owner(&inner, owner);
@@ -287,7 +287,7 @@ fn every_durable_owner_keeps_old_complete_bytes_and_recoverable_edit_state_at_ev
 
     assert_eq!(
         report.len(),
-        crate::durable::owner::OWNERS.len() * FAILURE_PHASES.len(),
+        crate::durable::Owner::ALL.len() * FAILURE_PHASES.len(),
         "the report is the full production roster cross product"
     );
     eprintln!("persistence-fault-matrix rows={}", report.len());
@@ -303,7 +303,7 @@ fn every_durable_owner_keeps_old_complete_bytes_and_recoverable_edit_state_at_ev
 
 #[test]
 fn the_failure_matrix_enrols_from_the_exact_production_owner_roster() {
-    let names: Vec<&str> = crate::durable::owner::OWNERS
+    let names: Vec<&str> = crate::durable::Owner::ALL
         .iter()
         .copied()
         .map(crate::durable::Owner::name)
