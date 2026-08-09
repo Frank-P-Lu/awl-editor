@@ -180,7 +180,7 @@ fn frost_seed_geometry_is_dpi_invariant_in_logical_space() {
 /// single-glyph heading ("&"), a long HYPHENATED single-run label
 /// ("Button-free" — no internal whitespace, so it seeds as ONE run), and an
 /// ordinary multi-word heading, at 100% zoom / 1x DPI, page mode + outline on.
-/// The shared fixture for the item-61 punctuation-aware / bounded-end-pad law
+/// The shared fixture for the punctuation-aware / bounded-end-pad law
 /// tests below.
 fn item61_seeds(p: &mut TextPipeline, height: u32) -> (Vec<[f32; 4]>, Vec<[f32; 4]>) {
     let text = "# &\n\n## Button-free\n\n### The quick brown fox jumps\n\n#### A\n\n##### Getting Started Guide\n";

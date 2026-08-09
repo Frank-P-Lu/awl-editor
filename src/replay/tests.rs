@@ -510,7 +510,7 @@ fn missing_oracle_error_names_the_fallback_it_refuses() {
 //
 // `docs/harness-reach.md` publishes, for a brief author, exactly what a
 // `--keys` capture can and cannot witness. The half of that map covering the
-// item-171 effect boundary is already owned in production by [`classify_for`]
+// effect boundary is already owned in production by [`classify_for`]
 // (and [`accept_class`] for the per-picker accepts), so the doc must be a VIEW
 // of that owner rather than a second list beside it. A hand-copied table that
 // drifts from the function it describes is the defect this law exists to

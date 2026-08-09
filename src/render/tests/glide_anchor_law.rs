@@ -22,7 +22,7 @@
 //! regression coverage for the chase formula itself legitimately calls these
 //! two directly, e.g.
 //! `living_band_phase_snaps_onto_the_selection_when_a_move_outruns_the_glide`
-//! in `tests/firetail_showcase.rs` and the item-48 hybrid oracle in
+//! in `tests/firetail_showcase.rs` and the hybrid oracle in
 //! `tests/hybrid_band_snap.rs`.)
 //!
 //! THE OTHER HALF THE AUDIT NAMED (search / spell popup / which-key /

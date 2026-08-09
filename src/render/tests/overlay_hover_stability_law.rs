@@ -4,7 +4,7 @@
 //! RE-ANCHORS the card to the destination world's own rail — a fixed
 //! physical pixel that hit-tests to a candidate row before the crossing can
 //! hit-test to NOTHING (off the relocated card) after it, with the pointer
-//! never having traveled a pixel. This is the geometry half of the item-85 law;
+//! never having traveled a pixel. This is the geometry half of the hover law;
 //! the gate itself (`OverlayState::hover_at`, composed with whatever hit-test
 //! the pipeline returns) is proven separately and purely in
 //! `overlay::tests::hover_at_gates_on_real_pointer_motion_not_a_relayout_hit_test_change`

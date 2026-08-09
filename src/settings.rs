@@ -674,7 +674,7 @@ pub static COVERED_BY: &[(SettingId, &str)] = &[
 ];
 
 /// The covering command name for setting `id`, or `None` if it has no command
-/// twin. Re-keyed onto [`SettingId`] (cheap hardening over the item-55 plan) so a
+/// twin. Re-keyed onto [`SettingId`] so a
 /// row RENAME can never silently drop a palette exclusion.
 pub fn covered_by(id: SettingId) -> Option<&'static str> {
     COVERED_BY

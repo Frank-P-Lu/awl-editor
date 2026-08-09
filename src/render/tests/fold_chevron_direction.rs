@@ -270,7 +270,7 @@ fn fold_chevron_ink_bbox_flips_aspect_between_collapsed_and_expanded() {
 
     let bbox_for = |p: &mut TextPipeline, collapsed: bool| -> (i64, i64, i64, i64) {
         // Caret parked away from the heading in BOTH states (line 4), so only
-        // HOVER toggles the chevron — the same isolation the item-65/-81 laws
+        // HOVER toggles the chevron — the same isolation the hover laws
         // in `folds.rs` use, so WYSIWYG conceal never contaminates the diff.
         let mut rest = view_md(text, 4, 0);
         if collapsed {

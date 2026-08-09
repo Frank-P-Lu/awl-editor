@@ -211,7 +211,7 @@ fn arm_flight(path: &std::path::Path) {
 
 /// TEST-ONLY: arm the flight recorder at `path` and, [`disarm_flight_for_test`],
 /// put it away again. The two doors exist so a law can READ the trace this file
-/// writes instead of re-describing it — the item-211 event→present chain is
+/// writes instead of re-describing it — the event→present chain is
 /// asserted over the recorder's own lines, which is the only oracle that cannot
 /// be satisfied by a parallel reimplementation of the chain. Both statics are
 /// process-global, so every caller holds `crate::testlock::serial()`.

@@ -77,7 +77,7 @@ fn changed_in_rect(a: &[[u8; 4]], b: &[[u8; 4]], width: u32, rect: [f32; 4]) -> 
 }
 
 /// MATCHED PARENT-vs-CANDIDATE arithmetic at the real framebuffer: force the
-/// pre-item-123 Flat value, then Recessed, with geometry/text held identical.
+/// former Flat value, then Recessed, with geometry/text held identical.
 /// Both split surfaces must materially change; closing Commands makes the two
 /// frames byte-identical because elevation owns summoned Pane pixels only.
 #[test]

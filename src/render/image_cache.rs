@@ -138,7 +138,7 @@ impl ImageCache {
     }
 
     /// The running count of actual DECODES since this cache was created (see the
-    /// `decodes` field doc) — the item-5c witness's read. Test-only (no
+    /// `decodes` field doc) — the decode witness's read. Test-only (no
     /// production reader today; probe-grade instrumentation).
     #[cfg(test)]
     pub(crate) fn decode_count(&self) -> usize {

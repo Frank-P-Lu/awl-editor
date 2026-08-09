@@ -638,7 +638,7 @@ fn the_family_declares_both_classes_and_neither_swallowed_the_other() {
 
 /// The WGSL is the runtime consumer, and the table is only an authority if the
 /// shader actually routes through the two owners it describes. A structural
-/// tripwire in the item-89/158 idiom: the conversion must happen ONCE, the
+/// tripwire in the ground-space idiom: the conversion must happen ONCE, the
 /// dither must NOT take it, and the crisp edge must be converted back.
 #[test]
 fn the_shader_routes_composition_and_sampling_through_their_two_owners() {

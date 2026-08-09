@@ -87,7 +87,7 @@ fn tawny_and_mopoke_carets_and_selections_are_now_numerically_distinct() {
 /// Magpie↔Brolga at 40.8 immediately behind it — two pairs that have nothing to
 /// do with Kite and that nobody had pinned. Setting the floor at what Kite
 /// happens to measure would fail on the day;
-/// setting it at a round 35 or 30 would bless pairs looser than anything that
+/// setting it at 35 or 30 would bless pairs looser than anything that
 /// ships. 40.0 is the largest whole point below the roster's own measured
 /// minimum, so this law is as tight as the roster actually is and a NEW world
 /// cannot arrive closer to an existing one than the closest pair already

@@ -296,7 +296,7 @@ fn assert_swallowed_control_is_red(
 
 /// The full per-world body: every scale, every punctuation class, both caret
 /// looks. Called once per `#[test]` below, one call per world — see the
-/// item-196 header comment for why this is no longer one function looping
+/// header comment for why this is no longer one function looping
 /// over all five.
 fn proportional_punctuation_has_a_real_pixel_body_for(world: &str) {
     let dir = temp(world);

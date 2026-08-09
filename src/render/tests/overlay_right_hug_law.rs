@@ -372,7 +372,7 @@ fn right_anchored_long_primary_with_no_secondary_of_its_own_is_not_squeezed_by_a
          text an earlier pass already truncated)"
     );
 
-    // NON-VACUOUS: reconstruct the PRE-ITEM-83 estimate inline — the SAME WIDE
+    // NON-VACUOUS: reconstruct the former estimate inline — the SAME WIDE
     // PROVISIONAL width `measure_overlay_content_w` shapes against (before the
     // fix, this width alone was believed to guarantee no elision at all), fed
     // the bare DOCUMENT char width instead of `overlay_char_width` — and show

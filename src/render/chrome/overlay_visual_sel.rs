@@ -120,7 +120,7 @@ pub(in crate::render) fn overlay_selected_rail_srgb() -> Option<theme::Srgb> {
 
 /// The PRIMARY label's on-band ink, or `None` when the world's band needs no
 /// flip (the glyph keeps `base_content` and reads fine on the fill). ONE owner
-/// so the shaper, the theme picker's own shaper, and the item-164 probe cannot
+/// so the shaper, the theme picker's own shaper, and the selection probe cannot
 /// disagree about what "this row's label reads selected" looks like.
 pub(in crate::render) fn overlay_selected_primary_ink() -> Option<glyphon::Color> {
     match theme::active().highlight_treatment(crate::render::effective_overlay_selrow_band()) {

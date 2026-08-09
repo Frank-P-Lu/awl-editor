@@ -15,7 +15,7 @@
 //!
 //! * the REAL ONE, `advance(dt)` on an `arm_live_juice`d pipeline, driving the
 //!   production `chase_or_snap` glide (a test that never advances the clock
-//!   proves nothing — CLAUDE.md's item-94 tripwire);
+//!   proves nothing — the configuration-coverage tripwire);
 //! * the PINNED one, `AWL_LIVING_BAND`'s phase pin, which dumps a deterministic
 //!   mid-flight frame with no clock at all so a REAL-PIXEL law can read it.
 //!

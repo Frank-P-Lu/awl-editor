@@ -172,7 +172,7 @@ fn font_file_json(f: &FontFile) -> String {
 // a reader can trace each straight back to `worlds.rs`: base_100 is the raw
 // ground token, `ground` is the tile's ACTUAL ground
 // (`Theme::icon_ground_color` — `base_100` unless this world opted into an
-// item-121 blend toward `base_300`; every consumer painting the tile reads
+// blend toward `base_300`; every consumer painting the tile reads
 // THIS, never `base_100`), base_content inks "aw", primary is the fake
 // cursor, primary_content inks the "l" sitting on it. `cursor` is read
 // straight off the `Theme` (`worlds.rs`), so a new world cannot compile

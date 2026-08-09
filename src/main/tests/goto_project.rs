@@ -312,7 +312,7 @@ fn replay_keys_settings_cjk_picker_round_trips_headlessly() {
 /// not row 0, descend into its child audition, and cancel: the workspace
 /// resumes ON THAT ROW, with the filter that found it.
 ///
-/// The pre-item-173 breadcrumb re-summoned the parent FRESH and dropped both,
+/// The former breadcrumb re-summoned the parent FRESH and dropped both,
 /// so this replay used to land on "Caret style" with an empty query no matter
 /// which row you came from. The action path and the replay path are the same
 /// seam, so this is the parity witness as well as the restoration one.

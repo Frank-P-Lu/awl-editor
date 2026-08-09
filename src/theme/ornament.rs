@@ -166,7 +166,7 @@ pub const ORNAMENT_SCALE_GEOMETRIC: f32 = 1.5;
 /// The plain geometric bullet triple — level-1 `•` (U+2022, filled) / level-2 `◦`
 /// (U+25E6, hollow) / level-3 `▪` (U+25AA, small square), all three in the merged
 /// [`ORNAMENT_MARKS`] face — the modern/technical worlds' bullets (levels 1/2
-/// byte-identical to the pre-item-15 `•`/`◦` pair; level 3 is the new rung).
+/// byte-identical to the former `•`/`◦` pair; level 3 is the new rung).
 pub const BULLETS_PLAIN: (char, char, char) = ('•', '◦', '▪');
 
 /// PLAIN bullet scale — the geometric `•`/`◦` worlds keep body size (1.0), so their

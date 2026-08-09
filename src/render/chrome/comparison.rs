@@ -270,7 +270,7 @@ impl TextPipeline {
     }
 
     /// WHAT THE BOTTOM-RIGHT "how much?" READOUT SAYS THIS FRAME — one owner,
-    /// so the draw path and the item-116b margin-orientation law read the same
+    /// so the draw path and the margin-orientation law read the same
     /// sentence. Empty parks the label off-screen.
     ///
     /// Word count and reading time describe the user's OWN document.

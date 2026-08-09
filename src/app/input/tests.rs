@@ -647,7 +647,7 @@ fn a_click_below_a_collapsed_section_lands_on_the_right_full_document_line() {
 /// a `None` baseline as unconditional real motion, so the very next
 /// `hover_at` call — even an exact repeat of the SAME resting pixel, the kind
 /// of platform-synthesized duplicate a relayout/redraw can produce — would
-/// silently steal the wheel-driven selection. Reproduces the item-106 hazard
+/// silently steal the wheel-driven selection. Reproduces the hazard
 /// ("a list window scrolling under a stationary cursor... yank the selection
 /// out from under the user") through the wheel rather than the keyboard.
 #[test]
