@@ -6,7 +6,7 @@
 // (taken about the band's vertical center) and shades a soft, ~`thickness`-wide
 // antialiased stroke. Drawn UNDER the text so glyphs stay crisp on top.
 //
-// PHASE (item 38): the wave BEGINS AT ITS TOP under the word's first glyph. `x0`
+// PHASE: the wave BEGINS AT ITS TOP under the word's first glyph. `x0`
 // is the band's left edge (the first glyph), so at `px.x == x0` the phase is 0 and
 // `-cos(0) == -1` puts the curve at `center.y - amp` — the crest (top, since y is
 // screen-DOWN). A plain `sin` would start at the vertical center (a zero-crossing)
@@ -101,7 +101,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     let phase = (in.px.x - in.x0) * (2.0 * PI / in.period);
     // Curve height about the band's vertical center. `-cos` so the wave BEGINS at
     // its TOP (crest) under the first glyph (phase 0 → center.y - amp); see the
-    // header note (item 38).
+    // header note.
     let wave_y = in.center.y - in.amp * cos(phase);
 
     // Distance from this fragment to the curve. We approximate the true
