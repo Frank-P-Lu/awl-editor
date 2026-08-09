@@ -73,7 +73,8 @@ pub(super) fn run(operation: &str, args: &[PathBuf]) -> anyhow::Result<()> {
             let elapsed_ms = started.elapsed().as_millis();
             let rss_bytes = peak_rss_bytes().unwrap_or(0);
             println!(
-                "persistence-probe large bytes={bytes} elapsed_ms={elapsed_ms} rss_bytes={rss_bytes}"
+                "persistence-probe large bytes={bytes} elapsed_ms={elapsed_ms} \
+                 rss_bytes={rss_bytes}"
             );
         }
         _ => bail!(
