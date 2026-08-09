@@ -1,4 +1,4 @@
-//! ITEM 188 — THE LIVE-`App` CAPTURE MODE (`--screenshot-app OUT.png [file]`):
+//! THE LIVE-`App` CAPTURE MODE (`--screenshot-app OUT.png [file]`):
 //! a real headless [`App`], driven by real chords, photographed by the ORDINARY
 //! sidecar writer.
 //!

@@ -18,7 +18,7 @@ fn history_picker_lists_versions_navigates_and_carries_ids() {
             .iter()
             .all(|s| !s.contains('•') && !s.ends_with('/'))
     );
-    // ITEM 116c: restore moved behind the deliberate SHIFT-HELD accept — bare
+    // Restore lives behind the deliberate SHIFT-HELD accept — bare
     // `↵` only opens the comparison (the same door `Tab` already is), and
     // `⇧↵` is the one restore door, footer-taught with its own glyph (Shift
     // reads the same on both conventions, so it needs no chord resolution).

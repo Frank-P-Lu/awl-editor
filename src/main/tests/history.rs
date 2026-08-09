@@ -73,7 +73,7 @@ fn replay_history_esc_leaves_buffer_text_exact() {
 
 #[test]
 fn replay_history_enter_restores_undoably() {
-    // ITEM 116c: restore moved behind the ALTERNATE ACCEPT (⇧↵) — bare `RET`
+    // Restore lives behind the ALTERNATE ACCEPT (⇧↵) — bare `RET`
     // only opens the comparison now, so the restoring chord is `S-RET`.
     with_seeded_history(|p| {
         let mut buffer = Buffer::from_file(&p);

@@ -119,7 +119,7 @@ pub struct Ranked {
 /// sorted best-first; ties break by the candidate's original order (stable),
 /// giving deterministic output for capture verification.
 ///
-/// ITEM 54 — generic over `S: AsRef<str>` (not just `String`) so a caller
+/// Generic over `S: AsRef<str>` (not just `String`) so a caller
 /// already holding `Vec<&str>` (`OverlayState::accepts`) can pass it straight
 /// through as `&[&str]` — no per-call `String` clone to satisfy the signature.
 pub fn rank<S: AsRef<str>>(

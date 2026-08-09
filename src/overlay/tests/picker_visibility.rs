@@ -110,7 +110,7 @@ fn browse_hides_dot_leaves_until_revealed() {
 
 #[test]
 fn browse_listing_hides_unsupported_files_in_text_and_labels_them_in_all() {
-    // ITEM 77: the REAL `overlay::build::browse_level` (not the hand-built
+    // The REAL `overlay::build::browse_level` (not the hand-built
     // `new_marked` fixture the other tests above use), over a seeded
     // InMemoryFs directory, so this exercises the actual per-file
     // `crate::openable::classify` wiring — a supported unusual-extension

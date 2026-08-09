@@ -76,7 +76,7 @@ impl TextPipeline {
         if !crate::page::page_on() || self.gutter_name.is_empty() {
             return None;
         }
-        // SUMMONED OVERLAYS OWN THE MARGINS (item 34): while ANY overlay is open —
+        // SUMMONED OVERLAYS OWN THE MARGINS: while ANY overlay is open —
         // every summoned picker, the blurred-backdrop ones AND the CRISP
         // theme/caret/history ones (all `overlay_active`) — the bottom-left
         // orientation gutter yields, returning on dismissal. This generalizes the

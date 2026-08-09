@@ -494,7 +494,7 @@ impl OverlayState {
         if !self.notice.is_empty() {
             return self.notice.clone();
         }
-        // ITEM 114 — a summoned WORKSPACE advertises the stage that holds focus.
+        // A summoned WORKSPACE advertises the stage that holds focus.
         // Its PRIMARY list is the navigation rail or the timeline; its DETAIL
         // stage is the rows pane or the comparison, whose keys are that stage's
         // own ([`OverlayKind::hint_actions`], including the per-row range variant

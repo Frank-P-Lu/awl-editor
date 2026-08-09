@@ -22,7 +22,7 @@ fn empty_build_ctx<'a>(config_keys: &'a [(String, Vec<String>)]) -> BuildCtx<'a>
     }
 }
 
-/// FINISH BUFFER GATING (item 13): the palette row list excludes "Finish file"
+/// FINISH BUFFER GATING: the palette row list excludes "Finish file"
 /// with no daemon `--wait` client waiting, and re-includes it — dispatching
 /// correctly — the instant one is. Built through the REAL `overlay::build` seam
 /// (the same one the live App and the headless replay both call), so this is the

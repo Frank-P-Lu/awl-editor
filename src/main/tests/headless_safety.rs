@@ -171,7 +171,7 @@ fn headless_load_buffer_never_writes_back_frontmatter() {
     });
 }
 
-/// ITEM 77 FOLLOW-UP — DOOR 3: `load_buffer` (the `--screenshot` /
+/// DOOR 3: `load_buffer` (the `--screenshot` /
 /// `--screenshot-motion[-v|-d]` / timeline / held / frames / storyboard
 /// headless capture door — the LAUNCH-ARGUMENT analog of `App::new`,
 /// `src/app/tests/openable.rs`'s DOOR 1) asks the SAME

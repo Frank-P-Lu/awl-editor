@@ -211,7 +211,7 @@ fn state_view(session: &crate::run::ReplaySession) -> StateView {
 /// zoom / selection / search / overlay / buffers fold `capture_screenshot`
 /// performs on a finished replay, evaluated mid-run so every step's frame +
 /// sidecar reflect the state at that step. The fold itself moved to
-/// `run::fold_capture_state` (item 188), where the live-`App` capture mode
+/// `run::fold_capture_state`, where the live-`App` capture mode
 /// shares it; this is the storyboard's call into that one owner.
 fn step_opts(session: &crate::run::ReplaySession, project: &capture::ProjectInfo) -> CaptureOpts {
     crate::run::fold_capture_state(session, project.clone())

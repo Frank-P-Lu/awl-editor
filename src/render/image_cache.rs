@@ -49,7 +49,7 @@ struct Entry {
 #[derive(Default)]
 pub(crate) struct ImageCache {
     map: HashMap<PathBuf, Entry>,
-    /// ITEM 5c (the reported theme-switch slowdown probe): counts every actual
+    /// The theme-switch slowdown probe counts every actual
     /// DECODE — a cache MISS in [`Self::ensure`] (stale/absent entry, the
     /// `decode_upload` branch) — never a cache HIT. A theme switch RE-TINTS
     /// colors and re-shapes TEXT (`sync_theme`/`sync_theme_colors`/

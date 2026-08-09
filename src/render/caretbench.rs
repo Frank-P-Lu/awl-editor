@@ -1,4 +1,4 @@
-//! CARET LOOKUP WITNESS (hidden `--bench-caret` flag, item 57) — proves the caret's
+//! CARET LOOKUP WITNESS (hidden `--bench-caret` flag) — proves the caret's
 //! per-frame glyph lookup cost is INDEPENDENT of the caret's document position.
 //!
 //! The caret's animated look reads, every frame, the glyph the cursor inhabits: its

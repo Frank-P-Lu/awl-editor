@@ -307,7 +307,7 @@ fn replay_keys_settings_cjk_picker_round_trips_headlessly() {
     crate::frontmatter::set_cjk_priority(&crate::frontmatter::DEFAULT_CJK_PRIORITY);
 }
 
-/// ITEM 173 — THE SUSPEND/RETURN JOURNEY, DRIVEN ENTIRELY BY `--keys`. Open the
+/// THE SUSPEND/RETURN JOURNEY, DRIVEN ENTIRELY BY `--keys`. Open the
 /// Settings workspace from the palette, filter DOWN THE LIST to a row that is
 /// not row 0, descend into its child audition, and cancel: the workspace
 /// resumes ON THAT ROW, with the filter that found it.

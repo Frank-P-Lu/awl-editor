@@ -45,7 +45,7 @@ fn switch_marks_git_children() {
         "plain-notes"
     );
 
-    // ITEM 54 PRESERVATION LAW (git/dir survive reorder): a typed query that
+    // PRESERVATION LAW (git/dir survive reorder): a typed query that
     // RE-RANKS the rows must never let a git/dir marker follow the wrong row —
     // identity now travels as ONE `OverlayRow`, not a separate array read by a
     // (potentially shuffled) index. "repo" out-ranks "plain-notes" for both git

@@ -1,4 +1,4 @@
-//! THE FS-SERIALIZATION LAWS (queue item 101) — the structural rules that
+//! THE FS-SERIALIZATION LAWS — the structural rules that
 //! retired the `resolve_launch_context_dir_argument_awl_dot_is_explicit_not_remembered`
 //! flake, each tested at the purest seam it reaches.
 //!
@@ -218,7 +218,7 @@ fn a_guarded_reader_never_sees_a_concurrent_backend_swap() {
     assert_eq!(
         mismatches, 0,
         "a reader holding the guard must never be answered by a concurrently installed \
-         backend — 0 of {rounds}, against 389 of 400 on the unfixed tree (queue item 101)"
+         backend — 0 of {rounds}, against 389 of 400 on the unfixed tree"
     );
     // The flipper reached its acquire (so it was really contending) and got
     // NOWHERE past it while we held the guard.
@@ -291,7 +291,7 @@ fn no_cwd_reader_outside_the_one_door() {
         vec!["fs.rs".to_string()],
         "the process CWD has exactly ONE reader door, `crate::fs::current_dir()` — it \
          carries the serialization law's check, and a raw `std::env` read bypasses it \
-         silently (queue item 101). Route the call through `fs::current_dir()`; if the \
+         silently. Route the call through `fs::current_dir()`; if the \
          site genuinely owns the global (a new writer beside `CwdGuard`), it belongs in \
          `src/fs.rs` with the rest of them."
     );

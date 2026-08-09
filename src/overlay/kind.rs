@@ -301,7 +301,7 @@ impl OverlayKind {
             // on a page of prose. `esc` names the OUTCOME rather than the key's
             // usual meaning, because leaving here resolves nothing.
             OverlayKind::Conflict => vec![enter("read"), key("esc", "keep editing")],
-            // Item 116c: restore moved behind ⇧↵.
+            // Restore is deliberately gated behind ⇧↵.
             OverlayKind::History => vec![
                 enter("compare"),
                 key("\u{21E7}\u{21B5}", "restore"),
