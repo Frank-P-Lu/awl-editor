@@ -261,10 +261,9 @@ list instead of re-checking the tree.** Every entry in the previous list was
 verified landed via `git log --grep` before this re-derivation (292/293/299/303,
 294/298, 305, 291, 296+300, 273's residuals, 302, 227, 131e+303 — all merged).
 
-1. **372** — the citation stock, after 365. Production tier; 1,700 judgement calls, not a sed script.
-2. **358, 369, 370** — independent, no ordering constraint among them.
-3. **174** — multi-round refactor, continues by slices.
-4. **🔵 HUMAN / LIVE, none of which a lane can close** — see BLOCKED and OWED above. **231**
+1. **358, 369, 370** — independent, no ordering constraint among them.
+2. **174** — multi-round refactor, continues by slices.
+3. **🔵 HUMAN / LIVE, none of which a lane can close** — see BLOCKED and OWED above. **231**
    needs the approved macOS guest-VM spend; **251** needs a human at a Linux desktop with
    Orca. **327** and the landed taste calls
    (338/342/345/346, carried in OWED) close on the user's eye.
@@ -341,30 +340,6 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
      locatable in a five-shot vision smoke; Mangrove byte-identical or changed only via an
      explicitly accepted shared rule; footprint + diagonal/frost suites green. Reversible
      taste change. **Routing:** production tier + vision smoke.
-
-372. 🟡 **IN PROGRESS — codex continuation (gpt-5.6-terra medium), branch
-     `codex/item-372-finish`.**
-     **Retire the whole queue-citation stock, not just the filenames — 1,700 lines across
-     ~348 tracked files. USER DECISION 2026-08-09.** The comment ratchet only ever governed
-     newly-ADDED lines; everything before `08856553` (2026-08-04) is grandfathered. Measured
-     (`\bitem[ _]?\d+\b` over `git ls-files`, excluding `.orchestrator/` and code-health's
-     own 228 machinery lines): Rust 1,250 lines/295 files (1,121 comments; 78 in string
-     literals); Markdown 248/17; scripts 95/28; shaders 64/3; workflows 39/2; toml/sh 4/3.
-     Identifiers are bounded: 64 module names (all covered by 365's renames) + 21 test fn
-     names; zero types/consts.
-     ‼ **Exclusions, enumerated by name in the brief:** grep-laws whose SUBJECT is the number
-     (`retired_item_76_identifiers_leave_no_trace_in_source`, `retired_item_76_needles`) — a
-     blanket rename guts them. ‼ **A number deleted is not a comment fixed:** `// ITEM 105 —`
-     must gain a real mechanism description or be dropped; `// —` is the failure mode, and no
-     line-count check sees it.
-     **Build, phased and separately revertible:** (1) Rust comment bodies; (2) the 21 test fn
-     names minus exclusions; (3) shaders/scripts/workflows; (4) markdown — CLAUDE.md and
-     contract docs are the user's prose: propose, don't apply. Widen the ratchet per phase.
-     **Dependency:** 365 first. **Verify:** ratchet proven non-vacuous per shape; no test
-     name changes beyond the 21 deliberate ones; `code-health.sh` green after `git add`;
-     full native + wasm (phase 3 touches shaders). **Routing:** production tier — 1,700
-     judgement calls; the repeatable tier will produce 1,700 comments with a hole where the
-     number was.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
