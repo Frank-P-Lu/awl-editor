@@ -171,12 +171,11 @@ impl TextPipeline {
     /// ([`Self::overlay_declines_takeover`]) — the two crisp pickers, whose job is
     /// previewing live world colours, and the pointer-anchored menu, which is not a
     /// takeover — over a composition that backs its rows with NOTHING
-    /// ([`blur::footprint_frost_applies`]). Those cards used to leave the document and
-    /// the list interleaving glyph-for-glyph, because frost was a property of the plate
-    /// and those compositions draw none. They now frost the card's own box and not one
-    /// pixel outside it, so the surrounding page keeps the live colours the picker
-    /// exists to show. No carve-outs inside the box: whatever the card covers is
-    /// frosted, the caret included.
+    /// ([`blur::footprint_frost_applies`]). The contextual spell popup joins only when
+    /// its typed style is `Diagonal`: it is never a takeover, and that composition also
+    /// draws neither card nor plates beneath its rows. Those cards would otherwise leave
+    /// the document and list interleaving glyph-for-glyph. They frost only the narrowed,
+    /// raking card footprint, so the surrounding page keeps its live colours.
     ///
     /// AND WHERE THE COMPOSITION DOES BACK ITS ROWS, THE ANSWER IS `None` — no frost at
     /// all. That is the whole treatment a pointer-anchored menu gets on a panelled or
@@ -214,9 +213,17 @@ impl TextPipeline {
         {
             return Some(blur::Frost::Full);
         }
+        let style = crate::render::effective_list_style();
+        // The contextual spelling popup is not pointer-anchored and therefore does
+        // not enter `overlay_declines_takeover`, but a Diagonal composition draws
+        // neither a card nor row plates beneath it. Enrol that typed composition in
+        // the same local footprint as the crisp/menu arms: never a world-name branch,
+        // never the full-canvas frost, and never a change to Pane/Bars/Rules.
+        let diagonal_spell =
+            self.overlay_spell.is_some() && matches!(style, theme::ListStyle::Diagonal(_));
         if self.overlay_active
-            && self.overlay_declines_takeover()
-            && blur::footprint_frost_applies(crate::render::effective_list_style())
+            && (diagonal_spell
+                || (self.overlay_declines_takeover() && blur::footprint_frost_applies(style)))
         {
             return self.overlay_card_rect().map(|rect| {
                 let shear = self.footprint_shear();

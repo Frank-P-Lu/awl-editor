@@ -461,7 +461,8 @@ impl TextPipeline {
         // pinched; the card stays capped small and clamped on-canvas. (Falls back to
         // the char-count estimate only if a measurement has not run yet.)
         //
-        // MEASURE EVERY ROW IN THE ELISION'S OWN UNITS: the shaped
+        // ON NON-DIAGONAL COMPOSITIONS, MEASURE EVERY ROW IN THE ELISION'S OWN UNITS:
+        // the shaped
         // `overlay_spell_w` is in the UI/chrome face, but the row-elision budget
         // (`overlay_shape_text` → `rowlayout::plan`) divides `text_w` by the DOCUMENT
         // mono `char_width` and then charges the primary for the `…` cell AND the
@@ -476,7 +477,9 @@ impl TextPipeline {
         // char_width)` clears the target even when the f32 division lands a hair under
         // a whole cell. `max()` only GROWS the card where the grid outruns the shaped
         // width (byte-identical where the shaped face is the wider of the two); the cap
-        // below still elides a genuinely over-long row as the last resort.
+        // below still elides a genuinely over-long row as the last resort. Diagonal
+        // instead keeps the shaped measurement and pays for its composition explicitly
+        // below; charging it both the grid and the rake is the broad-span defect.
         let widest_chars = self
             .overlay_items
             .iter()
@@ -485,11 +488,26 @@ impl TextPipeline {
             .unwrap_or(0);
         let grid_slack = 1 + crate::render::rowlayout::GAP_CHARS + 1;
         let char_grid_w = (widest_chars + grid_slack) as f32 * m.char_width;
-        let content_w = if self.overlay_spell_w > 0.0 {
-            self.overlay_spell_w.max(char_grid_w)
+        let measured_w = if self.overlay_spell_w > 0.0 {
+            self.overlay_spell_w
         } else {
             char_grid_w
         };
+        // A DIAGONAL popup is one measured row cluster plus the composition that
+        // carries it. The old generic char-grid floor charged every glyph at the
+        // document mono face's mean advance (plus an empty secondary column), making
+        // six short actions claim a broad empty rake and still eliding the widest row.
+        // Give the shaped ink its real width and reserve the spine/connector/mark lane
+        // beside it. `overlay_shape_text` recognizes the same typed arm and keeps the
+        // measured row unelided when that cluster budget fits it.
+        //
+        // Every other composition keeps the historical expression byte-for-byte:
+        // Pane, Bars and Rules still use `max(measured, char-grid) + 2 * pad` below.
+        let diagonal = matches!(
+            crate::render::effective_list_style(),
+            theme::ListStyle::Diagonal(_)
+        );
+        let rows = header_rows + visible.max(1) + hint_rows;
         // The MIN/MAX bounds are tuned for the 1:1 capture canvas; GROW them with the
         // current zoom/DPI (the SAME grow-only `LogicalGrowOnly` the takeover
         // card's width uses) so a long correction isn't clamped to an unzoomed cap
@@ -500,14 +518,18 @@ impl TextPipeline {
         // (~24 mono cells) so it never elides at wide width; a genuinely
         // long adversarial word still overruns it and elides — a small popup, never a
         // takeover card.
-        let card_w = (content_w + 2.0 * pad)
+        let framed_w = if diagonal {
+            measured_w + self.diagonal_side_reserve_px(rows) + self.overlay_text_hpad()
+        } else {
+            measured_w.max(char_grid_w) + 2.0 * pad
+        };
+        let card_w = framed_w
             .clamp(
                 self.metrics.px_grow_only(SPELL_MIN_W),
                 self.metrics.px_grow_only(SPELL_MAX_W),
             )
             .min(width as f32 - 2.0 * margin);
         let text_w = card_w - 2.0 * pad;
-        let rows = header_rows + visible.max(1) + hint_rows;
         let card_h = self.overlay_card_h(rows, 0.0, 0, 0, pad);
 
         let [card_x, card_y] = crate::render::plan::plan_spell_anchor(

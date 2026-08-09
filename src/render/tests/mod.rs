@@ -185,6 +185,9 @@ mod selection_token_routing_law;
 #[cfg(not(target_arch = "wasm32"))]
 mod settings_fixture_law;
 mod settings_row_reach_law;
+/// The contextual spelling popup's Diagonal-only measured cluster and local frost:
+/// exhaustive style enrolment, full Add row, raking coverage and outside identity.
+mod spell_popup_diagonal;
 mod split_pane;
 mod stars;
 mod syntax_ligatures;

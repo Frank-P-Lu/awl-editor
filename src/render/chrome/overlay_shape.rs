@@ -413,7 +413,18 @@ impl TextPipeline {
             .collect();
 
         let right_labels = self.overlay_right_labels();
-        let has_right = !right_labels.is_empty();
+        let diagonal_spell = self.overlay_spell.is_some()
+            && matches!(
+                crate::render::effective_list_style(),
+                theme::ListStyle::Diagonal(_)
+            );
+        // The live spell picker carries a parallel vector of EMPTY secondary cells.
+        // On the measured Diagonal arm those are no column: letting the generic
+        // secondary fit pass see them makes a subpixel roundoff between the measured
+        // primary and its cluster budget trigger a second, character-grid elision pass.
+        // Keep the historical interpretation on every other style for output identity.
+        let has_right = !right_labels.is_empty()
+            && !(diagonal_spell && right_labels.iter().all(String::is_empty));
         let chord = |i: &Option<usize>| {
             i.and_then(|i| right_labels.get(i))
                 .map_or("", |s| s.as_str())
@@ -462,7 +473,16 @@ impl TextPipeline {
         } else {
             None
         };
-        let budget = if !elide {
+        // A diagonal SPELL card was sized from the widest SHAPED row plus the
+        // composition's own side reserve. Once that real pixel width fits the cluster,
+        // a character-grid estimate must not shorten it again: doing so both wastes the
+        // measured room and turns the first-class Add-to-dictionary action into an
+        // ellipsis. Gated by the typed style, never a world name; capped/narrow cards
+        // still fall through to the established elision path.
+        let measured_spell_fits = diagonal_spell
+            && self.overlay_spell_w > 0.0
+            && self.overlay_spell_w <= slant_text_w + 0.5;
+        let budget = if !elide || measured_spell_fits {
             None
         } else {
             match rowlayout::plan(total_chars, widest_right) {
