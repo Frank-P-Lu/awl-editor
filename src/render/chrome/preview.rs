@@ -13,16 +13,15 @@ impl TextPipeline {
     /// sample line sits vertically centred in the box, indented one pad.
     fn caret_preview_panel_rect(&self, width: u32) -> Option<([f32; 4], f32, f32)> {
         self.caret_preview?;
-        let m = self.metrics;
         let geom = self.overlay_geometry(width);
         let pad = 12.0;
         let gap = 10.0; // the breath between the picker card and the preview panel
-        let box_h = 2.0 * m.line_height + 2.0 * pad; // a ~2-line box
-        let x = geom.card_x;
-        let y = geom.card_y + geom.card_h + gap;
-        let text_left = x + pad;
-        let row_cy = y + box_h * 0.5;
-        Some(([x, y, geom.card_w, box_h], text_left, row_cy))
+        Some(crate::render::plan::plan_caret_preview_panel(
+            [geom.card_x, geom.card_y, geom.card_w, geom.card_h],
+            self.metrics.line_height,
+            pad,
+            gap,
+        ))
     }
 
     /// Headless report for the caret-style preview panel: `(rect, sample_text,

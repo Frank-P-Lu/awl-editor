@@ -62,6 +62,7 @@ mod panel_report;
 mod popover;
 mod row_extent;
 mod row_report;
+mod workspace;
 
 /// The ONLY names this module publishes past `crate::render`: the PUBLISHED
 /// projection the capture sidecar serializes. Everything else stays
@@ -93,6 +94,10 @@ pub(in crate::render) use popover::{
 #[cfg(test)]
 pub(in crate::render) use row_extent::RowExtent;
 pub(in crate::render) use row_extent::{ClusterExtent, RowSpan};
+pub(in crate::render) use workspace::{
+    WorkspaceRegions, WorkspaceRegionsInput, plan_caret_preview_panel, plan_comparison_viewport,
+    plan_workspace_regions,
+};
 
 #[cfg(test)]
 mod tests;

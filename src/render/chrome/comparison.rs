@@ -47,58 +47,7 @@
 
 use super::workspace::{RAIL_GAP_CHARS, WORKSPACE_PAD};
 use super::*;
-
-/// The workspace's boxes for one frame: the card it fills, the PRIMARY (narrow)
-/// column, the CONTENT pane beside it, and which of them this width draws.
-///
-/// Positional only, and deliberately blind to `rows_are_primary`:
-/// WHICH region carries the row-window is the caller's question, and asking it
-/// here would put the same fact in two places.
-#[derive(Clone, Copy, Debug)]
-pub(in crate::render) struct WorkspaceRegions {
-    /// `[x, y, w, h]` — the workspace surface itself.
-    pub card: [f32; 4],
-    /// `[x, w]` — the narrow navigation column (category labels, or a timeline).
-    pub primary: [f32; 2],
-    /// `[x, w]` — the wide content region (a settings list, or a comparison).
-    pub pane: [f32; 2],
-    /// Is there room for both regions at once? (`workspace_is_wide`.)
-    pub wide: bool,
-    /// Does the CONTENT region have focus this frame (`overlay_detail_focus`)?
-    pub content_focused: bool,
-}
-
-impl WorkspaceRegions {
-    /// Is the PRIMARY column on screen? Wide draws both; narrow stages, and the
-    /// focus fact becomes which stage you are on (DESIGN.md §8).
-    pub(in crate::render) fn primary_visible(&self) -> bool {
-        self.wide || !self.content_focused
-    }
-
-    pub(in crate::render) fn content_visible(&self) -> bool {
-        self.wide || self.content_focused
-    }
-
-    /// The y a region's own content begins at — below the workspace's HEADER
-    /// BAND: its search line, the lens strip when the shape puts one there, and
-    /// the query beat that closes the band.
-    ///
-    /// `header_band` comes from the plan module's own
-    /// [`crate::render::plan::header_band_height`] rather than being re-summed
-    /// here: `comparison_viewport` is called from `column_left()`, which cannot
-    /// afford to build a plan, but it can afford the plan's own arithmetic owner.
-    /// The two are held to agree by `render::tests::comparison_viewport`'s
-    /// `the_comparison_viewport_opens_on_the_same_line_the_rows_do`.
-    fn content_top(&self, header_band: f32, pad: f32) -> f32 {
-        self.card[1] + pad + header_band
-    }
-
-    /// The y a region's own content ends at — the same bottom
-    /// `workspace_rail_box` runs its column to.
-    fn content_bottom(&self, pad: f32) -> f32 {
-        self.card[1] + self.card[3] - pad
-    }
-}
+pub(in crate::render) use crate::render::plan::WorkspaceRegions;
 
 impl TextPipeline {
     /// THE TWO REGIONS' BOXES — the one derivation `workspace_geometry` (rows,
@@ -112,31 +61,19 @@ impl TextPipeline {
         let rail_w = self.workspace_primary_w;
         let gap = RAIL_GAP_CHARS.0 * cw;
 
-        let card_x = margin;
-        let card_w = (width as f32 - 2.0 * margin).max(0.0);
-        let card_y = margin + self.menubar_reserve();
-        let card_h = (self.window_h - card_y - margin).max(self.overlay_lh());
-
-        let interior = (card_w - 2.0 * hpad).max(0.0);
         let wide = self.workspace_is_wide(width);
-        let (primary, pane) = match wide {
-            true => (
-                [card_x + hpad, rail_w],
-                [
-                    card_x + hpad + rail_w + gap,
-                    (card_w - 2.0 * hpad - rail_w - gap).max(0.0),
-                ],
-            ),
-            false => ([card_x + hpad, interior], [card_x + hpad, interior]),
-        };
-
-        WorkspaceRegions {
-            card: [card_x, card_y, card_w, card_h],
-            primary,
-            pane,
+        crate::render::plan::plan_workspace_regions(crate::render::plan::WorkspaceRegionsInput {
+            canvas_w: width as f32,
+            canvas_h: self.window_h,
+            margin,
+            top_reserve: self.menubar_reserve(),
+            min_height: self.overlay_lh(),
+            hpad,
+            primary_w: rail_w,
+            gap,
             wide,
             content_focused: self.overlay_detail_focus,
-        }
+        })
     }
 
     /// **THE ONE OWNER OF WHERE THE DOCUMENT LAYER DRAWS**.
@@ -168,13 +105,8 @@ impl TextPipeline {
             return None;
         }
         let r = self.workspace_regions(self.window_w as u32);
-        if !r.content_visible() {
-            return None;
-        }
         let pad = self.metrics.px(WORKSPACE_PAD);
-        let top = r.content_top(self.workspace_header_band(), pad);
-        let h = r.content_bottom(pad) - top;
-        (r.pane[1] > 0.0 && h > 0.0).then_some([r.pane[0], top, r.pane[1], h])
+        crate::render::plan::plan_comparison_viewport(r, true, self.workspace_header_band(), pad)
     }
 
     /// The vertical run of the workspace's HEADER BAND — from `text_top` down to
