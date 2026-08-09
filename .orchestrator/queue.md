@@ -260,7 +260,7 @@ list instead of re-checking the tree.** Every entry in the previous list was
 verified landed via `git log --grep` before this re-derivation (292/293/299/303,
 294/298, 305, 291, 296+300, 273's residuals, 302, 227, 131e+303 — all merged).
 
-1. **378, 380** — independent closure wave for machine-doable
+1. **378, 382** — independent closure wave for machine-doable
    residuals recovered from OWED.
 2. **🔵 HUMAN / LIVE** — only after the closure wave reclassifies every
    remaining OWED entry by evidence. **231**
@@ -276,17 +276,19 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
      `codex/item-378-render-residuals`. Close objective render residuals without making taste calls.**
      Reproduce and clamp the find/replace panel's negative x at the 560 px narrow transition;
      keep its physical-vs-logical pad choice blocked. Inventory remaining inline pixel literals,
-     and run the owed 1x/2x all-anchor plus notice-clamp sweep for `readout::CANVAS_INSET` without
-     promoting it. Generate and pixel-audit forced non-mac menu-bar and Retina margin/outline
-     galleries for items 321/323/314; aesthetic accept/revert remains the user's call.
-     **Done:** objective overflow has a mutation-proven law, machine evidence is recorded outside
-     tracked personal paths, and each taste residual is narrowed to a concrete visual choice.
+     classifying ratios/grid tolerances separately from authored lengths. **Done:** objective
+     overflow has a mutation-proven law, ordinary-width output is byte-identical, and every
+     remaining anonymous length is either named/typed or proven not to be an authored pixel dial.
 
-380. 🟡 **IN PROGRESS — root, branch `main`. Close deferred verification residuals.**
-     Perform item 263's production construction-site document-seed mutation and restore it; run
-     item 242's formal affordance-locating vision smoke; measure item 241's exact 4530x2756@2x
-     headless geometry/perf case. Each successful check removes its OWED line; genuine display,
-     platform, or human-feel limits move to BLOCKED with precise evidence.
+382. 🟡 **IN PROGRESS — codex (gpt-5.6-sol high), branch
+     `codex/item-382-retina-audit`. Close the machine-visible gallery debt without choosing taste.**
+     Run the 1x/2x all-anchor plus notice-clamp sweep for `readout::CANVAS_INSET`; generate and
+     pixel-audit forced non-mac menu-bar/dropdown and Retina margin/outline galleries for items
+     321/323/314. Include item 242's formal five-shot affordance-locating questions, and confirm
+     item 241's exact 4530x2756@2 release cell. Record objective geometry/visibility findings;
+     aesthetic accept/revert and live cadence remain BLOCKED. **Done:** every cell has sidecar and
+     pixel evidence outside tracked personal paths, explicit affordance answers, and any objective
+     defect earns a law/fix rather than being passed to taste.
 
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
