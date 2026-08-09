@@ -655,7 +655,7 @@ impl TextPipeline {
     /// Empty when the feature is off / no drawn images.
     ///
     /// REVEALED images ARM TOO (no blanket `im.revealed` exclusion): the caption
-    /// model (`df773ba`) draws the image on EVERY line now — caret-on-line only
+    /// model draws the image on EVERY line now — caret-on-line only
     /// floats the raw source text as a caption overlay, it no longer hides the
     /// drawn BARE image — so the resize handles at its edges/corners stay live
     /// regardless of caret position. The caption text sits CENTERED mid-image while

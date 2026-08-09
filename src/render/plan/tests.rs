@@ -220,7 +220,7 @@ fn selected_display_line_tracks_both_families_and_clamps_defensively() {
     // No items at all: no selected line.
     let empty = flat(0, 0, 0, 1);
     assert_eq!(plan_overlay_rows(&empty).selected_display(), None);
-    // Grouped: two headers above item 2 push it to display 4.
+    // Grouped: two headers above the second item push it to display 4.
     let lines = vec![
         PlanLine::Header("A".into()),
         PlanLine::Item(0),
