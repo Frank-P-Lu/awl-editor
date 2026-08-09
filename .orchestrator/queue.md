@@ -262,7 +262,7 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
 294/298, 305, 291, 296+300, 273's residuals, 302, 227, 131e+303 — all merged).
 
 1. **372** — the citation stock, after 365. Production tier; 1,700 judgement calls, not a sed script.
-2. **358, 369, 370, 371's lane-half** — independent, no ordering constraint among them.
+2. **358, 369, 370** — independent, no ordering constraint among them.
 3. **174** — multi-round refactor, continues by slices.
 4. **🔵 HUMAN / LIVE, none of which a lane can close** — see BLOCKED and OWED above. **231**
    needs the approved macOS guest-VM spend; **251** needs a human at a Linux desktop with
@@ -341,17 +341,6 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
      locatable in a five-shot vision smoke; Mangrove byte-identical or changed only via an
      explicitly accepted shared rule; footprint + diagonal/frost suites green. Reversible
      taste change. **Routing:** production tier + vision smoke.
-
-371. 🟡 **IN PROGRESS — root production lane; 349 follows item 369.
-     Residuals harvested from the 2026-08-09 compression** — one live thread whose
-     parent bodies went to history (`git log --grep` by parent number reaches the full
-     body.
-     - (349) The pairwise-distinctness floor: comparison-set candidates are graded against
-       the page but nothing asserts a minimum ΔE BETWEEN adjacent candidates at judging size
-       — a comparison set can pass every floor and be useless as a comparison. Generalises
-       to any capture produced to settle a taste call.
-     **Routing:** production tier for the two laws; repeatable for the doc filing; the two
-     feel questions are the user's.
 
 372. 🟡 **IN PROGRESS — codex continuation (gpt-5.6-terra medium), branch
      `codex/item-372-finish`.**
