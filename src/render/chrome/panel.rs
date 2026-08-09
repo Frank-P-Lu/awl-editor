@@ -107,15 +107,15 @@ impl TextPipeline {
         // relies on that). "replace " is the widest at 8 cells.
         const FIND_LABEL: &str = "find    ";
         const REPLACE_LABEL: &str = "replace ";
-        // The fixed VISIBLE width (character cells) of the query/
-        // replacement VALUE field: typing/pasting past this many chars SCROLLS
-        // the field (`field_view_window`, the one clipping-rule owner shared by
-        // both fields) instead of widening the card. The card's own exterior
-        // width follows from this constant alone (plus the labels/gap/counter/Aa,
-        // all fixed-or-bounded text), NEVER from the actual query/replacement —
-        // the fixed-field law (`find_replace_panel_card_width_is_invariant_across_
-        // short_long_short_queries`). Wide enough for a realistic search term
-        // without feeling cramped.
+        // The ordinary-width VISIBLE cap (character cells) of the query/
+        // replacement VALUE field: typing/pasting past the responsive
+        // `field_chars` count SCROLLS the field (`field_view_window`, the one
+        // clipping-rule owner shared by both fields) instead of widening the card.
+        // The card's exterior therefore follows from canvas capacity, never from
+        // the actual query/replacement — the fixed-content law
+        // (`find_replace_panel_card_width_is_invariant_across_short_long_short_queries`).
+        // Twenty-eight cells is wide enough for a realistic search term without
+        // feeling cramped on an ordinary canvas.
         const PANEL_FIELD_CHARS: usize = 28;
         // The amber caret block rides a RESERVED cell shaped right after the focused
         // field's text; on the find row two clear cells then follow so the block can
@@ -174,9 +174,9 @@ impl TextPipeline {
             _ => muted,
         };
 
-        // Row 0 — the find field. `query_view` is ALWAYS exactly
-        // `PANEL_FIELD_CHARS` chars — the fixed field the card sizes off — never
-        // the raw, unbounded `query`.
+        // Row 0 — the find field. `query_view` is ALWAYS exactly `field_chars`
+        // chars — the responsive fixed field the card sizes off — never the raw,
+        // unbounded `query`.
         let mut spans: Vec<(&str, Attrs)> = vec![
             (FIND_LABEL, mk(muted)),
             (query_view.as_str(), field(c_query)),

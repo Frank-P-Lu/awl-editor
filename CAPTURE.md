@@ -706,7 +706,7 @@ geometry, or `null` while the panel is down.
 | --- | --- | --- |
 | `card` | `{ x, y, w, h }` | the card's exterior rect, the one the float primitive rims and the one a press is accepted inside |
 | `text` | `{ left, top }` | the ink origin inside it — where the shaped panel text was uploaded |
-| `rows` | `[{ row, top, h }]` | one band per SHAPED row of the card: `0` the find field, `1` the replace field, `2` the key-hint line. A plain find panel shapes one; the replace state shapes three |
+| `rows` | `[{ row, top, h }]` | one band per SHAPED row of the card: `0` the find field, `1` the replace field, then the key-hint line(s). A plain find panel shapes one; the replace state shapes three at ordinary widths and breaks the complete hint into semantic lines under narrow pressure |
 | `case_toggle` | `{ x0, x1 }` | the `Aa` case indicator's x-span — a CLICK TARGET (a press there toggles case sensitivity), seated on its two shaped glyphs rather than a hardcoded pitch. `null` if the find row shaped fewer than those two glyphs |
 
 `row` indexes the CARD's own shaped lines, never a document row, and the bands are
@@ -727,11 +727,12 @@ card's inset and padding are therefore half their tuned size. The sidecar states
 that rather than hiding it; a projection that "corrected" either figure would be
 reporting a card the frame did not draw.
 
-⚠️ **The card is seated from the window's right edge with no clamp of its own**, so
-below roughly 600 logical px of width its published `x` goes negative and the card
-genuinely hangs off the left of the window (measured: `-33.2` on a 560px canvas).
-That is a layout question, not a reporting one — do not write a law demanding a
-non-negative `x` until the policy exists.
+The card is seated from the window's right edge and responds before that seating
+would push it through the opposite edge: its value fields yield cells, the complete
+teaching hint takes semantic line breaks, its exterior is capped to the canvas
+between physical margins, and `x` is clamped. `search.panel` reports that same
+responsive card, including every shaped hint row; it does not project or repair the
+geometry after the frame draws.
 
 **Why it is a geometry oracle and not a convenience.** Every figure is read off the
 same `panel_layout` the draw sizes the card from and the pointer inverts, plus the

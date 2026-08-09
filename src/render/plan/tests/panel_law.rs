@@ -25,14 +25,15 @@
 //! all.
 //!
 //! **THE ROW COUNT IS AN AXIS TOO.** A plain find panel shapes one row; the
-//! replace state shapes three (field, replacement, key-hint), and only there can
-//! a row-band step be wrong in a way one row cannot show.
+//! replace state shapes three at ordinary widths and may break the complete hint
+//! into more semantic rows under pressure. Only the replace state can expose a
+//! row-band step error that one row cannot show.
 //!
-//! ⚠️ **THE NARROW-WINDOW ARM ASSERTS AGREEMENT, NEVER ONSCREEN-NESS.** This card
-//! is seated from the window's right edge with no clamp of its own, so below
-//! about 600 logical px its left edge genuinely goes negative. A law demanding a
-//! non-negative x would be asserting a policy the product does not implement;
-//! what must hold is that the report still describes wherever the card went.
+//! **THE NARROW-WINDOW ARM ASSERTS AGREEMENT AT THE DEVICE SEAM.** The pure
+//! transition law separately owns the stronger responsive policy (card and ink
+//! both remain inside the canvas); this device-level companion verifies that the
+//! published geometry still describes the card, rows and click targets the frame
+//! actually drew on both sides of that transition.
 
 use crate::render::TextPipeline;
 use crate::render::chrome::PanelHit;
