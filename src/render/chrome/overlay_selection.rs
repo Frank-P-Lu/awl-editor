@@ -55,14 +55,14 @@ impl OverlayBarLayout {
         }
     }
 
-    /// ITEM 164 — the shortcut PLATE behind a `Bars` chord is an ACCESSORY of the
+    /// The shortcut PLATE behind a `Bars` chord is an ACCESSORY of the
     /// selected row's own bar, so it reads the shared [`VisualSelection`] (never
     /// the logical row) for WHICH plate carries the band colour, and rides the
     /// band's DRAWN top for WHERE that plate sits. Before the transaction it took
     /// both from state: on a sliding world the chord plate recoloured and held
     /// still a whole glide before the bar it belongs to arrived under it.
     ///
-    /// ITEM 174 — the fallback top (an unselected plate) is the PLANNED row's own
+    /// The fallback top (an unselected plate) is the PLANNED row's own
     /// slot, read off the plan the bar under it was placed from.
     fn append_chord_plates(
         &self,
@@ -127,7 +127,7 @@ impl TextPipeline {
             theme::HighlightTreatment::ValueBand(color) => color,
             theme::HighlightTreatment::InverseFill { band, .. } => band,
         };
-        // ITEM 114 — THE FOCUS CUE, and the whole of it. A workspace has two
+        // THE FOCUS CUE, and the whole of it. A workspace has two
         // regions that both keep a selection, so one of the two markers has to
         // say "this one is live". It stays the SAME rect in the SAME place and
         // only loses presence — figure/ground by value, not a second decoration
@@ -185,7 +185,7 @@ impl TextPipeline {
         }
     }
 
-    /// ITEM 164 — the Pane band's quads for this frame, from the ALREADY-RESOLVED
+    /// The Pane band's quads for this frame, from the ALREADY-RESOLVED
     /// [`VisualSelection`]. It re-runs no animator: the travel/phase and the drawn
     /// top were decided once, at the transaction, so the fill cannot land on a
     /// different row from the ink that was shaped against it.
@@ -328,7 +328,7 @@ impl TextPipeline {
                 .collect(),
         };
         let footer_plate = if geom.hint_rows + geom.footer_rows > 0 {
-            // ITEM 174 — ONE owner of "how many content rows precede the footer"
+            // ONE owner of "how many content rows precede the footer"
             // ([`OverlayRowPlan::content_rows`]): the candidate band PLUS an
             // empty-state notice line. The measured hug width and the plate's own
             // top now read the same number, so the plate can no longer sit a row
@@ -351,7 +351,7 @@ impl TextPipeline {
             // footer line is shorter than a row — `overlay_footer_reclaim`, the
             // one owner of that difference, which the card height already reads.
             // PLUS the blank row `overlay_hint_gap_rows` reserves ahead of the
-            // hint, at its own (item 293) compact height and reclaimed
+            // hint, at its own compact height and reclaimed
             // alongside the hint's: omitting it here left this plate ending a
             // row above the hint text it exists to back, on any workspace
             // card carrying Bars plates.
@@ -410,7 +410,7 @@ impl TextPipeline {
         [x, planned.top + layout.bar_offset, width, layout.bar_height]
     }
 
-    /// ITEM 164 — the selected BAR's quad. Its `y` is the transaction's already
+    /// The selected BAR's quad. Its `y` is the transaction's already
     /// eased [`VisualSelection::band_top`] (this path re-runs no animator); its
     /// `x`/width still hug the LOGICAL row's own shaped label, because a hug span
     /// is a property of the row the bar is travelling TO.

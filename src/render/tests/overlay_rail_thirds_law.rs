@@ -96,7 +96,7 @@ fn wide_window_card_centers_sit_near_thirds_and_exactly_at_center() {
 #[test]
 fn exact_left_right_mirror_across_widths_and_content_widths() {
     // "content widths" spans the whole realistic range: the flat cap, the
-    // faceted cap, and small stand-ins for an item-51 content-hugged card.
+    // faceted cap, and small stand-ins for a content-hugged card.
     for &desired in &[
         120.0_f32,
         180.0,
@@ -240,7 +240,7 @@ fn card_width_caps_and_mirrors_growth_flag_are_untouched() {
 fn right_anchor_content_shrink_still_shares_one_right_edge_at_the_policy_level() {
     // The content-hug law restated at the pure-policy seam: the RIGHT edge a TopRight
     // card holds depends ONLY on the window width, never the card's own
-    // (possibly content-hugged, item-51-shrunk) desired width — so a sparse
+    // possibly content-hugged desired width — so a sparse
     // content-hugged card and a wide flat card share the exact same right edge.
     let ww = 1200.0_f32;
     let (_, w_narrow) =

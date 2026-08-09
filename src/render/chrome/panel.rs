@@ -72,7 +72,7 @@ impl TextPipeline {
         let total = self.search_matches.len();
         let n = self.search_current.map(|i| i + 1).unwrap_or(0);
         let query = self.search_query.clone();
-        // ITEM 80 — the query never shapes as its raw, unbounded self: it's always
+        // The query never shapes as its raw, unbounded self: it's always
         // exactly `PANEL_FIELD_CHARS` chars (scrolled/padded by the one shared rule,
         // `field_view_window`), so typing/pasting a long query can never widen the
         // card. See the constant's own doc.
@@ -84,13 +84,13 @@ impl TextPipeline {
         // relies on that). "replace " is the widest at 8 cells.
         const FIND_LABEL: &str = "find    ";
         const REPLACE_LABEL: &str = "replace ";
-        // ITEM 80 — the fixed VISIBLE width (character cells) of the query/
+        // The fixed VISIBLE width (character cells) of the query/
         // replacement VALUE field: typing/pasting past this many chars SCROLLS
         // the field (`field_view_window`, the one clipping-rule owner shared by
         // both fields) instead of widening the card. The card's own exterior
         // width follows from this constant alone (plus the labels/gap/counter/Aa,
         // all fixed-or-bounded text), NEVER from the actual query/replacement —
-        // the item 80 law (`find_replace_panel_card_width_is_invariant_across_
+        // the fixed-field law (`find_replace_panel_card_width_is_invariant_across_
         // short_long_short_queries`). Wide enough for a realistic search term
         // without feeling cramped.
         const PANEL_FIELD_CHARS: usize = 28;
@@ -116,7 +116,7 @@ impl TextPipeline {
         // SYMBOL_FAMILY face (the display/mono faces render them as tofu), the same
         // treatment the overlay chord column gives them.
         let sym = |c| Attrs::new().family(Family::Name(SYMBOL_FAMILY)).color(c);
-        // ITEM 80 — the query/replacement VALUE spans shape in a MONOSPACE family
+        // The query/replacement VALUE spans shape in a MONOSPACE family
         // (never the active world's proportional `base`), so `field_view_window`'s
         // fixed CHAR-COUNT contract yields a fixed PIXEL width too — see that
         // function's own doc for why a proportional face would reopen the bug.
@@ -146,7 +146,7 @@ impl TextPipeline {
             _ => muted,
         };
 
-        // Row 0 — the find field. `query_view` (item 80) is ALWAYS exactly
+        // Row 0 — the find field. `query_view` is ALWAYS exactly
         // `PANEL_FIELD_CHARS` chars — the fixed field the card sizes off — never
         // the raw, unbounded `query`.
         let mut spans: Vec<(&str, Attrs)> = vec![
@@ -216,7 +216,7 @@ impl TextPipeline {
         self.panel_buffer
             .shape_until_scroll(&mut self.font_system, false);
 
-        // ITEM 10 — byte offset + char-prefix of the FOCUSED field's caret, at
+        // Byte offset + char-prefix of the FOCUSED field's caret, at
         // its OWN CHAR-index position (`TextBox::caret`, mid-string reachable via
         // char/word motion) — not always the field's end. The offset is
         // LINE-relative (cosmic-text's `LayoutGlyph::start` counts from each
@@ -228,7 +228,7 @@ impl TextPipeline {
         // `caret_row`, so a line-relative offset can never false-match the
         // identically-numbered byte on the find row.
         //
-        // ITEM 80 — the byte/char offsets below are computed against the WINDOWED
+        // The byte/char offsets below are computed against the WINDOWED
         // `query_view`/`replacement_view` (already scrolled so the caret sits
         // inside it, via `field_view_window`), never the raw field text — so the
         // caret always lands on a real shaped glyph of the FIXED-width field,

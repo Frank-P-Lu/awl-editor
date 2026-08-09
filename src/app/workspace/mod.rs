@@ -190,7 +190,7 @@ impl WorkspaceState {
     /// THE ONE DELIBERATE BYPASS in this module, with exactly one call site:
     /// `sync_cursor_icon`'s popover-button hover test in
     /// `app/input/mouse.rs`. It stays ladder-free so the cursor-icon
-    /// composition is byte-identical to the pre-item-172 code; the pipeline's
+    /// composition is byte-identical to the former code; the pipeline's
     /// own popover model is already cleared when a picker is up, so the
     /// combination cannot change the resulting icon. Every other consumer must
     /// ask [`Self::popover_holds_attention`].
@@ -291,7 +291,7 @@ impl WorkspaceState {
     }
 
     /// Lend BOTH slots to the shared action core (`actions::ActionCtx`, the
-    /// item-171 typed-transition seam), which is the one place allowed to open
+    /// typed-transition seam), which is the one place allowed to open
     /// or close a picker/panel, because opening one is an `Action` outcome and
     /// the headless `--keys` replay must reach the identical code.
     ///

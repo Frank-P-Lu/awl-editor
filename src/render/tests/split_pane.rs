@@ -92,7 +92,7 @@ fn faceted_query_strip_is_optically_centered_not_bottom_heavy() {
 
     // NON-VACUOUS: the PRE-FIX surface (`[card_y, text_top + line_height]` — zero
     // breathing below the query box, reconstructed from the documented
-    // pre-item-83 formula, not from the fix under test) centred here instead.
+    // former formula, not from the fix under test) centred here instead.
     let pre_fix_bottom = text_top + line_height;
     let pre_fix_center = (card_y + pre_fix_bottom) * 0.5;
     let pre_fix_offset = (text_center - pre_fix_center).abs();
@@ -464,8 +464,8 @@ fn split_shows_ground_across_the_gap_and_no_glyph_escapes() {
     let (wi, hi) = (w as i64, h as i64);
 
     // Chromatic Pane worlds: a dark room (Currawong), a warm light (Bilby), a
-    // cool light (Gumtree), and Bowerbird (a plain dark Pane world since item
-    // 86 retired its item-71 woven `CardTexture::JaggedWave` card fill).
+    // cool light (Gumtree), and Bowerbird (a plain dark Pane world since its
+    // woven `CardTexture::JaggedWave` card fill was retired).
     // Wagtail (1-bit, ground == card == black) is covered by the
     // border-count roster law instead — its gap reads by the rims.
     for world in ["Currawong", "Bilby", "Gumtree", "Bowerbird"] {

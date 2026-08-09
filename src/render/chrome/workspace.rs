@@ -94,7 +94,7 @@ impl OverlayGeom {
         }
     }
 
-    /// TEST-ONLY readers for the item-114 law probe (`render/tests/overlay_probe.rs`),
+    /// TEST-ONLY readers for the workspace law probe (`render/tests/overlay_probe.rs`),
     /// which lives outside this module so a law can compare against what the
     /// frame committed without a render path growing an exception.
     #[cfg(test)]
@@ -134,7 +134,7 @@ impl TextPipeline {
         self.overlay_workspace && !self.overlay_lens.is_empty()
     }
 
-    /// TEST-ONLY readers for the item-114 law probe.
+    /// TEST-ONLY readers for the workspace law probe.
     #[cfg(test)]
     pub(in crate::render) fn overlay_lens_len(&self) -> usize {
         self.overlay_lens.len()

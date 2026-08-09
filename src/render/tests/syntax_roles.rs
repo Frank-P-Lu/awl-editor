@@ -82,7 +82,7 @@ fn hue_dist(a: f32, b: f32) -> f32 {
 ///     0.7152 on green) — the eye resolves LUMINANCE first (sparse S-cones),
 ///     so a color can be "far" in redmean and still read as plain ink. Floor
 ///     picked from the retuned 14-world table (`measure_role_luminance`, an
-///     ignored scratch test): worst case (post the round-2 ground-contrast
+///     ignored scratch test): worst case after the ground-contrast
 ///     retune below) is light Definition/Constant at ΔY 0.056 (Gumtree); 0.05
 ///     sits with margin below every measured value and comfortably above the
 ///     old broken range (ΔY 0.027–0.042) — so a future regression of this
@@ -94,11 +94,11 @@ fn hue_dist(a: f32, b: f32) -> f32 {
 ///     from the INK; a fix that satisfies (h) by pushing a role's lightness
 ///     toward `muted` can, on a light world, push it most of the way toward
 ///     the pale GROUND instead — distinct-from-ink is not the same claim as
-///     readable-on-page. This is exactly what happened: the round-1 light
+///     readable-on-page. This is exactly what happened: the initial light
 ///     retune (`T_LIGHT = [0.84, 0.90, 0.94]`) cleared (g)/(h) on every world
 ///     yet a live taste-gate verdict on Saltpan called the result "too hard
 ///     to read" — strings/constants/definitions as washed-out pastels on the
-///     pale ground. Measured: Saltpan `Str` at the round-1 rungs contrasted
+///     pale ground. Measured: Saltpan `Str` at the initial rungs contrasted
 ///     only 4.62:1 against `base_100` (Quokka worse, 3.66:1) — well under
 ///     body-text-grade legibility (WCAG AA normal text = 4.5:1) despite
 ///     clearing every prior law. 4.5:1 is the standard body-text floor (not
@@ -106,7 +106,7 @@ fn hue_dist(a: f32, b: f32) -> f32 {
 ///     about reading code prose, i.e. body text). Dark worlds were ALREADY
 ///     clearing this floor by a wide margin (measured 9.4–13.5:1 — a dark
 ///     ground is far from every usable tint) and are asserted here
-///     unchanged, never retuned. Round 2's retune (`T_LIGHT = [0.76, 0.78,
+///     unchanged, never retuned. The ground-aware retune (`T_LIGHT = [0.76, 0.78,
 ///     0.80]`, `S_FG_LIGHT = 0.18`, found by `sweep_light_ladder` now
 ///     searching for BOTH floors (h) and (i) simultaneously) measures
 ///     worst-case ground contrast 4.84:1 (Quokka `Str`) while keeping (h)'s
@@ -628,11 +628,11 @@ fn measure_ground_contrast() {
 
 /// SCRATCH param sweep (not a law): tries a grid of `(t_def, t_const, t_str, s)`
 /// light-ladder candidates directly against `role_style_for`'s formula (mirrored
-/// here since the constants aren't parameterized). Round 2 (the ground-contrast
-/// retune): a candidate must clear EVERY existing law (pairwise ≥40,
+/// here since the constants aren't parameterized). For the ground-contrast
+/// retune, a candidate must clear EVERY existing law (pairwise ≥40,
 /// perceptibility ≥70, ink-luminance ΔY ≥0.05) PLUS the new ground-contrast
 /// floor (≥4.5:1 vs `base_100`) simultaneously — reports the winner ranked by
-/// worst-case ground contrast (the axis round 1 never searched for; see
+/// worst-case ground contrast (the axis the initial tuning never searched for; see
 /// THEMES.md and the `T_LIGHT` doc comment in `render/spans.rs`). Run with
 /// `cargo test sweep_light_ladder -- --nocapture --ignored`.
 #[test]

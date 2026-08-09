@@ -1,6 +1,6 @@
 use super::*;
 
-// ── ITEM 54: typed `OverlayRow` replacing the 12 corpus-parallel arrays ────
+// ── Typed `OverlayRow` replacing the 12 corpus-parallel arrays ─────────────
 
 /// Build a REPRESENTATIVE overlay for `kind` — enough of a real corpus that
 /// every `RowMeta` variant [`OverlayKind::row_meta_roster`] declares for it
@@ -106,7 +106,7 @@ fn representative_overlay(kind: OverlayKind) -> OverlayState {
     }
 }
 
-/// ITEM 54 — RUNTIME ROSTER LAW: build a REPRESENTATIVE overlay for EVERY
+/// RUNTIME ROSTER LAW: build a REPRESENTATIVE overlay for EVERY
 /// `OverlayKind` and assert every produced row's `meta.tag()` sits inside
 /// that kind's declared [`OverlayKind::row_meta_roster`] — the RUNTIME half
 /// of the no-wildcard compile-time match (which only forces a NEW kind to
@@ -138,7 +138,7 @@ fn every_kind_produces_only_its_declared_row_meta_roster() {
     }
 }
 
-/// ITEM 54 — ROWMETA EXHAUSTIVENESS WITNESS: construct one instance of every
+/// ROWMETA EXHAUSTIVENESS WITNESS: construct one instance of every
 /// [`RowMeta`] variant and check [`RowMeta::tag`] maps it to the matching
 /// [`RowMetaTag`]. `RowMeta::tag`'s own match is the real no-wildcard
 /// compile-time guard (a future variant fails to compile there until it's
@@ -177,7 +177,7 @@ fn row_meta_tag_maps_every_variant_correctly() {
     );
 }
 
-/// ITEM 54 PRESERVATION LAW 2 — Go-to HEADING rows keep their `line` across a
+/// PRESERVATION LAW — Go-to HEADING rows keep their `line` across a
 /// `refilter` (a typed query re-ranks/narrows `rows` into a fresh `items`
 /// view; the line must travel with ITS OWN row, never a neighbor's).
 #[test]
@@ -213,7 +213,7 @@ fn goto_heading_rows_keep_their_line_across_refilter() {
     );
 }
 
-/// ITEM 54 PRESERVATION LAW 4 — Command palette appended SETTINGS rows keep
+/// PRESERVATION LAW — Command palette appended SETTINGS rows keep
 /// their key (accept) + current value (secondary) across a `refilter`, and
 /// [`OverlayState::selected_setting_row`] still resolves the highlighted one
 /// correctly once the query has re-ranked the list.
@@ -248,7 +248,7 @@ fn command_palette_settings_rows_keep_key_and_value_across_refilter() {
     assert_eq!(resolved.name, "Keymap");
 }
 
-/// ITEM 54 PRESERVATION LAW 5 — History rows keep their restore `id` + `ts`
+/// PRESERVATION LAW — History rows keep their restore `id` + `ts`
 /// across a LENS switch (which rebuilds `items`/`item_sections` from
 /// `rows`) AND a subsequent typed query.
 #[test]
@@ -294,7 +294,7 @@ fn history_rows_keep_id_and_ts_across_lens_switch_and_query() {
     );
 }
 
-/// ITEM 54 PRESERVATION LAW 6 — Go-to FILE rows keep their OWN relative
+/// PRESERVATION LAW — Go-to FILE rows keep their OWN relative
 /// "last edited" time; appended HEADING rows always read the constant
 /// `"heading"` kind hint — never each other's cell, before or after a
 /// reorder.

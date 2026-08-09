@@ -67,7 +67,7 @@ fn the_summoned_layer_ladder_resolves_every_combination() {
                 // Every derived predicate must equal the conjunction it
                 // replaced, at EVERY cell. A card of EITHER rung owns the
                 // keyboard, which is what keeps these byte-identical to the
-                // pre-item-173 `overlay.is_some()` answers.
+                // former `overlay.is_some()` answers.
                 let card_up = !matches!(rung, Rung::Nothing);
                 assert_eq!(
                     ws.overlay_open(),
@@ -184,7 +184,7 @@ fn the_popover_cannot_be_summoned_underneath_a_picker() {
 }
 
 /// Dismissing the pickers drops to the editor — or back to a popover that was
-/// summoned before a picker shadowed it. Pins the pre-item-172 behaviour (the
+/// summoned before a picker shadowed it. Pins the former behaviour (the
 /// menu-bar title press cleared overlay + search and left `popover_open` alone)
 /// so a future tidy-up cannot change it silently, at BOTH card rungs.
 #[test]

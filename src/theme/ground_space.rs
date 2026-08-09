@@ -109,7 +109,7 @@ const SHARED: &[GroundQuantity] = &[
 
 impl Background {
     /// Every authored quantity this ground carries, the space it lives in, and
-    /// why — the item-186 classification table, and the authority
+    /// why — the coordinate-space classification table, and the authority
     /// `shaders/background.wgsl` mirrors.
     ///
     /// It names BOTH the dials a world writes in its own literal (`period_px`,
@@ -185,6 +185,6 @@ impl Background {
     }
 
     /// How many members the `Background` roster has. Bumping this without
-    /// enrolling a representative in the item-186 sweep fails that law by name.
+    /// enrolling a representative in the coordinate-space sweep fails that law by name.
     pub const ROSTER_LEN: usize = 11;
 }
