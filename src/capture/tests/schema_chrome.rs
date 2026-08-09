@@ -4,7 +4,7 @@
 //! `capture::tests` (2026-07 code-organization pass).
 
 use super::super::*;
-use super::{adapter_available, num_after};
+use super::{adapter_available, sidecar};
 use crate::buffer::Buffer;
 use crate::testscratch::ScratchDir;
 
@@ -106,10 +106,17 @@ fn retina_capture_centers_page_column_symmetrically() {
     };
     capture_with(&retina_png, &buf, &opts).expect("retina capture");
     let json = std::fs::read_to_string(retina_png.with_extension("json")).unwrap();
-    let cw = num_after(&json, "\"canvas\":", "\"width\"");
-    let dpi = num_after(&json, "\"canvas\":", "\"dpi\"");
-    let left = num_after(&json, "\"column\":", "\"left\"");
-    let width = num_after(&json, "\"column\":", "\"width\"");
+    let value = sidecar(&json);
+    let cw = value["canvas"]["width"]
+        .as_f64()
+        .expect("canvas.width number");
+    let dpi = value["canvas"]["dpi"].as_f64().expect("canvas.dpi number");
+    let left = value["page"]["column"]["left"]
+        .as_f64()
+        .expect("page.column.left number");
+    let width = value["page"]["column"]["width"]
+        .as_f64()
+        .expect("page.column.width number");
     assert_eq!(
         cw, 2400.0,
         "sidecar canvas.width self-describes the physical size"
@@ -137,18 +144,23 @@ fn retina_capture_centers_page_column_symmetrically() {
     let def_png = dir.join("default.png");
     capture_with(&def_png, &buf, &CaptureOpts::default()).expect("default capture");
     let djson = std::fs::read_to_string(def_png.with_extension("json")).unwrap();
-    let dleft = num_after(&djson, "\"column\":", "\"left\"");
-    let dwidth = num_after(&djson, "\"column\":", "\"width\"");
+    let default = sidecar(&djson);
+    let dleft = default["page"]["column"]["left"]
+        .as_f64()
+        .expect("page.column.left number");
+    let dwidth = default["page"]["column"]["width"]
+        .as_f64()
+        .expect("page.column.width number");
     // The standard prose measure is a visibly centered 70-character column.
     assert!(
         (dleft - 96.0).abs() <= 0.5 && (dwidth - 1008.0).abs() <= 0.5,
         "default column geometry: left ~96, width ~1008 (prose measure binds), got left {dleft} width {dwidth}"
     );
     // The no-flag sidecar must NOT carry a dpi key (byte-stable canvas block).
-    let canvas_block = &djson[djson.find("\"canvas\":").unwrap()..djson.find("\"font\":").unwrap()];
     assert!(
-        !canvas_block.contains("\"dpi\""),
-        "no-flag sidecar canvas block must omit dpi for byte-identity: {canvas_block:?}"
+        default["canvas"].get("dpi").is_none(),
+        "no-flag sidecar canvas block must omit dpi for byte-identity: {}",
+        default["canvas"]
     );
 }
 
@@ -452,32 +464,29 @@ fn syntax_sidecar_gated_to_code() {
     let code_png = dir.join("code.png");
     capture_with(&code_png, &code, &CaptureOpts::default()).expect("code capture");
     let cjson = std::fs::read_to_string(code_png.with_extension("json")).unwrap();
-    assert!(
-        cjson.contains(&format!(
-            "\"schema\": \"{}\"",
-            crate::capture::schema_plain()
-        )),
-        "schema bumped: {cjson:.80}"
+    let code_value = sidecar(&cjson);
+    assert_eq!(
+        code_value["schema"],
+        crate::capture::schema_plain(),
+        "schema bumped"
     );
-    let syn = &cjson[cjson.find("\"syn_spans\":").unwrap()..];
+    let syn = code_value["syn_spans"].as_array().expect("syn_spans array");
+    let syn_has = |tag: &str| syn.iter().any(|span| span[2] == tag);
     assert!(
-        syn.contains("\"comment\""),
-        "code syn_spans must carry a comment: {syn:.240}"
-    );
-    assert!(
-        syn.contains("\"comment_code\""),
-        "commented-out code must report the comment_code tier: {syn:.240}"
+        syn_has("comment"),
+        "code syn_spans must carry a comment: {syn:?}"
     );
     assert!(
-        syn.contains("\"definition\""),
-        "code syn_spans must carry the fn name: {syn:.240}"
+        syn_has("comment_code"),
+        "commented-out code must report the comment_code tier: {syn:?}"
+    );
+    assert!(
+        syn_has("definition"),
+        "code syn_spans must carry the fn name: {syn:?}"
     );
     // The companion `syn_lang` field reports the DETECTED language, agreeing
     // with the emitted spans (it is `null` when there are none, below).
-    assert!(
-        cjson.contains("\"syn_lang\": \"rust\""),
-        "code syn_lang must be rust: {cjson:.200}"
-    );
+    assert_eq!(code_value["syn_lang"], "rust", "code syn_lang");
 
     // A markdown buffer: syn_spans must be the empty array (no code highlight).
     let mut md = Buffer::from_str("# title\nsome prose\n");
@@ -485,13 +494,16 @@ fn syntax_sidecar_gated_to_code() {
     let md_png = dir.join("notes.png");
     capture_with(&md_png, &md, &CaptureOpts::default()).expect("md capture");
     let mjson = std::fs::read_to_string(md_png.with_extension("json")).unwrap();
-    assert!(
-        mjson.contains("\"syn_spans\": []"),
-        "markdown must emit empty syn_spans"
+    let markdown = sidecar(&mjson);
+    assert_eq!(
+        markdown["syn_spans"],
+        serde_json::json!([]),
+        "markdown syn_spans"
     );
-    assert!(
-        mjson.contains("\"syn_lang\": null"),
-        "markdown syn_lang must be null"
+    assert_eq!(
+        markdown["syn_lang"],
+        serde_json::Value::Null,
+        "markdown syn_lang"
     );
 
     // A plain-text buffer: syn_spans empty too.
@@ -500,14 +512,9 @@ fn syntax_sidecar_gated_to_code() {
     let txt_png = dir.join("scratch.png");
     capture_with(&txt_png, &txt, &CaptureOpts::default()).expect("txt capture");
     let tjson = std::fs::read_to_string(txt_png.with_extension("json")).unwrap();
-    assert!(
-        tjson.contains("\"syn_spans\": []"),
-        ".txt must emit empty syn_spans"
-    );
-    assert!(
-        tjson.contains("\"syn_lang\": null"),
-        ".txt syn_lang must be null"
-    );
+    let plain = sidecar(&tjson);
+    assert_eq!(plain["syn_spans"], serde_json::json!([]), ".txt syn_spans");
+    assert_eq!(plain["syn_lang"], serde_json::Value::Null, ".txt syn_lang");
 }
 
 #[test]
@@ -597,38 +604,36 @@ fn fenced_code_syntax_highlights_by_info_language() {
     let png = dir.join("demo.png");
     capture_with(&png, &md, &CaptureOpts::default()).expect("fence capture");
     let json = std::fs::read_to_string(png.with_extension("json")).unwrap();
-
+    let value = sidecar(&json);
+    let md_spans = value["md_spans"].as_array().expect("md_spans array");
+    let md_has = |tag: &str| md_spans.iter().any(|span| span[2] == tag);
     // The md_spans block carries the fenced-body ROLE spans, tagged with their
     // language, so the highlight is headless-assertable.
-    let md_spans = &json[json.find("\"md_spans\":").unwrap()..json.find("\"syn_lang\":").unwrap()];
     assert!(
-        md_spans.contains("\"code_rust_comment\""),
-        "rust fence comment role span present: {md_spans:.400}"
+        md_has("code_rust_comment"),
+        "rust fence comment role span present: {md_spans:?}"
     );
     assert!(
-        md_spans.contains("\"code_rust_string\""),
-        "rust fence string role span present: {md_spans:.400}"
+        md_has("code_rust_string"),
+        "rust fence string role span present: {md_spans:?}"
     );
     assert!(
-        md_spans.contains("\"code_bash_comment\""),
-        "sh fence maps to bash + carries a comment role span: {md_spans:.400}"
+        md_has("code_bash_comment"),
+        "sh fence maps to bash + carries a comment role span: {md_spans:?}"
     );
     // The fence markers + info strings stay dim markup (the whole block is dimmed).
-    assert!(
-        md_spans.contains("\"markup\""),
-        "fence markers stay markup: {md_spans:.200}"
-    );
+    assert!(md_has("markup"), "fence markers stay markup: {md_spans:?}");
 
     // Fence syntax lives on the MARKDOWN seam: the code-buffer `syn_spans`/`syn_lang`
     // stay empty/null (this is a markdown buffer, not a code buffer).
     assert!(
-        json.contains("\"syn_spans\": []"),
+        value["syn_spans"]
+            .as_array()
+            .expect("syn_spans array")
+            .is_empty(),
         "markdown syn_spans stays empty"
     );
-    assert!(
-        json.contains("\"syn_lang\": null"),
-        "markdown syn_lang stays null"
-    );
+    assert!(value["syn_lang"].is_null(), "markdown syn_lang stays null");
 }
 
 /// MARKDOWN `==highlight==`: a `.md` buffer's `==marked text==` yields a
@@ -654,15 +659,15 @@ fn markdown_highlight_tag_present_in_sidecar() {
     let png = dir.join("highlight.png");
     capture_with(&png, &md, &CaptureOpts::default()).expect("highlight capture");
     let json = std::fs::read_to_string(png.with_extension("json")).unwrap();
-
-    let md_spans = &json[json.find("\"md_spans\":").unwrap()..json.find("\"syn_lang\":").unwrap()];
+    let value = sidecar(&json);
+    let md_spans = value["md_spans"].as_array().expect("md_spans array");
     assert!(
-        md_spans.contains("\"highlight\""),
-        "marked text carries the highlight tag: {md_spans:.300}"
+        md_spans.iter().any(|span| span[2] == "highlight"),
+        "marked text carries the highlight tag: {md_spans:?}"
     );
     assert!(
-        md_spans.contains("\"markup\""),
-        "the == delimiters stay dim markup: {md_spans:.300}"
+        md_spans.iter().any(|span| span[2] == "markup"),
+        "the == delimiters stay dim markup: {md_spans:?}"
     );
 }
 
@@ -725,24 +730,15 @@ fn prose_diff_view_renders_wash_band_pixels_and_reports_state() {
 
     // (1) STATE: the sidecar `diff` block reports an active view with the right shape.
     let json = std::fs::read_to_string(png.with_extension("json")).unwrap();
-    let diff = &json[json.find("\"diff\":").unwrap()..];
-    assert!(
-        diff.contains("\"active\": true"),
-        "diff view active: {diff:.160}"
-    );
-    assert!(
-        diff.contains("\"struck\": 1"),
-        "one struck deletion in state: {diff:.160}"
-    );
-    assert!(
-        diff.contains("\"washed\": 1"),
-        "one washed insertion in state: {diff:.160}"
-    );
+    let value = sidecar(&json);
+    assert_eq!(value["diff"]["active"], true, "diff.active");
+    assert_eq!(value["diff"]["struck"], 1, "diff.struck");
+    assert_eq!(value["diff"]["washed"], 1, "diff.washed");
     // The washed insertion is in the render model (its `==` dims to markup).
-    let md_spans = &json[json.find("\"md_spans\":").unwrap()..json.find("\"syn_lang\":").unwrap()];
+    let md_spans = value["md_spans"].as_array().expect("md_spans array");
     assert!(
-        md_spans.contains("\"highlight\""),
-        "washed insertion is a highlight span: {md_spans:.200}"
+        md_spans.iter().any(|span| span[2] == "highlight"),
+        "washed insertion is a highlight span: {md_spans:?}"
     );
 
     // (2) APPEARANCE (real pixels): the washed insertion draws a FILLED wash band —
@@ -795,12 +791,12 @@ fn markdown_table_tags_present_in_sidecar() {
     let png = dir.join("table.png");
     capture_with(&png, &md, &CaptureOpts::default()).expect("table capture");
     let json = std::fs::read_to_string(png.with_extension("json")).unwrap();
-
-    let md_spans = &json[json.find("\"md_spans\":").unwrap()..json.find("\"syn_lang\":").unwrap()];
-    for tag in ["\"table_pipe\"", "\"table_sep\"", "\"table_header\""] {
+    let value = sidecar(&json);
+    let md_spans = value["md_spans"].as_array().expect("md_spans array");
+    for tag in ["table_pipe", "table_sep", "table_header"] {
         assert!(
-            md_spans.contains(tag),
-            "table span {tag} present: {md_spans:.400}"
+            md_spans.iter().any(|span| span[2] == tag),
+            "table span {tag} present: {md_spans:?}"
         );
     }
 }

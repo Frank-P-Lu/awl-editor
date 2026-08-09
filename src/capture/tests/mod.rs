@@ -3,7 +3,7 @@
 //! `capture/tests/` directory -- every test's NAME is unchanged, only its
 //! module path grew one segment (`capture::tests::foo` ->
 //! `capture::tests::<area>::foo`). This file owns the shared drive-helpers
-//! (`adapter_available`, `num_after`, `drawn_streak_len`, the held-key run
+//! (`adapter_available`, `sidecar`, `drawn_streak_len`, the held-key run
 //! fixtures) since more than one area calls them; each child re-derives
 //! `capture` root access via its own `use super::super::*;` plus a targeted
 //! `use super::{..};` for whichever helpers it actually calls.
@@ -131,23 +131,8 @@ pub(super) fn adapter_available() -> bool {
     crate::test_gpu::adapter_present()
 }
 
-/// Extract the integer/float that follows `"key":` AFTER the first occurrence of
-/// `anchor` in the sidecar JSON. Scoped by `anchor` so `page.column.left` /
-/// `canvas.width` don't collide with same-named keys elsewhere.
-pub(super) fn num_after(json: &str, anchor: &str, key: &str) -> f64 {
-    let from = json.find(anchor).expect("anchor present");
-    let rest = &json[from..];
-    let kpos = rest.find(key).expect("key present after anchor");
-    let after = &rest[kpos + key.len()..];
-    // Skip `": ` and read the leading numeric token.
-    let token: String = after
-        .chars()
-        .skip_while(|c| !(c.is_ascii_digit() || *c == '-' || *c == '+'))
-        .take_while(|c| c.is_ascii_digit() || *c == '.' || *c == '-' || *c == '+')
-        .collect();
-    token
-        .parse()
-        .unwrap_or_else(|_| panic!("bad number for {key:?}: {token:?}"))
+pub(super) fn sidecar(json: &str) -> serde_json::Value {
+    serde_json::from_str(json).unwrap_or_else(|error| panic!("sidecar is not valid JSON: {error}"))
 }
 
 pub(super) fn settings_name_is_range(name: &str) -> bool {

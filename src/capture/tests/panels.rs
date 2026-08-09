@@ -4,7 +4,7 @@
 //! monolithic `capture::tests` (2026-07 code-organization pass).
 
 use super::super::*;
-use super::adapter_available;
+use super::{adapter_available, sidecar};
 use crate::buffer::Buffer;
 use crate::testscratch::ScratchDir;
 
@@ -39,14 +39,15 @@ fn debug_panel_absent_by_default_and_toggles() {
     let off_png = dir.join("off.png");
     capture_with(&off_png, &buf, &CaptureOpts::default()).expect("off capture");
     let off_json = std::fs::read_to_string(off_png.with_extension("json")).unwrap();
-    assert!(
-        off_json.contains(
-            "\"debug\": { \"enabled\": false, \"text\": \"\", \"frame_ms\": null, \
-             \"worst_ms\": null, \"budget_ms\": null, \"key_px_ms\": null, \
-             \"redraws\": null, \"still\": true, \"autosave_state\": null, \
-             \"autosave_since_s\": null }"
-        ),
-        "default capture: panel absent + placeholder perf block: {off_json}"
+    let off = sidecar(&off_json);
+    assert_eq!(
+        off["debug"],
+        serde_json::json!({
+            "enabled": false, "text": "", "frame_ms": null, "worst_ms": null,
+            "budget_ms": null, "key_px_ms": null, "redraws": null, "still": true,
+            "autosave_state": null, "autosave_since_s": null
+        }),
+        "default capture: panel absent + placeholder perf block"
     );
 
     // ENABLED (`--debug`): the toggle flips state — the stacked readout
@@ -57,36 +58,46 @@ fn debug_panel_absent_by_default_and_toggles() {
     let on_png = dir.join("on.png");
     capture_with(&on_png, &buf, &CaptureOpts::default()).expect("on capture");
     let on_json = std::fs::read_to_string(on_png.with_extension("json")).unwrap();
-    assert!(
-        on_json.contains("\"debug\": { \"enabled\": true,"),
-        "enabled flag: {on_json}"
-    );
+    let on = sidecar(&on_json);
+    let debug = &on["debug"];
+    assert_eq!(debug["enabled"], true, "debug.enabled");
     // The clockless still-form placeholders lead the stack (newlines are escaped
     // as \\n inside the JSON string).
     assert!(
-        on_json.contains("still · frame — ms · worst —\\nkey→px — ms\\nredraws —"),
+        debug["text"]
+            .as_str()
+            .expect("debug.text string")
+            .contains("still · frame — ms · worst —\nkey→px — ms\nredraws —"),
         "perf placeholder lines: {on_json}"
     );
     // The machine-readable perf block rides alongside the text, all-null + still —
     // INCLUDING the autosave fields (the engine never runs headlessly).
     assert!(
-        on_json.contains(
-            "\"frame_ms\": null, \"worst_ms\": null, \"budget_ms\": null, \
-             \"key_px_ms\": null, \"redraws\": null, \"still\": true, \
-             \"autosave_state\": null, \"autosave_since_s\": null"
-        ),
-        "placeholder perf block: {on_json}"
+        [
+            "frame_ms",
+            "worst_ms",
+            "budget_ms",
+            "key_px_ms",
+            "redraws",
+            "autosave_state",
+            "autosave_since_s"
+        ]
+        .into_iter()
+        .all(|field| debug[field].is_null()),
+        "debug clocked fields must be null: {debug}"
     );
+    assert_eq!(debug["still"], true, "debug.still");
     // Deterministic diagnostics: zoom %, cursor ln:col (start), and the KEY md/syn
     // line are all present.
-    assert!(on_json.contains("zoom 100%"), "zoom line: {on_json}");
-    assert!(on_json.contains("ln 0:0"), "cursor line: {on_json}");
-    assert!(on_json.contains("md:"), "md/syn line: {on_json}");
+    let text = debug["text"].as_str().expect("debug.text string");
+    assert!(text.contains("zoom 100%"), "zoom line: {text}");
+    assert!(text.contains("ln 0:0"), "cursor line: {text}");
+    assert!(text.contains("md:"), "md/syn line: {text}");
     // The AUTOSAVE line trails the panel text as the fixed clockless placeholder
     // (the engine is structurally live-App-only — never fed in a capture).
     assert!(
-        on_json.contains("autosave —"),
-        "autosave placeholder line: {on_json}"
+        text.contains("autosave —"),
+        "autosave placeholder line: {text}"
     );
     // THEME-SWITCH SETTLE readout (determinism law): STRUCTURALLY ABSENT from a
     // `--debug` capture. The reshape timers + panel feed live only on the live App
@@ -95,14 +106,18 @@ fn debug_panel_absent_by_default_and_toggles() {
     // neither the `theme latest`/`theme worst` headlines nor the worst transaction's
     // phase breakdown, keeping the capture byte-identical to before the feature.
     assert!(
-        !on_json.contains("theme latest")
-            && !on_json.contains("theme worst")
-            && !on_json.contains("font ")
-            && !on_json.contains("reshape")
-            && !on_json.contains("rowgeom")
-            && !on_json.contains("atlas")
-            && !on_json.contains("present"),
-        "theme-switch settle readout must be absent from a --debug capture: {on_json}"
+        [
+            "theme latest",
+            "theme worst",
+            "font ",
+            "reshape",
+            "rowgeom",
+            "atlas",
+            "present"
+        ]
+        .into_iter()
+        .all(|term| !text.contains(term)),
+        "theme-switch settle readout must be absent from debug.text: {text}"
     );
 
     // Restore the default so later tests see the panel off.
@@ -133,9 +148,10 @@ fn whichkey_absent_by_default_and_shown_lists_continuations() {
     let off_png = dir.join("off.png");
     capture_with(&off_png, &buf, &CaptureOpts::default()).expect("off capture");
     let off_json = std::fs::read_to_string(off_png.with_extension("json")).unwrap();
-    assert!(
-        off_json.contains("\"whichkey\": { \"shown\": false, \"rows\": [] }"),
-        "default capture: panel absent: {off_json}"
+    assert_eq!(
+        sidecar(&off_json)["whichkey"],
+        serde_json::json!({"shown": false, "rows": []}),
+        "default capture: panel absent"
     );
 
     // SUMMONED (`--whichkey`): the C-x defaults are RETIRED, so the panel teaches the
@@ -157,23 +173,33 @@ fn whichkey_absent_by_default_and_shown_lists_continuations() {
     };
     capture_with(&on_png, &buf, &opts).expect("on capture");
     let on_json = std::fs::read_to_string(on_png.with_extension("json")).unwrap();
-    assert!(
-        on_json.contains("\"whichkey\": { \"shown\": true,"),
-        "shown flag: {on_json}"
-    );
+    let on = sidecar(&on_json);
+    assert_eq!(on["whichkey"]["shown"], true, "whichkey.shown");
     // A representative sampling of the reclaimed continuations: a `C-x C-…` chord
     // plus the single-key ones.
     assert!(
-        on_json.contains("[\"C-s\", \"Save\"]"),
-        "save row: {on_json}"
+        on["whichkey"]["rows"]
+            .as_array()
+            .expect("whichkey.rows array")
+            .contains(&serde_json::json!(["C-s", "Save"])),
+        "save row: {}",
+        on["whichkey"]["rows"]
     );
     assert!(
-        on_json.contains("[\"t\", \"Switch theme…\"]"),
-        "theme row: {on_json}"
+        on["whichkey"]["rows"]
+            .as_array()
+            .expect("whichkey.rows array")
+            .contains(&serde_json::json!(["t", "Switch theme…"])),
+        "theme row: {}",
+        on["whichkey"]["rows"]
     );
     assert!(
-        on_json.contains("[\"n\", \"New document\"]"),
-        "note row: {on_json}"
+        on["whichkey"]["rows"]
+            .as_array()
+            .expect("whichkey.rows array")
+            .contains(&serde_json::json!(["n", "New document"])),
+        "note row: {}",
+        on["whichkey"]["rows"]
     );
 }
 
