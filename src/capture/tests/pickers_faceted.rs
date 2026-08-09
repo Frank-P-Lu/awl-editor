@@ -48,7 +48,7 @@ fn theme_picker_is_flat_and_reports_no_lens() {
     };
     // The capture fixture layers optional overlay state for readable scenario setup.
     opts.overlay = Some(OverlayInfo {
-        // ITEM 45: reproduce the prior live-resolved anchor for this capture literal.
+        // Reproduce the prior live-resolved anchor for this capture literal.
         align: crate::render::effective_card_anchor(),
         active: true,
         mode: ov.kind.as_str(),
@@ -129,7 +129,7 @@ fn overlay_empty_state_renders_and_reports() {
     let buf = Buffer::from_str("preview me\n");
 
     let fold = |ov: &crate::overlay::OverlayState| OverlayInfo {
-        // ITEM 45: reproduce the prior live-resolved anchor for this capture literal.
+        // Reproduce the prior live-resolved anchor for this capture literal.
         align: crate::render::effective_card_anchor(),
         active: true,
         mode: ov.kind.as_str(),
@@ -239,7 +239,7 @@ fn file_pickers_faceted_lens_render_and_report() {
         };
         // The capture fixture layers optional overlay state for readable scenario setup.
         opts.overlay = Some(OverlayInfo {
-            // ITEM 45: reproduce the prior live-resolved anchor for this capture literal.
+            // Reproduce the prior live-resolved anchor for this capture literal.
             align: crate::render::effective_card_anchor(),
             active: true,
             mode: ov.kind.as_str(),
@@ -275,7 +275,7 @@ fn file_pickers_faceted_lens_render_and_report() {
     };
 
     // GO-TO, cycled RIGHT×3 to the Headings lens (the last, "By type" was CUT —
-    // item 11's unified-list decision).
+    // the unified-list decision).
     let goto_corpus = vec![
         "README.md".to_string(),
         "src/main.rs".to_string(),
@@ -301,7 +301,7 @@ fn file_pickers_faceted_lens_render_and_report() {
             ["Headings", true]
         ])
     );
-    // Heading rows carry the `❡ ` kind-hint marker (item 11's rowlayout
+    // Heading rows carry the `❡ ` kind-hint marker (the rowlayout
     // PRIMARY-cell disambiguator) even under their own dedicated lens.
     const H: &str = OverlayKind::HEADING_MARKER_PREFIX;
     assert_eq!(
@@ -379,7 +379,7 @@ fn faceted_grouped_window_is_bounded_and_scrolls_to_selection() {
         };
         // The capture fixture layers optional overlay state for readable scenario setup.
         opts.overlay = Some(OverlayInfo {
-            // ITEM 45: reproduce the prior live-resolved anchor for this capture literal.
+            // Reproduce the prior live-resolved anchor for this capture literal.
             align: crate::render::effective_card_anchor(),
             active: true,
             mode: ov.kind.as_str(),
@@ -415,7 +415,7 @@ fn faceted_grouped_window_is_bounded_and_scrolls_to_selection() {
     };
 
     // A LARGE go-to corpus of 60 top-level files, cycled to the "This folder" lens
-    // (the "By type" multi-bucket lens was CUT, item 11 — no picker groups a single
+    // (the "By type" multi-bucket lens was CUT — no picker groups a single
     // lens into more than one section any more) → a grouped list of 60 rows under
     // ONE section header, far more than the 12-row window can show at once.
     let n = 60;
@@ -542,7 +542,7 @@ fn command_and_history_pickers_faceted_lens_render_and_report() {
         };
         // The capture fixture layers optional overlay state for readable scenario setup.
         opts.overlay = Some(OverlayInfo {
-            // ITEM 45: reproduce the prior live-resolved anchor for this capture literal.
+            // Reproduce the prior live-resolved anchor for this capture literal.
             align: crate::render::effective_card_anchor(),
             active: true,
             mode: ov.kind.as_str(),
@@ -861,7 +861,7 @@ fn history_preview_folds_text_and_reports_preview_id() {
     // The capture fixture layers optional history state after shared defaults.
     opts.preview_text = Some("old\n".to_string());
     opts.overlay = Some(OverlayInfo {
-        // ITEM 45: reproduce the prior live-resolved anchor for this capture literal.
+        // Reproduce the prior live-resolved anchor for this capture literal.
         align: crate::render::effective_card_anchor(),
         active: true,
         mode: "history",
@@ -1032,7 +1032,7 @@ fn a_history_preview_leaves_the_card_figures_over_the_users_document() {
     );
 }
 
-/// ITEM 94 — THE RANGE ROW THROUGH THE REAL REPLAY + SIDECAR SEAM: drive RIGHT on
+/// THE RANGE ROW THROUGH THE REAL REPLAY + SIDECAR SEAM: drive RIGHT on
 /// the Settings menu's Zoom row through the SAME `apply_transition` a `--keys` replay
 /// runs, fold the still-open overlay through the SAME
 /// [`crate::run::overlay_capture_info`] owner the one-shot capture uses, and
@@ -1077,7 +1077,7 @@ fn a_settings_range_row_steps_and_reports_its_rail_through_the_sidecar() {
     // headless session observes it exactly as the live app does.
     let mut zoom = spec.default;
     let mut overlay = crate::overlay::Journey::seeded(Some(ov));
-    // ITEM 114 — Settings is a summoned WORKSPACE: a fresh summon stands on its
+    // Settings is a summoned WORKSPACE: a fresh summon stands on its
     // navigation rail, and the rail's `→` enters the content pane. `→` on a
     // range ROW is the rail step this law is about, so put the card where a user
     // pressing this chord would be, through the lifecycle's own transition.
