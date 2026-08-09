@@ -988,6 +988,81 @@ impl TextPipeline {
     /// rebuilding the SAME attrs no-ops in `set_attrs_list` (it resets shaping only
     /// when the attrs differ), so a move that crosses no concealable boundary reshapes
     /// nothing.
+    /// Refresh the height reservation and forcing span for an image on one
+    /// concealable line. This is deliberately separate from the attribute refresh:
+    /// image forcing has its own fast-path bookkeeping on cursor-only updates.
+    #[allow(clippy::too_many_arguments)]
+    fn refresh_conceal_image_force(
+        &mut self,
+        li: usize,
+        start: usize,
+        tlen: usize,
+        cursor_line: usize,
+        selection_touch: Option<&std::ops::Range<usize>>,
+        attrs: &Attrs<'static>,
+        base_font_size: f32,
+        wrap: f32,
+        md_spans: &[(std::ops::Range<usize>, crate::markdown::MdKind)],
+        image_heights: &mut [Option<f32>],
+        image_force: &mut [Option<(f32, f32)>],
+    ) {
+        let Some(dh) = self
+            .image_report
+            .borrow()
+            .iter()
+            .find(|im| im.line == li)
+            .map(|im| im.display_h)
+        else {
+            return;
+        };
+        let line_text = self.buffer.lines[li].text().to_string();
+        let Some((img_start, img_end)) = md_spans.iter().find_map(|(r, k)| {
+            matches!(
+                k,
+                crate::markdown::MdKind::ConcealMarkup(crate::markdown::ConcealKind::Image)
+            )
+            .then(|| (r.start.max(start), r.end.min(start + tlen)))
+            .filter(|(s, e)| s < e)
+        }) else {
+            return;
+        };
+        let local_range = (img_start - start)..(img_end - start);
+        let mixed = super::spans::image_line_has_other_content(&line_text, local_range.clone());
+        if mixed {
+            if let Some(slot) = image_heights.get_mut(li) {
+                *slot = None;
+            }
+            // This cursor-only rescan must use the same reveal predicate as layout,
+            // otherwise a selection-driven park would immediately re-force the row.
+            let revealed_now =
+                li == cursor_line || selection_touches(selection_touch, &(img_start..img_end));
+            let want = if revealed_now {
+                None
+            } else {
+                let prefix = &line_text[..local_range.start];
+                let last_row_w = Self::measure_last_row_width(
+                    &mut self.font_system,
+                    prefix,
+                    attrs,
+                    base_font_size,
+                    wrap,
+                );
+                let remaining = (wrap - last_row_w).max(0.0);
+                Some((dh, remaining + Self::IMAGE_FORCE_MARGIN_PX))
+            };
+            if let Some(slot) = image_force.get_mut(li) {
+                *slot = want;
+            }
+        } else {
+            if let Some(slot) = image_heights.get_mut(li) {
+                *slot = Some(dh);
+            }
+            if let Some(slot) = image_force.get_mut(li) {
+                *slot = None;
+            }
+        }
+    }
+
     pub(super) fn refresh_rule_conceal(&mut self, force: bool) {
         if self.md_spans.is_empty() {
             self.last_conceal_cursor_line = Some(self.cursor_line);
@@ -1065,68 +1140,20 @@ impl TextPipeline {
                     && r.start < start + tlen + 1
                     && r.end > start
             });
-            if is_concealable
-                && let Some(dh) = self
-                    .image_report
-                    .borrow()
-                    .iter()
-                    .find(|im| im.line == li)
-                    .map(|im| im.display_h)
-            {
-                let line_text = self.buffer.lines[li].text().to_string();
-                if let Some((img_start, img_end)) = md_spans.iter().find_map(|(r, k)| {
-                    matches!(
-                        k,
-                        crate::markdown::MdKind::ConcealMarkup(crate::markdown::ConcealKind::Image)
-                    )
-                    .then(|| (r.start.max(start), r.end.min(start + tlen)))
-                    .filter(|(s, e)| s < e)
-                }) {
-                    let local_range = (img_start - start)..(img_end - start);
-                    let mixed =
-                        super::spans::image_line_has_other_content(&line_text, local_range.clone());
-                    if mixed {
-                        if let Some(slot) = image_heights.get_mut(li) {
-                            *slot = None;
-                        }
-                        // SELECTION REVEAL (regression fix, item 16 follow-up):
-                        // this caret-move-only rescan re-derives `image_force`
-                        // on EVERY caret/selection tick (not just a reshape),
-                        // so it must widen the SAME `revealed_now` test
-                        // `compute_image_layout` now applies — caret line OR
-                        // active selection touching this image's own span
-                        // (`img_start..img_end`, via `selection_touches`, the
-                        // SAME predicate, never re-derived) — or it would
-                        // immediately re-force the row on the very next tick
-                        // and undo a selection-driven park.
-                        let revealed_now = li == cursor_line
-                            || selection_touches(selection_touch.as_ref(), &(img_start..img_end));
-                        let want = if revealed_now {
-                            None
-                        } else {
-                            let prefix = &line_text[..local_range.start];
-                            let last_row_w = Self::measure_last_row_width(
-                                &mut self.font_system,
-                                prefix,
-                                &attrs,
-                                base_font_size,
-                                wrap,
-                            );
-                            let remaining = (wrap - last_row_w).max(0.0);
-                            Some((dh, remaining + Self::IMAGE_FORCE_MARGIN_PX))
-                        };
-                        if let Some(slot) = image_force.get_mut(li) {
-                            *slot = want;
-                        }
-                    } else {
-                        if let Some(slot) = image_heights.get_mut(li) {
-                            *slot = Some(dh);
-                        }
-                        if let Some(slot) = image_force.get_mut(li) {
-                            *slot = None;
-                        }
-                    }
-                }
+            if is_concealable {
+                self.refresh_conceal_image_force(
+                    li,
+                    start,
+                    tlen,
+                    cursor_line,
+                    selection_touch.as_ref(),
+                    &attrs,
+                    base_font_size,
+                    wrap,
+                    &md_spans,
+                    &mut image_heights,
+                    &mut image_force,
+                );
             }
             if (is_rule || is_bullet || is_concealable)
                 && let Some(line) = self.buffer.lines.get_mut(li)
