@@ -113,6 +113,14 @@ this heading exists; `git log -S"BLOCKED ON THE USER"` finds who took it.
 - 🔵 **Right-click menu's greyed-out labels** (item 299): "unavailable" used to
   sit one row below its own row (ΔE 0.0 — invisible); now correct. A glance to
   confirm it reads as quiet, not broken. `gallery/item-299/`.
+- 🔵 **Quokka's card texture at non-1× zoom** (item 359): keep the shipped
+  DPI-only 11 px chamfer / 8 px dot cell as stable printed detail, or scale both
+  with editor zoom so the card remains one geometric form with its type? At
+  zoom 2 the zoom-aware candidate is 22/16 logical px and changes 19.6–22.9%
+  of the canvas; at zoom 0.8 it is 8.8/6.4 and changes 8.4–13.2%. Both remain
+  legible. Recommendation: keep DPI-only unless the larger, more decorative
+  2× texture is specifically wanted. Comparison sheet:
+  `/tmp/awl-item-359/comparison-current-vs-zoom-aware.png`.
 - 🔵 **Settings width budget** (item 327 — the open item below carries the
   question): two supporting facts for the decision. The "Project root" value
   never elides, so the rail's presence depends on the user's checkout-path
@@ -225,7 +233,7 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
 
 1. **375** — raise the lane ceiling and install the gate arbiter on the landed six-way shard owner.
 2. **372** — the citation stock, after 365. Production tier; 1,700 judgement calls, not a sed script.
-3. **358, 369, 370, 359, 360, 371's lane-half** — independent, no ordering constraint among them.
+3. **358, 369, 370, 360, 371's lane-half** — independent, no ordering constraint among them.
 4. **174** — multi-round refactor, continues by slices.
 5. **231** — no live lead; its named next step is a macOS guest VM, a spend decision, not work to absorb.
 6. **🔵 HUMAN / LIVE, none of which a lane can close** — see BLOCKED and OWED above. **251** is
@@ -339,14 +347,6 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
      Synchronize on observed writes, never wall-clock. Isolated HOME/XDG per child.
      **Done:** matrix report names every owner × phase and every exclusion; each law
      mutation-proven; POSIX-only arms gated, not pretended portable. **Routing:** deep tier.
-
-359. 🟡 **IN PROGRESS — codex (codex), branch `codex/item-359-card-scale`.**
-     **Two card dials are dpi-correct and zoom-blind** (mirror of 355's axis):
-     `CardShape::Chamfered{cut_px}` and `CardTexture::HalftoneDots{cell_px}` resolve as
-     `* dpi.max(1.0)` — they ignore zoom entirely, and unlike 355's lengths they move visible
-     card FORM on carrier worlds at any zoom ≠ 1. A taste call with a unit argument, not a
-     unit repair. **Build:** measure both at zoom 0.8/1.0/2.0 × dpi 1/2 per carrier, capture
-     before/after, bring the pair to the user rather than landing it.
 
 360. 🔵 **`Frost::feather_px` is a dial the product does not honour** — every consumer reads
      bare `lava::FROST_FEATHER_PX`; the field is written by world literals and read by
