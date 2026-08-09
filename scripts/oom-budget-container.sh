@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
-# scripts/oom-budget-container.sh — item 231's fast local oracle, as a script.
+# scripts/oom-budget-container.sh — a fast local oracle, as a script.
 #
 # WHAT THIS IS. Under a FIXED 4 GiB container ceiling at --test-threads=1,
 # `render::tests::` walks RSS monotonically to an OOM kill, and how far it gets
-# is commit-correlated. Item 232 measured that (36707d06 reaches test 199,
+# is commit-correlated. Measurement found that (36707d06 reaches test 199,
 # 8207e519 reaches test 160) and items 231/239 have called it "the fast local
 # oracle that already exists" ever since — ~4 local minutes against a ~50-minute
 # CI cycle. It only ever existed as prose in 96106575's commit message, and
 # rebuilding it from that prose cost a rediscovery of the sccache trap below.
 #
-# WHAT THIS IS NOT. It is not a gate and nothing calls it. Item 243 settled that
+# WHAT THIS IS NOT. It is not a gate and nothing calls it. The policy settles that
 # no local software-adapter arm belongs in anyone's gate: a CPU rasteriser has
-# no system-wide GPU resource for item 231's cross-process wedge to exhaust, so
+# no system-wide GPU resource for the cross-process wedge to exhaust, so
 # this rig has never once reproduced the hosted-macOS HANG and cannot. It
 # measures a DIFFERENT failure mode — a prompt SIGKILL with OOMKilled=true,
 # never the runner's park-forever-with-memory-flat. Bounding what it sees is
@@ -19,7 +19,7 @@
 #
 #   scripts/oom-budget-container.sh <git-ref> [<git-ref> ...]
 #
-# Alternate the refs (a b a b) rather than running each once: item 232 did, to
+# Alternate the refs (a b a b) rather than running each once: measurement did, to
 # control for host drift, and it is why 160 is known to be 160 and not noise.
 set -euo pipefail
 
@@ -28,7 +28,7 @@ work="${AWL_OOM_WORKDIR:-$HOME/.awl-oom-budget}"
 image=awl-oom-rig:bookworm
 mkdir -p "$work/out"
 
-# lavapipe on Debian bookworm: the same arm64 Mesa 22.3.6 stack item 232 used,
+# lavapipe on Debian bookworm: the same arm64 Mesa 22.3.6 stack measured,
 # on Dockerfile.linux's apt list plus the Vulkan loader and driver.
 if ! docker image inspect "$image" >/dev/null 2>&1; then
   docker build -t "$image" - <<'DOCKERFILE'
@@ -45,7 +45,7 @@ fi
 for ref in "$@"; do
   sha=$(git rev-parse --short "$ref")
   tree="$work/tree-$sha"
-  # A TARGET DIR PER TREE, and it is not optional. Item 232's first pass
+  # A TARGET DIR PER TREE, and it is not optional. The first pass
   # silently scored the SAME BINARY TWICE: both trees came out of `git archive`
   # within one second, so Cargo's mtime fingerprint called one up to date and
   # reused the other's artifacts. The binary_sha256 printed below is the
