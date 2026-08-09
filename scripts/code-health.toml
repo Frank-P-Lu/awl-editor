@@ -148,8 +148,8 @@ reason = "Item 355 (+12): the declaration docs for the spring and damping consta
 
 [[file_size_mark]]
 file = "src/caret_glyph.rs"
-lines = 539
-reason = "The one construction site each pipeline family has now sits inside gpu_cache::render_pipeline's build closure — the seam that makes a GPU program once-per-process instead of once-per-instance, which is what the hosted-macOS gate wedged on. The growth is that closure's own indent (+1)."
+lines = 537
+reason = "The one construction site each pipeline family has now sits inside gpu_cache::render_pipeline's build closure — the seam that makes a GPU program once-per-process instead of once-per-instance, which is what the hosted-macOS gate wedged on. The growth is that closure's own indent (+1). The test-only tint accessor is offset by tightening adjacent comments, lowering rather than moving the frozen ceiling."
 
 [[file_size_mark]]
 file = "src/commands.rs"
@@ -287,8 +287,8 @@ lines = 559
 
 [[file_size_mark]]
 file = "src/render.rs"
-lines = 2719
-reason = "The footer plate earns the notice channel's own one-pixel rim, which is what lifts it from delta-E 1.91 to 54 on Cassowary -- a plate nobody can see is not a plate. +10: the `footer_plate_rim` pipeline field and its construction, on the file whose GPU floor is a declared exception. +34: the `Millis` family and its `progress_per` door -- the BY-KIND exclusion that makes a duration uncarryable into a pixel multiply, so the compiler refuses `metrics.px(a_duration)` instead of a name list promising nobody will try. Plus the declaration doc comments for `PAGE_TEXT_PAD_CHARS` and the two caret pads, each naming which scale factor it is entitled to -- the classification's evidence lives at the declaration, because a classification whose reason lives in a test is the one that gets re-guessed. Item 355 (+14): `Logical` reaches the theme layer -- the doc for `PageFrame::Line`'s stroke and for the `RenderCaps` spell gap, plus the two further caret-corner call sites that were scaled by nothing whatever. The docs are the deliverable here: a length whose type says `Logical` still needs the sentence saying which pipeline resolves it, because this family already shipped one field named `_px` that no consumer reads at all."
+lines = 2734
+reason = "The footer plate earns the notice channel's own one-pixel rim, which is what lifts it from delta-E 1.91 to 54 on Cassowary -- a plate nobody can see is not a plate. +10: the `footer_plate_rim` pipeline field and its construction, on the file whose GPU floor is a declared exception. +34: the `Millis` family and its `progress_per` door -- the BY-KIND exclusion that makes a duration uncarryable into a pixel multiply, so the compiler refuses `metrics.px(a_duration)` instead of a name list promising nobody will try. Plus the declaration doc comments for `PAGE_TEXT_PAD_CHARS` and the two caret pads, each naming which scale factor it is entitled to -- the classification's evidence lives at the declaration, because a classification whose reason lives in a test is the one that gets re-guessed. Item 355 (+14): `Logical` reaches the theme layer -- the doc for `PageFrame::Line`'s stroke and for the `RenderCaps` spell gap, plus the two further caret-corner call sites that were scaled by nothing whatever. The docs are the deliverable here: a length whose type says `Logical` still needs the sentence saying which pipeline resolves it, because this family already shipped one field named `_px` that no consumer reads at all. +15: `HudDefaults`, `WhichKeyDefaults`, and `DebugDefaults` make each inert field group one exhaustive default value; these declarations live beside `TextPipeline`, the only owner that embeds them."
 
 [[file_size_mark]]
 file = "src/render/benchsuite/corpus.rs"
@@ -379,7 +379,7 @@ lines = 568
 
 [[file_size_mark]]
 file = "src/render/pipeline_draw.rs"
-lines = 593
+lines = 506
 reason = "The footer plate earns the notice channel's own one-pixel rim, which is what lifts it from delta-E 1.91 to 54 on Cassowary -- a plate nobody can see is not a plate. +5: the rim's construction and its draw slot immediately before `overlay_bars`, matching the order `notice_rim`/`notice_plate` already keep."
 
 [[file_size_mark]]
@@ -790,7 +790,7 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 lint = "clippy::too_many_lines"
 file = "src/render/pipeline_draw.rs"
 function = "TextPipeline::new"
-message = "this function has too many lines (522/100)"
+message = "this function has too many lines (437/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions in the one `TextPipeline` initializer, which is the single exhaustive construction site every pipeline and every inert default must pass through. That is the whole of this function: the fold chevron's rotated-quad `SelectionPipeline` construction and its `folded_headings`/`fold_chevron_turn` defaults, the rotated-location-cue pipeline, the roster memo, the `overlay_comparison` and `doc_source` mirrors, and the three inert diagonal-marker defaults, each the same shape every other GPU pipeline field here already takes. The selection-token split adds lines for a reason worth the count: the longer `selection_document`/`selection_ui` names make rustfmt break the `selection_pipeline` construction across lines, and the short comments name which surface reads which token."
 
 [[clippy_exception]]

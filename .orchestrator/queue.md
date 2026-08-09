@@ -223,15 +223,14 @@ list instead of re-checking the tree.** Every entry in the previous list was
 verified landed via `git log --grep` before this re-derivation (292/293/299/303,
 294/298, 305, 291, 296+300, 273's residuals, 302, 227, 131e+303 — all merged).
 
-1. **361 then 364** — ONE lane, sequenced, never a pair: both rewrite `pipeline_draw.rs::new`.
-2. **362 and 363** — independent render refactors; 363 is identity-gated, so an outcome audit follows it.
-3. **373 then 375** — shard the gate, then raise the lane ceiling and install the gate arbiter.
+1. **362 and 363** — independent render refactors; 363 is identity-gated, so an outcome audit follows it.
+2. **373 then 375** — shard the gate, then raise the lane ceiling and install the gate arbiter.
    **374** any time after 365; it directly raises 373's ceiling (both slow atoms sit in one shard).
-4. **372** — the citation stock, after 365. Production tier; 1,700 judgement calls, not a sed script.
-5. **357, 358, 369, 370, 359, 360, 371's lane-half** — independent, no ordering constraint among them.
-6. **174** — multi-round refactor, continues by slices.
-7. **231** — no live lead; its named next step is a macOS guest VM, a spend decision, not work to absorb.
-8. **🔵 HUMAN / LIVE, none of which a lane can close** — see BLOCKED and OWED above. **251** is
+3. **372** — the citation stock, after 365. Production tier; 1,700 judgement calls, not a sed script.
+4. **357, 358, 369, 370, 359, 360, 371's lane-half** — independent, no ordering constraint among them.
+5. **174** — multi-round refactor, continues by slices.
+6. **231** — no live lead; its named next step is a macOS guest VM, a spend decision, not work to absorb.
+7. **🔵 HUMAN / LIVE, none of which a lane can close** — see BLOCKED and OWED above. **251** is
    hardware-gated (a human at a Linux desktop with Orca). **327** and the landed taste calls
    (338/342/345/346, carried in OWED) close on the user's eye.
 
@@ -366,26 +365,6 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
      nothing. Route the consumers through the field or delete it, and add the census arm that
      makes an unread `RenderCaps` field fail rather than earn a verdict.
 
-361. 🟡 **IN PROGRESS — codex (codex), branch `codex/item-361-364-pipeline`.**
-     **Pipeline tint has two owners and nothing makes them agree.** Every baked pipeline's
-     colour is written in `TextPipeline::new` (`src/render/pipeline_draw.rs:6`) AND in
-     `sync_theme_colors` (`src/render/pipeline_geometry.rs:27`) — `surface_selected()` 6/6,
-     `primary()` 6/6, `float_shadow_srgba()` 5/5, `base_200()` 6/5… No law covers the
-     construction half, and no capture can: a headless capture builds pipelines once and
-     never syncs, so a divergence reaches only a live user switching worlds.
-     **Build:** construct with placeholder tints; call `sync_theme_colors()` at the end of
-     `new()` — sync becomes the one owner and every future pipeline is born correct.
-     ⚠️ The two sides are legitimately NOT the same set: `footer_plate_rim` and
-     `overlay_spine_selected` are re-tinted per frame (`render.rs:2250` says so) — derive
-     enrolment from the fields sync actually writes, never "every pipeline". `new()` also
-     owns dither/gradient state sync doesn't; `dpi: 1.0` at construction keeps
-     `wagtail_stipple_cell_px` consistent.
-     **Verify:** a law that each sync-owned pipeline's post-`new` colour equals post-`sync`
-     across the roster (`SelectionPipeline::test_color` is the seam; add the same accessor to
-     `caret/pipeline.rs:232`, `caret_glyph.rs:398`, `spellunderline.rs:221`); mutation = skip
-     the sync call; plus a byte-identity capture sweep — any diff is a pre-existing
-     divergence, reported not absorbed. **Routing:** production tier.
-
 362. **A 16-argument positional signature, three call sites, eleven arguments identical.**
      `build_line_attrs` (`src/render/spans/layout.rs:121`) is the shared recipe behind
      `set_text_incremental`/`restyle_all_lines`/`refresh_rule_conceal`
@@ -406,18 +385,6 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
      **Verify:** byte-identical captures over image/table/conceal fixtures at dpi 1+2;
      helpers named for what they own. **Routing:** production tier; audit dispatched
      separately so it doesn't read its own diff.
-
-364. 🟡 **IN PROGRESS — codex (codex), branch `codex/item-361-364-pipeline`.**
-     **`TextPipeline::new`'s default tail: 123 of 276 struct-literal lines are trivial
-     one-value defaults** (`pipeline_draw.rs:311–586`), 69 prefixed `overlay_`/`hud_`/`wk_`/
-     `debug_`. **Build:** group `hud_` (9 fields/~77 mentions), `wk_` (5/~24), `debug_`
-     (10/~39) into `#[derive(Default)]` sub-structs — three commits — and STOP. ‼ `overlay_`
-     is 45 fields/~2257 mentions crate-wide: report the number, the orchestrator judges
-     whether it's worth doing at all. This shrinks the constructor; it does not un-declare
-     the struct's GPU-floor exception. **Verify:** no `..Default::default()` hiding a field
-     an author meant to set (the sub-struct's Default is the ONE inert-value site, same
-     discipline as `ViewState::base()`); byte-identical captures; native both conventions.
-     **Routing:** production tier.
 
 367. **The sidecar is parseable JSON and four test files scan it as a string.**
      `capture/tests/panels.rs`: 20 `.contains(` against rendered prose (`:71` pins a literal
