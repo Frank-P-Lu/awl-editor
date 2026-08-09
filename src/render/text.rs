@@ -1,8 +1,8 @@
 use super::*;
 
 mod conceal_image_force;
+#[cfg(not(target_arch = "wasm32"))]
 mod image_spans;
-use image_spans::FoundImageSpan;
 
 #[derive(Clone, Copy, Debug, Default)]
 pub(super) struct ScriptFonts {
@@ -445,7 +445,7 @@ impl TextPipeline {
             // again — the very bug this round fixed).
             let doc_attrs = self.doc_attrs();
             struct LaidOutImage {
-                found: FoundImageSpan,
+                found: image_spans::FoundImageSpan,
                 dw: f32,
                 dh: f32,
                 missing: bool,
