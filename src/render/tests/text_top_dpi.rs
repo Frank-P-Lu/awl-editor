@@ -1,4 +1,4 @@
-//! ITEM 315 — THE DOCUMENT'S FIRST-ROW TOP, THROUGH THE LIVE PIPELINE, AT EVERY DPI.
+//! THE DOCUMENT'S FIRST-ROW TOP, THROUGH THE LIVE PIPELINE, AT EVERY DPI.
 //!
 //! The vertical twin of `column_left_dpi.rs`: `TEXT_TOP` was the
 //! last untyped `f32` in the same family as `TEXT_LEFT`, read unscaled by `doc_top`,

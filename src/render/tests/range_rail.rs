@@ -1,4 +1,4 @@
-//! ITEM 94 — THE SETTINGS RANGE ROW'S RAIL: geometry, hit target, and real
+//! THE SETTINGS RANGE ROW'S RAIL: geometry, hit target, and real
 //! pixels. The rail is the first drawn CONTROL in a picker row, so it gets the
 //! same treatment every other drawn affordance does — one geometry owner shared
 //! by the draw and the hit-test (asserted here by driving BOTH), and appearance

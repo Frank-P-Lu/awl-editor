@@ -1,4 +1,4 @@
-//! ITEM 234 — A WORKSPACE'S ROW TEXT SAT OUTSIDE ITS OWN PLATE.
+//! A WORKSPACE'S ROW TEXT SAT OUTSIDE ITS OWN PLATE.
 //!
 //! Both other overlay families lay their row text out `overlay_text_hpad()`
 //! inside the band the row surfaces span, and on a `Bars` world that number is

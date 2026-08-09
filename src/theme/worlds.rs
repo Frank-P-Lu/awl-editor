@@ -884,7 +884,7 @@ pub const FIRETAIL: Theme = Theme {
     font: "Monaspace Xenon",
     mono: "Monaspace Xenon",
     icon_cursor: IconCursor::Block,
-    // Item 121: the user's A/B/C pick, from one Block-cursor comparison
+    // The user's A/B/C pick, from one Block-cursor comparison
     // sheet — C reads burgundy at every size down to 24px, where A stays
     // near-black/cream/gold (no wine identity) and B's wine fades out by
     // 32px. Firetail is the one shipped exception to the inert default;

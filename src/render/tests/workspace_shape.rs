@@ -48,8 +48,8 @@ fn workspace_shape_roster_is_exact() {
     }
     // Named directly, so a reader does not have to trust the loop above: the
     // workspace roster is exactly the two members DESIGN.md §5 names, and each
-    // draws the shape that section describes for it (item 116d flipped History
-    // from `None` — a contextual card — onto its timeline/comparison shape).
+    // draws the shape that section describes for it (History uses its
+    // timeline/comparison shape rather than a contextual card).
     assert_eq!(
         OverlayKind::History.workspace_shape(),
         Some(WorkspaceShape::TimelineOverComparison)

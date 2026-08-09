@@ -1,6 +1,6 @@
 //! tests/seed_data_slot.rs — THE DATA-ROOT SEED SLOT, on the real binary.
 //!
-//! Item 204 slice 1 measured, and wrote into `docs/harness-reach.md`, that **no
+//! `docs/harness-reach.md` records that **no
 //! capture tier could reach an external-change conflict**. Tier 1 never builds a
 //! disk baseline; tier 2 cannot raise a conflict mid-run, because the change has
 //! to come from outside awl and a capture drives chords only; and it could not

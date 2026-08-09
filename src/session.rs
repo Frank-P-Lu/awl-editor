@@ -70,8 +70,8 @@ impl ScreenRect {
     }
 }
 
-/// The whole persisted session. `root` is the ACTIVE FOLDER (item 76 — the
-/// ONE persisted active-folder-context owner: this field + `active` are
+/// The whole persisted session. `root` is the ACTIVE FOLDER — the ONE persisted
+/// active-folder-context owner: this field + `active` are
 /// written atomically together by `session_flush`, so the folder and the
 /// active document restored from them can never disagree — see
 /// `app/session.rs`'s module doc for the launch-precedence law that reads

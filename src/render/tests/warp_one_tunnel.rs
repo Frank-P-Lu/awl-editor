@@ -1,4 +1,4 @@
-//! ONE TUNNEL (item 268) — the laws that would have caught two.
+//! ONE TUNNEL — the laws that would have caught two.
 //!
 //! The reported defect was not subtle and no law saw it: Kite drew a complete
 //! bullseye in each margin, each with its own vanishing point, because

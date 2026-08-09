@@ -175,7 +175,7 @@ fn rows_primary_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect
 ///
 /// Only ever taken from somewhere that is NOT already the Settings workspace —
 /// inside Settings the row is already where you are, and re-entering would drop
-/// the parked position item 173 exists to preserve. The caller is parked, not
+/// the parked position this path preserves. The caller is parked, not
 /// replaced, so `Esc` walks back out the way you came in.
 pub(super) fn deep_link_settings(ctx: &mut ActionCtx, row: crate::settings::SettingRow) -> bool {
     if ctx.journey.card().map(|o| o.kind) == Some(crate::overlay::OverlayKind::Settings) {
@@ -195,7 +195,7 @@ pub(super) fn deep_link_settings(ctx: &mut ActionCtx, row: crate::settings::Sett
     ctx.journey.card().map(|o| o.kind) == Some(crate::overlay::OverlayKind::Settings)
 }
 
-/// ITEM 116c — open the "Keep version…" naming minibuffer, PARKING whatever is
+/// Open the "Keep version…" naming minibuffer, PARKING whatever is
 /// already open rather than replacing it outright. `Action::KeepVersion`'s own
 /// dispatch calls this (today always reached with nothing open — the Command
 /// palette closes itself before its `RunAction` re-dispatch, same door every

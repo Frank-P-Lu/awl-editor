@@ -1,4 +1,4 @@
-//! ITEM 235 — the ROTATED LABEL's PIXELS: does a turned run actually reach the
+//! The ROTATED LABEL's PIXELS: does a turned run actually reach the
 //! screen, and is it still legible when it gets there?
 //!
 //! The run's frame (axis, quad, bounds, hit test) is graded purely in
