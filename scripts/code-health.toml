@@ -10,6 +10,19 @@
 # (`resolve_function_anchor`), so an entry keeps matching across any amount of
 # unrelated growth in the same file. Removing, shrinking back under the
 # threshold, or renaming a recorded function still makes its entry stale.
+# Pure test-file renames keep their frozen long-line baseline under the new
+# mechanism name. A merged destination may name both source files; only exact
+# line text is grandfathered, so this cannot bless newly written debt.
+[baseline_rename]
+"src/render/tests/bands_waves.rs" = ["src/render/tests/backgrounds_item69.rs"]
+"src/render/tests/caret_transition.rs" = ["src/render/tests/caret_transition_item105.rs"]
+"src/render/tests/overlay_rhythm.rs" = ["src/render/tests/overlay_rhythm_item112.rs"]
+"src/render/tests/waves_drift.rs" = ["src/render/tests/waves_drift_item87.rs"]
+"src/render/tests/zigzag_ground.rs" = [
+    "src/render/tests/backgrounds_item86.rs",
+    "src/render/tests/backgrounds_item89.rs",
+]
+
 #
 # The frozen file-size baseline is intentionally old: it is each file's size
 # at the pinned BASELINE commit, and a file may never exceed it — that is the
@@ -959,7 +972,7 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
-file = "src/render/tests/caret_transition_item105.rs"
+file = "src/render/tests/caret_transition.rs"
 function = "glyphless_seams_stay_within_the_products_own_accepted_glyph_to_glyph_bar"
 message = "this function has too many lines (116/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Crossed by one more line: the `testlock::misc::TogglesRestore` capture guard, added so this test restores the process-global caret-mode override it forces, not only the concrete mode it happened to set."
@@ -1081,21 +1094,21 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 
 [[clippy_exception]]
 lint = "clippy::cognitive_complexity"
-file = "src/render/tests/overlay_rhythm_item112.rs"
+file = "src/render/tests/overlay_rhythm.rs"
 function = "every_overlay_kind_orders_drawn_title_facet_candidates_footer_and_hits_the_same_regions"
 message = "the function has a cognitive complexity of (27/25)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
-file = "src/render/tests/overlay_rhythm_item112.rs"
+file = "src/render/tests/overlay_rhythm.rs"
 function = "every_overlay_kind_orders_drawn_title_facet_candidates_footer_and_hits_the_same_regions"
 message = "this function has too many lines (161/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Shifted by the `testlock::serial()` guard that every test reaching the shared wgpu device now takes; the line count moves by one and the body is otherwise unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
-file = "src/render/tests/surfaces_item219.rs"
+file = "src/render/tests/query_field.rs"
 function = "a_flat_pickers_query_ink_centres_on_its_own_line_in_every_world"
 message = "this function has too many lines (109/100)"
 reason = "One roster sweep with a differential two-shot oracle: the second render and its readback cannot be split from the comparison they exist for."
@@ -1109,7 +1122,7 @@ reason = "One roster sweep with a per-style arm and a forced-override sweep over
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
-file = "src/render/tests/surfaces_item225.rs"
+file = "src/render/tests/workspace_footer_plate.rs"
 function = "a_workspace_footer_plate_ends_with_its_footer_on_every_bare_plate_world"
 message = "this function has too many lines (149/100)"
 reason = "One roster sweep with a geometry arm, a pixel arm and an exclusion arm over the same rendered frame; splitting them would render each world twice, and the exclusion arm exists precisely to be measured at the same fixture the other two are graded at. +5: the exclusion arm's premise generalised. `Rules` is bare-plate and plateless and yet DOES emit quads (rules), so the arm now measures what it always meant — nothing drawn can be a slab that outlives the footer — instead of the narrower 'emits nothing' proxy it could get away with while `Diagonal` was the only plateless style."
@@ -1832,21 +1845,21 @@ reason = "Item 274's subject split of the former flat test monolith relocated th
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
-file = "src/render/tests/frost_feather_item312.rs"
+file = "src/render/tests/frost_feather.rs"
 function = "the_footprints_edge_is_a_ramp_of_the_authored_width_in_logical_px_at_every_dpi"
 message = "this function has too many lines (137/100)"
 reason = "A pixel-profiling law, not a routine assertion: it builds a real frame open and closed, profiles outward from BOTH vertical faces along each face's own sheared x, and derives which face carries the claim from whether a skirt has any document to defocus. The length is the sweep (3 worlds x 2 DPI tiers x 2 faces) plus the veto that keeps card ink out of the first samples. Splitting it would separate the profile from the non-vacuity clause that gives its numbers meaning, which is how a measurement law goes quietly vacuous. The largest of the three and the first candidate if this file is ever decomposed. Tightened from 147 when the sheared face got a single owner (`footprint_face_x`) -- this law had been profiling the retired union's face rather than the drawn one, so the ten lines went away as a by-product of fixing what it measured."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
-file = "src/render/tests/frost_feather_item312.rs"
+file = "src/render/tests/frost_feather.rs"
 function = "the_footprints_lean_is_read_from_the_spine_the_frame_actually_drew"
 message = "this function has too many lines (114/100)"
 reason = "The length is the geometry hunt this law needs to be non-vacuous. The measured per-row step and the authored ROW_STEP agree on every ordinary card, so asserting equality with the drawn spine tests nothing unless the sweep contains a YIELDING geometry — three plausible ones, including a deliberately cramped card, all resolved 7.000 = 7.000. The extra lines carry the geometry that does yield (rows hugging one glyph, 3.993 against 7.000) and the clause that makes the law report its own vacuity if such a case ever stops being present."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
-file = "src/render/tests/frost_feather_item312.rs"
+file = "src/render/tests/frost_feather.rs"
 function = "the_full_frosts_composite_is_destination_independent"
 message = "this function has too many lines (123/100)"
 reason = "Proves Frost::Full is still a replace under ALPHA_BLENDING by DRAWING it twice, over a red destination and a blue one through a LoadOp::Load pass, and requiring bit-identity — the operational meaning of `alpha 1.0 is a replace`, rather than an assertion about the constant. The length is two full GPU passes plus the non-vacuity step that first proves the composite differs from the bare clear; at alpha 0.99 all 120000 pixels differ."

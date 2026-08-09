@@ -223,17 +223,15 @@ list instead of re-checking the tree.** Every entry in the previous list was
 verified landed via `git log --grep` before this re-derivation (292/293/299/303,
 294/298, 305, 291, 296+300, 273's residuals, 302, 227, 131e+303 — all merged).
 
-1. **365** — the rename sweep BEFORE 372/373/374: it moves files that 372's citation stock,
-   373's shard-balance hints, and 374's module paths all name. 366 folds into it.
-2. **361 then 364** — ONE lane, sequenced, never a pair: both rewrite `pipeline_draw.rs::new`.
-3. **362 and 363** — independent render refactors; 363 is identity-gated, so an outcome audit follows it.
-4. **373 then 375** — shard the gate, then raise the lane ceiling and install the gate arbiter.
+1. **361 then 364** — ONE lane, sequenced, never a pair: both rewrite `pipeline_draw.rs::new`.
+2. **362 and 363** — independent render refactors; 363 is identity-gated, so an outcome audit follows it.
+3. **373 then 375** — shard the gate, then raise the lane ceiling and install the gate arbiter.
    **374** any time after 365; it directly raises 373's ceiling (both slow atoms sit in one shard).
-5. **372** — the citation stock, after 365. Production tier; 1,700 judgement calls, not a sed script.
-6. **357, 358, 369, 370, 359, 360, 371's lane-half** — independent, no ordering constraint among them.
-7. **174** — multi-round refactor, continues by slices.
-8. **231** — no live lead; its named next step is a macOS guest VM, a spend decision, not work to absorb.
-9. **🔵 HUMAN / LIVE, none of which a lane can close** — see BLOCKED and OWED above. **251** is
+4. **372** — the citation stock, after 365. Production tier; 1,700 judgement calls, not a sed script.
+5. **357, 358, 369, 370, 359, 360, 371's lane-half** — independent, no ordering constraint among them.
+6. **174** — multi-round refactor, continues by slices.
+7. **231** — no live lead; its named next step is a macOS guest VM, a spend decision, not work to absorb.
+8. **🔵 HUMAN / LIVE, none of which a lane can close** — see BLOCKED and OWED above. **251** is
    hardware-gated (a human at a Linux desktop with Orca). **327** and the landed taste calls
    (338/342/345/346, carried in OWED) close on the user's eye.
 
@@ -420,45 +418,6 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
      an author meant to set (the sub-struct's Default is the ONE inert-value site, same
      discipline as `ViewState::base()`); byte-identical captures; native both conventions.
      **Routing:** production tier.
-
-365. 🟡 **IN PROGRESS — codex (codex), branch `codex/item-365-366-rename-sweep`.**
-     **Retire the index-named test file — 66 files (35,110 lines, 340 tests) whose names
-     point at a board that no longer carries them. USER DECISION 2026-08-09: the exemption
-     goes.** `code-health.py` currently protects them (`TEST_FILENAME_ITEM_INDEX` :43,
-     `is_index_named_test_file` :79, `check_index_named_test_files` :135) — a real position,
-     now overruled. The argument: the no-citation rule's own justification ("name the
-     mechanism, so it stays true after the board compresses") applies to a FILENAME most of
-     all; `git log --follow` reaches the same archaeology; ticket-naming caused real drift
-     (item 366's two-file mechanism); and the check concedes it can't tell a wrong-but-real
-     number from the right one.
-     **Plan, three commits:** **(a)** rename all 66 via `git mv` to mechanism names, with an
-     explicit old→new map in the commit message; update 58 `mod` lines in
-     `src/render/tests/mod.rs` (+ the `actions`/`app`/`theme` test mod lists), 25 cross-file
-     `use super::…item<N>` imports, and 21 production doc-pointers (`chrome/diagonal.rs:98`,
-     `chrome/overlay_ink.rs:20–22`, `keymap.rs:29`, `render.rs:26`, `rotated_location.rs:89`,
-     `quotecheck.rs:27`, `plan/overlay_rows.rs:247`, `geometry/page.rs:14`,
-     `chrome/comparison.rs:28,90`, `theme/ground.rs:198`, `overlay/workspace.rs:105`, …).
-     **(b)** flip `check_index_named_test_files` into a ratchet FORBIDDING new index-named
-     test files. **(c)** delete `is_index_named_test_citation` + `TEST_FILENAME_ITEM_INDEX`
-     and their self-tests (`code-health.py:1433–1442,1497,1539`).
-     Scope ends at filenames/paths/tooling — the in-body stock is item 372 (depends on this).
-     **Verify:** test NAMES unchanged (diff the collected list); `code-health.sh` (not `.py`
-     — the clippy arms) green after `git add`; full native both conventions; prove (b)/(c)
-     non-vacuous with a throwaway `foo_item999.rs` and `// item 1` line going red by name.
-     **Routing:** repeatable tier for (a), production for (b)/(c); one owner — (a) is only
-     safe if (b) lands with it.
-
-366. 🟡 **IN PROGRESS — codex (codex), branch `codex/item-365-366-rename-sweep`.**
-     **Two files, one mechanism: the zigzag ground.** `backgrounds_item86.rs` (308 ln) and
-     `backgrounds_item89.rs` (1500 ln, self-described as "the correctness repair of item
-     86's chevron margin ground") — same subject, same seam (`headless_dq`, `mark_field`),
-     split only by landing order. Merge into one mechanism-named file; update two `mod`
-     lines + four external references (`backgrounds_item69.rs:10,786`,
-     `backgrounds_item132.rs:21`, `backgrounds_item158.rs:28,1165`,
-     `paperbark_retina_item201.rs:38`). ~1800 lines, test files exempt from the production
-     ceiling — confirm against the tool. **Fold into 365's sweep** (filed separately so the
-     merge is argued on its own evidence). **Verify:** same test names present; targeted
-     `cargo test render::` green; full suite at landing. **Routing:** repeatable tier.
 
 367. **The sidecar is parseable JSON and four test files scan it as a string.**
      `capture/tests/panels.rs`: 20 `.contains(` against rendered prose (`:71` pins a literal

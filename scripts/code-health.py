@@ -24,6 +24,7 @@ import tomllib
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "scripts/code-health.toml"
+BASELINE_RENAMES = tomllib.loads(MANIFEST.read_text()).get("baseline_rename", {})
 LINE_LIMIT = 100
 FILE_LIMIT = 500
 # The baseline must be reachable from pushed main: worktree branches never push.
@@ -82,10 +83,13 @@ def tracked_rust() -> list[str]:
 
 
 def baseline(path: str) -> list[str]:
-    try:
-        return git("show", f"{BASELINE}:{path}").splitlines()
-    except subprocess.CalledProcessError:
-        return []
+    lines: list[str] = []
+    for source in BASELINE_RENAMES.get(path, [path]):
+        try:
+            lines.extend(git("show", f"{BASELINE}:{source}").splitlines())
+        except subprocess.CalledProcessError:
+            continue
+    return lines
 
 
 def check_index_named_test_files() -> list[str]:
@@ -1138,6 +1142,30 @@ def self_test() -> int:
                 raise AssertionError("stale structural exception must fail")
         finally:
             globals()["ROOT"] = root
+    original_git = git
+    original_baseline_renames = BASELINE_RENAMES
+    try:
+        old_lines = {
+            f"{BASELINE}:src/old_a.rs": "kept from a\n",
+            f"{BASELINE}:src/old_b.rs": "kept from b\n",
+        }
+
+        def fake_git(*args: str) -> str:
+            if len(args) == 2 and args[0] == "show" and args[1] in old_lines:
+                return old_lines[args[1]]
+            raise subprocess.CalledProcessError(1, ["git", *args])
+
+        globals()["git"] = fake_git
+        globals()["BASELINE_RENAMES"] = {
+            "src/merged.rs": ["src/old_a.rs", "src/old_b.rs"]
+        }
+        if baseline("src/merged.rs") != ["kept from a", "kept from b"]:
+            raise AssertionError("a renamed or merged file must retain each source baseline")
+        if baseline("src/new.rs"):
+            raise AssertionError("a genuinely new file must not acquire a renamed baseline")
+    finally:
+        globals()["git"] = original_git
+        globals()["BASELINE_RENAMES"] = original_baseline_renames
     with tempfile.TemporaryDirectory() as directory:
         root = ROOT
         original_tracked_rust = tracked_rust
