@@ -184,6 +184,21 @@ pub(super) fn hex_value_after<'a>(text: &'a str, marker: &str) -> &'a str {
     &text[start..end]
 }
 
+/// Parse a PDF dictionary/content fragment into lexical tokens, then ask for
+/// one contiguous token sequence. Assertions use PDF names, values and
+/// operators rather than serializer spacing or an accidental substring.
+pub(super) fn has_tokens(text: &str, expected: &str) -> bool {
+    let tokens = pdf_tokens(text);
+    let wanted = pdf_tokens(expected);
+    !wanted.is_empty() && tokens.windows(wanted.len()).any(|window| window == wanted)
+}
+
+fn pdf_tokens(text: &str) -> Vec<&str> {
+    text.split(|c: char| c.is_whitespace() || matches!(c, '[' | ']' | '<' | '>'))
+        .filter(|token| !token.is_empty())
+        .collect()
+}
+
 fn stream_length(dict: &[u8]) -> usize {
     let marker = b"/Length ";
     let start = find(dict, marker).expect("stream /Length") + marker.len();

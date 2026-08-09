@@ -131,11 +131,33 @@ pub(super) fn manifest_elements(metadata: &str) -> Vec<(String, String)> {
         .collect()
 }
 
+pub(super) fn manifest_has(metadata: &str, kind: &str, attrs: &[(&str, &str)]) -> bool {
+    metadata.match_indices("<awl:element ").any(|(start, _)| {
+        let tag = &metadata[start..metadata[start..].find('>').unwrap() + start];
+        attribute(tag, "kind") == kind
+            && attrs
+                .iter()
+                .all(|(name, value)| attribute_opt(tag, name) == Some(*value))
+    })
+}
+
+pub(super) fn manifest_text_nodes(metadata: &str) -> Vec<&str> {
+    metadata
+        .split('<')
+        .filter_map(|part| part.split_once('>').map(|(_, text)| text))
+        .filter(|text| !text.is_empty())
+        .collect()
+}
+
 fn attribute(tag: &str, name: &str) -> String {
+    attribute_opt(tag, name).unwrap().to_string()
+}
+
+fn attribute_opt<'a>(tag: &'a str, name: &str) -> Option<&'a str> {
     let marker = format!("{name}=\"");
-    let start = tag.find(&marker).unwrap() + marker.len();
+    let start = tag.find(&marker)? + marker.len();
     let end = tag[start..].find('"').unwrap() + start;
-    tag[start..end].to_string()
+    Some(&tag[start..end])
 }
 
 pub(super) fn text_fragments(doc: &Document) -> Vec<String> {

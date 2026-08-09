@@ -12,7 +12,7 @@ use super::layout::{MARGIN_X, MARGIN_Y, MEASURE, PAGE_H, PAGE_W, PROSE_CHARS};
 use super::*;
 use crate::export::model;
 use fixture::{Images, NoImages};
-use parser::{Pdf, hex_value_after, reference, refs_in_array};
+use parser::{Pdf, has_tokens, hex_value_after, reference, refs_in_array};
 use semantic::*;
 
 fn rich_bytes() -> (String, Vec<u8>) {
@@ -39,44 +39,40 @@ fn pdf_has_exact_classic_xref_object_plan_pages_and_a4_geometry() {
 
     for (index, base) in [3, 8, 13, 18].into_iter().enumerate() {
         assert!(
-            pdf.object(base).text().contains("/Subtype /Type0"),
+            has_tokens(&pdf.object(base).text(), "/Subtype /Type0"),
             "font {index} Type0"
         );
-        assert!(
-            pdf.object(base + 1)
-                .text()
-                .contains("/Subtype /CIDFontType2")
-        );
-        assert!(
-            pdf.object(base + 2)
-                .text()
-                .contains("/Type /FontDescriptor")
-        );
-        assert!(
-            pdf.object(base + 2)
-                .text()
-                .contains(&format!("/FontFile2 {} 0 R", base + 3))
-        );
+        assert!(has_tokens(
+            &pdf.object(base + 1).text(),
+            "/Subtype /CIDFontType2"
+        ));
+        assert!(has_tokens(
+            &pdf.object(base + 2).text(),
+            "/Type /FontDescriptor"
+        ));
+        assert!(has_tokens(
+            &pdf.object(base + 2).text(),
+            &format!("/FontFile2 {} 0 R", base + 3)
+        ));
         assert!(pdf.object(base + 3).stream().is_some());
         assert!(pdf.object(base + 4).stream().is_some());
     }
     assert!(
-        pdf.object(23).text().contains("/Subtype /Image"),
+        has_tokens(&pdf.object(23).text(), "/Subtype /Image"),
         "first image is PNG RGB"
     );
     assert!(
-        pdf.object(24).text().contains("/DeviceGray"),
+        has_tokens(&pdf.object(24).text(), "/DeviceGray"),
         "PNG alpha follows its image"
     );
     assert!(
-        pdf.object(25).text().contains("/DCTDecode"),
+        has_tokens(&pdf.object(25).text(), "/DCTDecode"),
         "JPEG follows in encounter order"
     );
-    assert!(
-        pdf.object(26)
-            .text()
-            .contains("/Type /Metadata /Subtype /XML")
-    );
+    assert!(has_tokens(
+        &pdf.object(26).text(),
+        "/Type /Metadata /Subtype /XML"
+    ));
     assert_eq!(reference(pdf.object(1).text(), "/Metadata "), 26);
 
     let pages = pdf.page_ids();
@@ -85,7 +81,7 @@ fn pdf_has_exact_classic_xref_object_plan_pages_and_a4_geometry() {
         "rich fixture must paginate automatically: {pages:?}"
     );
     let pages_text = pdf.object(2).text();
-    assert!(pages_text.contains(&format!("/Count {}", pages.len())));
+    assert!(has_tokens(&pages_text, &format!("/Count {}", pages.len())));
     assert_eq!(refs_in_array(pages_text, "/Kids ["), pages);
 
     let mut next = 27;
@@ -97,14 +93,14 @@ fn pdf_has_exact_classic_xref_object_plan_pages_and_a4_geometry() {
             "content precedes annotations/page"
         );
         next += 1;
-        let annots = if page.contains("/Annots [") {
+        let annots = if has_tokens(&page, "/Annots") {
             refs_in_array(page.clone(), "/Annots [")
         } else {
             Vec::new()
         };
         for annot in annots {
             assert_eq!(annot, next, "annotation encounter order");
-            assert!(pdf.object(annot).text().contains("/Subtype /Link"));
+            assert!(has_tokens(&pdf.object(annot).text(), "/Subtype /Link"));
             next += 1;
         }
         assert_eq!(
@@ -112,8 +108,8 @@ fn pdf_has_exact_classic_xref_object_plan_pages_and_a4_geometry() {
             "page dictionary follows its content and annotations"
         );
         next += 1;
-        assert!(page.contains("/MediaBox [0 0 595.276 841.890]"));
-        assert!(page.contains("/Parent 2 0 R"));
+        assert!(has_tokens(&page, "/MediaBox 0 0 595.276 841.890"));
+        assert!(has_tokens(&page, "/Parent 2 0 R"));
     }
     assert_eq!(
         next as usize,
@@ -141,11 +137,17 @@ fn four_repository_fonts_are_per_document_glyph_subsets() {
         let type0 = pdf.object(base).text();
         let cid = pdf.object(base + 1).text();
         let descriptor = pdf.object(base + 2).text();
-        assert!(type0.contains(&format!("/BaseFont /{}", asset.pdf_name)));
-        assert!(type0.contains("/Encoding /Identity-H"));
-        assert!(type0.contains(&format!("/ToUnicode {} 0 R", base + 4)));
-        assert!(cid.contains("/CIDToGIDMap /Identity"));
-        assert!(descriptor.contains(&format!("/FontName /{}", asset.pdf_name)));
+        assert!(has_tokens(
+            &type0,
+            &format!("/BaseFont /{}", asset.pdf_name)
+        ));
+        assert!(has_tokens(&type0, "/Encoding /Identity-H"));
+        assert!(has_tokens(&type0, &format!("/ToUnicode {} 0 R", base + 4)));
+        assert!(has_tokens(&cid, "/CIDToGIDMap /Identity"));
+        assert!(has_tokens(
+            &descriptor,
+            &format!("/FontName /{}", asset.pdf_name)
+        ));
         let embedded = pdf.object(base + 3).stream().unwrap();
         assert!(
             embedded.len() < asset.bytes.len() / 2,
@@ -201,9 +203,9 @@ fn four_repository_fonts_are_per_document_glyph_subsets() {
             );
         }
         let cmap = std::str::from_utf8(pdf.object(base + 4).stream().unwrap()).unwrap();
-        assert!(cmap.contains("begincmap"));
+        assert!(has_tokens(cmap, "begincmap"));
         assert!(
-            cmap.contains("beginbfchar"),
+            has_tokens(cmap, "beginbfchar"),
             "used glyphs have ToUnicode entries"
         );
     }
@@ -214,27 +216,27 @@ fn png_alpha_jpeg_and_link_are_backed_by_real_pdf_objects() {
     let (_, bytes) = rich_bytes();
     let pdf = Pdf::parse(&bytes);
     let png = pdf.object(23);
-    assert!(
-        png.text()
-            .contains("/Width 2 /Height 1 /ColorSpace /DeviceRGB")
-    );
-    assert!(png.text().contains("/SMask 24 0 R"));
+    assert!(has_tokens(
+        &png.text(),
+        "/Width 2 /Height 1 /ColorSpace /DeviceRGB"
+    ));
+    assert!(has_tokens(&png.text(), "/SMask 24 0 R"));
     assert_eq!(png.stream().unwrap(), &[0x20, 0x40, 0x60, 0x80, 0x60, 0x40]);
     assert_eq!(pdf.object(24).stream().unwrap(), &[0x80, 0xff]);
 
     let jpeg = pdf.object(25);
-    assert!(
-        jpeg.text()
-            .contains("/Width 120 /Height 48 /ColorSpace /DeviceRGB")
-    );
-    assert!(jpeg.text().contains("/Filter /DCTDecode"));
-    assert!(!jpeg.text().contains("/SMask"));
+    assert!(has_tokens(
+        &jpeg.text(),
+        "/Width 120 /Height 48 /ColorSpace /DeviceRGB"
+    ));
+    assert!(has_tokens(&jpeg.text(), "/Filter /DCTDecode"));
+    assert!(!has_tokens(&jpeg.text(), "/SMask"));
     assert_eq!(jpeg.stream().unwrap(), fixture::jpeg());
 
     let annotations = pdf
         .objects
         .values()
-        .filter(|object| object.text().contains("/Subtype /Link"))
+        .filter(|object| has_tokens(&object.text(), "/Subtype /Link"))
         .collect::<Vec<_>>();
     assert_eq!(annotations.len(), 1);
     let annot = annotations[0].text();
@@ -250,10 +252,16 @@ fn png_alpha_jpeg_and_link_are_backed_by_real_pdf_objects() {
 
     let content = pdf.page_streams().concat();
     let content = std::str::from_utf8(&content).unwrap();
-    assert!(content.contains("/Im1 Do"));
-    assert!(content.contains("/Im2 Do"));
-    assert!(content.contains("/Alt <FEFF0061006C00700068006100200070006900630074007500720065>"));
-    assert!(content.contains("/Alt <FEFF006A007000650067002000700068006F0074006F>"));
+    assert!(has_tokens(content, "/Im1 Do"));
+    assert!(has_tokens(content, "/Im2 Do"));
+    assert!(has_tokens(
+        content,
+        "/Alt FEFF0061006C00700068006100200070006900630074007500720065"
+    ));
+    assert!(has_tokens(
+        content,
+        "/Alt FEFF006A007000650067002000700068006F0074006F"
+    ));
 }
 
 #[test]
@@ -268,31 +276,31 @@ fn rich_styles_are_proven_by_their_emitted_content_stream_operators() {
 
     let bold = glyph_operator(&lines, 'B');
     assert!(
-        bold.contains("BT /F2 11.000 Tf"),
+        has_tokens(bold, "BT /F2 11.000 Tf"),
         "bold must select SerifBold: {bold}"
     );
 
     let italic = glyph_operator(&lines, 'I');
     assert!(
-        italic.contains("BT /F1 11.000 Tf 1 0 0.212556 1"),
+        has_tokens(italic, "BT /F1 11.000 Tf 1 0 0.212556 1"),
         "emphasis must emit the italic shear on Serif: {italic}"
     );
 
     let mono = glyph_operator(&lines, 'M');
     assert!(
-        mono.contains("BT /F3 11.000 Tf"),
+        has_tokens(mono, "BT /F3 11.000 Tf"),
         "code must select Mono: {mono}"
     );
     let bold_mono = glyph_operator(&lines, 'N');
     assert!(
-        bold_mono.contains("BT /F4 11.000 Tf"),
+        has_tokens(bold_mono, "BT /F4 11.000 Tf"),
         "strong code must select MonoBold: {bold_mono}"
     );
 
     let highlight_actual = actual_text_line(&lines, 'H');
     assert!(
-        lines[highlight_actual - 1].contains("q 0.900 g")
-            && lines[highlight_actual - 1].contains(" re f Q"),
+        has_tokens(lines[highlight_actual - 1], "q 0.900 g")
+            && has_tokens(lines[highlight_actual - 1], "re f Q"),
         "highlight must paint its gray fill rectangle: {:?}",
         lines[highlight_actual - 1]
     );
@@ -307,7 +315,7 @@ fn rich_styles_are_proven_by_their_emitted_content_stream_operators() {
 
     let quote = glyph_operator(&lines, 'Q');
     assert!(
-        quote.contains("BT /F1 11.000 Tf 1 0 0.212556 1"),
+        has_tokens(quote, "BT /F1 11.000 Tf 1 0 0.212556 1"),
         "blockquote prose must emit italic text: {quote}"
     );
     assert!(
@@ -347,23 +355,63 @@ fn manifest_roster_and_actual_page_text_cover_every_model_element() {
             "stable pre-order semantic ID"
         );
     }
-    assert!(metadata.contains("kind=\"heading\" level=\"6\""));
-    assert!(metadata.contains("kind=\"list\" ordered=\"true\" start=\"3\""));
-    assert!(metadata.contains("kind=\"item\" task=\"open\""));
-    assert!(metadata.contains("kind=\"item\" task=\"checked\""));
-    assert!(metadata.contains("kind=\"table\" columns=\"4\""));
-    assert!(metadata.contains("kind=\"table-head\" align=\"none,left,center,right\""));
-    assert!(metadata.contains("kind=\"link\" url=\"https://example.com/path?q=1&amp;r=2\""));
-    assert!(metadata.contains(
-        "kind=\"image\" src=\"alpha.png\" alt=\"alpha picture\" resolved=\"true\" width=\"48\""
+    assert!(manifest_has(metadata, "heading", &[("level", "6")]));
+    assert!(manifest_has(
+        metadata,
+        "list",
+        &[("ordered", "true"), ("start", "3")]
+    ));
+    assert!(manifest_has(metadata, "item", &[("task", "open")]));
+    assert!(manifest_has(metadata, "item", &[("task", "checked")]));
+    assert!(manifest_has(metadata, "table", &[("columns", "4")]));
+    assert!(manifest_has(
+        metadata,
+        "table-head",
+        &[("align", "none,left,center,right")]
+    ));
+    assert!(manifest_has(
+        metadata,
+        "link",
+        &[("url", "https://example.com/path?q=1&amp;r=2")]
+    ));
+    assert!(manifest_has(
+        metadata,
+        "image",
+        &[
+            ("src", "alpha.png"),
+            ("alt", "alpha picture"),
+            ("resolved", "true"),
+            ("width", "48")
+        ]
+    ));
+    assert!(manifest_has(
+        metadata,
+        "image",
+        &[
+            ("src", "photo.jpg"),
+            ("alt", "jpeg photo"),
+            ("resolved", "true")
+        ]
+    ));
+    assert!(manifest_has(
+        metadata,
+        "image",
+        &[
+            ("src", "missing.png"),
+            ("alt", "missing picture"),
+            ("resolved", "false"),
+            ("fallback", "alt-text")
+        ]
+    ));
+    assert!(manifest_has(
+        metadata,
+        "text",
+        &[("fallback", "U+1F989:U+25A1")]
     ));
     assert!(
-        metadata.contains("kind=\"image\" src=\"photo.jpg\" alt=\"jpeg photo\" resolved=\"true\"")
-    );
-    assert!(metadata.contains("kind=\"image\" src=\"missing.png\" alt=\"missing picture\" resolved=\"false\" fallback=\"alt-text\""));
-    assert!(metadata.contains("fallback=\"U+1F989:U+25A1\""));
-    assert!(
-        !metadata.contains("excluded"),
+        manifest_text_nodes(metadata)
+            .iter()
+            .all(|text| *text != "excluded"),
         "frontmatter never enters the manifest"
     );
 
