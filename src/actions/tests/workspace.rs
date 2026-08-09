@@ -1,8 +1,8 @@
 //! TIER 1: the summoned workspace's STATE, FOCUS and BACK, driven
 //! through the real `apply_transition` seam the `--keys` replay shares.
 //!
-//! `docs/harness-reach.md` is explicit that this half is fully capturable: item
-//! 173 put `overlay::Journey` in the shared core precisely so the replay would
+//! `docs/harness-reach.md` is explicit that this half is fully capturable:
+//! `overlay::Journey` lives in the shared core precisely so the replay does
 //! not need a second copy, so entry, focus transfer, child suspend/return, Back
 //! and exit all replay under `--keys` and land in the sidecar. What is asserted
 //! here is asserted in the lifecycle's own vocabulary (`Surface`, `Landing`),

@@ -520,8 +520,8 @@ fn nested_list_marker_fix_is_content_independent() {
 
 /// A list item that OWNS a nested child must render its
 /// OWN text at BODY weight, exactly like a childless sibling. The reopened bug
-/// showed the parent bolded — a
-/// loose-list/span-range sibling of the 4c marker-range defect. A row's shaped
+/// showed the parent bolded — a loose-list/span-range sibling of the marker
+/// range crossing into item content. A row's shaped
 /// WEIGHT/STYLE is derived PURELY from the md-span KIND over its content bytes
 /// (`render::md_attrs`: only `Bold`/`BoldItalic`/`Heading` re-weight and
 /// `Italic` re-slants — a bare `ListMarker`/`Quote` only recolours, never
