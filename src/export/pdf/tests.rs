@@ -333,7 +333,7 @@ fn rich_styles_are_proven_by_their_emitted_content_stream_operators() {
 }
 
 fn assert_manifest(metadata: &str, doc: &model::Document) {
-    let expected = expected_kinds(&doc);
+    let expected = expected_kinds(doc);
     let actual = manifest_elements(metadata);
     assert_eq!(
         actual
