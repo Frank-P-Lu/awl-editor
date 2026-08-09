@@ -117,7 +117,7 @@ pub(in crate::render) fn add_list_indent_span(
     }
     let list_indent_scale = crate::theme::active().list_indent_scale;
     if (list_indent_scale - 1.0).abs() < 1e-3 {
-        return; // the PLAIN tier: byte-identical to the pre-item-15 renderer
+        return; // the PLAIN tier leaves the renderer byte-identical
     }
     let wide = base.clone().metrics(GlyphMetrics::new(
         base_font_size * list_indent_scale,

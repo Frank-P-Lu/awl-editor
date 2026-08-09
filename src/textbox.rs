@@ -26,10 +26,10 @@
 //! ([`TextBox::delete_word_back`] / [`TextBox::delete_word_forward`],
 //! Opt-Backspace / Opt-forward-Delete) delegates to the SEPARATE
 //! `word_delete_*_boundary` owners the document's `delete_word_backward` /
-//! `_forward` (and the pre-item-10 minibuffer word-delete,
+//! `_forward` (and the minibuffer word-delete,
 //! `overlay::nav::truncate_trailing_word`) already share. Wiring motion to
 //! the delete rule (or vice versa) makes a textbox's opt-arrow disagree with
-//! the document's own M-b/M-f — the item's headline trap.
+//! the document's own M-b/M-f.
 
 use crate::buffer::{
     word_backward_boundary, word_delete_backward_boundary, word_delete_forward_boundary,

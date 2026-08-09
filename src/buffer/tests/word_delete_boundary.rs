@@ -83,7 +83,7 @@ fn delete_word_forward_boundary_sweep() {
 /// The forward/backward twins delete the SAME token count per stroke on a
 /// shared fixture — one class per stroke, both directions. `⎸... abc` forward
 /// removes only `...`; `... abc⎸` backward removes only `abc`. Pins the
-/// symmetry the item-28 fix restored (the old forward rule broke it).
+/// symmetry between the directions (the old forward rule broke it).
 #[test]
 fn word_delete_directions_are_symmetric_on_punct() {
     let mut fwd = b("... abc");

@@ -295,7 +295,7 @@ mod tests {
     #[test]
     fn quantize_reproduces_the_historical_zoom_clamp_formula() {
         let _g = crate::testlock::serial();
-        // The pre-item-94 body of `render::clamp_zoom`, verbatim.
+        // The former body of `render::clamp_zoom`, retained as an equivalence oracle.
         fn historical(z: f32) -> f32 {
             if z.is_nan() {
                 return 1.0;

@@ -507,7 +507,7 @@ impl TextPipeline {
         // from a mean character width: its labels are display-face words and the
         // column has to hold the widest of them exactly, because that same number
         // is the rail's clip, its mark rect and its pointer hit band. Same
-        // `&mut FontSystem` window as the item-51 measurement above; `0.0` for
+        // `&mut FontSystem` window as the content-width measurement above; `0.0` for
         // every card that is not a workspace, so the geometry is untouched there.
         self.workspace_primary_w = 0.0;
         if self.overlay_active && self.overlay_is_workspace() {

@@ -261,8 +261,8 @@ impl TextPipeline {
     /// ([`TextPipeline::stars_render_phase`]: env knob > Reduce-Motion freeze >
     /// the shared ambient clock — frozen at t=0 in every headless capture).
     /// Each star's own dot size is `size_px` scaled by
-    /// [`crate::stars::star_size_scale`] (a small hash roll off its seed,
-    /// item 62) — deterministic, so a star's size never drifts frame to frame.
+    /// [`crate::stars::star_size_scale`] (a small hash roll off its seed) —
+    /// deterministic, so a star's size never drifts frame to frame.
     pub(crate) fn prepare_stars_layer(
         &mut self,
         device: &wgpu::Device,
@@ -310,7 +310,7 @@ impl TextPipeline {
         }
         let phase = self.stars_render_phase();
         let gap = crate::stars::STAR_MARGIN_GAP_PX;
-        // SIZE SPREAD (item 62, 2026-07-24): each star's own dot size is
+        // SIZE SPREAD: each star's own dot size is
         // `size_px` scaled by a small hash-derived multiplier off its seed
         // (`crate::stars::star_size_scale`) — deterministic and stable across
         // frames, never true randomness. The WIDEST half-size the spread
@@ -361,7 +361,7 @@ impl TextPipeline {
         width: u32,
         height: u32,
     ) {
-        // ITEM 116b — the frame draws the PAGE's own edge, so it yields with the
+        // The frame draws the PAGE's own edge, so it yields with the
         // margin-orientation family (`margin_orientation_yields`).
         if !crate::page::page_on() || self.margin_orientation_yields() {
             self.page_frame_pipeline
@@ -444,7 +444,7 @@ impl TextPipeline {
         width: u32,
         height: u32,
     ) -> anyhow::Result<()> {
-        // Glyphs clip to the region the document layer draws in — item 84's
+        // Glyphs clip to the region the document layer draws in.
         let (clip_top, clip_bottom) = match self.doc_clip_band() {
             Some((t, b)) => (t as i32, b as i32),
             None => (0, height as i32),
@@ -523,7 +523,7 @@ impl TextPipeline {
         // drawing. Only `prepare_caret_block`, when it runs on a one-bit
         // world, repopulates it with this frame's real rect.
         self.caret_invert.prepare(device, queue, width, height, &[]);
-        // ITEM 84 / DIFF-AS-PREVIEW: the caret is SELECTION-ADJACENT geometry
+        // DIFF-AS-PREVIEW: the caret is SELECTION-ADJACENT geometry
         // too (quads don't clip to `TextBounds` the way glyphs do), so it reads
         // the SAME `content_clip` every other selection-quad path routes
         // through — the writing column horizontally (always), narrowed to the
@@ -619,7 +619,7 @@ impl TextPipeline {
     /// dispatch arm; byte-identical on every ORDINARY world — see the one-bit branch
     /// at the bottom (added by THE 1-BIT CARET ROUND) for the true-inverse-video path.
     ///
-    /// ITEM 91: this site computes NO geometry of its own. The caret's vertical
+    /// This site computes NO geometry of its own. The caret's vertical
     /// extent — the anchored glyph's padded INK BOX on a proportional world, the
     /// row-scaled line cell WITH its descender-aware bottom on a mono / ligature /
     /// glyphless anchor — belongs entirely to `caret_cell_vertical`, folded into
@@ -1022,7 +1022,7 @@ impl TextPipeline {
             let dw = im.display_w.max(1.0);
             let dh = im.display_h.max(1.0);
             let row_top = self.image_draw_top(im.line);
-            // ITEM 82: cull on the row's OWN box (top..top+dh), not a fixed small
+            // Cull on the row's OWN box (top..top+dh), not a fixed small
             // margin around its top alone — a tall image's top can scroll well
             // past the margin while its bottom is still on-screen, and a top-only
             // test would drop it (a hard "blank collapse" mid-scroll instead of
@@ -1153,7 +1153,7 @@ impl TextPipeline {
         Ok(())
     }
 
-    /// SELECTION REVEAL (regression fix, item 16 follow-up): `revealed` is true
+    /// SELECTION REVEAL: `revealed` is true
     /// when the CURRENT caret line OR the active selection touches the image's
     /// own span — the SAME [`selection_touches`] overlap test
     /// [`super::spans::wysiwyg_reveals`] uses for the raw markup, never
