@@ -1,35 +1,22 @@
-//! ITEM 201 — Paperbark's Deckle ground on a real Retina display, restored.
+//! Paperbark's Deckle ground on a real Retina display.
 //!
-//! **The regression.** Item 186 made every ground's authored composition
-//! LOGICAL, so a matched-logical 1x/2x pair now draws the identical
-//! composition — correct, and item 186's own roster sweep
-//! (`ground_space.rs`) proves it holds for Paperbark exactly as it
-//! does for every other world. But `period_px`/`wander_px` were never
-//! misclassified: item 158 tuned their NUMBERS (94.0 / 13.0) by eye against
-//! the PRE-186 convention, where they were consumed as PHYSICAL pixels. On
-//! whatever display that live approval happened on — almost certainly the
-//! author's own Retina Mac, given item 158's note that the face gate closed
-//! after "the real release-GPU Room capture" — the composition actually
-//! judged was HALF those numbers (a real device divides a physical-pixel
-//! quantity by its own ratio for free). Item 186 stopped that free halving
-//! without retuning the dial, so the shipped 2x render went from the
-//! approved ~47-logical-px lane pitch to the un-halved ~94 — half the lane
-//! density, read as "unclear" by the user. **This is tuning debt exposed by
-//! the migration, not a misclassification**: `theme::ground_space`'s
-//! `DECKLE_STRATA` table is correct exactly as written, and this item does
-//! not touch it, the shader, or the shared composition/sampling mechanism —
-//! only Paperbark's own two numbers, halved to restore what was approved
-//! (`src/theme/worlds.rs`'s `PAPERBARK` literal, `period_px: 47.0,
-//! wander_px: 6.5`, preserving item 158's wander:pitch ratio).
+//! Every ground's authored composition is LOGICAL, so a matched-logical 1x/2x
+//! pair draws the identical composition; the `ground_space.rs` roster sweep
+//! proves it for Paperbark and every other world. Paperbark's tuned logical
+//! lane pitch is ~47px, expressed directly rather than obtained by halving a
+//! physical-pixel value at 2x. This is world-specific tuning, not a coordinate
+//! misclassification: `theme::ground_space`'s `DECKLE_STRATA` table, the shader,
+//! and the shared composition/sampling mechanism stay unchanged. Paperbark's
+//! own literal carries `period_px: 47.0,
+//! wander_px: 6.5`, preserving the authored wander:pitch ratio).
 //!
-//! **The two traps item 186 already found, inherited rather than
-//! rediscovered:** per-pixel difference is the wrong composition oracle (the
+//! **Two measurement traps:** per-pixel difference is the wrong composition oracle (the
 //! smallest marks legitimately read finer at 2x); and edge-skirt PIXEL counts
 //! can pass their own mutation at whisper contrast (a wider ramp gets gentler
 //! per pixel and can vanish under 8-bit quantization instead of reading as
 //! wider). So this file measures contour separation and lane-interior tone
-//! count off the DIFFERENTIAL `mark_field` oracle (item 86/89/158's own,
-//! immune to the gradient/dither), and measures edge width as a mean RUN
+//! count off the DIFFERENTIAL `mark_field` oracle (immune to the
+//! gradient/dither), and measures edge width as a mean RUN
 //! LENGTH on a deliberately high-contrast Strata literal — Paperbark itself
 //! is a whisper-contrast cream world, so its own tones are not trusted for a
 //! feather-width claim until proven not to be the whisper-contrast trap.
@@ -44,9 +31,8 @@ fn paperbark_bg() -> Background {
     theme::PAPERBARK.background
 }
 
-/// The PRE-201 dial, reconstructed as an explicit literal (not read from any
-/// live state) — the exact numbers item 158 shipped and item 186 carried
-/// forward unchanged, used ONLY as the "regressed" comparison arm below.
+/// The former dial, reconstructed as an explicit literal (not read from any
+/// live state), used ONLY as the regressed comparison arm below.
 fn pre_201_dial() -> Background {
     match paperbark_bg() {
         Background::Deckle {
@@ -70,8 +56,8 @@ fn pre_201_dial() -> Background {
 }
 
 /// The differential mark field at an explicit device ratio — `mark_field`
-/// (item 89) hardcodes `scale=1.0` inside `render_bg`, which cannot see a real
-/// Retina render at all; this is the scale-aware sibling item 201 needs.
+/// hardcodes `scale=1.0` inside `render_bg`, which cannot see a real Retina
+/// render at all; this is its scale-aware sibling.
 #[allow(clippy::too_many_arguments)]
 fn mark_field_scaled(
     device: &wgpu::Device,
@@ -102,7 +88,7 @@ fn mark_field_scaled(
 
 /// Per-margin measurements at a LOGICAL `(w, h, col_left, col_w)` window,
 /// rendered at device ratio `scale` (physical canvas scaled up accordingly) —
-/// the matched-logical-canvas idiom item 186's own sweep uses. `min_run` is
+/// the matched-logical-canvas idiom the roster sweep uses. `min_run` is
 /// the DEVICE-pixel run-length floor `mean_lane_width_px` filters transient
 /// edge-ramp steps with — scale it with the device ratio so a 2x render (real
 /// device pixels) is held to the same LOGICAL floor as 1x.
@@ -141,7 +127,7 @@ fn margin_measurements_at(
 /// which counts every quantization step during a smooth edge ramp as its own
 /// "band" (a torn boundary crosses several `/6` buckets one pixel at a time)
 /// and so wildly overcounts true lane crossings. A run must clear `min_run`
-/// (item 158's own `lane_tones` threshold, scaled to this pitch) to count as
+/// (the `lane_tones` threshold, scaled to this pitch) to count as
 /// lane BODY rather than transient ramp — the same filter idea, applied to
 /// counting runs instead of collecting their distinct values.
 fn mean_lane_width_px(field: &[i32], w: u32, h: u32, mx0: u32, mx1: u32, min_run: u32) -> f32 {
@@ -189,7 +175,7 @@ const H: u32 = 900;
 const COL_LEFT: u32 = 350;
 const COL_W: u32 = 500;
 
-/// Item 158's own authored pitch, restored (`PAPERBARK.background.period_px()`
+/// The authored pitch (`PAPERBARK.background.period_px()`
 /// mirrors this — asserted equal below so the two cannot silently drift).
 const RESTORED_PERIOD_PX: f32 = 47.0;
 
@@ -214,7 +200,7 @@ fn paperbark_contour_separation_matches_the_restored_density_at_1x_and_2x() {
     let two_x = margin_measurements_at(&device, &queue, bg, W, H, COL_LEFT, COL_W, 2.0);
 
     // A margin at least two lane pitches wide is required to grade lane-tone
-    // layering (item 158's own "two lanes' worth" rule); this window's
+    // layering (the "two lanes' worth" rule); this window's
     // margins (350px, ~550px at COL_W=500 W=1400) both clear that at 47px.
     let mut worst_sep_1x = 0.0f32;
     let mut worst_sep_2x_logical = 0.0f32;
@@ -222,8 +208,8 @@ fn paperbark_contour_separation_matches_the_restored_density_at_1x_and_2x() {
         assert!(
             s1.lane_tones >= 2 && s2.lane_tones >= 2,
             "a margin at least two lane pitches wide must show at least two DISTINCT lane-\
-             interior tones at BOTH densities (1x {} tones, 2x {} tones) — item 158's collapse \
-             law's own lesson: a boundary alone (spread/bands) is not layered paper",
+             interior tones at BOTH densities (1x {} tones, 2x {} tones) — a boundary alone \
+             (spread/bands) is not layered paper",
             s1.lane_tones,
             s2.lane_tones,
         );
@@ -263,7 +249,7 @@ fn paperbark_contour_separation_matches_the_restored_density_at_1x_and_2x() {
 // ---------------------------------------------------------------------------
 
 /// The Strata weave at Paperbark's restored dials, but with tones pulled far
-/// apart — the item-186 "high-contrast literal" idiom
+/// apart — the high-contrast-literal idiom
 /// (`ground_space::finds_high_contrast`), required because Paperbark's
 /// own whisper tones are exactly the contrast regime where a run-length
 /// measurement can be fooled by 8-bit quantization.
@@ -272,8 +258,8 @@ fn paperbark_contour_separation_matches_the_restored_density_at_1x_and_2x() {
 /// its 1x transition zone is only ~2.8 device px wide — close enough to the
 /// sampling grid's own resolution that discretization noise, not the ramp's
 /// real width, dominates `mean_edge_ramp_px`'s measurement (the exact
-/// under-sampling failure mode, distinct from but as real as item 186's
-/// documented whisper-CONTRAST trap). `DECKLE_MAX_PERIOD_PX` gives the ramp
+/// under-sampling failure mode, distinct from the whisper-CONTRAST trap).
+/// `DECKLE_MAX_PERIOD_PX` gives the ramp
 /// room (~9.6px at 1x) to measure cleanly; this checks the FAMILY property
 /// (the edge is composition, not Paperbark's own specific dial).
 fn deckle_high_contrast() -> Background {
@@ -289,7 +275,7 @@ fn deckle_high_contrast() -> Background {
 }
 
 /// The mean width of a TRANSITION run in the DIFFERENTIAL field — deliberately
-/// not `mean_edge_ramp_px` (item 186's own idiom, built for Finds' hard SDF
+/// not `mean_edge_ramp_px` (built for Finds' hard SDF
 /// edge) applied to raw COMPOSITED pixels: a probe row showed the ordered
 /// Bayer dither, identical noise magnitude at both densities, fragments a
 /// WIDE proportional ramp (Deckle's, unlike Finds' ~1.5px-total feather) into
@@ -390,7 +376,7 @@ fn paperbark_lane_density_is_stable_across_page_width_at_1x_and_2x() {
     let bg = paperbark_bg();
     let mut graded = 0usize;
     // Margin widths spanning "barely two lanes" to "generously wide", at a
-    // fixed canvas — the axis item 89/158's own lesson says to sweep, since a
+    // fixed canvas — an axis that must be swept, since a
     // hand-picked width can hide a defect the geometry sweep exposes.
     for col_w in [1000u32, 800, 600, 400, 250] {
         let col_left = (2000 - col_w) / 2;
@@ -398,7 +384,7 @@ fn paperbark_lane_density_is_stable_across_page_width_at_1x_and_2x() {
         let two_x = margin_measurements_at(&device, &queue, bg, 2000, 900, col_left, col_w, 2.0);
         for ((w1, _, sep_1x), (_, _, sep_2x)) in one_x.iter().zip(two_x.iter()) {
             if (*w1 as f32) < RESTORED_PERIOD_PX * 2.0 {
-                continue; // too narrow to grade layering, exactly item 158's own carve-out
+                continue; // too narrow to grade layering
             }
             let (sep_1x, sep_2x_logical) = (*sep_1x, sep_2x / 2.0);
             assert!(
