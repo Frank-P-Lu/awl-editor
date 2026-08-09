@@ -114,7 +114,7 @@ struct Instance {
     // `fs_invert`, which always writes pure white (the invert-blend trick
     // needs `src == 1.0` exactly — see its own doc below).
     @location(2) color: vec4<f32>,
-    // ITEM 131b — THE SPINE PRIMITIVE. Unit rotation axis (cos, sin) the quad's
+// THE SPINE PRIMITIVE. Unit rotation axis (cos, sin) the quad's
     // VERTEX POSITIONS are rotated onto, exactly mirroring `caret.wgsl`'s own
     // `axis` field (down to the "so a diagonal streak draws as a true slant"
     // reasoning that field's doc already carries). `(1.0, 0.0)` — upright, the
@@ -158,7 +158,7 @@ fn vs_main(@builtin(vertex_index) vid: u32, inst: Instance) -> VsOut {
     let extent = inst.hsize + vec2<f32>(1.0, 1.0);
     // `local` stays the rect's OWN (unrotated) frame — the SDF and every
     // fragment-stage composite below run here, untouched by rotation. Only the
-    // vertex's WORLD position rotates onto `inst.axis` (item 131b, mirroring
+// vertex's WORLD position rotates onto `inst.axis` (mirroring
     // `caret.wgsl`'s identical rotate-the-position-not-the-shape split).
     let local = corner * extent;
     let ax = normalize(inst.axis);
