@@ -126,7 +126,7 @@ impl App {
     /// The rendered bytes for one export — the pure emitters, plus the one
     /// filesystem seam they read embedded images through. Shared by every
     /// destination door, so no door can render differently from another.
-    fn export_bytes(&self, format: crate::export::Format) -> Vec<u8> {
+    pub(in crate::app) fn export_bytes(&self, format: crate::export::Format) -> Vec<u8> {
         let markdown = self.document.buffer().text();
         let doc_dir = self
             .document

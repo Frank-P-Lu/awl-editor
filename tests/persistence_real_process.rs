@@ -105,30 +105,26 @@ fn observed_write_synchronized_kill_during_autosave_relaunches_to_complete_bytes
 #[test]
 fn interrupted_export_replacement_is_old_complete_or_new_complete_never_torn() {
     let root = sandbox("export");
-    let expected_root = root.join("expected");
     let trial_root = root.join("trial");
-    std::fs::create_dir_all(&expected_root).unwrap();
     std::fs::create_dir_all(&trial_root).unwrap();
     let payload_path = root.join("payload.md");
     let payload = "# Replacement export\n\n".to_string() + &"measured prose\n".repeat(4096);
     std::fs::write(&payload_path, payload).unwrap();
 
-    let expected_source = expected_root.join("document.md");
-    std::fs::write(&expected_source, "source remains untouched\n").unwrap();
-    let expected = probe(&root, "export", &[&expected_source, &payload_path])
-        .output()
-        .expect("complete export probe runs");
-    assert!(
-        expected.status.success(),
-        "expected export failed: {expected:?}"
-    );
-    let new = std::fs::read(expected_source.with_extension("html")).unwrap();
-
     let source = trial_root.join("document.md");
     let target = source.with_extension("html");
     let source_before = b"source remains untouched\n";
-    let old = b"old complete export\n".repeat(1024);
     std::fs::write(&source, source_before).unwrap();
+    let expected = probe(&root, "export-bytes", &[&source, &payload_path])
+        .output()
+        .expect("pure export-byte probe runs");
+    assert!(
+        expected.status.success(),
+        "export-byte oracle failed: {expected:?}"
+    );
+    let new = expected.stdout;
+
+    let old = b"old complete export\n".repeat(1024);
     std::fs::write(&target, &old).unwrap();
     let mut child = spawn_delayed(probe(&root, "export", &[&source, &payload_path]));
     let observation = kill_after_observed_tmp_write(&mut child);
@@ -170,7 +166,13 @@ fn large_manuscript_save_reports_bounded_size_time_and_memory() {
     let elapsed_ms = field(&report, "elapsed_ms");
     let rss_bytes = field(&report, "rss_bytes");
     assert_eq!(bytes as usize, payload.len());
-    assert_eq!(std::fs::read(&target).unwrap(), payload.as_bytes());
+    let disk = std::fs::read(&target).unwrap();
+    assert!(
+        disk == payload.as_bytes(),
+        "large save changed byte extent/content: disk={} expected={}",
+        disk.len(),
+        payload.len()
+    );
     assert!(elapsed_ms <= MAX_ELAPSED_MS, "slow large save: {report}");
     assert!(
         rss_bytes >= bytes && rss_bytes <= MAX_RSS_BYTES,

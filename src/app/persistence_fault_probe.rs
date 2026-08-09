@@ -2,6 +2,7 @@
 
 use super::*;
 use anyhow::{Context, bail};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 fn probe_config(history: bool) -> Config {
@@ -56,6 +57,11 @@ pub(crate) fn run_persistence_fault_probe(operation: &str, args: &[PathBuf]) -> 
             app.export_document(crate::export::Format::Html, None);
             println!("persistence-probe export complete");
         }
+        ("export-bytes", [source, payload_path]) => {
+            let mut app = app_on(source, false);
+            app.document.set_text(&payload(payload_path)?);
+            std::io::stdout().write_all(&app.export_bytes(crate::export::Format::Html))?;
+        }
         ("large-save", [target, payload_path]) => {
             let body = payload(payload_path)?;
             let bytes = body.len();
@@ -71,7 +77,8 @@ pub(crate) fn run_persistence_fault_probe(operation: &str, args: &[PathBuf]) -> 
         }
         _ => bail!(
             "--persistence-fault-probe expects autosave TARGET PAYLOAD | relaunch TARGET | \
-             export SOURCE PAYLOAD | large-save TARGET PAYLOAD"
+             export SOURCE PAYLOAD | export-bytes SOURCE PAYLOAD | \
+             large-save TARGET PAYLOAD"
         ),
     }
     Ok(())
