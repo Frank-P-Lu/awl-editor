@@ -81,6 +81,19 @@ this heading exists; `git log -S"BLOCKED ON THE USER"` finds who took it.
     leave every other folder behind Browse. Recommendation: **(a)**. awl is a
     writing tool for non-programmers too; git status should not decide whether
     an ordinary notes folder is directly discoverable.
+16. **The Settings workspace's 880 px two-column transition (item 327).** The
+    previously unexplained non-monotonic rail hole is diagnosed on the current
+    reachable Settings state: with the long Project-root fixture, the focused
+    narrow pane has no accessory at 640–740, carries it at 760–860, then
+    `workspace_is_wide` introduces the category rail at 880 and shrinks the
+    diagonal row-cluster budget from 514 to 339 px. The value/Range rail drops
+    through 940 and returns at 960 (419 px). Choose whether to delay two-column
+    mode until the content pane preserves its accessory, or keep the 880
+    transition and choose which of row name, value, or rail yields first.
+    Separately, “Project root” is a full un-elided machine path, so the boundary
+    varies by machine. Recommendation: elide the path like other row text and
+    delay two-column mode until the accessory survives; staging one region a
+    little longer is calmer than showing both regions with controls missing.
 
 ## 🔵 OWED — live work that nothing above implies. Never cleared by a compression.
 
@@ -144,12 +157,6 @@ this heading exists; `git log -S"BLOCKED ON THE USER"` finds who took it.
   legible. Recommendation: keep DPI-only unless the larger, more decorative
   2× texture is specifically wanted. Comparison sheet:
   `/tmp/awl-item-359/comparison-current-vs-zoom-aware.png`.
-- 🔵 **Settings width budget** (item 327 — the open item below carries the
-  question): two supporting facts for the decision. The "Project root" value
-  never elides, so the rail's presence depends on the user's checkout-path
-  length (`gallery/item-334/pwp-*.png`); and rail presence is **non-monotonic**
-  (absent at 640–720 *and* 880–920, present between) — diagnose the hole before
-  designing a budget.
 - 🔵 **One rail wore another's highlight — fixed** (item 309): only the selected
   rail brightens now. Glance: `gallery/item-309/309-crop-{BEFORE,AFTER}-*.png`.
 - 🔵 **Two plate changes, both design calls** (items 308, 316): a 1-px rim
@@ -287,21 +294,6 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
      containment laws over staggered rows (Saltpan publishes `x` left of `band_x`); the first
      slice's bench delta read as contention noise, so confirmation is owed on a quiet host.
      **Routing:** deep owner with a production-tier outcome audit.
-
-327. 🔵 **The Settings accessory-column width budget is a design call, with numbers.** As a
-     `Range` setting's card narrows, `overlay_right_shown` drops the entire accessory column
-     at once — value text AND rail, gated together. **Who yields first: the row name, the
-     value, or the rail? And should the picker fall out of its faceted/diagonal composition
-     SOONER, before losing the whole column?** Numbers: narrowest reachable failure needs
-     480 px against 319 available; the merely-tight diagonal case 412 vs 366. The names elide
-     58.75 px before the column drops whole (boundary at 780/781 logical, menu-bar arm moves
-     it by one row); only the two diagonal worlds ever yield in the 640–1200 band.
-     `gallery/item-309/327-ordinary-{640,1200}.png`. ⚠️ Before designing: (a) the boundary is
-     **non-monotonic** — rail absent at 640–720 *and* 880–920, present between; diagnose the
-     hole first; (b) the "Project root" value never elides, so the budget depends on the
-     user's checkout-path length — eliding it may be the actual fix; (c) item 342's cap-tier
-     question is upstream (it changes the width this divides) — decide together.
-     **Routing:** production tier, then the user.
 
 358. **Persistence fault matrix over the file lifecycle** — fakes for precise failures, real
      processes only where a fake cannot prove the claim. Existing coverage stands
