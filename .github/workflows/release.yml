@@ -325,7 +325,7 @@ jobs:
           AWL_VERSION: ${{ needs.plan.outputs.version }}
         run: scripts/package-linux.sh target/release/awl dist-linux
 
-      # awl's friendly Linux download (item 227), ALONGSIDE the tarball above,
+      # awl's friendly Linux download, ALONGSIDE the tarball above,
       # never instead of it. Assembles the AppDir (binary, .desktop launcher,
       # the canonical icon cut from assets/macos/Awl.icns, licences — see the
       # script's own header for why no shared libraries are bundled and why
@@ -425,7 +425,7 @@ jobs:
       # from the artifacts themselves rather than transcribed. `sha256sum -c
       # SHA256SUMS` in the download directory is the whole verification.
       #
-      # TWO Linux artifacts now (item 227): the tarball and the AppImage,
+      # TWO Linux artifacts now: the tarball and the AppImage,
       # checked and copied identically — this step's own doc note (below)
       # about `publish` running only on a tag and never on a dry run applies
       # to BOTH files equally, so both get the same named, loud failure

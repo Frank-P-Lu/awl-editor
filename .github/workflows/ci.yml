@@ -159,7 +159,7 @@ jobs:
   # It stays tolerated for one more reason only: the repaired probe has never
   # run. No local gate on macOS reaches AT-SPI, so this job is its own first
   # instrument. Promote to gating once it runs GREEN on `main` for a stretch —
-  # a conscious decision, not automatic, exactly as item 231's eventual fix
+  # a conscious decision, not automatic, exactly as the eventual fix
   # promotes `mac-render-tests`. `continue-on-error` is set at the JOB level.
   #
   # The awl-side half of this contract is pinned by a law that measures it
@@ -170,7 +170,7 @@ jobs:
   atspi:
     name: "atspi (AT-SPI2 bridge liveness, item 252) — allowed failure, item 257"
     runs-on: ubuntu-latest
-    # BACKSTOP only (item 243's distinction, reused here after run 30887479906
+    # BACKSTOP only (the split's distinction, reused here after run 30887479906
     # hit it directly): `continue-on-error` tolerates a job that FAILS, not
     # one that is CANCELLED, and exceeding `timeout-minutes` cancels rather
     # than fails. `scripts/ci-atspi-budget.sh` converts a hung probe into an
@@ -259,7 +259,7 @@ jobs:
       - name: cargo build
         run: cargo build
 
-      # ci-atspi-budget.sh, not ci-atspi-probe.sh directly (item 243's
+      # ci-atspi-budget.sh, not ci-atspi-probe.sh directly (the split's
       # wedge-budget pattern, reused): a hang inside the probe must become an
       # ordinary failed step, never a cancelled one. 180s is generous — the
       # probe's own internal deadlines (30s app-appears, 10s focus, 10s
@@ -284,7 +284,7 @@ jobs:
           key: web
 
       # sccache installs after the cache restore — see the linux job's
-      # comment (item 196): a full `cargo install sccache` ahead of the
+      # comment: a full `cargo install sccache` ahead of the
       # restore paid ~4-7 minutes every run regardless of whether the cache
       # already carried the binary.
       - name: Install sccache
@@ -361,7 +361,7 @@ jobs:
     name: mac (build + test, minus render::tests)
     runs-on: macos-latest
     # Both conventions filtered to ~95% of the suite measured at 110 s each
-    # (item 231); this ceiling is headroom over cold-cache compile, not a
+    # (the hosted-mac wedge); this ceiling is headroom over cold-cache compile, not a
     # bound this job is expected to approach.
     timeout-minutes: 30
     steps:
@@ -372,7 +372,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       # sccache installs after the cache restore — see the linux job's
-      # comment (item 196): a full `cargo install sccache` ahead of the
+      # comment: a full `cargo install sccache` ahead of the
       # restore paid ~4-7 minutes every run regardless of whether the cache
       # already carried the binary.
       - name: Install sccache
@@ -384,7 +384,7 @@ jobs:
       # only reaches the non-mac side. `--clippy-only` runs just the clippy
       # pass: cargo fmt, code-health.py and cargo-machete already run
       # tree-wide in the linux job, and repeating them on this pricier
-      # runner would buy no new coverage (item 179).
+      # runner would buy no new coverage.
       - name: Rust code health (clippy, mac-only cfg arms)
         run: bash scripts/code-health.sh --clippy-only
 
@@ -486,7 +486,7 @@ jobs:
   # pull_request (fires on push to main and on manual workflow_dispatch) — a
   # SEPARATE job from the gating `mac` job, so it gates independently.
   #
-  # ONE VERDICT (item 53, 2026-07-23): the soak BINARY's exit status is the sole
+  # ONE VERDICT: the soak BINARY's exit status is the sole
   # oracle. `report.passed()` owns every hard gate — a real surface, the
   # presents FLOOR (>=100), the absolute cycle contract (300/300/150), all three
   # faults recovered, and live memory samples — and `awl` bails nonzero on any
@@ -509,7 +509,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       # sccache installs after the cache restore — see the linux job's
-      # comment (item 196): a full `cargo install sccache` ahead of the
+      # comment: a full `cargo install sccache` ahead of the
       # restore paid ~4-7 minutes every run regardless of whether the cache
       # already carried the binary — expensive here in particular, since this
       # job otherwise only runs a 25s probe.
