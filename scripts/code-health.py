@@ -43,6 +43,11 @@ CITATION_KEYWORD = re.compile(r"\b(?:item|round)\s+\d+", re.IGNORECASE)
 CITATION_SHA = re.compile(r"`([0-9a-f]{7,40})`")
 # A test filename is a durable mechanism name, never a mutable board index.
 INDEX_NAMED_TEST_FILE = re.compile(r"_item\d+[a-z]?\.rs$", re.IGNORECASE)
+ITEM_NAMED_TEST_FN = re.compile(r"^\s*fn\s+(\w*(?:item_?\d+|round_?\d+)\w*)")
+ITEM_NAMED_TEST_EXCLUSIONS = {
+    "retired_item_76_identifiers_leave_no_trace_in_source",
+    "retired_item_76_needles",
+}
 # Capture schema rows are a live append-only protocol ledger.
 CAPTURE_SCHEMA_ROW = re.compile(r"^\s*///\s*`/\d+`")
 
@@ -66,6 +71,19 @@ def citation_fingerprint(line: str) -> str:
 
 def is_index_named_test_file(path: str) -> bool:
     return "/tests/" in path and bool(INDEX_NAMED_TEST_FILE.search(Path(path).name))
+
+
+def check_item_named_test_identifiers() -> list[str]:
+    """Only the two grep-law subjects may retain item-numbered test names."""
+    found: set[str] = set()
+    for path in tracked_rust():
+        for line in (ROOT / path).read_text().splitlines():
+            match = ITEM_NAMED_TEST_FN.match(line)
+            if match:
+                found.add(match.group(1))
+    if found != ITEM_NAMED_TEST_EXCLUSIONS:
+        return [f"code-health: item-named test identifiers must be exactly {sorted(ITEM_NAMED_TEST_EXCLUSIONS)}, found {sorted(found)}"]
+    return []
 
 
 def is_capture_schema_history_row(path: str, text: str) -> bool:
@@ -1834,6 +1852,7 @@ def main() -> int:
     failures.extend(check_structural(allowed, file_size_marks, mark_reasons))
     failures.extend(check_index_named_test_files())
     failures.extend(check_comment_citation_backlog_empty())
+    failures.extend(check_item_named_test_identifiers())
     previous, previous_status = previous_marks()
     if previous_status == "unresolvable":
         print(
