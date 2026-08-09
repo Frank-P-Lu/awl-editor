@@ -272,7 +272,8 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
 
 ## Open items
 
-174. 🟡 **Separate pure render planning from shaping/caches and GPU execution — multi-round;
+174. 🟡 **IN PROGRESS — codex (gpt-5.6-sol high), branch
+     `codex/item-174-finish-planning`. Separate pure render planning from shaping/caches and GPU execution — multi-round;
      slices 1–3 landed 2026-08-08, the item stays open.** Landed so far: `src/render/plan/`
      (device-free; `plan_overlay_rows` emits `PlannedRow`s; the forward/inverse row arithmetic
      is module-private and the chrome bypasses are deleted); the sidecar publishes row geometry
