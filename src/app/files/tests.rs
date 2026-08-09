@@ -1,8 +1,8 @@
 //! src/app/files/tests.rs — the former `app/files.rs` monolith's own test
-//! module, moved verbatim (item 56's directory split) — window_title, the
+//! module — window_title, the
 //! DOCUMENT AUTOSAVE ENGINE, save-feedback, rename/move/duplicate verbs, the
 //! dictionary + CJK-priority persistence, and the recent-projects/
-//! recent-files MRU. Item 76 retired the two-desk "Notes" flip tests that
+//! recent-files MRU. The two-desk "Notes" flip tests once
 //! used to live here. Module path: `app::files::tests`, since `files/mod.rs`
 //! declares `mod tests;`.
 
@@ -260,7 +260,7 @@ fn trash_asset_failure_keeps_the_row_and_notes_the_error() {
 
 /// A bare SCRATCH buffer (never summoned via Cmd-N) with real text in it: the
 /// pre-paste save promotes it into an unnamed fresh document rooted at the
-/// ACTIVE folder (item 76 — `self.root`, NOT the `default_folder` fallback)
+/// ACTIVE folder (`self.root`, NOT the `default_folder` fallback)
 /// and derives a path from its first line — the SAME name/derivation a real
 /// fresh document's first autosave would produce. Proves the "gains a path
 /// under the active folder" half of the paste-image contract.
@@ -286,7 +286,7 @@ fn ensure_note_named_before_paste_promotes_a_scratch_buffer_and_saves_under_the_
 
         app.ensure_note_named_before_paste();
 
-        // ONE-SHOT NAMING (item 76): the promotion AND the derive-a-name save
+        // ONE-SHOT NAMING: the promotion AND the derive-a-name save
         // happen in this one call, so by the time it returns the buffer is
         // already an ORDINARY pathed document, not a lasting note identity.
         assert!(
@@ -526,7 +526,7 @@ fn reload_config_reapplies_a_persisted_spellcheck_value_immediately() {
     crate::spell::set_spellcheck_on(saved);
 }
 
-// ── ADD TO DICTIONARY (item 39): a plain-text word list beside config.toml,
+// ── ADD TO DICTIONARY: a plain-text word list beside config.toml,
 // GLOBAL, hand-editable, ZERO-NETWORK. "Add to dictionary" both silences the
 // word live AND appends it to the file; startup loads the file so an added
 // word never squiggles again, across a restart. ─────────────────────────
@@ -736,7 +736,7 @@ fn app_new_loads_the_persisted_recent_projects() {
     });
 }
 
-// ── ITEM 180 — `ProjectLocation`'s ONE DERIVATION: `resync_project_location` ──
+// ── `ProjectLocation`'s ONE DERIVATION: `resync_project_location` ─────────────
 //
 // Before this round, `set_root` re-derived `project` + `file_index` but not
 // `workspace_root`, and `reload_config` re-derived `workspace_root` but not
@@ -754,7 +754,7 @@ fn app_new_loads_the_persisted_recent_projects() {
 // `set_root` directly is the PUREST reachable seam for the derivation itself
 // (CLAUDE.md's unit > sidecar > capture ladder).
 //
-// ITEM 183 CORRECTION: item 180 recorded that the whole live-`App` transition
+// Live-`App` transition coverage was once
 // class was structurally unreachable from any headless entry point, because
 // `App::apply` demanded an `&ActiveEventLoop` no headless caller can produce.
 // That was true then and is no longer. The last test in this block drives the
@@ -954,28 +954,28 @@ fn switch_project_a_to_b_and_back_never_leaves_a_stale_workspace() {
     });
 }
 
-/// ITEM 183 — THE LIVE/HEADLESS PARITY LAW for the project location.
+/// THE LIVE/HEADLESS PARITY LAW for the project location.
 ///
 /// The harness carries its OWN derivation of "what does this root imply": a
 /// capture reports the location in its sidecar, once from the launch root and
 /// again after a Project-picker accept. That second site re-derived
 /// `name`/`branch`/`dirty` from the accepted root while carrying the LAUNCH
-/// root's `workspace` forward — item 180's defect, alive in the harness's copy
-/// of the rule long after item 180 fixed the App's. Reproduced before the fix
+/// root's `workspace` forward — a stale-workspace defect in the harness's copy
+/// of the rule. Reproduced before the fix
 /// on a real capture: `--keys "s-S-p Backspace Enter Enter Enter"` into
 /// `/new-ws/proj-b` reported `root: /new-ws/proj-b` beside
 /// `workspace: /old-ws`. The oracle lied about the exact transition it was
 /// asked to witness.
 ///
 /// One builder now serves both capture sites (`run::project_info`), and this
-/// law pins it to the live `App`'s own derivation across item 180's whole axis
+/// law pins it to the live `App`'s own derivation across the whole axis
 /// — different parent, same parent, the filesystem-root edge, an explicitly
 /// configured workspace that must beat the `root.parent()` fallback, and a
 /// switch away and back. Neither side is allowed to be "close": the sidecar
 /// must report exactly what a live editor at that root would hold.
 #[test]
 fn the_capture_sidecars_project_location_equals_the_live_apps() {
-    // The axis is item 180's own, value for value.
+    // The axis covers every project-location boundary, value for value.
     let axis: &[(&str, &[&str], &str, &str)] = &[
         (
             "different parent",
@@ -1080,18 +1080,18 @@ fn assert_live_and_capture_locations_agree(
             info.workspace, app.project_location.workspace_root,
             "{label}: the sidecar's workspace must be the live workspace — a \
              capture that reports a workspace the running editor does not have \
-             is item 180's bug living on in the harness"
+             is the stale-workspace bug living on in the harness"
         );
     });
 }
 
-/// ITEM 183 — THE SAME BUG, DRIVEN FROM REAL KEYS THROUGH THE LIVE `App`.
+/// THE SAME BUG, DRIVEN FROM REAL KEYS THROUGH THE LIVE `App`.
 ///
 /// Every test above calls `App::switch_project` directly, because until this
 /// round nothing else could: `App::apply` — the ONE seam a keypress, a menu
-/// item, a palette command and an overlay click all funnel through — demanded
+/// change, a palette command and an overlay click all funnel through — demanded
 /// an `&ActiveEventLoop`, which exists only inside a running winit loop and
-/// cannot be constructed. So item 180's Verify clause ("drive Switch-project
+/// cannot be constructed. A request to drive Switch-project
 /// through the real keymap and assert the picker's contents") named a capture
 /// that structurally could not exist. Narrowing that borrow to the ONE
 /// capability `apply` actually used (`app::Exit` — `event_loop.exit()`, nothing
@@ -1167,7 +1167,7 @@ fn switch_project_driven_by_real_chords_through_apply_repoints_the_workspace() {
             project_picker_rows(&app),
             vec!["other", "proj-b"],
             "the picker must now list the NEW workspace's siblings — the \
-             stale ['proj-a', 'sibling'] here is item 180's reported bug"
+             stale ['proj-a', 'sibling'] here is the reported stale-workspace bug"
         );
     });
 }
