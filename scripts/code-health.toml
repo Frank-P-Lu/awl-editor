@@ -145,7 +145,7 @@ reason = "The review row joins the two resolutions in `row_hidden`, the one plac
 
 [[file_size_mark]]
 file = "src/config/model.rs"
-lines = 369
+lines = 337
 
 [[file_size_mark]]
 file = "src/crashlog.rs"
@@ -209,7 +209,7 @@ reason = "The one construction site each pipeline family has now sits inside gpu
 
 [[file_size_mark]]
 file = "src/main/args.rs"
-lines = 1245
+lines = 950
 reason = "Was 1191. +54: `Mode::ScreenshotFrames` carries canvas and dpi, and gets its own `CaptureKind::ScreenshotFrames` hook list. That door had no classifier arm at all, so it fell into the plain-Screenshot bucket whose list treats EVERY hook as honoured -- canvas, dpi, --keys, the per-frame render hooks, --root, --workspace and --default-folder were all accepted and discarded. --keys needed its own refusal because it is not in the SuppliedHooks table: every other out-producing mode threads keys, and this is the first that structurally cannot, since the document is a stationary backdrop for the App's scheduling loop rather than a replay."
 
 [[file_size_mark]]
@@ -586,13 +586,6 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
-file = "src/config/model.rs"
-function = "Config::load"
-message = "this function has too many lines (111/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
-
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
 file = "src/export/pdf/writer.rs"
 function = "emit"
 message = "this function has too many lines (123/100)"
@@ -898,50 +891,50 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/panels.rs"
 function = "popover_card_hugs_the_button_row"
-message = "this function has too many lines (139/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace. Line shifted +10 by two new `unit` assertions added to the HUD readout test far above it; this function's own body is unchanged. Grew by one line (138 -> 139): the popover chin law resolves its pad token at the cell's own zoom x dpi, because the pad is a LOGICAL length now and the law's own retina cell asserted the physical value."
+message = "this function has too many lines (141/100)"
+reason = "Existing end-to-end scenario with no coherent setup/assertion split. Removing the identity fixture wrapper makes the direct default construction two lines longer without changing this test's behaviour."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/panels.rs"
 function = "popover_labels_demonstrate_their_own_effects"
-message = "this function has too many lines (111/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace. Line shifted +10 by two new `unit` assertions added to the HUD readout test far above it; this function's own body is unchanged."
+message = "this function has too many lines (113/100)"
+reason = "Existing end-to-end scenario with no coherent setup/assertion split. Removing the identity fixture wrapper makes the direct default construction two lines longer without changing this test's behaviour."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/panels.rs"
 function = "history_comparison_is_relocated_by_the_capture_path_in_every_world"
-message = "this function has too many lines (131/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace (+1 for the `workspace` field). Item 116b: +12 lines. Item 84's cross-world diff-panel DRESSING law is re-aimed as `history_preview_renders_the_transcript_as_the_document_in_every_world`: the dressing claim moved to the render tier (where the relocated viewport exists), and what stays here is the content half — the transcript IS the captured document, it renders undressed (a differential against the same transcript captured plainly, with an ink floor so the band cannot go vacuous), and `detail_focus` moves no pixel. The History workspace's own composition then retired the two dressing arms outright — 'undressed at the page column' and 'detail_focus moves nothing' describe a composition that no longer exists — and what stays is the sidecar's transcript plus a differential proving the CAPTURE PATH's own workspace-shape derivation places the comparison in the content pane (-11 lines). Line shifted +10 by two new `unit` assertions added to the HUD readout test far above it; this function's own body is unchanged."
+message = "this function has too many lines (135/100)"
+reason = "Existing end-to-end scenario with no coherent setup/assertion split. Its two identity-wrapper call sites became explicit default constructions, adding four source lines without changing behaviour."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/pickers_faceted.rs"
 function = "file_pickers_faceted_lens_render_and_report"
-message = "this function has too many lines (115/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace (+1 for the `workspace` field)."
+message = "this function has too many lines (117/100)"
+reason = "Existing end-to-end scenario with no coherent setup/assertion split. Removing the identity fixture wrapper makes the direct default construction two lines longer without changing this test's behaviour."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/pickers_faceted.rs"
 function = "faceted_grouped_window_is_bounded_and_scrolls_to_selection"
-message = "this function has too many lines (130/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace (+1 for the `workspace` field)."
+message = "this function has too many lines (132/100)"
+reason = "Existing end-to-end scenario with no coherent setup/assertion split. Removing the identity fixture wrapper makes the direct default construction two lines longer without changing this test's behaviour."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/pickers_faceted.rs"
 function = "command_and_history_pickers_faceted_lens_render_and_report"
-message = "this function has too many lines (162/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace (+1 for the `workspace` field)."
+message = "this function has too many lines (164/100)"
+reason = "Existing end-to-end scenario with no coherent setup/assertion split. Removing the identity fixture wrapper makes the direct default construction two lines longer without changing this test's behaviour."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/pickers_faceted.rs"
 function = "a_settings_range_row_steps_and_reports_its_rail_through_the_sidecar"
-message = "this function has too many lines (114/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted by queue item 114's summoned Settings workspace (+1 for the `workspace` field). Line shifted again by the History-preview card-figure law added above it; this function's own body is unchanged. Shifted a further +10 by two new `unit` assertions added inside that PRECEDING function (`a_history_preview_leaves_the_card_figures_over_the_users_document`), not this one — this function's own body and line count are unchanged."
+message = "this function has too many lines (116/100)"
+reason = "Existing end-to-end scenario with no coherent setup/assertion split. Removing the identity fixture wrapper makes the direct default construction two lines longer without changing this test's behaviour."
 
 [[clippy_exception]]
 lint = "clippy::cognitive_complexity"

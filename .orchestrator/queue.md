@@ -223,18 +223,17 @@ list instead of re-checking the tree.** Every entry in the previous list was
 verified landed via `git log --grep` before this re-derivation (292/293/299/303,
 294/298, 305, 291, 296+300, 273's residuals, 302, 227, 131e+303 — all merged).
 
-1. **368** — the three small merges. Quick, zero-risk, do first or fold into any lane's round.
-2. **365** — the rename sweep BEFORE 372/373/374: it moves files that 372's citation stock,
+1. **365** — the rename sweep BEFORE 372/373/374: it moves files that 372's citation stock,
    373's shard-balance hints, and 374's module paths all name. 366 folds into it.
-3. **361 then 364** — ONE lane, sequenced, never a pair: both rewrite `pipeline_draw.rs::new`.
-4. **362 and 363** — independent render refactors; 363 is identity-gated, so an outcome audit follows it.
-5. **373 then 375** — shard the gate, then raise the lane ceiling and install the gate arbiter.
+2. **361 then 364** — ONE lane, sequenced, never a pair: both rewrite `pipeline_draw.rs::new`.
+3. **362 and 363** — independent render refactors; 363 is identity-gated, so an outcome audit follows it.
+4. **373 then 375** — shard the gate, then raise the lane ceiling and install the gate arbiter.
    **374** any time after 365; it directly raises 373's ceiling (both slow atoms sit in one shard).
-6. **372** — the citation stock, after 365. Production tier; 1,700 judgement calls, not a sed script.
-7. **357, 358, 369, 370, 359, 360, 371's lane-half** — independent, no ordering constraint among them.
-8. **174** — multi-round refactor, continues by slices.
-9. **231** — no live lead; its named next step is a macOS guest VM, a spend decision, not work to absorb.
-10. **🔵 HUMAN / LIVE, none of which a lane can close** — see BLOCKED and OWED above. **251** is
+5. **372** — the citation stock, after 365. Production tier; 1,700 judgement calls, not a sed script.
+6. **357, 358, 369, 370, 359, 360, 371's lane-half** — independent, no ordering constraint among them.
+7. **174** — multi-round refactor, continues by slices.
+8. **231** — no live lead; its named next step is a macOS guest VM, a spend decision, not work to absorb.
+9. **🔵 HUMAN / LIVE, none of which a lane can close** — see BLOCKED and OWED above. **251** is
    hardware-gated (a human at a Linux desktop with Orca). **327** and the landed taste calls
    (338/342/345/346, carried in OWED) close on the user's eye.
 
@@ -369,7 +368,8 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
      nothing. Route the consumers through the field or delete it, and add the census arm that
      makes an unread `RenderCaps` field fail rather than earn a verdict.
 
-361. **Pipeline tint has two owners and nothing makes them agree.** Every baked pipeline's
+361. 🟡 **IN PROGRESS — codex (codex), branch `codex/item-361-364-pipeline`.**
+     **Pipeline tint has two owners and nothing makes them agree.** Every baked pipeline's
      colour is written in `TextPipeline::new` (`src/render/pipeline_draw.rs:6`) AND in
      `sync_theme_colors` (`src/render/pipeline_geometry.rs:27`) — `surface_selected()` 6/6,
      `primary()` 6/6, `float_shadow_srgba()` 5/5, `base_200()` 6/5… No law covers the
@@ -409,7 +409,8 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
      helpers named for what they own. **Routing:** production tier; audit dispatched
      separately so it doesn't read its own diff.
 
-364. **`TextPipeline::new`'s default tail: 123 of 276 struct-literal lines are trivial
+364. 🟡 **IN PROGRESS — codex (codex), branch `codex/item-361-364-pipeline`.**
+     **`TextPipeline::new`'s default tail: 123 of 276 struct-literal lines are trivial
      one-value defaults** (`pipeline_draw.rs:311–586`), 69 prefixed `overlay_`/`hud_`/`wk_`/
      `debug_`. **Build:** group `hud_` (9 fields/~77 mentions), `wk_` (5/~24), `debug_`
      (10/~39) into `#[derive(Default)]` sub-structs — three commits — and STOP. ‼ `overlay_`
@@ -420,7 +421,8 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
      discipline as `ViewState::base()`); byte-identical captures; native both conventions.
      **Routing:** production tier.
 
-365. **Retire the index-named test file — 66 files (35,110 lines, 340 tests) whose names
+365. 🟡 **IN PROGRESS — codex (codex), branch `codex/item-365-366-rename-sweep`.**
+     **Retire the index-named test file — 66 files (35,110 lines, 340 tests) whose names
      point at a board that no longer carries them. USER DECISION 2026-08-09: the exemption
      goes.** `code-health.py` currently protects them (`TEST_FILENAME_ITEM_INDEX` :43,
      `is_index_named_test_file` :79, `check_index_named_test_files` :135) — a real position,
@@ -446,7 +448,8 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
      **Routing:** repeatable tier for (a), production for (b)/(c); one owner — (a) is only
      safe if (b) lands with it.
 
-366. **Two files, one mechanism: the zigzag ground.** `backgrounds_item86.rs` (308 ln) and
+366. 🟡 **IN PROGRESS — codex (codex), branch `codex/item-365-366-rename-sweep`.**
+     **Two files, one mechanism: the zigzag ground.** `backgrounds_item86.rs` (308 ln) and
      `backgrounds_item89.rs` (1500 ln, self-described as "the correctness repair of item
      86's chevron margin ground") — same subject, same seam (`headless_dq`, `mark_field`),
      split only by landing order. Merge into one mechanism-named file; update two `mod`
@@ -469,20 +472,6 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
      `export/pdf/tests.rs` (**58**) — export needs its own parse seam. **Verify:** each
      converted assertion proven non-vacuous by breaking the field it reads. **Routing:**
      production tier.
-
-368. **Three small "merge, don't align" violations, one owner, three commits.**
-     **(a)** `Config::empty()` and `Config::load()` carry byte-identical 34-field literals
-     (`src/config/model.rs:39` / `:149`, differing only in `path`) — `load` builds from
-     `Self::empty()` and sets `path`. **(b)** `src/main/args.rs:948–1245` (~298 lines of
-     embedded `#[cfg(test)]`) moves to `src/main/args/tests.rs`, matching
-     `args/flags/tests.rs`; mark tightens 1245 → ~947 (orchestrator's edit at merge).
-     **(c)** `fixture_opts()` is copied THREE times (`capture/tests/panels.rs:11`,
-     `capture/tests/pickers_faceted.rs:13`, `render/tests/date_picker_ink.rs:32`), and
-     panels.rs calls `CaptureOpts::default()` directly 40× against 9 helper uses — DELETE
-     the helper; hoisting keeps a wrapper that earns nothing. **Verify:** (a) a law that a
-     field can't be added to one constructor and not the other (`load` on absent path ==
-     `empty()` + path, mutation-proven by desyncing one field); (b)/(c) name-only, proven by
-     the suite. **Routing:** repeatable for (b)/(c), production for (a)'s law.
 
 369. **Clean the theme data model before the custom-world composer makes it a public
      contract.** Census every `Theme`/`RenderCaps` capability × adopting worlds; zero/one
