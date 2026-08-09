@@ -254,7 +254,7 @@ list instead of re-checking the tree.** Every entry in the previous list was
 verified landed via `git log --grep` before this re-derivation (292/293/299/303,
 294/298, 305, 291, 296+300, 273's residuals, 302, 227, 131e+303 — all merged).
 
-1. **378, 379, 380** — independent closure wave for machine-doable
+1. **378, 379, 380, 381** — independent closure wave for machine-doable
    residuals recovered from OWED.
 2. **🔵 HUMAN / LIVE** — only after the closure wave reclassifies every
    remaining OWED entry by evidence. **231**
@@ -288,9 +288,17 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
 380. 🟡 **IN PROGRESS — root, branch `main`. Close deferred verification residuals.**
      Perform item 263's production construction-site document-seed mutation and restore it; run
      item 242's formal affordance-locating vision smoke; measure item 241's exact 4530x2756@2x
-     headless geometry/perf case; and classify the Linux drawn-menu export arm by an actual
-     reachable harness attempt. Each successful check removes its OWED line; genuine display,
+     headless geometry/perf case. Each successful check removes its OWED line; genuine display,
      platform, or human-feel limits move to BLOCKED with precise evidence.
+
+381. 🟡 **IN PROGRESS — codex (gpt-5.6-sol high), branch
+     `codex/item-381-linux-menu-export`. Close the Linux drawn-menu export click arm.**
+     Test whether `AWL_MENU_BAR_FORCE=on` makes the real rendered-menu hit path reachable through
+     a hermetic GPU-backed `App` on this host. If reachable, drive an actual Export row click and
+     assert the `ExportDest` journey/format through `menubar_press`, with a mutation that breaks
+     the click-to-action route. If OS event delivery or a Linux compositor remains the only
+     unreachable layer, move the residual to BLOCKED with exact evidence rather than claiming the
+     action seam as the platform journey. Do not exercise or choose the macOS save-panel behavior.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
