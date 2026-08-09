@@ -261,7 +261,7 @@ list instead of re-checking the tree.** Every entry in the previous list was
 verified landed via `git log --grep` before this re-derivation (292/293/299/303,
 294/298, 305, 291, 296+300, 273's residuals, 302, 227, 131e+303 — all merged).
 
-1. **358, 369, 370** — independent, no ordering constraint among them.
+1. **358, 369** — independent, no ordering constraint among them.
 2. **174** — multi-round refactor, continues by slices.
 3. **🔵 HUMAN / LIVE, none of which a lane can close** — see BLOCKED and OWED above. **231**
    needs the approved macOS guest-VM spend; **251** needs a human at a Linux desktop with
@@ -328,19 +328,6 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
      a non-black/white pair; worlds pixel-identical except separately approved corrections;
      THEMES.md + docs/render.md updated. **Dependency:** before the composer. **Routing:**
      deep tier.
-
-370. 🟡 **IN PROGRESS — codex (gpt-5.6-terra medium), branch
-     `codex/item-370-magpie-mark`. Trim Magpie's left parallelogram by recomposing the selected mark, not by lying about
-     the frost footprint.** The user's screenshot shows the selected `>` far left of the `/`
-     spine, forcing a broad softened parallelogram; item 343 proved the footprint is already
-     tight — the left extent is live mark ink. Bring the mark inward, then let
-     `footprint_narrow` derive the shorter left face from surfaces actually drawn. No
-     Magpie-only crop, no clipping the mark, no new per-world placement field while 369
-     removes that class. **Done:** before/after left footprint in logical px at the
-     screenshot's stress shape; everything inside footprint+feather at 1×/2×; selected row
-     locatable in a five-shot vision smoke; Mangrove byte-identical or changed only via an
-     explicitly accepted shared rule; footprint + diagonal/frost suites green. Reversible
-     taste change. **Routing:** production tier + vision smoke.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
