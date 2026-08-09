@@ -40,10 +40,12 @@
 //! `textures -8`. Nothing about lavapipe, nothing about software rasterisers —
 //! a missing line, on every Vulkan device there is.
 //!
-//! `buffers` and `texture_views` are add/sub-balanced on all four backends, and
-//! each wgpu-core buffer and view maps to exactly one hal object, so their sum
-//! is a number with the SAME meaning on every backend awl ships. That sum is
-//! the unit. [`GpuLive::portable`] is its one owner.
+//! `buffers` and `texture_views` are add/sub-balanced on all four backends, so
+//! their sum is a count of live hal objects with the SAME meaning on every
+//! backend awl ships. It is not a count of caller-visible Rust handles: a view
+//! whose caller drops the backing `Texture` can keep more than one hal view
+//! live. The probe below measures that lifetime shape instead of assuming its
+//! multiplier. [`GpuLive::portable`] is the unit's one owner.
 //!
 //! ⚠️ **The gap this leaves, measured rather than argued.** Views are created
 //! one-for-one with textures here (`dither::offscreen` returns a texture *and*
@@ -197,6 +199,9 @@ impl std::fmt::Display for GpuLive {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Probe {
     pub(crate) created: GpuLive,
+    /// Live view-counter delta after creating one view and dropping the
+    /// caller's backing `Texture`, while retaining only the `TextureView`.
+    view_only_pin: i64,
 }
 
 impl Probe {
@@ -215,6 +220,11 @@ impl Probe {
     pub(crate) fn instrument_is_dead(self) -> bool {
         Class::ALL.iter().all(|&c| self.delta(c) == 0)
     }
+
+    /// Does retaining only a caller-visible view remain observable?
+    pub(crate) fn view_only_pin(self) -> i64 {
+        self.view_only_pin
+    }
 }
 
 impl std::fmt::Display for Probe {
@@ -227,7 +237,7 @@ impl std::fmt::Display for Probe {
             first = false;
             write!(f, "{} {:+}", c.name(), self.delta(c))?;
         }
-        Ok(())
+        write!(f, "; view-only pin {:+}", self.view_only_pin)
     }
 }
 
@@ -257,7 +267,8 @@ pub(crate) fn live(device: &wgpu::Device) -> GpuLive {
 /// MEASURE the instrument, on the backend that is actually here.
 ///
 /// Creates one buffer, one texture and one view of that texture, reading the
-/// counters between each, and reports what moved. This is the whole difference
+/// counters between each, then drops the caller's texture while retaining its
+/// view and measures that lifetime too. This is the whole difference
 /// between this module and its reverted first draft: the draft asserted a
 /// portability table read off wgpu-hal's sources, on a host that runs only one
 /// of the four backends in it, and CI falsified the table's `textures` row on
@@ -297,8 +308,9 @@ pub(crate) fn probe(device: &wgpu::Device) -> Probe {
     let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
     let after_view = live(device);
 
-    drop(view);
     drop(texture);
+    let with_view_only = live(device);
+    drop(view);
     drop(buffer);
 
     Probe {
@@ -307,6 +319,7 @@ pub(crate) fn probe(device: &wgpu::Device) -> Probe {
             textures: after_texture.since(after_buffer).textures,
             texture_views: after_view.since(after_texture).texture_views,
         },
+        view_only_pin: with_view_only.since(after_texture).texture_views,
     }
 }
 
