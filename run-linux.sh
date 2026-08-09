@@ -22,7 +22,7 @@ install_deps() {
     # — it's a separate runtime package for the X11 keymap module, which
     # winit's X11 backend dlopens at startup (xkbcommon-dl). Without it awl
     # panics immediately on any X11 session (`Library libxkbcommon-x11.so
-    # could not be loaded`) — found via item 252's CI probe, the first arm to
+    # could not be loaded`) — found via the CI probe, the first arm to
     # ever put a built awl in front of a real X server. Wayland-only sessions
     # never hit this path, which is why it went unnoticed until now.
     sudo apt-get install -y --no-install-recommends \

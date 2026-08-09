@@ -228,7 +228,7 @@ cp "$BIN_PATH" "$CONTENTS/MacOS/awl"
 chmod +x "$CONTENTS/MacOS/awl"
 
 # ICON: the canonical bundle icon — the DEFAULT world's pre-rendered app icon,
-# cut by `awl --pack-icns` and committed (see `src/app_icon/`, item 92). This is
+# cut by `awl --pack-icns` and committed (see `src/app_icon/`). This is
 # what FINDER, the Dock's launch tile and the About panel show; a bundle icon is
 # a property of the bundle, not of the session, so it never follows the user's
 # chosen world. The RUNNING app swaps its own Dock/app-switcher image to the

@@ -175,7 +175,7 @@ kill -0 "$child_pid" 2>/dev/null && fail "orphan's child process survived --kill
 
 echo "test-reap-orphaned-gates: --kill retires an orphan's descendant process, not only the top-level script"
 
-# ── The root checkout: item 270's marker is the only discriminator ───────
+# ── The root checkout: the marker is the only discriminator ──────────────
 # None of the three worktree signals above can ever fire against the repo
 # root itself — it always exists, is always registered with git, and its
 # branch is never "already merged into main" the way a lane's is. This item
