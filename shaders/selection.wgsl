@@ -22,7 +22,7 @@
 //     and the caret: a hard-edged (no AA — see its own doc below)
 //     ROUNDED-RECT SILHOUETTE (the same `sd_round_rect` SDF + clamp `fs_main`
 //     uses, reading the SAME `g.corner` uniform), drawn with its OWN
-//     `wgpu::RenderPipeline` object built with a subtractive blend state
+//     two `wgpu::RenderPipeline` objects built with subtractive/additive blends
 //     (blend state is baked in at pipeline construction, so this MUST be a
 //     separate pipeline — see `src/selection.rs::SelectionPipeline::
 //     new_two_colour`). A SELECTION instance leaves `g.corner` at its
@@ -101,6 +101,10 @@ struct Globals {
     // for the removed `wave`/`wave_period_x`/`wave_period_y`/`wave_amp`/
     // `wave_tiers` fields and the `jagged_wave_*` functions they fed.)
     dot_color: vec4<f32>,
+    // TWO-COLOUR SWAP's additive second source. Rust decomposes each pair into
+    // per-channel max/min, keeping both render-target sources inside [0,1].
+    // Ordinary pipelines leave this zero and never read it.
+    second_color: vec4<f32>,
 };
 
 @group(0) @binding(0) var<uniform> g: Globals;
@@ -111,8 +115,7 @@ struct Instance {
     // Half-size (width/2, height/2), in pixels.
     @location(1) hsize: vec2<f32>,
     // Linear RGBA color (alpha is the highlight translucency). Unused by
-    // `fs_two_colour`, which writes the linear sum of the resolved palette
-    // pair for the subtractive role-swap blend.
+    // `fs_two_colour`, which writes the per-channel maximum endpoint.
     @location(2) color: vec4<f32>,
 // THE SPINE PRIMITIVE. Unit rotation axis (cos, sin) the quad's
     // VERTEX POSITIONS are rotated onto, exactly mirroring `caret.wgsl`'s own
@@ -333,14 +336,14 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     return vec4<f32>(rgb, a);
 }
 
-// TWO-COLOUR INVERSE: the quad is drawn AFTER text/ground through a pipeline
-// whose subtractive blend computes `src - dst`. Rust resolves two authored
-// palette roles and uploads their LINEAR sum as `src`, so the endpoints swap:
-// `ground + ink - ground = ink` and `ground + ink - ink = ground`. Every
-// antialiased mixture on the line between them swaps continuously too.
+// TWO-COLOUR INVERSE: the quad is drawn AFTER text/ground in two fixed-point-
+// safe passes. Rust resolves the authored roles into per-channel `max` and
+// `min`; the first pass computes `max - dst`, the second adds `min`. Together
+// they produce `ground + ink - dst`, swapping both endpoints and every mixture
+// between them without asking a normalized render target to carry a source >1.
 //
 // HARD discard, deliberately (no smoothstep/AA): the subtractive blend does
-// not reference the fragment's alpha at all, so there is no
+// do not reference the fragment's alpha at all, so there is no
 // way to FADE this quad's edge through the blend equation the way the
 // ordinary alpha-blended fill above does — a soft-feathered edge here would
 // need a genuinely different (unsupported) blend trick. But a hard EDGE
@@ -349,7 +352,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
 // `fs_main` above does — ONE owner for the silhouette shape, never a second
 // radius/geometry formula — and simply DISCARDS any fragment outside it
 // rather than blending toward it. Every SURVIVING pixel is still an exact
-// `ground + ink - dst` role swap (the one-bit pixel law holds as its black/white
+// exact role swap (the one-bit pixel law holds as its black/white
 // special case, only the
 // corners end up aliased rather than antialiased — the accepted 1-bit
 // tradeoff). `g.corner` is `0.0` for a SELECTION invert instance (no
@@ -369,4 +372,14 @@ fn fs_two_colour(in: VsOut) -> @location(0) vec4<f32> {
         discard;
     }
     return vec4<f32>(in.color.rgb, 1.0);
+}
+
+@fragment
+fn fs_two_colour_add(in: VsOut) -> @location(0) vec4<f32> {
+    let r = min(g.corner, min(in.hsize.x, in.hsize.y));
+    let d = sd_card_rect(in.local, in.hsize, r, g.chamfer);
+    if (d > 0.0) {
+        discard;
+    }
+    return vec4<f32>(g.second_color.rgb, 1.0);
 }

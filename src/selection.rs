@@ -2,6 +2,9 @@
 
 const CORNER_RADIUS: f32 = 2.5;
 
+mod pipeline;
+use pipeline::{Flavor, build_render_pipeline};
+
 /// Per-quad instance: a rectangle center + half-size in pixels, plus the shared
 /// RGBA color. MUST match `Instance` in the WGSL.
 ///
@@ -55,10 +58,14 @@ struct Globals {
     /// ends the struct at byte 64, already a multiple of the largest
     /// member's 16-byte alignment, so no further tail padding is needed.)
     dot_color: [f32; 4],
+    /// The additive second source for a two-colour swap. Zero on ordinary
+    /// pipelines; see [`SelectionPipeline::set_two_colour`].
+    second_color: [f32; 4],
 }
 
 pub struct SelectionPipeline {
     pipeline: wgpu::RenderPipeline,
+    second_pipeline: Option<wgpu::RenderPipeline>,
     bind_group: wgpu::BindGroup,
     globals_buf: wgpu::Buffer,
     instance_buf: wgpu::Buffer,
@@ -93,39 +100,7 @@ pub struct SelectionPipeline {
     /// (see that fn's doc). The former JAGGED-WAVE texture and its `set_wave`
     /// sibling are retired.
     dot_color: [f32; 4],
-}
-
-fn ordinary_blend() -> wgpu::BlendState {
-    wgpu::BlendState {
-        color: wgpu::BlendComponent {
-            src_factor: wgpu::BlendFactor::SrcAlpha,
-            dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
-            operation: wgpu::BlendOperation::Add,
-        },
-        alpha: wgpu::BlendComponent {
-            src_factor: wgpu::BlendFactor::One,
-            dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
-            operation: wgpu::BlendOperation::Add,
-        },
-    }
-}
-
-/// The arbitrary two-colour role swap: the fragment writes the pair's linear
-/// sum and this blend subtracts the destination. Thus `ground + ink - dst`
-/// swaps every interpolation point without baking in a black/white assumption.
-fn two_colour_blend() -> wgpu::BlendState {
-    wgpu::BlendState {
-        color: wgpu::BlendComponent {
-            src_factor: wgpu::BlendFactor::One,
-            dst_factor: wgpu::BlendFactor::One,
-            operation: wgpu::BlendOperation::Subtract,
-        },
-        alpha: wgpu::BlendComponent {
-            src_factor: wgpu::BlendFactor::Zero,
-            dst_factor: wgpu::BlendFactor::One,
-            operation: wgpu::BlendOperation::Add,
-        },
-    }
+    second_color: [f32; 4],
 }
 
 /// The one `selection.wgsl` module. `TextPipeline::new` stands up ~25
@@ -143,12 +118,6 @@ pub fn selection_shader(device: &wgpu::Device) -> wgpu::ShaderModule {
 /// What the two flavors differ on that is BAKED INTO the compiled program, so
 /// `key` (what `gpu_cache` stores it under) must change whenever the other two
 /// do. Color, corner radius and dither are uniforms, not pipeline state.
-struct Flavor {
-    key: &'static str,
-    entry_point: &'static str,
-    blend: wgpu::BlendState,
-}
-
 impl SelectionPipeline {
     pub fn new(
         device: &wgpu::Device,
@@ -161,11 +130,7 @@ impl SelectionPipeline {
             shader,
             format,
             srgba,
-            Flavor {
-                key: "selection.ordinary",
-                entry_point: "fs_main",
-                blend: ordinary_blend(),
-            },
+            Flavor::ordinary(),
             CORNER_RADIUS,
         )
     }
@@ -183,18 +148,7 @@ impl SelectionPipeline {
         ground: [u8; 4],
         ink: [u8; 4],
     ) -> Self {
-        let mut pipeline = Self::build(
-            device,
-            shader,
-            format,
-            ground,
-            Flavor {
-                key: "selection.two-colour",
-                entry_point: "fs_two_colour",
-                blend: two_colour_blend(),
-            },
-            0.0,
-        );
+        let mut pipeline = Self::build(device, shader, format, ground, Flavor::two_colour(), 0.0);
         pipeline.set_two_colour(ground, ink);
         pipeline
     }
@@ -216,6 +170,7 @@ impl SelectionPipeline {
             key,
             entry_point,
             blend,
+            second,
         } = flavor;
         let bind_group_layout = crate::gpu_cache::bind_group_layout("selection", || {
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -249,70 +204,25 @@ impl SelectionPipeline {
             }],
         });
 
-        let instance_layout = wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<SelInstance>() as u64,
-            step_mode: wgpu::VertexStepMode::Instance,
-            attributes: &[
-                wgpu::VertexAttribute {
-                    format: wgpu::VertexFormat::Float32x2,
-                    offset: 0,
-                    shader_location: 0,
-                },
-                wgpu::VertexAttribute {
-                    format: wgpu::VertexFormat::Float32x2,
-                    offset: 8,
-                    shader_location: 1,
-                },
-                wgpu::VertexAttribute {
-                    format: wgpu::VertexFormat::Float32x4,
-                    offset: 16,
-                    shader_location: 2,
-                },
-                // `axis`, at the END of the struct so every offset
-                // above is untouched (no existing attribute moves).
-                wgpu::VertexAttribute {
-                    format: wgpu::VertexFormat::Float32x2,
-                    offset: 32,
-                    shader_location: 3,
-                },
-            ],
-        };
-
-        let pipeline = crate::gpu_cache::render_pipeline(key, format, || {
-            let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("selection pipeline layout"),
-                bind_group_layouts: &[Some(&bind_group_layout)],
-                immediate_size: 0,
-            });
-
-            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("selection pipeline"),
-                layout: Some(&pipeline_layout),
-                vertex: wgpu::VertexState {
-                    module: shader,
-                    entry_point: Some("vs_main"),
-                    buffers: &[instance_layout],
-                    compilation_options: Default::default(),
-                },
-                fragment: Some(wgpu::FragmentState {
-                    module: shader,
-                    entry_point: Some(entry_point),
-                    targets: &[Some(wgpu::ColorTargetState {
-                        format,
-                        blend: Some(blend),
-                        write_mask: wgpu::ColorWrites::ALL,
-                    })],
-                    compilation_options: Default::default(),
-                }),
-                primitive: wgpu::PrimitiveState {
-                    topology: wgpu::PrimitiveTopology::TriangleList,
-                    ..Default::default()
-                },
-                depth_stencil: None,
-                multisample: wgpu::MultisampleState::default(),
-                multiview_mask: None,
-                cache: None,
-            })
+        let pipeline = build_render_pipeline(
+            device,
+            shader,
+            format,
+            &bind_group_layout,
+            key,
+            entry_point,
+            blend,
+        );
+        let second_pipeline = second.map(|second| {
+            build_render_pipeline(
+                device,
+                shader,
+                format,
+                &bind_group_layout,
+                second.key,
+                second.entry_point,
+                second.blend,
+            )
         });
 
         let instance_cap = 64;
@@ -325,6 +235,7 @@ impl SelectionPipeline {
 
         Self {
             pipeline,
+            second_pipeline,
             bind_group,
             globals_buf,
             instance_buf,
@@ -340,6 +251,7 @@ impl SelectionPipeline {
             halftone_angle: 0.0,
             halftone_cell: 6.0,
             dot_color: [0.0; 4],
+            second_color: [0.0; 4],
         }
     }
 
@@ -347,15 +259,22 @@ impl SelectionPipeline {
         self.color = srgba_u8_to_linear(srgba);
     }
 
-    /// Resolve authored palette roles into the subtractive blend's source term;
-    /// this layer only performs their required linear-space sum.
+    /// Resolve authored palette roles into fixed-point-safe swap passes. The
+    /// first subtracts the destination from the per-channel maximum, then the
+    /// second adds the minimum: `max - dst + min == ground + ink - dst`.
     pub fn set_two_colour(&mut self, ground: [u8; 4], ink: [u8; 4]) {
         let ground = srgba_u8_to_linear(ground);
         let ink = srgba_u8_to_linear(ink);
         self.color = [
-            ground[0] + ink[0],
-            ground[1] + ink[1],
-            ground[2] + ink[2],
+            ground[0].max(ink[0]),
+            ground[1].max(ink[1]),
+            ground[2].max(ink[2]),
+            1.0,
+        ];
+        self.second_color = [
+            ground[0].min(ink[0]),
+            ground[1].min(ink[1]),
+            ground[2].min(ink[2]),
             1.0,
         ];
     }
@@ -539,6 +458,7 @@ impl SelectionPipeline {
             halftone_cell: self.halftone_cell,
             _pad2: [0.0; 2],
             dot_color: self.dot_color,
+            second_color: self.second_color,
         };
         queue.write_buffer(&self.globals_buf, 0, bytemuck_lite::bytes_of(&globals));
 
@@ -586,6 +506,7 @@ impl SelectionPipeline {
             halftone_cell: self.halftone_cell,
             _pad2: [0.0; 2],
             dot_color: self.dot_color,
+            second_color: self.second_color,
         };
         queue.write_buffer(&self.globals_buf, 0, bytemuck_lite::bytes_of(&globals));
 
@@ -641,6 +562,7 @@ impl SelectionPipeline {
             halftone_cell: self.halftone_cell,
             _pad2: [0.0; 2],
             dot_color: self.dot_color,
+            second_color: self.second_color,
         };
         queue.write_buffer(&self.globals_buf, 0, bytemuck_lite::bytes_of(&globals));
 
@@ -692,6 +614,10 @@ impl SelectionPipeline {
         pass.set_bind_group(0, &self.bind_group, &[]);
         pass.set_vertex_buffer(0, self.instance_buf.slice(..));
         pass.draw(0..6, 0..self.instance_count);
+        if let Some(pipeline) = &self.second_pipeline {
+            pass.set_pipeline(pipeline);
+            pass.draw(0..6, 0..self.instance_count);
+        }
     }
 }
 

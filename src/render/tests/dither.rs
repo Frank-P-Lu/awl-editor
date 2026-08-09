@@ -423,9 +423,10 @@ fn dither_mode_paints_only_pure_values_at_roughly_the_configured_density() {
     }
 }
 
-/// ARBITRARY TWO-COLOUR SWAP, at the pixel level. The endpoints are deliberately
-/// neither black nor white: the retired `1 - dst` implementation cannot satisfy
-/// this law. Each authored endpoint must become the other on the real GPU.
+/// ARBITRARY TWO-COLOUR SWAP, at the pixel level. Saltpan's two bright authored
+/// roles make at least one linear channel sum exceed 1, so neither the retired
+/// `1 - dst` implementation nor a normalized-target-clamped endpoint sum can
+/// satisfy this law. Each authored endpoint must become the other on the GPU.
 #[test]
 fn two_colour_pipeline_swaps_non_black_white_endpoints() {
     let _g = crate::testlock::serial();
@@ -436,8 +437,26 @@ fn two_colour_pipeline_swaps_non_black_white_endpoints() {
     let _g = crate::testlock::serial();
 
     let (w, h) = (32u32, 32u32);
-    let ground = [0x34u8, 0x62, 0x91, 0xFF];
-    let ink = [0xC3u8, 0x91, 0x58, 0xFF];
+    let saltpan = crate::theme::THEMES
+        .iter()
+        .find(|theme| theme.name == "Saltpan")
+        .unwrap();
+    let roles = crate::theme::TwoColour::new(
+        crate::theme::PaletteRole::Base100,
+        crate::theme::PaletteRole::Base300,
+    );
+    let pair = roles.resolve(saltpan);
+    let ground = pair.ground.rgba_bytes();
+    let ink = pair.ink.rgba_bytes();
+    let linear_sum = [
+        srgb_u8_to_linear(ground[0]) + srgb_u8_to_linear(ink[0]),
+        srgb_u8_to_linear(ground[1]) + srgb_u8_to_linear(ink[1]),
+        srgb_u8_to_linear(ground[2]) + srgb_u8_to_linear(ink[2]),
+    ];
+    assert!(
+        linear_sum.iter().any(|sum| *sum > 1.0),
+        "test pair must exercise normalized-target clamping: {linear_sum:?}"
+    );
     let mut invert = crate::selection::SelectionPipeline::new_two_colour(
         &device,
         &crate::selection::selection_shader(&device),
