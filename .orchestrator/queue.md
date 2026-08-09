@@ -348,7 +348,9 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
      **Done:** matrix report names every owner × phase and every exclusion; each law
      mutation-proven; POSIX-only arms gated, not pretended portable. **Routing:** deep tier.
 
-367. **The sidecar is parseable JSON and four test files scan it as a string.**
+367. 🟡 **IN PROGRESS — codex (production tier), branch
+     `codex/item-367-typed-json-tests`. The sidecar is parseable JSON and four test files
+     scan it as a string.**
      `capture/tests/panels.rs`: 20 `.contains(` against rendered prose (`:71` pins a literal
      panel-text run); `schema_chrome.rs`: 24. One wording or serializer-spacing change breaks
      ~20 literals that were never about wording. `serde_json` is already a dep; the existing
