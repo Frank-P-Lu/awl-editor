@@ -16,7 +16,7 @@
 # ‼ NEVER RUN THIS ON A DEVELOPER MACHINE. It launches a real windowed awl,
 #   which steals focus. The `--soak-gpu` path is meant ONLY for the CI runner.
 #
-# ONE VERDICT — the BINARY's exit status (item 53, 2026-07-23). The soak's
+# ONE VERDICT — the BINARY's exit status. The soak's
 # report.passed() owns every hard gate: a real surface acquire+present, the
 # anti-slideshow presents FLOOR (>=100), the absolute cycle contract
 # (300/300/150), all three injected faults recovered, and live memory samples.
@@ -24,7 +24,7 @@
 # and THIS script simply propagates that exit. It does NOT re-derive a second,
 # independent pass/fail from the report line — that two-oracle arrangement (a
 # script-side grep verdict that could disagree with the process exit) is exactly
-# what item 53 collapsed. The report line is echoed and written to the job
+# what this design collapses. The report line is echoed and written to the job
 # summary for humans only.
 #
 # Usage: scripts/ci-live-probe.sh [SECONDS]   (default 25)
