@@ -1,7 +1,7 @@
 //! src/app/files/dictionary.rs — spell-check DICTIONARY switching, the
 //! PERSONAL (user-added) dictionary file (load at startup, "Add to
 //! dictionary"), and the CJK ambiguity-ladder persist. Peeled out of
-//! `files/settings.rs` to stay under the ~500-line ceiling (item 56).
+//! `files/settings.rs` to keep each file under the ~500-line ceiling.
 
 use crate::app::*;
 

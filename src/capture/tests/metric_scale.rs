@@ -1,4 +1,4 @@
-//! Item 96: the sidecar's font metrics and the PNG must inhabit one pixel scale.
+//! The sidecar's font metrics and the PNG must inhabit one pixel scale.
 //!
 //! The regression reported the unscaled `render::LINE_HEIGHT` while the renderer,
 //! `text_origin`, and `page.column` used zoomed pixels. A struct-only assertion

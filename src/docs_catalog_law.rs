@@ -325,7 +325,7 @@ const CITED_SETTINGS_ROWS: &[(&str, &str)] = &[
     ("site/guide.html", "Edit config as text"),
 ];
 
-/// THE SETTINGS-ROW CITATION LAW (queue item 24): every name in
+/// THE SETTINGS-ROW CITATION LAW: every name in
 /// [`CITED_SETTINGS_ROWS`] must exist in the live settings catalog, AND still
 /// appear verbatim in the doc that claims to cite it.
 ///

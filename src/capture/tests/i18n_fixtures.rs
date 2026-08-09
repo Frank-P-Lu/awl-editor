@@ -631,8 +631,8 @@ fn sidecar_reports_doc_lang_and_per_script_font_resolution() {
         );
         return;
     }
-    // THE guard every capture test takes (queue item 98: this one didn't, and
-    // raced the theme-flipping tests). Now also enforced by `write_sidecar`.
+    // THE guard every capture test takes; omitting it races the theme-flipping
+    // tests. `write_sidecar` enforces the same requirement.
     let _tg = crate::testlock::serial();
     let dir = ScratchDir::new(
         std::env::temp_dir().join(format!("awl_i18n_sidecar_test_{}", std::process::id())),

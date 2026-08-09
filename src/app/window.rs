@@ -603,8 +603,8 @@ impl App {
         // event that routes through `apply` and then calls request_redraw
         // below, and OS key AUTO-REPEAT for a HELD arrow delivers a fresh
         // KeyboardInput per repeat, so a held arrow still repaints promptly.
-        // HOT while the caret spring animates — and, since item 199, while a
-        // TRAVELLING ground runs (`App::advance_travelling_ground`).
+        // HOT while either the caret spring animates or a TRAVELLING ground runs
+        // (`App::advance_travelling_ground`).
         let warp_hot = self.advance_travelling_ground(dt);
         let (stepped, outcome) = if let Some(gpu) = self.frame.gpu_mut() {
             // Drive the virtual-clock seam (caret spring + any future live

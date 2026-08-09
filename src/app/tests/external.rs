@@ -1,4 +1,4 @@
-//! ITEM 204's TIER-2 SWEEP: every gated action, both resolutions, and relaunch
+//! TIER-2 SWEEP: every gated action, both resolutions, and relaunch
 //! recovery, driven into a hermetic live `App` over an `InMemoryFs`.
 //!
 //! **Why this tier and not a capture** (`docs/harness-reach.md`): the conflict is

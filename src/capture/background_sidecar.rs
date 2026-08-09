@@ -1,7 +1,7 @@
 //! The `page.background` sidecar arm — one JSON shape per `theme::Background`.
 //!
 //! Carved out of `sidecar.rs` alongside its `scroll_sidecar`/`layout_sidecar`/
-//! `replay_sidecar` siblings when item 158's Deckle ground added a tenth arm.
+//! `replay_sidecar` siblings when Deckle added the background's tenth arm.
 //! The split is mechanical: the same three functions, verbatim, with the
 //! shared `json_string` helper imported instead of colocated.
 

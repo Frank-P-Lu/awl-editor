@@ -107,8 +107,8 @@ fn the_summoned_layer_ladder_resolves_every_combination() {
 }
 
 /// The ladder is a total ORDER, and `layer()` always reports the maximum
-/// present rung. Stated separately because it is the property item 173's fourth
-/// rung had to preserve: inserting a rung between `Overlay` and the editor must
+/// present rung. Stated separately because adding a rung between `Overlay` and
+/// the editor must preserve this property: the insertion must
 /// not require re-deriving anything.
 #[test]
 fn the_ladder_is_ordered_lowest_to_highest() {

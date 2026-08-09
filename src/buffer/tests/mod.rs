@@ -17,7 +17,7 @@ fn b(s: &str) -> Buffer {
 }
 
 /// A fresh, uniquely-named tempdir under the OS temp root, owned by a
-/// [`ScratchDir`] guard that removes it on drop (queue item 168).
+/// [`ScratchDir`] guard that removes it on drop.
 fn note_tmp(name: &str) -> ScratchDir {
     let mut p = std::env::temp_dir();
     p.push(format!("awl_note_test_{}_{}", std::process::id(), name));

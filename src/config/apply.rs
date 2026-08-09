@@ -150,7 +150,7 @@ impl Config {
         if let Some(on) = self.typewriter_scroll {
             crate::typewriter::set_typewriter_on(on);
         }
-        // FILE VISIBILITY (item 77) has no CLI flag either: the remembered
+        // FILE VISIBILITY has no CLI flag either: the remembered
         // Text/All applies unconditionally when present; absent leaves the
         // global at its own built-in default (Text/OFF), which
         // `file_visibility::ALL_ON` already carries.
