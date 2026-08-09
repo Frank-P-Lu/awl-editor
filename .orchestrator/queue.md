@@ -102,6 +102,16 @@ this heading exists; `git log -S"BLOCKED ON THE USER"` finds who took it.
     display handle and wgpu surface; the live script has no pointer-press event.
     Close this on a Linux desktop with a real rendered-menu click, or after an
     explicitly approved live GUI harness gains press input plus observable state.
+18. **Item 211's unoccluded live-glide photograph needs an unlocked display.**
+    The existing live-band sweep is the correct instrument and refuses false
+    success, but the required end-of-run lock check currently reports
+    `CGSSessionScreenIsLocked = true`. `caffeinate` cannot unlock it. Run the
+    sitting only after the display is unlocked and can remain foregrounded.
+19. **Item 241's dense pointer/wheel cadence remains a live feel check.** The
+    exact 4530x2756@2x headless case is now measured on the release build:
+    1.43 s, 215,793,664-byte max RSS, page/outline/gutter all within the canvas
+    and no visual clipping. A settled capture cannot establish interactive
+    cadence; that last arm needs a human at the live window.
 
 ## 🔵 OWED — live work that nothing above implies. Never cleared by a compression.
 
@@ -231,11 +241,6 @@ this heading exists; `git log -S"BLOCKED ON THE USER"` finds who took it.
   not structure. If a FOURTH `Pinstripe` carrier lands, or an audition ever
   reads Mulga↔Cassowary as a repaint, a Zigzag-style pitch/weight dial becomes
   owed — Mulga first. Nothing owed today.
-- **211 — the unoccluded live-glide photograph.** The defect is FIXED
-  (`237f97d7`); what is owed is only the photo — the display locked mid-sitting
-  and every present read Occluded. Instrument: `scripts/`' live band sweep
-  (`54c027e1`), built so it cannot look like success while photographing
-  nothing.
 - **284 — the live glide's feel** and `MARKER_TRAVEL_TILT_DEG = 20°`; plus
   whether a wrap's transient (indistinguishable from an ordinary step) deserves
   a distinct flourish. Live judgement.
@@ -245,11 +250,6 @@ this heading exists; `git log -S"BLOCKED ON THE USER"` finds who took it.
   the inset on Retina (almost certainly correct) and owes a 1×/2× sweep across
   every anchor arm plus the notice plate's clamp. Naming inline literals is how
   the remaining ones get found.
-- **241 —** live numbers came from a 900×600 probe window; the user's 4530×2756
-  @2x window is unmeasured, and the dense pointer/wheel cadence is unproven.
-- **245 —** one constant: 200 wpm.
-- **263 —** the construction-site document-seed mutation was deferred (gate
-  contention), inferred rather than measured. Worth closing.
 - **271/283 —** `Rules` ships on one carrier; second-carrier requirements live
   in `theme/tests/personality.rs`.
 
