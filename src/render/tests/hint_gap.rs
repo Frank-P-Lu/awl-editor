@@ -191,12 +191,14 @@ fn the_hint_sits_a_full_row_below_the_content_band() {
                     if v.overlay_spell.is_some() {
                         assert!(
                             !v.overlay_hint.is_empty(),
-                            "{kind:?}: the excluded popup must carry a real hint; otherwise the exclusion is vacuous"
+                            "{kind:?}: the excluded popup must carry a real hint; \
+                             otherwise the exclusion is vacuous"
                         );
                         p.set_view(&v);
                         assert!(
                             p.overlay_hint_gap_probe(cw).is_none(),
-                            "{kind:?}: a word-anchored popup unexpectedly enrolled in the card foot-band law"
+                            "{kind:?}: a word-anchored popup unexpectedly enrolled \
+                             in the card foot-band law"
                         );
                         continue;
                     }
