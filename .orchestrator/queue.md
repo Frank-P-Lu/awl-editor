@@ -342,7 +342,8 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
      explicitly accepted shared rule; footprint + diagonal/frost suites green. Reversible
      taste change. **Routing:** production tier + vision smoke.
 
-371. **Residuals harvested from the 2026-08-09 compression** — five live threads whose
+371. 🟡 **IN PROGRESS — root production lane for 293/319; 349 follows item 369.
+     Residuals harvested from the 2026-08-09 compression** — five live threads whose
      parent bodies went to history (`git log --grep` by parent number reaches the full
      bodies). Independent; take any one alone.
      - (293) `OVERLAY_HINT_GAP_ROW = 0.45` was tuned against a law, never judged by eye; its
@@ -358,7 +359,8 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
      **Routing:** production tier for the two laws; repeatable for the doc filing; the two
      feel questions are the user's.
 
-372. 🟡 **IN PROGRESS — codex (codex), branch `codex/item-372-citation-stock`.**
+372. 🟡 **IN PROGRESS — codex continuation (gpt-5.6-terra medium), branch
+     `codex/item-372-finish`.**
      **Retire the whole queue-citation stock, not just the filenames — 1,700 lines across
      ~348 tracked files. USER DECISION 2026-08-09.** The comment ratchet only ever governed
      newly-ADDED lines; everything before `08856553` (2026-08-04) is grandfathered. Measured
