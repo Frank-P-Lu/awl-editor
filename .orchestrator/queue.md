@@ -233,7 +233,7 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
 
 1. **375** — raise the lane ceiling and install the gate arbiter on the landed six-way shard owner.
 2. **372** — the citation stock, after 365. Production tier; 1,700 judgement calls, not a sed script.
-3. **358, 369, 370, 360, 371's lane-half** — independent, no ordering constraint among them.
+3. **358, 369, 370, 371's lane-half** — independent, no ordering constraint among them.
 4. **174** — multi-round refactor, continues by slices.
 5. **231** — no live lead; its named next step is a macOS guest VM, a spend decision, not work to absorb.
 6. **🔵 HUMAN / LIVE, none of which a lane can close** — see BLOCKED and OWED above. **251** is
@@ -347,13 +347,6 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
      Synchronize on observed writes, never wall-clock. Isolated HOME/XDG per child.
      **Done:** matrix report names every owner × phase and every exclusion; each law
      mutation-proven; POSIX-only arms gated, not pretended portable. **Routing:** deep tier.
-
-360. 🟡 **IN PROGRESS — codex (gpt-5.6-terra medium), branch
-     `codex/item-360-frost-feather`. `Frost::feather_px` is a dial the product does not
-     honour** — every consumer reads
-     bare `lava::FROST_FEATHER_PX`; the field is written by world literals and read by
-     nothing. Route the consumers through the field or delete it, and add the census arm that
-     makes an unread `RenderCaps` field fail rather than earn a verdict.
 
 367. **The sidecar is parseable JSON and four test files scan it as a string.**
      `capture/tests/panels.rs`: 20 `.contains(` against rendered prose (`:71` pins a literal
