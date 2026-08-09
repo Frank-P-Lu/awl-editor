@@ -438,7 +438,9 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
      judgement calls; the repeatable tier will produce 1,700 comments with a hole where the
      number was.
 
-375. **Raise the lane ceiling to 6–8, put a queue in front of the gate, and partition lanes
+375. 🟡 **IN PROGRESS — codex (gpt-5.6-terra medium), branch
+     `codex/item-375-gate-arbiter`. Raise the lane ceiling to 6–8, put a queue in front of
+     the gate, and partition lanes
      by MECHANISM, not file.** ⚠️ Gated on 373 — short gates are the enabler. (User decision
      2026-08-09.) The four-lane ceiling is gate contention, not editing: each gate runs four
      full-suite passes each pinned to ~1 core by `testlock::serial()`, so four lanes gating
