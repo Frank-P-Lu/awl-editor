@@ -360,8 +360,8 @@ pub fn clamp_line_col(text: &str, line: usize, col: usize) -> (usize, usize) {
 /// autosave records under exactly that path (so the scratch's timeline is
 /// summonable too). An unnamed NOTE has no history key yet (its first
 /// autosave names it) → `None`. The retired App-level `file` mirror is not a
-/// fallback — `Buffer::path()` is the sole,
-/// authoritative source, so a caller never has a `file` distinct from
+/// fallback — `Buffer::path()` is the sole authoritative source, so a caller
+/// never has a `file` distinct from
 /// `buffer_path` to pass in the first place.)
 pub fn source_path(buffer_path: Option<&Path>, is_unnamed_fresh: bool) -> Option<PathBuf> {
     buffer_path
