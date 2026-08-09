@@ -87,11 +87,17 @@ fn one_composition_owns_the_two_mirrored_orientations() {
 #[test]
 fn marker_gap_tracks_the_authored_mark_aperture() {
     let full = DiagonalComposition::resolve(
-        spine(theme::DiagonalDirection::Descending, theme::DiagonalMark::CRISP),
+        spine(
+            theme::DiagonalDirection::Descending,
+            theme::DiagonalMark::CRISP,
+        ),
         1.0,
     );
     let compact = DiagonalComposition::resolve(
-        spine(theme::DiagonalDirection::Ascending, theme::DiagonalMark::HAIRLINE),
+        spine(
+            theme::DiagonalDirection::Ascending,
+            theme::DiagonalMark::HAIRLINE,
+        ),
         1.0,
     );
     assert_eq!(full.mark_gap, 7.0);
