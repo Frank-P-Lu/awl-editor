@@ -239,13 +239,14 @@ impl TextPipeline {
             block_h = block_h.max(run.line_top + run.line_height);
             block_w = block_w.max(run.line_w);
         }
-        let top = ((height as f32 - block_h) * 0.5).max(m.px(TEXT_TOP));
         let pad_x = m.char_width * 3.0;
         let pad_y = m.line_height * 0.9;
-        let card_w = block_w + pad_x * 2.0;
-        let card_h = block_h + pad_y * 2.0;
-        let card_x = (width as f32 - card_w) * 0.5;
-        let card_y = top - pad_y;
+        let plan = crate::render::plan::plan_float_card(
+            [width as f32, height as f32],
+            [block_w, block_h],
+            [pad_x, pad_y],
+            m.px(TEXT_TOP),
+        );
         set_float_quads(
             &mut self.hud_shadow,
             &mut self.hud_border,
@@ -254,15 +255,15 @@ impl TextPipeline {
             queue,
             width,
             height,
-            Some([card_x, card_y, card_w, card_h]),
+            Some(plan.card),
             FloatElevation::Rimmed,
             0.0,
             None,
         );
         let area = TextArea {
             buffer: &self.hud_buffer,
-            left: card_x + pad_x,
-            top,
+            left: plan.text[0],
+            top: plan.text[1],
             scale: 1.0,
             bounds,
             default_color: content,
@@ -354,17 +355,18 @@ impl TextPipeline {
         let dot = (cell * 0.55).max(3.0); // the page-dot square (echoes a heatmap cell)
         let gap_dots = m.line_height * 0.5; // breathing room body→dots
         let gap_between = m.line_height * 0.75; // and dots→stats
-        let content_w = grid_w.max(text_w);
-        let content_h = grid_h + gap_dots + dot + gap_between + text_h;
-        let card_w = content_w + pad_x * 2.0;
-        let card_h = content_h + pad_y * 2.0;
-        let card_x = ((width as f32 - card_w) * 0.5).max(0.0);
-        let card_y = ((height as f32 - card_h) * 0.5).max(m.px(TEXT_TOP) - pad_y);
-        let content_top = card_y + pad_y;
-        let grid_x = card_x + (card_w - grid_w) * 0.5;
-        let grid_y = content_top;
-        let dots_y = grid_y + grid_h + gap_dots;
-        let text_top = dots_y + dot + gap_between;
+        let plan = crate::render::plan::plan_streaks_card(crate::render::plan::StreaksCardInput {
+            canvas: [width as f32, height as f32],
+            text: [text_w, text_h],
+            grid: [grid_w, grid_h],
+            pad: [pad_x, pad_y],
+            dot,
+            gap_dots,
+            gap_between,
+            min_card_top: m.px(TEXT_TOP) - pad_y,
+        });
+        let [grid_x, grid_y, _, _] = plan.grid;
+        let dots_y = plan.dots_y;
 
         let colors = theme::heatmap_colors();
         let mut quads: Vec<([f32; 4], [u8; 4])> = Vec::with_capacity(WEEKS * DAYS_PER_WEEK * 2 + 2);
@@ -399,7 +401,7 @@ impl TextPipeline {
         };
         let dot_gap = dot * 1.25;
         let dots_w = dot * 2.0 + dot_gap;
-        let dots_x = card_x + (card_w - dots_w) * 0.5;
+        let dots_x = plan.card[0] + (plan.card[2] - dots_w) * 0.5;
         for i in 0..2usize {
             let on = i == active_idx;
             let d = if on { dot } else { (dot * 0.6).max(2.0) };
@@ -419,7 +421,7 @@ impl TextPipeline {
             queue,
             width,
             height,
-            Some([card_x, card_y, card_w, card_h]),
+            Some(plan.card),
             FloatElevation::Rimmed,
             0.0,
             None,
@@ -427,8 +429,8 @@ impl TextPipeline {
 
         let area = TextArea {
             buffer: &self.hud_buffer,
-            left: grid_x,
-            top: text_top,
+            left: plan.text[0],
+            top: plan.text[1],
             scale: 1.0,
             bounds,
             default_color: content,

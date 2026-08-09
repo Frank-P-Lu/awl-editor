@@ -1064,17 +1064,7 @@ fn chrome_attrs() -> Attrs<'static> {
     }
 }
 
-#[derive(Clone, Copy)]
-enum CornerAnchor {
-    TopRight,
-    BottomRight,
-    /// The writing column's own TOP band, horizontally centred on the column —
-    /// the CALM NOTICE's seat. Vertically it is the document's own first-row
-    /// origin (`TEXT_TOP` + the menu-bar reserve), so the notice lands exactly
-    /// where the page begins rather than at some second convention's offset.
-    TopCenter,
-    AtPoint(f32, f32),
-}
+use plan::CornerAnchor;
 
 /// The shaping WEIGHT to request for a world's display family. Almost every
 /// bundled face is Regular (Weight 400), so the default is `Weight::NORMAL`. The

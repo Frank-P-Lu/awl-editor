@@ -33,34 +33,18 @@ pub(in crate::render) fn corner_origin(
     col_width: f32,
     menubar_reserve: f32,
 ) -> (f32, f32) {
-    match anchor {
-        // Right-aligned to the CANVAS edge (8px inset), top row — clear of the top-left
-        // margin the persistent outline owns. Never off the left edge on a tiny canvas.
-        CornerAnchor::TopRight => (
-            (width - text_w - CANVAS_INSET.0).max(CANVAS_INSET.0),
-            CANVAS_INSET.0 + menubar_reserve,
-        ),
-        CornerAnchor::BottomRight => {
-            let left = (col_left + col_width - text_w).max(col_left);
-            (left, height - line_height - CANVAS_INSET.0)
-        }
-        // THE CALM NOTICE, seated on the document's OWN first-row origin: the caller
-        // passes `text_origin_top()` (see this fn's own doc), the same origin
-        // `doc_top` composes off at scroll 0. `height` is unread here: this anchor is
-        // top-relative by construction — the bottom of the canvas is the one place a
-        // writer's eye does not go.
-        CornerAnchor::TopCenter => {
-            let left = (col_left + (col_width - text_w) * 0.5).max(col_left);
-            (left, menubar_reserve)
-        }
-        CornerAnchor::AtPoint(px, py) => {
-            // Float above-right of the pointer (clears the resize-cursor glyph it sits
-            // over), clamped onto the canvas so it never clips off an edge.
-            let left = (px + 14.0).min(width - text_w - 4.0).max(4.0);
-            let top = (py - line_height - 10.0).max(4.0);
-            (left, top)
-        }
-    }
+    let [left, top, _, _] = crate::render::plan::plan_corner_label(
+        anchor,
+        text_w,
+        line_height,
+        width,
+        height,
+        col_left,
+        col_width,
+        menubar_reserve,
+        CANVAS_INSET.0,
+    );
+    (left, top)
 }
 
 /// The inset every docked corner label keeps from a canvas edge, and the same one

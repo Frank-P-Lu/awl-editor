@@ -53,6 +53,7 @@
 //! row count) — no device, no shaping, no clock — so it keeps the planner pure.
 
 mod accessory_lane;
+mod floating;
 mod overlay_header;
 mod overlay_row_plan;
 mod overlay_rows;
@@ -68,6 +69,10 @@ pub(crate) use accessory_lane::{Lane, RailLane, RowLanes};
 pub(crate) use panel_report::{PanelGeometry, PanelRowRect};
 pub(crate) use row_report::{OverlayRowGeometry, PlannedRowRect};
 
+pub(in crate::render) use floating::{
+    CornerAnchor, StreaksCardInput, plan_corner_label, plan_float_card, plan_streaks_card,
+    plan_whichkey_card,
+};
 pub(in crate::render) use overlay_header::{PlannedHeader, beat_stands_alone, header_band_height};
 pub(in crate::render) use overlay_rows::plan_witness;
 pub(in crate::render) use overlay_rows::{

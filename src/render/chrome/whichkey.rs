@@ -154,10 +154,12 @@ impl TextPipeline {
         let pad_x = m.char_width * 2.0;
         let pad_y = m.line_height * 0.6;
         let margin = 24.0_f32;
-        let card_w = block_w + pad_x * 2.0;
-        let card_h = block_h + pad_y * 2.0;
-        let card_x = margin;
-        let card_y = (height as f32 - margin - card_h).max(margin);
+        let plan = crate::render::plan::plan_whichkey_card(
+            height as f32,
+            [block_w, block_h],
+            [pad_x, pad_y],
+            margin,
+        );
         set_float_quads(
             &mut self.wk_shadow,
             &mut self.wk_border,
@@ -166,15 +168,15 @@ impl TextPipeline {
             queue,
             width,
             height,
-            Some([card_x, card_y, card_w, card_h]),
+            Some(plan.card),
             FloatElevation::Rimmed,
             0.0,
             None,
         );
         let area = TextArea {
             buffer: &self.wk_buffer,
-            left: card_x + pad_x,
-            top: card_y + pad_y,
+            left: plan.text[0],
+            top: plan.text[1],
             scale: 1.0,
             bounds,
             default_color: muted,
