@@ -140,8 +140,7 @@ fn zigzag_ships_on_quokka_and_gumtree_alone_no_wildcard() {
 // Skips (with a printed note, not a failure) on a machine with no wgpu
 // adapter, exactly like every other GPU-backed render test in this tree.
 
-use super::super::*;
-use super::bands_waves::{bg_desc_for, headless_dq, render_bg};
+use super::bands_waves::{bg_desc_for, render_bg};
 use super::{headless_dqp, view, view_md};
 
 /// The deterministic single-canvas scan surface used by the laws that are
@@ -1773,15 +1772,8 @@ fn gumtree_visibility_floor_rejects_the_imperceptible_density_mutation() {
         density: 0.20,
         banded: false,
     };
-    let field = super::zigzag_ground::mark_field(
-        &device,
-        &queue,
-        imperceptible,
-        900,
-        700,
-        125.0,
-        650.0,
-    );
+    let field =
+        super::zigzag_ground::mark_field(&device, &queue, imperceptible, 900, 700, 125.0, 650.0);
     let peak = gumtree_visibility_floor(&field);
     assert!(
         peak < 18,

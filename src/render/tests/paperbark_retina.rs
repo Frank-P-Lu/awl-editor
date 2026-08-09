@@ -35,8 +35,8 @@
 //! feather-width claim until proven not to be the whisper-contrast trap.
 
 use super::bands_waves::{bg_desc_for, headless_dq, render_bg_scaled};
-use super::zigzag_ground::margins;
 use super::deckle_ground::{MarginStats, margin_stats};
+use super::zigzag_ground::margins;
 use crate::background::BgDesc;
 use crate::theme::{self, Background, Weave};
 

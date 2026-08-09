@@ -10,6 +10,7 @@ stale if the function disappears, moves, or grows.
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 import json
 import platform
 import re
@@ -39,29 +40,8 @@ CITATION_KEYWORD = re.compile(r"\b(?:item|round)\s+\d+", re.IGNORECASE)
 # Backticks distinguish commit-like tokens from ordinary hexadecimal values;
 # requiring an a-f digit excludes long decimal examples.
 CITATION_SHA = re.compile(r"`([0-9a-f]{7,40})`")
-# Index-named test modules may use their filename as a durable test-family key.
-TEST_FILENAME_ITEM_INDEX = re.compile(r"_item\d+[a-z]?\.rs$", re.IGNORECASE)
-# Same shape, capturing: the number itself, for checking it against real items.
-TEST_FILENAME_ITEM_NUMBER = re.compile(r"_item(\d+)[a-z]?\.rs$", re.IGNORECASE)
-# A still-open board entry, `.orchestrator/queue.md`'s own numbering.
-QUEUE_ITEM_HEADER = re.compile(r"^(\d+)\.", re.MULTILINE)
-# A closed item's compressed record: git log carries what queue.md no longer
-# does (CLAUDE.md: "git log -p ... is the history, and .orchestrator/queue.md
-# is the work"). Matches the whole numeric-list span after "item"/"items",
-# not just one number: measured against this repo's actual history, commit
-# prose cites items as "item 9", "items 108 and 127", "items 222 + 223",
-# "items 222/223", "items 140-144", "items 121, 161 and 132" — items 127 and
-# 223 are real and were NEVER once cited in the singular, only inside a
-# plural list, so a single-number pattern silently drops them (measured
-# false positive: this check failed on both, live, before this pattern
-# widened). A hyphenated range's own interior numbers are not expanded (they
-# are, empirically, always also cited individually elsewhere in this
-# history), and a stray unrelated number immediately following ("item 9 -
-# 300ms") can be swept in too — an over-inclusive real-item set only
-# weakens the floor this check raises, it can never turn a real citation
-# into a false failure, which is the direction that actually breaks a
-# developer's build.
-LOG_ITEM_LIST = re.compile(r"\bitems?\b(?:[\s,/+&-]*(?:and\s+)?\d+)+", re.IGNORECASE)
+# A test filename is a durable mechanism name, never a mutable board index.
+INDEX_NAMED_TEST_FILE = re.compile(r"_item\d+[a-z]?\.rs$", re.IGNORECASE)
 # Capture schema rows are a live append-only protocol ledger.
 CAPTURE_SCHEMA_ROW = re.compile(r"^\s*///\s*`/\d+`")
 
@@ -76,18 +56,15 @@ def is_comment_citation_line(line: str) -> bool:
     return bool(sha_match and any(c in "abcdef" for c in sha_match.group(1)))
 
 
+def citation_fingerprint(line: str) -> str:
+    """Compare a citation across a move without treating its doc-comment
+    marker or a retired filename suffix as new archaeology."""
+    marker_normalized = re.sub(r"^\s*//!?", "//", line)
+    return re.sub(r"_item\d+[a-z]?(?=\.rs\b)", "", marker_normalized)
+
+
 def is_index_named_test_file(path: str) -> bool:
-    return "/tests/" in path and bool(TEST_FILENAME_ITEM_INDEX.search(Path(path).name))
-
-
-def is_index_named_test_citation(path: str, text: str) -> bool:
-    if not is_index_named_test_file(path) or CITATION_SHA.search(text):
-        return False
-    filename_match = TEST_FILENAME_ITEM_NUMBER.search(Path(path).name)
-    cited = re.findall(r"\bitem\s+(\d+)", text, re.IGNORECASE)
-    return bool(filename_match and cited) and all(
-        number == filename_match.group(1) for number in cited
-    )
+    return "/tests/" in path and bool(INDEX_NAMED_TEST_FILE.search(Path(path).name))
 
 
 def is_capture_schema_history_row(path: str, text: str) -> bool:
@@ -109,27 +86,6 @@ def baseline(path: str) -> list[str]:
         return git("show", f"{BASELINE}:{path}").splitlines()
     except subprocess.CalledProcessError:
         return []
-
-
-def real_item_numbers() -> set[str]:
-    """Every item number the board has ever actually carried: still-open
-    entries in `.orchestrator/queue.md` (`QUEUE_ITEM_HEADER`), plus every
-    number git log's commit messages cite as an item (`LOG_ITEM_LIST`) — the
-    compressed record CLAUDE.md says a closed item moves to. Grepped, not
-    hardcoded: an invented allowlist would just be a second unverified source
-    of truth standing in for the first one.
-    """
-    numbers: set[str] = set()
-    queue_path = ROOT / ".orchestrator/queue.md"
-    if queue_path.exists():
-        numbers.update(QUEUE_ITEM_HEADER.findall(queue_path.read_text()))
-    try:
-        log_text = git("log", "--format=%B")
-    except subprocess.CalledProcessError:
-        log_text = ""
-    for match in LOG_ITEM_LIST.finditer(log_text):
-        numbers.update(re.findall(r"\d+", match.group()))
-    return numbers
 
 
 def check_index_named_test_files() -> list[str]:
@@ -528,6 +484,7 @@ def new_comment_citations(head_ref: str = "HEAD") -> tuple[list[tuple[str, int, 
         return None, status
     diff_text = git("diff", "-M", "--unified=0", base_sha, "--", "src")
     added: list[tuple[str, int, str]] = []
+    removed: Counter[str] = Counter()
     current_file: str | None = None
     current_line: int | None = None
     for line in diff_text.splitlines():
@@ -554,26 +511,35 @@ def new_comment_citations(head_ref: str = "HEAD") -> tuple[list[tuple[str, int, 
                     added.append((current_file, current_line, text))
                 current_line += 1
             continue
+        if line.startswith("-"):
+            text = line[1:]
+            if is_comment_citation_line(text):
+                removed[citation_fingerprint(text)] += 1
         # "-" (removed) and other diff metadata lines don't advance the new
         # file's line counter.
-    return added, "ok"
+    genuinely_added: list[tuple[str, int, str]] = []
+    for entry in added:
+        fingerprint = citation_fingerprint(entry[2])
+        if removed[fingerprint]:
+            removed[fingerprint] -= 1
+        else:
+            genuinely_added.append(entry)
+    return genuinely_added, "ok"
 
 
 def check_comment_citations(
     added: list[tuple[str, int, str]] | None,
     exceptions: set[tuple[str, int, str]],
 ) -> list[str]:
-    """A newly added citation fails unless it is a named exception: an
-    index-named test file, `capture.rs`'s schema-history row, or a
-    `comment_citation_exception` entry recording why. `added` is `None` for
+    """A newly added citation fails unless it is a named exception:
+    `capture.rs`'s schema-history row, or a `comment_citation_exception`
+    entry recording why. `added` is `None` for
     either non-"ok" status `new_comment_citations` can return.
     """
     if added is None:
         return []
     failures: list[str] = []
     for file, line, text in added:
-        if is_index_named_test_citation(file, text):
-            continue
         if is_capture_schema_history_row(file, text):
             continue
         if (file, line, text) in exceptions:
@@ -582,8 +548,8 @@ def check_comment_citations(
             f"{file}:{line}: new comment cites queue-item/round/sha archaeology "
             f"({text.strip()!r}); CLAUDE.md's Conventions rule: comments state what "
             "the code can't say about itself, not history — remove the citation, or "
-            "if it is a genuine exception (an index-named test file, capture.rs's "
-            "schema ledger, or a measured threshold whose provenance is the fact "
+            "if it is a genuine exception (capture.rs's schema ledger, or a "
+            "measured threshold whose provenance is the fact "
             "itself) record it as a `comment_citation_exception` with a `reason`"
         )
     return failures
@@ -1423,22 +1389,6 @@ def self_test() -> int:
         raise AssertionError("an ordinary test file with no item number must not be index-named")
     if is_index_named_test_file("src/item42.rs"):
         raise AssertionError("a production path outside tests/ must never be exempted by filename alone")
-    if not is_index_named_test_citation(
-        "src/render/tests/backgrounds_item158.rs", "// item 158: indexed test family"
-    ):
-        raise AssertionError("an index-named test may cite its own family")
-    if is_index_named_test_citation(
-        "src/render/tests/backgrounds_item158.rs", "// item 99: unrelated history"
-    ):
-        raise AssertionError("an index-named test must not excuse a different item")
-    # `real_item_numbers()`/`check_index_named_test_files()`: the exemption's
-    # missing half. The self-consistency check above only tells whether a
-    # citation matches its OWN filename, never whether that number is real —
-    # `world_pin_item254.rs` was self-consistent (254 named itself) and
-    # wrong (94 was the item), a distinction this fixture proves the new
-    # check can draw for a fabricated number even though it cannot draw it
-    # between two real ones (94 vs. 254 both being real items is exactly
-    # the residual gap named in its docstring).
     with tempfile.TemporaryDirectory() as directory:
         root = ROOT
         try:
@@ -1514,11 +1464,10 @@ def self_test() -> int:
                 raise AssertionError("a stale comment-citation exception (moved/changed line) must fail")
         finally:
             globals()["ROOT"] = root
-    # check_comment_citations directly: each of the three named exceptions
+    # check_comment_citations directly: each of the two named exceptions
     # dodges the failure on its own terms, and a plain new citation with none
     # of them still fails by name.
     added_cases = [
-        ("src/render/tests/backgrounds_item158.rs", 3, "// item 158: index-named test file"),
         ("src/capture.rs", 6, "/// `/188` — permissive replay `replay_skips`."),
         ("src/measured.rs", 2, "// item 9: a measured perf number pinned to its commit"),
         ("src/plain.rs", 4, "// item 77: fresh archaeology with no exception"),
@@ -1529,7 +1478,7 @@ def self_test() -> int:
     )
     if len(direct_failures) != 1 or "src/plain.rs:4" not in direct_failures[0]:
         raise AssertionError(
-            f"exactly the unexempted new citation must fail, the three named exceptions must not: {direct_failures}"
+            f"exactly the unexempted new citation must fail, the two named exceptions must not: {direct_failures}"
         )
     if check_comment_citations(None, set()):
         raise AssertionError("a None added-list (non-ok status) must never fail")

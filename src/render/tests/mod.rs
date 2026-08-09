@@ -20,11 +20,7 @@ mod accessory_ink;
 #[cfg(not(target_arch = "wasm32"))]
 mod alloc_bound_law;
 mod ambient_wrap_law;
-mod organic_ground;
-mod warped_grid;
-mod deckle_ground;
 mod bands_waves;
-mod zigzag_ground;
 mod bowerbird_breathe;
 mod bowerbird_finds;
 mod bowerbird_spacing;
@@ -53,6 +49,7 @@ mod comparison_composite;
 /// relocation, and the margin-orientation surfaces that yield to it.
 mod comparison_viewport;
 mod date_picker_ink;
+mod deckle_ground;
 mod diagonal_composition;
 /// THE DIAGONAL COMPOSITION IN REAL PIXELS: orientation, line continuity, the
 /// inset attachment band, the fixed name/control lanes, and the room wordmark
@@ -129,6 +126,7 @@ mod nits;
 mod notice;
 mod one_bit;
 mod oracle;
+mod organic_ground;
 mod outline;
 mod overlay_align_law;
 mod overlay_header_band_law;
@@ -156,6 +154,7 @@ mod pixeldiff;
 mod plan_pass_law;
 mod popover;
 pub(in crate::render) mod potoroo_pane;
+mod query_field;
 mod quote_orientation;
 mod raked_location;
 mod range_rail;
@@ -186,8 +185,6 @@ mod settings_fixture_law;
 mod settings_row_reach_law;
 mod split_pane;
 mod stars;
-mod query_field;
-mod workspace_footer_plate;
 mod syntax_ligatures;
 mod syntax_roles;
 mod tables;
@@ -204,6 +201,7 @@ mod timeline_workspace;
 mod visual_selection_law;
 mod warp_one_tunnel;
 mod warp_tunnel;
+mod warped_grid;
 mod washes;
 mod waves_drift;
 #[cfg(not(target_arch = "wasm32"))]
@@ -211,6 +209,7 @@ mod webgl_shader_validation;
 /// ITEM 114 — the summoned workspace's presentation: two regions, wide/narrow
 /// staging, drawn-equals-clickable, and a focus cue asserted in real pixels.
 mod workspace;
+mod workspace_footer_plate;
 mod workspace_plate;
 /// ITEM 116a — the shape: `workspace_shape() -> Option<WorkspaceShape>`'s
 /// roster and the `rows_are_primary()` bypass-is-module-private law.
@@ -225,6 +224,7 @@ mod wrap_affinity;
 /// as logical lengths at four panel densities.
 mod writing_column_decor_dpi;
 mod wysiwyg;
+mod zigzag_ground;
 mod zoom_anchor;
 
 // 800px tall, TEXT_TOP 16, LINE_HEIGHT 32 -> floor((800-16)/32) = 24 rows.
