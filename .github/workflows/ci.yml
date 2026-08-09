@@ -397,18 +397,18 @@ jobs:
       - name: cargo test, minus render::tests (linux convention)
         run: env AWL_CONVENTION_FORCE=linux cargo test -- --skip render::tests
 
-  # ── The isolated wedge, tolerated red and pinned to item 231 by name ────────
+  # ── The isolated wedge, tolerated red and pinned by name ────────────────────
   # This is the ONLY thing this job runs, so a red run here is attributable
-  # to item 231 from this file alone: the hosted macOS runner's virtualised
+  # to the wedge from this file alone: the hosted macOS runner's virtualised
   # Metal stack HANGS — does not fail, hangs — inside `render::tests::`,
   # every libtest worker parking at the same instant and never moving. Signal
   # run 30778330964 (`69f379f7`): `web`, `linux` and `mac live-probe` all
   # green, `mac (build + test)` alone failed with "native-gate: ABORTED on
   # its 1500s budget with mac_status=143 linux_status=143; no receipt
-  # issued". That is item 231's signature; do not read a red run here as a
+  # issued". That is the wedge signature; do not read a red run here as a
   # new regression without checking that item first, and do not read a green
-  # run here as item 231 fixed without confirming it stays green — the
-  # exhausted resource still has no confirming measurement (item 231's own
+  # run here as the wedge fixed without confirming it stays green — the
+  # exhausted resource still has no confirming measurement (the diagnosis'
   # entry has the full diagnosis-in-progress).
   #
   # `continue-on-error` is set at the JOB level and is the whole point: a red
