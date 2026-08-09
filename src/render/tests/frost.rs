@@ -305,6 +305,17 @@ fn long_run_end_pad_is_bounded_independent_of_row_height() {
     );
 }
 
+#[test]
+fn frost_seed_radius_honours_the_capabilitys_feather_value() {
+    let row_h = 40.0;
+    let tight = crate::render::frost_seed_radius(row_h, 2.0, 1.0, 2.0);
+    let broad = crate::render::frost_seed_radius(row_h, 9.0, 1.0, 2.0);
+    assert!(
+        (broad - tight - 14.0).abs() < f32::EPSILON,
+        "the authored seven-logical-pixel feather delta must reach the seed radius once at dpi 2"
+    );
+}
+
 /// THE NEARBY-RUN-MERGE-IS-PRESERVED LAW (item 61): ordinary text — a
 /// multi-word heading's own word-runs, and two adjacent multi-word headings —
 /// still bridges into ONE continuous island through the REAL seeds a live
