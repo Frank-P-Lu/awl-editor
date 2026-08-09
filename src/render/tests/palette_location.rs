@@ -1,4 +1,4 @@
-//! ITEM 220 — THE PALETTE'S TWO-LEVEL LOCATION.
+//! THE PALETTE'S TWO-LEVEL LOCATION.
 //!
 //! A summoned faceting picker names where you are twice: its own title (the
 //! content level — "commands") and the active lens (the category inside it).
@@ -112,7 +112,7 @@ fn palette_view(lens: usize) -> ViewState {
 ///
 /// NON-VACUITY IS THE THIRD ARM, and it is the pre-fix product itself: with the
 /// location datum withheld (`overlay_location: None` — exactly what every frame
-/// carried before item 220), the same geometry owner emits the uppercase
+/// carried in the broken state), the same geometry owner emits the uppercase
 /// `Header` this law exists to forbid, in the same slot.
 #[test]
 fn a_category_heads_its_band_with_a_location_and_the_home_shows_none() {

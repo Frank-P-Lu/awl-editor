@@ -214,7 +214,7 @@ fn ends(seg: ([f32; 2], [f32; 2], [f32; 2])) -> ([f32; 2], [f32; 2]) {
     )
 }
 
-/// ITEM 247 — THE SELECTED MARK IS A CHEVRON, graded by SHAPE rather than by
+/// THE SELECTED MARK IS A CHEVRON, graded by SHAPE rather than by
 /// instance count.
 ///
 /// ⚠️ The three shipping laws that already touch this mark (`list_surfaces`,
@@ -315,7 +315,7 @@ fn the_selected_mark_is_an_off_axis_mirrored_chevron_at_every_row_and_reach() {
 }
 
 /// NON-VACUITY for the law above: reconstruct the tick-plus-connector pair that
-/// shipped before item 247 and confirm the chevron predicate REJECTS it. Without
+/// preceded the chevron and confirm the chevron predicate REJECTS it. Without
 /// this, "neither arm is axis-aligned" could be satisfied by an accident of the
 /// sweep rather than by the shape actually changing.
 #[test]

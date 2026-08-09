@@ -212,8 +212,8 @@ fn block_caret_ink_aligns_on_kerned_glyph() {
     let (_cell_x, cell_adv) = p.col_x_and_advance(0, 1);
 
     // The glyph's real ink box — the SAME swash lookup MORPH's silhouette reads.
-    // (ITEM 91 widened this to the FULL raster box; the horizontal half asserted
-    // here is unchanged, and the vertical half has its own laws in `caret_ink_box`.)
+    // The FULL raster box supplies this horizontal half; its vertical half has
+    // its own laws in `caret_ink_box`.
     let ink = p
         .caret_anchor_ink_box()
         .expect("a single 'w' glyph on a proportional world must yield an ink box");
@@ -389,7 +389,7 @@ fn cosmetic_trail_anchor_follows_morph_linestart_bar() {
     crate::caret::set_mode(CaretMode::Block);
 }
 
-/// ITEM 33 — the DRAG-BAR: while a live mouse text-selection drag is in
+/// The DRAG-BAR: while a live mouse text-selection drag is in
 /// progress (`ViewState::selecting_drag`), the caret renders as the thin
 /// insertion BAR regardless of the configured caret mode, then returns to the
 /// configured look on release. Driven through the one seam (`caret_look`

@@ -1,4 +1,4 @@
-//! ITEM 116c — THE BYTE-IDENTITY LAW.
+//! THE BYTE-IDENTITY LAW.
 //!
 //! `Action::AcceptAlternate` (⇧↵) is resolved as its own keymap `Action` (never
 //! a bare alias applied at the keymap layer), but `apply_buffer_action`'s
@@ -49,7 +49,7 @@ fn disk_bytes_after(build: fn() -> Buffer, action: &Action) -> Vec<u8> {
 }
 
 /// Like [`disk_bytes_after`], but drives a WHOLE SEQUENCE on one buffer — the
-/// only way to exercise item 78's short-lived list-continuation provenance
+/// only way to exercise the short-lived list-continuation provenance
 /// flag, which lives on the buffer across successive actions.
 fn disk_bytes_after_seq(build: fn() -> Buffer, actions: &[Action]) -> Vec<u8> {
     let mut buffer = build();
@@ -184,7 +184,7 @@ fn accept_alternate_is_byte_identical_to_newline_across_every_smart_newline_shap
     }
 }
 
-/// THE PROVENANCE SHAPE (item 78): a list item's SECOND, now-empty Enter reads
+/// THE PROVENANCE SHAPE: a list item's SECOND, now-empty Enter reads
 /// a flag the FIRST Enter left on the buffer. Proven three ways so the flag's
 /// behavior can never depend on which of the two actions set it or read it:
 /// both steps `Newline`, both `AcceptAlternate`, and each MIXED order.

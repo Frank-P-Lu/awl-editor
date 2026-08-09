@@ -40,7 +40,7 @@ pub(super) fn classify_clipboard(effect: &crate::actions::ClipboardEffect) -> Cl
     }
 }
 
-/// ITEM 190 — the settings trio (`SettingToggle`/`SettingValueCommit`/
+/// The settings trio (`SettingToggle`/`SettingValueCommit`/
 /// `SettingPathPick`), promoted the same shape [`classify_persistence`]'s
 /// `Save` arm already is: under an Isolated filesystem,
 /// `main/run/settings_effects.rs::ReplaySession` performs the SAME
@@ -54,7 +54,7 @@ pub(super) fn classify_clipboard(effect: &crate::actions::ClipboardEffect) -> Cl
 /// capability, the identical reason `RebindCommit`/`RebindReset` stay
 /// Unsupported.
 ///
-/// **ITEM 193** — this used to promise `Applied` for every `toggle_key`
+/// This used to promise `Applied` for every `toggle_key`
 /// except `"keymap"`, while `ReplaySession::interpret_setting_toggle` handled
 /// a hand-copied roster behind its own `_ => return`: a key added to
 /// `settings::toggle_key` without a matching interpreter arm would have

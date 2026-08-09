@@ -1,4 +1,4 @@
-//! THE SPLIT-PANE COMPOSITION round's law suite (queue item 50). A summoned
+//! THE SPLIT-PANE COMPOSITION law suite. A summoned
 //! [`theme::ListStyle::Pane`] world's takeover card composes as TWO surfaces —
 //! the title/query INPUT above, a visible strip of the world's own background
 //! BETWEEN, then ONE lower result ROOM (facets/section-headers + candidate rows +
@@ -58,7 +58,7 @@ fn split_bounds_carve_the_query_beat_above_the_first_row() {
     }
 }
 
-/// ITEM 83 — THE FACETED QUERY OPTICAL-CENTERING LAW: the query text/caret
+/// THE FACETED QUERY OPTICAL-CENTERING LAW: the query text/caret
 /// never move (pinned to `text_top`; `overlay_query_center`'s own contract), but
 /// the DRAWN upper surface historically carried the card's `pad` (12px)
 /// breathing room ABOVE them and NONE below (`[card_y, text_top + line_height]`

@@ -1,4 +1,4 @@
-//! ITEM 87 — BOMBORA'S WAVE PHASE DRIFT, real-pixel end-to-end proofs (the
+//! BOMBORA'S WAVE PHASE DRIFT, real-pixel end-to-end proofs (the
 //! render-side half of `theme::tests::bombora_wave_drift_schedules_zero_
 //! frames_under_every_freeze_condition` / `background::waves_drift_tests`).
 //! Mirrors `stars.rs`'s twinkle-diff idiom exactly: render the SAME Bombora
@@ -80,7 +80,7 @@ fn bombora_settled_captures_are_byte_identical() {
 /// LAW (liveness + boundedness): advancing the SAME shared ambient clock the
 /// lava lamp and twinkling stars ride (`TextPipeline::advance_lava`, the App's
 /// own bounded per-tick step) visibly changes Bombora's margin waves — a
-/// non-vacuous witness that item 87 actually wires the drift into the real
+/// non-vacuous witness that the drift is wired into the real
 /// render path, not just the isolated `BackgroundPipeline` unit tests — while
 /// EVERY other GPU-instanced layer (selection, the one glyph/quad the tiny
 /// fixture draws) stays IDENTICAL in count: the drift costs nothing beyond

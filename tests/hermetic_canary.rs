@@ -30,8 +30,8 @@ use common::ScratchDir;
 
 /// Atomically claim a fresh tempdir under the OS temp root, owned by a
 /// [`ScratchDir`] guard that removes it recursively on drop — panic, early
-/// return, or happy path alike (queue item 168; the prior explicit
-/// end-of-function removal ran only when every assertion above it passed).
+/// return, or happy path alike; the prior explicit end-of-function removal ran
+/// only when every assertion above it passed.
 ///
 /// This integration test is its own process, so the main binary's in-process
 /// `crate::testlock::serial()` cannot coordinate it with another Cargo test
@@ -101,7 +101,7 @@ fn run_awl(home: &Path, args: &[&str]) {
     // tree and removes `$AWL_CONFIG` — the ONE place in the suite where that
     // removal is correct, because this test's whole subject is the ladder's
     // fall-through and the rung it falls to is the canary's own bait config,
-    // never the developer's (item 93; see `tests/common/mod.rs`).
+    // never the developer's (see `tests/common/mod.rs`).
     let out = common::awl_in_home(home)
         .args(args)
         .env("XDG_DATA_HOME", home.join(".local").join("share"))

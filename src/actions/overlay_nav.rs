@@ -138,7 +138,7 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
     {
         return eff;
     }
-    // ITEM 116c — the shape-aware intercept: folds in what was a separate
+    // The shape-aware intercept folds in what was a separate
     // `history_intercept`. See `workspace_nav::workspace_intercept`'s doc.
     if let Some(effect) = super::workspace_nav::workspace_intercept(ctx, action) {
         return effect;
@@ -185,7 +185,7 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
             preview_move(ctx.journey.card_mut().unwrap());
             Effect::None
         }
-        // ITEM 116c — `AcceptAlternate` (⇧↵) defaults to the SAME accept every
+        // `AcceptAlternate` (⇧↵) defaults to the SAME accept every
         // ordinary overlay kind already gives `Newline` (Goto opens, Theme
         // commits, …): only the shape-aware intercept above declares a
         // different meaning for bare `Newline` (History's timeline), and it
@@ -670,7 +670,7 @@ fn dispatch_settings_row(ctx: &mut ActionCtx, row: crate::settings::SettingRow) 
             }
         }
         crate::settings::SettingKind::Value | crate::settings::SettingKind::Range => {
-            // ITEM 114 — the Cmd-P DEEP LINK; its whole argument is on
+            // The Cmd-P DEEP LINK; its whole argument is on
             // `deep_link_settings`.
             if super::workspace_nav::deep_link_settings(ctx, row) {
                 return Effect::None;

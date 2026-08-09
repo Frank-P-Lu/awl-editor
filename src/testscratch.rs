@@ -1,5 +1,5 @@
 //! `testscratch` — THE one owner of an ON-DISK scratch directory a test
-//! creates under `std::env::temp_dir()` (queue item 168).
+//! creates under `std::env::temp_dir()`.
 //!
 //! THE LEAK THIS CLOSES. Every fixture that needed a real directory (a
 //! spawned-binary capture, a socket path, a save-to-disk round trip) used to
@@ -159,7 +159,7 @@ mod tests {
         );
     }
 
-    // --- THE NO-WILDCARD LAW (queue item 168): every OTHER file in `src/` ---
+    // --- THE NO-WILDCARD LAW: every OTHER file in `src/` ---
 
     /// A source file's CODE, with every `//`-comment cut away — mirrors
     /// `tests/spawn_config_law.rs`'s `code_only` (both laws need the same "a

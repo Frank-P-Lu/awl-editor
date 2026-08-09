@@ -1,4 +1,4 @@
-//! ITEM 253 — THE CURLY-QUOTE ORIENTATION ROSTER LAW. Sour Gummy shipped both
+//! THE CURLY-QUOTE ORIENTATION ROSTER LAW. Sour Gummy shipped both
 //! raised quote pairs with their outlines TRANSPOSED: `cmap[U+2018]` (opening
 //! single) and `cmap[U+201C]` (opening double) pointed at the glyph that draws
 //! the CLOSING "9" shape (a raised comma), and `cmap[U+2019]`/`cmap[U+201D]`
@@ -30,7 +30,7 @@
 
 use crate::render::quotecheck::is_heavy_bottom;
 
-/// The four codepoints item 253 is about, paired with which HALF of a
+/// The four curly-quote codepoints, paired with which HALF of a
 /// correctly mapped glyph's own bounding box must carry more ink. `true` =
 /// heavy-bottom (opening quotes: the rotated "6"); `false` = heavy-top
 /// (closing quotes: the raised-comma "9").

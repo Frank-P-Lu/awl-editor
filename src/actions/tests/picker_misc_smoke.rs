@@ -61,7 +61,7 @@ fn cmd_r_opens_replace_revealed_with_focus_on_find_through_core() {
 #[test]
 fn history_picker_accept_alternate_emits_restore_id_of_the_highlighted_version() {
     // SUMMON the timeline with three versions (newest-first); NAVIGATE down and
-    // the ALTERNATE ACCEPT (⇧↵, item 116c) emits OverlayAccept(History, <id>)
+    // the ALTERNATE ACCEPT (⇧↵) emits OverlayAccept(History, <id>)
     // for the highlighted version, then closes. The caller resolves the id via
     // history::load + set_text (undoable). Restoring is deliberate now — see
     // the companion test below for bare Enter's (non-destructive) meaning.
@@ -93,7 +93,7 @@ fn history_picker_accept_alternate_emits_restore_id_of_the_highlighted_version()
 
 #[test]
 fn history_picker_bare_enter_never_restores_it_only_opens_the_comparison() {
-    // ITEM 116c: restore moved BEHIND the deliberate alternate accept. Bare
+    // Restore lives BEHIND the deliberate alternate accept. Bare
     // Enter on a highlighted, unfocused row now does what `Tab`/`CompareVersion`
     // already did — move focus into the comparison — and, focused there, is a
     // calm no-op. Neither ever emits a restore.
@@ -135,8 +135,8 @@ fn history_picker_tab_shifts_focus_into_the_comparison() {
     // page it, and Tab returns focus to the list. The highlighted (middle) row
     // is a NAMED SAVE POINT here, deliberately: a named row rides the same
     // parallel `history_ids`, so the comparison works on it exactly like any
-    // snapshot — this pins that law. (Item 116b retired the CARD the comparison
-    // used to be dressed as; the focus fact itself is untouched, and lives in
+    // snapshot — this pins that law. The comparison's retired CARD dressing did
+    // not own the focus fact, which lives in
     // the shared core, so this test is unchanged apart from its name.)
     let row = |id: &str| crate::history::TimelineRow {
         when: "just now".into(),
