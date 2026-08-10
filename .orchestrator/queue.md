@@ -46,43 +46,28 @@ this heading exists; `git log -S"BLOCKED ON THE USER"` finds who took it.
    whether to spend vertical space there is taste.
 8. **The macOS release arm** — Apple signing secrets, per `RELEASING.md` §1.
 9. **Further tags and the site deploy** — your explicit word, every time.
-10. **Does the debounce rip-out feel right (item 290, landed `51302d50`)?**
-    Every step now reshapes (~33 ms each, two frames) instead of eight wrong-font
-    steps and a 141–151 ms stall on the ninth; per-step cost unchanged, the 4×
-    total is the cost of doing the work every step. Arrow quickly through the
-    faceted theme picker: honest hitch, or worse than before? Recommendation:
-    keep. Revert is `git revert 51302d50`; raising the window instead is refuted
-    (300 ms → 348 ms settle, 400 → 459).
-11. **The footer-reclaim row budget** (found during the CI RED fix `02d0ea23`,
+10. **The footer-reclaim row budget** (found during the CI RED fix `02d0ea23`,
     implemented, deliberately backed out): `avail_px` charges the hint row and
     blank separator a full `lh` each and never credits `overlay_footer_reclaim`,
     which draws them compact — 65 px unspent at zoom 3, a whole row. Crediting
     it changes shipped row counts on cards that already fit. The question is how
     many rows a card should show; the arithmetic is ready either way.
-12. **Should the selected diagonal mark travel with the selection band?** Today
+11. **Should the selected diagonal mark travel with the selection band?** Today
     it snaps directly to the destination row while the band eases there. The
     alternative makes the mark ride that same ease on the two Diagonal worlds.
     This is a live feel decision no settled capture can make. Recommendation:
     prototype the shared-ease arm only if the current snap reads detached; keep
     the instant mark if it reads as the destination indicator rather than part
     of the moving band.
-13. **Hosted-mac Metal diagnosis (item 231)** needs a macOS guest VM with
+12. **Hosted-mac Metal diagnosis (item 231)** needs a macOS guest VM with
     paravirtualised Metal. No VM tooling is installed; creating that rig is a
     real storage/time spend. The next engineering step begins only after that
     spend is approved. A negative reproduction is publishable; no speculative
     product fix lands under the diagnosis item.
-14. **The AT-SPI journey (item 251)** needs a real Linux desktop session with
+13. **The AT-SPI journey (item 251)** needs a real Linux desktop session with
     Orca. This Mac and its headless/Linux CI arms cannot perform the human
     document-read, caret/selection, overlay, and editing-burst journey.
-15. **Which folders belong in the new flat Switch-project picker (item 376)?**
-    The structural split is decided: recent projects plus a flat selectable
-    list, with a separate “Browse for folder…” navigator door. The remaining
-    choice is (a) include every direct workspace child, preserving today’s
-    reach but making `~` noisy, or (b) show recents plus git-marked children and
-    leave every other folder behind Browse. Recommendation: **(a)**. awl is a
-    writing tool for non-programmers too; git status should not decide whether
-    an ordinary notes folder is directly discoverable.
-16. **The Settings workspace's 880 px two-column transition (item 327).** The
+14. **The Settings workspace's 880 px two-column transition (item 327).** The
     previously unexplained non-monotonic rail hole is diagnosed on the current
     reachable Settings state: with the long Project-root fixture, the focused
     narrow pane has no accessory at 640–740, carries it at 760–860, then
@@ -95,7 +80,7 @@ this heading exists; `git log -S"BLOCKED ON THE USER"` finds who took it.
     varies by machine. Recommendation: elide the path like other row text and
     delay two-column mode until the accessory survives; staging one region a
     little longer is calmer than showing both regions with controls missing.
-17. **The Linux drawn-menu Export click needs a real window/compositor.**
+15. **The Linux drawn-menu Export click needs a real window/compositor.**
     `AWL_MENU_BAR_FORCE=on` reaches the production menu geometry and hit-test on
     this Mac (15 forced menu laws pass), but every hermetic `App` is deliberately
     GPU-less and `App::menubar_press` returns before hit-testing without the
@@ -103,12 +88,12 @@ this heading exists; `git log -S"BLOCKED ON THE USER"` finds who took it.
     display handle and wgpu surface; the live script has no pointer-press event.
     Close this on a Linux desktop with a real rendered-menu click, or after an
     explicitly approved live GUI harness gains press input plus observable state.
-18. **Item 211's unoccluded live-glide photograph needs an unlocked display.**
+16. **Item 211's unoccluded live-glide photograph needs an unlocked display.**
     The existing live-band sweep is the correct instrument and refuses false
     success, but the required end-of-run lock check currently reports
     `CGSSessionScreenIsLocked = true`. `caffeinate` cannot unlock it. Run the
     sitting only after the display is unlocked and can remain foregrounded.
-19. **Item 241's dense pointer/wheel cadence remains a live feel check.** The
+17. **Item 241's dense pointer/wheel cadence remains a live feel check.** The
     exact 4530x2756@2x headless case is now measured on the release build:
     1.43 s, 215,793,664-byte max RSS, page/outline/gutter all within the canvas
     and no visual clipping. A settled capture cannot establish interactive
@@ -264,15 +249,65 @@ list instead of re-checking the tree.** Every entry in the previous list was
 verified landed via `git log --grep` before this re-derivation (292/293/299/303,
 294/298, 305, 291, 296+300, 273's residuals, 302, 227, 131e+303 — all merged).
 
-1. **🔵 HUMAN / LIVE — all remaining work is explicitly blocked in the two
-   sections above.** **231**
-   needs the approved macOS guest-VM spend; **251** needs a human at a Linux desktop with
-   Orca. **327** and the landed taste calls
-   (338/342/345/346, carried in the visual/live blocked section) close on the user's eye.
+1. **386 — Settings one-bit selected-category contrast.** User report and supplied
+   screenshot: in Wagtail Settings, the active category rail entry draws a white
+   inverse band but shapes its label with ordinary white content ink, making the
+   category name disappear. Reproduce through the real Settings workspace at wide
+   and staged-narrow widths; route the rail label through the same selected-ink
+   owner as its band; add a full-world contrast + presence law and mutation-proof
+   the exact Wagtail regression. Audit neighbouring active rail/row states and use
+   PNG arithmetic, not the sidecar, for legibility.
+2. **387 — Settings narrow-stage navigation should not teach Tab as Back.** The
+   user reports that Tab returning from Settings content to its category rail is
+   especially strange when the narrow layout shows only one region. Reproduce the
+   actual keyboard journey at both sides of the wide/staged transition; inspect the
+   earlier one-Esc-leaves decision rather than silently reversing it; design one
+   conventional, visible Back route for the staged layout without making the wide
+   layout and headless action model disagree. Update the footer from the behavior,
+   drive the law through real keys, and mutation-prove the former Tab surprise.
+3. **388 — Theme-picker arrowing is still visibly laggy.** User reports the landed
+   debounce removal did not make Up/Down browsing feel responsive. The current
+   mechanism pays a measured ~33 ms full font/span reshape on every differing-font
+   preview (often two presented frames); the prior mechanism instead accumulated a
+   141–151 ms ninth-step stall. Reproduce in `--release` with movement-to-present
+   receipts over the full 20-world arrow sweep and a representative long Markdown
+   document. Attribute font adopt, reshape, row geometry, atlas and present costs;
+   then remove or amortize the dominant work while every arrow still previews the
+   destination world's truthful font/colors. A delayed wrong-font sequence or a
+   later catch-up stall is not a fix. Require output identity at every settled world,
+   a deliberately broken performance/witness law, and live feel confirmation.
+4. **389 — Switch Project All is flat over direct workspace children only.** User
+   decision: include every direct child folder of the configured workspace, whether
+   git-marked or ordinary; never recursively flatten children or grandchildren.
+   Keep the existing `git` secondary marker informational, not an enrollment gate.
+   A direct child is selectable as the project; deeper navigation belongs behind the
+   separate “Browse for folder…” door decided in item 376. Derive the roster from one
+   directory-level read, law-test ordinary + git children and excluded grandchildren,
+   and preserve Recent ordering plus the explicit configured-workspace boundary.
+5. **🔵 HUMAN / LIVE after 386–389.** **231** needs the approved macOS guest-VM
+   spend; **251** needs a human at a Linux desktop with Orca. **327** and the landed
+   taste calls (338/342/345/346, carried in the visual/live blocked section) close
+   on the user's eye.
 
 ---
 
 ## Open items
+
+### 386 — Settings one-bit selected-category contrast
+
+Claim and execute from handoff item 1 above.
+
+### 387 — Settings narrow-stage navigation should not teach Tab as Back
+
+Claim and execute from handoff item 2 above.
+
+### 388 — Theme-picker arrowing is still visibly laggy
+
+Claim and execute from handoff item 3 above.
+
+### 389 — Switch Project All is flat over direct workspace children only
+
+Claim and execute from handoff item 4 above.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
