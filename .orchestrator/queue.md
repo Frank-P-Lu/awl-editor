@@ -279,6 +279,28 @@ list instead of re-checking the tree.** Every entry in the previous list was
 verified landed via `git log --grep` before this re-derivation (292/293/299/303,
 294/298, 305, 291, 296+300, 273's residuals, 302, 227, 131e+303 — all merged).
 
+0. **CI RED — `main` is red on lavapipe, and it blocks the tag and all further
+   integration.** Run <https://github.com/Frank-P-Lu/awl-editor/actions/runs/31457914226>,
+   job `linux (build + test)`, step `native full suite`, first known bad commit
+   `cad4dfa1` — though the true first-bad is somewhere in the 214 commits that
+   pushed at once, since `b164a25a` was the last sha CI had ever seen. Not a
+   timeout (15.6 min against a 50 min ceiling). Both keymap conventions fail
+   identically. **A full local `native-gate.sh` receipt on the SAME commit is
+   green**, because every gate here runs real Metal and CI's linux job runs Mesa
+   lavapipe — the hardware-bounded receipt, exactly as documented.
+   - `caret_filled_knockout::cassowary_..._across_cells_zoom_and_dpi` —
+     `cell=round zoom=2 dpi=2: empty mask populations` (the assert is
+     `source_n >= 4 && knockout_n >= 4`; which population is empty is unmeasured).
+   - `metric_scale::sidecar_line_height_matches_measured_png_row_pitch_at_multiple_zooms`
+     — `zoom 0.8: row pitch 39px vs line_height 25.6px, tops [9, 48, 74, …]`.
+     Nine bands where the law expects eight; every gap after the first is
+     correct. The law slices `&tops[..7]` from the FRONT on the stated assumption
+     that a spare band can only appear at the BACK (the caret parks on the
+     trailing blank line). **Lavapipe put one at the front. The assumption is
+     what broke, not the arithmetic.**
+   Owner: 🟡 claude (deep), branch `claude/ci-red-lavapipe`, based at `cad4dfa1`.
+   Docker is present (server 29.6.2), so the container recipe in CLAUDE.md is
+   reachable and the fix is required to go red→green THERE, not only on Metal.
 1. **386 — Settings one-bit selected-category contrast.** User report and supplied
    screenshot: in Wagtail Settings, the active category rail entry draws a white
    inverse band but shapes its label with ordinary white content ink, making the
@@ -336,7 +358,9 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
 
 ### 386 — Settings one-bit selected-category contrast
 
-🟢 CODE COMPLETE, AWAITING MERGE — `6548c675` on `claude/item-386-settings-rail-ink`.
+✅ MERGED to local `main` (unpushed) — `6548c675`, merge `c28432ee`, with the
+config raise at `c0b46df4`. Candidate receipt `native-gate-receipt commit=c0b46df4
+conventions=mac,linux scope=all-targets unit_tests=4047`, zero failures.
 Premise measured TRUE and worse than reported: over Wagtail's active rail mark,
 2052 px, every one `[255,255,255]`, contrast 1.00:1 — the label was ABSENT, not
 dim. `overlay_visual_sel.rs` now owns both the band fill and the label ink; the
@@ -405,6 +429,12 @@ whether that owner is the right seam to extend rather than inventing a second
 one. Verify by driving both pickers with real `--keys` and reading each footer
 from the sidecar; a law must fail if either picker's hint names a key that its
 own intercept does not honour.
+
+### CI RED — two lavapipe-only failures on `main`
+
+Claim and execute from handoff item 0 above. **Nothing else integrates and no tag
+is cut until this is green.** Do not disable, `#[ignore]` or narrow either test to
+clear it; if a test cannot be made backend-portable that is a user decision.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
