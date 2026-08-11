@@ -1202,11 +1202,12 @@ fn settings_path_pick_backspace_still_ascends_past_workspace() {
     );
 }
 
-/// THE ITEM THIS LAW EXISTS FOR (item 391): the flat switch-project picker's
-/// Backspace is inert (proved above by `switch_project_backspace_never_
-/// leaves_the_workspace`), but `OverlayKind::kind_actions` used to print `⌫
-/// up` for every `Project` card regardless — a footer that named a key its
-/// own intercept did not honour. This asserts BOTH halves in one law, so a
+/// The flat switch-project picker's Backspace is inert (proved above by
+/// `switch_project_backspace_never_leaves_the_workspace`), while
+/// `OverlayKind::kind_actions` is kind-level and shared with the path-bound
+/// card, which does still ascend — so a footer authored per kind names a key
+/// this picker's own intercept does not honour. This asserts BOTH halves in
+/// one law, so a
 /// regression in either the hint or the intercept fails it: the footer must
 /// not claim the dead key, and it must still teach the picker's real grammar
 /// (a hint law is trivially "satisfiable" by printing nothing at all).

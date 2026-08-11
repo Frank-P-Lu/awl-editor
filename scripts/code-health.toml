@@ -255,8 +255,8 @@ lines = 761
 
 [[file_size_mark]]
 file = "src/overlay/kind.rs"
-lines = 479
-reason = "A new `OverlayKind` variant crosses seven exhaustive per-kind matches in this one file — name, accept disposition, row-meta roster, hints, empty copy, title, row split — each of which exists so a new kind cannot inherit an untested path (+20). +45: `keeps_backdrop_crisp` becomes the ONE owner of which pickers keep the document sharp behind them, as a wildcard-free 21-arm match -- the eighth exhaustive per-kind match this file carries. It replaced two independent deciders, one of which keyed on the mode's own SPELLING (`o.mode == \"theme\" || o.mode == \"caret\"`) in the capture door, so the live App and a capture could disagree about the same kind. A comment naming a stale set was the symptom; two deciders were the cause. +49: `previews_live_document` is the ninth wildcard-free per-kind match this file carries. It is the subject of the equivalence law that replaced a subset law: the frost exemption and the live audition are ONE decision, so a kind repainting the page behind its card must not frost it, and a kind repainting nothing has no exemption to claim. +9: the detail stage's Back cell is appended by one owner rather than authored per kind, so a kind cannot name a key its own intercept does not honour."
+lines = 501
+reason = "A new `OverlayKind` variant crosses seven exhaustive per-kind matches in this one file — name, accept disposition, row-meta roster, hints, empty copy, title, row split — each of which exists so a new kind cannot inherit an untested path (+20). +45: `keeps_backdrop_crisp` becomes the ONE owner of which pickers keep the document sharp behind them, as a wildcard-free 21-arm match -- the eighth exhaustive per-kind match this file carries. It replaced two independent deciders, one of which keyed on the mode's own SPELLING (`o.mode == \"theme\" || o.mode == \"caret\"`) in the capture door, so the live App and a capture could disagree about the same kind. A comment naming a stale set was the symptom; two deciders were the cause. +49: `previews_live_document` is the ninth wildcard-free per-kind match this file carries. It is the subject of the equivalence law that replaced a subset law: the frost exemption and the live audition are ONE decision, so a kind repainting the page behind its card must not frost it, and a kind repainting nothing has no exemption to claim. +9: the detail stage's Back cell is appended by one owner rather than authored per kind, so a kind cannot name a key its own intercept does not honour. +22: `project_flat_hint` filters Project's own kind-level cells by GLYPH against `workspace::ERASE_GLYPH` rather than re-listing them, so a hint cell added elsewhere cannot be silently dropped here."
 
 [[file_size_mark]]
 file = "src/overlay/nav.rs"
@@ -265,8 +265,8 @@ reason = "item 114: +12 lines. `item_sections` gained the workspace's empty-sect
 
 [[file_size_mark]]
 file = "src/overlay/state.rs"
-lines = 683
-reason = "The conflict card's payload field on the one `OverlayState` struct and its one exhaustive `new_marked` initializer (+5). +10: `BackKey` is the one owner of what goes back from a detail stage — erase when free, focus while a live query owns the erase key, nothing during a value edit — so the footer and the intercept cannot disagree."
+lines = 706
+reason = "The conflict card's payload field on the one `OverlayState` struct and its one exhaustive `new_marked` initializer (+5). +10: `BackKey` is the one owner of what goes back from a detail stage — erase when free, focus while a live query owns the erase key, nothing during a value edit — so the footer and the intercept cannot disagree. +23: `foot_hint_scoped` takes the `Bind` the card was entered under, because whether Backspace ascends is a property of the JOURNEY and not of the kind — the two switch-project surfaces are the same `OverlayKind`. The zero-argument form remains, delegating with `None`, so roughly thirty bare-card call sites keep the correct default: a card with no journey is flat."
 
 [[file_size_mark]]
 file = "src/peek.rs"
