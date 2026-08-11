@@ -189,12 +189,11 @@ fn write_frames_summary(out_png: &Path, step_ms: u64, records: &[FrameRecord]) -
     // throwaway capture artifact, not a durable app-owned store, so it deliberately
     // does NOT route through `fs::write_atomic` (mirrors `write_sidecar`, and stays
     // clear of the `durable.rs` bare-write audit for the same reason). It mirrors
-    // the sidecar's home redaction for the same reason too: a capture artifact
-    // this door writes is a capture artifact a lane can commit.
-    let json = super::redact::redact(&json);
+    // the sidecar's home redaction too: an artifact this door writes is an
+    // artifact a lane can commit.
     let mut f = std::fs::File::create(&path)
         .with_context(|| format!("failed to create frame-loop summary {}", path.display()))?;
-    f.write_all(json.as_bytes())
+    f.write_all(super::redact::redact(&json).as_bytes())
         .with_context(|| format!("failed to write frame-loop summary {}", path.display()))?;
     Ok(())
 }

@@ -682,16 +682,13 @@ pub fn write_atomic(path: &Path, data: &[u8]) -> io::Result<()> {
     fs.rename(&tmp, path)
 }
 
-/// THE ONE HOME-DIRECTORY LOOKUP — `$HOME`, read live rather than cached.
-///
-/// Live because it is not a constant of the process: the MAS sandbox rewrites
-/// `$HOME` to the container's own home at startup (`mas.rs`), and every path
-/// awl derives must follow that redirect. `None` when the variable is unset or
-/// empty, and on wasm, which has no user home at all.
-///
-/// Two callers, for two different reasons: [`data_root`] BUILDS a path under it,
-/// and `capture::redact` STRIPS it back out of a sidecar. One lookup so the
-/// second can never disagree with the first about where home is.
+/// THE ONE HOME-DIRECTORY LOOKUP — `$HOME`, read live rather than cached,
+/// because it is not a constant of the process: the MAS sandbox rewrites it to
+/// the container's own home at startup (`mas.rs`) and every path awl derives
+/// must follow that redirect. `None` when unset or empty, and on wasm.
+/// [`data_root`] and `args::resolve_default_folder` BUILD paths under it;
+/// `capture::redact` STRIPS it back out of a capture artifact. One lookup, so
+/// the stripper can never disagree with the builders about where home is.
 pub(crate) fn home_dir() -> Option<PathBuf> {
     #[cfg(target_arch = "wasm32")]
     {

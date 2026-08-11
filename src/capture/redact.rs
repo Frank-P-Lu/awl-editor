@@ -33,7 +33,10 @@
 
 use std::path::Path;
 
-/// Redact this process's `$HOME` out of a finished capture artifact.
+/// Redact this process's `$HOME` out of a finished capture artifact. Called
+/// from the two writers that put one on disk — `sidecar::write_sidecar` (which
+/// every capture door funnels through) and `frames`' frame-loop summary — as the
+/// last thing before the bytes leave, so no block can opt out of it.
 pub(crate) fn redact(text: &str) -> String {
     match crate::fs::home_dir() {
         Some(home) => redact_with_home(text, &home),
