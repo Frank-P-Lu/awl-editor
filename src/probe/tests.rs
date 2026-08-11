@@ -334,7 +334,10 @@ fn probe_reference_is_the_live_app_on_the_windows_own_canvas() {
 #[test]
 fn probe_shot_lines_carry_the_canvas_fields_the_script_parses() {
     let tag = crate::app::probe::surface_tag(1800, 1200, 2.0);
-    assert_eq!(tag, "surface=1800x1200 dpi=2", "the wire format, spelled once");
+    assert_eq!(
+        tag, "surface=1800x1200 dpi=2",
+        "the wire format, spelled once"
+    );
 
     let script = probe_script_source();
     let check = between(&script, "check_shot() {", "\n}\n").expect("check_shot is defined");
