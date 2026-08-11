@@ -57,9 +57,9 @@ const TIERS: [f32; 4] = [1.0, 1.5, 2.0, 3.0];
 const AUTHORED_PILL_INSET_X: f32 = 3.0;
 const AUTHORED_PILL_INSET_Y: f32 = 1.0;
 const AUTHORED_FENCE_INSET_X: f32 = 8.0;
-const AUTHORED_SPELL_AMP: f32 = 3.2;
-const AUTHORED_SPELL_PERIOD: f32 = 12.0;
-const AUTHORED_SPELL_THICKNESS: f32 = 3.6;
+const AUTHORED_SPELL_AMP: f32 = 2.72;
+const AUTHORED_SPELL_PERIOD: f32 = 10.2;
+const AUTHORED_SPELL_THICKNESS: f32 = 3.06;
 /// The default world's `RenderCaps::spell_underline_gap`. THEME DATA, not a
 /// chrome constant — which is exactly why no declaration sweep reached it while
 /// the three shape terms above were being repaired, and why the amplitude and

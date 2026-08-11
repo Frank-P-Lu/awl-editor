@@ -819,9 +819,9 @@ pub const FONT_CJK_COMPANION_FACES: &[&[u8]] =
 /// rather than a full cell, so the composing text reads as distinct/provisional.
 pub const PREEDIT_UNDERLINE_H: Logical = Logical(2.5);
 
-pub const SPELL_AMP: Logical = Logical(3.2);
-pub const SPELL_PERIOD: Logical = Logical(12.0);
-pub const SPELL_THICKNESS: Logical = Logical(3.6);
+pub const SPELL_AMP: Logical = Logical(2.72);
+pub const SPELL_PERIOD: Logical = Logical(10.2);
+pub const SPELL_THICKNESS: Logical = Logical(3.06);
 
 pub const NIT_THICKNESS: Logical = Logical(1.3);
 

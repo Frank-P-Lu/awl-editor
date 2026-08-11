@@ -541,21 +541,21 @@ fn squiggle_scroll_culls_offscreen_and_reveals_on_scroll() {
     );
 }
 
-/// SQUIGGLE THICKNESS AT DEFAULT ZOOM (user report: "the 200%-zoom look is
-/// right — default zoom reads too thin") — MUTATION-CHECK against the
-/// pre-round thin values. The old constants (amp 1.6, period 6.0, thickness
-/// 1.8 at zoom 1.0) read correctly ONLY at 2x zoom, since all three multiply
-/// by `m.zoom` identically; this round doubles all three, so zoom 1.0 now
-/// renders the exact pixels the OLD constants produced at zoom 2.0 — a revert
-/// to the old numbers fails every assertion below, and the wave stays exactly
-/// as scale-aware as before (still a flat per-constant multiply, checked at
-/// zoom 1.6 too).
+/// SQUIGGLE SHAPE AT DEFAULT ZOOM (user reports: "default zoom reads too thin",
+/// then "chunky is right, but it takes too much vertical room") — a
+/// MUTATION-CHECK against the pre-round THIN values and a pin on the shipped
+/// three. The mark's character is the RATIO between amplitude, period and
+/// stroke, so the three move together: the thin era (amp 1.6, period 6.0,
+/// thickness 1.8) read correctly only at 2x zoom, and the shipped wave is that
+/// same shape at a size chosen by eye. A revert to the thin numbers fails the
+/// chunk floor below; a lone amplitude trim fails the exact pins.
 #[test]
-fn spell_squiggle_thickens_at_default_zoom_matching_the_old_200pct_look() {
+fn spell_squiggle_keeps_its_chunky_proportions_at_default_zoom() {
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!(
-            "skipping spell_squiggle_thickens_at_default_zoom_matching_the_old_200pct_look: no wgpu adapter"
+            "skipping spell_squiggle_keeps_its_chunky_proportions_at_default_zoom: \
+             no wgpu adapter"
         );
         return;
     };
@@ -578,17 +578,29 @@ fn spell_squiggle_thickens_at_default_zoom_matching_the_old_200pct_look() {
          (1.8px, which only looked right at 2x zoom): got {}",
         s[0].thickness
     );
-    // Exact new value: zoom 1.0 now matches the OLD zoom-2.0 pixels exactly.
+    // The shipped three, pinned as literals so a constant edit has to come here.
     assert!(
-        (s[0].thickness - 3.6).abs() < 1e-3,
+        (s[0].thickness - 3.06).abs() < 1e-3,
         "thickness = {}",
         s[0].thickness
     );
-    assert!((s[0].amp - 3.2).abs() < 1e-3, "amp = {}", s[0].amp);
+    assert!((s[0].amp - 2.72).abs() < 1e-3, "amp = {}", s[0].amp);
     assert!(
-        (s[0].period - 12.0).abs() < 1e-3,
+        (s[0].period - 10.2).abs() < 1e-3,
         "period = {}",
         s[0].period
+    );
+    // THE RATIOS, asserted separately: a future resize that keeps the pins in
+    // step but drifts the proportions changes what the mark IS, not its size.
+    assert!(
+        (s[0].period / s[0].amp - 3.75).abs() < 1e-2,
+        "period:amplitude = {}",
+        s[0].period / s[0].amp
+    );
+    assert!(
+        (s[0].thickness / s[0].amp - 1.125).abs() < 1e-2,
+        "stroke:amplitude = {}",
+        s[0].thickness / s[0].amp
     );
 
     // SCALE-AWARE: still correct at a non-1.0 zoom — every param keeps
@@ -1068,13 +1080,13 @@ fn revealed_via_selection_link_destination_nit_dropped_label_nit_kept() {
     );
 }
 
-/// SQUIGGLE PHASE: after leaving the tapered centreline, the wave first travels
-/// toward the glyphs. This is a shader-level fact (the `wave_y` phase in
+/// SQUIGGLE PHASE: the wave BEGINS at a crest under the word's first glyph, so
+/// its first excursion is toward the glyphs. This is a shader-level fact (the `wave_y` phase in
 /// `spellunderline.wgsl`), so it can only be pinned in real pixels: render a
 /// flagged word and diff it against the UNflagged frame (identical text, so the
 /// squiggle ink is the ONLY difference), then measure the ink's vertical CENTROID
-/// over the first quarter-period after the word's left edge. The tapered first
-/// lobe rides above the band's vertical center (toward the glyphs).
+/// over the first quarter-period after the word's left edge. That opening crest
+/// rides above the band's vertical center (toward the glyphs).
 #[test]
 fn spell_squiggle_wave_leaves_the_centerline_toward_the_glyphs() {
     let _g = crate::testlock::serial();
@@ -1112,7 +1124,7 @@ fn spell_squiggle_wave_leaves_the_centerline_toward_the_glyphs() {
     let b = pixeldiff::render_frame(&mut p, &device, &queue, w, h);
 
     // The wave band's vertical center, and a horizontal window covering the first
-    // quarter-period after the word's left edge: the tapered cosine lobe rides top.
+    // quarter-period after the word's left edge: the opening cosine crest rides top.
     let cy = (s.y + s.h * 0.5) as f64;
     let x_lo = s.x.round() as i64;
     let x_hi = (s.x + s.period * 0.25).round() as i64;
@@ -1144,10 +1156,136 @@ fn spell_squiggle_wave_leaves_the_centerline_toward_the_glyphs() {
     // centered and is graded by the shader enrollment law.
     assert!(
         centroid_y < cy,
-        "the tapered wave must leave its centerline toward the glyphs: \
+        "the wave must open toward the glyphs: \
          ink centroid_y={centroid_y:.1} must be above band center={cy:.1} (amp={})",
         s.amp,
     );
+
+    theme::set_active(theme::DEFAULT_THEME);
+    p.sync_theme();
+}
+
+/// SQUIGGLE ENDS: the wave reaches BOTH ends of the word at full amplitude —
+/// the mark is one continuous ripple that merely fades out, never one that
+/// swells from a flat centreline and settles back. Only the OPACITY tapers.
+///
+/// Pinned in real pixels, because the amplitude envelope is a shader-level fact:
+/// diff a flagged frame against the identical UNflagged one (the squiggle ink is
+/// the only difference) and measure how far that ink strays from the band's
+/// centreline inside a window at each end.
+///
+/// The end window is compared against a window ONE WHOLE PERIOD inward, never
+/// against a hand-picked interior slice: the phase is anchored at the band's
+/// left edge, so a whole period in reproduces the end window's phase EXACTLY,
+/// whatever the word's width. An assertion against some other interior window
+/// would be comparing two different phases and would have to be slack enough to
+/// absorb the difference — slack a taper fits inside.
+///
+/// ⚠️ The window must be no wider than the taper it hunts. An earlier version of
+/// this law measured the ink's vertical SPAN over a half-period at each end and
+/// passed with a half-cycle taper re-introduced into the shader: the taper
+/// reaches full amplitude by the far side of that window, and the span — a
+/// max-minus-min over the whole window — reads the recovered end and reports a
+/// healthy figure. Mean deviation over a QUARTER period sees the envelope
+/// itself rather than the best pixel in it.
+#[test]
+fn spell_squiggle_keeps_full_amplitude_at_its_ends() {
+    let _g = crate::testlock::serial();
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
+        eprintln!("skipping spell_squiggle_keeps_full_amplitude_at_its_ends: no wgpu adapter");
+        return;
+    };
+    let w = 1200u32;
+    let h = 800u32;
+    theme::set_active(theme::DEFAULT_THEME);
+    p.sync_theme();
+    // A LONG word, so the run spans many periods and the inward comparison
+    // windows sit clear of both ends. Caret parked off its line (reveal-on-cursor).
+    let text = "misspelllinggg\n\nprose\n";
+    let mis = vec![crate::spell::Misspelling {
+        line: 0,
+        start_col: 0,
+        end_col: 14,
+    }];
+
+    let mut clean = view(text, 2, 0);
+    clean.misspelled = Vec::new();
+    p.set_view(&clean);
+    p.prepare(&device, &queue, w, h).unwrap();
+    let a = pixeldiff::render_frame(&mut p, &device, &queue, w, h);
+
+    let mut flagged = view(text, 2, 0);
+    flagged.misspelled = mis;
+    p.set_view(&flagged);
+    let squiggles = p.spell_squiggles();
+    assert_eq!(squiggles.len(), 1, "one squiggle proto");
+    let s = squiggles[0];
+    p.prepare(&device, &queue, w, h).unwrap();
+    let b = pixeldiff::render_frame(&mut p, &device, &queue, w, h);
+
+    assert!(
+        s.w > s.period * 3.0,
+        "fixture: the word must span several periods (w={}, period={}) or the \
+         end and inward windows overlap",
+        s.w,
+        s.period
+    );
+
+    let cy = s.y + s.h * 0.5;
+    // Mean distance of squiggle INK from the band's centreline, inside a
+    // horizontal window. This is the wave's amplitude ENVELOPE as the pixels
+    // actually carry it.
+    let deviation = |x_lo: f32, x_hi: f32| -> f32 {
+        let y_lo = (s.y - 3.0).max(0.0) as i64;
+        let y_hi = ((s.y + s.h + 3.0) as i64).min(h as i64);
+        let mut sum = 0f32;
+        let mut n = 0f32;
+        for y in y_lo..y_hi {
+            for x in (x_lo.round() as i64)..(x_hi.round() as i64) {
+                if x < 0 || x >= w as i64 {
+                    continue;
+                }
+                let i = (y * w as i64 + x) as usize;
+                if (0..4).any(|c| a[i][c] != b[i][c]) {
+                    sum += (y as f32 - cy).abs();
+                    n += 1.0;
+                }
+            }
+        }
+        assert!(n > 3.0, "window [{x_lo}, {x_hi}) holds no squiggle ink");
+        sum / n
+    };
+
+    let q = s.period * 0.25;
+    // Each end against the SAME PHASE one period inward.
+    let checks = [
+        ("left", s.x, s.x + q, s.x + s.period, s.x + s.period + q),
+        (
+            "right",
+            s.x + s.w - q,
+            s.x + s.w,
+            s.x + s.w - s.period - q,
+            s.x + s.w - s.period,
+        ),
+    ];
+    for (name, e_lo, e_hi, i_lo, i_hi) in checks {
+        let end = deviation(e_lo, e_hi);
+        let inward = deviation(i_lo, i_hi);
+        assert!(
+            inward > s.amp * 0.3,
+            "sanity: the {name} comparison window must hold a real ripple \
+             (mean deviation {inward}px against amp {})",
+            s.amp
+        );
+        assert!(
+            end >= inward * 0.75,
+            "the {name} end's ink strays only {end:.2}px from the centreline against \
+             {inward:.2}px one period inward at the SAME phase — the wave is tapering \
+             toward its end instead of holding full amplitude (amp={}, period={})",
+            s.amp,
+            s.period
+        );
+    }
 
     theme::set_active(theme::DEFAULT_THEME);
     p.sync_theme();

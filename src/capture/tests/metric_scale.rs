@@ -18,6 +18,9 @@ fn json(png: &std::path::Path) -> serde_json::Value {
 /// Find the top pixel row of each repeated `MMMMMMMM` ink band. Every y is
 /// compared with a blank pixel farther right on that SAME y, so the measurement
 /// remains valid over a non-flat page ground and never assumes a theme color.
+///
+/// It reports EVERY ink band, glyph or not, so the caller owes it a frame whose
+/// only ink is the rows being measured — see the fixture's spellcheck note.
 fn measured_ink_band_tops(png: &std::path::Path, text_left: u32) -> Vec<u32> {
     let image = image::open(png).expect("capture PNG decodes").to_rgba8();
     let blank_x = (text_left + 280).min(image.width() - 1);
@@ -59,6 +62,16 @@ fn sidecar_line_height_matches_measured_png_row_pitch_at_multiple_zooms() {
     }
     let _g = crate::testlock::serial();
     let _world = crate::theme::WorldPin::world("Tawny").expect("Tawny exists");
+    // SPELLCHECK OFF for the duration: `MMMMMMMM` is not a word, so every
+    // measured row would otherwise carry a squiggle, and the band detector
+    // above cannot tell that decoration from the glyphs it is meant to measure.
+    // This law passed for a long time only because the shipped squiggle's ink
+    // happened to FUSE with the glyph ink into a single band; a size change that
+    // thinned the wave's topmost rows unfused them, and the law began reporting
+    // the glyph-to-squiggle gap as the document's row pitch. The metric under
+    // test has nothing to do with spelling — so the frame should not contain any.
+    let old_spellcheck = crate::spell::spellcheck_on();
+    crate::spell::set_spellcheck_on(false);
     let old_page = crate::page::page_on();
     let old_measure = crate::page::measure();
     crate::page::set_page_on(true);
@@ -109,10 +122,12 @@ fn sidecar_line_height_matches_measured_png_row_pitch_at_multiple_zooms() {
             tops.len() >= 7,
             "zoom {zoom}: expected seven independently measured glyph bands, got {tops:?}"
         );
-        // The settled caret on the trailing blank line may contribute one extra
-        // small band before/after the repeated text depending on caret look. The
-        // seven repeated M rows are the final seven full ink bands.
-        let repeated = &tops[tops.len() - 7..];
+        // The caret is parked at the buffer end — the trailing BLANK line, below
+        // all seven — so it contributes at most one band and that band is always
+        // the last. Take the seven from the FRONT: a slice off the back selects
+        // by counting rather than by position and quietly swaps the first glyph
+        // row for the caret's own band the moment the band count changes.
+        let repeated = &tops[..7];
         let pitches: Vec<f32> = repeated
             .windows(2)
             .map(|pair| (pair[1] - pair[0]) as f32)
@@ -140,4 +155,5 @@ fn sidecar_line_height_matches_measured_png_row_pitch_at_multiple_zooms() {
 
     crate::page::set_measure(old_measure);
     crate::page::set_page_on(old_page);
+    crate::spell::set_spellcheck_on(old_spellcheck);
 }
