@@ -335,10 +335,12 @@ fn project_roster_excludes_a_symlinked_child_folder() {
     // `InMemoryFs` has no symlink concept, so this axis cell needs a real
     // instrument rather than an assumed one: a real temp directory.
     let _guard = crate::fs::FsGuard::capture();
-    let base = std::env::temp_dir().join(format!(
+    // The guard's Drop owns the cleanup: an end-of-function remove runs only on
+    // the happy path, and this fixture has assertions that can panic before it.
+    let base = crate::testscratch::ScratchDir::new(std::env::temp_dir().join(format!(
         "awl-item389-project-symlink-{}",
         std::process::id()
-    ));
+    )));
     let ws = base.join("ws");
     let real_target = base.join("real-target");
     std::fs::create_dir_all(ws.join("ordinary")).unwrap();
@@ -371,5 +373,4 @@ fn project_roster_excludes_a_symlinked_child_folder() {
         !shown.iter().any(|s| s.starts_with("linked")),
         "a symlinked folder is not classified as a directory here: {shown:?}"
     );
-    std::fs::remove_dir_all(&base).ok();
 }
