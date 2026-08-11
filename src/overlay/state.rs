@@ -504,14 +504,24 @@ impl OverlayState {
         // Spelling one of them inline here — under a bare `detail_focus` test —
         // only reads as correct while exactly one kind has a detail stage: a
         // second kind reaching it would silently take the first one's line.
+        //
+        // THE BACK CELL IS APPENDED, NEVER AUTHORED. `Esc` leaves a workspace
+        // from either region, so the detail stage owes an explicit Back — but
+        // WHICH key performs it depends on whether this stage's own query has
+        // the erase key busy, which is a fact about the state and not about the
+        // kind. So no per-kind arm spells it: `detail_back` decides, the action
+        // seam reads that same answer, and the sentence cannot come to disagree
+        // with the keyboard.
         if self.workspace_shape().is_some() {
             if !self.detail_focus {
                 return super::format_hint(&self.kind.rail_hint_actions());
             }
-            if self.selected_range().is_some() {
-                return self.kind.range_row_hint();
-            }
-            return super::format_hint(&self.kind.detail_hint_actions());
+            let mut actions = match self.selected_range().is_some() {
+                true => self.kind.range_row_actions(),
+                false => self.kind.detail_hint_actions(),
+            };
+            actions.extend(self.detail_back().map(super::workspace::BackKey::hint));
+            return super::format_hint(&actions);
         }
         if self.selected_range().is_some() {
             return self.kind.range_row_hint();

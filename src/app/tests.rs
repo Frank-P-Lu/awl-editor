@@ -42,5 +42,9 @@ mod which_key;
 /// Settings WORKSPACE's own door, by real chords into the live `App`. Why this
 /// tier and not a capture: `docs/harness-reach.md`.
 mod workspace;
+/// TIER 2: the summoned workspace's BACK — which key it is, that the footer
+/// names that key, and that `Tab` is no longer taught as one. A report about a
+/// keyboard is answered with the keyboard.
+mod workspace_back;
 
 use common::*;

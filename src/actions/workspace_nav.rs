@@ -17,6 +17,10 @@ use super::*;
 /// picker it already was.
 ///
 ///   * `Tab` and `Shift-Tab` move focus between the two regions, at any width.
+///   * `⌫` is the BACK from the detail stage, whenever
+///     [`crate::overlay::workspace::BackKey`] says the erase key is free there.
+///     The footer reads that SAME owner, so what is advertised and what acts
+///     are one answer rather than two that agree today.
 ///   * While the RAIL holds focus, the vertical keys step CATEGORIES (through the
 ///     picker's own lens owner, so there is no second category state), `→` / `↵`
 ///     enter the rows, and typing hands focus to the rows because what you are
@@ -51,17 +55,36 @@ pub(super) fn workspace_intercept(ctx: &mut ActionCtx, action: &Action) -> Optio
         return None;
     }
     // Tab AND Shift-Tab move focus between the two regions at any width, in
-    // either shape. Both do the same thing because there are exactly two regions,
-    // and the user's Esc decision (2026-08-02) makes them the ONLY way across:
-    // `Esc` now leaves the workspace from either stage, so `Shift-Tab` — which is
-    // `Action::Outdent` in the document — has to answer here or the footer's
-    // advertised Back would be true for one of the two keys the decision names.
+    // either shape. Both do the same thing because there are exactly two
+    // regions; `Shift-Tab` — which is `Action::Outdent` in the document — has to
+    // answer here as well, or the pair a user reaches for would be true for only
+    // one of them. `Esc` is not one of these keys: it leaves the workspace from
+    // either stage.
     // On the timeline shape, `CompareVersion` is History's own long-standing
     // second door to the same toggle (its palette command, "Compare with
     // version…"). Checked before either region's own keys so it can never be
     // shadowed by them.
     if matches!(action, Action::InsertTab | Action::Outdent)
         || (rows_primary && matches!(action, Action::CompareVersion))
+    {
+        ctx.journey.toggle_detail();
+        return Some(Effect::None);
+    }
+    // THE ADVERTISED BACK, PERFORMED. Read from the one owner rather than
+    // decided here, so this arm cannot fire on a stage whose footer says
+    // something else — and cannot fail to fire on one whose footer says `⌫
+    // back`. `⌥⌫` rides with it exactly as it does on the folder navigators'
+    // own `⌫ up`: on an empty field the two erase keys have the same nothing to
+    // erase, and diverging there would be a distinction with no meaning.
+    //
+    // Aimed at the detail stage only. On the PRIMARY list `⌫` keeps editing the
+    // query (Settings hands focus to the rows as it does so), because there is
+    // nothing behind the primary list but the editor, and `Esc` is what goes
+    // there.
+    if matches!(
+        action,
+        Action::DeleteBackward | Action::DeleteWordBackward
+    ) && ov.detail_back() == Some(crate::overlay::workspace::BackKey::Erase)
     {
         ctx.journey.toggle_detail();
         return Some(Effect::None);

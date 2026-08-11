@@ -23,7 +23,7 @@
 //! third workspace member cannot join without answering it.
 
 use super::*;
-use crate::overlay::workspace::TAB_GLYPH;
+use crate::overlay::workspace::BackKey;
 use crate::overlay::{Journey, Landing, OverlayKind, OverlayState};
 
 /// Every kind that is a SUSTAINED surface — the members this decision binds.
@@ -92,6 +92,16 @@ fn advertises(hint: &str, glyph: &str, label: &str) -> bool {
         .any(|cell| cell == format!("{glyph} {label}"))
 }
 
+/// The `Action`s a [`BackKey`] is reached by. Two per key, because the keyboard
+/// offers two of each and a footer cell that were true for only one of them
+/// would be true for whichever the author happened to test.
+fn back_actions(back: BackKey) -> [Action; 2] {
+    match back {
+        BackKey::Erase => [Action::DeleteBackward, Action::DeleteWordBackward],
+        BackKey::Focus => [Action::InsertTab, Action::Outdent],
+    }
+}
+
 /// THE DECISION, DRIVEN. On every sustained member's DETAIL stage: one `Esc`
 /// leaves outright, and `Tab` / `Shift-Tab` are the Back.
 #[test]
@@ -126,8 +136,16 @@ fn one_esc_leaves_a_workspace_from_its_detail_stage_on_every_sustained_kind() {
             "{kind:?}: Esc from the primary list must leave too"
         );
 
-        // TAB AND SHIFT-TAB ARE THE BACK, both ways, without closing.
-        for back in [Action::InsertTab, Action::Outdent] {
+        // AND THE KEYS THAT DO COME BACK, come back — without closing. Tab and
+        // Shift-Tab still cross (they are the FOCUS keys, and on a wide stage
+        // that is exactly what a user reaches for), and the erase key is the
+        // Back the footer teaches.
+        for back in [
+            Action::InsertTab,
+            Action::Outdent,
+            Action::DeleteBackward,
+            Action::DeleteWordBackward,
+        ] {
             let mut journey = on_the_detail_stage(kind);
             settings_drive(&mut journey, &back);
             assert!(
@@ -136,8 +154,8 @@ fn one_esc_leaves_a_workspace_from_its_detail_stage_on_every_sustained_kind() {
             );
             assert!(
                 !journey.card().unwrap().detail_focus,
-                "{kind:?}: {back:?} must return focus to the primary list — it is the only \
-                 way back now that Esc leaves"
+                "{kind:?}: {back:?} must return focus to the primary list — Esc leaves, so \
+                 every key that claims to come back has to"
             );
         }
     }
@@ -147,8 +165,9 @@ fn one_esc_leaves_a_workspace_from_its_detail_stage_on_every_sustained_kind() {
 ///
 /// Two halves, both driven rather than pattern-matched against a literal:
 ///
-///   * the detail stage's line carries a `tab back` cell, and pressing that key
-///     really does come back;
+///   * the detail stage's line carries a Back cell naming whatever
+///     [`BackKey`] says goes back from there, and pressing THAT key really does
+///     come back;
 ///   * no line on either stage advertises `esc back`, and pressing `esc` really
 ///     does leave. A surface that kept the old sentence would be teaching a
 ///     gesture the lifecycle no longer performs — the exact drift the
@@ -158,21 +177,35 @@ fn the_footer_names_the_back_it_actually_has_on_every_sustained_kind() {
     let _g = crate::testlock::serial();
     let mut graded = 0usize;
     for kind in sustained_kinds() {
-        // THE DETAIL STAGE — advertises the Back, and the Back works.
+        // THE DETAIL STAGE — advertises the Back, and the Back works. Which key
+        // that is comes from the one owner both the footer and the keyboard
+        // read; the law's job is to prove they landed on the SAME one, and that
+        // a nothing-goes-back answer never reaches a stage a user is standing on.
         let journey = on_the_detail_stage(kind);
-        let hint = journey.card().unwrap().foot_hint();
+        let card = journey.card().unwrap();
+        let back = card.detail_back().unwrap_or_else(|| {
+            panic!(
+                "{kind:?}: a freshly entered detail stage must have SOME Back — Esc does not \
+                 perform one, and a stage with no way back a user can find is the defect this \
+                 file exists to keep out"
+            )
+        });
+        let hint = card.foot_hint();
         assert!(
-            advertises(&hint, TAB_GLYPH, "back"),
-            "{kind:?}: the detail stage must NAME its Back — Esc no longer performs one, and \
-             the footer is awl's only statement of what a key does. got {hint:?}"
+            advertises(&hint, back.glyph(), "back"),
+            "{kind:?}: the detail stage must NAME its Back ({back:?}) — the footer is awl's \
+             only statement of what a key does. got {hint:?}"
         );
-        let mut journey = on_the_detail_stage(kind);
-        settings_drive(&mut journey, &Action::InsertTab);
-        assert!(
-            journey.card().is_some_and(|o| !o.detail_focus),
-            "{kind:?}: the advertised `{TAB_GLYPH} back` must be the key that actually goes \
-             back"
-        );
+        for act in back_actions(back) {
+            let mut journey = on_the_detail_stage(kind);
+            settings_drive(&mut journey, &act);
+            assert!(
+                journey.card().is_some_and(|o| !o.detail_focus),
+                "{kind:?}: the advertised `{} back` must be the key that actually goes back \
+                 ({act:?} did not)",
+                back.glyph()
+            );
+        }
 
         // NEITHER STAGE MAY STILL CALL ESC A BACK.
         for (stage, journey) in [

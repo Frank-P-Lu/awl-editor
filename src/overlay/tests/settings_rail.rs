@@ -148,11 +148,16 @@ fn the_settings_foot_hint_says_adjust_only_while_a_rail_row_is_selected() {
     for (selected, row) in visible.iter().enumerate() {
         let ov = journey.card_mut().unwrap();
         ov.selected = selected;
-        let expected = if row.kind == crate::settings::SettingKind::Range {
-            OverlayKind::Settings.range_row_hint()
+        let mut cells = if row.kind == crate::settings::SettingKind::Range {
+            OverlayKind::Settings.range_row_actions()
         } else {
-            OverlayKind::Settings.hint()
+            OverlayKind::Settings.hint_actions()
         };
+        // The workspace's derived BACK cell closes every one of these lines.
+        // Named, not read back off the card: this fixture's query is empty, so
+        // the erase key is free and `⌫` is the Back on every row alike.
+        cells.push(crate::overlay::workspace::BackKey::Erase.hint());
+        let expected = crate::overlay::format_hint(&cells);
         assert_eq!(
             ov.foot_hint(),
             expected,
