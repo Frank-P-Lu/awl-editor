@@ -259,6 +259,35 @@ struct Cell {
 /// control three clear of both graded rows, which is counted by the caller so a
 /// silent skip cannot pass for a sweep.
 #[allow(clippy::too_many_arguments)]
+/// The three rows an A/B needs, off the card's own plan: every item row it drew,
+/// the far end of the drawn band (six clear of the shipped selection, so neither
+/// graded row is the other's neighbour), and a CONTROL three clear of both.
+///
+/// Three, because a plated world's scrim really does bleed into the adjacent row,
+/// and that bleed is a rendering fact rather than this law's subject. `None` when
+/// the card is too short to seat all three, which every caller counts so a silent
+/// skip cannot pass for a sweep.
+fn graded_rows(
+    plan: &crate::render::plan::OverlayRowPlan,
+    d_a: usize,
+) -> Option<(Vec<usize>, usize, usize)> {
+    let item_rows: Vec<usize> = plan
+        .rows()
+        .iter()
+        .filter(|r| r.item.is_some())
+        .map(|r| r.display)
+        .collect();
+    let d_b = *item_rows
+        .iter()
+        .max_by_key(|d| d.abs_diff(d_a))
+        .filter(|d| d.abs_diff(d_a) >= 6)?;
+    let (lo, hi) = (d_a.min(d_b), d_a.max(d_b));
+    let d_c = *item_rows
+        .iter()
+        .find(|d| d.abs_diff(lo) >= 3 && d.abs_diff(hi) >= 3)?;
+    Some((item_rows, d_b, d_c))
+}
+
 fn probe_world(
     p: &mut TextPipeline,
     device: &wgpu::Device,
@@ -301,24 +330,8 @@ fn probe_world(
     p.prepare(device, queue, cw, ch).ok()?;
     let geom = p.overlay_geometry(cw);
     let plan = p.overlay_row_plan(&geom);
-    let item_rows: Vec<usize> = plan
-        .rows()
-        .iter()
-        .filter(|r| r.item.is_some())
-        .map(|r| r.display)
-        .collect();
     let d_a = plan.selected_display()?;
-    // The far end of the drawn band, and a control three clear of BOTH — three
-    // because a plated world's scrim really does bleed into the adjacent row, and
-    // that bleed is a rendering fact rather than this law's subject.
-    let d_b = *item_rows
-        .iter()
-        .max_by_key(|d| d.abs_diff(d_a))
-        .filter(|d| d.abs_diff(d_a) >= 6)?;
-    let (lo, hi) = (d_a.min(d_b), d_a.max(d_b));
-    let d_c = *item_rows
-        .iter()
-        .find(|d| d.abs_diff(lo) >= 3 && d.abs_diff(hi) >= 3)?;
+    let (item_rows, d_b, d_c) = graded_rows(&plan, d_a)?;
     // The DRAWN selection must have settled on the logical row, or the A/B is
     // reading a glide rather than a selection.
     let vis = p.resolve_visual_selection(&geom, &plan);
@@ -400,6 +413,91 @@ fn probe_world(
     })
 }
 
+/// The tightest cell this run saw, on each of the two floors — carried so a green
+/// result can REPORT the margin it passed by instead of only that it passed.
+struct Tightest {
+    de: f64,
+    de_at: String,
+    area: f32,
+    area_at: String,
+}
+
+impl Tightest {
+    fn new() -> Self {
+        Tightest {
+            de: f64::INFINITY,
+            de_at: String::new(),
+            area: f32::INFINITY,
+            area_at: String::new(),
+        }
+    }
+}
+
+/// GRADE ONE CELL — one world at one device scale under one menu-bar arm — with
+/// the three arms in the order that makes each one mean something: presence
+/// first (a floor over a treatment is satisfied by deleting the treatment's
+/// subject), then the two floors, then the control.
+fn grade_cell(c: &Cell, ctx: &str, t: &mut Tightest) {
+    // PRESENCE, before any difference is believed. An empty card satisfies "the
+    // selected row differs from the unselected ones" perfectly.
+    for (what, m) in [("gaining", &c.gained), ("losing", &c.lost)] {
+        assert!(
+            m.ink_a && m.ink_b,
+            "{ctx}: the row {what} the selection carries NO ink over its own ground \
+             (selected frame: {}, unselected frame: {}) — the card planned {} item rows \
+             and drew an empty one, and every difference measured below would be a \
+             difference between two blanks",
+            m.ink_a,
+            m.ink_b,
+            c.rows
+        );
+    }
+
+    // THE FLOOR — area AND magnitude, on BOTH the row that gains the selection and
+    // the row that loses it. Area alone passes a treatment washed to a few bytes
+    // off the page; magnitude alone passes one stray pixel.
+    for (what, m) in [("gaining", &c.gained), ("losing", &c.lost)] {
+        let area_floor = (m.height * MOVE_AREA_ROWS).ceil() as usize;
+        if (m.area as f32 / m.height) < t.area {
+            t.area = m.area as f32 / m.height;
+            t.area_at = format!("{ctx} ({what})");
+        }
+        if m.de < t.de {
+            t.de = m.de;
+            t.de_at = format!("{ctx} ({what})");
+        }
+        assert!(
+            m.area >= area_floor,
+            "{ctx}: the row {what} the selection changed on only {} pixels, under \
+             {area_floor} — {MOVE_AREA_ROWS} one-pixel columns the full height of its own \
+             row ({:.1}px). The world is IDENTICAL in both frames, so whatever this world \
+             does to say 'this row is selected' covers less area than a few carets.",
+            m.area,
+            m.height
+        );
+        assert!(
+            m.de >= MOVE_DE_FLOOR,
+            "{ctx}: the row {what} the selection moved by at most ΔE {:.2} on its loudest \
+             pixel, under the {MOVE_DE_FLOOR} floor — it changed over {} pixels, so a \
+             treatment IS being drawn, but it is washed so close to what was already there \
+             that selecting the row is not visible.",
+            m.de,
+            m.area
+        );
+    }
+
+    // THE CONTROL — the arm the within-frame substitute cannot have, and the one
+    // that makes the difference above attributable to the SELECTION rather than to
+    // this card's ground or its stagger.
+    assert_eq!(
+        c.control_area, 0,
+        "{ctx}: display row {} neither gained nor lost the selection and yet changed on \
+         {} pixels between the two frames. Something other than the selection moves when \
+         the selection moves, so neither graded row's change can be attributed to it.",
+        c.control_display, c.control_area
+    );
+}
+
 /// **THE LAW.** Every shipped world, both device scales, both menu-bar arms: the
 /// theme picker's selected row is VISIBLY selected — it is drawn, it changes when
 /// it gains or loses the selection, and a row that neither gained nor lost it does
@@ -414,7 +512,8 @@ fn the_theme_pickers_selected_row_is_drawn_as_selected_on_every_world() {
     let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(LOGICAL.0, LOGICAL.1) else {
         eprintln!(
-            "skipping the_theme_pickers_selected_row_is_drawn_as_selected_on_every_world: no wgpu adapter"
+            "skipping the theme picker's selected-row A/B: no wgpu adapter (\
+             the_theme_pickers_selected_row_is_drawn_as_selected_on_every_world)"
         );
         return;
     };
@@ -428,10 +527,7 @@ fn the_theme_pickers_selected_row_is_drawn_as_selected_on_every_world() {
     let mut graded = 0usize;
     let mut skipped: Vec<String> = Vec::new();
     let mut styles: std::collections::BTreeSet<String> = Default::default();
-    let mut worst_de = f64::INFINITY;
-    let mut worst_de_where = String::new();
-    let mut worst_area = f32::INFINITY;
-    let mut worst_area_where = String::new();
+    let mut tightest = Tightest::new();
 
     for bar in [false, true] {
         crate::menubar::set_menu_bar_on(bar);
@@ -449,70 +545,7 @@ fn the_theme_pickers_selected_row_is_drawn_as_selected_on_every_world() {
                 let ctx = format!("{world} [{}] bar={bar} dpi={dpi}", c.style);
                 styles.insert(c.style.split('(').next().unwrap_or("?").to_string());
 
-                // PRESENCE, before any difference is believed. A floor over a
-                // treatment is satisfiable by deleting the treatment's subject,
-                // and an empty card satisfies "the selected row differs from the
-                // unselected ones" perfectly.
-                for (what, m) in [("gaining", &c.gained), ("losing", &c.lost)] {
-                    assert!(
-                        m.ink_a && m.ink_b,
-                        "{ctx}: the row {what} the selection carries NO ink over its own \
-                         ground (selected frame: {}, unselected frame: {}) — the card \
-                         planned {} item rows and drew an empty one, and every difference \
-                         measured below would be a difference between two blanks",
-                        m.ink_a,
-                        m.ink_b,
-                        c.rows
-                    );
-                }
-
-                // THE FLOOR — area AND magnitude, on BOTH the row that gains the
-                // selection and the row that loses it. Area alone passes a
-                // treatment washed to a few bytes off the page; magnitude alone
-                // passes one stray pixel.
-                for (what, m) in [("gaining", &c.gained), ("losing", &c.lost)] {
-                    let area_floor = (m.height * MOVE_AREA_ROWS).ceil() as usize;
-                    if (m.area as f32 / m.height) < worst_area {
-                        worst_area = m.area as f32 / m.height;
-                        worst_area_where = format!("{ctx} ({what})");
-                    }
-                    if m.de < worst_de {
-                        worst_de = m.de;
-                        worst_de_where = format!("{ctx} ({what})");
-                    }
-                    assert!(
-                        m.area >= area_floor,
-                        "{ctx}: the row {what} the selection changed on only {} pixels, \
-                         under {area_floor} — {MOVE_AREA_ROWS} one-pixel columns the full \
-                         height of its own row ({:.1}px). The world is IDENTICAL in both \
-                         frames, so whatever this world does to say 'this row is selected' \
-                         covers less area than a few carets.",
-                        m.area,
-                        m.height
-                    );
-                    assert!(
-                        m.de >= MOVE_DE_FLOOR,
-                        "{ctx}: the row {what} the selection moved by at most ΔE {:.2} on \
-                         its loudest pixel, under the {MOVE_DE_FLOOR} floor — it changed \
-                         over {} pixels, so a treatment IS being drawn, but it is washed \
-                         so close to what was already there that selecting the row is \
-                         not visible.",
-                        m.de,
-                        m.area
-                    );
-                }
-
-                // THE CONTROL — the arm the within-frame substitute cannot have,
-                // and the one that makes the difference above attributable to the
-                // SELECTION rather than to this card's ground or its stagger.
-                assert_eq!(
-                    c.control_area, 0,
-                    "{ctx}: display row {} neither gained nor lost the selection and yet \
-                     changed on {} pixels between the two frames. Something other than \
-                     the selection moves when the selection moves, so neither graded \
-                     row's change can be attributed to it.",
-                    c.control_display, c.control_area
-                );
+                grade_cell(&c, &ctx, &mut tightest);
                 graded += 1;
             }
         }
@@ -526,12 +559,14 @@ fn the_theme_pickers_selected_row_is_drawn_as_selected_on_every_world() {
     // WHAT THIS RUN ACTUALLY COVERED, printed rather than assumed — a green law
     // says nothing about the configuration it ran in unless it says so.
     eprintln!(
-        "theme-picker selection A/B: graded {graded} cells ({} worlds x 2 dpi x 2 menu-bar arms), \
-         skipped {:?}. Tightest magnitude ΔE {worst_de:.2} at {worst_de_where} (floor \
-         {MOVE_DE_FLOOR}); tightest area {worst_area:.2} row-heights at {worst_area_where} \
-         (floor {MOVE_AREA_ROWS}).",
+        "theme-picker selection A/B: graded {graded} cells ({} worlds x 2 dpi x 2 menu-bar \
+         arms), skipped {skipped:?}. Tightest magnitude ΔE {:.2} at {} (floor \
+         {MOVE_DE_FLOOR}); tightest area {:.2} row-heights at {} (floor {MOVE_AREA_ROWS}).",
         theme::THEMES.len(),
-        skipped
+        tightest.de,
+        tightest.de_at,
+        tightest.area,
+        tightest.area_at,
     );
     assert!(
         skipped.is_empty(),
