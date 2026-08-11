@@ -108,7 +108,13 @@ every pass.
 4. **327 — DECIDED 2026-08-11: elide and delay.** Settings two-column: elide the
    Project-root path, delay two-column mode until the accessory survives. Body
    below.
-5. **211 — the live-glide photograph. ⚠️ RE-BLOCKED, AND THE FLIP IS THE
+5. **393 — a Han run renders Japanese while the user's Han tiebreak says
+   Chinese.** User report, live macOS. Premise-check the resolution ladder
+   before touching code. Body below.
+6. **394 — Settings arrowing: Right enters, Left does not return.** User
+   report, live macOS. Bugs cluster — 387/389 changed Back/Backspace handling
+   in this exact neighborhood last wave. Body below.
+7. **211 — the live-glide photograph. ⚠️ RE-BLOCKED, AND THE FLIP IS THE
    LESSON.** The lock was CLEAR when this was queued and read
    `CGSSessionScreenIsLocked = true` about fifteen minutes later, before
    dispatch. A sitting launched on the first reading would now be writing
@@ -117,7 +123,7 @@ every pass.
    is not a check.** `caffeinate` holds a display awake and cannot unlock one.
    Dispatch when the screen is unlocked AND someone can keep it that way; the
    window is small, top-left, non-activating and never steals keyboard focus.
-6. **HUMAN / LIVE — now small.** Eight blockers above, each needing a session,
+8. **HUMAN / LIVE — now small.** Eight blockers above, each needing a session,
    hardware, or a release-time word; the 30-item taste backlog closed by the
    bulk acceptance. ⚠️ 392 and 327 wait for dispatch until 388's quiet-host
    timing sitting completes — 388 was dispatched ALONE on purpose.
@@ -216,6 +222,47 @@ constant. Do not write 880 into a law; derive the boundary from the flip
 itself. Verify: sweep widths across both fixtures at 1× and 2×, asserting the
 accessory is present whenever two-column mode is active and the elided path
 never overflows its cell; the law names which fixture and boundary it enrolled.
+
+### 393 — a Han run renders Japanese while the user's Han tiebreak says Chinese
+
+User report (2026-08-11, live macOS): with the ambiguous-Han setting on
+Chinese, a document mixing Japanese sentences with the bare-Han heading 你好
+still renders 你好 with a Japanese face. **The report is a hypothesis — find
+which stage of the ladder decided before touching code.** The documented order
+(docs/fonts.md, `script.rs`): frontmatter `lang:` → the run's own script →
+`cjk_priority` Han tiebreak → Latin floor. Two mechanisms can make the observed
+behavior CORRECT-but-surprising: write-back-once stamps `lang:` frontmatter
+into untagged markdown CJK docs on open (a Ja-dominant doc gets `lang: ja`,
+which outranks the tiebreak forever after, even scrolled out of view), and a
+doc opened before the setting changed keeps its stamp. Reproduce with a fixture
+of this doc shape; read the sidecar's `doc_lang` and per-run
+`font.scripts`/`font.cjk`. Also verify what the user's Settings knob actually
+writes: is the ambiguous-Han control wired to the `cjk_priority` key the loader
+reads, or is it the generated-reference class of defect (a key the loader never
+consults)? Outcomes and routes: (a) a stamped `lang: ja` wins → mechanism
+correct; the open question (does an explicit user tiebreak outrank a
+machine-stamped tag, or should the stamp be made visible?) goes back to the
+user as a design brief, not a silent fix; (b) the knob writes an unread key →
+real defect, fix at the loader seam; (c) `cjk_priority` is consulted and still
+resolves ja → real defect in `script.rs`. Either defect ends with a law
+driving the same doc fixture on both sides of the tiebreak and requiring the
+resolved family pair to differ (the generator-collapse rule: probe both sides
+of the condition).
+
+### 394 — Settings arrowing: Right enters, Left does not return
+
+User report (2026-08-11, live macOS): in the Settings workspace, Right moves
+focus inward but Left does not come back. Premise-check with real `--keys` on
+the live-app driver (`--screenshot-app`), then sweep — do not hand-pick one
+state: for every reachable Settings state (row list, category rail, value/Range
+rail, two-column and narrow, query filtered and not), drive Right then Left and
+read focus from the sidecar. The law: wherever Right moves focus, Left from the
+destination returns to the origin, or the state names why not; it must fail
+while the asymmetry exists. Neighborhood: items 387/389 changed Back/Backspace
+ownership (`BackKey`, `OverlayState::detail_back`) in the same wave — check
+whether the Left intercept was narrowed by the same edit before inventing a new
+seam. Fix stays on the keymap → `Action` → `apply_transition` route so `--keys`
+drives it and the sidecar sees it.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
