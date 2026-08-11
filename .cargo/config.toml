@@ -12,7 +12,7 @@ rustc-wrapper = "sccache"
 # A bounded global cache is shared by a developer's worktrees. The default
 # location is platform-owned (for example ~/Library/Caches/Mozilla.sccache on
 # macOS), so the checked-in config never records a personal path.
-SCCACHE_CACHE_SIZE = { value = "5G", force = true }
+SCCACHE_CACHE_SIZE = { value = "10G", force = true }
 #
 # The wasm32 test runner. `cargo test --target wasm32-unknown-unknown` (L2 of
 # scripts/web-smoke.sh) drives the `src/websmoke.rs` `#[wasm_bindgen_test]`s
