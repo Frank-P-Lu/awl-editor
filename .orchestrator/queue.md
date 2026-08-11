@@ -159,6 +159,8 @@ Not urgent: the shipped state is strictly better than before at every depth.
 
 ### 397 — a burst of theme previews settles with one stale block
 
+🟡 IN PROGRESS — claude (deep), branch `claude/item-397-burst-stale-block`.
+
 Found by item 211's live sweep, the only instrument that can see it — the
 offscreen capture path is structurally blind to this class. **Reproduce in one
 command:** `scripts/live-probe.sh --cells "mangrove-to-magpie-burst
@@ -181,6 +183,30 @@ redraw-scheduling gaps, present/compositor races.
 ground, so the first question is which LAYER failed to repaint, not which world
 failed to switch. The probe's work dir is under `/tmp` and does not survive a
 restart.
+
+### 398 — the vision smoke this render-touching wave never got
+
+🟡 IN PROGRESS — fable (visual judge), branch `claude/item-398-vision-smoke`.
+
+CLAUDE.md's standing policy: *every* render-touching round gets a vision smoke —
+affordance-locating questions over ~5 gallery shots ("which row is selected?"),
+never "does this look fine?". This session landed 386, 327, 390, 391, 394 and
+393 and ran none. **The orchestrator has twice before declared a queue empty
+with this audit undone, and both times it found something real.** Judge only —
+no product code; a defect becomes its own item with the shot and region named.
+
+### 399 — the journey sweep v0.10.0 shipped without
+
+🟡 IN PROGRESS — claude (deep), branch `claude/item-399-post-tag-journey`.
+
+CLAUDE.md lists *pre-tag (a journey sweep across worlds)* as an audit trigger,
+and **v0.10.0 was tagged and published today without one.** The release itself
+is verified — artifacts, checksums, licences, glibc floor — but nobody has walked
+a real document through the shipped worlds. Post-tag, so its purpose is to
+establish what shipped and whether anything warrants a v0.10.1. Roster derived
+from `theme::THEMES`, both DPIs, audit-only — and per policy, **an audit that
+finds something ends by writing the missing law**, even though the fix belongs
+elsewhere.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
