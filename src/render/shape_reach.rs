@@ -12,6 +12,13 @@
 //! [`super::TextPipeline::finish_shape_tail`] before the next event is handled.
 //! Every settled path — commit, revert, capture, tests — stays
 //! [`ShapeReach::Whole`], and so does every headless path.
+//!
+//! The split is taken only where it can PAY — where the paintable band stops
+//! short of the document's last row. That is a ROW question, and asking it in
+//! heights against the deliberate over-budget instead
+//! ([`super::TextPipeline::presentable_reach_height`]) makes a step near the
+//! document's end declare a debt it has no deferred rows to justify, and pay two
+//! whole-document relayouts for it.
 
 use super::*;
 
@@ -39,8 +46,12 @@ pub const OFFSCREEN_CULL_MARGIN_ROWS: Rows = Rows(8.0);
 pub enum ShapeReach {
     /// Every visual row of the document — the settled reach.
     Whole,
-    /// Only as far as the frame about to be presented can paint. Leaves a TAIL
-    /// owed, which the same step must pay.
+    /// Only as far as the frame about to be presented can paint, WHEN stopping
+    /// there leaves rows unshaped. Then it leaves a TAIL owed, which the same step
+    /// must pay. Where the paintable band already reaches the document's last row
+    /// — a short document, or a scroll near the end — there is nothing to defer
+    /// and this reach shapes the whole document like [`Self::Whole`], owing
+    /// nothing (see [`TextPipeline::presentable_reach_height`]).
     Presentable,
 }
 
@@ -90,6 +101,60 @@ impl TextPipeline {
             + viewport
             + self.metrics.line_height;
         want.min(full)
+    }
+
+    /// The buffer height a [`ShapeReach::Presentable`] step ACTUALLY shapes to:
+    /// [`Self::presentable_shape_height`] where narrowing to it defers rows, and
+    /// the whole `full` budget where it does not.
+    ///
+    /// THE TWO QUESTIONS ARE IN DIFFERENT UNITS, and only one of them is about
+    /// the split's saving. "Is this budget shorter than
+    /// [`Self::full_shape_height`]?" is a HEIGHT question, and `full_shape_height`
+    /// deliberately over-budgets — ~8 wrapped rows per logical line, plus every
+    /// reserved image/table height — so on ordinary prose it is several times the
+    /// document's real extent. "Does this budget stop short of the last row?" is a
+    /// ROW question, and it is the one the split's saving depends on: the earlier
+    /// present is bought by leaving rows unshaped, so a budget that already covers
+    /// every row buys nothing. Ask the height question and the two come apart
+    /// exactly where the answer matters — at a scroll near the document's END the
+    /// paintable band reaches the last row while sitting far under the
+    /// over-estimate, so every arrow declares a debt and pays a whole-document
+    /// `set_size` (cosmic-text relayouts EVERY laid-out line on any height change,
+    /// width-only though layout is) for zero deferred rows, twice: once narrowing
+    /// here and once restoring in [`Self::finish_shape_tail`].
+    ///
+    /// So the compare is against the DOCUMENT — `total_doc_height`, the bottom of
+    /// the last visual row the last fully-shaped pass produced, which is the same
+    /// row table `presentable_shape_height` above reads the caret's line from.
+    ///
+    /// THE GUESS IS SAFE IN BOTH DIRECTIONS, which is what lets it be made BEFORE
+    /// the shape rather than after it. The reshape can change the document's own
+    /// height (the wrap width is face-independent but the glyph advances inside it
+    /// are not, so a face fits a different number of characters per row), so this
+    /// is exact only when the reshape leaves the height alone — which is every
+    /// non-wrapping document, and near enough on the rest that the two ends of the
+    /// depth curve are never in doubt. Guess "whole" where narrowing would have
+    /// helped and the step is today's settled step: correct, one arrow's earlier
+    /// present forgone. Guess "narrow" where it does not help and the step is the
+    /// status quo: correct, one wasted tail. Neither can leave a row unshaped,
+    /// because narrowing and owing are still set from the SAME value one line
+    /// apart in [`Self::theme_font_adopt`].
+    ///
+    /// Deciding here rather than after the shape is also what keeps `height_opt`
+    /// off the narrow budget on every step that owes nothing. The alternative —
+    /// narrow always, then ask the shaped runs whether anything was actually
+    /// deferred — answers the row question exactly, and then has a narrowed buffer
+    /// and no tail to restore it: either it pays the relayout it just proved
+    /// pointless, or it lets a narrow `height_opt` outlive the step, where the next
+    /// restyle that does NOT re-budget (a conceal reveal, a spell repaint) shapes
+    /// against it and truncates the document.
+    fn presentable_reach_height(&self, full: f32) -> f32 {
+        let want = self.presentable_shape_height();
+        if want < self.total_doc_height() {
+            want
+        } else {
+            full
+        }
     }
 
     /// Is an off-screen shaping TAIL still owed (see [`ShapeReach`])? True only
@@ -190,8 +255,10 @@ impl TextPipeline {
     /// `reach` picks the shaping BUDGET the following restyle fills (see
     /// [`ShapeReach`]). This is the ONE site that can narrow it, and it is also the
     /// one site that records the resulting debt — narrowed and owed cannot drift
-    /// apart. A `Presentable` budget that turns out to be the whole document anyway
-    /// (a short document, or a scroll near its end) owes nothing.
+    /// apart, in either direction and past the end of the step as well as within
+    /// it. A `Presentable` budget that would reach the whole document anyway
+    /// ([`Self::presentable_reach_height`]) is not taken at all, so `height_opt`
+    /// never leaves the full budget on a step that has no tail to pay.
     fn theme_font_adopt(&mut self, new_font: &'static str, new_theme: usize, reach: ShapeReach) {
         self.reshape_count += 1;
         self.shaped_font = new_font;
@@ -200,7 +267,7 @@ impl TextPipeline {
         let full = self.full_shape_height();
         let shape_h = match reach {
             ShapeReach::Whole => full,
-            ShapeReach::Presentable => self.presentable_shape_height(),
+            ShapeReach::Presentable => self.presentable_reach_height(full),
         };
         self.shape_tail_owed = shape_h < full;
         self.buffer

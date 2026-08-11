@@ -28,12 +28,12 @@ struct PickerStep {
     tail_ms: f64,
     at_present: usize,
     settled: usize,
-    /// Did the step DECLARE a debt — `presentable_shape_height` came out under
-    /// `full_shape_height`, so a `finish_shape_tail` ran?
+    /// Did the step DECLARE a debt — it narrowed the shaping budget, so a
+    /// `finish_shape_tail` ran?
     owed: bool,
     /// Did the step actually DEFER any rows? The split buys nothing where it did
-    /// not, and how often it does is a function of SCROLL DEPTH. Not the same
-    /// question as `owed`: see [`picker_step`].
+    /// not, and how often it does is a function of SCROLL DEPTH. Kept as its own
+    /// question rather than inferred from `owed`: see [`picker_step`].
     narrowed: bool,
 }
 
@@ -113,13 +113,21 @@ fn picker_step(
     // The teeth go where the shipped claim is — the document top, in
     // [`picker_sweep`].
     //
-    // `owed` and `narrowed` are recorded SEPARATELY and deliberately: the debt is
-    // set from a HEIGHT compare (`presentable < full`) while the saving is a ROW
-    // question, and at depth the two come apart — a budget shorter than
-    // `full_shape_height`'s deliberate over-estimate can still reach every row. A
-    // step in that state pays a `finish_shape_tail` (a `set_size`, a
-    // `shape_until_scroll` walk and a whole-document row-table rebuild) for no
-    // deferred rows at all.
+    // WHAT MUST HOLD AT EVERY DEPTH is the CORRECTNESS direction: a step that
+    // deferred rows must have declared the debt that pays them, or those rows carry
+    // no geometry past the step. The converse is a COST claim, not a correctness
+    // one, and it is deliberately only printed: `presentable_reach_height` decides
+    // whether to narrow BEFORE the shape, from the last fully-shaped pass's own
+    // document height, so a reshape that changes that height can still leave a
+    // debt with nothing behind it near the crossover depth. The counts below say
+    // how often.
+    ensure!(
+        at_present >= settled || paid,
+        "the step to {} deferred rows ({at_present} of {settled} shaped at the \
+         present) without declaring the debt that pays them — nothing would ever \
+         shape the rest",
+        world.name
+    );
     Ok(Some(PickerStep {
         face,
         shape_ms,
@@ -259,12 +267,48 @@ fn picker_sweep(
     // must defer something on every arrow, or this arm is the whole-document step
     // under another name. At DEPTH it is expected to defer less and eventually
     // nothing — that shrinking is the measurement, not a failure.
-    if matches!(reach, ShapeReach::Presentable) && scroll_frac == 0.0 {
+    assert_depth_curve(reach, scroll_frac, hops, narrowed, owed)
+}
+
+/// The split arm's own NON-VACUITY, at the two depths where the shipped claim is
+/// specific enough to have teeth. Held apart from [`picker_sweep`] because it is
+/// the only part of that function that asserts rather than measures, and because
+/// the two ends want opposite things.
+///
+/// At the document TOP every arrow must defer something, or this arm is the
+/// whole-document step under another name. At the document END the debt must
+/// follow the DEFERRAL rather than `full_shape_height`'s deliberate over-estimate:
+/// a decider that answers the HEIGHT question declares one on every single arrow
+/// here (a budget that already reaches the last row is still far under the
+/// over-estimate) and buys two whole-document relayouts per arrow with it. The
+/// bound there is `< hops` rather than a count, because how many arrows still
+/// genuinely defer at max scroll is a property of the fixture and of how much each
+/// world's face moves the wrapped-row count.
+fn assert_depth_curve(
+    reach: ShapeReach,
+    scroll_frac: f32,
+    hops: usize,
+    narrowed: usize,
+    owed: usize,
+) -> anyhow::Result<()> {
+    if !matches!(reach, ShapeReach::Presentable) {
+        return Ok(());
+    }
+    if scroll_frac == 0.0 {
         ensure!(
             narrowed == hops,
             "at the document top the split arm deferred nothing on {} of {hops} \
              arrows — it is measuring the whole-document step under another name",
             hops - narrowed
+        );
+    }
+    if scroll_frac == 1.0 {
+        ensure!(
+            owed < hops,
+            "at the document end the split arm declared a debt on all {hops} arrows \
+             while deferring rows on {narrowed} — the debt is being decided against \
+             `full_shape_height`'s deliberate over-estimate rather than against the \
+             document"
         );
     }
     Ok(())

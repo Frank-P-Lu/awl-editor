@@ -60,6 +60,16 @@
 //! and reach. It is the law any future attempt to shape from the VIEWPORT rather
 //! than from the document's first row has to satisfy, and the reason such an
 //! attempt is not a small change: see that law's own docs.
+//!
+//! All three of those are satisfied by a split that has stopped BUYING anything:
+//! they say what it must never break, not what it is for. The last law here,
+//! [`a_preview_step_owes_a_tail_exactly_where_it_defers_rows`], holds it to its
+//! purpose — and it is needed because the gap between the two is a UNITS
+//! mismatch. The debt was decided by a HEIGHT compare against a budget that
+//! deliberately over-estimates, while the saving is a ROW question, so every
+//! arrow taken near the document's END declared a debt with no deferred rows
+//! behind it and paid two whole-document relayouts for it, green above
+//! throughout.
 
 use super::{headless_pipeline, view};
 use crate::render::{OFFSCREEN_CULL_MARGIN_ROWS, ShapeReach};
@@ -590,6 +600,232 @@ fn row_geometry_keeps_the_documents_own_origin_at_every_scroll_depth() {
             }
         }
     }
+
+    crate::theme::set_active_by_name(entered);
+}
+
+/// The depths a preview arrow is taken from. Both ENDS of the curve are the
+/// claim — the top, where the split must still pay for itself, and the last row,
+/// where it must cost nothing — and the middle is swept because the crossover
+/// between them is where a units error hides: it produces a plausible-looking
+/// curve everywhere except at the end.
+fn preview_depths(lines: usize) -> [usize; 7] {
+    [
+        0,
+        lines / 8,
+        lines / 4,
+        lines / 2,
+        3 * lines / 4,
+        7 * lines / 8,
+        lines - 1,
+    ]
+}
+
+/// ONE preview arrow of [`a_preview_step_owes_a_tail_exactly_where_it_defers_rows`],
+/// taken from `depth` in a document already settled on the departure world:
+/// scroll there, hop to `to` at the [`ShapeReach::Presentable`] reach, and assert
+/// the whole of that law over the one arrow. Returns whether it DEFERRED rows, so
+/// the sweep can close its own non-vacuity over the curve.
+///
+/// Split out of the sweep because it is the law's body rather than its axes —
+/// everything here is per-arrow and reads none of the sweep's counters.
+fn preview_arrow_defers(
+    p: &mut crate::render::TextPipeline,
+    v: &mut crate::render::ViewState,
+    to: &str,
+    depth: usize,
+    lines: usize,
+    config: &str,
+) -> bool {
+    // Park the viewport, then take a real preview arrow from it.
+    v.scroll = p.scroll_by_px(crate::render::ScrollPos::at_row(depth), 0.0, p.window_h);
+    p.set_view(v);
+    let at = format!("{config} · scroll row {}/{lines}", v.scroll.row);
+
+    // WITNESS THE WORK: a hop that quietly stopped reshaping would sail through
+    // every assertion below on the previous world's shaping. Asked AFTER the world
+    // moves — `needs_theme_reshape` compares the shaped face against the ACTIVE one.
+    crate::theme::set_active_by_name(to);
+    let must = p.needs_theme_reshape();
+    let before = p.reshape_count;
+    p.sync_theme_colors();
+    p.sync_theme_font(ShapeReach::Presentable);
+    assert!(
+        must && p.reshape_count > before,
+        "the arrow did not reshape (needs_theme_reshape {must}, reshape_count \
+         {before} -> {}) — {at}",
+        p.reshape_count
+    );
+
+    // The two halves of the step, read at the two moments that matter.
+    let owed = p.shape_tail_owed();
+    let at_present = p.total_visual_rows();
+    p.finish_shape_tail();
+    let settled = p.total_visual_rows();
+    let deferred = at_present < settled;
+
+    // THE LAW.
+    assert_eq!(
+        owed,
+        deferred,
+        "the step {} a tail while shaping {at_present} of {settled} rows before its \
+         present: a debt is a claim that rows were DEFERRED, and paying one for rows \
+         that were already shaped costs two whole-document relayouts for nothing — {at}",
+        if owed { "owed" } else { "owed no" }
+    );
+    // Unweakened and restated AT DEPTH, which is where this law's own change lives:
+    // the whole-document sweep above only ever runs at scroll row 0.
+    assert_eq!(
+        settled, lines,
+        "the step ended with {settled} of {lines} rows shaped — an unshaped tail \
+         carries no geometry at all — {at}"
+    );
+    assert!(
+        !p.shape_tail_owed(),
+        "the step ended still owing a tail — {at}"
+    );
+
+    // THE TWO ENDS OF THE CURVE, which are the shipped claim itself.
+    if depth == 0 {
+        assert!(
+            deferred,
+            "at the document top the arrow deferred nothing ({at_present} of {settled} \
+             rows shaped before the present) — the split is the whole-document step \
+             under another name — {at}"
+        );
+    }
+    if depth == lines - 1 {
+        assert!(
+            !deferred && !owed,
+            "at the document's last row the arrow deferred {} rows and owed {owed}: \
+             the paintable band already reaches the last row here, so there is nothing \
+             to defer and a debt is pure cost — {at}",
+            settled - at_present
+        );
+    }
+    deferred
+}
+
+/// A preview step declares a shaping DEBT exactly where it DEFERS rows — the two
+/// are the same question, and it is a question about ROWS.
+///
+/// [`every_theme_arrow_shapes_the_whole_document_by_the_end_of_its_step`] above
+/// pins what the split must never break. This law pins what it must never stop
+/// buying, and it exists because the two are separated by a UNITS mismatch that
+/// leaves every assertion in that law green.
+///
+/// The saving is bought by leaving rows unshaped: shaping only what the frame can
+/// paint is cheaper than shaping the document exactly to the extent that some of
+/// the document is not shaped. Ask instead whether the paint budget is shorter
+/// than [`TextPipeline::full_shape_height`] — a HEIGHT compare against a budget
+/// that deliberately over-estimates (~8 wrapped rows per logical line, plus every
+/// reserved image height) — and the answer is `true` in a region where the saving
+/// is exactly zero: at a scroll near the document's END the paintable band already
+/// reaches the last row while sitting far under the over-estimate. A step there
+/// declares a debt, pays a whole-document `set_size` to narrow and another to
+/// restore (cosmic-text relayouts every laid-out line on any height change), and
+/// defers nothing. Measured on a 1948-row fixture across the twenty-world roster
+/// it was 20 debts, 0 deferred rows, and a per-step regression against the
+/// unsplit step it replaced.
+///
+/// So the oracle here is the pair (`shape_tail_owed`, `rows shaped at the present
+/// < rows shaped at the step boundary`), and the law is that they agree — swept
+/// across scroll DEPTH, which is the axis the units mismatch is invisible on
+/// anywhere but its far end, and across DPI and FACE, because the budget is built
+/// out of `line_height` and the crossover depth moves with it.
+///
+/// THE FIXTURE CARRIES THE PREMISE. `presentable_reach_height` decides whether to
+/// narrow BEFORE the reshape, from the last fully-shaped pass's own document
+/// height, so the biconditional is exact only where a reshape does not change that
+/// height. `tall_doc` never wraps and carries no heading or image row, so its
+/// height is `LINES * line_height` in every world — asserted below rather than
+/// assumed, so this law reports the death of its own premise instead of quietly
+/// becoming a coin flip.
+#[test]
+fn a_preview_step_owes_a_tail_exactly_where_it_defers_rows() {
+    let _t = crate::testlock::serial();
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!(
+            "skipping a_preview_step_owes_a_tail_exactly_where_it_defers_rows: no wgpu adapter"
+        );
+        return;
+    };
+    let entered = crate::theme::active().name;
+
+    const LINES: usize = 400;
+    let text = tall_doc(LINES);
+
+    // The ARRIVAL face is swept as well as the departure one: the budget is built
+    // from the metrics, and a world's face is what a preview arrow changes.
+    const HOPS: [(&str, &str); 4] = [
+        ("Mangrove", "Bombora"),
+        ("Bombora", "Galah"),
+        ("Galah", "Tawny"),
+        ("Tawny", "Mangrove"),
+    ];
+
+    // How the curve came out, counted rather than assumed — the two ends are
+    // asserted per sample below, and these close the sweep's own non-vacuity.
+    let (mut deferring, mut whole_reach) = (0usize, 0usize);
+
+    for dpi in [1.0f32, 2.0] {
+        p.set_dpi(dpi);
+        for (from, to) in HOPS {
+            let mut v = view(&text, 0, 0);
+            crate::theme::set_active_by_name(from);
+            p.set_view(&v);
+            // Settle onto the departure world at the WHOLE reach, so the arrow below
+            // starts from a fully shaped document — the state a real picker arrow is
+            // always taken from, and the state whose row table the decision reads.
+            p.sync_theme();
+
+            let line_h = p.metrics.line_height;
+            let reach = Reach::measure(&p, LINES);
+            let config = format!("{} · dpi {dpi} · {from} -> {to}", reach.config);
+
+            // THE PREMISE, asserted: on this fixture the document's own height is a
+            // property of the metrics alone, so "the budget covers the document"
+            // means the same thing before and after the reshape.
+            assert_eq!(
+                p.total_doc_height().to_bits(),
+                (LINES as f32 * line_h).to_bits(),
+                "the fixture is {} tall where {LINES} non-wrapping rows of {line_h:.3} \
+                 make {} — this law's biconditional rests on that height being \
+                 face-independent — {config}",
+                p.total_doc_height(),
+                LINES as f32 * line_h
+            );
+
+            for depth in preview_depths(LINES) {
+                // Back to the departure world, settled and WHOLE — the previous
+                // depth's arrow left the pipeline in `to`, and a hop to the world it
+                // is already in reshapes nothing.
+                crate::theme::set_active_by_name(from);
+                p.sync_theme();
+                if preview_arrow_defers(&mut p, &mut v, to, depth, LINES, &config) {
+                    deferring += 1;
+                } else {
+                    whole_reach += 1;
+                }
+            }
+        }
+    }
+
+    // NON-VACUITY over the sweep as a whole: this law is a claim about a CURVE, and
+    // a sweep that landed entirely on one side of it would satisfy every assertion
+    // above while pinning only one of the two states.
+    let samples = 2 * HOPS.len() * preview_depths(LINES).len();
+    assert_eq!(
+        deferring + whole_reach,
+        samples,
+        "{} of {samples} arrows were counted",
+        deferring + whole_reach
+    );
+    assert!(
+        deferring > 0 && whole_reach > 0,
+        "the depth sweep produced {deferring} deferring arrows and {whole_reach} \
+         whole-reach ones — it never crossed the curve this law is about"
+    );
 
     crate::theme::set_active_by_name(entered);
 }
