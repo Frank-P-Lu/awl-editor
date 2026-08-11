@@ -1297,10 +1297,10 @@ impl TextPipeline {
         // The caret's line, read from the row table the LAST fully-shaped pass built
         // (this runs before the restyle that invalidates it), plus the same
         // wrapped-row allowance `full_shape_height` budgets per logical line.
-        let caret_bottom = self
-            .row_geom
-            .line_first_top(&self.buffer, &self.metrics, self.cursor_line)
-            + 8.0 * self.metrics.line_height;
+        let caret_bottom =
+            self.row_geom
+                .line_first_top(&self.buffer, &self.metrics, self.cursor_line)
+                + 8.0 * self.metrics.line_height;
         let want = self.metrics.px(TEXT_TOP)
             + seen_bottom.max(caret_bottom)
             + margin

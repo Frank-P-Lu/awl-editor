@@ -592,8 +592,15 @@ fn picker_sweep(
         step_total += shape_ms + s.total + tail_ms;
         println!(
             "{:>10} | {:>21} | {:>8.1}ms | {:>8.1}ms | {:>9.1}ms | {:>8.1}ms | {:>8.1}ms | {:>5}/{:<5}",
-            world.name, face, shape_ms, s.total, shape_ms + s.total, tail_ms,
-            shape_ms + s.total + tail_ms, at_present, settled
+            world.name,
+            face,
+            shape_ms,
+            s.total,
+            shape_ms + s.total,
+            tail_ms,
+            shape_ms + s.total + tail_ms,
+            at_present,
+            settled
         );
     }
     println!(

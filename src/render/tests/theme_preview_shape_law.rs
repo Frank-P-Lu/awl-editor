@@ -338,8 +338,14 @@ fn identical_settled_geometry_whichever_reach_the_step_took() {
         );
         for row in 0..whole.total_visual_rows() {
             assert_eq!(
-                (split.row_top_px(row).to_bits(), split.row_height_px(row).to_bits()),
-                (whole.row_top_px(row).to_bits(), whole.row_height_px(row).to_bits()),
+                (
+                    split.row_top_px(row).to_bits(),
+                    split.row_height_px(row).to_bits()
+                ),
+                (
+                    whole.row_top_px(row).to_bits(),
+                    whole.row_height_px(row).to_bits()
+                ),
                 "{from} -> {}: row {row} geometry differs — split ({}, {}) vs whole ({}, {}) \
                  — {config}",
                 world.name,
