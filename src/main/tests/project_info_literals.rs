@@ -85,6 +85,13 @@ fn every_capture_project_info_literal_is_accounted_for() {
         // `run::project_info` would make the oracle depend on what a real
         // launch happens to populate, which is the opposite of what it needs.
         ("capture/tests/capture_md_drift.rs", 1),
+        // A hand-built LEAK fixture: every path field anchored under the real
+        // `$HOME` BY CONSTRUCTION, so the home-redaction sweep enrols the same
+        // way on a developer machine and on a runner whose checkout sits
+        // outside its home. `run::project_info` would derive those paths from
+        // wherever this checkout happens to be — exactly the
+        // configuration-dependent enrolment that sweep must not have.
+        ("capture/tests/redact_law.rs", 1),
         // A hand-built sidecar FIXTURE: no root, no filesystem, no derivation
         // to get wrong — it exists to pin the JSON schema's chrome block.
         ("capture/tests/schema_chrome.rs", 1),
