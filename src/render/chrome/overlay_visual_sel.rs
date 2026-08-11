@@ -118,6 +118,27 @@ pub(in crate::render) fn overlay_selected_rail_srgb() -> Option<theme::Srgb> {
         .flatten()
 }
 
+/// **THE FILL A SELECTED / ACTIVE OVERLAY ROW IS DRAWN IN — the one owner, and
+/// the twin of [`overlay_selected_primary_ink`].**
+///
+/// The two halves of one decision: what the band is, and what reads on it. They
+/// were separate for as long as four chrome sites each re-derived the fill from
+/// `highlight_treatment` while only some of them asked this module for the ink,
+/// and a surface that took the fill without the ink shipped a label the colour
+/// of its own band — Wagtail's Settings rail, a solid white plate over a label
+/// shaped in white content ink, byte-exactly invisible.
+///
+/// So the fill comes from HERE and its ink comes from the function below, in
+/// that pair, on every surface. `render::tests::rail_ink_law` holds the pairing
+/// by name: no file under `render/chrome/` but this one may reach
+/// `effective_overlay_selrow_band` again.
+pub(in crate::render) fn overlay_selected_band_srgb() -> theme::Srgb {
+    match theme::active().highlight_treatment(crate::render::effective_overlay_selrow_band()) {
+        theme::HighlightTreatment::ValueBand(c) => c,
+        theme::HighlightTreatment::InverseFill { band, .. } => band,
+    }
+}
+
 /// The PRIMARY label's on-band ink, or `None` when the world's band needs no
 /// flip (the glyph keeps `base_content` and reads fine on the fill). ONE owner
 /// so the shaper, the theme picker's own shaper, and the selection probe cannot
@@ -130,6 +151,14 @@ pub(in crate::render) fn overlay_selected_primary_ink() -> Option<glyphon::Color
             (flipped != theme::base_content()).then(|| flipped.to_glyphon())
         }
     }
+}
+
+/// [`overlay_selected_primary_ink`] RESOLVED — the colour a label ON the band is
+/// actually shaped in, flip or no flip. The rail's active category and any other
+/// surface that draws one label on one band asks this rather than unwrapping the
+/// `Option` itself, so "no flip needed" cannot be spelled two ways.
+pub(in crate::render) fn overlay_selected_label_ink() -> glyphon::Color {
+    overlay_selected_primary_ink().unwrap_or_else(|| theme::base_content().to_glyphon())
 }
 
 /// The SECONDARY column's on-band ink (the shortcut / time / git value beside a

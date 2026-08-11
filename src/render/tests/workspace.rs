@@ -32,14 +32,14 @@ const CANVASES: &[(u32, u32)] = &[
     (480, 640),
 ];
 
-fn settings_values() -> crate::settings::SettingsValues {
+pub(super) fn settings_values() -> crate::settings::SettingsValues {
     super::settings_values(1.0, 1.0)
 }
 
 /// A REAL Settings workspace card, built exactly as `overlay::build`'s Settings
 /// arm builds it, standing on `lens` with `detail` deciding which region has
 /// focus. Focus moves through the LIFECYCLE, never by assignment.
-fn workspace_card(lens: usize, detail: bool) -> OverlayState {
+pub(super) fn workspace_card(lens: usize, detail: bool) -> OverlayState {
     let vals = settings_values();
     let mut ov = OverlayState::new(
         OverlayKind::Settings,
@@ -58,7 +58,7 @@ fn workspace_card(lens: usize, detail: bool) -> OverlayState {
 }
 
 /// Fold a workspace card into a `ViewState` the way `App::sync_view` does.
-fn workspace_view(ov: &OverlayState) -> ViewState {
+pub(super) fn workspace_view(ov: &OverlayState) -> ViewState {
     let mut v = view("hello\nthere\n", 0, 0);
     v.overlay_active = true;
     v.overlay_title = OverlayKind::Settings.title();

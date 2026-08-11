@@ -83,12 +83,10 @@ impl TextPipeline {
             }
             theme::ListStyle::Pane | theme::ListStyle::Bars | theme::ListStyle::Diagonal(_) => {}
         }
-        let band = match theme::active()
-            .highlight_treatment(crate::render::effective_overlay_selrow_band())
-        {
-            theme::HighlightTreatment::ValueBand(c) => c,
-            theme::HighlightTreatment::InverseFill { band, .. } => band,
-        };
+        // The fill and the ink that reads on it are ONE decision, taken in one
+        // place (`overlay_visual_sel`); this arm takes the fill and
+        // `workspace_shape_rail` takes its ink from the same pair.
+        let band = super::overlay_selected_band_srgb();
         let rgba = match geom.rows_focused {
             true => super::workspace::dimmed(band, super::workspace::UNFOCUSED_MARK_ALPHA),
             false => band.rgba_bytes(),
@@ -260,7 +258,7 @@ impl TextPipeline {
     /// SHAPE the rail's labels into their own buffer and record EVERY entry's
     /// rect. Returns whether a rail was shaped at all.
     ///
-    /// The active entry takes content ink and the rest muted, the same
+    /// The active entry takes the SELECTED-BAND ink and the rest muted, the same
     /// figure/ground grammar every picker row uses; the rects are handed to
     /// [`super::overlay_rows`]'s facet-mark owner rather than drawn here, so the
     /// rail's mark and the content pane's come out of the same treatment.
@@ -281,7 +279,13 @@ impl TextPipeline {
             .set_size(&mut self.font_system, Some(w), None);
         self.workspace_rail_buffer
             .set_wrap(&mut self.font_system, Wrap::None);
-        let content = theme::base_content().to_glyphon();
+        // THE ACTIVE ENTRY'S INK COMES FROM THE SAME PAIR ITS BAND DOES.
+        // `prepare_rail_mark` lays a filled plate under this label, so the label
+        // is drawn ON that fill and has to be chosen for it — `base_content` is
+        // the right answer only on a world whose band already reads against it,
+        // and on a world whose band IS `base_content` (an inverse-video
+        // treatment) it is the fill's own colour, i.e. no label at all.
+        let active = super::overlay_selected_label_ink();
         let muted = theme::muted().to_glyphon();
         let base = panel_attrs();
         let faint = theme::faint().to_glyphon();
@@ -297,7 +301,7 @@ impl TextPipeline {
                 0 => label.clone(),
                 _ => format!("\n{label}"),
             };
-            spans.push((line, if *is_active { content } else { muted }));
+            spans.push((line, if *is_active { active } else { muted }));
         }
         // The footer follows the list (see `workspace_geometry`): when the pane
         // is drawing no rows it carries no hint either, so the rail carries it,
