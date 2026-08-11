@@ -456,25 +456,6 @@ fn assert_reshape_witness(
     Ok(())
 }
 
-/// ONE full arrow-sweep of the theme picker, at one [`ShapeReach`], from one
-/// scroll position — the measurement item 388 turns on.
-///
-/// The route is `theme::THEMES` in its own order, because that is exactly what
-/// `overlay::build`'s Theme arm hands the picker and therefore exactly what
-/// holding Down walks. `reach` picks which step shape is being timed:
-///
-/// * [`ShapeReach::Whole`] — today's step. One whole-document reshape, then the
-///   frame. `to-present` is the whole thing.
-/// * [`ShapeReach::Presentable`] — the split step. Shape what the frame can
-///   paint, present, then pay the off-screen tail. `to-present` is what the user
-///   waits for; `step` is the same total work as the `Whole` arm.
-///
-/// `scroll_frac` matters and is swept rather than assumed: the presentable budget
-/// runs from the document's FIRST row down past the viewport (cosmic-text fills
-/// from the buffer top), so the deeper the scroll the less tail there is to defer
-/// and the smaller the win. At the document's end there is none at all.
-///
-/// WITNESSED IN ROWS, not just millis (CLAUDE.md: a theme bench here once
 /// The device, queue, shader cache and render target the burst profiler draws
 /// through — one borrow instead of four at every call.
 #[derive(Clone, Copy)]
@@ -485,10 +466,119 @@ struct BurstGpu<'a> {
     target_view: &'a wgpu::TextureView,
 }
 
-/// "measured" 5 ms while nothing reshaped): every hop asserts its reshape counter
-/// against `needs_theme_reshape`, that the arm actually shaped the number of rows
-/// its reach implies, and that the step ENDS with the whole document shaped
-/// whichever arm ran.
+/// What one picker arrow cost, and how much of the document it had shaped at the
+/// two moments that matter: when its frame was presented, and when its step ended.
+struct PickerStep {
+    face: &'static str,
+    shape_ms: f64,
+    frame_ms: f64,
+    tail_ms: f64,
+    at_present: usize,
+    settled: usize,
+}
+
+impl PickerStep {
+    fn to_present(&self) -> f64 {
+        self.shape_ms + self.frame_ms
+    }
+    fn whole_step(&self) -> f64 {
+        self.to_present() + self.tail_ms
+    }
+}
+
+/// ONE arrow of the sweep: the reshape at `reach`, the frame it produces, and the
+/// off-screen tail that the same step pays afterwards. `None` when this hop has no
+/// reshape to do at all (only reachable when the sweep re-enters the world it
+/// started in), which is not an arrow worth timing.
+///
+/// WITNESSED IN ROWS, not just millis — CLAUDE.md's own tripwire: this bench once
+/// "measured" 5 ms while nothing reshaped. The reshape counter is checked against
+/// `needs_theme_reshape`, the arm must have shaped the number of rows its reach
+/// implies, and the step must END owing nothing whichever arm ran.
+fn picker_step(
+    gpu: &BurstGpu<'_>,
+    p: &mut TextPipeline,
+    view: &ViewState,
+    reach: ShapeReach,
+    world: crate::theme::Theme,
+) -> anyhow::Result<Option<PickerStep>> {
+    crate::theme::set_active_by_name(world.name);
+    let face = crate::theme::active().font;
+    let must_reshape = p.needs_theme_reshape();
+    let before = p.reshape_count;
+    let t0 = Instant::now();
+    p.sync_theme_colors();
+    p.sync_theme_font(reach);
+    let shape_ms = t0.elapsed().as_secs_f64() * 1e3;
+    assert_reshape_witness(
+        &format!("picker step to {} ({face})", world.name),
+        before,
+        p.reshape_count,
+        must_reshape,
+    )?;
+    if !must_reshape {
+        return Ok(None);
+    }
+    p.set_view(view);
+    let frame = burst_frame(p, gpu.device, gpu.queue, gpu.target_view, true)?;
+    // The frame is presented; everything below is the same step's second half.
+    let at_present = p.total_visual_rows();
+    let t1 = Instant::now();
+    let paid = p.finish_shape_tail();
+    let tail_ms = t1.elapsed().as_secs_f64() * 1e3;
+    let settled = p.total_visual_rows();
+    // The settled count is NOT stable across worlds and must not be pinned to one:
+    // the wrap WIDTH is face-independent but the glyph ADVANCES inside it are not,
+    // so a proportional face fits a different number of characters per row than a
+    // mono one and the document genuinely has a different number of visual rows in
+    // each world. What must hold per hop is that nothing is owed. The cross-arm
+    // claim — that both reaches settle on the SAME geometry for a given world — is
+    // `theme_preview_shape_law`'s, where a control pipeline makes it provable.
+    ensure!(
+        !p.shape_tail_owed(),
+        "step to {} ended still owing a shaping tail",
+        world.name
+    );
+    match reach {
+        ShapeReach::Whole => ensure!(
+            !paid && at_present == settled,
+            "the whole-document arm presented {at_present} of {settled} rows (tail \
+             paid: {paid}) — this arm must never narrow"
+        ),
+        ShapeReach::Presentable => ensure!(
+            paid && at_present < settled,
+            "the split arm presented {at_present} of {settled} rows (tail paid: \
+             {paid}) — nothing was deferred, so this measures the whole-document step \
+             under another name"
+        ),
+    }
+    Ok(Some(PickerStep {
+        face,
+        shape_ms,
+        frame_ms: frame.total,
+        tail_ms,
+        at_present,
+        settled,
+    }))
+}
+
+/// ONE full arrow-sweep of the theme picker, at one [`ShapeReach`], from one
+/// scroll position.
+///
+/// The route is `theme::THEMES` in its own order, because that is exactly what
+/// `overlay::build`'s Theme arm hands the picker and therefore exactly what
+/// holding Down walks. `reach` picks which step shape is being timed:
+///
+/// * [`ShapeReach::Whole`] — today's step. One whole-document reshape, then the
+///   frame. `to-present` is the whole thing.
+/// * [`ShapeReach::Presentable`] — the split step. Shape what the frame can paint,
+///   present, then pay the off-screen tail. `to-present` is what the user waits
+///   for; `step` is the same total work as the `Whole` arm.
+///
+/// `scroll_frac` matters and is swept rather than assumed: the presentable budget
+/// runs from the document's FIRST row down past the viewport (cosmic-text fills
+/// from the buffer top), so the deeper the scroll the less tail there is to defer
+/// and the smaller the saving. At the document's end there is none at all.
 fn picker_sweep(
     gpu: &BurstGpu<'_>,
     buffer: &Buffer,
@@ -496,44 +586,43 @@ fn picker_sweep(
     reach: ShapeReach,
     scroll_frac: f32,
 ) -> anyhow::Result<()> {
-    let BurstGpu {
-        device,
-        queue,
-        cache,
-        target_view,
-    } = *gpu;
     crate::theme::set_active_by_name("Mangrove");
-    let mut p = TextPipeline::new(device, queue, cache, FORMAT);
+    let mut p = TextPipeline::new(gpu.device, gpu.queue, gpu.cache, FORMAT);
     p.set_size(BURST_WIDTH as f32, BURST_HEIGHT as f32);
     p.set_dpi(DPI);
     let mut view = live_view(buffer, misspelled.to_vec());
     view.zoom = BURST_ZOOM;
     p.set_view(&view);
     for _ in 0..10 {
-        burst_frame(&mut p, device, queue, target_view, false)?;
+        burst_frame(&mut p, gpu.device, gpu.queue, gpu.target_view, false)?;
     }
     // The settled row count is read AFTER the warm frames, not before them: the
     // first prepare's reveal-on-cursor conceal re-lays the markdown markup and the
-    // document's visual rows move under it. Reading it early pins a count the
-    // editor never actually sits at.
-    let settled_rows = p.total_visual_rows();
-    let start_row = ((settled_rows as f32) * scroll_frac) as usize;
+    // document's visual rows move under it. Reading it early pins a count the editor
+    // never actually sits at.
+    let start_row = ((p.total_visual_rows() as f32) * scroll_frac) as usize;
     view.scroll = crate::render::ScrollPos::at_row(start_row);
     p.set_view(&view);
     for _ in 0..10 {
-        burst_frame(&mut p, device, queue, target_view, false)?;
+        burst_frame(&mut p, gpu.device, gpu.queue, gpu.target_view, false)?;
     }
     let whole_rows = p.total_visual_rows();
     let viewport_rows = BURST_HEIGHT as f32 / p.metrics.line_height;
+    // NON-VACUITY: a sweep over a document the window already fits has no
+    // off-screen tail to defer and would time two identical arms.
+    ensure!(
+        whole_rows as f32 > 4.0 * viewport_rows,
+        "fixture is {whole_rows} rows against a {viewport_rows:.0}-row window — it no \
+         longer overflows, and this sweep would measure nothing"
+    );
 
     let arm = match reach {
         ShapeReach::Whole => "whole document, then present (today)",
-        ShapeReach::Presentable => "present, then the tail — same step (388)",
+        ShapeReach::Presentable => "present, then the tail — same step",
     };
     println!();
     println!(
-        "---- picker sweep · {arm} · scroll row {start_row}/{whole_rows} \
-         ({:.0}%) ----",
+        "---- picker sweep · {arm} · scroll row {start_row}/{whole_rows} ({:.0}%) ----",
         scroll_frac * 100.0
     );
     println!(
@@ -543,82 +632,28 @@ fn picker_sweep(
 
     let (mut to_present, mut step_total, mut hops) = (0.0f64, 0.0f64, 0usize);
     for world in crate::theme::THEMES {
-        crate::theme::set_active_by_name(world.name);
-        let face = crate::theme::active().font;
-        let must_reshape = p.needs_theme_reshape();
-        let before = p.reshape_count;
-        let t0 = Instant::now();
-        p.sync_theme_colors();
-        p.sync_theme_font(reach);
-        let shape_ms = t0.elapsed().as_secs_f64() * 1e3;
-        assert_reshape_witness(
-            &format!("picker step to {} ({face})", world.name),
-            before,
-            p.reshape_count,
-            must_reshape,
-        )?;
-        if !must_reshape {
+        let Some(s) = picker_step(gpu, &mut p, &view, reach, world)? else {
             continue;
-        }
+        };
         hops += 1;
-        p.set_view(&view);
-        let s = burst_frame(&mut p, device, queue, target_view, true)?;
-        // The frame is presented; everything below is the same step's second half.
-        let at_present = p.total_visual_rows();
-        let t1 = Instant::now();
-        let paid = p.finish_shape_tail();
-        let tail_ms = t1.elapsed().as_secs_f64() * 1e3;
-        let settled = p.total_visual_rows();
-        // The settled count is NOT stable across worlds and must not be pinned to
-        // one: the wrap width is face-independent but the ADVANCES inside it are
-        // not, so a proportional face fits a different number of characters per row
-        // than a mono one and the document genuinely has a different number of
-        // visual rows in each world. What must hold is that nothing is owed and the
-        // document is much taller than the window — the cross-arm claim (both
-        // reaches settle on the SAME geometry per world) is
-        // `theme_preview_shape_law`'s, proven there against a control pipeline.
-        ensure!(
-            !p.shape_tail_owed(),
-            "step to {} ended still owing a shaping tail",
-            world.name
-        );
-        ensure!(
-            settled as f32 > 4.0 * viewport_rows,
-            "step to {} settled at {settled} rows against a {viewport_rows:.0}-row \
-             window — the fixture no longer overflows and this sweep measures nothing",
-            world.name
-        );
-        match reach {
-            ShapeReach::Whole => ensure!(
-                !paid && at_present == settled,
-                "the whole-document arm presented {at_present} of {settled} rows \
-                 (tail paid: {paid}) — this arm must never narrow"
-            ),
-            ShapeReach::Presentable => ensure!(
-                paid && at_present < settled,
-                "the split arm presented {at_present} of {settled} rows (tail paid: \
-                 {paid}) — nothing was deferred, so this measures the whole-document \
-                 step under another name"
-            ),
-        }
-        to_present += shape_ms + s.total;
-        step_total += shape_ms + s.total + tail_ms;
+        to_present += s.to_present();
+        step_total += s.whole_step();
         println!(
             "{:>10} | {:>21} | {:>8.1}ms | {:>8.1}ms | {:>9.1}ms | {:>8.1}ms | {:>8.1}ms | {:>5}/{:<5}",
             world.name,
-            face,
-            shape_ms,
-            s.total,
-            shape_ms + s.total,
-            tail_ms,
-            shape_ms + s.total + tail_ms,
-            at_present,
-            settled
+            s.face,
+            s.shape_ms,
+            s.frame_ms,
+            s.to_present(),
+            s.tail_ms,
+            s.whole_step(),
+            s.at_present,
+            s.settled
         );
     }
     println!(
-        "  {hops} arrows · input->present {to_present:.1}ms total, {:.1}ms mean · \
-         whole step {step_total:.1}ms total, {:.1}ms mean",
+        "  {hops} arrows · input->present {to_present:.1}ms total, {:.1}ms mean · whole \
+         step {step_total:.1}ms total, {:.1}ms mean",
         to_present / hops as f64,
         step_total / hops as f64
     );

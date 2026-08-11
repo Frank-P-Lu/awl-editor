@@ -69,6 +69,68 @@ fn tall_doc(n: usize) -> String {
         .join("\n")
 }
 
+/// Everything this law derives from the fixture and the LIVE metrics, plus the
+/// non-vacuity guards over them. Split out of the sweep because it is setup, not
+/// law: nothing here asserts anything about a theme arrow.
+struct Reach {
+    /// Rows the window can show — derived from the live metrics rather than
+    /// written down, so a zoom/DPI/menu-bar change moves every bound with it.
+    viewport_rows: f32,
+    /// How many viewports of document sit off-screen.
+    multiple: f32,
+    /// `rects::row_box_visible`'s own cull band, in rows.
+    cull_rows: f32,
+    /// The rows a frame is ALLOWED to paint into: the window plus the cull band
+    /// on each side. The presented frame must have shaped at least these.
+    paintable_rows: f32,
+    /// The most a WINDOW-bounded reach ever needs: the viewport, the cull band,
+    /// and one further window of slack that keeps the truncated document taller
+    /// than the viewport so `max_scroll` cannot clamp the frame's own scroll.
+    /// Anything materially past this is the document leaking back into the cost.
+    window_bound: f32,
+    /// The configuration every failure message reports (CLAUDE.md: a check runs in
+    /// one configuration, and that configuration is itself an untested hypothesis).
+    config: String,
+}
+
+impl Reach {
+    fn measure(p: &crate::render::TextPipeline, lines: usize) -> Self {
+        let viewport_rows = (p.window_h / p.metrics.line_height).max(1.0);
+        let config = format!(
+            "window {}x{} @dpi {} · line_height {:.1} · viewport {viewport_rows:.1} rows · \
+             doc {lines} rows",
+            p.window_w, p.window_h, p.dpi, p.metrics.line_height
+        );
+        let cull_rows = OFFSCREEN_CULL_MARGIN_ROWS.0;
+        let me = Self {
+            viewport_rows,
+            multiple: lines as f32 / viewport_rows,
+            cull_rows,
+            paintable_rows: viewport_rows + 2.0 * cull_rows,
+            window_bound: 3.0 * viewport_rows + 3.0 * cull_rows,
+            config,
+        };
+        // NON-VACUITY: this law is a claim about rows the window CANNOT show. If
+        // the fixture ever stops overflowing the viewport there are no such rows
+        // and every assertion in the sweep would pass while proving nothing.
+        assert!(
+            me.multiple >= MIN_OFFSCREEN_MULTIPLE,
+            "fixture no longer overflows the viewport ({:.1}x < {MIN_OFFSCREEN_MULTIPLE:.1}x): \
+             this law would say nothing about off-screen rows — {}",
+            me.multiple,
+            me.config
+        );
+        assert!(
+            me.window_bound < lines as f32,
+            "the window bound ({:.0} rows) is not smaller than the document ({lines} rows): \
+             the split cannot be observed on this fixture — {}",
+            me.window_bound,
+            me.config
+        );
+        me
+    }
+}
+
 /// EVERY arrow of a full theme-picker sweep presents a frame shaped only as far
 /// as that frame can paint, and leaves the WHOLE document shaped by the end of
 /// its own step.
@@ -105,43 +167,14 @@ fn every_theme_arrow_shapes_the_whole_document_by_the_end_of_its_step() {
     const LINES: usize = 400;
     let text = tall_doc(LINES);
     p.set_view(&view(&text, 0, 0));
-
-    // REPORT THE CONFIGURATION THIS RAN IN (CLAUDE.md: a check runs in one
-    // configuration, and that configuration is itself an untested hypothesis).
-    // The viewport's row capacity is derived from the live metrics rather than
-    // written down, so a zoom/DPI/menu-bar change moves the guard with it.
-    let viewport_rows = (p.window_h / p.metrics.line_height).max(1.0);
-    let config = format!(
-        "window {}x{} @dpi {} · line_height {:.1} · viewport {:.1} rows · doc {LINES} rows",
-        p.window_w, p.window_h, p.dpi, p.metrics.line_height, viewport_rows
-    );
-
-    // NON-VACUITY: this law is a claim about rows the window CANNOT show. If the
-    // fixture ever stops overflowing the viewport there are no such rows and
-    // every assertion below would pass while proving nothing.
-    let multiple = LINES as f32 / viewport_rows;
-    assert!(
-        multiple >= MIN_OFFSCREEN_MULTIPLE,
-        "fixture no longer overflows the viewport ({multiple:.1}x < \
-         {MIN_OFFSCREEN_MULTIPLE:.1}x): this law would say nothing about off-screen rows — {config}"
-    );
-
-    // The band a frame is ALLOWED to paint into: the window plus
-    // `rects::row_box_visible`'s cull margin on each side. Read from the same
-    // constant the cull reads, so the floor below cannot drift away from what the
-    // renderer actually asks for.
-    let cull_rows = OFFSCREEN_CULL_MARGIN_ROWS.0;
-    let paintable_rows = viewport_rows + 2.0 * cull_rows;
-    // The presentable reach is bounded by the WINDOW: the viewport, the cull
-    // margin, and one further window of slack that keeps the truncated document
-    // taller than the viewport so `max_scroll` cannot clamp the frame's own
-    // scroll. Anything materially past that is the document leaking back in.
-    let window_bound = 3.0 * viewport_rows + 3.0 * cull_rows;
-    assert!(
-        window_bound < LINES as f32,
-        "the window bound ({window_bound:.0} rows) is not smaller than the document \
-         ({LINES} rows): the split cannot be observed on this fixture — {config}"
-    );
+    let Reach {
+        viewport_rows,
+        multiple,
+        cull_rows,
+        paintable_rows,
+        window_bound,
+        config,
+    } = Reach::measure(&p, LINES);
 
     let mut reshaped_hops = 0usize;
     for world in crate::theme::THEMES {
