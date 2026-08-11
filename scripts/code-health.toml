@@ -128,8 +128,8 @@ lines = 567
 
 [[file_size_mark]]
 file = "src/capture.rs"
-lines = 80
-reason = "One `/N` row in the schema ledger, which must move in the same commit as `SCHEMA_VERSION` (+1). Items 296/300 (the notice becomes photographable and findable) and 131e/303 (the diagonal mark's weight becomes world data) both landed in this file; the count here is measured on the MERGED tree, which matched neither lane's own figure. +4: the `/201` schema-ledger row and `mod plan_sidecar` -- the overlay's planned-geometry serializer, split into its own file rather than grown inside the one sidecar writer, whose own mark is therefore held at 871 exactly. The row and SCHEMA_VERSION must move in the same commit, which this file's own law enforces. +4 again, for the `/202` row: a schema bump costs the const line plus its ledger row, and this file's own law requires both in one commit, so this mark moves once per bump by construction."
+lines = 81
+reason = "One `/N` row in the schema ledger, which must move in the same commit as `SCHEMA_VERSION` (+1). Items 296/300 (the notice becomes photographable and findable) and 131e/303 (the diagonal mark's weight becomes world data) both landed in this file; the count here is measured on the MERGED tree, which matched neither lane's own figure. +4: the `/201` schema-ledger row and `mod plan_sidecar` -- the overlay's planned-geometry serializer, split into its own file rather than grown inside the one sidecar writer, whose own mark is therefore held at 871 exactly. The row and SCHEMA_VERSION must move in the same commit, which this file's own law enforces. +4 again, for the `/202` row: a schema bump costs the const line plus its ledger row, and this file's own law requires both in one commit, so this mark moves once per bump by construction. +1: the `redact` module declaration. Redaction runs over the FINISHED artifact text at the single writer, so a path-bearing field added later cannot opt out of it — which per-field relativising could not promise."
 
 [[file_size_mark]]
 file = "src/capture/modes.rs"
@@ -195,7 +195,7 @@ lines = 524
 
 [[file_size_mark]]
 file = "src/fs.rs"
-lines = 1207
+lines = 1227
 
 [[file_size_mark]]
 file = "src/history/store.rs"
@@ -208,7 +208,7 @@ lines = 841
 [[file_size_mark]]
 file = "src/keymap.rs"
 lines = 1130
-reason = "+2: `KeymapFlavor` joins `enum_with_all!`, which derives its `ALL` roster from the same variant list rather than from a second one. The generated reference reads that roster to document `keymap`'s accepted values, and the macro's wrapper is the whole cost — a hand-written `ALL` beside the enum would be longer and could drift. +1 from item 273's residual (4): the Reference command's own arm/entry, the third consumer of the new open_bundled_doc owner. +10: the TagDocumentLanguage variant, its doc, and its is_edit entry. It edits the buffer, so the classification is load-bearing rather than bookkeeping."
+reason = "+2: `KeymapFlavor` joins `enum_with_all!`, which derives its `ALL` roster from the same variant list rather than from a second one. The generated reference reads that roster to document `keymap`'s accepted values, and the macro's wrapper is the whole cost — a hand-written `ALL` beside the enum would be longer and could drift. +1 from item 273's residual (4): the Reference command's own arm/entry, the third consumer of the new open_bundled_doc owner. +10: the TagDocumentLanguage variant, its doc, and its is_edit entry. It edits the buffer, so the classification is load-bearing rather than bookkeeping. +20: `home_dir` becomes the one lookup, with `data_root` and `args::resolve_default_folder` routed through it. The second of those was a third independent $HOME reader, and it is the one that made every sidecar on every developer machine carry an absolute home path with no flags passed."
 
 [[file_size_mark]]
 file = "src/keyspec.rs"
