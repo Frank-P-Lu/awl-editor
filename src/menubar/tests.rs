@@ -150,6 +150,60 @@ fn menu_bar_default_honours_the_forcing_and_otherwise_reads_a_named_const() {
     }
 }
 
+/// **THE GATE'S FORCED ARM MUST AIM AT THE BRANCH THIS HOST DOES NOT ALREADY RUN.**
+/// `scripts/native-gate.sh` runs the whole binary unit-test suite a third time under
+/// `AWL_MENU_BAR_FORCE`, and which value it forces is derived from `uname -s`: the
+/// arm is worth a full suite only if it is the OPPOSITE of the host's ambient
+/// default, because the two convention arms already run everything at the ambient.
+///
+/// That derivation is a second copy of [`platform_default`]'s fork, living in bash,
+/// and it fails the way enrolments fail — SILENTLY. Flip `MENU_BAR_DEFAULT_MACOS`
+/// and the gate keeps printing a full-suite arm, keeps taking the time, and sweeps
+/// the branch the conventions already swept; nothing goes red. So this law reads the
+/// script's own table and requires the two to agree. It is non-vacuous from both
+/// ends: flipping either const fails it, and so does editing the script's cases.
+#[test]
+fn the_gate_forces_the_branch_this_host_lacks() {
+    let script =
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("scripts/native-gate.sh");
+    let text = std::fs::read_to_string(&script).expect("native-gate.sh readable");
+    // `is_macos` per the script's own `uname -s` case, and the ambient it claims.
+    let cases: [(bool, &str); 2] = [(true, "Darwin)"), (false, "*)")];
+    for (is_macos, case) in cases {
+        let claimed = text
+            .lines()
+            .map(str::trim)
+            .find(|line| line.starts_with(case) && line.contains("gate_menubar_ambient="))
+            .and_then(|line| {
+                line.split("gate_menubar_ambient=")
+                    .nth(1)?
+                    .split_whitespace()
+                    .next()
+            })
+            .unwrap_or_else(|| {
+                panic!(
+                    "scripts/native-gate.sh no longer states `{case} gate_menubar_ambient=…` on \
+                     one line; this law cannot read the table the forced arm is aimed by, and an \
+                     unreadable table is an unaimed arm"
+                )
+            });
+        let claimed_on = match claimed {
+            "on" => true,
+            "off" => false,
+            other => panic!("scripts/native-gate.sh's `{case}` ambient is `{other}`, not on/off"),
+        };
+        assert_eq!(
+            claimed_on,
+            platform_default(is_macos),
+            "scripts/native-gate.sh believes a host with is_macos={is_macos} runs the menu bar \
+             {claimed} by default, but platform_default({is_macos})={}. The gate would force the \
+             branch that host ALREADY runs, and its full-suite arm would sweep nothing while \
+             costing a full suite.",
+            platform_default(is_macos)
+        );
+    }
+}
+
 /// `bar_height` IS DPI-INVARIANT AT MATCHED LOGICAL GEOMETRY, WITH A PRESENCE
 /// FLOOR. This is the PURE half — the row-count-style arithmetic, swept without a
 /// device. The live-pipeline half (whether `TextPipeline::menubar_reserve` / the
