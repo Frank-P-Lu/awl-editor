@@ -214,6 +214,10 @@ mod webgl_shader_validation;
 /// The summoned workspace's presentation: two regions, wide/narrow
 /// staging, drawn-equals-clickable, and a focus cue asserted in real pixels.
 mod workspace;
+/// The Back the content stage teaches: ONE sentence across width x zoom x
+/// scale, planned, shaped and inked inside the card on both sides of the
+/// staging threshold.
+mod workspace_back_width;
 mod workspace_footer_plate;
 mod workspace_plate;
 /// The shape: `workspace_shape() -> Option<WorkspaceShape>`'s

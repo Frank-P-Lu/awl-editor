@@ -321,10 +321,12 @@ no reliable cross-desktop signal yet.
 **"{{cmd:settings}}" ({{key:settings}}) is a summoned workspace, not an
 overlay.** It takes the viewport: a category rail — All, Editor,
 Appearance, Writing, Files, Keybindings, Advanced — beside the rows it
-governs. Up/Down moves the category, Enter transfers focus into the
-settings, Tab moves focus between the rail and the settings either way,
-and Esc leaves for the editor from wherever you are — exactly where you
-left it. Every change applies live; a
+governs. Up/Down moves the category, Enter or Right transfers focus into
+the settings, Backspace on an empty search field comes back to the rail,
+Tab moves focus between the two either way, and Esc leaves for the editor
+from wherever you are — exactly where you left it. On a window too narrow
+to hold both, the workspace shows one region at a time and the same keys
+move between them. Every change applies live; a
 sticky one is written to the config in the same step.
 
 **The settings are a plain text file, and you can edit it directly.**

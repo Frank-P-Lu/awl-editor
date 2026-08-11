@@ -1131,9 +1131,15 @@ fn a_settings_range_row_steps_and_reports_its_rail_through_the_sidecar() {
     // The footer is awl's only statement of what a key does and there is no
     // accessibility tree behind it (ACCESSIBILITY.md), so this is agent-verifiable on
     // the sidecar rather than only in the pixels.
+    // The workspace's derived BACK cell rides on the end of that line. It is
+    // NAMED here rather than read back off the card, so this stays an assertion:
+    // the content pane's query is empty, so the erase key is free and `⌫` is
+    // what goes back.
+    let mut expected = crate::overlay::OverlayKind::Settings.range_row_actions();
+    expected.push(crate::overlay::workspace::BackKey::Erase.hint());
     assert_eq!(
         o["hint"],
-        serde_json::json!(crate::overlay::OverlayKind::Settings.range_row_hint()),
+        serde_json::json!(crate::overlay::format_hint(&expected)),
         "a selected rail row must advertise its own ←/→ meaning: {:?}",
         o["hint"]
     );

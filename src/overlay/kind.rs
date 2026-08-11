@@ -307,14 +307,14 @@ impl OverlayKind {
                 key("\u{21E7}\u{21B5}", "restore"),
                 key(ARROWS_LR, "lens"),
             ],
-            // The rows pane. `esc` no longer goes back — it leaves — so this names
-            // the key that does; `esc close` stays on the rail's line, because a
-            // fifth cell overruns the card on a narrow Bars world.
-            OverlayKind::Settings => vec![
-                enter("edit"),
-                key(ARROWS_LR, "category"),
-                key(super::workspace::TAB_GLYPH, "back"),
-            ],
+            // The rows pane. `esc` does not go back — it leaves — so the Back is
+            // a key of its own, appended by `foot_hint` from the one owner that
+            // knows which key is free right now
+            // (`OverlayState::detail_back`). It is deliberately not spelled
+            // here, because which key goes back is not a fact about the KIND.
+            // `esc close` stays on the rail's line, because a fifth cell
+            // overruns the card on a narrow Bars world.
+            OverlayKind::Settings => vec![enter("edit"), key(ARROWS_LR, "category")],
             OverlayKind::Assets => vec![enter("trash"), key("esc", "close")],
             OverlayKind::Rename => vec![enter("rename"), key("esc", "cancel")],
             OverlayKind::InsertLink => vec![enter("insert link"), key("esc", "cancel")],
@@ -324,7 +324,12 @@ impl OverlayKind {
     pub fn hint(self) -> String {
         format_hint(&self.hint_actions())
     }
-    pub fn range_row_hint(self) -> String {
+    /// The RANGE-row line's CELLS — [`Self::hint_actions`] with the `←/→` cell
+    /// re-labelled for the row's own rail. Split out from
+    /// [`Self::range_row_hint`] so `foot_hint` can append the workspace's
+    /// derived Back cell to it exactly as it does to an ordinary detail line,
+    /// rather than formatting a sentence and then trying to edit the string.
+    pub fn range_row_actions(self) -> Vec<HintAction> {
         let mut actions = self.hint_actions();
         match actions.iter_mut().find(|a| a.glyph == ARROWS_LR) {
             Some(cell) => cell.label = RANGE_LR_LABEL,
@@ -333,7 +338,11 @@ impl OverlayKind {
                 label: RANGE_LR_LABEL,
             }),
         }
-        format_hint(&actions)
+        actions
+    }
+
+    pub fn range_row_hint(self) -> String {
+        format_hint(&self.range_row_actions())
     }
 
     pub fn empty_corpus_message(self) -> &'static str {

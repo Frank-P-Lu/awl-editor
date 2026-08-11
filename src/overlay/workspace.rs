@@ -54,9 +54,10 @@
 //! Which region holds focus is [`super::OverlayState::detail_focus`], written
 //! only by the lifecycle: the rail is the workspace's PRIMARY list
 //! ([`super::Surface::Workspace`]) and the rows are its DETAIL stage
-//! ([`super::Surface::WorkspaceDetail`]). That is what makes `Esc` on the rows a
-//! BACK to the rail and `Esc` on the rail an exit to the editor, at every width,
-//! without any arm of the transition table being able to see the width.
+//! ([`super::Surface::WorkspaceDetail`]). `Esc` leaves outright from EITHER of
+//! them — the settled decision the transition table spells out cell by cell —
+//! so the way back to the rail is a key of its own, and [`BackKey`] below is the
+//! one owner of which key that is.
 //!
 //! Width is presentation, not lifecycle. Wide
 //! draws both regions side by side and focus moves between them; narrow draws
@@ -67,11 +68,63 @@ use super::{HintAction, OverlayKind, OverlayState};
 
 use super::ARROWS_UD;
 
-/// The FOCUS-TRANSFER key, as the footer spells it. One spelling shared by both
-/// workspace members' detail-stage lines, so "the key that takes you back" reads
-/// the same on a settings pane and on a comparison — it is the only way back now
-/// that `Esc` leaves outright from either region.
+/// The FOCUS-TRANSFER key, as the footer spells it: `Tab`/`Shift-Tab` move
+/// attention between a workspace's two regions.
 pub(crate) const TAB_GLYPH: &str = "tab";
+
+/// The ERASE key, as the footer spells it — the same glyph the folder
+/// navigators already teach as `⌫ up`, because on a workspace it is the same
+/// gesture aimed one rung differently: erase nothing, so go up a level.
+pub(crate) const ERASE_GLYPH: &str = "\u{232B}";
+
+/// **WHAT TAKES YOU BACK from a summoned workspace's DETAIL stage, right now.**
+///
+/// A workspace has to NAME its Back: `Esc` leaves outright from either region,
+/// and awl's footer is its only statement of what a key does. But the key that
+/// performs it is not constant, because the detail stage's OTHER keys are not
+/// constant either — so this is a derived answer rather than a per-kind
+/// literal, and [`OverlayState::detail_back`] is the one place that derives it.
+/// Both consumers read that one owner: the action seam
+/// (`crate::actions::workspace_nav`) to decide what the key does, and
+/// [`OverlayState::foot_hint`] to decide what the footer says. They cannot
+/// drift, because neither of them holds an opinion of its own.
+///
+/// Why `Erase` is the preferred answer, and `Tab` only the fallback: `Tab` is a
+/// FOCUS key, and a focus key reads as a Back only while both regions are on
+/// screen at once. Below `workspace_is_wide` the stage you left is not merely
+/// unfocused, it is GONE — and "tab back" then teaches a gesture whose ordinary
+/// meaning the surface no longer displays. `⌫` is the gesture awl's own folder
+/// navigators already teach for "up one level" (`⌫ up` on Browse / Switch
+/// project / Move to… / Export to…), under the same rule: it belongs to the
+/// search field until the field is empty, and it goes up the moment it is.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum BackKey {
+    /// `⌫` — free on this stage, so it goes back.
+    Erase,
+    /// `tab` — the erase key is busy editing this stage's live query, so the
+    /// focus-transfer key is the honest answer for as long as that lasts.
+    Focus,
+}
+
+impl BackKey {
+    /// How the footer spells this key.
+    pub(crate) fn glyph(self) -> &'static str {
+        match self {
+            BackKey::Erase => ERASE_GLYPH,
+            BackKey::Focus => TAB_GLYPH,
+        }
+    }
+
+    /// The footer cell this key earns: `⌫ back` / `tab back`. One spelling of
+    /// the LABEL too, so the sentence a user reads on a settings pane and on a
+    /// comparison is the same sentence.
+    pub(crate) fn hint(self) -> HintAction {
+        HintAction {
+            glyph: self.glyph(),
+            label: "back",
+        }
+    }
+}
 
 /// Which of a summoned workspace's two coordinated regions is its PRIMARY
 /// list — DESIGN.md §5's "categories beside controls, or a timeline beside a
@@ -245,20 +298,21 @@ impl OverlayKind {
     /// Wildcard-free like its neighbours; unreachable for a kind that is not
     /// drawn as a workspace, because [`super::OverlayState::foot_hint`] gates on
     /// [`Self::workspace_shape`].
+    ///
+    /// NO ARM HERE SPELLS A BACK CELL. Which key goes back is a fact about the
+    /// STATE (is the erase key free right now?), not about the kind, so it is
+    /// appended by `foot_hint` from [`BackKey`] — the same owner the action seam
+    /// reads.
     pub fn detail_hint_actions(self) -> Vec<HintAction> {
         let key = |glyph, label| HintAction { glyph, label };
         match self {
             OverlayKind::History => vec![
                 key(ARROWS_UD, "scroll"),
                 key("\u{21E7}\u{21B5}", "restore"),
-                key(super::workspace::TAB_GLYPH, "back"),
             ],
             // A comparison here is read-only prose exactly as it is on a
             // timeline, minus the one key that changes the document.
-            OverlayKind::Conflict => vec![
-                key(ARROWS_UD, "scroll"),
-                key(super::workspace::TAB_GLYPH, "back"),
-            ],
+            OverlayKind::Conflict => vec![key(ARROWS_UD, "scroll")],
             OverlayKind::Settings
             | OverlayKind::Goto
             | OverlayKind::Project
@@ -286,6 +340,33 @@ impl OverlayState {
     /// Which [`WorkspaceShape`] this card draws as, or `None` off a workspace.
     pub fn workspace_shape(&self) -> Option<WorkspaceShape> {
         self.kind.workspace_shape()
+    }
+
+    /// **THE ONE OWNER OF "WHAT GOES BACK FROM HERE"** — see [`BackKey`].
+    ///
+    /// `None` off a workspace, on its primary list (there is nothing behind the
+    /// primary list but the editor, and `Esc` is what leaves), and during an
+    /// IN-PLACE EDIT, which claims both candidate keys at once: a Range row's
+    /// value field takes `⌫` for its digits and swallows `Tab` whole
+    /// (`actions::overlay_nav::value_edit_intercept` runs before every other
+    /// arm). A stage with nothing that goes back advertises nothing that goes
+    /// back — the footer follows this answer rather than restating it.
+    ///
+    /// Otherwise the erase key wins unless this stage's own SEARCH FIELD is
+    /// mid-word. Which stage owns the field is the shape's one fact: a
+    /// `RailOverRows` workspace puts its rows — and therefore their query — in
+    /// the detail stage, so `⌫` is the query's until the query is empty; a
+    /// `TimelineOverComparison` workspace's query rides the primary column, so
+    /// the erase key is never busy on the comparison at all.
+    pub(crate) fn detail_back(&self) -> Option<BackKey> {
+        let shape = self.workspace_shape()?;
+        if !self.detail_focus || self.value_edit.is_some() {
+            return None;
+        }
+        Some(match !shape.rows_are_primary() && !self.query.is_empty() {
+            true => BackKey::Focus,
+            false => BackKey::Erase,
+        })
     }
 
     /// Move the workspace's RAIL selection by `delta` categories. The one door
