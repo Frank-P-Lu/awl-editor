@@ -52,12 +52,15 @@ pub(in crate::render) const WORKSPACE_PAD: Logical = Logical(12.0);
 /// character widths — wide enough for a row's NAME and its VALUE together, with
 /// the gap `rowlayout` puts between them.
 ///
-/// This is the whole of the wide/narrow decision, and it is a LEGIBILITY floor
-/// rather than a device breakpoint: below it the secondary column starts
-/// yielding (`rowlayout` drops it first under width pressure), and a settings
-/// list that shows what a setting is called but not what it is set to is not a
-/// settings list. DESIGN.md §8 rule 4 says to stage the regions at that point
-/// rather than compress them, which is exactly what falling below this does.
+/// This is a LEGIBILITY floor rather than a device breakpoint: below it the
+/// secondary column starts yielding (`rowlayout` drops it first under width
+/// pressure), and a settings list that shows what a setting is called but not
+/// what it is set to is not a settings list. DESIGN.md §8 rule 4 says to stage
+/// the regions at that point rather than compress them, which is exactly what
+/// falling below this does.
+///
+/// It is a MINIMUM, not the whole decision: [`TextPipeline::workspace_min_pane`]
+/// raises it to whatever the rows on show actually ask for.
 const MIN_PANE_CHARS: Chars = Chars(46.0);
 
 /// How much presence the UNFOCUSED region's marker keeps, as a fraction of the
@@ -150,7 +153,40 @@ impl TextPipeline {
         let interior = (width as f32 - 2.0 * self.workspace_margin() - 2.0 * hpad).max(0.0);
         let cw = self.overlay_char_width();
         self.workspace_primary_w > 0.0
-            && interior - self.workspace_primary_w - RAIL_GAP_CHARS.0 * cw >= MIN_PANE_CHARS.0 * cw
+            && interior - self.workspace_primary_w - RAIL_GAP_CHARS.0 * cw
+                >= self.workspace_min_pane()
+    }
+
+    /// THE NARROWEST CONTENT PANE THIS WORKSPACE MAY GO TWO-COLUMN AT, in px:
+    /// [`MIN_PANE_CHARS`] raised to whatever the rows on show actually ask for —
+    /// the widest row NAME, the gap `rowlayout` puts after it, and the widest
+    /// ACCESSORY cell. Those are the same three terms `rowlayout::fits` weighs in
+    /// shaped pixels when it decides whether to grant the accessory column at
+    /// all, asked here in the char currency the geometry pass has.
+    ///
+    /// **The two decisions are one question asked of two different widths, and
+    /// the order between them matters.** Introducing the rail SHRINKS the content
+    /// pane, so a workspace that goes two-column on the legibility floor alone
+    /// can hand the rows a pane their accessory no longer fits in — both regions
+    /// on screen, and the controls missing from one of them. Delaying the
+    /// transition until the pane can still carry both columns stages one region a
+    /// little longer instead, which is the calmer of the two.
+    ///
+    /// A char count is a MEAN-advance estimate against a proportional face, so it
+    /// only ever RAISES the floor: [`MIN_PANE_CHARS`] stands on its own as the
+    /// minimum. And it is asked only of a shape whose rows live in the CONTENT
+    /// pane — a `TimelineOverComparison` workspace opens a relocated document
+    /// there, which has no accessory column to lose.
+    fn workspace_min_pane(&self) -> f32 {
+        let cw = self.overlay_char_width();
+        if self.overlay_rows_primary {
+            return MIN_PANE_CHARS.0 * cw;
+        }
+        let widest = |v: &[String]| v.iter().map(|s| s.chars().count()).max().unwrap_or(0) as f32;
+        let demand = widest(&self.overlay_items)
+            + rowlayout::GAP_CHARS as f32
+            + widest(self.overlay_right_labels());
+        MIN_PANE_CHARS.0.max(demand) * cw
     }
 
     /// HOW MANY DISPLAY LINES A WORKSPACE DRAWS ABOVE ITS CANDIDATE BAND — one
