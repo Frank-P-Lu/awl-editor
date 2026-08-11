@@ -58,6 +58,7 @@ mod oracle;
 mod panel_sidecar;
 mod plan_sidecar;
 mod policy;
+pub(crate) mod redact;
 mod replay_sidecar;
 mod scroll_sidecar;
 mod sidecar;

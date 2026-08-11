@@ -218,7 +218,9 @@ fn keys_capture_switch_project_then_goto_lists_the_new_roots_files() {
         let v: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert_eq!(
             v["project"]["root"].as_str().unwrap(),
-            dir.join("old-ws/sibling").to_string_lossy(),
+            // Through the sidecar's own home redaction: the subject is WHICH
+            // root the accept re-derived, not how an under-home path is spelled.
+            crate::capture::redact::redact(&dir.join("old-ws/sibling").to_string_lossy()),
             "[{convention:?}] the sidecar's accepted root is the new project (item 183's half)"
         );
         let items: Vec<String> = v["overlay"]["items"]

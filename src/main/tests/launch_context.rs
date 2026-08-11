@@ -164,7 +164,98 @@ fn capture_mode_bare_invocation_never_restores_a_remembered_folder() {
     let v: serde_json::Value = serde_json::from_str(&json).unwrap();
     assert_eq!(
         v["project"]["root"].as_str().unwrap(),
-        cwd.to_string_lossy(),
+        // Through the sidecar's own home redaction, so this stays a law about
+        // WHICH root was resolved on a host whose temp dir sits under `$HOME`
+        // too, rather than a second, accidental assertion about spelling.
+        crate::capture::redact::redact(&cwd.to_string_lossy()),
         "sidecar project.root reflects cwd, never the config default_folder"
+    );
+}
+
+/// THE LEAK LAW (wired, real door, nothing seeded): a capture taken with no
+/// `--root`, no `--workspace` and the DEFAULT default-folder writes a sidecar
+/// that contains this machine's home path NOWHERE — and still reports the folder
+/// it resolved, spelled `~/…`.
+///
+/// The leak this closes is not a typo anyone can be careful about: a lane does
+/// not have to WRITE a path to publish one, it only has to capture, and the repo
+/// is public. `capture::redact` is the mechanism; this is the law that fails if
+/// the mechanism is removed. The absence half sweeps the WHOLE artifact rather
+/// than a named block, so any future block that leaks fails here too.
+///
+/// The subject of the presence half is `project.default_folder` deliberately: it
+/// falls back to `$HOME/notes` whether or not anything is configured, so it is
+/// the one home path present in EVERY unseeded capture on every developer
+/// machine — independent of where this checkout happens to sit, which the root
+/// and workspace are not. The field-by-field sweep is
+/// `capture::tests::redact_law::every_path_bearing_sidecar_field_is_home_relative`.
+#[test]
+fn a_capture_taken_under_a_non_seeded_root_leaks_no_home_path() {
+    let home = crate::fs::home_dir();
+    let Some(home) = home.filter(|h| crate::capture::redact::is_redactable(h)) else {
+        // A configuration this law cannot enrol in, named rather than passed
+        // silently: `$HOME` unset, or a single-component root like `/root` that
+        // cannot be told from an ordinary path.
+        eprintln!(
+            "skipping a_capture_taken_under_a_non_seeded_root_leaks_no_home_path: \
+             $HOME is unset or too generic to strip ({:?})",
+            crate::fs::home_dir()
+        );
+        return;
+    };
+    let _fs = crate::testlock::serial();
+    // The artifact is written OUTSIDE the tree the capture reports on, so
+    // nothing the capture emits lands where the capture is looking.
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl-402-unseeded-{}", std::process::id())),
+    );
+    let _cwd_guard = crate::fs::CwdGuard::enter(&dir);
+    let out = dir.join("cap.png");
+    // Nothing seeded: no `--root`, no `--workspace`, and the default folder
+    // resolved by the SAME owner a flagless launch uses.
+    let default_folder = crate::args::resolve_default_folder(&None);
+    assert!(
+        default_folder.starts_with(&home),
+        "premise: an unseeded default folder is under $HOME (got {})",
+        default_folder.display()
+    );
+    capture_screenshot(
+        out.clone(),
+        None, // no file argument: a bare capture
+        CaptureOpts::default(),
+        Vec::new(),
+        crate::keymap::KeymapState::new(),
+        None, // no --root
+        None, // no --workspace
+        default_folder.clone(),
+        Config::empty(),
+        false,
+    )
+    .expect("capture succeeds");
+
+    let json = std::fs::read_to_string(out.with_extension("json")).unwrap();
+    let home_str = home.to_string_lossy().to_string();
+    assert!(
+        !json.contains(&home_str),
+        "a sidecar from a non-seeded capture must carry no absolute home path — \
+         found {home_str:?} in {}",
+        out.with_extension("json").display()
+    );
+
+    // PRESENCE, beside the absence: the field is still there and still names the
+    // folder. Without this half the assertion above is satisfied by a serializer
+    // that simply drops every path it cannot sanitise.
+    let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+    let reported = v["project"]["default_folder"]
+        .as_str()
+        .expect("project.default_folder is still reported, not dropped to null");
+    assert_eq!(
+        reported,
+        crate::capture::redact::redact(&default_folder.to_string_lossy()),
+        "the sidecar must still say WHICH folder it resolved, home-relative"
+    );
+    assert!(
+        reported.starts_with("~/"),
+        "an under-home path is reported under ~/ (got {reported:?})"
     );
 }

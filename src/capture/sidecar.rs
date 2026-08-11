@@ -159,7 +159,7 @@ pub(super) fn write_sidecar(
 
     let mut f = std::fs::File::create(&json_path)
         .with_context(|| format!("failed to create {}", json_path.display()))?;
-    f.write_all(json.as_bytes())?;
+    f.write_all(super::redact::redact(&json).as_bytes())?;
     Ok(())
 }
 

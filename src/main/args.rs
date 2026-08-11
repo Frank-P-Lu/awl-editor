@@ -941,8 +941,8 @@ pub(crate) fn resolve_default_folder(default_folder: &Option<PathBuf>) -> PathBu
     if let Some(n) = default_folder {
         return n.clone();
     }
-    match std::env::var_os("HOME") {
-        Some(home) => PathBuf::from(home).join("notes"),
+    match crate::fs::home_dir() {
+        Some(home) => home.join("notes"),
         None => PathBuf::from("notes"),
     }
 }

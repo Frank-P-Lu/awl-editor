@@ -30,6 +30,11 @@ mod panels;
 mod pickers_faceted;
 mod plan_accessory;
 mod plan_geometry;
+/// The home-path redaction's laws. The WIRED half drives the real screenshot
+/// door (`crate::run::capture_screenshot`), which is native-only, so the module
+/// is too.
+#[cfg(not(target_arch = "wasm32"))]
+mod redact_law;
 mod schema_chrome;
 mod schema_ledger;
 mod serialization_law;

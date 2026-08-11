@@ -682,6 +682,26 @@ pub fn write_atomic(path: &Path, data: &[u8]) -> io::Result<()> {
     fs.rename(&tmp, path)
 }
 
+/// THE ONE HOME-DIRECTORY LOOKUP — `$HOME`, read live rather than cached,
+/// because it is not a constant of the process: the MAS sandbox rewrites it to
+/// the container's own home at startup (`mas.rs`) and every path awl derives
+/// must follow that redirect. `None` when unset or empty, and on wasm.
+/// [`data_root`] and `args::resolve_default_folder` BUILD paths under it;
+/// `capture::redact` STRIPS it back out of a capture artifact. One lookup, so
+/// the stripper can never disagree with the builders about where home is.
+pub(crate) fn home_dir() -> Option<PathBuf> {
+    #[cfg(target_arch = "wasm32")]
+    {
+        None
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        std::env::var_os("HOME")
+            .filter(|h| !h.is_empty())
+            .map(PathBuf::from)
+    }
+}
+
 pub fn data_root() -> PathBuf {
     #[cfg(target_arch = "wasm32")]
     {
@@ -692,8 +712,8 @@ pub fn data_root() -> PathBuf {
         if let Some(x) = std::env::var_os("XDG_DATA_HOME") {
             return PathBuf::from(x).join("awl");
         }
-        if let Some(home) = std::env::var_os("HOME") {
-            return PathBuf::from(home).join(".local").join("share").join("awl");
+        if let Some(home) = home_dir() {
+            return home.join(".local").join("share").join("awl");
         }
         PathBuf::from("awl-data")
     }
