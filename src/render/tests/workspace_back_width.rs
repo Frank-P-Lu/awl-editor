@@ -24,7 +24,7 @@
 //!     narrow stage is exactly where a footer has historically gone missing (a
 //!     stage showing the other region plans `hint_rows = 0`).
 //!
-//! # The axis, and the one that produced the misreading
+//! # The axes, and the ones that produced the misreadings
 //!
 //! `workspace_is_wide` is a threshold in LOGICAL px over scaled text, so it
 //! MOVES with zoom and with the display face's own metrics — a single quoted
@@ -33,6 +33,33 @@
 //! defect report). So the sweep crosses width × zoom × scale rather than picking
 //! a width, and derives its enrolment from the workspace roster instead of
 //! naming Settings.
+//!
+//! **AND THE MENU BAR, which is the axis a workspace card cannot afford to be
+//! blind to.** `menubar::platform_default` is the one platform-forked sticky
+//! default in the tree, and the workspace card is sized STRAIGHT off the canvas
+//! (`plan_workspace_regions`) less that bar's reserve — so the bar is not
+//! decoration here, it is a direct subtraction from the card's own height
+//! budget. Both laws below sweep it and capture the AMBIENT value to restore,
+//! never `cfg!(target_os = …)`, which reports the host that COMPILED the test
+//! rather than the branch the initialiser took.
+//!
+//! # Where the footer is lost, and which loss is whose
+//!
+//! Two DIFFERENT degradations live at the same corner — the app's own enforced
+//! minimum window above 100% zoom — and this file grades them apart because
+//! only one of them is about the Back at all:
+//!
+//!   * **OVERRUN** (horizontal). The footer is drawn, and is wider than the
+//!     card. Ledgered in [`OVERRUN`].
+//!   * **STARVATION** (vertical). The card's height budget cannot hold the
+//!     footer's line, so the shaper emits it and the layout never reaches it —
+//!     `overlay_hint_line()` answers `Some`, `layout_runs()` has nothing for it.
+//!     Ledgered in [`STARVED`], and only ever accepted after the CARD'S OWN
+//!     REPORTED GEOMETRY says the budget could not have held it.
+//!
+//! Both ledgers are keyed by the menu-bar arm, because the bar decides which
+//! of the two a cell lands in: at 464x288 zoom 2 the footer OVERRUNS with the
+//! bar off and STARVES with it on, off one and the same defect.
 
 use super::super::*;
 use super::dither::{offscreen, read_pixels};
@@ -101,24 +128,106 @@ fn content_view(ov: &OverlayState) -> ViewState {
     v
 }
 
-/// One swept cell's coordinates, and the key its failures are reported in.
+/// **WHY AN EMPTY FOOTER IS EMPTY, ASKED OF THE CARD ITSELF.** The shaper emits
+/// the hint into `panel_buffer` unconditionally; the LAYOUT then stops at the
+/// buffer's height, which is exactly `geom.card_h`. So a footer can be planned,
+/// be present in the buffer's lines, and still have no run — and where the
+/// budget genuinely could not hold it, drawing nothing is the only thing left to
+/// do, so asserting against it would be asserting against arithmetic.
+///
+/// The excuse is granted only against the card's OWN REPORTED GEOMETRY, never
+/// against a list of small widths. The SMALLEST composition this stage must
+/// stack before its footer is the header lines it planned, the ONE candidate row
+/// the flat family's `min_items` floor guarantees, and the blank the shared gap
+/// owner reserves — charging the row plan's ACTUAL length instead would let a
+/// card excuse a lost footer by planning too many rows. The card's own padding
+/// is deliberately left out of the sum, which can only make the bound harder to
+/// meet.
+fn assert_the_budget_could_not_hold_it(
+    p: &TextPipeline,
+    geom: &crate::render::chrome::OverlayGeom,
+    what: &str,
+) {
+    let floor_rows = geom.header_rows + 1 + crate::render::chrome::overlay_hint_gap_rows(1);
+    let need = floor_rows as f32 * p.overlay_lh() + p.overlay_hint_h() + geom.header_gap;
+    assert!(
+        geom.card_h < need,
+        "{what}: the footer is shaped but never laid out, while the card's own {:.1}px \
+         height budget holds the {need:.1}px its shortest possible composition needs \
+         ({floor_rows} lines at {:.1}px, a {:.1}px hint and a {:.1}px header gap) — this \
+         footer was lost by the shaper, not by the canvas",
+        geom.card_h,
+        p.overlay_lh(),
+        p.overlay_hint_h(),
+        geom.header_gap,
+    );
+}
+
+/// **DID TYPE REACH THE FRAME?** Renders the prepared pipeline and counts, over
+/// the footer's own shaped band, the canvas columns carrying a glyph edge —
+/// `(inked columns, band width, x0, x1)`. The facts the law checks around this
+/// are a state oracle; this is the only one that asks the pixels.
+#[allow(clippy::too_many_arguments)]
+fn footer_ink(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    p: &TextPipeline,
+    pw: u32,
+    ph: u32,
+    left: f32,
+    top: f32,
+    ink_w: f32,
+    height: f32,
+) -> (usize, usize, i64, i64) {
+    let (texture, tview) = offscreen(device, pw, ph);
+    let mut enc = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+        label: Some("awl workspace back footer"),
+    });
+    p.render(&mut enc, &tview).unwrap();
+    queue.submit(Some(enc.finish()));
+    let px = read_pixels(device, queue, &texture, pw, ph);
+    let lum: Vec<f32> = px.iter().map(|q| luma(*q)).collect();
+    let half = (height * 0.5 - 1.0).max(1.0);
+    let mid = top + height * 0.5;
+    let y0 = ((mid - half) as i64).max(0);
+    let y1 = ((mid + half) as i64).min(ph as i64 - 2);
+    let x0 = (left as i64).max(0);
+    let x1 = ((left + ink_w) as i64).min(pw as i64 - 2);
+    let inked = (x0..x1)
+        .filter(|x| {
+            (y0..y1).any(|y| {
+                let i = (y * pw as i64 + x) as usize;
+                (lum[i] - lum[i + pw as usize]).abs() > GLYPH_STEP
+                    || (lum[i] - lum[i + 1]).abs() > GLYPH_STEP
+            })
+        })
+        .count();
+    (inked, (x1 - x0).max(0) as usize, x0, x1)
+}
+
+/// One swept cell's coordinates, and the key its failures and both ledgers are
+/// reported in. The MENU BAR is part of that key and not a footnote: it is
+/// subtracted from the card's height budget, so a cell's classification is not
+/// well defined without it.
 #[derive(Clone, Copy)]
 struct Cell {
     w: u32,
     h: u32,
     zoom: f32,
     dpi: f32,
+    menu_bar: bool,
 }
 
 impl Cell {
     fn describe(&self, kind: OverlayKind) -> String {
         format!(
-            "{} at {}x{} logical, zoom={}, dpi={}",
+            "{} at {}x{} logical, zoom={}, dpi={}, menu_bar={}",
             kind.as_str(),
             self.w,
             self.h,
             self.zoom,
-            self.dpi
+            self.dpi,
+            if self.menu_bar { "on" } else { "off" }
         )
     }
 }
@@ -160,10 +269,19 @@ fn the_workspaces_back_reads_and_draws_the_same_on_both_sides_of_the_staging_thr
          an enrolment that matches nothing sweeps nothing"
     );
 
+    // THE AMBIENT MENU-BAR VALUE, captured rather than derived. A
+    // `cfg!(target_os = ...)` here would report the host that COMPILED this
+    // test, not the branch `menubar::platform_default` actually took.
+    let ambient_menu_bar = crate::menubar::menu_bar_on();
+
     let mut sentences: std::collections::BTreeSet<String> = Default::default();
     let mut backs: std::collections::BTreeSet<&'static str> = Default::default();
     let mut overrun: Vec<String> = Vec::new();
-    let (mut staged, mut wide, mut graded) = (0usize, 0usize, 0usize);
+    let mut starved: Vec<String> = Vec::new();
+    let (mut staged, mut wide, mut graded, mut inked_cells) = (0usize, 0usize, 0usize, 0usize);
+    // The tightest INK SHARE any drawn footer reached, reported at the end so a
+    // reader can see how much headroom the presence floor below actually had.
+    let mut tightest = f32::INFINITY;
 
     for kind in &kinds {
         let ov = card_in_content(*kind);
@@ -171,131 +289,144 @@ fn the_workspaces_back_reads_and_draws_the_same_on_both_sides_of_the_staging_thr
             .detail_back()
             .expect("the content pane must have a Back to be invariant about");
         backs.insert(back.glyph());
-        for (lw, lh) in windows() {
-            for zoom in [1.0f32, 1.4, 2.0] {
-                for dpi in [1.0f32, 2.0] {
-                    let cell = Cell {
-                        w: lw,
-                        h: lh,
-                        zoom,
-                        dpi,
-                    };
-                    let (pw, ph) = ((lw as f32 * dpi) as u32, (lh as f32 * dpi) as u32);
-                    let Some((device, queue, mut p)) = headless_dqp(pw as f32, ph as f32) else {
-                        return;
-                    };
-                    p.set_dpi(dpi);
-                    p.set_size(pw as f32, ph as f32);
-                    let mut v = content_view(&ov);
-                    v.zoom = zoom;
-                    p.set_view(&v);
-                    p.prepare(&device, &queue, pw, ph).unwrap();
+        for menu_bar in [false, true] {
+            crate::menubar::set_menu_bar_on(menu_bar);
+            for (lw, lh) in windows() {
+                for zoom in [1.0f32, 1.4, 2.0] {
+                    for dpi in [1.0f32, 2.0] {
+                        let cell = Cell {
+                            w: lw,
+                            h: lh,
+                            zoom,
+                            dpi,
+                            menu_bar,
+                        };
+                        let (pw, ph) = ((lw as f32 * dpi) as u32, (lh as f32 * dpi) as u32);
+                        let Some((device, queue, mut p)) = headless_dqp(pw as f32, ph as f32)
+                        else {
+                            return;
+                        };
+                        p.set_dpi(dpi);
+                        p.set_size(pw as f32, ph as f32);
+                        let mut v = content_view(&ov);
+                        v.zoom = zoom;
+                        p.set_view(&v);
+                        p.prepare(&device, &queue, pw, ph).unwrap();
 
-                    let what = cell.describe(*kind);
-                    let geom = p.workspace_geometry(pw);
-                    match p.workspace_is_wide(pw) {
-                        true => wide += 1,
-                        false => staged += 1,
-                    }
-                    graded += 1;
+                        let what = cell.describe(*kind);
+                        let geom = p.workspace_geometry(pw);
+                        match p.workspace_is_wide(pw) {
+                            true => wide += 1,
+                            false => staged += 1,
+                        }
+                        graded += 1;
 
-                    // PRESENCE, and INVARIANCE OVER THE DRAWN SENTENCE. The
-                    // footer's own SHAPED line is the subject of both, because a
-                    // stage that plans no footer (the staging regime's other
-                    // stage does exactly that) shapes none, and a sentence read
-                    // off the card rather than off the frame would agree with
-                    // itself at every width for free.
-                    let line = p.overlay_hint_line().unwrap_or_else(|| {
-                        panic!(
-                            "{what}: the content stage shaped no footer at all, so the Back it \
+                        // PRESENCE, and INVARIANCE OVER THE DRAWN SENTENCE. The
+                        // footer's own SHAPED line is the subject of both, because a
+                        // stage that plans no footer (the staging regime's other
+                        // stage does exactly that) shapes none, and a sentence read
+                        // off the card rather than off the frame would agree with
+                        // itself at every width for free.
+                        let line = p.overlay_hint_line().unwrap_or_else(|| {
+                            panic!(
+                                "{what}: the content stage shaped no footer at all, so the Back it \
                              teaches is unreadable exactly where it is needed most"
-                        )
-                    });
-                    let drawn = p.panel_buffer.lines[line].text().to_string();
-                    sentences.insert(drawn.clone());
-                    assert_eq!(
-                        drawn,
-                        ov.foot_hint(),
-                        "{what}: the drawn footer is not the card's own sentence"
-                    );
-                    assert!(
-                        drawn
-                            .split(crate::overlay::HINT_SEP)
-                            .any(|c| c == format!("{} back", back.glyph())),
-                        "{what}: the footer stopped naming the Back. got {drawn:?}"
-                    );
+                            )
+                        });
+                        let drawn = p.panel_buffer.lines[line].text().to_string();
+                        sentences.insert(drawn.clone());
+                        assert_eq!(
+                            drawn,
+                            ov.foot_hint(),
+                            "{what}: the drawn footer is not the card's own sentence"
+                        );
+                        assert!(
+                            drawn
+                                .split(crate::overlay::HINT_SEP)
+                                .any(|c| c == format!("{} back", back.glyph())),
+                            "{what}: the footer stopped naming the Back. got {drawn:?}"
+                        );
 
-                    let (ink_w, top, height) = p
-                        .panel_buffer
-                        .layout_runs()
-                        .find_map(|run| {
+                        let run = p.panel_buffer.layout_runs().find_map(|run| {
                             (run.line_i == line).then_some((
                                 run.line_w,
                                 geom.text_top + run.line_top,
                                 run.line_height,
                             ))
-                        })
-                        .unwrap_or_else(|| panic!("{what}: the shaped footer has no ink run"));
-                    assert!(
-                        ink_w > 0.0 && height > 0.0,
-                        "{what}: the footer shaped to nothing ({ink_w}x{height})"
-                    );
-                    let [cx, cy, cw, ch] = p.workspace_regions(pw).card;
-                    // WHERE THE FOOTER STARTS is a seating claim and is asserted
-                    // outright: a line that begins off its own card is misplaced,
-                    // not merely too big for the room.
-                    assert!(
-                        geom.text_left >= cx && top >= cy,
-                        "{what}: the footer's ink box starts at ({:.1},{:.1}), outside the \
+                        });
+                        // A CARD TOO SHORT FOR ITS OWN COMPOSITION loses its
+                        // footer to the layout, and is LEDGERED — but only after
+                        // the card's own geometry says the budget could not have
+                        // held it (`assert_the_budget_could_not_hold_it`).
+                        let Some((ink_w, top, height)) = run else {
+                            assert_the_budget_could_not_hold_it(&p, &geom, &what);
+                            starved.push(what.clone());
+                            continue;
+                        };
+                        assert!(
+                            ink_w > 0.0 && height > 0.0,
+                            "{what}: the footer shaped to nothing ({ink_w}x{height})"
+                        );
+                        let [cx, cy, cw, ch] = p.workspace_regions(pw).card;
+                        // WHERE THE FOOTER STARTS is a seating claim and is asserted
+                        // outright: a line that begins off its own card is misplaced,
+                        // not merely too big for the room.
+                        assert!(
+                            geom.text_left >= cx && top >= cy,
+                            "{what}: the footer's ink box starts at ({:.1},{:.1}), outside the \
                          card ({cx:.1},{cy:.1} {cw:.1}x{ch:.1})",
-                        geom.text_left,
-                        top
-                    );
-                    // WHETHER IT FITS is LEDGERED, not asserted — see `OVERRUN`.
-                    // A cell that overflows and is not listed fails; a listed
-                    // cell that stops overflowing fails too.
-                    let fits =
-                        geom.text_left + ink_w <= cx + cw + 0.5 && top + height <= cy + ch + 0.5;
-                    if !fits {
-                        overrun.push(what.clone());
-                        continue;
-                    }
+                            geom.text_left,
+                            top
+                        );
+                        // WHETHER IT FITS is LEDGERED, not asserted — see `OVERRUN`.
+                        // A cell that overflows and is not listed fails; a listed
+                        // cell that stops overflowing fails too.
+                        let fits = geom.text_left + ink_w <= cx + cw + 0.5
+                            && top + height <= cy + ch + 0.5;
+                        if !fits {
+                            overrun.push(what.clone());
+                            continue;
+                        }
 
-                    // AND IT IS REALLY DRAWN. The sidecar-style facts above are
-                    // a state oracle; whether type reached the frame is a
-                    // question for the pixels.
-                    let (texture, tview) = offscreen(&device, pw, ph);
-                    let mut enc = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                        label: Some("awl workspace back footer"),
-                    });
-                    p.render(&mut enc, &tview).unwrap();
-                    queue.submit(Some(enc.finish()));
-                    let px = read_pixels(&device, &queue, &texture, pw, ph);
-                    let lum: Vec<f32> = px.iter().map(|q| luma(*q)).collect();
-                    let half = (height * 0.5 - 1.0).max(1.0);
-                    let mid = top + height * 0.5;
-                    let y0 = ((mid - half) as i64).max(0);
-                    let y1 = ((mid + half) as i64).min(ph as i64 - 2);
-                    let x0 = (geom.text_left as i64).max(0);
-                    let x1 = ((geom.text_left + ink_w) as i64).min(pw as i64 - 2);
-                    let inked = (x0..x1)
-                        .filter(|x| {
-                            (y0..y1).any(|y| {
-                                let i = (y * pw as i64 + x) as usize;
-                                (lum[i] - lum[i + pw as usize]).abs() > GLYPH_STEP
-                                    || (lum[i] - lum[i + 1]).abs() > GLYPH_STEP
-                            })
-                        })
-                        .count();
-                    assert!(
-                        inked >= 4,
-                        "{what}: only {inked} inked columns in the footer's own band \
-                         ({x0}..{x1}) — the Back cell is planned and shaped but not on screen"
-                    );
+                        let (inked, band, x0, x1) = footer_ink(
+                            &device,
+                            &queue,
+                            &p,
+                            pw,
+                            ph,
+                            geom.text_left,
+                            top,
+                            ink_w,
+                            height,
+                        );
+                        // **THE PRESENCE FLOOR, SET UNDER THE ROSTER'S TIGHTEST REAL
+                        // VALUE.** A handful of inked columns is a floor a nearly
+                        // invisible footer clears; the sentence is a whole line of
+                        // type, so the honest question is what SHARE of its own
+                        // shaped band carries a glyph edge. The tightest cell in this
+                        // sweep inks 76% of its band and the loosest 83%, so half is
+                        // a real constraint with room for a shaper's antialiasing to
+                        // differ across backends — and the measured tightest is
+                        // reported below so the headroom stays visible.
+                        assert!(
+                            band >= 4,
+                            "{what}: the footer's ink band clamped to {band} canvas columns \
+                         ({x0}..{x1}) — there is nothing here for a pixel floor to grade"
+                        );
+                        assert!(
+                            inked * 2 >= band,
+                            "{what}: only {inked} of the footer's own {band} band columns \
+                         ({x0}..{x1}) carry a glyph edge — the Back cell is planned, shaped \
+                         and seated, but what reached the frame is not a line of type"
+                        );
+                        tightest = tightest.min(inked as f32 / band as f32);
+                        inked_cells += 1;
+                    }
                 }
             }
         }
     }
+    crate::menubar::set_menu_bar_on(ambient_menu_bar);
 
     // THE SWEEP CROSSED THE THRESHOLD, and says so. Without this the invariance
     // above is a statement about one regime wearing the clothes of two.
@@ -320,12 +451,45 @@ fn the_workspaces_back_reads_and_draws_the_same_on_both_sides_of_the_staging_thr
         "the enrolled roster's content panes must all teach the erase key as their Back — \
          the focus key is the fallback for a live query, and no cell here types one"
     );
+    // STARVATION IS REPORTED BEFORE OVERRUN, because a card that starves is
+    // never graded for width — so a change that pushes cells from one ledger
+    // into the other reddens BOTH, and the absent footer is the more useful of
+    // the two things to be told about first.
+    assert_eq!(
+        starved, STARVED,
+        "the set of cells whose card is too short to lay its footer out at all changed. A \
+         cell that is here and not in STARVED is a NEW loss of the Back — fix it. A cell in \
+         STARVED that is no longer here has been fixed — delete its entry rather than leave \
+         a ledger that grades nothing."
+    );
     assert_eq!(
         overrun, OVERRUN,
         "the set of cells whose footer runs past the card's right edge changed. A cell that \
          is here and not in OVERRUN is a NEW overrun — fix it. A cell in OVERRUN that is no \
          longer here has been fixed — delete its entry rather than leave a ledger that \
          grades nothing."
+    );
+    // **THE PRESENCE FLOOR IN AGGREGATE.** Both ledgers above are exact sets, so
+    // neither can grow quietly — but an exact set says nothing about how much of
+    // the sweep is left over to be a law about. This is the statement that the
+    // two degradations stay a CORNER: today 76 of 96 cells draw an inked footer
+    // inside their card, and a change that pushed that below two thirds would
+    // have made the ledgers the product rather than the exception.
+    assert!(
+        inked_cells * 3 >= graded * 2,
+        "only {inked_cells} of {graded} swept cells drew an inked footer inside their card \
+         ({} overrun, {} starved) — the ledgered corners have grown into the sweep, so the \
+         presence claim is now about a minority of the product",
+        overrun.len(),
+        starved.len()
+    );
+    eprintln!(
+        "workspace back footer: {graded} cells over both menu-bar arms (ambient here is \
+         {ambient_menu_bar}), {inked_cells} inked, {} overrun, {} starved; tightest ink share \
+         {:.3} against a floor of 0.500",
+        overrun.len(),
+        starved.len(),
+        tightest
     );
 }
 
@@ -344,17 +508,53 @@ fn the_workspaces_back_reads_and_draws_the_same_on_both_sides_of_the_staging_thr
 /// It is a ledger and not an exclusion because the fix is a composition
 /// question — elide a cell, wrap the line, or refuse the zoom — that belongs to
 /// whoever owns the card's minimum, not to the key the footer names.
+///
+/// Keyed by the MENU-BAR ARM, because the bar decides whether a cell at this
+/// corner overruns or starves: the two 464x288 zoom-2 cells are here only with
+/// the bar off, and in [`STARVED`] with it on.
 const OVERRUN: &[&str] = &[
-    "settings at 464x288 logical, zoom=1.4, dpi=1",
-    "settings at 464x288 logical, zoom=1.4, dpi=2",
-    "settings at 464x288 logical, zoom=2, dpi=1",
-    "settings at 464x288 logical, zoom=2, dpi=2",
-    "settings at 560x480 logical, zoom=1.4, dpi=1",
-    "settings at 560x480 logical, zoom=1.4, dpi=2",
-    "settings at 560x480 logical, zoom=2, dpi=1",
-    "settings at 560x480 logical, zoom=2, dpi=2",
-    "settings at 700x620 logical, zoom=2, dpi=1",
-    "settings at 700x620 logical, zoom=2, dpi=2",
+    "settings at 464x288 logical, zoom=1.4, dpi=1, menu_bar=off",
+    "settings at 464x288 logical, zoom=1.4, dpi=2, menu_bar=off",
+    "settings at 464x288 logical, zoom=2, dpi=1, menu_bar=off",
+    "settings at 464x288 logical, zoom=2, dpi=2, menu_bar=off",
+    "settings at 560x480 logical, zoom=1.4, dpi=1, menu_bar=off",
+    "settings at 560x480 logical, zoom=1.4, dpi=2, menu_bar=off",
+    "settings at 560x480 logical, zoom=2, dpi=1, menu_bar=off",
+    "settings at 560x480 logical, zoom=2, dpi=2, menu_bar=off",
+    "settings at 700x620 logical, zoom=2, dpi=1, menu_bar=off",
+    "settings at 700x620 logical, zoom=2, dpi=2, menu_bar=off",
+    "settings at 464x288 logical, zoom=1.4, dpi=1, menu_bar=on",
+    "settings at 464x288 logical, zoom=1.4, dpi=2, menu_bar=on",
+    "settings at 560x480 logical, zoom=1.4, dpi=1, menu_bar=on",
+    "settings at 560x480 logical, zoom=1.4, dpi=2, menu_bar=on",
+    "settings at 560x480 logical, zoom=2, dpi=1, menu_bar=on",
+    "settings at 560x480 logical, zoom=2, dpi=2, menu_bar=on",
+    "settings at 700x620 logical, zoom=2, dpi=1, menu_bar=on",
+    "settings at 700x620 logical, zoom=2, dpi=2, menu_bar=on",
+];
+
+/// **THE CELLS WHERE THE CARD IS TOO SHORT TO LAY THE FOOTER OUT AT ALL** — the
+/// VERTICAL half of the same corner [`OVERRUN`] records, ledgered the same
+/// two-sided way and for the same reason: it is an existing defect this law
+/// found and does not own.
+///
+/// It is the app's own enforced MINIMUM window at zoom 2 WITH THE MENU BAR
+/// SHOWN, and nowhere else. The bar's reserve is subtracted straight from the
+/// card (`plan_workspace_regions`), which at that cell leaves a 160.8px card
+/// against a 54.4px row pitch — under three lines, where the shortest
+/// composition this stage can draw is four (the `settings › query` line, the one
+/// candidate row the flat family's floor guarantees, the blank the shared gap
+/// owner reserves, and the hint). With the bar OFF the same cell has 232.0px and
+/// the footer is drawn — running past the card's right edge, which is why it
+/// appears in [`OVERRUN`] under `menu_bar=off` and here under `menu_bar=on`. It
+/// is ONE defect wearing two faces, not two.
+///
+/// Membership here is never taken on a cell's name: the law requires the card's
+/// own reported budget to be smaller than its own shortest composition before it
+/// will accept an empty footer at all.
+const STARVED: &[&str] = &[
+    "settings at 464x288 logical, zoom=2, dpi=1, menu_bar=on",
+    "settings at 464x288 logical, zoom=2, dpi=2, menu_bar=on",
 ];
 
 /// **THE BACK COSTS THE FOOTER NO WIDTH** — which is what makes the ledger above
@@ -373,7 +573,9 @@ fn naming_the_erase_key_shapes_no_wider_than_naming_the_focus_key() {
         eprintln!("skipping naming_the_erase_key_shapes_no_wider...: no wgpu adapter");
         return;
     }
-    let mut graded = 0usize;
+    // The AMBIENT value, captured rather than derived — see the module doc.
+    let ambient_menu_bar = crate::menubar::menu_bar_on();
+    let (mut graded, mut skipped) = (0usize, 0usize);
     for kind in enrolled() {
         let ov = card_in_content(kind);
         let shipped = ov.foot_hint();
@@ -387,45 +589,83 @@ fn naming_the_erase_key_shapes_no_wider_than_naming_the_focus_key() {
             "{}: the substitution matched nothing, so this measures one sentence twice",
             kind.as_str()
         );
-        for (lw, lh) in windows() {
-            for zoom in [1.0f32, 1.4, 2.0] {
-                let Some((device, queue, mut p)) = headless_dqp(lw as f32, lh as f32) else {
-                    return;
-                };
-                let mut widths = Vec::new();
-                for hint in [&shipped, &was] {
-                    let mut v = content_view(&ov);
-                    v.zoom = zoom;
-                    v.overlay_hint = hint.clone();
-                    p.set_view(&v);
-                    p.prepare(&device, &queue, lw, lh).unwrap();
-                    let line = p
-                        .overlay_hint_line()
-                        .expect("the content stage shapes its footer");
-                    widths.push(
-                        p.panel_buffer
-                            .layout_runs()
-                            .find_map(|run| (run.line_i == line).then_some(run.line_w))
-                            .expect("the shaped footer has an ink run"),
+        for menu_bar in [false, true] {
+            crate::menubar::set_menu_bar_on(menu_bar);
+            for (lw, lh) in windows() {
+                for zoom in [1.0f32, 1.4, 2.0] {
+                    let Some((device, queue, mut p)) = headless_dqp(lw as f32, lh as f32) else {
+                        return;
+                    };
+                    let what = format!(
+                        "{} at {lw}x{lh} zoom={zoom}, menu_bar={}",
+                        kind.as_str(),
+                        if menu_bar { "on" } else { "off" }
                     );
+                    let mut widths = Vec::new();
+                    for hint in [&shipped, &was] {
+                        let mut v = content_view(&ov);
+                        v.zoom = zoom;
+                        v.overlay_hint = hint.clone();
+                        p.set_view(&v);
+                        p.prepare(&device, &queue, lw, lh).unwrap();
+                        let line = p
+                            .overlay_hint_line()
+                            .expect("the content stage shapes its footer");
+                        widths.push(
+                            p.panel_buffer
+                                .layout_runs()
+                                .find_map(|run| (run.line_i == line).then_some(run.line_w)),
+                        );
+                    }
+                    // A card too short to lay its footer out measures NEITHER
+                    // sentence — the vertical starvation the headline law
+                    // ledgers in `STARVED`. The two must fall out TOGETHER: one
+                    // laid out and the other not would be a width compared
+                    // against nothing, which is the one way this comparison
+                    // could go quietly vacuous.
+                    assert_eq!(
+                        widths[0].is_none(),
+                        widths[1].is_none(),
+                        "{what}: one of the two sentences was laid out and the other was not \
+                         ({:?} against {:?}) — they share a card and a line, so this is a \
+                         defect in the shaper rather than a cell to skip",
+                        widths[0],
+                        widths[1]
+                    );
+                    let (Some(shipped_w), Some(was_w)) = (widths[0], widths[1]) else {
+                        skipped += 1;
+                        continue;
+                    };
+                    assert!(
+                        shipped_w <= was_w,
+                        "{what}: `{} back` shapes {shipped_w:.1}px, wider than the `{} back` \
+                         it replaced ({was_w:.1}px) — naming the Back must not cost the \
+                         footer width it does not have",
+                        BackKey::Erase.glyph(),
+                        BackKey::Focus.glyph(),
+                    );
+                    graded += 1;
                 }
-                assert!(
-                    widths[0] <= widths[1],
-                    "{} at {lw}x{lh} zoom={zoom}: `{} back` shapes {:.1}px, wider than the \
-                     `{} back` it replaced ({:.1}px) — naming the Back must not cost the \
-                     footer width it does not have",
-                    kind.as_str(),
-                    BackKey::Erase.glyph(),
-                    widths[0],
-                    BackKey::Focus.glyph(),
-                    widths[1]
-                );
-                graded += 1;
             }
         }
     }
+    crate::menubar::set_menu_bar_on(ambient_menu_bar);
+    // 47 of this sweep's 48 cells compare two real shaped widths; the floor sits
+    // under that rather than at it, so a face whose metrics move a cell over the
+    // starvation edge does not redden here.
     assert!(
-        graded >= 20,
-        "the comparison must actually run, got {graded}"
+        graded >= 40,
+        "the comparison must actually run, got {graded} (and {skipped} cells whose card was \
+         too short to lay either sentence out)"
+    );
+    // AND THE SKIPPING STAYS BOUNDED BY THE HEADLINE LAW'S OWN LEDGER: this
+    // sweep runs at one scale, so it can only ever meet a subset of `STARVED`.
+    // A comparison that quietly stopped comparing would show up here first.
+    assert!(
+        skipped <= STARVED.len(),
+        "{skipped} cells could not be compared at all, more than the {} the headline law \
+         ledgers as starved — the footer is being lost somewhere that ledger does not know \
+         about",
+        STARVED.len()
     );
 }
