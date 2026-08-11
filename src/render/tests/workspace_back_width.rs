@@ -60,6 +60,42 @@
 //! Both ledgers are keyed by the menu-bar arm, because the bar decides which
 //! of the two a cell lands in: at 464x288 zoom 2 the footer OVERRUNS with the
 //! bar off and STARVES with it on, off one and the same defect.
+//!
+//! # AND THE HORIZONTAL LEDGER IS GRADED IN BANDS, BECAUSE ITS SUBJECT IS NOT
+//! THIS MACHINE'S
+//!
+//! "Is the footer wider than the card" reads like a fact about awl. Half of it
+//! is a fact about the HOST: `⌫` — the Back cell's own glyph, U+232B — is
+//! carried by NO face in `assets/fonts`, so its advance comes from whatever the
+//! system font DB answers with. That is Apple Symbols here and DejaVu Sans on a
+//! Debian/Ubuntu runner, and the same sentence measures **2.92% wider** there.
+//!
+//! Everything else about the comparison is host-identical, and that was measured
+//! rather than assumed: across all 94 laid-out cells the card's own reported
+//! width agrees to the byte on both hosts, the vertical demand agrees to the
+//! byte, and every cell's shaped width differs by ONE common factor (1.0292).
+//! The disagreement is a single scalar on a single axis. But four cells sat 2.4%
+//! from their card's right edge, so that scalar decided their boolean — and a
+//! ledger of exact cell names then said one thing on a Mac and another on CI.
+//!
+//! So the horizontal grade is a RATIO with a band around the edge
+//! ([`HOST_BAND`]), not a boolean:
+//!
+//!   * demand ≤ 1 − [`HOST_BAND`] — fits, and no host's fallback face can talk
+//!     it over the line. Ledgered nowhere; leaving this band reddens.
+//!   * within [`HOST_BAND`] of the edge — **TIGHT**. The outcome here is the
+//!     host's to decide, so this law declines to grade it and ledgers the
+//!     MEMBERSHIP instead, in [`TIGHT`].
+//!   * demand > 1 + [`HOST_BAND`] — **OVERRUN**, by more than any substituted
+//!     glyph accounts for. Ledgered in [`OVERRUN`].
+//!
+//! All three ledgers stay exact and two-sided — a cell that arrives reddens, a
+//! cell that leaves reddens — so the bands cost nothing in grading power: a
+//! footer that grows moves cells DOWN the grades and reddens on the way. What
+//! they buy is that which ledger a cell is in stopped being a property of the
+//! machine that ran the test. The band is not taken on faith either: the sweep
+//! asserts, and reports, that no cell sits within [`GRADE_HEADROOM`] of
+//! changing grade.
 
 use super::super::*;
 use super::dither::{offscreen, read_pixels};
@@ -71,6 +107,35 @@ use crate::overlay::{OverlayKind, OverlayState};
 /// the same threshold the foot-hint pixel law uses, for the same reason: card
 /// grounds and washes move slowly, type does not.
 const GLYPH_STEP: f32 = 24.0;
+
+/// **HOW CLOSE TO ITS CARD'S EDGE A FOOTER MAY SIT BEFORE THIS LAW STOPS
+/// GRADING ITS OUTCOME** — the module doc's third grade, sized off the measured
+/// spread rather than picked.
+///
+/// The one host-dependent quantity in the comparison is the shaped width of the
+/// footer, and it is host-dependent for one reason: no bundled face carries
+/// `⌫` (U+232B), so the Back cell's advance is whatever the system font DB
+/// supplies. Measured, the same sentence shapes **2.92%** wider on Ubuntu 24.04
+/// against DejaVu Sans than on macOS against Apple Symbols — one common factor
+/// across every cell, with the card's own width and the whole vertical axis
+/// agreeing to the byte.
+///
+/// This band is ~3.4× that observed spread, which is deliberate: DejaVu is one
+/// substitute out of many, and a host with no system fonts at all substitutes a
+/// different width again. It is NOT a tolerance on the product — a cell inside
+/// it is ledgered by name in [`TIGHT`] and cannot arrive or leave unnoticed.
+const HOST_BAND: f32 = 0.10;
+
+/// **THE BAND'S OWN NON-VACUITY.** A grade whose members crowd its edge is a
+/// grade the next runner image re-decides, which is the exact failure
+/// [`HOST_BAND`] exists to end — so the sweep requires every cell to stand this
+/// factor clear of the nearest boundary it did NOT cross, and reports the
+/// tightest it measured.
+///
+/// 1.05 sits under the measured worst on both hosts (1.086 on this Mac, 1.094
+/// against DejaVu), so it is a floor with room rather than a restatement of
+/// today's numbers.
+const GRADE_HEADROOM: f32 = 1.05;
 
 fn luma(p: [u8; 4]) -> f32 {
     0.2126 * p[0] as f32 + 0.7152 * p[1] as f32 + 0.0722 * p[2] as f32
@@ -277,11 +342,17 @@ fn the_workspaces_back_reads_and_draws_the_same_on_both_sides_of_the_staging_thr
     let mut sentences: std::collections::BTreeSet<String> = Default::default();
     let mut backs: std::collections::BTreeSet<&'static str> = Default::default();
     let mut overrun: Vec<String> = Vec::new();
+    let mut tight: Vec<String> = Vec::new();
     let mut starved: Vec<String> = Vec::new();
     let (mut staged, mut wide, mut graded, mut inked_cells) = (0usize, 0usize, 0usize, 0usize);
     // The tightest INK SHARE any drawn footer reached, reported at the end so a
     // reader can see how much headroom the presence floor below actually had.
     let mut tightest = f32::INFINITY;
+    // THE NARROWEST MARGIN ANY CELL HAD ON ITS OWN GRADE, as the factor its
+    // footer would have to widen (or narrow) by to be graded differently — the
+    // subject of `GRADE_HEADROOM`, carried with the cell that set it so the
+    // failure can name it.
+    let mut closest_call: (f32, String) = (f32::INFINITY, String::new());
 
     for kind in &kinds {
         let ov = card_in_content(*kind);
@@ -381,21 +452,47 @@ fn the_workspaces_back_reads_and_draws_the_same_on_both_sides_of_the_staging_thr
                         // WHETHER IT FITS is LEDGERED, not asserted — see `OVERRUN`.
                         // A cell that overflows and is not listed fails; a listed
                         // cell that stops overflowing fails too.
-                        let fits = geom.text_left + ink_w <= cx + cw + 0.5
-                            && top + height <= cy + ch + 0.5;
-                        if std::env::var("AWL_408_DIAG").is_ok() {
-                            eprintln!(
-                                "DIAG {what} | ink_w={ink_w:.3} availw={:.3} dx={:.4} \
-                                 ch={ch:.3} bot={:.3} dy={:.4} fits={fits}",
-                                cx + cw - geom.text_left,
-                                ink_w / (cx + cw - geom.text_left),
-                                top + height - cy,
-                                (top + height - cy) / ch,
-                            );
+                        //
+                        // HORIZONTALLY that is graded as a RATIO in three bands
+                        // (`HOST_BAND`), because the footer's shaped width is
+                        // partly the host's and a boolean at the card's edge is
+                        // therefore not this product's to state. VERTICALLY it
+                        // stays a boolean, because the whole vertical axis was
+                        // measured identical on both hosts — the line's pitch is
+                        // a metric the pipeline sets, not one a substituted glyph
+                        // gets a vote in.
+                        let avail = cx + cw - geom.text_left;
+                        let demand = ink_w / avail;
+                        let fits_here = geom.text_left + ink_w <= cx + cw + 0.5;
+                        let over_bottom = top + height > cy + ch + 0.5;
+                        // THE MARGIN THIS CELL HAD ON ITS OWN GRADE, as a factor
+                        // — a statement about the horizontal band alone, kept for
+                        // every cell so `GRADE_HEADROOM` sweeps the whole roster
+                        // rather than the ledgered corner.
+                        let headroom = if demand > 1.0 + HOST_BAND {
+                            demand / (1.0 + HOST_BAND)
+                        } else if demand > 1.0 - HOST_BAND {
+                            ((1.0 + HOST_BAND) / demand).min(demand / (1.0 - HOST_BAND))
+                        } else {
+                            (1.0 - HOST_BAND) / demand
+                        };
+                        if headroom < closest_call.0 {
+                            closest_call = (headroom, format!("{what} at demand {demand:.4}"));
                         }
-                        if !fits {
+                        if demand > 1.0 + HOST_BAND || over_bottom {
                             overrun.push(what.clone());
                             continue;
+                        }
+                        if demand > 1.0 - HOST_BAND {
+                            tight.push(what.clone());
+                            // A TIGHT CELL IS NOT GRADED FOR FIT — but it is still
+                            // graded for INK wherever this host's own faces did
+                            // seat it, because the presence floor is a claim about
+                            // type reaching the frame and owes nothing to the
+                            // card's right edge.
+                            if !fits_here {
+                                continue;
+                            }
                         }
 
                         let (inked, band, x0, x1) = footer_ink(
@@ -474,32 +571,67 @@ fn the_workspaces_back_reads_and_draws_the_same_on_both_sides_of_the_staging_thr
     );
     assert_eq!(
         overrun, OVERRUN,
-        "the set of cells whose footer runs past the card's right edge changed. A cell that \
-         is here and not in OVERRUN is a NEW overrun — fix it. A cell in OVERRUN that is no \
-         longer here has been fixed — delete its entry rather than leave a ledger that \
-         grades nothing."
+        "the set of cells whose footer runs past the card's right edge by more than any \
+         substituted glyph accounts for changed. A cell that is here and not in OVERRUN is a \
+         NEW overrun — fix it. A cell in OVERRUN that is no longer here has been fixed — \
+         delete its entry rather than leave a ledger that grades nothing. (A cell that merely \
+         crossed the edge is in TIGHT, not here — see `HOST_BAND`.)"
     );
-    // **THE PRESENCE FLOOR IN AGGREGATE.** Both ledgers above are exact sets, so
-    // neither can grow quietly — but an exact set says nothing about how much of
-    // the sweep is left over to be a law about. This is the statement that the
-    // two degradations stay a CORNER: today 76 of 96 cells draw an inked footer
-    // inside their card, and a change that pushed that below two thirds would
-    // have made the ledgers the product rather than the exception.
+    assert_eq!(
+        tight, TIGHT,
+        "the set of cells sitting within a substituted glyph's reach of the card's right edge \
+         changed. A cell that is here and not in TIGHT has MOVED toward its card's edge — that \
+         is the footer growing, and it is the thing this law is for, whichever side of the edge \
+         this particular machine's fonts happened to land it on. A cell in TIGHT that is no \
+         longer here has moved away from the edge — delete its entry. Do NOT resolve this by \
+         adding the cell: `TIGHT` is not an allow-list for one host's font set, it is the list \
+         of places the product has no margin left."
+    );
+    // **AND THE BANDS ARE NOT A KNIFE'S EDGE OF THEIR OWN.** The grade above is
+    // only worth more than the boolean it replaced if no cell is one runner
+    // image away from being graded differently — the same crowding, moved one
+    // level up. So the margin is measured over EVERY cell, floored, and printed.
+    assert!(
+        closest_call.0 >= GRADE_HEADROOM,
+        "{} is only {:.4}x from being graded differently, under a floor of {GRADE_HEADROOM:.2}x \
+         — the three-way grade has developed the same edge-crowding the boolean had, and which \
+         ledger this cell lands in is about to become a property of the host again",
+        closest_call.1,
+        closest_call.0,
+    );
+    // **THE PRESENCE FLOOR IN AGGREGATE.** All three ledgers above are exact
+    // sets, so none can grow quietly — but an exact set says nothing about how
+    // much of the sweep is left over to be a law about. This is the statement
+    // that the degradations stay a CORNER, and a change that pushed the inked
+    // share below two thirds would have made the ledgers the product rather than
+    // the exception.
+    //
+    // The count is deliberately NOT pinned: a TIGHT cell is inked wherever this
+    // host's faces seated it, so the exact number is one of the few things here
+    // that legitimately differs between machines. It is printed below.
     assert!(
         inked_cells * 3 >= graded * 2,
         "only {inked_cells} of {graded} swept cells drew an inked footer inside their card \
-         ({} overrun, {} starved) — the ledgered corners have grown into the sweep, so the \
-         presence claim is now about a minority of the product",
+         ({} overrun, {} tight, {} starved) — the ledgered corners have grown into the sweep, \
+         so the presence claim is now about a minority of the product",
         overrun.len(),
+        tight.len(),
         starved.len()
     );
+    // WHAT THIS RUN ACTUALLY COVERED, printed rather than assumed — the grade
+    // headroom especially, because it is the number that says whether the bands
+    // are still doing their job on THIS host's font set.
     eprintln!(
         "workspace back footer: {graded} cells over both menu-bar arms (ambient here is \
-         {ambient_menu_bar}), {inked_cells} inked, {} overrun, {} starved; tightest ink share \
-         {:.3} against a floor of 0.500",
+         {ambient_menu_bar}), {inked_cells} inked, {} overrun, {} tight, {} starved; tightest \
+         ink share {:.3} against a floor of 0.500; closest grade call {:.4}x against a floor \
+         of {GRADE_HEADROOM:.2}x, at {}",
         overrun.len(),
+        tight.len(),
         starved.len(),
-        tightest
+        tightest,
+        closest_call.0,
+        closest_call.1,
     );
 }
 
@@ -529,9 +661,36 @@ fn the_workspaces_back_reads_and_draws_the_same_on_both_sides_of_the_staging_thr
 /// Keyed by the MENU-BAR ARM, because the bar decides whether a cell at this
 /// corner overruns or starves: the two 464x288 zoom-2 cells are here only with
 /// the bar off, and in [`STARVED`] with it on.
+///
+/// **AND THE MEMBERSHIP TEST IS A BAND, NOT THE EDGE** ([`HOST_BAND`]): these
+/// two demand 1.24 and 1.27 of their card's width on the two hosts measured, so
+/// nothing a system font DB can substitute for `⌫` moves them. A cell that
+/// merely crossed the edge belongs in [`TIGHT`].
 const OVERRUN: &[&str] = &[
     "settings at 464x288 logical, zoom=2, dpi=1, menu_bar=off",
     "settings at 464x288 logical, zoom=2, dpi=2, menu_bar=off",
+];
+
+/// **THE CELLS WITH NO MARGIN LEFT** — where the footer comes within
+/// [`HOST_BAND`] of its card's right edge, so which side of it the line lands on
+/// is decided by the host's own font DB rather than by awl.
+///
+/// These four are the 560x480 zoom-2 cells, in BOTH menu-bar arms — which is
+/// itself the tell that the bar is not the variable. They demand **97.7%** of
+/// their card's width when `⌫` (U+232B) is drawn from Apple Symbols and
+/// **100.6%** of it when the same glyph is drawn from DejaVu Sans, because no
+/// bundled face carries that codepoint at all. Ledgering the boolean pinned one
+/// runner image's font set as the product's truth and went red on the other.
+///
+/// It is a LEDGER OF THE SAME DEFECT [`OVERRUN`] holds, one degree earlier, and
+/// not a list of blessed exceptions: a footer that grows arrives here first, and
+/// arriving reddens. The composition fix that empties [`OVERRUN`] empties this
+/// too.
+const TIGHT: &[&str] = &[
+    "settings at 560x480 logical, zoom=2, dpi=1, menu_bar=off",
+    "settings at 560x480 logical, zoom=2, dpi=2, menu_bar=off",
+    "settings at 560x480 logical, zoom=2, dpi=1, menu_bar=on",
+    "settings at 560x480 logical, zoom=2, dpi=2, menu_bar=on",
 ];
 
 /// **THE CELLS WHERE THE CARD IS TOO SHORT TO LAY THE FOOTER OUT AT ALL** — the
