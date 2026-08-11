@@ -279,74 +279,28 @@ list instead of re-checking the tree.** Every entry in the previous list was
 verified landed via `git log --grep` before this re-derivation (292/293/299/303,
 294/298, 305, 291, 296+300, 273's residuals, 302, 227, 131e+303 — all merged).
 
-0. **CI RED — `main` is red on lavapipe, and it blocks the tag and all further
-   integration.** Run <https://github.com/Frank-P-Lu/awl-editor/actions/runs/31457914226>,
-   job `linux (build + test)`, step `native full suite`, first known bad commit
-   `cad4dfa1` — though the true first-bad is somewhere in the 214 commits that
-   pushed at once, since `b164a25a` was the last sha CI had ever seen. Not a
-   timeout (15.6 min against a 50 min ceiling). Both keymap conventions fail
-   identically. **A full local `native-gate.sh` receipt on the SAME commit is
-   green**, because every gate here runs real Metal and CI's linux job runs Mesa
-   lavapipe — the hardware-bounded receipt, exactly as documented.
-   - `caret_filled_knockout::cassowary_..._across_cells_zoom_and_dpi` —
-     `cell=round zoom=2 dpi=2: empty mask populations` (the assert is
-     `source_n >= 4 && knockout_n >= 4`; which population is empty is unmeasured).
-   - `metric_scale::sidecar_line_height_matches_measured_png_row_pitch_at_multiple_zooms`
-     — `zoom 0.8: row pitch 39px vs line_height 25.6px, tops [9, 48, 74, …]`.
-     Nine bands where the law expects eight; every gap after the first is
-     correct. The law slices `&tops[..7]` from the FRONT on the stated assumption
-     that a spare band can only appear at the BACK (the caret parks on the
-     trailing blank line). **Lavapipe put one at the front. The assumption is
-     what broke, not the arithmetic.**
-   Owner: 🟡 claude (deep), branch `claude/ci-red-lavapipe`, based at `cad4dfa1`.
-   Docker is present (server 29.6.2), so the container recipe in CLAUDE.md is
-   reachable and the fix is required to go red→green THERE, not only on Metal.
-1. **386 — Settings one-bit selected-category contrast.** User report and supplied
-   screenshot: in Wagtail Settings, the active category rail entry draws a white
-   inverse band but shapes its label with ordinary white content ink, making the
-   category name disappear. Reproduce through the real Settings workspace at wide
-   and staged-narrow widths; route the rail label through the same selected-ink
-   owner as its band; add a full-world contrast + presence law and mutation-proof
-   the exact Wagtail regression. Audit neighbouring active rail/row states and use
-   PNG arithmetic, not the sidecar, for legibility.
-2. **387 — Settings narrow-stage navigation should not teach Tab as Back.** The
-   user reports that Tab returning from Settings content to its category rail is
-   especially strange when the narrow layout shows only one region. Reproduce the
-   actual keyboard journey at both sides of the wide/staged transition; inspect the
-   earlier one-Esc-leaves decision rather than silently reversing it; design one
-   conventional, visible Back route for the staged layout without making the wide
-   layout and headless action model disagree. Update the footer from the behavior,
-   drive the law through real keys, and mutation-prove the former Tab surprise.
-3. **388 — Theme-picker arrowing is still visibly laggy.** User reports the landed
-   debounce removal did not make Up/Down browsing feel responsive. The current
-   mechanism pays a measured ~33 ms full font/span reshape on every differing-font
-   preview (often two presented frames); the prior mechanism instead accumulated a
-   141–151 ms ninth-step stall. Reproduce in `--release` with movement-to-present
-   receipts over the full 20-world arrow sweep and a representative long Markdown
-   document. Attribute font adopt, reshape, row geometry, atlas and present costs;
-   then remove or amortize the dominant work while every arrow still previews the
-   destination world's truthful font/colors. A delayed wrong-font sequence or a
-   later catch-up stall is not a fix. Require output identity at every settled world,
-   a deliberately broken performance/witness law, and live feel confirmation.
-4. **389 — Switch Project All is flat over direct workspace children only.** User
-   decision: include every direct child folder of the configured workspace, whether
-   git-marked or ordinary; never recursively flatten children or grandchildren.
-   Keep the existing `git` secondary marker informational, not an enrollment gate.
-   A direct child is selectable as the project; deeper navigation belongs behind the
-   separate “Browse for folder…” door decided in item 376. Derive the roster from one
-   directory-level read, law-test ordinary + git children and excluded grandchildren,
-   and preserve Recent ordering plus the explicit configured-workspace boundary.
-5. **390 — Give Wagtail's command facet row more top breathing room.** User
-   screenshot: in Wagtail's Command palette, the `All / Files / Navigate / …`
-   facet labels sit too close to the card's top rule, making the first band feel
-   vertically pinched. Add a small amount of space above that facet row without
-   loosening the row-to-section rhythm beneath it or globally inflating every
-   world's card. First determine whether the pressure belongs to Wagtail's one-bit
-   composition, the facet/header plan, or a shared physical/logical inset; then
-   capture before/after at 1× and 2×, normal and narrow widths. Require the labels,
-   active underline and card rule to remain disjoint in real pixels, keep all footer
-   content inside the card, and vision-smoke the full facet roster rather than only
-   `All`.
+1. **388 — Theme-picker arrowing is still visibly laggy.** User reports the landed
+   debounce removal did not make Up/Down browsing feel responsive. The mechanism
+   pays a measured ~33 ms full font/span reshape on every differing-font preview;
+   the mechanism before it accumulated a 141–151 ms ninth-step stall. Reproduce in
+   `--release` with movement-to-present receipts over the full 20-world arrow sweep
+   and a long Markdown document; attribute font adopt, reshape, row geometry, atlas
+   and present costs; then remove or amortize the dominant work while every arrow
+   still previews the destination world's truthful font and colors. A delayed
+   wrong-font sequence or a later catch-up stall is not a fix. **Dispatch ALONE —
+   its deliverable is timing, and a receipt taken beside other lanes measures the
+   wave, not the mechanism.**
+2. **391 — the picker footer teaches `⌫ up` where Backspace is now inert.** Body below.
+3. **392 — the menu-bar axis is covered by a NAME FILTER, and it has now cost a CI
+   red.** `native-gate.sh` runs its menubar arms over tests matching
+   `menubar|menu_bar`, and its own comment records a census counting 14 tests that
+   actually see a tripled reserve. Both laws CI just caught were outside that
+   filter, and about eleven more remain. The trade is gate wall-clock against
+   finding this class locally: widen the filter (two more full suites per gate), or
+   make `AWL_MENU_BAR_FORCE=on` a standing pre-push arm — it reproduced both
+   failures in under a second where the lavapipe container cost ten minutes.
+   Recommendation: the forcing arm, because it is nearly free and this class has
+   now escaped a local gate twice. 🔵 User decision.
 6. **🔵 HUMAN / LIVE after 386–390.** **231** needs the approved macOS guest-VM
    spend; **251** needs a human at a Linux desktop with Orca. **327** and the landed
    taste calls (338/342/345/346, carried in the visual/live blocked section) close
@@ -356,36 +310,6 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
 
 ## Open items
 
-### 386 — Settings one-bit selected-category contrast
-
-✅ MERGED to local `main` (unpushed) — `6548c675`, merge `c28432ee`, with the
-config raise at `c0b46df4`. Candidate receipt `native-gate-receipt commit=c0b46df4
-conventions=mac,linux scope=all-targets unit_tests=4047`, zero failures.
-Premise measured TRUE and worse than reported: over Wagtail's active rail mark,
-2052 px, every one `[255,255,255]`, contrast 1.00:1 — the label was ABSENT, not
-dim. `overlay_visual_sel.rs` now owns both the band fill and the label ink; the
-three chrome sites that each re-derived the fill route through it. Now 8.75:1.
-Law grades 120 cells (20 worlds × 4 canvases × both focus states), enrolment
-derived from the roster. **Two mutations, and the second is the finding worth
-keeping: with the plate deleted, the CONTRAST floor PASSED — only the companion
-presence floor caught it.** code-health PASS, no mark raise owed.
-⚠️ **No native-gate receipt** — stopped before launch under load 387.
-
-### 387 — Settings narrow-stage navigation should not teach Tab as Back
-
-🟢 CODE COMPLETE, AWAITING MERGE — `1cf404db` on `claude/item-387-settings-back-nav`.
-The one-Esc-leaves decision was found and HONOURED, not reversed: it settled that
-one Esc always leaves and explicitly left History/Settings owing "an explicit Back
-affordance in the footer" — this item collects that debt. `BackKey` is the one
-owner of what goes back from a detail stage, `foot_hint` appends its cell so no
-per-kind arm authors one, and Settings reads `⌫ back`. Three mutations, each with
-captured panic text. **A stale module doc in `overlay/workspace.rs` claimed the
-REVERSE of the decision table two files away; corrected.**
-⚠️ **My brief's 880 px aside was FALSE** — measured 1070–1075 px on the default
-fixture, and the threshold is derived from face metrics × zoom, so no single
-number describes it. The law deliberately never writes one down.
-Owed: code-health and native-gate both outstanding; a taste call, below.
-
 ### 388 — Theme-picker arrowing is still visibly laggy
 
 ⏸ HELD FOR A QUIET HOST — deliberately not dispatched with the 386/387/389/390
@@ -393,27 +317,6 @@ wave. Its deliverable is movement-to-present timing in `--release`, and four
 concurrent lanes at the gate phase measured load average 69.79 on this host, so
 any receipt taken alongside them measures the wave, not the mechanism. Dispatch
 alone once the wave has landed. Execute from handoff item 3 above.
-
-### 389 — Switch Project All is flat over direct workspace children only
-
-🟢 CODE COMPLETE, AWAITING MERGE — `4dc25fe1` on `claude/item-389-project-children`.
-The defect was in the accept/ascend BEHAVIOUR, not the listing — the roster read
-was already one directory level. Enter on a folder now switches instead of
-descending; Backspace can no longer walk above the configured workspace. Six
-fixture shapes enrolled; a symlinked child is MEASURED excluded (`file_type()`
-does not follow), documented as current behaviour rather than claimed as a
-requirement. Fixing the ascend gate exposed a second real bug — `OverlayState::pop()`
-resetting `selected` to row 0 on an idle Backspace — which got its own law.
-Two mutations with captured panic text.
-⚠️ **ORCHESTRATOR OWES A MARK RAISE AT MERGE:** `src/actions/overlay_nav.rs`
-is 823 lines against a mark of 792 (frozen baseline 1309, so the raise is legal).
-Read the count off the tree with `wc -l` at merge time, not from this line.
-
-### 390 — Give Wagtail's command facet row more top breathing room
-
-🟡 IN PROGRESS — claude (production), branch `claude/item-390-wagtail-facet-air`,
-WIP committed at `e44b8503` under a restart warning; full report not yet in.
-Execute from handoff item 5 above.
 
 ### 391 — The picker footer advertises `⌫ up` where Backspace is now inert
 
@@ -429,12 +332,6 @@ whether that owner is the right seam to extend rather than inventing a second
 one. Verify by driving both pickers with real `--keys` and reading each footer
 from the sidecar; a law must fail if either picker's hint names a key that its
 own intercept does not honour.
-
-### CI RED — two lavapipe-only failures on `main`
-
-Claim and execute from handoff item 0 above. **Nothing else integrates and no tag
-is cut until this is green.** Do not disable, `#[ignore]` or narrow either test to
-clear it; if a test cannot be made backend-portable that is a user decision.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
