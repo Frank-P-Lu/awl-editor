@@ -240,44 +240,99 @@ right, but its subject has to be something both hosts agree on.
 Note item 394 retired 16 of this ledger's 18 cells by composition when the
 Settings footer got shorter, so the current 2-entry ledger is recent.
 
-### 409 — the browse level silently drops symlinks (design session 2026-08-12)
+### 409 — the level read silently drops symlinks; 389 pinned it, this flips it
 
-User-confirmed live: `~/shared` (a symlink into iCloud Drive) does not exist in
-the switch-project picker. The native `fs::read_dir` classifies each entry by
+User-confirmed live (design session 2026-08-12): `~/shared` (a symlink into
+iCloud Drive) does not exist in the switch-project roster. Item 389 already
+MEASURED this and deliberately recorded it as current truth with a law to
+answer to — `project_roster_excludes_a_symlinked_child_folder`
+(`src/overlay/tests/project.rs`), a real-tempdir fixture because `InMemoryFs`
+has no symlink concept. The mechanism: the native `fs::read_dir` classifies by
 `entry.file_type()`, which never follows links, so a symlinked directory is
 neither `is_dir` nor `is_file` and `index::list_dir_level` skips it — while
 every OTHER door follows links for free (`fs::is_dir` is `path.is_dir()`, open
-follows, the `.git` probe follows). The picker is the anomaly, and silent
-omission is the worst of the available behaviors.
+follows, the `.git` probe follows).
 
-Decision: classify a symlink by its TARGET (a following stat on the entry's
-path), carry the symlink fact on `DirEntry`, and let the browse level show it
-as the directory or file it points to. ONE deliberate exception: `walk_collect`
-(the recursive go-to indexer) must NOT descend a symlinked directory — it has
-no cycle guard, so a link loop recurses forever, and `~/shared` alone would
-pour iCloud Drive into the corpus. Show the entry, never traverse it — the
-git/ripgrep/fd convention. Verify at the unit seam: a `ScratchDir` fixture with
-a dir-symlink asserts presence in `list_dir_level` AND non-traversal in the
-walked index; break-the-product proves both laws non-vacuous.
+Decision, answering 389's law: classify a symlink by its TARGET (a following
+stat on the entry's path), carry the symlink fact on `DirEntry`, and show it as
+what it points to — in the project roster, the Settings folder-VALUE navigator,
+and Browse alike. ONE deliberate exception: `walk_collect` (the recursive
+go-to indexer) must NOT descend a symlinked directory — it has no cycle guard,
+so a link loop recurses forever, and `~/shared` alone would pour iCloud Drive
+into the corpus. Show the entry, never traverse it — the git/ripgrep/fd
+convention. The work FLIPS 389's law into its inclusion twin (same fixture
+shape, guard-owned cleanup) and adds the non-traversal law; break the product
+to prove both non-vacuous.
 
-### 410 — the `.` row is programmer-speak, and the card never says where you are
+### 410 — the `.` row is programmer-speak, and the card never names the workspace
 
-Two findings from the same session, one fix. `OverlayState.browse_dir` (the
-absolute path of the browsed level) has NO renderer — its only consumer is the
-capture sidecar — so the card's sole orientation is its row contents. And the
-level's first row is a bare `.`, which a non-programmer cannot read at all.
+Post-389 reality (the design session's original phrasing predated reading it):
+the plain switch-project picker never browses — `browse_dir` is always the
+configured workspace — so "where am I" has exactly one answer the card never
+gives, and the level's first row is a bare `.`, which a non-programmer cannot
+read at all. `OverlayState.browse_dir` has NO renderer (its only consumer is
+the capture sidecar), and `.` now means "keep the workspace root itself as the
+project."
 
-Decision: replace the `.` row with a plain-language pick-this-folder row that
-carries the location itself — the browsed directory's name/path, elided, as the
-row's visible content. It stays the FIRST row; the default selection continues
-to skip it to the first child (↵ on open must not re-select where you already
-stand). 🔵 The exact wording is a taste call to land-and-judge (candidates:
-`pick this folder` with the path as secondary; the directory's real name as
-primary with `this folder` as secondary). Constraint already on the board:
-327's `elide_path` drops the parent and keeps the leaf, and for a DIRECTORY
-readout the parent is the informative half — resolve or note it here. Verify:
-capture against a seeded `--root`, never the ambient one (the PNG and
-`overlay.items` photograph real paths).
+Decision: replace the `.` row with a plain-language row that says what it does
+and where — the workspace's name/path, elided, as visible content. It stays the
+FIRST row; the default selection continues to skip it to the first child (↵ on
+open must not re-select where you already stand). 🔵 The exact wording is a
+taste call to land-and-judge (candidates: `pick this folder` with the path as
+secondary; the folder's real name as primary with `this folder` as secondary).
+Constraint already on the board: 327's `elide_path` drops the parent and keeps
+the leaf, and for a DIRECTORY readout the parent is the informative half —
+resolve or note it here. Verify: capture against a seeded `--root`, never the
+ambient one (the PNG and `overlay.items` photograph real paths).
+
+### 411 — item 376's second half never shipped: nested projects are unreachable
+
+RECOVERED DECISION — this was decided 2026-08-09 (item 376, `f4ce0d9b`),
+carried through the roster answer (`8a00b459`), and then silently lost when
+389 landed only the accept-side half (`d98569ce`, 2026-08-11). Nothing on the
+board carried the remainder; this entry restores it.
+
+The landed state: Enter on a direct child switches (right), descend is gone
+(right, per 376), but the two compensating mechanisms 376 decided were never
+built: **(a)** the Recent lens still enrols by `base.join(name) == recent
+root` (`OverlayState::new_project`), so an MRU root that is not a DIRECT
+workspace child can never appear; **(b)** the "Browse for folder…" door —
+Surface 2, the descend grammar the Move-to/Export navigators already ship —
+does not exist (`grep -ri "browse for folder" src` is empty). Consequence,
+verified against the code: with `workspace = ~`, a project at
+`~/code2026/awl-next` cannot be switched to from ⌘⇧P at all, and File →
+"Recent folders…" opens the SAME picker pre-lensed (`menu.rs`), so both doors
+share the hole. The user's original Aug 9 complaint is half-fixed and the
+missing half is the reach.
+
+The work, per the recorded 376 design: Recent lists the real MRU as full
+paths at any depth (store `recents.rs` is sound; the enrolment is the bug),
+and the flat picker gains its one door — a last `Browse for folder…` row
+summoning the existing destination-navigator grammar wired to "switch project
+here." Verify: sidecar-level laws for a nested MRU root appearing under
+Recent; a journey test descending the door and switching; the flat-roster law
+(no grandchild in All) stays green.
+
+### 412 — on an empty line, the caret draws visibly too small
+
+User report 2026-08-12 with screenshot: a warm serif world with the dot-form
+caret; on the empty line under an ordinary text line, the caret renders
+clearly smaller than the neighboring type. Mechanism neighborhood, from the
+one owner of the cell caret's vertical extent (`render/caret.rs`,
+`caret_cell_vertical`): an empty line has no real ink at any column, so it
+falls to the SYNTHETIC typical-letter arm — `caret_synthetic_ink_box`, the
+metrics-only approximation (row `max_ascent` × `facepitch::
+typical_letter_ratio`, keyed on `doc_family()`). Suspects, in order: the
+synthetic box undersizing against the real-ink boxes the populated lines use;
+the dot form deriving its diameter from that box differently than the bar/cell
+forms; a zoom interaction (the screenshot is zoomed). Per standing policy a
+user-reported bug gets its NEIGHBORHOOD audited: compare caret geometry on a
+populated line, an EOL glyphless column, and an empty line in the same world
+and zoom — the first two have ink to borrow, the last is the synthetic arm,
+and the defect is whatever makes the three disagree visibly. Verify with pixel
+arithmetic over a capture pair (populated vs empty line, same world/zoom); the
+law asserts the caret's drawn extent tracks the row's type size within the pad
+tolerance, and must go red on today's screenshot state.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
