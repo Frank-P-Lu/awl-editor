@@ -122,7 +122,7 @@ pub fn script_runs(text: &str) -> Vec<(Range<usize>, Script)> {
 /// (an UNAMBIGUOUS script always wins over a merely-present Han run): Kana
 /// (Japanese) > Hangul (Korean) > Bopomofo (a zh-Hant hint) > Han (ambiguous,
 /// falls to the `cjk_priority` tiebreak via [`doc_lang_for`]) > `None` (no CJK
-/// at all — a pure-Latin document, never touched by write-back).
+/// at all — a pure-Latin document, which the language tagger declines).
 pub fn dominant_cjk(text: &str) -> Option<Script> {
     let mut has_bopomofo = false;
     let mut has_han = false;
@@ -144,8 +144,9 @@ pub fn dominant_cjk(text: &str) -> Option<Script> {
     }
 }
 
-/// Resolve a [`dominant_cjk`] signal into the concrete [`Lang`] tag write-back
-/// stamps, using `cjk_priority` (the config ladder, default `[Ja, ZhHans,
+/// Resolve a [`dominant_cjk`] signal into the concrete [`Lang`] tag the
+/// "Tag document language" command stamps, using `cjk_priority` (the ladder,
+/// default `[Ja, ZhHans,
 /// ZhHant, Ko]` — [`crate::frontmatter::DEFAULT_CJK_PRIORITY`]) to break Han's
 /// ambiguity. Kana/Hangul/Bopomofo are unambiguous and ignore the priority
 /// ladder entirely; only `Han` consults it, falling back to `Lang::Ja` if the

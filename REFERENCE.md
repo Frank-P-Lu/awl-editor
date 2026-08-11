@@ -94,6 +94,7 @@ Commands are grouped by the same task categories the palette browses.
 | Command | What it does | macOS | Linux | Builds |
 |---|---|---|---|---|
 | Align table | Re-pad the GFM table under the caret so its `\|` columns line up. | — | — | Native, browser |
+| Tag document language | Add a `lang:` frontmatter tag naming this document's detected CJK language. | — | — | Native, browser |
 | Insert Date | Insert today's date at the caret, in the configured date format. | `⌘⇧D · C-c .` | `Ctrl+Shift+D` | Native, browser |
 | Blockquote | Toggle a `> ` blockquote prefix on the caret line or each line of the selection. | — | — | Native, browser |
 | Bullet list | Toggle a `- ` bullet marker on the caret line or each line of the selection. | — | — | Native, browser |

@@ -1645,16 +1645,18 @@ all four bundle a face; zh-Hant is NOT asserted there since it still has no
 bundled asset — `None` there is the documented degenerate case, not a bug).
 
 **A discovered taste consideration (logged, not fixed this round):** the
-Han-ambiguity write-back tiebreak (`cjk_priority`, default `[Ja, ZhHans,
-ZhHant, Ko]`) means an UNTAGGED, pure-Simplified-Chinese document's write-back
-tag defaults to `ja` (Han alone is ambiguous, and `Ja` is first in the default
+Han-ambiguity tiebreak (`cjk_priority`, default `[Ja, ZhHans, ZhHant, Ko]`)
+means an UNTAGGED, pure-Simplified-Chinese document renders its bare Han with
+the Japanese face (Han alone is ambiguous, and `Ja` is first in the default
 ladder) — a household that writes primarily in Chinese should set
 `cjk_priority = ["zh-Hans", "ja", "zh-Hant", "ko"]` in their own
-`config.toml` so untagged Chinese prose write-back-tags correctly. This is
-unchanged behavior (the ladder/config already existed from the i18n round);
-it is simply now more likely to matter, since zh-Hans prose renders with its
-OWN correctly-regionalized bundled face once tagged, whereas before this
-round it silently rode the JP face's Han glyphs either way.
+`config.toml` so untagged Chinese prose resolves correctly. This is unchanged
+behavior (the ladder/config already existed from the i18n round); it is simply
+now more likely to matter, since zh-Hans prose renders with its OWN
+correctly-regionalized bundled face once the ladder names it, whereas before
+this round it silently rode the JP face's Han glyphs either way. The setting is
+now also the ONLY thing deciding an untagged document — awl no longer writes a
+`lang:` tag on open (docs/fonts.md), so nothing silently outranks it.
 
 ---
 

@@ -54,7 +54,7 @@ impl App {
 
     /// INLINE-IMAGE DRAG-RESIZE (v2) WRITE-BACK: stamp the settled `|NNN` width hint
     /// into the image's ALT text as ONE undoable edit — templated on
-    /// [`Self::write_back_lang_tag_once`]'s single-`replace_char_range` shape. `range`
+    /// `actions::edit::tag_document_language`'s single-`replace_char_range` shape. `range`
     /// is the `![alt](path)` span's DOCUMENT BYTE range (from the drag), `width_px` the
     /// final display width (rounded to the int hint). The pure
     /// [`crate::markdown::image_width_hint_edit`] computes the alt sub-range +

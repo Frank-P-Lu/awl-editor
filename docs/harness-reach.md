@@ -176,6 +176,33 @@ The macOS arm needs a person to accept or cancel the platform panel. The Linux
 arm needs a real Linux window and pointer click. Neither may be claimed from a
 `--keys` or `--screenshot-app` capture.
 
+### The `cjk_priority` Han tiebreak is tier 3 for the RENDER, tier 2 for the READOUT
+
+Measured, not inferred. The config key reaches the App: a `--semantic-json
+--keys "Cmd-,"` capture reads Settings' "Ambiguous CJK reads as" as `Japanese`
+under a `ja`-first `--config` and `Simplified Chinese` under a `zh-Hans`-first
+one, so the loader, the sticky-global seed and the row's readout are all wired
+and tier-2 provable.
+
+**The RENDERED FACE is not.** Both capture doors paint through
+`capture::capture_with`, whose `ViewState` comes from `ViewState::base()` — and
+that pins `frontmatter::DEFAULT_CJK_PRIORITY`; nothing under `src/capture/`
+assigns `cjk_priority` at all. `App::sync_view` (the one construction site that
+DOES read `Config::cjk_priority_or_default`) early-returns without a GPU, so no
+test in this tree ever builds a `ViewState` carrying a configured ladder either.
+Consequence, confirmed by pixels on a bare-Han fixture under `--screenshot-app`:
+
+| Varied | PNG |
+| --- | --- |
+| the document's own frontmatter `lang:` tag (`ja` vs `ko`, same byte length) | **differs** — ladder step (a) is live, and the pixel oracle is sensitive |
+| `--config cjk_priority` (`ja`-first vs `zh-Hans`-first vs `ko`-first), untagged | **byte-identical** — ladder step (c) never reaches the capture pipeline |
+
+So a Verify clause may not ask a capture to witness the Han tiebreak. Assert
+step (c) at the pure seam (`script::resolve_font_id`,
+`render::spans::add_script_spans`); the config→render leg is live-only and
+needs human confirmation. Threading the ladder into the capture pipeline would
+move this to tier 2, and is a real follow-up.
+
 The same law asserts the **input-dispatch chain is empty** — `app/apply.rs`,
 `app/input/keys.rs`, `app/input/mouse.rs`, `app/input/drags.rs`, `app/menu.rs`,
 `app/probe.rs` may never take an `&ActiveEventLoop` again. One such parameter

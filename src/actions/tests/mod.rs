@@ -630,6 +630,7 @@ pub(super) fn delete_flinch_fixture(
         | Action::WritingStreaks
         | Action::ConvertLineEndings
         | Action::AlignTable
+        | Action::TagDocumentLanguage
         | Action::ToggleBlockquote
         | Action::ToggleBulletList
         | Action::ToggleNumberedList
@@ -839,6 +840,7 @@ fn assert_action_roster_covers(a: &Action) {
         | Action::WritingStreaks
         | Action::ConvertLineEndings
         | Action::AlignTable
+        | Action::TagDocumentLanguage
         | Action::ToggleBlockquote
         | Action::ToggleBulletList
         | Action::ToggleNumberedList
@@ -962,6 +964,7 @@ fn command_action_roster() -> Vec<Action> {
         Action::WritingStreaks,
         Action::ConvertLineEndings,
         Action::AlignTable,
+        Action::TagDocumentLanguage,
         Action::ToggleBlockquote,
         Action::ToggleBulletList,
         Action::ToggleNumberedList,
@@ -1126,6 +1129,7 @@ pub(super) fn smoke_command_kind(a: &Action) -> SmokeKind {
         | Action::WritingStreaks
         | Action::ConvertLineEndings
         | Action::AlignTable
+        | Action::TagDocumentLanguage
         | Action::ToggleBlockquote
         | Action::ToggleBulletList
         | Action::ToggleNumberedList

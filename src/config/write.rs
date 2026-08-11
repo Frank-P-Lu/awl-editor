@@ -157,9 +157,9 @@ pub const DEFAULT_TEMPLATE: &str = "\
 #                \"zh-Hant\", \"ko\"]) — consulted ONLY when an untagged document's
 #                CJK content is bare Han (kanji/hanzi with no kana/hangul/bopomofo
 #                to disambiguate it); an unrecognized tag in the list is skipped.
-#                Used by the write-back-once doc-language tagger on first open of
-#                an untagged CJK document (adds a `---\\nlang: ..\\n---` frontmatter
-#                block as one undoable edit) and by the per-run render ladder.
+#                Used by the per-run render ladder, and by the palette's \"Tag
+#                document language\" command (the only door that writes a
+#                `---\\nlang: ..\\n---` block; opening a document never does).
 #   session_restore : reopen the previous session on a plain relaunch — every
 #                open file, the active one, each file's cursor/scroll, and the
 #                native window frame (default on). OFF disables both writing

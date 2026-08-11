@@ -1137,13 +1137,25 @@ field parts company with `doc_lang`.
 Config gains `cjk_priority` (a TOML array of BCP 47 tags, default `["ja",
 "zh-Hans", "zh-Hant", "ko"]`): the tiebreak ladder for an AMBIGUOUS Han-only
 run/document (kana/hangul/bopomofo are unambiguous and never consult it). It
-drives both the live write-back-once doc-language tagger (opening an untagged
-CJK document stamps a `lang:` frontmatter block in as one normal undoable edit
-— **live-App-only**, never the headless capture path, exactly like autosave)
-and the per-run render resolution ladder; a `--config` fixture can set a
-custom ladder and a Han-only capture's `font.scripts`/rendered face reflects it
-(the render ladder always uses the built-in default when no `--config` is
-passed, since the capture harness has no live `Config` to thread through).
+drives both the explicit "Tag document language" palette command (which stamps
+a `lang:` frontmatter block in as one normal undoable edit — the ONLY door that
+writes one; opening a document never does) and the per-run render resolution
+ladder.
+
+⚠️ **NO CAPTURE CAN WITNESS THAT LADDER, `--config` or not** — measured, and
+the reverse of what this paragraph used to claim. Both doors paint through
+`capture::capture_with`, whose `ViewState` comes from `ViewState::base()` and
+pins `DEFAULT_CJK_PRIORITY`; nothing under `src/capture/` assigns
+`cjk_priority`, and `App::sync_view` — the one site that reads
+`Config::cjk_priority_or_default` — never runs without a GPU. On a bare-Han
+fixture under `--screenshot-app`, `ja`-first / `zh-Hans`-first / `ko`-first
+`--config` ladders all produce a BYTE-IDENTICAL PNG, while the same document's
+own frontmatter tag (`lang: ja` vs `lang: ko`, same byte length) changes it —
+so the oracle is sensitive and the ladder is simply absent.
+`font.scripts`/`font.cjk` cannot report it either: they are the WORLD's
+per-`FontId` family roster, invariant in the ladder by construction. What a
+capture CAN prove is the READOUT — `--semantic-json --keys "Cmd-,"` shows the
+Settings row following `--config`. See `docs/harness-reach.md`.
 
 Schema `/89` (timeline `/90`, held `/91`) adds a top-level **`buffers`** block
 for the MULTI-BUFFER CORE (N open buffers, exactly one active, switching

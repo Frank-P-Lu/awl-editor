@@ -4,7 +4,7 @@
 //! code-organization pass).
 
 use super::super::*;
-use super::{drive_act, drive_format, drive_newline, md};
+use super::{drive_act, drive_act_effect, drive_format, drive_newline, md};
 use crate::overlay::OverlayKind;
 
 #[test]
@@ -76,6 +76,93 @@ fn align_table_aligns_under_caret_is_undoable_and_no_ops_outside() {
     assert_eq!(eff, Effect::None, "align outside a table is a calm no-op");
     assert_eq!(ctx.buffer.text(), untouched, "…and edits nothing");
     assert!(!ctx.buffer.can_undo(), "…so there is nothing to undo");
+}
+
+#[test]
+fn tag_document_language_is_one_undoable_edit_and_never_writes_a_second_block() {
+    // The EXPLICIT door that replaced the open-time auto-stamp. It routes
+    // through the same `apply_transition` seam a palette accept rides, so
+    // `--keys` drives it identically live and in replay.
+    let _g = crate::testlock::serial();
+    let original = "# 你好\n\nこれは日本語です。你好。\n";
+    let mut b = Buffer::from_str(original);
+    drive_act(&mut b, &Action::TagDocumentLanguage);
+    assert_eq!(
+        b.text(),
+        format!("---\nlang: ja\n---\n{original}"),
+        "the detected tag is stamped at byte 0"
+    );
+    // ONE undoable edit: Cmd-Z restores the pre-tag document exactly.
+    b.undo();
+    assert_eq!(b.text(), original, "one undo removes the whole block");
+
+    // Re-running it never adds a SECOND block — the gate is the presence of a
+    // frontmatter block, not a one-shot flag.
+    drive_act(&mut b, &Action::TagDocumentLanguage);
+    let once = b.text();
+    drive_act(&mut b, &Action::TagDocumentLanguage);
+    assert_eq!(b.text(), once, "a tagged document is never re-tagged");
+}
+
+#[test]
+fn tag_document_language_reads_the_live_ambiguity_ladder_and_no_ops_without_cjk() {
+    // AMBIGUOUS HAN follows the LIVE ladder — the same global the Settings
+    // "Ambiguous CJK reads as" row reads and the CJK picker promotes — so the
+    // stamp a user asks for agrees with the tiebreak they set. Probed on BOTH
+    // sides of the condition, with the pair required to differ.
+    use crate::frontmatter::{DEFAULT_CJK_PRIORITY, Lang, cjk_priority, set_cjk_priority};
+    let _g = crate::testlock::serial();
+    let restore = cjk_priority();
+    let han_only = "汉字漢字\n";
+
+    set_cjk_priority(&DEFAULT_CJK_PRIORITY);
+    let mut ja = Buffer::from_str(han_only);
+    drive_act(&mut ja, &Action::TagDocumentLanguage);
+
+    set_cjk_priority(&[Lang::ZhHans, Lang::Ja, Lang::ZhHant, Lang::Ko]);
+    let mut zh = Buffer::from_str(han_only);
+    drive_act(&mut zh, &Action::TagDocumentLanguage);
+
+    assert_eq!(ja.text(), format!("---\nlang: ja\n---\n{han_only}"));
+    assert_eq!(zh.text(), format!("---\nlang: zh-Hans\n---\n{han_only}"));
+    assert_ne!(
+        ja.text(),
+        zh.text(),
+        "the ladder must actually decide the stamped tag"
+    );
+
+    // An UNAMBIGUOUS script ignores the ladder outright (kana is Japanese
+    // however the tiebreak is ordered).
+    let mut kana = Buffer::from_str("かな\n");
+    drive_act(&mut kana, &Action::TagDocumentLanguage);
+    assert_eq!(kana.text(), "---\nlang: ja\n---\nかな\n");
+
+    // NO CJK: nothing to name, so nothing is written and nothing is undoable.
+    let latin = "Just some ordinary English prose.\n";
+    let mut plain = Buffer::from_str(latin);
+    let eff = drive_act_effect(&mut plain, &Action::TagDocumentLanguage);
+    assert_eq!(eff, Effect::None);
+    assert_eq!(plain.text(), latin, "a pure-Latin document is never tagged");
+    assert!(!plain.can_undo(), "…so there is nothing to undo");
+
+    set_cjk_priority(&restore);
+}
+
+#[test]
+fn tag_document_language_never_touches_a_non_markdown_buffer() {
+    // Frontmatter is a markdown/notes convention: literal `---`/`lang:` text
+    // at the top of a `.rs` file is corruption, not metadata.
+    use crate::fs::InMemoryFs;
+    let _g = crate::testlock::serial();
+    let p = std::path::PathBuf::from("/proj/main.rs");
+    let src = "fn main() {\n    println!(\"こんにちは\");\n}\n";
+    let _fs =
+        crate::fs::FsGuard::install(std::sync::Arc::new(InMemoryFs::new().with_file(&p, src)));
+    let mut b = Buffer::from_file(&p);
+    assert!(!b.is_markdown(), "arranged: a code buffer");
+    drive_act(&mut b, &Action::TagDocumentLanguage);
+    assert_eq!(b.text(), src, "a code file is never tagged");
+    assert!(!b.can_undo());
 }
 
 #[test]

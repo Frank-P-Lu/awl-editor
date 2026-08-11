@@ -444,171 +444,196 @@ fn load_path_flushes_the_leaving_buffer() {
     );
 }
 
-// ── i18n WRITE-BACK-ONCE (App::new launch arg + App::load_path switch) ───
+// ── OPENING A DOCUMENT NEVER EDITS IT (i18n language tag) ────────────────
+//
+// awl used to STAMP a `lang:` frontmatter block into any untagged markdown
+// document that contained CJK, on the first open of that document — one
+// undoable buffer edit, picked up by the ordinary autosave engine on the next
+// idle/blur/switch/quit and written to the user's file. Two things were wrong
+// with it, and only the second is about fonts: opening a document to READ it
+// silently edited it, and the tag it wrote then OUTRANKED the user's own
+// `cjk_priority` setting for the life of the file (a `lang: ja` stamped onto a
+// kana-bearing note makes its Han runs resolve Japanese forever, whatever the
+// configured tiebreak says).
+//
+// The stamp is now an explicit palette command
+// (`Action::TagDocumentLanguage`); NOTHING on the open path writes. The laws
+// below sweep the whole CJK detection roster — every script the retired
+// detector could have fired on — across BOTH open doors, because the
+// interesting failure is a stamp reappearing on one shape or through one door.
+
+/// The document shapes the retired auto-stamp fired on, derived from the
+/// [`crate::script::Script`] roster rather than pinned to one language:
+/// `(leaf, text, the tag the stamp WOULD have written)`. The last entry is the
+/// user's own reported shape — Japanese prose with a bare-Han heading, whose
+/// stamped `lang: ja` is exactly what made 你好 render with a Japanese face.
+fn stamp_bait_documents() -> Vec<(&'static str, &'static str, &'static str)> {
+    let roster = vec![
+        ("kana.md", "これは日本語の文章です。\n", "ja"),
+        ("hangul.md", "한국어 문장입니다.\n", "ko"),
+        ("bopomofo.md", "ㄅㄆㄇㄈ 注音\n", "zh-Hant"),
+        ("han.md", "汉字漢字\n", "ja"),
+        ("mixed.md", "# 你好\n\nこれは日本語です。你好。\n", "ja"),
+    ];
+    // ENROLMENT, not decoration: every arm of `dominant_cjk`'s priority order
+    // must be represented, or this law sweeps a shape the detector never saw
+    // and misses the one it did.
+    for script in [
+        crate::script::Script::Kana,
+        crate::script::Script::Hangul,
+        crate::script::Script::Bopomofo,
+        crate::script::Script::Han,
+    ] {
+        assert!(
+            roster
+                .iter()
+                .any(|(_, text, _)| crate::script::dominant_cjk(text) == Some(script)),
+            "the stamp-bait roster must cover {script:?}"
+        );
+    }
+    roster
+}
 
 #[test]
-fn launching_on_an_untagged_japanese_file_tags_it_once() {
+fn opening_an_untagged_cjk_document_never_mutates_the_buffer() {
     use crate::fs::{FileSystem, InMemoryFs};
-    let p = PathBuf::from("/notes/nihongo.md");
-    let original = "これは日本語の文章です。\n";
-    let mem = InMemoryFs::new().with_file(&p, original);
-    let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
-    let app = app_on(Some(p.clone()), "/notes", Config::empty());
+    let _g = crate::testlock::serial();
+    for (leaf, original, would_have_stamped) in stamp_bait_documents() {
+        let p = PathBuf::from(format!("/notes/{leaf}"));
+        let mem = InMemoryFs::new().with_file(&p, original);
+        let _fs = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+
+        // DOOR 1: the `awl somefile.md` launch argument (App::new).
+        let mut app = app_on(Some(p.clone()), "/notes", Config::empty());
+        assert_eq!(
+            app.document.buffer().text(),
+            original,
+            "{leaf}: opening the document must not edit it \
+             (a `lang: {would_have_stamped}` stamp would have)"
+        );
+        assert_eq!(
+            app.document.doc_saved_version(),
+            Some(app.document.buffer().version()),
+            "{leaf}: no edit landed, so the arriving buffer reads as SAVED — \
+             nothing for autosave to write back"
+        );
+        assert!(
+            !app.document.buffer().can_undo(),
+            "{leaf}: an untouched document has an empty undo timeline"
+        );
+        // …and the ordinary autosave trigger (idle/blur/switch/quit) therefore
+        // leaves the user's bytes exactly as they found them. This is the arm
+        // that actually reaches the user's disk.
+        app.autosave_flush();
+        assert_eq!(
+            mem.read_to_string(&p).unwrap(),
+            original,
+            "{leaf}: the file on disk is byte-identical after open + autosave"
+        );
+
+        // DOOR 2: the in-session open (C-x f / C-x b / goto → App::load_path)
+        // — and it MUST be a document this session has never opened, or
+        // `load_path` takes its already-open-elsewhere SWITCH branch and the
+        // fresh-disk-read arm (the one the stamp lived on) is never entered at
+        // all. So this is a SECOND App, launched on a different file.
+        let other = PathBuf::from("/notes/other.md");
+        mem.write(&other, b"plain\n").unwrap();
+        let mut app2 = app_on(Some(other.clone()), "/notes", Config::empty());
+        app2.load_path(p.clone());
+        assert_eq!(
+            app2.document.buffer().text(),
+            original,
+            "{leaf}: a first-time in-session open must not edit it either \
+             (a `lang: {would_have_stamped}` stamp would have)"
+        );
+        assert!(
+            !app2.document.buffer().can_undo(),
+            "{leaf}: …and leaves nothing on the undo timeline"
+        );
+        app2.autosave_flush();
+        assert_eq!(
+            mem.read_to_string(&p).unwrap(),
+            original,
+            "{leaf}: byte-identical after a fresh load_path open + autosave"
+        );
+
+        // …and the SWITCH branch (park + reactivate) is clean too.
+        app2.load_path(other);
+        app2.load_path(p.clone());
+        assert_eq!(
+            app2.document.buffer().text(),
+            original,
+            "{leaf}: switching back through the buffer registry is clean too"
+        );
+        app2.autosave_flush();
+        assert_eq!(mem.read_to_string(&p).unwrap(), original);
+    }
+}
+
+#[test]
+fn an_untagged_cjk_document_keeps_the_configured_han_tiebreak() {
+    // THE USER'S BUG, from the other end. The stamp's real damage was not the
+    // edit alone — it was that a frontmatter tag WINS the resolution ladder,
+    // so a stamped `lang: ja` made every ambiguous Han run in the document
+    // resolve Japanese and the configured tiebreak stopped mattering. With
+    // nothing stamped, an untagged document's Han runs follow the ladder the
+    // user actually set. Both sides of the condition are probed, and the pair
+    // is required to DIFFER — a resolution that ignored the ladder outright
+    // would satisfy either half alone.
+    use crate::frontmatter::Lang;
+    use crate::theme::FontId;
+    let zh_first = [Lang::ZhHans, Lang::Ja, Lang::ZhHant, Lang::Ko];
+    let ja_first = crate::frontmatter::DEFAULT_CJK_PRIORITY;
+    let han = Some(crate::script::Script::Han);
+
+    let untagged_zh = crate::script::resolve_font_id(None, han, &zh_first);
+    let untagged_ja = crate::script::resolve_font_id(None, han, &ja_first);
     assert_eq!(
-        app.document.buffer().text(),
-        format!("---\nlang: ja\n---\n{original}"),
-        "an untagged kana-bearing doc is tagged ja on first open"
+        untagged_zh,
+        FontId::ZhHans,
+        "untagged Han follows the ladder"
     );
-    // NEVER a silent disk write: the file on disk is untouched, and the
-    // buffer reads as DIRTY (past doc_saved_version) so the ordinary
-    // autosave engine picks the tag up on the next idle/blur/switch/quit.
+    assert_eq!(untagged_ja, FontId::Ja);
+    assert_ne!(
+        untagged_zh, untagged_ja,
+        "the ladder must actually decide an untagged document's Han runs"
+    );
+
+    // PRECEDENCE IS KEPT: a tag that IS in the file still wins, whatever the
+    // ladder says — that is what makes a tagged document portable, and it is
+    // deliberately unchanged by retiring the auto-stamp.
     assert_eq!(
-        mem.read_to_string(&p).unwrap(),
-        original,
-        "disk is untouched"
+        crate::script::resolve_font_id(Some(Lang::Ja), han, &zh_first),
+        FontId::Ja,
+        "an explicit `lang: ja` outranks a zh-first ladder"
     );
-    assert!(
-        app.document.doc_saved_version().unwrap() < app.document.buffer().version(),
-        "the stamped tag is a PENDING edit, not already-saved"
+    assert_eq!(
+        crate::script::resolve_font_id(Some(Lang::ZhHant), han, &ja_first),
+        FontId::ZhHant,
+        "an explicit `lang: zh-Hant` outranks a ja-first ladder"
     );
 }
 
 #[test]
-fn write_back_never_touches_a_pure_latin_document() {
-    use crate::fs::InMemoryFs;
-    let p = PathBuf::from("/notes/english.md");
-    let original = "Just some ordinary English prose.\n";
-    let mem = InMemoryFs::new().with_file(&p, original);
-    let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
-    let app = app_on(Some(p.clone()), "/notes", Config::empty());
-    assert_eq!(
-        app.document.buffer().text(),
-        original,
-        "a pure-Latin doc is never touched"
-    );
-    assert_eq!(
-        app.document.doc_saved_version(),
-        Some(app.document.buffer().version()),
-        "no edit landed -> still reads as saved"
-    );
-}
-
-#[test]
-fn write_back_never_fires_on_a_non_markdown_file() {
-    use crate::fs::InMemoryFs;
-    // A `.rs` file with a Japanese string literal: frontmatter is a
-    // markdown/notes convention, and stamping `---`/`lang:` text into a
-    // code file would corrupt it, so this must stay untouched.
-    let p = PathBuf::from("/proj/main.rs");
-    let original = "fn main() {\n    println!(\"こんにちは\");\n}\n";
-    let mem = InMemoryFs::new().with_file(&p, original);
-    let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
-    let app = app_on(Some(p.clone()), "/proj", Config::empty());
-    assert_eq!(
-        app.document.buffer().text(),
-        original,
-        "a non-markdown file is never tagged"
-    );
-}
-
-#[test]
-fn write_back_uses_the_configured_cjk_priority_for_ambiguous_han() {
-    use crate::fs::InMemoryFs;
-    let p = PathBuf::from("/notes/hanzi.md");
-    let original = "汉字漢字\n"; // Han only, no kana/hangul/bopomofo -> ambiguous
-    let mem = InMemoryFs::new().with_file(&p, original);
-    let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
-    let cfg = Config {
-        cjk_priority: Some(vec![
-            crate::frontmatter::Lang::ZhHans,
-            crate::frontmatter::Lang::Ja,
-        ]),
-        ..Config::empty()
-    };
-    let app = app_on(Some(p.clone()), "/notes", cfg);
-    assert_eq!(
-        app.document.buffer().text(),
-        format!("---\nlang: zh-Hans\n---\n{original}")
-    );
-}
-
-#[test]
-fn write_back_is_undoable_with_cmd_z() {
-    use crate::fs::InMemoryFs;
-    let p = PathBuf::from("/notes/nihongo.md");
-    let original = "こんにちは\n";
-    let mem = InMemoryFs::new().with_file(&p, original);
-    let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
-    let mut app = app_on(Some(p.clone()), "/notes", Config::empty());
-    assert_ne!(app.document.buffer().text(), original, "the tag landed");
-    app.document.undo();
-    assert_eq!(
-        app.document.buffer().text(),
-        original,
-        "Cmd-Z removes the stamped tag cleanly"
-    );
-}
-
-#[test]
-fn write_back_never_re_tags_a_document_already_carrying_frontmatter() {
-    use crate::fs::InMemoryFs;
+fn an_already_tagged_document_opens_unchanged_and_keeps_its_tag() {
+    // The tag's PRECEDENCE survives this item untouched: a document that
+    // already carries one opens byte-identical (it always did) and the
+    // pipeline still reports that tag as the document language.
+    use crate::fs::{FileSystem, InMemoryFs};
+    let _g = crate::testlock::serial();
     let p = PathBuf::from("/notes/tagged.md");
-    // Already tagged (as if a previous session's write-back had already
-    // fired and been saved) — must never gain a SECOND block.
-    let already = "---\nlang: ja\n---\nこんにちは\n";
+    let already = "---\nlang: zh-Hant\n---\n漢字\n";
     let mem = InMemoryFs::new().with_file(&p, already);
-    let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
-    let app = app_on(Some(p.clone()), "/notes", Config::empty());
+    let _fs = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+    let mut app = app_on(Some(p.clone()), "/notes", Config::empty());
+    assert_eq!(app.document.buffer().text(), already);
     assert_eq!(
-        app.document.buffer().text(),
-        already,
-        "an already-tagged doc is untouched"
+        crate::card::figures::frontmatter_lang(&app.document.buffer().text()),
+        Some(crate::frontmatter::Lang::ZhHant),
+        "the tag the renderer reads is still there, and still wins the ladder"
     );
-    assert_eq!(
-        app.document.doc_saved_version(),
-        Some(app.document.buffer().version()),
-        "no edit landed -> still reads as saved"
-    );
-}
-
-#[test]
-fn write_back_never_fires_twice_across_a_reopen() {
-    use crate::fs::{FileSystem, InMemoryFs};
-    let a = PathBuf::from("/notes/a.md");
-    let b = PathBuf::from("/notes/nihongo.md");
-    let original = "こんにちは\n";
-    let mem = InMemoryFs::new()
-        .with_file(&a, "hello\n")
-        .with_file(&b, original);
-    let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
-    let mut app = app_on(Some(a.clone()), "/notes", Config::empty());
-    // First open of `b`: tags it (still only in-memory — disk untouched).
-    app.load_path(b.clone());
-    let tagged = app.document.buffer().text();
-    assert_eq!(tagged, format!("---\nlang: ja\n---\n{original}"));
-    // Save it through the REAL door. (This used to be a raw `mem.write`, which
-    // wrote the right bytes but left awl's own disk baseline pointing at the
-    // pre-save content — i.e. it simulated an EXTERNAL write, and now correctly
-    // reads as one.)
-    app.manual_save();
-    assert_eq!(mem.read_to_string(&b).unwrap(), tagged);
-    // Switch away, then back: `load_path`'s SWITCH branch (already open in
-    // the registry) restores the live buffer untouched — no second call.
-    app.load_path(a.clone());
-    app.load_path(b.clone());
-    assert_eq!(
-        app.document.buffer().text(),
-        tagged,
-        "no second frontmatter block, live round trip"
-    );
-    // And a FRESH session reopening the now-tagged file also never re-tags
-    // (the write-back gate is `frontmatter::detect`, not a one-shot flag).
-    let app2 = app_on(Some(b.clone()), "/notes", Config::empty());
-    assert_eq!(
-        app2.document.buffer().text(),
-        tagged,
-        "a fresh session sees the tag and never re-fires"
-    );
+    app.autosave_flush();
+    assert_eq!(mem.read_to_string(&p).unwrap(), already);
 }
 
 #[test]

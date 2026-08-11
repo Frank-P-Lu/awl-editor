@@ -63,6 +63,7 @@ lifetime_stats|||
 writing_streaks|||
 line_endings|||
 align_table|||
+tag_document_language|||
 insert_date|Cmd-S-d|C-S-d|C-c .
 report_a_problem|||
 download_file|||

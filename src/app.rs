@@ -634,14 +634,10 @@ impl App {
             #[cfg(target_os = "macos")]
             _menu_bar: None,
         };
-        // i18n WRITE-BACK-ONCE (see `files::write_back_lang_tag_once`'s doc):
-        // covers the `awl somefile.md` LAUNCH-ARGUMENT open, mirroring the
-        // C-x f / C-x b / goto path's own call in `App::load_path` — a real
-        // FILE only (never the no-argument scratch/stash-restore buffer,
-        // which isn't "opening a document").
-        if app.document.buffer().path().is_some() {
-            app.write_back_lang_tag_once();
-        }
+        // `awl somefile.md` NEVER EDITS THE FILE IT WAS HANDED. This is the
+        // launch-argument twin of `load_path`'s fresh-open branch, and it
+        // stamps no language tag for the same reason that one doesn't — see
+        // the note there.
         if let Some(msg) = file_refusal {
             app.set_sticky_notice(msg);
         }

@@ -3,8 +3,8 @@
 //! convention every static-site/note tool already knows. awl reads exactly ONE
 //! key out of it this round: `lang:` (a BCP 47 tag: `en` / `ja` / `zh-Hans` /
 //! `zh-Hant` / `ko` — see [`Lang`]) — the doc-language TAG the i18n render
-//! ladder and the write-back-once detector (`app/files/`) both consult. Every
-//! OTHER key is syntactically accepted (so a real frontmatter block with
+//! ladder and the "Tag document language" command both consult. Every OTHER
+//! key is syntactically accepted (so a real frontmatter block with
 //! `title:`/`date:`/… parses without failing) but semantically INERT — never
 //! crashes, never does anything.
 //!

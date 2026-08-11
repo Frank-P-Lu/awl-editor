@@ -92,6 +92,7 @@ const COMMAND_TASK_CATEGORIES: &[(&str, TaskCategory)] = &[
     ("Writing streaks", Tools),
     ("Line endings…", Tools),
     ("Align table", Format),
+    ("Tag document language", Format),
     ("Insert Date", Format),
     ("Report a Problem", Tools),
     ("Download file", Files),
