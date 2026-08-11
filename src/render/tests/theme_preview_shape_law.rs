@@ -49,6 +49,17 @@
 //! [`identical_settled_geometry_whichever_reach_the_step_took`] then pins the
 //! other half of the bargain: splitting the step changes WHEN rows are shaped and
 //! nothing else, so the settled document is the same document either way.
+//!
+//! That law is DIFFERENTIAL, and a differential law cannot see an error its two
+//! arms SHARE. The row table's ORIGIN is exactly such an error: it is the same
+//! origin on both sides of the comparison, so shifting it moves both arms
+//! together and the comparison goes on reporting agreement — on a wrong answer.
+//! [`row_geometry_keeps_the_documents_own_origin_at_every_scroll_depth`] closes
+//! that with an ABSOLUTE oracle instead — arithmetic over a fixture whose row tops
+//! are known without asking the renderer — swept across scroll depth, DPI, face
+//! and reach. It is the law any future attempt to shape from the VIEWPORT rather
+//! than from the document's first row has to satisfy, and the reason such an
+//! attempt is not a small change: see that law's own docs.
 
 use super::{headless_pipeline, view};
 use crate::render::{OFFSCREEN_CULL_MARGIN_ROWS, ShapeReach};
@@ -422,6 +433,163 @@ fn identical_settled_geometry_whichever_reach_the_step_took() {
         crate::theme::THEMES.len() - differing_faces,
         crate::theme::THEMES.len()
     );
+
+    crate::theme::set_active_by_name(entered);
+}
+
+/// The row table's ORIGIN is the DOCUMENT's first row, at every scroll depth and
+/// after either reach — stated as ABSOLUTE arithmetic, not as a comparison
+/// between two pipelines.
+///
+/// [`identical_settled_geometry_whichever_reach_the_step_took`] above is a
+/// DIFFERENTIAL law: it asks whether a split step and a whole one agree. That is
+/// the right question about the SPLIT, and the wrong one about the ORIGIN — any
+/// error the two arms share passes it, reporting agreement on a wrong answer.
+/// Shifting every `run.line_top` by one line height inside `RowGeom::ensure`
+/// moves both arms identically and leaves it green.
+///
+/// This matters because the one remaining way to make a preview arrow cheaper at
+/// DEPTH is to let cosmic-text's own `buffer.scroll` move, so `shape_until_scroll`
+/// fills from the viewport instead of from the document's first row. Doing that
+/// re-bases exactly what this law pins: `LayoutRunIter` starts at `scroll.line`
+/// and measures `line_top` from `-scroll.vertical`, so every row above the scroll
+/// leaves the table entirely and the survivors' tops are viewport-relative. The
+/// damage does not announce itself — `row_top_px(0)` still answers `0.0`, which is
+/// a plausible number for a different row.
+///
+/// So the oracle here is arithmetic over a fixture whose answer is known without
+/// consulting the renderer: `tall_doc`'s lines each occupy exactly one visual row,
+/// so row `r` sits at `r * line_height` and the document is `LINES * line_height`
+/// tall — no matter where the viewport is, which face is active, or which reach
+/// the last step took.
+#[test]
+fn row_geometry_keeps_the_documents_own_origin_at_every_scroll_depth() {
+    let _t = crate::testlock::serial();
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!(
+            "skipping row_geometry_keeps_the_documents_own_origin_at_every_scroll_depth: \
+             no wgpu adapter"
+        );
+        return;
+    };
+    let entered = crate::theme::active().name;
+
+    const LINES: usize = 400;
+    let text = tall_doc(LINES);
+
+    // Both DPIs: a check runs in one configuration, and that configuration is
+    // itself an untested hypothesis (CLAUDE.md). The row table is built from
+    // device-pixel run tops, so the scale is an axis, not a detail.
+    for dpi in [1.0f32, 2.0] {
+        p.set_dpi(dpi);
+        // Walk faces too — the ORIGIN must be face-independent even though the
+        // wrapped-row COUNT is not. `tall_doc` never wraps, so the arithmetic
+        // below holds in every world and any face-dependence is a defect.
+        for world in ["Mangrove", "Bombora", "Galah", "Tawny"] {
+            crate::theme::set_active_by_name(world);
+            let mut v = view(&text, 0, 0);
+            p.set_view(&v);
+            p.sync_theme();
+
+            let line_h = p.metrics.line_height;
+            let viewport = p.viewport_avail_px(p.window_h);
+            let config = format!(
+                "world {world} · dpi {dpi} · window {}x{} · line_height {line_h:.3} · \
+                 doc {LINES} rows",
+                p.window_w, p.window_h
+            );
+            // NON-VACUITY (a): a zero/degenerate line height makes every equality
+            // below trivially true and the law would say nothing.
+            assert!(
+                line_h > 1.0,
+                "line height {line_h} is degenerate — this law's arithmetic oracle \
+                 would be vacuous — {config}"
+            );
+            // NON-VACUITY (b): with no scroll RANGE there is no depth axis, and the
+            // one thing this law exists to catch is a depth-dependent origin.
+            let doc_h = LINES as f32 * line_h;
+            assert!(
+                doc_h > 4.0 * viewport,
+                "fixture is {doc_h:.0}px against a {viewport:.0}px viewport — there is \
+                 no scroll depth to sweep — {config}"
+            );
+
+            // TOP / HALF / END, and after BOTH reaches at each depth: the reach is
+            // what chooses the shaping budget, and a budget is the thing a
+            // scroll-relative fill would be measured from.
+            for depth in [0usize, LINES / 2, LINES - 1] {
+                for reach in [ShapeReach::Whole, ShapeReach::Presentable] {
+                    // Park the viewport, then take a real preview arrow FROM this
+                    // depth — the sequence a user produces by scrolling and then
+                    // holding Down in the theme picker.
+                    v.scroll =
+                        p.scroll_by_px(crate::render::ScrollPos::at_row(depth), 0.0, p.window_h);
+                    p.set_view(&v);
+                    let landed = v.scroll.row;
+                    crate::theme::set_active_by_name(if world == "Bombora" {
+                        "Mangrove"
+                    } else {
+                        "Bombora"
+                    });
+                    p.sync_theme_colors();
+                    p.sync_theme_font(reach);
+                    p.finish_shape_tail();
+
+                    let at = format!("{config} · scroll row {landed} · reach {reach:?}");
+
+                    assert_eq!(
+                        p.total_visual_rows(),
+                        LINES,
+                        "the row table holds {} of the document's {LINES} rows — its \
+                         domain is no longer the whole document — {at}",
+                        p.total_visual_rows()
+                    );
+                    assert_eq!(
+                        p.total_doc_height().to_bits(),
+                        (LINES as f32 * line_h).to_bits(),
+                        "document height {} where the fixture is exactly \
+                         {LINES} x {line_h} = {} — {at}",
+                        p.total_doc_height(),
+                        LINES as f32 * line_h
+                    );
+                    // THE ORIGIN ITSELF. Row 0 is the DOCUMENT's first row and sits
+                    // at 0.0 — not the first row the viewport can see.
+                    for row in 0..LINES {
+                        assert_eq!(
+                            p.row_top_px(row).to_bits(),
+                            (row as f32 * line_h).to_bits(),
+                            "row {row} tops at {} where the document's own origin puts \
+                             it at {} — the row table has been re-based — {at}",
+                            p.row_top_px(row),
+                            row as f32 * line_h
+                        );
+                    }
+                    // Every LOGICAL line has real geometry, including the ones above
+                    // the viewport: `UNSHAPED_LINE_TOP` here is a row that dropped out
+                    // of the table, which every viewport cull silently accepts as
+                    // "below everything" rather than reporting.
+                    for line in 0..LINES {
+                        assert!(
+                            p.row_geom
+                                .line_first_top(&p.buffer, &p.metrics, line)
+                                .is_finite(),
+                            "line {line} reports no geometry at all — it is not in the \
+                             row table — {at}"
+                        );
+                    }
+                    // The CLAMP reads the same table, and is what decides whether the
+                    // frame presents at the scroll it was asked for.
+                    assert_eq!(
+                        p.max_scroll_rows(p.window_h),
+                        LINES - crate::render::OVERSCROLL_KEEP_ROWS,
+                        "max_scroll_rows collapsed to {} — the document the clamp sees \
+                         is not the whole one — {at}",
+                        p.max_scroll_rows(p.window_h)
+                    );
+                }
+            }
+        }
+    }
 
     crate::theme::set_active_by_name(entered);
 }

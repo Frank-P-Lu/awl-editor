@@ -363,7 +363,7 @@ reason = "`theme_overlay_geometry` is an exhaustive `OverlayGeom` construction s
 
 [[file_size_mark]]
 file = "src/render/framebench.rs"
-lines = 1244
+lines = 1026
 reason = "item 202: +52 lines — `--bench-theme-burst` gained the reshape-count WITNESS the item's own brief demanded (CLAUDE.md's tripwire: this exact bench once \"measured 5ms while nothing reshaped\"). One shared `assert_reshape_witness` helper (extracted rather than inlined three times — item 182) plus three call sites in `burst_doc`: every `BURST_WORLDS` hop must actually reshape (mirrors `benchsuite::scenarios::theme`'s already-fixed witness), every colors-only arrow step must NOT reshape (the split's whole point), and the deferred settle's `sync_theme_font` must reshape at least once. Mutation-proven: a mutation that skipped `sync_theme_font` inside `TextPipeline::sync_theme` made the bench exit 1 with the exact panic text; reverted before commit. DOWN 10: the debounce this witness guarded against is gone (theme-font reshape is unconditional now), so the \"debounced preview\" section (colors-only steps + one deferred settle) became a shape the App no longer produces and was replaced by an \"eager preview\" section of the same size — every arrow step reshapes on its own, witnessed the same way; mutation-proven again the same way (flip `sync_theme` to `sync_theme_colors`, the bench exits 1 naming the exact step, reverted before commit). Its inline `mod tests` moved to a sibling `framebench/tests.rs`: the picker sweep rewrite carried the file past its FROZEN BASELINE of 1288, which no reason may rescue, so the remedy is the carve rather than a raise."
 
 [[file_size_mark]]
