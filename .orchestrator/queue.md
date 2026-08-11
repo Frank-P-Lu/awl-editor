@@ -135,6 +135,12 @@ Small, cheap, and filed so they are not lost. Each names the exact lever.
 
 ### 396 — the theme preview's win shrinks with scroll depth
 
+🟡 IN PROGRESS — claude (deep), branch `claude/item-396-shape-from-scroll`.
+⚠️ **Reclaimed from a stale claim** that read `codex (root), branch main`: it was
+never committed, had no worktree, no branch, no commits and no build activity.
+A claim naming `main` is also not a claim — work happens in a worktree named on
+the claim line, so that line could not have been acted on as written.
+
 Recorded from 388's own measurement rather than discovered later. The same-step
 split shapes from the DOCUMENT's first row, because cosmic-text's
 `shape_until_scroll` always fills from `buffer.scroll`, which awl keeps at 0 and
