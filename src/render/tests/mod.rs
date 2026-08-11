@@ -201,6 +201,11 @@ mod tables;
 mod text_top_dpi;
 mod theme;
 mod theme_caps_law;
+/// The one picker whose selection nothing could A/B: the audition lives in the
+/// ACTION path, so the RENDER path can hold the world still while the selection
+/// moves — the true A/B no capture can arrange, and the answer to the pre-tag
+/// sweep's abstention on every textured and staggered world.
+mod theme_picker_selection_law;
 /// How far one theme-picker arrow's reshape REACHES — the whole document, not
 /// the viewport — carrying the release per-stage measurement that makes that
 /// reach the dominant cost of a preview step.
