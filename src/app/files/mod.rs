@@ -13,7 +13,7 @@
 //!    `BufferExtra`): the SOLE module that constructs/destructures the slot
 //!    or touches the park/activate swap.
 //!  - [`open`] — opening folder-relative files, C-x b, folder switching +
-//!    the recent MRUs, the i18n write-back-once + fold-reveal jump.
+//!    the recent MRUs, and the fold-reveal jump.
 //!  - [`document`] — the fresh-document buffer swap; the retired two-desk
 //!    "Notes" flip used to live here.
 //!  - [`autosave`] — the document autosave engine, the fresh document's own

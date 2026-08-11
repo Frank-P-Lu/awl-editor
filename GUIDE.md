@@ -231,6 +231,7 @@ drift into this page silently.
 | Writing streaks |  |  |
 | Line endings… |  |  |
 | Align table |  |  |
+| Tag document language |  |  |
 | Insert Date | ⌘⇧D · C-c . | Ctrl+Shift+D |
 | Report a Problem |  |  |
 | Download file |  |  |

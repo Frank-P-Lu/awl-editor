@@ -117,6 +117,46 @@ pub(super) fn align_table_at_cursor(ctx: &mut ActionCtx) {
         .replace_char_range(start_char, end_char, &aligned);
 }
 
+/// TAG DOCUMENT LANGUAGE — the ONE door that writes a `lang:` frontmatter tag
+/// into the user's document, and it only ever opens because the user asked for
+/// it (the palette's "Tag document language"). Detects the document's dominant
+/// CJK script from the buffer text ([`crate::script::dominant_cjk`]), resolves
+/// it to a tag through the live ambiguity ladder
+/// ([`crate::frontmatter::cjk_priority`] — the same global the Settings row
+/// reads and the CJK picker promotes, so a `--keys` replay that changes the
+/// ladder and then tags observes the new front), and inserts
+/// `---\nlang: ..\n---\n` at byte 0 as ONE undoable edit (Cmd-Z restores the
+/// pre-tag text and cursor).
+///
+/// A calm no-op — no edit, no version bump, no undo entry — when the buffer is
+/// not markdown (frontmatter is a markdown/notes convention; literal
+/// `---`/`lang:` text in a `.rs` file is corruption), when a frontmatter block
+/// is already present (never a second block; the existing tag already wins the
+/// ladder), or when the document carries no CJK at all (nothing to detect —
+/// the ladder only disambiguates CJK).
+///
+/// This detection used to run AUTOMATICALLY on every fresh open, which meant
+/// opening a document to read it edited it, and the stamped tag then outranked
+/// the user's own `cjk_priority` setting for the life of the file. Resolution
+/// needs nothing written: the render ladder re-reads the frontmatter tag from
+/// the buffer on every reshape, and an untagged document's ambiguous Han runs
+/// follow the configured ladder. Only this action writes.
+pub(super) fn tag_document_language(ctx: &mut ActionCtx) {
+    if !ctx.buffer.is_markdown() {
+        return;
+    }
+    let text = ctx.buffer.text();
+    if crate::frontmatter::detect(&text).is_some() {
+        return; // already carries a frontmatter block — never a second one
+    }
+    let Some(script) = crate::script::dominant_cjk(&text) else {
+        return; // no CJK — nothing this ladder can name
+    };
+    let lang = crate::script::doc_lang_for(script, &crate::frontmatter::cjk_priority());
+    let block = format!("---\nlang: {}\n---\n", lang.code());
+    ctx.buffer.replace_char_range(0, 0, &block);
+}
+
 /// TAB dispatch: on a markdown LIST context (the caret line — or ANY line of an
 /// active selection — is a list item), indent one nesting level; ELSEWHERE fall back
 /// to the soft-tab insert, byte-identical to before. Keeping the list-vs-plain gate

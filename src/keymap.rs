@@ -124,6 +124,15 @@ pub enum Action {
     /// chord — the palette IS its entry point (like Settings/About); a real
     /// `Action`, independently rebindable via `[keys]`. See `markdown/`.
     AlignTable,
+    /// Palette "Tag document language": write a `lang:` frontmatter tag naming
+    /// the document's detected CJK language, as ONE undoable edit at byte 0 —
+    /// the ONLY door in awl that adds that tag. A calm no-op on a non-markdown
+    /// buffer, on a document that already carries a frontmatter block, and on
+    /// a document with no CJK in it. No default chord — the palette IS its
+    /// entry point (like Settings/About/Align table); a real `Action`,
+    /// independently rebindable via `[keys]`. See
+    /// `crate::actions::edit::tag_document_language`.
+    TagDocumentLanguage,
     /// Palette "Report a Problem": compose a `mailto:` link to the maintainer —
     /// subject `"awl problem report (v…)"`, a calm what-happened template body,
     /// and (if a local crash log exists) that log's PATH with a "please attach
@@ -302,6 +311,7 @@ impl Action {
                 | Action::InsertImageReference(_)
                 | Action::KillRegion
                 | Action::AlignTable
+                | Action::TagDocumentLanguage
                 | Action::ToggleBlockquote
                 | Action::ToggleBulletList
                 | Action::ToggleNumberedList

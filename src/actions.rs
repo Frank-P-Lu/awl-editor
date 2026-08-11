@@ -192,6 +192,7 @@ fn apply_format_action(ctx: &mut ActionCtx, action: &Action) -> bool {
         Action::InlineCode => apply_inline_format(ctx, format::InlineKind::InlineCode),
         Action::Highlight => apply_inline_format(ctx, format::InlineKind::Highlight),
         Action::Strikethrough => apply_inline_format(ctx, format::InlineKind::Strikethrough),
+        Action::TagDocumentLanguage => tag_document_language(ctx),
         _ => return false,
     }
     true
@@ -654,7 +655,8 @@ macro_rules! classify_action_family {
             | Action::Italic
             | Action::InlineCode
             | Action::Highlight
-            | Action::Strikethrough => ActionFamily::Format,
+            | Action::Strikethrough
+            | Action::TagDocumentLanguage => ActionFamily::Format,
             Action::ExportWord
             | Action::ExportHtml
             | Action::ExportPdf

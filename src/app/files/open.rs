@@ -217,15 +217,16 @@ impl App {
         // instead of re-reading disk — unsaved edits, cursor, scroll, undo,
         // and spell-cache state all survive the round trip (a whole-slot
         // activation — see `activate_from_registry`).
-        if opened == document::OpenPath::Fresh {
-            // i18n WRITE-BACK-ONCE: an untagged CJK document gets a `lang:`
-            // frontmatter tag stamped in as one normal undoable edit (never
-            // for a pure-Latin doc, never a second time on a doc that
-            // already carries a frontmatter block). Live-App-only by
-            // construction (called only from this fresh-open branch) — the
-            // headless `load_buffer` never reaches this function at all.
-            self.write_back_lang_tag_once();
-        }
+        // OPENING A DOCUMENT NEVER EDITS IT. There is deliberately no
+        // language-tag stamp on the fresh-open branch: the render ladder
+        // re-reads the frontmatter tag from the buffer on every reshape
+        // (`TextPipeline::doc_lang`), so nothing has to be written into the
+        // user's file for resolution to work, and an untagged document's Han
+        // runs stay governed by the config `cjk_priority` tiebreak the user
+        // set — which a stamped tag would outrank forever after. The one door
+        // that writes the tag is EXPLICIT: `actions::edit::tag_document_language`
+        // ("Tag document language" in the palette). Law:
+        // `opening_an_untagged_cjk_document_never_mutates_the_buffer`.
         if !clobber_notice_just_raised {
             self.clear_notice();
         }
@@ -281,46 +282,6 @@ impl App {
         self.update_title();
         self.sync_view(true);
         self.request_frame();
-    }
-
-    /// i18n WRITE-BACK-ONCE: on a fresh (first-time-this-session) open of an
-    /// UNTAGGED markdown document that contains CJK, stamp a `lang:`
-    /// frontmatter tag in as ONE normal undoable buffer edit — never a silent
-    /// disk write (the version bump is picked up by the ordinary autosave
-    /// engine on the next idle/blur/switch/quit, exactly like any other edit;
-    /// Cmd-Z removes it cleanly, restoring the pre-tag text and cursor). Called
-    /// ONLY from [`Self::load_path`]'s fresh-disk-read branch, so:
-    ///  - a PURE-LATIN document ([`crate::script::dominant_cjk`] returns `None`)
-    ///    is NEVER touched — no frontmatter block, no version bump, no undo
-    ///    entry;
-    ///  - a document that ALREADY carries a frontmatter block (tagged or not)
-    ///    is NEVER re-tagged — [`crate::frontmatter::detect`] finds it and this
-    ///    returns immediately, so write-back happens AT MOST ONCE in a
-    ///    document's life (a later reopen this session hits the buffer-
-    ///    registry SWITCH branch instead, which never calls this at all; a
-    ///    reopen in a FRESH session sees the tag already on disk from the
-    ///    first pass and detects it, so it still never re-fires);
-    ///  - a NON-markdown buffer (a `.rs`/`.txt`/`.env` path) is never touched —
-    ///    frontmatter is a markdown/notes convention, and stamping literal
-    ///    `---`/`lang:` text into a code file would corrupt it.
-    ///    A Han-only (ambiguous) document resolves via the config `cjk_priority`
-    ///    ladder (default ja-first); an unambiguous script (kana/hangul/bopomofo)
-    ///    always wins regardless of the ladder — see `crate::script::dominant_cjk`
-    ///    / `doc_lang_for`.
-    pub(in crate::app) fn write_back_lang_tag_once(&mut self) {
-        if !self.document.buffer().is_markdown() {
-            return;
-        }
-        let text = self.document.buffer().text();
-        if crate::frontmatter::detect(&text).is_some() {
-            return; // already carries a frontmatter block — never re-tag
-        }
-        let Some(script) = crate::script::dominant_cjk(&text) else {
-            return; // pure Latin — never touched
-        };
-        let lang = crate::script::doc_lang_for(script, &self.config.cjk_priority_or_default());
-        let block = format!("---\nlang: {}\n---\n", lang.code());
-        self.document.replace_char_range(0, 0, &block);
     }
 
     pub(in crate::app) fn jump_to_line(&mut self, line: usize) {

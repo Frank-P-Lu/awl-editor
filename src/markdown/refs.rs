@@ -143,7 +143,7 @@ fn set_alt_width_hint(raw_alt: &str, width: u32) -> String {
 /// [`set_alt_width_hint`]). Returns `None` if `src` isn't a well-formed
 /// `![...](...)`. Pure: the app converts the `src`-relative byte offsets to absolute
 /// buffer positions and applies ONE [`crate::buffer::Buffer::replace_char_range`] —
-/// exactly the single-undoable-edit shape `write_back_lang_tag_once` uses, so a
+/// exactly the single-undoable-edit shape `tag_document_language` uses, so a
 /// whole drag writes back ONCE on release and Cmd-Z restores the pre-drag size.
 pub fn image_width_hint_edit(src: &str, width: u32) -> Option<(usize, usize, String)> {
     let open = src.find("![")?;

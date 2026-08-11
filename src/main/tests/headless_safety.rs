@@ -153,10 +153,10 @@ fn headless_replay_never_touches_the_stats_file() {
 fn headless_load_buffer_never_writes_back_frontmatter() {
     // The i18n round's DETERMINISM LAW as a tripwire (mirrors the autosave
     // one above): `load_buffer` is the headless capture's ONLY file-load
-    // door, and the write-back-once tagger lives exclusively on the live
-    // `App` (`App::new` / `App::load_path`), never here — so an untagged
-    // Japanese fixture loads byte-identically, with NO frontmatter block
-    // ever appearing headlessly.
+    // door, and NO open path — headless or live — writes a language tag any
+    // more (the palette's "Tag document language" is the one door that does,
+    // and only when the user asks). So an untagged Japanese fixture loads
+    // byte-identically, with no frontmatter block ever appearing.
     use std::sync::Arc;
     crate::fs::with_fs(Arc::new(crate::fs::InMemoryFs::new()), || {
         let p = PathBuf::from("/notes/japanese.md");

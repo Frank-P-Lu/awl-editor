@@ -3,6 +3,7 @@ use std::sync::LazyLock;
 
 mod editing;
 mod navigation;
+mod tools;
 
 fn clone_command(command: &Command) -> Command {
     Command {
@@ -16,11 +17,13 @@ fn clone_command(command: &Command) -> Command {
     }
 }
 
-/// The one ordered catalog source. The two slices are intentionally concatenated
-/// here so every existing caller keeps the same corpus index and display order.
+/// The one ordered catalog source. The three slices are intentionally
+/// concatenated here so every existing caller keeps the same corpus index and
+/// display order; the file boundaries are a size split, never a semantic one.
 pub(super) static COMMAND_SEED: LazyLock<Vec<Command>> = LazyLock::new(|| {
     navigation::COMMANDS
         .iter()
+        .chain(tools::COMMANDS)
         .chain(editing::COMMANDS)
         .map(clone_command)
         .collect()

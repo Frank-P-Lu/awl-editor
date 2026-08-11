@@ -103,6 +103,7 @@ fn catalog_non_empty_and_named() {
         "Writing streaks",
         "Line endings…",
         "Align table",
+        "Tag document language",
         "Report a Problem",
         "Download file",
         "Check for Updates",
