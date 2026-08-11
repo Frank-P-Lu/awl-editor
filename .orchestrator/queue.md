@@ -108,18 +108,15 @@ every pass.
 4. **327 — DECIDED 2026-08-11: elide and delay.** Settings two-column: elide the
    Project-root path, delay two-column mode until the accessory survives. Body
    below.
-5. **211 — the unoccluded live-glide photograph. THE BLOCKER IS CLEAR.**
-   `ioreg -n Root -d1 -a | grep -A1 CGSSessionScreenIsLocked` returns nothing,
-   so the display is unlocked — the one thing this sitting was waiting for.
-   Sequenced behind 388: both measure real presents, and each would corrupt the
-   other. ⚠️ **`live-probe.sh` checks the lock only in PREFLIGHT, and a locked or
-   slept display fails SILENTLY** — `--live-script` writes successful-looking
-   `LIVE-PROBE shot … ok` lines while presenting zero frames. **Re-check the lock
-   at BOTH ENDS of the run and treat a mid-run lock as a void result, not a
-   pass.** Hold the display with `caffeinate -d -i -t <seconds>`; it prevents
-   sleep and cannot unlock a screen, so it is never a substitute for an unlocked
-   one. The window is small, top-left, non-activating and never takes keyboard
-   focus.
+5. **211 — the live-glide photograph. ⚠️ RE-BLOCKED, AND THE FLIP IS THE
+   LESSON.** The lock was CLEAR when this was queued and read
+   `CGSSessionScreenIsLocked = true` about fifteen minutes later, before
+   dispatch. A sitting launched on the first reading would now be writing
+   successful-looking `LIVE-PROBE shot … ok` lines while presenting zero frames.
+   **This is why the check belongs at BOTH ENDS and why a preflight-only check
+   is not a check.** `caffeinate` holds a display awake and cannot unlock one.
+   Dispatch when the screen is unlocked AND someone can keep it that way; the
+   window is small, top-left, non-activating and never steals keyboard focus.
 6. **HUMAN / LIVE — now small.** Eight blockers above, each needing a session,
    hardware, or a release-time word; the 30-item taste backlog closed by the
    bulk acceptance. ⚠️ 392 and 327 wait for dispatch until 388's quiet-host
@@ -128,14 +125,49 @@ every pass.
 
 ## Open items
 
-### 388 — Theme-picker arrowing is still visibly laggy
+### 388 — Theme-picker arrowing: measured, and the fix is a DESIGN FORK for the user
 
-🟡 IN PROGRESS — claude (deep), branch `claude/item-388-theme-preview-lag`,
-dispatched ALONE on a quiet host: its deliverable is movement-to-present timing
-in `--release`, and four concurrent lanes at the gate phase measured load
-average 69.79 here, so a receipt taken beside them measures the wave. Execute
-from handoff item 1 above.
+🔵 **BLOCKED ON THE USER — a design decision, not a missing measurement.**
+Law landed at `3a8da981` on `claude/item-388-theme-preview-lag`; **no product
+code changed**, so settled output is identical by construction.
 
+Measured in `--release` on a quiet host (load 4.5–7.8, no `rustc`): a 9-hop
+burst costs **282–291 ms on a 119-line document and 357–363 ms on an 1896-line
+one** — ~32 and ~40 ms per arrow, 2–3 frames each at 60 Hz. The reported ~33 ms
+is right per STEP but wrong about the reshape: `sync_theme` is 20/26 ms of it
+and the frame after is another 10–17 ms.
+
+**Dominant stage: `buffer.shape_until_scroll`, ~95% of the reshape.** Two
+premises died on measurement: **font adopt is FREE** (`text_wrap_width` derives
+from a face-independent `char_width`, so a world hop never rewraps and
+`set_size` is a no-op — there is no wasted double-layout), and the cost is **not
+per-line** (119 lines pays 20 ms, 1896 pays 17 ms; it tracks glyphs and span
+fragmentation). A `sample` profile puts it inside harfrust's own
+`shape_with_plan` — real glyph shaping, no cheap cure.
+
+**The removable work is reach, not per-glyph cost.** `full_shape_height` budgets
+every visual row, so one arrow shapes the whole document while only a viewport
+can be drawn — and all 19 consecutive pairs in `THEMES` differ in face, so every
+arrow pays. Clamping to the window measured 282→113 ms and 357→212 ms.
+
+**Why it was not landed:** that reach is deliberate. An unshaped tail falls back
+to `RowGeom`'s ESTIMATED line height — the scroll-jump bug `full_shape_height`'s
+own doc records — and it feeds `max_scroll`. Narrowing needs either re-shaping
+at settle (**the catch-up stall the brief ruled out**) or permanently relaxing a
+document-wide invariant (**a correctness decision, not a timing fix**).
+
+**The fork, and the lane's recommendation:** shape the visible window, present,
+then finish the tail **within the same step** before the next event is handled.
+Input-to-present ~30 ms → ~13 ms; total work unchanged, nothing deferred past
+the step, no arrow ever shows a wrong font, document fully shaped at every step
+boundary. It is an App-level change and was correctly not attempted in a round
+that could not law and mutation-prove it.
+
+**Two questions owed:** (1) does ~32–40 ms per arrow read as laggy or merely
+heavy? (2) same-step completion as above, or leave it? ⚠️ Note the law that
+landed PINS today's whole-document reach, so whoever takes the fork must update
+it deliberately — its mutation shows 25 of 400 rows shaped when the budget is
+narrowed to the viewport.
 ### 391 — The picker footer advertises `⌫ up` where Backspace is now inert
 
 Surfaced by item 389, out of its scope and deliberately not fixed there. The
