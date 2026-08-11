@@ -240,6 +240,45 @@ right, but its subject has to be something both hosts agree on.
 Note item 394 retired 16 of this ledger's 18 cells by composition when the
 Settings footer got shorter, so the current 2-entry ledger is recent.
 
+### 409 — the browse level silently drops symlinks (design session 2026-08-12)
+
+User-confirmed live: `~/shared` (a symlink into iCloud Drive) does not exist in
+the switch-project picker. The native `fs::read_dir` classifies each entry by
+`entry.file_type()`, which never follows links, so a symlinked directory is
+neither `is_dir` nor `is_file` and `index::list_dir_level` skips it — while
+every OTHER door follows links for free (`fs::is_dir` is `path.is_dir()`, open
+follows, the `.git` probe follows). The picker is the anomaly, and silent
+omission is the worst of the available behaviors.
+
+Decision: classify a symlink by its TARGET (a following stat on the entry's
+path), carry the symlink fact on `DirEntry`, and let the browse level show it
+as the directory or file it points to. ONE deliberate exception: `walk_collect`
+(the recursive go-to indexer) must NOT descend a symlinked directory — it has
+no cycle guard, so a link loop recurses forever, and `~/shared` alone would
+pour iCloud Drive into the corpus. Show the entry, never traverse it — the
+git/ripgrep/fd convention. Verify at the unit seam: a `ScratchDir` fixture with
+a dir-symlink asserts presence in `list_dir_level` AND non-traversal in the
+walked index; break-the-product proves both laws non-vacuous.
+
+### 410 — the `.` row is programmer-speak, and the card never says where you are
+
+Two findings from the same session, one fix. `OverlayState.browse_dir` (the
+absolute path of the browsed level) has NO renderer — its only consumer is the
+capture sidecar — so the card's sole orientation is its row contents. And the
+level's first row is a bare `.`, which a non-programmer cannot read at all.
+
+Decision: replace the `.` row with a plain-language pick-this-folder row that
+carries the location itself — the browsed directory's name/path, elided, as the
+row's visible content. It stays the FIRST row; the default selection continues
+to skip it to the first child (↵ on open must not re-select where you already
+stand). 🔵 The exact wording is a taste call to land-and-judge (candidates:
+`pick this folder` with the path as secondary; the directory's real name as
+primary with `this folder` as secondary). Constraint already on the board:
+327's `elide_path` drops the parent and keeps the leaf, and for a DIRECTORY
+readout the parent is the informative half — resolve or note it here. Verify:
+capture against a seeded `--root`, never the ambient one (the PNG and
+`overlay.items` photograph real paths).
+
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
 `overlay_prepare_bar_scrims`'s gate reads `backing == BarePlates` — the same
@@ -325,6 +364,17 @@ sweep.**
   Morph; live feel is the oracle. Needs a design session.
 - **Per-world copy-pulse differentiation:** possible future motion tweak; needs a
   design session.
+- **Switch-project spatial redesign (two-column Miller / frame-carried
+  breadcrumb), raised in the 2026-08-12 design session and NOT settled.** The
+  question: whether the browse fallback deserves Finder-style columns, or the
+  Frame should carry orientation (DESIGN §2 names orientation as the Frame's
+  job), or item 410's row is enough. Recorded constraints for whoever picks it
+  up: `←/→` is the LENS rail on every picker and Miller wants it for
+  ascend/descend — breaking the shared grammar on one picker is item 401's
+  "two pickers disagree" defect by construction; the card's width cap and the
+  minimum window already price out a second column of real rows; and
+  type-to-filter, not spatial browsing, is the picker's primary gesture.
+  Re-audition after 409+410 land; live feel is the oracle.
 - **Site deployment:** only on the user's explicit word.
 - **Kite's stereo idea, recorded and NOT queued.** Stereoscopy needs the two
   views SUPERIMPOSED and fused by the viewer's brain; here they are side by side
