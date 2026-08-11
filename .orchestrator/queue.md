@@ -24,13 +24,13 @@ this heading exists; `git log -S"BLOCKED ON THE USER"` finds who took it.
 1. **The site is stale against the published release — one command, yours:**
    `gh workflow run deploy-web.yml`. Live host is `awl-editor.fly.dev`
    (`site/fly.toml`; `awl.computer` is NXDOMAIN and appears nowhere in the
-   tree). ⚠️ **This entry's own figure was measured false and is corrected in
-   place:** the live `version.json` reads `{"version": "0.9.0", "prerelease":
-   false}`, not the `0.0.0 / prerelease` claimed here — the site was redeployed
-   after v0.9.0. It is stale only against whatever tag ships next, because
-   `version.json` comes from `git describe --tags` at deploy time.
-   `FLY_API_TOKEN` is configured; trigger is `workflow_dispatch` only,
-   deliberately.
+   tree). **Now genuinely stale, and measured:** the live `version.json` reads
+   `{"version": "0.9.0", "prerelease": false}` while **v0.10.0 is public**, so
+   Check for Updates cannot see the release that shipped. `version.json` comes
+   from `git describe --tags` at deploy time, so one dispatch fixes it.
+   (An earlier revision of this entry claimed `0.0.0 / prerelease`; that was
+   false and was corrected in place before the tag.) `FLY_API_TOKEN` is
+   configured; trigger is `workflow_dispatch` only, deliberately.
 2. **Kite's veil strength** — `WARP_PAGE_VEIL = 0.13` (read from the shader; a
    lane's report once said 0.20). Captures: the lane's worktree,
    `gallery/item-268/`.
@@ -125,14 +125,17 @@ choice, a live-feel judgement, or hardware/session access an agent does not have
   but worth an eye. And the dimmed unfocused rail plate is a declared
   degradation at ΔE 4.49 worst case, below the 2.3 JND by design: confirm it
   still reads as "a mark, insisting less" rather than as nothing.
-- 🔵 **The AppImage has never been published, and v0.10.0 will be its first
-  public appearance.** At the `v0.9.0` tag `release.yml` contained ZERO AppImage
-  references — `scripts/package-appimage.sh` landed afterwards — so v0.9.0's
-  Release carries only the tarball and `SHA256SUMS`. RELEASING §5 step 7 (launch
-  BOTH artifacts on a real Linux desktop) cannot be performed from this Mac, so
-  the AppImage's desktop-integration path — launcher name, icon, FUSE fallback —
-  ships unexercised by anything but its own build. The tarball is the documented
-  fallback and is unaffected.
+- 🔵 **The AppImage is now published for the first time, in v0.10.0, and NOBODY
+  HAS LAUNCHED IT.** At the `v0.9.0` tag `release.yml` contained ZERO AppImage
+  references — `scripts/package-appimage.sh` landed afterwards — so v0.9.0
+  carried only the tarball. The v0.10.0 assets are verified by download:
+  both `sha256sum`s check, the tarball carries RELEASING §4's full required set,
+  the AppImage is a valid type-2 image (magic `41 49 02`), glibc floor 2.35.
+  **What remains unverified is the only thing that matters to a user: RELEASING
+  §5 step 7, launching BOTH artifacts on a real Linux desktop.** It cannot be
+  performed from this Mac, so the AppImage's desktop-integration path — launcher
+  name, icon, FUSE fallback — is live and exercised by nothing but its own build.
+  The tarball is the documented fallback and is unaffected.
 
 - 🔵 **Four things on `main` awaiting your eye, each revertible in one commit or
   line:**
