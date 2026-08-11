@@ -73,16 +73,27 @@ const INK_CONTRAST_FLOOR: f64 = 2.6;
 /// **THE LABEL-PRESENCE FLOOR — how much ink the active label lays on its plate,
 /// as a fraction of what the SAME label lays on the bare rail.**
 ///
-/// Three readings. Tightest shipped: **0.76** (Firetail, wide at 2x — a `Bars`
-/// world, whose plate geometry genuinely trims some of the label's outermost
-/// anti-aliasing). The defect: **0.00**, exactly — the label contributes no
-/// pixel that differs from its plate by any amount at all. Floor: **0.35**,
-/// under half the tightest real reading and unreachable by the defect. Every run
-/// reports its own tightest figure.
+/// Three readings. Tightest shipped: **0.97** (Potoroo, rail unfocused, wide —
+/// and the same figure in BOTH menu-bar arms, to every digit). The defect:
+/// **0.00**, exactly — the label contributes no pixel that differs from its plate
+/// by any amount at all. Floor: **0.35**, a third of the tightest real reading
+/// and unreachable by the defect. Every run reports its own tightest figure, per
+/// arm.
 ///
 /// A fraction rather than a count, because the same claim has to hold at three
 /// canvas geometries and two pixel densities where the absolute count moves by
 /// more than an order of magnitude.
+///
+/// ⚠️ **A LOW READING HERE IS AS LIKELY TO BE THE GROUND ESTIMATOR AS THE
+/// PRODUCT, and the ratio's DENOMINATOR is the half that gets corrupted.** This
+/// floor was first calibrated at 0.76 against a mode-based
+/// [`column_grounds`] and later read 0.29 on Firetail with the menu bar drawn —
+/// neither figure was about the label. Both were the BARE reference rect
+/// mistaking the label's own ink for its ground and counting card pixels as
+/// marks, which inflates the denominator and can only ever push this ratio DOWN.
+/// So the first question a failure here has to answer is whether the NUMERATOR
+/// moved: the marked rect's own mark count is in the message, and if it is
+/// unchanged while the bare one has grown, the defect is in the measurement.
 const LABEL_PRESENCE_FLOOR: f64 = 0.35;
 
 /// **THE BAND-PRESENCE FLOOR — the perceptual distance between the active
@@ -200,50 +211,79 @@ struct RectInk {
     n: usize,
 }
 
-/// **THE BACKGROUND IS MEASURED PER COLUMN, AND THEN ACROSS A WINDOW OF
-/// COLUMNS.** Two corrections, each earned by a world that broke the previous
-/// cut, and both recorded because either one alone is wrong:
+/// **THE GROUND UNDER EACH COLUMN IS THE MEDIAN OF A LOCAL POOL OF PIXELS — NOT
+/// A MODE, AND NOT A STATISTIC BUILT ON ONE.** Three corrections, each earned by
+/// a world that broke the previous cut, and all three recorded because every one
+/// of them is a way this rect gets read against a tone it is not sitting on:
 ///
-/// * ONE MODAL COLOUR FOR THE RECT assumes a flat ground and the roster has not
+/// * ONE COLOUR FOR THE WHOLE RECT assumes a flat ground and the roster has not
 ///   got one. Paperbark's card carries a broad horizontal gradient, so a rect
 ///   whose label sits in its darker left third reported that label against the
 ///   lighter tone filling its right two thirds — 1.95:1 for a rail a person reads
-///   without effort. A gradient across a rail is constant DOWN any one column, so
-///   a per-column mode removes it, and it survives a card TEXTURE for the same
-///   reason (a lattice is a minority of its own column).
-/// * A PER-COLUMN MODE ALONE then fails the other way, on a SHORT row: a rail
-///   entry at 1x is about eighteen usable pixels tall and a cap-height stem fills
-///   twelve of them, so the modal colour of a stem's own column IS the stem.
-///   Bilby reported its label against itself at 1.13:1.
+///   without effort. So the ground is resolved LOCALLY, per column.
+/// * ONE COLUMN ALONE then fails the other way, on a SHORT row: a rail entry at
+///   1x is about eighteen usable pixels tall and a cap-height stem fills twelve
+///   of them, so a lone column's own statistic IS the stem. Bilby reported its
+///   label against itself at 1.13:1. So each column's ground is resolved over a
+///   WINDOW of neighbouring columns — wide enough that a stem is a minority of
+///   it, narrow enough that a card-wide gradient is flat across it: half a row
+///   height each side, which scales with the type and so holds at both densities.
+/// * **A MODE NEEDS A REPEATED COLOUR, AND A DITHERED CARD UNDER A WASH HAS
+///   NONE.** This is the correction that matters, because the two above were both
+///   built ON a per-column mode and the mode itself was the defect. Firetail's
+///   card is dithered and its wash runs diagonally, so a 33-pixel column of pure
+///   card holds **28 to 30 distinct colours** and the winning "mode" is a count
+///   of two or three. That is not a modal colour, it is the tally's TIE-BREAK —
+///   and breaking ties on the colour value resolves toward the numerically
+///   largest RGB, which on a dark world is the label's own ink. Measured on
+///   Firetail's bare rail at 1400x900: seven consecutive columns took
+///   `[159,126,124]` (the label) as their ground over the card's `[25,9,13]`, on
+///   counts of three against three, and the neighbourhood median went with them —
+///   so every card pixel in twenty columns counted as a MARK and the bare
+///   reference's ink rose from 158 pixels to 548. Nothing had to change for that
+///   but the sub-pixel row of the wash the rect was sampled at, which is exactly
+///   what drawing a MENU BAR does to this card.
 ///
-/// So the ground is the per-column mode SMOOTHED across a window of neighbouring
-/// columns, wide enough that a stem is a minority of it and narrow enough that a
-/// card-wide gradient is flat across it — half a row height each side, which
-/// scales with the type and therefore holds at both densities.
+/// So the window's pixels are POOLED and the ground is their median by
+/// luminance. A median needs no repeated value, so a dither and a wash cost it
+/// nothing; a glyph is a minority of a pool one row tall and thirty-odd columns
+/// wide, so type cannot become the ground; a texture lattice is a minority for
+/// the same reason; and a filled plate covers the pool entirely, so on a marked
+/// rect the median IS the plate, which is the tone a contrast claim there is
+/// about.
+///
+/// The window SLIDES rather than truncating at the rect's edges, so the leftmost
+/// column — the one the label starts under — is graded over as many pixels as a
+/// middle one instead of over a short window the label can dominate.
+///
+/// Each pixel's luminance is computed ONCE, alongside its colour, rather than
+/// inside the selection's comparator — `rel_lum` is three `powf`s, and a median
+/// asks its comparator O(n log n) times over a thousand-pixel pool per column.
 fn column_grounds(px: &[[u8; 4]], w: u32, x0: i64, y0: i64, x1: i64, y1: i64) -> Vec<[u8; 4]> {
-    let raw: Vec<[u8; 4]> = (x0..x1)
+    let cols: Vec<Vec<([u8; 4], f64)>> = (x0..x1)
         .map(|x| {
-            let mut tally: std::collections::HashMap<[u8; 3], usize> =
-                std::collections::HashMap::new();
-            for y in y0..y1 {
-                let c = px[y as usize * w as usize + x as usize];
-                *tally.entry([c[0], c[1], c[2]]).or_default() += 1;
-            }
-            let (best, _) = tally
-                .into_iter()
-                .max_by_key(|&(c, n)| (n, c))
-                .expect("a non-empty column has a modal colour");
-            [best[0], best[1], best[2], 255]
+            (y0..y1)
+                .map(|y| {
+                    let c = px[y as usize * w as usize + x as usize];
+                    (c, rel_lum(c))
+                })
+                .collect()
         })
         .collect();
     let win = (((y1 - y0) / 2).max(3)) as usize;
-    (0..raw.len())
+    let span = (2 * win + 1).min(cols.len());
+    let mut pool: Vec<([u8; 4], f64)> = Vec::with_capacity(span * (y1 - y0) as usize);
+    (0..cols.len())
         .map(|i| {
-            let lo = i.saturating_sub(win);
-            let hi = (i + win + 1).min(raw.len());
-            let mut window: Vec<[u8; 4]> = raw[lo..hi].to_vec();
-            window.sort_by(|a, b| rel_lum(*a).total_cmp(&rel_lum(*b)));
-            window[window.len() / 2]
+            let lo = i.saturating_sub(win).min(cols.len() - span);
+            pool.clear();
+            for col in &cols[lo..lo + span] {
+                pool.extend_from_slice(col);
+            }
+            let mid = pool.len() / 2;
+            pool.select_nth_unstable_by(mid, |a, b| a.1.total_cmp(&b.1))
+                .1
+                .0
         })
         .collect()
 }
@@ -386,6 +426,16 @@ fn frame_with_lens(
 /// and a rule that only holds at full strength leaves half of the product's own
 /// time unheld — and because the DIMMED state is where the obvious alternative
 /// fix (leave the ink alone, it only looks wrong at full strength) fails too.
+///
+/// **AND BOTH MENU-BAR ARMS.** `menubar::platform_default` is the one
+/// platform-forked sticky default in the tree — `false` on macOS, `true`
+/// everywhere else — and the workspace card is sized straight off the canvas less
+/// that bar's reserve, so the bar moves this rect by most of a row. It is not a
+/// cosmetic axis here: the reserve re-samples the card's diagonal wash under the
+/// rail, and reading that wash is what [`column_grounds`] exists to do. The
+/// AMBIENT value is captured and restored, never `cfg!(target_os = …)`, which
+/// reports the host that COMPILED the test rather than the branch the initialiser
+/// took.
 #[test]
 fn the_active_rail_entrys_label_reads_on_its_own_band_on_every_world() {
     let _g = crate::testlock::serial();
@@ -394,151 +444,183 @@ fn the_active_rail_entrys_label_reads_on_its_own_band_on_every_world() {
         return;
     };
     let saved = theme::active().name;
+    let ambient_menu_bar = crate::menubar::menu_bar_on();
 
-    // The tightest reading of every floor, over everything that enrolled — the
-    // three-figure calibration each constant is documented with, reported so a
-    // reader can see what this run actually covered instead of trusting a number
-    // written down once.
-    let mut worst_ink: Option<(String, f64)> = None;
-    let mut worst_label: Option<(String, f64)> = None;
-    let mut worst_band_focused: Option<(String, f64)> = None;
-    let mut worst_band_dimmed: Option<(String, f64)> = None;
-    let mut graded = 0usize;
-    let mut plated = 0usize;
     let mut worlds_seen: Vec<&str> = Vec::new();
+    // ONE SUMMARY PER MENU-BAR ARM, never one total across both. A total is
+    // satisfied by a single arm doing all the work and reports the OTHER arm's
+    // tightest reading nowhere — which is the shape that let this axis go
+    // unmeasured until CI found it.
+    let mut per_arm: Vec<String> = Vec::new();
+    // Every rail rect each arm resolved, so the arms can be asked whether they
+    // are actually two — see the assertion below.
+    let mut arm_rects: Vec<Vec<[f32; 4]>> = Vec::new();
 
-    for th in theme::THEMES.iter() {
-        theme::set_active_by_name(th.name).unwrap();
-        p.sync_theme();
-        for &cell in CELLS {
-            let (w, h, dpi) = cell;
-            for detail in [false, true] {
-                // The SAME rect, twice: standing on category 0 (row 0 is the
-                // active entry, marked) and on category 1 (row 0 is an ordinary
-                // entry, bare). Everything below is one against the other.
-                let (marked, rect_a) = frame_with_lens(&device, &queue, &mut p, 0, detail, cell);
-                let (bare, rect_b) = frame_with_lens(&device, &queue, &mut p, 1, detail, cell);
-                // DERIVED ENROLMENT: no rect this frame means this cell draws no
-                // rail at all (the narrow stage showing the rows pane instead),
-                // so there is nothing here to grade.
-                let (Some(rect), Some(rect_bare)) = (rect_a, rect_b) else {
-                    continue;
-                };
-                let at = format!(
-                    "{} {w}x{h}@{dpi}x {}",
-                    th.name,
-                    if detail {
-                        "rail-unfocused"
-                    } else {
-                        "rail-focused"
-                    }
-                );
-                assert!(
-                    rect.iter()
-                        .zip(rect_bare.iter())
-                        .all(|(a, b)| (a - b).abs() < 0.5),
-                    "{at}: the rail's first entry moved between the two frames \
+    for menu_bar in [false, true] {
+        crate::menubar::set_menu_bar_on(menu_bar);
+        let mut rects: Vec<[f32; 4]> = Vec::new();
+        // The tightest reading of every floor over everything this arm enrolled —
+        // the three-figure calibration each constant is documented with, reported
+        // so a reader can see what the run actually covered instead of trusting a
+        // number written down once.
+        let mut worst_ink: Option<(String, f64)> = None;
+        let mut worst_label: Option<(String, f64)> = None;
+        let mut worst_band_focused: Option<(String, f64)> = None;
+        let mut worst_band_dimmed: Option<(String, f64)> = None;
+        let mut graded = 0usize;
+        let mut plated = 0usize;
+        for th in theme::THEMES.iter() {
+            theme::set_active_by_name(th.name).unwrap();
+            p.sync_theme();
+            for &cell in CELLS {
+                let (w, h, dpi) = cell;
+                for detail in [false, true] {
+                    // The SAME rect, twice: standing on category 0 (row 0 is the
+                    // active entry, marked) and on category 1 (row 0 is an ordinary
+                    // entry, bare). Everything below is one against the other.
+                    let (marked, rect_a) =
+                        frame_with_lens(&device, &queue, &mut p, 0, detail, cell);
+                    let (bare, rect_b) = frame_with_lens(&device, &queue, &mut p, 1, detail, cell);
+                    // DERIVED ENROLMENT: no rect this frame means this cell draws no
+                    // rail at all (the narrow stage showing the rows pane instead),
+                    // so there is nothing here to grade.
+                    let (Some(rect), Some(rect_bare)) = (rect_a, rect_b) else {
+                        continue;
+                    };
+                    let at = format!(
+                        "{} {w}x{h}@{dpi}x {} menu-bar-{}",
+                        th.name,
+                        if detail {
+                            "rail-unfocused"
+                        } else {
+                            "rail-focused"
+                        },
+                        if menu_bar { "on" } else { "off" }
+                    );
+                    assert!(
+                        rect.iter()
+                            .zip(rect_bare.iter())
+                            .all(|(a, b)| (a - b).abs() < 0.5),
+                        "{at}: the rail's first entry moved between the two frames \
                      ({rect:?} vs {rect_bare:?}) — this law's whole oracle is that they \
                      are the same rect"
-                );
+                    );
 
-                let m = rect_ink(&marked, w, h, rect, dpi);
-                let u = rect_ink(&bare, w, h, rect, dpi);
-                assert!(
-                    m.n > 200,
-                    "{at}: the rail mark rect {rect:?} graded only {} pixels — this cell \
+                    rects.push(rect);
+                    let m = rect_ink(&marked, w, h, rect, dpi);
+                    let u = rect_ink(&bare, w, h, rect, dpi);
+                    assert!(
+                        m.n > 200,
+                        "{at}: the rail mark rect {rect:?} graded only {} pixels — this cell \
                      cannot say anything about legibility",
-                    m.n
-                );
-                graded += 1;
-                if !worlds_seen.contains(&th.name) {
-                    worlds_seen.push(th.name);
-                }
+                        m.n
+                    );
+                    graded += 1;
+                    if !worlds_seen.contains(&th.name) {
+                        worlds_seen.push(th.name);
+                    }
 
-                // (1) THE LABEL IS THERE — the same glyphs, on the plate and off
-                // it. The floor the reported defect drove to exactly zero.
-                assert!(
-                    u.marks > 0,
-                    "{at}: the UNMARKED reference rect carries no label ink at all, so \
+                    // (1) THE LABEL IS THERE — the same glyphs, on the plate and off
+                    // it. The floor the reported defect drove to exactly zero.
+                    assert!(
+                        u.marks > 0,
+                        "{at}: the UNMARKED reference rect carries no label ink at all, so \
                      this cell's presence ratio would be a division by the wrong thing"
-                );
-                let presence = m.marks as f64 / u.marks as f64;
-                assert!(
-                    presence >= LABEL_PRESENCE_FLOOR,
-                    "{at}: the active rail entry lays {} mark pixels on its own band where \
+                    );
+                    let presence = m.marks as f64 / u.marks as f64;
+                    assert!(
+                        presence >= LABEL_PRESENCE_FLOOR,
+                        "{at}: the active rail entry lays {} mark pixels on its own band where \
                      the SAME label lays {} on the bare rail — {presence:.2} of it (floor \
                      {LABEL_PRESENCE_FLOOR}). Its category name is not being drawn on its \
                      band. Band fill {:?}, most-deviant ink found {:?}.",
-                    m.marks,
-                    u.marks,
-                    m.fill,
-                    m.ink
-                );
+                        m.marks,
+                        u.marks,
+                        m.fill,
+                        m.ink
+                    );
 
-                // (2) IT READS. Rendered fill against rendered ink, never
-                // against an authored colour.
-                let c = contrast(m.local_fill, m.ink);
-                assert!(
-                    c >= INK_CONTRAST_FLOOR,
-                    "{at}: the active rail entry's label {:?} on the band tone it is \
+                    // (2) IT READS. Rendered fill against rendered ink, never
+                    // against an authored colour.
+                    let c = contrast(m.local_fill, m.ink);
+                    assert!(
+                        c >= INK_CONTRAST_FLOOR,
+                        "{at}: the active rail entry's label {:?} on the band tone it is \
                      actually sitting on {:?} = {c:.2}:1 (floor {INK_CONTRAST_FLOOR}:1) — \
                      the category name washes into the mark that is supposed to be \
                      pointing at it. The rect's mean ground is {:?}.",
-                    m.ink,
-                    m.local_fill,
-                    m.fill
-                );
+                        m.ink,
+                        m.local_fill,
+                        m.fill
+                    );
 
-                // (3) THE BAND IS THERE — so (2) cannot be satisfied by fading
-                // the plate into the card. Graded only on the worlds whose rail
-                // draws a plate, with the arm named in the message.
-                if rail_draws_a_plate() {
-                    plated += 1;
-                    let seen = delta_e(m.fill, u.fill);
-                    let floor = match detail {
-                        true => BAND_PRESENCE_FLOOR_DIMMED,
-                        false => BAND_PRESENCE_FLOOR_FOCUSED,
-                    };
-                    assert!(
-                        seen >= floor,
-                        "{at}: this rect's fill is {:?} when its entry is active and {:?} \
+                    // (3) THE BAND IS THERE — so (2) cannot be satisfied by fading
+                    // the plate into the card. Graded only on the worlds whose rail
+                    // draws a plate, with the arm named in the message.
+                    if rail_draws_a_plate() {
+                        plated += 1;
+                        let seen = delta_e(m.fill, u.fill);
+                        let floor = match detail {
+                            true => BAND_PRESENCE_FLOOR_DIMMED,
+                            false => BAND_PRESENCE_FLOOR_FOCUSED,
+                        };
+                        assert!(
+                            seen >= floor,
+                            "{at}: this rect's fill is {:?} when its entry is active and {:?} \
                          when it is not — ΔE {seen:.2} (floor {floor}). This world's rail \
                          ({:?}) is supposed to lay a plate under its active category, and a \
                          legibility ratio measured over a plate that is not there is a \
                          ratio measured over the card",
-                        m.fill,
-                        u.fill,
-                        crate::render::effective_list_style()
-                    );
-                    let slot = match detail {
-                        true => &mut worst_band_dimmed,
-                        false => &mut worst_band_focused,
-                    };
-                    if slot.as_ref().is_none_or(|&(_, v)| seen < v) {
-                        *slot = Some((at.clone(), seen));
+                            m.fill,
+                            u.fill,
+                            crate::render::effective_list_style()
+                        );
+                        let slot = match detail {
+                            true => &mut worst_band_dimmed,
+                            false => &mut worst_band_focused,
+                        };
+                        if slot.as_ref().is_none_or(|&(_, v)| seen < v) {
+                            *slot = Some((at.clone(), seen));
+                        }
                     }
-                }
 
-                if worst_ink.as_ref().is_none_or(|&(_, v)| c < v) {
-                    worst_ink = Some((at.clone(), c));
-                }
-                if worst_label.as_ref().is_none_or(|&(_, v)| presence < v) {
-                    worst_label = Some((at.clone(), presence));
+                    if worst_ink.as_ref().is_none_or(|&(_, v)| c < v) {
+                        worst_ink = Some((at.clone(), c));
+                    }
+                    if worst_label.as_ref().is_none_or(|&(_, v)| presence < v) {
+                        worst_label = Some((at.clone(), presence));
+                    }
                 }
             }
         }
+        // NON-VACUITY, PER ARM. 20 worlds x 4 cells x 2 focus states = 160, of
+        // which the two NARROW rows-focused stages draw no rail at all (the pane
+        // takes the card there) — so 120 is this arm's real ceiling and every one
+        // of them is expected to grade. The cell counts are floors, so adding a
+        // canvas does not turn this into a bookkeeping test.
+        assert!(
+            graded >= 100 && plated >= 90,
+            "with the menu bar {}, the sweep graded {graded} cells ({plated} of them \
+             plated) — it is not covering the roster it claims to",
+            if menu_bar { "on" } else { "off" }
+        );
+        arm_rects.push(rects);
+        per_arm.push(format!(
+            "menu bar {}: {graded} cells graded, {plated} plated\n    \
+             tightest ink contrast   {worst_ink:?}\n    \
+             tightest label presence {worst_label:?}\n    \
+             tightest band (focused) {worst_band_focused:?}\n    \
+             tightest band (dimmed)  {worst_band_dimmed:?}",
+            if menu_bar { "ON " } else { "OFF" }
+        ));
     }
 
     p.set_dpi(1.0);
+    crate::menubar::set_menu_bar_on(ambient_menu_bar);
     theme::set_active_by_name(saved).unwrap();
     p.sync_theme();
 
-    // NON-VACUITY, and it names what enrolled. 20 worlds x 4 cells x 2 focus
-    // states = 160, of which the two NARROW rows-focused stages draw no rail at
-    // all (the pane takes the card there) — so 120 is the real ceiling and every
-    // one of them is expected to grade. The WORLD count is exact, because the
-    // roster IS the enrolment; the cell counts are floors, so adding a canvas
-    // does not turn this into a bookkeeping test.
+    // The WORLD count is exact, because the roster IS the enrolment.
     assert_eq!(
         worlds_seen.len(),
         theme::THEMES.len(),
@@ -546,18 +628,32 @@ fn the_active_rail_entrys_label_reads_on_its_own_band_on_every_world() {
         worlds_seen.len(),
         theme::THEMES.len()
     );
+    assert_eq!(
+        per_arm.len(),
+        2,
+        "the sweep ran {} menu-bar arms — the axis is `menubar::platform_default`, \
+         and one of the two is whatever branch this host happens to take",
+        per_arm.len()
+    );
+    // **AND THE TWO ARMS ARE ACTUALLY TWO.** A sweep over a knob that moves
+    // nothing is a sweep in name only, and `set_menu_bar_on` is exactly the kind
+    // of setter that can be inert. The bar's reserve is subtracted from the card's
+    // own height budget, so it MUST move this rail — measured, not assumed.
+    // `assert!` rather than `assert_ne!`, which would print both 120-rect
+    // vectors and bury the sentence that says what went wrong.
     assert!(
-        graded >= 100 && plated >= 90,
-        "the sweep graded {graded} cells ({plated} of them plated) — it is not covering \
-         the roster it claims to"
+        arm_rects[0] != arm_rects[1],
+        "the menu-bar arms resolved identical rail geometry at all {} graded cells \
+         (both starting {:?}) — the bar's reserve is supposed to come out of the \
+         workspace card's own height budget, so either it no longer does or this \
+         sweep is toggling nothing",
+        arm_rects[0].len(),
+        arm_rects[0].first()
     );
     eprintln!(
-        "rail_ink_law: {graded} cells graded over {} worlds, {plated} of them plated.\n  \
-         tightest ink contrast   {worst_ink:?}\n  \
-         tightest label presence {worst_label:?}\n  \
-         tightest band (focused) {worst_band_focused:?}\n  \
-         tightest band (dimmed)  {worst_band_dimmed:?}",
-        worlds_seen.len()
+        "rail_ink_law: {} worlds, both menu-bar arms.\n  {}",
+        worlds_seen.len(),
+        per_arm.join("\n  ")
     );
 }
 
