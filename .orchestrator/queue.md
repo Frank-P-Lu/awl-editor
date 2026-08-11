@@ -312,11 +312,11 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
 
 ### 388 — Theme-picker arrowing is still visibly laggy
 
-⏸ HELD FOR A QUIET HOST — deliberately not dispatched with the 386/387/389/390
-wave. Its deliverable is movement-to-present timing in `--release`, and four
-concurrent lanes at the gate phase measured load average 69.79 on this host, so
-any receipt taken alongside them measures the wave, not the mechanism. Dispatch
-alone once the wave has landed. Execute from handoff item 3 above.
+🟡 IN PROGRESS — claude (deep), branch `claude/item-388-theme-preview-lag`,
+dispatched ALONE on a quiet host: its deliverable is movement-to-present timing
+in `--release`, and four concurrent lanes at the gate phase measured load
+average 69.79 here, so a receipt taken beside them measures the wave. Execute
+from handoff item 1 above.
 
 ### 391 — The picker footer advertises `⌫ up` where Backspace is now inert
 
