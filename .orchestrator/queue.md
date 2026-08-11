@@ -96,20 +96,14 @@ every pass.
    the scroll-jump invariant holds at every step boundary. The pinned reach law
    at `3a8da981` gets updated deliberately. **Dispatch ALONE — the proving
    receipt is timing, taken on a quiet host.** Body below.
-2. **391 — the picker footer teaches `⌫ up` where Backspace is now inert.** Body below.
-3. **392 — DECIDED 2026-08-11: the forcing arm.** Make `AWL_MENU_BAR_FORCE=on` a
-   standing pre-push arm. Body below.
-4. **327 — DECIDED 2026-08-11: elide and delay.** Settings two-column: elide the
-   Project-root path, delay two-column mode until the accessory survives. Body
-   below.
-5. **393 — DECIDED 2026-08-11: retire the lang auto-stamp.** No writing
+2. **393 — DECIDED 2026-08-11: retire the lang auto-stamp.** No writing
    `lang:` frontmatter by default; detection stays in-memory; stamping becomes
    an explicit palette action. Plus one owed diagnosis: is the ambiguous-Han
    Settings knob wired to the key the loader reads? Body below.
-6. **394 — Settings arrowing: Right enters, Left does not return.** User
+3. **394 — Settings arrowing: Right enters, Left does not return.** User
    report, live macOS. Bugs cluster — 387/389 changed Back/Backspace handling
    in this exact neighborhood last wave. Body below.
-7. **211 — the live-glide photograph. ⚠️ RE-BLOCKED, AND THE FLIP IS THE
+4. **211 — the live-glide photograph. ⚠️ RE-BLOCKED, AND THE FLIP IS THE
    LESSON.** The lock was CLEAR when this was queued and read
    `CGSSessionScreenIsLocked = true` about fifteen minutes later, before
    dispatch. A sitting launched on the first reading would now be writing
@@ -118,7 +112,7 @@ every pass.
    is not a check.** `caffeinate` holds a display awake and cannot unlock one.
    Dispatch when the screen is unlocked AND someone can keep it that way; the
    window is small, top-left, non-activating and never steals keyboard focus.
-8. **HUMAN / LIVE — now small.** Eight blockers above, each needing a session,
+5. **HUMAN / LIVE — now small.** Eight blockers above, each needing a session,
    hardware, or a release-time word; the 30-item taste backlog closed by the
    bulk acceptance. ⚠️ 392 and 327 wait for dispatch until 388's quiet-host
    timing sitting completes — 388 was dispatched ALONE on purpose.
@@ -127,6 +121,8 @@ every pass.
 ## Open items
 
 ### 388 — Theme-picker arrowing: build the same-step completion
+
+🟡 IN PROGRESS — claude (deep), branch `claude/item-388-same-step`.
 
 **DECIDED 2026-08-11 (user):** ~32–40 ms per arrow does read as lag ("isn't
 this bad? lol"), and the fix is the lane's recommended fork — shape the visible
@@ -174,56 +170,9 @@ that could not law and mutation-prove it.
 Both questions formerly owed are answered above; this is now an ordinary
 engineering item. Still **dispatch with the timing discipline**: the receipt
 that proves ~13 ms is taken alone on a quiet host, like the measurement was.
-### 391 — The picker footer advertises `⌫ up` where Backspace is now inert
-
-Surfaced by item 389, out of its scope and deliberately not fixed there. The
-flat Switch-Project picker no longer ascends, but `overlay/kind.rs`'s
-`kind_actions` still prints `⌫ up` for `OverlayKind::Project`. The text is
-KIND-level and shared with the Settings folder-value picker (`Bind::Path`),
-which genuinely does still ascend — so the two instances need distinguishing
-before the hint can differ, and the `OverlayState`/`Journey` split does not
-currently carry that context from picker to hint. Note item 387 landed a
-`BackKey` owner for the workspace footer's Back cell in the same wave; check
-whether that owner is the right seam to extend rather than inventing a second
-one. Verify by driving both pickers with real `--keys` and reading each footer
-from the sidecar; a law must fail if either picker's hint names a key that its
-own intercept does not honour.
-
-### 392 — make `AWL_MENU_BAR_FORCE=on` a standing pre-push arm
-
-**DECIDED 2026-08-11 (user):** the forcing arm, not the widened filter.
-Background: `native-gate.sh` runs its menubar arms over tests matching
-`menubar|menu_bar`; three laws in two days shipped blind to this axis — two in
-`metric_scale`/`caret_filled_knockout`, one in `workspace_back_width` — each
-passing a full local gate, each caught by CI instead. `menubar::platform_default`
-is `false` on macOS and `true` everywhere else, so an unpinned law measures a
-different product locally than in CI; about eleven more tests sit outside the
-name filter. Costs, measured: the forcing arm reproduced all three failures in
-about a second each; the widened filter costs two more full suites per gate
-(~4 min each) and is rejected. Build: a standing arm in `native-gate.sh` that
-runs the affected filters under `AWL_MENU_BAR_FORCE=on`, named in the receipt
-so a reader sees what was and wasn't covered. Verify: prove non-vacuity by
-reverting one of the three caught fixes locally and watching the arm go red.
-
-### 327 — Settings two-column: elide the path, delay the transition
-
-**DECIDED 2026-08-11 (user):** elide "Project root" like other row text, and
-delay two-column mode until the content pane preserves its accessory — staging
-one region a little longer is calmer than showing both regions with controls
-missing. Diagnosed mechanics: with the long Project-root fixture the focused
-narrow pane has no accessory at 640–740, carries it at 760–860, then
-`workspace_is_wide` introduces the category rail at 880 and shrinks the
-diagonal row-cluster budget from 514 to 339 px; the value/Range rail drops
-through 940 and returns at 960 (419 px). ⚠️ **The 880 is a property of THAT
-fixture, not of the product** — item 387 measured the same flip between 1070
-and 1075 px on the default fixture at `--capture-dpi 1`, because
-`workspace_is_wide` is derived from display-face metrics × zoom, not a
-constant. Do not write 880 into a law; derive the boundary from the flip
-itself. Verify: sweep widths across both fixtures at 1× and 2×, asserting the
-accessory is present whenever two-column mode is active and the elided path
-never overflows its cell; the law names which fixture and boundary it enrolled.
-
 ### 393 — retire the lang auto-stamp; then verify the tiebreak knob is real
+
+🟡 IN PROGRESS — claude (deep), branch `claude/item-393-lang-stamp`.
 
 **DECIDED 2026-08-11 (user):** awl stops writing `lang:` frontmatter into the
 user's files by default. The user's live report (你好 rendering with a Japanese
@@ -259,6 +208,8 @@ to this axis by construction; use `--screenshot-app`, or consciously retire
 the pin as part of this item.
 
 ### 394 — Settings arrowing: Right enters, Left does not return
+
+🟡 IN PROGRESS — claude (deep), branch `claude/item-394-settings-left`.
 
 User report (2026-08-11, live macOS): in the Settings workspace, Right moves
 focus inward but Left does not come back. Premise-check with real `--keys` on
