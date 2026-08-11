@@ -1228,7 +1228,10 @@ fn flat_project_backspace_is_inert_and_its_footer_says_so() {
         hint.contains("\u{21B5} select"),
         "still teaches ↵ select: {hint}"
     );
-    assert!(hint.contains("lens"), "still teaches the lens cycle: {hint}");
+    assert!(
+        hint.contains("lens"),
+        "still teaches the lens cycle: {hint}"
+    );
 
     drive_bt(
         &mut overlay,
