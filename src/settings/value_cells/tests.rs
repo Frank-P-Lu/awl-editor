@@ -23,6 +23,11 @@
 //! the command palette's `palette_value_cells`), because they take different
 //! subsets of the roster through the same owner and a fix applied at one door
 //! only would read as fixed from the other.
+//!
+//! A fourth claim stands on its own below — the allowance carries no LIVE state,
+//! so a reader's dictionary cannot change how much of their path they see. It is
+//! a separate test because it sweeps a different axis (the variant roster, at one
+//! fixed path) rather than a different cell of this one.
 
 use super::*;
 use crate::settings::{SettingKind, SettingRow, SettingsValues, value_for};
@@ -81,10 +86,79 @@ const ROOTS: &[&str] = &[
     "/tmp/notes",
     "/Users/someone/Documents",
     "/Users/someone/Documents/writing/projects/2026/the-long-novel-working-draft",
-    "/Users/someone/Documents/writing/projects/2026/drafts/chapters/revisions/final/really/quite/deep/indeed",
+    concat!(
+        "/Users/someone/Documents/writing/projects/2026/drafts/chapters/",
+        "revisions/final/really/quite/deep/indeed"
+    ),
     "/Users/someone/a-single-enormously-descriptive-folder-name-with-no-parents-to-drop",
     "/Users/someone/仕事/原稿/長編小説の作業中の草稿",
 ];
+
+/// **ONE PATH CELL, GRADED** — the BOUND, and where something was actually cut,
+/// the PRESENCE floor. Returns whether this cell was elided, which is what makes
+/// it a member of the arm the invariance claim compares.
+fn grade_path_cell(
+    what: &str,
+    cell: &str,
+    whole: &str,
+    allowance: usize,
+    widest_authored: usize,
+) -> bool {
+    // **BOUND.**
+    let n = cell.chars().count();
+    assert!(
+        n <= allowance,
+        "{what}: the drawn cell is {n} chars against the roster's own {allowance}-char allowance \
+         — the value column's width is reading off the reader's filesystem again. cell {cell:?}"
+    );
+
+    if whole.chars().count() <= allowance {
+        // A path that fits is drawn whole: the elision is pressure relief, not a
+        // haircut everyone gets.
+        assert_eq!(
+            cell, whole,
+            "{what}: a path already inside the allowance was elided anyway"
+        );
+        return false;
+    }
+
+    // **PRESENCE**, on the arm where something was actually cut.
+    assert_eq!(
+        n, allowance,
+        "{what}: an elided cell should spend the whole allowance — {n} of {allowance} chars \
+         used, cell {cell:?}"
+    );
+    assert!(
+        cell.contains('…'),
+        "{what}: the cell was shortened without saying so. cell {cell:?}"
+    );
+    // The floor is the ROSTER'S OWN TIGHTEST REAL CELL, not a number: whatever
+    // the widest authored readout is, a path gets at least that much room, so
+    // "elide the path" can never degrade into a stub beside full-width words.
+    assert!(
+        n >= widest_authored,
+        "{what}: the path cell got {n} chars while an authored readout in the same column got \
+         {widest_authored} — the path is the row whose value the reader cannot guess, so it may \
+         not be the narrowest thing in the column"
+    );
+    // The FOLDER the row is about survives. When the last segment fits the
+    // allowance beside an ellipsis it is carried whole; when the segment itself
+    // overflows, its own tail is.
+    let last = whole.rsplit('/').next().unwrap_or(whole);
+    let kept = if last.chars().count() < allowance {
+        last.to_string()
+    } else {
+        let tail = allowance - 1;
+        let tail = tail / 2 + tail % 2;
+        last.chars().skip(last.chars().count() - tail).collect()
+    };
+    assert!(
+        cell.ends_with(&kept),
+        "{what}: the cell no longer ends in the folder it names — expected to keep {kept:?}, \
+         cell {cell:?}"
+    );
+    true
+}
 
 /// Every claim, over both doors and the whole root ladder. One test because the
 /// three claims are graded per cell and reporting them apart would mean sweeping
@@ -126,6 +200,13 @@ fn a_path_cell_is_bounded_by_the_roster_invariant_across_machines_and_still_name
                 rows.len(),
                 cells.len()
             );
+            let widest_authored = rows
+                .iter()
+                .zip(&cells)
+                .filter(|(r, _)| r.kind != SettingKind::Path)
+                .map(|(_, c)| c.chars().count())
+                .max()
+                .unwrap_or(0);
             for (row, cell) in rows.iter().zip(&cells) {
                 let whole = value_for(row, &v);
                 let what = format!("{door}, row {:?}, root {root:?}", row.name);
@@ -143,73 +224,12 @@ fn a_path_cell_is_bounded_by_the_roster_invariant_across_machines_and_still_name
                     continue;
                 }
 
-                // **BOUND.**
-                let n = cell.chars().count();
-                assert!(
-                    n <= allowance,
-                    "{what}: the drawn cell is {n} chars against the roster's own {allowance}-char \
-                     allowance — the value column's width is reading off the reader's filesystem \
-                     again. cell {cell:?}"
-                );
                 bounded += 1;
-
-                if whole.chars().count() <= allowance {
-                    // A path that fits is drawn whole: the elision is pressure
-                    // relief, not a haircut everyone gets.
-                    assert_eq!(
-                        *cell, whole,
-                        "{what}: a path already inside the allowance was elided anyway"
-                    );
-                    continue;
+                if grade_path_cell(&what, cell, &whole, allowance, widest_authored) {
+                    deep.entry((door, row.name))
+                        .or_default()
+                        .push((root, cell.clone()));
                 }
-
-                // **PRESENCE**, on the arm where something was actually cut.
-                assert_eq!(
-                    n, allowance,
-                    "{what}: an elided cell should spend the whole allowance — {n} of \
-                     {allowance} chars used, cell {cell:?}"
-                );
-                assert!(
-                    cell.contains('…'),
-                    "{what}: the cell was shortened without saying so. cell {cell:?}"
-                );
-                // The floor is the ROSTER'S OWN TIGHTEST REAL CELL, not a number:
-                // whatever the widest authored readout is, a path gets at least
-                // that much room, so "elide the path" can never degrade into a
-                // stub beside full-width words.
-                let widest_authored = rows
-                    .iter()
-                    .zip(&cells)
-                    .filter(|(r, _)| r.kind != SettingKind::Path)
-                    .map(|(_, c)| c.chars().count())
-                    .max()
-                    .unwrap_or(0);
-                assert!(
-                    n >= widest_authored,
-                    "{what}: the path cell got {n} chars while an authored readout in the same \
-                     column got {widest_authored} — the path is the row whose value the reader \
-                     cannot guess, so it may not be the narrowest thing in the column"
-                );
-                // The FOLDER the row is about survives. When the last segment
-                // fits the allowance beside an ellipsis, it is carried whole;
-                // when the segment itself overflows, its own tail is.
-                let last = whole.rsplit('/').next().unwrap_or(&whole);
-                let kept = if last.chars().count() + 1 <= allowance {
-                    last.to_string()
-                } else {
-                    let tail = allowance - 1;
-                    let tail = tail / 2 + tail % 2;
-                    last.chars().skip(last.chars().count() - tail).collect()
-                };
-                assert!(
-                    cell.ends_with(&kept),
-                    "{what}: the cell no longer ends in the folder it names — expected to keep \
-                     {kept:?}, cell {cell:?}"
-                );
-
-                deep.entry((door, row.name))
-                    .or_default()
-                    .push((root, cell.clone()));
             }
         }
     }
@@ -234,12 +254,30 @@ fn a_path_cell_is_bounded_by_the_roster_invariant_across_machines_and_still_name
         compared += seen.len();
     }
 
-    // **THE ALLOWANCE CARRIES NO LIVE STATE.** An earlier draft derived it from
-    // the widest AUTHORED READOUT, which made it move with the dictionary — pick
-    // a shorter language and the column narrows, and with it every width decision
-    // downstream. The signature (`allowance()` takes no `values`) says so; this
-    // says so of the behaviour, over the whole variant roster, because a reader
-    // changing their dictionary must not change how much of their path they see.
+    eprintln!(
+        "settings value cells: {} path rows enrolled ({:?}), {} roots, allowance {allowance} \
+         chars; {bounded} path cells bounded, {untouched} authored cells untouched, {compared} \
+         deep cells compared across {} (door, row) pairs",
+        paths.len(),
+        paths.iter().map(|r| r.name).collect::<Vec<_>>(),
+        ROOTS.len(),
+        deep.len(),
+    );
+}
+
+/// **THE ALLOWANCE CARRIES NO LIVE STATE.**
+///
+/// An earlier draft derived it from the widest AUTHORED READOUT, which made it
+/// move with the dictionary: pick a shorter language and the column narrows, and
+/// with it every width decision downstream — which name elides, whether the
+/// accessory column is granted, how wide a pane must be before the workspace
+/// shows two regions. The signature (`allowance()` takes no `values`) says as
+/// much structurally; this says it of the BEHAVIOUR, over the whole variant
+/// roster rather than a chosen pair, because a reader changing their dictionary
+/// must not change how much of their project path they can see.
+#[test]
+fn changing_a_live_setting_does_not_change_how_much_of_a_path_is_drawn() {
+    let _g = crate::testlock::serial();
     let ambient_dict = crate::spell::active_variant();
     let deep_root = ROOTS
         .iter()
@@ -266,14 +304,8 @@ fn a_path_cell_is_bounded_by_the_roster_invariant_across_machines_and_still_name
          live setting is reaching the geometry through the value column: {across_state:?}",
         crate::spell::DictVariant::ALL.len()
     );
-
-    eprintln!(
-        "settings value cells: {} path rows enrolled ({:?}), {} roots, allowance {allowance} \
-         chars; {bounded} path cells bounded, {untouched} authored cells untouched, {compared} \
-         deep cells compared across {} (door, row) pairs",
-        paths.len(),
-        paths.iter().map(|r| r.name).collect::<Vec<_>>(),
-        ROOTS.len(),
-        deep.len(),
+    assert!(
+        !crate::spell::DictVariant::ALL.is_empty(),
+        "no dictionary variant enrolled, so the state axis swept nothing"
     );
 }

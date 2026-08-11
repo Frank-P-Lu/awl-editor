@@ -106,7 +106,10 @@ const ROOTS: &[(&str, &str)] = &[
     ),
     (
         "deeper",
-        "/Users/someone/Documents/writing/projects/2026/drafts/chapters/revisions/final/really/quite/deep/indeed",
+        concat!(
+            "/Users/someone/Documents/writing/projects/2026/drafts/chapters/",
+            "revisions/final/really/quite/deep/indeed"
+        ),
     ),
 ];
 
@@ -219,8 +222,7 @@ fn value_ink(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
     p: &TextPipeline,
-    pw: u32,
-    ph: u32,
+    (pw, ph): (u32, u32),
     lane: (f32, f32),
     top: f32,
     height: f32,
@@ -251,6 +253,184 @@ fn value_ink(
     (inked, (x1 - x0).max(0) as usize)
 }
 
+/// What one swept cell came to. `ink_share` is `Some` only where a value lane
+/// was actually graded against the pixels, so the caller can report how much
+/// headroom the presence floor had without re-deriving it.
+struct Outcome {
+    wide: bool,
+    granted: bool,
+    ink_share: Option<f32>,
+    no_readout: bool,
+}
+
+/// What the sweep saw, in aggregate — the counts every closing assertion and the
+/// receipt are stated in.
+struct Tally {
+    wide: usize,
+    staged: usize,
+    graded: usize,
+    inked: usize,
+    yielded: usize,
+    no_readout: usize,
+    tightest: f32,
+}
+
+impl Tally {
+    fn new() -> Self {
+        Self {
+            wide: 0,
+            staged: 0,
+            graded: 0,
+            inked: 0,
+            yielded: 0,
+            no_readout: 0,
+            tightest: f32::INFINITY,
+        }
+    }
+
+    fn add(&mut self, out: &Outcome) {
+        match out.wide {
+            true => self.wide += 1,
+            false => self.staged += 1,
+        }
+        self.graded += 1;
+        self.yielded += usize::from(!out.granted);
+        self.no_readout += usize::from(out.no_readout);
+        if let Some(share) = out.ink_share {
+            self.tightest = self.tightest.min(share);
+            self.inked += 1;
+        }
+    }
+}
+
+/// **ONE SWEPT CELL, GRADED.** Every per-cell assertion lives here so the sweep
+/// above stays a sweep; `None` means the machine has no adapter to answer with.
+fn grade_cell(
+    kind: OverlayKind,
+    lens: (usize, &str),
+    machine: (&str, &str),
+    cell: Cell,
+) -> Option<Outcome> {
+    let (lens_i, lens_id) = lens;
+    let (name, root) = machine;
+    let ov = card_in_content(kind, lens_i, root);
+    let what = cell.describe(kind, lens_id, name);
+    assert!(
+        !ov.item_strings().is_empty(),
+        "{what}: the lens filtered every row away, so this cell has no accessory to grade and \
+         the sweep's lens axis is narrower than it reports"
+    );
+    let (pw, ph) = (
+        (cell.w as f32 * cell.dpi) as u32,
+        (cell.h as f32 * cell.dpi) as u32,
+    );
+    let (device, queue, mut p) = headless_dqp(pw as f32, ph as f32)?;
+    p.set_dpi(cell.dpi);
+    p.set_size(pw as f32, ph as f32);
+    let mut v = content_view(&ov);
+    v.zoom = cell.zoom;
+    p.set_view(&v);
+    p.prepare(&device, &queue, pw, ph).unwrap();
+
+    let wide = p.workspace_is_wide(pw);
+    let granted = p.overlay_right_shown;
+    // **THE IMPLICATION.**
+    assert!(
+        !wide || granted,
+        "{what}: the workspace drew BOTH regions and the content pane's rows lost their \
+         accessory column — the rail's arrival shrank the pane past what the rows need, which \
+         is the transition this stage exists to delay"
+    );
+    let mut out = Outcome {
+        wide,
+        granted,
+        ink_share: None,
+        no_readout: false,
+    };
+    if !granted {
+        return Some(out);
+    }
+
+    let Some(g) = p.overlay_row_geometry() else {
+        panic!("{what}: a granted accessory but no planned geometry");
+    };
+    // Grade the row whose value is the WIDEST cell on show: it is the one the
+    // shared column is sized by, so it is the one an overflow shows up in.
+    let widest = g
+        .rows
+        .iter()
+        .filter(|r| r.lanes.value.is_some())
+        .max_by(|a, b| {
+            a.lanes
+                .value
+                .unwrap()
+                .w
+                .total_cmp(&b.lanes.value.unwrap().w)
+        });
+    // A DRAWN ROW WHOSE READOUT IS EMPTY publishes no value lane even with the
+    // column granted — the affordance rows (a submenu, an action) have no value
+    // to state, and a whole lens can be made of them. That is a lens with nothing
+    // to grade, not a lost accessory, and the two are told apart by the card's
+    // OWN drawn rows rather than by a lens name.
+    let binds = ov.item_bindings();
+    let expects_value = g.rows.iter().any(|r| {
+        r.item
+            .and_then(|i| binds.get(i))
+            .is_some_and(|s| !s.trim().is_empty())
+    });
+    let Some(row) = widest else {
+        assert!(
+            !expects_value,
+            "{what}: the accessory column is granted and a drawn row has a readout to state, but \
+             no row published a value lane — the grant and the lanes read the same gate, so they \
+             cannot disagree"
+        );
+        out.no_readout = true;
+        return Some(out);
+    };
+    let lane = row.lanes.value.expect("filtered on Some");
+
+    // THE CELL STAYS INSIDE THE BAND. An elided value that still overflows its
+    // own column has moved the defect rather than fixed it.
+    assert!(
+        lane.x >= g.band_x - 0.5 && lane.x + lane.w <= g.band_x + g.band_w + 0.5,
+        "{what}: the widest value lane runs {:.1}..{:.1} outside its own band {:.1}..{:.1}",
+        lane.x,
+        lane.x + lane.w,
+        g.band_x,
+        g.band_x + g.band_w
+    );
+
+    // **PRESENCE**, off the rendered pixels.
+    let (inked, band) = value_ink(
+        &device,
+        &queue,
+        &p,
+        (pw, ph),
+        (lane.x, lane.w),
+        row.y,
+        row.h,
+    );
+    assert!(
+        band >= 4,
+        "{what}: the value lane clamped to {band} canvas columns — there is nothing here for a \
+         pixel floor to grade"
+    );
+    // THE FLOOR IS SET UNDER THE ROSTER'S TIGHTEST REAL VALUE. A settings readout
+    // is a word or two of type across its own shaped band; the tightest cell this
+    // sweep reaches is reported by the caller so the headroom stays visible, and
+    // a quarter leaves room for a shaper's antialiasing to differ across backends
+    // without leaving room for an empty column.
+    assert!(
+        inked * 4 >= band,
+        "{what}: only {inked} of the value lane's own {band} band columns carry a glyph edge — \
+         the accessory column is granted, planned and seated, but what reached the frame is not \
+         a readout"
+    );
+    out.ink_share = Some(inked as f32 / band as f32);
+    Some(out)
+}
+
 /// **THE LAW.** Two-column implies an accessory, the accessory is ink, and
 /// neither answer moves with the reader's own filesystem.
 #[test]
@@ -270,14 +450,12 @@ fn a_two_column_workspace_keeps_the_rows_accessory_and_neither_reads_off_the_mac
     // THE AMBIENT MENU-BAR VALUE, captured rather than derived.
     let ambient_menu_bar = crate::menubar::menu_bar_on();
 
-    let (mut staged, mut wide, mut graded, mut inked_cells, mut yielded, mut no_readout) =
-        (0usize, 0usize, 0usize, 0usize, 0usize, 0usize);
+    let mut tally = Tally::new();
     // Per (cell key) -> per root: (wide, granted). The machine-independence
     // claim is that every entry holds one distinct answer.
     let mut across_machines: std::collections::BTreeMap<String, Vec<(&str, bool, bool)>> =
         Default::default();
     let mut lenses_seen: std::collections::BTreeSet<String> = Default::default();
-    let mut tightest = f32::INFINITY;
 
     for kind in &kinds {
         // THE LENSES, asked of the kind's own facet scheme rather than named —
@@ -307,138 +485,17 @@ fn a_two_column_workspace_keeps_the_rows_accessory_and_neither_reads_off_the_mac
                                 menu_bar,
                             };
                             for (machine, root) in ROOTS {
-                                let ov = card_in_content(*kind, lens_i, root);
-                                if ov.item_strings().is_empty() {
-                                    continue;
-                                }
-                                let what = cell.describe(*kind, facet.id, machine);
-                                let (pw, ph) = ((lw as f32 * dpi) as u32, (lh as f32 * dpi) as u32);
-                                let Some((device, queue, mut p)) =
-                                    headless_dqp(pw as f32, ph as f32)
+                                let Some(out) =
+                                    grade_cell(*kind, (lens_i, facet.id), (machine, root), cell)
                                 else {
                                     crate::menubar::set_menu_bar_on(ambient_menu_bar);
                                     return;
                                 };
-                                p.set_dpi(dpi);
-                                p.set_size(pw as f32, ph as f32);
-                                let mut v = content_view(&ov);
-                                v.zoom = zoom;
-                                p.set_view(&v);
-                                p.prepare(&device, &queue, pw, ph).unwrap();
-
-                                let is_wide = p.workspace_is_wide(pw);
-                                let granted = p.overlay_right_shown;
-                                match is_wide {
-                                    true => wide += 1,
-                                    false => staged += 1,
-                                }
-                                graded += 1;
+                                tally.add(&out);
                                 across_machines
                                     .entry(cell.key(*kind, facet.id))
                                     .or_default()
-                                    .push((machine, is_wide, granted));
-
-                                // **THE IMPLICATION.**
-                                assert!(
-                                    !is_wide || granted,
-                                    "{what}: the workspace drew BOTH regions and the content \
-                                     pane's rows lost their accessory column — the rail's \
-                                     arrival shrank the pane past what the rows need, which is \
-                                     the transition this stage exists to delay"
-                                );
-                                if !granted {
-                                    yielded += 1;
-                                    continue;
-                                }
-
-                                let Some(g) = p.overlay_row_geometry() else {
-                                    panic!("{what}: a granted accessory but no planned geometry");
-                                };
-                                // Grade the row whose value is the WIDEST cell on
-                                // show: it is the one the shared column is sized
-                                // by, so it is the one an overflow shows up in.
-                                let widest =
-                                    g.rows.iter().filter(|r| r.lanes.value.is_some()).max_by(
-                                        |a, b| {
-                                            a.lanes
-                                                .value
-                                                .unwrap()
-                                                .w
-                                                .total_cmp(&b.lanes.value.unwrap().w)
-                                        },
-                                    );
-                                // A DRAWN ROW WHOSE READOUT IS EMPTY publishes no
-                                // value lane even with the column granted — the
-                                // affordance rows (a submenu, an action) have no
-                                // value to state, and a whole lens can be made of
-                                // them. That is a lens with nothing to grade, not a
-                                // lost accessory, and the two are told apart by the
-                                // card's OWN drawn rows rather than by a lens name.
-                                let binds = ov.item_bindings();
-                                let expects_value = g.rows.iter().any(|r| {
-                                    r.item
-                                        .and_then(|i| binds.get(i))
-                                        .is_some_and(|s| !s.trim().is_empty())
-                                });
-                                let Some(row) = widest else {
-                                    assert!(
-                                        !expects_value,
-                                        "{what}: the accessory column is granted and a drawn row \
-                                         has a readout to state, but no row published a value \
-                                         lane — the grant and the lanes read the same gate, so \
-                                         they cannot disagree"
-                                    );
-                                    no_readout += 1;
-                                    continue;
-                                };
-                                let lane = row.lanes.value.expect("filtered on Some");
-
-                                // THE CELL STAYS INSIDE THE BAND. An elided value
-                                // that still overflows its own column has moved
-                                // the defect rather than fixed it.
-                                assert!(
-                                    lane.x >= g.band_x - 0.5
-                                        && lane.x + lane.w <= g.band_x + g.band_w + 0.5,
-                                    "{what}: the widest value lane runs {:.1}..{:.1} outside its \
-                                     own band {:.1}..{:.1}",
-                                    lane.x,
-                                    lane.x + lane.w,
-                                    g.band_x,
-                                    g.band_x + g.band_w
-                                );
-
-                                // **PRESENCE**, off the rendered pixels.
-                                let (inked, band) = value_ink(
-                                    &device,
-                                    &queue,
-                                    &p,
-                                    pw,
-                                    ph,
-                                    (lane.x, lane.w),
-                                    row.y,
-                                    row.h,
-                                );
-                                assert!(
-                                    band >= 4,
-                                    "{what}: the value lane clamped to {band} canvas columns — \
-                                     there is nothing here for a pixel floor to grade"
-                                );
-                                // THE FLOOR IS SET UNDER THE ROSTER'S TIGHTEST
-                                // REAL VALUE. A settings readout is a word or two
-                                // of type across its own shaped band; the tightest
-                                // cell this sweep reaches is reported below so the
-                                // headroom stays visible, and a quarter leaves room
-                                // for a shaper's antialiasing to differ across
-                                // backends without leaving room for an empty column.
-                                assert!(
-                                    inked * 4 >= band,
-                                    "{what}: only {inked} of the value lane's own {band} band \
-                                     columns carry a glyph edge — the accessory column is \
-                                     granted, planned and seated, but what reached the frame is \
-                                     not a readout"
-                                );
-                                tightest = tightest.min(inked as f32 / band as f32);
-                                inked_cells += 1;
+                                    .push((machine, out.wide, out.granted));
                             }
                         }
                     }
@@ -447,9 +504,29 @@ fn a_two_column_workspace_keeps_the_rows_accessory_and_neither_reads_off_the_mac
         }
     }
     crate::menubar::set_menu_bar_on(ambient_menu_bar);
+    conclude(
+        &tally,
+        &across_machines,
+        &lenses_seen,
+        &kinds,
+        ambient_menu_bar,
+    );
+}
 
+/// **THE SWEEP'S OWN NON-VACUITY, AND THE CLAIM IT WAS FOR.** Kept apart from
+/// the sweep because every assertion here is about the sweep AS A WHOLE — that
+/// it crossed the threshold, that it graded ink anywhere, and that the two
+/// overflowing machines agreed — rather than about any one cell.
+fn conclude(
+    tally: &Tally,
+    across_machines: &std::collections::BTreeMap<String, Vec<(&str, bool, bool)>>,
+    lenses_seen: &std::collections::BTreeSet<String>,
+    kinds: &[OverlayKind],
+    ambient_menu_bar: bool,
+) {
+    let (wide, staged, graded) = (tally.wide, tally.staged, tally.graded);
     // THE SWEEP CROSSED THE THRESHOLD, and says so. Without this the implication
-    // above is vacuously true of a sweep that never went two-column at all.
+    // in `grade_cell` is vacuously true of a sweep that never went two-column.
     assert!(
         staged > 0 && wide > 0,
         "the sweep never crossed the staging threshold (staged {staged}, wide {wide}) across \
@@ -457,7 +534,7 @@ fn a_two_column_workspace_keeps_the_rows_accessory_and_neither_reads_off_the_mac
         kinds.iter().map(|k| k.as_str()).collect::<Vec<_>>()
     );
     assert!(
-        inked_cells > 0,
+        tally.inked > 0,
         "no cell drew an inked value lane across {graded} swept cells — the presence floor \
          graded nothing, and an accessory that never appears satisfies the implication for free"
     );
@@ -473,15 +550,15 @@ fn a_two_column_workspace_keeps_the_rows_accessory_and_neither_reads_off_the_mac
         .collect();
     assert!(
         overflowing.len() >= 2,
-        "only {} of the {} machines in the ladder overflow the roster's allowance ({overflowing:?}) \
-         — the invariance claim needs two readers whose paths are BOTH past it, or it compares \
-         nothing",
+        "only {} of the {} machines in the ladder overflow the roster's allowance \
+         ({overflowing:?}) — the invariance claim needs two readers whose paths are BOTH past \
+         it, or it compares nothing",
         overflowing.len(),
         ROOTS.len()
     );
     let mut differed: Vec<String> = Vec::new();
     let mut compared = 0usize;
-    for (key, seen) in &across_machines {
+    for (key, seen) in across_machines {
         let deep: Vec<_> = seen
             .iter()
             .filter(|(m, _, _)| overflowing.contains(m))
@@ -502,16 +579,18 @@ fn a_two_column_workspace_keeps_the_rows_accessory_and_neither_reads_off_the_mac
     );
 
     eprintln!(
-        "workspace two-column accessory: {graded} cells over {} lenses {:?} x {} machines x both \
-         menu-bar arms (ambient here is {ambient_menu_bar}); {wide} wide, {staged} staged, \
-         {inked_cells} inked, {yielded} yielded while staged, {no_readout} with no readout to \
-         state; {compared} cells compared across the {} overflowing machines {overflowing:?}; \
-         tightest ink share {:.3} against a floor of 0.250",
+        "workspace two-column accessory: {graded} cells over {} lenses {lenses_seen:?} x {} \
+         machines x both menu-bar arms (ambient here is {ambient_menu_bar}); {wide} wide, \
+         {staged} staged, {} inked, {} yielded while staged, {} with no readout to state; \
+         {compared} cells compared across the {} overflowing machines {overflowing:?}; tightest \
+         ink share {:.3} against a floor of 0.250",
         lenses_seen.len(),
-        lenses_seen,
         ROOTS.len(),
+        tally.inked,
+        tally.yielded,
+        tally.no_readout,
         overflowing.len(),
-        tightest
+        tally.tightest
     );
 }
 
@@ -553,9 +632,7 @@ fn the_wide_gate_delays_for_rows_that_ask_for_more_room() {
     let threshold = |items: &[String], vals: &[String]| -> Option<u32> {
         let ov = card_in_content(OverlayKind::Settings, 0, ROOTS[0].1);
         for w in (200u32..4000).step_by(4) {
-            let Some((device, queue, mut p)) = headless_dqp(w as f32, 900.0) else {
-                return None;
-            };
+            let (device, queue, mut p) = headless_dqp(w as f32, 900.0)?;
             p.set_dpi(1.0);
             p.set_size(w as f32, 900.0);
             let mut v = content_view(&ov);
