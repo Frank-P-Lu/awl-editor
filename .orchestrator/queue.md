@@ -91,19 +91,13 @@ list instead of re-checking the tree.** The fifth: item 345 sat on this board as
 word was given for a merge that had already happened. Re-derive from the tree,
 every pass.
 
-1. **388 — DECIDED 2026-08-11: build the same-step completion.** Shape the
-   visible window, present (~13 ms), finish the tail before the next event;
-   the scroll-jump invariant holds at every step boundary. The pinned reach law
-   at `3a8da981` gets updated deliberately. **Dispatch ALONE — the proving
-   receipt is timing, taken on a quiet host.** Body below.
-2. **393 — DECIDED 2026-08-11: retire the lang auto-stamp.** No writing
-   `lang:` frontmatter by default; detection stays in-memory; stamping becomes
-   an explicit palette action. Plus one owed diagnosis: is the ambiguous-Han
-   Settings knob wired to the key the loader reads? Body below.
-3. **394 — Settings arrowing: Right enters, Left does not return.** User
-   report, live macOS. Bugs cluster — 387/389 changed Back/Backspace handling
-   in this exact neighborhood last wave. Body below.
-4. **211 — the live-glide photograph. ⚠️ RE-BLOCKED, AND THE FLIP IS THE
+1. **395 — three one-line answers owed to the user**, each from a landed item:
+   393's missing ellipsis, 327's path elision, 394's unadvertised `←`. Body below.
+   Agent-actionable only once the user answers; the levers are named.
+2. **396 — the theme preview's win shrinks with scroll depth.** Recorded from
+   388's own measurement, deliberately out of its scope. Body below. Not urgent —
+   the shipped state is strictly better than before at every depth.
+3. **211 — the live-glide photograph. ⚠️ RE-BLOCKED, AND THE FLIP IS THE
    LESSON.** The lock was CLEAR when this was queued and read
    `CGSSessionScreenIsLocked = true` about fifteen minutes later, before
    dispatch. A sitting launched on the first reading would now be writing
@@ -112,7 +106,7 @@ every pass.
    is not a check.** `caffeinate` holds a display awake and cannot unlock one.
    Dispatch when the screen is unlocked AND someone can keep it that way; the
    window is small, top-left, non-activating and never steals keyboard focus.
-5. **HUMAN / LIVE — now small.** Eight blockers above, each needing a session,
+4. **HUMAN / LIVE — now small.** Eight blockers above, each needing a session,
    hardware, or a release-time word; the 30-item taste backlog closed by the
    bulk acceptance. ⚠️ 392 and 327 wait for dispatch until 388's quiet-host
    timing sitting completes — 388 was dispatched ALONE on purpose.
@@ -120,109 +114,35 @@ every pass.
 
 ## Open items
 
-### 388 — Theme-picker arrowing: build the same-step completion
+### 395 — three answers owed, each one line, each from a landed item
 
-🟡 IN PROGRESS — claude (deep), branch `claude/item-388-same-step`.
+Small, cheap, and filed so they are not lost. Each names the exact lever.
 
-**DECIDED 2026-08-11 (user):** ~32–40 ms per arrow does read as lag ("isn't
-this bad? lol"), and the fix is the lane's recommended fork — shape the visible
-window, present, then **finish the tail within the same step** before the next
-event is handled. Input-to-present ~30 ms → ~13 ms; total work unchanged;
-document fully shaped at every step boundary, so `full_shape_height`'s
-scroll-jump invariant holds and no arrow ever shows a wrong font. ⚠️ The law
-landed at `3a8da981` on `claude/item-388-theme-preview-lag` PINS today's
-whole-document reach — the implementing lane updates it deliberately (its
-mutation shows 25 of 400 rows shaped when the budget narrows to the viewport).
-Measurements below are the brief; no product code has changed yet.
+- **393's palette row has no ellipsis.** It is `Tag document language`, because it
+  acts immediately and `menu/ellipsis_law.rs` makes `…` a promise of a surface.
+  If it should ASK instead — a picker to choose the tag or decline — that is a new
+  `OverlayKind` across ~15 match arms and belongs in its own item, not a rename.
+- **327's path elision.** When a folder's final name alone exceeds the 22-char
+  allowance, `elide_path` drops the directory and middle-truncates the leaf, so
+  `the-long-n…rking-draft` stops reading as a path. Consistent with a file-picker
+  row on a long filename; a DIRECTORY readout might be better keeping the parent.
+- **394's `←` is unadvertised.** It returns, but the footer names `⌫ back`, not
+  `←`, following the precedent that the rail's `→`-enters is unnamed because
+  `↵ settings` names the same door. Naming it is one line in `BackKey`, but it
+  displaces `⌫` in the common case — which 387 chose deliberately — and the
+  footer's width budget is why a further cell cannot be added at the minimum
+  window.
 
-Measured in `--release` on a quiet host (load 4.5–7.8, no `rustc`): a 9-hop
-burst costs **282–291 ms on a 119-line document and 357–363 ms on an 1896-line
-one** — ~32 and ~40 ms per arrow, 2–3 frames each at 60 Hz. The reported ~33 ms
-is right per STEP but wrong about the reshape: `sync_theme` is 20/26 ms of it
-and the frame after is another 10–17 ms.
+### 396 — the theme preview's win shrinks with scroll depth
 
-**Dominant stage: `buffer.shape_until_scroll`, ~95% of the reshape.** Two
-premises died on measurement: **font adopt is FREE** (`text_wrap_width` derives
-from a face-independent `char_width`, so a world hop never rewraps and
-`set_size` is a no-op — there is no wasted double-layout), and the cost is **not
-per-line** (119 lines pays 20 ms, 1896 pays 17 ms; it tracks glyphs and span
-fragmentation). A `sample` profile puts it inside harfrust's own
-`shape_with_plan` — real glyph shaping, no cheap cure.
-
-**The removable work is reach, not per-glyph cost.** `full_shape_height` budgets
-every visual row, so one arrow shapes the whole document while only a viewport
-can be drawn — and all 19 consecutive pairs in `THEMES` differ in face, so every
-arrow pays. Clamping to the window measured 282→113 ms and 357→212 ms.
-
-**Why it was not landed:** that reach is deliberate. An unshaped tail falls back
-to `RowGeom`'s ESTIMATED line height — the scroll-jump bug `full_shape_height`'s
-own doc records — and it feeds `max_scroll`. Narrowing needs either re-shaping
-at settle (**the catch-up stall the brief ruled out**) or permanently relaxing a
-document-wide invariant (**a correctness decision, not a timing fix**).
-
-**The fork, and the lane's recommendation:** shape the visible window, present,
-then finish the tail **within the same step** before the next event is handled.
-Input-to-present ~30 ms → ~13 ms; total work unchanged, nothing deferred past
-the step, no arrow ever shows a wrong font, document fully shaped at every step
-boundary. It is an App-level change and was correctly not attempted in a round
-that could not law and mutation-prove it.
-
-Both questions formerly owed are answered above; this is now an ordinary
-engineering item. Still **dispatch with the timing discipline**: the receipt
-that proves ~13 ms is taken alone on a quiet host, like the measurement was.
-### 393 — retire the lang auto-stamp; then verify the tiebreak knob is real
-
-🟡 IN PROGRESS — claude (deep), branch `claude/item-393-lang-stamp`.
-
-**DECIDED 2026-08-11 (user):** awl stops writing `lang:` frontmatter into the
-user's files by default. The user's live report (你好 rendering with a Japanese
-face despite the Chinese Han tiebreak, in a Ja-dominant doc in their notes)
-traced to exactly this mechanism: write-back-once stamped `lang: ja` on open,
-and the stamp silently outranks the explicit setting forever after. The
-precedence itself is KEPT — a frontmatter `lang:` tag, however it got there,
-still wins, and that is right for portability. What changes: detection becomes
-in-memory per-open (same resolution, nothing written), and stamping becomes an
-explicit action — a palette row ("Tag document language…"), never automatic.
-Update docs/fonts.md's write-back-once entry and its tests; the never-tofu and
-ladder laws are untouched. A law must fail if opening an untagged CJK doc
-mutates the buffer.
-
-**Diagnosis closed 2026-08-11, reproduced hermetically.** The knob is wired
-end-to-end: the user's live config carries `cjk_priority = ["zh-Hans", …]`,
-`apply_sticky_globals` seeds it, `sync_view` feeds it every reshape (a theme
-control through the same `--config` path repaints every pixel). The bug is the
-stamp alone — and it is a RE-stamp: `App::write_back_lang_tag_once`
-(`app/files/open.rs`) fires on EVERY open of an untagged CJK markdown doc, so
-deleting the tag and saving cures nothing; the next open re-tags the buffer.
-On the user's mixed doc `dominant_cjk` says kana-wins → `lang: ja`, and the
-tag outranks the tiebreak, so 你好 renders JP while the config says zh-Hans.
-Reproduction: an untagged fixture (bare-Han heading + Japanese sentences)
-through `--screenshot-app` with a zh-first `--config` reports `doc_lang: ja`
-in the sidecar and renders pixel-identical to a ja-first config; the disk file
-stays clean. That is the law's seed: after the fix, the same drive must report
-`doc_lang: null`, an unmutated buffer, and the two configs' renders MUST
-differ on the Han run (probe both sides). ⚠️ Instrument note: the SHARED-CORE
-capture pins `DEFAULT_CJK_PRIORITY` (`render/viewstate_def.rs`, documented v1
-simplification) — a law written against the ordinary capture driver is blind
-to this axis by construction; use `--screenshot-app`, or consciously retire
-the pin as part of this item.
-
-### 394 — Settings arrowing: Right enters, Left does not return
-
-🟡 IN PROGRESS — claude (deep), branch `claude/item-394-settings-left`.
-
-User report (2026-08-11, live macOS): in the Settings workspace, Right moves
-focus inward but Left does not come back. Premise-check with real `--keys` on
-the live-app driver (`--screenshot-app`), then sweep — do not hand-pick one
-state: for every reachable Settings state (row list, category rail, value/Range
-rail, two-column and narrow, query filtered and not), drive Right then Left and
-read focus from the sidecar. The law: wherever Right moves focus, Left from the
-destination returns to the origin, or the state names why not; it must fail
-while the asymmetry exists. Neighborhood: items 387/389 changed Back/Backspace
-ownership (`BackKey`, `OverlayState::detail_back`) in the same wave — check
-whether the Left intercept was narrowed by the same edit before inventing a new
-seam. Fix stays on the keymap → `Action` → `apply_transition` route so `--keys`
-drives it and the sidecar sees it.
+Recorded from 388's own measurement rather than discovered later. The same-step
+split shapes from the DOCUMENT's first row, because cosmic-text's
+`shape_until_scroll` always fills from `buffer.scroll`, which awl keeps at 0 and
+draws at a pixel offset. So input-to-present improves 32.3→16.8 ms at the top of
+a document, roughly halves that gain at 50%, and reaches zero at the end.
+Closing it means moving cosmic-text's own scroll and relocating `RowGeom`'s
+coordinate origin — a real piece of work, deliberately out of 388's scope.
+Not urgent: the shipped state is strictly better than before at every depth.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
