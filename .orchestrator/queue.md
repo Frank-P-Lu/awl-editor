@@ -192,6 +192,8 @@ to rewrite. Note the leaked strings are a username and cargo paths, not secrets.
 
 ### 407 — nothing in the harness can grade the theme picker's selection
 
+🟡 IN PROGRESS — claude (deep), branch `claude/item-407-picker-selection-seam`.
+
 Measured by item 400 while building the pre-tag sweep, and filed as a bound
 rather than a bug. The picker's selection appearance **cannot be A/B'd at all** —
 moving the selection previews the next world, so the two frames are two different
@@ -206,6 +208,37 @@ reason this needs saying out loud. **Today, "is the selected row in the theme
 picker visibly selected" is answered by nobody**, on the surface whose whole
 purpose is choosing by appearance. Closing it needs a Rust-level seam that can
 hold the previewed world fixed while the selection moves, or a human.
+
+### 408 — CI RED: the OVERRUN ledger is a property of the host's FONTS
+
+🟡 IN PROGRESS — claude (deep), branch `claude/item-408-overrun-ledger-host`.
+
+`main` is red. Run <https://github.com/Frank-P-Lu/awl-editor/actions/runs/31504085049>,
+job `linux (build + test)`, step `native full suite`, on `bf7fdaa9`, **both keymap
+conventions**. `render::tests::workspace_back_width::the_workspaces_back_reads_and_draws_the_same_on_both_sides_of_the_staging_threshold`
+at line 465:
+
+```
+left:  6 cells — adds "settings at 560x480 logical, zoom=2, dpi={1,2}, menu_bar={on,off}"
+right: 2 cells — the ledger's 464x288 zoom-2 pair
+```
+
+⚠️ **It does not reproduce here, including under `AWL_MENU_BAR_FORCE=on`** — the
+two tests pass locally on `main`. So this is **not** the menu-bar axis that
+caused the last four; it is a new one. The ledger enrols a cell by whether the
+SHAPED footer runs past the card's right edge, and shaping depends on the faces
+the host actually has. CI's Linux image and this Mac do not have the same fonts,
+so the same sentence is a different width — and a ledger that pins an EXACT set
+turns that into a red.
+
+This is the recorded class *"a check runs in one configuration, and that
+configuration is itself an untested hypothesis"* — the fifth instance this week
+and the first whose axis is fonts rather than the menu bar. The ledger is a
+two-sided ledger by design (a new overrun fails, a healed one fails), which is
+right, but its subject has to be something both hosts agree on.
+
+Note item 394 retired 16 of this ledger's 18 cells by composition when the
+Settings footer got shorter, so the current 2-entry ledger is recent.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
