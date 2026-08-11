@@ -509,28 +509,19 @@ fn the_workspaces_back_reads_and_draws_the_same_on_both_sides_of_the_staging_thr
 /// question — elide a cell, wrap the line, or refuse the zoom — that belongs to
 /// whoever owns the card's minimum, not to the key the footer names.
 ///
+/// **SIXTEEN OF THE ORIGINAL EIGHTEEN CELLS ARE GONE**, and they left for the
+/// composition reason the paragraph above predicted rather than by exclusion:
+/// the rows line dropped its `←/→ category` cell when the horizontal keys became
+/// the region seam's, so the line the card has to hold is one cell shorter
+/// everywhere. What survives is the tightest corner alone — the enforced minimum
+/// window at zoom 2, where three cells still do not fit.
+///
 /// Keyed by the MENU-BAR ARM, because the bar decides whether a cell at this
 /// corner overruns or starves: the two 464x288 zoom-2 cells are here only with
 /// the bar off, and in [`STARVED`] with it on.
 const OVERRUN: &[&str] = &[
-    "settings at 464x288 logical, zoom=1.4, dpi=1, menu_bar=off",
-    "settings at 464x288 logical, zoom=1.4, dpi=2, menu_bar=off",
     "settings at 464x288 logical, zoom=2, dpi=1, menu_bar=off",
     "settings at 464x288 logical, zoom=2, dpi=2, menu_bar=off",
-    "settings at 560x480 logical, zoom=1.4, dpi=1, menu_bar=off",
-    "settings at 560x480 logical, zoom=1.4, dpi=2, menu_bar=off",
-    "settings at 560x480 logical, zoom=2, dpi=1, menu_bar=off",
-    "settings at 560x480 logical, zoom=2, dpi=2, menu_bar=off",
-    "settings at 700x620 logical, zoom=2, dpi=1, menu_bar=off",
-    "settings at 700x620 logical, zoom=2, dpi=2, menu_bar=off",
-    "settings at 464x288 logical, zoom=1.4, dpi=1, menu_bar=on",
-    "settings at 464x288 logical, zoom=1.4, dpi=2, menu_bar=on",
-    "settings at 560x480 logical, zoom=1.4, dpi=1, menu_bar=on",
-    "settings at 560x480 logical, zoom=1.4, dpi=2, menu_bar=on",
-    "settings at 560x480 logical, zoom=2, dpi=1, menu_bar=on",
-    "settings at 560x480 logical, zoom=2, dpi=2, menu_bar=on",
-    "settings at 700x620 logical, zoom=2, dpi=1, menu_bar=on",
-    "settings at 700x620 logical, zoom=2, dpi=2, menu_bar=on",
 ];
 
 /// **THE CELLS WHERE THE CARD IS TOO SHORT TO LAY THE FOOTER OUT AT ALL** — the

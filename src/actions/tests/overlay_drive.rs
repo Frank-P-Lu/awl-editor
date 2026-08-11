@@ -1359,11 +1359,12 @@ fn a_range_row_saturates_at_both_ends_of_its_authored_band() {
     assert_eq!(zoom, spec.min, "a step past the floor stays at the floor");
 }
 
-/// THE GATE the whole Left/Right claim rests on: only a RANGE row takes the keys.
-/// Every other Settings row — and every other faceted picker — keeps cycling its
-/// lens, exactly as before.
+/// THE GATE the whole Left/Right claim rests on: only a RANGE row takes the keys
+/// for a value. On every other Settings row they belong to the REGION SEAM
+/// instead — `←` back to the category rail, `→` nothing — and they touch neither
+/// the value nor the rail's category.
 #[test]
-fn left_right_still_cycle_the_lens_on_every_non_range_row() {
+fn left_right_belong_to_the_region_seam_on_every_non_range_row() {
     let _g = crate::testlock::serial();
     let mut overlay = super::settings_journey();
     for c in "page mode".chars() {
@@ -1374,12 +1375,25 @@ fn left_right_still_cycle_the_lens_on_every_non_range_row() {
     let mut zoom = 1.0f32;
     let eff = settings_drive_zoom(&mut overlay, &Action::ForwardChar, &mut zoom);
     assert_eq!(eff, Effect::None, "a non-range row signals no range step");
-    assert_ne!(
+    assert_eq!(
         overlay.card().unwrap().facet_lens,
         lens0,
-        "the lens still cycles"
+        "`→` must not cycle the rail's category from the rows pane"
+    );
+    assert!(
+        overlay.card().unwrap().detail_focus,
+        "and it has nothing to its right, so focus stays on the rows"
     );
     assert_eq!(zoom, 1.0, "and nothing touched the zoom value");
+
+    // `←` is the half that acts: back to the rail, on the same category.
+    settings_drive_zoom(&mut overlay, &Action::BackwardChar, &mut zoom);
+    assert!(
+        overlay.card().is_some_and(|o| !o.detail_focus),
+        "`←` on a row that owns no value rail comes back to the category rail"
+    );
+    assert_eq!(overlay.card().unwrap().facet_lens, lens0);
+    assert_eq!(zoom, 1.0);
 }
 
 /// A range row's ENTER is UNCHANGED: it still opens the exact numeric-entry
@@ -1543,11 +1557,21 @@ fn every_range_row_steps_through_the_core_and_signals_its_own_key() {
 /// row and pressed Right to change category silently changed — and persisted — their
 /// zoom instead.
 ///
+/// THERE ARE EXACTLY TWO OWNERS of that axis on a settings row, and the footer's
+/// `←/→` cell is present for one and absent for the other:
+///
+///   * the ROW's own value rail — `←/→` step the value, and the cell says so;
+///   * the REGION SEAM — `←` comes back to the category rail and `→` has nothing
+///     to its right (`actions::tests::workspace_arrows`), which the footer states
+///     by carrying no `←/→` cell at all, because the cell that IS there is the
+///     Back this stage advertises.
+///
 /// The law is an OUTCOME sweep over EVERY visible Settings row, never a string check
-/// on one: select the row, read the foot line, then drive the REAL `ForwardChar`
-/// through `apply_transition` and see what actually happened. Whichever of the two things
-/// the key did, the line must have said so beforehand — and exactly one of them may
-/// happen. A future range row, or a row that gains a rail, is swept in automatically.
+/// on one: select the row, read the foot line, then drive the REAL `ForwardChar` and
+/// `BackwardChar` through `apply_transition` and see what actually happened.
+/// Whichever owner acted, the line must have said so beforehand — and exactly one of
+/// them may act. A future range row, or a row that gains a rail, is swept in
+/// automatically.
 #[test]
 fn the_foot_hint_names_what_left_right_actually_do_on_every_settings_row() {
     let _g = crate::testlock::serial();
@@ -1555,9 +1579,10 @@ fn the_foot_hint_names_what_left_right_actually_do_on_every_settings_row() {
     let rows = settings_overlay().items.len();
     assert!(rows > 1, "the Settings corpus must have rows to sweep");
     let mut rails = 0usize;
+    let mut seams = 0usize;
     for i in 0..rows {
-        // A FRESH overlay per row: a lens cycle regroups the list, so each row is
-        // judged from the same clean start rather than from the last row's aftermath.
+        // A FRESH overlay per row: each row is judged from the same clean start
+        // rather than from the last row's aftermath.
         let mut overlay = super::settings_journey();
         for _ in 0..i {
             settings_drive(&mut overlay, &Action::NextLine);
@@ -1567,57 +1592,87 @@ fn the_foot_hint_names_what_left_right_actually_do_on_every_settings_row() {
         let hint = ov.foot_hint();
         let lens_before = ov.facet_lens;
         let step_before = ov.selected_range().map(|cell| cell.step);
-        // The exact cell the footer devotes to the ←/→ axis, whatever it says.
+        // The exact cell the footer devotes to the ←/→ axis, if it claims one.
         let advertised = hint
             .split(crate::overlay::HINT_SEP)
             .find(|cell| cell.starts_with(crate::overlay::ARROWS_LR))
-            .unwrap_or_else(|| panic!("{name}: the foot line must carry a ←/→ cell: {hint:?}"))
-            .to_string();
+            .map(str::to_string);
 
         let mut zoom = 1.0f32;
         let eff = settings_drive_zoom(&mut overlay, &Action::ForwardChar, &mut zoom);
         let stepped_value = matches!(eff, Effect::SettingRangeStep { .. });
-        let cycled_lens = overlay.card().unwrap().facet_lens != lens_before;
+        let card = overlay.card().unwrap();
+        assert_eq!(
+            card.facet_lens, lens_before,
+            "{name}: neither owner of ←/→ may step the category rail from the rows pane — \
+             the rail does not hold focus"
+        );
+        // `→` acted for the row, or it did nothing at all; it never leaves.
+        let seam = !stepped_value;
         assert!(
-            stepped_value ^ cycled_lens,
-            "{name}: RIGHT must do exactly one of step-the-value / cycle-the-lens \
-             (stepped={stepped_value}, cycled={cycled_lens})"
+            card.detail_focus,
+            "{name}: `→` on the rows pane must never move focus — there is nothing to the \
+             right of the content"
         );
         match stepped_value {
             true => {
                 rails += 1;
                 assert_eq!(
-                    advertised,
-                    format!(
-                        "{} {}",
-                        crate::overlay::ARROWS_LR,
-                        crate::overlay::RANGE_LR_LABEL
+                    advertised.as_deref(),
+                    Some(
+                        format!(
+                            "{} {}",
+                            crate::overlay::ARROWS_LR,
+                            crate::overlay::RANGE_LR_LABEL
+                        )
+                        .as_str()
                     ),
                     "{name}: RIGHT stepped the value, so the foot line must have said so \
                      (it said {advertised:?}) — full line: {hint:?}"
                 );
-                let step_after = overlay
-                    .card()
-                    .unwrap()
-                    .selected_range()
-                    .map(|cell| cell.step);
+                let step_after = card.selected_range().map(|cell| cell.step);
                 assert_ne!(
                     step_after, step_before,
                     "{name}: the rail step genuinely moved"
                 );
+                // AND `←` STAYS THE ROW'S: it steps back, it does not leave.
+                settings_drive_zoom(&mut overlay, &Action::BackwardChar, &mut zoom);
+                assert!(
+                    overlay.card().is_some_and(|o| o.detail_focus),
+                    "{name}: this row OWNS ←/→, so `←` must step its value rather than \
+                     leaving the rows pane"
+                );
             }
-            // On a workspace the lens IS the navigation rail's
-            // category, and the footer says the word the rail shows.
-            false => assert_eq!(
-                advertised,
-                format!("{} category", crate::overlay::ARROWS_LR),
-                "{name}: RIGHT stepped the category rail, so the foot line must say \
-                 category (it said {advertised:?}) — full line: {hint:?}"
-            ),
+            // NOTHING ON THIS ROW OWNS THE AXIS, so it belongs to the region
+            // seam — and a footer cell claiming otherwise would be teaching a
+            // key that no longer does what it says.
+            false => {
+                seams += 1;
+                assert_eq!(
+                    advertised, None,
+                    "{name}: `→` did nothing for this row, so the foot line must not claim \
+                     a ←/→ meaning — full line: {hint:?}"
+                );
+                settings_drive(&mut overlay, &Action::BackwardChar);
+                assert!(
+                    overlay.card().is_some_and(|o| !o.detail_focus),
+                    "{name}: with no row control on the axis, `←` must come back to the \
+                     category rail — the door `→` opened has to close"
+                );
+            }
         }
+        assert!(
+            rails + seams == i + 1 && (stepped_value ^ seam),
+            "{name}: exactly one owner may act on the ←/→ axis"
+        );
     }
     assert!(
         rails > 0,
         "the sweep must have crossed at least one rail row (Zoom)"
+    );
+    assert!(
+        seams > 0,
+        "the sweep must have crossed at least one ordinary row, or the seam arm — the \
+         reported defect's own arm — was never graded"
     );
 }

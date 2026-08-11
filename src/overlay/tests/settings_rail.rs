@@ -124,8 +124,8 @@ fn set_selected_range_moves_the_selected_rows_step_and_readout_together() {
 }
 
 /// THE FOOT LINE FOLLOWS THE SELECTION, and its wording is pinned here. Every
-/// authored rail row reads `adjust`; every ordinary row reads `category` (item
-/// 114 — on a workspace the lens IS the navigation rail's category). The rest of
+/// authored rail row reads `adjust`; every ordinary row carries no `←/→` cell —
+/// on those rows that axis is the REGION SEAM's. The rest of
 /// The sweep is derived from the complete settings registry, so adding a Range row
 /// cannot inherit a stale neighbour assumption. (The keys-vs-hint OUTCOME sweep is
 /// `actions::tests::overlay_drive::the_foot_hint_names_what_left_right_actually_do_on_every_settings_row`.)
@@ -171,16 +171,20 @@ fn the_settings_foot_hint_says_adjust_only_while_a_rail_row_is_selected() {
             .any(|row| row.id == crate::settings::SettingId::ScrollSensitivity),
         "the exhaustive sweep includes the new Scroll sensitivity row"
     );
-    // The two variants differ in EXACTLY the ←/→ cell.
+    // The two variants differ in EXACTLY the ←/→ cell: the ordinary line does
+    // not claim that axis, and the range variant is that same line plus the one
+    // cell that does.
     let plain_line = OverlayKind::Settings.hint();
     let ranged_line = OverlayKind::Settings.range_row_hint();
     let plain: Vec<&str> = plain_line.split(HINT_SEP).collect();
     let ranged: Vec<&str> = ranged_line.split(HINT_SEP).collect();
-    assert_eq!(plain.len(), ranged.len(), "the range variant adds no cells");
-    for (a, b) in plain.iter().zip(&ranged) {
-        if a != b {
-            assert_eq!(*a, "\u{2190}/\u{2192} category");
-            assert_eq!(*b, "\u{2190}/\u{2192} adjust");
-        }
-    }
+    assert!(
+        !plain.iter().any(|c| c.starts_with(ARROWS_LR)),
+        "an ordinary settings row must claim no ←/→ meaning: {plain_line:?}"
+    );
+    assert_eq!(
+        ranged,
+        [plain.as_slice(), &["\u{2190}/\u{2192} adjust"]].concat(),
+        "the range variant is the ordinary line plus the one cell that owns ←/→"
+    );
 }

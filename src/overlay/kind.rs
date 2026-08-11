@@ -309,12 +309,12 @@ impl OverlayKind {
             ],
             // The rows pane. `esc` does not go back — it leaves — so the Back is
             // a key of its own, appended by `foot_hint` from the one owner that
-            // knows which key is free right now
-            // (`OverlayState::detail_back`). It is deliberately not spelled
-            // here, because which key goes back is not a fact about the KIND.
-            // `esc close` stays on the rail's line, because a fifth cell
-            // overruns the card on a narrow Bars world.
-            OverlayKind::Settings => vec![enter("edit"), key(ARROWS_LR, "category")],
+            // knows which key is free (`OverlayState::detail_back`), never a
+            // fact about the KIND; `esc close` stays on the rail's line, because
+            // a fifth cell overruns the card on a narrow Bars world. AND NO
+            // `←/→` CELL: on this workspace those keys are the region seam's
+            // (`detail_left_returns`) unless a Range row's value rail owns them.
+            OverlayKind::Settings => vec![enter("edit")],
             OverlayKind::Assets => vec![enter("trash"), key("esc", "close")],
             OverlayKind::Rename => vec![enter("rename"), key("esc", "cancel")],
             OverlayKind::InsertLink => vec![enter("insert link"), key("esc", "cancel")],

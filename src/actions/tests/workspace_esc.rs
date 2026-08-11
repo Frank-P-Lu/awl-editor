@@ -37,7 +37,10 @@ fn sustained_kinds() -> Vec<OverlayKind> {
         .collect()
 }
 
-fn card_for(kind: OverlayKind) -> OverlayState {
+/// One card per workspace member, shared with `workspace_arrows` so both laws
+/// grade the SAME fixtures — a member that answers one of them on a card the
+/// other never builds is not a member both laws swept.
+pub(super) fn card_for(kind: OverlayKind) -> OverlayState {
     match kind {
         OverlayKind::Settings => settings_overlay(),
         OverlayKind::History => {

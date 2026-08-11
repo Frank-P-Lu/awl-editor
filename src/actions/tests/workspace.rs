@@ -148,10 +148,16 @@ fn typing_on_the_rail_searches_and_moves_into_the_results() {
     );
 }
 
-/// THE RAIL'S VERTICAL KEYS STEP CATEGORIES, and the category they step is the
-/// SAME state the content pane's `←/→` steps — one fact, not two that agree.
+/// THE RAIL IS THE ONE CATEGORY STATE, AND ONLY THE RAIL STEPS IT.
+///
+/// The strip a faceted picker walks with `←/→` is stood on its END here, so the
+/// keys that walk it are the vertical ones, pressed in the region it lives in.
+/// The content pane's `←/→` are the REGION SEAM's
+/// (`actions::tests::workspace_arrows`) — stepping the rail from a region that
+/// does not hold focus moved a highlight the user was not looking at and took
+/// the key they reach for to come back.
 #[test]
-fn the_rail_and_the_content_panes_arrows_move_one_category_state() {
+fn the_rail_is_the_one_category_state_and_only_the_rail_steps_it() {
     let _g = crate::testlock::serial();
     let mut journey = crate::overlay::Journey::seeded(Some(settings_overlay()));
     let lens_of = |j: &crate::overlay::Journey| j.card().unwrap().facet_lens;
@@ -165,18 +171,16 @@ fn the_rail_and_the_content_panes_arrows_move_one_category_state() {
     settings_drive(&mut journey, &Action::PreviousLine);
     assert_eq!(lens_of(&journey), 0, "and clamps at the home");
 
-    // In the CONTENT pane: `→` steps the same category state.
-    settings_drive(&mut journey, &Action::InsertTab);
-    assert_eq!(surface(&journey), Some(Surface::WorkspaceDetail));
-    settings_drive(&mut journey, &Action::ForwardChar);
-    assert_eq!(
-        lens_of(&journey),
-        1,
-        "→ in the content pane moves the rail, because there is one category state"
-    );
-    // And the rows really did narrow to it.
+    // ONE STATE, not two that agree: the rail's own mover IS the lens cycle, so
+    // the rows narrow to whatever the rail is showing.
+    settings_drive(&mut journey, &Action::NextLine);
     let card = journey.card().unwrap();
+    assert_eq!(lens_of(&journey), 1);
     let want = card.lens_strip()[1].0.clone();
+    assert!(
+        card.lens_strip()[1].1,
+        "the rail marks the category it stepped to"
+    );
     for name in card.item_strings() {
         assert_eq!(
             crate::settings::category_of(&name),
@@ -184,6 +188,29 @@ fn the_rail_and_the_content_panes_arrows_move_one_category_state() {
             "{name:?} is showing under the {want:?} category"
         );
     }
+
+    // In the CONTENT pane the horizontal keys are the seam's, not the strip's:
+    // `→` has nothing to its right and `←` comes back.
+    settings_drive(&mut journey, &Action::InsertTab);
+    assert_eq!(surface(&journey), Some(Surface::WorkspaceDetail));
+    settings_drive(&mut journey, &Action::ForwardChar);
+    assert_eq!(
+        lens_of(&journey),
+        1,
+        "→ in the content pane must NOT step the rail — the rail is not focused"
+    );
+    assert_eq!(
+        surface(&journey),
+        Some(Surface::WorkspaceDetail),
+        "and it stays put: there is nothing to the right of the content"
+    );
+    settings_drive(&mut journey, &Action::BackwardChar);
+    assert_eq!(
+        surface(&journey),
+        Some(Surface::Workspace),
+        "← comes back to the rail"
+    );
+    assert_eq!(lens_of(&journey), 1, "on the category it left from");
 }
 
 /// Cmd-P DEEP-LINKS INTO THE WORKSPACE at the relevant CATEGORY and ROW.
