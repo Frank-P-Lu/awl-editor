@@ -1749,6 +1749,9 @@ fn byte_col(text: &str, byte: usize) -> usize {
 mod scroll;
 pub use scroll::ScrollPos;
 
+mod shape_reach;
+pub use shape_reach::{OFFSCREEN_CULL_MARGIN_ROWS, ShapeReach};
+
 pub struct TextPipeline {
     pub font_system: FontSystem,
     pub swash_cache: SwashCache,
@@ -2198,6 +2201,16 @@ pub struct TextPipeline {
     /// instrumentation counter (cursor-only / scroll-only / selection-only updates
     /// do NOT increment it); used by tests to prove non-typing events don't reshape.
     pub reshape_count: u64,
+    /// A [`ShapeReach::Presentable`] reshape has run and its off-screen TAIL is
+    /// still owed. Set by the one site that can narrow the reach
+    /// (`theme_font_adopt`) and cleared by the one site that pays it
+    /// ([`Self::finish_shape_tail`]). While it is `true` the document is shaped
+    /// only out past the window's cull band, so `layout_runs()` stops early and
+    /// every row below it reports itself UNSHAPED (see [`rowgeom::RowGeom`]) rather
+    /// than at the document top. The live App clears it immediately after the
+    /// present that the narrow reach bought, inside the same event handler, so no
+    /// input can be handled against a partially shaped document.
+    shape_tail_owed: bool,
     search_active: bool,
     search_matches: Vec<((usize, usize), (usize, usize))>,
     search_query: String,

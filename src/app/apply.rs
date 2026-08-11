@@ -79,7 +79,12 @@ impl App {
             let input_at = crate::debug::debug_on()
                 .then(|| self.frame.theme_switch_at())
                 .flatten();
-            self.sync_theme_font_measured(input_at);
+            // THE PREVIEW REACH: shape what this step's frame can paint, present,
+            // then pay the off-screen tail in `finish_shape_tail` the moment that
+            // present returns — same step, before the next event is handled. The
+            // whole-document restyle still happens HERE, so the frame below can only
+            // ever carry the DESTINATION world's shaping (see `finish_shape_tail`).
+            self.sync_theme_font_measured(input_at, crate::render::ShapeReach::Presentable);
         }
         #[cfg(not(target_arch = "wasm32"))]
         if crate::probe::recording() {
@@ -114,11 +119,27 @@ impl App {
         // (`sync_theme` = colors + font); the font half routes through the shared
         // timed-or-plain door below so it can feed the settle breakdown.
         let input_at = crate::debug::debug_on().then(|| self.frame.now());
+        // BACKSTOP: settle onto a WHOLE document. Normally a no-op — the preview
+        // step's own present already paid its tail — but a commit that lands before
+        // any frame did, or one whose `sync_theme` finds no work to do, must still
+        // leave nothing owed. The settled reach below is `Whole` regardless.
+        self.finish_shape_tail();
         if let Some(gpu) = self.frame.gpu_mut() {
             gpu.pipeline.sync_theme_colors();
         }
-        self.sync_theme_font_measured(input_at);
+        self.sync_theme_font_measured(input_at, crate::render::ShapeReach::Whole);
         self.update_title();
+    }
+
+    /// Pay any owed off-screen shaping tail (`TextPipeline::finish_shape_tail`) —
+    /// the second half of a theme-preview step, run immediately after that step's
+    /// present and before the event handler returns, so the next input is never
+    /// handled against a partially shaped document. A no-op on every other frame,
+    /// and on a headless `App` (no GPU, so nothing can have narrowed the reach).
+    pub(in crate::app) fn finish_shape_tail(&mut self) {
+        if let Some(gpu) = self.frame.gpu_mut() {
+            gpu.pipeline.finish_shape_tail();
+        }
     }
 
     /// Apply one theme-font reshape (a no-op when
@@ -135,17 +156,26 @@ impl App {
     /// only variant, so a capture still touches no `Instant`, and a headless
     /// `App` has no GPU to reach this at all.
     ///
+    /// `reach` is the shaping BUDGET this step fills: `Presentable` for a picker
+    /// preview (whose own step pays the tail back the moment its frame presents),
+    /// `Whole` for every settled retint. It changes WHEN the off-screen rows are
+    /// shaped inside one step, never whether they are.
+    ///
     /// `input_at` additionally arms the DEBUG settle transaction, and is where
     /// `SwitchPhase::Wait` is measured: input → the start of the work. Nothing
     /// is deliberately deferred anymore, so `Wait` reads near-zero on every
     /// switch — the honest number for a mechanism with nothing left to defer.
-    fn sync_theme_font_measured(&mut self, input_at: Option<Instant>) {
+    fn sync_theme_font_measured(
+        &mut self,
+        input_at: Option<Instant>,
+        reach: crate::render::ShapeReach,
+    ) {
         use crate::themeswitch::SwitchPhase;
         let started = input_at.map(|_| self.frame.now());
         let Some(mut phases) = self
             .frame
             .gpu_mut()
-            .and_then(|gpu| gpu.pipeline.sync_theme_font_timed())
+            .and_then(|gpu| gpu.pipeline.sync_theme_font_timed(reach))
         else {
             return;
         };

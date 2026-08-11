@@ -9,7 +9,7 @@ impl TextPipeline {
     /// the active theme; the next `prepare` re-uploads.
     pub fn sync_theme(&mut self) {
         self.sync_theme_colors();
-        self.sync_theme_font();
+        self.sync_theme_font(ShapeReach::Whole);
     }
 
     /// The O(1) COLOR half of a theme switch: re-tint the baked GPU pipelines
@@ -155,7 +155,7 @@ impl TextPipeline {
     /// spans. Plain prose body text sets NO
     /// `color_opt` ([`Self::doc_attrs`]) and reads the live active ink each frame,
     /// so a color-less buffer must NOT pay a wasted reshape on a same-face switch.
-    fn has_baked_theme_colors(&self) -> bool {
+    pub(super) fn has_baked_theme_colors(&self) -> bool {
         !self.syn_spans.is_empty() || !self.md_spans.is_empty()
     }
 
@@ -171,106 +171,6 @@ impl TextPipeline {
     pub fn needs_theme_reshape(&self) -> bool {
         self.doc_family() != self.shaped_font
             || (theme::active_index() != self.shaped_theme && self.has_baked_theme_colors())
-    }
-
-    /// The FONT half of a theme switch (the expensive half — a full-document
-    /// reshape; the theme-burst profile measured it dominating every picker
-    /// preview step, which is why the live preview defers it to a settle).
-    ///
-    /// Re-shape the whole document when the new world uses a DIFFERENT effective
-    /// display face than the one the document is shaped with (so the glyph SHAPES
-    /// switch — mono <-> serif <-> sans <-> slab) OR a DIFFERENT palette than the
-    /// one the per-span text colors were baked under (so a same-face world hop still
-    /// re-tints the syntax/markdown spans — the Magpie -> Bombora stale-color
-    /// bug). The text + zoom are unchanged, so `restyle_all_lines` (below) re-lays
-    /// every line's attrs in the new family + span colors and reshapes once. A hop
-    /// to the SAME world (an idle re-preview back) skips this and stays free.
-    /// Compares the EFFECTIVE face (`doc_family` → the world's mono on a CODE
-    /// buffer, else its display font), so two worlds that share a display font but
-    /// differ in `mono` (e.g. Quokka/Bowerbird, both IBM Plex Sans) still reshape
-    /// a code buffer when their mono differs; and two worlds that share the effective
-    /// face but differ in palette still reshape to re-bake the span colors.
-    pub fn sync_theme_font(&mut self) {
-        let new_font = self.doc_family();
-        let new_theme = theme::active_index();
-        // Reshape when the effective FACE changed (glyph shapes) OR the world's
-        // PALETTE changed on a buffer that BAKES per-span colors (syntax/markdown —
-        // those were frozen under `shaped_theme` and go stale on a same-face world
-        // hop; a color-less prose buffer reads its ink live and needs nothing).
-        // Either way the cure is one `restyle_all_lines` — it re-lays every line's
-        // attrs (family + colors) and reshapes once. A same-face, same-world call
-        // stays a no-op via this compare, mirroring the original `shaped_font` guard.
-        let theme_recolor = new_theme != self.shaped_theme && self.has_baked_theme_colors();
-        if new_font != self.shaped_font || theme_recolor {
-            self.theme_font_adopt(new_font, new_theme);
-            self.restyle_all_lines();
-        }
-    }
-
-    /// The FONT-phase reconfigure of a theme switch: bump the reshape count, adopt the
-    /// new effective face + palette generation, and rewrap the document to the new
-    /// face's column. The ONE owner of this step, shared by [`Self::sync_theme_font`]
-    /// and the timed [`Self::sync_theme_font_timed`] (so the two can never drift). The
-    /// following `restyle_all_lines` does the actual shape + row-geom invalidation.
-    ///
-    /// NOTE: the redundant `buffer.set_text` (a WHOLE-document cosmic-text reshape in
-    /// the new plain family) was dropped here — `restyle_all_lines` ALREADY re-lays
-    /// every line's attrs in the new family (via `doc_attrs()`) AND covers the per-line
-    /// markdown / heading / CJK spans, then reshapes the document. The old `set_text`
-    /// shaped every line in the new face only to have `restyle_all_lines` immediately
-    /// re-lay + reshape it again — one full reshape per theme-preview step for nothing.
-    /// The text is unchanged by a theme switch, so the buffer already holds it; we only
-    /// need the new wrap size + the restyle. Byte-identical (same final attrs/shape).
-    /// Re-derive the wrap width from the live page COLUMN, never the buffer's own
-    /// (possibly stale) size — preserving `self.buffer.size().0` here would carry a
-    /// divergent edge-to-edge width through a theme switch and leave the page running
-    /// off the right edge. Set it BEFORE restyling so the new-face reshape wraps at the
-    /// right width.
-    fn theme_font_adopt(&mut self, new_font: &'static str, new_theme: usize) {
-        self.reshape_count += 1;
-        self.shaped_font = new_font;
-        self.shaped_theme = new_theme;
-        let width = Some(self.text_wrap_width());
-        let shape_h = self.full_shape_height();
-        self.buffer
-            .set_size(&mut self.font_system, width, Some(shape_h));
-    }
-
-    /// LIVE-ONLY (DEBUG settle readout): run the SAME work as [`Self::sync_theme_font`]
-    /// — the identical guard, the identical `theme_font_adopt` + `restyle_all_lines`
-    /// steps — but stamp each phase boundary and return the reshape-side phase millis
-    /// (font-adopt, reshape, row-geom), or `None` when the guard finds NO work (so a
-    /// no-op switch never clobbers the last meaningful readout). The caller (the live
-    /// App, behind `debug_on()`) folds the present-side atlas + present phases in on the
-    /// settled frame. The plain `sync_theme_font` — the ONLY variant the headless path
-    /// calls — reads no clock, so a capture never touches an `Instant` here.
-    ///
-    /// The row-geom walk is FORCED here (a plain reshape leaves it lazy for the next
-    /// prepare) purely so its cost is timed as its own phase — identical work moved a
-    /// few microseconds earlier, warming the cache the frame's prepare would rebuild
-    /// anyway, so the rendered frame stays byte-identical.
-    pub fn sync_theme_font_timed(&mut self) -> Option<crate::themeswitch::SwitchPhases> {
-        use crate::clock::Instant; // wasm-safe (`web_time` on wasm); native `std`.
-        use crate::themeswitch::{SwitchPhase, SwitchPhases};
-        let new_font = self.doc_family();
-        let new_theme = theme::active_index();
-        let theme_recolor = new_theme != self.shaped_theme && self.has_baked_theme_colors();
-        if new_font == self.shaped_font && !theme_recolor {
-            return None; // no reshape work — nothing to time, keep the last readout.
-        }
-        let ms = |d: std::time::Duration| d.as_secs_f32() * 1000.0;
-        let t0 = Instant::now();
-        self.theme_font_adopt(new_font, new_theme);
-        let t1 = Instant::now();
-        self.restyle_all_lines();
-        let t2 = Instant::now();
-        let _ = self.row_geom.total_height(&self.buffer, &self.metrics);
-        let t3 = Instant::now();
-        let mut phases = SwitchPhases::default();
-        phases.record(SwitchPhase::Font, ms(t1 - t0));
-        phases.record(SwitchPhase::Reshape, ms(t2 - t1));
-        phases.record(SwitchPhase::RowGeom, ms(t3 - t2));
-        Some(phases)
     }
 
     /// Apply the editor view snapshot: text, cursor, scroll, zoom, selection,

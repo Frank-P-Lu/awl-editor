@@ -342,6 +342,7 @@ impl TextPipeline {
             #[cfg(test)]
             last_table_cell_lines: std::cell::RefCell::new(Vec::new()),
             reshape_count: 0,
+            shape_tail_owed: false,
             search_active: false,
             search_matches: Vec::new(),
             search_query: String::new(),

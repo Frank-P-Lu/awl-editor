@@ -909,7 +909,7 @@ fn find_replace_panel_clamps_and_fits_its_shaped_rows_across_the_narrow_transiti
 
     for (world_i, world) in theme::THEMES.iter().enumerate() {
         theme::set_active(world_i);
-        p.sync_theme_font();
+        p.sync_theme_font(crate::render::ShapeReach::Whole);
         p.set_view(&v);
 
         // Learn the existing ordinary card's natural threshold from its shaped
