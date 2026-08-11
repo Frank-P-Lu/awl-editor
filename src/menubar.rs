@@ -13,8 +13,8 @@
 //! `AWL_CONVENTION_FORCE` precedent exactly — forces the DEFAULT the flag starts
 //! from, so the other branch is one env var away instead of a source edit away.
 //! No config key, no public CLI flag, a total no-op unless set; `scripts/
-//! native-gate.sh` runs BOTH arms every gate, which is what makes the axis swept
-//! by the gate rather than by whoever remembers.
+//! native-gate.sh` runs EVERY unit test under the branch this host lacks — a name
+//! filter reached 2 of the 1455 reading it unpinned — so the GATE sweeps this axis.
 
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicUsize, Ordering};

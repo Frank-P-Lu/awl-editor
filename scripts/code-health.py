@@ -922,8 +922,21 @@ def native_gate_audit(script: str, ci: str) -> list[str]:
             "native-gate-audit: gate must await the Linux convention",
         'if (( mac_status != 0 || linux_status != 0 )); then':
             "native-gate-audit: either convention failure must suppress the receipt",
-        "printf 'native-gate-receipt commit=%s conventions=mac,linux scope=all-targets unit_tests=%s unit_shards=%s integration_targets=%s\\n'":
-            "native-gate-audit: receipt must name the exact commit, both conventions, and all-target scope",
+        "printf 'native-gate-receipt commit=%s conventions=mac,linux scope=all-targets menubar=%s unit_tests=%s unit_shards=%s integration_targets=%s\\n'":
+            "native-gate-audit: receipt must name the exact commit, both conventions, all-target scope, and which menu-bar coverage it actually ran",
+        # THE MENU-BAR AXIS, PINNED THE SAME WAY THE CONVENTIONS ARE. A name
+        # filter reached 2 of the 1455 unit tests that read this platform-forked
+        # default without pinning it, so the arm that replaced it runs the WHOLE
+        # unit suite under the branch the host does not run ambiently. Deleting
+        # that `gate_launch` reads as a smaller diff and costs the local gate its
+        # only view of the other platform; deleting the status check leaves the
+        # arm running and unable to refuse.
+        'gate_launch menubar_full_pid tracked gate_run_convention menubar-full':
+            "native-gate-audit: missing the full-suite menu-bar arm — the axis is back to whoever remembers",
+        'if (( menubar_full_status != 0 )); then':
+            "native-gate-audit: a red forced menu-bar arm must suppress the receipt",
+        'native-gate-menubar mode=full-suite host=%s ambient=%s forced=%s':
+            "native-gate-audit: the gate must state which menu-bar branch it forced and what that leaves uncovered",
     }
     for required, failure in required_script_lines.items():
         if required not in script:

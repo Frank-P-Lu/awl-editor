@@ -559,10 +559,13 @@ gate_prepare_tests() {
     "$gate_shard_count" "$gate_binary" "$(grep -c '^integration=' "$gate_run_dir/artifacts")"
 }
 
-gate_run_native_suite() {
-  local convention="$1" shard filter skip status=0 shard_status
+# EVERY binary unit test, in `gate_shard_count` concurrent processes — the ONE
+# owner of that wave. Both the convention arms and the menu-bar axis arm below
+# run it, which is what makes "the forced arm sees the same tests a convention
+# does" a structural fact rather than two filter lists that agree by hand.
+gate_run_unit_shards() {
+  local shard filter skip status=0 shard_status
   local shard_pids=()
-  export AWL_CONVENTION_FORCE="$convention"
   for (( shard = 1; shard <= gate_shard_count; shard++ )); do
     local args=()
     while IFS= read -r filter; do [[ -n "$filter" ]] && args+=("$filter"); done \
@@ -579,6 +582,16 @@ gate_run_native_suite() {
     (( shard_status == 0 )) || status=$shard_status
   done
   set -e
+  return "$status"
+}
+
+gate_run_native_suite() {
+  local convention="$1" status=0
+  export AWL_CONVENTION_FORCE="$convention"
+  set +e
+  gate_run_unit_shards
+  status=$?
+  set -e
   (( status == 0 )) || return "$status"
 
   local integration_args=()
@@ -592,37 +605,96 @@ gate_run_native_suite() {
 # target. Its first position makes integration-test discovery disappear loudly.
 canary_command=(cargo test --test native_gate_canary)
 
-# ── THE MENU-BAR AXIS: both arms, every gate ─────────────────────────────────
+# ── THE MENU-BAR AXIS: THE BRANCH THIS HOST CANNOT SEE, OVER EVERY UNIT TEST ──
 # `menubar::MENU_BAR_ON` is the ONE platform-forked sticky default in the tree —
 # OFF on macOS, ON everywhere else. So a law or fixture about the drawn bar
 # sweeps NOTHING on a macOS host while being live on every Linux one, and that
 # asymmetry is not hypothetical: it took this repo a gating CI RED (a picker
 # drawing zero candidate rows on Linux, because the bar's height comes off every
-# card's height budget) and it fired a global-leak audit on sixty CI tests and
-# zero local ones. `AWL_MENU_BAR_FORCE=on|off` forces the default; running BOTH
-# arms here is what makes the axis swept by the GATE rather than by whoever
-# remembers to edit a source file. Neither arm's meaning depends on the host, so
-# the pair says the same thing on macOS, on Linux and in CI.
+# card's height budget), it fired a global-leak audit on sixty CI tests and zero
+# local ones, and it has since cost three more CI reds in two days.
 #
-# ⚠️ THESE ARMS ARE FILTERED, AND THAT IS A DELIBERATE, MEASURED TRADE. Two more
-# UNFILTERED suites would add a whole suite's test execution to a host the two
-# conventions already saturate, and CI's `linux` job has run its
-# `timeout-minutes` ceiling out before (a timed-out job reports as `cancelled`,
-# which is easy to misread as a supersede). Measured on this host with a warm
-# target dir: the filter selects 26 of 3884 binary unit tests and runs in 1.5 s,
-# so each arm is a couple of seconds of test execution overlapped with two
-# ~4-minute conventions, and is not on the critical path.
+# ⚠️ A NAME FILTER CANNOT FIND THIS POPULATION, AND THAT IS MEASURED, NOT ARGUED.
+# These arms used to run `cargo test --bin awl -- menubar menu_bar`. A runtime
+# census — `menubar::menu_bar_on()` recording its own test thread across a whole
+# suite run — found that 1627 of 4043 binary unit tests READ the flag, that 172
+# of those PIN it first with `set_menu_bar_on`, and that 1455 take whatever the
+# host hands them. Of that exposed 1455, the old filter selected TWO. The three
+# laws that shipped blind to this axis (`capture::tests::metric_scale`,
+# `render::tests::caret_filled_knockout`, `render::tests::workspace_back_width`)
+# were all in the missed remainder, and not one is identifiable by name: a test
+# that observes the bar's reserve does not say so in its name, which is the whole
+# lesson. (Reading the flag is an upper bound on caring about it — most of the
+# 1455 reach it through `menubar_reserve()`, which is 0.0 when the bar is off and
+# so changes nothing for them. Which ones actually care is not knowable by
+# inspection; running them under the other branch is the only way to ask, and
+# that is what this arm is.)
 #
-# WHAT THE FILTER DOES NOT COVER, stated because a filtered arm always owes this:
-# it selects tests whose NAME contains `menubar` or `menu_bar`. A test that
-# OBSERVES the bar's reserve without saying so in its name is outside it (a census
-# of the whole suite under a tripled reserve counted 14 that see it), and so is
-# every integration target — `--bin awl` is binary unit tests. The receipt below
-# therefore still names `conventions=mac,linux scope=all-targets` and claims
-# nothing about this axis: these arms GATE the receipt without widening it.
+# So the arm is not filtered. It runs EVERY binary unit test — the same shards a
+# convention runs, through the same `gate_run_unit_shards` — under the forcing
+# for the branch THIS HOST'S ambient default is not. On macOS that is
+# `AWL_MENU_BAR_FORCE=on`, which is exactly what every Linux host and CI's
+# `linux` job run natively; on Linux it is `off`, which is what the mac hosts
+# run. The opposite branch needs no arm because the two conventions already run
+# the whole suite at the ambient default.
+#
+# ⚠️ THE AMBIENT IS DERIVED FROM THE HOST, AND THAT DERIVATION IS ITSELF PINNED.
+# An arm that forces the branch the conventions already cover sweeps nothing
+# while looking identical in the log — the enrolment failure, not an assertion
+# failure. `menubar::tests::the_gate_forces_the_branch_this_host_lacks` reads the
+# table below out of this file and requires it to agree with
+# `menubar::platform_default`, so flipping either const fails a law instead of
+# silently retargeting the arm.
+#
+# ⚠️ IN CI THIS ARM IS OFF BY DEFAULT, DELIBERATELY. CI already runs the full
+# suite at BOTH ambients across jobs — `linux` at on, the two `mac` jobs at off —
+# so a third full unit wave there buys nothing and spends a runner that has run
+# its `timeout-minutes` ceiling out before (a timed-out job reports as
+# `cancelled`, easy to misread as a supersede). The gap this arm closes is
+# LOCAL: a pre-push gate on one machine only ever sees one ambient. CI therefore
+# keeps the cheap name-filtered pair, purely so the axis is still visibly swept
+# there, and `AWL_NATIVE_GATE_MENUBAR_FULL=1|0` overrides the choice either way.
+# Both modes announce themselves on `native-gate-menubar` and in the receipt.
 menubar_filters=(menubar menu_bar)
 menubar_on_command=(env AWL_MENU_BAR_FORCE=on RUST_TEST_THREADS=1 cargo test --bin awl -- "${menubar_filters[@]}")
 menubar_off_command=(env AWL_MENU_BAR_FORCE=off RUST_TEST_THREADS=1 cargo test --bin awl -- "${menubar_filters[@]}")
+
+# THE TABLE `menubar::tests::the_gate_forces_the_branch_this_host_lacks` READS.
+# Keep the two `uname -s` cases on their own lines and in this shape; the law
+# parses them and fails naming this file if it cannot.
+gate_menubar_uname="$(uname -s)"
+case "$gate_menubar_uname" in
+  Darwin) gate_menubar_ambient=off ;;  # menubar::MENU_BAR_DEFAULT_MACOS
+  *) gate_menubar_ambient=on ;;        # menubar::MENU_BAR_DEFAULT_OTHER
+esac
+if [[ "$gate_menubar_ambient" == off ]]; then
+  gate_menubar_forced=on
+else
+  gate_menubar_forced=off
+fi
+
+gate_menubar_full="${AWL_NATIVE_GATE_MENUBAR_FULL:-}"
+if [[ -z "$gate_menubar_full" ]]; then
+  if [[ -n "${CI:-}" ]]; then gate_menubar_full=0; else gate_menubar_full=1; fi
+fi
+
+gate_run_menubar_suite() {
+  export AWL_MENU_BAR_FORCE="$1"
+  gate_run_unit_shards
+}
+
+# WHAT THIS ARM DOES NOT COVER, printed rather than left to a comment nobody
+# reads at 2am: integration targets are outside it (it runs the binary unit-test
+# shards, so `tests/*.rs` sees only the ambient default), and so is the ambient
+# branch itself, which is the conventions' job. A reader who needs to know what
+# the gate swept on this axis reads this line, not the prose above it.
+if (( gate_menubar_full )); then
+  printf 'native-gate-menubar mode=full-suite host=%s ambient=%s forced=%s scope=binary-unit-tests-all-shards uncovered=integration-targets\n' \
+    "$gate_menubar_uname" "$gate_menubar_ambient" "$gate_menubar_forced"
+else
+  printf 'native-gate-menubar mode=name-filtered host=%s ambient=%s arms=on,off filter=[%s] scope=binary-unit-tests-matching-the-filter uncovered=integration-targets,every-unit-test-whose-NAME-omits-the-filter\n' \
+    "$gate_menubar_uname" "$gate_menubar_ambient" "${menubar_filters[*]}"
+fi
 
 gate_budget_marker="$gate_run_dir/budget-expired"
 
@@ -736,13 +808,25 @@ gate_integration_targets="$(grep -c '^integration=' "$gate_run_dir/artifacts")"
 echo "==> native suites (mac and linux conventions, concurrent)"
 gate_launch mac_pid tracked gate_run_convention mac gate_run_native_suite mac
 gate_launch linux_pid tracked gate_run_convention linux gate_run_native_suite linux
-# The menu-bar arms ride alongside the two conventions rather than after them:
-# every one of the four shares the target dir, so Cargo's own lock serializes
-# their builds and only the FIRST of them compiles anything. What is left is test
-# execution, and these two arms have seconds of it.
-echo "==> menu-bar axis (AWL_MENU_BAR_FORCE on and off, filtered, concurrent)"
-gate_launch menubar_on_pid tracked gate_run_convention menubar-on "${menubar_on_command[@]}"
-gate_launch menubar_off_pid tracked gate_run_convention menubar-off "${menubar_off_command[@]}"
+# The menu-bar arm rides alongside the two conventions rather than after them:
+# all three share the target dir and the already-built shard binary, so nothing
+# here compiles and what is left is test execution overlapped with two suites
+# that take longer. The full arm runs the same six shards a convention does.
+menubar_on_pid=""
+menubar_off_pid=""
+menubar_full_pid=""
+menubar_on_status=0
+menubar_off_status=0
+menubar_full_status=0
+if (( gate_menubar_full )); then
+  echo "==> menu-bar axis (AWL_MENU_BAR_FORCE=$gate_menubar_forced, EVERY unit test, concurrent)"
+  gate_launch menubar_full_pid tracked gate_run_convention menubar-full \
+    gate_run_menubar_suite "$gate_menubar_forced"
+else
+  echo "==> menu-bar axis (AWL_MENU_BAR_FORCE on and off, name-filtered, concurrent)"
+  gate_launch menubar_on_pid tracked gate_run_convention menubar-on "${menubar_on_command[@]}"
+  gate_launch menubar_off_pid tracked gate_run_convention menubar-off "${menubar_off_command[@]}"
+fi
 
 # `wait` is allowed to report failure without set -e ending the gate before the
 # sibling has finished. Preserve both statuses; neither convention can hide the
@@ -752,15 +836,25 @@ wait "$mac_pid"
 mac_status=$?
 wait "$linux_pid"
 linux_status=$?
-wait "$menubar_on_pid"
-menubar_on_status=$?
-wait "$menubar_off_pid"
-menubar_off_status=$?
+if [[ -n "$menubar_full_pid" ]]; then
+  wait "$menubar_full_pid"
+  menubar_full_status=$?
+fi
+if [[ -n "$menubar_on_pid" ]]; then
+  wait "$menubar_on_pid"
+  menubar_on_status=$?
+  wait "$menubar_off_pid"
+  menubar_off_status=$?
+fi
 set -e
 gate_phase mac suite-end "status=$mac_status"
 gate_phase linux suite-end "status=$linux_status"
-gate_phase menubar-on suite-end "status=$menubar_on_status"
-gate_phase menubar-off suite-end "status=$menubar_off_status"
+if (( gate_menubar_full )); then
+  gate_phase menubar-full suite-end "status=$menubar_full_status"
+else
+  gate_phase menubar-on suite-end "status=$menubar_on_status"
+  gate_phase menubar-off suite-end "status=$menubar_off_status"
+fi
 
 if [[ -f "$gate_budget_marker" ]]; then
   gate_finish_abort "mac_status=$mac_status linux_status=$linux_status"
@@ -776,9 +870,18 @@ if (( mac_status != 0 || linux_status != 0 )); then
 fi
 
 # A menu-bar arm failing is a REAL failure of the same tree, and it suppresses
-# the receipt exactly like a convention does. It is reported separately so the
-# reader can see which axis went red without reading the log: a forced-arm
-# failure and a convention failure have different diagnoses.
+# the receipt exactly like a convention does. It is reported separately, and the
+# full arm says the whole diagnosis in one line, because this failure arrives at
+# a developer who has just watched the same tests pass: the tree is green at the
+# ambient default and red one env var away, which reads as a flake until someone
+# explains that it is the axis. Naming the arm, the branch and the remedy is the
+# difference between a fixed law and a re-run.
+if (( menubar_full_status != 0 )); then
+  printf 'native-gate: menu-bar axis failure — the FULL unit suite is red under AWL_MENU_BAR_FORCE=%s while green at this host'"'"'s ambient %s (status=%s). A law that reads the menu-bar default without pinning it measures a different product here than on the other platform; find the named test above, capture the ambient with menubar::menu_bar_on() and restore it, or make the law hold on both branches. No receipt issued.\n' \
+    "$gate_menubar_forced" "$gate_menubar_ambient" "$menubar_full_status" >&2
+  exit 1
+fi
+
 if (( menubar_on_status != 0 || menubar_off_status != 0 )); then
   printf 'native-gate: menu-bar axis failure on_status=%s off_status=%s (filter=%s); no receipt issued\n' \
     "$menubar_on_status" "$menubar_off_status" "${menubar_filters[*]}" >&2
@@ -791,5 +894,15 @@ if [[ "$start_commit" != "$end_commit" ]]; then
   exit 1
 fi
 
-printf 'native-gate-receipt commit=%s conventions=mac,linux scope=all-targets unit_tests=%s unit_shards=%s integration_targets=%s\n' \
-  "$end_commit" "$gate_unit_tests" "$gate_shard_count" "$gate_integration_targets"
+# `menubar=` is the axis's own claim, and it is deliberately narrow: `full:on`
+# says every binary unit test ran forced ON as well, `filtered:on,off` says only
+# the name-matched ones did. A reader deciding whether a push is covered on this
+# axis reads that field rather than inferring it from `scope=all-targets`, which
+# speaks for the ambient default alone.
+if (( gate_menubar_full )); then
+  gate_menubar_claim="full:$gate_menubar_forced"
+else
+  gate_menubar_claim="filtered:on,off"
+fi
+printf 'native-gate-receipt commit=%s conventions=mac,linux scope=all-targets menubar=%s unit_tests=%s unit_shards=%s integration_targets=%s\n' \
+  "$end_commit" "$gate_menubar_claim" "$gate_unit_tests" "$gate_shard_count" "$gate_integration_targets"

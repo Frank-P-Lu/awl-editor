@@ -11,6 +11,14 @@ trap 'rm -rf "$WORK"' EXIT
 # ever touching a real orchestrator's queue.
 export AWL_NATIVE_GATE_MARKER="$WORK/default-marker"
 export AWL_NATIVE_GATE_ARBITER_LOCK="$WORK/default-arbiter.lock"
+# THE MENU-BAR AXIS MODE IS PINNED FOR EVERY LAW THAT IS NOT ABOUT IT. The gate
+# chooses between a full-suite forced arm and the cheap name-filtered pair from
+# the environment (`CI`), so leaving it ambient would make phase counts, shard
+# counts and event tallies below differ between a developer's run of this file
+# and CI's — a check whose configuration is itself untested. The two laws that
+# ARE about the axis override this explicitly, including one that unsets it to
+# prove the derivation.
+export AWL_NATIVE_GATE_MENUBAR_FULL=0
 
 PYTHONDONTWRITEBYTECODE=1 python3 - "$ROOT/scripts/native-test-shards.py" \
   >"$WORK/awl-test-list" <<'PY'
@@ -59,8 +67,19 @@ if (( listing )); then
   exit 0
 fi
 printf 'shard %s %s\n' "${AWL_CONVENTION_FORCE:-unset}" "$$" >>"$AWL_NATIVE_GATE_PROBE_LOG"
+# The MENU-BAR forcing as the SHARD saw it. The full-suite arm runs the shard
+# binary directly rather than through Cargo, so the `menubar` lines the fake
+# `cargo` writes cannot see it at all — and a law reading only those would report
+# an unswept axis as swept the moment the arm stopped going through Cargo.
+printf 'shardbar %s\n' "${AWL_MENU_BAR_FORCE:-unset}" >>"$AWL_NATIVE_GATE_PROBE_LOG"
 printf '\nrunning %s tests\n' "${#selected[@]}"
 printf 'test result: ok. %s passed; 0 failed; 0 ignored; 0 measured\n' "${#selected[@]}"
+# A shard that fails under a forcing — the full-suite arm's own red, which no
+# fixture keyed on Cargo can produce.
+if [[ -n "${AWL_MENU_BAR_FORCE:-}" \
+  && "$AWL_MENU_BAR_FORCE" == "${AWL_NATIVE_GATE_FAIL_MENU_BAR:-}" ]]; then
+  exit "${AWL_NATIVE_GATE_FAIL_STATUS:-1}"
+fi
 EOF
 chmod +x "$WORK/awl-test-bin"
 
@@ -780,6 +799,101 @@ for arm in on off; do
 done
 
 echo "test-native-gate: the menu-bar axis runs both arms with the conventions unforced, and either arm's failure suppresses the receipt"
+
+# ── THE FULL-SUITE ARM REACHES EVERY SHARD, NOT EVERY NAME ───────────────────
+# The filtered pair above is the CI shape. The local shape runs one arm over the
+# WHOLE binary unit-test suite, and the only thing that makes that worth a third
+# suite is that it reaches the tests a name filter cannot find. So the law counts
+# the forcing at the SHARD, and requires it on exactly as many shard processes as
+# a convention gets: a full arm that quietly re-acquired a filter would run one
+# process and still print `mode=full-suite`.
+probe menubar-full AWL_NATIVE_GATE_MENUBAR_FULL=1
+(( probe_status == 0 )) || {
+  echo "test-native-gate: full-suite menu-bar probe failed ($probe_status)" >&2
+  tail -n 20 "$probe_output" >&2
+  exit 1
+}
+menubar_line="$(grep -F 'native-gate-menubar ' "$probe_output" || true)"
+[[ "$menubar_line" == *"mode=full-suite"* ]] || {
+  echo "test-native-gate: AWL_NATIVE_GATE_MENUBAR_FULL=1 did not announce a full-suite arm: [$menubar_line]" >&2
+  exit 1
+}
+menubar_field() { sed -n "s/.* $1=\([^ ]*\).*/\1/p" <<<"$menubar_line"; }
+menubar_ambient="$(menubar_field ambient)"
+menubar_forced="$(menubar_field forced)"
+# The arm is only worth a suite if it forces the branch this host does NOT run
+# ambiently; forcing the ambient one would sweep what the conventions swept.
+# (`menubar::tests::the_gate_forces_the_branch_this_host_lacks` pins the ambient
+# itself against `platform_default`; this end pins the opposition.)
+[[ "$menubar_ambient" != "$menubar_forced" && -n "$menubar_forced" ]] || {
+  echo "test-native-gate: the full arm forces ambient=$menubar_ambient forced=$menubar_forced — it sweeps the branch the conventions already ran" >&2
+  exit 1
+}
+shard_forced="$(grep -Fxc "shardbar $menubar_forced" "$WORK/events")"
+convention_shards="$(grep -Fxc 'shardbar unset' "$WORK/events")"
+[[ "$shard_forced" == 6 ]] || {
+  echo "test-native-gate: the full menu-bar arm forced $shard_forced shard processes, expected 6 — it is not running the whole suite" >&2
+  exit 1
+}
+[[ "$convention_shards" == 12 ]] || {
+  echo "test-native-gate: expected both conventions' 12 shards to carry NO forcing, saw $convention_shards" >&2
+  exit 1
+}
+require "full menu-bar arm" "native-gate-receipt"
+require "full menu-bar arm" "menubar=full:$menubar_forced"
+# The cheap pair must be GONE in this mode, not merely joined: leaving it would
+# spend two more Cargo invocations sweeping a subset of what just ran.
+[[ "$(grep -c '^menubar ' "$WORK/events")" == 3 ]] || {
+  echo "test-native-gate: the full-suite mode still ran name-filtered arms" >&2
+  exit 1
+}
+
+probe menubar-full-fail AWL_NATIVE_GATE_MENUBAR_FULL=1 \
+  AWL_NATIVE_GATE_FAIL_MENU_BAR="$menubar_forced" AWL_NATIVE_GATE_FAIL_STATUS=29
+(( probe_status == 1 )) || {
+  echo "test-native-gate: a failing full menu-bar arm returned $probe_status, expected gate status 1" >&2
+  exit 1
+}
+require "full menu-bar failure" "native-gate: menu-bar axis failure"
+require "full menu-bar failure" "AWL_MENU_BAR_FORCE=$menubar_forced"
+require "full menu-bar failure" "ambient $menubar_ambient"
+refuse "full menu-bar failure" "native-gate-receipt"
+
+# WHICH MODE A HOST GETS IS DERIVED, AND THE DERIVATION IS THE PART THAT ROTS.
+# Unset the pin and ask the gate twice. `CI` present means the fleet already runs
+# both ambients across jobs, so the cheap pair is enough there; absent, this host
+# is the only host and the full arm runs. A default that silently became
+# "filtered everywhere" would leave every local gate exactly as blind as it was.
+probe_menubar_mode() {
+  local label="$1" expected="$2"
+  shift 2
+  : >"$WORK/events"
+  set +e
+  env -u RUST_TEST_THREADS -u AWL_NATIVE_GATE_BUDGET_SECONDS -u AWL_NATIVE_GATE_MENUBAR_FULL "$@" \
+    PATH="$WORK:$PATH" \
+    AWL_NATIVE_GATE_PROBE_LOG="$WORK/events" \
+    AWL_NATIVE_GATE_PROBE_TEST_BINARY="$WORK/awl-test-bin" \
+    AWL_NATIVE_GATE_PROBE_TEST_LIST="$WORK/awl-test-list" \
+    AWL_DISK_PREFLIGHT_TEST_MODE=1 \
+    AWL_DISK_PREFLIGHT_FREE_BYTES_COMMAND="$WORK/free-oracle" \
+    AWL_DISK_PREFLIGHT_LOCK_DIR="$WORK/disk-lock-$label" \
+    "$ROOT/scripts/native-gate.sh" >"$WORK/output-$label" 2>&1
+  local status=$?
+  set -e
+  (( status == 0 )) || {
+    echo "test-native-gate: menu-bar mode probe $label failed ($status)" >&2
+    tail -n 20 "$WORK/output-$label" >&2
+    exit 1
+  }
+  grep -Fq "native-gate-menubar mode=$expected" "$WORK/output-$label" || {
+    echo "test-native-gate: $label expected mode=$expected, got [$(grep -F 'native-gate-menubar ' "$WORK/output-$label" || true)]" >&2
+    exit 1
+  }
+}
+probe_menubar_mode menubar-mode-local full-suite -u CI
+probe_menubar_mode menubar-mode-ci name-filtered CI=true
+
+echo "test-native-gate: the full menu-bar arm forces every shard on the branch this host lacks, names itself on failure, and is derived from CI rather than remembered"
 
 # ── The full-gate arbiter: one holder, a visible queue, safe stale recovery ──
 # Two full gates must not recreate the contention that sharding removed. The
