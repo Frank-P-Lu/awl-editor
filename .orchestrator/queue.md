@@ -140,33 +140,6 @@ Small, cheap, and filed so they are not lost. Each names the exact lever.
   footer's width budget is why a further cell cannot be added at the minimum
   window.
 
-### 400 — the pre-tag journey sweep has no instrument
-
-🟡 IN PROGRESS — claude (deep), branch `claude/item-400-journey-driver`.
-
-Raised by item 399, which performed that sweep by hand for v0.10.0 and found the
-gap: **a standing tag obligation with nothing committed to discharge it.**
-`scripts/capture-worlds.sh` covers Room and Frame only. Nothing walks the palette
-lenses, the theme picker, staged Settings, or caret and selection at document
-extremes across the roster — so every tag pays for a bespoke driver that is then
-thrown away. 399's ran to 744 captures over 20 worlds and lived in `/tmp`.
-
-Build the committed driver: roster derived from the binary (`--list-worlds`, i.e.
-`theme::world_names()` over `theme::THEMES`, never a hand-list), both DPIs, the
-same logical window at each, doors never compared to each other, and an empty
-`--config` pinned because a plain `--screenshot` is not hermetic. Assert what 399
-asserted — geometry containment, row overlap, DPI parity, PNG-vs-sidecar canvas,
-ink-vs-own-ground, and TRUE A/B for selection and caret (same row selected vs
-not; caret two rows apart with `scroll_lines`/`scroll_px` asserted equal).
-
-⚠️ Carry 399's two hard-won notes. The theme picker's selection **cannot** be
-A/B'd — moving the selection previews the next world, so both frames are
-different worlds; it graded only by a weaker within-frame textless-tail probe,
-and a driver should say so rather than pretend. And a zero-row Settings band at
-narrow widths is **correct**, not a defect: `render/tests/workspace_stage_reach.rs`
-owns that state and records that this same reading was already filed as a defect
-once and refuted. A sweep that flags it will be wrong the same way twice.
-
 ### 401 — the Go-to-file footer names no way out
 
 Found by item 398's vision smoke and **pre-existing, not this wave's**: the one
@@ -184,47 +157,6 @@ why 394's `←` went unadvertised at the minimum window. Either name it on Goto
 for parity, or accept that Esc is universal enough to go unsaid — but the two
 pickers should not disagree, which is the actual defect.
 
-### 402 — a capture door photographs the developer's own machine
-
-🟡 IN PROGRESS — claude (deep), branch `claude/item-402-capture-paths`.
-
-⚠️ **Process hazard with a public repo on the other end of it, found by 398 the
-hard way:** its first switch-project capture photographed real home-directory
-folder names (Calibre, AdobeID, …), and **every sidecar embeds absolute
-`/Users/<name>/…` paths** in its `workspace` and `browse_dir` fields. The lane
-caught both, deleted the shot, recaptured through the hermetic
-`--screenshot-app` door with a seeded neutral root, and sanitized the JSON to
-`~` before committing.
-
-The rule this protects is already in CLAUDE.md — *tracked files carry no
-personal-machine paths* — but the MECHANISM is not: a lane does not have to
-write a path to leak one, it only has to capture. Make the honest fix rather
-than relying on the next lane noticing: either have the sidecar writer relativise
-these fields, or make the filesystem-enumerating doors refuse a non-seeded root.
-⚠️ Note `--screenshot`'s ordinary door is **not hermetic** — 399 independently
-found it needs an explicit empty `--config` — so "use the other door" is a
-workaround, not the fix.
-
-### 403 — at the document END, 388's split is a small net LOSS
-
-🟡 IN PROGRESS — claude (deep), branch `claude/item-403-tail-units`.
-
-Measured by item 396, filed rather than fixed because the sound repair needs a
-decision it would not make on the back half of a round. At the document end
-`long_bullets` shows **0 of 20 arrows deferring a single row**, while **all 20
-declare a debt** and pay a 1.0–1.3 ms `finish_shape_tail` for it — per-world
-consistent, so not load noise. Mean per step **38.4 → 40.5 ms, +5.5%**.
-
-The cause is a units mismatch: the debt is declared from a **height** compare
-(`presentable_shape_height < full_shape_height`) while the saving is a **row**
-question, and `full_shape_height` deliberately over-budgets. So the predicate is
-true exactly where the benefit is zero. `finish_shape_tail`'s height-only
-`set_size` is a cosmic-text relayout of the whole document, which is where the
-milliseconds go.
-⚠️ The honest fix has to reason about leaving `height_opt` narrowed past the
-step — that is why 396 declined it. Shipped state is still better than pre-388
-everywhere except the last screenful.
-
 ### 404 — the editor launches at a size no capture ever photographs
 
 Raised by item 397 and **not touched by it**, because the blast radius is every
@@ -238,22 +170,42 @@ exactly how 397's probe came to grade a live window against a picture 25% larger
 expectations across the suite. Deciding which number is the truth is the user's;
 whether three copies of it is defensible is not.
 
-### 405 — the overlay card's geometry is not DPI-invariant
+### 406 — a tracked wasm bundle carries 456 home paths into the public repo
 
-🟡 IN PROGRESS — claude (deep), branch `claude/item-405-card-dpi`.
+🔵 **LIVE, PUBLIC, AND ONLY HALF FIXABLE BY ME.** Found by item 402, verified
+independently: `site/editor/awl-347842567538f209_bg.wasm` is tracked, 43 MB, and
+`strings` finds **456 `/Users/frank/…`** occurrences — cargo registry paths baked
+into debug info.
 
-Measured incidentally by item 397: the same LOGICAL window puts
-`overlay.window.band` at `x 27.5 / w 545` at dpi 1 and `x 164 / w 872` at dpi 2 —
-not the 2× that document text takes. Document **wrap** is invariant, and the
-existing green law `a_live_app_capture_honors_capture_size_and_the_dpi_meaning_holds`
-sweeps exactly that; **the overlay card is the axis it did not think of**, so it
-passes while this is true.
+The build seam was already fixed: `scripts/with-remap.sh` exists and
+`deploy-web.yml` runs `trunk build` through it every deploy. **This bundle
+predates the wrapper and was never rebuilt.** The commit that landed the wrapper
+claims "no home path baked into shipped binary"; the artifact in the tree says
+otherwise. It is also unused — RELEASING calls the checked-in copy legacy and the
+deploy assembles a fresh build over it.
 
-This smells like the recorded "chrome pad left in device pixels" family, which
-has already shipped decorations at half their tuned size on every Retina display
-once. Establish first whether the card is *supposed* to scale with surface
-pixels; if not, it is a Retina defect and the law that covers the trade needs the
-card added to its sweep.
+⚠️ **Deleting it from the tree does NOT un-publish it.** Git history keeps every
+byte, and a purge is a history rewrite — that is the user's call, not a merge's.
+So the decision is two-part: (a) drop or rebuild the tracked bundle, which is
+cheap and stops the current tree leaking; (b) whether the history matters enough
+to rewrite. Note the leaked strings are a username and cargo paths, not secrets.
+
+### 407 — nothing in the harness can grade the theme picker's selection
+
+Measured by item 400 while building the pre-tag sweep, and filed as a bound
+rather than a bug. The picker's selection appearance **cannot be A/B'd at all** —
+moving the selection previews the next world, so the two frames are two different
+worlds. The within-frame substitute is gradable on only **12 of 40** world × scale
+cells: on a textured ground (Galah, Paperbark) or a staggered card (Magpie,
+Mangrove) two UNSELECTED rows already differ from each other by as much as the
+selected row differs from either.
+
+The sweep abstains by name on the other 28 and prints the split, so its report
+cannot be misread as verification — which is the right behaviour and also the
+reason this needs saying out loud. **Today, "is the selected row in the theme
+picker visibly selected" is answered by nobody**, on the surface whose whole
+purpose is choosing by appearance. Closing it needs a Rust-level seam that can
+hold the previewed world fixed while the selection moves, or a human.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
