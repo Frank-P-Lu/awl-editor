@@ -91,26 +91,21 @@ list instead of re-checking the tree.** The fifth: item 345 sat on this board as
 word was given for a merge that had already happened. Re-derive from the tree,
 every pass.
 
-1. **388 — Theme-picker arrowing is still visibly laggy.** User reports the landed
-   debounce removal did not make Up/Down browsing feel responsive. The mechanism
-   pays a measured ~33 ms full font/span reshape on every differing-font preview;
-   the mechanism before it accumulated a 141–151 ms ninth-step stall. Reproduce in
-   `--release` with movement-to-present receipts over the full 20-world arrow sweep
-   and a long Markdown document; attribute font adopt, reshape, row geometry, atlas
-   and present costs; then remove or amortize the dominant work while every arrow
-   still previews the destination world's truthful font and colors. A delayed
-   wrong-font sequence or a later catch-up stall is not a fix. **Dispatch ALONE —
-   its deliverable is timing, and a receipt taken beside other lanes measures the
-   wave, not the mechanism.**
+1. **388 — DECIDED 2026-08-11: build the same-step completion.** Shape the
+   visible window, present (~13 ms), finish the tail before the next event;
+   the scroll-jump invariant holds at every step boundary. The pinned reach law
+   at `3a8da981` gets updated deliberately. **Dispatch ALONE — the proving
+   receipt is timing, taken on a quiet host.** Body below.
 2. **391 — the picker footer teaches `⌫ up` where Backspace is now inert.** Body below.
 3. **392 — DECIDED 2026-08-11: the forcing arm.** Make `AWL_MENU_BAR_FORCE=on` a
    standing pre-push arm. Body below.
 4. **327 — DECIDED 2026-08-11: elide and delay.** Settings two-column: elide the
    Project-root path, delay two-column mode until the accessory survives. Body
    below.
-5. **393 — a Han run renders Japanese while the user's Han tiebreak says
-   Chinese.** User report, live macOS. Premise-check the resolution ladder
-   before touching code. Body below.
+5. **393 — DECIDED 2026-08-11: retire the lang auto-stamp.** No writing
+   `lang:` frontmatter by default; detection stays in-memory; stamping becomes
+   an explicit palette action. Plus one owed diagnosis: is the ambiguous-Han
+   Settings knob wired to the key the loader reads? Body below.
 6. **394 — Settings arrowing: Right enters, Left does not return.** User
    report, live macOS. Bugs cluster — 387/389 changed Back/Backspace handling
    in this exact neighborhood last wave. Body below.
@@ -131,11 +126,18 @@ every pass.
 
 ## Open items
 
-### 388 — Theme-picker arrowing: measured, and the fix is a DESIGN FORK for the user
+### 388 — Theme-picker arrowing: build the same-step completion
 
-🔵 **BLOCKED ON THE USER — a design decision, not a missing measurement.**
-Law landed at `3a8da981` on `claude/item-388-theme-preview-lag`; **no product
-code changed**, so settled output is identical by construction.
+**DECIDED 2026-08-11 (user):** ~32–40 ms per arrow does read as lag ("isn't
+this bad? lol"), and the fix is the lane's recommended fork — shape the visible
+window, present, then **finish the tail within the same step** before the next
+event is handled. Input-to-present ~30 ms → ~13 ms; total work unchanged;
+document fully shaped at every step boundary, so `full_shape_height`'s
+scroll-jump invariant holds and no arrow ever shows a wrong font. ⚠️ The law
+landed at `3a8da981` on `claude/item-388-theme-preview-lag` PINS today's
+whole-document reach — the implementing lane updates it deliberately (its
+mutation shows 25 of 400 rows shaped when the budget narrows to the viewport).
+Measurements below are the brief; no product code has changed yet.
 
 Measured in `--release` on a quiet host (load 4.5–7.8, no `rustc`): a 9-hop
 burst costs **282–291 ms on a 119-line document and 357–363 ms on an 1896-line
@@ -169,11 +171,9 @@ the step, no arrow ever shows a wrong font, document fully shaped at every step
 boundary. It is an App-level change and was correctly not attempted in a round
 that could not law and mutation-prove it.
 
-**Two questions owed:** (1) does ~32–40 ms per arrow read as laggy or merely
-heavy? (2) same-step completion as above, or leave it? ⚠️ Note the law that
-landed PINS today's whole-document reach, so whoever takes the fork must update
-it deliberately — its mutation shows 25 of 400 rows shaped when the budget is
-narrowed to the viewport.
+Both questions formerly owed are answered above; this is now an ordinary
+engineering item. Still **dispatch with the timing discipline**: the receipt
+that proves ~13 ms is taken alone on a quiet host, like the measurement was.
 ### 391 — The picker footer advertises `⌫ up` where Backspace is now inert
 
 Surfaced by item 389, out of its scope and deliberately not fixed there. The
@@ -223,31 +223,29 @@ itself. Verify: sweep widths across both fixtures at 1× and 2×, asserting the
 accessory is present whenever two-column mode is active and the elided path
 never overflows its cell; the law names which fixture and boundary it enrolled.
 
-### 393 — a Han run renders Japanese while the user's Han tiebreak says Chinese
+### 393 — retire the lang auto-stamp; then verify the tiebreak knob is real
 
-User report (2026-08-11, live macOS): with the ambiguous-Han setting on
-Chinese, a document mixing Japanese sentences with the bare-Han heading 你好
-still renders 你好 with a Japanese face. **The report is a hypothesis — find
-which stage of the ladder decided before touching code.** The documented order
-(docs/fonts.md, `script.rs`): frontmatter `lang:` → the run's own script →
-`cjk_priority` Han tiebreak → Latin floor. Two mechanisms can make the observed
-behavior CORRECT-but-surprising: write-back-once stamps `lang:` frontmatter
-into untagged markdown CJK docs on open (a Ja-dominant doc gets `lang: ja`,
-which outranks the tiebreak forever after, even scrolled out of view), and a
-doc opened before the setting changed keeps its stamp. Reproduce with a fixture
-of this doc shape; read the sidecar's `doc_lang` and per-run
-`font.scripts`/`font.cjk`. Also verify what the user's Settings knob actually
-writes: is the ambiguous-Han control wired to the `cjk_priority` key the loader
-reads, or is it the generated-reference class of defect (a key the loader never
-consults)? Outcomes and routes: (a) a stamped `lang: ja` wins → mechanism
-correct; the open question (does an explicit user tiebreak outrank a
-machine-stamped tag, or should the stamp be made visible?) goes back to the
-user as a design brief, not a silent fix; (b) the knob writes an unread key →
-real defect, fix at the loader seam; (c) `cjk_priority` is consulted and still
-resolves ja → real defect in `script.rs`. Either defect ends with a law
-driving the same doc fixture on both sides of the tiebreak and requiring the
-resolved family pair to differ (the generator-collapse rule: probe both sides
-of the condition).
+**DECIDED 2026-08-11 (user):** awl stops writing `lang:` frontmatter into the
+user's files by default. The user's live report (你好 rendering with a Japanese
+face despite the Chinese Han tiebreak, in a Ja-dominant doc in their notes)
+traced to exactly this mechanism: write-back-once stamped `lang: ja` on open,
+and the stamp silently outranks the explicit setting forever after. The
+precedence itself is KEPT — a frontmatter `lang:` tag, however it got there,
+still wins, and that is right for portability. What changes: detection becomes
+in-memory per-open (same resolution, nothing written), and stamping becomes an
+explicit action — a palette row ("Tag document language…"), never automatic.
+Update docs/fonts.md's write-back-once entry and its tests; the never-tofu and
+ladder laws are untouched. A law must fail if opening an untagged CJK doc
+mutates the buffer.
+
+Second half, still owed as diagnosis: **verify the Settings knob is wired.**
+Is the ambiguous-Han control writing the `cjk_priority` key the loader actually
+reads, or the generated-reference class of defect (a key the loader never
+consults)? Reproduce with an UNTAGGED fixture of this doc shape (Japanese
+sentences + bare-Han heading); read the sidecar's `doc_lang` and per-run
+`font.scripts`/`font.cjk` on both sides of the tiebreak and require the
+resolved family pair to differ (probe both sides of the condition). If the
+knob is dead, fix at the loader seam.
 
 ### 394 — Settings arrowing: Right enters, Left does not return
 
