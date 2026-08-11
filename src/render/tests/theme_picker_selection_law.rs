@@ -62,10 +62,27 @@
 //!   rather than to a textured ground or a staggered row: the ground, the
 //!   stagger, the card, the document behind it and the world itself are all the
 //!   same in both frames, so they cancel exactly instead of drowning the signal.
+//!
+//! # Proved non-vacuous on the cell that matters
+//!
+//! Broken deliberately on GALAH — a textured-ground `Bars` world, one of the
+//! cells the pre-tag probe abstains on — by emitting no selected plate and
+//! letting the unselected pass cover that row instead. The selected row then
+//! renders BYTE-IDENTICALLY to an unselected one (0 px changed, ΔE 0.00) and
+//! this law goes red naming Galah.
+//!
+//! Two partial breakages measured on the way there are worth recording, because
+//! each shows what this law does NOT claim. Deleting only the selected plate
+//! leaves the row the only UNPLATED one on a `BarCoverage::All` world — still
+//! distinct, correctly still green. Deleting the plate but keeping the ink flip
+//! drops Galah from ΔE 32.68 to 5.67, which clears this floor: a selected row
+//! distinguished ONLY by an ink resolved for a band that is not under it is
+//! `selected_secondary_ink_law`'s subject, not this one's, and that law grades it
+//! on exactly that axis.
 
 use super::super::*;
 use super::{headless_dqp, pixeldiff};
-use crate::overlay::{OverlayKind, OverlayState};
+use crate::overlay::OverlayState;
 
 const LOGICAL: (f32, f32) = (1200.0, 800.0);
 
@@ -91,20 +108,35 @@ const INK_PRESENT_DE: f64 = 2.3;
 /// **THE MAGNITUDE FLOOR.** The largest ΔE any pixel of a row moves when that row
 /// gains or loses the selection.
 ///
-/// Calibrated off the roster by `theme_picker_selection_report`, worst cell first
-/// — see that report for the table. It sits under the roster's TIGHTEST real
-/// value with room to spare, and it is deliberately far above the
-/// just-noticeable 2.3: a treatment that only just clears JND on its loudest
-/// pixel is the "wash at `0x04` alpha" failure this floor exists to catch.
-const MOVE_DE_FLOOR: f64 = 12.0;
+/// **The roster's tightest real value is ΔE 6.50 — Magpie**, whose `Diagonal`
+/// composition selects with a thin ascending spine mark (weight 1.25, aperture
+/// 0.45) and no row fill at all, and whose figure is at that reading barely
+/// separated from the ground it crosses. The next tightest is Tawny at 14.66, and
+/// the roster's loudest is Wagtail at 100.00 (`theme_picker_selection_report`
+/// prints the whole table, tightest first).
+///
+/// So the floor sits at **4.0**: under Magpie by 38%, and still 1.7x the
+/// just-noticeable 2.3 — high enough that a treatment washed toward the page
+/// (the recorded "contrast floor got HAPPIER as its subject vanished at `0x04`
+/// alpha" failure) is red long before a reader has to squint, and low enough
+/// that it grades Magpie's authored thinness rather than legislating against it.
+/// **It is not a legibility standard**: whether Magpie's 6.50 is loud ENOUGH is a
+/// contrast question over theme roles, and belongs to those laws, not this one.
+const MOVE_DE_FLOOR: f64 = 4.0;
 
 /// **THE AREA FLOOR**, as a multiple of the row's own drawn HEIGHT rather than an
 /// absolute count, so it scales with the device scale by itself and cannot be
-/// satisfied on a Retina frame by the area that failed on a 1× one. The thinnest
-/// mark this tree ever asks a reader to see is a caret: a one-pixel column the
-/// full height of its row. A selection treatment must cover at least a few of
-/// those — calibrated off the roster's tightest real value by the report below.
-const MOVE_AREA_ROWS: f32 = 1.0;
+/// satisfied on a Retina frame by the area that failed on a 1x one. The unit is
+/// the thinnest mark this tree ever asks a reader to see — a caret: a one-pixel
+/// column the full height of its row.
+///
+/// **The roster's tightest real value is 26.88 row-heights — Magpie again**, at
+/// 1x with the menu bar on (731 device px over a 27.2px row); the loudest is
+/// Bombora's full-width `Pane` band at 1084. The floor sits at **8.0**: 3.4x
+/// under the tightest shipped world, and eight times the caret it is measured in,
+/// so a treatment that shrank to a token mark fails here even while its colour
+/// still clears the magnitude floor above.
+const MOVE_AREA_ROWS: f32 = 8.0;
 
 /// A faithful theme card, projected into a `ViewState` through the SAME accessors
 /// `App::sync_view` reads it through (`item_strings`, `lens_strip`, `window_rows`,
@@ -132,7 +164,11 @@ fn theme_view(ov: &OverlayState, selected_item: usize) -> ViewState {
 /// ONE owner, shared with the pointer inverse and the published geometry, so a law
 /// and a frame cannot disagree about where a row is) widened by [`SIDE_PAD`], over
 /// its own vertical slot exactly.
-fn row_region(plan: &crate::render::plan::OverlayRowPlan, d: usize, scale: f32) -> pixeldiff::Region {
+fn row_region(
+    plan: &crate::render::plan::OverlayRowPlan,
+    d: usize,
+    scale: f32,
+) -> pixeldiff::Region {
     let (x0, x1) = plan.row_x_span(d).expect("a planned row has an x span");
     let row = &plan.rows()[d];
     let pad = SIDE_PAD * scale;
@@ -232,13 +268,35 @@ fn probe_world(
     scale: f32,
     world: &str,
 ) -> Option<Cell> {
-    let names: Vec<String> = theme::world_names().iter().map(|n| (*n).to_string()).collect();
+    let names: Vec<String> = theme::world_names()
+        .iter()
+        .map(|n| (*n).to_string())
+        .collect();
     let ov = OverlayState::new_theme(names, theme::active_index());
     // The SHIPPED frame: the world is `world` and the selected row is `world`'s
     // own — the audition's invariant, so frame A is a state the product really
     // renders rather than a fixture's invention.
-    let shipped_item = ov.selected;
-    let mut v = theme_view(&ov, shipped_item);
+    let mut v = theme_view(&ov, ov.selected);
+    p.set_view(&v);
+    p.prepare(device, queue, cw, ch).ok()?;
+
+    // PIN THE ITEM WINDOW to the one this world's card just drew, and render frame
+    // A again against it. The pipeline slides its own window to keep the selection
+    // visible (`chrome::scroll_window`), so an A/B that only set `overlay_selected`
+    // would compare two DIFFERENT slices of the roster in the same slots — every
+    // row changed, nothing attributable. Pinning `overlay_scroll` to the drawn
+    // window's own top is not a fixture's liberty: it is exactly the state
+    // `OverlayState::scroll_to_selected` leaves behind, and moving the selection
+    // WITHIN the visible window is the one motion that leaves the product's own
+    // scroll untouched. Both graded rows are chosen from inside it, so the window
+    // is stable by construction and asserted so below.
+    let first = p.overlay_row_plan(&p.overlay_geometry(cw));
+    let window_top = first
+        .rows()
+        .iter()
+        .find_map(|r| r.item)
+        .expect("a theme card draws item rows");
+    v.overlay_scroll = window_top;
     p.set_view(&v);
     p.prepare(device, queue, cw, ch).ok()?;
     let geom = p.overlay_geometry(cw);
@@ -280,11 +338,21 @@ fn probe_world(
     p.prepare(device, queue, cw, ch).ok()?;
     let geom_b = p.overlay_geometry(cw);
     let plan_b = p.overlay_row_plan(&geom_b);
+    // THE PRECONDITION THE WHOLE A/B RESTS ON: every slot still holds the same
+    // roster entry. A row-COUNT check would pass a window that slid by three and
+    // re-lettered every row — the exact failure this assertion caught while the
+    // law was being calibrated.
+    let map = |pl: &crate::render::plan::OverlayRowPlan| {
+        pl.rows()
+            .iter()
+            .map(|r| (r.display, r.item))
+            .collect::<Vec<_>>()
+    };
     assert_eq!(
-        plan_b.rows().len(),
-        plan.rows().len(),
-        "{world}: moving the selection re-planned the card's rows, so no row can be \
-         compared to itself"
+        map(&plan_b),
+        map(&plan),
+        "{world}: moving the selection re-windowed the card, so no row can be compared \
+         to itself — the slots now hold different worlds"
     );
     assert_eq!(
         plan_b.selected_display(),
@@ -415,10 +483,10 @@ fn the_theme_pickers_selected_row_is_drawn_as_selected_on_every_world() {
                     assert!(
                         m.area >= area_floor,
                         "{ctx}: the row {what} the selection changed on only {} pixels, \
-                         under {area_floor} — a one-pixel column the full height of its \
-                         own row ({:.1}px). The world is IDENTICAL in both frames, so \
-                         whatever this world does to say 'this row is selected' covers \
-                         less area than a caret.",
+                         under {area_floor} — {MOVE_AREA_ROWS} one-pixel columns the full \
+                         height of its own row ({:.1}px). The world is IDENTICAL in both \
+                         frames, so whatever this world does to say 'this row is selected' \
+                         covers less area than a few carets.",
                         m.area,
                         m.height
                     );
@@ -533,7 +601,10 @@ fn theme_picker_selection_report() {
                             c.rows,
                         ),
                     )),
-                    None => rows.push((f64::NAN, format!("{world:<10} bar={bar} dpi={dpi}  NOT SEATED"))),
+                    None => rows.push((
+                        f64::NAN,
+                        format!("{world:<10} bar={bar} dpi={dpi}  NOT SEATED"),
+                    )),
                 }
             }
         }
