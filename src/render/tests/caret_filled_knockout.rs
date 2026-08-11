@@ -77,13 +77,18 @@ const CELLS: [Cell; 8] = [
         has_glyph: true,
         code: true,
     },
-    // Folded Morph declines a line-start mask, leaving its cell unobscured.
+    // A REQUESTED Morph folds to Block WHOLESALE on this world — body, glyph mask
+    // and anchor alike — so this cell must be indistinguishable from `round`, whose
+    // text and column it deliberately repeats. It once declined the mask (and stepped
+    // its anchor a column back) while painting as a Block: a hybrid belonging to
+    // neither mode, which put the caret a column left of its insertion point on every
+    // ink-caret world.
     Cell {
-        name: "line-start",
+        name: "folded-morph",
         text: "o",
         col: 0,
         look: CaretMode::Morph,
-        has_glyph: false,
+        has_glyph: true,
         code: false,
     },
 ];
@@ -418,8 +423,16 @@ fn cassowary_filled_knockout_keeps_source_weight_across_cells_zoom_and_dpi() {
             }
         }
     }
-    assert_eq!(glyph_cells, 6 * 3 * 2, "six inhabited classes x zoom x dpi");
-    assert_eq!(glyphless_cells, 2 * 3 * 2, "space/line-start census drift");
+    assert_eq!(
+        glyph_cells,
+        7 * 3 * 2,
+        "seven inhabited classes x zoom x dpi"
+    );
+    assert_eq!(
+        glyphless_cells,
+        3 * 2,
+        "space census drift: the space is the ONLY glyphless cell"
+    );
 
     p.set_dpi(1.0);
     crate::render::set_code_ligatures_on(saved_ligatures);

@@ -79,9 +79,36 @@ impl TextPipeline {
             .unwrap_or(0)
     }
 
+    /// THE effective caret form for this frame: the latched `caret_look` after an
+    /// ink-caret world's Morph→Block fold (`CaretBlockStyle::folds_morph_to_block`).
+    ///
+    /// ONE OWNER, read by the GEOMETRY and the PAINT alike — neither may read
+    /// `caret_look` directly. The fold once lived in the paint path alone, so such a
+    /// world painted a Block while the ANCHOR still took Morph's one-column step
+    /// back: the caret sat a column left of the insertion point, and at a soft-wrap
+    /// boundary that column became a whole visual row.
+    pub(super) fn effective_caret_look(&self) -> CaretMode {
+        if self.caret_look == CaretMode::Morph
+            && theme::active()
+                .render_caps
+                .caret_block_style
+                .folds_morph_to_block()
+        {
+            return CaretMode::Block;
+        }
+        self.caret_look
+    }
+
+    /// The char column of the caret's own VISUAL row start — affinity-aware, and `0`
+    /// on an unwrapped line, which is why the Morph degrade is one rule, not two.
+    pub(super) fn caret_row_start_col(&self) -> usize {
+        let rows = self.visual_rows(self.cursor_line);
+        super::pick_row_aff(&rows, self.cursor_col, self.caret_affinity).start_col
+    }
+
     pub(super) fn caret_anchor_col(&self) -> usize {
-        if self.caret_look == CaretMode::Morph {
-            crate::caret::morph_anchor_col(self.cursor_col)
+        if self.effective_caret_look() == CaretMode::Morph {
+            crate::caret::morph_anchor_col(self.cursor_col, self.caret_row_start_col())
         } else {
             self.cursor_col
         }
@@ -490,7 +517,9 @@ impl TextPipeline {
     }
 
     pub(super) fn caret_inhabited_key(&self) -> Option<CacheKey> {
-        if self.caret_look == CaretMode::Morph && crate::caret::morph_line_start(self.cursor_col) {
+        if self.effective_caret_look() == CaretMode::Morph
+            && crate::caret::morph_row_start(self.cursor_col, self.caret_row_start_col())
+        {
             return None;
         }
         self.cursor_glyph_key_at(self.cursor_line, self.caret_anchor_col())
@@ -874,7 +903,7 @@ impl TextPipeline {
     }
 
     /// Whether the caret is drawing as the THIN INSERTION BAR this frame — the
-    /// real I-BEAM look, or MORPH's LINE-START degrade ([`crate::caret::morph_line_start`]
+    /// real I-BEAM look, or MORPH's LINE-START degrade ([`crate::caret::morph_row_start`]
     /// — col 0, a fresh line after Enter, or an empty line), which melts onto the
     /// EXACT SAME bar geometry the I-beam draws ([`Self::ibeam_bar_dims`],
     /// [`Self::caret_linestart_bar_geometry`]). Block, and Morph settled on a
@@ -889,9 +918,11 @@ impl TextPipeline {
     /// DRAG — which overrides `caret_look` to the I-beam bar form
     /// ([`crate::render::ViewState::selecting_drag`]) — reports bar form here too.
     pub(super) fn caret_is_bar_form(&self) -> bool {
-        match self.caret_look {
+        match self.effective_caret_look() {
             CaretMode::Ibeam => true,
-            CaretMode::Morph => crate::caret::morph_line_start(self.cursor_col),
+            CaretMode::Morph => {
+                crate::caret::morph_row_start(self.cursor_col, self.caret_row_start_col())
+            }
             CaretMode::Block => false,
         }
     }

@@ -543,20 +543,27 @@ fn morph_linestart_bar_is_the_ibeam_rest_bar() {
     crate::caret::set_mode(CaretMode::Block);
 }
 
-/// At a SOFT-WRAP boundary the MORPH anchor (col-1) belongs to the PREVIOUS
-/// visual row — the row that owns the collapsed wrap-boundary space — so the
-/// morph caret rides that row while Block sits on the continuation row below,
-/// and the collapsed space's DEGENERATE cell is rescued to a visible default
-/// cell (the caret-sliver fix in `col_x_and_advance`).
+/// At a SOFT-WRAP boundary the MORPH caret stays on ITS OWN visual row. The
+/// anchor rule is "the character before the insertion point", and at the first
+/// column of a wrapped row that character lives on the row ABOVE — so the anchor
+/// HOLDS at the cursor cell and the caret degrades to the insertion bar, exactly
+/// as it already did at column 0. Both are the same rule: no preceding character
+/// on this row.
+///
+/// This replaces a law that pinned the opposite ("morph rides the PREVIOUS visual
+/// row"). That behaviour put the caret a full visual row from its own insertion
+/// point after any motion onto a wrapped row — the user-visible report that
+/// retired it — and it is why this law asserts the morph and Block anchors agree
+/// on the ROW while differing everywhere a real preceding glyph exists.
 #[test]
-fn morph_anchor_at_wrap_boundary_rides_the_previous_row() {
+fn morph_at_a_wrap_boundary_holds_its_own_row_and_degrades_to_the_bar() {
     // Wrap geometry folds the page globals; the anchor is mode-keyed. Hold
     // page → caret, pin the looks explicitly, restore Block.
     let _g = crate::testlock::serial();
     let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _cl = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping morph_anchor_at_wrap_boundary_rides_the_previous_row: no wgpu adapter");
+        eprintln!("skipping the morph wrap-boundary row law: no wgpu adapter");
         return;
     };
     let long = "word ".repeat(80); // wraps on the 1200px canvas
@@ -578,24 +585,45 @@ fn morph_anchor_at_wrap_boundary_rides_the_previous_row() {
     // BLOCK at the wrap boundary: the cursor cell, on the SECOND visual row.
     p.set_view(&view(&long, 0, wrap_col));
     assert_eq!(p.caret_anchor_col(), wrap_col);
-    let (_bx, by) = p.caret_target_xy();
+    let (bx, by) = p.caret_target_xy();
 
-    // MORPH: one back — the collapsed wrap-boundary space, owned by the
-    // PREVIOUS visual row (pick_row's half-open span), one row ABOVE Block.
+    // MORPH at the same column: the anchor HOLDS — no step back onto the
+    // collapsed wrap space the row above owns.
     crate::caret::set_mode(CaretMode::Morph);
     p.set_view(&view(&long, 0, wrap_col));
-    assert_eq!(p.caret_anchor_col(), wrap_col - 1);
-    let (_mx, my) = p.caret_target_xy();
-    assert!(
-        my < by - 1.0,
-        "morph rides the PREVIOUS visual row at the wrap boundary: morph_y={my} block_y={by}"
+    assert_eq!(
+        p.caret_anchor_col(),
+        wrap_col,
+        "the wrapped row's first column anchors itself"
     );
-    // The collapsed space's degenerate cell is rescued to a visible cell, so
-    // the slim-bar fallback there never draws a ~1px sliver.
+    let (mx, my) = p.caret_target_xy();
     assert!(
-        p.caret_target_w() >= p.metrics.char_width * 0.5,
-        "degenerate wrap-space cell rescued: w={}",
-        p.caret_target_w()
+        (my - by).abs() < 1e-3,
+        "morph must sit on the SAME visual row as Block at a wrap boundary: \
+         morph_y={my} block_y={by}"
+    );
+    assert!(
+        (mx - bx).abs() < 1e-3,
+        "and at the same insertion x: morph_x={mx} block_x={bx}"
+    );
+    // ...and it degrades to the insertion bar, since there is no preceding
+    // character on this row to light — the same form column 0 already takes.
+    assert!(
+        p.caret_is_bar_form(),
+        "a wrapped row start has no glyph behind it: the morph melts to the bar"
+    );
+    assert!(
+        p.caret_inhabited_key().is_none(),
+        "no silhouette glyph is enrolled at a wrapped row start"
+    );
+
+    // NON-VACUITY: one column further into the SAME row does have a preceding
+    // glyph, so the ordinary morph anchor still steps back and stays cell-form.
+    p.set_view(&view(&long, 0, wrap_col + 1));
+    assert_eq!(p.caret_anchor_col(), wrap_col);
+    assert!(
+        !p.caret_is_bar_form(),
+        "one column in, the row's own first glyph is behind the caret"
     );
 
     crate::caret::set_mode(CaretMode::Block);

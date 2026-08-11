@@ -338,8 +338,8 @@ fn cosmetic_trail_anchor_follows_morph_linestart_bar() {
     // I-beam's thin insertion bar.
     p.set_view(&view(text, 1, 0));
     assert!(
-        crate::caret::morph_line_start(p.cursor_col),
-        "fixture must sit at a Morph line-start degrade"
+        p.caret_is_bar_form(),
+        "fixture must sit at a Morph row-start degrade"
     );
     let (tx, ty) = p.caret_target_xy();
 
@@ -365,10 +365,7 @@ fn cosmetic_trail_anchor_follows_morph_linestart_bar() {
     // Contrast: a MID-LINE Morph caret (settled on a real glyph, cell-form)
     // keeps anchoring on the CELL centre, unchanged.
     p.set_view(&view(text, 0, 2)); // "ab|c": anchors the 'b' glyph, cell-form
-    assert!(
-        !crate::caret::morph_line_start(p.cursor_col),
-        "fixture must NOT be a line start"
-    );
+    assert!(!p.caret_is_bar_form(), "fixture must NOT be a row start");
     let (tx2, ty2) = p.caret_target_xy();
     let from2 = Sample {
         x: tx2,

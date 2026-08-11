@@ -57,48 +57,77 @@ fn default_mode_follows_the_measured_pitch_in_every_world() {
 }
 
 #[test]
-fn morph_anchor_col_is_one_back_with_col_zero_fallback() {
+fn morph_anchor_col_is_one_back_but_never_across_its_own_row_start() {
     // The MORPH caret inhabits the char BEFORE the insertion point: typing
-    // `abc|` (cursor col 3) anchors the `c` at col 2 — one back, always.
-    assert_eq!(morph_anchor_col(3), 2);
+    // `abc|` (cursor col 3) anchors the `c` at col 2 — one back, within the row.
+    assert_eq!(morph_anchor_col(3, 0), 2);
     assert_eq!(
-        morph_anchor_col(1),
+        morph_anchor_col(1, 0),
         0,
         "cursor after the first char anchors it"
     );
-    assert_eq!(morph_anchor_col(42), 41);
-    // FALLBACK: col 0 (a line start / empty line / the fresh line after
-    // Enter) has no previous glyph ON THIS LINE — the GEOMETRY anchor stays
-    // at col 0 (the cell whose left edge is the insertion x), never
-    // underflowing and never reaching back across the newline. The caret
-    // does NOT light that cell's glyph there — see `morph_line_start`.
-    assert_eq!(morph_anchor_col(0), 0);
+    assert_eq!(morph_anchor_col(42, 0), 41);
+    // FALLBACK: a ROW START has no previous glyph ON THIS ROW — the GEOMETRY
+    // anchor stays at the cursor cell (whose left edge is the insertion x),
+    // never underflowing and never reaching back across the row boundary. The
+    // caret does NOT light that cell's glyph there — see `morph_row_start`.
+    assert_eq!(morph_anchor_col(0, 0), 0);
+    // THE WRAPPED ROW, which a logical-column rule gets wrong: column 58 is the
+    // FIRST column of a soft-wrapped row, so its "previous" character sits on the
+    // row ABOVE. Stepping back there drew the caret a whole visual row away from
+    // its own insertion point — the entire reason this takes a `row_start`.
+    assert_eq!(
+        morph_anchor_col(58, 58),
+        58,
+        "a wrapped row's first column anchors itself, never the row above"
+    );
+    assert_eq!(
+        morph_anchor_col(59, 58),
+        58,
+        "one column into a wrapped row anchors that row's own first glyph"
+    );
 }
 
-/// The MORPH line-start DEGRADE decision: exactly at col 0 — a line start,
-/// the fresh line after Enter, an empty line — there is no produced glyph
-/// before the insertion point, so the morph must melt to the thin insertion
-/// bar (no silhouette) instead of lighting the char AHEAD of the cursor
-/// (`|abc` must NOT glow the `a`). Any column past 0 has a previous glyph
-/// cell and keeps the silhouette machinery.
+/// The MORPH DEGRADE decision: exactly at a VISUAL ROW START — column 0, a fresh
+/// line after Enter, an empty line, AND the first column of a soft-wrapped row —
+/// there is no produced glyph before the insertion point ON THAT ROW, so the morph
+/// melts to the thin insertion bar (no silhouette) instead of lighting a character
+/// it does not sit beside (`|abc` must NOT glow the `a`; a wrapped row's first
+/// column must not reach back to the row above). Any column past its row's start has
+/// a previous glyph cell and keeps the silhouette machinery.
 #[test]
-fn morph_line_start_degrades_exactly_at_col_zero() {
+fn morph_degrade_fires_at_every_visual_row_start_not_only_column_zero() {
     assert!(
-        morph_line_start(0),
+        morph_row_start(0, 0),
         "col 0 (incl. empty lines) melts to the bar"
     );
-    assert!(!morph_line_start(1), "aI bc: the just-passed 'a' stays lit");
-    assert!(!morph_line_start(2));
-    assert!(!morph_line_start(42));
-    // The decision agrees with the anchor math: the ONLY column whose anchor
-    // is not strictly one back (the saturating col-0 fallback) is the one
-    // that degrades — the two seams can't drift apart.
-    for col in 0..64usize {
-        assert_eq!(
-            morph_line_start(col),
-            morph_anchor_col(col) == col,
-            "degrade ⇔ the anchor saturated at the cursor cell (col {col})"
-        );
+    assert!(
+        !morph_row_start(1, 0),
+        "aI bc: the just-passed 'a' stays lit"
+    );
+    assert!(!morph_row_start(2, 0));
+    assert!(!morph_row_start(42, 0));
+    // THE WRAPPED ROW START — false under the retired `col == 0` rule, which is
+    // how a Morph caret came to sit at the END OF THE ROW ABOVE its insertion point.
+    assert!(
+        morph_row_start(58, 58),
+        "a soft-wrapped row's first column is a row start too"
+    );
+    assert!(
+        !morph_row_start(59, 58),
+        "one column in, the row's own first glyph is behind the caret"
+    );
+    // The decision agrees with the anchor math on EVERY row start, not just col 0:
+    // the only columns whose anchor is not strictly one back are the ones that
+    // degrade — the two seams can't drift apart.
+    for row_start in [0usize, 1, 17, 58] {
+        for col in row_start..row_start + 64 {
+            assert_eq!(
+                morph_row_start(col, row_start),
+                morph_anchor_col(col, row_start) == col,
+                "degrade ⇔ the anchor held at the cursor cell (col {col}, row_start {row_start})"
+            );
+        }
     }
 }
 

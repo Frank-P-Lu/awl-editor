@@ -551,16 +551,7 @@ impl TextPipeline {
         // BAR override (`ViewState::selecting_drag`, latched into `caret_look`)
         // reaches the draw path too. When not dragging, `caret_look` == the global,
         // so every non-drag frame is byte-identical.
-        let mode = if theme::active()
-            .render_caps
-            .caret_block_style
-            .folds_morph_to_block()
-            && self.caret_look == CaretMode::Morph
-        {
-            CaretMode::Block
-        } else {
-            self.caret_look
-        };
+        let mode = self.effective_caret_look();
         let settle = self.caret.settle_factor();
         let has_glyph = mode == CaretMode::Morph && self.prepare_caret_masks(device, queue);
         let paint_silhouette = has_glyph && settle >= CARET_MORPH_SETTLE_SHOW;
@@ -589,11 +580,12 @@ impl TextPipeline {
                 self.metrics.px(CARET_MORPH_DILATE_PX),
             );
         } else if paint_space_bar {
-            let (cx, cy, cw, ch, ccorner) = if crate::caret::morph_line_start(self.cursor_col) {
-                self.caret_linestart_bar_geometry()
-            } else {
-                self.caret_space_bar_geometry()
-            };
+            let (cx, cy, cw, ch, ccorner) =
+                if crate::caret::morph_row_start(self.cursor_col, self.caret_row_start_col()) {
+                    self.caret_linestart_bar_geometry()
+                } else {
+                    self.caret_space_bar_geometry()
+                };
             let (cw, ch, ccorner) = self.pop_scaled(cw, ch, ccorner);
             self.caret_pipeline
                 .prepare(queue, width, height, cx, cy, cw, ch, ccorner);

@@ -160,12 +160,26 @@ pub fn clear_override() {
     MODE_OVERRIDE.store(0, Ordering::Relaxed);
 }
 
-pub fn morph_anchor_col(col: usize) -> usize {
+/// The column the MORPH caret inhabits: the character BEFORE the insertion point
+/// (typing `abc|` lights the `c`). `row_start` is the caret's own VISUAL row start,
+/// and the step back never crosses it — one column back from the first column of a
+/// soft-wrapped row is a character on the row ABOVE, which drew the caret a whole
+/// visual row away from its insertion point.
+pub fn morph_anchor_col(col: usize, row_start: usize) -> usize {
+    if col <= row_start {
+        return col;
+    }
     col.saturating_sub(1)
 }
 
-pub fn morph_line_start(col: usize) -> bool {
-    col == 0
+/// Does the MORPH caret melt to the line-start bar? It does exactly when there is no
+/// preceding character ON THE CARET'S OWN VISUAL ROW to inhabit.
+///
+/// The rule is ROW-relative, not logical-line-relative: a soft-wrapped row's first
+/// column is a row start with nothing behind it, exactly like column 0, and `col == 0`
+/// remains covered because an unwrapped line's row starts at 0.
+pub fn morph_row_start(col: usize, row_start: usize) -> bool {
+    col == row_start
 }
 
 pub fn toggle_mode() -> CaretMode {

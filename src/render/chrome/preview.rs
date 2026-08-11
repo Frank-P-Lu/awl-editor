@@ -5,6 +5,14 @@
 //! of `chrome.rs` verbatim, no behaviour change. See [`super`].
 
 use super::*;
+use crate::caret::morph_anchor_col;
+
+/// The caret DEMO's only visual row starts at column 0: the picker sample is one
+/// short unwrapped line, so the document's row-relative Morph rules
+/// ([`crate::caret::morph_anchor_col`] / [`crate::caret::morph_row_start`]) reduce
+/// to their col-0 case here. Named rather than spelled `0` at the call sites, so the
+/// claim being made — "this preview has no wrap geometry" — is the thing a reader sees.
+const DEMO_ROW_START: usize = 0;
 
 impl TextPipeline {
     /// The caret-style preview PANEL's geometry — a two-line-tall floating box that
@@ -115,14 +123,12 @@ impl TextPipeline {
         self.preview_buffer
             .shape_until_scroll(&mut self.font_system, false);
 
-        // Position the demo caret on the sample line: the shaped X of the char the
-        // caret INHABITS. Morph mirrors the document anchor rule (one char BACK of
-        // the insertion point — the glyph just typed; col-0 falls back to the
-        // cursor char, see `crate::caret::morph_anchor_col`), so the picker demo
-        // previews the real riding-the-last-letter behavior; Block/I-beam keep the
-        // insertion cell.
+        // Position the demo caret on the sample line: the shaped X of the char it
+        // INHABITS. Morph mirrors the document anchor rule (one char BACK; a ROW
+        // start falls back to the cursor char, see `crate::caret::morph_anchor_col`),
+        // so the picker previews the real behavior; Block/I-beam keep the cell.
         let anchor_char = match look {
-            CaretMode::Morph => crate::caret::morph_anchor_col(self.caret_demo.cursor_char()),
+            CaretMode::Morph => morph_anchor_col(self.caret_demo.cursor_char(), DEMO_ROW_START),
             _ => self.caret_demo.cursor_char(),
         };
         let caret_x = text_left + self.preview_caret_local_x(anchor_char, &text);
@@ -263,7 +269,7 @@ impl TextPipeline {
         // one frame ago is exactly `caret_preview_mask_to`'s cached key, since `to`
         // depends only on the (already-applied) cursor position, not on the spring.
         let to_key = if look == CaretMode::Morph
-            && !crate::caret::morph_line_start(self.caret_demo.cursor_char())
+            && !crate::caret::morph_row_start(self.caret_demo.cursor_char(), DEMO_ROW_START)
         {
             preview_glyph_key_at(&self.preview_buffer, text, anchor_char)
         } else {

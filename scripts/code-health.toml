@@ -143,8 +143,8 @@ reason = "Two new sidecar keys — `gutter.changed` and `overlay.preview_view` �
 
 [[file_size_mark]]
 file = "src/caret.rs"
-lines = 271
-reason = "Item 355 (+12): the declaration docs for the spring and damping constants, the px/s velocities and the streak radius, each naming which scale factor it is entitled to and why -- this file holds the 32 constants the unit scan deliberately leaves outside, and the reason they are outside belongs at the declaration rather than in the law's allow-list, where a later round reads it as an oversight."
+lines = 285
+reason = "Item 355 (+12): the declaration docs for the spring and damping constants, the px/s velocities and the streak radius, each naming which scale factor it is entitled to and why -- this file holds the 32 constants the unit scan deliberately leaves outside, and the reason they are outside belongs at the declaration rather than in the law's allow-list, where a later round reads it as an oversight. +14: `morph_anchor_col` and `morph_row_start` now take the caret's own VISUAL row start, and the docs say why the rule is row-relative rather than logical-line-relative -- a wrapped row's first column is a row start with nothing behind it, exactly like column 0, and the logical-column version drew the caret a full visual row from its insertion point."
 
 [[file_size_mark]]
 file = "src/caret_glyph.rs"
@@ -304,7 +304,8 @@ lines = 580
 
 [[file_size_mark]]
 file = "src/render/caret.rs"
-lines = 972
+lines = 1003
+reason = "+31: `effective_caret_look` and `caret_row_start_col` — the one owner of the ink-caret Morph→Block fold, and the caret's own visual-row start. Both exist because the fold and the row-relative Morph rules had been spelled at their call sites: the fold in the paint path only (so geometry anchored a Morph caret a column back on a world that paints a Block) and the degrade against the logical column only (so a wrapped row's first column reached the row above). Owners, not helpers — the bypass is what the bug was."
 
 [[file_size_mark]]
 file = "src/render/chrome/hud.rs"
@@ -371,7 +372,7 @@ lines = 1262
 
 [[file_size_mark]]
 file = "src/render/layers.rs"
-lines = 1288
+lines = 1280
 reason = "The per-frame GPU preparation hub remains an explicit renderer exception; missing-image placeholder shaping lives in its own submodule rather than raising this ceiling."
 
 [[file_size_mark]]
