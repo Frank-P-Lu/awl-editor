@@ -496,13 +496,6 @@ reason = "+1: one `use super::diagonal::{DiagonalMark, DiagonalSpine};` import, 
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
-file = "src/render/tests/rail_ink_law.rs"
-function = "the_active_rail_entrys_label_reads_on_its_own_band_on_every_world"
-message = "this function has too many lines (139/100)"
-reason = "A roster sweep whose enrolment and its four floors have to stay in one body. The law grades 20 worlds x 4 canvases x both focus states and asserts label-vs-fill contrast, label PRESENCE, and band presence focused and dimmed. Splitting the assertions away from the enrolment is the specific failure this repo has recorded twice: a floor that no longer sees what enrolled goes green over a deleted subject, and the presence floor here exists precisely because the contrast floor PASSED under a mutation that removed the plate. Decompose only with a seam that carries the enrolled set and all four tightest readings into every part."
-
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
 file = "tests/caret_mono_grid_pixels.rs"
 function = "caret_cell_is_glyph_independent_on_every_mono_world"
 message = "this function has too many lines (141/100)"
