@@ -140,50 +140,6 @@ Small, cheap, and filed so they are not lost. Each names the exact lever.
   footer's width budget is why a further cell cannot be added at the minimum
   window.
 
-### 396 — the theme preview's win shrinks with scroll depth
-
-🟡 IN PROGRESS — claude (deep), branch `claude/item-396-shape-from-scroll`.
-⚠️ **Reclaimed from a stale claim** that read `codex (root), branch main`: it was
-never committed, had no worktree, no branch, no commits and no build activity.
-A claim naming `main` is also not a claim — work happens in a worktree named on
-the claim line, so that line could not have been acted on as written.
-
-Recorded from 388's own measurement rather than discovered later. The same-step
-split shapes from the DOCUMENT's first row, because cosmic-text's
-`shape_until_scroll` always fills from `buffer.scroll`, which awl keeps at 0 and
-draws at a pixel offset. So input-to-present improves 32.3→16.8 ms at the top of
-a document, roughly halves that gain at 50%, and reaches zero at the end.
-Closing it means moving cosmic-text's own scroll and relocating `RowGeom`'s
-coordinate origin — a real piece of work, deliberately out of 388's scope.
-Not urgent: the shipped state is strictly better than before at every depth.
-
-### 397 — a burst of theme previews settles with one stale block
-
-🟡 IN PROGRESS — claude (deep), branch `claude/item-397-burst-stale-block`.
-
-Found by item 211's live sweep, the only instrument that can see it — the
-offscreen capture path is structurally blind to this class. **Reproduce in one
-command:** `scripts/live-probe.sh --cells "mangrove-to-magpie-burst
-tawny-to-magpie-burst"` (macOS, display unlocked, ~2 min). ⚠️ Check the lock at
-BOTH ENDS: a mid-run lock writes successful-looking lines while presenting zero
-frames.
-
-`1/223 uniform blocks differ > 30.0`, block `(360,280)+40`, expected
-`rgb(251,251,250)`, got `rgb(216,217,216)`, diff 35. **Identical in both cells.**
-Both are `-burst` cells and both fail at **settled**, not `early`; every
-non-burst cell passes, including commit and revert. So a rapid burst of previews
-leaves one block stale and it stays stale rather than recovering.
-
-**Bisected pre-existing:** identical at `cdb01a6f`, before 388's same-step split,
-so it is not that change. True first-bad unknown, and a bisect costs a release
-build per step — prefer diagnosing the mechanism. `src/probe.rs`'s module doc
-names the three live-only classes this harness exists for: stale caches,
-redraw-scheduling gaps, present/compositor races.
-⚠️ 216 is far closer to a dimmed or scrim tone than to any neighbouring world's
-ground, so the first question is which LAYER failed to repaint, not which world
-failed to switch. The probe's work dir is under `/tmp` and does not survive a
-restart.
-
 ### 400 — the pre-tag journey sweep has no instrument
 
 Raised by item 399, which performed that sweep by hand for v0.10.0 and found the
@@ -244,6 +200,52 @@ these fields, or make the filesystem-enumerating doors refuse a non-seeded root.
 ⚠️ Note `--screenshot`'s ordinary door is **not hermetic** — 399 independently
 found it needs an explicit empty `--config` — so "use the other door" is a
 workaround, not the fix.
+
+### 403 — at the document END, 388's split is a small net LOSS
+
+Measured by item 396, filed rather than fixed because the sound repair needs a
+decision it would not make on the back half of a round. At the document end
+`long_bullets` shows **0 of 20 arrows deferring a single row**, while **all 20
+declare a debt** and pay a 1.0–1.3 ms `finish_shape_tail` for it — per-world
+consistent, so not load noise. Mean per step **38.4 → 40.5 ms, +5.5%**.
+
+The cause is a units mismatch: the debt is declared from a **height** compare
+(`presentable_shape_height < full_shape_height`) while the saving is a **row**
+question, and `full_shape_height` deliberately over-budgets. So the predicate is
+true exactly where the benefit is zero. `finish_shape_tail`'s height-only
+`set_size` is a cosmic-text relayout of the whole document, which is where the
+milliseconds go.
+⚠️ The honest fix has to reason about leaving `height_opt` narrowed past the
+step — that is why 396 declined it. Shipped state is still better than pre-388
+everywhere except the last screenful.
+
+### 404 — the editor launches at a size no capture ever photographs
+
+Raised by item 397 and **not touched by it**, because the blast radius is every
+pixel law in the tree. `app::INITIAL_ZOOM` is **0.8** for a windowed launch; a
+replay capture takes `opts.zoom.unwrap_or(1.0)`; `range::ZOOM.default` is a
+**third** copy at 1.0. So every headless capture in the suite renders the
+document at a size no user sees, and the two doors disagree by 25% — which is
+exactly how 397's probe came to grade a live window against a picture 25% larger.
+
+🔵 **Taste call before it is work**: reconciling them changes shipped pixel
+expectations across the suite. Deciding which number is the truth is the user's;
+whether three copies of it is defensible is not.
+
+### 405 — the overlay card's geometry is not DPI-invariant
+
+Measured incidentally by item 397: the same LOGICAL window puts
+`overlay.window.band` at `x 27.5 / w 545` at dpi 1 and `x 164 / w 872` at dpi 2 —
+not the 2× that document text takes. Document **wrap** is invariant, and the
+existing green law `a_live_app_capture_honors_capture_size_and_the_dpi_meaning_holds`
+sweeps exactly that; **the overlay card is the axis it did not think of**, so it
+passes while this is true.
+
+This smells like the recorded "chrome pad left in device pixels" family, which
+has already shipped decorations at half their tuned size on every Retina display
+once. Establish first whether the card is *supposed* to scale with surface
+pixels; if not, it is a Retina defect and the law that covers the trade needs the
+card added to its sweep.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
