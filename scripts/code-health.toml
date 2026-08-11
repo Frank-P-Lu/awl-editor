@@ -339,7 +339,7 @@ reason = "The footer plate earns the notice channel's own one-pixel rim, which i
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay_rows.rs"
-lines = 325
+lines = 320
 reason = "+15: every range rail now computes its OWN thumb ink and uploads through `prepare_multicolor`, instead of one frame-wide `thumb_ink` painted onto every rail by a shared `set_color` -- a rail that was not the selected row wore the selected row's ink. No new pipeline: `prepare_multicolor` already carries per-instance colour for the writing-streaks heatmap, so this reaches for the existing mechanism rather than a second one. The track stays uniform."
 
 [[file_size_mark]]
@@ -493,6 +493,13 @@ reason = "items 132/194 (+2): has_ambient_motion gained the warped-grid arm, so 
 file = "src/theme/worlds.rs"
 lines = 1188
 reason = "+1: one `use super::diagonal::{DiagonalMark, DiagonalSpine};` import, so each diagonal world authors its selected-row mark on the same single `list_style` line as its orientation — beside its `font`, which is the whole point of carrying the mark as the variant payload. The two world literals are net zero. +46: Kite's literal grows five `RenderCaps` fields (placard, card anchor, chrome face, page frame, facet band) with the one-field-per-line shape every other world's caps already take, and its doc comment records the two dials that were BUILT AND REJECTED on evidence — the Quokka-only chamfer exclusivity, and `Bars` `FullWidth`x`SelectedOnly` stranding the plated-chrome family because `BarExtent::hugs()` is false. That prose is the file's job: a later round that re-proposes either dial reads why it does not work before spending a lane on it, which a commit message six weeks back cannot do. Item 263 (+20): one `selection_ui: None` per world. The field is deliberately NOT hidden behind a spread default — every world states that it takes the derived selected-row band, so authoring one is a visible edit on a visible line rather than an absent field nobody reviews. `Rules` (the quiet fourth list composition, organised by absence) has one carrier world, and Paperbark's literal names it on one `list_style` line. The other ten are the comment that has to travel with it: why THIS world (its Deckle ground is already a material, so a ruled index is that ground one register up where a floating card was an object dropped on it), that `Weight` is the DECIDED selection treatment — chosen by the user against both rendered side by side — with `Gutter` still reachable through the force override, and that which further worlds adopt the composition is a taste call nothing is waiting on (+15). Item 355 (+5): Wagtail's and Kite's page-frame strokes and Bilby's spell gap take their typed spellings; the two frame literals go multi-line because a `Logical(2.0)` payload does not fit the one-field-per-line shape on one line."
+
+[[clippy_exception]]
+lint = "clippy::too_many_lines"
+file = "src/render/tests/rail_ink_law.rs"
+function = "the_active_rail_entrys_label_reads_on_its_own_band_on_every_world"
+message = "this function has too many lines (139/100)"
+reason = "A roster sweep whose enrolment and its four floors have to stay in one body. The law grades 20 worlds x 4 canvases x both focus states and asserts label-vs-fill contrast, label PRESENCE, and band presence focused and dimmed. Splitting the assertions away from the enrolment is the specific failure this repo has recorded twice: a floor that no longer sees what enrolled goes green over a deleted subject, and the presence floor here exists precisely because the contrast floor PASSED under a mutation that removed the plate. Decompose only with a seam that carries the enrolled set and all four tightest readings into every part."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
