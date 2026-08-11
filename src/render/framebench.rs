@@ -496,13 +496,22 @@ fn picker_sweep(
     let mut view = live_view(buffer, misspelled.to_vec());
     view.zoom = BURST_ZOOM;
     p.set_view(&view);
-    let whole_rows = p.total_visual_rows();
-    let start_row = ((whole_rows as f32) * scroll_frac) as usize;
+    for _ in 0..10 {
+        burst_frame(&mut p, device, queue, target_view, false)?;
+    }
+    // The settled row count is read AFTER the warm frames, not before them: the
+    // first prepare's reveal-on-cursor conceal re-lays the markdown markup and the
+    // document's visual rows move under it. Reading it early pins a count the
+    // editor never actually sits at.
+    let settled_rows = p.total_visual_rows();
+    let start_row = ((settled_rows as f32) * scroll_frac) as usize;
     view.scroll = crate::render::ScrollPos::at_row(start_row);
     p.set_view(&view);
     for _ in 0..10 {
         burst_frame(&mut p, device, queue, target_view, false)?;
     }
+    let whole_rows = p.total_visual_rows();
+    let viewport_rows = BURST_HEIGHT as f32 / p.metrics.line_height;
 
     let arm = match reach {
         ShapeReach::Whole => "whole document, then present (today)",
@@ -547,21 +556,34 @@ fn picker_sweep(
         let paid = p.finish_shape_tail();
         let tail_ms = t1.elapsed().as_secs_f64() * 1e3;
         let settled = p.total_visual_rows();
+        // The settled count is NOT stable across worlds and must not be pinned to
+        // one: the wrap width is face-independent but the ADVANCES inside it are
+        // not, so a proportional face fits a different number of characters per row
+        // than a mono one and the document genuinely has a different number of
+        // visual rows in each world. What must hold is that nothing is owed and the
+        // document is much taller than the window — the cross-arm claim (both
+        // reaches settle on the SAME geometry per world) is
+        // `theme_preview_shape_law`'s, proven there against a control pipeline.
         ensure!(
-            settled == whole_rows,
-            "step to {} ended with {settled} of {whole_rows} rows shaped — the step \
-             must leave the whole document shaped whichever reach it took",
+            !p.shape_tail_owed(),
+            "step to {} ended still owing a shaping tail",
+            world.name
+        );
+        ensure!(
+            settled as f32 > 4.0 * viewport_rows,
+            "step to {} settled at {settled} rows against a {viewport_rows:.0}-row \
+             window — the fixture no longer overflows and this sweep measures nothing",
             world.name
         );
         match reach {
             ShapeReach::Whole => ensure!(
-                !paid && at_present == whole_rows,
-                "the whole-document arm presented {at_present} of {whole_rows} rows \
+                !paid && at_present == settled,
+                "the whole-document arm presented {at_present} of {settled} rows \
                  (tail paid: {paid}) — this arm must never narrow"
             ),
             ShapeReach::Presentable => ensure!(
-                paid && at_present < whole_rows,
-                "the split arm presented {at_present} of {whole_rows} rows (tail paid: \
+                paid && at_present < settled,
+                "the split arm presented {at_present} of {settled} rows (tail paid: \
                  {paid}) — nothing was deferred, so this measures the whole-document \
                  step under another name"
             ),
@@ -571,7 +593,7 @@ fn picker_sweep(
         println!(
             "{:>10} | {:>21} | {:>8.1}ms | {:>8.1}ms | {:>9.1}ms | {:>8.1}ms | {:>8.1}ms | {:>5}/{:<5}",
             world.name, face, shape_ms, s.total, shape_ms + s.total, tail_ms,
-            shape_ms + s.total + tail_ms, at_present, whole_rows
+            shape_ms + s.total + tail_ms, at_present, settled
         );
     }
     println!(

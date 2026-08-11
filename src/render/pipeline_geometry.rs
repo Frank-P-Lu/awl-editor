@@ -15,8 +15,7 @@ impl TextPipeline {
     /// Is an off-screen shaping TAIL still owed (see [`ShapeReach`])? True only
     /// between a [`ShapeReach::Presentable`] reshape and the
     /// [`Self::finish_shape_tail`] that pays it — never at a settled step boundary,
-    /// which is the property the reach law reads it for.
-    #[cfg(test)]
+    /// which is the property the reach law and the picker-sweep bench read it for.
     pub fn shape_tail_owed(&self) -> bool {
         self.shape_tail_owed
     }
