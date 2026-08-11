@@ -23,6 +23,25 @@ readonly WORKER_CARGO_JOBS=2
 readonly WORKER_TEST_THREADS=1
 export CARGO_BUILD_JOBS="$WORKER_CARGO_JOBS"
 export RUST_TEST_THREADS="$WORKER_TEST_THREADS"
+
+# A launch seam owes its callers a usable toolchain, not just a CPU budget.
+# `cargo fmt --all` reaches rustup's shim before the real binary under some
+# ambient PATHs and dies on `unexpected argument '--all'` — a rustup usage
+# error wearing a Cargo command's clothes, which reads as a broken gate rather
+# than a broken PATH. Prepend the ACTIVE toolchain's own bin so every command
+# launched here sees the same binaries, and derive it from rustup rather than
+# naming a host triple: this seam runs on Apple Silicon and on Linux CI images.
+# Probing `cargo fmt --version` first keeps the fix inert wherever the ambient
+# PATH already works, so a developer's own toolchain choice is never overridden.
+if ! cargo fmt --version >/dev/null 2>&1; then
+  if toolchain="$(rustup show active-toolchain 2>/dev/null | head -n1 | cut -d' ' -f1)" \
+     && [ -n "$toolchain" ] \
+     && [ -d "${RUSTUP_HOME:-$HOME/.rustup}/toolchains/$toolchain/bin" ]; then
+    PATH="${RUSTUP_HOME:-$HOME/.rustup}/toolchains/$toolchain/bin:$PATH"
+    export PATH
+    printf 'orchestrator-worker-budget toolchain_bin=%s\n' "$toolchain"
+  fi
+fi
 AWL_DISK_PREFLIGHT_CALLER=worker-build "$ROOT/.orchestrator/disk-preflight.sh"
 printf 'orchestrator-worker-budget cargo_jobs=%s test_threads=%s command=' \
   "$WORKER_CARGO_JOBS" "$WORKER_TEST_THREADS"
