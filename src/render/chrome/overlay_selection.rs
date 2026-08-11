@@ -121,12 +121,7 @@ impl TextPipeline {
         backing: theme::ListBacking,
         vis: &VisualSelection,
     ) {
-        let band_color = match theme::active()
-            .highlight_treatment(crate::render::effective_overlay_selrow_band())
-        {
-            theme::HighlightTreatment::ValueBand(color) => color,
-            theme::HighlightTreatment::InverseFill { band, .. } => band,
-        };
+        let band_color = super::overlay_selected_band_srgb();
         // THE FOCUS CUE, and the whole of it. A workspace has two
         // regions that both keep a selection, so one of the two markers has to
         // say "this one is live". It stays the SAME rect in the SAME place and

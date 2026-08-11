@@ -342,8 +342,8 @@ mod overlay_visual_sel;
 #[cfg(test)]
 pub(in crate::render) use overlay_shape::snap_placard_size;
 pub(in crate::render) use overlay_visual_sel::{
-    VisualSelection, overlay_selected_primary_ink, overlay_selected_rail_srgb,
-    overlay_selected_secondary_ink,
+    VisualSelection, overlay_selected_band_srgb, overlay_selected_label_ink,
+    overlay_selected_primary_ink, overlay_selected_rail_srgb, overlay_selected_secondary_ink,
 };
 mod gutter;
 mod menubar;

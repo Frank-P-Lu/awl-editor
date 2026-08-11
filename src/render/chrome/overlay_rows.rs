@@ -241,12 +241,7 @@ impl TextPipeline {
         let bar_stroke = self.metrics.px(crate::render::BAR_OUTLINE_STROKE);
         let underline_corner = self.metrics.px(CHIP_UNDERLINE_CORNER);
         let mut ghosts: Vec<[f32; 4]> = Vec::new();
-        let band = match theme::active()
-            .highlight_treatment(crate::render::effective_overlay_selrow_band())
-        {
-            theme::HighlightTreatment::ValueBand(c) => c,
-            theme::HighlightTreatment::InverseFill { band, .. } => band,
-        };
+        let band = super::overlay_selected_band_srgb();
         match facet_style {
             theme::FacetStyle::Text => {}
             theme::FacetStyle::Band => {
