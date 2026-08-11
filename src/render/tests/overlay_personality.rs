@@ -1045,7 +1045,7 @@ fn placard_width_sweep_folds_narrow_shows_wide_never_clips() {
     let muted = theme::muted().to_glyphon();
     // The flat card's fill regime begins once the window can't seat `CARD_MAX_W`
     // at the floor inset each side; the sweep straddles that boundary.
-    let boundary = chrome::CARD_MAX_W.px(1.0) + 2.0 * chrome::CARD_EDGE_INSET_FLOOR.px(1.0);
+    let boundary = chrome::CARD_MAX_W.px(1.0, 1.0) + 2.0 * chrome::CARD_EDGE_INSET_FLOOR.px(1.0);
     let (mut saw_wide, mut saw_folded) = (false, false);
     for &wpx in &[
         360.0f32,
@@ -1067,7 +1067,8 @@ fn placard_width_sweep_folds_narrow_shows_wide_never_clips() {
         v.overlay_items = (0..6).map(|i| format!("Command {i}")).collect();
         p.set_view(&v);
         let geom = p.overlay_geometry(wpx as u32);
-        let expect_fold = chrome::overlay_card_fill_regime(wpx, chrome::CARD_MAX_W.px(1.0), 1.0);
+        let expect_fold =
+            chrome::overlay_card_fill_regime(wpx, chrome::CARD_MAX_W.px(1.0, 1.0), 1.0);
         let placard = p.overlay_shape_placard(&geom);
         // Shape the card text so line 0 (the query row) reports the prefix state.
         let vs = super::no_vis();

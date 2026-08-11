@@ -25,17 +25,27 @@
 //! measuring extents would make these numbers worse, not better; the whole
 //! overflow already lives in the advances.
 //!
-//! **WHY IT HIDES AT 1×, AND WHY "2×" IS NOT THE GATE.** `LogicalGrowOnly::px`
-//! is `self.0 * scale.max(1.0)`, so below scale 1 the cap holds its DEVICE
-//! width while the text shrinks with the scale — at the shipped default (zoom
-//! 0.8, dpi 1) that makes the card 25% roomier relative to its own text than
-//! it is at any scale ≥ 1. Above 1 the card is exactly proportional, so the
-//! fit becomes a pure ratio and stops depending on the scale at all: Potoroo's
-//! Keybindings hint measures 1.0121 of its text column at scale 1.0, at 1.6
-//! and at 2.0, to four decimals. The reachable-at-shipped-zoom instance is 2×
-//! because 0.8 × 2 = 1.6; zoom 1.0 on a 1× display clips identically. Dropping
-//! the `scale.max(1.0)` clamp makes the SAME ratio appear at the shipped
-//! default, which is the proof that the clamp is what hides this at 1×.
+//! **WHY IT HIDES AT LOW ZOOM.** `LogicalGrowOnly::px` floors the cap, so below
+//! ZOOM 1 the cap holds its authored logical width while the text shrinks — at
+//! the shipped default zoom of 0.8 that makes the card 25% roomier relative to
+//! its own text than it is at any zoom ≥ 1. Above 1 the card is exactly
+//! proportional, so the fit becomes a pure ratio and stops depending on the
+//! scale at all: Potoroo's Keybindings hint measures 1.0121 of its text column
+//! at zoom 1.0, 1.6 and 2.0, to four decimals. Dropping the floor makes the SAME
+//! ratio appear at the shipped default, which is the proof that the floor is
+//! what hides this at low zoom.
+//!
+//! ⚠️ **THE MEASUREMENTS ABOVE WERE TAKEN WHILE THAT FLOOR WAS A BARE `1.0`,
+//! AND `scale` IS `zoom * dpi` — so this file once read the density as a zoom.**
+//! "The reachable-at-shipped-zoom instance is 2× because 0.8 × 2 = 1.6" was
+//! true of the code and false about the product: it meant a 2× reader at the
+//! shipped zoom was handed the PROPORTIONAL regime while a 1× reader at the
+//! same logical window got the roomier one — a 436-logical-px card against 545.
+//! The floor is the display's own ratio now (`scale.max(dpi)`), so the roomy
+//! low-zoom look this file calls load-bearing reaches BOTH readers and the
+//! ratios above are a function of zoom alone. Nothing here moved: the sweep's
+//! overflow set was empty before and is empty after, since the change only ever
+//! widens a card.
 //!
 //! **AND THE MENU BAR IS NOT A GATE EITHER.** Both arms measure identical
 //! ratios: the bar's reserve moves `card_y`, and nothing in the width budget
@@ -70,11 +80,12 @@
 //! EMPTY overflow set: nothing clips on any world, any carded kind, either
 //! density, either menu-bar arm, at zoom 0.8 or 1.0.
 //!
-//! **THE INCOHERENCE BELOW SCALE 1 IS UNTOUCHED, DELIBERATELY.** The cap is
+//! **THE INCOHERENCE BELOW ZOOM 1 IS UNTOUCHED, DELIBERATELY.** The cap is
 //! still `LogicalGrowOnly`, so at the shipped default zoom the card is still
-//! 1/scale roomier relative to its own text than at any scale ≥ 1. Which tier
+//! 1/zoom roomier relative to its own text than at any zoom ≥ 1. Which tier
 //! the cap should be TUNED at is a separate question from whether the hint
-//! fits, and the clamp is load-bearing for the low-zoom look.
+//! fits, and the floor is load-bearing for the low-zoom look — on every
+//! display, which is the one thing about it that did change.
 //!
 //! **HOW THE LEDGER RATCHETS.** It is not an exclusion. Every roster × catalog
 //! cell is graded, and a pair overflows if and only if it is ledgered, at the

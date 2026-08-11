@@ -11,9 +11,12 @@ pub(in crate::render) const CARD_EDGE_INSET_FLOOR: Logical = Logical(10.0);
 /// width and the scale ALONE — never the anchor, never the caller's actual
 /// `desired_w` — so the `TopLeft` and `TopRight` arms read the exact same
 /// number and the left/right mirror holds by construction. The reference cap is
-/// resolved GROW-ONLY, exactly as the card the inset is placing is.
-pub(in crate::render) fn overlay_rail_inset(ww: f32, scale: f32) -> f32 {
-    (ww / 3.0 - CARD_MAX_W.px(scale) * 0.5).max(0.0)
+/// resolved GROW-ONLY, exactly as the card the inset is placing is — which is
+/// why the density reaches here too: the cap's floor is `dpi`, so an inset that
+/// resolved it against a bare `1.0` would seat the card at a different fraction
+/// of the same logical window on a denser panel.
+pub(in crate::render) fn overlay_rail_inset(ww: f32, scale: f32, dpi: f32) -> f32 {
+    (ww / 3.0 - CARD_MAX_W.px(scale, dpi) * 0.5).max(0.0)
 }
 pub(in crate::render) const CARD_MAX_W: LogicalGrowOnly = LogicalGrowOnly(545.0);
 pub(in crate::render) const CARD_MAX_W_FACETED: LogicalGrowOnly = LogicalGrowOnly(600.0);
@@ -60,9 +63,10 @@ pub(in crate::render) fn overlay_card_box_policy(
     ww: f32,
     desired_w: f32,
     scale: f32,
+    dpi: f32,
 ) -> (f32, f32) {
     let floor = CARD_EDGE_INSET_FLOOR.px(scale);
-    let full = overlay_rail_inset(ww, scale);
+    let full = overlay_rail_inset(ww, scale, dpi);
     let cw = desired_w.min((ww - 2.0 * floor).max(0.0));
     let free = (ww - cw).max(0.0);
     let anchored_max = (ww - floor - cw).max(floor);
@@ -168,6 +172,7 @@ impl TextPipeline {
             width as f32,
             desired_w,
             self.metrics.scale,
+            self.metrics.dpi,
         )
     }
 
@@ -188,13 +193,20 @@ impl TextPipeline {
     /// and the fill-regime fold read this ONE scaled width, so the width and the
     /// fold threshold can never drift.
     ///
-    /// GROW-ONLY (`scale.max(1.0)`): the scale only ever WIDENS the base cap. The
-    /// bug is a high-zoom COLLAPSE, so the fix touches exactly the `zoom·dpi > 1.0`
-    /// regime. At the SHIPPED default (zoom 0.8, dpi 1.0 → scale 0.8) and every
-    /// scale ≤ 1.0 this is the identity — the card holds the base cap, BYTE-
-    /// IDENTICAL to the pre-fix `base`-passthrough (so the 0.8 default look and
-    /// every ≤1.0 capture/law are untouched; a slightly-roomier-than-proportional
-    /// card at low zoom never clips).
+    /// GROW-ONLY (`scale.max(dpi)`, i.e. `dpi · zoom.max(1.0)`): ZOOM only ever
+    /// WIDENS the base cap, and the DENSITY always carries it, so the resolved
+    /// cap is one LOGICAL width on every panel. The bug it fixes is a high-zoom
+    /// COLLAPSE, so it touches exactly the `zoom > 1.0` regime; at the SHIPPED
+    /// default (zoom 0.8) and every zoom ≤ 1.0 the card holds the base cap at
+    /// whatever the display's ratio is (a slightly-roomier-than-proportional card
+    /// at low zoom, which never clips).
+    ///
+    /// The floor is stated against `dpi` rather than a bare `1.0` because the two
+    /// differ on exactly the shipped default of a retina panel: at `zoom 0.8,
+    /// dpi 2` a `1.0` floor never binds, so the card resolved to `545 · 1.6` =
+    /// 872 device px — 436 LOGICAL px against the 545 a 1× reader sees at the
+    /// same logical window. The elision budget, and therefore how much of a
+    /// command name a row can show, was a property of the reader's display.
     pub(in crate::render) fn overlay_card_desired_w(&self, base: LogicalGrowOnly) -> f32 {
         self.metrics.px_grow_only(base)
     }
@@ -494,8 +506,9 @@ impl TextPipeline {
         // current zoom/DPI (the SAME grow-only `LogicalGrowOnly` the takeover
         // card's width uses) so a long correction isn't clamped to an unzoomed cap
         // while its shaped `content_w` doubled under zoom — the zoom-blind card bug,
-        // contextual sibling. Grow-only (`scale.max(1.0)`): byte-identical at every
-        // scale ≤ 1.0 (the shipped 0.8 default + all captures untouched). The MAX is
+        // contextual sibling. Grow-only (`scale.max(dpi)`): at every zoom ≤ 1.0 (the
+        // shipped 0.8 default) the band holds its authored LOGICAL width on any
+        // panel, so the popup's clamp is not a function of the display. The MAX is
         // wide enough to hold a whole add-to-dictionary row for an ordinary word
         // (~24 mono cells) so it never elides at wide width; a genuinely
         // long adversarial word still overruns it and elides — a small popup, never a

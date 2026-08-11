@@ -344,7 +344,7 @@ fn topright_card_box_is_right_anchored_and_on_canvas_across_the_width_sweep() {
     for &scale in &[1.0f32, 2.0] {
         let floor = chrome::CARD_EDGE_INSET_FLOOR.px(scale);
         for &cap in &[chrome::CARD_MAX_W, chrome::CARD_MAX_W_FACETED] {
-            let desired = cap.px(scale);
+            let desired = cap.px(scale, 1.0);
             for ww in (320u32..=1800).step_by(40) {
                 let ww = (ww as f32) * scale;
                 let (left, w) = chrome::overlay_card_box_policy(
@@ -352,6 +352,7 @@ fn topright_card_box_is_right_anchored_and_on_canvas_across_the_width_sweep() {
                     ww,
                     desired,
                     scale,
+                    1.0,
                 );
                 let right = left + w;
                 let ctx = format!("scale={scale} ww={ww} desired={desired}");
@@ -368,7 +369,7 @@ fn topright_card_box_is_right_anchored_and_on_canvas_across_the_width_sweep() {
                 // (`rail >= floor`) is biting — a narrow `ww` can make the ideal
                 // one-third rail collapse to 0, which the general on-canvas asserts
                 // above already cover.
-                let rail = chrome::overlay_rail_inset(ww, scale);
+                let rail = chrome::overlay_rail_inset(ww, scale, 1.0);
                 if rail >= floor && desired + rail + floor <= ww {
                     assert!(
                         (right - (ww - rail)).abs() < 0.01,
@@ -1059,7 +1060,7 @@ fn bars_query_caret_overlaps_the_query_text() {
     // rail inset (the card's left edge moved from the old flat ~28px edge-hug to
     // the wider interior-rail inset at this window width).
     crate::render::set_card_anchor_test_override(Some(theme::CardAnchor::TopLeft));
-    let card_left = chrome::overlay_rail_inset(w as f32, 1.0);
+    let card_left = chrome::overlay_rail_inset(w as f32, 1.0, 1.0);
     let old_card_left = 28.0_f32; // the pre-item-67 flat edge-hug this test was tuned against
     let dx = (card_left - old_card_left).round() as i64;
     let mut v = view("hello world\n", 0, 0);
