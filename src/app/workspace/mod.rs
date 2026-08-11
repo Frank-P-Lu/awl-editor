@@ -206,13 +206,16 @@ impl WorkspaceState {
         self.journey.card()
     }
 
-    /// Read the WHOLE summoned-overlay journey for the sidecar fold:
-    /// a parked parent is lifecycle state, not card content, so `overlay()`
-    /// cannot answer it — the same reason `ReplaySession::journey` exists.
-    /// Read-only; `core_slots` stays the only way to mutate it. Native/test only,
-    /// like the `--screenshot-app` capture that is its consumer.
-    #[cfg(any(test, not(target_arch = "wasm32")))]
-    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
+    /// Read the WHOLE summoned-overlay journey: a parked parent is lifecycle
+    /// state, not card content, so `overlay()` cannot answer it — the same
+    /// reason `ReplaySession::journey` exists. Read-only; `core_slots` stays
+    /// the only way to mutate it.
+    ///
+    /// Built on EVERY target. It was once gated to native and test, on the
+    /// reasoning that the `--screenshot-app` capture was its only consumer;
+    /// the footer hint is a second one, and it is drawn in the browser too. A
+    /// hint that names a key its own intercept does not honour is wrong on
+    /// every target, so the answer cannot come from a native-only door.
     pub(in crate::app) fn journey(&self) -> &Journey {
         &self.journey
     }
