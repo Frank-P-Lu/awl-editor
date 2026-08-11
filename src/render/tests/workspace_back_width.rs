@@ -383,6 +383,16 @@ fn the_workspaces_back_reads_and_draws_the_same_on_both_sides_of_the_staging_thr
                         // cell that stops overflowing fails too.
                         let fits = geom.text_left + ink_w <= cx + cw + 0.5
                             && top + height <= cy + ch + 0.5;
+                        if std::env::var("AWL_408_DIAG").is_ok() {
+                            eprintln!(
+                                "DIAG {what} | ink_w={ink_w:.3} availw={:.3} dx={:.4} \
+                                 ch={ch:.3} bot={:.3} dy={:.4} fits={fits}",
+                                cx + cw - geom.text_left,
+                                ink_w / (cx + cw - geom.text_left),
+                                top + height - cy,
+                                (top + height - cy) / ch,
+                            );
+                        }
                         if !fits {
                             overrun.push(what.clone());
                             continue;
