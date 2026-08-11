@@ -345,38 +345,3 @@ fn the_pre_fix_fraction_would_have_failed_the_margin_on_wagtail() {
     set_card_anchor_test_override(None);
     theme::set_active(theme::DEFAULT_THEME);
 }
-
-#[test]
-fn debug_item390_scratch2() {
-    let _g = crate::testlock::serial();
-    set_pane_split_test_override(Some(theme::PaneSplit::Split));
-    set_card_anchor_test_override(Some(theme::CardAnchor::TopLeft));
-    let (w, h) = (380u32, 800u32);
-    let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else { return; };
-    theme::set_active_by_name("Tawny").unwrap();
-    p.sync_theme();
-    let v = command_view(1);
-    p.set_view(&v);
-    p.prepare(&device, &queue, w, h).unwrap();
-    let geom = p.overlay_geometry(w);
-    let plan = p.overlay_row_plan(&geom);
-    let strip = plan.strip_band().unwrap();
-    let fills = p.overlay_pane_fills_probe();
-    eprintln!("text_left={} text_w={}", geom.text_left, geom.text_w);
-    eprintln!("strip.top={} strip.bottom={}", strip.top, strip.bottom());
-    eprintln!("fills={:?}", fills);
-    eprintln!("first_top={}", plan.first_top());
-
-    let px = pixeldiff::render_frame(&mut p, &device, &queue, w, h);
-    let (wi, hi) = (w as i64, h as i64);
-    for y in 122..131 {
-        let row: Vec<u8> = (0..50).map(|i| {
-            let sx = (geom.text_left + i as f32) as i64;
-            avg(&px, wi, hi, sx, y, 1, 1).r
-        }).collect();
-        eprintln!("y={y} row_r={:?}", row);
-    }
-    set_pane_split_test_override(None);
-    set_card_anchor_test_override(None);
-    theme::set_active(theme::DEFAULT_THEME);
-}
