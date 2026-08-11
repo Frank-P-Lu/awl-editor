@@ -97,15 +97,21 @@ every pass.
 2. **396 — the theme preview's win shrinks with scroll depth.** Recorded from
    388's own measurement, deliberately out of its scope. Body below. Not urgent —
    the shipped state is strictly better than before at every depth.
-3. **211 — the live-glide photograph. ⚠️ RE-BLOCKED, AND THE FLIP IS THE
-   LESSON.** The lock was CLEAR when this was queued and read
-   `CGSSessionScreenIsLocked = true` about fifteen minutes later, before
-   dispatch. A sitting launched on the first reading would now be writing
-   successful-looking `LIVE-PROBE shot … ok` lines while presenting zero frames.
-   **This is why the check belongs at BOTH ENDS and why a preflight-only check
-   is not a check.** `caffeinate` holds a display awake and cannot unlock one.
-   Dispatch when the screen is unlocked AND someone can keep it that way; the
-   window is small, top-left, non-activating and never steals keyboard focus.
+3. **211 — RUN, AND IT FOUND A LIVE DEFECT. ⚠️ The sitting is DONE; what it
+   found is now the work.** Display unlocked, `caffeinate` holding it, and — the
+   part that makes the result trustworthy — the lock was checked at BOTH ENDS and
+   was clear at both, so this is not the silent zero-frame run the entry warned
+   about. `MATRIX RESULT: DEFECT`, exit 1.
+   **Two cells fail identically**, `mangrove-to-magpie-burst/settled` and
+   `tawny-to-magpie-burst/settled`: `1/223 uniform blocks differ > 30.0`, block
+   `(360,280)+40`, expected `rgb(251,251,250)` got `rgb(216,217,216)`, diff 35.
+   Same block, same colours, both `-burst` cells, both at SETTLED — so a burst of
+   theme previews leaves one block stale where a single hop does not. Every
+   non-burst cell passed (commit, revert, early frames). Shots kept under the
+   probe's work dir, which is `/tmp` and will not survive a restart — re-run
+   `scripts/live-probe.sh --cells "mangrove-to-magpie-burst tawny-to-magpie-burst"`
+   to regenerate. Bisect against `cdb01a6f` (immediately before 388's same-step
+   split) is the open question: pre-existing, or shipped by 388.
 4. **HUMAN / LIVE — now small.** Eight blockers above, each needing a session,
    hardware, or a release-time word; the 30-item taste backlog closed by the
    bulk acceptance. ⚠️ 392 and 327 wait for dispatch until 388's quiet-host
