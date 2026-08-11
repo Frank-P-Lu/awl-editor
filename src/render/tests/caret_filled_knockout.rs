@@ -6,7 +6,16 @@ use super::super::*;
 use super::{headless_dqp, pixeldiff};
 
 const W: u32 = 420;
-const H: u32 = 240;
+/// TALL ENOUGH TO HOLD THE SUBJECT IN EVERY SWEPT CELL, which is a stronger
+/// requirement than it looks. The caret's row sits below `text_origin_top` —
+/// `TEXT_TOP` plus the rendered menu bar's reserve — and everything below that
+/// scales with zoom AND with DPI. At the roster's far corner (zoom 2, DPI 2, the
+/// bar shown) the glyph box lands near y=252 and runs ~73px tall; at 240 the
+/// mask fell off the bottom entirely, both populations read zero, and the law
+/// reported "empty mask populations" for a knockout it never asked to draw.
+/// [`assert_true_weight_mask`] now asserts that containment by name rather than
+/// leaving a future overflow to be diagnosed from an empty count.
+const H: u32 = 420;
 const _: () = assert!(CARET_MORPH_DILATE_PX.0 > CaretGlyphPipeline::FILLED_KNOCKOUT_DILATE_PX);
 
 #[derive(Clone, Copy)]
@@ -269,6 +278,18 @@ fn assert_true_weight_mask(
     // Independently render the same uploaded source mask white on black with
     // zero dilation: this is the true-weight pixel oracle.
     let (from_box, to_box, morph_t) = p.caret_glyph_geometry();
+    // THE SUBJECT MUST BE IN THE FRAME BEFORE ANY POPULATION IS COUNTED. Both
+    // masks are rasterised into this canvas, so a glyph box outside it yields two
+    // empty sets — a state indistinguishable, at the population assert below,
+    // from a knockout that failed to draw. Ask the containment question where the
+    // answer is still legible, and name the box and the canvas in the failure.
+    let [box_x, box_y, box_w, box_h] = to_box;
+    assert!(
+        box_x >= 0.0 && box_y >= 0.0 && box_x + box_w <= W as f32 && box_y + box_h <= H as f32,
+        "{what}: the caret glyph box {to_box:?} does not fit the {W}x{H} canvas, so this \
+         cell has no subject to measure — widen the canvas rather than reading the \
+         empty populations below as a knockout defect"
+    );
     p.caret_glyph_pipeline.set_color([255, 255, 255]);
     p.caret_glyph_pipeline.prepare(
         device,
@@ -333,7 +354,11 @@ fn exercise_cell(
     dpi: f32,
 ) -> bool {
     let text = format!("{}\npark", cell.text);
-    let what = format!("cell={} zoom={zoom} dpi={dpi}", cell.name);
+    let what = format!(
+        "cell={} zoom={zoom} dpi={dpi} menu_bar={}",
+        cell.name,
+        crate::menubar::menu_bar_on()
+    );
 
     // Parking on row 1 is the appearance baseline for the cell body's presence.
     prepare(
@@ -411,26 +436,40 @@ fn cassowary_filled_knockout_keeps_source_weight_across_cells_zoom_and_dpi() {
 
     let mut glyph_cells = 0usize;
     let mut glyphless_cells = 0usize;
-    for dpi in [1.0_f32, 2.0] {
-        p.set_dpi(dpi);
-        for zoom in [0.8_f32, 1.0, 2.0] {
-            for cell in CELLS {
-                if exercise_cell(&mut p, &device, &queue, cell, zoom, dpi) {
-                    glyph_cells += 1;
-                } else {
-                    glyphless_cells += 1;
+    // THE MENU-BAR AXIS IS SWEPT HERE, not inherited from the host. The bar's
+    // reserve moves every row — and therefore the caret's glyph box — down the
+    // canvas, and it is the one platform-forked sticky default in the tree
+    // (`menubar::platform_default`: off on macOS, on everywhere else). Left
+    // ambient, this law asked one question on the machine that wrote it and a
+    // different one on every Linux host, and the difference was a subject that had
+    // walked off the bottom of the frame. The ambient value is captured rather
+    // than `cfg!`-derived: a `cfg!` inside a test describes the host that COMPILED
+    // it, not the branch this process took under `AWL_MENU_BAR_FORCE`.
+    let ambient_menu_bar = crate::menubar::menu_bar_on();
+    for menu_bar in [false, true] {
+        crate::menubar::set_menu_bar_on(menu_bar);
+        for dpi in [1.0_f32, 2.0] {
+            p.set_dpi(dpi);
+            for zoom in [0.8_f32, 1.0, 2.0] {
+                for cell in CELLS {
+                    if exercise_cell(&mut p, &device, &queue, cell, zoom, dpi) {
+                        glyph_cells += 1;
+                    } else {
+                        glyphless_cells += 1;
+                    }
                 }
             }
         }
     }
+    crate::menubar::set_menu_bar_on(ambient_menu_bar);
     assert_eq!(
         glyph_cells,
-        7 * 3 * 2,
-        "seven inhabited classes x zoom x dpi"
+        7 * 3 * 2 * 2,
+        "seven inhabited classes x zoom x dpi x menu bar"
     );
     assert_eq!(
         glyphless_cells,
-        3 * 2,
+        3 * 2 * 2,
         "space census drift: the space is the ONLY glyphless cell"
     );
 
@@ -456,53 +495,62 @@ fn ordinary_morph_keeps_its_dilated_pixels_byte_identical() {
     theme::set_active_by_name("Tawny").unwrap();
     p.sync_theme();
 
-    for dpi in [1.0_f32, 2.0] {
-        p.set_dpi(dpi);
-        for zoom in [0.8_f32, 1.0, 2.0] {
-            let text = "xo\npark";
-            // Morph inhabits the character immediately before the insertion point.
-            prepare(
-                &mut p,
-                &device,
-                &queue,
-                PreparedView {
-                    text,
-                    line: 0,
-                    col: 2,
-                    look: CaretMode::Morph,
-                    zoom,
-                    code: false,
-                },
-            );
-            assert!(
-                p.caret_glyph_pipeline.is_drawn(),
-                "zoom={zoom} dpi={dpi}: fixture mask"
-            );
-            let actual = pixeldiff::render_frame(&mut p, &device, &queue, W, H);
+    // Both menu-bar arms, for the reason the law above sweeps them: the bar's
+    // reserve moves the caret's row, and leaving the axis ambient asks this
+    // identity question at one set of canvas coordinates on macOS and another on
+    // every Linux host.
+    let ambient_menu_bar = crate::menubar::menu_bar_on();
+    for menu_bar in [false, true] {
+        crate::menubar::set_menu_bar_on(menu_bar);
+        for dpi in [1.0_f32, 2.0] {
+            p.set_dpi(dpi);
+            for zoom in [0.8_f32, 1.0, 2.0] {
+                let text = "xo\npark";
+                // Morph inhabits the character immediately before the insertion point.
+                prepare(
+                    &mut p,
+                    &device,
+                    &queue,
+                    PreparedView {
+                        text,
+                        line: 0,
+                        col: 2,
+                        look: CaretMode::Morph,
+                        zoom,
+                        code: false,
+                    },
+                );
+                assert!(
+                    p.caret_glyph_pipeline.is_drawn(),
+                    "zoom={zoom} dpi={dpi} menu_bar={menu_bar}: fixture mask"
+                );
+                let actual = pixeldiff::render_frame(&mut p, &device, &queue, W, H);
 
-            let (from_box, to_box, morph_t) = p.caret_glyph_geometry();
-            p.caret_glyph_pipeline
-                .set_color(theme::primary().rgb_bytes());
-            p.caret_glyph_pipeline.prepare(
-                &device,
-                &queue,
-                W,
-                H,
-                p.caret_mask_from.as_ref(),
-                from_box,
-                p.caret_mask_to.as_ref(),
-                to_box,
-                morph_t,
-                1.0,
-                p.metrics.px(CARET_MORPH_DILATE_PX),
-            );
-            let reference = pixeldiff::render_frame(&mut p, &device, &queue, W, H);
-            assert_eq!(
-                actual, reference,
-                "zoom={zoom} dpi={dpi}: ordinary Morph bytes changed"
-            );
+                let (from_box, to_box, morph_t) = p.caret_glyph_geometry();
+                p.caret_glyph_pipeline
+                    .set_color(theme::primary().rgb_bytes());
+                p.caret_glyph_pipeline.prepare(
+                    &device,
+                    &queue,
+                    W,
+                    H,
+                    p.caret_mask_from.as_ref(),
+                    from_box,
+                    p.caret_mask_to.as_ref(),
+                    to_box,
+                    morph_t,
+                    1.0,
+                    p.metrics.px(CARET_MORPH_DILATE_PX),
+                );
+                let reference = pixeldiff::render_frame(&mut p, &device, &queue, W, H);
+                assert_eq!(
+                    actual, reference,
+                    "zoom={zoom} dpi={dpi} menu_bar={menu_bar}: ordinary Morph bytes changed"
+                );
+            }
         }
     }
+    crate::menubar::set_menu_bar_on(ambient_menu_bar);
 
     p.set_dpi(1.0);
     theme::set_active(theme::DEFAULT_THEME);
