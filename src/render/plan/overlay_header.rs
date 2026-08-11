@@ -13,8 +13,27 @@ use super::overlay_rows::OverlayRowPlanInput;
 /// fraction of the query BEAT tall. Glyph-free by the half-leading
 /// CENTRING bound: an inflated line box centres its glyph run, so the run's far
 /// edge clears the band's near edge as long as its own font height stays under
-/// `lh + header_gap·(1 - 2·frac)` — comfortably true for every body face at 0.4.
-pub(super) const SPLIT_GAP_FRAC: f32 = 0.4;
+/// `lh + header_gap·(1 - 2·frac)` — a bound against OVERLAP, not against
+/// reading clear of it. MEASURED (pixel arithmetic over a real capture, not
+/// the formula alone): at 0.4 the facet strip's own ink starts a bare ~3
+/// physical px below the lower surface's rim at dpi 1 — real, non-overlapping,
+/// but on a `Bordered` world (a literal black-on-white rim) that reads as
+/// touching. Lowered for real breathing room while leaving `BREATHE_FRAC` —
+/// the query box's OWN already-tuned symmetric breathing — untouched: only the
+/// gap's own thickness shrinks, its START position does not move, and neither
+/// `first_top` nor `card_h` reads this constant at all, so no row rhythm or
+/// card height moves. **Floored above a lower value that was tried first**:
+/// `chip_plate_floor`'s own mark-floor proves it bites by reconstructing the
+/// naive pre-fix centre and showing it draws above the lower surface's plate
+/// — that proof goes vacuous once the plate's own top (this fraction) pulls
+/// far enough ahead of the naturally-centred mark, which this module's own
+/// tests pin down between 0.35 and 0.25. This value keeps that non-vacuity
+/// intact while still buying the facet strip real, measured clearance.
+/// Reverting to the historical 0.4 is one line, plus the dependent literal
+/// reconstructions in `tests/split_pane.rs` and `plan/tests.rs` (both
+/// intentionally re-derive the fraction as an independent oracle rather than
+/// reading the constant back).
+pub(super) const SPLIT_GAP_FRAC: f32 = 0.35;
 
 /// A split card's upper surface borrows this fraction of the SAME
 /// already-proven-safe slack as symmetric breathing room below the query box

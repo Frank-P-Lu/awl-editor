@@ -717,8 +717,8 @@ fn the_split_gap_is_carved_out_of_the_beat_below_the_query_field() {
                 let field = plan.query_band().unwrap();
                 assert!(gb > gt, "{ctx}: the gap is a real band");
                 assert!(
-                    (gb - gt - gap * 0.4).abs() < 1e-3,
-                    "{ctx}: the gap is 0.4 of the beat, got {}",
+                    (gb - gt - gap * 0.35).abs() < 1e-3,
+                    "{ctx}: the gap is 0.35 of the beat, got {}",
                     gb - gt
                 );
                 // THE UPPER SURFACE CLOSES BELOW THE FIELD, never through it.
