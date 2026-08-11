@@ -21,6 +21,10 @@
 worker committing against its brief). After every merge and compression, verify
 this heading exists; `git log -S"BLOCKED ON THE USER"` finds who took it.
 
+Everything left here needs a session, hardware, or a release-time word — the
+taste-decision backlog itself was cleared by the 2026-08-11 bulk acceptance
+(see Decided against).
+
 1. **The site is stale against the published release — one command, yours:**
    `gh workflow run deploy-web.yml`. Live host is `awl-editor.fly.dev`
    (`site/fly.toml`; `awl.computer` is NXDOMAIN and appears nowhere in the
@@ -31,256 +35,66 @@ this heading exists; `git log -S"BLOCKED ON THE USER"` finds who took it.
    (An earlier revision of this entry claimed `0.0.0 / prerelease`; that was
    false and was corrected in place before the tag.) `FLY_API_TOKEN` is
    configured; trigger is `workflow_dispatch` only, deliberately.
-2. **Kite's veil strength** — `WARP_PAGE_VEIL = 0.13` (read from the shader; a
-   lane's report once said 0.20). Captures: the lane's worktree,
-   `gallery/item-268/`.
-3. **Which world adopts `ListStyle::Rules` next** — second-carrier requirements
-   are recorded in `theme/tests/personality.rs` beside Paperbark's entry; see
-   item 283.
-4. **Item 261's open call: delete-outright vs a `cfg(test)` fixture** for
-   `DeckleAnchor::Page`'s mutation witness. The delete branch was taken;
-   reverting is re-adding one small shader function.
-5. **Mulga and Magpie grounds want a visual judge** — see the visual/live
-   blocked section below.
-6. **Kite's facet tag:** its doc calls it a "technical room" but its only facet
-   is `voice: Modern`, and Technical belongs to Cassowary. Picker facets are
-   curated and capped, so the change is yours.
-7. **The narrow History comparison stage draws no footer** (`show_rows` false →
-   `hint_rows` 0 at ~900×520 and below) — a deliberate discoverability hole;
-   whether to spend vertical space there is taste.
-8. **The macOS release arm** — Apple signing secrets, per `RELEASING.md` §1.
-9. **Further tags and the site deploy** — your explicit word, every time.
-10. **The footer-reclaim row budget** (found during the CI RED fix `02d0ea23`,
-    implemented, deliberately backed out): `avail_px` charges the hint row and
-    blank separator a full `lh` each and never credits `overlay_footer_reclaim`,
-    which draws them compact — 65 px unspent at zoom 3, a whole row. Crediting
-    it changes shipped row counts on cards that already fit. The question is how
-    many rows a card should show; the arithmetic is ready either way.
-11. **Should the selected diagonal mark travel with the selection band?** Today
-    it snaps directly to the destination row while the band eases there. The
-    alternative makes the mark ride that same ease on the two Diagonal worlds.
-    This is a live feel decision no settled capture can make. Recommendation:
-    prototype the shared-ease arm only if the current snap reads detached; keep
-    the instant mark if it reads as the destination indicator rather than part
-    of the moving band.
-12. **Hosted-mac Metal diagnosis (item 231)** needs a macOS guest VM with
-    paravirtualised Metal. No VM tooling is installed; creating that rig is a
-    real storage/time spend. The next engineering step begins only after that
-    spend is approved. A negative reproduction is publishable; no speculative
-    product fix lands under the diagnosis item.
-13. **The AT-SPI journey (item 251)** needs a real Linux desktop session with
-    Orca. This Mac and its headless/Linux CI arms cannot perform the human
-    document-read, caret/selection, overlay, and editing-burst journey.
-14. **The Settings workspace's 880 px two-column transition (item 327).** The
-    previously unexplained non-monotonic rail hole is diagnosed on the current
-    reachable Settings state: with the long Project-root fixture, the focused
-    narrow pane has no accessory at 640–740, carries it at 760–860, then
-    `workspace_is_wide` introduces the category rail at 880 (⚠️ **that number is
-    a property of THIS fixture, not of the product** — item 387 measured the
-    same flip between 1070 and 1075 px on the default fixture at
-    `--capture-dpi 1`, because `workspace_is_wide` is derived from display-face
-    metrics × zoom, not a constant. Do not write 880 into a law) and shrinks the
-    diagonal row-cluster budget from 514 to 339 px. The value/Range rail drops
-    through 940 and returns at 960 (419 px). Choose whether to delay two-column
-    mode until the content pane preserves its accessory, or keep the 880
-    transition and choose which of row name, value, or rail yields first.
-    Separately, “Project root” is a full un-elided machine path, so the boundary
-    varies by machine. Recommendation: elide the path like other row text and
-    delay two-column mode until the accessory survives; staging one region a
-    little longer is calmer than showing both regions with controls missing.
-15. **The Linux drawn-menu Export click needs a real window/compositor.**
-    `AWL_MENU_BAR_FORCE=on` reaches the production menu geometry and hit-test on
-    this Mac (15 forced menu laws pass), but every hermetic `App` is deliberately
-    GPU-less and `App::menubar_press` returns before hit-testing without the
-    window-bound `Gpu`. Constructing that object requires a real winit window,
-    display handle and wgpu surface; the live script has no pointer-press event.
-    Close this on a Linux desktop with a real rendered-menu click, or after an
-    explicitly approved live GUI harness gains press input plus observable state.
-16. **Item 211's unoccluded live-glide photograph needs an unlocked display.**
-    The existing live-band sweep is the correct instrument and refuses false
-    success, but the required end-of-run lock check currently reports
-    `CGSSessionScreenIsLocked = true`. `caffeinate` cannot unlock it. Run the
-    sitting only after the display is unlocked and can remain foregrounded.
-17. **Item 241's dense pointer/wheel cadence remains a live feel check.** The
-    exact 4530x2756@2x headless case is now measured on the release build:
-    1.43 s, 215,793,664-byte max RSS, page/outline/gutter all within the canvas
-    and no visual clipping. A settled capture cannot establish interactive
-    cadence; that last arm needs a human at the live window.
+2. **The macOS release arm** — Apple signing secrets, per `RELEASING.md` §1.
+3. **Further tags and site deploys** — your explicit word, every time.
+4. **The AT-SPI journey (item 251)** needs a real Linux desktop session with
+   Orca. This Mac and its headless/Linux CI arms cannot perform the human
+   document-read, caret/selection, overlay, and editing-burst journey.
+5. **The Linux drawn-menu Export click needs a real window/compositor.**
+   `AWL_MENU_BAR_FORCE=on` reaches the production menu geometry and hit-test on
+   this Mac (15 forced menu laws pass), but every hermetic `App` is deliberately
+   GPU-less and `App::menubar_press` returns before hit-testing without the
+   window-bound `Gpu`. Constructing that object requires a real winit window,
+   display handle and wgpu surface; the live script has no pointer-press event.
+   Close this on a Linux desktop with a real rendered-menu click, or after an
+   explicitly approved live GUI harness gains press input plus observable state.
+6. **Item 211's unoccluded live-glide photograph needs an unlocked display.**
+   The existing live-band sweep is the correct instrument and refuses false
+   success, but the required end-of-run lock check currently reports
+   `CGSSessionScreenIsLocked = true`. `caffeinate` cannot unlock it. Run the
+   sitting only after the display is unlocked and can remain foregrounded.
+7. **Item 241's dense pointer/wheel cadence remains a live feel check.** The
+   exact 4530x2756@2x headless case is now measured on the release build:
+   1.43 s, 215,793,664-byte max RSS, page/outline/gutter all within the canvas
+   and no visual clipping. A settled capture cannot establish interactive
+   cadence; that last arm needs a human at the live window.
+8. **The AppImage is now published for the first time, in v0.10.0, and NOBODY
+   HAS LAUNCHED IT.** At the `v0.9.0` tag `release.yml` contained ZERO AppImage
+   references — `scripts/package-appimage.sh` landed afterwards — so v0.9.0
+   carried only the tarball. The v0.10.0 assets are verified by download:
+   both `sha256sum`s check, the tarball carries RELEASING §4's full required set,
+   the AppImage is a valid type-2 image (magic `41 49 02`), glibc floor 2.35.
+   **What remains unverified is the only thing that matters to a user: RELEASING
+   §5 step 7, launching BOTH artifacts on a real Linux desktop.** It cannot be
+   performed from this Mac, so the AppImage's desktop-integration path — launcher
+   name, icon, FUSE fallback — is live and exercised by nothing but its own build.
+   The tarball is the documented fallback and is unaffected.
+9. **The export save panel wants your eye on macOS** (item 301) — an AppKit
+   modal is unobservable from any test. Right folder? Right pre-filled name?
+   Cancel leaves the document untouched? Try `Export as PDF…`.
 
 ## 🔵 BLOCKED ON THE USER — visual verdicts and live journeys
 
-The mechanical evidence for these is complete. What remains is an aesthetic
-choice, a live-feel judgement, or hardware/session access an agent does not have.
+**Cleared by the 2026-08-11 bulk acceptance — shipped state stands on every
+landed taste item** (see Decided against; the removed list with each item's
+revert handle is in that decision's commit, `git log -S"bulk acceptance" --
+.orchestrator/queue.md`). Flag anything that reads wrong live; do not re-ask
+item by item. Still open, because only real time at the live window answers:
 
-- 🔵 **387's Back cell while a filter is live.** In Settings, `⌫` belongs to the
-  query field as soon as a character is typed, so the footer's Back cell has to
-  say something else for that stretch. **Shipped: fall back to `tab back` while
-  the query is live**, because the stage must always name a Back that is TRUE.
-  The alternative is to drop the cell entirely while typing — then `tab back`
-  never appears at all, but part of every filtered journey advertises no Back.
-  Reverting to that is one line: `BackKey::Focus`'s arm in
-  `OverlayState::detail_back` returns `None`, plus one assertion.
-- 🔵 **386's two glances.** Potoroo with the rail UNFOCUSED reads 3.07:1, the
-  roster's tightest cell and just over the project's own 3.0 bar — not a defect,
-  but worth an eye. And the dimmed unfocused rail plate is a declared
-  degradation at ΔE 4.49 worst case, below the 2.3 JND by design: confirm it
-  still reads as "a mark, insisting less" rather than as nothing.
-- 🔵 **The AppImage is now published for the first time, in v0.10.0, and NOBODY
-  HAS LAUNCHED IT.** At the `v0.9.0` tag `release.yml` contained ZERO AppImage
-  references — `scripts/package-appimage.sh` landed afterwards — so v0.9.0
-  carried only the tarball. The v0.10.0 assets are verified by download:
-  both `sha256sum`s check, the tarball carries RELEASING §4's full required set,
-  the AppImage is a valid type-2 image (magic `41 49 02`), glibc floor 2.35.
-  **What remains unverified is the only thing that matters to a user: RELEASING
-  §5 step 7, launching BOTH artifacts on a real Linux desktop.** It cannot be
-  performed from this Mac, so the AppImage's desktop-integration path — launcher
-  name, icon, FUSE fallback — is live and exercised by nothing but its own build.
-  The tarball is the documented fallback and is unaffected.
-
-- 🔵 **Four things on `main` awaiting your eye, each revertible in one commit or
-  line:**
-  - **The caret** (item 345) — no longer overhangs its glyph on Currawong and
-    Cassowary (was 120% of the letter, 2.4 px into the next character; now
-    matches the cell: 14.400 → 12.000 at 1×). It is *narrower* there now, and
-    the caret is the design's one accent. Branch `claude/item-345-caret-pitch`
-    is ready to merge in one command; `gallery/item-345/*_before_after.png` has
-    2×2 grids with the glyph-cell edge marked. Say the word and it lands.
-  - **Magpie's mark** (item 346, candidate B landed) — vertex ~70.7° → ~50.8°,
-    weight 1.25 unchanged, Mangrove untouched. If B reads too wide, C (87.6°,
-    smaller both ways) is the honest third; D (thinner stroke) is the trap —
-    weakest presence at 1× for a difference invisible at 2×. Fixed-crop
-    comparison: `gallery/item-346/compare-magpie-mark-1x-vertex-desc-before-C-A-D-B.png`
-    (+2× twin, + `compare-magpie-row-*` at 1:1). One line in
-    `src/theme/diagonal.rs` either way.
-  - **The writing column at 2×** (item 338) — sixteen decorations (squiggle,
-    pills, table pads, rules, caret widths, entrance drop…) were half their
-    tuned size on every Retina display; the squiggle reads instantly.
-    `gallery/item-338/338-2x-before-after.png`. 1× is unchanged. Several carry
-    "TASTE TUNABLE" doc comments, so the answer may be "yes, all sixteen" — but
-    it is yours, per construct. A two-sided ledger law holds them meanwhile.
-  - **The card's width cap** (item 342) — 520 → 545, clearing the clipped help
-    line (`esc clos`/`esc clo`) on Potoroo and Firetail; 540 does not clear it.
-    The extra 25 px land as air after the hint and a looser label-to-chord
-    gutter (~1.40:1 → ~1.47:1) — the gutter is what a critical eye will notice.
-    `gallery/item-338/342-shipped-look-*-zoom080-before-after.png`. Open
-    sub-question, upstream of 327: which scale tier is the cap TUNED at?
-    `LogicalGrowOnly` keeps device width below scale 1, so the shipped 0.8 zoom
-    is 25% roomier than anything a Retina user sees.
-- 🔵 **Zoom-300% minimum card** (item 347): in the two smallest windows the app
-  allows, a workspace stage plans no rows and draws no other region — a card
-  carrying no list, 7 reachable cells. Keep a one-line minimum card, or refuse
-  to enter the stage? Held by a two-sided ledger meanwhile.
-- 🔵 **The find/replace panel** (item 174 slice 3): outer margin and inner pad
-  are raw device-px constants — half their tuned size on every Retina display
-  (CLAUDE.md's own tripwire, live again). Not promoted because the 1× look is
-  what was tuned; the law is fix-tolerant if you say scale it. The objective
-  narrow-window defect is closed: the card now caps to the available width,
-  wraps its complete teaching copy, and stays inside both canvas edges.
-- 🔵 **The right-click menu no longer dims your document** (item 298): carded
-  worlds get no frost at all; bare worlds frost the menu's own footprint only.
-  Before/after differs on 76–79% of pixels; `gallery/item-298/`. Revert is one
-  line. Out of step now: the **spell popup** still takes no frost anywhere
-  (DESIGN §5 says it "recedes nothing" on purpose) — whether that stands is
-  yours.
-- 🔵 **Right-click menu's greyed-out labels** (item 299): "unavailable" used to
-  sit one row below its own row (ΔE 0.0 — invisible); now correct. A glance to
-  confirm it reads as quiet, not broken. `gallery/item-299/`.
-- 🔵 **Quokka's card texture at non-1× zoom** (item 359): keep the shipped
-  DPI-only 11 px chamfer / 8 px dot cell as stable printed detail, or scale both
-  with editor zoom so the card remains one geometric form with its type? At
-  zoom 2 the zoom-aware candidate is 22/16 logical px and changes 19.6–22.9%
-  of the canvas; at zoom 0.8 it is 8.8/6.4 and changes 8.4–13.2%. Both remain
-  legible. Recommendation: keep DPI-only unless the larger, more decorative
-  2× texture is specifically wanted. Comparison sheet:
-  `/tmp/awl-item-359/comparison-current-vs-zoom-aware.png`.
-- 🔵 **One rail wore another's highlight — fixed** (item 309): only the selected
-  rail brightens now. Glance: `gallery/item-309/309-crop-{BEFORE,AFTER}-*.png`.
-- 🔵 **Two plate changes, both design calls** (items 308, 316): a 1-px rim
-  appeared under the footer hint on `Bars` worlds (the old plate was ΔE 1.91
-  from the page — invisible); an empty chip above "Switch project…" disappeared.
-  `gallery/item-308/`, `gallery/item-316/`, each with @2x pairs.
-- 🔵 **`--help` realigned by 7 whitespace-only lines** (item 273 r1) — one
-  padding rule instead of an eyeballed-per-line table; one `line()` function to
-  revert. One factual fix kept regardless: `--measure` said "default 80", the
-  value is 70 prose / 100 code.
-- 🔵 **`Section::Cli` placement in the reference** (item 273 r1): appended last,
-  after Markdown; caption "Unlisted flags" equally open. Rendered clean, 0
-  dangling links. `gallery/item-273r1/ref-cli.png`. Cheap to move.
-- 🔵 **The export save panel wants your eye on macOS** (item 301) — an AppKit
-  modal is unobservable from any test. Right folder? Right pre-filled name?
-  Cancel leaves the document untouched? Try `Export as PDF…`. The separately
-  diagnosed Linux rendered-menu click is recorded under BLOCKED.
-- 🔵 **Should exporting bring the Finder forward at all?** (item 301) The reveal
-  takes focus — DESIGN's no-nagging boundary. If no, the honest alternative is
-  a palette row, not an automatic reveal. Live-only.
-- 🔵 **Does the Reference belong in the Help menu?** (item 273 r4) `HELP_ITEMS`
-  is a hand-curated four-item list with no coverage law. One line either way.
-- 🔵 **The menu bar's pads double on Retina** (item 323): `BAR_INSET_X`,
-  `TITLE_PAD_X`, `DROP_PAD_*` went `Logical`; 1× byte-identical; the >1× look
-  has never been seen by a human. Needs Retina Linux/web or
-  `AWL_MENU_BAR_FORCE=on`; the macOS dropdown is live-only.
-- 🔵 **Non-macOS menu bar height** (item 321): now a constant 35.6 logical px at
-  every zoom/DPI instead of thinning as density rises (+5 px at 2×). Byte-
-  identical at 1× and on macOS default; worth a Retina Linux/web look.
-- 🔵 **313's terminus call:** does the hint continue the spine's lean past the
-  terminus or sit at the terminal x? Measured pixel-identical on Mangrove, 9 px
-  apart on Magpie. `continue` is implemented behind a one-word switch; the
-  argument for it: at terminal x the hint reads as one more list row.
-  `gallery/item-313/{continue,terminus}-*.png`.
-- 🔵 **318's raking frost edges** — landed; the one open question: should a
-  mirrored composition's QUERY FIELD mirror like its rows? If yes, Magpie's
-  43.15 px frost overhang disappears but the field right-aligns and its `›`
-  travels as you type — it needs its own design, not 313's.
-  `gallery/item-318/{before,after}-{Mangrove,Magpie}.png`.
-- 🔵 **297's four calls** (`gallery/item-297/`): (1) past 1.74× zoom the
-  navigate cue DISAPPEARS rather than shrinking — deliberate (the size is the
-  composition), but gone-vs-smaller is yours; (2) before/after pairs; (3) the
-  cue takes the wordmark's full ink — hierarchy by size alone; (4) the gap is
-  one constant (0.12 em).
-- 🔵 **314 moved a visible length on Retina:** page collapsed side pad and
-  outline rail inset now honour their authored 16 logical px (were reading as
-  8 device). dpi-1 byte-identical (19/19); wants a Retina glance.
-- 🔵 **312's feather width and lean** (`gallery/item-312/`): shipped 28 px
-  feather vs 14 (law's floor) and 42 (skirt onto the page); lean-on vs upright.
-  Orchestrator's eye: the defect (words breaking clean at a hard edge) is gone
-  and the lean reads intentional — yours to accept.
-- 🔵 **294's three calls** (`gallery/item-294/`): (1) the full-takeover frost
-  was HALF strength on Retina (fixed reach was device-px); fixed — moves 224k
-  of 960k pixels on Gumtree at 2×, isolatable to one function if you want it
-  reverted; (2) the footprint's hard edges cut words mid-glyph — reads as a
-  pane of frosted glass; (3) a blurred squiggle becomes a soft red band inside
-  frost. The caret-under-card case reads well and needs no change.
-- 🔵 **296/300's notice look** (`gallery/item-296-300/`): one plated LABEL line
-  at the top of the writing column. Calls: placement (covers the first prose
-  line on heading-less docs), square corners, the toast/sticky loudness ladder,
-  padding ratios. The 2500 ms toast lifetime only *feels* right live.
-- 🔵 **131e/303's two taste calls** (`gallery/item-131e-303/`): Magpie hairline
-  now weight 1.25 — too faint? one dial, Mangrove untouched. And the mark hangs
-  at the cluster's budget outer end (fixed-surface rule), so on chord-less rows
-  it sits ~460 px from its label — the alternative anchor breaks the
-  fixed-surface rule; choose the tradeoff.
-- 🔵 **Trigger, not task** (from the closed 258/260 judging): Mulga and
-  Cassowary share the light-line-on-dark arm, separated by hue and room value,
-  not structure. If a FOURTH `Pinstripe` carrier lands, or an audition ever
-  reads Mulga↔Cassowary as a repaint, a Zigzag-style pitch/weight dial becomes
-  owed — Mulga first. Nothing owed today.
 - **284 — the live glide's feel** and `MARKER_TRAVEL_TILT_DEG = 20°`; plus
   whether a wrap's transient (indistinguishable from an ordinary step) deserves
   a distinct flourish. Live judgement.
-- **242 — `readout::CANVAS_INSET` remains a visual choice.** The formal
-  five-shot affordance smoke and the 1×/2× anchor/menu/margin/outline sweeps are
-  complete; every affordance was locatable and all objective geometry laws
-  passed. The inset is declared `Physical`; promoting it to `Logical` doubles
-  it on Retina and is now purely an appearance decision.
-- **271/283 —** `Rules` ships on one carrier; second-carrier requirements live
-  in `theme/tests/personality.rs`.
+- **296/300 — the 2500 ms toast lifetime** only *feels* right live; the notice's
+  look itself is accepted.
 
-## Remaining work — handoff order (RE-DERIVED 2026-08-09, against the tree)
+## Remaining work — handoff order (RE-DERIVED 2026-08-11, against the tree)
 
-⚠️ **This section has gone stale four times, each time by editing the previous
-list instead of re-checking the tree.** Every entry in the previous list was
-verified landed via `git log --grep` before this re-derivation (292/293/299/303,
-294/298, 305, 291, 296+300, 273's residuals, 302, 227, 131e+303 — all merged).
+⚠️ **This section has gone stale five times, each time by editing the previous
+list instead of re-checking the tree.** The fifth: item 345 sat on this board as
+"ready to merge in one command, held for the user's word" while its merge
+(`1e6fd7c8`, two parents, verified) was already an ancestor of `main` — the
+word was given for a merge that had already happened. Re-derive from the tree,
+every pass.
 
 1. **388 — Theme-picker arrowing is still visibly laggy.** User reports the landed
    debounce removal did not make Up/Down browsing feel responsive. The mechanism
@@ -294,23 +108,15 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
    its deliverable is timing, and a receipt taken beside other lanes measures the
    wave, not the mechanism.**
 2. **391 — the picker footer teaches `⌫ up` where Backspace is now inert.** Body below.
-3. **392 — the menu-bar axis is covered by a NAME FILTER, and it has now cost a CI
-   red.** `native-gate.sh` runs its menubar arms over tests matching
-   `menubar|menu_bar`, and its own comment records a census counting 14 tests that
-   actually see a tripled reserve. Both laws CI just caught were outside that
-   filter, and about eleven more remain. The trade is gate wall-clock against
-   finding this class locally: widen the filter (two more full suites per gate), or
-   make `AWL_MENU_BAR_FORCE=on` a standing pre-push arm — it reproduced both
-   failures in under a second where the lavapipe container cost ten minutes.
-   Recommendation: the forcing arm, because it is nearly free and this class has
-   now escaped a local gate twice. 🔵 User decision.
-4. **🔵 HUMAN / LIVE — the largest category on this board, by far.** 17 hard
-   blockers and 30 taste or live-feel verdicts, against 3 items an agent can
-   act on. **231** needs the approved macOS guest-VM spend; **251** needs a
-   human at a Linux desktop with Orca; **327** and the landed taste calls close
-   on the user's eye. Most of the 30 are a one-line revert with captures
-   already sitting in `gallery/` — they are cheap to answer and are not being
-   answered, which is why they accumulate.
+3. **392 — DECIDED 2026-08-11: the forcing arm.** Make `AWL_MENU_BAR_FORCE=on` a
+   standing pre-push arm. Body below.
+4. **327 — DECIDED 2026-08-11: elide and delay.** Settings two-column: elide the
+   Project-root path, delay two-column mode until the accessory survives. Body
+   below.
+5. **HUMAN / LIVE — now small.** Nine blockers above, each needing a session,
+   hardware, or a release-time word; the 30-item taste backlog closed by the
+   bulk acceptance. ⚠️ 392 and 327 wait for dispatch until 388's quiet-host
+   timing sitting completes — 388 was dispatched ALONE on purpose.
 ---
 
 ## Open items
@@ -338,24 +144,39 @@ one. Verify by driving both pickers with real `--keys` and reading each footer
 from the sidecar; a law must fail if either picker's hint names a key that its
 own intercept does not honour.
 
-### 392 — the menu-bar axis is covered by a name filter, not by a sweep
+### 392 — make `AWL_MENU_BAR_FORCE=on` a standing pre-push arm
 
-`native-gate.sh` runs its menubar arms over tests matching `menubar|menu_bar`,
-and its own comment records a census counting 14 tests that actually see the
-reserve. **Three laws in two days shipped blind to this axis** — two in
+**DECIDED 2026-08-11 (user):** the forcing arm, not the widened filter.
+Background: `native-gate.sh` runs its menubar arms over tests matching
+`menubar|menu_bar`; three laws in two days shipped blind to this axis — two in
 `metric_scale`/`caret_filled_knockout`, one in `workspace_back_width` — each
-passing a full local gate across both conventions and all four arms, each caught
-by CI instead. `menubar::platform_default` is `false` on macOS and `true`
-everywhere else, so an unpinned law measures a different product locally than in
-CI. About eleven more tests sit outside the filter.
+passing a full local gate, each caught by CI instead. `menubar::platform_default`
+is `false` on macOS and `true` everywhere else, so an unpinned law measures a
+different product locally than in CI; about eleven more tests sit outside the
+name filter. Costs, measured: the forcing arm reproduced all three failures in
+about a second each; the widened filter costs two more full suites per gate
+(~4 min each) and is rejected. Build: a standing arm in `native-gate.sh` that
+runs the affected filters under `AWL_MENU_BAR_FORCE=on`, named in the receipt
+so a reader sees what was and wasn't covered. Verify: prove non-vacuity by
+reverting one of the three caught fixes locally and watching the arm go red.
 
-The trade, with both costs measured: widening the filter costs two more full
-suites per gate (~4 min each here). Making `AWL_MENU_BAR_FORCE=on` a standing
-pre-push arm over the affected filters is nearly free — it reproduced all three
-failures in about a second each, where the lavapipe container cost ten minutes
-and a CI cycle costs seventeen. Recommendation: the forcing arm.
-🔵 **User decision** — and note the user's standing position that a red CI is
-acceptable, which weakens the case for spending gate wall-clock on this.
+### 327 — Settings two-column: elide the path, delay the transition
+
+**DECIDED 2026-08-11 (user):** elide "Project root" like other row text, and
+delay two-column mode until the content pane preserves its accessory — staging
+one region a little longer is calmer than showing both regions with controls
+missing. Diagnosed mechanics: with the long Project-root fixture the focused
+narrow pane has no accessory at 640–740, carries it at 760–860, then
+`workspace_is_wide` introduces the category rail at 880 and shrinks the
+diagonal row-cluster budget from 514 to 339 px; the value/Range rail drops
+through 940 and returns at 960 (419 px). ⚠️ **The 880 is a property of THAT
+fixture, not of the product** — item 387 measured the same flip between 1070
+and 1075 px on the default fixture at `--capture-dpi 1`, because
+`workspace_is_wide` is derived from display-face metrics × zoom, not a
+constant. Do not write 880 into a law; derive the boundary from the flip
+itself. Verify: sweep widths across both fixtures at 1× and 2×, asserting the
+accessory is present whenever two-column mode is active and the elided path
+never overflows its cell; the law names which fixture and boundary it enrolled.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
@@ -377,6 +198,21 @@ sweep.**
 
 ## Decided against — do not re-propose without a new reason
 
+- **The 2026-08-11 bulk acceptance — shipped state stands on every taste item
+  then open.** ~30 verdicts closed as accepted, not deferred: Kite's veil
+  (0.13) and facet tag, 261's delete branch, the narrow-History footer hole,
+  the footer-reclaim row budget, the diagonal mark's instant snap, the spell
+  popup's no-frost, 301's Finder-forward reveal, and items 131e/174/242/273/
+  294/296–300/303/308/309/312–318/321/323/338/342/345–347/359/386/387. Each
+  stays revertible on sight; the removed list with per-item revert handles and
+  gallery paths is in this decision's commit — `git log -S"bulk acceptance" --
+  .orchestrator/queue.md`. Do not re-open without a live sighting that reads
+  wrong.
+- **231's guest-VM spend — DECLINED 2026-08-11.** The project rides free
+  open-source GitHub runners for this axis; `mac (render::tests)` stays
+  tolerated red, pinned by name in `ci.yml`. Revisit only if the axis starts
+  gating a shipping artifact. A negative reproduction remains publishable if
+  the rig ever exists.
 - **Reusing one mutable render pipeline across the diagonal/frost roster sweeps to shorten
   their 23.34 s + 15.84 s cost.** The optimization changed per-cell pixel measurements,
   proving cross-cell state changed the law's subject. Fresh-pipeline isolation stays. Both
@@ -413,6 +249,14 @@ sweep.**
 
 ## Parked — explicit gate or future design
 
+- **`ListStyle::Rules` second carrier** — requirements recorded beside
+  Paperbark's entry in `theme/tests/personality.rs` (item 283); adopt when a
+  world earns it, not on a date.
+- **A pitch/weight dial for the `Pinstripe` arm** (from the closed 258/260
+  judging): Mulga and Cassowary share the light-line-on-dark arm, separated by
+  hue and room value, not structure. Owed only if a FOURTH carrier lands or an
+  audition ever reads Mulga↔Cassowary as a repaint — Mulga first. Nothing owed
+  today.
 - **Export save-dialog scope:** macOS + Linux, one live-only cross-platform seam;
   capture uses an explicit path. Decided, not scheduled.
 - **Per-world living-band choreography:** audition TwoShape/Slam/Soft against
