@@ -83,6 +83,11 @@ impl App {
     /// line as a run failure, so a silently-broken capture can never
     /// masquerade as a pass. (Print fate (c): CLI harness output, audited in
     /// `println_audit`.)
+    ///
+    /// A successful line also carries this window's own RENDER CONFIGURATION —
+    /// `surface=WxH dpi=S` from [`Self::probe_surface_tag`] — because the
+    /// reference the script grades the shot against has to be rendered in that
+    /// same configuration to be a picture of the same thing. See that method.
     #[cfg(not(target_arch = "wasm32"))]
     fn probe_shot(&self, path: &std::path::Path) {
         #[cfg(target_os = "macos")]
@@ -115,8 +120,9 @@ impl App {
                 Ok(img) => {
                     match img.save(path) {
                         Ok(()) => println!(
-                            "LIVE-PROBE shot {} ok backend=window-server",
-                            path.display()
+                            "LIVE-PROBE shot {} ok backend=window-server {}",
+                            path.display(),
+                            self.probe_surface_tag()
                         ),
                         Err(e) => {
                             println!("LIVE-PROBE shot {} FAILED: png write: {e}", path.display())
@@ -152,8 +158,9 @@ impl App {
         match read {
             Ok(img) => match img.save(path) {
                 Ok(()) => println!(
-                    "LIVE-PROBE shot {} ok backend=frame-mirror ({why_not_ws})",
-                    path.display()
+                    "LIVE-PROBE shot {} ok backend=frame-mirror ({why_not_ws}) {}",
+                    path.display(),
+                    self.probe_surface_tag()
                 ),
                 Err(e) => println!("LIVE-PROBE shot {} FAILED: png write: {e}", path.display()),
             },
@@ -163,4 +170,37 @@ impl App {
             ),
         }
     }
+
+    /// THIS WINDOW'S RENDER CONFIGURATION, as the `surface=WxH dpi=S` tail of
+    /// every successful `LIVE-PROBE shot …` line.
+    ///
+    /// The probe grades a live shot against an OFFSCREEN render of the same
+    /// state, and "the same state" includes the canvas the state was laid out
+    /// on. That canvas is TWO numbers, not one: the surface in DEVICE pixels and
+    /// the display's scale factor. They are not interchangeable — a layout is
+    /// not invariant under trading surface for dpi, so a reference rendered at
+    /// the window's LOGICAL size and dpi 1 is a different picture from the same
+    /// state on a HiDPI window, and grades a real frame against a canvas nothing
+    /// ever drew. Reporting both lets `scripts/live-probe.sh` render its
+    /// reference at exactly what this window used: the harness asks the window
+    /// instead of assuming the display.
+    #[cfg(not(target_arch = "wasm32"))]
+    fn probe_surface_tag(&self) -> String {
+        match self.frame.gpu() {
+            Some(g) => surface_tag(g.config.width, g.config.height, g.window.scale_factor()),
+            // No GPU means no frame was written either, so this rides a line the
+            // script already treats as a failure; it stays parseable regardless.
+            None => surface_tag(0, 0, 0.0),
+        }
+    }
+}
+
+/// THE WIRE FORMAT of that tail, spelled ONCE — the producer above and the
+/// consumer (`scripts/live-probe.sh`'s `check_shot`, which seds `surface=` and
+/// `dpi=` off the line) cannot drift apart while both read this. A drift would
+/// not fail loudly; the script would simply find no canvas. Pinned by law
+/// (`probe::tests::probe_shot_lines_carry_the_canvas_fields_the_script_parses`).
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn surface_tag(width: u32, height: u32, dpi: f64) -> String {
+    format!("surface={width}x{height} dpi={dpi}")
 }

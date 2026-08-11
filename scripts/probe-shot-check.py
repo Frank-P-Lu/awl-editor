@@ -3,21 +3,33 @@
 
 The live-probe harness (`scripts/live-probe.sh` + `awl --live-script`) captures
 what the REAL app actually put on screen (window-server image, or the presented
-frame mirror). The offscreen `--screenshot` capture of the same state is proven
-correct by the law suite — so it serves as the EXPECTED image. This checker
-compares the two with block arithmetic (CLAUDE.md: appearance is asserted over
-pixels, never inferred from state):
+frame mirror). A `--screenshot-app` capture of the same state on the SAME canvas
+is the EXPECTED image — a real headless `App`, so it makes every launch-time
+render decision the live window made. This checker compares the two with block
+arithmetic (CLAUDE.md: appearance is asserted over pixels, never inferred from
+state):
 
-  * The live shot may be at a higher DPI scale (2x retina) and may include OS
-    window chrome above the surface; blocks are mapped bottom-anchored through
-    the width ratio, so both backends and both scales check identically.
+  * The live shot may include OS window chrome above the surface; blocks are
+    mapped bottom-anchored through the width ratio, so both backends check
+    identically. The ratio is normally 1 now that the reference is rendered on
+    the live surface's own pixel size, but a scaled reference still works.
   * The reference is cut into fixed blocks; only blocks that are NEAR-UNIFORM
     in the reference (grounds, page surface, bars, placards) are asserted —
-    text antialiasing legitimately differs between 1x and downscaled 2x, but a
+    text antialiasing legitimately differs between backends, but a
     vanished/stale/blank surface floods the uniform blocks with huge diffs.
   * `--region page` restricts the sweep to the page column (x >= 20% of the
     frame) for shots where an AMBIENT world's margins legitimately animate
     live (lava lamp / twinkling stars) while the headless phase is frozen.
+  * `--corner N` drops the blocks covering the OS window's ROUNDED BOTTOM
+    CORNERS. A window-server image is the window as COMPOSITED, so it carries
+    the corner mask the compositor applies; an offscreen render has square
+    corners and always will. Same family as the y-offset above — OS window
+    shaping present in one image and structurally absent from the other — and
+    not a tolerance: it drops two named NxN boxes and leaves every other block
+    asserted at full strength. TOP corners are not dropped; they sit inside the
+    title bar the bottom-anchoring already discards, so excluding them would
+    blind real content for nothing. The count is reported in the PASS line, so a
+    reader can see how much was excluded.
 
 Exit 0 = every asserted block within tolerance (PASS printed with numbers);
 exit 1 = defect (worst offenders printed with coordinates + expected/actual);
@@ -112,7 +124,7 @@ def block_mad(rows, bpp, x0, y0, x1, y1, mean):
 
 def main():
     args = sys.argv[1:]
-    opts = {"--tol": 30.0, "--uniform": 6.0, "--block": 40, "--region": "all"}
+    opts = {"--tol": 30.0, "--uniform": 6.0, "--block": 40, "--region": "all", "--corner": 0.0}
     coarse = False
     paths = []
     i = 0
@@ -132,7 +144,7 @@ def main():
             paths.append(args[i])
             i += 1
     if len(paths) != 2:
-        print("usage: probe-shot-check.py LIVE.png REF.png [--tol N] [--uniform N] [--block N] [--region all|page] [--coarse]")
+        print("usage: probe-shot-check.py LIVE.png REF.png [--tol N] [--uniform N] [--block N] [--region all|page] [--corner N] [--coarse]")
         return 2
 
     live_path, ref_path = paths
@@ -169,10 +181,23 @@ def main():
         )
         return 0
 
-    checked = skipped = 0
+    # The compositor's rounded-corner mask, in REFERENCE-space px (it is measured
+    # on the LIVE image, which may be at a larger scale).
+    corner = int(-(-opts["--corner"] // scale)) if opts["--corner"] > 0 else 0
+
+    def in_bottom_corner(bx, by):
+        """Does this block touch either BOTTOM corner box? (see --corner)"""
+        if corner <= 0 or by + block <= rh - corner:
+            return False
+        return bx < corner or bx + block > rw - corner
+
+    checked = skipped = cornered = 0
     fails = []
     for by in range(0, rh - block + 1, block):
         for bx in range(x_min, rw - block + 1, block):
+            if in_bottom_corner(bx, by):
+                cornered += 1
+                continue
             rm = block_mean(ref, rbpp, bx, by, bx + block, by + block)
             if block_mad(ref, rbpp, bx, by, bx + block, by + block, rm) > uniform:
                 skipped += 1
@@ -199,7 +224,8 @@ def main():
         return 1
     print(
         f"PASS {live_path}: {checked} uniform blocks within {tol} of {ref_path}"
-        f" ({skipped} text/varied blocks skipped, scale {scale}x, y-offset {y_off}px)"
+        f" ({skipped} text/varied blocks skipped, {cornered} window-corner blocks"
+        f" dropped, scale {scale}x, y-offset {y_off}px)"
     )
     return 0
 
