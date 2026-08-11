@@ -201,6 +201,10 @@ mod tables;
 mod text_top_dpi;
 mod theme;
 mod theme_caps_law;
+/// How far one theme-picker arrow's reshape REACHES — the whole document, not
+/// the viewport — carrying the release per-stage measurement that makes that
+/// reach the dominant cost of a preview step.
+mod theme_preview_shape_law;
 /// The TIMELINE half of the comparison workspace: the two regions never
 /// overlap, every row is clickable where it is drawn, and the footer fits the
 /// narrow column it rides.
