@@ -301,11 +301,13 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
    failures in under a second where the lavapipe container cost ten minutes.
    Recommendation: the forcing arm, because it is nearly free and this class has
    now escaped a local gate twice. 🔵 User decision.
-6. **🔵 HUMAN / LIVE after 386–390.** **231** needs the approved macOS guest-VM
-   spend; **251** needs a human at a Linux desktop with Orca. **327** and the landed
-   taste calls (338/342/345/346, carried in the visual/live blocked section) close
-   on the user's eye.
-
+4. **🔵 HUMAN / LIVE — the largest category on this board, by far.** 17 hard
+   blockers and 30 taste or live-feel verdicts, against 3 items an agent can
+   act on. **231** needs the approved macOS guest-VM spend; **251** needs a
+   human at a Linux desktop with Orca; **327** and the landed taste calls close
+   on the user's eye. Most of the 30 are a one-line revert with captures
+   already sitting in `gallery/` — they are cheap to answer and are not being
+   answered, which is why they accumulate.
 ---
 
 ## Open items
@@ -332,6 +334,25 @@ whether that owner is the right seam to extend rather than inventing a second
 one. Verify by driving both pickers with real `--keys` and reading each footer
 from the sidecar; a law must fail if either picker's hint names a key that its
 own intercept does not honour.
+
+### 392 — the menu-bar axis is covered by a name filter, not by a sweep
+
+`native-gate.sh` runs its menubar arms over tests matching `menubar|menu_bar`,
+and its own comment records a census counting 14 tests that actually see the
+reserve. **Three laws in two days shipped blind to this axis** — two in
+`metric_scale`/`caret_filled_knockout`, one in `workspace_back_width` — each
+passing a full local gate across both conventions and all four arms, each caught
+by CI instead. `menubar::platform_default` is `false` on macOS and `true`
+everywhere else, so an unpinned law measures a different product locally than in
+CI. About eleven more tests sit outside the filter.
+
+The trade, with both costs measured: widening the filter costs two more full
+suites per gate (~4 min each here). Making `AWL_MENU_BAR_FORCE=on` a standing
+pre-push arm over the affected filters is nearly free — it reproduced all three
+failures in about a second each, where the lavapipe container cost ten minutes
+and a CI cycle costs seventeen. Recommendation: the forcing arm.
+🔵 **User decision** — and note the user's standing position that a red CI is
+acceptable, which weakens the case for spending gate wall-clock on this.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
