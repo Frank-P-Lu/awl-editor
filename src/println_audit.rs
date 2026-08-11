@@ -139,7 +139,11 @@ const EXPECTED: &[(&str, usize)] = &[
     // `read_forced_knob`'s unrecognized-value warning (moved here with the
     // `AWL_*_FORCE` knobs it serves).
     ("render/overrides/parsers.rs", 1),
-    ("render/framebench.rs", 39),
+    ("render/framebench.rs", 34),
+    // The theme-burst profiler's PICKER SWEEP, carved out of `framebench.rs` when
+    // that file reached its frozen size baseline. Same fate as its parent: a
+    // hidden bench flag printing its own table to stdout.
+    ("render/framebench/pickersweep.rs", 6),
     ("render/perfbench.rs", 8),
     ("render/caretbench.rs", 6),
     ("render/benchsuite/mod.rs", 12),

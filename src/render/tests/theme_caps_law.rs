@@ -162,7 +162,17 @@ fn scan_dir(base: &std::path::Path, dir: &std::path::Path, out: &mut Vec<(String
             // scenario pins a different-face, different-mono world pair),
             // never a per-theme render branch. Whole-dir skip, mirroring the
             // per-file skips.
-            if path.file_name().and_then(|n| n.to_str()) == Some("benchsuite") {
+            // `render/framebench/` is the same exemption for the same reason,
+            // and it is here because the per-FILE allowance below could not
+            // survive the bench being decomposed: carving the picker sweep out
+            // of `framebench.rs` into `framebench/pickersweep.rs` moved the
+            // driver's world names to a path the name-pinned rule had never
+            // heard of, and this law failed on a file that had not changed its
+            // behaviour at all. A directory answers for the whole harness.
+            if matches!(
+                path.file_name().and_then(|n| n.to_str()),
+                Some("benchsuite" | "framebench")
+            ) {
                 continue;
             }
             scan_dir(base, &path, out);
