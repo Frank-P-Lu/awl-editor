@@ -48,17 +48,12 @@ taste-decision backlog itself was cleared by the 2026-08-11 bulk acceptance
    display handle and wgpu surface; the live script has no pointer-press event.
    Close this on a Linux desktop with a real rendered-menu click, or after an
    explicitly approved live GUI harness gains press input plus observable state.
-6. **Item 211's unoccluded live-glide photograph needs an unlocked display.**
-   The existing live-band sweep is the correct instrument and refuses false
-   success, but the required end-of-run lock check currently reports
-   `CGSSessionScreenIsLocked = true`. `caffeinate` cannot unlock it. Run the
-   sitting only after the display is unlocked and can remain foregrounded.
-7. **Item 241's dense pointer/wheel cadence remains a live feel check.** The
+6. **Item 241's dense pointer/wheel cadence remains a live feel check.** The
    exact 4530x2756@2x headless case is now measured on the release build:
    1.43 s, 215,793,664-byte max RSS, page/outline/gutter all within the canvas
    and no visual clipping. A settled capture cannot establish interactive
    cadence; that last arm needs a human at the live window.
-8. **The AppImage is now published for the first time, in v0.10.0, and NOBODY
+7. **The AppImage is now published for the first time, in v0.10.0, and NOBODY
    HAS LAUNCHED IT.** At the `v0.9.0` tag `release.yml` contained ZERO AppImage
    references — `scripts/package-appimage.sh` landed afterwards — so v0.9.0
    carried only the tarball. The v0.10.0 assets are verified by download:
@@ -69,7 +64,7 @@ taste-decision backlog itself was cleared by the 2026-08-11 bulk acceptance
    performed from this Mac, so the AppImage's desktop-integration path — launcher
    name, icon, FUSE fallback — is live and exercised by nothing but its own build.
    The tarball is the documented fallback and is unaffected.
-9. **The export save panel wants your eye on macOS** (item 301) — an AppKit
+8. **The export save panel wants your eye on macOS** (item 301) — an AppKit
    modal is unobservable from any test. Right folder? Right pre-filled name?
    Cancel leaves the document untouched? Try `Export as PDF…`.
 
@@ -113,7 +108,19 @@ every pass.
 4. **327 — DECIDED 2026-08-11: elide and delay.** Settings two-column: elide the
    Project-root path, delay two-column mode until the accessory survives. Body
    below.
-5. **HUMAN / LIVE — now small.** Nine blockers above, each needing a session,
+5. **211 — the unoccluded live-glide photograph. THE BLOCKER IS CLEAR.**
+   `ioreg -n Root -d1 -a | grep -A1 CGSSessionScreenIsLocked` returns nothing,
+   so the display is unlocked — the one thing this sitting was waiting for.
+   Sequenced behind 388: both measure real presents, and each would corrupt the
+   other. ⚠️ **`live-probe.sh` checks the lock only in PREFLIGHT, and a locked or
+   slept display fails SILENTLY** — `--live-script` writes successful-looking
+   `LIVE-PROBE shot … ok` lines while presenting zero frames. **Re-check the lock
+   at BOTH ENDS of the run and treat a mid-run lock as a void result, not a
+   pass.** Hold the display with `caffeinate -d -i -t <seconds>`; it prevents
+   sleep and cannot unlock a screen, so it is never a substitute for an unlocked
+   one. The window is small, top-left, non-activating and never takes keyboard
+   focus.
+6. **HUMAN / LIVE — now small.** Eight blockers above, each needing a session,
    hardware, or a release-time word; the 30-item taste backlog closed by the
    bulk acceptance. ⚠️ 392 and 327 wait for dispatch until 388's quiet-host
    timing sitting completes — 388 was dispatched ALONE on purpose.
