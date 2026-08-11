@@ -98,6 +98,18 @@ this heading exists; `git log -S"BLOCKED ON THE USER"` finds who took it.
     1.43 s, 215,793,664-byte max RSS, page/outline/gutter all within the canvas
     and no visual clipping. A settled capture cannot establish interactive
     cadence; that last arm needs a human at the live window.
+18. **An uncommitted `0.9.0 → 0.10.0` version bump sits in the main working
+    tree, and it blocks every receipt taken there.** Five files carry it —
+    `Cargo.toml`, `Cargo.lock`, `README.md`, `RELEASING.md`, `site/index.html`
+    — and `Cargo.toml`'s version is a build input, so a gate run over that tree
+    certifies a commit whose content was never tested (the dirty-tree receipt
+    tripwire, live). Local `main` is also **20 commits ahead of `origin/main`**,
+    whose last successful CI run is `b164a25a`; none of the twenty has been
+    verified remotely. No agent commits a release bump — tags and releases wait
+    for your word, every time. Say whether to commit the bump as release prep
+    (then gate and push the twenty), or revert it and push the twenty alone.
+    Until then the merge train lands lane work but takes no receipt from the
+    root tree.
 
 ## 🔵 BLOCKED ON THE USER — visual verdicts and live journeys
 
@@ -306,23 +318,33 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
 
 ### 386 — Settings one-bit selected-category contrast
 
-Claim and execute from handoff item 1 above.
+🟡 IN PROGRESS — claude (deep), branch `claude/item-386-settings-rail-ink`.
+Execute from handoff item 1 above. Shares the Settings workspace with 387;
+386 owns the selected-ink ROUTING, 387 owns the navigation ACTION.
 
 ### 387 — Settings narrow-stage navigation should not teach Tab as Back
 
-Claim and execute from handoff item 2 above.
+🟡 IN PROGRESS — claude (deep), branch `claude/item-387-settings-back-nav`.
+Execute from handoff item 2 above. Shares the Settings workspace with 386;
+387 owns the navigation ACTION and footer, never the rail's ink.
 
 ### 388 — Theme-picker arrowing is still visibly laggy
 
-Claim and execute from handoff item 3 above.
+⏸ HELD FOR A QUIET HOST — deliberately not dispatched with the 386/387/389/390
+wave. Its deliverable is movement-to-present timing in `--release`, and four
+concurrent lanes at the gate phase measured load average 69.79 on this host, so
+any receipt taken alongside them measures the wave, not the mechanism. Dispatch
+alone once the wave has landed. Execute from handoff item 3 above.
 
 ### 389 — Switch Project All is flat over direct workspace children only
 
-Claim and execute from handoff item 4 above.
+🟡 IN PROGRESS — claude (production), branch `claude/item-389-project-children`.
+Execute from handoff item 4 above.
 
 ### 390 — Give Wagtail's command facet row more top breathing room
 
-Claim and execute from handoff item 5 above.
+🟡 IN PROGRESS — claude (production), branch `claude/item-390-wagtail-facet-air`.
+Execute from handoff item 5 above.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
