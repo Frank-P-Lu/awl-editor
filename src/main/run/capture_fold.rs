@@ -144,7 +144,7 @@ pub(crate) fn overlay_capture_info(
         ranges: ov.item_range_fracs(),
         git: ov.item_git_tags(),
         selected_index: ov.selected,
-        hint: ov.foot_hint(),
+        hint: journey.foot_hint(),
         browse_dir: ov.browse_dir.clone(),
         return_to: journey.parked().map(|p| p.kind().as_str()),
         spell_target: ov.spell_target,

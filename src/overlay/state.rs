@@ -478,7 +478,27 @@ impl OverlayState {
             .map(crate::commands::visible_slug_of)
     }
 
+    /// The footer sentence with no [`super::Bind`] context — correct for
+    /// every kind except [`OverlayKind::Project`], and correct for THAT kind
+    /// too whenever the card was reached directly (not mid-descend from
+    /// Settings, the only place a `Bind::Path` exists). [`super::Journey::
+    /// foot_hint`] is the entry point that has the real answer; this is the
+    /// convenience the rest of the suite — which builds bare cards — keeps
+    /// calling without a Journey to hand.
     pub fn foot_hint(&self) -> String {
+        self.foot_hint_scoped(None)
+    }
+
+    /// **THE ONE OWNER of the footer sentence.** `bind` disambiguates the two
+    /// features [`OverlayKind::Project`] draws as: the flat switch-project
+    /// picker (no bind, or `Bind::Value`) is one level over the workspace's
+    /// direct children with no ascend affordance, so its line drops the `⌫ up`
+    /// cell the Settings folder-VALUE picker (`Bind::Path`) still earns —
+    /// `crate::actions::overlay_nav::overlay_intercept`'s `DeleteBackward` arm
+    /// is the intercept this line has to keep telling the truth about. Every
+    /// other kind's hint is bind-independent, so `bind` only ever changes
+    /// this one kind's line.
+    pub fn foot_hint_scoped(&self, bind: Option<&super::Bind>) -> String {
         if let Some(re) = &self.rename_edit {
             return re.prompt();
         }
@@ -525,6 +545,9 @@ impl OverlayState {
         }
         if self.selected_range().is_some() {
             return self.kind.range_row_hint();
+        }
+        if self.kind == OverlayKind::Project && !matches!(bind, Some(super::Bind::Path { .. })) {
+            return self.kind.project_flat_hint();
         }
         self.kind.hint()
     }

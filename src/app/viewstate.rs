@@ -183,7 +183,7 @@ impl App {
             // 12 flat+faceted / more for theme), the ONE owner the pipeline windows
             // against so the drawn rows match the hover/keyboard item-window exactly.
             overlay_window_rows: ov.map(|o| o.window_rows()).unwrap_or(12),
-            overlay_hint: ov.map(|o| o.foot_hint()).unwrap_or_default(),
+            overlay_hint: self.workspace_state.journey().foot_hint(),
             overlay_lens: ov.map(|o| o.lens_strip()).unwrap_or_default(),
             overlay_workspace: ov.is_some_and(|o| o.workspace_shape().is_some()),
             // The one fact geometry, keyboard handling and the
