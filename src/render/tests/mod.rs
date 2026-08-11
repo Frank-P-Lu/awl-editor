@@ -233,6 +233,7 @@ mod workspace_shape;
 /// ever blank — an empty planned row window is always a staged card whose other
 /// region draws, and some stage always has rows at every reachable window.
 mod workspace_stage_reach;
+mod workspace_two_column_accessory;
 mod wrap_affinity;
 /// The writing column's own decorations — the inline-code pill's inset, the
 /// fence panel's overhang, the spell squiggle's amplitude/period/stroke — graded

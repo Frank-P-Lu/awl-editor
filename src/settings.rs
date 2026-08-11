@@ -3,6 +3,7 @@
 use crate::facets::{Facet, FacetItem, FacetScheme};
 use std::path::Path;
 mod scroll_sensitivity;
+mod value_cells;
 
 pub fn scroll_sensitivity() -> f32 {
     scroll_sensitivity::get()
@@ -716,10 +717,7 @@ pub fn palette_names() -> Vec<String> {
 }
 
 pub fn palette_value_cells(values: &SettingsValues) -> Vec<String> {
-    palette_rows()
-        .iter()
-        .map(|r| value_for(r, values))
-        .collect()
+    value_cells::for_rows(&palette_rows(), values)
 }
 
 pub fn visible_names() -> Vec<String> {
@@ -727,10 +725,7 @@ pub fn visible_names() -> Vec<String> {
 }
 
 pub fn visible_value_cells(values: &SettingsValues) -> Vec<String> {
-    visible_rows()
-        .iter()
-        .map(|r| value_for(r, values))
-        .collect()
+    value_cells::for_rows(&visible_rows(), values)
 }
 
 #[cfg(test)]
