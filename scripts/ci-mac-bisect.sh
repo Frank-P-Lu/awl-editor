@@ -20,13 +20,14 @@
 #     only its `mac` job — the linux, web and mac-live-probe jobs would cost
 #     minutes and buy the bisect nothing.
 #
-# The probe job deliberately reproduces the LAST GREEN configuration
-# (run 30686231377, mac step 8 = 16m54s) rather than today's ci.yml:
+# The probe job deliberately reproduces the configuration the suite last ran
+# GREEN under, rather than today's ci.yml:
 #   * no `Runner death clock` / AWL_NATIVE_GATE_DEADLINE_EPOCH,
 #   * no AWL_NATIVE_GATE_BUDGET_SECONDS,
 #   * no step-level `timeout-minutes: 40`.
-# All three are established NOT to fire on a dying runner (runs 30746762499 and
-# 30750073308), so they add no signal — and a budget that DID fire would abort
+# All three are measured NOT to fire on a dying runner — the VM stops answering
+# before any clock the job owns can expire — so they add no signal, and a
+# budget that DID fire would abort
 # a slow-but-healthy job and forge a BAD reading. The `Rust code health` step is
 # dropped too: scripts/code-health.toml is one of the few files that DOES move
 # inside the window, and a clippy failure would end the job before the suite
@@ -195,10 +196,10 @@ cmd_verdict() {
   # normal ending:
   #
   #   runner reaped mid-step   status=in_progress conclusion=""        log 404
-  #     (30750073308, probes 1 and 2 — the VM stopped answering)
+  #     (the VM stopped answering, so nothing was ever written back)
   #   job ceiling fires        status=completed   conclusion=cancelled log 200
-  #     (probe 3, run 30756807172 — the runner SURVIVED, so post steps ran,
-  #      the cache saved, and a log exists)
+  #     (the runner SURVIVED, so post steps ran, the cache saved, and a log
+  #      exists — which is exactly why this shape is mistakable for the first)
   #   gate exits on its own    status=completed   conclusion=success|failure
   #     (the only GOOD shape)
   #
@@ -225,11 +226,11 @@ cmd_verdict() {
 }
 
 # Next probe, from the boundaries established so far. The window is a DAG, not
-# a line — main was fast-forwarded onto tmp/simd-search, so 46 commits sit on
-# only 6 first-parent steps, with item 194's render work arriving on the SECOND
-# parent of the merge 97cc62f0. `git rev-list --bisect` is the thing that knows
-# how to halve that; hand-picking along --first-parent would skip the 40 commits
-# where the render work actually lives.
+# a line: when main is fast-forwarded onto a side branch, most of its commits
+# hang off SECOND parents, so a window of dozens of commits can present as only
+# a handful of first-parent steps. `git rev-list --bisect` is the thing that
+# knows how to halve that; hand-picking along --first-parent would skip the
+# commits where the suspect work actually lives.
 #
 #   scripts/ci-mac-bisect.sh next BAD_REF GOOD_REF [GOOD_REF...]
 #
