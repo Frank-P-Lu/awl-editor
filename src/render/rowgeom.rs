@@ -59,6 +59,20 @@ pub(super) fn report_row_borrow_count() -> usize {
     REPORT_ROW_BORROWS.load(std::sync::atomic::Ordering::Relaxed)
 }
 
+/// The first-row top (and baseline) reported for a logical line that has NO shaped
+/// run — `layout_runs()` stopped before reaching it, so the line genuinely has no
+/// geometry yet. Positive infinity, because every consumer of `line_first_top`
+/// tests it against a viewport band (`rects::row_box_visible`, the selection
+/// band's per-line bottom), and "below everything" is the only answer that makes
+/// those tests REJECT a line whose position is unknown. `0.0` — the obvious
+/// default — instead places it at the document top, where those same tests accept
+/// it and the frame paints an ornament for a row it cannot see.
+///
+/// A fully shaped document has no such line, so this is unreachable at every
+/// settled step boundary; it exists for the one presented frame of a
+/// [`super::ShapeReach::Presentable`] step, and for a degenerate unshaped buffer.
+pub(super) const UNSHAPED_LINE_TOP: f32 = f32::INFINITY;
+
 /// The lazily-built variable-row-height geometry table for one shaped buffer (see the
 /// module docs). Owned by [`super::TextPipeline`] as its `row_geom` field.
 pub(super) struct RowGeom {
@@ -185,8 +199,11 @@ impl RowGeom {
         // Per logical line: the top (and BASELINE) of its FIRST visual row.
         // `layout_runs()` yields a line's runs consecutively in wrap order, so the
         // FIRST run seen for a given `line_i` is its first visual row.
-        let mut line_tops: Vec<f32> = vec![0.0; buf.lines.len()];
-        let mut line_baselines: Vec<f32> = vec![0.0; buf.lines.len()];
+        // UNSHAPED lines start at the sentinel, not at the document top: a line with
+        // no run has no geometry, and answering `0.0` puts it at the top of the page
+        // where every viewport cull ACCEPTS it (see `UNSHAPED_LINE_TOP`).
+        let mut line_tops: Vec<f32> = vec![UNSHAPED_LINE_TOP; buf.lines.len()];
+        let mut line_baselines: Vec<f32> = vec![UNSHAPED_LINE_TOP; buf.lines.len()];
         let mut line_seen: Vec<bool> = vec![false; buf.lines.len()];
         let mut frame_rows = Vec::new();
         for run in buf.layout_runs() {
@@ -287,20 +304,22 @@ impl RowGeom {
 
     /// Buffer-relative top y (px) of logical `line`'s FIRST visual row — the O(1)
     /// cull read for the ornament pass, equal to `visual_rows(line)[0].line_top`
-    /// (both come from the same `run.line_top`). `0.0` for an out-of-range line or
-    /// an unshaped buffer, so the caller's absolute `doc_top()` still resolves sanely.
+    /// (both come from the same `run.line_top`). [`UNSHAPED_LINE_TOP`] for a line
+    /// with no shaped run and for an out-of-range line, so the caller's viewport
+    /// cull rejects a row whose position is not yet known instead of drawing it at
+    /// the top of the page.
     pub(super) fn line_first_top(&self, buf: &GlyphBuffer, m: &Metrics, line: usize) -> f32 {
         self.ensure(buf, m);
         self.line_tops
             .borrow()
             .as_ref()
             .and_then(|v| v.get(line).copied())
-            .unwrap_or(0.0)
+            .unwrap_or(UNSHAPED_LINE_TOP)
     }
 
     /// Buffer-relative BASELINE y (px) of logical `line`'s FIRST visual row — the
     /// REAL shaped baseline (`LayoutRun::line_y`), not an approximation from the
-    /// metrics. `0.0` for an out-of-range line or an unshaped buffer (mirrors
+    /// metrics. [`UNSHAPED_LINE_TOP`] for an out-of-range or unshaped line (mirrors
     /// [`Self::line_first_top`]'s fallback). This is the fold affordance's one
     /// baseline-alignment geometry source.
     pub(super) fn line_first_baseline(&self, buf: &GlyphBuffer, m: &Metrics, line: usize) -> f32 {
@@ -309,7 +328,7 @@ impl RowGeom {
             .borrow()
             .as_ref()
             .and_then(|v| v.get(line).copied())
-            .unwrap_or(0.0)
+            .unwrap_or(UNSHAPED_LINE_TOP)
     }
 
     /// Buffer-relative top y (px) of visual row `row` (clamped to the last row).

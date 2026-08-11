@@ -971,6 +971,35 @@ pub struct ImageReport {
 
 pub const OVERSCROLL_KEEP_ROWS: usize = 1;
 
+/// How far past the window's own edges — in LINE HEIGHTS — a row still counts as
+/// paintable. The ONE owner of the off-screen cull band: [`rects`]'
+/// `row_box_visible` rejects an ornament outside it, and
+/// [`TextPipeline::presentable_shape_height`] shapes at least out to it, so the two
+/// can never disagree about which rows a frame is allowed to need.
+pub const OFFSCREEN_CULL_MARGIN_ROWS: Rows = Rows(8.0);
+
+/// How far a shaping pass REACHES through the document.
+///
+/// [`TextPipeline::full_shape_height`] budgets every visual row, which is what
+/// keeps the whole document's geometry real (an unshaped row has no geometry at
+/// all — the scroll-jump / wrong-image-height class that budget exists to
+/// prevent). It is also, on a long document, ~95% of a theme-preview arrow's cost,
+/// spent on rows no frame can draw.
+///
+/// So a preview step splits that one reshape in two WITHOUT deferring any of it
+/// past the step: shape [`ShapeReach::Presentable`] — everything the frame about to
+/// be presented can possibly paint — present, then finish the tail
+/// ([`TextPipeline::finish_shape_tail`]) before the next event is handled. Every
+/// settled path stays [`ShapeReach::Whole`], and so does every headless path.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum ShapeReach {
+    /// Every visual row of the document — the settled reach.
+    Whole,
+    /// Only as far as the frame about to be presented can paint. Leaves a TAIL
+    /// owed, which the same step must pay.
+    Presentable,
+}
+
 /// The glyphon `Attrs` for the SUMMONED overlays / search panel / gutter —
 /// the SAME active-world display family the DOCUMENT uses (see
 /// [`TextPipeline::doc_attrs`]). This makes a serif/sans world render the command
@@ -2198,6 +2227,16 @@ pub struct TextPipeline {
     /// instrumentation counter (cursor-only / scroll-only / selection-only updates
     /// do NOT increment it); used by tests to prove non-typing events don't reshape.
     pub reshape_count: u64,
+    /// A [`ShapeReach::Presentable`] reshape has run and its off-screen TAIL is
+    /// still owed. Set by the one site that can narrow the reach
+    /// (`theme_font_adopt`) and cleared by the one site that pays it
+    /// ([`Self::finish_shape_tail`]). While it is `true` the document is shaped
+    /// only out past the window's cull band, so `layout_runs()` stops early and
+    /// every row below it reports itself UNSHAPED (see [`rowgeom::RowGeom`]) rather
+    /// than at the document top. The live App clears it immediately after the
+    /// present that the narrow reach bought, inside the same event handler, so no
+    /// input can be handled against a partially shaped document.
+    shape_tail_owed: bool,
     search_active: bool,
     search_matches: Vec<((usize, usize), (usize, usize))>,
     search_query: String,

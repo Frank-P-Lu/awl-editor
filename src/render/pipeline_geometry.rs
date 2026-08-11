@@ -9,7 +9,49 @@ impl TextPipeline {
     /// the active theme; the next `prepare` re-uploads.
     pub fn sync_theme(&mut self) {
         self.sync_theme_colors();
-        self.sync_theme_font();
+        self.sync_theme_font(ShapeReach::Whole);
+    }
+
+    /// Is an off-screen shaping TAIL still owed (see [`ShapeReach`])? True only
+    /// between a [`ShapeReach::Presentable`] reshape and the
+    /// [`Self::finish_shape_tail`] that pays it — never at a settled step boundary,
+    /// which is the property the reach law reads it for.
+    #[cfg(test)]
+    pub fn shape_tail_owed(&self) -> bool {
+        self.shape_tail_owed
+    }
+
+    /// Pay any owed off-screen shaping TAIL: restore the WHOLE reach and shape
+    /// everything the presentable budget stopped short of, so the document is fully
+    /// shaped again and every row carries real geometry. Returns whether there was
+    /// anything to do.
+    ///
+    /// This is the second half of one step, not deferred work: the live App calls it
+    /// immediately after the present that the narrow reach bought, inside the same
+    /// event handler, so no input can be handled against a partially shaped
+    /// document. It is also idempotent and cheap when nothing is owed, which is why
+    /// the settled retint calls it unconditionally as a backstop.
+    ///
+    /// The result is byte-identical to what a [`ShapeReach::Whole`] reshape would
+    /// have produced in one pass: `set_size` re-lays the prefix cosmic-text already
+    /// shaped and shapes the rest against the SAME `full_shape_height` (the text,
+    /// metrics and reserved image/table heights cannot change inside a step), and
+    /// the row geometry is rebuilt from the finished runs.
+    pub fn finish_shape_tail(&mut self) -> bool {
+        if !self.shape_tail_owed {
+            return false;
+        }
+        self.shape_tail_owed = false;
+        let width = Some(self.text_wrap_width());
+        let shape_h = self.full_shape_height();
+        self.buffer
+            .set_size(&mut self.font_system, width, Some(shape_h));
+        self.buffer.shape_until_scroll(&mut self.font_system, false);
+        // The tail's rows are new geometry: the row table built from the truncated
+        // runs (and every cache keyed on its generation) has to rebuild.
+        self.row_geom.invalidate();
+        self.buffer.set_redraw(true);
+        true
     }
 
     /// The O(1) COLOR half of a theme switch: re-tint the baked GPU pipelines
@@ -190,7 +232,7 @@ impl TextPipeline {
     /// differ in `mono` (e.g. Quokka/Bowerbird, both IBM Plex Sans) still reshape
     /// a code buffer when their mono differs; and two worlds that share the effective
     /// face but differ in palette still reshape to re-bake the span colors.
-    pub fn sync_theme_font(&mut self) {
+    pub fn sync_theme_font(&mut self, reach: ShapeReach) {
         let new_font = self.doc_family();
         let new_theme = theme::active_index();
         // Reshape when the effective FACE changed (glyph shapes) OR the world's
@@ -202,7 +244,7 @@ impl TextPipeline {
         // stays a no-op via this compare, mirroring the original `shaped_font` guard.
         let theme_recolor = new_theme != self.shaped_theme && self.has_baked_theme_colors();
         if new_font != self.shaped_font || theme_recolor {
-            self.theme_font_adopt(new_font, new_theme);
+            self.theme_font_adopt(new_font, new_theme, reach);
             self.restyle_all_lines();
         }
     }
@@ -226,12 +268,23 @@ impl TextPipeline {
     /// divergent edge-to-edge width through a theme switch and leave the page running
     /// off the right edge. Set it BEFORE restyling so the new-face reshape wraps at the
     /// right width.
-    fn theme_font_adopt(&mut self, new_font: &'static str, new_theme: usize) {
+    ///
+    /// `reach` picks the shaping BUDGET the following restyle fills (see
+    /// [`ShapeReach`]). This is the ONE site that can narrow it, and it is also the
+    /// one site that records the resulting debt — narrowed and owed cannot drift
+    /// apart. A `Presentable` budget that turns out to be the whole document anyway
+    /// (a short document, or a scroll near its end) owes nothing.
+    fn theme_font_adopt(&mut self, new_font: &'static str, new_theme: usize, reach: ShapeReach) {
         self.reshape_count += 1;
         self.shaped_font = new_font;
         self.shaped_theme = new_theme;
         let width = Some(self.text_wrap_width());
-        let shape_h = self.full_shape_height();
+        let full = self.full_shape_height();
+        let shape_h = match reach {
+            ShapeReach::Whole => full,
+            ShapeReach::Presentable => self.presentable_shape_height(),
+        };
+        self.shape_tail_owed = shape_h < full;
         self.buffer
             .set_size(&mut self.font_system, width, Some(shape_h));
     }
@@ -249,7 +302,10 @@ impl TextPipeline {
     /// prepare) purely so its cost is timed as its own phase — identical work moved a
     /// few microseconds earlier, warming the cache the frame's prepare would rebuild
     /// anyway, so the rendered frame stays byte-identical.
-    pub fn sync_theme_font_timed(&mut self) -> Option<crate::themeswitch::SwitchPhases> {
+    pub fn sync_theme_font_timed(
+        &mut self,
+        reach: ShapeReach,
+    ) -> Option<crate::themeswitch::SwitchPhases> {
         use crate::clock::Instant; // wasm-safe (`web_time` on wasm); native `std`.
         use crate::themeswitch::{SwitchPhase, SwitchPhases};
         let new_font = self.doc_family();
@@ -260,7 +316,7 @@ impl TextPipeline {
         }
         let ms = |d: std::time::Duration| d.as_secs_f32() * 1000.0;
         let t0 = Instant::now();
-        self.theme_font_adopt(new_font, new_theme);
+        self.theme_font_adopt(new_font, new_theme, reach);
         let t1 = Instant::now();
         self.restyle_all_lines();
         let t2 = Instant::now();

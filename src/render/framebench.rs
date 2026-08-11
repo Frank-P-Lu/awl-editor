@@ -12,7 +12,7 @@ use crate::buffer::Buffer;
 use crate::capture::FORMAT;
 use crate::clock::Instant;
 
-use super::{TextPipeline, ViewState};
+use super::{ShapeReach, TextPipeline, ViewState};
 
 const WIDTH: u32 = 2910;
 const HEIGHT: u32 = 1720;
@@ -456,6 +456,133 @@ fn assert_reshape_witness(
     Ok(())
 }
 
+/// ONE full arrow-sweep of the theme picker, at one [`ShapeReach`], from one
+/// scroll position — the measurement item 388 turns on.
+///
+/// The route is `theme::THEMES` in its own order, because that is exactly what
+/// `overlay::build`'s Theme arm hands the picker and therefore exactly what
+/// holding Down walks. `reach` picks which step shape is being timed:
+///
+/// * [`ShapeReach::Whole`] — today's step. One whole-document reshape, then the
+///   frame. `to-present` is the whole thing.
+/// * [`ShapeReach::Presentable`] — the split step. Shape what the frame can
+///   paint, present, then pay the off-screen tail. `to-present` is what the user
+///   waits for; `step` is the same total work as the `Whole` arm.
+///
+/// `scroll_frac` matters and is swept rather than assumed: the presentable budget
+/// runs from the document's FIRST row down past the viewport (cosmic-text fills
+/// from the buffer top), so the deeper the scroll the less tail there is to defer
+/// and the smaller the win. At the document's end there is none at all.
+///
+/// WITNESSED IN ROWS, not just millis (CLAUDE.md: a theme bench here once
+/// "measured" 5 ms while nothing reshaped): every hop asserts its reshape counter
+/// against `needs_theme_reshape`, that the arm actually shaped the number of rows
+/// its reach implies, and that the step ENDS with the whole document shaped
+/// whichever arm ran.
+fn picker_sweep(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    cache: &Cache,
+    target_view: &wgpu::TextureView,
+    buffer: &Buffer,
+    misspelled: &[crate::spell::Misspelling],
+    reach: ShapeReach,
+    scroll_frac: f32,
+) -> anyhow::Result<()> {
+    crate::theme::set_active_by_name("Mangrove");
+    let mut p = TextPipeline::new(device, queue, cache, FORMAT);
+    p.set_size(BURST_WIDTH as f32, BURST_HEIGHT as f32);
+    p.set_dpi(DPI);
+    let mut view = live_view(buffer, misspelled.to_vec());
+    view.zoom = BURST_ZOOM;
+    p.set_view(&view);
+    let whole_rows = p.total_visual_rows();
+    let start_row = ((whole_rows as f32) * scroll_frac) as usize;
+    view.scroll = crate::render::ScrollPos::at_row(start_row);
+    p.set_view(&view);
+    for _ in 0..10 {
+        burst_frame(&mut p, device, queue, target_view, false)?;
+    }
+
+    let arm = match reach {
+        ShapeReach::Whole => "whole document, then present (today)",
+        ShapeReach::Presentable => "present, then the tail — same step (388)",
+    };
+    println!();
+    println!(
+        "---- picker sweep · {arm} · scroll row {start_row}/{whole_rows} \
+         ({:.0}%) ----",
+        scroll_frac * 100.0
+    );
+    println!(
+        "{:>10} | {:>21} | {:>9} | {:>9} | {:>10} | {:>9} | {:>9} | {:>11}",
+        "world", "face", "shape", "frame", "to-present", "tail", "step", "rows shaped"
+    );
+
+    let (mut to_present, mut step_total, mut hops) = (0.0f64, 0.0f64, 0usize);
+    for world in crate::theme::THEMES {
+        crate::theme::set_active_by_name(world.name);
+        let face = crate::theme::active().font;
+        let must_reshape = p.needs_theme_reshape();
+        let before = p.reshape_count;
+        let t0 = Instant::now();
+        p.sync_theme_colors();
+        p.sync_theme_font(reach);
+        let shape_ms = t0.elapsed().as_secs_f64() * 1e3;
+        assert_reshape_witness(
+            &format!("picker step to {} ({face})", world.name),
+            before,
+            p.reshape_count,
+            must_reshape,
+        )?;
+        if !must_reshape {
+            continue;
+        }
+        hops += 1;
+        p.set_view(&view);
+        let s = burst_frame(&mut p, device, queue, target_view, true)?;
+        // The frame is presented; everything below is the same step's second half.
+        let at_present = p.total_visual_rows();
+        let t1 = Instant::now();
+        let paid = p.finish_shape_tail();
+        let tail_ms = t1.elapsed().as_secs_f64() * 1e3;
+        let settled = p.total_visual_rows();
+        ensure!(
+            settled == whole_rows,
+            "step to {} ended with {settled} of {whole_rows} rows shaped — the step \
+             must leave the whole document shaped whichever reach it took",
+            world.name
+        );
+        match reach {
+            ShapeReach::Whole => ensure!(
+                !paid && at_present == whole_rows,
+                "the whole-document arm presented {at_present} of {whole_rows} rows \
+                 (tail paid: {paid}) — this arm must never narrow"
+            ),
+            ShapeReach::Presentable => ensure!(
+                paid && at_present < whole_rows,
+                "the split arm presented {at_present} of {whole_rows} rows (tail paid: \
+                 {paid}) — nothing was deferred, so this measures the whole-document \
+                 step under another name"
+            ),
+        }
+        to_present += shape_ms + s.total;
+        step_total += shape_ms + s.total + tail_ms;
+        println!(
+            "{:>10} | {:>21} | {:>8.1}ms | {:>8.1}ms | {:>9.1}ms | {:>8.1}ms | {:>8.1}ms | {:>5}/{:<5}",
+            world.name, face, shape_ms, s.total, shape_ms + s.total, tail_ms,
+            shape_ms + s.total + tail_ms, at_present, whole_rows
+        );
+    }
+    println!(
+        "  {hops} arrows · input->present {to_present:.1}ms total, {:.1}ms mean · \
+         whole step {step_total:.1}ms total, {:.1}ms mean",
+        to_present / hops as f64,
+        step_total / hops as f64
+    );
+    Ok(())
+}
+
 fn burst_doc(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
@@ -556,44 +683,24 @@ fn burst_doc(
         }
     }
 
-    println!();
-    println!("---- eager preview (colors + reshape together, no debounce) ----");
-    println!(
-        "{:>10} | {:>21} | {:>10} | {:>9}",
-        "world", "face", "sync_thm", "frame"
-    );
-    let mut total_eager: f64 = 0.0;
-    for &name in &BURST_WORLDS[..BURST_WORLDS.len() - 1] {
-        crate::theme::set_active_by_name(name);
-        let face = crate::theme::active().font;
-        let reshapes_before = p.reshape_count;
-        let t0 = Instant::now();
-        p.sync_theme();
-        let sync_ms = t0.elapsed().as_secs_f64() * 1e3;
-        // WITNESS: the debounce is gone, so EVERY arrow step that changes face
-        // must reshape on its own — the "colors-only, defer the reshape to one
-        // trailing settle" shape this bench used to assert here no longer exists
-        // as a real `App` code path (`retint_theme_preview` reshapes
-        // unconditionally now). Flip this `true` to `false` and this is the
-        // exact law that goes red on a reintroduced coalesce.
-        assert_reshape_witness(
-            &format!("eager step to {name} ({face})"),
-            reshapes_before,
-            p.reshape_count,
-            true,
-        )?;
-        p.set_view(&view);
-        let s = burst_frame(&mut p, device, queue, &target_view, true)?;
-        total_eager += sync_ms + s.total;
-        println!(
-            "{:>10} | {:>21} | {:>8.2}ms | {:>7.1}ms",
-            name, face, sync_ms, s.total
-        );
+    // THE PICKER SWEEP — the roster's OWN order, read from `theme::THEMES` rather
+    // than the hand-picked route above, because that is literally what pressing
+    // Down through the theme card walks. Each arm is measured on its own fresh
+    // pipeline so neither inherits the other's warm shaping caches.
+    for scroll_frac in [0.0f32, 0.5] {
+        for reach in [ShapeReach::Whole, ShapeReach::Presentable] {
+            picker_sweep(
+                device,
+                queue,
+                cache,
+                &target_view,
+                &buffer,
+                &misspelled,
+                reach,
+                scroll_frac,
+            )?;
+        }
     }
-    println!(
-        "  total eager burst ({} steps, sync_theme + frame each): {total_eager:.1}ms",
-        BURST_WORLDS.len() - 1
-    );
 
     // Suspect #3: per-switch font resolution (resolve_cjk queries the font DB per
     // restyle; a slow system-font query would tax every switch). Timed standalone.

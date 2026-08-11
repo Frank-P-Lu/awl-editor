@@ -133,7 +133,7 @@ fn theme_preview_color_split_defers_reshape_and_revert_leaves_none() {
 
     // SETTLE: the one deferred reshape lands. Exactly one reshape, and the
     // shaped state is identical to the synchronous `sync_theme` route.
-    p.sync_theme_font();
+    p.sync_theme_font(crate::render::ShapeReach::Whole);
     assert_eq!(
         p.reshape_count,
         n + 1,
@@ -170,7 +170,7 @@ fn theme_preview_color_split_defers_reshape_and_revert_leaves_none() {
         p.reshape_count, m,
         "reverting to the shaped face reshapes nothing"
     );
-    p.sync_theme_font(); // the stray late fire
+    p.sync_theme_font(crate::render::ShapeReach::Whole); // the stray late fire
     assert_eq!(
         p.reshape_count, m,
         "a stray deferred reshape after the revert must be a strict no-op"

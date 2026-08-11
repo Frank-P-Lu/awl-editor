@@ -1262,6 +1262,53 @@ impl TextPipeline {
         top + rows * self.metrics.line_height + reserved + self.metrics.line_height
     }
 
+    /// A buffer height tall enough to shape every row THE FRAME ABOUT TO BE
+    /// PRESENTED could paint — [`ShapeReach::Presentable`]'s budget, and never more
+    /// than [`Self::full_shape_height`].
+    ///
+    /// `shape_until_scroll` always fills from the BUFFER's own top (awl never moves
+    /// cosmic-text's `scroll`; it draws the whole shaped document at a pixel
+    /// offset), so this budget is measured from the document's first row down, not
+    /// from the viewport's:
+    ///
+    /// * the viewport's own bottom at the current scroll, plus
+    /// * [`OFFSCREEN_CULL_MARGIN_ROWS`] — the same band `rects::row_box_visible`
+    ///   keeps, so nothing this frame is allowed to paint can fall outside what
+    ///   this shapes — plus
+    /// * one further window, which is what keeps the truncated document TALLER than
+    ///   the viewport at the current scroll and so keeps `max_scroll` above it: a
+    ///   short document height would otherwise clamp the scroll and the frame would
+    ///   present at a different position than the one asked for.
+    ///
+    /// The CARET's own line is included unconditionally. It is the one line whose
+    /// geometry is read whether or not it is on screen (a wheel scroll leaves the
+    /// caret behind), and an unshaped line has no rows to read.
+    ///
+    /// Everything past this is off-screen by at least a full window at the moment
+    /// of the present, and is shaped before the step ends.
+    pub(super) fn presentable_shape_height(&self) -> f32 {
+        let full = self.full_shape_height();
+        let viewport = self.viewport_avail_px(self.window_h);
+        let margin = self.metrics.line_height * OFFSCREEN_CULL_MARGIN_ROWS.0;
+        // Buffer-relative: `rendered_scroll_top_px` is the document pixel sitting at
+        // the top of the viewport, and `line_top` in a run is measured from the same
+        // origin.
+        let seen_bottom = self.rendered_scroll_top_px(self.scroll) + viewport;
+        // The caret's line, read from the row table the LAST fully-shaped pass built
+        // (this runs before the restyle that invalidates it), plus the same
+        // wrapped-row allowance `full_shape_height` budgets per logical line.
+        let caret_bottom = self
+            .row_geom
+            .line_first_top(&self.buffer, &self.metrics, self.cursor_line)
+            + 8.0 * self.metrics.line_height;
+        let want = self.metrics.px(TEXT_TOP)
+            + seen_bottom.max(caret_bottom)
+            + margin
+            + viewport
+            + self.metrics.line_height;
+        want.min(full)
+    }
+
     pub(super) fn has_heading_lines(&self) -> bool {
         if !self.md_enabled {
             return false;

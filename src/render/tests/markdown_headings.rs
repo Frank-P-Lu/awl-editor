@@ -496,7 +496,7 @@ fn thematic_break_row_grows_by_the_active_worlds_ornament_scale_and_refits_on_th
     // seam a live theme switch rides: the break row must RE-FIT to the larger scale
     // (proof the row-height ↔ glyph-box coupling is per-world, picked up on switch).
     crate::theme::set_active_by_name("Mopoke").unwrap();
-    p.sync_theme_font();
+    p.sync_theme_font(crate::render::ShapeReach::Whole);
     let body2 = p.row_height_px(2);
     let ornate_break = p.row_height_px(0);
     let ornate_ratio = ornate_break / body2;

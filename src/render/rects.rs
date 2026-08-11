@@ -337,7 +337,7 @@ impl TextPipeline {
     /// its bottom is still fully on-screen. Byte-identical to the old top-only
     /// test at `height == 0.0`.
     pub(super) fn row_box_visible(&self, top: f32, height: f32) -> bool {
-        let margin = self.metrics.line_height * 8.0;
+        let margin = self.metrics.line_height * OFFSCREEN_CULL_MARGIN_ROWS.0;
         top + height > -margin && top < self.window_h + margin
     }
 

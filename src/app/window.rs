@@ -614,6 +614,14 @@ impl App {
         } else {
             return;
         };
+        // THE TAIL, SAME STEP. `gpu.redraw()` above has already handed this frame to
+        // the compositor, so any off-screen rows a `ShapeReach::Presentable` reshape
+        // stopped short of are shaped RIGHT HERE — inside the event handler winit is
+        // still in, so the next input cannot be delivered until the document is whole
+        // again, and there is never a half-finished tail for a later step to catch up
+        // on. Unconditional on the frame's own outcome: the work is owed to the
+        // document, not to the present, so a skipped or occluded acquire pays it too.
+        self.finish_shape_tail();
         // The SECOND animation term, and it can only be read HERE.
         // `gpu.redraw()` above ran `prepare`, and `prepare` is the one place the
         // selection band is retargeted, so an ease that started this frame is
