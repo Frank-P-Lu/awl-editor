@@ -195,18 +195,30 @@ never "does this look fine?". This session landed 386, 327, 390, 391, 394 and
 with this audit undone, and both times it found something real.** Judge only —
 no product code; a defect becomes its own item with the shot and region named.
 
-### 399 — the journey sweep v0.10.0 shipped without
+### 400 — the pre-tag journey sweep has no instrument
 
-🟡 IN PROGRESS — claude (deep), branch `claude/item-399-post-tag-journey`.
+Raised by item 399, which performed that sweep by hand for v0.10.0 and found the
+gap: **a standing tag obligation with nothing committed to discharge it.**
+`scripts/capture-worlds.sh` covers Room and Frame only. Nothing walks the palette
+lenses, the theme picker, staged Settings, or caret and selection at document
+extremes across the roster — so every tag pays for a bespoke driver that is then
+thrown away. 399's ran to 744 captures over 20 worlds and lived in `/tmp`.
 
-CLAUDE.md lists *pre-tag (a journey sweep across worlds)* as an audit trigger,
-and **v0.10.0 was tagged and published today without one.** The release itself
-is verified — artifacts, checksums, licences, glibc floor — but nobody has walked
-a real document through the shipped worlds. Post-tag, so its purpose is to
-establish what shipped and whether anything warrants a v0.10.1. Roster derived
-from `theme::THEMES`, both DPIs, audit-only — and per policy, **an audit that
-finds something ends by writing the missing law**, even though the fix belongs
-elsewhere.
+Build the committed driver: roster derived from the binary (`--list-worlds`, i.e.
+`theme::world_names()` over `theme::THEMES`, never a hand-list), both DPIs, the
+same logical window at each, doors never compared to each other, and an empty
+`--config` pinned because a plain `--screenshot` is not hermetic. Assert what 399
+asserted — geometry containment, row overlap, DPI parity, PNG-vs-sidecar canvas,
+ink-vs-own-ground, and TRUE A/B for selection and caret (same row selected vs
+not; caret two rows apart with `scroll_lines`/`scroll_px` asserted equal).
+
+⚠️ Carry 399's two hard-won notes. The theme picker's selection **cannot** be
+A/B'd — moving the selection previews the next world, so both frames are
+different worlds; it graded only by a weaker within-frame textless-tail probe,
+and a driver should say so rather than pretend. And a zero-row Settings band at
+narrow widths is **correct**, not a defect: `render/tests/workspace_stage_reach.rs`
+owns that state and records that this same reading was already filed as a defect
+once and refuted. A sweep that flags it will be wrong the same way twice.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
