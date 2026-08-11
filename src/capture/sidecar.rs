@@ -157,6 +157,12 @@ pub(super) fn write_sidecar(
         diff = diff_json(opts),
     );
 
+    // THE LAST THING BEFORE DISK: strip the builder's `$HOME` out of the whole
+    // artifact, not out of a list of blocks someone remembered to route. See
+    // `super::redact` — this is the one call, and every capture door reaches it
+    // through this one writer.
+    let json = super::redact::redact(&json);
+
     let mut f = std::fs::File::create(&json_path)
         .with_context(|| format!("failed to create {}", json_path.display()))?;
     f.write_all(json.as_bytes())?;

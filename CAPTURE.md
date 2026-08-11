@@ -699,6 +699,22 @@ to draw something; the pixel diff proves it actually did.
 
 Field order is stable; consumers may parse positionally or by key.
 
+**PATHS ARE HOME-RELATIVE.** Before a sidecar reaches disk the builder's `$HOME`
+is rewritten to `~` throughout the artifact — `project.root`, `project.workspace`,
+`project.default_folder`, `overlay.browse_dir`, `buffers.active`, `images[].path`
+and the document text alike. A consumer that wants a real path expands `~` itself;
+nothing else about the path changes, so the sidecar still says exactly which
+directory it listed. This is not cosmetic: the repo is public, `/gallery` is
+ignored precisely because captures are not meant to be tracked, and a lane does not
+have to WRITE a path to publish one — it only has to capture. The rewrite is one
+call in `capture::sidecar::write_sidecar`, the single writer every capture door
+funnels through, so no block can opt out of it (`capture::redact`; laws in
+`capture::tests::redact_law` and `run::tests::launch_context`). It does NOT reach
+CONTENT read off the real filesystem: `overlay.items` for a picker pointed at a
+real directory is that directory's own entry names, and the PNG beside it
+photographs the same rows — take those against a seeded `--root` and an explicit
+`--config`.
+
 Schema `/203` adds **`search.panel`** — the summoned find/replace card's PLANNED
 geometry, or `null` while the panel is down.
 
@@ -1710,8 +1726,8 @@ world.)
 | `first_lines`  | the first up-to-12 logical lines, in order, for quick checks |
 | `layout`       | SHAPED-FRAME LAYOUT oracle (schema `/187`): `{ rows, caret, selection }`. Rows are in draw order and carry raw `content`, source `line`, half-open `start_col`/`end_col`, absolute physical-pixel `xs` boundaries, `top`, and shaped `height`. `caret.row` and each selection segment's `row` index directly into that array. Borrowed from the exact sealed frame partition; never recomputed. It proves geometry, not pixel visibility or contrast |
 | `search`       | isearch + find/replace state: `query`, `active`, `case_sensitive`, `hit_count`, `current`, `replace_active` (replace field revealed), `replacement` (replace text), plus `panel` — the card's PLANNED geometry (schema `/203`, see the narrative above), `null` while the panel is down |
-| `project`      | active project (`--root`), fields `root`/`name`/`branch`/`dirty`/`default_folder`/`workspace`/`keymap_flavor` (`branch`, `default_folder`, `workspace` may be null); `null` when no project |
-| `overlay`      | summoned nav overlay: `active`, `mode` (`goto`/`switch`/`browse`/`theme`/`caret`/`dictionary`/`cjk_lang`/`date`/`move`/`command`/`spell`/`keybindings`/`history`/`conflict`/`settings`/`assets`/`rename`/`insert_link`/`keep_version`/`context`/`export_dest`), `query`, `selected_index`, `browse_dir` (the level shown: root-relative for `browse`/`move`, ABSOLUTE for the navigable `switch` explorer, else null), `items` (git repos `• `-marked, dirs trailing `/`; `switch` pins a `"."` accept-this-folder row on top; command names for `command`; the three variant labels for `dictionary`), `bindings` (command-palette key chords parallel to `items`; the caret/dictionary pickers' one-line descriptions; else `[]`) |
+| `project`      | active project (`--root`), fields `root`/`name`/`branch`/`dirty`/`default_folder`/`workspace`/`keymap_flavor` (`branch`, `default_folder`, `workspace` may be null); `null` when no project. The three path fields are HOME-RELATIVE (`~/…`, see "Paths are home-relative" above) — expand `~` if you need a real path |
+| `overlay`      | summoned nav overlay: `active`, `mode` (`goto`/`switch`/`browse`/`theme`/`caret`/`dictionary`/`cjk_lang`/`date`/`move`/`command`/`spell`/`keybindings`/`history`/`conflict`/`settings`/`assets`/`rename`/`insert_link`/`keep_version`/`context`/`export_dest`), `query`, `selected_index`, `browse_dir` (the level shown: root-relative for `browse`/`move`, ABSOLUTE for the navigable `switch` explorer — home-relative `~/…` when it falls under `$HOME` — else null), `items` (git repos `• `-marked, dirs trailing `/`; `switch` pins a `"."` accept-this-folder row on top; command names for `command`; the three variant labels for `dictionary`), `bindings` (command-palette key chords parallel to `items`; the caret/dictionary pickers' one-line descriptions; else `[]`) |
 | `buffers`      | MULTI-BUFFER registry: `{ open, active }`. `open` = how many buffers are currently open (the active one + everything backgrounded); `active` = the active buffer's path, or `"scratch"`. A plain `--screenshot` always reports `open: 1` |
 | `replay_skips` | permissive `--keys` truthfulness record, always an array. Each skipped live-App-only effect is `{ effect, action }` in replay order: `effect` is the stable snake_case effect name and `action` is the resolved originating action name. Empty for a capture with no skipped effect. `--strict-replay` aborts before writing an artifact on any such effect, so it never emits a partial list. |
 
