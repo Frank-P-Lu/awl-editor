@@ -438,7 +438,7 @@ lines = 536
 
 [[file_size_mark]]
 file = "src/settings.rs"
-lines = 737
+lines = 732
 reason = "+2: a test-gated `pub(crate) use toggle_core::toggle_default`, the read-only sibling of `toggle_core_now` (\"what is this when nothing has set it\" rather than \"what is it now\"). The function itself lives in `settings/toggle_core.rs` beside the map it mirrors, so this file carries only the door the generated reference reads it through."
 
 [[file_size_mark]]
