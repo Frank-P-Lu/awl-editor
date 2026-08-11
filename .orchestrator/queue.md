@@ -142,6 +142,8 @@ Small, cheap, and filed so they are not lost. Each names the exact lever.
 
 ### 400 — the pre-tag journey sweep has no instrument
 
+🟡 IN PROGRESS — claude (deep), branch `claude/item-400-journey-driver`.
+
 Raised by item 399, which performed that sweep by hand for v0.10.0 and found the
 gap: **a standing tag obligation with nothing committed to discharge it.**
 `scripts/capture-worlds.sh` covers Room and Frame only. Nothing walks the palette
@@ -184,6 +186,8 @@ pickers should not disagree, which is the actual defect.
 
 ### 402 — a capture door photographs the developer's own machine
 
+🟡 IN PROGRESS — claude (deep), branch `claude/item-402-capture-paths`.
+
 ⚠️ **Process hazard with a public repo on the other end of it, found by 398 the
 hard way:** its first switch-project capture photographed real home-directory
 folder names (Calibre, AdobeID, …), and **every sidecar embeds absolute
@@ -202,6 +206,8 @@ found it needs an explicit empty `--config` — so "use the other door" is a
 workaround, not the fix.
 
 ### 403 — at the document END, 388's split is a small net LOSS
+
+🟡 IN PROGRESS — claude (deep), branch `claude/item-403-tail-units`.
 
 Measured by item 396, filed rather than fixed because the sound repair needs a
 decision it would not make on the back half of a round. At the document end
@@ -233,6 +239,8 @@ expectations across the suite. Deciding which number is the truth is the user's;
 whether three copies of it is defensible is not.
 
 ### 405 — the overlay card's geometry is not DPI-invariant
+
+🟡 IN PROGRESS — claude (deep), branch `claude/item-405-card-dpi`.
 
 Measured incidentally by item 397: the same LOGICAL window puts
 `overlay.window.band` at `x 27.5 / w 545` at dpi 1 and `x 164 / w 872` at dpi 2 —
