@@ -56,11 +56,12 @@ fn overlay_card_box_stays_on_canvas_across_the_width_sweep() {
     for &scale in &[1.0f32, 2.0] {
         let floor = chrome::CARD_EDGE_INSET_FLOOR.px(scale);
         for &cap in &[chrome::CARD_MAX_W, chrome::CARD_MAX_W_FACETED] {
-            let desired = cap.px(scale);
+            let desired = cap.px(scale, 1.0);
             for ww in (320u32..=1800).step_by(40) {
                 let ww = (ww as f32) * scale;
                 for &anchor in &anchors {
-                    let (left, w) = chrome::overlay_card_box_policy(anchor, ww, desired, scale);
+                    let (left, w) =
+                        chrome::overlay_card_box_policy(anchor, ww, desired, scale, 1.0);
                     let right = left + w;
                     let ctx = format!("scale={scale} ww={ww} desired={desired} anchor={anchor:?}");
                     assert!(w > 24.0, "{ctx}: card width {w} must leave room for text");
@@ -98,10 +99,11 @@ fn overlay_card_box_stays_on_canvas_across_the_width_sweep() {
     let (left, _) = chrome::overlay_card_box_policy(
         theme::CardAnchor::TopLeft,
         1200.0,
-        chrome::CARD_MAX_W.px(1.0),
+        chrome::CARD_MAX_W.px(1.0, 1.0),
+        1.0,
         1.0,
     );
-    let want_inset = chrome::overlay_rail_inset(1200.0, 1.0);
+    let want_inset = chrome::overlay_rail_inset(1200.0, 1.0, 1.0);
     assert!(
         (left - want_inset).abs() < 0.01,
         "a wide window seats the card one full rail inset ({want_inset}) in, got {left}"

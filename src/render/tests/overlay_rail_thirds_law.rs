@@ -35,15 +35,20 @@ const REF: f32 = chrome::CARD_MAX_W.0; // the "comfortable" reference width the 
 fn wide_window_card_centers_sit_near_thirds_and_exactly_at_center() {
     for &ww in &[1000.0_f32, 1200.0, 1488.0, 1800.0] {
         for &desired in &[
-            chrome::CARD_MAX_W.px(1.0),
-            chrome::CARD_MAX_W_FACETED.px(1.0),
+            chrome::CARD_MAX_W.px(1.0, 1.0),
+            chrome::CARD_MAX_W_FACETED.px(1.0, 1.0),
         ] {
             let (lx, lw) =
-                chrome::overlay_card_box_policy(theme::CardAnchor::TopLeft, ww, desired, 1.0);
-            let (cx, cw) =
-                chrome::overlay_card_box_policy(theme::CardAnchor::TopCenter, ww, desired, 1.0);
+                chrome::overlay_card_box_policy(theme::CardAnchor::TopLeft, ww, desired, 1.0, 1.0);
+            let (cx, cw) = chrome::overlay_card_box_policy(
+                theme::CardAnchor::TopCenter,
+                ww,
+                desired,
+                1.0,
+                1.0,
+            );
             let (rx, rw) =
-                chrome::overlay_card_box_policy(theme::CardAnchor::TopRight, ww, desired, 1.0);
+                chrome::overlay_card_box_policy(theme::CardAnchor::TopRight, ww, desired, 1.0, 1.0);
 
             let lfrac = (lx + lw * 0.5) / ww;
             let cfrac = (cx + cw * 0.5) / ww;
@@ -101,15 +106,15 @@ fn exact_left_right_mirror_across_widths_and_content_widths() {
         120.0_f32,
         180.0,
         250.0,
-        chrome::CARD_MAX_W.px(1.0),
-        chrome::CARD_MAX_W_FACETED.px(1.0),
+        chrome::CARD_MAX_W.px(1.0, 1.0),
+        chrome::CARD_MAX_W_FACETED.px(1.0, 1.0),
     ] {
         for ww in (280u32..=2000).step_by(20) {
             let ww = ww as f32;
             let (lx, lw) =
-                chrome::overlay_card_box_policy(theme::CardAnchor::TopLeft, ww, desired, 1.0);
+                chrome::overlay_card_box_policy(theme::CardAnchor::TopLeft, ww, desired, 1.0, 1.0);
             let (rx, rw) =
-                chrome::overlay_card_box_policy(theme::CardAnchor::TopRight, ww, desired, 1.0);
+                chrome::overlay_card_box_policy(theme::CardAnchor::TopRight, ww, desired, 1.0, 1.0);
             let ctx = format!("ww={ww} desired={desired}");
 
             // Alignment moves the card, never resizes it.
@@ -137,16 +142,16 @@ fn exact_left_right_mirror_across_widths_and_content_widths() {
 
 #[test]
 fn narrow_sweep_is_continuous_on_canvas_and_symmetric_no_jump_or_drift() {
-    let desired = chrome::CARD_MAX_W.px(1.0);
+    let desired = chrome::CARD_MAX_W.px(1.0, 1.0);
     let mut prev_l: Option<f32> = None;
     let mut prev_r: Option<f32> = None;
     // Fine 1px steps across the full wide -> narrow -> narrowest transition.
     for ww in 150u32..=1000 {
         let ww = ww as f32;
         let (lx, lw) =
-            chrome::overlay_card_box_policy(theme::CardAnchor::TopLeft, ww, desired, 1.0);
+            chrome::overlay_card_box_policy(theme::CardAnchor::TopLeft, ww, desired, 1.0, 1.0);
         let (rx, rw) =
-            chrome::overlay_card_box_policy(theme::CardAnchor::TopRight, ww, desired, 1.0);
+            chrome::overlay_card_box_policy(theme::CardAnchor::TopRight, ww, desired, 1.0, 1.0);
         let ctx = format!("ww={ww}");
 
         // ON-CANVAS at every step, both rails.
@@ -203,7 +208,7 @@ fn card_width_caps_and_mirrors_growth_flag_are_untouched() {
     // The width CAPS themselves are pure data, never read by the placement
     // resolver's arithmetic — the resolver only ever moves `left`.
     assert_eq!(
-        chrome::CARD_MAX_W.px(1.0),
+        chrome::CARD_MAX_W.px(1.0, 1.0),
         545.0,
         "flat card width cap unchanged by the PLACEMENT resolver — the cap moved \
          once, to clear the Keybindings hint's own measured overflow on the two \
@@ -211,7 +216,7 @@ fn card_width_caps_and_mirrors_growth_flag_are_untouched() {
          placement one"
     );
     assert_eq!(
-        chrome::CARD_MAX_W_FACETED.px(1.0),
+        chrome::CARD_MAX_W_FACETED.px(1.0, 1.0),
         600.0,
         "faceted card width cap unchanged"
     );
@@ -244,13 +249,14 @@ fn right_anchor_content_shrink_still_shares_one_right_edge_at_the_policy_level()
     // content-hugged card and a wide flat card share the exact same right edge.
     let ww = 1200.0_f32;
     let (_, w_narrow) =
-        chrome::overlay_card_box_policy(theme::CardAnchor::TopRight, ww, 180.0, 1.0);
+        chrome::overlay_card_box_policy(theme::CardAnchor::TopRight, ww, 180.0, 1.0, 1.0);
     let (rx_narrow, rw_narrow) =
-        chrome::overlay_card_box_policy(theme::CardAnchor::TopRight, ww, 180.0, 1.0);
+        chrome::overlay_card_box_policy(theme::CardAnchor::TopRight, ww, 180.0, 1.0, 1.0);
     let (rx_wide, rw_wide) = chrome::overlay_card_box_policy(
         theme::CardAnchor::TopRight,
         ww,
-        chrome::CARD_MAX_W.px(1.0),
+        chrome::CARD_MAX_W.px(1.0, 1.0),
+        1.0,
         1.0,
     );
     assert!(

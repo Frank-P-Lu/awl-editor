@@ -1567,7 +1567,7 @@ fn faceted_palette_shapes_the_chord_column_aligned_to_its_rows() {
 }
 
 /// RESPONSIVE CARD (composition round items 3 + 7): at a wide canvas the flat
-/// card holds the tightened cap [`chrome::CARD_MAX_W.px(1.0)`] (narrower than the old
+/// card holds the tightened cap [`chrome::CARD_MAX_W.px(1.0, 1.0)`] (narrower than the old
 /// sprawling 600); as the window narrows past the point the cap can seat with
 /// floor pads, the card RE-CENTERS and fills the window minus a floor pad each
 /// side (`window − 2·floor`), mirroring the responsive page column.
@@ -1605,11 +1605,11 @@ fn overlay_card_spans_nearly_the_full_narrow_window() {
     p.set_size(1200.0, 800.0);
     let [x, _y, w, _h] = p.overlay_card_rect().expect("overlay card");
     assert!(
-        (w - chrome::CARD_MAX_W.px(1.0)).abs() < 0.5,
+        (w - chrome::CARD_MAX_W.px(1.0, 1.0)).abs() < 0.5,
         "wide card holds the tightened cap: w={w}"
     );
     assert!(
-        (x - chrome::overlay_rail_inset(1200.0, 1.0)).abs() < 0.5,
+        (x - chrome::overlay_rail_inset(1200.0, 1.0, 1.0)).abs() < 0.5,
         "one full rail inset in: x={x}"
     );
     set_card_anchor_test_override(None);
@@ -2287,7 +2287,7 @@ fn overlay_card_anchor_is_data_center_default_top_left_for_statement_worlds() {
     // The interior-rail resolver uses a real generous rail inset (not the
     // old flush 12px hug, nor the old flat ~28px edge-hug).
     let width = 1200u32;
-    let edge_inset = chrome::overlay_rail_inset(width as f32, 1.0);
+    let edge_inset = chrome::overlay_rail_inset(width as f32, 1.0, 1.0);
 
     let mut v = view("hello\n", 0, 0);
     v.overlay_active = true;

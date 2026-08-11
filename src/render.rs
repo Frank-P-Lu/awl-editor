@@ -241,8 +241,20 @@ impl Logical {
 }
 
 impl LogicalGrowOnly {
-    pub fn px(self, scale: f32) -> f32 {
-        self.0 * scale.max(1.0)
+    /// **THE FLOOR IS THE DISPLAY, NOT THE NUMBER ONE.** Grow-only is a ZOOM
+    /// policy — a cap the user's type size may widen but never shrink below the
+    /// value it was tuned at — while `scale` is `zoom * dpi`, so flooring it at
+    /// a bare `1.0` makes the regime where the floor binds a property of the
+    /// PANEL: the whole cap is held at `dpi 1` for every zoom under 1, and only
+    /// below zoom 0.5 at `dpi 2`. Two readers at the same logical window and the
+    /// same zoom then get different compositions, and the denser display gets
+    /// the narrower card.
+    ///
+    /// `scale.max(dpi)` is the same rule stated in the space the cap is authored
+    /// in — `dpi * zoom.max(1.0)` — so the resolved cap holds one LOGICAL width
+    /// across densities and still only ever grows with zoom.
+    pub fn px(self, scale: f32, dpi: f32) -> f32 {
+        self.0 * scale.max(dpi)
     }
 }
 
@@ -254,11 +266,13 @@ impl LogicalGrowOnly {
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
 pub struct Physical(pub f32);
 
-/// A logical length that only ever GROWS: physical at `scale <= 1`, logical
-/// above it. The HONEST third classification for a width CAP — recording one of
-/// these as plainly physical reintroduces the zoom-blind collapse the grow-only
-/// form exists to fix, and recording it as plainly logical shrinks it below the
-/// value it was tuned at. See [`Metrics::px_grow_only`].
+/// A logical length that only ever GROWS WITH ZOOM: held at its authored
+/// logical value while `zoom <= 1`, proportional above it. The HONEST third
+/// classification for a width CAP — recording one of these as plainly physical
+/// reintroduces the zoom-blind collapse the grow-only form exists to fix, and
+/// recording it as plainly logical shrinks it below the value it was tuned at.
+/// It is LOGICAL in the density: the floor is the display's own ratio, never a
+/// bare `1.0` (see [`LogicalGrowOnly::px`]). See [`Metrics::px_grow_only`].
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
 pub struct LogicalGrowOnly(pub f32);
 
@@ -303,6 +317,13 @@ impl Millis {
 #[derive(Clone, Copy, Debug)]
 pub struct Metrics {
     pub zoom: f32,
+    /// The display's own device ratio. Stored beside `scale` rather than
+    /// recovered from it, because `scale / zoom` is a second derivation of a
+    /// number the constructor already held — and because it is the FLOOR a
+    /// [`LogicalGrowOnly`] cap resolves against, which is a different question
+    /// from the multiply and must not be answered by dividing the multiply back
+    /// out.
+    pub dpi: f32,
     /// `zoom * dpi` — the ONE factor every enrolled quantity is multiplied by,
     /// stored rather than re-derived so a consumer cannot invent a second one.
     pub scale: f32,
@@ -331,6 +352,7 @@ impl Metrics {
         let s = zoom * dpi;
         Self {
             zoom,
+            dpi,
             scale: s,
             font_size: FONT_SIZE * s,
             line_height: LINE_HEIGHT * s,
@@ -362,10 +384,11 @@ impl Metrics {
         l.px(self.scale)
     }
 
-    /// Resolve a [`LogicalGrowOnly`] cap: `scale.max(1.0)`, so the authored
-    /// value is a FLOOR the cap only ever widens away from.
+    /// Resolve a [`LogicalGrowOnly`] cap: `scale.max(dpi)`, so the authored
+    /// value is a LOGICAL floor the cap only ever widens away from as the user
+    /// zooms in — never a device-pixel floor that a denser panel walks under.
     pub fn px_grow_only(&self, l: LogicalGrowOnly) -> f32 {
-        l.px(self.scale)
+        l.px(self.scale, self.dpi)
     }
 
     /// Resolve a [`Physical`] length. The identity — it exists so the annotated

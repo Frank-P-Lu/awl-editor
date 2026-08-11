@@ -14,6 +14,26 @@
 //! single-scale check and fails this one. The 1x figures are additionally
 //! anchored against the canvas so "doubles" cannot be satisfied by two equally
 //! wrong numbers.
+//!
+//! ⚠️ **AND THE CHECK ITSELF RAN IN ONE CONFIGURATION, WHICH WAS ITS OWN
+//! UNTESTED HYPOTHESIS.** The law swept DPI at the capture door's DEFAULT ZOOM
+//! of 1.0 — and 1.0 is precisely the value at which the summoned card's width
+//! cap cannot be caught misbehaving. The cap resolves GROW-ONLY, and while its
+//! floor was a bare `1.0` rather than the display's own ratio, `zoom * dpi`
+//! cleared that floor at both densities whenever `zoom >= 1` and the cap doubled
+//! correctly; below it the floor bound at 1x and not at 2x, so the SAME logical
+//! window drew a 545-logical-px card for a 1x reader and a 436-logical-px one
+//! for a 2x reader — at the app's own shipped zoom. Document wrap is invariant
+//! under this trade and was swept; the CARD was the axis nobody swept. The zoom
+//! sweep is therefore part of the law, not a second law beside it.
+//!
+//! **The sidecar arm is paired with a DRAWN arm** for the reason the tripwire
+//! names: a DPI-invariance claim is satisfiable by a card that is never painted.
+//! The card's own extent is read out of the PNG differentially — the columns that
+//! change when the picker is summoned over the same canvas — which is a rendered
+//! pixel against another rendered pixel, carries a presence floor set under the
+//! roster's narrowest real card, and is tied back to the reported band so the two
+//! arms grade one object.
 
 use super::super::*;
 use super::adapter_available;
@@ -180,6 +200,96 @@ fn assert_internally_consistent(name: &str, g: &Band) {
     );
 }
 
+/// The zooms the DPI trade is swept at. The capture door's own default is 1.0,
+/// and that is the ONE value at which a cap floored at a bare `1.0` cannot be
+/// caught: there `zoom * dpi` is exactly `dpi`, so the floor never binds at
+/// either density and the cap doubles for the wrong reason. So the sweep also
+/// carries the app's real shipped type size — where a 1x reader gets the whole
+/// authored cap and a 2x reader, on the same logical window, would not — and one
+/// value above 1, where the floor is out of the way entirely.
+const SWEPT_ZOOMS: &[f32] = &[crate::app::INITIAL_ZOOM, 1.0, 1.6];
+
+/// The picker fold at a stated canvas, density and zoom.
+fn picker_at(ov: &OverlayState, canvas: (u32, u32), dpi: f32, zoom: f32) -> CaptureOpts {
+    let mut opts = flat_picker_opts(ov, canvas, dpi);
+    opts.zoom = Some(zoom);
+    opts
+}
+
+/// The SAME frame with no card summoned — the reference the drawn arm differences
+/// against. Every field but `overlay` matches [`picker_at`], so the pixels that
+/// change between the two are the card and only the card.
+fn bare_at(canvas: (u32, u32), dpi: f32, zoom: f32) -> CaptureOpts {
+    CaptureOpts {
+        canvas: Some(canvas),
+        dpi: Some(dpi),
+        zoom: Some(zoom),
+        ..CaptureOpts::default()
+    }
+}
+
+/// The card's DRAWN horizontal extent (device px, inclusive) across the reported
+/// row band: the LONGEST CONTIGUOUS RUN of columns at which the summoned frame
+/// differs from the bare one. `None` when nothing changed anywhere in the band,
+/// which is the answer that makes the presence floor fail rather than pass
+/// quietly.
+///
+/// **A run, not the outer min/max, and the difference is measured.** Summoning a
+/// card also settles the MARGIN chrome either side of the page — a few columns at
+/// each canvas edge change too — so `min`/`max` over every changed column reports
+/// nearly the whole canvas (`[4, 1192]` of 1200) and would be grading the margins.
+/// The card is the one solid block in that profile, so the longest run is the
+/// card by construction, and the measurement never consults the reported band to
+/// find it (which would make the tie-back below circular).
+///
+/// The threshold is a channel-sum against the OTHER RENDER of the same pixel, so
+/// no authored colour appears here and a host whose ramp resolves a shade off
+/// (this tree's Metal vs CI's lavapipe) moves both sides together.
+fn drawn_card_span(
+    bare: &std::path::Path,
+    card: &std::path::Path,
+    band: &Band,
+) -> Option<(f64, f64)> {
+    let a = image::open(bare).expect("decode the bare frame").to_rgba8();
+    let b = image::open(card)
+        .expect("decode the carded frame")
+        .to_rgba8();
+    assert_eq!(
+        a.dimensions(),
+        b.dimensions(),
+        "the two frames must be one canvas for a differential read"
+    );
+    let (w, h) = a.dimensions();
+    let y0 = band.first_top.max(0.0) as u32;
+    let y1 = (band.footer_top as u32).min(h);
+    let mut changed = vec![false; w as usize];
+    for y in y0..y1 {
+        for x in 0..w {
+            let (p, q) = (a.get_pixel(x, y), b.get_pixel(x, y));
+            let d: i32 = (0..3).map(|c| (p[c] as i32 - q[c] as i32).abs()).sum();
+            if d > 40 {
+                changed[x as usize] = true;
+            }
+        }
+    }
+    let (mut best, mut run_start) = (None::<(u32, u32)>, None::<u32>);
+    for x in 0..=w {
+        let on = (x < w) && changed[x as usize];
+        match (on, run_start) {
+            (true, None) => run_start = Some(x),
+            (false, Some(s)) => {
+                let run = (s, x - 1);
+                if best.is_none_or(|(bs, be)| run.1 - run.0 > be - bs) {
+                    best = Some(run);
+                }
+                run_start = None;
+            }
+            _ => {}
+        }
+    }
+    best.map(|(s, e)| (s as f64, e as f64))
+}
+
 #[test]
 fn published_row_geometry_is_physical_pixels_and_scales_with_capture_dpi() {
     if !adapter_available() {
@@ -198,63 +308,156 @@ fn published_row_geometry_is_physical_pixels_and_scales_with_capture_dpi() {
     let mut ov = OverlayState::new(OverlayKind::Goto, items, vec![], vec![]);
     ov.move_sel(3);
 
-    // ONE logical window at two scales: 1200x800 at dpi 1 and 2400x1600 at dpi 2
-    // are the same (W/N)x(H/N) logical window, so every difference below is the
-    // scale factor and nothing else.
-    let one = dir.join("dpi1.png");
-    capture_with(&one, &buf, &flat_picker_opts(&ov, (1200, 800), 1.0)).expect("dpi 1 capture");
-    let two = dir.join("dpi2.png");
-    capture_with(&two, &buf, &flat_picker_opts(&ov, (2400, 1600), 2.0)).expect("dpi 2 capture");
-    let (a, b) = (read_band(&one), read_band(&two));
+    for &zoom in SWEPT_ZOOMS {
+        assert_dpi_trade_holds_at(&dir, &buf, &ov, zoom);
+    }
+}
 
-    // ANCHORS at 1x, so "doubles" cannot be satisfied by two equally wrong
-    // numbers: the band is a real fraction of a real canvas, and it carries rows.
-    assert!(
-        !a.rows.is_empty() && a.rows.len() == b.rows.len(),
-        "both scales must publish the same non-empty row band, got {} and {}",
-        a.rows.len(),
-        b.rows.len()
-    );
-    assert!(
-        a.pitch > 8.0 && a.first_top > 0.0 && a.first_top < a.canvas_h,
-        "the 1x band must sit inside its own canvas: first_top {} pitch {} canvas_h {}",
-        a.first_top,
-        a.pitch,
-        a.canvas_h
-    );
-    assert!(
-        a.w > 100.0 && a.x > 0.0,
-        "the 1x content band must be a real width at a real x: x {} w {}",
-        a.x,
-        a.w
-    );
+/// ONE zoom's cell of the sweep: the same logical window at both densities,
+/// graded through the sidecar and then again through the frame.
+fn assert_dpi_trade_holds_at(dir: &ScratchDir, buf: &Buffer, ov: &OverlayState, zoom: f32) {
+    {
+        // ONE logical window at two scales: 1200x800 at dpi 1 and 2400x1600 at dpi 2
+        // are the same (W/N)x(H/N) logical window, so every difference below is the
+        // scale factor and nothing else.
+        let one = dir.join(format!("dpi1_z{zoom}.png"));
+        capture_with(&one, buf, &picker_at(ov, (1200, 800), 1.0, zoom)).expect("dpi 1 capture");
+        let two = dir.join(format!("dpi2_z{zoom}.png"));
+        capture_with(&two, buf, &picker_at(ov, (2400, 1600), 2.0, zoom)).expect("dpi 2 capture");
+        let (a, b) = (read_band(&one), read_band(&two));
 
-    assert_internally_consistent("1x", &a);
-    assert_internally_consistent("2x", &b);
-
-    // THE DPI RELATION. Physical pixels, so every figure doubles.
-    let doubles = |lo: f64, hi: f64, what: &str| {
+        // ANCHORS at 1x, so "doubles" cannot be satisfied by two equally wrong
+        // numbers: the band is a real fraction of a real canvas, and it carries rows.
         assert!(
-            (hi - lo * 2.0).abs() <= 1.0,
-            "{what} is {lo} at --capture-dpi 1 and {hi} at 2: a PHYSICAL-pixel field \
-             must double with the scale factor (a logical one would not move, and a \
-             double-scaled one would quadruple)"
+            !a.rows.is_empty() && a.rows.len() == b.rows.len(),
+            "zoom {zoom}: both scales must publish the same non-empty row band, got {} and {}",
+            a.rows.len(),
+            b.rows.len()
         );
-    };
-    doubles(a.first_top, b.first_top, "band.first_top");
-    doubles(a.pitch, b.pitch, "band.pitch");
-    doubles(a.footer_top, b.footer_top, "band.footer_top");
-    doubles(a.x, b.x, "band.x");
-    doubles(a.w, b.w, "band.w");
-    for (i, (lo, hi)) in a.rows.iter().zip(b.rows.iter()).enumerate() {
-        assert_eq!(
-            (lo.display, lo.item),
-            (hi.display, hi.item),
-            "row {i}: display / item must not depend on the capture scale"
+        assert!(
+            a.pitch > 8.0 && a.first_top > 0.0 && a.first_top < a.canvas_h,
+            "zoom {zoom}: the 1x band must sit inside its own canvas: \
+             first_top {} pitch {} canvas_h {}",
+            a.first_top,
+            a.pitch,
+            a.canvas_h
         );
-        doubles(lo.x, hi.x, &format!("rows[{i}].x"));
-        doubles(lo.y, hi.y, &format!("rows[{i}].y"));
-        doubles(lo.w, hi.w, &format!("rows[{i}].w"));
-        doubles(lo.h, hi.h, &format!("rows[{i}].h"));
+        assert!(
+            a.w > 100.0 && a.x > 0.0,
+            "zoom {zoom}: the 1x content band must be a real width at a real x: x {} w {}",
+            a.x,
+            a.w
+        );
+
+        assert_internally_consistent(&format!("1x z{zoom}"), &a);
+        assert_internally_consistent(&format!("2x z{zoom}"), &b);
+
+        // THE DPI RELATION. Physical pixels, so every figure doubles.
+        //
+        // Two tolerances, because two families arrive here. The HORIZONTAL
+        // quantities are pure multiplications and double to within float noise —
+        // this is the family the card's cap lives in, and it is held to one
+        // device pixel exactly as the law always held it. The VERTICAL ones ride
+        // the query BEAT, which is deliberately `.round()`ed onto the device grid
+        // (`overlay_header_gap`) so the slab of air under the query line lands on
+        // a whole pixel, and `2*round(v)` differs from `round(2v)` by up to one
+        // device px by construction. Measured, that residual is exactly 1.0 on
+        // the whole y family at zoom 0.8 and 0.0 at zoom 1.0 and 1.6, so `GRID`
+        // is that one rounding unit and nothing more: a second, unrounded term
+        // drifting into the vertical chain still fails here.
+        const PROPORTIONAL: f64 = 1.0;
+        const GRID: f64 = 1.5;
+        let doubles_within = |lo: f64, hi: f64, what: &str, tol: f64| {
+            assert!(
+                (hi - lo * 2.0).abs() <= tol,
+                "at zoom {zoom}, {what} is {lo} at --capture-dpi 1 and {hi} at 2 \
+                 (tolerance {tol}): a PHYSICAL-pixel field must double with the scale \
+                 factor (a logical one would not move, and a double-scaled one would \
+                 quadruple). The CARD's own x and w are swept at more than one zoom \
+                 because a width cap resolved GROW-ONLY against a bare 1.0 floor \
+                 doubles at zoom >= 1 and does NOT below it — which makes the summoned \
+                 card's composition a property of the reader's DISPLAY, and which hides \
+                 completely at the capture door's own default zoom of 1.0"
+            );
+        };
+        doubles_within(a.first_top, b.first_top, "band.first_top", GRID);
+        doubles_within(a.pitch, b.pitch, "band.pitch", PROPORTIONAL);
+        doubles_within(a.footer_top, b.footer_top, "band.footer_top", GRID);
+        doubles_within(a.x, b.x, "band.x", PROPORTIONAL);
+        doubles_within(a.w, b.w, "band.w", PROPORTIONAL);
+        for (i, (lo, hi)) in a.rows.iter().zip(b.rows.iter()).enumerate() {
+            assert_eq!(
+                (lo.display, lo.item),
+                (hi.display, hi.item),
+                "zoom {zoom} row {i}: display / item must not depend on the capture scale"
+            );
+            doubles_within(lo.x, hi.x, &format!("rows[{i}].x"), PROPORTIONAL);
+            doubles_within(lo.y, hi.y, &format!("rows[{i}].y"), GRID);
+            doubles_within(lo.w, hi.w, &format!("rows[{i}].w"), PROPORTIONAL);
+            doubles_within(lo.h, hi.h, &format!("rows[{i}].h"), PROPORTIONAL);
+        }
+
+        // THE DRAWN ARM. Everything above is the sidecar, which is a state oracle:
+        // it reported `selected_index: 2` on a row that rendered fully invisible
+        // once, and an invariance law over a card that is never drawn is satisfied
+        // by the emptiest possible frame. So the same claim is made again over
+        // PIXELS, and the card's extent is measured DIFFERENTIALLY — the columns
+        // that CHANGE when the same canvas is captured with the picker summoned —
+        // which compares a rendered pixel to another rendered pixel on the same
+        // frame, needs no authored colour, and reports nothing at all if no card
+        // was painted.
+        let bare_one = dir.join(format!("bare1_z{zoom}.png"));
+        capture_with(&bare_one, buf, &bare_at((1200, 800), 1.0, zoom)).expect("dpi 1 bare");
+        let bare_two = dir.join(format!("bare2_z{zoom}.png"));
+        capture_with(&bare_two, buf, &bare_at((2400, 1600), 2.0, zoom)).expect("dpi 2 bare");
+        let span_one = drawn_card_span(&bare_one, &one, &a);
+        let span_two = drawn_card_span(&bare_two, &two, &b);
+
+        // PRESENCE, set under the roster's own tightest real card. The narrowest
+        // card any shipping world draws at the shipped zoom is Kite's
+        // content-hugged one at ~216 LOGICAL px (Cassowary's is ~275; every
+        // cap-bound world's is 545), so a floor of 150 logical px is under the
+        // roster and still far above the noise a bare frame could produce.
+        for (name, span, dpi) in [("1x", span_one, 1.0_f64), ("2x", span_two, 2.0)] {
+            let (lo, hi) = span.unwrap_or_else(|| {
+                panic!(
+                    "zoom {zoom} {name}: summoning the picker changed NO pixels across \
+                     the reported row band — the card was not drawn at all, and every \
+                     invariance claim above is vacuous on this frame"
+                )
+            });
+            assert!(
+                (hi - lo + 1.0) / dpi >= 150.0,
+                "zoom {zoom} {name}: the card's DRAWN span is {} device px ({} logical) \
+                 across the reported row band — under the 150 logical px floor set \
+                 beneath the roster's own narrowest real card",
+                hi - lo + 1.0,
+                (hi - lo + 1.0) / dpi
+            );
+        }
+
+        // …and the drawn span is the one the sidecar reported, so the two arms are
+        // grading one card rather than two unrelated numbers that happen to agree.
+        let (lo1, hi1) = span_one.expect("1x span");
+        let (lo2, hi2) = span_two.expect("2x span");
+        assert!(
+            (lo1 - a.x).abs() <= 4.0 && (hi1 - (a.x + a.w)).abs() <= 4.0,
+            "zoom {zoom}: the 1x card is DRAWN across [{lo1}, {hi1}] while the sidecar \
+             reports the band at [{}, {}] — the geometry oracle and the frame disagree",
+            a.x,
+            a.x + a.w
+        );
+
+        // THE APPEARANCE-SIDE TRADE, in pixels: the same logical window at twice
+        // the density must paint a card of the same LOGICAL width. `<= 3.0` is one
+        // logical pixel of rim either side, not a slack budget.
+        let (w1, w2) = (hi1 - lo1 + 1.0, (hi2 - lo2 + 1.0) / 2.0);
+        assert!(
+            (w2 - w1).abs() <= 3.0,
+            "zoom {zoom}: the card is DRAWN {w1} logical px wide at dpi 1 and {w2} at \
+             dpi 2 over the SAME logical window. A reader on a denser panel is being \
+             shown a different composition — the elision budget, and so how much of a \
+             row's name is legible, would be a property of the display"
+        );
     }
 }
