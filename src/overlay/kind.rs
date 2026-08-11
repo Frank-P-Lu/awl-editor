@@ -324,6 +324,28 @@ impl OverlayKind {
     pub fn hint(self) -> String {
         format_hint(&self.hint_actions())
     }
+    /// [`OverlayKind::Project`]'s line MINUS the `⌫ up` cell — the flat
+    /// switch-project picker's own statement, for the one card shape that
+    /// draws as this kind but never ascends
+    /// (`actions::overlay_nav::overlay_intercept`'s `DeleteBackward`
+    /// arm, gated on `Bind::Path` rather than on the kind). Every other cell
+    /// stays: `↵ select` and the lens strip are true of both features this
+    /// kind draws as, only the ascend affordance is not.
+    ///
+    /// [`super::OverlayState::foot_hint_scoped`] is the only caller, and only
+    /// when its `bind` says the card is the flat feature — the Settings
+    /// folder-VALUE picker (`Bind::Path`) keeps [`Self::hint`] verbatim, and
+    /// so does the roster sweep in `overlay::tests::hints`, which has no
+    /// instance to ask and so states the kind's general (ascending) grammar.
+    pub(crate) fn project_flat_hint(self) -> String {
+        debug_assert_eq!(self, OverlayKind::Project, "no other kind is bind-scoped");
+        let actions: Vec<HintAction> = self
+            .hint_actions()
+            .into_iter()
+            .filter(|a| a.glyph != super::workspace::ERASE_GLYPH)
+            .collect();
+        format_hint(&actions)
+    }
     /// The RANGE-row line's CELLS — [`Self::hint_actions`] with the `←/→` cell
     /// re-labelled for the row's own rail. Split out from
     /// [`Self::range_row_hint`] so `foot_hint` can append the workspace's

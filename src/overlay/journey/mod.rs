@@ -230,6 +230,23 @@ impl Journey {
         }
     }
 
+    /// **THE ONE OWNER of the footer sentence**, for every caller that has a
+    /// `Journey` in hand rather than a bare card. [`OverlayState::foot_hint`]
+    /// cannot answer this alone: [`OverlayKind::Project`] draws as two
+    /// different features from the SAME card shape — the flat switch-project
+    /// picker (no bind, or `Bind::Value`) and the Settings folder-VALUE picker
+    /// (`Bind::Path`) — and only the fact parked here, on the journey, says
+    /// which one a given card is. A caller that reaches the card directly
+    /// (most of the test suite, which builds a standalone `OverlayState` with
+    /// no `Bind` at all) gets the flat answer, which is the correct default:
+    /// a plainly-summoned card is never mid-descend from Settings.
+    pub fn foot_hint(&self) -> String {
+        match self.card() {
+            Some(card) => card.foot_hint_scoped(self.bind()),
+            None => String::new(),
+        }
+    }
+
     // ─── TRANSITIONS ─────────────────────────────────────────────────────
 
     /// SUMMON a surface from the editor. Whatever was up is replaced outright

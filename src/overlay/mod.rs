@@ -10,12 +10,17 @@
 //!
 //! Three kinds share the one card:
 //!   * `Goto`    — the active project's flat file index (fuzzy jump).
-//!   * `Project` — a real, navigable FILE EXPLORER for picking the active root.
-//!     It starts at the `--workspace` dir but navigates by ABSOLUTE path. It is a
-//!     PROJECT PICKER first: Enter PICKS the highlighted folder as the new root
-//!     (the synthetic `.` row picks the CURRENT directory). Right DESCENDS into a
-//!     folder to pick a subfolder; Left / Backspace ASCENDS (even ABOVE the
-//!     workspace). Git folders carry a dim `git` tag in the row's secondary column.
+//!   * `Project` — TWO features behind one card shape, disambiguated by
+//!     [`journey::Bind`] rather than by kind (`OverlayState::foot_hint_scoped`'s
+//!     doc has the full split). Plainly summoned (Switch Project — no bind, or
+//!     `Bind::Value`), it is a FLAT picker over the workspace's direct children
+//!     only: Enter on a folder switches the root immediately (the synthetic `.`
+//!     row picks the current directory), and there is no ascend affordance —
+//!     Left/Right cycle the lens strip, not depth. Descended into from a
+//!     Settings folder-VALUE row (`Bind::Path`), it keeps the full
+//!     destination-navigator grammar: Enter on a folder DESCENDS into it and
+//!     Backspace with an empty query ASCENDS, even above the workspace. Git
+//!     folders carry a dim `git` tag in the row's secondary column either way.
 //!   * `Browse`  — ONE directory level at a time for the active root. Enter on a
 //!     FOLDER descends (the list becomes that folder's children); Left/Backspace
 //!     ASCENDS; Enter on a FILE opens it and closes. Git folders are marked. It

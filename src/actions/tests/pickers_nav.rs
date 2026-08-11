@@ -1202,6 +1202,137 @@ fn settings_path_pick_backspace_still_ascends_past_workspace() {
     );
 }
 
+/// THE ITEM THIS LAW EXISTS FOR (item 391): the flat switch-project picker's
+/// Backspace is inert (proved above by `switch_project_backspace_never_
+/// leaves_the_workspace`), but `OverlayKind::kind_actions` used to print `⌫
+/// up` for every `Project` card regardless — a footer that named a key its
+/// own intercept did not honour. This asserts BOTH halves in one law, so a
+/// regression in either the hint or the intercept fails it: the footer must
+/// not claim the dead key, and it must still teach the picker's real grammar
+/// (a hint law is trivially "satisfiable" by printing nothing at all).
+#[test]
+fn flat_project_backspace_is_inert_and_its_footer_says_so() {
+    let (ws, _fs) = proj_tree();
+    let mut browse_to = |_k: OverlayKind, rel: Option<String>| project_browse(&ws, rel);
+    let mut overlay = crate::overlay::Journey::seeded(browse_to(OverlayKind::Project, None));
+    let mut accept = None;
+
+    let hint = overlay.foot_hint();
+    assert!(
+        !hint.contains('\u{232B}'),
+        "the flat switch-project picker's Backspace does nothing, so its \
+         footer must not name ⌫ at all: {hint}"
+    );
+    // Presence floor: dropping the dead cell must not silently empty the line.
+    assert!(
+        hint.contains("\u{21B5} select"),
+        "still teaches ↵ select: {hint}"
+    );
+    assert!(hint.contains("lens"), "still teaches the lens cycle: {hint}");
+
+    drive_bt(
+        &mut overlay,
+        &mut accept,
+        &mut browse_to,
+        &Action::DeleteBackward,
+    );
+    assert_eq!(
+        overlay.card().unwrap().browse_dir.as_deref(),
+        Some(ws.to_string_lossy().as_ref()),
+        "the footer's silence on ⌫ must match the intercept: Backspace still \
+         must not walk above the configured workspace"
+    );
+}
+
+/// The other half of the same disambiguation: the Settings folder-VALUE
+/// picker (`Bind::Path`) genuinely does ascend, so its footer must keep
+/// claiming `⌫ up` — proving `foot_hint_scoped` doesn't over-suppress the
+/// cell for every `Project` card, only the bind-less one.
+#[test]
+fn path_bound_project_backspace_ascends_and_its_footer_says_so() {
+    let (ws, _fs) = proj_tree();
+    let mut browse_to = |_k: OverlayKind, rel: Option<String>| project_browse(&ws, rel);
+    let child = browse_to(OverlayKind::Project, None).unwrap();
+    let mut overlay = crate::overlay::Journey::seeded(Some(OverlayState::new(
+        OverlayKind::Command,
+        vec!["placeholder".to_string()],
+        vec![],
+        vec![],
+    )));
+    overlay.descend(
+        child,
+        crate::overlay::Bind::Path {
+            key: "default_folder".to_string(),
+        },
+    );
+    let mut accept = None;
+
+    let hint = overlay.foot_hint();
+    assert!(
+        hint.contains("\u{232B} up"),
+        "the settings folder-value picker's Backspace still ascends, so its \
+         footer must keep naming ⌫ up: {hint}"
+    );
+
+    drive_bt(
+        &mut overlay,
+        &mut accept,
+        &mut browse_to,
+        &Action::DeleteBackward,
+    );
+    let parent = ws.parent().unwrap().to_string_lossy().to_string();
+    assert_eq!(
+        overlay.card().unwrap().browse_dir.as_deref(),
+        Some(parent.as_str()),
+        "the footer's claim must match the intercept: Backspace really does \
+         ascend past the workspace here"
+    );
+}
+
+/// SWEEP THE ROSTER, not just Project: any `OverlayKind` whose kind-level
+/// hint (`OverlayState::foot_hint_scoped`'s fallback whenever no bind says
+/// otherwise) claims the `⌫ up` cell has to have its claim proved honest
+/// somewhere, or dropped. Enrolment is DERIVED from `OverlayKind::ALL`, not
+/// hand-picked, so a new kind that grows the same claim cannot dodge this —
+/// it either lands in `HONEST_ASCENDERS` beside a law that proves it, or the
+/// length assertion below fails by name.
+#[test]
+fn every_kind_claiming_the_ascend_key_has_a_named_honesty_law() {
+    // Everyone that claims the ⌫ up cell today, and where its honesty is
+    // proved. (`MoveDest`/`ExportDest` also ascend on an empty-query Backspace
+    // — the same `navigable` arm in `overlay_intercept`'s `DeleteBackward`
+    // match — but their FOOTER never claims `⌫`: they are not
+    // faceted, so the documented ascend key is the bare `←` cell instead, and
+    // Backspace there is an unadvertised extra rather than a claim this law
+    // needs to police.)
+    //   Browse     -> `browse_backspace_ascends` (unconditional, no bind gate)
+    //   Project    -> BIND-GATED: the kind-level claim describes the
+    //                 `Bind::Path` feature only. `path_bound_project_
+    //                 backspace_ascends_and_its_footer_says_so` proves that
+    //                 half honest; `flat_project_backspace_is_inert_and_its_
+    //                 footer_says_so` (above) proves the OTHER card this same
+    //                 kind draws as drops the claim instead of inheriting it.
+    const HONEST_ASCENDERS: [OverlayKind; 2] = [OverlayKind::Browse, OverlayKind::Project];
+    let claims_up: Vec<OverlayKind> = OverlayKind::ALL
+        .iter()
+        .copied()
+        .filter(|k| k.hint().contains("\u{232B} up"))
+        .collect();
+    for k in &claims_up {
+        assert!(
+            HONEST_ASCENDERS.contains(k),
+            "{k:?} claims ⌫ up in its kind-level hint but has no honesty law \
+             pinning it to a real intercept — enrolled set: {claims_up:?}"
+        );
+    }
+    assert_eq!(
+        claims_up.len(),
+        HONEST_ASCENDERS.len(),
+        "the roster of ⌫-up-claiming kinds changed shape (now {claims_up:?}); \
+         update HONEST_ASCENDERS and this law's per-kind proof list together"
+    );
+}
+
 #[test]
 fn switch_project_accept_current_dir_sets_root() {
     let (ws, _fs) = proj_tree();

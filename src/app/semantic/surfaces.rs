@@ -78,7 +78,7 @@ impl SemanticView<'_> {
         let query_id = format!("{dialog_id}.query");
         let list_id = format!("{dialog_id}.rows");
         let mut dialog = SemanticNode::new(&dialog_id, SemanticRole::Dialog, overlay.kind.title());
-        dialog.description = Some(overlay.foot_hint());
+        dialog.description = Some(self.workspace_state.journey().foot_hint());
 
         let mut query = SemanticNode::new(&query_id, SemanticRole::TextInput, overlay.kind.title());
         query.value = Some(overlay.query.text().to_string());
