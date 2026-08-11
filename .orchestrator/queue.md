@@ -238,14 +238,25 @@ Update docs/fonts.md's write-back-once entry and its tests; the never-tofu and
 ladder laws are untouched. A law must fail if opening an untagged CJK doc
 mutates the buffer.
 
-Second half, still owed as diagnosis: **verify the Settings knob is wired.**
-Is the ambiguous-Han control writing the `cjk_priority` key the loader actually
-reads, or the generated-reference class of defect (a key the loader never
-consults)? Reproduce with an UNTAGGED fixture of this doc shape (Japanese
-sentences + bare-Han heading); read the sidecar's `doc_lang` and per-run
-`font.scripts`/`font.cjk` on both sides of the tiebreak and require the
-resolved family pair to differ (probe both sides of the condition). If the
-knob is dead, fix at the loader seam.
+**Diagnosis closed 2026-08-11, reproduced hermetically.** The knob is wired
+end-to-end: the user's live config carries `cjk_priority = ["zh-Hans", …]`,
+`apply_sticky_globals` seeds it, `sync_view` feeds it every reshape (a theme
+control through the same `--config` path repaints every pixel). The bug is the
+stamp alone — and it is a RE-stamp: `App::write_back_lang_tag_once`
+(`app/files/open.rs`) fires on EVERY open of an untagged CJK markdown doc, so
+deleting the tag and saving cures nothing; the next open re-tags the buffer.
+On the user's mixed doc `dominant_cjk` says kana-wins → `lang: ja`, and the
+tag outranks the tiebreak, so 你好 renders JP while the config says zh-Hans.
+Reproduction: an untagged fixture (bare-Han heading + Japanese sentences)
+through `--screenshot-app` with a zh-first `--config` reports `doc_lang: ja`
+in the sidecar and renders pixel-identical to a ja-first config; the disk file
+stays clean. That is the law's seed: after the fix, the same drive must report
+`doc_lang: null`, an unmutated buffer, and the two configs' renders MUST
+differ on the Han run (probe both sides). ⚠️ Instrument note: the SHARED-CORE
+capture pins `DEFAULT_CJK_PRIORITY` (`render/viewstate_def.rs`, documented v1
+simplification) — a law written against the ordinary capture driver is blind
+to this axis by construction; use `--screenshot-app`, or consciously retire
+the pin as part of this item.
 
 ### 394 — Settings arrowing: Right enters, Left does not return
 
