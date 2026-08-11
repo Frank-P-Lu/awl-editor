@@ -127,12 +127,7 @@ use crate::keymap::Action;
 use crate::render::{self, TextPipeline, ViewState};
 
 const MULTICLICK_MS: u64 = 400;
-/// The zoom a WINDOWED launch takes when `config.zoom` is unset. Deliberately not
-/// the `1.0` every headless capture falls back to (`opts.zoom.unwrap_or(1.0)`), so
-/// a replayed `--screenshot` is a different SIZE of the same state than the editor
-/// a user actually sees — which is why the live probe renders its references
-/// through the live-`App` door (`scripts/live-probe.sh`'s `ref_for`) instead.
-pub(crate) const INITIAL_ZOOM: f32 = 0.8;
+pub(crate) const INITIAL_ZOOM: f32 = 0.8; // NOT the capture default; see probe::tests
 const WHEEL_LINES_PER_NOTCH: f32 = 3.0;
 const WHEEL_PIXELS_PER_LINE: f32 = 16.0;
 /// Physical-px SLOP a text-selection drag must travel past the press position

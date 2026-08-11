@@ -284,9 +284,16 @@ fn movement_latency_burst_of_n_reports_n_not_one() {
 /// That reads exactly like a stale/vanished surface and was chased as one.
 ///
 /// So: `ref_for` goes through `--screenshot-app` (tier 2 — a real headless `App`,
-/// which makes the same launch-time render decisions the window did, starting with
-/// the launch zoom), and takes its canvas from the `surface=WxH dpi=S` the shot
-/// line reports.
+/// which makes the same launch-time render decisions the window did), and takes
+/// its canvas from the `surface=WxH dpi=S` the shot line reports.
+///
+/// The launch-time decision that bit here — and the reason
+/// [`crate::app::INITIAL_ZOOM`] is `pub(crate)` at all: a windowed launch with no
+/// `config.zoom` takes it (0.8), while a replay capture takes
+/// `opts.zoom.unwrap_or(1.0)`. A tier-1 reference is therefore a photograph of a
+/// size no user ever sees. Reconciling those two defaults is a product decision
+/// and is NOT what this law asks for; it asks only that the probe grade like with
+/// like.
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn probe_reference_is_the_live_app_on_the_windows_own_canvas() {
