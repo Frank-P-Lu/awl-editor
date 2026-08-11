@@ -271,15 +271,14 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # Same apt-get list as ci.yml's linux job.
+      # THE SAME list as ci.yml's linux job, and now by construction rather
+      # than by a comment claiming it. This is the RELEASE build (RELEASING.md
+      # §"Which Linux build is the release build"), so a dependency added for
+      # the tested build and missed here would go green in CI and fail — or
+      # worse, silently ship differently — only on a tag. scripts/linux-deps.sh
+      # is the one owner; linux-deps-law.sh keeps it the only one.
       - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            pkg-config \
-            libfontconfig1-dev libxkbcommon-dev libwayland-dev \
-            libx11-dev libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
-            mesa-vulkan-drivers
+        run: scripts/linux-build-deps.sh test
 
       - uses: dtolnay/rust-toolchain@stable
 

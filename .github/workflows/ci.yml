@@ -55,14 +55,12 @@ jobs:
       # readback buffers, reclaimed only on poll) made visible and deterministic
       # in ~4 local minutes. It does NOT prove that bounding the growth would
       # have prevented the hang; nothing measured here says that.
+      # The package names live in scripts/linux-deps.sh, the one owner shared
+      # with release.yml's linux job, Dockerfile.linux and the from-source
+      # bootstrap. `test` is BUILD + the Vulkan driver: this job runs the suite
+      # against lavapipe, so it needs a driver that Dockerfile.linux does not.
       - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            pkg-config \
-            libfontconfig1-dev libxkbcommon-dev libwayland-dev \
-            libx11-dev libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
-            mesa-vulkan-drivers
+        run: scripts/linux-build-deps.sh test
 
       - uses: dtolnay/rust-toolchain@stable
 
@@ -193,9 +191,10 @@ jobs:
       # backend dlopens at startup (the xkbcommon-dl crate). `linux` never
       # needed it — that job runs headless, with no X11 display, so the
       # dlopen path is never reached. This job is the first arm to put a
-      # built awl in front of a real X server. Also
-      # added to run-linux.sh and package-linux.sh's shipped README.txt,
-      # which have the same gap for anyone running awl on a bare X11 session.
+      # built awl in front of a real X server. It reaches the from-source
+      # bootstrap and the shipped README.txt through linux-deps.sh's DEB
+      # RUNTIME group, which both compose; it had to be hand-applied to each
+      # of them in the round that found it, which is why that file exists.
       # This step is where a rare apt-get stall against the package mirror
       # can consume the ENTIRE job budget, so the AT-SPI probe below may
       # never get a chance to run at all, let alone hang — its own
@@ -208,23 +207,23 @@ jobs:
       # the 30-minute ceiling. 5m per call is generous headroom over the
       # ~15-35s this step normally takes across a wide sample of runs.
       #
-      # `sudo timeout`, NOT `timeout sudo`, and the order is the whole
-      # mechanism: `timeout` kills by signalling the child it forked. Outside
-      # `sudo` that child is the setuid binary running as root, and an
-      # unprivileged `timeout` signalling a root process gets EPERM — the
-      # timer fires, the kill fails, and the wrapper waits exactly as long as
-      # the stall it was added to bound. Inside, `timeout` is itself root and
-      # can signal `apt-get`. A wrapper that cannot fire is worse than none on
-      # a path this rare: it would read as protected for months and then not
-      # work on the one run that needed it.
+      # `--timeout` is passed INTO the script rather than wrapped around it,
+      # and that is load-bearing: `timeout` signals the child it forked, so
+      # `sudo timeout 5m scripts/linux-build-deps.sh` would make that child
+      # bash, which does not forward the signal to the apt-get it is waiting
+      # on. The script reassembles the exact `sudo timeout 5m apt-get …`
+      # command line this step used to spell out; its own header carries the
+      # full sudo/timeout ordering argument.
+      #
+      # Profile `run`, not `test`: this is the one arm that puts a built awl in
+      # front of a REAL X server, so it needs the RUNTIME group — which is
+      # where libxkbcommon-x11-0 lives. Naming that package here instead would
+      # be a second copy of a name scripts/linux-deps.sh already owns, so the
+      # only thing spelled out is the AT-SPI test rig, which is genuinely
+      # specific to this job and belongs to no distro roster.
       - name: Install system dependencies
         run: |
-          sudo timeout 5m apt-get update
-          sudo timeout 5m apt-get install -y --no-install-recommends \
-            pkg-config \
-            libfontconfig1-dev libxkbcommon-dev libxkbcommon-x11-0 libwayland-dev \
-            libx11-dev libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
-            mesa-vulkan-drivers \
+          scripts/linux-build-deps.sh --timeout 5m run \
             xvfb fluxbox dbus at-spi2-core xdotool \
             gir1.2-atspi-2.0 python3-gi
 

@@ -4,10 +4,13 @@
 # --platform linux/amd64 from the Apple-Silicon Mac (emulated via qemu).
 # Extract the binary with:  --target export --output type=local,dest=dist
 FROM rust:1-bookworm AS build
-RUN apt-get update && apt-get install -y --no-install-recommends \
-      pkg-config \
-      libfontconfig1-dev libxkbcommon-dev libwayland-dev \
-      libx11-dev libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
+# The package names come from scripts/linux-deps.sh, shared with both
+# workflows and the from-source bootstrap. Profile `compile`, not `test`: this
+# stage only ever builds the binary and copies it out, so it needs no Vulkan
+# driver. Copied in on its own layer, ahead of the sources, so an edit to
+# src/ does not invalidate the apt layer.
+COPY scripts/linux-deps.sh scripts/linux-build-deps.sh /src/scripts/
+RUN /src/scripts/linux-build-deps.sh compile \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /src
 COPY Cargo.toml Cargo.lock ./

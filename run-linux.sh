@@ -8,47 +8,52 @@
 #   SKIP_DEPS=1 ./run-linux.sh     # skip the system-package install step
 set -euo pipefail
 cd "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=scripts/linux-deps.sh
+. scripts/linux-deps.sh
 
 PROFILE=()
 if [[ "${1:-}" == "--release" ]]; then PROFILE=(--release); shift; fi
 FILE="${1:-samples/welcome.md}"
 
+# The package names are NOT here — they live in scripts/linux-deps.sh, the one
+# owner shared with both CI workflows, Dockerfile.linux and the README.txt that
+# ships inside the download. This function only maps a package manager to a
+# distro key and an install command.
+#
+# A from-source run needs every group: TOOLCHAIN to compile, BUILD for the
+# headers, GPU + DIAG to actually run and to diagnose a black window, and
+# RUNTIME where the distro declares it — that last one is what carries
+# libxkbcommon-x11-0, the X11 keymap module winit dlopens at startup and which
+# no `-dev` package pulls in.
 install_deps() {
   [[ "${SKIP_DEPS:-0}" == "1" ]] && { echo "SKIP_DEPS=1 -> skipping system packages"; return; }
   echo "==> installing system dependencies (uses sudo)..."
+
+  local distro
+  local -a install
   if command -v apt-get >/dev/null 2>&1; then
+    distro=DEB; install=(sudo apt-get install -y --no-install-recommends)
     sudo apt-get update -qq
-    # libxkbcommon-x11-0: NOT a dependency of libxkbcommon-dev on Debian/Ubuntu
-    # — it's a separate runtime package for the X11 keymap module, which
-    # winit's X11 backend dlopens at startup (xkbcommon-dl). Without it awl
-    # panics immediately on any X11 session (`Library libxkbcommon-x11.so
-    # could not be loaded`) — found via the CI probe, the first arm to
-    # ever put a built awl in front of a real X server. Wayland-only sessions
-    # never hit this path, which is why it went unnoticed until now.
-    sudo apt-get install -y --no-install-recommends \
-      build-essential pkg-config curl ca-certificates \
-      libfontconfig1-dev libxkbcommon-dev libxkbcommon-x11-0 libwayland-dev \
-      libx11-dev libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
-      libvulkan1 mesa-vulkan-drivers vulkan-tools
   elif command -v dnf >/dev/null 2>&1; then
-    sudo dnf install -y \
-      gcc gcc-c++ make pkgconf-pkg-config curl \
-      fontconfig-devel libxkbcommon-devel wayland-devel libX11-devel libxcb-devel \
-      vulkan-loader mesa-vulkan-drivers vulkan-tools
+    distro=FEDORA; install=(sudo dnf install -y)
   elif command -v pacman >/dev/null 2>&1; then
-    sudo pacman -S --needed --noconfirm \
-      base-devel pkgconf curl \
-      fontconfig libxkbcommon wayland libx11 libxcb vulkan-icd-loader mesa vulkan-tools
+    distro=ARCH; install=(sudo pacman -S --needed --noconfirm)
   elif command -v zypper >/dev/null 2>&1; then
-    sudo zypper install -y \
-      gcc gcc-c++ make pkg-config curl \
-      fontconfig-devel libxkbcommon-devel wayland-devel libX11-devel libxcb-devel \
-      vulkan-loader Mesa-vulkan-device-driver vulkan-tools
+    distro=SUSE; install=(sudo zypper install -y)
   else
     echo "!! Unknown package manager. Install manually: a C toolchain, pkg-config," >&2
     echo "   fontconfig, libxkbcommon, wayland, X11/xcb dev libs, the Vulkan loader," >&2
     echo "   and a Mesa Vulkan driver, then re-run with SKIP_DEPS=1." >&2
+    return
   fi
+
+  local -a groups=(TOOLCHAIN BUILD GPU DIAG)
+  awl_deps_has_group "$distro" RUNTIME && groups+=(RUNTIME)
+
+  local pkgs
+  pkgs="$(awl_deps "$distro" "${groups[@]}")"
+  # shellcheck disable=SC2086  # deliberate word-splitting: one package per word.
+  "${install[@]}" $pkgs
 }
 
 ensure_rust() {

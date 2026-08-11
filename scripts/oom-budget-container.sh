@@ -24,20 +24,28 @@
 set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
+# shellcheck source=scripts/linux-deps.sh
+. scripts/linux-deps.sh
 work="${AWL_OOM_WORKDIR:-$HOME/.awl-oom-budget}"
 image=awl-oom-rig:bookworm
 mkdir -p "$work/out"
 
-# lavapipe on Debian bookworm: the same arm64 Mesa 22.3.6 stack measured,
-# on Dockerfile.linux's apt list plus the Vulkan loader and driver.
+# lavapipe on Debian bookworm: the same arm64 Mesa 22.3.6 stack measured, on
+# the shared BUILD list plus the Vulkan loader, driver and tools — composed
+# from scripts/linux-deps.sh rather than restating it, so this rig cannot drift
+# from the build it is meant to be measuring.
+#
+# `docker build -` takes the Dockerfile on stdin with NO build context, so this
+# one cannot COPY linux-build-deps.sh the way Dockerfile.linux does; the list
+# is interpolated instead. ⚠️ The heredoc delimiter is therefore UNQUOTED —
+# keep this Dockerfile body free of any `$` that is not meant to expand in the
+# shell (no ARG/ENV references, no shell variables for Docker's own use).
 if ! docker image inspect "$image" >/dev/null 2>&1; then
-  docker build -t "$image" - <<'DOCKERFILE'
+  oom_pkgs="$(awl_deps DEB BUILD GPU DIAG) procps coreutils"
+  docker build -t "$image" - <<DOCKERFILE
 FROM rust:1-bookworm
-RUN apt-get update && apt-get install -y --no-install-recommends \
-      pkg-config procps coreutils \
-      libfontconfig1-dev libxkbcommon-dev libwayland-dev \
-      libx11-dev libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
-      libvulkan1 mesa-vulkan-drivers vulkan-tools \
+RUN apt-get update && apt-get install -y --no-install-recommends \\
+      $oom_pkgs \\
  && rm -rf /var/lib/apt/lists/*
 DOCKERFILE
 fi

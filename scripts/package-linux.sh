@@ -41,6 +41,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=scripts/linux-deps.sh
+. "$ROOT/scripts/linux-deps.sh"
 
 if [ "$#" -ne 2 ]; then
   echo "usage: scripts/package-linux.sh <path-to-linux-binary> <output-dir>" >&2
@@ -123,9 +125,27 @@ WHAT IT NEEDS
 Fonts and dictionaries are compiled into the binary; nothing is downloaded
 at runtime, ever. Install the runtime libraries with your package manager:
 
-    Debian/Ubuntu   sudo apt install libfontconfig1 libxkbcommon0 libxkbcommon-x11-0 libvulkan1 mesa-vulkan-drivers
-    Fedora          sudo dnf install fontconfig libxkbcommon vulkan-loader mesa-vulkan-drivers
-    Arch            sudo pacman -S fontconfig libxkbcommon vulkan-icd-loader mesa
+TXT
+
+# THE RUNTIME TABLE IS GENERATED, from the same scripts/linux-deps.sh that
+# drives CI, Dockerfile.linux and the from-source bootstrap — so the names a
+# user is told to install cannot drift from the ones awl is actually built and
+# tested against. That drift is not hypothetical: libxkbcommon-x11-0 had to be
+# hand-applied to this heredoc, run-linux.sh and ci.yml in one round.
+#
+# ENROLMENT IS DERIVED, not listed here: a distro appears iff it declares a
+# RUNTIME group. openSUSE deliberately does not (its non-dev names have never
+# been verified on a real box), so it stays out of this table without anything
+# needing to remember to exclude it — and adding a verified array is the whole
+# of what enrolling it takes. Generating a document moves the error from
+# transcription to sourcing, so unverified names are ABSENT rather than guessed.
+for distro in $(awl_deps_runtime_distros); do
+  label="AWL_${distro}_LABEL"
+  install_cmd="AWL_${distro}_INSTALL"
+  printf '    %-16s%s %s\n' "${!label}" "${!install_cmd}" "$(awl_deps "$distro" RUNTIME)"
+done >> "$STAGE/README.txt"
+
+cat >> "$STAGE/README.txt" <<'TXT'
 
     On X11 sessions specifically, winit dlopens libxkbcommon-x11.so at
     startup; Debian/Ubuntu ship it in the separate libxkbcommon-x11-0

@@ -63,6 +63,11 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
   fi
 fi
 RUSTC_WRAPPER= python3 scripts/code-health.py
+# The one structural check whose subject is NOT Rust: awl's Linux package names
+# have a single owner (scripts/linux-deps.sh) and no Rust test can see the
+# workflows, Dockerfiles and shell scripts that consume it. It runs here because
+# this is the only blocking gate that can read them.
+scripts/linux-deps-law.sh
 # A disposable fake Cargo makes both convention failure directions cheap to
 # exercise on every health run; the static audit above pins the command scope.
 scripts/test-native-gate.sh
