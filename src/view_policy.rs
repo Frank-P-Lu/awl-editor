@@ -193,6 +193,11 @@ mod tests {
             // other sidecar serializers it contributes zero to every count below.
             "capture/plan_sidecar.rs",
             "capture/policy.rs",
+            // Rewrites the builder's `$HOME` to `~` in a finished artifact's TEXT
+            // and decides nothing about the view: it holds none of the rostered
+            // policy identifiers, so like the sidecar serializers it contributes
+            // zero to every count below.
+            "capture/redact.rs",
             // Serializes replay-skip records and owns no view policy.
             "capture/replay_sidecar.rs",
             "capture/scroll_sidecar.rs",
