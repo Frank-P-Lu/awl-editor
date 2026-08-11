@@ -1,6 +1,6 @@
 [package]
 name = "awl"
-version = "0.9.0"
+version = "0.10.0"
 edition = "2024"
 # GPL-3.0-only (not "-or-later"): a deliberate, flippable choice — "-only" pins
 # distribution to this exact license version; switching to "-or-later" (letting
