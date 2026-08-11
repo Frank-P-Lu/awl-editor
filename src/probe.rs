@@ -19,7 +19,8 @@
 //!     real `on_mouse_wheel`; an open picker advances + previews, coordinate-free.
 //!   - `shot <name>` — screenshot the real window into `<shots-dir>/<name>.png`
 //!     (`--live-shots DIR`, default the system temp dir). Every shot prints one
-//!     `LIVE-PROBE shot …` line to stdout for the wrapping script to assert on.
+//!     `LIVE-PROBE shot …` stdout line, tailed with this window's own
+//!     `surface=WxH dpi=S` — the canvas the script renders its reference on.
 //!   - `quit` — clean exit through the same `Action::Quit` a Cmd-Q takes.
 //!     Appended automatically if the script doesn't end with one, so a probe
 //!     run always terminates.
@@ -247,11 +248,10 @@ pub fn recording() -> bool {
 /// the window-attrs branch in `App::resumed`), so a probe window never sits
 /// center-stage stealing the eye — the companion to the Prohibited activation
 /// policy (`crate::app::run`) that keeps it from stealing keyboard FOCUS. The
-/// wrapping script (`scripts/live-probe.sh`) renders its HEADLESS references at
-/// this exact `--capture-size`, so the pixel comparison stays dpi-agnostic: the
-/// live LOGICAL size equals the ref LOGICAL size, and the display's real scale
-/// factor is absorbed as the integer block-compare scale. KEEP IN LOCKSTEP with
-/// that script's `PROBE_CANVAS`.
+/// wrapping script (`scripts/live-probe.sh`) sizes the probe WINDOW from this and
+/// KEEPS IT IN LOCKSTEP as its own `PROBE_CANVAS` (law-tested in `tests`). It is
+/// NOT what that script renders its REFERENCES at — see its `ref_for`: layout is
+/// not dpi-invariant, and a replay reference never gets the LAUNCH ZOOM.
 #[cfg(not(target_arch = "wasm32"))]
 pub const PROBE_LOGICAL_W: f64 = 900.0;
 #[cfg(not(target_arch = "wasm32"))]

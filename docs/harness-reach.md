@@ -98,6 +98,36 @@ Three properties worth knowing before you reach for it:
   would misrepresent the editor being photographed. `--root`/`--workspace` were
   already threaded and stay so.
 
+### A tier-1 capture is not a photograph of the editor's SIZE
+
+The tiers differ in more than which code runs: they differ in the CONFIGURATION
+that code launches under, and the difference is silent.
+
+- **Launch zoom.** A windowed launch with no `config.zoom` takes
+  `app::INITIAL_ZOOM` — **0.8**. A replay capture with no `--zoom` and no sticky
+  config takes **1.0** (`opts.zoom.unwrap_or(1.0)`). So a tier-1 `--screenshot`
+  of a state is a *different size* of that state than the editor a user sees, and
+  `--screenshot-app`, which builds a real `App`, is the door that reproduces the
+  shipped size. The sidecar says which you got: `font.zoom`.
+- **Surface and dpi are not interchangeable for everything.** The live-`App` dpi
+  law above proves the document's own wrap is invariant under trading surface
+  pixels for dpi (`1200x800 @1` ≡ `2400x1600 @2`, matching `layout.rows`). That
+  invariance does **not** extend to the summoned overlay's card: at zoom 0.8,
+  `900x600 @1` reports `overlay.window.band` `x 27.5 / w 545`, while the same
+  logical window as `1800x1200 @2` reports `x 164 / w 872` — not the 2x the
+  document text takes. Read the sidecar's `overlay.window` rather than scaling a
+  number measured on another canvas.
+
+Both facts surfaced in item 397, and both surfaced the expensive way. The live
+probe (`scripts/live-probe.sh`) had been grading a real tier-3 window against a
+tier-1 reference on a canvas it chose itself, so its shots and its references
+were two different pictures of the same state. The symptom was one 40x40 block
+whose mean sat 35 off the reference — which reads like a stale surface rather
+than a size difference, because a block that is *uniform in the reference* can
+only fail where a glyph moved into or out of it. The probe now renders every
+reference through `--screenshot-app`, on the `surface=WxH dpi=S` the window
+itself reports on its shot line.
+
 Rust assertions on `App` state remain the purest seam for a sweep
 (CLAUDE.md's unit > sidecar > capture ladder) — item 114's tier-2 settings sweep
 is not retired by this. What is new is that a tier-2 claim can now be handed to a

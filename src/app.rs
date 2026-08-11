@@ -127,7 +127,12 @@ use crate::keymap::Action;
 use crate::render::{self, TextPipeline, ViewState};
 
 const MULTICLICK_MS: u64 = 400;
-const INITIAL_ZOOM: f32 = 0.8;
+/// The zoom a WINDOWED launch takes when `config.zoom` is unset. Deliberately not
+/// the `1.0` every headless capture falls back to (`opts.zoom.unwrap_or(1.0)`), so
+/// a replayed `--screenshot` is a different SIZE of the same state than the editor
+/// a user actually sees — which is why the live probe renders its references
+/// through the live-`App` door (`scripts/live-probe.sh`'s `ref_for`) instead.
+pub(crate) const INITIAL_ZOOM: f32 = 0.8;
 const WHEEL_LINES_PER_NOTCH: f32 = 3.0;
 const WHEEL_PIXELS_PER_LINE: f32 = 16.0;
 /// Physical-px SLOP a text-selection drag must travel past the press position
@@ -378,7 +383,7 @@ mod persistence;
 /// The HEADLESS PRESS DOOR — real chords into the live `App`, off-window.
 #[cfg(any(test, not(target_arch = "wasm32")))]
 mod press;
-mod probe;
+pub(crate) mod probe;
 /// The one redraw-request door. GPU ownership stays on `App`; callers ask for
 /// a frame without reaching through that owner to winit's window verb.
 mod redraw;

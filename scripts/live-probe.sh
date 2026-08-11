@@ -5,16 +5,18 @@
 # Drives the REAL windowed app (real winit loop, real GPU surface, real
 # presents, real WaitUntil debounces) through scripted theme-picker previews
 # via `awl --live-script` (src/probe.rs), screenshots what actually reached
-# the screen at each dwell, and asserts every shot against the proven-correct
-# HEADLESS capture of the same state with pixel arithmetic
-# (scripts/probe-shot-check.py). This is the harness tier that exists because
+# the screen at each dwell, and asserts every shot against a HEADLESS LIVE-`App`
+# capture of the same state ON THE SAME CANVAS, with pixel arithmetic
+# (scripts/probe-shot-check.py — see ref_for below for why both of those
+# qualifiers are load-bearing). This is the harness tier that exists because
 # the theme-picker "page vanishes while previewing" bug class is structurally
 # INVISIBLE to the offscreen `--screenshot` path (see src/probe.rs's module
 # doc for the three live-only bug classes: stale caches, redraw-scheduling
 # gaps, present/compositor races).
 #
 # WHAT A RUN DOES (per matrix cell):
-#   1. renders the cell's HEADLESS reference frames (offscreen, per state);
+#   1. runs the live cell, then renders its HEADLESS reference frames (offscreen,
+#      per state) on the canvas the live window itself reported;
 #   2. launches an isolated live app (`--theme SRC --live-script ...`) — a
 #      SMALL window appears in the top-left corner for a few seconds. It is a
 #      non-activating app (Prohibited policy; no Dock/cmd-tab entry) that NEVER takes keyboard
@@ -100,15 +102,19 @@ PROC_NAME="awl-probe-$$"
 BIN="$WORK/$PROC_NAME"
 cp "$BUILT_BIN" "$BIN" && chmod +x "$BIN"
 
-# The probe window's LOGICAL canvas (small + cornered — see src/probe.rs's
-# PROBE_LOGICAL_W/H, which this MUST match). Headless references render at this
-# exact `--capture-size` (physical == logical at the default `--capture-dpi 1.0`),
-# so the live-vs-headless block comparison stays dpi-agnostic: the live LOGICAL
-# size equals the ref LOGICAL size and the display's real scale factor is absorbed
-# as the integer block-compare scale (2x on retina). A drift between this value
-# and the Rust constant surfaces immediately as probe-shot-check.py's
-# "live width N is not an integer multiple of ref width M".
+# The probe window's LOGICAL size (small + cornered — see src/probe.rs's
+# PROBE_LOGICAL_W/H, which this MUST match; the lockstep is law-tested in
+# src/probe/tests.rs). It sizes the WINDOW only. References are NOT rendered at
+# it: see ref_for below for why the window's own reported surface + dpi is what
+# they use instead.
 PROBE_CANVAS="900x600"
+
+# The compositor's rounded-corner mask, in the LIVE image's own device px. A
+# window-server shot is the window as COMPOSITED and carries it; an offscreen
+# render is square and always will be. Measured on macOS at 2x: the arc reaches
+# ~36px along the bottom edge and ~35 rows up, so a 40px box covers it. See
+# probe-shot-check.py's --corner.
+WINDOW_CORNER_PX=40
 
 FIXTURE="$WORK/fix.md"
 cat > "$FIXTURE" <<'EOF'
@@ -128,26 +134,41 @@ cleanup() {
 FAILED=0
 trap cleanup EXIT
 
-# --- Headless reference generation (cached per src+keys) --------------------
-# The offscreen capture of the SAME state is the law-suite-proven EXPECTED
-# image; refs render fine on a locked screen (no window involved).
-ref_for() { # ref_for SRC "KEYS with spaces or -" -> echoes png path
-  local src="$1" keys="$2"
-  local slug; slug="$(echo "$src-$keys" | tr ' ' '_' | tr -cd 'A-Za-z0-9_.-')"
+# --- Headless reference generation (cached per src+keys+canvas) -------------
+# THE REFERENCE IS A HEADLESS LIVE `App`, ON THE LIVE WINDOW'S OWN CANVAS.
+#
+# Both halves of that sentence are load-bearing, and getting either wrong grades
+# a real frame against a picture nothing ever drew:
+#
+#   * `--screenshot-app`, not `--screenshot`. A bare `--screenshot` replays the
+#     shared CORE (docs/harness-reach.md tier 1); the probe's subject is a real
+#     window (tier 3). Skipping tier 2 skips the tier where LAUNCH-TIME render
+#     decisions are made, and they do not agree: the live editor launches at
+#     `crate::app::INITIAL_ZOOM`, while a replay capture defaults to zoom 1.0.
+#     A tier-1 reference is therefore a different SIZE of the same state — and
+#     it fails the way a stale frame fails, as a handful of blocks whose text
+#     landed somewhere else.
+#   * The window's OWN `surface=WxH dpi=S`, read off its shot line, not this
+#     script's idea of the canvas. Layout is not invariant under trading surface
+#     pixels for dpi (the overlay card's geometry moves), so "same logical size,
+#     dpi 1" is not the same picture as the HiDPI window it is grading.
+#
+# Refs render fine on a locked screen (no window involved).
+ref_for() { # ref_for SRC "KEYS with spaces or -" SURFACE DPI -> echoes png path
+  local src="$1" keys="$2" surface="$3" dpi="$4"
+  local slug; slug="$(echo "$src-$keys-$surface-$dpi" | tr ' ' '_' | tr -cd 'A-Za-z0-9_.-')"
   local png="$WORK/ref/$slug.png"
   if [[ ! -f "$png" ]]; then
     mkdir -p "$WORK/ref"
-    # `--capture-size $PROBE_CANVAS` renders the headless reference at the SAME
-    # logical size as the small live probe window (see PROBE_CANVAS above).
     # (bash 3.2: an empty-array "${a[@]}" trips `set -u`, hence the split call)
     if [[ "$keys" != "-" ]]; then
       HOME="$WORK/refhome" XDG_CONFIG_HOME="$WORK/refhome/cfg" XDG_DATA_HOME="$WORK/refhome/data" \
-        "$BIN" --screenshot "$png" --capture-size "$PROBE_CANVAS" --theme "$src" --keys "$keys" "$FIXTURE" >/dev/null 2>&1
+        "$BIN" --screenshot-app "$png" --capture-size "$surface" --capture-dpi "$dpi" --theme "$src" --keys "$keys" "$FIXTURE" >/dev/null 2>&1
     else
       HOME="$WORK/refhome" XDG_CONFIG_HOME="$WORK/refhome/cfg" XDG_DATA_HOME="$WORK/refhome/data" \
-        "$BIN" --screenshot "$png" --capture-size "$PROBE_CANVAS" --theme "$src" "$FIXTURE" >/dev/null 2>&1
+        "$BIN" --screenshot-app "$png" --capture-size "$surface" --capture-dpi "$dpi" --theme "$src" "$FIXTURE" >/dev/null 2>&1
     fi
-    [[ -f "$png" ]] || { echo "error: reference capture failed for $src / $keys" >&2; return 1; }
+    [[ -f "$png" ]] || { echo "error: reference capture failed for $src / $keys @ $surface dpi $dpi" >&2; return 1; }
   fi
   echo "$png"
 }
@@ -183,10 +204,22 @@ check_shot() { # NAME SHOT SRC "REFKEYS or -" REGION [--coarse]
     FAILED=1
     return
   fi
+  # The window reports the canvas it actually rendered on (`App::probe_surface_tag`);
+  # the reference is rendered on THAT, never on an assumed one. A line without the
+  # fields is an old binary or a broken protocol — fail loudly rather than fall back
+  # to a guess, which is exactly the silent mis-grading this whole tail exists to end.
+  local surface dpi
+  surface="$(echo "$line" | sed -n 's/.* surface=\([0-9]*x[0-9]*\) .*/\1/p')"
+  dpi="$(echo "$line" | sed -n 's/.* dpi=\([0-9.]*\).*/\1/p')"
+  if [[ -z "$surface" || -z "$dpi" || "$surface" == 0x0 ]]; then
+    echo "DEFECT $name/$shot: shot line carries no usable surface=WxH dpi=S ($line)"
+    FAILED=1
+    return
+  fi
   local ref
-  ref="$(ref_for "$src" "$refkeys")" || { FAILED=1; return; }
+  ref="$(ref_for "$src" "$refkeys" "$surface" "$dpi")" || { FAILED=1; return; }
   local out
-  if out="$(python3 "$SCRIPT_DIR/probe-shot-check.py" "$png" "$ref" --region "$region" "$@")"; then
+  if out="$(python3 "$SCRIPT_DIR/probe-shot-check.py" "$png" "$ref" --region "$region" --corner "$WINDOW_CORNER_PX" "$@")"; then
     echo "$name/$shot: $out"
   else
     echo "$name/$shot: $out"

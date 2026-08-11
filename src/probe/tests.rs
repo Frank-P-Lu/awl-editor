@@ -272,3 +272,113 @@ fn movement_latency_burst_of_n_reports_n_not_one() {
     let _ = std::fs::remove_file(&path);
     assert!(!recording(), "disarmed again — no leak into sibling tests");
 }
+
+/// THE PROBE'S REFERENCE MUST BE THE LIVE `App`, ON THE WINDOW'S OWN CANVAS.
+///
+/// The bug this law is named for: the matrix graded a real window (harness tier 3)
+/// against a bare `--screenshot` replay of the shared core (tier 1), on a canvas
+/// this script chose rather than the one the window rendered on. Both halves are
+/// wrong, and neither fails loudly — the whole picture is simply a different SIZE,
+/// so nearly every uniform block still matches and the mismatch surfaces as a
+/// handful of blocks where a glyph landed somewhere the reference has bare page.
+/// That reads exactly like a stale/vanished surface and was chased as one.
+///
+/// So: `ref_for` goes through `--screenshot-app` (tier 2 — a real headless `App`,
+/// which makes the same launch-time render decisions the window did, starting with
+/// the launch zoom), and takes its canvas from the `surface=WxH dpi=S` the shot
+/// line reports.
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn probe_reference_is_the_live_app_on_the_windows_own_canvas() {
+    let script = probe_script_source();
+    let body = between(&script, "ref_for() {", "\n}\n").expect("ref_for is defined in the script");
+
+    assert!(
+        body.contains("--screenshot-app"),
+        "live-probe.sh's ref_for must render its reference through the live-`App` \
+         door (--screenshot-app), not the replay core: the windowed editor launches \
+         at zoom {} while a replay capture defaults to 1.0, so a --screenshot \
+         reference is a different SIZE of the same state. ref_for was:\n{body}",
+        crate::app::INITIAL_ZOOM,
+    );
+    assert!(
+        !body.contains("--screenshot "),
+        "no bare --screenshot (replay-core) reference may remain in ref_for:\n{body}"
+    );
+    assert!(
+        body.contains("--capture-dpi"),
+        "ref_for must pin the reference's dpi — layout is not invariant under \
+         trading surface pixels for dpi, so a reference at the window's LOGICAL \
+         size and dpi 1 is not the HiDPI window's picture:\n{body}"
+    );
+    assert!(
+        !body.contains("PROBE_CANVAS"),
+        "ref_for must take its canvas from the window's reported surface, not from \
+         this script's own PROBE_CANVAS:\n{body}"
+    );
+
+    let check = between(&script, "check_shot() {", "\n}\n").expect("check_shot is defined");
+    for field in ["surface=", "dpi="] {
+        assert!(
+            check.contains(field),
+            "check_shot must read `{field}` off the shot line and hand it to ref_for \
+             (the window is the authority on its own canvas):\n{check}"
+        );
+    }
+}
+
+/// The `LIVE-PROBE shot …` tail the app WRITES is the tail the script READS.
+/// A rename on either side would not fail loudly — the script would extract an
+/// empty canvas — so the field names are pinned rather than trusted.
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn probe_shot_lines_carry_the_canvas_fields_the_script_parses() {
+    let tag = crate::app::probe::surface_tag(1800, 1200, 2.0);
+    assert_eq!(tag, "surface=1800x1200 dpi=2", "the wire format, spelled once");
+
+    let script = probe_script_source();
+    let check = between(&script, "check_shot() {", "\n}\n").expect("check_shot is defined");
+    for field in ["surface=", "dpi="] {
+        assert!(
+            tag.contains(field) && check.contains(field),
+            "producer (`app::probe::surface_tag` -> {tag:?}) and consumer \
+             (live-probe.sh check_shot) must agree on `{field}`"
+        );
+    }
+}
+
+/// The script's `PROBE_CANVAS` sizes the probe WINDOW and must stay in lockstep
+/// with [`PROBE_LOGICAL_W`]/[`PROBE_LOGICAL_H`]. Previously a comment asking for
+/// lockstep and a claim that a drift would surface on its own; it now fails here.
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn probe_canvas_in_the_script_matches_the_window_constants() {
+    let script = probe_script_source();
+    let want = format!(
+        "PROBE_CANVAS=\"{}x{}\"",
+        PROBE_LOGICAL_W as u32, PROBE_LOGICAL_H as u32
+    );
+    assert!(
+        script.contains(&want),
+        "live-probe.sh must declare {want} to match PROBE_LOGICAL_W/H"
+    );
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn probe_script_source() -> String {
+    let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("scripts")
+        .join("live-probe.sh");
+    std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {}: {e}", path.display()))
+}
+
+/// The body of a shell function: everything between `head` and the first line that
+/// is exactly `}` after it. Returns `None` if the opener is absent, so a renamed
+/// function fails the law by name instead of vacuously passing on an empty body.
+#[cfg(not(target_arch = "wasm32"))]
+fn between(haystack: &str, head: &str, close: &str) -> Option<String> {
+    let start = haystack.find(head)? + head.len();
+    let rest = &haystack[start..];
+    let end = rest.find(close)?;
+    Some(rest[..end].to_string())
+}
