@@ -101,9 +101,8 @@ fn in_the_content_pane() -> App {
         Some(OverlayKind::Settings),
         "the real binding summoned the Settings workspace"
     );
-    assert_eq!(
-        card(&app, "on summon").detail_focus,
-        false,
+    assert!(
+        !card(&app, "on summon").detail_focus,
         "a fresh summon stands on the navigation rail, the workspace's primary list"
     );
     app.press_spec_headless("Right")
@@ -246,7 +245,11 @@ fn a_live_query_keeps_the_erase_key_and_the_footer_follows_it_back() {
     let mut app = in_the_content_pane();
     app.press_spec_headless("z o o m").expect("typing parses");
     let typed = card(&app, "with a query typed");
-    assert_eq!(typed.query.text(), "zoom", "the real keys reached the query");
+    assert_eq!(
+        typed.query.text(),
+        "zoom",
+        "the real keys reached the query"
+    );
     assert_eq!(
         typed.detail_back(),
         Some(BackKey::Focus),
@@ -262,7 +265,8 @@ fn a_live_query_keeps_the_erase_key_and_the_footer_follows_it_back() {
     // FOUR ERASES DRAIN THE QUERY AND CHANGE NOTHING ELSE — the field's own
     // work, still the field's.
     for n in 1..=4 {
-        app.press_spec_headless("Backspace").expect("Backspace parses");
+        app.press_spec_headless("Backspace")
+            .expect("Backspace parses");
         let now = card(&app, "mid-drain");
         assert!(
             now.detail_focus,
@@ -285,7 +289,8 @@ fn a_live_query_keeps_the_erase_key_and_the_footer_follows_it_back() {
     );
 
     // …and the NEXT erase goes back, which is the whole grammar in one press.
-    app.press_spec_headless("Backspace").expect("Backspace parses");
+    app.press_spec_headless("Backspace")
+        .expect("Backspace parses");
     assert!(
         !card(&app, "after the fifth erase").detail_focus,
         "the erase after the last character is the Back — the same one press the folder \

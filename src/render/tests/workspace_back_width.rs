@@ -68,7 +68,12 @@ fn enrolled() -> Vec<OverlayKind> {
 /// A real Settings card standing in its CONTENT pane, with focus placed by the
 /// LIFECYCLE rather than assigned — the same walk a user makes.
 fn card_in_content(kind: OverlayKind) -> OverlayState {
-    let mut ov = OverlayState::new(kind, crate::settings::visible_names(), Vec::new(), Vec::new());
+    let mut ov = OverlayState::new(
+        kind,
+        crate::settings::visible_names(),
+        Vec::new(),
+        Vec::new(),
+    );
     ov.set_facet_lens(0);
     let mut journey = crate::overlay::Journey::seeded(Some(ov));
     journey.toggle_detail();
@@ -249,8 +254,8 @@ fn the_workspaces_back_reads_and_draws_the_same_on_both_sides_of_the_staging_thr
                     // WHETHER IT FITS is LEDGERED, not asserted — see `OVERRUN`.
                     // A cell that overflows and is not listed fails; a listed
                     // cell that stops overflowing fails too.
-                    let fits = geom.text_left + ink_w <= cx + cw + 0.5
-                        && top + height <= cy + ch + 0.5;
+                    let fits =
+                        geom.text_left + ink_w <= cx + cw + 0.5 && top + height <= cy + ch + 0.5;
                     if !fits {
                         overrun.push(what.clone());
                         continue;
@@ -260,10 +265,9 @@ fn the_workspaces_back_reads_and_draws_the_same_on_both_sides_of_the_staging_thr
                     // a state oracle; whether type reached the frame is a
                     // question for the pixels.
                     let (texture, tview) = offscreen(&device, pw, ph);
-                    let mut enc =
-                        device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                            label: Some("awl workspace back footer"),
-                        });
+                    let mut enc = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                        label: Some("awl workspace back footer"),
+                    });
                     p.render(&mut enc, &tview).unwrap();
                     queue.submit(Some(enc.finish()));
                     let px = read_pixels(&device, &queue, &texture, pw, ph);
@@ -317,8 +321,7 @@ fn the_workspaces_back_reads_and_draws_the_same_on_both_sides_of_the_staging_thr
          the focus key is the fallback for a live query, and no cell here types one"
     );
     assert_eq!(
-        overrun,
-        OVERRUN,
+        overrun, OVERRUN,
         "the set of cells whose footer runs past the card's right edge changed. A cell that \
          is here and not in OVERRUN is a NEW overrun — fix it. A cell in OVERRUN that is no \
          longer here has been fixed — delete its entry rather than leave a ledger that \
@@ -379,7 +382,8 @@ fn naming_the_erase_key_shapes_no_wider_than_naming_the_focus_key() {
             &format!("{} back", BackKey::Focus.glyph()),
         );
         assert_ne!(
-            shipped, was,
+            shipped,
+            was,
             "{}: the substitution matched nothing, so this measures one sentence twice",
             kind.as_str()
         );
@@ -420,5 +424,8 @@ fn naming_the_erase_key_shapes_no_wider_than_naming_the_focus_key() {
             }
         }
     }
-    assert!(graded >= 20, "the comparison must actually run, got {graded}");
+    assert!(
+        graded >= 20,
+        "the comparison must actually run, got {graded}"
+    );
 }

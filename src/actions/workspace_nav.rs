@@ -81,10 +81,8 @@ pub(super) fn workspace_intercept(ctx: &mut ActionCtx, action: &Action) -> Optio
     // query (Settings hands focus to the rows as it does so), because there is
     // nothing behind the primary list but the editor, and `Esc` is what goes
     // there.
-    if matches!(
-        action,
-        Action::DeleteBackward | Action::DeleteWordBackward
-    ) && ov.detail_back() == Some(crate::overlay::workspace::BackKey::Erase)
+    if matches!(action, Action::DeleteBackward | Action::DeleteWordBackward)
+        && ov.detail_back() == Some(crate::overlay::workspace::BackKey::Erase)
     {
         ctx.journey.toggle_detail();
         return Some(Effect::None);

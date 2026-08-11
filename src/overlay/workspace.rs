@@ -306,10 +306,9 @@ impl OverlayKind {
     pub fn detail_hint_actions(self) -> Vec<HintAction> {
         let key = |glyph, label| HintAction { glyph, label };
         match self {
-            OverlayKind::History => vec![
-                key(ARROWS_UD, "scroll"),
-                key("\u{21E7}\u{21B5}", "restore"),
-            ],
+            OverlayKind::History => {
+                vec![key(ARROWS_UD, "scroll"), key("\u{21E7}\u{21B5}", "restore")]
+            }
             // A comparison here is read-only prose exactly as it is on a
             // timeline, minus the one key that changes the document.
             OverlayKind::Conflict => vec![key(ARROWS_UD, "scroll")],

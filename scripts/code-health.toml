@@ -58,8 +58,8 @@ lines = 908
 
 [[file_size_mark]]
 file = "src/actions/overlay_nav.rs"
-lines = 792
-reason = "item 114: +8 lines net. The workspace's own two-region keyboard and its deep link were carved out to `actions/workspace_nav.rs`; what remains here is the intercept-chain entry and the dispatcher arm that calls them. Item 116c: -23 lines net — the whole `history_intercept` function (folded into the shape-aware `workspace_nav::workspace_intercept`, item 116a's `rows_are_primary` fact) is gone from this file; the `Newline`/`AcceptAlternate` accept arm and the keep-version minibuffer's Cancel/Newline arms now route through `Journey::cancel`/`accept` instead of a bare `dismiss()`. +15: the roster gate that opens the preview owner before its match, so an arm added there alone is INERT until the kind declares itself. The gate, not the arms, is the enrolment, which closes the wildcard hole a subset law could not see."
+lines = 823
+reason = "item 114: +8 lines net. The workspace's own two-region keyboard and its deep link were carved out to `actions/workspace_nav.rs`; what remains here is the intercept-chain entry and the dispatcher arm that calls them. Item 116c: -23 lines net — the whole `history_intercept` function (folded into the shape-aware `workspace_nav::workspace_intercept`, item 116a's `rows_are_primary` fact) is gone from this file; the `Newline`/`AcceptAlternate` accept arm and the keep-version minibuffer's Cancel/Newline arms now route through `Journey::cancel`/`accept` instead of a bare `dismiss()`. +15: the roster gate that opens the preview owner before its match, so an arm added there alone is INERT until the kind declares itself. The gate, not the arms, is the enrolment, which closes the wildcard hole a subset law could not see. +31: switch-project's accept becomes flat — Enter on a direct child switches instead of descending, and the ascend gate excludes a non-path-bound Project so an empty-query Backspace cannot walk above the configured workspace. The second guard is the one that is not obvious: excluding Project from the navigable set made an idle Backspace fall through to a pop that resets the selection to row 0, so the no-op arm is load-bearing rather than defensive."
 
 [[file_size_mark]]
 file = "src/app.rs"
@@ -255,8 +255,8 @@ lines = 761
 
 [[file_size_mark]]
 file = "src/overlay/kind.rs"
-lines = 470
-reason = "A new `OverlayKind` variant crosses seven exhaustive per-kind matches in this one file — name, accept disposition, row-meta roster, hints, empty copy, title, row split — each of which exists so a new kind cannot inherit an untested path (+20). +45: `keeps_backdrop_crisp` becomes the ONE owner of which pickers keep the document sharp behind them, as a wildcard-free 21-arm match -- the eighth exhaustive per-kind match this file carries. It replaced two independent deciders, one of which keyed on the mode's own SPELLING (`o.mode == \"theme\" || o.mode == \"caret\"`) in the capture door, so the live App and a capture could disagree about the same kind. A comment naming a stale set was the symptom; two deciders were the cause. +49: `previews_live_document` is the ninth wildcard-free per-kind match this file carries. It is the subject of the equivalence law that replaced a subset law: the frost exemption and the live audition are ONE decision, so a kind repainting the page behind its card must not frost it, and a kind repainting nothing has no exemption to claim."
+lines = 479
+reason = "A new `OverlayKind` variant crosses seven exhaustive per-kind matches in this one file — name, accept disposition, row-meta roster, hints, empty copy, title, row split — each of which exists so a new kind cannot inherit an untested path (+20). +45: `keeps_backdrop_crisp` becomes the ONE owner of which pickers keep the document sharp behind them, as a wildcard-free 21-arm match -- the eighth exhaustive per-kind match this file carries. It replaced two independent deciders, one of which keyed on the mode's own SPELLING (`o.mode == \"theme\" || o.mode == \"caret\"`) in the capture door, so the live App and a capture could disagree about the same kind. A comment naming a stale set was the symptom; two deciders were the cause. +49: `previews_live_document` is the ninth wildcard-free per-kind match this file carries. It is the subject of the equivalence law that replaced a subset law: the frost exemption and the live audition are ONE decision, so a kind repainting the page behind its card must not frost it, and a kind repainting nothing has no exemption to claim. +9: the detail stage's Back cell is appended by one owner rather than authored per kind, so a kind cannot name a key its own intercept does not honour."
 
 [[file_size_mark]]
 file = "src/overlay/nav.rs"
@@ -265,8 +265,8 @@ reason = "item 114: +12 lines. `item_sections` gained the workspace's empty-sect
 
 [[file_size_mark]]
 file = "src/overlay/state.rs"
-lines = 673
-reason = "The conflict card's payload field on the one `OverlayState` struct and its one exhaustive `new_marked` initializer (+5)."
+lines = 683
+reason = "The conflict card's payload field on the one `OverlayState` struct and its one exhaustive `new_marked` initializer (+5). +10: `BackKey` is the one owner of what goes back from a detail stage — erase when free, focus while a live query owns the erase key, nothing during a value edit — so the footer and the intercept cannot disagree."
 
 [[file_size_mark]]
 file = "src/peek.rs"
@@ -946,9 +946,16 @@ reason = "Existing end-to-end scenario with no coherent setup/assertion split. R
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
+file = "src/render/tests/workspace_back_width.rs"
+function = "the_workspaces_back_reads_and_draws_the_same_on_both_sides_of_the_staging_threshold"
+message = "this function has too many lines (155/100)"
+reason = "The law's subject IS the pair of regimes, so both sides of the staging threshold are measured in one body against one shaped sentence. It sweeps width x zoom x dpi and asserts it REACHED both regimes rather than naming a pixel threshold, because the flip derives from display-face metrics times zoom and no constant describes it. Splitting the two sides into separate tests would let one regime go unreached and still report green, which is the failure this sweep exists to prevent."
+
+[[clippy_exception]]
+lint = "clippy::too_many_lines"
 file = "src/capture/tests/pickers_faceted.rs"
 function = "a_settings_range_row_steps_and_reports_its_rail_through_the_sidecar"
-message = "this function has too many lines (116/100)"
+message = "this function has too many lines (118/100)"
 reason = "Existing end-to-end scenario with no coherent setup/assertion split. Removing the identity fixture wrapper makes the direct default construction two lines longer without changing this test's behaviour."
 
 [[clippy_exception]]
