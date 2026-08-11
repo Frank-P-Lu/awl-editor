@@ -24,8 +24,12 @@ this heading exists; `git log -S"BLOCKED ON THE USER"` finds who took it.
 1. **The site is stale against the published release — one command, yours:**
    `gh workflow run deploy-web.yml`. Live host is `awl-editor.fly.dev`
    (`site/fly.toml`; `awl.computer` is NXDOMAIN and appears nowhere in the
-   tree). Its `version.json` still reads `0.0.0 / prerelease` while `v0.9.0` is
-   public. `FLY_API_TOKEN` is configured; trigger is `workflow_dispatch` only,
+   tree). ⚠️ **This entry's own figure was measured false and is corrected in
+   place:** the live `version.json` reads `{"version": "0.9.0", "prerelease":
+   false}`, not the `0.0.0 / prerelease` claimed here — the site was redeployed
+   after v0.9.0. It is stale only against whatever tag ships next, because
+   `version.json` comes from `git describe --tags` at deploy time.
+   `FLY_API_TOKEN` is configured; trigger is `workflow_dispatch` only,
    deliberately.
 2. **Kite's veil strength** — `WARP_PAGE_VEIL = 0.13` (read from the shader; a
    lane's report once said 0.20). Captures: the lane's worktree,
@@ -71,7 +75,11 @@ this heading exists; `git log -S"BLOCKED ON THE USER"` finds who took it.
     previously unexplained non-monotonic rail hole is diagnosed on the current
     reachable Settings state: with the long Project-root fixture, the focused
     narrow pane has no accessory at 640–740, carries it at 760–860, then
-    `workspace_is_wide` introduces the category rail at 880 and shrinks the
+    `workspace_is_wide` introduces the category rail at 880 (⚠️ **that number is
+    a property of THIS fixture, not of the product** — item 387 measured the
+    same flip between 1070 and 1075 px on the default fixture at
+    `--capture-dpi 1`, because `workspace_is_wide` is derived from display-face
+    metrics × zoom, not a constant. Do not write 880 into a law) and shrinks the
     diagonal row-cluster budget from 514 to 339 px. The value/Range rail drops
     through 940 and returns at 960 (419 px). Choose whether to delay two-column
     mode until the content pane preserves its accessory, or keep the 880
@@ -98,23 +106,33 @@ this heading exists; `git log -S"BLOCKED ON THE USER"` finds who took it.
     1.43 s, 215,793,664-byte max RSS, page/outline/gutter all within the canvas
     and no visual clipping. A settled capture cannot establish interactive
     cadence; that last arm needs a human at the live window.
-18. **An uncommitted `0.9.0 → 0.10.0` version bump sits in the main working
-    tree, and it blocks every receipt taken there.** Five files carry it —
-    `Cargo.toml`, `Cargo.lock`, `README.md`, `RELEASING.md`, `site/index.html`
-    — and `Cargo.toml`'s version is a build input, so a gate run over that tree
-    certifies a commit whose content was never tested (the dirty-tree receipt
-    tripwire, live). Local `main` is also **20 commits ahead of `origin/main`**,
-    whose last successful CI run is `b164a25a`; none of the twenty has been
-    verified remotely. No agent commits a release bump — tags and releases wait
-    for your word, every time. Say whether to commit the bump as release prep
-    (then gate and push the twenty), or revert it and push the twenty alone.
-    Until then the merge train lands lane work but takes no receipt from the
-    root tree.
 
 ## 🔵 BLOCKED ON THE USER — visual verdicts and live journeys
 
 The mechanical evidence for these is complete. What remains is an aesthetic
 choice, a live-feel judgement, or hardware/session access an agent does not have.
+
+- 🔵 **387's Back cell while a filter is live.** In Settings, `⌫` belongs to the
+  query field as soon as a character is typed, so the footer's Back cell has to
+  say something else for that stretch. **Shipped: fall back to `tab back` while
+  the query is live**, because the stage must always name a Back that is TRUE.
+  The alternative is to drop the cell entirely while typing — then `tab back`
+  never appears at all, but part of every filtered journey advertises no Back.
+  Reverting to that is one line: `BackKey::Focus`'s arm in
+  `OverlayState::detail_back` returns `None`, plus one assertion.
+- 🔵 **386's two glances.** Potoroo with the rail UNFOCUSED reads 3.07:1, the
+  roster's tightest cell and just over the project's own 3.0 bar — not a defect,
+  but worth an eye. And the dimmed unfocused rail plate is a declared
+  degradation at ΔE 4.49 worst case, below the 2.3 JND by design: confirm it
+  still reads as "a mark, insisting less" rather than as nothing.
+- 🔵 **The AppImage has never been published, and v0.10.0 will be its first
+  public appearance.** At the `v0.9.0` tag `release.yml` contained ZERO AppImage
+  references — `scripts/package-appimage.sh` landed afterwards — so v0.9.0's
+  Release carries only the tarball and `SHA256SUMS`. RELEASING §5 step 7 (launch
+  BOTH artifacts on a real Linux desktop) cannot be performed from this Mac, so
+  the AppImage's desktop-integration path — launcher name, icon, FUSE fallback —
+  ships unexercised by anything but its own build. The tarball is the documented
+  fallback and is unaffected.
 
 - 🔵 **Four things on `main` awaiting your eye, each revertible in one commit or
   line:**
@@ -318,15 +336,31 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
 
 ### 386 — Settings one-bit selected-category contrast
 
-🟡 IN PROGRESS — claude (deep), branch `claude/item-386-settings-rail-ink`.
-Execute from handoff item 1 above. Shares the Settings workspace with 387;
-386 owns the selected-ink ROUTING, 387 owns the navigation ACTION.
+🟢 CODE COMPLETE, AWAITING MERGE — `6548c675` on `claude/item-386-settings-rail-ink`.
+Premise measured TRUE and worse than reported: over Wagtail's active rail mark,
+2052 px, every one `[255,255,255]`, contrast 1.00:1 — the label was ABSENT, not
+dim. `overlay_visual_sel.rs` now owns both the band fill and the label ink; the
+three chrome sites that each re-derived the fill route through it. Now 8.75:1.
+Law grades 120 cells (20 worlds × 4 canvases × both focus states), enrolment
+derived from the roster. **Two mutations, and the second is the finding worth
+keeping: with the plate deleted, the CONTRAST floor PASSED — only the companion
+presence floor caught it.** code-health PASS, no mark raise owed.
+⚠️ **No native-gate receipt** — stopped before launch under load 387.
 
 ### 387 — Settings narrow-stage navigation should not teach Tab as Back
 
-🟡 IN PROGRESS — claude (deep), branch `claude/item-387-settings-back-nav`.
-Execute from handoff item 2 above. Shares the Settings workspace with 386;
-387 owns the navigation ACTION and footer, never the rail's ink.
+🟢 CODE COMPLETE, AWAITING MERGE — `1cf404db` on `claude/item-387-settings-back-nav`.
+The one-Esc-leaves decision was found and HONOURED, not reversed: it settled that
+one Esc always leaves and explicitly left History/Settings owing "an explicit Back
+affordance in the footer" — this item collects that debt. `BackKey` is the one
+owner of what goes back from a detail stage, `foot_hint` appends its cell so no
+per-kind arm authors one, and Settings reads `⌫ back`. Three mutations, each with
+captured panic text. **A stale module doc in `overlay/workspace.rs` claimed the
+REVERSE of the decision table two files away; corrected.**
+⚠️ **My brief's 880 px aside was FALSE** — measured 1070–1075 px on the default
+fixture, and the threshold is derived from face metrics × zoom, so no single
+number describes it. The law deliberately never writes one down.
+Owed: code-health and native-gate both outstanding; a taste call, below.
 
 ### 388 — Theme-picker arrowing is still visibly laggy
 
@@ -338,13 +372,39 @@ alone once the wave has landed. Execute from handoff item 3 above.
 
 ### 389 — Switch Project All is flat over direct workspace children only
 
-🟡 IN PROGRESS — claude (production), branch `claude/item-389-project-children`.
-Execute from handoff item 4 above.
+🟢 CODE COMPLETE, AWAITING MERGE — `4dc25fe1` on `claude/item-389-project-children`.
+The defect was in the accept/ascend BEHAVIOUR, not the listing — the roster read
+was already one directory level. Enter on a folder now switches instead of
+descending; Backspace can no longer walk above the configured workspace. Six
+fixture shapes enrolled; a symlinked child is MEASURED excluded (`file_type()`
+does not follow), documented as current behaviour rather than claimed as a
+requirement. Fixing the ascend gate exposed a second real bug — `OverlayState::pop()`
+resetting `selected` to row 0 on an idle Backspace — which got its own law.
+Two mutations with captured panic text.
+⚠️ **ORCHESTRATOR OWES A MARK RAISE AT MERGE:** `src/actions/overlay_nav.rs`
+is 823 lines against a mark of 792 (frozen baseline 1309, so the raise is legal).
+Read the count off the tree with `wc -l` at merge time, not from this line.
 
 ### 390 — Give Wagtail's command facet row more top breathing room
 
-🟡 IN PROGRESS — claude (production), branch `claude/item-390-wagtail-facet-air`.
+🟡 IN PROGRESS — claude (production), branch `claude/item-390-wagtail-facet-air`,
+WIP committed at `e44b8503` under a restart warning; full report not yet in.
 Execute from handoff item 5 above.
+
+### 391 — The picker footer advertises `⌫ up` where Backspace is now inert
+
+Surfaced by item 389, out of its scope and deliberately not fixed there. The
+flat Switch-Project picker no longer ascends, but `overlay/kind.rs`'s
+`kind_actions` still prints `⌫ up` for `OverlayKind::Project`. The text is
+KIND-level and shared with the Settings folder-value picker (`Bind::Path`),
+which genuinely does still ascend — so the two instances need distinguishing
+before the hint can differ, and the `OverlayState`/`Journey` split does not
+currently carry that context from picker to hint. Note item 387 landed a
+`BackKey` owner for the workspace footer's Back cell in the same wave; check
+whether that owner is the right seam to extend rather than inventing a second
+one. Verify by driving both pickers with real `--keys` and reading each footer
+from the sidecar; a law must fail if either picker's hint names a key that its
+own intercept does not honour.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
