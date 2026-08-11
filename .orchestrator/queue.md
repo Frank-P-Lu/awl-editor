@@ -284,7 +284,18 @@ verified landed via `git log --grep` before this re-derivation (292/293/299/303,
    separate “Browse for folder…” door decided in item 376. Derive the roster from one
    directory-level read, law-test ordinary + git children and excluded grandchildren,
    and preserve Recent ordering plus the explicit configured-workspace boundary.
-5. **🔵 HUMAN / LIVE after 386–389.** **231** needs the approved macOS guest-VM
+5. **390 — Give Wagtail's command facet row more top breathing room.** User
+   screenshot: in Wagtail's Command palette, the `All / Files / Navigate / …`
+   facet labels sit too close to the card's top rule, making the first band feel
+   vertically pinched. Add a small amount of space above that facet row without
+   loosening the row-to-section rhythm beneath it or globally inflating every
+   world's card. First determine whether the pressure belongs to Wagtail's one-bit
+   composition, the facet/header plan, or a shared physical/logical inset; then
+   capture before/after at 1× and 2×, normal and narrow widths. Require the labels,
+   active underline and card rule to remain disjoint in real pixels, keep all footer
+   content inside the card, and vision-smoke the full facet roster rather than only
+   `All`.
+6. **🔵 HUMAN / LIVE after 386–390.** **231** needs the approved macOS guest-VM
    spend; **251** needs a human at a Linux desktop with Orca. **327** and the landed
    taste calls (338/342/345/346, carried in the visual/live blocked section) close
    on the user's eye.
@@ -308,6 +319,10 @@ Claim and execute from handoff item 3 above.
 ### 389 — Switch Project All is flat over direct workspace children only
 
 Claim and execute from handoff item 4 above.
+
+### 390 — Give Wagtail's command facet row more top breathing room
+
+Claim and execute from handoff item 5 above.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
