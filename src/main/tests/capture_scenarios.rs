@@ -187,21 +187,18 @@ fn keys_capture_switch_project_then_goto_lists_the_new_roots_files() {
         )));
         std::fs::create_dir_all(dir.join("old-ws/proj-a")).unwrap();
         std::fs::create_dir_all(dir.join("old-ws/sibling")).unwrap();
-        std::fs::create_dir_all(dir.join("new-ws/other")).unwrap();
-        std::fs::create_dir_all(dir.join("new-ws/proj-b")).unwrap();
         std::fs::write(dir.join("old-ws/proj-a/keep.md"), "keep").unwrap();
-        std::fs::write(dir.join("new-ws/proj-b/target.md"), "target").unwrap();
+        std::fs::write(dir.join("old-ws/sibling/target.md"), "target").unwrap();
 
         let (switch_project, open_goto) = match convention {
             crate::convention::Convention::Mac => ("s-S-p", "s-o"),
             crate::convention::Convention::Linux => ("C-S-p", "C-o"),
         };
-        // Backspace ascends above the old workspace to `dir`; Enter descends
-        // into `new-ws`; Down moves off `other` onto `proj-b`; Enter descends
-        // into it; the next Enter accepts the drilled-in directory as the new
-        // root — the exact navigation the model test drives. The final
-        // chord opens Goto in the (now, or not yet, re-scoped) session.
-        let spec = format!("{switch_project} Backspace Enter Down Enter Enter {open_goto}");
+        // The switch-project picker is flat over the workspace's direct
+        // children only, so there is no folder to descend into — Down moves
+        // off `proj-a` onto `sibling` and Enter switches to it immediately,
+        // one chord. The final chord opens Goto in the re-scoped session.
+        let spec = format!("{switch_project} Down Enter {open_goto}");
         let keys = keyspec::parse_keys(&spec).unwrap();
         let out = dir.join("cap.png");
         capture_screenshot(
@@ -221,7 +218,7 @@ fn keys_capture_switch_project_then_goto_lists_the_new_roots_files() {
         let v: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert_eq!(
             v["project"]["root"].as_str().unwrap(),
-            dir.join("new-ws/proj-b").to_string_lossy(),
+            dir.join("old-ws/sibling").to_string_lossy(),
             "[{convention:?}] the sidecar's accepted root is the new project (item 183's half)"
         );
         let items: Vec<String> = v["overlay"]["items"]

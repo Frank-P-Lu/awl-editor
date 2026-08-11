@@ -1146,28 +1146,30 @@ fn switch_project_driven_by_real_chords_through_apply_repoints_the_workspace() {
             crate::overlay::OverlayKind::Project,
         );
 
-        // Backspace ascends above the old workspace to `/`; Enter descends into
-        // `new-ws`; Down moves off `other` onto `proj-b`; Enter descends into
-        // it; the last Enter accepts the drilled-in directory as the new root.
-        app.press_spec_headless("Backspace Enter Down Enter Enter")
+        // The picker is FLAT over the workspace's direct children only, with
+        // no way to leave that boundary. Backspace has nothing to ascend to
+        // any more (a no-op, not a walk to `/`); Down moves off `proj-a`
+        // onto `sibling`; Enter SWITCHES to it immediately — one chord, no
+        // descend, no drilled-in `.` accept.
+        app.press_spec_headless("Backspace Down Enter")
             .expect("the navigation chords parse");
 
         assert!(
             !app.workspace_state.overlay_open(),
             "accepting the row closes the picker, exactly as live"
         );
-        assert_eq!(app.project_location.root, PathBuf::from("/new-ws/proj-b"));
+        assert_eq!(app.project_location.root, PathBuf::from("/old-ws/sibling"));
         assert_eq!(
             app.project_location.workspace_root,
-            Some(PathBuf::from("/new-ws")),
-            "the workspace must follow a switch driven by real keys, not only \
-             one driven by a direct call to switch_project"
+            Some(PathBuf::from("/old-ws")),
+            "a direct-child switch never moves the configured-workspace boundary — \
+             driven by real keys, not only by a direct call to switch_project"
         );
         assert_eq!(
             project_picker_rows(&app),
-            vec!["other", "proj-b"],
-            "the picker must now list the NEW workspace's siblings — the \
-             stale ['proj-a', 'sibling'] here is the reported stale-workspace bug"
+            vec!["proj-a", "sibling"],
+            "the picker still lists the SAME workspace's direct children after \
+             switching between two of them"
         );
     });
 }

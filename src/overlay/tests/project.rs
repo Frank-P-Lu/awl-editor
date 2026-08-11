@@ -245,3 +245,131 @@ fn project_recent_lens_is_empty_on_a_fresh_session() {
         Some("no recent projects yet")
     );
 }
+
+// ─── Roster derivation: one directory-level read ────────────────────────────
+//
+// `new_project` above is fed a hand-written `folders` list, so it cannot by
+// itself prove the roster stays flat — that guarantee lives one seam lower, in
+// `crate::overlay::browse_level` / `crate::index::list_dir_level`, which is
+// what actually walks the disk. These sweep the directory-SHAPE axis: ordinary
+// child, git child, grandchild (must be excluded), an empty child, a
+// symlinked child, and a workspace with no children at all — each cell names
+// what enrolled (or didn't) in its own failure message.
+
+#[test]
+fn project_roster_sweeps_ordinary_git_grandchild_and_empty_children() {
+    let ws = std::path::PathBuf::from("/ws");
+    let mem = crate::fs::InMemoryFs::new()
+        .with_dir(ws.join("ordinary"))
+        .with_dir(ws.join("gitrepo"))
+        .with_dir(ws.join("gitrepo/.git")) // marks gitrepo a git repo
+        .with_dir(ws.join("ordinary/grandchild")) // one level below a direct child
+        .with_dir(ws.join("empty")); // a direct child with nothing inside it
+    let _guard = crate::fs::FsGuard::install(std::sync::Arc::new(mem));
+    let ov = crate::overlay::browse_level(
+        OverlayKind::Project,
+        None,
+        std::path::Path::new("/unused"),
+        Some(&ws),
+        &[],
+    )
+    .expect("a configured workspace always builds a Project overlay");
+    let shown = ov.item_strings();
+    for name in ["ordinary", "gitrepo", "empty"] {
+        assert!(
+            shown.iter().any(|s| s.starts_with(name)),
+            "direct child {name:?} must enrol: {shown:?}"
+        );
+    }
+    assert!(
+        !shown.iter().any(|s| s.contains("grandchild")),
+        "a grandchild must never enrol, however deep it lives: {shown:?}"
+    );
+    // The git marker stays informational, never an enrolment gate — an
+    // ordinary child and a git child both enrol, only their secondary tag
+    // differs.
+    let tags = ov.item_git_tags();
+    let git_i = shown.iter().position(|s| s.starts_with("gitrepo")).unwrap();
+    assert_eq!(
+        tags[git_i], "git",
+        "gitrepo is tagged, not filtered on: {shown:?}"
+    );
+    let plain_i = shown
+        .iter()
+        .position(|s| s.starts_with("ordinary"))
+        .unwrap();
+    assert_eq!(
+        tags[plain_i], "",
+        "ordinary is untagged but still enrolled: {shown:?}"
+    );
+    let empty_i = shown.iter().position(|s| s.starts_with("empty")).unwrap();
+    assert_eq!(
+        tags[empty_i], "",
+        "an empty child enrols on equal footing: {shown:?}"
+    );
+}
+
+#[test]
+fn project_roster_on_a_childless_workspace_is_just_the_accept_row() {
+    let ws = std::path::PathBuf::from("/empty-ws");
+    let mem = crate::fs::InMemoryFs::new().with_dir(&ws);
+    let _guard = crate::fs::FsGuard::install(std::sync::Arc::new(mem));
+    let ov = crate::overlay::browse_level(
+        OverlayKind::Project,
+        None,
+        std::path::Path::new("/unused"),
+        Some(&ws),
+        &[],
+    )
+    .expect("a configured workspace with zero children still builds a picker");
+    assert_eq!(
+        ov.item_strings(),
+        vec![".".to_string()],
+        "a childless workspace shows only the accept-this-folder row, not an \
+         empty picker or a build failure"
+    );
+}
+
+#[test]
+fn project_roster_excludes_a_symlinked_child_folder() {
+    // `InMemoryFs` has no symlink concept, so this axis cell needs a real
+    // instrument rather than an assumed one: a real temp directory.
+    let _guard = crate::fs::FsGuard::capture();
+    let base = std::env::temp_dir().join(format!(
+        "awl-item389-project-symlink-{}",
+        std::process::id()
+    ));
+    let ws = base.join("ws");
+    let real_target = base.join("real-target");
+    std::fs::create_dir_all(ws.join("ordinary")).unwrap();
+    std::fs::create_dir_all(&real_target).unwrap();
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(&real_target, ws.join("linked")).unwrap();
+    let ov = crate::overlay::browse_level(
+        OverlayKind::Project,
+        None,
+        std::path::Path::new("/unused"),
+        Some(&ws),
+        &[],
+    )
+    .expect("a configured workspace always builds a Project overlay");
+    let shown = ov.item_strings();
+    assert!(
+        shown.iter().any(|s| s.starts_with("ordinary")),
+        "the ordinary sibling still enrols: {shown:?}"
+    );
+    // MEASURED, not assumed: `std::fs::DirEntry::file_type()` reports the
+    // symlink's OWN type without following it, so `NativeFs::read_dir`'s
+    // `ft.is_dir()` is false for a symlinked folder — `list_dir_level`'s
+    // `is_dir` filter drops it before the picker ever sees it. This is the
+    // roster's true behavior on this axis cell, not a requirement the
+    // decision it enforces states (that only names direct FOLDER children);
+    // recorded here so a future change to that classification has a law to
+    // answer to.
+    #[cfg(unix)]
+    assert!(
+        !shown.iter().any(|s| s.starts_with("linked")),
+        "a symlinked folder is not classified as a directory here: {shown:?}"
+    );
+    std::fs::remove_dir_all(&base).ok();
+}

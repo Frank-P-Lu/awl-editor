@@ -162,19 +162,33 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
         }
         Action::DeleteBackward | Action::DeleteWordBackward => {
             let ov = ctx.journey.card().unwrap();
+            // The switch-project picker is flat over the workspace's direct
+            // children only, with no ascend affordance to leave that
+            // boundary — Project only keeps the destination-navigator's
+            // Backspace-ascends grammar for the Settings folder-VALUE picker
+            // (`Bind::Path`), which walks the whole tree on purpose.
+            let is_project_path_pick = ov.kind == crate::overlay::OverlayKind::Project
+                && matches!(ctx.journey.bind(), Some(crate::overlay::Bind::Path { .. }));
             let navigable = matches!(
                 ov.kind,
                 crate::overlay::OverlayKind::Browse
                     | crate::overlay::OverlayKind::MoveDest
                     | crate::overlay::OverlayKind::ExportDest
-                    | crate::overlay::OverlayKind::Project
-            );
+            ) || is_project_path_pick;
             if navigable && ov.query.is_empty() {
                 if let Some(parent) = ascend_target(ov)
                     && let Some(next) = (ctx.browse_to)(ov.kind, parent)
                 {
                     ctx.journey.relevel(next);
                 }
+                return Effect::None;
+            }
+            // The flat switch-project picker has nothing to pop on an EMPTY
+            // query (no ascend, no typed filter) — an inert no-op, not a
+            // fall-through to `pop()` below, which unconditionally resets
+            // `selected` to row 0 and would silently bounce the highlight
+            // back to the synthetic "." row on every idle Backspace.
+            if ov.kind == crate::overlay::OverlayKind::Project && ov.query.is_empty() {
                 return Effect::None;
             }
             if matches!(action, Action::DeleteWordBackward) {
@@ -343,6 +357,27 @@ fn accept_path_overlay(ctx: &mut ActionCtx) -> Option<Effect> {
             Some(effect)
         }
         crate::overlay::OverlayKind::Project => {
+            let path_key = match ctx.journey.bind() {
+                Some(crate::overlay::Bind::Path { key }) => Some(key.clone()),
+                Some(crate::overlay::Bind::Value) | None => None,
+            };
+            // FLAT OVER DIRECT WORKSPACE CHILDREN ONLY: the switch-project
+            // picker (no path key — a plain launch, never a Settings
+            // folder-VALUE pick) never descends. A folder row IS the
+            // project; accepting it switches immediately, so a grandchild
+            // can never enter the roster. Deeper navigation is the Settings
+            // path-picker's own door (`Bind::Path`, below), which keeps the
+            // full destination-navigator descend grammar.
+            if path_key.is_none() && ov.selected_is_dir() {
+                let target = ov.selected_value().map(|name| descend_target(ov, name));
+                return Some(match target {
+                    Some(path) => {
+                        ctx.journey.navigate_away();
+                        Effect::OverlayAccept(crate::overlay::OverlayKind::Project, path)
+                    }
+                    None => Effect::None,
+                });
+            }
             if ov.selected_is_dir() {
                 if let Some(name) = ov.selected_value().map(str::to_string)
                     && let Some(next) = (ctx.browse_to)(ov.kind, Some(descend_target(ov, &name)))
@@ -354,10 +389,6 @@ fn accept_path_overlay(ctx: &mut ActionCtx) -> Option<Effect> {
                 }
                 return Some(Effect::None);
             }
-            let path_key = match ctx.journey.bind() {
-                Some(crate::overlay::Bind::Path { key }) => Some(key.clone()),
-                Some(crate::overlay::Bind::Value) | None => None,
-            };
             let dir = ctx
                 .journey
                 .card()
