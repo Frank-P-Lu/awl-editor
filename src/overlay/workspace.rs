@@ -368,6 +368,33 @@ impl OverlayState {
         })
     }
 
+    /// **DOES `←` COME BACK FROM THIS DETAIL STAGE — and `→` therefore mean
+    /// nothing here?**
+    ///
+    /// The horizontal keys are the REGION SEAM's own axis, and they are a pair.
+    /// On the primary list `→` goes into the content and `←` has nothing to its
+    /// left; on the detail stage the mirror holds — `←` comes back to the
+    /// primary list and `→` has nothing to its right. Without this, `→` opens a
+    /// door that `←` cannot close, which is the one gesture a two-region
+    /// keyboard owes its user.
+    ///
+    /// Derived from [`Self::detail_back`] rather than re-deciding: `←` comes
+    /// back exactly when there IS something to come back to (a workspace's
+    /// detail stage, not mid in-place-edit), and nothing on this stage already
+    /// owns the axis. Exactly one thing does — a Range row, whose value rail IS
+    /// `←/→` — and it is the state that NAMES why not, in the same footer cell
+    /// ([`OverlayKind::range_row_actions`]) that says so.
+    ///
+    /// Why the categories are not that second owner: a `RailOverRows`
+    /// workspace's facet strip is stood on its END as a vertical rail, so it is
+    /// walked by `↑/↓` where it lives. `←/→` cycling it from the rows pane is
+    /// the horizontal strip's leftover grammar — it moved a highlight in a
+    /// region that did not have focus, and it took the key a user reaches for
+    /// to come back.
+    pub(crate) fn detail_left_returns(&self) -> bool {
+        self.detail_back().is_some() && self.selected_range().is_none()
+    }
+
     /// Move the workspace's RAIL selection by `delta` categories. The one door
     /// for `↑`/`↓` while the rail holds focus; a plain alias of the lens cycle,
     /// so the rail and `←/→` from the rows pane can never disagree about what

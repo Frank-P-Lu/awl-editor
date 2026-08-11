@@ -21,13 +21,18 @@ use super::*;
 ///     [`crate::overlay::workspace::BackKey`] says the erase key is free there.
 ///     The footer reads that SAME owner, so what is advertised and what acts
 ///     are one answer rather than two that agree today.
+///   * `←/→` are the REGION SEAM's own axis and they come as a pair: `→` off the
+///     primary list opens the content, `←` off the content closes it again, and
+///     each has nothing on its far side. Which stage's arrows belong to the seam
+///     is [`crate::overlay::OverlayState::detail_left_returns`]'s answer, so a
+///     row whose own control IS `←/→` — a Range row's value rail — keeps them.
 ///   * While the RAIL holds focus, the vertical keys step CATEGORIES (through the
 ///     picker's own lens owner, so there is no second category state), `→` / `↵`
 ///     enter the rows, and typing hands focus to the rows because what you are
 ///     typing into is their search field.
-///   * While the ROWS hold focus this intercept declines every key, so the rows
-///     pane is byte-for-byte the picker's existing keyboard — `↑/↓` rows, `←/→`
-///     the category (or a range row's own rail), `↵` the row's control.
+///   * While the ROWS hold focus this intercept declines every key but that seam
+///     axis, so the rows pane is otherwise byte-for-byte the picker's existing
+///     keyboard — `↑/↓` rows, `↵` the row's control.
 ///
 /// `Esc` is deliberately absent from both arms: it belongs to
 /// [`crate::overlay::Journey`], whose table already says a cancel on the detail
@@ -85,6 +90,22 @@ pub(super) fn workspace_intercept(ctx: &mut ActionCtx, action: &Action) -> Optio
         && ov.detail_back() == Some(crate::overlay::workspace::BackKey::Erase)
     {
         ctx.journey.toggle_detail();
+        return Some(Effect::None);
+    }
+    // THE REGION SEAM'S OWN AXIS, both halves of it. `→` off the primary list
+    // opens the content (below); `←` off the content closes it again, and `→`
+    // there has nothing to its right — the exact mirror of the primary list's
+    // own inert `←`. Whether this stage's arrows are the seam's at all is a fact
+    // about the STATE, not the shape, so it is read from the one owner that
+    // derives it: `detail_left_returns` declines on a Range row, whose value
+    // rail IS this axis and whose footer cell says so.
+    //
+    // Aimed at the detail stage only — `detail_back` is `None` on the primary
+    // list, where `←/→` are the rail's own arms below.
+    if matches!(action, Action::ForwardChar | Action::BackwardChar) && ov.detail_left_returns() {
+        if matches!(action, Action::BackwardChar) {
+            ctx.journey.toggle_detail();
+        }
         return Some(Effect::None);
     }
     if rows_primary {

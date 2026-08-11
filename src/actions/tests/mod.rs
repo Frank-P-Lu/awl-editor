@@ -28,6 +28,9 @@ mod settings_reach;
 /// The summoned workspace's state, focus and back, in the lifecycle's
 /// own vocabulary. Tier 1, fully capturable (`docs/harness-reach.md`).
 mod workspace;
+/// `←/→` are the REGION SEAM's own axis and come as a pair: whatever `→` opens,
+/// `←` closes. Swept over the workspace roster with a presence floor.
+mod workspace_arrows;
 mod workspace_esc;
 
 /// A tiny in-memory tree for the browse navigator: root has `docs/` (dir) and
