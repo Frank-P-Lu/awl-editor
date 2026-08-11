@@ -944,51 +944,52 @@ fn recent_projects_opens_switch_project_on_the_recent_lens() {
 }
 
 #[test]
-fn switch_project_enter_descends_into_folder() {
+fn switch_project_enter_switches_without_descending() {
+    // The switch-project picker is FLAT over the workspace's direct
+    // children only. Enter on a folder row SWITCHES to it immediately — it
+    // must never descend, which is the one mechanism that could ever expose
+    // a grandchild.
     let (ws, _fs) = proj_tree();
     let mut browse_to = |k: OverlayKind, rel: Option<String>| {
         assert_eq!(k, OverlayKind::Project);
         project_browse(&ws, rel)
     };
     // Open at ws: corpus is [".", child-a, child-b], default-selected on the
-    // first real folder (child-a). Now that Project FACETS (←/→ = lens), Enter
-    // on a FOLDER DESCENDS into it (Browse-style) — it does NOT accept. The
-    // overlay stays open with child-a's contents (its subfolder `sub`).
+    // first real folder (child-a).
     let mut overlay = crate::overlay::Journey::seeded(browse_to(OverlayKind::Project, None));
     let mut accept = None;
     assert_eq!(overlay.card().unwrap().selected_value(), Some("child-a"));
     drive_bt(&mut overlay, &mut accept, &mut browse_to, &Action::Newline);
-    let ov = overlay.card().expect("still open after Enter descends");
-    assert_eq!(
-        ov.browse_dir.as_deref(),
-        Some(ws.join("child-a").to_string_lossy().as_ref())
-    );
-    assert!(
-        ov.item_strings().iter().any(|s| s.contains("sub")),
-        "{:?}",
-        ov.item_strings()
-    );
-    assert!(accept.is_none(), "descend must not accept");
-    // Enter again descends (into `sub`).
-    drive_bt(&mut overlay, &mut accept, &mut browse_to, &Action::Newline);
-    assert_eq!(
-        overlay.card().unwrap().browse_dir.as_deref(),
-        Some(ws.join("child-a/sub").to_string_lossy().as_ref())
-    );
-    // `sub` has no subfolders, so selection rests on the "." row; Enter there
-    // SELECTS the drilled-in current directory (child-a/sub) as the root.
-    drive_bt(&mut overlay, &mut accept, &mut browse_to, &Action::Newline);
     assert!(
         overlay.card().is_none(),
-        "Enter on '.' selects the drilled-in directory"
+        "Enter on a direct child switches and closes — it does not descend"
     );
     assert_eq!(
         accept,
         Some((
             OverlayKind::Project,
-            ws.join("child-a/sub").to_string_lossy().to_string()
+            ws.join("child-a").to_string_lossy().to_string()
         )),
-        "drilled-in select is its absolute path"
+        "the direct child itself is the accepted project, one level, no rebuild into it"
+    );
+}
+
+#[test]
+fn switch_project_grandchildren_never_enrol() {
+    // The roster comes from ONE directory-level read at the workspace, and
+    // Enter never descends (proved above), so a grandchild (`child-a/sub`)
+    // structurally cannot reach the picker at any point in its lifetime.
+    let (ws, _fs) = proj_tree();
+    let browse_to = |_k: OverlayKind, rel: Option<String>| project_browse(&ws, rel);
+    let overlay = crate::overlay::Journey::seeded(browse_to(OverlayKind::Project, None));
+    let items = overlay.card().unwrap().item_strings();
+    assert!(
+        items.iter().any(|s| s.contains("child-a")),
+        "a direct child enrols: {items:?}"
+    );
+    assert!(
+        !items.iter().any(|s| s.contains("sub")),
+        "a grandchild (child-a/sub) must never enrol: {items:?}"
     );
 }
 
@@ -1095,13 +1096,98 @@ fn switch_project_c_f_c_b_cycle_the_lens() {
 }
 
 #[test]
-fn switch_project_ascends_to_parent() {
+fn switch_project_backspace_never_leaves_the_workspace() {
+    // The switch-project picker preserves the explicit configured-workspace
+    // boundary. Backspace with an empty query used to ascend past the
+    // workspace into its parent and grandparent (the old
+    // destination-navigator grammar); now it is a calm no-op — there is no
+    // "up" to give a flat, one-level picker.
     let (ws, _fs) = proj_tree();
     let mut browse_to = |_k: OverlayKind, rel: Option<String>| project_browse(&ws, rel);
     let mut overlay = crate::overlay::Journey::seeded(browse_to(OverlayKind::Project, None));
     let mut accept = None;
-    // Backspace (empty query) ASCENDS to ws's PARENT — ABOVE the workspace.
-    // (Ascend is Backspace now that ←/→ belong to the lens strip.)
+    drive_bt(
+        &mut overlay,
+        &mut accept,
+        &mut browse_to,
+        &Action::DeleteBackward,
+    );
+    let ov = overlay.card().expect("Backspace does not close the picker");
+    assert_eq!(
+        ov.browse_dir.as_deref(),
+        Some(ws.to_string_lossy().as_ref()),
+        "Backspace must not walk above the configured workspace"
+    );
+    assert!(accept.is_none());
+    // A second Backspace is just as inert — it never accumulates toward the
+    // grandparent the old navigator grammar would have reached.
+    drive_bt(
+        &mut overlay,
+        &mut accept,
+        &mut browse_to,
+        &Action::DeleteBackward,
+    );
+    assert_eq!(
+        overlay.card().unwrap().browse_dir.as_deref(),
+        Some(ws.to_string_lossy().as_ref())
+    );
+}
+
+#[test]
+fn switch_project_idle_backspace_does_not_reset_the_selected_row() {
+    // A picker-wide idiom (`OverlayState::pop`) unconditionally resets
+    // `selected` to row 0 whenever it runs — correct for the type-to-filter
+    // kinds it was written for (a shorter query re-ranks the rows), but the
+    // flat switch-project picker never descends, so a Backspace with an
+    // EMPTY query has nothing to pop. Left ungated, that fall-through would
+    // silently bounce the highlight back to the synthetic "." row on every
+    // idle Backspace — a real regression this once was, caught only by
+    // asserting on SELECTION, not `browse_dir` (which a boundary-only law
+    // cannot see move).
+    let (ws, _fs) = proj_tree();
+    let mut browse_to = |_k: OverlayKind, rel: Option<String>| project_browse(&ws, rel);
+    let mut overlay = crate::overlay::Journey::seeded(browse_to(OverlayKind::Project, None));
+    let mut accept = None;
+    assert_eq!(overlay.card().unwrap().selected_value(), Some("child-a"));
+    drive_bt(&mut overlay, &mut accept, &mut browse_to, &Action::NextLine);
+    assert_eq!(overlay.card().unwrap().selected_value(), Some("child-b"));
+    drive_bt(
+        &mut overlay,
+        &mut accept,
+        &mut browse_to,
+        &Action::DeleteBackward,
+    );
+    assert_eq!(
+        overlay.card().unwrap().selected_value(),
+        Some("child-b"),
+        "an idle Backspace (nothing to ascend to, nothing to pop) must not \
+         move the highlight"
+    );
+}
+
+#[test]
+fn settings_path_pick_backspace_still_ascends_past_workspace() {
+    // The Settings folder-VALUE picker (`Bind::Path`) is a DIFFERENT feature
+    // that happens to share `OverlayKind::Project` — only the plain
+    // switch-project launch (no bind) was flattened above. Prove the gate is
+    // keyed on the bind, not the kind: with a `Bind::Path` parked, Backspace
+    // must keep walking above the starting folder exactly as it always has.
+    let (ws, _fs) = proj_tree();
+    let mut browse_to = |_k: OverlayKind, rel: Option<String>| project_browse(&ws, rel);
+    let child = browse_to(OverlayKind::Project, None).unwrap();
+    let mut overlay = crate::overlay::Journey::seeded(Some(OverlayState::new(
+        OverlayKind::Command,
+        vec!["placeholder".to_string()],
+        vec![],
+        vec![],
+    )));
+    overlay.descend(
+        child,
+        crate::overlay::Bind::Path {
+            key: "default_folder".to_string(),
+        },
+    );
+    let mut accept = None;
     drive_bt(
         &mut overlay,
         &mut accept,
@@ -1109,28 +1195,10 @@ fn switch_project_ascends_to_parent() {
         &Action::DeleteBackward,
     );
     let parent = ws.parent().unwrap().to_string_lossy().to_string();
-    let ov = overlay.card().unwrap();
-    assert_eq!(ov.browse_dir.as_deref(), Some(parent.as_str()));
-    // ws itself now appears as a child folder of its parent.
-    let ws_name = ws.file_name().unwrap().to_str().unwrap();
-    assert!(ov.item_strings().iter().any(|s| s.contains(ws_name)));
-    // Backspace ascends one MORE level (no root floor for Project).
-    drive_bt(
-        &mut overlay,
-        &mut accept,
-        &mut browse_to,
-        &Action::DeleteBackward,
-    );
-    let grandparent = ws
-        .parent()
-        .unwrap()
-        .parent()
-        .unwrap()
-        .to_string_lossy()
-        .to_string();
     assert_eq!(
         overlay.card().unwrap().browse_dir.as_deref(),
-        Some(grandparent.as_str())
+        Some(parent.as_str()),
+        "the settings folder-value picker keeps ascending past the workspace"
     );
 }
 
