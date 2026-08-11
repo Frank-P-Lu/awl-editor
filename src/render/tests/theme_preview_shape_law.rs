@@ -129,6 +129,41 @@ impl Reach {
         );
         me
     }
+
+    /// THE PRESENT-TIME HALF of the law: the frame this arrow is about to hand the
+    /// compositor has every row it is ALLOWED to paint, has no more than a
+    /// window-bounded reach, and records the tail it still owes.
+    fn assert_presentable_frame(
+        &self,
+        p: &crate::render::TextPipeline,
+        from: &str,
+        to: &str,
+        lines: usize,
+    ) {
+        let (at, config) = (p.total_visual_rows(), &self.config);
+        assert!(
+            at as f32 >= self.paintable_rows,
+            "{from} -> {to}: the frame about to be presented has {at} rows shaped but may \
+             paint into {:.0} of them (window + {}-row cull margin either side) — a row \
+             the renderer is allowed to draw was not shaped for it — {config}",
+            self.paintable_rows,
+            self.cull_rows
+        );
+        assert!(
+            (at as f32) <= self.window_bound,
+            "{from} -> {to}: the presented frame shaped {at} rows, past the {:.0} rows a \
+             window-bounded reach needs ({:.1}x the viewport) — the preview step's cost \
+             has gone back to tracking the DOCUMENT, which is the whole {lines}-row lag \
+             this split exists to remove — {config}",
+            self.window_bound,
+            at as f32 / self.viewport_rows
+        );
+        assert!(
+            p.shape_tail_owed(),
+            "{from} -> {to}: {at} of {lines} rows are shaped but no tail is recorded as \
+             owed — nothing would ever pay it — {config}"
+        );
+    }
 }
 
 /// EVERY arrow of a full theme-picker sweep presents a frame shaped only as far
@@ -167,14 +202,8 @@ fn every_theme_arrow_shapes_the_whole_document_by_the_end_of_its_step() {
     const LINES: usize = 400;
     let text = tall_doc(LINES);
     p.set_view(&view(&text, 0, 0));
-    let Reach {
-        viewport_rows,
-        multiple,
-        cull_rows,
-        paintable_rows,
-        window_bound,
-        config,
-    } = Reach::measure(&p, LINES);
+    let reach = Reach::measure(&p, LINES);
+    let (multiple, config) = (reach.multiple, reach.config.clone());
 
     let mut reshaped_hops = 0usize;
     for world in crate::theme::THEMES {
@@ -225,30 +254,7 @@ fn every_theme_arrow_shapes_the_whole_document_by_the_end_of_its_step() {
         reshaped_hops += 1;
 
         // AT THE MOMENT OF THE PRESENT — the frame is drawable, and only just.
-        let at_present = p.total_visual_rows();
-        assert!(
-            at_present as f32 >= paintable_rows,
-            "{from} -> {}: the frame about to be presented has {at_present} rows shaped \
-             but may paint into {paintable_rows:.0} of them (window + \
-             {cull_rows}-row cull margin either side) — a row the \
-             renderer is allowed to draw was not shaped for it — {config}",
-            world.name
-        );
-        assert!(
-            (at_present as f32) <= window_bound,
-            "{from} -> {}: the presented frame shaped {at_present} rows, past the \
-             {window_bound:.0} rows a window-bounded reach needs ({:.1}x the viewport) — \
-             the preview step's cost has gone back to tracking the DOCUMENT, which is \
-             the whole {LINES}-row lag this split exists to remove — {config}",
-            world.name,
-            at_present as f32 / viewport_rows
-        );
-        assert!(
-            p.shape_tail_owed(),
-            "{from} -> {}: {at_present} of {LINES} rows are shaped but no tail is \
-             recorded as owed — nothing would ever pay it — {config}",
-            world.name
-        );
+        reach.assert_presentable_frame(&p, from, world.name, LINES);
 
         // ---- the half that runs immediately AFTER that present, same step ----
         assert!(
