@@ -184,17 +184,6 @@ ground, so the first question is which LAYER failed to repaint, not which world
 failed to switch. The probe's work dir is under `/tmp` and does not survive a
 restart.
 
-### 398 — the vision smoke this render-touching wave never got
-
-🟡 IN PROGRESS — fable (visual judge), branch `claude/item-398-vision-smoke`.
-
-CLAUDE.md's standing policy: *every* render-touching round gets a vision smoke —
-affordance-locating questions over ~5 gallery shots ("which row is selected?"),
-never "does this look fine?". This session landed 386, 327, 390, 391, 394 and
-393 and ran none. **The orchestrator has twice before declared a queue empty
-with this audit undone, and both times it found something real.** Judge only —
-no product code; a defect becomes its own item with the shot and region named.
-
 ### 400 — the pre-tag journey sweep has no instrument
 
 Raised by item 399, which performed that sweep by hand for v0.10.0 and found the
@@ -219,6 +208,42 @@ and a driver should say so rather than pretend. And a zero-row Settings band at
 narrow widths is **correct**, not a defect: `render/tests/workspace_stage_reach.rs`
 owns that state and records that this same reading was already filed as a defect
 once and refuted. A sweep that flags it will be wrong the same way twice.
+
+### 401 — the Go-to-file footer names no way out
+
+Found by item 398's vision smoke and **pre-existing, not this wave's**: the one
+affordance question its method could not answer from pixels alone. The Command
+palette's footer names `esc close`; Go-to-file's names only
+`type to filter ↵ open ←/→ lens`. So "what key returns from here?" is
+unanswerable from that surface. `src/overlay/kind.rs`:
+`OverlayKind::Goto => vec![enter("open"), key(ARROWS_LR, "lens")]`, unchanged
+since at least the item-204 shape — 391 and 394 touched Project and Settings
+footers only.
+
+🔵 **Taste call before it is work:** every picker closes on Esc, so naming it
+everywhere is honest but costs a cell, and the footer's width budget is already
+why 394's `←` went unadvertised at the minimum window. Either name it on Goto
+for parity, or accept that Esc is universal enough to go unsaid — but the two
+pickers should not disagree, which is the actual defect.
+
+### 402 — a capture door photographs the developer's own machine
+
+⚠️ **Process hazard with a public repo on the other end of it, found by 398 the
+hard way:** its first switch-project capture photographed real home-directory
+folder names (Calibre, AdobeID, …), and **every sidecar embeds absolute
+`/Users/<name>/…` paths** in its `workspace` and `browse_dir` fields. The lane
+caught both, deleted the shot, recaptured through the hermetic
+`--screenshot-app` door with a seeded neutral root, and sanitized the JSON to
+`~` before committing.
+
+The rule this protects is already in CLAUDE.md — *tracked files carry no
+personal-machine paths* — but the MECHANISM is not: a lane does not have to
+write a path to leak one, it only has to capture. Make the honest fix rather
+than relying on the next lane noticing: either have the sidecar writer relativise
+these fields, or make the filesystem-enumerating doors refuse a non-seeded root.
+⚠️ Note `--screenshot`'s ordinary door is **not hermetic** — 399 independently
+found it needs an explicit empty `--config` — so "use the other door" is a
+workaround, not the fix.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
