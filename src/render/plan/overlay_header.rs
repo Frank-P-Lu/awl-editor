@@ -13,27 +13,26 @@ use super::overlay_rows::OverlayRowPlanInput;
 /// fraction of the query BEAT tall. Glyph-free by the half-leading
 /// CENTRING bound: an inflated line box centres its glyph run, so the run's far
 /// edge clears the band's near edge as long as its own font height stays under
-/// `lh + header_gap·(1 - 2·frac)` — true at 0.4, but only just: that bound says
-/// the label's ink cannot OVERLAP the gap, not that it reads clear of it.
-/// MEASURED (item 390, pixel arithmetic over a real capture, not the formula):
-/// at 0.4 the facet strip's own ink starts a bare ~3 physical px below the
-/// lower surface's rim at dpi 1 — real, non-overlapping, but on a `Bordered`
-/// world (Wagtail's black-on-white rim) that reads as touching. Lowered to
-/// 0.35 for real breathing room (measured ~8px at dpi 1 on Wagtail's Command
-/// palette, both normal and narrow width) while leaving `BREATHE_FRAC` — the
-/// query box's OWN already-tuned symmetric breathing — untouched: only the
+/// `lh + header_gap·(1 - 2·frac)` — a bound against OVERLAP, not against
+/// reading clear of it. MEASURED (pixel arithmetic over a real capture, not
+/// the formula alone): at 0.4 the facet strip's own ink starts a bare ~3
+/// physical px below the lower surface's rim at dpi 1 — real, non-overlapping,
+/// but on a `Bordered` world (a literal black-on-white rim) that reads as
+/// touching. Lowered for real breathing room while leaving `BREATHE_FRAC` —
+/// the query box's OWN already-tuned symmetric breathing — untouched: only the
 /// gap's own thickness shrinks, its START position does not move, and neither
 /// `first_top` nor `card_h` reads this constant at all, so no row rhythm or
-/// card height moves. **Capped at 0.35, not tuned lower**: `chip_plate_floor`
-/// (item 292) proves its own mark-floor bites by reconstructing the naive
-/// pre-fix centre and showing it draws above the lower surface's plate — that
-/// proof goes vacuous once the plate's own top (this fraction) pulls far
-/// enough ahead of the naturally-centred mark, which happens between 0.35 and
-/// 0.25. 0.35 keeps item 292's non-vacuity intact while still buying Wagtail's
-/// facet strip real, measured clearance. Revert is one line (`0.35` → `0.4`)
-/// plus the dependent literal reconstructions in `tests/split_pane.rs` and
-/// `plan/tests.rs` (both intentionally re-derive the fraction as an
-/// independent oracle rather than reading the constant back).
+/// card height moves. **Floored above a lower value that was tried first**:
+/// `chip_plate_floor`'s own mark-floor proves it bites by reconstructing the
+/// naive pre-fix centre and showing it draws above the lower surface's plate
+/// — that proof goes vacuous once the plate's own top (this fraction) pulls
+/// far enough ahead of the naturally-centred mark, which this module's own
+/// tests pin down between 0.35 and 0.25. This value keeps that non-vacuity
+/// intact while still buying the facet strip real, measured clearance.
+/// Reverting to the historical 0.4 is one line, plus the dependent literal
+/// reconstructions in `tests/split_pane.rs` and `plan/tests.rs` (both
+/// intentionally re-derive the fraction as an independent oracle rather than
+/// reading the constant back).
 pub(super) const SPLIT_GAP_FRAC: f32 = 0.35;
 
 /// A split card's upper surface borrows this fraction of the SAME

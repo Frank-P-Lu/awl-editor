@@ -1,5 +1,5 @@
-//! ITEM 390 — THE FACET STRIP'S OWN TOP CLEARANCE, on every `ListStyle::Pane`
-//! world (`list_backing() == Card`) under the default `PaneSplit::Split`
+//! THE FACET STRIP'S OWN TOP CLEARANCE, on every `ListStyle::Pane` world
+//! (`list_backing() == Card`) under the default `PaneSplit::Split`
 //! composition. The strip's label ink is centred by cosmic-text's half-leading
 //! over a box that ALSO carries the split composition's visible seam
 //! (`OverlayRowPlan::split_bounds`, `render/plan/overlay_header.rs`), so the
@@ -7,8 +7,8 @@
 //! rim on a `Bordered` world (Wagtail) — sits close enough to where the label
 //! naturally centres that the two nearly touch. Measured on Wagtail's Command
 //! palette (pixel arithmetic over a real capture, not the sidecar): ~3 physical
-//! px of clearance at dpi 1 before this item, one JetBrains-Mono cap-height
-//! away from the rim it sits under.
+//! px of clearance at dpi 1 at the historical fraction, one JetBrains-Mono
+//! cap-height away from the rim it sits under.
 //!
 //! `SPLIT_GAP_FRAC` (0.4 → 0.35) buys real clearance: it only moves the seam's
 //! own BOTTOM edge earlier (`BREATHE_FRAC`, the seam's start position and the
@@ -69,11 +69,9 @@ fn redmean(a: theme::Srgb, b: theme::Srgb) -> f32 {
 /// item measures.
 fn ink_top_row(
     px: &[[u8; 4]],
-    w: i64,
-    h: i64,
+    (w, h): (i64, i64),
     sxs: &[i64],
-    y0: i64,
-    y1: i64,
+    (y0, y1): (i64, i64),
     ink: theme::Srgb,
     ground: theme::Srgb,
 ) -> Option<i64> {
@@ -142,7 +140,9 @@ fn facet_strip_ink_clears_the_lower_surfaces_rule_with_presence_and_margin() {
         for dpi in [1.0f32, 2.0f32] {
             let (w, h) = ((logical_w * dpi) as u32, (800.0 * dpi) as u32);
             let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
-                eprintln!("skipping facet_strip_ink_clears_the_lower_surfaces_rule: no wgpu adapter");
+                eprintln!(
+                    "skipping facet_strip_ink_clears_the_lower_surfaces_rule: no wgpu adapter"
+                );
                 set_pane_split_test_override(None);
                 set_card_anchor_test_override(None);
                 return;
@@ -171,9 +171,12 @@ fn facet_strip_ink_clears_the_lower_surfaces_rule_with_presence_and_margin() {
 
                     let geom = p.overlay_geometry(w);
                     let plan = p.overlay_row_plan(&geom);
-                    let strip = plan
-                        .strip_band()
-                        .unwrap_or_else(|| panic!("{} {label_w}@{dpi}x: a faceted card plans a strip box", t.name));
+                    let strip = plan.strip_band().unwrap_or_else(|| {
+                        panic!(
+                            "{} {label_w}@{dpi}x: a faceted card plans a strip box",
+                            t.name
+                        )
+                    });
                     let scan_bottom = plan.first_top().min(strip.bottom());
 
                     let px = pixeldiff::render_frame(&mut p, &device, &queue, w, h);
@@ -190,17 +193,15 @@ fn facet_strip_ink_clears_the_lower_surfaces_rule_with_presence_and_margin() {
                     // span wide enough to span "All" and spill into "Files" —
                     // still valid evidence of the strip's own ink, whichever glyph
                     // produced it.
-                    let span = (geom.text_w * 0.35).min(140.0).max(20.0) as i64;
+                    let span = (geom.text_w * 0.35).clamp(20.0, 140.0) as i64;
                     let sxs: Vec<i64> = (0..span).map(|i| geom.text_left as i64 + 1 + i).collect();
                     let ground = avg(&px, wi, hi, sxs[0], (rule_y - 3.0).max(0.0) as i64, 3, 2);
                     let ink = t.base_content;
                     let ink_top = ink_top_row(
                         &px,
-                        wi,
-                        hi,
+                        (wi, hi),
                         &sxs,
-                        rule_y.round() as i64,
-                        scan_bottom.round() as i64,
+                        (rule_y.round() as i64, scan_bottom.round() as i64),
                         ink,
                         ground,
                     );
@@ -208,29 +209,29 @@ fn facet_strip_ink_clears_the_lower_surfaces_rule_with_presence_and_margin() {
                     let name = t.name;
                     let ink_top = ink_top.unwrap_or_else(|| {
                         panic!(
-                            "{name} {label_w}@{dpi}x lens={active}: PRESENCE floor — no facet-strip \
-                             ink found between the rule ({rule_y}) and the candidate band \
-                             ({scan_bottom}); a separation floor satisfied by no label at all \
-                             is not a floor"
+                            "{name} {label_w}@{dpi}x lens={active}: PRESENCE floor — no \
+                             facet-strip ink found between the rule ({rule_y}) and the \
+                             candidate band ({scan_bottom}); a separation floor satisfied \
+                             by no label at all is not a floor"
                         )
                     });
 
                     // SEPARATION, with a real margin: strictly below the rule, and
                     // by more than a stray antialiased fringe pixel. 1 logical px
-                    // scaled by dpi is comfortably under the ~4-8 physical px this
-                    // item measured at SPLIT_GAP_FRAC=0.35, and comfortably over
-                    // the ~0px this item measured at the pre-fix 0.4.
+                    // scaled by dpi is comfortably under the ~4-8 physical px
+                    // measured at `SPLIT_GAP_FRAC=0.35`, and comfortably over the
+                    // ~0px measured at the historical 0.4.
                     //
                     // EXCEPT: the wide scan span can land on WHICHEVER label is
                     // active, and on a filled-pill facet style (`Band`/
                     // `Chips(Hairline|FilledActive)`) the ACTIVE label's own pill
-                    // fill is item 292's OWN floor, which deliberately seats the
-                    // pill flush ON the plate (`>= plate_top - 0.05`,
-                    // `chip_plate_floor.rs`) — a different, already-decided law
-                    // for a different mark shape. Item 390 is about the LABEL
-                    // TEXT's own clearance; PRESENCE still applies (a vanished
-                    // label is still a bug), only the flush-by-design SEPARATION
-                    // claim is out of scope for these styles.
+                    // fill is `chip_plate_floor.rs`'s OWN floor, which
+                    // deliberately seats the pill flush ON the plate (`>=
+                    // plate_top - 0.05`) — a different, already-decided law for a
+                    // different mark shape. This law is about the LABEL TEXT's
+                    // own clearance; PRESENCE still applies (a vanished label is
+                    // still a bug), only the flush-by-design SEPARATION claim is
+                    // out of scope for these styles.
                     let pill_backed = matches!(
                         t.render_caps.facet_style,
                         theme::FacetStyle::Band
@@ -242,9 +243,9 @@ fn facet_strip_ink_clears_the_lower_surfaces_rule_with_presence_and_margin() {
                     if !pill_backed {
                         assert!(
                             margin >= dpi - 0.5,
-                            "{} {label_w}@{dpi}x lens={active}: SEPARATION floor — facet-strip ink \
-                             starts at {ink_top}, only {margin:.1}px below the lower surface's rule \
-                             ({rule_y}) — reads as touching",
+                            "{} {label_w}@{dpi}x lens={active}: SEPARATION floor — \
+                             facet-strip ink starts at {ink_top}, only {margin:.1}px below \
+                             the lower surface's rule ({rule_y}) — reads as touching",
                             t.name
                         );
                     }
@@ -274,7 +275,9 @@ fn the_pre_fix_fraction_would_have_failed_the_margin_on_wagtail() {
     set_card_anchor_test_override(Some(theme::CardAnchor::TopLeft));
     let (w, h) = (1200u32, 800u32);
     let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
-        eprintln!("skipping the_pre_fix_fraction_would_have_failed_the_margin_on_wagtail: no wgpu adapter");
+        eprintln!(
+            "skipping the_pre_fix_fraction_would_have_failed_the_margin_on_wagtail: no wgpu adapter"
+        );
         set_pane_split_test_override(None);
         set_card_anchor_test_override(None);
         return;
@@ -307,22 +310,34 @@ fn the_pre_fix_fraction_would_have_failed_the_margin_on_wagtail() {
     // The PRE-FIX rule (0.4), reconstructed the same way — never drawn by
     // this build, since `SPLIT_GAP_FRAC` is now 0.35 everywhere.
     let rule_pre_fix = strip.top + header_gap * (BREATHE_FRAC + 0.4);
-    assert!(rule_pre_fix > rule_fixed_drawn, "the fix must pull the rule EARLIER, not later");
+    assert!(
+        rule_pre_fix > rule_fixed_drawn,
+        "the fix must pull the rule EARLIER, not later"
+    );
 
     // The REAL ink row, from a real render — independent of either fraction.
     let px = pixeldiff::render_frame(&mut p, &device, &queue, w, h);
     let (wi, hi) = (w as i64, h as i64);
-    let span = (geom.text_w * 0.35).min(140.0).max(20.0) as i64;
+    let span = (geom.text_w * 0.35).clamp(20.0, 140.0) as i64;
     let sxs: Vec<i64> = (0..span).map(|i| geom.text_left as i64 + 1 + i).collect();
-    let ground = avg(&px, wi, hi, sxs[0], (rule_fixed_drawn - 3.0).max(0.0) as i64, 3, 2);
-    let ink = theme::active().base_content;
-    let ink_top = ink_top_row(
+    let ground = avg(
         &px,
         wi,
         hi,
+        sxs[0],
+        (rule_fixed_drawn - 3.0).max(0.0) as i64,
+        3,
+        2,
+    );
+    let ink = theme::active().base_content;
+    let ink_top = ink_top_row(
+        &px,
+        (wi, hi),
         &sxs,
-        rule_fixed_drawn.round() as i64,
-        plan.first_top().round() as i64,
+        (
+            rule_fixed_drawn.round() as i64,
+            plan.first_top().round() as i64,
+        ),
         ink,
         ground,
     )
