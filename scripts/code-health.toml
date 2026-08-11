@@ -948,8 +948,8 @@ reason = "Existing end-to-end scenario with no coherent setup/assertion split. R
 lint = "clippy::too_many_lines"
 file = "src/render/tests/workspace_back_width.rs"
 function = "the_workspaces_back_reads_and_draws_the_same_on_both_sides_of_the_staging_threshold"
-message = "this function has too many lines (155/100)"
-reason = "The law's subject IS the pair of regimes, so both sides of the staging threshold are measured in one body against one shaped sentence. It sweeps width x zoom x dpi and asserts it REACHED both regimes rather than naming a pixel threshold, because the flip derives from display-face metrics times zoom and no constant describes it. Splitting the two sides into separate tests would let one regime go unreached and still report green, which is the failure this sweep exists to prevent."
+message = "this function has too many lines (184/100)"
+reason = "The law's subject IS the pair of regimes, so both sides of the staging threshold are measured in one body against one shaped sentence. It sweeps width x zoom x dpi and asserts it REACHED both regimes rather than naming a pixel threshold, because the flip derives from display-face metrics times zoom and no constant describes it. Splitting the two sides into separate tests would let one regime go unreached and still report green, which is the failure this sweep exists to prevent. It now also sweeps the menu-bar arm, which is not an extra dimension so much as a correction: menubar::platform_default is false on macOS and true elsewhere, so a law that does not pin it measures a different product in CI than it does locally — three laws shipped blind to it in two days. The arm belongs inside the body because the ledger KEY is undefined without it: the bar decides whether a cell overruns its card or is starved of one."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
