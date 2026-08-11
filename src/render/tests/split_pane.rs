@@ -36,11 +36,12 @@ fn split_bounds_carve_the_query_beat_above_the_first_row() {
         let (gt, gb) = plan(text_top, header_rows, hg, lh).split_bounds().unwrap();
         // The gap is a real, positive band.
         assert!(gb > gt, "gap is non-degenerate (header_rows={header_rows})");
-        // It is `SPLIT_GAP_FRAC` (0.4) of the beat tall — a strip of ground, not
-        // the whole beat.
+        // It is `SPLIT_GAP_FRAC` (0.35 — item 390 lowered it from 0.4 to buy the
+        // facet strip real clearance from the lower surface's own rim) of the
+        // beat tall — a strip of ground, not the whole beat.
         assert!(
-            (gb - gt - hg * 0.4).abs() < 1e-3,
-            "gap height is 0.4 of the query beat (got {})",
+            (gb - gt - hg * 0.35).abs() < 1e-3,
+            "gap height is 0.35 of the query beat (got {})",
             gb - gt
         );
         // The whole gap sits ABOVE the first candidate row's top (nothing below
@@ -110,9 +111,10 @@ fn faceted_query_strip_is_optically_centered_not_bottom_heavy() {
 
     // The added breathing margin stays inside the split gap's own proven-safe
     // budget (`SPLIT_GAP_FRAC`'s own doc): the gap band itself is UNCHANGED in
-    // width (still exactly `0.4 * header_gap`) — only its position shifted.
+    // width (still exactly `0.35 * header_gap` — item 390 lowered the fraction
+    // from 0.4) — only its position shifted.
     assert!(
-        (gap_bottom - gap_top - header_gap * 0.4).abs() < 1e-3,
+        (gap_bottom - gap_top - header_gap * 0.35).abs() < 1e-3,
         "the visible gap band keeps its historical width, only its position moved"
     );
 }
