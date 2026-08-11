@@ -110,8 +110,9 @@ every pass.
    non-burst cell passed (commit, revert, early frames). Shots kept under the
    probe's work dir, which is `/tmp` and will not survive a restart — re-run
    `scripts/live-probe.sh --cells "mangrove-to-magpie-burst tawny-to-magpie-burst"`
-   to regenerate. Bisect against `cdb01a6f` (immediately before 388's same-step
-   split) is the open question: pre-existing, or shipped by 388.
+   to regenerate. **Bisected: PRE-EXISTING, not 388** — the identical failure,
+   same two cells and same block, reproduces at `cdb01a6f`, immediately before
+   the same-step split merged. 388 is exonerated. Filed as 397.
 4. **HUMAN / LIVE — now small.** Eight blockers above, each needing a session,
    hardware, or a release-time word; the 30-item taste backlog closed by the
    bulk acceptance. ⚠️ 392 and 327 wait for dispatch until 388's quiet-host
@@ -155,6 +156,31 @@ a document, roughly halves that gain at 50%, and reaches zero at the end.
 Closing it means moving cosmic-text's own scroll and relocating `RowGeom`'s
 coordinate origin — a real piece of work, deliberately out of 388's scope.
 Not urgent: the shipped state is strictly better than before at every depth.
+
+### 397 — a burst of theme previews settles with one stale block
+
+Found by item 211's live sweep, the only instrument that can see it — the
+offscreen capture path is structurally blind to this class. **Reproduce in one
+command:** `scripts/live-probe.sh --cells "mangrove-to-magpie-burst
+tawny-to-magpie-burst"` (macOS, display unlocked, ~2 min). ⚠️ Check the lock at
+BOTH ENDS: a mid-run lock writes successful-looking lines while presenting zero
+frames.
+
+`1/223 uniform blocks differ > 30.0`, block `(360,280)+40`, expected
+`rgb(251,251,250)`, got `rgb(216,217,216)`, diff 35. **Identical in both cells.**
+Both are `-burst` cells and both fail at **settled**, not `early`; every
+non-burst cell passes, including commit and revert. So a rapid burst of previews
+leaves one block stale and it stays stale rather than recovering.
+
+**Bisected pre-existing:** identical at `cdb01a6f`, before 388's same-step split,
+so it is not that change. True first-bad unknown, and a bisect costs a release
+build per step — prefer diagnosing the mechanism. `src/probe.rs`'s module doc
+names the three live-only classes this harness exists for: stale caches,
+redraw-scheduling gaps, present/compositor races.
+⚠️ 216 is far closer to a dimmed or scrim tone than to any neighbouring world's
+ground, so the first question is which LAYER failed to repaint, not which world
+failed to switch. The probe's work dir is under `/tmp` and does not survive a
+restart.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
