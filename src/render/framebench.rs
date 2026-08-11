@@ -475,20 +475,33 @@ fn assert_reshape_witness(
 /// and the smaller the win. At the document's end there is none at all.
 ///
 /// WITNESSED IN ROWS, not just millis (CLAUDE.md: a theme bench here once
+/// The device, queue, shader cache and render target the burst profiler draws
+/// through — one borrow instead of four at every call.
+#[derive(Clone, Copy)]
+struct BurstGpu<'a> {
+    device: &'a wgpu::Device,
+    queue: &'a wgpu::Queue,
+    cache: &'a Cache,
+    target_view: &'a wgpu::TextureView,
+}
+
 /// "measured" 5 ms while nothing reshaped): every hop asserts its reshape counter
 /// against `needs_theme_reshape`, that the arm actually shaped the number of rows
 /// its reach implies, and that the step ENDS with the whole document shaped
 /// whichever arm ran.
 fn picker_sweep(
-    device: &wgpu::Device,
-    queue: &wgpu::Queue,
-    cache: &Cache,
-    target_view: &wgpu::TextureView,
+    gpu: &BurstGpu<'_>,
     buffer: &Buffer,
     misspelled: &[crate::spell::Misspelling],
     reach: ShapeReach,
     scroll_frac: f32,
 ) -> anyhow::Result<()> {
+    let BurstGpu {
+        device,
+        queue,
+        cache,
+        target_view,
+    } = *gpu;
     crate::theme::set_active_by_name("Mangrove");
     let mut p = TextPipeline::new(device, queue, cache, FORMAT);
     p.set_size(BURST_WIDTH as f32, BURST_HEIGHT as f32);
@@ -716,18 +729,15 @@ fn burst_doc(
     // than the hand-picked route above, because that is literally what pressing
     // Down through the theme card walks. Each arm is measured on its own fresh
     // pipeline so neither inherits the other's warm shaping caches.
+    let gpu = BurstGpu {
+        device,
+        queue,
+        cache,
+        target_view: &target_view,
+    };
     for scroll_frac in [0.0f32, 0.5] {
         for reach in [ShapeReach::Whole, ShapeReach::Presentable] {
-            picker_sweep(
-                device,
-                queue,
-                cache,
-                &target_view,
-                &buffer,
-                &misspelled,
-                reach,
-                scroll_frac,
-            )?;
+            picker_sweep(&gpu, &buffer, &misspelled, reach, scroll_frac)?;
         }
     }
 
