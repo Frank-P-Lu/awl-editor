@@ -318,246 +318,202 @@ fn windows() -> Vec<(u32, u32)> {
     ]
 }
 
-/// **THE LAW.** One sentence everywhere, drawn everywhere, on both sides of the
-/// staging threshold.
-#[test]
-fn the_workspaces_back_reads_and_draws_the_same_on_both_sides_of_the_staging_threshold() {
-    let _g = crate::testlock::serial();
-    if !crate::test_gpu::adapter_present() {
-        eprintln!("skipping the_workspaces_back_reads_and_draws...: no wgpu adapter");
-        return;
+/// Where one cell's footer LANDED — the ledger it earned, or none.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Landed {
+    /// The card could not lay the line out at all — [`STARVED`].
+    Starved,
+    /// Past the card's edge by more than a substituted glyph — [`OVERRUN`].
+    Overrun,
+    /// Within [`HOST_BAND`] of the edge, so the outcome is the host's — [`TIGHT`].
+    Tight,
+    /// Clear of the edge by more than any host can move it. Ledgered nowhere.
+    Fits,
+}
+
+/// **THE HORIZONTAL GRADE, AND THE MARGIN IT WAS DECIDED BY** — the module doc's
+/// three bands, as one pure function so the boundary arithmetic has one owner
+/// and the sweep cannot grade two cells by two rules.
+///
+/// The second return is how far this cell stood from the boundary it did NOT
+/// cross, as the FACTOR its footer would have to change by to be graded
+/// differently. A cell inside the band is measured against both edges, because
+/// leaving in either direction moves it between ledgers. That number is what
+/// [`GRADE_HEADROOM`] floors.
+fn grade_the_fit(demand: f32) -> (Landed, f32) {
+    if demand > 1.0 + HOST_BAND {
+        (Landed::Overrun, demand / (1.0 + HOST_BAND))
+    } else if demand > 1.0 - HOST_BAND {
+        let to_edges = ((1.0 + HOST_BAND) / demand).min(demand / (1.0 - HOST_BAND));
+        (Landed::Tight, to_edges)
+    } else {
+        (Landed::Fits, (1.0 - HOST_BAND) / demand)
     }
-    let kinds = enrolled();
-    assert!(
-        !kinds.is_empty(),
-        "no kind enrolled — the roster's `RailOverRows` members are this law's subject, and \
-         an enrolment that matches nothing sweeps nothing"
+}
+
+/// **THE SHAPED SENTENCE, AND THE TWO CLAIMS THAT ARE ABOUT IT RATHER THAN ITS
+/// GEOMETRY.** The footer's own SHAPED line is the subject, because a stage that
+/// plans no footer (the staging regime's other stage does exactly that) shapes
+/// none, and a sentence read off the card rather than off the frame would agree
+/// with itself at every width for free.
+fn the_drawn_sentence(
+    p: &TextPipeline,
+    ov: &OverlayState,
+    back: BackKey,
+    what: &str,
+) -> (usize, String) {
+    let line = p.overlay_hint_line().unwrap_or_else(|| {
+        panic!(
+            "{what}: the content stage shaped no footer at all, so the Back it teaches is \
+             unreadable exactly where it is needed most"
+        )
+    });
+    let drawn = p.panel_buffer.lines[line].text().to_string();
+    assert_eq!(
+        drawn,
+        ov.foot_hint(),
+        "{what}: the drawn footer is not the card's own sentence"
     );
+    assert!(
+        drawn
+            .split(crate::overlay::HINT_SEP)
+            .any(|c| c == format!("{} back", back.glyph())),
+        "{what}: the footer stopped naming the Back. got {drawn:?}"
+    );
+    (line, drawn)
+}
 
-    // THE AMBIENT MENU-BAR VALUE, captured rather than derived. A
-    // `cfg!(target_os = ...)` here would report the host that COMPILED this
-    // test, not the branch `menubar::platform_default` actually took.
-    let ambient_menu_bar = crate::menubar::menu_bar_on();
+/// **THE PRESENCE FLOOR, SET UNDER THE ROSTER'S TIGHTEST REAL VALUE**, returning
+/// the share it measured.
+///
+/// A handful of inked columns is a floor a nearly invisible footer clears; the
+/// sentence is a whole line of type, so the honest question is what SHARE of its
+/// own shaped band carries a glyph edge. The tightest cell in this sweep inks 68%
+/// of its band and the loosest 83%, so half is a real constraint with room for a
+/// shaper's antialiasing to differ across backends — and the measured tightest is
+/// reported by the law so the headroom stays visible.
+#[allow(clippy::too_many_arguments)]
+fn assert_the_footer_is_a_line_of_type(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    p: &TextPipeline,
+    pw: u32,
+    ph: u32,
+    seat: (f32, f32, f32, f32),
+    what: &str,
+) -> f32 {
+    let (left, top, ink_w, height) = seat;
+    let (inked, band, x0, x1) = footer_ink(device, queue, p, pw, ph, left, top, ink_w, height);
+    assert!(
+        band >= 4,
+        "{what}: the footer's ink band clamped to {band} canvas columns ({x0}..{x1}) — there \
+         is nothing here for a pixel floor to grade"
+    );
+    assert!(
+        inked * 2 >= band,
+        "{what}: only {inked} of the footer's own {band} band columns ({x0}..{x1}) carry a \
+         glyph edge — the Back cell is planned, shaped and seated, but what reached the frame \
+         is not a line of type"
+    );
+    inked as f32 / band as f32
+}
 
-    let mut sentences: std::collections::BTreeSet<String> = Default::default();
-    let mut backs: std::collections::BTreeSet<&'static str> = Default::default();
-    let mut overrun: Vec<String> = Vec::new();
-    let mut tight: Vec<String> = Vec::new();
-    let mut starved: Vec<String> = Vec::new();
-    let (mut staged, mut wide, mut graded, mut inked_cells) = (0usize, 0usize, 0usize, 0usize);
-    // The tightest INK SHARE any drawn footer reached, reported at the end so a
-    // reader can see how much headroom the presence floor below actually had.
-    let mut tightest = f32::INFINITY;
-    // THE NARROWEST MARGIN ANY CELL HAD ON ITS OWN GRADE, as the factor its
-    // footer would have to widen (or narrow) by to be graded differently — the
-    // subject of `GRADE_HEADROOM`, carried with the cell that set it so the
-    // failure can name it.
-    let mut closest_call: (f32, String) = (f32::INFINITY, String::new());
+/// What one swept cell contributed to the law.
+struct CellOutcome {
+    landed: Landed,
+    drawn: String,
+    /// The share of its card\'s width this footer asked for — the graded
+    /// quantity, carried so a failure can print the number it graded.
+    demand: f32,
+    /// The factor this cell stood clear of its grade's boundary — see
+    /// [`grade_the_fit`]. Meaningless, and so infinite, for a starved cell.
+    headroom: f32,
+    /// The ink share, where the cell was graded for ink at all. A cell past its
+    /// card's edge is not: there is no band on the canvas to grade.
+    ink_share: Option<f32>,
+}
 
-    for kind in &kinds {
-        let ov = card_in_content(*kind);
-        let back = ov
-            .detail_back()
-            .expect("the content pane must have a Back to be invariant about");
-        backs.insert(back.glyph());
-        for menu_bar in [false, true] {
-            crate::menubar::set_menu_bar_on(menu_bar);
-            for (lw, lh) in windows() {
-                for zoom in [1.0f32, 1.4, 2.0] {
-                    for dpi in [1.0f32, 2.0] {
-                        let cell = Cell {
-                            w: lw,
-                            h: lh,
-                            zoom,
-                            dpi,
-                            menu_bar,
-                        };
-                        let (pw, ph) = ((lw as f32 * dpi) as u32, (lh as f32 * dpi) as u32);
-                        let Some((device, queue, mut p)) = headless_dqp(pw as f32, ph as f32)
-                        else {
-                            return;
-                        };
-                        p.set_dpi(dpi);
-                        p.set_size(pw as f32, ph as f32);
-                        let mut v = content_view(&ov);
-                        v.zoom = zoom;
-                        p.set_view(&v);
-                        p.prepare(&device, &queue, pw, ph).unwrap();
-
-                        let what = cell.describe(*kind);
-                        let geom = p.workspace_geometry(pw);
-                        match p.workspace_is_wide(pw) {
-                            true => wide += 1,
-                            false => staged += 1,
-                        }
-                        graded += 1;
-
-                        // PRESENCE, and INVARIANCE OVER THE DRAWN SENTENCE. The
-                        // footer's own SHAPED line is the subject of both, because a
-                        // stage that plans no footer (the staging regime's other
-                        // stage does exactly that) shapes none, and a sentence read
-                        // off the card rather than off the frame would agree with
-                        // itself at every width for free.
-                        let line = p.overlay_hint_line().unwrap_or_else(|| {
-                            panic!(
-                                "{what}: the content stage shaped no footer at all, so the Back it \
-                             teaches is unreadable exactly where it is needed most"
-                            )
-                        });
-                        let drawn = p.panel_buffer.lines[line].text().to_string();
-                        sentences.insert(drawn.clone());
-                        assert_eq!(
-                            drawn,
-                            ov.foot_hint(),
-                            "{what}: the drawn footer is not the card's own sentence"
-                        );
-                        assert!(
-                            drawn
-                                .split(crate::overlay::HINT_SEP)
-                                .any(|c| c == format!("{} back", back.glyph())),
-                            "{what}: the footer stopped naming the Back. got {drawn:?}"
-                        );
-
-                        let run = p.panel_buffer.layout_runs().find_map(|run| {
-                            (run.line_i == line).then_some((
-                                run.line_w,
-                                geom.text_top + run.line_top,
-                                run.line_height,
-                            ))
-                        });
-                        // A CARD TOO SHORT FOR ITS OWN COMPOSITION loses its
-                        // footer to the layout, and is LEDGERED — but only after
-                        // the card's own geometry says the budget could not have
-                        // held it (`assert_the_budget_could_not_hold_it`).
-                        let Some((ink_w, top, height)) = run else {
-                            assert_the_budget_could_not_hold_it(&p, &geom, &what);
-                            starved.push(what.clone());
-                            continue;
-                        };
-                        assert!(
-                            ink_w > 0.0 && height > 0.0,
-                            "{what}: the footer shaped to nothing ({ink_w}x{height})"
-                        );
-                        let [cx, cy, cw, ch] = p.workspace_regions(pw).card;
-                        // WHERE THE FOOTER STARTS is a seating claim and is asserted
-                        // outright: a line that begins off its own card is misplaced,
-                        // not merely too big for the room.
-                        assert!(
-                            geom.text_left >= cx && top >= cy,
-                            "{what}: the footer's ink box starts at ({:.1},{:.1}), outside the \
-                         card ({cx:.1},{cy:.1} {cw:.1}x{ch:.1})",
-                            geom.text_left,
-                            top
-                        );
-                        // WHETHER IT FITS is LEDGERED, not asserted — see `OVERRUN`.
-                        // A cell that overflows and is not listed fails; a listed
-                        // cell that stops overflowing fails too.
-                        //
-                        // HORIZONTALLY that is graded as a RATIO in three bands
-                        // (`HOST_BAND`), because the footer's shaped width is
-                        // partly the host's and a boolean at the card's edge is
-                        // therefore not this product's to state. VERTICALLY it
-                        // stays a boolean, because the whole vertical axis was
-                        // measured identical on both hosts — the line's pitch is
-                        // a metric the pipeline sets, not one a substituted glyph
-                        // gets a vote in.
-                        let avail = cx + cw - geom.text_left;
-                        let demand = ink_w / avail;
-                        let fits_here = geom.text_left + ink_w <= cx + cw + 0.5;
-                        let over_bottom = top + height > cy + ch + 0.5;
-                        // THE MARGIN THIS CELL HAD ON ITS OWN GRADE, as a factor
-                        // — a statement about the horizontal band alone, kept for
-                        // every cell so `GRADE_HEADROOM` sweeps the whole roster
-                        // rather than the ledgered corner.
-                        let headroom = if demand > 1.0 + HOST_BAND {
-                            demand / (1.0 + HOST_BAND)
-                        } else if demand > 1.0 - HOST_BAND {
-                            ((1.0 + HOST_BAND) / demand).min(demand / (1.0 - HOST_BAND))
-                        } else {
-                            (1.0 - HOST_BAND) / demand
-                        };
-                        if headroom < closest_call.0 {
-                            closest_call = (headroom, format!("{what} at demand {demand:.4}"));
-                        }
-                        if demand > 1.0 + HOST_BAND || over_bottom {
-                            overrun.push(what.clone());
-                            continue;
-                        }
-                        if demand > 1.0 - HOST_BAND {
-                            tight.push(what.clone());
-                            // A TIGHT CELL IS NOT GRADED FOR FIT — but it is still
-                            // graded for INK wherever this host's own faces did
-                            // seat it, because the presence floor is a claim about
-                            // type reaching the frame and owes nothing to the
-                            // card's right edge.
-                            if !fits_here {
-                                continue;
-                            }
-                        }
-
-                        let (inked, band, x0, x1) = footer_ink(
-                            &device,
-                            &queue,
-                            &p,
-                            pw,
-                            ph,
-                            geom.text_left,
-                            top,
-                            ink_w,
-                            height,
-                        );
-                        // **THE PRESENCE FLOOR, SET UNDER THE ROSTER'S TIGHTEST REAL
-                        // VALUE.** A handful of inked columns is a floor a nearly
-                        // invisible footer clears; the sentence is a whole line of
-                        // type, so the honest question is what SHARE of its own
-                        // shaped band carries a glyph edge. The tightest cell in this
-                        // sweep inks 76% of its band and the loosest 83%, so half is
-                        // a real constraint with room for a shaper's antialiasing to
-                        // differ across backends — and the measured tightest is
-                        // reported below so the headroom stays visible.
-                        assert!(
-                            band >= 4,
-                            "{what}: the footer's ink band clamped to {band} canvas columns \
-                         ({x0}..{x1}) — there is nothing here for a pixel floor to grade"
-                        );
-                        assert!(
-                            inked * 2 >= band,
-                            "{what}: only {inked} of the footer's own {band} band columns \
-                         ({x0}..{x1}) carry a glyph edge — the Back cell is planned, shaped \
-                         and seated, but what reached the frame is not a line of type"
-                        );
-                        tightest = tightest.min(inked as f32 / band as f32);
-                        inked_cells += 1;
-                    }
-                }
-            }
-        }
+/// **ONE CELL, MEASURED AND GRADED.** Split out of the law because the sweep's
+/// five nested axes and its final ledger comparison are two different readings,
+/// and a reader chasing "how is a cell graded" should not have to walk past the
+/// roster to find out.
+fn grade_one_cell(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    p: &TextPipeline,
+    ov: &OverlayState,
+    back: BackKey,
+    (pw, ph): (u32, u32),
+    what: &str,
+) -> CellOutcome {
+    let geom = p.workspace_geometry(pw);
+    let (line, drawn) = the_drawn_sentence(p, ov, back, what);
+    let run = p.panel_buffer.layout_runs().find_map(|run| {
+        (run.line_i == line).then_some((run.line_w, geom.text_top + run.line_top, run.line_height))
+    });
+    // A CARD TOO SHORT FOR ITS OWN COMPOSITION loses its footer to the layout,
+    // and is LEDGERED — but only after the card's own geometry says the budget
+    // could not have held it (`assert_the_budget_could_not_hold_it`).
+    let Some((ink_w, top, height)) = run else {
+        assert_the_budget_could_not_hold_it(p, &geom, what);
+        return CellOutcome {
+            landed: Landed::Starved,
+            drawn,
+            demand: 0.0,
+            headroom: f32::INFINITY,
+            ink_share: None,
+        };
+    };
+    assert!(
+        ink_w > 0.0 && height > 0.0,
+        "{what}: the footer shaped to nothing ({ink_w}x{height})"
+    );
+    let [cx, cy, cw, ch] = p.workspace_regions(pw).card;
+    // WHERE THE FOOTER STARTS is a seating claim and is asserted outright: a
+    // line that begins off its own card is misplaced, not merely too big for
+    // the room.
+    assert!(
+        geom.text_left >= cx && top >= cy,
+        "{what}: the footer's ink box starts at ({:.1},{:.1}), outside the card \
+         ({cx:.1},{cy:.1} {cw:.1}x{ch:.1})",
+        geom.text_left,
+        top
+    );
+    // WHETHER IT FITS is LEDGERED, not asserted — see `OVERRUN` and `TIGHT`.
+    //
+    // HORIZONTALLY that is graded as a RATIO in three bands (`HOST_BAND`),
+    // because the footer's shaped width is partly the host's and a boolean at
+    // the card's edge is therefore not this product's to state. VERTICALLY it
+    // stays a boolean, because the whole vertical axis was measured identical on
+    // both hosts — the line's pitch is a metric the pipeline sets, not one a
+    // substituted glyph gets a vote in.
+    let demand = ink_w / (cx + cw - geom.text_left);
+    let (mut landed, headroom) = grade_the_fit(demand);
+    if top + height > cy + ch + 0.5 {
+        landed = Landed::Overrun;
     }
-    crate::menubar::set_menu_bar_on(ambient_menu_bar);
+    // A TIGHT CELL IS NOT GRADED FOR FIT — but it is still graded for INK
+    // wherever this host's own faces did seat it, because the presence floor is
+    // a claim about type reaching the frame and owes nothing to the card's
+    // right edge.
+    let seated = landed != Landed::Overrun && geom.text_left + ink_w <= cx + cw + 0.5;
+    let ink_share = seated.then(|| {
+        let seat = (geom.text_left, top, ink_w, height);
+        assert_the_footer_is_a_line_of_type(device, queue, p, pw, ph, seat, what)
+    });
+    CellOutcome {
+        landed,
+        drawn,
+        demand,
+        headroom,
+        ink_share,
+    }
+}
 
-    // THE SWEEP CROSSED THE THRESHOLD, and says so. Without this the invariance
-    // above is a statement about one regime wearing the clothes of two.
-    assert!(
-        staged > 0 && wide > 0,
-        "the sweep never crossed the staging threshold (staged {staged}, wide {wide}) across \
-         {graded} cells over {:?} — one regime went ungraded, so the width-invariance claim \
-         is about nothing",
-        kinds.iter().map(|k| k.as_str()).collect::<Vec<_>>()
-    );
-    assert_eq!(
-        sentences.len(),
-        1,
-        "the footer taught {} different sentences across {graded} cells — the whole point of \
-         a Back the action seam derives without a width is that a staged layout and a wide \
-         one cannot disagree: {sentences:?}",
-        sentences.len()
-    );
-    assert_eq!(
-        backs,
-        std::collections::BTreeSet::from([BackKey::Erase.glyph()]),
-        "the enrolled roster's content panes must all teach the erase key as their Back — \
-         the focus key is the fallback for a live query, and no cell here types one"
-    );
+/// **THE THREE LEDGERS, COMPARED.** Each is an exact set and each is two-sided:
+/// a cell that arrives is a NEW degradation, a cell that has left has been fixed
+/// and its entry is stale. Split out so the sweep above reads as a sweep.
+fn assert_the_ledgers_are_unchanged(overrun: &[String], tight: &[String], starved: &[String]) {
     // STARVATION IS REPORTED BEFORE OVERRUN, because a card that starves is
     // never graded for width — so a change that pushes cells from one ledger
     // into the other reddens BOTH, and the absent footer is the more useful of
@@ -587,52 +543,208 @@ fn the_workspaces_back_reads_and_draws_the_same_on_both_sides_of_the_staging_thr
          adding the cell: `TIGHT` is not an allow-list for one host's font set, it is the list \
          of places the product has no margin left."
     );
-    // **AND THE BANDS ARE NOT A KNIFE'S EDGE OF THEIR OWN.** The grade above is
-    // only worth more than the boolean it replaced if no cell is one runner
-    // image away from being graded differently — the same crowding, moved one
-    // level up. So the margin is measured over EVERY cell, floored, and printed.
+}
+
+/// **EVERYTHING THE SWEEP ACCUMULATED**, and the subject of every claim the law
+/// makes once the loops close. Gathered into one owner so the claims can live
+/// next to each other and be read as a set: several of them are only worth
+/// having because another one is there (invariance needs the threshold crossing,
+/// the ledgers need the aggregate presence floor, the bands need the headroom).
+#[derive(Default)]
+struct Sweep {
+    sentences: std::collections::BTreeSet<String>,
+    backs: std::collections::BTreeSet<&'static str>,
+    overrun: Vec<String>,
+    tight: Vec<String>,
+    starved: Vec<String>,
+    staged: usize,
+    wide: usize,
+    graded: usize,
+    inked_cells: usize,
+    /// The tightest INK SHARE any drawn footer reached, reported at the end so a
+    /// reader can see how much headroom the presence floor actually had.
+    tightest: f32,
+    /// THE NARROWEST MARGIN ANY CELL HAD ON ITS OWN GRADE, with the cell that
+    /// set it so the failure can name it — the subject of [`GRADE_HEADROOM`].
+    closest_call: (f32, String),
+}
+
+impl Sweep {
+    fn new() -> Self {
+        Self {
+            tightest: f32::INFINITY,
+            closest_call: (f32::INFINITY, String::new()),
+            ..Default::default()
+        }
+    }
+
+    /// File one cell's outcome under the ledger it earned.
+    fn record(&mut self, what: String, out: CellOutcome) {
+        self.sentences.insert(out.drawn);
+        self.graded += 1;
+        if out.headroom < self.closest_call.0 {
+            self.closest_call = (out.headroom, format!("{what} at demand {:.4}", out.demand));
+        }
+        match out.landed {
+            Landed::Starved => self.starved.push(what),
+            Landed::Overrun => self.overrun.push(what),
+            Landed::Tight => self.tight.push(what),
+            Landed::Fits => {}
+        }
+        if let Some(share) = out.ink_share {
+            self.tightest = self.tightest.min(share);
+            self.inked_cells += 1;
+        }
+    }
+
+    /// **WHAT THE SWEEP PROVED, AND WHAT IT COVERED WHILE PROVING IT.**
+    fn assert_and_report(&self, kinds: &[OverlayKind], ambient_menu_bar: bool) {
+        let (staged, wide, graded, inked_cells) =
+            (self.staged, self.wide, self.graded, self.inked_cells);
+        // THE SWEEP CROSSED THE THRESHOLD, and says so. Without this the
+        // invariance below is a statement about one regime wearing the clothes
+        // of two.
+        assert!(
+            staged > 0 && wide > 0,
+            "the sweep never crossed the staging threshold (staged {staged}, wide {wide}) \
+             across {graded} cells over {:?} — one regime went ungraded, so the \
+             width-invariance claim is about nothing",
+            kinds.iter().map(|k| k.as_str()).collect::<Vec<_>>()
+        );
+        assert_eq!(
+            self.sentences.len(),
+            1,
+            "the footer taught {} different sentences across {graded} cells — the whole point \
+             of a Back the action seam derives without a width is that a staged layout and a \
+             wide one cannot disagree: {:?}",
+            self.sentences.len(),
+            self.sentences
+        );
+        assert_eq!(
+            self.backs,
+            std::collections::BTreeSet::from([BackKey::Erase.glyph()]),
+            "the enrolled roster's content panes must all teach the erase key as their Back — \
+             the focus key is the fallback for a live query, and no cell here types one"
+        );
+        assert_the_ledgers_are_unchanged(&self.overrun, &self.tight, &self.starved);
+        // **AND THE BANDS ARE NOT A KNIFE'S EDGE OF THEIR OWN.** The grade above
+        // is only worth more than the boolean it replaced if no cell is one
+        // runner image away from being graded differently — the same crowding,
+        // moved one level up. So the margin is measured over EVERY cell,
+        // floored, and printed.
+        assert!(
+            self.closest_call.0 >= GRADE_HEADROOM,
+            "{} is only {:.4}x from being graded differently, under a floor of \
+             {GRADE_HEADROOM:.2}x — the three-way grade has developed the same edge-crowding \
+             the boolean had, and which ledger this cell lands in is about to become a \
+             property of the host again",
+            self.closest_call.1,
+            self.closest_call.0,
+        );
+        // **THE PRESENCE FLOOR IN AGGREGATE.** All three ledgers are exact sets,
+        // so none can grow quietly — but an exact set says nothing about how
+        // much of the sweep is left over to be a law about. This is the
+        // statement that the degradations stay a CORNER, and a change that
+        // pushed the inked share below two thirds would have made the ledgers
+        // the product rather than the exception.
+        //
+        // The count is deliberately NOT pinned: a TIGHT cell is inked wherever
+        // this host's faces seated it, so the exact number is one of the few
+        // things here that legitimately differs between machines. It is printed.
+        assert!(
+            inked_cells * 3 >= graded * 2,
+            "only {inked_cells} of {graded} swept cells drew an inked footer inside their card \
+             ({} overrun, {} tight, {} starved) — the ledgered corners have grown into the \
+             sweep, so the presence claim is now about a minority of the product",
+            self.overrun.len(),
+            self.tight.len(),
+            self.starved.len()
+        );
+        // WHAT THIS RUN ACTUALLY COVERED, printed rather than assumed — the
+        // grade headroom especially, because it is the number that says whether
+        // the bands are still doing their job on THIS host's font set.
+        eprintln!(
+            "workspace back footer: {graded} cells over both menu-bar arms (ambient here is \
+             {ambient_menu_bar}), {inked_cells} inked, {} overrun, {} tight, {} starved; \
+             tightest ink share {:.3} against a floor of 0.500; closest grade call {:.4}x \
+             against a floor of {GRADE_HEADROOM:.2}x, at {}",
+            self.overrun.len(),
+            self.tight.len(),
+            self.starved.len(),
+            self.tightest,
+            self.closest_call.0,
+            self.closest_call.1,
+        );
+    }
+}
+
+/// **THE LAW.** One sentence everywhere, drawn everywhere, on both sides of the
+/// staging threshold.
+#[test]
+fn the_workspaces_back_reads_and_draws_the_same_on_both_sides_of_the_staging_threshold() {
+    let _g = crate::testlock::serial();
+    if !crate::test_gpu::adapter_present() {
+        eprintln!("skipping the_workspaces_back_reads_and_draws...: no wgpu adapter");
+        return;
+    }
+    let kinds = enrolled();
     assert!(
-        closest_call.0 >= GRADE_HEADROOM,
-        "{} is only {:.4}x from being graded differently, under a floor of {GRADE_HEADROOM:.2}x \
-         — the three-way grade has developed the same edge-crowding the boolean had, and which \
-         ledger this cell lands in is about to become a property of the host again",
-        closest_call.1,
-        closest_call.0,
+        !kinds.is_empty(),
+        "no kind enrolled — the roster's `RailOverRows` members are this law's subject, and \
+         an enrolment that matches nothing sweeps nothing"
     );
-    // **THE PRESENCE FLOOR IN AGGREGATE.** All three ledgers above are exact
-    // sets, so none can grow quietly — but an exact set says nothing about how
-    // much of the sweep is left over to be a law about. This is the statement
-    // that the degradations stay a CORNER, and a change that pushed the inked
-    // share below two thirds would have made the ledgers the product rather than
-    // the exception.
-    //
-    // The count is deliberately NOT pinned: a TIGHT cell is inked wherever this
-    // host's faces seated it, so the exact number is one of the few things here
-    // that legitimately differs between machines. It is printed below.
-    assert!(
-        inked_cells * 3 >= graded * 2,
-        "only {inked_cells} of {graded} swept cells drew an inked footer inside their card \
-         ({} overrun, {} tight, {} starved) — the ledgered corners have grown into the sweep, \
-         so the presence claim is now about a minority of the product",
-        overrun.len(),
-        tight.len(),
-        starved.len()
-    );
-    // WHAT THIS RUN ACTUALLY COVERED, printed rather than assumed — the grade
-    // headroom especially, because it is the number that says whether the bands
-    // are still doing their job on THIS host's font set.
-    eprintln!(
-        "workspace back footer: {graded} cells over both menu-bar arms (ambient here is \
-         {ambient_menu_bar}), {inked_cells} inked, {} overrun, {} tight, {} starved; tightest \
-         ink share {:.3} against a floor of 0.500; closest grade call {:.4}x against a floor \
-         of {GRADE_HEADROOM:.2}x, at {}",
-        overrun.len(),
-        tight.len(),
-        starved.len(),
-        tightest,
-        closest_call.0,
-        closest_call.1,
-    );
+
+    // THE AMBIENT MENU-BAR VALUE, captured rather than derived. A
+    // `cfg!(target_os = ...)` here would report the host that COMPILED this
+    // test, not the branch `menubar::platform_default` actually took.
+    let ambient_menu_bar = crate::menubar::menu_bar_on();
+
+    let mut sweep = Sweep::new();
+
+    for kind in &kinds {
+        let ov = card_in_content(*kind);
+        let back = ov
+            .detail_back()
+            .expect("the content pane must have a Back to be invariant about");
+        sweep.backs.insert(back.glyph());
+        for menu_bar in [false, true] {
+            crate::menubar::set_menu_bar_on(menu_bar);
+            for (lw, lh) in windows() {
+                for zoom in [1.0f32, 1.4, 2.0] {
+                    for dpi in [1.0f32, 2.0] {
+                        let cell = Cell {
+                            w: lw,
+                            h: lh,
+                            zoom,
+                            dpi,
+                            menu_bar,
+                        };
+                        let (pw, ph) = ((lw as f32 * dpi) as u32, (lh as f32 * dpi) as u32);
+                        let Some((device, queue, mut p)) = headless_dqp(pw as f32, ph as f32)
+                        else {
+                            return;
+                        };
+                        p.set_dpi(dpi);
+                        p.set_size(pw as f32, ph as f32);
+                        let mut v = content_view(&ov);
+                        v.zoom = zoom;
+                        p.set_view(&v);
+                        p.prepare(&device, &queue, pw, ph).unwrap();
+
+                        match p.workspace_is_wide(pw) {
+                            true => sweep.wide += 1,
+                            false => sweep.staged += 1,
+                        }
+                        let what = cell.describe(*kind);
+                        let out = grade_one_cell(&device, &queue, &p, &ov, back, (pw, ph), &what);
+                        sweep.record(what, out);
+                    }
+                }
+            }
+        }
+    }
+    crate::menubar::set_menu_bar_on(ambient_menu_bar);
+    sweep.assert_and_report(&kinds, ambient_menu_bar);
 }
 
 /// **THE CELLS WHERE THE FOOTER IS WIDER THAN ITS CARD** — a ledger of an
