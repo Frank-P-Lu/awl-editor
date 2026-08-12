@@ -224,6 +224,8 @@ seen, measured, and left deliberately.
 
 ### 415 — end-of-document breathing room (USER DECISION 2026-08-12)
 
+🟡 IN PROGRESS — claude (deep), branch `claude/item-415-end-breathing-room`.
+
 (Filed as 413 in `f14ccbe0`, renumbered here: `737b9fad` had already taken
 413 and 414 on a concurrent board write.)
 
@@ -254,6 +256,8 @@ existing near-end scroll laws re-baselined consciously, not silently.
 
 ### 416 — the caret takes ONE height; the per-glyph hug reverses (USER DECISION 2026-08-12)
 
+🟡 IN PROGRESS — claude (deep), branch `claude/item-416-one-caret-height`.
+
 The user, live: the caret sizing to the ANCHORED GLYPH'S ink — short after
 `a`, tall after `l` — is "super distracting" in ordinary typing. That per-glyph
 hug is item 91 (`07f1b7da`, 2026-07-26); before it the caret was a fixed
@@ -281,6 +285,8 @@ glyph, not height-across-glyphs); flip 91's per-glyph laws consciously;
 land-and-judge — the revert is one arm in `caret_cell_vertical`.
 
 ### 417 — 376's Recent lens, lost for the THIRD time
+
+🟡 IN PROGRESS — claude (deep), branch `claude/item-417-recent-lens`.
 
 ⚠️ **This is the third disappearance of one decision. File-and-forget is how it
 keeps happening, so the tension is written down here rather than rediscovered.**
