@@ -58,8 +58,8 @@ lines = 908
 
 [[file_size_mark]]
 file = "src/actions/overlay_nav.rs"
-lines = 931
-reason = "item 114: +8 lines net. The workspace's own two-region keyboard and its deep link were carved out to `actions/workspace_nav.rs`; what remains here is the intercept-chain entry and the dispatcher arm that calls them. Item 116c: -23 lines net — the whole `history_intercept` function (folded into the shape-aware `workspace_nav::workspace_intercept`, item 116a's `rows_are_primary` fact) is gone from this file; the `Newline`/`AcceptAlternate` accept arm and the keep-version minibuffer's Cancel/Newline arms now route through `Journey::cancel`/`accept` instead of a bare `dismiss()`. +15: the roster gate that opens the preview owner before its match, so an arm added there alone is INERT until the kind declares itself. The gate, not the arms, is the enrolment, which closes the wildcard hole a subset law could not see. +31: switch-project's accept becomes flat — Enter on a direct child switches instead of descending, and the ascend gate excludes a non-path-bound Project so an empty-query Backspace cannot walk above the configured workspace. The second guard is the one that is not obvious: excluding Project from the navigable set made an idle Backspace fall through to a pop that resets the selection to row 0, so the no-op arm is load-bearing rather than defensive. +108: ProjectBrowse joins is_folder_destination, so the arrow and erase grammar comes from the predicate every navigation site already asks rather than a new branch; plus the three journey wrappers that route every lifecycle call through one rebuild."
+lines = 936
+reason = "item 114: +8 lines net. The workspace's own two-region keyboard and its deep link were carved out to `actions/workspace_nav.rs`; what remains here is the intercept-chain entry and the dispatcher arm that calls them. Item 116c: -23 lines net — the whole `history_intercept` function (folded into the shape-aware `workspace_nav::workspace_intercept`, item 116a's `rows_are_primary` fact) is gone from this file; the `Newline`/`AcceptAlternate` accept arm and the keep-version minibuffer's Cancel/Newline arms now route through `Journey::cancel`/`accept` instead of a bare `dismiss()`. +15: the roster gate that opens the preview owner before its match, so an arm added there alone is INERT until the kind declares itself. The gate, not the arms, is the enrolment, which closes the wildcard hole a subset law could not see. +31: switch-project's accept becomes flat — Enter on a direct child switches instead of descending, and the ascend gate excludes a non-path-bound Project so an empty-query Backspace cannot walk above the configured workspace. The second guard is the one that is not obvious: excluding Project from the navigable set made an idle Backspace fall through to a pop that resets the selection to row 0, so the no-op arm is load-bearing rather than defensive. +108: ProjectBrowse joins is_folder_destination, so the arrow and erase grammar comes from the predicate every navigation site already asks rather than a new branch; plus the three journey wrappers that route every lifecycle call through one rebuild. +5: descend_target's doc — one owner of which path a row names now serves two row SHAPES, and joining an absolute name answers with that name, which is load-bearing rather than an oversight."
 
 [[file_size_mark]]
 file = "src/app.rs"
@@ -260,12 +260,12 @@ reason = "A new `OverlayKind` variant crosses seven exhaustive per-kind matches 
 
 [[file_size_mark]]
 file = "src/overlay/nav.rs"
-lines = 553
-reason = "item 114: +12 lines. `item_sections` gained the workspace's empty-sections arm and its argument — a workspace names its category once, in its rail, and `refilter`'s bucketing is the one owner that must not answer twice."
+lines = 563
+reason = "item 114: +12 lines. `item_sections` gained the workspace's empty-sections arm and its argument — a workspace names its category once, in its rail, and `refilter`'s bucketing is the one owner that must not answer twice. +10: refilter's dotfile exemption gains the remembered clause. That filter governs what a directory READ puts in front of you, so a project you chose must not vanish from Recent because of a setting about listings."
 
 [[file_size_mark]]
 file = "src/overlay/state.rs"
-lines = 774
+lines = 770
 reason = "The conflict card's payload field on the one `OverlayState` struct and its one exhaustive `new_marked` initializer (+5). +10: `BackKey` is the one owner of what goes back from a detail stage — erase when free, focus while a live query owns the erase key, nothing during a value edit — so the footer and the intercept cannot disagree. +23: `foot_hint_scoped` takes the `Bind` the card was entered under, because whether Backspace ascends is a property of the JOURNEY and not of the kind — the two switch-project surfaces are the same `OverlayKind`. The zero-argument form remains, delegating with `None`, so roughly thirty bare-card call sites keep the correct default: a card with no journey is flat. +68: RowMeta::ProjectDoor and RowMeta::terminal, which merges the add-to-dictionary row's always-last exemption with the door's — both act on something other than the query, so a fuzzy match on their own label must not float them above the answers."
 
 [[file_size_mark]]
