@@ -332,6 +332,65 @@ fn every_proportional_face_measures_a_sane_typical_letter_ratio() {
     );
 }
 
+/// EVERY bundled face — not only the ones a world currently points at —
+/// measures REAL per-em ascent/descent, never the unknown-family fallback pair
+/// sneaking in for a face whose bytes did not parse. The roster is the
+/// enrolment, so a newly bundled face is swept the moment it ships.
+///
+/// Same two-part shape as the ratio law above, for the same reason: a plausible
+/// BAND is satisfiable by the fallback constants (0.8 / 0.2 sit inside any sane
+/// band), so this also demands a real SPREAD — bundled faces genuinely differ
+/// here (Literata's ascent is ~1.18em against Newsreader's ~0.74em, which is
+/// exactly why the caret cannot size a glyphless row with one flat fraction),
+/// and a roster of silent parse failures would collapse to one repeated pair.
+///
+/// The per-face VALUES are pinned against reality elsewhere, and far more
+/// tightly: `render::tests::caret_transition`'s
+/// `an_empty_row_carries_the_metrics_a_shaped_row_would_have_given_it` requires
+/// these numbers to reproduce a really-shaped row's own metrics exactly.
+#[test]
+fn every_bundled_face_measures_real_per_em_vertical_metrics() {
+    let _t = crate::testlock::serial();
+    let mut ascents: Vec<f32> = Vec::new();
+    let mut checked = 0usize;
+    for family in facepitch::roster().keys() {
+        let (ascent, descent) = facepitch::vertical_em_metrics(family);
+        assert!(
+            (0.5..=1.6).contains(&ascent) && (0.0..=0.6).contains(&descent),
+            "{family}: per-em vertical metrics out of any sane band: \
+             ascent={ascent} descent={descent}"
+        );
+        ascents.push(ascent);
+        checked += 1;
+    }
+    assert!(
+        checked >= 11,
+        "every bundled display family is swept (got {checked})"
+    );
+    let (min, max) = (
+        ascents.iter().cloned().fold(f32::MAX, f32::min),
+        ascents.iter().cloned().fold(f32::MIN, f32::max),
+    );
+    assert!(
+        max - min > 0.05,
+        "the roster's own faces must measure genuinely DIFFERENT ascents, not \
+         one repeated fallback value: min={min} max={max}"
+    );
+}
+
+/// An UNKNOWN family (never bundled — a system fallback face, an `AWL_FONT`
+/// override) answers the documented fallback PAIR, exactly the same
+/// "unknown family" shape `family_is_mono` already has.
+#[test]
+fn unknown_family_falls_back_to_the_documented_vertical_em_metrics() {
+    let (ascent, descent) = facepitch::vertical_em_metrics("Not A Real Bundled Family");
+    assert!(
+        (ascent - facepitch::DEFAULT_ASCENT_EM).abs() < 1e-6
+            && (descent - facepitch::DEFAULT_DESCENT_EM).abs() < 1e-6,
+        "an unknown family must answer the documented fallback pair, got ({ascent}, {descent})"
+    );
+}
+
 /// An UNKNOWN family (never bundled — a system fallback face, an `AWL_FONT`
 /// override) answers the documented fallback constant, exactly the same
 /// "unknown family" shape `family_is_mono` already has.

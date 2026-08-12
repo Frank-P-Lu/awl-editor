@@ -386,15 +386,18 @@ impl TextPipeline {
     ///        (`caret_row_metrics`'s third element) — a real shaped row's
     ///        `max_ascent` is a property of `shaped_font` (the face ACTUALLY on
     ///        screen right now, possibly still lagging the live theme mid
-    ///        preview), while the metrics-only empty-line approximation is
-    ///        theme-independent by construction and reads `doc_family()` for
-    ///        the ratio — so the two quantities multiplied together always
+    ///        preview), while an empty row's is REBUILT from `doc_family()`'s
+    ///        own per-em ascent, which is also the family read for the ratio
+    ///        — so the two quantities multiplied together always
     ///        describe the SAME font, never a source-ascent/destination-ratio
     ///        Frankenstein number: mixing `shaped_font`'s real row metrics
     ///        with `doc_family()`'s ratio produces a measurable few-px pop on
     ///        ordinary text during a theme-picker scrub, and an empty-buffer
     ///        law cannot see it, because an empty buffer never takes the
-    ///        real-row branch at all.
+    ///        real-row branch at all. The ascent must be a REAL one: cosmic-text
+    ///        hands an empty row zeros, and a zero ascent collapses this whole
+    ///        arm onto `caret_visual_body_dims`'s minimum body — one identical
+    ///        dot on every world, under the type beside it.
     ///        ALL THREE go through this arm rather than the LINE-CELL arm below,
     ///        which is a fixed row-box-centred height with NO baseline/ascent
     ///        reference at all: routing this case (real ligature ink included)
@@ -467,53 +470,6 @@ impl TextPipeline {
         let desc_bottom = self.caret_baseline_y() + descender + CARET_DESCENDER_PAD.px(px);
         let extend = (desc_bottom - (cy + h * 0.5)).max(0.0);
         (cy + extend * 0.5, h + extend)
-    }
-
-    /// The FALLBACK arm's SYNTHETIC ink box for a truly GLYPHLESS
-    /// PROPORTIONAL anchor (space / end-of-line / an empty line — nothing
-    /// [`Self::caret_anchor_raster_box`] can measure): a typical lowercase
-    /// letter's placement, expressed in the SAME `top`/`height`-above-baseline
-    /// convention a real [`InkBox`] uses, so [`Self::caret_cell_vertical`] can
-    /// feed it through the identical formula the real ink-box arm reads.
-    ///
-    /// `top == height` (zero descent) by construction: a typical non-descending
-    /// letter's ink sits ON the baseline with nothing below it, exactly like a
-    /// real non-dipping glyph's box. There is deliberately no synthetic
-    /// descender — a glyphless anchor has no letter to dip, so nothing to extend
-    /// for; a REAL dipping ligature already carries its own descent inside its
-    /// raster box in the caller above, untouched by this function.
-    ///
-    /// `row_max_ascent` is the SAME per-row value [`Self::caret_row_metrics`]
-    /// pairs with the baseline this box is fed against — already reshaped for a
-    /// heading / zoom / DPI row, so this needs no separate font-size lookup —
-    /// scaled by `ratio_font`'s OWN measured typical-letter/ascent ratio
-    /// ([`facepitch::typical_letter_ratio`] — the MEAN of the face's x-height and
-    /// cap-height, not bare x-height: a pure x-height reference reproduces the
-    /// vertical misalignment in miniature against an ASCENDER neighbour, so the mean is the
-    /// balance point between the two glyph classes the ink-box arm already
-    /// treats as different heights): a real per-font quantity read off the
-    /// shipped face file, not a hand-tuned per-world offset.
-    ///
-    /// `ratio_font` is [`Self::caret_row_metrics`]'s own third element —
-    /// WHICHEVER font actually produced `row_max_ascent` — never independently
-    /// re-derived here. A real shaped row's `max_ascent` is a property of
-    /// `shaped_font` (the face the row is ACTUALLY laid out in this frame); the
-    /// metrics-only empty-line approximation is theme-independent and pairs
-    /// with `doc_family()` instead (see the caller's doc). Reading anything
-    /// else here (e.g. unconditionally `doc_family()`) would multiply one
-    /// font's ascent by a DIFFERENT font's ratio whenever the two diverge — the
-    /// theme-picker preview lag (`sync_theme_colors` without a reshape yet) is
-    /// the one live case that does, and the mixed number it produces pops a few
-    /// px on ordinary text mid-scrub even though neither factor alone is wrong.
-    fn caret_synthetic_ink_box(&self, row_max_ascent: f32, ratio_font: &str) -> InkBox {
-        let ratio = facepitch::typical_letter_ratio(ratio_font);
-        let top = (row_max_ascent * ratio).max(1.0);
-        InkBox {
-            left: 0.0,
-            top,
-            width: 0.0,
-            height: top,
-        }
     }
 
     pub(super) fn caret_inhabited_key(&self) -> Option<CacheKey> {
@@ -610,14 +566,14 @@ impl TextPipeline {
     /// are read in the same pass here.
     ///
     /// `ascent_font` is WHICHEVER font
-    /// actually produced `max_ascent`: the real-layout branch reads a shaped
+    /// actually produced `max_ascent`: the shaped-row branch reads a real
     /// [`cosmic_text::LayoutLine`], a property of `shaped_font` (the face
     /// ACTUALLY on screen this frame, which may still be lagging the live
     /// theme mid theme-picker-preview — `sync_theme_colors` retints instantly
-    /// but defers the reshape); the empty-line fallback branch below derives its
-    /// ascent purely from `self.metrics` (zoom/DPI only, theme-INDEPENDENT —
-    /// `Metrics::with_dpi` never reads the active theme), so it pairs with the
-    /// LIVE `doc_family()` instead, matching the arm-selection gate one call up.
+    /// but defers the reshape); a GLYPHLESS row has no shaped face to be a
+    /// property OF, so [`Self::glyphless_row_vertical`] rebuilds the pair from
+    /// the LIVE `doc_family()`'s own per-em metrics and reports that family,
+    /// matching the arm-selection gate one call up.
     /// [`Self::caret_synthetic_ink_box`] must multiply `max_ascent` by ITS OWN
     /// font's ratio, never a different font's — the seam: keying the ratio
     /// unconditionally on `doc_family()` while the real
@@ -629,12 +585,13 @@ impl TextPipeline {
     /// upstream special case): such a predicate — unlike every OTHER
     /// caret/geometry consumer of a column-to-row lookup — misses the
     /// column sitting AT OR PAST every row's `end_col`, the true END-OF-LINE
-    /// column on an UNWRAPPED line. There it falls through to the crude
-    /// `font_size * 0.8` ascent GUESS below, while the on-glyph ink-box arm one
-    /// column to the left reads the row's REAL `max_ascent` — two different
-    /// ascent sources for the SAME physical row (measured: the guess reads
-    /// ~30% low against Literata's real row ascent, a residual big enough to
-    /// show at that transition). [`pick_row_index_aff`]
+    /// column on an UNWRAPPED line. There it falls through to the GLYPHLESS
+    /// reconstruction below, while the on-glyph ink-box arm one column to the
+    /// left reads the row's own really-shaped `max_ascent` — two different
+    /// ascent sources for the SAME physical row, which used to mean two
+    /// different NUMBERS (the retired `font_size * 0.8` guess reads ~30% low
+    /// against Literata's real row ascent, a residual big enough to show at
+    /// that transition). [`pick_row_index_aff`]
     /// is the SAME canonical column→row resolver [`Self::visual_row_top_aff`] and
     /// [`Self::col_x_and_advance_aff`] already ride (its second pass — "no strict
     /// container, use the LAST row the column trails" — is exactly the
@@ -659,33 +616,39 @@ impl TextPipeline {
                 let r = &rows[i];
                 let ll = &layout[i];
                 let line_height = ll.line_height_opt.unwrap_or(self.metrics.line_height);
-                let glyph_height = ll.max_ascent + ll.max_descent;
+                // A GLYPHLESS row's own metrics are ZERO, not small: cosmic-text
+                // emits an empty line's `LayoutLine` with `max_ascent: 0.0,
+                // max_descent: 0.0` (`shape.rs`'s "visual line for empty lines"
+                // arm), and that row is REAL — it has a layout, so it never
+                // reaches any no-layout fallback below. Taken literally those
+                // zeros put the baseline at the row's MIDPOINT and hand the
+                // synthetic ink box an ascent of nothing to scale, which floors
+                // the caret at its minimum visible body — one identical dot on
+                // every world, visibly under the type beside it. Rebuild the
+                // pair the row would have carried with one letter in it instead.
+                let (max_ascent, max_descent, ascent_font) = if ll.glyphs.is_empty() {
+                    self.glyphless_row_vertical()
+                } else {
+                    // These are properties of the face the row is ACTUALLY
+                    // shaped in right now — `shaped_font`, not `doc_family()` —
+                    // so any ratio multiplied against them must read the same
+                    // font.
+                    (ll.max_ascent, ll.max_descent, self.shaped_font)
+                };
+                let glyph_height = max_ascent + max_descent;
                 let centering = (line_height - glyph_height) / 2.0;
-                let line_y = r.line_top + centering + ll.max_ascent;
-                // This ascent is a property of the face the row is ACTUALLY
-                // shaped in right now — `shaped_font`, not `doc_family()` —
-                // so any ratio multiplied against it must read the same font.
-                return (self.doc_top() + line_y, ll.max_ascent, self.shaped_font);
+                let line_y = r.line_top + centering + max_ascent;
+                return (self.doc_top() + line_y, max_ascent, ascent_font);
             }
         }
-        // Fallback (a truly EMPTY line — no shaped run at all, so there is no row
-        // to look up): approximate the baseline from the row top + an ascent
-        // proportion. The morph caret never paints a silhouette here (it falls
-        // back to the slim space bar), so this only keeps the value finite. The
-        // paired ascent approximation mirrors the SAME `0.8 * font_size` term the
-        // baseline itself uses, so the two stay mutually consistent even in this
-        // no-run corner. `self.metrics` is zoom/DPI-derived only (theme-
-        // independent — see `set_view`'s `Metrics::with_dpi`), so this ascent
-        // describes no particular shaped font; pair it with the LIVE
-        // `doc_family()`, matching the arm-selection gate above.
-        let m = &self.metrics;
+        // Fallback: the line has no layout AT ALL (never shaped this frame), so
+        // there is no row to look up — distinct from the empty-line case above,
+        // which has a real (glyphless) row. Same reconstruction, against the
+        // metrics-derived row top.
+        let (ascent, descent, ascent_font) = self.glyphless_row_vertical();
         let line_top = self.visual_row_top_aff(self.cursor_line, col, self.caret_affinity);
-        let ascent = m.font_size * 0.8;
-        (
-            line_top + (m.line_height - m.font_size) * 0.5 + ascent,
-            ascent,
-            self.doc_family(),
-        )
+        let centering = (self.metrics.line_height - (ascent + descent)) * 0.5;
+        (line_top + centering + ascent, ascent, ascent_font)
     }
 
     /// Geometry for the MORPH caret this frame: the two glyph placement boxes
