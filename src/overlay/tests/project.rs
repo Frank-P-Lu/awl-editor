@@ -215,11 +215,12 @@ fn project_recent_lens_shows_only_mru_projects_in_mru_order() {
         ("proj-b".to_string(), false), // corpus 2 — NOT in the MRU
         ("proj-c".to_string(), false), // corpus 3 — in the MRU (most recent)
     ];
-    // MRU: proj-c is most recent, then proj-a. A stale root elsewhere opts out.
+    // MRU: proj-c is most recent, then proj-a — in the shape `recent::resolve`
+    // hands over (the root, its git flag). A stale root elsewhere never gets
+    // here at all: `resolve` drops a root that no longer names a directory.
     let recent = vec![
-        "/ws/proj-c".to_string(),
-        "/ws/proj-a".to_string(),
-        "/elsewhere/gone".to_string(),
+        ("/ws/proj-c".to_string(), false),
+        ("/ws/proj-a".to_string(), false),
     ];
     let mut ov = OverlayState::new_project("/ws".to_string(), folders, &recent);
     // Switch to the Recent lens (strip index 1).
@@ -254,6 +255,263 @@ fn project_recent_lens_is_empty_on_a_fresh_session() {
         OverlayKind::Project.empty_lens_message("recent"),
         Some("no recent projects yet")
     );
+}
+
+// ─── The Recent lens's OTHER route: remembered roots ────────────────────────
+//
+// The lens shipped able to mark only what the level read already listed, which
+// made it structurally blind to the one case it exists for: a project nested
+// below a direct workspace child. These sweep the remembered route's whole
+// verdict table — where a root enrols, where it is only a mark, where it enrols
+// nowhere at all, how it reads, and where it sits among the rows the flat picker
+// already had.
+
+/// THE REPORTED CASE, in the user's own configuration: `workspace = ~`, with the
+/// MRU holding `~/code2026/awl-next` (a GRANDCHILD, which no directory-level
+/// read can ever list) and `~/notes` (a direct child, which it always does).
+/// Both must be in Recent, in MRU order, and the nested one must read as the
+/// path that tells the two apart.
+///
+/// The ORDER assertion is the second half, and it pins a rule that was already
+/// shipped but invisible while the MRU could only ever be empty: a remembered
+/// row rides `Tier::Recent`, so the projects you actually use open the card
+/// ABOVE the accept-this-folder row, and the door stays last regardless because
+/// it is terminal. Stated as one equality so a change to any of the three has to
+/// be a decision.
+#[test]
+fn a_remembered_root_below_the_workspace_enrols_where_the_level_read_cannot() {
+    let ws = std::path::PathBuf::from("/home/me");
+    let mem = crate::fs::InMemoryFs::new()
+        .with_dir(ws.join("code2026/awl-next"))
+        .with_dir(ws.join("notes"))
+        .with_dir(ws.join("pictures"));
+    let _guard = crate::fs::FsGuard::install(std::sync::Arc::new(mem));
+    let mru = vec![
+        "/home/me/code2026/awl-next".to_string(), // most recent — a GRANDCHILD
+        "/home/me/notes".to_string(),             // next — a direct child
+    ];
+    let mut ov = crate::overlay::browse_level(
+        OverlayKind::Project,
+        None,
+        std::path::Path::new("/unused"),
+        Some(&ws),
+        &mru,
+    )
+    .expect("a configured workspace always builds the flat picker");
+    ov.attach_browse_door();
+
+    // ALL — the flat home, in the order a reader meets it.
+    assert_eq!(
+        ov.item_strings(),
+        vec![
+            "code2026/awl-next/".to_string(),
+            "notes/".to_string(),
+            "use this folder — me".to_string(),
+            "code2026/".to_string(),
+            "pictures/".to_string(),
+            OverlayKind::BROWSE_DOOR_LABEL.to_string(),
+        ],
+        "the remembered projects open the card, the accept row follows the \
+         rows it did not know about, and the door is terminal"
+    );
+    // The direct child was MARKED, never duplicated: `notes` appears once, and
+    // never as a second whole-path row beside its own name.
+    assert!(
+        !ov.rows.iter().any(|r| r.accept == "/home/me/notes"),
+        "a remembered root that IS a listed child marks that child instead of \
+         enrolling twice: {:?}",
+        ov.rows.iter().map(|r| &r.accept).collect::<Vec<_>>()
+    );
+
+    // RECENT — only the two, still in MRU order, each under the one section.
+    ov.set_facet_lens(1);
+    assert_eq!(ov.active_facet_id(), Some("recent"));
+    assert_eq!(
+        ov.item_strings(),
+        vec!["code2026/awl-next/".to_string(), "notes/".to_string()],
+        "the lens the split was decided for finally holds the project it was \
+         decided for"
+    );
+    assert!(ov.item_sections().iter().all(|s| s == "Recent"));
+}
+
+/// THE VERDICT TABLE for a root that cannot become a project, each cell named in
+/// its own failure message. The reasoning is one sentence and it is the same one
+/// the roster already reached for a broken symlink: a row whose Enter can only
+/// fail is worse than no row, because the absent row costs a reader nothing and
+/// the failing one costs them a switch, a notice and a guess.
+///
+/// The cells are chosen so no two share a mechanism: a directory that is GONE, a
+/// path that resolves to a FILE, a RELATIVE root (which would otherwise resolve
+/// against a working directory that is not a project), and the level's OWN
+/// directory (already answered by the accept-this-folder row, so a second row
+/// would be a duplicate rather than an error). A live root is carried alongside
+/// so the law cannot be satisfied by an enrolment that stopped working.
+#[test]
+fn a_remembered_root_that_cannot_be_switched_to_never_enrols() {
+    let ws = std::path::PathBuf::from("/ws");
+    let mem = crate::fs::InMemoryFs::new()
+        .with_dir(ws.join("live/proj"))
+        .with_file("/ws/not-a-folder.md", "body");
+    let _guard = crate::fs::FsGuard::install(std::sync::Arc::new(mem));
+    let mru = vec![
+        "/ws/live/proj".to_string(),       // the control: a real nested directory
+        "/ws/deleted-since".to_string(),   // gone
+        "/ws/not-a-folder.md".to_string(), // a file
+        "relative/proj".to_string(),       // not absolute
+        "/ws".to_string(),                 // the level itself
+    ];
+    let mut ov = crate::overlay::browse_level(
+        OverlayKind::Project,
+        None,
+        std::path::Path::new("/unused"),
+        Some(&ws),
+        &mru,
+    )
+    .expect("a configured workspace always builds the flat picker");
+    let remembered: Vec<&String> = ov
+        .rows
+        .iter()
+        .map(|r| &r.accept)
+        .filter(|a| crate::overlay::is_remembered_root(a))
+        .collect();
+    assert_eq!(
+        remembered,
+        vec!["/ws/live/proj"],
+        "exactly the root that still names a directory enrols"
+    );
+    for (root, why) in [
+        (
+            "/ws/deleted-since",
+            "a deleted project offers a row Enter can only fail on",
+        ),
+        ("/ws/not-a-folder.md", "a file is not a project root"),
+        ("relative/proj", "a relative root names no fixed place"),
+    ] {
+        assert!(
+            !ov.rows.iter().any(|r| r.accept == root),
+            "{root} must not enrol: {why}"
+        );
+    }
+    // The level itself is refused as a ROW, not as an answer: the
+    // accept-this-folder row is still the way to pick it, and there is exactly
+    // one of it.
+    assert_eq!(
+        ov.rows
+            .iter()
+            .filter(|r| r.accept == crate::overlay::HERE_ACCEPT)
+            .count(),
+        1,
+    );
+    assert!(
+        ov.item_strings()
+            .iter()
+            .any(|s| s == "use this folder — ws"),
+        "the level keeps its one row, the accept row: {:?}",
+        ov.item_strings()
+    );
+    // And Recent is not left empty by the refusals — the live root is there.
+    ov.set_facet_lens(1);
+    assert_eq!(ov.item_strings(), vec!["live/proj/".to_string()]);
+}
+
+/// HOW A REMEMBERED ROOT READS, swept over the whole decision rather than the
+/// one branch this machine happens to take — `home` is injected, so both the
+/// level-relative and the home-relative arms are asserted here and neither is a
+/// property of who is running the test.
+///
+/// The last two cells are the ones a byte-prefix implementation passes and a
+/// component-wise one survives: a sibling whose name merely EXTENDS the level's,
+/// and a root that strips to nothing at all.
+#[test]
+fn a_remembered_root_reads_level_relative_then_home_relative_then_absolute() {
+    use crate::overlay::build::recent::label_with_home;
+    let home = std::path::Path::new("/home/me");
+    let level = Some("/home/me/ws");
+    for (root, expect, why) in [
+        (
+            "/home/me/ws/code/awl-next",
+            "code/awl-next",
+            "under the level: relative to the level, parents first",
+        ),
+        (
+            "/home/me/elsewhere/proj",
+            "~/elsewhere/proj",
+            "outside the level but under home: relative to home",
+        ),
+        (
+            "/opt/shared/proj",
+            "/opt/shared/proj",
+            "outside both: its own path, unshortened",
+        ),
+        (
+            "/home/me/ws-archive/proj",
+            "~/ws-archive/proj",
+            "a sibling that EXTENDS the level's name is not under the level",
+        ),
+        (
+            "/home/me/ws",
+            "~/ws",
+            "a root that strips to NOTHING against the level falls through to \
+             the next form rather than becoming an empty row (unreachable in \
+             the product — `resolve` refuses the level — and this is what the \
+             fall-through does if it ever is)",
+        ),
+    ] {
+        assert_eq!(label_with_home(root, level, Some(home)), expect, "{why}");
+    }
+    // With no home to compare against, the home arm simply does not apply.
+    assert_eq!(
+        label_with_home("/home/me/elsewhere/proj", level, None),
+        "/home/me/elsewhere/proj",
+        "no home, no shortening — never a half-applied one"
+    );
+}
+
+/// A remembered root under a DOTTED parent survives the hidden-entry filter.
+/// That filter governs what a directory READ puts in front of you; a remembered
+/// root is not an entry of any directory being read but a project already
+/// chosen, so a setting about listings must not be able to delete it from
+/// Recent. Swept over both settings, because a law that ran only under
+/// `all_on` would be blind to the one configuration where the filter exists.
+#[test]
+fn a_remembered_root_under_a_dotted_parent_stays_in_recent_under_both_visibilities() {
+    let ws = std::path::PathBuf::from("/ws");
+    let mem = crate::fs::InMemoryFs::new()
+        .with_dir(ws.join(".hidden/proj"))
+        .with_dir(ws.join("plain"));
+    let _guard = crate::fs::FsGuard::install(std::sync::Arc::new(mem));
+    let saved = crate::file_visibility::all_on();
+    let mru = vec!["/ws/.hidden/proj".to_string()];
+    for all_on in [false, true] {
+        crate::file_visibility::set_all_on(all_on);
+        let mut ov = crate::overlay::browse_level(
+            OverlayKind::Project,
+            None,
+            std::path::Path::new("/unused"),
+            Some(&ws),
+            &mru,
+        )
+        .expect("a configured workspace always builds the flat picker");
+        ov.set_facet_lens(1);
+        assert_eq!(
+            ov.item_strings(),
+            vec![".hidden/proj/".to_string()],
+            "the remembered project stays in Recent with all_on {all_on}"
+        );
+        // NON-VACUITY: the filter is genuinely doing its job on the same card —
+        // the dotted DIRECTORY ENTRY is hidden when the setting is off and shows
+        // when it is on, so the exemption above is an exemption and not a filter
+        // that stopped running.
+        ov.set_facet_lens(0);
+        assert_eq!(
+            ov.item_strings().iter().any(|s| s == ".hidden/"),
+            all_on,
+            "the dotted child follows the setting under All (all_on {all_on}): {:?}",
+            ov.item_strings()
+        );
+    }
+    crate::file_visibility::set_all_on(saved);
 }
 
 // ─── Roster derivation: one directory-level read ────────────────────────────

@@ -974,22 +974,130 @@ fn switch_project_enter_switches_without_descending() {
     );
 }
 
+/// The other end of the remembered route: what Enter DOES on a row whose accept
+/// is a whole absolute path. It emits the switch to that path itself — the level
+/// the row is listed beside takes no part in the answer, which is the arithmetic
+/// `descend_target` leans on — and it closes without descending, exactly like a
+/// direct child. Driven through the real `apply_transition` seam so the accept
+/// path, not a hand-built expectation, is what answers.
 #[test]
-fn switch_project_grandchildren_never_enrol() {
-    // The roster comes from ONE directory-level read at the workspace, and
-    // Enter never descends (proved above), so a grandchild (`child-a/sub`)
-    // structurally cannot reach the picker at any point in its lifetime.
+fn switch_project_enter_on_a_remembered_root_switches_to_that_root() {
     let (ws, _fs) = proj_tree();
-    let browse_to = |_k: OverlayKind, rel: Option<String>| project_browse(&ws, rel);
-    let overlay = crate::overlay::Journey::seeded(browse_to(OverlayKind::Project, None));
-    let items = overlay.card().unwrap().item_strings();
+    let sub = ws.join("child-a/sub").to_string_lossy().to_string();
+    let recents = vec![sub.clone()];
+    let mut browse_to = |k: OverlayKind, rel: Option<String>| {
+        assert_eq!(k, OverlayKind::Project);
+        crate::overlay::browse_level(k, rel, std::path::Path::new("/unused"), Some(&ws), &recents)
+    };
+    let mut overlay = crate::overlay::Journey::seeded(browse_to(OverlayKind::Project, None));
+    let mut accept = None;
+    // The MOST RECENT project is what the card opens on: the Recent tier lifts
+    // it above the level's children, and the default selection skips only the
+    // accept-this-folder row.
+    assert_eq!(
+        overlay.card().unwrap().selected_value(),
+        Some(sub.as_str()),
+        "the card opens on the most recently used project"
+    );
+    drive_bt(&mut overlay, &mut accept, &mut browse_to, &Action::Newline);
     assert!(
-        items.iter().any(|s| s.contains("child-a")),
-        "a direct child enrols: {items:?}"
+        overlay.card().is_none(),
+        "Enter on a remembered root switches and closes — it does not descend"
+    );
+    assert_eq!(
+        accept,
+        Some((OverlayKind::Project, sub)),
+        "the remembered path itself is the accepted project, not the level joined to it"
+    );
+}
+
+/// **RE-SCOPED ONTO THE DIRECTORY READ.** This law used to say "no grandchild
+/// appears in the roster", and that sentence stopped being the product's truth
+/// the day the picker learned to list a REMEMBERED project root: a project
+/// nested below a direct child is precisely what the recent-projects MRU exists
+/// to make findable, and it reaches the roster carrying its whole absolute path
+/// without anything descending.
+///
+/// What may never happen is the OTHER thing — the thing the flat picker is for —
+/// so the law now names which of the two routes it forbids. The one directory
+/// LEVEL READ must not descend: every row it produced is a bare leaf name whose
+/// path is a directory sitting IMMEDIATELY under the level, which fails both
+/// ways a descent could arrive (a `child-a/sub` row carries a separator; a bare
+/// `sub` row is not a child of the level). Nothing here is satisfied by an empty
+/// roster: the direct children are required present by name first.
+///
+/// The remembered route is asserted on the same fixture in the same test,
+/// because the PAIR is the distinction — the grandchild the read may not reach
+/// is the grandchild the MRU may — and a law that only forbade would be
+/// satisfied by a picker that lost the feature.
+#[test]
+fn switch_project_grandchildren_never_enrol_by_the_directory_read() {
+    let (ws, _fs) = proj_tree();
+    let level_rows = |ov: &OverlayState| -> Vec<String> {
+        ov.rows
+            .iter()
+            .map(|r| r.accept.clone())
+            .filter(|a| a != crate::overlay::HERE_ACCEPT)
+            .filter(|a| !crate::overlay::is_remembered_root(a))
+            .collect()
+    };
+    let build = |recents: &[String]| {
+        crate::overlay::browse_level(
+            OverlayKind::Project,
+            None,
+            std::path::Path::new("/unused"),
+            Some(&ws),
+            recents,
+        )
+        .expect("a configured workspace always builds the flat picker")
+    };
+
+    // ARM 1 — the read, with nothing remembered.
+    let ov = build(&[]);
+    let read = level_rows(&ov);
+    // The per-row cells first: they are the ones that say WHAT went wrong, and
+    // they catch a descent whichever shape it arrives in.
+    for name in &read {
+        assert!(
+            !name.contains('/'),
+            "a level row is a NAME, not a path — {name:?} came from a descent: {read:?}"
+        );
+        assert!(
+            crate::fs::active().is_dir(&ws.join(name)),
+            "a level row names a directory IMMEDIATELY under the level; \
+             {name:?} does not: {read:?}"
+        );
+    }
+    assert_eq!(
+        read,
+        vec!["child-a".to_string(), "child-b".to_string()],
+        "the level read is exactly the workspace's direct children"
     );
     assert!(
-        !items.iter().any(|s| s.contains("sub")),
-        "a grandchild (child-a/sub) must never enrol: {items:?}"
+        !ov.item_strings().iter().any(|s| s.contains("sub")),
+        "with nothing remembered, the grandchild reaches the picker by no route \
+         at all: {:?}",
+        ov.item_strings()
+    );
+
+    // ARM 2 — the same fixture, with the grandchild REMEMBERED. The read is
+    // unchanged; the roster is not.
+    let sub = ws.join("child-a/sub").to_string_lossy().to_string();
+    let ov = build(std::slice::from_ref(&sub));
+    assert_eq!(
+        level_rows(&ov),
+        read,
+        "seeding the MRU changes nothing about what the directory read returned"
+    );
+    assert!(
+        ov.rows.iter().any(|r| r.accept == sub),
+        "the remembered grandchild enrols as its own whole-path row: {:?}",
+        ov.rows.iter().map(|r| &r.accept).collect::<Vec<_>>()
+    );
+    assert!(
+        ov.item_strings().iter().any(|s| s == "child-a/sub/"),
+        "and it READS relative to the level it is listed beside: {:?}",
+        ov.item_strings()
     );
 }
 

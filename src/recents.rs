@@ -4,7 +4,11 @@
 //! it pre-lensed there — the fold that retired the standalone RecentProjects
 //! picker). This module is the PURE data model + (de)serializer + the
 //! push/dedup/cap rule; the App-side wiring (loading at launch, pushing on every
-//! switch-project, marking the lens) lives in `app.rs` / `app/apply.rs`.
+//! switch-project) lives in `app.rs` / `app/apply.rs`, and what a stored root
+//! BECOMES on the picker — a mark on a listed child, its own whole-path row, or
+//! nothing at all — is `overlay::build::recent`. A root is stored at whatever
+//! depth it was switched to, which is why the lens is a second ROUTE onto the
+//! roster rather than a filter over the one directory level the picker reads.
 //!
 //! **Where it lives:** beside the scratch stash + session file
 //! (`fs::data_root()/recent-projects.toml`), NOT inside `config.toml` — the

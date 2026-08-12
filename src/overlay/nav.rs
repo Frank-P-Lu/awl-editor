@@ -1,4 +1,4 @@
-use super::{OverlayKind, OverlayState, RangeCell, RowMeta};
+use super::{OverlayKind, OverlayRow, OverlayState, RangeCell, RowMeta};
 use crate::fuzzy::{self, Tier};
 
 pub(super) const HOVER_MOVE_SLOP_PX: f32 = crate::app::DRAG_ARM_SLOP_PX;
@@ -75,10 +75,20 @@ impl OverlayState {
             )
         });
         if !crate::file_visibility::all_on() && self.kind.hides_dotfiles() {
+            // The hidden-entry filter governs what a DIRECTORY READ puts in
+            // front of you. A switch-project REMEMBERED root is not an entry of
+            // any directory being read — it is a project you already chose — so
+            // it is exempt for the same reason the accept-this-folder row is,
+            // and a project living under a dotted parent cannot vanish from
+            // Recent because of a setting about listings.
+            let exempt = |row: &OverlayRow| {
+                row.accept == super::HERE_ACCEPT
+                    || matches!(row.meta, RowMeta::GotoHeading { .. })
+                    || (self.kind == OverlayKind::Project && super::is_remembered_root(&row.accept))
+            };
             ranked.retain(|&i| {
-                self.rows[i].accept == super::HERE_ACCEPT
-                    || matches!(self.rows[i].meta, RowMeta::GotoHeading { .. })
-                    || !crate::index::is_hidden_entry(&self.rows[i].accept)
+                let row = &self.rows[i];
+                exempt(row) || !crate::index::is_hidden_entry(&row.accept)
             });
             // UNSUPPORTED FILES (Browse only — see `browse_level`'s doc for why
             // this classification is scoped to one directory level, not the

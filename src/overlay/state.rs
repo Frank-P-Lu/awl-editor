@@ -430,10 +430,14 @@ impl OverlayState {
         s
     }
 
+    /// The switch-project card and the TWO routes its roster has: `folders`, one
+    /// directory level read as leaf names, and `recent_roots`, what the MRU
+    /// remembers as whole absolute paths. `super::build::recent` owns their
+    /// difference, their resolution against the disk, and their enrolment here.
     pub fn new_project(
         dir_abs: String,
         folders: Vec<(String, bool)>,
-        recent_roots: &[String],
+        recent_roots: &[(String, bool)],
     ) -> Self {
         let mut corpus = vec![super::HERE_ACCEPT.to_string()];
         let mut git = vec![false];
@@ -443,16 +447,8 @@ impl OverlayState {
             git.push(is_git);
             is_dir.push(true);
         }
-        let base = std::path::Path::new(&dir_abs);
-        let mut recent = Vec::new();
-        for root in recent_roots {
-            let rp = std::path::Path::new(root);
-            if let Some(ci) = (1..corpus.len()).find(|&i| base.join(&corpus[i]) == rp)
-                && !recent.contains(&ci)
-            {
-                recent.push(ci);
-            }
-        }
+        let recent =
+            super::build::recent::enrol(&dir_abs, &mut corpus, &mut git, &mut is_dir, recent_roots);
         let mut s = Self::new_marked(
             OverlayKind::Project,
             corpus,

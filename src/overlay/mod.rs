@@ -13,10 +13,12 @@
 //!   * `Project` — TWO features behind one card shape, disambiguated by
 //!     [`journey::Bind`] rather than by kind (`OverlayState::foot_hint_scoped`'s
 //!     doc has the full split). Plainly summoned (Switch Project — no bind, or
-//!     `Bind::Value`), it is a FLAT picker over the workspace's direct children
-//!     only: Enter on a folder switches the root immediately (the synthetic
-//!     accept-this-folder row — [`here_folder_label`] — picks the level's own
-//!     directory), and there is no ascend affordance —
+//!     `Bind::Value`), it is a FLAT picker: the workspace's direct children,
+//!     read one level deep and never deeper, MERGED with the recent-projects
+//!     MRU, whose roots arrive as whole absolute paths at any depth
+//!     (`build::recent`). Enter on a folder switches the root immediately (the
+//!     synthetic accept-this-folder row — [`here_folder_label`] — picks the
+//!     level's own directory), and there is no ascend affordance —
 //!     Left/Right cycle the lens strip, not depth. Descended into from a
 //!     Settings folder-VALUE row (`Bind::Path`), it keeps the full
 //!     destination-navigator grammar: Enter on a folder DESCENDS into it and
@@ -52,6 +54,10 @@ pub use build::{
     BuildCtx, HERE_ACCEPT, HERE_LABEL, browse_level, build, elide_path, here_folder_label,
     row_split,
 };
+// THE one question separating the switch-project roster's two routes, hoisted to
+// the module surface because the law guarding the split lives outside it, and a
+// law that re-derives "is this a remembered path" is a second owner of it.
+pub(crate) use build::recent::is_remembered_root;
 pub use capture::{Capture, CaptureStage, KeepEdit, LinkEdit, LinkEditMode, RenameEdit, ValueEdit};
 pub use comparison::{CONFLICT_ROWS, ComparisonRequest, ComparisonView, ConflictSubject};
 #[allow(unused_imports)]
