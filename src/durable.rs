@@ -393,9 +393,8 @@ mod tests {
     //     These four ARE the primitive `write_atomic` and every store above
     //     it are built out of — they cannot recursively route through
     //     themselves.
-    //   src/app/tests/buffers.rs, src/app/tests/lifecycle.rs,
-    //   src/app/daemon.rs, src/buffers.rs, src/daemon.rs,
-    //   src/history/tests.rs, src/index.rs, src/main/tests/*.rs (26 combined)
+    //   src/app/tests/{buffers,lifecycle}.rs, src/app/daemon.rs, src/buffers.rs,
+    //   src/daemon.rs, src/history/tests.rs, src/index.rs, src/main/tests/*.rs
     //     — every one of these is INSIDE a `#[cfg(test)]` module, seeding a
     //     real temp-dir fixture file directly (never a durable app store) or
     //     (in `history/tests.rs`) deliberately planting garbage to exercise

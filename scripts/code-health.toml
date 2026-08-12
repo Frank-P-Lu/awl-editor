@@ -178,8 +178,8 @@ lines = 475
 
 [[file_size_mark]]
 file = "src/durable.rs"
-lines = 544
-reason = "Item 274's split of src/main/tests.rs into src/main/tests/<subject>.rs turned the accounting table's one (\"main/tests.rs\", 21) row into seven per-subject rows (buffer_switching 8, capture_scenarios 4, headless_safety 1, launch_context 2, page_measure 2, replay_warnings 2, visual_motion 2 -- still 21 sites total), net +6 lines."
+lines = 556
+reason = "Item 274's split of src/main/tests.rs into src/main/tests/<subject>.rs turned the accounting table's one (\"main/tests.rs\", 21) row into seven per-subject rows (buffer_switching 8, capture_scenarios 4, headless_safety 1, launch_context 2, page_measure 2, replay_warnings 2, visual_motion 2 -- still 21 sites total), net +6 lines. +13: two census rows for real-disk fixtures — InMemoryFs has no symlink concept, so the only instrument for a link is a real file on disk under a ScratchDir. ⚠️ The prose above the table still says the test files hold 26 bare writes while the listed rows sum to about 35; that figure was already wrong before this raise and the `expected` array the law asserts on is the authority."
 
 [[file_size_mark]]
 file = "src/export/docx.rs"
@@ -195,7 +195,7 @@ lines = 524
 
 [[file_size_mark]]
 file = "src/fs.rs"
-lines = 1227
+lines = 1275
 
 [[file_size_mark]]
 file = "src/history/store.rs"
@@ -203,12 +203,12 @@ lines = 591
 
 [[file_size_mark]]
 file = "src/index.rs"
-lines = 841
+lines = 901
 
 [[file_size_mark]]
 file = "src/keymap.rs"
 lines = 1130
-reason = "+2: `KeymapFlavor` joins `enum_with_all!`, which derives its `ALL` roster from the same variant list rather than from a second one. The generated reference reads that roster to document `keymap`'s accepted values, and the macro's wrapper is the whole cost — a hand-written `ALL` beside the enum would be longer and could drift. +1 from item 273's residual (4): the Reference command's own arm/entry, the third consumer of the new open_bundled_doc owner. +10: the TagDocumentLanguage variant, its doc, and its is_edit entry. It edits the buffer, so the classification is load-bearing rather than bookkeeping. +20: `home_dir` becomes the one lookup, with `data_root` and `args::resolve_default_folder` routed through it. The second of those was a third independent $HOME reader, and it is the one that made every sidecar on every developer machine carry an absolute home path with no flags passed."
+reason = "+2: `KeymapFlavor` joins `enum_with_all!`, which derives its `ALL` roster from the same variant list rather than from a second one. The generated reference reads that roster to document `keymap`'s accepted values, and the macro's wrapper is the whole cost — a hand-written `ALL` beside the enum would be longer and could drift. +1 from item 273's residual (4): the Reference command's own arm/entry, the third consumer of the new open_bundled_doc owner. +10: the TagDocumentLanguage variant, its doc, and its is_edit entry. It edits the buffer, so the classification is load-bearing rather than bookkeeping. +20: `home_dir` becomes the one lookup, with `data_root` and `args::resolve_default_folder` routed through it. The second of those was a third independent $HOME reader, and it is the one that made every sidecar on every developer machine carry an absolute home path with no flags passed. +48: read_dir classifies a symlink by its TARGET, and DirEntry carries is_symlink so a caller can decline to follow one. Only an entry that IS a link pays the extra metadata call; every ordinary entry keeps the free answer from file_type(). +60: walk_collect shows a linked directory and never enters it — the git and ripgrep convention — because it has no cycle guard and no depth cap. The mutation that removed the skip terminated only at PATH_MAX."
 
 [[file_size_mark]]
 file = "src/keyspec.rs"
