@@ -910,7 +910,8 @@ fn an_empty_row_carries_the_metrics_a_shaped_row_would_have_given_it() {
     crate::caret::set_mode(CaretMode::Block);
     let Some(mut p) = headless_pipeline() else {
         eprintln!(
-            "skipping an_empty_row_carries_the_metrics_a_shaped_row_would_have_given_it: no wgpu adapter"
+            "skipping an_empty_row_carries_the_metrics_a_shaped_row_would_have_given_it: \
+             no wgpu adapter"
         );
         return;
     };
