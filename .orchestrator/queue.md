@@ -280,7 +280,7 @@ one world and zoom (the axis 91's laws never swept — they pinned pad-per-
 glyph, not height-across-glyphs); flip 91's per-glyph laws consciously;
 land-and-judge — the revert is one arm in `caret_cell_vertical`.
 
-### 415 — 376's Recent lens, lost for the THIRD time
+### 417 — 376's Recent lens, lost for the THIRD time
 
 ⚠️ **This is the third disappearance of one decision. File-and-forget is how it
 keeps happening, so the tension is written down here rather than rediscovered.**
@@ -300,7 +300,7 @@ still must not descend; a remembered absolute path is a different thing arriving
 by a different route. It also collides with 410's row list in `new_project`,
 which is why 411 left it rather than half-doing it.
 
-### 416 — with `workspace = ~`, the door is below the window on open
+### 418 — with `workspace = ~`, the door is below the window on open
 
 Measured live by item 411 against the user's real config: the flat picker lists
 **27 folders and the `Browse for folder…` door lands at row 28**, below the
