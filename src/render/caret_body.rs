@@ -76,13 +76,31 @@ impl TextPipeline {
         height: u32,
     ) {
         let ink = self.caret_anchor_ink_box();
+        // The height asked of the CELL OWNER (`caret_cell_vertical`), never
+        // re-derived here: a second derivation is how the support body starts
+        // answering a question about a rect the renderer does not draw.
+        let (_, h) = self.caret_cell_vertical();
         let needs_body = ink.is_some_and(|ink| {
             let px = self.metrics.scale;
             let (w, _) = caret_visual_body_dims(ink, px);
-            let (baseline, ascent, font) = self.caret_row_metrics();
-            let (_, h) = self.caret_cell_vertical_from_ink(ink, baseline, ascent, font, px);
-            w > ink.width + f32::EPSILON
-                || h > ink.height + 2.0 * CARET_INK_PAD.px(px) + f32::EPSILON
+            let glyph_h = ink.height + 2.0 * CARET_INK_PAD.px(px);
+            // ⚠️ EXCESS IN EITHER AXIS, deliberately not COVERAGE IN BOTH. One
+            // height per row means the cell can be SHORTER than the glyph on it
+            // — a `;`, a `[` — and a body that does not reach the whole letter
+            // leaves it half-lit: the glyph on top is recoloured to ordinary
+            // prose ink on the assumption that the accent is behind all of it,
+            // so a tall mark reads as a dark silhouette with a sliver of accent
+            // beside it.
+            //
+            // Requiring coverage instead — dropping the body, letting the glyph
+            // carry the accent in its own silhouette — is the WRONG trade, and
+            // the roster says so by name: `caret_punctuation_color`'s
+            // "the caret must not change a covered glyph's colour, only sit
+            // behind it" goes red on Bowerbird's `;` the moment such a mark
+            // takes the bodyless arm. A mark that keeps its own colour under a
+            // partial body is worth more than one lit end to end in an accent
+            // that is not its ink.
+            w > ink.width + f32::EPSILON || h > glyph_h + f32::EPSILON
         });
         if needs_body {
             self.prepare_caret_block(device, queue, width, height);

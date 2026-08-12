@@ -1,53 +1,9 @@
-//! Proportional caret vertical envelopes, and everything a GLYPHLESS anchor
-//! stands in with when there is no ink to read: a neighbour's borrowed box, the
-//! synthetic typical-letter box, and the row metrics an empty row does not
-//! carry.
+//! The PROPORTIONAL caret's one vertical envelope, and the row metrics a
+//! GLYPHLESS row does not carry but must still report.
 
 use super::*;
 
 impl TextPipeline {
-    /// Search within the visual row and blend lifted boxes from both sides by
-    /// distance. This stays O(row width), never O(document).
-    pub(super) fn nearest_row_raster_box(&mut self, line: usize, col: usize) -> Option<InkBox> {
-        let rows = self.visual_rows(line);
-        let row = rows.get(pick_row_index_aff(&rows, col, self.caret_affinity))?;
-        let (start, end) = (row.start_col, row.end_col);
-        let max_back = col.saturating_sub(start);
-        let max_fwd = end.saturating_sub(col + 1);
-        let back = (1..=max_back).find_map(|d| self.raster_box_at(line, col - d).map(|b| (d, b)));
-        let fwd = (1..=max_fwd).find_map(|d| self.raster_box_at(line, col + d).map(|b| (d, b)));
-        let (_, ascent, font) = self.caret_row_metrics();
-        let lift = |(d, ink)| (d, self.caret_cell_vertical_ink_box(ink, ascent, font));
-
-        match (back.map(lift), fwd.map(lift)) {
-            (Some((db, bb)), Some((df, fb))) => {
-                let t = db as f32 / (db + df) as f32;
-                Some(InkBox {
-                    left: bb.left + (fb.left - bb.left) * t,
-                    top: bb.top + (fb.top - bb.top) * t,
-                    width: bb.width + (fb.width - bb.width) * t,
-                    height: bb.height + (fb.height - bb.height) * t,
-                })
-            }
-            (Some((_, box_)), None) | (None, Some((_, box_))) => Some(box_),
-            (None, None) => None,
-        }
-    }
-
-    /// Lift short ink into its row's measured x-height band, preserving any
-    /// real ascender or descender without a punctuation table.
-    fn caret_cell_vertical_ink_box(&self, ink: InkBox, ascent: f32, font: &str) -> InkBox {
-        let top = ink
-            .top
-            .max((ascent * facepitch::x_height_ratio(font)).max(1.0));
-        let descent = ink.descent();
-        InkBox {
-            height: top + descent,
-            top,
-            ..ink
-        }
-    }
-
     /// THE ONE OWNER of "what ascent and descent does a row with NO GLYPHS
     /// have" — `(max_ascent, max_descent, font)`, in the same absolute pixels
     /// and the same sign convention a shaped [`cosmic_text::LayoutLine`]
@@ -77,19 +33,18 @@ impl TextPipeline {
         (size * ascent_em, size * descent_em, font)
     }
 
-    /// The FALLBACK arm's SYNTHETIC ink box for a truly GLYPHLESS
-    /// PROPORTIONAL anchor (space / end-of-line / an empty line — nothing
-    /// [`Self::caret_anchor_raster_box`] can measure): a typical lowercase
-    /// letter's placement, expressed in the SAME `top`/`height`-above-baseline
-    /// convention a real [`InkBox`] uses, so [`Self::caret_cell_vertical`] can
-    /// feed it through the identical formula the real ink-box arm reads.
+    /// THE PROPORTIONAL CARET'S ONE BOX: a typical letter's placement on this
+    /// row, expressed in the SAME `top`/`height`-above-baseline convention a
+    /// real raster [`InkBox`] uses. [`Self::caret_cell_vertical`] feeds it for
+    /// EVERY proportional anchor — a letter, a ligature, a space, end-of-line,
+    /// an empty row — which is what makes those anchors one height rather than
+    /// six ([`Self::caret_cell_vertical_typical`] holds the reasoning).
     ///
     /// `top == height` (zero descent) by construction: a typical non-descending
-    /// letter's ink sits ON the baseline with nothing below it, exactly like a
-    /// real non-dipping glyph's box. There is deliberately no synthetic
-    /// descender — a glyphless anchor has no letter to dip, so nothing to extend
-    /// for; a REAL dipping ligature already carries its own descent inside its
-    /// raster box in the caller above, untouched by this function.
+    /// letter's ink sits ON the baseline with nothing below it. There is
+    /// deliberately no synthetic descender, and no real one either — the box
+    /// describes the row's ordinary letter, never the anchored glyph, so a
+    /// dipping `g` extends nothing.
     ///
     /// `row_max_ascent` is the SAME per-row value [`Self::caret_row_metrics`]
     /// pairs with the baseline this box is fed against — already reshaped for a
@@ -124,20 +79,27 @@ impl TextPipeline {
         }
     }
 
-    /// The sole proportional-cell vertical owner. Horizontal support-body
-    /// dimensions remain ink-derived; only this centre and height use the
-    /// row's insertion envelope.
-    pub(in crate::render) fn caret_cell_vertical_from_ink(
+    /// The proportional cell's `(center_y, height)`: the row's typical-letter
+    /// box, padded, floored by the shared minimum visible body. Horizontal
+    /// support-body dimensions stay ink-derived ([`super::caret_visual_body_dims`]
+    /// in [`Self::caret_geometry`]); only this centre and height are the row's.
+    ///
+    /// ⚠️ The body floor is measured against the SYNTHETIC box, never against
+    /// the anchored glyph's real ink, and that is load-bearing rather than
+    /// convenient: [`super::caret_visual_body_dims`] grows a small body to an
+    /// AREA, so feeding it a real `m`'s wide ink and a real `i`'s narrow ink
+    /// would hand back two different heights at small sizes — the per-glyph
+    /// jump this arm exists to remove, re-entering through the floor.
+    pub(in crate::render) fn caret_cell_vertical_typical(
         &self,
-        ink: InkBox,
         baseline: f32,
         ascent: f32,
         font: &str,
         px: f32,
     ) -> (f32, f32) {
-        let vertical = self.caret_cell_vertical_ink_box(ink, ascent, font);
-        let (_, old_h) = caret_visual_body_dims(ink, px);
-        let h = old_h.max(vertical.height + 2.0 * CARET_INK_PAD.px(px));
-        (baseline - vertical.top + vertical.height * 0.5, h)
+        let box_ = self.caret_synthetic_ink_box(ascent, font);
+        let (_, floor_h) = caret_visual_body_dims(box_, px);
+        let h = floor_h.max(box_.height + 2.0 * CARET_INK_PAD.px(px));
+        (baseline - box_.top + box_.height * 0.5, h)
     }
 }

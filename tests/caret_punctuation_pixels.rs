@@ -162,17 +162,25 @@ fn hex_rgb(value: &serde_json::Value) -> [u8; 3] {
     ]
 }
 
-/// THE ONE OWNER of "which pixels inside the caret footprint are the glyph's".
+/// THE ONE OWNER of "which pixels inside the caret footprint are the glyph's":
+/// the footprint minus its own antialiased rim, top and bottom.
 ///
-/// The target glyph is centred in the caret body. Probe its middle half, leaving
-/// the body edge out: on the literal `a,` fixture the widened comma body
-/// legitimately overlaps the preceding `a`'s antialiased fringe, and the body's
-/// own antialiased rim is not glyph ink either.
+/// ⚠️ THIS USED TO PROBE THE MIDDLE HALF HORIZONTALLY, on the premise that "the
+/// target glyph is centred in the caret body". That premise died with the
+/// per-glyph cell. The caret's box is now one height per row and its width is
+/// the glyph's advance grown to the authored minimum body, so a tall narrow mark
+/// — `[` is the roster's worst — sits against the LEFT edge of a box that does
+/// not track it, with its arms above and below the box entirely. A centred
+/// window then samples flat accent and scores the mark as swallowed while the
+/// capture plainly shows it (verified by eye on Mopoke Block and Gumtree Morph
+/// before this was widened). Scoring a coincidence of position rather than the
+/// visibility of a glyph is the exact fragility this law's own history names.
+///
+/// The vertical inset stays: the body's antialiased rim is not glyph ink, and
+/// counting it would let a genuinely swallowed mark pass on its rim alone.
 fn probe(rect: (u32, u32, u32, u32), w: u32) -> impl Iterator<Item = usize> {
-    let inset_x = ((rect.2 - rect.0 + 1) / 4).max(2);
-    (rect.1 + 2..=rect.3 - 2).flat_map(move |y| {
-        (rect.0 + inset_x..=rect.2 - inset_x).map(move |x| ((y * w + x) * 4) as usize)
-    })
+    (rect.1 + 2..=rect.3 - 2)
+        .flat_map(move |y| (rect.0..=rect.2).map(move |x| ((y * w + x) * 4) as usize))
 }
 
 /// HOW MUCH ink this punctuation carries with the caret parked elsewhere.

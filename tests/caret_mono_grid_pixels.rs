@@ -5,12 +5,17 @@
 //! Mono" | "JetBrains Mono" | "Monaspace Xenon". **Iosevka**, a genuinely
 //! fixed-pitch face and the display face of BOTH Currawong and Cassowary, was
 //! never in it, so those two worlds took the PROPORTIONAL arm of
-//! `render::caret::caret_anchor_ink_box`: the caret sized itself to each glyph's
-//! own raster ink instead of holding the uniform cell every other mono world
-//! keeps. Measured on this exact fixture at zoom 1 BEFORE the fix, Currawong's
-//! block spanned y18..43 on `l` and y23..48 on `g` — a 5px top wobble letter to
-//! letter — while Tawny/Mangrove/Potoroo/Firetail held a fixed y20 top on all
-//! three. The vision smoke saw it as "Currawong's caret hugs the g".
+//! `render::caret::caret_anchor_ink_box`, which at the time sized the caret to
+//! each glyph's own raster ink instead of holding the uniform cell every other
+//! mono world keeps. Measured on this exact fixture at zoom 1 BEFORE the fix,
+//! Currawong's block spanned y18..43 on `l` and y23..48 on `g` — a 5px top
+//! wobble letter to letter — while Tawny/Mangrove/Potoroo/Firetail held a fixed
+//! y20 top on all three. The vision smoke saw it as "Currawong's caret hugs the
+//! g". The proportional arm has since stopped reading per-glyph ink VERTICALLY
+//! as well (one height per face and row), so the arms are now distinguished
+//! here by what still is per-glyph on a proportional world — the caret's WIDTH,
+//! which tracks the glyph's own advance — while both arms hold their top and
+//! bottom still.
 //!
 //! WHAT THIS ASSERTS, and why in pixels. The sidecar is a STATE oracle, not an
 //! appearance oracle (CLAUDE.md), and "the caret holds a grid" is an appearance
@@ -201,14 +206,81 @@ fn i(v: u32) -> i64 {
 /// constant column pitch — while every PROPORTIONAL world keeps its per-letter
 /// ink box. Both arms sweep the FULL shipped world roster, split by the product's
 /// own font-derived caret default.
-#[test]
-fn caret_cell_is_glyph_independent_on_every_mono_world() {
-    let sandbox = tmp_dir("sweep");
-    let doc = sandbox.join("log.txt");
-    std::fs::write(&doc, DOC).unwrap();
+/// THE MONO ARM, edge by edge: one grid, one width, one forward pitch, and the
+/// declared descender exception on the bottom alone.
+fn assert_mono_grid(tops: &[u32], widths: &[i64], bottoms: &[u32], pitch: &[i64], what: &str) {
+    // THE GRID, edge by edge. The caret's TOP does not move with the
+    // letter — the exact property Currawong and Cassowary lost.
+    let (tmin, tmax) = (*tops.iter().min().unwrap(), *tops.iter().max().unwrap());
+    assert!(
+        i(tmax) - i(tmin) <= 1,
+        "mono world caret top must not move with the glyph: {what}"
+    );
+    // Same drawn WIDTH on every letter.
+    let (wmin, wmax) = (widths.iter().min().unwrap(), widths.iter().max().unwrap());
+    assert!(
+        wmax - wmin <= 1,
+        "mono world caret width must not move with the glyph: {what}"
+    );
+    // A CONSTANT, FORWARD COLUMN PITCH — the cells sit on one grid.
+    assert!(
+        *pitch.iter().min().unwrap() > 0,
+        "mono world caret cells must advance forward (pitch={pitch:?}): {what}"
+    );
+    // The BOTTOM is the one declared exception: `caret_cell_vertical`
+    // drops it for a real dipper (CARET_DESCENDER_PAD) so a `g` stays
+    // inside its block, and holds it fixed for everything else.
+    assert!(
+        (i(bottoms[1]) - i(bottoms[0])).abs() <= 1,
+        "the two non-dippers must share a bottom: {what}"
+    );
+    assert!(
+        i(bottoms[2]) >= i(bottoms[1]),
+        "the descender may only DROP the bottom, never raise it: {what}"
+    );
+}
 
+/// THE PROPORTIONAL ARM: the vertical is one cell for the whole row, the
+/// horizontal still hugs each glyph's own advance.
+fn assert_proportional_cell(tops: &[u32], widths: &[i64], bottoms: &[u32], what: &str) {
+    // A PROPORTIONAL WORLD HOLDS ITS OWN GRID VERTICALLY. Its cell is
+    // the row's typical letter, not the anchored glyph's ink, so the top
+    // does not move between an ascender and an x-height letter any more
+    // than the mono arm's does — and the BOTTOM does not drop for the
+    // descender either, which is the declared cost of one height (a
+    // dipping `g` passes below the caret rather than growing it).
+    let (tmin, tmax) = (*tops.iter().min().unwrap(), *tops.iter().max().unwrap());
+    assert!(
+        i(tmax) - i(tmin) <= 1,
+        "proportional world caret top must not move with the glyph: {what}"
+    );
+    let (bmin, bmax) = (
+        *bottoms.iter().min().unwrap(),
+        *bottoms.iter().max().unwrap(),
+    );
+    assert!(
+        i(bmax) - i(bmin) <= 1,
+        "proportional world caret bottom must not move with the glyph, \
+             descender included: {what}"
+    );
+    // WHAT STILL FOLLOWS THE LETTER HERE, and the reason this arm is not
+    // simply the mono arm: the caret's WIDTH is the glyph's own advance,
+    // so it genuinely moves between a narrow `l` and a wide `o`. This is
+    // the over-reach guard the vertical spread used to be — a predicate
+    // that called a near-gridded face (the bundled duospace iA Writer
+    // Quattro S) mono would flatten it and fail here.
+    let (wmin, wmax) = (widths.iter().min().unwrap(), widths.iter().max().unwrap());
+    assert!(
+        wmax - wmin >= 3,
+        "proportional world caret must still hug each glyph's advance: {what}"
+    );
+}
+
+/// The world roster, straight from the binary — never a copied name list, so a
+/// world added or re-faced joins this sweep automatically.
+fn listed_worlds(sandbox: &std::path::Path) -> Vec<String> {
     // The world roster, straight from the binary — never a copied name list.
-    let listed = common::awl(&sandbox)
+    let listed = common::awl(sandbox)
         .arg("--list-worlds")
         .output()
         .expect("awl --list-worlds runs");
@@ -226,6 +298,17 @@ fn caret_cell_is_glyph_independent_on_every_mono_world() {
         worlds.len() >= 18,
         "expected the full world roster, got {worlds:?}"
     );
+
+    worlds
+}
+
+#[test]
+fn caret_cell_is_glyph_independent_on_every_mono_world() {
+    let sandbox = tmp_dir("sweep");
+    let doc = sandbox.join("log.txt");
+    std::fs::write(&doc, DOC).unwrap();
+
+    let worlds = listed_worlds(&sandbox);
 
     // Every capture up front, so the whole sweep runs at once.
     let mut jobs: Vec<Job> = Vec::new();
@@ -333,49 +416,10 @@ fn caret_cell_is_glyph_independent_on_every_mono_world() {
 
         if really_mono {
             mono_worlds.push(world);
-
-            // THE GRID, edge by edge. The caret's TOP does not move with the
-            // letter — the exact property Currawong and Cassowary lost.
-            let (tmin, tmax) = (*tops.iter().min().unwrap(), *tops.iter().max().unwrap());
-            assert!(
-                i(tmax) - i(tmin) <= 1,
-                "mono world caret top must not move with the glyph: {what}"
-            );
-            // Same drawn WIDTH on every letter.
-            let (wmin, wmax) = (widths.iter().min().unwrap(), widths.iter().max().unwrap());
-            assert!(
-                wmax - wmin <= 1,
-                "mono world caret width must not move with the glyph: {what}"
-            );
-            // A CONSTANT, FORWARD COLUMN PITCH — the cells sit on one grid.
-            assert!(
-                *pitch.iter().min().unwrap() > 0,
-                "mono world caret cells must advance forward (pitch={pitch:?}): {what}"
-            );
-            // The BOTTOM is the one declared exception: `caret_cell_vertical`
-            // drops it for a real dipper (CARET_DESCENDER_PAD) so a `g` stays
-            // inside its block, and holds it fixed for everything else.
-            assert!(
-                (i(bottoms[1]) - i(bottoms[0])).abs() <= 1,
-                "the two non-dippers must share a bottom: {what}"
-            );
-            assert!(
-                i(bottoms[2]) >= i(bottoms[1]),
-                "the descender may only DROP the bottom, never raise it: {what}"
-            );
+            assert_mono_grid(&tops, &widths, &bottoms, &pitch, &what);
         } else {
             proportional_worlds.push(world);
-
-            // PROPORTIONAL WORLDS ARE UNCHANGED: the caret still sizes to each
-            // glyph's own ink, so its top genuinely moves between an ascender and
-            // an x-height letter. A predicate that over-reached — calling a
-            // near-gridded face (the bundled duospace iA Writer Quattro S) mono —
-            // would flatten this and fail here.
-            let (tmin, tmax) = (*tops.iter().min().unwrap(), *tops.iter().max().unwrap());
-            assert!(
-                i(tmax) - i(tmin) >= 3,
-                "proportional world caret must still hug each glyph's ink: {what}"
-            );
+            assert_proportional_cell(&tops, &widths, &bottoms, &what);
         }
     }
 
