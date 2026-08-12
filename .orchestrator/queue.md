@@ -222,38 +222,6 @@ horizontal axis just had, and nothing bands it — the vertical grade is still a
 boolean at the edge. Not urgent; recorded so whoever meets it next knows it was
 seen, measured, and left deliberately.
 
-### 415 — end-of-document breathing room (USER DECISION 2026-08-12)
-
-🟡 IN PROGRESS — claude (deep), branch `claude/item-415-end-breathing-room`.
-
-(Filed as 413 in `f14ccbe0`, renumbered here: `737b9fad` had already taken
-413 and 414 on a concurrent board write.)
-
-User report with screenshot: typing at the end of a note — the most common
-journaling posture — leaves the caret riding the window's bottom edge.
-Decision: VIRTUAL space past the last line, drawn by the renderer and never
-written into the file (autosave must not commit junk whitespace; the source is
-always the file). The mechanics already half-exist and the gap is precisely
-default cursor-follow: `max_scroll_rows` (`render/geometry.rs`) already allows
-manual overscroll to one visible row, and typewriter mode (opt-in) already
-holds the caret centered at the end — but the default follow only nudges the
-caret barely-visible, so the allowance goes unused exactly when typing.
-
-The work: an end-of-document pad that cursor-follow honors — caret on the
-last line targets `pad` above the window bottom, a pure function of caret row
-+ viewport + doc height (no clock; captures stay deterministic). Default ON,
-modest pad; 🔵 the pad size is a land-and-judge taste call (half a viewport =
-iA Writer's typing posture; 3–4 lines = the quiet version). Two constraints:
-the pad must read as PAGE, not Frame — the page ground extends under the
-virtual space, or the caret floats over the world's margins; and the two
-max-scroll owners currently DISAGREE (`geometry.rs::max_scroll_rows` allows
-deep overscroll, `scroll.rs::max_scroll_q` clamps at doc height) — name one
-owner or the pad exists on one scroll path and not the other. Click below the
-last line lands the caret at document end. Verify: capture pair (caret at doc
-end, follow settled) asserting the caret's drawn row sits ≥ pad above the
-bottom; a law that the buffer's byte length is unchanged by the feature; the
-existing near-end scroll laws re-baselined consciously, not silently.
-
 ### 416 — the caret takes ONE height; the per-glyph hug reverses (USER DECISION 2026-08-12)
 
 🟡 IN PROGRESS — claude (deep), branch `claude/item-416-one-caret-height`.
@@ -283,28 +251,6 @@ the caret's drawn height EQUAL across anchors `a`/`l`/space/EOL/empty-line in
 one world and zoom (the axis 91's laws never swept — they pinned pad-per-
 glyph, not height-across-glyphs); flip 91's per-glyph laws consciously;
 land-and-judge — the revert is one arm in `caret_cell_vertical`.
-
-### 417 — 376's Recent lens, lost for the THIRD time
-
-🟡 IN PROGRESS — claude (deep), branch `claude/item-417-recent-lens`.
-
-⚠️ **This is the third disappearance of one decision. File-and-forget is how it
-keeps happening, so the tension is written down here rather than rediscovered.**
-Item 376 decided both halves on 2026-08-09; 389 landed the accept side; 411
-landed the door. **The Recent lens is still unshipped.**
-
-`OverlayState::new_project` enrols a Recent row by `base.join(name) == recent
-root`, so an MRU root that is not a direct workspace child cannot appear under
-Recent — even now that 411 makes it reachable by browsing. You can switch to a
-nested project and then not find it in your own Recent list.
-
-⚠️ **The tension to resolve, named by 411 rather than left as a surprise:** the
-landed law `switch_project_grandchildren_never_enrol` says no grandchild appears
-in the roster, and MRU full-path rows would put one there. **Re-scope that law's
-enrolment to the DIRECTORY READ rather than the roster** — the flat level read
-still must not descend; a remembered absolute path is a different thing arriving
-by a different route. It also collides with 410's row list in `new_project`,
-which is why 411 left it rather than half-doing it.
 
 ### 418 — with `workspace = ~`, the door is below the window on open
 
