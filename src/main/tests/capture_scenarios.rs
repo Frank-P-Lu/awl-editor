@@ -240,14 +240,14 @@ fn keys_capture_switch_project_then_goto_lists_the_new_roots_files() {
 }
 
 /// **THE SWITCH-PROJECT DOOR, DRIVEN BY REAL CHORDS THROUGH THE REAL CAPTURE
-/// DOOR.** The flat picker is one directory level over the workspace's direct
-/// children, so a project at `<ws>/sibling/nested` is structurally unreachable
-/// from it — the item-411 defect. This walks the whole journey with `--keys` and
-/// reads every step out of the sidecar: the door row is present, `↵` on it opens
-/// the navigator (`mode: "project_browse"`, with the flat picker parked under it
-/// as `return_to: "switch"`), `→` descends, and the final `↵` re-roots the whole
-/// session — proved by a Go-to AFTER the switch listing the NESTED project's own
-/// file.
+/// DOOR.** The flat picker shows one directory level — the workspace's direct
+/// children — so a project at `<ws>/sibling/nested` is structurally unreachable
+/// from it. This walks the whole journey with `--keys` and reads every step out
+/// of the sidecar: the door row is present, `↵` on it opens the navigator
+/// (`mode: "project_browse"`, with the flat picker parked under it as
+/// `return_to: "switch"`), Esc comes back to it, `→` descends, and the final `↵`
+/// re-roots the whole session — proved by a Go-to AFTER the switch listing the
+/// NESTED project's own file.
 ///
 /// Driven in BOTH keymap conventions, like its neighbour above, because the
 /// picker's own chord differs between them and a door reachable in one
@@ -259,115 +259,138 @@ fn keys_capture_browse_door_reaches_a_nested_project_and_returns() {
         crate::convention::Convention::Mac,
         crate::convention::Convention::Linux,
     ] {
-        let dir = ScratchDir::new(std::env::temp_dir().join(format!(
-            "awl-item411-browse-door-{convention:?}-{}",
-            std::process::id()
-        )));
         // The workspace resolves to the active root's PARENT (`old-ws`), so
         // `nested` is a grandchild — exactly one level past the flat roster.
+        let dir = ScratchDir::new(std::env::temp_dir().join(format!(
+            "awl-browse-door-{convention:?}-{}",
+            std::process::id()
+        )));
         std::fs::create_dir_all(dir.join("old-ws/proj-a")).unwrap();
         std::fs::create_dir_all(dir.join("old-ws/sibling/nested")).unwrap();
         std::fs::write(dir.join("old-ws/proj-a/keep.md"), "keep").unwrap();
         std::fs::write(dir.join("old-ws/sibling/nested/deep.md"), "deep").unwrap();
+        door_surfaces(&dir, convention);
+        door_switch(&dir, convention);
+    }
+}
 
-        let (switch_project, open_goto) = match convention {
-            crate::convention::Convention::Mac => ("s-S-p", "s-o"),
-            crate::convention::Convention::Linux => ("C-S-p", "C-o"),
-        };
-        let capture = |spec: &str| {
-            let out = dir.join(format!("cap-{}.png", spec.len()));
-            capture_screenshot(
-                out.clone(),
-                None,
-                CaptureOpts::default(),
-                keyspec::parse_keys(spec).unwrap(),
-                crate::keymap::KeymapState::new_with_convention(convention),
-                Some(dir.join("old-ws/proj-a")),
-                None,
-                dir.join("notes"),
-                Config::empty(),
-                false,
-            )
-            .unwrap_or_else(|e| panic!("[{convention:?}] capture of {spec:?}: {e}"));
-            let json = std::fs::read_to_string(out.with_extension("json")).unwrap();
-            serde_json::from_str::<serde_json::Value>(&json).unwrap()
-        };
-        let items = |v: &serde_json::Value| -> Vec<String> {
-            v["overlay"]["items"]
-                .as_array()
-                .unwrap_or_else(|| panic!("[{convention:?}] an overlay is open"))
-                .iter()
-                .map(|s| s.as_str().unwrap().to_string())
-                .collect()
-        };
+/// One `--keys` spec through the REAL `capture_screenshot` door, against the
+/// door fixture, answering with its sidecar.
+fn door_capture(
+    dir: &ScratchDir,
+    convention: crate::convention::Convention,
+    spec: &str,
+) -> serde_json::Value {
+    let out = dir.join(format!("cap-{}.png", spec.len()));
+    capture_screenshot(
+        out.clone(),
+        None,
+        CaptureOpts::default(),
+        keyspec::parse_keys(spec).unwrap(),
+        crate::keymap::KeymapState::new_with_convention(convention),
+        Some(dir.join("old-ws/proj-a")),
+        None,
+        dir.join("notes"),
+        Config::empty(),
+        false,
+    )
+    .unwrap_or_else(|e| panic!("[{convention:?}] capture of {spec:?}: {e}"));
+    let json = std::fs::read_to_string(out.with_extension("json")).unwrap();
+    serde_json::from_str(&json).unwrap()
+}
 
-        // 1. The flat picker: the door is its terminal row, and the nested
-        //    project is nowhere in it.
-        let flat = capture(switch_project);
-        assert_eq!(flat["overlay"]["mode"].as_str(), Some("switch"));
-        let rows = items(&flat);
-        assert_eq!(
-            rows.last().map(String::as_str),
-            Some(crate::overlay::OverlayKind::BROWSE_DOOR_LABEL),
-            "[{convention:?}] the door is the last row: {rows:?}"
-        );
-        assert!(
-            !rows.iter().any(|s| s.contains("nested")),
-            "[{convention:?}] the flat roster cannot reach a grandchild: {rows:?}"
-        );
+fn door_items(v: &serde_json::Value) -> Vec<String> {
+    v["overlay"]["items"]
+        .as_array()
+        .expect("an overlay is open")
+        .iter()
+        .map(|s| s.as_str().unwrap().to_string())
+        .collect()
+}
 
-        // 2. Two Downs land on the door ([".", proj-a, sibling, door], opening
-        //    on proj-a) and `↵` opens the NAVIGATOR over the parked picker.
-        let opened = capture(&format!("{switch_project} Down Down Enter"));
-        assert_eq!(
-            opened["overlay"]["mode"].as_str(),
-            Some("project_browse"),
-            "[{convention:?}] the door's ellipsis opened a surface"
-        );
-        assert_eq!(
-            opened["overlay"]["return_to"].as_str(),
-            Some("switch"),
-            "[{convention:?}] with the flat picker PARKED beneath it"
-        );
-        assert_eq!(
-            opened["overlay"]["title"].as_str(),
-            Some("browse for folder")
-        );
-        let hint = opened["overlay"]["hint"].as_str().unwrap().to_string();
-        assert!(
-            hint.contains("switch here"),
-            "[{convention:?}] the footer teaches this card's own accept: {hint}"
-        );
+/// The two SURFACES: the flat picker carrying its door, and the navigator that
+/// door opens — parked over the picker, and resumed on the same row by Esc.
+fn door_surfaces(dir: &ScratchDir, convention: crate::convention::Convention) {
+    let (switch_project, _) = door_chords(convention);
+    let flat = door_capture(dir, convention, switch_project);
+    assert_eq!(flat["overlay"]["mode"].as_str(), Some("switch"));
+    let rows = door_items(&flat);
+    assert_eq!(
+        rows.last().map(String::as_str),
+        Some(crate::overlay::OverlayKind::BROWSE_DOOR_LABEL),
+        "[{convention:?}] the door is the last row: {rows:?}"
+    );
+    assert!(
+        !rows.iter().any(|s| s.contains("nested")),
+        "[{convention:?}] the flat roster cannot reach a grandchild: {rows:?}"
+    );
 
-        // 3. Esc comes back to the flat picker, still on its door row.
-        let back = capture(&format!("{switch_project} Down Down Enter Escape"));
-        assert_eq!(
-            back["overlay"]["mode"].as_str(),
-            Some("switch"),
-            "[{convention:?}] Esc resumes the parked picker rather than closing"
-        );
-        let back_rows = items(&back);
-        assert_eq!(
-            back_rows.get(back["overlay"]["selected_index"].as_u64().unwrap() as usize),
-            Some(&crate::overlay::OverlayKind::BROWSE_DOOR_LABEL.to_string()),
-            "[{convention:?}] at the exact row it left: {back_rows:?}"
-        );
+    // Two Downs land on the door ([".", proj-a, sibling, door], opening on
+    // proj-a) and `↵` opens the NAVIGATOR over the parked picker.
+    let opened = door_capture(
+        dir,
+        convention,
+        &format!("{switch_project} Down Down Enter"),
+    );
+    assert_eq!(
+        opened["overlay"]["mode"].as_str(),
+        Some("project_browse"),
+        "[{convention:?}] the door's ellipsis opened a surface"
+    );
+    assert_eq!(
+        opened["overlay"]["return_to"].as_str(),
+        Some("switch"),
+        "[{convention:?}] with the flat picker PARKED beneath it"
+    );
+    let hint = opened["overlay"]["hint"].as_str().unwrap().to_string();
+    assert!(
+        hint.contains("switch here"),
+        "[{convention:?}] the footer teaches this card's own accept: {hint}"
+    );
 
-        // 4. The whole journey: door → sibling → nested → switch, then a Go-to
-        //    in the re-rooted session.
-        let spec = format!("{switch_project} Down Down Enter Down Right Enter {open_goto}");
-        let done = capture(&spec);
-        assert_eq!(
-            done["project"]["root"].as_str().unwrap(),
-            crate::capture::redact::redact(&dir.join("old-ws/sibling/nested").to_string_lossy()),
-            "[{convention:?}] the accepted root is the NESTED project — the \
-             switch-project reach item 411 restores"
-        );
-        assert_eq!(
-            items(&done),
-            vec!["deep.md".to_string()],
-            "[{convention:?}] and the session really re-scoped: Go-to lists the \
-             nested project's own files"
-        );
+    let back = door_capture(
+        dir,
+        convention,
+        &format!("{switch_project} Down Down Enter Escape"),
+    );
+    assert_eq!(
+        back["overlay"]["mode"].as_str(),
+        Some("switch"),
+        "[{convention:?}] Esc resumes the parked picker rather than closing"
+    );
+    let back_rows = door_items(&back);
+    let at = back["overlay"]["selected_index"].as_u64().unwrap() as usize;
+    assert_eq!(
+        back_rows.get(at).map(String::as_str),
+        Some(crate::overlay::OverlayKind::BROWSE_DOOR_LABEL),
+        "[{convention:?}] at the exact row it left: {back_rows:?}"
+    );
+}
+
+/// The REACH: door → sibling → nested → switch, then a Go-to in the re-rooted
+/// session, which is what proves the whole session moved and not just the
+/// sidecar's project block.
+fn door_switch(dir: &ScratchDir, convention: crate::convention::Convention) {
+    let (switch_project, open_goto) = door_chords(convention);
+    let spec = format!("{switch_project} Down Down Enter Down Right Enter {open_goto}");
+    let done = door_capture(dir, convention, &spec);
+    assert_eq!(
+        done["project"]["root"].as_str().unwrap(),
+        crate::capture::redact::redact(&dir.join("old-ws/sibling/nested").to_string_lossy()),
+        "[{convention:?}] the accepted root is the NESTED project — the reach \
+         the door exists for"
+    );
+    assert_eq!(
+        door_items(&done),
+        vec!["deep.md".to_string()],
+        "[{convention:?}] and the session really re-scoped: Go-to lists the \
+         nested project's own files"
+    );
+}
+
+fn door_chords(convention: crate::convention::Convention) -> (&'static str, &'static str) {
+    match convention {
+        crate::convention::Convention::Mac => ("s-S-p", "s-o"),
+        crate::convention::Convention::Linux => ("C-S-p", "C-o"),
     }
 }

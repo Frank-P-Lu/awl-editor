@@ -101,7 +101,7 @@ fn the_browse_door_row_ends_in_an_ellipsis_and_really_opens_a_surface() {
     );
 }
 
-/// **THE DEFECT ITEM 411 EXISTS FOR.** With the workspace at `ws`, a project at
+/// **THE REACH THE DOOR EXISTS FOR.** With the workspace at `ws`, a project at
 /// `ws/child-a/sub` is one level too deep for the flat roster and cannot be
 /// reached by any number of `↵`s in it. Through the door it is three keys away,
 /// and the switch names the GRANDCHILD's own absolute path.
