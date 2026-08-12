@@ -2,6 +2,15 @@
 
 use super::*;
 
+/// VIRTUAL breathing room past the last line, in `line_height` rows.
+///
+/// Typing at the end of a note is the commonest posture this editor has, and a
+/// minimal-reveal follow leaves the caret riding the window's bottom edge there.
+/// This is the air below it. Modest by choice — the calm register, not iA
+/// Writer's half-viewport typing line, which is what TYPEWRITER mode is for and
+/// which stays opt-in.
+pub(super) const END_PAD_ROWS: Rows = Rows(3.0);
+
 /// Containing-row anchor plus a fixed 1/64px offset within that row.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
 pub struct ScrollPos {
@@ -54,8 +63,49 @@ impl TextPipeline {
         }
     }
 
+    /// The virtual space past the last line: scrollable, never drawn into, and
+    /// **never written**. It is not text and no code path can turn it into text —
+    /// it exists only as an addend on the scroll extent below and as the reveal
+    /// slack in [`TextPipeline::scroll_to_show_row_pos`]. `Buffer::disk_bytes`
+    /// remains the sole author of what lands on disk and never consults it.
+    ///
+    /// Zero while the document FITS the viewport: a note shorter than the window
+    /// already has blank room under its last line, and inventing more would make
+    /// a one-screen document scroll for no reason. The gate is the same
+    /// `doc_height <= viewport` question `geometry::max_scroll_rows` already asks.
+    pub(super) fn end_pad_px(&self, height: f32) -> f32 {
+        if self.total_doc_height() <= self.viewport_avail_px(height) {
+            0.0
+        } else {
+            self.metrics.line_height * END_PAD_ROWS.0
+        }
+    }
+
+    /// How much of [`Self::end_pad_px`] lies below `row` — the pad LESS whatever
+    /// real document is still under that row, floored at zero.
+    ///
+    /// This is what makes the feature end-of-document breathing room rather than
+    /// a blanket bottom scrolloff: a row with a screenful of text beneath it
+    /// borrows nothing, the last row borrows the whole pad, and the rows between
+    /// ramp continuously — so following the caret downward never jumps.
+    pub(super) fn end_pad_below_row(&self, row: usize, height: f32) -> f32 {
+        let pad = self.end_pad_px(height);
+        let row_bottom = self.row_top_px(row) + self.row_height_px(row);
+        (pad - (self.total_doc_height() - row_bottom)).clamp(0.0, pad)
+    }
+
+    /// **THE ONE OWNER of how deep the document scrolls.** Every document scroll
+    /// path resolves here — the wheel and a selection drag through
+    /// `canonicalize_incremental`, cursor-follow / the typewriter pin / the zoom
+    /// anchor through `scroll_pos_at_q` — so the virtual end pad is added once,
+    /// and a wheel can reach exactly the scroll `Cmd-Down` lands on.
+    ///
+    /// `geometry::max_scroll_rows` is NOT a second owner of this quantity: it
+    /// clamps the history workspace's own diff scroll, in whole rows, on a
+    /// different scroll value.
     fn max_scroll_q(&self, height: f32) -> i64 {
-        ((self.total_doc_height() - self.viewport_avail_px(height)).max(0.0)
+        ((self.total_doc_height() + self.end_pad_px(height) - self.viewport_avail_px(height))
+            .max(0.0)
             * ScrollPos::SUBPX as f32)
             .round() as i64
     }
@@ -129,12 +179,19 @@ impl TextPipeline {
     }
 
     /// Minimally reveal an affinity-resolved row box, normalizing even when the
-    /// row is already visible.
+    /// row is already visible — together with whatever VIRTUAL end-of-document
+    /// space lies below that row ([`Self::end_pad_below_row`]).
+    ///
+    /// This is the DEFAULT cursor-follow, and the pad is why the caret stops
+    /// riding the window's bottom edge while you type at the end of a note. Away
+    /// from the end the slack is zero and the reveal is exactly as minimal as it
+    /// always was. Pure — caret row, viewport and document height, no clock — so
+    /// a `--keys` capture renders the settled result deterministically.
     pub fn scroll_to_show_row_pos(&self, row: usize, scroll: ScrollPos, height: f32) -> ScrollPos {
         let scroll = self.scroll_by_px(scroll, 0.0, height);
         let avail = self.viewport_avail_px(height);
         let row_top = self.row_top_px(row);
-        let row_bottom = row_top + self.row_height_px(row);
+        let row_bottom = row_top + self.row_height_px(row) + self.end_pad_below_row(row, height);
         let current = self.rendered_scroll_top_px(scroll);
         let target = if self.row_height_px(row) >= avail || row_top < current {
             row_top
