@@ -190,56 +190,6 @@ So the decision is two-part: (a) drop or rebuild the tracked bundle, which is
 cheap and stops the current tree leaking; (b) whether the history matters enough
 to rewrite. Note the leaked strings are a username and cargo paths, not secrets.
 
-### 407 — nothing in the harness can grade the theme picker's selection
-
-🟡 IN PROGRESS — claude (deep), branch `claude/item-407-picker-selection-seam`.
-
-Measured by item 400 while building the pre-tag sweep, and filed as a bound
-rather than a bug. The picker's selection appearance **cannot be A/B'd at all** —
-moving the selection previews the next world, so the two frames are two different
-worlds. The within-frame substitute is gradable on only **12 of 40** world × scale
-cells: on a textured ground (Galah, Paperbark) or a staggered card (Magpie,
-Mangrove) two UNSELECTED rows already differ from each other by as much as the
-selected row differs from either.
-
-The sweep abstains by name on the other 28 and prints the split, so its report
-cannot be misread as verification — which is the right behaviour and also the
-reason this needs saying out loud. **Today, "is the selected row in the theme
-picker visibly selected" is answered by nobody**, on the surface whose whole
-purpose is choosing by appearance. Closing it needs a Rust-level seam that can
-hold the previewed world fixed while the selection moves, or a human.
-
-### 408 — CI RED: the OVERRUN ledger is a property of the host's FONTS
-
-🟡 IN PROGRESS — claude (deep), branch `claude/item-408-overrun-ledger-host`.
-
-`main` is red. Run <https://github.com/Frank-P-Lu/awl-editor/actions/runs/31504085049>,
-job `linux (build + test)`, step `native full suite`, on `bf7fdaa9`, **both keymap
-conventions**. `render::tests::workspace_back_width::the_workspaces_back_reads_and_draws_the_same_on_both_sides_of_the_staging_threshold`
-at line 465:
-
-```
-left:  6 cells — adds "settings at 560x480 logical, zoom=2, dpi={1,2}, menu_bar={on,off}"
-right: 2 cells — the ledger's 464x288 zoom-2 pair
-```
-
-⚠️ **It does not reproduce here, including under `AWL_MENU_BAR_FORCE=on`** — the
-two tests pass locally on `main`. So this is **not** the menu-bar axis that
-caused the last four; it is a new one. The ledger enrols a cell by whether the
-SHAPED footer runs past the card's right edge, and shaping depends on the faces
-the host actually has. CI's Linux image and this Mac do not have the same fonts,
-so the same sentence is a different width — and a ledger that pins an EXACT set
-turns that into a red.
-
-This is the recorded class *"a check runs in one configuration, and that
-configuration is itself an untested hypothesis"* — the fifth instance this week
-and the first whose axis is fonts rather than the menu bar. The ledger is a
-two-sided ledger by design (a new overrun fails, a healed one fails), which is
-right, but its subject has to be something both hosts agree on.
-
-Note item 394 retired 16 of this ledger's 18 cells by composition when the
-Settings footer got shorter, so the current 2-entry ledger is recent.
-
 ### 409 — the level read silently drops symlinks; 389 pinned it, this flips it
 
 User-confirmed live (design session 2026-08-12): `~/shared` (a symlink into
@@ -333,6 +283,38 @@ and the defect is whatever makes the three disagree visibly. Verify with pixel
 arithmetic over a capture pair (populated vs empty line, same world/zoom); the
 law asserts the caret's drawn extent tracks the row's type size within the pad
 tolerance, and must go red on today's screenshot state.
+
+### 413 — awl draws a glyph no bundled face carries
+
+Found by item 408 while diagnosing a CI red; the diagnosis IS the finding.
+**U+232B `⌫` — the Back cell's own glyph, drawn in footers across the product —
+is carried by ZERO faces in `assets/fonts`.** Checked with fontTools over every
+bundled face: the arrows appear in 32 of them, `↵` in 5 including `AwlMarks.ttf`,
+and the erase mark in none. `render.rs` builds its DB with `FontSystem::new()`,
+which loads SYSTEM fonts, so that advance came from Apple Symbols here and
+DejaVu Sans on Ubuntu — a 2.92% width difference that reddened a gating job.
+
+⚠️ This sits directly against the **never-tofu law**: awl ships its own faces so a
+document cannot render as boxes, then draws its own chrome in a glyph it does not
+ship. On a Linux desktop with no symbol font in the fallback chain the Back cell
+is a tofu box — untested, because every host that has run this has had one.
+
+Options: add the glyph to `AwlMarks.ttf`, which already carries `↵` so both the
+precedent and the mechanism exist; or draw the affordance as a mark rather than
+as text. The second is a design question, the first is bounded work.
+
+### 414 — a second knife's edge, on the axis nobody bands
+
+Filed by item 408 rather than fixed. `464x288 zoom=1.4 menu_bar=on` sits at
+vertical demand **0.9849** — 1.5% from its bottom edge. It did NOT flip on CI,
+and 408 measured why: the vertical axis is byte-identical across hosts, because
+line pitch is a metric the pipeline sets rather than one a substituted glyph gets
+a vote in. Genuinely stable today.
+
+But it is one changed line-metric from being the same class of failure the
+horizontal axis just had, and nothing bands it — the vertical grade is still a
+boolean at the edge. Not urgent; recorded so whoever meets it next knows it was
+seen, measured, and left deliberately.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
