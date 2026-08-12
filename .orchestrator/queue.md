@@ -192,6 +192,8 @@ to rewrite. Note the leaked strings are a username and cargo paths, not secrets.
 
 ### 409 — the level read silently drops symlinks; 389 pinned it, this flips it
 
+🟡 IN PROGRESS — claude (deep), branch `claude/item-409-symlink-children`.
+
 User-confirmed live (design session 2026-08-12): `~/shared` (a symlink into
 iCloud Drive) does not exist in the switch-project roster. Item 389 already
 MEASURED this and deliberately recorded it as current truth with a law to
@@ -216,6 +218,8 @@ to prove both non-vacuous.
 
 ### 410 — the `.` row is programmer-speak, and the card never names the workspace
 
+🟡 IN PROGRESS — claude (deep), branch `claude/item-410-workspace-naming`.
+
 Post-389 reality (the design session's original phrasing predated reading it):
 the plain switch-project picker never browses — `browse_dir` is always the
 configured workspace — so "where am I" has exactly one answer the card never
@@ -236,6 +240,8 @@ resolve or note it here. Verify: capture against a seeded `--root`, never the
 ambient one (the PNG and `overlay.items` photograph real paths).
 
 ### 411 — item 376's second half never shipped: nested projects are unreachable
+
+🟡 IN PROGRESS — claude (deep), branch `claude/item-411-browse-door`.
 
 RECOVERED DECISION — this was decided 2026-08-09 (item 376, `f4ce0d9b`),
 carried through the roster answer (`8a00b459`), and then silently lost when
@@ -264,6 +270,8 @@ Recent; a journey test descending the door and switching; the flat-roster law
 (no grandchild in All) stays green.
 
 ### 412 — on an empty line, the caret draws visibly too small
+
+🟡 IN PROGRESS — claude (deep), branch `claude/item-412-empty-line-caret`.
 
 User report 2026-08-12 with screenshot: a warm serif world with the dot-form
 caret; on the empty line under an ordinary text line, the caret renders
