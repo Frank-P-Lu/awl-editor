@@ -194,13 +194,6 @@ pub fn registered_family(bytes: &[u8]) -> Option<String> {
 /// box, never a real glyph's own ink.
 pub(crate) const DEFAULT_TYPICAL_LETTER_RATIO: f32 = 0.62;
 
-/// The x-height/ascent ratio used by the caret's vertical insertion band when
-/// a real glyph is shorter than an ordinary letter.  Unlike the typical-letter
-/// ratio below, this is deliberately the bare x-height: it is the minimum
-/// vertical presence of a character about to be typed, not an approximation
-/// for a glyphless column beside an arbitrary neighbour.
-pub(crate) const DEFAULT_X_HEIGHT_RATIO: f32 = 0.48;
-
 /// MEASURE one font file's own TYPICAL-LETTER-TO-ASCENT ratio: how
 /// tall a "generic" letter's ink sits relative to the font's own ascent, read
 /// straight from the face's `OS/2`/`hhea` tables through the SAME skrifa
@@ -291,20 +284,6 @@ fn measure_vertical_em_metrics(bytes: &[u8]) -> (f32, f32) {
     (m.ascent / upem, -m.descent / upem)
 }
 
-fn measure_x_height_ratio(bytes: &[u8]) -> f32 {
-    let Ok(font) = FontRef::new(bytes) else {
-        return DEFAULT_X_HEIGHT_RATIO;
-    };
-    let m = font.metrics(Size::unscaled(), LocationRef::default());
-    let Some(xh) = m.x_height.filter(|v| *v > 0.0) else {
-        return DEFAULT_X_HEIGHT_RATIO;
-    };
-    if m.ascent <= 0.0 {
-        return DEFAULT_X_HEIGHT_RATIO;
-    }
-    (xh / m.ascent).clamp(0.2, 0.95)
-}
-
 /// One bundled display face, as the roster knows it.
 #[derive(Clone, Copy, Debug)]
 pub struct FaceFacts {
@@ -320,9 +299,6 @@ pub struct FaceFacts {
     /// read alongside the pitch measurement so a face's bytes are parsed once
     /// for both facts, not twice.
     pub typical_letter_ratio: f32,
-    /// This face's own x-height / ascent ratio.  The caret uses this only to
-    /// keep punctuation's vertical body in the row's ordinary-letter band.
-    pub x_height_ratio: f32,
     /// This face's own ascent and descent as em fractions
     /// ([`measure_vertical_em_metrics`]) — the pair a row with NO GLYPHS has to
     /// reconstruct, since cosmic-text gives an empty row zeros for both.
@@ -348,7 +324,6 @@ pub fn roster() -> &'static BTreeMap<String, FaceFacts> {
                 declared,
                 measured: measure_pitch(bytes),
                 typical_letter_ratio: measure_typical_letter_ratio(bytes),
-                x_height_ratio: measure_x_height_ratio(bytes),
                 vertical_em: measure_vertical_em_metrics(bytes),
             });
         }
@@ -373,8 +348,9 @@ pub fn family_is_mono(family: &str) -> bool {
         .unwrap_or(false)
 }
 
-/// THE RATIO the caret's proportional-fallback SYNTHETIC ink box
-/// rides: `family`'s own measured x-height/ascent, or
+/// THE RATIO the proportional caret's ONE vertical box rides
+/// (`TextPipeline::caret_synthetic_ink_box`): `family`'s own measured mean of
+/// x-height and cap-height over its ascent, or
 /// [`DEFAULT_TYPICAL_LETTER_RATIO`] for a family this roster does not know (a system
 /// fallback face, an `AWL_FONT` override — never a bundled display face, exactly
 /// the same unknown-family shape [`family_is_mono`] answers `false` to).
@@ -398,13 +374,4 @@ pub fn vertical_em_metrics(family: &str) -> (f32, f32) {
         .get(family)
         .map(|f| f.vertical_em)
         .unwrap_or((DEFAULT_ASCENT_EM, DEFAULT_DESCENT_EM))
-}
-
-/// The measured x-height/ascent ratio for the row's actual face, or the
-/// conservative fallback for an unknown override face.
-pub fn x_height_ratio(family: &str) -> f32 {
-    roster()
-        .get(family)
-        .map(|f| f.x_height_ratio)
-        .unwrap_or(DEFAULT_X_HEIGHT_RATIO)
 }

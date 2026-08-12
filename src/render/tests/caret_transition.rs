@@ -1,81 +1,46 @@
-//! THE CARET CELL TRANSITION LAW. The caret has a two-arm
-//! `caret_cell_vertical` (a real INK BOX on a single proportional glyph, a
-//! LINE CELL everywhere else) and proved each arm correct IN ISOLATION. Nothing
-//! it wrote ever constructed the SEAM between them: two adjacent caret columns
-//! on the SAME row, one glyph-anchored and one not. That seam is exactly what
-//! the user's paired release screenshots caught — on `aaa`, the Block caret on
-//! the final `a` versus one step later at end-of-line has a visibly
-//! DISCONTINUOUS outer cell, on Mopoke and Gumtree alike, and (this file's own
-//! sweep below proves) on every proportional world in the roster.
+//! THE CARET CELL TRANSITION LAWS — every seam this file was built to bound is
+//! now EXACTLY ZERO, because a proportional row has one caret cell and no seam.
 //!
-//! THE LAW. For adjacent caret columns on one row, the outer cell's
-//! `(center_y, height)` — read straight from [`TextPipeline::caret_cell_vertical`],
-//! the ONE owner every cell-form caret draws from — may not jump by more than a
-//! small, explicitly authored, pixel-scaled bound. This is a REAL-PIXEL claim:
-//! `caret_cell_vertical`'s numbers are not an approximation of what gets drawn,
+//! THE HISTORY IS LOAD-BEARING, since these fixtures were each written against
+//! a different rule. The caret's cell height was once a fixed fraction of the
+//! ROW; then the anchored GLYPH'S own raster ink box (which fixed the row
+//! fraction's 8–9px of dead accent above an `a` and introduced a top that moves
+//! with every letter typed); then a two-arm shape where a glyphless column
+//! BORROWED a neighbouring letter's ink so the two arms would agree at the
+//! seam. That whole apparatus existed to make per-glyph heights CONTINUOUS.
+//! The user's taste call retired the per-glyph height itself: every
+//! proportional anchor now takes the row's own TYPICAL-LETTER box
+//! (`facepitch::typical_letter_ratio` × the row's real `max_ascent`, padded),
+//! so continuity is not achieved, it is structural.
+//!
+//! THE LAW these fixtures now carry: for ANY two caret columns on one row —
+//! glyph to glyph, glyph to glyphless, across a run, across a wrap, at
+//! end-of-line, on an empty line — the cell's `(center_y, height)` read from
+//! [`TextPipeline::caret_cell_vertical`] is the SAME PAIR OF NUMBERS. This is a
+//! REAL-PIXEL claim: those numbers are not an approximation of what gets drawn,
 //! they are literally the values [`TextPipeline::caret_geometry`] feeds the GPU
 //! quad, so a law here about `(cy, h)` is a law about the rendered rectangle's
-//! top/bottom pixels (mirroring how `caret_ink_box.rs`'s laws read
-//! pixel-exact geometry rather than decoding a PNG).
+//! top/bottom pixels (mirroring how `caret_ink_box.rs`'s laws read pixel-exact
+//! geometry rather than decoding a PNG).
 //!
-//! NON-VACUITY. Every sweep below also computes the OLD fallback
-//! formula (`cy = caret.pos.y`, `h = caret_block_h * cursor_scale()` — byte-copy
-//! of the former `caret.rs`/`facepitch.rs` line-cell
-//! arm) and asserts that number alone WOULD have blown the bound — so the
-//! fixture is proven capable of catching the exact regression, not merely
-//! passing by construction. Confirmed directly: this whole
-//! file, run with `src/render/caret.rs` + `src/render/facepitch.rs` reverted to
-//! their former `main` state (the same two-arm formula; the pitch classifier
-//! only changed WHICH worlds take which arm, never the
-//! formula), fails every test exercising the `aaa`/x-height class this
-//! docstring's own numbers are drawn from, and passes them all once the repair
-//! is restored — stated as the CLASS that fails, because the fractions that
-//! stood here counted a file since grown. See the commit history for the
-//! console output this proof produced.
+//! NON-VACUITY, and this is the part an equality law lives or dies on. "All
+//! these cells are equal" is satisfiable by a fixture whose anchors were never
+//! different in the first place, so every sweep below ALSO measures the axis the
+//! caret has stopped following — the anchors' own raster ink boxes
+//! ([`ink_axis_spread_px`]) — and requires it to be genuinely spread. Several
+//! sweeps additionally measure the pre-91 ROW cell ([`old_fallback_cell`]) and
+//! require the shipped cell to differ from it, so a revert that simply
+//! reinstated the row fraction turns them red rather than green.
 //!
-//! SWEPT AXES: the full proportional-world
-//! roster (not just the two the user found), representative glyph classes
-//! (x-height / ascender / descender / punctuation / digit / capital / space /
-//! EOL / empty line / ligature), Block AND Morph (rest — travel is proven
+//! SWEPT AXES: the full proportional-world roster (not just the two the user
+//! found), representative glyph classes (x-height / ascender / descender /
+//! punctuation / digit / capital / space / EOL / empty line / ligature) and
+//! their ordered cross-product, Block AND Morph (rest — travel is proven
 //! UNAFFECTED, not simply re-measured, since a moving caret is a streak with
 //! no cell to jump), a wrapped-line boundary, two zooms including a non-1.0
-//! value, and 1x/2x DPI — plus the mono complement (must stay at ZERO
-//! discontinuity: the mono grid never leaves the line-cell arm, so there is
-//! no seam to jump across there).
-//!
-//! THE NEIGHBOR-BORROW REPAIR.
-//! The first fix's fallback synthesized a "typical letter" box from a per-font
-//! MEAN of x-height/cap-height ratios — a single fixed reference that closed
-//! the reported x-height class but, unswept, silently REGRESSED every other
-//! class it never tested: a CAPITAL letter (absent from the class roster
-//! entirely) landed WORSE than the former code on 11/11 proportional worlds
-//! (new Δ 2.3–4.4px vs old Δ 0.4–2.9px), and the WIDE-bound "no worse than
-//! before" law meant to catch exactly that kind of regression could not,
-//! because its ceiling FLOORED at the wide bound regardless of how small
-//! `old_d` was — permitting up to a 7.5px regression on a class that started
-//! at 0.6px and calling it "no worse than before".
-//!
-//! THE FIX: [`TextPipeline::caret_cell_vertical`]'s fallback arm now BORROWS
-//! the immediately PRECEDING column's own real ink (when one exists) instead
-//! of synthesizing an approximation — a glyphless cell beside a real letter
-//! now draws with THAT letter's exact ink, closing the literal adjacent seam
-//! to (near-)zero for EVERY class, not merely x-height, because it no longer
-//! guesses. The synthetic per-font ratio survives only for the case NO real
-//! neighbor exists (an empty line, or a glyphless anchor at column 0) — see
-//! `caret::TextPipeline::caret_synthetic_ink_box`'s doc. The "no worse than
-//! before" (`old_d`-relative) framing was RETIRED entirely, not just
-//! tightened: once neighbor-borrow makes an adjacent transition read genuine
-//! glyph ink instead of a guess, comparing that real ink to the OLD crude
-//! approximation is no longer a meaningful regression signal (real ink can
-//! legitimately differ from a guess by any amount without either being
-//! wrong) — see [`TRANSITION_BOUND_WIDE_PX`]'s doc for the concrete case
-//! (the ligature fixture) where the tightened `old_d`-relative version
-//! produced a false positive. The remaining real-ink-to-real-ink fixtures
-//! (ligature, wrap-boundary) use a plain ABSOLUTE sanity bound instead; the
-//! class that genuinely needs a regression guard (a SYNTHETIC approximation
-//! with nothing real to fall back on) is now tested at literal adjacency,
-//! where neighbor-borrow closes it exactly — see
-//! `every_glyph_class_closes_exactly_at_the_literal_eol_seam`.
+//! value, and 1x/2x DPI — plus the mono complement, which keeps the row-scaled
+//! line cell and its descender extension and must stay at ZERO discontinuity
+//! for its own separate reason (the grid never leaves that one arm).
 
 use super::super::*;
 use super::{headless_pipeline, view};
@@ -119,19 +84,14 @@ const TRANSITION_BOUND_PX: f32 = 3.0;
 /// at literal adjacency instead, where neighbor-borrow closes it exactly.
 const TRANSITION_BOUND_WIDE_PX: f32 = 7.5;
 
-/// The MINIMUM pre-105 discontinuity a fixture must reproduce to prove the law
-/// non-vacuous — deliberately BELOW the smallest old-bug magnitude actually
-/// measured on the x-height class across the roster (2.4px, Mopoke/Galah/
-/// Magpie), so the non-vacuity check itself never spuriously fires on the
-/// world with the smallest (but still real) old bug.
-const NONVACUITY_OLD_DELTA_MIN_PX: f32 = 2.0;
-
-/// A LOOSER non-vacuity floor for classes whose pre-105 delta was already
-/// small by coincidence (a digit or a capital sitting close to the OLD
-/// fixed-cell height on some worlds — Bombora's digit old Δ is 0.51px) — still
-/// enough to prove the pre-105 code was not ALREADY perfectly continuous
-/// there, without demanding every class reproduce the x-height class's own
-/// (larger) bug magnitude.
+/// The floor a fixture's distance from the PRE-91 ROW CELL must clear for the
+/// "a bare revert would not pass this" claim to mean anything. Deliberately
+/// small: on some faces the typical-letter box lands genuinely close to the row
+/// fraction (Mopoke, 1.69px), and the claim that carries the real margin is the
+/// DEAD SPACE one — `caret_ink_box.rs`'s
+/// `proportional_worlds_take_one_caret_top_at_every_letter` requires the shipped
+/// top to clear the row cell's dead accent above an `a` on every world and both
+/// DPIs, which is the property the row fraction actually failed.
 const NONVACUITY_ANY_DELTA_MIN_PX: f32 = 0.1;
 
 /// `(center_y, height)` at `col` on `line`, via the ONE owner, at REST (settled
@@ -154,6 +114,43 @@ fn old_fallback_cell(p: &TextPipeline) -> (f32, f32) {
 /// bound/non-vacuity check below compares against a threshold.
 fn cell_delta(a: (f32, f32), b: (f32, f32)) -> f32 {
     (a.0 - b.0).abs().max((a.1 - b.1).abs())
+}
+
+/// What one shared multiply's float rounding is worth. Every proportional
+/// anchor on a row now computes its cell from the SAME two inputs, so a
+/// residual larger than this is a second rule, not arithmetic.
+const ONE_HEIGHT_EPS_PX: f32 = 0.01;
+
+/// THE NON-VACUITY ORACLE FOR EVERY EQUALITY CLAIM IN THIS FILE: how far apart
+/// these anchors' OWN raster ink boxes sit (px at zoom×dpi 1), top edge and
+/// full ink height alike — the axis the per-glyph ink rule followed and no
+/// longer does. Each entry is `(text, col)`; a column with no rasterizable ink
+/// contributes nothing (a glyphless anchor has no ink to spread), so a fixture
+/// list must carry at least two REAL glyph classes to clear any floor.
+///
+/// A "one height" law that skips this is satisfiable by a fixture whose letters
+/// were the same height all along — and, worse, by the caret not being drawn at
+/// all, which is why the pixel law pairs equality with a presence floor.
+fn ink_axis_spread_px(p: &mut TextPipeline, anchors: &[(&str, usize)]) -> f32 {
+    let mut tops: Vec<f32> = Vec::new();
+    let mut heights: Vec<f32> = Vec::new();
+    let mut ps = 1.0;
+    for &(text, col) in anchors {
+        p.set_view(&view(text, 0, col));
+        p.settle_caret();
+        ps = pixel_scale(p);
+        if let Some(ink) = p.caret_anchor_raster_box() {
+            tops.push(ink.top);
+            heights.push(ink.top + ink.descent());
+        }
+    }
+    let spread = |v: &[f32]| match v.len() {
+        0 | 1 => 0.0,
+        _ => {
+            v.iter().cloned().fold(f32::MIN, f32::max) - v.iter().cloned().fold(f32::MAX, f32::min)
+        }
+    };
+    spread(&tops).max(spread(&heights)) / ps
 }
 
 /// Assert the step from `(cy0, h0)` to `(cy1, h1)` stays inside `bound_px`
@@ -221,31 +218,30 @@ fn aaa_to_eol_transition_is_bounded_on_every_proportional_world() {
             t.name
         );
 
-        // NON-VACUITY: at the EOL column, what the OLD fallback arm would have
-        // drawn must itself clear a floor well below the authored bound against
-        // the glyph column — proving this fixture really does reproduce the
-        // reported jump, on every world, not merely the two worst-case ones.
+        // NON-VACUITY A: the pre-91 ROW cell is a genuinely different number
+        // here, so a caret that had simply reverted to the row fraction could
+        // not pass this sweep by drawing the same thing at both columns.
         p.set_view(&view(text, 0, 3));
         p.settle_caret();
         let (old_cy, old_h) = old_fallback_cell(&p);
         let old_d = cell_delta((cy_glyph, h_glyph), (old_cy, old_h));
-        let floor = NONVACUITY_OLD_DELTA_MIN_PX * pixel_scale(&p);
+        let floor = NONVACUITY_ANY_DELTA_MIN_PX * pixel_scale(&p);
         assert!(
             old_d > floor,
-            "{}: fixture must reproduce the pre-105 jump (old Δ={old_d:.2} vs floor {floor:.2}) \
-             or this law is vacuous",
+            "{}: the shipped cell must differ from the pre-91 row cell (Δ={old_d:.2} \
+             vs floor {floor:.2}) or a bare revert would pass this law",
             t.name
         );
 
-        // THE LAW: the ACTUAL (repaired) fallback cell must stay bounded.
+        // THE LAW: the glyph column and the end-of-line column are the SAME
+        // cell — not merely within a bound.
         let (cy_eol, h_eol) = p.caret_cell_vertical();
-        assert_bounded(
-            &p,
-            &format!("{} aaa->EOL", t.name),
-            cy_glyph,
-            h_glyph,
-            cy_eol,
-            h_eol,
+        let d = cell_delta((cy_glyph, h_glyph), (cy_eol, h_eol)) / pixel_scale(&p);
+        assert!(
+            d <= ONE_HEIGHT_EPS_PX,
+            "{}: 'aaa' -> EOL must be the identical cell: Δ={d:.4}px \
+             ({cy_glyph:.2},{h_glyph:.2}) -> ({cy_eol:.2},{h_eol:.2})",
+            t.name
         );
         checked += 1;
     }
@@ -348,21 +344,28 @@ fn every_glyph_class_closes_exactly_at_the_literal_eol_seam() {
         ("xA", "capital (A)"),
     ];
 
-    // FIXTURE SANITY: the ink-box arm's OWN letter-to-letter height spread on
-    // "lamp" (an ascender next to an x-height letter, both real glyphs, no
-    // fallback involved) is itself several px — proof that SOME height
-    // variation between adjacent columns is normal product behaviour, and
-    // that the exact-closure claim below comes from borrowing the real
-    // neighbor's ink, not from every class secretly measuring the same.
+    // FIXTURE SANITY: an ascender and an x-height letter sitting next to each
+    // other in "lamp" have genuinely different INK — several px between their
+    // raster boxes — while drawing the identical caret cell. Both halves are
+    // asserted, because either alone is satisfiable by the wrong thing: the
+    // spread alone says nothing about the caret, and the equality alone would
+    // hold on a fixture of six identical letters.
     {
         theme::set_active_by_name("Gumtree").unwrap();
         p.sync_theme();
+        let ink_spread = ink_axis_spread_px(&mut p, &[("lamp", 0), ("lamp", 1)]);
+        assert!(
+            ink_spread > 2.0,
+            "fixture sanity: adjacent real glyphs of different classes must show \
+             a real INK spread (got {ink_spread:.2}px) or the closure below is \
+             a fact about the fixture"
+        );
         let (_cy_l, h_l) = cell_at(&mut p, "lamp", 0, 0);
         let (_cy_a, h_a) = cell_at(&mut p, "lamp", 0, 1);
         assert!(
-            (h_l - h_a).abs() > 2.0,
-            "fixture sanity: adjacent real glyphs of different classes must \
-             already show a real height spread (l={h_l} a={h_a})"
+            (h_l - h_a).abs() <= ONE_HEIGHT_EPS_PX,
+            "adjacent real glyphs of different classes must draw ONE cell \
+             (l={h_l} a={h_a}, ink spread {ink_spread:.2}px)"
         );
     }
 
@@ -726,20 +729,26 @@ fn run_of_glyphless_columns_stays_bounded_end_to_end() {
 }
 
 /// How far ABOVE the same world's real x-height letter cell an empty line's
-/// synthetic cell may sit (px at zoom×DPI 1). The synthetic box is a TYPICAL
-/// letter — the mean of the face's x-height and cap-height — so it is
-/// legitimately a little taller than an `a`; measured residual across the
-/// proportional roster after the empty-row repair: +0.40..+2.60px.
-const EMPTY_LINE_OVER_LETTER_PX: f32 = 3.0;
+/// cell may sit (px at zoom×DPI 1). ⚠️ TIGHTENED, deliberately, when the caret
+/// took one height per row: the empty line and the letter now read the SAME
+/// typical-letter box, so the only residual left is the disagreement between
+/// the two ASCENT SOURCES that box is scaled by — the empty row's
+/// reconstruction through skrifa (`facepitch::vertical_em_metrics`) against the
+/// letter row's real shaped `max_ascent` through swash. That is the same
+/// cross-stack quantity `an_empty_row_carries_the_metrics_a_shaped_row_would_have_given_it`
+/// holds to 0.05px, and this is its consequence one multiply later. The former
+/// +3.00px bound was slack for a synthetic box that only APPROXIMATED the
+/// letter beside it; leaving it there would let the empty-line cell drift a
+/// visible 3px from the type without a law noticing.
+const EMPTY_LINE_OVER_LETTER_PX: f32 = 0.1;
 
-/// How far BELOW that same letter cell it may sit. This is the SIZE FLOOR the
+/// How far BELOW that same letter cell it may sit — the SIZE FLOOR the
 /// user-reported empty-line defect broke: with cosmic-text handing an empty row
-/// a `max_ascent` of ZERO, the synthetic box clamped to its 1px guard and the
-/// whole arm collapsed onto `caret_visual_body_dims`'s minimum body — 13.31px
-/// on EVERY world (the identical-everywhere value is the tell), against letter
-/// cells of 16.00–20.00px. The repaired arm never lands below the letter cell
-/// at all, so this is pure slack.
-const EMPTY_LINE_UNDER_LETTER_PX: f32 = 0.5;
+/// a `max_ascent` of ZERO, the box clamped to its 1px guard and the whole arm
+/// collapsed onto `caret_visual_body_dims`'s minimum body — 13.31px on EVERY
+/// world (the identical-everywhere value is the tell), against letter cells of
+/// 16.00–20.00px. Tightened with its ceiling, and for the same reason.
+const EMPTY_LINE_UNDER_LETTER_PX: f32 = 0.1;
 
 /// AN EMPTY LINE'S synthetic cell TRACKS THE TYPE ON THE SAME WORLD — bounded
 /// on BOTH sides against that world's own real ink-arm height for an ordinary
@@ -1426,48 +1435,77 @@ fn caret_synthetic_ratio_reads_the_same_font_as_its_paired_ascent() {
     crate::caret::set_mode(CaretMode::Block);
 }
 
-/// THE INTERPOLATION REPAIR. `nearest_row_raster_box` previously
-/// searched outward and hard-PICKED whichever side won (backward on a tie).
-/// That borrows exactly ONE side's ink, so a glyphless column tied between
-/// two DIFFERENT real letters (a table's `"| 1"` — pipe one side, digit the
-/// other, tied at distance 1) read as pure pipe ink: the backward seam
-/// (pipe->space) closed to a clean 0.00px while the untouched FORWARD seam
-/// (space->digit) inherited the WHOLE pipe-to-digit gap. Flipping the
-/// tiebreak to prefer forward is NOT a fix — it only rotates the same whole
-/// gap onto the other seam, still directional, still one seam absorbing
-/// everything.
+/// STEP 1 of the whole-row sweep: the GLYPH-TO-GLYPH reference. Real glyph
+/// pairs, adjacent columns, both sides genuine ink — once the empirical worst
+/// case a glyphless seam had to stay under, now itself required to be zero. The
+/// per-glyph INK spread over the same pairs is measured alongside it and must be
+/// large: that is the axis these cells no longer follow. Returns
+/// `(worst cell delta, worst ink spread)` in px at scale 1.
+fn assert_glyph_to_glyph_is_one_cell(p: &mut TextPipeline, prop: &[&'static str]) -> (f32, f32) {
+    let glyph_pairs: &[&str] = &["al", "ag", "a1", "a.", "aA", "lg", "1.", "A1", "Ag", ".A"];
+    let mut glyph_to_glyph = 0.0f32;
+    let mut ink_spread = 0.0f32;
+    for &world in prop {
+        theme::set_active_by_name(world).unwrap();
+        p.sync_theme();
+        for &text in glyph_pairs {
+            ink_spread = ink_spread.max(ink_axis_spread_px(p, &[(text, 0), (text, 1)]));
+            p.set_view(&view(text, 0, 0));
+            p.settle_caret();
+            if p.caret_anchor_ink_box().is_none() {
+                continue;
+            }
+            let c0 = p.caret_cell_vertical();
+            p.set_view(&view(text, 0, 1));
+            p.settle_caret();
+            if p.caret_anchor_ink_box().is_none() {
+                continue;
+            }
+            let c1 = p.caret_cell_vertical();
+            glyph_to_glyph = glyph_to_glyph.max(cell_delta(c0, c1) / pixel_scale(p));
+        }
+    }
+    // NON-VACUITY: the ink axis really is spread across these pairs, so the
+    // zero below is a property of the caret and not of the letter roster.
+    assert!(
+        ink_spread > 5.0,
+        "the per-glyph ink axis must be a real, non-trivial spread (got \
+         {ink_spread:.2}px) or holding these seams to zero tests nothing"
+    );
+    assert!(
+        glyph_to_glyph <= ONE_HEIGHT_EPS_PX,
+        "two adjacent REAL glyphs of different classes must draw the identical \
+         cell (worst {glyph_to_glyph:.4}px, against an ink spread of {ink_spread:.2}px)"
+    );
+    (glyph_to_glyph, ink_spread)
+}
+
+/// THE WHOLE-ROW SWEEP, over the fixtures three separate repair rounds each
+/// needed: a glyphless column tied between two DIFFERENT letters (a table's
+/// `"| 1"` — pipe one side, digit the other), a run of consecutive spaces, a
+/// leading space at column 0, a trailing space, an empty line, and the
+/// headline `aaa`->EOL. Under the borrowed-ink shape each of these was its own
+/// defect with its own directional failure mode; under one height per row they
+/// are one claim, and the fixtures are kept because a future second rule would
+/// have to break one of them to get in.
 ///
-/// THE BAR. Rather than assume an arbitrary ceiling, this law MEASURES what
-/// the product already ships and accepts: the real GLYPH-TO-GLYPH adjacent
-/// cell delta between genuinely different letter classes (x-height,
-/// ascender, descender, capital, digit, punctuation, ligature) — transitions
-/// nobody has ever filed as a bug, because two adjacent DIFFERENT real
-/// letters legitimately draw different cells. That empirical worst case
-/// becomes the ceiling a glyphless seam must clear: "no worse than the
-/// glyph-to-glyph seams the product already accepts" (not an assumed
-/// constant — see the round's own report for the literal numbers: median
-/// ~5.5-6px, worst 14.0px, `digit->punctuation` on Bombora/Mopoke/Galah).
-///
-/// THE FIX PROVEN HERE: blending the two sides by relative distance makes
-/// the borrow non-directional — the tied `"| 1"` space now reads as the
-/// MIDPOINT of pipe and digit, so EACH seam absorbs roughly half the gap
-/// instead of one absorbing all of it. Both seams measure well inside the
-/// empirical bar on every world (worst observed 4.0px, a third of the
-/// bar's 14.0px), and — the mechanism claim — the two seams are now
-/// (near-)SYMMETRIC, which a hard pick structurally cannot
-/// produce (a hard pick always drove one side to 0 and the other to the
-/// full gap).
+/// THE REFERENCE THIS ONCE MEASURED — the empirical GLYPH-TO-GLYPH cell delta
+/// between different letter classes, "the transitions the product already ships
+/// with nobody calling them a bug", once a 14.0px bar — is now itself required
+/// to be ZERO, and the measurement it was derived from (the per-glyph raster
+/// INK spread, still 5px+) becomes this law's non-vacuity oracle instead. That
+/// inversion is the reversal in one line: the variation the product used to
+/// accept between two adjacent letters is the variation the user asked it to
+/// stop having.
 #[test]
-fn glyphless_seams_stay_within_the_products_own_accepted_glyph_to_glyph_bar() {
+fn every_anchor_on_a_row_draws_the_same_cell_glyph_and_glyphless_alike() {
     let _t = crate::testlock::serial();
     let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _g = crate::testlock::serial();
     let _c = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Block);
     let Some(mut p) = headless_pipeline() else {
-        eprintln!(
-            "skipping glyphless_seams_stay_within_the_products_own_accepted_glyph_to_glyph_bar: no wgpu adapter"
-        );
+        eprintln!("skipping the one-cell whole-row sweep: no wgpu adapter");
         return;
     };
     let mono = super::facepitch::mono_display_worlds();
@@ -1482,40 +1520,11 @@ fn glyphless_seams_stay_within_the_products_own_accepted_glyph_to_glyph_bar() {
         prop.len()
     );
 
-    // ---- STEP 1: measure the bar. Real glyph pairs, adjacent columns, both
-    // sides genuine ink (never the fallback arm) — the transitions the
-    // product ships today with nobody calling them a bug.
-    let glyph_pairs: &[&str] = &["al", "ag", "a1", "a.", "aA", "lg", "1.", "A1", "Ag", ".A"];
-    let mut bar = 0.0f32;
-    for &world in &prop {
-        theme::set_active_by_name(world).unwrap();
-        p.sync_theme();
-        for &text in glyph_pairs {
-            p.set_view(&view(text, 0, 0));
-            p.settle_caret();
-            if p.caret_anchor_ink_box().is_none() {
-                continue;
-            }
-            let c0 = p.caret_cell_vertical();
-            p.set_view(&view(text, 0, 1));
-            p.settle_caret();
-            if p.caret_anchor_ink_box().is_none() {
-                continue;
-            }
-            let c1 = p.caret_cell_vertical();
-            bar = bar.max(cell_delta(c0, c1) / pixel_scale(&p));
-        }
-    }
-    // NON-VACUITY: the bar itself must be a real, non-trivial number, or
-    // "hold glyphless seams to it" is a vacuous claim.
-    assert!(
-        bar > 5.0,
-        "the measured glyph-to-glyph bar must be a real, non-trivial ceiling \
-         (got {bar:.2}px) or this law tests nothing"
-    );
+    let (glyph_to_glyph, ink_spread) = assert_glyph_to_glyph_is_one_cell(&mut p, &prop);
+    let bar = ONE_HEIGHT_EPS_PX;
 
-    // ---- STEP 2: every glyphless seam this round's fix targets, measured
-    // against that SAME bar, on every proportional world.
+    // ---- STEP 2: every glyphless seam three repair rounds targeted, now held
+    // to equality, on every proportional world.
     let mut worst_glyphless = 0.0f32;
     let mut sym_worst = 0.0f32;
     for &world in &prop {
@@ -1535,19 +1544,18 @@ fn glyphless_seams_stay_within_the_products_own_accepted_glyph_to_glyph_bar() {
         let fwd = cell_delta(c_space, c_digit);
         assert!(
             bwd <= bound && fwd <= bound,
-            "{world}: '| 1' seam(s) exceed the product's own accepted bar \
-             ({bar:.2}px): bwd={:.2} fwd={:.2}",
+            "{world}: '| 1' seam(s) are not the identical cell: bwd={:.4} fwd={:.4}",
             bwd / ps,
             fwd / ps
         );
         worst_glyphless = worst_glyphless.max(bwd / ps).max(fwd / ps);
-        // THE MECHANISM CLAIM: a tied single space between two different
-        // letters must now be (near-)SYMMETRIC — the hard pick could
-        // never produce this (one side was always exactly 0, the other the
-        // whole gap).
+        // THE DIRECTION CLAIM, kept because it is the one a borrowed-ink rule
+        // failed while passing a magnitude bound: the space's two seams cannot
+        // differ from each other either.
         sym_worst = sym_worst.max((bwd - fwd).abs() / ps);
 
-        // The rest of the round's fixture list, each within the same bar.
+        // The rest of the accumulated fixture list, each held to the same
+        // equality.
         let fixtures: &[(&str, usize, usize)] = &[
             ("aaa", 2, 3),            // the headline case
             (" A", 0, 1),             // leading glyphless, column 0
@@ -1566,34 +1574,36 @@ fn glyphless_seams_stay_within_the_products_own_accepted_glyph_to_glyph_bar() {
             let d = cell_delta(ca, cb);
             assert!(
                 d <= bound,
-                "{world}: {text:?} col{a}->{b} exceeds the product's own \
-                 accepted bar ({bar:.2}px): Δ={:.2}",
+                "{world}: {text:?} col{a}->{b} is not the identical cell: Δ={:.4}px",
                 d / ps
             );
             worst_glyphless = worst_glyphless.max(d / ps);
         }
 
-        // A completely empty line, versus a fresh 'a' line's real ink height
-        // — the synthetic arm, not neighbor-borrow, but still held to the
-        // same bar since it is also a glyphless-anchor fallback value.
+        // A completely empty LINE against a fresh 'a' line: two different
+        // documents and two different ascent SOURCES (the empty row's
+        // reconstruction from the face's per-em metrics, the letter row's real
+        // shaped `max_ascent`), so this stays a real cross-stack claim rather
+        // than a restatement of the equalities above.
         let (_cy_a, h_a) = cell_at(&mut p, "a", 0, 0);
         let (_cy_e, h_e) = cell_at(&mut p, "", 0, 0);
         assert!(
             (h_a - h_e).abs() <= bound,
-            "{world}: empty-line synthetic height exceeds the bar ({bar:.2}px): \
-             a={h_a:.2} empty={h_e:.2}",
+            "{world}: the empty line's reconstructed cell must equal the letter \
+             row's: a={h_a:.2} empty={h_e:.2}",
         );
     }
 
     assert!(
-        sym_worst < bar * 0.5,
-        "the '| 1' backward/forward seams must be substantially more symmetric \
-         than a hard directional pick (worst asymmetry {sym_worst:.2}px vs bar {bar:.2}px)"
+        sym_worst <= bar,
+        "the '| 1' backward/forward seams must not differ from each other \
+         (worst asymmetry {sym_worst:.4}px)"
     );
 
     eprintln!(
-        "glyph-to-glyph bar={bar:.2}px; worst glyphless seam={worst_glyphless:.2}px; \
-         worst '| 1' bwd/fwd asymmetry={sym_worst:.2}px"
+        "one-cell sweep: glyph-to-glyph={glyph_to_glyph:.4}px, worst glyphless \
+         seam={worst_glyphless:.4}px, worst '| 1' bwd/fwd asymmetry={sym_worst:.4}px, \
+         against a per-glyph ink spread of {ink_spread:.2}px"
     );
 
     theme::set_active(theme::DEFAULT_THEME);
@@ -1773,12 +1783,13 @@ fn endpoint_classes() -> Vec<(GlyphClass, &'static str)> {
 /// magnitude, ~11.85px, still clears a ~14px bar) — see the SYMMETRY assert
 /// below, which is the actual load-bearing check this law adds.
 ///
-/// THE BAR is measured fresh per world (not assumed), from each of the 7
-/// endpoint classes' own ISOLATED real-ink cell (no fallback, no neighbor —
-/// a plain [`TextPipeline::caret_anchor_raster_box`] read), pairwise-diffed —
-/// the same "glyph-to-glyph transitions nobody has filed as a bug" measurement
-/// interpolation testing introduced, generalized from one hand-picked pair to the full
-/// 7-class roster and computed once per world instead of re-shaped per pair.
+/// THE BAR IS NOW ZERO, and [`endpoint_bar`] proves it rather than assuming it:
+/// each of the 7 endpoint classes' own ISOLATED cell is measured per world and
+/// required to be the SAME cell, while the classes' own raster ink
+/// ([`TextPipeline::caret_anchor_raster_box`]) is required to be genuinely
+/// spread. What used to be the ceiling — "no worse than the glyph-to-glyph
+/// transitions nobody has filed as a bug" — is the quantity the reversal
+/// removed.
 ///
 /// Phases 2–4 place the three STRUCTURAL classes (`Eol`, `EmptyLine`,
 /// and `Space` as an endpoint in its own right — leading and trailing) in the
@@ -1886,12 +1897,29 @@ fn endpoint_bar(
             (class, cell)
         })
         .collect();
-    let bar = solo
+    let worst = solo
         .iter()
         .flat_map(|a| solo.iter().map(move |b| cell_delta(a.1, b.1) / ps))
         .fold(0.0, f32::max);
-    assert!(bar > 5.0, "{world}: glyph bar must be real ({bar:.2}px)");
-    bar
+    // NON-VACUITY FIRST: these seven classes' own raster ink really does spread,
+    // on this world, at this scale — so the equality just below is a fact about
+    // the caret. Ask it of the SAME tokens the cells were read from.
+    let anchors: Vec<(&str, usize)> = endpoints
+        .iter()
+        .map(|&(_, token)| (token, token.chars().count() - 1))
+        .collect();
+    let ink = ink_axis_spread_px(p, &anchors);
+    assert!(
+        ink > 5.0,
+        "{world}: the per-glyph ink axis must be real ({ink:.2}px) or the \
+         class-pair sweep tests nothing"
+    );
+    assert!(
+        worst <= ONE_HEIGHT_EPS_PX,
+        "{world}: the seven endpoint classes must draw ONE cell in isolation \
+         (worst {worst:.4}px, against an ink spread of {ink:.2}px)"
+    );
+    ONE_HEIGHT_EPS_PX
 }
 
 fn assert_ordered_endpoint_pairs(

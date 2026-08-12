@@ -1,55 +1,57 @@
-//! THE CARET INK BOX (VERTICAL). Laws for the one rule that sizes the
-//! CELL-form caret's TOP and BOTTOM to the anchored glyph's own full raster ink box
-//! instead of the generic line cell.
+//! THE CARET'S ONE HEIGHT (VERTICAL). Laws for the rule that gives the
+//! CELL-form caret ONE height per (face, row) on a proportional world, taken
+//! from the row's TYPICAL LETTER and never from the anchored glyph.
 //!
-//! The reported bug: the settled Block quad's height was `CARET_BLOCK_H` (a fixed
-//! 0.8 fraction of the row) centred on the line box, so its TOP sat at the same y
-//! for every letter while the real ink top moves with the letter — measured on
-//! Gumtree/Literata at zoom 1, the caret hung **8–9px of empty accent above** the
-//! ink of `a`/`m`/`g`/`y` and ~3px above `i`. Only the BOTTOM had a glyph-aware
-//! rule (the descender extension), which is exactly why the two edges disagreed.
+//! **TWO SHAPES ARE WRONG AND THE SHIPPED ONE SITS BETWEEN THEM. The history
+//! is the whole point of this file, because each of the two failures was a
+//! deliberate fix for the other.**
 //!
-//! The fix is one owner — `TextPipeline::caret_cell_vertical` — with arms
-//! behind the SAME ink funnel (`caret_anchor_ink_box`) the horizontal ink
-//! alignment already rode: the padded ink box on a proportional world, else
-//! below) a REAL ligature raster box or a SYNTHETIC typical-letter
-//! box on a proportional glyphless anchor, else (mono only) the row-scaled
-//! line cell (descender extension folded in). These laws pin, with glyph-mask
-//! arithmetic against the real raster placement:
+//!   * A fixed fraction of the ROW (`CARET_BLOCK_H`, 0.8 of the line box, still
+//!     the mono arm's rule) is perfectly stable and hangs **8–9px of empty
+//!     accent above** an `a`/`m` on Gumtree/Literata at zoom 1 while clearing
+//!     an `l` by ~3px, because a row box is not a letter.
+//!   * Sizing to the ANCHORED GLYPH'S own raster ink box closes that gap to a
+//!     letter-independent pad — and makes the caret's own top and bottom move
+//!     with every letter typed, which the user reported as distracting in
+//!     ordinary prose. It is the row-fraction failure's exact mirror: perfect
+//!     per-letter fit, no stability.
+//!   * SHIPPED: the row's typical letter (`facepitch::typical_letter_ratio` —
+//!     the shipped face's own measured mean of x-height and cap-height, times
+//!     the row's own real `max_ascent`), padded. One height for every anchor on
+//!     the row, close enough to the letters actually being typed that the
+//!     row-fraction's dead space never comes back.
 //!
-//!   * settled: the caret's top/bottom ARE the ink box ± one letter-INDEPENDENT
-//!     pad, across an ascender, an x-height letter and two descenders;
-//!   * moving: the travelling streak is untouched by the ink box;
+//! `TextPipeline::caret_cell_vertical` is the one owner and now has TWO arms,
+//! split by `crate::caret::font_is_mono` alone: the typical-letter box on a
+//! proportional world, the row-scaled line cell (descender extension folded in)
+//! on a mono one. These laws pin, with glyph-mask arithmetic against the real
+//! raster placement:
+//!
+//!   * settled: the caret's top and bottom are the SAME two numbers for an
+//!     ascender, an x-height letter, a capital and two descenders — while those
+//!     letters' own ink boxes provably still differ (the axis the caret no
+//!     longer follows must stay LIVE in the fixture, or "one height" is a claim
+//!     about the fixture rather than about the caret);
+//!   * that the one height is neither of the two wrong shapes: strictly taller
+//!     than the shortest letter's ink cell, strictly shorter than the row cell,
+//!     with the pre-91 dead space above an `a` measured and reported;
+//!   * moving: the travelling streak is untouched;
 //!   * mono: the uniform grid is byte-identical (a fixed top, a bottom that drops
 //!     only for a real dipper);
 //!   * every caret FORM is swept by a no-wildcard match, so a new `CaretMode`
 //!     cannot dodge the vertical policy;
-//!   * the glyphless space / end-of-line / bar fallbacks read the SAME
-//!     baseline-relative formula as the ink-box arm on a proportional world
-//!     (`layers.rs` holds NO vertical caret geometry of its own — the grep-law
-//!     that bans a second rule from growing back).
+//!   * the glyphless space / end-of-line / bar cases read the SAME box as the
+//!     letters (`layers.rs` holds NO vertical caret geometry of its own — the
+//!     grep-law that bans a second rule from growing back).
 //!
-//! **THE ADJACENT-COLUMN TRANSITION.** The laws above prove
-//! each arm correct IN ISOLATION; none of them construct the SEAM between an
-//! on-glyph column and an adjacent glyphless one on the SAME row. That seam is
-//! exactly what a user's paired release screenshots caught: on `aaa`, the
-//! Block caret on the final `a` versus one column later at end-of-line has a
-//! visibly discontinuous outer cell, on every proportional world in the
-//! roster (the pre-105 fallback centred on `caret.pos.y` — a row-box-geometric
-//! centre — while the ink-box arm centres on the font BASELINE; the two
-//! conventions had no reason to agree, and measurably did not: 2–13px at zoom
-//! 1 depending on world/glyph class). The fix gives the fallback the SAME
-//! baseline-relative formula the ink-box arm uses, fed a real ligature raster
-//! box when one exists or else a SYNTHETIC typical-letter box
-//! (`facepitch::typical_letter_ratio` — the shipped face's own measured mean
-//! of x-height and cap-height, scaled by the row's own real `max_ascent`) —
-//! see `TextPipeline::caret_synthetic_ink_box` and `caret_row_metrics`'s doc.
-//! The TRANSITION law itself — swept over the full proportional roster, every
-//! representative glyph class, Block/Morph rest, a wrapped-line boundary, two
-//! zooms and 1x/2x DPI, with an explicit non-vacuity proof against the pre-105
-//! formula — lives in `render/tests/caret_transition.rs`, a sibling
-//! file rather than an addition here, because it is a different KIND of law
-//! (adjacent-column diffs, not single-column measurements).
+//! **THE ADJACENT-COLUMN SEAM**, once the discontinuity a user's paired release
+//! screenshots caught between an on-glyph column and the glyphless one beside
+//! it, is now zero by construction — one arm has no seam. The sweep that proves
+//! it (full proportional roster × every representative glyph class × Block and
+//! Morph rest × a wrapped-line boundary × two zooms × 1x/2x DPI) lives in
+//! `render/tests/caret_transition.rs`, a sibling file rather than an addition
+//! here, because it is a different KIND of law (adjacent-column diffs, not
+//! single-column measurements).
 
 use super::super::*;
 use super::{headless_pipeline, view};
@@ -67,19 +69,25 @@ fn caret_top_bottom(p: &mut TextPipeline) -> (f32, f32) {
     (cy - h * 0.5, cy + h * 0.5)
 }
 
-/// THE CORE LAW. On a PROPORTIONAL world the settled cell caret's TOP
-/// and BOTTOM follow the row's ordinary-letter band plus the anchored glyph's
-/// real overhang.  Ascenders and descenders retain their real ink extent; a
-/// short mark is raised to the same row-measured x-height band.  There is no
-/// punctuation list or per-world offset.
+/// THE CORE LAW. On a PROPORTIONAL world the settled cell caret's TOP and
+/// BOTTOM are ONE PAIR OF NUMBERS for the whole row: the row's typical-letter
+/// box grown by one [`CARET_INK_PAD`], identical on an ascender, an x-height
+/// letter, a capital and a descender. The formula is RE-DERIVED here from
+/// `facepitch::typical_letter_ratio` and the row's own metrics rather than read
+/// back out of the owner, so this is a law about the rule and not a restatement
+/// of the code.
 ///
-/// Non-vacuous twice over: it asserts the pad is the same small number for every
-/// letter class (the exact property the old line-cell geometry failed — its top
-/// was letter-independent while the ink's was not), AND that the pre-fix line-cell
-/// top really did hang far above the ink on a non-ascender, so the fixture
-/// reproduces the reported bug rather than passing either way.
+/// NON-VACUOUS THREE WAYS, and the first is the one that matters: an equality
+/// law over a set is satisfiable by the SET being uniform, so this asserts the
+/// letters' OWN raster ink boxes still differ across the fixture by several px
+/// — the axis the caret deliberately ignores has to be live, or "one height" is
+/// a fact about `lamgy` rather than about the caret. Then both discarded shapes
+/// are measured on the same fixture and shown to be genuinely different
+/// numbers: the pre-91 row cell (whose dead space above an `a` is the reported
+/// 8–9px, asserted as a fixture witness) and the per-glyph ink cell (whose
+/// spread between `a` and `l` is what the user called distracting).
 #[test]
-fn cell_caret_hugs_the_full_ink_box_on_ascenders_x_height_and_descenders() {
+fn cell_caret_takes_one_typical_letter_height_across_every_letter_class() {
     // Ink-box lookup folds the theme font AND the page wrap globals; the anchor is
     // mode-keyed. Hold theme -> page -> caret (the suite-wide order), pin BLOCK.
     let _t = crate::testlock::serial();
@@ -88,19 +96,21 @@ fn cell_caret_hugs_the_full_ink_box_on_ascenders_x_height_and_descenders() {
     let _c = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Block);
     let Some(mut p) = headless_pipeline() else {
-        eprintln!(
-            "skipping cell_caret_hugs_the_full_ink_box_on_ascenders_x_height_and_descenders: no wgpu adapter"
-        );
+        eprintln!("skipping the one-typical-letter-height law: no wgpu adapter");
         return;
     };
     theme::set_active_by_name("Gumtree").unwrap(); // proportional (Literata)
     p.sync_theme();
 
-    // One fixture line spanning all three vertical classes. `l` is the ascender,
-    // `a`/`m` sit on the x-height, `g`/`y` dip below the baseline.
-    let text = "lamgy";
+    // One fixture line spanning every vertical class. `l` is the ascender,
+    // `a`/`m` sit on the x-height, `g`/`y` dip below the baseline, `A` is a
+    // capital — the class whose absence once hid a regression for a whole
+    // round (see `caret_transition.rs`'s module doc).
+    let text = "lamgyA";
     let pad = CARET_INK_PAD.px(pad_px(&p));
-    let mut top_gaps: Vec<(char, f32)> = Vec::new();
+    let mut drawn: Vec<(char, f32, f32)> = Vec::new();
+    let mut ink_tops: Vec<(char, f32)> = Vec::new();
+    let mut ink_cell_heights: Vec<(char, f32)> = Vec::new();
     let mut saw_ascender_ink = false;
     let mut saw_descender_ink = false;
 
@@ -114,30 +124,47 @@ fn cell_caret_hugs_the_full_ink_box_on_ascenders_x_height_and_descenders() {
             .caret_anchor_ink_box()
             .unwrap_or_else(|| panic!("'{ch}' must yield a real ink box on Gumtree"));
         let (baseline, row_ascent, font) = p.caret_row_metrics();
-        let x_height = row_ascent * super::super::facepitch::x_height_ratio(font);
         let ink_top = baseline - ink.top;
         let ink_bottom = baseline + ink.descent();
-        let vertical_top = baseline - ink.top.max(x_height);
-        let vertical_bottom = ink_bottom;
+        // THE RULE, re-derived from the face's own measured ratio rather than
+        // read back from `caret_cell_vertical`.
+        let typical = row_ascent * super::super::facepitch::typical_letter_ratio(font);
+        let want_top = baseline - typical - pad;
+        let want_bottom = baseline + pad;
 
         let (top, bottom) = caret_top_bottom(&mut p);
         assert!(
-            (top - (vertical_top - pad)).abs() < 1e-2,
-            "'{ch}': caret top must be the row x-height/ink envelope minus one pad: \
-             top={top} vertical_top={vertical_top} pad={pad}"
+            (top - want_top).abs() < 1e-2,
+            "'{ch}': caret top must be the row's TYPICAL-letter top minus one pad, \
+             whatever letter is anchored: top={top} want={want_top} pad={pad}"
         );
         assert!(
-            (bottom - (vertical_bottom + pad)).abs() < 1e-2,
-            "'{ch}': caret bottom must be the ink bottom plus one pad (descenders \
-             covered through the same envelope): bottom={bottom} ink_bottom={ink_bottom} pad={pad}"
-        );
-        // The caret always fully CONTAINS the letter's ink, with room to spare.
-        assert!(
-            top < ink_top && bottom > ink_bottom,
-            "'{ch}': the ink must sit strictly inside the caret: caret={top}..{bottom} ink={ink_top}..{ink_bottom}"
+            (bottom - want_bottom).abs() < 1e-2,
+            "'{ch}': caret bottom must be the baseline plus one pad: \
+             bottom={bottom} want={want_bottom} pad={pad}"
         );
 
-        top_gaps.push((ch, vertical_top - top));
+        // THE DESCENDER DECISION, asserted rather than left to a comment: a
+        // dipping letter's ink deliberately passes BELOW the caret's bottom pad,
+        // because extending for it would be a per-glyph rule on the bottom edge
+        // — the same jump the top edge was just relieved of. A non-dipper stays
+        // inside. (No knockout world is affected: every world that punches the
+        // letter out of its caret is mono and keeps the row cell.)
+        let dips = ink.descent() > 2.0;
+        assert_eq!(
+            dips,
+            ink_bottom > bottom,
+            "'{ch}': only a real dipper may pass below the caret's bottom \
+             (ink_bottom={ink_bottom:.2} caret_bottom={bottom:.2} \
+             descent={:.2})",
+            ink.descent()
+        );
+
+        drawn.push((ch, top, bottom));
+        ink_tops.push((ch, ink_top));
+        // What the PER-GLYPH rule would have drawn for this letter: its own ink
+        // box, padded — the shape the user reported as distracting.
+        ink_cell_heights.push((ch, ink.top.max(1.0) + ink.descent() + 2.0 * pad));
 
         // Fixture witnesses: the line really does hold both an ascender-tall ink
         // box and a below-baseline one, so the letter classes are genuinely covered.
@@ -147,43 +174,105 @@ fn cell_caret_hugs_the_full_ink_box_on_ascenders_x_height_and_descenders() {
         if ink.descent() > 2.0 {
             saw_descender_ink = true;
         }
-
-        // NON-VACUITY: the PRE-FIX geometry — the generic row-scaled line cell
-        // centred on the spring anchor — put the top far above this ink on a
-        // non-ascender. That gap is the reported bug (8–9px measured).
-        let old_top = p.caret.pos.y - (p.metrics.caret_block_h * p.cursor_scale()) * 0.5;
-        if ch == 'a' || ch == 'm' {
-            assert!(
-                ink_top - old_top > 5.0,
-                "'{ch}': fixture must reproduce the reported gap — the old line-cell \
-                 top sat only {} px above the ink",
-                ink_top - old_top
-            );
-        }
     }
 
     assert!(saw_ascender_ink, "fixture must include an ascender");
     assert!(saw_descender_ink, "fixture must include a real descender");
 
-    // THE ENVELOPE LAW: the margin above the vertical envelope is ONE small
-    // constant for every letter — that is what makes this a mechanism and not
-    // a table of offsets.
-    let (_c0, first) = top_gaps[0];
-    for &(ch, gap) in &top_gaps {
+    // THE ONE-HEIGHT LAW: every letter draws the identical top AND bottom.
+    let (_c0, first_top, first_bottom) = drawn[0];
+    for &(ch, top, bottom) in &drawn {
         assert!(
-            (gap - first).abs() < 1e-2,
-            "'{ch}': the top margin must be letter-INDEPENDENT: {gap} vs {first} \
-             (all gaps: {top_gaps:?})"
-        );
-        assert!(
-            gap > 0.0 && gap < 5.0 * pad_px(&p),
-            "'{ch}': the top margin must stay SMALL and bounded: {gap}"
+            (top - first_top).abs() < 1e-2 && (bottom - first_bottom).abs() < 1e-2,
+            "'{ch}': the caret's edges must be letter-INDEPENDENT: \
+             {top:.2}..{bottom:.2} vs {first_top:.2}..{first_bottom:.2} (all: {drawn:?})"
         );
     }
+
+    // NON-VACUITY 1 — THE AXIS IS LIVE. The letters' own ink tops still differ
+    // by several px on this very fixture, so the equality above is a property
+    // of the caret and not of `lamgyA`.
+    let ink_spread = ink_tops.iter().map(|&(_, t)| t).fold(f32::MIN, f32::max)
+        - ink_tops.iter().map(|&(_, t)| t).fold(f32::MAX, f32::min);
+    assert!(
+        ink_spread > 5.0,
+        "the per-glyph ink axis must still be live on this fixture or the \
+         equality above proves nothing: spread={ink_spread:.2}px {ink_tops:?}"
+    );
+
+    assert_between_the_two_discarded_shapes(
+        &mut p,
+        text,
+        (first_top, first_bottom),
+        &ink_cell_heights,
+    );
 
     theme::set_active(theme::DEFAULT_THEME);
     p.sync_theme();
     crate::caret::set_mode(CaretMode::Block);
+}
+
+/// NON-VACUITY 2 AND 3 for the core law: the one height is NEITHER of the two
+/// shapes it replaced. Against the ROW-FRACTION cell, the dead accent it hangs
+/// above an `a`'s ink must be genuinely relieved; against the PER-GLYPH ink
+/// cell, the shipped height must sit strictly between the shortest and tallest
+/// letter's own cell — which is what "somewhere in between" has to mean if it
+/// is to be a law rather than a preference.
+fn assert_between_the_two_discarded_shapes(
+    p: &mut TextPipeline,
+    text: &str,
+    drawn: (f32, f32),
+    ink_cell_heights: &[(char, f32)],
+) {
+    let (first_top, first_bottom) = drawn;
+    // AGAINST THE ROW FRACTION. The row-fraction cell centred on
+    // the spring anchor hangs the reported 8-9px of dead accent above an `a`'s
+    // ink; the shipped top must clear that gap by a real margin, or the revert
+    // has simply reinstated the row-fraction shape.
+    p.set_view(&view(text, 0, 1)); // the 'a'
+    p.settle_caret();
+    let ink_a = p.caret_anchor_ink_box().expect("'a' ink");
+    let baseline_a = p.caret_row_metrics().0;
+    let ink_top_a = baseline_a - ink_a.top;
+    let row_cell_top = p.caret.pos.y - (p.metrics.caret_block_h * p.cursor_scale()) * 0.5;
+    let row_dead = ink_top_a - row_cell_top;
+    let shipped_dead = ink_top_a - first_top;
+    assert!(
+        row_dead > 5.0,
+        "fixture must reproduce the pre-91 dead space above 'a' (row cell sat \
+         only {row_dead:.2}px above the ink)"
+    );
+    assert!(
+        shipped_dead < row_dead - 2.0,
+        "the one height must sit well INSIDE the pre-91 row cell above an 'a': \
+         shipped gap={shipped_dead:.2}px vs row-cell gap={row_dead:.2}px"
+    );
+
+    // AGAINST THE PER-GLYPH INK CELL: strictly taller than
+    // the shortest letter's own cell, strictly shorter than the tallest's. The
+    // "somewhere in between" the reversal actually asked for.
+    let shipped_h = first_bottom - first_top;
+    let ink_h_min = ink_cell_heights
+        .iter()
+        .map(|&(_, h)| h)
+        .fold(f32::MAX, f32::min);
+    let ink_h_max = ink_cell_heights
+        .iter()
+        .map(|&(_, h)| h)
+        .fold(f32::MIN, f32::max);
+    let row_h = p.metrics.caret_block_h * p.cursor_scale();
+    assert!(
+        ink_h_min < shipped_h && shipped_h < ink_h_max && shipped_h < row_h,
+        "the one height must sit between the shortest and tallest per-glyph ink \
+         cells and under the row cell: shipped={shipped_h:.2} ink=[{ink_h_min:.2}, \
+         {ink_h_max:.2}] row={row_h:.2}"
+    );
+    eprintln!(
+        "one caret height (Gumtree/Literata, zoom 1, dpi 1): shipped={shipped_h:.2}px \
+         [per-glyph ink cells {ink_h_min:.2}..{ink_h_max:.2}px, pre-91 row cell \
+         {row_h:.2}px]; dead space above 'a''s ink: shipped={shipped_dead:.2}px vs \
+         pre-91 {row_dead:.2}px"
+    );
 }
 
 /// THE FORM SWEEP (no-wildcard). Every caret LOOK is enumerated through
@@ -192,10 +281,10 @@ fn cell_caret_hugs_the_full_ink_box_on_ascenders_x_height_and_descenders() {
 ///
 ///   * `Block` / `Morph` draw the CELL form (Morph's fast-travel deferral and its
 ///     ink-caret-world fold both land on the very same quad), so their vertical
-///     bounds come from the ink box.
+///     bounds are the row's one typical-letter envelope.
 ///   * `Ibeam` is the BAR form — an insertion bar marks the boundary BETWEEN
 ///     glyphs, so it deliberately spans the LINE BOX (`ibeam_bar_dims`) and must
-///     be provably NOT ink-sized.
+///     be provably taller than the cell.
 #[test]
 fn cell_caret_vertical_has_one_owner_across_every_caret_form() {
     let _t = crate::testlock::serial();
@@ -225,21 +314,20 @@ fn cell_caret_vertical_has_one_owner_across_every_caret_form() {
             .caret_anchor_ink_box()
             .expect("'m' must yield an ink box on Gumtree");
         let (baseline, row_ascent, font) = p.caret_row_metrics();
-        let x_height = row_ascent * super::super::facepitch::x_height_ratio(font);
-        let (ink_top, ink_bottom) = (baseline - ink.top.max(x_height), baseline + ink.descent());
+        let typical = row_ascent * super::super::facepitch::typical_letter_ratio(font);
+        let (want_top, want_bottom) = (baseline - typical - pad, baseline + pad);
+        let (ink_top, ink_bottom) = (baseline - ink.top, baseline + ink.descent());
 
         match mode {
             CaretMode::Block | CaretMode::Morph => {
                 let (cy, h) = p.caret_cell_vertical();
                 assert!(
-                    (cy - h * 0.5 - (ink_top - pad)).abs() < 1e-2
-                        && (cy + h * 0.5 - (ink_bottom + pad)).abs() < 1e-2,
-                    "{mode:?}: the CELL form must take its vertical from the ink box: \
-                     got {}..{} want {}..{}",
+                    (cy - h * 0.5 - want_top).abs() < 1e-2
+                        && (cy + h * 0.5 - want_bottom).abs() < 1e-2,
+                    "{mode:?}: the CELL form must take its vertical from the row's \
+                     typical letter: got {}..{} want {want_top}..{want_bottom}",
                     cy - h * 0.5,
                     cy + h * 0.5,
-                    ink_top - pad,
-                    ink_bottom + pad
                 );
                 assert!(
                     !p.caret_is_bar_form(),
@@ -255,9 +343,11 @@ fn cell_caret_vertical_has_one_owner_across_every_caret_form() {
                     "Ibeam must span the LINE BOX, not the ink box: tall={tall}"
                 );
                 assert!(
-                    tall > (ink_bottom - ink_top) + 2.0 * pad + 1.0,
-                    "the I-beam bar must be provably TALLER than the ink cell would be \
-                     (so this arm is non-vacuous): tall={tall} ink_h={}",
+                    tall > (want_bottom - want_top) + 1.0,
+                    "the I-beam bar must be provably TALLER than the cell form's own \
+                     height (so this arm is non-vacuous): tall={tall} cell={} \
+                     (the anchored ink it does not read: {:.2})",
+                    want_bottom - want_top,
                     ink_bottom - ink_top
                 );
             }
@@ -312,7 +402,7 @@ fn assert_punctuation_cell(
             .caret_anchor_ink_box()
             .expect("proportional punctuation ink");
         let (_, ascent, font) = p.caret_row_metrics();
-        let short = ink.height < ascent * super::super::facepitch::x_height_ratio(font);
+        let short = ink.height < ascent * super::super::facepitch::typical_letter_ratio(font);
         if short {
             let tight = 6.0 * p.metrics.scale;
             assert!(
@@ -480,62 +570,125 @@ fn mono_world_caret_grid_stays_uniform_and_line_box_sized() {
     crate::caret::set_mode(CaretMode::Block);
 }
 
-/// THE OTHER HALF OF THE SWEEP: every PROPORTIONAL-display world still
-/// takes the ink-box arm, with a per-letter top — unchanged by the pitch
-/// predicate becoming a measurement.
+/// THE OTHER HALF OF THE SWEEP, over the WHOLE proportional roster and BOTH
+/// DPIs: the caret's top is the SAME y at every column there too, exactly as
+/// the mono grid's is — the two arms differ in what sets the height, never in
+/// whether it holds still.
 ///
-/// The risk a widened `font_is_mono` carries is over-reach: a predicate that
-/// mistook a near-gridded face (iA Writer Quattro S is bundled and duospaced) for
-/// a mono would flip that world's caret from ink-hugging to a fixed cell, a
-/// silent look change in the opposite direction. This is the complement of
-/// `mono_world_caret_grid_stays_uniform_and_line_box_sized` over the SAME roster
-/// split, so between them every world in `theme::THEMES` is asserted to be in
-/// exactly the arm its face's own advance widths put it in.
+/// This is the complement of `mono_world_caret_grid_stays_uniform_and_line_box_sized`
+/// over the SAME roster split, so between them every world in `theme::THEMES` is
+/// asserted to be in exactly the arm its face's own advance widths put it in;
+/// a widened `font_is_mono` that mistook a near-gridded face (iA Writer Quattro
+/// S is bundled and duospaced) for a mono still fails the arm assertion here.
+///
+/// NON-VACUITY, per world and per DPI: the letters' own ink tops must still
+/// spread by several px. A uniformity law over a set that happens to be uniform
+/// tests nothing, and this fixture's uniformity is exactly what the caret is
+/// being asked NOT to have.
 #[test]
-fn proportional_worlds_still_ink_align_with_a_per_letter_top() {
+fn proportional_worlds_take_one_caret_top_at_every_letter() {
     let _t = crate::testlock::serial();
     let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     crate::caret::set_mode(CaretMode::Block);
     let Some(mut p) = headless_pipeline() else {
         eprintln!(
-            "skipping proportional_worlds_still_ink_align_with_a_per_letter_top: no wgpu adapter"
+            "skipping proportional_worlds_take_one_caret_top_at_every_letter: no wgpu adapter"
         );
         return;
     };
-    let text = "lamgy";
+    let text = "lamgyA";
     let mono = super::facepitch::mono_display_worlds();
     let mut checked = 0usize;
-    for t in theme::THEMES.iter().filter(|t| !mono.contains(&t.name)) {
-        theme::set_active_by_name(t.name).unwrap();
-        p.sync_theme();
-        let mut tops: Vec<f32> = Vec::new();
-        for (col, ch) in text.chars().enumerate() {
-            p.set_view(&view(text, 0, col));
-            p.settle_caret();
+    let mut worst_dead = 0.0f32;
+    let mut tightest_relief = f32::MAX;
+    for &dpi in &[1.0f32, 2.0] {
+        p.set_dpi(dpi);
+        for t in theme::THEMES.iter().filter(|t| !mono.contains(&t.name)) {
+            theme::set_active_by_name(t.name).unwrap();
+            p.sync_theme();
+            let mut tops: Vec<f32> = Vec::new();
+            let mut ink_tops: Vec<f32> = Vec::new();
+            // The pre-91 shape's own dead space above the x-height `a`, and the
+            // shipped one's, on this world at this DPI.
+            let (mut row_dead, mut shipped_dead) = (0.0f32, 0.0f32);
+            for (col, ch) in text.chars().enumerate() {
+                p.set_view(&view(text, 0, col));
+                p.settle_caret();
+                let ink = p.caret_anchor_ink_box().unwrap_or_else(|| {
+                    panic!(
+                        "{} ({}) d{dpi}: a proportional world must read real ink for '{ch}'",
+                        t.name, t.font
+                    )
+                });
+                let (cy, h) = p.caret_cell_vertical();
+                let ink_top = p.caret_row_metrics().0 - ink.top;
+                tops.push(cy - h * 0.5);
+                ink_tops.push(ink_top);
+                if ch == 'a' {
+                    row_dead = ink_top
+                        - (p.caret.pos.y - (p.metrics.caret_block_h * p.cursor_scale()) * 0.5);
+                    shipped_dead = ink_top - (cy - h * 0.5);
+                }
+            }
+            let spread = |v: &[f32]| {
+                v.iter().cloned().fold(f32::MIN, f32::max)
+                    - v.iter().cloned().fold(f32::MAX, f32::min)
+            };
+            // NON-VACUITY: the axis the caret ignores is live on this world.
+            // The floor sits under the roster's TIGHTEST real value rather than
+            // at a round number — Quokka (Sour Gummy) measures exactly 4.00px
+            // at DPI 1, the smallest ascender-to-x-height ink spread any
+            // bundled display face shows.
+            let ink_spread = spread(&ink_tops);
             assert!(
-                p.caret_anchor_ink_box().is_some(),
-                "{} ({}): a proportional world must ink-align ('{ch}')",
+                ink_spread >= 3.0 * dpi,
+                "{} ({}) d{dpi}: the per-glyph ink tops must genuinely differ or \
+                 the uniformity below proves nothing (spread {ink_spread:.2})",
                 t.name,
                 t.font
             );
-            let (cy, h) = p.caret_cell_vertical();
-            tops.push(cy - h * 0.5);
+            // NOT A BARE REVERT, on every world and both DPIs: the row
+            // fraction's own measured defect was its dead accent above an
+            // `a`'s ink. The shipped top must sit well inside it — a fixed
+            // height that reproduced that gap would be the discarded shape.
+            assert!(
+                row_dead > 4.0 * dpi,
+                "{} ({}) d{dpi}: fixture must reproduce the pre-91 dead space \
+                 above 'a' (row cell sat {row_dead:.2}px above the ink)",
+                t.name,
+                t.font
+            );
+            assert!(
+                shipped_dead < row_dead - 0.5 * dpi,
+                "{} ({}) d{dpi}: the one height must clear the pre-91 dead space \
+                 above an 'a': shipped={shipped_dead:.2}px row cell={row_dead:.2}px",
+                t.name,
+                t.font
+            );
+            worst_dead = worst_dead.max(shipped_dead / dpi);
+            tightest_relief = tightest_relief.min((row_dead - shipped_dead) / dpi);
+            // THE LAW: one top y for every column, ink spread notwithstanding.
+            let top_spread = spread(&tops);
+            assert!(
+                top_spread < 1e-2,
+                "{} ({}) d{dpi}: the caret top must be identical at every column \
+                 (spread {top_spread:.3} over {tops:?}, against an ink spread of \
+                 {ink_spread:.2})",
+                t.name,
+                t.font
+            );
+            checked += 1;
         }
-        // An ASCENDER's ink starts higher than an x-height letter's, so the tops
-        // must genuinely differ — the property the mono arm deliberately lacks.
-        let spread = tops.iter().cloned().fold(f32::MIN, f32::max)
-            - tops.iter().cloned().fold(f32::MAX, f32::min);
-        assert!(
-            spread > 1.0,
-            "{} ({}): the ink-box top must move with the letter (spread {spread})",
-            t.name,
-            t.font
-        );
-        checked += 1;
     }
+    p.set_dpi(1.0);
     assert!(
-        checked >= 11,
-        "every proportional-display world is swept (got {checked})"
+        checked >= 22,
+        "every proportional-display world is swept at both DPIs (got {checked})"
+    );
+    eprintln!(
+        "one caret top across the proportional roster × both DPIs: worst dead space \
+         above an 'a''s ink = {worst_dead:.2}px at scale 1; tightest relief against \
+         the pre-91 row cell = {tightest_relief:.2}px"
     );
 
     theme::set_active(theme::DEFAULT_THEME);
@@ -549,7 +702,7 @@ fn proportional_worlds_still_ink_align_with_a_per_letter_top() {
 /// (`pos.y + caret_trail_drop`) with the streak's own thickness — identical on a
 /// proportional world (where the ink box applies at rest) and a mono world (where
 /// it never does. Covers the MOVING half of the settled/moving pair; the settled
-/// half is `cell_caret_hugs_the_full_ink_box_on_ascenders_x_height_and_descenders`.
+/// half is `cell_caret_takes_one_typical_letter_height_across_every_letter_class`.
 #[test]
 fn moving_caret_streak_is_unaffected_by_the_ink_box() {
     let _t = crate::testlock::serial();

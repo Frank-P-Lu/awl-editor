@@ -76,11 +76,13 @@ impl TextPipeline {
         height: u32,
     ) {
         let ink = self.caret_anchor_ink_box();
+        // The height asked of the CELL OWNER (`caret_cell_vertical`), never
+        // re-derived here: a second derivation is how the support body starts
+        // answering a question about a rect the renderer does not draw.
+        let (_, h) = self.caret_cell_vertical();
         let needs_body = ink.is_some_and(|ink| {
             let px = self.metrics.scale;
             let (w, _) = caret_visual_body_dims(ink, px);
-            let (baseline, ascent, font) = self.caret_row_metrics();
-            let (_, h) = self.caret_cell_vertical_from_ink(ink, baseline, ascent, font, px);
             w > ink.width + f32::EPSILON
                 || h > ink.height + 2.0 * CARET_INK_PAD.px(px) + f32::EPSILON
         });

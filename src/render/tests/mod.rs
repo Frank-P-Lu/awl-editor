@@ -30,6 +30,7 @@ mod caret;
 mod caret_block;
 mod caret_filled_knockout;
 mod caret_ink_box;
+mod caret_one_height_pixels;
 mod caret_transition;
 mod caret_visual_body;
 mod chip_plate_floor;
