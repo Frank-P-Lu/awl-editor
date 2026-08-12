@@ -84,22 +84,23 @@ impl TextPipeline {
             let px = self.metrics.scale;
             let (w, _) = caret_visual_body_dims(ink, px);
             let glyph_h = ink.height + 2.0 * CARET_INK_PAD.px(px);
-            // TWO CONDITIONS, and the second is what stops a body being drawn
-            // where it cannot do its job. A support body exists because the
-            // glyph alone is too small to read as a caret, so it must EXCEED
-            // the letter somewhere (`>`) — and it must also COVER it (`>=` on
-            // the height), because the glyph on top is recoloured to ordinary
-            // prose ink on the assumption that the accent is behind ALL of it.
+            // ⚠️ EXCESS IN EITHER AXIS, deliberately not COVERAGE IN BOTH. One
+            // height per row means the cell can be SHORTER than the glyph on it
+            // — a `;`, a `[` — and a body that does not reach the whole letter
+            // leaves it half-lit: the glyph on top is recoloured to ordinary
+            // prose ink on the assumption that the accent is behind all of it,
+            // so a tall mark reads as a dark silhouette with a sliver of accent
+            // beside it.
             //
-            // The caret's cell is one height per row now, so a glyph TALLER
-            // than that cell — an ascender, a capital, a bracket — is one the
-            // body cannot back. Drawing it anyway is the worst of both looks: a
-            // fat dark silhouette with a sliver of accent beside it, less
-            // locatable than either alternative. Such a glyph takes Morph's own
-            // primary look instead, carrying the accent in its own silhouette
-            // (the `else` arm below), which is exactly what a full-size letter
-            // did before it ever had a body.
-            h >= glyph_h && (w > ink.width + f32::EPSILON || h > glyph_h + f32::EPSILON)
+            // Requiring coverage instead — dropping the body, letting the glyph
+            // carry the accent in its own silhouette — is the WRONG trade, and
+            // the roster says so by name: `caret_punctuation_color`'s
+            // "the caret must not change a covered glyph's colour, only sit
+            // behind it" goes red on Bowerbird's `;` the moment such a mark
+            // takes the bodyless arm. A mark that keeps its own colour under a
+            // partial body is worth more than one lit end to end in an accent
+            // that is not its ink.
+            w > ink.width + f32::EPSILON || h > glyph_h + f32::EPSILON
         });
         if needs_body {
             self.prepare_caret_block(device, queue, width, height);
