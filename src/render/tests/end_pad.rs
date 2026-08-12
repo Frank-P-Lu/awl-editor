@@ -150,13 +150,6 @@ fn end_pad_appears_only_once_the_document_overflows_the_window() {
         let line_h = p.metrics.line_height;
         let avail = p.viewport_avail_px(H);
         let fits = (avail / line_h).floor() as usize;
-        // NON-VACUITY: every equality below is trivially true at a zero pad, and a
-        // zero pad IS the bug this file exists to prevent returning.
-        assert!(
-            END_PAD_ROWS.0 >= 1.0,
-            "the pad is {} rows — at zero this law asserts 0 == 0 in every cell",
-            END_PAD_ROWS.0
-        );
         assert!(
             fits >= 4,
             "dpi {dpi}: the window must hold several rows for this sweep to mean \
@@ -187,6 +180,14 @@ fn end_pad_appears_only_once_the_document_overflows_the_window() {
                     (line_h * END_PAD_ROWS.0).to_bits(),
                     "an overflowing document owes exactly {} rows of air — {at}",
                     END_PAD_ROWS.0
+                );
+                // NON-VACUITY: the equality above is trivially true at a zero
+                // pad, and a zero pad IS the defect this file exists to keep
+                // from returning. Graded against the row pitch, a runtime value.
+                assert!(
+                    pad >= line_h,
+                    "the pad is {pad:.2}px against a {line_h:.2}px row — under one \
+                     row of air this law asserts 0 == 0 in every cell — {at}"
                 );
             } else {
                 assert!(
