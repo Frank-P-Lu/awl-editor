@@ -747,8 +747,11 @@ impl App {
             // The export destination navigator emits `Effect::Export` with the
             // folder it chose, never a generic accept — the format it also has to
             // carry is not expressible here.
-            Theme | Browse | ExportDest | Command | Spell | Keybindings | Settings | Assets
-            | Rename | InsertLink | KeepName | Context | Conflict => {}
+            // The switch-project DOOR's navigator emits its answer AS
+            // `Project` (one owner of "switch to this root", whichever door
+            // reached it), so nothing arrives here under its own kind.
+            Theme | Browse | ProjectBrowse | ExportDest | Command | Spell | Keybindings
+            | Settings | Assets | Rename | InsertLink | KeepName | Context | Conflict => {}
         }
     }
 

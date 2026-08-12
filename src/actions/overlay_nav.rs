@@ -2,6 +2,76 @@
 
 use super::*;
 const OVERLAY_PAGE: isize = 12;
+
+/// **THE ONE REBUILD A RESUME USES.** [`crate::overlay::Journey`] rebuilds a
+/// parked parent FRESH (so its value cells show what the child just committed)
+/// and then re-aims it — but the core cannot read a directory, so which injected
+/// builder can answer depends on the kind: an explorer's LEVEL comes from
+/// `browse_to` ([`crate::overlay::OverlayKind::needs_dir_level`]), everything
+/// else from `make_overlay`, which returns `None` for those kinds by
+/// construction. Handed `make_overlay` alone, a parked explorer rebuilds as
+/// `None` and the whole journey falls to the editor — which is what Esc out of
+/// the switch-project door did before this existed.
+///
+/// It also re-attaches the flat picker's door
+/// ([`crate::overlay::OverlayState::attach_browse_door`], a no-op for every
+/// other kind), because a rebuilt level is a bare directory listing and the door
+/// belongs to the FEATURE, not to the disk.
+///
+/// Every lifecycle call that can land on `Resume` goes through the three
+/// wrappers below, so which door you came back through cannot decide whether you
+/// come back.
+fn resume_rebuild<'c>(
+    make_overlay: &'c mut dyn FnMut(crate::overlay::OverlayKind) -> Option<OverlayState>,
+    browse_to: &'c mut dyn FnMut(
+        crate::overlay::OverlayKind,
+        Option<String>,
+    ) -> Option<OverlayState>,
+) -> impl FnMut(crate::overlay::OverlayKind) -> Option<OverlayState> + 'c {
+    move |kind| match kind.needs_dir_level() {
+        true => browse_to(kind, None).map(|mut card| {
+            card.attach_browse_door();
+            card
+        }),
+        false => make_overlay(kind),
+    }
+}
+
+/// Esc / Back through the lifecycle's one cancel door, with [`resume_rebuild`].
+fn journey_cancel(ctx: &mut ActionCtx) {
+    let ActionCtx {
+        journey,
+        make_overlay,
+        browse_to,
+        ..
+    } = ctx;
+    journey.cancel(&mut resume_rebuild(&mut **make_overlay, &mut **browse_to));
+}
+
+/// An accept dispatched by its declared disposition, with [`resume_rebuild`].
+fn journey_accept(ctx: &mut ActionCtx, disposition: crate::overlay::AcceptDisposition) {
+    let ActionCtx {
+        journey,
+        make_overlay,
+        browse_to,
+        ..
+    } = ctx;
+    journey.accept(
+        disposition,
+        &mut resume_rebuild(&mut **make_overlay, &mut **browse_to),
+    );
+}
+
+/// A row flipped in place, with [`resume_rebuild`].
+fn journey_toggled(ctx: &mut ActionCtx) {
+    let ActionCtx {
+        journey,
+        make_overlay,
+        browse_to,
+        ..
+    } = ctx;
+    journey.toggled(&mut resume_rebuild(&mut **make_overlay, &mut **browse_to));
+}
 fn rename_edit_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
     ctx.journey.card().unwrap().rename_edit.as_ref()?;
     let overlay = ctx.journey.card_mut().unwrap();
@@ -74,9 +144,9 @@ fn keep_edit_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
         Action::Newline => {
             let target = overlay.keep_edit_target();
             // Let the journey table decide whether a parked parent resumes.
-            ctx.journey.accept(
+            journey_accept(
+                ctx,
                 crate::overlay::OverlayKind::KeepName.accept_disposition(),
-                ctx.make_overlay,
             );
             return Some(
                 target
@@ -86,7 +156,7 @@ fn keep_edit_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
         }
         Action::Cancel => {
             // Cancel resumes a parked parent; dismiss would discard it.
-            ctx.journey.cancel(ctx.make_overlay);
+            journey_cancel(ctx);
         }
         _ => {}
     }
@@ -169,12 +239,9 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
             // (`Bind::Path`), which walks the whole tree on purpose.
             let is_project_path_pick = ov.kind == crate::overlay::OverlayKind::Project
                 && matches!(ctx.journey.bind(), Some(crate::overlay::Bind::Path { .. }));
-            let navigable = matches!(
-                ov.kind,
-                crate::overlay::OverlayKind::Browse
-                    | crate::overlay::OverlayKind::MoveDest
-                    | crate::overlay::OverlayKind::ExportDest
-            ) || is_project_path_pick;
+            let navigable = ov.kind.is_folder_destination()
+                || ov.kind == crate::overlay::OverlayKind::Browse
+                || is_project_path_pick;
             if navigable && ov.query.is_empty() {
                 if let Some(parent) = ascend_target(ov)
                     && let Some(next) = (ctx.browse_to)(ov.kind, parent)
@@ -231,7 +298,7 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
 /// active world just as a commit does.
 fn cancel_overlay(ctx: &mut ActionCtx) -> Effect {
     let was_theme = ctx.journey.card().map(|o| o.kind) == Some(crate::overlay::OverlayKind::Theme);
-    ctx.journey.cancel(ctx.make_overlay);
+    journey_cancel(ctx);
     if was_theme {
         Effect::OverlayAccept(
             crate::overlay::OverlayKind::Theme,
@@ -342,17 +409,31 @@ fn accept_path_overlay(ctx: &mut ActionCtx) -> Option<Effect> {
         // chose — carried on the card across every level change (`OverlayState::
         // carry_level_payload_from`).
         crate::overlay::OverlayKind::MoveDest => {
-            let effect = move_dest_value(ov)
+            let effect = dest_value(ov, true)
                 .map(|dest| Effect::OverlayAccept(crate::overlay::OverlayKind::MoveDest, dest))
                 .unwrap_or(Effect::None);
             dispose_after_accept(ctx);
             Some(effect)
         }
         crate::overlay::OverlayKind::ExportDest => {
-            let effect = match (ov.export_format, move_dest_value(ov)) {
+            let effect = match (ov.export_format, dest_value(ov, true)) {
                 (Some(format), Some(dest)) => Effect::Export(format, Some(dest)),
                 _ => Effect::None,
             };
+            dispose_after_accept(ctx);
+            Some(effect)
+        }
+        // THE THIRD DESTINATION NAVIGATOR: the same walk and the same accept
+        // arithmetic, and what lands in the folder is the PROJECT ITSELF. It
+        // emits the switch under [`OverlayKind::Project`]'s own accept effect —
+        // one owner of "switch to this root", whichever door reached it — so
+        // the App, the replay classifier and the sidecar's project block need
+        // to know nothing about this kind.
+        crate::overlay::OverlayKind::ProjectBrowse => {
+            let effect = dest_value(ov, false)
+                .filter(|dest| !dest.is_empty())
+                .map(|dest| Effect::OverlayAccept(crate::overlay::OverlayKind::Project, dest))
+                .unwrap_or(Effect::None);
             dispose_after_accept(ctx);
             Some(effect)
         }
@@ -361,13 +442,29 @@ fn accept_path_overlay(ctx: &mut ActionCtx) -> Option<Effect> {
                 Some(crate::overlay::Bind::Path { key }) => Some(key.clone()),
                 Some(crate::overlay::Bind::Value) | None => None,
             };
+            // THE DOOR ROW (`RowMeta::ProjectDoor`) — the flat picker's one
+            // reach past the workspace's direct children, and the reason the
+            // flat accept below can stay flat. It DESCENDS rather than
+            // switching: the folder navigator takes the stage and this card
+            // parks at its exact row, so Esc comes back here instead of
+            // dropping to the document. Asked before the row is read as a
+            // project, and asked of the row's META, so the label is only a
+            // label.
+            if ov.selected_is_browse_door() {
+                if let Some(child) =
+                    (ctx.browse_to)(crate::overlay::OverlayKind::ProjectBrowse, None)
+                {
+                    ctx.journey.descend(child, crate::overlay::Bind::Value);
+                }
+                return Some(Effect::None);
+            }
             // FLAT OVER DIRECT WORKSPACE CHILDREN ONLY: the switch-project
             // picker (no path key — a plain launch, never a Settings
             // folder-VALUE pick) never descends. A folder row IS the
             // project; accepting it switches immediately, so a grandchild
-            // can never enter the roster. Deeper navigation is the Settings
-            // path-picker's own door (`Bind::Path`, below), which keeps the
-            // full destination-navigator descend grammar.
+            // can never enter the roster. Deeper navigation is the door
+            // above, and the Settings path-picker's own descend grammar
+            // (`Bind::Path`, below).
             if path_key.is_none() && ov.selected_is_dir() {
                 let target = ov.selected_value().map(|name| descend_target(ov, name));
                 return Some(match target {
@@ -399,10 +496,7 @@ fn accept_path_overlay(ctx: &mut ActionCtx) -> Option<Effect> {
                 // lands wherever the table sends a value commit — back on the
                 // Settings row you left, or in the document.
                 (Some(path), Some(key)) => {
-                    ctx.journey.accept(
-                        crate::overlay::AcceptDisposition::ValuePick,
-                        ctx.make_overlay,
-                    );
+                    journey_accept(ctx, crate::overlay::AcceptDisposition::ValuePick);
                     Effect::SettingPathPick { key, path }
                 }
                 (Some(path), None) => {
@@ -410,7 +504,7 @@ fn accept_path_overlay(ctx: &mut ActionCtx) -> Option<Effect> {
                     Effect::OverlayAccept(crate::overlay::OverlayKind::Project, path)
                 }
                 (None, _) => {
-                    ctx.journey.cancel(ctx.make_overlay);
+                    journey_cancel(ctx);
                     Effect::None
                 }
             };
@@ -609,8 +703,7 @@ pub(super) fn dispose_after_accept(ctx: &mut ActionCtx) {
     let Some(kind) = ctx.journey.card().map(|o| o.kind) else {
         return;
     };
-    ctx.journey
-        .accept(kind.accept_disposition(), ctx.make_overlay);
+    journey_accept(ctx, kind.accept_disposition());
 }
 
 fn range_ctx_value(
@@ -651,7 +744,7 @@ fn range_step(ctx: &mut ActionCtx, steps: i32) -> Option<Effect> {
 
 fn settings_accept(ctx: &mut ActionCtx) -> Effect {
     let Some(ci) = ctx.journey.card().unwrap().selected_corpus_index() else {
-        ctx.journey.cancel(ctx.make_overlay);
+        journey_cancel(ctx);
         return Effect::None;
     };
     let row = *crate::settings::visible_rows()[ci];
@@ -675,7 +768,7 @@ fn dispatch_settings_row(ctx: &mut ActionCtx, row: crate::settings::SettingRow) 
                 "Toggle row always resolves its config key — settings law \
                  every_toggle_has_a_config_key_and_nothing_else_does",
             );
-            ctx.journey.toggled(ctx.make_overlay);
+            journey_toggled(ctx);
             Effect::SettingToggle {
                 key: key.to_string(),
             }
@@ -749,37 +842,52 @@ pub(super) fn browse_parent(dir: Option<&str>) -> Option<Option<String>> {
     }
 }
 
+/// THE TWO ABSOLUTE-PATH WALKERS: `Project` (the Settings folder-VALUE picker's
+/// levels) and `ProjectBrowse` (the switch-project door's) carry a whole
+/// directory in `browse_dir`, so a level change is a path join, not a
+/// root-relative string append.
+fn walks_absolute(kind: crate::overlay::OverlayKind) -> bool {
+    matches!(
+        kind,
+        crate::overlay::OverlayKind::Project | crate::overlay::OverlayKind::ProjectBrowse
+    )
+}
+
 pub(super) fn descend_target(ov: &OverlayState, name: &str) -> String {
-    match ov.kind {
-        crate::overlay::OverlayKind::Project => {
-            std::path::Path::new(ov.browse_dir.as_deref().unwrap_or(""))
-                .join(name)
-                .to_string_lossy()
-                .to_string()
-        }
-        _ => join_browse(ov.browse_dir.as_deref(), name),
+    match walks_absolute(ov.kind) {
+        true => std::path::Path::new(ov.browse_dir.as_deref().unwrap_or(""))
+            .join(name)
+            .to_string_lossy()
+            .to_string(),
+        false => join_browse(ov.browse_dir.as_deref(), name),
     }
 }
 
 pub(super) fn ascend_target(ov: &OverlayState) -> Option<Option<String>> {
-    match ov.kind {
-        crate::overlay::OverlayKind::Project => {
-            std::path::Path::new(ov.browse_dir.as_deref().unwrap_or("/"))
-                .parent()
-                .map(|p| Some(p.to_string_lossy().to_string()))
-        }
-        _ => browse_parent(ov.browse_dir.as_deref()),
+    match walks_absolute(ov.kind) {
+        true => std::path::Path::new(ov.browse_dir.as_deref().unwrap_or("/"))
+            .parent()
+            .map(|p| Some(p.to_string_lossy().to_string())),
+        false => browse_parent(ov.browse_dir.as_deref()),
     }
 }
 
-pub(super) fn move_dest_value(ov: &OverlayState) -> Option<String> {
+/// THE FOLDER A DESTINATION NAVIGATOR'S ACCEPT NAMES: the highlighted folder,
+/// else the level you are standing in.
+///
+/// `allow_new` is whether a TYPED name with no matching row counts as an answer.
+/// A move or an export CREATES the folder it names, so they say yes; the
+/// switch-project door says no, because there is no project to switch to in a
+/// folder that does not exist — and its typed query is a filter that simply
+/// matched nothing, which leaves the level itself as the honest answer.
+pub(super) fn dest_value(ov: &OverlayState, allow_new: bool) -> Option<String> {
     if let Some(name) = ov.selected_value()
         && ov.selected_is_dir()
     {
         return Some(join_browse(ov.browse_dir.as_deref(), name));
     }
     let q = ov.query.text().trim();
-    if !q.is_empty() {
+    if allow_new && !q.is_empty() {
         return Some(join_browse(ov.browse_dir.as_deref(), q));
     }
     Some(ov.browse_dir.clone().unwrap_or_default())

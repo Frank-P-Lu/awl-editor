@@ -37,12 +37,26 @@ impl OverlayRow {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RowMeta {
     Plain,
-    GotoFile { time: String },
-    GotoHeading { line: usize },
-    CommandSetting { id: crate::settings::SettingId },
+    GotoFile {
+        time: String,
+    },
+    GotoHeading {
+        line: usize,
+    },
+    CommandSetting {
+        id: crate::settings::SettingId,
+    },
     CommandHidden,
     SpellAdd,
-    History { id: String, ts: u64 },
+    History {
+        id: String,
+        ts: u64,
+    },
+    /// THE FLAT SWITCH-PROJECT PICKER'S DOOR ROW — the one row that opens a
+    /// further surface ([`OverlayKind::ProjectBrowse`]) instead of naming a
+    /// project. Carried as METADATA rather than tested as a label, so the
+    /// wording is free to change without the accept path following it.
+    ProjectDoor,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -55,6 +69,7 @@ pub enum RowMetaTag {
     CommandHidden,
     SpellAdd,
     History,
+    ProjectDoor,
 }
 
 impl RowMeta {
@@ -68,6 +83,25 @@ impl RowMeta {
             RowMeta::CommandHidden => RowMetaTag::CommandHidden,
             RowMeta::SpellAdd => RowMetaTag::SpellAdd,
             RowMeta::History { .. } => RowMetaTag::History,
+            RowMeta::ProjectDoor => RowMetaTag::ProjectDoor,
+        }
+    }
+
+    /// A ROW THAT MUST STAY LAST, whatever the ranker does with it. Two rows
+    /// earn it and they earn it for the same reason: they act on something other
+    /// than the query, so a fuzzy match on their own label must not float them
+    /// above the answers they trail. The spell picker's "Add '<word>' to
+    /// dictionary" acts on the TARGETED word; the switch-project door opens a
+    /// surface. [`OverlayState::refilter`] is the one consumer.
+    pub fn terminal(&self) -> bool {
+        match self {
+            RowMeta::SpellAdd | RowMeta::ProjectDoor => true,
+            RowMeta::Plain
+            | RowMeta::GotoFile { .. }
+            | RowMeta::GotoHeading { .. }
+            | RowMeta::CommandSetting { .. }
+            | RowMeta::CommandHidden
+            | RowMeta::History { .. } => false,
         }
     }
 }
@@ -435,6 +469,40 @@ impl OverlayState {
             .unwrap_or(0);
         s.scroll_to_selected();
         s
+    }
+
+    /// GIVE THE FLAT SWITCH-PROJECT PICKER ITS ONE DOOR — a terminal
+    /// [`RowMeta::ProjectDoor`] row that opens the folder navigator
+    /// ([`OverlayKind::ProjectBrowse`]). A NO-OP for every other kind, and
+    /// idempotent.
+    ///
+    /// It is attached at the seams that summon the FLAT picker rather than in
+    /// [`Self::new_project`], because `new_project` builds both of the features
+    /// that share [`OverlayKind::Project`]: the flat picker, whose reach beyond
+    /// the workspace's direct children is exactly this door, and the Settings
+    /// folder-VALUE picker, which already walks the whole tree with `→`/`⌫` and
+    /// whose descend would silently un-park the Settings surface it is filling a
+    /// key for. `actions::apply_overlay_open_action` (both switch-project doors)
+    /// and `actions::overlay_nav::resume_rebuild` (coming BACK from the
+    /// navigator) are the callers; the Settings descend deliberately is not.
+    pub fn attach_browse_door(&mut self) {
+        if self.kind != OverlayKind::Project
+            || self.rows.iter().any(|r| r.meta == RowMeta::ProjectDoor)
+        {
+            return;
+        }
+        let mut row = OverlayRow::plain(OverlayKind::BROWSE_DOOR_LABEL.to_string());
+        row.meta = RowMeta::ProjectDoor;
+        self.rows.push(row);
+        self.refilter();
+    }
+
+    /// Is the highlighted row the door ([`Self::attach_browse_door`])? The one
+    /// question the accept path asks before reading the row as a project.
+    pub fn selected_is_browse_door(&self) -> bool {
+        self.selected_corpus_index()
+            .and_then(|ci| self.rows.get(ci))
+            .is_some_and(|r| r.meta == RowMeta::ProjectDoor)
     }
 
     pub fn new_command(names: Vec<String>, bindings: Vec<String>, hidden: Vec<bool>) -> Self {

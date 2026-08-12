@@ -30,6 +30,9 @@ fn surface_contract(kind: crate::overlay::OverlayKind) -> SurfaceContract {
         | K::Caret
         | K::MoveDest
         | K::ExportDest
+        // The switch-project door's navigator: one directory level, no lens
+        // strip over the folders you are stepping through.
+        | K::ProjectBrowse
         | K::Dictionary
         | K::CjkLang
         | K::Date

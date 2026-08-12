@@ -364,6 +364,7 @@ deadline without a surface).
 | `overlay_accept:Keybindings` | Unsupported |
 | `overlay_accept:MoveDest` | Unsupported |
 | `overlay_accept:Project` | Applied |
+| `overlay_accept:ProjectBrowse` | Unsupported |
 | `overlay_accept:Rename` | Unsupported |
 | `overlay_accept:Settings` | Unsupported |
 | `overlay_accept:Spell` | Unsupported |
@@ -469,6 +470,17 @@ end to end, both keymap conventions, by
 the same-parent and no-parent (filesystem-root) edges item 180 named are swept
 by `run::tests::resync_project_location_same_parent_switch_still_rebuilds_the_corpus`
 and `run::tests::resync_project_location_no_parent_root_falls_back_to_itself_not_the_old_workspace`.
+
+**`overlay_accept:ProjectBrowse` is Unsupported because nothing ever emits it.**
+The switch-project picker's `Browse for folder…` door opens its own navigator
+kind, but that navigator's accept is emitted **as `Project`** — one owner of
+"make this the root", whichever door reached it — so the whole door journey
+rides the Applied row above and reports the new root exactly like a direct
+switch. The full journey (door → descend → switch → a `Cmd-O` in the re-rooted
+session) is covered end to end, both keymap conventions, by
+`run::tests::keys_capture_browse_door_reaches_a_nested_project_and_returns`,
+which also reads the navigator's own mid-journey state out of the sidecar
+(`mode: "project_browse"`, `return_to: "switch"`, its `browse_dir` per level).
 
 **History's COMPARISON inverts the usual tier ordering: the ORDINARY capture
 reaches it and `--screenshot-app` cannot.** Everywhere else the live-`App` door

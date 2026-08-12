@@ -225,7 +225,8 @@ pub fn build(kind: OverlayKind, ctx: &BuildCtx) -> Option<OverlayState> {
         OverlayKind::Browse
         | OverlayKind::MoveDest
         | OverlayKind::ExportDest
-        | OverlayKind::Project => None,
+        | OverlayKind::Project
+        | OverlayKind::ProjectBrowse => None,
         // NOTES VERBS round: the Rename minibuffer is built directly at its
         // `Action::OpenRenameNote` apply_transition arm (`OverlayState::new_rename`) — it
         // needs only the buffer's own path, no caller-gathered context — so this
@@ -262,6 +263,9 @@ pub fn build(kind: OverlayKind, ctx: &BuildCtx) -> Option<OverlayState> {
 ///   * `ExportDest` is the same walk and the same folders-only listing: an export
 ///     lands IN a folder, so the two destination navigators differ in what they
 ///     put there, never in what they show.
+///   * `ProjectBrowse` — the switch-project DOOR's navigator — walks the
+///     WORKSPACE by absolute path, listing FOLDERS only, and cannot build a level
+///     outside the workspace: that refusal IS the door's floor (see below).
 ///   * `Browse` walks the active root (`active_root`), listing files + folders.
 ///     `rel` is the root-relative level for the latter two (`None` = the root).
 ///
@@ -287,6 +291,45 @@ pub fn browse_level(
             .map(|e| (e.name, e.is_git))
             .collect();
         return Some(OverlayState::new_project(dir, folders, recent_projects));
+    }
+    // THE SWITCH-PROJECT DOOR'S LEVEL. Walks by ABSOLUTE path like `Project`
+    // (the workspace is not inside the active root — it is usually above it),
+    // and lists folders only: whatever you stop on becomes the project.
+    //
+    // THE WORKSPACE IS ITS FLOOR, and the floor is enforced HERE rather than in
+    // the ascend arithmetic: a level outside the workspace simply cannot be
+    // built, so `←`/`⌫` at the top find nothing to relevel into and the card
+    // stands still. One gate then covers every way of naming a directory — the
+    // ascend, a descend that leaves the tree, anything added later — instead of
+    // a boundary test at each of them.
+    if kind == OverlayKind::ProjectBrowse {
+        let ws = workspace?;
+        let dir = rel
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| ws.to_path_buf());
+        if !dir.starts_with(ws) {
+            return None;
+        }
+        let mut corpus = Vec::new();
+        let mut git = Vec::new();
+        let mut is_dir = Vec::new();
+        for e in crate::index::list_dir_level(&dir, None)
+            .into_iter()
+            .filter(|e| e.is_dir)
+        {
+            corpus.push(e.name);
+            git.push(e.is_git);
+            is_dir.push(true);
+        }
+        return Some(OverlayState::new_marked(
+            kind,
+            corpus,
+            git,
+            is_dir,
+            Vec::new(),
+            Vec::new(),
+            Some(dir.to_string_lossy().to_string()),
+        ));
     }
     // The DESTINATION navigators (MoveDest, ExportDest) and Browse all walk the
     // active root; a destination lists folders only (something lands IN a

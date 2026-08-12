@@ -198,6 +198,10 @@ pub fn scheme(kind: OverlayKind) -> Option<&'static FacetScheme> {
         | OverlayKind::Date
         | OverlayKind::MoveDest
         | OverlayKind::ExportDest
+        // The switch-project DOOR's navigator is one directory level walked by
+        // hand: a lens over the folders in front of you would narrow the very
+        // thing you came here to step through.
+        | OverlayKind::ProjectBrowse
         | OverlayKind::Spell
         | OverlayKind::Keybindings
         // The asset cleaner is a flat list — no lens strip.

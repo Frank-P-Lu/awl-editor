@@ -304,7 +304,17 @@ mod tests {
                 ],
                 Some("2 days ago".chars().count()),
             ),
-            OverlayKind::Project => (vec!["awl-next/".into(), "projects/".into()], Some(0)),
+            OverlayKind::Project => (
+                vec![
+                    "awl-next/".into(),
+                    "projects/".into(),
+                    OverlayKind::BROWSE_DOOR_LABEL.into(),
+                ],
+                Some(0),
+            ),
+            OverlayKind::ProjectBrowse => {
+                (vec!["code2026/".into(), "notes/".into()], Some(0))
+            }
             OverlayKind::Browse => (vec!["src/".into(), "README.md".into()], Some(0)),
             OverlayKind::MoveDest | OverlayKind::ExportDest => {
                 (vec!["notes/".into(), "archive/".into()], Some(0))

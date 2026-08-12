@@ -1572,19 +1572,28 @@ held to it by `capture::tests::capture_md_drift`. All ride the one transient car
 
 * `goto` (`C-x C-f`) — the active project's flat file index; `Enter` opens the
   highlighted file.
-* `switch` (`C-x p`) — a real, NAVIGABLE directory explorer for picking the active
-  project root. It STARTS at the `--workspace` dir but walks by ABSOLUTE path, so
-  `browse_dir` is the absolute directory currently shown (never `null` while open).
-  `items` lists that directory's child FOLDERS only (git repos `• `-marked, all
-  with a trailing `/`), with a synthetic `"."` row PINNED at the top meaning "use
-  THIS folder as the project root". The initial selection lands on the first real
-  folder. `Right` / `C-f` DESCENDS into the highlighted folder; `Left` / `C-b` /
-  `Backspace` ASCENDS to the PARENT — with NO floor, so you can climb ABOVE the
-  workspace and pick any directory on disk. `Enter` SELECTS the highlighted folder
-  (or the `"."` row = the current directory) as the new root — it does NOT descend
-  (set_root → re-index, recompute branch/dirty) and closes; the new root shows in
-  the sidecar `project` block. A faint hint line at the card foot spells the model
-  out: `->/C-f open  Enter select  <-/C-b up` (mirrored in the sidecar `overlay.hint`).
+* `switch` (`C-x p`) — the FLAT project picker. It shows ONE directory level, the
+  `--workspace` dir, so `browse_dir` is that absolute directory for the whole life
+  of the card (never `null` while open). `items` lists its child FOLDERS only (git
+  repos `• `-marked, all with a trailing `/`), with a synthetic `"."` row PINNED at
+  the top meaning "use THIS folder as the project root" and the `Browse for
+  folder…` DOOR row pinned at the BOTTOM. The initial selection lands on the first
+  real folder. `Enter` SELECTS the highlighted folder as the new root — it does NOT
+  descend (set_root → re-index, recompute branch/dirty) and closes; the new root
+  shows in the sidecar `project` block. `Left`/`Right` cycle the lens strip (All /
+  Recent), not depth, and `Backspace` with an empty query is INERT: this card
+  cannot leave the workspace. Anything deeper is the door below. A faint hint line
+  at the card foot spells the model out: `type to filter  ↵ select  ←/→ lens`
+  (mirrored in the sidecar `overlay.hint`).
+* `project_browse` — the DOOR the `switch` picker's last row opens (`↵` on `Browse
+  for folder…`), for a project that is not a direct workspace child. A folders-only
+  navigator walking by ABSOLUTE path with the destination-picker grammar: `Right` /
+  `C-f` DESCENDS into the highlighted folder, `Left` / `C-b` / `Backspace` ASCENDS,
+  and `Enter` switches to the folder you stopped on (falling back to the level
+  itself). The workspace is its FLOOR — an ascend at the top level stands still.
+  It is a DESCEND, so `overlay.return_to` reads `"switch"` while it is up and
+  `Escape` resumes the picker on its door row rather than closing to the document.
+  Hint: `type to filter  ↵ switch here  → open  ← up`.
 * `browse` (`C-x j`) — ONE directory level of the active root at a time.
   `browse_dir` is the root-relative level shown (`null` = the root). `items` lists
   directories first (each with a trailing `/`, git repos also `• `-marked) then
@@ -1626,12 +1635,14 @@ held to it by `capture::tests::capture_md_drift`. All ride the one transient car
   byte-deterministic and never mutates fixtures); the picker itself is fully
   drivable + verifiable here.
 
-In every navigable explorer (`browse`/`move`/`switch`) `Backspace` doubles as
-"go to PARENT": with a non-empty fuzzy `query` it pops a char (preserving the
-filter), and with an empty `query` it ASCENDS one level exactly like `Left`.
+In every navigable explorer (`browse`/`move`/`export_dest`/`project_browse`)
+`Backspace` doubles as "go to PARENT": with a non-empty fuzzy `query` it pops a
+char (preserving the filter), and with an empty `query` it ASCENDS one level
+exactly like `Left`. The flat `switch` picker is NOT one of them — it walks
+nowhere, so its `Backspace` is inert on an empty query.
 `browse_dir` is `null` for the `goto`/`theme`/`command` modes (and for the
-`browse`/`move` ROOT level); for `switch` it is the absolute directory currently
-shown. `bindings` is `[]` for every mode except `command` and `keybindings`. The `C-x b`
+`browse`/`move` ROOT level); for `switch` and `project_browse` it is the absolute
+directory currently shown. `bindings` is `[]` for every mode except `command` and `keybindings`. The `C-x b`
 last-buffer toggle and Cmd-N new-document swap are editor actions, not
 overlays, so they leave no `overlay` trace — their effect shows in `text` /
 `project` (after Cmd-N the buffer is a fresh, unnamed document IN THE SAME
@@ -1727,7 +1738,7 @@ world.)
 | `layout`       | SHAPED-FRAME LAYOUT oracle (schema `/187`): `{ rows, caret, selection }`. Rows are in draw order and carry raw `content`, source `line`, half-open `start_col`/`end_col`, absolute physical-pixel `xs` boundaries, `top`, and shaped `height`. `caret.row` and each selection segment's `row` index directly into that array. Borrowed from the exact sealed frame partition; never recomputed. It proves geometry, not pixel visibility or contrast |
 | `search`       | isearch + find/replace state: `query`, `active`, `case_sensitive`, `hit_count`, `current`, `replace_active` (replace field revealed), `replacement` (replace text), plus `panel` — the card's PLANNED geometry (schema `/203`, see the narrative above), `null` while the panel is down |
 | `project`      | active project (`--root`), fields `root`/`name`/`branch`/`dirty`/`default_folder`/`workspace`/`keymap_flavor` (`branch`, `default_folder`, `workspace` may be null); `null` when no project. The three path fields are HOME-RELATIVE (`~/…`, see "Paths are home-relative" above) — expand `~` if you need a real path |
-| `overlay`      | summoned nav overlay: `active`, `mode` (`goto`/`switch`/`browse`/`theme`/`caret`/`dictionary`/`cjk_lang`/`date`/`move`/`command`/`spell`/`keybindings`/`history`/`conflict`/`settings`/`assets`/`rename`/`insert_link`/`keep_version`/`context`/`export_dest`), `query`, `selected_index`, `browse_dir` (the level shown: root-relative for `browse`/`move`, ABSOLUTE for the navigable `switch` explorer — home-relative `~/…` when it falls under `$HOME` — else null), `items` (git repos `• `-marked, dirs trailing `/`; `switch` pins a `"."` accept-this-folder row on top; command names for `command`; the three variant labels for `dictionary`), `bindings` (command-palette key chords parallel to `items`; the caret/dictionary pickers' one-line descriptions; else `[]`) |
+| `overlay`      | summoned nav overlay: `active`, `mode` (`goto`/`switch`/`project_browse`/`browse`/`theme`/`caret`/`dictionary`/`cjk_lang`/`date`/`move`/`command`/`spell`/`keybindings`/`history`/`conflict`/`settings`/`assets`/`rename`/`insert_link`/`keep_version`/`context`/`export_dest`), `query`, `selected_index`, `browse_dir` (the level shown: root-relative for `browse`/`move`, ABSOLUTE for `switch` and the `project_browse` navigator — home-relative `~/…` when it falls under `$HOME` — else null), `items` (git repos `• `-marked, dirs trailing `/`; `switch` pins a `"."` accept-this-folder row on top; command names for `command`; the three variant labels for `dictionary`), `bindings` (command-palette key chords parallel to `items`; the caret/dictionary pickers' one-line descriptions; else `[]`) |
 | `buffers`      | MULTI-BUFFER registry: `{ open, active }`. `open` = how many buffers are currently open (the active one + everything backgrounded); `active` = the active buffer's path, or `"scratch"`. A plain `--screenshot` always reports `open: 1` |
 | `replay_skips` | permissive `--keys` truthfulness record, always an array. Each skipped live-App-only effect is `{ effect, action }` in replay order: `effect` is the stable snake_case effect name and `action` is the resolved originating action name. Empty for a capture with no skipped effect. `--strict-replay` aborts before writing an artifact on any such effect, so it never emits a partial list. |
 

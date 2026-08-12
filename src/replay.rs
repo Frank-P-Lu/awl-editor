@@ -312,6 +312,10 @@ fn accept_class(kind: OverlayKind) -> EffectClass {
         // Goto's — the folder it chose is a component of that effect, not a
         // separate acceptance.
         | OverlayKind::ExportDest
+        // The switch-project DOOR's navigator emits its answer AS `Project`
+        // (Applied above) — one owner of the switch, whichever door reached it —
+        // so an accept never carries THIS kind.
+        | OverlayKind::ProjectBrowse
         | OverlayKind::Context => EffectClass::Unsupported {
             why: "this picker is not expected to emit an accept effect; classify it in replay::accept_class before strict replay can pass it",
         },

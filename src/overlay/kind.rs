@@ -3,6 +3,7 @@ enum_with_all! {
     pub enum OverlayKind {
         Goto,
         Project,
+        ProjectBrowse,
         Browse,
         Theme,
         Caret,
@@ -41,6 +42,7 @@ impl OverlayKind {
         match self {
             OverlayKind::Goto => "goto",
             OverlayKind::Project => "switch",
+            OverlayKind::ProjectBrowse => "project_browse",
             OverlayKind::Browse => "browse",
             OverlayKind::Theme => "theme",
             OverlayKind::Caret => "caret",
@@ -69,6 +71,7 @@ impl OverlayKind {
             OverlayKind::Goto
             | OverlayKind::Browse
             | OverlayKind::Project
+            | OverlayKind::ProjectBrowse
             | OverlayKind::MoveDest
             | OverlayKind::ExportDest
             | OverlayKind::Spell
@@ -100,7 +103,8 @@ impl OverlayKind {
             OverlayKind::Spell => &[Plain, SpellAdd],
             OverlayKind::History => &[History],
             OverlayKind::Conflict => &[Plain],
-            OverlayKind::Project
+            OverlayKind::Project => &[Plain, ProjectDoor],
+            OverlayKind::ProjectBrowse
             | OverlayKind::Browse
             | OverlayKind::Theme
             | OverlayKind::Caret
@@ -145,6 +149,7 @@ impl OverlayKind {
             OverlayKind::Theme | OverlayKind::Caret => true,
             OverlayKind::Goto
             | OverlayKind::Project
+            | OverlayKind::ProjectBrowse
             | OverlayKind::Browse
             | OverlayKind::Dictionary
             | OverlayKind::CjkLang
@@ -192,6 +197,7 @@ impl OverlayKind {
             OverlayKind::Theme | OverlayKind::Caret => true,
             OverlayKind::Goto
             | OverlayKind::Project
+            | OverlayKind::ProjectBrowse
             | OverlayKind::Browse
             | OverlayKind::Dictionary
             | OverlayKind::CjkLang
@@ -212,15 +218,72 @@ impl OverlayKind {
         }
     }
 
-    /// A DESTINATION NAVIGATOR: a folders-only walk of the active root whose
-    /// accept names the folder you stopped on. Both members share the entire
-    /// navigation grammar — `→` descends, `←` ascends, `↵` takes the highlighted
-    /// folder (or a typed name that does not exist yet) — and differ only in
-    /// WHAT lands there, which is why every navigation site asks this instead of
-    /// naming one kind and growing a second branch later.
+    /// A DESTINATION NAVIGATOR: a folders-only walk whose accept names the
+    /// folder you stopped on. Every member shares the entire navigation grammar
+    /// — `→` descends, `←` ascends, `↵` takes the highlighted folder — and they
+    /// differ only in WHAT lands there and WHICH tree they walk, which is why
+    /// every navigation site asks this instead of naming one kind and growing a
+    /// second branch later.
+    ///
+    /// The two `Dest` members walk the ACTIVE ROOT and put something in the
+    /// folder; [`Self::ProjectBrowse`] walks the WORKSPACE by absolute path and
+    /// makes the folder the project. Only the first two take a typed name that
+    /// does not exist yet (`actions::overlay_nav::dest_value`'s `allow_new`): a
+    /// move creates the folder it names, and there is nothing to switch to in a
+    /// folder that isn't there.
     pub fn is_folder_destination(self) -> bool {
-        matches!(self, OverlayKind::MoveDest | OverlayKind::ExportDest)
+        matches!(
+            self,
+            OverlayKind::MoveDest | OverlayKind::ExportDest | OverlayKind::ProjectBrowse
+        )
     }
+
+    /// THIS KIND IS BUILT FROM A DIRECTORY LEVEL, so [`super::build`] cannot
+    /// make one — [`super::browse_level`] does, from a path the caller supplies.
+    /// The ONE owner of that split: a resume rebuilds a parked parent through
+    /// whichever builder can answer for its kind
+    /// (`actions::overlay_nav::resume_rebuild`), and a parked explorer handed
+    /// only `build` resolves to `None` and drops the whole journey to the editor
+    /// instead of coming back.
+    ///
+    /// Exhaustive rather than `matches!`: a new explorer answers here, or it is
+    /// unresumable in a way nothing reports.
+    pub fn needs_dir_level(self) -> bool {
+        match self {
+            OverlayKind::Browse
+            | OverlayKind::MoveDest
+            | OverlayKind::ExportDest
+            | OverlayKind::Project
+            | OverlayKind::ProjectBrowse => true,
+            OverlayKind::Goto
+            | OverlayKind::Theme
+            | OverlayKind::Caret
+            | OverlayKind::Dictionary
+            | OverlayKind::CjkLang
+            | OverlayKind::Date
+            | OverlayKind::Command
+            | OverlayKind::Spell
+            | OverlayKind::Keybindings
+            | OverlayKind::History
+            | OverlayKind::Conflict
+            | OverlayKind::Settings
+            | OverlayKind::Assets
+            | OverlayKind::Rename
+            | OverlayKind::InsertLink
+            | OverlayKind::KeepName
+            | OverlayKind::Context => false,
+        }
+    }
+
+    /// THE FLAT SWITCH-PROJECT PICKER'S ONE DOOR — the label of the row that
+    /// summons [`Self::ProjectBrowse`]. Its `…` is the promise of a further
+    /// surface (`menu::ellipsis_law`'s subject, read here on a picker row rather
+    /// than a menu item), and `actions::tests::project_door` holds the promise:
+    /// the row opens a card, it never switches on the spot.
+    ///
+    /// The row is identified by [`super::RowMeta::ProjectDoor`] everywhere it is
+    /// acted on, never by this string, so the wording stays only a wording.
+    pub const BROWSE_DOOR_LABEL: &'static str = "Browse for folder…";
 
     pub fn hides_dotfiles(self) -> bool {
         matches!(
@@ -230,6 +293,7 @@ impl OverlayKind {
                 | OverlayKind::MoveDest
                 | OverlayKind::ExportDest
                 | OverlayKind::Project
+                | OverlayKind::ProjectBrowse
         )
     }
 
@@ -276,6 +340,15 @@ impl OverlayKind {
             // what lands in the folder you stop on.
             OverlayKind::ExportDest => vec![
                 enter("export here"),
+                key("\u{2192}", "open"),
+                key("\u{2190}", "up"),
+            ],
+            // THE SWITCH-PROJECT DOOR. The same three keys as the two
+            // destinations above, because it is the same walk — only the verb
+            // in the accept cell differs, and here the folder you stop on
+            // becomes the project.
+            OverlayKind::ProjectBrowse => vec![
+                enter("switch here"),
                 key("\u{2192}", "open"),
                 key("\u{2190}", "up"),
             ],
@@ -378,7 +451,7 @@ impl OverlayKind {
             OverlayKind::Goto | OverlayKind::Project | OverlayKind::MoveDest => "no files here",
             // A destination list holds FOLDERS only, so "no files here" would name
             // the wrong absence.
-            OverlayKind::ExportDest => "no folders here",
+            OverlayKind::ExportDest | OverlayKind::ProjectBrowse => "no folders here",
             OverlayKind::Assets => "no unused assets",
             OverlayKind::Theme
             | OverlayKind::Caret
@@ -399,6 +472,10 @@ impl OverlayKind {
         match self {
             OverlayKind::Goto => "go to",
             OverlayKind::Project => "switch project",
+            // The DOOR's own card. Names the errand you are on rather than the
+            // surface you left, so the title and the row you pressed read as one
+            // thing.
+            OverlayKind::ProjectBrowse => "browse for folder",
             OverlayKind::Browse => "browse",
             OverlayKind::Theme => "themes",
             OverlayKind::Caret => "caret style",
@@ -431,6 +508,7 @@ impl OverlayKind {
             OverlayKind::InsertLink => true,
             OverlayKind::Goto
             | OverlayKind::Project
+            | OverlayKind::ProjectBrowse
             | OverlayKind::Browse
             | OverlayKind::Theme
             | OverlayKind::Caret

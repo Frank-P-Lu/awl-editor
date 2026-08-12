@@ -2049,6 +2049,7 @@ fn footer_contract(kind: crate::overlay::OverlayKind) -> FooterContract {
         K::Spell => FooterContract::ContextualPopup,
         K::Goto
         | K::Project
+        | K::ProjectBrowse
         | K::Browse
         | K::Theme
         | K::Caret
@@ -2362,6 +2363,7 @@ fn card_pad_for(kind: crate::overlay::OverlayKind) -> f32 {
         K::Spell => 10.0,
         K::Goto
         | K::Project
+        | K::ProjectBrowse
         | K::Browse
         | K::Theme
         | K::Caret

@@ -21,8 +21,26 @@ fn representative_overlay(kind: OverlayKind) -> OverlayState {
             ov
         }
         OverlayKind::Project => {
-            OverlayState::new_project("/proj".to_string(), vec![("child".to_string(), false)], &[])
+            // The DOOR row is attached at the flat picker's summon seams, not by
+            // `new_project` — so a representative that only calls the builder
+            // would never produce the `ProjectDoor` tag this kind declares.
+            let mut ov = OverlayState::new_project(
+                "/proj".to_string(),
+                vec![("child".to_string(), false)],
+                &[],
+            );
+            ov.attach_browse_door();
+            ov
         }
+        OverlayKind::ProjectBrowse => OverlayState::new_marked(
+            kind,
+            vec!["folder".to_string()],
+            vec![false],
+            vec![true],
+            vec![],
+            vec![],
+            Some("/ws".to_string()),
+        ),
         OverlayKind::Browse => OverlayState::new_marked(
             kind,
             vec!["a.txt".to_string()],

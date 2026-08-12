@@ -1256,6 +1256,7 @@ fn poster_bars_centered_lists_preserve_page_and_distinguish_plates() {
                 | OverlayKind::Goto
                 | OverlayKind::Browse
                 | OverlayKind::Project
+                | OverlayKind::ProjectBrowse
                 | OverlayKind::Command
                 | OverlayKind::History
                 | OverlayKind::Settings
@@ -1510,6 +1511,7 @@ fn bars_float_bounded_plates_for_every_overlay_kind() {
             | OverlayKind::Goto
             | OverlayKind::Browse
             | OverlayKind::Project
+            | OverlayKind::ProjectBrowse
             | OverlayKind::Command
             | OverlayKind::History
             | OverlayKind::Settings

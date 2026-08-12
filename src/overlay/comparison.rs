@@ -180,6 +180,7 @@ impl OverlayState {
             OverlayKind::Settings
             | OverlayKind::Goto
             | OverlayKind::Project
+            | OverlayKind::ProjectBrowse
             | OverlayKind::Browse
             | OverlayKind::Theme
             | OverlayKind::Caret
