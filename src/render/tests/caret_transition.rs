@@ -772,7 +772,9 @@ fn empty_line_cell_tracks_the_letter_cell_on_the_same_world() {
     let _c = crate::testlock::serial();
     crate::caret::set_mode(CaretMode::Block);
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping empty_line_cell_tracks_the_letter_cell_on_the_same_world: no wgpu adapter");
+        eprintln!(
+            "skipping empty_line_cell_tracks_the_letter_cell_on_the_same_world: no wgpu adapter"
+        );
         return;
     };
     let mono = super::facepitch::mono_display_worlds();
