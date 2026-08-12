@@ -190,114 +190,6 @@ So the decision is two-part: (a) drop or rebuild the tracked bundle, which is
 cheap and stops the current tree leaking; (b) whether the history matters enough
 to rewrite. Note the leaked strings are a username and cargo paths, not secrets.
 
-### 409 — the level read silently drops symlinks; 389 pinned it, this flips it
-
-🟡 IN PROGRESS — claude (deep), branch `claude/item-409-symlink-children`.
-
-User-confirmed live (design session 2026-08-12): `~/shared` (a symlink into
-iCloud Drive) does not exist in the switch-project roster. Item 389 already
-MEASURED this and deliberately recorded it as current truth with a law to
-answer to — `project_roster_excludes_a_symlinked_child_folder`
-(`src/overlay/tests/project.rs`), a real-tempdir fixture because `InMemoryFs`
-has no symlink concept. The mechanism: the native `fs::read_dir` classifies by
-`entry.file_type()`, which never follows links, so a symlinked directory is
-neither `is_dir` nor `is_file` and `index::list_dir_level` skips it — while
-every OTHER door follows links for free (`fs::is_dir` is `path.is_dir()`, open
-follows, the `.git` probe follows).
-
-Decision, answering 389's law: classify a symlink by its TARGET (a following
-stat on the entry's path), carry the symlink fact on `DirEntry`, and show it as
-what it points to — in the project roster, the Settings folder-VALUE navigator,
-and Browse alike. ONE deliberate exception: `walk_collect` (the recursive
-go-to indexer) must NOT descend a symlinked directory — it has no cycle guard,
-so a link loop recurses forever, and `~/shared` alone would pour iCloud Drive
-into the corpus. Show the entry, never traverse it — the git/ripgrep/fd
-convention. The work FLIPS 389's law into its inclusion twin (same fixture
-shape, guard-owned cleanup) and adds the non-traversal law; break the product
-to prove both non-vacuous.
-
-### 410 — the `.` row is programmer-speak, and the card never names the workspace
-
-🟡 IN PROGRESS — claude (deep), branch `claude/item-410-workspace-naming`.
-
-Post-389 reality (the design session's original phrasing predated reading it):
-the plain switch-project picker never browses — `browse_dir` is always the
-configured workspace — so "where am I" has exactly one answer the card never
-gives, and the level's first row is a bare `.`, which a non-programmer cannot
-read at all. `OverlayState.browse_dir` has NO renderer (its only consumer is
-the capture sidecar), and `.` now means "keep the workspace root itself as the
-project."
-
-Decision: replace the `.` row with a plain-language row that says what it does
-and where — the workspace's name/path, elided, as visible content. It stays the
-FIRST row; the default selection continues to skip it to the first child (↵ on
-open must not re-select where you already stand). 🔵 The exact wording is a
-taste call to land-and-judge (candidates: `pick this folder` with the path as
-secondary; the folder's real name as primary with `this folder` as secondary).
-Constraint already on the board: 327's `elide_path` drops the parent and keeps
-the leaf, and for a DIRECTORY readout the parent is the informative half —
-resolve or note it here. Verify: capture against a seeded `--root`, never the
-ambient one (the PNG and `overlay.items` photograph real paths).
-
-### 411 — item 376's second half never shipped: nested projects are unreachable
-
-🟡 IN PROGRESS — claude (deep), branch `claude/item-411-browse-door`.
-
-RECOVERED DECISION — this was decided 2026-08-09 (item 376, `f4ce0d9b`),
-carried through the roster answer (`8a00b459`), and then silently lost when
-389 landed only the accept-side half (`d98569ce`, 2026-08-11). Nothing on the
-board carried the remainder; this entry restores it.
-
-The landed state: Enter on a direct child switches (right), descend is gone
-(right, per 376), but the two compensating mechanisms 376 decided were never
-built: **(a)** the Recent lens still enrols by `base.join(name) == recent
-root` (`OverlayState::new_project`), so an MRU root that is not a DIRECT
-workspace child can never appear; **(b)** the "Browse for folder…" door —
-Surface 2, the descend grammar the Move-to/Export navigators already ship —
-does not exist (`grep -ri "browse for folder" src` is empty). Consequence,
-verified against the code: with `workspace = ~`, a project at
-`~/code2026/awl-next` cannot be switched to from ⌘⇧P at all, and File →
-"Recent folders…" opens the SAME picker pre-lensed (`menu.rs`), so both doors
-share the hole. The user's original Aug 9 complaint is half-fixed and the
-missing half is the reach.
-
-The work, per the recorded 376 design: Recent lists the real MRU as full
-paths at any depth (store `recents.rs` is sound; the enrolment is the bug),
-and the flat picker gains its one door — a last `Browse for folder…` row
-summoning the existing destination-navigator grammar wired to "switch project
-here." Verify: sidecar-level laws for a nested MRU root appearing under
-Recent; a journey test descending the door and switching; the flat-roster law
-(no grandchild in All) stays green.
-
-### 412 — on an empty line, the caret draws visibly too small
-
-🟡 IN PROGRESS — claude (deep), branch `claude/item-412-empty-line-caret`.
-
-⚠️ READ 416 BEFORE LANDING — a later user decision in the same session: the
-caret takes ONE fixed height, ending the per-glyph ink hug. 412's "too small"
-is plausibly the CONTRAST against an ink-hugged tall neighbor (the reported
-line ends in `l`); under 416's model, populated and empty lines agree by
-construction. Do not ship a synthetic-box resize that 416 immediately re-does.
-
-User report 2026-08-12 with screenshot: a warm serif world with the dot-form
-caret; on the empty line under an ordinary text line, the caret renders
-clearly smaller than the neighboring type. Mechanism neighborhood, from the
-one owner of the cell caret's vertical extent (`render/caret.rs`,
-`caret_cell_vertical`): an empty line has no real ink at any column, so it
-falls to the SYNTHETIC typical-letter arm — `caret_synthetic_ink_box`, the
-metrics-only approximation (row `max_ascent` × `facepitch::
-typical_letter_ratio`, keyed on `doc_family()`). Suspects, in order: the
-synthetic box undersizing against the real-ink boxes the populated lines use;
-the dot form deriving its diameter from that box differently than the bar/cell
-forms; a zoom interaction (the screenshot is zoomed). Per standing policy a
-user-reported bug gets its NEIGHBORHOOD audited: compare caret geometry on a
-populated line, an EOL glyphless column, and an empty line in the same world
-and zoom — the first two have ink to borrow, the last is the synthetic arm,
-and the defect is whatever makes the three disagree visibly. Verify with pixel
-arithmetic over a capture pair (populated vs empty line, same world/zoom); the
-law asserts the caret's drawn extent tracks the row's type size within the pad
-tolerance, and must go red on today's screenshot state.
-
 ### 413 — awl draws a glyph no bundled face carries
 
 Found by item 408 while diagnosing a CI red; the diagnosis IS the finding.
@@ -387,6 +279,41 @@ the caret's drawn height EQUAL across anchors `a`/`l`/space/EOL/empty-line in
 one world and zoom (the axis 91's laws never swept — they pinned pad-per-
 glyph, not height-across-glyphs); flip 91's per-glyph laws consciously;
 land-and-judge — the revert is one arm in `caret_cell_vertical`.
+
+### 415 — 376's Recent lens, lost for the THIRD time
+
+⚠️ **This is the third disappearance of one decision. File-and-forget is how it
+keeps happening, so the tension is written down here rather than rediscovered.**
+Item 376 decided both halves on 2026-08-09; 389 landed the accept side; 411
+landed the door. **The Recent lens is still unshipped.**
+
+`OverlayState::new_project` enrols a Recent row by `base.join(name) == recent
+root`, so an MRU root that is not a direct workspace child cannot appear under
+Recent — even now that 411 makes it reachable by browsing. You can switch to a
+nested project and then not find it in your own Recent list.
+
+⚠️ **The tension to resolve, named by 411 rather than left as a surprise:** the
+landed law `switch_project_grandchildren_never_enrol` says no grandchild appears
+in the roster, and MRU full-path rows would put one there. **Re-scope that law's
+enrolment to the DIRECTORY READ rather than the roster** — the flat level read
+still must not descend; a remembered absolute path is a different thing arriving
+by a different route. It also collides with 410's row list in `new_project`,
+which is why 411 left it rather than half-doing it.
+
+### 416 — with `workspace = ~`, the door is below the window on open
+
+Measured live by item 411 against the user's real config: the flat picker lists
+**27 folders and the `Browse for folder…` door lands at row 28**, below the
+12-row window. Reachable by End or by typing, **not visible on open** — so the
+one affordance that makes a nested project reachable is the one a reader does not
+see, in exactly the configuration that needs it most.
+
+Not a regression: the door is new, and 410's accept row already occupies row 0.
+The question is whether a terminal row should be pinned into the drawn window the
+way the accept row is pinned to the top, or whether the answer is that `~` is a
+poor workspace and the product should say so somewhere. **A pinned-visible
+terminal row is a rowlayout change with a blast radius across every picker**, so
+it wants a decision before code.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
