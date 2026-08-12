@@ -49,8 +49,8 @@
 
 [[file_size_mark]]
 file = "src/actions.rs"
-lines = 860
-reason = "A non-Markdown Export must raise an explicit notice rather than the silent no-op `Effect::None` was: one named notice constant, one small helper the three Export arms share, and the doc comment explaining why the row stays enabled everywhere instead of being hidden (+13). Items 296/300 (the notice becomes photographable and findable) and 131e/303 (the diagonal mark's weight becomes world data) both landed in this file; the count here is measured on the MERGED tree, which matched neither lane's own figure. +1 from item 273's residual (4): the Reference command's own arm/entry, the third consumer of the new open_bundled_doc owner. +2: one apply_format_action arm and one classify_action_family entry for Action::TagDocumentLanguage — the explicit tag replacing the automatic stamp."
+lines = 869
+reason = "A non-Markdown Export must raise an explicit notice rather than the silent no-op `Effect::None` was: one named notice constant, one small helper the three Export arms share, and the doc comment explaining why the row stays enabled everywhere instead of being hidden (+13). Items 296/300 (the notice becomes photographable and findable) and 131e/303 (the diagonal mark's weight becomes world data) both landed in this file; the count here is measured on the MERGED tree, which matched neither lane's own figure. +1 from item 273's residual (4): the Reference command's own arm/entry, the third consumer of the new open_bundled_doc owner. +2: one apply_format_action arm and one classify_action_family entry for Action::TagDocumentLanguage — the explicit tag replacing the automatic stamp. +9: the switch-project door's accept and its dest_value arm — one owner for both destination navigators, parameterised on whether the folder may be CREATED."
 
 [[file_size_mark]]
 file = "src/actions/format.rs"
@@ -58,8 +58,8 @@ lines = 908
 
 [[file_size_mark]]
 file = "src/actions/overlay_nav.rs"
-lines = 823
-reason = "item 114: +8 lines net. The workspace's own two-region keyboard and its deep link were carved out to `actions/workspace_nav.rs`; what remains here is the intercept-chain entry and the dispatcher arm that calls them. Item 116c: -23 lines net — the whole `history_intercept` function (folded into the shape-aware `workspace_nav::workspace_intercept`, item 116a's `rows_are_primary` fact) is gone from this file; the `Newline`/`AcceptAlternate` accept arm and the keep-version minibuffer's Cancel/Newline arms now route through `Journey::cancel`/`accept` instead of a bare `dismiss()`. +15: the roster gate that opens the preview owner before its match, so an arm added there alone is INERT until the kind declares itself. The gate, not the arms, is the enrolment, which closes the wildcard hole a subset law could not see. +31: switch-project's accept becomes flat — Enter on a direct child switches instead of descending, and the ascend gate excludes a non-path-bound Project so an empty-query Backspace cannot walk above the configured workspace. The second guard is the one that is not obvious: excluding Project from the navigable set made an idle Backspace fall through to a pop that resets the selection to row 0, so the no-op arm is load-bearing rather than defensive."
+lines = 931
+reason = "item 114: +8 lines net. The workspace's own two-region keyboard and its deep link were carved out to `actions/workspace_nav.rs`; what remains here is the intercept-chain entry and the dispatcher arm that calls them. Item 116c: -23 lines net — the whole `history_intercept` function (folded into the shape-aware `workspace_nav::workspace_intercept`, item 116a's `rows_are_primary` fact) is gone from this file; the `Newline`/`AcceptAlternate` accept arm and the keep-version minibuffer's Cancel/Newline arms now route through `Journey::cancel`/`accept` instead of a bare `dismiss()`. +15: the roster gate that opens the preview owner before its match, so an arm added there alone is INERT until the kind declares itself. The gate, not the arms, is the enrolment, which closes the wildcard hole a subset law could not see. +31: switch-project's accept becomes flat — Enter on a direct child switches instead of descending, and the ascend gate excludes a non-path-bound Project so an empty-query Backspace cannot walk above the configured workspace. The second guard is the one that is not obvious: excluding Project from the navigable set made an idle Backspace fall through to a pop that resets the selection to row 0, so the no-op arm is load-bearing rather than defensive. +108: ProjectBrowse joins is_folder_destination, so the arrow and erase grammar comes from the predicate every navigation site already asks rather than a new branch; plus the three journey wrappers that route every lifecycle call through one rebuild."
 
 [[file_size_mark]]
 file = "src/app.rs"
@@ -68,8 +68,8 @@ reason = "The clobber-notice predicate MOVED OUT to `app/files/external.rs` besi
 
 [[file_size_mark]]
 file = "src/app/apply.rs"
-lines = 985
-reason = "The conflict workspace's summon reaches the live effect interpreter's one `PersistenceEffect` match and the one `apply_overlay_accept` roster, both exhaustive by design (+6). +34: `sync_theme_font_measured`, the ONE reshape door every live theme-font path now runs through so the leading edge can read the work it is deciding about — the alternative is the same measurement duplicated at the immediate, commit and deferred call sites, which is exactly the drift a single owner exists to prevent. +1 from item 273's residual (4): the Reference command's own arm/entry, the third consumer of the new open_bundled_doc owner. +30: the split-reach preview path — the theme arrow's presentable shape and the finish_shape_tail call that closes it inside the same redraw handler."
+lines = 988
+reason = "The conflict workspace's summon reaches the live effect interpreter's one `PersistenceEffect` match and the one `apply_overlay_accept` roster, both exhaustive by design (+6). +34: `sync_theme_font_measured`, the ONE reshape door every live theme-font path now runs through so the leading edge can read the work it is deciding about — the alternative is the same measurement duplicated at the immediate, commit and deferred call sites, which is exactly the drift a single owner exists to prevent. +1 from item 273's residual (4): the Reference command's own arm/entry, the third consumer of the new open_bundled_doc owner. +30: the split-reach preview path — the theme arrow's presentable shape and the finish_shape_tail call that closes it inside the same redraw handler. +3: the door's descend and its resume path."
 
 [[file_size_mark]]
 file = "src/app/files/settings.rs"
@@ -255,18 +255,18 @@ lines = 761
 
 [[file_size_mark]]
 file = "src/overlay/kind.rs"
-lines = 501
-reason = "A new `OverlayKind` variant crosses seven exhaustive per-kind matches in this one file — name, accept disposition, row-meta roster, hints, empty copy, title, row split — each of which exists so a new kind cannot inherit an untested path (+20). +45: `keeps_backdrop_crisp` becomes the ONE owner of which pickers keep the document sharp behind them, as a wildcard-free 21-arm match -- the eighth exhaustive per-kind match this file carries. It replaced two independent deciders, one of which keyed on the mode's own SPELLING (`o.mode == \"theme\" || o.mode == \"caret\"`) in the capture door, so the live App and a capture could disagree about the same kind. A comment naming a stale set was the symptom; two deciders were the cause. +49: `previews_live_document` is the ninth wildcard-free per-kind match this file carries. It is the subject of the equivalence law that replaced a subset law: the frost exemption and the live audition are ONE decision, so a kind repainting the page behind its card must not frost it, and a kind repainting nothing has no exemption to claim. +9: the detail stage's Back cell is appended by one owner rather than authored per kind, so a kind cannot name a key its own intercept does not honour. +22: `project_flat_hint` filters Project's own kind-level cells by GLYPH against `workspace::ERASE_GLYPH` rather than re-listing them, so a hint cell added elsewhere cannot be silently dropped here."
+lines = 579
+reason = "A new `OverlayKind` variant crosses seven exhaustive per-kind matches in this one file — name, accept disposition, row-meta roster, hints, empty copy, title, row split — each of which exists so a new kind cannot inherit an untested path (+20). +45: `keeps_backdrop_crisp` becomes the ONE owner of which pickers keep the document sharp behind them, as a wildcard-free 21-arm match -- the eighth exhaustive per-kind match this file carries. It replaced two independent deciders, one of which keyed on the mode's own SPELLING (`o.mode == \"theme\" || o.mode == \"caret\"`) in the capture door, so the live App and a capture could disagree about the same kind. A comment naming a stale set was the symptom; two deciders were the cause. +49: `previews_live_document` is the ninth wildcard-free per-kind match this file carries. It is the subject of the equivalence law that replaced a subset law: the frost exemption and the live audition are ONE decision, so a kind repainting the page behind its card must not frost it, and a kind repainting nothing has no exemption to claim. +9: the detail stage's Back cell is appended by one owner rather than authored per kind, so a kind cannot name a key its own intercept does not honour. +22: `project_flat_hint` filters Project's own kind-level cells by GLYPH against `workspace::ERASE_GLYPH` rather than re-listing them, so a hint cell added elsewhere cannot be silently dropped here. +78: OverlayKind::ProjectBrowse crosses the file's exhaustive per-kind matches by design — that is the mechanism stopping a new kind inheriting an untested path — plus its hint arm, routed through the existing footer owner rather than a second answer."
 
 [[file_size_mark]]
 file = "src/overlay/nav.rs"
-lines = 556
+lines = 553
 reason = "item 114: +12 lines. `item_sections` gained the workspace's empty-sections arm and its argument — a workspace names its category once, in its rail, and `refilter`'s bucketing is the one owner that must not answer twice."
 
 [[file_size_mark]]
 file = "src/overlay/state.rs"
-lines = 706
-reason = "The conflict card's payload field on the one `OverlayState` struct and its one exhaustive `new_marked` initializer (+5). +10: `BackKey` is the one owner of what goes back from a detail stage — erase when free, focus while a live query owns the erase key, nothing during a value edit — so the footer and the intercept cannot disagree. +23: `foot_hint_scoped` takes the `Bind` the card was entered under, because whether Backspace ascends is a property of the JOURNEY and not of the kind — the two switch-project surfaces are the same `OverlayKind`. The zero-argument form remains, delegating with `None`, so roughly thirty bare-card call sites keep the correct default: a card with no journey is flat."
+lines = 774
+reason = "The conflict card's payload field on the one `OverlayState` struct and its one exhaustive `new_marked` initializer (+5). +10: `BackKey` is the one owner of what goes back from a detail stage — erase when free, focus while a live query owns the erase key, nothing during a value edit — so the footer and the intercept cannot disagree. +23: `foot_hint_scoped` takes the `Bind` the card was entered under, because whether Backspace ascends is a property of the JOURNEY and not of the kind — the two switch-project surfaces are the same `OverlayKind`. The zero-argument form remains, delegating with `None`, so roughly thirty bare-card call sites keep the correct default: a card with no journey is flat. +68: RowMeta::ProjectDoor and RowMeta::terminal, which merges the add-to-dictionary row's always-last exemption with the door's — both act on something other than the query, so a fuzzy match on their own label must not float them above the answers."
 
 [[file_size_mark]]
 file = "src/peek.rs"
@@ -416,8 +416,8 @@ reason = "The text shaping and incremental-restyle hub remains an explicit rende
 
 [[file_size_mark]]
 file = "src/replay.rs"
-lines = 376
-reason = "The conflict kind's arm in `accept_class`, the exhaustive per-kind accept classifier, plus the correction to that arm's own premise — it is the one member there that really can reach the generic accept fallthrough (+7)."
+lines = 380
+reason = "The conflict kind's arm in `accept_class`, the exhaustive per-kind accept classifier, plus the correction to that arm's own premise — it is the one member there that really can reach the generic accept fallthrough (+7). +4: the door's kind in the replay classifier, so a capture and the live App agree about what it is."
 
 [[file_size_mark]]
 file = "src/search/keys.rs"
@@ -1014,14 +1014,14 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 lint = "clippy::too_many_lines"
 file = "src/render/tests/list_surfaces.rs"
 function = "poster_bars_centered_lists_preserve_page_and_distinguish_plates"
-message = "this function has too many lines (148/100)"
+message = "this function has too many lines (149/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Shifted by the `testlock::serial()` guard that every test reaching the shared wgpu device now takes; the line count moves by one and the body is otherwise unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/list_surfaces.rs"
 function = "bars_float_bounded_plates_for_every_overlay_kind"
-message = "this function has too many lines (114/100)"
+message = "this function has too many lines (115/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Shifted by the `testlock::serial()` guard that every test reaching the shared wgpu device now takes; the line count moves by one and the body is otherwise unchanged."
 
 [[clippy_exception]]
@@ -1366,20 +1366,6 @@ target = "src/theme/tests/placard.rs"
 kind = "architectural"
 line = 185
 text = "            \"{}: placard presence ordering inverted (Faint ΔY {dy_faint:.3} < Ghost ΔY {dy_ghost:.3})\","
-reason = "Item 274's subject split of the former flat test monolith moved this already-long line to a new path; git diff -M rename detection cannot represent a one-file-to-many split, so the 100-column ratchet's per-path baseline (git show <BASELINE>:<path>) sees no prior file at this new path and cannot grandfather a line it never had a chance to see. The line itself is unchanged."
-
-[[structural_exception]]
-target = "src/overlay/tests/row_meta_laws.rs"
-kind = "architectural"
-line = 135
-text = "                \"{kind:?} produced a row with meta tag {tag:?}, not in its declared roster {roster:?}\""
-reason = "Item 274's subject split of the former flat test monolith moved this already-long line to a new path; git diff -M rename detection cannot represent a one-file-to-many split, so the 100-column ratchet's per-path baseline (git show <BASELINE>:<path>) sees no prior file at this new path and cannot grandfather a line it never had a chance to see. The line itself is unchanged."
-
-[[structural_exception]]
-target = "src/overlay/tests/row_meta_laws.rs"
-kind = "architectural"
-line = 233
-text = "        matches!(ov.rows[ci].meta, RowMeta::CommandSetting { id } if id == crate::settings::SettingId::Keymap)"
 reason = "Item 274's subject split of the former flat test monolith moved this already-long line to a new path; git diff -M rename detection cannot represent a one-file-to-many split, so the 100-column ratchet's per-path baseline (git show <BASELINE>:<path>) sees no prior file at this new path and cannot grandfather a line it never had a chance to see. The line itself is unchanged."
 
 [[structural_exception]]

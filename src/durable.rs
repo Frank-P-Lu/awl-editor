@@ -452,14 +452,11 @@ mod tests {
             // (seeded precisely to prove the sandbox never writes them back).
             // The launch-context law and strict-replay no-artifact law
             // add two temp input fixtures of the same shape. The
-            // Switch-project-then-Goto law adds two more: the launch and
-            // accepted roots' marker files for the real `capture_screenshot`
-            // fixture tree. The switch-project DOOR's journey adds the same
-            // two again, one marker per root, for the nested tree it has to
-            // walk into — a scratch fixture the capture reads and nothing
-            // ever reads back, so atomicity would buy it nothing.
-            // `main/tests.rs` split into `main/tests/<subject>.rs`;
-            // these seven subject files carry the same 21 sites, unmoved.
+            // Two marker files per root for the real `capture_screenshot`
+            // fixture tree — the switch-project law's, and the DOOR journey's
+            // for the nested tree. Scratch nothing reads back, so atomicity
+            // buys them nothing.
+            // `main/tests.rs` split seven ways; same 21 sites, unmoved.
             ("main/tests/buffer_switching.rs", 8),
             ("main/tests/capture_scenarios.rs", 6),
             ("main/tests/headless_safety.rs", 1),
