@@ -69,6 +69,11 @@ TWO THINGS THE HAND-RUN SWEEP PAID TO LEARN, CARRIED HERE
    is graded here by a weaker within-frame probe, and the report says so out
    loud rather than implying the same rigour everywhere. The command palette,
    which previews nothing, carries the true A/B that the theme picker cannot.
+   THROUGH THIS DOOR, that is. The coupling is a property of the ACTION path, not
+   of the renderer, so one tier down a Rust law holds the world fixed while the
+   selection moves and does run the true A/B on every world —
+   `render::tests::theme_picker_selection_law`. This probe's abstention is a
+   statement about captures, and the report says which.
 
 2. **A zero-row Settings band at a narrow width is CORRECT.** Below its
    staging threshold the workspace shows one region at a time, and the stage
@@ -1190,8 +1195,17 @@ def compose_report(
     add("    from either — so the probe ABSTAINS there rather than reporting a number it cannot")
     add(f"    stand behind. THIS RUN: hard-graded {graded} cell(s), abstained on {abstained}. The")
     add("    published sel_row is asserted everywhere; the APPEARANCE of the selection is")
-    add("    asserted only where a cell was graded. Treat the rest as unverified by this")
-    add("    instrument, not as verified.")
+    add("    asserted only where a cell was graded. Treat the rest as unverified BY THIS")
+    add("    INSTRUMENT — which is no longer the same as unverified. That claim now has an")
+    add("    owner one tier down, where the coupling this door cannot break is simply not")
+    add("    present: the audition lives in the ACTION path, so a Rust render law holds the")
+    add("    world FIXED while the selection moves and runs the true A/B on every world,")
+    add("    textured and staggered alike, with an untouched control row that must stay")
+    add("    byte-identical between the two frames. That law is")
+    add("      render::tests::theme_picker_selection_law::")
+    add("      the_theme_pickers_selected_row_is_drawn_as_selected_on_every_world")
+    add("    and it grades all 20 worlds at both device scales, whatever this probe abstains")
+    add("    on. What stays this door's own is the state claim above, on the real capture.")
     add("")
     add("    A ZERO-ROW SETTINGS STAGE AT A NARROW WIDTH IS NOT FLAGGED, because it is correct:")
     add("    the narrow regime shows one region at a time and the stage showing the other one")
