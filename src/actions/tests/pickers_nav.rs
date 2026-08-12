@@ -2025,3 +2025,74 @@ fn theme_typing_filters_and_previews() {
     assert_eq!(crate::theme::active().name, "Quokka");
     crate::theme::set_active(0);
 }
+
+/// **THE ACCEPT-THIS-FOLDER ROW FOLLOWS THE LEVEL, THROUGH THE REAL SEAM.**
+///
+/// The flat switch-project picker cannot browse, so its label is only ever the
+/// workspace's name — which is precisely why a label pinned only there would
+/// be untested against the case a browse door introduces. The Settings
+/// folder-VALUE navigator (`Bind::Path`) is the SAME card and does descend and
+/// ascend today, so it is the instrument: drive a real descend and a real
+/// ascend through `apply_transition` and require the row a user reads to name
+/// the folder it would actually pick at each stop.
+#[test]
+fn the_accept_row_label_tracks_a_real_descend_and_ascend() {
+    let (ws, _fs) = proj_tree();
+    let mut browse_to = |_k: OverlayKind, rel: Option<String>| project_browse(&ws, rel);
+    let child = browse_to(OverlayKind::Project, None).unwrap();
+    let mut overlay = crate::overlay::Journey::seeded(Some(OverlayState::new(
+        OverlayKind::Command,
+        vec!["placeholder".to_string()],
+        vec![],
+        vec![],
+    )));
+    overlay.descend(
+        child,
+        crate::overlay::Bind::Path {
+            key: "default_folder".to_string(),
+        },
+    );
+    let mut accept = None;
+    let here_label = |j: &crate::overlay::Journey| {
+        let ov = j.card().unwrap();
+        let pos = ov
+            .items
+            .iter()
+            .position(|&ci| ov.rows[ci].accept == crate::overlay::HERE_ACCEPT)
+            .expect("every Project level carries an accept-this-folder row");
+        ov.item_strings()[pos].clone()
+    };
+
+    // At the workspace: the row names the workspace.
+    assert_eq!(here_label(&overlay), "use this folder — ws");
+    // DESCEND into `child-a` (Enter on the highlighted folder rebuilds the level).
+    assert_eq!(overlay.card().unwrap().selected_value(), Some("child-a"));
+    drive_bt(&mut overlay, &mut accept, &mut browse_to, &Action::Newline);
+    assert_eq!(
+        overlay.card().unwrap().browse_dir.as_deref(),
+        Some(ws.join("child-a").to_string_lossy().as_ref()),
+        "the descend landed"
+    );
+    assert_eq!(
+        here_label(&overlay),
+        "use this folder — child-a",
+        "the row names where the descend put you, not where it started"
+    );
+    // ASCEND back with an empty query.
+    drive_bt(
+        &mut overlay,
+        &mut accept,
+        &mut browse_to,
+        &Action::DeleteBackward,
+    );
+    assert_eq!(
+        overlay.card().unwrap().browse_dir.as_deref(),
+        Some(ws.to_string_lossy().as_ref()),
+        "the ascend landed"
+    );
+    assert_eq!(
+        here_label(&overlay),
+        "use this folder — ws",
+        "and it comes back with you"
+    );
+}

@@ -401,7 +401,7 @@ impl OverlayState {
         folders: Vec<(String, bool)>,
         recent_roots: &[String],
     ) -> Self {
-        let mut corpus = vec![".".to_string()];
+        let mut corpus = vec![super::HERE_ACCEPT.to_string()];
         let mut git = vec![false];
         let mut is_dir = vec![false];
         for (name, is_git) in folders {
@@ -431,7 +431,7 @@ impl OverlayState {
         s.selected = s
             .items
             .iter()
-            .position(|&i| s.rows[i].accept != ".")
+            .position(|&i| s.rows[i].accept != super::HERE_ACCEPT)
             .unwrap_or(0);
         s.scroll_to_selected();
         s

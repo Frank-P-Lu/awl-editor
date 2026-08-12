@@ -79,7 +79,7 @@ impl OverlayState {
         });
         if !crate::file_visibility::all_on() && self.kind.hides_dotfiles() {
             ranked.retain(|&i| {
-                self.rows[i].accept == "."
+                self.rows[i].accept == super::HERE_ACCEPT
                     || matches!(self.rows[i].meta, RowMeta::GotoHeading { .. })
                     || !crate::index::is_hidden_entry(&self.rows[i].accept)
             });
@@ -422,22 +422,7 @@ impl OverlayState {
     }
 
     fn display_of(&self, i: usize) -> String {
-        let row = &self.rows[i];
-        if self.kind == OverlayKind::Assets {
-            let rel = &row.accept;
-            return rel.rsplit('/').next().unwrap_or(rel).to_string();
-        }
-        if matches!(row.meta, RowMeta::CommandSetting { .. }) {
-            return row.accept.clone();
-        }
-        if matches!(row.meta, RowMeta::GotoHeading { .. }) {
-            return format!("{}{}", OverlayKind::HEADING_MARKER_PREFIX, row.accept);
-        }
-        let mut s = row.accept.clone();
-        if row.is_dir {
-            s.push('/');
-        }
-        s
+        super::build::row_display(self.kind, &self.rows[i], self.browse_dir.as_deref())
     }
 
     pub fn item_strings(&self) -> Vec<String> {

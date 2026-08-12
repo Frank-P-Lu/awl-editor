@@ -20,14 +20,29 @@ pub struct Project {
     pub dirty: bool,
 }
 
+/// **THE ONE RULE FOR WHAT A FOLDER IS CALLED** — its final path component,
+/// falling back to the whole path when there is none (`/`).
+///
+/// Two surfaces say a folder's name out loud and they must agree: the
+/// persistent gutter names the ACTIVE project ([`Project::name`]), and the
+/// switch-project card's accept-this-folder row names the folder that row would
+/// pick ([`crate::overlay::here_folder_label`]). A second derivation is how the
+/// gutter and the card come to call one directory two different things.
+///
+/// Deliberately pure — no filesystem read, no git probe. [`Project::resolve`] is
+/// the door that does those; a picker row is rebuilt per directory level and
+/// cannot afford a subprocess.
+pub fn folder_name(root: &Path) -> String {
+    root.file_name()
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_else(|| root.to_string_lossy().to_string())
+}
+
 impl Project {
     /// Resolve the project for `root`: name from the path, git branch/dirty from
     /// the read-only probes (no-ops for a non-git root).
     pub fn resolve(root: &Path) -> Self {
-        let name = root
-            .file_name()
-            .map(|s| s.to_string_lossy().to_string())
-            .unwrap_or_else(|| root.to_string_lossy().to_string());
+        let name = folder_name(root);
         let is_git = crate::fs::active().exists(&root.join(".git"));
         let (branch, dirty) = if is_git {
             (git_branch(root), git_dirty(root))
@@ -80,6 +95,44 @@ fn git_dirty(root: &Path) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The gutter's project NAME and the switch-project card's
+    /// accept-this-folder row are the same sentence about the same directory,
+    /// so they are one rule. This sweeps the shapes that rule has to answer —
+    /// an ordinary root, a trailing slash, a dotted name, the filesystem root
+    /// with no final component, and a relative path — and asserts
+    /// `Project::resolve` reports exactly what the shared owner returns.
+    #[test]
+    fn the_project_name_is_the_shared_folder_name_rule() {
+        use std::sync::Arc;
+        let cases = [
+            "/plain",
+            "/a/b/notes",
+            "/a/b/notes/",
+            "/a/.config",
+            "/",
+            "rel",
+        ];
+        let mut checked = 0usize;
+        for case in cases {
+            let p = PathBuf::from(case);
+            let mem = crate::fs::InMemoryFs::new().with_dir(&p);
+            let resolved = crate::fs::with_fs(Arc::new(mem), || Project::resolve(&p));
+            assert_eq!(
+                resolved.name,
+                folder_name(&p),
+                "{case:?}: the gutter's name and the shared owner's must agree"
+            );
+            assert!(!resolved.name.is_empty(), "{case:?}: named nothing");
+            checked += 1;
+        }
+        assert_eq!(checked, 6, "the sweep lost cells");
+        // The two ends of the rule, spelled out so a change to either is
+        // visible here rather than only in a caller: the final component
+        // ordinarily, the whole path when there is none.
+        assert_eq!(folder_name(Path::new("/a/b/notes")), "notes");
+        assert_eq!(folder_name(Path::new("/")), "/");
+    }
 
     #[test]
     fn non_git_root_has_no_branch() {

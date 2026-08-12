@@ -720,11 +720,16 @@ fn settings_path_row_opens_navigator_with_breadcrumb_then_picks_the_named_key() 
         );
     }
     // Now that Project FACETS, Enter on a FOLDER descends; the pick affordance is
-    // the synthetic "." (select-this-folder) row. Up moves onto "." and Enter
-    // there signals SettingPathPick for that key (the App writes it), returning to
+    // the synthetic accept-this-folder row. Up moves onto it and Enter there
+    // signals SettingPathPick for that key (the App writes it), returning to
     // Settings via the breadcrumb.
     settings_drive(&mut overlay, &Action::PreviousLine);
     assert_eq!(overlay.card().unwrap().selected_value(), Some("."));
+    // …and what the user READS on that row names the folder it would pick.
+    assert_eq!(
+        overlay.card().unwrap().item_strings()[0],
+        "use this folder — work"
+    );
     let eff = settings_drive(&mut overlay, &Action::Newline);
     assert!(
         matches!(&eff, Effect::SettingPathPick { key, .. } if key == "default_folder"),

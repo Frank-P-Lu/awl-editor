@@ -14,8 +14,9 @@
 //!     [`journey::Bind`] rather than by kind (`OverlayState::foot_hint_scoped`'s
 //!     doc has the full split). Plainly summoned (Switch Project — no bind, or
 //!     `Bind::Value`), it is a FLAT picker over the workspace's direct children
-//!     only: Enter on a folder switches the root immediately (the synthetic `.`
-//!     row picks the current directory), and there is no ascend affordance —
+//!     only: Enter on a folder switches the root immediately (the synthetic
+//!     accept-this-folder row — [`here_folder_label`] — picks the level's own
+//!     directory), and there is no ascend affordance —
 //!     Left/Right cycle the lens strip, not depth. Descended into from a
 //!     Settings folder-VALUE row (`Bind::Path`), it keeps the full
 //!     destination-navigator grammar: Enter on a folder DESCENDS into it and
@@ -37,7 +38,11 @@ mod semantic;
 mod state;
 pub(crate) mod workspace;
 
-pub use build::{BuildCtx, browse_level, build, elide_path, row_split};
+#[allow(unused_imports)] // HERE_LABEL / here_folder_label: read by the row-label laws
+pub use build::{
+    BuildCtx, HERE_ACCEPT, HERE_LABEL, browse_level, build, elide_path, here_folder_label,
+    row_split,
+};
 pub use capture::{Capture, CaptureStage, KeepEdit, LinkEdit, LinkEditMode, RenameEdit, ValueEdit};
 pub use comparison::{CONFLICT_ROWS, ComparisonRequest, ComparisonView, ConflictSubject};
 #[allow(unused_imports)]

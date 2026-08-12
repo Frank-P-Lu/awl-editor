@@ -255,8 +255,10 @@ pub fn build(kind: OverlayKind, ctx: &BuildCtx) -> Option<OverlayState> {
 /// shared by the live App and the headless replay (parameterized by the caller's
 /// roots so live + capture descend identically):
 ///   * `Project` navigates by ABSOLUTE path (`rel` IS the absolute dir; `None` =
-///     start at `workspace`). Lists child FOLDERS only (git-marked) with a
-///     synthetic `.` accept-this-folder row on top. `None` when no workspace.
+///     start at `workspace`). Lists child FOLDERS only (git-marked) with the
+///     synthetic accept-this-folder row on top, which reads as
+///     [`crate::overlay::here_folder_label`] and names the level's own
+///     directory. `None` when no workspace.
 ///   * `MoveDest` walks the ACTIVE root (`active_root`), listing FOLDERS only —
 ///     a document moves to a folder inside the SAME active folder it lives in.
 ///   * `ExportDest` is the same walk and the same folders-only listing: an export
@@ -330,6 +332,92 @@ pub fn browse_level(
         ov.refilter();
     }
     Some(ov)
+}
+
+/// **HOW ONE PICKER ROW READS** — the corpus string a row carries turned into
+/// the string a user sees. One owner, because the drawn rows, the sidecar's
+/// `overlay.items` and the accessibility tree are all this same answer, and a
+/// second derivation is how they come to disagree.
+///
+/// Most rows are their own accept string, with a folder's trailing `/`. The
+/// four that are not: the switch-project ACCEPT-THIS-FOLDER row
+/// ([`here_folder_label`]), an Assets row (shown by its leaf), a palette
+/// Settings row, and a marker-prefixed Go-to HEADING row.
+pub(super) fn row_display(
+    kind: OverlayKind,
+    row: &super::OverlayRow,
+    browse_dir: Option<&str>,
+) -> String {
+    use super::RowMeta;
+    // The accept-this-folder row's corpus string is not a name at all: it
+    // carries `.` so the path math and the dotfile exemption have one stable
+    // string to compare against. The only place `browse_dir` reaches eyes.
+    if kind == OverlayKind::Project && row.accept == HERE_ACCEPT {
+        return here_folder_label(browse_dir);
+    }
+    if kind == OverlayKind::Assets {
+        let rel = &row.accept;
+        return rel.rsplit('/').next().unwrap_or(rel).to_string();
+    }
+    if matches!(row.meta, RowMeta::CommandSetting { .. }) {
+        return row.accept.clone();
+    }
+    if matches!(row.meta, RowMeta::GotoHeading { .. }) {
+        return format!("{}{}", OverlayKind::HEADING_MARKER_PREFIX, row.accept);
+    }
+    let mut s = row.accept.clone();
+    if row.is_dir {
+        s.push('/');
+    }
+    s
+}
+
+/// **THE ACCEPT-THIS-FOLDER ROW'S ACCEPT STRING.** The switch-project
+/// navigator's first row is synthetic: it stands for the directory the level
+/// itself is, so accepting it commits [`OverlayState::browse_dir`] rather than
+/// any listed child. `.` is what the corpus carries — never what the user
+/// reads (see [`here_folder_label`]) — and it is a string the row's own
+/// consumers compare against (the dotfile filter's exemption, the
+/// default-selection skip), so it is named once here rather than spelled as a
+/// literal at each of them.
+pub const HERE_ACCEPT: &str = ".";
+
+/// The invariant half of [`here_folder_label`] — what the accept-this-folder
+/// row says it DOES, with no folder named. Its own constant because the laws
+/// that pin the row's copy and the label builder must not be able to drift.
+pub const HERE_LABEL: &str = "use this folder";
+
+/// **WHAT THE ACCEPT-THIS-FOLDER ROW READS AS** — the row's user-facing copy,
+/// naming both what pressing it does and which folder it would do it to:
+/// `use this folder — notes`.
+///
+/// It is the switch-project card's ONE statement of where it is standing.
+/// [`OverlayState::browse_dir`] is otherwise a fact only the sidecar could
+/// see: the title names the task (`switch project`), the rows name the
+/// children, and nothing named the directory those children are children OF.
+/// The row that ACTS on that directory is where naming it costs no extra
+/// figure — a card stays calm by carrying few — so this is deliberately not a
+/// second heading line.
+///
+/// The folder's NAME, never its path. A path here would inherit
+/// [`elide_path`]'s bias — it keeps the leaf and elides the parents, right for
+/// a filename and wrong for a directory readout, where the parent is the
+/// informative half. The leaf is also what awl calls a folder everywhere else
+/// (the gutter's project name, through the same owner,
+/// [`crate::project::folder_name`]), and one level holds one directory, so
+/// there is nothing here to disambiguate a parent from.
+///
+/// Correct at any depth: the label is rebuilt with the level, so it names the
+/// workspace on a card that cannot browse and the browsed-to folder on one
+/// that can (the Settings folder-VALUE navigator descends today).
+pub fn here_folder_label(dir: Option<&str>) -> String {
+    match dir.map(|d| crate::project::folder_name(std::path::Path::new(d))) {
+        Some(name) if !name.is_empty() => format!("{HERE_LABEL} \u{2014} {name}"),
+        // A level with no directory to name still says what the row does. Not
+        // reachable through `new_project` (which always carries its dir), and
+        // the honest degradation if it ever is.
+        _ => HERE_LABEL.to_string(),
+    }
 }
 
 /// Middle-truncate `s` to at most `max` CHARS with a single `…`, keeping the HEAD and
