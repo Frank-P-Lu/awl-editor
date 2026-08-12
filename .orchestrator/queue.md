@@ -211,6 +211,8 @@ as text. The second is a design question, the first is bounded work.
 
 ### 414 — a second knife's edge, on the axis nobody bands
 
+🟡 IN PROGRESS — claude (deep), branch `claude/item-414-vertical-band`.
+
 Filed by item 408 rather than fixed. `464x288 zoom=1.4 menu_bar=on` sits at
 vertical demand **0.9849** — 1.5% from its bottom edge. It did NOT flip on CI,
 and 408 measured why: the vertical axis is byte-identical across hosts, because
