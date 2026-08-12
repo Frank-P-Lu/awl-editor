@@ -272,6 +272,16 @@ fn walk_index(root: &Path) -> Vec<String> {
 
 /// Recursively collect ROOT-relative file paths under `dir`, skipping junk
 /// directories. `keep(file_name)` filters which files are pushed.
+///
+/// THE ONE PLACE A SYMLINK IS NOT WHAT IT POINTS AT. Everywhere else a linked
+/// folder behaves as the folder it names ([`crate::fs::DirEntry`]); this walk
+/// has no cycle guard and no depth cap, so a link to an ancestor — or a pair
+/// of links naming each other — recurses until the stack ends. A link to a
+/// large tree is the milder half of the same problem: one linked cloud folder
+/// pours a whole drive into the go-to corpus. So this walk SHOWS a symlinked
+/// directory's own name to no one and simply does not enter it, the same
+/// convention git, ripgrep and fd follow. Symlinked FILES are still collected:
+/// they open like any other file and cannot recurse.
 fn walk_collect(
     root: &Path,
     dir: &Path,
@@ -285,7 +295,7 @@ fn walk_collect(
         let path = entry.path;
         let name = entry.name;
         if entry.is_dir {
-            if is_junk_dir(&name) {
+            if is_junk_dir(&name) || entry.is_symlink {
                 continue;
             }
             walk_collect(root, &path, out, keep);
@@ -837,5 +847,55 @@ mod tests {
             assert!(repo.is_git, "repo with .git must be marked git");
             assert!(!plain.is_git);
         });
+    }
+
+    /// THE ONE EXCEPTION to "a symlink is what it points at". Every level read
+    /// now follows a link and shows a linked folder as a folder; this walk
+    /// must NOT enter one. It carries no cycle guard, so a link at an ancestor
+    /// re-walks the tree under itself until the path hits the kernel's
+    /// `PATH_MAX` — hundreds of frames and a corpus full of `up/up/up/…` — and
+    /// a link at a large tree (the shape that motivated following links at
+    /// all: a folder linked into a cloud drive) pours that whole tree into the
+    /// go-to corpus. Symlinked FILES are still collected: they open like any
+    /// other file and cannot recurse.
+    ///
+    /// Unix-gated on the instrument, `std::os::unix::fs::symlink`, not on a
+    /// runtime `cfg!` reading.
+    #[cfg(unix)]
+    #[test]
+    fn go_to_index_does_not_descend_a_symlinked_dir() {
+        let _guard = crate::fs::FsGuard::capture();
+        let base = ScratchDir::new(
+            std::env::temp_dir().join(format!("awl-index-symlink-walk-{}", std::process::id())),
+        );
+        let root = base.join("root");
+        let outside = base.join("outside");
+        std::fs::create_dir_all(root.join("real")).unwrap();
+        std::fs::create_dir_all(&outside).unwrap();
+        std::fs::write(root.join("top.md"), b"t").unwrap();
+        std::fs::write(root.join("real/deep.md"), b"d").unwrap();
+        std::fs::write(outside.join("hidden-by-the-link.md"), b"h").unwrap();
+        std::fs::write(outside.join("target.md"), b"x").unwrap();
+        std::os::unix::fs::symlink(&outside, root.join("linked")).unwrap();
+        std::os::unix::fs::symlink(outside.join("target.md"), root.join("linkfile")).unwrap();
+        std::os::unix::fs::symlink(&root, root.join("up")).unwrap();
+
+        let idx = build_index(&root);
+        assert!(
+            idx.contains(&"top.md".to_string()) && idx.contains(&"real/deep.md".to_string()),
+            "an ordinary child and an ordinary grandchild still index: {idx:?}"
+        );
+        assert!(
+            !idx.iter().any(|p| p.starts_with("linked/")),
+            "a symlinked directory is shown but never entered: {idx:?}"
+        );
+        assert!(
+            !idx.iter().any(|p| p.starts_with("up/")),
+            "a link at an ancestor must not re-walk the tree under itself: {idx:?}"
+        );
+        assert!(
+            idx.contains(&"linkfile".to_string()),
+            "a symlinked FILE is still a go-to target: {idx:?}"
+        );
     }
 }
