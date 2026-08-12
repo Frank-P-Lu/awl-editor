@@ -253,8 +253,10 @@ fn project_recent_lens_is_empty_on_a_fresh_session() {
 // `crate::overlay::browse_level` / `crate::index::list_dir_level`, which is
 // what actually walks the disk. These sweep the directory-SHAPE axis: ordinary
 // child, git child, grandchild (must be excluded), an empty child, a
-// symlinked child, and a workspace with no children at all — each cell names
-// what enrolled (or didn't) in its own failure message.
+// workspace with no children at all, and — on a real disk, where links exist
+// — a link to a folder, a link to a file, a broken link, a link loop and a
+// link back at an ancestor. Each cell names what enrolled (or didn't) in its
+// own failure message.
 
 #[test]
 fn project_roster_sweeps_ordinary_git_grandchild_and_empty_children() {
@@ -330,23 +332,53 @@ fn project_roster_on_a_childless_workspace_is_just_the_accept_row() {
     );
 }
 
+/// DELIBERATELY INVERTED. This law used to be
+/// `project_roster_excludes_a_symlinked_child_folder`, and it was not wrong:
+/// it MEASURED that `std::fs::DirEntry::file_type()` reports a link's OWN type
+/// without following it, so `NativeFs::read_dir` called a symlinked folder
+/// neither dir nor file and `list_dir_level`'s filter dropped it before the
+/// picker saw it — and it recorded that as the roster's true behavior rather
+/// than claiming it was a requirement, precisely so a change to that
+/// classification would have a law to answer to. This is that answer. A
+/// symlink is now classified by its TARGET, and the law is turned over in
+/// place, same fixture shape and same guard-owned cleanup, so the inversion
+/// reads as one decision rather than as a deleted law and an unrelated new
+/// one.
+///
+/// `InMemoryFs` has no symlink concept, so this axis cell needs a real
+/// instrument rather than an assumed one: a real scratch directory. The whole
+/// fixture is unix-gated because `std::os::unix::fs::symlink` is the
+/// instrument — the CONDITION is on the API's existence, not on a
+/// `cfg!(target_os)` value read at runtime.
+#[cfg(unix)]
 #[test]
-fn project_roster_excludes_a_symlinked_child_folder() {
-    // `InMemoryFs` has no symlink concept, so this axis cell needs a real
-    // instrument rather than an assumed one: a real temp directory.
+fn project_roster_includes_a_symlinked_child_folder() {
     let _guard = crate::fs::FsGuard::capture();
     // The guard's Drop owns the cleanup: an end-of-function remove runs only on
     // the happy path, and this fixture has assertions that can panic before it.
-    let base = crate::testscratch::ScratchDir::new(std::env::temp_dir().join(format!(
-        "awl-item389-project-symlink-{}",
-        std::process::id()
-    )));
+    let base = crate::testscratch::ScratchDir::new(
+        std::env::temp_dir().join(format!("awl-project-symlink-roster-{}", std::process::id())),
+    );
     let ws = base.join("ws");
     let real_target = base.join("real-target");
-    std::fs::create_dir_all(ws.join("ordinary")).unwrap();
+    let real_file = base.join("real-file.md");
+    // The shape axis, all on ONE real disk so the classification is proved
+    // against the backend that actually does the following.
+    std::fs::create_dir_all(ws.join("ordinary/grandchild")).unwrap();
+    std::fs::create_dir_all(ws.join("gitrepo/.git")).unwrap();
+    std::fs::create_dir_all(ws.join("empty")).unwrap();
     std::fs::create_dir_all(&real_target).unwrap();
-    #[cfg(unix)]
-    std::os::unix::fs::symlink(&real_target, ws.join("linked")).unwrap();
+    std::fs::write(&real_file, b"body").unwrap();
+    let link = |target: &std::path::Path, name: &str| {
+        std::os::unix::fs::symlink(target, ws.join(name)).unwrap()
+    };
+    link(&real_target, "linked-dir"); // → a directory
+    link(&real_file, "linked-file"); // → a file
+    link(&base.join("does-not-exist"), "linked-broken"); // → nothing
+    link(&ws.join("loop-b"), "loop-a"); // ─┐ a two-hop cycle:
+    link(&ws.join("loop-a"), "loop-b"); // ─┘ the stat answers ELOOP
+    link(&ws, "linked-ancestor"); // → the workspace it lives in
+
     let ov = crate::overlay::browse_level(
         OverlayKind::Project,
         None,
@@ -356,21 +388,67 @@ fn project_roster_excludes_a_symlinked_child_folder() {
     )
     .expect("a configured workspace always builds a Project overlay");
     let shown = ov.item_strings();
+    let has = |n: &str| shown.iter().any(|s| s.starts_with(n));
+
+    // The pre-existing shape cells, re-proved on the real backend.
+    for name in ["ordinary", "gitrepo", "empty"] {
+        assert!(has(name), "direct child {name:?} must enrol: {shown:?}");
+    }
     assert!(
-        shown.iter().any(|s| s.starts_with("ordinary")),
-        "the ordinary sibling still enrols: {shown:?}"
+        !shown.iter().any(|s| s.contains("grandchild")),
+        "a grandchild must never enrol, however deep it lives: {shown:?}"
     );
-    // MEASURED, not assumed: `std::fs::DirEntry::file_type()` reports the
-    // symlink's OWN type without following it, so `NativeFs::read_dir`'s
-    // `ft.is_dir()` is false for a symlinked folder — `list_dir_level`'s
-    // `is_dir` filter drops it before the picker ever sees it. This is the
-    // roster's true behavior on this axis cell, not a requirement the
-    // decision it enforces states (that only names direct FOLDER children);
-    // recorded here so a future change to that classification has a law to
-    // answer to.
-    #[cfg(unix)]
+
+    // THE INVERSION. A link to a folder is a folder: `NativeFs::read_dir`
+    // follows the link with a `metadata` stat on the entry's own path.
     assert!(
-        !shown.iter().any(|s| s.starts_with("linked")),
-        "a symlinked folder is not classified as a directory here: {shown:?}"
+        has("linked-dir"),
+        "a symlinked folder enrols as the folder it points to: {shown:?}"
+    );
+    // A link to an ANCESTOR is still a real directory and still enrols — the
+    // cycle it would create belongs to the recursive walk, not to one level
+    // read (`index::tests::go_to_index_does_not_descend_a_symlinked_dir`).
+    assert!(
+        has("linked-ancestor"),
+        "a link back at the workspace is a directory like any other: {shown:?}"
+    );
+    // A link to a FILE is a file, so the folders-only project roster excludes
+    // it for the reason an ordinary file is excluded — not for being a link.
+    assert!(
+        !has("linked-file"),
+        "a symlinked FILE is a file, and the roster names folders: {shown:?}"
+    );
+    // Three links whose target cannot be stat'd: nothing to open, nothing to
+    // descend, so nothing shown. A name that errors on Enter is worse than an
+    // absent one.
+    for name in ["linked-broken", "loop-a", "loop-b"] {
+        assert!(
+            !has(name),
+            "an unresolvable link ({name:?}) is neither dir nor file: {shown:?}"
+        );
+    }
+
+    // One seam lower, so "excluded from the ROSTER" is not mistaken for
+    // "invisible everywhere": the level read that Browse and the Settings
+    // folder-value navigator share classifies the file link AS A FILE, and
+    // shows it.
+    let level = crate::index::list_dir_level(&ws, None);
+    let file_link = level
+        .iter()
+        .find(|e| e.name == "linked-file")
+        .unwrap_or_else(|| {
+            panic!(
+                "a symlinked file is present at the level read: {:?}",
+                level.iter().map(|e| &e.name).collect::<Vec<_>>()
+            )
+        });
+    assert!(
+        !file_link.is_dir,
+        "a link to a file classifies as a file, not a folder"
+    );
+    let dir_link = level.iter().find(|e| e.name == "linked-dir").unwrap();
+    assert!(
+        dir_link.is_dir,
+        "a link to a folder classifies as a folder at the same seam"
     );
 }

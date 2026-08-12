@@ -7,12 +7,26 @@ mod fault;
 
 /// Cross-backend directory entry: leaf name, full path, and kind are all the
 /// walk/browse code consumes.
+///
+/// `is_dir`/`is_file` describe what the entry BEHAVES as, which for a symlink
+/// is the type of its TARGET — so every door that lists a level shows a link
+/// to a folder as a folder and a link to a file as a file, the same way every
+/// other door in the tree already follows links (`is_dir` is `path.is_dir()`,
+/// open follows, the `.git` probe follows). A link whose target cannot be
+/// stat'd — broken, looping, or behind a permission wall — is neither, which
+/// is how a level reader omits it.
+///
+/// `is_symlink` carries the orthogonal fact that the entry is REACHED through
+/// a link, for the one consumer that must treat it differently: the recursive
+/// go-to indexer, which shows a symlinked directory but never descends it
+/// (`crate::index`'s `walk_collect` — it has no cycle guard).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DirEntry {
     pub path: PathBuf,
     pub name: String,
     pub is_dir: bool,
     pub is_file: bool,
+    pub is_symlink: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -80,16 +94,44 @@ impl FileSystem for NativeFs {
         path.is_dir()
     }
 
+    /// `DirEntry::file_type()` is free — the readdir already carried it — but
+    /// it reports the LINK's own type, never the target's, so classifying by
+    /// it alone makes a symlinked folder neither dir nor file and every level
+    /// reader drops it silently. A symlink (and ONLY a symlink) therefore
+    /// costs one following `metadata` on its own path:
+    ///
+    /// * target is a directory or file → the entry behaves as that, and the
+    ///   picker shows it as what it points to;
+    /// * the stat FAILS — a broken link, a link loop (`ELOOP`, which the
+    ///   kernel reports rather than chasing), a permission wall, a dead
+    ///   network mount — → neither dir nor file, so the entry is omitted.
+    ///   There is nothing to open and nothing to descend, and a name that
+    ///   errors on Enter is worse than an absent one.
+    ///
+    /// The extra stat is bounded to entries the user themself linked; an
+    /// ordinary child costs nothing new, and a dead mount holding a plain
+    /// directory already blocks in `read_dir` above this line.
     fn read_dir(&self, path: &Path) -> io::Result<Vec<DirEntry>> {
         let mut out = Vec::new();
         for entry in std::fs::read_dir(path)? {
             let Ok(entry) = entry else { continue };
             let Ok(ft) = entry.file_type() else { continue };
+            let path = entry.path();
+            let is_symlink = ft.is_symlink();
+            let (is_dir, is_file) = if is_symlink {
+                match std::fs::metadata(&path) {
+                    Ok(md) => (md.is_dir(), md.is_file()),
+                    Err(_) => (false, false),
+                }
+            } else {
+                (ft.is_dir(), ft.is_file())
+            };
             out.push(DirEntry {
-                path: entry.path(),
+                path,
                 name: entry.file_name().to_string_lossy().to_string(),
-                is_dir: ft.is_dir(),
-                is_file: ft.is_file(),
+                is_dir,
+                is_file,
+                is_symlink,
             });
         }
         Ok(out)
@@ -244,6 +286,9 @@ impl FileSystem for InMemoryFs {
                 name: leaf_name(f),
                 is_dir: false,
                 is_file: true,
+                // This backend has no symlink concept — a fixture that needs
+                // one uses a real scratch directory instead.
+                is_symlink: false,
             });
         }
         for d in state
@@ -256,6 +301,7 @@ impl FileSystem for InMemoryFs {
                 name: leaf_name(d),
                 is_dir: true,
                 is_file: false,
+                is_symlink: false,
             });
         }
         Ok(out)
@@ -580,6 +626,8 @@ mod web {
                         .unwrap_or_default(),
                     is_dir,
                     is_file: !is_dir,
+                    // localStorage has no links: every key is its own entry.
+                    is_symlink: false,
                 });
             }
             Ok(out)

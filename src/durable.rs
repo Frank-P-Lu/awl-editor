@@ -438,7 +438,14 @@ mod tests {
             ("firstrun/tests.rs", 1),
             ("fs.rs", 4),
             ("history/tests.rs", 1),
-            ("index.rs", 4),
+            // Four are pre-existing index fixtures; four more seed
+            // `go_to_index_does_not_descend_a_symlinked_dir`'s real scratch
+            // tree — a symlink cannot be faked in `InMemoryFs`, so that law
+            // needs files on a real disk (an ordinary child, an ordinary
+            // grandchild, and the two the linked directory would wrongly
+            // contribute). Scratch fixtures under a `ScratchDir`, never a
+            // durable store.
+            ("index.rs", 8),
             // Two of these are the fresh-oracle Goto regression's own fixture
             // seeds (`goto_switch_mid_replay_reshapes_the_oracle_to_the_
             // arriving_buffer`) — temp-dir test files, never a durable store;
@@ -467,6 +474,12 @@ mod tests {
             // run; a torn write costs one re-run of a deterministic scenario,
             // never user data.
             ("main/story.rs", 1),
+            // The link-target file `project_roster_includes_a_symlinked_child_
+            // folder` points a symlink at, so the roster law can prove a link
+            // to a FILE classifies as a file. Same reason as `index.rs` above:
+            // `InMemoryFs` has no links, so the fixture lives on a real disk
+            // under a `ScratchDir`.
+            ("overlay/tests/project.rs", 1),
             ("render/overrides/tests.rs", 1), // render_overrides_env_read_law's own fixture.
             // The seeding boundary itself: `cli_seeds` / `data_root_seeds` READ
             // the real disk with `std::fs` before the sandbox exists, and the
