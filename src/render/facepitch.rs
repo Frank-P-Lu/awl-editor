@@ -59,6 +59,13 @@
 //! relative convention the real ink-box arm uses, and this is that quantity,
 //! read off the same bytes `measure_pitch` already parses rather than a
 //! hand-tuned constant.
+//!
+//! And a third: [`vertical_em_metrics`], each face's own ascent/descent per em.
+//! An EMPTY row carries no glyph metrics at all — cosmic-text hands it a
+//! `LayoutLine` with `max_ascent`/`max_descent` of ZERO — so the caret's row
+//! lookup has nothing to size or centre against there; these two fractions,
+//! times that row's own font size, rebuild the pair the row would have carried
+//! with one letter in it.
 
 use std::collections::BTreeMap;
 use std::sync::{Arc, OnceLock};
@@ -241,6 +248,49 @@ fn measure_typical_letter_ratio(bytes: &[u8]) -> f32 {
     (px / m.ascent).clamp(0.2, 0.95)
 }
 
+/// The ASCENT/DESCENT em fractions used when no bundled/measured face is known
+/// for a family (a system fallback face, an `AWL_FONT` override, an unparseable
+/// file). Same shape as [`DEFAULT_TYPICAL_LETTER_RATIO`]: a fallback for the
+/// case the real measurement cannot answer, never a value a bundled face rides.
+pub(crate) const DEFAULT_ASCENT_EM: f32 = 0.8;
+pub(crate) const DEFAULT_DESCENT_EM: f32 = 0.2;
+
+/// MEASURE one font file's own ASCENT and DESCENT as fractions of its em
+/// square — the two quantities cosmic-text folds into a shaped row's
+/// `max_ascent`/`max_descent` (`shape.rs`: `ascent = metrics.ascent /
+/// units_per_em`, then `max_ascent = font_size * glyph.ascent`).
+///
+/// This exists because a row with NO GLYPHS carries neither: cosmic-text emits
+/// an empty line's `LayoutLine` with `max_ascent: 0.0, max_descent: 0.0`, so
+/// the caret's row lookup has no measured band to size or centre against on an
+/// empty line. Multiplying these by that row's own font size reconstructs the
+/// exact pair the row WOULD have carried had it held one letter — the same
+/// arithmetic, one factor earlier. Both are returned by
+/// [`vertical_em_metrics`], never separately: a baseline needs the pair, and
+/// splitting them invites one being read against the other's font.
+///
+/// Read through the SAME skrifa `metrics()` call every other per-face fact
+/// here uses. That is not the same crate cosmic-text shapes with (swash), so
+/// "these agree with a real shaped row" is a claim about two font stacks and
+/// is MEASURED, not assumed: `render::tests::caret_transition`'s
+/// `an_empty_line_carries_the_row_metrics_a_letter_would_have_given_it` pins
+/// the reconstruction against a really-shaped one-letter row on every bundled
+/// display family, and fails if the two stacks ever read a face differently.
+fn measure_vertical_em_metrics(bytes: &[u8]) -> (f32, f32) {
+    let Ok(font) = FontRef::new(bytes) else {
+        return (DEFAULT_ASCENT_EM, DEFAULT_DESCENT_EM);
+    };
+    let m = font.metrics(Size::unscaled(), LocationRef::default());
+    if m.units_per_em == 0 || m.ascent <= 0.0 {
+        return (DEFAULT_ASCENT_EM, DEFAULT_DESCENT_EM);
+    }
+    let upem = m.units_per_em as f32;
+    // `descent` is negative in the font's own convention (below the baseline);
+    // cosmic-text negates it at the same point, so this carries the same sign
+    // the caller's `max_descent` has.
+    (m.ascent / upem, -m.descent / upem)
+}
+
 fn measure_x_height_ratio(bytes: &[u8]) -> f32 {
     let Ok(font) = FontRef::new(bytes) else {
         return DEFAULT_X_HEIGHT_RATIO;
@@ -273,6 +323,10 @@ pub struct FaceFacts {
     /// This face's own x-height / ascent ratio.  The caret uses this only to
     /// keep punctuation's vertical body in the row's ordinary-letter band.
     pub x_height_ratio: f32,
+    /// This face's own ascent and descent as em fractions
+    /// ([`measure_vertical_em_metrics`]) — the pair a row with NO GLYPHS has to
+    /// reconstruct, since cosmic-text gives an empty row zeros for both.
+    pub vertical_em: (f32, f32),
 }
 
 /// THE ROSTER: every bundled display family → its declared pitch, measured
@@ -295,6 +349,7 @@ pub fn roster() -> &'static BTreeMap<String, FaceFacts> {
                 measured: measure_pitch(bytes),
                 typical_letter_ratio: measure_typical_letter_ratio(bytes),
                 x_height_ratio: measure_x_height_ratio(bytes),
+                vertical_em: measure_vertical_em_metrics(bytes),
             });
         }
         out
@@ -328,6 +383,21 @@ pub fn typical_letter_ratio(family: &str) -> f32 {
         .get(family)
         .map(|f| f.typical_letter_ratio)
         .unwrap_or(DEFAULT_TYPICAL_LETTER_RATIO)
+}
+
+/// `family`'s own measured `(ascent, descent)` em fractions
+/// ([`measure_vertical_em_metrics`]), or the
+/// [`DEFAULT_ASCENT_EM`]/[`DEFAULT_DESCENT_EM`] pair for a family this roster
+/// does not know — the same unknown-family shape [`family_is_mono`] answers
+/// `false` to. Returned as a PAIR because its one consumer (the caret's
+/// glyphless-row reconstruction) needs both to place a baseline, and reading
+/// one without the other is how an ascent gets centred against a different
+/// font's descent.
+pub fn vertical_em_metrics(family: &str) -> (f32, f32) {
+    roster()
+        .get(family)
+        .map(|f| f.vertical_em)
+        .unwrap_or((DEFAULT_ASCENT_EM, DEFAULT_DESCENT_EM))
 }
 
 /// The measured x-height/ascent ratio for the row's actual face, or the

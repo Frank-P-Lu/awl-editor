@@ -725,13 +725,182 @@ fn run_of_glyphless_columns_stays_bounded_end_to_end() {
     crate::caret::set_mode(CaretMode::Block);
 }
 
-/// AN EMPTY LINE'S synthetic cell stays a REASONABLE, bounded size — never the
-/// former "large empty accent cap" (a fixed ~22px cell regardless of
-/// the font) and never degenerate (zero/negative). Compared against the SAME
-/// world's real ink-arm height on an ordinary x-height letter, which the
-/// synthetic box is explicitly modelled to approximate.
+/// How far ABOVE the same world's real x-height letter cell an empty line's
+/// synthetic cell may sit (px at zoom×DPI 1). The synthetic box is a TYPICAL
+/// letter — the mean of the face's x-height and cap-height — so it is
+/// legitimately a little taller than an `a`; measured residual across the
+/// proportional roster after the empty-row repair: +0.40..+2.60px.
+const EMPTY_LINE_OVER_LETTER_PX: f32 = 3.0;
+
+/// How far BELOW that same letter cell it may sit. This is the SIZE FLOOR the
+/// user-reported empty-line defect broke: with cosmic-text handing an empty row
+/// a `max_ascent` of ZERO, the synthetic box clamped to its 1px guard and the
+/// whole arm collapsed onto `caret_visual_body_dims`'s minimum body — 13.31px
+/// on EVERY world (the identical-everywhere value is the tell), against letter
+/// cells of 16.00–20.00px. The repaired arm never lands below the letter cell
+/// at all, so this is pure slack.
+const EMPTY_LINE_UNDER_LETTER_PX: f32 = 0.5;
+
+/// AN EMPTY LINE'S synthetic cell TRACKS THE TYPE ON THE SAME WORLD — bounded
+/// on BOTH sides against that world's own real ink-arm height for an ordinary
+/// x-height letter, which the synthetic box is explicitly modelled to
+/// approximate.
+///
+/// * ABOVE: never the "large empty accent cap" (the fixed ~22.4px line-box
+///   cell regardless of the font).
+/// * BELOW: never smaller than the type beside it — the reported defect, where
+///   an empty row's zero `max_ascent` floored the cell at the minimum visible
+///   body.
+///
+/// The previous bound here was ONE-SIDED (`h_glyph * 1.05`, an upper limit
+/// only) and was calibrated against the DEFECT's own number: `h_empty` was
+/// 7.00px then, identical on every world, and a value that sits far under every
+/// ceiling reads as comfortably passing while being the bug. A ceiling alone is
+/// satisfiable by the caret shrinking to nothing, so both bounds ship together
+/// and both carry their own non-vacuity oracle.
+///
+/// SWEPT: the full proportional roster × 1x/2x DPI × the empty line in four
+/// POSITIONS — its own empty document, the first line above text, the last line
+/// below text, and one between two text lines. All four are the same arm, and
+/// a law that only ever asks about a lone empty buffer cannot see a row lookup
+/// that picks the wrong row.
 #[test]
-fn empty_line_synthetic_cell_stays_reasonable_not_the_old_fixed_cap() {
+fn empty_line_cell_tracks_the_letter_cell_on_the_same_world() {
+    let _t = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
+    let _g = crate::testlock::serial();
+    let _c = crate::testlock::serial();
+    crate::caret::set_mode(CaretMode::Block);
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!("skipping empty_line_cell_tracks_the_letter_cell_on_the_same_world: no wgpu adapter");
+        return;
+    };
+    let mono = super::facepitch::mono_display_worlds();
+    let mut checked = 0usize;
+    // The empty line, in every position it can hold in a document.
+    let positions: &[(&str, &str, usize)] = &[
+        ("alone", "", 0),
+        ("first line", "\nabc", 0),
+        ("last line", "abc\n", 1),
+        ("between", "abc\n\ndef", 1),
+    ];
+    // How many worlds the CEILING's non-vacuity oracle actually bites on: the
+    // old fixed cap only exceeds `h_glyph + EMPTY_LINE_OVER_LETTER_PX` where
+    // the letter cell is small enough. Derived by measurement below, never
+    // pinned to named worlds.
+    let mut ceiling_nonvacuous = 0usize;
+
+    for &dpi in &[1.0f32, 2.0] {
+        p.set_dpi(dpi);
+        for t in theme::THEMES.iter().filter(|t| !mono.contains(&t.name)) {
+            theme::set_active_by_name(t.name).unwrap();
+            p.sync_theme();
+            let ps = pixel_scale(&p);
+
+            // A real x-height letter's ink-arm height, on its own line...
+            let (_cy_glyph, h_glyph) = cell_at(&mut p, "a", 0, 0);
+            assert!(
+                p.caret_anchor_ink_box().is_some(),
+                "{} d{dpi}: 'a' must ink-align",
+                t.name
+            );
+            let ceiling = h_glyph + EMPTY_LINE_OVER_LETTER_PX * ps;
+            let floor = h_glyph - EMPTY_LINE_UNDER_LETTER_PX * ps;
+
+            for &(what, text, line) in positions {
+                let (_cy_empty, h_empty) = cell_at(&mut p, text, line, 0);
+                assert!(
+                    p.caret_anchor_ink_box().is_none(),
+                    "{} d{dpi} {what}: an empty line has no ink",
+                    t.name
+                );
+                assert!(
+                    h_empty <= ceiling,
+                    "{} d{dpi} {what}: empty-line cell must not balloon toward the \
+                     fixed line-box cap: h_empty={h_empty:.2} h_glyph={h_glyph:.2} \
+                     ceiling={ceiling:.2}",
+                    t.name
+                );
+                assert!(
+                    h_empty >= floor,
+                    "{} d{dpi} {what}: empty-line cell draws SMALLER than the type \
+                     beside it: h_empty={h_empty:.2} h_glyph={h_glyph:.2} \
+                     floor={floor:.2}",
+                    t.name
+                );
+            }
+
+            // NON-VACUITY, FLOOR: the DEFECT's own cell — what this arm produces
+            // when the row hands it a zero ascent, i.e. `caret_synthetic_ink_box`
+            // clamped to its 1px guard and fed through the shared body floor —
+            // must FAIL the floor above, or the floor proves nothing about the
+            // bug it names.
+            let degenerate = super::super::caret_body::caret_visual_body_dims(
+                super::super::caret_body::InkBox {
+                    left: 0.0,
+                    top: 1.0,
+                    width: 0.0,
+                    height: 1.0,
+                },
+                ps,
+            )
+            .1;
+            assert!(
+                degenerate < floor,
+                "{} d{dpi}: fixture must reproduce the zero-ascent collapse \
+                 (degenerate={degenerate:.2} floor={floor:.2}) or the floor is vacuous",
+                t.name
+            );
+            // NON-VACUITY, CEILING: the OLD fixed cap must fail the ceiling
+            // wherever the letter cell is small enough for it to bite.
+            if old_fallback_cell(&p).1 > ceiling {
+                ceiling_nonvacuous += 1;
+            }
+            checked += 1;
+        }
+    }
+    p.set_dpi(1.0);
+    assert!(
+        checked >= 22,
+        "every proportional-display world is swept at both DPIs (got {checked})"
+    );
+    assert!(
+        ceiling_nonvacuous >= 10,
+        "the fixed line-box cap must exceed the ceiling on a real share of the \
+         roster or the ceiling is vacuous (got {ceiling_nonvacuous} of {checked})"
+    );
+
+    theme::set_active(theme::DEFAULT_THEME);
+    p.sync_theme();
+    crate::caret::set_mode(CaretMode::Block);
+}
+
+/// THE MECHANISM UNDER THE EMPTY-LINE CELL: an empty row must report the SAME
+/// `(baseline, max_ascent)` a really-shaped row on that same line reports.
+///
+/// cosmic-text emits an empty line's `LayoutLine` with `max_ascent: 0.0,
+/// max_descent: 0.0` — a real row, with a real layout, carrying no metrics at
+/// all (`shape.rs`'s "visual line for empty lines" arm). Read literally those
+/// zeros put the baseline at the row's MIDPOINT instead of on the type
+/// baseline, and hand the caret's synthetic ink box an ascent of nothing to
+/// scale. `TextPipeline::glyphless_row_vertical` rebuilds the pair from the
+/// face's own per-em ascent/descent; this pins that reconstruction against the
+/// ground truth — the same line index, one letter in it — so the claim is
+/// EQUALITY with a really-shaped row, not a tolerance around a guess.
+///
+/// It is also a CROSS-FONT-STACK claim, which is why it is a law and not a
+/// comment: the reconstruction reads the face through **skrifa**
+/// (`facepitch::vertical_em_metrics`), while the row it must agree with was
+/// shaped through **swash**. Two stacks, two readings of the same tables. This
+/// sweeps every world in the roster — mono included, since row metrics belong
+/// to the row and not to the caret's arm — at two DPIs and a non-1.0 zoom, and
+/// goes red the day either stack reads a bundled face differently.
+///
+/// NON-VACUITY: each iteration also asserts the RAW cosmic-text row really does
+/// carry a zero ascent, so the equality above is measuring a reconstruction
+/// rather than a value that was already there.
+#[test]
+fn an_empty_row_carries_the_metrics_a_shaped_row_would_have_given_it() {
     let _t = crate::testlock::serial();
     let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _g = crate::testlock::serial();
@@ -739,68 +908,86 @@ fn empty_line_synthetic_cell_stays_reasonable_not_the_old_fixed_cap() {
     crate::caret::set_mode(CaretMode::Block);
     let Some(mut p) = headless_pipeline() else {
         eprintln!(
-            "skipping empty_line_synthetic_cell_stays_reasonable_not_the_old_fixed_cap: no wgpu adapter"
+            "skipping an_empty_row_carries_the_metrics_a_shaped_row_would_have_given_it: no wgpu adapter"
         );
         return;
     };
-    let mono = super::facepitch::mono_display_worlds();
     let mut checked = 0usize;
+    let mut worst_ascent = 0.0f32;
+    let mut worst_baseline = 0.0f32;
 
-    for t in theme::THEMES.iter().filter(|t| !mono.contains(&t.name)) {
-        theme::set_active_by_name(t.name).unwrap();
-        p.sync_theme();
+    for &(zoom, dpi) in &[(1.0f32, 1.0f32), (1.0, 2.0), (1.7, 1.0)] {
+        p.set_dpi(dpi);
+        for t in theme::THEMES.iter() {
+            theme::set_active_by_name(t.name).unwrap();
+            p.sync_theme();
+            let ps = pixel_scale(&p);
 
-        // A real x-height letter's ink-arm height, on its own line...
-        let (_cy_glyph, h_glyph) = cell_at(&mut p, "a", 0, 0);
-        assert!(
-            p.caret_anchor_ink_box().is_some(),
-            "{}: 'a' must ink-align",
-            t.name
-        );
+            // GROUND TRUTH: line 0 holds one letter, so cosmic-text shapes it
+            // and reports the row's real metrics.
+            let mut v = view("a", 0, 0);
+            v.zoom = zoom;
+            p.set_view(&v);
+            p.settle_caret();
+            let (base_shaped, ascent_shaped, _) = p.caret_row_metrics();
 
-        // ...versus an EMPTY line's synthetic fallback height.
-        let (_cy_empty, h_empty) = cell_at(&mut p, "", 0, 0);
-        assert!(
-            p.caret_anchor_ink_box().is_none(),
-            "{}: an empty line has no ink",
-            t.name
-        );
+            // THE SUBJECT: the same line 0, now empty.
+            let mut v = view("", 0, 0);
+            v.zoom = zoom;
+            p.set_view(&v);
+            p.settle_caret();
+            let (base_empty, ascent_empty, font_empty) = p.caret_row_metrics();
 
-        assert!(
-            h_empty > 0.0,
-            "{}: the empty-line synthetic cell must be a real positive height",
-            t.name
-        );
-        // Bounded BOTH ways: not collapsed to nothing, and not the old fixed
-        // ~0.8*row-height cap regardless of the letter (the original bug,
-        // reproduced at the seam if this synthetic box regresses to it). TIGHT
-        // (repair round): the previous `h_glyph*2.0+4px` bound was wide enough
-        // (36–44px, measured) that the OLD FIXED CAP it names (~22.4px, every
-        // world) sat comfortably INSIDE it — the law never went red under a
-        // full revert to the exact bug it claims to guard. `h_glyph*1.05`
-        // margins 1.4–5.6px under the old cap on every world (verified below)
-        // while `h_empty` (7.00px, every world) sits far inside it.
-        let bound = h_glyph * 1.05 + 0.1 * pixel_scale(&p);
-        assert!(
-            h_empty < bound,
-            "{}: empty-line cell must not balloon back to a large fixed cap: \
-             h_empty={h_empty} h_glyph={h_glyph} bound={bound}",
-            t.name
-        );
-        // NON-VACUITY: the OLD fixed cap itself must fail this same bound, or
-        // the assert above proves nothing about the bug it names.
-        let old_cap = old_fallback_cell(&p).1;
-        assert!(
-            old_cap >= bound,
-            "{}: fixture must reproduce the old fixed cap exceeding the new \
-             bound (old_cap={old_cap} bound={bound}) or this law is vacuous",
-            t.name
-        );
-        checked += 1;
+            // NON-VACUITY: cosmic-text's own row really is metric-less here.
+            let raw = p
+                .buffer
+                .lines
+                .first()
+                .and_then(|l| l.layout_opt())
+                .and_then(|l| l.first())
+                .map(|ll| (ll.max_ascent, ll.max_descent, ll.glyphs.len()));
+            assert_eq!(
+                raw,
+                Some((0.0, 0.0, 0)),
+                "{} z{zoom} d{dpi}: the empty row must really be the glyphless \
+                 zero-metric row this law reconstructs (got {raw:?}) or the \
+                 equality below measures nothing",
+                t.name
+            );
+            assert_eq!(
+                font_empty,
+                p.doc_family(),
+                "{} z{zoom} d{dpi}: a glyphless row's ascent is a property of the \
+                 LIVE doc family, and must be reported as such",
+                t.name
+            );
+
+            let d_ascent = (ascent_empty - ascent_shaped).abs();
+            let d_baseline = (base_empty - base_shaped).abs();
+            let tol = 0.05 * ps;
+            assert!(
+                d_ascent <= tol && d_baseline <= tol,
+                "{} z{zoom} d{dpi} ({}): an empty row must carry the metrics a \
+                 shaped row on the same line carries: ascent {ascent_empty:.3} vs \
+                 {ascent_shaped:.3} (Δ{d_ascent:.3}), baseline {base_empty:.3} vs \
+                 {base_shaped:.3} (Δ{d_baseline:.3}), tolerance {tol:.3}",
+                t.name,
+                p.doc_family()
+            );
+            worst_ascent = worst_ascent.max(d_ascent / ps);
+            worst_baseline = worst_baseline.max(d_baseline / ps);
+            checked += 1;
+        }
     }
+    p.set_dpi(1.0);
     assert!(
-        checked >= 11,
-        "every proportional-display world is swept (got {checked})"
+        checked >= 60,
+        "every world is swept at every scale (got {checked})"
+    );
+    eprintln!(
+        "an_empty_row_carries_the_metrics_a_shaped_row_would_have_given_it: \
+         {checked} world×scale cells, worst ascent Δ={worst_ascent:.4}px, \
+         worst baseline Δ={worst_baseline:.4}px (both at zoom×DPI 1)"
     );
 
     theme::set_active(theme::DEFAULT_THEME);
