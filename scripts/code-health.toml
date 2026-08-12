@@ -304,7 +304,7 @@ lines = 580
 
 [[file_size_mark]]
 file = "src/render/caret.rs"
-lines = 966
+lines = 897
 reason = "+31: `effective_caret_look` and `caret_row_start_col` — the one owner of the ink-caret Morph→Block fold, and the caret's own visual-row start. Both exist because the fold and the row-relative Morph rules had been spelled at their call sites: the fold in the paint path only (so geometry anchored a Morph caret a column back on a world that paints a Block) and the degrade against the logical column only (so a wrapped row's first column reached the row above). Owners, not helpers — the bypass is what the bug was."
 
 [[file_size_mark]]
@@ -493,13 +493,6 @@ reason = "items 132/194 (+2): has_ambient_motion gained the warped-grid arm, so 
 file = "src/theme/worlds.rs"
 lines = 1188
 reason = "+1: one `use super::diagonal::{DiagonalMark, DiagonalSpine};` import, so each diagonal world authors its selected-row mark on the same single `list_style` line as its orientation — beside its `font`, which is the whole point of carrying the mark as the variant payload. The two world literals are net zero. +46: Kite's literal grows five `RenderCaps` fields (placard, card anchor, chrome face, page frame, facet band) with the one-field-per-line shape every other world's caps already take, and its doc comment records the two dials that were BUILT AND REJECTED on evidence — the Quokka-only chamfer exclusivity, and `Bars` `FullWidth`x`SelectedOnly` stranding the plated-chrome family because `BarExtent::hugs()` is false. That prose is the file's job: a later round that re-proposes either dial reads why it does not work before spending a lane on it, which a commit message six weeks back cannot do. Item 263 (+20): one `selection_ui: None` per world. The field is deliberately NOT hidden behind a spread default — every world states that it takes the derived selected-row band, so authoring one is a visible edit on a visible line rather than an absent field nobody reviews. `Rules` (the quiet fourth list composition, organised by absence) has one carrier world, and Paperbark's literal names it on one `list_style` line. The other ten are the comment that has to travel with it: why THIS world (its Deckle ground is already a material, so a ruled index is that ground one register up where a floating card was an object dropped on it), that `Weight` is the DECIDED selection treatment — chosen by the user against both rendered side by side — with `Gutter` still reachable through the force override, and that which further worlds adopt the composition is a taste call nothing is waiting on (+15). Item 355 (+5): Wagtail's and Kite's page-frame strokes and Bilby's spell gap take their typed spellings; the two frame literals go multi-line because a `Logical(2.0)` payload does not fit the one-field-per-line shape on one line."
-
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
-file = "tests/caret_mono_grid_pixels.rs"
-function = "caret_cell_is_glyph_independent_on_every_mono_world"
-message = "this function has too many lines (141/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line/count shifted by queue item 168's testscratch::ScratchDir conversion."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -957,13 +950,6 @@ file = "src/render/rowlayout.rs"
 function = "rows_for"
 message = "this function has too many lines (111/100)"
 reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
-
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
-file = "src/render/tests/caret_transition.rs"
-function = "glyphless_seams_stay_within_the_products_own_accepted_glyph_to_glyph_bar"
-message = "this function has too many lines (116/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Crossed by one more line: the `testlock::misc::TogglesRestore` capture guard, added so this test restores the process-global caret-mode override it forces, not only the concrete mode it happened to set."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
