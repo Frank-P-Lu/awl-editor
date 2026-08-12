@@ -273,6 +273,12 @@ Recent; a journey test descending the door and switching; the flat-roster law
 
 🟡 IN PROGRESS — claude (deep), branch `claude/item-412-empty-line-caret`.
 
+⚠️ READ 416 BEFORE LANDING — a later user decision in the same session: the
+caret takes ONE fixed height, ending the per-glyph ink hug. 412's "too small"
+is plausibly the CONTRAST against an ink-hugged tall neighbor (the reported
+line ends in `l`); under 416's model, populated and empty lines agree by
+construction. Do not ship a synthetic-box resize that 416 immediately re-does.
+
 User report 2026-08-12 with screenshot: a warm serif world with the dot-form
 caret; on the empty line under an ordinary text line, the caret renders
 clearly smaller than the neighboring type. Mechanism neighborhood, from the
@@ -324,7 +330,10 @@ horizontal axis just had, and nothing bands it — the vertical grade is still a
 boolean at the edge. Not urgent; recorded so whoever meets it next knows it was
 seen, measured, and left deliberately.
 
-### 413 — end-of-document breathing room (USER DECISION 2026-08-12)
+### 415 — end-of-document breathing room (USER DECISION 2026-08-12)
+
+(Filed as 413 in `f14ccbe0`, renumbered here: `737b9fad` had already taken
+413 and 414 on a concurrent board write.)
 
 User report with screenshot: typing at the end of a note — the most common
 journaling posture — leaves the caret riding the window's bottom edge.
@@ -350,6 +359,34 @@ last line lands the caret at document end. Verify: capture pair (caret at doc
 end, follow settled) asserting the caret's drawn row sits ≥ pad above the
 bottom; a law that the buffer's byte length is unchanged by the feature; the
 existing near-end scroll laws re-baselined consciously, not silently.
+
+### 416 — the caret takes ONE height; the per-glyph hug reverses (USER DECISION 2026-08-12)
+
+The user, live: the caret sizing to the ANCHORED GLYPH'S ink — short after
+`a`, tall after `l` — is "super distracting" in ordinary typing. That per-glyph
+hug is item 91 (`07f1b7da`, 2026-07-26); before it the caret was a fixed
+`CARET_BLOCK_H` 0.8-row fraction, which matches the user's "it was like this
+previously." This is a taste REVERSAL of 91's felt outcome, decided with its
+history on the table, and the pre-91 shape must NOT simply return: 91 exists
+because the ROW-fraction height hung 8–9px of dead space above `a`/`m` while
+sitting ~3px above `l` (measured, in its commit).
+
+Decision: ONE fixed height per (font, zoom) for the proportional cell caret —
+"somewhere in between," i.e. TYPICAL-LETTER-derived, not row-derived. The
+natural candidate already ships as the glyphless fallback: the synthetic
+typical-letter box (`caret_synthetic_ink_box`, `facepitch::
+typical_letter_ratio` keyed on the font that produced the ascent). Applying it
+to EVERY anchor makes `a`, `l`, space, EOL and the empty line agree by
+construction — which is why 412's lane must read this first. Wrinkles owned
+here: the descender question predates 91 (decide whether `g`/`y` keep a
+descent-aware bottom on the fixed box, or the box accepts uncovered
+descenders — say which and why); mono worlds keep the line-cell arm untouched;
+`caret_cell_vertical` is already the one owner, so the change lands in one
+place and Morph's fold + the space bar inherit. Verify: a pixel law asserting
+the caret's drawn height EQUAL across anchors `a`/`l`/space/EOL/empty-line in
+one world and zoom (the axis 91's laws never swept — they pinned pad-per-
+glyph, not height-across-glyphs); flip 91's per-glyph laws consciously;
+land-and-judge — the revert is one arm in `caret_cell_vertical`.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
