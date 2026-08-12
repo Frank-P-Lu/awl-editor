@@ -640,6 +640,18 @@ fn variable_height_scroll_reaches_the_last_row() {
         p.total_doc_height() - p.scroll_top_px(follow) <= p.viewport_avail_px(800.0) + 0.5,
         "from the follow scroll, the remaining document must fit the viewport"
     );
+    // RE-BASELINED, deliberately, by the end-of-document pad: the remaining
+    // document now fits the viewport with the PAD to spare, not flush against the
+    // bottom edge. Stated as an equality rather than left as the inequality above,
+    // which the pad only makes slacker — an inequality that a change loosens has
+    // stopped grading the thing it was written for.
+    let clearance = p.viewport_avail_px(800.0) - (p.total_doc_height() - p.scroll_top_px(follow));
+    let pad = p.end_pad_px(800.0);
+    assert!(
+        pad > 0.0 && (clearance - pad).abs() <= 0.5,
+        "the last row must settle a full pad clear of the window's bottom edge \
+         (clearance {clearance:.2}px, pad {pad:.2}px)"
+    );
 }
 
 /// CRLF LINE-MODEL AGREEMENT (the render half): RESOLVED (was the pinned

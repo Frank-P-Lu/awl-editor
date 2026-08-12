@@ -258,7 +258,7 @@ pub(super) fn assert_identical(
 /// every ΔE-based floor in this file cites the same number rather than
 /// re-deriving it (see [`delta_e`]'s own doc for why ΔE, not a byte delta or
 /// a WCAG ratio, is this tree's oracle for "can this be seen").
-const CLASSIC_JND: f64 = 2.3;
+pub(super) const CLASSIC_JND: f64 = 2.3;
 
 /// How many pixels a pair of SAME-POSITION buffers moves at least
 /// [`CLASSIC_JND`] apart over `region`, and the single largest ΔE observed
