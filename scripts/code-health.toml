@@ -260,7 +260,7 @@ reason = "A new `OverlayKind` variant crosses seven exhaustive per-kind matches 
 
 [[file_size_mark]]
 file = "src/overlay/nav.rs"
-lines = 571
+lines = 556
 reason = "item 114: +12 lines. `item_sections` gained the workspace's empty-sections arm and its argument — a workspace names its category once, in its rail, and `refilter`'s bucketing is the one owner that must not answer twice."
 
 [[file_size_mark]]
@@ -304,7 +304,7 @@ lines = 580
 
 [[file_size_mark]]
 file = "src/render/caret.rs"
-lines = 1003
+lines = 966
 reason = "+31: `effective_caret_look` and `caret_row_start_col` — the one owner of the ink-caret Morph→Block fold, and the caret's own visual-row start. Both exist because the fold and the row-relative Morph rules had been spelled at their call sites: the fold in the paint path only (so geometry anchored a Morph caret a column back on a world that paints a Block) and the degrade against the logical column only (so a wrapped row's first column reached the row above). Owners, not helpers — the bypass is what the bug was."
 
 [[file_size_mark]]
