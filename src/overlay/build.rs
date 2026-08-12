@@ -255,8 +255,10 @@ pub fn build(kind: OverlayKind, ctx: &BuildCtx) -> Option<OverlayState> {
 /// shared by the live App and the headless replay (parameterized by the caller's
 /// roots so live + capture descend identically):
 ///   * `Project` navigates by ABSOLUTE path (`rel` IS the absolute dir; `None` =
-///     start at `workspace`). Lists child FOLDERS only (git-marked) with a
-///     synthetic `.` accept-this-folder row on top. `None` when no workspace.
+///     start at `workspace`). Lists child FOLDERS only (git-marked) with the
+///     synthetic accept-this-folder row on top, which reads as
+///     [`crate::overlay::here_folder_label`] and names the level's own
+///     directory. `None` when no workspace.
 ///   * `MoveDest` walks the ACTIVE root (`active_root`), listing FOLDERS only —
 ///     a document moves to a folder inside the SAME active folder it lives in.
 ///   * `ExportDest` is the same walk and the same folders-only listing: an export

@@ -14,8 +14,9 @@
 //!     [`journey::Bind`] rather than by kind (`OverlayState::foot_hint_scoped`'s
 //!     doc has the full split). Plainly summoned (Switch Project — no bind, or
 //!     `Bind::Value`), it is a FLAT picker over the workspace's direct children
-//!     only: Enter on a folder switches the root immediately (the synthetic `.`
-//!     row picks the current directory), and there is no ascend affordance —
+//!     only: Enter on a folder switches the root immediately (the synthetic
+//!     accept-this-folder row — [`here_folder_label`] — picks the level's own
+//!     directory), and there is no ascend affordance —
 //!     Left/Right cycle the lens strip, not depth. Descended into from a
 //!     Settings folder-VALUE row (`Bind::Path`), it keeps the full
 //!     destination-navigator grammar: Enter on a folder DESCENDS into it and
@@ -54,7 +55,10 @@ pub use kind::{
 };
 #[allow(unused_imports)]
 // OverlayRow/RowMeta/RowMetaTag: used by overlay tests and source-audit laws
-pub use state::{OverlayRow, OverlayState, RangeCell, RowMeta, RowMetaTag};
+pub use state::{
+    HERE_ACCEPT, HERE_LABEL, OverlayRow, OverlayState, RangeCell, RowMeta, RowMetaTag,
+    here_folder_label,
+};
 
 fn command_hint_actions() -> Vec<HintAction> {
     vec![

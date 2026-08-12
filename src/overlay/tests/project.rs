@@ -90,17 +90,22 @@ fn new_project_pins_accept_row_and_marks_git() {
     ];
     let ov = OverlayState::new_project("/ws".to_string(), folders, &[]);
     assert_eq!(ov.kind.as_str(), "switch");
-    // The synthetic "." accept-this-folder row is pinned at the TOP.
+    // The synthetic accept-this-folder row is pinned at the TOP, and it READS
+    // as plain language naming the level's own directory — never the bare `.`
+    // its corpus carries.
     let items = ov.item_strings();
-    assert_eq!(items[0], ".");
+    assert_eq!(items[0], "use this folder — ws");
+    // …while its ACCEPT string is unchanged, because the path math, the
+    // dotfile exemption and the selection skip all key off it.
+    assert_eq!(ov.rows[0].accept, ".");
     // browse_dir carries the ABSOLUTE dir for path navigation.
     assert_eq!(ov.browse_dir.as_deref(), Some("/ws"));
-    // Default selection skips "." and lands on the first REAL folder so
-    // Enter descends into it immediately (the "." select row is Up).
+    // Default selection skips the accept row and lands on the first REAL folder
+    // so Enter descends into it immediately (the accept row is Up).
     assert_eq!(ov.selected_value(), Some("plain-notes"));
     assert!(ov.selected_is_dir(), "first folder is a directory");
-    // Git children carry the `"git"` SECONDARY tag (not a name bullet); "." is
-    // neither git nor a dir, and no name carries a bullet.
+    // Git children carry the `"git"` SECONDARY tag (not a name bullet); the
+    // accept row is neither git nor a dir, and no name carries a bullet.
     assert!(
         items.iter().all(|s| !s.contains('•')),
         "no name bullet: {items:?}"
@@ -108,7 +113,10 @@ fn new_project_pins_accept_row_and_marks_git() {
     let tags = ov.item_git_tags();
     let alpha = items.iter().position(|s| s.contains("repo-alpha")).unwrap();
     assert_eq!(tags[alpha], "git");
-    assert_eq!(tags[0], "", "the '.' accept row is never git-tagged");
+    assert_eq!(
+        tags[0], "",
+        "the accept-this-folder row is never git-tagged"
+    );
     assert!(!items[0].ends_with('/'));
 }
 
@@ -127,13 +135,13 @@ fn project_hides_dotfolders_but_keeps_accept_row_and_env() {
     ];
     let mut ov = OverlayState::new_project("/ws".to_string(), folders, &[]);
     // Project now HIDES dotfolders by default (the Batch dotfile filter extended to
-    // it), while the synthetic "." accept-this-folder row and `.env` (the earned
+    // it), while the synthetic accept-this-folder row and `.env` (the earned
     // exception) stay visible.
     assert!(ov.kind.hides_dotfiles(), "Project hides dotfiles now");
     let shown = ov.item_strings();
     assert!(
-        shown.iter().any(|s| s == "."),
-        "the '.' accept row survives: {shown:?}"
+        shown.iter().any(|s| s == "use this folder — ws"),
+        "the accept-this-folder row survives: {shown:?}"
     );
     assert!(
         !shown.iter().any(|s| s.starts_with(".git")),
@@ -167,8 +175,8 @@ fn project_hides_dotfolders_but_keeps_accept_row_and_env() {
         "revealed: {revealed:?}"
     );
     assert!(
-        revealed.iter().any(|s| s == "."),
-        "'.' still present after reveal"
+        revealed.iter().any(|s| s == "use this folder — ws"),
+        "the accept-this-folder row is still present after reveal"
     );
     crate::file_visibility::set_all_on(saved);
 }
@@ -189,10 +197,12 @@ fn project_picker_has_an_all_recent_strip_and_lands_on_all() {
         Some(true),
         "All is active on open"
     );
-    // The synthetic "." select-this-folder row survives under All (flat home).
+    // The synthetic accept-this-folder row survives under All (flat home).
     assert!(
-        ov.item_strings().iter().any(|s| s == "."),
-        "'.' survives under All"
+        ov.item_strings()
+            .iter()
+            .any(|s| s == "use this folder — ws"),
+        "the accept-this-folder row survives under All"
     );
 }
 
@@ -216,7 +226,7 @@ fn project_recent_lens_shows_only_mru_projects_in_mru_order() {
     ov.set_facet_lens(1);
     assert_eq!(ov.active_facet_id(), Some("recent"));
     // ONLY the two MRU folders show, in MRU order (proj-c before proj-a) — the
-    // "." row and the non-MRU proj-b opt out.
+    // accept-this-folder row and the non-MRU proj-b opt out.
     // (Folder rows render with a trailing "/" in the display strings.)
     assert_eq!(
         ov.item_strings(),
@@ -322,11 +332,16 @@ fn project_roster_on_a_childless_workspace_is_just_the_accept_row() {
         &[],
     )
     .expect("a configured workspace with zero children still builds a picker");
+    // ONE row, and it READS — the label names both what the row does and the
+    // folder it would do it to, so the oracle is the exact copy a user sees,
+    // not merely "one row survived". A label that stopped naming the folder
+    // (or went back to shell notation) fails here by inequality, which is what
+    // keeps this law about the row rather than about the count.
     assert_eq!(
         ov.item_strings(),
-        vec![".".to_string()],
-        "a childless workspace shows only the accept-this-folder row, not an \
-         empty picker or a build failure"
+        vec!["use this folder — empty-ws".to_string()],
+        "a childless workspace shows only the accept-this-folder row, reading \
+         as its own plain-language label, not an empty picker or a build failure"
     );
 }
 
@@ -372,5 +387,119 @@ fn project_roster_excludes_a_symlinked_child_folder() {
     assert!(
         !shown.iter().any(|s| s.starts_with("linked")),
         "a symlinked folder is not classified as a directory here: {shown:?}"
+    );
+}
+
+// ─── The accept-this-folder row's LABEL ─────────────────────────────────────
+//
+// The row's corpus string is `.` and its label is not. These pin the two
+// halves of that split: the label NAMES the level it stands on (so the card
+// answers "where am I" at all), and the accept string stays `.` (so the path
+// math, the dotfile exemption and the selection skip keep working).
+
+#[test]
+fn the_accept_row_names_the_level_it_stands_on_and_follows_it() {
+    // TWO LEVELS, one builder. The flat switch-project picker cannot browse
+    // today, so its `browse_dir` is always the configured workspace — but the
+    // SAME card is also the Settings folder-VALUE navigator, which descends,
+    // and a browse door would descend it too. So the axis this sweeps is not
+    // "which picker" but "which directory", asked of two of them.
+    let ws = OverlayState::new_project(
+        "/home/me/notes".to_string(),
+        vec![("journal".to_string(), false)],
+        &[],
+    );
+    let deeper = OverlayState::new_project(
+        "/home/me/notes/journal".to_string(),
+        vec![("2026".to_string(), false)],
+        &[],
+    );
+    let label = |ov: &OverlayState| ov.item_strings()[0].clone();
+    assert_eq!(label(&ws), "use this folder — notes");
+    assert_eq!(label(&deeper), "use this folder — journal");
+    // NON-VACUITY, stated as an assertion rather than left to the reader: a
+    // label that ignored `browse_dir` — the state before this row said
+    // anything at all — would be EQUAL on the two levels.
+    assert_ne!(
+        label(&ws),
+        label(&deeper),
+        "the accept row must follow the level; a constant label answers \
+         'where am I' with the same word everywhere"
+    );
+    // The LEAF, not the path: the parents are not spelled out, so the row can
+    // never be mistaken for a path readout that `elide_path` would then chew
+    // from the wrong end.
+    for ov in [&ws, &deeper] {
+        assert!(
+            !label(ov).contains('/'),
+            "the row names a folder, not a path: {:?}",
+            label(ov)
+        );
+    }
+    // And the ACCEPT string is untouched on both — the label is a display, and
+    // everything that keys off `.` still finds it.
+    assert_eq!(ws.rows[0].accept, crate::overlay::HERE_ACCEPT);
+    assert_eq!(deeper.rows[0].accept, crate::overlay::HERE_ACCEPT);
+    // The selection skip reads the ACCEPT, so it still lands on the child.
+    assert_eq!(ws.selected_value(), Some("journal"));
+    assert_eq!(deeper.selected_value(), Some("2026"));
+}
+
+#[test]
+fn no_switch_project_row_ever_reads_as_shell_notation() {
+    // THE SWEEP: every state the flat picker's roster can be in — both file-
+    // visibility settings, both lenses, a level with children and one without,
+    // and a query that filters the roster down — asserting on what a reader
+    // SEES. `.` is shell notation; awl's audience is not required to know it.
+    let _g = crate::testlock::serial();
+    let saved = crate::file_visibility::all_on();
+    let folders = vec![
+        (".git".to_string(), false),
+        ("journal".to_string(), false),
+        ("code".to_string(), true),
+    ];
+    let mut checked = 0usize;
+    for all_on in [false, true] {
+        crate::file_visibility::set_all_on(all_on);
+        for (dir, roster) in [
+            ("/home/me/notes", folders.clone()),
+            ("/home/me/notes/journal", Vec::new()),
+        ] {
+            for lens in [0usize, 1] {
+                let mut ov = OverlayState::new_project(dir.to_string(), roster.clone(), &[]);
+                ov.set_facet_lens(lens);
+                let shown = ov.item_strings();
+                for s in &shown {
+                    assert_ne!(s, ".", "a bare `.` reached the roster: {shown:?}");
+                    assert!(
+                        !s.starts_with("./"),
+                        "shell path notation reached the roster: {shown:?}"
+                    );
+                    checked += 1;
+                }
+                // The here row, found by its ACCEPT rather than by position, so
+                // the enrolment cannot quietly stop matching: when it is
+                // visible under this lens it reads as its label, and its
+                // display is never its accept string.
+                if let Some(pos) = ov
+                    .items
+                    .iter()
+                    .position(|&ci| ov.rows[ci].accept == crate::overlay::HERE_ACCEPT)
+                {
+                    assert!(
+                        shown[pos].starts_with(crate::overlay::HERE_LABEL),
+                        "the accept row reads as its label under lens {lens} / \
+                         all_on {all_on}: {shown:?}"
+                    );
+                    assert_ne!(shown[pos], ov.rows[ov.items[pos]].accept);
+                }
+            }
+        }
+    }
+    crate::file_visibility::set_all_on(saved);
+    assert!(
+        checked >= 8,
+        "the sweep enrolled almost nothing ({checked} rows) — it would pass \
+         over an empty roster"
     );
 }

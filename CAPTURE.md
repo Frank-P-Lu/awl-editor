@@ -1576,12 +1576,14 @@ held to it by `capture::tests::capture_md_drift`. All ride the one transient car
   project root. It STARTS at the `--workspace` dir but walks by ABSOLUTE path, so
   `browse_dir` is the absolute directory currently shown (never `null` while open).
   `items` lists that directory's child FOLDERS only (git repos `• `-marked, all
-  with a trailing `/`), with a synthetic `"."` row PINNED at the top meaning "use
-  THIS folder as the project root". The initial selection lands on the first real
+  with a trailing `/`), with the synthetic accept-this-folder row PINNED at the
+  top — it carries `"."` as its accept string and READS as
+  `use this folder — <name>`, naming the directory `browse_dir` points at, and
+  means "use THIS folder as the project root". The initial selection lands on the first real
   folder. `Right` / `C-f` DESCENDS into the highlighted folder; `Left` / `C-b` /
   `Backspace` ASCENDS to the PARENT — with NO floor, so you can climb ABOVE the
   workspace and pick any directory on disk. `Enter` SELECTS the highlighted folder
-  (or the `"."` row = the current directory) as the new root — it does NOT descend
+  (or the accept-this-folder row = the current directory) as the new root — it does NOT descend
   (set_root → re-index, recompute branch/dirty) and closes; the new root shows in
   the sidecar `project` block. A faint hint line at the card foot spells the model
   out: `->/C-f open  Enter select  <-/C-b up` (mirrored in the sidecar `overlay.hint`).
@@ -1727,7 +1729,7 @@ world.)
 | `layout`       | SHAPED-FRAME LAYOUT oracle (schema `/187`): `{ rows, caret, selection }`. Rows are in draw order and carry raw `content`, source `line`, half-open `start_col`/`end_col`, absolute physical-pixel `xs` boundaries, `top`, and shaped `height`. `caret.row` and each selection segment's `row` index directly into that array. Borrowed from the exact sealed frame partition; never recomputed. It proves geometry, not pixel visibility or contrast |
 | `search`       | isearch + find/replace state: `query`, `active`, `case_sensitive`, `hit_count`, `current`, `replace_active` (replace field revealed), `replacement` (replace text), plus `panel` — the card's PLANNED geometry (schema `/203`, see the narrative above), `null` while the panel is down |
 | `project`      | active project (`--root`), fields `root`/`name`/`branch`/`dirty`/`default_folder`/`workspace`/`keymap_flavor` (`branch`, `default_folder`, `workspace` may be null); `null` when no project. The three path fields are HOME-RELATIVE (`~/…`, see "Paths are home-relative" above) — expand `~` if you need a real path |
-| `overlay`      | summoned nav overlay: `active`, `mode` (`goto`/`switch`/`browse`/`theme`/`caret`/`dictionary`/`cjk_lang`/`date`/`move`/`command`/`spell`/`keybindings`/`history`/`conflict`/`settings`/`assets`/`rename`/`insert_link`/`keep_version`/`context`/`export_dest`), `query`, `selected_index`, `browse_dir` (the level shown: root-relative for `browse`/`move`, ABSOLUTE for the navigable `switch` explorer — home-relative `~/…` when it falls under `$HOME` — else null), `items` (git repos `• `-marked, dirs trailing `/`; `switch` pins a `"."` accept-this-folder row on top; command names for `command`; the three variant labels for `dictionary`), `bindings` (command-palette key chords parallel to `items`; the caret/dictionary pickers' one-line descriptions; else `[]`) |
+| `overlay`      | summoned nav overlay: `active`, `mode` (`goto`/`switch`/`browse`/`theme`/`caret`/`dictionary`/`cjk_lang`/`date`/`move`/`command`/`spell`/`keybindings`/`history`/`conflict`/`settings`/`assets`/`rename`/`insert_link`/`keep_version`/`context`/`export_dest`), `query`, `selected_index`, `browse_dir` (the level shown: root-relative for `browse`/`move`, ABSOLUTE for the navigable `switch` explorer — home-relative `~/…` when it falls under `$HOME` — else null), `items` (git repos `• `-marked, dirs trailing `/`; `switch` pins the accept-this-folder row on top, reading `use this folder — <name>`; command names for `command`; the three variant labels for `dictionary`), `bindings` (command-palette key chords parallel to `items`; the caret/dictionary pickers' one-line descriptions; else `[]`) |
 | `buffers`      | MULTI-BUFFER registry: `{ open, active }`. `open` = how many buffers are currently open (the active one + everything backgrounded); `active` = the active buffer's path, or `"scratch"`. A plain `--screenshot` always reports `open: 1` |
 | `replay_skips` | permissive `--keys` truthfulness record, always an array. Each skipped live-App-only effect is `{ effect, action }` in replay order: `effect` is the stable snake_case effect name and `action` is the resolved originating action name. Empty for a capture with no skipped effect. `--strict-replay` aborts before writing an artifact on any such effect, so it never emits a partial list. |
 

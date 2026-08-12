@@ -158,8 +158,8 @@ fn replay_keys_project_hides_dotfolders_marks_git_tag() {
         assert!(!crate::file_visibility::all_on());
         let shown = ov.item_strings();
         assert!(
-            shown.iter().any(|s| s == "."),
-            "'.' accept row kept: {shown:?}"
+            shown.iter().any(|s| s.starts_with("use this folder")),
+            "accept-this-folder row kept: {shown:?}"
         );
         assert!(
             !shown.iter().any(|s| s.starts_with(".claude")),
@@ -211,8 +211,8 @@ fn replay_keys_project_hides_dotfolders_marks_git_tag() {
             "revealed: {revealed:?}"
         );
         assert!(
-            revealed.iter().any(|s| s == "."),
-            "'.' still present after reveal"
+            revealed.iter().any(|s| s.starts_with("use this folder")),
+            "the accept-this-folder row is still present after reveal"
         );
     });
     crate::file_visibility::set_all_on(saved);

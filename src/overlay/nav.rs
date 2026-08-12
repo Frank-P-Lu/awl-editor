@@ -79,7 +79,7 @@ impl OverlayState {
         });
         if !crate::file_visibility::all_on() && self.kind.hides_dotfiles() {
             ranked.retain(|&i| {
-                self.rows[i].accept == "."
+                self.rows[i].accept == super::HERE_ACCEPT
                     || matches!(self.rows[i].meta, RowMeta::GotoHeading { .. })
                     || !crate::index::is_hidden_entry(&self.rows[i].accept)
             });
@@ -423,6 +423,14 @@ impl OverlayState {
 
     fn display_of(&self, i: usize) -> String {
         let row = &self.rows[i];
+        // THE ACCEPT-THIS-FOLDER ROW is the one row whose corpus string is not
+        // a name: it carries `.` so the path math and the dotfile exemption
+        // have one stable string to compare against, and it READS as plain
+        // language naming the level's own directory. The only place
+        // `browse_dir` reaches a user's eyes.
+        if self.kind == OverlayKind::Project && row.accept == super::HERE_ACCEPT {
+            return super::here_folder_label(self.browse_dir.as_deref());
+        }
         if self.kind == OverlayKind::Assets {
             let rel = &row.accept;
             return rel.rsplit('/').next().unwrap_or(rel).to_string();
