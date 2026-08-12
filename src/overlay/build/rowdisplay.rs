@@ -10,9 +10,11 @@ use crate::overlay::*;
 /// second derivation is how they come to disagree.
 ///
 /// Most rows are their own accept string, with a folder's trailing `/`. The
-/// four that are not: the switch-project ACCEPT-THIS-FOLDER row
-/// ([`here_folder_label`]), an Assets row (shown by its leaf), a palette
-/// Settings row, and a marker-prefixed Go-to HEADING row.
+/// five that are not: the switch-project ACCEPT-THIS-FOLDER row
+/// ([`here_folder_label`]), a switch-project REMEMBERED row (whose accept is a
+/// whole absolute path, made readable by [`super::recent::label`]), an Assets
+/// row (shown by its leaf), a palette Settings row, and a marker-prefixed Go-to
+/// HEADING row.
 pub(in crate::overlay) fn row_display(
     kind: OverlayKind,
     row: &OverlayRow,
@@ -34,7 +36,15 @@ pub(in crate::overlay) fn row_display(
     if matches!(row.meta, RowMeta::GotoHeading { .. }) {
         return format!("{}{}", OverlayKind::HEADING_MARKER_PREFIX, row.accept);
     }
-    let mut s = row.accept.clone();
+    // A REMEMBERED root carries its whole absolute path (that path IS the
+    // project, wherever it lives), so it is the one switch-project row that
+    // reads as a path rather than as a name — shortened against the level or
+    // against home so the row says where the project is without spelling out
+    // where the machine is.
+    let mut s = match kind == OverlayKind::Project && is_remembered_root(&row.accept) {
+        true => super::recent::label(&row.accept, browse_dir),
+        false => row.accept.clone(),
+    };
     if row.is_dir {
         s.push('/');
     }

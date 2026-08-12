@@ -853,6 +853,11 @@ fn walks_absolute(kind: crate::overlay::OverlayKind) -> bool {
     )
 }
 
+/// THE PATH A HIGHLIGHTED ROW NAMES. `name` is usually a child NAME joined onto
+/// the level — but a switch-project REMEMBERED row (`overlay::build::recent`)
+/// carries a whole ABSOLUTE path, and `Path::join` then answers with that path
+/// itself. Relied on, not overlooked: a remembered root IS the project, wherever
+/// it lives, so the level it is listed beside has no part in the answer.
 pub(super) fn descend_target(ov: &OverlayState, name: &str) -> String {
     match walks_absolute(ov.kind) {
         true => std::path::Path::new(ov.browse_dir.as_deref().unwrap_or(""))

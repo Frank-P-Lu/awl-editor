@@ -206,6 +206,23 @@ The macOS arm needs a person to accept or cancel the platform panel. The Linux
 arm needs a real Linux window and pointer click. Neither may be claimed from a
 `--keys` or `--screenshot-app` capture.
 
+### The switch-project Recent lens is EMPTY at every capture door, on purpose
+
+The recent-projects MRU is live-only persisted state, and the headless path
+feeds `overlay::browse_level` an empty list (`main/run.rs`) as a determinism
+gate — a capture whose rows depended on which projects this machine had opened
+would not be byte-stable. `--screenshot-app` does **not** widen this: it is the
+one live-only fact a live `App` in a capture still does not carry, because the
+gate sits in the level builder both doors share, not in the `App`.
+
+So the lens's whole enrolment — a remembered root becoming its own whole-path
+row, the MRU ordering, the level-/home-relative label, the refusal of a root
+that no longer names a directory — is **tier 1 only**, asserted at the unit seam
+with the MRU injected (`overlay::tests::project`, `actions::tests::pickers_nav`).
+**A Verify clause must not ask for a capture of a POPULATED Recent lens: no such
+artifact can exist.** What a capture can witness is the lens with nothing in it —
+the strip, the landing on All, the empty-state copy.
+
 ### The `cjk_priority` Han tiebreak is tier 3 for the RENDER, tier 2 for the READOUT
 
 Measured, not inferred. The config key reaches the App: a `--semantic-json

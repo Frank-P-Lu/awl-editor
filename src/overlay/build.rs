@@ -272,10 +272,13 @@ pub fn build(kind: OverlayKind, ctx: &BuildCtx) -> Option<OverlayState> {
 ///     `rel` is the root-relative level for the latter two (`None` = the root).
 ///
 /// `recent_projects` is the persisted recent-PROJECTS MRU (absolute paths,
-/// newest-first) — passed straight through to [`OverlayState::new_project`] so the
-/// Project navigator's **Recent** lens can mark the folders you've switched to. It
-/// is EMPTY for the other kinds (they have no Recent lens) and in the headless
-/// replay (the determinism gate — recents is live-only persisted state).
+/// newest-first), resolved HERE ([`recent::resolve`]) and handed to
+/// [`OverlayState::new_project`] as the roster's second route: a root that names
+/// one of this level's children marks it, and a root that names anything else
+/// enrols as its own whole-path row, which is how a project nested below a
+/// direct child is findable at all. It is EMPTY for the other kinds (they have
+/// no Recent lens) and in the headless replay (the determinism gate — recents is
+/// live-only persisted state).
 pub fn browse_level(
     kind: OverlayKind,
     rel: Option<String>,
@@ -292,7 +295,27 @@ pub fn browse_level(
             .filter(|e| e.is_dir)
             .map(|e| (e.name, e.is_git))
             .collect();
-        return Some(OverlayState::new_project(dir, folders, recent_projects));
+        // THE REMEMBERED ROWS BELONG TO THE LANDING, not to every level. The
+        // flat switch-project picker never leaves the workspace, so every card
+        // it builds is one. The only DEEPER levels are the Settings folder-VALUE
+        // navigator's, and there a list of your recent projects would be rows
+        // the directory in front of you does not contain — so they stop.
+        //
+        // That navigator's own LANDING is the workspace too, and it keeps them
+        // deliberately: the key it is filling in wants a folder, and the folders
+        // you have actually opened as projects are good answers to that. Unlike
+        // the `Browse for folder…` door — which is withheld from it because a
+        // descend would un-park the Settings surface — a remembered row descends
+        // through `relevel`, which keeps the parked parent and the config key.
+        //
+        // Asked of the DIRECTORY rather than of `rel`, so ascending back to the
+        // workspace is the same place, not a different moment.
+        let at_landing = workspace.is_some_and(|w| Path::new(&dir) == w);
+        let recent = match at_landing {
+            true => recent::resolve(&dir, &folders, recent_projects),
+            false => Vec::new(),
+        };
+        return Some(OverlayState::new_project(dir, folders, &recent));
     }
     // THE SWITCH-PROJECT DOOR'S LEVEL. Walks by ABSOLUTE path like `Project`
     // (the workspace is not inside the active root — it is usually above it),
@@ -377,6 +400,7 @@ pub fn browse_level(
     Some(ov)
 }
 
+pub(in crate::overlay) mod recent;
 mod rowdisplay;
 pub(in crate::overlay) use rowdisplay::row_display;
 pub use rowdisplay::{HERE_ACCEPT, HERE_LABEL, elide_path, here_folder_label, row_split};
