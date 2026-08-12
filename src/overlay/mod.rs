@@ -38,7 +38,11 @@ mod semantic;
 mod state;
 pub(crate) mod workspace;
 
-pub use build::{BuildCtx, browse_level, build, elide_path, row_split};
+#[allow(unused_imports)] // HERE_LABEL / here_folder_label: read by the row-label laws
+pub use build::{
+    BuildCtx, HERE_ACCEPT, HERE_LABEL, browse_level, build, elide_path, here_folder_label,
+    row_split,
+};
 pub use capture::{Capture, CaptureStage, KeepEdit, LinkEdit, LinkEditMode, RenameEdit, ValueEdit};
 pub use comparison::{CONFLICT_ROWS, ComparisonRequest, ComparisonView, ConflictSubject};
 #[allow(unused_imports)]
@@ -55,10 +59,7 @@ pub use kind::{
 };
 #[allow(unused_imports)]
 // OverlayRow/RowMeta/RowMetaTag: used by overlay tests and source-audit laws
-pub use state::{
-    HERE_ACCEPT, HERE_LABEL, OverlayRow, OverlayState, RangeCell, RowMeta, RowMetaTag,
-    here_folder_label,
-};
+pub use state::{OverlayRow, OverlayState, RangeCell, RowMeta, RowMetaTag};
 
 fn command_hint_actions() -> Vec<HintAction> {
     vec![

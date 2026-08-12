@@ -5,55 +5,6 @@ pub fn add_to_dictionary_label(word: &str) -> String {
     format!("Add '{word}' to dictionary")
 }
 
-/// **THE ACCEPT-THIS-FOLDER ROW'S ACCEPT STRING.** The switch-project
-/// navigator's first row is synthetic: it stands for the directory the level
-/// itself is, so accepting it commits [`OverlayState::browse_dir`] rather than
-/// any listed child. `.` is what the corpus carries — never what the user
-/// reads (see [`here_folder_label`]) — and it is a string the row's own
-/// consumers compare against (the dotfile filter's exemption, the
-/// default-selection skip), so it is named once here rather than spelled as a
-/// literal at each of them.
-pub const HERE_ACCEPT: &str = ".";
-
-/// The invariant half of [`here_folder_label`] — what the accept-this-folder
-/// row says it DOES, with no folder named. Its own constant because the laws
-/// that pin the row's copy and the label builder must not be able to drift.
-pub const HERE_LABEL: &str = "use this folder";
-
-/// **WHAT THE ACCEPT-THIS-FOLDER ROW READS AS** — the row's user-facing copy,
-/// naming both what pressing it does and which folder it would do it to:
-/// `use this folder — notes`.
-///
-/// It is the switch-project card's ONE statement of where it is standing.
-/// [`OverlayState::browse_dir`] is otherwise a fact only the sidecar could see:
-/// the card's title names the task (`switch project`), the rows name the
-/// children, and nothing named the directory those children are children OF.
-/// The row that ACTS on that directory is where naming it costs no extra
-/// figure — a card stays calm by carrying few, so this is deliberately not a
-/// second heading line.
-///
-/// The folder's NAME, never its path. Reading a path here would inherit
-/// [`crate::overlay::elide_path`]'s bias — it keeps the leaf and elides the
-/// parents, which is right for a filename and wrong for a directory readout,
-/// where the parent is the informative half. The leaf is also what the user
-/// calls the folder everywhere else in awl (the gutter's project name, through
-/// the same owner, [`crate::project::folder_name`]), and one level of a flat
-/// picker can hold only one directory, so there is nothing here to
-/// disambiguate a parent from.
-///
-/// Correct at any depth: the label is rebuilt with the level, so it names the
-/// workspace on a card that cannot browse and the browsed-to folder on one
-/// that can (the Settings folder-VALUE navigator descends today).
-pub fn here_folder_label(dir: Option<&str>) -> String {
-    match dir.map(|d| crate::project::folder_name(std::path::Path::new(d))) {
-        Some(name) if !name.is_empty() => format!("{HERE_LABEL} \u{2014} {name}"),
-        // A level with no directory to name still says what the row does. Not
-        // reachable through `new_project` (which always carries its dir), and
-        // the honest degradation if it ever is.
-        _ => HERE_LABEL.to_string(),
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OverlayRow {
     pub accept: String,
@@ -450,7 +401,7 @@ impl OverlayState {
         folders: Vec<(String, bool)>,
         recent_roots: &[String],
     ) -> Self {
-        let mut corpus = vec![HERE_ACCEPT.to_string()];
+        let mut corpus = vec![super::HERE_ACCEPT.to_string()];
         let mut git = vec![false];
         let mut is_dir = vec![false];
         for (name, is_git) in folders {
@@ -480,7 +431,7 @@ impl OverlayState {
         s.selected = s
             .items
             .iter()
-            .position(|&i| s.rows[i].accept != HERE_ACCEPT)
+            .position(|&i| s.rows[i].accept != super::HERE_ACCEPT)
             .unwrap_or(0);
         s.scroll_to_selected();
         s
