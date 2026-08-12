@@ -120,6 +120,7 @@ impl OverlayKind {
             OverlayKind::Settings | OverlayKind::History | OverlayKind::Conflict => true,
             OverlayKind::Goto
             | OverlayKind::Project
+            | OverlayKind::ProjectBrowse
             | OverlayKind::Browse
             | OverlayKind::Theme
             | OverlayKind::Caret

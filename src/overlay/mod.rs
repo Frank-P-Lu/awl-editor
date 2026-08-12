@@ -22,6 +22,15 @@
 //!     destination-navigator grammar: Enter on a folder DESCENDS into it and
 //!     Backspace with an empty query ASCENDS, even above the workspace. Git
 //!     folders carry a dim `git` tag in the row's secondary column either way.
+//!   * `ProjectBrowse` — the FLAT picker's one door PAST that flatness, opened
+//!     from its terminal `Browse for folder…` row: a folders-only walk of the
+//!     workspace by absolute path with the destination navigators' grammar
+//!     (`→` in, `←`/`⌫` out, `↵` takes the folder you stopped on), which is how
+//!     a project nested deeper than a direct child is reached at all. It
+//!     DESCENDS — the picker parks at its row and Esc comes back to it — and
+//!     its accept emits the switch under `Project`, the one owner of "make this
+//!     the root". The workspace is its floor: `browse_level` will not build a
+//!     level outside it.
 //!   * `Browse`  — ONE directory level at a time for the active root. Enter on a
 //!     FOLDER descends (the list becomes that folder's children); Left/Backspace
 //!     ASCENDS; Enter on a FILE opens it and closes. Git folders are marked. It

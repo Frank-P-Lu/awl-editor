@@ -744,6 +744,7 @@ fn every_overlay_kind_is_classified_and_the_two_families_render_as_declared() {
             OverlayKind::Spell => CardFamily::FloatAnchored,
             OverlayKind::Goto
             | OverlayKind::Project
+            | OverlayKind::ProjectBrowse
             | OverlayKind::Browse
             | OverlayKind::Theme
             | OverlayKind::Caret

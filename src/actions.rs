@@ -462,13 +462,22 @@ fn apply_overlay_open_action(ctx: &mut ActionCtx, action: &Action) -> bool {
         Action::OpenGoto => {
             ctx.journey.enter((ctx.make_overlay)(OverlayKind::Goto));
         }
+        // THE TWO DOORS ONTO THE FLAT SWITCH-PROJECT PICKER. Both attach its own
+        // door row (`OverlayState::attach_browse_door` — the reach past the
+        // direct workspace children the flat roster deliberately stops at); the
+        // Settings folder-VALUE picker, which shares this kind's card shape and
+        // already walks the whole tree, deliberately does not.
         Action::OpenProject => {
-            ctx.journey
-                .enter((ctx.browse_to)(OverlayKind::Project, None));
+            let mut ov = (ctx.browse_to)(OverlayKind::Project, None);
+            if let Some(o) = ov.as_mut() {
+                o.attach_browse_door();
+            }
+            ctx.journey.enter(ov);
         }
         Action::OpenRecentProjects => {
             let mut ov = (ctx.browse_to)(OverlayKind::Project, None);
             if let Some(o) = ov.as_mut() {
+                o.attach_browse_door();
                 o.focus_facet_id("recent");
             }
             ctx.journey.enter(ov);

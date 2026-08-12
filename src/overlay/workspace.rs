@@ -188,6 +188,7 @@ impl OverlayKind {
             OverlayKind::Conflict => Some(WorkspaceShape::TimelineOverComparison),
             OverlayKind::Goto
             | OverlayKind::Project
+            | OverlayKind::ProjectBrowse
             | OverlayKind::Browse
             | OverlayKind::Theme
             | OverlayKind::Caret
@@ -263,6 +264,7 @@ impl OverlayKind {
             ],
             OverlayKind::Goto
             | OverlayKind::Project
+            | OverlayKind::ProjectBrowse
             | OverlayKind::Browse
             | OverlayKind::Theme
             | OverlayKind::Caret
@@ -315,6 +317,7 @@ impl OverlayKind {
             OverlayKind::Settings
             | OverlayKind::Goto
             | OverlayKind::Project
+            | OverlayKind::ProjectBrowse
             | OverlayKind::Browse
             | OverlayKind::Theme
             | OverlayKind::Caret

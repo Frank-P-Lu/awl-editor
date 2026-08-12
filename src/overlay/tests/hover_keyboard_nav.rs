@@ -354,6 +354,7 @@ fn hover_movement_slop_gate_holds_across_every_overlay_kind_no_wildcard() {
         match kind {
             OverlayKind::Goto
             | OverlayKind::Project
+            | OverlayKind::ProjectBrowse
             | OverlayKind::Browse
             | OverlayKind::Theme
             | OverlayKind::Caret

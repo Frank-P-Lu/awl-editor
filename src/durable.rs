@@ -454,11 +454,14 @@ mod tests {
             // add two temp input fixtures of the same shape. The
             // Switch-project-then-Goto law adds two more: the launch and
             // accepted roots' marker files for the real `capture_screenshot`
-            // fixture tree.
+            // fixture tree. The switch-project DOOR's journey adds the same
+            // two again, one marker per root, for the nested tree it has to
+            // walk into — a scratch fixture the capture reads and nothing
+            // ever reads back, so atomicity would buy it nothing.
             // `main/tests.rs` split into `main/tests/<subject>.rs`;
             // these seven subject files carry the same 21 sites, unmoved.
             ("main/tests/buffer_switching.rs", 8),
-            ("main/tests/capture_scenarios.rs", 4),
+            ("main/tests/capture_scenarios.rs", 6),
             ("main/tests/headless_safety.rs", 1),
             ("main/tests/launch_context.rs", 2),
             ("main/tests/page_measure.rs", 2),

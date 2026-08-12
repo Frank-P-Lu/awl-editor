@@ -37,32 +37,29 @@ impl OverlayState {
                 .then_with(|| a.index.cmp(&b.index))
         });
         let mut ranked: Vec<usize> = scored.into_iter().map(|r| r.index).collect();
-        // SPELL "Add to dictionary" EXEMPTION (always the TERMINAL row):
-        // the add row acts on the TARGETED word, not the typed query, so it must
-        // stay reachable — and stay LAST, right after the trailing correction —
-        // for the whole life of the picker, not just while the query drops it.
-        // A query can also fuzzy-MATCH the add label itself (e.g. typing "add");
-        // left to the plain ranker its `ci == 0` boundary bonus can out-score every
-        // correction and float it to the TOP, which would silently break "reachable
-        // right after the last correction". So this drops the add row from wherever
-        // ranking put it (present or absent) and re-appends it at the END
-        // unconditionally — the corrections keep the ranker's order among
-        // themselves, the add row simply always trails them. Inert for every other
-        // kind (no row ever carries `RowMeta::SpellAdd`).
-        if self
-            .rows
-            .iter()
-            .any(|r| matches!(r.meta, RowMeta::SpellAdd))
-        {
-            let add_rows: Vec<usize> = self
+        // TERMINAL ROWS ([`RowMeta::terminal`]) — the spell picker's "Add to
+        // dictionary" and the flat switch-project picker's "Browse for folder…"
+        // door. Both act on something OTHER than the typed query (the TARGETED
+        // word; a further surface), so both must stay reachable — and stay LAST,
+        // right after the trailing real answer — for the whole life of the
+        // picker, not just while the query happens to drop them. A query can also
+        // fuzzy-MATCH their own labels (typing "add", typing "browse"); left to
+        // the plain ranker a `ci == 0` boundary bonus can out-score every real row
+        // and float one to the TOP, silently breaking "reachable right after the
+        // last answer". So this drops them from wherever ranking put them
+        // (present or absent) and re-appends them at the END unconditionally —
+        // the real rows keep the ranker's order among themselves. Inert for every
+        // kind that carries no terminal row.
+        if self.rows.iter().any(|r| r.meta.terminal()) {
+            let terminal: Vec<usize> = self
                 .rows
                 .iter()
                 .enumerate()
-                .filter(|(_, r)| matches!(r.meta, RowMeta::SpellAdd))
+                .filter(|(_, r)| r.meta.terminal())
                 .map(|(ci, _)| ci)
                 .collect();
-            ranked.retain(|ci| !add_rows.contains(ci));
-            ranked.extend(add_rows);
+            ranked.retain(|ci| !terminal.contains(ci));
+            ranked.extend(terminal);
         }
         // RUNTIME-GATED ROW FILTER (Command palette only, today): drop any row
         // marked `RowMeta::CommandHidden` (e.g. "Finish file" with no daemon

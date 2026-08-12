@@ -2,6 +2,17 @@ use super::*;
 
 // ── Typed `OverlayRow` replacing the 12 corpus-parallel arrays ─────────────
 
+/// The flat switch-project picker AS SUMMONED: the level builder plus the door
+/// row its summon seams attach (`OverlayState::attach_browse_door`), so this
+/// representative produces every tag the kind declares rather than only the
+/// tags the builder alone makes.
+fn project_overlay() -> OverlayState {
+    let mut ov =
+        OverlayState::new_project("/proj".to_string(), vec![("child".to_string(), false)], &[]);
+    ov.attach_browse_door();
+    ov
+}
+
 /// Build a REPRESENTATIVE overlay for `kind` — enough of a real corpus that
 /// every `RowMeta` variant [`OverlayKind::row_meta_roster`] declares for it
 /// actually gets produced at least once (Command: a hidden row + an appended
@@ -20,9 +31,7 @@ fn representative_overlay(kind: OverlayKind) -> OverlayState {
             ov.attach_headings(vec![("Intro".to_string(), 3)]);
             ov
         }
-        OverlayKind::Project => {
-            OverlayState::new_project("/proj".to_string(), vec![("child".to_string(), false)], &[])
-        }
+        OverlayKind::Project => project_overlay(),
         OverlayKind::Browse => OverlayState::new_marked(
             kind,
             vec!["a.txt".to_string()],
@@ -41,15 +50,17 @@ fn representative_overlay(kind: OverlayKind) -> OverlayState {
         OverlayKind::Date => {
             OverlayState::new_date(crate::dateformat::DateFormat::ALL[0], (2024, 1, 1))
         }
-        OverlayKind::MoveDest | OverlayKind::ExportDest => OverlayState::new_marked(
-            kind,
-            vec!["folder".to_string()],
-            vec![false],
-            vec![true],
-            vec![],
-            vec![],
-            None,
-        ),
+        OverlayKind::MoveDest | OverlayKind::ExportDest | OverlayKind::ProjectBrowse => {
+            OverlayState::new_marked(
+                kind,
+                vec!["folder".to_string()],
+                vec![false],
+                vec![true],
+                vec![],
+                vec![],
+                None,
+            )
+        }
         OverlayKind::Command => {
             let names = crate::commands::visible_names();
             let n = names.len();
@@ -132,7 +143,8 @@ fn every_kind_produces_only_its_declared_row_meta_roster() {
             let tag = row.meta.tag();
             assert!(
                 roster.contains(&tag),
-                "{kind:?} produced a row with meta tag {tag:?}, not in its declared roster {roster:?}"
+                "{kind:?} produced a row with meta tag {tag:?}, not in its \
+                 declared roster {roster:?}"
             );
         }
     }
@@ -229,9 +241,10 @@ fn command_palette_settings_rows_keep_key_and_value_across_refilter() {
         crate::settings::palette_value_cells(&Default::default()),
     );
     let ci = ov.rows.iter().position(|r| r.accept == "Keymap").unwrap();
-    assert!(
-        matches!(ov.rows[ci].meta, RowMeta::CommandSetting { id } if id == crate::settings::SettingId::Keymap)
-    );
+    assert!(matches!(
+        ov.rows[ci].meta,
+        RowMeta::CommandSetting { id } if id == crate::settings::SettingId::Keymap
+    ));
     let value_before = ov.rows[ci].secondary.clone();
     for c in "keym".chars() {
         ov.push(c);
