@@ -83,8 +83,23 @@ impl TextPipeline {
         let needs_body = ink.is_some_and(|ink| {
             let px = self.metrics.scale;
             let (w, _) = caret_visual_body_dims(ink, px);
-            w > ink.width + f32::EPSILON
-                || h > ink.height + 2.0 * CARET_INK_PAD.px(px) + f32::EPSILON
+            let glyph_h = ink.height + 2.0 * CARET_INK_PAD.px(px);
+            // TWO CONDITIONS, and the second is what stops a body being drawn
+            // where it cannot do its job. A support body exists because the
+            // glyph alone is too small to read as a caret, so it must EXCEED
+            // the letter somewhere (`>`) — and it must also COVER it (`>=` on
+            // the height), because the glyph on top is recoloured to ordinary
+            // prose ink on the assumption that the accent is behind ALL of it.
+            //
+            // The caret's cell is one height per row now, so a glyph TALLER
+            // than that cell — an ascender, a capital, a bracket — is one the
+            // body cannot back. Drawing it anyway is the worst of both looks: a
+            // fat dark silhouette with a sliver of accent beside it, less
+            // locatable than either alternative. Such a glyph takes Morph's own
+            // primary look instead, carrying the accent in its own silhouette
+            // (the `else` arm below), which is exactly what a full-size letter
+            // did before it ever had a body.
+            h >= glyph_h && (w > ink.width + f32::EPSILON || h > glyph_h + f32::EPSILON)
         });
         if needs_body {
             self.prepare_caret_block(device, queue, width, height);
