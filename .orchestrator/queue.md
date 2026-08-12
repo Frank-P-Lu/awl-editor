@@ -324,6 +324,33 @@ horizontal axis just had, and nothing bands it — the vertical grade is still a
 boolean at the edge. Not urgent; recorded so whoever meets it next knows it was
 seen, measured, and left deliberately.
 
+### 413 — end-of-document breathing room (USER DECISION 2026-08-12)
+
+User report with screenshot: typing at the end of a note — the most common
+journaling posture — leaves the caret riding the window's bottom edge.
+Decision: VIRTUAL space past the last line, drawn by the renderer and never
+written into the file (autosave must not commit junk whitespace; the source is
+always the file). The mechanics already half-exist and the gap is precisely
+default cursor-follow: `max_scroll_rows` (`render/geometry.rs`) already allows
+manual overscroll to one visible row, and typewriter mode (opt-in) already
+holds the caret centered at the end — but the default follow only nudges the
+caret barely-visible, so the allowance goes unused exactly when typing.
+
+The work: an end-of-document pad that cursor-follow honors — caret on the
+last line targets `pad` above the window bottom, a pure function of caret row
++ viewport + doc height (no clock; captures stay deterministic). Default ON,
+modest pad; 🔵 the pad size is a land-and-judge taste call (half a viewport =
+iA Writer's typing posture; 3–4 lines = the quiet version). Two constraints:
+the pad must read as PAGE, not Frame — the page ground extends under the
+virtual space, or the caret floats over the world's margins; and the two
+max-scroll owners currently DISAGREE (`geometry.rs::max_scroll_rows` allows
+deep overscroll, `scroll.rs::max_scroll_q` clamps at doc height) — name one
+owner or the pad exists on one scroll path and not the other. Click below the
+last line lands the caret at document end. Verify: capture pair (caret at doc
+end, follow settled) asserting the caret's drawn row sits ≥ pad above the
+bottom; a law that the buffer's byte length is unchanged by the feature; the
+existing near-end scroll laws re-baselined consciously, not silently.
+
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
 `overlay_prepare_bar_scrims`'s gate reads `backing == BarePlates` — the same
