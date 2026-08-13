@@ -274,47 +274,103 @@ fn file_pickers_faceted_lens_render_and_report() {
         serde_json::from_str(&std::fs::read_to_string(png.with_extension("json")).unwrap()).unwrap()
     };
 
-    // GO-TO, cycled RIGHT×3 to the Headings lens (the last, "By type" was CUT —
-    // the unified-list decision).
+    // GO-TO's typed destination roster. Pin the five labels + IDs at their owner
+    // before selecting by ID: positional RIGHT counts silently retargeted this
+    // capture when Files / Folders joined the strip, leaving the law enrolled on
+    // Folders while its assertion still said Headings.
     let goto_corpus = vec![
         "README.md".to_string(),
         "src/main.rs".to_string(),
         "notes.txt".to_string(),
     ];
-    let mut goto = OverlayState::new(OverlayKind::Goto, goto_corpus, vec![], vec![]);
+    let mut goto = OverlayState::new(OverlayKind::Goto, goto_corpus, vec![], vec![1]);
     goto.attach_headings(vec![("Intro".to_string(), 0), ("Setup".to_string(), 3)]);
-    goto.cycle_lens(1);
-    goto.cycle_lens(1);
-    goto.cycle_lens(1);
-    assert_eq!(goto.active_facet_id(), Some("headings"));
-    let gpng = dir.join("goto.png");
-    capture_with(&gpng, &buf, &fold(&goto)).expect("goto picker capture renders");
-    let gj = read(&gpng);
-    assert_eq!(gj["overlay"]["mode"], serde_json::json!("goto"));
-    assert_eq!(gj["overlay"]["lens"], serde_json::json!("headings"));
-    assert_eq!(
-        gj["overlay"]["lens_strip"],
-        serde_json::json!([
-            ["All", false],
-            ["Recent", false],
-            ["This folder", false],
-            ["Headings", true]
-        ])
+    goto.attach_folders(
+        vec![
+            ("notes/archive".to_string(), false),
+            ("notes/repo".to_string(), true),
+        ],
+        &["notes/repo".to_string()],
     );
-    // Heading rows carry the `❡ ` kind-hint marker (the rowlayout
-    // PRIMARY-cell disambiguator) even under their own dedicated lens.
-    const H: &str = OverlayKind::HEADING_MARKER_PREFIX;
-    assert_eq!(
-        gj["overlay"]["items"],
-        serde_json::json!([format!("{H}Intro"), format!("{H}Setup")])
-    );
-    let gsections: Vec<String> = gj["overlay"]["sections"]
-        .as_array()
-        .unwrap()
+    let goto_scheme = goto.facet_scheme().expect("Go-to has a facet scheme");
+    let roster: Vec<(&str, &str)> = goto_scheme
+        .strip
         .iter()
-        .map(|v| v.as_str().unwrap().to_string())
+        .map(|facet| (facet.label, facet.id))
         .collect();
-    assert!(gsections.iter().all(|s| s == "Headings"), "{gsections:?}");
+    assert_eq!(
+        roster,
+        vec![
+            ("All", "all"),
+            ("Files", "files"),
+            ("Headings", "headings"),
+            ("Folders", "folders"),
+            ("Recent", "recent"),
+        ],
+        "the capture law must enroll the complete typed Go-to roster"
+    );
+
+    // Every typed lens reaches the rendered card and sidecar through the same
+    // fold. The row-counts are deliberately heterogeneous so a lens that is
+    // positionally mis-enrolled cannot pass by showing another two-row type.
+    const H: &str = OverlayKind::HEADING_MARKER_PREFIX;
+    let cases: [(&str, &str, usize); 5] = [
+        ("all", "All", 7),
+        ("files", "Files", 3),
+        ("headings", "Headings", 2),
+        ("folders", "Folders", 3),
+        ("recent", "Recent", 2),
+    ];
+    for (id, label, item_count) in cases {
+        goto.focus_facet_id(id);
+        assert_eq!(goto.active_facet_id(), Some(id), "enrolled lens {id}");
+        let gpng = dir.join(format!("goto_{id}.png"));
+        capture_with(&gpng, &buf, &fold(&goto)).expect("goto picker capture renders");
+        let gj = read(&gpng);
+        assert_eq!(gj["overlay"]["mode"], serde_json::json!("goto"));
+        assert_eq!(gj["overlay"]["lens"], serde_json::json!(id));
+        assert_eq!(
+            gj["overlay"]["lens_strip"],
+            serde_json::json!([
+                ["All", id == "all"],
+                ["Files", id == "files"],
+                ["Headings", id == "headings"],
+                ["Folders", id == "folders"],
+                ["Recent", id == "recent"]
+            ]),
+            "sidecar and rendered strip share the five-lens roster at {id}"
+        );
+        assert_eq!(
+            gj["overlay"]["items"].as_array().unwrap().len(),
+            item_count,
+            "{id} enrolls its own typed destination rows"
+        );
+        let sections = gj["overlay"]["sections"].as_array().unwrap();
+        if id == "all" {
+            assert!(sections.iter().all(|s| s == ""), "All stays ungrouped");
+        } else {
+            assert!(
+                sections.iter().all(|s| s == label),
+                "{id} rows report their rendered {label} section: {sections:?}"
+            );
+        }
+        let rows = gj["overlay"]["window"]["rows"]
+            .as_array()
+            .expect("a rendered Go-to lens publishes its row plan");
+        assert!(
+            rows.iter()
+                .filter_map(|row| row["item"].as_u64())
+                .all(|item| item < item_count as u64),
+            "{id}: every drawn row maps back into the sidecar item roster"
+        );
+    }
+    // Heading rows carry the `❡ ` kind-hint marker (the rowlayout PRIMARY-cell
+    // disambiguator) even under their own dedicated lens.
+    goto.focus_facet_id("headings");
+    assert_eq!(
+        goto.item_strings(),
+        vec![format!("{H}Intro"), format!("{H}Setup")]
+    );
 
     // BROWSE, cycled RIGHT×3 to the Git-repos lens: only the git-marked folder shows.
     let corpus = vec![
@@ -414,105 +470,113 @@ fn faceted_grouped_window_is_bounded_and_scrolls_to_selection() {
         serde_json::from_str(&std::fs::read_to_string(png.with_extension("json")).unwrap()).unwrap()
     };
 
-    // A LARGE go-to corpus of 60 top-level files, cycled to the "This folder" lens
-    // (the "By type" multi-bucket lens was CUT — no picker groups a single
-    // lens into more than one section any more) → a grouped list of 60 rows under
-    // ONE section header, far more than the 12-row window can show at once.
+    // A LARGE Go-to file corpus focused by the roster's stable ID. This is the
+    // five-lens typed surface's Files refinement: one section header + 60 rows,
+    // far more than the 12-row window can show at once.
     let n = 60;
     let corpus: Vec<String> = (0..n).map(|i| format!("file{i:02}.md")).collect();
     let mut goto = OverlayState::new(OverlayKind::Goto, corpus, vec![], vec![]);
-    goto.cycle_lens(1);
-    goto.cycle_lens(1);
-    assert_eq!(goto.active_facet_id(), Some("folder"));
+    goto.focus_facet_id("files");
+    assert_eq!(goto.active_facet_id(), Some("files"));
     assert_eq!(
         goto.item_strings().len(),
         n,
-        "every row shows under This folder"
+        "every file row shows under Files"
     );
 
-    // TOP of the list: the window is bounded and the selection (row 0) is on screen.
-    let top_png = dir.join("goto_top.png");
-    capture_with(&top_png, &buf, &fold(&goto)).expect("grouped top capture renders");
-    let tj = read(&top_png);
-    let w = &tj["overlay"]["window"];
-    assert!(!w.is_null(), "an open faceted picker reports a window");
-    let lines = w["lines"].as_u64().unwrap();
-    let card_h = w["card_h"].as_f64().unwrap();
-    let canvas_h = w["canvas_h"].as_f64().unwrap();
-    let sel_row = w["sel_row"].as_u64().unwrap();
-    // BOUNDED: far fewer drawn candidate lines than the full plan (60 rows + 1 header),
-    // and the card never exceeds the canvas.
-    assert!(lines < n as u64, "windowed: {lines} drawn lines < {n} rows");
-    assert!(
-        lines <= 12 + 1,
-        "drawn lines ≤ item cap (12) + section header (1), got {lines}"
-    );
-    assert!(
-        card_h <= canvas_h,
-        "card_h {card_h} must fit canvas_h {canvas_h}"
-    );
-    // SELECTED VISIBLE: the highlighted row sits within the drawn window.
-    assert!(
-        sel_row < lines,
-        "selected row {sel_row} within drawn window {lines}"
-    );
-    let top = w["top"].as_u64().unwrap();
-    assert_eq!(top, 0, "list starts at the top before any scroll");
+    // The menu bar is the platform-default geometry split (off on macOS, on on
+    // Linux). Sweep both branches in-process so this law does not depend on which
+    // host happened to compile it, then restore the value the guard found.
+    let ambient_menu_bar = crate::menubar::menu_bar_on();
+    for menu_bar in [false, true] {
+        crate::menubar::set_menu_bar_on(menu_bar);
+        goto.move_sel(-(n as isize));
 
-    // MOVE the selection to the LAST row (the bottom of the This-folder section) →
-    // the window SCROLLS so the selection stays visible, and the top advances past
-    // the fold.
-    goto.move_sel(n as isize); // clamps to the last row
-    assert_eq!(goto.selected, n - 1);
-    let bot_png = dir.join("goto_bottom.png");
-    capture_with(&bot_png, &buf, &fold(&goto)).expect("grouped bottom capture renders");
-    let bj = read(&bot_png);
-    let wb = &bj["overlay"]["window"];
-    let blines = wb["lines"].as_u64().unwrap();
-    let btop = wb["top"].as_u64().unwrap();
-    let bsel = wb["sel_row"].as_u64().unwrap();
-    let bcard_h = wb["card_h"].as_f64().unwrap();
-    assert!(
-        btop > 0,
-        "the window scrolled past the fold (top {btop} > 0)"
-    );
-    assert!(
-        bsel < blines,
-        "the last row is visible in the scrolled window"
-    );
-    assert!(
-        bcard_h <= canvas_h,
-        "the scrolled card is still bounded ({bcard_h} ≤ {canvas_h})"
-    );
+        // TOP of the list: the window is bounded and the selection (row 0) is on screen.
+        let top_png = dir.join(format!("goto_top_menubar_{menu_bar}.png"));
+        capture_with(&top_png, &buf, &fold(&goto)).expect("grouped top capture renders");
+        let tj = read(&top_png);
+        let w = &tj["overlay"]["window"];
+        assert!(!w.is_null(), "an open faceted picker reports a window");
+        let lines = w["lines"].as_u64().unwrap();
+        let card_h = w["card_h"].as_f64().unwrap();
+        let canvas_h = w["canvas_h"].as_f64().unwrap();
+        let sel_row = w["sel_row"].as_u64().unwrap();
+        // BOUNDED: far fewer drawn candidate lines than the full plan (60 rows + 1 header),
+        // and the card never exceeds the canvas.
+        assert!(lines < n as u64, "windowed: {lines} drawn lines < {n} rows");
+        assert!(
+            lines <= 12 + 1,
+            "drawn lines ≤ item cap (12) + section header (1), got {lines}"
+        );
+        assert!(
+            card_h <= canvas_h,
+            "card_h {card_h} must fit canvas_h {canvas_h}"
+        );
+        // SELECTED VISIBLE: the highlighted row sits within the drawn window.
+        assert!(
+            sel_row < lines,
+            "selected row {sel_row} within drawn window {lines}"
+        );
+        let top = w["top"].as_u64().unwrap();
+        assert_eq!(top, 0, "list starts at the top before any scroll");
 
-    // FLAT PATH (a non-faceting picker) still reports a bounded window: a long list caps
-    // at 12 rows, card fits the canvas, and the selection is on screen — unchanged.
-    let flat_corpus: Vec<String> = (0..40).map(|i| format!("entry{i:02}")).collect();
-    let mut flat = OverlayState::new(OverlayKind::MoveDest, flat_corpus, vec![], vec![]);
-    flat.move_sel(30); // land the selection deep in the list
-    let fpng = dir.join("flat.png");
-    capture_with(&fpng, &buf, &fold(&flat)).expect("flat picker capture renders");
-    let fj = read(&fpng);
-    // A non-faceting picker draws the FLAT path (no lens strip → no sections).
-    assert_eq!(
-        fj["overlay"]["lens"],
-        serde_json::json!(null),
-        "flat: no lens"
-    );
-    let fw = &fj["overlay"]["window"];
-    assert_eq!(
-        fw["lines"].as_u64().unwrap(),
-        12,
-        "flat list caps at 12 rows"
-    );
-    assert!(
-        fw["sel_row"].as_u64().unwrap() < 12,
-        "flat selection is on screen"
-    );
-    assert!(
-        fw["card_h"].as_f64().unwrap() <= fw["canvas_h"].as_f64().unwrap(),
-        "flat card fits the canvas"
-    );
+        // MOVE the selection to the LAST row (the bottom of the This-folder section) →
+        // the window SCROLLS so the selection stays visible, and the top advances past
+        // the fold.
+        goto.move_sel(n as isize); // clamps to the last row
+        assert_eq!(goto.selected, n - 1);
+        let bot_png = dir.join(format!("goto_bottom_menubar_{menu_bar}.png"));
+        capture_with(&bot_png, &buf, &fold(&goto)).expect("grouped bottom capture renders");
+        let bj = read(&bot_png);
+        let wb = &bj["overlay"]["window"];
+        let blines = wb["lines"].as_u64().unwrap();
+        let btop = wb["top"].as_u64().unwrap();
+        let bsel = wb["sel_row"].as_u64().unwrap();
+        let bcard_h = wb["card_h"].as_f64().unwrap();
+        assert!(
+            btop > 0,
+            "the window scrolled past the fold (top {btop} > 0)"
+        );
+        assert!(
+            bsel < blines,
+            "the last row is visible in the scrolled window"
+        );
+        assert!(
+            bcard_h <= canvas_h,
+            "the scrolled card is still bounded ({bcard_h} ≤ {canvas_h})"
+        );
+
+        // FLAT PATH (a non-faceting picker) still reports a bounded window: a long list caps
+        // at 12 rows, card fits the canvas, and the selection is on screen — unchanged.
+        let flat_corpus: Vec<String> = (0..40).map(|i| format!("entry{i:02}")).collect();
+        let mut flat = OverlayState::new(OverlayKind::MoveDest, flat_corpus, vec![], vec![]);
+        flat.move_sel(30); // land the selection deep in the list
+        let fpng = dir.join(format!("flat_menubar_{menu_bar}.png"));
+        capture_with(&fpng, &buf, &fold(&flat)).expect("flat picker capture renders");
+        let fj = read(&fpng);
+        // A non-faceting picker draws the FLAT path (no lens strip → no sections).
+        assert_eq!(
+            fj["overlay"]["lens"],
+            serde_json::json!(null),
+            "flat: no lens"
+        );
+        let fw = &fj["overlay"]["window"];
+        assert_eq!(
+            fw["lines"].as_u64().unwrap(),
+            12,
+            "flat list caps at 12 rows"
+        );
+        assert!(
+            fw["sel_row"].as_u64().unwrap() < 12,
+            "flat selection is on screen"
+        );
+        assert!(
+            fw["card_h"].as_f64().unwrap() <= fw["canvas_h"].as_f64().unwrap(),
+            "flat card fits the canvas"
+        );
+    }
+    crate::menubar::set_menu_bar_on(ambient_menu_bar);
 }
 
 /// The COMMAND palette + HISTORY timeline gain the same ←/→ lens strip: the picker

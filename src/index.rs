@@ -47,25 +47,18 @@ pub fn is_hidden_entry(rel: &str) -> bool {
 // fn) that [`crate::facets::scheme`] hands back for its [`crate::overlay::OverlayKind`].
 // "All" is HOME (strip index 0, the flat list); LEFT/RIGHT step into the refinements.
 //
-// The bucketing is a PURE function of the [`FacetItem`] — the accept string for
-// Go-to's path-derived This-folder lens, the `recent` flag for Go-to's Recent lens
-// (the recently-OPENED-files MRU, [`crate::recent_files`]), the `is_dir` / `is_git`
-// flags for Browse's Folders / Files / Git-repos split. No filesystem read, no clock
-// inside the bucket.
+// The bucketing is a PURE function of the [`FacetItem`] — Go-to's file / heading /
+// folder tags plus its `recent` flag (the recently-opened destination MRU,
+// [`crate::recent_files`]), and Browse's `is_dir` / `is_git` flags. No filesystem
+// read, no clock inside the bucket.
 
-/// Go-to's lens strip: **All** (flat home — the current doc's HEADINGS mixed with
-/// FILES in one fuzzy-ranked list, the unified default; see [`crate::overlay::nav`]'s
-/// `refilter`) · **Recent** (recently-OPENED files, a real MRU — EMPTY until you open
-/// something) · **This folder** · **Headings** (an explicit refinement down to ONLY
-/// the current markdown doc's headings — the fold that retired the standalone
-/// Outline picker). All FIRST (the landing lens); the rest are ←/→ refinements.
-/// Headings is parked LAST — it swaps the corpus from files to the doc's headings, so
-/// it reads as the furthest refinement. (TASTE CALL, logged: the Headings lens is
-/// ALWAYS on the strip, even over a non-markdown buffer, where it reads empty ("no
-/// headings yet") — a static strip keeps the lens indices stable for the generic
-/// bucket/cycle machinery, and an empty lens is calmer than per-instance strip
-/// surgery.) The former **By type** lens was CUT (decision: redundant once the
-/// unified All list exists — a fuzzy query already reaches a file by its extension).
+/// Go-to's typed destination strip: **All** (flat home — files, the current doc's
+/// headings, and authored folders in one fuzzy-ranked list) · **Files** ·
+/// **Headings** · **Folders** · **Recent** (recent files and folders together).
+/// All is the landing lens; the other four are explicit type / recency refinements.
+/// Headings remains present over a non-markdown buffer, where its honest empty state
+/// reads "no headings yet"; a static strip keeps the generic lens IDs and positions
+/// stable for rendering, pointing, capture, and sidecar reporting.
 const GOTO_FACET_STRIP: [Facet; 5] = [
     Facet {
         label: "All",
@@ -95,17 +88,12 @@ const GOTO_FACET_STRIP: [Facet; 5] = [
 ];
 
 /// Go-to's [`FacetScheme::bucket`], keyed by the strip index (see [`GOTO_FACET_STRIP`]).
-/// `Recent` shows ONLY the files ACTUALLY OPENED recently — a real MRU: an item opts
-/// IN iff `item.recent` (populated from the persisted recently-opened-files store,
-/// [`crate::recent_files`], via [`crate::overlay::OverlayState`]'s `recent` vec) and
-/// OUT (returns `None`) otherwise, so on a fresh session with nothing opened the lens
-/// is EMPTY and shows the empty state. MRU order (most-recent first) is applied by
-/// `refilter`'s MRU tiebreak, not here. `This folder` keeps only top-level FILE
-/// entries (no `/` in the path, and NOT a heading row — `refilter`'s heading gate
-/// already keeps headings out of every lens but All/Headings, so this arm never sees
-/// one, but the explicit `!item.heading` guard keeps the rule true even if that gate
-/// ever changes). `Headings` keeps ONLY the document-heading rows (`item.heading`) —
-/// Go-to's corpus appends the doc's headings after its files.
+/// `Recent` shows only destinations actually used recently — files from the persisted
+/// recently-opened-files store and folders from the persisted workspace roots. An
+/// item opts in iff `item.recent`; a fresh session therefore shows the honest empty
+/// state. MRU order (most-recent first) is applied by `refilter`'s tiebreak, not here.
+/// Files excludes headings and folders, Headings keeps only document-heading rows,
+/// and Folders keeps authored folder rows plus the explicit chooser action.
 fn goto_bucket(item: FacetItem, lens_idx: usize) -> Option<&'static str> {
     match lens_idx {
         1 => (!item.heading && !item.is_dir).then_some("Files"),
