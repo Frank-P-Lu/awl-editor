@@ -127,7 +127,6 @@ use crate::keymap::Action;
 use crate::render::{self, TextPipeline, ViewState};
 
 const MULTICLICK_MS: u64 = 400;
-pub(crate) const INITIAL_ZOOM: f32 = 0.8; // NOT the capture default; see probe::tests
 const WHEEL_LINES_PER_NOTCH: f32 = 3.0;
 const WHEEL_PIXELS_PER_LINE: f32 = 16.0;
 /// Physical-px SLOP a text-selection drag must travel past the press position
@@ -580,7 +579,8 @@ impl App {
             crate::commands::Platform::current(),
         ));
         let keymap = startup::keymap(&keys_with_web_alt, &config.effective_linux_keep());
-        let zoom = render::clamp_zoom(config.zoom.unwrap_or(INITIAL_ZOOM));
+        // Launch resolves the same authored default as every capture and Settings door.
+        let zoom = render::clamp_zoom(config.zoom.unwrap_or(crate::range::ZOOM.default));
         let scroll_sensitivity = input::initial_scroll_sensitivity(config.scroll_sensitivity);
         crate::settings::set_scroll_sensitivity(scroll_sensitivity);
         // THE ONE TIME OWNER: the shipped `RealClock` (a pure `Instant::now()`

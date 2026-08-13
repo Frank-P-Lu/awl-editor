@@ -95,6 +95,13 @@ fn luma(pixel: [u8; 4]) -> f32 {
     0.2126 * pixel[0] as f32 + 0.7152 * pixel[1] as f32 + 0.0722 * pixel[2] as f32
 }
 
+#[derive(Clone, Copy)]
+struct FooterSeat {
+    card: [f32; 4],
+    top: f32,
+    bottom: f32,
+}
+
 /// Count columns carrying a local glyph edge inside the shaped footer line.
 /// The scan stays two pixels inside the line box and card sides, excluding the
 /// footer plate and card boundaries so deleting the text cannot satisfy it.
@@ -104,9 +111,7 @@ fn footer_ink_columns(
     p: &TextPipeline,
     width: u32,
     height: u32,
-    card: [f32; 4],
-    top: f32,
-    bottom: f32,
+    seat: FooterSeat,
 ) -> usize {
     let (texture, view) = offscreen(device, width, height);
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
@@ -115,10 +120,12 @@ fn footer_ink_columns(
     p.render(&mut encoder, &view).unwrap();
     queue.submit(Some(encoder.finish()));
     let pixels = read_pixels(device, queue, &texture, width, height);
-    let x0 = (card[0] + 4.0).ceil().max(1.0) as usize;
-    let x1 = (card[0] + card[2] - 4.0).floor().min(width as f32 - 2.0) as usize;
-    let y0 = (top + 2.0).ceil().max(1.0) as usize;
-    let y1 = (bottom - 2.0).floor().min(height as f32 - 2.0) as usize;
+    let x0 = (seat.card[0] + 4.0).ceil().max(1.0) as usize;
+    let x1 = (seat.card[0] + seat.card[2] - 4.0)
+        .floor()
+        .min(width as f32 - 2.0) as usize;
+    let y0 = (seat.top + 2.0).ceil().max(1.0) as usize;
+    let y1 = (seat.bottom - 2.0).floor().min(height as f32 - 2.0) as usize;
     (x0..x1)
         .filter(|&x| {
             (y0..y1).any(|y| {
@@ -259,9 +266,11 @@ fn every_workspace_footer_is_reserved_before_rows_and_drawn_inside_its_card() {
                         &pipeline,
                         width,
                         height,
-                        card,
-                        hint_top,
-                        hint_bottom,
+                        FooterSeat {
+                            card,
+                            top: hint_top,
+                            bottom: hint_bottom,
+                        },
                     );
                     assert!(
                         inked >= 8,

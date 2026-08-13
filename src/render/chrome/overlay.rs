@@ -196,13 +196,13 @@ impl TextPipeline {
     /// GROW-ONLY (`scale.max(dpi)`, i.e. `dpi · zoom.max(1.0)`): ZOOM only ever
     /// WIDENS the base cap, and the DENSITY always carries it, so the resolved
     /// cap is one LOGICAL width on every panel. The bug it fixes is a high-zoom
-    /// COLLAPSE, so it touches exactly the `zoom > 1.0` regime; at the SHIPPED
-    /// default (zoom 0.8) and every zoom ≤ 1.0 the card holds the base cap at
+    /// COLLAPSE, so it touches exactly the `zoom > 1.0` regime; at the authored
+    /// default (zoom 1.0) and every zoom ≤ 1.0 the card holds the base cap at
     /// whatever the display's ratio is (a slightly-roomier-than-proportional card
     /// at low zoom, which never clips).
     ///
     /// The floor is stated against `dpi` rather than a bare `1.0` because the two
-    /// differ on exactly the shipped default of a retina panel: at `zoom 0.8,
+    /// differ on a below-default retina stress cell: at `zoom 0.8,
     /// dpi 2` a `1.0` floor never binds, so the card resolved to `545 · 1.6` =
     /// 872 device px — 436 LOGICAL px against the 545 a 1× reader sees at the
     /// same logical window. The elision budget, and therefore how much of a
@@ -519,8 +519,8 @@ impl TextPipeline {
         // current zoom/DPI (the SAME grow-only `LogicalGrowOnly` the takeover
         // card's width uses) so a long correction isn't clamped to an unzoomed cap
         // while its shaped `content_w` doubled under zoom — the zoom-blind card bug,
-        // contextual sibling. Grow-only (`scale.max(dpi)`): at every zoom ≤ 1.0 (the
-        // shipped 0.8 default) the band holds its authored LOGICAL width on any
+        // contextual sibling. Grow-only (`scale.max(dpi)`): at every zoom ≤ 1.0 (including
+        // the authored default) the band holds its authored LOGICAL width on any
         // panel, so the popup's clamp is not a function of the display. The MAX is
         // wide enough to hold a whole add-to-dictionary row for an ordinary word
         // (~24 mono cells) so it never elides at wide width; a genuinely

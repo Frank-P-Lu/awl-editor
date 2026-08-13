@@ -29,10 +29,9 @@
 //!
 //! **The zoom axis is here because it is the axis that produced the misreading.**
 //! The threshold is a width in LOGICAL px and every term feeding it is scaled
-//! text, so it moves with zoom — the same card stages ~165 logical px earlier at
-//! the launch zoom than at the capture path's own byte-stable zoom-1.0 baseline.
-//! A single quoted width is therefore never the threshold; it is the threshold at
-//! one zoom, and the two doors disagree about which zoom that is.
+//! text, so it moves with zoom. Launch and capture share the authored 1.0
+//! default, but a single quoted width is still only the threshold at the zoom
+//! that measured it; the below-default stress arm proves that distinction.
 //!
 //! Enrolment is derived from `OverlayKind`'s roster through `workspace_shape()`,
 //! and the swept arms are the distinct `rows_are_primary()` answers that roster
@@ -408,10 +407,9 @@ impl Tally {
 ///     drawn;
 ///   * and the paired stages have some visible presence at the same geometry.
 ///
-/// The zoom axis spans the authored band (`crate::range::ZOOM`) plus the live
-/// App's launch zoom, because the staging threshold is a scaled-text width and
-/// the two capture doors sit at different zooms — the discrepancy that got an
-/// ordinary staged card reported as a vanished one.
+/// The zoom axis spans the authored band (`crate::range::ZOOM`) plus a smaller
+/// non-default zoom, because the staging threshold is a scaled-text width and a
+/// geometry claim made at one zoom cannot be carried onto another.
 #[test]
 fn a_zero_row_workspace_stage_is_narrow_and_still_draws_teaching_or_content() {
     let _g = crate::testlock::serial();
@@ -419,9 +417,8 @@ fn a_zero_row_workspace_stage_is_narrow_and_still_draws_teaching_or_content() {
         eprintln!("skipping zero-row workspace stage law: no wgpu adapter");
         return;
     };
-    // The authored zoom band's own ends and default, plus 0.8 — the zoom a real
-    // launch opens at (`app`'s initial zoom), which is NOT the capture path's
-    // byte-stable 1.0 and is exactly why one quoted width is never the threshold.
+    // The authored zoom band's own ends and default, plus a smaller non-default
+    // value. One quoted width is never the threshold for the whole zoom axis.
     let zooms = [
         crate::range::ZOOM.min,
         0.8,
@@ -478,7 +475,7 @@ fn the_staged_workspace_still_puts_ink_in_its_card() {
     };
     for (rows_primary, kinds) in swept_arms() {
         let mut v = arm_view(rows_primary, rows_primary);
-        // The launch zoom, at which this canvas is genuinely in the staged regime.
+        // A below-default stress zoom at which this canvas is genuinely staged.
         v.zoom = 0.8;
         p.set_dpi(1.0);
         p.set_size(w as f32, h as f32);

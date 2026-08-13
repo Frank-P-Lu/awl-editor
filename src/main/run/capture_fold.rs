@@ -61,7 +61,7 @@ pub(crate) fn fold_capture_state(
     let buffer = subject.buffer();
     let mut opts = CaptureOpts {
         project: Some(project),
-        zoom: (subject.zoom() != 1.0).then(|| subject.zoom()),
+        zoom: (subject.zoom() != crate::range::ZOOM.default).then(|| subject.zoom()),
         selection: buffer.selection_line_col(),
         ..CaptureOpts::default()
     };

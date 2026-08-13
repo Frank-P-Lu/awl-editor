@@ -98,21 +98,18 @@ Three properties worth knowing before you reach for it:
   would misrepresent the editor being photographed. `--root`/`--workspace` were
   already threaded and stay so.
 
-### A tier-1 capture is not a photograph of the editor's SIZE
+### Capture doors share one authored launch size
 
-The tiers differ in more than which code runs: they differ in the CONFIGURATION
-that code launches under, and the difference is silent.
+The tiers differ in which code runs, but not in the unconfigured launch zoom.
 
-- **Launch zoom.** A windowed launch with no `config.zoom` takes
-  `app::INITIAL_ZOOM` — **0.8**. A replay capture with no `--zoom` and no sticky
-  config takes **1.0** (`opts.zoom.unwrap_or(1.0)`). So a tier-1 `--screenshot`
-  of a state is a *different size* of that state than the editor a user sees, and
-  `--screenshot-app`, which builds a real `App`, is the door that reproduces the
-  shipped size. The sidecar says which you got: `font.zoom`.
+- **Launch zoom.** Windowed launch, replay capture, and live-App capture all
+  resolve an absent override through `range::ZOOM.default` — **1.0**. A saved
+  `config.zoom` or explicit replay `--zoom` still wins at its own door. The
+  sidecar reports the resolved value as `font.zoom`.
 - **Surface and dpi are not interchangeable for everything.** The live-`App` dpi
   law above proves the document's own wrap is invariant under trading surface
   pixels for dpi (`1200x800 @1` ≡ `2400x1600 @2`, matching `layout.rows`). That
-  invariance does **not** extend to the summoned overlay's card: at zoom 0.8,
+  invariance does **not** extend to the summoned overlay's card: at explicit zoom 0.8,
   `900x600 @1` reports `overlay.window.band` `x 27.5 / w 545`, while the same
   logical window as `1800x1200 @2` reports `x 164 / w 872` — not the 2x the
   document text takes. Read the sidecar's `overlay.window` rather than scaling a
@@ -736,16 +733,13 @@ with `return_to: settings` at the child, and `mode: settings` with the parent's 
 the card outright** — the return only reads as a return from a row with
 `detail_focus: true`, which is why a first attempt at this can look like a failure.
 
-‼ **THE TWO DOORS RENDER AT DIFFERENT ZOOMS, AND A GEOMETRY FIGURE FROM ONE IS A FIGURE
-AT THAT DOOR'S ZOOM.** An ordinary capture pins **zoom 1.0** (`capture/modes.rs` and
-`capture/animated.rs`: `opts.zoom.unwrap_or(1.0)`) as a byte-stable baseline, while
-`--screenshot-app` renders at the **launch zoom 0.8** (`app.rs::INITIAL_ZOOM`). Both are
-deliberate; what was missing is that they DIFFER. Measured 2026-08-08: a width threshold
-read off the ordinary door was carried onto the board as ~860 and filed as a product
-defect, when the same threshold on the live door is ~690 — **match the zoom axis and the
-two doors agree to 1px.** ⚠️ **So never compare a geometry figure across doors without
-pinning `--zoom`, and say which zoom any width you report was taken at.** This is item
-334's shape with the configuration silently *differing* rather than silently discarded.
+‼ **THE TWO DOORS SHARE THE AUTHORED 1.0 DEFAULT, BUT A GEOMETRY FIGURE IS STILL A
+FIGURE AT ITS RESOLVED ZOOM.** Windowed launch, ordinary capture, and live-App capture
+all resolve an absent override through `range::ZOOM.default`. A persisted `config.zoom`
+or an explicit ordinary-capture `--zoom` still changes that axis. **So never compare a
+geometry figure without recording `font.zoom`, and say which zoom any width you report
+was taken at.** The live probe still uses a live-App reference because equal size does
+not make the replay core an oracle for App-owned launch state.
 ⚠️ **Relatedly, a plain `--screenshot` is not hermetic** — it reads the host's own
 `config.toml` unless `--config` is passed, so an un-configured replay measurement can
 render a different world than the one you asked about. `--screenshot-app` is sandboxed.

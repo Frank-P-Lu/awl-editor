@@ -206,7 +206,7 @@ pub(super) fn settled_viewstate(
     height: u32,
 ) -> ViewState {
     let (cursor_line, cursor_col) = buffer.cursor_line_col();
-    let zoom = render::clamp_zoom(opts.zoom.unwrap_or(1.0));
+    let zoom = render::clamp_zoom(opts.zoom.unwrap_or(crate::range::ZOOM.default));
     // Spell-check the buffer text for the headless capture too, so `--screenshot`
     // renders the squiggles. Deterministic (fixed text -> fixed spans). If the
     // bundled dictionary fails to parse, report it and render without squiggles.

@@ -1832,16 +1832,13 @@ covers a seam the headless PNG/sidecar harness structurally cannot — but the
 live browser PIXELS (WebGPU/WebGL2, touch, the rAF loop) still need a real
 browser, the web build's own live-only boundary.
 
-‼ **THE TWO DOORS RENDER AT DIFFERENT ZOOMS, AND A GEOMETRY FIGURE FROM ONE IS A FIGURE
-AT THAT DOOR'S ZOOM.** An ordinary capture pins **zoom 1.0** (`capture/modes.rs` and
-`capture/animated.rs`: `opts.zoom.unwrap_or(1.0)`) as a byte-stable baseline, while
-`--screenshot-app` renders at the **launch zoom 0.8** (`app.rs::INITIAL_ZOOM`). Both are
-deliberate; what was missing is that they DIFFER. Measured 2026-08-08: a width threshold
-read off the ordinary door was carried onto the board as ~860 and filed as a product
-defect, when the same threshold on the live door is ~690 — **match the zoom axis and the
-two doors agree to 1px.** ⚠️ **So never compare a geometry figure across doors without
-pinning `--zoom`, and say which zoom any width you report was taken at.** This is item
-334's shape with the configuration silently *differing* rather than silently discarded.
+‼ **THE TWO DOORS SHARE THE AUTHORED 1.0 DEFAULT, BUT A GEOMETRY FIGURE IS STILL A
+FIGURE AT ITS RESOLVED ZOOM.** Windowed launch, ordinary capture, and live-App capture
+all resolve an absent override through `range::ZOOM.default`. A persisted `config.zoom`
+or an explicit ordinary-capture `--zoom` still changes that axis. **So never compare a
+geometry figure without recording `font.zoom`, and say which zoom any width you report
+was taken at.** The live probe still uses a live-App reference because equal size does
+not make the replay core an oracle for App-owned launch state.
 ⚠️ **Relatedly, a plain `--screenshot` is not hermetic** — it reads the host's own
 `config.toml` unless `--config` is passed, so an un-configured replay measurement can
 render a different world than the one you asked about. `--screenshot-app` is sandboxed.
