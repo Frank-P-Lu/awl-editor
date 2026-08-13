@@ -221,7 +221,7 @@ impl ViewState {
     /// forcing a conscious render decision) — it is the one authoritative site and
     /// does not route through `base()`.
     ///
-    /// Non-inert defaults: `zoom = 1.0`, `overlay_window_rows = 12` (the no-overlay
+    /// Non-inert defaults: `zoom = range::ZOOM.default`, `overlay_window_rows = 12` (the no-overlay
     /// cap the pipeline windows against), `cjk_priority = DEFAULT_CJK_PRIORITY`, and
     /// `eol = Eol::Lf` — matching the value every scaffold previously spelled out.
     pub fn base() -> Self {
@@ -231,7 +231,7 @@ impl ViewState {
             cursor_col: 0,
             caret_affinity: crate::caret::Affinity::Downstream,
             scroll: ScrollPos::default(),
-            zoom: 1.0,
+            zoom: crate::range::ZOOM.default,
             selection: None,
             preedit: String::new(),
             misspelled: Vec::new(),

@@ -661,3 +661,51 @@ fn the_active_event_loop_census_is_exact_and_the_input_chain_is_free_of_it() {
         );
     }
 }
+
+/// Launch, replay capture, and the configuration surface resolve an absent zoom
+/// through the range spec's authored default. The exact source enrollment is the
+/// structural half of the law: equal values written in parallel are still a bug,
+/// because the next retune can split them again.
+#[test]
+fn zoom_default_is_one_owned_one_hundred_percent_across_launch_capture_and_config() {
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    assert_eq!(
+        crate::range::ZOOM.default,
+        1.0,
+        "the authored zoom default must remain 100%"
+    );
+
+    let owner = "crate::range::ZOOM.default";
+    for (file, expected) in [
+        ("src/app.rs", 1),
+        ("src/capture/oracle.rs", 1),
+        ("src/capture/modes.rs", 1),
+        ("src/capture/animated.rs", 2),
+        ("src/main/run.rs", 2),
+        ("src/main/run/capture_fold.rs", 1),
+        ("src/render/viewstate_def.rs", 1),
+    ] {
+        let body = std::fs::read_to_string(root.join(file)).expect(file);
+        assert_eq!(
+            body.matches(owner).count(),
+            expected,
+            "{file} must resolve every default-zoom decision through {owner}; \
+             a literal or second constant is a divergent owner"
+        );
+        assert!(
+            !body.contains("INITIAL_ZOOM"),
+            "{file} must not restore a launch-only zoom owner"
+        );
+    }
+
+    let template = crate::config::DEFAULT_TEMPLATE;
+    let documented = crate::range::ZOOM.persist_value(crate::range::ZOOM.default);
+    assert!(
+        template.contains(&format!("# zoom = {documented}")),
+        "the seeded config must show the range owner's default ({documented})"
+    );
+    assert!(
+        template.contains("zoom       : the launch zoom factor (default 1.0)"),
+        "the config's prose default must agree with the authored 100% value"
+    );
+}

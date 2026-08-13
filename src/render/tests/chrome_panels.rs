@@ -2200,8 +2200,8 @@ fn overlay_hint_footer_is_compact_and_identical_across_kinds() {
 /// this pins (1) every kind's hint carries the discoverable jump as DATA (the spans
 /// exist), and (2) fed into the NARROWEST (flat) card — the tightest budget, tighter
 /// than the wider faceted card the lens kinds actually use — the shaped footer glyphs
-/// stay WITHIN the card's inner text width at the default render zoom (0.8, the config
-/// default the `--screenshot` capture renders at). An OUTCOME measured over the shaped
+/// stay WITHIN the card's inner text width at a deliberately smaller zoom (0.8).
+/// An OUTCOME measured over the shaped
 /// run widths through the ONE footer-measure owner, NOT inferred from the hint STRING
 /// (the Wagtail tripwire: appearance from pixels). Swept no-wildcard over every kind ×
 /// three worlds (a world whose font mis-shaped a glyph would widen the footer here).
@@ -2251,7 +2251,7 @@ fn jump_hint_is_present_and_never_clips_for_every_kind() {
             for (variant, hint) in [("plain", k.hint()), ("range-row", k.range_row_hint())] {
                 let mut v = view("hello\n", 0, 0);
                 v.overlay_active = true;
-                v.zoom = 0.8; // the config-default render zoom (what `--screenshot` uses)
+                v.zoom = 0.8; // deliberately smaller than the authored 1.0 default
                 v.overlay_items = vec!["Alpha".into(), "Beta".into(), "Gamma".into()];
                 v.overlay_selected = 0;
                 // The REAL per-kind hint (universal lead + kind actions). FLAT card (no

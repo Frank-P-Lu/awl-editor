@@ -27,19 +27,19 @@
 //!
 //! **WHY IT HIDES AT LOW ZOOM.** `LogicalGrowOnly::px` floors the cap, so below
 //! ZOOM 1 the cap holds its authored logical width while the text shrinks — at
-//! the shipped default zoom of 0.8 that makes the card 25% roomier relative to
+//! zoom 0.8, which makes the card 25% roomier relative to
 //! its own text than it is at any zoom ≥ 1. Above 1 the card is exactly
 //! proportional, so the fit becomes a pure ratio and stops depending on the
 //! scale at all: Potoroo's Keybindings hint measures 1.0121 of its text column
 //! at zoom 1.0, 1.6 and 2.0, to four decimals. Dropping the floor makes the SAME
-//! ratio appear at the shipped default, which is the proof that the floor is
+//! ratio appear at zoom 0.8, which is the proof that the floor is
 //! what hides this at low zoom.
 //!
 //! ⚠️ **THE MEASUREMENTS ABOVE WERE TAKEN WHILE THAT FLOOR WAS A BARE `1.0`,
 //! AND `scale` IS `zoom * dpi` — so this file once read the density as a zoom.**
-//! "The reachable-at-shipped-zoom instance is 2× because 0.8 × 2 = 1.6" was
+//! "The zoom-0.8 instance is 2× because 0.8 × 2 = 1.6" was
 //! true of the code and false about the product: it meant a 2× reader at the
-//! shipped zoom was handed the PROPORTIONAL regime while a 1× reader at the
+//! zoom 0.8 was handed the PROPORTIONAL regime while a 1× reader at the
 //! same logical window got the roomier one — a 436-logical-px card against 545.
 //! The floor is the display's own ratio now (`scale.max(dpi)`), so the roomy
 //! low-zoom look this file calls load-bearing reaches BOTH readers and the
@@ -81,7 +81,7 @@
 //! density, either menu-bar arm, at zoom 0.8 or 1.0.
 //!
 //! **THE INCOHERENCE BELOW ZOOM 1 IS UNTOUCHED, DELIBERATELY.** The cap is
-//! still `LogicalGrowOnly`, so at the shipped default zoom the card is still
+//! still `LogicalGrowOnly`, so below the authored default the card is still
 //! 1/zoom roomier relative to its own text than at any zoom ≥ 1. Which tier
 //! the cap should be TUNED at is a separate question from whether the hint
 //! fits, and the floor is load-bearing for the low-zoom look — on every
@@ -281,7 +281,7 @@ fn the_keybindings_footer_never_clips_for_any_real_ledger_tip() {
                         (&device, &queue),
                         (cw, ch),
                         OverlayKind::Keybindings,
-                        0.8, // the shipped default render zoom (what `--screenshot` renders)
+                        0.8, // deliberate below-default stress cell
                         vec![tip.clone()],
                     );
                     let (footer_px, text_w) = (fit.band, fit.column);
@@ -390,8 +390,8 @@ fn grade_one_cell(
 }
 
 /// THE LEDGER IS EXACT, AND THE DEFICIT IS A SCALE-FREE RATIO. Sweeps the
-/// roster × the hint catalog × 1×/2× × both menu-bar arms × the shipped zoom
-/// AND zoom 1.0, each kind through the geometry owner it really gets, and
+/// roster × the hint catalog × 1×/2× × both menu-bar arms × zoom 0.8
+/// AND the authored 1.0 default, each kind through the geometry owner it really gets, and
 /// asserts what the module doc argues for: nothing overflows below scale 1
 /// (the grow-only slack is why this hid), the overflow SET at scale ≥ 1 is
 /// exactly the ledger, each ratio is the same number at every scale ≥ 1, and

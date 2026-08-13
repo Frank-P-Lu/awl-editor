@@ -23,7 +23,7 @@
 //! cleared that floor at both densities whenever `zoom >= 1` and the cap doubled
 //! correctly; below it the floor bound at 1x and not at 2x, so the SAME logical
 //! window drew a 545-logical-px card for a 1x reader and a 436-logical-px one
-//! for a 2x reader — at the app's own shipped zoom. Document wrap is invariant
+//! for a 2x reader — at an explicit below-default zoom. Document wrap is invariant
 //! under this trade and was swept; the CARD was the axis nobody swept. The zoom
 //! sweep is therefore part of the law, not a second law beside it.
 //!
@@ -207,7 +207,7 @@ fn assert_internally_consistent(name: &str, g: &Band) {
 /// carries the app's real shipped type size — where a 1x reader gets the whole
 /// authored cap and a 2x reader, on the same logical window, would not — and one
 /// value above 1, where the floor is out of the way entirely.
-const SWEPT_ZOOMS: &[f32] = &[crate::app::INITIAL_ZOOM, 1.0, 1.6];
+const SWEPT_ZOOMS: &[f32] = &[0.8, crate::range::ZOOM.default, 1.6];
 
 /// The picker fold at a stated canvas, density and zoom.
 fn picker_at(ov: &OverlayState, canvas: (u32, u32), dpi: f32, zoom: f32) -> CaptureOpts {
@@ -414,7 +414,7 @@ fn assert_dpi_trade_holds_at(dir: &ScratchDir, buf: &Buffer, ov: &OverlayState, 
         let span_two = drawn_card_span(&bare_two, &two, &b);
 
         // PRESENCE, set under the roster's own tightest real card. The narrowest
-        // card any shipping world draws at the shipped zoom is Kite's
+        // card any shipping world draws at zoom 0.8 is Kite's
         // content-hugged one at ~216 LOGICAL px (Cassowary's is ~275; every
         // cap-bound world's is 545), so a floor of 150 logical px is under the
         // roster and still far above the noise a bare frame could produce.

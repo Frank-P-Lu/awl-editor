@@ -79,7 +79,7 @@ async fn capture_timeline_async(
     let (texture, view) = offscreen_target(&device, width, height);
 
     // --- Text pipeline (shared with windowed) ----------------------------
-    let zoom = render::clamp_zoom(opts.zoom.unwrap_or(1.0));
+    let zoom = render::clamp_zoom(opts.zoom.unwrap_or(crate::range::ZOOM.default));
     let misspelled = super::policy::misspellings(buffer);
 
     // The buffer cursor rests at the DESTINATION; `origin` is where the glide
@@ -203,7 +203,7 @@ async fn capture_held_async(
     let (texture, view) = offscreen_target(&device, width, height);
 
     // --- Text pipeline (shared with windowed) ----------------------------
-    let zoom = render::clamp_zoom(opts.zoom.unwrap_or(1.0));
+    let zoom = render::clamp_zoom(opts.zoom.unwrap_or(crate::range::ZOOM.default));
     let misspelled = super::policy::misspellings(buffer);
 
     // Per-line char lengths, so each held re-target clamps to a real document

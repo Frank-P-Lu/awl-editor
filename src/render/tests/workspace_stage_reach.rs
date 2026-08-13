@@ -415,10 +415,9 @@ impl Tally {
 ///     the cell is ledgered in [`BLANK_STAGES`], which is graded both ways;
 ///   * **and the other stage, at the same window, zoom and scale, has rows.**
 ///
-/// The zoom axis spans the authored band (`crate::range::ZOOM`) plus the live
-/// App's launch zoom, because the staging threshold is a scaled-text width and
-/// the two capture doors sit at different zooms — the discrepancy that got an
-/// ordinary staged card reported as a vanished one.
+/// The zoom axis spans the authored band (`crate::range::ZOOM`) plus a smaller
+/// non-default zoom, because the staging threshold is a scaled-text width and a
+/// geometry claim made at one zoom cannot be carried onto another.
 #[test]
 fn a_workspace_stage_with_no_rows_is_narrow_and_the_other_stage_always_has_rows() {
     let _g = crate::testlock::serial();
@@ -426,9 +425,8 @@ fn a_workspace_stage_with_no_rows_is_narrow_and_the_other_stage_always_has_rows(
         eprintln!("skipping a_workspace_stage_with_no_rows_is_narrow: no wgpu adapter");
         return;
     };
-    // The authored zoom band's own ends and default, plus 0.8 — the zoom a real
-    // launch opens at (`app`'s initial zoom), which is NOT the capture path's
-    // byte-stable 1.0 and is exactly why one quoted width is never the threshold.
+    // The authored zoom band's own ends and default, plus a smaller non-default
+    // value. One quoted width is never the threshold for the whole zoom axis.
     let zooms = [
         crate::range::ZOOM.min,
         0.8,

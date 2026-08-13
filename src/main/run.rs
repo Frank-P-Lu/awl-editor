@@ -259,7 +259,7 @@ impl<'a> ReplaySession<'a> {
             warnings: Vec::new(),
             records: Vec::new(),
             shift_selecting: false,
-            zoom: 1.0,
+            zoom: crate::range::ZOOM.default,
             search: None,
             journey: crate::overlay::Journey::default(),
             accept: None,
@@ -518,7 +518,7 @@ impl<'a> ReplaySession<'a> {
 
     fn finish(self) -> ReplayResult {
         let buffers_open = self.registry.len() + 1;
-        let zoom_out = if self.zoom != 1.0 {
+        let zoom_out = if self.zoom != crate::range::ZOOM.default {
             Some(self.zoom)
         } else {
             None

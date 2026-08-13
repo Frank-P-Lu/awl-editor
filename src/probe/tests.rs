@@ -287,13 +287,10 @@ fn movement_latency_burst_of_n_reports_n_not_one() {
 /// which makes the same launch-time render decisions the window did), and takes
 /// its canvas from the `surface=WxH dpi=S` the shot line reports.
 ///
-/// The launch-time decision that bit here — and the reason
-/// [`crate::app::INITIAL_ZOOM`] is `pub(crate)` at all: a windowed launch with no
-/// `config.zoom` takes it (0.8), while a replay capture takes
-/// `opts.zoom.unwrap_or(1.0)`. A tier-1 reference is therefore a photograph of a
-/// size no user ever sees. Reconciling those two defaults is a product decision
-/// and is NOT what this law asks for; it asks only that the probe grade like with
-/// like.
+/// Launch and replay now share [`crate::range::ZOOM.default`], but equal zoom is
+/// not permission to collapse the tiers: launch-time App decisions and future
+/// configured state still belong to the live-App reference. This law therefore
+/// keeps grading like with like after the size mismatch itself is gone.
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn probe_reference_is_the_live_app_on_the_windows_own_canvas() {
@@ -303,10 +300,8 @@ fn probe_reference_is_the_live_app_on_the_windows_own_canvas() {
     assert!(
         body.contains("--screenshot-app"),
         "live-probe.sh's ref_for must render its reference through the live-`App` \
-         door (--screenshot-app), not the replay core: the windowed editor launches \
-         at zoom {} while a replay capture defaults to 1.0, so a --screenshot \
-         reference is a different SIZE of the same state. ref_for was:\n{body}",
-        crate::app::INITIAL_ZOOM,
+         door (--screenshot-app), not the replay core: equal default zoom does not \
+         make the replay core a launch-time App oracle. ref_for was:\n{body}",
     );
     assert!(
         !body.contains("--screenshot "),

@@ -104,7 +104,7 @@ pub const DEFAULT_TEMPLATE: &str = "\
 # whenever you change them live (no settings menu; the action IS the setting). You
 # can also hand-edit them. Absent = the built-in default.
 #   theme      : the world to launch in (Tawny, Quokka, Gumtree, ...) — set by Cmd-T
-#   zoom       : the launch zoom factor (default 0.8) — set by Cmd-= / Cmd--
+#   zoom       : the launch zoom factor (default 1.0) — set by Cmd-= / Cmd--
 #   page_mode  : centered page column on/off (default on) — toggled by its command
 #   page_width_prose : the writing column MEASURE in characters for a PROSE buffer
 #                (markdown / the scratch-or-note surface / an unrecognized plain-text
@@ -192,7 +192,7 @@ pub const DEFAULT_TEMPLATE: &str = "\
 #   keymap     : \"native\" (default) or \"emacs\" — see the keymap section above;
 #                also toggleable from Settings -> Keybindings -> Keymap.
 # theme = \"Tawny\"
-# zoom = 0.8
+# zoom = 1.000
 # page_mode = true
 # page_width_prose = 70
 # page_width_code = 100
