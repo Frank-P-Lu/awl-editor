@@ -246,30 +246,6 @@ row gap yields, or the stage refuses to draw a footer it cannot fit — which is
 the same family as the already-open call about the narrow History stage drawing
 no footer at all. 🔵 Worth the user's steer before code.
 
-### 420 — one shared render pipeline is 16x faster and byte-identical
-
-🟡 IN PROGRESS — claude (deep), branch `claude/item-420-pipeline-hoist`.
-
-Measured by item 414 while building its sweep, and **not what that item was
-for**, so it is filed rather than folded in. Reusing one `TextPipeline` across
-cells instead of building one per cell took its 1920-cell sweep from **45.58s to
-2.87s**, and the two runs agree **byte-identically on all 1919 comparable
-readings across 20 worlds**.
-
-⚠️ The lane did not take that on faith and neither should this item: it
-re-measured every cell its ledgers rest on, plus the tightest fitting cell — 27
-cells — against a pipeline built for that cell alone, and required agreement to
-the bit, because cache staleness across a size or world swap is exactly
-CLAUDE.md's cache-key tripwire.
-
-The width law's sibling sweep still builds a fresh pipeline for each of its 96
-cells, and the `render::tests` tree likely does the same in many places. ⚠️ Note
-the recorded counter-example before generalising: reusing one mutable pipeline
-across the diagonal and frost roster sweeps CHANGED per-cell pixel measurements
-and was rejected — that entry is in *Decided against*. So the question is not
-"hoist everywhere" but **which sweeps can prove byte-identity the way this one
-did**, and the 27-cell control is the shape of that proof.
-
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
 `overlay_prepare_bar_scrims`'s gate reads `backing == BarePlates` — the same
