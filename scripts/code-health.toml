@@ -58,7 +58,7 @@ lines = 908
 
 [[file_size_mark]]
 file = "src/actions/overlay_nav.rs"
-lines = 936
+lines = 930
 reason = "item 114: +8 lines net. The workspace's own two-region keyboard and its deep link were carved out to `actions/workspace_nav.rs`; what remains here is the intercept-chain entry and the dispatcher arm that calls them. Item 116c: -23 lines net — the whole `history_intercept` function (folded into the shape-aware `workspace_nav::workspace_intercept`, item 116a's `rows_are_primary` fact) is gone from this file; the `Newline`/`AcceptAlternate` accept arm and the keep-version minibuffer's Cancel/Newline arms now route through `Journey::cancel`/`accept` instead of a bare `dismiss()`. +15: the roster gate that opens the preview owner before its match, so an arm added there alone is INERT until the kind declares itself. The gate, not the arms, is the enrolment, which closes the wildcard hole a subset law could not see. +31: switch-project's accept becomes flat — Enter on a direct child switches instead of descending, and the ascend gate excludes a non-path-bound Project so an empty-query Backspace cannot walk above the configured workspace. The second guard is the one that is not obvious: excluding Project from the navigable set made an idle Backspace fall through to a pop that resets the selection to row 0, so the no-op arm is load-bearing rather than defensive. +108: ProjectBrowse joins is_folder_destination, so the arrow and erase grammar comes from the predicate every navigation site already asks rather than a new branch; plus the three journey wrappers that route every lifecycle call through one rebuild. +5: descend_target's doc — one owner of which path a row names now serves two row SHAPES, and joining an absolute name answers with that name, which is load-bearing rather than an oversight."
 
 [[file_size_mark]]
@@ -68,7 +68,7 @@ reason = "The clobber-notice predicate MOVED OUT to `app/files/external.rs` besi
 
 [[file_size_mark]]
 file = "src/app/apply.rs"
-lines = 988
+lines = 841
 reason = "The conflict workspace's summon reaches the live effect interpreter's one `PersistenceEffect` match and the one `apply_overlay_accept` roster, both exhaustive by design (+6). +34: `sync_theme_font_measured`, the ONE reshape door every live theme-font path now runs through so the leading edge can read the work it is deciding about — the alternative is the same measurement duplicated at the immediate, commit and deferred call sites, which is exactly the drift a single owner exists to prevent. +1 from item 273's residual (4): the Reference command's own arm/entry, the third consumer of the new open_bundled_doc owner. +30: the split-reach preview path — the theme arrow's presentable shape and the finish_shape_tail call that closes it inside the same redraw handler. +3: the door's descend and its resume path."
 
 [[file_size_mark]]
@@ -227,7 +227,7 @@ reason = "+2: resolve_default_folder documents the default-folder candidate sepa
 
 [[file_size_mark]]
 file = "src/main/run.rs"
-lines = 1079
+lines = 1060
 reason = "The `Mode::BenchA11y` dispatch arm is one line in the ONE mode dispatch, which the design keeps singular, plus the `cfg(not(wasm32))` attribute that keeps the browser build compiling (+2). item 207, DOWN 5: the two live-`App` dispatch arms collapsed to one line each when `--screenshot-app` and `--semantic-json` started carrying the shared `args::LiveAppSpec` payload instead of five destructured fields apiece. Items 296/300 (the notice becomes photographable and findable) and 131e/303 (the diagonal mark's weight becomes world data) both landed in this file; the count here is measured on the MERGED tree, which matched neither lane's own figure. +7: the frame-loop door threads its canvas and dpi into CaptureOpts instead of rendering through CaptureOpts::default(), which is what silently collapsed every geometry flag to 1200x800."
 
 [[file_size_mark]]
@@ -255,17 +255,17 @@ lines = 761
 
 [[file_size_mark]]
 file = "src/overlay/kind.rs"
-lines = 579
+lines = 427
 reason = "A new `OverlayKind` variant crosses seven exhaustive per-kind matches in this one file — name, accept disposition, row-meta roster, hints, empty copy, title, row split — each of which exists so a new kind cannot inherit an untested path (+20). +45: `keeps_backdrop_crisp` becomes the ONE owner of which pickers keep the document sharp behind them, as a wildcard-free 21-arm match -- the eighth exhaustive per-kind match this file carries. It replaced two independent deciders, one of which keyed on the mode's own SPELLING (`o.mode == \"theme\" || o.mode == \"caret\"`) in the capture door, so the live App and a capture could disagree about the same kind. A comment naming a stale set was the symptom; two deciders were the cause. +49: `previews_live_document` is the ninth wildcard-free per-kind match this file carries. It is the subject of the equivalence law that replaced a subset law: the frost exemption and the live audition are ONE decision, so a kind repainting the page behind its card must not frost it, and a kind repainting nothing has no exemption to claim. +9: the detail stage's Back cell is appended by one owner rather than authored per kind, so a kind cannot name a key its own intercept does not honour. +22: `project_flat_hint` filters Project's own kind-level cells by GLYPH against `workspace::ERASE_GLYPH` rather than re-listing them, so a hint cell added elsewhere cannot be silently dropped here. +78: OverlayKind::ProjectBrowse crosses the file's exhaustive per-kind matches by design — that is the mechanism stopping a new kind inheriting an untested path — plus its hint arm, routed through the existing footer owner rather than a second answer."
 
 [[file_size_mark]]
 file = "src/overlay/nav.rs"
-lines = 563
+lines = 428
 reason = "item 114: +12 lines. `item_sections` gained the workspace's empty-sections arm and its argument — a workspace names its category once, in its rail, and `refilter`'s bucketing is the one owner that must not answer twice. +10: refilter's dotfile exemption gains the remembered clause. That filter governs what a directory READ puts in front of you, so a project you chose must not vanish from Recent because of a setting about listings."
 
 [[file_size_mark]]
 file = "src/overlay/state.rs"
-lines = 770
+lines = 705
 reason = "The conflict card's payload field on the one `OverlayState` struct and its one exhaustive `new_marked` initializer (+5). +10: `BackKey` is the one owner of what goes back from a detail stage — erase when free, focus while a live query owns the erase key, nothing during a value edit — so the footer and the intercept cannot disagree. +23: `foot_hint_scoped` takes the `Bind` the card was entered under, because whether Backspace ascends is a property of the JOURNEY and not of the kind — the two switch-project surfaces are the same `OverlayKind`. The zero-argument form remains, delegating with `None`, so roughly thirty bare-card call sites keep the correct default: a card with no journey is flat. +68: RowMeta::ProjectDoor and RowMeta::terminal, which merges the add-to-dictionary row's always-last exemption with the door's — both act on something other than the query, so a fuzzy match on their own label must not float them above the answers."
 
 [[file_size_mark]]
@@ -319,7 +319,7 @@ reason = "+6: the dropdown plan takes the frame's scale so its minimum width res
 
 [[file_size_mark]]
 file = "src/render/chrome/mod.rs"
-lines = 1054
+lines = 1052
 reason = "+1: re-export PANEL_MARGIN and PANEL_PAD so panel shaping and rectangle layout resolve one physical panel inset owner."
 
 [[file_size_mark]]
@@ -329,7 +329,7 @@ reason = "Item 424 (+28): the persistent outline publishes its interactive geome
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay.rs"
-lines = 808
+lines = 719
 reason = "+1: the Range rail's read hands the accessory column's ANCHOR and its flow to `rail_geom`, so a mirrored cluster seats its rail on the other side of its value through the same owner. +34: eight bare geometry literals inside the two geometry owners become named constants of a declared unit family (the Pane text inset, the card's pad / margin / top drop / anchor drop, the spell popup's pad / window breath / word gap), each with the doc line that records why, plus the resolved locals the owners read them through and `overlay_leading`, the third term of the row pitch. DOWN 27: the roster-width measurements moved to `chrome/roster.rs`. The overlay owns the one shared row plan and pointer geometry; the measured diagonal span and Range rail read remain at that seam alongside the workspace dispatch and row-offset inputs. The lens strip's Y band left for the scene planner. The `Rules` PROTOTYPE (the quiet fourth list composition, organised by absence) takes two of this file's three list-style match arms: the row AIR between rules rides the one row-pitch owner `overlay_row_gap` exactly as a `Bars` plate gap does, and the GUTTER a selection mark hangs in rides `overlay_text_hpad`. Both are the seams that already exist for exactly this question, so the growth is the two arms and the comments saying why a rule's air is the same quantity as a plate's gap (+9). +13: the rail inset and card-box policy take `dpi`, since the inset resolves the cap that seats the card."
 
 [[file_size_mark]]
@@ -344,7 +344,7 @@ reason = "+15: every range rail now computes its OWN thumb ink and uploads throu
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay_shape.rs"
-lines = 911
+lines = 893
 reason = "The chord column's glyph alignment is the accessory column's own flow rather than Right outright, so a mirrored cluster's chords hang on the end they are seated at. The placard family is chrome's annotated PHYSICAL exception and each of its four constants carries the reason it is one — the wordmark is frame, not text, and `placard_size_is_window_scaled_not_zoom_scaled` fails by name if that changes. `push_beat_spacer` emits the query beat as its OWN glyph-free line rather than as line height on a line that has glyphs, because cosmic-text centres a glyph run in its box and a folded beat otherwise draws the query field's text half a beat below its own bar; it is a free function so the flat shaper itself stays under the 100-line bar. Faceted diagonal rows must shape against their measured side territory and re-fit real glyph widths before the accessory column is granted, so the row plan is threaded to the two shapers: the inflated header line's height IS the query field's planned box (read, not re-summed) and the secondary column's leading-empty count comes from the same object as its upload origin. The content-hug measurement and the two roster widths it reads live in `chrome/roster.rs`, not here. +10: `right_bind_lines` leads the first secondary label with exactly `header_rows` empty lines instead of `header_rows.max(1)`, plus the doc comment stating the buffer contract it restores (`secondary_top() + (header_rows + r) * lh == row_top(r)`). The `.max(1)` was invisible everywhere `header_rows` is 1 and dragged every secondary label -- and the ink resolved for it -- one display row down on the ONE kind that has no header line. The comment is there because the expression looks like a harmless guard against zero."
 
 [[file_size_mark]]
@@ -358,7 +358,7 @@ reason = "DOWN 31: item 424 extracts toast placement and collision planning into
 
 [[file_size_mark]]
 file = "src/render/chrome/theme_picker.rs"
-lines = 669
+lines = 605
 reason = "`theme_overlay_geometry` is an exhaustive `OverlayGeom` construction site, so every workspace field is spelled out here, and the strip band reads the row plan threaded through the two shaping owners. The grouped card's pad, margin and top drop read the one owner rather than repeating the flat family's literals, and the lens strip's chip pads, corner ticks and underline drop resolve at the boundary. Its display plan carries a THIRD line kind: a section whose label is the card's own location is not a section, so it is planned and shaped as the second level of the heading hierarchy — its own scale const, its own metrics, its own span arm in the chrome face at `muted`, and the plan arm that chooses between the two. The location-scale constant itself lives in `render::rotated_location`, shared with the rotated-rail treatment, and the inline span arm carries a `RotatedRail`-world guard so that world's own vertical cue is not drawn twice; the guard reads the exhaustive `LocationStyle::draws_inline()` rather than a direct `!= RotatedRail` comparison, so a third style (`Raked`) is a conscious decision there too. The `Rules` PROTOTYPE draws no plates anywhere, so it is deliberately absent from the lens-strip TAB PILL gate — the comment records that absence as a decision rather than an oversight, and notes that `Diagonal` sits on the yes side here and the no side of `draws_row_plates`. Grew by 22 lines (610 -> 632): the active-lens mark's `Text` and `Chips(Underline)` stroke weights moved off bare device-pixel literals onto two documented `Logical` constants resolved through `Metrics::px`, and the two draw-call array literals each grew from one line to a multi-line `rustfmt` layout once their fourth element became a method call instead of a bare float."
 
 [[file_size_mark]]
@@ -416,7 +416,7 @@ reason = "The text shaping and incremental-restyle hub remains an explicit rende
 
 [[file_size_mark]]
 file = "src/replay.rs"
-lines = 380
+lines = 353
 reason = "The conflict kind's arm in `accept_class`, the exhaustive per-kind accept classifier, plus the correction to that arm's own premise — it is the one member there that really can reach the generic accept fallthrough (+7). +4: the door's kind in the replay classifier, so a capture and the live App agree about what it is."
 
 [[file_size_mark]]
@@ -547,14 +547,7 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/main/run.rs"
 function = "ReplaySession::apply_chord"
-message = "this function has too many lines (165/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
-
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
-file = "src/main/run.rs"
-function = "capture_screenshot"
-message = "this function has too many lines (113/100)"
+message = "this function has too many lines (152/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
@@ -661,13 +654,6 @@ file = "src/render/chrome/theme_picker.rs"
 function = "TextPipeline::overlay_shape_theme"
 message = "this function has too many lines (192/100)"
 reason = "Line moved by the location line kind added above it; the count is unchanged. The row plan is threaded to this shaper so the strip's active mark rides the planned strip box; +3 lines at an existing chrome draw owner. Existing chrome draw owner; extraction needs a deliberate rendering-state seam. Line/size moved by queue item 114's summoned Settings workspace. Item 221 moved the module-level LOCATION_SCALE constant + its doc comment out of this file (to render::rotated_location), shifting this function's line 4 lines earlier; its own size is unchanged. Grew by four lines (167 -> 171): the grouped card's pad, margin and top drop stop being a second copy of the flat family's literals and resolve through the one owner instead. Grew by ten lines (171 -> 181): the `FacetStyle::Text` and `ChipVariant::Underline` mark rects each moved their fourth (thickness) element from a bare float to a `Metrics::px` call over a named `Logical` constant, and `rustfmt` lays each four-element array out one element per line once one element stops fitting the line."
-
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
-file = "src/render/chrome/theme_picker.rs"
-function = "TextPipeline::shape_theme_spans"
-message = "this function has too many lines (139/100)"
-reason = "+7: the shaper gained the location heading's own metrics and span arm. Existing chrome draw owner; extraction needs a deliberate rendering-state seam. Line/size moved by queue item 114's summoned Settings workspace. +4: item 221's RotatedRail world gates the location line's inline span behind a condition instead of drawing it unconditionally, so the PlanLine::Location arm gained an if/comment; the rotated treatment itself lives in a dedicated chrome::rotated_location submodule, not here. Item 224 (-2): the gate reads the new exhaustive `LocationStyle::draws_inline()` instead of a direct `!= RotatedRail` comparison and inline `if`, one condition covering both non-inline styles."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
