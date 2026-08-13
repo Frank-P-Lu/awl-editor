@@ -632,6 +632,7 @@ impl TextPipeline {
         hint: &'a str,
         muted: glyphon::Color,
         gap_rows: usize,
+        content_before: bool,
     ) {
         let name_fs = self.overlay_metrics().font_size;
         let hint_fs = name_fs * crate::markdown::type_scale::LABEL;
@@ -664,7 +665,9 @@ impl TextPipeline {
                     .metrics(GlyphMetrics::new(hint_fs, self.overlay_hint_gap_h())),
             ));
         }
-        spans.push(("\n", base.clone().color(muted)));
+        if gap_rows > 0 || content_before {
+            spans.push(("\n", base.clone().color(muted)));
+        }
         push_symbol_split(spans, hint, || hk_hint(muted), || sym_hint(muted));
     }
 
@@ -774,6 +777,7 @@ impl TextPipeline {
                 fitted_hint.as_str(),
                 muted,
                 geom.hint_gap_rows,
+                has_query || !rows.is_empty() || geom.empty.is_some(),
             );
         }
         let footer_lines: Vec<String> = geom.footer.iter().map(|t| format!("\n{t}")).collect();

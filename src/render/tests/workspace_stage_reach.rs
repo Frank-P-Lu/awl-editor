@@ -179,6 +179,7 @@ struct StageOutcome {
     wide: bool,
     other_region_drawn: bool,
     footer_drawn: bool,
+    footer_inside: bool,
 }
 
 /// The existing maximum-zoom height limit for the staged OTHER region. Its
@@ -261,11 +262,16 @@ fn stage(
                     .any(|slot| slot.is_some_and(|[_, _, sw, sh]| sw > 0.0 && sh > 0.0))
         }
     };
+    let hint = p.overlay_hint_gap_probe(w);
+    let card_bottom = probe.card[1] + probe.card[3];
     StageOutcome {
         rows: probe.visible,
         wide: p.workspace_is_wide(w),
         other_region_drawn,
-        footer_drawn: p.overlay_hint_gap_probe(w).is_some(),
+        footer_drawn: hint.is_some(),
+        footer_inside: hint.is_none_or(|(_, top, bottom)| {
+            top >= probe.card[1] - 0.01 && bottom <= card_bottom + 0.01
+        }),
     }
 }
 
@@ -300,6 +306,10 @@ impl Tally {
             let what = cell.describe(kinds);
             let out = stage(device, queue, p, cell);
             self.graded += 1;
+            assert!(
+                out.footer_inside,
+                "{what}: the teaching footer was shaped outside its workspace card"
+            );
             if out.rows > 0 {
                 with_presence += 1;
                 self.wide += usize::from(out.wide);

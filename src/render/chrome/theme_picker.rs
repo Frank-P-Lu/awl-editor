@@ -649,6 +649,7 @@ impl TextPipeline {
                 fitted_hint.as_str(),
                 muted,
                 geom.hint_gap_rows,
+                geom.header_rows > 0 || !geom.plan.is_empty() || geom.empty.is_some(),
             );
         }
         self.panel_buffer
