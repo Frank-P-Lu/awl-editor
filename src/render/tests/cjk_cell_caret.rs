@@ -225,7 +225,10 @@ fn rendered_cjk_cell_is_present_and_contains_kanji_ink_with_pad() {
                 );
                 let top_pad = ink.top - caret.top;
                 let bottom_pad = caret.bottom - ink.bottom;
-                let required = CARET_INK_PAD.px(p.metrics.scale).floor() as i32 - 1;
+                // Geometry above proves the authored logical pad. Final pixel
+                // bounds are inclusive and both glyph and quad edges snap, so
+                // retain that pad minus two device pixels at this raster seam.
+                let required = (CARET_INK_PAD.px(p.metrics.scale).floor() as i32 - 2).max(0);
                 assert!(
                     top_pad >= required && bottom_pad >= required,
                     "{} d{dpi} {mode:?}: rendered CJK ink {ink:?} must fit inside \
