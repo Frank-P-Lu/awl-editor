@@ -2516,6 +2516,9 @@ pub struct TextPipeline {
     /// same reason. `0.0` off a workspace.
     workspace_primary_w: f32,
     workspace_rail_buffer: GlyphBuffer,
+    /// Footer fitting scratch. It is deliberately not a rendered column: both
+    /// workspace text buffers are final before all width-yield probes finish.
+    workspace_hint_measure_buffer: GlyphBuffer,
     /// EVERY rail entry's rect for this frame, tagged with whether it is the
     /// ACTIVE one — recorded by the rail shaper and consumed by the shared
     /// facet-mark owner. Empty when no rail is drawn, so the marks park with the

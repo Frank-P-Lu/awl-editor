@@ -1,27 +1,15 @@
 //! THE SUMMONED WORKSPACE'S ACTIVE RAIL ENTRY MUST BE READABLE ON ITS OWN BAND.
 //!
-//! The reported defect (Wagtail Settings, user screenshot): the navigation
-//! rail's active category draws a filled inverse plate — Wagtail's band IS
-//! `base_content`, pure white — while `workspace_shape_rail` shaped that entry's
-//! label in `theme::base_content()` unconditionally. White glyphs on a white
-//! plate. Measured on the real product before the fix, over the rail's own mark
-//! rect at 1400x900: **2052 pixels, every one of them `[255,255,255]`, ZERO
-//! deviating by any amount at all** — not a washed-out label, an absent one.
+//! The rail's fill and label ink resolve as one pair in
+//! `chrome::overlay_visual_sel`. Its final glyph buffer has one more ownership
+//! constraint: footer fitting must use separate measurement scratch. Reusing the
+//! already-final rail buffer replaces every category with the footer sentence;
+//! on Potoroo the pixel oracle then reads its light footer ink on the gold active
+//! band as 2.30:1 instead of the selected label owner's dark 6.90:1 answer.
 //!
-//! The rail took its FILL from the world's `highlight_treatment` and its INK
-//! from nowhere in particular, so the pair could disagree. The fix routes both
-//! halves through one place (`chrome::overlay_visual_sel`), and the laws below
-//! are the two that were missing:
-//!
-//! * [`the_active_rail_entrys_label_reads_on_its_own_band_on_every_world`] — the
-//!   PIXEL law. Real frames, real rail geometry, arithmetic over the rendered
-//!   pixels (CLAUDE.md's Wagtail tripwire: the sidecar is a state oracle and
-//!   once reported a perfectly-selected row that rendered fully invisible).
-//! * [`only_the_visual_selection_owner_resolves_the_overlay_selected_band`] — the
-//!   grep law that keeps the pair together, by name, with no wildcard.
-//!
+//! The headline pixel law uses real frames and geometry; its companion grep law
+//! keeps band and ink resolution in the single visual-selection owner.
 //! # THE ORACLE: ONE RECT, PHOTOGRAPHED TWICE
-//!
 //! Every figure below is a comparison of **the same rail entry's own rect, with
 //! its mark and without it** — the first frame stands on category 0, the second
 //! on category 1, and both are measured at row 0. Nothing is compared to an
@@ -399,14 +387,19 @@ fn frame_with_lens(
     lens: usize,
     detail: bool,
     (w, h, dpi): (u32, u32, f32),
-) -> (Vec<[u8; 4]>, Option<[f32; 4]>) {
+) -> (Vec<[u8; 4]>, Option<[f32; 4]>, Option<String>) {
     let ov = workspace_card(lens, detail);
     p.set_dpi(dpi);
     p.set_size(w as f32, h as f32);
     p.set_view(&workspace_view(&ov));
     p.prepare(device, queue, w, h).unwrap();
     let rect = p.workspace_rail_probe(w).rows.first().copied().flatten();
-    (render_frame(p, device, queue, w, h), rect)
+    let first_label = p
+        .workspace_rail_buffer
+        .lines
+        .first()
+        .map(|line| line.text().to_string());
+    (render_frame(p, device, queue, w, h), rect, first_label)
 }
 
 /// **THE HEADLINE LAW.** On every world in the roster, at a wide canvas, at the
@@ -468,9 +461,15 @@ fn grade_cell(
     // The SAME rect, twice: standing on category 0 (row 0 is the active entry,
     // marked) and on category 1 (row 0 is an ordinary entry, bare). Everything
     // below is one against the other.
-    let (marked, rect_a) = frame_with_lens(device, queue, p, 0, detail, cell);
-    let (bare, rect_b) = frame_with_lens(device, queue, p, 1, detail, cell);
+    let (marked, rect_a, label_a) = frame_with_lens(device, queue, p, 0, detail, cell);
+    let (bare, rect_b, label_b) = frame_with_lens(device, queue, p, 1, detail, cell);
     let (rect, rect_bare) = (rect_a?, rect_b?);
+    assert_eq!(
+        (label_a.as_deref(), label_b.as_deref()),
+        (Some("All"), Some("All")),
+        "{at}: the first rail row must keep its `All` label in both selected states; \
+         another workspace measurement overwrote it ({label_a:?} vs {label_b:?})"
+    );
     assert!(
         rect.iter()
             .zip(rect_bare.iter())

@@ -142,11 +142,11 @@ impl TextPipeline {
             name_fs * crate::markdown::type_scale::LABEL,
             self.overlay_hint_h(),
         );
-        self.workspace_rail_buffer
+        self.workspace_hint_measure_buffer
             .set_metrics(&mut self.font_system, metrics);
-        self.workspace_rail_buffer
+        self.workspace_hint_measure_buffer
             .set_size(&mut self.font_system, None, None);
-        self.workspace_rail_buffer
+        self.workspace_hint_measure_buffer
             .set_wrap(&mut self.font_system, Wrap::None);
         let ink = theme::base_content().to_glyphon();
         // THE FOOTER IS MEASURED IN THE FACES IT IS DRAWN IN. The drawn line is
@@ -168,16 +168,16 @@ impl TextPipeline {
                     .metrics(metrics)
             },
         );
-        self.workspace_rail_buffer.set_rich_text(
+        self.workspace_hint_measure_buffer.set_rich_text(
             &mut self.font_system,
             spans,
             &panel_attrs().color(ink),
             Shaping::Advanced,
             None,
         );
-        self.workspace_rail_buffer
+        self.workspace_hint_measure_buffer
             .shape_until_scroll(&mut self.font_system, false);
-        self.workspace_rail_buffer
+        self.workspace_hint_measure_buffer
             .layout_runs()
             .fold(0.0_f32, |w, run| w.max(run.line_w))
     }

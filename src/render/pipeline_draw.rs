@@ -104,6 +104,8 @@ impl TextPipeline {
         // The summoned workspace's navigation rail shapes into its own
         // buffer: it is a column, not more lines of the card's own list.
         let workspace_rail_buffer = GlyphBuffer::new(&mut font_system, metrics.glyph_metrics());
+        let workspace_hint_measure_buffer =
+            GlyphBuffer::new(&mut font_system, metrics.glyph_metrics());
         let placard_buffer = GlyphBuffer::new(&mut font_system, metrics.glyph_metrics());
         let panel_caret = CaretPipeline::new(device, format, PLACEHOLDER_RGB);
         let caret_preview_pipeline = CaretPipeline::new(device, format, PLACEHOLDER_RGB);
@@ -468,6 +470,7 @@ impl TextPipeline {
             overlay_comparison: false,
             workspace_primary_w: 0.0,
             workspace_rail_buffer,
+            workspace_hint_measure_buffer,
             workspace_rail_rows: Vec::new(),
             workspace_rail_placement: None,
             overlay_spell_w: 0.0,
