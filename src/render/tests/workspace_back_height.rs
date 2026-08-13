@@ -25,11 +25,11 @@
 //!     spill a line into a second row and push the footer down a pitch;
 //!   * the card's own height is the canvas less the menu bar's reserve.
 //!
-//! A substituted glyph gets no vote anywhere in that list, and item 408
-//! measured the consequence rather than assuming it: across all 94 laid-out
-//! cells of the width law's sweep, on macOS against Apple Symbols and on Ubuntu
-//! 24.04 against DejaVu Sans, the vertical demand agreed TO THE BYTE while every
-//! shaped width differed by one common factor.
+//! A substituted glyph gets no vote anywhere in that list, and that was measured
+//! rather than assumed: across all 94 laid-out cells of the width law's sweep,
+//! on macOS against Apple Symbols and on Debian against its own font set, the
+//! vertical demand agrees TO THE BYTE while every shaped width differs by one
+//! common factor.
 //!
 //! So a `HOST_BAND` analogue here would open a grade no host could ever populate
 //! — a ledger that reads as coverage and holds nothing. The vertical grade stays
@@ -275,6 +275,14 @@ fn crowded_entry(label: &str, what: &str, demand: f32) -> String {
     format!("{label} · {what} @{step:.3}")
 }
 
+/// One world's whole vertical answer, exact to the bit — the key worlds are
+/// GROUPED by, so that a group is a measured fact rather than an assumption
+/// about which knob matters.
+type Signature = Vec<(Room, u32)>;
+
+/// The worlds that measured one [`Signature`], as indices into the sweep.
+type Members = Vec<usize>;
+
 /// Everything one world contributed, in grid order.
 struct WorldReadings {
     name: &'static str,
@@ -287,7 +295,7 @@ impl WorldReadings {
     /// the bit: two worlds are the same world to this law only if every cell
     /// agreed, so a group can never hide a member that differed somewhere the
     /// grades happened to match.
-    fn signature(&self) -> Vec<(Room, u32)> {
+    fn signature(&self) -> Signature {
         self.readings
             .iter()
             .map(|r| (r.room, r.demand.to_bits()))
@@ -367,6 +375,157 @@ impl Sweep {
     }
 }
 
+/// **THE SWEEP.** Every world in the roster over the whole grid, through one
+/// pipeline. Split out because the roster walk and the claims made about what it
+/// found are two different readings.
+fn sweep_the_roster(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    p: &mut TextPipeline,
+    kinds: &[OverlayKind],
+    cells: &[Cell],
+) -> Vec<WorldReadings> {
+    let mut worlds = Vec::new();
+    for kind in kinds {
+        let ov = card_in_content(*kind);
+        for wi in 0..crate::theme::THEMES.len() {
+            let world = crate::theme::set_active(wi);
+            let mut readings = Vec::with_capacity(cells.len());
+            for cell in cells {
+                crate::menubar::set_menu_bar_on(cell.menu_bar);
+                let what = cell.describe(*kind);
+                readings.push(measure(device, queue, p, &ov, *cell, &what));
+            }
+            worlds.push(WorldReadings {
+                name: world.name,
+                tag: pitch_tag(world.render_caps.list_style),
+                readings,
+            });
+        }
+    }
+    worlds
+}
+
+/// **THE ENROLMENT, DERIVED FROM WHAT THE ROSTER MEASURED.** Worlds are grouped
+/// by their whole vertical answer and each group is THEN labelled with the pitch
+/// tags its members carry — never the other way round, which would assume the
+/// answer this sweep exists to find.
+fn group_and_label(worlds: &[WorldReadings]) -> Vec<(String, Members)> {
+    let mut groups: Vec<(Signature, Members)> = Vec::new();
+    for (i, w) in worlds.iter().enumerate() {
+        let sig = w.signature();
+        match groups.iter_mut().find(|(s, _)| *s == sig) {
+            Some((_, members)) => members.push(i),
+            None => groups.push((sig, vec![i])),
+        }
+    }
+    let mut labelled: Vec<(String, Members)> = groups
+        .into_iter()
+        .map(|(_, members)| {
+            let mut tags: Vec<&str> = members.iter().map(|i| worlds[*i].tag).collect();
+            tags.sort_unstable();
+            tags.dedup();
+            (tags.join("+"), members)
+        })
+        .collect();
+    labelled.sort_by(|a, b| a.0.cmp(&b.0));
+
+    // **THE LABEL IS THE LEDGER'S KEY, SO IT HAS TO IDENTIFY ITS GROUP.** Two
+    // groups under one label means two worlds with the same row pitch measured
+    // DIFFERENTLY — something other than the pitch is moving this axis, the key
+    // no longer names what it ledgers, and the collapse from twenty worlds to a
+    // handful of pitches is hiding a member. Name them and stop.
+    let names = |m: &Members| m.iter().map(|i| worlds[*i].name).collect::<Vec<_>>();
+    for pair in labelled.windows(2) {
+        assert_ne!(
+            pair[0].0,
+            pair[1].0,
+            "two vertical groups share the label {:?}: {:?} against {:?}. Worlds with the same \
+             row pitch no longer agree about the footer's vertical room, so the pitch is not the \
+             only thing moving this axis and these ledgers are keyed by a name that does not \
+             identify what it grades",
+            pair[0].0,
+            names(&pair[0].1),
+            names(&pair[1].1),
+        );
+    }
+    // AND THE SWEEP FOUND MORE THAN ONE PITCH. A roster that collapsed to a
+    // single group would make every claim below a statement about one
+    // configuration wearing the clothes of twenty.
+    assert!(
+        labelled.len() > 1,
+        "every world in the roster measured the same vertical room, so this sweep crossed no \
+         pitch at all and its ledgers describe one configuration"
+    );
+    labelled
+}
+
+/// **THE NOTICE LINE IS NOT ITSELF A KNIFE'S EDGE.** Measured from both sides
+/// and returned, because a threshold nobody measures is the same edge-crowding
+/// one level up. Returns the two clearances so the report can print them.
+fn assert_the_notice_line_is_not_an_edge(sweep: &Sweep) -> (f32, f32) {
+    let below = (1.0 - CROWDING) / sweep.tightest_fitting.0;
+    let above = sweep.loosest_crowded.0 / (1.0 - CROWDING);
+    assert!(
+        below >= THRESHOLD_CLEARANCE,
+        "{} fits at {:.4} of its card, only {below:.4}x clear of the {:.2} notice line, under a \
+         floor of {THRESHOLD_CLEARANCE:.2}x — this cell is about to become a CROWDED entry \
+         without anything having moved it",
+        sweep.tightest_fitting.1,
+        sweep.tightest_fitting.0,
+        1.0 - CROWDING,
+    );
+    assert!(
+        above >= THRESHOLD_CLEARANCE,
+        "{} is ledgered crowded at {:.4} of its card, only {above:.4}x past the {:.2} notice \
+         line, under a floor of {THRESHOLD_CLEARANCE:.2}x — the ledger is about to lose an entry \
+         to the threshold rather than to a fix",
+        sweep.loosest_crowded.1,
+        sweep.loosest_crowded.0,
+        1.0 - CROWDING,
+    );
+    (below, above)
+}
+
+/// **THE HOISTED PIPELINE IS CHECKED, NOT TRUSTED.** Every cell the ledgers rest
+/// on, measured again against a pipeline that has seen no other geometry.
+fn assert_the_hoist_carries_no_state(
+    kinds: &[OverlayKind],
+    cells: &[Cell],
+    worlds: &[WorldReadings],
+    audit: &[(usize, usize, String)],
+) -> usize {
+    let mut rechecked = 0usize;
+    for (wi, ci, what) in audit {
+        let cell = cells[*ci];
+        crate::theme::set_active(*wi % crate::theme::THEMES.len());
+        crate::menubar::set_menu_bar_on(cell.menu_bar);
+        let ov = card_in_content(kinds[*wi / crate::theme::THEMES.len()]);
+        let (pw, ph) = (
+            (cell.w as f32 * cell.dpi) as u32,
+            (cell.h as f32 * cell.dpi) as u32,
+        );
+        let Some((d2, q2, mut fresh)) = headless_dqp(pw as f32, ph as f32) else {
+            return rechecked;
+        };
+        let again = measure(&d2, &q2, &mut fresh, &ov, cell, what);
+        let was = worlds[*wi].readings[*ci];
+        assert_eq!(
+            (again.room, again.demand.to_bits()),
+            (was.room, was.demand.to_bits()),
+            "{what}: the sweep's shared pipeline read {:?} at {:.6} of the card and a pipeline \
+             built for this cell alone read {:?} at {:.6} — the reuse that makes this sweep \
+             affordable is carrying state between cells, so every grade above is suspect",
+            was.room,
+            was.demand,
+            again.room,
+            again.demand,
+        );
+        rechecked += 1;
+    }
+    rechecked
+}
+
 /// **THE LAW.** Every world the roster ships is asked how much room its
 /// workspace footer has, and the answer is graded exactly rather than banded.
 #[test]
@@ -392,158 +551,38 @@ fn the_workspace_footers_vertical_room_is_asked_of_every_world_the_roster_ships(
     let Some((device, queue, mut p)) = headless_dqp(64.0, 64.0) else {
         return;
     };
-
-    let mut worlds: Vec<WorldReadings> = Vec::new();
-    for kind in &kinds {
-        let ov = card_in_content(*kind);
-        for wi in 0..crate::theme::THEMES.len() {
-            let world = crate::theme::set_active(wi);
-            let mut readings = Vec::with_capacity(cells.len());
-            for cell in &cells {
-                crate::menubar::set_menu_bar_on(cell.menu_bar);
-                let what = cell.describe(*kind);
-                readings.push(measure(&device, &queue, &mut p, &ov, *cell, &what));
-            }
-            worlds.push(WorldReadings {
-                name: world.name,
-                tag: pitch_tag(world.render_caps.list_style),
-                readings,
-            });
-        }
-    }
-
-    // GROUP BY WHAT THEY MEASURED, then label each group with the pitch tags its
-    // members carry — never the other way round, which would be assuming the
-    // answer this sweep exists to find.
-    let mut groups: Vec<(Vec<(Room, u32)>, Vec<usize>)> = Vec::new();
-    for (i, w) in worlds.iter().enumerate() {
-        let sig = w.signature();
-        match groups.iter_mut().find(|(s, _)| *s == sig) {
-            Some((_, members)) => members.push(i),
-            None => groups.push((sig, vec![i])),
-        }
-    }
-    let mut labelled: Vec<(String, &Vec<usize>)> = groups
-        .iter()
-        .map(|(_, members)| {
-            let mut tags: Vec<&str> = members.iter().map(|i| worlds[*i].tag).collect();
-            tags.sort_unstable();
-            tags.dedup();
-            (tags.join("+"), members)
-        })
-        .collect();
-    labelled.sort_by(|a, b| a.0.cmp(&b.0));
-
-    // **THE LABEL IS THE LEDGER'S KEY, SO IT HAS TO IDENTIFY ITS GROUP.** Two
-    // groups under one label means two worlds with the same row pitch measured
-    // DIFFERENTLY — something other than the pitch is moving this axis, the key
-    // no longer names what it ledgers, and the collapse from twenty worlds to a
-    // handful of pitches is hiding a member. Name them and stop.
-    for pair in labelled.windows(2) {
-        assert_ne!(
-            pair[0].0,
-            pair[1].0,
-            "two vertical groups share the label {:?}: {:?} against {:?}. Worlds with the same \
-             row pitch no longer agree about the footer's vertical room, so the pitch is not the \
-             only thing moving this axis and these ledgers are keyed by a name that does not \
-             identify what it grades",
-            pair[0].0,
-            pair[0].1.iter().map(|i| worlds[*i].name).collect::<Vec<_>>(),
-            pair[1].1.iter().map(|i| worlds[*i].name).collect::<Vec<_>>(),
-        );
-    }
-    // AND THE SWEEP FOUND MORE THAN ONE PITCH. A roster that collapsed to a
-    // single group would make every claim below a statement about one
-    // configuration wearing the clothes of twenty.
-    assert!(
-        labelled.len() > 1,
-        "every world in the roster measured the same vertical room, so this sweep crossed no \
-         pitch at all and its ledgers describe one configuration"
-    );
+    let worlds = sweep_the_roster(&device, &queue, &mut p, &kinds, &cells);
+    let labelled = group_and_label(&worlds);
 
     let mut sweep = Sweep::new();
     // The cells that EARNED a ledger entry, re-measured below against pipelines
     // built for them alone.
-    let mut audited: Vec<(usize, usize, String)> = Vec::new();
+    let mut audit: Vec<(usize, usize, String)> = Vec::new();
     for (label, members) in &labelled {
         let rep = members[0];
+        let kind = kinds[rep / crate::theme::THEMES.len()];
         for (ci, cell) in cells.iter().enumerate() {
-            let kind = kinds[rep / crate::theme::THEMES.len()];
             let what = cell.describe(kind);
             let r = worlds[rep].readings[ci];
             if r.room != Room::Fits {
-                audited.push((rep, ci, format!("{label} · {what}")));
+                audit.push((rep, ci, format!("{label} · {what}")));
             }
             sweep.record(label, &what, r);
         }
     }
     assert_the_ledgers_are_unchanged(&sweep.spilled, &sweep.crowded, &sweep.starved);
+    let (below, above) = assert_the_notice_line_is_not_an_edge(&sweep);
 
-    // **THE NOTICE THRESHOLD IS NOT ITSELF A KNIFE'S EDGE.** Measured from both
-    // sides and reported, because a threshold nobody measures is the same
-    // edge-crowding one level up.
-    let below = (1.0 - CROWDING) / sweep.tightest_fitting.0;
-    let above = sweep.loosest_crowded.0 / (1.0 - CROWDING);
-    assert!(
-        below >= THRESHOLD_CLEARANCE,
-        "{} fits at {:.4} of its card, only {below:.4}x clear of the {:.2} notice line, under a \
-         floor of {THRESHOLD_CLEARANCE:.2}x — this cell is about to become a CROWDED entry \
-         without anything having moved it",
-        sweep.tightest_fitting.1,
-        sweep.tightest_fitting.0,
-        1.0 - CROWDING,
-    );
-    assert!(
-        above >= THRESHOLD_CLEARANCE,
-        "{} is ledgered crowded at {:.4} of its card, only {above:.4}x past the {:.2} notice \
-         line, under a floor of {THRESHOLD_CLEARANCE:.2}x — the ledger is about to lose an entry \
-         to the threshold rather than to a fix",
-        sweep.loosest_crowded.1,
-        sweep.loosest_crowded.0,
-        1.0 - CROWDING,
-    );
-
-    // **THE HOISTED PIPELINE IS CHECKED, NOT TRUSTED.** Every ledgered cell and
-    // the tightest fitting one, measured again against a pipeline that has seen
-    // no other geometry.
-    let mut rechecked = 0usize;
-    let mut audit = audited.clone();
+    let ledgered = sweep.spilled.len() + sweep.crowded.len() + sweep.starved.len();
     if let Some((rep, ci)) = tightest_seat(&worlds, &labelled, &cells, &sweep) {
         audit.push((rep, ci, sweep.tightest_fitting.1.clone()));
     }
-    for (wi, ci, what) in &audit {
-        let cell = cells[*ci];
-        crate::theme::set_active(*wi % crate::theme::THEMES.len());
-        crate::menubar::set_menu_bar_on(cell.menu_bar);
-        let kind = kinds[*wi / crate::theme::THEMES.len()];
-        let ov = card_in_content(kind);
-        let (pw, ph) = (
-            (cell.w as f32 * cell.dpi) as u32,
-            (cell.h as f32 * cell.dpi) as u32,
-        );
-        let Some((d2, q2, mut fresh)) = headless_dqp(pw as f32, ph as f32) else {
-            return;
-        };
-        let again = measure(&d2, &q2, &mut fresh, &ov, cell, what);
-        let was = worlds[*wi].readings[*ci];
-        assert_eq!(
-            (again.room, again.demand.to_bits()),
-            (was.room, was.demand.to_bits()),
-            "{what}: the sweep's shared pipeline read {:?} at {:.6} of the card and a pipeline \
-             built for this cell alone read {:?} at {:.6} — the reuse that makes this sweep \
-             affordable is carrying state between cells, so every grade above is suspect",
-            was.room,
-            was.demand,
-            again.room,
-            again.demand,
-        );
-        rechecked += 1;
-    }
+    let rechecked = assert_the_hoist_carries_no_state(&kinds, &cells, &worlds, &audit);
     assert!(
-        rechecked >= sweep.spilled.len() + sweep.crowded.len() + sweep.starved.len(),
-        "only {rechecked} cells were re-measured against a fresh pipeline, fewer than the {} that \
-         earned a ledger entry — the reuse check stopped covering the readings the ledgers rest on",
-        sweep.spilled.len() + sweep.crowded.len() + sweep.starved.len()
+        rechecked >= ledgered,
+        "only {rechecked} cells were re-measured against a fresh pipeline, fewer than the \
+         {ledgered} that earned a ledger entry — the reuse check stopped covering the readings \
+         the ledgers rest on"
     );
 
     drop(world_pin);
@@ -552,9 +591,9 @@ fn the_workspace_footers_vertical_room_is_asked_of_every_world_the_roster_ships(
     eprintln!(
         "workspace back footer, vertical: {} worlds over {} cells each collapsed to {} row \
          pitches ({}); {} graded, {} spilled, {} crowded, {} starved; tightest fitting {:.4} \
-         ({:.4}x clear of the {:.2} notice line) at {}; loosest crowded {:.4} ({:.4}x past it) \
-         at {}; {rechecked} cells re-measured against fresh pipelines; ambient world {}, ambient \
-         menu bar {ambient_menu_bar}",
+         ({below:.4}x clear of the {:.2} notice line) at {}; loosest crowded {:.4} ({above:.4}x \
+         past it) at {}; {rechecked} cells re-measured against fresh pipelines; ambient world \
+         {}, ambient menu bar {ambient_menu_bar}",
         worlds.len(),
         cells.len(),
         labelled.len(),
@@ -568,13 +607,11 @@ fn the_workspace_footers_vertical_room_is_asked_of_every_world_the_roster_ships(
         sweep.crowded.len(),
         sweep.starved.len(),
         sweep.tightest_fitting.0,
-        below,
         1.0 - CROWDING,
         sweep.tightest_fitting.1,
         sweep.loosest_crowded.0,
-        above,
         sweep.loosest_crowded.1,
-        crate::theme::THEMES[world_pin_index()].name,
+        crate::theme::THEMES[crate::theme::active_index()].name,
     );
 }
 
@@ -582,7 +619,7 @@ fn the_workspace_footers_vertical_room_is_asked_of_every_world_the_roster_ships(
 /// can re-measure the one cell that decides [`THRESHOLD_CLEARANCE`]'s lower arm.
 fn tightest_seat(
     worlds: &[WorldReadings],
-    labelled: &[(String, &Vec<usize>)],
+    labelled: &[(String, Members)],
     cells: &[Cell],
     sweep: &Sweep,
 ) -> Option<(usize, usize)> {
@@ -596,11 +633,6 @@ fn tightest_seat(
         }
     }
     None
-}
-
-/// The world index the guard will restore to, read for the report only.
-fn world_pin_index() -> usize {
-    crate::theme::active_index()
 }
 
 /// **THE CELLS WHOSE CARD IS TOO SHORT TO LAY THE FOOTER OUT AT ALL** — the
