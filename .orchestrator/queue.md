@@ -34,6 +34,8 @@ remain unchanged. Vision-smoke five worlds by locating the Japanese caret.
 
 ### 419 — reserve teaching-footer room before candidate rows
 
+🟡 IN PROGRESS — queue-419 (codex), branch codex/queue-419-footer-reserve
+
 At `464x288`, zoom 1.4, menu bar on, Paperbark draws the Settings footer past
 the card and the three Bars worlds omit it. Reserve the footer before allocating
 visible candidate rows: show fewer rows when necessary, preserve each world's
@@ -71,20 +73,6 @@ ordering, typed accept effects, chooser cancel/accept, session/workspace
 re-scope, sidecar semantics, and removal of public project/browse wording. Read
 `docs/config.md`, `docs/platform.md`, `docs/render.md`, and
 `docs/harness-reach.md` before splitting capture from live verification.
-
-### 413 — add an openly licensed `⌫` to AwlMarks
-
-🟡 IN PROGRESS — queue-413 (codex), branch codex/queue-413-awlmarks-backspace
-
-U+232B `⌫`, used throughout footer Back cells, exists in no bundled face and
-currently falls through to system fonts with host-dependent metrics. Add it to
-`assets/fonts/AwlMarks.ttf`. The glyph must be original or sourced under a
-licence compatible with GPL-3.0-only; record authorship/source and licence with
-the font assets.
-
-Verify every bundled-face/world roster resolves the footer through AwlMarks with
-no system fallback, tofu, or host-dependent advance. Read `docs/fonts.md` and
-`docs/licensing.md`.
 
 ### 404 — make zoom 1.0 the single default
 
