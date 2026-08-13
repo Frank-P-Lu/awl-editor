@@ -8,6 +8,8 @@
 
 ### 427 — Firetail History footer fits the minimum card after the merge train
 
+🟡 IN PROGRESS — queue-427 (codex), branch codex/queue-427-firetail-footer
+
 At the combined main candidate, the item 419 outcome law reports Firetail
 History at 464×288, zoom 1.4, DPI 1, menu bar on shaping 321.3 px of footer into
 307.2 px. The same failure reproduces with item 426's buffer repair removed, so
