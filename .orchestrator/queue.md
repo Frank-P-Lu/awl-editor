@@ -6,27 +6,6 @@
 
 ## Ready to build
 
-### 425 — Cassowary's rotated location reads as telemetry, not a second headline
-
-🟡 IN PROGRESS — queue-425 (codex), branch codex/queue-425-cassowary-locator
-
-Keep the rotated active-category cue, but subordinate it to the bold `COMMANDS`
-placard. First audition: Cassowary's mono face (Iosevka Regular), uppercase,
-lightly tracked, muted ink, and roughly 0.28× the placard's font size instead of
-the current bold ⅔-scale echo. Format it as a technical locator such as
-`03 / NAVIGATE`, with the one-based index derived from the active lens's real
-position; a thin rule may join the index and label. The top chips remain the
-interactive controls and the placard remains the only poster headline.
-
-Express face/scale/ink/tracking/locator treatment as theme data through the
-shared rotated-location path—no Cassowary branch and no fabricated index. Do not
-insert literal spaces to fake tracking if the shaper cannot author it. Capture
-before/after at both DPIs over every command lens, long labels, narrow/ordinary/
-wide windows, and zooms that park the rail. Pixel laws prove hierarchy by size
-and ink strength, truthful indexing, no clipping/collision, and presence where
-room exists. Finish with a live taste verdict against the reported Cassowary
-composition. Read `THEMES.md` and `docs/render.md`.
-
 ### 424 — themes choose the toast anchor
 
 🟡 IN PROGRESS — queue-424 (codex), branch codex/queue-424-toast-anchor
