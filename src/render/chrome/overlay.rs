@@ -22,6 +22,20 @@ pub(in crate::render) const CARD_MAX_W: LogicalGrowOnly = LogicalGrowOnly(545.0)
 pub(in crate::render) const CARD_MAX_W_FACETED: LogicalGrowOnly = LogicalGrowOnly(600.0);
 pub(in crate::render) const CARD_CONTENT_MIN_W: LogicalGrowOnly = LogicalGrowOnly(160.0);
 
+/// Keep action cells intact under real width pressure. The explanatory lead is
+/// useful when room permits, but it is the first cell to yield; `esc close`
+/// must never be the accidentally clipped tail of optional prose. Width is
+/// logical so 1× and 2× make the same decision.
+pub(in crate::render) fn hint_yielding_explanation(hint: &str, logical_text_w: f32) -> String {
+    const EXPLANATION: &str = "type to filter   ";
+    if logical_text_w < 500.0
+        && let Some(actions) = hint.strip_prefix(EXPLANATION)
+    {
+        return actions.to_string();
+    }
+    hint.to_string()
+}
+
 /// Query-to-results breathing room, shared by flat and faceted cards.
 pub(in crate::render) const OVERLAY_QUERY_BEAT: Rows = Rows(1.55);
 
@@ -338,7 +352,7 @@ impl TextPipeline {
         let margin = self.metrics.px(CARD_MARGIN);
         let n_items = self.overlay_items.len();
 
-        let hint = self.overlay_hint.clone();
+        let mut hint = self.overlay_hint.clone();
         let hint_rows = if hint.is_empty() { 0 } else { 1 };
         let mut hint_gap_rows = overlay_hint_gap_rows(hint_rows);
 
@@ -385,6 +399,7 @@ impl TextPipeline {
         let card_narrow = overlay_card_fill_regime(width as f32, desired_w, self.metrics.scale);
         let hpad = self.overlay_text_hpad();
         let text_w = card_w - 2.0 * hpad;
+        hint = hint_yielding_explanation(&hint, text_w / self.metrics.scale.max(0.01));
         let mut card_h = self.overlay_card_h(total_rows, header_gap, hint_rows, hint_gap_rows, pad);
         // The gap is decorative breathing room, not load-bearing chrome: in the
         // starvation corner (a `min_items: 1` floor still

@@ -235,21 +235,20 @@ fn empty_state_copy_is_calm_and_context_aware() {
         Some("no recent projects yet")
     );
 
-    // The lens-scoped lines: Go-to Recent is the warm invitation; every other
-    // refinement lens with no members reads the catch-all; `All` opts out (None).
+    // Every typed destination lens names the thing that is absent; `All` opts out.
     assert_eq!(
         OverlayKind::Goto.empty_lens_message("recent"),
-        Some("no recent files yet"),
+        Some("no recent destinations"),
     );
     assert_eq!(
-        OverlayKind::Goto.empty_lens_message("folder"),
-        Some("nothing here")
+        OverlayKind::Goto.empty_lens_message("folders"),
+        Some("no folders here")
     );
     assert_eq!(OverlayKind::Goto.empty_lens_message("all"), None);
 }
 
-/// A FRESH Go-to Recent lens (the recently-opened MRU is empty, nothing opened
-/// yet) reads the calm "no recent files yet" line via `empty_message` — the
+/// A FRESH Go-to Recent lens (both MRUs empty) reads the calm
+/// "no recent destinations" line via `empty_message` — the
 /// context that matters most this pass. A query still overrides with "no matches".
 #[test]
 fn goto_recent_empty_lens_reads_the_warm_invitation() {
@@ -259,10 +258,10 @@ fn goto_recent_empty_lens_reads_the_warm_invitation() {
         vec![],
         vec![], // no recently-opened files → the Recent lens has no members
     );
-    ov.set_facet_lens(1); // strip index 1 == Recent
+    ov.focus_facet_id("recent");
     assert_eq!(ov.active_facet_id(), Some("recent"));
     assert!(ov.items.is_empty(), "a fresh Recent lens lists nothing");
-    assert_eq!(ov.empty_notice().as_deref(), Some("no recent files yet"),);
+    assert_eq!(ov.empty_notice().as_deref(), Some("no recent destinations"),);
     // A query on the empty Recent lens still reads the universal "no matches".
     ov.push('z');
     assert_eq!(ov.empty_notice().as_deref(), Some("no matches"));

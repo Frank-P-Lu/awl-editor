@@ -784,20 +784,22 @@ fn goto_arrows_cycle_the_lens() {
     );
     // RIGHT steps along the strip, never accepting.
     drive(&mut overlay, &mut accept, &Action::ForwardChar);
-    assert_eq!(overlay.card().unwrap().active_facet_id(), Some("recent"));
-    drive(&mut overlay, &mut accept, &Action::ForwardChar);
-    assert_eq!(overlay.card().unwrap().active_facet_id(), Some("folder"));
+    assert_eq!(overlay.card().unwrap().active_facet_id(), Some("files"));
     drive(&mut overlay, &mut accept, &Action::ForwardChar);
     assert_eq!(overlay.card().unwrap().active_facet_id(), Some("headings"));
+    drive(&mut overlay, &mut accept, &Action::ForwardChar);
+    assert_eq!(overlay.card().unwrap().active_facet_id(), Some("folders"));
+    drive(&mut overlay, &mut accept, &Action::ForwardChar);
+    assert_eq!(overlay.card().unwrap().active_facet_id(), Some("recent"));
     // RIGHT at the last lens clamps.
     drive(&mut overlay, &mut accept, &Action::ForwardChar);
     assert_eq!(
         overlay.card().unwrap().active_facet_id(),
-        Some("headings"),
+        Some("recent"),
         "clamp at last lens"
     );
     // LEFT walks all the way back to the All home.
-    for _ in 0..3 {
+    for _ in 0..4 {
         drive(&mut overlay, &mut accept, &Action::BackwardChar);
     }
     assert_eq!(overlay.card().unwrap().active_facet_id(), Some("all"));
@@ -903,19 +905,18 @@ fn move_dest_right_descends_left_ascends() {
 }
 
 #[test]
-fn recent_projects_opens_switch_project_on_the_recent_lens() {
-    // THE FOLD: "Recent projects…" (Action::OpenRecentProjects) opens the
-    // SWITCH-PROJECT navigator pre-lensed onto its Recent lens — the fold that
-    // retired the standalone RecentProjects picker. Driven through the real
-    // `apply_transition` seam with the shared `project_browse` navigator hook.
-    let (ws, _fs) = proj_tree();
+fn folder_deep_link_opens_the_unified_goto_folders_lens() {
     let mut overlay = crate::overlay::Journey::default();
     let mut buffer = Buffer::scratch();
     let mut shift = false;
     let mut zoom = 1.0;
     let mut search = None;
-    let mut make_overlay = |_k: OverlayKind| None;
-    let mut browse_to = |_k: OverlayKind, rel: Option<String>| project_browse(&ws, rel);
+    let mut make_overlay = |kind: OverlayKind| {
+        let mut ov = OverlayState::new(kind, vec!["notes.md".into()], vec![], vec![]);
+        ov.attach_folders(vec![("/ws/notes".into(), false)], &[]);
+        Some(ov)
+    };
+    let mut browse_to = |_k: OverlayKind, _rel: Option<String>| None;
     {
         let mut ctx = ActionCtx {
             buffer: &mut buffer,
@@ -928,18 +929,14 @@ fn recent_projects_opens_switch_project_on_the_recent_lens() {
             browse_to: &mut browse_to,
             oracle: None,
         };
-        apply_transition(&mut ctx, &Action::OpenRecentProjects, false).primary();
+        apply_transition(&mut ctx, &Action::OpenProject, false).primary();
     }
-    let ov = overlay.card().expect("Recent projects opens the navigator");
-    assert_eq!(
-        ov.kind,
-        OverlayKind::Project,
-        "it IS the switch-project navigator"
-    );
+    let ov = overlay.card().expect("folder deep link opens Go to");
+    assert_eq!(ov.kind, OverlayKind::Goto);
     assert_eq!(
         ov.active_facet_id(),
-        Some("recent"),
-        "pre-lensed onto the Recent lens"
+        Some("folders"),
+        "pre-lensed onto the Folders lens"
     );
 }
 

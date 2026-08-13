@@ -10,6 +10,23 @@
 use super::super::*;
 use super::{headless_dqp, pixeldiff, view};
 
+#[test]
+fn explanatory_hint_yields_before_action_cells_at_narrow_width_on_both_dpis() {
+    let hint = "type to filter   ↵ open   ←/→ lens   esc close";
+    for dpi in [1.0, 2.0] {
+        assert_eq!(
+            crate::render::chrome::hint_yielding_explanation(hint, 420.0 * dpi / dpi,),
+            "↵ open   ←/→ lens   esc close",
+            "at {dpi}x the explanatory cell yields first"
+        );
+        assert_eq!(
+            crate::render::chrome::hint_yielding_explanation(hint, 620.0 * dpi / dpi,),
+            hint,
+            "at {dpi}x ordinary room keeps the whole teaching line"
+        );
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum SurfaceContract {
     Flat,
