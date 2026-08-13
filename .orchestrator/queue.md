@@ -25,22 +25,12 @@ Everything left here needs a session, hardware, or a release-time word — the
 taste-decision backlog itself was cleared by the 2026-08-11 bulk acceptance
 (see Decided against).
 
-1. **The site is stale against the published release — one command, yours:**
-   `gh workflow run deploy-web.yml`. Live host is `awl-editor.fly.dev`
-   (`site/fly.toml`; `awl.computer` is NXDOMAIN and appears nowhere in the
-   tree). **Now genuinely stale, and measured:** the live `version.json` reads
-   `{"version": "0.9.0", "prerelease": false}` while **v0.10.0 is public**, so
-   Check for Updates cannot see the release that shipped. `version.json` comes
-   from `git describe --tags` at deploy time, so one dispatch fixes it.
-   (An earlier revision of this entry claimed `0.0.0 / prerelease`; that was
-   false and was corrected in place before the tag.) `FLY_API_TOKEN` is
-   configured; trigger is `workflow_dispatch` only, deliberately.
-2. **The macOS release arm** — Apple signing secrets, per `RELEASING.md` §1.
-3. **Further tags and site deploys** — your explicit word, every time.
-4. **The AT-SPI journey (item 251)** needs a real Linux desktop session with
+1. **The macOS release arm** — Apple signing secrets, per `RELEASING.md` §1.
+2. **Further tags and site deploys** — your explicit word, every time.
+3. **The AT-SPI journey (item 251)** needs a real Linux desktop session with
    Orca. This Mac and its headless/Linux CI arms cannot perform the human
    document-read, caret/selection, overlay, and editing-burst journey.
-5. **The Linux drawn-menu Export click needs a real window/compositor.**
+4. **The Linux drawn-menu Export click needs a real window/compositor.**
    `AWL_MENU_BAR_FORCE=on` reaches the production menu geometry and hit-test on
    this Mac (15 forced menu laws pass), but every hermetic `App` is deliberately
    GPU-less and `App::menubar_press` returns before hit-testing without the
@@ -48,12 +38,12 @@ taste-decision backlog itself was cleared by the 2026-08-11 bulk acceptance
    display handle and wgpu surface; the live script has no pointer-press event.
    Close this on a Linux desktop with a real rendered-menu click, or after an
    explicitly approved live GUI harness gains press input plus observable state.
-6. **Item 241's dense pointer/wheel cadence remains a live feel check.** The
+5. **Item 241's dense pointer/wheel cadence remains a live feel check.** The
    exact 4530x2756@2x headless case is now measured on the release build:
    1.43 s, 215,793,664-byte max RSS, page/outline/gutter all within the canvas
    and no visual clipping. A settled capture cannot establish interactive
    cadence; that last arm needs a human at the live window.
-7. **The AppImage is now published for the first time, in v0.10.0, and NOBODY
+6. **The AppImage is now published for the first time, in v0.10.0, and NOBODY
    HAS LAUNCHED IT.** At the `v0.9.0` tag `release.yml` contained ZERO AppImage
    references — `scripts/package-appimage.sh` landed afterwards — so v0.9.0
    carried only the tarball. The v0.10.0 assets are verified by download:
@@ -64,7 +54,7 @@ taste-decision backlog itself was cleared by the 2026-08-11 bulk acceptance
    performed from this Mac, so the AppImage's desktop-integration path — launcher
    name, icon, FUSE fallback — is live and exercised by nothing but its own build.
    The tarball is the documented fallback and is unaffected.
-8. **The export save panel wants your eye on macOS** (item 301) — an AppKit
+7. **The export save panel wants your eye on macOS** (item 301) — an AppKit
    modal is unobservable from any test. Right folder? Right pre-filled name?
    Cancel leaves the document untouched? Try `Export as PDF…`.
 
@@ -80,7 +70,9 @@ item by item. Still open, because only real time at the live window answers:
   whether a wrap's transient (indistinguishable from an ordinary step) deserves
   a distinct flourish. Live judgement.
 - **296/300 — the 2500 ms toast lifetime** only *feels* right live; the notice's
-  look itself is accepted.
+  look itself is accepted. **Placement is decided:** each world chooses from a
+  small shared roster of safe anchors; shared geometry owns collision avoidance
+  and narrow-window fallback. Duration stays shared.
 
 ## Remaining work — handoff order (RE-DERIVED 2026-08-11, against the tree)
 
@@ -91,9 +83,11 @@ list instead of re-checking the tree.** The fifth: item 345 sat on this board as
 word was given for a merge that had already happened. Re-derive from the tree,
 every pass.
 
-1. **395 — three one-line answers owed to the user**, each from a landed item:
-   393's missing ellipsis, 327's path elision, 394's unadvertised `←`. Body below.
-   Agent-actionable only once the user answers; the levers are named.
+1. **395/401/404/406/413/419 — user decisions landed on the board; dispatchable.**
+   Immediate language tag + toast, directory-shaped elision, keep both Back
+   gestures while teaching `⌫`, name `esc close` on Go-to-file, canonical zoom
+   1.0, remove the legacy wasm without rewriting history, add an openly licensed
+   `⌫` to AwlMarks, and reserve footer room before candidate rows. Bodies below.
 2. **396 — the theme preview's win shrinks with scroll depth.** Recorded from
    388's own measurement, deliberately out of its scope. Body below. Not urgent —
    the shipped state is strictly better than before at every depth.
@@ -152,26 +146,20 @@ caret mode. Pixel arithmetic must prove the resting caret contains the CJK ink w
 authored pad and is present; the existing one-height Latin laws stay byte-for-byte green.
 Vision-smoke five sampled worlds by asking which Japanese character carries the caret.
 
-### 395 — three answers owed, each one line, each from a landed item
+### 395 — three small palette/readout decisions — DECIDED
 
-Small, cheap, and filed so they are not lost. Each names the exact lever.
+User decisions, ready for implementation:
 
-- **393's palette row has no ellipsis.** It is `Tag document language`, because it
-  acts immediately and `menu/ellipsis_law.rs` makes `…` a promise of a surface.
-  If it should ASK instead — a picker to choose the tag or decline — that is a new
-  `OverlayKind` across ~15 match arms and belongs in its own item, not a rename.
-- **327's path elision.** When a folder's final name alone exceeds the 22-char
-  allowance, `elide_path` drops the directory and middle-truncates the leaf, so
-  `the-long-n…rking-draft` stops reading as a path. Consistent with a file-picker
-  row on a long filename; a DIRECTORY readout might be better keeping the parent.
-- **394's `←` is unadvertised.** It returns, but the footer names `⌫ back`, not
-  `←`, following the precedent that the rail's `→`-enters is unnamed because
-  `↵ settings` names the same door. Naming it is one line in `BackKey`, but it
-  displaces `⌫` in the common case — which 387 chose deliberately — and the
-  footer's width budget is why a further cell cannot be added at the minimum
-  window.
+- **393's palette row stays immediate and keeps no ellipsis.** After applying,
+  show a brief confirmation toast naming the resulting document language.
+- **327's directory elision keeps path identity.** Preserve at least one `/` and
+  a recognizable portion of the final folder rather than returning a string that
+  reads as a filename. File-row elision remains unchanged.
+- **394 keeps both Back gestures and continues teaching `⌫ back`.** `←` remains
+  the spatial shortcut from detail to rail; `⌫` remains the context-aware
+  primary Back once the query is empty. Do not spend another footer cell on it.
 
-### 401 — the Go-to-file footer names no way out
+### 401 — name `esc close` in the Go-to-file footer — DECIDED
 
 Found by item 398's vision smoke and **pre-existing, not this wave's**: the one
 affordance question its method could not answer from pixels alone. The Command
@@ -182,13 +170,11 @@ unanswerable from that surface. `src/overlay/kind.rs`:
 since at least the item-204 shape — 391 and 394 touched Project and Settings
 footers only.
 
-🔵 **Taste call before it is work:** every picker closes on Esc, so naming it
-everywhere is honest but costs a cell, and the footer's width budget is already
-why 394's `←` went unadvertised at the minimum window. Either name it on Goto
-for parity, or accept that Esc is universal enough to go unsaid — but the two
-pickers should not disagree, which is the actual defect.
+**Decision:** add `esc close` to Go-to-file for parity with the Command palette.
+At the minimum width, explanatory prose such as `type to filter` yields before
+an actual key affordance.
 
-### 404 — the editor launches at a size no capture ever photographs
+### 404 — make zoom 1.0 the single default — DECIDED
 
 Raised by item 397 and **not touched by it**, because the blast radius is every
 pixel law in the tree. `app::INITIAL_ZOOM` is **0.8** for a windowed launch; a
@@ -197,11 +183,11 @@ replay capture takes `opts.zoom.unwrap_or(1.0)`; `range::ZOOM.default` is a
 document at a size no user sees, and the two doors disagree by 25% — which is
 exactly how 397's probe came to grade a live window against a picture 25% larger.
 
-🔵 **Taste call before it is work**: reconciling them changes shipped pixel
-expectations across the suite. Deciding which number is the truth is the user's;
-whether three copies of it is defensible is not.
+**Decision:** 1.0 is authoritative for launch, capture and configuration. One
+owner supplies the value; remove the divergent copies. Re-baseline affected
+pixel expectations deliberately.
 
-### 406 — a tracked wasm bundle carries 456 home paths into the public repo
+### 406 — remove the obsolete tracked wasm; keep history — DECIDED
 
 🔵 **LIVE, PUBLIC, AND ONLY HALF FIXABLE BY ME.** Found by item 402, verified
 independently: `site/editor/awl-347842567538f209_bg.wasm` is tracked, 43 MB, and
@@ -215,13 +201,11 @@ claims "no home path baked into shipped binary"; the artifact in the tree says
 otherwise. It is also unused — RELEASING calls the checked-in copy legacy and the
 deploy assembles a fresh build over it.
 
-⚠️ **Deleting it from the tree does NOT un-publish it.** Git history keeps every
-byte, and a purge is a history rewrite — that is the user's call, not a merge's.
-So the decision is two-part: (a) drop or rebuild the tracked bundle, which is
-cheap and stops the current tree leaking; (b) whether the history matters enough
-to rewrite. Note the leaked strings are a username and cargo paths, not secrets.
+**Decision:** remove the unused bundle from the current tree. Do not rewrite Git
+history: the strings are a username and Cargo paths, not secrets. Verify the
+deploy continues assembling a fresh remapped build without the tracked artifact.
 
-### 413 — awl draws a glyph no bundled face carries
+### 413 — add an openly licensed `⌫` to AwlMarks — DECIDED
 
 Found by item 408 while diagnosing a CI red; the diagnosis IS the finding.
 **U+232B `⌫` — the Back cell's own glyph, drawn in footers across the product —
@@ -236,9 +220,10 @@ document cannot render as boxes, then draws its own chrome in a glyph it does no
 ship. On a Linux desktop with no symbol font in the fallback chain the Back cell
 is a tofu box — untested, because every host that has run this has had one.
 
-Options: add the glyph to `AwlMarks.ttf`, which already carries `↵` so both the
-precedent and the mechanism exist; or draw the affordance as a mark rather than
-as text. The second is a design question, the first is bounded work.
+**Decision:** add U+232B to `AwlMarks.ttf`. The glyph must be original or sourced
+under a licence compatible with awl's GPL-3.0-only distribution; record its
+authorship/source and licence alongside the font assets. Verify every bundled
+font roster resolves the footer through AwlMarks without system-font fallback.
 
 ### 418 — with `workspace = ~`, the door is below the window on open
 
@@ -255,7 +240,7 @@ poor workspace and the product should say so somewhere. **A pinned-visible
 terminal row is a rowlayout change with a blast radius across every picker**, so
 it wants a decision before code.
 
-### 419 — Rules draws its Settings footer PAST the card, and Bars never lays it out
+### 419 — reserve footer room before candidate rows — DECIDED
 
 Found by item 414's sweep, which was the first to cross the world axis on this
 geometry, and **ledgered rather than fixed** — the item was a law, not a repair.
@@ -272,10 +257,11 @@ on `bars`/`rules` cells no previous law could see.**
 those pitches have. What was new is that anything looked. The ledgers are
 two-sided, so a repair reddens them and must delete its entries deliberately.
 
-The fix is a composition question, not a constant: whether the footer yields, the
-row gap yields, or the stage refuses to draw a footer it cannot fit — which is
-the same family as the already-open call about the narrow History stage drawing
-no footer at all. 🔵 Worth the user's steer before code.
+**Decision:** reserve the teaching footer before allocating visible candidate
+rows. When space is tight, show fewer Settings rows; preserve each world's row
+rhythm, never draw beyond the card, and do not silently omit the footer. Apply
+the same composition law to Rules, Bars and the narrow History shape; replace
+the two-sided defect ledgers with outcome laws.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
