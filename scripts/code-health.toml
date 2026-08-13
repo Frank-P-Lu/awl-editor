@@ -49,7 +49,7 @@
 
 [[file_size_mark]]
 file = "src/actions.rs"
-lines = 869
+lines = 865
 reason = "A non-Markdown Export must raise an explicit notice rather than the silent no-op `Effect::None` was: one named notice constant, one small helper the three Export arms share, and the doc comment explaining why the row stays enabled everywhere instead of being hidden (+13). Items 296/300 (the notice becomes photographable and findable) and 131e/303 (the diagonal mark's weight becomes world data) both landed in this file; the count here is measured on the MERGED tree, which matched neither lane's own figure. +1 from item 273's residual (4): the Reference command's own arm/entry, the third consumer of the new open_bundled_doc owner. +2: one apply_format_action arm and one classify_action_family entry for Action::TagDocumentLanguage — the explicit tag replacing the automatic stamp. +9: the switch-project door's accept and its dest_value arm — one owner for both destination navigators, parameterised on whether the folder may be CREATED."
 
 [[file_size_mark]]
@@ -203,7 +203,7 @@ lines = 591
 
 [[file_size_mark]]
 file = "src/index.rs"
-lines = 901
+lines = 890
 
 [[file_size_mark]]
 file = "src/keymap.rs"
@@ -241,7 +241,7 @@ lines = 661
 
 [[file_size_mark]]
 file = "src/menu.rs"
-lines = 1105
+lines = 1101
 reason = "The three Export rows' File-menu label now diverges from their catalog command (dropping a stale ellipsis with no surface behind it — the shorthand `r()`/`ri()` constructors can't express that, so each grew into a full `Routed` literal), plus the label divergence law's `EXPLICIT_MENU_LABELS` entries and doc comment, and a two-line `#[cfg(test)] mod ellipsis_law;` declaration for the new law itself (+29). +25: the NATIVE_PANEL_IDS table and its one predicate, declared as DATA beside the roster it indexes so ellipsis_law can sweep the AppKit-panel door from any host — a literal buried in the macOS handler is unreadable to the law that must hold both doors to the same promise, which is exactly how `Browse files…` passed for the wrong reason."
 
 [[file_size_mark]]
@@ -381,7 +381,7 @@ lines = 568
 
 [[file_size_mark]]
 file = "src/render/pipeline_draw.rs"
-lines = 502
+lines = 498
 reason = "The footer plate earns the notice channel's own one-pixel rim, which is what lifts it from delta-E 1.91 to 54 on Cassowary -- a plate nobody can see is not a plate. +5: the rim's construction and its draw slot immediately before `overlay_bars`, matching the order `notice_rim`/`notice_plate` already keep. +1: the `shape_tail_owed` field initialiser in TextPipeline::new's literal, its sole construction site — the flag that records a presented frame still owes its tail."
 
 [[file_size_mark]]
@@ -825,34 +825,6 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
-file = "src/actions/tests/picker_misc_smoke.rs"
-function = "every_catalog_command_dispatches_without_panicking"
-message = "this function has too many lines (123/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Item 116b: line moved only — the diff-panel CARD it was named for is retired, so the test's name and note now say `comparison`; the body is unchanged. Item 116c: line shifted +41 by the new restore/bare-Enter History tests added above it; this function's own body is unchanged. Crossed by one more line: the `testlock::misc::TogglesRestore` capture guard, added so this full-command-sweep test restores every process-global toggle a sweep can dirty, not only the subset it already named."
-
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
-file = "src/actions/tests/mod.rs"
-function = "delete_flinch_fixture"
-message = "this function has too many lines (116/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line/size moved by queue item 114's summoned Settings workspace. Item 116c: +1 line — the `AcceptAlternate` arm alongside `Newline` in the not-a-delete list. Item 116d: line shifted +1 by one `mod` declaration added above it; this function's own body is unchanged."
-
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
-file = "src/actions/tests/mod.rs"
-function = "assert_action_roster_covers"
-message = "this function has too many lines (117/100)"
-reason = "The no-wildcard Action roster match is the compile-time coverage owner. KeepTutorial adds one unavoidable exhaustive arm; the duplicate 222-line list owner was split into two sub-100-line rosters. Item 116d: line shifted +1 by one `mod` declaration added above it; this function's own body is unchanged."
-
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
-file = "src/actions/tests/mod.rs"
-function = "smoke_command_kind"
-message = "this function has too many lines (116/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 114's summoned Settings workspace. Item 116c: +1 line — the `AcceptAlternate` arm (`NotCatalog`, alongside `Newline`). Item 116d: line shifted +1 by one `mod` declaration added above it; this function's own body is unchanged."
-
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
 file = "src/app/tests/files.rs"
 function = "a_paused_mid_drag_persists_nothing_until_the_release"
 message = "this function has too many lines (109/100)"
@@ -901,20 +873,6 @@ file = "src/capture/tests/panels.rs"
 function = "history_comparison_is_relocated_by_the_capture_path_in_every_world"
 message = "this function has too many lines (135/100)"
 reason = "Existing end-to-end scenario with no coherent setup/assertion split. Its two identity-wrapper call sites became explicit default constructions, adding four source lines without changing behaviour."
-
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
-file = "src/capture/tests/pickers_faceted.rs"
-function = "file_pickers_faceted_lens_render_and_report"
-message = "this function has too many lines (117/100)"
-reason = "Existing end-to-end scenario with no coherent setup/assertion split. Removing the identity fixture wrapper makes the direct default construction two lines longer without changing this test's behaviour."
-
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
-file = "src/capture/tests/pickers_faceted.rs"
-function = "faceted_grouped_window_is_bounded_and_scrolls_to_selection"
-message = "this function has too many lines (132/100)"
-reason = "Existing end-to-end scenario with no coherent setup/assertion split. Removing the identity fixture wrapper makes the direct default construction two lines longer without changing this test's behaviour."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -1193,41 +1151,6 @@ target = "src/commands/tests.rs"
 kind = "architectural"
 line = 8
 text = "            \"assets/keymap-defaults.toml names {slug_in_file:?}, which is not a commands::COMMAND_SEED slug\""
-reason = "Pure relocation from the inline src/commands.rs test module; this exact line was grandfathered there."
-
-[[structural_exception]]
-target = "src/commands/tests.rs"
-kind = "architectural"
-line = 772
-text = "                        \"{}: {:?}'s resolved native chord {resolved:?} must parse via parse_binding\","
-reason = "Pure relocation from the inline src/commands.rs test module; this exact line was grandfathered there."
-
-[[structural_exception]]
-target = "src/commands/tests.rs"
-kind = "architectural"
-line = 779
-text = "                        \"{}: {:?}'s resolved native chord {resolved:?} must resolve to the catalog action\","
-reason = "Pure relocation from the inline src/commands.rs test module; this exact line was grandfathered there."
-
-[[structural_exception]]
-target = "src/commands/tests.rs"
-kind = "architectural"
-line = 1651
-text = "                        \"{}: reserved native chord {native_resolved:?} still shown verbatim ({convention:?}/{platform:?})\","
-reason = "Pure relocation from the inline src/commands.rs test module; this exact line was grandfathered there."
-
-[[structural_exception]]
-target = "src/commands/tests.rs"
-kind = "architectural"
-line = 1669
-text = "                            \"{}: no alternate defined, label should be blank ({convention:?}/{platform:?})\","
-reason = "Pure relocation from the inline src/commands.rs test module; this exact line was grandfathered there."
-
-[[structural_exception]]
-target = "src/commands/tests.rs"
-kind = "architectural"
-line = 1680
-text = "                        \"{}: displaced emacs default {:?} still shown ({convention:?}/{platform:?}) — label was {label:?}\","
 reason = "Pure relocation from the inline src/commands.rs test module; this exact line was grandfathered there."
 
 [[structural_exception]]

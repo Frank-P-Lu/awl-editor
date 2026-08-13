@@ -10,6 +10,46 @@ use crate::buffer::Buffer;
 use crate::keymap::Action;
 use crate::testscratch::ScratchDir;
 
+fn picker_opts(ov: &crate::overlay::OverlayState, empty: Option<String>) -> CaptureOpts {
+    let mut opts = CaptureOpts {
+        ..CaptureOpts::default()
+    };
+    opts.overlay = Some(OverlayInfo {
+        align: crate::render::effective_card_anchor(),
+        active: true,
+        mode: ov.kind.as_str(),
+        title: ov.kind.title(),
+        query: ov.query.text().to_string(),
+        items: ov.item_strings(),
+        bindings: ov.item_bindings(),
+        ranges: ov.item_range_fracs(),
+        git: ov.item_git_tags(),
+        selected_index: ov.selected,
+        hint: ov.foot_hint(),
+        browse_dir: ov.browse_dir.clone(),
+        return_to: None,
+        spell_target: None,
+        context_anchor: None,
+        capture: None,
+        notice: String::new(),
+        lens: ov.active_facet_id(),
+        lens_strip: ov.lens_strip(),
+        sections: ov.item_sections(),
+        preview_id: None,
+        preview_view: None,
+        workspace: false,
+        detail_focus: false,
+        diff_scroll: 0,
+        empty,
+        show_hidden: false,
+    });
+    opts
+}
+
+fn read_sidecar(png: &std::path::Path) -> serde_json::Value {
+    serde_json::from_str(&std::fs::read_to_string(png.with_extension("json")).unwrap()).unwrap()
+}
+
 /// THEME PICKER (FLAT): its runtime lens strip was RETIRED (2026-07-15) — driving the
 /// REAL [`OverlayState::new_theme`] through the capture renders its settled frame as a
 /// FLAT browsable world list, and the sidecar reports `lens: null` / an empty strip /
@@ -233,47 +273,6 @@ fn file_pickers_faceted_lens_render_and_report() {
     let buf = Buffer::from_str("preview me\n");
     use crate::overlay::{OverlayKind, OverlayState};
 
-    let fold = |ov: &OverlayState| {
-        let mut opts = CaptureOpts {
-            ..CaptureOpts::default()
-        };
-        // The capture fixture layers optional overlay state for readable scenario setup.
-        opts.overlay = Some(OverlayInfo {
-            // Reproduce the prior live-resolved anchor for this capture literal.
-            align: crate::render::effective_card_anchor(),
-            active: true,
-            mode: ov.kind.as_str(),
-            title: ov.kind.title(),
-            query: ov.query.text().to_string(),
-            items: ov.item_strings(),
-            bindings: ov.item_bindings(),
-            ranges: ov.item_range_fracs(),
-            git: ov.item_git_tags(),
-            selected_index: ov.selected,
-            hint: ov.foot_hint(),
-            browse_dir: ov.browse_dir.clone(),
-            return_to: None,
-            spell_target: None,
-            context_anchor: None,
-            capture: None,
-            notice: String::new(),
-            lens: ov.active_facet_id(),
-            lens_strip: ov.lens_strip(),
-            sections: ov.item_sections(),
-            preview_id: None,
-            preview_view: None,
-            workspace: false,
-            detail_focus: false,
-            diff_scroll: 0,
-            empty: None,
-            show_hidden: false,
-        });
-        opts
-    };
-    let read = |png: &std::path::Path| -> serde_json::Value {
-        serde_json::from_str(&std::fs::read_to_string(png.with_extension("json")).unwrap()).unwrap()
-    };
-
     // GO-TO's typed destination roster. Pin the five labels + IDs at their owner
     // before selecting by ID: positional RIGHT counts silently retargeted this
     // capture when Files / Folders joined the strip, leaving the law enrolled on
@@ -325,8 +324,8 @@ fn file_pickers_faceted_lens_render_and_report() {
         goto.focus_facet_id(id);
         assert_eq!(goto.active_facet_id(), Some(id), "enrolled lens {id}");
         let gpng = dir.join(format!("goto_{id}.png"));
-        capture_with(&gpng, &buf, &fold(&goto)).expect("goto picker capture renders");
-        let gj = read(&gpng);
+        capture_with(&gpng, &buf, &picker_opts(&goto, None)).expect("goto picker capture renders");
+        let gj = read_sidecar(&gpng);
         assert_eq!(gj["overlay"]["mode"], serde_json::json!("goto"));
         assert_eq!(gj["overlay"]["lens"], serde_json::json!(id));
         assert_eq!(
@@ -394,8 +393,8 @@ fn file_pickers_faceted_lens_render_and_report() {
     browse.cycle_lens(1);
     assert_eq!(browse.active_facet_id(), Some("git"));
     let bpng = dir.join("browse.png");
-    capture_with(&bpng, &buf, &fold(&browse)).expect("browse picker capture renders");
-    let bj = read(&bpng);
+    capture_with(&bpng, &buf, &picker_opts(&browse, None)).expect("browse picker capture renders");
+    let bj = read_sidecar(&bpng);
     assert_eq!(bj["overlay"]["mode"], serde_json::json!("browse"));
     assert_eq!(bj["overlay"]["lens"], serde_json::json!("git"));
     let bitems = bj["overlay"]["items"].as_array().unwrap();
@@ -429,47 +428,6 @@ fn faceted_grouped_window_is_bounded_and_scrolls_to_selection() {
     );
     let buf = Buffer::from_str("preview me\n");
 
-    let fold = |ov: &OverlayState| {
-        let mut opts = CaptureOpts {
-            ..CaptureOpts::default()
-        };
-        // The capture fixture layers optional overlay state for readable scenario setup.
-        opts.overlay = Some(OverlayInfo {
-            // Reproduce the prior live-resolved anchor for this capture literal.
-            align: crate::render::effective_card_anchor(),
-            active: true,
-            mode: ov.kind.as_str(),
-            title: ov.kind.title(),
-            query: ov.query.text().to_string(),
-            items: ov.item_strings(),
-            bindings: ov.item_bindings(),
-            ranges: ov.item_range_fracs(),
-            git: ov.item_git_tags(),
-            selected_index: ov.selected,
-            hint: ov.foot_hint(),
-            browse_dir: ov.browse_dir.clone(),
-            return_to: None,
-            spell_target: None,
-            context_anchor: None,
-            capture: None,
-            notice: String::new(),
-            lens: ov.active_facet_id(),
-            lens_strip: ov.lens_strip(),
-            sections: ov.item_sections(),
-            preview_id: None,
-            preview_view: None,
-            workspace: false,
-            detail_focus: false,
-            diff_scroll: 0,
-            empty: ov.empty_notice(),
-            show_hidden: false,
-        });
-        opts
-    };
-    let read = |png: &std::path::Path| -> serde_json::Value {
-        serde_json::from_str(&std::fs::read_to_string(png.with_extension("json")).unwrap()).unwrap()
-    };
-
     // A LARGE Go-to file corpus focused by the roster's stable ID. This is the
     // five-lens typed surface's Files refinement: one section header + 60 rows,
     // far more than the 12-row window can show at once.
@@ -494,8 +452,9 @@ fn faceted_grouped_window_is_bounded_and_scrolls_to_selection() {
 
         // TOP of the list: the window is bounded and the selection (row 0) is on screen.
         let top_png = dir.join(format!("goto_top_menubar_{menu_bar}.png"));
-        capture_with(&top_png, &buf, &fold(&goto)).expect("grouped top capture renders");
-        let tj = read(&top_png);
+        capture_with(&top_png, &buf, &picker_opts(&goto, goto.empty_notice()))
+            .expect("grouped top capture renders");
+        let tj = read_sidecar(&top_png);
         let w = &tj["overlay"]["window"];
         assert!(!w.is_null(), "an open faceted picker reports a window");
         let lines = w["lines"].as_u64().unwrap();
@@ -527,8 +486,9 @@ fn faceted_grouped_window_is_bounded_and_scrolls_to_selection() {
         goto.move_sel(n as isize); // clamps to the last row
         assert_eq!(goto.selected, n - 1);
         let bot_png = dir.join(format!("goto_bottom_menubar_{menu_bar}.png"));
-        capture_with(&bot_png, &buf, &fold(&goto)).expect("grouped bottom capture renders");
-        let bj = read(&bot_png);
+        capture_with(&bot_png, &buf, &picker_opts(&goto, goto.empty_notice()))
+            .expect("grouped bottom capture renders");
+        let bj = read_sidecar(&bot_png);
         let wb = &bj["overlay"]["window"];
         let blines = wb["lines"].as_u64().unwrap();
         let btop = wb["top"].as_u64().unwrap();
@@ -553,8 +513,9 @@ fn faceted_grouped_window_is_bounded_and_scrolls_to_selection() {
         let mut flat = OverlayState::new(OverlayKind::MoveDest, flat_corpus, vec![], vec![]);
         flat.move_sel(30); // land the selection deep in the list
         let fpng = dir.join(format!("flat_menubar_{menu_bar}.png"));
-        capture_with(&fpng, &buf, &fold(&flat)).expect("flat picker capture renders");
-        let fj = read(&fpng);
+        capture_with(&fpng, &buf, &picker_opts(&flat, flat.empty_notice()))
+            .expect("flat picker capture renders");
+        let fj = read_sidecar(&fpng);
         // A non-faceting picker draws the FLAT path (no lens strip → no sections).
         assert_eq!(
             fj["overlay"]["lens"],

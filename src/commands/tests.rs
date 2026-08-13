@@ -808,14 +808,16 @@ fn catalog_and_keymap_agree_on_every_default_chord() {
                 if !resolved.trim().is_empty() && !kept_back {
                     assert!(
                         crate::keymap::parse_binding(&resolved).is_ok(),
-                        "{}: {:?}'s resolved native chord {resolved:?} must parse via parse_binding",
+                        "{}: {:?}'s resolved native chord {resolved:?} must parse via \
+                         parse_binding",
                         c.name,
                         convention
                     );
                     assert_eq!(
                         resolve_chord_under(&resolved, convention),
                         c.action,
-                        "{}: {:?}'s resolved native chord {resolved:?} must resolve to the catalog action",
+                        "{}: {:?}'s resolved native chord {resolved:?} must resolve to the \
+                         catalog action",
                         c.name,
                         convention
                     );
@@ -1680,7 +1682,8 @@ fn label_truth_law_holds_across_the_whole_catalog() {
                     let native_label = resolved_native_label(c, convention);
                     assert_ne!(
                         label, native_label,
-                        "{}: reserved native chord {native_resolved:?} still shown verbatim ({convention:?}/{platform:?})",
+                        "{}: reserved native chord {native_resolved:?} still shown verbatim \
+                         ({convention:?}/{platform:?})",
                         c.name
                     );
                     // Either a web alternate (non-blank) or blank (no alternate defined) — but
@@ -1698,7 +1701,8 @@ fn label_truth_law_holds_across_the_whole_catalog() {
                     } else {
                         assert_eq!(
                             label, "",
-                            "{}: no alternate defined, label should be blank ({convention:?}/{platform:?})",
+                            "{}: no alternate defined, label should be blank \
+                             ({convention:?}/{platform:?})",
                             c.name
                         );
                     }
@@ -1709,7 +1713,8 @@ fn label_truth_law_holds_across_the_whole_catalog() {
                     let label = join_slots_truthful(c, convention, platform, &[]);
                     assert!(
                         !label.split(" · ").any(|tok| tok == c.emacs),
-                        "{}: displaced emacs default {:?} still shown ({convention:?}/{platform:?}) — label was {label:?}",
+                        "{}: displaced emacs default {:?} still shown \
+                         ({convention:?}/{platform:?}) — label was {label:?}",
                         c.name,
                         c.emacs
                     );
