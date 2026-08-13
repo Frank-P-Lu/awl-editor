@@ -291,7 +291,7 @@ mod tests {
             app.ledger_note_dispatch(&Action::ForwardWord, crate::stats::Door::Chord);
             app.ledger_note_dispatch(&Action::LineStart, crate::stats::Door::Chord);
 
-            let goto = app.usage.odometer().command_counts("go_to_file");
+            let goto = app.usage.odometer().command_counts("go_to");
             assert_eq!((goto.chord, goto.palette, goto.menu), (2, 1, 0));
             let theme = app.usage.odometer().command_counts("switch_theme");
             assert_eq!((theme.chord, theme.palette, theme.menu), (0, 0, 1));
@@ -318,7 +318,7 @@ mod tests {
         use crate::keymap::Action;
         crate::fs::with_fs(Arc::new(crate::fs::InMemoryFs::new()), || {
             let mut app = App::new(None, PathBuf::from("/n"), None, None, Config::empty());
-            // Reached repeatedly via the palette; Go to file… HAS a native chord (Cmd-O).
+            // Reached repeatedly via the palette; Go to… HAS a native chord (Cmd-O).
             for _ in 0..4 {
                 app.ledger_note_dispatch(&Action::OpenGoto, crate::stats::Door::Palette);
             }
@@ -333,9 +333,9 @@ mod tests {
                 .odometer()
                 .graduation_candidates(crate::commands::has_native_chord, 5);
             let slugs: Vec<&str> = cands.iter().map(|(s, _)| s.as_str()).collect();
-            assert_eq!(slugs, vec!["go_to_file"], "chordless Keep version excluded");
+            assert_eq!(slugs, vec!["go_to"], "chordless Keep version excluded");
             assert!(
-                !app.usage.odometer().is_graduated("go_to_file"),
+                !app.usage.odometer().is_graduated("go_to"),
                 "not yet graduated on slow-door use"
             );
 
@@ -344,7 +344,7 @@ mod tests {
                 app.ledger_note_dispatch(&Action::OpenGoto, crate::stats::Door::Chord);
             }
             assert!(
-                app.usage.odometer().is_graduated("go_to_file"),
+                app.usage.odometer().is_graduated("go_to"),
                 "chord in the fingers now"
             );
             assert!(
@@ -363,7 +363,7 @@ mod tests {
         crate::fs::with_fs(Arc::new(crate::fs::InMemoryFs::new()), || {
             let mut app = App::new(None, PathBuf::from("/n"), None, None, Config::empty());
             // A fake ledger: three native-chord commands reached via slow doors, ranked
-            // by slow-door count (Go to file 4 > Switch theme 2 > Version history 1).
+            // by slow-door count (Go to 4 > Switch theme 2 > Version history 1).
             for _ in 0..4 {
                 app.ledger_note_dispatch(&Action::OpenGoto, crate::stats::Door::Palette);
             }
@@ -399,7 +399,7 @@ mod tests {
             // The PEEK rows: chord+name, ranked, chordless Keep version excluded.
             let peek = app.peek_rows_from_ledger();
             let names: Vec<&str> = peek.iter().map(|r| r.name.as_str()).collect();
-            assert_eq!(names, vec!["Go to file", "Switch theme", "Version history"]);
+            assert_eq!(names, vec!["Go to", "Switch theme", "Version history"]);
             assert_eq!(peek[0].chord, goto_chord);
             assert_eq!(peek[1].chord, theme_chord);
 
@@ -408,7 +408,7 @@ mod tests {
             assert_eq!(
                 tips,
                 vec![
-                    format!("{goto_chord}  Go to file"),
+                    format!("{goto_chord}  Go to"),
                     format!("{theme_chord}  Switch theme"),
                     format!("{history_chord}  Version history"),
                 ]

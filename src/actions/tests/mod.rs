@@ -22,8 +22,6 @@ mod lifecycle;
 mod overlay_drive;
 mod picker_misc_smoke;
 mod pickers_nav;
-/// The flat switch-project picker's one door into the folder navigator.
-mod project_door;
 mod recoil_flinch;
 mod save_feedback;
 mod settings_reach;

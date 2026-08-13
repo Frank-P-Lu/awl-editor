@@ -132,14 +132,13 @@ fn build_corpus() -> Vec<String> {
     v
 }
 
-/// Open the Go-to-file picker (`corpus`-backed) through TWO real chords —
-/// `s-p` (Command Palette) then filtering to and accepting "Go to file…" — the
+/// Open the unified Go-to picker (`corpus`-backed) through TWO real chords —
+/// `s-p` (Command Palette) then filtering to and accepting "Go to…" — the
 /// same two-step route a live user takes, so this law never invents a
 /// synthetic direct-open door the keymap does not actually expose (`OpenGoto`
 /// carries no default binding of its own — `commands/catalog/navigation.rs`).
 fn open_goto(session: &mut crate::run::ReplaySession) {
-    let chords =
-        crate::keyspec::parse_chords("s-p g o Space t o Space f i l e Enter").expect("chords");
+    let chords = crate::keyspec::parse_chords("s-p g o Space t o Enter").expect("chords");
     for c in &chords {
         session.apply_chord(c).expect("chord applies");
     }

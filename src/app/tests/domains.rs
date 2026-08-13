@@ -920,6 +920,9 @@ fn the_summoned_layer_bypasses_have_the_call_sites_they_claim() {
             // `run_action_core` (1) + the palette `RunAction` re-dispatch's
             // `stamp_return_to` (1).
             ("app/apply.rs", 2),
+            // The extracted platform-surface dispatcher borrows the same slot
+            // while a native chooser or its in-app fallback takes over.
+            ("app/apply/surface_effects.rs", 1),
             // The live search-key intercept — the seam shared verbatim with the
             // headless `--keys` replay.
             ("app/input/keys.rs", 1),

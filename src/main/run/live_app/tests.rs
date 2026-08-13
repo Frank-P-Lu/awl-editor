@@ -139,7 +139,7 @@ fn live_app_first_new_document_asks_for_a_folder_before_creating_a_file() {
         sidecar(&png)
     });
     assert_eq!(json["driver"].as_str(), Some("live-app"));
-    assert_eq!(json["overlay"]["mode"].as_str(), Some("switch"));
+    assert_eq!(json["overlay"]["mode"].as_str(), Some("goto"));
 }
 
 /// THE PRIMARY LAW — the transition converted from

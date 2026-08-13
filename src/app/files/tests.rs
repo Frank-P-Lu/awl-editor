@@ -1178,20 +1178,19 @@ fn switch_project_driven_by_real_chords_through_apply_repoints_the_workspace() {
         };
         app.press_spec_headless(open_project)
             .expect("the switch-project chord parses");
-        assert_eq!(
-            app.workspace_state
-                .overlay()
-                .map(|o| o.kind)
-                .expect("the chord summoned a real Project picker"),
-            crate::overlay::OverlayKind::Project,
-        );
+        let overlay = app
+            .workspace_state
+            .overlay()
+            .expect("the chord summoned the unified Go to picker");
+        assert_eq!(overlay.kind, crate::overlay::OverlayKind::Goto);
+        assert_eq!(overlay.active_facet_id(), Some("folders"));
 
-        // The picker is FLAT over the workspace's direct children only, with
-        // no way to leave that boundary. Backspace has nothing to ascend to
-        // any more (a no-op, not a walk to `/`); Down moves off `proj-a`
-        // onto `sibling`; Enter SWITCHES to it immediately — one chord, no
-        // descend, no drilled-in `.` accept.
-        app.press_spec_headless("Backspace Down Enter")
+        // The unified Folders lens is flat over the workspace destinations.
+        // Two Downs move from the workspace row through `proj-a` to `sibling`;
+        // Enter switches immediately.
+        // Backspace belongs to the shared picker's cancel grammar, so it is
+        // deliberately not an ascent gesture here.
+        app.press_spec_headless("Down Down Enter")
             .expect("the navigation chords parse");
 
         assert!(
