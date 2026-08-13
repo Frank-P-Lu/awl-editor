@@ -121,6 +121,21 @@ every pass.
 
 ## Open items
 
+### 421 — the cell caret is Latin-height over full-square CJK ink
+
+User sighting: over Japanese `構成`, the cell caret covers only the middle of `成`;
+the glyph extends visibly above and below it. `caret_cell_vertical` deliberately uses one
+typical-letter height per proportional `(face, row)`, but that Latin-stability rule is the
+wrong metric for a full-square CJK anchor. Preserve the stable Latin height and derive one
+stable ideographic cell from the resolved CJK face/script — no named-glyph or named-world
+branch, and no per-kanji ink-height jitter. Mixed Latin/CJK transitions must remain bounded.
+
+Verify at the pure geometry seam, then render Japanese + mixed-script fixtures through the
+ordinary tier-1 capture at both DPIs over the full proportional roster and every cell-form
+caret mode. Pixel arithmetic must prove the resting caret contains the CJK ink with its
+authored pad and is present; the existing one-height Latin laws stay byte-for-byte green.
+Vision-smoke five sampled worlds by asking which Japanese character carries the caret.
+
 ### 395 — three answers owed, each one line, each from a landed item
 
 Small, cheap, and filed so they are not lost. Each names the exact lever.
