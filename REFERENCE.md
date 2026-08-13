@@ -42,9 +42,8 @@ Commands are grouped by the same task categories the palette browses.
 
 | Command | What it does | macOS | Linux | Builds |
 |---|---|---|---|---|
-| Switch project… | Summon the project switcher, browsing to a different project folder. | `⌘⇧P` | `Ctrl+Shift+P` | Native, browser |
-| Recent projects… | Open the project switcher focused on its Recent list. | — | — | Native |
-| Browse files… | Summon the file browser for the current project folder. | — | — | Native, browser |
+| Open file… | Choose a file with the platform file chooser. | — | — | Native, browser |
+| Open folder… | Choose the active writing folder with the platform folder chooser. | — | — | Native, browser |
 | Version history… | Summon the version timeline — git log if tracked, saved snapshots otherwise. | `⌘⇧H` | `Ctrl+Shift+H` | Native |
 | Compare with version… | Open the read-only prose diff comparing the current buffer against a past version. | — | — | Native |
 | Keep version… | Prompt for a name, then record the buffer text as a pinned history snapshot under it. | — | — | Native |
@@ -68,8 +67,7 @@ Commands are grouped by the same task categories the palette browses.
 
 | Command | What it does | macOS | Linux | Builds |
 |---|---|---|---|---|
-| Go to file… | Summon the fuzzy file finder for the current project. | `⌘O` | `Ctrl+O` | Native, browser |
-| Go to heading… | Open the file finder pre-focused on the current document's headings. | — | — | Native, browser |
+| Go to… | Find files, headings, folders, and recent destinations. | `⌘O` | `Ctrl+O` | Native, browser |
 | Last file | Switch to the previously open file; a no-op with nothing to switch back to. | `⌃Tab` | `Ctrl+Tab` | Native, browser |
 | Follow link | Open the caret's markdown link URL in the default browser, if there is one. | `C-c C-o` | — | Native, browser |
 | Copy link destination | Copy the URL of the markdown link under the caret to the kill buffer. | — | — | Native, browser |

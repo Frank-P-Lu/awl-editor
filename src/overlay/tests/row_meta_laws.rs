@@ -170,6 +170,8 @@ fn row_meta_tag_maps_every_variant_correctly() {
         RowMeta::GotoHeading { line: 3 }.tag(),
         RowMetaTag::GotoHeading
     );
+    assert_eq!(RowMeta::GotoFolder.tag(), RowMetaTag::GotoFolder);
+    assert_eq!(RowMeta::FolderChooser.tag(), RowMetaTag::FolderChooser);
     assert_eq!(
         RowMeta::CommandSetting {
             id: crate::settings::SettingId::Keymap

@@ -107,15 +107,14 @@ fn catalog_non_empty_and_named() {
         "Report a Problem",
         "Download file",
         "Check for Updates",
-        "Recent projects…",
-        "Go to heading…",
         "Toggle typewriter scroll",
         "Toggle menu bar",
         "Keep tutorial…",
         "Keep version…",
         "Clean unused assets…",
         "Compare with version…",
-        "Browse files…",
+        "Open file…",
+        "Open folder…",
         "Move…",
         "Rename note…",
         "Duplicate note",
@@ -153,6 +152,34 @@ fn catalog_non_empty_and_named() {
     }
     assert_eq!(names().len(), COMMANDS.len());
     assert_eq!(bindings().len(), COMMANDS.len());
+}
+
+#[test]
+fn public_destination_catalog_has_one_goto_and_no_retired_project_wording() {
+    let names: Vec<&str> = COMMANDS.iter().map(|command| command.name).collect();
+    for required in ["Go to…", "Open file…", "Open folder…"] {
+        assert!(
+            names.contains(&required),
+            "missing public destination door {required}"
+        );
+    }
+    for retired in [
+        "Go to file…",
+        "Switch project…",
+        "Recent projects…",
+        "Browse files…",
+        "Go to heading…",
+    ] {
+        assert!(
+            !names.contains(&retired),
+            "retired public wording survived: {retired}"
+        );
+    }
+    assert_eq!(
+        names.iter().filter(|name| **name == "Go to…").count(),
+        1,
+        "the catalog has one unified typed destination surface"
+    );
 }
 
 #[test]
@@ -260,7 +287,7 @@ fn recent_mru_records_newest_first_deduped_and_capped() {
 fn action_for_name_matches_label_and_slug() {
     assert_eq!(action_for_name("Switch theme"), Some(Action::OpenThemeMenu));
     assert_eq!(action_for_name("switch_theme"), Some(Action::OpenThemeMenu));
-    assert_eq!(action_for_name("go_to_file"), Some(Action::OpenGoto));
+    assert_eq!(action_for_name("go_to"), Some(Action::OpenGoto));
     assert_eq!(action_for_name("settings"), Some(Action::OpenSettingsMenu));
     assert_eq!(action_for_name("Toggle debug"), Some(Action::ToggleDebug));
     assert_eq!(action_for_name("toggle_debug"), Some(Action::ToggleDebug));
@@ -397,10 +424,7 @@ fn effective_bindings_show_both_slots() {
     assert_eq!(bindings()[i], "⌘S");
     let z = COMMANDS.iter().position(|c| c.name == "Zoom in").unwrap();
     assert_eq!(bindings()[z], "⌘=");
-    let g = COMMANDS
-        .iter()
-        .position(|c| c.name == "Go to file…")
-        .unwrap();
+    let g = COMMANDS.iter().position(|c| c.name == "Go to…").unwrap();
     assert_eq!(bindings()[g], "⌘O");
     let cut = COMMANDS.iter().position(|c| c.name == "Cut").unwrap();
     assert_eq!(bindings()[cut], "⌘X · C-w");
@@ -845,10 +869,7 @@ fn no_two_catalog_commands_share_a_default_chord() {
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn slug_for_action_and_has_native_chord_key_the_usage_ledger() {
-    assert_eq!(
-        slug_for_action(&Action::OpenGoto).as_deref(),
-        Some("go_to_file")
-    );
+    assert_eq!(slug_for_action(&Action::OpenGoto).as_deref(), Some("go_to"));
     assert_eq!(
         slug_for_action(&Action::OpenThemeMenu).as_deref(),
         Some("switch_theme")
@@ -859,16 +880,13 @@ fn slug_for_action_and_has_native_chord_key_the_usage_ledger() {
     );
     assert_eq!(slug_for_action(&Action::InsertChar('x')), None);
     assert_eq!(slug_for_action(&Action::BeginPrefix), None);
-    assert!(has_native_chord("go_to_file"), "Go to file… carries Cmd-O");
+    assert!(has_native_chord("go_to"), "Go to… carries Cmd-O");
     assert!(has_native_chord("save"), "Save carries Cmd-S");
     assert!(
         has_native_chord("settings"),
         "Settings… now carries Cmd-, (P1)"
     );
-    assert!(
-        !has_native_chord("browse_files"),
-        "Browse files… is palette-only"
-    );
+    assert!(!has_native_chord("open_file"), "Open file… is palette-only");
     assert!(!has_native_chord("about"), "About is palette-only");
     assert!(
         !has_native_chord("reset_page_width"),
@@ -882,10 +900,10 @@ fn slug_for_action_and_has_native_chord_key_the_usage_ledger() {
 #[test]
 fn peek_row_resolves_native_chord_and_name_or_none_for_palette_only() {
     assert_eq!(
-        peek_row_for_slug("go_to_file"),
+        peek_row_for_slug("go_to"),
         Some(crate::peek::PeekRow {
-            chord: label_for("Go to file…"),
-            name: "Go to file".into()
+            chord: label_for("Go to…"),
+            name: "Go to".into()
         })
     );
     assert_eq!(
@@ -1064,7 +1082,6 @@ const HIDE_ON_WEB: &[&str] = &[
     "Lifetime stats",
     "Writing streaks",
     "Clean unused assets…",
-    "Recent projects…",
     "Check for Updates",
     "Keep tutorial…",
     "Export as PDF…",

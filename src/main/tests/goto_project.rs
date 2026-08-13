@@ -153,13 +153,14 @@ fn replay_keys_project_hides_dotfolders_marks_git_tag() {
             &Config::empty(),
             None,
         );
-        let ov = res.journey.card().expect("switch-project overlay open");
-        assert_eq!(ov.kind, crate::overlay::OverlayKind::Project);
+        let ov = res.journey.card().expect("Go-to folder lens open");
+        assert_eq!(ov.kind, crate::overlay::OverlayKind::Goto);
+        assert_eq!(ov.active_facet_id(), Some("folders"));
         assert!(!crate::file_visibility::all_on());
         let shown = ov.item_strings();
         assert!(
-            shown.iter().any(|s| s.starts_with("use this folder")),
-            "accept-this-folder row kept: {shown:?}"
+            shown.iter().any(|s| s == "Choose another folder…"),
+            "platform folder fallback kept: {shown:?}"
         );
         assert!(
             !shown.iter().any(|s| s.starts_with(".claude")),
@@ -170,11 +171,11 @@ fn replay_keys_project_hides_dotfolders_marks_git_tag() {
             "junk .git hidden: {shown:?}"
         );
         assert!(
-            shown.iter().any(|s| s.starts_with("plain")),
+            shown.iter().any(|s| s.ends_with("/plain/")),
             "plain shown: {shown:?}"
         );
         assert!(
-            shown.iter().any(|s| s.starts_with("repo")),
+            shown.iter().any(|s| s.ends_with("/repo/")),
             "repo shown: {shown:?}"
         );
         assert!(
@@ -182,7 +183,12 @@ fn replay_keys_project_hides_dotfolders_marks_git_tag() {
             "no name bullet: {shown:?}"
         );
         let tags = ov.item_git_tags();
-        let ipos = |name: &str| shown.iter().position(|s| s.starts_with(name)).unwrap();
+        let ipos = |name: &str| {
+            shown
+                .iter()
+                .position(|s| s.ends_with(&format!("/{name}/")))
+                .unwrap()
+        };
         assert_eq!(tags[ipos("repo")], "git", "repo is git-tagged");
         assert_eq!(tags[ipos("plain")], "", "plain folder has no tag");
 
@@ -207,12 +213,12 @@ fn replay_keys_project_hides_dotfolders_marks_git_tag() {
         );
         let revealed = ov.item_strings();
         assert!(
-            revealed.iter().any(|s| s.starts_with(".claude")),
+            revealed.iter().any(|s| s.ends_with("/.claude/")),
             "revealed: {revealed:?}"
         );
         assert!(
-            revealed.iter().any(|s| s.starts_with("use this folder")),
-            "the accept-this-folder row is still present after reveal"
+            revealed.iter().any(|s| s == "Choose another folder…"),
+            "the platform folder fallback is still present after reveal"
         );
     });
     crate::file_visibility::set_all_on(saved);

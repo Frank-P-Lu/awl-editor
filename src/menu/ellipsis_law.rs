@@ -73,9 +73,10 @@ fn every_file_menu_row_s_ellipsis_matches_whether_it_opens_a_surface() {
             browse_to: &mut browse_to,
             oracle: None,
         };
-        let _ = apply_transition(&mut ctx, &action, false);
+        let transition = apply_transition(&mut ctx, &action, false);
 
-        let opened_a_surface = journey.card().is_some();
+        let opened_a_surface = journey.card().is_some()
+            || transition.contains(|effect| matches!(effect, crate::actions::Effect::Surface(_)));
         let promises_a_surface = item.label.ends_with('…');
         assert_eq!(
             opened_a_surface, promises_a_surface,

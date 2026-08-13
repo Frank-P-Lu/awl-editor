@@ -816,6 +816,8 @@ fn every_catalog_command_dispatches_without_panicking() {
         config_keys: &[],
         config_linux_keep: &[],
         goto_headings: vec![("Heading One".to_string(), 0)],
+        goto_folders: vec![("/workspace/notes".to_string(), false)],
+        goto_recent_folders: vec![],
         spell_target: Some((
             vec!["speling".to_string(), "spieling".to_string()],
             (0, 0, 3),

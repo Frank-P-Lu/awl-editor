@@ -9,6 +9,46 @@
 use super::*;
 use std::sync::Arc;
 
+#[test]
+fn platform_chooser_results_share_the_file_and_folder_owners() {
+    let _guard = crate::testlock::serial();
+    let mem = Arc::new(
+        crate::fs::InMemoryFs::new()
+            .with_dir("/ws/a")
+            .with_dir("/ws/b")
+            .with_file("/ws/a/one.md", "one\n"),
+    );
+    crate::fs::with_fs(mem, || {
+        let mut config = Config::empty();
+        config.default_folder = Some(PathBuf::from("/ws/a"));
+        config.workspace = Some(PathBuf::from("/ws"));
+        let mut app = App::new_hermetic(None, PathBuf::from("/ws/a"), config);
+
+        assert!(
+            !app.apply_file_choice(None),
+            "cancelled file chooser is inert"
+        );
+        assert_eq!(app.document.buffer().path(), None);
+        assert!(app.apply_file_choice(Some(PathBuf::from("/ws/a/one.md"))));
+        assert_eq!(
+            app.document.buffer().path(),
+            Some(Path::new("/ws/a/one.md"))
+        );
+
+        assert!(
+            !app.apply_folder_choice(None),
+            "cancelled folder chooser is inert"
+        );
+        assert_eq!(app.project_location.root, PathBuf::from("/ws/a"));
+        assert!(app.apply_folder_choice(Some(PathBuf::from("/ws/b"))));
+        assert_eq!(app.project_location.root, PathBuf::from("/ws/b"));
+        assert_eq!(
+            app.project_location.workspace_root,
+            Some(PathBuf::from("/ws"))
+        );
+    });
+}
+
 // --- window_title (ACCESSIBILITY TIER 1: the window names the document) ---
 
 #[test]

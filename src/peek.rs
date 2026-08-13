@@ -41,7 +41,7 @@ pub fn set_open(open: bool) {
 }
 
 /// ONE peek row: a chord GLYPH figure (`"⌘O"`) over/beside its command NAME caption
-/// (`"Go to file"`). The type system's ink × size — the chord rides content ink at
+/// (`"Go to"`). The type system's ink × size — the chord rides content ink at
 /// BODY size (the figure), the name faint ink at LABEL size (the caption) — NEVER amber
 /// (the caret's alone). Owned strings so the App can hand personalized rows across the
 /// pipeline seam by value, exactly like `HudStats`.
@@ -62,8 +62,8 @@ pub struct PeekRow {
 /// start-end and word motion), so the naive Cmd→Ctrl translation
 /// (`keyspec::translate_native_for_linux`) is correct here without consulting it.
 const STARTER: &[(&str, &str)] = &[
-    ("Cmd-O", "Go to file"),
-    ("Cmd-S-p", "Switch project"),
+    ("Cmd-O", "Go to"),
+    ("Cmd-S-p", "Go to folders"),
     ("Cmd-P", "Command palette"),
     ("Cmd-F", "Find"),
     ("Cmd-S", "Save"),
@@ -479,8 +479,8 @@ mod tests {
         assert_eq!(
             names,
             vec![
-                "Go to file",
-                "Switch project",
+                "Go to",
+                "Go to folders",
                 "Command palette",
                 "Find",
                 "Save",
@@ -523,15 +523,15 @@ mod tests {
         // "the flavor setting does not change the trigger or the content" claim.
         use crate::convention::Convention;
         let mac = starter_rows_for(Convention::Mac);
-        assert_eq!(mac[0].chord, "⌘O", "Go to file, Mac glyph form");
-        assert_eq!(mac[1].chord, "⌘⇧P", "Switch project, Mac glyph form");
+        assert_eq!(mac[0].chord, "⌘O", "Go to, Mac glyph form");
+        assert_eq!(mac[1].chord, "⌘⇧P", "Go to folders, Mac glyph form");
         assert_eq!(mac[4].chord, "⌘S", "Save, Mac glyph form");
 
         let linux = starter_rows_for(Convention::Linux);
-        assert_eq!(linux[0].chord, "Ctrl+O", "Go to file, Linux word form");
+        assert_eq!(linux[0].chord, "Ctrl+O", "Go to, Linux word form");
         assert_eq!(
             linux[1].chord, "Ctrl+Shift+P",
-            "Switch project, Linux word form"
+            "Go to folders, Linux word form"
         );
         assert_eq!(linux[4].chord, "Ctrl+S", "Save, Linux word form");
     }

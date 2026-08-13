@@ -143,10 +143,10 @@ pub fn rows(target: ContextTarget, state: ContextState, platform: Platform) -> V
         ],
         Filename => Vec::new(),
         Folder if platform == Platform::Native => vec![
-            row("Switch folder…", OpenProject, true),
-            row("Browse files…", OpenBrowse, true),
+            row("Go to folders…", OpenProject, true),
+            row("Open file…", OpenBrowse, true),
         ],
-        Folder => vec![row("Browse files…", OpenBrowse, true)],
+        Folder => vec![row("Go to folders…", OpenProject, true)],
         LeftEdge | RightEdge => vec![
             row("Narrow", PageNarrower, true),
             row("Widen", PageWider, true),
@@ -223,8 +223,13 @@ mod tests {
                             assert!(
                                 crate::commands::COMMANDS
                                     .iter()
-                                    .any(|c| c.action == row.action),
-                                "{target:?}/{platform:?}: {:?} is not catalog-routed",
+                                    .any(|c| c.action == row.action)
+                                    || matches!(
+                                        row.action,
+                                        crate::keymap::Action::OpenOutline
+                                            | crate::keymap::Action::OpenProject
+                                    ),
+                                "{target:?}/{platform:?}: {:?} is neither catalog-routed nor a contextual Go-to lens deep link",
                                 row.action
                             );
                         }

@@ -66,26 +66,31 @@ pub fn is_hidden_entry(rel: &str) -> bool {
 /// bucket/cycle machinery, and an empty lens is calmer than per-instance strip
 /// surgery.) The former **By type** lens was CUT (decision: redundant once the
 /// unified All list exists — a fuzzy query already reaches a file by its extension).
-const GOTO_FACET_STRIP: [Facet; 4] = [
+const GOTO_FACET_STRIP: [Facet; 5] = [
     Facet {
         label: "All",
         id: "all",
         sections: &[],
     },
     Facet {
-        label: "Recent",
-        id: "recent",
-        sections: &["Recent"],
-    },
-    Facet {
-        label: "This folder",
-        id: "folder",
-        sections: &["This folder"],
+        label: "Files",
+        id: "files",
+        sections: &["Files"],
     },
     Facet {
         label: "Headings",
         id: "headings",
         sections: &["Headings"],
+    },
+    Facet {
+        label: "Folders",
+        id: "folders",
+        sections: &["Folders"],
+    },
+    Facet {
+        label: "Recent",
+        id: "recent",
+        sections: &["Recent"],
     },
 ];
 
@@ -103,10 +108,11 @@ const GOTO_FACET_STRIP: [Facet; 4] = [
 /// Go-to's corpus appends the doc's headings after its files.
 fn goto_bucket(item: FacetItem, lens_idx: usize) -> Option<&'static str> {
     match lens_idx {
-        1 => item.recent.then_some("Recent"), // Recent: ONLY recently-OPENED files (a real MRU)
-        2 => (!item.heading && !item.accept.contains('/')).then_some("This folder"),
-        3 => item.heading.then_some("Headings"), // Headings: the doc's heading rows only
-        _ => None,                               // 0 = All (never grouped)
+        1 => (!item.heading && !item.is_dir).then_some("Files"),
+        2 => item.heading.then_some("Headings"),
+        3 => (item.is_dir || item.accept == "Choose another folder…").then_some("Folders"),
+        4 => item.recent.then_some("Recent"),
+        _ => None, // 0 = All (never grouped)
     }
 }
 
@@ -646,7 +652,7 @@ mod tests {
     }
 
     #[test]
-    fn goto_picker_lands_on_all_then_groups_by_folder() {
+    fn goto_picker_lands_on_all_then_files_lens_names_its_rows() {
         use crate::overlay::{OverlayKind, OverlayState};
         let corpus = vec![
             "doc-fixture.md".to_string(),
@@ -654,7 +660,7 @@ mod tests {
             "src/lib.rs".to_string(),
             "notes.txt".to_string(),
         ];
-        let mut ov = OverlayState::new(OverlayKind::Goto, corpus, vec![], vec![]);
+        let mut ov = OverlayState::new(OverlayKind::Goto, corpus.clone(), vec![], vec![]);
         assert_eq!(
             ov.lens_strip().first().map(|(l, _)| l.clone()),
             Some("All".to_string())
@@ -662,15 +668,10 @@ mod tests {
         assert_eq!(ov.active_facet_id(), Some("all"));
         assert_eq!(ov.items.len(), 4);
         assert!(ov.item_sections().iter().all(|s| s.is_empty()));
-        ov.set_facet_lens(2);
-        assert_eq!(ov.active_facet_id(), Some("folder"));
-        let shown = ov.item_strings();
-        assert!(shown.iter().any(|s| s == "doc-fixture.md"));
-        assert!(shown.iter().any(|s| s == "notes.txt"));
-        assert!(
-            !shown.iter().any(|s| s.contains('/')),
-            "nested files opt out: {shown:?}"
-        );
+        ov.set_facet_lens(1);
+        assert_eq!(ov.active_facet_id(), Some("files"));
+        assert_eq!(ov.item_strings(), corpus);
+        assert!(ov.item_sections().iter().all(|s| s == "Files"));
     }
 
     #[test]
@@ -684,7 +685,7 @@ mod tests {
             ("  Widgets".to_string(), 7),
         ]);
         let strip: Vec<String> = ov.lens_strip().into_iter().map(|(l, _)| l).collect();
-        assert_eq!(strip, vec!["All", "Recent", "This folder", "Headings"]);
+        assert_eq!(strip, vec!["All", "Files", "Headings", "Folders", "Recent"]);
         assert_eq!(ov.active_facet_id(), Some("all"));
         let all = ov.item_strings();
         assert!(all.iter().any(|s| s == "doc-fixture.md"), "{all:?}");
@@ -753,7 +754,7 @@ mod tests {
         ];
         let recent = vec![3usize, 1usize];
         let mut ov = OverlayState::new(OverlayKind::Goto, corpus, vec![], recent);
-        ov.set_facet_lens(1);
+        ov.set_facet_lens(4);
         assert_eq!(ov.active_facet_id(), Some("recent"));
         assert_eq!(
             ov.item_strings(),
@@ -767,7 +768,7 @@ mod tests {
         use crate::overlay::{OverlayKind, OverlayState};
         let corpus = vec!["doc-fixture.md".to_string(), "src/main.rs".to_string()];
         let mut ov = OverlayState::new(OverlayKind::Goto, corpus, vec![], vec![]);
-        ov.set_facet_lens(1);
+        ov.set_facet_lens(4);
         assert_eq!(ov.active_facet_id(), Some("recent"));
         assert!(
             ov.item_strings().is_empty(),

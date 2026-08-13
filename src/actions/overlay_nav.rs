@@ -593,6 +593,25 @@ fn accept_value_overlay(ctx: &mut ActionCtx) -> Effect {
         dispose_after_accept(ctx);
         return eff;
     }
+    if ov.kind == crate::overlay::OverlayKind::Goto && ov.selected_is_goto_folder() {
+        let eff = ov
+            .selected_value()
+            .map(|path| {
+                Effect::OverlayAccept(crate::overlay::OverlayKind::Project, path.to_string())
+            })
+            .unwrap_or(Effect::None);
+        dispose_after_accept(ctx);
+        return eff;
+    }
+    if ov.kind == crate::overlay::OverlayKind::Goto
+        && ov
+            .selected_corpus_index()
+            .and_then(|i| ov.rows.get(i))
+            .is_some_and(|row| matches!(row.meta, crate::overlay::RowMeta::FolderChooser))
+    {
+        dispose_after_accept(ctx);
+        return Effect::Surface(crate::actions::SurfaceEffect::OpenFolderChooser);
+    }
     if ov.kind == crate::overlay::OverlayKind::Assets {
         // ASSET CLEANER: Enter REQUESTS the highlighted orphan be trashed. Emit
         // its root-relative path (the corpus value) for the App to trash +

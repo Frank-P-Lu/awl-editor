@@ -188,11 +188,9 @@ drift into this page silently.
 <!-- GENERATED:keys-reference:BEGIN -->
 | Command | macOS | Linux |
 |---|---|---|
-| Go to file… | ⌘O | Ctrl+O |
-| Switch project… | ⌘⇧P | Ctrl+Shift+P |
-| Recent projects… |  |  |
-| Browse files… |  |  |
-| Go to heading… |  |  |
+| Go to… | ⌘O | Ctrl+O |
+| Open file… |  |  |
+| Open folder… |  |  |
 | Spell suggestions… | ⌘; | Ctrl+; |
 | Version history… | ⌘⇧H | Ctrl+Shift+H |
 | Compare with version… |  |  |
@@ -357,7 +355,7 @@ running in a `<canvas>` with no native filesystem underneath it.
 | Paste | From the OS clipboard | From awl's own kill ring only — an external copy doesn't appear until you've copied something from awl at least once |
 | Getting a file out | Already on disk | "{{cmd:download_file}}" ({{key:command_palette}}) — saves the active buffer as a plain-text download |
 
-**Hidden on web:** {{cmd:recent_projects}}, {{cmd:version_history}}, {{cmd:compare_with_version}},
+**Hidden on web:** {{cmd:version_history}}, {{cmd:compare_with_version}},
 {{cmd:clean_unused_assets}}, {{cmd:keep_version}}, {{cmd:finish_file}}, {{cmd:lifetime_stats}},
 {{cmd:writing_streaks}}, {{cmd:quit}}, {{cmd:check_for_updates}} — daemon, session-restore, and
 local-version-history machinery with nothing to attach to in a browser tab.

@@ -20,11 +20,9 @@ fn catalog_chord_snapshot() -> String {
 }
 
 const CATALOG_CHORD_SNAPSHOT: &str = "\
-go_to_file|Cmd-O|C-o|
-switch_project|Cmd-S-p|C-S-p|
-recent_projects|||
-browse_files|||
-go_to_heading|||
+go_to|Cmd-O|C-o|
+open_file|||
+open_folder|||
 spell_suggestions|Cmd-;|C-;|
 version_history|Cmd-S-h|C-S-h|
 compare_with_version|||
@@ -577,7 +575,7 @@ fn unbound_super_chords_are_calm_noops() {
         ),
         Action::Ignore
     );
-    let keys = vec![("go_to_file".to_string(), vec!["Cmd-k".to_string()])];
+    let keys = vec![("go_to".to_string(), vec!["Cmd-k".to_string()])];
     let mut km_bound = KeymapState::with_overrides(&keys);
     assert_eq!(km_bound.resolve(&ch("k"), &sup()), Action::OpenGoto);
 }
@@ -827,7 +825,7 @@ fn motion_classification() {
 fn config_rebind_single_and_cx() {
     let keys = vec![
         ("switch_theme".to_string(), vec!["C-t".to_string()]),
-        ("go_to_file".to_string(), vec!["C-x g".to_string()]),
+        ("go_to".to_string(), vec!["C-x g".to_string()]),
     ];
     let mut km = KeymapState::with_overrides(&keys);
     assert_eq!(km.resolve(&ch("t"), &ctrl()), Action::OpenThemeMenu);
@@ -913,7 +911,7 @@ fn two_binding_list_resolves_both_slots() {
     // is never inserted, and (the Option-letter layer being retired) Option-g just
     // self-inserts 'g'.
     let capped = vec![(
-        "go_to_file".to_string(),
+        "go_to".to_string(),
         vec!["C-x g".to_string(), "s-g".to_string(), "M-g".to_string()],
     )];
     let mut km = KeymapState::with_overrides(&capped);

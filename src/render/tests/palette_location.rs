@@ -58,7 +58,7 @@ fn every_lens_of_every_faceting_picker_names_one_section_and_it_is_the_lens_itse
     }
     assert_eq!(
         (pickers, lenses),
-        (6, 22),
+        (6, 23),
         "the faceting roster moved — re-read this file's premise, then update the pin"
     );
 }

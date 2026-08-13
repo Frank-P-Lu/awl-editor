@@ -3,6 +3,7 @@ use super::{keyspec, replay_keys};
 
 #[test]
 fn replay_keys_runs_palette_chain_into_overlay() {
+    let _guard = crate::testlock::serial();
     let mut buffer = Buffer::scratch();
     let keys = keyspec::parse_keys("s-p g o t o RET").unwrap();
     let root = PathBuf::from("/tmp");

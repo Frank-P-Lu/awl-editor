@@ -46,12 +46,15 @@ use objc2_foundation::{
 /// This is the macOS-only replacement for File ▸ "Open…" routing through
 /// `Action::OpenBrowse`: the native file picker is the platform convention and
 /// dodges the in-app-overlay repaint path entirely.
-pub fn pick_file_to_open() -> Option<PathBuf> {
+pub fn pick_file_to_open(initial_dir: Option<&std::path::Path>) -> Option<PathBuf> {
     let mtm = MainThreadMarker::new()?;
     let panel = NSOpenPanel::openPanel(mtm);
     panel.setCanChooseFiles(true);
     panel.setCanChooseDirectories(false);
     panel.setAllowsMultipleSelection(false);
+    if let Some(dir) = initial_dir.and_then(std::path::Path::to_str) {
+        panel.setDirectoryURL(Some(&NSURL::fileURLWithPath(&NSString::from_str(dir))));
+    }
     // Application-modal: blocks here until the user closes the panel. We are on
     // the main thread (see the module doc), which is where `runModal` must run.
     let response = panel.runModal();
@@ -60,6 +63,26 @@ pub fn pick_file_to_open() -> Option<PathBuf> {
     }
     let url = panel.URL()?;
     let path = url.path()?;
+    Some(PathBuf::from(path.to_string()))
+}
+
+/// Run the standard macOS OPEN panel in folder mode, beginning at the authored
+/// workspace when one exists. Cancel is a calm `None`; callers route an accepted
+/// path through the ordinary active-folder switch owner.
+pub fn pick_folder_to_open(initial_dir: Option<&std::path::Path>) -> Option<PathBuf> {
+    let mtm = MainThreadMarker::new()?;
+    let panel = NSOpenPanel::openPanel(mtm);
+    panel.setCanChooseFiles(false);
+    panel.setCanChooseDirectories(true);
+    panel.setCanCreateDirectories(true);
+    panel.setAllowsMultipleSelection(false);
+    if let Some(dir) = initial_dir.and_then(std::path::Path::to_str) {
+        panel.setDirectoryURL(Some(&NSURL::fileURLWithPath(&NSString::from_str(dir))));
+    }
+    if panel.runModal() != NSModalResponseOK {
+        return None;
+    }
+    let path = panel.URL()?.path()?;
     Some(PathBuf::from(path.to_string()))
 }
 

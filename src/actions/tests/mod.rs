@@ -604,7 +604,6 @@ pub(super) fn delete_flinch_fixture(
         | Action::OpenGoto
         | Action::OpenProject
         | Action::OpenRecentProjects
-        | Action::OpenBrowse
         | Action::LastBuffer
         | Action::NewDocument
         | Action::MoveFile
@@ -629,6 +628,8 @@ pub(super) fn delete_flinch_fixture(
         | Action::ReportProblem
         | Action::DownloadFile
         | Action::CheckForUpdates
+        | Action::OpenBrowse
+        | Action::OpenFolder
         | Action::BeginPrefix
         | Action::About
         | Action::LifetimeStats
@@ -815,6 +816,7 @@ fn assert_action_roster_covers(a: &Action) {
         | Action::OpenProject
         | Action::OpenRecentProjects
         | Action::OpenBrowse
+        | Action::OpenFolder
         | Action::LastBuffer
         | Action::NewDocument
         | Action::MoveFile
@@ -1034,7 +1036,6 @@ pub(super) fn smoke_command_kind(a: &Action) -> SmokeKind {
         Action::OpenGoto
         | Action::OpenProject
         | Action::OpenRecentProjects
-        | Action::OpenBrowse
         | Action::OpenOutline
         | Action::OpenSpellSuggest
         | Action::OpenHistory
@@ -1075,6 +1076,8 @@ pub(super) fn smoke_command_kind(a: &Action) -> SmokeKind {
         | Action::ReportProblem
         | Action::DownloadFile
         | Action::CheckForUpdates
+        | Action::OpenBrowse
+        | Action::OpenFolder
         // EXPORT: the smoke fixture is a markdown buffer, so both signal
         // `Effect::Export` for the live App to render + write.
         | Action::ExportWord

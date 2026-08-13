@@ -145,6 +145,8 @@ fn apply_view_action(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
             Effect::None
         }
         Action::About => Effect::Surface(SurfaceEffect::ShowAbout),
+        Action::OpenBrowse => Effect::Surface(SurfaceEffect::OpenFileChooser),
+        Action::OpenFolder => Effect::Surface(SurfaceEffect::OpenFolderChooser),
         Action::LifetimeStats => {
             crate::lifetime::set_open(true);
             Effect::None
@@ -468,16 +470,15 @@ fn apply_overlay_open_action(ctx: &mut ActionCtx, action: &Action) -> bool {
         // Settings folder-VALUE picker, which shares this kind's card shape and
         // already walks the whole tree, deliberately does not.
         Action::OpenProject => {
-            let mut ov = (ctx.browse_to)(OverlayKind::Project, None);
+            let mut ov = (ctx.make_overlay)(OverlayKind::Goto);
             if let Some(o) = ov.as_mut() {
-                o.attach_browse_door();
+                o.focus_facet_id("folders");
             }
             ctx.journey.enter(ov);
         }
         Action::OpenRecentProjects => {
-            let mut ov = (ctx.browse_to)(OverlayKind::Project, None);
+            let mut ov = (ctx.make_overlay)(OverlayKind::Goto);
             if let Some(o) = ov.as_mut() {
-                o.attach_browse_door();
                 o.focus_facet_id("recent");
             }
             ctx.journey.enter(ov);
@@ -567,10 +568,6 @@ fn apply_overlay_open_action(ctx: &mut ActionCtx, action: &Action) -> bool {
                 ctx.journey.toggle_detail();
             }
         }
-        Action::OpenBrowse => {
-            ctx.journey
-                .enter((ctx.browse_to)(OverlayKind::Browse, None));
-        }
         _ => return false,
     }
     true
@@ -652,6 +649,7 @@ macro_rules! classify_action_family {
             | Action::ReportProblem
             | Action::DownloadFile
             | Action::CheckForUpdates => ActionFamily::View,
+            Action::OpenBrowse | Action::OpenFolder => ActionFamily::View,
             Action::AlignTable => ActionFamily::Align,
             Action::ToggleBlockquote
             | Action::ToggleBulletList
@@ -686,8 +684,7 @@ macro_rules! classify_action_family {
             | Action::OpenHistory
             | Action::OpenAssetClean
             | Action::KeepVersion
-            | Action::CompareVersion
-            | Action::OpenBrowse => ActionFamily::Overlay,
+            | Action::CompareVersion => ActionFamily::Overlay,
             Action::LastBuffer
             | Action::NewDocument
             | Action::KeepTutorial

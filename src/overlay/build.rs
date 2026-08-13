@@ -3,6 +3,47 @@
 use super::{OverlayKind, OverlayState};
 use std::path::Path;
 
+/// Author the folder half of Go-to's destination roster from the configured
+/// workspace and persisted folder MRU. The workspace itself and its direct
+/// child folders are always known destinations; valid remembered folders may
+/// live deeper. Paths are absolute so accepting a row has unambiguous identity.
+pub fn goto_folder_roster(
+    workspace: Option<&Path>,
+    recent_folders: &[String],
+) -> (Vec<(String, bool)>, Vec<String>) {
+    let Some(workspace) = workspace else {
+        return (Vec::new(), Vec::new());
+    };
+    let mut folders = vec![(
+        workspace.to_string_lossy().to_string(),
+        workspace.join(".git").is_dir(),
+    )];
+    for entry in crate::index::list_dir_level(workspace, None)
+        .into_iter()
+        .filter(|entry| entry.is_dir)
+    {
+        folders.push((
+            workspace.join(entry.name).to_string_lossy().to_string(),
+            entry.is_git,
+        ));
+    }
+    let mut recent = Vec::new();
+    for raw in recent_folders {
+        let path = std::path::PathBuf::from(raw);
+        if !path.is_dir() {
+            continue;
+        }
+        let display = path.to_string_lossy().to_string();
+        if !folders.iter().any(|(known, _)| known == &display) {
+            folders.push((display.clone(), path.join(".git").is_dir()));
+        }
+        if !recent.contains(&display) {
+            recent.push(display);
+        }
+    }
+    (folders, recent)
+}
+
 /// The inputs the FLAT-picker overlay builder ([`build`]) needs, gathered by the
 /// caller so the construction itself lives in ONE place (shared by the live App
 /// and the headless `--keys` replay). The live-only GO-TO recency bits
@@ -32,6 +73,11 @@ pub struct BuildCtx<'a> {
     /// Caller-gathered (it needs the live buffer text); EMPTY for a non-markdown
     /// buffer or one with no headings, so the Headings lens simply reads empty.
     pub goto_headings: Vec<(String, usize)>,
+    /// Absolute folder destinations for Go-to, each with its git marker.
+    pub goto_folders: Vec<(String, bool)>,
+    /// Absolute folder MRU, newest-first. `attach_folders` enrols these into the
+    /// shared Recent lens after the file MRU.
+    pub goto_recent_folders: Vec<String>,
     /// The Cmd-`;` spell target — the misspelled word's corrections, its span, AND
     /// its current TEXT — resolved by the caller ONLY when the spell binding fired.
     /// `None` when the cursor isn't on a flagged word (or spell-check is off), so
@@ -102,6 +148,7 @@ pub fn build(kind: OverlayKind, ctx: &BuildCtx) -> Option<OverlayState> {
             // retired Outline picker). Appended after the files; empty for a
             // non-markdown buffer (the lens then reads "no headings yet").
             ov.attach_headings(ctx.goto_headings.clone());
+            ov.attach_folders(ctx.goto_folders.clone(), &ctx.goto_recent_folders);
             Some(ov)
         }
         // Theme picker: every world name + the active index (for revert). Built

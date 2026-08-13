@@ -194,8 +194,10 @@ pub enum Action {
     ExportPdf,
     OpenGoto,
     OpenProject,
+    #[allow(dead_code)] // retained as a replay compatibility action; no public door constructs it.
     OpenRecentProjects,
     OpenBrowse,
+    OpenFolder,
     LastBuffer,
     NewDocument,
     KeepTutorial,
@@ -744,12 +746,16 @@ impl KeymapState {
         // Cmd-P (Super+P): summon the COMMAND PALETTE. This is its OWN dedicated
         // key — NOT a C-x chord — so it never disturbs the prefix bindings. 'p' is
         // free under Super (undo=z, zoom ==/+/-/0, clipboard=c/x/v), so no
-        // collision. Plain (no Shift) — Cmd-Shift-P is Switch project, above.
+        // collision. Shift is Go-to's Folders deep link; plain is the palette.
         if native
             && let Key::Character(s) = logical
             && matches!(s.chars().next(), Some('p') | Some('P'))
         {
-            return Action::OpenCommandPalette;
+            return if shift {
+                Action::OpenProject
+            } else {
+                Action::OpenCommandPalette
+            };
         }
 
         if native

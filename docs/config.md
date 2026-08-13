@@ -8,7 +8,7 @@ Loads TOML at `$XDG_CONFIG_HOME/awl/config.toml` (else `~/.config/awl/config.tom
 
 ```toml
 default_folder = "~/notes"  # fallback active folder for a first launch with nothing remembered
-workspace  = "~/code"       # Switch project… parent
+workspace  = "~/code"       # parent boundary for folders in Go to…
 keymap     = "native"       # or "emacs" — whole-catalog flavor preset (see below)
 [keys]
 save           = "Cmd-S"                 # slot 1 native (advertised); add a 2nd chord for a quiet emacs slot

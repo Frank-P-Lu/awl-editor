@@ -78,11 +78,12 @@ const APP_ITEMS: &[Routed] = &[
 
 const FILE_ITEMS: &[Routed] = &[
     ri("awl.new_document", "New document"),
-    ri("awl.open", "Browse files…"),
+    r("awl.goto", "Go to…"),
+    ri("awl.open", "Open file…"),
     Routed {
-        id: "awl.switch_project",
-        command: "Switch project…",
-        label: "Switch folder…",
+        id: "awl.open_folder",
+        command: "Open folder…",
+        label: "Open folder…",
         icon: true,
     },
     // "Recent projects" is a SINGLE File item that opens the SWITCH-PROJECT
@@ -94,12 +95,6 @@ const FILE_ITEMS: &[Routed] = &[
     // so it has no place in that table. The navigator (fuzzy-filterable,
     // keyboard-drivable, shared with the palette command) is the one door; a live
     // submenu is a possible future round. No icon (kept minimal, like most items).
-    Routed {
-        id: "awl.recent_projects",
-        command: "Recent projects…",
-        label: "Recent folders…",
-        icon: false,
-    },
     Routed {
         id: "awl.rename_file",
         command: "Rename note…",
@@ -395,9 +390,9 @@ fn roster_all() -> Vec<RosterMenu> {
             title: "File",
             items: vec![
                 routed(&FILE_ITEMS[0]), // New document
-                routed(&FILE_ITEMS[1]), // Browse files… ("Open…")
-                routed(&FILE_ITEMS[2]), // Switch project…
-                routed(&FILE_ITEMS[3]), // Recent projects… (opens the picker)
+                routed(&FILE_ITEMS[1]), // Go to…
+                routed(&FILE_ITEMS[2]), // Open file…
+                routed(&FILE_ITEMS[3]), // Open folder…
                 RosterItem::Separator,
                 routed(&FILE_ITEMS[4]), // Rename file…
                 routed(&FILE_ITEMS[5]), // Move file…
@@ -846,9 +841,9 @@ mod tests {
             labels(&file.items),
             vec![
                 "New document",
-                "Browse files…",
-                "Switch folder…",
-                "Recent folders…",
+                "Go to…",
+                "Open file…",
+                "Open folder…",
                 "Rename file…",
                 "Move file…",
                 "Duplicate file",
@@ -1017,8 +1012,9 @@ mod tests {
             labels(&file.items),
             vec![
                 "New document",
-                "Browse files…",
-                "Switch folder…",
+                "Go to…",
+                "Open file…",
+                "Open folder…",
                 "Rename file…",
                 "Move file…",
                 "Duplicate file",

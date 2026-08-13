@@ -152,7 +152,6 @@ fn visible_commands_exclude_the_hide_list_on_real_wasm() {
         "Keep version…",
         "Lifetime stats",
         "Clean unused assets…",
-        "Recent projects…",
     ] {
         assert!(
             !names.contains(&hidden),

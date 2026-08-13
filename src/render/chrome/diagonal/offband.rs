@@ -95,13 +95,8 @@ impl TextPipeline {
         if self.overlay_hint.is_empty() {
             return None;
         }
-        self.panel_buffer.lines.iter().position(|line| {
-            let drawn = line.text();
-            drawn == self.overlay_hint
-                || (!drawn.is_empty()
-                    && self.overlay_hint.ends_with(drawn)
-                    && self.overlay_hint[..self.overlay_hint.len() - drawn.len()]
-                        .ends_with(crate::overlay::HINT_SEP))
+        self.panel_buffer.lines.iter().position(|l| {
+            super::super::overlay::hint_matches_authored(&self.overlay_hint, l.text())
         })
     }
 
