@@ -750,6 +750,8 @@ fn deferred_effect_matches(action: &Action, effect: &Effect) -> bool {
         Action::ReportProblem => effect == &Effect::ReportProblem,
         Action::DownloadFile => effect == &Effect::None,
         Action::CheckForUpdates => effect == &Effect::CheckForUpdates,
+        Action::OpenBrowse => effect == &Effect::Surface(SurfaceEffect::OpenFileChooser),
+        Action::OpenFolder => effect == &Effect::Surface(SurfaceEffect::OpenFolderChooser),
         Action::DuplicateNote => effect == &Effect::DuplicateNote,
         Action::InsertDate => effect == &Effect::InsertDate,
         // An export on a NATIVE build summons the destination navigator and
@@ -764,6 +766,75 @@ fn deferred_effect_matches(action: &Action, effect: &Effect) -> bool {
             }
         }
         other => panic!("{other:?} classified Deferred but has no effect check"),
+    }
+}
+
+fn smoke_catalog_command(c: &crate::commands::Command, bctx: &crate::overlay::BuildCtx<'_>) {
+    // These cards own the next key, so each catalog action starts with them closed.
+    crate::about::set_open(false);
+    crate::lifetime::set_open(false);
+    crate::streaks::set_open(false);
+
+    let mut buffer = rich_markdown_buffer();
+    let mut shift = false;
+    let mut zoom = 1.0;
+    let mut search = None;
+    let mut overlay = crate::overlay::Journey::default();
+    let eff = {
+        let mut make_overlay = |kind: OverlayKind| crate::overlay::build(kind, bctx);
+        let mut browse_to = |kind: OverlayKind, rel: Option<String>| browse_level(kind, rel);
+        let mut ctx = ActionCtx {
+            buffer: &mut buffer,
+            shift_selecting: &mut shift,
+            zoom: &mut zoom,
+            search: &mut search,
+            scroll_page_lines: 1,
+            journey: &mut overlay,
+            make_overlay: &mut make_overlay,
+            browse_to: &mut browse_to,
+            oracle: None,
+        };
+        apply_transition(&mut ctx, &c.action, false).primary()
+    };
+
+    let n = buffer.text().chars().count();
+    assert!(
+        buffer.cursor_char() <= n,
+        "{}: cursor {} out of bounds ({n} chars) after dispatch",
+        c.name,
+        buffer.cursor_char()
+    );
+    let kind = smoke_command_kind(&c.action);
+    assert_ne!(
+        kind,
+        SmokeKind::NotCatalog,
+        "{}: a catalog command must not be classified NotCatalog",
+        c.name
+    );
+    match kind {
+        SmokeKind::Opener => assert!(
+            overlay.card().is_some(),
+            "{}: an overlay-summoning command left no overlay open",
+            c.name
+        ),
+        SmokeKind::Deferred => assert!(
+            deferred_effect_matches(&c.action, &eff),
+            "{}: unexpected deferred effect {eff:?}",
+            c.name
+        ),
+        SmokeKind::InPlace => match c.action {
+            Action::About => assert_eq!(
+                eff,
+                Effect::Surface(SurfaceEffect::ShowAbout),
+                "About must request its platform-owned surface"
+            ),
+            Action::LifetimeStats => assert!(
+                crate::lifetime::lifetime_open(),
+                "Lifetime stats must summon the card"
+            ),
+            _ => {}
+        },
+        SmokeKind::NotCatalog => unreachable!("guarded by the assert above"),
     }
 }
 
@@ -832,92 +903,7 @@ fn every_catalog_command_dispatches_without_panicking() {
     };
 
     for c in crate::commands::COMMANDS.iter() {
-        // The About card's "open" global OWNS the very next key (apply_transition's
-        // top-of-fn dismiss intercept), so reset it before EACH dispatch — else
-        // a prior `Action::About` iteration would make the next command a no-op
-        // dismiss instead of running it. The Lifetime stats and Writing streaks
-        // cards have the SAME any-key-dismiss intercept (`card::dismiss_summoned_card`),
-        // so reset both.
-        crate::about::set_open(false);
-        crate::lifetime::set_open(false);
-        crate::streaks::set_open(false);
-
-        let mut buffer = rich_markdown_buffer();
-        let mut shift = false;
-        let mut zoom = 1.0;
-        let mut search = None;
-        let mut overlay = crate::overlay::Journey::default();
-
-        // Dispatch through the REAL seam in an inner scope so `ctx`'s borrows of
-        // `buffer`/`overlay` end before the coherence reads below.
-        let eff = {
-            let mut make_overlay = |kind: OverlayKind| crate::overlay::build(kind, &bctx);
-            let mut browse_to = |kind: OverlayKind, rel: Option<String>| browse_level(kind, rel);
-            let mut ctx = ActionCtx {
-                buffer: &mut buffer,
-                shift_selecting: &mut shift,
-                zoom: &mut zoom,
-                search: &mut search,
-                scroll_page_lines: 1,
-                journey: &mut overlay,
-                make_overlay: &mut make_overlay,
-                browse_to: &mut browse_to,
-                oracle: None,
-            };
-            apply_transition(&mut ctx, &c.action, false).primary()
-        };
-
-        // COHERENCE: the buffer is still a valid rope and the cursor is in range
-        // (a panic anywhere above would already have failed the test — this is
-        // the cheap "did it survive intact" confirmation).
-        let n = buffer.text().chars().count();
-        assert!(
-            buffer.cursor_char() <= n,
-            "{}: cursor {} out of bounds ({} chars) after dispatch",
-            c.name,
-            buffer.cursor_char(),
-            n
-        );
-
-        let kind = smoke_command_kind(&c.action);
-        assert_ne!(
-            kind,
-            SmokeKind::NotCatalog,
-            "{}: a catalog command must not be classified NotCatalog (add it under the sweep)",
-            c.name
-        );
-        match kind {
-            // A summon must have opened an overlay this frame.
-            SmokeKind::Opener => assert!(
-                overlay.card().is_some(),
-                "{}: an overlay-summoning command left no overlay open",
-                c.name
-            ),
-            SmokeKind::Deferred => assert!(
-                deferred_effect_matches(&c.action, &eff),
-                "{}: unexpected deferred effect {:?}",
-                c.name,
-                eff
-            ),
-            // In-place commands: no panic is the assertion; About's platform
-            // request is pinned explicitly.
-            SmokeKind::InPlace => {
-                if c.action == Action::About {
-                    assert_eq!(
-                        eff,
-                        Effect::Surface(SurfaceEffect::ShowAbout),
-                        "About must request its platform-owned surface"
-                    );
-                }
-                if c.action == Action::LifetimeStats {
-                    assert!(
-                        crate::lifetime::lifetime_open(),
-                        "Lifetime stats must summon the card (its open global)"
-                    );
-                }
-            }
-            SmokeKind::NotCatalog => unreachable!("guarded by the assert above"),
-        }
+        smoke_catalog_command(c, &bctx);
     }
 
     // Leave every process-global exactly as found.
