@@ -118,22 +118,6 @@ impl TextPipeline {
         )
     }
 
-    /// The vertical run of the workspace's HEADER BAND — from `text_top` down to
-    /// the line its own candidate rows begin on.
-    ///
-    /// It asks the plan module's own owner over this workspace's own
-    /// [`Self::workspace_header_rows`] rather than re-summing `lh + header_gap`:
-    /// that sum describes a ONE-LINE header, and the timeline shape's header
-    /// carries two, so a local copy would not be duplicated but simply wrong.
-    pub(in crate::render) fn workspace_header_band(&self) -> f32 {
-        let frame = self.workspace_frame(self.window_w as u32);
-        crate::render::plan::header_band_height(
-            frame.fit.header_rows,
-            self.overlay_lh(),
-            frame.fit.header_gap,
-        )
-    }
-
     /// **IS THE PUSHED TEXT A TRANSCRIPT RATHER THAN THE USER'S DOCUMENT?**
     ///
     /// A timeline workspace with a resolved payload substitutes the comparison's
