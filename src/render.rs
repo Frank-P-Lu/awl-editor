@@ -2509,12 +2509,12 @@ pub struct TextPipeline {
     /// relocation gate: the shape says there IS a comparison region, this says
     /// there is something in it.
     overlay_comparison: bool,
-    /// The workspace PRIMARY column's MEASURED width (device px) — a rail of
-    /// category labels, or a timeline of versions — measured at `set_view` with a
-    /// `&mut FontSystem` in hand: the `overlay_content_w` measurement pattern, for the
-    /// same reason. `0.0` off a workspace.
+    /// Workspace PRIMARY width (device px): category labels or timeline versions,
+    /// measured at `set_view` like `overlay_content_w`. `0.0` off a workspace.
     workspace_primary_w: f32,
     workspace_rail_buffer: GlyphBuffer,
+    /// Footer-fitting scratch, separate from both final rendered columns.
+    workspace_hint_measure_buffer: GlyphBuffer,
     /// EVERY rail entry's rect for this frame, tagged with whether it is the
     /// ACTIVE one — recorded by the rail shaper and consumed by the shared
     /// facet-mark owner. Empty when no rail is drawn, so the marks park with the
