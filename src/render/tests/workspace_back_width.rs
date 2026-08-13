@@ -146,7 +146,7 @@ fn luma(p: [u8; 4]) -> f32 {
 /// which is the stage this Back is reached from, and which is asked through
 /// `rows_are_primary()`, the one owner, rather than by naming a shape variant.
 /// Today that is Settings; a second such member enrols itself.
-fn enrolled() -> Vec<OverlayKind> {
+pub(super) fn enrolled() -> Vec<OverlayKind> {
     OverlayKind::ALL
         .iter()
         .copied()
@@ -159,7 +159,7 @@ fn enrolled() -> Vec<OverlayKind> {
 
 /// A real Settings card standing in its CONTENT pane, with focus placed by the
 /// LIFECYCLE rather than assigned — the same walk a user makes.
-fn card_in_content(kind: OverlayKind) -> OverlayState {
+pub(super) fn card_in_content(kind: OverlayKind) -> OverlayState {
     let mut ov = OverlayState::new(
         kind,
         crate::settings::visible_names(),
@@ -174,7 +174,7 @@ fn card_in_content(kind: OverlayKind) -> OverlayState {
 
 /// The card projected the way `App::sync_view` projects it — every workspace
 /// field read off the kind's own owners, never written as a literal.
-fn content_view(ov: &OverlayState) -> ViewState {
+pub(super) fn content_view(ov: &OverlayState) -> ViewState {
     let mut v = view("hello\nthere\n", 0, 0);
     v.overlay_active = true;
     v.overlay_title = ov.kind.title();
@@ -208,7 +208,7 @@ fn content_view(ov: &OverlayState) -> ViewState {
 /// card excuse a lost footer by planning too many rows. The card's own padding
 /// is deliberately left out of the sum, which can only make the bound harder to
 /// meet.
-fn assert_the_budget_could_not_hold_it(
+pub(super) fn assert_the_budget_could_not_hold_it(
     p: &TextPipeline,
     geom: &crate::render::chrome::OverlayGeom,
     what: &str,
@@ -303,7 +303,7 @@ impl Cell {
 /// wide. The threshold's own value is deliberately never written down — it moves
 /// with zoom and with the display face, and a law that pinned it would be
 /// testing this machine.
-fn windows() -> Vec<(u32, u32)> {
+pub(super) fn windows() -> Vec<(u32, u32)> {
     let min_w = (30.0 * CHAR_WIDTH + 2.0 * TEXT_LEFT.0).ceil() as u32;
     let min_h = (8.0 * LINE_HEIGHT + 2.0 * TEXT_TOP.0).ceil() as u32;
     vec![
@@ -486,7 +486,14 @@ fn grade_one_cell(
     // the card's edge is therefore not this product's to state. VERTICALLY it
     // stays a boolean, because the whole vertical axis was measured identical on
     // both hosts — the line's pitch is a metric the pipeline sets, not one a
-    // substituted glyph gets a vote in.
+    // substituted glyph gets a vote in. Nothing here bands it, and nothing
+    // should: a band buys tolerance for a variation this axis cannot have.
+    //
+    // What this clause CANNOT see is how close a cell that fits is to not
+    // fitting, and it reads only the world that happens to be active when it
+    // runs — which is one of three row pitches the roster ships. Both are
+    // `super::workspace_back_height`'s subject; its ledgers are the wider set,
+    // and this clause is the safety net under them.
     let demand = ink_w / (cx + cw - geom.text_left);
     let (mut landed, headroom) = grade_the_fit(demand);
     if top + height > cy + ch + 0.5 {
