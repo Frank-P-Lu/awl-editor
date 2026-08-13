@@ -83,11 +83,12 @@ list instead of re-checking the tree.** The fifth: item 345 sat on this board as
 word was given for a merge that had already happened. Re-derive from the tree,
 every pass.
 
-1. **395/401/404/406/413/419 — user decisions landed on the board; dispatchable.**
+1. **395/401/404/406/413/418/419 — user decisions landed on the board; dispatchable.**
    Immediate language tag + toast, directory-shaped elision, keep both Back
-   gestures while teaching `⌫`, name `esc close` on Go-to-file, canonical zoom
-   1.0, remove the legacy wasm without rewriting history, add an openly licensed
-   `⌫` to AwlMarks, and reserve footer room before candidate rows. Bodies below.
+   gestures while teaching `⌫`, name `esc close` on the unified Go-to surface,
+   canonical zoom 1.0, remove the legacy wasm without rewriting history, add an
+   openly licensed `⌫` to AwlMarks, unify file/heading/folder navigation under
+   Go to, and reserve footer room before candidate rows. Bodies below.
 2. **396 — the theme preview's win shrinks with scroll depth.** Recorded from
    388's own measurement, deliberately out of its scope. Body below. Not urgent —
    the shipped state is strictly better than before at every depth.
@@ -107,7 +108,7 @@ every pass.
    to regenerate. **Bisected: PRE-EXISTING, not 388** — the identical failure,
    same two cells and same block, reproduces at `cdb01a6f`, immediately before
    the same-step split merged. 388 is exonerated. Filed as 397.
-4. **HUMAN / LIVE — now small.** Eight blockers above, each needing a session,
+4. **HUMAN / LIVE — now small.** Seven blockers above, each needing a session,
    hardware, or a release-time word; the 30-item taste backlog closed by the
    bulk acceptance. ⚠️ 392 and 327 wait for dispatch until 388's quiet-host
    timing sitting completes — 388 was dispatched ALONE on purpose.
@@ -186,7 +187,8 @@ footers only.
 
 **Decision:** add `esc close` to Go-to-file for parity with the Command palette.
 At the minimum width, explanatory prose such as `type to filter` yields before
-an actual key affordance.
+an actual key affordance. Implement this in item 418's unified Go-to surface,
+not as a competing edit to the retiring standalone shape.
 
 ### 404 — make zoom 1.0 the single default — DECIDED
 
@@ -239,20 +241,40 @@ under a licence compatible with awl's GPL-3.0-only distribution; record its
 authorship/source and licence alongside the font assets. Verify every bundled
 font roster resolves the footer through AwlMarks without system-font fallback.
 
-### 418 — with `workspace = ~`, the door is below the window on open
+### 418 — one Go-to surface for files, headings and folders — DECIDED
 
-Measured live by item 411 against the user's real config: the flat picker lists
-**27 folders and the `Browse for folder…` door lands at row 28**, below the
-12-row window. Reachable by End or by typing, **not visible on open** — so the
-one affordance that makes a nested project reachable is the one a reader does not
-see, in exactly the configuration that needs it most.
+The reported symptom was `workspace = ~`: Switch project opens on 27 folders
+while `Browse for folder…` lands below its 12-row window. The decision removes
+the extra stage rather than pinning that terminal row.
 
-Not a regression: the door is new, and 410's accept row already occupies row 0.
-The question is whether a terminal row should be pinned into the drawn window the
-way the accept row is pinned to the top, or whether the answer is that `~` is a
-poor workspace and the product should say so somewhere. **A pinned-visible
-terminal row is a rowlayout change with a blast radius across every picker**, so
-it wants a decision before code.
+**One primary surface:** rename `Go to file…` to `Go to…`; fold the existing
+Goto and Project corpora into one typed destination list with lenses
+`All · Files · Headings · Folders · Recent`. File rows open, heading rows jump,
+and folder rows switch the active writing folder. `Recent` combines recent files
+and folders; `All` searches every known destination. Folder rows keep clear path
+identity. User-facing copy says **folder**, never project; internal names may stay.
+
+**Entry points, not competing systems:** `⌘O` opens All, `⌘⇧P` opens Folders,
+and the heading context action opens Headings. These routes share one overlay and
+accept seam. Retire the separate public `Switch project…`, `Recent projects…`,
+`Browse files…`, and palette `Go to heading…` entries; the contextual heading
+wording may remain because it is a local shortcut into the shared surface.
+
+**Opening is separate from going:** expose direct `Open file…` and `Open folder…`
+actions. Each immediately opens the platform-appropriate chooser; Open folder
+starts at the configured workspace and switches to the accepted folder. The
+Folders lens may carry a visible `Choose another folder…` fallback, but it opens
+that same chooser directly — never `ProjectBrowse` as a second in-app stage.
+This also ends the current macOS inconsistency where File-menu `Browse files…`
+opens an AppKit panel while the same catalog command opens an in-app hierarchy.
+
+Verify the command catalog, File menu, context menus, GUIDE generation, default
+and rebound chords, macOS/Linux/web platform rosters, all five lenses and empty
+states, mixed fuzzy ranking, recent-file/folder order, typed-row accept effects,
+chooser cancel/accept, session/workspace re-scope, sidecar semantics, and the
+absence of any remaining public project/browse wording. Read `docs/config.md`,
+`docs/platform.md`, `docs/render.md`, and `docs/harness-reach.md` before writing
+the capture/live Verify split.
 
 ### 419 — reserve footer room before candidate rows — DECIDED
 
