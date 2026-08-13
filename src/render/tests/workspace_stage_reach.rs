@@ -312,7 +312,8 @@ impl Tally {
             self.graded += 1;
             assert!(
                 out.footer_inside,
-                "{what}: the teaching footer was shaped outside its workspace card; hint={:?} card={:?}",
+                "{what}: the teaching footer was shaped outside its workspace card; \
+                 hint={:?} card={:?}",
                 out.footer_box, out.card
             );
             if out.rows > 0 {

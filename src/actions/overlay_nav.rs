@@ -3,24 +3,18 @@
 use super::*;
 const OVERLAY_PAGE: isize = 12;
 
-/// **THE ONE REBUILD A RESUME USES.** [`crate::overlay::Journey`] rebuilds a
-/// parked parent FRESH (so its value cells show what the child just committed)
-/// and then re-aims it — but the core cannot read a directory, so which injected
+/// Journey rebuilds a parked parent fresh and re-aims it. Because the core
+/// cannot read a directory, which injected
 /// builder can answer depends on the kind: an explorer's LEVEL comes from
 /// `browse_to` ([`crate::overlay::OverlayKind::needs_dir_level`]), everything
 /// else from `make_overlay`, which returns `None` for those kinds by
-/// construction. Handed `make_overlay` alone, a parked explorer rebuilds as
-/// `None` and the whole journey falls to the editor — which is what Esc out of
-/// the switch-project door did before this existed.
+/// construction. An explorer cannot rebuild through `make_overlay` alone.
 ///
-/// It also re-attaches the flat picker's door
-/// ([`crate::overlay::OverlayState::attach_browse_door`], a no-op for every
-/// other kind), because a rebuilt level is a bare directory listing and the door
+/// It re-attaches the flat picker's door because a rebuilt level is a bare
+/// directory listing and the door
 /// belongs to the FEATURE, not to the disk.
 ///
-/// Every lifecycle call that can land on `Resume` goes through the three
-/// wrappers below, so which door you came back through cannot decide whether you
-/// come back.
+/// Every lifecycle call that can resume goes through the wrappers below.
 fn resume_rebuild<'c>(
     make_overlay: &'c mut dyn FnMut(crate::overlay::OverlayKind) -> Option<OverlayState>,
     browse_to: &'c mut dyn FnMut(
@@ -518,9 +512,11 @@ fn accept_value_overlay(ctx: &mut ActionCtx) -> Effect {
     if let Some(effect) = accept_context(ctx) {
         return effect;
     }
+    if let Some(effect) = accept_process_value(ctx) {
+        return effect;
+    }
     let ov = ctx.journey.card().unwrap();
     if ov.kind == crate::overlay::OverlayKind::Command {
-        // Map through the platform-filtered catalog, then close before re-dispatch.
         let eff = ov
             .selected_corpus_index()
             .map(|i| Effect::RunAction(crate::commands::visible_action_of(i)))
@@ -529,57 +525,9 @@ fn accept_value_overlay(ctx: &mut ActionCtx) -> Effect {
         return eff;
     }
     if ov.kind.previews_live_document() {
-        // COMMIT: the highlighted value is ALREADY live (`preview_overlay`
-        // applied it as the selection moved), so Enter just keeps it and
-        // closes. Emit the committed name so the caller can re-tint its
-        // GPU pipelines / window title to match. Asked of the audition's own
-        // owner rather than naming its two members, so this arm and the
-        // preview that makes it a KEEP cannot enrol different kinds.
+        // The highlighted value is already live; accepting keeps the audition.
         let eff = match ov.selected_value() {
             Some(v) => Effect::OverlayAccept(ov.kind, v.to_string()),
-            None => Effect::None,
-        };
-        dispose_after_accept(ctx);
-        return eff;
-    }
-    if ov.kind == crate::overlay::OverlayKind::Dictionary {
-        let eff = match ov
-            .selected_value()
-            .and_then(crate::spell::DictVariant::from_label)
-        {
-            Some(dv) => {
-                crate::spell::set_active_variant(dv);
-                Effect::OverlayAccept(ov.kind, dv.label().to_string())
-            }
-            None => Effect::None,
-        };
-        dispose_after_accept(ctx);
-        return eff;
-    }
-    if ov.kind == crate::overlay::OverlayKind::CjkLang {
-        let eff = match ov
-            .selected_value()
-            .and_then(crate::frontmatter::Lang::from_label)
-        {
-            Some(lang) => {
-                let promoted = crate::frontmatter::promote_cjk_priority(lang);
-                crate::frontmatter::set_cjk_priority(&promoted);
-                Effect::OverlayAccept(ov.kind, lang.code().to_string())
-            }
-            None => Effect::None,
-        };
-        dispose_after_accept(ctx);
-        return eff;
-    }
-    if ov.kind == crate::overlay::OverlayKind::Date {
-        let eff = match ov
-            .selected_corpus_index()
-            .and_then(|i| crate::dateformat::DateFormat::ALL.get(i).copied())
-        {
-            Some(fmt) => {
-                crate::dateformat::set_active_format(fmt);
-                Effect::OverlayAccept(ov.kind, fmt.config_name().to_string())
-            }
             None => Effect::None,
         };
         dispose_after_accept(ctx);
@@ -613,12 +561,7 @@ fn accept_value_overlay(ctx: &mut ActionCtx) -> Effect {
         return Effect::Surface(crate::actions::SurfaceEffect::OpenFolderChooser);
     }
     if ov.kind == crate::overlay::OverlayKind::Assets {
-        // ASSET CLEANER: Enter REQUESTS the highlighted orphan be trashed. Emit
-        // its root-relative path (the corpus value) for the App to trash +
-        // remove the row; the picker STAYS OPEN (no `close_overlay`), and the
-        // core never touches the row itself (the App removes it only after a
-        // successful trash — see `Effect::TrashAsset`). An empty state (no
-        // selection) is a calm no-op.
+        // The App removes an asset row only after the requested trash succeeds.
         return match ov.selected_value() {
             Some(rel) => Effect::TrashAsset {
                 rel: rel.to_string(),
@@ -634,15 +577,47 @@ fn accept_value_overlay(ctx: &mut ActionCtx) -> Effect {
         dispose_after_accept(ctx);
         return eff;
     }
-    // GENERIC fallthrough — reached by a Go-to FILE row (a non-heading Goto),
-    // whose accept OPENS the file (Navigate). Routed through the shared
-    // disposition owner so it closes the whole stack.
+    // Generic value accepts, including Go-to files, share the disposition owner.
     let eff = match ov.selected_value() {
         Some(v) => Effect::OverlayAccept(ov.kind, v.to_string()),
         None => Effect::None,
     };
     dispose_after_accept(ctx);
     eff
+}
+
+fn accept_process_value(ctx: &mut ActionCtx) -> Option<Effect> {
+    use crate::overlay::OverlayKind::{CjkLang, Date, Dictionary};
+    let ov = ctx.journey.card().unwrap();
+    let effect = match ov.kind {
+        Dictionary => ov
+            .selected_value()
+            .and_then(crate::spell::DictVariant::from_label)
+            .map(|variant| {
+                crate::spell::set_active_variant(variant);
+                Effect::OverlayAccept(Dictionary, variant.label().to_string())
+            }),
+        CjkLang => ov
+            .selected_value()
+            .and_then(crate::frontmatter::Lang::from_label)
+            .map(|lang| {
+                crate::frontmatter::set_cjk_priority(&crate::frontmatter::promote_cjk_priority(
+                    lang,
+                ));
+                Effect::OverlayAccept(CjkLang, lang.code().to_string())
+            }),
+        Date => ov
+            .selected_corpus_index()
+            .and_then(|index| crate::dateformat::DateFormat::ALL.get(index).copied())
+            .map(|format| {
+                crate::dateformat::set_active_format(format);
+                Effect::OverlayAccept(Date, format.config_name().to_string())
+            }),
+        _ => return None,
+    }
+    .unwrap_or(Effect::None);
+    dispose_after_accept(ctx);
+    Some(effect)
 }
 
 fn accept_context(ctx: &mut ActionCtx) -> Option<Effect> {

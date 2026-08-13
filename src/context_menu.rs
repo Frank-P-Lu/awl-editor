@@ -229,7 +229,8 @@ mod tests {
                                         crate::keymap::Action::OpenOutline
                                             | crate::keymap::Action::OpenProject
                                     ),
-                                "{target:?}/{platform:?}: {:?} is neither catalog-routed nor a contextual Go-to lens deep link",
+                                "{target:?}/{platform:?}: {:?} is neither catalog-routed nor a \
+                                 contextual Go-to lens deep link",
                                 row.action
                             );
                         }

@@ -1,5 +1,43 @@
 use super::*;
 
+pub(super) fn classify_surface(effect: &crate::actions::SurfaceEffect) -> Classified {
+    match effect {
+        crate::actions::SurfaceEffect::ShowAbout => named("show_about", EffectClass::Applied),
+        crate::actions::SurfaceEffect::OpenFileChooser => named(
+            "open_file_chooser",
+            EffectClass::Unsupported {
+                why: "the file chooser is live-only; capture its open separately",
+            },
+        ),
+        crate::actions::SurfaceEffect::OpenFolderChooser => named(
+            "open_folder_chooser",
+            EffectClass::Unsupported {
+                why: "the folder chooser is live-only; capture its rescope separately",
+            },
+        ),
+    }
+}
+
+pub(super) fn classify_notice(effect: &crate::actions::NoticeEffect) -> Classified {
+    let name = match effect {
+        crate::actions::NoticeEffect::Toast(_) => "notice_toast",
+        crate::actions::NoticeEffect::Sticky(_) => "notice_sticky",
+        crate::actions::NoticeEffect::Clear => "notice_clear",
+    };
+    named(name, EffectClass::Applied)
+}
+
+pub(super) fn classify_render(effect: &crate::actions::RenderEffect) -> Classified {
+    let name = match effect {
+        crate::actions::RenderEffect::SyncView { .. } => "sync_view",
+        crate::actions::RenderEffect::Reshape => "reshape",
+        crate::actions::RenderEffect::ZoomChanged => "zoom_changed",
+        crate::actions::RenderEffect::Redraw => "redraw",
+        crate::actions::RenderEffect::EditStreak => "edit_streak",
+    };
+    named(name, EffectClass::Applied)
+}
+
 pub(super) fn named(name: &'static str, class: EffectClass) -> Classified {
     Classified { name, class }
 }

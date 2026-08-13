@@ -306,29 +306,8 @@ impl<'a> ReplaySession<'a> {
     }
 
     pub(crate) fn apply_chord(&mut self, chord: &crate::keyspec::Chord) -> Result<()> {
-        // SEARCH GUARD — the live `App::on_keyboard_input` guard's exact position,
-        // now the exact same code: while the isearch panel is open EVERY chord is
-        // consumed by the ONE interception seam (`crate::search::keys::intercept`)
-        // and never reaches the keymap — query/replacement typing, Backspace,
-        // C-s/C-r/arrow steps, M-c case toggle, Tab/Cmd-R field moves, Enter
-        // accept / replace-one, Cmd-Enter replace-all, Esc/C-g abort. The returned
-        // recoil is a LIVE-only caret flourish, dropped here exactly like
-        // `Effect::Recoil` (no clock, settled frame unchanged). Strict never
-        // judges a consumed chord "unbound" — the panel owning it IS its binding.
-        if self.search.is_some() {
-            let _ = crate::search::keys::intercept(
-                &mut self.search,
-                self.buffer,
-                &chord.key,
-                chord.mods.state(),
-            );
-            self.records.push(crate::storyboard::ChordTrace {
-                chord: chord.spec.clone(),
-                action: None,
-                effect: "search_input".to_string(),
-                class: "applied",
-                detail: String::new(),
-            });
+        // Search owns every chord while its panel is open, exactly as in live input.
+        if self.intercept_search_chord(chord) {
             return Ok(());
         }
         let Some(resolved) = self.resolver.resolve(chord)? else {
@@ -341,8 +320,7 @@ impl<'a> ReplaySession<'a> {
             });
             return Ok(());
         };
-        // SHIFT = SELECT-INTENT, the live dispatch's exact derivation
-        // (`app/input/keys.rs::on_keyboard_input`): the chord's `S-` modifier
+        // Shift-select intent uses the live dispatch's exact derivation: `S-`
         // extends a selection across a motion, routed through the ONE owner
         // `crate::app::motion_honors_shift_select` — keyed on the pressed chord's
         // KEY, not the Action alone, so `M-<` / `M->` (a `Key::Character` whose
@@ -351,9 +329,7 @@ impl<'a> ReplaySession<'a> {
         // the same actions) extend, exactly like live. Derived ONCE per pressed
         // chord from the FIRST resolved action and carried into a palette-chained
         // re-dispatch unchanged — mirroring the live `Effect::RunAction` arm,
-        // which re-applies with the same `shift` bool. (This retired the old
-        // "replay is unshifted" hole: `--keys "S-Right"` silently ran the motion
-        // unshifted and left `selection: null`.)
+        // which re-applies with the same `shift` bool.
         let shift = chord
             .mods
             .state()
@@ -369,9 +345,7 @@ impl<'a> ReplaySession<'a> {
                 self.interpret_effect(&owner, chord, effect, &mut work, &mut pending_return_to)?;
                 continue;
             };
-            // FRESH LAYOUT ORACLE PER ACTION: re-shape the oracle from the CURRENT
-            // buffer / zoom / page-measure state BEFORE the action consults it —
-            // the live window's pipeline re-syncs between keystrokes, so the
+            // Refresh the layout oracle from current state before every action.
             // headless twin must too, or an edit that re-wraps a line (or a zoom
             // change, or the Goto arm's buffer + measure switch below) leaves the
             // NEXT motion reading stale wrap geometry. One seam, unconditional by
@@ -529,6 +503,26 @@ impl<'a> ReplaySession<'a> {
         Ok(())
     }
 
+    fn intercept_search_chord(&mut self, chord: &crate::keyspec::Chord) -> bool {
+        if self.search.is_none() {
+            return false;
+        }
+        let _ = crate::search::keys::intercept(
+            &mut self.search,
+            self.buffer,
+            &chord.key,
+            chord.mods.state(),
+        );
+        self.records.push(crate::storyboard::ChordTrace {
+            chord: chord.spec.clone(),
+            action: None,
+            effect: "search_input".to_string(),
+            class: "applied",
+            detail: String::new(),
+        });
+        true
+    }
+
     fn finish(self) -> ReplayResult {
         let buffers_open = self.registry.len() + 1;
         let zoom_out = if self.zoom != crate::range::ZOOM.default {
@@ -631,8 +625,7 @@ fn capture_screenshot(
     config: Config,
     strict: bool,
 ) -> Result<()> {
-    // Resolve the active project + its file index BEFORE the replay so a
-    // `Cmd-O` in the key-spec summons a real, scoped go-to overlay. Capture
+    // Resolve the active project + index before replay so Go-to is scoped. Capture
     // is structurally free of remembered session state (the capture-gate
     // law) — `resolve_root` only ever consults the EXPLICIT `--root`/file,
     // never a "first run" default either (that's a windowed-launch concern).
@@ -670,8 +663,7 @@ fn capture_screenshot(
     // explicit verification hooks. The workspace already defaults to the
     // active root's parent, making project siblings available to Cmd-Shift-P.
     // With keys, shape an offscreen oracle like the upcoming capture so
-    // visual-line motion reads real wrap geometry. Empty specs skip it and
-    // GPU-less permissive captures retain the logical fallback.
+    // visual-line motion reads real wrap geometry; empty specs skip it.
     let mut oracle = if keys.is_empty() {
         None
     } else {
@@ -716,40 +708,14 @@ fn capture_screenshot(
         opts.search_replacement = res.replacement;
         opts.search_editing_replacement = res.editing_replacement;
     }
-    if let Some((kind, val)) = &res.accept {
-        match kind {
-            crate::overlay::OverlayKind::Goto => {}
-            // SWITCH-PROJECT: re-derive the WHOLE sidecar location from the
-            // accepted root through the one builder, never a subset of it —
-            // see [`project_info`] for the half-derivation this replaced. The
-            // replay session ITSELF re-scoped `root`/`workspace`/`corpus` the
-            // moment the accept fired (`ReplaySession::resync_project_location`,
-            // `docs/harness-reach.md` names this as the live-only residue, so a
-            // chord applied AFTER the
-            // accept reads the new tree exactly like live.
-            crate::overlay::OverlayKind::Project => {
-                opts.project = Some(project_info(
-                    std::path::Path::new(val),
-                    &workspace,
-                    Some(default_folder.as_path()),
-                    &config,
-                ));
-            }
-            // History: RESTORE the accepted version into the buffer (an undoable
-            // edit), so a `--keys "Cmd-S-h <down> <enter>"` capture reflects the
-            // restored text — the same `history::load` + `set_text` the App runs,
-            // keyed by the same shared `source_path` derivation.
-            crate::overlay::OverlayKind::History => {
-                if let Some(path) =
-                    crate::history::source_path(buffer.path(), buffer.is_unnamed_fresh())
-                    && let Some(content) = crate::history::load(&path, val)
-                {
-                    buffer.set_text(&content);
-                }
-            }
-            _ => {}
-        }
-    }
+    capture_fold::apply_replay_accept(
+        res.accept.as_ref(),
+        &mut buffer,
+        &mut opts,
+        &workspace,
+        &default_folder,
+        &config,
+    );
     if let Some((info, preview_text, diff)) = overlay_capture_info(&res.journey, &buffer) {
         opts.overlay = Some(info);
         opts.preview_text = preview_text;
