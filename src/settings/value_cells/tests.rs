@@ -132,6 +132,11 @@ fn grade_path_cell(
         cell.contains('…'),
         "{what}: the cell was shortened without saying so. cell {cell:?}"
     );
+    assert!(
+        cell.contains('/'),
+        "{what}: an elided directory must still read as a path, but every slash vanished. \
+         cell {cell:?}"
+    );
     // The floor is the ROSTER'S OWN TIGHTEST REAL CELL, not a number: whatever
     // the widest authored readout is, a path gets at least that much room, so
     // "elide the path" can never degrade into a stub beside full-width words.
@@ -145,10 +150,10 @@ fn grade_path_cell(
     // allowance beside an ellipsis it is carried whole; when the segment itself
     // overflows, its own tail is.
     let last = whole.rsplit('/').next().unwrap_or(whole);
-    let kept = if last.chars().count() < allowance {
+    let kept = if last.chars().count() + 2 <= allowance {
         last.to_string()
     } else {
-        let tail = allowance - 1;
+        let tail = allowance - 3; // `…/` plus the leaf's own `…`
         let tail = tail / 2 + tail % 2;
         last.chars().skip(last.chars().count() - tail).collect()
     };

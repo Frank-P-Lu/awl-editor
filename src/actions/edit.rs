@@ -126,7 +126,8 @@ pub(super) fn align_table_at_cursor(ctx: &mut ActionCtx) {
 /// reads and the CJK picker promotes, so a `--keys` replay that changes the
 /// ladder and then tags observes the new front), and inserts
 /// `---\nlang: ..\n---\n` at byte 0 as ONE undoable edit (Cmd-Z restores the
-/// pre-tag text and cursor).
+/// pre-tag text and cursor), then acknowledges the applied writer-visible name
+/// through the shared self-clearing notice channel.
 ///
 /// A calm no-op — no edit, no version bump, no undo entry — when the buffer is
 /// not markdown (frontmatter is a markdown/notes convention; literal
@@ -141,20 +142,24 @@ pub(super) fn align_table_at_cursor(ctx: &mut ActionCtx) {
 /// needs nothing written: the render ladder re-reads the frontmatter tag from
 /// the buffer on every reshape, and an untagged document's ambiguous Han runs
 /// follow the configured ladder. Only this action writes.
-pub(super) fn tag_document_language(ctx: &mut ActionCtx) {
+pub(super) fn tag_document_language(ctx: &mut ActionCtx) -> Effect {
     if !ctx.buffer.is_markdown() {
-        return;
+        return Effect::None;
     }
     let text = ctx.buffer.text();
     if crate::frontmatter::detect(&text).is_some() {
-        return; // already carries a frontmatter block — never a second one
+        return Effect::None; // already carries a frontmatter block — never a second one
     }
     let Some(script) = crate::script::dominant_cjk(&text) else {
-        return; // no CJK — nothing this ladder can name
+        return Effect::None; // no CJK — nothing this ladder can name
     };
     let lang = crate::script::doc_lang_for(script, &crate::frontmatter::cjk_priority());
     let block = format!("---\nlang: {}\n---\n", lang.code());
     ctx.buffer.replace_char_range(0, 0, &block);
+    Effect::Notice(NoticeEffect::Toast(format!(
+        "Document language: {}",
+        lang.label()
+    )))
 }
 
 /// TAB dispatch: on a markdown LIST context (the caret line — or ANY line of an

@@ -39,6 +39,58 @@ fn elide_middle_truncates_the_filename_when_it_alone_overflows() {
 }
 
 #[test]
+fn directory_elision_keeps_path_identity_and_the_final_folder() {
+    let cases = [
+        ("/Users/writer/Documents/notes", 18),
+        (
+            "/Users/writer/a-single-enormously-descriptive-folder-name-with-no-parents-to-drop",
+            18,
+        ),
+        ("/Users/writer/仕事/原稿/長編小説の作業中の草稿", 12),
+    ];
+    for (path, allowance) in cases {
+        let out = elide_directory_path(path, allowance);
+        assert_eq!(
+            out.chars().count(),
+            allowance,
+            "{path:?}: the shortened readout spends its authored allowance"
+        );
+        assert!(
+            out.contains('/'),
+            "{path:?}: path identity survives in {out:?}"
+        );
+        let leaf = path.rsplit('/').next().unwrap();
+        let recognizable_leaf: String = leaf
+            .chars()
+            .rev()
+            .take(4)
+            .collect::<Vec<_>>()
+            .into_iter()
+            .rev()
+            .collect();
+        assert!(
+            out.ends_with(&recognizable_leaf),
+            "{path:?}: the final folder remains recognizable in {out:?}"
+        );
+        assert!(
+            out.contains('…'),
+            "{path:?}: elision is disclosed in {out:?}"
+        );
+    }
+
+    assert_eq!(
+        elide_directory_path("/tmp/notes", 40),
+        "/tmp/notes",
+        "a directory that fits is not touched"
+    );
+    assert_eq!(
+        elide_path("deep/dir/averyveryverylongfilename.rs", 12),
+        "avery…ame.rs",
+        "the file-row owner remains extension-biased and is not routed through directory elision"
+    );
+}
+
+#[test]
 fn browse_dir_flags_directories() {
     // One level: a folder (docs) and a file (README.md).
     let corpus = vec!["docs".to_string(), "README.md".to_string()];

@@ -154,6 +154,38 @@ pub fn elide_path(path: &str, max: usize) -> String {
     }
 }
 
+/// Elide a DIRECTORY readout to at most `max` chars while preserving the two
+/// facts that make it read as a path: a `/` and a recognizable tail of the
+/// final folder. Unlike [`elide_path`], this never drops the separator when the
+/// leaf alone exceeds the allowance; file-picker rows keep their filename- and
+/// extension-biased policy unchanged.
+pub fn elide_directory_path(path: &str, max: usize) -> String {
+    let total = path.chars().count();
+    if total <= max {
+        return path.to_string();
+    }
+    if max == 0 {
+        return String::new();
+    }
+    if max == 1 {
+        return "…".to_string();
+    }
+    if max == 2 {
+        return "…/".to_string();
+    }
+
+    let leaf = path
+        .trim_end_matches('/')
+        .rsplit('/')
+        .next()
+        .unwrap_or(path);
+    if leaf.chars().count() + 2 <= max {
+        return elide_path(path, max);
+    }
+    let leaf_budget = max - 2; // `…/` is the path-identity prefix.
+    format!("…/{}", elide_middle(leaf, leaf_budget))
+}
+
 /// The figure/ground split of a (possibly elided) picker row: the byte index just PAST
 /// the last `/` — everything before it is the DIRECTORY prefix (muted ink), everything
 /// from it on is the FILENAME (content ink). `0` when the row has no `/` (a bare

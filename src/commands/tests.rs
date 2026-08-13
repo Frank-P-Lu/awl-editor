@@ -156,6 +156,21 @@ fn catalog_non_empty_and_named() {
 }
 
 #[test]
+fn tag_document_language_is_an_immediate_palette_command() {
+    let command = COMMANDS
+        .iter()
+        .find(|command| command.action == Action::TagDocumentLanguage)
+        .expect("TagDocumentLanguage is enrolled in the command catalog");
+    assert_eq!(command.name, "Tag document language");
+    assert!(
+        !command.name.ends_with('…'),
+        "this command applies immediately; an ellipsis would falsely promise a sub-picker"
+    );
+    assert_eq!(command.native, "");
+    assert_eq!(command.emacs, "");
+}
+
+#[test]
 fn every_popover_button_fires_a_catalog_command() {
     for b in crate::popover::PopoverButton::ALL {
         let action = b.action();
