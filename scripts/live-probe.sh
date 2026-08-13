@@ -143,11 +143,9 @@ trap cleanup EXIT
 #   * `--screenshot-app`, not `--screenshot`. A bare `--screenshot` replays the
 #     shared CORE (docs/harness-reach.md tier 1); the probe's subject is a real
 #     window (tier 3). Skipping tier 2 skips the tier where LAUNCH-TIME render
-#     decisions are made, and they do not agree: the live editor launches at
-#     `crate::app::INITIAL_ZOOM`, while a replay capture defaults to zoom 1.0.
-#     A tier-1 reference is therefore a different SIZE of the same state — and
-#     it fails the way a stale frame fails, as a handful of blocks whose text
-#     landed somewhere else.
+#     decisions are made. Both doors now take `crate::range::ZOOM.default`, but
+#     equal zoom does not make the replay core an oracle for App-owned launch
+#     state; the reference stays on the same live-App tier as the subject.
 #   * The window's OWN `surface=WxH dpi=S`, read off its shot line, not this
 #     script's idea of the canvas. Layout is not invariant under trading surface
 #     pixels for dpi (the overlay card's geometry moves), so "same logical size,

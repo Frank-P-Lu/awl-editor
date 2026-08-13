@@ -1,7 +1,7 @@
 //! Public deterministic capture options and read-only metadata blocks.
 
 /// Deterministic overrides for the verification hooks. All default to the
-/// byte-stable baseline (zoom 1.0, cursor-follow scroll, no selection), so a
+/// byte-stable baseline (the authored zoom default, cursor-follow scroll, no selection), so a
 /// plain `--screenshot` is unaffected. Each field is applied verbatim into the
 /// render snapshot, letting a reviewer capture a selection / zoom / semantic-scroll still
 /// as a reproducible PNG.
@@ -259,7 +259,7 @@ impl CaptureDriver {
 
 #[derive(Clone, Default)]
 pub struct CaptureOpts {
-    /// Zoom factor (None = 1.0).
+    /// Zoom factor (`None` = [`crate::range::ZOOM`]'s authored default).
     pub zoom: Option<f32>,
     /// Explicit semantic document top (None = cursor-follow default).  A
     /// fixed-point offset makes sub-row geometry reproducible in capture.

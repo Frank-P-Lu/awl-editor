@@ -170,7 +170,7 @@ async fn build_oracle_async(buffer: &Buffer, opts: &CaptureOpts) -> Result<Oracl
     let (device, queue) = headless_device().await?;
     let (width, height) = opts.canvas.unwrap_or((CANVAS_WIDTH, CANVAS_HEIGHT));
     let dpi = opts.dpi.unwrap_or(1.0);
-    let zoom = render::clamp_zoom(opts.zoom.unwrap_or(1.0));
+    let zoom = render::clamp_zoom(opts.zoom.unwrap_or(crate::range::ZOOM.default));
     let cache = Cache::new(&device);
     let mut pipeline = TextPipeline::new(&device, &queue, &cache, FORMAT);
     pipeline.set_size(width as f32, height as f32);

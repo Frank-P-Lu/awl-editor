@@ -118,8 +118,8 @@ fn a_seeded_data_root_starts_a_live_app_capture_already_conflicted() {
     );
     assert_eq!(
         json["gutter"]["name"].as_str(),
-        Some("draft.md"),
-        "the affordance really is beside this document's filename"
+        Some("dr….md"),
+        "the affordance really is beside this document's elided filename at the default zoom"
     );
 
     // ── WITHOUT the slot: byte-identical command, and the conflict is

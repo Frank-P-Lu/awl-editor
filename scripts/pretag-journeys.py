@@ -39,12 +39,10 @@ WHAT THE SHAPE OF THIS SWEEP IS, AND WHY EACH PART OF IT IS THAT SHAPE
   not just the geometry.
 
 * **The two doors are never compared to each other.** A plain `--screenshot`
-  replays into the shared core at zoom 1.0; `--screenshot-app` builds a real
-  headless `App`, which takes `app::INITIAL_ZOOM` — 0.8. That is a 25% size
-  difference between two pictures of the "same" state, and reading one against
-  the other has already produced a defect report about nothing. Every A/B pair
-  and every DPI pair here is within ONE door; the doors are only ever reported
-  side by side, never differenced.
+  replays into the shared core; `--screenshot-app` builds a real headless `App`.
+  Both now take `range::ZOOM.default`, but equal zoom does not make their state
+  ownership identical. Every A/B pair and every DPI pair here is within ONE
+  door; the doors are only ever reported side by side, never differenced.
 
 * **An empty `--config` is pinned on every capture.** A bare `--screenshot`
   reads the operator's own `~/.config/awl/config.toml` and is therefore not
@@ -123,8 +121,8 @@ WIDE = ("wide", 1200, 800, 66)
 NARROW = ("narrow", 640, 800, 40)
 DPIS = (1, 2)
 
-ORDINARY = "ordinary"  # --screenshot: shared-core replay, zoom 1.0
-LIVE_APP = "live-app"  # --screenshot-app: a real headless App, launch zoom 0.8
+ORDINARY = "ordinary"  # --screenshot: shared-core replay, authored default zoom
+LIVE_APP = "live-app"  # --screenshot-app: a real headless App, same default zoom
 
 # Pixel floors. Both operands of every comparison below are rendered pixels
 # from this run; these are the DETECTION thresholds that separate "something is
@@ -1235,8 +1233,8 @@ def compose_report(
     add("    * NO WINDOW WAS OPENED. Nothing here reaches the event loop, the surface, or the")
     add("      compositor: no resize, no occlusion, no GPU fault, no real present. Feel over")
     add("      real time, animation, and every timing claim are outside this instrument.")
-    add("    * ONE ZOOM PER DOOR. The replay door is photographed at 1.0 and the live-App door")
-    add("      at its launch 0.8. The zoom BAND between and beyond them is not swept, and the")
+    add("    * ONE ZOOM PER DOOR. Both doors are photographed at the authored 1.0 default.")
+    add("      The zoom BAND below and above it is not swept, and the")
     add("      two doors are never compared to each other.")
     add("    * TWO WINDOW SHAPES, not a continuum — one wide and one narrow. A staging")
     add("      threshold is crossed, but where it sits is not measured here.")
