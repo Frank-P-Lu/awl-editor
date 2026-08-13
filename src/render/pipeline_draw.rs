@@ -1,5 +1,8 @@
 //! GPU construction for [`super::TextPipeline`]. Per-frame preparation and render
 //! composition live in their respective pipeline modules.
+//! Script-face caches begin inert here and are resolved with document attrs.
+//! Their geometry consumer therefore reads the same ladder that shaped the run.
+//!
 
 use super::*;
 impl TextPipeline {
@@ -14,15 +17,12 @@ impl TextPipeline {
         const PLACEHOLDER_RGB: [u8; 3] = [0; 3];
         const PLACEHOLDER_RGBA: [u8; 4] = [0; 4];
         let mut font_system = build_font_system();
-
-        let swash_cache = SwashCache::new();
         let viewport = Viewport::new(device, cache);
         let mut atlas = TextAtlas::new(device, queue, cache, format);
         let renderer =
             TextRenderer::new(&mut atlas, device, wgpu::MultisampleState::default(), None);
         let metrics = Metrics::new(1.0);
         let buffer = GlyphBuffer::new(&mut font_system, metrics.glyph_metrics());
-
         let caret_pipeline = CaretPipeline::new(device, format, PLACEHOLDER_RGB);
         let caret_trail_pipeline = CaretPipeline::new(device, format, PLACEHOLDER_RGB);
         let caret_glyph_pipeline = CaretGlyphPipeline::new(device, queue, format, PLACEHOLDER_RGB);
@@ -227,10 +227,9 @@ impl TextPipeline {
         let nit_pipeline = SpellUnderlinePipeline::new(device, format, PLACEHOLDER_RGBA);
         let strike_pipeline = SpellUnderlinePipeline::new(device, format, PLACEHOLDER_RGBA);
         let link_underline_pipeline = SpellUnderlinePipeline::new(device, format, PLACEHOLDER_RGBA);
-
         let mut me = Self {
             font_system,
-            swash_cache,
+            swash_cache: SwashCache::new(),
             viewport,
             atlas,
             renderer,
@@ -490,6 +489,7 @@ impl TextPipeline {
             syn_lang: None,
             syn_spans: Vec::new(),
             doc_lang: None,
+            script_fonts: text::ScriptFonts::default(),
             doc_source: None,
             cjk_priority: crate::frontmatter::DEFAULT_CJK_PRIORITY.to_vec(),
             eol: crate::buffer::Eol::Lf,

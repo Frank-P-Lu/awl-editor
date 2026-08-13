@@ -327,15 +327,13 @@ impl TextPipeline {
     /// ([`Self::ibeam_bar_dims`] — an insertion bar marks a boundary between glyphs,
     /// so it has no glyph of its own to hug).
     ///
-    /// Two arms, gated by [`crate::caret::font_is_mono`] on `doc_family()` alone:
-    ///
-    /// * **PROPORTIONAL: ONE HEIGHT PER (FACE, ROW).** The caret spans the row's
+    /// The mono gate preserves its grid; proportional anchors select a stable cell:
+    /// * **LATIN PROPORTIONAL: ONE HEIGHT PER (FACE, ROW).** The caret spans the row's
     ///   TYPICAL-LETTER box ([`Self::caret_synthetic_ink_box`]) grown by
-    ///   [`CARET_INK_PAD`] top and bottom — for EVERY anchor on the row: a
+    ///   [`CARET_INK_PAD`] top and bottom — for every Latin anchor on the row: a
     ///   letter, a ligature, a space, end-of-line, an empty row. It reads no
     ///   per-anchor ink at all, so those anchors cannot disagree; the height
-    ///   moves only with the face, the row's own scale (a heading), and the
-    ///   zoom/DPI the pad rides.
+    ///   moves only with the face, row scale, and zoom/DPI the pad rides.
     ///
     ///   ⚠️ TWO SHAPES ARE BOTH WRONG HERE, and this box sits deliberately
     ///   between them. Sizing to the ANCHORED GLYPH'S own raster ink tracks the
@@ -362,12 +360,12 @@ impl TextPipeline {
     ///   preview's instant O(1) colour retint rather than wait on the
     ///   separately-deferred reshape.
     ///
-    ///   DESCENDERS get no extension of their own. `g`/`y` dip past the bottom
-    ///   pad by a couple of px and that is accepted: a descender-aware bottom is
-    ///   a per-glyph rule, and one on the bottom edge is the same jump the top
+    ///   DESCENDERS get no extension. A descender-aware bottom is per-glyph, and
+    ///   one on the bottom edge is the same jump the top
     ///   edge was just relieved of. The mono arm keeps its own
     ///   ([`CARET_DESCENDER_PAD`]) because its cell is row-derived and clears
     ///   the whole band anyway.
+    /// * **CJK PROPORTIONAL:** one padded resolved-face em, shared by adjacent kanji.
     /// * **LINE CELL (mono only).**
     ///   `caret_block_h` row-scaled, centred on the spring anchor, with the
     ///   DESCENDER-AWARE bottom extension ([`CARET_DESCENDER_PAD`]) folded in
@@ -376,8 +374,7 @@ impl TextPipeline {
     ///   one `caret.pos.y`/`caret_block_h`, so the cell stays column-independent
     ///   by construction.
     ///
-    /// The descender extension lives at this REST endpoint, NOT in
-    /// `layers.rs::prepare_caret_block` on the already motion-blended rect
+    /// The descender extension lives at this REST endpoint, not the draw site's
     /// re-scaled by the settle factor. The two are algebraically identical at
     /// rest (settle 1 — the deterministic capture), but only here can
     /// `motion_geometry` blend it out with everything else mid-glide, so the
@@ -387,6 +384,9 @@ impl TextPipeline {
         let px = m.scale;
         if !crate::caret::font_is_mono(self.doc_family()) {
             let (baseline, row_ascent, ascent_font) = self.caret_row_metrics();
+            if let Some((font_size, em)) = self.caret_anchor_ideographic_cell() {
+                return self.caret_cell_vertical_ideographic(baseline, font_size, em, px);
+            }
             return self.caret_cell_vertical_typical(baseline, row_ascent, ascent_font, px);
         }
         let cy = self.caret.pos.y;
