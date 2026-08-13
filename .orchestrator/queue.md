@@ -6,20 +6,6 @@
 
 ## Ready to build
 
-### 423 — let outline metadata use the available margin before ellipsizing
-
-🟡 IN PROGRESS — queue-423 (codex), branch codex/queue-423-outline-metadata
-
-Secondary/date lines in the left outline truncate while usable horizontal room
-remains. Extend their text block roughly 30–50 px left where the margin permits,
-keeping a 20–24 px minimum inset from the outline. Preserve the primary label,
-outline boundary, and hierarchy; ellipsize only after the wider allowance is
-consumed.
-
-Verify narrow, ordinary, and wide windows with long metadata. Geometry laws pin
-the minimum inset, prove the increased allowance, and retain ellipsis when space
-is genuinely exhausted. Capture the reported shape for pixel confirmation.
-
 ### 421 — make the cell caret contain full-square CJK ink
 
 🟡 IN PROGRESS — queue-421 (codex), branch codex/queue-421-cjk-cell-caret
