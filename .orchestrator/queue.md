@@ -209,21 +209,6 @@ Options: add the glyph to `AwlMarks.ttf`, which already carries `↵` so both th
 precedent and the mechanism exist; or draw the affordance as a mark rather than
 as text. The second is a design question, the first is bounded work.
 
-### 414 — a second knife's edge, on the axis nobody bands
-
-🟡 IN PROGRESS — claude (deep), branch `claude/item-414-vertical-band`.
-
-Filed by item 408 rather than fixed. `464x288 zoom=1.4 menu_bar=on` sits at
-vertical demand **0.9849** — 1.5% from its bottom edge. It did NOT flip on CI,
-and 408 measured why: the vertical axis is byte-identical across hosts, because
-line pitch is a metric the pipeline sets rather than one a substituted glyph gets
-a vote in. Genuinely stable today.
-
-But it is one changed line-metric from being the same class of failure the
-horizontal axis just had, and nothing bands it — the vertical grade is still a
-boolean at the edge. Not urgent; recorded so whoever meets it next knows it was
-seen, measured, and left deliberately.
-
 ### 418 — with `workspace = ~`, the door is below the window on open
 
 Measured live by item 411 against the user's real config: the flat picker lists
@@ -238,6 +223,50 @@ way the accept row is pinned to the top, or whether the answer is that `~` is a
 poor workspace and the product should say so somewhere. **A pinned-visible
 terminal row is a rowlayout change with a blast radius across every picker**, so
 it wants a decision before code.
+
+### 419 — Rules draws its Settings footer PAST the card, and Bars never lays it out
+
+Found by item 414's sweep, which was the first to cross the world axis on this
+geometry, and **ledgered rather than fixed** — the item was a law, not a repair.
+
+At `464x288 logical, zoom=1.4, menu_bar=on` — the app's own enforced minimum
+window — one geometry has three outcomes decided by the world's `list_style` row
+gap: `Pane` and `Diagonal` (16 worlds) fit at demand **0.9849**; **`Rules`
+(Paperbark) reaches 1.2433 and is drawn past the card's bottom edge**; **`Bars`
+(3 worlds) never lays the footer out at all.** Nine spilled cells and thirteen
+starved ones are now pinned, and **six of the nine and eleven of the thirteen are
+on `bars`/`rules` cells no previous law could see.**
+
+⚠️ Not a host difference and not new — it has presumably shipped for as long as
+those pitches have. What was new is that anything looked. The ledgers are
+two-sided, so a repair reddens them and must delete its entries deliberately.
+
+The fix is a composition question, not a constant: whether the footer yields, the
+row gap yields, or the stage refuses to draw a footer it cannot fit — which is
+the same family as the already-open call about the narrow History stage drawing
+no footer at all. 🔵 Worth the user's steer before code.
+
+### 420 — one shared render pipeline is 16x faster and byte-identical
+
+Measured by item 414 while building its sweep, and **not what that item was
+for**, so it is filed rather than folded in. Reusing one `TextPipeline` across
+cells instead of building one per cell took its 1920-cell sweep from **45.58s to
+2.87s**, and the two runs agree **byte-identically on all 1919 comparable
+readings across 20 worlds**.
+
+⚠️ The lane did not take that on faith and neither should this item: it
+re-measured every cell its ledgers rest on, plus the tightest fitting cell — 27
+cells — against a pipeline built for that cell alone, and required agreement to
+the bit, because cache staleness across a size or world swap is exactly
+CLAUDE.md's cache-key tripwire.
+
+The width law's sibling sweep still builds a fresh pipeline for each of its 96
+cells, and the `render::tests` tree likely does the same in many places. ⚠️ Note
+the recorded counter-example before generalising: reusing one mutable pipeline
+across the diagonal and frost roster sweeps CHANGED per-cell pixel measurements
+and was rejected — that entry is in *Decided against*. So the question is not
+"hoist everywhere" but **which sweeps can prove byte-identity the way this one
+did**, and the 27-cell control is the shape of that proof.
 
 ## ⚠️ TRIPWIRE — ONE SHIPPING GATE THAT LOOKS EXACTLY LIKE A DEFECT AND IS NOT
 
