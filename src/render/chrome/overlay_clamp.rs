@@ -94,16 +94,9 @@ impl TextPipeline {
     pub(super) fn overlay_workspace_window(
         &self,
         n_items: usize,
-        avail_px: f32,
-        reserved_px: f32,
-        min_items: usize,
+        item_cap: usize,
     ) -> (usize, usize) {
-        let item_cap = self.overlay_window_rows.max(1).min(fit_item_rows_after_px(
-            avail_px,
-            self.overlay_lh(),
-            reserved_px,
-            min_items,
-        ));
+        let item_cap = self.overlay_window_rows.max(1).min(item_cap);
         scroll_window(
             n_items,
             self.overlay_selected,

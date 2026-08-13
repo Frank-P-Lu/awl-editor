@@ -219,6 +219,6 @@ impl TextPipeline {
         plan: &OverlayRowPlan,
     ) -> f32 {
         self.overlay_foot_placement(geom, plan)
-            .map_or(geom.text_left, |foot| foot.left)
+            .map_or_else(|| geom.footer_text_left(), |foot| foot.left)
     }
 }
