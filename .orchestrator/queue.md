@@ -6,7 +6,17 @@
 
 ## Ready to build
 
-None.
+### 435 — enroll the final native laws in unified Go-to ownership
+
+🟡 IN PROGRESS — root (codex), branch main
+
+The combined native gate exposes sixteen stale laws after unified Go-to and the
+structural split: retired `OpenProject`/`Project` expectations, old “Go to file”
+labels and stats slugs, captures that still summon the retired picker, and one
+source census that omits the extracted surface-effect owner. Re-enroll those
+consumers through the shipped typed Go-to surface without changing product
+behavior, prove the named failures green across all gate conventions, and issue
+the exact full native receipt.
 
 ## Needs a person, hardware, or release authority
 
