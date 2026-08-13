@@ -17,22 +17,6 @@ it is independent of that work. Diagnose the interaction added after item 419,
 preserve the reserved-footer composition law, and re-sweep the full 419 matrix
 with a mutation proof before issuing a new combined native receipt.
 
-### 395 — language confirmation toast and directory-shaped elision
-
-🟡 IN PROGRESS — queue-395 (codex), branch codex/queue-395-language-toast-elision
-
-- Keep `Tag document language` immediate and without an ellipsis. After it
-  applies, show a brief toast naming the result, such as
-  `Document language: Japanese`, through item 424's shared toast placement.
-- Directory readouts must retain path identity when truncated: preserve at least
-  one `/` and a recognizable part of the final folder. File-row elision remains
-  unchanged.
-
-Verify command dispatch, document metadata, undo/save behavior, toast text, and
-long/narrow directory paths including a leaf that alone exceeds the allowance.
-The existing `←` and context-aware `⌫ back` behavior is accepted and needs no
-change.
-
 ## Needs a person, hardware, or release authority
 
 1. **macOS release signing** — supply the Apple secrets required by
