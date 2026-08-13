@@ -1,8 +1,10 @@
 use super::{
     Capture, KeepEdit, LinkEdit, OverlayKind, OverlayRow, PIN_TAG, RangeCell, RenameEdit, RowMeta,
-    ValueEdit, add_to_dictionary_label,
+    ValueEdit,
 };
 use crate::textbox::TextBox;
+
+pub use super::add_to_dictionary_label;
 
 #[derive(Debug, Clone)]
 pub struct OverlayState {
