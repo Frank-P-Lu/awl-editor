@@ -18,6 +18,26 @@ fn worlds_eleven_dark_nine_light() {
     assert_eq!(light, 9);
 }
 
+#[test]
+fn every_toast_anchor_is_authored_by_the_world_roster() {
+    let mut counts = std::collections::HashMap::new();
+    for world in THEMES {
+        *counts.entry(world.toast_anchor).or_insert(0usize) += 1;
+    }
+    assert_eq!(
+        counts.len(),
+        ToastAnchor::ALL.len(),
+        "every toast-anchor arm must be carried by at least one world"
+    );
+    for anchor in ToastAnchor::ALL {
+        assert!(
+            counts.get(&anchor).copied().unwrap_or(0) > 0,
+            "toast anchor {anchor:?} is dormant"
+        );
+    }
+    eprintln!("toast anchor roster: {counts:?}");
+}
+
 /// `world_names()` (the one code-owned roster source, read by `--help`,
 /// the unknown-`--theme` error, and `--list-worlds`) is exactly `THEMES`'
 /// names in `THEMES`' own order — no reordering, no drift, no duplicate.

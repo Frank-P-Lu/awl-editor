@@ -73,8 +73,8 @@ pub(crate) use panel_report::{PanelGeometry, PanelRowRect};
 pub(crate) use row_report::{OverlayRowGeometry, PlannedRowRect};
 
 pub(in crate::render) use floating::{
-    CornerAnchor, StreaksCardInput, plan_corner_label, plan_float_card, plan_streaks_card,
-    plan_whichkey_card,
+    CornerAnchor, StreaksCardInput, ToastPlan, plan_corner_label, plan_float_card,
+    plan_streaks_card, plan_toast, plan_whichkey_card,
 };
 pub(in crate::render) use margin::{
     hit_outline_slot, plan_gutter_stack, plan_outline_left, plan_outline_slots,

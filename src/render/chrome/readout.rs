@@ -6,6 +6,11 @@
 
 use super::*;
 
+mod toast;
+use toast::notice_plate_inks;
+#[cfg(test)]
+pub(in crate::render) use toast::{TOAST_COLLISION_GAP, TOAST_SAFE_INSET};
+
 /// The (left, top) device-px origin of a non-empty corner label, given its widest
 /// shaped run width `text_w`, its `line_height`, the canvas `width`/`height`, the
 /// writing column's `col_left`/`col_width`, and a vertical top-anchor offset — the
@@ -74,54 +79,6 @@ pub(in crate::render) const CANVAS_INSET: Physical = Physical(8.0);
 /// read as a line of chrome, not as a box.
 pub(in crate::render) fn notice_plate_padding(label_line_height: f32) -> (f32, f32) {
     (label_line_height * 0.6, label_line_height * 0.22)
-}
-
-/// The CALM NOTICE plate's three inks for `kind`: `(fill, rim, text)`.
-///
-/// The FILL is the shared depth ramp's own plane — `base_200` (raised) for a
-/// self-clearing toast, `base_300` (foreground) for a HELD sticky. The RIM is a
-/// hairline off the ink ladder — `muted` for a toast, `base_content` for a sticky.
-/// Both axes express the kind by VALUE ONLY, which is DESIGN §5's rule for it:
-/// "the same marker at less presence". Never a hue, never the `error` token
-/// (reserved for failure and destruction; "changed elsewhere" is neither), never a
-/// second decoration. The TEXT ink is not chosen here at all: it comes from
-/// `theme::selected_row_ink`, the one owner of "legible ink on this band", so the
-/// notice cannot acquire a legibility rule of its own.
-///
-/// # Why there is a rim, and why a one-bit world inverts
-///
-/// Because the FILL alone cannot be guaranteed to read, and that is measured
-/// rather than assumed. Three facts about this tree make a plane-only plate
-/// unreliable, and each was found by the presence law over the whole roster:
-///
-///   * A world's ramp is authored data and some worlds collapse it. Potoroo puts
-///     `base_300` within ΔL\* 0.87 of its own page.
-///   * A fixed VALUE STEP off `base_100` does not predict how far the plate reads
-///     from the page: the sRGB curve is steep near black and shallow near white,
-///     so the same step in bytes is a different distance to the eye at `#060607`
-///     than at `#FFF8E9`. Hence a perceptual ΔE floor — which stays perceptual
-///     now that the page's clear stores the authored token exactly
-///     (`theme::tests::clear`, `render::tests::page_ground_law`), the curve being
-///     a property of the colour space and not of any one defect.
-///   * A TRUE ONE-BIT world has no value steps to spend: on Wagtail `base_200`,
-///     `base_300` and the page are all the same black and `muted` is
-///     `base_content`, so a toast and a sticky came out byte-identical. Its second
-///     level is inverse video, which is why the sticky arm swaps fill and rim
-///     there — the same answer `theme::HighlightTreatment::InverseFill` already
-///     gives the menu bar's open title and the picker's selected row, reached
-///     through that owner rather than by testing for a named world.
-fn notice_plate_inks(kind: crate::actions::NoticeKind) -> (theme::Srgb, theme::Srgb, theme::Srgb) {
-    let one_bit = matches!(
-        theme::active().highlight_treatment(theme::selection_document()),
-        theme::HighlightTreatment::InverseFill { .. }
-    );
-    let (fill, rim) = match (kind, one_bit) {
-        (crate::actions::NoticeKind::Toast, _) => (theme::base_200(), theme::muted()),
-        (crate::actions::NoticeKind::Sticky, false) => (theme::base_300(), theme::base_content()),
-        // INVERSE: the plate becomes the ink and the hairline becomes the ground.
-        (crate::actions::NoticeKind::Sticky, true) => (theme::base_content(), theme::base_100()),
-    };
-    (fill, rim, theme::selected_row_ink(fill))
 }
 
 impl TextPipeline {
@@ -432,6 +389,10 @@ impl TextPipeline {
         self.notice_drawn = text.clone();
         let (fill, rim, text_ink) = notice_plate_inks(self.notice_kind);
         let text_origin_top = self.text_origin_top();
+        let toast_plan = self.notice_toast_plan(&text, gm, width, height, [pad_x, pad_y]);
+        let anchor = toast_plan.map_or(CornerAnchor::TopCenter, |plan| {
+            CornerAnchor::Absolute(plan.text[0], plan.text[1])
+        });
         let placed = Self::prepare_corner_label(
             &mut self.notice_renderer,
             &mut self.notice_buffer,
@@ -448,27 +409,35 @@ impl TextPipeline {
             col_left,
             col_width,
             &text,
-            CornerAnchor::TopCenter,
+            anchor,
             None,
             "notice",
-            // TopCenter alone wants scaled TEXT_TOP folded in (see `corner_origin`).
-            text_origin_top,
+            // Sticky notices retain the writing-column top; toast absolute
+            // placement has already folded in the menu-bar reserve.
+            if toast_plan.is_some() {
+                0.0
+            } else {
+                text_origin_top
+            },
             text_ink.to_glyphon(),
         )?;
         // THE PLATE, from the placement the label body just returned — never a
         // second copy of the arithmetic, so it cannot drift off the glyphs.
         // Clamped into the canvas with the same inset the docked corner labels
         // use, so a sentence wider than its column can still not run off an edge.
-        let rects: Vec<[f32; 4]> = placed
-            .map(|[left, top, text_w, box_h]| {
-                let x = (left - pad_x).max(CANVAS_INSET.0);
-                let w = (text_w + 2.0 * pad_x).min(width as f32 - 2.0 * CANVAS_INSET.0);
-                [
-                    x.min(width as f32 - CANVAS_INSET.0 - w),
-                    top - pad_y,
-                    w,
-                    box_h + 2.0 * pad_y,
-                ]
+        let rects: Vec<[f32; 4]> = toast_plan
+            .map(|plan| plan.plate)
+            .or_else(|| {
+                placed.map(|[left, top, text_w, box_h]| {
+                    let x = (left - pad_x).max(CANVAS_INSET.0);
+                    let w = (text_w + 2.0 * pad_x).min(width as f32 - 2.0 * CANVAS_INSET.0);
+                    [
+                        x.min(width as f32 - CANVAS_INSET.0 - w),
+                        top - pad_y,
+                        w,
+                        box_h + 2.0 * pad_y,
+                    ]
+                })
             })
             .into_iter()
             .collect();

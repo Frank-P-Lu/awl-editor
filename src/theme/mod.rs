@@ -139,7 +139,8 @@ pub use model::{
     FoldAfford, HighlightTexture, HighlightTreatment, IconCursor, ImageReveal, ListBacking,
     ListStyle, LocationFace, LocationInk, LocationLabelStyle, LocationLocator, LocationStyle,
     MotionJuice, OverlayEntrance, PageFrame, PaletteRole, PaneSplit, PlacardCorner, PlacardInk,
-    RenderCaps, ResolvedTwoColour, RuleSelection, SelectionStyle, TitleStyle, TwoColour,
+    RenderCaps, ResolvedTwoColour, RuleSelection, SelectionStyle, TitleStyle, ToastAnchor,
+    TwoColour,
 };
 #[allow(unused_imports)] // the per-world ornament/bullet data: public API
 // surface, no NON-TEST in-crate caller today.

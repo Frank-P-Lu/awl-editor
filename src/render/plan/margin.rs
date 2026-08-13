@@ -125,7 +125,25 @@ mod tests {
         let gutter = include_str!("../chrome/gutter.rs");
         let outline = include_str!("../chrome/outline.rs");
         assert_eq!(gutter.matches("plan::plan_gutter_stack(").count(), 4);
-        assert_eq!(outline.matches("plan::plan_outline_slots(").count(), 2);
+        assert_eq!(outline.matches("plan::plan_outline_slots(").count(), 3);
+        for (owner, next_owner) in [
+            ("fn outline_keepout_rect(", "fn lava_frost_pill_rects("),
+            ("fn outline_ink_bands(", "fn outline_frost_seeds("),
+            ("fn outline_hit_line(", "fn prepare_outline("),
+        ] {
+            let body = outline
+                .split_once(owner)
+                .unwrap_or_else(|| panic!("missing exact outline geometry owner {owner}"))
+                .1
+                .split_once(next_owner)
+                .unwrap_or_else(|| panic!("missing boundary {next_owner} after {owner}"))
+                .0;
+            assert_eq!(
+                body.matches("plan::plan_outline_slots(").count(),
+                1,
+                "{owner} must route exactly once through plan_outline_slots"
+            );
+        }
         assert_eq!(outline.matches("plan::plan_outline_left(").count(), 1);
         assert!(!gutter.contains("let block_top = height as f32 - row_h * lines"));
         assert!(!outline.contains("let mut y = layout.top"));

@@ -27,6 +27,7 @@
 //! world, and the failure message names the world that failed.
 
 use super::super::*;
+use super::pixeldiff::{Region, diff_region, render_frame};
 use crate::actions::NoticeKind;
 use crate::capture::{CaptureOpts, capture_with};
 
@@ -45,6 +46,204 @@ fn crowded_doc() -> String {
         ));
     }
     s
+}
+
+#[derive(Clone, Copy, Debug)]
+enum ToastSurface {
+    Document,
+    Picker,
+    Workspace,
+}
+
+fn toast_surface_view(surface: ToastSurface, notice: bool) -> ViewState {
+    let mut document = crowded_doc();
+    if matches!(surface, ToastSurface::Document) {
+        document.replace_range(.."Opening line".len(), "# Opening line");
+    }
+    let mut v = super::view(&document, 0, 0);
+    if notice {
+        v.notice = "saved".into();
+        v.notice_kind = NoticeKind::Toast;
+    }
+    match surface {
+        ToastSurface::Document => {}
+        ToastSurface::Picker => {
+            v.overlay_active = true;
+            v.overlay_title = "Commands";
+            v.overlay_items = vec![
+                "Save".into(),
+                "Open".into(),
+                "Move".into(),
+                "Duplicate".into(),
+            ];
+            v.overlay_window_rows = v.overlay_items.len();
+        }
+        ToastSurface::Workspace => {
+            v.overlay_active = true;
+            v.overlay_workspace = true;
+            v.overlay_title = "Settings";
+            v.overlay_lens = vec![
+                ("All".into(), true),
+                ("Writing".into(), false),
+                ("Files".into(), false),
+            ];
+            v.overlay_items = vec!["Theme".into(), "Language".into(), "Page width".into()];
+            v.overlay_window_rows = v.overlay_items.len();
+        }
+    }
+    v
+}
+
+fn rectangles_clear(a: [f32; 4], b: [f32; 4], gap: f32) -> bool {
+    let [ax, ay, aw, ah] = a;
+    let [bx, by, bw, bh] = b;
+    ax + aw + gap <= bx || bx + bw + gap <= ax || ay + ah + gap <= by || by + bh + gap <= ay
+}
+
+/// The production pipeline's full assigned roster: every world, its authored
+/// anchor, all three surface families, narrow/ordinary/wide logical canvases,
+/// and both densities. The pure planner law crosses each world with every
+/// possible anchor; this law proves real overlay/workspace geometry is what the
+/// collision owner receives.
+#[test]
+fn every_worlds_toast_is_in_canvas_and_clear_across_the_full_surface_roster() {
+    let _g = crate::testlock::serial();
+    if !crate::test_gpu::adapter_present() {
+        eprintln!("skipping toast surface roster: no wgpu adapter");
+        return;
+    }
+    let entry = theme::active_index();
+    let mut cells = 0usize;
+    let mut fallbacks = 0usize;
+    for world in theme::THEMES {
+        theme::set_active_by_name(world.name);
+        let Some((device, queue, mut p)) = super::headless_dqp(1200.0, 800.0) else {
+            break;
+        };
+        for surface in [
+            ToastSurface::Document,
+            ToastSurface::Picker,
+            ToastSurface::Workspace,
+        ] {
+            for (logical_w, logical_h) in [(480u32, 360u32), (1200, 800), (1800, 1000)] {
+                for dpi in [1.0f32, 2.0] {
+                    let (w, h) = (
+                        (logical_w as f32 * dpi) as u32,
+                        (logical_h as f32 * dpi) as u32,
+                    );
+                    p.set_dpi(dpi);
+                    p.set_size(w as f32, h as f32);
+                    p.set_view(&toast_surface_view(surface, true));
+                    p.prepare(&device, &queue, w, h)
+                        .expect("toast frame prepares");
+                    let (plate, resolved) = p
+                        .notice_geometry_probe(w, h)
+                        .expect("a toast must commit plate geometry");
+                    let safe = p.metrics.px(crate::render::chrome::TOAST_SAFE_INSET);
+                    let gap = p.metrics.px(crate::render::chrome::TOAST_COLLISION_GAP);
+                    let label = format!(
+                        "{} / {:?}->{resolved:?} / {surface:?} / {logical_w}x{logical_h} / {dpi}x",
+                        world.name, world.toast_anchor
+                    );
+                    assert!(
+                        plate[0] >= safe - 0.01 && plate[1] >= safe - 0.01,
+                        "{label}: {:?} crossed the safe inset {safe}",
+                        plate
+                    );
+                    assert!(
+                        plate[0] + plate[2] <= w as f32 - safe + 0.01
+                            && plate[1] + plate[3] <= h as f32 - safe + 0.01,
+                        "{label}: {:?} left {w}x{h}",
+                        plate
+                    );
+                    let obstacles = p.notice_active_chrome_probe(w, h);
+                    assert!(
+                        obstacles
+                            .iter()
+                            .all(|&obstacle| rectangles_clear(plate, obstacle, gap)),
+                        "{label}: {:?} collided with {:?}",
+                        plate,
+                        obstacles
+                    );
+                    assert!(
+                        plate[2] >= 1.0 && plate[3] >= 1.0,
+                        "{label}: presence is vacuous: {plate:?}"
+                    );
+                    fallbacks += usize::from(resolved != world.toast_anchor);
+                    cells += 1;
+                }
+            }
+        }
+    }
+    theme::set_active(entry);
+    assert_eq!(cells, 20 * 3 * 3 * 2);
+    assert!(
+        fallbacks > 0,
+        "NON-VACUITY: no real surface forced fallback"
+    );
+    eprintln!("toast surface roster: cells={cells} fallbacks={fallbacks}");
+}
+
+/// Five affordance-locating gallery cells. The oracle asks only whether the
+/// resolved plate's own real pixels appeared; geometry intent alone cannot
+/// satisfy it (the Wagtail tripwire).
+#[test]
+fn five_world_surface_gallery_draws_a_visible_toast_plate() {
+    let _g = crate::testlock::serial();
+    if !crate::test_gpu::adapter_present() {
+        eprintln!("skipping toast gallery smoke: no wgpu adapter");
+        return;
+    }
+    let entry = theme::active_index();
+    let gallery = [
+        ("Gumtree", ToastSurface::Document, 1.0f32),
+        ("Potoroo", ToastSurface::Picker, 2.0),
+        ("Bilby", ToastSurface::Workspace, 1.0),
+        ("Wagtail", ToastSurface::Picker, 1.0),
+        ("Cassowary", ToastSurface::Workspace, 2.0),
+    ];
+    let mut total_changed = 0usize;
+    for (world, surface, dpi) in gallery {
+        theme::set_active_by_name(world);
+        let (w, h) = ((1200.0 * dpi) as u32, (800.0 * dpi) as u32);
+        let Some((device, queue, mut p)) = super::headless_dqp(w as f32, h as f32) else {
+            break;
+        };
+        p.set_dpi(dpi);
+        p.set_size(w as f32, h as f32);
+        p.set_view(&toast_surface_view(surface, false));
+        p.prepare(&device, &queue, w, h)
+            .expect("plain frame prepares");
+        let plain = render_frame(&mut p, &device, &queue, w, h);
+        p.set_view(&toast_surface_view(surface, true));
+        p.prepare(&device, &queue, w, h)
+            .expect("toast frame prepares");
+        let (plate, _) = p.notice_geometry_probe(w, h).expect("toast geometry");
+        let toast = render_frame(&mut p, &device, &queue, w, h);
+        let report = diff_region(
+            &plain,
+            &toast,
+            w as i64,
+            h as i64,
+            Region::new(
+                plate[0] - 1.0,
+                plate[1] - 1.0,
+                plate[2] + 2.0,
+                plate[3] + 2.0,
+            ),
+        );
+        assert!(
+            report.differing >= 80 && report.max_channel_delta >= 12,
+            "{world} / {surface:?} / {dpi}x: locate the toast at {plate:?}; only {} pixels \
+             changed (max channel delta {})",
+            report.differing,
+            report.max_channel_delta
+        );
+        total_changed += report.differing;
+    }
+    theme::set_active(entry);
+    assert!(total_changed >= 5 * 80, "all five gallery cells must draw");
+    eprintln!("toast five-shot vision smoke: changed_pixels={total_changed}");
 }
 
 fn render(world: &str, notice: Option<(&str, NoticeKind)>, tag: &str) -> image::RgbaImage {
@@ -188,13 +387,13 @@ const INK_ON_PLATE_MIN: f64 = 4.5;
 pub(super) const PLATE_PRESENCE_MIN: f64 = 15.0;
 const KIND_DISTINCTION_MIN: f64 = 4.0;
 
-/// THE PLACEMENT LAW. The notice draws in the TOP band of the canvas, centred on
-/// the writing column — never at the bottom, which is where it lived while nobody
-/// saw it. Swept over the whole world roster, because the writing column's own
-/// left/width is world-dependent (a world with a margin surface shifts it) and a
-/// single-world law could pass on that world's arithmetic alone.
+/// THE HELD-NOTICE PLACEMENT LAW. Sticky notices keep the shared TOP band of the
+/// canvas, centred on the writing column. Short-lived toasts deliberately take
+/// the authored world axis asserted above; a held refusal remains predictable.
+/// Swept over the whole world roster, because the writing column's own
+/// left/width is world-dependent.
 #[test]
-fn the_calm_notice_draws_at_the_top_of_the_writing_column_never_the_bottom() {
+fn a_held_notice_draws_at_the_top_of_the_writing_column_never_the_bottom() {
     let _g = crate::testlock::serial();
     if !crate::test_gpu::adapter_present() {
         eprintln!("skipping notice placement law: no wgpu adapter");
@@ -206,7 +405,11 @@ fn the_calm_notice_draws_at_the_top_of_the_writing_column_never_the_bottom() {
     let entry_world = theme::active_index();
     for theme in theme::THEMES.iter() {
         let plain = render(theme.name, None, "plain");
-        let shot = render(theme.name, Some(("saved", NoticeKind::Toast)), "toast");
+        let shot = render(
+            theme.name,
+            Some(("changed elsewhere", NoticeKind::Sticky)),
+            "sticky",
+        );
         let px = changed(&shot, &plain);
         assert!(
             !px.is_empty(),

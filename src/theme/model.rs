@@ -122,6 +122,27 @@ pub enum CardAnchor {
     TopRight,
 }
 
+/// Where a world's short-lived acknowledgement enters the canvas.
+///
+/// This is deliberately a small authored roster rather than arbitrary
+/// coordinates: worlds choose the composition, while the shared notice planner
+/// remains the only owner of safe insets, collisions, and constrained-window
+/// fallback.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum ToastAnchor {
+    TopLeft,
+    TopRight,
+    BottomCenter,
+}
+
+impl ToastAnchor {
+    pub const ALL: [ToastAnchor; 3] = [
+        ToastAnchor::TopLeft,
+        ToastAnchor::TopRight,
+        ToastAnchor::BottomCenter,
+    ];
+}
+
 impl CardAnchor {
     pub fn mirrors_growth(self) -> bool {
         matches!(self, CardAnchor::TopRight)
@@ -578,6 +599,7 @@ impl IconCursor {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Theme {
     pub name: &'static str,
+    pub toast_anchor: ToastAnchor,
     pub dark: bool,
     pub base_100: Srgb,
     pub base_200: Srgb,
