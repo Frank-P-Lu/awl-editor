@@ -36,6 +36,8 @@ minimum geometry, and ordinary controls.
 
 ### 418 — one Go-to surface for files, headings, and folders
 
+🟡 IN PROGRESS — queue-418 (codex), branch codex/queue-418-unified-goto
+
 Rename `Go to file…` to `Go to…` and fold the existing Goto and Project corpora
 into one typed destination list with lenses
 `All · Files · Headings · Folders · Recent`. Files open, headings jump, folders
