@@ -115,6 +115,20 @@ every pass.
 
 ## Open items
 
+### 423 — let outline metadata use the available margin before ellipsizing
+
+User sighting: secondary/date lines in the left outline truncate while visibly usable
+horizontal room remains. Preserve the outline boundary and its existing hierarchy, but
+extend the metadata text block roughly 30–50 px farther left where the margin permits,
+keeping a comfortable 20–24 px minimum inset from the outline. Ellipsize only after that
+wider allowance is consumed; the primary label and overall outline composition stay put.
+
+Verify the outline layout at representative narrow, ordinary and wide window geometries,
+including long date/secondary strings. Geometry laws pin the minimum inset, prove that the
+secondary lines receive more width than today without crossing the outline, and retain
+ellipsis when the genuinely available width is exhausted. Capture the reported shape for
+pixel confirmation that hierarchy and boundary are unchanged.
+
 ### 422 — prose double-click uses linguistic words without changing code words
 
 User decision: on macOS, prose/Markdown double-click and word-granularity drag use
