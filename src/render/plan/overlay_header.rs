@@ -278,30 +278,71 @@ impl OverlayRowPlan {
 }
 use super::overlay_rows::fit_item_rows_after_px;
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(in crate::render) struct WorkspaceRowFit {
+    pub item_cap: usize,
+    pub pad: f32,
+    pub header_rows: usize,
+    pub header_gap: f32,
+    pub hint_gap_rows: usize,
+}
+
 /// Resolve a fixed-height workspace's candidate capacity after charging its
 /// header, empty-state and compact teaching footer. This is planner-owned row
 /// arithmetic: consumers receive the resolved item cap and header beat instead
 /// of rebuilding a candidate-band origin from loose row counts.
 #[allow(clippy::too_many_arguments)]
 pub(in crate::render) fn fit_workspace_item_rows(
-    avail_px: f32,
+    card_h: f32,
+    pad: f32,
     lh: f32,
     header_rows: usize,
     header_gap: f32,
     empty_rows: usize,
-    footer_reserve: f32,
+    footer_with_gap: f32,
+    footer_without_gap: f32,
     footer_present: bool,
     min_items: usize,
-) -> (usize, f32) {
+) -> WorkspaceRowFit {
+    let mut pad = pad;
+    let mut header_rows = header_rows;
     let mut planned_gap = header_gap;
-    let fixed_rows = header_rows.saturating_add(empty_rows);
-    let mut reserved_px = fixed_rows as f32 * lh + planned_gap + footer_reserve;
-    if footer_present && reserved_px > avail_px {
-        reserved_px -= planned_gap;
+    let mut hint_gap_rows = usize::from(footer_present);
+    let mut footer_reserve = footer_with_gap;
+    let fixed = |pad: f32,
+                 header_rows: usize,
+                 header_gap: f32,
+                 footer_reserve: f32| {
+        2.0 * pad
+            + (header_rows.saturating_add(empty_rows)) as f32 * lh
+            + header_gap
+            + footer_reserve
+    };
+
+    if fixed(pad, header_rows, planned_gap, footer_reserve) > card_h {
         planned_gap = 0.0;
     }
-    (
-        fit_item_rows_after_px(avail_px, lh, reserved_px, min_items),
-        planned_gap,
-    )
+    while header_rows > 0 && fixed(pad, header_rows, planned_gap, footer_reserve) > card_h {
+        header_rows -= 1;
+    }
+    if footer_present && fixed(pad, header_rows, planned_gap, footer_reserve) > card_h {
+        hint_gap_rows = 0;
+        footer_reserve = footer_without_gap;
+    }
+    let non_pad = fixed(0.0, header_rows, planned_gap, footer_reserve);
+    if non_pad + 2.0 * pad > card_h {
+        pad = ((card_h - non_pad).max(0.0) * 0.5).min(pad);
+    }
+
+    let avail_px = (card_h - 2.0 * pad).max(0.0);
+    let reserved_px = (header_rows.saturating_add(empty_rows)) as f32 * lh
+        + planned_gap
+        + footer_reserve;
+    WorkspaceRowFit {
+        item_cap: fit_item_rows_after_px(avail_px, lh, reserved_px, min_items),
+        pad,
+        header_rows,
+        header_gap: planned_gap,
+        hint_gap_rows,
+    }
 }

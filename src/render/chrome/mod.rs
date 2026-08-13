@@ -174,6 +174,7 @@ pub(super) struct OverlayGeom {
     n_items: usize,
     hint: String,
     hint_rows: usize,
+    hint_gap_rows: usize,
     footer: Vec<String>,
     /// Display rows the footer occupies: `0` when empty, else `footer.len() + 1` (a blank
     /// separator line between the hint and the band). The card grows by exactly this, so
@@ -242,6 +243,7 @@ impl OverlayGeom {
             n_items: 0,
             hint: String::new(),
             hint_rows: 0,
+            hint_gap_rows: 0,
             footer: Vec::new(),
             footer_rows: 0,
             theme: false,

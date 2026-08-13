@@ -74,6 +74,15 @@ const MIN_PANE_CHARS: Chars = Chars(46.0);
 /// decoration (DESIGN.md §5).
 pub(in crate::render) const UNFOCUSED_MARK_ALPHA: f32 = 0.34;
 
+pub(super) struct WorkspaceFrame {
+    pub regions: plan::WorkspaceRegions,
+    pub show_rows: bool,
+    pub hint: String,
+    pub hint_rows: usize,
+    pub empty: Option<String>,
+    pub fit: plan::WorkspaceRowFit,
+}
+
 /// Scale a theme colour's ALPHA only, leaving its hue and value alone.
 pub(in crate::render) fn dimmed(color: theme::Srgb, f: f32) -> [u8; 4] {
     let mut rgba = color.rgba_bytes();
@@ -252,19 +261,63 @@ impl TextPipeline {
         1 + usize::from(self.overlay_rows_primary)
     }
 
+    /// Resolve the fixed-height workspace's vertical composition once for both
+    /// the list shell and the relocated comparison viewport. At the extreme
+    /// zoom/minimum-window corner, chrome yields in order: query beat, header
+    /// lines, footer separator, then excess inner pad. The teaching line or the
+    /// other region therefore survives before candidate rows are considered.
+    pub(super) fn workspace_frame(&self, width: u32) -> WorkspaceFrame {
+        let lh = self.overlay_lh();
+        let authored_pad = self.metrics.px(WORKSPACE_PAD);
+        let n_items = self.overlay_items.len();
+        let regions = self.workspace_regions(width);
+        let show_rows = if self.overlay_rows_primary {
+            regions.primary_visible()
+        } else {
+            regions.content_visible()
+        };
+        let hint = self.overlay_hint.clone();
+        let hint_rows = usize::from(!hint.is_empty() && show_rows);
+        let hint_gap_rows = overlay_hint_gap_rows(hint_rows);
+        let empty = (n_items == 0)
+            .then(|| self.overlay_empty.clone())
+            .flatten();
+        let header_rows = self.workspace_header_rows();
+        let card_h = regions.card[3];
+        let fit = plan::fit_workspace_item_rows(
+            card_h,
+            authored_pad,
+            lh,
+            header_rows,
+            self.overlay_header_gap(),
+            empty.is_some() as usize,
+            self.overlay_footer_reserve(hint_rows, hint_gap_rows),
+            self.overlay_footer_reserve(hint_rows, 0),
+            hint_rows > 0,
+            usize::from(hint_rows == 0),
+        );
+        WorkspaceFrame {
+            regions,
+            show_rows,
+            hint,
+            hint_rows,
+            empty,
+            fit,
+        }
+    }
+
     /// THE WORKSPACE'S GEOMETRY — the third overlay family, beside the flat
     /// pickers and the grouped/faceted card. It is deliberately not a variant of
     /// either: a workspace's box comes from the canvas rather than from a width
     /// cap and an anchor rail, because it is not a card seeking a comfortable
     /// place to float.
     pub(in crate::render) fn workspace_geometry(&self, width: u32) -> OverlayGeom {
-        let lh = self.overlay_lh();
-        let pad = self.metrics.px(WORKSPACE_PAD);
         let n_items = self.overlay_items.len();
         // The POSITIONAL half lives in `comparison.rs`, so the row
         // geometry below and the relocated document viewport read ONE
         // derivation of the card box, the primary column and the content pane.
-        let regions = self.workspace_regions(width);
+        let frame = self.workspace_frame(width);
+        let regions = frame.regions;
         let rows_focused = regions.content_focused;
 
         // THE ONE FACT THE TWO REGIONS' ROLES REDUCE TO.
@@ -277,33 +330,22 @@ impl TextPipeline {
         // unchanged by the shape; `show_rows` is whichever owns the rows.
         let rows_primary = self.overlay_rows_primary;
         let primary_visible = regions.primary_visible();
-        let content_visible = regions.content_visible();
-        let show_rows = if rows_primary {
-            primary_visible
-        } else {
-            content_visible
-        };
+        let show_rows = frame.show_rows;
 
         // THE FOOTER FOLLOWS WHICHEVER REGION IS SHOWING ITS LIST — the rail
         // shaper reads this same `hint_rows == 0 && rail.is_some()` fact
         // rather than a second flag, so one sentence lives in one place.
-        let hint = self.overlay_hint.clone();
-        let hint_rows = usize::from(!hint.is_empty() && show_rows);
+        let hint = frame.hint;
+        let hint_rows = frame.hint_rows;
         // The shared owner (`overlay_hint_gap_rows`, `chrome/mod.rs`) — the same
         // blank-row budget the flat and grouped families reserve, so a hint on
         // this family doesn't sit flush against the last row while its siblings
         // don't.
-        let hint_gap_rows = overlay_hint_gap_rows(hint_rows);
-        let empty = if n_items == 0 {
-            self.overlay_empty.clone()
-        } else {
-            None
-        };
-        let empty_rows = empty.is_some() as usize;
+        let empty = frame.empty;
         // The `settings › query` search line, plus — when the primary column
         // carries the rows — the LENS STRIP that has nowhere else to live.
-        let header_rows = self.workspace_header_rows();
-        let mut header_gap = self.overlay_header_gap();
+        let header_rows = frame.fit.header_rows;
+        let header_gap = frame.fit.header_gap;
 
         let [card_x, card_y, card_w, card_h] = regions.card;
         let ([primary_x, primary_w], [pane_x, pane_w]) = (regions.primary, regions.pane);
@@ -354,21 +396,10 @@ impl TextPipeline {
         // family's one-item floor can push this footer out of a fixed-height
         // workspace. A visible teaching footer outranks candidate rows at the
         // enforced minimum — zero rows is the honest staged degradation.
-        let avail_px = (card_h - 2.0 * pad).max(0.0);
-        let min_items = usize::from(hint_rows == 0);
-        let (item_cap, planned_header_gap) = plan::fit_workspace_item_rows(
-            avail_px,
-            lh,
-            header_rows,
-            header_gap,
-            empty_rows,
-            self.overlay_footer_reserve(hint_rows, hint_gap_rows),
-            hint_rows > 0,
-            min_items,
-        );
-        header_gap = planned_header_gap;
+        let fit = frame.fit;
+        let pad = fit.pad;
         let (top_idx, visible) = match show_rows {
-            true => self.overlay_workspace_window(n_items, item_cap),
+            true => self.overlay_workspace_window(n_items, fit.item_cap),
             false => (0, 0),
         };
 
@@ -381,7 +412,7 @@ impl TextPipeline {
         // sequence it consumes is the FLAT window this geometry already resolved
         // — a timeline has no section headers — so the plan, the shaped lines and
         // the hit-test stay one object.
-        let strip_in_header = rows_primary;
+        let strip_in_header = rows_primary && header_rows > 1;
         let lines: Vec<PlanLine> = match strip_in_header {
             true => (top_idx..top_idx + visible).map(PlanLine::Item).collect(),
             false => Vec::new(),
@@ -393,6 +424,7 @@ impl TextPipeline {
             n_items,
             hint: if show_rows { hint } else { String::new() },
             hint_rows,
+            hint_gap_rows: fit.hint_gap_rows,
             header_rows,
             header_gap,
             theme: strip_in_header,

@@ -45,7 +45,7 @@
 //! `column_left()` can afford to ask it on every call the way it already affords
 //! `adaptive_column_left`.
 
-use super::workspace::{RAIL_GAP_CHARS, WORKSPACE_PAD};
+use super::workspace::RAIL_GAP_CHARS;
 use super::*;
 pub(in crate::render) use crate::render::plan::WorkspaceRegions;
 
@@ -104,9 +104,18 @@ impl TextPipeline {
         {
             return None;
         }
-        let r = self.workspace_regions(self.window_w as u32);
-        let pad = self.metrics.px(WORKSPACE_PAD);
-        crate::render::plan::plan_comparison_viewport(r, true, self.workspace_header_band(), pad)
+        let frame = self.workspace_frame(self.window_w as u32);
+        let header_band = crate::render::plan::header_band_height(
+            frame.fit.header_rows,
+            self.overlay_lh(),
+            frame.fit.header_gap,
+        );
+        crate::render::plan::plan_comparison_viewport(
+            frame.regions,
+            true,
+            header_band,
+            frame.fit.pad,
+        )
     }
 
     /// The vertical run of the workspace's HEADER BAND — from `text_top` down to
@@ -117,10 +126,11 @@ impl TextPipeline {
     /// that sum describes a ONE-LINE header, and the timeline shape's header
     /// carries two, so a local copy would not be duplicated but simply wrong.
     pub(in crate::render) fn workspace_header_band(&self) -> f32 {
+        let frame = self.workspace_frame(self.window_w as u32);
         crate::render::plan::header_band_height(
-            self.workspace_header_rows(),
+            frame.fit.header_rows,
             self.overlay_lh(),
-            self.overlay_header_gap(),
+            frame.fit.header_gap,
         )
     }
 

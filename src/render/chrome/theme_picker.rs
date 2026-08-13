@@ -148,6 +148,7 @@ impl TextPipeline {
             n_items,
             hint,
             hint_rows,
+            hint_gap_rows,
             footer,
             footer_rows,
             theme: true,
@@ -643,7 +644,12 @@ impl TextPipeline {
             spans.push((msg.as_str(), mk(muted)));
         }
         if geom.hint_rows > 0 {
-            self.push_overlay_hint_spans(&mut spans, fitted_hint.as_str(), muted);
+            self.push_overlay_hint_spans(
+                &mut spans,
+                fitted_hint.as_str(),
+                muted,
+                geom.hint_gap_rows,
+            );
         }
         self.panel_buffer
             .set_size(&mut self.font_system, Some(geom.text_w), Some(geom.card_h));

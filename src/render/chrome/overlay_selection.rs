@@ -350,7 +350,7 @@ impl TextPipeline {
             // alongside the hint's: omitting it here left this plate ending a
             // row above the hint text it exists to back, on any workspace
             // card carrying Bars plates.
-            let gap_rows = overlay_hint_gap_rows(geom.hint_rows);
+            let gap_rows = geom.hint_gap_rows;
             let footer_band = (geom.hint_rows + gap_rows + geom.footer_rows) as f32
                 * self.overlay_lh()
                 - self.overlay_footer_reclaim(geom.hint_rows, gap_rows);

@@ -631,6 +631,7 @@ impl TextPipeline {
         spans: &mut Vec<(&'a str, glyphon::Attrs<'a>)>,
         hint: &'a str,
         muted: glyphon::Color,
+        gap_rows: usize,
     ) {
         let name_fs = self.overlay_metrics().font_size;
         let hint_fs = name_fs * crate::markdown::type_scale::LABEL;
@@ -654,13 +655,15 @@ impl TextPipeline {
         // a glyph-free line still needs a real glyph to carry custom metrics
         // (`push_beat_spacer`'s own trick for the query beat), so this is a
         // single invisible space, not a bare second newline.
-        spans.push(("\n", base.clone().color(muted)));
-        spans.push((
-            " ",
-            base.clone()
-                .color(muted)
-                .metrics(GlyphMetrics::new(hint_fs, self.overlay_hint_gap_h())),
-        ));
+        if gap_rows > 0 {
+            spans.push(("\n", base.clone().color(muted)));
+            spans.push((
+                " ",
+                base.clone()
+                    .color(muted)
+                    .metrics(GlyphMetrics::new(hint_fs, self.overlay_hint_gap_h())),
+            ));
+        }
         spans.push(("\n", base.clone().color(muted)));
         push_symbol_split(spans, hint, || hk_hint(muted), || sym_hint(muted));
     }
@@ -766,7 +769,12 @@ impl TextPipeline {
             spans.push((msg.as_str(), mk(muted)));
         }
         if geom.hint_rows > 0 {
-            self.push_overlay_hint_spans(&mut spans, fitted_hint.as_str(), muted);
+            self.push_overlay_hint_spans(
+                &mut spans,
+                fitted_hint.as_str(),
+                muted,
+                geom.hint_gap_rows,
+            );
         }
         let footer_lines: Vec<String> = geom.footer.iter().map(|t| format!("\n{t}")).collect();
         if geom.footer_rows > 0 {
