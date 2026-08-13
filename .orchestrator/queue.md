@@ -72,6 +72,8 @@ re-scope, sidecar semantics, and removal of public project/browse wording. Read
 
 ### 413 — add an openly licensed `⌫` to AwlMarks
 
+🟡 IN PROGRESS — queue-413 (codex), branch codex/queue-413-awlmarks-backspace
+
 U+232B `⌫`, used throughout footer Back cells, exists in no bundled face and
 currently falls through to system fonts with host-dependent metrics. Add it to
 `assets/fonts/AwlMarks.ttf`. The glyph must be original or sourced under a
@@ -84,6 +86,8 @@ no system fallback, tofu, or host-dependent advance. Read `docs/fonts.md` and
 
 ### 406 — remove the obsolete tracked wasm without rewriting history
 
+🟡 IN PROGRESS — queue-406 (codex), branch codex/queue-406-remove-wasm
+
 Remove `site/editor/awl-347842567538f209_bg.wasm`: the unused 43 MB artifact
 contains 456 baked `/Users/frank/…` Cargo paths. Do not rewrite Git history; the
 strings are paths, not secrets. The deploy already builds a fresh remapped wasm
@@ -94,6 +98,8 @@ fresh bundle contains no home path. No release or deployment is authorized by
 this item.
 
 ### 404 — make zoom 1.0 the single default
+
+🟡 IN PROGRESS — queue-404 (codex), branch codex/queue-404-zoom-default
 
 Windowed launch uses `app::INITIAL_ZOOM = 0.8`; capture and the settings range
 default to 1.0. Make 1.0 authoritative for launch, capture, and configuration
