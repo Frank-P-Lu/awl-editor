@@ -439,17 +439,21 @@ impl App {
             })
             .filter_map(|rel| goto_corpus.iter().position(|c| *c == rel))
             .collect();
-        let goto_headings: Vec<(String, usize)> =
-            if matches!(action, Action::OpenGoto | Action::OpenOutline)
-                && self.document.buffer().is_markdown()
-            {
-                crate::markdown::headings(&self.document.buffer().text())
-                    .into_iter()
-                    .map(|h| (h.label(), h.line))
-                    .collect()
-            } else {
-                Vec::new()
-            };
+        let goto_headings: Vec<(String, usize)> = if matches!(
+            action,
+            Action::OpenGoto
+                | Action::OpenProject
+                | Action::OpenRecentProjects
+                | Action::OpenOutline
+        ) && self.document.buffer().is_markdown()
+        {
+            crate::markdown::headings(&self.document.buffer().text())
+                .into_iter()
+                .map(|h| (h.label(), h.line))
+                .collect()
+        } else {
+            Vec::new()
+        };
         GotoInputs {
             goto_corpus,
             goto_times,
@@ -566,6 +570,15 @@ impl App {
             row_gates,
         } = self.gather_overlay_inputs(action);
         let location = &self.project_location;
+        let recent_folder_paths: Vec<String> = location
+            .recent_projects
+            .iter()
+            .map(|path| path.to_string_lossy().to_string())
+            .collect();
+        let (goto_folders, goto_recent_folders) = crate::overlay::goto_folder_roster(
+            location.workspace_root.as_deref(),
+            &recent_folder_paths,
+        );
         let build_ctx = crate::overlay::BuildCtx {
             goto_corpus,
             goto_open,
@@ -574,6 +587,8 @@ impl App {
             config_keys: &config_keys,
             config_linux_keep: &config_linux_keep,
             goto_headings,
+            goto_folders,
+            goto_recent_folders,
             spell_target,
             history_entries,
             history_now: Some(crate::history::now_millis()),
@@ -695,12 +710,59 @@ impl App {
             actions::Effect::Daemon(actions::DaemonEffect::NotifyFinished) => {
                 self.notify_finished_buffer()
             }
-            actions::Effect::Surface(actions::SurfaceEffect::ShowAbout) => {
-                #[cfg(target_os = "macos")]
-                crate::mac_about::show();
-                #[cfg(not(target_os = "macos"))]
-                crate::about::set_open(true);
-            }
+            actions::Effect::Surface(surface) => match surface {
+                actions::SurfaceEffect::ShowAbout => {
+                    #[cfg(target_os = "macos")]
+                    crate::mac_about::show();
+                    #[cfg(not(target_os = "macos"))]
+                    crate::about::set_open(true);
+                }
+                actions::SurfaceEffect::OpenFileChooser => {
+                    #[cfg(target_os = "macos")]
+                    if self.frame.gpu().is_some()
+                        && let Some(path) =
+                            crate::mac_chrome::pick_file_to_open(Some(&self.project_location.root))
+                    {
+                        self.apply_file_choice(Some(path));
+                    }
+                    #[cfg(not(target_os = "macos"))]
+                    {
+                        let root = self.project_location.root.clone();
+                        let workspace = self.project_location.workspace_root.clone();
+                        let overlay = crate::overlay::browse_level(
+                            crate::overlay::OverlayKind::Browse,
+                            None,
+                            &root,
+                            workspace.as_deref(),
+                            &[],
+                        );
+                        self.workspace_state.core_slots().1.enter(overlay);
+                    }
+                }
+                actions::SurfaceEffect::OpenFolderChooser => {
+                    #[cfg(target_os = "macos")]
+                    if self.frame.gpu().is_some()
+                        && let Some(path) = crate::mac_chrome::pick_folder_to_open(
+                            self.project_location.workspace_root.as_deref(),
+                        )
+                    {
+                        self.apply_folder_choice(Some(path));
+                    }
+                    #[cfg(not(target_os = "macos"))]
+                    {
+                        let root = self.project_location.root.clone();
+                        let workspace = self.project_location.workspace_root.clone();
+                        let overlay = crate::overlay::browse_level(
+                            crate::overlay::OverlayKind::ProjectBrowse,
+                            None,
+                            &root,
+                            workspace.as_deref(),
+                            &[],
+                        );
+                        self.workspace_state.core_slots().1.enter(overlay);
+                    }
+                }
+            },
             actions::Effect::Notice(effect) => self.apply_notice_effect(effect),
             actions::Effect::Render(effect) => self.apply_render_effect(effect),
             // NOTES VERBS round: the RENAME minibuffer committed — perform the

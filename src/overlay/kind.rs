@@ -97,7 +97,7 @@ impl OverlayKind {
     pub fn row_meta_roster(self) -> &'static [super::RowMetaTag] {
         use super::RowMetaTag::*;
         match self {
-            OverlayKind::Goto => &[GotoFile, GotoHeading],
+            OverlayKind::Goto => &[GotoFile, GotoHeading, GotoFolder, FolderChooser],
             OverlayKind::Command => &[Plain, CommandHidden, CommandSetting],
             OverlayKind::Context => &[Plain],
             OverlayKind::Spell => &[Plain, SpellAdd],
@@ -355,7 +355,7 @@ impl OverlayKind {
             OverlayKind::Browse => {
                 vec![enter("open"), key(ARROWS_LR, "lens"), key("\u{232B}", "up")]
             }
-            OverlayKind::Goto => vec![enter("open"), key(ARROWS_LR, "lens")],
+            OverlayKind::Goto => vec![enter("open"), key(ARROWS_LR, "lens"), key("esc", "close")],
             OverlayKind::Theme => vec![enter("keep"), key("esc", "revert")],
             OverlayKind::Caret => vec![enter("apply")],
             OverlayKind::Dictionary => vec![enter("apply")],
@@ -546,8 +546,10 @@ impl OverlayKind {
 
     pub fn empty_lens_message(self, lens: &str) -> Option<&'static str> {
         match (self, lens) {
-            (OverlayKind::Goto, "recent") => Some("no recent files yet"),
+            (OverlayKind::Goto, "files") => Some("no files here"),
             (OverlayKind::Goto, "headings") => Some("no headings yet"),
+            (OverlayKind::Goto, "folders") => Some("no folders here"),
+            (OverlayKind::Goto, "recent") => Some("no recent destinations"),
             (OverlayKind::Project, "recent") => Some("no recent projects yet"),
             (_, "all") => None,
             _ => Some("nothing here"),

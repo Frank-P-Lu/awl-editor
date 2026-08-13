@@ -232,7 +232,7 @@ pub(crate) fn symbol_for(id: &str) -> Option<&'static str> {
     match id {
         "awl.new_document" => Some("square.and.pencil"), // the compose / new-note glyph
         "awl.open" => Some("folder"),                    // the Finder-style "open a file" glyph
-        "awl.switch_project" => Some("folder.badge.gearshape"), // switch the active project folder
+        "awl.open_folder" => Some("folder.badge.gearshape"), // choose the active writing folder
         "awl.save" => Some("square.and.arrow.down"),     // the standard save/download glyph
         "awl.finish_buffer" => Some("checkmark.circle"), // "done with this buffer" (server-edit)
         "awl.switch_theme" => Some("paintpalette"),      // a palette of swatches
@@ -249,7 +249,7 @@ fn draw_for(id: &str) -> Option<(Vec<u8>, u32, u32)> {
     Some(match id {
         "awl.new_document" => draw_new_document(),
         "awl.open" => draw_open(),
-        "awl.switch_project" => draw_switch_project(),
+        "awl.open_folder" => draw_switch_project(),
         "awl.save" => draw_save(),
         "awl.finish_buffer" => draw_finish_buffer(),
         "awl.switch_theme" => draw_switch_theme(),
@@ -346,7 +346,7 @@ mod tests {
         for id in [
             "awl.new_document",
             "awl.open",
-            "awl.switch_project",
+            "awl.open_folder",
             "awl.save",
             "awl.finish_buffer",
             "awl.switch_theme",

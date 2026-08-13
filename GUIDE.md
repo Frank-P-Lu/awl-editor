@@ -188,11 +188,9 @@ drift into this page silently.
 <!-- GENERATED:keys-reference:BEGIN -->
 | Command | macOS | Linux |
 |---|---|---|
-| Go to file… | ⌘O | Ctrl+O |
-| Switch project… | ⌘⇧P | Ctrl+Shift+P |
-| Recent projects… |  |  |
-| Browse files… |  |  |
-| Go to heading… |  |  |
+| Go to… | ⌘O | Ctrl+O |
+| Open file… |  |  |
+| Open folder… |  |  |
 | Spell suggestions… | ⌘; | Ctrl+; |
 | Version history… | ⌘⇧H | Ctrl+Shift+H |
 | Compare with version… |  |  |

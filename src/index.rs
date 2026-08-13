@@ -66,26 +66,31 @@ pub fn is_hidden_entry(rel: &str) -> bool {
 /// bucket/cycle machinery, and an empty lens is calmer than per-instance strip
 /// surgery.) The former **By type** lens was CUT (decision: redundant once the
 /// unified All list exists — a fuzzy query already reaches a file by its extension).
-const GOTO_FACET_STRIP: [Facet; 4] = [
+const GOTO_FACET_STRIP: [Facet; 5] = [
     Facet {
         label: "All",
         id: "all",
         sections: &[],
     },
     Facet {
-        label: "Recent",
-        id: "recent",
-        sections: &["Recent"],
-    },
-    Facet {
-        label: "This folder",
-        id: "folder",
-        sections: &["This folder"],
+        label: "Files",
+        id: "files",
+        sections: &["Files"],
     },
     Facet {
         label: "Headings",
         id: "headings",
         sections: &["Headings"],
+    },
+    Facet {
+        label: "Folders",
+        id: "folders",
+        sections: &["Folders"],
+    },
+    Facet {
+        label: "Recent",
+        id: "recent",
+        sections: &["Recent"],
     },
 ];
 
@@ -103,10 +108,11 @@ const GOTO_FACET_STRIP: [Facet; 4] = [
 /// Go-to's corpus appends the doc's headings after its files.
 fn goto_bucket(item: FacetItem, lens_idx: usize) -> Option<&'static str> {
     match lens_idx {
-        1 => item.recent.then_some("Recent"), // Recent: ONLY recently-OPENED files (a real MRU)
-        2 => (!item.heading && !item.accept.contains('/')).then_some("This folder"),
-        3 => item.heading.then_some("Headings"), // Headings: the doc's heading rows only
-        _ => None,                               // 0 = All (never grouped)
+        1 => (!item.heading && !item.is_dir).then_some("Files"),
+        2 => item.heading.then_some("Headings"),
+        3 => (item.is_dir || item.accept == "Choose another folder…").then_some("Folders"),
+        4 => item.recent.then_some("Recent"),
+        _ => None, // 0 = All (never grouped)
     }
 }
 

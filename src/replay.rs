@@ -137,7 +137,21 @@ pub fn classify_for(effect: &Effect, filesystem: FilesystemCapability) -> Classi
         Effect::Daemon(crate::actions::DaemonEffect::NotifyFinished) => {
             intercepted("daemon_notify_finished", String::new())
         }
-        Effect::Surface(crate::actions::SurfaceEffect::ShowAbout) => c("show_about", applied),
+        Effect::Surface(surface) => match surface {
+            crate::actions::SurfaceEffect::ShowAbout => c("show_about", applied),
+            crate::actions::SurfaceEffect::OpenFileChooser => c(
+                "open_file_chooser",
+                unsupported(
+                    "the platform file chooser is live-only; capture the resulting open separately",
+                ),
+            ),
+            crate::actions::SurfaceEffect::OpenFolderChooser => c(
+                "open_folder_chooser",
+                unsupported(
+                    "the platform folder chooser is live-only; capture the resulting rescope separately",
+                ),
+            ),
+        },
         Effect::Notice(notice) => match notice {
             crate::actions::NoticeEffect::Toast(_) => c("notice_toast", applied),
             crate::actions::NoticeEffect::Sticky(_) => c("notice_sticky", applied),

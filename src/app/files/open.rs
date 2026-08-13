@@ -1,6 +1,27 @@
 use crate::app::*;
 
 impl App {
+    /// Apply the result of a platform file chooser. Kept separate from the
+    /// modal panel so Cancel and accepted-path behavior are testable without an
+    /// OS surface. Returns whether a choice was committed.
+    pub(in crate::app) fn apply_file_choice(&mut self, chosen: Option<PathBuf>) -> bool {
+        let Some(path) = chosen else {
+            return false;
+        };
+        self.load_path(path);
+        true
+    }
+
+    /// Apply the result of a platform folder chooser through the same rescope,
+    /// session, and recent-folder owner as a typed Go-to folder row.
+    pub(in crate::app) fn apply_folder_choice(&mut self, chosen: Option<PathBuf>) -> bool {
+        let Some(path) = chosen else {
+            return false;
+        };
+        self.switch_project(path);
+        true
+    }
+
     pub(in crate::app) fn open_settings(&mut self) {
         let path = self.config.path.clone();
         if path.as_os_str().is_empty() {

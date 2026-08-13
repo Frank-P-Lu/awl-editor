@@ -46,11 +46,9 @@ use TaskCategory::{Files, Format, Navigate, Settings, Tools, View};
 /// table with `COMMANDS` in both directions, so a new catalog row stays red until
 /// it receives exactly one category here.
 const COMMAND_TASK_CATEGORIES: &[(&str, TaskCategory)] = &[
-    ("Go to file…", Navigate),
-    ("Switch project…", Files),
-    ("Recent projects…", Files),
-    ("Browse files…", Files),
-    ("Go to heading…", Navigate),
+    ("Go to…", Navigate),
+    ("Open file…", Files),
+    ("Open folder…", Files),
     ("Spell suggestions…", Tools),
     ("Version history…", Files),
     ("Compare with version…", Files),

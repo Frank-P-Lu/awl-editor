@@ -177,10 +177,14 @@ impl<'a> ReplaySession<'a> {
                 }
                 true
             }
-            actions::Effect::Surface(actions::SurfaceEffect::ShowAbout) => {
-                crate::about::set_open(true);
-                true
-            }
+            actions::Effect::Surface(surface) => match surface {
+                actions::SurfaceEffect::ShowAbout => {
+                    crate::about::set_open(true);
+                    true
+                }
+                actions::SurfaceEffect::OpenFileChooser
+                | actions::SurfaceEffect::OpenFolderChooser => false,
+            },
             actions::Effect::SettingToggle { key } => {
                 self.interpret_setting_toggle(key);
                 true

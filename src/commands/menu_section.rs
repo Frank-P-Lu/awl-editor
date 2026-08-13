@@ -1,8 +1,8 @@
 pub(super) const FILE_COMMANDS: &[&str] = &[
     "New document",
-    "Browse files…",
-    "Switch project…",
-    "Recent projects…",
+    "Go to…",
+    "Open file…",
+    "Open folder…",
     "Save",
     "Finish file",
     "Export as PDF…",

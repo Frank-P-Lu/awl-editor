@@ -61,6 +61,13 @@ impl OverlayState {
             ranked.retain(|ci| !terminal.contains(ci));
             ranked.extend(terminal);
         }
+        // The folder chooser is a fallback action, not a known destination. It
+        // belongs only to the Folders lens: All remains the literal union of
+        // authored destinations, and Files/Headings/Recent cannot leak it.
+        ranked.retain(|&i| {
+            !matches!(self.rows[i].meta, RowMeta::FolderChooser)
+                || self.active_facet_id() == Some("folders")
+        });
         // RUNTIME-GATED ROW FILTER (Command palette only, today): drop any row
         // marked `RowMeta::CommandHidden` (e.g. "Finish file" with no daemon
         // `--wait` client actively waiting — see `commands::visible_hidden_mask`).
@@ -395,6 +402,12 @@ impl OverlayState {
             .unwrap_or(false)
     }
 
+    pub fn selected_is_goto_folder(&self) -> bool {
+        self.selected_corpus_index()
+            .and_then(|i| self.rows.get(i))
+            .is_some_and(|row| matches!(row.meta, RowMeta::GotoFolder))
+    }
+
     pub fn selected_is_add_to_dictionary(&self) -> bool {
         self.selected_corpus_index()
             .map(|i| matches!(self.rows.get(i).map(|r| &r.meta), Some(RowMeta::SpellAdd)))
@@ -555,6 +568,8 @@ impl OverlayState {
             .iter()
             .map(|&i| match &self.rows[i].meta {
                 RowMeta::GotoHeading { .. } => "heading".to_string(),
+                RowMeta::GotoFolder => "folder".to_string(),
+                RowMeta::FolderChooser => String::new(),
                 RowMeta::GotoFile { time } => time.clone(),
                 _ => String::new(),
             })

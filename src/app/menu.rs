@@ -85,8 +85,10 @@ impl App {
             // syncs); then paint, per the post-`apply` pattern above. Cancel /
             // off-main-thread is a calm no-op.
             Some(Action::OpenBrowse) => {
-                if let Some(path) = crate::mac_chrome::pick_file_to_open() {
-                    self.load_path(path);
+                if let Some(path) =
+                    crate::mac_chrome::pick_file_to_open(Some(&self.project_location.root))
+                {
+                    self.apply_file_choice(Some(path));
                     self.request_frame();
                 }
                 return;

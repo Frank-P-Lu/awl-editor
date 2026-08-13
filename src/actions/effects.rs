@@ -90,6 +90,12 @@ pub enum SurfaceEffect {
     /// Show the platform's About surface. The transition does not decide
     /// whether that is the macOS panel or awl's in-app card.
     ShowAbout,
+    /// Ask the platform for a file. A real native panel is live-only; non-native
+    /// interpreters may use their existing in-app chooser.
+    OpenFileChooser,
+    /// Ask the platform for a folder, initially scoped to the configured
+    /// workspace. Accepting it switches the active writing folder.
+    OpenFolderChooser,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

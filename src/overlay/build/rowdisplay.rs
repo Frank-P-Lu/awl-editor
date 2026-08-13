@@ -36,6 +36,13 @@ pub(in crate::overlay) fn row_display(
     if matches!(row.meta, RowMeta::GotoHeading { .. }) {
         return format!("{}{}", OverlayKind::HEADING_MARKER_PREFIX, row.accept);
     }
+    if matches!(row.meta, RowMeta::GotoFolder) {
+        let mut display = super::recent::label(&row.accept, None);
+        if !display.ends_with('/') {
+            display.push('/');
+        }
+        return display;
+    }
     // A REMEMBERED root carries its whole absolute path (that path IS the
     // project, wherever it lives), so it is the one switch-project row that
     // reads as a path rather than as a name — shortened against the level or

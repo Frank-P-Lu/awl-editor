@@ -94,8 +94,8 @@ impl OverlayState {
 
     /// Pre-lens a freshly-built faceting overlay onto the lens whose sidecar `id` is
     /// `id`, if this picker's scheme carries one — the door for a "go straight to a
-    /// refinement" command (the palette's "Go to heading…" opens Go-to on `headings`;
-    /// "Recent projects…" opens Switch project on `recent`). A no-op when the picker
+    /// refinement" command (the contextual heading door opens Go-to on `headings`;
+    /// Cmd-Shift-P opens it on `folders`). A no-op when the picker
     /// doesn't facet or has no lens by that id.
     pub fn focus_facet_id(&mut self, id: &str) {
         if let Some(sc) = self.facet_scheme()

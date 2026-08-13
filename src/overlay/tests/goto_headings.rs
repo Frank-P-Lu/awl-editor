@@ -12,9 +12,9 @@ fn goto_headings_lens_folds_in_the_docs_headings() {
         ("Introduction".to_string(), 3),
         ("  Details".to_string(), 7),
     ]);
-    // Strip carries the Headings lens, parked last — "By type" was CUT.
+    // Strip carries every destination type plus the combined Recent lens.
     let strip: Vec<String> = ov.lens_strip().into_iter().map(|(l, _)| l).collect();
-    assert_eq!(strip, vec!["All", "Recent", "This folder", "Headings"]);
+    assert_eq!(strip, vec!["All", "Files", "Headings", "Folders", "Recent"]);
     // ALL home: files AND headings, mixed in the same fuzzy-ranked list. A heading
     // row carries the `❡ ` KIND-HINT marker (the rowlayout PRIMARY-cell
     // disambiguator); a file row never does.
@@ -31,7 +31,7 @@ fn goto_headings_lens_folds_in_the_docs_headings() {
         "headings mixed into All, marked: {all:?}"
     );
     assert_eq!(all.len(), 4);
-    // Headings lens (strip index 3): ONLY the headings, and each row IS a heading
+    // Headings lens: ONLY the headings, and each row IS a heading
     // whose accept is its line number, not a file open.
     ov.focus_facet_id("headings");
     assert_eq!(ov.active_facet_id(), Some("headings"));
@@ -48,8 +48,8 @@ fn goto_headings_lens_folds_in_the_docs_headings() {
         Some(3),
         "the first heading jumps to line 3"
     );
-    // "This folder" (strip index 2): a file-only REFINEMENT — headings drop out.
-    ov.set_facet_lens(2);
+    // Files lens: a file-only REFINEMENT — headings drop out.
+    ov.focus_facet_id("files");
     let folder = ov.item_strings();
     assert!(
         !folder

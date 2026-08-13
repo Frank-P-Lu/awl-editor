@@ -43,6 +43,12 @@ pub enum RowMeta {
     GotoHeading {
         line: usize,
     },
+    /// A folder destination in the unified Go-to roster. Its absolute path is
+    /// carried in `OverlayRow::accept`; accepting it switches the active writing
+    /// folder through the same typed `OverlayAccept(Project, ..)` effect as the
+    /// older folder picker.
+    GotoFolder,
+    FolderChooser,
     CommandSetting {
         id: crate::settings::SettingId,
     },
@@ -65,6 +71,8 @@ pub enum RowMetaTag {
     Plain,
     GotoFile,
     GotoHeading,
+    GotoFolder,
+    FolderChooser,
     CommandSetting,
     CommandHidden,
     SpellAdd,
@@ -79,6 +87,8 @@ impl RowMeta {
             RowMeta::Plain => RowMetaTag::Plain,
             RowMeta::GotoFile { .. } => RowMetaTag::GotoFile,
             RowMeta::GotoHeading { .. } => RowMetaTag::GotoHeading,
+            RowMeta::GotoFolder => RowMetaTag::GotoFolder,
+            RowMeta::FolderChooser => RowMetaTag::FolderChooser,
             RowMeta::CommandSetting { .. } => RowMetaTag::CommandSetting,
             RowMeta::CommandHidden => RowMetaTag::CommandHidden,
             RowMeta::SpellAdd => RowMetaTag::SpellAdd,
@@ -95,10 +105,11 @@ impl RowMeta {
     /// surface. [`OverlayState::refilter`] is the one consumer.
     pub fn terminal(&self) -> bool {
         match self {
-            RowMeta::SpellAdd | RowMeta::ProjectDoor => true,
+            RowMeta::SpellAdd | RowMeta::ProjectDoor | RowMeta::FolderChooser => true,
             RowMeta::Plain
             | RowMeta::GotoFile { .. }
             | RowMeta::GotoHeading { .. }
+            | RowMeta::GotoFolder
             | RowMeta::CommandSetting { .. }
             | RowMeta::CommandHidden
             | RowMeta::History { .. } => false,
@@ -630,6 +641,41 @@ impl OverlayState {
                 range: None,
             });
         }
+        self.refilter();
+    }
+
+    /// Fold authored folder destinations into Go-to. `recent_paths` is ordered
+    /// newest-first and is translated into corpus indices here, beside the rows
+    /// it ranks, so Files and Folders share one Recent lens without parallel
+    /// index arithmetic at callers.
+    pub fn attach_folders(&mut self, folders: Vec<(String, bool)>, recent_paths: &[String]) {
+        if self.kind != OverlayKind::Goto {
+            return;
+        }
+        let start = self.rows.len();
+        for (path, is_git) in folders {
+            self.rows.push(OverlayRow {
+                accept: path,
+                secondary: String::new(),
+                is_dir: true,
+                git: is_git,
+                meta: RowMeta::GotoFolder,
+                range: None,
+            });
+        }
+        for path in recent_paths {
+            if let Some(ci) = self.rows[start..]
+                .iter()
+                .position(|row| &row.accept == path)
+                .map(|i| start + i)
+                && !self.recent.contains(&ci)
+            {
+                self.recent.push(ci);
+            }
+        }
+        let mut chooser = OverlayRow::plain("Choose another folder…".to_string());
+        chooser.meta = RowMeta::FolderChooser;
+        self.rows.push(chooser);
         self.refilter();
     }
 

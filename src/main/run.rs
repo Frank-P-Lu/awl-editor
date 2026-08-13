@@ -441,6 +441,8 @@ impl<'a> ReplaySession<'a> {
                 Vec::new()
             };
             let effective_keep = self.config.effective_linux_keep();
+            let (goto_folders, goto_recent_folders) =
+                crate::overlay::goto_folder_roster(Some(&self.workspace), &[]);
             let build_ctx = crate::overlay::BuildCtx {
                 goto_corpus: self.corpus.to_vec(),
                 goto_open: Vec::new(),
@@ -449,6 +451,8 @@ impl<'a> ReplaySession<'a> {
                 config_keys: &self.config.keys,
                 config_linux_keep: &effective_keep,
                 goto_headings,
+                goto_folders,
+                goto_recent_folders,
                 spell_target,
                 history_entries,
                 history_now: None,
