@@ -252,34 +252,6 @@ pub(in crate::render) fn fit_item_rows_after_px(
     (((avail_px - reserved_px.max(0.0)).max(0.0) / lh).floor() as usize).max(min_items)
 }
 
-/// Resolve a fixed-height workspace's candidate capacity after charging its
-/// header, empty-state and compact teaching footer. This is planner-owned row
-/// arithmetic: consumers receive the resolved item cap and header beat instead
-/// of rebuilding a candidate-band origin from loose row counts.
-#[allow(clippy::too_many_arguments)]
-pub(in crate::render) fn fit_workspace_item_rows(
-    avail_px: f32,
-    lh: f32,
-    header_rows: usize,
-    header_gap: f32,
-    empty_rows: usize,
-    footer_reserve: f32,
-    footer_present: bool,
-    min_items: usize,
-) -> (usize, f32) {
-    let mut planned_gap = header_gap;
-    let fixed_rows = header_rows.saturating_add(empty_rows);
-    let mut reserved_px = fixed_rows as f32 * lh + planned_gap + footer_reserve;
-    if footer_present && reserved_px > avail_px {
-        reserved_px -= planned_gap;
-        planned_gap = 0.0;
-    }
-    (
-        fit_item_rows_after_px(avail_px, lh, reserved_px, min_items),
-        planned_gap,
-    )
-}
-
 /// A SECTIONED card's item cap: [`fit_item_rows`]'s answer, except that an
 /// answer of ZERO is re-derived with the section headers billed TIGHTLY before
 /// it is accepted.

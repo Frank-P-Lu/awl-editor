@@ -20,9 +20,9 @@ mod accessory_law;
 /// deliberately do without.
 mod panel_law;
 
+use super::overlay_header::fit_workspace_item_rows;
 use super::overlay_rows::{
-    OverlayRowPlanInput, PlanLine, fit_item_rows, fit_item_rows_after_px, fit_workspace_item_rows,
-    plan_overlay_rows,
+    OverlayRowPlanInput, PlanLine, fit_item_rows, fit_item_rows_after_px, plan_overlay_rows,
 };
 
 const CARD_X: f32 = 420.0;
