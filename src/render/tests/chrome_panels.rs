@@ -1671,6 +1671,136 @@ fn keycap_glyphs_are_symbols_and_bundled() {
     );
 }
 
+/// Read the Back glyph id and source advance from the bundled file, before any
+/// system font database can participate.
+fn bundled_back_glyph_id() -> u32 {
+    use glyphon::cosmic_text::skrifa::{
+        FontRef, MetadataProvider,
+        instance::{LocationRef, Size},
+    };
+
+    let bundled = FontRef::new(FONT_SYMBOLS).expect("AwlMarks parses");
+    let gid = bundled
+        .charmap()
+        .map('\u{232B}')
+        .expect("AwlMarks must cover U+232B — otherwise the footer is host fallback/tofu");
+    assert_ne!(gid.to_u32(), 0, "U+232B must not resolve to .notdef");
+    let advance = bundled
+        .glyph_metrics(Size::unscaled(), LocationRef::default())
+        .advance_width(gid)
+        .expect("U+232B has a horizontal advance");
+    assert_eq!(
+        advance, 1197.0,
+        "AwlMarks pins U+232B's source advance in font units"
+    );
+    gid.to_u32()
+}
+
+/// THE WORKSPACE BACK GLYPH HAS ONE OWNER ON EVERY HOST. The exact world
+/// roster shapes the real content-stage footer, then asks the resulting glyph
+/// which registered face and glyph id supplied it. Family-name matching alone
+/// is not enough: a missing cmap entry can still fall through to a system face,
+/// so this law also pins the bundled file's nonzero glyph id and unscaled
+/// advance, and requires every shaped footer to carry that exact pair with one
+/// exact layout advance. A new world enrolls itself through `theme::THEMES`.
+#[test]
+fn workspace_back_glyph_is_awlmarks_in_every_world() {
+    let _g = crate::testlock::serial();
+    let back = crate::overlay::workspace::BackKey::Erase.glyph();
+    assert_eq!(back, "\u{232B}", "the Erase Back is U+232B");
+    assert!(
+        is_symbol('\u{232B}'),
+        "U+232B is routed as a bundled symbol"
+    );
+    let runs = symbol_runs("\u{232B} back");
+    assert_eq!(runs.len(), 1, "the Back keycap makes one symbol run");
+    assert_eq!(
+        runs[0],
+        0.."\u{232B}".len(),
+        "the Back keycap alone receives symbol attrs"
+    );
+
+    let bundled_gid = bundled_back_glyph_id();
+
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
+        eprintln!("skipping workspace_back_glyph_is_awlmarks_in_every_world: no wgpu adapter");
+        return;
+    };
+    let marks_id = p
+        .font_system
+        .db()
+        .faces()
+        .find(|f| f.families.iter().any(|(name, _)| name == SYMBOL_FAMILY))
+        .map(|f| f.id)
+        .expect("the bundled AwlMarks face is registered");
+    let ov = super::workspace_back_width::enrolled()
+        .into_iter()
+        .next()
+        .map(super::workspace_back_width::card_in_content)
+        .expect("at least one content-stage workspace enrolls");
+    assert_eq!(
+        ov.detail_back(),
+        Some(crate::overlay::workspace::BackKey::Erase),
+        "the empty content-stage query earns the Erase Back"
+    );
+
+    let ambient = theme::active_index();
+    let mut shaped_advance = None;
+    let mut enrolled = Vec::new();
+    for (world_i, world) in theme::THEMES.iter().enumerate() {
+        theme::set_active(world_i);
+        p.sync_theme();
+        p.set_view(&super::workspace_back_width::content_view(&ov));
+        p.prepare(&device, &queue, 1200, 800).unwrap();
+
+        let line_i = p
+            .overlay_hint_line()
+            .unwrap_or_else(|| panic!("{} shaped no workspace footer", world.name));
+        let line = p.panel_buffer.lines[line_i].text().to_string();
+        let glyph = p
+            .panel_buffer
+            .layout_runs()
+            .filter(|run| run.line_i == line_i)
+            .flat_map(|run| run.glyphs.iter())
+            .find(|g| line.get(g.start..g.end) == Some(back))
+            .unwrap_or_else(|| panic!("{} shaped no U+232B glyph in {line:?}", world.name));
+        assert_eq!(
+            glyph.font_id, marks_id,
+            "{} resolved U+232B through a system fallback instead of AwlMarks",
+            world.name
+        );
+        assert_eq!(
+            u32::from(glyph.glyph_id),
+            bundled_gid,
+            "{} did not shape AwlMarks' bundled U+232B glyph",
+            world.name
+        );
+        assert!(
+            glyph.w.is_finite() && glyph.w > 0.0,
+            "{} produced a bad U+232B advance: {}",
+            world.name,
+            glyph.w
+        );
+        let bits = glyph.w.to_bits();
+        if let Some((first_world, first_bits)) = shaped_advance {
+            assert_eq!(
+                bits, first_bits,
+                "{} changed U+232B's shaped advance from {}'s bundled value",
+                world.name, first_world
+            );
+        } else {
+            shaped_advance = Some((world.name, bits));
+        }
+        enrolled.push(world.name);
+    }
+    theme::set_active(ambient);
+    assert_eq!(
+        enrolled.len(),
+        theme::THEMES.len(),
+        "the exact world roster must be graded: {enrolled:?}"
+    );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // THE MENU-BAR SLIVER FIX — REAL-PIXEL proof (mirrors `render::tests::dither`'s
 // offscreen-texture readback dance in miniature; that helper is private inside its

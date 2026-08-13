@@ -1,16 +1,14 @@
 //! **THE BACK'S FOOTER HAS ROOM TO STAND IN, AND HOW MUCH ROOM IS A PROPERTY
 //! OF THE WORLD — SO EVERY WORLD IS ASKED.**
 //!
-//! `workspace_back_width` grades the footer's HORIZONTAL fit in three bands,
-//! because half of that comparison is a fact about the host: `⌫` is carried by
-//! no bundled face, so its advance comes from whatever the system font DB
-//! answers with, and a boolean at the card's right edge said one thing on a Mac
-//! and another on CI. This file grades the OTHER axis, and it deliberately does
-//! NOT band it.
+//! `workspace_back_width` grades the footer's HORIZONTAL fit in three bands:
+//! room, a tight edge, and substantial overrun. U+232B is carried by AwlMarks,
+//! and the exact-world footer law pins that face and advance on every host. This
+//! file grades the OTHER axis, and it deliberately does NOT band it.
 //!
 //! # WHY THERE IS NO BAND HERE
 //!
-//! Nothing a host can substitute moves the vertical measurement. The chain from
+//! Nothing in glyph shaping moves the vertical measurement. The chain from
 //! the card's top to the footer's baseline is closed arithmetic over quantities
 //! awl sets:
 //!
@@ -21,18 +19,13 @@
 //!   * the footer's own row is `round(overlay_lh * OVERLAY_HINT_ROW)`, and the
 //!     shaper hands that height to the line rather than letting the line ask for
 //!     one;
-//!   * the panel buffer shapes at `Wrap::None`, so no substituted advance can
+//!   * the panel buffer shapes at `Wrap::None`, so no glyph advance can
 //!     spill a line into a second row and push the footer down a pitch;
 //!   * the card's own height is the canvas less the menu bar's reserve.
 //!
-//! A substituted glyph gets no vote anywhere in that list, and that was measured
-//! rather than assumed: across all 94 laid-out cells of the width law's sweep,
-//! on macOS against Apple Symbols and on Debian against its own font set, the
-//! vertical demand agrees TO THE BYTE while every shaped width differs by one
-//! common factor.
-//!
-//! So a `HOST_BAND` analogue here would open a grade no host could ever populate
-//! — a ledger that reads as coverage and holds nothing. The vertical grade stays
+//! A glyph advance gets no vote anywhere in that list. So an `EDGE_BAND`
+//! analogue here would open a grade the vertical axis cannot populate — a
+//! ledger that reads as coverage and holds nothing. The vertical grade stays
 //! exact, and what it gains instead is NOTICE: a cell that walks toward the edge
 //! is ledgered by name at the demand it walked to ([`CROWDED`]), so getting
 //! closer reddens rather than passing quietly until the day it crosses.
@@ -56,7 +49,7 @@
 //! | `Rules` | 1.2433 — past the card's bottom |
 //! | `Bars` | never laid out at all |
 //!
-//! One cell, three outcomes, none of them a host's doing. The width law's own
+//! One cell, three outcomes. The width law's own
 //! vertical readings are all taken at whatever world happens to be active when
 //! it runs, so its `STARVED` ledger is a single pitch's answer wearing no label.
 //! This law asks the ROSTER.
@@ -317,8 +310,8 @@ fn assert_the_ledgers_are_unchanged(spilled: &[String], crowded: &[String], star
         "the set of (row pitch, cell) pairs whose footer is drawn past the bottom of its own card \
          changed. A pair that is here and not in SPILLED is a NEW spill — fix it. A pair in \
          SPILLED that is no longer here has been fixed — delete its entry. Nothing about this \
-         axis is the host's: the vertical chain is exact arithmetic and agrees to the byte across \
-         hosts, so a change here is a change in the product."
+         axis is font-dependent: the vertical chain is exact product arithmetic, so a change \
+         here is a change in the product."
     );
     assert_eq!(
         crowded, CROWDED,
