@@ -49,7 +49,10 @@ use crate::overlay::OverlayKind;
 mod skip;
 mod typed;
 pub use skip::{SkippedEffect, permissive_skip};
-use typed::{classify_buffer, classify_clipboard, classify_persistence, classify_settings, named};
+use typed::{
+    classify_buffer, classify_clipboard, classify_notice, classify_persistence, classify_render,
+    classify_settings, classify_surface, named,
+};
 
 /// How a replay treats the effects (and chords) it cannot honestly apply.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -136,31 +139,9 @@ pub fn classify_for(effect: &Effect, filesystem: FilesystemCapability) -> Classi
         Effect::Daemon(crate::actions::DaemonEffect::NotifyFinished) => {
             intercepted("daemon_notify_finished", String::new())
         }
-        Effect::Surface(surface) => match surface {
-            crate::actions::SurfaceEffect::ShowAbout => c("show_about", applied),
-            crate::actions::SurfaceEffect::OpenFileChooser => c(
-                "open_file_chooser",
-                unsupported(
-                    "the platform file chooser is live-only; capture the resulting open separately",
-                ),
-            ),
-            crate::actions::SurfaceEffect::OpenFolderChooser => c(
-                "open_folder_chooser",
-                unsupported("the folder chooser is live-only; capture its rescope separately"),
-            ),
-        },
-        Effect::Notice(notice) => match notice {
-            crate::actions::NoticeEffect::Toast(_) => c("notice_toast", applied),
-            crate::actions::NoticeEffect::Sticky(_) => c("notice_sticky", applied),
-            crate::actions::NoticeEffect::Clear => c("notice_clear", applied),
-        },
-        Effect::Render(render) => match render {
-            crate::actions::RenderEffect::SyncView { .. } => c("sync_view", applied),
-            crate::actions::RenderEffect::Reshape => c("reshape", applied),
-            crate::actions::RenderEffect::ZoomChanged => c("zoom_changed", applied),
-            crate::actions::RenderEffect::Redraw => c("redraw", applied),
-            crate::actions::RenderEffect::EditStreak => c("edit_streak", applied),
-        },
+        Effect::Surface(surface) => classify_surface(surface),
+        Effect::Notice(notice) => classify_notice(notice),
+        Effect::Render(render) => classify_render(render),
         // Replay inserts the fixed capture date through the same editing owner.
         Effect::InsertDate => c("insert_date", applied),
         // Cosmetic one-shots settle byte-identically after the core operation.

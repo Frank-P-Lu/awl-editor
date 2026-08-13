@@ -512,6 +512,9 @@ fn accept_value_overlay(ctx: &mut ActionCtx) -> Effect {
     if let Some(effect) = accept_context(ctx) {
         return effect;
     }
+    if let Some(effect) = accept_process_value(ctx) {
+        return effect;
+    }
     let ov = ctx.journey.card().unwrap();
     if ov.kind == crate::overlay::OverlayKind::Command {
         let eff = ov
@@ -525,49 +528,6 @@ fn accept_value_overlay(ctx: &mut ActionCtx) -> Effect {
         // The highlighted value is already live; accepting keeps the audition.
         let eff = match ov.selected_value() {
             Some(v) => Effect::OverlayAccept(ov.kind, v.to_string()),
-            None => Effect::None,
-        };
-        dispose_after_accept(ctx);
-        return eff;
-    }
-    if ov.kind == crate::overlay::OverlayKind::Dictionary {
-        let eff = match ov
-            .selected_value()
-            .and_then(crate::spell::DictVariant::from_label)
-        {
-            Some(dv) => {
-                crate::spell::set_active_variant(dv);
-                Effect::OverlayAccept(ov.kind, dv.label().to_string())
-            }
-            None => Effect::None,
-        };
-        dispose_after_accept(ctx);
-        return eff;
-    }
-    if ov.kind == crate::overlay::OverlayKind::CjkLang {
-        let eff = match ov
-            .selected_value()
-            .and_then(crate::frontmatter::Lang::from_label)
-        {
-            Some(lang) => {
-                let promoted = crate::frontmatter::promote_cjk_priority(lang);
-                crate::frontmatter::set_cjk_priority(&promoted);
-                Effect::OverlayAccept(ov.kind, lang.code().to_string())
-            }
-            None => Effect::None,
-        };
-        dispose_after_accept(ctx);
-        return eff;
-    }
-    if ov.kind == crate::overlay::OverlayKind::Date {
-        let eff = match ov
-            .selected_corpus_index()
-            .and_then(|i| crate::dateformat::DateFormat::ALL.get(i).copied())
-        {
-            Some(fmt) => {
-                crate::dateformat::set_active_format(fmt);
-                Effect::OverlayAccept(ov.kind, fmt.config_name().to_string())
-            }
             None => Effect::None,
         };
         dispose_after_accept(ctx);
@@ -624,6 +584,40 @@ fn accept_value_overlay(ctx: &mut ActionCtx) -> Effect {
     };
     dispose_after_accept(ctx);
     eff
+}
+
+fn accept_process_value(ctx: &mut ActionCtx) -> Option<Effect> {
+    use crate::overlay::OverlayKind::{CjkLang, Date, Dictionary};
+    let ov = ctx.journey.card().unwrap();
+    let effect = match ov.kind {
+        Dictionary => ov
+            .selected_value()
+            .and_then(crate::spell::DictVariant::from_label)
+            .map(|variant| {
+                crate::spell::set_active_variant(variant);
+                Effect::OverlayAccept(Dictionary, variant.label().to_string())
+            }),
+        CjkLang => ov
+            .selected_value()
+            .and_then(crate::frontmatter::Lang::from_label)
+            .map(|lang| {
+                crate::frontmatter::set_cjk_priority(&crate::frontmatter::promote_cjk_priority(
+                    lang,
+                ));
+                Effect::OverlayAccept(CjkLang, lang.code().to_string())
+            }),
+        Date => ov
+            .selected_corpus_index()
+            .and_then(|index| crate::dateformat::DateFormat::ALL.get(index).copied())
+            .map(|format| {
+                crate::dateformat::set_active_format(format);
+                Effect::OverlayAccept(Date, format.config_name().to_string())
+            }),
+        _ => return None,
+    }
+    .unwrap_or(Effect::None);
+    dispose_after_accept(ctx);
+    Some(effect)
 }
 
 fn accept_context(ctx: &mut ActionCtx) -> Option<Effect> {

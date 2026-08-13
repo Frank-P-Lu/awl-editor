@@ -307,20 +307,7 @@ impl<'a> ReplaySession<'a> {
 
     pub(crate) fn apply_chord(&mut self, chord: &crate::keyspec::Chord) -> Result<()> {
         // Search owns every chord while its panel is open, exactly as in live input.
-        if self.search.is_some() {
-            let _ = crate::search::keys::intercept(
-                &mut self.search,
-                self.buffer,
-                &chord.key,
-                chord.mods.state(),
-            );
-            self.records.push(crate::storyboard::ChordTrace {
-                chord: chord.spec.clone(),
-                action: None,
-                effect: "search_input".to_string(),
-                class: "applied",
-                detail: String::new(),
-            });
+        if self.intercept_search_chord(chord) {
             return Ok(());
         }
         let Some(resolved) = self.resolver.resolve(chord)? else {
@@ -516,6 +503,26 @@ impl<'a> ReplaySession<'a> {
         Ok(())
     }
 
+    fn intercept_search_chord(&mut self, chord: &crate::keyspec::Chord) -> bool {
+        if self.search.is_none() {
+            return false;
+        }
+        let _ = crate::search::keys::intercept(
+            &mut self.search,
+            self.buffer,
+            &chord.key,
+            chord.mods.state(),
+        );
+        self.records.push(crate::storyboard::ChordTrace {
+            chord: chord.spec.clone(),
+            action: None,
+            effect: "search_input".to_string(),
+            class: "applied",
+            detail: String::new(),
+        });
+        true
+    }
+
     fn finish(self) -> ReplayResult {
         let buffers_open = self.registry.len() + 1;
         let zoom_out = if self.zoom != crate::range::ZOOM.default {
@@ -701,40 +708,14 @@ fn capture_screenshot(
         opts.search_replacement = res.replacement;
         opts.search_editing_replacement = res.editing_replacement;
     }
-    if let Some((kind, val)) = &res.accept {
-        match kind {
-            crate::overlay::OverlayKind::Goto => {}
-            // SWITCH-PROJECT: re-derive the WHOLE sidecar location from the
-            // accepted root through the one builder, never a subset of it —
-            // see [`project_info`] for the half-derivation this replaced. The
-            // replay session ITSELF re-scoped `root`/`workspace`/`corpus` the
-            // moment the accept fired (`ReplaySession::resync_project_location`,
-            // `docs/harness-reach.md` names this as the live-only residue, so a
-            // chord applied AFTER the
-            // accept reads the new tree exactly like live.
-            crate::overlay::OverlayKind::Project => {
-                opts.project = Some(project_info(
-                    std::path::Path::new(val),
-                    &workspace,
-                    Some(default_folder.as_path()),
-                    &config,
-                ));
-            }
-            // History: RESTORE the accepted version into the buffer (an undoable
-            // edit), so a `--keys "Cmd-S-h <down> <enter>"` capture reflects the
-            // restored text — the same `history::load` + `set_text` the App runs,
-            // keyed by the same shared `source_path` derivation.
-            crate::overlay::OverlayKind::History => {
-                if let Some(path) =
-                    crate::history::source_path(buffer.path(), buffer.is_unnamed_fresh())
-                    && let Some(content) = crate::history::load(&path, val)
-                {
-                    buffer.set_text(&content);
-                }
-            }
-            _ => {}
-        }
-    }
+    capture_fold::apply_replay_accept(
+        res.accept.as_ref(),
+        &mut buffer,
+        &mut opts,
+        &workspace,
+        &default_folder,
+        &config,
+    );
     if let Some((info, preview_text, diff)) = overlay_capture_info(&res.journey, &buffer) {
         opts.overlay = Some(info);
         opts.preview_text = preview_text;

@@ -15,6 +15,39 @@
 use crate::buffer::Buffer;
 use crate::capture::{self, CaptureOpts};
 
+pub(super) fn apply_replay_accept(
+    accept: Option<&(crate::overlay::OverlayKind, String)>,
+    buffer: &mut Buffer,
+    opts: &mut CaptureOpts,
+    workspace: &Option<std::path::PathBuf>,
+    default_folder: &std::path::Path,
+    config: &crate::config::Config,
+) {
+    let Some((kind, value)) = accept else {
+        return;
+    };
+    match kind {
+        crate::overlay::OverlayKind::Goto => {}
+        crate::overlay::OverlayKind::Project => {
+            opts.project = Some(super::project_info(
+                std::path::Path::new(value),
+                workspace,
+                Some(default_folder),
+                config,
+            ));
+        }
+        crate::overlay::OverlayKind::History => {
+            if let Some(path) =
+                crate::history::source_path(buffer.path(), buffer.is_unnamed_fresh())
+                && let Some(content) = crate::history::load(&path, value)
+            {
+                buffer.set_text(&content);
+            }
+        }
+        _ => {}
+    }
+}
+
 /// A DRIVEN EDITOR, as the sidecar fold reads it — the six facts
 /// [`fold_capture_state`] needs and nothing else. Implemented by
 /// [`super::ReplaySession`] (the shared-core driver behind `--keys`,
