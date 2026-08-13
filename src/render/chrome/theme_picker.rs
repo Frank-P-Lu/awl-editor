@@ -492,13 +492,10 @@ impl TextPipeline {
         elide: bool,
     ) {
         let fitted_hint = self.overlay_fitted_hint(geom);
-        let (m, faint) = (self.metrics, theme::faint().to_glyphon());
         // Per-line font sizes ride the overlay UI base (`OVERLAY_UI_SCALE`), and their
         // LINE HEIGHTS stay the uniform UI row height (`overlay_lh`) so the plan line
         // offsets, the selected band, and the underline `y` never drift from a per-span
         // metric taller than the row.
-        let ui = crate::render::effective_overlay_scale();
-        let lh = self.overlay_lh();
         let base = panel_attrs();
         let mk = |c| base.clone().color(c);
         let sigil = "› ";
@@ -543,46 +540,18 @@ impl TextPipeline {
         // spans carry the strip font size at the `strip_lh` (= `lh + header_gap`)
         // row height; the leading "\n" keeps the buffer's UI font size so the strip
         // row's font stays scale-invariant.
-        {
-            let mut cursor = 0usize;
-            let mut pushes: Vec<(std::ops::Range<usize>, glyphon::Color)> = Vec::new();
-            for (r, active) in label_ranges {
-                pushes.push((r.clone(), if *active { active_ink } else { muted }));
-            }
-            for r in sep_ranges {
-                pushes.push((r.clone(), faint));
-            }
-            pushes.sort_by_key(|(r, _)| r.start);
-            // The strip's own PLANNED box height, which carries the query beat so
-            // the calm divider falls after the lens strip and before the grouped
-            // rows. The inflation MUST ride the strip line's REAL LABEL glyphs,
-            // never its leading "\n": cosmic-text sizes a line from the glyphs ON
-            // it, and that "\n" is a BREAK terminating the PRIOR (query) line, so
-            // inflating it alone moves the planned band a half-row below the text
-            // — invisible under a gentle value band, but it clipped the selected
-            // row's glyphs once a 1-bit world drew them black on white.
-            let strip_lh = plan.strip_band().map_or(lh, |strip| strip.height);
-            spans.push((
-                &strip_s[0..1],
-                mk(faint).metrics(GlyphMetrics::new(m.font_size * ui, lh)),
-            ));
-            cursor += 1;
-            for (r, c) in pushes {
-                debug_assert_eq!(r.start, cursor, "strip spans must tile the line");
-                cursor = r.end;
-                let fs = if strip_scale < 1.0 {
-                    m.font_size * ui * strip_scale
-                } else {
-                    m.font_size * ui
-                };
-                spans.push((
-                    &strip_s[r],
-                    chrome_attrs()
-                        .color(c)
-                        .metrics(GlyphMetrics::new(fs, strip_lh)),
-                ));
-            }
-        }
+        self.push_theme_strip_spans(
+            &mut spans,
+            plan,
+            spans::ThemeStripSpec {
+                text: strip_s,
+                labels: label_ranges,
+                separators: sep_ranges,
+                scale: strip_scale,
+            },
+            active_ink,
+            muted,
+        );
         self.push_theme_plan_spans(
             &mut spans,
             geom,

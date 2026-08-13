@@ -1,6 +1,57 @@
 use super::*;
 
+pub(super) struct ThemeStripSpec<'a> {
+    pub(super) text: &'a str,
+    pub(super) labels: &'a [(std::ops::Range<usize>, bool)],
+    pub(super) separators: &'a [std::ops::Range<usize>],
+    pub(super) scale: f32,
+}
+
 impl TextPipeline {
+    pub(super) fn push_theme_strip_spans<'a>(
+        &self,
+        spans: &mut Vec<(&'a str, glyphon::Attrs<'a>)>,
+        plan: &OverlayRowPlan,
+        strip: ThemeStripSpec<'a>,
+        active_ink: glyphon::Color,
+        muted: glyphon::Color,
+    ) {
+        let m = self.metrics;
+        let ui = crate::render::effective_overlay_scale();
+        let lh = self.overlay_lh();
+        let base = panel_attrs();
+        let mk = |c| base.clone().color(c);
+        let faint = theme::faint().to_glyphon();
+        let mut cursor = 0usize;
+        let mut pushes: Vec<(std::ops::Range<usize>, glyphon::Color)> = strip
+            .labels
+            .iter()
+            .map(|(range, active)| (range.clone(), if *active { active_ink } else { muted }))
+            .chain(strip.separators.iter().cloned().map(|range| (range, faint)))
+            .collect();
+        pushes.sort_by_key(|(range, _)| range.start);
+        // The strip's own PLANNED box height carries the query beat. Inflation
+        // rides the real label glyphs rather than the leading line break because
+        // cosmic-text sizes a line from the glyphs on it.
+        let strip_lh = plan.strip_band().map_or(lh, |band| band.height);
+        spans.push((
+            &strip.text[0..1],
+            mk(faint).metrics(GlyphMetrics::new(m.font_size * ui, lh)),
+        ));
+        cursor += 1;
+        for (range, color) in pushes {
+            debug_assert_eq!(range.start, cursor, "strip spans must tile the line");
+            cursor = range.end;
+            let fs = m.font_size * ui * strip.scale.min(1.0);
+            spans.push((
+                &strip.text[range],
+                chrome_attrs()
+                    .color(color)
+                    .metrics(GlyphMetrics::new(fs, strip_lh)),
+            ));
+        }
+    }
+
     pub(super) fn push_theme_plan_spans<'a>(
         &self,
         spans: &mut Vec<(&'a str, glyphon::Attrs<'a>)>,
