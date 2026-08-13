@@ -1,6 +1,18 @@
 use super::overlay_timeline::right_bind_lines;
 use super::*;
 
+// `right_bind_lines` preserves the secondary buffer's vertical contract:
+// its first label leads with exactly `header_rows` blank lines, so
+// `secondary_top() + (header_rows + row) * lh == row_top(row)`.
+// A contextual card has zero header lines, and must therefore gain none.
+// The retired `.max(1)` looked defensive but shifted every secondary label
+// and its selected ink onto the following row for that one card family.
+// Timeline fitting now shares this same constructor from `overlay_timeline`:
+// elision may change a label's width, never its display-line identity.
+// Keeping the constructor named at this import documents why the general
+// overlay shaper and the timeline-specific pixel refinement cannot each grow
+// their own nearly-identical newline arithmetic again.
+
 /// PHYSICAL, and the placard family is chrome's one honest exception.
 ///
 /// The wordmark is FRAME, not text: its size comes from the window's own short
