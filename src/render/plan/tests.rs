@@ -20,7 +20,7 @@ mod accessory_law;
 /// deliberately do without.
 mod panel_law;
 
-use super::overlay_header::fit_workspace_item_rows;
+use super::overlay_header::{WorkspaceRowFit, fit_workspace_item_rows};
 use super::overlay_rows::{
     OverlayRowPlanInput, PlanLine, fit_item_rows, fit_item_rows_after_px, plan_overlay_rows,
 };
@@ -323,13 +323,35 @@ fn fit_item_rows_after_px_reserves_compact_chrome_before_candidates() {
 #[test]
 fn workspace_row_fit_yields_the_header_beat_before_the_footer() {
     assert_eq!(
-        fit_workspace_item_rows(200.0, 40.0, 2, 12.0, 0, 68.0, true, 0),
-        (1, 12.0)
+        fit_workspace_item_rows(240.0, 20.0, 40.0, 2, 12.0, 0, 68.0, 40.0, true, 0),
+        WorkspaceRowFit {
+            item_cap: 1,
+            pad: 20.0,
+            header_rows: 2,
+            header_gap: 12.0,
+            hint_gap_rows: 1,
+        }
     );
     assert_eq!(
-        fit_workspace_item_rows(150.0, 40.0, 2, 12.0, 0, 68.0, true, 0),
-        (0, 0.0)
+        fit_workspace_item_rows(150.0, 20.0, 40.0, 2, 12.0, 0, 68.0, 40.0, true, 0),
+        WorkspaceRowFit {
+            item_cap: 0,
+            pad: 20.0,
+            header_rows: 1,
+            header_gap: 0.0,
+            hint_gap_rows: 1,
+        }
     );
+}
+
+#[test]
+fn workspace_row_fit_yields_all_header_chrome_before_teaching() {
+    let fit = fit_workspace_item_rows(97.2, 36.0, 81.6, 2, 126.0, 0, 100.0, 63.0, true, 0);
+    assert_eq!(fit.item_cap, 0);
+    assert_eq!(fit.header_rows, 0);
+    assert_eq!(fit.header_gap, 0.0);
+    assert_eq!(fit.hint_gap_rows, 0);
+    assert!((fit.pad - 34.2).abs() < 0.001, "resolved pad {}", fit.pad);
 }
 
 /// THE FLAT/SPELL FLOOR (`min_items: 1`): a card always attempts at least one

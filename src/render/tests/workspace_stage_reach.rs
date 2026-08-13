@@ -179,6 +179,9 @@ struct StageOutcome {
     wide: bool,
     other_region_drawn: bool,
     footer_drawn: bool,
+    footer_inside: bool,
+    footer_box: Option<(f32, f32, f32)>,
+    card: [f32; 4],
 }
 
 /// The existing maximum-zoom height limit for the staged OTHER region. Its
@@ -218,38 +221,6 @@ const MAX_ZOOM_OTHER_REGION_LIMIT: &[Cell] = &[
         zoom: 3.0,
         dpi: 2.0,
         detail: false,
-    },
-    Cell {
-        rows_primary: true,
-        w: 464,
-        h: 288,
-        zoom: 3.0,
-        dpi: 1.0,
-        detail: true,
-    },
-    Cell {
-        rows_primary: true,
-        w: 464,
-        h: 288,
-        zoom: 3.0,
-        dpi: 2.0,
-        detail: true,
-    },
-    Cell {
-        rows_primary: true,
-        w: 520,
-        h: 400,
-        zoom: 3.0,
-        dpi: 1.0,
-        detail: true,
-    },
-    Cell {
-        rows_primary: true,
-        w: 520,
-        h: 400,
-        zoom: 3.0,
-        dpi: 2.0,
-        detail: true,
     },
 ];
 
@@ -293,11 +264,18 @@ fn stage(
                     .any(|slot| slot.is_some_and(|[_, _, sw, sh]| sw > 0.0 && sh > 0.0))
         }
     };
+    let hint = p.overlay_hint_gap_probe(w);
+    let card_bottom = probe.card[1] + probe.card[3];
     StageOutcome {
         rows: probe.visible,
         wide: p.workspace_is_wide(w),
         other_region_drawn,
-        footer_drawn: p.overlay_hint_gap_probe(w).is_some(),
+        footer_drawn: hint.is_some(),
+        footer_inside: hint.is_none_or(|(_, top, bottom)| {
+            top >= probe.card[1] - 0.01 && bottom <= card_bottom + 0.01
+        }),
+        footer_box: hint,
+        card: probe.card,
     }
 }
 
@@ -332,6 +310,11 @@ impl Tally {
             let what = cell.describe(kinds);
             let out = stage(device, queue, p, cell);
             self.graded += 1;
+            assert!(
+                out.footer_inside,
+                "{what}: the teaching footer was shaped outside its workspace card; hint={:?} card={:?}",
+                out.footer_box, out.card
+            );
             if out.rows > 0 {
                 with_presence += 1;
                 self.wide += usize::from(out.wide);
@@ -384,8 +367,8 @@ impl Tally {
         );
         assert_eq!(
             self.comparison_limit_hits,
-            MAX_ZOOM_OTHER_REGION_LIMIT.len(),
-            "every maximum-zoom comparison control must still be reached exactly"
+            MAX_ZOOM_OTHER_REGION_LIMIT.len() * 2,
+            "every maximum-zoom comparison control must still be reached in both menu states"
         );
         assert!(
             self.staged > 0 && self.wide > 0,
@@ -433,26 +416,31 @@ fn a_zero_row_workspace_stage_is_narrow_and_still_draws_teaching_or_content() {
         "no OverlayKind claims a workspace shape — the sweep would grade nothing"
     );
     let mut tally = Tally::default();
-    for (rows_primary, kinds) in &arms {
-        for (w, h) in logical_canvases() {
-            for zoom in zooms {
-                for dpi in [1.0f32, 2.0] {
-                    let window = Cell {
-                        rows_primary: *rows_primary,
-                        w,
-                        h,
-                        zoom,
-                        dpi,
-                        detail: false,
-                    };
-                    tally.grade_window(&device, &queue, &mut p, window, kinds);
+    let ambient_menu_bar = crate::menubar::menu_bar_on();
+    for menu_bar in [false, true] {
+        crate::menubar::set_menu_bar_on(menu_bar);
+        for (rows_primary, kinds) in &arms {
+            for (w, h) in logical_canvases() {
+                for zoom in zooms {
+                    for dpi in [1.0f32, 2.0] {
+                        let window = Cell {
+                            rows_primary: *rows_primary,
+                            w,
+                            h,
+                            zoom,
+                            dpi,
+                            detail: false,
+                        };
+                        tally.grade_window(&device, &queue, &mut p, window, kinds);
+                    }
                 }
             }
         }
     }
+    crate::menubar::set_menu_bar_on(ambient_menu_bar);
     p.set_dpi(1.0);
     p.set_size(1400.0, 900.0);
-    tally.finish(arms.len() * logical_canvases().len() * zooms.len() * 4);
+    tally.finish(arms.len() * logical_canvases().len() * zooms.len() * 8);
 }
 
 /// **AND THE BLANK-LOOKING STAGE IS NOT BLANK IN THE PIXELS.**

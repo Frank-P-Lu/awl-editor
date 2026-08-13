@@ -80,7 +80,7 @@ pub(in crate::render) use margin::{
     hit_outline_slot, plan_gutter_stack, plan_outline_left, plan_outline_slots,
 };
 pub(in crate::render) use overlay_header::{
-    PlannedHeader, beat_stands_alone, fit_workspace_item_rows, header_band_height,
+    PlannedHeader, WorkspaceRowFit, beat_stands_alone, fit_workspace_item_rows, header_band_height,
 };
 pub(in crate::render) use overlay_rows::plan_witness;
 pub(in crate::render) use overlay_rows::{
