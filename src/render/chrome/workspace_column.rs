@@ -181,4 +181,44 @@ impl TextPipeline {
             .layout_runs()
             .fold(0.0_f32, |w, run| w.max(run.line_w))
     }
+
+    /// The footer band's exact vertical reservation: compact separator,
+    /// compact teaching line, and their authored trailing chin. This is the
+    /// height counterpart of `push_overlay_hint_spans`; card sizing and the
+    /// workspace candidate clamp both read it before allocating rows.
+    pub(in crate::render) fn overlay_footer_reserve(
+        &self,
+        hint_rows: usize,
+        gap_rows: usize,
+    ) -> f32 {
+        (hint_rows + gap_rows) as f32 * self.overlay_lh()
+            - self.overlay_footer_reclaim(hint_rows, gap_rows)
+    }
+
+    /// Keep a workspace teaching footer whole when it fits. On a narrow staged
+    /// card, yield leading cells one at a time until it does. Footer cells are
+    /// ordered from familiar navigation toward consequential action and escape/
+    /// Back, so retaining the suffix preserves the instructions least safe to
+    /// infer (History keeps `restore` + `close`; Settings keeps its edit/Back
+    /// cells). The final cell is never omitted.
+    pub(super) fn overlay_fitted_hint(&mut self, geom: &OverlayGeom) -> String {
+        if !geom.workspace {
+            return geom.hint.clone();
+        }
+        let hint = geom.hint.as_str();
+        let budget_px = geom.text_w;
+        if hint.is_empty() {
+            return String::new();
+        }
+        let cells: Vec<&str> = hint.split(crate::overlay::HINT_SEP).collect();
+        for first in 0..cells.len() {
+            let candidate = cells[first..].join(crate::overlay::HINT_SEP);
+            if self.measure_workspace_hint_text_px(&candidate) <= budget_px + 0.01
+                || first + 1 == cells.len()
+            {
+                return candidate;
+            }
+        }
+        hint.to_string()
+    }
 }

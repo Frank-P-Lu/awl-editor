@@ -252,7 +252,6 @@ impl TextPipeline {
             }
             label_ranges.push((r, *active));
         }
-
         let active_ink = match crate::render::effective_facet_style() {
             theme::FacetStyle::Chips(theme::ChipVariant::FilledActive) => {
                 theme::base_300().to_glyphon()
@@ -293,7 +292,6 @@ impl TextPipeline {
                 elide,
             );
         }
-
         // Record the active-lens mark from the shaped strip glyphs (line 1). Line-1
         // glyphs are byte-indexed WITHIN the strip line's own text — the leading "\n" in
         // `strip_s` split the lines — so a label's line-relative range is its `strip_s`
@@ -473,7 +471,6 @@ impl TextPipeline {
         };
         false
     }
-
     #[allow(clippy::too_many_arguments)]
     fn shape_theme_spans(
         &mut self,
@@ -509,7 +506,6 @@ impl TextPipeline {
         let mk = |c| base.clone().color(c);
         let sym = |c| Attrs::new().family(Family::Name(SYMBOL_FAMILY)).color(c);
         let sigil = "› ";
-
         let slant = crate::render::overlay_slant();
         let slant_tax = slant
             .map(|s| crate::render::slant_max_offset(&s, geom.plan.len()))
@@ -646,7 +642,6 @@ impl TextPipeline {
         if geom.hint_rows > 0 {
             self.push_overlay_hint_spans(&mut spans, fitted_hint.as_str(), muted);
         }
-
         self.panel_buffer
             .set_size(&mut self.font_system, Some(geom.text_w), Some(geom.card_h));
         self.panel_buffer

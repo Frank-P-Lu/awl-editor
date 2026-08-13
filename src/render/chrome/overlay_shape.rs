@@ -795,34 +795,6 @@ impl TextPipeline {
         self.panel_buffer
             .shape_until_scroll(&mut self.font_system, false);
     }
-
-    /// Keep a workspace teaching footer whole when it fits. On a narrow staged
-    /// card, yield leading cells one at a time until it does. Footer cells are
-    /// ordered from familiar navigation toward consequential action and escape/
-    /// Back, so retaining the suffix preserves the instructions least safe to
-    /// infer (History keeps `restore` + `close`; Settings keeps its edit/Back
-    /// cells). The final cell is never omitted.
-    pub(super) fn overlay_fitted_hint(&mut self, geom: &OverlayGeom) -> String {
-        if !geom.workspace {
-            return geom.hint.clone();
-        }
-        let hint = geom.hint.as_str();
-        let budget_px = geom.text_w;
-        if hint.is_empty() {
-            return String::new();
-        }
-        let cells: Vec<&str> = hint.split(crate::overlay::HINT_SEP).collect();
-        for first in 0..cells.len() {
-            let candidate = cells[first..].join(crate::overlay::HINT_SEP);
-            if self.measure_workspace_hint_text_px(&candidate) <= budget_px + 0.01
-                || first + 1 == cells.len()
-            {
-                return candidate;
-            }
-        }
-        hint.to_string()
-    }
-
     /// The SECONDARY column (shortcut chord / time / git value), one right-aligned
     /// label per display row.
     ///

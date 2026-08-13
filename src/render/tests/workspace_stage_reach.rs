@@ -368,11 +368,13 @@ impl Tally {
         );
         assert!(
             self.zero_row_with_footer > 0,
-            "the sweep never reached the protected-footer degradation; deleting footer reservation could pass vacuously"
+            "the sweep never reached the protected-footer degradation; deleting footer \
+             reservation could pass vacuously"
         );
         assert!(
             self.new_blank.is_empty(),
-            "a zero-row stage also lost its footer/other region outside the known maximum-zoom other-region limit:\n  {}",
+            "a zero-row stage also lost its footer/other region outside the known \
+             maximum-zoom other-region limit:\n  {}",
             self.new_blank.join("\n  ")
         );
         assert!(
