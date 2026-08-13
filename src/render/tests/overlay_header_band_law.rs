@@ -499,21 +499,16 @@ fn the_query_bar_closes_below_the_field_and_the_folded_beat_would_overrun_it() {
 /// THE LAST MEMBER OF THIS FAMILY TO MERGE — and the reason it had to (item
 /// 116d).
 ///
-/// `TextPipeline::workspace_header_band` (`render/chrome/comparison.rs`) answers
-/// "how far below `text_top` does a workspace's content begin", for the relocated
-/// document viewport. It used to be a bare `overlay_lh() + overlay_header_gap()`:
-/// a fourth copy of the header's height, tolerable only while every workspace had
-/// exactly ONE header line. The timeline shape moved its LENS into the header, so
-/// that copy stopped being a duplicate and became simply WRONG — a whole line
-/// high. It now calls the plan module's own `header_band_height`.
+/// `comparison_viewport` answers "how far below `text_top` does a workspace's
+/// content begin" from the resolved `WorkspaceFrame`: the same fit that can
+/// yield header chrome under height pressure. It feeds those resolved rows and
+/// beat into the plan module's own `header_band_height`, rather than carrying a
+/// second cached header-band answer on `TextPipeline`.
 ///
-/// It still cannot BUILD a plan: its consumer is `comparison_viewport`, which the
-/// four relocated document owners (`column_left`, `column_width`, `doc_top`,
-/// `doc_clip_band`) reach from ~45 sites per frame, and planning there would
-/// trade one parallel calculation for ~45 plans a frame. So the law is that the
-/// arithmetic OWNER it calls and the PLAN the pixels came from agree — over the
-/// world roster, both DPIs, and **both workspace shapes**, because the one-line
-/// shape alone is exactly the sweep that would have gone green over this bug.
+/// The law is that the arithmetic OWNER it calls and the row PLAN the pixels
+/// came from agree — over the world roster, both DPIs, and **both workspace
+/// shapes**, because the one-line shape alone is exactly the sweep that would
+/// have gone green over this bug.
 #[test]
 fn the_workspace_header_band_still_agrees_with_the_planned_header_boxes() {
     let _g = crate::testlock::serial();
@@ -555,11 +550,16 @@ fn the_workspace_header_band_still_agrees_with_the_planned_header_boxes() {
                 // it), measured back to `text_top`, which is where the first
                 // candidate row begins.
                 let planned = last.bottom() + plan.beat_line().unwrap_or(0.0) - field.top;
-                let band = p.workspace_header_band();
+                let frame = p.workspace_frame(cw);
+                let band = crate::render::plan::header_band_height(
+                    frame.fit.header_rows,
+                    p.overlay_lh(),
+                    frame.fit.header_gap,
+                );
                 assert!(
                     (band - planned).abs() < 1e-3,
                     "{world} dpi={dpi} rows_primary={rows_primary}: \
-                     `workspace_header_band` ({band}) has drifted from the planned header \
+                     resolved workspace header band ({band}) has drifted from the planned header \
                      band ({planned}, {} lines) — the comparison pane would be seated off \
                      the line the workspace's own rows begin on",
                     heads.len()
