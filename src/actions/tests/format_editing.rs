@@ -86,11 +86,27 @@ fn tag_document_language_is_one_undoable_edit_and_never_writes_a_second_block() 
     let _g = crate::testlock::serial();
     let original = "# 你好\n\nこれは日本語です。你好。\n";
     let mut b = Buffer::from_str(original);
-    drive_act(&mut b, &Action::TagDocumentLanguage);
+    let effect = drive_act_effect(&mut b, &Action::TagDocumentLanguage);
+    assert_eq!(
+        effect,
+        Effect::Notice(NoticeEffect::Toast(
+            "Document language: Japanese".to_string()
+        )),
+        "the applied language is acknowledged by writer-facing name through the toast channel"
+    );
     assert_eq!(
         b.text(),
         format!("---\nlang: ja\n---\n{original}"),
         "the detected tag is stamped at byte 0"
+    );
+    assert!(
+        b.is_dirty(),
+        "the explicit metadata edit participates in save"
+    );
+    assert_eq!(
+        b.disk_bytes(),
+        format!("---\nlang: ja\n---\n{original}").as_bytes(),
+        "the next save writes the frontmatter exactly once"
     );
     // ONE undoable edit: Cmd-Z restores the pre-tag document exactly.
     b.undo();
@@ -98,10 +114,16 @@ fn tag_document_language_is_one_undoable_edit_and_never_writes_a_second_block() 
 
     // Re-running it never adds a SECOND block — the gate is the presence of a
     // frontmatter block, not a one-shot flag.
-    drive_act(&mut b, &Action::TagDocumentLanguage);
+    let effect = drive_act_effect(&mut b, &Action::TagDocumentLanguage);
+    assert!(matches!(effect, Effect::Notice(NoticeEffect::Toast(_))));
     let once = b.text();
-    drive_act(&mut b, &Action::TagDocumentLanguage);
+    let effect = drive_act_effect(&mut b, &Action::TagDocumentLanguage);
     assert_eq!(b.text(), once, "a tagged document is never re-tagged");
+    assert_eq!(
+        effect,
+        Effect::None,
+        "a no-op never claims that a language was applied"
+    );
 }
 
 #[test]

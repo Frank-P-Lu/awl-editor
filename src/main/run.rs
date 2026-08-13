@@ -568,6 +568,7 @@ impl<'a> ReplaySession<'a> {
             editing_replacement,
             journey: self.journey,
             accept: self.accept,
+            notice: self.notice,
             buffers_open,
             intercepts: self.intercepts,
             replay_skips: self.replay_skips,
@@ -760,6 +761,7 @@ fn capture_screenshot(
             opts.scroll = Some(crate::render::ScrollPos::at_row(row));
         }
     }
+    opts.notice = res.notice;
     if keys.is_empty()
         && let Some((_, (l1, c1))) = opts.selection
     {

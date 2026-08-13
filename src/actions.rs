@@ -180,7 +180,7 @@ fn apply_view_action(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
     Some(effect)
 }
 
-fn apply_format_action(ctx: &mut ActionCtx, action: &Action) -> bool {
+fn apply_format_action(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
     match action {
         Action::ToggleBlockquote => apply_block_format(ctx, format::BlockKind::Blockquote),
         Action::ToggleBulletList => apply_block_format(ctx, format::BlockKind::Bullet),
@@ -194,10 +194,10 @@ fn apply_format_action(ctx: &mut ActionCtx, action: &Action) -> bool {
         Action::InlineCode => apply_inline_format(ctx, format::InlineKind::InlineCode),
         Action::Highlight => apply_inline_format(ctx, format::InlineKind::Highlight),
         Action::Strikethrough => apply_inline_format(ctx, format::InlineKind::Strikethrough),
-        Action::TagDocumentLanguage => tag_document_language(ctx),
-        _ => return false,
-    }
-    true
+        Action::TagDocumentLanguage => return Some(tag_document_language(ctx)),
+        _ => return None,
+    };
+    Some(Effect::None)
 }
 
 fn apply_buffer_action(ctx: &mut ActionCtx, action: &Action) -> bool {
@@ -731,8 +731,7 @@ fn dispatch_editor_action(ctx: &mut ActionCtx, action: &Action, family: ActionFa
         ActionFamily::View => effect = apply_view_action(ctx, action).expect("view action"),
         ActionFamily::Align => align_table_at_cursor(ctx),
         ActionFamily::Format => {
-            let handled = apply_format_action(ctx, action);
-            debug_assert!(handled, "format family did not handle {action:?}");
+            effect = apply_format_action(ctx, action).expect("format action");
         }
         ActionFamily::Export => effect = apply_export_action(ctx, action).expect("export action"),
         ActionFamily::Overlay | ActionFamily::Deferred => {

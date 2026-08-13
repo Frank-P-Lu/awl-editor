@@ -51,8 +51,8 @@ pub(crate) mod workspace;
 
 #[allow(unused_imports)] // HERE_LABEL / here_folder_label: read by the row-label laws
 pub use build::{
-    BuildCtx, HERE_ACCEPT, HERE_LABEL, browse_level, build, elide_path, goto_folder_roster,
-    here_folder_label, row_split,
+    BuildCtx, HERE_ACCEPT, HERE_LABEL, browse_level, build, elide_directory_path, elide_path,
+    goto_folder_roster, here_folder_label, row_split,
 };
 // THE one question separating the switch-project roster's two routes, hoisted to
 // the module surface because the law guarding the split lives outside it, and a

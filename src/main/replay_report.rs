@@ -10,6 +10,7 @@ pub(crate) struct ReplayResult {
     pub(crate) editing_replacement: bool,
     pub(crate) journey: crate::overlay::Journey,
     pub(crate) accept: Option<(crate::overlay::OverlayKind, String)>,
+    pub(crate) notice: Option<(String, crate::actions::NoticeKind)>,
     pub(crate) buffers_open: usize,
     #[allow(dead_code)]
     pub(crate) intercepts: Vec<crate::replay::Intercept>,

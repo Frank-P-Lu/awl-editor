@@ -17,10 +17,10 @@
 //! depth of their home directory.
 //!
 //! So a path cell is elided like any other row text — through
-//! [`crate::overlay::elide_path`], the same owner `rowlayout::fit_primary` uses
-//! for the NAME lane, which keeps the last path segment and middle-truncates the
-//! directory in front of it — to an [`allowance`] the ROSTER sets rather than a
-//! written-down number.
+//! [`crate::overlay::elide_directory_path`], which keeps path identity (`/`) and
+//! the final folder even when that folder alone overflows — to an [`allowance`]
+//! the ROSTER sets rather than a written-down number. File-picker rows retain
+//! their separate filename/extension-biased [`crate::overlay::elide_path`] rule.
 //!
 //! [`super::value_for`] stays the UNELIDED readout. It answers "what is this set
 //! to", which the sub-picker a Path row opens and every test comparing a row
@@ -63,7 +63,7 @@ pub(super) fn for_rows(rows: &[&'static SettingRow], values: &SettingsValues) ->
         .map(|r| {
             let cell = value_for(r, values);
             match r.kind {
-                SettingKind::Path => crate::overlay::elide_path(&cell, budget),
+                SettingKind::Path => crate::overlay::elide_directory_path(&cell, budget),
                 _ => cell,
             }
         })

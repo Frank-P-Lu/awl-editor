@@ -3,6 +3,74 @@ use super::keyspec;
 use crate::testscratch::ScratchDir;
 
 #[test]
+fn palette_language_tag_capture_photographs_the_toast_it_reports() {
+    let _fs = crate::testlock::serial();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl-language-toast-{}", std::process::id())),
+    );
+    let fixture = dir.join("note.md");
+    std::fs::write(&fixture, "# 你好\n\nこれは日本語です。\n").unwrap();
+    if capture::build_oracle(&Buffer::from_file(&fixture), &CaptureOpts::default()).is_none() {
+        eprintln!("skipping language-toast capture: no wgpu adapter");
+        return;
+    }
+
+    let quiet = dir.join("quiet.png");
+    capture_screenshot(
+        quiet.clone(),
+        Some(fixture.clone()),
+        CaptureOpts::default(),
+        Vec::new(),
+        crate::keymap::KeymapState::new_with_convention(crate::convention::Convention::Mac),
+        Some(dir.to_path_buf()),
+        None,
+        dir.join("notes"),
+        Config::empty(),
+        false,
+    )
+    .expect("quiet capture succeeds");
+
+    let noticed = dir.join("noticed.png");
+    capture_screenshot(
+        noticed.clone(),
+        Some(fixture),
+        CaptureOpts::default(),
+        keyspec::parse_keys("s-p t a g Space d o c u m e n t Space l a n g u a g e Enter").unwrap(),
+        crate::keymap::KeymapState::new_with_convention(crate::convention::Convention::Mac),
+        Some(dir.to_path_buf()),
+        None,
+        dir.join("notes"),
+        Config::empty(),
+        false,
+    )
+    .expect("language-tag capture succeeds");
+
+    let sidecar: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(noticed.with_extension("json")).unwrap())
+            .unwrap();
+    assert_eq!(
+        sidecar["notice"],
+        serde_json::json!({
+            "text": "Document language: Japanese",
+            "kind": "toast"
+        }),
+        "the one-shot capture fold must carry the nested palette action's notice to the renderer"
+    );
+    assert!(
+        sidecar["text"]
+            .as_str()
+            .unwrap()
+            .starts_with("---\nlang: ja\n---\n"),
+        "the same artifact reports the metadata edit the toast acknowledges"
+    );
+    assert_ne!(
+        std::fs::read(quiet).unwrap(),
+        std::fs::read(noticed).unwrap(),
+        "PRESENCE: the language toast must change the frame's actual pixels"
+    );
+}
+
+#[test]
 fn capture_scenario_search_replace_replay_lands_in_the_sidecar_search_block() {
     // SIDECAR EVIDENCE for the shared search/replace routing: one `--keys`
     // spec drives open + query typing + replace-field reveal + replacement
