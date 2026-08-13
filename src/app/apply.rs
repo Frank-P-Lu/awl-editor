@@ -570,15 +570,25 @@ impl App {
             row_gates,
         } = self.gather_overlay_inputs(action);
         let location = &self.project_location;
-        let recent_folder_paths: Vec<String> = location
-            .recent_projects
-            .iter()
-            .map(|path| path.to_string_lossy().to_string())
-            .collect();
-        let (goto_folders, goto_recent_folders) = crate::overlay::goto_folder_roster(
-            location.workspace_root.as_deref(),
-            &recent_folder_paths,
-        );
+        let (goto_folders, goto_recent_folders) = if matches!(
+            action,
+            Action::OpenGoto
+                | Action::OpenProject
+                | Action::OpenRecentProjects
+                | Action::OpenOutline
+        ) {
+            let recent_folder_paths: Vec<String> = location
+                .recent_projects
+                .iter()
+                .map(|path| path.to_string_lossy().to_string())
+                .collect();
+            crate::overlay::goto_folder_roster(
+                location.workspace_root.as_deref(),
+                &recent_folder_paths,
+            )
+        } else {
+            (Vec::new(), Vec::new())
+        };
         let build_ctx = crate::overlay::BuildCtx {
             goto_corpus,
             goto_open,

@@ -56,7 +56,6 @@ impl<'a> ReplaySession<'a> {
             | actions::Effect::Persistence(_)
             | actions::Effect::Clipboard(_)
             | actions::Effect::Daemon(_)
-            | actions::Effect::Surface(_)
             | actions::Effect::Notice(_)
             | actions::Effect::Render(_)
             | actions::Effect::SettingToggle { .. }
@@ -64,6 +63,10 @@ impl<'a> ReplaySession<'a> {
             | actions::Effect::SettingPathPick { .. } => {
                 unreachable!("typed effects are owned by interpret_headless_effect")
             }
+            // An unsupported platform chooser is already recorded above. It
+            // has no headless continuation; permissive replay calmly consumes
+            // it after preserving the typed skip in the sidecar.
+            actions::Effect::Surface(_) => {}
             actions::Effect::InsertDate => {
                 let (y, m, d) = crate::dateformat::CAPTURE_PLACEHOLDER_YMD;
                 let text = crate::dateformat::active_format().format(y, m, d);

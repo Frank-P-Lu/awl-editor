@@ -441,8 +441,17 @@ impl<'a> ReplaySession<'a> {
                 Vec::new()
             };
             let effective_keep = self.config.effective_linux_keep();
-            let (goto_folders, goto_recent_folders) =
-                crate::overlay::goto_folder_roster(Some(&self.workspace), &[]);
+            let (goto_folders, goto_recent_folders) = if matches!(
+                action,
+                Action::OpenGoto
+                    | Action::OpenProject
+                    | Action::OpenRecentProjects
+                    | Action::OpenOutline
+            ) {
+                crate::overlay::goto_folder_roster(Some(&self.workspace), &[])
+            } else {
+                (Vec::new(), Vec::new())
+            };
             let build_ctx = crate::overlay::BuildCtx {
                 goto_corpus: self.corpus.to_vec(),
                 goto_open: Vec::new(),
