@@ -20,6 +20,7 @@ mod accessory_law;
 /// deliberately do without.
 mod panel_law;
 
+use super::overlay_header::fit_workspace_item_rows;
 use super::overlay_rows::{
     OverlayRowPlanInput, PlanLine, fit_item_rows, fit_item_rows_after_px, plan_overlay_rows,
 };
@@ -317,6 +318,18 @@ fn fit_item_rows_after_px_reserves_compact_chrome_before_candidates() {
     assert_eq!(fit_item_rows_after_px(198.9, 40.0, 79.0, 0), 2);
     assert_eq!(fit_item_rows_after_px(78.9, 40.0, 79.0, 0), 0);
     assert_eq!(fit_item_rows_after_px(78.9, 40.0, 79.0, 1), 1);
+}
+
+#[test]
+fn workspace_row_fit_yields_the_header_beat_before_the_footer() {
+    assert_eq!(
+        fit_workspace_item_rows(200.0, 40.0, 2, 12.0, 0, 68.0, true, 0),
+        (1, 12.0)
+    );
+    assert_eq!(
+        fit_workspace_item_rows(150.0, 40.0, 2, 12.0, 0, 68.0, true, 0),
+        (0, 0.0)
+    );
 }
 
 /// THE FLAT/SPELL FLOOR (`min_items: 1`): a card always attempts at least one

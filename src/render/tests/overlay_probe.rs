@@ -152,7 +152,7 @@ impl TextPipeline {
         let plan = self.overlay_row_plan(&geom);
         (
             self.overlay_footer_content_px(&geom, plan.content_rows()),
-            geom.text_w,
+            geom.footer_text_w(),
         )
     }
 }

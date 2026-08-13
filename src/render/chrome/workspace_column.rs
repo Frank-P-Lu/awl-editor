@@ -227,7 +227,7 @@ impl TextPipeline {
             return geom.hint.clone();
         }
         let hint = geom.hint.as_str();
-        let budget_px = geom.text_w;
+        let budget_px = geom.footer_text_w();
         if hint.is_empty() {
             return String::new();
         }
