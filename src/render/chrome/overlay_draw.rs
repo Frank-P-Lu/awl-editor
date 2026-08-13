@@ -221,14 +221,7 @@ impl TextPipeline {
     ) -> anyhow::Result<()> {
         let text_left = geom.text_left;
         let text_top = geom.text_top;
-        let row_left = geom.row_text_left();
-        let row_right = row_left + geom.row_text_w();
-        let bounds = TextBounds {
-            left: text_left.min(row_left).max(0.0) as i32,
-            top: 0,
-            right: ((text_left + geom.text_w).max(row_right).min(width as f32)) as i32,
-            bottom: height as i32,
-        };
+        let bounds = geom.upload_bounds(width, height);
         let panel_area = TextArea {
             buffer: &self.panel_buffer,
             left: text_left,

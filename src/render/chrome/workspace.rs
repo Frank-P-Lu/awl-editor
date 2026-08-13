@@ -103,18 +103,28 @@ impl OverlayGeom {
     }
 
     pub(in crate::render) fn row_text_left(&self) -> f32 {
-        if self.row_text_w > 0.0 {
-            self.row_text_left
-        } else {
-            self.text_left
-        }
+        self.row_text.map_or(self.text_left, |span| span[0])
     }
 
     pub(in crate::render) fn row_text_w(&self) -> f32 {
-        if self.row_text_w > 0.0 {
-            self.row_text_w
-        } else {
-            self.text_w
+        self.row_text.map_or(self.text_w, |span| span[1])
+    }
+
+    pub(in crate::render) fn for_rows(&self) -> Self {
+        let mut geom = self.clone();
+        geom.text_left = self.row_text_left();
+        geom.text_w = self.row_text_w();
+        geom
+    }
+
+    pub(in crate::render) fn upload_bounds(&self, width: u32, height: u32) -> TextBounds {
+        TextBounds {
+            left: self.text_left.min(self.row_text_left()).max(0.0) as i32,
+            top: 0,
+            right: ((self.text_left + self.text_w)
+                .max(self.row_text_left() + self.row_text_w())
+                .min(width as f32)) as i32,
+            bottom: height as i32,
         }
     }
 
@@ -369,8 +379,7 @@ impl TextPipeline {
             text_left,
             text_top: card_y + pad,
             text_w,
-            row_text_left,
-            row_text_w,
+            row_text: Some([row_text_left, row_text_w]),
             // A workspace is never in the card's fill regime: it already fills.
             // Saying so explicitly keeps the placard's own narrow-card rule
             // (`overlay_shape_placard`) reading a fact rather than a coincidence.

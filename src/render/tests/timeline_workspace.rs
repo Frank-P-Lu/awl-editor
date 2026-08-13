@@ -91,6 +91,70 @@ fn timeline_metadata_uses_the_spare_left_inset_before_eliding() {
 /// boundary/header and the lane's old trailing edge stay put; the date/count
 /// cell remains present, inside the card, and clear of its primary label. An
 /// authored string too long for even the widened lane is genuinely end-elided.
+fn grade_metadata_cell(p: &TextPipeline, width: u32, dpi: f32, ctx: &str) -> ([usize; 4], bool) {
+    let geom = p.workspace_geometry(width);
+    let card = geom.card_probe();
+    let [row_left, row_w] = geom.row_text_probe();
+    let row_right = row_left + row_w;
+    let old_right = geom.text_left + geom.text_w;
+    let logical_inset = (row_left - card[0]) / dpi;
+    assert!(
+        (20.0 - 0.01..=24.0 + 0.01).contains(&logical_inset),
+        "{ctx}: metadata begins {logical_inset:.2} logical px from the outline"
+    );
+    assert!(
+        (row_right - old_right).abs() <= 0.02,
+        "{ctx}: widening moved the trailing edge ({row_right} vs {old_right})"
+    );
+    assert!(
+        row_left >= card[0] && row_right <= card[0] + card[2] + 0.02,
+        "{ctx}: metadata lane [{row_left}, {row_right}] escaped {card:?}"
+    );
+    let gain = row_w - geom.text_w;
+    assert!(gain >= -0.01, "{ctx}: the new lane narrowed by {}px", -gain);
+
+    let report = p
+        .overlay_row_geometry()
+        .unwrap_or_else(|| panic!("{ctx}: History publishes row geometry"));
+    let (mut values, mut yielded) = (0, 0);
+    for row in &report.rows {
+        let Some(label) = row.lanes.label else {
+            continue;
+        };
+        let Some(value) = row.lanes.value else {
+            yielded += 1;
+            continue;
+        };
+        let disjoint = value.x + value.w <= label.x + 0.02 || label.x + label.w <= value.x + 0.02;
+        assert!(
+            disjoint,
+            "{ctx} row {}: metadata {value:?} overlaps primary {label:?}",
+            row.display
+        );
+        assert!(
+            value.x >= card[0] && value.x + value.w <= card[0] + card[2] + 0.02,
+            "{ctx} row {}: metadata {value:?} escaped {card:?}",
+            row.display
+        );
+        values += 1;
+    }
+    let mut ellipses = 0;
+    for line in p.panel_bind_buffer.lines.iter().skip(geom.header_rows) {
+        let text = line.text();
+        if !text.is_empty() {
+            assert!(
+                text.ends_with('…'),
+                "{ctx}: exhausted metadata was not ellipsized: {text:?}"
+            );
+            ellipses += 1;
+        }
+    }
+    (
+        [values, yielded, ellipses, usize::from(gain > 0.5)],
+        values > 0,
+    )
+}
+
 #[test]
 fn timeline_metadata_lane_is_wider_safe_present_and_genuinely_exhausted() {
     let _g = crate::testlock::serial();
@@ -126,66 +190,13 @@ fn timeline_metadata_lane_is_wider_safe_present_and_genuinely_exhausted() {
                 p.prepare(&device, &queue, w, h).unwrap();
 
                 let ctx = format!("{} {logical_w}x{logical_h} dpi={dpi}", world.name);
-                let geom = p.workspace_geometry(w);
-                let card = geom.card_probe();
-                let [row_left, row_w] = geom.row_text_probe();
-                let row_right = row_left + row_w;
-                let old_right = geom.text_left + geom.text_w;
-                let logical_inset = (row_left - card[0]) / dpi;
-                assert!(
-                    (20.0 - 0.01..=24.0 + 0.01).contains(&logical_inset),
-                    "{ctx}: widened metadata begins {logical_inset:.2} logical px from the outline"
-                );
-                assert!(
-                    (row_right - old_right).abs() <= 0.02,
-                    "{ctx}: widening moved the old trailing edge ({row_right} vs {old_right})"
-                );
-                assert!(
-                    row_left >= card[0] && row_right <= card[0] + card[2] + 0.02,
-                    "{ctx}: metadata lane [{row_left}, {row_right}] escaped card {:?}",
-                    card
-                );
-                let gain = row_w - geom.text_w;
-                assert!(gain >= -0.01, "{ctx}: the new lane narrowed by {}px", -gain);
-                widened += usize::from(gain > 0.5);
-
-                let report = p
-                    .overlay_row_geometry()
-                    .unwrap_or_else(|| panic!("{ctx}: History publishes row geometry"));
-                for row in &report.rows {
-                    let Some(label) = row.lanes.label else {
-                        continue;
-                    };
-                    let Some(value) = row.lanes.value else {
-                        yielded += 1;
-                        continue;
-                    };
-                    let disjoint =
-                        value.x + value.w <= label.x + 0.02 || label.x + label.w <= value.x + 0.02;
-                    assert!(
-                        disjoint,
-                        "{ctx} row {}: metadata {:?} overlaps primary {:?}",
-                        row.display, value, label
-                    );
-                    assert!(
-                        value.x >= card[0] && value.x + value.w <= card[0] + card[2] + 0.02,
-                        "{ctx} row {}: metadata {:?} escaped card {:?}",
-                        row.display,
-                        value,
-                        card
-                    );
-                    values += 1;
+                let ([v, y, e, widened_cell], present) = grade_metadata_cell(&p, w, dpi, &ctx);
+                values += v;
+                yielded += y;
+                ellipses += e;
+                widened += widened_cell;
+                if present {
                     present_worlds.insert(world.name);
-                }
-                for line in p.panel_bind_buffer.lines.iter().skip(geom.header_rows) {
-                    let text = line.text();
-                    if !text.is_empty() {
-                        assert!(
-                            text.ends_with('…'),
-                            "{ctx}: an intentionally exhausted metadata cell was not ellipsized: {text:?}"
-                        );
-                        ellipses += 1;
-                    }
                 }
                 cells += 1;
             }
@@ -204,18 +215,19 @@ fn timeline_metadata_lane_is_wider_safe_present_and_genuinely_exhausted() {
     );
     assert!(
         values >= expected_cells * 2 && ellipses >= expected_cells * 2,
-        "non-vacuity: {values} visible metadata lanes, {ellipses} exhausted strings, and {yielded} deliberately yielded lanes across {expected_cells} cells"
+        "non-vacuity: {values} values, {ellipses} ellipses, {yielded} yielded, \
+         across {expected_cells} cells"
     );
     assert_eq!(
         present_worlds.len(),
         crate::theme::THEMES.len(),
-        "every authored world must show metadata in at least one representative geometry; present={present_worlds:?}"
+        "every world must show metadata somewhere; present={present_worlds:?}"
     );
 }
 
 #[test]
 #[ignore]
-fn gallery_item_423_reported_shape() {
+fn gallery_timeline_metadata_reported_shape() {
     let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         return;

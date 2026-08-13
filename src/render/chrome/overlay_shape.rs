@@ -1,3 +1,4 @@
+use super::overlay_timeline::right_bind_lines;
 use super::*;
 
 /// PHYSICAL, and the placard family is chrome's one honest exception.
@@ -153,26 +154,6 @@ fn push_beat_spacer<'a>(
         spans.push(("\n", attrs.clone()));
         spans.push((" ", attrs.metrics(GlyphMetrics::new(font_size, beat))));
     }
-}
-
-/// Leads the FIRST label with exactly `header_rows` empty lines — the same
-/// count [`super::plan::OverlayRowPlan::secondary_top`] documents as the
-/// buffer's own contract (`secondary_top() + (header_rows + r) * lh ==
-/// row_top(r)`). A card with NO header line (`header_rows == 0` — the
-/// contextual Context menu, `overlay.rs`'s `!contextual` gate) must lead with
-/// NONE: a hardcoded `.max(1)` here once forced one blank line regardless,
-/// pushing every row's secondary text (its "unavailable"/chord/value AND the
-/// ink resolved for ITS OWN row) one slot down onto the row below — so a
-/// selected row's on-band ink landed on the next row's plain, un-banded
-/// ground, sometimes at zero contrast against it.
-fn right_bind_lines<'a>(header_rows: usize, labels: impl Iterator<Item = &'a str>) -> Vec<String> {
-    labels
-        .enumerate()
-        .map(|(k, label)| {
-            let leads = if k == 0 { header_rows } else { 1 };
-            format!("{}{label}", "\n".repeat(leads))
-        })
-        .collect()
 }
 
 impl TextPipeline {
@@ -399,10 +380,6 @@ impl TextPipeline {
         elide: bool,
     ) -> bool {
         self.overlay_right_shown = false;
-        let mut row_geom = geom.clone();
-        row_geom.text_left = geom.row_text_left();
-        row_geom.text_w = geom.row_text_w();
-        let geom = &row_geom;
         if geom.theme {
             return self.shape_faceted(geom, plan, ink, muted, selected_ink, vis, elide);
         }
@@ -523,7 +500,7 @@ impl TextPipeline {
         // card. Shape against that real side territory before deciding whether
         // a secondary cell fits, so narrow cards elide/yield instead of drawing
         // a measured cluster through the spine or off its planned span.
-        let mut shaped_geom = geom.clone();
+        let mut shaped_geom = geom.for_rows();
         if let Some(budget) = self.diagonal_cluster_budget(geom, plan.rows().len()) {
             shaped_geom.text_w = shaped_geom.text_w.min(budget);
         }
@@ -548,16 +525,14 @@ impl TextPipeline {
         } else {
             Vec::new()
         };
-        let row_right: Vec<String> = geom
-            .plan
-            .iter()
-            .map(|line| match line {
-                PlanLine::Item(i) => right_labels.get(*i).cloned().unwrap_or_default(),
-                PlanLine::Location(_) | PlanLine::Header(_) => String::new(),
-            })
-            .collect();
         let bind_strs: Vec<String> = if has_right && !hug_inline {
-            right_bind_lines(plan.header_rows(), row_right.iter().map(String::as_str))
+            right_bind_lines(
+                plan.header_rows(),
+                geom.plan.iter().map(|line| match line {
+                    PlanLine::Item(i) => right_labels.get(*i).map(|s| s.as_str()).unwrap_or(""),
+                    PlanLine::Location(_) | PlanLine::Header(_) => "",
+                }),
+            )
         } else {
             Vec::new()
         };
@@ -594,15 +569,10 @@ impl TextPipeline {
         if !has_right || hug_inline {
             return false;
         }
-        if shaped_geom.workspace && self.overlay_rows_primary && elide {
-            return self.shape_timeline_right_to_fit(
-                &shaped_geom,
-                plan,
-                ink,
-                muted,
-                vis,
-                &row_right,
-            );
+        if let Some(shown) =
+            self.shape_timeline_right_to_fit(&shaped_geom, plan, ink, muted, vis, elide)
+        {
+            return shown;
         }
         self.shape_overlay_right(&shaped_geom, ink, muted, vis, &bind_strs);
 
@@ -630,52 +600,6 @@ impl TextPipeline {
         }
         self.overlay_right_shown = true;
         true
-    }
-
-    /// History's secondary cell is authored metadata, not an all-or-nothing
-    /// shortcut. Grant each visible row the pixels its own primary leaves, then
-    /// end-ellipsize against the shaped result until the two lanes genuinely fit.
-    fn shape_timeline_right_to_fit(
-        &mut self,
-        geom: &OverlayGeom,
-        plan: &OverlayRowPlan,
-        ink: glyphon::Color,
-        muted: glyphon::Color,
-        vis: &VisualSelection,
-        labels: &[String],
-    ) -> bool {
-        let primary = self.overlay_row_primary_px(geom);
-        let gap_px = rowlayout::GAP_CHARS as f32 * self.overlay_char_width();
-        let char_w = self.overlay_char_width().max(1.0);
-        let mut fitted: Vec<String> = labels
-            .iter()
-            .enumerate()
-            .map(|(display, label)| {
-                let left = primary.get(&display).copied().unwrap_or(0.0) + gap_px;
-                let chars = ((geom.text_w - left).max(0.0) / char_w).floor() as usize;
-                rowlayout::fit_primary_end(label, chars)
-            })
-            .collect();
-
-        loop {
-            let lines = right_bind_lines(plan.header_rows(), fitted.iter().map(String::as_str));
-            self.shape_overlay_right(geom, ink, muted, vis, &lines);
-            let secondary = self.overlay_row_secondary_px(geom);
-            let mut changed = false;
-            for (display, label) in fitted.iter_mut().enumerate() {
-                let used = primary.get(&display).copied().unwrap_or(0.0)
-                    + gap_px
-                    + secondary.get(&display).copied().unwrap_or(0.0);
-                if used > geom.text_w + 0.01 && !label.is_empty() {
-                    *label = rowlayout::fit_primary_end(label, label.chars().count() - 1);
-                    changed = true;
-                }
-            }
-            if !changed {
-                self.overlay_right_shown = fitted.iter().any(|s| !s.is_empty());
-                return self.overlay_right_shown;
-            }
-        }
     }
 
     pub(super) fn overlay_title_prefix(&self, geom: &OverlayGeom) -> String {
@@ -868,7 +792,7 @@ impl TextPipeline {
     /// the label it annotates were still on "Go to file…" — two simultaneous
     /// answers to "which command is selected". The secondary now WAITS for the
     /// band, exactly as the primary label already did.
-    fn shape_overlay_right(
+    pub(super) fn shape_overlay_right(
         &mut self,
         geom: &OverlayGeom,
         ink: glyphon::Color,
