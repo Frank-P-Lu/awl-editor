@@ -6,16 +6,21 @@
 
 ## Ready to build
 
-### 427 — Firetail History footer fits the minimum card after the merge train
+### 429 — zero-row History still draws teaching or content at forced menu-bar zoom 3
 
-🟡 IN PROGRESS — queue-427 (codex), branch codex/queue-427-firetail-footer
+🟡 IN PROGRESS — queue-429 (codex), branch codex/queue-429-zero-row-history
 
-At the combined main candidate, the item 419 outcome law reports Firetail
-History at 464×288, zoom 1.4, DPI 1, menu bar on shaping 321.3 px of footer into
-307.2 px. The same failure reproduces with item 426's buffer repair removed, so
-it is independent of that work. Diagnose the interaction added after item 419,
-preserve the reserved-footer composition law, and re-sweep the full 419 matrix
-with a mutation proof before issuing a new combined native receipt.
+The forced-menu full suite fails at 464×288 logical, zoom 3, DPI 1: the
+rows-primary History/conflict stage draws neither candidates, teaching footer,
+nor its other region. Preserve the planned footer span and zero-row outcome law;
+repair the shared stage composition without a History-specific rendering branch.
+
+### 428 — return pipeline_draw.rs below the absolute 500-line production ceiling
+
+`src/render/pipeline_draw.rs` is 504 lines after the combined merge, above the
+absolute 500-line limit and its 502-line high-water mark. Decompose construction
+ownership without changing GPU object lifetime or initialization order, then run
+the constructor counter laws and code health.
 
 ## Needs a person, hardware, or release authority
 
