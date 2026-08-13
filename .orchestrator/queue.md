@@ -6,6 +6,24 @@
 
 ## Ready to build
 
+### 434 — restore action and live-App structural ratchets after unified Go-to
+
+Decompose the unified destination routing across actions, app apply, keymap,
+replay, and main run owners so every grown file returns to its frozen mark and
+new `too_many_lines` diagnostics disappear without policy exceptions.
+
+### 433 — restore overlay and render structural ratchets after unified Go-to
+
+Decompose the typed-destination roster and shaping integrations across overlay
+state/navigation and render chrome so every grown file returns to its frozen
+mark and new Clippy diagnostics disappear without weakening exhaustive matches.
+
+### 432 — reconcile exact health census after the completed merge train
+
+Remove stale structural anchors and update only legitimate lower file marks and
+exact Clippy fingerprints from the combined tree. Long lines and genuine growth
+are fixed in source; no blanket exception or unmeasured ratchet raise.
+
 ## Needs a person, hardware, or release authority
 
 1. **macOS release signing** — supply the Apple secrets required by
