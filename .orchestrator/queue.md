@@ -22,6 +22,8 @@ is genuinely exhausted. Capture the reported shape for pixel confirmation.
 
 ### 421 — make the cell caret contain full-square CJK ink
 
+🟡 IN PROGRESS — queue-421 (codex), branch codex/queue-421-cjk-cell-caret
+
 Over Japanese `構成`, the cell caret covers only the middle of `成`. Preserve the
 stable Latin height, but derive one stable ideographic cell from the resolved CJK
 face/script—no named glyph/world branch and no per-kanji ink-height jitter.
