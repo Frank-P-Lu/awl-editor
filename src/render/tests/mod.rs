@@ -38,6 +38,7 @@ mod chrome_overlay;
 mod chrome_panels;
 mod chrome_pixel_space;
 mod cjk;
+mod cjk_cell_caret;
 /// The mirrored diagonal row cluster: which end of it a name hangs on, which
 /// end its accessory does, and that a mirrored name is clickable where it draws.
 mod cluster_mirror;

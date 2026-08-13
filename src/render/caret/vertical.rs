@@ -4,6 +4,41 @@
 use super::*;
 
 impl TextPipeline {
+    /// A CJK anchor's stable resolved-face cell. No glyph identity or raster
+    /// box enters the result, so adjacent kanji on one script face cannot jitter.
+    pub(in crate::render) fn caret_anchor_ideographic_cell(&self) -> Option<(f32, (f32, f32))> {
+        let col = self.caret_anchor_col();
+        let ch = self
+            .buffer
+            .lines
+            .get(self.cursor_line)?
+            .text()
+            .chars()
+            .nth(col)?;
+        let script = crate::script::classify_char(ch)?;
+        let id = crate::script::resolve_font_id(self.doc_lang, Some(script), &self.cjk_priority);
+        let (family, _) = self.script_fonts.get(id)?;
+        let em = facepitch::ideographic_cell_em(family)?;
+        let key = self.cursor_glyph_key_at(self.cursor_line, col)?;
+        Some((f32::from_bits(key.font_size_bits), em))
+    }
+
+    /// A resolved CJK face's stable one-em placement box. Pure geometry: the
+    /// face supplies the baseline split, the shaped run supplies only its size.
+    pub(in crate::render) fn ideographic_cell_box(
+        font_size: f32,
+        (ascent_em, descent_em): (f32, f32),
+    ) -> InkBox {
+        let top = (font_size * ascent_em).max(1.0);
+        let descent = (font_size * descent_em).max(0.0);
+        InkBox {
+            left: 0.0,
+            top,
+            width: font_size,
+            height: top + descent,
+        }
+    }
+
     /// THE ONE OWNER of "what ascent and descent does a row with NO GLYPHS
     /// have" — `(max_ascent, max_descent, font)`, in the same absolute pixels
     /// and the same sign convention a shaped [`cosmic_text::LayoutLine`]
@@ -36,9 +71,9 @@ impl TextPipeline {
     /// THE PROPORTIONAL CARET'S ONE BOX: a typical letter's placement on this
     /// row, expressed in the SAME `top`/`height`-above-baseline convention a
     /// real raster [`InkBox`] uses. [`Self::caret_cell_vertical`] feeds it for
-    /// EVERY proportional anchor — a letter, a ligature, a space, end-of-line,
-    /// an empty row — which is what makes those anchors one height rather than
-    /// six ([`Self::caret_cell_vertical_typical`] holds the reasoning).
+    /// every non-CJK proportional anchor — a letter, a ligature, a space,
+    /// end-of-line, an empty row — which is what makes those anchors one height
+    /// rather than six ([`Self::caret_cell_vertical_typical`] holds the reasoning).
     ///
     /// `top == height` (zero descent) by construction: a typical non-descending
     /// letter's ink sits ON the baseline with nothing below it. There is
@@ -98,6 +133,21 @@ impl TextPipeline {
         px: f32,
     ) -> (f32, f32) {
         let box_ = self.caret_synthetic_ink_box(ascent, font);
+        let (_, floor_h) = caret_visual_body_dims(box_, px);
+        let h = floor_h.max(box_.height + 2.0 * CARET_INK_PAD.px(px));
+        (baseline - box_.top + box_.height * 0.5, h)
+    }
+
+    /// The CJK cell-form caret: one resolved-face em square, padded through the
+    /// same authored body rule as the Latin typical-letter box.
+    pub(in crate::render) fn caret_cell_vertical_ideographic(
+        &self,
+        baseline: f32,
+        font_size: f32,
+        em: (f32, f32),
+        px: f32,
+    ) -> (f32, f32) {
+        let box_ = Self::ideographic_cell_box(font_size, em);
         let (_, floor_h) = caret_visual_body_dims(box_, px);
         let h = floor_h.max(box_.height + 2.0 * CARET_INK_PAD.px(px));
         (baseline - box_.top + box_.height * 0.5, h)

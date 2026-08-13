@@ -835,7 +835,6 @@ pub const FONT_ZH_KO_FACES: &[&[u8]] = &[
 /// BANKED, not attempted here.
 pub const FONT_CJK_COMPANION_FACES: &[&[u8]] =
     &[include_bytes!("../assets/fonts/GowunBatang-Regular.ttf")];
-
 /// Thickness (LOGICAL px) of the underline drawn beneath an active IME
 /// preedit (composition) string. The underline reuses the selection quad
 /// pipeline (same translucent-rect look) but is a thin bar at the glyph baseline
@@ -2555,6 +2554,7 @@ pub struct TextPipeline {
     syn_lang: Option<crate::syntax::Lang>,
     syn_spans: Vec<(std::ops::Range<usize>, crate::syntax::SynKind)>,
     doc_lang: Option<crate::frontmatter::Lang>,
+    script_fonts: text::ScriptFonts,
     /// Mirrored from [`ViewState::doc_source`]; read only by `figure_source`.
     doc_source: Option<DocSource>,
     cjk_priority: Vec<crate::frontmatter::Lang>,

@@ -1,5 +1,8 @@
 use super::*;
 
+// Script faces resolve with document attrs and remain cached for caret geometry.
+// The cache follows every whole-buffer and incremental restyle door below.
+
 mod conceal_image_force;
 #[cfg(not(target_arch = "wasm32"))]
 mod image_spans;
@@ -312,6 +315,7 @@ impl TextPipeline {
     /// live editor never calls this.
     pub fn set_text_full(&mut self, text: &str) {
         self.reshape_count += 1;
+        self.script_fonts = self.resolve_script_fonts();
         let attrs = self.doc_attrs();
         self.buffer
             .set_text(&mut self.font_system, text, &attrs, Shaping::Advanced, None);
@@ -327,7 +331,6 @@ impl TextPipeline {
         self.row_geom.invalidate();
         self.shaped_key = Some(text.to_string());
     }
-
     /// Reconcile the glyphon buffer's per-line text with `text`, mutating ONLY the
     /// `BufferLine`s that actually differ so cosmic-text reuses cached per-line
     /// shaping for every UNCHANGED line. This is the core of the typing fix:
@@ -700,11 +703,11 @@ impl TextPipeline {
 
     pub(super) fn set_text_incremental(&mut self, text: &str) {
         let attrs = self.doc_attrs();
-        // Resolve every per-script fallback face ONCE (depends on the active
-        // theme + font DB, not the per-line text), then overlay the resolved
-        // face on each changed line below via the per-run script ladder
-        // (`build_line_attrs` -> `add_script_spans`).
+        // Resolve every fallback face ONCE (theme + font DB, not per-line text),
+        // then overlay the resolved
+        // face on each changed line (`build_line_attrs` -> `add_script_spans`).
         let fonts = self.resolve_script_fonts();
+        self.script_fonts = fonts;
         self.doc_lang = crate::card::figures::frontmatter_lang(text);
         let (md_spans, syn_spans) = self.parse_doc_spans(text);
         // Split into lines WITHOUT the line terminators (cosmic-text stores the
@@ -782,9 +785,7 @@ impl TextPipeline {
                 image_force.get(li).copied().flatten(),
             )
         };
-
         let (prefix, old_end, new_end) = self.unchanged_band(&new_lines);
-
         let mut replacement: Vec<glyphon::cosmic_text::BufferLine> =
             Vec::with_capacity(new_end - prefix);
         for (k, &lt) in new_lines[prefix..new_end].iter().enumerate() {
@@ -893,6 +894,7 @@ impl TextPipeline {
     pub(super) fn restyle_all_lines(&mut self) {
         let attrs = self.doc_attrs();
         let fonts = self.resolve_script_fonts();
+        self.script_fonts = fonts;
         let doc_lang = self.doc_lang;
         let cjk_priority = self.cjk_priority.clone();
         let base_fs = self.metrics.font_size;
@@ -979,13 +981,12 @@ impl TextPipeline {
             self.last_conceal_selection = self.selection;
             return;
         }
-        // GATE (byte-identical): the conceal only toggles on a caret-LINE change OR
-        // a SELECTION change (which line set now selection-reveals), so a pure
+        // GATE: conceal toggles on caret-line or selection changes, so a pure
+        // scroll / same-line move / idle redraw would otherwise re-lay the SAME
         // scroll / same-line-same-selection move / idle redraw would re-lay the SAME
         // attrs and no-op. Skip the O(lines × md_spans) rescan in that case. `force`
-        // (a reshape / text edit / restyle just happened) always runs it, because the
-        // reshape drops the per-line attrs and a newly-typed `---`/bullet/heading/etc.
-        // must (re)conceal. TRIPWIRE: comparing the WHOLE selection (not just its
+        // (a reshape / text edit / restyle) always runs it: reshaping drops attrs.
+        // TRIPWIRE: comparing the WHOLE selection (not just its
         // touched-line extent) means a selection that starts/ends/clears without
         // changing which LINES it touches still re-runs the (idempotent) rescan below
         // — a harmless no-op, never a missed reveal/conceal transition.
@@ -1012,6 +1013,7 @@ impl TextPipeline {
         );
         let attrs = self.doc_attrs();
         let fonts = self.resolve_script_fonts();
+        self.script_fonts = fonts;
         let doc_lang = self.doc_lang;
         let cjk_priority = self.cjk_priority.clone();
         let base_fs = self.metrics.font_size;

@@ -74,6 +74,7 @@ use glyphon::cosmic_text::fontdb;
 use glyphon::cosmic_text::skrifa::{
     FontRef, MetadataProvider,
     instance::{LocationRef, Size},
+    raw::TableProvider,
 };
 
 /// Whether a face's glyphs all share one advance width.
@@ -284,6 +285,32 @@ fn measure_vertical_em_metrics(bytes: &[u8]) -> (f32, f32) {
     (m.ascent / upem, -m.descent / upem)
 }
 
+/// A CJK face's one-em ideographic cell, split above and below the baseline by
+/// its own OS/2 typographic ascender/descender. The split is normalised to one
+/// em: CJK body glyphs occupy the em square, while hhea's deliberately generous
+/// line metrics include room that belongs to the row rather than the glyph cell.
+fn measure_ideographic_cell_em(bytes: &[u8]) -> Option<(f32, f32)> {
+    let font = FontRef::new(bytes).ok()?;
+    let os2 = font.os2().ok()?;
+    let ascent = os2.s_typo_ascender() as f32;
+    let descent = -(os2.s_typo_descender() as f32);
+    let total = ascent + descent;
+    if ascent <= 0.0 || descent < 0.0 || total <= 0.0 {
+        return None;
+    }
+    Some((ascent / total, descent / total))
+}
+
+/// Every bundled face the per-script resolution ladder can select.
+pub fn bundled_cjk_faces() -> impl Iterator<Item = &'static [u8]> {
+    crate::render::FONT_CJK_FACES
+        .iter()
+        .chain(crate::render::FONT_JA_VARIETY_FACES)
+        .chain(crate::render::FONT_ZH_KO_FACES)
+        .chain(crate::render::FONT_CJK_COMPANION_FACES)
+        .copied()
+}
+
 /// One bundled display face, as the roster knows it.
 #[derive(Clone, Copy, Debug)]
 pub struct FaceFacts {
@@ -374,4 +401,27 @@ pub fn vertical_em_metrics(family: &str) -> (f32, f32) {
         .get(family)
         .map(|f| f.vertical_em)
         .unwrap_or((DEFAULT_ASCENT_EM, DEFAULT_DESCENT_EM))
+}
+
+/// The resolved bundled CJK face's stable one-em ideographic cell, expressed
+/// as `(ascent, descent)` fractions around the baseline. `None` is honest for a
+/// system-only face whose bytes are not part of the product; the caller then
+/// retains the existing row/Latin fallback rather than inventing its metrics.
+pub fn ideographic_cell_em(family: &str) -> Option<(f32, f32)> {
+    static CJK: OnceLock<BTreeMap<String, (f32, f32)>> = OnceLock::new();
+    CJK.get_or_init(|| {
+        let mut out = BTreeMap::new();
+        for bytes in bundled_cjk_faces() {
+            let Some(family) = registered_family(bytes) else {
+                continue;
+            };
+            let Some(cell) = measure_ideographic_cell_em(bytes) else {
+                continue;
+            };
+            out.entry(family).or_insert(cell);
+        }
+        out
+    })
+    .get(family)
+    .copied()
 }
