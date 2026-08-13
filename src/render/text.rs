@@ -1,8 +1,5 @@
 use super::*;
 
-// Script faces resolve with document attrs and remain cached for caret geometry.
-// The cache follows every whole-buffer and incremental restyle door below.
-
 mod conceal_image_force;
 #[cfg(not(target_arch = "wasm32"))]
 mod image_spans;
@@ -61,6 +58,12 @@ impl ScriptFonts {
 }
 
 impl TextPipeline {
+    fn cache_script_fonts(&mut self) -> ScriptFonts {
+        let fonts = self.resolve_script_fonts();
+        self.script_fonts = fonts;
+        fonts
+    }
+
     /// The document BASE family for the current buffer: the active world's
     /// [`Theme::mono`] when this is a CODE buffer (`self.syn_lang.is_some()` — a
     /// recognized `.rs`/`.py`/… file), else its proportional [`Theme::font`]. Code
@@ -315,7 +318,7 @@ impl TextPipeline {
     /// live editor never calls this.
     pub fn set_text_full(&mut self, text: &str) {
         self.reshape_count += 1;
-        self.script_fonts = self.resolve_script_fonts();
+        self.cache_script_fonts();
         let attrs = self.doc_attrs();
         self.buffer
             .set_text(&mut self.font_system, text, &attrs, Shaping::Advanced, None);
@@ -703,11 +706,9 @@ impl TextPipeline {
 
     pub(super) fn set_text_incremental(&mut self, text: &str) {
         let attrs = self.doc_attrs();
-        // Resolve every fallback face ONCE (theme + font DB, not per-line text),
-        // then overlay the resolved
-        // face on each changed line (`build_line_attrs` -> `add_script_spans`).
-        let fonts = self.resolve_script_fonts();
-        self.script_fonts = fonts;
+        // Resolve fallback faces once, then overlay each changed line through
+        // `build_line_attrs` -> `add_script_spans`.
+        let fonts = self.cache_script_fonts();
         self.doc_lang = crate::card::figures::frontmatter_lang(text);
         let (md_spans, syn_spans) = self.parse_doc_spans(text);
         // Split into lines WITHOUT the line terminators (cosmic-text stores the
@@ -893,8 +894,7 @@ impl TextPipeline {
     /// case never pays for it.
     pub(super) fn restyle_all_lines(&mut self) {
         let attrs = self.doc_attrs();
-        let fonts = self.resolve_script_fonts();
-        self.script_fonts = fonts;
+        let fonts = self.cache_script_fonts();
         let doc_lang = self.doc_lang;
         let cjk_priority = self.cjk_priority.clone();
         let base_fs = self.metrics.font_size;
@@ -982,7 +982,6 @@ impl TextPipeline {
             return;
         }
         // GATE: conceal toggles on caret-line or selection changes, so a pure
-        // scroll / same-line move / idle redraw would otherwise re-lay the SAME
         // scroll / same-line-same-selection move / idle redraw would re-lay the SAME
         // attrs and no-op. Skip the O(lines × md_spans) rescan in that case. `force`
         // (a reshape / text edit / restyle) always runs it: reshaping drops attrs.
@@ -1012,8 +1011,7 @@ impl TextPipeline {
             },
         );
         let attrs = self.doc_attrs();
-        let fonts = self.resolve_script_fonts();
-        self.script_fonts = fonts;
+        let fonts = self.cache_script_fonts();
         let doc_lang = self.doc_lang;
         let cjk_priority = self.cjk_priority.clone();
         let base_fs = self.metrics.font_size;

@@ -1,6 +1,8 @@
 //! GPU construction for [`super::TextPipeline`]. Per-frame preparation and render
 //! composition live in their respective pipeline modules.
-//! Script-face caches are initialized with the rest of the pipeline state.
+//! Script-face caches begin inert here and are resolved with document attrs.
+//! Their geometry consumer therefore reads the same ladder that shaped the run.
+//!
 
 use super::*;
 impl TextPipeline {
@@ -15,7 +17,6 @@ impl TextPipeline {
         const PLACEHOLDER_RGB: [u8; 3] = [0; 3];
         const PLACEHOLDER_RGBA: [u8; 4] = [0; 4];
         let mut font_system = build_font_system();
-        let swash_cache = SwashCache::new();
         let viewport = Viewport::new(device, cache);
         let mut atlas = TextAtlas::new(device, queue, cache, format);
         let renderer =
@@ -226,10 +227,9 @@ impl TextPipeline {
         let nit_pipeline = SpellUnderlinePipeline::new(device, format, PLACEHOLDER_RGBA);
         let strike_pipeline = SpellUnderlinePipeline::new(device, format, PLACEHOLDER_RGBA);
         let link_underline_pipeline = SpellUnderlinePipeline::new(device, format, PLACEHOLDER_RGBA);
-
         let mut me = Self {
             font_system,
-            swash_cache,
+            swash_cache: SwashCache::new(),
             viewport,
             atlas,
             renderer,
