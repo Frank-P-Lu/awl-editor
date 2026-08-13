@@ -4,7 +4,7 @@ impl App {
     /// Apply the result of a platform file chooser. Kept separate from the
     /// modal panel so Cancel and accepted-path behavior are testable without an
     /// OS surface. Returns whether a choice was committed.
-    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
+    #[cfg(any(target_os = "macos", all(test, not(target_arch = "wasm32"))))]
     pub(in crate::app) fn apply_file_choice(&mut self, chosen: Option<PathBuf>) -> bool {
         let Some(path) = chosen else {
             return false;
@@ -15,7 +15,7 @@ impl App {
 
     /// Apply the result of a platform folder chooser through the same rescope,
     /// session, and recent-folder owner as a typed Go-to folder row.
-    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
+    #[cfg(any(target_os = "macos", all(test, not(target_arch = "wasm32"))))]
     pub(in crate::app) fn apply_folder_choice(&mut self, chosen: Option<PathBuf>) -> bool {
         let Some(path) = chosen else {
             return false;

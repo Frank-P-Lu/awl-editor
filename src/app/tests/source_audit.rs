@@ -662,6 +662,37 @@ fn the_active_event_loop_census_is_exact_and_the_input_chain_is_free_of_it() {
     }
 }
 
+/// Platform chooser results have production consumers only behind AppKit's
+/// panels. Native tests retain the helpers to prove Cancel/accept behavior on
+/// every desktop target; wasm has neither the panel nor that native-only test
+/// module. Keep the boundary exact so a blanket lint exemption cannot hide a
+/// new unowned helper.
+#[test]
+fn platform_chooser_result_helpers_have_the_exact_target_boundary() {
+    let source = std::fs::read_to_string(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/app/files/open.rs"),
+    )
+    .expect("read the platform chooser result owner");
+    let gate = r#"#[cfg(any(target_os = "macos", all(test, not(target_arch = "wasm32"))))]"#;
+
+    assert_eq!(
+        source.matches(gate).count(),
+        2,
+        "the exact macOS-production/native-test chooser boundary must enrol both helpers"
+    );
+    for helper in ["apply_file_choice", "apply_folder_choice"] {
+        let enrolled = format!("{gate}\n    pub(in crate::app) fn {helper}");
+        assert!(
+            source.contains(&enrolled),
+            "{helper} escaped the exact macOS-production/native-test boundary"
+        );
+    }
+    assert!(
+        !source.contains("allow(dead_code)"),
+        "chooser helpers must be scoped to their consumers, never lint-exempted"
+    );
+}
+
 /// Launch, replay capture, and the configuration surface resolve an absent zoom
 /// through the range spec's authored default. The exact source enrollment is the
 /// structural half of the law: equal values written in parallel are still a bug,
