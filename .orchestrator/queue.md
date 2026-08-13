@@ -53,22 +53,6 @@ Verify narrow, ordinary, and wide windows with long metadata. Geometry laws pin
 the minimum inset, prove the increased allowance, and retain ellipsis when space
 is genuinely exhausted. Capture the reported shape for pixel confirmation.
 
-### 422 — prose double-click uses linguistic words without changing code words
-
-🟡 IN PROGRESS — queue-422 (codex), branch codex/queue-422-word-selection
-
-On macOS, prose/Markdown double-click and word-granularity drag use
-NaturalLanguage's `NLTokenizer(.word)` for English, Japanese, and mixed text;
-code buffers keep awl's editor-style `is_word_char`. The platform adapter owns
-UTF-16 conversion and returns rope char ranges snapped to awl's UAX #29
-boundaries. Linux/web keep today's English rule and select one extended grapheme
-for an unspaced CJK run rather than swallowing the run through punctuation.
-
-Verify prose vs code, apostrophes, hyphens, URLs, Markdown, Japanese compounds,
-punctuation, emoji/combining clusters, and mixed scripts. macOS pins `構成` from
-`大幅に構成が変わっており`; portable tests pin the CJK fallback and unchanged
-English plus code `snake_case`. No dictionary or network lookup.
-
 ### 421 — make the cell caret contain full-square CJK ink
 
 Over Japanese `構成`, the cell caret covers only the middle of `成`. Preserve the

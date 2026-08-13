@@ -115,7 +115,7 @@ reason = "The grouped per-frame AmbientUpload keeps the prepare call below the a
 
 [[file_size_mark]]
 file = "src/buffer.rs"
-lines = 818
+lines = 782
 reason = "DOWN 67: save, save_owned, and save_into_folder moved to buffer/save.rs beside persistence ownership; Buffer keeps the data/editing core."
 
 [[file_size_mark]]
