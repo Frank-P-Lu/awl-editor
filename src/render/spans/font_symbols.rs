@@ -96,11 +96,11 @@ pub(crate) fn add_script_spans(
 
 /// True for the SYMBOL / ORNAMENT codepoints the bundled mono + proportional
 /// display faces lack — the macOS modifier glyphs (⌘ ⇧ ⌥ ⌃), the key-hint keycaps
-/// (↵ Return, ⇥ Tab), the fine-press ornaments / fleurons (❧ ❦ ☙ ❡ ❥), the
+/// (↵ Return, ⇥ Tab, ⌫ Backspace), the fine-press ornaments / fleurons (❧ ❦ ☙ ❡ ❥), the
 /// asterism (⁂), and the reference marks (§ † ‡). These render as TOFU under the
 /// global fallback (IBM Plex Mono Light), so the renderer overlays the bundled
 /// [`SYMBOL_FAMILY`] face on their runs (see [`add_symbol_spans`]). Exactly the
-/// glyph set bundled in `AwlSymbols.ttf`; keep the two in sync.
+/// glyph set bundled in `AwlMarks.ttf`; keep the two in sync.
 pub(crate) fn is_symbol(c: char) -> bool {
     matches!(
         c as u32,
@@ -110,6 +110,7 @@ pub(crate) fn is_symbol(c: char) -> bool {
         | 0x2303 // ⌃ Control
         | 0x21B5 // ↵ Downwards arrow with corner leftwards (Return / Enter)
         | 0x21E5 // ⇥ Rightwards arrow to bar (Tab)
+        | 0x232B // ⌫ Erase to the left (Backspace)
         | 0x2767 // ❧ Rotated floral heart (fleuron — the hr ornament)
         | 0x2766 // ❦ Floral heart (the `___` break ornament)
         | 0x2619 // ☙ Reversed rotated floral heart (fleuron variant)

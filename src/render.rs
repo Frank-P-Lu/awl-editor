@@ -428,7 +428,7 @@ pub const FONT_DATA_PITCH: facepitch::Pitch = facepitch::Pitch::Mono;
 /// the key-hint keycaps (↵ Return, ⇥ Tab) from Iosevka; and the asterism ⁂ from
 /// Junicode — all UPM 1000, so the merged metrics align. It carries the glyphs
 /// awl's prose+chrome want but the mono/proportional display faces lack: the macOS
-/// modifier glyphs (⌘ ⇧ ⌥ ⌃), the key-hint keycaps (↵ ⇥), the fine-press ornaments
+/// modifier glyphs (⌘ ⇧ ⌥ ⌃), the key-hint keycaps (↵ ⇥ ⌫), the fine-press ornaments
 /// / fleurons (❧ ❦ ☙ ❡ ❥), the asterism (⁂), and the reference marks (§ † ‡). It
 /// is NOT a display face — it is registered under the private family
 /// [`SYMBOL_FAMILY`] and only ever named via per-run `AttrsList` family spans

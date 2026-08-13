@@ -83,7 +83,7 @@ full for iA Writer Quattro S.
 | `SourGummy-Regular.ttf` | Sour Gummy | The Sour Gummy Project Authors | — | SIL OFL 1.1 | github.com/eifetx/Sour-Gummy-Fonts (Google Fonts ofl/sourgummy, variable `wdth,wght`, instanced `wght=400 wdth=100`, Latin+punctuation subset) |
 | `SourGummy-Bold.ttf` | Sour Gummy | The Sour Gummy Project Authors | — | SIL OFL 1.1 | github.com/eifetx/Sour-Gummy-Fonts (instanced `wght=700 wdth=100`, same subset — item 70's real Bold companion) |
 | `SourGummy-Black.ttf` | Sour Gummy | The Sour Gummy Project Authors | — | SIL OFL 1.1 | github.com/eifetx/Sour-Gummy-Fonts (instanced `wght=900 wdth=100`, same subset — item 70's bundled 900 heavy candidate, see below) |
-| `AwlMarks.ttf` | Awl Marks | EB Garamond, Noto (Adobe), Iosevka (Renzhi Li), Junicode (Peter S. Baker) — Project Authors, per glyph source | — | SIL OFL 1.1 (composed from OFL sources — see note below) | github.com/octaviopardo/EBGaramond12; github.com/notofonts (Noto Sans Symbols 2); github.com/be5invis/Iosevka; github.com/psb1558/Junicode-font |
+| `AwlMarks.ttf` | Awl Marks | EB Garamond Project Authors; Noto Sans Symbols 2 source Copyright 2017 Google Inc., distributed by The Noto Project Authors; Iosevka (Renzhi Li); Junicode (Peter S. Baker) | — | SIL OFL 1.1 (composed from OFL sources — see note below) | github.com/octaviopardo/EBGaramond12; github.com/notofonts/noto-fonts (Noto Sans Symbols 2); github.com/be5invis/Iosevka; github.com/psb1558/Junicode-font |
 
 **Item 132 (Kite, the twentieth world) added NO font asset.** Its display face is
 the Fira Sans Regular + Bold pair above, which was already embedded, licensed and
@@ -240,6 +240,19 @@ decompose-and-merge operation), for the per-world section-break ornament re-pick
 (✿ ❀ ❁ ✽ · U+273F 2740 2741 273D), and geometric marks (❖ ◈ ⬥ ◆ · U+2756 25C8
 2B25 25C6). The family name ("Awl Marks") is unchanged, so the merged face now
 carries 33 codepoints (the original 18 + these 15).
+
+U+232B ERASE TO THE LEFT was then added from the official
+**Noto Sans Symbols 2 Regular v2.003** artifact at
+`notofonts/noto-fonts/hinted/ttf/NotoSansSymbols2/NotoSansSymbols2-Regular.ttf`.
+The exact source artifact has SHA-256
+`630846d528dbe4c4981370a4d0a9475a1fd1491a129bb411f8e157cdb5de13c6`;
+its embedded name table records `Copyright 2017 Google Inc. All Rights Reserved.`
+and the SIL OFL 1.1 grant. The repository's `LICENSE` has SHA-256
+`0dab92d0544f7b233403f14b84a663bdbfa746982eda629e7f4f9ffe1b036feb`,
+names The Noto Project Authors, and contains the full SIL OFL 1.1 text. The
+simple outline was copied without scaling (both faces use UPM 1000), preserving
+the source horizontal metrics: advance 1197, left side bearing 51. AwlMarks'
+private family name is unchanged, and the face now carries 34 codepoints.
 
 ## license texts in this directory
 
