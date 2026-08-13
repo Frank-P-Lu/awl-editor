@@ -489,8 +489,7 @@ impl TextPipeline {
         elide: bool,
     ) {
         let fitted_hint = self.overlay_fitted_hint(geom);
-        let m = self.metrics;
-        let faint = theme::faint().to_glyphon();
+        let (m, faint) = (self.metrics, theme::faint().to_glyphon());
         let label = crate::markdown::type_scale::LABEL;
         // Per-line font sizes ride the overlay UI base (`OVERLAY_UI_SCALE`), and their
         // LINE HEIGHTS stay the uniform UI row height (`overlay_lh`) so the plan line
