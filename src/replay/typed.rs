@@ -6,7 +6,7 @@ pub(super) fn classify_surface(effect: &crate::actions::SurfaceEffect) -> Classi
         crate::actions::SurfaceEffect::OpenFileChooser => named(
             "open_file_chooser",
             EffectClass::Unsupported {
-                why: "the platform file chooser is live-only; capture the resulting open separately",
+                why: "the file chooser is live-only; capture its open separately",
             },
         ),
         crate::actions::SurfaceEffect::OpenFolderChooser => named(
