@@ -16,20 +16,6 @@ rail's geometry, DPI, focus, menu-bar, and selected-state neighborhood; repair
 the shared theme-data owner without a Potoroo rendering branch. End with the
 full roster law, a mutation proof, and the exact native receipt.
 
-### 421 — make the cell caret contain full-square CJK ink
-
-🟡 IN PROGRESS — queue-421 (codex), branch codex/queue-421-cjk-cell-caret
-
-Over Japanese `構成`, the cell caret covers only the middle of `成`. Preserve the
-stable Latin height, but derive one stable ideographic cell from the resolved CJK
-face/script—no named glyph/world branch and no per-kanji ink-height jitter.
-Mixed Latin/CJK transitions remain bounded.
-
-Verify the pure geometry seam, then ordinary captures at both DPIs over the full
-proportional roster and every cell-form caret. Pixel arithmetic proves the caret
-is present and contains CJK ink with its authored pad; existing Latin-height laws
-remain unchanged. Vision-smoke five worlds by locating the Japanese caret.
-
 ### 418 — one Go-to surface for files, headings, and folders
 
 🟡 IN PROGRESS — queue-418 (codex), branch codex/queue-418-unified-goto
