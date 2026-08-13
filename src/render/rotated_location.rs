@@ -6,8 +6,8 @@
 //!
 //! - Cassowary's `RotatedRail` — turned 90° along the room's own outer
 //!   margin, the margin its wordmark placard already keeps, seated just ABOVE
-//!   that placard at [`ROTATED_RAIL_PLACARD_FRACTION`] of its type size and in
-//!   its ink: a vertical companion to the wordmark at its own scale class.
+//!   that placard as a compact technical locator. Its face, placard-relative
+//!   scale, palette ink, tracking and locator grammar are theme data.
 //! - Magpie's `Raked` — left where the row planner's own diagonal stagger
 //!   already puts it (the row's own TEXT column, unmoved), turned to the
 //!   diagonal spine's own rake, in a gradient between the spine's two
@@ -23,14 +23,14 @@ use super::*;
 use crate::rotated_label::geometry::{InkBox, label_axis_deg, label_bounds};
 use crate::rotated_label::mask::LabelMask;
 
-/// The secondary heading's font size, as a fraction of the overlay's own UI
+/// The default secondary-heading font size, as a fraction of the overlay's own UI
 /// size — above `type_scale::LABEL` (a section header's whisper), below a
 /// candidate row, so the hierarchy reads by size as well as by ink. Shared by
 /// the treatments that size the cue against the CARD's own type: the inline
 /// row (`chrome::theme_picker::shape_theme_spans`) and `Raked`'s in-column
 /// rake. `RotatedRail` does NOT read it — it is chrome on the room's frame
-/// rather than type in the card, and sizes against the placard instead
-/// ([`ROTATED_RAIL_PLACARD_FRACTION`]).
+/// rather than type in the card, and reads its placard-relative scale from
+/// [`theme::LocationLabelStyle`].
 pub(in crate::render) const LOCATION_SCALE: f32 = 0.92;
 
 /// [`Overflow::Shrink`]'s FLOOR: never shrink a facet name past this fraction
@@ -64,15 +64,6 @@ pub(in crate::render) fn raked_along_budget(row_height: f32, header_gap: f32) ->
     (row_height + header_gap.max(0.0) * ROTATED_LOCATION_HEADER_GAP_FRAC).max(1.0)
 }
 
-/// **THE ⅔ RELATION.** `RotatedRail`'s type size, as a fraction of the
-/// wordmark placard's own — the whole of what makes the cue read as the
-/// wordmark's companion rather than as a second title or as a caption. Two
-/// thirds is a scale class down: unmistakably subordinate, unmistakably the
-/// same voice. The placard's size is read from the placard's OWN owner
-/// (`chrome::overlay_shape::overlay_shape_placard`) every frame, so the pair
-/// cannot drift when the world redials its wordmark's loudness.
-pub(in crate::render) const ROTATED_RAIL_PLACARD_FRACTION: f32 = 2.0 / 3.0;
-
 /// The gap `RotatedRail` keeps between its own bottom ink and the placard's
 /// LINE BOX, in ems of the cue's own type. On top of the leading the placard's
 /// line box already carries above its capitals (roughly a fifth of its own
@@ -84,9 +75,9 @@ pub(in crate::render) const ROTATED_RAIL_PLACARD_GAP_EM: f32 = 0.12;
 /// The placard's own LINE BOX per unit of font size
 /// (`overlay_shape_placard` lays its wordmark out at `font_size * 1.1` on both
 /// its main and its shrink-to-fit path). The rail is handed the placard's
-/// drawn BOX and converts back through this, so [`ROTATED_RAIL_PLACARD_
-/// FRACTION`] is a claim about the two runs' LETTERS rather than about a box.
-/// Pinned by `render::tests::rotated_location`'s cap-ratio law: a
+/// drawn BOX and converts back through this, so a theme's `scale` is a claim
+/// about the two runs' LETTERS rather than about a box. Pinned by
+/// `render::tests::rotated_location`'s cap-ratio law: a
 /// change to the placard's leading that this constant did not follow moves the
 /// measured cap height out of the face's own band and fails there by name.
 const PLACARD_LINE_BOX_RATIO: f32 = 1.1;
@@ -106,11 +97,9 @@ pub(in crate::render) enum Overflow {
     /// lesser evil next to an illegible cue or a missing one.
     Shrink,
     /// NEVER RESIZE — the size IS the composition. `RotatedRail`'s answer:
-    /// [`ROTATED_RAIL_PLACARD_FRACTION`] of the wordmark is the whole point of
-    /// the cue, its box is bounded by the card and the placard, and a run at
-    /// some other fraction would be the small misplaced whisper the rail
-    /// exists to replace. A run that does not fit is PARKED, so the cue is
-    /// either the wordmark's companion at exactly its ⅔ or it is absent.
+    /// the authored placard-relative scale is part of the composition. A run
+    /// that does not fit is PARKED rather than silently resized away from its
+    /// theme data.
     Park,
 }
 
@@ -141,6 +130,9 @@ pub(in crate::render) struct RotatedLabelPlacement {
     pub fit: [f32; 2],
     /// Font size (device px) before any shrink-to-fit.
     pub natural_size: f32,
+    /// Face and real letter-spacing treatment authored by the world.
+    pub face: theme::LocationFace,
+    pub tracking_em: f32,
     /// The protractor angle the run reads along (90° for the vertical rail;
     /// the diagonal spine's own rake for `Raked`).
     pub axis_deg: f32,
@@ -150,6 +142,42 @@ pub(in crate::render) struct RotatedLabelPlacement {
     pub color_b: [f32; 3],
     /// What happens when the run does not fit [`Self::fit`].
     pub overflow: Overflow,
+}
+
+/// Format the location datum through the world's locator grammar. An indexed
+/// locator requires the active strip's REAL one-based position; absence parks
+/// the cue instead of inventing a number.
+pub(in crate::render) fn format_location_text(
+    style: theme::LocationLabelStyle,
+    label: &str,
+    one_based: Option<usize>,
+) -> Option<String> {
+    if label.trim().is_empty() {
+        return None;
+    }
+    match style.locator {
+        theme::LocationLocator::Label => Some(label.to_string()),
+        theme::LocationLocator::Indexed {
+            digits,
+            separator,
+            uppercase,
+        } => {
+            let index = one_based?;
+            let label = match uppercase {
+                true => label.to_uppercase(),
+                false => label.to_string(),
+            };
+            Some(format!("{index:0digits$}{separator}{label}"))
+        }
+    }
+}
+
+/// The active strip mark's real one-based position. Keeping this lookup beside
+/// the formatter makes the production index seam directly law-testable.
+pub(in crate::render) fn active_location_index(lens: &[(String, bool)]) -> Option<usize> {
+    lens.iter()
+        .position(|(_, active)| *active)
+        .map(|index| index + 1)
 }
 
 /// The placard's font size, from the drawn line BOX height its own owner
@@ -240,7 +268,7 @@ impl TextPipeline {
         // (`compose_run`, no device/queue, no texture) — a shrink decision
         // should cost nothing beyond glyph shaping, and reserves the one real
         // GPU upload for the size this frame actually draws.
-        let mut buf = self.shape_rotated_location_run(text, p.natural_size);
+        let mut buf = self.shape_rotated_location_run(text, p.natural_size, p.face, p.tracking_em);
         let Some((_, natural_ink, _, _)) = crate::rotated_label::mask::compose_run(
             &mut self.font_system,
             &mut self.swash_cache,
@@ -256,7 +284,12 @@ impl TextPipeline {
         if p.overflow == Overflow::Shrink {
             let shrink = rotated_fit_shrink([natural[2], natural[3]], p.fit);
             if shrink < 1.0 {
-                buf = self.shape_rotated_location_run(text, p.natural_size * shrink);
+                buf = self.shape_rotated_location_run(
+                    text,
+                    p.natural_size * shrink,
+                    p.face,
+                    p.tracking_em,
+                );
             }
         }
 
@@ -305,18 +338,32 @@ impl TextPipeline {
     /// own glyph colour is never drawn (the run reaches the screen as a
     /// coverage MASK tinted by `p.color_a`/`p.color_b`), so it stays the
     /// chrome default here.
-    fn shape_rotated_location_run(&mut self, text: &str, font_size: f32) -> GlyphBuffer {
+    fn shape_rotated_location_run(
+        &mut self,
+        text: &str,
+        font_size: f32,
+        face: theme::LocationFace,
+        tracking_em: f32,
+    ) -> GlyphBuffer {
         let gm = GlyphMetrics::new(font_size, font_size * 1.2);
         let mut buf = GlyphBuffer::new(&mut self.font_system, gm);
         buf.set_size(&mut self.font_system, None, None);
         buf.set_wrap(&mut self.font_system, Wrap::None);
-        buf.set_text(
-            &mut self.font_system,
-            text,
-            &super::chrome_attrs().color(theme::muted().to_glyphon()),
-            Shaping::Advanced,
-            None,
-        );
+        let attrs = match face {
+            theme::LocationFace::Body => super::panel_attrs(),
+            theme::LocationFace::Chrome => super::chrome_attrs(),
+            theme::LocationFace::Mono => {
+                let family = theme::active().mono;
+                let ff = super::text::font_features(false, family, super::code_ligatures_on());
+                Attrs::new()
+                    .family(Family::Name(family))
+                    .weight(super::mono_safe_weight(family))
+                    .font_features(ff)
+            }
+        }
+        .color(theme::muted().to_glyphon())
+        .letter_spacing(tracking_em);
+        buf.set_text(&mut self.font_system, text, &attrs, Shaping::Advanced, None);
         buf.shape_until_scroll(&mut self.font_system, false);
         buf
     }

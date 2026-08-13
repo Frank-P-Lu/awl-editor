@@ -2296,10 +2296,10 @@ pub struct TextPipeline {
     /// non-stipple world and whenever no overlay is up.
     pub placard_stipple: SelectionPipeline,
     /// THE ROTATED SECONDARY-LOCATION HEADING: a `RenderCaps::location_style
-    /// == LocationStyle::RotatedRail` world's active facet name, turned 90° in
-    /// the ROOM's own outer margin — the one its wordmark placard keeps — at two
-    /// thirds the placard's type size and in its ink, a vertical companion at its
-    /// own scale class rather than a caption in the card's gutter. Reuses the
+    /// == LocationStyle::RotatedRail(_)` world's active facet locator, turned
+    /// 90° in the ROOM's own outer margin — the one its wordmark placard keeps.
+    /// Its face, relative scale, palette ink, tracking and locator grammar are
+    /// theme data. Reuses the
     /// world-neutral rotated-label capability
     /// wholesale — this pipeline draws nothing of its own shape, only a
     /// composed glyph mask rotated onto an axis. Parked (`clear()`) for

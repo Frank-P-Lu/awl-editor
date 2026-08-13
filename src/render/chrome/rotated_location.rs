@@ -11,9 +11,21 @@
 
 use super::*;
 use crate::render::rotated_location::{
-    FlushEdge, LOCATION_SCALE, Overflow, ROTATED_RAIL_PLACARD_FRACTION,
-    ROTATED_RAIL_PLACARD_GAP_EM, RotatedLabelPlacement, placard_font_size, raked_along_budget,
+    FlushEdge, Overflow, ROTATED_RAIL_PLACARD_GAP_EM, RotatedLabelPlacement, format_location_text,
+    placard_font_size, raked_along_budget,
 };
+
+fn location_ink(style: theme::LocationLabelStyle) -> ([f32; 3], [f32; 3]) {
+    let active = theme::active();
+    let (a, b) = match style.ink {
+        theme::LocationInk::Flat(role) => (role.resolve(&active), role.resolve(&active)),
+        theme::LocationInk::Gradient(a, b) => (a.resolve(&active), b.resolve(&active)),
+    };
+    (
+        srgb_u8_to_linear3(a.rgba_bytes()),
+        srgb_u8_to_linear3(b.rgba_bytes()),
+    )
+}
 
 impl TextPipeline {
     /// Read THIS frame's location line (the shared row planner's
@@ -47,35 +59,51 @@ impl TextPipeline {
             return;
         };
 
+        let active_index =
+            crate::render::rotated_location::active_location_index(&self.overlay_lens);
         let cluster = self.diagonal_cluster;
-        let placement = match style {
-            theme::LocationStyle::Inline => None, // excluded by `draws_inline()` above
-            theme::LocationStyle::RotatedRail => self.rotated_rail_placement(geom),
-            theme::LocationStyle::Raked => cluster.map(|cluster| {
-                // THE MEASURED step, not `DiagonalComposition::row_step` — see
-                // `location_axis_deg`'s own doc for why reading the narrow-card
-                // yield here is what keeps the cue and the spine beside it
-                // from disagreeing on a card too tight for the authored step.
-                let axis_deg = super::diagonal::location_axis_deg(cluster.spine_step(), row.height);
-                let m = self.metrics;
-                let ui = crate::render::effective_overlay_scale();
-                RotatedLabelPlacement {
-                    flush: FlushEdge::Left(geom.text_left + row.dx),
-                    bottom: row.bottom(),
-                    // Unbounded ACROSS the reading axis: the rake's own
-                    // thickness sits in the card's text column, which the row
-                    // beside it is already sized to hold.
-                    fit: [
-                        f32::INFINITY,
-                        raked_along_budget(row.height, geom.header_gap),
-                    ],
-                    natural_size: m.font_size * ui * LOCATION_SCALE,
-                    axis_deg,
-                    color_a: srgb_u8_to_linear3(theme::muted().rgba_bytes()),
-                    color_b: srgb_u8_to_linear3(theme::base_content().rgba_bytes()),
-                    overflow: Overflow::Shrink,
-                }
-            }),
+        let (label_style, placement) = match style {
+            theme::LocationStyle::Inline => return, // excluded by `draws_inline()` above
+            theme::LocationStyle::RotatedRail(label_style) => {
+                (label_style, self.rotated_rail_placement(geom, label_style))
+            }
+            theme::LocationStyle::Raked(label_style) => (
+                label_style,
+                cluster.map(|cluster| {
+                    // THE MEASURED step, not `DiagonalComposition::row_step` — see
+                    // `location_axis_deg`'s own doc for why reading the narrow-card
+                    // yield here is what keeps the cue and the spine beside it
+                    // from disagreeing on a card too tight for the authored step.
+                    let axis_deg =
+                        super::diagonal::location_axis_deg(cluster.spine_step(), row.height);
+                    let m = self.metrics;
+                    let ui = crate::render::effective_overlay_scale();
+                    let (color_a, color_b) = location_ink(label_style);
+                    RotatedLabelPlacement {
+                        flush: FlushEdge::Left(geom.text_left + row.dx),
+                        bottom: row.bottom(),
+                        // Unbounded ACROSS the reading axis: the rake's own
+                        // thickness sits in the card's text column, which the row
+                        // beside it is already sized to hold.
+                        fit: [
+                            f32::INFINITY,
+                            raked_along_budget(row.height, geom.header_gap),
+                        ],
+                        natural_size: m.font_size * ui * label_style.scale,
+                        face: label_style.face,
+                        tracking_em: label_style.tracking_em,
+                        axis_deg,
+                        color_a,
+                        color_b,
+                        overflow: Overflow::Shrink,
+                    }
+                }),
+            ),
+        };
+
+        let Some(label) = format_location_text(label_style, &label, active_index) else {
+            self.rotated_label_pipeline.clear();
+            return;
         };
 
         match placement {
@@ -94,11 +122,9 @@ impl TextPipeline {
 
     /// **`RotatedRail`'s COMPOSITION: the wordmark's vertical companion.** The
     /// cue takes the placard's own outer MARGIN, sits just ABOVE it, and
-    /// carries [`ROTATED_RAIL_PLACARD_FRACTION`] of its type size in its ink —
-    /// every one of those four quantities read from the placard's own owner
-    /// ([`Self::overlay_shape_placard`]) on this frame, never re-derived here,
-    /// so the pair cannot drift and a world that redials its wordmark moves
-    /// the cue with it.
+    /// carries the theme-authored fraction of its type size in theme-authored
+    /// ink. The placard geometry is read from its own owner
+    /// ([`Self::overlay_shape_placard`]) on this frame, never re-derived here.
     ///
     /// `None` — the cue parks — in three cases, and each is the composition
     /// being honest rather than a quiet downgrade to a smaller treatment:
@@ -114,11 +140,11 @@ impl TextPipeline {
     ///   top corner would need the mirrored vertical anchor; the law
     ///   `every_rotated_rail_world_anchors_its_wordmark_to_the_rooms_floor`
     ///   fails by name if a future world asks for one.
-    /// - **A margin the ⅔ run does not fit.** Between the card's own drawn
+    /// - **A margin the authored run does not fit.** Between the card's own drawn
     ///   left edge and the room's, past roughly 1.7× zoom on the widest card,
     ///   the margin the cue lives in closes; the placard bleeds behind the card
     ///   there, and a cue seated on it would too. Parking rather than shrinking is
-    ///   [`Overflow::Park`]'s own doc: the ⅔ IS the composition, so the cue is
+    ///   [`Overflow::Park`]'s own doc: the scale IS the composition, so the cue is
     ///   either exactly that or absent.
     ///
     /// THE FIT BOX IS THE REAL RISK and it is measured, never assumed: ALONG
@@ -127,8 +153,12 @@ impl TextPipeline {
     /// rects on this frame (the placard's, the card's), so the longest name a
     /// faceted picker can carry is bounded by the same arithmetic as the
     /// shortest.
-    fn rotated_rail_placement(&mut self, geom: &OverlayGeom) -> Option<RotatedLabelPlacement> {
-        let theme::TitleStyle::Placard { ink, .. } = crate::render::effective_title_style() else {
+    fn rotated_rail_placement(
+        &mut self,
+        geom: &OverlayGeom,
+        label_style: theme::LocationLabelStyle,
+    ) -> Option<RotatedLabelPlacement> {
+        let theme::TitleStyle::Placard { .. } = crate::render::effective_title_style() else {
             return None;
         };
         // THE PLACARD'S OWN OWNER, re-asked rather than remembered: it is a
@@ -148,7 +178,7 @@ impl TextPipeline {
         // re-stated: whatever inset the wordmark keeps from the canvas is the
         // inset the cue keeps from the canvas's other three sides.
         let frame_inset = below;
-        let natural_size = placard_font_size(ph) * ROTATED_RAIL_PLACARD_FRACTION;
+        let natural_size = placard_font_size(ph) * label_style.scale;
         let bottom = py - natural_size * ROTATED_RAIL_PLACARD_GAP_EM;
         let along = bottom - room_top - frame_inset;
 
@@ -167,18 +197,17 @@ impl TextPipeline {
         if along <= 0.0 || across <= 0.0 {
             return None;
         }
+        let (color_a, color_b) = location_ink(label_style);
         Some(RotatedLabelPlacement {
             flush,
             bottom,
             fit: [across, along],
             natural_size,
+            face: label_style.face,
+            tracking_em: label_style.tracking_em,
             axis_deg: 90.0,
-            // THE WORDMARK'S OWN INK, both stops — a flat run in the placard's
-            // colour. The cue is not a muted aside any more; it is the same
-            // mark one scale class down, and reading its ink from
-            // `theme::placard_ink` is what keeps that true per world.
-            color_a: srgb_u8_to_linear3(theme::placard_ink(ink).rgba_bytes()),
-            color_b: srgb_u8_to_linear3(theme::placard_ink(ink).rgba_bytes()),
+            color_a,
+            color_b,
             overflow: Overflow::Park,
         })
     }
@@ -219,7 +248,11 @@ impl TextPipeline {
         &mut self,
         geom: &OverlayGeom,
     ) -> Option<(f32, [f32; 2], f32, f32)> {
-        self.rotated_rail_placement(geom).map(|p| {
+        let theme::LocationStyle::RotatedRail(style) = theme::active().render_caps.location_style
+        else {
+            return None;
+        };
+        self.rotated_rail_placement(geom, style).map(|p| {
             let flush_x = match p.flush {
                 FlushEdge::Left(x) | FlushEdge::Right(x) => x,
             };

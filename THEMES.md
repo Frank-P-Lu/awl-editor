@@ -275,7 +275,9 @@ ink-ladder tints still hold their pairwise / perceptibility / luminance /
 ground-contrast laws ON the green ink. No other new law: Cassowary rides the
 shared derivations. Iosevka is its terminal-readout face; the summoned command
 overlay goes loud (Archivo Black wordmark placard, bordered console card, poster
-Bars) while the writing page stays a calm green terminal.
+Bars) while the writing page stays a calm green terminal. The room-margin lens
+cue answers that poster with a quiet Iosevka locator such as `03 / NAVIGATE`:
+its number is the active strip mark's real one-based position, not decoration.
 
 ---
 
@@ -1261,6 +1263,7 @@ RenderCaps`):
 | `chrome_face` | `Body` \| `Named(family)` | Which FACE the overlay chrome (placard wordmark / title prefix / strip labels) shapes in — `Body` (the world's own display face) everywhere, byte-identical, until a world names another family. | `Named` — Cassowary, Firetail, Kite |
 | `list_style` | `Pane` \| `Bars { radius, gap, grow_px, extent, coverage }` \| `Diagonal(spine)` \| `Rules(weight)` | How a summoned picker draws the surfaces behind its candidate rows — one pane (default) vs. per-row plates that grow under the selection. | `Bars` — Cassowary, Firetail, Galah; `Diagonal` — Magpie, Mangrove; `Rules` — Paperbark |
 | `facet_style` | `Text` \| `Band` \| `Chips(variant)` | How the faceted picker's lens strip skins its labels. **Chips is rebuilt-for-real but ships INERT** (poster facets render `Text`) pending the user's variant pick. | `Band` — Kite; `Chips` — Cassowary, Firetail, Galah, Magpie, Mangrove |
+| `location_style` | `Inline` \| `RotatedRail(LocationLabelStyle)` \| `Raked(LocationLabelStyle)` | How the active lens's secondary location cue draws. Non-inline treatments author face (`Body` / `Mono` / `Chrome`), expression-relative scale, palette-role ink, real shaper tracking in em, and locator grammar. `Indexed` derives the truthful one-based position from the active lens strip and parks without one. | `RotatedRail` — Cassowary (`Mono`, 0.28 placard scale, `Muted`, 0.06em, `NN / LABEL` grammar); `Raked` — Magpie (its prior chrome/0.92/muted→ink/untracked label treatment) |
 
 `RenderCaps::DEFAULT` is what the QUIET worlds carry — every field at its
 ordinary value, byte-identical to the pre-capabilities render paths.

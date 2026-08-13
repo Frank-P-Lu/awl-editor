@@ -74,7 +74,16 @@ fn personality_assignments_are_exactly_the_decided_table() {
                 // The location cue joins the diagonal line itself — slanted
                 // to the spine's own rake, gradient between its two authored
                 // tones — rather than sitting upright beside it.
-                location_style: model::LocationStyle::Raked,
+                location_style: model::LocationStyle::Raked(model::LocationLabelStyle {
+                    face: model::LocationFace::Chrome,
+                    scale: 0.92,
+                    ink: model::LocationInk::Gradient(
+                        model::PaletteRole::Muted,
+                        model::PaletteRole::BaseContent,
+                    ),
+                    tracking_em: 0.0,
+                    locator: model::LocationLocator::Label,
+                }),
                 ..RenderCaps::DEFAULT
             },
             "Mangrove" => RenderCaps {
@@ -242,10 +251,20 @@ fn personality_assignments_are_exactly_the_decided_table() {
                 elevation: Elevation::Bordered,
                 list_style: poster_bars,
                 facet_style: FacetStyle::Chips(ChipVariant::Bracket),
-                // The active facet reads as a vertical secondary heading
-                // flush with the card's own left border, not the inline
-                // treatment every other world uses.
-                location_style: model::LocationStyle::RotatedRail,
+                // The active facet reads as a subordinate technical locator:
+                // mono, muted, tracked through the shaper, and truthfully
+                // numbered from the real lens strip.
+                location_style: model::LocationStyle::RotatedRail(model::LocationLabelStyle {
+                    face: model::LocationFace::Mono,
+                    scale: 0.28,
+                    ink: model::LocationInk::Flat(model::PaletteRole::Muted),
+                    tracking_em: 0.06,
+                    locator: model::LocationLocator::Indexed {
+                        digits: 2,
+                        separator: " / ",
+                        uppercase: true,
+                    },
+                }),
                 ..RenderCaps::DEFAULT
             },
             // PAPERBARK (the handmade-paper studio): a LIGHT world, so
