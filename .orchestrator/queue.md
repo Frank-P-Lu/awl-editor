@@ -48,6 +48,8 @@ re-scope, sidecar semantics, and removal of public project/browse wording. Read
 
 ### 395 — language confirmation toast and directory-shaped elision
 
+🟡 IN PROGRESS — queue-395 (codex), branch codex/queue-395-language-toast-elision
+
 - Keep `Tag document language` immediate and without an ellipsis. After it
   applies, show a brief toast naming the result, such as
   `Document language: Japanese`, through item 424's shared toast placement.
