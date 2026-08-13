@@ -6,6 +6,16 @@
 
 ## Ready to build
 
+### 426 — Potoroo's focused rail label clears its own band
+
+🟡 IN PROGRESS — queue-426 (codex), branch codex/queue-426-potoroo-rail-contrast
+
+The full native gate found Potoroo's focused rail label at 2.30:1 against its
+own selected band, below the existing 2.6:1 law. Confirm the failure across the
+rail's geometry, DPI, focus, menu-bar, and selected-state neighborhood; repair
+the shared theme-data owner without a Potoroo rendering branch. End with the
+full roster law, a mutation proof, and the exact native receipt.
+
 ### 421 — make the cell caret contain full-square CJK ink
 
 🟡 IN PROGRESS — queue-421 (codex), branch codex/queue-421-cjk-cell-caret
