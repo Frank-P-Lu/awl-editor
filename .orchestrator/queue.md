@@ -8,6 +8,8 @@
 
 ### 423 — let outline metadata use the available margin before ellipsizing
 
+🟡 IN PROGRESS — queue-423 (codex), branch codex/queue-423-outline-metadata
+
 Secondary/date lines in the left outline truncate while usable horizontal room
 remains. Extend their text block roughly 30–50 px left where the margin permits,
 keeping a 20–24 px minimum inset from the outline. Preserve the primary label,
@@ -83,19 +85,6 @@ the font assets.
 Verify every bundled-face/world roster resolves the footer through AwlMarks with
 no system fallback, tofu, or host-dependent advance. Read `docs/fonts.md` and
 `docs/licensing.md`.
-
-### 406 — remove the obsolete tracked wasm without rewriting history
-
-🟡 IN PROGRESS — queue-406 (codex), branch codex/queue-406-remove-wasm
-
-Remove `site/editor/awl-347842567538f209_bg.wasm`: the unused 43 MB artifact
-contains 456 baked `/Users/frank/…` Cargo paths. Do not rewrite Git history; the
-strings are paths, not secrets. The deploy already builds a fresh remapped wasm
-through `scripts/with-remap.sh`.
-
-Verify the site assembles and deploys without the tracked artifact and that the
-fresh bundle contains no home path. No release or deployment is authorized by
-this item.
 
 ### 404 — make zoom 1.0 the single default
 
