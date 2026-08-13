@@ -103,15 +103,19 @@ impl OverlayGeom {
     }
 
     pub(in crate::render) fn row_text_left(&self) -> f32 {
-        (self.row_text_w > 0.0)
-            .then_some(self.row_text_left)
-            .unwrap_or(self.text_left)
+        if self.row_text_w > 0.0 {
+            self.row_text_left
+        } else {
+            self.text_left
+        }
     }
 
     pub(in crate::render) fn row_text_w(&self) -> f32 {
-        (self.row_text_w > 0.0)
-            .then_some(self.row_text_w)
-            .unwrap_or(self.text_w)
+        if self.row_text_w > 0.0 {
+            self.row_text_w
+        } else {
+            self.text_w
+        }
     }
 
     /// TEST-ONLY readers for the workspace law probe (`render/tests/overlay_probe.rs`),

@@ -133,7 +133,7 @@ fn timeline_metadata_lane_is_wider_safe_present_and_genuinely_exhausted() {
                 let old_right = geom.text_left + geom.text_w;
                 let logical_inset = (row_left - card[0]) / dpi;
                 assert!(
-                    logical_inset >= 20.0 - 0.01 && logical_inset <= 24.0 + 0.01,
+                    (20.0 - 0.01..=24.0 + 0.01).contains(&logical_inset),
                     "{ctx}: widened metadata begins {logical_inset:.2} logical px from the outline"
                 );
                 assert!(
