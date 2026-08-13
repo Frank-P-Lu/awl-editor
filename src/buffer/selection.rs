@@ -6,10 +6,87 @@
 //! `delete_selection` / `copy_region` / `kill_region` act on it. Carved out of
 //! `buffer.rs` verbatim — these stay inherent methods on [`Buffer`].
 
-use super::Buffer;
+use super::{Buffer, is_word_char};
 
 impl Buffer {
     // --- Selection (mark / region) ----------------------------------------
+
+    /// The pointer WORD around `idx` — what a DOUBLE-CLICK selects, and the unit
+    /// a word-granularity drag extends by. Code keeps awl's identifier-shaped
+    /// editor word ([`Self::editor_word_bounds`]). Prose on macOS first asks the
+    /// local NaturalLanguage tokenizer; the portable fallback preserves the
+    /// existing English class but narrows an unspaced CJK run to one extended
+    /// grapheme. Word motion and word delete remain separate rules.
+    pub fn word_bounds(&self, idx: usize) -> (usize, usize) {
+        let len = self.rope.len_chars();
+        if len == 0 {
+            return (0, 0);
+        }
+        let idx = idx.min(len);
+
+        if self.page_class() == crate::page::PageClass::Prose {
+            #[cfg(target_os = "macos")]
+            {
+                // Tokenize only the touched logical line: linguistic words do
+                // not cross a newline, and a pointer drag must stay O(line),
+                // never clone/tokenize the whole manuscript on every move.
+                let line = self.rope.char_to_line(idx);
+                let line_start = self.rope.line_to_char(line);
+                let line_text = self.rope.line(line).to_string();
+                if let Some(bounds) = crate::word_selection::linguistic_word_bounds(
+                    &line_text,
+                    idx - line_start,
+                    line_start,
+                    len,
+                    |i| self.rope.char(i),
+                ) {
+                    return bounds;
+                }
+            }
+
+            if let Some(bounds) =
+                crate::word_selection::portable_cjk_grapheme_bounds(idx, len, |i| self.rope.char(i))
+            {
+                return bounds;
+            }
+        }
+
+        self.editor_word_bounds(idx)
+    }
+
+    /// awl's editor-style word (or run of non-word chars): alphanumeric plus
+    /// underscore. Code pointer selection always uses this exact rule. Both
+    /// ends snap OUTWARD to grapheme boundaries, since a class walk can stop
+    /// before a combining mark and park the caret inside the visible cluster.
+    pub(super) fn editor_word_bounds(&self, idx: usize) -> (usize, usize) {
+        let len = self.rope.len_chars();
+        if len == 0 {
+            return (0, 0);
+        }
+        let idx = idx.min(len);
+        let class_at = |i: usize| -> Option<bool> {
+            if i < len {
+                Some(is_word_char(self.rope.char(i)))
+            } else {
+                None
+            }
+        };
+        let want = class_at(idx)
+            .or_else(|| if idx > 0 { class_at(idx - 1) } else { None })
+            .unwrap_or(true);
+        let mut start = idx;
+        while start > 0 && is_word_char(self.rope.char(start - 1)) == want {
+            start -= 1;
+        }
+        let mut end = idx;
+        while end < len && is_word_char(self.rope.char(end)) == want {
+            end += 1;
+        }
+        (
+            crate::grapheme::snap_backward(start, len, |i| self.rope.char(i)),
+            crate::grapheme::snap_forward(end, len, |i| self.rope.char(i)),
+        )
+    }
 
     /// C-Space: set the mark at the current cursor (start a selection).
     pub fn set_mark(&mut self) {

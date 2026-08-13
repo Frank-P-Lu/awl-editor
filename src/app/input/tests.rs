@@ -138,6 +138,27 @@ fn double_and_triple_click_arms_ignore_shift() {
     assert_eq!(app.document.buffer().selection_range(), Some((0, 5)));
 }
 
+#[cfg(target_os = "macos")]
+#[test]
+fn macos_double_click_and_word_drag_share_linguistic_units() {
+    let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
+    app.document.set_text("大幅に構成が変わっており");
+    press_at_col(&mut app, 3, false);
+    press_at_col(&mut app, 3, false);
+    assert_eq!(
+        app.document.buffer().selection_range(),
+        Some((3, 5)),
+        "double-click selects 構成"
+    );
+
+    app.drag_to_char(6);
+    assert_eq!(
+        app.document.buffer().selection_range(),
+        Some((3, 9)),
+        "the same word-granularity drag extends through 変わっ"
+    );
+}
+
 // === THE PHANTOM-SELECTION-CLICK FIX ================================
 // `PointerInput::drag_armed` / `PointerInput::exceeds_drag_slop`: a `CursorMoved` while
 // `dragging` must only extend the selection once the pointer has genuinely
