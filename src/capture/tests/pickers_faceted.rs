@@ -50,6 +50,202 @@ fn read_sidecar(png: &std::path::Path) -> serde_json::Value {
     serde_json::from_str(&std::fs::read_to_string(png.with_extension("json")).unwrap()).unwrap()
 }
 
+fn assert_goto_lens_captures(
+    dir: &std::path::Path,
+    buf: &Buffer,
+    goto: &mut crate::overlay::OverlayState,
+) {
+    let scheme = goto.facet_scheme().expect("Go-to has a facet scheme");
+    let roster: Vec<(&str, &str)> = scheme
+        .strip
+        .iter()
+        .map(|facet| (facet.label, facet.id))
+        .collect();
+    assert_eq!(
+        roster,
+        vec![
+            ("All", "all"),
+            ("Files", "files"),
+            ("Headings", "headings"),
+            ("Folders", "folders"),
+            ("Recent", "recent"),
+        ],
+        "the capture law must enroll the complete typed Go-to roster"
+    );
+
+    let cases: [(&str, &str, usize); 5] = [
+        ("all", "All", 7),
+        ("files", "Files", 3),
+        ("headings", "Headings", 2),
+        ("folders", "Folders", 3),
+        ("recent", "Recent", 2),
+    ];
+    for (id, label, item_count) in cases {
+        goto.focus_facet_id(id);
+        assert_eq!(goto.active_facet_id(), Some(id), "enrolled lens {id}");
+        let png = dir.join(format!("goto_{id}.png"));
+        capture_with(&png, buf, &picker_opts(goto, None)).expect("goto picker capture renders");
+        let sidecar = read_sidecar(&png);
+        assert_eq!(sidecar["overlay"]["mode"], serde_json::json!("goto"));
+        assert_eq!(sidecar["overlay"]["lens"], serde_json::json!(id));
+        assert_eq!(
+            sidecar["overlay"]["lens_strip"],
+            serde_json::json!([
+                ["All", id == "all"],
+                ["Files", id == "files"],
+                ["Headings", id == "headings"],
+                ["Folders", id == "folders"],
+                ["Recent", id == "recent"]
+            ]),
+            "sidecar and rendered strip share the five-lens roster at {id}"
+        );
+        assert_eq!(
+            sidecar["overlay"]["items"].as_array().unwrap().len(),
+            item_count,
+            "{id} enrolls its own typed destination rows"
+        );
+        let sections = sidecar["overlay"]["sections"].as_array().unwrap();
+        if id == "all" {
+            assert!(sections.iter().all(|s| s == ""), "All stays ungrouped");
+        } else {
+            assert!(
+                sections.iter().all(|s| s == label),
+                "{id} rows report their rendered {label} section: {sections:?}"
+            );
+        }
+        let rows = sidecar["overlay"]["window"]["rows"]
+            .as_array()
+            .expect("a rendered Go-to lens publishes its row plan");
+        assert!(
+            rows.iter()
+                .filter_map(|row| row["item"].as_u64())
+                .all(|item| item < item_count as u64),
+            "{id}: every drawn row maps back into the sidecar item roster"
+        );
+    }
+}
+
+fn assert_browse_git_lens(dir: &std::path::Path, buf: &Buffer) {
+    use crate::overlay::{OverlayKind, OverlayState};
+
+    let mut browse = OverlayState::new_marked(
+        OverlayKind::Browse,
+        vec!["repo".into(), "plain".into(), "note.md".into()],
+        vec![true, false, false],
+        vec![true, true, false],
+        vec![],
+        vec![],
+        None,
+    );
+    for _ in 0..3 {
+        browse.cycle_lens(1);
+    }
+    assert_eq!(browse.active_facet_id(), Some("git"));
+    let png = dir.join("browse.png");
+    capture_with(&png, buf, &picker_opts(&browse, None)).expect("browse picker capture renders");
+    let sidecar = read_sidecar(&png);
+    assert_eq!(sidecar["overlay"]["mode"], serde_json::json!("browse"));
+    assert_eq!(sidecar["overlay"]["lens"], serde_json::json!("git"));
+    let items = sidecar["overlay"]["items"].as_array().unwrap();
+    assert_eq!(
+        items.len(),
+        1,
+        "only the git repo under Git repos: {items:?}"
+    );
+    assert!(items[0].as_str().unwrap().contains("repo"));
+}
+
+fn capture_grouped_top(
+    dir: &std::path::Path,
+    buf: &Buffer,
+    goto: &crate::overlay::OverlayState,
+    n: usize,
+    menu_bar: bool,
+) -> f64 {
+    let png = dir.join(format!("goto_top_menubar_{menu_bar}.png"));
+    capture_with(&png, buf, &picker_opts(goto, goto.empty_notice()))
+        .expect("grouped top capture renders");
+    let sidecar = read_sidecar(&png);
+    let window = &sidecar["overlay"]["window"];
+    assert!(!window.is_null(), "an open faceted picker reports a window");
+    let lines = window["lines"].as_u64().unwrap();
+    let card_h = window["card_h"].as_f64().unwrap();
+    let canvas_h = window["canvas_h"].as_f64().unwrap();
+    let sel_row = window["sel_row"].as_u64().unwrap();
+    assert!(lines < n as u64, "windowed: {lines} drawn lines < {n} rows");
+    assert!(
+        lines <= 12 + 1,
+        "drawn lines ≤ item cap (12) + section header (1), got {lines}"
+    );
+    assert!(
+        card_h <= canvas_h,
+        "card_h {card_h} must fit canvas_h {canvas_h}"
+    );
+    assert!(
+        sel_row < lines,
+        "selected row {sel_row} within drawn window {lines}"
+    );
+    assert_eq!(window["top"].as_u64().unwrap(), 0, "list starts at the top");
+    canvas_h
+}
+
+fn capture_grouped_bottom(
+    dir: &std::path::Path,
+    buf: &Buffer,
+    goto: &crate::overlay::OverlayState,
+    canvas_h: f64,
+    menu_bar: bool,
+) {
+    let png = dir.join(format!("goto_bottom_menubar_{menu_bar}.png"));
+    capture_with(&png, buf, &picker_opts(goto, goto.empty_notice()))
+        .expect("grouped bottom capture renders");
+    let sidecar = read_sidecar(&png);
+    let window = &sidecar["overlay"]["window"];
+    let lines = window["lines"].as_u64().unwrap();
+    let top = window["top"].as_u64().unwrap();
+    assert!(top > 0, "the window scrolled past the fold (top {top} > 0)");
+    assert!(
+        window["sel_row"].as_u64().unwrap() < lines,
+        "the last row is visible in the scrolled window"
+    );
+    let card_h = window["card_h"].as_f64().unwrap();
+    assert!(
+        card_h <= canvas_h,
+        "the scrolled card is still bounded ({card_h} ≤ {canvas_h})"
+    );
+}
+
+fn capture_flat_window(dir: &std::path::Path, buf: &Buffer, menu_bar: bool) {
+    use crate::overlay::{OverlayKind, OverlayState};
+
+    let corpus: Vec<String> = (0..40).map(|i| format!("entry{i:02}")).collect();
+    let mut flat = OverlayState::new(OverlayKind::MoveDest, corpus, vec![], vec![]);
+    flat.move_sel(30);
+    let png = dir.join(format!("flat_menubar_{menu_bar}.png"));
+    capture_with(&png, buf, &picker_opts(&flat, flat.empty_notice()))
+        .expect("flat picker capture renders");
+    let sidecar = read_sidecar(&png);
+    assert_eq!(
+        sidecar["overlay"]["lens"],
+        serde_json::json!(null),
+        "flat: no lens"
+    );
+    let window = &sidecar["overlay"]["window"];
+    assert_eq!(
+        window["lines"].as_u64().unwrap(),
+        12,
+        "flat list caps at 12 rows"
+    );
+    assert!(
+        window["sel_row"].as_u64().unwrap() < 12,
+        "flat selection is on screen"
+    );
+    assert!(
+        window["card_h"].as_f64().unwrap() <= window["canvas_h"].as_f64().unwrap(),
+        "flat card fits the canvas"
+    );
+}
+
 /// THEME PICKER (FLAT): its runtime lens strip was RETIRED (2026-07-15) — driving the
 /// REAL [`OverlayState::new_theme`] through the capture renders its settled frame as a
 /// FLAT browsable world list, and the sidecar reports `lens: null` / an empty strip /
@@ -291,78 +487,11 @@ fn file_pickers_faceted_lens_render_and_report() {
         ],
         &["notes/repo".to_string()],
     );
-    let goto_scheme = goto.facet_scheme().expect("Go-to has a facet scheme");
-    let roster: Vec<(&str, &str)> = goto_scheme
-        .strip
-        .iter()
-        .map(|facet| (facet.label, facet.id))
-        .collect();
-    assert_eq!(
-        roster,
-        vec![
-            ("All", "all"),
-            ("Files", "files"),
-            ("Headings", "headings"),
-            ("Folders", "folders"),
-            ("Recent", "recent"),
-        ],
-        "the capture law must enroll the complete typed Go-to roster"
-    );
-
     // Every typed lens reaches the rendered card and sidecar through the same
     // fold. The row-counts are deliberately heterogeneous so a lens that is
     // positionally mis-enrolled cannot pass by showing another two-row type.
     const H: &str = OverlayKind::HEADING_MARKER_PREFIX;
-    let cases: [(&str, &str, usize); 5] = [
-        ("all", "All", 7),
-        ("files", "Files", 3),
-        ("headings", "Headings", 2),
-        ("folders", "Folders", 3),
-        ("recent", "Recent", 2),
-    ];
-    for (id, label, item_count) in cases {
-        goto.focus_facet_id(id);
-        assert_eq!(goto.active_facet_id(), Some(id), "enrolled lens {id}");
-        let gpng = dir.join(format!("goto_{id}.png"));
-        capture_with(&gpng, &buf, &picker_opts(&goto, None)).expect("goto picker capture renders");
-        let gj = read_sidecar(&gpng);
-        assert_eq!(gj["overlay"]["mode"], serde_json::json!("goto"));
-        assert_eq!(gj["overlay"]["lens"], serde_json::json!(id));
-        assert_eq!(
-            gj["overlay"]["lens_strip"],
-            serde_json::json!([
-                ["All", id == "all"],
-                ["Files", id == "files"],
-                ["Headings", id == "headings"],
-                ["Folders", id == "folders"],
-                ["Recent", id == "recent"]
-            ]),
-            "sidecar and rendered strip share the five-lens roster at {id}"
-        );
-        assert_eq!(
-            gj["overlay"]["items"].as_array().unwrap().len(),
-            item_count,
-            "{id} enrolls its own typed destination rows"
-        );
-        let sections = gj["overlay"]["sections"].as_array().unwrap();
-        if id == "all" {
-            assert!(sections.iter().all(|s| s == ""), "All stays ungrouped");
-        } else {
-            assert!(
-                sections.iter().all(|s| s == label),
-                "{id} rows report their rendered {label} section: {sections:?}"
-            );
-        }
-        let rows = gj["overlay"]["window"]["rows"]
-            .as_array()
-            .expect("a rendered Go-to lens publishes its row plan");
-        assert!(
-            rows.iter()
-                .filter_map(|row| row["item"].as_u64())
-                .all(|item| item < item_count as u64),
-            "{id}: every drawn row maps back into the sidecar item roster"
-        );
-    }
+    assert_goto_lens_captures(&dir, &buf, &mut goto);
     // Heading rows carry the `❡ ` kind-hint marker (the rowlayout PRIMARY-cell
     // disambiguator) even under their own dedicated lens.
     goto.focus_facet_id("headings");
@@ -372,38 +501,7 @@ fn file_pickers_faceted_lens_render_and_report() {
     );
 
     // BROWSE, cycled RIGHT×3 to the Git-repos lens: only the git-marked folder shows.
-    let corpus = vec![
-        "repo".to_string(),
-        "plain".to_string(),
-        "note.md".to_string(),
-    ];
-    let git = vec![true, false, false];
-    let is_dir = vec![true, true, false];
-    let mut browse = OverlayState::new_marked(
-        OverlayKind::Browse,
-        corpus,
-        git,
-        is_dir,
-        vec![],
-        vec![],
-        None,
-    );
-    browse.cycle_lens(1);
-    browse.cycle_lens(1);
-    browse.cycle_lens(1);
-    assert_eq!(browse.active_facet_id(), Some("git"));
-    let bpng = dir.join("browse.png");
-    capture_with(&bpng, &buf, &picker_opts(&browse, None)).expect("browse picker capture renders");
-    let bj = read_sidecar(&bpng);
-    assert_eq!(bj["overlay"]["mode"], serde_json::json!("browse"));
-    assert_eq!(bj["overlay"]["lens"], serde_json::json!("git"));
-    let bitems = bj["overlay"]["items"].as_array().unwrap();
-    assert_eq!(
-        bitems.len(),
-        1,
-        "only the git repo under Git repos: {bitems:?}"
-    );
-    assert!(bitems[0].as_str().unwrap().contains("repo"));
+    assert_browse_git_lens(&dir, &buf);
 }
 
 /// GROUPED/FACETED WINDOW BOUND: a faceted picker under a SECTIONED lens on a LARGE
@@ -451,91 +549,18 @@ fn faceted_grouped_window_is_bounded_and_scrolls_to_selection() {
         goto.move_sel(-(n as isize));
 
         // TOP of the list: the window is bounded and the selection (row 0) is on screen.
-        let top_png = dir.join(format!("goto_top_menubar_{menu_bar}.png"));
-        capture_with(&top_png, &buf, &picker_opts(&goto, goto.empty_notice()))
-            .expect("grouped top capture renders");
-        let tj = read_sidecar(&top_png);
-        let w = &tj["overlay"]["window"];
-        assert!(!w.is_null(), "an open faceted picker reports a window");
-        let lines = w["lines"].as_u64().unwrap();
-        let card_h = w["card_h"].as_f64().unwrap();
-        let canvas_h = w["canvas_h"].as_f64().unwrap();
-        let sel_row = w["sel_row"].as_u64().unwrap();
-        // BOUNDED: far fewer drawn candidate lines than the full plan (60 rows + 1 header),
-        // and the card never exceeds the canvas.
-        assert!(lines < n as u64, "windowed: {lines} drawn lines < {n} rows");
-        assert!(
-            lines <= 12 + 1,
-            "drawn lines ≤ item cap (12) + section header (1), got {lines}"
-        );
-        assert!(
-            card_h <= canvas_h,
-            "card_h {card_h} must fit canvas_h {canvas_h}"
-        );
-        // SELECTED VISIBLE: the highlighted row sits within the drawn window.
-        assert!(
-            sel_row < lines,
-            "selected row {sel_row} within drawn window {lines}"
-        );
-        let top = w["top"].as_u64().unwrap();
-        assert_eq!(top, 0, "list starts at the top before any scroll");
+        let canvas_h = capture_grouped_top(&dir, &buf, &goto, n, menu_bar);
 
         // MOVE the selection to the LAST row (the bottom of the This-folder section) →
         // the window SCROLLS so the selection stays visible, and the top advances past
         // the fold.
         goto.move_sel(n as isize); // clamps to the last row
         assert_eq!(goto.selected, n - 1);
-        let bot_png = dir.join(format!("goto_bottom_menubar_{menu_bar}.png"));
-        capture_with(&bot_png, &buf, &picker_opts(&goto, goto.empty_notice()))
-            .expect("grouped bottom capture renders");
-        let bj = read_sidecar(&bot_png);
-        let wb = &bj["overlay"]["window"];
-        let blines = wb["lines"].as_u64().unwrap();
-        let btop = wb["top"].as_u64().unwrap();
-        let bsel = wb["sel_row"].as_u64().unwrap();
-        let bcard_h = wb["card_h"].as_f64().unwrap();
-        assert!(
-            btop > 0,
-            "the window scrolled past the fold (top {btop} > 0)"
-        );
-        assert!(
-            bsel < blines,
-            "the last row is visible in the scrolled window"
-        );
-        assert!(
-            bcard_h <= canvas_h,
-            "the scrolled card is still bounded ({bcard_h} ≤ {canvas_h})"
-        );
+        capture_grouped_bottom(&dir, &buf, &goto, canvas_h, menu_bar);
 
         // FLAT PATH (a non-faceting picker) still reports a bounded window: a long list caps
         // at 12 rows, card fits the canvas, and the selection is on screen — unchanged.
-        let flat_corpus: Vec<String> = (0..40).map(|i| format!("entry{i:02}")).collect();
-        let mut flat = OverlayState::new(OverlayKind::MoveDest, flat_corpus, vec![], vec![]);
-        flat.move_sel(30); // land the selection deep in the list
-        let fpng = dir.join(format!("flat_menubar_{menu_bar}.png"));
-        capture_with(&fpng, &buf, &picker_opts(&flat, flat.empty_notice()))
-            .expect("flat picker capture renders");
-        let fj = read_sidecar(&fpng);
-        // A non-faceting picker draws the FLAT path (no lens strip → no sections).
-        assert_eq!(
-            fj["overlay"]["lens"],
-            serde_json::json!(null),
-            "flat: no lens"
-        );
-        let fw = &fj["overlay"]["window"];
-        assert_eq!(
-            fw["lines"].as_u64().unwrap(),
-            12,
-            "flat list caps at 12 rows"
-        );
-        assert!(
-            fw["sel_row"].as_u64().unwrap() < 12,
-            "flat selection is on screen"
-        );
-        assert!(
-            fw["card_h"].as_f64().unwrap() <= fw["canvas_h"].as_f64().unwrap(),
-            "flat card fits the canvas"
-        );
+        capture_flat_window(&dir, &buf, menu_bar);
     }
     crate::menubar::set_menu_bar_on(ambient_menu_bar);
 }
