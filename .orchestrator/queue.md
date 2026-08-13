@@ -6,20 +6,6 @@
 
 ## Ready to build
 
-### 431 — unified Go-to picker captures enroll the five-lens geometry
-
-The combined full native suite fails both faceted picker capture laws after item
-418 unified Go-to. Update the expected grouped-window and file-picker lens
-geometry to the five-lens typed destination surface, preserving bounded windows,
-scroll-to-selection, and sidecar/render agreement across all conventions.
-
-### 430 — native chooser helpers are live only where they are callable
-
-Code health finds `apply_file_choice` and `apply_folder_choice` dead under the
-Linux target. Scope or route the helpers so native chooser behavior remains
-shared where callable and every target compiles with `-D warnings`; do not hide
-real dead code behind a blanket allow.
-
 ## Needs a person, hardware, or release authority
 
 1. **macOS release signing** — supply the Apple secrets required by
