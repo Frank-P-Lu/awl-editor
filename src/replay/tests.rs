@@ -46,6 +46,8 @@ fn roster() -> Vec<Effect> {
         Effect::Buffer(crate::actions::BufferEffect::OpenReference),
         Effect::Daemon(crate::actions::DaemonEffect::NotifyFinished),
         Effect::Surface(crate::actions::SurfaceEffect::ShowAbout),
+        Effect::Surface(crate::actions::SurfaceEffect::OpenFileChooser),
+        Effect::Surface(crate::actions::SurfaceEffect::OpenFolderChooser),
         Effect::Notice(crate::actions::NoticeEffect::Toast("saved".into())),
         Effect::Notice(crate::actions::NoticeEffect::Sticky("failed".into())),
         Effect::Notice(crate::actions::NoticeEffect::Clear),
@@ -176,6 +178,8 @@ fn every_effect_lands_in_its_documented_bucket() {
         "resolve_keep_mine",
         "resolve_take_theirs",
         "review_external_change",
+        "open_file_chooser",
+        "open_folder_chooser",
     ];
     for e in roster() {
         let c = classify(&e);

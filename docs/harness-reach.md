@@ -358,6 +358,8 @@ deadline without a surface).
 | `notice_sticky` | Applied |
 | `notice_toast` | Applied |
 | `open_credits` | Applied |
+| `open_file_chooser` | Unsupported |
+| `open_folder_chooser` | Unsupported |
 | `open_guide` | Applied |
 | `open_reference` | Applied |
 | `open_settings` | Applied |
