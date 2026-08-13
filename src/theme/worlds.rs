@@ -8,10 +8,10 @@ use super::ground::{Background, Tunnel, Weave};
 use super::model::{
     AmbientStyle, Backdrop, CardAnchor, CardShape, CardTexture, CaretBlockStyle, ChipVariant,
     ChromeFace, DecorativeWash, Elevation, FacetStyle, FoldAfford, HighlightTexture, IconCursor,
-    IconGround, ImageReveal, ListStyle, LocationStyle, PageFrame, PaletteRole, PlacardCorner,
-    PlacardInk, RenderCaps, RoleOverrides, RuleSelection, SPELL_UNDERLINE_GAP_DEFAULT,
-    SPELL_UNDERLINE_GAP_TIGHT, SelectionStyle, Theme, ThemeTags, TitleStyle, TwoColour,
-    WashOverride,
+    IconGround, ImageReveal, ListStyle, LocationFace, LocationInk, LocationLabelStyle,
+    LocationLocator, LocationStyle, PageFrame, PaletteRole, PlacardCorner, PlacardInk, RenderCaps,
+    RoleOverrides, RuleSelection, SPELL_UNDERLINE_GAP_DEFAULT, SPELL_UNDERLINE_GAP_TIGHT,
+    SelectionStyle, Theme, ThemeTags, TitleStyle, TwoColour, WashOverride,
 };
 use super::ornament::{
     BULLET_SCALE_GARAMOND, BULLET_SCALE_ORNAMENT, BULLET_SCALE_PLAIN, BULLETS_PLAIN,
@@ -717,7 +717,13 @@ pub const MAGPIE: Theme = Theme {
         elevation: Elevation::Bordered,
         list_style: ListStyle::Diagonal(DiagonalSpine::ascending(DiagonalMark::HAIRLINE)),
         facet_style: FacetStyle::Chips(ChipVariant::Underline),
-        location_style: LocationStyle::Raked,
+        location_style: LocationStyle::Raked(LocationLabelStyle {
+            face: LocationFace::Chrome,
+            scale: 0.92,
+            ink: LocationInk::Gradient(PaletteRole::Muted, PaletteRole::BaseContent),
+            tracking_em: 0.0,
+            locator: LocationLocator::Label,
+        }),
         ..RenderCaps::DEFAULT
     },
 };
@@ -966,11 +972,20 @@ pub const CASSOWARY: Theme = Theme {
         elevation: Elevation::Bordered,
         list_style: ListStyle::Bars,
         facet_style: FacetStyle::Chips(ChipVariant::Bracket),
-        // The active facet (Files, Navigate, …) is a vertical companion to the
-        // bold "COMMANDS" placard: rotated 90° in the same left margin, rising
-        // from just above it, at two thirds its type size and in its ink —
-        // never the inline treatment every other world uses.
-        location_style: LocationStyle::RotatedRail,
+        // The active facet is a quiet technical locator beside the bold
+        // "COMMANDS" placard: the world's own mono readout, lightly tracked,
+        // muted, and indexed from the real lens-strip position.
+        location_style: LocationStyle::RotatedRail(LocationLabelStyle {
+            face: LocationFace::Mono,
+            scale: 0.28,
+            ink: LocationInk::Flat(PaletteRole::Muted),
+            tracking_em: 0.06,
+            locator: LocationLocator::Indexed {
+                digits: 2,
+                separator: " / ",
+                uppercase: true,
+            },
+        }),
         ..RenderCaps::DEFAULT
     },
 };

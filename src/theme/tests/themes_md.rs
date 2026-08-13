@@ -80,6 +80,7 @@ fn field_of(row: &str) -> Reader {
         "chrome_face" => r!(chrome_face),
         "list_style" => r!(list_style),
         "facet_style" => r!(facet_style),
+        "location_style" => r!(location_style),
         other => panic!(
             "THEMES.md's deviation table has a `{other}` row this law cannot \
              read — add it to `field_of` (or explain why the row is not a \
@@ -98,7 +99,6 @@ const FIELDS_WITH_NO_ROW: &[&str] = &[
     "spell_underline_gap",
     "fold_afford",
     // Documented in their own sections of THEMES.md rather than this table.
-    "location_style",
     "ambient",
     "card_texture",
     "card_shape",

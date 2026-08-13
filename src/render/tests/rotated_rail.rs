@@ -1,4 +1,4 @@
-//! CASSOWARY'S LOCATION CUE IS THE WORDMARK'S VERTICAL COMPANION.
+//! CASSOWARY'S LOCATION CUE IS A SUBORDINATE TECHNICAL LOCATOR.
 //!
 //! **Defect:** `LocationStyle::RotatedRail` drew the active facet's name small,
 //! muted and flush with the CARD's own left border — a whisper in the card's
@@ -6,22 +6,22 @@
 //!
 //! **Build:** rotated 90° along the ROOM's own outer margin (the margin the
 //! Archivo-Black wordmark placard already keeps), seated just ABOVE that
-//! placard, at exactly [`ROTATED_RAIL_PLACARD_FRACTION`] of its type size and
-//! in its ink.
+//! placard, but authored independently as Iosevka Regular, 0.28 placard scale,
+//! muted, 0.06em tracked, and truthfully indexed (`03 / NAVIGATE`).
 //!
 //! The laws here grade the four claims that composition makes, and every
 //! appearance claim is arithmetic over real GPU pixels (the sidecar reports
 //! state, never whether anything is visible):
 //!
-//! - **THE ⅔ RELATION**, from both sides, at both DPI tiers — asserted on the
-//!   size the product actually decided AND on the ink that reached the screen.
+//! - **HIERARCHY**, from both sides, at both DPI tiers — asserted on the size
+//!   the product actually decided AND on the ink that reached the screen.
 //! - **PRESENCE**, so the non-overlap laws below cannot be satisfied by a cue
 //!   that faded into the ground or shrank toward nothing: the run's ink is as
-//!   STRONG as the wordmark's (they share an ink) and as BIG as ⅔ predicts.
+//!   visibly weaker than the wordmark, with a real ground-separation floor.
 //! - **NON-OVERLAP AND NO CLIPPING** against the placard's own line box, the
 //!   card's TRUE drawn span (wider than its box — the selected plate grows
 //!   outward past it) and the canvas edge.
-//! - **THE PARK ARM**: where the margin cannot hold the ⅔ run, the cue is
+//! - **THE PARK ARM**: where the margin cannot hold the authored run, the cue is
 //!   absent rather than shrunk, and that is proven to be the park rather than a
 //!   missing plan line.
 //!
@@ -41,8 +41,20 @@ use super::super::*;
 use super::{headless_dqp, view};
 use crate::overlay::{OverlayKind, OverlayState};
 use crate::render::rotated_location::{
-    LOCATION_SCALE, ROTATED_RAIL_PLACARD_FRACTION, ROTATED_RAIL_PLACARD_GAP_EM, placard_font_size,
+    LOCATION_SCALE, ROTATED_RAIL_PLACARD_GAP_EM, active_location_index, format_location_text,
+    placard_font_size,
 };
+
+fn rail_style() -> theme::LocationLabelStyle {
+    let cassowary = theme::THEMES
+        .iter()
+        .find(|world| world.name == "Cassowary")
+        .expect("Cassowary ships");
+    let theme::LocationStyle::RotatedRail(style) = cassowary.render_caps.location_style else {
+        panic!("Cassowary must carry the rotated rail");
+    };
+    style
+}
 
 /// The two DPI tiers, as the SAME logical room at two device scales — a Retina
 /// panel has twice the device pixels for the same window, so the honest 2×
@@ -229,7 +241,12 @@ fn placard_ink(
 fn cassowary_is_the_rosters_only_rotated_rail_world() {
     let carriers: Vec<&str> = theme::THEMES
         .iter()
-        .filter(|t| t.render_caps.location_style == theme::LocationStyle::RotatedRail)
+        .filter(|t| {
+            matches!(
+                t.render_caps.location_style,
+                theme::LocationStyle::RotatedRail(_)
+            )
+        })
         .map(|t| t.name)
         .collect();
     assert_eq!(
@@ -255,10 +272,12 @@ fn cassowary_is_the_rosters_only_rotated_rail_world() {
 fn every_rotated_rail_world_anchors_its_wordmark_to_the_rooms_floor() {
     use theme::PlacardCorner;
     let mut graded = 0usize;
-    for t in theme::THEMES
-        .iter()
-        .filter(|t| t.render_caps.location_style == theme::LocationStyle::RotatedRail)
-    {
+    for t in theme::THEMES.iter().filter(|t| {
+        matches!(
+            t.render_caps.location_style,
+            theme::LocationStyle::RotatedRail(_)
+        )
+    }) {
         let theme::TitleStyle::Placard { corner, .. } = t.render_caps.title_style else {
             panic!(
                 "{}: a `RotatedRail` world with no wordmark placard has nothing for its cue \
@@ -288,27 +307,21 @@ fn every_rotated_rail_world_anchors_its_wordmark_to_the_rooms_floor() {
 }
 
 // ---------------------------------------------------------------------------
-// THE ⅔ RELATION, THE PRESENCE FLOORS, AND NON-OVERLAP — real pixels.
+// THE SUBORDINATE RELATION, PRESENCE FLOORS, AND NON-OVERLAP — real pixels.
 // ---------------------------------------------------------------------------
 
-/// **THE CUE IS EXACTLY ⅔ OF THE WORDMARK, VISIBLY THERE, AND TOUCHES
+/// **THE CUE IS SUBORDINATE TO THE WORDMARK, VISIBLY THERE, AND TOUCHES
 /// NOTHING** — swept over every faceting kind × every lens × both DPI tiers.
 ///
 /// Five claims per cell, and the middle two exist because the outer ones get
 /// HAPPIER as the cue disappears:
 ///
-/// 1. **⅔ from both sides**, on the size the product decided: the cue's own
-///    natural size against the placard's, to a tenth of a percent. Plus
-///    non-vacuity — that size must be nowhere near the retired card-sized cue.
+/// 1. **Scale from both sides**, on the size the product decided: the cue's own
+///    natural size against the placard's, to a tenth of a percent.
 /// 2. **PRESENCE by extent**: the drawn ink's across-axis extent sits in the
-///    band ⅔ predicts for this face (a run of capitals and ascenders, some with
-///    descenders, against the wordmark's own all-capital height). The retired
-///    treatment measures ≈0.18 of the wordmark and fails the floor; a
-///    full-size run measures ≥1.0 and fails the ceiling.
-/// 3. **PRESENCE by strength**: the cue and the wordmark share an ink
-///    (`theme::placard_ink`), so the cue's strongest pixel must be within a
-///    tenth of the wordmark's. A wash toward the ground fails here — the shape
-///    this board has already shipped once.
+///    band a 0.28-scale mono locator predicts against Archivo Black.
+/// 3. **PRESENCE by strength**: the cue clears the ground while staying below
+///    the bold wordmark, so `COMMANDS` remains the lone poster headline.
 /// 4. **NON-OVERLAP**: not one differing pixel at or below the placard's own
 ///    line-box top, nor at or right of the card's TRUE drawn left edge (which is
 ///    LEFT of `card_x` — the selected plate grows outward past the box).
@@ -320,7 +333,7 @@ fn every_rotated_rail_world_anchors_its_wordmark_to_the_rooms_floor() {
 /// wordmark pixel, it would differ between these two shots and land in the
 /// forbidden band.
 #[test]
-fn rotated_rail_is_two_thirds_of_the_wordmark_present_and_clear_of_everything() {
+fn rotated_rail_is_subordinate_to_the_wordmark_present_and_clear_of_everything() {
     let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!("skipping item297 rail composition law: no wgpu adapter");
@@ -360,10 +373,10 @@ fn rotated_rail_is_two_thirds_of_the_wordmark_present_and_clear_of_everything() 
 }
 
 /// ONE `(tier, kind, lens)` cell of
-/// `rotated_rail_is_two_thirds_of_the_wordmark_present_and_clear_of_everything`
+/// `rotated_rail_is_subordinate_to_the_wordmark_present_and_clear_of_everything`
 /// — split out so the sweep above stays a visible loop over the cases graded
 /// rather than the grading itself. Returns whether the cue DREW: a cell whose
-/// margin cannot hold the ⅔ run belongs to the park law, not to this one.
+/// margin cannot hold the authored run belongs to the park law, not to this one.
 fn grade_one_cell(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
@@ -403,20 +416,24 @@ fn grade_one_cell(
         return false; // the margin could not hold it — the park law's cell
     };
 
-    // (1) THE ⅔ RELATION, from above and below.
-    let want = placard_font_size(placard_h) * ROTATED_RAIL_PLACARD_FRACTION;
+    // (1) THE AUTHORED HIERARCHY, from above and below.
+    let style = rail_style();
+    let want = placard_font_size(placard_h) * style.scale;
     assert!(
         (natural - want).abs() <= want * 1e-3,
         "{cell}: cue type is {natural:.2}px against a wordmark of \
-         {:.2}px — the ⅔ relation wants {want:.2}px",
-        placard_font_size(placard_h)
+         {:.2}px — the authored {:.2} relation wants {want:.2}px",
+        placard_font_size(placard_h),
+        style.scale
     );
     let card_sized =
         p.metrics.font_size * crate::render::effective_overlay_scale() * LOCATION_SCALE;
+    let headline_ceiling = placard_font_size(placard_h) * 0.4;
     assert!(
-        natural > card_sized * 3.0,
-        "{cell}: cue type {natural:.2}px is within reach of the RETIRED card-sized \
-         cue ({card_sized:.2}px) — the scale class did not change"
+        natural > card_sized && natural < headline_ceiling,
+        "{cell}: cue type {natural:.2}px must sit between the card readout ({card_sized:.2}px) \
+         and 40% of the placard ({headline_ceiling:.2}px) — a readable locator, never a \
+         second headline"
     );
 
     // The two shots: identical but for the cue's own ink (`blanked`).
@@ -461,7 +478,7 @@ fn grade_cell_pixels(
         .unwrap_or_else(|| panic!("{cell}: the cue drew NOTHING anywhere on the canvas"));
     let (x0, x1, y0, y1, count, peak) = ink;
 
-    // (2) PRESENCE BY EXTENT — the band ⅔ predicts for this face.
+    // (2) PRESENCE BY EXTENT — the authored scale/face band.
     let ground = luma(without[((h / 2) * w + card_left_px / 2) as usize]);
     let (mark_h, mark_peak) = placard_ink(
         without,
@@ -478,12 +495,10 @@ fn grade_cell_pixels(
     let across = (x1 - x0 + 1) as f32;
     let ratio = across / mark_h;
     assert!(
-        (0.58..=0.98).contains(&ratio),
+        (0.18..=0.48).contains(&ratio),
         "{cell}: the cue's ink is {across:.0}px across against a {mark_h:.0}px \
-         wordmark (ratio {ratio:.3}) — ⅔ of Archivo Black predicts 0.58..0.98 \
-         (measured 0.641..0.897 over this roster, the spread being which labels \
-         carry descenders), while the RETIRED whisper measures ≈0.18 and a \
-         full-size run ≥1.0"
+         wordmark (ratio {ratio:.3}) — the authored 0.28-scale Iosevka locator \
+         must remain visibly subordinate to Archivo Black without collapsing"
     );
     let area = across * (y1 - y0 + 1) as f32;
     assert!(
@@ -492,11 +507,12 @@ fn grade_cell_pixels(
          outline or a hairline, not a run of type"
     );
 
-    // (3) PRESENCE BY STRENGTH — the cue and the wordmark share an ink.
+    // (3) PRESENCE BY STRENGTH — muted locator below the bold wordmark.
     assert!(
-        peak >= 0.9 * mark_peak,
-        "{cell}: the cue's strongest pixel is {peak:.1} against the wordmark's \
-         {mark_peak:.1} — the cue has washed toward the ground"
+        peak >= ground + 28.0 && peak <= 0.82 * mark_peak,
+        "{cell}: the cue's strongest pixel is {peak:.1} (ground {ground:.1}) against \
+         the wordmark's {mark_peak:.1} — it must be present in muted ink and weaker \
+         than the lone poster headline"
     );
 
     // (4) NON-OVERLAP, both bounds, scanned over the whole canvas.
@@ -534,15 +550,13 @@ fn grade_cell_pixels(
 // THE PARK ARM.
 // ---------------------------------------------------------------------------
 
-/// **WHERE THE MARGIN CANNOT HOLD THE ⅔ RUN THE CUE IS ABSENT, NOT SMALLER.**
-/// At 1.8× zoom the widest card's own drawn left edge closes the room's margin;
-/// the wordmark bleeds behind the card there and a cue seated on it would too.
+/// **WHERE THE MARGIN CANNOT HOLD THE AUTHORED RUN THE CUE IS ABSENT, NOT SMALLER.**
+/// The zoom sweep grows the widest card until its drawn left edge closes the
+/// room's margin.
 /// Graded on real pixels — zero cue ink in the whole margin — and proven to be
 /// the PARK rather than a missing location line (the plan still carries one).
 ///
-/// NON-VACUITY IS THE SECOND ARM, and it is the product one notch out: at 1.7×
-/// the same cell draws, so this law can tell "parked" from "cannot draw here at
-/// all", and the sweep above is not silently grading an empty regime.
+/// NON-VACUITY is the lower-zoom arm: the same cell draws before it parks.
 #[test]
 fn rotated_rail_parks_rather_than_shrinking_when_the_rooms_margin_closes() {
     let _g = crate::testlock::serial();
@@ -554,7 +568,7 @@ fn rotated_rail_parks_rather_than_shrinking_when_the_rooms_margin_closes() {
     p.sync_theme();
 
     let mut seen = Vec::new();
-    for zoom in [1.7f32, 1.8] {
+    for zoom in [1.0f32, 1.8, 2.4] {
         let mut v = command_view("Navigate");
         v.zoom = zoom;
         p.set_view(&v);
@@ -575,18 +589,17 @@ fn rotated_rail_parks_rather_than_shrinking_when_the_rooms_margin_closes() {
         let without = shoot(&device, &queue, &mut p, 1200, 800);
         // THE PIXELS ARE THE ORACLE. The park is taken in either of two places
         // — the placement declines (no wordmark, no margin at all) or the
-        // shared preparation measures the ⅔ run over its fit box and clears —
+        // shared preparation measures the authored run over its fit box and clears —
         // and which one fired is not the product claim. That the cue is ABSENT
         // rather than SHRUNK is.
         let ink = diff_ink(&with, &without, 1200, 800, (0, 1200), (0, 800));
         seen.push((zoom, ink.is_some()));
     }
     theme::set_active(theme::DEFAULT_THEME);
-    assert_eq!(
-        seen,
-        [(1.7, true), (1.8, false)],
-        "the park threshold moved: the cue must draw while the margin holds its ⅔ run and \
-         be ABSENT once it does not — never shrunk into it"
+    assert!(
+        seen.first().is_some_and(|(_, drawn)| *drawn) && seen.iter().any(|(_, drawn)| !drawn),
+        "the zoom sweep must cross from a present locator into a parked one without \
+         shrinking it: {seen:?}"
     );
 }
 
@@ -623,27 +636,67 @@ fn workspace_faceting_kinds_carry_no_location_line() {
     );
 }
 
-/// **THE ⅔ IS THE NUMBER, not merely whatever the constant says.** Every other
-/// law here reads `ROTATED_RAIL_PLACARD_FRACTION` and so cannot tell two thirds
-/// from any other fraction — a size relation asserted against its own constant
-/// is a tautology, and the pixel band alone is a wide net. This is the value
-/// itself, pinned: a scale class down, which is what makes the cue read as the
-/// wordmark's companion rather than as a second title (1.0) or a caption
-/// (≈0.3). The gap is pinned as a real fraction of an em for the same reason.
+/// The hierarchy is literal theme data, not a renderer constant that silently
+/// makes every carrier read the same. The companion pixel law above checks the
+/// outcome; this law checks the authored mechanism and tracking seam.
 #[test]
 #[allow(clippy::assertions_on_constants)] // the constants ARE the subject
-fn the_wordmark_fraction_is_two_thirds_and_the_gap_is_a_real_em_fraction() {
+fn cassowarys_locator_typography_is_authored_as_theme_data() {
+    let style = rail_style();
     assert!(
-        (ROTATED_RAIL_PLACARD_FRACTION - 2.0 / 3.0).abs() < 1e-6,
-        "ROTATED_RAIL_PLACARD_FRACTION is {ROTATED_RAIL_PLACARD_FRACTION} — the composition \
-         is two thirds of the wordmark, and the pixel band this file grades against \
-         (0.58..0.98 of the wordmark's own ink) is calibrated for exactly that"
+        (style.scale - 0.28).abs() < 1e-6,
+        "Cassowary's locator scale is {} — it must remain a compact telemetry line, \
+         not the retired two-thirds headline echo",
+        style.scale
+    );
+    assert_eq!(style.face, theme::LocationFace::Mono);
+    assert_eq!(
+        style.ink,
+        theme::LocationInk::Flat(theme::PaletteRole::Muted)
+    );
+    assert!((style.tracking_em - 0.06).abs() < 1e-6);
+    assert_eq!(
+        style.locator,
+        theme::LocationLocator::Indexed {
+            digits: 2,
+            separator: " / ",
+            uppercase: true,
+        }
     );
     assert!(
         ROTATED_RAIL_PLACARD_GAP_EM > 0.0 && ROTATED_RAIL_PLACARD_GAP_EM < 0.5,
         "ROTATED_RAIL_PLACARD_GAP_EM ({ROTATED_RAIL_PLACARD_GAP_EM}) must be a real fraction \
          of the cue's own em: zero lets the pair read as one broken line, half pushes the \
          cue off the composition it belongs to"
+    );
+}
+
+/// The locator number is the active lens's REAL one-based position in its
+/// scheme, never a label-derived or Cassowary-specific fiction.
+#[test]
+fn indexed_locator_is_truthful_for_every_faceted_lens() {
+    let style = rail_style();
+    let mut graded = 0usize;
+    for kind in OverlayKind::ALL {
+        let Some(scheme) = crate::facets::scheme(kind) else {
+            continue;
+        };
+        for (zero_based, facet) in scheme.strip.iter().enumerate().skip(1) {
+            let strip = scheme.strip_labels(zero_based);
+            let got = format_location_text(style, facet.label, active_location_index(&strip))
+                .expect("a real indexed lens must format");
+            assert_eq!(
+                got,
+                format!("{:02} / {}", zero_based + 1, facet.label.to_uppercase()),
+                "{kind:?} lens {zero_based}: locator disagrees with the strip"
+            );
+            graded += 1;
+        }
+    }
+    assert!(graded >= 12, "the faceted-lens roster unexpectedly shrank");
+    assert!(
+        format_location_text(style, "Navigate", None).is_none(),
+        "an indexed treatment with no real strip position must park, not fabricate 03"
     );
 }
 
@@ -659,7 +712,7 @@ fn the_wordmark_fraction_is_two_thirds_and_the_gap_is_a_real_em_fraction() {
 /// 2. The plate's own leftmost PIXEL is outside the box too, so arm 1 is a fact
 ///    about the drawn card rather than about arithmetic, and the probe's bound is
 ///    at or left of it (conservative, never optimistic).
-/// 3. The cue's own fit box ends at or before that bound, so the ⅔ run is
+/// 3. The cue's own fit box ends at or before that bound, so the authored run is
 ///    measured against where the card's ink stops rather than where its box does.
 #[test]
 fn the_cue_is_bounded_by_the_cards_drawn_reach_not_by_its_box() {

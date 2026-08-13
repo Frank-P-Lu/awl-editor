@@ -340,7 +340,10 @@ fn the_location_heading_reads_stronger_than_the_faint_header_it_replaced_in_ever
         theme::set_active_by_name(world).unwrap();
         p.sync_theme();
         let distinct = theme::faint().rgba_bytes() != theme::muted().rgba_bytes();
-        let off = theme::active().render_caps.location_style == theme::LocationStyle::RotatedRail;
+        let off = matches!(
+            theme::active().render_caps.location_style,
+            theme::LocationStyle::RotatedRail(_)
+        );
         let (peaks, band) = located_and_header_peaks(&device, &queue, &mut p, files);
         assert!(
             peaks[1] > 2.0,

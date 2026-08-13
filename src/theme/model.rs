@@ -266,24 +266,69 @@ pub enum FacetStyle {
     Chips(ChipVariant),
 }
 
+/// Which authored face a non-inline location cue shapes in. This is separate
+/// from [`ChromeFace`]: a technical locator may deliberately use the world's
+/// mono readout while the placard and interactive strip keep a display face.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LocationFace {
+    Body,
+    Mono,
+    Chrome,
+}
+
+/// The palette treatment for a non-inline location cue. Roles resolve against
+/// the active world every frame; no renderer-owned colour or world branch.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LocationInk {
+    Flat(PaletteRole),
+    Gradient(PaletteRole, PaletteRole),
+}
+
+/// What a non-inline location cue says. `Indexed` formats the active lens's
+/// real one-based strip position; the renderer must park if that position is
+/// unavailable rather than fabricate one.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LocationLocator {
+    Label,
+    Indexed {
+        digits: usize,
+        separator: &'static str,
+        uppercase: bool,
+    },
+}
+
+/// Authored typography shared by both rotated-location expressions.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct LocationLabelStyle {
+    pub face: LocationFace,
+    /// Fraction of the expression's own size reference: the overlay UI size
+    /// for `Raked`, the placard's type size for `RotatedRail`.
+    pub scale: f32,
+    pub ink: LocationInk,
+    /// Additional advance in em, authored through cosmic-text's real
+    /// `letter_spacing`; never simulated by inserting spaces.
+    pub tracking_em: f32,
+    pub locator: LocationLocator,
+}
+
 /// **THE SECONDARY-LOCATION HEADING'S OWN TREATMENT** — the shared row
 /// planner's `PlanLine::Location` (the active facet's name, the second level
 /// of a summoned card's title hierarchy) is data every world reads the SAME
 /// plan line through; this says how a world DRAWS it, never whether it
 /// exists.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum LocationStyle {
     /// The default: the label shapes inline, in the row-plan slot it already
     /// occupies (`render/chrome/theme_picker.rs`'s `shape_theme_spans`).
     Inline,
     /// The line stays glyph-free; the label instead draws as a run turned 90°
     /// in the ROOM's own outer margin — the one its wordmark placard keeps —
-    /// rising from just above that placard at two thirds its type size and in
-    /// its ink: a vertical companion at its own scale class, not a caption in
-    /// the card's gutter. Still the SAME one planned slot, and no second
-    /// rotation path. The size IS the composition, so no wordmark or too tight
-    /// a margin PARKS the cue (`chrome::rotated_location`'s own doc).
-    RotatedRail,
+    /// rising from just above that placard. Face, relative scale, ink,
+    /// tracking and locator grammar are authored together as theme data.
+    /// Still the SAME one planned slot, and no second rotation path. The size
+    /// IS the composition, so no wordmark or too tight a margin PARKS the cue
+    /// (`chrome::rotated_location`'s own doc).
+    RotatedRail(LocationLabelStyle),
     /// The line stays glyph-free like `RotatedRail`, but the label keeps
     /// `Inline`'s own POSITION — flush left wherever the row planner's
     /// diagonal stagger already puts it (a `Diagonal` world carries no
@@ -296,7 +341,7 @@ pub enum LocationStyle {
     /// so the two cannot drift apart. Reuses the same rotated-label
     /// capability and preparation owner as `RotatedRail` — only the flush
     /// edge, the axis, and the two colours differ.
-    Raked,
+    Raked(LocationLabelStyle),
 }
 
 impl LocationStyle {
@@ -308,7 +353,7 @@ impl LocationStyle {
     pub fn draws_inline(self) -> bool {
         match self {
             Self::Inline => true,
-            Self::RotatedRail | Self::Raked => false,
+            Self::RotatedRail(_) | Self::Raked(_) => false,
         }
     }
 }
