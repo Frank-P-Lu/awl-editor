@@ -6,20 +6,6 @@
 
 ## Ready to build
 
-### 424 — themes choose the toast anchor
-
-🟡 IN PROGRESS — queue-424 (codex), branch codex/queue-424-toast-anchor
-
-Add a small data-only toast-anchor roster to the theme model. Each world chooses
-an authored anchor; shared geometry owns safe margins, overlay collisions, and a
-narrow-window fallback. No world-specific positioning code. Keep the 2500 ms
-lifetime shared pending the live verdict below.
-
-Verify every world and anchor at narrow, ordinary, and wide geometries, both
-DPIs, with document, picker, and workspace surfaces present. Pixel laws prove
-the toast is visible, inside the canvas, and clear of active chrome. Read
-`THEMES.md` and `docs/render.md`; add the new axis to the full surface roster.
-
 ### 423 — let outline metadata use the available margin before ellipsizing
 
 Secondary/date lines in the left outline truncate while usable horizontal room

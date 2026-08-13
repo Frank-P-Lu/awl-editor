@@ -324,8 +324,8 @@ reason = "+1: re-export PANEL_MARGIN and PANEL_PAD so panel shaping and rectangl
 
 [[file_size_mark]]
 file = "src/render/chrome/outline.rs"
-lines = 897
-reason = "+2 net: draw bands and pointer hit-testing share plan_outline_slots and plan_outline_left; the same merge consolidated frost-feather reads."
+lines = 925
+reason = "Item 424 (+28): the persistent outline publishes its interactive geometry to the shared toast obstacle roster, so authored anchors cannot overlap active outline chrome."
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay.rs"
@@ -353,8 +353,8 @@ lines = 547
 
 [[file_size_mark]]
 file = "src/render/chrome/readout.rs"
-lines = 608
-reason = "DOWN 30: the word-count and reading-time derivation moved out to `src/card/figures.rs`, the pure owner over the document text that the semantic fold reads too; what is left here delegates to it. Item 229: `readout_report`'s return type grows a third element (the count's unit), plus its own doc comment naming what it means (+2). Items 296/300 (the notice becomes photographable and findable) and 131e/303 (the diagonal mark's weight becomes world data) both landed in this file; the count here is measured on the MERGED tree, which matched neither lane's own figure. +9: CANVAS_INSET's unit-family declaration carries the reason it is `Physical` rather than `Logical` — that it records what the bare 8.0s it replaced already were, and that promoting it doubles the inset on Retina and owes a 1x/2x sweep. The note is the deliverable: naming the literal is what brought it under item 242's declaration law at all. +5: CANVAS_INSET is now the ONE owner of chrome's bottom-edge inset across six call sites — the three corner anchors here plus gutter's four rects and outline's reserve band, each of which already claimed identity with this value in a comment nothing enforced — so its doc names them and a future promotion sweep moves all of them in one pass."
+lines = 577
+reason = "DOWN 31: item 424 extracts toast placement and collision planning into readout/toast.rs, leaving readout.rs as the draw/report owner."
 
 [[file_size_mark]]
 file = "src/render/chrome/theme_picker.rs"
@@ -486,13 +486,13 @@ reason = "The footer plate earns the notice channel's own one-pixel rim, which i
 
 [[file_size_mark]]
 file = "src/theme/model.rs"
-lines = 723
-reason = "Item 425 (+45): LocationStyle now carries one shared RotatedLocationTreatment (face, scale, ink, tracking, locator grammar) so Cassowary and Magpie author the same rotated-location mechanism as theme data; exhaustive enums and defaults keep every new variant enrolled."
+lines = 745
+reason = "Items 425/424 (+67 combined): the exhaustive theme model authors rotated-location treatment and toast anchor as data; shared renderers own both geometries without world-specific branches."
 
 [[file_size_mark]]
 file = "src/theme/worlds.rs"
-lines = 1203
-reason = "Item 425 (+15): Cassowary and Magpie explicitly author their rotated-location treatments in the world roster, including Cassowary's subordinate mono locator and Magpie's preserved raked treatment."
+lines = 1223
+reason = "Items 425/424 (+35 combined): every world explicitly authors its toast anchor, while Cassowary and Magpie author their shared rotated-location treatments in the same roster."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
