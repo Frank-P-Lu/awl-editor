@@ -318,6 +318,29 @@ pub(super) fn windows() -> Vec<(u32, u32)> {
     ]
 }
 
+/// THE GEOMETRY GRID, flattened once so the sweep and the fresh-pipeline control
+/// below walk the same cells by index rather than by two copies of five nested
+/// loops. `workspace_back_height` grades the OTHER axis over this same grid.
+fn grid() -> Vec<Cell> {
+    let mut cells = Vec::new();
+    for menu_bar in [false, true] {
+        for (w, h) in windows() {
+            for zoom in [1.0f32, 1.4, 2.0] {
+                for dpi in [1.0f32, 2.0] {
+                    cells.push(Cell {
+                        w,
+                        h,
+                        zoom,
+                        dpi,
+                        menu_bar,
+                    });
+                }
+            }
+        }
+    }
+    cells
+}
+
 /// Where one cell's footer LANDED — the ledger it earned, or none.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum Landed {
@@ -419,8 +442,13 @@ fn assert_the_footer_is_a_line_of_type(
 }
 
 /// What one swept cell contributed to the law.
+#[derive(Clone)]
 struct CellOutcome {
     landed: Landed,
+    /// Which regime this cell's canvas put the workspace in — carried in the
+    /// outcome rather than counted at the call site so the fresh-pipeline
+    /// control re-checks the regime split too, not only the grade.
+    wide: bool,
     drawn: String,
     /// The share of its card\'s width this footer asked for — the graded
     /// quantity, carried so a failure can print the number it graded.
@@ -431,6 +459,26 @@ struct CellOutcome {
     /// The ink share, where the cell was graded for ink at all. A cell past its
     /// card's edge is not: there is no band on the canvas to grade.
     ink_share: Option<f32>,
+}
+
+/// **ONE CELL'S READING, AS BITS** — the form the fresh-pipeline control
+/// compares, named so the audit's own shape stays readable.
+type Reading = (Landed, bool, String, u32, u32, Option<u32>);
+
+impl CellOutcome {
+    /// **THE READING, AS BITS** — the form the fresh-pipeline control compares.
+    /// Every float goes through `f32::to_bits`, so agreement means agreement in
+    /// the last mantissa bit rather than `==`'s tolerance for `-0.0`.
+    fn bits(&self) -> Reading {
+        (
+            self.landed,
+            self.wide,
+            self.drawn.clone(),
+            self.demand.to_bits(),
+            self.headroom.to_bits(),
+            self.ink_share.map(f32::to_bits),
+        )
+    }
 }
 
 /// **ONE CELL, MEASURED AND GRADED.** Split out of the law because the sweep's
@@ -454,10 +502,12 @@ fn grade_one_cell(
     // A CARD TOO SHORT FOR ITS OWN COMPOSITION loses its footer to the layout,
     // and is LEDGERED — but only after the card's own geometry says the budget
     // could not have held it (`assert_the_budget_could_not_hold_it`).
+    let wide = p.workspace_is_wide(pw);
     let Some((ink_w, top, height)) = run else {
         assert_the_budget_could_not_hold_it(p, &geom, what);
         return CellOutcome {
             landed: Landed::Starved,
+            wide,
             drawn,
             demand: 0.0,
             headroom: f32::INFINITY,
@@ -510,11 +560,41 @@ fn grade_one_cell(
     });
     CellOutcome {
         landed,
+        wide,
         drawn,
         demand,
         headroom,
         ink_share,
     }
+}
+
+/// **ONE CELL, PREPARED AND GRADED.** The single owner of a cell's reading, so
+/// the hoisted sweep and the fresh-pipeline control below cannot measure two
+/// different quantities and agree about nothing. The menu-bar arm is the cell's
+/// own, set here, because it comes off the card in `plan_workspace_regions` and
+/// a control that re-measured under the ambient arm would be grading a different
+/// card.
+fn measure(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    p: &mut TextPipeline,
+    ov: &OverlayState,
+    back: BackKey,
+    cell: Cell,
+    what: &str,
+) -> CellOutcome {
+    let (pw, ph) = (
+        (cell.w as f32 * cell.dpi) as u32,
+        (cell.h as f32 * cell.dpi) as u32,
+    );
+    crate::menubar::set_menu_bar_on(cell.menu_bar);
+    p.set_dpi(cell.dpi);
+    p.set_size(pw as f32, ph as f32);
+    let mut v = content_view(ov);
+    v.zoom = cell.zoom;
+    p.set_view(&v);
+    p.prepare(device, queue, pw, ph).unwrap();
+    grade_one_cell(device, queue, p, ov, back, (pw, ph), what)
 }
 
 /// **THE THREE LEDGERS, COMPARED.** Each is an exact set and each is two-sided:
@@ -585,12 +665,34 @@ impl Sweep {
         }
     }
 
-    /// File one cell's outcome under the ledger it earned.
-    fn record(&mut self, what: String, out: CellOutcome) {
-        self.sentences.insert(out.drawn);
+    /// File one cell's outcome under the ledger it earned. Returns whether this
+    /// cell is one the law's claims REST ON — a ledger entry, the cell that set
+    /// the closest grade call, or the cell that set the tightest ink share — so
+    /// the sweep can hand exactly those to the fresh-pipeline control without a
+    /// second pass deciding the same thing by a second rule.
+    fn record(&mut self, what: String, out: &CellOutcome) -> bool {
+        self.sentences.insert(out.drawn.clone());
         self.graded += 1;
+        match out.wide {
+            true => self.wide += 1,
+            false => self.staged += 1,
+        }
+        // A LEDGERED CELL always rests on; so does whichever cell holds a
+        // running minimum, because the floor the law states is that cell's own
+        // reading. Taking every cell that HELD the minimum, not only the one
+        // that ends with it, costs a few re-measurements and cannot miss the
+        // one that matters.
+        let mut rests_on = out.landed != Landed::Fits;
         if out.headroom < self.closest_call.0 {
             self.closest_call = (out.headroom, format!("{what} at demand {:.4}", out.demand));
+            rests_on = true;
+        }
+        if let Some(share) = out.ink_share {
+            if share < self.tightest {
+                self.tightest = share;
+                rests_on = true;
+            }
+            self.inked_cells += 1;
         }
         match out.landed {
             Landed::Starved => self.starved.push(what),
@@ -598,10 +700,7 @@ impl Sweep {
             Landed::Tight => self.tight.push(what),
             Landed::Fits => {}
         }
-        if let Some(share) = out.ink_share {
-            self.tightest = self.tightest.min(share);
-            self.inked_cells += 1;
-        }
+        rests_on
     }
 
     /// **WHAT THE SWEEP PROVED, AND WHAT IT COVERED WHILE PROVING IT.**
@@ -706,7 +805,18 @@ fn the_workspaces_back_reads_and_draws_the_same_on_both_sides_of_the_staging_thr
     // test, not the branch `menubar::platform_default` actually took.
     let ambient_menu_bar = crate::menubar::menu_bar_on();
 
+    let cells = grid();
     let mut sweep = Sweep::new();
+    // ONE PIPELINE for the whole sweep, checked against fresh ones below rather
+    // than trusted: a pipeline built per cell costs this sweep several times
+    // what reusing one does, and reuse across a size and zoom swap is exactly
+    // the cache-key discipline CLAUDE.md records.
+    let Some((device, queue, mut p)) = headless_dqp(64.0, 64.0) else {
+        return;
+    };
+    // The cells the ledgers and the two floors rest on, re-measured below
+    // against pipelines built for them alone.
+    let mut audit: Vec<(String, Reading)> = Vec::new();
 
     for kind in &kinds {
         let ov = card_in_content(*kind);
@@ -714,44 +824,55 @@ fn the_workspaces_back_reads_and_draws_the_same_on_both_sides_of_the_staging_thr
             .detail_back()
             .expect("the content pane must have a Back to be invariant about");
         sweep.backs.insert(back.glyph());
-        for menu_bar in [false, true] {
-            crate::menubar::set_menu_bar_on(menu_bar);
-            for (lw, lh) in windows() {
-                for zoom in [1.0f32, 1.4, 2.0] {
-                    for dpi in [1.0f32, 2.0] {
-                        let cell = Cell {
-                            w: lw,
-                            h: lh,
-                            zoom,
-                            dpi,
-                            menu_bar,
-                        };
-                        let (pw, ph) = ((lw as f32 * dpi) as u32, (lh as f32 * dpi) as u32);
-                        let Some((device, queue, mut p)) = headless_dqp(pw as f32, ph as f32)
-                        else {
-                            return;
-                        };
-                        p.set_dpi(dpi);
-                        p.set_size(pw as f32, ph as f32);
-                        let mut v = content_view(&ov);
-                        v.zoom = zoom;
-                        p.set_view(&v);
-                        p.prepare(&device, &queue, pw, ph).unwrap();
-
-                        match p.workspace_is_wide(pw) {
-                            true => sweep.wide += 1,
-                            false => sweep.staged += 1,
-                        }
-                        let what = cell.describe(*kind);
-                        let out = grade_one_cell(&device, &queue, &p, &ov, back, (pw, ph), &what);
-                        sweep.record(what, out);
-                    }
-                }
+        for cell in &cells {
+            let what = cell.describe(*kind);
+            let out = measure(&device, &queue, &mut p, &ov, back, *cell, &what);
+            if sweep.record(what.clone(), &out) {
+                audit.push((what, out.bits()));
             }
         }
     }
+    let rechecked = assert_the_hoist_carries_no_state(&kinds, &cells, &audit);
     crate::menubar::set_menu_bar_on(ambient_menu_bar);
     sweep.assert_and_report(&kinds, ambient_menu_bar);
+    assert!(
+        rechecked >= sweep.overrun.len() + sweep.tight.len() + sweep.starved.len(),
+        "only {rechecked} cells were re-measured against a fresh pipeline, fewer than the {} \
+         that earned a ledger entry — the reuse check stopped covering the readings the ledgers \
+         rest on",
+        sweep.overrun.len() + sweep.tight.len() + sweep.starved.len()
+    );
+    eprintln!("workspace back footer: {rechecked} cells re-measured against fresh pipelines");
+}
+
+/// **THE HOISTED PIPELINE IS CHECKED, NOT TRUSTED.** Every cell the ledgers and
+/// the two reported floors rest on, measured again against a pipeline that has
+/// seen no other geometry, through [`super::assert_the_hoist_carries_no_state`]
+/// — the one owner of that rule across the laws that hoist.
+fn assert_the_hoist_carries_no_state(
+    kinds: &[OverlayKind],
+    cells: &[Cell],
+    audit: &[(String, Reading)],
+) -> usize {
+    super::assert_the_hoist_carries_no_state(audit, |what| {
+        // The label is the cell's own identity here, so the pair it names is
+        // found rather than re-derived — a control that rebuilt the coordinates
+        // from a second copy of `describe` would agree with itself, not with the
+        // sweep.
+        let (kind, cell) = kinds
+            .iter()
+            .flat_map(|k| cells.iter().map(move |c| (*k, *c)))
+            .find(|(k, c)| c.describe(*k) == what)
+            .expect("every audited label came from this same grid");
+        let ov = card_in_content(kind);
+        let back = ov.detail_back().expect("the content pane has a Back");
+        let (pw, ph) = (
+            (cell.w as f32 * cell.dpi) as u32,
+            (cell.h as f32 * cell.dpi) as u32,
+        );
+        let (d2, q2, mut fresh) = headless_dqp(pw as f32, ph as f32)?;
+        Some(measure(&d2, &q2, &mut fresh, &ov, back, cell, what).bits())
+    })
 }
 
 /// **THE CELLS WHERE THE FOOTER IS WIDER THAN ITS CARD** — a ledger of an
@@ -836,6 +957,95 @@ const STARVED: &[&str] = &[
     "settings at 464x288 logical, zoom=2, dpi=2, menu_bar=on",
 ];
 
+/// **THE TWO SENTENCES' SHAPED WIDTHS, AS BITS** — `None` where the card laid
+/// that sentence out nowhere.
+type SentenceWidths = (Option<u32>, Option<u32>);
+
+/// One cell of the two-sentence comparison below, carried whole so the
+/// fresh-pipeline control rebuilds the cell rather than parsing it back out of
+/// the label — a control that re-derived its coordinates from a second copy of
+/// the sweep's own arithmetic would agree with itself, not with the sweep.
+#[derive(Clone, Copy)]
+struct SentenceCell {
+    kind: OverlayKind,
+    w: u32,
+    h: u32,
+    zoom: f32,
+    menu_bar: bool,
+}
+
+impl SentenceCell {
+    fn describe(&self) -> String {
+        format!(
+            "{} at {}x{} zoom={}, menu_bar={}",
+            self.kind.as_str(),
+            self.w,
+            self.h,
+            self.zoom,
+            if self.menu_bar { "on" } else { "off" }
+        )
+    }
+}
+
+/// **BOTH SENTENCES, SHAPED AT ONE CELL** — the single owner of that reading, so
+/// the hoisted sweep and its fresh-pipeline control measure one quantity. Each
+/// entry is `None` where the card was too short to lay that sentence out.
+fn shaped_sentence_widths(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    p: &mut TextPipeline,
+    ov: &OverlayState,
+    sentences: (&str, &str),
+    cell: SentenceCell,
+) -> [Option<f32>; 2] {
+    crate::menubar::set_menu_bar_on(cell.menu_bar);
+    p.set_size(cell.w as f32, cell.h as f32);
+    let mut widths = [None, None];
+    for (slot, hint) in [sentences.0, sentences.1].into_iter().enumerate() {
+        let mut v = content_view(ov);
+        v.zoom = cell.zoom;
+        v.overlay_hint = hint.to_string();
+        p.set_view(&v);
+        p.prepare(device, queue, cell.w, cell.h).unwrap();
+        let line = p
+            .overlay_hint_line()
+            .expect("the content stage shapes its footer");
+        widths[slot] = p
+            .panel_buffer
+            .layout_runs()
+            .find_map(|run| (run.line_i == line).then_some(run.line_w));
+    }
+    widths
+}
+
+/// **THE HOISTED PIPELINE IS CHECKED HERE TOO**, over the cells this comparison
+/// rests on most narrowly: the tightest margin between the two sentences, and
+/// every cell whose card laid neither of them out.
+fn assert_the_two_sentences_survive_the_hoist(
+    audit: &[(String, SentenceCell, SentenceWidths)],
+) -> usize {
+    let sites: std::collections::BTreeMap<&str, SentenceCell> = audit
+        .iter()
+        .map(|(what, cell, _)| (what.as_str(), *cell))
+        .collect();
+    let recorded: Vec<(String, SentenceWidths)> = audit
+        .iter()
+        .map(|(what, _, bits)| (what.clone(), *bits))
+        .collect();
+    super::assert_the_hoist_carries_no_state(&recorded, |what| {
+        let cell = sites[what];
+        let ov = card_in_content(cell.kind);
+        let shipped = ov.foot_hint();
+        let was = shipped.replace(
+            &format!("{} back", BackKey::Erase.glyph()),
+            &format!("{} back", BackKey::Focus.glyph()),
+        );
+        let (d2, q2, mut fresh) = headless_dqp(cell.w as f32, cell.h as f32)?;
+        let widths = shaped_sentence_widths(&d2, &q2, &mut fresh, &ov, (&shipped, &was), cell);
+        Some((widths[0].map(f32::to_bits), widths[1].map(f32::to_bits)))
+    })
+}
+
 /// **THE BACK COSTS THE FOOTER NO WIDTH** — which is what makes the ledger above
 /// a finding about the card's minimum rather than about this change.
 ///
@@ -855,6 +1065,16 @@ fn naming_the_erase_key_shapes_no_wider_than_naming_the_focus_key() {
     // The AMBIENT value, captured rather than derived — see the module doc.
     let ambient_menu_bar = crate::menubar::menu_bar_on();
     let (mut graded, mut skipped) = (0usize, 0usize);
+    // ONE PIPELINE for this sweep too, on the same terms as the headline law's:
+    // checked below against pipelines built for a cell alone.
+    let Some((device, queue, mut p)) = headless_dqp(64.0, 64.0) else {
+        return;
+    };
+    // The two cells this comparison rests on most narrowly — the tightest
+    // margin between the two sentences, and every cell whose card laid neither
+    // of them out — re-measured against fresh pipelines below.
+    let mut tightest = (f32::INFINITY, String::new());
+    let mut audit: Vec<(String, SentenceCell, SentenceWidths)> = Vec::new();
     for kind in enrolled() {
         let ov = card_in_content(kind);
         let shipped = ov.foot_hint();
@@ -869,33 +1089,24 @@ fn naming_the_erase_key_shapes_no_wider_than_naming_the_focus_key() {
             kind.as_str()
         );
         for menu_bar in [false, true] {
-            crate::menubar::set_menu_bar_on(menu_bar);
             for (lw, lh) in windows() {
                 for zoom in [1.0f32, 1.4, 2.0] {
-                    let Some((device, queue, mut p)) = headless_dqp(lw as f32, lh as f32) else {
-                        return;
+                    let site = SentenceCell {
+                        kind,
+                        w: lw,
+                        h: lh,
+                        zoom,
+                        menu_bar,
                     };
-                    let what = format!(
-                        "{} at {lw}x{lh} zoom={zoom}, menu_bar={}",
-                        kind.as_str(),
-                        if menu_bar { "on" } else { "off" }
+                    let what = site.describe();
+                    let widths = shaped_sentence_widths(
+                        &device,
+                        &queue,
+                        &mut p,
+                        &ov,
+                        (&shipped, &was),
+                        site,
                     );
-                    let mut widths = Vec::new();
-                    for hint in [&shipped, &was] {
-                        let mut v = content_view(&ov);
-                        v.zoom = zoom;
-                        v.overlay_hint = hint.clone();
-                        p.set_view(&v);
-                        p.prepare(&device, &queue, lw, lh).unwrap();
-                        let line = p
-                            .overlay_hint_line()
-                            .expect("the content stage shapes its footer");
-                        widths.push(
-                            p.panel_buffer
-                                .layout_runs()
-                                .find_map(|run| (run.line_i == line).then_some(run.line_w)),
-                        );
-                    }
                     // A card too short to lay its footer out measures NEITHER
                     // sentence — the vertical starvation the headline law
                     // ledgers in `STARVED`. The two must fall out TOGETHER: one
@@ -911,8 +1122,10 @@ fn naming_the_erase_key_shapes_no_wider_than_naming_the_focus_key() {
                         widths[0],
                         widths[1]
                     );
+                    let bits = (widths[0].map(f32::to_bits), widths[1].map(f32::to_bits));
                     let (Some(shipped_w), Some(was_w)) = (widths[0], widths[1]) else {
                         skipped += 1;
+                        audit.push((what, site, bits));
                         continue;
                     };
                     assert!(
@@ -923,12 +1136,23 @@ fn naming_the_erase_key_shapes_no_wider_than_naming_the_focus_key() {
                         BackKey::Erase.glyph(),
                         BackKey::Focus.glyph(),
                     );
+                    if was_w - shipped_w < tightest.0 {
+                        tightest = (was_w - shipped_w, what.clone());
+                        audit.push((what, site, bits));
+                    }
                     graded += 1;
                 }
             }
         }
     }
+    let rechecked = assert_the_two_sentences_survive_the_hoist(&audit);
     crate::menubar::set_menu_bar_on(ambient_menu_bar);
+    assert!(
+        rechecked >= audit.len(),
+        "only {rechecked} of the {} cells this comparison rests on were re-measured against a \
+         fresh pipeline",
+        audit.len()
+    );
     // 47 of this sweep's 48 cells compare two real shaped widths; the floor sits
     // under that rather than at it, so a face whose metrics move a cell over the
     // starvation edge does not redden here.

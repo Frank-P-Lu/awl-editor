@@ -201,6 +201,19 @@ impl Cell {
         )
     }
 
+    /// The key the fresh-pipeline control's enrolment is taken over: the
+    /// GEOMETRY, which is what a hoisted pipeline carries between cells, paired
+    /// with the outcome class the sweep's claims are stated in. Deliberately
+    /// free of the lens and the machine — those change the card's corpus, not
+    /// the pipeline state a reuse could stale, and folding them in would make
+    /// the control a second full sweep.
+    fn shape(&self, class: (bool, bool, bool)) -> String {
+        format!(
+            "{}x{} zoom={} dpi={} menu_bar={} class={class:?}",
+            self.w, self.h, self.zoom, self.dpi, self.menu_bar
+        )
+    }
+
     /// The key the two machines are compared under — everything BUT the root.
     fn key(&self, kind: OverlayKind, lens: &str) -> String {
         format!(
@@ -263,6 +276,32 @@ struct Outcome {
     no_readout: bool,
 }
 
+/// **ONE CELL'S READING, AS BITS** — the form the fresh-pipeline control
+/// compares, named so the audit's own shape stays readable.
+type Reading = (bool, bool, bool, Option<u32>);
+
+impl Outcome {
+    /// **THE READING, AS BITS** — the form the fresh-pipeline control compares.
+    /// The ink share goes through `f32::to_bits`, so agreement means agreement
+    /// in the last mantissa bit rather than `==`'s tolerance for `-0.0`.
+    fn bits(&self) -> Reading {
+        (
+            self.wide,
+            self.granted,
+            self.no_readout,
+            self.ink_share.map(f32::to_bits),
+        )
+    }
+
+    /// WHAT KIND OF CELL THIS IS, as the control's enrolment reads it: the three
+    /// booleans the sweep's claims are stated over. Derived from the reading
+    /// rather than from a cell's coordinates, so a geometry that starts
+    /// answering differently enrols itself.
+    fn class(&self) -> (bool, bool, bool) {
+        (self.wide, self.granted, self.no_readout)
+    }
+}
+
 /// What the sweep saw, in aggregate — the counts every closing assertion and the
 /// receipt are stated in.
 struct Tally {
@@ -306,11 +345,14 @@ impl Tally {
 /// **ONE SWEPT CELL, GRADED.** Every per-cell assertion lives here so the sweep
 /// above stays a sweep; `None` means the machine has no adapter to answer with.
 fn grade_cell(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    p: &mut TextPipeline,
     kind: OverlayKind,
     lens: (usize, &str),
     machine: (&str, &str),
     cell: Cell,
-) -> Option<Outcome> {
+) -> Outcome {
     let (lens_i, lens_id) = lens;
     let (name, root) = machine;
     let ov = card_in_content(kind, lens_i, root);
@@ -324,13 +366,16 @@ fn grade_cell(
         (cell.w as f32 * cell.dpi) as u32,
         (cell.h as f32 * cell.dpi) as u32,
     );
-    let (device, queue, mut p) = headless_dqp(pw as f32, ph as f32)?;
+    // THE CELL'S OWN MENU-BAR ARM, set here rather than by the caller, so the
+    // fresh-pipeline control below cannot re-measure a cell under the ambient
+    // arm and grade a different card.
+    crate::menubar::set_menu_bar_on(cell.menu_bar);
     p.set_dpi(cell.dpi);
     p.set_size(pw as f32, ph as f32);
     let mut v = content_view(&ov);
     v.zoom = cell.zoom;
     p.set_view(&v);
-    p.prepare(&device, &queue, pw, ph).unwrap();
+    p.prepare(device, queue, pw, ph).unwrap();
 
     let wide = p.workspace_is_wide(pw);
     let granted = p.overlay_right_shown;
@@ -348,7 +393,7 @@ fn grade_cell(
         no_readout: false,
     };
     if !granted {
-        return Some(out);
+        return out;
     }
 
     let Some(g) = p.overlay_row_geometry() else {
@@ -386,7 +431,7 @@ fn grade_cell(
              cannot disagree"
         );
         out.no_readout = true;
-        return Some(out);
+        return out;
     };
     let lane = row.lanes.value.expect("filtered on Some");
 
@@ -402,15 +447,7 @@ fn grade_cell(
     );
 
     // **PRESENCE**, off the rendered pixels.
-    let (inked, band) = value_ink(
-        &device,
-        &queue,
-        &p,
-        (pw, ph),
-        (lane.x, lane.w),
-        row.y,
-        row.h,
-    );
+    let (inked, band) = value_ink(device, queue, p, (pw, ph), (lane.x, lane.w), row.y, row.h);
     assert!(
         band >= 4,
         "{what}: the value lane clamped to {band} canvas columns — there is nothing here for a \
@@ -428,7 +465,7 @@ fn grade_cell(
          a readout"
     );
     out.ink_share = Some(inked as f32 / band as f32);
-    Some(out)
+    out
 }
 
 /// **THE LAW.** Two-column implies an accessory, the accessory is ink, and
@@ -456,6 +493,22 @@ fn a_two_column_workspace_keeps_the_rows_accessory_and_neither_reads_off_the_mac
     let mut across_machines: std::collections::BTreeMap<String, Vec<(&str, bool, bool)>> =
         Default::default();
     let mut lenses_seen: std::collections::BTreeSet<String> = Default::default();
+    // ONE PIPELINE for the whole sweep, checked against fresh ones below rather
+    // than trusted: five hundred cells at a pipeline each is most of this
+    // module's cost, and reuse across a size, zoom and lens swap is exactly the
+    // cache-key discipline CLAUDE.md records.
+    let Some((device, queue, mut p)) = headless_dqp(64.0, 64.0) else {
+        return;
+    };
+    // THE CONTROL'S ENROLMENT, derived rather than pinned: the first cell of
+    // each distinct (geometry x outcome class) the sweep actually produced, plus
+    // every cell that held the tightest ink share — the reading the presence
+    // floor's headroom is stated from. A geometry or a class that starts
+    // appearing enrols itself, and one that stops appearing takes its
+    // representative with it, so the control cannot go on covering a shape the
+    // sweep no longer has.
+    let mut audit: Vec<(String, Site, Reading)> = Vec::new();
+    let mut represented: std::collections::BTreeSet<String> = Default::default();
 
     for kind in &kinds {
         // THE LENSES, asked of the kind's own facet scheme rather than named —
@@ -471,7 +524,6 @@ fn a_two_column_workspace_keeps_the_rows_accessory_and_neither_reads_off_the_mac
         );
 
         for menu_bar in [false, true] {
-            crate::menubar::set_menu_bar_on(menu_bar);
             for (lens_i, facet) in scheme.strip.iter().enumerate() {
                 lenses_seen.insert(facet.id.to_string());
                 for (lw, lh) in windows() {
@@ -485,12 +537,26 @@ fn a_two_column_workspace_keeps_the_rows_accessory_and_neither_reads_off_the_mac
                                 menu_bar,
                             };
                             for (machine, root) in ROOTS {
-                                let Some(out) =
-                                    grade_cell(*kind, (lens_i, facet.id), (machine, root), cell)
-                                else {
-                                    crate::menubar::set_menu_bar_on(ambient_menu_bar);
-                                    return;
+                                let site = Site {
+                                    kind: *kind,
+                                    lens: (lens_i, facet.id),
+                                    machine: (machine, root),
+                                    cell,
                                 };
+                                let out = grade_cell(
+                                    &device,
+                                    &queue,
+                                    &mut p,
+                                    *kind,
+                                    (lens_i, facet.id),
+                                    (machine, root),
+                                    cell,
+                                );
+                                let tighter =
+                                    out.ink_share.is_some_and(|share| share < tally.tightest);
+                                if represented.insert(cell.shape(out.class())) || tighter {
+                                    audit.push((site.describe(), site, out.bits()));
+                                }
                                 tally.add(&out);
                                 across_machines
                                     .entry(cell.key(*kind, facet.id))
@@ -503,7 +569,14 @@ fn a_two_column_workspace_keeps_the_rows_accessory_and_neither_reads_off_the_mac
             }
         }
     }
+    let rechecked = assert_the_hoist_carries_no_state(&audit);
     crate::menubar::set_menu_bar_on(ambient_menu_bar);
+    assert!(
+        rechecked >= audit.len(),
+        "only {rechecked} of the {} cells this law's claims rest on were re-measured against a \
+         pipeline built for them alone — the reuse check stopped covering the sweep",
+        audit.len()
+    );
     conclude(
         &tally,
         &across_machines,
@@ -511,6 +584,52 @@ fn a_two_column_workspace_keeps_the_rows_accessory_and_neither_reads_off_the_mac
         &kinds,
         ambient_menu_bar,
     );
+    eprintln!(
+        "workspace two-column accessory: {rechecked} cells re-measured against fresh pipelines"
+    );
+}
+
+/// One swept cell's full coordinates — everything `grade_cell` needs — carried
+/// whole so the fresh-pipeline control rebuilds the cell rather than parsing it
+/// back out of the label. A control that re-derived its coordinates from a
+/// second copy of the sweep's own arithmetic would agree with itself, not with
+/// the sweep.
+#[derive(Clone, Copy)]
+struct Site {
+    kind: OverlayKind,
+    lens: (usize, &'static str),
+    machine: (&'static str, &'static str),
+    cell: Cell,
+}
+
+impl Site {
+    fn describe(&self) -> String {
+        self.cell.describe(self.kind, self.lens.1, self.machine.0)
+    }
+}
+
+/// **THE HOISTED PIPELINE IS CHECKED, NOT TRUSTED.** Every cell the enrolment
+/// above picked out, measured again against a pipeline that has seen no other
+/// geometry, through [`super::assert_the_hoist_carries_no_state`] — the one
+/// owner of that rule across the laws that hoist.
+fn assert_the_hoist_carries_no_state(audit: &[(String, Site, Reading)]) -> usize {
+    let sites: std::collections::BTreeMap<&str, Site> = audit
+        .iter()
+        .map(|(what, site, _)| (what.as_str(), *site))
+        .collect();
+    let recorded: Vec<(String, Reading)> = audit
+        .iter()
+        .map(|(what, _, bits)| (what.clone(), *bits))
+        .collect();
+    super::assert_the_hoist_carries_no_state(&recorded, |what| {
+        let s = sites[what];
+        let (pw, ph) = (
+            (s.cell.w as f32 * s.cell.dpi) as u32,
+            (s.cell.h as f32 * s.cell.dpi) as u32,
+        );
+        let (d2, q2, mut fresh) = headless_dqp(pw as f32, ph as f32)?;
+        Some(grade_cell(&d2, &q2, &mut fresh, s.kind, s.lens, s.machine, s.cell).bits())
+    })
 }
 
 /// **THE SWEEP'S OWN NON-VACUITY, AND THE CLAIM IT WAS FOR.** Kept apart from
@@ -629,33 +748,45 @@ fn the_wide_gate_delays_for_rows_that_ask_for_more_room() {
         .map(|_| "a considerably longer readout".to_string())
         .collect();
 
-    let threshold = |items: &[String], vals: &[String]| -> Option<u32> {
-        let ov = card_in_content(OverlayKind::Settings, 0, ROOTS[0].1);
-        for w in (200u32..4000).step_by(4) {
-            let (device, queue, mut p) = headless_dqp(w as f32, 900.0)?;
-            p.set_dpi(1.0);
-            p.set_size(w as f32, 900.0);
-            let mut v = content_view(&ov);
-            v.overlay_items = items.to_vec();
-            v.overlay_bindings = vals.to_vec();
-            v.overlay_ranges = Vec::new();
-            p.set_view(&v);
-            p.prepare(&device, &queue, w, 900).unwrap();
-            if p.workspace_is_wide(w) {
-                return Some(w);
-            }
-        }
-        None
+    // ONE PIPELINE for the whole walk. The widths this closure returns are
+    // re-derived below against pipelines built for a single width, so the reuse
+    // is checked rather than trusted.
+    let Some((device, queue, mut p)) = headless_dqp(64.0, 900.0) else {
+        eprintln!("skipping the_wide_gate_delays_for_rows_that_ask_for_more_room: no adapter");
+        crate::menubar::set_menu_bar_on(ambient_menu_bar);
+        return;
+    };
+    let mut threshold = |items: &[String], vals: &[String]| -> Option<u32> {
+        (200u32..4000)
+            .step_by(4)
+            .find(|w| wide_at(&device, &queue, &mut p, items, vals, *w))
     };
 
     let modest_at = threshold(&modest, &modest_vals);
     let demanding_at = threshold(&demanding, &demanding_vals);
-    crate::menubar::set_menu_bar_on(ambient_menu_bar);
 
     let (Some(modest_at), Some(demanding_at)) = (modest_at, demanding_at) else {
-        eprintln!("skipping the_wide_gate_delays_for_rows_that_ask_for_more_room: no adapter");
-        return;
+        crate::menubar::set_menu_bar_on(ambient_menu_bar);
+        panic!(
+            "the wide gate never flipped anywhere in 200..4000px for one of the two rosters \
+             (modest {modest_at:?}, demanding {demanding_at:?}) — the walk graded nothing"
+        );
     };
+    // **THE HOISTED PIPELINE IS CHECKED, NOT TRUSTED**, over the four readings
+    // this law's whole claim rests on: each threshold IS the pair `(not wide at
+    // w-4, wide at w)`, so re-deriving both sides of both flips against a
+    // pipeline built for that width alone re-establishes the two numbers
+    // outright rather than sampling near them.
+    let rechecked = assert_the_two_thresholds_survive_the_hoist(&[
+        (&modest, &modest_vals, modest_at),
+        (&demanding, &demanding_vals, demanding_at),
+    ]);
+    crate::menubar::set_menu_bar_on(ambient_menu_bar);
+    assert!(
+        rechecked == 4,
+        "only {rechecked} of the 4 readings the two thresholds rest on were re-derived against a \
+         fresh pipeline"
+    );
     assert!(
         demanding_at > modest_at,
         "the wide gate flipped at {demanding_at}px for rows that want a lot of room and at \
@@ -664,7 +795,59 @@ fn the_wide_gate_delays_for_rows_that_ask_for_more_room() {
     );
     eprintln!(
         "wide-gate delay: modest rows go two-column at {modest_at}px, demanding rows at \
-         {demanding_at}px (+{}px)",
+         {demanding_at}px (+{}px); {rechecked} readings re-derived against fresh pipelines",
         demanding_at - modest_at
     );
+}
+
+/// **DOES THE GATE READ WIDE AT THIS ONE WIDTH?** The single owner of that
+/// reading, so the hoisted walk above and the fresh-pipeline control below
+/// cannot ask two different questions and agree about nothing.
+fn wide_at(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    p: &mut TextPipeline,
+    items: &[String],
+    vals: &[String],
+    w: u32,
+) -> bool {
+    let ov = card_in_content(OverlayKind::Settings, 0, ROOTS[0].1);
+    p.set_dpi(1.0);
+    p.set_size(w as f32, 900.0);
+    let mut v = content_view(&ov);
+    v.overlay_items = items.to_vec();
+    v.overlay_bindings = vals.to_vec();
+    v.overlay_ranges = Vec::new();
+    p.set_view(&v);
+    p.prepare(device, queue, w, 900).unwrap();
+    p.workspace_is_wide(w)
+}
+
+/// A THRESHOLD IS A PAIR OF READINGS — staged at the step before it, wide at it
+/// — and both are re-derived here against a pipeline that has walked no other
+/// width. A hoisted walk that carried state would land the flip somewhere a
+/// single-width pipeline does not.
+fn assert_the_two_thresholds_survive_the_hoist(found: &[(&[String], &[String], u32); 2]) -> usize {
+    let recorded: Vec<(String, bool)> = found
+        .iter()
+        .flat_map(|(_, _, at)| {
+            [
+                (format!("the step below the {at}px flip"), false),
+                (format!("the {at}px flip itself"), true),
+            ]
+        })
+        .collect();
+    super::assert_the_hoist_carries_no_state(&recorded, |what| {
+        let (items, vals, at) = found
+            .iter()
+            .find(|(_, _, at)| what.contains(&at.to_string()))
+            .expect("every label names one of the two thresholds");
+        let w = if what.ends_with("itself") {
+            *at
+        } else {
+            at - 4
+        };
+        let (d2, q2, mut fresh) = headless_dqp(w as f32, 900.0)?;
+        Some(wide_at(&d2, &q2, &mut fresh, items, vals, w))
+    })
 }

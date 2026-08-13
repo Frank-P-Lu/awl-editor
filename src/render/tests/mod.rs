@@ -290,6 +290,51 @@ pub(super) fn headless_dqp(w: f32, h: f32) -> Option<(wgpu::Device, wgpu::Queue,
     })
 }
 
+/// **A SWEEP'S HOISTED PIPELINE IS CHECKED, NOT TRUSTED — THE ONE OWNER OF THAT
+/// RULE.**
+///
+/// Reusing one `TextPipeline` across a sweep's cells instead of building one per
+/// cell is what makes a wide sweep affordable, and it is a cache-staleness bet:
+/// a pipeline's cache keys restart at zero per pipeline, so a size, zoom or
+/// world swap across cells is exactly the cache-key discipline CLAUDE.md
+/// records. It is not a bet every sweep may take — a sweep whose per-cell
+/// reading moves under reuse has a real cross-cell dependency, and there the
+/// fresh-pipeline isolation is the law's subject rather than its overhead.
+///
+/// So a law that hoists re-measures every cell its claims rest on against a
+/// pipeline that has seen no other geometry, and the two readings must agree TO
+/// THE BIT. `recorded` carries those cells' readings from the hoisted sweep,
+/// each under the label its failures are reported in; `afresh` re-measures one
+/// by that label, returning `None` only where the machine has no adapter left to
+/// answer with. The number of cells actually re-measured comes back, so a law
+/// can floor it against the number of readings it rests on rather than trusting
+/// that the loop ran.
+///
+/// The reading type is `Eq` rather than `PartialEq` DELIBERATELY: `f32` is not
+/// `Eq`, so a law cannot hand this owner a bare float and quietly inherit `==`'s
+/// tolerance — `-0.0 == 0.0` and no NaN equals itself, and a stale cache is
+/// exactly as likely to show up in the last mantissa bit as anywhere else.
+/// Floats come through `f32::to_bits`.
+pub(super) fn assert_the_hoist_carries_no_state<R: Eq + std::fmt::Debug>(
+    recorded: &[(String, R)],
+    mut afresh: impl FnMut(&str) -> Option<R>,
+) -> usize {
+    let mut rechecked = 0usize;
+    for (what, was) in recorded {
+        let Some(again) = afresh(what) else {
+            return rechecked;
+        };
+        assert_eq!(
+            &again, was,
+            "{what}: the sweep's shared pipeline and a pipeline built for this cell alone read \
+             differently — the reuse that makes this sweep affordable is carrying state between \
+             cells, so every reading the sweep took is suspect"
+        );
+        rechecked += 1;
+    }
+    rechecked
+}
+
 /// An EMPTY visual selection, for the shaping/width probes that pass
 /// no selected ink and so cannot flip any row.
 pub(super) fn no_vis() -> crate::render::chrome::VisualSelection {
