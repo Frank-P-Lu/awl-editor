@@ -20,20 +20,6 @@ proportional roster and every cell-form caret. Pixel arithmetic proves the caret
 is present and contains CJK ink with its authored pad; existing Latin-height laws
 remain unchanged. Vision-smoke five worlds by locating the Japanese caret.
 
-### 419 — reserve teaching-footer room before candidate rows
-
-🟡 IN PROGRESS — queue-419 (codex), branch codex/queue-419-footer-reserve
-
-At `464x288`, zoom 1.4, menu bar on, Paperbark draws the Settings footer past
-the card and the three Bars worlds omit it. Reserve the footer before allocating
-visible candidate rows: show fewer rows when necessary, preserve each world's
-row rhythm, never draw beyond the card, and never silently omit the footer.
-Apply the same composition law to Rules, Bars, and narrow History.
-
-Depends on 413 so footer metrics come from the bundled glyph. Replace the
-two-sided defect ledgers with outcome laws over every world, both DPIs, the
-minimum geometry, and ordinary controls.
-
 ### 418 — one Go-to surface for files, headings, and folders
 
 🟡 IN PROGRESS — queue-418 (codex), branch codex/queue-418-unified-goto
