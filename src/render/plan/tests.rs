@@ -346,8 +346,7 @@ fn workspace_row_fit_yields_the_header_beat_before_the_footer() {
 
 #[test]
 fn workspace_row_fit_yields_all_header_chrome_before_teaching() {
-    let fit =
-        fit_workspace_item_rows(97.2, 36.0, 81.6, 2, 126.0, 0, 100.0, 63.0, true, 0);
+    let fit = fit_workspace_item_rows(97.2, 36.0, 81.6, 2, 126.0, 0, 100.0, 63.0, true, 0);
     assert_eq!(fit.item_cap, 0);
     assert_eq!(fit.header_rows, 0);
     assert_eq!(fit.header_gap, 0.0);

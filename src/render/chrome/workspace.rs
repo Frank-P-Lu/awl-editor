@@ -279,9 +279,7 @@ impl TextPipeline {
         let hint = self.overlay_hint.clone();
         let hint_rows = usize::from(!hint.is_empty() && show_rows);
         let hint_gap_rows = overlay_hint_gap_rows(hint_rows);
-        let empty = (n_items == 0)
-            .then(|| self.overlay_empty.clone())
-            .flatten();
+        let empty = (n_items == 0).then(|| self.overlay_empty.clone()).flatten();
         let header_rows = self.workspace_header_rows();
         let card_h = regions.card[3];
         let fit = plan::fit_workspace_item_rows(

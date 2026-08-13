@@ -98,10 +98,8 @@ impl TextPipeline {
             TextRenderer::new(&mut atlas, device, wgpu::MultisampleState::default(), None);
         let placard_renderer =
             TextRenderer::new(&mut atlas, device, wgpu::MultisampleState::default(), None);
-        let overlay_buffers = Self::new_workspace_overlay_text_buffers(
-            &mut font_system,
-            metrics.glyph_metrics(),
-        );
+        let overlay_buffers =
+            Self::new_workspace_overlay_text_buffers(&mut font_system, metrics.glyph_metrics());
         let panel_caret = CaretPipeline::new(device, format, PLACEHOLDER_RGB);
         let caret_preview_pipeline = CaretPipeline::new(device, format, PLACEHOLDER_RGB);
         let caret_preview_glyph_pipeline =

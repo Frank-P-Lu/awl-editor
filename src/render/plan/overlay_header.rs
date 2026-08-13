@@ -309,10 +309,7 @@ pub(in crate::render) fn fit_workspace_item_rows(
     let mut planned_gap = header_gap;
     let mut hint_gap_rows = usize::from(footer_present);
     let mut footer_reserve = footer_with_gap;
-    let fixed = |pad: f32,
-                 header_rows: usize,
-                 header_gap: f32,
-                 footer_reserve: f32| {
+    let fixed = |pad: f32, header_rows: usize, header_gap: f32, footer_reserve: f32| {
         pad * if footer_present { 1.0 } else { 2.0 }
             + (header_rows.saturating_add(empty_rows)) as f32 * lh
             + header_gap
@@ -340,9 +337,8 @@ pub(in crate::render) fn fit_workspace_item_rows(
     }
 
     let avail_px = (card_h - 2.0 * pad).max(0.0);
-    let reserved_px = (header_rows.saturating_add(empty_rows)) as f32 * lh
-        + planned_gap
-        + footer_reserve;
+    let reserved_px =
+        (header_rows.saturating_add(empty_rows)) as f32 * lh + planned_gap + footer_reserve;
     WorkspaceRowFit {
         item_cap: fit_item_rows_after_px(avail_px, lh, reserved_px, min_items),
         pad,

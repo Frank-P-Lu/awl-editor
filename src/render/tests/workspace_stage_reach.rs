@@ -313,8 +313,7 @@ impl Tally {
             assert!(
                 out.footer_inside,
                 "{what}: the teaching footer was shaped outside its workspace card; hint={:?} card={:?}",
-                out.footer_box,
-                out.card
+                out.footer_box, out.card
             );
             if out.rows > 0 {
                 with_presence += 1;
