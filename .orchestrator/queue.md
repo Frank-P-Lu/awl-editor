@@ -74,19 +74,6 @@ re-scope, sidecar semantics, and removal of public project/browse wording. Read
 `docs/config.md`, `docs/platform.md`, `docs/render.md`, and
 `docs/harness-reach.md` before splitting capture from live verification.
 
-### 404 — make zoom 1.0 the single default
-
-🟡 IN PROGRESS — queue-404 (codex), branch codex/queue-404-zoom-default
-
-Windowed launch uses `app::INITIAL_ZOOM = 0.8`; capture and the settings range
-default to 1.0. Make 1.0 authoritative for launch, capture, and configuration
-through one owner; remove divergent copies.
-
-Re-baseline affected pixel expectations deliberately. Verify live launch,
-ordinary captures, both DPIs, zoom controls/readout, persisted overrides, and
-the live-probe reference geometry. Read `docs/render.md` and
-`docs/harness-reach.md`.
-
 ### 395 — language confirmation toast and directory-shaped elision
 
 - Keep `Tag document language` immediate and without an ellipsis. After it
@@ -119,3 +106,5 @@ change.
    distinct flourish.
 8. **Toast duration (296/300)** — judge the shared 2500 ms lifetime live after
    item 424 lands.
+9. **Zoom 1.0 real-window probe (404)** — unlock the macOS display, then run the
+   real presentation/acquire reference check and judge the 100% default live.
