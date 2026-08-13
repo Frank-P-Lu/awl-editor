@@ -95,9 +95,10 @@ impl TextPipeline {
         if self.overlay_hint.is_empty() {
             return None;
         }
-        self.panel_buffer.lines.iter().position(|l| {
-            super::super::overlay::hint_matches_authored(&self.overlay_hint, l.text())
-        })
+        self.panel_buffer
+            .lines
+            .iter()
+            .position(|l| super::super::hint_matches_authored(&self.overlay_hint, l.text()))
     }
 
     /// A SHAPED `panel_buffer` LINE'S OWN RUN — `(ink width, line box top, line box

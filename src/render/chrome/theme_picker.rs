@@ -1,5 +1,7 @@
 use super::overlay_clamp::window_plan;
 use super::*;
+
+mod spans;
 use crate::render::rotated_location::LOCATION_SCALE;
 
 /// Pixels the active-lens UNDERLINE sits BELOW the strip run's shaped baseline
@@ -65,8 +67,8 @@ impl TextPipeline {
         // a second copy of the same literals here, which is how the grouped
         // card kept a physical 24px of vertical pad on a retina panel while
         // every other quantity in its own height doubled.
-        let pad = self.metrics.px(super::overlay::CARD_PAD);
-        let margin = self.metrics.px(super::overlay::CARD_MARGIN);
+        let pad = self.metrics.px(super::CARD_PAD);
+        let margin = self.metrics.px(super::CARD_MARGIN);
         let n_items = self.overlay_items.len();
         let full_plan = self.theme_plan();
         let mut hint = self.overlay_hint.clone();
@@ -85,8 +87,7 @@ impl TextPipeline {
         let empty_rows = empty.is_some() as usize;
         let header_rows = 2;
         let header_gap = self.overlay_header_gap();
-        let card_y =
-            margin + self.metrics.px(super::overlay::CARD_TOP_DROP) + self.menubar_reserve();
+        let card_y = margin + self.metrics.px(super::CARD_TOP_DROP) + self.menubar_reserve();
         let total_headers = full_plan.len() - n_items;
         // Strip + hint + footer here, at `min_items: 0`; the SECTION headers are
         // charged to the drawn WINDOW (`fit_sectioned_item_rows`).
@@ -113,16 +114,13 @@ impl TextPipeline {
         // elided (the zoom-blind card bug).
         // Content-hug for a RIGHT-ANCHORED faceted card (via the ONE
         // `overlay_desired_w` owner), the wide `CARD_MAX_W_FACETED` cap otherwise.
-        let desired_w = self.overlay_desired_w(super::overlay::CARD_MAX_W_FACETED);
+        let desired_w = self.overlay_desired_w(super::CARD_MAX_W_FACETED);
         let (card_x, card_w) = self.overlay_card_box(width, desired_w);
         let card_narrow =
-            super::overlay::overlay_card_fill_regime(width as f32, desired_w, self.metrics.scale);
+            super::overlay_card_fill_regime(width as f32, desired_w, self.metrics.scale);
         let hpad = self.overlay_text_hpad();
         let text_w = card_w - 2.0 * hpad;
-        hint = super::overlay::hint_yielding_explanation(
-            &hint,
-            width as f32 / self.metrics.scale.max(0.01),
-        );
+        hint = super::hint_yielding_explanation(&hint, width as f32 / self.metrics.scale.max(0.01));
         let mut card_h = self.overlay_card_h(total_rows, header_gap, hint_rows, hint_gap_rows, pad);
         // The hint gap is decorative breathing room, not load-bearing chrome:
         // in the starvation corner (a sectioned card's own fixed
@@ -494,21 +492,12 @@ impl TextPipeline {
         elide: bool,
     ) {
         let fitted_hint = self.overlay_fitted_hint(geom);
-        let (m, faint) = (self.metrics, theme::faint().to_glyphon());
-        let label = crate::markdown::type_scale::LABEL;
         // Per-line font sizes ride the overlay UI base (`OVERLAY_UI_SCALE`), and their
         // LINE HEIGHTS stay the uniform UI row height (`overlay_lh`) so the plan line
         // offsets, the selected band, and the underline `y` never drift from a per-span
         // metric taller than the row.
-        let ui = crate::render::effective_overlay_scale();
-        let lh = self.overlay_lh();
-        let header_metrics = GlyphMetrics::new(m.font_size * ui * label, lh);
-        // The row pitch stays the shared `lh`, so the location can no more move
-        // the band than the section header it replaces.
-        let location_metrics = GlyphMetrics::new(m.font_size * ui * LOCATION_SCALE, lh);
         let base = panel_attrs();
         let mk = |c| base.clone().color(c);
-        let sym = |c| Attrs::new().family(Family::Name(SYMBOL_FAMILY)).color(c);
         let sigil = "› ";
         let slant = crate::render::overlay_slant();
         let slant_tax = slant
@@ -551,94 +540,30 @@ impl TextPipeline {
         // spans carry the strip font size at the `strip_lh` (= `lh + header_gap`)
         // row height; the leading "\n" keeps the buffer's UI font size so the strip
         // row's font stays scale-invariant.
-        {
-            let mut cursor = 0usize;
-            let mut pushes: Vec<(std::ops::Range<usize>, glyphon::Color)> = Vec::new();
-            for (r, active) in label_ranges {
-                pushes.push((r.clone(), if *active { active_ink } else { muted }));
-            }
-            for r in sep_ranges {
-                pushes.push((r.clone(), faint));
-            }
-            pushes.sort_by_key(|(r, _)| r.start);
-            // The strip's own PLANNED box height, which carries the query beat so
-            // the calm divider falls after the lens strip and before the grouped
-            // rows. The inflation MUST ride the strip line's REAL LABEL glyphs,
-            // never its leading "\n": cosmic-text sizes a line from the glyphs ON
-            // it, and that "\n" is a BREAK terminating the PRIOR (query) line, so
-            // inflating it alone moves the planned band a half-row below the text
-            // — invisible under a gentle value band, but it clipped the selected
-            // row's glyphs once a 1-bit world drew them black on white.
-            let strip_lh = plan.strip_band().map_or(lh, |strip| strip.height);
-            spans.push((
-                &strip_s[0..1],
-                mk(faint).metrics(GlyphMetrics::new(m.font_size * ui, lh)),
-            ));
-            cursor += 1;
-            for (r, c) in pushes {
-                debug_assert_eq!(r.start, cursor, "strip spans must tile the line");
-                cursor = r.end;
-                let fs = if strip_scale < 1.0 {
-                    m.font_size * ui * strip_scale
-                } else {
-                    m.font_size * ui
-                };
-                spans.push((
-                    &strip_s[r],
-                    chrome_attrs()
-                        .color(c)
-                        .metrics(GlyphMetrics::new(fs, strip_lh)),
-                ));
-            }
-        }
-        let slant_italic = slant.map(|s| s.italic).unwrap_or(false);
-        let rk = |c| {
-            if slant_italic {
-                mk(c).style(glyphon::cosmic_text::Style::Italic)
-            } else {
-                mk(c)
-            }
-        };
-        for (idx, (line, fit)) in geom.plan.iter().zip(fitted.iter()).enumerate() {
-            spans.push(("\n", mk(ink)));
-            match line {
-                // THE SECOND LEVEL, in the HEADING's voice. Three deliberate
-                // differences from the section header, each of which stops it
-                // reading as a repeat of the title: the CHROME face the title
-                // prefix and the lens strip are set in, the label's own authored
-                // case, and `muted` rather than `faint` — subordinate to the
-                // primary, but a statement rather than a whisper.
-                // A style that answers `draws_inline() == false` (Cassowary's
-                // `RotatedRail`, Magpie's `Raked`) draws NOTHING inline here:
-                // the line stays glyph-free, and
-                // `prepare_overlay_rotated_location` (called from
-                // `prepare_overlay`, after this shaping runs and the row plan
-                // is final) reads the SAME plan line and paints its own cue
-                // instead. Every `Inline` world keeps this row, unchanged.
-                PlanLine::Location(l) => {
-                    if theme::active().render_caps.location_style.draws_inline() {
-                        spans.push((
-                            l.as_str(),
-                            chrome_attrs().color(muted).metrics(location_metrics),
-                        ));
-                    }
-                }
-                PlanLine::Header(h) => {
-                    spans.push((h.as_str(), mk(faint).metrics(header_metrics)));
-                }
-                PlanLine::Item(_) => {
-                    let flip = vis.reads_selected(idx);
-                    let c = match selected_ink {
-                        Some(c) if flip => c,
-                        _ => ink,
-                    };
-                    spans.push((fit.as_deref().unwrap_or(""), rk(c)));
-                    if let Some(t) = trailing.get(idx).filter(|t| !t.is_empty()) {
-                        push_symbol_split(&mut spans, t, || mk(muted), || sym(muted));
-                    }
-                }
-            }
-        }
+        self.push_theme_strip_spans(
+            &mut spans,
+            plan,
+            spans::ThemeStripSpec {
+                text: strip_s,
+                labels: label_ranges,
+                separators: sep_ranges,
+                scale: strip_scale,
+            },
+            active_ink,
+            muted,
+        );
+        self.push_theme_plan_spans(
+            &mut spans,
+            geom,
+            &fitted,
+            trailing,
+            OverlaySpanInks {
+                ink,
+                muted,
+                selected: selected_ink,
+            },
+            vis,
+        );
         if let Some(msg) = &geom.empty {
             spans.push(("\n", mk(muted)));
             spans.push((msg.as_str(), mk(muted)));

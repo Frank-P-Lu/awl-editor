@@ -306,8 +306,8 @@ pub(super) fn overlay_hint_gap_rows(hint_rows: usize) -> usize {
 // owner and the sidecar report structs.
 pub(in crate::render) mod diagonal;
 mod overlay;
-#[cfg(test)]
-pub(in crate::render) use overlay::hint_yielding_explanation;
+mod overlay_policy;
+pub(in crate::render) use overlay_policy::*;
 mod overlay_clamp;
 mod panel;
 pub(in crate::render) use panel::{PANEL_MARGIN, PANEL_PAD};
@@ -320,12 +320,6 @@ mod workspace_column;
 // The narrow region itself: its grid, shaping, active mark and hit-test —
 // including the one composition question a rail has, because a rail is a list.
 mod workspace_rail;
-pub(in crate::render) use overlay::OVERLAY_UI_SCALE;
-#[cfg(test)]
-pub(in crate::render) use overlay::{
-    CARD_EDGE_INSET_FLOOR, CARD_MAX_W, CARD_MAX_W_FACETED, OVERLAY_HINT_ROW, OVERLAY_QUERY_BEAT,
-    overlay_card_box_policy, overlay_card_fill_regime, overlay_rail_inset,
-};
 // Card draw/upload/composite; `overlay` owns its geometry and hit-test.
 mod overlay_draw;
 mod overlay_ink;

@@ -38,7 +38,7 @@ impl TextPipeline {
     /// free room — the two rows such a band is missing have to fit above it.
     #[cfg(test)]
     pub(in crate::render) fn overlay_card_margin(&self) -> f32 {
-        self.metrics.px(super::overlay::CARD_MARGIN)
+        self.metrics.px(super::CARD_MARGIN)
     }
 
     /// The GROUPED family's counterpart, routed through

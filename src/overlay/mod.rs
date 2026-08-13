@@ -42,9 +42,12 @@ mod build;
 mod capture;
 pub(crate) mod comparison;
 mod facet;
+mod filter;
+mod hint;
 mod journey;
 mod kind;
 mod nav;
+mod row;
 mod semantic;
 mod state;
 pub(crate) mod workspace;
@@ -61,20 +64,19 @@ pub(crate) use build::recent::is_remembered_root;
 pub use capture::{Capture, CaptureStage, KeepEdit, LinkEdit, LinkEditMode, RenameEdit, ValueEdit};
 pub use comparison::{CONFLICT_ROWS, ComparisonRequest, ComparisonView, ConflictSubject};
 #[allow(unused_imports)]
+// used by overlay::tests (format_hint/HintAction directly; PIN_TAG below)
+pub use hint::{ARROWS_LR, ARROWS_UD, HINT_SEP, HintAction, PIN_TAG, RANGE_LR_LABEL, format_hint};
+#[allow(unused_imports)]
 // the table's own vocabulary is consumed by the lifecycle law and workspace tests
 pub use journey::{
     Audition, Beneath, Bind, Event, Journey, Landing, Parked, Resume, Rung, State, Surface,
     landing_of,
 };
-#[allow(unused_imports)]
-// used by overlay::tests (format_hint/HintAction directly; PIN_TAG below)
-pub use kind::{
-    ARROWS_LR, ARROWS_UD, AcceptDisposition, HINT_SEP, HintAction, OverlayKind, PIN_TAG,
-    RANGE_LR_LABEL, format_hint,
-};
+pub use kind::{AcceptDisposition, OverlayKind};
 #[allow(unused_imports)]
 // OverlayRow/RowMeta/RowMetaTag: used by overlay tests and source-audit laws
-pub use state::{OverlayRow, OverlayState, RangeCell, RowMeta, RowMetaTag};
+pub use row::{OverlayRow, RangeCell, RowMeta, RowMetaTag, add_to_dictionary_label};
+pub use state::OverlayState;
 
 fn command_hint_actions() -> Vec<HintAction> {
     vec![
