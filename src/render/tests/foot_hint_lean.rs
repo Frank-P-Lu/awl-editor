@@ -44,7 +44,11 @@ use crate::overlay::OverlayKind;
 /// SUBJECT collapsing, never by a face being narrow. Every offset assertion in this
 /// file is paired with it: an offset from the card's edge is trivially satisfied by a
 /// hint that is not there.
-const HINT_INK_FLOOR_PX: f32 = 120.0;
+// Narrow cards deliberately yield the optional `type to filter` lead. The
+// shortest remaining real action sentence (`↵ apply`) is about 75 logical px
+// in the shipped faces, so 60 still proves non-vacuous ink without rejecting
+// the authored narrow fallback.
+const HINT_INK_FLOOR_PX: f32 = 60.0;
 
 /// A local luma step (of 255) that a GLYPH EDGE produces and a world's ambient
 /// ground does not. The pixel law counts columns carrying one inside the hint's own

@@ -119,8 +119,10 @@ impl TextPipeline {
             super::overlay::overlay_card_fill_regime(width as f32, desired_w, self.metrics.scale);
         let hpad = self.overlay_text_hpad();
         let text_w = card_w - 2.0 * hpad;
-        hint =
-            super::overlay::hint_yielding_explanation(&hint, text_w / self.metrics.scale.max(0.01));
+        hint = super::overlay::hint_yielding_explanation(
+            &hint,
+            width as f32 / self.metrics.scale.max(0.01),
+        );
         let mut card_h = self.overlay_card_h(total_rows, header_gap, hint_rows, hint_gap_rows, pad);
         // The hint gap is decorative breathing room, not load-bearing chrome:
         // in the starvation corner (a sectioned card's own fixed

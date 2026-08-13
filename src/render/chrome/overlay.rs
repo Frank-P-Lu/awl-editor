@@ -26,14 +26,22 @@ pub(in crate::render) const CARD_CONTENT_MIN_W: LogicalGrowOnly = LogicalGrowOnl
 /// useful when room permits, but it is the first cell to yield; `esc close`
 /// must never be the accidentally clipped tail of optional prose. Width is
 /// logical so 1× and 2× make the same decision.
-pub(in crate::render) fn hint_yielding_explanation(hint: &str, logical_text_w: f32) -> String {
-    const EXPLANATION: &str = "type to filter   ";
-    if logical_text_w < 500.0
-        && let Some(actions) = hint.strip_prefix(EXPLANATION)
+const HINT_EXPLANATION: &str = "type to filter   ";
+
+pub(in crate::render) fn hint_yielding_explanation(hint: &str, logical_window_w: f32) -> String {
+    if logical_window_w < 800.0
+        && let Some(actions) = hint.strip_prefix(HINT_EXPLANATION)
     {
         return actions.to_string();
     }
     hint.to_string()
+}
+
+/// A narrow card may shape the authored hint without its optional teaching
+/// lead. Geometry probes locate the line by text, so they must recognize both
+/// legitimate renderings through the same transformation as the shaper.
+pub(in crate::render) fn hint_matches_authored(authored: &str, shaped: &str) -> bool {
+    shaped == authored || authored.strip_prefix(HINT_EXPLANATION) == Some(shaped)
 }
 
 /// Query-to-results breathing room, shared by flat and faceted cards.
@@ -399,7 +407,7 @@ impl TextPipeline {
         let card_narrow = overlay_card_fill_regime(width as f32, desired_w, self.metrics.scale);
         let hpad = self.overlay_text_hpad();
         let text_w = card_w - 2.0 * hpad;
-        hint = hint_yielding_explanation(&hint, text_w / self.metrics.scale.max(0.01));
+        hint = hint_yielding_explanation(&hint, width as f32 / self.metrics.scale.max(0.01));
         let mut card_h = self.overlay_card_h(total_rows, header_gap, hint_rows, hint_gap_rows, pad);
         // The gap is decorative breathing room, not load-bearing chrome: in the
         // starvation corner (a `min_items: 1` floor still
