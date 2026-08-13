@@ -677,6 +677,7 @@ impl TextPipeline {
         rows: &[String],
         trailing: &[String],
     ) {
+        let fitted_hint = self.overlay_fitted_hint(geom);
         let has_query = geom.header_rows > 0;
         let base = panel_attrs();
         let mk = |c| base.clone().color(c);
@@ -765,7 +766,7 @@ impl TextPipeline {
             spans.push((msg.as_str(), mk(muted)));
         }
         if geom.hint_rows > 0 {
-            self.push_overlay_hint_spans(&mut spans, geom.hint.as_str(), muted);
+            self.push_overlay_hint_spans(&mut spans, fitted_hint.as_str(), muted);
         }
         let footer_lines: Vec<String> = geom.footer.iter().map(|t| format!("\n{t}")).collect();
         if geom.footer_rows > 0 {
@@ -794,7 +795,6 @@ impl TextPipeline {
         self.panel_buffer
             .shape_until_scroll(&mut self.font_system, false);
     }
-
     /// The SECONDARY column (shortcut chord / time / git value), one right-aligned
     /// label per display row.
     ///

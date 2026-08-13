@@ -333,7 +333,7 @@ fn a_nonempty_hint_enrols_exactly_one_separator_row() {
 }
 
 #[test]
-fn a_hint_reserves_exactly_two_rows_from_the_candidate_window() {
+fn a_hint_reserves_compact_pixels_before_workspace_rows_and_two_slots_on_cards() {
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!(
@@ -392,12 +392,21 @@ fn a_hint_reserves_exactly_two_rows_from_the_candidate_window() {
             let bare = visible_rows(&mut p, &v);
             v.overlay_hint = hint;
             let hinted = visible_rows(&mut p, &v);
-            assert_eq!(
-                bare.saturating_sub(hinted),
-                2,
-                "{kind:?} menu_bar={bar}: a hint must cost exactly 2 rows of the candidate \
-                 window (bare={bare}, hinted={hinted})"
-            );
+            let cost = bare.saturating_sub(hinted);
+            if kind.workspace_shape().is_some() {
+                assert!(
+                    (1..=2).contains(&cost),
+                    "{kind:?} menu_bar={bar}: a fixed-height workspace reserves the compact \
+                     separator + teaching line before candidates, which must cost one or two \
+                     whole candidate pitches at this control (bare={bare}, hinted={hinted})"
+                );
+            } else {
+                assert_eq!(
+                    cost, 2,
+                    "{kind:?} menu_bar={bar}: a floating card still budgets the hint and its \
+                     separator as exactly two candidate slots (bare={bare}, hinted={hinted})"
+                );
+            }
             enrolled += 1;
         }
         assert_eq!(

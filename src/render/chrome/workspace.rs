@@ -290,7 +290,7 @@ impl TextPipeline {
         // The `settings › query` search line, plus — when the primary column
         // carries the rows — the LENS STRIP that has nowhere else to live.
         let header_rows = self.workspace_header_rows();
-        let header_gap = self.overlay_header_gap();
+        let mut header_gap = self.overlay_header_gap();
 
         let [card_x, card_y, card_w, card_h] = regions.card;
         let ([primary_x, primary_w], [pane_x, pane_w]) = (regions.primary, regions.pane);
@@ -334,10 +334,30 @@ impl TextPipeline {
         // all — the search line still rides above at `text_left`/`text_top`:
         // typing is how you search from either stage, and a field you cannot
         // see is a field you will not use.
-        let avail_px = (card_h - 2.0 * pad - header_gap).max(lh);
-        let chrome_rows = header_rows + hint_gap_rows + hint_rows + empty_rows;
+        // Reserve fixed chrome BEFORE asking how many candidates fit. The
+        // teaching footer's separator and text are deliberately compact, so
+        // their exact pixel height comes from the same owner card sizing reads;
+        // charging whole rows would hide a row that fits, while the flat
+        // family's one-item floor can push this footer out of a fixed-height
+        // workspace. A visible teaching footer outranks candidate rows at the
+        // enforced minimum — zero rows is the honest staged degradation.
+        let avail_px = (card_h - 2.0 * pad).max(0.0);
+        let mut reserved_px = header_rows as f32 * lh
+            + header_gap
+            + empty_rows as f32 * lh
+            + self.overlay_footer_reserve(hint_rows, hint_gap_rows);
+        // The query beat is decorative air. At an extreme zoom the fixed
+        // header + protected footer can exceed the card before candidates get
+        // a vote; yield that beat rather than the teaching line. Candidate row
+        // pitch remains the world's own, and every ordinary composition keeps
+        // the authored beat byte-for-byte.
+        if hint_rows > 0 && reserved_px > avail_px {
+            reserved_px -= header_gap;
+            header_gap = 0.0;
+        }
+        let min_items = usize::from(hint_rows == 0);
         let (top_idx, visible) = match show_rows {
-            true => self.overlay_flat_window(n_items, avail_px, chrome_rows),
+            true => self.overlay_workspace_window(n_items, avail_px, reserved_px, min_items),
             false => (0, 0),
         };
 

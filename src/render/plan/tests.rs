@@ -20,7 +20,9 @@ mod accessory_law;
 /// deliberately do without.
 mod panel_law;
 
-use super::overlay_rows::{OverlayRowPlanInput, PlanLine, fit_item_rows, plan_overlay_rows};
+use super::overlay_rows::{
+    OverlayRowPlanInput, PlanLine, fit_item_rows, fit_item_rows_after_px, plan_overlay_rows,
+};
 
 const CARD_X: f32 = 420.0;
 const CARD_W: f32 = 360.0;
@@ -307,6 +309,14 @@ fn fit_item_rows_divides_the_budget_after_overhead() {
     assert_eq!(fit_item_rows(200.0, 20.0, 3, 0), 7);
     // A partial row's pixels don't count — floor, not round.
     assert_eq!(fit_item_rows(199.9, 20.0, 3, 1), 6);
+}
+
+#[test]
+fn fit_item_rows_after_px_reserves_compact_chrome_before_candidates() {
+    assert_eq!(fit_item_rows_after_px(200.0, 40.0, 79.0, 0), 3);
+    assert_eq!(fit_item_rows_after_px(198.9, 40.0, 79.0, 0), 2);
+    assert_eq!(fit_item_rows_after_px(78.9, 40.0, 79.0, 0), 0);
+    assert_eq!(fit_item_rows_after_px(78.9, 40.0, 79.0, 1), 1);
 }
 
 /// THE FLAT/SPELL FLOOR (`min_items: 1`): a card always attempts at least one

@@ -95,10 +95,14 @@ impl TextPipeline {
         if self.overlay_hint.is_empty() {
             return None;
         }
-        self.panel_buffer
-            .lines
-            .iter()
-            .position(|l| l.text() == self.overlay_hint.as_str())
+        self.panel_buffer.lines.iter().position(|line| {
+            let drawn = line.text();
+            drawn == self.overlay_hint
+                || (!drawn.is_empty()
+                    && self.overlay_hint.ends_with(drawn)
+                    && self.overlay_hint[..self.overlay_hint.len() - drawn.len()]
+                        .ends_with(crate::overlay::HINT_SEP))
+        })
     }
 
     /// A SHAPED `panel_buffer` LINE'S OWN RUN — `(ink width, line box top, line box

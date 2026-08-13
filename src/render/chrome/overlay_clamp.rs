@@ -86,6 +86,32 @@ impl TextPipeline {
         )
     }
 
+    /// Resolve a workspace's candidate window after reserving its fixed chrome
+    /// in pixels. Unlike a floating flat card, a workspace has a fixed card
+    /// height and a compact teaching footer whose two lines are not full row
+    /// pitches. The footer is navigation, so it is reserved first and the
+    /// candidate band may become empty at the enforced minimum geometry.
+    pub(super) fn overlay_workspace_window(
+        &self,
+        n_items: usize,
+        avail_px: f32,
+        reserved_px: f32,
+        min_items: usize,
+    ) -> (usize, usize) {
+        let item_cap = self.overlay_window_rows.max(1).min(fit_item_rows_after_px(
+            avail_px,
+            self.overlay_lh(),
+            reserved_px,
+            min_items,
+        ));
+        scroll_window(
+            n_items,
+            self.overlay_selected,
+            self.overlay_scroll,
+            item_cap,
+        )
+    }
+
     /// The FOOTER band (the keybindings tips) as `(lines, display
     /// rows)`, the ONE owner both geometry families read so a footer can
     /// never be sized against `avail_px` in one family and left out of the

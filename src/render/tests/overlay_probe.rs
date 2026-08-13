@@ -128,11 +128,7 @@ impl TextPipeline {
         let geom = self.overlay_geometry(width);
         let plan = self.overlay_row_plan(&geom);
         let content_bottom = plan.footer_top();
-        let hint_line = self
-            .panel_buffer
-            .lines
-            .iter()
-            .position(|l| l.text() == self.overlay_hint.as_str())?;
+        let hint_line = self.overlay_hint_line()?;
         for run in self.panel_buffer.layout_runs() {
             if run.line_i == hint_line {
                 let top = geom.text_top + run.line_top;
