@@ -15,16 +15,6 @@ it is independent of that work. Diagnose the interaction added after item 419,
 preserve the reserved-footer composition law, and re-sweep the full 419 matrix
 with a mutation proof before issuing a new combined native receipt.
 
-### 426 — Potoroo's focused rail label clears its own band
-
-🟡 IN PROGRESS — queue-426 (codex), branch codex/queue-426-potoroo-rail-contrast
-
-The full native gate found Potoroo's focused rail label at 2.30:1 against its
-own selected band, below the existing 2.6:1 law. Confirm the failure across the
-rail's geometry, DPI, focus, menu-bar, and selected-state neighborhood; repair
-the shared theme-data owner without a Potoroo rendering branch. End with the
-full roster law, a mutation proof, and the exact native receipt.
-
 ### 418 — one Go-to surface for files, headings, and folders
 
 🟡 IN PROGRESS — queue-418 (codex), branch codex/queue-418-unified-goto
