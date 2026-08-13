@@ -1,6 +1,8 @@
 use super::overlay_timeline::right_bind_lines;
 use super::*;
 
+mod names;
+
 // `right_bind_lines` preserves the secondary buffer's vertical contract:
 // its first label leads with exactly `header_rows` blank lines, so
 // `secondary_top() + (header_rows + row) * lh == row_top(row)`.
@@ -689,7 +691,6 @@ impl TextPipeline {
         let has_query = geom.header_rows > 0;
         let base = panel_attrs();
         let mk = |c| base.clone().color(c);
-        let sym_name = |c| Attrs::new().family(Family::Name(SYMBOL_FAMILY)).color(c);
         let mut spans: Vec<(&str, glyphon::Attrs)> = Vec::new();
         let title_prefix = self.overlay_title_prefix(geom);
         let sigil = "› ";
@@ -722,51 +723,16 @@ impl TextPipeline {
             spans.push((self.overlay_query.as_str(), hk(ink)));
         }
         push_beat_spacer(&mut spans, mk(muted), name_fs, plan.beat_line());
-        let slant_italic = crate::render::overlay_slant().is_some_and(|s| s.italic);
-        let rk = |c| {
-            if slant_italic {
-                mk(c).style(glyphon::cosmic_text::Style::Italic)
-            } else {
-                mk(c)
-            }
-        };
-        for (row, content) in rows.iter().enumerate() {
-            if has_query || row != 0 {
-                spans.push(("\n", mk(ink)));
-            }
-            let flip = vis.reads_selected(row);
-            // The spell popup's fixed, terminal "Add '<word>' to
-            // dictionary" row recedes to MUTED ink (unselected) so it reads as
-            // VISUALLY SEPARATED from the ranked corrections above it — the same
-            // figure/ground-by-value language the directory-prefix split already
-            // uses two lines below, no new drawn rule, no new geometry, no new
-            // metadata array. `header_rows == 0` is the established spell-only
-            // signal (`over_overlay_query` reads the same fact); the add row is
-            // ALWAYS the corpus's terminal entry (`OverlayState::new_spell` /
-            // the `nav.rs` refilter exemption), so `row + 1 == rows.len()`
-            // identifies it structurally. The one-bit `Some(c) if flip` arm is
-            // untouched, so a focused/hovered add row still gets the SAME
-            // selection treatment (band + ink-flip) as every other row — the
-            // muting is purely the row's UNSELECTED resting state.
-            let is_spell_add_row = !has_query && row + 1 == rows.len();
-            let (name_c, dir_c) = match selected_ink {
-                Some(c) if flip => (c, c),
-                _ if is_spell_add_row => (muted, muted),
-                _ => (ink, muted),
-            };
-            let split = if content.ends_with('/') || !self.overlay_row_path_splits {
-                0
-            } else {
-                crate::overlay::row_split(content)
-            };
-            if split > 0 {
-                spans.push((&content[..split], rk(dir_c)));
-            }
-            spans.push((&content[split..], rk(name_c)));
-            if let Some(t) = trailing.get(row).filter(|t| !t.is_empty()) {
-                push_symbol_split(&mut spans, t, || mk(muted), || sym_name(muted));
-            }
-        }
+        self.push_overlay_name_rows(
+            &mut spans,
+            rows,
+            trailing,
+            has_query,
+            ink,
+            muted,
+            selected_ink,
+            vis,
+        );
         if let Some(msg) = &geom.empty {
             if has_query {
                 spans.push(("\n", mk(muted)));

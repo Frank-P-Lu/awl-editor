@@ -1,5 +1,7 @@
 use super::overlay_clamp::window_plan;
 use super::*;
+
+mod spans;
 use crate::render::rotated_location::LOCATION_SCALE;
 
 /// Pixels the active-lens UNDERLINE sits BELOW the strip run's shaped baseline
@@ -491,20 +493,14 @@ impl TextPipeline {
     ) {
         let fitted_hint = self.overlay_fitted_hint(geom);
         let (m, faint) = (self.metrics, theme::faint().to_glyphon());
-        let label = crate::markdown::type_scale::LABEL;
         // Per-line font sizes ride the overlay UI base (`OVERLAY_UI_SCALE`), and their
         // LINE HEIGHTS stay the uniform UI row height (`overlay_lh`) so the plan line
         // offsets, the selected band, and the underline `y` never drift from a per-span
         // metric taller than the row.
         let ui = crate::render::effective_overlay_scale();
         let lh = self.overlay_lh();
-        let header_metrics = GlyphMetrics::new(m.font_size * ui * label, lh);
-        // The row pitch stays the shared `lh`, so the location can no more move
-        // the band than the section header it replaces.
-        let location_metrics = GlyphMetrics::new(m.font_size * ui * LOCATION_SCALE, lh);
         let base = panel_attrs();
         let mk = |c| base.clone().color(c);
-        let sym = |c| Attrs::new().family(Family::Name(SYMBOL_FAMILY)).color(c);
         let sigil = "› ";
         let slant = crate::render::overlay_slant();
         let slant_tax = slant
@@ -587,54 +583,16 @@ impl TextPipeline {
                 ));
             }
         }
-        let slant_italic = slant.map(|s| s.italic).unwrap_or(false);
-        let rk = |c| {
-            if slant_italic {
-                mk(c).style(glyphon::cosmic_text::Style::Italic)
-            } else {
-                mk(c)
-            }
-        };
-        for (idx, (line, fit)) in geom.plan.iter().zip(fitted.iter()).enumerate() {
-            spans.push(("\n", mk(ink)));
-            match line {
-                // THE SECOND LEVEL, in the HEADING's voice. Three deliberate
-                // differences from the section header, each of which stops it
-                // reading as a repeat of the title: the CHROME face the title
-                // prefix and the lens strip are set in, the label's own authored
-                // case, and `muted` rather than `faint` — subordinate to the
-                // primary, but a statement rather than a whisper.
-                // A style that answers `draws_inline() == false` (Cassowary's
-                // `RotatedRail`, Magpie's `Raked`) draws NOTHING inline here:
-                // the line stays glyph-free, and
-                // `prepare_overlay_rotated_location` (called from
-                // `prepare_overlay`, after this shaping runs and the row plan
-                // is final) reads the SAME plan line and paints its own cue
-                // instead. Every `Inline` world keeps this row, unchanged.
-                PlanLine::Location(l) => {
-                    if theme::active().render_caps.location_style.draws_inline() {
-                        spans.push((
-                            l.as_str(),
-                            chrome_attrs().color(muted).metrics(location_metrics),
-                        ));
-                    }
-                }
-                PlanLine::Header(h) => {
-                    spans.push((h.as_str(), mk(faint).metrics(header_metrics)));
-                }
-                PlanLine::Item(_) => {
-                    let flip = vis.reads_selected(idx);
-                    let c = match selected_ink {
-                        Some(c) if flip => c,
-                        _ => ink,
-                    };
-                    spans.push((fit.as_deref().unwrap_or(""), rk(c)));
-                    if let Some(t) = trailing.get(idx).filter(|t| !t.is_empty()) {
-                        push_symbol_split(&mut spans, t, || mk(muted), || sym(muted));
-                    }
-                }
-            }
-        }
+        self.push_theme_plan_spans(
+            &mut spans,
+            geom,
+            &fitted,
+            trailing,
+            ink,
+            muted,
+            selected_ink,
+            vis,
+        );
         if let Some(msg) = &geom.empty {
             spans.push(("\n", mk(muted)));
             spans.push((msg.as_str(), mk(muted)));
