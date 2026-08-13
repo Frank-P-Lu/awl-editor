@@ -76,6 +76,78 @@ fn word_bounds_on_word_char() {
     assert_eq!(buf.word_bounds(3), (3, 4));
 }
 
+#[cfg(target_os = "macos")]
+#[test]
+fn prose_word_bounds_use_the_macos_linguistic_token() {
+    let buf = b("大幅に構成が変わっており");
+    assert_eq!(
+        buf.word_bounds(3),
+        (3, 5),
+        "macOS prose selects 構成, not the whole unspaced phrase"
+    );
+}
+
+#[test]
+fn portable_prose_cjk_fallback_is_one_grapheme() {
+    let text = "前半。後半";
+    assert_eq!(
+        crate::word_selection::portable_cjk_grapheme_bounds(0, text.chars().count(), |i| text
+            .chars()
+            .nth(i)
+            .unwrap(),),
+        Some((0, 1)),
+        "an unspaced CJK run does not become one editor-style word"
+    );
+}
+
+#[test]
+fn portable_editor_words_keep_english_and_code_snake_case() {
+    let prose = b("alpha beta");
+    assert_eq!(prose.editor_word_bounds(1), (0, 5));
+    assert_eq!(prose.editor_word_bounds(7), (6, 10));
+
+    let mut code = b("snake_case next");
+    code.set_path(std::path::PathBuf::from("example.rs"));
+    assert_eq!(code.word_bounds(5), (0, 10));
+    assert_eq!(code.word_bounds(12), (11, 15));
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn macos_prose_linguistic_selection_covers_real_writing_shapes() {
+    fn prose(text: &str, idx: usize) -> (usize, usize) {
+        b(text).word_bounds(idx)
+    }
+
+    assert_eq!(prose("don't stop", 3), (0, 5), "ASCII apostrophe");
+    assert_eq!(prose("don’t stop", 3), (0, 5), "curly apostrophe");
+    assert_eq!(prose("state-of-the-art", 6), (6, 8), "hyphenated prose");
+    assert_eq!(
+        prose("https://example.com/a-b", 10),
+        (8, 15),
+        "URL component"
+    );
+    assert_eq!(prose("**bold**", 3), (2, 6), "Markdown content");
+    assert_eq!(prose("**bold**", 0), (0, 2), "Markdown punctuation");
+    assert_eq!(prose("hello...world", 5), (5, 8), "punctuation run");
+    assert_eq!(prose("👩🏽‍💻 next", 0), (0, 4), "emoji cluster");
+    assert_eq!(prose("cafe\u{301} next", 2), (0, 5), "combining cluster");
+    assert_eq!(
+        prose("Englishと日本語mixed", 8),
+        (8, 10),
+        "mixed-script Japanese compound"
+    );
+
+    let mut plain_text = b("大幅に構成が変わっており");
+    plain_text.set_path(std::path::PathBuf::from("essay.txt"));
+    assert_eq!(plain_text.word_bounds(3), (3, 5), "plain-text prose");
+
+    let mut code = b("大幅に構成が変わっており snake_case");
+    code.set_path(std::path::PathBuf::from("example.rs"));
+    assert_eq!(code.word_bounds(3), (0, 12), "code keeps editor CJK run");
+    assert_eq!(code.word_bounds(18), (13, 23), "code keeps snake_case");
+}
+
 #[test]
 fn line_bounds_includes_newline() {
     let buf = b("aaa\nbbb\nccc");

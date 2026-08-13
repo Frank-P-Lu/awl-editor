@@ -734,42 +734,6 @@ impl Buffer {
         self.affinity = affinity;
     }
 
-    /// The word (or the run of non-word chars) around `idx` — what a
-    /// DOUBLE-CLICK selects, and the unit a word-granularity drag extends by.
-    /// Both ends are snapped OUTWARD to grapheme-cluster boundaries, since the
-    /// caret lands on one of them: the char-class walk alone ends a word before
-    /// a trailing combining mark, which would park the caret inside the `é` it
-    /// just selected.
-    pub fn word_bounds(&self, idx: usize) -> (usize, usize) {
-        let len = self.rope.len_chars();
-        if len == 0 {
-            return (0, 0);
-        }
-        let idx = idx.min(len);
-        let class_at = |i: usize| -> Option<bool> {
-            if i < len {
-                Some(is_word_char(self.rope.char(i)))
-            } else {
-                None
-            }
-        };
-        let want = class_at(idx)
-            .or_else(|| if idx > 0 { class_at(idx - 1) } else { None })
-            .unwrap_or(true);
-        let mut start = idx;
-        while start > 0 && is_word_char(self.rope.char(start - 1)) == want {
-            start -= 1;
-        }
-        let mut end = idx;
-        while end < len && is_word_char(self.rope.char(end)) == want {
-            end += 1;
-        }
-        (
-            crate::grapheme::snap_backward(start, len, |i| self.rope.char(i)),
-            crate::grapheme::snap_forward(end, len, |i| self.rope.char(i)),
-        )
-    }
-
     pub fn line_bounds(&self, idx: usize) -> (usize, usize) {
         let idx = idx.min(self.rope.len_chars());
         let line = self.rope.char_to_line(idx);
