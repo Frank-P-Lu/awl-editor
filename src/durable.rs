@@ -458,7 +458,10 @@ mod tests {
             // buys them nothing.
             // `main/tests.rs` split seven ways; same 21 sites, unmoved.
             ("main/tests/buffer_switching.rs", 8),
-            ("main/tests/capture_scenarios.rs", 6),
+            // The seventh site seeds the language-toast screenshot law's
+            // markdown input under its `ScratchDir`; like the other six, it is
+            // disposable harness input rather than a durable user store.
+            ("main/tests/capture_scenarios.rs", 7),
             ("main/tests/headless_safety.rs", 1),
             ("main/tests/launch_context.rs", 2),
             ("main/tests/page_measure.rs", 2),
