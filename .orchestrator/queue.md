@@ -8,6 +8,8 @@
 
 ### 425 — Cassowary's rotated location reads as telemetry, not a second headline
 
+🟡 IN PROGRESS — queue-425 (codex), branch codex/queue-425-cassowary-locator
+
 Keep the rotated active-category cue, but subordinate it to the bold `COMMANDS`
 placard. First audition: Cassowary's mono face (Iosevka Regular), uppercase,
 lightly tracked, muted ink, and roughly 0.28× the placard's font size instead of
@@ -26,6 +28,8 @@ room exists. Finish with a live taste verdict against the reported Cassowary
 composition. Read `THEMES.md` and `docs/render.md`.
 
 ### 424 — themes choose the toast anchor
+
+🟡 IN PROGRESS — queue-424 (codex), branch codex/queue-424-toast-anchor
 
 Add a small data-only toast-anchor roster to the theme model. Each world chooses
 an authored anchor; shared geometry owns safe margins, overlay collisions, and a
@@ -50,6 +54,8 @@ the minimum inset, prove the increased allowance, and retain ellipsis when space
 is genuinely exhausted. Capture the reported shape for pixel confirmation.
 
 ### 422 — prose double-click uses linguistic words without changing code words
+
+🟡 IN PROGRESS — queue-422 (codex), branch codex/queue-422-word-selection
 
 On macOS, prose/Markdown double-click and word-granularity drag use
 NaturalLanguage's `NLTokenizer(.word)` for English, Japanese, and mixed text;
