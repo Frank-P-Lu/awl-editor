@@ -121,6 +121,22 @@ every pass.
 
 ## Open items
 
+### 422 — prose double-click uses linguistic words without changing code words
+
+User decision: on macOS, prose/Markdown double-click and word-granularity drag use
+NaturalLanguage's `NLTokenizer(.word)` for English, Japanese and mixed text; code buffers
+keep awl's editor-style `is_word_char` rule. Measured on the reported sentence, Apple's
+tokenizer returns `大幅 / に / 構成 / が / 変わっ / て / おり`. Linux/web keep today's
+English rule and, for an unspaced CJK run, select exactly one extended grapheme instead of
+the whole run through punctuation. The platform adapter returns rope char ranges and owns
+the UTF-16 conversion; every result still snaps to awl's UAX #29 boundaries.
+
+Verify the shared policy over prose vs code, English apostrophes/hyphens/URLs/Markdown,
+Japanese, four-kanji compounds, punctuation, emoji/combining clusters and mixed scripts.
+macOS integration tests pin `構成`; portable tests pin the CJK grapheme fallback and prove
+ordinary English plus code `snake_case` remain unchanged. No dictionary entry or network is
+consulted: native Dictionary Look Up is a separate future action.
+
 ### 421 — the cell caret is Latin-height over full-square CJK ink
 
 User sighting: over Japanese `構成`, the cell caret covers only the middle of `成`;
