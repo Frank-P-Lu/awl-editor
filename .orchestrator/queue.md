@@ -6,21 +6,19 @@
 
 ## Ready to build
 
-### 429 — zero-row History still draws teaching or content at forced menu-bar zoom 3
+### 431 — unified Go-to picker captures enroll the five-lens geometry
 
-🟡 IN PROGRESS — queue-429 (codex), branch codex/queue-429-zero-row-history
+The combined full native suite fails both faceted picker capture laws after item
+418 unified Go-to. Update the expected grouped-window and file-picker lens
+geometry to the five-lens typed destination surface, preserving bounded windows,
+scroll-to-selection, and sidecar/render agreement across all conventions.
 
-The forced-menu full suite fails at 464×288 logical, zoom 3, DPI 1: the
-rows-primary History/conflict stage draws neither candidates, teaching footer,
-nor its other region. Preserve the planned footer span and zero-row outcome law;
-repair the shared stage composition without a History-specific rendering branch.
+### 430 — native chooser helpers are live only where they are callable
 
-### 428 — return pipeline_draw.rs below the absolute 500-line production ceiling
-
-`src/render/pipeline_draw.rs` is 504 lines after the combined merge, above the
-absolute 500-line limit and its 502-line high-water mark. Decompose construction
-ownership without changing GPU object lifetime or initialization order, then run
-the constructor counter laws and code health.
+Code health finds `apply_file_choice` and `apply_folder_choice` dead under the
+Linux target. Scope or route the helpers so native chooser behavior remains
+shared where callable and every target compiles with `-D warnings`; do not hide
+real dead code behind a blanket allow.
 
 ## Needs a person, hardware, or release authority
 
