@@ -24,6 +24,13 @@ swatch. Twenty ship today (eleven dark, nine light; `theme::THEMES`), each with:
   Refined), Voice (Literary/Technical/Modern), Temperature (Warm/Cool/Neutral).
   Every world must carry a valid tag on every lens, and every lens section must
   have at least one world under it (`every_world_tagged_on_every_lens`).
+- **A toast anchor** (`Theme::toast_anchor`): one of `TopLeft`, `TopRight`, or
+  `BottomCenter`, authored directly on every world. This field chooses the
+  composition only. `render::plan::plan_toast` owns the logical safe inset,
+  active-chrome clearance, and the bottom-centre fallback when a lateral
+  choice stops being meaningful on a narrow canvas. Sticky notices remain at
+  the shared writing-column top; the authored axis applies only to the shared
+  2500 ms acknowledgement.
 - **A clear point of presence**: the caret (`primary`). In the current roster,
   amber (or whatever hue a world's `primary` is) normally belongs to the caret.
   Syntax roles, washes, and selection are held to the **primary guard** (§4

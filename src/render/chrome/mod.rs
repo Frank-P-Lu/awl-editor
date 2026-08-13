@@ -367,7 +367,7 @@ pub(crate) use popover::VPAD as POPOVER_VPAD;
 /// THE CALM NOTICE plate's padding owner — re-exported so the notice's own laws
 /// read the same function `prepare_notice` does instead of re-deriving it.
 #[cfg(test)]
-pub(in crate::render) use readout::notice_plate_padding;
+pub(in crate::render) use readout::{TOAST_COLLISION_GAP, TOAST_SAFE_INSET, notice_plate_padding};
 
 impl TextPipeline {
     /// Claim a small, summoned, transient FLOATING PANEL. The shared trio is

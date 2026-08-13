@@ -10,8 +10,8 @@ use super::model::{
     ChromeFace, DecorativeWash, Elevation, FacetStyle, FoldAfford, HighlightTexture, IconCursor,
     IconGround, ImageReveal, ListStyle, LocationStyle, PageFrame, PaletteRole, PlacardCorner,
     PlacardInk, RenderCaps, RoleOverrides, RuleSelection, SPELL_UNDERLINE_GAP_DEFAULT,
-    SPELL_UNDERLINE_GAP_TIGHT, SelectionStyle, Theme, ThemeTags, TitleStyle, TwoColour,
-    WashOverride,
+    SPELL_UNDERLINE_GAP_TIGHT, SelectionStyle, Theme, ThemeTags, TitleStyle, ToastAnchor,
+    TwoColour, WashOverride,
 };
 use super::ornament::{
     BULLET_SCALE_GARAMOND, BULLET_SCALE_ORNAMENT, BULLET_SCALE_PLAIN, BULLETS_PLAIN,
@@ -21,6 +21,7 @@ use super::ornament::{
 };
 pub const GUMTREE: Theme = Theme {
     name: "Gumtree",
+    toast_anchor: ToastAnchor::TopLeft,
     dark: false,
     base_100: Srgb::rgb(0xE4, 0xF8, 0xE2),
     base_200: Srgb::rgb(0xCF, 0xF3, 0xCC),
@@ -72,6 +73,7 @@ pub const GUMTREE: Theme = Theme {
 };
 pub const POTOROO: Theme = Theme {
     name: "Potoroo",
+    toast_anchor: ToastAnchor::TopRight,
     dark: true,
     base_100: Srgb::rgb(0x1F, 0x04, 0x00),
     base_200: Srgb::rgb(0x31, 0x05, 0x00),
@@ -118,6 +120,7 @@ pub const POTOROO: Theme = Theme {
 };
 pub const BILBY: Theme = Theme {
     name: "Bilby",
+    toast_anchor: ToastAnchor::BottomCenter,
     dark: false,
     base_100: Srgb::rgb(0xFF, 0xF7, 0xEF),
     base_200: Srgb::rgb(0xFB, 0xED, 0xE6),
@@ -164,6 +167,7 @@ pub const BILBY: Theme = Theme {
 };
 pub const SALTPAN: Theme = Theme {
     name: "Saltpan",
+    toast_anchor: ToastAnchor::BottomCenter,
     dark: false,
     base_100: Srgb::rgb(0xFD, 0xF7, 0xE2),
     base_200: Srgb::rgb(0xFB, 0xF3, 0xDE),
@@ -210,6 +214,7 @@ pub const SALTPAN: Theme = Theme {
 };
 pub const QUOKKA: Theme = Theme {
     name: "Quokka",
+    toast_anchor: ToastAnchor::TopLeft,
     dark: false,
     base_100: Srgb::rgb(0xFF, 0xEA, 0xDD),
     base_200: Srgb::rgb(0xFF, 0xDF, 0xCF),
@@ -267,6 +272,7 @@ pub const QUOKKA: Theme = Theme {
 };
 pub const BOMBORA: Theme = Theme {
     name: "Bombora",
+    toast_anchor: ToastAnchor::TopRight,
     dark: true,
     base_100: Srgb::rgb(0x15, 0x0A, 0x2C),
     base_200: Srgb::rgb(0x24, 0x15, 0x40),
@@ -312,6 +318,7 @@ pub const BOMBORA: Theme = Theme {
 
 pub const MULGA: Theme = Theme {
     name: "Mulga",
+    toast_anchor: ToastAnchor::BottomCenter,
     dark: true,
     base_100: Srgb::rgb(0x16, 0x1F, 0x0F),
     base_200: Srgb::rgb(0x1E, 0x29, 0x16),
@@ -356,6 +363,7 @@ pub const MULGA: Theme = Theme {
 
 pub const TAWNY: Theme = Theme {
     name: "Tawny",
+    toast_anchor: ToastAnchor::TopLeft,
     dark: true,
     base_100: Srgb::rgb(0x16, 0x18, 0x1D),
     base_200: Srgb::rgb(0x20, 0x22, 0x28),
@@ -401,6 +409,7 @@ pub const TAWNY: Theme = Theme {
 
 pub const MOPOKE: Theme = Theme {
     name: "Mopoke",
+    toast_anchor: ToastAnchor::TopRight,
     dark: true,
     base_100: Srgb::rgb(0x1B, 0x18, 0x14),
     base_200: Srgb::rgb(0x25, 0x21, 0x1B),
@@ -446,6 +455,7 @@ pub const MOPOKE: Theme = Theme {
 
 pub const BOWERBIRD: Theme = Theme {
     name: "Bowerbird",
+    toast_anchor: ToastAnchor::TopLeft,
     dark: true,
     base_100: Srgb::rgb(0x0C, 0x14, 0x26),
     base_200: Srgb::rgb(0x13, 0x1D, 0x33),
@@ -493,6 +503,7 @@ pub const BOWERBIRD: Theme = Theme {
 
 pub const CURRAWONG: Theme = Theme {
     name: "Currawong",
+    toast_anchor: ToastAnchor::TopRight,
     dark: true,
     base_100: Srgb::rgb(0x06, 0x06, 0x07),
     base_200: Srgb::rgb(0x0E, 0x0F, 0x11),
@@ -548,6 +559,7 @@ pub const CURRAWONG: Theme = Theme {
 
 pub const MANGROVE: Theme = Theme {
     name: "Mangrove",
+    toast_anchor: ToastAnchor::BottomCenter,
     dark: true,
     base_100: Srgb::rgb(0x11, 0x27, 0x23),
     base_200: Srgb::rgb(0x18, 0x34, 0x2E),
@@ -607,6 +619,7 @@ pub const MANGROVE: Theme = Theme {
 
 pub const GALAH: Theme = Theme {
     name: "Galah",
+    toast_anchor: ToastAnchor::TopLeft,
     dark: false,
     base_100: Srgb::rgb(0xFC, 0xEE, 0xF1),
     base_200: Srgb::rgb(0xF8, 0xE0, 0xE6),
@@ -666,6 +679,7 @@ pub const GALAH: Theme = Theme {
 
 pub const MAGPIE: Theme = Theme {
     name: "Magpie",
+    toast_anchor: ToastAnchor::TopRight,
     dark: false,
     base_100: Srgb::rgb(0xFB, 0xFB, 0xFA),
     base_200: Srgb::rgb(0xF1, 0xF1, 0xEF),
@@ -724,6 +738,7 @@ pub const MAGPIE: Theme = Theme {
 
 pub const BROLGA: Theme = Theme {
     name: "Brolga",
+    toast_anchor: ToastAnchor::BottomCenter,
     dark: false,
     base_100: Srgb::rgb(0xE9, 0xEF, 0xFB),
     base_200: Srgb::rgb(0xDC, 0xE6, 0xF8),
@@ -770,6 +785,7 @@ pub const BROLGA: Theme = Theme {
 
 pub const WAGTAIL: Theme = Theme {
     name: "Wagtail",
+    toast_anchor: ToastAnchor::BottomCenter,
     dark: true,
     base_100: Srgb::rgb(0x00, 0x00, 0x00),
     base_200: Srgb::rgb(0x00, 0x00, 0x00),
@@ -850,6 +866,7 @@ pub const WAGTAIL: Theme = Theme {
 
 pub const FIRETAIL: Theme = Theme {
     name: "Firetail",
+    toast_anchor: ToastAnchor::TopLeft,
     dark: true,
     base_100: Srgb::rgb(0x17, 0x09, 0x0C),
     base_200: Srgb::rgb(0x24, 0x0D, 0x12),
@@ -915,6 +932,7 @@ pub const FIRETAIL: Theme = Theme {
 
 pub const CASSOWARY: Theme = Theme {
     name: "Cassowary",
+    toast_anchor: ToastAnchor::TopRight,
     dark: true,
     base_100: Srgb::rgb(0x05, 0x05, 0x06),
     base_200: Srgb::rgb(0x0B, 0x0C, 0x0D),
@@ -981,6 +999,7 @@ pub const CASSOWARY: Theme = Theme {
 /// untagged because the Warm band is at its curated cap; WORLDS.md says why.
 pub const PAPERBARK: Theme = Theme {
     name: "Paperbark",
+    toast_anchor: ToastAnchor::BottomCenter,
     dark: false,
     base_100: Srgb::rgb(0xFF, 0xF8, 0xE9),
     base_200: Srgb::rgb(0xF8, 0xEC, 0xD1),
@@ -1097,6 +1116,7 @@ pub const THEMES: [Theme; 20] = [
 /// per-world fields any more — see `BarConfig`.)
 pub const KITE: Theme = Theme {
     name: "Kite",
+    toast_anchor: ToastAnchor::TopRight,
     dark: false,
     base_100: Srgb::rgb(0xF6, 0xF4, 0xFA),
     base_200: Srgb::rgb(0xE5, 0xDE, 0xF3),

@@ -304,6 +304,34 @@ impl TextPipeline {
         self.outline_layout(height).is_some()
     }
 
+    /// The persistent outline's interactive margin band. Toasts treat this as
+    /// active chrome for the same reason pointer hit-testing does: covering the
+    /// words would also cover the only click target that jumps to that heading.
+    /// This deliberately comes from `outline_layout`, so graceful hiding and
+    /// summoned-overlay ownership cannot diverge between paint and avoidance.
+    pub(in crate::render) fn outline_keepout_rect(&self, height: u32) -> Option<[f32; 4]> {
+        let layout = self.outline_layout(height)?;
+        let row_h = self.metrics.line_height * crate::markdown::type_scale::LABEL;
+        if row_h <= 0.0 {
+            return None;
+        }
+        let slots = crate::render::plan::plan_outline_slots(
+            layout.top,
+            row_h,
+            OUTLINE_GAP_ROWS.0,
+            layout.lines.iter().map(|row| (row.line, row.gap_before)),
+        );
+        let first = slots.first()?;
+        let last = slots.last()?;
+        let left = self.edge_pad();
+        Some([
+            left,
+            first.y,
+            (layout.right_edge - left).max(0.0),
+            (last.y + row_h - first.y).max(0.0),
+        ])
+    }
+
     pub(in crate::render) fn lava_frost_pill_rects(&mut self, height: u32) -> Vec<[f32; 4]> {
         let row_h = self.metrics.line_height * crate::markdown::type_scale::LABEL;
         if row_h <= 0.0 {
