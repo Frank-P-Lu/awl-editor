@@ -248,6 +248,8 @@ no footer at all. 🔵 Worth the user's steer before code.
 
 ### 420 — one shared render pipeline is 16x faster and byte-identical
 
+🟡 IN PROGRESS — claude (deep), branch `claude/item-420-pipeline-hoist`.
+
 Measured by item 414 while building its sweep, and **not what that item was
 for**, so it is filed rather than folded in. Reusing one `TextPipeline` across
 cells instead of building one per cell took its 1920-cell sweep from **45.58s to
