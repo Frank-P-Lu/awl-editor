@@ -39,6 +39,11 @@ const WORKSPACE_MARGIN_FRAC: f32 = 0.055;
 const WORKSPACE_MARGIN_MIN: Logical = Logical(14.0);
 const WORKSPACE_MARGIN_MAX: Logical = Logical(72.0);
 
+/// History metadata may use the workspace's quiet leading inset down to this
+/// logical floor. Kept in logical pixels so the same composition survives both
+/// display densities.
+const TIMELINE_ROW_MIN_INSET: Logical = Logical(22.0);
+
 /// The breathing room between the rail column and the content pane, in overlay
 /// character widths — the same currency `rowlayout::GAP_CHARS` spends between a
 /// row's primary and secondary cells, so the workspace's internal rhythm is the
@@ -97,6 +102,18 @@ impl OverlayGeom {
         }
     }
 
+    pub(in crate::render) fn row_text_left(&self) -> f32 {
+        (self.row_text_w > 0.0)
+            .then_some(self.row_text_left)
+            .unwrap_or(self.text_left)
+    }
+
+    pub(in crate::render) fn row_text_w(&self) -> f32 {
+        (self.row_text_w > 0.0)
+            .then_some(self.row_text_w)
+            .unwrap_or(self.text_w)
+    }
+
     /// TEST-ONLY readers for the workspace law probe (`render/tests/overlay_probe.rs`),
     /// which lives outside this module so a law can compare against what the
     /// frame committed without a render path growing an exception.
@@ -113,6 +130,11 @@ impl OverlayGeom {
     #[cfg(test)]
     pub(in crate::render) fn card_probe(&self) -> [f32; 4] {
         [self.card_x, self.card_y, self.card_w, self.card_h]
+    }
+
+    #[cfg(test)]
+    pub(in crate::render) fn row_text_probe(&self) -> [f32; 2] {
+        [self.row_text_left(), self.row_text_w()]
     }
 
     #[cfg(test)]
@@ -285,6 +307,15 @@ impl TextPipeline {
         // `BAR_SIDE_INSET` OUTSIDE its own plate at both edges.
         let hpad = self.overlay_text_hpad();
         let (text_left, text_w) = (band_x + hpad, (band_w - 2.0 * hpad).max(1.0));
+        let [row_text_left, row_text_w] = match rows_primary {
+            true => plan::plan_timeline_row_span(
+                card_x,
+                text_left,
+                text_w,
+                self.metrics.px(TIMELINE_ROW_MIN_INSET),
+            ),
+            false => [text_left, text_w],
+        };
 
         // On a stage that is not showing its list, no rows are windowed at
         // all — the search line still rides above at `text_left`/`text_top`:
@@ -334,6 +365,8 @@ impl TextPipeline {
             text_left,
             text_top: card_y + pad,
             text_w,
+            row_text_left,
+            row_text_w,
             // A workspace is never in the card's fill regime: it already fills.
             // Saying so explicitly keeps the placard's own narrow-card rule
             // (`overlay_shape_placard`) reading a fact rather than a coincidence.

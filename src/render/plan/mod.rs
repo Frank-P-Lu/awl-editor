@@ -96,7 +96,7 @@ pub(in crate::render) use row_extent::RowExtent;
 pub(in crate::render) use row_extent::{ClusterExtent, RowSpan};
 pub(in crate::render) use workspace::{
     WorkspaceRegions, WorkspaceRegionsInput, plan_caret_preview_panel, plan_comparison_viewport,
-    plan_workspace_regions,
+    plan_timeline_row_span, plan_workspace_regions,
 };
 
 #[cfg(test)]

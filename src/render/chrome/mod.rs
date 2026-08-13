@@ -212,6 +212,11 @@ pub(super) struct OverlayGeom {
     pub(super) text_left: f32,
     pub(super) text_top: f32,
     pub(super) text_w: f32,
+    /// Candidate-row text may spend a workspace's otherwise empty leading
+    /// inset without moving its header or footer. Zero means the ordinary
+    /// `text_left` / `text_w` lane.
+    pub(super) row_text_left: f32,
+    pub(super) row_text_w: f32,
     card_narrow: bool,
     /// This card is drawn as a SUMMONED WORKSPACE. `false` for every
     /// contextual card, which keeps every arm reading it byte-identical there.
@@ -256,6 +261,8 @@ impl OverlayGeom {
             text_left: 0.0,
             text_top: 0.0,
             text_w: 0.0,
+            row_text_left: 0.0,
+            row_text_w: 0.0,
             card_narrow: false,
             workspace: false,
             rail: None,

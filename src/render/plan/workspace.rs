@@ -32,6 +32,21 @@ pub(in crate::render) struct WorkspaceRegionsInput {
     pub content_focused: bool,
 }
 
+/// The timeline's candidate text lane, widened only into the otherwise-unused
+/// leading workspace inset. Its trailing edge stays where the ordinary overlay
+/// row geometry put it, so the comparison seam and the primary-column width do
+/// not move.
+pub(in crate::render) fn plan_timeline_row_span(
+    card_left: f32,
+    ordinary_left: f32,
+    ordinary_width: f32,
+    minimum_card_inset: f32,
+) -> [f32; 2] {
+    let right = ordinary_left + ordinary_width;
+    let left = (card_left + minimum_card_inset).min(right - 1.0);
+    [left, (right - left).max(1.0)]
+}
+
 pub(in crate::render) fn plan_workspace_regions(input: WorkspaceRegionsInput) -> WorkspaceRegions {
     let card_x = input.margin;
     let card_w = (input.canvas_w - 2.0 * input.margin).max(0.0);
@@ -137,6 +152,19 @@ mod tests {
         assert_eq!(
             plan_caret_preview_panel([30.0, 40.0, 300.0, 200.0], 24.0, 12.0, 10.0),
             ([30.0, 250.0, 300.0, 72.0], 42.0, 286.0)
+        );
+    }
+
+    #[test]
+    fn timeline_row_span_spends_only_the_leading_inset() {
+        assert_eq!(
+            plan_timeline_row_span(44.0, 104.0, 95.0, 22.0),
+            [66.0, 133.0]
+        );
+        assert_eq!(
+            plan_timeline_row_span(44.0, 58.0, 8.0, 22.0),
+            [65.0, 1.0],
+            "an exhausted lane stays non-negative and in its original right edge"
         );
     }
 

@@ -399,6 +399,10 @@ impl TextPipeline {
         elide: bool,
     ) -> bool {
         self.overlay_right_shown = false;
+        let mut row_geom = geom.clone();
+        row_geom.text_left = geom.row_text_left();
+        row_geom.text_w = geom.row_text_w();
+        let geom = &row_geom;
         if geom.theme {
             return self.shape_faceted(geom, plan, ink, muted, selected_ink, vis, elide);
         }
@@ -525,7 +529,9 @@ impl TextPipeline {
         }
         let right_labels = self.overlay_right_labels();
         let has_right = !right_labels.is_empty();
-        let hug_inline = has_right && super::bars_inline_shortcut();
+        // Timeline metadata remains a quiet, right-aligned lane even in a Bars
+        // world whose ordinary shortcut chords hug the primary label inline.
+        let hug_inline = has_right && super::bars_inline_shortcut() && !geom.workspace;
         let trailing: Vec<String> = if hug_inline {
             geom.plan
                 .iter()
@@ -542,14 +548,16 @@ impl TextPipeline {
         } else {
             Vec::new()
         };
+        let row_right: Vec<String> = geom
+            .plan
+            .iter()
+            .map(|line| match line {
+                PlanLine::Item(i) => right_labels.get(*i).cloned().unwrap_or_default(),
+                PlanLine::Location(_) | PlanLine::Header(_) => String::new(),
+            })
+            .collect();
         let bind_strs: Vec<String> = if has_right && !hug_inline {
-            right_bind_lines(
-                plan.header_rows(),
-                geom.plan.iter().map(|line| match line {
-                    PlanLine::Item(i) => right_labels.get(*i).map(|s| s.as_str()).unwrap_or(""),
-                    PlanLine::Location(_) | PlanLine::Header(_) => "",
-                }),
-            )
+            right_bind_lines(plan.header_rows(), row_right.iter().map(String::as_str))
         } else {
             Vec::new()
         };
@@ -586,6 +594,16 @@ impl TextPipeline {
         if !has_right || hug_inline {
             return false;
         }
+        if shaped_geom.workspace && self.overlay_rows_primary && elide {
+            return self.shape_timeline_right_to_fit(
+                &shaped_geom,
+                plan,
+                ink,
+                muted,
+                vis,
+                &row_right,
+            );
+        }
         self.shape_overlay_right(&shaped_geom, ink, muted, vis, &bind_strs);
 
         // THE NO-OVERLAP LAW, extended to the faceted path: unlike the
@@ -612,6 +630,52 @@ impl TextPipeline {
         }
         self.overlay_right_shown = true;
         true
+    }
+
+    /// History's secondary cell is authored metadata, not an all-or-nothing
+    /// shortcut. Grant each visible row the pixels its own primary leaves, then
+    /// end-ellipsize against the shaped result until the two lanes genuinely fit.
+    fn shape_timeline_right_to_fit(
+        &mut self,
+        geom: &OverlayGeom,
+        plan: &OverlayRowPlan,
+        ink: glyphon::Color,
+        muted: glyphon::Color,
+        vis: &VisualSelection,
+        labels: &[String],
+    ) -> bool {
+        let primary = self.overlay_row_primary_px(geom);
+        let gap_px = rowlayout::GAP_CHARS as f32 * self.overlay_char_width();
+        let char_w = self.overlay_char_width().max(1.0);
+        let mut fitted: Vec<String> = labels
+            .iter()
+            .enumerate()
+            .map(|(display, label)| {
+                let left = primary.get(&display).copied().unwrap_or(0.0) + gap_px;
+                let chars = ((geom.text_w - left).max(0.0) / char_w).floor() as usize;
+                rowlayout::fit_primary_end(label, chars)
+            })
+            .collect();
+
+        loop {
+            let lines = right_bind_lines(plan.header_rows(), fitted.iter().map(String::as_str));
+            self.shape_overlay_right(geom, ink, muted, vis, &lines);
+            let secondary = self.overlay_row_secondary_px(geom);
+            let mut changed = false;
+            for (display, label) in fitted.iter_mut().enumerate() {
+                let used = primary.get(&display).copied().unwrap_or(0.0)
+                    + gap_px
+                    + secondary.get(&display).copied().unwrap_or(0.0);
+                if used > geom.text_w + 0.01 && !label.is_empty() {
+                    *label = rowlayout::fit_primary_end(label, label.chars().count() - 1);
+                    changed = true;
+                }
+            }
+            if !changed {
+                self.overlay_right_shown = fitted.iter().any(|s| !s.is_empty());
+                return self.overlay_right_shown;
+            }
+        }
     }
 
     pub(super) fn overlay_title_prefix(&self, geom: &OverlayGeom) -> String {

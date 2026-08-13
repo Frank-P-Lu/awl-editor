@@ -159,6 +159,8 @@ impl TextPipeline {
             text_left,
             text_top,
             text_w,
+            row_text_left: text_left,
+            row_text_w: text_w,
             card_narrow,
             // The GROUPED CARD is not a workspace: it floats over a
             // document the user still needs to read, so it has no navigation
