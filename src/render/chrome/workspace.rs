@@ -74,7 +74,7 @@ const MIN_PANE_CHARS: Chars = Chars(46.0);
 /// decoration (DESIGN.md §5).
 pub(in crate::render) const UNFOCUSED_MARK_ALPHA: f32 = 0.34;
 
-pub(super) struct WorkspaceFrame {
+pub(in crate::render) struct WorkspaceFrame {
     pub regions: plan::WorkspaceRegions,
     pub show_rows: bool,
     pub hint: String,
@@ -266,7 +266,7 @@ impl TextPipeline {
     /// zoom/minimum-window corner, chrome yields in order: query beat, header
     /// lines, footer separator, then excess inner pad. The teaching line or the
     /// other region therefore survives before candidate rows are considered.
-    pub(super) fn workspace_frame(&self, width: u32) -> WorkspaceFrame {
+    pub(in crate::render) fn workspace_frame(&self, width: u32) -> WorkspaceFrame {
         let lh = self.overlay_lh();
         let authored_pad = self.metrics.px(WORKSPACE_PAD);
         let n_items = self.overlay_items.len();
