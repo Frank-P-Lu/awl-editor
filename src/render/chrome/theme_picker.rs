@@ -65,8 +65,8 @@ impl TextPipeline {
         // a second copy of the same literals here, which is how the grouped
         // card kept a physical 24px of vertical pad on a retina panel while
         // every other quantity in its own height doubled.
-        let pad = self.metrics.px(super::overlay::CARD_PAD);
-        let margin = self.metrics.px(super::overlay::CARD_MARGIN);
+        let pad = self.metrics.px(super::CARD_PAD);
+        let margin = self.metrics.px(super::CARD_MARGIN);
         let n_items = self.overlay_items.len();
         let full_plan = self.theme_plan();
         let mut hint = self.overlay_hint.clone();
@@ -85,8 +85,7 @@ impl TextPipeline {
         let empty_rows = empty.is_some() as usize;
         let header_rows = 2;
         let header_gap = self.overlay_header_gap();
-        let card_y =
-            margin + self.metrics.px(super::overlay::CARD_TOP_DROP) + self.menubar_reserve();
+        let card_y = margin + self.metrics.px(super::CARD_TOP_DROP) + self.menubar_reserve();
         let total_headers = full_plan.len() - n_items;
         // Strip + hint + footer here, at `min_items: 0`; the SECTION headers are
         // charged to the drawn WINDOW (`fit_sectioned_item_rows`).
@@ -113,16 +112,13 @@ impl TextPipeline {
         // elided (the zoom-blind card bug).
         // Content-hug for a RIGHT-ANCHORED faceted card (via the ONE
         // `overlay_desired_w` owner), the wide `CARD_MAX_W_FACETED` cap otherwise.
-        let desired_w = self.overlay_desired_w(super::overlay::CARD_MAX_W_FACETED);
+        let desired_w = self.overlay_desired_w(super::CARD_MAX_W_FACETED);
         let (card_x, card_w) = self.overlay_card_box(width, desired_w);
         let card_narrow =
-            super::overlay::overlay_card_fill_regime(width as f32, desired_w, self.metrics.scale);
+            super::overlay_card_fill_regime(width as f32, desired_w, self.metrics.scale);
         let hpad = self.overlay_text_hpad();
         let text_w = card_w - 2.0 * hpad;
-        hint = super::overlay::hint_yielding_explanation(
-            &hint,
-            width as f32 / self.metrics.scale.max(0.01),
-        );
+        hint = super::hint_yielding_explanation(&hint, width as f32 / self.metrics.scale.max(0.01));
         let mut card_h = self.overlay_card_h(total_rows, header_gap, hint_rows, hint_gap_rows, pad);
         // The hint gap is decorative breathing room, not load-bearing chrome:
         // in the starvation corner (a sectioned card's own fixed
