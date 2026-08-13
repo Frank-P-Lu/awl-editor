@@ -2,7 +2,6 @@
 //! composition live in their respective pipeline modules.
 //! Script-face caches begin inert here and are resolved with document attrs.
 //! Their geometry consumer therefore reads the same ladder that shaped the run.
-//!
 
 use super::*;
 impl TextPipeline {
@@ -99,13 +98,10 @@ impl TextPipeline {
             TextRenderer::new(&mut atlas, device, wgpu::MultisampleState::default(), None);
         let placard_renderer =
             TextRenderer::new(&mut atlas, device, wgpu::MultisampleState::default(), None);
-        // Each rendered overlay column keeps its own persistent buffer. Footer
-        // fitting continues after the rail is final, so its repeated shaping
-        // uses measurement scratch that can never replace either visible column.
-        // Construct the ownership group together so adding a consumer is explicit.
-        let overlay_metrics = metrics.glyph_metrics();
-        let overlay_buffers =
-            Self::new_workspace_overlay_text_buffers(&mut font_system, overlay_metrics);
+        let overlay_buffers = Self::new_workspace_overlay_text_buffers(
+            &mut font_system,
+            metrics.glyph_metrics(),
+        );
         let panel_caret = CaretPipeline::new(device, format, PLACEHOLDER_RGB);
         let caret_preview_pipeline = CaretPipeline::new(device, format, PLACEHOLDER_RGB);
         let caret_preview_glyph_pipeline =
