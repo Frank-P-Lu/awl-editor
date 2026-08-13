@@ -346,16 +346,13 @@ fn workspace_row_fit_yields_the_header_beat_before_the_footer() {
 
 #[test]
 fn workspace_row_fit_yields_all_header_chrome_before_teaching() {
-    assert_eq!(
-        fit_workspace_item_rows(97.2, 36.0, 81.6, 2, 126.0, 0, 100.0, 63.0, true, 0),
-        WorkspaceRowFit {
-            item_cap: 0,
-            pad: 17.1,
-            header_rows: 0,
-            header_gap: 0.0,
-            hint_gap_rows: 0,
-        }
-    );
+    let fit =
+        fit_workspace_item_rows(97.2, 36.0, 81.6, 2, 126.0, 0, 100.0, 63.0, true, 0);
+    assert_eq!(fit.item_cap, 0);
+    assert_eq!(fit.header_rows, 0);
+    assert_eq!(fit.header_gap, 0.0);
+    assert_eq!(fit.hint_gap_rows, 0);
+    assert!((fit.pad - 17.1).abs() < 0.001, "resolved pad {}", fit.pad);
 }
 
 /// THE FLAT/SPELL FLOOR (`min_items: 1`): a card always attempts at least one
