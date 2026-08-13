@@ -306,6 +306,19 @@ impl TextPipeline {
             - self.overlay_footer_reclaim(hint_rows, gap_rows)
     }
 
+    /// The footer band's exact vertical reservation: compact separator,
+    /// compact teaching line, and their authored trailing chin. This is the
+    /// height counterpart of `push_overlay_hint_spans`; card sizing and the
+    /// workspace candidate clamp both read it before allocating rows.
+    pub(in crate::render) fn overlay_footer_reserve(
+        &self,
+        hint_rows: usize,
+        gap_rows: usize,
+    ) -> f32 {
+        (hint_rows + gap_rows) as f32 * self.overlay_lh()
+            - self.overlay_footer_reclaim(hint_rows, gap_rows)
+    }
+
     pub(in crate::render) fn overlay_right_labels(&self) -> &[String] {
         if !self.overlay_bindings.is_empty() {
             &self.overlay_bindings

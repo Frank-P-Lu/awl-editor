@@ -17,9 +17,11 @@
 //! 1. **A ZERO-ROW STAGE IS ALWAYS THE NARROW REGIME, AND THE OTHER REGION IS
 //!    ALWAYS DRAWN THERE.** Never a wide card with no rows; never both regions
 //!    gone at once.
-//! 2. **SOME STAGE ALWAYS HAS ROWS** — at every window a real session can be in,
-//!    down to the app's own enforced minimum, across the whole authored zoom
-//!    band. Narrowing cannot make a workspace's rows unreachable.
+//! 2. **A STAGE THAT YIELDS EVERY CANDIDATE STILL DRAWS ITS TEACHING FOOTER OR
+//!    THE OTHER REGION** — at every window a real session can be in, down to the
+//!    app's own enforced minimum, across the whole authored zoom band. The footer
+//!    reservation may honestly spend the last candidate at the maximum zoom; it
+//!    may never turn that degradation into a blank card.
 //!
 //! Fact 2 is the PRESENCE FLOOR fact 1 needs. "There are no rows on this stage"
 //! is satisfied perfectly by a workspace whose rows exist on no stage at any
@@ -145,8 +147,7 @@ fn arm_view(rows_primary: bool, detail: bool) -> ViewState {
     v
 }
 
-/// ONE GRADED CELL, and the key the blank ledger is written in: which arm, which
-/// LOGICAL window, which zoom, which scale, which stage.
+/// ONE GRADED CELL: which arm, logical window, zoom, scale, and stage.
 #[derive(Clone, Copy, PartialEq)]
 struct Cell {
     rows_primary: bool,
@@ -178,71 +179,15 @@ struct StageOutcome {
     rows: usize,
     wide: bool,
     other_region_drawn: bool,
+    footer_drawn: bool,
 }
 
-fn stage(
-    device: &wgpu::Device,
-    queue: &wgpu::Queue,
-    p: &mut TextPipeline,
-    cell: Cell,
-) -> StageOutcome {
-    let Cell {
-        rows_primary,
-        zoom,
-        dpi,
-        detail,
-        ..
-    } = cell;
-    let (w, h) = ((cell.w as f32 * dpi) as u32, (cell.h as f32 * dpi) as u32);
-    p.set_dpi(dpi);
-    p.set_size(w as f32, h as f32);
-    let mut v = arm_view(rows_primary, detail);
-    v.zoom = zoom;
-    p.set_view(&v);
-    p.prepare(device, queue, w, h).unwrap();
-    let probe = p.workspace_rail_probe(w);
-    // THE OTHER REGION'S OWN OWNER ANSWERS, per arm. With rows in the pane the
-    // other region is the label RAIL, whose box and per-entry rects come from the
-    // rail owner the draw and the hit-test share. With rows in the primary column
-    // it is the relocated document's viewport, the one owner of where the
-    // document layer draws.
-    let other_region_drawn = match rows_primary {
-        true => p
-            .comparison_viewport()
-            .is_some_and(|[_, _, vw, vh]| vw > 0.0 && vh > 0.0),
-        false => {
-            probe
-                .rail
-                .is_some_and(|[_, _, rw, rh]| rw > 0.0 && rh > 0.0)
-                && probe
-                    .rows
-                    .iter()
-                    .any(|slot| slot.is_some_and(|[_, _, sw, sh]| sw > 0.0 && sh > 0.0))
-        }
-    };
-    StageOutcome {
-        rows: probe.visible,
-        wide: p.workspace_is_wide(w),
-        other_region_drawn,
-    }
-}
-
-/// EVERY MEASURED CELL WHERE A STAGE DRAWS NOTHING AT ALL — the ledger the law
-/// below is two-sided about.
-///
-/// Each of these is a stage that plans no rows AND whose other region is not
-/// drawn either, so the card carries no list of any kind. All of them sit at the
-/// authored ZOOM MAXIMUM in the two smallest windows: at 300% there is not one
-/// line's room left for either region once the card's own header band is seated,
-/// and both bounds are the product's own (`app::lifecycle`'s enforced minimum
-/// window, `crate::range::ZOOM`'s maximum), so their corner is reachable.
-///
-/// **This is a ledger, not an exclusion.** A blank cell that is not here fails,
-/// and a ledgered cell that stops being blank ALSO fails — so whichever way the
-/// open product question is answered (a minimum card that keeps one line, or a
-/// refusal to enter a stage with no room for one), this law reddens and the entry
-/// is deleted rather than quietly kept.
-const BLANK_STAGES: &[Cell] = &[
+/// The existing maximum-zoom height limit for the staged OTHER region. Its
+/// header leaves neither a rail grid nor comparison viewport at the two shortest
+/// windows, and the protected footer belongs to the paired row-owning stage.
+/// Kept exact so this footer-first change neither claims that separate corner
+/// nor lets it expand.
+const MAX_ZOOM_OTHER_REGION_LIMIT: &[Cell] = &[
     Cell {
         rows_primary: false,
         w: 464,
@@ -309,17 +254,65 @@ const BLANK_STAGES: &[Cell] = &[
     },
 ];
 
-/// THE SWEEP'S RUNNING RECORD. Collected rather than asserted in place so ONE run
-/// reports the WHOLE blank set: a per-cell panic stops at the first entry and
-/// hides the rest, which is how a ledger ends up one line short of the truth.
+fn stage(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    p: &mut TextPipeline,
+    cell: Cell,
+) -> StageOutcome {
+    let Cell {
+        rows_primary,
+        zoom,
+        dpi,
+        detail,
+        ..
+    } = cell;
+    let (w, h) = ((cell.w as f32 * dpi) as u32, (cell.h as f32 * dpi) as u32);
+    p.set_dpi(dpi);
+    p.set_size(w as f32, h as f32);
+    let mut v = arm_view(rows_primary, detail);
+    v.zoom = zoom;
+    p.set_view(&v);
+    p.prepare(device, queue, w, h).unwrap();
+    let probe = p.workspace_rail_probe(w);
+    // THE OTHER REGION'S OWN OWNER ANSWERS, per arm. With rows in the pane the
+    // other region is the label RAIL, whose box and per-entry rects come from the
+    // rail owner the draw and the hit-test share. With rows in the primary column
+    // it is the relocated document's viewport, the one owner of where the
+    // document layer draws.
+    let other_region_drawn = match rows_primary {
+        true => p
+            .comparison_viewport()
+            .is_some_and(|[_, _, vw, vh]| vw > 0.0 && vh > 0.0),
+        false => {
+            probe
+                .rail
+                .is_some_and(|[_, _, rw, rh]| rw > 0.0 && rh > 0.0)
+                && probe
+                    .rows
+                    .iter()
+                    .any(|slot| slot.is_some_and(|[_, _, sw, sh]| sw > 0.0 && sh > 0.0))
+        }
+    };
+    StageOutcome {
+        rows: probe.visible,
+        wide: p.workspace_is_wide(w),
+        other_region_drawn,
+        footer_drawn: p.overlay_hint_gap_probe(w).is_some(),
+    }
+}
+
+/// THE SWEEP'S RUNNING RECORD. Collected rather than asserted in place so one
+/// run reports every new blank or stale maximum-zoom control.
 #[derive(Default)]
 struct Tally {
     graded: usize,
     staged: usize,
     wide: usize,
-    ledger_hits: usize,
-    blank: Vec<String>,
-    healed: Vec<String>,
+    zero_row_with_footer: usize,
+    comparison_limit_hits: usize,
+    new_blank: Vec<String>,
+    healed_limit: Vec<String>,
 }
 
 impl Tally {
@@ -334,14 +327,14 @@ impl Tally {
         window: Cell,
         kinds: &[&'static str],
     ) {
-        let mut with_rows = 0usize;
+        let mut with_presence = 0usize;
         for detail in [false, true] {
             let cell = Cell { detail, ..window };
             let what = cell.describe(kinds);
             let out = stage(device, queue, p, cell);
             self.graded += 1;
             if out.rows > 0 {
-                with_rows += 1;
+                with_presence += 1;
                 self.wide += usize::from(out.wide);
                 continue;
             }
@@ -351,18 +344,20 @@ impl Tally {
                 "{what}: a WIDE workspace planned no rows — wide shows both regions, so this \
                  is a card that stopped drawing its list, not a stage"
             );
-            let ledgered = BLANK_STAGES.contains(&cell);
-            self.ledger_hits += usize::from(ledgered);
-            match (out.other_region_drawn, ledgered) {
-                (false, false) => self.blank.push(what),
-                (true, true) => self.healed.push(what),
+            let present = out.other_region_drawn || out.footer_drawn;
+            let limited = MAX_ZOOM_OTHER_REGION_LIMIT.contains(&cell);
+            self.comparison_limit_hits += usize::from(limited);
+            match (present, limited) {
+                (false, false) => self.new_blank.push(what),
+                (true, true) => self.healed_limit.push(what),
                 _ => {}
             }
+            with_presence += usize::from(present);
+            self.zero_row_with_footer += usize::from(out.footer_drawn);
         }
         assert!(
-            with_rows > 0,
-            "{}: NEITHER stage plans a row, so this window has no reachable list at all — the \
-             presence floor beside the staging clause",
+            with_presence > 0,
+            "{}: neither stage draws candidates, a teaching footer, or its other region",
             window.describe(kinds)
         );
     }
@@ -373,24 +368,23 @@ impl Tally {
             "every arm x canvas x zoom x dpi x stage cell must be graded"
         );
         assert!(
-            self.blank.is_empty(),
-            "these stages plan no rows AND draw no other region, so the card carries no list \
-             at all — the one outcome neither a minimum card nor a refusal to enter the stage \
-             would give:\n  {}",
-            self.blank.join("\n  ")
+            self.zero_row_with_footer > 0,
+            "the sweep never reached the protected-footer degradation; deleting footer reservation could pass vacuously"
         );
         assert!(
-            self.healed.is_empty(),
-            "these cells are ledgered blank but now DRAW their other region — the floor \
-             landed, so delete their BLANK_STAGES entries rather than leaving a ledger that \
-             grades nothing:\n  {}",
-            self.healed.join("\n  ")
+            self.new_blank.is_empty(),
+            "a zero-row stage also lost its footer/other region outside the known maximum-zoom other-region limit:\n  {}",
+            self.new_blank.join("\n  ")
+        );
+        assert!(
+            self.healed_limit.is_empty(),
+            "the maximum-zoom other-region limit healed; remove these stale control cells:\n  {}",
+            self.healed_limit.join("\n  ")
         );
         assert_eq!(
-            self.ledger_hits,
-            BLANK_STAGES.len(),
-            "every BLANK_STAGES entry must name a zero-row cell this sweep actually reaches — \
-             a stale entry is a blank cell nobody is grading any more"
+            self.comparison_limit_hits,
+            MAX_ZOOM_OTHER_REGION_LIMIT.len(),
+            "every maximum-zoom comparison control must still be reached exactly"
         );
         assert!(
             self.staged > 0 && self.wide > 0,
@@ -403,27 +397,26 @@ impl Tally {
     }
 }
 
-/// **A ZERO-ROW STAGE IS ALWAYS THE NARROW REGIME, AND SOME STAGE ALWAYS HAS ITS
-/// ROWS.**
+/// **A ZERO-ROW STAGE IS ALWAYS NARROW, AND STILL DRAWS TEACHING OR CONTENT.**
 ///
 /// Three assertions per cell, and the third is what keeps the first two from
 /// being satisfied by a workspace that draws nothing anywhere:
 ///
 ///   * a stage with zero planned rows is NOT a wide card (a wide card shows both
 ///     regions, so zero rows there is a card that stopped drawing, not a stage);
-///   * a stage with zero planned rows has its other region drawn — exactly unless
-///     the cell is ledgered in [`BLANK_STAGES`], which is graded both ways;
-///   * **and the other stage, at the same window, zoom and scale, has rows.**
+///   * a stage with zero planned rows has its teaching footer or other region
+///     drawn;
+///   * and the paired stages have some visible presence at the same geometry.
 ///
 /// The zoom axis spans the authored band (`crate::range::ZOOM`) plus the live
 /// App's launch zoom, because the staging threshold is a scaled-text width and
 /// the two capture doors sit at different zooms — the discrepancy that got an
 /// ordinary staged card reported as a vanished one.
 #[test]
-fn a_workspace_stage_with_no_rows_is_narrow_and_the_other_stage_always_has_rows() {
+fn a_zero_row_workspace_stage_is_narrow_and_still_draws_teaching_or_content() {
     let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1400.0, 900.0) else {
-        eprintln!("skipping a_workspace_stage_with_no_rows_is_narrow: no wgpu adapter");
+        eprintln!("skipping zero-row workspace stage law: no wgpu adapter");
         return;
     };
     // The authored zoom band's own ends and default, plus 0.8 — the zoom a real

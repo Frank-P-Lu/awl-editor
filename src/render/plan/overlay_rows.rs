@@ -230,6 +230,28 @@ pub(in crate::render) fn fit_item_rows(
     fit_lines.saturating_sub(overhead_rows).max(min_items)
 }
 
+/// The pixel-reserved form of [`fit_item_rows`]. A fixed-height composition
+/// uses this when its non-candidate chrome is not an integer number of row
+/// pitches: the workspace teaching footer has a compact separator and compact
+/// text line, so rounding both up to full rows can hide a candidate that really
+/// fits, while rounding either down can seat the footer beyond its card.
+///
+/// `reserved_px` is charged before the remaining height is divided by the
+/// candidate pitch. `min_items` retains the caller's family policy; a workspace
+/// with a teaching footer passes zero because the footer is the navigation
+/// instruction that must survive the minimum geometry.
+pub(in crate::render) fn fit_item_rows_after_px(
+    avail_px: f32,
+    lh: f32,
+    reserved_px: f32,
+    min_items: usize,
+) -> usize {
+    if lh <= 0.0 {
+        return min_items;
+    }
+    (((avail_px - reserved_px.max(0.0)).max(0.0) / lh).floor() as usize).max(min_items)
+}
+
 /// A SECTIONED card's item cap: [`fit_item_rows`]'s answer, except that an
 /// answer of ZERO is re-derived with the section headers billed TIGHTLY before
 /// it is accepted.

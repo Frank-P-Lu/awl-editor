@@ -126,13 +126,22 @@ impl TextPipeline {
     /// `push_overlay_hint_spans` really draws it at, so the column is measured
     /// against the line it has to hold rather than a scaled approximation of it.
     fn measure_workspace_hint_px(&mut self) -> f32 {
+        let hint = self.overlay_hint.clone();
+        self.measure_workspace_hint_text_px(&hint)
+    }
+
+    /// Shape one candidate footer sentence at the exact metrics and face split
+    /// the draw path uses. The workspace footer-yield pass asks this repeatedly
+    /// while dropping leading, lower-priority navigation cells on a narrow
+    /// staged card; the primary-column measurement asks it once for the full
+    /// sentence.
+    pub(super) fn measure_workspace_hint_text_px(&mut self, hint: &str) -> f32 {
         self.overlay_remetric();
         let name_fs = self.overlay_metrics().font_size;
         let metrics = GlyphMetrics::new(
             name_fs * crate::markdown::type_scale::LABEL,
             self.overlay_hint_h(),
         );
-        let hint = self.overlay_hint.clone();
         self.workspace_rail_buffer
             .set_metrics(&mut self.font_system, metrics);
         self.workspace_rail_buffer
@@ -150,7 +159,7 @@ impl TextPipeline {
         let mut spans: Vec<(&str, Attrs)> = Vec::new();
         push_symbol_split(
             &mut spans,
-            &hint,
+            hint,
             || panel_attrs().color(ink).metrics(metrics),
             || {
                 Attrs::new()

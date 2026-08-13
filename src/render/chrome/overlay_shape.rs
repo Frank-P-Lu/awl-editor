@@ -677,6 +677,7 @@ impl TextPipeline {
         rows: &[String],
         trailing: &[String],
     ) {
+        let fitted_hint = self.overlay_fitted_hint(geom);
         let has_query = geom.header_rows > 0;
         let base = panel_attrs();
         let mk = |c| base.clone().color(c);
@@ -765,7 +766,7 @@ impl TextPipeline {
             spans.push((msg.as_str(), mk(muted)));
         }
         if geom.hint_rows > 0 {
-            self.push_overlay_hint_spans(&mut spans, geom.hint.as_str(), muted);
+            self.push_overlay_hint_spans(&mut spans, fitted_hint.as_str(), muted);
         }
         let footer_lines: Vec<String> = geom.footer.iter().map(|t| format!("\n{t}")).collect();
         if geom.footer_rows > 0 {
@@ -793,6 +794,33 @@ impl TextPipeline {
         );
         self.panel_buffer
             .shape_until_scroll(&mut self.font_system, false);
+    }
+
+    /// Keep a workspace teaching footer whole when it fits. On a narrow staged
+    /// card, yield leading cells one at a time until it does. Footer cells are
+    /// ordered from familiar navigation toward consequential action and escape/
+    /// Back, so retaining the suffix preserves the instructions least safe to
+    /// infer (History keeps `restore` + `close`; Settings keeps its edit/Back
+    /// cells). The final cell is never omitted.
+    pub(super) fn overlay_fitted_hint(&mut self, geom: &OverlayGeom) -> String {
+        if !geom.workspace {
+            return geom.hint.clone();
+        }
+        let hint = geom.hint.as_str();
+        let budget_px = geom.text_w;
+        if hint.is_empty() {
+            return String::new();
+        }
+        let cells: Vec<&str> = hint.split(crate::overlay::HINT_SEP).collect();
+        for first in 0..cells.len() {
+            let candidate = cells[first..].join(crate::overlay::HINT_SEP);
+            if self.measure_workspace_hint_text_px(&candidate) <= budget_px + 0.01
+                || first + 1 == cells.len()
+            {
+                return candidate;
+            }
+        }
+        hint.to_string()
     }
 
     /// The SECONDARY column (shortcut chord / time / git value), one right-aligned

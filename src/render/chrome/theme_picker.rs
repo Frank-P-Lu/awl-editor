@@ -491,6 +491,7 @@ impl TextPipeline {
         strip_scale: f32,
         elide: bool,
     ) {
+        let fitted_hint = self.overlay_fitted_hint(geom);
         let m = self.metrics;
         let faint = theme::faint().to_glyphon();
         let label = crate::markdown::type_scale::LABEL;
@@ -643,7 +644,7 @@ impl TextPipeline {
             spans.push((msg.as_str(), mk(muted)));
         }
         if geom.hint_rows > 0 {
-            self.push_overlay_hint_spans(&mut spans, geom.hint.as_str(), muted);
+            self.push_overlay_hint_spans(&mut spans, fitted_hint.as_str(), muted);
         }
 
         self.panel_buffer

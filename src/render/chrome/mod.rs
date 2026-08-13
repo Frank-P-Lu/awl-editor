@@ -6,7 +6,7 @@ use super::*;
 // `crate::render::plan`) and adds the shared item-row HEIGHT clamp.
 pub(super) use crate::render::plan::{
     ClusterExtent, OverlayRowPlan, OverlayRowPlanInput, PlanLine, PlannedRow, RowSpan,
-    fit_item_rows, fit_sectioned_item_rows, plan_overlay_rows,
+    fit_item_rows, fit_item_rows_after_px, fit_sectioned_item_rows, plan_overlay_rows,
 };
 
 const PREFIX_HEADER: &str = "C-x";
