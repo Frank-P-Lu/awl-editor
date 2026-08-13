@@ -232,6 +232,7 @@ mod workspace;
 /// The Back the content stage teaches: ONE sentence across width x zoom x
 /// scale, planned, shaped and inked inside the card on both sides of the
 /// staging threshold.
+mod workspace_back_height;
 mod workspace_back_width;
 mod workspace_footer_plate;
 mod workspace_plate;

@@ -619,10 +619,10 @@ fn world_pin_index() -> usize {
 /// `assert_the_budget_could_not_hold_it` must agree, against the card's own
 /// reported geometry, that the budget could not have held the line.
 const STARVED: &[&str] = &[
-    "bars · settings at 464x288 logical, zoom=1.4, dpi=1, menu_bar=on",
-    "bars · settings at 464x288 logical, zoom=1.4, dpi=2, menu_bar=on",
     "bars · settings at 464x288 logical, zoom=2, dpi=1, menu_bar=off",
     "bars · settings at 464x288 logical, zoom=2, dpi=2, menu_bar=off",
+    "bars · settings at 464x288 logical, zoom=1.4, dpi=1, menu_bar=on",
+    "bars · settings at 464x288 logical, zoom=1.4, dpi=2, menu_bar=on",
     "bars · settings at 464x288 logical, zoom=2, dpi=1, menu_bar=on",
     "bars · settings at 464x288 logical, zoom=2, dpi=2, menu_bar=on",
     "diagonal+pane · settings at 464x288 logical, zoom=2, dpi=1, menu_bar=on",
