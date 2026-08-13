@@ -17,36 +17,6 @@ it is independent of that work. Diagnose the interaction added after item 419,
 preserve the reserved-footer composition law, and re-sweep the full 419 matrix
 with a mutation proof before issuing a new combined native receipt.
 
-### 418 — one Go-to surface for files, headings, and folders
-
-🟡 IN PROGRESS — queue-418 (codex), branch codex/queue-418-unified-goto
-
-Rename `Go to file…` to `Go to…` and fold the existing Goto and Project corpora
-into one typed destination list with lenses
-`All · Files · Headings · Folders · Recent`. Files open, headings jump, folders
-switch the active writing folder, Recent combines recent files and folders, and
-All searches every known destination. Folder rows retain clear path identity;
-user-facing copy says **folder**, not project.
-
-All entry points share this overlay and accept seam: `⌘O` opens All, `⌘⇧P`
-opens Folders, and the heading context action opens Headings. Retire the public
-`Switch project…`, `Recent projects…`, `Browse files…`, and palette
-`Go to heading…` entries; contextual heading wording may remain. The footer
-includes `esc close`, yielding explanatory prose such as `type to filter` first
-when width is tight.
-
-Expose direct `Open file…` and `Open folder…` actions using the
-platform-appropriate chooser. Open folder starts at the configured workspace and
-switches to the accepted folder. A `Choose another folder…` fallback in the
-Folders lens opens that chooser directly—never a second `ProjectBrowse` stage.
-
-Verify catalog, File/context menus, generated GUIDE, default/rebound chords,
-macOS/Linux/web rosters, all lenses and empty states, fuzzy ranking, mixed recent
-ordering, typed accept effects, chooser cancel/accept, session/workspace
-re-scope, sidecar semantics, and removal of public project/browse wording. Read
-`docs/config.md`, `docs/platform.md`, `docs/render.md`, and
-`docs/harness-reach.md` before splitting capture from live verification.
-
 ### 395 — language confirmation toast and directory-shaped elision
 
 🟡 IN PROGRESS — queue-395 (codex), branch codex/queue-395-language-toast-elision
