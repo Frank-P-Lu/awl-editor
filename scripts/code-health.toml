@@ -547,14 +547,14 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/main/run.rs"
 function = "ReplaySession::apply_chord"
-message = "this function has too many lines (152/100)"
+message = "this function has too many lines (165/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/main/run.rs"
 function = "capture_screenshot"
-message = "this function has too many lines (112/100)"
+message = "this function has too many lines (113/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
@@ -666,7 +666,7 @@ reason = "Line moved by the location line kind added above it; the count is unch
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/theme_picker.rs"
 function = "TextPipeline::shape_theme_spans"
-message = "this function has too many lines (133/100)"
+message = "this function has too many lines (139/100)"
 reason = "+7: the shaper gained the location heading's own metrics and span arm. Existing chrome draw owner; extraction needs a deliberate rendering-state seam. Line/size moved by queue item 114's summoned Settings workspace. +4: item 221's RotatedRail world gates the location line's inline span behind a condition instead of drawing it unconditionally, so the PlanLine::Location arm gained an if/comment; the rotated treatment itself lives in a dedicated chrome::rotated_location submodule, not here. Item 224 (-2): the gate reads the new exhaustive `LocationStyle::draws_inline()` instead of a direct `!= RotatedRail` comparison and inline `if`, one condition covering both non-inline styles."
 
 [[clippy_exception]]
@@ -778,7 +778,7 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 lint = "clippy::too_many_lines"
 file = "src/render/pipeline_draw.rs"
 function = "TextPipeline::new"
-message = "this function has too many lines (442/100)"
+message = "this function has too many lines (441/100)"
 reason = "The one exhaustive TextPipeline initializer keeps adjacent GPU state transitions together. Four added lines initialize arbitrary two-colour ground/ink endpoints for independent selection and caret pipelines; their shared baked construction lives in SelectionPipeline::new_two_colour."
 
 [[clippy_exception]]
