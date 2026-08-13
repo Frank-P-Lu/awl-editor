@@ -588,9 +588,11 @@ impl TextPipeline {
             geom,
             &fitted,
             trailing,
-            ink,
-            muted,
-            selected_ink,
+            OverlaySpanInks {
+                ink,
+                muted,
+                selected: selected_ink,
+            },
             vis,
         );
         if let Some(msg) = &geom.empty {

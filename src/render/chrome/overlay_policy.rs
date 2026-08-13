@@ -22,6 +22,13 @@ pub(super) const SPELL_WORD_GAP: Logical = Logical(6.0);
 pub(super) const SPELL_MIN_W: LogicalGrowOnly = LogicalGrowOnly(140.0);
 pub(super) const SPELL_MAX_W: LogicalGrowOnly = LogicalGrowOnly(520.0);
 
+#[derive(Clone, Copy)]
+pub(super) struct OverlaySpanInks {
+    pub(super) ink: glyphon::Color,
+    pub(super) muted: glyphon::Color,
+    pub(super) selected: Option<glyphon::Color>,
+}
+
 const HINT_EXPLANATION: &str = "type to filter   ";
 
 pub(in crate::render) fn overlay_rail_inset(ww: f32, scale: f32, dpi: f32) -> f32 {

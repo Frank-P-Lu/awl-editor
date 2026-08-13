@@ -7,11 +7,14 @@ impl TextPipeline {
         geom: &'a OverlayGeom,
         fitted: &'a [Option<String>],
         trailing: &'a [String],
-        ink: glyphon::Color,
-        muted: glyphon::Color,
-        selected_ink: Option<glyphon::Color>,
+        inks: OverlaySpanInks,
         vis: &VisualSelection,
     ) {
+        let OverlaySpanInks {
+            ink,
+            muted,
+            selected: selected_ink,
+        } = inks;
         let base = panel_attrs();
         let mk = |c| base.clone().color(c);
         let sym = |c| Attrs::new().family(Family::Name(SYMBOL_FAMILY)).color(c);
