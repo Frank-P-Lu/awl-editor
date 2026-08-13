@@ -657,7 +657,9 @@ impl TextPipeline {
         // (`push_beat_spacer`'s own trick for the query beat), so this is a
         // single invisible space, not a bare second newline.
         if gap_rows > 0 {
-            spans.push(("\n", base.clone().color(muted)));
+            if content_before {
+                spans.push(("\n", base.clone().color(muted)));
+            }
             spans.push((
                 " ",
                 base.clone()

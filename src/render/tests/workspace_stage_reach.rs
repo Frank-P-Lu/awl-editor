@@ -180,6 +180,8 @@ struct StageOutcome {
     other_region_drawn: bool,
     footer_drawn: bool,
     footer_inside: bool,
+    footer_box: Option<(f32, f32, f32)>,
+    card: [f32; 4],
 }
 
 /// The existing maximum-zoom height limit for the staged OTHER region. Its
@@ -272,6 +274,8 @@ fn stage(
         footer_inside: hint.is_none_or(|(_, top, bottom)| {
             top >= probe.card[1] - 0.01 && bottom <= card_bottom + 0.01
         }),
+        footer_box: hint,
+        card: probe.card,
     }
 }
 
@@ -308,7 +312,9 @@ impl Tally {
             self.graded += 1;
             assert!(
                 out.footer_inside,
-                "{what}: the teaching footer was shaped outside its workspace card"
+                "{what}: the teaching footer was shaped outside its workspace card; hint={:?} card={:?}",
+                out.footer_box,
+                out.card
             );
             if out.rows > 0 {
                 with_presence += 1;

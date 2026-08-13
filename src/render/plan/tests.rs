@@ -352,7 +352,7 @@ fn workspace_row_fit_yields_all_header_chrome_before_teaching() {
     assert_eq!(fit.header_rows, 0);
     assert_eq!(fit.header_gap, 0.0);
     assert_eq!(fit.hint_gap_rows, 0);
-    assert!((fit.pad - 17.1).abs() < 0.001, "resolved pad {}", fit.pad);
+    assert!((fit.pad - 34.2).abs() < 0.001, "resolved pad {}", fit.pad);
 }
 
 /// THE FLAT/SPELL FLOOR (`min_items: 1`): a card always attempts at least one

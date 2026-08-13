@@ -313,7 +313,7 @@ pub(in crate::render) fn fit_workspace_item_rows(
                  header_rows: usize,
                  header_gap: f32,
                  footer_reserve: f32| {
-        2.0 * pad
+        pad * if footer_present { 1.0 } else { 2.0 }
             + (header_rows.saturating_add(empty_rows)) as f32 * lh
             + header_gap
             + footer_reserve
@@ -330,8 +330,13 @@ pub(in crate::render) fn fit_workspace_item_rows(
         footer_reserve = footer_without_gap;
     }
     let non_pad = fixed(0.0, header_rows, planned_gap, footer_reserve);
-    if non_pad + 2.0 * pad > card_h {
-        pad = ((card_h - non_pad).max(0.0) * 0.5).min(pad);
+    let pad_cost = if footer_present { pad } else { 2.0 * pad };
+    if non_pad + pad_cost > card_h {
+        // The footer is attached BELOW the content stack, so only the TOP pad
+        // can yield here. Keeping the symmetric half would reserve a bottom pad
+        // the shaper never spends and seat the teaching line past the card.
+        let divisor = if footer_present { 1.0 } else { 2.0 };
+        pad = ((card_h - non_pad).max(0.0) / divisor).min(pad);
     }
 
     let avail_px = (card_h - 2.0 * pad).max(0.0);
