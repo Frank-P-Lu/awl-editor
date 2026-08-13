@@ -14,7 +14,6 @@ impl TextPipeline {
         const PLACEHOLDER_RGB: [u8; 3] = [0; 3];
         const PLACEHOLDER_RGBA: [u8; 4] = [0; 4];
         let mut font_system = build_font_system();
-
         let swash_cache = SwashCache::new();
         let viewport = Viewport::new(device, cache);
         let mut atlas = TextAtlas::new(device, queue, cache, format);
@@ -22,7 +21,6 @@ impl TextPipeline {
             TextRenderer::new(&mut atlas, device, wgpu::MultisampleState::default(), None);
         let metrics = Metrics::new(1.0);
         let buffer = GlyphBuffer::new(&mut font_system, metrics.glyph_metrics());
-
         let caret_pipeline = CaretPipeline::new(device, format, PLACEHOLDER_RGB);
         let caret_trail_pipeline = CaretPipeline::new(device, format, PLACEHOLDER_RGB);
         let caret_glyph_pipeline = CaretGlyphPipeline::new(device, queue, format, PLACEHOLDER_RGB);
@@ -99,14 +97,13 @@ impl TextPipeline {
             TextRenderer::new(&mut atlas, device, wgpu::MultisampleState::default(), None);
         let placard_renderer =
             TextRenderer::new(&mut atlas, device, wgpu::MultisampleState::default(), None);
-        let panel_buffer = GlyphBuffer::new(&mut font_system, metrics.glyph_metrics());
-        let panel_bind_buffer = GlyphBuffer::new(&mut font_system, metrics.glyph_metrics());
-        // The summoned workspace's navigation rail shapes into its own
-        // buffer: it is a column, not more lines of the card's own list.
-        let workspace_rail_buffer = GlyphBuffer::new(&mut font_system, metrics.glyph_metrics());
-        let workspace_hint_measure_buffer =
-            GlyphBuffer::new(&mut font_system, metrics.glyph_metrics());
-        let placard_buffer = GlyphBuffer::new(&mut font_system, metrics.glyph_metrics());
+        // Each rendered overlay column keeps its own persistent buffer. Footer
+        // fitting continues after the rail is final, so its repeated shaping
+        // uses measurement scratch that can never replace either visible column.
+        // Construct the ownership group together so adding a consumer is explicit.
+        let overlay_metrics = metrics.glyph_metrics();
+        let overlay_buffers =
+            Self::new_workspace_overlay_text_buffers(&mut font_system, overlay_metrics);
         let panel_caret = CaretPipeline::new(device, format, PLACEHOLDER_RGB);
         let caret_preview_pipeline = CaretPipeline::new(device, format, PLACEHOLDER_RGB);
         let caret_preview_glyph_pipeline =
@@ -277,9 +274,9 @@ impl TextPipeline {
             blur_sig: None,
             panel_renderer,
             placard_renderer,
-            panel_buffer,
-            panel_bind_buffer,
-            placard_buffer,
+            panel_buffer: overlay_buffers.panel,
+            panel_bind_buffer: overlay_buffers.bindings,
+            placard_buffer: overlay_buffers.placard,
             panel_caret,
             caret_preview_pipeline,
             caret_preview_glyph_pipeline,
@@ -469,8 +466,8 @@ impl TextPipeline {
             overlay_rows_primary: false,
             overlay_comparison: false,
             workspace_primary_w: 0.0,
-            workspace_rail_buffer,
-            workspace_hint_measure_buffer,
+            workspace_rail_buffer: overlay_buffers.rail,
+            workspace_hint_measure_buffer: overlay_buffers.hint_measure,
             workspace_rail_rows: Vec::new(),
             workspace_rail_placement: None,
             overlay_spell_w: 0.0,

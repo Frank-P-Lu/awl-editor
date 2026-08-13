@@ -26,7 +26,28 @@ use super::*;
 const TIMELINE_MIN_CHARS: Chars = Chars(12.0);
 const TIMELINE_MAX_FRAC: f32 = 0.34;
 
+pub(in crate::render) struct OverlayTextBuffers {
+    pub panel: GlyphBuffer,
+    pub bindings: GlyphBuffer,
+    pub rail: GlyphBuffer,
+    pub hint_measure: GlyphBuffer,
+    pub placard: GlyphBuffer,
+}
+
 impl TextPipeline {
+    pub(in crate::render) fn new_workspace_overlay_text_buffers(
+        font_system: &mut FontSystem,
+        metrics: GlyphMetrics,
+    ) -> OverlayTextBuffers {
+        OverlayTextBuffers {
+            panel: GlyphBuffer::new(font_system, metrics),
+            bindings: GlyphBuffer::new(font_system, metrics),
+            rail: GlyphBuffer::new(font_system, metrics),
+            hint_measure: GlyphBuffer::new(font_system, metrics),
+            placard: GlyphBuffer::new(font_system, metrics),
+        }
+    }
+
     /// MEASURE the workspace's PRIMARY (narrow) column width (device px) from its
     /// own shaped content — the same `&mut FontSystem` measurement a
     /// content-hugging card already makes, and for the same reason: a
