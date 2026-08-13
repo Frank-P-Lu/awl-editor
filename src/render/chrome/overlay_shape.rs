@@ -1,4 +1,17 @@
+use super::overlay_timeline::right_bind_lines;
 use super::*;
+
+// `right_bind_lines` preserves the secondary buffer's vertical contract:
+// its first label leads with exactly `header_rows` blank lines, so
+// `secondary_top() + (header_rows + row) * lh == row_top(row)`.
+// A contextual card has zero header lines, and must therefore gain none.
+// The retired `.max(1)` looked defensive but shifted every secondary label
+// and its selected ink onto the following row for that one card family.
+// Timeline fitting now shares this same constructor from `overlay_timeline`:
+// elision may change a label's width, never its display-line identity.
+// Keeping the constructor named at this import documents why the general
+// overlay shaper and the timeline-specific pixel refinement cannot each grow
+// their own nearly-identical newline arithmetic again.
 
 /// PHYSICAL, and the placard family is chrome's one honest exception.
 ///
@@ -153,26 +166,6 @@ fn push_beat_spacer<'a>(
         spans.push(("\n", attrs.clone()));
         spans.push((" ", attrs.metrics(GlyphMetrics::new(font_size, beat))));
     }
-}
-
-/// Leads the FIRST label with exactly `header_rows` empty lines — the same
-/// count [`super::plan::OverlayRowPlan::secondary_top`] documents as the
-/// buffer's own contract (`secondary_top() + (header_rows + r) * lh ==
-/// row_top(r)`). A card with NO header line (`header_rows == 0` — the
-/// contextual Context menu, `overlay.rs`'s `!contextual` gate) must lead with
-/// NONE: a hardcoded `.max(1)` here once forced one blank line regardless,
-/// pushing every row's secondary text (its "unavailable"/chord/value AND the
-/// ink resolved for ITS OWN row) one slot down onto the row below — so a
-/// selected row's on-band ink landed on the next row's plain, un-banded
-/// ground, sometimes at zero contrast against it.
-fn right_bind_lines<'a>(header_rows: usize, labels: impl Iterator<Item = &'a str>) -> Vec<String> {
-    labels
-        .enumerate()
-        .map(|(k, label)| {
-            let leads = if k == 0 { header_rows } else { 1 };
-            format!("{}{label}", "\n".repeat(leads))
-        })
-        .collect()
 }
 
 impl TextPipeline {
@@ -519,13 +512,15 @@ impl TextPipeline {
         // card. Shape against that real side territory before deciding whether
         // a secondary cell fits, so narrow cards elide/yield instead of drawing
         // a measured cluster through the spine or off its planned span.
-        let mut shaped_geom = geom.clone();
+        let mut shaped_geom = geom.for_rows();
         if let Some(budget) = self.diagonal_cluster_budget(geom, plan.rows().len()) {
             shaped_geom.text_w = shaped_geom.text_w.min(budget);
         }
         let right_labels = self.overlay_right_labels();
         let has_right = !right_labels.is_empty();
-        let hug_inline = has_right && super::bars_inline_shortcut();
+        // Timeline metadata remains a quiet, right-aligned lane even in a Bars
+        // world whose ordinary shortcut chords hug the primary label inline.
+        let hug_inline = has_right && super::bars_inline_shortcut() && !geom.workspace;
         let trailing: Vec<String> = if hug_inline {
             geom.plan
                 .iter()
@@ -585,6 +580,11 @@ impl TextPipeline {
         }
         if !has_right || hug_inline {
             return false;
+        }
+        if let Some(shown) =
+            self.shape_timeline_right_to_fit(&shaped_geom, plan, ink, muted, vis, elide)
+        {
+            return shown;
         }
         self.shape_overlay_right(&shaped_geom, ink, muted, vis, &bind_strs);
 
@@ -804,7 +804,7 @@ impl TextPipeline {
     /// the label it annotates were still on "Go to file…" — two simultaneous
     /// answers to "which command is selected". The secondary now WAITS for the
     /// band, exactly as the primary label already did.
-    fn shape_overlay_right(
+    pub(super) fn shape_overlay_right(
         &mut self,
         geom: &OverlayGeom,
         ink: glyphon::Color,

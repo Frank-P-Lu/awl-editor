@@ -86,7 +86,9 @@ impl TextPipeline {
     ) -> Option<Vec<PanelBand>> {
         let slant = crate::render::overlay_slant();
         let cluster = self.diagonal_cluster;
-        if slant.is_none() && cluster.is_none() {
+        let split_row_lane =
+            geom.row_text_left() != geom.text_left || geom.row_text_w() != geom.text_w;
+        if slant.is_none() && cluster.is_none() && !split_row_lane {
             return None;
         }
         let mut bands = vec![PanelBand {
@@ -122,8 +124,9 @@ impl TextPipeline {
     /// THE CARD'S TEXT COLUMN as the emitter's own `TextBounds` clips to it — ink outside
     /// it is not drawn, so it is not the frost's business either.
     fn overlay_text_clip(&self, geom: &OverlayGeom) -> (f32, f32) {
-        let left = geom.text_left.max(0.0);
-        (left, geom.text_left + geom.text_w)
+        let left = geom.text_left.min(geom.row_text_left()).max(0.0);
+        let right = (geom.text_left + geom.text_w).max(geom.row_text_left() + geom.row_text_w());
+        (left, right)
     }
 
     /// ONE BUFFER'S DRAWN INK inside one clip band, in canvas coordinates — the glyph

@@ -212,6 +212,7 @@ pub(super) struct OverlayGeom {
     pub(super) text_left: f32,
     pub(super) text_top: f32,
     pub(super) text_w: f32,
+    pub(super) row_text: Option<[f32; 2]>,
     card_narrow: bool,
     /// This card is drawn as a SUMMONED WORKSPACE. `false` for every
     /// contextual card, which keeps every arm reading it byte-identical there.
@@ -256,6 +257,7 @@ impl OverlayGeom {
             text_left: 0.0,
             text_top: 0.0,
             text_w: 0.0,
+            row_text: None,
             card_narrow: false,
             workspace: false,
             rail: None,
@@ -320,20 +322,18 @@ pub(in crate::render) use overlay::{
     CARD_EDGE_INSET_FLOOR, CARD_MAX_W, CARD_MAX_W_FACETED, OVERLAY_HINT_ROW, OVERLAY_QUERY_BEAT,
     overlay_card_box_policy, overlay_card_fill_regime, overlay_rail_inset,
 };
-// The card-DRAW half of the summoned overlay (shape + upload + composite): the
-// geometry/hit-test owner is `overlay`, this turns that settled geometry into GPU
-// work. A cohesive physical carve, byte-identical pixels — see the file's own doc.
+// Card draw/upload/composite; `overlay` owns its geometry and hit-test.
 mod overlay_draw;
 mod overlay_ink;
 mod overlay_rows;
-// The `Rules` composition entire, in one file: its lengths, and the one owner
-// (`rules_ink`) both the picker rows and the workspace rail come out of.
+// The complete `Rules` composition, including shared picker/workspace ink.
 pub(in crate::render) mod overlay_rules;
 use overlay_rules::{RULE_ROW_AIR, RULES_TEXT_HPAD};
 mod overlay_selection;
 #[cfg(test)]
 mod overlay_selection_probe;
 mod overlay_shape;
+mod overlay_timeline;
 pub(in crate::render) mod roster;
 mod rotated_location;
 mod spell_popup;

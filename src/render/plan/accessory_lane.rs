@@ -73,7 +73,7 @@ impl TextPipeline {
     ) -> f32 {
         match self.diagonal_cluster {
             Some(cluster) => cluster.accessory_anchor(display),
-            None => geom.text_left + geom.text_w,
+            None => geom.row_text_left() + geom.row_text_w(),
         }
     }
 
@@ -108,7 +108,7 @@ impl TextPipeline {
     ) -> f32 {
         match (self.diagonal_cluster, ink_w) {
             (Some(cluster), Some(w)) => cluster.label_origin(row.display, w),
-            _ => geom.text_left + row.dx,
+            _ => geom.row_text_left() + row.dx,
         }
     }
 

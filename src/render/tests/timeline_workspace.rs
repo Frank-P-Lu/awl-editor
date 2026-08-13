@@ -41,6 +41,233 @@ fn timeline_view(rows: usize) -> crate::render::ViewState {
     v
 }
 
+fn named_timeline_view(rows: usize, metadata: &str) -> crate::render::ViewState {
+    let mut v = timeline_view(rows);
+    v.overlay_items = (0..rows).map(|i| format!("A{i}")).collect();
+    v.overlay_bindings = vec![metadata.to_string(); rows];
+    v
+}
+
+#[test]
+fn timeline_metadata_uses_the_spare_left_inset_before_eliding() {
+    let _g = crate::testlock::serial();
+    let Some((_device, _queue, mut p)) = headless_dqp(1200.0, 800.0) else {
+        eprintln!("skipping timeline metadata geometry: no adapter");
+        return;
+    };
+    crate::render::set_list_style_test_override(Some(crate::theme::ListStyle::Rules(
+        crate::theme::RuleSelection::Weight,
+    )));
+    p.set_view(&timeline_view(6));
+    let mut graded = 0usize;
+    for dpi in [1.0f32, 2.0] {
+        let (w, h) = ((1200.0 * dpi) as u32, (800.0 * dpi) as u32);
+        p.set_dpi(dpi);
+        p.set_size(w as f32, h as f32);
+        let geom = p.workspace_geometry(w);
+        let inset = (geom.row_text_probe()[0] - geom.card_probe()[0]) / dpi;
+        let gain = (geom.row_text_probe()[1] - geom.text_w) / dpi;
+        assert!(
+            (20.0..=24.0).contains(&inset),
+            "the reported Rules timeline leaves {inset:.1} logical px from the workspace outline; \
+             its metadata should spend the otherwise empty inset down to the 20–24px floor"
+        );
+        assert!(
+            (30.0..=50.0).contains(&gain),
+            "the reported Rules timeline gained only {gain:.1} logical px at dpi={dpi}; \
+             the sighting calls for roughly 30–50px of real extra metadata allowance"
+        );
+        graded += 1;
+    }
+    crate::render::set_list_style_test_override(None);
+    assert_eq!(
+        graded, 2,
+        "the reported shape ran at both display densities"
+    );
+}
+
+/// HISTORY METADATA LAW — every world, the three product geometries, and both
+/// display densities route through the same widened row lane. The workspace
+/// boundary/header and the lane's old trailing edge stay put; the date/count
+/// cell remains present, inside the card, and clear of its primary label. An
+/// authored string too long for even the widened lane is genuinely end-elided.
+fn grade_metadata_cell(p: &TextPipeline, width: u32, dpi: f32, ctx: &str) -> ([usize; 4], bool) {
+    let geom = p.workspace_geometry(width);
+    let card = geom.card_probe();
+    let [row_left, row_w] = geom.row_text_probe();
+    let row_right = row_left + row_w;
+    let old_right = geom.text_left + geom.text_w;
+    let logical_inset = (row_left - card[0]) / dpi;
+    assert!(
+        (20.0 - 0.01..=24.0 + 0.01).contains(&logical_inset),
+        "{ctx}: metadata begins {logical_inset:.2} logical px from the outline"
+    );
+    assert!(
+        (row_right - old_right).abs() <= 0.02,
+        "{ctx}: widening moved the trailing edge ({row_right} vs {old_right})"
+    );
+    assert!(
+        row_left >= card[0] && row_right <= card[0] + card[2] + 0.02,
+        "{ctx}: metadata lane [{row_left}, {row_right}] escaped {card:?}"
+    );
+    let gain = row_w - geom.text_w;
+    assert!(gain >= -0.01, "{ctx}: the new lane narrowed by {}px", -gain);
+
+    let report = p
+        .overlay_row_geometry()
+        .unwrap_or_else(|| panic!("{ctx}: History publishes row geometry"));
+    let (mut values, mut yielded) = (0, 0);
+    for row in &report.rows {
+        let Some(label) = row.lanes.label else {
+            continue;
+        };
+        let Some(value) = row.lanes.value else {
+            yielded += 1;
+            continue;
+        };
+        let disjoint = value.x + value.w <= label.x + 0.02 || label.x + label.w <= value.x + 0.02;
+        assert!(
+            disjoint,
+            "{ctx} row {}: metadata {value:?} overlaps primary {label:?}",
+            row.display
+        );
+        assert!(
+            value.x >= card[0] && value.x + value.w <= card[0] + card[2] + 0.02,
+            "{ctx} row {}: metadata {value:?} escaped {card:?}",
+            row.display
+        );
+        values += 1;
+    }
+    let mut ellipses = 0;
+    for line in p.panel_bind_buffer.lines.iter().skip(geom.header_rows) {
+        let text = line.text();
+        if !text.is_empty() {
+            assert!(
+                text.ends_with('…'),
+                "{ctx}: exhausted metadata was not ellipsized: {text:?}"
+            );
+            ellipses += 1;
+        }
+    }
+    (
+        [values, yielded, ellipses, usize::from(gain > 0.5)],
+        values > 0,
+    )
+}
+
+#[test]
+fn timeline_metadata_lane_is_wider_safe_present_and_genuinely_exhausted() {
+    let _g = crate::testlock::serial();
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
+        eprintln!("skipping timeline metadata roster: no adapter");
+        return;
+    };
+    let ambient = crate::theme::active().name;
+    let geometries = [(760u32, 620u32), (1200, 800), (1600, 1000)];
+    let metadata = format!(
+        "Thursday, 13 August 2026 at 23:54 · +123 −87 · {}",
+        "deliberately long metadata ".repeat(12)
+    );
+    let mut cells = 0usize;
+    let mut values = 0usize;
+    let mut ellipses = 0usize;
+    let mut widened = 0usize;
+    let mut yielded = 0usize;
+    let mut present_worlds = std::collections::BTreeSet::new();
+
+    for world in crate::theme::THEMES {
+        crate::theme::set_active_by_name(world.name).expect("a roster world");
+        p.sync_theme();
+        for (logical_w, logical_h) in geometries {
+            for dpi in [1.0f32, 2.0] {
+                let (w, h) = (
+                    (logical_w as f32 * dpi).round() as u32,
+                    (logical_h as f32 * dpi).round() as u32,
+                );
+                p.set_dpi(dpi);
+                p.set_size(w as f32, h as f32);
+                p.set_view(&named_timeline_view(4, &metadata));
+                p.prepare(&device, &queue, w, h).unwrap();
+
+                let ctx = format!("{} {logical_w}x{logical_h} dpi={dpi}", world.name);
+                let ([v, y, e, widened_cell], present) = grade_metadata_cell(&p, w, dpi, &ctx);
+                values += v;
+                yielded += y;
+                ellipses += e;
+                widened += widened_cell;
+                if present {
+                    present_worlds.insert(world.name);
+                }
+                cells += 1;
+            }
+        }
+    }
+    crate::theme::set_active_by_name(ambient).expect("restore ambient world");
+
+    let expected_cells = crate::theme::THEMES.len() * geometries.len() * 2;
+    assert_eq!(
+        cells, expected_cells,
+        "the full world × geometry × DPI roster ran"
+    );
+    assert_eq!(
+        widened, expected_cells,
+        "every timeline cell should consume some otherwise empty leading inset"
+    );
+    assert!(
+        values >= expected_cells * 2 && ellipses >= expected_cells * 2,
+        "non-vacuity: {values} values, {ellipses} ellipses, {yielded} yielded, \
+         across {expected_cells} cells"
+    );
+    assert_eq!(
+        present_worlds.len(),
+        crate::theme::THEMES.len(),
+        "every world must show metadata somewhere; present={present_worlds:?}"
+    );
+}
+
+#[test]
+#[ignore]
+fn gallery_timeline_metadata_reported_shape() {
+    let _g = crate::testlock::serial();
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
+        return;
+    };
+    let out = std::path::Path::new("/tmp/awl-423-gallery");
+    std::fs::create_dir_all(out).unwrap();
+    let shots = [
+        ("01-narrow-rules-1x.png", 760, 620, 1.0, "Rules"),
+        ("02-ordinary-rules-1x.png", 1200, 800, 1.0, "Rules"),
+        ("03-wide-rules-1x.png", 1600, 1000, 1.0, "Rules"),
+        ("04-narrow-pane-2x.png", 760, 620, 2.0, "Pane"),
+        ("05-ordinary-bars-2x.png", 1200, 800, 2.0, "Bars"),
+    ];
+    for (name, logical_w, logical_h, dpi, style) in shots {
+        let list = match style {
+            "Rules" => crate::theme::ListStyle::Rules(crate::theme::RuleSelection::Weight),
+            "Bars" => crate::theme::ListStyle::Bars,
+            _ => crate::theme::ListStyle::Pane,
+        };
+        crate::render::set_list_style_test_override(Some(list));
+        let (w, h) = (
+            (logical_w as f32 * dpi) as u32,
+            (logical_h as f32 * dpi) as u32,
+        );
+        p.set_dpi(dpi);
+        p.set_size(w as f32, h as f32);
+        let mut v = named_timeline_view(5, "Thursday, 13 August 2026 at 23:54 · +123 −87");
+        v.overlay_selected = 2;
+        p.set_view(&v);
+        p.prepare(&device, &queue, w, h).unwrap();
+        let pixels = super::pixeldiff::render_frame(&mut p, &device, &queue, w, h);
+        let bytes = pixels.into_iter().flatten().collect();
+        image::RgbaImage::from_raw(w, h, bytes)
+            .unwrap()
+            .save(out.join(name))
+            .unwrap();
+    }
+    crate::render::set_list_style_test_override(None);
+}
+
 /// LAW 1 + 2 — THE TWO REGIONS NEVER OVERLAP, AND EVERY TIMELINE ROW IS CLICKABLE
 /// WHERE IT IS DRAWN.
 ///

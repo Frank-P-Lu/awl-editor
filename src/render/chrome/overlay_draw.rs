@@ -222,9 +222,9 @@ impl TextPipeline {
         let text_left = geom.text_left;
         let text_top = geom.text_top;
         let bounds = TextBounds {
-            left: text_left.max(0.0) as i32,
+            left: geom.upload_left() as i32,
             top: 0,
-            right: ((text_left + geom.text_w).min(width as f32)) as i32,
+            right: geom.upload_right(width) as i32,
             bottom: height as i32,
         };
         let panel_area = TextArea {
