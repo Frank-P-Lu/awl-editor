@@ -117,15 +117,14 @@ impl OverlayGeom {
         geom
     }
 
-    pub(in crate::render) fn upload_bounds(&self, width: u32, height: u32) -> TextBounds {
-        TextBounds {
-            left: self.text_left.min(self.row_text_left()).max(0.0) as i32,
-            top: 0,
-            right: ((self.text_left + self.text_w)
-                .max(self.row_text_left() + self.row_text_w())
-                .min(width as f32)) as i32,
-            bottom: height as i32,
-        }
+    pub(in crate::render) fn upload_left(&self) -> f32 {
+        self.text_left.min(self.row_text_left()).max(0.0)
+    }
+
+    pub(in crate::render) fn upload_right(&self, width: u32) -> f32 {
+        (self.text_left + self.text_w)
+            .max(self.row_text_left() + self.row_text_w())
+            .min(width as f32)
     }
 
     /// TEST-ONLY readers for the workspace law probe (`render/tests/overlay_probe.rs`),

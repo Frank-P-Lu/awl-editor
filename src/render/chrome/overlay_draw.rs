@@ -221,12 +221,12 @@ impl TextPipeline {
     ) -> anyhow::Result<()> {
         let text_left = geom.text_left;
         let text_top = geom.text_top;
-        // The candidate lane may begin before the header/footer lane, while both
-        // retain the same authored trailing edge. The upload bound is therefore
-        // their union, resolved by the geometry owner rather than repeated here.
-        // Per-row clip bands below still decide which lane a glyph run occupies;
-        // this outer bound only ensures neither legitimate lane is discarded.
-        let bounds = geom.upload_bounds(width, height);
+        let bounds = TextBounds {
+            left: geom.upload_left() as i32,
+            top: 0,
+            right: geom.upload_right(width) as i32,
+            bottom: height as i32,
+        };
         let panel_area = TextArea {
             buffer: &self.panel_buffer,
             left: text_left,
