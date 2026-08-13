@@ -461,11 +461,15 @@ struct CellOutcome {
     ink_share: Option<f32>,
 }
 
+/// **ONE CELL'S READING, AS BITS** — the form the fresh-pipeline control
+/// compares, named so the audit's own shape stays readable.
+type Reading = (Landed, bool, String, u32, u32, Option<u32>);
+
 impl CellOutcome {
     /// **THE READING, AS BITS** — the form the fresh-pipeline control compares.
     /// Every float goes through `f32::to_bits`, so agreement means agreement in
     /// the last mantissa bit rather than `==`'s tolerance for `-0.0`.
-    fn bits(&self) -> (Landed, bool, String, u32, u32, Option<u32>) {
+    fn bits(&self) -> Reading {
         (
             self.landed,
             self.wide,
@@ -812,7 +816,7 @@ fn the_workspaces_back_reads_and_draws_the_same_on_both_sides_of_the_staging_thr
     };
     // The cells the ledgers and the two floors rest on, re-measured below
     // against pipelines built for them alone.
-    let mut audit: Vec<(String, (Landed, bool, String, u32, u32, Option<u32>))> = Vec::new();
+    let mut audit: Vec<(String, Reading)> = Vec::new();
 
     for kind in &kinds {
         let ov = card_in_content(*kind);
@@ -848,7 +852,7 @@ fn the_workspaces_back_reads_and_draws_the_same_on_both_sides_of_the_staging_thr
 fn assert_the_hoist_carries_no_state(
     kinds: &[OverlayKind],
     cells: &[Cell],
-    audit: &[(String, (Landed, bool, String, u32, u32, Option<u32>))],
+    audit: &[(String, Reading)],
 ) -> usize {
     super::assert_the_hoist_carries_no_state(audit, |what| {
         // The label is the cell's own identity here, so the pair it names is
@@ -953,6 +957,10 @@ const STARVED: &[&str] = &[
     "settings at 464x288 logical, zoom=2, dpi=2, menu_bar=on",
 ];
 
+/// **THE TWO SENTENCES' SHAPED WIDTHS, AS BITS** — `None` where the card laid
+/// that sentence out nowhere.
+type SentenceWidths = (Option<u32>, Option<u32>);
+
 /// One cell of the two-sentence comparison below, carried whole so the
 /// fresh-pipeline control rebuilds the cell rather than parsing it back out of
 /// the label — a control that re-derived its coordinates from a second copy of
@@ -1014,13 +1022,13 @@ fn shaped_sentence_widths(
 /// rests on most narrowly: the tightest margin between the two sentences, and
 /// every cell whose card laid neither of them out.
 fn assert_the_two_sentences_survive_the_hoist(
-    audit: &[(String, SentenceCell, (Option<u32>, Option<u32>))],
+    audit: &[(String, SentenceCell, SentenceWidths)],
 ) -> usize {
     let sites: std::collections::BTreeMap<&str, SentenceCell> = audit
         .iter()
         .map(|(what, cell, _)| (what.as_str(), *cell))
         .collect();
-    let recorded: Vec<(String, (Option<u32>, Option<u32>))> = audit
+    let recorded: Vec<(String, SentenceWidths)> = audit
         .iter()
         .map(|(what, _, bits)| (what.clone(), *bits))
         .collect();
@@ -1066,7 +1074,7 @@ fn naming_the_erase_key_shapes_no_wider_than_naming_the_focus_key() {
     // margin between the two sentences, and every cell whose card laid neither
     // of them out — re-measured against fresh pipelines below.
     let mut tightest = (f32::INFINITY, String::new());
-    let mut audit: Vec<(String, SentenceCell, (Option<u32>, Option<u32>))> = Vec::new();
+    let mut audit: Vec<(String, SentenceCell, SentenceWidths)> = Vec::new();
     for kind in enrolled() {
         let ov = card_in_content(kind);
         let shipped = ov.foot_hint();

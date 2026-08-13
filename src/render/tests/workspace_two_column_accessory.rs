@@ -276,11 +276,15 @@ struct Outcome {
     no_readout: bool,
 }
 
+/// **ONE CELL'S READING, AS BITS** — the form the fresh-pipeline control
+/// compares, named so the audit's own shape stays readable.
+type Reading = (bool, bool, bool, Option<u32>);
+
 impl Outcome {
     /// **THE READING, AS BITS** — the form the fresh-pipeline control compares.
     /// The ink share goes through `f32::to_bits`, so agreement means agreement
     /// in the last mantissa bit rather than `==`'s tolerance for `-0.0`.
-    fn bits(&self) -> (bool, bool, bool, Option<u32>) {
+    fn bits(&self) -> Reading {
         (
             self.wide,
             self.granted,
@@ -503,7 +507,7 @@ fn a_two_column_workspace_keeps_the_rows_accessory_and_neither_reads_off_the_mac
     // appearing enrols itself, and one that stops appearing takes its
     // representative with it, so the control cannot go on covering a shape the
     // sweep no longer has.
-    let mut audit: Vec<(String, Site, (bool, bool, bool, Option<u32>))> = Vec::new();
+    let mut audit: Vec<(String, Site, Reading)> = Vec::new();
     let mut represented: std::collections::BTreeSet<String> = Default::default();
 
     for kind in &kinds {
@@ -608,14 +612,12 @@ impl Site {
 /// above picked out, measured again against a pipeline that has seen no other
 /// geometry, through [`super::assert_the_hoist_carries_no_state`] — the one
 /// owner of that rule across the laws that hoist.
-fn assert_the_hoist_carries_no_state(
-    audit: &[(String, Site, (bool, bool, bool, Option<u32>))],
-) -> usize {
+fn assert_the_hoist_carries_no_state(audit: &[(String, Site, Reading)]) -> usize {
     let sites: std::collections::BTreeMap<&str, Site> = audit
         .iter()
         .map(|(what, site, _)| (what.as_str(), *site))
         .collect();
-    let recorded: Vec<(String, (bool, bool, bool, Option<u32>))> = audit
+    let recorded: Vec<(String, Reading)> = audit
         .iter()
         .map(|(what, _, bits)| (what.clone(), *bits))
         .collect();
