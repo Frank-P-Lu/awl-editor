@@ -171,6 +171,7 @@ mod tests {
     #[test]
     fn workspace_and_preview_production_paths_route_through_the_planner() {
         let comparison = include_str!("../chrome/comparison.rs");
+        let workspace = include_str!("../chrome/workspace.rs");
         let preview = include_str!("../chrome/preview.rs");
         assert_eq!(
             comparison.matches("plan::plan_workspace_regions(").count(),
@@ -195,12 +196,20 @@ mod tests {
         let early_return = viewport
             .find("return None")
             .expect("ordinary-frame early return");
-        let regions = viewport
-            .find("self.workspace_regions")
-            .expect("workspace region planning");
+        let frame = viewport
+            .find("self.workspace_frame")
+            .expect("resolved workspace planning");
         assert!(
-            early_return < regions,
-            "ordinary frames must return before the hot path plans workspace regions"
+            early_return < frame,
+            "ordinary frames must return before the hot path resolves a workspace frame"
+        );
+        let frame_body = workspace
+            .split("fn workspace_frame")
+            .nth(1)
+            .expect("workspace frame production body");
+        assert!(
+            frame_body.contains("self.workspace_regions"),
+            "the resolved workspace frame must route through region planning"
         );
     }
 }
