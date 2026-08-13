@@ -306,15 +306,7 @@ impl<'a> ReplaySession<'a> {
     }
 
     pub(crate) fn apply_chord(&mut self, chord: &crate::keyspec::Chord) -> Result<()> {
-        // SEARCH GUARD — the live `App::on_keyboard_input` guard's exact position,
-        // now the exact same code: while the isearch panel is open EVERY chord is
-        // consumed by the ONE interception seam (`crate::search::keys::intercept`)
-        // and never reaches the keymap — query/replacement typing, Backspace,
-        // C-s/C-r/arrow steps, M-c case toggle, Tab/Cmd-R field moves, Enter
-        // accept / replace-one, Cmd-Enter replace-all, Esc/C-g abort. The returned
-        // recoil is a LIVE-only caret flourish, dropped here exactly like
-        // `Effect::Recoil` (no clock, settled frame unchanged). Strict never
-        // judges a consumed chord "unbound" — the panel owning it IS its binding.
+        // Search owns every chord while its panel is open, exactly as in live input.
         if self.search.is_some() {
             let _ = crate::search::keys::intercept(
                 &mut self.search,
@@ -341,8 +333,7 @@ impl<'a> ReplaySession<'a> {
             });
             return Ok(());
         };
-        // SHIFT = SELECT-INTENT, the live dispatch's exact derivation
-        // (`app/input/keys.rs::on_keyboard_input`): the chord's `S-` modifier
+        // Shift-select intent uses the live dispatch's exact derivation: `S-`
         // extends a selection across a motion, routed through the ONE owner
         // `crate::app::motion_honors_shift_select` — keyed on the pressed chord's
         // KEY, not the Action alone, so `M-<` / `M->` (a `Key::Character` whose
@@ -351,9 +342,7 @@ impl<'a> ReplaySession<'a> {
         // the same actions) extend, exactly like live. Derived ONCE per pressed
         // chord from the FIRST resolved action and carried into a palette-chained
         // re-dispatch unchanged — mirroring the live `Effect::RunAction` arm,
-        // which re-applies with the same `shift` bool. (This retired the old
-        // "replay is unshifted" hole: `--keys "S-Right"` silently ran the motion
-        // unshifted and left `selection: null`.)
+        // which re-applies with the same `shift` bool.
         let shift = chord
             .mods
             .state()
@@ -369,9 +358,7 @@ impl<'a> ReplaySession<'a> {
                 self.interpret_effect(&owner, chord, effect, &mut work, &mut pending_return_to)?;
                 continue;
             };
-            // FRESH LAYOUT ORACLE PER ACTION: re-shape the oracle from the CURRENT
-            // buffer / zoom / page-measure state BEFORE the action consults it —
-            // the live window's pipeline re-syncs between keystrokes, so the
+            // Refresh the layout oracle from current state before every action.
             // headless twin must too, or an edit that re-wraps a line (or a zoom
             // change, or the Goto arm's buffer + measure switch below) leaves the
             // NEXT motion reading stale wrap geometry. One seam, unconditional by
@@ -631,8 +618,7 @@ fn capture_screenshot(
     config: Config,
     strict: bool,
 ) -> Result<()> {
-    // Resolve the active project + its file index BEFORE the replay so a
-    // `Cmd-O` in the key-spec summons a real, scoped go-to overlay. Capture
+    // Resolve the active project + index before replay so Go-to is scoped. Capture
     // is structurally free of remembered session state (the capture-gate
     // law) — `resolve_root` only ever consults the EXPLICIT `--root`/file,
     // never a "first run" default either (that's a windowed-launch concern).
@@ -670,8 +656,7 @@ fn capture_screenshot(
     // explicit verification hooks. The workspace already defaults to the
     // active root's parent, making project siblings available to Cmd-Shift-P.
     // With keys, shape an offscreen oracle like the upcoming capture so
-    // visual-line motion reads real wrap geometry. Empty specs skip it and
-    // GPU-less permissive captures retain the logical fallback.
+    // visual-line motion reads real wrap geometry; empty specs skip it.
     let mut oracle = if keys.is_empty() {
         None
     } else {

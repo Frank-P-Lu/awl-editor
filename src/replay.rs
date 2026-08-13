@@ -125,8 +125,7 @@ pub fn classify_for(effect: &Effect, filesystem: FilesystemCapability) -> Classi
     let applied = EffectClass::Applied;
     let unsupported = |why| EffectClass::Unsupported { why };
     match effect {
-        // ── APPLIED: the replay performs these for real (see the matching
-        // arms in `main/run.rs::replay_keys_mode` / `capture_screenshot`). ──
+        // Applied effects are performed by the replay interpreter.
         Effect::None => c("none", applied),
         Effect::Buffer(buffer) => classify_buffer(buffer),
         Effect::RunAction(_) => c("run_action", applied),
@@ -147,9 +146,7 @@ pub fn classify_for(effect: &Effect, filesystem: FilesystemCapability) -> Classi
             ),
             crate::actions::SurfaceEffect::OpenFolderChooser => c(
                 "open_folder_chooser",
-                unsupported(
-                    "the platform folder chooser is live-only; capture the resulting rescope separately",
-                ),
+                unsupported("the folder chooser is live-only; capture its rescope separately"),
             ),
         },
         Effect::Notice(notice) => match notice {
@@ -164,15 +161,9 @@ pub fn classify_for(effect: &Effect, filesystem: FilesystemCapability) -> Classi
             crate::actions::RenderEffect::Redraw => c("redraw", applied),
             crate::actions::RenderEffect::EditStreak => c("edit_streak", applied),
         },
-        // INSERT DATE: the headless replay performs the SAME insert live does
-        // (against the fixed placeholder date instead of the real clock — see
-        // `dateformat::CAPTURE_PLACEHOLDER_YMD`), so this is honestly Applied,
-        // not a divergence.
+        // Replay inserts the fixed capture date through the same editing owner.
         Effect::InsertDate => c("insert_date", applied),
-        // Cosmetic caret one-shots: the underlying edit/copy already applied in
-        // the core, and the flourish's settled frame is byte-identical BY
-        // CONTRACT (each variant's own doc in `actions.rs`), so the skipped
-        // animation is unobservable in any capture — Applied, not a gap.
+        // Cosmetic one-shots settle byte-identically after the core operation.
         Effect::Recoil(_) => c("recoil", applied),
         Effect::TypeImpact => c("type_impact", applied),
         Effect::DeleteSquash => c("delete_squash", applied),
@@ -180,25 +171,19 @@ pub fn classify_for(effect: &Effect, filesystem: FilesystemCapability) -> Classi
         Effect::LineLand => c("line_land", applied),
         Effect::CopyPulse => c("copy_pulse", applied),
 
-        // ── INTERCEPTED: external handoffs, observed + recorded, safely not
-        // performed — skipping them leaves the editor state exactly as live
-        // (the handoff target is OUTSIDE the app). ──
+        // External handoffs are recorded without changing editor state.
         Effect::FollowLink(url) => intercepted("follow_link", url.clone()),
         Effect::ReportProblem => intercepted("report_problem", String::new()),
         Effect::DownloadFile => intercepted("download_file", String::new()),
-        // The export renders the document + writes a sibling file (or a web
-        // download) — a live-App-only external write the replay/capture safely
-        // skips, leaving the editor state exactly as live. Recorded, not performed.
+        // Export is an external write recorded without performing it.
         Effect::Export(format, _) => intercepted("export", format.ext().to_string()),
         Effect::CheckForUpdates => intercepted("check_for_updates", String::new()),
         Effect::TrashAsset { rel } => intercepted("trash_asset", rel.clone()),
 
-        // ── UNSUPPORTED: live-App-only work whose skip diverges the session
-        // from what the same keys do live — strict replay aborts here. ──
+        // Strict replay aborts before skipping live-only divergent work.
         Effect::Quit => c(
             "quit",
-            // Live exits the event loop; the replay has none and would keep
-            // applying LATER keys past the "exit" — a real divergence. A
+            // Replay has no event loop and would apply later keys past exit. A
             // future scenario runner may promote this to a clean stop instead.
             unsupported("live exits the event loop; a replay would keep applying keys past it"),
         ),
@@ -210,24 +195,17 @@ pub fn classify_for(effect: &Effect, filesystem: FilesystemCapability) -> Classi
         ),
         Effect::AddToDictionary(_) => c(
             "add_to_dictionary",
-            unsupported(
-                "silencing the word + appending it to the personal-dictionary file are live-App-only; the squiggle would not clear",
-            ),
+            unsupported("the live App alone persists the word and clears its squiggle"),
         ),
         Effect::RebindCommit { .. } => c(
             "rebind_commit",
-            unsupported(
-                "the config write + live keymap reload are live-App-only; the binding would not take effect",
-            ),
+            unsupported("the live App alone writes config and reloads the binding"),
         ),
         Effect::RebindReset { .. } => c(
             "rebind_reset",
-            unsupported(
-                "the config write + live keymap reload are live-App-only; the reset would not take effect",
-            ),
+            unsupported("the live App alone writes config and reloads the reset binding"),
         ),
-        // Settings persistence gets the same capability grant as
-        // `save`/`finish_save`, classified in `typed::classify_settings` to keep
+        // Settings use the save capability via `typed::classify_settings` to keep
         // this match within its line budget.
         Effect::SettingToggle { key } => classify_settings(
             "setting_toggle",
@@ -298,7 +276,7 @@ fn accept_class(kind: OverlayKind) -> EffectClass {
         // The note move (mkdir + rename under the notes root) is live-App-only;
         // headlessly the buffer keeps its old path — a divergence.
         OverlayKind::MoveDest => EffectClass::Unsupported {
-            why: "the note move (mkdir + rename) is live-App-only; the buffer would keep its old path",
+            why: "the live App alone moves the note and updates its buffer path",
         },
         // These pickers ride their own effects or core-internal edits rather than
         // an accept (Browse re-routes files through Goto; Command runs via
@@ -331,7 +309,7 @@ fn accept_class(kind: OverlayKind) -> EffectClass {
         // so an accept never carries THIS kind.
         | OverlayKind::ProjectBrowse
         | OverlayKind::Context => EffectClass::Unsupported {
-            why: "this picker is not expected to emit an accept effect; classify it in replay::accept_class before strict replay can pass it",
+            why: "this picker must be enrolled here before emitting an accept effect",
         },
     }
 }
@@ -350,7 +328,7 @@ pub fn warn_line(action: &Action, c: &Classified) -> Option<String> {
                 format!(" ({detail})")
             };
             Some(format!(
-                "--keys replay: intercepted `{}`{payload} from action {:?} — recorded, not performed",
+                "--keys replay: intercepted `{}`{payload} from action {:?} — recorded only",
                 c.name, action
             ))
         }

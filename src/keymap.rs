@@ -1115,15 +1115,9 @@ impl KeymapFlavor {
     }
 }
 
-/// The `Emacs` flavor's PRESET keep-list: every `Ctrl-<letter>` chord
-/// [`LINUX_DISPLACED_LETTERS`] names, formatted as a plain single-chord spec
-/// (`"C-f"`) ready for [`KeymapState::apply_linux_keep`]/[`linux_keeps_chord`].
-/// Derived FROM the displaced-letters table itself — NEVER hand-copied — so a
-/// future change to the collision table flows into the preset automatically
-/// (the no-drift law this round's tests pin: the preset always equals the
-/// displaced set, letter for letter). Deliberately does NOT include `C-k` —
-/// `linux_builtin_keep()` covers it unconditionally, on EITHER flavor, so it
-/// has no business in a flavor-gated preset; `Config::effective_linux_keep`
+/// The Emacs preset derives every `C-<letter>` directly from
+/// [`LINUX_DISPLACED_LETTERS`], so the collision table and preset cannot drift.
+/// `C-k` stays outside: `linux_builtin_keep()` covers it on either flavor, so it
 /// unions both in regardless of which flavor is active.
 pub fn linux_emacs_preset_keep() -> Vec<String> {
     LINUX_DISPLACED_LETTERS

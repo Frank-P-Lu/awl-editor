@@ -1,26 +1,13 @@
 //! Live-only effects layered around shared pure action application.
 
+mod overlay_inputs;
 mod overlay_sync;
+mod surface_effects;
 
 use super::apply_context::{CoreBefore, CoreRun};
 use super::*;
 
-type SpellTarget = (Vec<String>, (usize, usize, usize), String);
-
-struct OverlayInputs {
-    spell_target: Option<SpellTarget>,
-    history_entries: Vec<crate::history::TimelineRow>,
-    assets: Vec<crate::assets::Orphan>,
-    row_gates: crate::commands::RowGates,
-}
-
-struct GotoInputs {
-    goto_corpus: Vec<String>,
-    goto_times: Vec<String>,
-    goto_open: Vec<usize>,
-    goto_recent: Vec<usize>,
-    goto_headings: Vec<(String, usize)>,
-}
+use overlay_inputs::{GotoInputs, OverlayInputs};
 
 impl App {
     /// Recompute the text-keyed spell cache without synchronizing the view.
@@ -404,142 +391,6 @@ impl App {
         //
     }
 
-    fn gather_goto_inputs(&mut self, action: &Action) -> GotoInputs {
-        if matches!(action, Action::OpenGoto | Action::OpenAssetClean) {
-            self.rescan_file_index();
-        }
-        let location = &self.project_location;
-        let recency_now = if location.root == self.config.default_folder {
-            Some(crate::clock::system_now())
-        } else {
-            None
-        };
-        let (goto_corpus, goto_times) =
-            crate::index::with_recency(&location.root, location.file_index.clone(), recency_now);
-        let goto_open: Vec<usize> = {
-            let active_rel = self.document.buffer().path().and_then(|p| {
-                p.strip_prefix(&location.root)
-                    .ok()
-                    .map(|r| r.to_string_lossy().replace('\\', "/"))
-            });
-            goto_corpus
-                .iter()
-                .enumerate()
-                .filter(|(_, c)| Some(*c) == active_rel.as_ref())
-                .map(|(i, _)| i)
-                .collect()
-        };
-        let goto_recent: Vec<usize> = location
-            .recent_files
-            .iter()
-            .filter_map(|abs| {
-                abs.strip_prefix(&location.root)
-                    .ok()
-                    .map(|r| r.to_string_lossy().replace('\\', "/"))
-            })
-            .filter_map(|rel| goto_corpus.iter().position(|c| *c == rel))
-            .collect();
-        let goto_headings: Vec<(String, usize)> = if matches!(
-            action,
-            Action::OpenGoto
-                | Action::OpenProject
-                | Action::OpenRecentProjects
-                | Action::OpenOutline
-        ) && self.document.buffer().is_markdown()
-        {
-            crate::markdown::headings(&self.document.buffer().text())
-                .into_iter()
-                .map(|h| (h.label(), h.line))
-                .collect()
-        } else {
-            Vec::new()
-        };
-        GotoInputs {
-            goto_corpus,
-            goto_times,
-            goto_open,
-            goto_recent,
-            goto_headings,
-        }
-    }
-
-    fn gather_overlay_inputs(&mut self, action: &Action) -> OverlayInputs {
-        #[allow(clippy::type_complexity)]
-        let spell_target: Option<(Vec<String>, (usize, usize, usize), String)> =
-            if matches!(action, Action::OpenSpellSuggest) {
-                let (line, col) = self.document.buffer().cursor_line_col();
-                self.document.spell_suggestion_target(line, col).map(|t| {
-                    (
-                        t.suggestions,
-                        (
-                            t.misspelling.line,
-                            t.misspelling.start_col,
-                            t.misspelling.end_col,
-                        ),
-                        t.word,
-                    )
-                })
-            } else {
-                None
-            };
-        // HISTORY TIMELINE rows: the current file's versions (newest-first), each
-        // answering WHEN + WHICH with a "+N −M" changed-count vs the CURRENT buffer.
-        // Gathered HERE (before the &mut self.document.buffer() borrow) and ONLY when the History
-        // binding fired — reading + line-diffing the store is pure waste on every
-        // other keystroke. The history key derivation lives in ONE place
-        // (`history::source_path`): buffer path, else the persistent scratch's own
-        // stash path — so the no-path scratch has a timeline too; only an unnamed
-        // note has none (the picker then shows "no history yet"). `now` stamps the
-        // relative labels; History is an explicitly-summoned, non-default overlay,
-        // so this clock read never touches a default capture.
-        let history_entries: Vec<crate::history::TimelineRow> =
-            if matches!(action, Action::OpenHistory | Action::CompareVersion) {
-                match crate::history::source_path(
-                    self.document.buffer().path(),
-                    self.document.buffer().is_unnamed_fresh(),
-                ) {
-                    Some(path) => crate::history::timeline_rows(
-                        &path,
-                        &self.document.buffer().text(),
-                        crate::history::now_millis(),
-                    ),
-                    None => Vec::new(),
-                }
-            } else {
-                Vec::new()
-            };
-        #[cfg(not(target_arch = "wasm32"))]
-        let assets: Vec<crate::assets::Orphan> = if matches!(action, Action::OpenAssetClean) {
-            let location = &self.project_location;
-            crate::assets::scan(&location.root, &location.file_index)
-        } else {
-            Vec::new()
-        };
-        #[cfg(target_arch = "wasm32")]
-        let assets: Vec<crate::assets::Orphan> = Vec::new();
-        // DAEMON WAITER: is a `--wait` client actively parked on the CURRENT
-        // buffer right now (the one "Finish file" would actually save + notify
-        // + switch away from)? Gated exactly like `wait_conns` itself (native,
-        // non-`mas` — see that field's doc): wasm/`mas` builds have no daemon at
-        // all, so the palette row stays hidden there unconditionally. Drives
-        // `commands::visible_hidden_mask` below — the ONE live fact behind the
-        // "Finish file" row's visibility.
-        #[cfg(all(not(target_arch = "wasm32"), not(feature = "mas")))]
-        let has_waiter = crate::buffers::BufferKey::of(self.document.buffer())
-            .is_some_and(|key| self.wait_conns.get(&key).is_some_and(|w| !w.is_empty()));
-        #[cfg(any(target_arch = "wasm32", feature = "mas"))]
-        let has_waiter = false;
-        OverlayInputs {
-            spell_target,
-            history_entries,
-            assets,
-            row_gates: crate::commands::RowGates {
-                has_waiter,
-                change_unresolved: self.change_unresolved(),
-            },
-        }
-    }
-
     fn run_action_core(&mut self, action: &Action, shift: bool) -> CoreRun {
         let page_scroll_lines = self.page_scroll_rows();
         let mut shift_selecting = self.document.shift_selecting();
@@ -569,26 +420,8 @@ impl App {
             assets,
             row_gates,
         } = self.gather_overlay_inputs(action);
+        let (goto_folders, goto_recent_folders) = self.gather_goto_folders(action);
         let location = &self.project_location;
-        let (goto_folders, goto_recent_folders) = if matches!(
-            action,
-            Action::OpenGoto
-                | Action::OpenProject
-                | Action::OpenRecentProjects
-                | Action::OpenOutline
-        ) {
-            let recent_folder_paths: Vec<String> = location
-                .recent_projects
-                .iter()
-                .map(|path| path.to_string_lossy().to_string())
-                .collect();
-            crate::overlay::goto_folder_roster(
-                location.workspace_root.as_deref(),
-                &recent_folder_paths,
-            )
-        } else {
-            (Vec::new(), Vec::new())
-        };
         let build_ctx = crate::overlay::BuildCtx {
             goto_corpus,
             goto_open,
@@ -720,59 +553,7 @@ impl App {
             actions::Effect::Daemon(actions::DaemonEffect::NotifyFinished) => {
                 self.notify_finished_buffer()
             }
-            actions::Effect::Surface(surface) => match surface {
-                actions::SurfaceEffect::ShowAbout => {
-                    #[cfg(target_os = "macos")]
-                    crate::mac_about::show();
-                    #[cfg(not(target_os = "macos"))]
-                    crate::about::set_open(true);
-                }
-                actions::SurfaceEffect::OpenFileChooser => {
-                    #[cfg(target_os = "macos")]
-                    if self.frame.gpu().is_some()
-                        && let Some(path) =
-                            crate::mac_chrome::pick_file_to_open(Some(&self.project_location.root))
-                    {
-                        self.apply_file_choice(Some(path));
-                    }
-                    #[cfg(not(target_os = "macos"))]
-                    {
-                        let root = self.project_location.root.clone();
-                        let workspace = self.project_location.workspace_root.clone();
-                        let overlay = crate::overlay::browse_level(
-                            crate::overlay::OverlayKind::Browse,
-                            None,
-                            &root,
-                            workspace.as_deref(),
-                            &[],
-                        );
-                        self.workspace_state.core_slots().1.enter(overlay);
-                    }
-                }
-                actions::SurfaceEffect::OpenFolderChooser => {
-                    #[cfg(target_os = "macos")]
-                    if self.frame.gpu().is_some()
-                        && let Some(path) = crate::mac_chrome::pick_folder_to_open(
-                            self.project_location.workspace_root.as_deref(),
-                        )
-                    {
-                        self.apply_folder_choice(Some(path));
-                    }
-                    #[cfg(not(target_os = "macos"))]
-                    {
-                        let root = self.project_location.root.clone();
-                        let workspace = self.project_location.workspace_root.clone();
-                        let overlay = crate::overlay::browse_level(
-                            crate::overlay::OverlayKind::ProjectBrowse,
-                            None,
-                            &root,
-                            workspace.as_deref(),
-                            &[],
-                        );
-                        self.workspace_state.core_slots().1.enter(overlay);
-                    }
-                }
-            },
+            actions::Effect::Surface(surface) => self.apply_surface_effect(surface),
             actions::Effect::Notice(effect) => self.apply_notice_effect(effect),
             actions::Effect::Render(effect) => self.apply_render_effect(effect),
             // NOTES VERBS round: the RENAME minibuffer committed — perform the

@@ -1,10 +1,8 @@
 //! The `--bench-suite` scenario matrix. Every cell proves the work it timed
 //! happened through hard reshape, row, match, or pixel witnesses.
 //!
-//! Frames replay the live `RedrawRequested` aggregate (`advance` →
-//! `prepare` → encode → submit+poll → `atlas.trim`), exactly like
-//! [`super::super::framebench`]'s zoom profiler; the blocking poll serializes
-//! GPU cost into the number. Pixel witnesses read the offscreen target back
+//! Frames replay the live `RedrawRequested` aggregate, exactly like
+//! [`super::super::framebench`]'s zoom profiler. Pixel witnesses read the target
 //! through the SAME `capture::gpu::read_frame` the capture harness uses.
 
 use anyhow::{Context as _, Result, ensure};

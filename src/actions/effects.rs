@@ -170,9 +170,7 @@ pub enum RenderEffect {
     EditStreak,
 }
 
-/// One closed effect vocabulary shared by the live and headless interpreters.
-/// A transition can carry several effects because one action may request, for
-/// example, save + daemon notification + buffer switch + repaint.
+/// One closed vocabulary; transitions may carry save, notification, switch, and repaint.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Effect {
     None,

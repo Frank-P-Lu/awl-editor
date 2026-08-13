@@ -2,15 +2,12 @@
 //! them. The user-edited config remains exempt.
 //!
 //! [`load_toml_store`] is the ONE shared loader every TOML-backed store
-//! (`session`, `stats`, `recents`, `mas::GrantStore`) now calls: it detects
-//! the difference between "file absent" (never preserved — nothing was
-//! lost) and "file present but its TOML SYNTAX itself failed to parse, or
+//! (`session`, `stats`, `recents`, `mas::GrantStore`) calls: it distinguishes
+//! absence from a present file whose TOML syntax failed to parse, or
 //! it isn't even valid UTF-8" (a real corruption signal — preserved). A
-//! file whose TOML parses fine but carries a missing/wrong-typed FIELD is
-//! NOT corruption by this definition — that is the lenient partial-default
-//! path every `from_toml` already handles on purpose (an old store missing
-//! a newly-added field, say), and preserving a backup on every such benign
-//! case would spam `.corrupt-*` siblings for no reason.
+//! A valid TOML file with a missing/wrong-typed field takes the lenient path
+//! every `from_toml` already handles on purpose (an old store missing
+//! a newly-added field) without creating `.corrupt-*` siblings.
 //!
 //! **Config is EXEMPT from the sibling-copy rule (documented, not an
 //! oversight):** `config.toml` is the user's own hand-edited file — a parse
