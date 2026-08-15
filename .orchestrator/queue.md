@@ -6,7 +6,42 @@
 
 ## Ready to build
 
-None.
+### 440 — make theme preview latest-selection-wins
+
+Keep the theme picker's full-document live preview; do not replace it with
+preview cards. Rapid keyboard, pointer, or wheel navigation must not finish the
+off-screen shaping tail for every intermediate world before handling the next
+movement. Coalesce superseded work at the existing `retint_theme_preview` seam
+so the newest highlighted theme wins, while deliberate slower navigation still
+shows the complete live preview and commit/revert leaves the whole document
+settled.
+
+Premise measurement on real Apple Silicon Metal: the explicit debounce/rate
+limiter is gone, but release-mode steps still occupy roughly 29–43 ms on the
+short benchmark fixture and 40–48 ms on the long fixture because
+`finish_shape_tail` completes before the event handler returns. Preserve the
+immediate colour/background response and the first present; avoid background
+threads, per-theme document caches, and a second preview renderer. Verify a
+zero-gap burst reaches the final selection without shaping every intermediate
+tail, a paced sweep still presents each world, commit/revert owes no tail, and
+all keyboard/pointer/wheel doors share the one policy. Measure before/after in
+release with `--bench-theme-burst`, including top/middle/end scroll positions.
+
+### 441 — export Japanese text as glyphs, not placeholders
+
+PDF export currently preserves Japanese in `ActualText` but visibly replaces
+every unsupported scalar with `□`, because the closed PDF font roster contains
+only Bitter and IBM Plex Mono. Enrol repository-owned, embedding-permitted
+Japanese fallback faces in the PDF shaper/subsetter and select them by actual
+glyph coverage without changing Latin typography. Define the bold and code
+fallback behavior explicitly; do not consult system fonts or add runtime
+network access.
+
+Reproduce with the reported mixed Japanese/English note. Verify rendered PDF
+pixels contain legible Japanese rather than placeholder boxes, extracted text
+round-trips the original scalars, embedded subsets contain only required glyphs
+plus dependencies, Latin-only output remains stable, and headings, wrapping,
+links, tables, and page breaks remain sound. Render every page for visual QA.
 
 ## Needs a person, hardware, or release authority
 
@@ -18,13 +53,7 @@ None.
    the rendered menu's Export action reaches its destination.
 4. **Linux v0.10.0 artifacts** — launch both the tarball and AppImage on a real
    desktop; check launcher name/icon and the AppImage FUSE fallback.
-5. **Dense pointer/wheel feel (241)** — judge live cadence. The settled
-   4530x2756@2x release capture already fits without clipping.
-6. **macOS Export as PDF panel (301)** — confirm initial folder/name and that
+5. **macOS Export as PDF panel (301)** — confirm initial folder/name and that
    Cancel leaves the document untouched.
-7. **Live glide (284)** — judge the 20° travel tilt and whether wrapping needs a
+6. **Live glide (284)** — judge the 20° travel tilt and whether wrapping needs a
    distinct flourish.
-8. **Toast duration (296/300)** — judge the shared 2500 ms lifetime live after
-   item 424 lands.
-9. **Zoom 1.0 real-window probe (404)** — unlock the macOS display, then run the
-   real presentation/acquire reference check and judge the 100% default live.
