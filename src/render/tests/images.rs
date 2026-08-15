@@ -611,10 +611,8 @@ fn headless_pipeline_dq() -> Option<(wgpu::Device, wgpu::Queue, TextPipeline)> {
 fn inline_image_off_cursor_draws_one_quad_and_stays_drawn_when_revealed() {
     let _w = crate::testlock::serial();
     let _pg = crate::testlock::serial();
-    if std::fs::metadata("samples/tiny.png").is_err() {
-        eprintln!("skipping: samples/tiny.png fixture not present");
-        return;
-    }
+    std::fs::metadata("samples/tiny.png")
+        .expect("tracked samples/tiny.png fixture must be present");
     let prev = crate::markdown::inline_images_on();
     let prevw = crate::markdown::wysiwyg_on();
     crate::markdown::set_inline_images_on(true);
@@ -688,10 +686,8 @@ fn inline_image_off_cursor_draws_one_quad_and_stays_drawn_when_revealed() {
 fn inline_image_selection_reveal_draws_dimmed_with_scrim_not_full_bright() {
     let _w = crate::testlock::serial();
     let _pg = crate::testlock::serial();
-    if std::fs::metadata("samples/tiny.png").is_err() {
-        eprintln!("skipping: samples/tiny.png fixture not present");
-        return;
-    }
+    std::fs::metadata("samples/tiny.png")
+        .expect("tracked samples/tiny.png fixture must be present");
     let prev = crate::markdown::inline_images_on();
     let prevw = crate::markdown::wysiwyg_on();
     crate::markdown::set_inline_images_on(true);
@@ -746,10 +742,8 @@ fn inline_image_selection_reveal_draws_dimmed_with_scrim_not_full_bright() {
 fn mixed_list_image_draws_off_cursor_and_parks_when_revealed() {
     let _w = crate::testlock::serial();
     let _pg = crate::testlock::serial();
-    if std::fs::metadata("samples/photo.png").is_err() {
-        eprintln!("skipping: samples/photo.png fixture not present");
-        return;
-    }
+    std::fs::metadata("samples/photo.png")
+        .expect("tracked samples/photo.png fixture must be present");
     let prev = crate::markdown::inline_images_on();
     let prevw = crate::markdown::wysiwyg_on();
     crate::markdown::set_inline_images_on(true);
@@ -844,10 +838,8 @@ fn mixed_list_image_draws_off_cursor_and_parks_when_revealed() {
 fn mixed_list_image_parks_under_a_pure_selection_change_no_reshape() {
     let _w = crate::testlock::serial();
     let _pg = crate::testlock::serial();
-    if std::fs::metadata("samples/photo.png").is_err() {
-        eprintln!("skipping: samples/photo.png fixture not present");
-        return;
-    }
+    std::fs::metadata("samples/photo.png")
+        .expect("tracked samples/photo.png fixture must be present");
     let prev = crate::markdown::inline_images_on();
     let prevw = crate::markdown::wysiwyg_on();
     crate::markdown::set_inline_images_on(true);
@@ -919,10 +911,8 @@ fn mixed_list_image_parks_under_a_pure_selection_change_no_reshape() {
 fn mixed_list_image_parks_when_selection_present_at_first_reshape() {
     let _w = crate::testlock::serial();
     let _pg = crate::testlock::serial();
-    if std::fs::metadata("samples/photo.png").is_err() {
-        eprintln!("skipping: samples/photo.png fixture not present");
-        return;
-    }
+    std::fs::metadata("samples/photo.png")
+        .expect("tracked samples/photo.png fixture must be present");
     let prev = crate::markdown::inline_images_on();
     let prevw = crate::markdown::wysiwyg_on();
     crate::markdown::set_inline_images_on(true);
@@ -1106,10 +1096,8 @@ fn no_image_buffer_draws_neither_quad_nor_placeholder() {
 fn mixed_list_image_forcing_measures_in_the_real_world_font_under_page_mode() {
     let _w = crate::testlock::serial();
     let _pg = crate::testlock::serial();
-    if std::fs::metadata("samples/photo.png").is_err() {
-        eprintln!("skipping: samples/photo.png fixture not present");
-        return;
-    }
+    std::fs::metadata("samples/photo.png")
+        .expect("tracked samples/photo.png fixture must be present");
     let prev = crate::markdown::inline_images_on();
     crate::markdown::set_inline_images_on(true);
     crate::markdown::set_wysiwyg_on(true);
@@ -1304,11 +1292,8 @@ fn mixed_list_image_reveal_wraps_as_plain_text_and_parks_the_image() {
         crate::markdown::set_inline_images_on(prev);
         return;
     };
-    if std::fs::metadata("samples/photo.png").is_err() {
-        eprintln!("skipping: samples/photo.png fixture not present");
-        crate::markdown::set_inline_images_on(prev);
-        return;
-    }
+    std::fs::metadata("samples/photo.png")
+        .expect("tracked samples/photo.png fixture must be present");
     let text = "- a caption sits before the image on this very same list line ![alt|300](samples/photo.png)\nafter\n";
     // Caret ON the image line (0): the raw source reveals, unconcealed, and
     // (at this narrow-ish default pipeline width) wraps onto >1 visual row.
@@ -1485,12 +1470,8 @@ fn row_geometry_places_the_row_after_an_image_at_its_real_height() {
 fn theme_switch_never_redecodes_a_cached_image() {
     let _w = crate::testlock::serial();
     let _pg = crate::testlock::serial();
-    if std::fs::metadata("samples/tiny.png").is_err() {
-        eprintln!(
-            "skipping theme_switch_never_redecodes_a_cached_image: samples/tiny.png fixture not present"
-        );
-        return;
-    }
+    std::fs::metadata("samples/tiny.png")
+        .expect("tracked samples/tiny.png fixture must be present");
     let prev_images = crate::markdown::inline_images_on();
     crate::markdown::set_inline_images_on(true);
     let prev_theme = crate::theme::active().name;
@@ -1557,10 +1538,8 @@ fn theme_switch_never_redecodes_a_cached_image() {
 fn image_dense_doc_shapes_every_tall_row_doc_wide_no_scroll_jump() {
     let _w = crate::testlock::serial();
     let _pg = crate::testlock::serial();
-    if std::fs::metadata("samples/photo.png").is_err() {
-        eprintln!("skipping image_dense_doc_shapes_every_tall_row: samples/photo.png absent");
-        return;
-    }
+    std::fs::metadata("samples/photo.png")
+        .expect("tracked samples/photo.png fixture must be present");
     let prev = crate::markdown::inline_images_on();
     let prevw = crate::markdown::wysiwyg_on();
     crate::markdown::set_inline_images_on(true);
@@ -1738,10 +1717,8 @@ fn row_box_visible_law_a_tall_row_stays_visible_until_its_own_bottom_passes_the_
 fn tall_image_survives_the_viewport_top_boundary_then_culls_and_restores_on_scroll_up() {
     let _w = crate::testlock::serial();
     let _pg = crate::testlock::serial();
-    if std::fs::metadata("samples/photo.png").is_err() {
-        eprintln!("skipping: samples/photo.png fixture not present");
-        return;
-    }
+    std::fs::metadata("samples/photo.png")
+        .expect("tracked samples/photo.png fixture must be present");
     let prev = crate::markdown::inline_images_on();
     let prevw = crate::markdown::wysiwyg_on();
     crate::markdown::set_inline_images_on(true);

@@ -129,10 +129,8 @@ fn word_motion_never_rests_inside_a_grapheme_cluster() {
 /// from.
 #[test]
 fn word_motion_over_the_mixed_cjk_sample_stays_on_boundaries() {
-    let Ok(text) = std::fs::read_to_string("samples/mixed-cjk.md") else {
-        eprintln!("skipping: samples/mixed-cjk.md not present");
-        return;
-    };
+    let text = std::fs::read_to_string("samples/mixed-cjk.md")
+        .expect("tracked samples/mixed-cjk.md must be present");
     let bounds = crate::grapheme::boundaries_of(&text);
     let len = text.chars().count();
     assert!(len > 100, "the sample must be substantial: {len} chars");

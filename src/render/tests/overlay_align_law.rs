@@ -40,6 +40,10 @@ const BANNED: &[&str] = &["effective_card_anchor(", "render_caps.card_anchor"];
 /// The ONE file allowed to carry them: `render.rs`, the resolver's own home.
 const OWNER: &str = "render.rs";
 
+fn is_owner(path: &str, owner: &str) -> bool {
+    path == owner
+}
+
 /// True iff `line` (real code, not a comment) contains a banned live read.
 fn line_violates(line: &str) -> Option<&'static str> {
     let trimmed = line.trim_start();
@@ -54,10 +58,13 @@ fn line_violates(line: &str) -> Option<&'static str> {
 /// is legitimately driven through `set_card_anchor_test_override`), collecting
 /// `(basename, line_no, pattern)` violations.
 fn scan_dir(dir: &std::path::Path, out: &mut Vec<(String, usize, String)>) {
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        return;
-    };
-    let mut entries: Vec<_> = entries.flatten().collect();
+    let entries = std::fs::read_dir(dir)
+        .unwrap_or_else(|e| panic!("scan root {dir:?} must be readable: {e}"));
+    let mut entries: Vec<_> = entries
+        .map(|entry| {
+            entry.unwrap_or_else(|e| panic!("scan entry in {dir:?} must be readable: {e}"))
+        })
+        .collect();
     entries.sort_by_key(|e| e.path());
     for entry in entries {
         let path = entry.path();
@@ -76,14 +83,9 @@ fn scan_dir(dir: &std::path::Path, out: &mut Vec<(String, usize, String)>) {
 }
 
 fn scan_file(path: &std::path::Path, out: &mut Vec<(String, usize, String)>) {
-    let Ok(text) = std::fs::read_to_string(path) else {
-        return;
-    };
-    let name = path
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or("")
-        .to_string();
+    let text = std::fs::read_to_string(path)
+        .unwrap_or_else(|e| panic!("scanned source {path:?} must be readable: {e}"));
+    let name = path.to_string_lossy().replace('\\', "/");
     for (i, line) in text.lines().enumerate() {
         if let Some(p) = line_violates(line) {
             out.push((name.clone(), i + 1, p.to_string()));
@@ -100,7 +102,11 @@ fn alignment_is_data_no_live_read_in_render_consumers() {
     // …plus every render CONSUMER (`src/render/**`, tests excluded).
     scan_dir(&root.join("render"), &mut hits);
 
-    let stray: Vec<_> = hits.iter().filter(|(f, _, _)| f != OWNER).collect();
+    let owner = root.join(OWNER).to_string_lossy().replace('\\', "/");
+    let stray: Vec<_> = hits
+        .iter()
+        .filter(|(f, _, _)| !is_owner(f, &owner))
+        .collect();
     assert!(
         stray.is_empty(),
         "overlay alignment is DATA through ONE owner: only `{OWNER}` may read the \
@@ -118,7 +124,7 @@ fn alignment_is_data_no_live_read_in_render_consumers() {
     // NON-VACUOUS: `render.rs` really is the resolver's home — the definition line
     // (`effective_card_anchor(`) and the world-data fallback (`render_caps.card_anchor`).
     // If either were ever deleted the count would drop and the law would go quiet.
-    let owner_hits = hits.iter().filter(|(f, _, _)| f == OWNER).count();
+    let owner_hits = hits.iter().filter(|(f, _, _)| is_owner(f, &owner)).count();
     assert!(
         owner_hits >= 2,
         "expected the resolver definition + the world-data fallback in `{OWNER}`; found {owner_hits}"
@@ -140,6 +146,21 @@ fn line_violates_catches_reads_and_skips_comments() {
     assert!(line_violates("// mentions effective_card_anchor( in prose").is_none());
     // The frozen path is NOT a live read.
     assert!(line_violates("resolve_overlay_anchor(self.overlay_align)").is_none());
+}
+
+#[test]
+fn nested_render_rs_is_not_the_resolver_owner() {
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src");
+    let owner = root.join(OWNER).to_string_lossy().replace('\\', "/");
+    let impostor = root
+        .join("render/nested/render.rs")
+        .to_string_lossy()
+        .replace('\\', "/");
+    assert!(is_owner(&owner, &owner));
+    assert!(
+        !is_owner(&impostor, &owner),
+        "a nested render.rs must be a consumer, never the resolver owner"
+    );
 }
 
 // ---------------------------------------------------------------------------

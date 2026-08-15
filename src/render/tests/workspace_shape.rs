@@ -99,10 +99,13 @@ fn workspace_shape_variants_are_named_in_exactly_two_files() {
     let mut offenders: Vec<String> = Vec::new();
     let mut scanned = 0usize;
     fn walk(dir: &std::path::Path, out: &mut Vec<String>, scanned: &mut usize, allowed: &[&str]) {
-        let Ok(entries) = std::fs::read_dir(dir) else {
-            return;
-        };
-        let mut entries: Vec<_> = entries.flatten().collect();
+        let entries = std::fs::read_dir(dir)
+            .unwrap_or_else(|e| panic!("scan root {dir:?} must be readable: {e}"));
+        let mut entries: Vec<_> = entries
+            .map(|entry| {
+                entry.unwrap_or_else(|e| panic!("scan entry in {dir:?} must be readable: {e}"))
+            })
+            .collect();
         entries.sort_by_key(|e| e.path());
         for entry in entries {
             let path = entry.path();
@@ -113,9 +116,8 @@ fn workspace_shape_variants_are_named_in_exactly_two_files() {
             if path.extension().and_then(|e| e.to_str()) != Some("rs") {
                 continue;
             }
-            let Ok(text) = std::fs::read_to_string(&path) else {
-                continue;
-            };
+            let text = std::fs::read_to_string(&path)
+                .unwrap_or_else(|e| panic!("scanned source {path:?} must be readable: {e}"));
             *scanned += 1;
             let rel = path
                 .strip_prefix(std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")))

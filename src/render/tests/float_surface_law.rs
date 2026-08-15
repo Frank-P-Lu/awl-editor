@@ -47,10 +47,13 @@ fn line_violates(line: &str) -> bool {
 /// Walk `dir`, collecting `(rel_path, line)` violations — every `.rs` file
 /// under `src/render/` whose relative path is NOT in [`ALLOWED_DIRECT_CALLERS`].
 fn scan_dir(base: &std::path::Path, dir: &std::path::Path, out: &mut Vec<(String, usize)>) {
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        return;
-    };
-    let mut entries: Vec<_> = entries.flatten().collect();
+    let entries = std::fs::read_dir(dir)
+        .unwrap_or_else(|e| panic!("scan root {dir:?} must be readable: {e}"));
+    let mut entries: Vec<_> = entries
+        .map(|entry| {
+            entry.unwrap_or_else(|e| panic!("scan entry in {dir:?} must be readable: {e}"))
+        })
+        .collect();
     entries.sort_by_key(|e| e.path());
     for entry in entries {
         let path = entry.path();
@@ -77,9 +80,8 @@ fn scan_dir(base: &std::path::Path, dir: &std::path::Path, out: &mut Vec<(String
         if path.file_name().and_then(|n| n.to_str()) == Some("float_surface_law.rs") {
             continue;
         }
-        let Ok(text) = std::fs::read_to_string(&path) else {
-            continue;
-        };
+        let text = std::fs::read_to_string(&path)
+            .unwrap_or_else(|e| panic!("scanned source {path:?} must be readable: {e}"));
         for (i, line) in text.lines().enumerate() {
             if line_violates(line) {
                 out.push((rel.clone(), i + 1));

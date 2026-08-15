@@ -392,7 +392,7 @@ impl App {
 
     /// Re-run spell detection immediately when the text version changes. The cache
     /// trigger is shared with capture, while this live-only effect owns cache mutation.
-    fn sync_spell_cache(&mut self) {
+    pub(super) fn sync_spell_cache(&mut self) {
         if self.document.spell_enabled()
             && crate::view_policy::spell_recompute_needed(
                 self.document.spell_checked_version(),
