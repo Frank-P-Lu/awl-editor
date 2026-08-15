@@ -25,14 +25,7 @@
    `prepare_table_grid` without creating a second geometry or shaping owner. Preserve
    O(visible) work and prove byte/state parity with the table-grid law roster.
 
-4. **Filesystem backend modules (436)** — 🟡 IN PROGRESS — filesystem worker
-   (codex), branch `codex/queue-436-fs-modules`. Relocate the native, in-memory,
-   browser, shared-path, and active-backend sections of `fs.rs` into cohesive
-   submodules while preserving the single `FileSystem` trait and swappable-global
-   locking law. This is structural only; existing filesystem, scenario, web, and
-   test-global laws must remain green.
-
-5. **Keymap vocabulary/resolution modules (437)** — 🟡 IN PROGRESS — keymap worker
+4. **Keymap vocabulary/resolution modules (437)** — 🟡 IN PROGRESS — keymap worker
    (codex), branch `codex/queue-437-keymap-modules`. Separate the `Action` vocabulary
    and classification, stateful key resolution, and platform preset helpers while
    retaining one public resolution path and exhaustive action classification. Prove

@@ -178,7 +178,7 @@ lines = 475
 
 [[file_size_mark]]
 file = "src/durable.rs"
-lines = 556
+lines = 555
 reason = "Item 274's split of src/main/tests.rs into src/main/tests/<subject>.rs turned the accounting table's one (\"main/tests.rs\", 21) row into seven per-subject rows (buffer_switching 8, capture_scenarios 4, headless_safety 1, launch_context 2, page_measure 2, replay_warnings 2, visual_motion 2 -- still 21 sites total), net +6 lines. +13: two census rows for real-disk fixtures — InMemoryFs has no symlink concept, so the only instrument for a link is a real file on disk under a ScratchDir. ⚠️ The prose above the table still says the test files hold 26 bare writes while the listed rows sum to about 35; that figure was already wrong before this raise and the `expected` array the law asserts on is the authority."
 
 [[file_size_mark]]
@@ -195,7 +195,7 @@ lines = 524
 
 [[file_size_mark]]
 file = "src/fs.rs"
-lines = 1275
+lines = 331
 
 [[file_size_mark]]
 file = "src/history/store.rs"

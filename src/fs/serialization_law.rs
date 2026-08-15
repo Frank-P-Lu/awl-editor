@@ -30,7 +30,7 @@
 //!      immediately found THIRTEEN more unguarded tests across five modules
 //!      (`updates` ×5, `run` ×5, `buffers`, `config`, `scenario`) — the class
 //!      was far wider than the symptom.
-//!   3. **THE SIBLING GLOBAL** — `src/fs.rs` owns a second process-global with
+//!   3. **THE SIBLING GLOBAL** — `src/fs/active.rs` owns a second process-global with
 //!      exactly this shape: the process CWD, whose writer `CwdGuard` was
 //!      likewise already disciplined while its readers were not. It now has the
 //!      same single guarded door, [`crate::fs::current_dir`], and
@@ -53,12 +53,12 @@ use crate::testscratch::ScratchDir;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
-/// The process-globals `src/fs.rs` OWNS — the sweep axis of this module. Each
+/// The process-globals `src/fs/active.rs` OWNS — the sweep axis of this module. Each
 /// has the same shape (a swappable process-global, an RAII writer guard that
 /// takes [`crate::testlock::serial`], and readers scattered across the tree),
 /// so each needs the same guarded reader door.
 ///
-/// A new global added to `fs.rs` must be added here: [`Self::read`]'s
+/// A new global added to `fs/active.rs` must be added here: [`Self::read`]'s
 /// match is deliberately WILDCARD-FREE, so a new variant fails to COMPILE
 /// rather than silently skipping the sweep.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -100,7 +100,7 @@ impl FsGlobal {
     }
 }
 
-/// LAW 1, THE SWEEP: EVERY process-global `fs.rs` owns rejects an unguarded
+/// LAW 1, THE SWEEP: EVERY process-global `fs/active.rs` owns rejects an unguarded
 /// read and accepts a guarded one — the whole axis, not just the backend the
 /// flake happened to expose.
 ///
@@ -275,7 +275,7 @@ fn fs_guard_capture_reads_prev_inside_its_own_lock() {
 /// runtime check precisely because it bypasses the door — so it is pinned here
 /// instead, in the shape `println_audit` already uses for its own bypass class.
 ///
-/// `src/fs.rs` is the sole allowed file: it holds the door itself, `CwdGuard`'s
+/// `src/fs/active.rs` is the sole allowed file: it holds the door itself, `CwdGuard`'s
 /// save/restore (the WRITER, which must use `std::env` directly), and the doc
 /// prose naming the bypass. This law file assembles its needle from FRAGMENTS
 /// so the scanner does not match its own source (`durable.rs`'s trick).
@@ -288,12 +288,12 @@ fn no_cwd_reader_outside_the_one_door() {
     offenders.sort();
     assert_eq!(
         offenders,
-        vec!["fs.rs".to_string()],
+        vec!["fs/active.rs".to_string()],
         "the process CWD has exactly ONE reader door, `crate::fs::current_dir()` — it \
          carries the serialization law's check, and a raw `std::env` read bypasses it \
          silently. Route the call through `fs::current_dir()`; if the \
          site genuinely owns the global (a new writer beside `CwdGuard`), it belongs in \
-         `src/fs.rs` with the rest of them."
+         `src/fs/active.rs` with the rest of them."
     );
 }
 
