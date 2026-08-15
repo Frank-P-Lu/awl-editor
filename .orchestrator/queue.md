@@ -6,7 +6,8 @@
 
 ## Ready to build
 
-1. **Replay-session effect-family decomposition (439)** — split
+1. **Replay-session effect-family decomposition (439)** — 🟡 IN PROGRESS — replay worker
+   (codex), branch `codex/queue-439-replay-effects`. Split
    `ReplaySession::apply_chord` into typed helpers for resolution, ordered effect
    interpretation, buffer switching, and trace classification without changing
    replay ordering or the shared action pipeline. Prove behavior with the existing
