@@ -456,7 +456,7 @@ mod ordering_tests {
         );
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
         let live = std::fs::read_to_string(root.join("app/apply.rs")).unwrap();
-        let headless = std::fs::read_to_string(root.join("main/run.rs")).unwrap();
+        let headless = std::fs::read_to_string(root.join("main/run/chord.rs")).unwrap();
         assert!(
             live.contains("visit_transition_effects(transition")
                 && headless.contains("EffectWorklist::root"),

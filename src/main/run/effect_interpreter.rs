@@ -1,42 +1,6 @@
 use super::*;
 
 impl<'a> ReplaySession<'a> {
-    fn record_effect_class(
-        &mut self,
-        action: &Action,
-        chord: &crate::keyspec::Chord,
-        effect: &actions::Effect,
-    ) -> Result<bool> {
-        let classified = crate::replay::classify_for(effect, self.filesystem);
-        if !matches!(classified.class, crate::replay::EffectClass::Applied) {
-            *self.records.last_mut().expect("this chord has a trace") =
-                replay_effects::chord_trace(&chord.spec, action, &classified);
-        }
-        if let crate::replay::EffectClass::Intercepted { detail } = &classified.class {
-            self.intercepts.push(crate::replay::Intercept {
-                effect: classified.name,
-                detail: detail.clone(),
-            });
-        }
-        if self.mode == crate::replay::Mode::Strict
-            && let crate::replay::EffectClass::Unsupported { .. } = classified.class
-        {
-            return Err(crate::replay::strict_error(action, &classified));
-        }
-        if self.mode == crate::replay::Mode::Permissive
-            && let Some(skip) = crate::replay::permissive_skip(action, &classified)
-        {
-            self.replay_skips.push(skip);
-        }
-        if self.mode == crate::replay::Mode::Permissive
-            && let Some(warning) = crate::replay::warn_line(action, &classified)
-        {
-            eprintln!("{warning}");
-            self.warnings.push(warning);
-        }
-        Ok(self.interpret_headless_effect(effect))
-    }
-
     pub(super) fn interpret_effect(
         &mut self,
         action: &Action,
@@ -45,7 +9,8 @@ impl<'a> ReplaySession<'a> {
         work: &mut actions::EffectWorklist,
         pending_return_to: &mut Option<crate::overlay::OverlayKind>,
     ) -> Result<()> {
-        if self.record_effect_class(action, chord, &effect)? {
+        self.classify_effect(action, chord, &effect)?;
+        if self.interpret_headless_effect(&effect) {
             return Ok(());
         }
         match effect {
@@ -74,16 +39,7 @@ impl<'a> ReplaySession<'a> {
             }
             actions::Effect::OverlayAccept(kind, value) => {
                 if kind == crate::overlay::OverlayKind::Goto {
-                    let path = crate::index::resolve(&self.root, &value);
-                    let new_key = crate::buffers::BufferKey::path(&path);
-                    if crate::buffers::BufferKey::of(self.buffer).as_ref() != Some(&new_key) {
-                        park_active(self.buffer, &mut self.registry);
-                        *self.buffer = match self.registry.take(&new_key) {
-                            Some(entry) => entry.buffer,
-                            None => Buffer::from_file(&path),
-                        };
-                        crate::page::set_measure(self.config.measure_for(self.buffer.page_class()));
-                    }
+                    self.switch_to_goto_target(&value);
                 }
                 // SWITCH-PROJECT: re-scope root/workspace/corpus
                 // to the ACCEPTED root BEFORE recording the accept, so every chord

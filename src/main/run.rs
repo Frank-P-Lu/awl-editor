@@ -10,8 +10,12 @@ use crate::keymap::Action;
 use crate::replay_report::ReplayResult;
 use crate::{actions, bench};
 
+#[path = "run/buffers.rs"]
+mod buffers;
 #[path = "run/capture_fold.rs"]
 mod capture_fold;
+#[path = "run/chord.rs"]
+mod chord;
 #[path = "run/effect_interpreter.rs"]
 mod effect_interpreter;
 /// The live-`App` capture mode (`--screenshot-app`).
@@ -24,6 +28,8 @@ mod location;
 mod replay_effects;
 #[path = "run/settings_effects.rs"]
 mod settings_effects;
+#[path = "run/trace.rs"]
+mod trace;
 /// The driver's seam — `App` implements it only on native, where the
 /// `--screenshot-app` mode that reads it exists.
 #[cfg(not(target_arch = "wasm32"))]
@@ -49,19 +55,6 @@ pub(crate) fn load_buffer(file: &Option<PathBuf>) -> Buffer {
             None => Buffer::from_file(p),
         },
         None => Buffer::scratch(),
-    }
-}
-
-fn park_active(buffer: &mut Buffer, registry: &mut crate::buffers::BufferRegistry<()>) {
-    if let Some(key) = crate::buffers::BufferKey::of(buffer) {
-        let old = std::mem::replace(buffer, Buffer::scratch());
-        registry.park(
-            key,
-            crate::buffers::Entry {
-                buffer: old,
-                extra: (),
-            },
-        );
     }
 }
 
@@ -303,224 +296,6 @@ impl<'a> ReplaySession<'a> {
         {
             op.sync_overlay(self.buffer, self.zoom, ov);
         }
-    }
-
-    pub(crate) fn apply_chord(&mut self, chord: &crate::keyspec::Chord) -> Result<()> {
-        // Search owns every chord while its panel is open, exactly as in live input.
-        if self.intercept_search_chord(chord) {
-            return Ok(());
-        }
-        let Some(resolved) = self.resolver.resolve(chord)? else {
-            self.records.push(crate::storyboard::ChordTrace {
-                chord: chord.spec.clone(),
-                action: None,
-                effect: "prefix".to_string(),
-                class: "applied",
-                detail: String::new(),
-            });
-            return Ok(());
-        };
-        // Shift-select intent uses the live dispatch's exact derivation: `S-`
-        // extends a selection across a motion, routed through the ONE owner
-        // `crate::app::motion_honors_shift_select` — keyed on the pressed chord's
-        // KEY, not the Action alone, so `M-<` / `M->` (a `Key::Character` whose
-        // Shift is incidental to typing the glyph) stay pure motion while
-        // `S-s-Up`/`S-s-Down` and `S-C-Home`/`S-C-End` (named nav keys reaching
-        // the same actions) extend, exactly like live. Derived ONCE per pressed
-        // chord from the FIRST resolved action and carried into a palette-chained
-        // re-dispatch unchanged — mirroring the live `Effect::RunAction` arm,
-        // which re-applies with the same `shift` bool.
-        let shift = chord
-            .mods
-            .state()
-            .contains(winit::keyboard::ModifiersState::SHIFT)
-            && crate::app::motion_honors_shift_select(&resolved, &chord.key);
-        let mut work = actions::EffectWorklist::root(resolved);
-        let mut pending_return_to: Option<crate::overlay::OverlayKind> = None;
-        while let Some(item) = work.next() {
-            let actions::EffectWorkItem::Action(action) = item else {
-                let actions::EffectWorkItem::Effect { owner, effect } = item else {
-                    unreachable!()
-                };
-                self.interpret_effect(&owner, chord, effect, &mut work, &mut pending_return_to)?;
-                continue;
-            };
-            // Refresh the layout oracle from current state before every action.
-            // headless twin must too, or an edit that re-wraps a line (or a zoom
-            // change, or the Goto arm's buffer + measure switch below) leaves the
-            // NEXT motion reading stale wrap geometry. One seam, unconditional by
-            // design (both underlying calls no-op cheaply when nothing changed).
-            if let Some(op) = self.oracle.as_deref_mut() {
-                op.refresh(self.buffer, self.zoom);
-            }
-            let goto_headings: Vec<(String, usize)> =
-                if matches!(action, Action::OpenGoto | Action::OpenOutline)
-                    && self.buffer.is_markdown()
-                {
-                    crate::markdown::headings(&self.buffer.text())
-                        .into_iter()
-                        .map(|h| (h.label(), h.line))
-                        .collect()
-                } else {
-                    Vec::new()
-                };
-            #[allow(clippy::type_complexity)]
-            let spell_target: Option<(Vec<String>, (usize, usize, usize), String)> =
-                if matches!(action, Action::OpenSpellSuggest) {
-                    self.spell.as_ref().and_then(|sc| {
-                        let (line, col) = self.buffer.cursor_line_col();
-                        sc.suggest_at(&self.buffer.text(), line, col, self.buffer.syntax_lang())
-                            .map(|t| {
-                                (
-                                    t.suggestions,
-                                    (
-                                        t.misspelling.line,
-                                        t.misspelling.start_col,
-                                        t.misspelling.end_col,
-                                    ),
-                                    t.word,
-                                )
-                            })
-                    })
-                } else {
-                    None
-                };
-            // HISTORY TIMELINE rows for the current file (newest-first), each answering
-            // WHEN + WHICH with a "+N −M" changed-count vs the current buffer. Read from
-            // the store ONLY when the History binding fired (so a `--keys "Cmd-S-h"`
-            // capture shows the real versions of the seeded file); the history key comes
-            // from the ONE shared derivation (`history::source_path`: buffer path, else
-            // the scratch stash — the replay has no App-level `file`), matching the live
-            // gather. `now` stamps the relative labels. History is an explicitly-summoned
-            // overlay, so this never runs in a default capture.
-            let history_entries: Vec<crate::history::TimelineRow> =
-                if matches!(action, Action::OpenHistory | Action::CompareVersion) {
-                    match crate::history::source_path(
-                        self.buffer.path(),
-                        self.buffer.is_unnamed_fresh(),
-                    ) {
-                        Some(path) => crate::history::timeline_rows(
-                            &path,
-                            &self.buffer.text(),
-                            crate::history::now_millis(),
-                        ),
-                        None => Vec::new(),
-                    }
-                } else {
-                    Vec::new()
-                };
-            let assets: Vec<crate::assets::Orphan> = if matches!(action, Action::OpenAssetClean) {
-                crate::assets::scan(&self.root, &self.corpus)
-            } else {
-                Vec::new()
-            };
-            let effective_keep = self.config.effective_linux_keep();
-            let (goto_folders, goto_recent_folders) = if matches!(
-                action,
-                Action::OpenGoto
-                    | Action::OpenProject
-                    | Action::OpenRecentProjects
-                    | Action::OpenOutline
-            ) {
-                crate::overlay::goto_folder_roster(Some(&self.workspace), &[])
-            } else {
-                (Vec::new(), Vec::new())
-            };
-            let build_ctx = crate::overlay::BuildCtx {
-                goto_corpus: self.corpus.to_vec(),
-                goto_open: Vec::new(),
-                goto_recent: Vec::new(),
-                goto_times: Vec::new(),
-                config_keys: &self.config.keys,
-                config_linux_keep: &effective_keep,
-                goto_headings,
-                goto_folders,
-                goto_recent_folders,
-                spell_target,
-                history_entries,
-                history_now: None,
-                history_session_start: None,
-                settings_values: crate::settings::SettingsValues::gather(
-                    self.config,
-                    &self.root,
-                    self.zoom,
-                    crate::dateformat::CAPTURE_PLACEHOLDER_YMD,
-                ),
-                assets,
-                // The headless capture/replay path is structurally daemon-free (never
-                // imports `crate::daemon` — the daemon capture gate, docs/platform.md):
-                // there is no waiter to have, so "Finish file" is deterministically
-                // hidden from every `--keys`/`--screenshot` palette.
-                row_gates: Default::default(),
-            };
-            let mut make_overlay =
-                |kind: crate::overlay::OverlayKind| crate::overlay::build(kind, &build_ctx);
-            let (root, workspace) = (self.root.as_path(), Some(self.workspace.as_path()));
-            let mut browse_to = |kind: crate::overlay::OverlayKind, rel: Option<String>| {
-                // Shared one-level builder: Project navigates the workspace by absolute
-                // path; Browse and the two DESTINATION navigators (MoveDest, ExportDest)
-                // walk the SAME active root — destinations list folders only.
-                // The recent-PROJECTS MRU is live-only persisted state; the headless
-                // replay passes an empty list (the determinism gate), so the Project
-                // navigator's Recent lens is inert in a capture — byte-stable.
-                crate::overlay::browse_level(kind, rel, root, workspace, &[])
-            };
-            let mut ctx = actions::ActionCtx {
-                buffer: &mut *self.buffer,
-                shift_selecting: &mut self.shift_selecting,
-                zoom: &mut self.zoom,
-                search: &mut self.search,
-                scroll_page_lines: 20,
-                journey: &mut self.journey,
-                make_overlay: &mut make_overlay,
-                browse_to: &mut browse_to,
-                oracle: self.oracle.as_deref().map(|op| op.as_oracle()),
-            };
-            let transition = actions::apply_transition(&mut ctx, &action, shift);
-            let _ = ctx;
-            let primary = transition.primary();
-            let classified = crate::replay::classify_for(&primary, self.filesystem);
-            self.records.push(replay_effects::chord_trace(
-                &chord.spec,
-                &action,
-                &classified,
-            ));
-            // Apply a palette breadcrumb requested by the PREVIOUS action
-            // after this action's core transition has had the chance to open
-            // its child overlay, but before interpreting this action's effects.
-            self.journey.attribute_launch(pending_return_to.take());
-            work.expand(action, transition);
-        }
-        // The headless twin of `App::apply`'s own stamp: re-anchor the
-        // hover movement-slop gate to the replay's CURRENT pointer position after
-        // this whole chord (including any chained palette re-dispatch) has
-        // applied, so a scripted keyboard nav step never leaves a stale (or
-        // `None`) hover baseline for a LATER `move` step to read as unconditional
-        // real motion. See `OverlayState::arm_hover_baseline`'s doc.
-        if let Some(ov) = self.journey.card_mut() {
-            ov.arm_hover_baseline(self.cursor_px.0, self.cursor_px.1);
-        }
-        Ok(())
-    }
-
-    fn intercept_search_chord(&mut self, chord: &crate::keyspec::Chord) -> bool {
-        if self.search.is_none() {
-            return false;
-        }
-        let _ = crate::search::keys::intercept(
-            &mut self.search,
-            self.buffer,
-            &chord.key,
-            chord.mods.state(),
-        );
-        self.records.push(crate::storyboard::ChordTrace {
-            chord: chord.spec.clone(),
-            action: None,
-            effect: "search_input".to_string(),
-            class: "applied",
-            detail: String::new(),
-        });
-        true
     }
 
     fn finish(self) -> ReplayResult {
