@@ -34,10 +34,9 @@ impl App {
         self.sync_view(false);
     }
 
-    /// Preview colors AND font reshape together, unconditionally — no
-    /// scheduling decision, no deferred settle (docs/fonts.md's "Theme-preview
-    /// reshape is unconditional" has the measurement behind the removal).
-    /// Every preview arms the compositor transaction before redraw.
+    /// Preview colors and the paintable font prefix together. The off-screen
+    /// tail is latest-selection-wins: every preview re-stamps the shared quiet
+    /// settle, and only the final highlighted world finishes it.
     // `prev` (the outgoing world) is now only named by the native probe trace, so
     // the wasm build — which never runs a probe — reads it as unused.
     #[cfg_attr(target_arch = "wasm32", allow(unused_variables))]
@@ -66,11 +65,8 @@ impl App {
             let input_at = crate::debug::debug_on()
                 .then(|| self.frame.theme_switch_at())
                 .flatten();
-            // THE PREVIEW REACH: shape what this step's frame can paint, present,
-            // then pay the off-screen tail in `finish_shape_tail` the moment that
-            // present returns — same step, before the next event is handled. The
-            // whole-document restyle still happens HERE, so the frame below can only
-            // ever carry the DESTINATION world's shaping (see `finish_shape_tail`).
+            // Shape everything the next frame can paint. A newer preview replaces
+            // the owed tail; the crossing quiet settle finishes the final world.
             self.sync_theme_font_measured(input_at, crate::render::ShapeReach::Presentable);
         }
         #[cfg(not(target_arch = "wasm32"))]
@@ -106,23 +102,19 @@ impl App {
         // (`sync_theme` = colors + font); the font half routes through the shared
         // timed-or-plain door below so it can feed the settle breakdown.
         let input_at = crate::debug::debug_on().then(|| self.frame.now());
-        // BACKSTOP: settle onto a WHOLE document. Normally a no-op — the preview
-        // step's own present already paid its tail — but a commit that lands before
-        // any frame did, or one whose `sync_theme` finds no work to do, must still
-        // leave nothing owed. The settled reach below is `Whole` regardless.
-        self.finish_shape_tail();
         if let Some(gpu) = self.frame.gpu_mut() {
             gpu.pipeline.sync_theme_colors();
         }
         self.sync_theme_font_measured(input_at, crate::render::ShapeReach::Whole);
+        // Commit keeps the previewed world, so the Whole sync above is a no-op and
+        // its tail remains owed. Revert changes worlds, so Whole replaces the old
+        // debt directly. Either route leaves no debt after this backstop.
+        self.finish_shape_tail();
         self.update_title();
     }
 
-    /// Pay any owed off-screen shaping tail (`TextPipeline::finish_shape_tail`) —
-    /// the second half of a theme-preview step, run immediately after that step's
-    /// present and before the event handler returns, so the next input is never
-    /// handled against a partially shaped document. A no-op on every other frame,
-    /// and on a headless `App` (no GPU, so nothing can have narrowed the reach).
+    /// Pay the latest theme preview's off-screen shaping tail. Called by the quiet
+    /// settle and by commit/revert as a synchronous backstop.
     pub(in crate::app) fn finish_shape_tail(&mut self) {
         if let Some(gpu) = self.frame.gpu_mut() {
             gpu.pipeline.finish_shape_tail();

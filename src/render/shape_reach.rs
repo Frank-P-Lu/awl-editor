@@ -7,11 +7,9 @@
 //! anything asks about one. It is also, on a long document, ~95% of a
 //! theme-preview arrow's cost, spent on rows no frame can draw.
 //!
-//! So a preview step splits that one reshape in two WITHOUT deferring any of it
-//! past the step: shape [`ShapeReach::Presentable`], present, then
-//! [`super::TextPipeline::finish_shape_tail`] before the next event is handled.
-//! Every settled path — commit, revert, capture, tests — stays
-//! [`ShapeReach::Whole`], and so does every headless path.
+//! A preview shapes [`ShapeReach::Presentable`] and presents. Newer previews may
+//! supersede its off-screen tail; a quiet settle, commit, or revert pays the
+//! latest world's debt. Every settled path stays [`ShapeReach::Whole`].
 //!
 //! The split is taken only where it can PAY — where the paintable band stops
 //! short of the document's last row. That is a ROW question, and asking it in
@@ -37,18 +35,16 @@ pub const OFFSCREEN_CULL_MARGIN_ROWS: Rows = Rows(8.0);
 /// prevent). It is also, on a long document, ~95% of a theme-preview arrow's cost,
 /// spent on rows no frame can draw.
 ///
-/// So a preview step splits that one reshape in two WITHOUT deferring any of it
-/// past the step: shape [`ShapeReach::Presentable`] — everything the frame about to
-/// be presented can possibly paint — present, then finish the tail
-/// ([`TextPipeline::finish_shape_tail`]) before the next event is handled. Every
-/// settled path stays [`ShapeReach::Whole`], and so does every headless path.
+/// A preview shapes [`ShapeReach::Presentable`] — everything its frame can paint.
+/// Newer selections may replace its off-screen tail before a quiet settle pays it.
+/// Every settled path stays [`ShapeReach::Whole`].
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum ShapeReach {
     /// Every visual row of the document — the settled reach.
     Whole,
     /// Only as far as the frame about to be presented can paint, WHEN stopping
-    /// there leaves rows unshaped. Then it leaves a TAIL owed, which the same step
-    /// must pay. Where the paintable band already reaches the document's last row
+    /// there leaves rows unshaped. Then it leaves a tail owed to the quiet settle.
+    /// Where the paintable band already reaches the document's last row
     /// — a short document, or a scroll near the end — there is nothing to defer
     /// and this reach shapes the whole document like [`Self::Whole`], owing
     /// nothing (see [`TextPipeline::presentable_reach_height`]).
@@ -148,9 +144,9 @@ impl TextPipeline {
     /// pointless, or it lets a narrow `height_opt` outlive the step, where the next
     /// restyle that does NOT re-budget (a conceal reveal, a spell repaint) shapes
     /// against it and truncates the document.
-    fn presentable_reach_height(&self, full: f32) -> f32 {
+    fn presentable_reach_height(&self, full: f32, settled_doc_height: f32) -> f32 {
         let want = self.presentable_shape_height();
-        if want < self.total_doc_height() {
+        if want < settled_doc_height {
             want
         } else {
             full
@@ -158,11 +154,10 @@ impl TextPipeline {
     }
 
     /// Is an off-screen shaping TAIL still owed (see [`ShapeReach`])? True only
-    /// between a [`ShapeReach::Presentable`] reshape and the
-    /// [`Self::finish_shape_tail`] that pays it — never at a settled step boundary,
-    /// which is the property the reach law and the picker-sweep bench read it for.
+    /// between a [`ShapeReach::Presentable`] reshape and the quiet/commit/revert
+    /// settle that pays it.
     pub fn shape_tail_owed(&self) -> bool {
-        self.shape_tail_owed
+        self.shape_tail_settled_height.is_some()
     }
 
     /// Pay any owed off-screen shaping TAIL: restore the WHOLE reach and shape
@@ -170,11 +165,9 @@ impl TextPipeline {
     /// shaped again and every row carries real geometry. Returns whether there was
     /// anything to do.
     ///
-    /// This is the second half of one step, not deferred work: the live App calls it
-    /// immediately after the present that the narrow reach bought, inside the same
-    /// event handler, so no input can be handled against a partially shaped
-    /// document. It is also idempotent and cheap when nothing is owed, which is why
-    /// the settled retint calls it unconditionally as a backstop.
+    /// It is idempotent and cheap when nothing is owed. During a picker burst each
+    /// new preview replaces the incomplete shaping with its own world; the quiet
+    /// settle calls this once for the final selection.
     ///
     /// The result is byte-identical to what a [`ShapeReach::Whole`] reshape would
     /// have produced in one pass: `set_size` re-lays the prefix cosmic-text already
@@ -182,10 +175,9 @@ impl TextPipeline {
     /// metrics and reserved image/table heights cannot change inside a step), and
     /// the row geometry is rebuilt from the finished runs.
     pub fn finish_shape_tail(&mut self) -> bool {
-        if !self.shape_tail_owed {
+        if self.shape_tail_settled_height.take().is_none() {
             return false;
         }
-        self.shape_tail_owed = false;
         let width = Some(self.text_wrap_width());
         let shape_h = self.full_shape_height();
         self.buffer
@@ -265,11 +257,18 @@ impl TextPipeline {
         self.shaped_theme = new_theme;
         let width = Some(self.text_wrap_width());
         let full = self.full_shape_height();
+        let settled_doc_height = self
+            .shape_tail_settled_height
+            .unwrap_or_else(|| self.total_doc_height());
         let shape_h = match reach {
             ShapeReach::Whole => full,
-            ShapeReach::Presentable => self.presentable_reach_height(full),
+            ShapeReach::Presentable => self.presentable_reach_height(full, settled_doc_height),
         };
-        self.shape_tail_owed = shape_h < full;
+        if shape_h < full {
+            self.shape_tail_settled_height = Some(settled_doc_height);
+        } else {
+            self.shape_tail_settled_height = None;
+        }
         self.buffer
             .set_size(&mut self.font_system, width, Some(shape_h));
     }
