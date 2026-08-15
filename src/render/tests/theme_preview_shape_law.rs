@@ -1,6 +1,5 @@
-//! THEME-PREVIEW SHAPE REACH — how much of the document ONE theme-picker arrow
-//! re-shapes, WHEN inside its own step it does so, and therefore where that step's
-//! dominant cost lives.
+//! THEME-PREVIEW SHAPE REACH — the paintable prefix each picker movement shapes,
+//! the supersedable tail a burst leaves behind, and the fully settled result.
 //!
 //! The theme-picker arrow step was profiled in `--release` on this machine's
 //! Metal. The per-stage split of one preview hop is not evenly spread and it is
@@ -22,12 +21,10 @@
 //! from the estimate is the scroll-jump / wrong-image-height bug
 //! `full_shape_height`'s own doc records.
 //!
-//! So the reach is not narrowed — it is SPLIT ACROSS ONE STEP
-//! ([`crate::render::ShapeReach`]). A preview arrow shapes what the frame it is
-//! about to present can paint, that frame presents, and the off-screen tail is
-//! shaped immediately afterwards, inside the same event handler, before any
-//! further input can be delivered. Total work per step is unchanged; only its
-//! order within the step moved.
+//! A preview arrow shapes what its frame can paint. A newer arrow may supersede
+//! the remaining tail; once input rests, the final world's tail is shaped once.
+//! Deliberate paced movement therefore settles each world, while a burst avoids
+//! finishing off-screen work the user has already left behind.
 //!
 //! THIS FILE PINS BOTH HALVES, because either one alone is satisfiable by a
 //! broken product:
@@ -187,9 +184,8 @@ impl Reach {
     }
 }
 
-/// EVERY arrow of a full theme-picker sweep presents a frame shaped only as far
-/// as that frame can paint, and leaves the WHOLE document shaped by the end of
-/// its own step.
+/// A PACED sweep presents each world and lets its quiet settle finish before the
+/// next movement.
 ///
 /// The sweep is the picker's own: `overlay::build`'s `OverlayKind::Theme` arm
 /// hands the picker `theme::THEMES` in order, so walking that roster in order IS
@@ -198,7 +194,7 @@ impl Reach {
 /// sharing its neighbour's face is handled by the `needs_theme_reshape` witness
 /// below rather than by a name list.
 #[test]
-fn every_theme_arrow_shapes_the_whole_document_by_the_end_of_its_step() {
+fn paced_theme_arrows_present_and_settle_every_world() {
     // The active WORLD is a process global and this law walks all of it, so take
     // the one process-wide guard — which also restores the world on the way out,
     // including the unwinding path. Declared before `p` so it outlives the
@@ -208,7 +204,7 @@ fn every_theme_arrow_shapes_the_whole_document_by_the_end_of_its_step() {
     let _t = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!(
-            "skipping every_theme_arrow_shapes_the_whole_document_by_the_end_of_its_step: \
+            "skipping paced_theme_arrows_present_and_settle_every_world: \
              no wgpu adapter"
         );
         return;
@@ -324,13 +320,133 @@ fn every_theme_arrow_shapes_the_whole_document_by_the_end_of_its_step() {
     crate::theme::set_active_by_name(entered);
 }
 
+/// A zero-gap burst replaces every intermediate off-screen tail and pays only
+/// the final world's. The visible prefix still reshapes on every hop, so this is
+/// coalescing rather than a preview debounce.
+#[test]
+fn zero_gap_theme_burst_coalesces_intermediate_tails_latest_selection_wins() {
+    let _t = crate::testlock::serial();
+    let entered = crate::theme::active().name;
+    let start = crate::theme::THEMES.last().expect("theme roster").name;
+    crate::theme::set_active_by_name(start);
+    let Some(mut burst) = headless_pipeline() else {
+        eprintln!("skipping zero_gap_theme_burst: no wgpu adapter");
+        return;
+    };
+    let Some(mut whole) = headless_pipeline() else {
+        return;
+    };
+
+    const LINES: usize = 400;
+    let text = tall_doc(LINES);
+    burst.set_view(&view(&text, 0, 0));
+    whole.set_view(&view(&text, 0, 0));
+    let reach = Reach::measure(&burst, LINES);
+    let mut reshaped = 0usize;
+
+    for world in crate::theme::THEMES {
+        let from = crate::theme::active().name;
+        crate::theme::set_active_by_name(world.name);
+        let before = burst.reshape_count;
+        burst.sync_theme_colors();
+        burst.sync_theme_font(ShapeReach::Presentable);
+        assert!(
+            burst.reshape_count > before,
+            "{from} -> {} did not reshape; the burst fixture stopped witnessing previews",
+            world.name
+        );
+        reshaped += 1;
+        reach.assert_presentable_frame(&burst, from, world.name, LINES);
+        // Zero gap: deliberately do not finish here. The next world must be able
+        // to replace this debt without first expanding the old one.
+    }
+
+    assert_eq!(
+        reshaped,
+        crate::theme::THEMES.len(),
+        "every highlighted world must still shape its visible prefix"
+    );
+    assert!(burst.shape_tail_owed(), "the final world must own one tail");
+    assert!(burst.finish_shape_tail(), "the final tail was not paid");
+    assert!(
+        !burst.finish_shape_tail(),
+        "a burst produced more than one payable tail"
+    );
+    assert!(!burst.shape_tail_owed());
+
+    // Final geometry is the same as one whole-document shape of the selected
+    // world, including the off-screen rows the burst skipped along the way.
+    whole.sync_theme();
+    assert_eq!(burst.total_visual_rows(), whole.total_visual_rows());
+    assert_eq!(
+        burst.total_doc_height().to_bits(),
+        whole.total_doc_height().to_bits()
+    );
+    for line in (0..LINES).step_by(37) {
+        assert_eq!(
+            burst
+                .line_glyph_xs(line)
+                .iter()
+                .map(|x| x.to_bits())
+                .collect::<Vec<_>>(),
+            whole
+                .line_glyph_xs(line)
+                .iter()
+                .map(|x| x.to_bits())
+                .collect::<Vec<_>>(),
+            "final selected world's line {line} differs from a whole shape"
+        );
+    }
+    crate::theme::set_active_by_name(entered);
+}
+
+/// Commit keeps the previewed world and pays its tail; revert replaces the
+/// preview with one whole shape of the original world. Neither may leave debt.
+#[test]
+fn theme_commit_and_revert_leave_the_document_fully_settled() {
+    let _t = crate::testlock::serial();
+    let entered = crate::theme::active().name;
+    crate::theme::set_active_by_name("Mangrove");
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!(
+            "skipping theme_commit_and_revert_leave_the_document_fully_settled: no wgpu adapter"
+        );
+        return;
+    };
+    const LINES: usize = 400;
+    p.set_view(&view(&tall_doc(LINES), 0, 0));
+
+    crate::theme::set_active_by_name("Bombora");
+    p.sync_theme_colors();
+    p.sync_theme_font(ShapeReach::Presentable);
+    assert!(p.shape_tail_owed(), "commit fixture did not create debt");
+    p.sync_theme_font(ShapeReach::Whole); // commit: same active world, no-op
+    assert!(p.finish_shape_tail(), "commit did not pay the preview tail");
+    assert_eq!(p.total_visual_rows(), LINES);
+    assert!(!p.shape_tail_owed());
+
+    crate::theme::set_active_by_name("Galah");
+    p.sync_theme_font(ShapeReach::Presentable);
+    assert!(p.shape_tail_owed(), "revert fixture did not create debt");
+    crate::theme::set_active_by_name("Bombora");
+    p.sync_theme_colors();
+    p.sync_theme_font(ShapeReach::Whole); // revert replaces the superseded tail
+    assert!(
+        !p.finish_shape_tail(),
+        "revert paid the abandoned world's tail instead of replacing it"
+    );
+    assert_eq!(p.total_visual_rows(), LINES);
+    assert!(!p.shape_tail_owed());
+    crate::theme::set_active_by_name(entered);
+}
+
 /// The SETTLED document is byte-identical whichever reach its step took.
 ///
 /// Splitting a preview step changes WHEN the off-screen rows are shaped; it must
 /// change nothing about the document that results. Two pipelines walk the same
 /// roster in the same order over the same fixture — one taking the split step
 /// (`Presentable` + `finish_shape_tail`), one taking today's single whole-document
-/// step — and at EVERY settled world their whole shaped geometry is compared: the
+/// whole-document control — and at EVERY settled world their geometry is compared: the
 /// visual-row count, the document height, every row's top and height, and every
 /// line's real glyph X boundaries.
 ///
@@ -378,7 +494,7 @@ fn identical_settled_geometry_whichever_reach_the_step_took() {
         split.sync_theme_colors();
         split.sync_theme_font(ShapeReach::Presentable);
         split.finish_shape_tail();
-        // Today's step: one whole-document reshape.
+        // Control: one whole-document reshape.
         whole.sync_theme();
 
         assert_eq!(

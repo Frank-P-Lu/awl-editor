@@ -6,6 +6,7 @@ use super::*;
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(in crate::app) struct PollOutcome {
     pub(in crate::app) redraw: bool,
+    pub(in crate::app) settle_theme_tail: bool,
     pub(in crate::app) persist_zoom: bool,
     pub(in crate::app) expire_notice: bool,
     pub(in crate::app) retry: bool,
@@ -130,6 +131,7 @@ impl FrameRuntime {
             if now >= deadline {
                 self.deadlines.crossing_settle_at = None;
                 self.deadlines.crossing_teardown_pending = true;
+                out.settle_theme_tail = true;
                 out.redraw = true;
             } else {
                 propose(out, deadline);

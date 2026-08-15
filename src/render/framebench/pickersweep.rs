@@ -46,8 +46,8 @@ impl PickerStep {
     }
 }
 
-/// ONE arrow of the sweep: the reshape at `reach`, the frame it produces, and the
-/// off-screen tail that the same step pays afterwards. `None` when this hop has no
+/// ONE paced-control arrow: the reshape at `reach`, its frame, and the off-screen
+/// tail paid before the next deliberate movement. `None` when this hop has no
 /// reshape to do at all (only reachable when the sweep re-enters the world it
 /// started in), which is not an arrow worth timing.
 ///
@@ -147,11 +147,11 @@ fn picker_step(
 /// `overlay::build`'s Theme arm hands the picker and therefore exactly what
 /// holding Down walks. `reach` picks which step shape is being timed:
 ///
-/// * [`ShapeReach::Whole`] — today's step. One whole-document reshape, then the
+/// * [`ShapeReach::Whole`] — the whole-document control, then the frame.
 ///   frame. `to-present` is the whole thing.
-/// * [`ShapeReach::Presentable`] — the split step. Shape what the frame can paint,
-///   present, then pay the off-screen tail. `to-present` is what the user waits
-///   for; `step` is the same total work as the `Whole` arm.
+/// * [`ShapeReach::Presentable`] — the paced split control. Shape what the frame
+///   can paint, present, then let the quiet settle pay the off-screen tail before
+///   the next movement.
 ///
 /// `scroll_frac` matters and is swept rather than assumed: the presentable budget
 /// runs from the document's FIRST row down past the viewport (cosmic-text fills
@@ -207,8 +207,8 @@ fn picker_sweep(
     );
 
     let arm = match reach {
-        ShapeReach::Whole => "whole document, then present (today)",
-        ShapeReach::Presentable => "present, then the tail — same step",
+        ShapeReach::Whole => "whole document, then present (control)",
+        ShapeReach::Presentable => "present, then quiet-settle tail (paced control)",
     };
     println!();
     println!(
@@ -314,6 +314,87 @@ fn assert_depth_curve(
     Ok(())
 }
 
+/// The shipped zero-gap policy: every highlighted world presents its paintable
+/// prefix, while each new selection replaces the previous off-screen debt. One
+/// quiet settle pays the final world's tail.
+fn latest_wins_burst(
+    gpu: &BurstGpu<'_>,
+    buffer: &Buffer,
+    misspelled: &[crate::spell::Misspelling],
+    scroll_frac: f32,
+) -> anyhow::Result<()> {
+    crate::theme::set_active_by_name("Mangrove");
+    let mut p = TextPipeline::new(gpu.device, gpu.queue, gpu.cache, FORMAT);
+    p.set_size(BURST_WIDTH as f32, BURST_HEIGHT as f32);
+    p.set_dpi(DPI);
+    let mut view = live_view(buffer, misspelled.to_vec());
+    view.zoom = BURST_ZOOM;
+    p.set_view(&view);
+    for _ in 0..10 {
+        burst_frame(&mut p, gpu.device, gpu.queue, gpu.target_view, false)?;
+    }
+    let total_rows = p.total_visual_rows();
+    view.scroll = p.scroll_by_px(
+        crate::render::ScrollPos::at_row(
+            (((total_rows as f32) * scroll_frac) as usize).min(total_rows.saturating_sub(1)),
+        ),
+        0.0,
+        BURST_HEIGHT as f32,
+    );
+    p.set_view(&view);
+    for _ in 0..10 {
+        burst_frame(&mut p, gpu.device, gpu.queue, gpu.target_view, false)?;
+    }
+
+    let (mut arrows, mut visible_ms, mut debts) = (0usize, 0.0f64, 0usize);
+    for world in crate::theme::THEMES {
+        crate::theme::set_active_by_name(world.name);
+        let before = p.reshape_count;
+        let t0 = Instant::now();
+        p.sync_theme_colors();
+        p.sync_theme_font(ShapeReach::Presentable);
+        let shape_ms = t0.elapsed().as_secs_f64() * 1e3;
+        assert_reshape_witness(
+            &format!("latest-wins burst to {}", world.name),
+            before,
+            p.reshape_count,
+            true,
+        )?;
+        p.set_view(&view);
+        let frame = burst_frame(&mut p, gpu.device, gpu.queue, gpu.target_view, true)?;
+        visible_ms += shape_ms + frame.total;
+        arrows += 1;
+        debts += usize::from(p.shape_tail_owed());
+    }
+    let t1 = Instant::now();
+    let paid = p.finish_shape_tail();
+    let tail_ms = t1.elapsed().as_secs_f64() * 1e3;
+    ensure!(!p.shape_tail_owed(), "latest-wins burst ended with debt");
+    if scroll_frac == 0.0 {
+        ensure!(
+            debts == arrows && paid,
+            "top burst declared debt on {debts}/{arrows} arrows and final settle paid {paid}; \
+             the zero-gap workload stopped exercising coalescing"
+        );
+    }
+    println!();
+    println!(
+        "---- picker burst · latest selection wins · scroll row {} ({:.0}%) ----",
+        view.scroll.row,
+        scroll_frac * 100.0
+    );
+    println!(
+        "  {arrows} arrows · input->present {visible_ms:.1}ms total, {:.1}ms mean · \
+         final tail {tail_ms:.1}ms (paid {paid}) · whole burst {:.1}ms · \
+         intermediate debts replaced {}/{}",
+        visible_ms / arrows as f64,
+        visible_ms + tail_ms,
+        debts.saturating_sub(usize::from(paid)),
+        debts
+    );
+    Ok(())
+}
+
 /// Every picker sweep the theme-burst profiler runs: both reaches, at each of
 /// TOP / HALF / END.
 ///
@@ -342,6 +423,7 @@ pub(super) fn run(
         for reach in [ShapeReach::Whole, ShapeReach::Presentable] {
             picker_sweep(&gpu, buffer, misspelled, reach, scroll_frac)?;
         }
+        latest_wins_burst(&gpu, buffer, misspelled, scroll_frac)?;
     }
     Ok(())
 }

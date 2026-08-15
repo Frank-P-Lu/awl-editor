@@ -439,12 +439,10 @@ impl App {
 
     /// The PREVIEW SETTLE (the `CROSSING_SYNC_SETTLE` debounce elapsed with no
     /// further preview step) — PHASE 1 of an EVENT-ORDERED bracket teardown, NOT
-    /// an immediate disarm. The font reshape runs SYNCHRONOUSLY inside
-    /// `retint_theme_preview` — nothing defers it to a later settle — so by the
-    /// time this fires the reshaped view was already applied, well before this
-    /// debounce even armed, but its own present may still be in flight behind
-    /// this frame's redraw request. If we disarmed the bracket here, that redraw
-    /// could carry the reshaped frame to the compositor UNBRACKETED — the exact
+    /// an immediate disarm. The visible prefix already presented; the scheduling
+    /// interpreter now finishes the final world's off-screen tail before asking
+    /// for this settle frame. If we disarmed the bracket here, that redraw could
+    /// carry the fully shaped frame to the compositor UNBRACKETED — the exact
     /// vanishing-page race. Instead we clear the debounce but HAND OFF to
     /// `crossing_teardown_pending`, which keeps the bracket armed
     /// (`sync_present_txn`'s OR) until the post-present hook in
@@ -614,14 +612,9 @@ impl App {
         } else {
             return;
         };
-        // THE TAIL, SAME STEP. `gpu.redraw()` above has already handed this frame to
-        // the compositor, so any off-screen rows a `ShapeReach::Presentable` reshape
-        // stopped short of are shaped RIGHT HERE — inside the event handler winit is
-        // still in, so the next input cannot be delivered until the document is whole
-        // again, and there is never a half-finished tail for a later step to catch up
-        // on. Unconditional on the frame's own outcome: the work is owed to the
-        // document, not to the present, so a skipped or occluded acquire pays it too.
-        self.finish_shape_tail();
+        // A theme preview's off-screen shaping tail deliberately remains owed here.
+        // The crossing quiet settle pays the latest selection once; another input
+        // may supersede it before then.
         // The SECOND animation term, and it can only be read HERE.
         // `gpu.redraw()` above ran `prepare`, and `prepare` is the one place the
         // selection band is retargeted, so an ease that started this frame is

@@ -248,15 +248,18 @@ impl App {
         // ~1s of idle. Armed ONLY by the live `sync_view` (behind its gpu-present
         // gate), consumed here via the same single-`WaitUntil` pattern as the note
         // autosave above — no hot loop, and structurally unreachable headlessly.
-        // Theme-preview font reshape is UNCONDITIONAL: `retint_theme_preview`
-        // reshapes synchronously in the input handler, so nothing about it is
-        // left to poll here.
+        // Theme preview shapes the paintable prefix synchronously. Its off-screen
+        // tail shares the crossing quiet window so superseded worlds never finish
+        // work the user has already moved past.
         let now = self.frame.now();
         let outcome = self
             .frame
             .poll(now, input_schedule, document_schedule, config_schedule);
         if outcome.persist_zoom {
             self.settle_zoom_persist();
+        }
+        if outcome.settle_theme_tail {
+            self.finish_shape_tail();
         }
         if outcome.redraw {
             // Present-sync sources are settled inside the frame owner. The
