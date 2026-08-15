@@ -99,8 +99,12 @@ name); behavior is byte-identical. Submodules are listed under each root below.
   triggers), `motion` (oracle-aware motions + page scroll + search open),
   `overlay_nav` (modal overlay intercept + browse-path + live preview), `rebind`
   (the game-style rebind-menu key handling).
-- `keymap.rs` — `KeymapState::resolve(key, mods) → Action`; defines the `Action`
-  enum + `is_motion` / `is_edit`; table-driven, including the `C-x` prefix.
+- `keymap.rs` — the stable input façade: `KeymapState::resolve(key, mods) → Action`;
+  table-driven, including the `C-x` prefix.
+  → `keymap/`: `action` (the `Action` vocabulary + exhaustive `is_motion` /
+  `is_edit` classifications), `state` (prefix/override maps + catalog seeding),
+  `resolve` (the single stateful resolver), `platform` (Linux collision/keep
+  policy + keymap flavors), `binding` (chord parsing and key canonicalization).
 - `keyspec.rs` — `parse_keys("C-n M-> …") → Vec<Action>`: parses emacs key-spec
   strings by driving the *real* keymap. The headless analog of typing; powers
   `--keys`.

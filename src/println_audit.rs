@@ -84,7 +84,7 @@ const EXPECTED: &[(&str, usize)] = &[
     ("capture/policy.rs", 1),
     ("capture/oracle.rs", 1),
     ("config/model.rs", 1),
-    ("keymap.rs", 4),
+    ("keymap/state.rs", 4),
     ("main.rs", 2),
     // `--help`'s big usage dump, plus `--list-worlds`: a
     // machine-readable roster dump for `scripts/capture-worlds.sh` and any

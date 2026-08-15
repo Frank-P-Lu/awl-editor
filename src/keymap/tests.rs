@@ -1,3 +1,11 @@
+use std::collections::HashMap;
+
+use winit::event::Modifiers;
+use winit::keyboard::{Key, ModifiersState, NamedKey, SmolStr};
+
+use crate::convention::Convention;
+
+use super::state::insert_default_entry;
 use super::*;
 
 /// The live catalog rendered as one `slug|native@mac|native@linux|emacs`
@@ -1665,10 +1673,7 @@ fn changing_one_valid_default_slot_changes_both_label_and_dispatch() {
     );
 
     let mut km = KeymapState::new_with_convention(Convention::Mac);
-    km.default_single.clear();
-    km.default_c_x.clear();
-    km.default_c_c.clear();
-    km.insert_default(mutated.native, mutated.action, mutated.name);
+    km.replace_defaults_for_test(mutated.native, mutated.action, mutated.name);
     assert_eq!(resolve_spec(&mut km, "Cmd-J").last(), Some(&Action::Save));
     assert_eq!(resolve_spec(&mut km, "Cmd-S").last(), Some(&Action::Ignore));
 }

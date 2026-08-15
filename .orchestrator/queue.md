@@ -19,12 +19,6 @@
    capture fold single-owned. Add a storyboard fixture that switches projects and
    proves later steps report the new project. Ready after wave one.
 
-3. **Keymap vocabulary/resolution modules (437)** — 🟡 IN PROGRESS — keymap worker
-   (codex), branch `codex/queue-437-keymap-modules`. Separate the `Action` vocabulary
-   and classification, stateful key resolution, and platform preset helpers while
-   retaining one public resolution path and exhaustive action classification. Prove
-   both conventions/flavors and Linux keep-list behavior through existing laws.
-
 ## Needs a person, hardware, or release authority
 
 1. **macOS release signing** — supply the Apple secrets required by
