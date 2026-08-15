@@ -68,8 +68,8 @@ reason = "The clobber-notice predicate MOVED OUT to `app/files/external.rs` besi
 
 [[file_size_mark]]
 file = "src/app/apply.rs"
-lines = 841
-reason = "The conflict workspace's summon reaches the live effect interpreter's one `PersistenceEffect` match and the one `apply_overlay_accept` roster, both exhaustive by design (+6). +34: `sync_theme_font_measured`, the ONE reshape door every live theme-font path now runs through so the leading edge can read the work it is deciding about — the alternative is the same measurement duplicated at the immediate, commit and deferred call sites, which is exactly the drift a single owner exists to prevent. +1 from item 273's residual (4): the Reference command's own arm/entry, the third consumer of the new open_bundled_doc owner. +30: the split-reach preview path — the theme arrow's presentable shape and the finish_shape_tail call that closes it inside the same redraw handler. +3: the door's descend and its resume path."
+lines = 833
+reason = "The conflict workspace's summon reaches the live effect interpreter's one `PersistenceEffect` match and the one `apply_overlay_accept` roster, both exhaustive by design (+6). +34: `sync_theme_font_measured`, the ONE reshape door every live theme-font path runs through. The split-reach preview path shapes the presentable prefix immediately; the quiet-settle owner finishes only the latest highlighted world's tail."
 
 [[file_size_mark]]
 file = "src/app/files/settings.rs"
@@ -105,8 +105,8 @@ reason = "`sync_view` is the ONE exhaustive `ViewState` construction site, so ev
 
 [[file_size_mark]]
 file = "src/app/window.rs"
-lines = 711
-reason = "The external-change check at focus return (+3, comment included). This is the boundary that replaces a filesystem watcher, and it belongs at the winit focus callback's own owner. +18: `fold_settled_theme_switch`, the settled-present transaction fold carved OUT of the redraw handler (which it kept over the 100-line clippy ceiling) into its own named owner, plus the scheduling and acquire phases it now records. +8: finish_shape_tail runs before on_redraw_requested returns, which is what makes the tail same-step rather than deferred."
+lines = 704
+reason = "The external-change check at focus return belongs at the winit focus callback. `fold_settled_theme_switch` owns the settled-present transaction and its scheduling/acquire phases. Preview redraw deliberately leaves superseded off-screen shaping debt to the latest-wins quiet settle."
 
 [[file_size_mark]]
 file = "src/background.rs"
@@ -285,7 +285,7 @@ lines = 559
 
 [[file_size_mark]]
 file = "src/render.rs"
-lines = 2747
+lines = 2743
 reason = "The footer plate earns the notice channel's own one-pixel rim, which is what lifts it from delta-E 1.91 to 54 on Cassowary -- a plate nobody can see is not a plate. +10: the `footer_plate_rim` pipeline field and its construction, on the file whose GPU floor is a declared exception. +34: the `Millis` family and its `progress_per` door -- the BY-KIND exclusion that makes a duration uncarryable into a pixel multiply, so the compiler refuses `metrics.px(a_duration)` instead of a name list promising nobody will try. Plus the declaration doc comments for `PAGE_TEXT_PAD_CHARS` and the two caret pads, each naming which scale factor it is entitled to -- the classification's evidence lives at the declaration, because a classification whose reason lives in a test is the one that gets re-guessed. Item 355 (+14): `Logical` reaches the theme layer -- the doc for `PageFrame::Line`'s stroke and for the `RenderCaps` spell gap, plus the two further caret-corner call sites that were scaled by nothing whatever. The docs are the deliverable here: a length whose type says `Logical` still needs the sentence saying which pipeline resolves it, because this family already shipped one field named `_px` that no consumer reads at all. +15: `HudDefaults`, `WhichKeyDefaults`, and `DebugDefaults` make each inert field group one exhaustive default value; these declarations live beside `TextPipeline`, the only owner that embeds them. +13: the ShapeReach door and the unshaped-line sentinel the viewport culls now reject — an unshaped line used to report 0.0, which every cull ACCEPTS. +23: `Metrics` carries `dpi` beside `scale`, because grow-only is a ZOOM policy and flooring it against the product made the floor's binding regime a property of the panel — the same logical window drew a 20% narrower card on Retina at the shipped zoom."
 
 [[file_size_mark]]
