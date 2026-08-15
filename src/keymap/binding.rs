@@ -1,4 +1,6 @@
-use super::*;
+use winit::keyboard::{Key, ModifiersState, SmolStr};
+
+use super::Chord;
 
 pub(super) fn canon_key(key: &Key) -> Key {
     match key {
