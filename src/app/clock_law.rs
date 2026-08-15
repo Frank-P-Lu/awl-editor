@@ -135,10 +135,10 @@ fn scan_dir(
     dir: &std::path::Path,
     counts: &mut std::collections::BTreeMap<String, usize>,
 ) {
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        return;
-    };
-    for entry in entries.flatten() {
+    let entries = std::fs::read_dir(dir)
+        .unwrap_or_else(|e| panic!("scan root {dir:?} must be readable: {e}"));
+    for entry in entries {
+        let entry = entry.unwrap_or_else(|e| panic!("scan entry in {dir:?} must be readable: {e}"));
         let path = entry.path();
         if path.is_dir() {
             if path.file_name().and_then(|n| n.to_str()) == Some("tests") {
@@ -157,9 +157,8 @@ fn scan_dir(
         if fname == "tests.rs" || fname == "clock_law.rs" {
             continue;
         }
-        let Ok(text) = std::fs::read_to_string(&path) else {
-            continue;
-        };
+        let text = std::fs::read_to_string(&path)
+            .unwrap_or_else(|e| panic!("scanned source {path:?} must be readable: {e}"));
         let n = scan_file(&text);
         if n == 0 {
             continue;
@@ -180,11 +179,11 @@ fn app_module_reads_time_only_through_the_clock_seam() {
 
     // The `app` module = the root file `src/app.rs` + everything under `src/app/`.
     let app_rs = src_root.join("app.rs");
-    if let Ok(text) = std::fs::read_to_string(&app_rs) {
-        let n = scan_file(&text);
-        if n > 0 {
-            counts.insert("app.rs".to_string(), n);
-        }
+    let text = std::fs::read_to_string(&app_rs)
+        .unwrap_or_else(|e| panic!("{app_rs:?} must be readable: {e}"));
+    let n = scan_file(&text);
+    if n > 0 {
+        counts.insert("app.rs".to_string(), n);
     }
     scan_dir(&src_root, &src_root.join("app"), &mut counts);
 

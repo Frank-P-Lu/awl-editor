@@ -144,10 +144,13 @@ fn scan_file(text: &str) -> Vec<(usize, String)> {
 /// `tests.rs` — the exact exemption shape `println_audit.rs` uses, since
 /// that's where a real per-world identity check legitimately lives.
 fn scan_dir(base: &std::path::Path, dir: &std::path::Path, out: &mut Vec<(String, usize, String)>) {
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        return;
-    };
-    let mut entries: Vec<_> = entries.flatten().collect();
+    let entries = std::fs::read_dir(dir)
+        .unwrap_or_else(|e| panic!("scan root {dir:?} must be readable: {e}"));
+    let mut entries: Vec<_> = entries
+        .map(|entry| {
+            entry.unwrap_or_else(|e| panic!("scan entry in {dir:?} must be readable: {e}"))
+        })
+        .collect();
     entries.sort_by_key(|e| e.path());
     for entry in entries {
         let path = entry.path();
@@ -198,9 +201,8 @@ fn scan_dir(base: &std::path::Path, dir: &std::path::Path, out: &mut Vec<(String
         if fname == "framebench.rs" || fname == "perfbench.rs" {
             continue;
         }
-        let Ok(text) = std::fs::read_to_string(&path) else {
-            continue;
-        };
+        let text = std::fs::read_to_string(&path)
+            .unwrap_or_else(|e| panic!("scanned source {path:?} must be readable: {e}"));
         let rel = path
             .strip_prefix(base)
             .unwrap_or(&path)
@@ -222,10 +224,10 @@ fn render_never_reads_is_one_bit_or_hardcodes_a_world_name() {
     // `src/render.rs` itself (the GPU-core file, sibling to the `render/`
     // dir) is the crate::render module root too — scan it explicitly.
     let render_rs = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/render.rs");
-    if let Ok(text) = std::fs::read_to_string(&render_rs) {
-        for (line, reason) in scan_file(&text) {
-            hits.push(("../render.rs".to_string(), line, reason));
-        }
+    let text = std::fs::read_to_string(&render_rs)
+        .unwrap_or_else(|e| panic!("{render_rs:?} must be readable: {e}"));
+    for (line, reason) in scan_file(&text) {
+        hits.push(("../render.rs".to_string(), line, reason));
     }
 
     assert!(

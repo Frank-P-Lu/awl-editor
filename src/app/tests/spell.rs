@@ -18,19 +18,22 @@
 use super::*;
 use std::path::PathBuf;
 
+fn require_dictionary() {
+    crate::spell::SpellChecker::new(crate::spell::DictVariant::EnUs)
+        .expect("bundled en_US dictionary must be present for spell-cache laws");
+}
+
 /// EAGER: a rescan run right after an edit already reflects the CURRENT text
 /// — the cache holds no leftover verdict for a word that's since been fixed.
 /// Mirrors what `App::sync_view`'s eager version check does on every text
 /// change (no debounce step for the cache to "catch up" through).
 #[test]
 fn recompute_spell_cache_reflects_the_current_text_immediately() {
-    if crate::spell::SpellChecker::new(crate::spell::DictVariant::EnUs).is_err() {
-        return; // bundled dictionary unavailable in this environment
-    }
+    require_dictionary();
     let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
     app.document
         .replace_buffer(Buffer::from_str("helo world\n"));
-    app.recompute_spell_cache();
+    app.sync_spell_cache();
     let visible = crate::spell::visible(app.document.spell_cache(), &app.document.buffer().text());
     assert_eq!(visible.len(), 1, "helo starts out flagged: {visible:?}");
     assert_eq!((visible[0].start_col, visible[0].end_col), (0, 4));
@@ -42,10 +45,10 @@ fn recompute_spell_cache_reflects_the_current_text_immediately() {
     app.document.insert_text("l");
     assert_eq!(app.document.buffer().text(), "hello world\n");
 
-    // EAGER rescan (what the very next `sync_view` does): the cache is fresh
+    // The live `sync_view` helper rescans eagerly: the cache is fresh
     // again immediately — no leftover flagged span for the now-correct word,
     // and nothing else newly flagged either.
-    app.recompute_spell_cache();
+    app.sync_spell_cache();
     let visible2 = crate::spell::visible(app.document.spell_cache(), &app.document.buffer().text());
     assert!(
         visible2.is_empty(),
@@ -61,13 +64,11 @@ fn recompute_spell_cache_reflects_the_current_text_immediately() {
 /// can't show a stale squiggle over text that has since changed.
 #[test]
 fn a_stale_cache_never_paints_through_the_visible_filter_after_an_edit() {
-    if crate::spell::SpellChecker::new(crate::spell::DictVariant::EnUs).is_err() {
-        return;
-    }
+    require_dictionary();
     let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
     app.document
         .replace_buffer(Buffer::from_str("helo world\n"));
-    app.recompute_spell_cache();
+    app.sync_spell_cache();
     let stale_cache = app.document.spell_cache().to_vec();
     assert_eq!(
         crate::spell::visible(&stale_cache, &app.document.buffer().text()).len(),
@@ -95,12 +96,10 @@ fn a_stale_cache_never_paints_through_the_visible_filter_after_an_edit() {
 /// (idempotent — a second eager pass changes nothing).
 #[test]
 fn eager_rescan_fixes_only_the_edited_word_leaving_a_real_typo_flagged() {
-    if crate::spell::SpellChecker::new(crate::spell::DictVariant::EnUs).is_err() {
-        return;
-    }
+    require_dictionary();
     let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
     app.document.replace_buffer(Buffer::from_str("helo wrld\n"));
-    app.recompute_spell_cache();
+    app.sync_spell_cache();
     let v1 = crate::spell::visible(app.document.spell_cache(), &app.document.buffer().text());
     assert_eq!(v1.len(), 2, "both helo and wrld start out flagged: {v1:?}");
 
@@ -109,7 +108,7 @@ fn eager_rescan_fixes_only_the_edited_word_leaving_a_real_typo_flagged() {
     app.document.set_cursor(idx);
     app.document.insert_text("l");
     assert_eq!(app.document.buffer().text(), "hello wrld\n");
-    app.recompute_spell_cache();
+    app.sync_spell_cache();
 
     let v2 = crate::spell::visible(app.document.spell_cache(), &app.document.buffer().text());
     assert_eq!(v2.len(), 1, "only wrld remains flagged: {v2:?}");
@@ -120,7 +119,7 @@ fn eager_rescan_fixes_only_the_edited_word_leaving_a_real_typo_flagged() {
     );
 
     // A second eager pass over UNCHANGED text is idempotent.
-    app.recompute_spell_cache();
+    app.sync_spell_cache();
     let v3 = crate::spell::visible(app.document.spell_cache(), &app.document.buffer().text());
     assert_eq!(
         v3, v2,
