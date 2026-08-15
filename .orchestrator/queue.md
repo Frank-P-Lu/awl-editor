@@ -71,7 +71,8 @@ axis that remains hardware-bounded.
 
 ### 443 — make toast expiry repaint an idle live window
 
-Ready after a worker slot opens.
+🟡 IN PROGRESS — toast_idle_443 (codex, gpt-5.6-terra medium), branch
+`codex/queue-443-toast-idle`, worktree `.worktrees/queue-443-toast-idle`
 
 The shared 2500 ms toast lifetime expires correctly in pure scheduling state,
 but a live static window was observed retaining the pixels until the next key
