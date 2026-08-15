@@ -6,7 +6,7 @@
 //! randomized/spread point DURING a burst of atomic writes, then asserts on
 //! re-read that the target file is EITHER the old content or the new
 //! content — NEVER torn — WITNESSING the guarantee `crate::fs::write_atomic`
-//! (documented in `src/fs.rs`) only ever argues for in prose.
+//! (documented in `src/fs/paths.rs`) only ever argues for in prose.
 //!
 //! **The mechanism:** the child runs the hidden `--fault-write-loop <path>
 //! <count>` flag (`main.rs`), which calls the real `write_atomic` `count`

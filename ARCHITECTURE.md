@@ -104,6 +104,10 @@ name); behavior is byte-identical. Submodules are listed under each root below.
 - `keyspec.rs` — `parse_keys("C-n M-> …") → Vec<Action>`: parses emacs key-spec
   strings by driving the *real* keymap. The headless analog of typing; powers
   `--keys`.
+- `fs.rs` — the one `FileSystem` trait and public filesystem façade.
+  → `fs/`: `native` (real disk), `memory` (tests + strict replay sandbox),
+  `web` (localStorage + first-load seeds), `paths` (atomic write + shared
+  path derivation), `active` (the swappable backend + guarded CWD globals).
 - `buffer.rs` — the document: a ropey rope, edit ops, cursor, undo/redo grouping,
   mark/anchor primitives.
   → `buffer/`: `edit`, `selection`, `motion`, `undo`, `focus`, `notes`, `tests`.

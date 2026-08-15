@@ -381,15 +381,11 @@ mod tests {
     //     primitive per this round's own instructions ("crashlog's mid-panic
     //     writer stays deliberately primitive") — a panicking thread must
     //     not risk taking a lock or doing a fancier multi-step write.
-    //   src/fs.rs (4)        — the FileSystem trait's OWN primitive `write`
-    //     implementations (`NativeFs`, `WebFs`) PLUS `write_atomic`'s own
-    //     internal write of the tmp sibling, PLUS one `#[cfg(test)]` seed
-    //     helper (`seed_write_if_absent`, write-IF-ABSENT — never overwrites
-    //     existing content, so a tear can only ever produce a still-absent
-    //     or still-fresh file, never corrupt a returning visitor's data).
-    //     These four ARE the primitive `write_atomic` and every store above
-    //     it are built out of — they cannot recursively route through
-    //     themselves.
+    //   src/fs.rs + src/fs/{native,paths,web}.rs (1 each) — an in-memory test
+    //     seed, `NativeFs`'s primitive, `write_atomic`'s tmp-sibling write,
+    //     and `seed_write_if_absent`. The latter never overwrites existing
+    //     content; a tear cannot corrupt a returning visitor's data. The three
+    //     production primitives cannot recursively route through themselves.
     //   src/app/tests/{buffers,lifecycle}.rs, src/app/daemon.rs, src/buffers.rs,
     //   src/daemon.rs, src/history/tests.rs, src/index.rs, src/main/tests/*.rs
     //     — every one of these is INSIDE a `#[cfg(test)]` module, seeding a
@@ -432,7 +428,10 @@ mod tests {
             ("export/pdf/tests.rs", 1),
             ("export/tests.rs", 1),
             ("firstrun/tests.rs", 1),
-            ("fs.rs", 4),
+            ("fs.rs", 1),
+            ("fs/native.rs", 1),
+            ("fs/paths.rs", 1),
+            ("fs/web.rs", 1),
             ("history/tests.rs", 1),
             // Four are pre-existing index fixtures; four more seed
             // `go_to_index_does_not_descend_a_symlinked_dir`'s real scratch
