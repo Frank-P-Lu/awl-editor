@@ -1,4 +1,4 @@
-//! The closed PDF font world: four repository-owned OFL faces and no system
+//! The closed PDF font world: repository-owned OFL faces and no system
 //! database. Shaping uses the complete faces; embedding rebuilds each TrueType
 //! face with only this document's glyph outlines (plus composite dependencies).
 
@@ -14,9 +14,20 @@ pub(super) enum FontRole {
     SerifBold,
     Mono,
     MonoBold,
+    JapaneseSerif,
+    JapaneseSans,
 }
 
-pub(super) const ROLES: [FontRole; 4] = [
+pub(super) const ROLES: [FontRole; 6] = [
+    FontRole::Serif,
+    FontRole::SerifBold,
+    FontRole::Mono,
+    FontRole::MonoBold,
+    FontRole::JapaneseSerif,
+    FontRole::JapaneseSans,
+];
+
+pub(super) const BASE_ROLES: [FontRole; 4] = [
     FontRole::Serif,
     FontRole::SerifBold,
     FontRole::Mono,
@@ -31,7 +42,7 @@ pub(super) struct FontAsset {
     pub weight: u16,
 }
 
-pub(super) const ASSETS: [FontAsset; 4] = [
+pub(super) const ASSETS: [FontAsset; 6] = [
     FontAsset {
         role: FontRole::Serif,
         family: "Bitter",
@@ -60,13 +71,27 @@ pub(super) const ASSETS: [FontAsset; 4] = [
         bytes: include_bytes!("../../../assets/fonts/IBMPlexMono-Bold.ttf"),
         weight: 700,
     },
+    FontAsset {
+        role: FontRole::JapaneseSerif,
+        family: "Noto Serif JP",
+        pdf_name: "AWLNotoSerifJP-Regular",
+        bytes: include_bytes!("../../../assets/fonts/NotoSerifJP-Regular.ttf"),
+        weight: 400,
+    },
+    FontAsset {
+        role: FontRole::JapaneseSans,
+        family: "Noto Sans JP",
+        pdf_name: "AWLNotoSansJP-Regular",
+        bytes: include_bytes!("../../../assets/fonts/NotoSansJP-Regular.ttf"),
+        weight: 400,
+    },
 ];
 
 /// The immutable source faces behind the PDF coverage checks. Parsing a
 /// TrueType directory for every scalar made ordinary export text needlessly pay
 /// the font-load cost; the bundled bytes are static, so one parsed face per role
 /// is sufficient for the process lifetime.
-static FACES: LazyLock<[Face<'static>; 4]> = LazyLock::new(|| {
+static FACES: LazyLock<[Face<'static>; 6]> = LazyLock::new(|| {
     std::array::from_fn(|index| {
         let asset = &ASSETS[index];
         Face::parse(asset.bytes, 0).expect("verified bundled PDF face")
@@ -79,10 +104,13 @@ pub(super) struct Fonts {
 }
 
 impl Fonts {
-    pub fn new() -> Self {
+    pub fn new(include_japanese: bool) -> Self {
         let mut db = fontdb::Database::new();
         let mut ids = BTreeMap::new();
-        for asset in &ASSETS {
+        for asset in ASSETS
+            .iter()
+            .filter(|asset| include_japanese || BASE_ROLES.contains(&asset.role))
+        {
             assert!(
                 embedding_is_permitted(asset),
                 "bundled PDF font {} does not permit outline embedding",
@@ -119,6 +147,8 @@ pub(super) const fn role_index(role: FontRole) -> usize {
         FontRole::SerifBold => 1,
         FontRole::Mono => 2,
         FontRole::MonoBold => 3,
+        FontRole::JapaneseSerif => 4,
+        FontRole::JapaneseSans => 5,
     }
 }
 
@@ -130,11 +160,46 @@ pub(super) fn has_glyph(role: FontRole, ch: char) -> bool {
     face(role).glyph_index(ch).is_some()
 }
 
+/// Resolve one scalar without letting a broad CJK font replace Latin
+/// typography. Han, kana, and their punctuation use the Japanese face that
+/// matches the source context; everything else stays in the requested face or
+/// takes the existing visible fallback.
+pub(super) fn role_for_char(role: FontRole, ch: char) -> Option<FontRole> {
+    if ch == '\n' || has_glyph(role, ch) {
+        return Some(role);
+    }
+    if !is_japanese_scalar(ch) {
+        return None;
+    }
+    let fallback = match role {
+        FontRole::Serif | FontRole::SerifBold | FontRole::JapaneseSerif => FontRole::JapaneseSerif,
+        FontRole::Mono | FontRole::MonoBold | FontRole::JapaneseSans => FontRole::JapaneseSans,
+    };
+    has_glyph(fallback, ch).then_some(fallback)
+}
+
+pub(super) fn is_japanese_scalar(ch: char) -> bool {
+    if matches!(
+        crate::script::classify_char(ch),
+        Some(crate::script::Script::Kana | crate::script::Script::Han)
+    ) {
+        return true;
+    }
+    matches!(
+        ch as u32,
+        0x3000..=0x303f | 0xff01..=0xff9f | 0xffe0..=0xffee
+    )
+}
+
+pub(super) const fn is_bold_role(role: FontRole) -> bool {
+    matches!(role, FontRole::SerifBold | FontRole::MonoBold)
+}
+
 /// Fixed, representative coverage probe for the CLI micro-benchmark. Keeping
 /// this beside [`has_glyph`] means the benchmark cannot drift to a different
 /// lookup than PDF export actually performs.
 pub(super) fn glyph_probe() -> usize {
-    const SCALARS: &str = "The quick brown fox — café 123 []{}() 😀 🦉";
+    const SCALARS: &str = "The quick brown fox — café 123 []{}() 日本語 😀 🦉";
     ROLES
         .iter()
         .copied()
@@ -383,108 +448,4 @@ pub(super) fn descriptor(role: FontRole) -> Descriptor {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[derive(Default)]
-    struct SegmentCount(usize);
-
-    impl ttf_parser::OutlineBuilder for SegmentCount {
-        fn move_to(&mut self, _: f32, _: f32) {
-            self.0 += 1;
-        }
-        fn line_to(&mut self, _: f32, _: f32) {
-            self.0 += 1;
-        }
-        fn quad_to(&mut self, _: f32, _: f32, _: f32, _: f32) {
-            self.0 += 1;
-        }
-        fn curve_to(&mut self, _: f32, _: f32, _: f32, _: f32, _: f32, _: f32) {
-            self.0 += 1;
-        }
-        fn close(&mut self) {
-            self.0 += 1;
-        }
-    }
-
-    #[test]
-    fn pdf_faces_are_true_type_installable_ofl_inventory_faces() {
-        for face in &ASSETS {
-            let parsed = Face::parse(face.bytes, 0).expect(face.pdf_name);
-            assert_eq!(
-                parsed.permissions(),
-                Some(Permissions::Installable),
-                "{} fsType",
-                face.pdf_name
-            );
-            assert!(
-                embedding_is_permitted(face),
-                "{} outline embedding",
-                face.pdf_name
-            );
-            // Subsetting is both technically supported by these `glyf` faces and
-            // permitted by their installable-embedding license bits.
-            assert!(
-                parsed.is_subsetting_allowed(),
-                "{} subsetting permitted by license",
-                face.pdf_name
-            );
-            assert!(parsed.tables().cmap.is_some(), "{} cmap", face.pdf_name);
-            assert!(parsed.tables().glyf.is_some(), "{} glyf", face.pdf_name);
-            assert!(parsed.tables().hmtx.is_some(), "{} hmtx", face.pdf_name);
-        }
-        let inventory = crate::embedded_docs::FONT_LICENSES_MD;
-        let ofl = crate::embedded_docs::FONT_OFL_TXT;
-        for file in [
-            "Bitter-Regular.ttf",
-            "Bitter-Bold.ttf",
-            "IBMPlexMono-Light.ttf",
-            "IBMPlexMono-Bold.ttf",
-        ] {
-            assert!(
-                inventory.contains(file),
-                "missing inventory record for {file}"
-            );
-        }
-        assert!(ofl.contains("SIL OPEN FONT LICENSE Version 1.1"));
-    }
-
-    #[test]
-    fn cached_coverage_lookup_matches_every_bundled_face() {
-        for asset in &ASSETS {
-            let parsed = Face::parse(asset.bytes, 0).expect(asset.pdf_name);
-            for ch in "Awl café — []{}() 😀 🦉\n".chars() {
-                assert_eq!(
-                    has_glyph(asset.role, ch),
-                    parsed.glyph_index(ch).is_some(),
-                    "{} coverage for {ch:?}",
-                    asset.pdf_name
-                );
-            }
-        }
-    }
-
-    #[test]
-    fn subsets_preserve_composite_outlines_and_sfnt_checksum() {
-        for asset in &ASSETS {
-            let source = Face::parse(asset.bytes, 0).unwrap();
-            let id = source.glyph_index('é').expect("PDF faces contain e-acute");
-            let bytes = subset(asset.role, &BTreeSet::from([id.0]));
-            assert_eq!(checksum(&bytes), 0xB1B0_AFBA, "{} checksum", asset.pdf_name);
-            let subset = Face::parse(&bytes, 0).unwrap();
-            let mut source_segments = SegmentCount::default();
-            let mut subset_segments = SegmentCount::default();
-            assert_eq!(
-                source.outline_glyph(id, &mut source_segments),
-                subset.outline_glyph(id, &mut subset_segments),
-                "{} outline bounds",
-                asset.pdf_name
-            );
-            assert_eq!(
-                source_segments.0, subset_segments.0,
-                "{} composite components",
-                asset.pdf_name
-            );
-        }
-    }
-}
+mod tests;

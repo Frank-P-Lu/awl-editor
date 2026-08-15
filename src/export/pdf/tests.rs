@@ -1,4 +1,5 @@
 mod fixture;
+mod japanese;
 mod parser;
 mod semantic;
 
@@ -7,7 +8,7 @@ use std::path::PathBuf;
 
 use ttf_parser::{Face, GlyphId, Permissions};
 
-use super::fonts::{ASSETS, ROLES};
+use super::fonts::{ASSETS, BASE_ROLES};
 use super::layout::{MARGIN_X, MARGIN_Y, MEASURE, PAGE_H, PAGE_W, PROSE_CHARS};
 use super::*;
 use crate::export::model;
@@ -124,15 +125,16 @@ fn pdf_has_exact_classic_xref_object_plan_pages_and_a4_geometry() {
 }
 
 #[test]
-fn four_repository_fonts_are_per_document_glyph_subsets() {
+fn latin_repository_fonts_are_per_document_glyph_subsets() {
     let (_, bytes) = rich_bytes();
     let pdf = Pdf::parse(&bytes);
     let inventory = crate::embedded_docs::FONT_LICENSES_MD;
     let ofl = crate::embedded_docs::FONT_OFL_TXT;
     assert!(ofl.contains("SIL OPEN FONT LICENSE Version 1.1"));
 
-    for (index, asset) in ASSETS.iter().enumerate() {
-        assert_eq!(asset.role, ROLES[index]);
+    for (index, role) in BASE_ROLES.iter().enumerate() {
+        let asset = &ASSETS[index];
+        assert_eq!(asset.role, *role);
         let base = 3 + index as u32 * 5;
         let type0 = pdf.object(base).text();
         let cid = pdf.object(base + 1).text();
