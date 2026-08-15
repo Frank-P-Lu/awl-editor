@@ -62,6 +62,23 @@ pub(super) fn markdown() -> String {
     out
 }
 
+pub(super) fn japanese_markdown() -> String {
+    let mut out = String::from(concat!(
+        "# 日本語 PDF\n\n",
+        "通常文かな。English stays Bitter. **強調字** and `符号列` plus **`太字コード`**.\n\n",
+        "[参照先](https://example.com/japanese) keeps its link rectangle.\n\n",
+        "| 項目 | 内容 |\n|---|---|\n| 一 | 表のセル |\n| 二 | mixed text |\n\n",
+        "```text\nコードブロックが読める\n```\n",
+    ));
+    for i in 0..52 {
+        out.push_str(&format!(
+            "\n段落 {i:02}：日本語の文字と English words preserve wrapping, page breaks, and extraction.\n"
+        ));
+    }
+    out.push_str("\n最終ページの印。\n");
+    out
+}
+
 pub(super) fn png_rgba() -> [u8; 8] {
     [0x20, 0x40, 0x60, 0x80, 0x80, 0x60, 0x40, 0xff]
 }

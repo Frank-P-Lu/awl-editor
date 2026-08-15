@@ -2,13 +2,28 @@ use std::collections::BTreeMap;
 
 use crate::export::model::{Block, Document, Inline};
 
+use super::super::fonts::{ROLES, role_index};
 use super::parser::{Pdf, decode_utf16_hex, hex_value_after};
 
 pub(super) fn recover_page_text(pdf: &Pdf<'_>) -> Vec<String> {
-    let cmaps = [7, 12, 17, 22]
-        .into_iter()
-        .map(|id| parse_cmap(pdf.object(id).stream().unwrap()))
-        .collect::<Vec<_>>();
+    let cmaps = ROLES
+        .iter()
+        .flat_map(|role| {
+            let font = role_index(*role) + 1;
+            pdf.objects
+                .values()
+                .find(|object| {
+                    let text = object.text();
+                    text.contains("/CMapName /")
+                        && text.contains(super::super::fonts::asset(*role).pdf_name)
+                })
+                .map(|object| parse_cmap(object.stream().unwrap()))
+                .unwrap_or_default()
+                .into_iter()
+                .map(move |(glyph, text)| ((font, glyph), text))
+                .collect::<Vec<_>>()
+        })
+        .collect::<BTreeMap<_, _>>();
     pdf.page_streams()
         .into_iter()
         .map(|stream| {
@@ -18,17 +33,23 @@ pub(super) fn recover_page_text(pdf: &Pdf<'_>) -> Vec<String> {
             for line in content.lines() {
                 if line.starts_with("/Span << /ActualText <") {
                     actual = Some(decode_utf16_hex(hex_value_after(line, "/ActualText <")));
-                } else if line.starts_with("BT /F") {
+                } else if line.contains("BT /F") {
                     let words = line.split_whitespace().collect::<Vec<_>>();
-                    let font = words[1].trim_start_matches("/F").parse::<usize>().unwrap() - 1;
+                    let font = words
+                        .iter()
+                        .find(|word| word.starts_with("/F"))
+                        .unwrap()
+                        .trim_start_matches("/F")
+                        .parse::<usize>()
+                        .unwrap();
                     let glyph = words
                         .iter()
                         .find(|word| word.starts_with('<') && word.ends_with('>'))
                         .map(|word| u16::from_str_radix(&word[1..word.len() - 1], 16).unwrap())
                         .unwrap();
-                    let mapped = cmaps[font]
-                        .get(&glyph)
-                        .unwrap_or_else(|| panic!("F{} glyph {glyph} lacks ToUnicode", font + 1));
+                    let mapped = cmaps
+                        .get(&(font, glyph))
+                        .unwrap_or_else(|| panic!("F{font} glyph {glyph} lacks ToUnicode"));
                     recovered.push_str(actual.take().as_deref().unwrap_or(mapped));
                 }
             }

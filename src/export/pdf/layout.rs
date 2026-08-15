@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 use glyphon::{Attrs, Buffer, Family, Metrics, Shaping, Weight, Wrap};
 
 use super::super::model::{Block, Document, ImageSource, Inline};
-use super::fonts::{FontRole, Fonts, asset};
+use super::fonts::{FontRole, Fonts, ROLES, asset, is_japanese_scalar};
 use super::images::PdfImage;
 use super::inline::{Piece, Style, flatten};
 
@@ -23,7 +23,7 @@ const BOTTOM: f32 = PAGE_H - MARGIN_Y;
 pub(super) struct Layout {
     pub pages: Vec<Page>,
     pub images: Vec<PdfImage>,
-    pub unicode: [BTreeMap<u16, String>; 4],
+    pub unicode: [BTreeMap<u16, String>; ROLES.len()],
 }
 
 #[derive(Default)]
@@ -66,6 +66,7 @@ pub(super) struct GlyphOp {
     pub y: f32,
     pub italic: bool,
     pub actual: String,
+    pub embolden: bool,
 }
 
 pub(super) struct LinkRect {
@@ -95,7 +96,7 @@ pub(super) struct ShapedLine {
 
 pub(super) fn build(doc: &Document, images: &dyn ImageSource) -> Layout {
     let mut engine = Engine {
-        fonts: Fonts::new(),
+        fonts: Fonts::new(document_uses_japanese(doc)),
         images_source: images,
         pages: vec![Page::default()],
         page: 0,
@@ -111,6 +112,36 @@ pub(super) fn build(doc: &Document, images: &dyn ImageSource) -> Layout {
     }
 }
 
+fn document_uses_japanese(doc: &Document) -> bool {
+    fn inlines(nodes: &[Inline]) -> bool {
+        nodes.iter().any(|node| match node {
+            Inline::Text(text) | Inline::Code(text) => text.chars().any(is_japanese_scalar),
+            Inline::Strong(children)
+            | Inline::Emphasis(children)
+            | Inline::Strikethrough(children)
+            | Inline::Highlight(children)
+            | Inline::Link { children, .. } => inlines(children),
+            Inline::Image { alt, .. } => alt.chars().any(is_japanese_scalar),
+            Inline::SoftBreak | Inline::HardBreak => false,
+        })
+    }
+    fn blocks(nodes: &[Block]) -> bool {
+        nodes.iter().any(|block| match block {
+            Block::Heading { inlines: text, .. } | Block::Paragraph(text) => inlines(text),
+            Block::BlockQuote(children) => blocks(children),
+            Block::CodeBlock { code, .. } => code.chars().any(is_japanese_scalar),
+            Block::List(list) => list.items.iter().any(|item| blocks(&item.blocks)),
+            Block::Table(table) => table
+                .head
+                .iter()
+                .chain(table.rows.iter().flatten())
+                .any(|cell| inlines(cell)),
+            Block::Rule => false,
+        })
+    }
+    blocks(&doc.blocks)
+}
+
 pub(super) struct Engine<'a> {
     pub fonts: Fonts,
     pub images_source: &'a dyn ImageSource,
@@ -118,7 +149,7 @@ pub(super) struct Engine<'a> {
     pub page: usize,
     pub y: f32,
     pub images: Vec<PdfImage>,
-    pub unicode: [BTreeMap<u16, String>; 4],
+    pub unicode: [BTreeMap<u16, String>; ROLES.len()],
 }
 
 impl Engine<'_> {

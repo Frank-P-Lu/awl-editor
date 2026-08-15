@@ -2,7 +2,7 @@
 //! replaced before shaping, with their original value retained as ActualText.
 
 use super::super::model::Inline;
-use super::fonts::{FontRole, fallback_char, has_glyph};
+use super::fonts::{FontRole, fallback_char, is_bold_role, role_for_char};
 
 #[derive(Clone, Debug)]
 pub(super) struct Style {
@@ -15,6 +15,9 @@ pub(super) struct Style {
     pub code: bool,
     pub link: Option<String>,
     pub actual: Option<String>,
+    /// The Japanese fallback faces ship at Regular only. Strong prose and
+    /// strong code retain emphasis with a restrained PDF text stroke.
+    pub embolden: bool,
 }
 
 impl Style {
@@ -29,6 +32,7 @@ impl Style {
             code: false,
             link: None,
             actual: None,
+            embolden: false,
         }
     }
 }
@@ -61,6 +65,8 @@ fn visit(inlines: &[Inline], style: &Style, out: &mut Vec<Piece>) {
                 next.role = match next.role {
                     FontRole::Serif | FontRole::SerifBold => FontRole::SerifBold,
                     FontRole::Mono | FontRole::MonoBold => FontRole::MonoBold,
+                    FontRole::JapaneseSerif => FontRole::JapaneseSerif,
+                    FontRole::JapaneseSans => FontRole::JapaneseSans,
                 };
                 visit(children, &next, out);
             }
@@ -111,19 +117,27 @@ fn visit(inlines: &[Inline], style: &Style, out: &mut Vec<Piece>) {
 
 fn push_checked(out: &mut Vec<Piece>, text: &str, style: &Style) {
     let mut supported = String::new();
-    let flush = |out: &mut Vec<Piece>, supported: &mut String| {
+    let mut supported_role = None;
+    let flush = |out: &mut Vec<Piece>, supported: &mut String, role: &mut Option<FontRole>| {
         if !supported.is_empty() {
+            let mut resolved = style.clone();
+            resolved.role = role.take().expect("non-empty PDF text has a font role");
+            resolved.embolden |= is_bold_role(style.role) && resolved.role != style.role;
             out.push(Piece::Text {
                 text: std::mem::take(supported),
-                style: style.clone(),
+                style: resolved,
             });
         }
     };
     for ch in text.chars() {
-        if ch == '\n' || has_glyph(style.role, ch) {
+        if let Some(role) = role_for_char(style.role, ch) {
+            if supported_role.is_some_and(|open| open != role) {
+                flush(out, &mut supported, &mut supported_role);
+            }
+            supported_role = Some(role);
             supported.push(ch);
         } else {
-            flush(out, &mut supported);
+            flush(out, &mut supported, &mut supported_role);
             let mut replacement = style.clone();
             replacement.actual = Some(ch.to_string());
             out.push(Piece::Text {
@@ -132,5 +146,5 @@ fn push_checked(out: &mut Vec<Piece>, text: &str, style: &Style) {
             });
         }
     }
-    flush(out, &mut supported);
+    flush(out, &mut supported, &mut supported_role);
 }

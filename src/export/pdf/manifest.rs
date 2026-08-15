@@ -5,7 +5,7 @@
 //! that glyphs, images, or annotations were actually painted.
 
 use super::super::model::{Align, Block, Document, Inline};
-use super::fonts::{FontRole, fallback_char, has_glyph};
+use super::fonts::{FontRole, fallback_char, role_for_char};
 use super::layout::Layout;
 
 pub(super) fn build(doc: &Document, layout: &Layout) -> Vec<u8> {
@@ -157,6 +157,8 @@ impl Manifest<'_> {
                     let bold = match role {
                         FontRole::Serif | FontRole::SerifBold => FontRole::SerifBold,
                         FontRole::Mono | FontRole::MonoBold => FontRole::MonoBold,
+                        FontRole::JapaneseSerif => FontRole::JapaneseSerif,
+                        FontRole::JapaneseSans => FontRole::JapaneseSans,
                     };
                     self.inlines(children, bold);
                     self.close();
@@ -217,7 +219,7 @@ impl Manifest<'_> {
     fn text(&mut self, kind: &str, text: &str, role: FontRole) {
         let missing = text
             .chars()
-            .filter(|ch| *ch != '\n' && !has_glyph(role, *ch))
+            .filter(|ch| role_for_char(role, *ch).is_none())
             .map(|ch| format!("U+{:04X}:U+{:04X}", ch as u32, fallback_char(role) as u32))
             .collect::<Vec<_>>();
         let attrs = if missing.is_empty() {

@@ -3,14 +3,16 @@
 
 use std::fmt::Write as _;
 
-use super::fonts::{FontRole, ROLES, asset, descriptor, glyph_widths, role_index, subset};
+use super::fonts::{
+    BASE_ROLES, FontRole, ROLES, asset, descriptor, glyph_widths, role_index, subset,
+};
 use super::layout::{GlyphOp, Layout, Op, PAGE_H, PAGE_W};
 
 const FONT_BASE: u32 = 3;
 const FONT_OBJECTS: u32 = 5;
 
 pub(super) fn emit(layout: &Layout, metadata: &[u8]) -> Vec<u8> {
-    let mut next = FONT_BASE + FONT_OBJECTS * ROLES.len() as u32;
+    let (active_roles, mut next) = active_role_plan(layout);
     let mut image_ids = Vec::new();
     for image in &layout.images {
         let main = next;
@@ -67,8 +69,8 @@ pub(super) fn emit(layout: &Layout, metadata: &[u8]) -> Vec<u8> {
         .into_bytes(),
     );
 
-    for role in ROLES {
-        write_font_objects(&mut objects, role, &layout.unicode[role_index(role)]);
+    for (index, role) in active_roles.iter().copied().enumerate() {
+        write_font_objects(&mut objects, index, role, &layout.unicode[role_index(role)]);
     }
     for (index, image) in layout.images.iter().enumerate() {
         let (main, alpha) = image_ids[index];
@@ -97,10 +99,10 @@ pub(super) fn emit(layout: &Layout, metadata: &[u8]) -> Vec<u8> {
     }
     objects[metadata_id as usize] = Some(stream("/Type /Metadata /Subtype /XML", metadata));
 
-    let font_resources = ROLES
+    let font_resources = active_roles
         .iter()
         .enumerate()
-        .map(|(i, _)| format!("/F{} {} 0 R", i + 1, font_type0_id(i)))
+        .map(|(i, role)| format!("/F{} {} 0 R", role_index(*role) + 1, font_type0_id(i)))
         .collect::<Vec<_>>()
         .join(" ");
     let image_resources = image_ids
@@ -138,17 +140,27 @@ pub(super) fn emit(layout: &Layout, metadata: &[u8]) -> Vec<u8> {
     finish(objects)
 }
 
+fn active_role_plan(layout: &Layout) -> (Vec<FontRole>, u32) {
+    let roles = ROLES
+        .iter()
+        .copied()
+        .filter(|role| BASE_ROLES.contains(role) || !layout.unicode[role_index(*role)].is_empty())
+        .collect::<Vec<_>>();
+    let next = FONT_BASE + FONT_OBJECTS * roles.len() as u32;
+    (roles, next)
+}
+
 fn font_type0_id(index: usize) -> u32 {
     FONT_BASE + index as u32 * FONT_OBJECTS
 }
 
 fn write_font_objects(
     objects: &mut [Option<Vec<u8>>],
+    object_index: usize,
     role: FontRole,
     unicode: &std::collections::BTreeMap<u16, String>,
 ) {
-    let index = role_index(role);
-    let base = font_type0_id(index);
+    let base = font_type0_id(object_index);
     let a = asset(role);
     let cid = base + 1;
     let desc_id = base + 2;
@@ -257,16 +269,29 @@ fn write_glyph(out: &mut String, g: &GlyphOp) {
         utf16_hex(&g.actual, true)
     )
     .unwrap();
-    writeln!(
-        out,
-        "BT /F{font} {:.3} Tf 1 0 {:.6} 1 {:.3} {:.3} Tm <{:04X}> Tj ET EMC",
-        g.size,
-        shear,
-        g.x,
-        PAGE_H - g.y,
-        g.glyph_id
-    )
-    .unwrap();
+    if g.embolden {
+        writeln!(
+            out,
+            "q 0.280 w BT /F{font} {:.3} Tf 2 Tr 1 0 {:.6} 1 {:.3} {:.3} Tm <{:04X}> Tj ET Q EMC",
+            g.size,
+            shear,
+            g.x,
+            PAGE_H - g.y,
+            g.glyph_id
+        )
+        .unwrap();
+    } else {
+        writeln!(
+            out,
+            "BT /F{font} {:.3} Tf 1 0 {:.6} 1 {:.3} {:.3} Tm <{:04X}> Tj ET EMC",
+            g.size,
+            shear,
+            g.x,
+            PAGE_H - g.y,
+            g.glyph_id
+        )
+        .unwrap();
+    }
 }
 
 fn stream(dict: &str, data: &[u8]) -> Vec<u8> {
