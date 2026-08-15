@@ -131,3 +131,42 @@ fn virtual_clock_frame_loop_is_deterministic_across_runs() {
         "the virtual-clock frame loop must be run-to-run deterministic"
     );
 }
+
+#[test]
+fn idle_toast_deadline_arms_one_wake_then_clears_and_requests_a_redraw() {
+    let _serial = crate::testlock::serial();
+    let clock = crate::clock::VirtualClock::new();
+    let mut app = App::new_hermetic(None, std::path::PathBuf::from("/"), Config::empty());
+    app.set_clock(Box::new(clock.clone()));
+    let deadline = crate::clock::Clock::now(&clock) + TOAST_LIFETIME;
+    app.frame.set_toast_notice("saved".into(), Some(deadline));
+
+    let sched = RecordingScheduler::new();
+    sched.begin_step();
+    app.step_scheduling(&sched);
+    assert_eq!(
+        sched.scheduled_this_step(),
+        Some(ControlFlow::WaitUntil(deadline)),
+        "an idle timed toast must wake the event loop exactly at its deadline"
+    );
+
+    clock.advance_ms(TOAST_LIFETIME.as_millis() as u64);
+    let input = app.input.scheduling_snapshot();
+    let document = app.document.scheduling_snapshot();
+    let config = app.config.scheduling_snapshot();
+    let outcome = app
+        .frame
+        .poll(crate::clock::Clock::now(&clock), input, document, config);
+    assert!(
+        outcome.expire_notice,
+        "the reached deadline expires the toast once"
+    );
+    assert!(
+        outcome.redraw,
+        "toast expiry must request the frame that removes its pixels"
+    );
+    assert!(
+        !app.frame.notice().active(),
+        "the expiry frame contains no notice"
+    );
+}
