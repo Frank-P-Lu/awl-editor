@@ -128,13 +128,8 @@ fn set_web_convention_from_ua_drives_convention_current_on_real_wasm() {
     assert_eq!(Convention::current(), Convention::Linux);
 }
 
-// ── PLATFORM-SCOPED COMMANDS: the REAL compiled-wasm filter + dispatch gate ──────
-//
-// These two prove the actual behavior in the actual wasm32 binary — not just the
-// pure `Platform::Web`-parameterized doors the native suite already covers
-// (`commands::tests`, `menu::tests`), which take an EXPLICIT platform and could in
-// principle diverge from what `cfg!(target_arch = "wasm32")` really resolves to on
-// this target. Only reachable here.
+// Exercise platform detection in the compiled wasm binary, not only explicit
+// `Platform::Web` parameters in native tests.
 
 /// `commands::visible()` — driven by `Platform::current()`'s real `cfg!` read —
 /// excludes every hide-listed command in the ACTUAL compiled wasm binary.
@@ -158,13 +153,10 @@ fn visible_commands_exclude_the_hide_list_on_real_wasm() {
             "{hidden} must not appear in the wasm-visible catalog: {names:?}"
         );
     }
-    // A representative always-available command survives.
     assert!(
         names.contains(&"Save"),
         "Save must stay visible on web: {names:?}"
     );
-    // Keybindings… stopped hiding once the web-config round gave it a real
-    // `config.toml` to persist rebinds into (`fs::web_config_path`).
     assert!(
         names.contains(&"Keybindings…"),
         "Keybindings… must be visible on web: {names:?}"

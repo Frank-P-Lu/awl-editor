@@ -1,15 +1,12 @@
-//! The ONE search/replace KEY-INTERCEPTION seam. While the isearch panel is
-//! open, EVERY key belongs to the search surface — printable chars extend the
+//! Search/replace key interception. While the panel is open, every key belongs
+//! to the search surface: printable chars extend the
 //! focused field, Backspace shortens it, C-s/C-r/arrows step matches, ⌘⌥c (mac)
 //! / M-c (Linux) toggles case, Tab/Cmd-R move between the find and replace
 //! fields, Enter accepts / replaces, Cmd-Enter replaces all, Esc/C-g aborts —
-//! and nothing
-//! ever reaches the keymap. BOTH drivers route through [`intercept`]: the live
+//! and nothing reaches the keymap. Both drivers route through [`intercept`]: the live
 //! window's `App::handle_search_key` (a thin delegate) and the headless
 //! `--keys` replay's search guard (`main/run.rs::replay_keys_mode`), so live
-//! editing and captured replay cannot drift (merge, don't align — this seam
-//! retired the documented "isearch-input gap" where a replayed char landed in
-//! the BUFFER instead of the query). Renderer-independent by construction: it
+//! editing and captured replay cannot drift. Renderer-independent by construction: it
 //! touches only the pure [`SearchState`] model and the [`Buffer`], and returns
 //! the one live-only consequence (a caret recoil) for the windowed caller to
 //! animate. The step/jump/abort/replace helpers are module-private — the only

@@ -280,36 +280,17 @@ pub(super) fn settled_viewstate(
     vstate.search_query = opts.search.clone().unwrap_or_default();
     vstate.search_active = search_active;
     vstate.search_case_sensitive = opts.search_case_sensitive;
-    // REPLACE mode: `--search-replace` (or a `--keys` replay of Cmd-R / Tab /
-    // Cmd-Option-F) reveals the labeled replace row + the key-hint line, surfaced
-    // here so both are verifiable. A `--keys` replay drives the panel through the
-    // SAME interception seam the live window uses (`crate::search::keys`), so the
-    // replayed replacement TEXT and the focused field fold in too; the bare
-    // `--search-replace` flag keeps its fresh-open shape (find field focused,
-    // empty replacement).
+    // Search replay and the live window share the same interception seam.
     vstate.search_replace_active = opts.search_replace_active;
     vstate.search_replacement = opts.search_replacement.clone();
     vstate.search_editing_replacement = opts.search_editing_replacement;
-    // This synthetic capture-opts path (`CaptureOpts`/`OverlayInfo`)
-    // has no caret concept of its own (a `--keys` replay's word-motion caret
-    // isn't threaded through it yet), so both fields render their caret at the
-    // END — the ONE position every field always rendered at, so
-    // this stays byte-identical to the pre-item-10 capture behavior.
+    // Synthetic capture options do not carry field carets, so use the end.
     vstate.search_query_caret = vstate.search_query.chars().count();
     vstate.search_replacement_caret = vstate.search_replacement.chars().count();
     vstate.overlay_active = opts.overlay.as_ref().map(|o| o.active).unwrap_or(false);
-    // The alignment the overlay
-    // FROZE at summon rides through verbatim (`None` when no overlay is open), so the
-    // card lands at the SAME anchor the live picker held — and the `AWL_OVERLAY_ALIGN`
-    // capture knob's right-aligned variant is honored without touching world data.
+    // Preserve the alignment frozen when the overlay was summoned.
     vstate.overlay_align = opts.overlay.as_ref().map(|o| o.align);
-    // FORMAT POPOVER force-summon (capture-only probe): the live summon is a MOUSE
-    // gesture the headless capture has no pointer for, so the `AWL_POPOVER` env knob
-    // floats the format toolbar over the current selection instead — making the
-    // popover (its lit toggles, the `H` level, the button geometry) verifiable from
-    // a `--keys`-driven capture. Unset (every ordinary capture) → `None`, byte-
-    // identical. Gated like the live path: markdown + config-on + a real selection +
-    // no overlay/search owning the screen.
+    // Capture-only force summon for a live mouse gesture; keep the live gates.
     if crate::popover::popover_on()
         && !search_active
         && !vstate.overlay_active
@@ -321,9 +302,7 @@ pub(super) fn settled_viewstate(
         vstate.popover =
             crate::actions::popover::plan(&buffer.text(), Some(a), c, buffer.is_markdown());
     }
-    // THE CRISP-BACKDROP exception. A capture holds a serialized MODE STRING, so it
-    // resolves the kind and asks the owner the live door asks — never a second
-    // membership list keyed on spelling, which is how two doors drift.
+    // Resolve serialized modes through the same owner as the live path.
     vstate.overlay_crisp = opts
         .overlay
         .as_ref()
@@ -334,19 +313,9 @@ pub(super) fn settled_viewstate(
         .as_ref()
         .map(|o| o.query.clone())
         .unwrap_or_default();
-    // Mirrors the search fields above: `OverlayInfo` carries no caret
-    // yet, so this synthetic path always renders it at the END (byte-identical
-    // to pre-item-10, where the query caret was ALWAYS the end).
+    // `OverlayInfo` does not carry a caret, so render it at the end.
     vstate.overlay_query_caret = vstate.overlay_query.chars().count();
-    // The modal-prompt minibuffers (Rename/InsertLink/KeepName) already orient via
-    // their own `foot_hint`, so the render path skips the title prefix for them —
-    // consulted through the ONE owner (`OverlayKind::draws_title_prefix`, resolved
-    // from the mode string via `from_mode`), the same gate `App::sync_view` reads,
-    // so a future opt-out kind can't drift this copy (the hand-listed
-    // `mode != "rename" && …` string pair this replaces DID drift when KeepName
-    // landed). An unrecognized mode keeps its title (fail-visible). The sidecar's
-    // own `overlay.title` field, built in `main/run.rs`, still reports every
-    // kind's title unconditionally.
+    // Modal prompts orient via `foot_hint`; unknown modes keep a visible title.
     vstate.overlay_title = opts
         .overlay
         .as_ref()
@@ -355,12 +324,7 @@ pub(super) fn settled_viewstate(
         })
         .map(|o| o.title)
         .unwrap_or("");
-    // The path/URL figure-ground gate, resolved from the SAME mode
-    // string via the SAME `OverlayKind::row_path_splits` owner `App::sync_view`
-    // reads — so a `--keys` capture of, say, InsertLink's typed URL renders
-    // identically to the live picker, and every other kind (sharpest of all
-    // Date, whose `/`-shaped examples must never split) stays single-ink here
-    // too. An unrecognized mode falls to `false` (every real mode resolves).
+    // Share the live path/URL figure-ground gate; unknown modes stay single-ink.
     vstate.overlay_row_path_splits = opts
         .overlay
         .as_ref()
@@ -400,15 +364,7 @@ pub(super) fn settled_viewstate(
         .as_ref()
         .and_then(|o| OverlayKind::from_mode(o.mode))
         .is_some_and(|k| k == OverlayKind::Theme);
-    // THE PER-KIND VISIBLE-ROW CAP, resolved from the mode string through the ONE
-    // owner (`OverlayKind::window_rows`) rather than a hand-copied per-kind table.
-    // It used to be spelled out here twice — once for the scroll HINT, once for
-    // the cap — with every kind but Spell and Theme flattened to a literal 12, so
-    // a workspace (whose window is the canvas, not a row count) would
-    // have been silently capped at twelve rows in every capture while the live app
-    // filled its viewport. A `mode` with no kind (there is none) keeps the old
-    // literal. The item-space scroll HINT below reads the SAME number, so the
-    // drawn window and the hint cannot disagree.
+    // Use the kind-owned row cap for both the window and its scroll hint.
     let win = opts
         .overlay
         .as_ref()

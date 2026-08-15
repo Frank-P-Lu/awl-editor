@@ -1,45 +1,23 @@
-//! The rotated LABEL pipeline: a short shaped run painted at an arbitrary
-//! screen axis.
+//! A short shaped label painted along an arbitrary screen axis.
 //!
 //! glyphon 0.11 carries no transform anywhere. `TextArea` exposes
 //! `left/top/scale/bounds/default_color/custom_glyphs`, `CustomGlyph` exposes
 //! `left/top/width/height`, and neither has a rotation, a skew or a matrix — so
-//! every run the document layer draws is upright, and a world that wants a
-//! turned or slanted cue has no way to ask for one. This module is that
-//! capability, and only that: ONE short run, ONE composed coverage mask, ONE
+//! document text is upright. This module provides one composed run mask on one
 //! quad rotated onto a unit axis.
 //!
-//! It is deliberately NOT a text-transform framework and cannot become one. The
-//! mask holds a single layout run ([`mask::LabelMask::compose`] reads
-//! `layout_runs().next()` and stops), so there is no line breaking, no
-//! per-line alignment, no wrapping and no selection — a paragraph is
-//! structurally unreachable from here. The document layer stays the one prose
-//! renderer; this draws labels.
+//! The mask holds one layout run, with no line breaking, wrapping, alignment or
+//! selection. The document layer remains the prose renderer.
 //!
-//! The shape is [`crate::caret_glyph`]'s, one level up: that module caches ONE
-//! glyph's swash coverage in an R8 texture and paints an accent through it;
-//! this caches a whole run's and paints a colour (or a gradient along the
-//! baseline) through it. The rotation itself is the axis rotation
-//! `shaders/caret.wgsl` already performs in its vertex stage, applied to a
-//! glyph mask instead of a rounded rect — the same step
-//! [`crate::selection::SelectionPipeline::prepare_rotated`] took for selection
-//! quads.
+//! Like [`crate::caret_glyph`], it caches coverage in an R8 texture. Here the
+//! mask covers a run and accepts a baseline gradient; the vertex stage rotates
+//! it using the same axis representation as rotated selection quads.
 //!
 //! World-neutral by construction: nothing here reads a theme. A world's
 //! expression — which string, which axis, which colours, where — is theme data
 //! its caller supplies.
 
-// The rotated secondary-location heading (Cassowary's `RotatedRail`, Magpie's
-// `Raked`) is the real (non-test) caller and reaches
-// `draw`/`prepare`/`clear`/`ink`/`matches`/`compose`/`label_axis_deg`/
-// `label_bounds` directly, at both a quadrant angle and a slant. The rest of
-// the surface (`is_drawn`, `label_local`, `label_hit`, `LabelMask::size`) is
-// genuinely unused by product code today: `label_hit` belongs to making a
-// rotated cue interactive, which nothing asks for yet (both shipped
-// expressions are read, not pressed); the others simply have no caller who
-// needs them yet. Kept as an allowance on the whole module rather than
-// piece-by-piece so this doesn't have to be re-litigated on every partial
-// landing; trim it once every piece here has a real caller.
+// Some geometry helpers support test probes and future interactive labels.
 #![allow(dead_code)]
 
 pub mod geometry;

@@ -503,22 +503,6 @@ pub fn lava_paused(resizing: bool, moving: bool, blurred: bool) -> bool {
     resizing || moving || blurred
 }
 
-// THE PREVIEW-CROSSING CLASSIFICATION IS RETIRED (2026-07-18). It once decided
-// whether a theme-preview step got the present-transaction bracket by testing the
-// OUTGOING/INCOMING pair against a HEAVYWEIGHT-PIPELINE boundary (ambient cadence
-// or one-bit pipeline). A live probe of the reported Mangrove→Magpie gesture
-// proved the classification structurally wrong: the actual LANDING step
-// (`Galah→Magpie`) is same-side on both boundaries → it read `Steady` and armed
-// NO bracket, so the landing frame presented unbracketed while the bracket that
-// did arm (on the transient `Mangrove→Galah` boundary earlier in the nav) had
-// already torn down. Three successive widenings (is_lava → ambient → one-bit)
-// chased the boundary and never covered the landing. The fix is the simpler
-// truth: `App::retint_theme_preview` arms the bracket on EVERY preview step
-// unconditionally, and the teardown is event-ordered (it waits for the reshaped
-// frame's in-bracket present) rather than a per-crossing timer. There is no
-// per-pair decision left to make, so the pure fn + its `CrossingAction` enum are
-// gone; `has_ambient_motion` / `is_one_bit` survive for their other callers.
-
 /// Choose the viewport used to lay out the metaball field. During a live resize
 /// the last-settled dimensions are held while the live viewport and column mask
 /// continue to follow the window; the new dimensions become authoritative only

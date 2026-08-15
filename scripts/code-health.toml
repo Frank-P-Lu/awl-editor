@@ -133,7 +133,7 @@ reason = "One `/N` row in the schema ledger, which must move in the same commit 
 
 [[file_size_mark]]
 file = "src/capture/modes.rs"
-lines = 583
+lines = 539
 reason = "The headless snapshot carries a serialized lens strip and no live picker, so it rebuilds the picker's secondary location through the single `facets::strip_location` rather than growing a second serialized fact and a schema bump; the `gutter.changed` fold sits at the one `base_viewstate` consumer that drives the single-frame path. Both are single-owner seams with nowhere else to go. Items 296/300 (the notice becomes photographable and findable) and 131e/303 (the diagonal mark's weight becomes world data) both landed in this file; the count here is measured on the MERGED tree, which matched neither lane's own figure. +5: the caret site resolves its kind through from_mode rather than comparing the mode's own SPELLING. WARNING: this file now sits at its frozen baseline EXACTLY, so it has zero headroom and the next change here must carve rather than grow."
 
 [[file_size_mark]]
@@ -216,7 +216,7 @@ reason = "`undo_chord_label`: Undo has no palette command to resolve a label fro
 
 [[file_size_mark]]
 file = "src/lava.rs"
-lines = 940
+lines = 924
 reason = "The one construction site each pipeline family has now sits inside gpu_cache::render_pipeline's build closure — the seam that makes a GPU program once-per-process instead of once-per-instance, which is what the hosted-macOS gate wedged on. The growth is that closure's own indent (+1)."
 
 [[file_size_mark]]
@@ -419,7 +419,7 @@ reason = "The conflict kind's arm in `accept_class`, the exhaustive per-kind acc
 
 [[file_size_mark]]
 file = "src/search/keys.rs"
-lines = 380
+lines = 377
 
 [[file_size_mark]]
 file = "src/search/mod.rs"
