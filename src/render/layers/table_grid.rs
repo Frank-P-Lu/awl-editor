@@ -3,7 +3,336 @@
 use super::table_layout::TableGridShaped;
 use super::*;
 
+struct TableMeta {
+    range: (usize, usize),
+    ncols: usize,
+    aligns: Vec<crate::markdown::ColAlign>,
+    sep_doc_line: usize,
+    revealed: bool,
+    visible: bool,
+    grid_rows: Vec<(usize, Vec<String>)>,
+}
+
+struct TableXrayFloat {
+    buffer: GlyphBuffer,
+    top: f32,
+    height: f32,
+    pan: f32,
+    line: usize,
+}
+
+#[derive(Clone, Copy)]
+struct TablePlacementContext {
+    text_left: f32,
+    view_w: f32,
+    line_height: f32,
+    pad: f32,
+    rule_thick: f32,
+    pan_bar_thick: f32,
+    width: u32,
+    height: u32,
+    content: glyphon::Color,
+    muted: glyphon::Color,
+    table_pan: Option<(usize, f32)>,
+}
+
+struct TablePlacement<'a> {
+    areas: Vec<TextArea<'a>>,
+    rule_rects: Vec<[f32; 4]>,
+    reports: Vec<crate::render::TableReport>,
+    pan_writeback: Option<(usize, f32)>,
+    #[cfg(test)]
+    drawn_lines: Vec<usize>,
+}
+
+fn table_content_width(shaped: &TableGridShaped) -> f32 {
+    shaped
+        .col_x
+        .last()
+        .zip(shaped.col_w.last())
+        .map(|(x, w)| x + w)
+        .unwrap_or(0.0)
+}
+
+fn place_shaped_table<'a>(
+    placed: &mut TablePlacement<'a>,
+    meta: &TableMeta,
+    shaped: &'a TableGridShaped,
+    xray_lines: &[usize],
+    context: TablePlacementContext,
+    line_top: &impl Fn(usize) -> f32,
+    clip_bounds: &impl Fn(TextBounds) -> TextBounds,
+) {
+    let content_w = table_content_width(shaped);
+    let pan = if meta.revealed {
+        0.0
+    } else {
+        let requested = context
+            .table_pan
+            .filter(|(start, _)| *start == meta.range.0)
+            .map(|(_, offset)| offset)
+            .unwrap_or(0.0);
+        let clamped = crate::markdown::table_pan_clamp(requested, content_w, context.view_w);
+        if context
+            .table_pan
+            .is_some_and(|(start, _)| start == meta.range.0)
+        {
+            placed.pan_writeback = Some((meta.range.0, clamped));
+        }
+        clamped
+    };
+    let (viewport_left, viewport_right) = if pan > 0.0 {
+        (context.text_left, context.text_left + context.view_w)
+    } else {
+        (0.0, context.width as f32)
+    };
+
+    for (grid_row, column, buffer, cell_width) in &shaped.cells {
+        let doc_line = meta.grid_rows[*grid_row].0;
+        if meta.revealed && xray_lines.contains(&doc_line) {
+            continue;
+        }
+        #[cfg(test)]
+        placed.drawn_lines.push(doc_line);
+        let top = line_top(doc_line);
+        let box_left = context.text_left + shaped.col_x[*column] - pan;
+        let box_width = shaped.col_w[*column];
+        let offset = crate::markdown::table_align_offset(
+            meta.aligns[*column],
+            box_width,
+            *cell_width,
+            context.pad,
+        );
+        let clip_left = box_left.max(viewport_left).max(0.0) as i32;
+        let clip_right = (box_left + box_width)
+            .min(viewport_right)
+            .clamp(0.0, context.width as f32) as i32;
+        placed.areas.push(TextArea {
+            buffer,
+            left: box_left + offset,
+            top,
+            scale: 1.0,
+            bounds: clip_bounds(TextBounds {
+                left: clip_left,
+                top: 0,
+                right: clip_right,
+                bottom: context.height as i32,
+            }),
+            default_color: context.content,
+            custom_glyphs: &[],
+        });
+    }
+
+    let separator_top = line_top(meta.sep_doc_line);
+    let rule_y = separator_top + (context.line_height - context.rule_thick) * 0.5;
+    let rule_width = if pan > 0.0 {
+        (content_w - pan).min(context.view_w).max(0.0)
+    } else {
+        content_w
+    };
+    if rule_width > 0.0 {
+        placed
+            .rule_rects
+            .push([context.text_left, rule_y, rule_width, context.rule_thick]);
+    }
+    if pan > 0.0
+        && let Some((last_doc_line, _)) = meta.grid_rows.last()
+    {
+        let last_grid_row = shaped.row_heights.len().saturating_sub(1);
+        let bottom = line_top(*last_doc_line) + shaped.row_heights[last_grid_row];
+        if let Some(bar) = crate::markdown::table_pan_bar(
+            content_w,
+            context.view_w,
+            pan,
+            context.text_left,
+            bottom,
+            context.pan_bar_thick,
+        ) {
+            placed.rule_rects.push(bar);
+        }
+    }
+}
+
+fn append_table_xrays<'a>(
+    areas: &mut Vec<TextArea<'a>>,
+    xrays: &'a [TableXrayFloat],
+    context: TablePlacementContext,
+    clip_bounds: &impl Fn(TextBounds) -> TextBounds,
+) {
+    for xray in xrays {
+        let float_top = xray.top + (xray.height - context.line_height) * 0.5;
+        areas.push(TextArea {
+            buffer: &xray.buffer,
+            left: context.text_left - xray.pan,
+            top: float_top,
+            scale: 1.0,
+            bounds: clip_bounds(TextBounds {
+                left: context.text_left.max(0.0) as i32,
+                top: 0,
+                right: (context.text_left + context.view_w).clamp(0.0, context.width as f32) as i32,
+                bottom: context.height as i32,
+            }),
+            default_color: context.muted,
+            custom_glyphs: &[],
+        });
+    }
+}
+
+fn place_table_grid<'a>(
+    metas: &[TableMeta],
+    cache: &'a [(usize, TableGridShaped)],
+    xrays: &'a [TableXrayFloat],
+    context: TablePlacementContext,
+    line_top: impl Fn(usize) -> f32,
+    clip_bounds: impl Fn(TextBounds) -> TextBounds,
+) -> TablePlacement<'a> {
+    let mut placed = TablePlacement {
+        areas: Vec::new(),
+        rule_rects: Vec::new(),
+        reports: Vec::with_capacity(metas.len()),
+        pan_writeback: None,
+        #[cfg(test)]
+        drawn_lines: Vec::new(),
+    };
+    let xray_lines: Vec<usize> = xrays.iter().map(|x| x.line).collect();
+
+    for meta in metas {
+        let shaped = if meta.visible && meta.ncols > 0 {
+            cache
+                .iter()
+                .find(|(start, _)| *start == meta.range.0)
+                .map(|(_, shaped)| shaped)
+        } else {
+            None
+        };
+        let col_widths = shaped.map_or_else(Vec::new, |s| s.col_w.clone());
+        placed.reports.push(crate::render::TableReport {
+            range: meta.range,
+            rows: meta.grid_rows.len(),
+            cols: meta.ncols,
+            col_widths,
+            revealed: meta.revealed,
+        });
+        let Some(shaped) = shaped else {
+            continue;
+        };
+
+        place_shaped_table(
+            &mut placed,
+            meta,
+            shaped,
+            &xray_lines,
+            context,
+            &line_top,
+            &clip_bounds,
+        );
+    }
+
+    append_table_xrays(&mut placed.areas, xrays, context, &clip_bounds);
+    placed
+}
+
 impl TextPipeline {
+    fn parse_table_metas(&self, blocks: &[(usize, std::ops::Range<usize>)]) -> Vec<TableMeta> {
+        let cursor_byte = self.line_doc_byte_start(self.cursor_line);
+        let selection_touch = selection_touch_bytes(
+            self.selection,
+            |line| self.line_doc_byte_start(line),
+            |line| {
+                self.buffer
+                    .lines
+                    .get(line)
+                    .map(|line| line.text().len())
+                    .unwrap_or(0)
+            },
+        );
+        blocks
+            .iter()
+            .filter_map(|(header_line, range)| {
+                let mut source_lines = Vec::new();
+                let mut line = *header_line;
+                let mut byte = range.start;
+                while line < self.buffer.lines.len() && byte < range.end {
+                    let text = self.buffer.lines[line].text();
+                    byte += text.len() + 1;
+                    source_lines.push(text.to_string());
+                    line += 1;
+                }
+                if source_lines.len() < 2 {
+                    return None;
+                }
+                let alignment_cells = crate::markdown::split_row_cells(&source_lines[1]);
+                let grid_rows: Vec<_> = source_lines
+                    .iter()
+                    .enumerate()
+                    .filter(|(index, line)| *index != 1 && (*index < 2 || !line.trim().is_empty()))
+                    .map(|(index, line)| {
+                        (*header_line + index, crate::markdown::split_row_cells(line))
+                    })
+                    .collect();
+                let ncols = grid_rows
+                    .iter()
+                    .map(|(_, cells)| cells.len())
+                    .max()
+                    .unwrap_or(0)
+                    .max(alignment_cells.len());
+                let aligns = (0..ncols)
+                    .map(|column| {
+                        alignment_cells
+                            .get(column)
+                            .map(|cell| crate::markdown::parse_col_align(cell))
+                            .unwrap_or(crate::markdown::ColAlign::None)
+                    })
+                    .collect();
+                let last_doc_line = *header_line + source_lines.len().saturating_sub(1);
+                let selection_reveals = selection_touch
+                    .as_ref()
+                    .is_some_and(|touch| touch.start < range.end && range.start < touch.end);
+                Some(TableMeta {
+                    range: (range.start, range.end),
+                    ncols,
+                    aligns,
+                    sep_doc_line: *header_line + 1,
+                    revealed: range.contains(&cursor_byte) || selection_reveals,
+                    visible: (*header_line..=last_doc_line)
+                        .any(|line| self.line_ornament_visible(line)),
+                    grid_rows,
+                })
+            })
+            .collect()
+    }
+
+    fn shape_table_xray_floats(
+        &mut self,
+        metrics: Metrics,
+        muted: glyphon::Color,
+    ) -> Vec<TableXrayFloat> {
+        let mut floats = Vec::with_capacity(self.xray.len());
+        for xray in self.xray.clone() {
+            let glyph_metrics = GlyphMetrics::new(metrics.font_size, metrics.line_height);
+            let attrs = self.doc_attrs().color(muted);
+            let mut buffer = GlyphBuffer::new(&mut self.font_system, glyph_metrics);
+            buffer.set_wrap(&mut self.font_system, Wrap::None);
+            buffer.set_size(&mut self.font_system, None, Some(metrics.line_height * 2.0));
+            buffer.set_text(
+                &mut self.font_system,
+                &xray.source,
+                &attrs,
+                Shaping::Advanced,
+                None,
+            );
+            buffer.shape_until_scroll(&mut self.font_system, false);
+            floats.push(TableXrayFloat {
+                buffer,
+                top: xray.top,
+                height: xray.height,
+                pan: xray.pan,
+                line: xray.line,
+            });
+        }
+        floats
+    }
+
     /// WYSIWYG TABLE GRID: place every off-cursor GFM table's cells by PIXEL column
     /// (a proportional face can't align with space-padding — that's the bug this
     /// fixes) via one [`TextArea`] per cell, plus ONE faint header-separator rule.
@@ -11,9 +340,8 @@ impl TextPipeline {
     /// source rows are concealed to zero-width by
     /// [`crate::markdown::ConcealKind::Table`], and the grid draws in their place.
     /// A table that FITS occupies one row per source line (header, the rule row,
-    /// then body); a too-wide table WRAPS its cells and each grown row reserves a
-    /// tall document row via [`Self::compute_table_layout`], so grid and source
-    /// agree on the row geometry (`RowGeom` reads the reserved heights).
+    /// then body); a too-wide table WRAPS its cells and reserves tall rows through
+    /// [`Self::compute_table_layout`], keeping grid and source geometry aligned.
     ///
     /// REVEAL = TRUE SOURCE SWAP, per row (WYSIWYG amendment, corrected): a table
     /// the caret is INSIDE stays a drawn grid — every row EXCEPT the caret's own
@@ -34,9 +362,7 @@ impl TextPipeline {
     /// (column widths are the max over every row, so a partly-scrolled table
     /// keeps STABLE columns rather than jumping) and places it; off-screen tables
     /// are culled whole (their cached geometry is simply never turned into
-    /// `TextArea`s). Column math ([`crate::markdown::table_column_layout`] /
-    /// [`crate::markdown::table_align_offset`]) is pure + unit-tested and already
-    /// baked into the cached geometry.
+    /// `TextArea`s). Pure, unit-tested column math is already baked into the cache.
     pub(crate) fn prepare_table_grid(
         &mut self,
         device: &wgpu::Device,
@@ -44,7 +370,6 @@ impl TextPipeline {
         width: u32,
         height: u32,
     ) -> anyhow::Result<()> {
-        use crate::markdown::ColAlign;
         self.table_report.borrow_mut().clear();
         #[cfg(test)]
         self.last_table_cell_lines.borrow_mut().clear();
@@ -77,325 +402,44 @@ impl TextPipeline {
         let avail = self.text_wrap_width().max(1.0);
         let pad = m.px(TABLE_CELL_PAD_X);
         let rule_thick = m.px(TABLE_RULE_THICKNESS).max(1.0);
-        let cursor_byte = self.line_doc_byte_start(self.cursor_line);
-        // SELECTION REVEAL: the SAME touched-line byte extent `wysiwyg_reveals`
-        // widens its own caret-only rule with (`selection_touch_bytes`) — a
-        // table whose range the selection overlaps is "revealed" exactly like
-        // one the caret sits inside.
-        let selection_touch = selection_touch_bytes(
-            self.selection,
-            |i| self.line_doc_byte_start(i),
-            |i| {
-                self.buffer
-                    .lines
-                    .get(i)
-                    .map(|l| l.text().len())
-                    .unwrap_or(0)
-            },
-        );
         let content = theme::base_content().to_glyphon();
+        let metas = self.parse_table_metas(&blocks);
 
-        // PHASE A — parse each block into owned data (no font work yet).
-        struct Meta {
-            range: (usize, usize),
-            ncols: usize,
-            aligns: Vec<ColAlign>,
-            sep_doc_line: usize,
-            revealed: bool,
-            visible: bool,
-            grid_rows: Vec<(usize, Vec<String>)>,
-        }
-        let mut metas: Vec<Meta> = Vec::new();
-        for (header_line, range) in &blocks {
-            let mut src_lines: Vec<String> = Vec::new();
-            let mut li = *header_line;
-            let mut b = range.start;
-            while li < self.buffer.lines.len() && b < range.end {
-                let t = self.buffer.lines[li].text();
-                b += t.len() + 1;
-                src_lines.push(t.to_string());
-                li += 1;
-            }
-            if src_lines.len() < 2 {
-                continue; // a real table always has header + separator
-            }
-            let align_cells = crate::markdown::split_row_cells(&src_lines[1]);
-            let mut grid_rows: Vec<(usize, Vec<String>)> = Vec::new();
-            for (i, line) in src_lines.iter().enumerate() {
-                if i == 1 {
-                    continue;
-                }
-                if i >= 2 && line.trim().is_empty() {
-                    continue; // a trailing blank swept into the range is not a row
-                }
-                grid_rows.push((*header_line + i, crate::markdown::split_row_cells(line)));
-            }
-            let ncols = grid_rows
-                .iter()
-                .map(|(_, c)| c.len())
-                .max()
-                .unwrap_or(0)
-                .max(align_cells.len());
-            let aligns: Vec<ColAlign> = (0..ncols)
-                .map(|c| {
-                    align_cells
-                        .get(c)
-                        .map(|s| crate::markdown::parse_col_align(s))
-                        .unwrap_or(ColAlign::None)
-                })
-                .collect();
-            let last_doc_line = *header_line + src_lines.len().saturating_sub(1);
-            let visible = (*header_line..=last_doc_line).any(|dl| self.line_ornament_visible(dl));
-            metas.push(Meta {
-                range: (range.start, range.end),
-                ncols,
-                aligns,
-                sep_doc_line: *header_line + 1,
-                revealed: range.contains(&cursor_byte)
-                    || selection_touch
-                        .as_ref()
-                        .is_some_and(|st| st.start < range.end && range.start < st.end),
-                visible,
-                grid_rows,
-            });
-        }
-
-        // PHASE B — READ (never reshape) the geometry `compute_table_layout` already
-        // shaped for VISIBLE blocks, from the ONE shape site
-        // ([`TableGridCache`] — see its doc comment for why the draw pass must not
-        // shape its own copy). A `None` here means the block is off-screen (culled,
-        // matching the pre-existing "shape nothing off-screen" behavior — its report
-        // carries no measured widths) or, degenerately, that no cache entry exists
-        // for this range (would mean `compute_table_layout` and this frame's own
-        // `table_blocks()` disagreed on the table list, which they cannot: both
-        // derive from the SAME `self.md_spans` field).
-        let table_cache = self.table_grid_cache.entries.borrow();
-        let shaped: Vec<Option<&TableGridShaped>> = metas
-            .iter()
-            .map(|meta| {
-                if !meta.visible || meta.ncols == 0 {
-                    return None;
-                }
-                table_cache
-                    .iter()
-                    .find(|(start, _)| *start == meta.range.0)
-                    .map(|(_, s)| s)
-            })
-            .collect();
-
-        let view_w = avail;
-        let pan_bar_thick = m.px(crate::render::TABLE_PAN_BAR_THICKNESS).max(1.0);
         let muted = theme::muted().to_glyphon();
-        // THE X-RAY floats: every caret- or selection-revealed table row's RAW
-        // SOURCE, each shaped NON-WRAPPING into its own LOCAL buffer (so `areas`
-        // can borrow them below without fighting the renderer's own `&mut self`
-        // borrows). Drawn dim ("the markdown bones") over the dimmed grid cells;
-        // the caret's OWN row pans by `x.pan` to keep the caret column visible,
-        // every other (selection-only) row floats flush-left (`x.pan == 0`).
-        let mut xray_floats: Vec<(GlyphBuffer, f32, f32, f32, usize)> = Vec::new();
-        for x in self.xray.clone() {
-            let bodym = GlyphMetrics::new(m.font_size, m.line_height);
-            let base = self.doc_attrs().color(muted);
-            let mut buf = GlyphBuffer::new(&mut self.font_system, bodym);
-            buf.set_wrap(&mut self.font_system, Wrap::None);
-            buf.set_size(&mut self.font_system, None, Some(m.line_height * 2.0));
-            buf.set_text(
-                &mut self.font_system,
-                &x.source,
-                &base,
-                Shaping::Advanced,
-                None,
-            );
-            buf.shape_until_scroll(&mut self.font_system, false);
-            xray_floats.push((buf, x.top, x.height, x.pan, x.line));
+        let xray_floats = self.shape_table_xray_floats(m, muted);
+        let context = TablePlacementContext {
+            text_left,
+            view_w: avail,
+            line_height: m.line_height,
+            pad,
+            rule_thick,
+            pan_bar_thick: m.px(crate::render::TABLE_PAN_BAR_THICKNESS).max(1.0),
+            width,
+            height,
+            content,
+            muted,
+            table_pan: self.table_pan,
+        };
+        let table_cache = self.table_grid_cache.entries.borrow();
+        let placed = place_table_grid(
+            &metas,
+            &table_cache,
+            &xray_floats,
+            context,
+            |line| self.line_ornament_top(line),
+            |bounds| self.clip_text_bounds(bounds),
+        );
+        *self.table_report.borrow_mut() = placed.reports;
+        #[cfg(test)]
+        {
+            *self.last_table_cell_lines.borrow_mut() = placed.drawn_lines;
         }
-        let xray_lines: Vec<usize> = xray_floats.iter().map(|f| f.4).collect();
-        let mut areas: Vec<TextArea> = Vec::new();
-        let mut rule_rects: Vec<[f32; 4]> = Vec::new();
-        let mut pan_writeback: Option<(usize, f32)> = None;
-        for (mi, meta) in metas.iter().enumerate() {
-            let (col_x, col_w) = match &shaped[mi] {
-                Some(s) => (s.col_x.as_slice(), s.col_w.as_slice()),
-                None => (&[][..], &[][..]),
-            };
-            self.table_report
-                .borrow_mut()
-                .push(crate::render::TableReport {
-                    range: meta.range,
-                    rows: meta.grid_rows.len(),
-                    cols: meta.ncols,
-                    col_widths: col_w.to_vec(),
-                    revealed: meta.revealed,
-                });
-            let Some(s) = &shaped[mi] else {
-                continue;
-            };
-            // THE X-RAY table (the caret is inside): the grid stays DRAWN (the
-            // document never reflowed — the source rows are still concealed), the
-            // caret/selection-touched row(s) are DIMMED, and their raw source
-            // floats over them (pushed after the loop). No reading-pan applies
-            // while editing/selecting — the float(s) own the horizontal.
-            if meta.revealed {
-                let content_w = col_x
-                    .last()
-                    .zip(col_w.last())
-                    .map(|(x, w)| x + w)
-                    .unwrap_or(0.0);
-                // TRUE SWAP, not dim-under-float (the fix): every caret- or
-                // selection-touched row uploads NO grid cells at all — its x-ray
-                // source float (pushed after this loop, centered in the row's own
-                // band) is the ONLY text drawn in that band, per the
-                // drop-to-source-on-cursor/selection contract. Every OTHER row of
-                // a revealed table still draws its grid at full ink — only the
-                // touched rows drop to source; the block never "parks" wholesale.
-                for (gr, c, buf, cw) in &s.cells {
-                    let doc_line = meta.grid_rows[*gr].0;
-                    if xray_lines.contains(&doc_line) {
-                        continue;
-                    }
-                    #[cfg(test)]
-                    self.last_table_cell_lines.borrow_mut().push(doc_line);
-                    let top = self.line_ornament_top(doc_line);
-                    let box_left = text_left + col_x[*c];
-                    let box_w = col_w[*c];
-                    let off = crate::markdown::table_align_offset(meta.aligns[*c], box_w, *cw, pad);
-                    let clip_left = box_left.max(0.0) as i32;
-                    let clip_right = (box_left + box_w).clamp(0.0, width as f32) as i32;
-                    areas.push(TextArea {
-                        buffer: buf,
-                        left: box_left + off,
-                        top,
-                        scale: 1.0,
-                        bounds: self.clip_text_bounds(TextBounds {
-                            left: clip_left,
-                            top: 0,
-                            right: clip_right,
-                            bottom: height as i32,
-                        }),
-                        default_color: content,
-                        custom_glyphs: &[],
-                    });
-                }
-                let sep_top = self.line_ornament_top(meta.sep_doc_line);
-                let rule_y = sep_top + (m.line_height - rule_thick) * 0.5;
-                if content_w > 0.0 {
-                    rule_rects.push([text_left, rule_y, content_w, rule_thick]);
-                }
-                continue;
-            }
-            let content_w = col_x
-                .last()
-                .zip(col_w.last())
-                .map(|(x, w)| x + w)
-                .unwrap_or(0.0);
-            let pan_req = self
-                .table_pan
-                .filter(|(start, _)| *start == meta.range.0)
-                .map(|(_, o)| o)
-                .unwrap_or(0.0);
-            let pan = crate::markdown::table_pan_clamp(pan_req, content_w, view_w);
-            if self
-                .table_pan
-                .is_some_and(|(start, _)| start == meta.range.0)
-            {
-                pan_writeback = Some((meta.range.0, pan));
-            }
-            // At pan 0 the grid grows into the margins (clip only at the canvas);
-            // once panned, clip to the writing column so shifted content never
-            // spills into the LEFT margin.
-            let (vp_l, vp_r) = if pan > 0.0 {
-                (text_left, text_left + view_w)
-            } else {
-                (0.0, width as f32)
-            };
-            for (gr, c, buf, cw) in &s.cells {
-                let doc_line = meta.grid_rows[*gr].0;
-                #[cfg(test)]
-                self.last_table_cell_lines.borrow_mut().push(doc_line);
-                let top = self.line_ornament_top(doc_line);
-                let box_left = text_left + col_x[*c] - pan;
-                let box_w = col_w[*c];
-                let off = crate::markdown::table_align_offset(meta.aligns[*c], box_w, *cw, pad);
-                // Each cell WRAPS within its column (shaped at the column's inner
-                // width), so it never overruns its neighbour; the clip is the
-                // column box intersected with the table viewport (a safety net for
-                // an unbreakable over-wide token, and the pan's left-spill guard).
-                let clip_left = box_left.max(vp_l).max(0.0) as i32;
-                let clip_right = (box_left + box_w).min(vp_r).clamp(0.0, width as f32) as i32;
-                areas.push(TextArea {
-                    buffer: buf,
-                    left: box_left + off,
-                    top,
-                    scale: 1.0,
-                    bounds: self.clip_text_bounds(TextBounds {
-                        left: clip_left,
-                        top: 0,
-                        right: clip_right,
-                        bottom: height as i32,
-                    }),
-                    default_color: content,
-                    custom_glyphs: &[],
-                });
-            }
-            let sep_top = self.line_ornament_top(meta.sep_doc_line);
-            let rule_y = sep_top + (m.line_height - rule_thick) * 0.5;
-            let rule_w = if pan > 0.0 {
-                (content_w - pan).min(view_w).max(0.0)
-            } else {
-                content_w
-            };
-            if rule_w > 0.0 {
-                rule_rects.push([text_left, rule_y, rule_w, rule_thick]);
-            }
-            if pan > 0.0
-                && let Some((last_dl, _)) = meta.grid_rows.last()
-            {
-                let last_gr = s.row_heights.len().saturating_sub(1);
-                let bottom = self.line_ornament_top(*last_dl) + s.row_heights[last_gr];
-                if let Some(bar) = crate::markdown::table_pan_bar(
-                    content_w,
-                    view_w,
-                    pan,
-                    text_left,
-                    bottom,
-                    pan_bar_thick,
-                ) {
-                    rule_rects.push(bar);
-                }
-            }
-        }
-        // THE X-RAY FLOATS — drawn LAST so each composites over its own dimmed
-        // grid row: every caret/selection-touched row's raw source as one
-        // non-wrapping line (the caret's own panned by `pan` to keep the caret
-        // visible; every other flush-left at `pan == 0`), centred in its row
-        // band, clipped to the writing column (so a long source doesn't spill
-        // into the margins).
-        for (buf, top, row_h, pan, _line) in xray_floats.iter() {
-            let float_top = top + (row_h - m.line_height) * 0.5;
-            areas.push(TextArea {
-                buffer: buf,
-                left: text_left - pan,
-                top: float_top,
-                scale: 1.0,
-                bounds: self.clip_text_bounds(TextBounds {
-                    left: text_left.max(0.0) as i32,
-                    top: 0,
-                    right: (text_left + view_w).clamp(0.0, width as f32) as i32,
-                    bottom: height as i32,
-                }),
-                default_color: muted,
-                custom_glyphs: &[],
-            });
-        }
-        // Persist the clamped pan so a stale offset self-corrects once the grid
-        // narrows (a theme reshape / measure change), and the live gesture reads a
-        // sane base next frame.
-        if let Some(wb) = pan_writeback {
-            self.table_pan = Some(wb);
+        if let Some(pan) = placed.pan_writeback {
+            self.table_pan = Some(pan);
         }
 
         self.table_rule_pipeline
-            .prepare(device, queue, width, height, &rule_rects);
+            .prepare(device, queue, width, height, &placed.rule_rects);
         self.table_renderer
             .prepare(
                 device,
@@ -403,7 +447,7 @@ impl TextPipeline {
                 &mut self.font_system,
                 &mut self.atlas,
                 &self.viewport,
-                areas,
+                placed.areas,
                 &mut self.swash_cache,
             )
             .map_err(|e| anyhow::anyhow!("glyphon table prepare failed: {e:?}"))?;

@@ -19,13 +19,7 @@
    capture fold single-owned. Add a storyboard fixture that switches projects and
    proves later steps report the new project. Ready after wave one.
 
-3. **Table-grid phase decomposition (435)** — 🟡 IN PROGRESS — table-grid worker
-   (codex), branch `codex/queue-435-table-grid-phases`. Extract the explicit parse,
-   cache-read, placement, and upload phases from the 310-line
-   `prepare_table_grid` without creating a second geometry or shaping owner. Preserve
-   O(visible) work and prove byte/state parity with the table-grid law roster.
-
-4. **Keymap vocabulary/resolution modules (437)** — 🟡 IN PROGRESS — keymap worker
+3. **Keymap vocabulary/resolution modules (437)** — 🟡 IN PROGRESS — keymap worker
    (codex), branch `codex/queue-437-keymap-modules`. Separate the `Action` vocabulary
    and classification, stateful key resolution, and platform preset helpers while
    retaining one public resolution path and exhaustive action classification. Prove

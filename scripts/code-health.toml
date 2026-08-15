@@ -727,13 +727,6 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
-file = "src/render/layers/table_grid.rs"
-function = "TextPipeline::prepare_table_grid"
-message = "this function has too many lines (310/100)"
-reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
-
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
 file = "src/render/layers.rs"
 function = "TextPipeline::prepare_images"
 message = "this function has too many lines (118/100)"
