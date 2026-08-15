@@ -6,7 +6,37 @@
 
 ## Ready to build
 
-None.
+1. **Replay-session effect-family decomposition (439)** — split
+   `ReplaySession::apply_chord` into typed helpers for resolution, ordered effect
+   interpretation, buffer switching, and trace classification without changing
+   replay ordering or the shared action pipeline. Prove behavior with the existing
+   replay/headless laws plus focused parity tests. Ready after item 437 to avoid
+   overlapping `main/run` and storyboard integration.
+
+2. **Storyboard project-state fold (438)** — stop precomputing one
+   `ProjectInfo` for an entire storyboard: derive the per-step sidecar project block
+   from the replay session's current root after Switch Project, while keeping the
+   capture fold single-owned. Add a storyboard fixture that switches projects and
+   proves later steps report the new project. Ready after wave one.
+
+3. **Table-grid phase decomposition (435)** — 🟡 IN PROGRESS — table-grid worker
+   (codex), branch `codex/queue-435-table-grid-phases`. Extract the explicit parse,
+   cache-read, placement, and upload phases from the 310-line
+   `prepare_table_grid` without creating a second geometry or shaping owner. Preserve
+   O(visible) work and prove byte/state parity with the table-grid law roster.
+
+4. **Filesystem backend modules (436)** — 🟡 IN PROGRESS — filesystem worker
+   (codex), branch `codex/queue-436-fs-modules`. Relocate the native, in-memory,
+   browser, shared-path, and active-backend sections of `fs.rs` into cohesive
+   submodules while preserving the single `FileSystem` trait and swappable-global
+   locking law. This is structural only; existing filesystem, scenario, web, and
+   test-global laws must remain green.
+
+5. **Keymap vocabulary/resolution modules (437)** — 🟡 IN PROGRESS — keymap worker
+   (codex), branch `codex/queue-437-keymap-modules`. Separate the `Action` vocabulary
+   and classification, stateful key resolution, and platform preset helpers while
+   retaining one public resolution path and exhaustive action classification. Prove
+   both conventions/flavors and Linux keep-list behavior through existing laws.
 
 ## Needs a person, hardware, or release authority
 
