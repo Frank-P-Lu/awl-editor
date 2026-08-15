@@ -44,7 +44,11 @@ name); behavior is byte-identical. Submodules are listed under each root below.
   `--screenshot` / `--screenshot-motion[-v]`, with optional `--keys`). For
   headless modes it loads the buffer, `replay_keys`, then hands off to capture.
   → `main/`: `args` (CLI / `Mode` parsing + folder resolution), `run` (the
-  interactive + headless run paths).
+  interactive + headless run paths). `run/` splits the replay session by
+  responsibility: `chord` (search-first resolution + the depth-first action
+  worklist), `effect_interpreter` (ordered non-typed effects), `buffers`
+  (whole-buffer park/switch), `trace` (classification + trace/warning/skip
+  bookkeeping), `settings_effects`, `location`, and `capture_fold`.
 - `app.rs` — the winit `ApplicationHandler`: window + event loop, composes the
   owned runtime handles, mouse handling, and the live transition interpreter (persistence,
   clipboard mirroring, GPU-measured page sizing, animation/redraw scheduling).

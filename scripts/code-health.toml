@@ -226,8 +226,7 @@ reason = "+2: resolve_default_folder documents the default-folder candidate sepa
 
 [[file_size_mark]]
 file = "src/main/run.rs"
-lines = 1060
-reason = "The `Mode::BenchA11y` dispatch arm is one line in the ONE mode dispatch, which the design keeps singular, plus the `cfg(not(wasm32))` attribute that keeps the browser build compiling (+2). item 207, DOWN 5: the two live-`App` dispatch arms collapsed to one line each when `--screenshot-app` and `--semantic-json` started carrying the shared `args::LiveAppSpec` payload instead of five destructured fields apiece. Items 296/300 (the notice becomes photographable and findable) and 131e/303 (the diagonal mark's weight becomes world data) both landed in this file; the count here is measured on the MERGED tree, which matched neither lane's own figure. +7: the frame-loop door threads its canvas and dpi into CaptureOpts instead of rendering through CaptureOpts::default(), which is what silently collapsed every geometry flag to 1200x800."
+lines = 835
 
 [[file_size_mark]]
 file = "src/markdown/spans.rs"
@@ -541,13 +540,6 @@ file = "src/main/args.rs"
 function = "parse_args"
 message = "this function has too many lines (631/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 121 added one minimal --ground-audition arm (+13 lines). Item 188 added one CLI flag arm, one Mode variant selection arm and its `live_app` flag to the one parser (+20), and MERGED the two hermetic-fs installs into one unconditional call (-1, after routing its one branch through the new `scenario::seed_document` owner) — the net is the smallest a new capture mode can cost in a single-owner arg parser. `--bench-a11y` adds the same irreducible three pieces every hidden bench flag here adds, each `cfg`-gated native-only (+10)."
-
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
-file = "src/main/run.rs"
-function = "ReplaySession::apply_chord"
-message = "this function has too many lines (152/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"

@@ -110,7 +110,7 @@ const EXPECTED: &[(&str, usize)] = &[
     // The permissive replay warning lives in the typed effect interpreter;
     // the total count spans both files.
     ("main/run.rs", 8),
-    ("main/run/effect_interpreter.rs", 1),
+    ("main/run/trace.rs", 1),
     // The live-`App` capture mode's one "wrote OUT.png (+ sidecar
     // .json)" deliverable line, worded identically to `capture_screenshot`'s in
     // `main/run.rs` above. CLI product output, not a diagnostic — a capture

@@ -1,27 +1,5 @@
 use super::*;
 
-pub(super) fn chord_trace(
-    chord: &str,
-    action: &Action,
-    classified: &crate::replay::Classified,
-) -> crate::storyboard::ChordTrace {
-    crate::storyboard::ChordTrace {
-        chord: chord.to_string(),
-        action: Some(format!("{action:?}")),
-        effect: classified.name.to_string(),
-        class: match &classified.class {
-            crate::replay::EffectClass::Applied => "applied",
-            crate::replay::EffectClass::Intercepted { .. } => "intercepted",
-            crate::replay::EffectClass::Unsupported { .. } => "unsupported",
-        },
-        detail: match &classified.class {
-            crate::replay::EffectClass::Intercepted { detail } => detail.clone(),
-            crate::replay::EffectClass::Applied
-            | crate::replay::EffectClass::Unsupported { .. } => String::new(),
-        },
-    }
-}
-
 impl ReplayPolicy {
     pub(crate) fn isolated() -> Self {
         Self {
@@ -122,8 +100,7 @@ impl<'a> ReplaySession<'a> {
         match buffer {
             actions::BufferEffect::Previous { .. } => {}
             actions::BufferEffect::NewDocument => {
-                park_active(self.buffer, &mut self.registry);
-                self.buffer.start_fresh_doc(self.root.clone());
+                self.start_fresh_document();
             }
             actions::BufferEffect::OpenSettings => {
                 // Existing, explicitly configured files may be read. Absence

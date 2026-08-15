@@ -30,6 +30,7 @@ mod page_measure;
 mod palette;
 mod project_info_literals;
 mod project_switching;
+mod replay_ownership;
 mod replay_warnings;
 mod search;
 mod settings_persist;
