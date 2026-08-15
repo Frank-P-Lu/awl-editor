@@ -1,0 +1,14 @@
+# The project-state fold regression: start in proj-a, switch to its sibling,
+# then render another step from the re-scoped replay session.
+
+name = "storyboard project fold"
+file = "storyboard-project-fold/proj-a/opening.md"
+
+[[step]]
+pause = 20
+
+[[step]]
+press = "s-S-p Down Down Enter"
+
+[[step]]
+pause = 20

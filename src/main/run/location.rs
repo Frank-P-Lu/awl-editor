@@ -114,6 +114,24 @@ pub(crate) fn resolve_workspace(workspace: &Option<PathBuf>, root: &std::path::P
 }
 
 impl<'a> ReplaySession<'a> {
+    /// The capture sidecar's project block for this session's CURRENT location.
+    /// A storyboard asks for this afresh at every rendered step, so a
+    /// Switch-project accept cannot leave later frames carrying the launch
+    /// root's identity. The free [`project_info`] builder remains the one owner
+    /// of the derivation; this method only supplies the session-private inputs
+    /// that were re-scoped together by [`Self::resync_project_location`].
+    pub(crate) fn current_project_info(
+        &self,
+        default_folder: Option<&std::path::Path>,
+    ) -> capture::ProjectInfo {
+        project_info(
+            &self.root,
+            &self.workspace_flag,
+            default_folder,
+            self.config,
+        )
+    }
+
     /// THE ONE RE-SCOPING OWNER — re-derive `root`,
     /// `workspace`, and the file `corpus` for a NEW project root, the
     /// session's mirror of the live `App::resync_project_location`

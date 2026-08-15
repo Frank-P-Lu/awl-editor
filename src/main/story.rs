@@ -62,12 +62,6 @@ pub(crate) fn run_storyboard(
     // Same project resolution as capture_screenshot, inside the sandbox.
     let active_root = crate::run::resolve_root(&root, &file);
     let corpus = crate::index::build_index(&active_root);
-    let project = crate::run::project_info(
-        &active_root,
-        &workspace,
-        Some(default_folder.as_path()),
-        &config,
-    );
     let mut buffer = crate::run::load_buffer(&file);
     // Sticky page measure for the OPENING buffer's own class (mirrors the
     // replay Goto arm / `App::sync_page_measure`).
@@ -169,7 +163,7 @@ pub(crate) fn run_storyboard(
                     }
                     _ => 1,
                 };
-                let opts = step_opts(&session, &project);
+                let opts = step_opts(&session, &default_folder);
                 let step_png = out_dir.join(format!("step-{i:03}.png"));
                 entry.frames =
                     Some(renderer.render_step(session.buffer(), &opts, ticks, Some(&step_png))?);
@@ -213,8 +207,8 @@ fn state_view(session: &crate::run::ReplaySession) -> StateView {
 /// sidecar reflect the state at that step. The fold itself moved to
 /// `run::fold_capture_state`, where the live-`App` capture mode
 /// shares it; this is the storyboard's call into that one owner.
-fn step_opts(session: &crate::run::ReplaySession, project: &capture::ProjectInfo) -> CaptureOpts {
-    crate::run::fold_capture_state(session, project.clone())
+fn step_opts(session: &crate::run::ReplaySession, default_folder: &Path) -> CaptureOpts {
+    crate::run::fold_capture_state(session, session.current_project_info(Some(default_folder)))
 }
 
 /// Write (or overwrite) `trace.json` — `std::fs`, the deliverable seam.
