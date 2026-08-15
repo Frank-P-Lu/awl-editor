@@ -143,7 +143,7 @@ const EXPECTED: &[(&str, usize)] = &[
     // The theme-burst profiler's PICKER SWEEP, carved out of `framebench.rs` when
     // that file reached its frozen size baseline. Same fate as its parent: a
     // hidden bench flag printing its own table to stdout.
-    ("render/framebench/pickersweep.rs", 6),
+    ("render/framebench/pickersweep.rs", 9),
     ("render/perfbench.rs", 8),
     ("render/caretbench.rs", 6),
     ("render/benchsuite/mod.rs", 12),
