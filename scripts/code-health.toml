@@ -914,8 +914,8 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 lint = "clippy::too_many_lines"
 file = "src/render/tests/images.rs"
 function = "tall_image_survives_the_viewport_top_boundary_then_culls_and_restores_on_scroll_up"
-message = "this function has too many lines (105/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Shifted by the `testlock::serial()` guard that every test reaching the shared wgpu device now takes; the line count moves by one and the body is otherwise unchanged."
+message = "this function has too many lines (103/100)"
+reason = "One end-to-end viewport-boundary scenario; split only with a coherent setup/assertion seam."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
