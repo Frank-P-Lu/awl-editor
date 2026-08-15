@@ -340,9 +340,8 @@ impl TextPipeline {
     /// source rows are concealed to zero-width by
     /// [`crate::markdown::ConcealKind::Table`], and the grid draws in their place.
     /// A table that FITS occupies one row per source line (header, the rule row,
-    /// then body); a too-wide table WRAPS its cells and each grown row reserves a
-    /// tall document row via [`Self::compute_table_layout`], so grid and source
-    /// agree on the row geometry (`RowGeom` reads the reserved heights).
+    /// then body); a too-wide table WRAPS its cells and reserves tall rows through
+    /// [`Self::compute_table_layout`], keeping grid and source geometry aligned.
     ///
     /// REVEAL = TRUE SOURCE SWAP, per row (WYSIWYG amendment, corrected): a table
     /// the caret is INSIDE stays a drawn grid — every row EXCEPT the caret's own
@@ -363,9 +362,7 @@ impl TextPipeline {
     /// (column widths are the max over every row, so a partly-scrolled table
     /// keeps STABLE columns rather than jumping) and places it; off-screen tables
     /// are culled whole (their cached geometry is simply never turned into
-    /// `TextArea`s). Column math ([`crate::markdown::table_column_layout`] /
-    /// [`crate::markdown::table_align_offset`]) is pure + unit-tested and already
-    /// baked into the cached geometry.
+    /// `TextArea`s). Pure, unit-tested column math is already baked into the cache.
     pub(crate) fn prepare_table_grid(
         &mut self,
         device: &wgpu::Device,
