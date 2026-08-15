@@ -187,6 +187,71 @@ fn demo_storyboard_emits_every_artifact_and_two_runs_are_byte_identical() {
     );
 }
 
+/// A storyboard is a sequence of CURRENT states, not one launch-state project
+/// block copied across the film. The document seed creates `proj-a`; the
+/// explicit config seed creates its sibling `proj-b` inside the same hermetic
+/// filesystem, so the real switch-project picker can move between them without
+/// reading any ambient directory. Step 0 precedes the switch, while steps 1 and
+/// 2 are rendered after it.
+#[test]
+fn project_block_follows_the_replay_sessions_root_at_each_storyboard_step() {
+    let out_dir = tmp_dir("project-fold");
+    let out = run_awl(
+        &[
+            "--storyboard",
+            "scenarios/storyboard-project-fold.toml",
+            "--config",
+            "scenarios/storyboard-project-fold/proj-b/config.toml",
+            "--storyboard-out",
+            out_dir.to_str().unwrap(),
+        ],
+        None,
+    );
+    if !out.status.success() && is_gpu_less(&out) {
+        eprintln!("skipping storyboard project-fold test: no wgpu adapter on this host");
+        return;
+    }
+    assert!(
+        out.status.success(),
+        "project-fold run failed:\n{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+
+    let project = |step: usize| {
+        let path = out_dir.join(format!("step-{step:03}.json"));
+        let json = std::fs::read_to_string(&path)
+            .unwrap_or_else(|e| panic!("reading {}: {e}", path.display()));
+        serde_json::from_str::<serde_json::Value>(&json)
+            .unwrap_or_else(|e| panic!("parsing {}: {e}", path.display()))["project"]
+            .clone()
+    };
+    let before = project(0);
+    assert_eq!(
+        before["root"].as_str(),
+        Some("scenarios/storyboard-project-fold/proj-a")
+    );
+    assert_eq!(before["name"].as_str(), Some("proj-a"));
+    assert_eq!(
+        before["workspace"].as_str(),
+        Some("scenarios/storyboard-project-fold")
+    );
+
+    for step in [1, 2] {
+        let after = project(step);
+        assert_eq!(
+            after["root"].as_str(),
+            Some("scenarios/storyboard-project-fold/proj-b"),
+            "step {step} reports the replay session's switched root"
+        );
+        assert_eq!(after["name"].as_str(), Some("proj-b"));
+        assert_eq!(
+            after["workspace"].as_str(),
+            Some("scenarios/storyboard-project-fold"),
+            "step {step} re-derives the project location as one block"
+        );
+    }
+}
+
 #[test]
 fn abort_fixture_aborts_naming_the_unsupported_effect() {
     let out_dir = tmp_dir("abort");

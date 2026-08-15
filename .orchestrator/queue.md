@@ -13,13 +13,6 @@
    replay/headless laws plus focused parity tests. Ready after item 437 to avoid
    overlapping `main/run` and storyboard integration.
 
-2. **Storyboard project-state fold (438)** — 🟡 IN PROGRESS — storyboard worker
-   (codex), branch `codex/queue-438-storyboard-project-fold`. Stop precomputing one
-   `ProjectInfo` for an entire storyboard: derive the per-step sidecar project block
-   from the replay session's current root after Switch Project, while keeping the
-   capture fold single-owned. Add a storyboard fixture that switches projects and
-   proves later steps report the new project. Ready after wave one.
-
 ## Needs a person, hardware, or release authority
 
 1. **macOS release signing** — supply the Apple secrets required by

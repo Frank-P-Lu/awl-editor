@@ -644,14 +644,15 @@ Named here rather than quietly absorbed:
    this door the App owns that state and an override would be the harness lying
    about the editor it is photographing.
 2. ~~**`ReplaySession` re-scoping.**~~ Closed by item 189 — see
-   `overlay_accept:Project`'s entry above. **Still open:** the storyboard
-   runner (`main/story.rs::run_storyboard`) computes its own `capture::
-   ProjectInfo` once before the run and folds the SAME value into every
-   step's sidecar (`step_opts`), so a storyboard whose steps include a
-   Switch-project would show the stale project block on every step after
-   it — the identical defect shape, one call site removed. No storyboard
-   fixture drives a Switch-project today, so this is undiagnosed rather than
-   reproduced; flag it before writing one.
+   `overlay_accept:Project`'s entry above. **The storyboard runner's per-step
+   fold is closed too.** `ReplaySession::
+   current_project_info` supplies the session-private current root and raw
+   workspace flag to the existing `run::project_info` builder at every rendered
+   step; `run::fold_capture_state` remains the one owner of the rest of the
+   frame. The hermetic two-root fixture
+   `scenarios/storyboard-project-fold.toml` proves that the pre-switch sidecar
+   keeps project A while both post-switch sidecars report project B and its
+   freshly derived location.
 3. ~~**No capture tier reaches an EXTERNAL-CHANGE CONFLICT.**~~ **Closed by item
    204 slice 2 — `--seed-data DIR`.** The measurement slice 1 recorded here was
    right and is kept, because it is what the fix was designed against.

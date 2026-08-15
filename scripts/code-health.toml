@@ -595,8 +595,8 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/main/story.rs"
 function = "run_storyboard"
-message = "this function has too many lines (122/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 189 stopped pre-resolving `effective_workspace` (ReplaySession now resolves the raw flag itself) (-1)."
+message = "this function has too many lines (116/100)"
+reason = "The one storyboard orchestrator owns ordered replay, expectation aborts, per-step capture, trace completion, and film encoding; its phase helpers remain separate below."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"

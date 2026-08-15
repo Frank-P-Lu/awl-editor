@@ -101,8 +101,12 @@ fn every_capture_project_info_literal_is_accounted_for() {
         // and a `Some(..)` there would invent a workspace their sidecars have
         // never carried. They are not half-derivations — they derive nothing.
         ("main/run.rs", 2),
-        // THE ONE BUILDER (`run::project_info`): its return type + its body.
-        ("main/run/location.rs", 2),
+        // THE ONE BUILDER (`run::project_info`): its return type + its body;
+        // plus `ReplaySession::current_project_info`'s typed return. That
+        // session method contains no literal: it supplies the current private
+        // root/workspace inputs and delegates straight to the builder, so a
+        // storyboard step cannot cache or hand-roll the location derivation.
+        ("main/run/location.rs", 3),
     ];
     assert_eq!(
         hits,
