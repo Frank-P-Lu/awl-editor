@@ -64,8 +64,8 @@ reason = "The workspace keyboard and deep link route through `actions/workspace_
 
 [[file_size_mark]]
 file = "src/app.rs"
-lines = 1313
-reason = "The clobber-notice predicate MOVED OUT to `app/files/external.rs` beside the constants it matches (-5); what remains is the disk-baseline construction at the one exhaustive `App::new` site now taking a `crate::external::Seen` rather than a bare stat (+4), the one-line relaunch-recovery call after the startup buffer decisions settle (+2), and a test-gated re-export of the notice constant so prose laws read the running app's own string instead of a retyped copy (+3). Net +3. +32: the theme-font CHEAP-RESHAPE threshold, its compile-time guard and the measured provenance that places it, beside the debounce constant this file already owns as the one scheduling-constant seam; plus the reshape-completion stamp on `ThemeSettleInFlight` that lets the settled-present fold measure the scheduling phase."
+lines = 1319
+reason = "The clobber-notice predicate MOVED OUT to `app/files/external.rs` beside the constants it matches (-5); what remains is the disk-baseline construction at the one exhaustive `App::new` site now taking a `crate::external::Seen` rather than a bare stat (+4), the one-line relaunch-recovery call after the startup buffer decisions settle (+2), and a test-gated re-export of the notice constant so prose laws read the running app's own string instead of a retyped copy (+3). Net +3. +32: the theme-font CHEAP-RESHAPE threshold, its compile-time guard and the measured provenance that places it, beside the debounce constant this file already owns as the one scheduling-constant seam; plus the reshape-completion stamp on `ThemeSettleInFlight` that lets the settled-present fold measure the scheduling phase. +6: the launch buffer's project root is enrolled into the new working set inside `App::new`, after the scratch-stash and session-restore decisions settle, so every capture door gets it for free."
 
 [[file_size_mark]]
 file = "src/app/apply.rs"
@@ -180,7 +180,7 @@ lines = 475
 [[file_size_mark]]
 file = "src/durable.rs"
 lines = 555
-reason = "The per-subject `src/main/tests/<subject>.rs` layout requires seven accounting rows whose counts still total 21. Real-disk fixtures need two further census rows because `InMemoryFs` has no symlink concept; a link requires a real file under `ScratchDir`. The law's `expected` array is the authority for the listed bare-write count."
+reason = "The per-subject `src/main/tests/<subject>.rs` layout requires seven accounting rows whose counts still total 21. Real-disk fixtures need two further census rows because `InMemoryFs` has no symlink concept; a link requires a real file under `ScratchDir`. The law's `expected` array is the authority for the listed bare-write count. The scenario.rs test carve (moved into scenario/tests.rs) split one accounting row into two."
 
 [[file_size_mark]]
 file = "src/export/docx.rs"
@@ -222,8 +222,8 @@ reason = "The one construction site each pipeline family has now sits inside gpu
 
 [[file_size_mark]]
 file = "src/main/args.rs"
-lines = 952
-reason = "+2: resolve_default_folder documents the default-folder candidate separately from the explicit-setting gate owned by run::location::resolve_launch_context; generated reference facts read that live boundary."
+lines = 970
+reason = "+2: resolve_default_folder documents the default-folder candidate separately from the explicit-setting gate owned by run::location::resolve_launch_context; generated reference facts read that live boundary. +18: the --seed-tree CLI parse arm, its two loud refusal bounds (256 files / 4 MiB), and the doc comment distinguishing it from --root's bare directory marker and --seed-data's flat data root."
 
 [[file_size_mark]]
 file = "src/main/run.rs"
@@ -511,7 +511,7 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/app.rs"
 function = "App::new"
-message = "this function has too many lines (102/100)"
+message = "this function has too many lines (104/100)"
 reason = "Existing constructor owner and exhaustive App construction site. DocumentSession moved the active slot, registry, previous target, spell checker, and buffer extras behind one initializer, reducing the constructor by twenty counted lines. Shifted +32 lines, unchanged, by the theme-font cheap-reshape constant and its compile-time guard. UsageLedger folded nine loose odometer/streaks initializers into one, taking a further sixteen lines off."
 
 [[clippy_exception]]
@@ -539,8 +539,8 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/main/args.rs"
 function = "parse_args"
-message = "this function has too many lines (631/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. The parser owns the minimal `--ground-audition` arm, capture-mode flag/Mode/live-App selection, one unconditional hermetic-fs installation through `scenario::seed_document`, and the three native-only pieces each hidden benchmark flag requires."
+message = "this function has too many lines (640/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. The parser owns the minimal `--ground-audition` arm, capture-mode flag/Mode/live-App selection, one unconditional hermetic-fs installation through `scenario::seed_document`, and the three native-only pieces each hidden benchmark flag requires. Plus the new --seed-tree arm."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
