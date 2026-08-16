@@ -8,6 +8,8 @@
 
 ### 449 — Block is the universal default caret (USER DECISION 2026-08-16; AFTER 448)
 
+🟡 IN PROGRESS — claude, branch claude/item-449-block-universal-default
+
 The user wants awl's authored default caret to be Block. Today an unset
 `caret_mode` is an identity-dependent `auto`: `default_mode()` returns Block
 for a world's measured monospaced display face and Morph for a proportional
