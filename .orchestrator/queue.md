@@ -6,6 +6,33 @@
 
 ## Ready to build
 
+### 447 — Kite's page frame must meet the top of the canvas (USER-REPORTED REGRESSION 2026-08-16)
+
+In page mode, Kite's dark writing-column frame starts at the document text
+origin rather than at the top of the editor canvas. The screenshot shows a
+plain horizontal strip between the native title bar and the frame's top edge;
+the two vertical rails begin only where that inset top edge lands. A page frame
+describes the writing SURFACE, so it must meet the canvas top (or the bottom of
+awl's drawn menu bar on platforms where that persistent chrome exists), while
+the prose keeps its existing top inset inside the frame.
+
+Premise check `page_frame_vertical_bounds`: its unscrolled cases currently
+choose `doc_top` (typically the text inset) as `top`, and the law explicitly
+expects that gap. Separate the frame's surface boundary from document-row
+geometry. Do not move `doc_top`, text, headings, outline entries, or hit-testing
+upward to disguise the defect; only the page-frame rectangle owns this change.
+Scrolled and short documents must resolve to the same canvas-owned frame.
+
+Verify the pure bounds owner over no-menu and drawn-menu configurations, then
+prove real pixels for every world whose `PageFrame` is `Line` (currently Kite
+and Wagtail): the top horizontal edge and both vertical rails touch the first
+legal canvas row, the frame never paints through a drawn menu bar, and no
+unframed page-colour strip survives above it. Sweep page width, viewport height,
+scroll position, DPI, and menu-bar state. Add a companion identity assertion
+that the first text row remains at its pre-fix Y and a roster-wide absence law
+for `PageFrame::None` worlds. Mutating the bound back to `doc_top` must fail on
+the exact top-gap assertion.
+
 ### 446 — copy must survive a buffer switch (USER-REPORTED REGRESSION 2026-08-16)
 
 Copy text in one file, switch to another open file, then Paste: nothing is
