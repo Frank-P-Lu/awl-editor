@@ -41,48 +41,11 @@ Two ways to resolve it, both cheap:
 
 **Recommendation: option 1.** It never shows false information, it's the
 smaller change (the identity string already has everything it needs — the
-file's own remembered root, restored correctly by `0d3f1342`), and it
+file's own remembered root, restored correctly by `7c442d2b`), and it
 composes cleanly with item 444's own cross-project grouped view, which is
 the natural place for "did my project switch land" to become visible later.
 Whichever way this goes, it is a one-line branch in the gutter identity
 formatter — genuinely cheap to reverse.
-
-### 449 — Block is the universal default caret (USER DECISION 2026-08-16; AFTER 448)
-
-🟡 IN PROGRESS — claude, branch claude/item-449-block-universal-default
-
-The user wants awl's authored default caret to be Block. Today an unset
-`caret_mode` is an identity-dependent `auto`: `default_mode()` returns Block
-for a world's measured monospaced display face and Morph for a proportional
-face, so changing worlds can silently change the caret style. Retire that
-coupling. With no explicit preference, every world starts and remains on
-Block.
-
-This changes only the DEFAULT. Keep Block, Morph and I-beam as the three
-explicit choices in **Caret style…**; a persisted `caret_mode = "morph"` or
-`"ibeam"` continues to win across launches and world switches. Do not remove
-face-pitch measurement from text/cell geometry merely because caret-mode
-selection no longer consumes it, and do not fold Morph's rendering into Block.
-The unset/automatic preference representation may stay internally if other
-preference restoration needs it, but its effective value is always Block and
-must not vary with theme identity.
-
-Item 448 is already in progress and owns the shared body-size tuning across
-Block and Morph; land this follow-up after it so the newly tuned Block is what
-new users see. Update the generated config/reference default and any bundled
-prose that claims the default follows the font. Do not edit the user's private
-start-guide draft; the user owns that copy.
-
-Verify a no-wildcard sweep of every world with no override: `mode()` and
-`default_mode()` are Block before and after arbitrary world switches. Sweep
-all three explicit config values through load, live reload, persistence and a
-world switch, proving each remains itself; keep native and browser defaults
-identical. Remove or rewrite the old laws whose subject is the retired
-font-derived default rather than leaving tests that encode the previous
-decision. Capture representative proportional and monospaced worlds after 448
-and prove the ordinary unset path draws Block while explicit Morph and I-beam
-still draw their distinct forms. This is a small, reversible default change;
-land it on main for judgement (reverting is one behavior commit).
 
 ### 446 — copy must survive a buffer switch (USER-REPORTED REGRESSION 2026-08-16)
 
