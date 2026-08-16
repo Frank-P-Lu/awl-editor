@@ -70,15 +70,15 @@ editing, yes; the IDE zoo, no.
 
 | Platform | What to get |
 |---|---|
-| Linux x86_64 | `awl-0.10.0-linux-x86_64.tar.gz` from [Releases](https://github.com/Frank-P-Lu/awl-editor/releases) |
+| Linux x86_64 | `awl-0.11.0-linux-x86_64.tar.gz` from [Releases](https://github.com/Frank-P-Lu/awl-editor/releases) |
 | macOS | build from source below — a signed, notarized build is not ready yet |
 | Windows | the browser build |
 
 Unpack and run — the archive contains one directory and installs nothing:
 
 ```sh
-tar xzf awl-0.10.0-linux-x86_64.tar.gz
-cd awl-0.10.0-linux-x86_64
+tar xzf awl-0.11.0-linux-x86_64.tar.gz
+cd awl-0.11.0-linux-x86_64
 ./awl notes.md
 ```
 
