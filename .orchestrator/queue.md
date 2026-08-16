@@ -6,6 +6,34 @@
 
 ## Ready to build
 
+### 445 — inline Code must round-trip a multi-line selection (USER-REPORTED REGRESSION 2026-08-16)
+
+The contextual formatting popover's **Code** button does not toggle cleanly
+when the active selection spans two or more lines. First activation inserts
+the inline-code backticks around the selected text; activating **Code** again
+leaves those backticks in the document. The same action round-trips correctly
+for a single-line selection. Premise check first: reproduce through the real
+popover dispatch (`PopoverButton::Code` → `Action::InlineCode`) and compare it
+with the keyboard/palette route, because every surface is meant to share
+`actions::format` rather than own formatting behavior.
+
+Fix the shared inline-format toggle, not the popover alone. A selection already
+wrapped by the command must unwrap on the second invocation even when its byte
+range contains newlines, with one undo step per invocation and the selection
+remaining on the same logical content. Do not silently reinterpret the button
+as Code Block: this report is about the existing inline Code action removing
+the delimiters it inserted. Preserve the shipped single-line behavior and do
+not disturb fenced-code toggling.
+
+Verify at the pure formatting seam and through `apply_transition`: selections
+spanning two complete lines, partial text on both boundary lines, an empty
+middle line, multibyte text, and a selection ending at column zero of the next
+line all wrap then unwrap to the exact original bytes. Add a real popover-route
+law proving two presses dispatch the same action and round-trip the buffer, plus
+an undo/redo assertion and the existing single-line and Code Block cases as
+regression guards. The law must fail against the current behavior before the
+fix lands.
+
 ### 444 — the working set becomes visible: a margin buffer stack (USER DECISION 2026-08-16)
 
 Design session 2026-08-16. The user works between a couple of files and wants
