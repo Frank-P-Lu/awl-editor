@@ -231,7 +231,7 @@ fn code_block_toggle_through_apply_transition_wraps_and_undoes() {
     assert_eq!(b.text(), "let x = 1;\n", "one Cmd-Z reverts the fence");
 }
 
-/// THE REGRESSION LAW (item 445): the popover's Code button does not own a
+/// THE REGRESSION LAW: the popover's Code button does not own a
 /// private edit path — `PopoverButton::action()` is the SAME catalog Action
 /// the keyboard/palette route fires (law-tested,
 /// `commands::tests::every_popover_button_fires_a_catalog_command`), and the
