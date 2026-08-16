@@ -64,13 +64,13 @@ reason = "The workspace keyboard and deep link route through `actions/workspace_
 
 [[file_size_mark]]
 file = "src/app.rs"
-lines = 1319
-reason = "The clobber-notice predicate MOVED OUT to `app/files/external.rs` beside the constants it matches (-5); what remains is the disk-baseline construction at the one exhaustive `App::new` site now taking a `crate::external::Seen` rather than a bare stat (+4), the one-line relaunch-recovery call after the startup buffer decisions settle (+2), and a test-gated re-export of the notice constant so prose laws read the running app's own string instead of a retyped copy (+3). Net +3. +32: the theme-font CHEAP-RESHAPE threshold, its compile-time guard and the measured provenance that places it, beside the debounce constant this file already owns as the one scheduling-constant seam; plus the reshape-completion stamp on `ThemeSettleInFlight` that lets the settled-present fold measure the scheduling phase. +6: the launch buffer's project root is enrolled into the new working set inside `App::new`, after the scratch-stash and session-restore decisions settle, so every capture door gets it for free."
+lines = 1419
+reason = "The clobber-notice predicate MOVED OUT to `app/files/external.rs` beside the constants it matches (-5); what remains is the disk-baseline construction at the one exhaustive `App::new` site now taking a `crate::external::Seen` rather than a bare stat (+4), the one-line relaunch-recovery call after the startup buffer decisions settle (+2), and a test-gated re-export of the notice constant so prose laws read the running app's own string instead of a retyped copy (+3). Net +3. +32: the theme-font CHEAP-RESHAPE threshold, its compile-time guard and the measured provenance that places it, beside the debounce constant this file already owns as the one scheduling-constant seam; plus the reshape-completion stamp on `ThemeSettleInFlight` that lets the settled-present fold measure the scheduling phase. +6: the launch buffer's project root is enrolled into the new working set inside `App::new`, after the scratch-stash and session-restore decisions settle, so every capture door gets it for free. +100: the clipboard bridge's `ClipboardBackend` trait (native-only, implemented for `arboard::Clipboard` and a test-only `FakeClipboard`) so a buffer-switch/clipboard law can substitute a hermetic stand-in, plus the shared `clipboard_disabled` helper both construction arms call."
 
 [[file_size_mark]]
 file = "src/app/apply.rs"
-lines = 833
-reason = "The conflict workspace's summon reaches the live effect interpreter's one `PersistenceEffect` match and the one `apply_overlay_accept` roster, both exhaustive by design (+6). +34: `sync_theme_font_measured`, the ONE reshape door every live theme-font path runs through. The split-reach preview path shapes the presentable prefix immediately; the quiet-settle owner finishes only the latest highlighted world's tail."
+lines = 844
+reason = "The conflict workspace's summon reaches the live effect interpreter's one `PersistenceEffect` match and the one `apply_overlay_accept` roster, both exhaustive by design (+6). +34: `sync_theme_font_measured`, the ONE reshape door every live theme-font path runs through. The split-reach preview path shapes the presentable prefix immediately; the quiet-settle owner finishes only the latest highlighted world's tail. +11: `refresh_kill_from_clipboard`'s duplicate-read skip now also requires the active buffer's own kill ring to already equal the OS text, not just the App-global last-written stamp, so a buffer switch cannot leave a Paste reading a kill ring that stamp never actually hydrated."
 
 [[file_size_mark]]
 file = "src/app/files/settings.rs"
@@ -511,8 +511,8 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/app.rs"
 function = "App::new"
-message = "this function has too many lines (104/100)"
-reason = "Existing constructor owner and exhaustive App construction site. DocumentSession moved the active slot, registry, previous target, spell checker, and buffer extras behind one initializer, reducing the constructor by twenty counted lines. Shifted +32 lines, unchanged, by the theme-font cheap-reshape constant and its compile-time guard. UsageLedger folded nine loose odometer/streaks initializers into one, taking a further sixteen lines off."
+message = "this function has too many lines (113/100)"
+reason = "Existing constructor owner and exhaustive App construction site. DocumentSession moved the active slot, registry, previous target, spell checker, and buffer extras behind one initializer, reducing the constructor by twenty counted lines. Shifted +32 lines, unchanged, by the theme-font cheap-reshape constant and its compile-time guard. UsageLedger folded nine loose odometer/streaks initializers into one, taking a further sixteen lines off. +9: the working-set enrolment call and its doc comment naming why it runs last; the clipboard construction arms grew by a shared helper call each."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
