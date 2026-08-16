@@ -32,7 +32,7 @@
 //! fixes) would show up here too.
 
 use super::*;
-use crate::fs::{FileSystem, InMemoryFs};
+use crate::fs::InMemoryFs;
 
 /// Install a hermetic [`FakeClipboard`] on `app`, replacing whatever
 /// `App::new`'s own `arboard::Clipboard::new()` attempt produced (or failed
@@ -75,6 +75,7 @@ fn refresh_kill_from_clipboard_hydrates_a_buffer_whose_kill_ring_never_held_the_
     // Manufacture TODAY'S BUG PRECONDITION exactly, without going through a
     // real switch: the OS clipboard equals the App-global stamp, but the
     // ACTIVE buffer's own kill ring is empty (it never produced that stamp).
+    let _g = crate::testlock::serial();
     let mut app = app_on(None, "/proj", Config::empty());
     let fake = install_fake_clipboard(&mut app);
     fake.set_external("alpha");
@@ -102,7 +103,9 @@ fn copy_in_a_survives_a_direct_activation_switch_to_b_then_pastes() {
     let a = PathBuf::from("/proj/a.txt");
     let b = PathBuf::from("/proj/b.txt");
     let mem = InMemoryFs::new().with_file(&a, "alpha\n").with_file(&b, "");
-    let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+    let _g2 = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+    // LOCK ORDER: fs seam first, testlock LAST (see page::test_lock()'s doc).
+    let _g = crate::testlock::serial();
     let mut app = app_on(
         Some(a.clone()),
         "/proj",
@@ -148,7 +151,9 @@ fn copy_in_a_survives_a_last_file_toggle_switch_to_b_then_pastes() {
     let a = PathBuf::from("/proj/a.txt");
     let b = PathBuf::from("/proj/b.txt");
     let mem = InMemoryFs::new().with_file(&a, "alpha\n").with_file(&b, "");
-    let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+    let _g2 = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+    // LOCK ORDER: fs seam first, testlock LAST (see page::test_lock()'s doc).
+    let _g = crate::testlock::serial();
     // Open B first, then A, so B becomes `previous_path()` — the toggle then
     // swaps A -> B, exactly the door `last_buffer_toggle` (`C-x b` / Finish)
     // owns, distinct from a picker's direct activation.
@@ -189,7 +194,9 @@ fn paste_after_switch_sweeps_multiline_and_multibyte_text() {
         let a = PathBuf::from("/proj/a.txt");
         let b = PathBuf::from("/proj/b.txt");
         let mem = InMemoryFs::new().with_file(&a, fixture).with_file(&b, "");
-        let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+        let _g2 = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+        // LOCK ORDER: fs seam first, testlock LAST (see page::test_lock()'s doc).
+        let _g = crate::testlock::serial();
         let mut app = app_on(
             Some(a.clone()),
             "/proj",
@@ -228,7 +235,9 @@ fn paste_after_switch_replaces_an_existing_destination_selection() {
     let mem = InMemoryFs::new()
         .with_file(&a, "alpha\n")
         .with_file(&b, "XXXreplaceMEYYY");
-    let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+    let _g2 = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+    // LOCK ORDER: fs seam first, testlock LAST (see page::test_lock()'s doc).
+    let _g = crate::testlock::serial();
     let mut app = app_on(
         Some(a.clone()),
         "/proj",
@@ -256,7 +265,9 @@ fn an_external_clipboard_overwrite_between_switch_and_paste_wins_over_the_stale_
     let a = PathBuf::from("/proj/a.txt");
     let b = PathBuf::from("/proj/b.txt");
     let mem = InMemoryFs::new().with_file(&a, "alpha\n").with_file(&b, "");
-    let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+    let _g2 = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+    // LOCK ORDER: fs seam first, testlock LAST (see page::test_lock()'s doc).
+    let _g = crate::testlock::serial();
     let mut app = app_on(
         Some(a.clone()),
         "/proj",
@@ -295,7 +306,9 @@ fn an_external_clipboard_overwrite_between_switch_and_paste_wins_over_the_stale_
 fn same_buffer_copy_then_paste_twice_keeps_the_redundant_write_read_suppression() {
     let a = PathBuf::from("/proj/a.txt");
     let mem = InMemoryFs::new().with_file(&a, "hi\n");
-    let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+    let _g2 = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+    // LOCK ORDER: fs seam first, testlock LAST (see page::test_lock()'s doc).
+    let _g = crate::testlock::serial();
     let mut app = app_on(
         Some(a.clone()),
         "/proj",
