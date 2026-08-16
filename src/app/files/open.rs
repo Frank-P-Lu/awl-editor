@@ -249,11 +249,11 @@ impl App {
         // Restored HERE rather than by the caller, and BEFORE `sync_view` below,
         // so no frame is ever composed from the disagreement. `resync_project_location`
         // is the one legal derivation door for everything the root implies.
-        if let Some(root) = self.document.working_set().active_root() {
-            if root != self.project_location.root {
-                self.project_location.root = root.to_path_buf();
-                self.resync_project_location(self.config.location_policy());
-            }
+        if let Some(root) = self.document.working_set().active_root()
+            && root != self.project_location.root
+        {
+            self.project_location.root = root.to_path_buf();
+            self.resync_project_location(self.config.location_policy());
         }
         // ALREADY OPEN elsewhere in this session: switch to its LIVE buffer
         // instead of re-reading disk — unsaved edits, cursor, scroll, undo,

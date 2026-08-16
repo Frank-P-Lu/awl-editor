@@ -93,12 +93,14 @@ fn closing_any_row_of_any_length_leaves_the_active_slot_on_a_real_file() {
                 match ws.active_index() {
                     None => assert!(
                         ws.is_empty(),
-                        "len={len} victim={victim} active={active}: no active slot while {} files remain",
+                        "len={len} victim={victim} active={active}: no active slot \
+                         while {} files remain",
                         ws.len()
                     ),
                     Some(a) => assert!(
                         a < ws.len(),
-                        "len={len} victim={victim} active={active}: active slot {a} is past the end ({})",
+                        "len={len} victim={victim} active={active}: active slot {a} \
+                         is past the end ({})",
                         ws.len()
                     ),
                 }
@@ -213,7 +215,8 @@ fn closing_an_inactive_row_never_changes_which_file_is_active() {
             assert_eq!(
                 ws.active_file().unwrap().leaf(),
                 before,
-                "active={active} victim={victim}: closing an inactive row changed the active file"
+                "active={active} victim={victim}: closing an inactive row \
+                 changed the active file"
             );
             assert!(
                 ws.index_of(&key).is_none(),
@@ -288,7 +291,8 @@ fn fit_parent_never_overruns_its_budget_and_never_lies_about_depth() {
                     let first = label.split('/').next().unwrap();
                     assert!(
                         s.starts_with(first),
-                        "{label:?} at budget {budget} produced {s:?}, losing the nearest-to-root segment"
+                        "{label:?} at budget {budget} produced {s:?}, \
+                         losing the nearest-to-root segment"
                     );
                     if s != label {
                         assert!(

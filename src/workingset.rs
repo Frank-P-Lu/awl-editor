@@ -42,6 +42,13 @@ pub struct OpenFile {
     pub root: PathBuf,
 }
 
+/// The label and removal halves of the model are law-tested here and consumed
+/// by the margin stack itself, which lands separately — the design decision that
+/// owns this surface asks for the resting stack to be judged from captures
+/// before its drawing and pointer machinery is wired. Each allow is scoped to
+/// one item rather than the module, so an unused method anywhere else in the
+/// crate still fails the build, and they come off with the first consumer.
+#[cfg_attr(not(test), allow(dead_code))]
 impl OpenFile {
     /// The leaf the row draws in normal ink: the file name, or `"scratch"` for
     /// the path-less surface.
@@ -87,6 +94,7 @@ impl OpenFile {
 ///
 /// Returns `None` when even `a/…/` cannot fit, so the caller draws no location
 /// rather than a misleading fragment of one.
+#[cfg_attr(not(test), allow(dead_code))]
 pub fn fit_parent(label: &str, budget: usize) -> Option<String> {
     if label.chars().count() <= budget {
         return Some(label.to_string());
@@ -117,10 +125,10 @@ pub fn fit_parent(label: &str, budget: usize) -> Option<String> {
 /// active root when that root contains it, and otherwise stands on its own
 /// parent directory rather than borrowing a root it is not inside.
 pub fn root_for(path: &Path, active_root: &Path, remembered: Option<&Path>) -> PathBuf {
-    if let Some(r) = remembered {
-        if path.starts_with(r) {
-            return r.to_path_buf();
-        }
+    if let Some(r) = remembered
+        && path.starts_with(r)
+    {
+        return r.to_path_buf();
     }
     if path.starts_with(active_root) {
         return active_root.to_path_buf();
@@ -139,12 +147,6 @@ pub struct WorkingSet {
     active: Option<usize>,
 }
 
-/// The removal and selection half of the model is law-tested here and consumed
-/// by the margin stack's pointer routes, which land separately — the design
-/// decision that owns this surface asks for the resting stack to be judged from
-/// captures before its input machinery is wired. The allow is scoped to this
-/// impl so an unused method anywhere else in the crate still fails the build,
-/// and it comes off with the first consumer.
 #[cfg_attr(not(test), allow(dead_code))]
 impl WorkingSet {
     /// Open `key` under `root` (or re-activate it if already open) and make it
