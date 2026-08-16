@@ -16,21 +16,34 @@ mod table_xray;
 pub(crate) use table_layout::TableGridCache;
 
 /// The vertical page-frame bounds shared by preparation and its laws. A frame
-/// is a writing-surface boundary, not a bracket around the last glyph: its
-/// bottom therefore reaches the editor canvas even when the document is short.
+/// describes the WRITING SURFACE, not a bracket around the last glyph or the
+/// text inset: its top therefore meets the canvas top (or awl's own drawn
+/// menu bar, where present) regardless of `doc_top`'s text inset and scroll
+/// offset, and its bottom reaches the editor canvas even when the document is
+/// short. `doc_top` feeds only the bottom's short-document reach — it never
+/// sets the top, which is why a scrolled or short document still resolves to
+/// the same canvas-owned frame.
 ///
 /// `menubar_bottom` is zero without awl's rendered menu bar and otherwise the
-/// bar's lower edge. A scrolled document may begin above that edge, but its
-/// frame may not paint through the persistent chrome. `canvas_bottom` is the
-/// last addressable canvas row, so all four frame edges remain on-canvas.
+/// bar's lower edge. `canvas_bottom` is the last addressable canvas row, so
+/// all four frame edges remain on-canvas. `stroke_px` is the frame's own
+/// device-pixel stroke weight: the caller's rect builder draws the top edge
+/// and rails from `top - stroke_px` to `top` (mirroring the bottom edge's
+/// `bottom` to `bottom + stroke_px`), so returning bare `menubar_bottom`
+/// would put the entire top stroke in `[-stroke_px, 0)` — off-canvas and
+/// invisible. Returning `menubar_bottom + stroke_px` instead makes that same
+/// downstream arithmetic land the stroke on `[menubar_bottom,
+/// menubar_bottom + stroke_px)`: touching the first legal row below the bar,
+/// never above it.
 pub(crate) fn page_frame_vertical_bounds(
     doc_top: f32,
     doc_height: f32,
     menubar_bottom: f32,
     canvas_bottom: f32,
+    stroke_px: f32,
 ) -> (f32, f32) {
     let canvas_bottom = canvas_bottom.max(menubar_bottom);
-    let top = doc_top.max(menubar_bottom).min(canvas_bottom);
+    let top = (menubar_bottom + stroke_px.max(0.0)).min(canvas_bottom);
     let document_bottom = doc_top + doc_height.max(0.0);
     let bottom = document_bottom.max(canvas_bottom).clamp(top, canvas_bottom);
     (top, bottom)
@@ -377,6 +390,7 @@ impl TextPipeline {
             self.total_doc_height(),
             self.menubar_reserve(),
             height as f32 - 1.0,
+            t,
         );
         let h = (bottom - top).max(0.0);
         let right = left + w;
