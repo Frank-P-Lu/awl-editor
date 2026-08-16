@@ -3,6 +3,13 @@
 use super::*;
 
 mod buffers;
+/// THE LIVE CLIPBOARD BRIDGE ACROSS A BUFFER SWITCH: `clipboard_last_written`
+/// is App-global while the kill ring it mirrors is per-buffer, so a naive
+/// "already wrote this" skip can starve a buffer that switched in after the
+/// copy. Native-only — the fake clipboard backend it drives only exists off
+/// wasm, matching `arboard`'s own native-only role in `App`.
+#[cfg(not(target_arch = "wasm32"))]
+mod clipboard;
 mod common;
 /// STRUCTURAL GATES: the `App` ownership map as executable data —
 /// every root field classified, extracted domains kept off root `App`, and the

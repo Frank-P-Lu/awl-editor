@@ -8,10 +8,18 @@ mod crossing;
 #[cfg(test)]
 mod present_txn;
 
-#[cfg(not(target_arch = "wasm32"))]
-use arboard::Clipboard;
 #[cfg(target_arch = "wasm32")]
 use web_clipboard::Clipboard;
+// Non-wasm `App.clipboard` holds this instead of a bare `arboard::Clipboard`
+// directly, so a test can substitute `clipboard_backend::FakeClipboard` for
+// the real OS pasteboard (mirrors `crate::clock::Clock`'s injectable-clock
+// precedent). The field itself stays ONE declaration line either way —
+// `root_app_does_not_grow` parses `src/app.rs` textually, so a second
+// `clipboard:` line under the opposite `#[cfg]` would double-count the field.
+#[cfg(not(target_arch = "wasm32"))]
+type ClipboardHandle = Box<dyn clipboard_backend::ClipboardBackend>;
+#[cfg(target_arch = "wasm32")]
+type ClipboardHandle = Clipboard;
 
 #[cfg(target_arch = "wasm32")]
 mod web_clipboard {
@@ -41,6 +49,80 @@ mod web_clipboard {
         }
     }
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+mod clipboard_backend {
+    //! The clipboard surface `app/apply.rs`'s kill-ring bridge
+    //! (`sync_kill_to_clipboard`/`refresh_kill_from_clipboard`/
+    //! `paste_image_reference`) needs, abstracted behind a trait so a test can
+    //! inject a deterministic fake instead of reaching the real OS pasteboard —
+    //! `arboard::Clipboard` has no test backend of its own, and reaching the
+    //! real one from a unit test is either flaky (a shared, host-ambient
+    //! resource under parallel test threads) or a silent no-op (a headless CI
+    //! runner with no clipboard service at all), neither of which can prove a
+    //! buffer-switch/clipboard-bridge law.
+    pub(super) trait ClipboardBackend {
+        fn set_text(&mut self, text: String) -> Result<(), ()>;
+        fn get_text(&mut self) -> Result<String, ()>;
+        fn get_image(&mut self) -> Result<arboard::ImageData<'static>, ()>;
+    }
+
+    impl ClipboardBackend for arboard::Clipboard {
+        fn set_text(&mut self, text: String) -> Result<(), ()> {
+            self.set_text(text).map_err(|_| ())
+        }
+        fn get_text(&mut self) -> Result<String, ()> {
+            self.get_text().map_err(|_| ())
+        }
+        fn get_image(&mut self) -> Result<arboard::ImageData<'static>, ()> {
+            self.get_image().map_err(|_| ())
+        }
+    }
+
+    /// A deterministic, hermetic stand-in for the OS clipboard. `Clone`s share
+    /// the same backing cell, so a test can keep one handle installed on `App`
+    /// and a second in its own scope to simulate an EXTERNAL app changing the
+    /// clipboard behind awl's back — the exact shape a buffer-switch law needs
+    /// to drive independently of anything `App` itself last wrote.
+    #[cfg(test)]
+    #[derive(Clone, Default)]
+    pub(crate) struct FakeClipboard(std::sync::Arc<std::sync::Mutex<Option<String>>>);
+
+    #[cfg(test)]
+    impl FakeClipboard {
+        pub(crate) fn new() -> Self {
+            Self::default()
+        }
+
+        /// Set the clipboard's content as if another application had just
+        /// written it — never touches `App`'s own `clipboard_last_written`.
+        pub(crate) fn set_external(&self, text: &str) {
+            *self.0.lock().unwrap() = Some(text.to_string());
+        }
+
+        /// What the (fake) OS clipboard currently holds, for assertions.
+        pub(crate) fn current(&self) -> Option<String> {
+            self.0.lock().unwrap().clone()
+        }
+    }
+
+    #[cfg(test)]
+    impl ClipboardBackend for FakeClipboard {
+        fn set_text(&mut self, text: String) -> Result<(), ()> {
+            *self.0.lock().unwrap() = Some(text);
+            Ok(())
+        }
+        fn get_text(&mut self) -> Result<String, ()> {
+            self.0.lock().unwrap().clone().ok_or(())
+        }
+        fn get_image(&mut self) -> Result<arboard::ImageData<'static>, ()> {
+            Err(()) // text-only fake: the OS clipboard never holds an image
+        }
+    }
+}
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+pub(crate) use clipboard_backend::FakeClipboard;
 
 const AUTOSAVE_DEBOUNCE: Duration = Duration::from_millis(400);
 
@@ -430,7 +512,7 @@ pub struct App {
     /// probe run — zero cost on a normal launch.
     #[cfg(not(target_arch = "wasm32"))]
     probe_ready: Option<std::sync::mpsc::Sender<()>>,
-    clipboard: Option<Clipboard>,
+    clipboard: Option<ClipboardHandle>,
     clipboard_last_written: Option<String>,
     /// The live root plus its derived project state and persisted MRUs.
     project_location: location::ProjectLocation,
@@ -605,6 +687,15 @@ impl App {
             soak_passed: None,
             #[cfg(not(target_arch = "wasm32"))]
             probe_ready: None,
+            #[cfg(not(target_arch = "wasm32"))]
+            clipboard: match arboard::Clipboard::new() {
+                Ok(c) => Some(Box::new(c) as ClipboardHandle),
+                Err(e) => {
+                    eprintln!("system clipboard disabled: {e}");
+                    None
+                }
+            },
+            #[cfg(target_arch = "wasm32")]
             clipboard: match Clipboard::new() {
                 Ok(c) => Some(c),
                 Err(e) => {

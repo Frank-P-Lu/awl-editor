@@ -210,8 +210,19 @@ impl App {
         if text.is_empty() {
             return; // empty external clipboard does not override internal kill
         }
-        if self.clipboard_last_written.as_deref() == Some(text.as_str()) {
-            return; // it's our own value; nothing external changed
+        // The "nothing external changed" skip is only sound while the ACTIVE
+        // buffer already carries this value: `clipboard_last_written` is one
+        // App-global stamp, but the kill ring it describes is per-buffer. A
+        // buffer switch leaves the stamp pointing at OS text the new buffer's
+        // own kill ring was never hydrated with — matching the stamp alone
+        // then skips the hydrate and a same-buffer optimization silently
+        // starves every OTHER buffer's paste. Requiring the buffer's own kill
+        // to already equal the OS text closes that gap while leaving the
+        // real same-buffer redundant-read suppression intact.
+        let matches_last_written = self.clipboard_last_written.as_deref() == Some(text.as_str());
+        let active_buffer_already_has_it = self.document.buffer().kill_buffer() == text;
+        if matches_last_written && active_buffer_already_has_it {
+            return; // it's our own value and this buffer already holds it
         }
         self.document.set_kill(&text);
         self.clipboard_last_written = Some(text);
