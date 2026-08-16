@@ -47,38 +47,6 @@ the natural place for "did my project switch land" to become visible later.
 Whichever way this goes, it is a one-line branch in the gutter identity
 formatter — genuinely cheap to reverse.
 
-### 446 — copy must survive a buffer switch (USER-REPORTED REGRESSION 2026-08-16)
-
-🟡 IN PROGRESS — claude, branch claude/item-446-clipboard-buffer-switch
-
-Copy text in one file, switch to another open file, then Paste: nothing is
-inserted. Copy/Paste are system-clipboard operations and must cross buffer
-boundaries. The defect is in the live clipboard bridge, not the platform
-clipboard: `sync_kill_to_clipboard` writes the copied text and records it in
-App-global `clipboard_last_written`; after a switch the destination buffer has
-its own empty kill ring, but `refresh_kill_from_clipboard` sees that the OS text
-equals `clipboard_last_written` and returns early without hydrating the NEW
-buffer. `YankText` then reads that buffer's empty kill ring.
-
-Make the duplicate-read optimization conditional on the active buffer already
-holding the same text, or move clipboard text ownership to the App so a buffer
-swap cannot invalidate the premise. Keep the system clipboard authoritative:
-external clipboard changes still replace the internal value; an empty or
-non-text clipboard retains the documented graceful fallback; copy/kill
-coalescing inside a buffer remains unchanged. Do not solve this by copying kill
-rings between buffers during every switch—the clipboard bridge, not document
-state, owns cross-document paste.
-
-Verify with a live-App law using a controllable clipboard seam: select and Copy
-in buffer A, activate buffer B, Paste, and assert B receives the exact text in
-one undoable edit while A remains unchanged. Sweep both switch doors (Last file
-and direct activation), multiline and multibyte text, a destination selection
-that must be replaced, and an external clipboard overwrite between switch and
-Paste. Add the non-vacuity case that reproduces today's state exactly: OS text
-equals App `clipboard_last_written` while the active buffer's kill ring is
-empty; Paste must still succeed. Preserve the existing same-buffer redundant
-write/read suppression laws.
-
 ### 444 — the working set becomes visible: a margin buffer stack (USER DECISION 2026-08-16; INFRASTRUCTURE LANDED, RENDER NOT STARTED)
 
 **Landed on `main` (`f8558c41`, `f53ffa6c`, `7c442d2b`, `dcb86fbb`, `8adcd961`,
