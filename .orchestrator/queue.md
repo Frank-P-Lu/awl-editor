@@ -147,17 +147,23 @@ byte-identical to today's margin across the world roster; the digit chords in
 both keymap flavors' tables so the generated reference picks them up — with
 the generated rows spot-checked against the dispatch they claim.
 
-## Needs a person, hardware, or release authority
+## Needs the user's live judgement
+
+1. **macOS Export as PDF panel** — from the native File menu, confirm the save
+   dialog opens at the expected folder/name and Cancel leaves the document
+   untouched. The command palette uses awl's in-app destination navigator and
+   is a different door.
+
+## Needs specific hardware
+
+1. **AT-SPI journey** — on a real Linux desktop with Orca, exercise document
+   reading, caret/selection, overlays, and an editing burst.
+2. **Linux drawn-menu Export click** — with a real window/compositor, confirm
+   the rendered menu's Export action reaches its destination.
+3. **Current Linux release artifacts** — launch both the tarball and AppImage
+   on a real desktop; check launcher name/icon and the AppImage FUSE fallback.
+
+## Needs release authority
 
 1. **macOS release signing** — supply the Apple secrets required by
    `RELEASING.md` §1 before the macOS release arm can run.
-2. **AT-SPI journey (251)** — on a real Linux desktop with Orca, exercise
-   document reading, caret/selection, overlays, and an editing burst.
-3. **Linux drawn-menu Export click** — use a real window/compositor and confirm
-   the rendered menu's Export action reaches its destination.
-4. **Linux v0.10.0 artifacts** — launch both the tarball and AppImage on a real
-   desktop; check launcher name/icon and the AppImage FUSE fallback.
-5. **macOS Export as PDF panel (301)** — confirm initial folder/name and that
-   Cancel leaves the document untouched.
-6. **Live glide (284)** — judge the 20° travel tilt and whether wrapping needs a
-   distinct flourish.
