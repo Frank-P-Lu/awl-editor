@@ -122,12 +122,19 @@ registry can preserve cross-root buffers while `load_path` leaves the old root
 active, which would make the document and bottom folder identity disagree.
 Close that seam here; never present it as intentional mixed-root behavior.
 
+Nested files render as a FLAT working set, never a miniature tree. The root
+heading names the active folder (`notes`); each row shows the filename and, when
+it lives below the root, its root-relative parent in quieter ink
+(`journal/ field-notes.md`). Preserve the leaf and the nearest useful location
+when space is tight (`research/…/ final-draft.md`). No indentation, disclosure
+arrows or expandable folders: those marks promise a file tree this surface does
+not provide.
+
 What keeps it tabs-but-not-tabs: no reordering and no drag; hides under space
 pressure exactly as the outline does; inherits every §5 margin law (hug the
 column, quiet label treatment, never change the prose column's geometry).
 STABLE OPEN ORDER within a project, not MRU — reordering on every switch would
-jitter the margin and make the digit chords mean a different file each press;
-stable order makes ⌘2 a NAME for the session.
+jitter the margin while the pointer is reaching for a row.
 
 Closing is part of the feature, not an assumed affordance. Today ⌘W's
 "Finish file" saves, notifies any daemon waiter, and switches to the previous
@@ -140,6 +147,24 @@ close zone; the rest of the row remains the larger switch target, so merely
 moving through the list does not fill it with controls. Closing an inactive row
 closes that named buffer without first activating it; a dirty or conflicted
 buffer is never discarded.
+
+The stack makes the existing file verbs discoverable without becoming their
+implementation. Secondary-click a row to open the SAME filename context menu
+the bottom identity already owns: Rename file…, Move file…, Duplicate file,
+Version history…, plus Close file. Pointer and keyboard routes dispatch the
+same catalog actions; Cmd-P → Move file… opens the identical destination
+navigator. A row action targets the named buffer rather than silently switching
+documents merely to make an active-buffer-only function convenient.
+
+Move stays deliberately bounded to the source file's owning root. Its summoned
+folders-only navigator says `move <filename>`, shows the current root-relative
+destination, descends/ascends through folders, offers an explicit `New folder…`
+row and a `Move here` action at every level. A successful move keeps the stack
+slot stable and updates its quiet parent path. No drag-to-move, bulk selection,
+folder moves or cross-root moves in this item: those are file-manager machinery,
+and a tiny contextual stack is the wrong place to imply them. Moving never
+silently rewrites Markdown or incoming links; when the file contains relative
+links/images, the completion feedback states that their paths may need review.
 
 Closing the LAST file enters a real ZERO-DOCUMENT state, not a fake unnamed
 buffer and not a closed application window. Today `DocumentSession` always owns
@@ -168,27 +193,20 @@ product rule.
 PROTOTYPE the cross-project half in that SAME expanded view, taking the useful
 part of Codex's sidebar grammar without adopting its permanent project-manager
 shell: group retained open files under folder headings; mark the active file's
-group clearly; keep only the active folder's group in the resting stack, with a
-quiet `N files in other folders…` route when other groups exist. Clicking that
-route expands the grouped list. Clicking a file in another group atomically
+group clearly; keep only the active folder's group in the resting stack. The
+ONE generic `+ N more…` row counts every hidden open buffer — same-root overflow
+and other roots alike — and expands this grouped view; never add a parallel
+`N files in other folders…` row. Clicking a file in another group atomically
 restores its remembered project root AND activates its buffer, after which Go
 to, New, Move, export and the resting stack all operate in that folder. This is
 why the main folder remains meaningful: it is the ACTIVE group, not a claim that
-no other folder may retain buffers. Do not show multiple groups persistently
-unless the prototype overturns this boundary; awl is not a project manager.
+no other folder may retain buffers. Do not show multiple groups persistently;
+awl is not a project manager.
 
-Shortcuts (decided): ⌘1–⌘9 jump to the nth stack entry (slot 1; Linux
-resolves Ctrl+1–9 per the normal rule — only ⌘0 is spent today, on reset
-zoom). ⌃Tab Last-file stays EXACTLY as shipped — the alternate gesture,
-untouched; no stack-cycling mode is added (cycling a stable list and toggling
-MRU would fight, and digits + toggle cover every path in fewer keys). The
-Emacs double is `C-x b`, aliased to Last file (faithful to `C-x b RET`), and
-lands in which-key with the rest of the prefix for free. Optional flourish to
-PROTOTYPE, not committed: while ⌘ is held for a beat, faint 1..n ordinals
-beside the stack entries — the shortcut teaches itself at the moment of the
-reach; cut it if it reads as noise in the shots. Overflow never changes a
-file's stable ordinal; the expanded working-set view exposes the complete
-numbered roster.
+No new digit shortcuts. Once the working set can be grouped, partially hidden
+and scrolled, “the third file” has no stable, obvious meaning across resting and
+expanded states. ⌃Tab Last file stays exactly as shipped, `C-x b` may remain its
+quiet Emacs alias, and Go to… remains the complete keyboard route.
 
 Contract edits owned here: DESIGN §5's margin roster gains the stack as a
 member with the outline's own license (may click-to-switch; orientation, not
@@ -207,8 +225,9 @@ the named CLI paths); that hermeticity also satisfies the path-leak rule,
 because the margin photographs filenames — shots run against seeded roots
 only, never the ambient ones. Verify: the sidecar gains the working set (open
 files + active index) through the one redacting writer; a `--screenshot-app`
-law drives open, open, ⌘2 and asserts the active buffer changed AND the
-stack's drawn order did not; a pixel law that the active row is
+law opens A, opens B, accepts A's stack row and asserts the active buffer
+changed AND the stack's drawn order did not. A pixel law asserts that the
+active row is
 distinguishable from its dimmed siblings, with a companion presence floor
 (a stack faded to the page must fail, not pass happier); cross-root activate
 restores the matching project/root before the frame and the gutter never names
@@ -218,9 +237,10 @@ keeps the active file represented and its `+ N more…` count exact; expanded
 scroll remains inside the working set; closing the last file produces no active
 buffer, no page surface and exactly the two start actions without changing the
 remembered root; the one-file case before close is byte-identical to today's
-margin across the world roster; the digit chords in both keymap flavors' tables
-so the generated reference picks them up — with the generated rows spot-checked
-against the dispatch they claim.
+margin across the world roster; context-menu Move and palette Move dispatch the
+same action; moving a nested file keeps its stack slot and updates its relative
+label, and never crosses the source root. Generated reference rows are
+spot-checked against the dispatch they claim.
 
 ## Needs specific hardware
 
