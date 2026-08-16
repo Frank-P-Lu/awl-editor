@@ -21,6 +21,15 @@ type ClipboardHandle = Box<dyn clipboard_backend::ClipboardBackend>;
 #[cfg(target_arch = "wasm32")]
 type ClipboardHandle = Clipboard;
 
+/// Shared by both `ClipboardHandle::new()` failure arms below (native and
+/// wasm) so the `eprintln!` call appears exactly once in this file —
+/// `println_audit`'s table counts occurrences textually, so writing the same
+/// macro call out twice under opposite `#[cfg]` arms would double-count it
+/// even though only one ever compiles.
+fn clipboard_disabled(e: impl std::fmt::Display) {
+    eprintln!("system clipboard disabled: {e}");
+}
+
 #[cfg(target_arch = "wasm32")]
 mod web_clipboard {
     //! Best-effort async browser clipboard adapter. Copy never blocks; paste
@@ -691,7 +700,7 @@ impl App {
             clipboard: match arboard::Clipboard::new() {
                 Ok(c) => Some(Box::new(c) as ClipboardHandle),
                 Err(e) => {
-                    eprintln!("system clipboard disabled: {e}");
+                    clipboard_disabled(e);
                     None
                 }
             },
@@ -699,7 +708,7 @@ impl App {
             clipboard: match Clipboard::new() {
                 Ok(c) => Some(c),
                 Err(e) => {
-                    eprintln!("system clipboard disabled: {e}");
+                    clipboard_disabled(e);
                     None
                 }
             },
