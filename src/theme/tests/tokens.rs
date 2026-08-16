@@ -201,6 +201,20 @@ fn every_world_has_a_real_margin_gradient() {
     }
 }
 
+/// Currawong's near-black page must remain a distinct figure inside its star
+/// field. The page clear draws the authored `base_100` literally, so a gradient
+/// endpoint sharing that value makes the page edge disappear across part of
+/// the room. Pin both endpoints away from the page so neither end of the
+/// vertical field can recreate that loss.
+#[test]
+fn currawongs_star_field_stays_off_its_oled_page() {
+    assert_eq!(CURRAWONG.base_100.hex(), "#060607");
+    assert_eq!(CURRAWONG.background.from().hex(), "#121317");
+    assert_eq!(CURRAWONG.background.to().hex(), "#1c1e22");
+    assert_ne!(CURRAWONG.background.from(), CURRAWONG.base_100);
+    assert_ne!(CURRAWONG.background.to(), CURRAWONG.base_100);
+}
+
 #[test]
 fn hex_round_trips_known_values() {
     assert_eq!(POTOROO.base_100.hex(), "#1f0400");

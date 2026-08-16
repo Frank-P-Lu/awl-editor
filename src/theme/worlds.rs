@@ -516,8 +516,8 @@ pub const CURRAWONG: Theme = Theme {
     error: Srgb::rgb(0xFF, 0x6B, 0x5C),
     selection_document: Srgb::rgba(0x3E, 0x5C, 0x8A, 0x52),
     background: Background::Gradient {
-        from: Srgb::rgb(0x06, 0x06, 0x07),
-        to: Srgb::rgb(0x0E, 0x0F, 0x11),
+        from: Srgb::rgb(0x12, 0x13, 0x17),
+        to: Srgb::rgb(0x1C, 0x1E, 0x22),
         dir: (0.0, 1.0),
     },
     font: "Iosevka",
