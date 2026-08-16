@@ -291,19 +291,24 @@ fn the_menu_bar_default_really_differs_by_platform_as_its_description_claims() {
     );
 }
 
-/// `--caret-mode`'s description claims the `auto` default is font-derived:
-/// mono to block, proportional to morph. Asked on both sides of the font
-/// condition — the pair MUST differ, which is the only thing that makes the
-/// sentence mean anything.
+/// `--caret-mode`'s description claims the default is Block on every world —
+/// no longer font-derived. Checked on BOTH a mono-faced and a proportional-
+/// faced world (enrolled from the roster, not a named world) so a reintroduced
+/// identity coupling — the retired mono-to-block, proportional-to-morph
+/// split — would fail this law rather than pass it by accident.
 #[test]
-fn the_caret_mode_auto_default_really_follows_the_face_as_its_description_claims() {
+fn the_caret_mode_auto_default_really_is_block_on_every_world_as_its_description_claims() {
     let _g = crate::testlock::serial();
     let text = lookup("--caret-mode")
         .expect("--caret-mode is a flag")
         .summary_text();
     assert!(
-        text.contains("mono->block, proportional->morph"),
-        "--caret-mode's description stopped stating the font-derived default: {text}"
+        text.contains("default: block"),
+        "--caret-mode's description stopped stating the universal Block default: {text}"
+    );
+    assert!(
+        !text.contains("mono->block, proportional->morph"),
+        "--caret-mode's description still states the retired font-derived default: {text}"
     );
     // Enrolment from the roster, not from a named world: whichever worlds
     // actually carry a mono and a proportional display face.
@@ -315,8 +320,8 @@ fn the_caret_mode_auto_default_really_follows_the_face_as_its_description_claims
         .iter()
         .find(|t| !crate::caret::font_is_mono(t.font))
         .expect("some world wears a proportional display face");
-    // The override is never touched: `default_mode` is the font-derived answer
-    // the `auto` arm falls back to, which is what the description claims.
+    // The override is never touched: `default_mode` is the answer the `auto`
+    // arm falls back to, which is what the description claims.
     let was = crate::theme::active().name;
     crate::theme::set_active_by_name(mono.name).expect("a roster world");
     let on_mono = crate::caret::default_mode();
@@ -326,18 +331,21 @@ fn the_caret_mode_auto_default_really_follows_the_face_as_its_description_claims
     assert_eq!(
         on_mono,
         crate::caret::CaretMode::Block,
-        "`{}` wears the mono face `{}` and must default to block",
+        "`{}` wears the mono face `{}` and must still default to block",
         mono.name,
         mono.font
     );
     assert_eq!(
         on_prop,
-        crate::caret::CaretMode::Morph,
-        "`{}` wears the proportional face `{}` and must default to morph",
+        crate::caret::CaretMode::Block,
+        "`{}` wears the proportional face `{}` and must ALSO default to block now",
         prop.name,
         prop.font
     );
-    assert_ne!(on_mono, on_prop, "the claim is that the two DIFFER");
+    assert_eq!(
+        on_mono, on_prop,
+        "the whole point of this item is that the two no longer differ"
+    );
 }
 
 /// `--list-worlds` claims it prints the roster `--theme` accepts. Both sides:

@@ -131,12 +131,12 @@ pub fn font_is_mono(family: &str) -> bool {
     crate::render::facepitch::family_is_mono(family)
 }
 
+/// The unset/`auto` caret preference's effective value: always [`CaretMode::Block`],
+/// on every world, native and browser alike. It no longer reads the active theme's
+/// face pitch — `font_is_mono` stays live for the geometry fork it still owns
+/// (`render/caret.rs`'s grid-vs-ink-box split), just no longer for mode selection.
 pub fn default_mode() -> CaretMode {
-    if font_is_mono(crate::theme::active().font) {
-        CaretMode::Block
-    } else {
-        CaretMode::Morph
-    }
+    CaretMode::Block
 }
 
 pub fn mode() -> CaretMode {

@@ -356,7 +356,7 @@
 <tr><td><code>page_mode</code></td><td>true | false</td><td><code>true</code></td></tr>
 <tr><td><code>page_width_prose</code></td><td>whole columns</td><td><code>70</code></td></tr>
 <tr><td><code>page_width_code</code></td><td>whole columns</td><td><code>100</code></td></tr>
-<tr><td><code>caret_mode</code></td><td>block | morph | ibeam</td><td><code>morph</code></td></tr>
+<tr><td><code>caret_mode</code></td><td>block | morph | ibeam</td><td><code>block</code></td></tr>
 <tr><td><code>dictionary</code></td><td>en_US | en_GB | en_AU</td><td><code>en_US</code></td></tr>
 <tr><td><code>writing_nits</code></td><td>true | false</td><td><code>true</code></td></tr>
 <tr><td><code>spellcheck</code></td><td>true | false</td><td><code>true</code></td></tr>
@@ -563,7 +563,7 @@
 <tr><td><code>--ground-audition</code></td><td><code>W</code></td><td>print the world's A/B/C ground-audition manifest, exit</td></tr>
 <tr><td><code>--pack-icns</code></td><td><code>[DIR]</code></td><td>cut every world's rendered tiles (default assets/macos/candidates/tiles) into assets/macos/world/&lt;World&gt;.icns + the canonical assets/macos/Awl.icns, and regenerate src/app_icon/embedded.rs, then exit — run from the repo root AFTER scripts/export-icons.sh</td></tr>
 <tr><td><code>--export-linux-icon</code></td><td><code>OUT.png</code></td><td>cut the 256px PNG out of the committed canonical assets/macos/Awl.icns, then exit — run from the repo root; see scripts/package-appimage.sh</td></tr>
-<tr><td><code>--caret-mode</code></td><td><code>MODE</code></td><td>caret look: block, morph, ibeam, or auto (default: mono-&gt;block, proportional-&gt;morph)</td></tr>
+<tr><td><code>--caret-mode</code></td><td><code>MODE</code></td><td>caret look: block, morph, ibeam (default: block, on every world)</td></tr>
 <tr><td><code>--capture-size</code></td><td><code>WxH</code></td><td>physical canvas size for the capture (default 1200x800)</td></tr>
 <tr><td><code>--capture-dpi</code></td><td><code>N</code></td><td>renderer scale factor (default 1.0); WxH at dpi N == (W/N)x(H/N) logical retina window</td></tr>
 <tr><td><code>--measure</code></td><td><code>N</code></td><td>page-mode column width in chars (default 70 for prose, 100 for code; implies --page on)</td></tr>

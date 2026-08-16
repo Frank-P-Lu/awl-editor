@@ -240,7 +240,7 @@ An absent key takes the default below. A command-line flag overrides the file; t
 | `page_mode` | true \| false | `true` |
 | `page_width_prose` | whole columns | `70` |
 | `page_width_code` | whole columns | `100` |
-| `caret_mode` | block \| morph \| ibeam | `morph` |
+| `caret_mode` | block \| morph \| ibeam | `block` |
 | `dictionary` | en_US \| en_GB \| en_AU | `en_US` |
 | `writing_nits` | true \| false | `true` |
 | `spellcheck` | true \| false | `true` |
@@ -422,7 +422,7 @@ At most one capture mode per run: awl refuses a second rather than silently pref
 | `--ground-audition` | `W` | print the world's A/B/C ground-audition manifest, exit |
 | `--pack-icns` | `[DIR]` | cut every world's rendered tiles (default assets/macos/candidates/tiles) into assets/macos/world/<World>.icns + the canonical assets/macos/Awl.icns, and regenerate src/app_icon/embedded.rs, then exit — run from the repo root AFTER scripts/export-icons.sh |
 | `--export-linux-icon` | `OUT.png` | cut the 256px PNG out of the committed canonical assets/macos/Awl.icns, then exit — run from the repo root; see scripts/package-appimage.sh |
-| `--caret-mode` | `MODE` | caret look: block, morph, ibeam, or auto (default: mono->block, proportional->morph) |
+| `--caret-mode` | `MODE` | caret look: block, morph, ibeam (default: block, on every world) |
 | `--capture-size` | `WxH` | physical canvas size for the capture (default 1200x800) |
 | `--capture-dpi` | `N` | renderer scale factor (default 1.0); WxH at dpi N == (W/N)x(H/N) logical retina window |
 | `--measure` | `N` | page-mode column width in chars (default 70 for prose, 100 for code; implies --page on) |

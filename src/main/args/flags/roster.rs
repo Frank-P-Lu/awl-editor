@@ -117,7 +117,7 @@ flag_roster! {
         );
     CaretMode: &["--caret-mode"], Options, Shown,
         &[Operand::req("MODE", "requires 'block' or 'morph'")],
-        "caret look: block, morph, ibeam, or auto (default: mono->block, proportional->morph)";
+        "caret look: block, morph, ibeam (default: block, on every world)";
     CaptureSize: &["--capture-size"], Options, Shown,
         &[Operand::req("WxH", "requires WxH (e.g. 2400x1600)")],
         "physical canvas size for the capture (default 1200x800)";

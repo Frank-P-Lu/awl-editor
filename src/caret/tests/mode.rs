@@ -28,28 +28,41 @@ fn font_mono_detection() {
     // statement of the rule.
 }
 
-/// The FONT-DERIVED default caret mode follows the measured pitch for every
-/// world: Block on a mono display, Morph on a proportional one. A no-wildcard
-/// sweep of `theme::THEMES` — a new world takes whichever default its face's own
-/// metrics earn it, and cannot land in neither camp.
+/// Block is the UNIVERSAL default caret: with no explicit override,
+/// `default_mode` answers Block for every world regardless of its display
+/// face's measured pitch. A no-wildcard sweep of `theme::THEMES` — a new world,
+/// mono or proportional, cannot quietly reintroduce the retired identity-
+/// dependent `auto` this test used to encode (Block on mono, Morph on
+/// proportional).
 #[test]
-fn default_mode_follows_the_measured_pitch_in_every_world() {
+fn default_mode_is_block_in_every_world_with_no_override() {
     let _t = crate::testlock::serial();
     let restore = crate::theme::active_index();
+    // Non-vacuity: the roster must genuinely carry both pitches, or a
+    // font-derived default could have agreed with Block everywhere by
+    // accident and this sweep would prove nothing.
+    assert!(
+        crate::theme::THEMES.iter().any(|t| font_is_mono(t.font)),
+        "the roster must carry a mono-faced world for this sweep to mean anything"
+    );
+    assert!(
+        crate::theme::THEMES.iter().any(|t| !font_is_mono(t.font)),
+        "the roster must carry a proportional-faced world for this sweep to mean anything"
+    );
     for (i, t) in crate::theme::THEMES.iter().enumerate() {
         crate::theme::set_active(i);
         crate::caret::clear_override();
-        let expected = if font_is_mono(t.font) {
-            CaretMode::Block
-        } else {
-            CaretMode::Morph
-        };
         assert_eq!(
             default_mode(),
-            expected,
-            "{} ({}): the auto caret mode must follow the face's measured pitch",
+            CaretMode::Block,
+            "{} ({}, {}): the auto caret default must be Block, not follow the face's pitch",
             t.name,
-            t.font
+            t.font,
+            if font_is_mono(t.font) {
+                "mono"
+            } else {
+                "proportional"
+            }
         );
     }
     crate::theme::set_active(restore);
@@ -216,43 +229,51 @@ fn caret_demo_choreography_types_edits_then_loops_and_settles() {
 }
 
 #[test]
-fn default_mode_block_on_mono_morph_on_proportional() {
+fn mode_is_block_on_both_mono_and_proportional_worlds_with_no_override() {
     // Mutates the shared theme global (`set_active_by_name`), not just caret's
     // own — hold BOTH test locks (theme, THEN caret, the suite-wide order) so
     // this can't race another test's theme read/write. `super::TEST_LOCK` alone
     // (caret's) does not exclude `theme::TEST_LOCK`-holding tests.
     let _t = crate::testlock::serial();
     let _g = crate::testlock::serial();
-    // Clear any explicit override so the font-derived default applies.
+    // Clear any explicit override so the universal default applies.
     MODE_OVERRIDE.store(0, Ordering::Relaxed);
     // Tawny (IBM Plex Mono) -> Block.
     crate::theme::set_active_by_name("Tawny").unwrap();
     assert_eq!(mode(), CaretMode::Block);
-    // Gumtree (Literata, proportional) -> Morph.
+    // Gumtree (Literata, proportional) -> ALSO Block: the default no longer
+    // varies with the world's measured face pitch.
     crate::theme::set_active_by_name("Gumtree").unwrap();
-    assert_eq!(mode(), CaretMode::Morph);
+    assert_eq!(mode(), CaretMode::Block);
     // Restore.
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
     MODE_OVERRIDE.store(0, Ordering::Relaxed);
 }
 
 #[test]
-fn explicit_override_beats_font_default() {
+fn explicit_override_beats_the_block_default_across_a_world_switch() {
     // Hold theme's lock too — this mutates the shared theme global (see the
-    // note on `default_mode_block_on_mono_morph_on_proportional`).
+    // note on `mode_is_block_on_both_mono_and_proportional_worlds_with_no_override`).
     let _t = crate::testlock::serial();
     let _g = crate::testlock::serial();
-    // On a mono world the default is Block, but an explicit Morph override wins.
+    // An explicit Morph override survives a switch between a mono world and a
+    // proportional one — both now share the same Block default, so this proves
+    // the override outranks the default rather than merely disagreeing with it
+    // on one side.
     crate::theme::set_active_by_name("Tawny").unwrap();
     set_mode(CaretMode::Morph);
     assert_eq!(mode(), CaretMode::Morph);
-    // And a Block override wins on a proportional world.
     crate::theme::set_active_by_name("Gumtree").unwrap();
-    set_mode(CaretMode::Block);
-    assert_eq!(mode(), CaretMode::Block);
-    // Toggle flips the effective mode (now Block ⇄ I-beam) and sticks.
-    assert_eq!(toggle_mode(), CaretMode::Ibeam);
+    assert_eq!(
+        mode(),
+        CaretMode::Morph,
+        "an explicit pick survives a world switch, not just disagreement with one font"
+    );
+    // And an explicit Ibeam pick wins too, then toggle flips it to Block.
+    set_mode(CaretMode::Ibeam);
     assert_eq!(mode(), CaretMode::Ibeam);
+    assert_eq!(toggle_mode(), CaretMode::Block);
+    assert_eq!(mode(), CaretMode::Block);
     // Restore.
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
     MODE_OVERRIDE.store(0, Ordering::Relaxed);
@@ -261,10 +282,11 @@ fn explicit_override_beats_font_default() {
 #[test]
 fn toggle_mode_flips_block_and_ibeam() {
     // Hold theme's lock too — this mutates the shared theme global (see the
-    // note on `default_mode_block_on_mono_morph_on_proportional`).
+    // note on `mode_is_block_on_both_mono_and_proportional_worlds_with_no_override`).
     let _t = crate::testlock::serial();
     let _g = crate::testlock::serial();
-    // Start from a Block default (mono world, no override).
+    // Start from the Block default (no override) — any world does, since the
+    // default no longer tracks the world's font; Tawny is picked arbitrarily.
     MODE_OVERRIDE.store(0, Ordering::Relaxed);
     crate::theme::set_active_by_name("Tawny").unwrap();
     assert_eq!(mode(), CaretMode::Block);
@@ -287,7 +309,8 @@ fn toggle_mode_flips_block_and_ibeam() {
 /// picker's auto-aware Cancel is built on (see `overlay::state::new_caret`'s
 /// `original_caret_was_auto` + `actions::overlay_nav`'s Cancel arm). Auto is
 /// the construction default; any explicit `set_mode` clears it; `clear_override`
-/// is the one door back, restoring the font-derived resolution.
+/// is the one door back, restoring the universal Block resolution — which no
+/// longer depends on the active theme.
 #[test]
 fn is_auto_and_clear_override_round_trip() {
     let _t = crate::testlock::serial();
@@ -295,30 +318,31 @@ fn is_auto_and_clear_override_round_trip() {
     MODE_OVERRIDE.store(0, Ordering::Relaxed);
     assert!(is_auto(), "no override set: auto");
 
-    // An explicit pick — of ANY mode, including one that happens to match
-    // what auto would have resolved to — clears auto.
-    crate::theme::set_active_by_name("Gumtree").unwrap(); // proportional -> auto = Morph
-    set_mode(CaretMode::Morph);
+    // An explicit pick — of ANY mode, including Block, which is what auto
+    // resolves to anyway — clears auto.
+    crate::theme::set_active_by_name("Gumtree").unwrap(); // proportional world
+    set_mode(CaretMode::Block);
     assert!(
         !is_auto(),
         "an explicit pick, even one auto would've chosen, is no longer auto"
     );
-    assert_eq!(mode(), CaretMode::Morph);
+    assert_eq!(mode(), CaretMode::Block);
 
-    // `clear_override` restores auto — and thus the LIVE font-derived
-    // resolution, tracking the theme again (unlike re-pinning the same value).
+    // `clear_override` restores auto — and thus Block, on this proportional
+    // world and on a mono one too: the resolved value no longer tracks theme
+    // identity, so a world switch cannot move it.
     clear_override();
     assert!(is_auto());
     assert_eq!(
         mode(),
-        CaretMode::Morph,
-        "Gumtree is proportional: auto still resolves Morph here"
+        CaretMode::Block,
+        "auto resolves Block on a proportional world too"
     );
-    crate::theme::set_active_by_name("Tawny").unwrap(); // mono -> auto now tracks Block
+    crate::theme::set_active_by_name("Tawny").unwrap(); // mono world
     assert_eq!(
         mode(),
         CaretMode::Block,
-        "clear_override left it genuinely auto, not merely coincidentally Morph"
+        "auto stays Block across a world switch — the coupling to font is retired"
     );
 
     // Restore.
