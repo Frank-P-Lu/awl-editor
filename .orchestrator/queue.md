@@ -6,6 +6,46 @@
 
 ## Ready to build
 
+### 450 — 🔵 BLOCKED — what does "Switch project" show while a foreign-root document stays open? (USER DECISION NEEDED, found during item 444)
+
+Item 444's lane closed the cross-root ownership bug where OPENING or
+ACTIVATING a buffer from another root left `load_path` and the buffer
+registry disagreeing about which project was active (`0d3f1342` — fixed,
+mutation-proven). A second, narrower case remains and is a genuine product
+call, not a bug: invoking **Switch project** alone (Go to's project picker,
+`s-o <project> Enter`), with NO document opened or activated afterward,
+changes `project.root` while `buffers.active` stays the document that was
+open before the switch — which may not live under the new root at all.
+Reproduced on the real binary: after `s-o archive Enter` with nothing else,
+the gutter's bottom identity prints `{ name: "index.md", project: "archive"
+}` for a file that actually lives under `notes/`, and Go to/New/Move/export
+now default into `archive` while the visibly open document sits elsewhere.
+
+Two ways to resolve it, both cheap:
+
+1. **The bottom identity always names the ACTIVE FILE's own folder**,
+   never the nominally "active project" — matching DESIGN §5's own framing
+   of that identity as "position in the filesystem." Never lies about
+   where the open document is. Cost: Switch-project gives no immediate
+   visible confirmation that anything happened while a foreign document
+   stays open; the confirmation would have to come from elsewhere (a
+   toast, or the working-set stack's own cross-project grouping once
+   item 444's expanded view exists).
+2. **Switch-project also changes what's active** — e.g. opens the new
+   project's most recent or first document, or lands on the zero-document
+   start state. Always keeps document and project in visible agreement.
+   Cost: a context switch the user didn't ask for closes/backgrounds
+   whatever they were reading, which may surprise someone who only meant
+   to change where Go to/New will land next.
+
+**Recommendation: option 1.** It never shows false information, it's the
+smaller change (the identity string already has everything it needs — the
+file's own remembered root, restored correctly by `0d3f1342`), and it
+composes cleanly with item 444's own cross-project grouped view, which is
+the natural place for "did my project switch land" to become visible later.
+Whichever way this goes, it is a one-line branch in the gutter identity
+formatter — genuinely cheap to reverse.
+
 ### 449 — Block is the universal default caret (USER DECISION 2026-08-16; AFTER 448)
 
 🟡 IN PROGRESS — claude, branch claude/item-449-block-universal-default
