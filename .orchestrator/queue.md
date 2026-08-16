@@ -135,19 +135,47 @@ buffer but leaves the finished buffer parked; that is not close. Give the
 working set one true removal owner: ⌘W closes the active file after the same
 lossless save/conflict gate and still notifies a waiter, and a row exposes the
 same action through a quiet hover-only close target (never a persistent column
-of crosses). Closing an inactive row closes that named buffer without first
-activating it; a dirty or conflicted buffer is never discarded. The one-file
-case returns to the ordinary unnamed document rather than closing the window.
+of crosses). The close target appears when the pointer enters the row's RIGHT
+close zone; the rest of the row remains the larger switch target, so merely
+moving through the list does not fill it with controls. Closing an inactive row
+closes that named buffer without first activating it; a dirty or conflicted
+buffer is never discarded.
+
+Closing the LAST file enters a real ZERO-DOCUMENT state, not a fake unnamed
+buffer and not a closed application window. Today `DocumentSession` always owns
+one active `Entry`, so this is product machinery rather than empty-state copy:
+the renderer, actions, autosave, session, title, accessibility tree and sidecar
+must all represent `no active document` honestly. The world remains; the page
+surface disappears because drawing blank paper would imply an unsaved file. A
+small calm start surface offers exactly `New document` and `Go to…`; the active
+folder remains remembered, so either route has an unambiguous context. First
+launch still opens the authored Welcome document — zero-document is reached by
+an explicit close, never used as a replacement tour.
 
 Visible overflow is bounded independently of the registry's safety cap.
-PROTOTYPE five file rows plus a quiet `+ N more…` row; accepting it opens Go to
-pre-lensed to an `Open` view containing every open file in the active project,
-where the same switch and close actions remain available. The active file must
-always be represented in the visible five; prototype the least-jittering
-stable-order window and put the >5 shots to the user before fixing its exact
-windowing rule. Do not silently evict a sixth file merely to make the drawing
-easy: the existing registry's clean-LRU/never-dirty eviction is a memory safety
-bound, not a visible-stack product rule.
+PROTOTYPE five file rows plus a quiet `+ N more…` row. Accepting it EXPANDS the
+same bottom-anchored stack UPWARD into a transient scrollable working-set view;
+it does not detour through Go to, permanently lengthen the resting margin, or
+turn the whole window into a sidebar. Wheel/trackpad motion over the expanded
+list scrolls that list, Esc/click-away collapses it, and choosing a file returns
+to the resting stack. The active file must always be represented in the visible
+five; prototype the least-jittering stable-order window and put the >5 shots to
+the user before fixing its exact windowing rule. Do not silently evict a sixth
+file merely to make the drawing easy: the existing registry's
+clean-LRU/never-dirty eviction is a memory safety bound, not a visible-stack
+product rule.
+
+PROTOTYPE the cross-project half in that SAME expanded view, taking the useful
+part of Codex's sidebar grammar without adopting its permanent project-manager
+shell: group retained open files under folder headings; mark the active file's
+group clearly; keep only the active folder's group in the resting stack, with a
+quiet `N files in other folders…` route when other groups exist. Clicking that
+route expands the grouped list. Clicking a file in another group atomically
+restores its remembered project root AND activates its buffer, after which Go
+to, New, Move, export and the resting stack all operate in that folder. This is
+why the main folder remains meaningful: it is the ACTIVE group, not a claim that
+no other folder may retain buffers. Do not show multiple groups persistently
+unless the prototype overturns this boundary; awl is not a project manager.
 
 Shortcuts (decided): ⌘1–⌘9 jump to the nth stack entry (slot 1; Linux
 resolves Ctrl+1–9 per the normal rule — only ⌘0 is spent today, on reset
@@ -159,7 +187,8 @@ lands in which-key with the rest of the prefix for free. Optional flourish to
 PROTOTYPE, not committed: while ⌘ is held for a beat, faint 1..n ordinals
 beside the stack entries — the shortcut teaches itself at the moment of the
 reach; cut it if it reads as noise in the shots. Overflow never changes a
-file's stable ordinal; the Go to Open view exposes the complete numbered roster.
+file's stable ordinal; the expanded working-set view exposes the complete
+numbered roster.
 
 Contract edits owned here: DESIGN §5's margin roster gains the stack as a
 member with the outline's own license (may click-to-switch; orientation, not
@@ -167,8 +196,9 @@ management UI). PHILOSOPHY §1 is untouched — this is not a strip.
 
 Capture-prototype FIRST, judgement before machinery: gallery shots across a
 few worlds × {one root with nested files, only one file in the active root,
-more than five files}, bottom-left, including hover-close and overflow states,
-put to the user before laws or bindings land. Harness reach
+more than five files, zero documents}, bottom-left, including right-edge
+hover-close, collapsed overflow, expanded scrolling and grouped cross-project
+states, put to the user before laws or bindings land. Harness reach
 (docs/harness-reach.md read for this clause):
 `last_buffer` and the multi-file working set are App-owned — tier-1 captures
 classify them Unsupported — so the prototype and every switching claim drive
@@ -184,10 +214,13 @@ distinguishable from its dimmed siblings, with a companion presence floor
 restores the matching project/root before the frame and the gutter never names
 the old root; nested same-root files render distinct relative labels; close
 removes exactly its target and never loses a dirty/conflicted buffer; overflow
-keeps the active file represented and its `+ N more…` count exact; the one-file
-case byte-identical to today's margin across the world roster; the digit chords
-in both keymap flavors' tables so the generated reference picks them up — with
-the generated rows spot-checked against the dispatch they claim.
+keeps the active file represented and its `+ N more…` count exact; expanded
+scroll remains inside the working set; closing the last file produces no active
+buffer, no page surface and exactly the two start actions without changing the
+remembered root; the one-file case before close is byte-identical to today's
+margin across the world roster; the digit chords in both keymap flavors' tables
+so the generated reference picks them up — with the generated rows spot-checked
+against the dispatch they claim.
 
 ## Needs specific hardware
 
