@@ -40,7 +40,7 @@ HINTS = (
         "render::tests::settings_row_reach_law:: render::tests::chip_plate_floor:: "
         "render::tests::foot_band_no_clip:: render::tests::palette_shortcuts:: "
         "render::tests::selected_secondary_ink_law:: render::tests::workspace_stage_reach:: "
-        "render::tests::font_licence:: render::tests::loudness_map:: "
+        "render::tests::font_licence:: "
         "render::tests::popover:: render::tests::workspace_footer_plate:: render::plan:: "
         "render::geometry:: render::chrome:: render::blur:: render::rowlayout:: "
         "render::benchsuite:: render::livingband:: render::dither:: render::image_cache:: "

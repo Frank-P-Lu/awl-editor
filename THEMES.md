@@ -246,7 +246,7 @@ warm, but the picker's Warm band is already at its curated cap of four.
 Laws: `render::tests::backgrounds_item158`.
 
 The twentieth world, **Kite** (item 132), closes `PHILOSOPHY.md`'s authored
-twenty-world target, and it is the deliberate LIGHT `5/5` counterpart to
+twenty-world target, and it is the deliberate LIGHT statement counterpart to
 Firetail: cool rather than warm, geometric rather than organic, crisp rather than
 liquid, directional rather than drifting. A near-white mineral / pale-lavender
 room under deep cool graphite-violet prose, with one hot vermilion caret as the

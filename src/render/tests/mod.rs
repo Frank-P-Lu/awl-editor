@@ -111,10 +111,6 @@ mod hybrid_band_snap;
 mod images;
 mod layout_oracle;
 mod list_surfaces;
-/// The idle-loudness map's drift anchor: every world's ground data
-/// snapshotted, so a future ground change fails this BY NAME instead of
-/// leaving `docs/loudness-map.md`'s score for that world silently stale.
-mod loudness_map;
 mod magpie_bands;
 mod markdown;
 mod markdown_headings;

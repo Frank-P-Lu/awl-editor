@@ -639,7 +639,7 @@ pub const GALAH: Theme = Theme {
         weave: Weave::Fibres,
         period_px: 64.0,
         wander_px: 8.0,
-        density: 0.12, // up a step from 0.10; docs/loudness-map.md has the arithmetic.
+        density: 0.12,
     },
     font: "Figtree",
     mono: "IBM Plex Mono",

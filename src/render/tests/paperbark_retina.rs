@@ -455,9 +455,8 @@ fn pre_201_dial_would_fail_the_separation_law() {
 //
 //    `density` is deliberately NOT asserted here. It is a loudness dial with
 //    its own owner — a band law plus a roster-wide "the dial does material
-//    work" sweep in `deckle_ground.rs`, and a byte-exact snapshot of
-//    this whole ground in `loudness_map.rs` that names the world when
-//    it moves. Pinning the value here as well made this file a SECOND owner of
+//    work" sweep in `deckle_ground.rs`. Pinning the value here as well made
+//    this file a SECOND owner of
 //    someone else's constant: a later, deliberate retune of the dial (0.10 ->
 //    0.12) failed this test, whose subject is the fibre GEOMETRY rather than
 //    the loudness, and the failure said nothing true about the retune. The
