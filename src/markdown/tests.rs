@@ -1132,6 +1132,26 @@ fn non_fence_markdown_emits_no_code_syntax() {
     );
 }
 
+/// Documents the parser fact the inline-code toggle's block-boundary fallback
+/// (`actions::format::content_is_kind`) relies on: a raw `\n` INSIDE one
+/// paragraph is a valid code-span interior byte (CommonMark converts it to a
+/// space on render, but the span still covers it end to end); a BLANK line
+/// breaks the paragraph the code span must live in, so the same delimiters
+/// produce no code span at all — two literal backtick characters instead.
+#[test]
+fn inline_code_span_survives_a_bare_newline_but_not_a_blank_line() {
+    let s = spans("call `foo\nbar` now");
+    assert!(
+        has(&s, 6, 13, MdKind::Code { inline: true }),
+        "a `\\n` within one paragraph is still one code span: {s:?}"
+    );
+    let s2 = spans("call `foo\n\nbar` now");
+    assert!(
+        !s2.iter().any(|(_, k)| matches!(k, MdKind::Code { .. })),
+        "a blank line breaks the paragraph, so no code span forms at all: {s2:?}"
+    );
+}
+
 #[test]
 fn plain_prose_has_no_spans() {
     assert!(spans("just some words").is_empty());

@@ -231,6 +231,69 @@ fn code_block_toggle_through_apply_transition_wraps_and_undoes() {
     assert_eq!(b.text(), "let x = 1;\n", "one Cmd-Z reverts the fence");
 }
 
+/// THE REGRESSION LAW (item 445): the popover's Code button does not own a
+/// private edit path — `PopoverButton::action()` is the SAME catalog Action
+/// the keyboard/palette route fires (law-tested,
+/// `commands::tests::every_popover_button_fires_a_catalog_command`), and the
+/// live click handler dispatches it through the identical `App::apply` seam
+/// (`app/input/mouse.rs`: `self.apply(button.action(), …)`). So driving
+/// `PopoverButton::Code.action()` through `apply_transition` here IS the real
+/// popover route, not a stand-in for it — premise-checked before the fix
+/// landed: a bare-two-line selection already round-tripped on `main`; the
+/// selection that reproduced the report crosses a BLANK line, where a
+/// backtick-delimited code span cannot exist in CommonMark at all, so the
+/// shared parser-backed "already wrapped" check could never confirm what the
+/// FIRST press had just inserted.
+#[test]
+fn inline_code_popover_route_two_presses_round_trip_with_undo_redo() {
+    let action = crate::popover::PopoverButton::Code.action();
+    assert_eq!(
+        action,
+        Action::InlineCode,
+        "the popover fires the catalog Action"
+    );
+
+    let src = "one\n\ntwo\n"; // the wrapped selection crosses a blank line
+    let mut b = drive_format(src, Some(0), 8, &action);
+    assert_eq!(b.text(), "`one\n\ntwo`\n", "first press wraps");
+    let (a1, c1) = b
+        .selection_range()
+        .expect("selection over the wrapped text");
+
+    // The popover's OWN lit oracle — the exact predicate the render row reads
+    // every frame — must agree the button is active on the wrapped selection;
+    // a dark button here is the visible half of the same defect.
+    let plan = crate::actions::popover::plan(&b.text(), Some(a1), c1, true)
+        .expect("a markdown buffer summons the popover");
+    let code_lit = plan
+        .buttons
+        .iter()
+        .find(|s| s.button == crate::popover::PopoverButton::Code)
+        .expect("Code is a popover button")
+        .active;
+    assert!(code_lit, "code button must be LIT on the wrapped selection");
+
+    // Second press, through the SAME real dispatch: strips back exactly.
+    let re = drive_format(&b.text(), Some(a1), c1, &action);
+    assert_eq!(
+        re.text(),
+        src,
+        "second press strips back to the exact original"
+    );
+    assert_eq!(re.selection_range(), Some((0, 8)), "selection restored");
+
+    // ONE undo of the FIRST press's toggle restores the pre-wrap text (the
+    // whole replace-and-reselect is one atomic group); redo re-applies it.
+    b.undo();
+    assert_eq!(b.text(), src, "one Cmd-Z reverts the wrap");
+    b.redo();
+    assert_eq!(
+        b.text(),
+        "`one\n\ntwo`\n",
+        "redo re-applies the same single edit"
+    );
+}
+
 #[test]
 fn heading_toggle_is_a_noop_on_a_code_buffer() {
     // Formatting commands are markdown-only: a `.rs` buffer is never touched

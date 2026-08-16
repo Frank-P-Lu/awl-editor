@@ -454,9 +454,31 @@ fn inline_wrap(
 fn content_is_kind(kind: InlineKind, text: &str, ws: usize, we: usize) -> bool {
     let mid_char = ws + (we - ws) / 2;
     let mid_byte = char_to_byte(text, mid_char);
-    crate::markdown::spans(text)
-        .into_iter()
-        .any(|(r, k)| r.contains(&mid_byte) && kind_matches_span(kind, k))
+    let spans = crate::markdown::spans(text);
+    if spans
+        .iter()
+        .any(|(r, k)| r.contains(&mid_byte) && kind_matches_span(kind, *k))
+    {
+        return true;
+    }
+    // FALLBACK, InlineCode + a newline in the span only: a genuine CommonMark
+    // code SPAN cannot cross a paragraph/block boundary (a blank line, or a
+    // line a list/heading marker turns into its own block), so the real parser
+    // never confirms one whose wrapped content crosses that boundary — even
+    // though the backticks this command inserted are still sitting right
+    // there. Backtick has no sibling delimiter to disambiguate against (unlike
+    // `*` vs `**`), so recognizing the strip doesn't need positive
+    // confirmation here; it only needs to rule out the one real false
+    // positive, a literal backtick that is source text INSIDE an actual
+    // fenced/indented code block, where the toggle must never mistake code-
+    // body characters for its own markup. Gated on a literal `\n` in the span
+    // so a same-line flanked pair (`` `a` or `b` ``, selecting " or ") still
+    // requires the positive match above and is never merged.
+    kind == InlineKind::InlineCode
+        && text[char_to_byte(text, ws)..char_to_byte(text, we)].contains('\n')
+        && !spans.iter().any(|(r, k)| {
+            r.contains(&mid_byte) && matches!(k, crate::markdown::MdKind::Code { inline: false })
+        })
 }
 
 fn kind_matches_span(kind: InlineKind, k: crate::markdown::MdKind) -> bool {
@@ -904,5 +926,124 @@ mod tests {
             "toggling empty delimiters off restores the text"
         );
         assert_eq!(b.cursor, 4, "caret lands where the delimiters were");
+    }
+
+    /// The item's own reproduction, and the axis it names an existing regression
+    /// guard for: a PLAIN two-line selection (no block boundary between the
+    /// lines) already round-tripped before this fix, because pulldown-cmark
+    /// parses a raw `\n` inside a code span within one paragraph just fine —
+    /// only a genuine block boundary breaks the parse. Kept as a named
+    /// regression guard so a future change to the fallback gate can't silently
+    /// stop covering the common case via the POSITIVE path.
+    #[test]
+    fn inline_code_round_trips_across_a_plain_two_line_selection() {
+        let src = "call foo\nbar now"; // "foo\nbar" is chars 5..12
+        let a = inl(InlineKind::InlineCode, src, Some(5), 12);
+        assert_eq!(a.text, "call `foo\nbar` now", "first press wraps");
+        let b = inl(InlineKind::InlineCode, &a.text, a.anchor, a.cursor);
+        assert_eq!(
+            b.text, src,
+            "second press strips back to the exact original"
+        );
+        assert_eq!((b.anchor, b.cursor), (Some(5), 12), "selection restored");
+    }
+
+    /// "selections spanning two complete lines" + "a selection ending at
+    /// column zero of the next line" (the item's own phrasing): the selection
+    /// covers whole lines including the trailing newline.
+    #[test]
+    fn inline_code_round_trips_across_two_complete_lines() {
+        let src = "alpha\nbeta\ngamma\n"; // "alpha\nbeta\n" is chars 0..11
+        let a = inl(InlineKind::InlineCode, src, Some(0), 11);
+        assert_eq!(a.text, "`alpha\nbeta\n`gamma\n");
+        let b = inl(InlineKind::InlineCode, &a.text, a.anchor, a.cursor);
+        assert_eq!(b.text, src, "round-trips to the exact original bytes");
+        assert_eq!((b.anchor, b.cursor), (Some(0), 11));
+    }
+
+    /// THE BUG: a wrapped selection whose byte range crosses a real block
+    /// boundary — a blank line (paragraph break) or a line a list/heading
+    /// marker turns into its own block — never confirms as a genuine
+    /// CommonMark code span (the grammar forbids a code span crossing one),
+    /// so the naive "ask the parser" check used for every other inline kind
+    /// can't recognize what THIS command itself wrapped. Sweeps the axis (the
+    /// author's first fix draft only covered the blank-line case) so a
+    /// different block-interrupting construct can't reopen the same bug.
+    #[test]
+    fn inline_code_round_trips_across_a_selection_a_block_boundary_interrupts() {
+        let cases: &[(&str, Option<usize>, usize)] = &[
+            ("one\n\ntwo\n", Some(0), 8), // blank middle line
+            ("one\n- two\n", Some(0), 7), // list line interrupts, no blank line
+            ("one\n# two\n", Some(0), 7), // heading line interrupts, no blank line
+        ];
+        for &(src, anchor, cursor) in cases {
+            let a = inl(InlineKind::InlineCode, src, anchor, cursor);
+            assert!(
+                a.text.starts_with('`') && a.text.contains('`'),
+                "{src:?}: first press wraps: {a:?}"
+            );
+            let b = inl(InlineKind::InlineCode, &a.text, a.anchor, a.cursor);
+            assert_eq!(
+                b.text, src,
+                "{src:?}: second press must strip back to the exact original, not \
+                 re-wrap (the reported bug: the first press's backticks survive \
+                 the second press untouched)"
+            );
+            assert_eq!(
+                (b.anchor, b.cursor),
+                (anchor, cursor),
+                "{src:?}: selection restored to the same logical content"
+            );
+        }
+    }
+
+    /// Multibyte content spanning a block boundary: char/byte offset
+    /// conversion must not corrupt the wrap or the strip.
+    #[test]
+    fn inline_code_round_trips_multibyte_across_a_blank_line() {
+        let src = "héllo\n\nwörld\n"; // "héllo\n\nwörld" is chars 0..12
+        let a = inl(InlineKind::InlineCode, src, Some(0), 12);
+        assert_eq!(a.text, "`héllo\n\nwörld`\n");
+        let b = inl(InlineKind::InlineCode, &a.text, a.anchor, a.cursor);
+        assert_eq!(
+            b.text, src,
+            "multibyte round-trips to the exact original bytes"
+        );
+        assert_eq!((b.anchor, b.cursor), (Some(0), 12));
+    }
+
+    /// The fallback that makes the block-boundary case strip must stay
+    /// disjoint from same-line content merely FLANKED by two independent code
+    /// spans: selecting `" or "` between `` `a` `` and `` `b` `` is
+    /// structurally Surrounding (a backtick sits immediately on each side),
+    /// but the plain text between them is not itself code and pressing Code
+    /// must WRAP it, never merge the two spans into `` `a or b` ``. No `\n`
+    /// in the span, so the fallback never engages — this stays on the
+    /// existing positive-match path.
+    #[test]
+    fn inline_code_does_not_merge_two_flanking_spans_on_a_single_line() {
+        let src = "`a` or `b`";
+        let r = inl(InlineKind::InlineCode, src, Some(3), 7); // " or "
+        assert_eq!(
+            r.text, "`a`` or ``b`",
+            "wraps the flanked text in its own pair, never strips/merges"
+        );
+        assert!(
+            !inline_active(InlineKind::InlineCode, src, Some(3), 7),
+            "the popover's code button must stay DARK on flanked plain text"
+        );
+    }
+
+    /// The fallback's own protective boundary: a literal backtick that is
+    /// SOURCE TEXT inside a real fenced code block must never be mistaken for
+    /// this command's own markup, even when the selection crosses a line
+    /// inside that block.
+    #[test]
+    fn inline_code_never_strips_literal_backticks_inside_a_fenced_block() {
+        let src = "```\n`raw`\nmore\n```\n";
+        assert!(
+            !inline_active(InlineKind::InlineCode, src, Some(4), 9),
+            "backticks that are fenced-block SOURCE are not this command's markup"
+        );
     }
 }
