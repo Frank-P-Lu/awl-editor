@@ -371,8 +371,8 @@ lines = 1262
 
 [[file_size_mark]]
 file = "src/render/layers.rs"
-lines = 1280
-reason = "The per-frame GPU preparation hub remains an explicit renderer exception; missing-image placeholder shaping lives in its own submodule rather than raising this ceiling."
+lines = 1294
+reason = "The per-frame GPU preparation hub remains an explicit renderer exception; missing-image placeholder shaping lives in its own submodule rather than raising this ceiling. page_frame_vertical_bounds now takes an explicit stroke_px parameter so its top edge derives from the menu-bar reserve rather than the document text inset, with a doc comment naming the two quantities it must not conflate."
 
 [[file_size_mark]]
 file = "src/render/livingband.rs"
@@ -1041,8 +1041,15 @@ reason = "One roster sweep with a geometry arm, a pixel arm and an exclusion arm
 lint = "clippy::too_many_lines"
 file = "src/render/tests/page_frame.rs"
 function = "wagtail_page_frame_draws_pure_ladder_white_in_bounds_and_none_worlds_draw_none"
-message = "this function has too many lines (183/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
+message = "this function has too many lines (205/100)"
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Gained a row-0-exact top-band assertion and a drawn-menu-bar discriminating pixel case for the page-frame-meets-canvas-top fix."
+
+[[clippy_exception]]
+lint = "clippy::too_many_lines"
+file = "src/render/tests/page_frame.rs"
+function = "page_frame_top_meets_canvas_or_bar_across_line_worlds_and_configs"
+message = "this function has too many lines (125/100)"
+reason = "Roster-derived sweep over every PageFrame::Line world x page width x viewport height x scroll x DPI x menu-bar state (64 cells); the coverage is the point, not a setup/assertion split."
 
 [[clippy_exception]]
 lint = "clippy::cognitive_complexity"
