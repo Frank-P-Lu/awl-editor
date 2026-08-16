@@ -215,8 +215,9 @@ fn i(v: u32) -> i64 {
 /// THE LAW. On every MONO-faced world the caret holds a uniform cell grid across
 /// an ascender, an x-height letter and a descender — same top, same width, a
 /// constant column pitch — while every PROPORTIONAL world keeps its per-letter
-/// ink box. Both arms sweep the FULL shipped world roster, split by the product's
-/// own font-derived caret default.
+/// ink box. Both arms sweep the FULL shipped world roster, split by pixel-
+/// measured face pitch (see the module doc — this is no longer read off the
+/// caret's own default mode).
 /// THE MONO ARM, edge by edge: one grid, one width, one forward pitch, and the
 /// declared descender exception on the bottom alone.
 fn assert_mono_grid(tops: &[u32], widths: &[i64], bottoms: &[u32], pitch: &[i64], what: &str) {

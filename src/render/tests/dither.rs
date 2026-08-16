@@ -692,9 +692,9 @@ fn wagtail_caret_on_a_heading_glyph_keeps_the_glyph_legible_inside_the_block() {
     };
     let _g = crate::testlock::serial();
 
-    // Explicit BLOCK mode — deterministic regardless of Wagtail's own
-    // font-derived default (`caret::default_mode`) or any prior test's
-    // leftover global.
+    // Explicit BLOCK mode — deterministic regardless of the universal
+    // caret default (`caret::default_mode`, already Block) or any prior
+    // test's leftover global.
     crate::caret::set_mode(CaretMode::Block);
 
     // Cursor at column 0 of the heading line: the Block caret covers the
