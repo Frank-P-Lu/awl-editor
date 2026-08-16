@@ -77,55 +77,58 @@ fn caret_picker_previews_on_move_accepts_on_enter_reverts_on_cancel() {
 /// (no explicit override) and Cancelling — WITHOUT ever picking a different
 /// look — must be a true no-op. Before the fix, `Cancel` unconditionally
 /// `set_mode`'d `original_caret` (auto's momentary CONCRETE resolution),
-/// silently converting "auto" into a permanent pin: merely glancing at the
-/// picker and backing out would freeze the caret at that one theme's
-/// font-derived look, so it stopped tracking LATER theme switches. Reproduced
-/// end-to-end (headlessly, via `--keys`) in
+/// silently converting "auto" into a permanent pin. Reproduced end-to-end
+/// (headlessly, via `--keys`) in
 /// `main::run::tests::replay_keys_caret_picker_cancel_from_auto_does_not_pin_it`;
 /// this is the pure `apply_transition`-level regression at its purest seam.
+///
+/// `default_mode` is now Block on every world, so a world switch can no
+/// longer distinguish "still genuinely auto" from "pinned at the value auto
+/// happened to resolve to" by VALUE alone — a pin at Block reads exactly the
+/// same as auto on any world now. `is_auto()` is the only signal that still
+/// can, which is exactly the primitive this law leans on.
 #[test]
 fn caret_picker_cancel_from_auto_restores_auto_not_a_pin() {
     use crate::caret::CaretMode;
     let _g = crate::testlock::serial();
     let _t = crate::testlock::serial();
 
-    // AUTO, on a PROPORTIONAL world: resolves Morph, but no override is set.
+    // AUTO: resolves Block, but no override is set.
     crate::caret::clear_override();
     crate::theme::set_active_by_name("Gumtree").unwrap();
     assert!(crate::caret::is_auto());
-    assert_eq!(crate::caret::mode(), CaretMode::Morph);
+    assert_eq!(crate::caret::mode(), CaretMode::Block);
 
     // Open the picker (mirrors the real call site: `new_caret(caret::mode())`),
     // preview a different look, then Cancel WITHOUT committing.
     let mut overlay =
         crate::overlay::Journey::seeded(Some(OverlayState::new_caret(crate::caret::mode())));
     let mut accept = None;
-    drive(&mut overlay, &mut accept, &Action::NextLine); // preview -> I-beam
-    assert_eq!(crate::caret::mode(), CaretMode::Ibeam);
+    drive(&mut overlay, &mut accept, &Action::NextLine); // preview -> Morph
+    assert_eq!(crate::caret::mode(), CaretMode::Morph);
     drive(&mut overlay, &mut accept, &Action::Cancel);
     assert!(overlay.card().is_none(), "Esc closes the caret picker");
     assert_eq!(accept, None, "a revert must not persist");
 
-    // THE LAW: Cancel restored AUTO ITSELF, not a pin at Morph (what auto
-    // happened to resolve to when the picker opened).
+    // THE LAW: Cancel restored AUTO ITSELF, not a pin at Block (what auto
+    // happened to resolve to when the picker opened) — `is_auto()` is the
+    // proof, since the resolved VALUE of a genuine auto and of a pin at
+    // Block are now indistinguishable on their own.
     assert!(
         crate::caret::is_auto(),
         "Cancel from auto must restore auto, not pin a concrete mode"
     );
-    assert_eq!(
-        crate::caret::mode(),
-        CaretMode::Morph,
-        "Gumtree is still proportional"
-    );
+    assert_eq!(crate::caret::mode(), CaretMode::Block);
 
-    // PROOF it's genuinely auto, not merely coincidentally Morph: switching to
-    // a MONO world now must track to Block, exactly as auto always would.
+    // A world switch cannot move either a genuine auto or a Block pin — both
+    // read Block on Tawny too, the coupling to font is retired — so this only
+    // re-confirms `is_auto()` itself survived the switch.
     crate::theme::set_active_by_name("Tawny").unwrap();
-    assert_eq!(
-        crate::caret::mode(),
-        CaretMode::Block,
-        "auto still tracks the theme after the picker was opened + cancelled"
+    assert!(
+        crate::caret::is_auto(),
+        "auto survives a world switch after the picker was opened + cancelled"
     );
+    assert_eq!(crate::caret::mode(), CaretMode::Block);
 
     // Restore.
     crate::caret::clear_override();

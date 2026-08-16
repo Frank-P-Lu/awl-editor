@@ -11,7 +11,7 @@
 //!   --scroll N[:Q]      scroll to visual row N plus Q fixed 1/64px units (free scroll, clamped)
 //!   --preedit STR       render STR as an IME preedit (underlined) at the caret
 //!   --theme NAME        set the active color theme/world before capture (e.g. Quokka)
-//!   --caret-mode MODE   caret look: block | morph | auto (default: font-derived)
+//!   --caret-mode MODE   caret look: block | morph | ibeam (default: block, on every world)
 //!   --keys "SPEC"       replay a space-separated emacs key-spec against the freshly
 //!                       loaded buffer THROUGH THE REAL KEYMAP, then capture the
 //!                       post-replay editor state (e.g. --keys "C-n C-n s-Down")

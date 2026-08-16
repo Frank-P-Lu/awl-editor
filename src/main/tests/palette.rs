@@ -187,13 +187,17 @@ fn replay_keys_palette_theme_keep_closes_to_buffer_not_a_recent_menu() {
 /// (the reported symptom's actual repro, not just the pure `apply_transition`
 /// unit — see `actions::tests::overlay_drive::
 /// caret_picker_cancel_from_auto_restores_auto_not_a_pin` for that
-/// purer-seam sibling). Riding AUTO on a PROPORTIONAL world (Gumtree ->
-/// Morph), merely OPENING the Caret-style picker from the palette and
-/// backing out with Esc (no pick made) must be a true no-op: a LATER
-/// switch to a MONO world must still resolve Block, exactly as auto
-/// always would. Before the fix, the Cancel silently pinned the caret at
-/// Morph (auto's momentary resolution on Gumtree), so Potoroo (mono)
-/// stayed wrongly Morph.
+/// purer-seam sibling). Riding AUTO, merely OPENING the Caret-style picker
+/// from the palette and backing out with Esc (no pick made) must be a true
+/// no-op: `is_auto()` must survive it. Before the fix, the Cancel silently
+/// pinned the caret at whatever auto's momentary resolution had been.
+///
+/// `default_mode` is now Block on every world, so a world switch (Gumtree,
+/// proportional, to Potoroo, mono) can no longer prove genuineness by VALUE
+/// — a pin at Block would read exactly the same on both. `is_auto()` is the
+/// only signal left that distinguishes "still auto" from "pinned at the
+/// value auto happens to resolve to everywhere now," which is exactly the
+/// primitive this law leans on.
 #[test]
 fn replay_keys_caret_picker_cancel_from_auto_does_not_pin_it() {
     let _g = crate::testlock::serial();
@@ -201,7 +205,7 @@ fn replay_keys_caret_picker_cancel_from_auto_does_not_pin_it() {
     crate::caret::clear_override();
     crate::theme::set_active_by_name("Gumtree").unwrap();
     assert!(crate::caret::is_auto());
-    assert_eq!(crate::caret::mode(), crate::caret::CaretMode::Morph);
+    assert_eq!(crate::caret::mode(), crate::caret::CaretMode::Block);
 
     let mut buffer = Buffer::scratch();
     let keys =
@@ -226,7 +230,7 @@ fn replay_keys_caret_picker_cancel_from_auto_does_not_pin_it() {
     assert_eq!(
         crate::caret::mode(),
         crate::caret::CaretMode::Block,
-        "auto correctly resolves Block on the now-active mono world"
+        "auto still resolves Block on the now-active mono world"
     );
 
     crate::caret::clear_override();

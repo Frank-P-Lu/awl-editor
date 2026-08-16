@@ -7,8 +7,8 @@ use super::{keyspec, replay_keys};
 /// true no-op on the caret global. Covers both suspects the caret-style-change
 /// bug report named: the 1-bit round's render-time override (`prepare_caret_
 /// layer` reads `crate::caret::mode()` but never writes it — this is the
-/// sticky round-trip proof of that) and auto-by-design (auto is legitimately
-/// theme-dependent, but a journey that ENDS back on the same world must
+/// sticky round-trip proof of that) and auto (Block on every world now, not
+/// theme-dependent — a journey that ENDS back on the same world must still
 /// resolve identically to never having left).
 #[test]
 fn caret_mode_survives_theme_journeys_committed_and_preview_esc() {
@@ -20,7 +20,7 @@ fn caret_mode_survives_theme_journeys_committed_and_preview_esc() {
             .unwrap();
 
     crate::theme::set_active_by_name("Gumtree").unwrap();
-    crate::caret::set_mode(crate::caret::CaretMode::Block);
+    crate::caret::set_mode(crate::caret::CaretMode::Morph);
     let mut buf = Buffer::scratch();
     replay_keys(&mut buf, &keys, &[], &root, None, &Config::empty(), None);
     assert_eq!(
@@ -32,7 +32,7 @@ fn caret_mode_survives_theme_journeys_committed_and_preview_esc() {
         !crate::caret::is_auto(),
         "an explicit pin is never cleared by a theme journey"
     );
-    assert_eq!(crate::caret::mode(), crate::caret::CaretMode::Block);
+    assert_eq!(crate::caret::mode(), crate::caret::CaretMode::Morph);
 
     crate::caret::clear_override();
     crate::theme::set_active_by_name("Gumtree").unwrap();
@@ -45,8 +45,8 @@ fn caret_mode_survives_theme_journeys_committed_and_preview_esc() {
     );
     assert_eq!(
         crate::caret::mode(),
-        crate::caret::CaretMode::Morph,
-        "Gumtree (proportional) resolves Morph, exactly as if never visiting Wagtail"
+        crate::caret::CaretMode::Block,
+        "auto resolves Block, exactly as if never visiting Wagtail"
     );
 
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
