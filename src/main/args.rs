@@ -283,13 +283,13 @@ pub(crate) fn parse_args() -> Result<Mode> {
             FlagId::CaretMode => {
                 // Pin the process-global caret mode so the headless render is
                 // deterministic and verifiable. 'auto' clears any override and
-                // falls back to the font-derived default (Block on mono).
+                // falls back to the universal default (Block, on every world).
                 let v = ops.req(0);
                 match v.to_ascii_lowercase().as_str() {
                     "block" => caret::set_mode(caret::CaretMode::Block),
                     "morph" => caret::set_mode(caret::CaretMode::Morph),
                     "ibeam" => caret::set_mode(caret::CaretMode::Ibeam),
-                    "auto" => {} // leave the font-derived default in effect
+                    "auto" => {} // leave the universal Block default in effect
                     _ => bail!("unknown --caret-mode {v:?}; choose block, morph, ibeam, or auto"),
                 }
                 caret_flag = true;

@@ -28,14 +28,24 @@
 //! the ones a colour-keyed probe cannot read: Wagtail is 1-bit, where the accent
 //! IS the text ink, and Cassowary's CRT phosphor likewise.
 //!
-//! THE ROSTER IS NOT HARDCODED HERE. Which worlds are mono-faced is read back
-//! OUT OF THE PRODUCT: with no `--caret-mode` override the sidecar's `caret_mode`
-//! reports the FONT-DERIVED default — `block` on a mono display face, `morph` on
-//! a proportional one (`caret::default_mode`) — so the split this test sweeps is
-//! the very predicate under test, applied by the real binary to the real font
-//! files. A world added or re-faced joins the correct arm automatically, and the
-//! in-crate roster laws (`render::tests::facepitch`) are what make an
-//! unregistered face fail rather than drift.
+//! THE ROSTER IS NOT HARDCODED HERE. Which worlds are mono-faced is measured
+//! directly from the SAME pixels this test already decodes: the step between
+//! consecutive caret left edges follows the face's own advances regardless of
+//! caret mode (a fixed-pitch face steps by one constant; a proportional one
+//! cannot), so this test never needs to ask the product which arm a world is
+//! in — it measures it. (An earlier revision asked via the unset `--caret-mode`
+//! default, back when `default_mode` was itself font-derived; that coupling is
+//! retired — with no override the caret is Block on EVERY world now, so the
+//! sidecar's `caret_mode` field can no longer answer this question. The
+//! product-level correctness of `caret::font_is_mono` against the same
+//! declared+measured pitch, including the Currawong/Cassowary/Iosevka
+//! regression this file exists for, is proven in-process and roster-wide by
+//! `render::tests::facepitch::font_is_mono_answers_the_measurement_for_every_roster_member`;
+//! this file's own job is purely the drawn GEOMETRY — which arm's pixel law
+//! holds — once the class is known.) A world added or re-faced joins the
+//! correct arm automatically, and the in-crate roster laws
+//! (`render::tests::facepitch`) are what make an unregistered face fail rather
+//! than drift.
 //!
 //! FIXTURE. `log` — an ASCENDER (`l`), an X-HEIGHT letter (`o`) and a DESCENDER
 //! (`g`), the three letter classes the item names, and a real English word so no
@@ -84,8 +94,9 @@ fn tmp_dir(tag: &str) -> ScratchDir {
 }
 
 /// One capture job: a world, the keys to replay, and an OPTIONAL explicit caret
-/// mode (`None` = let the font-derived default resolve, which is what the
-/// reference capture reads back).
+/// mode (`None` = the reference/park capture, drawn under the universal Block
+/// default; unrelated to this test's mono/proportional split, which is
+/// measured from pixel geometry, not from `caret_mode`).
 struct Job {
     out: PathBuf,
     theme: String,
@@ -350,16 +361,6 @@ fn caret_cell_is_glyph_independent_on_every_mono_world() {
             .expect("font.line_height") as u32;
         let band = (top.saturating_sub(8), top + lh + 8);
 
-        // WHAT THE PREDICATE CLAIMS, read out of the product: with no
-        // --caret-mode override the sidecar reports the font-derived default —
-        // Block on a face `caret::font_is_mono` calls mono, Morph otherwise.
-        let auto = side["caret_mode"].as_str().expect("caret_mode").to_string();
-        assert!(
-            auto == "block" || auto == "morph",
-            "{world}: the font-derived default must be block or morph, got {auto:?}"
-        );
-        let claimed_mono = auto == "block";
-
         let refr = decode(&reference);
         let boxes: Vec<(u32, u32, u32, u32)> = (0..COLUMNS.len())
             .map(|n| {
@@ -382,15 +383,15 @@ fn caret_cell_is_glyph_independent_on_every_mono_world() {
             "{world} ({face}) {letters:?} tops={tops:?} lefts={lefts:?} widths={widths:?} bottoms={bottoms:?}"
         );
 
-        // WHETHER THE FACE REALLY IS MONOSPACED, measured from the SAME pixels
-        // and INDEPENDENT of the predicate under test: the caret is drawn AT the
-        // column it is on — either the fixed cell (mono arm) or that glyph's own
-        // ink (proportional arm) — so the STEP between consecutive caret left
-        // edges follows the face's own advances either way. A fixed-pitch face
-        // steps by one constant; a proportional one cannot (`l` is narrow, `o` is
-        // not). This is the oracle — without it the split below would be derived
-        // from the very predicate it is meant to test, and a misclassified world
-        // would merely change arms instead of failing.
+        // WHETHER THE FACE IS MONOSPACED, measured from the drawn pixels
+        // themselves: the caret is drawn AT the column it is on — either the
+        // fixed cell (mono arm) or that glyph's own ink (proportional arm) — so
+        // the STEP between consecutive caret left edges follows the face's own
+        // advances either way. A fixed-pitch face steps by one constant; a
+        // proportional one cannot (`l` is narrow, `o` is not). This is the sole
+        // classifier below (`caret::font_is_mono`'s own correctness against the
+        // same declared+measured pitch, roster-wide, is proven separately and
+        // in-process by `render::tests::facepitch`).
         //
         // The two populations are far apart, not adjacent: every shipped mono
         // face measures a pitch spread of 0-1px (antialias), every proportional
@@ -403,16 +404,6 @@ fn caret_cell_is_glyph_independent_on_every_mono_world() {
             "ambiguous advance measurement (spread {pitch_spread}): {what}"
         );
         let really_mono = pitch_spread <= 1;
-
-        // THE CORE LAW: the predicate agrees with the font. Iosevka is
-        // a fixed-pitch face and the retired name list did not know it, so
-        // Currawong and Cassowary claimed "proportional" while their advances
-        // marched in lockstep — this line is what that failure looks like now.
-        assert_eq!(
-            claimed_mono, really_mono,
-            "font_is_mono disagrees with the face's own measured advances \
-             (claims mono={claimed_mono}, pitch={pitch:?}): {what}"
-        );
 
         if really_mono {
             mono_worlds.push(world);
