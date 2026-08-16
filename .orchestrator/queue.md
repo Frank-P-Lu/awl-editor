@@ -10,8 +10,9 @@
 
 Item 444's lane closed the cross-root ownership bug where OPENING or
 ACTIVATING a buffer from another root left `load_path` and the buffer
-registry disagreeing about which project was active (`0d3f1342` — fixed,
-mutation-proven). A second, narrower case remains and is a genuine product
+registry disagreeing about which project was active (`7c442d2b`, landed on
+`main` — fixed, mutation-proven). A second, narrower case remains and is a
+genuine product
 call, not a bug: invoking **Switch project** alone (Go to's project picker,
 `s-o <project> Enter`), with NO document opened or activated afterward,
 changes `project.root` while `buffers.active` stays the document that was
@@ -115,9 +116,47 @@ equals App `clipboard_last_written` while the active buffer's kill ring is
 empty; Paste must still succeed. Preserve the existing same-buffer redundant
 write/read suppression laws.
 
-### 444 — the working set becomes visible: a margin buffer stack (USER DECISION 2026-08-16)
+### 444 — the working set becomes visible: a margin buffer stack (USER DECISION 2026-08-16; INFRASTRUCTURE LANDED, RENDER NOT STARTED)
 
-🟡 IN PROGRESS — claude, branch claude/item-444-margin-buffer-stack
+**Landed on `main` (`f8558c41`, `f53ffa6c`, `7c442d2b`, `dcb86fbb`, `8adcd961`,
+`05527cc1`):** the `--seed-tree` capture door (a false premise in this item's
+own text, found on measurement: `--root` alone seeds only a directory marker,
+not a real multi-file project, so `--screenshot-app` could not reach a
+multi-file working set at all); the `WorkingSet` module (`src/workingset.rs`)
+— stable open order distinct from `BufferRegistry`'s MRU eviction order, each
+member remembering its own project root, `fit_parent` eliding a long relative
+path without lying about depth; and the cross-root ownership fix
+(`load_path` now restores an arriving buffer's remembered root before
+`sync_view`, closing the case where opening/activating a buffer from another
+root left the document and the bottom folder identity disagreeing). All
+mutation-proven. **None of this is visible yet — no gallery shots exist,
+because the resting stack has no renderer.** See item 450 for the one
+related product question this landed work surfaced (Switch-project alone,
+no document activated).
+
+**Residual, in the order the landed work sets up (from the closing lane's
+own report):**
+1. **The resting-stack render** — `GutterLine`/`GutterLayout::lines()` in
+   `src/render/chrome/gutter.rs` already returns an ordered list and
+   `plan_gutter_stack` already takes a row count. Trap:
+   `src/render/plan/margin.rs:120-152` is a source-text law counting
+   `plan_gutter_stack(` call sites, expects exactly 4 — N≤1 must take
+   today's exact path so byte identity holds by construction.
+2. **Sidecar working set** — `buffers` gains `files[]` + `active_index`.
+   Costs a `SCHEMA_VERSION` bump and a ledger row. `src/capture/modes.rs`
+   is at its frozen size baseline already — new state can't grow it.
+3. **Click-to-switch + hover-close** — the gutter has no left-click path
+   today; `App::outline_click` is the template. `close_key` is already
+   law-tested and waiting.
+4. **⌘W as the true removal owner** (today it parks, not closes).
+5. **Zero-document state** — the largest remaining piece; `DocumentSession`
+   would need an optional active slot, and every subsystem this item names
+   (renderer, actions, autosave, session, title, accessibility tree,
+   sidecar) needs an honest `no active document` representation.
+6. **Overflow windowing, expanded/grouped cross-project view, Move
+   navigator** — deliberately last: this item's own text asks for captures
+   judged by the user before any of these get built, and none of them can
+   be captured before (1) exists.
 
 Design session 2026-08-16. The user works between a couple of files and wants
 tabs' affordance without tabs: ⌃Tab covers two files but not three, and a
