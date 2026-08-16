@@ -157,7 +157,7 @@ fn pointer_replay_seam_reproduces_keyboard_scroll_stealing_a_stationary_pointer_
     let opts = CaptureOpts::default();
     let Some(mut oracle) = capture::build_oracle(&buffer, &opts) else {
         eprintln!(
-            "skipping item_106_pointer_replay_seam_reproduces_a_keyboard_scroll_stealing_a_stationary_pointer_check: \
+            "skipping pointer_replay_seam_reproduces_a_keyboard_scroll_stealing_a_stationary_pointer_check: \
                  no wgpu adapter"
         );
         return;

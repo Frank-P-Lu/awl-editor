@@ -3,11 +3,9 @@
 #
 # WHAT THIS IS. Under a FIXED 4 GiB container ceiling at --test-threads=1,
 # `render::tests::` walks RSS monotonically to an OOM kill, and how far it gets
-# is commit-correlated. Measurement found that (36707d06 reaches test 199,
-# 8207e519 reaches test 160) and items 231/239 have called it "the fast local
-# oracle that already exists" ever since — ~4 local minutes against a ~50-minute
-# CI cycle. It only ever existed as prose in 96106575's commit message, and
-# rebuilding it from that prose cost a rediscovery of the sccache trap below.
+# is commit-correlated. This provides a roughly four-minute local comparison
+# against a roughly 50-minute CI cycle, with the sccache constraint below made
+# explicit so the measurement stays reproducible.
 #
 # WHAT THIS IS NOT. It is not a gate and nothing calls it. The policy settles that
 # no local software-adapter arm belongs in anyone's gate: a CPU rasteriser has

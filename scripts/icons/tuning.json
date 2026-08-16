@@ -26,7 +26,7 @@
     "Iosevka": {
       "insetX": 8,
       "seatY": 5,
-      "_seat": "item 161: Currawong (pill) read very slightly low against the wordmark; Cassowary (block) passed review untouched — the override only fires for pill.",
+      "_seat": "Currawong (pill) reads very slightly low against the wordmark; Cassowary (block) needs no correction — the override only fires for pill.",
       "presets": { "pill": { "insetTop": -1.5, "insetBottom": 1.5 } }
     },
     "JetBrains Mono": { "insetX": 10 },
@@ -35,21 +35,21 @@
     "EB Garamond": { "insetX": -4 },
     "Fraunces 9pt": {
       "insetX": -3,
-      "_seat": "item 161: Saltpan (pill, the only world on this face) needed a restrained lift, similar in size to Bilby's.",
+      "_seat": "Saltpan (pill, the only world on this face) needs a restrained lift, similar in size to Bilby's.",
       "presets": { "pill": { "insetTop": -3.5, "insetBottom": 3.5 } }
     },
     "Newsreader 16pt 16pt": {
       "insetX": -4,
       "insetTop": -6,
       "seatY": 13,
-      "_seat": "item 161: Bilby (block, the only world on this face) needed a restrained lift, similar in size to Saltpan's.",
+      "_seat": "Bilby (block, the only world on this face) needs a restrained lift, similar in size to Saltpan's.",
       "presets": { "block": { "insetTop": -4, "insetBottom": 4 } }
     },
     "Literata": { "insetX": -2, "seatY": -7 },
     "Bitter": {
       "insetX": -2,
       "seatY": 2,
-      "_seat": "item 161: Mopoke (pill) read clearly low against the wordmark and got the strongest of the four corrections; Magpie (block) passed review untouched — the override only fires for pill.",
+      "_seat": "Mopoke (pill) reads clearly low against the wordmark and needs the strongest of these corrections; Magpie (block) needs no correction — the override only fires for pill.",
       "presets": { "pill": { "insetTop": -7, "insetBottom": 7 } }
     },
     "Zilla Slab": { "insetX": -2, "seatY": 1 },
@@ -57,7 +57,7 @@
     "IBM Plex Sans": { "insetX": -2, "seatY": -2 },
     "Fira Sans": {
       "insetX": -2,
-      "_seat": "item 132: Kite is the only world on this face. Fira Sans's shorter x-height seated the whole `awl` run 3px high of the roster at 256px, one past the vertical-rhythm law's 2px raster noise floor; this brings it back onto the shared optical seat.",
+      "_seat": "Kite is the only world on this face. Fira Sans's shorter x-height seats the whole `awl` run 3px high of the roster at 256px, one past the vertical-rhythm law's 2px raster noise floor; this brings it back onto the shared optical seat.",
       "seatY": 2
     }
   }

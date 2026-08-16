@@ -266,7 +266,7 @@ fn mulga_star_conceals_to_the_literal_asterism() {
     // lock so it can't yank the world out from under a concurrent theme test.
     let _t = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping mulga_star_conceals_to_the_literal_asterism_item_88: no wgpu adapter");
+        eprintln!("skipping mulga_star_conceals_to_the_literal_asterism: no wgpu adapter");
         return;
     };
     theme::set_active_by_name("Mulga").unwrap();
@@ -1163,7 +1163,7 @@ fn checked_task_body_recedes_from_open_task_body_real_pixels() {
     let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!(
-            "skipping checked_task_body_recedes_from_open_task_body_real_pixels_item_29: no wgpu adapter"
+            "skipping checked_task_body_recedes_from_open_task_body_real_pixels: no wgpu adapter"
         );
         return;
     };

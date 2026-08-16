@@ -44,7 +44,7 @@ fn tmp_dir(tag: &str) -> ScratchDir {
 
 /// The bug fixture: an off-cursor EMPTY unordered marker (`"- "` alone), a
 /// blank second line, then ordinary content — the exact static shape the
-/// wave-7 vision-smoke found this in, byte-for-byte (a genuine trailing space
+/// vision-smoke found this in, byte-for-byte (a genuine trailing space
 /// after the dash, a genuinely empty second line).
 const BUG_DOC: &str = "- \n\nsomething\n";
 
@@ -166,7 +166,7 @@ fn assert_band_identical(
     }
     assert!(
         diffs.is_empty(),
-        "{label}: {} pixel(s) differ in the blank-line band where item 72's stray mark \
+        "{label}: {} pixel(s) differ in the blank-line band where the stray list mark \
          used to paint — first few (x, y, bug_rgb, control_rgb): {:?}",
         diffs.len(),
         &diffs[..diffs.len().min(8)]

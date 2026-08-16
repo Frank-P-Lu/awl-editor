@@ -311,7 +311,7 @@ fn spell_add_to_dictionary_row_renders_whole_at_wide_width() {
 /// flip), and asserts the add row's ink (a) differs from the correction's and
 /// (b) genuinely RECEDES toward the popup's own `base_300` card ground — the
 /// same figure/ground-by-value proof shape as
-/// `checked_task_body_recedes_from_open_task_body_real_pixels_item_29`
+/// `checked_task_body_recedes_from_open_task_body_real_pixels`
 /// (`markdown.rs`). Byte-identical card fill is read straight from
 /// `theme::base_300()` (not sampled) because the float-panel border rim sits
 /// OUTSIDE the card rect entirely (`set_float_quads_rects`'s `[x-1,y-1,w+2,h+2]`

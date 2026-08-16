@@ -603,7 +603,7 @@ fn the_selected_row_count_across_a_glide_is_recorded_not_assumed() {
         let (_, _, vis) = answers(&mut p);
         seen.push(vis.len());
     }
-    eprintln!("ITEM164 selected-row counts across the glide: {seen:?}");
+    eprintln!("visual-selection selected-row counts across the glide: {seen:?}");
     assert!(
         seen.iter().all(|&n| n <= 2),
         "a one-row move must never light more than the two rows the stretched \

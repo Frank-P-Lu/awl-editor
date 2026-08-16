@@ -472,8 +472,8 @@ function main() {
   const fontsDir = arg("--fonts", "assets/fonts");
   const outDir = arg("--out");
   const tuningPath = arg("--tuning", path.join(path.dirname(new URL(import.meta.url).pathname), "tuning.json"));
-  // A narrow, intentionally partial manifest — today only `--ground-audition`
-  // (item 121's A/B/C decision aid) — carries one world's own face and
+  // A narrow, intentionally partial manifest — today only `--ground-audition`,
+  // the A/B/C decision aid — carries one world's own face and
   // nothing else. Never the flag for a canonical `--icon-manifest` build.
   const partial = args.includes("--allow-partial");
   if (!manifestPath || !outDir) {

@@ -122,7 +122,7 @@ fn only_the_shared_module_names_the_awl_binary() {
         "these tests spawn the awl binary directly instead of through \
          `common::awl` / `common::awl_in_home`: {offenders:?}. A direct spawn \
          inherits the config ladder and can read the developer's own \
-         ~/.config/awl/config.toml (item 93) — route it through the owner in \
+         ~/.config/awl/config.toml — route it through the owner in \
          tests/common/mod.rs."
     );
 }
@@ -139,7 +139,7 @@ fn no_test_scrubs_awl_config_outside_the_canary_door() {
         offenders.is_empty(),
         "these tests remove $AWL_CONFIG: {offenders:?}. Removing it is not \
          isolation — it is the one value that makes config_path() fall through \
-         to $XDG_CONFIG_HOME and then the developer's $HOME (item 93). PIN the \
+         to $XDG_CONFIG_HOME and then the developer's $HOME. PIN the \
          variable via `common::awl`, or take the canary door \
          `common::awl_in_home`, which owns the single legitimate removal."
     );
@@ -156,7 +156,7 @@ fn the_owner_pins_the_config_variable_rather_than_removing_it() {
         owner.contains(&pin),
         "tests/common/mod.rs must SET $AWL_CONFIG (found no `{pin}`) — pinning \
          that rung is the whole mechanism that keeps a spawned child off the \
-         developer's dotfiles (item 93)"
+         developer's dotfiles"
     );
 }
 
@@ -231,7 +231,7 @@ fn a_child_spawned_through_the_owner_ignores_an_ambient_user_config() {
         "a capture spawned through `common::awl` changed when an ambient user \
          config appeared on $XDG_CONFIG_HOME — the $AWL_CONFIG pin is not \
          holding, and every pixel test in the suite is once again reading the \
-         developer's personal theme/zoom (item 93)"
+         developer's personal theme/zoom"
     );
 
     // MEANINGFULNESS GUARD. The equality above is vacuous unless those decoy

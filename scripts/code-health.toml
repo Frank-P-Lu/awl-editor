@@ -803,8 +803,8 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app_icon/tests.rs"
-# `roster_growth_does_not_dilute_a_known_erosion` — same function, same
-# size, position fixed up after the item-121/158/161/168 rebase.
+# `roster_growth_does_not_dilute_a_known_erosion` — same function and size;
+# only its position moved during the surrounding test reorganization.
 function = "roster_growth_does_not_dilute_a_known_erosion"
 message = "this function has too many lines (117/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
@@ -1141,8 +1141,8 @@ reason = "Pure relocation from the inline `src/main/run.rs` test module into the
 target = "src/main/tests/caret_mode.rs"
 kind = "architectural"
 line = 160
-text = "            \"skipping item_106_pointer_replay_seam_reproduces_a_keyboard_scroll_stealing_a_stationary_pointer_check: \\"
-reason = "Pure relocation from the inline `src/main/run.rs` test module into the per-subject `src/main/tests/caret_mode.rs` file; the line itself is unchanged."
+text = "            \"skipping pointer_replay_seam_reproduces_a_keyboard_scroll_stealing_a_stationary_pointer_check: \\"
+reason = "The GPU-unavailable diagnostic is a continuation line in a test moved from `src/main/run.rs` into its per-subject test module."
 
 [[structural_exception]]
 target = "src/render/geometry/tests.rs"

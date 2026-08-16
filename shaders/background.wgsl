@@ -45,8 +45,8 @@ struct Globals {
     // WAVES phase-drift, in radians — a DEDICATED scalar in what was
     // `pad` after `shader`. `0.0` for every non-Waves ground and every
     // settled/headless frame (so those renders stay byte-identical); shader 6
-    // reads it as `g.drift` in `waves_rgb`. Kept OUT of `params` because item
-    // 86's Zigzag (shader 7) already uses all four `params` slots — routing the
+    // reads it as `g.drift` in `waves_rgb`. Kept OUT of `params` because
+    // Zigzag (shader 7) already uses all four `params` slots — routing the
     // drift through `params.z` would zero a Zigzag world's amplitude every
     // frame. Must byte-match `Globals.drift` in src/background.rs.
     drift: f32,
@@ -62,14 +62,14 @@ struct Globals {
     // chevron repeat wavelength `period_px`; params.y = the
     // Stripes/Bands angle (radians) OR shader 7's own chevron travel angle;
     // params.z = shader 7's chevron amplitude `amplitude_px`; params.w =
-    // shader 7's extra coverage multiplier `density`. Shader 9 (Deckle, item
-    // 158) reads all four with its OWN meanings — lane pitch / wander
+    // shader 7's extra coverage multiplier `density`. Shader 9 (Deckle)
+    // reads all four with its OWN meanings — lane pitch / wander
     // amplitude / density / weave; see `deckle_rgb`. Shader 8 (Organic) reads
     // x/y alone — it once read params.z as a theme-owned ARRANGEMENT scalar,
     // but the ground draws ONE arrangement now and that slot is inert; see
     // `organic_rgb`. All four are 0 for
-    // every ground this round didn't touch, so those grounds take their
-    // exact original code path. (Waves' drift is NOT here — it rides
+    // every ground that does not use these parameters, so those grounds take
+    // their exact original code path. (Waves' drift is NOT here — it rides
     // the dedicated `drift` slot above.) Shader 10 (WarpedGrid) reads
     // x/y/w as projected minor-cell spacing / coverage density / framing.
     params: vec4<f32>,
@@ -108,9 +108,9 @@ struct Globals {
 
 // --- THE TWO COORDINATE SPACES OF A PROCEDURAL GROUND ---
 //
-// A ground carries two structurally different classes of authored number, and
-// before this item both were physical pixels by accident of the coordinate the
-// fragment shader happens to run in:
+// A ground carries two structurally different classes of authored number.
+// Treating both as physical pixels merely because the fragment shader runs in
+// that coordinate space is incorrect:
 //
 //   * COMPOSITION — a cell, a pitch, a mark size, a wander, a falloff reach.
 //     These describe WHAT THE USER SEES: how many elements a margin holds and
@@ -306,7 +306,7 @@ fn pattern_coverage(px: vec2<f32>) -> f32 {
     // than a fixed skirt, so it is part of the drawn profile and not a sampling
     // feather; and the abutment rule folds `thickness` straight into the row
     // PITCH, so a thickness in physical px would make the field's own pitch
-    // density-dependent — the exact defect this item closes.
+    // density-dependent, violating the composition/sampling split above.
     if (g.shader == 7u) {
         let period = max(g.params.x, 1.0);
         let a = g.params.y;
@@ -533,14 +533,14 @@ const FINDS_MIN_SCALE_PX: f32 = 96.0;
 // keeps `density == 0.0` collapsing to the flat ground EXACTLY (`d * mult ==
 // 0` for any `mult`), the same differential-oracle invariant every other
 // ground family in this file holds
-// (`render::tests::bowerbird_finds_item176::finds_density_zero_is_exactly_
-// the_flat_ground`) — an ADDITIVE nudge would have let a live breathe phase
+// (`render::tests::bowerbird_finds::finds_density_zero_is_exactly_the_flat_ground`)
+// — an ADDITIVE nudge would have let a live breathe phase
 // draw a companion at `density: 0.0`, silently breaking that law.
 //
 // The envelope reuses `stars.rs:185`'s own shape: a cycle position
 // `u = fract(rate * phase / LAVA_LOOP_CYCLES + offset)`, with an INTEGER
 // `rate` (so `u` meets its own endpoint exactly at the shared clock's wrap —
-// the house law this item's own defect broke) and a decorrelated per-cell
+// the shared-clock continuity law) and a decorrelated per-cell
 // `offset` (so neighbouring companions never breathe in unison). A raised
 // cosine turns `u` into a smooth 0..1 pulse — continuous at the wrap because
 // `cos` of a 2*pi-periodic argument cannot jump — slow and soft by
@@ -637,8 +637,8 @@ fn finds_shape(p: vec2<f32>, kind: u32, r: f32) -> f32 {
     return sd_triangle(p, r * FINDS_TRI_HALF_SIDE);
 }
 
-// The SDFs above are in CELL units; `* s` puts them in LOGICAL pixels (item
-// 186 — `s` is the logical cell scale). The feather is authored in PHYSICAL
+// The SDFs above are in CELL units; `* s` puts them in LOGICAL pixels because
+// `s` is the logical cell scale. The feather is authored in PHYSICAL
 // pixels and converted into that logical space, so the transition band measures
 // `2 * FINDS_EDGE_AA_PX` device pixels wide on the glass at EVERY device ratio
 // and at any cell scale.
@@ -663,8 +663,8 @@ fn organic_finds_rgb(px: vec2<f32>, s: f32, d: f32) -> vec3<f32> {
     let local = vec2<f32>(fract(qx), fract(q.y)) - vec2<f32>(0.5, 0.5);
 
     let h0 = finds_h0(cell);
-    // Some cells hold nothing: open ground is part of the arrangement. Item
-    // 191 added the local-minimum gate (`finds_is_local_min`) so this can
+    // Some cells hold nothing: open ground is part of the arrangement. The
+    // local-minimum gate (`finds_is_local_min`) ensures this can
     // never fire on two lattice-adjacent cells at once — see the comment on
     // that function.
     if (h0 < FINDS_DROPOUT && finds_is_local_min(cell, h0)) {
@@ -914,8 +914,7 @@ fn deckle_rgb(px: vec2<f32>) -> vec3<f32> {
 //
 // Bands has NO composition quantity in pixels at all — every boundary
 // is a FRACTION of the viewport, so the same three bands span any canvas at any
-// density by construction (this ground was already density-independent, and the
-// item's premise does not reach it). Its one pixel number is the 1.5px boundary
+// density by construction. Its one pixel number is the 1.5px boundary
 // feather, which is SAMPLING and stays physical; it is converted into the
 // normalized `t` space through the same owner every other feather uses.
 const BANDS_MARGIN_SPAN: f32 = 1.35;
@@ -1346,8 +1345,8 @@ fn bayer_threshold01(px: vec2<f32>) -> f32 {
 // SRGB-ENCODED value (the space that's actually rounded to a byte), not the
 // linear one: the sRGB curve is steep near black, so a fixed linear-space
 // nudge would land as a much LARGER swing in the shadows than in the
-// highlights (confirmed empirically: it broke the round's own ≤1-LSB law —
-// see `render::tests::dither`). Encoding here, dithering, then decoding back
+// highlights (the ≤1-LSB law in `render::tests::dither` catches this).
+// Encoding here, dithering, then decoding back
 // to linear before `return` makes the GPU's own re-encode land exactly where
 // intended, channel by channel.
 fn srgb_encode1(c: f32) -> f32 {

@@ -117,7 +117,7 @@ toml = { version = "0.8", default-features = false, features = ["parse"] }
 unicode-segmentation = "1.13.3"
 # `counters` arms wgpu-hal's live buffer/texture-view counters, which
 # `src/gpu_alloc.rs` reads as the render suite's PORTABLE allocation oracle
-# (item 249 — RSS grades the container, these grade the product). Off by default
+# (RSS grades the container; these counters grade the product). Off by default
 # in wgpu and compiled out entirely when off, so the feature is not optional for
 # the oracle to exist. Enabled for every build, not just tests: an oracle that
 # lives in a different binary from the shipping one is the same mistake it was
@@ -251,7 +251,7 @@ objc2-foundation = { version = "0.3.2", default-features = false, features = [
     "NSObject",
     # NSRect/NSPoint/NSSize (+ CGFloat) for the symbol-rasterization draw rect.
     "NSGeometry",
-    # PER-WORLD APP ICON (item 92, `mac_chrome::set_dock_icon`): the active
+    # PER-WORLD APP ICON (`mac_chrome::set_dock_icon`): the active
     # world's pre-rendered `.icns` is handed to `NSImage(data:)` as an NSData,
     # which then feeds `NSApplication.setApplicationIconImage:`. Already enabled
     # in practice — objc2-app-kit's own "NSImage" feature (above) turns

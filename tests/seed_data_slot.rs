@@ -143,7 +143,7 @@ fn a_seeded_data_root_starts_a_live_app_capture_already_conflicted() {
     assert_eq!(
         bare_json["gutter"]["changed"].as_bool(),
         Some(false),
-        "…and no conflict, exactly as item 204 slice 1 measured"
+        "…and no conflict, matching the unseeded-store baseline"
     );
 }
 

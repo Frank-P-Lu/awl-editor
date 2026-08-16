@@ -114,14 +114,14 @@ main loop.
   `a_reasked_initial_tree_describes_the_document_as_it_is_now`. The user has
   since exercised VoiceOver on macOS and judged it to work well enough for now.
   Another confirmation sitting is not a v1 gate; new VoiceOver work follows a
-  concrete user report. **No AT-SPI journey has been run at all, and item 252's CI arm
+  concrete user report. **No AT-SPI journey has been run at all, and the AT-SPI CI arm
   does not change that sentence** — it is a mechanical check, on every
   push/PR, that AccessKit's Unix adapter registers on the AT-SPI2 bus and
-  publishes the tree's shape (the document, item 218's stable line runs read
+  publishes the tree's shape (the document, stable line runs read
   through the text interface, focus, a live selection); it has no Orca, no
   human, and no ears, so it says
   nothing about what a screen reader user would hear or how navigation feels.
-  That post-v1 journey is item 251, parked on a Linux desktop with Orca. Everything
+  That post-v1 journey remains parked on a Linux desktop with Orca. Everything
   else is verified by unit and law tests over the snapshot and its AccessKit
   projection — that the tree is correct and complete, that JSON and AccessKit
   say the same thing, that actions really fire. Whether a screen reader
@@ -137,10 +137,10 @@ main loop.
   window-registration path and its AT-SPI role mapping both key strictly off
   `Role::Window`, which nothing in awl's tree ever uses). That is a fact
   about the tree, not a verdict on it: whether AT-SPI/Orca can navigate an
-  application that publishes no Frame is left explicitly open here — item
-  252's CI probe correctly stopped asserting a node the tree was never going
+  application that publishes no Frame is left explicitly open here — the CI
+  probe correctly stopped asserting a node the tree was never going
   to publish, but that is a probe correction, not evidence the gap is
-  harmless. Only a real Orca session can answer it — item 251's job.
+  harmless. Only a real Orca session can answer it.
 - **The web build has no accessibility tree.** AccessKit has no canvas or web
   adapter, so this round is native-only by construction. A browser story needs
   a DOM mirror behind the canvas, which is a separate round with a separate
@@ -160,7 +160,7 @@ main loop.
   document text run. AccessKit expects a full tree only at ACTIVATION and
   changed nodes afterwards, and awl's event-loop-proxy adapter — whose
   activation cannot answer synchronously — forced the full-tree form on every
-  update. Item 218 replaced it with a synchronous mixed activation handler
+  update. The current implementation uses a synchronous mixed activation handler
   backed by a thread-safe parked tree, and changed-node updates from then on.
 - **Reading order is the tree's order.** awl does not model spatial navigation,
   and there is no bounding-box geometry in the tree yet, so a screen reader's
@@ -201,8 +201,8 @@ What tier 3 is for, in order of how much it would matter:
 
 1. **A real Orca sitting on Linux (post-v1).** VoiceOver is accepted for v1; its next work
    follows a concrete user report. The Linux journey still needs a person on a
-   real desktop session. **For the Orca half specifically
-   (item 251): awl's AT-SPI tree has no Frame/Window node** (see the honest
+   real desktop session. **For the Orca half specifically, awl's AT-SPI tree
+   has no Frame/Window node** (see the honest
    limits above) — check whether Orca can find, announce, and navigate the
    awl window at all without one, since nothing before a real sitting can
    answer that.

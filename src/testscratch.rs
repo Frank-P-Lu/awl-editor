@@ -240,9 +240,9 @@ mod tests {
             offenders.is_empty(),
             "these files call remove_dir_all directly instead of letting a \
              `testscratch::ScratchDir` guard's Drop own the cleanup: {offenders:?}. \
-             An explicit end-of-function remove is exactly the happy-path-only \
-             idiom queue item 168 retired — it never runs on a panic or an early \
-             return. Wrap the directory in `ScratchDir::new` instead."
+             An explicit end-of-function remove is a happy-path-only idiom — it \
+             never runs on a panic or an early return. Wrap the directory in \
+             `ScratchDir::new` instead."
         );
     }
 
@@ -293,7 +293,7 @@ mod tests {
             "these files build a scratch root off std::env::temp_dir() without \
              routing it through testscratch::ScratchDir::new: {offenders:?}. An \
              unwrapped root is either never cleaned up at all, or cleaned up only \
-             on the happy path (queue item 168) — add it to UNWRAPPED_ALLOWLIST \
+             on the happy path — add it to UNWRAPPED_ALLOWLIST \
              here ONLY if it names a single loose file, or is live (non-test) \
              production code, never a test-owned directory."
         );

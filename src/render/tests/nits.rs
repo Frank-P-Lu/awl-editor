@@ -913,7 +913,8 @@ fn revealed_image_destination_never_squiggles_but_alt_text_still_does() {
     crate::markdown::set_wysiwyg_on(true);
     let Some(mut p) = headless_pipeline() else {
         eprintln!(
-            "skipping revealed_image_destination_never_squiggles_but_alt_text_still_does_item_60: no wgpu adapter"
+            "skipping revealed_image_destination_never_squiggles_\
+             but_alt_text_still_does: no wgpu adapter"
         );
         crate::markdown::set_inline_images_on(prev_img);
         return;
@@ -977,7 +978,8 @@ fn off_cursor_link_destination_never_squiggles_but_label_text_still_does() {
     crate::markdown::set_wysiwyg_on(true);
     let Some(mut p) = headless_pipeline() else {
         eprintln!(
-            "skipping off_cursor_link_destination_never_squiggles_but_label_text_still_does_item_60: no wgpu adapter"
+            "skipping off_cursor_link_destination_never_squiggles_\
+             but_label_text_still_does: no wgpu adapter"
         );
         return;
     };
@@ -1027,7 +1029,8 @@ fn revealed_via_selection_link_destination_nit_dropped_label_nit_kept() {
     crate::nits::set_nits_on(true);
     let Some(mut p) = headless_pipeline() else {
         eprintln!(
-            "skipping revealed_via_selection_link_destination_nit_dropped_label_nit_kept_item_60: no wgpu adapter"
+            "skipping revealed_via_selection_link_destination_nit_dropped_\
+             label_nit_kept: no wgpu adapter"
         );
         return;
     };

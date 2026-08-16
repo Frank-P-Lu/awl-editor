@@ -172,7 +172,7 @@ never a regression of the one-off permissive harness. Storyboards (the later
 phase) seed MORE files — fixtures, config, history — through the same
 `scenario::build_sandbox` door, not a new seam.
 
-## Live-`App` capture (`--screenshot-app`) — the tier-2 oracle (item 188)
+## Live-`App` capture (`--screenshot-app`) — the tier-2 oracle
 
 Every mode above replays the **shared core**: real chords, the real keymap, the
 real `apply_transition` — but no `App`. Effects only the live `App` can perform
@@ -200,7 +200,7 @@ cargo run -- --screenshot-app OUT.png --root /some/proj \
 neither. The only differences in the artifact are the top-level `driver` field
 and the `semantic` tree, which only a live `App` can fold.
 
-**`--capture-size`/`--capture-dpi` compose (item 334).** `LiveAppSpec` carries
+**`--capture-size`/`--capture-dpi` compose.** `LiveAppSpec` carries
 the canvas + dpi flags onto the same `CaptureOpts` this door hands the ordinary
 `capture_with` renderer, so the meaning is identical to every other capture
 door: a `WxH` PHYSICAL canvas (default 1200x800) at `--capture-dpi N` (default
@@ -226,7 +226,7 @@ in `docs/harness-reach.md`): the live App owns that state via real driving, and
 an override would misrepresent the editor being photographed. `--root`/
 `--workspace` were already threaded and stay so.
 
-**Starting from state awl already had — `--seed-data DIR` (item 204).** The
+**Starting from state awl already had — `--seed-data DIR`.** The
 sandbox is seeded from exactly the paths the command line names, and awl's own
 data root was not one of them, so a mode whose whole premise is remembered state
 — an unresolved-change record, a scratch stash, a session, a history log — had no
@@ -297,16 +297,15 @@ document named on the command line is a STATIONARY backdrop the harness draws
 itself (`capture::frames::capture_frames`, the same offscreen-pipeline shape
 `--semantic-json` uses); the App renders nothing.
 
-**`--capture-size`/`--capture-dpi` are honored (item 339 — the identical gap
-item 334 closed on `--screenshot-app`).** Before, `Mode::ScreenshotFrames`
+**`--capture-size`/`--capture-dpi` are honored.** Before, `Mode::ScreenshotFrames`
 carried no canvas/dpi fields and fell through to the plain-`--screenshot` hook
 bucket, so both flags parsed, validated as "honored", and were discarded
 before the frame ever rendered — every invocation rendered the byte-stable
 1200x800 default regardless of what was asked for. `capture_frames_async`
 also never called `pipeline.set_dpi`, a second, independent instance of the
 same shape one layer deeper: even a correctly-threaded dpi would have been a
-no-op at the renderer. Both are fixed the same way item 334 fixed
-`--screenshot-app`: `Mode::ScreenshotFrames` now carries `canvas`/`dpi`, threaded
+no-op at the renderer. Both now follow the `--screenshot-app` path:
+`Mode::ScreenshotFrames` carries `canvas`/`dpi`, threaded
 onto the `CaptureOpts` the frame loop renders through, with the identical
 meaning every other capture door gives them (a `WxH` physical canvas at
 `--capture-dpi N` is the same logical `(W/N)x(H/N)` window) — proved by
@@ -464,7 +463,7 @@ scripts/capture.sh --debug   # same, using the debug build
 - `gallery/NAME.png`  — 1200×800 RGBA, one deterministic frame
 - `gallery/NAME.json` — the render-state sidecar described below
 
-## The world gallery (`scripts/capture-worlds.sh`) — item 68
+## The world gallery (`scripts/capture-worlds.sh`)
 
 A second, roster-driven sibling to `scripts/capture.sh`: instead of sweeping
 `samples/*.md` once each, it sweeps every CURRENT world once each, against
@@ -523,7 +522,7 @@ binary that hard-codes a 20-name roster snapshot on purpose, so a
 updates it (mirroring `theme::tests::worlds_eleven_dark_nine_light`'s
 existing hard-coded `20`).
 
-## The visual review dashboard (`scripts/review.sh`) — item 20
+## The visual review dashboard (`scripts/review.sh`)
 
 `scripts/review.sh` is the human-facing review build over the capture and icon
 oracles. It does not draw an HTML approximation of awl. It builds the real
@@ -855,7 +854,7 @@ One owner, `crate::card::figures::{readout_figures, CountUnit}`, feeds both
 blocks and the drawn HUD card's WORD COUNT row, so a capture's `readout.unit`
 and `hud.unit` always agree with each other and with what the row draws.
 
-Vocabulary note (item 245 — **no schema bump**; the shape is unchanged, only
+Vocabulary note (**no schema bump**; the shape is unchanged, only
 the existing `reading_min` field gains a corrected VALUE, per `capture.rs`'s
 "bump once per sidecar-SHAPE change" criterion): `/198`'s own landing left
 `reading_min` computed at 200 units/minute for BOTH `unit`s — a WORDS-per-minute
@@ -873,8 +872,8 @@ anchor `[x, y]` for the awl-rendered contextual menu, or `null` for every
 other summoned surface. The rendered `overlay.window` remains the clamped
 appearance geometry; the anchor is the input/state oracle.
 
-Schema `/197` adds two fields for the EXTERNAL-CHANGE CONFLICT surface (queue
-item 204): **`gutter.changed`** and **`overlay.preview_view`**.
+Schema `/197` adds two fields for the EXTERNAL-CHANGE CONFLICT surface:
+**`gutter.changed`** and **`overlay.preview_view`**.
 
 `gutter.changed` is the persistent `changed elsewhere` affordance beside the
 filename — `true` exactly while the captured document is holding an unresolved
@@ -912,7 +911,7 @@ about what a screen reader actually receives, not about a model of it
 (`semantic::native::tests::json_and_accesskit_are_projections_of_the_same_snapshot`).
 
 The object is `{ schema, root_id, focus_id, nodes }`. `schema` is its own
-version string, **`awl-semantic/2`** (item 218 split the document into line
+version string, **`awl-semantic/2`** (the document is split into line
 runs — see below), independent of the capture schema, because the semantic tree
 is consumed on its own by `--semantic-json` as well. `focus_id`
 names the ONE node with `focused: true`; that is an invariant, not a
@@ -928,7 +927,7 @@ Ids are stable across edits AND across filtering: a picker row is keyed by its
 CORPUS position, so typing a query narrows the visible rows without renaming
 the survivors.
 
-**The document is a sequence of LINE RUNS** (`awl-semantic/2`, item 218), not
+**The document is a sequence of LINE RUNS** (`awl-semantic/2`), not
 one node holding the whole rope. The document node's `children` are
 `document.run.<id>` nodes in reading order, one per line, each carrying that
 line's text as its `value` — INCLUDING its trailing newline, so the runs
@@ -965,7 +964,7 @@ Schema `/193` adds the top-level **`driver`** field, immediately after `schema`:
 which TIER produced this sidecar. `"replay"` — the shared core
 (`actions::apply_transition`), i.e. every `--screenshot` / `--keys` /
 `--storyboard` / `--capture-timeline` / `--capture-held` / `--screenshot-frames`
-capture. `"live-app"` — a real headless `App` (`--screenshot-app`, item 188; see
+capture. `"live-app"` — a real headless `App` (`--screenshot-app`; see
 that section above). The distinction is load-bearing rather than cosmetic: two
 sidecars can carry identical fields and mean different things, because a
 `"replay"` capture owns no capability for the live-`App`-only effects it skips
@@ -1022,14 +1021,14 @@ block (`/160`-`/162`); the `xray` block + `tables.revealed` meaning (`/163`-
 `/165`); `project.keymap_flavor` (`/164`); `about.checked` (Check for Updates,
 `/166`); `page.background`'s `lava` arm (`/168`); `about.pending_crash`
 (passive crash recovery, `/169`); `page.background`'s `bands`/`waves` arms
-(item 69's Gumtree grass-bands + Bombora wave-tiers, `/181`); and
-`page.background`'s `zigzag` arm (item 86's light-worlds taste round — Quokka
+(Gumtree grass-bands + Bombora wave-tiers, `/181`); and
+`page.background`'s `zigzag` arm (the repeating-chevron ground — Quokka
 and Gumtree both moved to a repeating chevron ground, `/183`);
-`page.background`'s `deckle` arm (item 158's Paperbark — `{kind, ground, layer,
+`page.background`'s `deckle` arm (Paperbark — `{kind, ground, layer,
 deckle, weave, anchor, period_px, wander_px, density, static}`, where `weave` is the
 theme-owned profile `"strata"`/`"fibres"`, `/189`); `page.background`'s
-`organic` arm gaining `arrangement` (item 176 — the ground's own theme-owned
-profile, `/190`; item 191 swapped Bowerbird's own literal to `"finds"`, the
+`organic` arm gaining `arrangement` (the ground's own theme-owned
+profile, `/190`; Bowerbird's literal later became `"finds"`, the
 crisp three-object collected-treasure field — `"masses"`, the original rounded
 cut-paper field, rode on as reusable infrastructure carried by no world).
 **Both of those keys, and `lava`'s `edge`, are GONE as of `/199`** — each named
@@ -1039,7 +1038,7 @@ across that bump. Note the asymmetry with `/198`'s own predecessor: a key
 REMOVAL is a shape change because a reader keying on it breaks, while merely
 narrowing a value space is not;
 `overlay.workspace` + the `overlay.diff_focus` → `overlay.detail_focus` rename
-(item 114's summoned workspace, `/191`): `overlay.workspace` is `true` when the
+(`/191`): `overlay.workspace` is `true` when the
 summoned surface is drawn as a WORKSPACE — it takes the viewport, carries a
 navigation rail, and leaves the document as a quiet backdrop — rather than as a
 contextual card. When it is true, `overlay.lens_strip` IS that rail (the same
@@ -1048,8 +1047,8 @@ contextual card. When it is true, `overlay.lens_strip` IS that rail (the same
 instead of repeating it as a header over the only bucket it lets through. The
 focus field was renamed because it was never diff-specific: it has always meant
 "the summoned surface's DETAIL stage holds the keyboard", which for History is
-its comparison and for Settings is the content pane beside the rail (item 116b
-retired the diff-panel card the History detail stage used to be dressed as; no
+its comparison and for Settings is the content pane beside the rail (the
+diff-panel card the History detail stage used to be dressed as is retired; no
 document-layer surface reads this field any more, and
 `capture::tests::panels::history_preview_renders_the_transcript_as_the_document_in_every_world`
 asserts a `detail_focus` flip moves no pixel of it); and
@@ -1058,11 +1057,11 @@ tunnel, spacing_px, density, forward_cells}`, where `tunnel` is the theme-owned
 profile and `forward_cells` is `0` in an ordinary headless capture because
 nothing there ticks the clock; a STATE
 oracle only — how the field LOOKS is asserted over the PNG, `/194`); and
-`overlay.ranges` (item 94's Settings RANGE ROWS — a per-row array parallel to
+`overlay.ranges` (Settings RANGE ROWS — a per-row array parallel to
 `overlay.items`, `null` on an ordinary row and a 0..1 RAIL FRACTION on a range
 row, so a `--keys`-driven rail step is assertable beside the value TEXT the
 row's `bindings` cell already carried; empty for every mode but `settings`,
-`/184`); and the item 96 metric-scale correction (`/185`), where
+`/184`); and the metric-scale correction (`/185`), where
 `font.size`/`font.line_height` became effective physical-pixel metrics and
 `font.zoom` was added. Every one of these bumps preserved byte-identical
 DEFAULT captures apart from the named field — see the table.
@@ -1133,7 +1132,7 @@ Two additive sidecar changes:
   {...}|null }`. `scripts.ja` **is** `font.cjk` — one
   `render::ScriptFontReports` snapshot per sidecar, read through one renderer,
   so the two are the same bytes by construction rather than two resolutions
-  that happen to agree (queue item 98: they once didn't, under a concurrent
+  that happen to agree (they once didn't under a concurrent
   theme flip) — and is non-`null` in every normal build (bundled Noto
   Serif/Sans JP). `zh_hans`/`zh_hant`/`ko` ship **no bundled asset** this round
   (a v1 taste call — PingFang SC/TC, Apple SD Gothic Neo, falling back to Noto
@@ -1393,7 +1392,7 @@ commits) and assert `dictionary == "en_AU"`; a `--config` file with
 `dictionary = "en_AU"` produces the same effective variant with no flags at
 all (`apply_sticky_globals`, mirroring `theme`/`caret_mode`).
 
-**CAPTURE IS STRUCTURALLY FREE OF REMEMBERED CONTEXT (item 76).** The one
+**CAPTURE IS STRUCTURALLY FREE OF REMEMBERED CONTEXT.** The one
 active-folder-context owner is the live App's session (native-only,
 `app/session.rs`) — a headless capture never constructs an `App`, so it never
 reads or writes it (the capture-gate law). A **bare** capture — no `file`
@@ -1630,7 +1629,7 @@ held to it by `capture::tests::capture_md_drift`. All ride the one transient car
   reflects the result; a CONFLICT moves the capture to `confirm` and warns before
   committing — live only). `Esc` cancels a capture / closes the menu.
 * `move` (`C-x m`) — the MOVE-DESTINATION picker for the current file: the
-  browse navigator over the **active folder** (item 76 — the SAME root `browse`
+  browse navigator over the **active folder** (the SAME root `browse`
   walks; no separate notes-root concept), listing FOLDERS only.
   `Right` DESCENDS into the highlighted folder, `Left` / `Backspace` ASCENDS,
   `Enter` ACCEPTS the
@@ -1652,7 +1651,7 @@ directory currently shown. `bindings` is `[]` for every mode except `command` an
 last-buffer toggle and Cmd-N new-document swap are editor actions, not
 overlays, so they leave no `overlay` trace — their effect shows in `text` /
 `project` (after Cmd-N the buffer is a fresh, unnamed document IN THE SAME
-active folder — item 76, no project change; the filename is derived from
+active folder — no project change; the filename is derived from
 its first line ONCE, on the first material save).
 
 Schema `awl-capture/3` (was `/2`) adds the `theme` block describing the active
@@ -1719,19 +1718,19 @@ world.)
 | `spellcheck`   | GLOBAL spell-check on/off; default `true`. `false` silences every squiggle (prose and scoped code strings/comments alike) and makes the spell-suggest picker a no-op. Set via `--config` (`spellcheck = false`) or the "Toggle Spellcheck" palette command |
 | `date_format`  | INSERT DATE (schema `/178`): `{ format, example }` — the active `crate::dateformat::DateFormat`'s persisted slug (`"ddmmyy"`/`"mmddyy"`/`"iso"`/`"yyyymmdd"`/`"dmonthyyyy"`; default `"ddmmyy"`) and that format rendered against the FIXED placeholder civil date (2009-03-07 — a headless capture has no clock, so "today" is always this same date). Set via `--config` (`date_format = "iso"`) or the Settings menu's "Date format" cycling row. `example` for the default is `"07/03/09"` |
 | `text_origin`  | top-left pixel of the first glyph row (`left` = the page column left, centered in page mode; `16.0` edge-to-edge) |
-| `page`         | PAGE MODE: `on` (centered column vs edge-to-edge), `measure` (column width in chars), `class` (schema `/98`: `"prose"`/`"code"` — which sticky measure, `page_width_prose`/`page_width_code`, is in effect for this document; see `crate::page::PageClass`), `column.{left,width}` (px), `background` (the active world's margin shader — a tagged `{kind, ...}` object, e.g. `{kind:"gradient", from, to, dir}`, `{kind:"dots", from, to, dir, tint, edge}`, `{kind:"bands", tones:[c0,c1,c2], angle}` (item 69, Gumtree), `{kind:"waves", tones:[c0,c1,c2]}` (item 69, Bombora), or `{kind:"deckle", ground, layer, deckle, weave, period_px, wander_px, density, static}` (item 158, Paperbark — `weave` is the theme-owned profile, `"strata"` on Paperbark and `"fibres"` on Galah; the `anchor` key was removed in `/199` when that dial collapsed to its viewport arm), or `{kind:"organic", tones:[c0,c1,c2], scale_px, density, phase}` (Bowerbird — the `arrangement` key was removed in `/199` for the same reason; the ground draws the crisp collected-treasure field and nothing else), or `{kind:"warped-grid", ground, minor, major, tunnel, spacing_px, density, forward_cells}` (items 132/194, Kite — `tunnel` is `"fixed"`; `"page-scaled"`, `"margin-placed"`, and `"reversed"` are mutation arms)) |
+| `page`         | PAGE MODE: `on` (centered column vs edge-to-edge), `measure` (column width in chars), `class` (schema `/98`: `"prose"`/`"code"` — which sticky measure, `page_width_prose`/`page_width_code`, is in effect for this document; see `crate::page::PageClass`), `column.{left,width}` (px), `background` (the active world's margin shader — a tagged `{kind, ...}` object, e.g. `{kind:"gradient", from, to, dir}`, `{kind:"dots", from, to, dir, tint, edge}`, `{kind:"bands", tones:[c0,c1,c2], angle}` (Gumtree), `{kind:"waves", tones:[c0,c1,c2]}` (Bombora), or `{kind:"deckle", ground, layer, deckle, weave, period_px, wander_px, density, static}` (Paperbark — `weave` is the theme-owned profile, `"strata"` on Paperbark and `"fibres"` on Galah; the `anchor` key was removed in `/199` when that dial collapsed to its viewport arm), or `{kind:"organic", tones:[c0,c1,c2], scale_px, density, phase}` (Bowerbird — the `arrangement` key was removed in `/199` for the same reason; the ground draws the crisp collected-treasure field and nothing else), or `{kind:"warped-grid", ground, minor, major, tunnel, spacing_px, density, forward_cells}` (Kite — `tunnel` is `"fixed"`; `"page-scaled"`, `"margin-placed"`, and `"reversed"` are mutation arms)) |
 | `focus`        | FOCUS MODE: `mode` (`off`/`paragraph`/`sentence`) + `active_start`/`active_end` (char offsets of the full-ink unit, `null` when off) |
 | `wysiwyg`      | WYSIWYG conceal: `{ on, concealed }`. `on` mirrors the sticky `wysiwyg` config pref (default `true`). `concealed` is `[start_byte, end_byte, "kind"]` ranges the renderer drew transparent THIS frame — `"heading"`/`"emphasis"`/`"code"`/`"highlight"` (LINE-scoped: revealed only on the caret's own line OR a line the active selection touches) or `"fence"`/`"frontmatter"` (BLOCK-scoped: revealed only with the caret anywhere inside the block, or the selection touching any line inside it — a frontmatter block reuses the `fence` rule verbatim, see schema `/92`; selection reveal, 2026-07-22, no schema bump — see `render::spans::wysiwyg_reveals`). `"table"` (schema `/163`-ish, see the `tables` narrative above) NEVER leaves `concealed` in place — a selected/caret-touched table row instead swaps to the `xray` float mechanism; `tables[].revealed` and the render-only `xray` state are the ones to check for a table. Empty when `on` is false or nothing is concealed this frame |
 | `doc_lang`     | i18n round (schema `/92`): the document's own frontmatter `lang:` tag (`"ja"`/`"zh-Hans"`/`"zh-Hant"`/`"ko"`/`"en"`), or `null` for an untagged/non-markdown document |
 | `md_spans`     | MARKDOWN STYLING: array of `[start_byte, end_byte, "tag"]` styled spans (`markup`/`h1`..`h6`/`bold`/`italic`/`bold_italic`/`code`/`quote`/`list_marker`/`link_text`/`task_open`/`task_checked`/`task_done`/`rule`/`highlight`); empty for non-`.md` buffers. A frontmatter block's span also reports plain `"markup"` here (the conceal STATE lives in `wysiwyg` instead — see above). UNCHANGED by the WYSIWYG round — a concealable span still reports its ordinary tag here regardless of the caret |
 | `syn_lang`     | SYNTAX HIGHLIGHTING: the DETECTED code language name (`"rust"`, `"go"`, …) or `null` for a non-CODE buffer; agrees with `syn_spans` (`null` ⇔ empty) |
 | `syn_spans`    | SYNTAX HIGHLIGHTING: array of `[start_byte, end_byte, "tag"]` Alabaster role spans (`comment`/`string`/`constant`/`definition`); empty for non-CODE buffers (`.env`/`.md`/`.txt`/unknown). Mutually exclusive with `md_spans` |
-| `readout`      | QUIET word/character-count readout: `{ words, reading_min, unit }` (reading_min = ceil(words/200), min 1; `unit` is `"words"` or `"characters"`, item 229 — see the schema `/198` narrative above), or `null` for a non-markdown / wordless buffer. NO LONGER drawn (moved to the held HUD); kept as the HUD's source |
+| `readout`      | QUIET word/character-count readout: `{ words, reading_min, unit }` (reading_min = ceil(words/200), min 1; `unit` is `"words"` or `"characters"`; see the schema `/198` narrative above), or `null` for a non-markdown / wordless buffer. NO LONGER drawn (moved to the held HUD); kept as the HUD's source |
 | `gutter`       | PAGE-MODE GUTTER: `{ visible, name, project, changed }` — the left-margin orientation label (filename muted over project faint, LABEL size). `visible` is true only when drawn (page mode + a name + a margin past the hard floor, `render::rowlayout::GUTTER_MIN_NAME_CHARS`); `name` and `project` are each **exactly as drawn** — independently fit to ONE line, middle-elided (extension preserved) only once the margin can't hold that line whole (`render::rowlayout::gutter_plan`/`fit_primary`, the same door the picker rows use). Neither line yields to the other from width pressure; `project` is `""` only when there is genuinely no project to show. `changed` (schema `/197`) is the persistent `changed elsewhere` affordance — `true` only on a `driver: "live-app"` capture whose document holds an unresolved external change, in which case the block draws a THIRD line above the filename in a stronger ink |
 | `notice`       | THE CALM NOTICE (schema `/200`): `{ text, kind }`, or `null` when nothing is showing. `text` is the sentence exactly as drawn (elided to the column's budget on a narrow canvas — `render::rowlayout::fit_primary_end_to_px`, the same pixel-truth door the margin outline uses); `kind` is `"toast"` or `"sticky"`. Read off the PIPELINE, not off the fold's input, so the block cannot claim a message the PNG does not carry — and `null` on a frame that YIELDS the notice (a relocated read-only comparison) even though one is set. Drawn as one plated LABEL line at the top of the writing column: fill `base_200`/`base_300` by kind, a one-pixel rim `muted`/`base_content`, text through `theme::selected_row_ink`; a true one-bit world inverts the sticky arm because it has no value step to spend |
 | `dim_overlay`  | `true` when a FULL-takeover overlay dims the document behind it (the scrim); `false` for the search SPLIT panel / no overlay (DESIGN §5) |
 | `debug`        | DEBUG panel (renamed from the old `fps` counter): `{ enabled, text, frame_ms, worst_ms, budget_ms, key_px_ms, redraws, still, autosave_state, autosave_since_s }`. OFF by default (empty `text` → byte-identical). `text` is the full stacked readout; `frame_ms`/`worst_ms`/`budget_ms`/`key_px_ms`/`redraws`/`still` are the machine-readable perf triad (all `null` + `still: true` in a capture — no clock runs headlessly). `autosave_state` (`"off"`/`"held"`/`"saved"`, else `null`) + `autosave_since_s` (whole seconds since the last successful autosave write, else `null`) mirror the panel's `autosave …` line, fed EXCLUSIVELY through `App::autosave_flush`'s one door — both `null` in every capture (the engine is structurally live-App-only) |
-| `hud`          | HELD STATS HUD: `{ held, words, reading_min, unit, percent, lang }`. `held` is the summon state (false by default → byte-identical); `words`/`reading_min`/`unit` null for non-markdown (`unit` is `"words"`/`"characters"`, item 229, schema `/198` — see the narrative above; always agrees with the top-level `readout` block, one owner); `percent` = cursor %-through-doc; `lang` (i18n round, schema `/92`) is the document's frontmatter language. Every figure is a pure function of the USER'S DOCUMENT + cursor — the whole buffer, never the shaped page — so a collapsed fold or an open History preview leaves them unmoved (`readout` likewise). It follows that `lang` and the top-level `doc_lang` can differ: `doc_lang` is the SHAPED text's language, which is what the per-script font ladder must follow, and a diff transcript carries no frontmatter. No clock, fully capture-safe |
+| `hud`          | HELD STATS HUD: `{ held, words, reading_min, unit, percent, lang }`. `held` is the summon state (false by default → byte-identical); `words`/`reading_min`/`unit` null for non-markdown (`unit` is `"words"`/`"characters"`, schema `/198` — see the narrative above; always agrees with the top-level `readout` block, one owner); `percent` = cursor %-through-doc; `lang` (schema `/92`) is the document's frontmatter language. Every figure is a pure function of the USER'S DOCUMENT + cursor — the whole buffer, never the shaped page — so a collapsed fold or an open History preview leaves them unmoved (`readout` likewise). It follows that `lang` and the top-level `doc_lang` can differ: `doc_lang` is the SHAPED text's language, which is what the per-script font ladder must follow, and a diff transcript carries no frontmatter. No clock, fully capture-safe |
 | `about`        | SUMMONED ABOUT CARD (schema `/99`): `{ open }`. `false` by default (byte-identical); `true` after the palette "About" command (or the macOS menu bar's App ▸ "About Awl") opens it. Shares the HUD's float-card pipeline (`about.rs` + `render/chrome.rs::prepare_hud`) rather than owning a parallel one |
 | `line_count`   | total logical lines in the buffer |
 | `scroll_lines` | top visual-row anchor (0 on load; retained for row-oriented diagnostics) |

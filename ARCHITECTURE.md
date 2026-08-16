@@ -70,7 +70,7 @@ name); behavior is byte-identical. Submodules are listed under each root below.
   writing-streaks day map, with their sampling anchors, one privacy gate, and
   a `dirtying` submodule that makes a record and its unflushed-changes stamp
   one value; `stats.rs`/`streaks.rs` keep only the App-side wiring).
-  `App` is being decomposed into owned state domains (queue item 172): read
+  `App` is being decomposed into owned state domains: read
   `docs/app-domains.md` — the ownership map — before adding a field to `App` or
   an `impl App` block in a new module. Its single `InputRuntime` handle contains
   private `KeyboardInput` and `PointerInput` substates; only `app/input/`
@@ -143,7 +143,7 @@ name); behavior is byte-identical. Submodules are listed under each root below.
   run's own coordinates. It reads no theme, and it composes exactly ONE layout
   run, so it cannot grow into a second prose renderer; the document layer stays
   the one. See docs/render.md.
-- `range.rs` — the RANGE SPEC owner (item 94): one typed description of a bounded,
+- `range.rs` — the RANGE SPEC owner: one typed description of a bounded,
   stepped setting (`min`/`max`/`step`/`default`, a display unit, and a linear or
   logarithmic rail mapping) plus every derivation from it — quantization, the step
   grid, both directions of the rail mapping, keyboard stepping, the readout, the

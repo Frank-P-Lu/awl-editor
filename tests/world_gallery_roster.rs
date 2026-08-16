@@ -65,7 +65,7 @@ fn list_worlds_matches_the_expected_roster_exactly() {
     assert_eq!(
         names, EXPECTED_WORLDS,
         "theme::THEMES roster changed — update EXPECTED_WORLDS here AND \
-         scripts/capture-worlds.sh's expectations (item 68)"
+         scripts/capture-worlds.sh's expectations"
     );
 
     // Duplicate world: fails LOUDLY (redundant with the exact-match above,

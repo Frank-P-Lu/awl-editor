@@ -186,7 +186,7 @@ fn frost_seeds(p: &mut TextPipeline, height: u32) -> (Vec<[f32; 4]>, Vec<[f32; 4
     let text = "# &\n\n## Button-free\n\n### The quick brown fox jumps\n\n#### A\n\n##### Getting Started Guide\n";
     let mut v = view_md(text, 0, 0);
     v.zoom = 1.0;
-    v.gutter_name = "item61_fixture.md".to_string();
+    v.gutter_name = "frost_fixture.md".to_string();
     p.set_dpi(1.0);
     p.set_view(&v);
     (p.outline_frost_seeds(height), p.gutter_frost_seeds(height))

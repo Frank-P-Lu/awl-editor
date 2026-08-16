@@ -107,8 +107,8 @@ fn only_the_guard_calls_remove_dir_all() {
         offenders.is_empty(),
         "these tests call remove_dir_all directly instead of letting a \
          `common::ScratchDir` guard's Drop own the cleanup: {offenders:?}. An \
-         explicit end-of-function remove is exactly the happy-path-only idiom \
-         queue item 168 retired — it never runs on a panic or an early return. \
+         explicit end-of-function remove is a happy-path-only idiom — it never \
+         runs on a panic or an early return. \
          Wrap the directory in `common::ScratchDir::new`/`::claim` instead."
     );
 }
@@ -143,8 +143,8 @@ fn every_new_scratch_root_is_wrapped_in_scratch_dir() {
         offenders.is_empty(),
         "these tests build a scratch root off std::env::temp_dir() without routing it \
          through common::ScratchDir::new/::claim: {offenders:?}. An unwrapped root is \
-         either never cleaned up at all, or cleaned up only on the happy path \
-         (queue item 168) — add it to FILE_NOT_DIR_ALLOWLIST here ONLY if it names a \
+         either never cleaned up at all, or cleaned up only on the happy path — \
+         add it to FILE_NOT_DIR_ALLOWLIST here ONLY if it names a \
          single loose file, never a directory."
     );
 }

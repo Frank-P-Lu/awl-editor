@@ -213,8 +213,8 @@ def resolve_function_anchor(file: str, line: int) -> str | None:
     Deliberately not a line number. A raw pin shifts every time unrelated code
     moves above it in the same file — a new `mod` declaration, a sibling
     lane's own growth — so two branches that each grow the same file produce
-    a merge conflict on a line neither one actually owns, four times running
-    on `src/render.rs` alone (item 256). Re-deriving this anchor from each
+    a merge conflict on a line neither one actually owns. Re-deriving this
+    anchor from each
     diagnostic's OWN current line, every run, removes that shift entirely:
     unrelated growth anywhere else in the file never invalidates an entry.
 
@@ -264,8 +264,8 @@ def format_file_size_mark_block(file: str, lines: int, reason: str | None = None
 
     Unlike `format_clippy_exception_block`, `lines` is never a guess: the
     friction this exists for is arithmetic that only resolves on the actual
-    tree in front of the caller (item 256 — two branches that both grow the
-    same file each measure a number correct for their own tree and wrong for
+    tree in front of the caller: two branches that both grow the same file
+    each measure a number correct for their own tree and wrong for
     the merge; the standing fix has been "re-run this script on the merged
     tree and record what it reports", which this block makes mechanical). An
     existing `reason` is carried over as a starting point to extend, never
@@ -1197,8 +1197,8 @@ def self_test() -> int:
             globals()["phase_three_files"] = original_phase_three_files
             globals()["PHASE_THREE_ALLOWANCES"] = original_phase_three_allowances
     # A function-anchored exception must keep matching after unrelated growth
-    # shifts its line number — the exact class of merge conflict item 256
-    # exists to remove. `fn shifted` sits at line 3 here; the manifest's
+    # shifts its line number — the exact class of merge conflict this mechanism
+    # removes. `fn shifted` sits at line 3 here; the manifest's
     # historical `line` field is gone, so nothing about this entry can go
     # stale merely because something was inserted above it.
     with tempfile.TemporaryDirectory() as directory:
@@ -1452,11 +1452,11 @@ def self_test() -> int:
     if status == "head_is_main" and marks is not None:
         raise AssertionError("head_is_main status must carry no marks")
     # The regression fixture, built as real git history rather than mocked
-    # plumbing: a branch forks from main, main *lowers* a mark (the extraction
-    # this board actively encourages — items 184/185's real shape), and the
+    # plumbing: a branch forks from main, main *lowers* a mark after an
+    # extraction, and the
     # forked branch never touches the file. Direction 1: that branch must
     # pass, because it raised nothing — comparing against main's tip instead
-    # of the fork point is exactly the bug item 186 hit. Direction 2: the same
+    # of the fork point would misclassify it. Direction 2: the same
     # branch then genuinely raises the mark itself with no reason, and must
     # fail — proving the fix stopped comparing against the wrong commit, not
     # that it stopped checking raises at all.

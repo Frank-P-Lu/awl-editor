@@ -111,7 +111,7 @@ fn the_dev_launch_registers_the_bundle_with_launchservices() {
         script.contains("lsregister"),
         "scripts/dev-app.sh must register the assembled bundle with \
          LaunchServices. Without it Stage Manager shows the generic blueprint \
-         tile instead of the Awl icon — measured, item 167."
+         tile instead of the Awl icon."
     );
     assert!(
         script.contains("-f \"$APP\""),

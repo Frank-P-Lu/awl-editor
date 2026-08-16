@@ -67,7 +67,7 @@ fn changed_pixels_in(
 
 fn heading_fixture(level: usize) -> String {
     format!(
-        "{} wave 7\nbody kept inside the section\n{} sibling\nsibling body\n",
+        "{} folded section\nbody kept inside the section\n{} sibling\nsibling body\n",
         "#".repeat(level),
         "#".repeat(level)
     )
@@ -198,7 +198,7 @@ fn fold_chevron_real_pixel_ink_centres_on_h1_h2_h3_across_every_world() {
 /// expanded/collapsed, caret/hover summon, narrow/wide canvases, 1x/2x device
 /// scale, and the supported zoom range's low/default/high representatives.
 #[test]
-fn wagtail_wave7_h2_chevron_centres_across_state_viewport_dpi_and_zoom() {
+fn wagtail_h2_chevron_centres_across_state_viewport_dpi_and_zoom() {
     let _g = crate::testlock::serial();
     let _world = crate::theme::WorldPin::snapshot();
     crate::page::set_page_on(true);

@@ -7,17 +7,17 @@
 #
 # `accepted` lists every SPDX license identifier actually observed across
 # awl's dependency tree (native + wasm targets both scanned via the one
-# Cargo.lock) as of the LICENSE + CREDITS round — verified via `cargo license`
+# Cargo.lock) — verified via `cargo license`
 # first, then cross-checked here. None are GPL-incompatible: the permissive
 # licenses (MIT/Apache-2.0/BSD/Zlib/ISC/BSL-1.0/0BSD/CC0-1.0/Unlicense) are
 # universally GPL-compatible; MPL-2.0 (spellbook) is GPL-compatible as a
 # bundled dependency (its own "Larger Work" provision permits combination with
 # GPL code); the dual-licensed GPL-2.0/LGPL-2.1-or-later options (self_cell,
 # r-efi) are chosen via their Apache-2.0/MIT alternative, never the copyleft
-# one. See CLAUDE.md's LICENSE + CREDITS round notes for the audit trail.
+# one. See docs/licensing.md for the maintained audit trail.
 #
-# Item 207 (native accessibility) added 55 crates -- the AccessKit adapters and
-# the Linux AT-SPI/zbus stack -- and added NOTHING to this list: every one of
+# Native accessibility adds 55 crates -- the AccessKit adapters and the Linux
+# AT-SPI/zbus stack -- without adding to this list: every one of
 # them is MIT, Apache-2.0, or the two dual-licensed, all already accepted.
 # `accesskit_winit` is Apache-2.0 alone, which is one-way compatible with
 # GPL-3.0 (the direction awl needs). Flagged, not fabricated: those crates ship
