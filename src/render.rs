@@ -166,6 +166,17 @@ pub const CARET_BLOCK_H: f32 = CARET_H * 0.80; // ~22.4 px
 /// are exactly the factors where it looks like one (`caret_scale_law`).
 pub const CARET_DESCENDER_PAD: Logical = Logical(1.5);
 pub const CARET_INK_PAD: Logical = Logical(3.0);
+/// The resting cell's HORIZONTAL counterpart to [`CARET_INK_PAD`]: grown
+/// equally on both sides of the anchored glyph's own ink centre (never a
+/// per-glyph raster read of its own — `caret_visual_body_dims` folds it in
+/// alongside the width floor, so every anchor still comes from the ONE shared
+/// body owner). Before this existed the resting body was the bare raster ink
+/// width with no accent margin at all, which read as hugging the letter
+/// rather than standing beside it — the vertical pad's own dead-space law
+/// (`proportional_worlds_take_one_caret_top_at_every_letter`) already sits
+/// within a fraction of a pixel of its ceiling on the roster's tightest face,
+/// so this axis, not a taller pad, is where a modestly larger body has room.
+pub const CARET_INK_PAD_W: Logical = Logical(1.0);
 pub const CARET_STREAK_H: f32 = 2.8;
 pub const CARET_STREAK_MIN_LEN: f32 = 10.0;
 pub const CARET_STREAK_MAX_LEN: f32 = 64.0;

@@ -227,19 +227,25 @@ fn block_caret_ink_aligns_on_kerned_glyph() {
         "fixture must reproduce a real cell/ink divergence: left={ink_left} ink_w={ink_w} cell_adv={cell_adv}"
     );
 
-    // The settled BLOCK quad must sit EXACTLY on the glyph's ink box, not
-    // the naive cell.
+    // The settled BLOCK quad must sit on the glyph's ink box GROWN by the
+    // shared horizontal pad ([`CARET_INK_PAD_W`], the width counterpart of
+    // `CARET_INK_PAD`) on both sides — never the naive advance cell, and never
+    // the bare ink box either now that the resting body carries a real margin.
     let pen_x = p.caret.pos.x;
+    let pad_w = CARET_INK_PAD_W.px(p.metrics.scale);
     let (cx, _cy, w, _h, _corner, _ax, _ay) = p.caret_geometry();
     let got_left = cx - w * 0.5;
+    let want_left = pen_x + ink_left - pad_w;
+    let want_w = ink_w + 2.0 * pad_w;
     assert!(
-        (got_left - (pen_x + ink_left)).abs() < 1e-2,
-        "block left edge must equal the glyph's ink left: got {got_left} want {}",
-        pen_x + ink_left
+        (got_left - want_left).abs() < 1e-2,
+        "block left edge must equal the glyph's ink left minus the horizontal \
+         pad: got {got_left} want {want_left}"
     );
     assert!(
-        (w - ink_w).abs() < 1e-2,
-        "block width must equal the glyph's ink width: got {w} want {ink_w}"
+        (w - want_w).abs() < 1e-2,
+        "block width must equal the glyph's ink width grown by the horizontal \
+         pad on both sides: got {w} want {want_w}"
     );
 
     theme::set_active(theme::DEFAULT_THEME);

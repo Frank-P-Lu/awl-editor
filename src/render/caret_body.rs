@@ -53,8 +53,12 @@ impl Area {
 }
 
 /// Apply the authored floor without flattening ordinary glyph-responsive carets.
+/// `w` carries [`CARET_INK_PAD_W`] the same way `h` already carries
+/// [`CARET_INK_PAD`] — a uniform margin around the anchored glyph's own ink,
+/// never a per-glyph raster read, so a narrow letter and a wide one both grow
+/// by the identical two pads before either floor below ever runs.
 pub(super) fn caret_visual_body_dims(ink: InkBox, px: f32) -> (f32, f32) {
-    let mut w = ink.width.max(CARET_VISUAL_BODY_MIN_W.px(px));
+    let mut w = (ink.width + 2.0 * CARET_INK_PAD_W.px(px)).max(CARET_VISUAL_BODY_MIN_W.px(px));
     let mut h = (ink.height + 2.0 * CARET_INK_PAD.px(px)).max(CARET_VISUAL_BODY_MIN_H.px(px));
     let min_area = CARET_VISUAL_BODY_MIN_AREA.px2(px);
     if w * h < min_area {
@@ -84,6 +88,13 @@ impl TextPipeline {
             let px = self.metrics.scale;
             let (w, _) = caret_visual_body_dims(ink, px);
             let glyph_h = ink.height + 2.0 * CARET_INK_PAD.px(px);
+            // The comparison baseline carries BOTH pads a real anchor always
+            // gets (`caret_visual_body_dims`'s own additive margins), not the
+            // bare raster ink: a body is needed only when the WIDTH/AREA
+            // FLOOR pushes the cell past what the uniform pad alone already
+            // guarantees, so growing the pad cannot silently enrol every
+            // anchor into the drawn-body arm — only the floor still can.
+            let glyph_w = ink.width + 2.0 * CARET_INK_PAD_W.px(px);
             // ⚠️ EXCESS IN EITHER AXIS, deliberately not COVERAGE IN BOTH. One
             // height per row means the cell can be SHORTER than the glyph on it
             // — a `;`, a `[` — and a body that does not reach the whole letter
@@ -100,7 +111,7 @@ impl TextPipeline {
             // takes the bodyless arm. A mark that keeps its own colour under a
             // partial body is worth more than one lit end to end in an accent
             // that is not its ink.
-            w > ink.width + f32::EPSILON || h > glyph_h + f32::EPSILON
+            w > glyph_w + f32::EPSILON || h > glyph_h + f32::EPSILON
         });
         if needs_body {
             self.prepare_caret_block(device, queue, width, height);
