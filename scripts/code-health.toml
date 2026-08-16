@@ -54,7 +54,8 @@ reason = "A non-Markdown Export raises an explicit notice rather than silently r
 
 [[file_size_mark]]
 file = "src/actions/format.rs"
-lines = 908
+lines = 1049
+reason = "Inline Code's shared toggle (content_is_kind) gained a fallback path for InlineKind::InlineCode selections whose byte range crosses a block boundary, where the CommonMark parser cannot positively confirm a wrapped span; plus its mutation-proven law sweep (block-boundary sweep, multibyte, flanking-span negative guard, fenced-block guard)."
 
 [[file_size_mark]]
 file = "src/actions/overlay_nav.rs"
