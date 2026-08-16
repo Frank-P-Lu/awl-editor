@@ -184,6 +184,14 @@ flag_roster! {
             "only way a --screenshot-app run can START from state awl already had; refused ",
             "outside a hermetic door",
         );
+    SeedTree: &["--seed-tree"], Options, Shown,
+        &[Operand::req("DIR", "requires a directory")],
+        concat!(
+            "seed a whole fixture PROJECT (DIR's files, recursively, at their own paths) ",
+            "into a hermetic scenario sandbox — the only way a --screenshot-app run can ",
+            "open a SECOND file, since --root alone seeds an empty directory marker; ",
+            "refused outside a hermetic door",
+        );
     StrictReplay: &["--strict-replay"], Options, Shown, &[],
         concat!(
             "with --screenshot --keys: abort (naming the offender) on an unbound chord, a ",

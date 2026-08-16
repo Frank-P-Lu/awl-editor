@@ -123,7 +123,7 @@ fn hermetic_scenario_save_lands_in_the_sandbox_never_on_real_disk() {
     std::fs::write(&input, "alpha\n").unwrap();
     {
         let _restore = crate::fs::FsGuard::capture();
-        crate::scenario::install_hermetic_fs(Some(&input), None, Some(&dir), None);
+        crate::scenario::install_hermetic_fs(Some(&input), None, Some(&dir), None, None).unwrap();
         let mut buffer = load_buffer(&Some(input.clone()));
         assert_eq!(
             buffer.text(),
@@ -167,7 +167,7 @@ fn hermetic_scenario_witnesses_the_url_handoff_as_an_intercept() {
     std::fs::write(&input, body).unwrap();
     {
         let _restore = crate::fs::FsGuard::capture();
-        crate::scenario::install_hermetic_fs(Some(&input), None, Some(&dir), None);
+        crate::scenario::install_hermetic_fs(Some(&input), None, Some(&dir), None, None).unwrap();
         let mut buffer = load_buffer(&Some(input.clone()));
         let keys = keyspec::parse_keys("Right C-c C-o").unwrap();
         let res = replay_keys_mode(

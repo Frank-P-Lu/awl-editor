@@ -97,6 +97,9 @@ pub(crate) fn parse_args() -> Result<Mode> {
     // The `--seed-data` directory: awl's own data root, seeded into a hermetic
     // scenario sandbox. `None` on every ordinary run.
     let mut data_seed: Option<PathBuf> = None;
+    // The `--seed-tree` directory: a whole fixture PROJECT carried verbatim into
+    // a hermetic scenario sandbox. `None` on every ordinary run.
+    let mut tree_seed: Option<PathBuf> = None;
     // Did the user pass an EXPLICIT sticky-pref flag? A flag always WINS over the
     // config's remembered value (flag > config > default), so the config is applied
     // only where its flag is absent. (Zoom rides `opts.zoom.is_some()` already.)
@@ -395,6 +398,12 @@ pub(crate) fn parse_args() -> Result<Mode> {
             // the one thing the sandbox has no other way to hold. See
             // `crate::scenario::data_root_seeds`.
             FlagId::SeedData => data_seed = Some(PathBuf::from(ops.req(0))),
+            // THE PROJECT-TREE SEED SLOT. Hermetic-scenario doors only — it
+            // gives a `--screenshot-app` capture a real multi-file root to open
+            // files from, which `--root` alone cannot (that seeds a directory
+            // marker, so the folder reads as empty). See
+            // `crate::scenario::tree_seeds`.
+            FlagId::SeedTree => tree_seed = Some(PathBuf::from(ops.req(0))),
             FlagId::Root => root = Some(PathBuf::from(ops.req(0))),
             FlagId::Workspace => workspace = Some(PathBuf::from(ops.req(0))),
             FlagId::DefaultFolder => default_folder = Some(PathBuf::from(ops.req(0))),
@@ -724,6 +733,14 @@ pub(crate) fn parse_args() -> Result<Mode> {
              --semantic-json, --storyboard, or --screenshot --keys --strict-replay)"
         );
     }
+    // Same refusal, same reason: a run that named a fixture project and then did
+    // not get one would photograph an empty folder and read as a product bug.
+    if tree_seed.is_some() && !hermetic {
+        bail!(
+            "--seed-tree only applies to a hermetic scenario run (--screenshot-app, \
+             --semantic-json, --storyboard, or --screenshot --keys --strict-replay)"
+        );
+    }
     #[cfg(not(target_arch = "wasm32"))]
     if hermetic {
         crate::scenario::install_hermetic_fs(
@@ -735,7 +752,8 @@ pub(crate) fn parse_args() -> Result<Mode> {
             config_arg.as_deref(),
             root.as_deref(),
             data_seed.as_deref(),
-        );
+            tree_seed.as_deref(),
+        )?;
     }
     // Load the persistent CONFIG (flag/$AWL_CONFIG/XDG path — resolved inside
     // the hermetic sandbox for a strict run, where an un-seeded path degrades

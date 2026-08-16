@@ -137,6 +137,102 @@ pub fn data_root_seeds(dir: Option<&Path>) -> Vec<Seed> {
     seeds
 }
 
+/// How many files a `--seed-tree` directory may carry in, and how many bytes in
+/// total. A scenario sandbox is an in-memory map built before the first frame,
+/// and a slot that walked an arbitrary directory would let a mistyped path pull
+/// a whole home directory into a capture. Both bounds fail LOUDLY (naming the
+/// directory and the count) rather than truncating, because a silently trimmed
+/// tree photographs a working set that is not the one the command line asked
+/// for — the same failure mode `--seed-data`'s refusal-outside-a-hermetic-door
+/// exists to prevent.
+pub const MAX_TREE_SEED_FILES: usize = 256;
+pub const MAX_TREE_SEED_BYTES: u64 = 4 * 1024 * 1024;
+
+/// THE PROJECT-TREE SEED SLOT: carry every file under `dir` into the sandbox at
+/// its OWN path, recursively.
+///
+/// # Why this slot exists
+///
+/// The other three slots each carry ONE file's worth of premise: a document, a
+/// config, a flat data root. Nothing carries a *project* — and a hermetic door
+/// therefore could not photograph any state whose premise is several files
+/// under one root. `--root` alone seeds a directory MARKER (see
+/// [`build_sandbox`]), so a live-`App` capture pointed at a real project sees an
+/// empty folder: Go to lists nothing, so nothing can be opened, so a multi-file
+/// working set is unreachable at the one door that can witness it. The gap was
+/// measured, not assumed — the margin working set is App-owned, tier-1
+/// classifies its switching Unsupported, and `--screenshot-app` is hermetic
+/// unconditionally.
+///
+/// # Why the paths are verbatim rather than remapped
+///
+/// [`data_root_seeds`] remaps because its consumers read awl's own machine-state
+/// paths. A project has no such fixed home: the run names the root, the root is
+/// what `--root` resolves against, and the sandbox must answer at exactly the
+/// paths the command line spelled. So this slot is the verbatim shape the
+/// document and config slots already have, extended to a subtree.
+///
+/// RECURSIVE by design (unlike the flat data root): the working set's whole
+/// point is that a file below the root reads by its root-relative path, which
+/// needs a real nested tree to be true of. Symlinks are not followed — a link
+/// out of the named directory would seed a path the command line never named.
+pub fn tree_seeds(dir: Option<&Path>) -> anyhow::Result<Vec<Seed>> {
+    let Some(dir) = dir else {
+        return Ok(Vec::new());
+    };
+    let mut seeds = Vec::new();
+    let mut bytes: u64 = 0;
+    let mut pending = vec![dir.to_path_buf()];
+    while let Some(cur) = pending.pop() {
+        let Ok(entries) = std::fs::read_dir(&cur) else {
+            continue;
+        };
+        for e in entries.flatten() {
+            let from = e.path();
+            // `symlink_metadata` rather than `metadata`: a followed link is a
+            // path outside the named tree wearing a path inside it.
+            let Ok(meta) = std::fs::symlink_metadata(&from) else {
+                continue;
+            };
+            if meta.is_symlink() {
+                continue;
+            }
+            if meta.is_dir() {
+                pending.push(from);
+                continue;
+            }
+            let Ok(content) = std::fs::read(&from) else {
+                continue;
+            };
+            bytes += content.len() as u64;
+            seeds.push(Seed {
+                path: from,
+                bytes: content,
+            });
+            if seeds.len() > MAX_TREE_SEED_FILES {
+                anyhow::bail!(
+                    "--seed-tree {}: more than {} files — name a smaller fixture tree",
+                    dir.display(),
+                    MAX_TREE_SEED_FILES
+                );
+            }
+            if bytes > MAX_TREE_SEED_BYTES {
+                anyhow::bail!(
+                    "--seed-tree {}: more than {} bytes — name a smaller fixture tree",
+                    dir.display(),
+                    MAX_TREE_SEED_BYTES
+                );
+            }
+        }
+    }
+    // Deterministic order, so two runs of one command seed identically and a
+    // failure is reproducible from the command line alone (`read_dir` order is
+    // not specified, and the directory stack above visits siblings in whatever
+    // order it hands back).
+    seeds.sort_by(|a, b| a.path.cmp(&b.path));
+    Ok(seeds)
+}
+
 /// Build the sandbox: every seed written at its own path (parent dirs implied,
 /// exactly like a native write into an existing tree), plus a directory marker
 /// per named `root` so `read_dir`/`is_dir` on an explicit `--root` see an
@@ -170,13 +266,21 @@ pub fn install_hermetic_fs(
     config_arg: Option<&Path>,
     root: Option<&Path>,
     data_seed: Option<&Path>,
-) {
+    tree_seed: Option<&Path>,
+) -> anyhow::Result<()> {
     let explicit_config: Option<PathBuf> = config_arg
         .map(Path::to_path_buf)
         .or_else(|| std::env::var_os("AWL_CONFIG").map(PathBuf::from));
-    let seeds = cli_seeds(file, explicit_config.as_deref(), data_seed);
+    let mut seeds = cli_seeds(file, explicit_config.as_deref(), data_seed);
+    // The tree goes in FIRST so a document/config named on the same command line
+    // wins on a collision: the CLI file is the one the run is about, and a
+    // fixture tree that also contains it must not overwrite the bytes the other
+    // slot already read.
+    let mut all = tree_seeds(tree_seed)?;
+    all.append(&mut seeds);
     let roots: Vec<&Path> = root.into_iter().collect();
-    crate::fs::set_active(Arc::new(build_sandbox(&seeds, &roots)));
+    crate::fs::set_active(Arc::new(build_sandbox(&all, &roots)));
+    Ok(())
 }
 
 // NOTE (phase 5): the storyboard runner reuses THIS same door — its document
@@ -252,6 +356,98 @@ mod tests {
         assert!(
             data_root_seeds(Some(&dir.join("nope"))).is_empty(),
             "a missing directory degrades to no seeds, never an error"
+        );
+    }
+
+    /// **THE PROJECT-TREE SEED SLOT**: a real nested directory arrives in the
+    /// sandbox at its OWN paths, recursively — and the sandbox then answers
+    /// `read_dir` for the subfolders, which is the whole point. A capture door
+    /// that can only see the root's top level cannot photograph a working set
+    /// whose members read by their root-relative path.
+    ///
+    /// The axis swept here is the one the flat data-root slot does NOT have:
+    /// DEPTH. A slot that stopped one directory down (the shape `data_root_seeds`
+    /// deliberately has) would seed `notes/a.md` and silently drop
+    /// `notes/journal/field-notes.md`, and the capture would show a shorter
+    /// working set than the command line asked for with nothing reporting why.
+    #[test]
+    fn a_tree_seed_carries_a_nested_project_in_at_its_own_paths() {
+        let dir = tmp_dir("tree-root");
+        let root = dir.join("notes");
+        std::fs::create_dir_all(root.join("journal")).unwrap();
+        std::fs::create_dir_all(root.join("research").join("sources")).unwrap();
+        std::fs::write(root.join("index.md"), "# index\n").unwrap();
+        std::fs::write(root.join("journal").join("field-notes.md"), "# field\n").unwrap();
+        std::fs::write(
+            root.join("research").join("sources").join("deep.md"),
+            "# deep\n",
+        )
+        .unwrap();
+
+        let seeds = tree_seeds(Some(&root)).unwrap();
+        let paths: Vec<&Path> = seeds.iter().map(|s| s.path.as_path()).collect();
+        assert_eq!(
+            paths,
+            vec![
+                root.join("index.md").as_path(),
+                root.join("journal").join("field-notes.md").as_path(),
+                root.join("research")
+                    .join("sources")
+                    .join("deep.md")
+                    .as_path(),
+            ],
+            "every depth, verbatim paths, deterministic order"
+        );
+
+        // The claim that matters at a capture door: the SANDBOX lists the
+        // subfolders, so Go to can walk into one and open the file below it.
+        let fs = build_sandbox(&seeds, &[&root]);
+        assert_eq!(
+            fs.read_to_string(&root.join("journal").join("field-notes.md"))
+                .unwrap(),
+            "# field\n",
+            "a file two levels down is readable at the path the command line spelled"
+        );
+        assert!(
+            fs.is_dir(&root.join("research").join("sources")),
+            "an intermediate directory reads as a directory, so a picker can descend"
+        );
+
+        // ANTI-VACUITY: no directory named, nothing seeded — an ordinary run is
+        // untouched by the slot's existence.
+        assert!(tree_seeds(None).unwrap().is_empty());
+        assert!(
+            tree_seeds(Some(&root.join("nope"))).unwrap().is_empty(),
+            "a missing directory degrades to no seeds, never an error"
+        );
+    }
+
+    /// The bounds fail LOUDLY rather than truncating. A silently trimmed tree
+    /// photographs a working set that is not the one the command line asked for,
+    /// and nothing downstream could tell that from a product bug.
+    #[test]
+    fn a_tree_seed_over_its_file_bound_is_refused_by_name() {
+        let dir = tmp_dir("tree-bound");
+        let root = dir.join("many");
+        std::fs::create_dir_all(&root).unwrap();
+        for i in 0..=MAX_TREE_SEED_FILES {
+            std::fs::write(root.join(format!("f{i:04}.md")), "x").unwrap();
+        }
+        let err = match tree_seeds(Some(&root)) {
+            Ok(s) => panic!("expected a refusal, got {} seeds", s.len()),
+            Err(e) => e.to_string(),
+        };
+        assert!(
+            err.contains("--seed-tree") && err.contains(&MAX_TREE_SEED_FILES.to_string()),
+            "the refusal names the flag and the bound it hit: {err}"
+        );
+        // …and one file FEWER is accepted, so the bound is the cliff and not a
+        // blanket refusal of any sizeable fixture.
+        std::fs::remove_file(root.join(format!("f{:04}", MAX_TREE_SEED_FILES) + ".md")).unwrap();
+        assert_eq!(
+            tree_seeds(Some(&root)).unwrap().len(),
+            MAX_TREE_SEED_FILES,
+            "exactly at the bound is fine"
         );
     }
 
@@ -366,7 +562,7 @@ mod tests {
         // `capture()` rather than `install(fs::active())`: the argument form
         // read the global BEFORE taking the guard.
         let _restore = crate::fs::FsGuard::capture();
-        install_hermetic_fs(Some(&doc), None, Some(&dir), None);
+        install_hermetic_fs(Some(&doc), None, Some(&dir), None, None).unwrap();
         // The active backend now serves the seeded copy…
         assert_eq!(
             crate::fs::active().read_to_string(&doc).unwrap(),
