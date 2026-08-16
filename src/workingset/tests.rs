@@ -184,6 +184,86 @@ fn a_rows_location_is_relative_to_its_own_root() {
     );
 }
 
+/// **Closing an INACTIVE row closes that named buffer without activating it.**
+/// The pointer route the design decision spells out, and the one an
+/// implementation that routes every close through "activate, then close the
+/// active one" fails — that implementation leaves the reader looking at a
+/// document they never asked for, having briefly loaded it.
+///
+/// Swept over which row is closed and which is active, because the interesting
+/// disagreement (the active file MOVED) only appears for victims before the
+/// active slot.
+#[test]
+fn closing_an_inactive_row_never_changes_which_file_is_active() {
+    let names = ["a.md", "b.md", "c.md", "d.md"];
+    for active in 0..names.len() {
+        for victim in 0..names.len() {
+            if victim == active {
+                continue;
+            }
+            let mut ws = WorkingSet::default();
+            for n in names {
+                opened(&mut ws, n);
+            }
+            assert!(ws.set_active(active));
+            let key = ws.files()[victim].key.clone();
+            let before = ws.active_file().unwrap().leaf();
+            let gone = ws.close_key(&key).expect("the named row existed");
+            assert_eq!(gone.leaf(), names[victim], "closed exactly its target");
+            assert_eq!(
+                ws.active_file().unwrap().leaf(),
+                before,
+                "active={active} victim={victim}: closing an inactive row changed the active file"
+            );
+            assert!(
+                ws.index_of(&key).is_none(),
+                "the closed row is gone from the order"
+            );
+        }
+    }
+}
+
+/// **`root_for` keeps a file's root across a visit to another project** — the
+/// one cell a "use the active root" implementation gets wrong, and gets wrong
+/// silently, because every other cell agrees with it.
+///
+/// The sweep is over the three inputs that can disagree: whether the file is
+/// under the remembered root, whether it is under the active one, and whether
+/// it is under neither.
+#[test]
+fn root_for_keeps_a_file_with_its_own_project() {
+    let notes = Path::new("/proj/notes");
+    let archive = Path::new("/proj/archive");
+    let under_notes = Path::new("/proj/notes/journal/field.md");
+    let under_archive = Path::new("/proj/archive/log.md");
+    let orphan = Path::new("/elsewhere/loose.md");
+
+    // First open: no memory yet, the active root contains it.
+    assert_eq!(root_for(under_notes, notes, None), notes);
+
+    // THE CELL THAT MATTERS: re-activated while another project is current.
+    // The active root must NOT win — it does not contain the file, and letting
+    // it win would erase the only record of where the file belongs.
+    assert_eq!(
+        root_for(under_notes, archive, Some(notes)),
+        notes,
+        "a remembered root that still contains the file survives a visit elsewhere"
+    );
+
+    // A remembered root that no longer contains the file (it moved out) yields
+    // to the active root, rather than pinning a stale project forever.
+    assert_eq!(root_for(under_archive, archive, Some(notes)), archive);
+
+    // Under neither: the file stands on its own parent, never borrowing a root
+    // it is not inside — a borrowed root would make `parent_label` compute a
+    // relative path against a directory the file has nothing to do with.
+    assert_eq!(root_for(orphan, notes, None), Path::new("/elsewhere"));
+    assert_eq!(
+        root_for(orphan, notes, Some(archive)),
+        Path::new("/elsewhere")
+    );
+}
+
 /// `fit_parent` swept across EVERY budget from 0 to past the label's length,
 /// asserting three invariants at once rather than checking one comfortable
 /// width. The third is the one a "just truncate it" implementation fails: an

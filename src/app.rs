@@ -673,6 +673,12 @@ impl App {
         // never a fetch. Runs AFTER the spell field is built (the struct literal
         // above) so the session checker exists when the words load.
         app.load_user_dictionary();
+        // THE WORKING SET's first member, last: every startup decision that can
+        // swap the active buffer (the scratch-stash restore, session restore)
+        // has settled by here, so the file enrolled is the one the reader is
+        // actually looking at.
+        let launch_root = app.project_location.root.clone();
+        app.document.enrol_active(&launch_root);
         app
     }
 

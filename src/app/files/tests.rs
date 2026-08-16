@@ -9,6 +9,101 @@
 use super::*;
 use std::sync::Arc;
 
+/// **AN ARRIVING DOCUMENT BRINGS ITS PROJECT WITH IT.**
+///
+/// Reproduced on the real binary before it was fixed (`--screenshot-app`,
+/// hermetic, a seeded two-root fixture): after Switch-project to `archive` and
+/// Last file back to `notes/index.md`, the sidecar read `buffers.active` =
+/// `notes/index.md` with `project.root` = `…/archive` and a gutter of
+/// `"index.md" / "archive"` — the document and the bottom identity naming two
+/// different directories, while Go to's corpus, New document and every export
+/// destination stayed scoped to the folder the reader was NOT looking at.
+///
+/// The axis swept is the one a single hand-picked switch misses: the return
+/// trip must restore the root in BOTH directions, and a file NESTED below its
+/// root must restore the ROOT rather than its own parent directory — a repair
+/// that reached for `path.parent()` passes the flat case and quietly re-scopes
+/// the project to a subfolder in the nested one.
+#[test]
+fn activating_a_buffer_from_another_root_restores_that_buffers_project() {
+    let _guard = crate::testlock::serial();
+    let mem = Arc::new(
+        crate::fs::InMemoryFs::new()
+            .with_dir("/ws/notes")
+            .with_dir("/ws/notes/journal")
+            .with_dir("/ws/archive")
+            .with_file("/ws/notes/index.md", "index\n")
+            .with_file("/ws/notes/journal/field.md", "field\n")
+            .with_file("/ws/archive/log.md", "log\n"),
+    );
+    crate::fs::with_fs(mem, || {
+        for opener in ["/ws/notes/index.md", "/ws/notes/journal/field.md"] {
+            let mut config = Config::empty();
+            config.workspace = Some(PathBuf::from("/ws"));
+            let mut app = App::new_hermetic(
+                Some(PathBuf::from(opener)),
+                PathBuf::from("/ws/notes"),
+                config,
+            );
+            assert_eq!(app.project_location.root, Path::new("/ws/notes"));
+
+            assert!(app.set_root(PathBuf::from("/ws/archive")));
+            app.load_path(PathBuf::from("/ws/archive/log.md"));
+            assert_eq!(
+                app.project_location.root,
+                Path::new("/ws/archive"),
+                "opener={opener}: a file under the new root keeps the new root"
+            );
+
+            app.last_buffer_toggle();
+            assert_eq!(
+                app.document.buffer().path(),
+                Some(Path::new(opener)),
+                "opener={opener}: Last file returned to the first document"
+            );
+            assert_eq!(
+                app.project_location.root,
+                Path::new("/ws/notes"),
+                "opener={opener}: the arriving document's own root was not restored"
+            );
+            assert_eq!(
+                app.project_location.project.name, "notes",
+                "opener={opener}: the bottom identity's folder line still names the old project"
+            );
+
+            app.last_buffer_toggle();
+            assert_eq!(
+                app.project_location.root,
+                Path::new("/ws/archive"),
+                "opener={opener}: the return trip does not restore the other root"
+            );
+
+            let seen: Vec<(String, String)> = app
+                .document
+                .working_set()
+                .files()
+                .iter()
+                .map(|f| (f.leaf(), f.root.display().to_string()))
+                .collect();
+            assert_eq!(
+                seen,
+                vec![
+                    (
+                        Path::new(opener)
+                            .file_name()
+                            .unwrap()
+                            .to_string_lossy()
+                            .into_owned(),
+                        "/ws/notes".to_string()
+                    ),
+                    ("log.md".to_string(), "/ws/archive".to_string()),
+                ],
+                "opener={opener}: opening order and per-file roots"
+            );
+        }
+    });
+}
+
 #[test]
 fn platform_chooser_results_share_the_file_and_folder_owners() {
     let _guard = crate::testlock::serial();

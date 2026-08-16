@@ -103,6 +103,31 @@ pub fn fit_parent(label: &str, budget: usize) -> Option<String> {
     }
 }
 
+/// WHICH ROOT A FILE BELONGS TO, decided once per open.
+///
+/// The naive answer — "whatever root is active when it opens" — is wrong in the
+/// exact case this whole mechanism exists for. Re-activating a file that lives
+/// under another root would re-stamp it with the CURRENT root, so the memory
+/// needed to restore its project is destroyed by the very transition that needs
+/// it, and the second switch back reads as correct while naming the wrong
+/// folder.
+///
+/// So the rule is about the file, not the moment: a file keeps the root it was
+/// opened under for as long as it still lives beneath it, falls back to the
+/// active root when that root contains it, and otherwise stands on its own
+/// parent directory rather than borrowing a root it is not inside.
+pub fn root_for(path: &Path, active_root: &Path, remembered: Option<&Path>) -> PathBuf {
+    if let Some(r) = remembered {
+        if path.starts_with(r) {
+            return r.to_path_buf();
+        }
+    }
+    if path.starts_with(active_root) {
+        return active_root.to_path_buf();
+    }
+    path.parent().unwrap_or(path).to_path_buf()
+}
+
 /// The open files, in the order the margin draws them, plus which one is active.
 ///
 /// Always non-empty in practice — the app owns exactly one active document — but
@@ -114,6 +139,13 @@ pub struct WorkingSet {
     active: Option<usize>,
 }
 
+/// The removal and selection half of the model is law-tested here and consumed
+/// by the margin stack's pointer routes, which land separately — the design
+/// decision that owns this surface asks for the resting stack to be judged from
+/// captures before its input machinery is wired. The allow is scoped to this
+/// impl so an unused method anywhere else in the crate still fails the build,
+/// and it comes off with the first consumer.
+#[cfg_attr(not(test), allow(dead_code))]
 impl WorkingSet {
     /// Open `key` under `root` (or re-activate it if already open) and make it
     /// active. Returns its slot.

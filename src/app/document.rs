@@ -49,6 +49,13 @@ pub(in crate::app) struct DocumentSession {
     registry: crate::buffers::BufferRegistry<BufferExtra>,
     previous: Option<PathBuf>,
     spell: Option<crate::spell::SpellChecker>,
+    /// The VISIBLE order and each open file's own project root
+    /// ([`crate::workingset`]). It sits beside `registry` rather than inside it
+    /// because the two answer different questions: `registry` is MRU because it
+    /// evicts, this is stable because it is drawn. Kept in step here — the one
+    /// place both are mutated — so no consumer can see one updated and the other
+    /// not.
+    working: crate::workingset::WorkingSet,
 }
 
 /// The document-owned result of polling its autosave timer. A due result has
@@ -97,7 +104,30 @@ impl DocumentSession {
             registry: Default::default(),
             previous: None,
             spell,
+            working: Default::default(),
         }
+    }
+
+    /// Enrol whatever buffer is active into the working set, under `active_root`.
+    ///
+    /// Called once at startup, AFTER every startup decision that can swap the
+    /// active buffer has settled (the scratch-stash restore and session restore
+    /// both can). Enrolling in `new` instead would register a buffer the launch
+    /// then replaces, and the margin would name a document nobody opened.
+    pub(in crate::app) fn enrol_active(&mut self, active_root: &Path) {
+        let Some(key) = crate::buffers::BufferKey::of(&self.active.buffer) else {
+            return;
+        };
+        let path = self.active.buffer.path().map(Path::to_path_buf);
+        let root = match path.as_deref() {
+            Some(p) => crate::workingset::root_for(p, active_root, None),
+            None => active_root.to_path_buf(),
+        };
+        self.working.open(key, path, root);
+    }
+
+    pub(in crate::app) fn working_set(&self) -> &crate::workingset::WorkingSet {
+        &self.working
     }
 
     pub(in crate::app) fn poll_autosave(
@@ -159,6 +189,7 @@ impl DocumentSession {
         &mut self,
         path: &Path,
         disk_baseline: crate::external::Seen,
+        active_root: &Path,
     ) -> OpenPath {
         let key = crate::buffers::BufferKey::path(path);
         if self
@@ -170,6 +201,17 @@ impl DocumentSession {
         {
             return OpenPath::AlreadyActive;
         }
+        // The working set is updated on the SAME transition as the registry, so
+        // the drawn order and the parked buffers cannot disagree. `root_for`
+        // decides ownership from the file rather than the moment — see its doc
+        // for why the active root must not simply win.
+        let remembered = self
+            .working
+            .index_of(&key)
+            .map(|at| self.working.files()[at].root.clone());
+        let root = crate::workingset::root_for(path, active_root, remembered.as_deref());
+        self.working
+            .open(key.clone(), Some(path.to_path_buf()), root);
         self.previous = self.active.buffer.path().map(Path::to_path_buf);
         self.park_active();
         if self.activate(&key) {

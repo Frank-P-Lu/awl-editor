@@ -118,24 +118,24 @@ fn every_buffer_extra_field_round_trips_a_b_a_b_c_a() {
     );
 
     assert_eq!(
-        session.open_path(&b, crate::external::Seen::Absent),
+        session.open_path(&b, crate::external::Seen::Absent, Path::new("/")),
         OpenPath::Fresh
     );
     assert_eq!(
-        session.open_path(&a, crate::external::Seen::Absent),
+        session.open_path(&a, crate::external::Seen::Absent, Path::new("/")),
         OpenPath::Reactivated
     );
     assert_eq!(session.active.extra, expected, "A -> B -> A");
     assert_eq!(
-        session.open_path(&b, crate::external::Seen::Absent),
+        session.open_path(&b, crate::external::Seen::Absent, Path::new("/")),
         OpenPath::Reactivated
     );
     assert_eq!(
-        session.open_path(&c, crate::external::Seen::Absent),
+        session.open_path(&c, crate::external::Seen::Absent, Path::new("/")),
         OpenPath::Fresh
     );
     assert_eq!(
-        session.open_path(&a, crate::external::Seen::Absent),
+        session.open_path(&a, crate::external::Seen::Absent, Path::new("/")),
         OpenPath::Reactivated
     );
     assert_eq!(session.active.extra, expected, "A -> B -> C -> A");
