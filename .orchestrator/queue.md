@@ -100,19 +100,54 @@ audience — for a non-programmer, tabs are intuitive because they are visible
 and clickable. A persistent tab strip stays out (PHILOSOPHY §1 names it). The
 shape chosen instead lives inside DESIGN §5's existing margin grammar: the
 bottom-left identity (filename + folder — "position in the filesystem") WIDENS
-into a quiet stack of the open files — current file in normal ink, the others
-dimmer, click to switch. Not a new chrome region; an existing orientation
-surface deepens by a line or two, and with one file open it is byte-identical
-to today. The user chose bottom over above-the-outline.
+into a quiet stack of the open files — current file on a soft Arc-like selected
+row, the others dimmer, click to switch. Not a new chrome region; an existing
+orientation surface deepens by a line or two, and with one file open it is
+byte-identical to today. The user chose bottom over above-the-outline, and chose
+the visibly row-shaped Arc-like treatment over bare labels floating in the
+margin.
 
-What keeps it tabs-but-not-tabs: filenames only; no close affordance, no
-reordering, no drag; capped at a handful (propose 5 — past the cap the answer
-is ⌘O, and awl does not want twelve buffers); hides under space pressure
-exactly as the outline does; inherits every §5 margin law (hug the column,
-quiet label treatment, never change the prose column's geometry). STABLE OPEN
-ORDER, not MRU — reordering on every switch would jitter the margin and make
-the digit chords mean a different file each press; stable order makes ⌘2 a
-NAME for the session.
+The stack is PROJECT-SCOPED, not one global pile of arbitrary paths. The active
+folder remains load-bearing: it owns Go to's recursive file corpus, New
+document, Move and export destinations, git identity, and the session's folder
+context. All files below that root may coexist in the stack, including files in
+different subfolders; a nested file reads by its shortest unambiguous
+ROOT-RELATIVE path (`journal/field-notes.md`), not by a leaf name that throws
+away the location. Switching folders through Go to changes which stack is
+visible, while each folder's working set stays parked and returns when that
+folder becomes active again — the Arc-Space shape, without a permanent space
+switcher. Opening or activating a buffer from another root must restore that
+buffer's remembered project context in the same transition: the current
+registry can preserve cross-root buffers while `load_path` leaves the old root
+active, which would make the document and bottom folder identity disagree.
+Close that seam here; never present it as intentional mixed-root behavior.
+
+What keeps it tabs-but-not-tabs: no reordering and no drag; hides under space
+pressure exactly as the outline does; inherits every §5 margin law (hug the
+column, quiet label treatment, never change the prose column's geometry).
+STABLE OPEN ORDER within a project, not MRU — reordering on every switch would
+jitter the margin and make the digit chords mean a different file each press;
+stable order makes ⌘2 a NAME for the session.
+
+Closing is part of the feature, not an assumed affordance. Today ⌘W's
+"Finish file" saves, notifies any daemon waiter, and switches to the previous
+buffer but leaves the finished buffer parked; that is not close. Give the
+working set one true removal owner: ⌘W closes the active file after the same
+lossless save/conflict gate and still notifies a waiter, and a row exposes the
+same action through a quiet hover-only close target (never a persistent column
+of crosses). Closing an inactive row closes that named buffer without first
+activating it; a dirty or conflicted buffer is never discarded. The one-file
+case returns to the ordinary unnamed document rather than closing the window.
+
+Visible overflow is bounded independently of the registry's safety cap.
+PROTOTYPE five file rows plus a quiet `+ N more…` row; accepting it opens Go to
+pre-lensed to an `Open` view containing every open file in the active project,
+where the same switch and close actions remain available. The active file must
+always be represented in the visible five; prototype the least-jittering
+stable-order window and put the >5 shots to the user before fixing its exact
+windowing rule. Do not silently evict a sixth file merely to make the drawing
+easy: the existing registry's clean-LRU/never-dirty eviction is a memory safety
+bound, not a visible-stack product rule.
 
 Shortcuts (decided): ⌘1–⌘9 jump to the nth stack entry (slot 1; Linux
 resolves Ctrl+1–9 per the normal rule — only ⌘0 is spent today, on reset
@@ -123,15 +158,18 @@ Emacs double is `C-x b`, aliased to Last file (faithful to `C-x b RET`), and
 lands in which-key with the rest of the prefix for free. Optional flourish to
 PROTOTYPE, not committed: while ⌘ is held for a beat, faint 1..n ordinals
 beside the stack entries — the shortcut teaches itself at the moment of the
-reach; cut it if it reads as noise in the shots.
+reach; cut it if it reads as noise in the shots. Overflow never changes a
+file's stable ordinal; the Go to Open view exposes the complete numbered roster.
 
 Contract edits owned here: DESIGN §5's margin roster gains the stack as a
 member with the outline's own license (may click-to-switch; orientation, not
 management UI). PHILOSOPHY §1 is untouched — this is not a strip.
 
 Capture-prototype FIRST, judgement before machinery: gallery shots across a
-few worlds × {1, 2, 3 files open}, bottom-left, put to the user before laws
-or bindings land. Harness reach (docs/harness-reach.md read for this clause):
+few worlds × {one root with nested files, only one file in the active root,
+more than five files}, bottom-left, including hover-close and overflow states,
+put to the user before laws or bindings land. Harness reach
+(docs/harness-reach.md read for this clause):
 `last_buffer` and the multi-file working set are App-owned — tier-1 captures
 classify them Unsupported — so the prototype and every switching claim drive
 `--screenshot-app`, which skips nothing and is hermetic (sandbox seeded from
@@ -142,9 +180,13 @@ files + active index) through the one redacting writer; a `--screenshot-app`
 law drives open, open, ⌘2 and asserts the active buffer changed AND the
 stack's drawn order did not; a pixel law that the active row is
 distinguishable from its dimmed siblings, with a companion presence floor
-(a stack faded to the page must fail, not pass happier); the one-file case
-byte-identical to today's margin across the world roster; the digit chords in
-both keymap flavors' tables so the generated reference picks them up — with
+(a stack faded to the page must fail, not pass happier); cross-root activate
+restores the matching project/root before the frame and the gutter never names
+the old root; nested same-root files render distinct relative labels; close
+removes exactly its target and never loses a dirty/conflicted buffer; overflow
+keeps the active file represented and its `+ N more…` count exact; the one-file
+case byte-identical to today's margin across the world roster; the digit chords
+in both keymap flavors' tables so the generated reference picks them up — with
 the generated rows spot-checked against the dispatch they claim.
 
 ## Needs specific hardware
