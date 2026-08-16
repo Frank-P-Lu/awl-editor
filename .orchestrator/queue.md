@@ -8,6 +8,8 @@
 
 ### 448 — the resting caret needs a more confident body (USER-REPORTED VISUAL DEFECT 2026-08-16)
 
+🟡 IN PROGRESS — claude, branch claude/item-448-caret-body
+
 The caret in ordinary body prose reads a touch too small beside the character
 it occupies. In the reported shot it is unmistakably present, but the rounded
 accent body feels tucked inside the lowercase letter rather than standing as
@@ -47,6 +49,8 @@ whether the caret now has enough presence.
 
 ### 447 — Kite's page frame must meet the top of the canvas (USER-REPORTED REGRESSION 2026-08-16)
 
+🟡 IN PROGRESS — claude, branch claude/item-447-kite-page-frame-top
+
 In page mode, Kite's dark writing-column frame starts at the document text
 origin rather than at the top of the editor canvas. The screenshot shows a
 plain horizontal strip between the native title bar and the frame's top edge;
@@ -73,6 +77,8 @@ for `PageFrame::None` worlds. Mutating the bound back to `doc_top` must fail on
 the exact top-gap assertion.
 
 ### 446 — copy must survive a buffer switch (USER-REPORTED REGRESSION 2026-08-16)
+
+🟡 IN PROGRESS — claude, branch claude/item-446-clipboard-buffer-switch
 
 Copy text in one file, switch to another open file, then Paste: nothing is
 inserted. Copy/Paste are system-clipboard operations and must cross buffer
@@ -104,6 +110,8 @@ write/read suppression laws.
 
 ### 445 — inline Code must round-trip a multi-line selection (USER-REPORTED REGRESSION 2026-08-16)
 
+🟡 IN PROGRESS — claude, branch claude/item-445-inline-code-multiline-toggle
+
 The contextual formatting popover's **Code** button does not toggle cleanly
 when the active selection spans two or more lines. First activation inserts
 the inline-code backticks around the selected text; activating **Code** again
@@ -131,6 +139,8 @@ regression guards. The law must fail against the current behavior before the
 fix lands.
 
 ### 444 — the working set becomes visible: a margin buffer stack (USER DECISION 2026-08-16)
+
+🟡 IN PROGRESS — claude, branch claude/item-444-margin-buffer-stack
 
 Design session 2026-08-16. The user works between a couple of files and wants
 tabs' affordance without tabs: ⌃Tab covers two files but not three, and a
