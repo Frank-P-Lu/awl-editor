@@ -288,7 +288,7 @@ fn date_picker_examples_render_one_ink_across_worlds_and_states() {
     let _g = crate::testlock::serial();
     let orig_theme = crate::theme::active_index();
     let dir = ScratchDir::new(
-        std::env::temp_dir().join(format!("awl_item66_ink_{}", std::process::id())),
+        std::env::temp_dir().join(format!("awl-date-picker-ink_{}", std::process::id())),
     );
 
     let (items, _) = date_examples();

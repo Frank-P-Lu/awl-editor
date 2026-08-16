@@ -438,7 +438,7 @@ fn punctuation_uses_the_rows_letter_height_across_forms_worlds_dpi_and_anchors()
     let _g = crate::testlock::serial();
     let _c = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping item-205 punctuation height law: no wgpu adapter");
+        eprintln!("skipping punctuation height law: no wgpu adapter");
         return;
     };
     let punct = [',', '.', ':', '-', '(', '[', '。'];
@@ -486,7 +486,7 @@ fn punctuation_uses_the_rows_letter_height_across_forms_worlds_dpi_and_anchors()
 /// the historical row-scaled `caret_block_h` line cell: the TOP is the SAME y at
 /// every column (no per-glyph wobble), the height is exactly the line cell on a
 /// non-dipper, and the ONLY variation is the descender extension dropping the
-/// BOTTOM for a real dipper — byte-identical to the pre-item-91 geometry, which
+/// BOTTOM for a real dipper — byte-identical to the compact geometry, which
 /// applied that extension at the draw site.
 ///
 /// The roster sweep widened this from the hand-listed pair `["Tawny", "Mangrove"]` to a
@@ -811,7 +811,7 @@ fn glyphless_fallbacks_use_the_synthetic_baseline_box_on_proportional_worlds() {
              row-box-centred cell (cy={cy} h={h} old_cy={old_cy} old_h={old_h})"
         );
         // The height must still be a small, positive, letter-plausible cell —
-        // never collapsed, never the item-91-original oversized fixed cap.
+        // never collapsed, never the former oversized fixed cap.
         assert!(
             h > pad && h < old_h * 1.5,
             "{what}: the synthetic cell must stay a plausible letter-sized box: h={h}"

@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 # THE 1x/2x GROUND SHEET. One panel pair per world: the same LOGICAL
-# canvas rendered at a device ratio of 1.0 and of 2.0. After this item the two
-# must show the SAME composition (the 2x panel simply resolves it more finely);
-# before it, the 2x panel showed roughly twice as many, half-sized elements.
+# canvas rendered at a device ratio of 1.0 and of 2.0. The two must show the
+# SAME composition; the 2x panel simply resolves it more finely.
 #
-# The arithmetic is already law-tested (`render::tests::ground_space_item186`).
+# The arithmetic is already covered by a roster-wide ground-space law.
 # This sheet exists for the thing arithmetic cannot judge: a mathematically
 # consistent conversion can still be UGLY — a mark that reads as a whisper at 1x
 # can read as a lump when it doubles in size, or a hairline can go wan when its
@@ -20,7 +19,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 export PATH="$HOME/.rustup/toolchains/stable-aarch64-apple-darwin/bin:$PATH"
 
-RUN_DIR="$ROOT/gallery/item-186-ground-space"
+RUN_DIR="$ROOT/gallery/ground-space"
 CAPTURES="$RUN_DIR/captures"
 SPECIMEN="$ROOT/scripts/world-gallery-specimen.md"
 BIN="$ROOT/target/release/awl"
@@ -77,8 +76,7 @@ build_sheet() {
     echo "Each pair is the SAME ${LOGICAL_W}x${LOGICAL_H} logical canvas: first at a"
     echo "device ratio of 1.0, then at 2.0 (shown at its logical size). The"
     echo "composition must be the same picture — same number of marks, same size —"
-    echo "with the 2x panel merely resolving it more finely. Before this item the 2x"
-    echo "panel carried twice as many elements at half the size."
+    echo "with the 2x panel merely resolving it more finely."
     echo
     echo "The arithmetic is law-tested. This sheet is the catch-the-ugly pass: a"
     echo "consistent conversion can still read badly."

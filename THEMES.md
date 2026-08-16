@@ -841,7 +841,7 @@ exemption (flat is correct here, like the 1-bit exemption), and
 `ground == base_100` keeps the flat page column and the margin floor one seamless
 den.
 
-### The ambient-stars law (`RenderCaps::ambient` — the TWINKLING-STARS round, 2026-07-18; LIFECYCLE re-scope 2026-07-23)
+### The ambient-stars law (`RenderCaps::ambient`)
 
 Currawong's differentiator, and the QUIET pole of the user's decided principle
 (*"Aliveness ≠ loudness. Most worlds should feel ALIVE, including quiet ones —
@@ -931,7 +931,7 @@ data on `worlds.rs::CURRAWONG` — the round shipped BUILD + GALLERY + HOLD,
 landing only on the user's gallery pick; the twinkle's FEEL over real seconds
 is live-only and flagged for human confirmation, never claimed verified.
 
-### The waves phase-drift law (`Background::Waves` — item 87, 2026-07-25)
+### The waves phase-drift law (`Background::Waves`)
 
 Bombora's static wave-tier ground (item 69) gained a THIRD consumer of the
 shared ambient clock (lava lamp, twinkling stars, now `Waves`): a very slow,
@@ -987,7 +987,7 @@ UNCHANGED — the drift is one added scalar, `0.0` at rest.
   reading as "layered," calmness) is live-only and flagged for human
   confirmation — the harness proves the arithmetic, not the taste.
 
-### The zigzag field law (`Background::Zigzag` — item 89, hardened by item 100, 2026-07-26)
+### The zigzag field law (`Background::Zigzag`)
 
 Item 86's chevron ground repeated its TEETH along one travel line but never
 repeated that LINE across the margin: `abs(ry - center(rx))` describes a single
@@ -1106,7 +1106,7 @@ and typography of both worlds are untouched.
   inconvenient cells. Law:
   `render::tests::backgrounds_item89::zigzag_sub_pitch_voids_stay_isolated_pockets_never_a_lane`.
 
-### The ground coordinate-space law (item 186, 2026-07-31)
+### The ground coordinate-space law
 
 Every procedural ground authored its composition in PHYSICAL pixels — `scale_px`,
 `period_px`, Dots' 24px cell, Deckle's pitch — simply
@@ -1197,7 +1197,7 @@ user sees, and every taste call on a ground was quietly density-dependent.
   doubled-width ramp gets gentler per pixel and vanishes under 8-bit
   quantization instead of reading as wider. Measuring the ramp's mean RUN LENGTH
   on a high-contrast literal is what made it able to fail.
-### The warped-grid law (`Background::WarpedGrid` — items 132 and 194)
+### The warped-grid law (`Background::WarpedGrid`)
 
 Kite is the roster’s only travelling margin field. The writing page remains
 flat, opaque, and still. Two room-fixed windows crop one straight projected
@@ -1297,7 +1297,7 @@ pattern reappears. A future theme wanting inverse-video selection, or a
 bordered card, or the dither stipple, sets the matching `render_caps` field —
 it can never again need a bespoke branch in the renderer.
 
-### Theme-owned appearance crosses COMPLETELY (the crossing law, item 52, 2026-07-23)
+### Theme-owned appearance crosses COMPLETELY (the crossing law)
 
 Every field in the table above is **theme-owned appearance**, and the theme
 picker is where a user tries worlds on. So the standing law: **highlighting a
@@ -1460,7 +1460,7 @@ the hue gaps) moved to `ROADMAP.md`.
   light": palest rose-gold ground, night-violet ink), carries a 1px frame of
   its own ink — the two poles now mirror each other's frames).
 
-### Per-world heading weight (`Theme::heading_bold` — the HEADING-WEIGHT round, 2026-07-18)
+### Per-world heading weight (`Theme::heading_bold`)
 
 One BIT of world data: does this world's face need WEIGHT to carry markdown
 heading hierarchy? `true` ⇒ `##`/`###` shape at the family's real bundled Bold;

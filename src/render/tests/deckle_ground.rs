@@ -1183,7 +1183,7 @@ fn material_gap_check_fails_when_the_dial_does_not_move_proving_it_is_non_vacuou
 /// neighbourhood. `0.12` is not an arbitrary pick inside that band — it is
 /// the smallest rung where a REAL capture (1600x1000, measure 70) differs
 /// from the old `0.10` by more than the repo's own perceptibility floor
-/// (`EDGE_DELTA = 3`, `scripts/loudness-measure.py`): one rung down at
+/// (`EDGE_DELTA = 3`, `scripts/ground-contrast-measure.py`): one rung down at
 /// `0.11` stays inside 8-bit quantization noise (max right-margin luminance
 /// delta 1.9, zero pixels crossing the floor), `0.12` clears it (max delta
 /// 3.7, 0.18% of margin pixels above it). This is the sole place Galah is

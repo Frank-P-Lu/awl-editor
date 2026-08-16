@@ -1,4 +1,4 @@
-//! ITEM 200 — "punctuation must not shrink or recolor the caret transaction."
+//! Punctuation must not shrink or recolor the caret transaction.
 //!
 //! WHY THE EXISTING LAWS WERE GREEN WHILE THE BUG WAS LIVE. Two law families
 //! already covered this exact surface before this file existed:
@@ -7,7 +7,7 @@
 //!     wildcard) and asserts `caret_visual_body_dims` returns a floored
 //!     `(w, h)` for every punctuation class — a pure GEOMETRY computation, no
 //!     GPU, no pixel read. It never asks what COLOUR anything paints.
-//!   * `tests/caret_punctuation_pixels.rs` (item 126, split per-world by item
+//!   * `tests/caret_punctuation_pixels.rs` (split per-world by
 //!     196) spawns the real binary and reads real pixels, but on a
 //!     hand-picked FIVE-world roster (Mopoke/Gumtree/Bilby/Bombora/Saltpan —
 //!     none of them Bowerbird), and its one appearance assertion,
@@ -49,7 +49,7 @@ mod common;
 use common::ScratchDir;
 use std::path::{Path, PathBuf};
 
-/// The reported/repro roster plus the original item-126/196 roster, in one
+/// The reported/repro roster plus the original coverage roster, in one
 /// place. `*` is added for Bombora's specifically-reported asterisk; the rest
 /// is unchanged from `tests/caret_punctuation_pixels.rs` so both files sweep
 /// the same shapes (dash/bracket/quote/CJK-ideographic-comma included).
@@ -100,7 +100,10 @@ const DOC: &str = "b, . ' : ; - ( [ — 。 z *\n\n\nreference\n";
 const BLANK_DOC: &str = "\n\n\nreference\n";
 
 fn temp(tag: &str) -> ScratchDir {
-    let p = std::env::temp_dir().join(format!("awl-item200-color-{}-{tag}", std::process::id()));
+    let p = std::env::temp_dir().join(format!(
+        "awl-caret-punctuation-color-{}-{tag}",
+        std::process::id()
+    ));
     ScratchDir::new(p)
 }
 
@@ -126,7 +129,7 @@ fn fixture_blank(dir: &Path) -> PathBuf {
 }
 
 /// The col index of `ch` on `DOC_LINE` (every fixture caret target lives on
-/// the doc's first line, exactly like the item-126/196 fixture).
+/// the doc's first line, exactly like the existing pixel fixture).
 fn col_of(ch: char) -> usize {
     DOC_LINE.chars().position(|c| c == ch).unwrap()
 }
@@ -179,7 +182,7 @@ impl Capture<'_> {
             .output()
             .unwrap();
         if !o.status.success() && String::from_utf8_lossy(&o.stderr).contains("no wgpu adapter") {
-            panic!("item 200 PNG verification requires a real GPU adapter");
+            panic!("caret punctuation colour PNG verification requires a real GPU adapter");
         }
         assert!(
             o.status.success(),
@@ -276,7 +279,7 @@ fn dist(a: [u8; 3], b: [u8; 3]) -> f32 {
         .sqrt()
 }
 
-/// The interior probe (matches item 126's `probe`): inset from the footprint
+/// The interior probe (matching the shared pixel probe): inset from the footprint
 /// edge so the AA rim (which legitimately blends body/ink/page at every
 /// boundary, on every glyph, bug or no bug) never enters the sample.
 fn probe(rect: (u32, u32, u32, u32), _w: u32) -> impl Iterator<Item = (u32, u32)> {
@@ -288,7 +291,7 @@ fn probe(rect: (u32, u32, u32, u32), _w: u32) -> impl Iterator<Item = (u32, u32)
 /// The off-caret rendering of a thin punctuation mark occupies only a small
 /// fraction of `rect` (`rect` is sized to the ON-caret footprint, which the
 /// authored floor widens well past the bare glyph — that widening is the
-/// whole point of item 126/196, but it means the SAME rect used off-caret is
+/// whole point of the earlier coverage, but it means the SAME rect used off-caret is
 /// mostly bare page). A single inset-and-mode pass over that whole rect can
 /// have background AA out-vote the actual ink core. This finds the glyph's
 /// own TIGHT bounding box within `rect` first (every pixel genuinely unlike
@@ -445,12 +448,12 @@ fn dominant_off_segment(
 }
 
 /// MUST NOT SHRINK — the same authored floor `caret_visual_body_dims`
-/// guarantees (item 126/196's own claim), re-proven here from real pixels
+/// guarantees, re-proven here from real pixels
 /// rather than trusted from the geometry-only unit law. PROPORTIONAL WORLDS
 /// ONLY, deliberately: the floor is built entirely off `caret_anchor_ink_box`
 /// (`src/render/caret.rs`), which is gated OUT on a mono face — a mono
 /// world's caret has no ink-derived sizing to shrink in the first place (its
-/// cell is the fixed mono grid, item 97), so this assertion does not apply
+/// cell is the fixed mono grid), so this assertion does not apply
 /// there and callers must not run it on one (see
 /// `mono_worlds_tawny_and_mangrove_are_unaffected`, which correctly omits
 /// it).
@@ -468,7 +471,7 @@ fn assert_geometry_floor(
     let (left, outer_top, right, outer_bottom) = rect;
     let w = (right - left + 1) as f32;
     let h = (outer_bottom - outer_top + 1) as f32;
-    // The -4.0 slack (item 126's own law used -2.0, on a roster that never
+    // The -4.0 slack is deliberately wider than the earlier roster's -2.0 because it
     // included asterisk at a non-1.0 dpi*zoom product) gives a genuinely
     // wide/complex mark's rounding at an odd scale product room without
     // weakening the claim: a real shrink regression drops FAR below the
@@ -517,7 +520,7 @@ fn assert_color_ownership(
     // The reference has NO caret anywhere near `rect` (it is parked on a
     // different row entirely), so `rect`'s own top-left corner there is real
     // page background, not glyph ink or AA rim — the same "outer top-left is
-    // page colour" fact item 126's `glyph_ink_off_caret` already relies on,
+    // page colour" fact the off-caret glyph-ink law already relies on,
     // and (same world/doc/row) the identical background `rendered` shows at
     // that spot too. Used only to seed the ON-CARET primary/page AA-blend
     // line (a rough endpoint is fine there); the OFF-CARET extraction below
@@ -670,12 +673,12 @@ const MONO_PROSE_WORLDS: [&str; 7] = [
 /// `src/theme/model.rs`) where a covered glyph's colour is a DIFFERENT,
 /// pre-existing, already-law-tested rule — not the surface this item touches
 /// at all, and asserting THIS file's "must equal off-caret ink" oracle
-/// against them fails for a reason that has nothing to do with item 200:
+/// against them fails for a reason unrelated to this caret transaction:
 ///
 ///   * Cassowary (`CaretBlockStyle::Filled`) is the authentic ink-caret CRT
 ///     world where `primary == base_content`; `prepare_caret_block`'s
 ///     `Filled` arm deliberately knocks the covered glyph back through
-///     `primary_content` (== `base_100`, the GROUND) — item 91's own design,
+///     `primary_content` (== `base_100`, the GROUND) by design,
 ///     because painting the SAME ink again over an ink-coloured block would
 ///     vanish. Requesting Block OR Morph both land here (Morph folds to
 ///     Block before this file's fix is ever reached).
@@ -1369,7 +1372,7 @@ fn check_floor_engagement_at_scale(
         raw_tiny |= ink_is_thin;
 
         for mode in ["block", "morph"] {
-            // PIXEL ORACLE (item 205): the floor alone is not the product
+            // PIXEL ORACLE: the floor alone is not the product
             // promise.  Measure the actual caret body on this SAME row's `b`
             // and compare the short punctuation body to it.  The old
             // ink-derived vertical rule passes every floor assertion below,
@@ -1389,7 +1392,7 @@ fn check_floor_engagement_at_scale(
             let h = (outer_bottom - outer_top + 1) as f32;
             if ink_is_thin {
                 // The shared body floor remains a minimum, but it no longer
-                // owns the resting height: item 205 raises short punctuation
+                // owns the resting height: short punctuation rises to the same optical seat
                 // into the row's x-height band.
                 assert!(
                     h >= pred_h - 3.0,
@@ -1420,7 +1423,7 @@ fn check_floor_engagement_at_scale(
     (floor_engaged, raw_tiny)
 }
 
-/// ITEM 205 PIXEL EVIDENCE — a thin mark's body remains visible and sits in
+/// PIXEL EVIDENCE — a thin mark's body remains visible and sits in
 /// its row's letter band, proven from pixels rather than inferred from the
 /// geometry owner.
 /// `caret_visual_body_dims` (`render/caret_body.rs`) floors a punctuation

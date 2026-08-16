@@ -385,7 +385,7 @@ fn the_shortcut_column_never_flips_ahead_of_its_own_band_in_real_pixels() {
     let band_bot = band_top + band_h;
     let (texture, tview) = super::dither::offscreen(&device, 1200, 800);
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-        label: Some("awl item-164 shortcut ink encoder"),
+        label: Some("awl visual-selection shortcut-ink encoder"),
     });
     p.render(&mut encoder, &tview).unwrap();
     queue.submit(Some(encoder.finish()));

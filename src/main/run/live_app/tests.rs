@@ -123,9 +123,8 @@ fn selected_name(v: &serde_json::Value) -> String {
 #[test]
 fn live_app_first_new_document_asks_for_a_folder_before_creating_a_file() {
     let _g = crate::testlock::serial();
-    let dir = ScratchDir::new(
-        std::env::temp_dir().join(format!("awl-item208-live-app-{}", std::process::id())),
-    );
+    let dir =
+        ScratchDir::new(std::env::temp_dir().join(format!("awl-live-app-{}", std::process::id())));
     let png = dir.join("folder-choice.png");
     let json = in_sandbox(|| {
         capture_live_app(
@@ -163,7 +162,7 @@ fn live_app_first_new_document_asks_for_a_folder_before_creating_a_file() {
 fn a_live_app_capture_photographs_a_keymap_flip_an_ordinary_capture_cannot_see() {
     let _g = crate::testlock::serial();
     let dir = ScratchDir::new(
-        std::env::temp_dir().join(format!("awl-item188-live-app-{}", std::process::id())),
+        std::env::temp_dir().join(format!("awl-live-app-replay-{}", std::process::id())),
     );
     let keys = walk_to(SettingId::Keymap);
 
@@ -276,9 +275,8 @@ fn a_live_app_capture_photographs_a_keymap_flip_an_ordinary_capture_cannot_see()
 #[test]
 fn a_live_app_capture_photographs_the_toast_the_semantic_tree_announces() {
     let _g = crate::testlock::serial();
-    let dir = ScratchDir::new(
-        std::env::temp_dir().join(format!("awl-item296-notice-{}", std::process::id())),
-    );
+    let dir =
+        ScratchDir::new(std::env::temp_dir().join(format!("awl-notice-{}", std::process::id())));
     // The document lives in the HERMETIC sandbox, not on the real disk: the
     // App reads and (on save) WRITES through `crate::fs::active()`, and the
     // whole point of a save here is that it really happens.
@@ -371,7 +369,7 @@ fn a_live_app_capture_photographs_the_toast_the_semantic_tree_announces() {
 fn the_live_app_sidecar_is_the_ordinary_schema_and_shape() {
     let _g = crate::testlock::serial();
     let dir = ScratchDir::new(
-        std::env::temp_dir().join(format!("awl-item188-schema-{}", std::process::id())),
+        std::env::temp_dir().join(format!("awl-live-app-schema-{}", std::process::id())),
     );
     let live = dir.join("plain.png");
     let live_json = in_sandbox(|| {
@@ -436,7 +434,7 @@ fn the_live_app_sidecar_is_the_ordinary_schema_and_shape() {
 fn a_live_app_capture_honors_capture_size_and_the_dpi_meaning_holds() {
     let _g = crate::testlock::serial();
     let dir = ScratchDir::new(
-        std::env::temp_dir().join(format!("awl-item334-canvas-{}", std::process::id())),
+        std::env::temp_dir().join(format!("awl-live-app-canvas-{}", std::process::id())),
     );
     let doc = std::path::PathBuf::from("/ws/proj/long.md");
     // One long logical line with plentiful word-wrap points, long enough to

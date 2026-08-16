@@ -80,7 +80,7 @@ fn shoot(
 ) -> Vec<[u8; 4]> {
     let (texture, tview) = super::dither::offscreen(device, w, h);
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-        label: Some("awl item316 location-plate encoder"),
+        label: Some("awl location-plate encoder"),
     });
     p.render(&mut encoder, &tview).unwrap();
     queue.submit(Some(encoder.finish()));

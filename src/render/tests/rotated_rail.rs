@@ -158,7 +158,7 @@ fn shoot(
 ) -> Vec<[u8; 4]> {
     let (texture, tview) = super::dither::offscreen(device, w, h);
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-        label: Some("awl item297 rotated-rail encoder"),
+        label: Some("awl rotated-rail encoder"),
     });
     p.render(&mut encoder, &tview).unwrap();
     queue.submit(Some(encoder.finish()));
@@ -336,7 +336,7 @@ fn every_rotated_rail_world_anchors_its_wordmark_to_the_rooms_floor() {
 fn rotated_rail_is_subordinate_to_the_wordmark_present_and_clear_of_everything() {
     let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
-        eprintln!("skipping item297 rail composition law: no wgpu adapter");
+        eprintln!("skipping rail composition law: no wgpu adapter");
         return;
     };
     let _pin = theme::WorldPin::world("Cassowary").expect("Cassowary ships");
@@ -561,7 +561,7 @@ fn grade_cell_pixels(
 fn rotated_rail_parks_rather_than_shrinking_when_the_rooms_margin_closes() {
     let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
-        eprintln!("skipping item297 park law: no wgpu adapter");
+        eprintln!("skipping rail park law: no wgpu adapter");
         return;
     };
     let _pin = theme::WorldPin::world("Cassowary").expect("Cassowary ships");
@@ -718,7 +718,7 @@ fn indexed_locator_is_truthful_for_every_faceted_lens() {
 fn the_cue_is_bounded_by_the_cards_drawn_reach_not_by_its_box() {
     let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
-        eprintln!("skipping item297 card-reach law: no wgpu adapter");
+        eprintln!("skipping rail card-reach law: no wgpu adapter");
         return;
     };
     let _pin = theme::WorldPin::world("Cassowary").expect("Cassowary ships");

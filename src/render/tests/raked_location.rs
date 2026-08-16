@@ -198,7 +198,7 @@ fn files_lens() -> usize {
 fn location_axis_deg_follows_the_spines_measured_clamp_not_the_authored_constant() {
     let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
-        eprintln!("skipping item224 clamp-tracking law: no wgpu adapter");
+        eprintln!("skipping clamp-tracking law: no wgpu adapter");
         return;
     };
     let _pin = theme::WorldPin::world("Magpie").expect("Magpie ships");
@@ -274,7 +274,7 @@ fn shoot(
 ) -> Vec<[u8; 4]> {
     let (texture, tview) = dither::offscreen(device, w, h);
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-        label: Some("awl item224 raked-location encoder"),
+        label: Some("awl raked-location encoder"),
     });
     p.render(&mut encoder, &tview).unwrap();
     queue.submit(Some(encoder.finish()));
@@ -402,7 +402,7 @@ fn grade(device: &wgpu::Device, queue: &wgpu::Queue, p: &mut TextPipeline, dpi: 
 fn magpie_raked_location_cue_is_present_flush_climbs_and_never_crowds_the_row_below() {
     let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
-        eprintln!("skipping item224 slant/geometry pixel law: no wgpu adapter");
+        eprintln!("skipping slant/geometry pixel law: no wgpu adapter");
         return;
     };
     let _pin = theme::WorldPin::world("Magpie").expect("Magpie ships");
@@ -485,7 +485,7 @@ fn magpie_raked_location_cue_is_present_flush_climbs_and_never_crowds_the_row_be
 fn magpie_raked_location_cue_carries_a_real_two_tone_gradient() {
     let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
-        eprintln!("skipping item224 gradient pixel law: no wgpu adapter");
+        eprintln!("skipping gradient pixel law: no wgpu adapter");
         return;
     };
     let _pin = theme::WorldPin::world("Magpie").expect("Magpie ships");
@@ -543,7 +543,7 @@ fn magpie_raked_location_cue_carries_a_real_two_tone_gradient() {
 fn magpie_all_home_draws_no_raked_cue() {
     let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
-        eprintln!("skipping item224 all-home law: no wgpu adapter");
+        eprintln!("skipping all-home law: no wgpu adapter");
         return;
     };
     let _pin = theme::WorldPin::world("Magpie").expect("Magpie ships");

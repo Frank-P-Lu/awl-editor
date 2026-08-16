@@ -79,7 +79,7 @@ const PARALLEL: usize = 6;
 /// failed).
 fn tmp_dir(tag: &str) -> ScratchDir {
     let dir =
-        std::env::temp_dir().join(format!("awl-item97-caretgrid-{tag}-{}", std::process::id()));
+        std::env::temp_dir().join(format!("awl-caret-mono-grid-{tag}-{}", std::process::id()));
     ScratchDir::new(dir)
 }
 

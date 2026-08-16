@@ -1,19 +1,20 @@
 #!/usr/bin/env bash
 #
-# capture-ambient-118.sh — the AMBIENT-MOTION arm of the loudness audit.
+# capture-ambient-motion.sh — the ambient-motion capture sweep.
 #
 # Five shipping worlds move while the user is idle, and the audit counts ambient
-# motion as loudness. `Theme::has_ambient_tick()` is the roster's own answer for
-# which they are — lava (Firetail, Mangrove), animated stars (Currawong), waves
-# drift (Bombora), organic drift (Bowerbird) — and this script asks the binary
-# rather than hard-coding that list.
+# motion as visual energy. The binary supplies the candidate roster; the phase
+# map below selects the shipping ambient mechanisms — lava (Firetail,
+# Mangrove), animated stars (Currawong), waves drift (Bombora), and Bowerbird's
+# Organic companion-value breathe. Each mapping uses the product's own dev
+# control for that mechanism.
 #
 # WHAT THIS CAN AND CANNOT PROVE, STATED UP FRONT. An ordinary headless capture
 # freezes every ambient phase at t=0 by design, so it can say nothing about
 # motion at all. What it CAN do is render the SAME world at a series of
 # EXPLICIT phases through the shipped dev knobs — `AWL_LAVA=<palette>:<phase>`,
-# `AWL_STARS_PHASE`, `AWL_WAVES_PHASE` (which drives Bombora's waves AND
-# Bowerbird's organic drift; one shared clock) — and measure how far the field
+# `AWL_STARS_PHASE`, `AWL_WAVES_PHASE` (which drives Bombora's waves and
+# Bowerbird's companion-value breathe through their shared clock) — and measure how far the field
 # actually travels between them. That is a deterministic single-frame
 # trajectory, which CAPTURE.md says the harness genuinely verifies.
 #
@@ -28,7 +29,7 @@
 # script is the preparation for that judgement, not a substitute for it.
 #
 # Output — a REPLACEABLE gitignored run dir:
-#   gallery/item-118-ambient/<World>/t<seconds>.png + .json
+#   gallery/ambient-motion/<World>/t<seconds>.png + .json
 set -euo pipefail
 
 if ! command -v cargo >/dev/null 2>&1; then
@@ -48,7 +49,7 @@ echo "==> building awl (release)"
 cargo build --release
 
 SPECIMEN="$SCRIPT_DIR/world-gallery-specimen.md"
-RUN_DIR="$ROOT/gallery/item-118-ambient"
+RUN_DIR="$ROOT/gallery/ambient-motion"
 rm -rf "$RUN_DIR"
 mkdir -p "$RUN_DIR"
 NO_CONFIG="$RUN_DIR/.unseeded-config.toml"
@@ -63,9 +64,8 @@ KEYS="s-Down"
 SECONDS_LIST=(0 1 2 5 10 30 60)
 SPEED=0.03
 
-# The ambient roster, from the binary. `--list-worlds` prints every world; the
-# per-world sidecar then says whether it carries an ambient mechanism, so the
-# selection below is the code's answer, not this script's opinion.
+# `--list-worlds` supplies every candidate. `ambient_env` maps each current
+# ambient mechanism to its product-owned explicit phase control.
 worlds_raw="$("$BIN" --list-worlds)"
 # shellcheck disable=SC2206
 worlds=($worlds_raw)
@@ -110,4 +110,4 @@ fi
 
 echo
 echo "==> $found ambient worlds captured under $RUN_DIR"
-echo "    measure with: scripts/ambient-travel.py"
+echo "    measure with: scripts/ambient-motion-measure.py"

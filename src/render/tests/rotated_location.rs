@@ -295,7 +295,7 @@ fn shoot(
 ) -> Vec<[u8; 4]> {
     let (texture, tview) = super::dither::offscreen(device, w, h);
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-        label: Some("awl item221 rotated-location encoder"),
+        label: Some("awl rotated-location encoder"),
     });
     p.render(&mut encoder, &tview).unwrap();
     queue.submit(Some(encoder.finish()));
@@ -324,7 +324,7 @@ fn render_view(
 fn cassowary_all_home_draws_no_rotated_cue() {
     let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
-        eprintln!("skipping item221 all-home law: no wgpu adapter");
+        eprintln!("skipping rotated-location all-home law: no wgpu adapter");
         return;
     };
     let _pin = theme::WorldPin::world("Cassowary").expect("Cassowary ships");

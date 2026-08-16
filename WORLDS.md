@@ -20,7 +20,7 @@ is). Cohesion is "does this all agree with one line of prose," nothing fancier.
 | World          | Ground                      | Margin background | Display             | Mono            | Ornament (`---`/`***`/`___`)                  | Time  | Register | Voice     | Temp    |
 | -------------- | --------------------------- | ----------------- | ------------------- | --------------- | --------------------------------------------- | ----- | -------- | --------- | ------- |
 | **Gumtree**    | pale eucalyptus-green       | Zigzag             | Literata            | Monaspace Xenon | Junicode · botanical sprig / spray / fleur    | Day   | —        | Literary  | Cool    |
-| **Bilby**      | palest rose-gold dawn (paled, item 86) | Gradient | Newsreader          | Monaspace Xenon | EB Garamond · ❧ ☙ ❦                           | Dawn  | Refined  | —         | —       |
+| **Bilby**      | palest rose-gold dawn       | Gradient | Newsreader          | Monaspace Xenon | EB Garamond · ❧ ☙ ❦                           | Dawn  | Refined  | —         | —       |
 | **Magpie**     | paper-white, high-contrast  | Pinstripe         | Bitter              | Monaspace Xenon | Junicode · quatrefoil / lattice / damask-tile | Day   | —        | Literary  | Neutral |
 | **Saltpan**    | warm ecru salt-flat         | Pinstripe         | Fraunces            | Monaspace Xenon | Junicode · running-vine / vine-scroll ×2      | Dawn  | Refined  | —         | —       |
 | **Quokka**     | warm peach reef             | Zigzag             | Sour Gummy          | IBM Plex Mono   | Awl Marks · ✿ ❀ ✽                             | Dawn  | Everyday | Modern    | Warm    |
@@ -68,11 +68,11 @@ uses the world's own quiet palette, and never spends the caret accent.
 | **Pinstripe** | Fine parallel print/ledger lines over a gradient. | Saltpan, Cassowary, Mulga |
 | **Stripes** | A diagonal striped band concentrated at the page boundary and dissolved outward into the margin. | Potoroo |
 | **Lava** | A slow metaball field in the margins. Reduce Motion can still it; deterministic captures use a fixed phase. Firetail is smooth wine; Mangrove is dithered deep-sea blue. | Firetail, Mangrove |
-| **Bands** (item 69) | Exactly three large, tone-on-tone diagonal bands spanning the WHOLE margin field — cut-paper grass, not a repeating stripe-tile. Static; the ONLY colors are the world's own ground-ladder rungs. Its previous assignee, Gumtree, moved to Zigzag in item 86. | Magpie |
-| **Zigzag** (item 86, tiled in item 89) | A TILED FIELD of repeating chevron ("V") rows over a gradient — a whisper mark like Dots/Pinstripe, not a final-color field like Bands/Waves. The chevron repeats both along its travel direction and across it, and consecutive rows abut by construction, so every part of a margin carries rows at any window size or shape. Four per-world dials (tooth wavelength, peak excursion — which also sets the row pitch — travel angle, an extra coverage multiplier) keep the two shipping worlds from reading as a recolor of one asset: Quokka is tight/steep/bold, Gumtree is broad/open/quiet. | Quokka, Gumtree |
-| **Deckle** (item 158) | Quasi-random CONTOUR LANES of handmade paper, seeded per lane and torn by a fixed two-tone wander so no lane is a ruled line. One theme-owned `weave` picks the profile: **Strata** indexes the lanes on DISTANCE FROM THE PAGE COLUMN, so the contours gather around the writing page and mirror across it, each lane filled at its own seeded tone with a torn tint on its boundary; **Fibres** indexes them on screen `y` and draws thin translucent strokes with seeded dropouts plus a sparser diagonal vein family. Three dials — lane pitch, wander amplitude, one coverage multiplier — and `density: 0.0` collapses either profile to a flat ground exactly, which is the differential oracle its pixel laws measure against. Entirely static. | Paperbark (Strata), Galah (Fibres) |
-| **Warped grid** (items 132/194) | A straight projected tube on ONE room-fixed axis — the room's own centre, so the vanishing point sits behind the page and each margin carries one flank. The page cannot rescale, flatten, bend or reposition the field; it veils it, and the tube's major rings cross the column faintly so the two flanks read as one scene. Rings travel steadily outward; every fifth line is stronger, the minor rung retires in narrow margins, and both lattices fade before the far end becomes unresolved. | Kite |
-| **Waves** (item 69) | Exactly three stacked, non-overlapping shallow wave tiers — wide scalloped crests, horizontally phase-offset so they layer instead of gridding. Static; the world's own ground-ladder rungs. | Bombora |
+| **Bands** | Exactly three large, tone-on-tone diagonal bands spanning the WHOLE margin field — cut-paper grass, not a repeating stripe-tile. Static; the ONLY colors are the world's own ground-ladder rungs. | Magpie |
+| **Zigzag** | A TILED FIELD of repeating chevron ("V") rows over a gradient — a whisper mark like Dots/Pinstripe, not a final-color field like Bands/Waves. The chevron repeats both along its travel direction and across it, and consecutive rows abut by construction, so every part of a margin carries rows at any window size or shape. Four per-world dials (tooth wavelength, peak excursion — which also sets the row pitch — travel angle, an extra coverage multiplier) keep the two shipping worlds from reading as a recolor of one asset: Quokka is tight/steep/bold, Gumtree is broad/open/quiet. | Quokka, Gumtree |
+| **Deckle** | Quasi-random CONTOUR LANES of handmade paper, seeded per lane and torn by a fixed two-tone wander so no lane is a ruled line. One theme-owned `weave` picks the profile: **Strata** indexes the lanes on DISTANCE FROM THE PAGE COLUMN, so the contours gather around the writing page and mirror across it, each lane filled at its own seeded tone with a torn tint on its boundary; **Fibres** indexes them on screen `y` and draws thin translucent strokes with seeded dropouts plus a sparser diagonal vein family. Three dials — lane pitch, wander amplitude, one coverage multiplier — and `density: 0.0` collapses either profile to a flat ground exactly, which is the differential oracle its pixel laws measure against. Entirely static. | Paperbark (Strata), Galah (Fibres) |
+| **Warped grid** | A straight projected tube on ONE room-fixed axis — the room's own centre, so the vanishing point sits behind the page and each margin carries one flank. The page cannot rescale, flatten, bend or reposition the field; it veils it, and the tube's major rings cross the column faintly so the two flanks read as one scene. Rings travel steadily outward; every fifth line is stronger, the minor rung retires in narrow margins, and both lattices fade before the far end becomes unresolved. | Kite |
+| **Waves** | Exactly three stacked, non-overlapping shallow wave tiers — wide scalloped crests, horizontally phase-offset so they layer instead of gridding. Static; the world's own ground-ladder rungs. | Bombora |
 
 Currawong's base margin background is **Gradient**. Its slowly appearing and
 dying stars are a separate ambient Frame layer (`AmbientStyle::Stars`), which
@@ -101,7 +101,7 @@ was retired outright once its last world moved off it.
 ### Gumtree
 **A pale eucalyptus-green reading room, calm and cool in clear daylight.**
 Literata's easygoing book-serif on cool green paper; Shippori Mincho for Japanese; Monaspace Xenon for code.
-Its margins carry a broad, quiet eucalyptus zigzag field (item 86, tiled in item 89) — shallow,
+Its margins carry a broad, quiet eucalyptus zigzag field — shallow,
 near-horizontal chevron rows in the ground's own ladder, about six of them down an ordinary
 window, replacing the room's original grass-bands field.
 Day · Refined · Literary · Cool.
@@ -112,10 +112,9 @@ Newsreader's editorial serif on a pale pre-sunrise horizon: warm rose-gold groun
 a cool violet-grey ink ladder (dawn's complementary structure), one sunrise-gold caret,
 and a 1px ink hairline framing the writing column — the light pole's page frame,
 Wagtail's 2px white frame mirrored. The bilby is a dawn-active desert marsupial;
-its world is dawn itself (the 2026-07-18 differentiation round — it was the
-pale-blue near-pair of Gumtree before). Item 86 nudged the ground planes a
-little paler and less peach (composition, caret, and ink untouched) so the
-room no longer reads as near-Quokka's own peach reef. Shippori Mincho for
+its world is dawn itself. Its ground planes are deliberately pale and less peach
+(composition, caret, and ink untouched), so the room stays distinct from
+Quokka's own peach reef. Shippori Mincho for
 Japanese; Monaspace Xenon for code.
 Dawn · Refined · Literary · Warm.
 
@@ -135,7 +134,7 @@ Sour Gummy's bouncy display face on warm peach; Klee One for Japanese; IBM Plex 
 Its summoned cards are a printed-card statement — a crisp 45° chamfered
 silhouette and a small rotated halftone-dot texture, strongest at the card's
 right decorative edge and rolling off before the left content column. Its
-margins carry a tight, bold repeating zigzag field (item 86, tiled in item 89) — the same
+margins carry a tight, bold repeating zigzag field — the same
 ground as Gumtree's, dialled 2.5x tighter and much steeper, so roughly twice as many
 chevron rows cross the margin — replacing the room's original dot grid.
 Dawn · Everyday · Modern · Warm.
@@ -204,8 +203,7 @@ Dusk.
 ### Brolga
 **A clear cool sky after rain — pale sky-blue, washed clean, one red-crown spark.**
 IBM Plex Sans on a pale periwinkle sky-blue page, a deep cool slate-navy ink; Noto Sans JP for Japanese; the humanist IBM Plex Mono for code.
-Brolga is the cool light pole — the DAWN round turned Bilby warm rose-gold and
-vacated the cool-light-blue side of the roster, and this world fills it: a clean
+Brolga is the cool light pole: a clean
 cool SANS on blue where Gumtree (the only other cool light world) is a green
 SERIF, so it reads as its own thing, not Gumtree's sibling. The brolga is a tall
 grey-blue wetland crane with a vivid red crown; its world is the pale blue of a

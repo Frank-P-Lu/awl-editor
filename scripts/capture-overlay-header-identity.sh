@@ -8,11 +8,11 @@
 # canvases. Run it once against a base build and once against the branch build,
 # then diff the two trees byte for byte — the migrated surfaces must be EXACT.
 #
-# Usage: scripts/item174-header-band-identity.sh <binary> <outdir>
+# Usage: scripts/capture-overlay-header-identity.sh <binary> <outdir>
 set -euo pipefail
 
-BIN="${1:?usage: item174-header-band-identity.sh <binary> <outdir>}"
-OUT="${2:?usage: item174-header-band-identity.sh <binary> <outdir>}"
+BIN="${1:?usage: capture-overlay-header-identity.sh <binary> <outdir>}"
+OUT="${2:?usage: capture-overlay-header-identity.sh <binary> <outdir>}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 rm -rf "$OUT"
@@ -21,10 +21,9 @@ mkdir -p "$OUT"
 SAMPLE="$ROOT/samples/prose.md"
 [[ -f "$SAMPLE" ]] || SAMPLE="$(ls "$ROOT"/samples/*.md | head -1)"
 
-# name|keys — every distinct header layout the family can reach.
 # name|keys — every distinct header layout the family can reach: the GROUPED
-# card (query line + lens strip), the FLAT card (query line carrying the beat —
-# where the retired pointer band missed), the WORKSPACE, and the CONTEXTUAL
+# card (query line + lens strip), the FLAT card (query line carrying the beat),
+# the WORKSPACE, and the CONTEXTUAL
 # spell popup (no header line at all).
 SURFACES=(
   'palette|s-p'                              # grouped, default lens
@@ -43,7 +42,7 @@ SURFACES=(
   'spell|M-> Enter t e h x z q Left Left s-;' # contextual popup: no header line
 )
 
-# canvas|dpi — including a retina cell, where the retired band's miss doubled.
+# canvas|dpi — two ordinary cells plus a retina cell.
 CANVASES=('1200x800|1' '900x520|1' '2400x1600|2')
 
 worlds=$("$BIN" --list-worlds)

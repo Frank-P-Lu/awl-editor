@@ -135,7 +135,7 @@ fn max_of(xs: &[f32]) -> f32 {
 // from that measurement, not merely "a bit bigger for safety."
 const WIDE_W: u32 = 2400;
 const WIDE_H: u32 = 1600;
-/// A narrow margin strip, in the same spirit as `capture-bowerbird-revival.sh`'s
+/// A narrow margin strip that uses the same generously open composition as the
 /// "narrow" page regime (a slimmer width, the same generous height).
 const NARROW_W: u32 = 1200;
 const NARROW_H: u32 = 1600;
@@ -269,7 +269,7 @@ fn finds_composition_grew_about_fifteen_percent_and_kept_its_ratios() {
         let growth = measured / old;
         assert!(
             (1.06..1.24).contains(&growth),
-            "{label}: measured mean radius {measured:.1}px vs the item-176 baseline {old:.1}px \
+            "{label}: measured mean radius {measured:.1}px vs the prior baseline {old:.1}px \
              is a {growth:.3}x change — outside the ~15% hierarchy-preserving growth band"
         );
     }
@@ -286,7 +286,7 @@ fn finds_cell_pitch_opened_by_a_separately_authored_amount() {
     let pitch_growth = shipped / reference;
     assert!(
         (1.18..1.35).contains(&pitch_growth),
-        "Bowerbird's scale_px is {shipped}, a {pitch_growth:.3}x change off the item-176 \
+        "Bowerbird's scale_px is {shipped}, a {pitch_growth:.3}x change off the prior \
          reference (156.0) — expected a clearly-separate ~20-30% opening of the lattice, \
          distinct from the ~15% composition growth"
     );

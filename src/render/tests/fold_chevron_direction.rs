@@ -259,7 +259,7 @@ fn fold_chevron_ink_bbox_flips_aspect_between_collapsed_and_expanded() {
     let _world = crate::theme::WorldPin::snapshot();
     crate::page::set_page_on(true);
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
-        eprintln!("skipping item-248 fold-chevron aspect law: no GPU adapter");
+        eprintln!("skipping fold-chevron aspect law: no GPU adapter");
         return;
     };
     crate::theme::set_active_by_name("Wagtail").unwrap();

@@ -10,7 +10,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 export PATH="$HOME/.rustup/toolchains/stable-aarch64-apple-darwin/bin:$PATH"
 
-RUN_DIR="$ROOT/gallery/item-194-warp-motion"
+RUN_DIR="$ROOT/gallery/warp-motion"
 CAPTURES="$RUN_DIR/captures"
 SPECIMEN="$ROOT/scripts/world-gallery-specimen.md"
 BIN="$ROOT/target/release/awl"

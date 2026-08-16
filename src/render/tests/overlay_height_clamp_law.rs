@@ -170,7 +170,7 @@ fn shoot(
 ) -> Vec<[u8; 4]> {
     let (texture, tview) = super::dither::offscreen(device, w, h);
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-        label: Some("awl item181 height-clamp encoder"),
+        label: Some("awl overlay-height-clamp encoder"),
     });
     p.render(&mut encoder, &tview).unwrap();
     queue.submit(Some(encoder.finish()));

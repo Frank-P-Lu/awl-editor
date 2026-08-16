@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 #
-# capture-loudness-118.sh — the idle-loudness audit sweep.
+# capture-ground-contrast.sh — the idle ground-contrast audit sweep.
 #
 # The world dashboard (scripts/capture-worlds.sh) captures every world's Room
-# and Frame at ONE fixed wide canvas. The loudness audit asks a different
+# and Frame at ONE fixed wide canvas. This audit asks a different
 # question — how strongly does a world ask for attention while the user is
 # simply WRITING — and that answer moves with page width: the ground only
 # exists in the page-mode margins, so how much territory it owns, and how
@@ -40,7 +40,7 @@
 # resolves to 1440px, so a 1600 window leaves 144 left / 16 right — the ground
 # is effectively gone. That is a real product fact worth stating plainly: in a
 # CODE buffer at an ordinary window size, every world's margin pattern all but
-# disappears and the roster's loudness spread collapses toward its palette
+# disappears and the roster's ground-contrast spread collapses toward its palette
 # alone. The code arm here is therefore a wide window, which is the only place
 # a code buffer shows its ground at all.
 #
@@ -49,9 +49,9 @@
 # changes this sweep with nothing here to edit.
 #
 # Output — a REPLACEABLE gitignored run dir, wiped and rebuilt every run:
-#   gallery/item-118-loudness/<arm>/<World>.png + .json
+#   gallery/ground-contrast/<arm>/<World>.png + .json
 #
-# Measurement over these captures is scripts/loudness-measure.py. It reports
+# Measurement over these captures is scripts/ground-contrast-measure.py. It reports
 # territory and contrast only; pixel arithmetic never claims the
 # taste score.
 set -euo pipefail
@@ -72,7 +72,7 @@ ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$ROOT"
 
 BIN="$ROOT/target/release/awl"
-echo "==> building awl (release) — a loudness verdict is only honest on the release build"
+echo "==> building awl (release) — a ground-contrast reading is only honest on the release build"
 cargo build --release
 
 SPECIMEN="$SCRIPT_DIR/world-gallery-specimen.md"
@@ -81,7 +81,7 @@ if [[ ! -f "$SPECIMEN" ]]; then
   exit 1
 fi
 
-RUN_DIR="$ROOT/gallery/item-118-loudness"
+RUN_DIR="$ROOT/gallery/ground-contrast"
 rm -rf "$RUN_DIR"
 mkdir -p "$RUN_DIR"
 

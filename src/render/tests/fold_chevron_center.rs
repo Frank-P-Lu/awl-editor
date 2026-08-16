@@ -172,7 +172,7 @@ fn fold_chevron_real_pixel_ink_centres_on_h1_h2_h3_across_every_world() {
     let _world = crate::theme::WorldPin::snapshot();
     crate::page::set_page_on(true);
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
-        eprintln!("skipping item-127 full-world fold-chevron pixel law: no GPU adapter");
+        eprintln!("skipping full-world fold-chevron pixel law: no GPU adapter");
         return;
     };
     for world in crate::theme::THEMES {
@@ -203,7 +203,7 @@ fn wagtail_wave7_h2_chevron_centres_across_state_viewport_dpi_and_zoom() {
     let _world = crate::theme::WorldPin::snapshot();
     crate::page::set_page_on(true);
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
-        eprintln!("skipping item-127 Wagtail axis-sweep pixel law: no GPU adapter");
+        eprintln!("skipping Wagtail axis-sweep fold-chevron pixel law: no GPU adapter");
         return;
     };
     crate::theme::set_active_by_name("Wagtail").unwrap();

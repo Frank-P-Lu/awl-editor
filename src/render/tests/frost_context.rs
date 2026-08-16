@@ -475,11 +475,11 @@ fn inside_the_menus_own_footprint_no_document_edge_survives() {
 /// nothing under them (a footprint) — with the room-summoned card beside each as the
 /// full-takeover reference the change is judged against.
 #[test]
-#[ignore = "regeneration tool: writes gallery/item-298/*.png for a human's eye"]
+#[ignore = "regeneration tool: writes gallery/frost-context/*.png for a human's eye"]
 fn gallery() {
     let _g = crate::testlock::serial();
     let entry = crate::theme::active_index();
-    let dir = std::path::Path::new("gallery/item-298");
+    let dir = std::path::Path::new("gallery/frost-context");
     std::fs::create_dir_all(dir).expect("the gallery directory");
     let (w, h) = (1200u32, 900u32);
     let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {

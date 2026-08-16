@@ -50,7 +50,7 @@
 [[file_size_mark]]
 file = "src/actions.rs"
 lines = 865
-reason = "A non-Markdown Export must raise an explicit notice rather than the silent no-op `Effect::None` was: one named notice constant, one small helper the three Export arms share, and the doc comment explaining why the row stays enabled everywhere instead of being hidden (+13). Items 296/300 (the notice becomes photographable and findable) and 131e/303 (the diagonal mark's weight becomes world data) both landed in this file; the count here is measured on the MERGED tree, which matched neither lane's own figure. +1 from item 273's residual (4): the Reference command's own arm/entry, the third consumer of the new open_bundled_doc owner. +2: one apply_format_action arm and one classify_action_family entry for Action::TagDocumentLanguage — the explicit tag replacing the automatic stamp. +9: the switch-project door's accept and its dest_value arm — one owner for both destination navigators, parameterised on whether the folder may be CREATED."
+reason = "A non-Markdown Export raises an explicit notice rather than silently resolving to `Effect::None`: one named notice constant, one small helper the three Export arms share, and a doc comment explaining why the row stays enabled everywhere instead of being hidden (+13). This file also owns the photographable/findable notice, world-authored diagonal-mark weight, the Reference command's third `open_bundled_doc` consumer, explicit document-language tagging, and the switch-project accept/destination owner."
 
 [[file_size_mark]]
 file = "src/actions/format.rs"
@@ -59,7 +59,7 @@ lines = 908
 [[file_size_mark]]
 file = "src/actions/overlay_nav.rs"
 lines = 930
-reason = "item 114: +8 lines net. The workspace's own two-region keyboard and its deep link were carved out to `actions/workspace_nav.rs`; what remains here is the intercept-chain entry and the dispatcher arm that calls them. Item 116c: -23 lines net — the whole `history_intercept` function (folded into the shape-aware `workspace_nav::workspace_intercept`, item 116a's `rows_are_primary` fact) is gone from this file; the `Newline`/`AcceptAlternate` accept arm and the keep-version minibuffer's Cancel/Newline arms now route through `Journey::cancel`/`accept` instead of a bare `dismiss()`. +15: the roster gate that opens the preview owner before its match, so an arm added there alone is INERT until the kind declares itself. The gate, not the arms, is the enrolment, which closes the wildcard hole a subset law could not see. +31: switch-project's accept becomes flat — Enter on a direct child switches instead of descending, and the ascend gate excludes a non-path-bound Project so an empty-query Backspace cannot walk above the configured workspace. The second guard is the one that is not obvious: excluding Project from the navigable set made an idle Backspace fall through to a pop that resets the selection to row 0, so the no-op arm is load-bearing rather than defensive. +108: ProjectBrowse joins is_folder_destination, so the arrow and erase grammar comes from the predicate every navigation site already asks rather than a new branch; plus the three journey wrappers that route every lifecycle call through one rebuild. +5: descend_target's doc — one owner of which path a row names now serves two row SHAPES, and joining an absolute name answers with that name, which is load-bearing rather than an oversight."
+reason = "The workspace keyboard and deep link route through `actions/workspace_nav.rs`; this file retains the intercept-chain entry and dispatcher arm. Preview opening is gated by the declared kind before its match, so an undeclared arm is inert. Project navigation shares `is_folder_destination`, direct children switch on Enter, non-path-bound projects cannot ascend above the configured workspace, and lifecycle wrappers rebuild through one owner. `descend_target` documents the one path-name rule shared by both row shapes."
 
 [[file_size_mark]]
 file = "src/app.rs"
@@ -74,7 +74,7 @@ reason = "The conflict workspace's summon reaches the live effect interpreter's 
 [[file_size_mark]]
 file = "src/app/files/settings.rs"
 lines = 348
-reason = "item 193: -24 lines — App::setting_toggle's hand-copied read/negate/set match pair is gone, replaced by one call into the new shared owner crate::settings::flip_toggle_global (src/settings/toggle_core.rs), the same core the replay interpreter now also routes through."
+reason = "`App::setting_toggle` and the replay interpreter both route through `crate::settings::flip_toggle_global` in `src/settings/toggle_core.rs`, preventing separate read/negate/set matches from drifting."
 
 [[file_size_mark]]
 file = "src/app/gpu.rs"
@@ -101,7 +101,7 @@ lines = 453
 [[file_size_mark]]
 file = "src/app/viewstate.rs"
 lines = 544
-reason = "`sync_view` is the ONE exhaustive `ViewState` construction site, so every new render datum has to be spelled out here and fails to compile until it is. The growth this mark carries is exactly that: the fold chevron's `folded_headings` (its direction needs the real fold set, not merely `fold_tails`'s own key set — a heading folded over an empty section has no tail — so `fold::apply_to_view` also takes the buffer's folds at its one call site here), the summoned picker's SECONDARY LOCATION, and the persistent `changed elsewhere` affordance. None of it can live anywhere else without giving the record a second, non-exhaustive door. Items 296/300 (the notice becomes photographable and findable) and 131e/303 (the diagonal mark's weight becomes world data) both landed in this file; the count here is measured on the MERGED tree, which matched neither lane's own figure."
+reason = "`sync_view` is the sole exhaustive `ViewState` construction site, so every render datum must be spelled out here. It carries the fold chevron's real fold set, the summoned picker's secondary location, the persistent changed-elsewhere affordance, photographable/findable notices, and world-authored diagonal-mark weight without creating a second non-exhaustive construction path."
 
 [[file_size_mark]]
 file = "src/app/window.rs"
@@ -129,22 +129,22 @@ lines = 567
 [[file_size_mark]]
 file = "src/capture.rs"
 lines = 81
-reason = "One `/N` row in the schema ledger, which must move in the same commit as `SCHEMA_VERSION` (+1). Items 296/300 (the notice becomes photographable and findable) and 131e/303 (the diagonal mark's weight becomes world data) both landed in this file; the count here is measured on the MERGED tree, which matched neither lane's own figure. +4: the `/201` schema-ledger row and `mod plan_sidecar` -- the overlay's planned-geometry serializer, split into its own file rather than grown inside the one sidecar writer, whose own mark is therefore held at 871 exactly. The row and SCHEMA_VERSION must move in the same commit, which this file's own law enforces. +4 again, for the `/202` row: a schema bump costs the const line plus its ledger row, and this file's own law requires both in one commit, so this mark moves once per bump by construction. +1: the `redact` module declaration. Redaction runs over the FINISHED artifact text at the single writer, so a path-bearing field added later cannot opt out of it — which per-field relativising could not promise."
+reason = "Each schema addition includes its `/N` ledger row and moves with `SCHEMA_VERSION`, enforced by this file's law. Planned overlay geometry serializes in `plan_sidecar` rather than expanding the single writer, and `redact` runs over finished artifact text at that writer so a future path-bearing field cannot opt out."
 
 [[file_size_mark]]
 file = "src/capture/modes.rs"
 lines = 539
-reason = "The headless snapshot carries a serialized lens strip and no live picker, so it rebuilds the picker's secondary location through the single `facets::strip_location` rather than growing a second serialized fact and a schema bump; the `gutter.changed` fold sits at the one `base_viewstate` consumer that drives the single-frame path. Both are single-owner seams with nowhere else to go. Items 296/300 (the notice becomes photographable and findable) and 131e/303 (the diagonal mark's weight becomes world data) both landed in this file; the count here is measured on the MERGED tree, which matched neither lane's own figure. +5: the caret site resolves its kind through from_mode rather than comparing the mode's own SPELLING. WARNING: this file now sits at its frozen baseline EXACTLY, so it has zero headroom and the next change here must carve rather than grow."
+reason = "The headless snapshot rebuilds secondary picker location through `facets::strip_location` rather than serializing a duplicate fact, and `gutter.changed` sits at the sole `base_viewstate` consumer. It also carries photographable/findable notices, world-authored diagonal-mark weight, and caret-kind resolution through `from_mode`. This file is at its frozen baseline exactly; further growth requires a carve-out."
 
 [[file_size_mark]]
 file = "src/capture/sidecar.rs"
 lines = 871
-reason = "Two new sidecar keys — `gutter.changed` and `overlay.preview_view` — in the ONE serializer, whose no-overlay literal must stay in lockstep with its populated arm (+9). Item 229: `readout_json`/`hud_json` each grow a `unit` field alongside the count they already carried, the one owner both blocks read from (+6). Items 296/300 (the notice becomes photographable and findable) and 131e/303 (the diagonal mark's weight becomes world data) both landed in this file; the count here is measured on the MERGED tree, which matched neither lane's own figure."
+reason = "`gutter.changed` and `overlay.preview_view` belong in the sole serializer, whose no-overlay literal remains in lockstep with its populated arm. `readout_json` and `hud_json` share the count/unit owner, and the serializer also carries photographable/findable notices and world-authored diagonal-mark weight."
 
 [[file_size_mark]]
 file = "src/caret.rs"
 lines = 285
-reason = "Item 355 (+12): the declaration docs for the spring and damping constants, the px/s velocities and the streak radius, each naming which scale factor it is entitled to and why -- this file holds the 32 constants the unit scan deliberately leaves outside, and the reason they are outside belongs at the declaration rather than in the law's allow-list, where a later round reads it as an oversight. +14: `morph_anchor_col` and `morph_row_start` now take the caret's own VISUAL row start, and the docs say why the rule is row-relative rather than logical-line-relative -- a wrapped row's first column is a row start with nothing behind it, exactly like column 0, and the logical-column version drew the caret a full visual row from its insertion point."
+reason = "Declaration docs name the entitled scale factor for spring/damping constants, px/s velocities, and streak radius; the classification evidence belongs beside the constants the unit scan deliberately excludes. `morph_anchor_col` and `morph_row_start` take the caret's visual-row start because a wrapped row's first column is a row start like column 0; logical-line-relative anchoring draws the caret a visual row from its insertion point."
 
 [[file_size_mark]]
 file = "src/caret_glyph.rs"
@@ -179,7 +179,7 @@ lines = 475
 [[file_size_mark]]
 file = "src/durable.rs"
 lines = 555
-reason = "Item 274's split of src/main/tests.rs into src/main/tests/<subject>.rs turned the accounting table's one (\"main/tests.rs\", 21) row into seven per-subject rows (buffer_switching 8, capture_scenarios 4, headless_safety 1, launch_context 2, page_measure 2, replay_warnings 2, visual_motion 2 -- still 21 sites total), net +6 lines. +13: two census rows for real-disk fixtures — InMemoryFs has no symlink concept, so the only instrument for a link is a real file on disk under a ScratchDir. ⚠️ The prose above the table still says the test files hold 26 bare writes while the listed rows sum to about 35; that figure was already wrong before this raise and the `expected` array the law asserts on is the authority."
+reason = "The per-subject `src/main/tests/<subject>.rs` layout requires seven accounting rows whose counts still total 21. Real-disk fixtures need two further census rows because `InMemoryFs` has no symlink concept; a link requires a real file under `ScratchDir`. The law's `expected` array is the authority for the listed bare-write count."
 
 [[file_size_mark]]
 file = "src/export/docx.rs"
@@ -259,7 +259,7 @@ reason = "A new `OverlayKind` variant crosses seven exhaustive per-kind matches 
 [[file_size_mark]]
 file = "src/overlay/nav.rs"
 lines = 428
-reason = "item 114: +12 lines. `item_sections` gained the workspace's empty-sections arm and its argument — a workspace names its category once, in its rail, and `refilter`'s bucketing is the one owner that must not answer twice. +10: refilter's dotfile exemption gains the remembered clause. That filter governs what a directory READ puts in front of you, so a project you chose must not vanish from Recent because of a setting about listings."
+reason = "`item_sections` gives a workspace one category name in its rail and lets `refilter` own bucketing. The remembered dotfile exemption ensures a chosen project remains in Recent even when directory listings hide dotfiles."
 
 [[file_size_mark]]
 file = "src/overlay/state.rs"
@@ -286,7 +286,7 @@ lines = 559
 [[file_size_mark]]
 file = "src/render.rs"
 lines = 2743
-reason = "The footer plate earns the notice channel's own one-pixel rim, which is what lifts it from delta-E 1.91 to 54 on Cassowary -- a plate nobody can see is not a plate. +10: the `footer_plate_rim` pipeline field and its construction, on the file whose GPU floor is a declared exception. +34: the `Millis` family and its `progress_per` door -- the BY-KIND exclusion that makes a duration uncarryable into a pixel multiply, so the compiler refuses `metrics.px(a_duration)` instead of a name list promising nobody will try. Plus the declaration doc comments for `PAGE_TEXT_PAD_CHARS` and the two caret pads, each naming which scale factor it is entitled to -- the classification's evidence lives at the declaration, because a classification whose reason lives in a test is the one that gets re-guessed. Item 355 (+14): `Logical` reaches the theme layer -- the doc for `PageFrame::Line`'s stroke and for the `RenderCaps` spell gap, plus the two further caret-corner call sites that were scaled by nothing whatever. The docs are the deliverable here: a length whose type says `Logical` still needs the sentence saying which pipeline resolves it, because this family already shipped one field named `_px` that no consumer reads at all. +15: `HudDefaults`, `WhichKeyDefaults`, and `DebugDefaults` make each inert field group one exhaustive default value; these declarations live beside `TextPipeline`, the only owner that embeds them. +13: the ShapeReach door and the unshaped-line sentinel the viewport culls now reject — an unshaped line used to report 0.0, which every cull ACCEPTS. +23: `Metrics` carries `dpi` beside `scale`, because grow-only is a ZOOM policy and flooring it against the product made the floor's binding regime a property of the panel — the same logical window drew a 20% narrower card on Retina at the shipped zoom."
+reason = "The footer plate uses the notice channel's one-pixel rim so it remains visible. `Millis` and `progress_per` keep durations out of pixel multiplication by type, while declaration docs name the entitled scale factor for page/caret pads, page-frame strokes, and spell gaps. `HudDefaults`, `WhichKeyDefaults`, and `DebugDefaults` give inert field groups exhaustive defaults beside their sole `TextPipeline` owner. Shape reach rejects unshaped-line sentinels, and `Metrics` carries `dpi` beside zoom scale so a logical floor does not vary by display density."
 
 [[file_size_mark]]
 file = "src/render/benchsuite/corpus.rs"
@@ -323,7 +323,7 @@ reason = "+1: re-export PANEL_MARGIN and PANEL_PAD so panel shaping and rectangl
 [[file_size_mark]]
 file = "src/render/chrome/outline.rs"
 lines = 925
-reason = "Item 424 (+28): the persistent outline publishes its interactive geometry to the shared toast obstacle roster, so authored anchors cannot overlap active outline chrome."
+reason = "The persistent outline publishes its interactive geometry to the shared toast-obstacle roster so authored anchors cannot overlap active outline chrome."
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay.rs"
@@ -352,7 +352,7 @@ lines = 547
 [[file_size_mark]]
 file = "src/render/chrome/readout.rs"
 lines = 577
-reason = "DOWN 31: item 424 extracts toast placement and collision planning into readout/toast.rs, leaving readout.rs as the draw/report owner."
+reason = "Toast placement and collision planning live in `readout/toast.rs`, leaving `readout.rs` as the draw/report owner."
 
 [[file_size_mark]]
 file = "src/render/chrome/theme_picker.rs"
@@ -362,7 +362,7 @@ reason = "`theme_overlay_geometry` is an exhaustive `OverlayGeom` construction s
 [[file_size_mark]]
 file = "src/render/framebench.rs"
 lines = 1026
-reason = "item 202: +52 lines — `--bench-theme-burst` gained the reshape-count WITNESS the item's own brief demanded (CLAUDE.md's tripwire: this exact bench once \"measured 5ms while nothing reshaped\"). One shared `assert_reshape_witness` helper (extracted rather than inlined three times — item 182) plus three call sites in `burst_doc`: every `BURST_WORLDS` hop must actually reshape (mirrors `benchsuite::scenarios::theme`'s already-fixed witness), every colors-only arrow step must NOT reshape (the split's whole point), and the deferred settle's `sync_theme_font` must reshape at least once. Mutation-proven: a mutation that skipped `sync_theme_font` inside `TextPipeline::sync_theme` made the bench exit 1 with the exact panic text; reverted before commit. DOWN 10: the debounce this witness guarded against is gone (theme-font reshape is unconditional now), so the \"debounced preview\" section (colors-only steps + one deferred settle) became a shape the App no longer produces and was replaced by an \"eager preview\" section of the same size — every arrow step reshapes on its own, witnessed the same way; mutation-proven again the same way (flip `sync_theme` to `sync_theme_colors`, the bench exits 1 naming the exact step, reverted before commit). Its inline `mod tests` moved to a sibling `framebench/tests.rs`: the picker sweep rewrite carried the file past its FROZEN BASELINE of 1288, which no reason may rescue, so the remedy is the carve rather than a raise."
+reason = "`--bench-theme-burst` uses shared `assert_reshape_witness` checks: every `BURST_WORLDS` hop and eager theme-preview arrow step must reshape. The witness prevents a timing result from passing when no reshape occurred. Its tests live in sibling `framebench/tests.rs` because this file is at its frozen baseline and further growth requires a carve-out."
 
 [[file_size_mark]]
 file = "src/render/geometry.rs"
@@ -385,7 +385,7 @@ reason = "The footer plate earns the notice channel's own one-pixel rim, which i
 [[file_size_mark]]
 file = "src/render/pipeline_geometry.rs"
 lines = 514
-reason = "`set_view` is the one ViewState-to-pipeline mirror: it measures workspace rails, mirrors row ownership, and invalidates the measured diagonal cluster with the other view-derived geometry before publishing a new frame. Every projection therefore lands here — the fold chevron's ink re-tinting from `sync_theme_colors` like every other document-layer `SelectionPipeline`, the `folded_headings` projection beside `fold_tails`, the secondary-location projection, and the `overlay_comparison`/`doc_source` mirrors. `overlay_rows` seeds from `selection_ui` rather than the document wash, and the longer accessor name makes rustfmt break the `set_color` call across two lines. Items 296/300 (the notice becomes photographable and findable) and 131e/303 (the diagonal mark's weight becomes world data) both landed in this file; the count here is measured on the MERGED tree, which matched neither lane's own figure."
+reason = "`set_view` is the sole ViewState-to-pipeline mirror: it measures workspace rails, mirrors row ownership, invalidates view-derived diagonal geometry, and publishes every projection. It carries fold-chevron retinting, fold headings/tails, secondary location, comparison/source mirrors, selection-ui overlay rows, photographable/findable notices, and world-authored diagonal-mark weight."
 
 [[file_size_mark]]
 file = "src/render/pipeline_overlay.rs"
@@ -485,19 +485,19 @@ reason = "The footer plate earns the notice channel's own one-pixel rim, which i
 [[file_size_mark]]
 file = "src/theme/model.rs"
 lines = 745
-reason = "Items 425/424 (+67 combined): the exhaustive theme model authors rotated-location treatment and toast anchor as data; shared renderers own both geometries without world-specific branches."
+reason = "The exhaustive theme model authors rotated-location treatment and toast anchor as data; shared renderers own both geometries without world-specific branches."
 
 [[file_size_mark]]
 file = "src/theme/worlds.rs"
 lines = 1223
-reason = "Items 425/424 (+35 combined): every world explicitly authors its toast anchor, while Cassowary and Magpie author their shared rotated-location treatments in the same roster."
+reason = "Every world explicitly authors its toast anchor, while Cassowary and Magpie author their shared rotated-location treatments in the same roster."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/app/input/mouse.rs"
 function = "App::on_mouse_input"
 message = "this function has too many lines (108/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 172b made the private pointer and keyboard substate projections explicit; behavior and branch structure are unchanged."
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Its private pointer and keyboard substate projections are explicit, while behavior and branch structure remain unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -539,7 +539,7 @@ lint = "clippy::too_many_lines"
 file = "src/main/args.rs"
 function = "parse_args"
 message = "this function has too many lines (631/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 121 added one minimal --ground-audition arm (+13 lines). Item 188 added one CLI flag arm, one Mode variant selection arm and its `live_app` flag to the one parser (+20), and MERGED the two hermetic-fs installs into one unconditional call (-1, after routing its one branch through the new `scenario::seed_document` owner) — the net is the smallest a new capture mode can cost in a single-owner arg parser. `--bench-a11y` adds the same irreducible three pieces every hidden bench flag here adds, each `cfg`-gated native-only (+10)."
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. The parser owns the minimal `--ground-audition` arm, capture-mode flag/Mode/live-App selection, one unconditional hermetic-fs installation through `scenario::seed_document`, and the three native-only pieces each hidden benchmark flag requires."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -553,14 +553,14 @@ lint = "clippy::too_many_lines"
 file = "src/capture/modes.rs"
 function = "settled_viewstate"
 message = "this function has too many lines (228/100)"
-reason = "+2: the snapshot rebuilds the picker's secondary location from the strip it already carries. Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 116b: -1 line. The history-preview fold no longer lights `vstate.diff_panel`. +8 lines: the capture path must derive a summoned workspace's SHAPE (a sidecar carries a mode, not a shape) and whether its comparison region carries prose, or a replayed workspace draws the other shape."
+reason = "The snapshot rebuilds secondary picker location from its existing strip. Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. The capture path derives a summoned workspace's shape and whether its comparison region carries prose, because a sidecar records mode rather than shape."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/sidecar.rs"
 function = "write_sidecar"
 message = "this function has too many lines (107/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Item 188 added the one `driver` argument to the one sidecar format call (+1)."
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. The sole sidecar format call receives its `driver` argument here."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -616,7 +616,7 @@ lint = "clippy::too_many_lines"
 file = "src/render/chrome/overlay_draw.rs"
 function = "TextPipeline::overlay_upload_text"
 message = "this function has too many lines (182/100)"
-reason = "+6: the mirrored row cluster seats names from their own shaped ink and chords from the accessory column's flow. +1: the diagonal chord column reads the shaped buffer's own width to seat its right-aligned ink. Existing chrome draw owner; extraction needs a deliberate rendering-state seam. Item 114 added the workspace rail's own clipped text area (+17). Line/size moved by queue item 114's summoned Settings workspace. Line moved (not size) by item 221's own rotated-location call site above it; that cue's shaping/geometry moved to a dedicated chrome::rotated_location submodule rather than growing this function."
+reason = "The mirrored row cluster seats names from shaped ink and chords from the accessory-column flow; the diagonal chord column uses the shaped buffer width for right-aligned ink. Existing chrome draw owner; extraction needs a deliberate rendering-state seam. The workspace rail has its own clipped text area, and rotated-location shaping/geometry lives in dedicated `chrome::rotated_location` rather than growing this function."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -644,7 +644,7 @@ lint = "clippy::too_many_lines"
 file = "src/render/chrome/theme_picker.rs"
 function = "TextPipeline::overlay_shape_theme"
 message = "this function has too many lines (192/100)"
-reason = "Line moved by the location line kind added above it; the count is unchanged. The row plan is threaded to this shaper so the strip's active mark rides the planned strip box; +3 lines at an existing chrome draw owner. Existing chrome draw owner; extraction needs a deliberate rendering-state seam. Line/size moved by queue item 114's summoned Settings workspace. Item 221 moved the module-level LOCATION_SCALE constant + its doc comment out of this file (to render::rotated_location), shifting this function's line 4 lines earlier; its own size is unchanged. Grew by four lines (167 -> 171): the grouped card's pad, margin and top drop stop being a second copy of the flat family's literals and resolve through the one owner instead. Grew by ten lines (171 -> 181): the `FacetStyle::Text` and `ChipVariant::Underline` mark rects each moved their fourth (thickness) element from a bare float to a `Metrics::px` call over a named `Logical` constant, and `rustfmt` lays each four-element array out one element per line once one element stops fitting the line."
+reason = "The row plan reaches this shaper so the strip's active mark rides its planned box. Existing chrome draw owner; extraction needs a deliberate rendering-state seam. `LOCATION_SCALE` lives in `render::rotated_location`; grouped-card pad, margin, and top drop share one owner with the flat family; and text/underline mark thicknesses use named `Logical` constants through `Metrics::px`."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -756,7 +756,7 @@ lint = "clippy::too_many_lines"
 file = "src/render.rs"
 function = "build_font_system"
 message = "this function has too many lines (105/100)"
-reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions. Line moved (not size) by item 221's new `mod rotated_location;` declaration earlier in this file, then moved again (971 -> 979) by a later `mod quotecheck;` declaration earlier still."
+reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions. Its source position moves when neighboring module declarations change, while its size is unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -814,14 +814,14 @@ lint = "clippy::too_many_lines"
 file = "src/capture/tests/folds.rs"
 function = "fold_tail_never_bleeds_past_the_text_column_edge_on_a_wrapped_heading"
 message = "this function has too many lines (126/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line/count shifted by queue item 168's testscratch::ScratchDir conversion."
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. The scenario uses `testscratch::ScratchDir` for its real-filesystem fixture."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/panels.rs"
 function = "streaks_card_absent_by_default_and_summoned_shows_the_placeholder_year"
 message = "this function has too many lines (107/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Line shifted by queue item 168's testscratch::ScratchDir conversion. Line shifted +10 by two new `unit` assertions added to the HUD readout test above it; this function's own body is unchanged."
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. It uses `testscratch::ScratchDir`; neighboring HUD readout unit assertions affect its source position, not its body."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -1077,21 +1077,21 @@ lint = "clippy::too_many_lines"
 file = "src/theme/tests/ambient.rs"
 function = "ambient_stars_laws_hold_for_every_world"
 message = "this function has too many lines (130/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. File moved from src/theme/tests.rs by item 274's subject split; the function itself is untouched."
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. The function lives in the per-subject theme test module and is otherwise untouched."
 
 [[clippy_exception]]
 lint = "clippy::cognitive_complexity"
 file = "src/theme/tests/ornament.rs"
 function = "every_world_has_a_bullet_pair"
 message = "the function has a cognitive complexity of (27/25)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. File moved from src/theme/tests.rs by item 274's subject split; the function itself is untouched."
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. The function lives in the per-subject theme test module and is otherwise untouched."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/theme/tests/personality.rs"
 function = "personality_assignments_are_exactly_the_decided_table"
 message = "this function has too many lines (189/100)"
-reason = "Item 425 extends the exhaustive per-world capabilities table with rotated-location treatment assignments; the no-wildcard table makes every world's face, scale, ink, tracking, and locator grammar an explicit decision."
+reason = "The exhaustive per-world capabilities table includes rotated-location treatment assignments; its no-wildcard shape makes every world's face, scale, ink, tracking, and locator grammar an explicit decision."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -1128,21 +1128,21 @@ target = "src/main/tests/caret_mode.rs"
 kind = "architectural"
 line = 86
 text = "                \"skipping caret_render_is_a_pure_function_of_mode_and_world_across_a_wagtail_detour: no wgpu adapter\""
-reason = "Pure relocation from the inline src/main/run.rs test module; this exact line was grandfathered there, then carried across item 274's split of src/main/tests.rs into src/main/tests/<subject>.rs (this test's subject file is caret_mode.rs)."
+reason = "Pure relocation from the inline `src/main/run.rs` test module into the per-subject `src/main/tests/caret_mode.rs` file; the line itself is unchanged."
 
 [[structural_exception]]
 target = "src/main/tests/caret_mode.rs"
 kind = "architectural"
 line = 126
 text = "            \"mode {mode:?}: caret pixels must be byte-identical whether or not Wagtail was visited in between\""
-reason = "Pure relocation from the inline src/main/run.rs test module; this exact line was grandfathered there, then carried across item 274's split of src/main/tests.rs into src/main/tests/<subject>.rs (this test's subject file is caret_mode.rs)."
+reason = "Pure relocation from the inline `src/main/run.rs` test module into the per-subject `src/main/tests/caret_mode.rs` file; the line itself is unchanged."
 
 [[structural_exception]]
 target = "src/main/tests/caret_mode.rs"
 kind = "architectural"
 line = 160
 text = "            \"skipping item_106_pointer_replay_seam_reproduces_a_keyboard_scroll_stealing_a_stationary_pointer_check: \\"
-reason = "Pure relocation from the inline src/main/run.rs test module; this exact line was grandfathered there, then carried across item 274's split of src/main/tests.rs into src/main/tests/<subject>.rs (this test's subject file is caret_mode.rs)."
+reason = "Pure relocation from the inline `src/main/run.rs` test module into the per-subject `src/main/tests/caret_mode.rs` file; the line itself is unchanged."
 
 [[structural_exception]]
 target = "src/render/geometry/tests.rs"
@@ -1196,70 +1196,70 @@ target = "src/theme/tests/ambient.rs"
 kind = "architectural"
 line = 79
 text = "                    \"{}: the visibility band must be ordered (0 < floor {floor} < peak {peak} <= 1)\","
-reason = "Item 274's subject split of the former flat test monolith moved this already-long line to a new path; git diff -M rename detection cannot represent a one-file-to-many split, so the 100-column ratchet's per-path baseline (git show <BASELINE>:<path>) sees no prior file at this new path and cannot grandfather a line it never had a chance to see. The line itself is unchanged."
+reason = "This already-long line lives in a per-subject test file. A one-file-to-many split has no prior per-path baseline for `git diff -M` to compare, so the 100-column ratchet cannot grandfather it; the line itself is unchanged."
 
 [[structural_exception]]
 target = "src/theme/tests/ambient.rs"
 kind = "architectural"
 line = 165
 text = "                            \"{}: the band must brighten from floor to peak (floor ΔY {floor_dev:.3} \\"
-reason = "Item 274's subject split of the former flat test monolith moved this already-long line to a new path; git diff -M rename detection cannot represent a one-file-to-many split, so the 100-column ratchet's per-path baseline (git show <BASELINE>:<path>) sees no prior file at this new path and cannot grandfather a line it never had a chance to see. The line itself is unchanged."
+reason = "This already-long line lives in a per-subject test file. A one-file-to-many split has no prior per-path baseline for `git diff -M` to compare, so the 100-column ratchet cannot grandfather it; the line itself is unchanged."
 
 [[structural_exception]]
 target = "src/theme/tests/firetail.rs"
 kind = "architectural"
 line = 32
 text = "        \"Firetail ground {fire_ground:.1}° must read far redder/warmer than Bombora {bombora_violet:.1}°\""
-reason = "Item 274's subject split of the former flat test monolith moved this already-long line to a new path; git diff -M rename detection cannot represent a one-file-to-many split, so the 100-column ratchet's per-path baseline (git show <BASELINE>:<path>) sees no prior file at this new path and cannot grandfather a line it never had a chance to see. The line itself is unchanged."
+reason = "This already-long line lives in a per-subject test file. A one-file-to-many split has no prior per-path baseline for `git diff -M` to compare, so the 100-column ratchet cannot grandfather it; the line itself is unchanged."
 
 [[structural_exception]]
 target = "src/theme/tests/firetail.rs"
 kind = "architectural"
 line = 36
 text = "        \"Firetail ground {fire_ground:.1}° must stay substantially clear of Potoroo's orange-rust {potoroo_rust:.1}°\""
-reason = "Item 274's subject split of the former flat test monolith moved this already-long line to a new path; git diff -M rename detection cannot represent a one-file-to-many split, so the 100-column ratchet's per-path baseline (git show <BASELINE>:<path>) sees no prior file at this new path and cannot grandfather a line it never had a chance to see. The line itself is unchanged."
+reason = "This already-long line lives in a per-subject test file. A one-file-to-many split has no prior per-path baseline for `git diff -M` to compare, so the 100-column ratchet cannot grandfather it; the line itself is unchanged."
 
 [[structural_exception]]
 target = "src/theme/tests/firetail.rs"
 kind = "architectural"
 line = 42
 text = "        \"Firetail base_100 must stay deep oxblood-charcoal, got h={base_h:.1}° s={base_s:.2} l={base_l:.2}\""
-reason = "Item 274's subject split of the former flat test monolith moved this already-long line to a new path; git diff -M rename detection cannot represent a one-file-to-many split, so the 100-column ratchet's per-path baseline (git show <BASELINE>:<path>) sees no prior file at this new path and cannot grandfather a line it never had a chance to see. The line itself is unchanged."
+reason = "This already-long line lives in a per-subject test file. A one-file-to-many split has no prior per-path baseline for `git diff -M` to compare, so the 100-column ratchet cannot grandfather it; the line itself is unchanged."
 
 [[structural_exception]]
 target = "src/theme/tests/heatmap.rs"
 kind = "architectural"
 line = 100
 text = "                \"{}: heatmap level {i} (sat {:.2}) manufactures chroma beyond the ink ladder (max {:.2})\","
-reason = "Item 274's subject split of the former flat test monolith moved this already-long line to a new path; git diff -M rename detection cannot represent a one-file-to-many split, so the 100-column ratchet's per-path baseline (git show <BASELINE>:<path>) sees no prior file at this new path and cannot grandfather a line it never had a chance to see. The line itself is unchanged."
+reason = "This already-long line lives in a per-subject test file. A one-file-to-many split has no prior per-path baseline for `git diff -M` to compare, so the 100-column ratchet cannot grandfather it; the line itself is unchanged."
 
 [[structural_exception]]
 target = "src/theme/tests/ornament.rs"
 kind = "architectural"
 line = 203
 text = "        \"exactly one world uses the manicule bullet, at exactly one level (a hand everywhere is loud)\""
-reason = "Item 274's subject split of the former flat test monolith moved this already-long line to a new path; git diff -M rename detection cannot represent a one-file-to-many split, so the 100-column ratchet's per-path baseline (git show <BASELINE>:<path>) sees no prior file at this new path and cannot grandfather a line it never had a chance to see. The line itself is unchanged."
+reason = "This already-long line lives in a per-subject test file. A one-file-to-many split has no prior per-path baseline for `git diff -M` to compare, so the 100-column ratchet cannot grandfather it; the line itself is unchanged."
 
 [[structural_exception]]
 target = "src/theme/tests/placard.rs"
 kind = "architectural"
 line = 185
 text = "            \"{}: placard presence ordering inverted (Faint ΔY {dy_faint:.3} < Ghost ΔY {dy_ghost:.3})\","
-reason = "Item 274's subject split of the former flat test monolith moved this already-long line to a new path; git diff -M rename detection cannot represent a one-file-to-many split, so the 100-column ratchet's per-path baseline (git show <BASELINE>:<path>) sees no prior file at this new path and cannot grandfather a line it never had a chance to see. The line itself is unchanged."
+reason = "This already-long line lives in a per-subject test file. A one-file-to-many split has no prior per-path baseline for `git diff -M` to compare, so the 100-column ratchet cannot grandfather it; the line itself is unchanged."
 
 [[structural_exception]]
 target = "src/overlay/tests/settings_rail.rs"
 kind = "architectural"
 line = 131
 text = "/// `actions::tests::overlay_drive::the_foot_hint_names_what_left_right_actually_do_on_every_settings_row`.)"
-reason = "Item 274's subject split of the former flat test monolith moved this already-long line to a new path; git diff -M rename detection cannot represent a one-file-to-many split, so the 100-column ratchet's per-path baseline (git show <BASELINE>:<path>) sees no prior file at this new path and cannot grandfather a line it never had a chance to see. The line itself is unchanged."
+reason = "This already-long line lives in a per-subject test file. A one-file-to-many split has no prior per-path baseline for `git diff -M` to compare, so the 100-column ratchet cannot grandfather it; the line itself is unchanged."
 
 [[structural_exception]]
 target = "src/overlay/tests/spell.rs"
 kind = "architectural"
 line = 76
 text = "            \"n={n}: the picker's whole corpus always fits the window — it can never be forced to scroll\""
-reason = "Item 274's subject split of the former flat test monolith moved this already-long line to a new path; git diff -M rename detection cannot represent a one-file-to-many split, so the 100-column ratchet's per-path baseline (git show <BASELINE>:<path>) sees no prior file at this new path and cannot grandfather a line it never had a chance to see. The line itself is unchanged."
+reason = "This already-long line lives in a per-subject test file. A one-file-to-many split has no prior per-path baseline for `git diff -M` to compare, so the 100-column ratchet cannot grandfather it; the line itself is unchanged."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"

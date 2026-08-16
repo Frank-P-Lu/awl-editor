@@ -32,7 +32,10 @@ const DOC: &str = "a, . ' : ; - ( [ — 。 z\n\n\nreference\n";
 /// of these now run concurrently in the same process and would otherwise
 /// collide on one shared directory.
 fn temp(world: &str) -> ScratchDir {
-    let p = std::env::temp_dir().join(format!("awl-item126-pixels-{}-{world}", std::process::id()));
+    let p = std::env::temp_dir().join(format!(
+        "awl-caret-punctuation-pixels-{}-{world}",
+        std::process::id()
+    ));
     ScratchDir::new(p)
 }
 
@@ -78,7 +81,7 @@ impl Capture<'_> {
         }
         let o = c.arg(self.doc).output().unwrap();
         if !o.status.success() && String::from_utf8_lossy(&o.stderr).contains("no wgpu adapter") {
-            panic!("item 126 PNG verification requires a real GPU adapter");
+            panic!("caret punctuation PNG verification requires a real GPU adapter");
         }
         assert!(
             o.status.success(),

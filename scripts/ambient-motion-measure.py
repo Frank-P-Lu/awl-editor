@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""ambient-travel.py — how far each ambient ground actually travels per real
-second, measured off `scripts/capture-ambient-118.sh`'s phase series.
+"""ambient-motion-measure.py — how far each ambient ground changes per real
+second, measured off `scripts/capture-ambient-motion.sh`'s phase series.
 
-Ambient motion contributes to idle loudness, and the honest question
+Ambient motion contributes to idle visual energy, and the honest question
 about ambient motion is not "does it move" (all five do, by construction) but
 "how much of the ground has visibly changed by the time the writer glances up".
 That is what this measures, against the t=0 frame:
@@ -14,7 +14,7 @@ That is what this measures, against the t=0 frame:
   mean|d| mean absolute L* change against t=0 over the whole right margin.
   p99|d|  the 99th percentile of that change — the loudest single place.
 
-Only the right margin is sampled, for the reason loudness-measure.py gives:
+Only the right margin is sampled, for the reason ground-contrast-measure.py gives:
 the left margin carries the Outline rail and the gutter, which are ink, not
 ground.
 
@@ -33,12 +33,12 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _ROOT = os.path.dirname(_HERE)
 
 _spec = importlib.util.spec_from_file_location(
-    "awl_loudness_measure", os.path.join(_HERE, "loudness-measure.py")
+    "awl_ground_contrast_measure", os.path.join(_HERE, "ground-contrast-measure.py")
 )
 _lm = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_lm)
 
-RUN_DIR = os.path.join(_ROOT, "gallery", "item-118-ambient")
+RUN_DIR = os.path.join(_ROOT, "gallery", "ambient-motion")
 
 
 def margin_lstars(png, sidecar):
@@ -54,7 +54,7 @@ def margin_lstars(png, sidecar):
 
 def main(argv):
     if not os.path.isdir(RUN_DIR):
-        raise SystemExit(f"missing {RUN_DIR} — run scripts/capture-ambient-118.sh")
+        raise SystemExit(f"missing {RUN_DIR} — run scripts/capture-ambient-motion.sh")
     print("world\tt_s\tchg>1\tchg>3\tmean|d|\tp99|d|")
     for world in sorted(os.listdir(RUN_DIR)):
         d = os.path.join(RUN_DIR, world)

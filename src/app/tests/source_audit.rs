@@ -463,9 +463,9 @@ fn scheduling_reads_runtime_owners_through_typed_poll_boundaries() {
 // match itself and inflate its own count.
 
 #[test]
-fn retired_item_76_identifiers_leave_no_trace_in_source() {
+fn retired_project_identifiers_leave_no_trace_in_source() {
     let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src");
-    for needle in retired_item_76_needles() {
+    for needle in retired_project_needles() {
         let mut hits = 0usize;
         count_substr_in_dir(&root, &needle, &mut hits);
         // ONE exemption: `capture.rs`'s `SCHEMA_VERSION` history table is
@@ -482,7 +482,7 @@ fn retired_item_76_identifiers_leave_no_trace_in_source() {
         }
         assert_eq!(
             hits, 0,
-            "retired by item 76 but still present in source outside capture.rs's own \
+            "retired project identifier still present in source outside capture.rs's own \
              append-only schema history: {needle:?} (git log carries the rest)"
         );
     }
@@ -491,7 +491,7 @@ fn retired_item_76_identifiers_leave_no_trace_in_source() {
 /// Every identifier this law retires, built from concatenated parts (not one
 /// contiguous literal) so THIS list can never accidentally match itself.
 #[cfg(test)]
-fn retired_item_76_needles() -> Vec<String> {
+fn retired_project_needles() -> Vec<String> {
     vec![
         ["Notes", "Flip"].concat(),      // the retired project-flip Action/Effect
         ["notes", "_", "flip"].concat(), // its fn names / [keys] slug

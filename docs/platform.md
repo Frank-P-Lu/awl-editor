@@ -1,6 +1,6 @@
 # awl docs — Platform: persistence, daemon, menu, session, updates, GPU, live feedback
 
-> Read before touching `app/` lifecycle hooks, autosave/history, `daemon.rs`, `menu.rs`, `session.rs`, `updates.rs`, GPU fault/recovery paths, `--soak-gpu`, or the debug panel/HUD. Moved verbatim out of CLAUDE.md 2026-07-22 (queue item 17); earlier round history: `git log -p CLAUDE.md`.
+> Read before touching `app/` lifecycle hooks, autosave/history, `daemon.rs`, `menu.rs`, `session.rs`, `updates.rs`, GPU fault/recovery paths, `--soak-gpu`, or the debug panel/HUD.
 
 ## Debug panel / HUD / copy pulse (determinism-safe live-only feedback)
 

@@ -1,6 +1,6 @@
 # awl docs — Config, keymap & page width
 
-> Read before touching `config/`, `keymap.rs`, `commands.rs`, `settings.rs`, `page.rs`, or any `[keys]`/binding behavior. Moved verbatim out of CLAUDE.md 2026-07-22 (queue item 17); earlier round history: `git log -p CLAUDE.md`.
+> Read before touching `config/`, `keymap.rs`, `commands.rs`, `settings.rs`, `page.rs`, or any `[keys]`/binding behavior.
 
 ## Config (`config/`) — settings as a text file you edit in awl
 
@@ -22,9 +22,9 @@ search_forward = ["Cmd-F", "C-s"]        # up to 2 chords, capped at 2
 - **`linux_keep_emacs` (per-chord door):** on Linux, native-wins displaces the bare-control emacs cluster (`C-f`/`C-b`/`C-n`/`C-p`/`C-a`/`C-e`). This array lists chords that keep their emacs meaning under `Convention::Linux` only. Mac is inert (gated on `convention == Linux`). `C-c`/`C-x`/`C-v` must stay native (Omarchy forwards Super+C/X/V as Ctrl).
 - **Tripwire: `C-k` stays kill-line on Linux, both flavors, no config needed:** `k` is deliberately not in `LINUX_DISPLACED_LETTERS`; `keymap::linux_builtin_keep()` (`["C-k"]`) is an unconditional third keep-case. So Insert-link (Cmd-K on Mac) has no default Linux binding. Reclaim: `[keys] insert_link = "C-k"`.
 - **Retired defaults (platform rule, not taste):** the whole Meta-letter layer is empty by default — macOS reserves Option-letters for typing (accents é/ñ/ü, em dash `⌥⇧-`), which the writer audience needs. Survivors: bare-control nav, `C-s`/`C-r` search, `⌥←`/`⌥→` word motion, `⌥⌫` word delete. The prefix-sequence machinery + rebind-menu chord capture are kept permanently. Ten navigation motions are ordinary catalog entries, so `[keys]` can reach them (`forward_word = ["M-Right", "M-f"]` restores the retired chords). Plain unmodified arrows stay keymap-only (no chord to name).
-- **Precedence:** explicit CLI flag > config file > built-in default. **Settings command** (Cmd-P → "Settings", or Cmd-`,`) opens the config buffer. **Live reload:** saving it re-applies overrides + folders immediately (`App::reload_config`); an invalid config keeps prior values. `default_folder` is a FIRST-RUN fallback only — the launch-precedence law that decides the ACTIVE folder (explicit target > remembered session > `default_folder`) lives in `docs/platform.md`'s Session restore section (item 76).
+- **Precedence:** explicit CLI flag > config file > built-in default. **Settings command** (Cmd-P → "Settings", or Cmd-`,`) opens the config buffer. **Live reload:** saving it re-applies overrides + folders immediately (`App::reload_config`); an invalid config keeps prior values. `default_folder` is a FIRST-RUN fallback only — the launch-precedence law that decides the ACTIVE folder (explicit target > remembered session > `default_folder`) lives in `docs/platform.md`'s Session restore section.
 
-## Zoom — a sticky RANGE preference (`range.rs`, item 94)
+## Zoom — a sticky RANGE preference (`range.rs`)
 
 - `zoom` is a sticky config key (a factor, written `{:.3}`), and its authored band lives in ONE place: `crate::range::ZOOM` (0.5–3.0, 0.1 step, default 1.0, shown as a whole percent). Every door — ⌘=/⌘-, ⌘-wheel, `--zoom`, a hand-edited `zoom = 1.4`, the Settings row's rail, and a typed `125%` — lands on that same grid (`render::clamp_zoom` delegates to it).
 - The Settings "Zoom" row is a `SettingKind::Range`: rail + thumb + value, Left/Right for one authored step, click/drag the rail, Enter for exact entry. Mechanism: docs/render.md's range-rows section.

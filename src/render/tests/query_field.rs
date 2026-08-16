@@ -25,7 +25,7 @@ fn shoot(
 ) -> Vec<[u8; 4]> {
     let (texture, tview) = super::dither::offscreen(device, w, h);
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-        label: Some("awl item219 surfaces encoder"),
+        label: Some("awl query-field surfaces encoder"),
     });
     p.render(&mut encoder, &tview).unwrap();
     queue.submit(Some(encoder.finish()));

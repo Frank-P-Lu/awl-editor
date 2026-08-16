@@ -248,7 +248,7 @@ fn scan_window(p: &TextPipeline, band: [f32; 4]) -> ((f32, f32), f32) {
 fn shoot_palette(device: &wgpu::Device, queue: &wgpu::Queue, p: &mut TextPipeline) -> Vec<[u8; 4]> {
     let (texture, tview) = super::dither::offscreen(device, 1200, 800);
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-        label: Some("awl item220 location encoder"),
+        label: Some("awl palette-location encoder"),
     });
     p.render(&mut encoder, &tview).unwrap();
     queue.submit(Some(encoder.finish()));

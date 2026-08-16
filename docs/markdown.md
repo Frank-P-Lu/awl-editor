@@ -1,6 +1,6 @@
 # awl docs — Markdown render, WYSIWYG conceal & formatting commands
 
-> Read before touching `markdown/`, `actions/format.rs`, `actions/link.rs`, heading sizes/row heights, or any conceal/reveal behavior. Moved verbatim out of CLAUDE.md 2026-07-22 (queue item 17); earlier round history: `git log -p CLAUDE.md`.
+> Read before touching `markdown/`, `actions/format.rs`, `actions/link.rs`, heading sizes/row heights, or any conceal/reveal behavior.
 
 ## Markdown styling (`markdown/` + `render.rs`) — dim the markup, style the content
 

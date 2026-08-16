@@ -237,7 +237,7 @@ fn paperbark_contour_separation_matches_the_restored_density_at_1x_and_2x() {
         worst_sep_2x_logical = worst_sep_2x_logical.max((sep_1x - sep_2x_logical).abs());
     }
     eprintln!(
-        "item-201 contour separation: worst |1x - period_px| {worst_sep_1x:.2}px, worst \
+        "contour separation: worst |1x - period_px| {worst_sep_1x:.2}px, worst \
          |1x - 2x_logical| {worst_sep_2x_logical:.2}px (period_px {RESTORED_PERIOD_PX})"
     );
 }
@@ -357,7 +357,7 @@ fn paperbark_edge_run_length_widens_with_device_ratio_because_it_is_composition(
          and a wrongly-physical feather would hold ~1.0. `DECKLE_EDGE_LO/HI` must stay a \
          lane fraction, never a device-pixel skirt."
     );
-    eprintln!("item-201 edge run length: {r1:.2}px @1x, {r2:.2}px @2x (ratio {ratio:.2})");
+    eprintln!("edge run length: {r1:.2}px @1x, {r2:.2}px @2x (ratio {ratio:.2})");
 }
 
 // ---------------------------------------------------------------------------
@@ -404,7 +404,7 @@ fn paperbark_lane_density_is_stable_across_page_width_at_1x_and_2x() {
         graded >= 6,
         "the page-width sweep must actually grade margins (graded {graded})"
     );
-    eprintln!("item-201 page-width stability: {graded} margins graded across 5 widths");
+    eprintln!("page-width stability: {graded} margins graded across 5 widths");
 }
 
 // ---------------------------------------------------------------------------
@@ -443,7 +443,7 @@ fn pre_201_dial_would_fail_the_separation_law() {
         RESTORED_PERIOD_PX * 1.5,
     );
     eprintln!(
-        "item-201 mutation witness: pre-201 dial (94.0/13.0) measures {sep_1x:.1} device px \
+        "mutation witness: former dial (94.0/13.0) measures {sep_1x:.1} device px \
          separation — {:.2}x the restored {RESTORED_PERIOD_PX}",
         sep_1x / RESTORED_PERIOD_PX
     );
@@ -502,7 +502,7 @@ fn paperbark_retina_before_after_sheet() {
         return;
     };
     let _g = crate::testlock::serial();
-    std::fs::create_dir_all("gallery/item-201-paperbark-retina").ok();
+    std::fs::create_dir_all("gallery/paperbark-retina").ok();
     let (w, h, cl, cw) = (1600u32, 1000u32, 400u32, 600u32);
 
     // BEFORE: the pre-201 dial, rendered at the real device ratio a Retina
@@ -550,18 +550,18 @@ fn paperbark_retina_before_after_sheet() {
         &before,
         w * 2,
         h * 2,
-        "gallery/item-201-paperbark-retina/before-2x-unclear.png",
+        "gallery/paperbark-retina/before-2x-unclear.png",
     );
     save(
         &after,
         w * 2,
         h * 2,
-        "gallery/item-201-paperbark-retina/after-2x-restored.png",
+        "gallery/paperbark-retina/after-2x-restored.png",
     );
     save(
         &galah,
         w * 2,
         h * 2,
-        "gallery/item-201-paperbark-retina/galah-2x-neighbourhood.png",
+        "gallery/paperbark-retina/galah-2x-neighbourhood.png",
     );
 }

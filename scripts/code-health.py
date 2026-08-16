@@ -29,7 +29,7 @@ LINE_LIMIT = 100
 FILE_LIMIT = 500
 # The baseline must be reachable from pushed main: worktree branches never push.
 BASELINE = "f12d04a"
-BASELINE_REASON = "item 134 initial inventory; remove debt instead of extending it"
+BASELINE_REASON = "initial inventory; remove debt instead of extending it"
 HIGH_SIGNAL_LINTS = {"clippy::too_many_lines", "clippy::cognitive_complexity"}
 TARGET_OS = {"Darwin": "macos", "Linux": "linux"}.get(platform.system(), platform.system().lower())
 
@@ -44,10 +44,7 @@ CITATION_SHA = re.compile(r"`([0-9a-f]{7,40})`")
 # A test filename is a durable mechanism name, never a mutable board index.
 INDEX_NAMED_TEST_FILE = re.compile(r"_item\d+[a-z]?\.rs$", re.IGNORECASE)
 ITEM_NAMED_TEST_FN = re.compile(r"^\s*fn\s+(\w*(?:item_?\d+|round_?\d+)\w*)")
-ITEM_NAMED_TEST_EXCLUSIONS = {
-    "retired_item_76_identifiers_leave_no_trace_in_source",
-    "retired_item_76_needles",
-}
+ITEM_NAMED_TEST_EXCLUSIONS = set()
 # Phase three governs the non-Rust source families that carry implementation
 # prose. These are machine interfaces, not commentary: each allowance records
 # the complete current line so a rename or path change makes the allowance stale.
@@ -55,42 +52,7 @@ NON_RUST_CITATION = re.compile(
     r"\b(?:item|round|run)[ _-]?\d+[a-z]?\b|`[0-9a-f]{7,40}`", re.IGNORECASE
 )
 PHASE_THREE_SUFFIXES = {".py", ".sh", ".wgsl", ".yml", ".yaml"}
-PHASE_THREE_ALLOWANCES = {
-    "scripts/ambient-travel.py": {
-        'RUN_DIR = os.path.join(_ROOT, "gallery", "item-118-ambient")',
-    },
-    "scripts/capture-ambient-118.sh": {
-        "#   gallery/item-118-ambient/<World>/t<seconds>.png + .json",
-        'RUN_DIR="$ROOT/gallery/item-118-ambient"',
-    },
-    "scripts/capture-bowerbird-spacing-191.sh": {
-        'KEEP_WORLDS="$(mktemp -t awl-item191-worlds)"',
-        'KEEP_SHADER="$(mktemp -t awl-item191-shader)"',
-    },
-    "scripts/capture-ground-space.sh": {'RUN_DIR="$ROOT/gallery/item-186-ground-space"'},
-    "scripts/capture-loudness-118.sh": {
-        "#   gallery/item-118-loudness/<arm>/<World>.png + .json",
-        'RUN_DIR="$ROOT/gallery/item-118-loudness"',
-    },
-    "scripts/loudness-measure.py": {
-        'RUN_DIR = os.path.join(_ROOT, "gallery", "item-118-loudness")',
-    },
-    "scripts/capture-warp-motion.sh": {'RUN_DIR="$ROOT/gallery/item-194-warp-motion"'},
-    "scripts/item174-header-band-identity.sh": {
-        "# Usage: scripts/item174-header-band-identity.sh <binary> <outdir>",
-        'BIN="${1:?usage: item174-header-band-identity.sh <binary> <outdir>}"',
-        'OUT="${2:?usage: item174-header-band-identity.sh <binary> <outdir>}"',
-    },
-    "scripts/item242-chrome-pixel-space-identity.sh": {
-        "# Usage: scripts/item242-chrome-pixel-space-identity.sh <binary> <outdir>",
-        'BIN="${1:?usage: item242-chrome-pixel-space-identity.sh <binary> <outdir>}"',
-        'OUT="${2:?usage: item242-chrome-pixel-space-identity.sh <binary> <outdir>}"',
-    },
-    ".github/workflows/ci.yml": {
-        '    name: "atspi (AT-SPI2 bridge liveness, item 252) — allowed failure, item 257"',
-        '    name: "mac (render::tests) — allowed failure, item 231"',
-    },
-}
+PHASE_THREE_ALLOWANCES = {}
 # Capture schema rows are a live append-only protocol ledger.
 CAPTURE_SCHEMA_ROW = re.compile(r"^\s*///\s*`/\d+`")
 
@@ -982,8 +944,8 @@ def native_gate_audit(script: str, ci: str) -> list[str]:
             "native-gate-audit: the budget must be armed before the canary, so it covers every phase"
         )
 
-    # `mac` no longer calls this script (item 243, 2026-08-03): the job was
-    # split so the ~95% of the suite that passes today gates immediately,
+    # `mac` does not call this script: its jobs are split so the suite that
+    # passes today gates immediately,
     # and native-gate.sh forbids the filter that split requires (its receipt
     # means "unfiltered, both conventions, every target" and nothing else —
     # see the `$# != 0` check above). `linux` remains the one CI job that
@@ -1004,9 +966,9 @@ def native_gate_audit(script: str, ci: str) -> list[str]:
 
 
 def mac_split_audit(ci: str) -> list[str]:
-    """The hosted-mac job stays split the way item 243 (2026-08-03) decided:
-    one job gating on everything minus `render::tests`, one job tolerated
-    red and pinned by name to item 231 in this file — not only on the board.
+    """The hosted-mac job stays split by behavior:
+    one job gates everything minus `render::tests`; one job runs that excluded
+    family with failure explicitly tolerated.
 
     A misconfigured `continue-on-error` is the obvious way to get this
     wrong: silently tolerating everything (job-level, applied to the WRONG
@@ -1044,7 +1006,7 @@ def mac_split_audit(ci: str) -> list[str]:
         if "--skip render::tests" not in gating:
             failures.append(
                 "mac-split-audit: the gating mac job must filter out render::tests, "
-                "or it re-imports the exact hang item 231 is still diagnosing"
+                "or it re-imports the render-family hang this split isolates"
             )
         if "continue-on-error" in gating:
             failures.append(
@@ -1054,12 +1016,11 @@ def mac_split_audit(ci: str) -> list[str]:
 
     tolerated = job_body("mac-render-tests")
     if tolerated is None:
-        failures.append("mac-split-audit: CI lacks the mac-render-tests (tolerated, item 231) job")
+        failures.append("mac-split-audit: CI lacks the tolerated mac-render-tests job")
     else:
-        if "item 231" not in tolerated:
+        if 'name: "mac (render::tests) — tolerated failure"' not in tolerated:
             failures.append(
-                "mac-split-audit: the render::tests job must be pinned by name to item 231 "
-                "in this file, not only on the board"
+                "mac-split-audit: the render::tests job must name its tolerated status"
             )
         if re.search(r"^    continue-on-error:\s*true\s*$", tolerated, re.M) is None:
             failures.append(
@@ -1899,16 +1860,16 @@ printf 'native-gate-receipt commit=%s conventions=mac,linux scope=all-targets un
         if not any(expected in failure for failure in failures):
             raise AssertionError(f"native-gate audit mutation {mutation!r} did not fail by name: {failures}")
 
-    # mac_split_audit (item 243): the gating half must exclude render::tests
-    # and must never tolerate failure; the tolerated half must be pinned by
-    # name to item 231, scoped to render::tests, and set job-level
+    # The gating half must exclude render::tests and must never tolerate
+    # failure; the tolerated half must say so in its name, stay scoped to
+    # render::tests, and set job-level
     # continue-on-error. Prove each by mutation, not just by shape.
     split_ci = '''  mac:
     name: mac (build + test, minus render::tests)
     steps:
       - run: env AWL_CONVENTION_FORCE=mac cargo test -- --skip render::tests
   mac-render-tests:
-    name: "mac (render::tests) — allowed failure, item 231"
+    name: "mac (render::tests) — tolerated failure"
     continue-on-error: true
     steps:
       - run: env AWL_CONVENTION_FORCE=mac cargo test render::tests::
@@ -1924,11 +1885,11 @@ printf 'native-gate-receipt commit=%s conventions=mac,linux scope=all-targets un
                 "    name: mac (build + test, minus render::tests)\n    steps:",
                 "    name: mac (build + test, minus render::tests)\n    continue-on-error: true\n    steps:"),
             "must NOT tolerate failure"),
-        "tolerated job unpinned": (
+        "tolerated job hides its status": (
             split_ci.replace(
-                'name: "mac (render::tests) — allowed failure, item 231"',
-                'name: "mac (render::tests) — allowed failure"'),
-            "pinned by name to item 231"),
+                'name: "mac (render::tests) — tolerated failure"',
+                'name: "mac (render::tests)"'),
+            "must name its tolerated status"),
         "tolerated job missing continue-on-error": (
             split_ci.replace("    continue-on-error: true\n", ""),
             "must set job-level `continue-on-error: true`"),

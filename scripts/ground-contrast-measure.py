@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""loudness-measure.py — territory and contrast arithmetic over the
-idle-loudness Room sweep (`scripts/capture-loudness-118.sh`).
+"""ground-contrast-measure.py — territory and contrast arithmetic over the
+idle ground-contrast Room sweep (`scripts/capture-ground-contrast.sh`).
 
 WHAT THIS IS NOT. Pixel/sidecar arithmetic may prove
 territory and contrast but never claims the taste score." Nothing here emits a
@@ -60,7 +60,7 @@ Per (world, arm) it reports:
                 step draws the eye to the page edge every time it passes.
   ink_cr        WCAG contrast ratio between the page column's modal (ground)
                 color and its ink extreme. Reported because readability is a
-                confound a loudness reading must not silently absorb:
+                confound a ground-contrast reading must not silently absorb:
                 Wagtail is the roster's LOUDEST ink contrast and its QUIETEST
                 world, which is exactly why contrast alone cannot be the score.
   accent        fraction of page-column pixels within ACCENT_TOL of the
@@ -72,8 +72,8 @@ Per (world, arm) it reports:
                 is drenched in accent".
 
 Usage:
-  scripts/loudness-measure.py                     # every arm, tsv to stdout
-  scripts/loudness-measure.py laptop wide         # named arms only
+  scripts/ground-contrast-measure.py                     # every arm, tsv to stdout
+  scripts/ground-contrast-measure.py laptop wide         # named arms only
 """
 
 import importlib.util
@@ -97,7 +97,7 @@ decode_png = _hero.decode_png
 luminance = _hero.luminance
 contrast_ratio = _hero.contrast_ratio
 
-RUN_DIR = os.path.join(_ROOT, "gallery", "item-118-loudness")
+RUN_DIR = os.path.join(_ROOT, "gallery", "ground-contrast")
 ARMS = ["narrow", "laptop", "wide", "code"]
 
 # An 8-bit luminance step of 3 is above the dither/quantization floor these
@@ -311,7 +311,7 @@ def main(argv):
     for arm in arms:
         d = os.path.join(RUN_DIR, arm)
         if not os.path.isdir(d):
-            raise SystemExit(f"missing arm dir {d} — run scripts/capture-loudness-118.sh")
+            raise SystemExit(f"missing arm dir {d} — run scripts/capture-ground-contrast.sh")
         for f in sorted(os.listdir(d)):
             if not f.endswith(".png"):
                 continue

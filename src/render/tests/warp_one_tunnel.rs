@@ -446,11 +446,11 @@ fn raw(
     );
     let (texture, tview) = super::dither::offscreen(device, w, h);
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-        label: Some("awl item268-warp encoder"),
+        label: Some("awl one-tunnel encoder"),
     });
     {
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("awl item268-warp pass"),
+            label: Some("awl one-tunnel pass"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view: &tview,
                 depth_slice: None,

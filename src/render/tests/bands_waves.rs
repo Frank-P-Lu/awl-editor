@@ -89,7 +89,7 @@ pub(super) fn render_bg(
     )
 }
 
-/// [`render_bg`] with the item-186 device ratio (PHYSICAL px per LOGICAL px)
+/// [`render_bg`] with the device ratio (PHYSICAL px per LOGICAL px)
 /// spelled out — `1.0` is the 1:1 screen every pre-186 law renders at, and the
 /// ground-space sweep drives the same seam at `2.0` on a doubled canvas.
 #[allow(clippy::too_many_arguments)]
@@ -141,11 +141,11 @@ pub(super) fn render_bg_ambient(
     bg.prepare(queue, width, height, col_left, col_w, ambient, scale);
     let (texture, tview) = super::dither::offscreen(device, width, height);
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-        label: Some("awl item69-bg-test encoder"),
+        label: Some("awl background test encoder"),
     });
     {
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("awl item69-bg-test pass"),
+            label: Some("awl background test pass"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view: &tview,
                 depth_slice: None,

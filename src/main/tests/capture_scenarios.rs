@@ -250,7 +250,7 @@ fn keys_capture_switch_project_then_goto_lists_the_new_roots_files() {
         crate::convention::Convention::Linux,
     ] {
         let dir = ScratchDir::new(std::env::temp_dir().join(format!(
-            "awl-item189-switch-goto-{convention:?}-{}",
+            "awl-switch-project-goto-{convention:?}-{}",
             std::process::id()
         )));
         std::fs::create_dir_all(dir.join("old-ws/proj-a")).unwrap();

@@ -1,6 +1,6 @@
 # awl docs — Syntax highlighting (Alabaster) & spell scoping in code
 
-> Read before touching `syntax/`, role colors (`role_style_for`), comment classification, or spell-check behavior in code buffers. Moved verbatim out of CLAUDE.md 2026-07-22 (queue item 17); earlier round history: `git log -p CLAUDE.md`.
+> Read before touching `syntax/`, role colors (`role_style_for`), comment classification, or spell-check behavior in code buffers.
 
 ## Syntax highlighting (`syntax/` + `render/spans.rs`) — Alabaster, four roles only
 

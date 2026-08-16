@@ -12,16 +12,17 @@
 # base build. At `dpi 2` the deltas are the point, and the report says which
 # cells changed and why, per cell.
 #
-# COMPARE IN PLACE. Run this against the branch build, `git stash`, rebuild,
-# run it again into a second directory, then `git stash pop`. Comparing two
-# WORKTREES instead reports a spurious sidecar diff, because the gutter renders
-# the project name and a different basename changes pixels.
+# COMPARE A CONSISTENT CHECKOUT. Copy the first build's binary to a stable path,
+# capture it into one directory, then build the comparison revision in the same
+# checkout and capture into another directory. Comparing two worktrees reports
+# a spurious sidecar diff, because the gutter renders the project name and a
+# different basename changes pixels.
 #
-# Usage: scripts/item242-chrome-pixel-space-identity.sh <binary> <outdir>
+# Usage: scripts/capture-overlay-chrome-dpi-matrix.sh <binary> <outdir>
 set -euo pipefail
 
-BIN="${1:?usage: item242-chrome-pixel-space-identity.sh <binary> <outdir>}"
-OUT="${2:?usage: item242-chrome-pixel-space-identity.sh <binary> <outdir>}"
+BIN="${1:?usage: capture-overlay-chrome-dpi-matrix.sh <binary> <outdir>}"
+OUT="${2:?usage: capture-overlay-chrome-dpi-matrix.sh <binary> <outdir>}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 rm -rf "$OUT"

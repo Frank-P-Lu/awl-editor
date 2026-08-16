@@ -160,7 +160,7 @@ jobs:
   # in src/app/frame/accessibility/tests.rs. If accesskit ever stops filtering
   # Role::TextRun, that law goes red and this comment is what explains why.
   atspi:
-    name: "atspi (AT-SPI2 bridge liveness, item 252) — allowed failure, item 257"
+    name: "atspi (AT-SPI2 bridge liveness) — allowed failure"
     runs-on: ubuntu-latest
     # BACKSTOP only: `continue-on-error` tolerates a job that FAILS, not
     # one that is CANCELLED, and exceeding `timeout-minutes` cancels rather
@@ -409,7 +409,7 @@ jobs:
   # actions/runner-images#13882, the same mode the old unsplit job fought at
   # job-minute 53-62), which no in-process watchdog can survive.
   mac-render-tests:
-    name: "mac (render::tests) — allowed failure, item 231"
+    name: "mac (render::tests) — tolerated failure"
     runs-on: macos-latest
     timeout-minutes: 90
     continue-on-error: true
