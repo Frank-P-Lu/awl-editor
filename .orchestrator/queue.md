@@ -147,13 +147,6 @@ byte-identical to today's margin across the world roster; the digit chords in
 both keymap flavors' tables so the generated reference picks them up — with
 the generated rows spot-checked against the dispatch they claim.
 
-## Needs the user's live judgement
-
-1. **macOS Export as PDF panel** — from the native File menu, confirm the save
-   dialog opens at the expected folder/name and Cancel leaves the document
-   untouched. The command palette uses awl's in-app destination navigator and
-   is a different door.
-
 ## Needs specific hardware
 
 1. **AT-SPI journey** — on a real Linux desktop with Orca, exercise document
