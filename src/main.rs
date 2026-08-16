@@ -221,6 +221,9 @@ mod updates;
 mod version_law;
 mod view_policy;
 mod word_selection;
+// The VISIBLE working set: stable open order + each open file's own project
+// root. Distinct from `buffers`'s MRU eviction order; see the module doc.
+mod workingset;
 // THE WARPED-GRID CLOCK — deterministic linear forward travel for
 // `Background::WarpedGrid`. Pure; the shader receives one scalar phase.
 mod warpgrid;
