@@ -8,6 +8,8 @@
 
 ### 451 — proportional Block caret covers the occupied glyph's full height (USER VERDICT ON ITEM 448, 2026-08-17)
 
+🟡 IN PROGRESS — claude, branch claude/item-451-caret-proportional-height
+
 The five live captures settle the taste question left by the Block-caret
 presence pass. Gumtree, Kite and Bombora (the proportional worlds) are still
 slightly too short; Tawny and Wagtail (the monospaced worlds) are right. The
@@ -84,7 +86,10 @@ the natural place for "did my project switch land" to become visible later.
 Whichever way this goes, it is a one-line branch in the gutter identity
 formatter — genuinely cheap to reverse.
 
-### 444 — the working set becomes visible: a margin buffer stack (USER DECISION 2026-08-16; INFRASTRUCTURE LANDED, RENDER NOT STARTED)
+### 444 — the working set becomes visible: a margin buffer stack (USER DECISION 2026-08-16; INFRASTRUCTURE LANDED, RENDER IN PROGRESS)
+
+🟡 IN PROGRESS (residual item 1, the resting-stack render only) — claude,
+branch claude/item-444-working-set-render
 
 **Landed on `main` (`f8558c41`, `f53ffa6c`, `7c442d2b`, `dcb86fbb`, `8adcd961`,
 `05527cc1`):** the `--seed-tree` capture door (a false premise in this item's
