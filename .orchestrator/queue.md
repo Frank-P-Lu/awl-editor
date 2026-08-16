@@ -6,6 +6,45 @@
 
 ## Ready to build
 
+### 448 — the resting caret needs a more confident body (USER-REPORTED VISUAL DEFECT 2026-08-16)
+
+The caret in ordinary body prose reads a touch too small beside the character
+it occupies. In the reported shot it is unmistakably present, but the rounded
+accent body feels tucked inside the lowercase letter rather than standing as
+the clearest point of presence promised by DESIGN §4. This is a modest visual
+size correction, not a request for a different caret style or more animation.
+
+Premise-check the actual rendered form before tuning: reproduce the shot with
+the settled caret over a lowercase ascender and identify whether the active
+form is Block or Morph from the sidecar/config rather than guessing from the
+colour. Measure its top, bottom, width and area against the row's real prose
+ink. The current proportional-cell owner deliberately uses one stable height
+per `(face, row)` so the body does not jump between `a`, `l`, punctuation and
+space; preserve that law. Its real-pixel presence floor currently accepts a
+caret at only half the row's rendered ink height, which is a regression guard,
+not proof that the authored proportion feels substantial enough.
+
+Tune the shared caret geometry owner so the resting cell body is modestly
+larger and still feels like it occupies one character. Do not add a Kite-only,
+font-only or glyph-only exception; do not size each anchor from its own raster
+box; and do not change the I-beam merely to make an exhaustive enum sweep move.
+Preserve baseline alignment, descender clearance, Morph's inhabited-glyph
+treatment, mono-grid stability, CJK cells, heading scaling, zoom/DPI scaling,
+motion settling and the single amber accent. Width, height, padding and corner
+radius must be judged together—a taller narrow lozenge or an over-wide pill is
+not the requested result.
+
+Verify in rendered pixels across the world roster at 1x/2x DPI and representative
+zoom, covering proportional and mono faces, lowercase x-height/ascender/
+descender anchors, punctuation, space/end-of-line, CJK, headings, and Block plus
+Morph. Strengthen the presence oracle with measured before/after proportions
+while retaining the one-height-per-face/row and no-neighbouring-line-overlap
+laws; mutating the tuned body back to its current dimensions must fail the new
+visual-presence assertion. Land the modest shared tuning on main for judgement
+(reverting is one small geometry commit), then show the user about five ordinary
+body-prose crops across light/dark and proportional/mono worlds and ask only
+whether the caret now has enough presence.
+
 ### 447 — Kite's page frame must meet the top of the canvas (USER-REPORTED REGRESSION 2026-08-16)
 
 In page mode, Kite's dark writing-column frame starts at the document text
