@@ -92,6 +92,7 @@ fn catalog_non_empty_and_named() {
         "Keybindings…",
         "Caret style…",
         "Dictionary…",
+        "Keymap…",
         "Toggle spellcheck",
         "Toggle writing nits",
         "Reset page width",
@@ -1390,12 +1391,17 @@ fn visible_hidden_mask_gates_finish_buffer_on_the_live_waiter_fact_alone() {
     );
     // THE WHOLE RUNTIME-GATED SET, by name, under "no live fact is true" — so a
     // row that quietly grows a gate has to be named here rather than absorbed
-    // into a count.
+    // into a count. "Keymap…" is filtered out here (and below): it is ALSO
+    // runtime-gated (`row_hidden`'s `OpenKeymapMenu` arm), but on
+    // `Convention`, a process-frozen fact this test does not force — the
+    // separate assertion right after this one names it explicitly instead of
+    // baking one ambient convention's answer into an exact-list literal.
     let hidden_now: Vec<&str> = corpus
         .iter()
         .zip(&mask_no_waiter)
         .filter(|&(_, &h)| h)
         .map(|(c, _)| c.name)
+        .filter(|&name| name != "Keymap…")
         .collect();
     assert_eq!(
         hidden_now,
@@ -1405,7 +1411,16 @@ fn visible_hidden_mask_gates_finish_buffer_on_the_live_waiter_fact_alone() {
             "Save your version",
             "Use disk version"
         ],
-        "exactly these rows are runtime-gated, and each on its own live fact"
+        "exactly these rows are runtime-gated on a RowGates fact, and each on its own live fact"
+    );
+    let keymap_idx = corpus
+        .iter()
+        .position(|c| c.name == "Keymap…")
+        .expect("Keymap… is a real catalog row");
+    assert_eq!(
+        mask_no_waiter[keymap_idx],
+        crate::convention::Convention::current() != crate::convention::Convention::Linux,
+        "Keymap… is runtime-gated on Convention, not a RowGates fact"
     );
 
     let mask_waiting = visible_hidden_mask(RowGates {
@@ -1423,6 +1438,7 @@ fn visible_hidden_mask_gates_finish_buffer_on_the_live_waiter_fact_alone() {
         .zip(&mask_waiting)
         .filter(|&(_, &h)| h)
         .map(|(c, _)| c.name)
+        .filter(|&name| name != "Keymap…")
         .collect();
     assert_eq!(
         still_hidden,
@@ -1440,6 +1456,7 @@ fn visible_hidden_mask_gates_finish_buffer_on_the_live_waiter_fact_alone() {
         .zip(&mask_conflicted)
         .filter(|&(_, &h)| h)
         .map(|(c, _)| c.name)
+        .filter(|&name| name != "Keymap…")
         .collect();
     assert_eq!(
         hidden_in_conflict,
