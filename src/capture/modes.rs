@@ -262,10 +262,10 @@ pub(super) fn settled_viewstate(
         misspelled,
         false,
     );
-    // THE PERSISTENT AFFORDANCE, folded in beside the two gutter lines it joins.
-    // `false` on every replay by construction (the fold's own doc says why), so
-    // an ordinary capture stays byte-identical.
-    vstate.gutter_changed = opts.gutter_changed;
+    // THE GUTTER'S LIVE-APP-ONLY FACTS — the persistent affordance and the
+    // working set — through their one fold. Both empty on every replay by
+    // construction, so an ordinary capture stays byte-identical.
+    opts.fold_gutter(&mut vstate);
     // THE CALM NOTICE. `None` on every capture that raises none, which is why the
     // gallery stays byte-identical; a capture that DID raise one now photographs
     // it instead of silently agreeing with a capture that did not.

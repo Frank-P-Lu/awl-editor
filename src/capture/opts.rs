@@ -373,9 +373,34 @@ pub struct CaptureOpts {
     /// ordinary capture is byte-identical; the `popover.rs` card-fits law sets it
     /// to render the toolbar without racing a process-global env var.
     pub force_popover: bool,
+    /// THE VISIBLE WORKING SET — one row per file open under the active project
+    /// root, or EMPTY for a single-file margin (and for every capture door that
+    /// has no App to ask, which keeps those byte-identical).
+    ///
+    /// It has to travel on the opts rather than be re-derived here, because the
+    /// working set is owned by the live `App` and this door renders from a
+    /// buffer: `--screenshot-app` drives a real `App` for its STATE and then
+    /// hands the resulting buffer to the same single-frame path `--screenshot`
+    /// uses. Without this slot that path could photograph a three-file working
+    /// set as a one-file margin — the margin surface would be invisible at the
+    /// one door able to reach it, which is exactly the gap `--seed-tree` was
+    /// added to close from the other end.
+    pub working_set: Vec<crate::workingset::StackRow>,
 }
 
 impl CaptureOpts {
+    /// Fold the GUTTER's two live-App-only facts into the capture's view state:
+    /// the persistent `changed elsewhere` affordance and the working set the
+    /// bottom identity widens into.
+    ///
+    /// One door for both because they are one surface and they share one failure
+    /// mode — a fact the live editor has and the capture path silently drops.
+    /// Both default to "nothing", so every replay capture is byte-identical.
+    pub(super) fn fold_gutter(&self, view: &mut crate::render::ViewState) {
+        view.gutter_changed = self.gutter_changed;
+        view.gutter_files.clone_from(&self.working_set);
+    }
+
     /// The `semantic` sidecar field: the live-App semantic tree serialized
     /// verbatim, or JSON `null`. Lives beside the field rather than in the
     /// writer so the one place that knows the field also knows its absence.

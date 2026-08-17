@@ -80,6 +80,17 @@ impl App {
         // tree cannot disagree about whether the panel is up.
         opts.whichkey = self.whichkey_panel_rows();
         opts.semantic = Some(self.semantic_snapshot());
+        // THE VISIBLE WORKING SET, scoped to the root the ACTIVE FILE remembers
+        // — the same one `sync_view` draws the live margin from, so a capture and
+        // the running editor cannot disagree about which files are open. Empty
+        // for a single-file root, which is what keeps a one-file capture
+        // byte-identical to one taken before this surface existed.
+        opts.working_set = self
+            .document
+            .working_set()
+            .active_root()
+            .map(|root| self.document.working_set().stack_rows(root))
+            .unwrap_or_default();
         opts
     }
 }
