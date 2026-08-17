@@ -328,29 +328,50 @@ impl TextPipeline {
     /// so it has no glyph of its own to hug).
     ///
     /// The mono gate preserves its grid; proportional anchors select a stable cell:
-    /// * **LATIN PROPORTIONAL: ONE HEIGHT PER (FACE, ROW).** The caret spans the row's
-    ///   TYPICAL-LETTER box ([`Self::caret_synthetic_ink_box`]) grown by
-    ///   [`CARET_INK_PAD`] top and bottom — for every Latin anchor on the row: a
-    ///   letter, a ligature, a space, end-of-line, an empty row. It reads no
-    ///   per-anchor ink at all, so those anchors cannot disagree; the height
-    ///   moves only with the face, row scale, and zoom/DPI the pad rides.
+    /// * **LATIN PROPORTIONAL: ONE HEIGHT PER (FACE, ROW), AND TWO BOXES.** Every
+    ///   Latin anchor on the row — a letter, a ligature, a space, end-of-line, an
+    ///   empty row — reads no per-anchor ink at all, so anchors on the same
+    ///   face/row cannot disagree; the height moves only with the face, row
+    ///   scale, and zoom/DPI the pad rides. WHICH box backs that height now
+    ///   splits on [`Self::effective_caret_look`]:
     ///
-    ///   ⚠️ TWO SHAPES ARE BOTH WRONG HERE, and this box sits deliberately
-    ///   between them. Sizing to the ANCHORED GLYPH'S own raster ink tracks the
-    ///   letter exactly — and makes the caret's top jump with every letter
-    ///   typed, ~8–9px between an `a` and an `l` on Gumtree/Literata at zoom 1,
-    ///   which reads as distracting in ordinary prose. A fixed FRACTION OF THE
-    ///   ROW (`caret_block_h`, the mono arm below) is stable but hangs that
-    ///   SAME 8–9px of empty accent above an `a`/`m` while clearing an `l` by
-    ///   ~3px, because a row box is not a letter. The typical letter is
-    ///   neither: `facepitch::typical_letter_ratio` is the shipped face's own
-    ///   measured mean of x-height and cap-height, so the one height lands
-    ///   within a pad of the letters actually being typed, on every face,
-    ///   without reading any of them.
+    ///   - **The literal Block caret** ([`CaretMode::Block`], including a Morph
+    ///     preference folded to Block on an ink-caret world — see
+    ///     `folds_morph_to_block`) takes [`Self::caret_cell_vertical_block`]: the
+    ///     row's real ASCENDER-to-DESCENDER ink envelope
+    ///     ([`facepitch::ink_envelope_em`]), item 451's user verdict — a real
+    ///     ascender (`d`, `l`, `b`, `h`, `k`) must never poke its ink above the
+    ///     accent body it sits on.
+    ///   - **Everything else that shares this cell** (Morph's support-body
+    ///     decision, Morph's fast-travel deferral before it settles onto a real
+    ///     glyph, the glyphless space bar) takes [`Self::caret_cell_vertical_typical`]:
+    ///     the row's TYPICAL-LETTER box, `facepitch::typical_letter_ratio`'s
+    ///     measured mean of x-height and cap-height. Morph's own selling point is
+    ///     a SLIM accent that mostly doesn't need a body at all
+    ///     (`caret_body::prepare_morph_body_or_empty`'s floor decision); handing
+    ///     it the Block envelope would make that floor trip on nearly every
+    ///     ordinary x-height letter, drawing a full body behind text Morph is
+    ///     built to leave uncovered. Explicit Morph and the I-beam therefore do
+    ///     NOT inherit the taller envelope merely because their geometry sits
+    ///     next to the Block quad's.
     ///
-    ///   The ascent it scales, and the FONT that ratio is keyed on, both come
-    ///   from [`Self::caret_row_metrics`] in one lookup — a real shaped row's
-    ///   `max_ascent` is a property of `shaped_font` (the face ACTUALLY on
+    ///   ⚠️ TWO SHAPES ARE BOTH WRONG for the TYPICAL box, and it sits
+    ///   deliberately between them (the Block envelope is a separate, THIRD axis
+    ///   — see [`Self::caret_cell_vertical_block`]'s own doc for why `hhea`
+    ///   ascent/descent cannot supply it either). Sizing to the ANCHORED GLYPH'S
+    ///   own raster ink tracks the letter exactly — and makes the caret's top
+    ///   jump with every letter typed, ~8–9px between an `a` and an `l` on
+    ///   Gumtree/Literata at zoom 1, which reads as distracting in ordinary
+    ///   prose. A fixed FRACTION OF THE ROW (`caret_block_h`, the mono arm
+    ///   below) is stable but hangs that SAME 8–9px of empty accent above an
+    ///   `a`/`m` while clearing an `l` by ~3px, because a row box is not a
+    ///   letter. The typical letter is neither: it lands within a pad of the
+    ///   letters actually being typed, on every face, without reading any of
+    ///   them.
+    ///
+    ///   The ascent either box scales, and the FONT that ratio is keyed on, both
+    ///   come from [`Self::caret_row_metrics`] in one lookup — a real shaped
+    ///   row's `max_ascent` is a property of `shaped_font` (the face ACTUALLY on
     ///   screen, which may lag the live theme mid theme-picker preview), an
     ///   empty row's is REBUILT from `doc_family()`'s own per-em ascent, and
     ///   multiplying one font's ascent by ANOTHER font's ratio pops a few px on
@@ -360,12 +381,16 @@ impl TextPipeline {
     ///   preview's instant O(1) colour retint rather than wait on the
     ///   separately-deferred reshape.
     ///
-    ///   DESCENDERS get no extension. A descender-aware bottom is per-glyph, and
-    ///   one on the bottom edge is the same jump the top
-    ///   edge was just relieved of. The mono arm keeps its own
-    ///   ([`CARET_DESCENDER_PAD`]) because its cell is row-derived and clears
-    ///   the whole band anyway.
-    /// * **CJK PROPORTIONAL:** one padded resolved-face em, shared by adjacent kanji.
+    ///   DESCENDERS get no SEPARATE extension in either box — the Block
+    ///   envelope's own bottom already covers a real descender's ink by
+    ///   construction, and the typical box still deliberately omits one (a
+    ///   descender-aware bottom is per-glyph, and one on the bottom edge is the
+    ///   same jump the top edge was just relieved of). The mono arm keeps its
+    ///   own extension ([`CARET_DESCENDER_PAD`]) because its cell is row-derived
+    ///   and clears the whole band anyway.
+    /// * **CJK PROPORTIONAL:** one padded resolved-face em, shared by adjacent
+    ///   kanji — unaffected by the Block/typical split above, on every caret
+    ///   form.
     /// * **LINE CELL (mono only).**
     ///   `caret_block_h` row-scaled, centred on the spring anchor, with the
     ///   DESCENDER-AWARE bottom extension ([`CARET_DESCENDER_PAD`]) folded in
@@ -386,6 +411,15 @@ impl TextPipeline {
             let (baseline, row_ascent, ascent_font) = self.caret_row_metrics();
             if let Some((font_size, em)) = self.caret_anchor_ideographic_cell() {
                 return self.caret_cell_vertical_ideographic(baseline, font_size, em, px);
+            }
+            // The one gate that splits the Block envelope from the shared
+            // typical-letter box (this method's own doc). `caret_space_bar_geometry`
+            // and `prepare_morph_body_or_empty` reach this arm only through a
+            // Morph anchor (structurally — see their own call sites), so this
+            // read of the LIVE look, rather than a parameter, is enough to keep
+            // Morph on the typical box without either caller needing to say so.
+            if self.effective_caret_look() == CaretMode::Block {
+                return self.caret_cell_vertical_block(baseline, row_ascent, ascent_font, px);
             }
             return self.caret_cell_vertical_typical(baseline, row_ascent, ascent_font, px);
         }

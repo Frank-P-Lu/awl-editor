@@ -125,6 +125,13 @@ impl TextPipeline {
     /// AREA, so feeding it a real `m`'s wide ink and a real `i`'s narrow ink
     /// would hand back two different heights at small sizes — the per-glyph
     /// jump this arm exists to remove, re-entering through the floor.
+    ///
+    /// This is the shared-CELL formula — [`Self::caret_cell_vertical`]'s
+    /// non-Block arm (Morph's support-body decision, the glyphless space bar).
+    /// The literal Block caret's own, TALLER envelope is
+    /// [`Self::caret_cell_vertical_block`], a sibling policy rather than a
+    /// parameter here, so Morph and the space bar cannot inherit it merely
+    /// because their geometry sits nearby.
     pub(in crate::render) fn caret_cell_vertical_typical(
         &self,
         baseline: f32,
@@ -133,6 +140,68 @@ impl TextPipeline {
         px: f32,
     ) -> (f32, f32) {
         let box_ = self.caret_synthetic_ink_box(ascent, font);
+        let (_, floor_h) = caret_visual_body_dims(box_, px);
+        let h = floor_h.max(box_.height + 2.0 * CARET_INK_PAD.px(px));
+        (baseline - box_.top + box_.height * 0.5, h)
+    }
+
+    /// THE LITERAL BLOCK CARET'S proportional-face vertical box: the row's
+    /// real ASCENDER-to-DESCENDER ink envelope
+    /// ([`facepitch::ink_envelope_em`]), in the same baseline-relative
+    /// convention [`Self::caret_synthetic_ink_box`] uses. Item 451's user
+    /// verdict on the typical-letter box: a real ascender (`d`, `l`, `b`,
+    /// `h`, `k`) visibly pokes its ink above that box's top, because the
+    /// typical-letter ratio is tuned to the MEAN letter, not the tallest one
+    /// that can occupy the cell. This box is tall enough for the roster's
+    /// worst case instead.
+    ///
+    /// `ratio_font`'s own measured `hhea` ascent fraction
+    /// ([`facepitch::vertical_em_metrics`].0) recovers the row's FONT SIZE
+    /// from `row_max_ascent` (`row_max_ascent == font_size * hhea_ascent_em`,
+    /// the same identity [`Self::caret_synthetic_ink_box`]'s caller already
+    /// relies on) — one factor earlier than reading a font size directly, so
+    /// this needs no second row lookup. The real ink fractions then scale
+    /// that font size, never `row_max_ascent` itself: `hhea` ascent is a
+    /// generous LINE-SPACING metric (on some bundled faces its sum with
+    /// descent alone exceeds the row height), so scaling directly off it
+    /// would reproduce the very overshoot this box exists to avoid.
+    ///
+    /// A FACE-LEVEL fraction of a real per-row font size, not a per-glyph
+    /// raster read — the top and bottom stay fixed for every anchor on the
+    /// same face/row, exactly the stability item 448 established and this
+    /// item's verdict only widens, never removes.
+    pub(super) fn caret_block_ink_box(&self, row_max_ascent: f32, ratio_font: &str) -> InkBox {
+        let (hhea_ascent_em, _) = facepitch::vertical_em_metrics(ratio_font);
+        let (ink_ascent_em, ink_descent_em) = facepitch::ink_envelope_em(ratio_font);
+        let font_size = if hhea_ascent_em > 0.0 {
+            row_max_ascent / hhea_ascent_em
+        } else {
+            0.0
+        };
+        let top = (font_size * ink_ascent_em).max(1.0);
+        let bottom = (font_size * ink_descent_em).max(0.0);
+        InkBox {
+            left: 0.0,
+            top,
+            width: 0.0,
+            height: top + bottom,
+        }
+    }
+
+    /// The literal Block caret's `(center_y, height)` on a proportional
+    /// Latin row — [`Self::caret_cell_vertical_block`]'s ONLY caller besides
+    /// its own law tests wants exactly this pair, padded and floored the
+    /// same way [`Self::caret_cell_vertical_typical`] is, so a reader
+    /// comparing the two sees the one difference that matters: which box
+    /// backs it.
+    pub(in crate::render) fn caret_cell_vertical_block(
+        &self,
+        baseline: f32,
+        ascent: f32,
+        font: &str,
+        px: f32,
+    ) -> (f32, f32) {
+        let box_ = self.caret_block_ink_box(ascent, font);
         let (_, floor_h) = caret_visual_body_dims(box_, px);
         let h = floor_h.max(box_.height + 2.0 * CARET_INK_PAD.px(px));
         (baseline - box_.top + box_.height * 0.5, h)
