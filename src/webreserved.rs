@@ -157,7 +157,12 @@ mod tests {
 
     #[test]
     fn ordinary_chords_are_never_reserved() {
-        for spec in ["Cmd-S", "Cmd-F", "Cmd-B", "C-s", "C-f", ""] {
+        // Cmd-P/Ctrl-P (Command palette's catalog chord) is deliberately in
+        // this list, not the reserved tables above: browser print (Ctrl-P) is
+        // Tier-1 preventable (the module doc's `event.preventDefault()`
+        // case), unlike the Tier-2 chords in `MAC_WEB_RESERVED`/
+        // `LINUX_WEB_RESERVED` a page never even sees.
+        for spec in ["Cmd-S", "Cmd-F", "Cmd-B", "Cmd-P", "C-s", "C-f", "C-p", ""] {
             assert!(!is_reserved(spec, Convention::Mac), "{spec:?} on Mac");
             assert!(!is_reserved(spec, Convention::Linux), "{spec:?} on Linux");
         }
