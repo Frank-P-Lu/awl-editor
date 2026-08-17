@@ -11,6 +11,8 @@ mod native;
 #[cfg(target_os = "macos")]
 pub use native::{InstalledMenu, install};
 #[cfg(test)]
+mod chord_truth;
+#[cfg(test)]
 mod ellipsis_law;
 
 /// Context policy shared by the native updater and the roster laws. This stays
