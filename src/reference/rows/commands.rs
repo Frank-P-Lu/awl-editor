@@ -52,11 +52,12 @@ pub(crate) fn commands() -> Vec<Block> {
     out
 }
 
-/// The two chords the keymap matches DIRECTLY, outside the catalog: the command
-/// palette (never a catalog row, so never rebindable through `[keys]`) and the
-/// held stats HUD (a hold-only panel a discrete palette selection cannot
-/// dismiss). Read from `keytoken::SYNTHETIC` — the same roster the docs' chord
-/// tokens resolve through — so a third one cannot appear undocumented.
+/// The chord the keymap matches DIRECTLY, outside the catalog: the held stats
+/// HUD (a hold-only panel a discrete palette selection cannot dismiss). Read
+/// from `keytoken::SYNTHETIC` — the same roster the docs' chord tokens resolve
+/// through — so a second one cannot appear undocumented. The command palette
+/// used to sit here too; it is a real catalog row now, so it appears in the
+/// ordinary per-category tables above instead.
 fn synthetic_chords() -> Block {
     let mut t = Table::new(&["Chord for", "macOS", "Linux"]);
     for (slug, _, _) in crate::keytoken::SYNTHETIC {
@@ -72,7 +73,7 @@ fn synthetic_chords() -> Block {
     }
     block(
         Some("Chords with no command"),
-        Some("These two are matched by the keymap directly and cannot be rebound."),
+        Some("This one is matched by the keymap directly and cannot be rebound."),
         t,
     )
 }
@@ -81,7 +82,6 @@ fn synthetic_chords() -> Block {
 /// `keytoken::SYNTHETIC` and fails by name for a slug with no entry here.
 pub(crate) fn synthetic_name(slug: &str) -> &'static str {
     match slug {
-        "command_palette" => "Command palette",
         "stats_hud" => "Held stats HUD",
         other => panic!(
             "synthetic chord slug `{other}` has no display name in \

@@ -54,12 +54,13 @@ pub struct PeekRow {
 
 /// The curated STARTER SIX — the shortcuts a fresh install shows before the ledger has
 /// learned anything, so the card is NEVER empty. The four IDENTITY-ROUND doors
-/// (⌘O go-to-file, ⌘⇧P switch-project, ⌘P command-palette — this last one is NOT a
-/// catalog command, hence the hand-spelled spec below rather than a catalog lookup —
-/// ⌘F find) plus ⌘S save and ⌘T switch-theme: the six a new user most wants in their
-/// fingers. Kept as (mac-flavored chord-spec, name) pairs; NONE of the six needs
-/// `commands::LINUX_NATIVE_OVERRIDE`'s exceptions (that table only covers line/doc
-/// start-end and word motion), so the naive Cmd→Ctrl translation
+/// (⌘O go-to-file, ⌘⇧P switch-project, ⌘P command-palette, ⌘F find) plus ⌘S save and
+/// ⌘T switch-theme: the six a new user most wants in their fingers. Kept as
+/// (mac-flavored chord-spec, name) pairs rather than a catalog lookup — a guaranteed
+/// fallback independent of any one command's catalog status (switch-project has none
+/// at all) — so this table never goes empty as the catalog changes underneath it.
+/// NONE of the six needs `commands::LINUX_NATIVE_OVERRIDE`'s exceptions (that table
+/// only covers line/doc start-end and word motion), so the naive Cmd→Ctrl translation
 /// (`keyspec::translate_native_for_linux`) is correct here without consulting it.
 const STARTER: &[(&str, &str)] = &[
     ("Cmd-O", "Go to"),

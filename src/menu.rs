@@ -80,6 +80,7 @@ const APP_ITEMS: &[Routed] = &[
 
 const FILE_ITEMS: &[Routed] = &[
     ri("awl.new_document", "New document"),
+    r("awl.command_palette", "Command palette…"),
     r("awl.goto", "Go to…"),
     ri("awl.open", "Open file…"),
     Routed {
@@ -392,21 +393,22 @@ fn roster_all() -> Vec<RosterMenu> {
             title: "File",
             items: vec![
                 routed(&FILE_ITEMS[0]), // New document
-                routed(&FILE_ITEMS[1]), // Go to…
-                routed(&FILE_ITEMS[2]), // Open file…
-                routed(&FILE_ITEMS[3]), // Open folder…
+                routed(&FILE_ITEMS[1]), // Command palette
+                routed(&FILE_ITEMS[2]), // Go to…
+                routed(&FILE_ITEMS[3]), // Open file…
+                routed(&FILE_ITEMS[4]), // Open folder…
                 RosterItem::Separator,
-                routed(&FILE_ITEMS[4]), // Rename file…
-                routed(&FILE_ITEMS[5]), // Move file…
-                routed(&FILE_ITEMS[6]), // Duplicate file
-                routed(&FILE_ITEMS[7]), // Version history…
+                routed(&FILE_ITEMS[5]), // Rename file…
+                routed(&FILE_ITEMS[6]), // Move file…
+                routed(&FILE_ITEMS[7]), // Duplicate file
+                routed(&FILE_ITEMS[8]), // Version history…
                 RosterItem::Separator,
-                routed(&FILE_ITEMS[8]), // Save
-                routed(&FILE_ITEMS[9]), // Save and return
+                routed(&FILE_ITEMS[9]), // Save
+                routed(&FILE_ITEMS[10]), // Save and return
                 RosterItem::Separator,
-                routed(&FILE_ITEMS[10]), // Export as PDF
-                routed(&FILE_ITEMS[11]), // Export as Word
-                routed(&FILE_ITEMS[12]), // Export as HTML
+                routed(&FILE_ITEMS[11]), // Export as PDF
+                routed(&FILE_ITEMS[12]), // Export as Word
+                routed(&FILE_ITEMS[13]), // Export as HTML
             ],
         },
         RosterMenu {
@@ -851,6 +853,7 @@ mod tests {
             labels(&file.items),
             vec![
                 "New document",
+                "Command palette…",
                 "Go to…",
                 "Open file…",
                 "Open folder…",
@@ -1022,6 +1025,7 @@ mod tests {
             labels(&file.items),
             vec![
                 "New document",
+                "Command palette…",
                 "Go to…",
                 "Open file…",
                 "Open folder…",

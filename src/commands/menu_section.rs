@@ -1,5 +1,6 @@
 pub(super) const FILE_COMMANDS: &[&str] = &[
     "New document",
+    "Command palette…",
     "Go to…",
     "Open file…",
     "Open folder…",

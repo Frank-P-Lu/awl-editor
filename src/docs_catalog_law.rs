@@ -208,8 +208,8 @@ fn harvest_glyph_chords(text: &str) -> Vec<String> {
 /// produce today: every glyph token inside a canonical row's `mac` column
 /// (via [`harvest_glyph_chords`] — this naturally skips a row's terse emacs
 /// half, like the `C-s` in `"⌘F · C-s"`, since it carries no mac glyph) plus
-/// the two [`crate::keytoken::synthetic_mac_glyphs`] (command palette, stats
-/// HUD) that have no catalog row to hang a column value on.
+/// the [`crate::keytoken::synthetic_mac_glyphs`] (the held stats HUD) that
+/// has no catalog row to hang a column value on.
 fn valid_mac_chord_tokens() -> HashSet<String> {
     let mut set: HashSet<String> = canonical_rows()
         .iter()

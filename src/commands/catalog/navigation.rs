@@ -9,7 +9,7 @@ pub(super) static COMMANDS: &[Command] = &[
     // default Meta binding ships here (a future Linux Meta-layer binding seeds
     // through that separate machinery, never this slot).
     Command {
-        name: "Command palette",
+        name: "Command palette…",
         action: Action::OpenCommandPalette,
         native: "",
         emacs: "",

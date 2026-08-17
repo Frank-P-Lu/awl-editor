@@ -188,6 +188,7 @@ drift into this page silently.
 <!-- GENERATED:keys-reference:BEGIN -->
 | Command | macOS | Linux |
 |---|---|---|
+| Command palette… | ⌘P | Ctrl+P |
 | Go to… | ⌘O | Ctrl+O |
 | Open file… |  |  |
 | Open folder… |  |  |
@@ -281,6 +282,7 @@ drift into this page silently.
 | Delete word backward |  |  |
 | Settings… | ⌘, | Ctrl+, |
 | Keybindings… |  |  |
+
 <!-- GENERATED:keys-reference:END -->
 
 PDF export is available in the native app only; the browser continues to

@@ -67,6 +67,7 @@ Commands are grouped by the same task categories the palette browses.
 
 | Command | What it does | macOS | Linux | Builds |
 |---|---|---|---|---|
+| Command palette… | Summon the command palette, searchable across every catalog command. | `⌘P` | `Ctrl+P` | Native, browser |
 | Go to… | Find files, headings, folders, and recent destinations. | `⌘O` | `Ctrl+O` | Native, browser |
 | Last file | Switch to the previously open file; a no-op with nothing to switch back to. | `⌃Tab` | `Ctrl+Tab` | Native, browser |
 | Follow link | Open the caret's markdown link URL in the default browser, if there is one. | `C-c C-o` | — | Native, browser |
@@ -163,11 +164,10 @@ Commands are grouped by the same task categories the palette browses.
 
 ### Chords with no command
 
-These two are matched by the keymap directly and cannot be rebound.
+This one is matched by the keymap directly and cannot be rebound.
 
 | Chord for | macOS | Linux |
 |---|---|---|
-| Command palette | `⌘P` | `Ctrl+P` |
 | Held stats HUD | `⌘⌥I` | `Ctrl+Alt+I` |
 <!-- GENERATED:reference-commands:END -->
 

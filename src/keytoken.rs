@@ -15,11 +15,14 @@
 //! can never show a chord that doesn't actually fire.
 //!
 //! `slug` is a catalog command's own config slug (`commands::slug`) for the vast
-//! majority of `{{key:slug}}` tokens; [`SYNTHETIC`] covers the two chords that
-//! are real, fixed, non-rebindable presses with NO catalog row at all (the
-//! command palette's own dedicated Cmd-P, the held stats HUD's Option-Cmd-I) —
-//! both are the most-taught chords in the onboarding docs, so they still need a
-//! token even though `commands::COMMANDS` has no entry to hang it on.
+//! majority of `{{key:slug}}` tokens; [`SYNTHETIC`] covers the one chord that is
+//! a real, fixed, non-rebindable press with NO catalog row at all (the held
+//! stats HUD's Option-Cmd-I) — the most-taught chord of its kind in the
+//! onboarding docs, so it still needs a token even though `commands::COMMANDS`
+//! has no entry to hang it on. The command palette's own Cmd-P used to sit here
+//! too; it is a real catalog row now (`commands::COMMANDS`'s "Command palette…"),
+//! so `{{key:command_palette}}` resolves through the catalog branch below like
+//! any other command's chord.
 //!
 //! **`{{cmd:slug}}`** is the sibling convention for a CITED COMMAND NAME — text
 //! like `"Widen page"` or `"Keep version…"` that names a palette command by
@@ -75,11 +78,8 @@ const COUNTS: &[(&str, RosterSize)] = &[
 
 /// Non-catalog synthetic slugs: `(slug, mac spec, linux spec)`, each spec in
 /// the same terse form [`crate::keyspec::parse_chord`] accepts. See the module
-/// doc for why these two exist outside the catalog.
+/// doc for why this one exists outside the catalog.
 pub(crate) const SYNTHETIC: &[(&str, &str, &str)] = &[
-    // The command palette: its own dedicated Cmd-P/Ctrl-P, matched directly in
-    // `keymap.rs::resolve` (never a catalog row, never rebindable via `[keys]`).
-    ("command_palette", "Cmd-P", "C-p"),
     // The held stats HUD: Option-Cmd-I / Ctrl-Alt-I, matched directly in
     // `keymap.rs::resolve_named`'s `native && alt` arm (deliberately NOT a
     // catalog row — see `commands.rs`'s "Held stats HUD" doc: a discrete
@@ -91,7 +91,7 @@ pub(crate) const SYNTHETIC: &[(&str, &str, &str)] = &[
 /// catalog, through [`commands::resolved_native_label_truthful`] (the ONE
 /// owner every other chord surface reads — a token can therefore never show a
 /// chord that doesn't actually fire, web-reserved/Linux-displaced/web-alternate
-/// included), then [`SYNTHETIC`] for the two dedicated chords with no catalog
+/// included), then [`SYNTHETIC`] for the one dedicated chord with no catalog
 /// row. `None` for an unknown slug.
 pub fn key_token_label(
     slug_want: &str,
@@ -133,11 +133,11 @@ pub fn key_token_spec(
         })
 }
 
-/// Every [`SYNTHETIC`] chord's Mac-glyph LABEL (`"⌘P"`, `"⌘⌥I"`) — the
-/// non-catalog half of "every valid Mac chord label", for a consumer (the
-/// docs-vs-catalog law's HTML-surface check, `docs_catalog_law.rs`) that
-/// needs the WHOLE valid set without duplicating [`SYNTHETIC`]'s two
-/// hardcoded specs. Test-only: its one consumer is itself `cfg(test)`.
+/// Every [`SYNTHETIC`] chord's Mac-glyph LABEL (`"⌘⌥I"`) — the non-catalog
+/// half of "every valid Mac chord label", for a consumer (the docs-vs-catalog
+/// law's HTML-surface check, `docs_catalog_law.rs`) that needs the WHOLE valid
+/// set without duplicating [`SYNTHETIC`]'s own hardcoded spec. Test-only: its
+/// one consumer is itself `cfg(test)`.
 #[cfg(test)]
 pub(crate) fn synthetic_mac_glyphs() -> Vec<String> {
     SYNTHETIC
