@@ -194,6 +194,23 @@ impl TextPipeline {
     /// same way [`Self::caret_cell_vertical_typical`] is, so a reader
     /// comparing the two sees the one difference that matters: which box
     /// backs it.
+    ///
+    /// ⚠️ NEVER TOUCHES THE ADJACENT ROW — measured, not assumed: on the
+    /// roster's TIGHTEST bundled face (Bitter — Mopoke/Magpie), the ink
+    /// envelope plus both full [`CARET_INK_PAD`]s already overshoots the
+    /// row's own line height by a fraction of a px (the app renders every
+    /// face at one FIXED line height, `render::LINE_HEIGHT`, independent of
+    /// that face's own metrics — see [`super::super::facepitch`]'s module
+    /// doc on why `hhea` ascent/descent cannot supply this box either). The
+    /// PAD is the sacrificial quantity, shrunk symmetrically toward zero
+    /// until the padded box fits the row, never the ink coverage
+    /// (`box_.height`) itself — giving up ink coverage under pressure is
+    /// exactly the bug this box exists to fix, so the floor below refuses to
+    /// go under it even if that means the tightest face's caret still sits a
+    /// hair from the row edge. The CENTRE is unaffected by how much pad
+    /// survives: it depends only on `box_.top`/`box_.height`, so shrinking
+    /// the pad narrows the box symmetrically around the same ink midpoint
+    /// rather than sliding it.
     pub(in crate::render) fn caret_cell_vertical_block(
         &self,
         baseline: f32,
@@ -203,7 +220,11 @@ impl TextPipeline {
     ) -> (f32, f32) {
         let box_ = self.caret_block_ink_box(ascent, font);
         let (_, floor_h) = caret_visual_body_dims(box_, px);
-        let h = floor_h.max(box_.height + 2.0 * CARET_INK_PAD.px(px));
+        let ideal_h = floor_h.max(box_.height + 2.0 * CARET_INK_PAD.px(px));
+        let row_h = self.cursor_row_height();
+        let clearance = Logical(1.0).px(px);
+        let max_h = (row_h - clearance).max(box_.height);
+        let h = ideal_h.min(max_h);
         (baseline - box_.top + box_.height * 0.5, h)
     }
 
