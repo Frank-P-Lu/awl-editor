@@ -361,6 +361,7 @@ fn hover_movement_slop_gate_holds_across_every_overlay_kind_no_wildcard() {
             | OverlayKind::Dictionary
             | OverlayKind::CjkLang
             | OverlayKind::Date
+            | OverlayKind::Keymap
             | OverlayKind::MoveDest
             | OverlayKind::ExportDest
             | OverlayKind::Command

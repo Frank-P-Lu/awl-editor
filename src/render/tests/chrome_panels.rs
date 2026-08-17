@@ -2188,6 +2188,7 @@ fn footer_contract(kind: crate::overlay::OverlayKind) -> FooterContract {
         | K::Dictionary
         | K::CjkLang
         | K::Date
+        | K::Keymap
         | K::Command
         | K::Keybindings
         | K::History
@@ -2502,6 +2503,7 @@ fn card_pad_for(kind: crate::overlay::OverlayKind) -> f32 {
         | K::Dictionary
         | K::CjkLang
         | K::Date
+        | K::Keymap
         | K::Command
         | K::Keybindings
         | K::History

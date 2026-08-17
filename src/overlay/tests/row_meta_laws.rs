@@ -50,6 +50,7 @@ fn representative_overlay(kind: OverlayKind) -> OverlayState {
         OverlayKind::Date => {
             OverlayState::new_date(crate::dateformat::DateFormat::ALL[0], (2024, 1, 1))
         }
+        OverlayKind::Keymap => OverlayState::new_keymap(crate::keymap::KeymapFlavor::ALL[0]),
         OverlayKind::MoveDest | OverlayKind::ExportDest | OverlayKind::ProjectBrowse => {
             OverlayState::new_marked(
                 kind,

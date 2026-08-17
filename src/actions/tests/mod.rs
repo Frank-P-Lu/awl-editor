@@ -585,6 +585,7 @@ macro_rules! classify_delete_flinch {
             | Action::ToggleCaretMode
             | Action::OpenCaretMenu
             | Action::OpenDictionaryMenu
+            | Action::OpenKeymapMenu
             | Action::ToggleSpellcheck
             | Action::TogglePageMode
             | Action::PageWider
@@ -804,6 +805,7 @@ macro_rules! assert_action_roster {
             | Action::ToggleCaretMode
             | Action::OpenCaretMenu
             | Action::OpenDictionaryMenu
+            | Action::OpenKeymapMenu
             | Action::ToggleSpellcheck
             | Action::TogglePageMode
             | Action::PageWider
@@ -1054,6 +1056,7 @@ macro_rules! classify_smoke_command {
         | Action::OpenThemeMenu
         | Action::OpenCaretMenu
         | Action::OpenDictionaryMenu
+        | Action::OpenKeymapMenu
         | Action::OpenSettingsMenu
         | Action::OpenKeybindings
         | Action::OpenAssetClean

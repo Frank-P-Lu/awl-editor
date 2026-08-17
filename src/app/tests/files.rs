@@ -67,19 +67,23 @@ fn rescan_file_index_picks_up_a_file_created_after_the_last_scan() {
     assert!(ov.accepts().contains(&"b.txt"), "the new file is listed");
 }
 
-// ── THE KEYMAP FLAVOR ROUND — the Settings "Keymap" toggle round-trip ────
+// ── THE KEYMAP FLAVOR ROUND — the "Keymap…" picker's accept round-trip ────
 
-/// Enter on the "Keymap" settings row (`App::toggle_keymap_flavor`, the
-/// special-cased door `App::setting_toggle` routes "keymap" through):
-/// flips native <-> emacs, PERSISTS the flip format-preservingly (the same
-/// `persist_pref` owner every other sticky pref rides), and re-applies the
+/// Accepting a row of the "Keymap…" sub-picker (`App::apply_keymap_flavor`,
+/// reached from `Effect::OverlayAccept(OverlayKind::Keymap, _)` —
+/// `apply_overlay_accept`'s `Keymap` arm): sets `Config::keymap_flavor` to
+/// the CHOSEN flavor (not a toggle — this picker has no audition, so accept
+/// is the whole apply), PERSISTS it format-preservingly (the same
+/// `persist_pref` owner every other sticky pref rides), re-applies the
 /// keymap LIVE from the updated in-memory config — proven here by feeding
-/// the SAME `app.config.effective_linux_keep()` a fresh `KeymapState`
-/// would consume (the exact composition `toggle_keymap_flavor` rebuilds
-/// `self.input.keyboard.keymap` from) into a `Convention::Linux`-pinned keymap and
-/// confirming it now carries the full emacs preset.
+/// the SAME `app.config.effective_linux_keep()` a fresh `KeymapState` would
+/// consume (the exact composition `apply_keymap_flavor` rebuilds
+/// `self.input.keyboard.keymap` from) into a `Convention::Linux`-pinned
+/// keymap and confirming it now carries the full emacs preset — and NAMES
+/// the resulting layout with a toast, never a silent change (the item this
+/// picker replaced was exactly a silent Toggle; the notice is the fix).
 #[test]
-fn settings_keymap_toggle_flips_persists_and_live_reapplies() {
+fn keymap_picker_accept_applies_persists_notifies_and_live_reapplies() {
     use crate::fs::{FileSystem, InMemoryFs};
     let mem = InMemoryFs::new();
     let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
@@ -94,12 +98,12 @@ fn settings_keymap_toggle_flips_persists_and_live_reapplies() {
         "starts native"
     );
 
-    // Enter #1: native -> emacs.
-    app.toggle_keymap_flavor();
+    // Row 1: native -> emacs.
+    app.apply_keymap_flavor(crate::keymap::KeymapFlavor::Emacs);
     assert_eq!(
         app.config.keymap_flavor(),
         crate::keymap::KeymapFlavor::Emacs,
-        "in-memory mirror flips"
+        "in-memory mirror is set"
     );
     let written = mem
         .read_to_string(std::path::Path::new("/cfg/config.toml"))
@@ -108,8 +112,13 @@ fn settings_keymap_toggle_flips_persists_and_live_reapplies() {
         written.contains("keymap = \"emacs\""),
         "persisted format-preservingly: {written:?}"
     );
+    assert_eq!(
+        app.frame.notice().text(),
+        Some("keymap: Emacs"),
+        "the accept names the RESULTING flavor, never a silent change"
+    );
 
-    // LIVE RE-APPLY: the same composed keep-list the toggle rebuilt
+    // LIVE RE-APPLY: the same composed keep-list the apply rebuilt
     // `self.input.keyboard.keymap` from now carries the WHOLE emacs preset — build a
     // fresh convention-pinned keymap from exactly that composition (the
     // private `KeymapState.linux_keep` field can't be introspected from
@@ -140,19 +149,24 @@ fn settings_keymap_toggle_flips_persists_and_live_reapplies() {
         );
     }
 
-    // Enter #2: emacs -> native (round-trips cleanly, doesn't accumulate).
-    app.toggle_keymap_flavor();
+    // Row 2: emacs -> native (round-trips cleanly, doesn't accumulate).
+    app.apply_keymap_flavor(crate::keymap::KeymapFlavor::Native);
     assert_eq!(
         app.config.keymap_flavor(),
         crate::keymap::KeymapFlavor::Native,
-        "flips back"
+        "set back"
     );
     let written2 = mem
         .read_to_string(std::path::Path::new("/cfg/config.toml"))
         .unwrap();
     assert!(
         written2.contains("keymap = \"native\""),
-        "the second toggle persists too: {written2:?}"
+        "the second apply persists too: {written2:?}"
+    );
+    assert_eq!(
+        app.frame.notice().text(),
+        Some("keymap: Standard"),
+        "the second accept renames the notice to the NEW resulting flavor"
     );
     // Native flavor: no preset widening, but the built-in floor is still
     // there (it's unconditional, not flavor-gated) — never truly empty.

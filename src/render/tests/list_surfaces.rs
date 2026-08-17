@@ -1264,6 +1264,7 @@ fn poster_bars_centered_lists_preserve_page_and_distinguish_plates() {
                 | OverlayKind::Dictionary
                 | OverlayKind::CjkLang
                 | OverlayKind::Date
+                | OverlayKind::Keymap
                 | OverlayKind::MoveDest
                 | OverlayKind::ExportDest
                 | OverlayKind::Keybindings
@@ -1519,6 +1520,7 @@ fn bars_float_bounded_plates_for_every_overlay_kind() {
             | OverlayKind::Dictionary
             | OverlayKind::CjkLang
             | OverlayKind::Date
+            | OverlayKind::Keymap
             | OverlayKind::MoveDest
             | OverlayKind::ExportDest
             | OverlayKind::Keybindings

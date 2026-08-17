@@ -362,6 +362,18 @@ mod tests {
                 let w = widest(&descs);
                 (names, Some(w))
             }
+            OverlayKind::Keymap => {
+                let names: Vec<String> = crate::keymap::KeymapFlavor::ALL
+                    .iter()
+                    .map(|f| f.label().to_string())
+                    .collect();
+                let descs: Vec<String> = crate::keymap::KeymapFlavor::ALL
+                    .iter()
+                    .map(|f| f.description().to_string())
+                    .collect();
+                let w = widest(&descs);
+                (names, Some(w))
+            }
             OverlayKind::Command | OverlayKind::Keybindings => {
                 let names = crate::commands::names();
                 let binds = crate::commands::effective_bindings(&[], &[]);
