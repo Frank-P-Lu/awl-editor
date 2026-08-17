@@ -6,46 +6,55 @@
 
 ## Ready to build
 
-### 450 — 🔵 BLOCKED — what does "Switch project" show while a foreign-root document stays open? (USER DECISION NEEDED, found during item 444)
+### 450 — the bottom identity names the ACTIVE FILE's own folder (USER DECISION 2026-08-17; ready to build)
 
 Item 444's lane closed the cross-root ownership bug where OPENING or
 ACTIVATING a buffer from another root left `load_path` and the buffer
 registry disagreeing about which project was active (`7c442d2b`, landed on
-`main` — fixed, mutation-proven). A second, narrower case remains and is a
-genuine product
-call, not a bug: invoking **Switch project** alone (Go to's project picker,
-`s-o <project> Enter`), with NO document opened or activated afterward,
-changes `project.root` while `buffers.active` stays the document that was
-open before the switch — which may not live under the new root at all.
-Reproduced on the real binary: after `s-o archive Enter` with nothing else,
-the gutter's bottom identity prints `{ name: "index.md", project: "archive"
-}` for a file that actually lives under `notes/`, and Go to/New/Move/export
-now default into `archive` while the visibly open document sits elsewhere.
+`main` — fixed, mutation-proven). A second, narrower case remains, and it was
+a product call rather than a bug: invoking **Switch project** alone (Go to's
+project picker, `s-o <project> Enter`), with NO document opened or activated
+afterward, changes `project.root` while `buffers.active` stays the document
+that was open before the switch — which may not live under the new root at
+all. Reproduced on the real binary: after `s-o archive Enter` with nothing
+else, the gutter's bottom identity prints `{ name: "index.md", project:
+"archive" }` for a file that actually lives under `notes/`, and Go to / New /
+Move / export now default into `archive` while the visibly open document sits
+elsewhere.
 
-Two ways to resolve it, both cheap:
+**Decided: the bottom identity always names the active file's own folder,
+never the nominally "active project."** It is DESIGN §5's "position in the
+filesystem," so it describes where the open document actually is and never
+shows false information. The data is already there — the file's own remembered
+root, restored correctly by `7c442d2b`.
 
-1. **The bottom identity always names the ACTIVE FILE's own folder**,
-   never the nominally "active project" — matching DESIGN §5's own framing
-   of that identity as "position in the filesystem." Never lies about
-   where the open document is. Cost: Switch-project gives no immediate
-   visible confirmation that anything happened while a foreign document
-   stays open; the confirmation would have to come from elsewhere (a
-   toast, or the working-set stack's own cross-project grouping once
-   item 444's expanded view exists).
-2. **Switch-project also changes what's active** — e.g. opens the new
-   project's most recent or first document, or lands on the zero-document
-   start state. Always keeps document and project in visible agreement.
-   Cost: a context switch the user didn't ask for closes/backgrounds
-   whatever they were reading, which may surprise someone who only meant
-   to change where Go to/New will land next.
+The DISPATCH root deliberately does NOT follow the label. Switch project keeps
+doing exactly what it says: Go to, New, Move and export continue to default
+into the newly chosen root. Only the identity string stops claiming the open
+document lives there. Both halves are the decision; a later change that
+re-syncs them by reverting the root switch is a different product, not a fix.
 
-**Recommendation: option 1.** It never shows false information, it's the
-smaller change (the identity string already has everything it needs — the
-file's own remembered root, restored correctly by `7c442d2b`), and it
-composes cleanly with item 444's own cross-project grouped view, which is
-the natural place for "did my project switch land" to become visible later.
-Whichever way this goes, it is a one-line branch in the gutter identity
-formatter — genuinely cheap to reverse.
+Accepted cost, recorded so it is not re-discovered as a defect: Switch project
+gives no immediate visible confirmation while a foreign-root document stays
+open. Do NOT add a toast here to compensate. The confirmation's home is item
+444's expanded cross-project grouped view, where "which folder is active" is
+already the thing being drawn; until that exists, the surface is quietly
+silent on purpose.
+
+Scope: the identity formatter's folder label only. This item does not touch
+the registry, `load_path`, the project picker, or any destination default.
+
+Verify: `s-o` is App-owned, so every claim here drives `--screenshot-app`
+against seeded roots (never ambient ones — the margin photographs filenames).
+A law seeds roots A and B, opens a file under A, invokes Switch project to B
+with nothing else, and asserts BOTH halves in one frame: the gutter identity
+still names A, AND a destination default (New document's target) still resolves
+under B. Non-vacuity is provable by construction — before the change the
+identity printed B — so break it and watch it go red. Companion presence floor:
+the ordinary same-root case must still NAME its folder, so a formatter that
+prints no folder at all fails rather than passes; assert the label's content,
+not merely that it differs from B. Sweep the world roster at both DPI, since
+the label is a rendered margin string.
 
 ### 444 — the working set becomes visible: a margin buffer stack (USER DECISION 2026-08-16; RESTING STACK RENDERS, INTERACTION NOT STARTED)
 
