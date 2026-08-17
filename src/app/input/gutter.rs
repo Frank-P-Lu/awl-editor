@@ -1,0 +1,78 @@
+//! src/app/input/gutter.rs — CLICK-TO-SWITCH on the margin's working set.
+//!
+//! The bottom-left identity widens into a stack of the project's open files;
+//! this is the pointer half of that surface. It sits beside [`super::mouse`]
+//! rather than inside it because the question is a routing one — which OPEN
+//! FILE a row names — and answering it needs the working set rather than
+//! anything about the document under the pointer.
+//!
+//! Split exactly the way [`super::mouse`]'s outline route is: the pixel half is
+//! live-only (a hit-test needs a real renderer, and no capture door drives a
+//! pointer — `docs/harness-reach.md`), so the ROW→FILE half is a separate,
+//! GPU-free method that a unit law can drive.
+
+use crate::app::*;
+
+impl App {
+    /// THE FILE A DRAWN STACK ROW NAMES, or `None` when the row names no file
+    /// on disk.
+    ///
+    /// `row` indexes the drawn stack, so it is resolved through the SAME
+    /// `group(root)` filter [`crate::workingset::WorkingSet::stack_rows`] built
+    /// those rows from — and through the same root: the ACTIVE FILE's
+    /// remembered root, which is what the renderer asked for. Resolving against
+    /// `project_location.root` instead would agree almost always and name a
+    /// different file exactly when a cross-root buffer is active, which is the
+    /// case the remembered root exists for.
+    ///
+    /// `None` for the path-less SCRATCH row. It holds a slot (it is open) but
+    /// has no path, and the one file-open door takes a path — see
+    /// [`Self::gutter_stack_click`].
+    pub(in crate::app) fn gutter_stack_row_path(&self, row: usize) -> Option<PathBuf> {
+        let working = self.document.working_set();
+        let root = working.active_root()?;
+        let at = *working.group(root).get(row)?;
+        working.files().get(at)?.path.clone()
+    }
+
+    /// CLICK-TO-SWITCH on a working-set row: hit-test the pointer against the
+    /// stack's OWN row geometry (`TextPipeline::gutter_stack_hit`, which folds
+    /// in the whole shown/hidden gate — no page mode, no name, an open overlay,
+    /// a margin under the floor and a single-file margin all return `None`) and,
+    /// on a hit, open that row's file.
+    ///
+    /// Through [`App::load_path`] — THE file-open door every picker selection,
+    /// the Last-file toggle and the daemon handoff already share — so a row
+    /// switch is the same transition as opening the file any other way, down to
+    /// the arriving document restoring its own project root. Inventing a second
+    /// switching path here would be a second answer to "what does opening a
+    /// file mean".
+    ///
+    /// Returns whether the press landed on a row, so the caller skips the
+    /// document press. A row with no file to open still returns `true`: the
+    /// press was consumed by the margin, and falling through would place the
+    /// caret from a click the reader aimed at chrome.
+    ///
+    /// The CLOSE zone is not wired here, and the whole row therefore switches.
+    /// Closing a named buffer needs a removal owner that can save and
+    /// conflict-gate a buffer that is not the active one; until that exists,
+    /// routing the right edge anywhere would either lose a dirty document or
+    /// leave a dead patch in the middle of a live control.
+    pub(in crate::app) fn gutter_stack_click(&mut self) -> bool {
+        let (px, py) = self.input.pointer.cursor_px;
+        let hit = self
+            .frame
+            .gpu()
+            .and_then(|g| g.pipeline.gutter_stack_hit(px, py, g.config.height));
+        let Some(hit) = hit else {
+            return false;
+        };
+        if let Some(path) = self.gutter_stack_row_path(hit.row) {
+            self.load_path(path);
+        }
+        true
+    }
+}
+
+#[cfg(test)]
+mod tests;

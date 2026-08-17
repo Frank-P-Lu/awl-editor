@@ -881,8 +881,11 @@ impl App {
                     // false and continues to the page-resize / doc-click path.
                 } else if self.begin_image_resize_if_hovering() {
                 } else if !self.begin_page_resize_if_hovering(exit) {
-                    // Outline activation and document presses are separate gestures.
-                    if !self.outline_click() {
+                    // Margin activation and document presses are separate
+                    // gestures: an outline row jumps, a working-set row switches
+                    // files. Both live in the left margin and neither can be
+                    // hit at the same y, so the order between them is arbitrary.
+                    if !self.outline_click() && !self.gutter_stack_click() {
                         let shift = self
                             .input
                             .keyboard

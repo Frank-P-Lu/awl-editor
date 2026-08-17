@@ -12,6 +12,7 @@
 
 mod context_menu;
 mod drags;
+mod gutter;
 mod ime;
 mod keys;
 mod mouse;

@@ -33,6 +33,54 @@ pub(super) const PLATE_HEIGHT_ROWS: Rows = Rows(0.86);
 /// object in the margin as it does in a picker.
 pub(super) const PLATE_CORNER_PX: Physical = Physical(2.5);
 
+/// THE CLOSE ZONE'S WIDTH, in LABEL rows — a square target at the row's right
+/// edge, so the thing the pointer aims at is the size of the line it belongs to
+/// rather than a width invented for it.
+///
+/// The RIGHT edge is where it has to be. Every row's ink is right-aligned
+/// against the writing column, so the right edge is the one x every row of the
+/// stack shares no matter how long its name is; a left-edge target would sit in
+/// empty margin on a short name and over the text on a long one.
+pub(super) const CLOSE_ZONE_ROWS: Rows = Rows(1.0);
+
+/// WHAT A POINTER AT `px` OVER A ROW IS AIMING AT.
+///
+/// The row is ONE band with two meanings, not two controls: the close zone is a
+/// square at the right edge and everything left of it — the whole rest of the
+/// band, which is most of it — stays the switch target. The asymmetry is the
+/// design decision. Switching is the frequent, forgiving act and gets the large
+/// area; closing is rare and destructive and gets a small, deliberate one.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum RowIntent {
+    Switch,
+    Close,
+}
+
+/// The close zone `[x, y, w, h]` inside a row's own planner band, clamped to the
+/// band when the margin is narrower than one square.
+///
+/// Derived from the row rect rather than re-measured, for the same reason
+/// [`plate_rect`] is: a target that computed its own geometry could drift from
+/// the row it belongs to, and a close target that has drifted closes the wrong
+/// file.
+pub(super) fn close_zone(row_rect: [f32; 4]) -> [f32; 4] {
+    let [x, y, w, h] = row_rect;
+    let zone = (h * CLOSE_ZONE_ROWS.0).min(w.max(0.0));
+    [x + w - zone, y, zone, h]
+}
+
+/// Classify a pointer x against a row's band. The one owner both the hit-test
+/// and any future drawn affordance read, so what the pointer accepts and what
+/// the reader is shown cannot disagree.
+pub(super) fn row_intent(row_rect: [f32; 4], px: f32) -> RowIntent {
+    let [zx, _, zw, _] = close_zone(row_rect);
+    if px >= zx && px <= zx + zw {
+        RowIntent::Close
+    } else {
+        RowIntent::Switch
+    }
+}
+
 /// ONE FITTED ROW: the exact text drawn, where its quieter location half ends,
 /// and whether it is the active file.
 pub(super) struct StackLine {

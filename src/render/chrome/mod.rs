@@ -349,6 +349,7 @@ pub(in crate::render) use overlay_visual_sel::{
 };
 mod gutter;
 mod gutter_hidden;
+mod gutter_hit;
 mod gutter_stack;
 mod menubar;
 mod outline;

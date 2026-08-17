@@ -84,7 +84,7 @@ impl TextPipeline {
     /// [`rowlayout::fit_primary`]; the project line comes back empty here only
     /// when `self.gutter_project` itself is empty (no project at all), never as a
     /// forced yield to protect the filename.
-    fn gutter_layout(&self) -> Option<GutterLayout> {
+    pub(super) fn gutter_layout(&self) -> Option<GutterLayout> {
         if !crate::page::page_on() || self.gutter_name.is_empty() {
             return None;
         }
@@ -414,48 +414,5 @@ impl TextPipeline {
     pub fn gutter_report(&self) -> Option<(String, String, bool)> {
         self.gutter_layout()
             .map(|g| (g.name, g.project, !g.changed.is_empty()))
-    }
-
-    /// Hit-test the two identity rows from the exact layout that draws them.
-    pub fn gutter_context_target(
-        &self,
-        px: f32,
-        py: f32,
-        height: u32,
-    ) -> Option<crate::context_menu::ContextTarget> {
-        let layout = self.gutter_layout()?;
-        let row_h = self.metrics.line_height * crate::markdown::type_scale::LABEL;
-        let stack = crate::render::plan::plan_gutter_stack(
-            height as f32,
-            layout.avail,
-            row_h,
-            layout.lines().len(),
-            self.metrics.px_physical(super::readout::CANVAS_INSET),
-            GUTTER_CARVE_BREATH.0,
-        );
-        // Hit-test against the SAME ordered line list the block is drawn from, so
-        // an added line can never shift a target silently: the affordance itself
-        // is a LABEL, not a target — it names a state, and the two things you can
-        // do about that state are named palette rows, not a click here.
-        let row = stack.hit_row(px, py)?;
-        match layout.lines().get(row)?.1 {
-            GutterLine::Name => Some(crate::context_menu::ContextTarget::Filename),
-            // The ACTIVE row is the same target the lone filename is — it names
-            // the same buffer, so the identity menu it has always opened keeps
-            // working when the identity widens. An INACTIVE row names a buffer
-            // that is not the active one, and every action on that menu operates
-            // on the active document; returning `Filename` here would point the
-            // reader at one file and rename another. Until a row can carry its
-            // own named-buffer target, it carries none.
-            GutterLine::File(at) => layout
-                .files
-                .get(at)
-                .filter(|line| line.active)
-                .map(|_| crate::context_menu::ContextTarget::Filename),
-            GutterLine::Project => Some(crate::context_menu::ContextTarget::Folder),
-            // The affordance is a LABEL, not a target: it names a state, and the
-            // three things you can do about that state are named palette rows.
-            GutterLine::Changed => None,
-        }
     }
 }
