@@ -189,14 +189,23 @@ pub(super) fn drive_eff(journey: &mut crate::overlay::Journey, action: &Action) 
 
 /// A fresh SETTINGS overlay (table-order corpus + value cells), for the
 /// interaction tests below. Selection lands on row 0 ("Caret style", a Picker).
+///
+/// Reads the VISIBLE (platform + convention filtered) views —
+/// `visible_names`/`visible_value_cells`/`visible_range_cells` — the SAME
+/// three `overlay::build`'s real `OverlayKind::Settings` arm calls, never the
+/// unfiltered `names`/`value_cells`: a corpus index this fixture hands out
+/// must stay valid against the SAME `visible_rows()` `settings_accept` reads
+/// fresh at accept time, and Keymap (hidden on `Convention::Mac`) is the
+/// first row where the unfiltered and visible tables can actually disagree
+/// in a native test build.
 pub(super) fn settings_overlay() -> OverlayState {
     let mut ov = OverlayState::new(
         OverlayKind::Settings,
-        crate::settings::names(),
+        crate::settings::visible_names(),
         vec![],
         vec![],
     );
-    ov.set_secondaries(crate::settings::value_cells(&Default::default()));
+    ov.set_secondaries(crate::settings::visible_value_cells(&Default::default()));
     // The rail column, exactly as `overlay::build`'s Settings arm sets it
     // (so a drive test exercises the real row shape, rails included). The default
     // `SettingsValues` carries `zoom: 0.0`, which the spec clamps to the band floor.

@@ -265,9 +265,11 @@ fn settings_toggle_row_signals_setting_toggle_and_keeps_menu_open() {
 /// mis-select a neighbor) to `Effect::SettingToggle` carrying its OWN named
 /// key. This is the "does Enter even signal the right thing" half of the
 /// live dispatch chain the Keymap-row bug hid in — the row count assertion
-/// keeps this test itself honest against the settings corpus (16 toggles;
-/// "Date format" left the roster when it became a Picker; "File visibility"
-/// joined it). Companion:
+/// keeps this test itself honest against the settings corpus (15 toggles;
+/// "Date format" left the roster when it became a Picker, "File visibility"
+/// joined it, and "Keymap" itself left it to become a Picker — the fix this
+/// test's own docstring names: a picker's accept always names the resulting
+/// value, where the old Toggle row silently flipped). Companion:
 /// `app::tests::every_settings_toggle_row_dispatches_live_and_flips_its_value`
 /// (App-level: the signaled effect is actually APPLIED and the value cell
 /// visibly flips — the "does the live door apply it" other half).
@@ -279,7 +281,7 @@ fn every_settings_toggle_row_signals_its_own_setting_toggle_key() {
         .collect();
     assert_eq!(
         toggle_rows.len(),
-        16,
+        15,
         "the toggle roster changed size — update this sweep deliberately"
     );
     for row in toggle_rows {
@@ -380,11 +382,12 @@ fn command_drive(journey: &mut crate::overlay::Journey, action: &Action) -> Effe
 }
 
 /// The palette's corpus is the UNION of commands + NON-COVERED settings — a
-/// settings row with no command twin (e.g. "Keymap") is fuzzy-findable there,
-/// reads plainly inside its named category, and shows its CURRENT VALUE
-/// in the secondary (binding) column exactly like the Settings menu itself. A
-/// COVERED row (e.g. "Theme" — see `settings::COVERED_BY`) is excluded: its
-/// covering command is the one door.
+/// settings row with no command twin (e.g. "Reduce motion") is fuzzy-findable
+/// there, reads plainly inside its named category, and shows its CURRENT
+/// VALUE in the secondary (binding) column exactly like the Settings menu
+/// itself. A COVERED row (e.g. "Theme", or "Keymap" as of this picker —
+/// see `settings::COVERED_BY`) is excluded: its covering command is the one
+/// door.
 #[test]
 fn union_palette_lists_plain_settings_rows_with_current_value() {
     let mut ov = command_overlay_with_settings();
@@ -393,25 +396,25 @@ fn union_palette_lists_plain_settings_rows_with_current_value() {
         ov.rows.len(),
         crate::commands::visible_names().len() + crate::settings::palette_names().len()
     );
-    for ch in ['k', 'e', 'y', 'm', 'a', 'p'] {
+    for ch in ['r', 'e', 'd', 'u', 'c', 'e'] {
         ov.push(ch);
     }
     assert!(
-        ov.item_strings().iter().any(|s| s == "Keymap"),
-        "typing \"keymap\" should surface the settings row: {:?}",
+        ov.item_strings().iter().any(|s| s == "Reduce motion"),
+        "typing \"reduce\" should surface the settings row: {:?}",
         ov.item_strings()
     );
     let idx = ov
         .item_strings()
         .iter()
-        .position(|s| s == "Keymap")
+        .position(|s| s == "Reduce motion")
         .unwrap();
     assert_eq!(
         ov.item_bindings()[idx],
         crate::settings::value_for(
             crate::settings::SETTINGS
                 .iter()
-                .find(|r| r.name == "Keymap")
+                .find(|r| r.name == "Reduce motion")
                 .unwrap(),
             &Default::default()
         ),
