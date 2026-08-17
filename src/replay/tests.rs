@@ -315,11 +315,19 @@ fn isolated_filesystem_authority_promotes_only_save_and_setting_requests() {
 /// resolve no key at all (checked against `toggle_key` directly, the same
 /// claim `settings::tests::every_toggle_has_a_config_key_and_nothing_else_
 /// does` makes — restated here as a sanity guard, not duplicated as a second
-/// authority); `Keymap` is a NAMED, deliberate exclusion (a live keymap
-/// rebuild, not a boolean flip); every other `Toggle` row must be a key the
-/// shared toggle core ([`crate::settings::flip_toggle_global`], `App::
-/// setting_toggle`'s and this classifier's ONE shared owner) recognizes, and
-/// an Isolated replay must promise it `Applied`.
+/// authority); every other `Toggle` row must be a key the shared toggle core
+/// ([`crate::settings::flip_toggle_global`], `App::setting_toggle`'s and this
+/// classifier's ONE shared owner) recognizes, and an Isolated replay must
+/// promise it `Applied`.
+///
+/// `Keymap` used to be a NAMED, deliberate exclusion in this sweep (a live
+/// keymap rebuild, not a boolean flip, so `SettingToggle{"keymap"}` stayed
+/// Unsupported even Isolated) — it is a `SettingKind::Picker` now, so
+/// `toggle_key` names nothing for it and it folds into the plain non-toggle
+/// bucket below. The equivalent claim for its NEW door
+/// (`Effect::OverlayAccept(OverlayKind::Keymap, _)`) lives in
+/// `accept_class`'s own `Keymap` arm, asserted by
+/// `the_harness_reach_map_matches_the_production_classifier` below.
 #[test]
 fn the_settings_toggle_core_handles_every_key_toggle_key_names() {
     use crate::settings::SettingId;
@@ -339,6 +347,7 @@ fn the_settings_toggle_core_handles_every_key_toggle_key_names() {
             | SettingId::DefaultFolder
             | SettingId::ProjectsFolder
             | SettingId::ProjectRoot
+            | SettingId::Keymap
             | SettingId::Keybindings
             | SettingId::ReportProblem
             | SettingId::EditConfigAsText => {
@@ -347,23 +356,6 @@ fn the_settings_toggle_core_handles_every_key_toggle_key_names() {
                     "{:?}: not a Toggle row, yet toggle_key resolved one",
                     row.name
                 );
-            }
-            // The one deliberate exception: needs a LIVE keymap rebuild, not
-            // a boolean negate — stays Unsupported even Isolated.
-            SettingId::Keymap => {
-                let key = crate::settings::toggle_key(row.id).expect("Keymap is a Toggle row");
-                let effect = Effect::SettingToggle {
-                    key: key.to_string(),
-                };
-                for filesystem in [FilesystemCapability::None, FilesystemCapability::Isolated] {
-                    assert!(
-                        matches!(
-                            classify_for(&effect, filesystem).class,
-                            EffectClass::Unsupported { .. }
-                        ),
-                        "Keymap under {filesystem:?}: must stay Unsupported"
-                    );
-                }
             }
             // The shared toggle core's whole domain: a key the classifier
             // promises Applied must be one `flip_toggle_global` handles.

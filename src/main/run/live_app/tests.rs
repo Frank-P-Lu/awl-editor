@@ -144,27 +144,52 @@ fn live_app_first_new_document_asks_for_a_folder_before_creating_a_file() {
 /// THE PRIMARY LAW — the transition converted from
 /// Rust-only to sidecar-provable.
 ///
-/// Flipping the KEYMAP row of the Settings workspace is the hardest case in
+/// Picking "Emacs" in the KEYMAP picker (Enter on the Settings "Keymap" row
+/// descends into `OverlayKind::Keymap`; `KeymapFlavor::ALL` is `[Native,
+/// Emacs]`, so one `Down` then `Enter` accepts Emacs) is the hardest case in
 /// the live-only census, not a convenient one: `docs/harness-reach.md` lists
-/// `setting_toggle` as **Unsupported** for an ordinary `--keys` capture, and
-/// names `SettingToggle{key: "keymap"}` as the ONE key that stays Unsupported
-/// even under `FilesystemCapability::Isolated`, because it needs a LIVE keymap
-/// rebuild no filesystem capability can supply. The transition was previously
-/// provable only in Rust (`app::tests::workspace`'s
-/// tier-2 sweep, asserting `App` + config state directly).
+/// `overlay_accept:Keymap` as **Unsupported** under every filesystem
+/// capability, because applying the picked flavor needs a LIVE keymap
+/// rebuild no filesystem capability can supply. The transition is provable
+/// only in Rust otherwise (`app::tests::files::
+/// keymap_picker_accept_applies_persists_notifies_and_live_reapplies`,
+/// asserting `App` + config state directly).
 ///
 /// BOTH HALVES ARE ASSERTED IN ONE TEST, and the second is what makes the
 /// first mean anything: the SAME chord spec is driven through the ordinary
 /// `--keys` capture door, which must still report the OLD flavor and record
 /// the skip. A live-App sidecar that agreed with the replay sidecar would
 /// prove nothing had been reached at all.
+///
+/// ONLY MEANINGFUL ON `Convention::Linux` — the flavor is structurally inert
+/// on `Convention::Mac` (`crate::keymap::KeymapFlavor`'s doc), so the "Keymap"
+/// row is hidden from `visible_rows()` there entirely
+/// (`settings::row_available_on`). `Convention::current()` is process-frozen
+/// (`AWL_CONVENTION_FORCE` read once, memoized), so this test branches on the
+/// ambient value rather than forcing one: `native-gate.sh`'s two-convention
+/// run is what exercises BOTH this law (Linux pass) and the row's absence
+/// (Mac pass, asserted in the `else` branch below) across the two runs.
 #[test]
-fn a_live_app_capture_photographs_a_keymap_flip_an_ordinary_capture_cannot_see() {
+fn a_live_app_capture_photographs_a_keymap_pick_an_ordinary_capture_cannot_see() {
     let _g = crate::testlock::serial();
+    if crate::convention::Convention::current() != crate::convention::Convention::Linux {
+        // THE MACOS-INERT-HIDES-THE-ROW PROOF: on this convention there is
+        // nothing to walk to at all — the settings row itself is gone.
+        assert!(
+            !crate::settings::visible_rows()
+                .iter()
+                .any(|r| r.id == SettingId::Keymap),
+            "Keymap must be hidden from the Settings menu on Convention::Mac"
+        );
+        return;
+    }
     let dir = ScratchDir::new(
         std::env::temp_dir().join(format!("awl-live-app-replay-{}", std::process::id())),
     );
-    let keys = walk_to(SettingId::Keymap);
+    let mut keys = walk_to(SettingId::Keymap);
+    keys.extend(
+        crate::keyspec::parse_chords("Down Enter").expect("the pick-Emacs tail parses"),
+    );
 
     // ── THE LIVE-`App` CAPTURE ────────────────────────────────────────
     let live = dir.join("live.png");
@@ -176,13 +201,13 @@ fn a_live_app_capture_photographs_a_keymap_flip_an_ordinary_capture_cannot_see()
     assert_eq!(
         live_json["overlay"]["active"].as_bool(),
         Some(true),
-        "the sidecar was folded AFTER the chords were driven — a card the \
-         walk summoned must be up in it"
+        "the sidecar was folded AFTER the chords were driven — the walk \
+         resumed the Settings card the picker was opened from"
     );
     assert_eq!(
         selected_name(&live_json),
         "Keymap",
-        "the walk stood on the Keymap row"
+        "the picker's accept resumed the Settings row it was opened from"
     );
     assert_eq!(
         live_json["driver"].as_str(),
@@ -192,14 +217,14 @@ fn a_live_app_capture_photographs_a_keymap_flip_an_ordinary_capture_cannot_see()
     assert_eq!(
         live_json["project"]["keymap_flavor"].as_str(),
         Some("emacs"),
-        "THE CONVERTED CLAIM: the live keymap flip is readable from the \
+        "THE CONVERTED CLAIM: the live keymap pick is readable from the \
          sidecar's project block, not only from a Rust assertion"
     );
     assert_eq!(
         selected_value(&live_json),
-        "emacs",
-        "and the row's own value cell agrees — two independent witnesses in \
-         one artifact"
+        "Emacs",
+        "and the row's own value cell agrees, in plain language — two \
+         independent witnesses in one artifact"
     );
     assert!(
         live_json["replay_skips"]
@@ -209,7 +234,7 @@ fn a_live_app_capture_photographs_a_keymap_flip_an_ordinary_capture_cannot_see()
     );
 
     // ── THE SAME SPEC THROUGH THE ORDINARY `--keys` DOOR ──────────────
-    // Anti-vacuity. This is the capture that could NOT witness the flip,
+    // Anti-vacuity. This is the capture that could NOT witness the pick,
     // and it must still be unable to.
     let replay = dir.join("replay.png");
     let replay_json = in_sandbox(|| {
@@ -236,17 +261,19 @@ fn a_live_app_capture_photographs_a_keymap_flip_an_ordinary_capture_cannot_see()
     assert_eq!(
         selected_name(&replay_json),
         "Keymap",
-        "the ordinary replay walked to the same row — the specs are identical"
+        "the ordinary replay walked to the same row — the specs are \
+         identical, and the journey resume is core-level (it happens \
+         whether or not the accept effect itself gets applied)"
     );
     assert_eq!(
         replay_json["project"]["keymap_flavor"].as_str(),
         Some("native"),
-        "the ordinary capture still cannot see the flip — if this ever reads \
+        "the ordinary capture still cannot see the pick — if this ever reads \
          `emacs`, the live-App law above has stopped proving anything new"
     );
     assert_eq!(
         replay_json["replay_skips"],
-        serde_json::json!([{ "effect": "setting_toggle", "action": "Newline" }]),
+        serde_json::json!([{ "effect": "overlay_accept", "action": "Newline" }]),
         "and it says so out loud rather than reporting stale state silently"
     );
 }

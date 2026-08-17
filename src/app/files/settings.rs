@@ -156,11 +156,11 @@ impl App {
     /// values so the flipped row's SECONDARY column reflects the new state (the
     /// process-globals are re-read live inside the readout). A no-op if the settings
     /// menu isn't the open overlay. Reads through [`crate::settings::visible_value_cells`]
-    /// — the SAME platform-filtered view `overlay::build`'s own `OverlayKind::Settings`
-    /// branch seeds each row's `secondary` from (via `set_secondaries`) — never the raw
-    /// unfiltered [`crate::settings::value_cells`]; on native the two coincide (nothing
-    /// is filtered), but a refresh must stay index-coherent with `ov.rows`
-    /// (`visible_names()`) even on web, where "Edit config as text" is hidden.
+    /// — the SAME platform-AND-convention-filtered view `overlay::build`'s own
+    /// `OverlayKind::Settings` branch seeds each row's `secondary` from (via
+    /// `set_secondaries`) — a refresh must stay index-coherent with `ov.rows`
+    /// (`visible_names()`), which is NOT every row on native either now: Keymap
+    /// hides on `Convention::Mac`, joining "Edit config as text"'s web-only hide.
     pub(in crate::app) fn refresh_settings_overlay(&mut self) {
         let values = crate::settings::SettingsValues::gather(
             &self.config,

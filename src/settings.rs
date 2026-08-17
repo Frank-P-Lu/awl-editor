@@ -626,11 +626,6 @@ pub fn names() -> Vec<String> {
     SETTINGS.iter().map(|r| r.name.to_string()).collect()
 }
 
-#[cfg(test)]
-pub fn value_cells(values: &SettingsValues) -> Vec<String> {
-    SETTINGS.iter().map(|r| value_for(r, values)).collect()
-}
-
 // ── PLATFORM-SCOPED ROWS (RESOLVED — the web-config round) ─────────────────────
 //
 // "Edit config as text" used to hide on `Web`: `App::open_settings`

@@ -49,6 +49,7 @@ copy_link_destination|||
 switch_theme|Cmd-T|C-t|
 caret_style|||
 dictionary|||
+keymap|||
 toggle_spellcheck|||
 toggle_caret_style|||
 toggle_page_mode|||

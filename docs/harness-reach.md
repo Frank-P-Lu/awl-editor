@@ -378,6 +378,7 @@ deadline without a surface).
 | `overlay_accept:InsertLink` | Unsupported |
 | `overlay_accept:KeepName` | Unsupported |
 | `overlay_accept:Keybindings` | Unsupported |
+| `overlay_accept:Keymap` | Unsupported |
 | `overlay_accept:MoveDest` | Unsupported |
 | `overlay_accept:Project` | Applied |
 | `overlay_accept:ProjectBrowse` | Unsupported |
@@ -456,13 +457,16 @@ cannot honestly perform them), but **Applied** under `FilesystemCapability::
 Isolated` (`main/run/settings_effects.rs`, the item-171 shape: only a strict/
 scenario capture ever owns that capability, per `ReplayPolicy::isolated`).
 `setting_value_commit` and `setting_path_pick` are promoted the identical
-way. One key stays Unsupported even under Isolated: `SettingToggle{key:
-"keymap"}` needs a LIVE keymap rebuild so a later chord in the same replay
-resolves against the new flavor, a capability no filesystem grant supplies —
-the same reason `rebind_commit`/`rebind_reset` never promote either. That key
-is precisely what item 188's `--screenshot-app` was proved on: the door with
-no possible capability grant is the one where a live-`App` capture is the only
-sidecar there will ever be.
+way. Keymap is no longer part of this trio at all — the "Keymap" row is a
+`SettingKind::Picker` now (a catalog command + sub-overlay, the Caret-style
+shape), so its accept emits `overlay_accept:Keymap`, not `setting_toggle`.
+That accept stays Unsupported under EVERY capability, Isolated included (see
+the table above): applying the picked flavor needs a LIVE keymap rebuild so
+a later chord in the same replay resolves against the new flavor, a
+capability no filesystem grant supplies — the same reason `rebind_commit`/
+`rebind_reset` never promote either. Keymap is precisely what item 188's
+`--screenshot-app` was proved on: the door with no possible capability grant
+is the one where a live-`App` capture is the only sidecar there will ever be.
 `setting_range_step` was already Applied before this item, because the value
 change itself already happened in the core.
 
@@ -611,9 +615,12 @@ before starting:
   feeds — `project.keymap_flavor` for the Keymap row). That route needs no
   capability grant at all, because nothing is being stood in for. The worked
   example is `run::live_app::tests::
-  a_live_app_capture_photographs_a_keymap_flip_an_ordinary_capture_cannot_see`,
-  which asserts BOTH sides: the live-`App` sidecar reports the flip, and the
-  same spec through the ordinary `--keys` door still reports the old flavor and
+  a_live_app_capture_photographs_a_keymap_pick_an_ordinary_capture_cannot_see`
+  (the "Keymap" row is a `SettingKind::Picker` now, not a Toggle — its Enter
+  descends into `OverlayKind::Keymap`, and accepting a row there is what
+  emits `overlay_accept:Keymap`, Unsupported under every capability), which
+  asserts BOTH sides: the live-`App` sidecar reports the pick, and the same
+  spec through the ordinary `--keys` door still reports the old flavor and
   records the skip.
 - **Theme and Caret audition are tier 1** (`overlay_accept:Theme` / `:Caret`
   are Applied — they set their process-global in the core), so the

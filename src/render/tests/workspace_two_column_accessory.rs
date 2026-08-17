@@ -28,7 +28,7 @@
 //!     both past the settings roster's own allowance. This is the claim the item
 //!     was really about: the un-elided path made the reader's own filesystem an
 //!     input to awl's layout, so the same build at the same window size laid out
-//!     differently on two machines. `settings::value_cells` bounds the cell;
+//!     differently on two machines. `settings::visible_value_cells` bounds the cell;
 //!     this checks what the bound was FOR. It is deliberately NOT a claim that a
 //!     two-character root draws the same column as a hundred-character one —
 //!     see [`ROOTS`] for why that difference is honest and the other is not.
@@ -717,7 +717,7 @@ fn conclude(
 ///
 /// The law above is an implication, and today's Settings roster satisfies it
 /// with room to spare — the value cells are bounded by
-/// `settings::value_cells`'s allowance, which is the widest row NAME, so the
+/// `settings::visible_value_cells`'s allowance, which is the widest row NAME, so the
 /// rows' whole demand lands exactly on the `MIN_PANE_CHARS` legibility floor
 /// that was already there. That makes the implication true and says nothing
 /// about WHY, and a roster that grew one long name would re-open the defect
