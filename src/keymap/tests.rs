@@ -28,6 +28,7 @@ fn catalog_chord_snapshot() -> String {
 }
 
 const CATALOG_CHORD_SNAPSHOT: &str = "\
+command_palette|Cmd-P|C-p|
 go_to|Cmd-O|C-o|
 open_file|||
 open_folder|||

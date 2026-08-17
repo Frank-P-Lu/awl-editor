@@ -136,7 +136,17 @@ impl KeymapState {
         let shifted: Vec<_> = self
             .default_single
             .iter()
-            .filter(|((_, mods), _)| !mods.contains(ModifiersState::SHIFT))
+            .filter(|((_, mods), action)| {
+                !mods.contains(ModifiersState::SHIFT)
+                    // Command palette's Shift companion is Open project — a
+                    // bespoke, uncatalogued resolver arm (`resolve.rs`) that
+                    // reads the SAME character key with Shift held and is only
+                    // ever reached once `default_single` misses. Letting the
+                    // general convenience duplication below claim that chord
+                    // too would shadow the arm outright, since a `default_single`
+                    // hit is checked first on every keypress.
+                    && *action != &Action::OpenCommandPalette
+            })
             .map(|((key, mods), action)| {
                 ((key.clone(), *mods | ModifiersState::SHIFT), action.clone())
             })
