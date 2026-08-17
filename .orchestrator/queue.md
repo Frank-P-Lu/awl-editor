@@ -6,45 +6,6 @@
 
 ## Ready to build
 
-### 451 — proportional Block caret covers the occupied glyph's full height (USER VERDICT ON ITEM 448, 2026-08-17)
-
-🟡 IN PROGRESS — claude, branch claude/item-451-caret-proportional-height
-
-The five live captures settle the taste question left by the Block-caret
-presence pass. Gumtree, Kite and Bombora (the proportional worlds) are still
-slightly too short; Tawny and Wagtail (the monospaced worlds) are right. The
-failure is concrete rather than a general request for more weight: when the
-caret occupies a lowercase `d`, the top of the ascender visibly pokes above
-the accent body. A Block caret must cover the FULL VERTICAL INK of the glyph
-it occupies. No ascender or descender may escape above or below it.
-
-Item 448 correctly added horizontal ink padding and should not be unwound.
-Its vertical policy deliberately used one stable typical-letter box per
-face/row and capped extra dead space; the user's verdict supersedes that
-part of the taste call. Preserve the important stability property — caret
-height and vertical position must not jump as it moves between glyphs on the
-same face and row — by deriving a stable proportional-face envelope large
-enough for the relevant ascender/descender ink, NOT by sizing each frame from
-the current glyph. A little extra body around x-height letters is the accepted
-tradeoff. Keep line-height clipping and neighbouring-row separation honest.
-
-Scope this to the resting **Block** caret in proportional faces. The mono
-path is byte-identical: the last two captures were explicitly accepted. The
-horizontal pad from item 448 stays. Explicit Morph and I-beam modes do not
-inherit a larger body merely because their geometry is nearby; if the current
-owner cannot express that distinction, extract the Block vertical policy.
-
-**Law:** render proportional Block carets over a representative vertical-ink
-roster (`a`, `d`, `l`, `m`, `g`, `y`, punctuation) across every proportional
-face, headings/body, wrap edges, 1×/2× DPI and representative zooms. Pixel
-arithmetic proves that no occupied-glyph ink lies above or below the accent
-body, the body's top/bottom stay stable while the anchor walks across the
-same face/row, and it never touches an adjacent row. Mutation: restoring the
-old typical-letter height makes the pinned `d` case fail. Pin mono output by
-byte identity over Tawny and Wagtail. Then reproduce the same five live crops
-for the user; the first three must hide the top of the `d`, while the accepted
-last two remain unchanged.
-
 ### 450 — 🔵 BLOCKED — what does "Switch project" show while a foreign-root document stays open? (USER DECISION NEEDED, found during item 444)
 
 Item 444's lane closed the cross-root ownership bug where OPENING or
