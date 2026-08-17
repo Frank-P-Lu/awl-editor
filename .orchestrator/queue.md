@@ -74,36 +74,6 @@ spot-checked against the dispatch it claims (generated-docs rule); the menu
 roster law covers the new item. Mutation: drop the catalog slot, watch the
 rebind law go red.
 
-### 455 — the drawn menu's chord column tells the truth (defect; ready to build)
-
-🟡 IN PROGRESS — claude, branch claude/item-455-menu-chord-truth
-
-The Linux drawn menu bar's chord column is config-blind:
-`render/chrome/menubar/dropdown.rs` → `menu::item_chord_for_id` →
-`resolved_native_label_truthful`, which by its own doc
-(`src/commands/chords.rs:151-154`) applies only the unconditional builtin keep
-tier and EXPECTS a caller that knows the user's config to layer the rest on
-top. The menu never does — so under `keymap = "emacs"` it prints Ctrl+C beside
-Copy while Ctrl+C actually begins a prefix, and a `[keys]` rebind never
-updates any label. The palette already does this right
-(`visible_effective_bindings`, `src/overlay/build.rs:190-201`).
-
-Fix: thread the config's `[keys]` overrides and `effective_linux_keep()` into
-the menu chord column through the same owner the palette uses — one owner,
-never a second implementation — and re-read labels on flavor toggle / config
-reload. A chord suppressed for this user's config shows an EMPTY cell, like
-Insert-link's Linux cell, never a false chord.
-
-Also correct the stale claims this exposed: `docs/platform.md:52`
-("Linux/wasm have none") and Cargo.toml's muda scope comment both deny the
-drawn bar exists; it defaults ON off-macOS (`src/menubar.rs:30-31`). Give the
-drawn bar its own docs sentence while there.
-
-Verify: unit law over the menu roster × both flavors × sampled displaced
-letters: under emacs, Copy/Find/Select-all rows never print a Ctrl-letter the
-resolver dispatches elsewhere; under native they print the real chord. Prove
-non-vacuity by routing back through the config-blind path and watching it red.
-
 ### 454 — Keymap setting becomes a picker with a name people can read (USER DECISION 2026-08-17; ready to build)
 
 🟡 IN PROGRESS — claude, branch claude/item-454-keymap-picker
