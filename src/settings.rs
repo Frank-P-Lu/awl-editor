@@ -251,7 +251,7 @@ pub static SETTINGS: &[SettingRow] = &[
         id: SettingId::Keymap,
         name: "Keymap",
         category: "Keybindings",
-        kind: SettingKind::Toggle,
+        kind: SettingKind::Picker,
     },
     SettingRow {
         id: SettingId::Keybindings,
@@ -473,7 +473,14 @@ pub fn value_for(row: &SettingRow, values: &SettingsValues) -> String {
         SettingId::Autosave => on_off(values.autosave).to_string(),
         SettingId::LocalHistory => on_off(values.history).to_string(),
         SettingId::SessionRestore => on_off(values.session_restore).to_string(),
-        SettingId::Keymap => values.keymap.clone(),
+        // Plain language, like the picker's own rows — never the bare config
+        // slug ("native"/"emacs"), the exact taste call the picker itself
+        // makes (`KeymapFlavor::label`). Falls back to the raw slug only if
+        // it somehow fails to parse (never happens through `persist_pref`'s
+        // own writer, which only ever writes a real `config_name()`).
+        SettingId::Keymap => crate::keymap::KeymapFlavor::parse(&values.keymap)
+            .map(|f| f.label().to_string())
+            .unwrap_or_else(|| values.keymap.clone()),
         SettingId::Keybindings | SettingId::ReportProblem | SettingId::EditConfigAsText => {
             String::new()
         }
@@ -503,7 +510,6 @@ pub fn toggle_key(id: SettingId) -> Option<&'static str> {
         SettingId::Autosave => "autosave",
         SettingId::LocalHistory => "history",
         SettingId::SessionRestore => "session_restore",
-        SettingId::Keymap => "keymap",
         _ => return None,
     })
 }
@@ -609,6 +615,7 @@ pub fn sub_overlay(id: SettingId) -> Option<crate::overlay::OverlayKind> {
         SettingId::Dictionary => crate::overlay::OverlayKind::Dictionary,
         SettingId::CjkReadsAs => crate::overlay::OverlayKind::CjkLang,
         SettingId::DateFormat => crate::overlay::OverlayKind::Date,
+        SettingId::Keymap => crate::overlay::OverlayKind::Keymap,
         SettingId::Keybindings => crate::overlay::OverlayKind::Keybindings,
         _ => return None,
     })
@@ -637,11 +644,22 @@ pub fn value_cells(values: &SettingsValues) -> Vec<String> {
 // FUTURE platform-scoped row has a single door to extend, exactly like
 // `commands::Command::available_on`.
 
-/// Is `row` available on `platform`? Every row is available on every platform
-/// today — kept as a real predicate (not inlined to `true`) so a future
-/// platform-scoped Settings row has ONE owner to extend, mirroring
-/// `commands::Command::available_on`.
-fn row_available_on(_row: &SettingRow, _platform: crate::commands::Platform) -> bool {
+/// Is `row` available on `platform`? Every row is available on every
+/// (compile-time) platform — this predicate stays for a FUTURE
+/// platform-scoped row, mirroring `commands::Command::available_on`.
+///
+/// "Keymap" is the one row hidden today, and deliberately NOT through this
+/// parameter: the axis it hides on is [`crate::convention::Convention`]
+/// (native macOS ⌘ bindings double-fire the emacs slot regardless of this
+/// flavor — see `crate::keymap::KeymapFlavor`'s doc), a RUNTIME fact
+/// orthogonal to `Platform` (a Mac-UA web build is `Platform::Web` and
+/// `Convention::Mac` at once). Read ambiently like every other
+/// convention-gated check in this crate (`commands::row_hidden`'s
+/// `OpenKeymapMenu` arm is the command-palette twin of this same gate).
+fn row_available_on(row: &SettingRow, _platform: crate::commands::Platform) -> bool {
+    if row.id == SettingId::Keymap {
+        return crate::convention::Convention::current() == crate::convention::Convention::Linux;
+    }
     true
 }
 
@@ -664,6 +682,7 @@ pub static COVERED_BY: &[(SettingId, &str)] = &[
     (SettingId::Theme, "Switch theme…"),
     (SettingId::CaretStyle, "Caret style…"),
     (SettingId::Dictionary, "Dictionary…"),
+    (SettingId::Keymap, "Keymap…"),
     (SettingId::Keybindings, "Keybindings…"),
     (SettingId::ReportProblem, "Report a Problem"),
     (SettingId::PageMode, "Toggle page mode"),

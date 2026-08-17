@@ -60,6 +60,11 @@ pub enum Action {
     ToggleCaretMode,
     OpenCaretMenu,
     OpenDictionaryMenu,
+    /// Palette "Keymap…" (hidden on `Convention::Mac`, see
+    /// `commands::row_hidden` — the flavor is structurally inert there):
+    /// summon the native/emacs keymap-flavor picker, mirroring
+    /// `OpenCaretMenu`'s shape.
+    OpenKeymapMenu,
     /// Cmd-P → "Toggle spellcheck": flip the GLOBAL spell-check on/off (default
     /// ON — the escape hatch for no-squiggles-ever people). OFF silences EVERY
     /// squiggle (prose comments and code strings alike, per `spell.rs`'s ONE

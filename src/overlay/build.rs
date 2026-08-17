@@ -187,6 +187,19 @@ pub fn build(kind: OverlayKind, ctx: &BuildCtx) -> Option<OverlayState> {
             crate::dateformat::active_format(),
             ctx.settings_values.today_ymd,
         )),
+        // Keymap-flavor picker: native/emacs + the active one (pre-selected;
+        // nothing previews on move, mirroring Dictionary/Date). The flavor is
+        // CONFIG-owned, not a process-global (unlike Caret/Dictionary), so it
+        // comes from the caller-gathered `SettingsValues` rather than a global
+        // reader — both doors (the live App, the headless replay) gather it on
+        // EVERY overlay build regardless of kind (see `SettingsValues::gather`'s
+        // call sites), so this reads correctly whether opened from the Settings
+        // menu or straight from the palette's "Keymap…".
+        OverlayKind::Keymap => {
+            let active = crate::keymap::KeymapFlavor::parse(&ctx.settings_values.keymap)
+                .unwrap_or_default();
+            Some(OverlayState::new_keymap(active))
+        }
         // Command palette: the PLATFORM-FILTERED command catalog
         // (`commands::visible()` — hides desktop-only commands on web; byte-identical
         // to the full catalog on native), each row showing its EFFECTIVE chord (config

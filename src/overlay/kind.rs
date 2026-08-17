@@ -10,6 +10,7 @@ enum_with_all! {
         Dictionary,
         CjkLang,
         Date,
+        Keymap,
         MoveDest,
         Command,
         Spell,
@@ -49,6 +50,7 @@ impl OverlayKind {
             OverlayKind::Dictionary => "dictionary",
             OverlayKind::CjkLang => "cjk_lang",
             OverlayKind::Date => "date",
+            OverlayKind::Keymap => "keymap",
             OverlayKind::MoveDest => "move",
             OverlayKind::Command => "command",
             OverlayKind::Spell => "spell",
@@ -82,7 +84,8 @@ impl OverlayKind {
             | OverlayKind::Caret
             | OverlayKind::Dictionary
             | OverlayKind::CjkLang
-            | OverlayKind::Date => ValuePick,
+            | OverlayKind::Date
+            | OverlayKind::Keymap => ValuePick,
             OverlayKind::Assets
             | OverlayKind::Keybindings
             | OverlayKind::Settings
@@ -111,6 +114,7 @@ impl OverlayKind {
             | OverlayKind::Dictionary
             | OverlayKind::CjkLang
             | OverlayKind::Date
+            | OverlayKind::Keymap
             | OverlayKind::MoveDest
             | OverlayKind::ExportDest
             | OverlayKind::Keybindings
@@ -154,6 +158,7 @@ impl OverlayKind {
             | OverlayKind::Dictionary
             | OverlayKind::CjkLang
             | OverlayKind::Date
+            | OverlayKind::Keymap
             | OverlayKind::MoveDest
             | OverlayKind::Command
             | OverlayKind::Spell
@@ -202,6 +207,7 @@ impl OverlayKind {
             | OverlayKind::Dictionary
             | OverlayKind::CjkLang
             | OverlayKind::Date
+            | OverlayKind::Keymap
             | OverlayKind::MoveDest
             | OverlayKind::Command
             | OverlayKind::Spell
@@ -261,6 +267,7 @@ impl OverlayKind {
             | OverlayKind::Dictionary
             | OverlayKind::CjkLang
             | OverlayKind::Date
+            | OverlayKind::Keymap
             | OverlayKind::Command
             | OverlayKind::Spell
             | OverlayKind::Keybindings
@@ -327,6 +334,7 @@ impl OverlayKind {
             | OverlayKind::Dictionary
             | OverlayKind::CjkLang
             | OverlayKind::Date
+            | OverlayKind::Keymap
             | OverlayKind::Command
             | OverlayKind::Keybindings
             | OverlayKind::Settings => "no matches",
@@ -356,6 +364,7 @@ impl OverlayKind {
             OverlayKind::Dictionary => "dictionary",
             OverlayKind::CjkLang => "ambiguous cjk",
             OverlayKind::Date => "date format",
+            OverlayKind::Keymap => "keymap",
             OverlayKind::Command => "commands",
             OverlayKind::Spell => "spelling",
             OverlayKind::Keybindings => "keybindings",
@@ -386,6 +395,7 @@ impl OverlayKind {
             | OverlayKind::Dictionary
             | OverlayKind::CjkLang
             | OverlayKind::Date
+            | OverlayKind::Keymap
             | OverlayKind::Command
             | OverlayKind::Spell
             | OverlayKind::Keybindings

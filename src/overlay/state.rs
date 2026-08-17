@@ -330,6 +330,45 @@ impl OverlayState {
         s
     }
 
+    /// The keymap-flavor picker: native/emacs, plain-language labels
+    /// ([`crate::keymap::KeymapFlavor::label`]) with the concrete chord
+    /// difference in the secondary column ([`crate::keymap::KeymapFlavor::
+    /// description`]), the active flavor pre-selected. Nothing previews on
+    /// move (`OverlayKind::previews_live_document` is `false` for `Keymap` —
+    /// the Dictionary/CjkLang/Date shape, not Caret/Theme's), so — unlike
+    /// those two — there is no [`super::Audition`] variant to revert on
+    /// cancel: nothing changed live until Enter.
+    pub fn new_keymap(active: crate::keymap::KeymapFlavor) -> Self {
+        let names: Vec<String> = crate::keymap::KeymapFlavor::ALL
+            .iter()
+            .map(|f| f.label().to_string())
+            .collect();
+        let descriptions: Vec<String> = crate::keymap::KeymapFlavor::ALL
+            .iter()
+            .map(|f| f.description().to_string())
+            .collect();
+        let n = names.len();
+        let mut s = Self::new_marked(
+            OverlayKind::Keymap,
+            names,
+            vec![false; n],
+            vec![false; n],
+            Vec::new(),
+            Vec::new(),
+            None,
+        );
+        s.set_secondaries(descriptions);
+        if let Some(active_index) = crate::keymap::KeymapFlavor::ALL
+            .iter()
+            .position(|&f| f == active)
+            && let Some(pos) = s.items.iter().position(|&i| i == active_index)
+        {
+            s.selected = pos;
+            s.scroll_to_selected();
+        }
+        s
+    }
+
     /// The switch-project card and the TWO routes its roster has: `folders`, one
     /// directory level read as leaf names, and `recent_roots`, what the MRU
     /// remembers as whole absolute paths. `super::build::recent` owns their

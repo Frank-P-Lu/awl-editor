@@ -127,6 +127,7 @@ impl OverlayKind {
             | OverlayKind::Dictionary
             | OverlayKind::CjkLang
             | OverlayKind::Date
+            | OverlayKind::Keymap
             | OverlayKind::MoveDest
             | OverlayKind::ExportDest
             | OverlayKind::Command

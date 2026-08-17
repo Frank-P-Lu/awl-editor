@@ -70,6 +70,7 @@ const COMMAND_TASK_CATEGORIES: &[(&str, TaskCategory)] = &[
     ("Switch theme…", View),
     ("Caret style…", Settings),
     ("Dictionary…", Settings),
+    ("Keymap…", Settings),
     ("Toggle spellcheck", Settings),
     ("Toggle caret style", Settings),
     ("Toggle page mode", View),

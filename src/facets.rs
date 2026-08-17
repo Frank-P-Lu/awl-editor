@@ -196,6 +196,8 @@ pub fn scheme(kind: OverlayKind) -> Option<&'static FacetScheme> {
         | OverlayKind::CjkLang
         // The DATE-format picker is a flat five-row list — no lens strip.
         | OverlayKind::Date
+        // The KEYMAP-flavor picker is a flat two-row list — no lens strip.
+        | OverlayKind::Keymap
         | OverlayKind::MoveDest
         | OverlayKind::ExportDest
         // The switch-project DOOR's navigator is one directory level walked by

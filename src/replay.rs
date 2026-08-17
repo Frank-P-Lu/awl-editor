@@ -292,6 +292,18 @@ fn accept_class(kind: OverlayKind) -> EffectClass {
         | OverlayKind::Context => EffectClass::Unsupported {
             why: "this picker must be enrolled here before emitting an accept effect",
         },
+        // Unlike Theme/Caret/Dictionary/CjkLang/Date, nothing here is a
+        // process-global the core can flip: the flavor is Config-owned, and
+        // applying it needs a LIVE keymap rebuild (`App::apply_keymap_flavor`)
+        // so a LATER chord in the same replay resolves against the new
+        // flavor — a capability an ordinary replay session does not own, the
+        // identical reason `RebindCommit`/`RebindReset` stay Unsupported.
+        // `--screenshot-app` (a real headless `App`) is the one door that
+        // sees this accept apply for real.
+        OverlayKind::Keymap => EffectClass::Unsupported {
+            why: "the live keymap reload is live-App-only; a later chord in the same \
+                  replay would keep resolving against the OLD flavor",
+        },
     }
 }
 

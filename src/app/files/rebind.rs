@@ -1,25 +1,30 @@
-//! src/app/files/rebind.rs — THE KEYMAP FLAVOR toggle (native/emacs) and the
-//! REBIND MENU's capture commit/reset + still-open-menu refresh. Peeled out
-//! of `files/settings.rs` to keep each file under the ~500-line ceiling.
+//! src/app/files/rebind.rs — THE KEYMAP FLAVOR apply (native/emacs, picked
+//! from the "Keymap…" sub-overlay) and the REBIND MENU's capture commit/reset
+//! + still-open-menu refresh. Peeled out of `files/settings.rs` to keep each
+//! file under the ~500-line ceiling.
 
 use crate::app::*;
 
 impl App {
-    /// THE KEYMAP FLAVOR TOGGLE (Enter on the "Keymap" settings row): flip
-    /// `Config::keymap_flavor` (native <-> emacs), PERSIST it (a quoted string,
-    /// not a bool — [`Self::persist_pref`] handles both shapes identically,
-    /// like "theme"/"caret_mode"), then RE-APPLY the keymap live from the
-    /// updated in-memory config — the SAME two calls [`Self::reload_config`]
+    /// THE KEYMAP FLAVOR APPLY (Enter on a row of the "Keymap…" picker):
+    /// set `Config::keymap_flavor` to the CHOSEN flavor (not a toggle — the
+    /// picker has no audition, so this is the whole apply), PERSIST it (a
+    /// quoted string, not a bool — [`Self::persist_pref`] handles both shapes
+    /// identically, like "theme"/"caret_mode"), RE-APPLY the keymap live from
+    /// the updated in-memory config — the SAME two calls [`Self::reload_config`]
     /// makes (`apply_overrides` + `apply_linux_keep` against the now-effective,
-    /// flavor-widened keep list), so a live toggle takes effect immediately,
+    /// flavor-widened keep list), so the change takes effect immediately,
     /// exactly like hand-editing `keymap = "emacs"` into the config buffer and
-    /// saving it.
+    /// saving it — and NAME the resulting layout with a notice, so accepting
+    /// this picker is never a silent flip (the `Action::ConvertLineEndings`
+    /// precedent: "which one am I on" is the question a picker-driven change
+    /// leaves the user with).
     ///
     /// Deliberately NOT `self.reload_config()` (a re-READ from disk): a config
     /// with a genuinely EMPTY `path` (a bare `Config::empty()`, used by native
     /// test scaffolding — the web build now always resolves a real
     /// `fs::web_config_path()`, so this is no longer the web build's own case)
-    /// would silently DISCARD the flip, since both `reload_config`'s fresh
+    /// would silently DISCARD the change, since both `reload_config`'s fresh
     /// `Config::load` and `persist_pref`'s own disk write bail out early on an
     /// empty path. Instead the in-memory mirror is set HERE, unconditionally,
     /// before attempting the disk write, and the keymap is rebuilt straight
@@ -27,14 +32,10 @@ impl App {
     ///
     /// WEB: the disk write now genuinely persists (`fs::web_config_path` over
     /// `WebFs`/`localStorage` — see the web-config round), so a keymap-flavor
-    /// flip survives a page reload exactly like on native.
-    pub(in crate::app) fn toggle_keymap_flavor(&mut self) {
-        let next = match self.config.keymap_flavor() {
-            crate::keymap::KeymapFlavor::Native => crate::keymap::KeymapFlavor::Emacs,
-            crate::keymap::KeymapFlavor::Emacs => crate::keymap::KeymapFlavor::Native,
-        };
-        self.config.keymap = Some(next.config_name().to_string());
-        self.persist_pref("keymap", &format!("\"{}\"", next.config_name()));
+    /// change survives a page reload exactly like on native.
+    pub(in crate::app) fn apply_keymap_flavor(&mut self, flavor: crate::keymap::KeymapFlavor) {
+        self.config.keymap = Some(flavor.config_name().to_string());
+        self.persist_pref("keymap", &format!("\"{}\"", flavor.config_name()));
         let mut keys_with_web_alt = self.config.keys.clone();
         keys_with_web_alt.extend(crate::commands::web_alternate_keys(
             &self.config.keys,
@@ -45,6 +46,10 @@ impl App {
         self.input.apply_key_overrides(&keys_with_web_alt);
         self.input.apply_linux_keep(&linux_keep);
         self.refresh_settings_overlay();
+        self.emit_notice(crate::actions::NoticeEffect::Toast(format!(
+            "keymap: {}",
+            flavor.label()
+        )));
         // Every sibling settings-mutation door (`setting_toggle`'s generic
         // path, `setting_value_commit`, `setting_path_pick`) ends in a
         // `request_redraw` of its own rather than leaning on whatever

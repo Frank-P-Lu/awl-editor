@@ -174,6 +174,28 @@ impl KeymapFlavor {
             KeymapFlavor::Emacs => "emacs",
         }
     }
+
+    /// The "Keymap…" picker's PRIMARY column — plain language, never the bare
+    /// config slug (`config_name`), so a reader who has never seen the word
+    /// "emacs" still knows what they picked. Mirrors [`crate::caret::CaretMode::
+    /// label`]'s split between a short primary label and a longer secondary
+    /// [`Self::description`].
+    pub fn label(self) -> &'static str {
+        match self {
+            KeymapFlavor::Native => "Standard",
+            KeymapFlavor::Emacs => "Emacs",
+        }
+    }
+
+    /// The picker's SECONDARY column: the concrete chords that differ, so the
+    /// choice is legible without already knowing either convention by name.
+    pub fn description(self) -> &'static str {
+        match self {
+            KeymapFlavor::Native => "Ctrl+C copies, Ctrl+V pastes",
+            KeymapFlavor::Emacs => "Ctrl navigates (C-p, C-n, C-a…)",
+        }
+    }
+
 }
 
 /// The Emacs preset derives every `C-<letter>` directly from

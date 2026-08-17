@@ -587,9 +587,20 @@ fn accept_value_overlay(ctx: &mut ActionCtx) -> Effect {
 }
 
 fn accept_process_value(ctx: &mut ActionCtx) -> Option<Effect> {
-    use crate::overlay::OverlayKind::{CjkLang, Date, Dictionary};
+    use crate::overlay::OverlayKind::{CjkLang, Date, Dictionary, Keymap};
     let ov = ctx.journey.card().unwrap();
     let effect = match ov.kind {
+        // No process-global to flip here (unlike every sibling in this match):
+        // the flavor is Config-owned, and applying it needs a live keymap
+        // rebuild that only the App can perform (`App::apply_keymap_flavor`,
+        // reached through `Effect::OverlayAccept` — see `replay::accept_class`'s
+        // `Keymap` arm for why an ordinary headless replay cannot). Resolved
+        // by CORPUS INDEX, not by parsing the plain-language row label, mirroring
+        // Date rather than Dictionary/CjkLang — the label is presentation only.
+        Keymap => ov
+            .selected_corpus_index()
+            .and_then(|index| crate::keymap::KeymapFlavor::ALL.get(index).copied())
+            .map(|flavor| Effect::OverlayAccept(Keymap, flavor.config_name().to_string())),
         Dictionary => ov
             .selected_value()
             .and_then(crate::spell::DictVariant::from_label)

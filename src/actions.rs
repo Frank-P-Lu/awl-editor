@@ -493,6 +493,9 @@ fn apply_overlay_open_action(ctx: &mut ActionCtx, action: &Action) -> bool {
             ctx.journey
                 .enter((ctx.make_overlay)(OverlayKind::Dictionary));
         }
+        Action::OpenKeymapMenu => {
+            ctx.journey.enter((ctx.make_overlay)(OverlayKind::Keymap));
+        }
         // Toggling spellcheck is a pure render/detection concern (no buffer change).
         // The process-global flip lives HERE on the shared seam (like the page/caret
         // toggles); `App::apply` persists the sticky pref + forces an immediate
@@ -675,6 +678,7 @@ macro_rules! classify_action_family {
             | Action::OpenThemeMenu
             | Action::OpenCaretMenu
             | Action::OpenDictionaryMenu
+            | Action::OpenKeymapMenu
             | Action::ToggleSpellcheck
             | Action::ToggleWritingNits
             | Action::OpenCommandPalette

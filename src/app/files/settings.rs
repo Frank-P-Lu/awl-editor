@@ -81,15 +81,14 @@ impl App {
     /// The read/negate/set core itself lives in ONE place,
     /// [`crate::settings::flip_toggle_global`], shared with the replay
     /// interpreter (`main/run/settings_effects.rs::interpret_setting_toggle`)
-    /// — this method keeps only what is genuinely App's: the `keymap`/
-    /// `date_format` special cases (neither is a boolean flip) and the LIVE
-    /// tail below (gpu resize, `sync_view`, `run_spellcheck_now`), none of
-    /// which a headless replay has a pipeline for.
+    /// — this method keeps only what is genuinely App's: the `date_format`
+    /// special case (not a boolean flip) and the LIVE tail below (gpu resize,
+    /// `sync_view`, `run_spellcheck_now`), none of which a headless replay has
+    /// a pipeline for. `keymap` no longer routes here at all — the "Keymap"
+    /// row is a `SettingKind::Picker` now (its Enter descends into the
+    /// sub-overlay; the actual apply is [`Self::apply_keymap_flavor`], reached
+    /// through `Effect::OverlayAccept`, never `SettingToggle`).
     pub(in crate::app) fn setting_toggle(&mut self, key: &str) {
-        if key == "keymap" {
-            self.toggle_keymap_flavor();
-            return;
-        }
         if key == "date_format" {
             self.cycle_date_format();
             return;
@@ -126,9 +125,9 @@ impl App {
     /// row's own value cell, a future capture — consults), PERSIST it (a
     /// quoted slug, like `keymap`/`caret_mode`), then refresh the still-open
     /// menu so the secondary column's live TODAY preview updates immediately.
-    /// Mirrors [`Self::toggle_keymap_flavor`]'s exact shape (the same "not a
-    /// bool, special-cased before the generic match" seam `setting_toggle`
-    /// routes both through), minus the keymap rebuild this doesn't need.
+    /// Mirrors [`Self::apply_keymap_flavor`]'s shape (persist a quoted slug,
+    /// re-apply live, refresh the still-open menu) minus the keymap rebuild
+    /// this doesn't need.
     pub(in crate::app) fn cycle_date_format(&mut self) {
         let next = crate::dateformat::active_format().cycle_next();
         crate::dateformat::set_active_format(next);

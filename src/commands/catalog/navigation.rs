@@ -225,6 +225,18 @@ pub(super) static COMMANDS: &[Command] = &[
         description: Some("Summon the spelling dictionary picker."),
     },
     Command {
+        // Hidden on `Convention::Mac` (`commands::row_hidden`): native macOS
+        // ⌘ bindings double-fire the emacs slot regardless of this flavor, so
+        // the picker has nothing to choose there — see `KeymapFlavor`'s doc.
+        name: "Keymap…",
+        action: Action::OpenKeymapMenu,
+        native: "",
+        emacs: "",
+        native_only: false,
+        web_only: false,
+        description: Some("Summon the keymap flavor picker (native/emacs)."),
+    },
+    Command {
         name: "Toggle spellcheck",
         action: Action::ToggleSpellcheck,
         native: "",

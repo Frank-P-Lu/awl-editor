@@ -594,6 +594,17 @@ impl App {
                 self.persist_date_format();
                 self.refresh_settings_overlay();
             }
+            // Picked a row (native/emacs), not a boolean flip: unlike the old
+            // Toggle row this never previews live, so the accept is the whole
+            // apply — persist, rebuild the live keymap, and name the resulting
+            // layout (never a silent flip, `Action::ConvertLineEndings`'s "which
+            // one am I on" precedent). An unparseable `value` is a calm no-op —
+            // the corpus only ever emits a real `KeymapFlavor::config_name()`.
+            Keymap => {
+                if let Some(flavor) = crate::keymap::KeymapFlavor::parse(value) {
+                    self.apply_keymap_flavor(flavor);
+                }
+            }
             History => self.restore_history(value),
             // The conflict workspace accepts nothing: stepping its rows already
             // changes what the comparison shows, and neither resolution is

@@ -588,6 +588,18 @@ fn row_hidden(action: &Action, gates: RowGates) -> bool {
         Action::ReviewChange | Action::ResolveKeepMine | Action::ResolveTakeTheirs => {
             !gates.change_unresolved
         }
+        // "Keymap…" chooses between native/emacs Ctrl-collision handling, a
+        // question [`Convention::Linux`] alone has an answer to — on
+        // `Convention::Mac` (native macOS, or a Mac-UA web build) native ⌘
+        // bindings double-fire the emacs slot unconditionally regardless of
+        // this flavor (`crate::keymap::KeymapFlavor`'s doc), so there is
+        // nothing here to choose. Not a `RowGates` fact (those are live facts
+        // the CALLER gathers per dispatch); `Convention::current()` is an
+        // ambient, process-frozen fact every other convention-gated check in
+        // this crate already reads directly.
+        Action::OpenKeymapMenu => {
+            crate::convention::Convention::current() != crate::convention::Convention::Linux
+        }
         _ => false,
     }
 }

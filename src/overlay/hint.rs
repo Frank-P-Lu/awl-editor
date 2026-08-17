@@ -68,7 +68,8 @@ impl OverlayKind {
             OverlayKind::Caret
             | OverlayKind::Dictionary
             | OverlayKind::CjkLang
-            | OverlayKind::Date => vec![enter("apply")],
+            | OverlayKind::Date
+            | OverlayKind::Keymap => vec![enter("apply")],
             OverlayKind::Command => super::command_hint_actions(),
             OverlayKind::Spell => vec![enter("replace")],
             OverlayKind::Context => vec![enter("choose"), key("esc", "close")],
