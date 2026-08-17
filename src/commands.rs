@@ -331,7 +331,7 @@ fn native_label_effective(
     }
 }
 
-/// THE AWL-RENDERED MENU BAR'S EFFECTIVE CHORD COLUMN — item 455's fix. The
+/// THE AWL-RENDERED MENU BAR'S EFFECTIVE CHORD COLUMN. The
 /// menu's secondary column is native-only by design (`menu::item_chord`'s own
 /// doc): one true shortcut, matching what a native OS menu shows, never the
 /// palette's two-slot native-and-emacs join. But "native-only" still has to be

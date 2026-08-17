@@ -101,8 +101,8 @@ lines = 453
 
 [[file_size_mark]]
 file = "src/app/viewstate.rs"
-lines = 555
-reason = "`sync_view` is the sole exhaustive `ViewState` construction site, so every render datum must be spelled out here. It carries the fold chevron's real fold set, the summoned picker's secondary location, the persistent changed-elsewhere affordance, photographable/findable notices, and world-authored diagonal-mark weight without creating a second non-exhaustive construction path. +11: the working-set stack's row count and its own fold-independent geometry, the one new field a margin widening to more than one row needs."
+lines = 562
+reason = "`sync_view` is the sole exhaustive `ViewState` construction site, so every render datum must be spelled out here. It carries the fold chevron's real fold set, the summoned picker's secondary location, the persistent changed-elsewhere affordance, photographable/findable notices, and world-authored diagonal-mark weight without creating a second non-exhaustive construction path. +11: the working-set stack's row count and its own fold-independent geometry, the one new field a margin widening to more than one row needs. +7: mirrors config_keys/config_linux_keep, the menu chord column's config-awareness plumbing."
 
 [[file_size_mark]]
 file = "src/app/window.rs"
@@ -154,8 +154,8 @@ reason = "+2: the glyph pipeline owns the Filled block's named zero-dilation kno
 
 [[file_size_mark]]
 file = "src/commands.rs"
-lines = 627
-reason = "The review row joins the two resolutions in `row_hidden`, the one place a runtime palette gate is written down (+4). +13: Command gains a `description` field, and the added lines are its doc comment explaining the mechanism that makes the omission unrepresentable — Option<&'static str> with no Default impl on the struct, so all 96 literals must write the arm and a 95th command cannot be added without one."
+lines = 683
+reason = "The review row joins the two resolutions in `row_hidden`, the one place a runtime palette gate is written down (+4). +13: Command gains a `description` field, and the added lines are its doc comment explaining the mechanism that makes the omission unrepresentable — Option<&'static str> with no Default impl on the struct, so all 96 literals must write the arm and a 95th command cannot be added without one. +56: native_label_effective and menu_native_label, the one owner both the palette's join_slots_truthful and the drawn menu's chord column now share for a config-aware native label, plus their doc comments naming the shared-owner rule."
 
 [[file_size_mark]]
 file = "src/config/model.rs"
@@ -240,8 +240,8 @@ lines = 661
 
 [[file_size_mark]]
 file = "src/menu.rs"
-lines = 1101
-reason = "The three Export rows' File-menu label now diverges from their catalog command (dropping a stale ellipsis with no surface behind it — the shorthand `r()`/`ri()` constructors can't express that, so each grew into a full `Routed` literal), plus the label divergence law's `EXPLICIT_MENU_LABELS` entries and doc comment, and a two-line `#[cfg(test)] mod ellipsis_law;` declaration for the new law itself (+29). +25: the NATIVE_PANEL_IDS table and its one predicate, declared as DATA beside the roster it indexes so ellipsis_law can sweep the AppKit-panel door from any host — a literal buried in the macOS handler is unreadable to the law that must hold both doors to the same promise, which is exactly how `Browse files…` passed for the wrong reason."
+lines = 1111
+reason = "The three Export rows' File-menu label now diverges from their catalog command (dropping a stale ellipsis with no surface behind it — the shorthand `r()`/`ri()` constructors can't express that, so each grew into a full `Routed` literal), plus the label divergence law's `EXPLICIT_MENU_LABELS` entries and doc comment, and a two-line `#[cfg(test)] mod ellipsis_law;` declaration for the new law itself (+29). +25: the NATIVE_PANEL_IDS table and its one predicate, declared as DATA beside the roster it indexes so ellipsis_law can sweep the AppKit-panel door from any host — a literal buried in the macOS handler is unreadable to the law that must hold both doors to the same promise, which is exactly how `Browse files…` passed for the wrong reason. +10: `mod chord_truth;` and its own roster x flavor law proving the drawn menu's chord column agrees with real dispatch under both keymap flavors."
 
 [[file_size_mark]]
 file = "src/menubar.rs"
@@ -286,8 +286,8 @@ lines = 559
 
 [[file_size_mark]]
 file = "src/render.rs"
-lines = 2761
-reason = "The footer plate uses the notice channel's one-pixel rim so it remains visible. `Millis` and `progress_per` keep durations out of pixel multiplication by type, while declaration docs name the entitled scale factor for page/caret pads, page-frame strokes, and spell gaps. `HudDefaults`, `WhichKeyDefaults`, and `DebugDefaults` give inert field groups exhaustive defaults beside their sole `TextPipeline` owner. Shape reach rejects unshaped-line sentinels, and `Metrics` carries `dpi` beside zoom scale so a logical floor does not vary by display density. `CARET_INK_PAD_W` gained a doc comment naming its rationale and the near-zero vertical headroom finding that kept the tuning to width alone. +7: the working-set stack plate's own row-height and inset constants, named beside the other margin-row geometry this file already owns."
+lines = 2771
+reason = "The footer plate uses the notice channel's one-pixel rim so it remains visible. `Millis` and `progress_per` keep durations out of pixel multiplication by type, while declaration docs name the entitled scale factor for page/caret pads, page-frame strokes, and spell gaps. `HudDefaults`, `WhichKeyDefaults`, and `DebugDefaults` give inert field groups exhaustive defaults beside their sole `TextPipeline` owner. Shape reach rejects unshaped-line sentinels, and `Metrics` carries `dpi` beside zoom scale so a logical floor does not vary by display density. `CARET_INK_PAD_W` gained a doc comment naming its rationale and the near-zero vertical headroom finding that kept the tuning to width alone. +7: the working-set stack plate's own row-height and inset constants, named beside the other margin-row geometry this file already owns. +10: the menu chord column's config-aware label plumbing (ViewState mirrors of config_keys/config_linux_keep)."
 
 [[file_size_mark]]
 file = "src/render/benchsuite/corpus.rs"
@@ -313,8 +313,8 @@ reason = "+2 net: prepare_hud and prepare_streaks_card consume the shared plan_f
 
 [[file_size_mark]]
 file = "src/render/chrome/menubar.rs"
-lines = 542
-reason = "+6: the dropdown plan takes the frame's scale so its minimum width resolves at the pixel-space boundary, and the two dial constants gain the doc lines that record their unit family."
+lines = 544
+reason = "+6: the dropdown plan takes the frame's scale so its minimum width resolves at the pixel-space boundary, and the two dial constants gain the doc lines that record their unit family. +2: the dropdown plan now also takes the config keys/keep slices it threads into the chord column."
 
 [[file_size_mark]]
 file = "src/render/chrome/mod.rs"
@@ -380,13 +380,13 @@ lines = 568
 
 [[file_size_mark]]
 file = "src/render/pipeline_draw.rs"
-lines = 505
-reason = "The footer plate earns the notice channel's own one-pixel rim, which is what lifts it from delta-E 1.91 to 54 on Cassowary -- a plate nobody can see is not a plate. +5: the rim's construction and its draw slot immediately before `overlay_bars`, matching the order `notice_rim`/`notice_plate` already keep. +1: the `shape_tail_owed` field initialiser in TextPipeline::new's literal, its sole construction site — the flag that records a presented frame still owes its tail. +7: the working-set stack plate's draw call, slotted beside the other gutter-row draws it shares a pipeline with."
+lines = 507
+reason = "The footer plate earns the notice channel's own one-pixel rim, which is what lifts it from delta-E 1.91 to 54 on Cassowary -- a plate nobody can see is not a plate. +5: the rim's construction and its draw slot immediately before `overlay_bars`, matching the order `notice_rim`/`notice_plate` already keep. +1: the `shape_tail_owed` field initialiser in TextPipeline::new's literal, its sole construction site — the flag that records a presented frame still owes its tail. +7: the working-set stack plate's draw call, slotted beside the other gutter-row draws it shares a pipeline with. +2: threads config_keys/config_linux_keep into the menu dropdown plan's construction."
 
 [[file_size_mark]]
 file = "src/render/pipeline_geometry.rs"
-lines = 515
-reason = "`set_view` is the sole ViewState-to-pipeline mirror: it measures workspace rails, mirrors row ownership, invalidates view-derived diagonal geometry, and publishes every projection. It carries fold-chevron retinting, fold headings/tails, secondary location, comparison/source mirrors, selection-ui overlay rows, photographable/findable notices, and world-authored diagonal-mark weight. +1: mirrors the working-set stack's row count alongside the other row-ownership mirrors."
+lines = 521
+reason = "`set_view` is the sole ViewState-to-pipeline mirror: it measures workspace rails, mirrors row ownership, invalidates view-derived diagonal geometry, and publishes every projection. It carries fold-chevron retinting, fold headings/tails, secondary location, comparison/source mirrors, selection-ui overlay rows, photographable/findable notices, and world-authored diagonal-mark weight. +1: mirrors the working-set stack's row count alongside the other row-ownership mirrors. +6: mirrors config_keys/config_linux_keep onto TextPipeline alongside every other synced field, the plumbing the menu chord column's config-awareness rides."
 
 [[file_size_mark]]
 file = "src/render/pipeline_overlay.rs"
@@ -504,7 +504,7 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/app/viewstate.rs"
 function = "App::sync_view"
-message = "this function has too many lines (247/100)"
+message = "this function has too many lines (249/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. `sync_view` is the one exhaustive `ViewState` projection site, so each new render datum is spelled out here: the fold chevron's `folded_headings` (its direction needs the real fold set, not merely `fold_tails`'s own key set, so `fold::apply_to_view` takes the buffer's folds at its one call site here) and the summoned picker's secondary location. The document-session extraction replaced direct buffer and cache fields with explicit read projections while preserving that one exhaustive site."
 
 [[clippy_exception]]
@@ -749,7 +749,7 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 lint = "clippy::too_many_lines"
 file = "src/render/pipeline_draw.rs"
 function = "TextPipeline::new"
-message = "this function has too many lines (445/100)"
+message = "this function has too many lines (447/100)"
 reason = "The one exhaustive TextPipeline initializer keeps adjacent GPU state transitions together. Four added lines initialize arbitrary two-colour ground/ink endpoints for independent selection and caret pipelines; their shared baked construction lives in SelectionPipeline::new_two_colour."
 
 [[clippy_exception]]

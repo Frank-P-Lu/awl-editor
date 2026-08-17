@@ -1,4 +1,4 @@
-//! **THE DRAWN MENU'S CHORD COLUMN TELLS THE TRUTH (item 455).** The
+//! **THE DRAWN MENU'S CHORD COLUMN TELLS THE TRUTH.** The
 //! awl-rendered menu bar's secondary column used to read
 //! `commands::resolved_native_label_truthful` directly — config-blind by that
 //! function's own doc, which expects a caller that knows the user's config to

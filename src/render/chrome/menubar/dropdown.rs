@@ -87,7 +87,7 @@ impl DropdownPlan {
     /// `sync_view` — see [`ViewState::config_keys`](crate::render::ViewState::config_keys))
     /// threaded into the chord column so it can never advertise a chord the
     /// resolver would not actually dispatch under this user's `keymap` flavor
-    /// or a `[keys]` rebind (item 455).
+    /// or a `[keys]` rebind.
     pub fn new(
         items: &[crate::menu::RosterItem],
         row_h: f32,

@@ -225,7 +225,7 @@ impl App {
             // for exactly as long as the conflict is and cannot be cleared by an
             // unrelated toast expiring on top of it.
             gutter_changed: self.change_unresolved(),
-            // THE MENU BAR'S CONFIG-AWARE CHORD COLUMN (item 455): the SAME two
+            // THE MENU BAR'S CONFIG-AWARE CHORD COLUMN: the SAME two
             // values `BuildCtx::config_keys`/`config_linux_keep` hand the palette
             // (`app/apply.rs`'s `build_ctx`), so a `[keys]` rebind or a live
             // `keymap` flavor toggle reaches the awl-drawn menu bar's chord
