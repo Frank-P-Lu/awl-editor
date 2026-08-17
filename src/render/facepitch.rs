@@ -312,10 +312,10 @@ pub fn vertical_em_metrics(family: &str) -> (f32, f32) {
 /// line-spacing figure. The unknown-family fallback is the same shape every
 /// other per-face fact here falls back to.
 pub fn ink_envelope_em(family: &str) -> (f32, f32) {
-    roster()
-        .get(family)
-        .map(|f| f.ink_envelope_em)
-        .unwrap_or((measure::DEFAULT_INK_ASCENT_EM, measure::DEFAULT_INK_DESCENT_EM))
+    roster().get(family).map(|f| f.ink_envelope_em).unwrap_or((
+        measure::DEFAULT_INK_ASCENT_EM,
+        measure::DEFAULT_INK_DESCENT_EM,
+    ))
 }
 
 /// The resolved bundled CJK face's stable one-em ideographic cell, expressed
