@@ -6,37 +6,43 @@
 
 ## Ready to build
 
-### 457 — 🔵 BLOCKED (user decision): what the emacs flavor MEANS on Linux — clipboard chords and the Meta layer
-
-Two coupled taste calls, parked with a recommendation; the exact question was
-put to the user in-session 2026-08-17 and may resolve within the day.
+### 457 — the emacs flavor on Linux: native clipboard chords + the classic Meta layer (USER DECISION 2026-08-17; ready to build)
 
 Today `keymap = "emacs"` on Linux keeps EVERY displaced Ctrl-letter to its
 emacs meaning (`src/config/model.rs:119-125` composes the preset unfiltered):
 C-c and C-x become prefixes, C-v page-down — so Omarchy's Super+C→Ctrl+C
-forwarding lands on `BeginPrefix` and "copy is broken." CLAUDE.md's
-"C-c/C-x/C-v stay native" tripwire holds only under the NATIVE flavor; the
-compensation is a manual `[keys]` carve-out (`src/config/write.rs:90-98`,
-GUIDE.md). And the flavor seeds no Meta layer at all: the Option-letter
-retirement is a macOS platform rule (Option types accents) that does not bind
-Linux Alt.
+forwarding lands on `BeginPrefix` and "copy is broken." And the flavor seeds
+no Meta layer: the Option-letter retirement is a macOS platform rule (Option
+types accents) that does not bind Linux Alt.
 
-**Question (a):** should the emacs preset leave C-c and C-v native by default —
-clipboard survives compositor forwarding; emacs hands keep C-w cut and C-y
-paste — while C-x stays the emacs prefix (it carries save/open; excluding it
-guts the flavor)? Purists reclaim chords via `[keys]`, the same recipe the
-generated config already prints, inverted.
+**Decided, both halves:**
 
-**Question (b):** should the emacs flavor on Linux seed the classic Meta
-layer — M-x command palette, M-w copy, M-f/M-b/M-d word ops, M-v/M-< /M-> —
-given Alt IS emacs's Meta? This is "use Alt on Linux" done the emacs-authentic
-way, and it completes item 456's Linux-emacs palette binding.
+(a) The emacs preset leaves **C-c and C-v native** — Copy/Paste survive the
+compositor forwarding; emacs hands keep C-w cut and C-y paste — while **C-x
+stays the emacs prefix** (it carries save/open; excluding it guts the
+flavor). Filter in the one composition owner, `Config::effective_linux_keep`
+(`src/config/model.rs:114-132`), never at call sites. Purists reclaim c/v via
+`[keys]`; update the generated-config carve-out comment
+(`src/config/write.rs:90-98`) and GUIDE.md's copy — the old recipe is now the
+default and the printed example inverts.
 
-**Recommendation: yes to both.** On accept: update the CLAUDE.md tripwire
-wording and the generated-config carve-out comment, and re-pin the flavor
-laws (`keymap_flavor_emacs_preset_reverts_every_displaced_chord_to_emacs_meaning`
-currently pins c/x/v to emacs meanings — it flips to pinning the new
-composition, swept over the whole displaced roster).
+(b) The emacs flavor on Linux seeds the **classic Meta layer**: M-x → command
+palette (this, not a catalog emacs slot, is item 456's Linux-emacs binding),
+M-w copy, M-f/M-b word motion, M-d/M-Backspace word delete, M-v page-up,
+M-< / M-> document ends. Linux-only under the flavor; macOS keeps Option for
+typing (`src/keymap/resolve.rs:44-49`) and the flavor stays inert there.
+
+Also owned here: reword CLAUDE.md's "C-c/C-x/C-v stay native" tripwire to the
+new truth (c/v by construction, C-x deliberately emacs). Same mechanism as
+item 456's seeding — sequence the two or give them one owner.
+
+Verify: re-pin
+`keymap_flavor_emacs_preset_reverts_every_displaced_chord_to_emacs_meaning`
+to the new composition, swept over the whole displaced roster, never a
+hand-picked sample. New laws: Linux+emacs C-c copies, C-v pastes, C-x begins
+a prefix; every seeded Meta chord dispatches; a `[keys]` reclaim wins over
+the default in both directions. Mutation: unfilter the preset, watch the C-c
+law go red.
 
 ### 456 — the command palette becomes a real command (USER DECISION 2026-08-17; ready to build)
 
@@ -51,8 +57,10 @@ bespoke arm). Combined with item 454's silent toggle this stranded the user;
 recovery was Ctrl-, → Settings alone.
 
 Decided: catalog it. A real command ("Command palette", native slot Cmd-P,
-emacs slot EMPTY pending item 457 — M-x is the natural candidate), keeping
-Cmd-Shift-P → Open project intact, plus a menu item (lane picks the section).
+emacs slot EMPTY — a catalog emacs slot would fire on macOS too, where Option
+belongs to typing; the Linux M-x binding arrives via item 457's Meta-layer
+seeding instead), keeping Cmd-Shift-P → Open project intact, plus a menu item
+(lane picks the section).
 Behavior must not change on macOS or Linux-native: ⌘P / Ctrl-P resolve exactly
 as today. Check the web build: if the catalog path trips `webreserved` for
 Cmd-P where the bespoke arm did not, add the `WEB_ALTERNATE` entry rather than
