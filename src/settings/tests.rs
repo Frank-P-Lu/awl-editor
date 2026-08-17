@@ -477,27 +477,42 @@ fn cjk_row_is_a_picker_with_a_writer_word_value_cell() {
     crate::frontmatter::set_cjk_priority(&crate::frontmatter::DEFAULT_CJK_PRIORITY);
 }
 
+/// "Full table" now means "full table minus Keymap on `Convention::Mac`" —
+/// the one row hidden on a RUNTIME axis orthogonal to `Platform`
+/// (`row_available_on`'s doc). `Convention::current()` is process-frozen
+/// (`AWL_CONVENTION_FORCE` is read once, memoized), so this branches on the
+/// ambient value rather than forcing one — `native-gate.sh` runs the whole
+/// suite under BOTH conventions, which is what actually exercises both arms.
+fn keymap_row_hidden_here() -> bool {
+    crate::convention::Convention::current() != crate::convention::Convention::Linux
+}
+
 #[test]
 fn visible_rows_native_is_the_full_table() {
+    let expected = SETTINGS.len() - usize::from(keymap_row_hidden_here());
     assert_eq!(
         visible_rows_on(crate::commands::Platform::Native).len(),
-        SETTINGS.len()
+        expected
     );
     assert_eq!(
         visible_names(),
-        names(),
-        "native: visible_names must match the full table"
+        names()
+            .into_iter()
+            .filter(|n| n != "Keymap" || !keymap_row_hidden_here())
+            .collect::<Vec<_>>(),
+        "native: visible_names must match the full table minus a hidden Keymap"
     );
 }
 
-/// On `Web`, EVERY row is now visible too — "Edit config as text" stopped
-/// hiding once `main::wasm_start` started loading a real `config.toml` over
-/// `WebFs` (`fs::web_config_path`), so `App::open_settings`'s empty-path guard
-/// never fires there anymore.
+/// On `Web`, every row but the convention-gated Keymap is visible —
+/// "Edit config as text" stopped hiding once `main::wasm_start` started
+/// loading a real `config.toml` over `WebFs` (`fs::web_config_path`), so
+/// `App::open_settings`'s empty-path guard never fires there anymore.
 #[test]
 fn visible_rows_web_is_also_the_full_table() {
     let web = visible_rows_on(crate::commands::Platform::Web);
-    assert_eq!(web.len(), SETTINGS.len());
+    let expected = SETTINGS.len() - usize::from(keymap_row_hidden_here());
+    assert_eq!(web.len(), expected);
     assert!(web.iter().any(|r| r.name == "Edit config as text"));
 }
 
@@ -550,6 +565,7 @@ fn covered_by_picker_rows_open_the_same_overlay_as_their_command() {
             Action::OpenThemeMenu => OverlayKind::Theme,
             Action::OpenCaretMenu => OverlayKind::Caret,
             Action::OpenDictionaryMenu => OverlayKind::Dictionary,
+            Action::OpenKeymapMenu => OverlayKind::Keymap,
             Action::OpenKeybindings => OverlayKind::Keybindings,
             other => panic!(
                 "{cmd_name:?} covers {row_id:?} but its action {other:?} \
@@ -625,9 +641,17 @@ fn covered_rows_are_excluded_from_the_palette_on_both_platforms() {
 
 /// A covered row stays FULLY FUNCTIONAL inside the Settings menu itself —
 /// this fix only trims the PALETTE corpus, never `visible_rows`.
+///
+/// One deliberate exception: Keymap is ALSO hidden from `visible_rows` on
+/// `Convention::Mac` (`row_available_on`) — a second, orthogonal hide from
+/// `COVERED_BY`'s palette-only trim, because the flavor is structurally
+/// inert there (nothing in the Settings menu to show either).
 #[test]
 fn covered_rows_stay_in_the_settings_menu_unaffected() {
     for (row_id, _) in COVERED_BY {
+        if *row_id == SettingId::Keymap && keymap_row_hidden_here() {
+            continue;
+        }
         assert!(
             visible_rows().iter().any(|r| r.id == *row_id),
             "{row_id:?} must remain reachable from the Settings menu"
@@ -918,7 +942,11 @@ fn typed_ids_still_emit_the_legacy_wire_keys() {
         toggle_key(SettingId::SessionRestore),
         Some("session_restore")
     );
-    assert_eq!(toggle_key(SettingId::Keymap), Some("keymap"));
+    assert_eq!(
+        toggle_key(SettingId::Keymap),
+        None,
+        "Keymap is a picker row now — a picker row has no toggle key"
+    );
     assert_eq!(
         toggle_key(SettingId::DateFormat),
         None,
