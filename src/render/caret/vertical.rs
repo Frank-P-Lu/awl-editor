@@ -148,12 +148,11 @@ impl TextPipeline {
     /// THE LITERAL BLOCK CARET'S proportional-face vertical box: the row's
     /// real ASCENDER-to-DESCENDER ink envelope
     /// ([`facepitch::ink_envelope_em`]), in the same baseline-relative
-    /// convention [`Self::caret_synthetic_ink_box`] uses. Item 451's user
-    /// verdict on the typical-letter box: a real ascender (`d`, `l`, `b`,
-    /// `h`, `k`) visibly pokes its ink above that box's top, because the
-    /// typical-letter ratio is tuned to the MEAN letter, not the tallest one
-    /// that can occupy the cell. This box is tall enough for the roster's
-    /// worst case instead.
+    /// convention [`Self::caret_synthetic_ink_box`] uses. Against the
+    /// typical-letter box: a real ascender (`d`, `l`, `b`, `h`, `k`) visibly
+    /// pokes its ink above that box's top, because the typical-letter ratio
+    /// is tuned to the MEAN letter, not the tallest one that can occupy the
+    /// cell. This box is tall enough for the roster's worst case instead.
     ///
     /// `ratio_font`'s own measured `hhea` ascent fraction
     /// ([`facepitch::vertical_em_metrics`].0) recovers the row's FONT SIZE
@@ -168,8 +167,7 @@ impl TextPipeline {
     ///
     /// A FACE-LEVEL fraction of a real per-row font size, not a per-glyph
     /// raster read — the top and bottom stay fixed for every anchor on the
-    /// same face/row, exactly the stability item 448 established and this
-    /// item's verdict only widens, never removes.
+    /// same face/row, the stability property a per-glyph box would give up.
     pub(super) fn caret_block_ink_box(&self, row_max_ascent: f32, ratio_font: &str) -> InkBox {
         let (hhea_ascent_em, _) = facepitch::vertical_em_metrics(ratio_font);
         let (ink_ascent_em, ink_descent_em) = facepitch::ink_envelope_em(ratio_font);

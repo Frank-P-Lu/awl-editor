@@ -341,9 +341,8 @@ impl TextPipeline {
     ///     preference folded to Block on an ink-caret world — see
     ///     `folds_morph_to_block`) takes [`Self::caret_cell_vertical_block`]: the
     ///     row's real ASCENDER-to-DESCENDER ink envelope
-    ///     ([`facepitch::ink_envelope_em`]), item 451's user verdict — a real
-    ///     ascender (`d`, `l`, `b`, `h`, `k`) must never poke its ink above the
-    ///     accent body it sits on.
+    ///     ([`facepitch::ink_envelope_em`]) — a real ascender (`d`, `l`, `b`,
+    ///     `h`, `k`) must never poke its ink above the accent body it sits on.
     ///   - **Everything else that shares this cell** (Morph's support-body
     ///     decision, Morph's fast-travel deferral before it settles onto a real
     ///     glyph, the glyphless space bar) takes [`Self::caret_cell_vertical_typical`]:

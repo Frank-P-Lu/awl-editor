@@ -775,15 +775,15 @@ const EMPTY_LINE_UNDER_LETTER_PX: f32 = 0.1;
 /// that picks the wrong row.
 ///
 /// PINNED ON MORPH, not Block: this law's CEILING non-vacuity oracle is the
-/// OLD fixed line-box cap (`old_fallback_cell`), which item 451 made
-/// permanently smaller than Block's own real cell (the ink envelope, deliberately
-/// taller than the old cap on every bundled face) — the ceiling could never
-/// bite there again, not because the defect is impossible, but because the
-/// comparison itself stopped being informative for that mode. Morph's cell
-/// form still runs the exact typical-letter formula this file's constants were
-/// calibrated against (`caret::vertical::caret_cell_vertical_typical`,
-/// unchanged by item 451), so the original defect and its oracle both remain
-/// live there.
+/// OLD fixed line-box cap (`old_fallback_cell`), which the literal Block
+/// caret's own real cell (the ink envelope, deliberately taller than the old
+/// cap on every bundled face) made permanently smaller — the ceiling could
+/// never bite there again, not because the defect is impossible, but because
+/// the comparison itself stopped being informative for that mode. Morph's
+/// cell form still runs the exact typical-letter formula this file's
+/// constants were calibrated against (`caret::vertical::caret_cell_vertical_typical`,
+/// unaffected by the Block envelope), so the original defect and its oracle
+/// both remain live there.
 #[test]
 fn empty_line_cell_tracks_the_letter_cell_on_the_same_world() {
     let _t = crate::testlock::serial();
