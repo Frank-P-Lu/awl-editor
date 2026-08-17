@@ -108,16 +108,20 @@ pub(super) fn stack_spans(lines: &[StackLine]) -> Vec<(String, glyphon::Color)> 
 /// from the line it marks: it is derived from that rect, never re-measured from
 /// the canvas. The ink is right-aligned inside the box, so the plate ends where
 /// the box does and begins a pad short of where the text starts.
+/// The RIGHT edge is the invariant, and it is fixed at one pad past the box on
+/// every row — the same convention [`TextPipeline::gutter_frost_seeds`] already
+/// uses for this block's halos, so the two treatments hug the writing column
+/// identically instead of each hugging it their own way. Only the LEFT edge
+/// yields, at the canvas edge, when a label is as wide as the margin can hold; a
+/// plate that clamped its right edge instead would pull off the column exactly
+/// on the longest names, which is where it is most needed.
 pub(super) fn plate_rect(row_rect: [f32; 4], text_w: f32, pad_x: f32) -> [f32; 4] {
     let [x, y, w, h] = row_rect;
     let ink = text_w.min(w);
     let plate_h = h * PLATE_ROW_FRACTION;
-    [
-        (x + w - ink - pad_x).max(x),
-        y + (h - plate_h) * 0.5,
-        (ink + pad_x * 2.0).min(w),
-        plate_h,
-    ]
+    let right = x + w + pad_x;
+    let left = (x + w - ink - pad_x).max(0.0);
+    [left, y + (h - plate_h) * 0.5, right - left, plate_h]
 }
 
 /// THE PLATED ROWS of a block — at most one, and none at all when there is no

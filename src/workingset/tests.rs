@@ -318,3 +318,82 @@ fn fit_parent_never_overruns_its_budget_and_never_lies_about_depth() {
         );
     }
 }
+
+/// **THE ONE-FILE CONTRACT, AND IT IS ABOUT THE GROUP RATHER THAN THE SET.**
+///
+/// The margin widens only when the ACTIVE ROOT holds more than one file, so the
+/// count that decides it is [`WorkingSet::group`]'s, never [`WorkingSet::len`]'s.
+/// The two agree in the easy case and part company in the one this surface
+/// exists for: a buffer retained from another project keeps its slot in the set
+/// while contributing nothing to this project's stack. A `len()`-based gate
+/// passes every single-root test ever written and then draws a stack of one the
+/// first time a second root is involved — so this asserts the empty answer at
+/// `len() == 2`, where the two rules disagree.
+#[test]
+fn a_stack_appears_only_once_the_active_root_holds_two_files() {
+    let mut ws = WorkingSet::default();
+    opened(&mut ws, "index.md");
+    assert!(
+        ws.stack_rows(&root()).is_empty(),
+        "one file under the root must draw no stack"
+    );
+
+    // A second file, but under ANOTHER root: the set now holds two, the active
+    // root's group still holds one, and the margin must stay a single line.
+    let other = PathBuf::from("/proj/archive");
+    let far = other.join("old.md");
+    ws.open(BufferKey::path(&far), Some(far.clone()), other.clone());
+    assert_eq!(ws.len(), 2, "the set holds both files");
+    assert!(
+        ws.stack_rows(&root()).is_empty(),
+        "a file parked under another root must not summon this root's stack"
+    );
+    assert!(
+        ws.stack_rows(&other).is_empty(),
+        "nor the other root's, which also holds one"
+    );
+
+    // The second file under the ACTIVE root is what widens it.
+    opened(&mut ws, "journal/field-notes.md");
+    let rows = ws.stack_rows(&root());
+    assert_eq!(
+        rows.iter()
+            .map(|r| format!("{}{}", r.parent, r.leaf))
+            .collect::<Vec<_>>(),
+        vec!["index.md", "journal/field-notes.md"],
+        "the stack is the group, in opening order, and excludes the other root"
+    );
+    assert_eq!(
+        rows.iter().filter(|r| r.active).count(),
+        1,
+        "exactly one row is the reader's current file"
+    );
+    assert!(rows[1].active, "the file just opened is the active one");
+}
+
+/// **WHICH ROW IS MARKED ACTIVE, SWEPT OVER EVERY SLOT.** A stack that marked
+/// slot 0, or the last slot, would pass any test that only ever activates the
+/// file it just opened — which is the natural way to write this by hand.
+#[test]
+fn exactly_the_activated_row_is_marked_in_every_slot() {
+    let names = ["index.md", "journal/field-notes.md", "research/sources.md"];
+    for target in 0..names.len() {
+        let mut ws = WorkingSet::default();
+        for n in names {
+            opened(&mut ws, n);
+        }
+        assert!(ws.set_active(target));
+        let rows = ws.stack_rows(&root());
+        let marked: Vec<usize> = rows
+            .iter()
+            .enumerate()
+            .filter(|(_, r)| r.active)
+            .map(|(i, _)| i)
+            .collect();
+        assert_eq!(
+            marked,
+            vec![target],
+            "activating slot {target} marked {marked:?}"
+        );
+    }
+}
