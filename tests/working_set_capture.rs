@@ -44,7 +44,11 @@ fn arrange(dir: &Path) -> PathBuf {
 fn buffers(dir: &Path, tag: &str, keys: &str) -> serde_json::Value {
     let notes = dir.join("notes");
     let out = dir.join(format!("{tag}.png"));
-    let mut cmd = std::process::Command::new(env!("CARGO_BIN_EXE_awl"));
+    // Through the shared spawn owner, which pins the config ladder inside the
+    // sandbox: a direct spawn inherits it and can read the developer's own
+    // config. The explicit `--config` below is the seeded fixture's, so both
+    // rungs land inside this test's directory.
+    let mut cmd = common::awl(dir);
     cmd.env("AWL_CONVENTION_FORCE", "mac")
         .arg("--screenshot-app")
         .arg(&out)
