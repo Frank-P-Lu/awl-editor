@@ -61,6 +61,7 @@ mod diagonal_composition;
 mod diagonal_pixel_composition;
 mod distinguishability;
 mod dither;
+mod gutter_stack_pixels;
 /// The virtual breathing room past the last line: its one scroll owner, its
 /// composition with typewriter mode, and the law that none of it reaches disk.
 mod end_pad;
