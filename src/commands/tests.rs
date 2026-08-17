@@ -488,6 +488,66 @@ fn line_endings_command_present_and_rebindable() {
     );
 }
 
+/// **THE ITEM 456 REBIND LAW.** Command palette used to be a hand-written
+/// resolver arm in `keymap::resolve`, invisible to `[keys]` entirely — a user
+/// rebind was silently ignored (`action_for_name` had no catalog row to find).
+/// Now that it is a real catalog command, a `[keys] command_palette = [...]`
+/// entry must dispatch through the SAME override machinery every other command
+/// uses, on both conventions, and its untouched DEFAULT chord must keep firing
+/// alongside the rebind (`apply_overrides`'s documented additive behavior).
+///
+/// MUTATION TARGET: drop the `Command` literal and its `assets/keymap-
+/// defaults.toml` row together (the item's own prescribed mutation) and
+/// `action_for_name("command_palette")` returns `None`, so the override below
+/// is silently skipped (`config [keys]: unknown action "command_palette";
+/// ignored`, `apply_overrides`'s own leniency) and this law's dispatch
+/// assertion fails by name — proving the rebind path, not just presence.
+#[test]
+fn command_palette_command_present_and_rebindable_via_keys_override() {
+    let c = COMMANDS
+        .iter()
+        .find(|c| c.name == "Command palette…")
+        .expect("Command palette… must be in the catalog");
+    assert_eq!(c.native, "Cmd-P");
+    assert_eq!(c.emacs, "");
+    assert_eq!(c.action, Action::OpenCommandPalette);
+    assert_eq!(
+        action_for_name("Command palette…"),
+        Some(Action::OpenCommandPalette)
+    );
+    assert_eq!(
+        action_for_name("command_palette"),
+        Some(Action::OpenCommandPalette)
+    );
+
+    // A `[keys]` rebind to a chord neither convention's default table claims,
+    // on EACH convention — the override is documented convention-agnostic
+    // (taken literally, never Cmd->Ctrl translated).
+    let keys = vec![(
+        "command_palette".to_string(),
+        vec!["Cmd-Alt-9".to_string()],
+    )];
+    for convention in [Convention::Mac, Convention::Linux] {
+        let mut km =
+            crate::keymap::KeymapState::with_overrides_and_convention(&keys, convention);
+        let (key, mods) = crate::keyspec::parse_chord("Cmd-Alt-9").expect("Cmd-Alt-9 parses");
+        assert_eq!(
+            km.resolve(&key, &mods),
+            Action::OpenCommandPalette,
+            "the [keys] rebind must dispatch under {convention:?}"
+        );
+        // Additive: the untouched default chord still fires too — Cmd-P on
+        // Mac, its Cmd->Ctrl translation on Linux (`commands::resolved_native`).
+        let default_chord = crate::commands::resolved_native(c, convention);
+        assert_eq!(
+            resolve_chord_under(&default_chord, convention),
+            Action::OpenCommandPalette,
+            "the default chord {default_chord:?} must keep firing alongside \
+             the rebind under {convention:?}"
+        );
+    }
+}
+
 #[test]
 fn follow_link_command_present_and_rebindable() {
     let c = COMMANDS
