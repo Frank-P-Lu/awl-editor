@@ -88,8 +88,8 @@ reason = "The event-to-present flight recorder needs its winit-receipt and keyma
 
 [[file_size_mark]]
 file = "src/app/input/mouse.rs"
-lines = 1044
-reason = "The wheel-region predicate at the one pointer entry point stopped naming a single overlay kind and asks the shape-neutral question instead (+7, all of it the comment recording why the kind check was wrong)."
+lines = 1047
+reason = "The wheel-region predicate at the one pointer entry point stopped naming a single overlay kind and asks the shape-neutral question instead (+7, all of it the comment recording why the kind check was wrong). +3: the working-set stack's left-click-to-switch route, enrolled in this file's own input-substate privacy law."
 
 [[file_size_mark]]
 file = "src/app/session.rs"
@@ -129,8 +129,8 @@ lines = 567
 
 [[file_size_mark]]
 file = "src/capture.rs"
-lines = 81
-reason = "Each schema addition includes its `/N` ledger row and moves with `SCHEMA_VERSION`, enforced by this file's law. Planned overlay geometry serializes in `plan_sidecar` rather than expanding the single writer, and `redact` runs over finished artifact text at that writer so a future path-bearing field cannot opt out."
+lines = 86
+reason = "Each schema addition includes its `/N` ledger row and moves with `SCHEMA_VERSION`, enforced by this file's law. Planned overlay geometry serializes in `plan_sidecar` rather than expanding the single writer, and `redact` runs over finished artifact text at that writer so a future path-bearing field cannot opt out. +5: the working-set stack's `/204` ledger row (SCHEMA_VERSION 203 -> 204, buffers.files[]/active_index)."
 
 [[file_size_mark]]
 file = "src/capture/modes.rs"
@@ -139,8 +139,8 @@ reason = "The headless snapshot rebuilds secondary picker location through `face
 
 [[file_size_mark]]
 file = "src/capture/sidecar.rs"
-lines = 871
-reason = "`gutter.changed` and `overlay.preview_view` belong in the sole serializer, whose no-overlay literal remains in lockstep with its populated arm. `readout_json` and `hud_json` share the count/unit owner, and the serializer also carries photographable/findable notices and world-authored diagonal-mark weight."
+lines = 857
+reason = "`gutter.changed` and `overlay.preview_view` belong in the sole serializer, whose no-overlay literal remains in lockstep with its populated arm. `readout_json` and `hud_json` share the count/unit owner, and the serializer also carries photographable/findable notices and world-authored diagonal-mark weight. Shrank 871 -> 857: `buffers_json` moved out to sit beside its own type, `BuffersInfo`, in `capture/opts.rs`, rather than growing this file for the working-set stack's files[]/active_index."
 
 [[file_size_mark]]
 file = "src/caret.rs"
@@ -318,8 +318,8 @@ reason = "+6: the dropdown plan takes the frame's scale so its minimum width res
 
 [[file_size_mark]]
 file = "src/render/chrome/mod.rs"
-lines = 1058
-reason = "+1: re-export PANEL_MARGIN and PANEL_PAD so panel shaping and rectangle layout resolve one physical panel inset owner. +6: re-exports the working-set stack's gutter submodules so the chrome pipeline resolves them through the same module surface as every other gutter row."
+lines = 1059
+reason = "+1: re-export PANEL_MARGIN and PANEL_PAD so panel shaping and rectangle layout resolve one physical panel inset owner. +6: re-exports the working-set stack's gutter submodules so the chrome pipeline resolves them through the same module surface as every other gutter row. +1: re-exports the new gutter_hit pointer module beside them."
 
 [[file_size_mark]]
 file = "src/render/chrome/outline.rs"
