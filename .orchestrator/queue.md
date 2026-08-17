@@ -46,6 +46,8 @@ law go red.
 
 ### 456 — the command palette becomes a real command (USER DECISION 2026-08-17; ready to build)
 
+🟡 IN PROGRESS — claude, branch claude/item-456-command-palette-catalog
+
 `OpenCommandPalette` is an uncatalogued hand-written resolver arm
 (`src/keymap/resolve.rs:126-138`). Confirmed consequences: absent from GUIDE's
 generated key table (the user looked and reasonably concluded it has no
@@ -74,6 +76,8 @@ rebind law go red.
 
 ### 455 — the drawn menu's chord column tells the truth (defect; ready to build)
 
+🟡 IN PROGRESS — claude, branch claude/item-455-menu-chord-truth
+
 The Linux drawn menu bar's chord column is config-blind:
 `render/chrome/menubar/dropdown.rs` → `menu::item_chord_for_id` →
 `resolved_native_label_truthful`, which by its own doc
@@ -101,6 +105,8 @@ resolver dispatches elsewhere; under native they print the real chord. Prove
 non-vacuity by routing back through the config-blind path and watching it red.
 
 ### 454 — Keymap setting becomes a picker with a name people can read (USER DECISION 2026-08-17; ready to build)
+
+🟡 IN PROGRESS — claude, branch claude/item-454-keymap-picker
 
 The palette's "Keymap" row is a `Toggle`: Enter silently flips native↔emacs,
 persists it, closes the palette, and shows nothing
@@ -154,6 +160,8 @@ card spans, generated config comments, welcome/tour cross-links). Rust +
 docs change: full gate.
 
 ### 452 — Credits becomes a summoned read-only viewer (USER DECISION 2026-08-17; ready to build)
+
+🟡 IN PROGRESS — claude, branch claude/item-452-credits-viewer
 
 Help ▸ Credits (and ⌘P → Credits) swaps the editor to a real editable buffer:
 `open_credits` → `open_bundled_doc` (`src/app/files/open.rs:41-68`) writes the
