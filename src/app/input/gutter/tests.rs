@@ -133,7 +133,7 @@ fn accepting_a_row_switches_the_buffer_and_never_reorders_the_stack() {
         ] {
             let path = app
                 .gutter_stack_row_path(row)
-                .expect("row {row} names a file");
+                .unwrap_or_else(|| panic!("row {row} names a file"));
             app.load_path(path);
             assert_eq!(
                 app.document.buffer().path(),
