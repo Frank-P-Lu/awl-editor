@@ -75,16 +75,24 @@ fn replay_keys_drives_palette_reference_and_opens_the_reference_buffer() {
     );
 }
 
+/// "Reduce motion" stands in for an UNCOVERED plain settings row (no
+/// `COVERED_BY` entry). "Keymap" itself is COVERED now, by this item's own
+/// "Keymap…" catalog command — and that command is, in turn, hidden on
+/// `Convention::Mac` (the flavor is structurally inert there), so on THIS
+/// convention typing "keymap" surfaces neither the plain row nor the command:
+/// two independent hides, both correct, landing on the same "nothing to
+/// configure here" outcome (`settings::tests::covered_rows_are_excluded_
+/// from_the_palette_on_both_platforms` proves the row side).
 #[test]
 fn replay_keys_palette_filter_surfaces_the_plain_settings_row() {
     let mut buffer = Buffer::scratch();
-    let keys = keyspec::parse_keys("s-p k e y m a p").unwrap();
+    let keys = keyspec::parse_keys("s-p r e d u c e").unwrap();
     let root = PathBuf::from("/tmp");
     let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
     let ov = res.journey.card().expect("the palette is still open");
     assert_eq!(ov.kind, crate::overlay::OverlayKind::Command);
     assert!(
-        ov.item_strings().iter().any(|s| s == "Keymap"),
+        ov.item_strings().iter().any(|s| s == "Reduce motion"),
         "the union corpus surfaces the plain settings row: {:?}",
         ov.item_strings()
     );
@@ -92,19 +100,20 @@ fn replay_keys_palette_filter_surfaces_the_plain_settings_row() {
 
 #[test]
 fn replay_keys_palette_filters_to_a_settings_row_and_toggles_it() {
-    // THE UNION ROUND: Cmd-P → "keymap" filters to the SETTINGS row "Keymap"
-    // (the union palette's Settings-category row, `Keymap`) → Enter signals
-    // the SAME `Effect::SettingToggle{key:"keymap"}` the Settings menu's own
-    // accept would, and CLOSES the palette (the palette's "activation closes
-    // it" convention). Note the honest scope boundary: `Effect::SettingToggle`
-    // is a documented headless no-op (see the `Effect` match above) — flipping
-    // + persisting the live keymap flavor is the live App's job
-    // (`App::toggle_keymap_flavor`, unit-tested there); this replay proves the
-    // dispatch reaches the toggle EFFECT end-to-end through the real keymap +
-    // fuzzy filter + accept seam, not that the flavor value itself flips in a
-    // capture (which the architecture never claims for any settings toggle).
+    // THE UNION ROUND: Cmd-P → "reduce" filters to the SETTINGS row
+    // "Reduce motion" (the union palette's Settings-category row, uncovered —
+    // see the doc above) → Enter signals the SAME `Effect::SettingToggle{key:
+    // "reduce_motion"}` the Settings menu's own accept would, and CLOSES the
+    // palette (the palette's "activation closes it" convention). Note the
+    // honest scope boundary: `Effect::SettingToggle` is a documented headless
+    // no-op (see the `Effect` match above) — flipping + persisting the live
+    // value is the live App's job (`App::setting_toggle`, unit-tested there);
+    // this replay proves the dispatch reaches the toggle EFFECT end-to-end
+    // through the real keymap + fuzzy filter + accept seam, not that the
+    // value itself flips in a capture (which the architecture never claims
+    // for any settings toggle).
     let mut buffer = Buffer::scratch();
-    let keys = keyspec::parse_keys("s-p k e y m a p RET").unwrap();
+    let keys = keyspec::parse_keys("s-p r e d u c e RET").unwrap();
     let root = PathBuf::from("/tmp");
     let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
     assert!(
