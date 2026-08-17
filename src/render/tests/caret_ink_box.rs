@@ -98,7 +98,13 @@ fn caret_top_bottom(p: &mut TextPipeline) -> (f32, f32) {
 /// calling this checks the RULE, both its ink source and its row-fit floor,
 /// rather than a restatement of the owner that skips the floor and fails on
 /// the roster's tightest bundled face at body size.
-fn want_block_top_bottom(baseline: f32, row_ascent: f32, font: &str, row_h: f32, pad: f32) -> (f32, f32) {
+fn want_block_top_bottom(
+    baseline: f32,
+    row_ascent: f32,
+    font: &str,
+    row_h: f32,
+    pad: f32,
+) -> (f32, f32) {
     let (hhea_ascent, _) = super::super::facepitch::vertical_em_metrics(font);
     let (ink_ascent_em, ink_descent_em) = super::super::facepitch::ink_envelope_em(font);
     let font_size = row_ascent / hhea_ascent;
@@ -378,7 +384,10 @@ fn cell_caret_vertical_diverges_by_form_block_gets_the_envelope_morph_keeps_typi
                     cy - h * 0.5,
                     cy + h * 0.5,
                 );
-                assert!(!p.caret_is_bar_form(), "Block: fixture must be the cell form here");
+                assert!(
+                    !p.caret_is_bar_form(),
+                    "Block: fixture must be the cell form here"
+                );
                 assert!(
                     (want_bottom_block - want_top_block)
                         > (want_bottom_typical - want_top_typical) + 1.0,
@@ -400,7 +409,10 @@ fn cell_caret_vertical_diverges_by_form_block_gets_the_envelope_morph_keeps_typi
                     cy - h * 0.5,
                     cy + h * 0.5,
                 );
-                assert!(!p.caret_is_bar_form(), "Morph: fixture must be the cell form here");
+                assert!(
+                    !p.caret_is_bar_form(),
+                    "Morph: fixture must be the cell form here"
+                );
             }
             CaretMode::Ibeam => {
                 assert!(p.caret_is_bar_form(), "Ibeam must be the bar form");
@@ -763,8 +775,7 @@ fn proportional_worlds_take_one_caret_top_at_every_letter() {
             // BEYOND the worst-case letter's ink — non-negative when containment
             // holds, and this is where the CONTAINMENT assertions above would
             // have fired had it not.
-            let top_margin =
-                (ink_tops.iter().cloned().fold(f32::MAX, f32::min) - caret_top) / dpi;
+            let top_margin = (ink_tops.iter().cloned().fold(f32::MAX, f32::min) - caret_top) / dpi;
             let bottom_margin =
                 (caret_bottom - ink_bottoms.iter().cloned().fold(f32::MIN, f32::max)) / dpi;
             tightest_top_margin = tightest_top_margin.min(top_margin);
