@@ -1,8 +1,9 @@
 //! PAGE-MODE ORIENTATION GUTTER chrome — the quiet bottom-left stacked label
 //! (filename over project), right-aligned to hug the writing column from the
-//! margin, plus its sidecar report and the doc-dimming predicate. Inherent methods
-//! on [`super::TextPipeline`]; carved out of `chrome.rs` verbatim, no behaviour
-//! change. See [`super`].
+//! margin — widening into the working set's rows when more than one file is open
+//! ([`super::gutter_stack`]) — plus its sidecar report. Inherent methods on
+//! [`super::TextPipeline`]. The hidden arm and the doc-dimming predicate live in
+//! [`super::gutter_hidden`]. See [`super`].
 
 use super::*;
 
@@ -137,52 +138,6 @@ impl TextPipeline {
             changed,
             files,
         })
-    }
-
-    /// The HIDDEN arm: park an empty buffer off-screen so nothing draws and a
-    /// non-page (or unnamed, or too-narrow) capture stays byte-identical to what
-    /// it rendered before this chrome existed. Split out of
-    /// [`Self::prepare_gutter`] verbatim — the drawn arm is the one that has
-    /// anything to decide.
-    fn park_gutter_offscreen(
-        &mut self,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        bounds: TextBounds,
-        muted: glyphon::Color,
-    ) -> anyhow::Result<()> {
-        let line_height = self.metrics.line_height;
-        self.gutter_buffer
-            .set_size(&mut self.font_system, Some(1.0), Some(line_height));
-        self.gutter_buffer.set_text(
-            &mut self.font_system,
-            "",
-            &panel_attrs().color(muted),
-            Shaping::Advanced,
-            None,
-        );
-        self.gutter_buffer
-            .shape_until_scroll(&mut self.font_system, false);
-        let area = TextArea {
-            buffer: &self.gutter_buffer,
-            left: 0.0,
-            top: -1000.0,
-            scale: 1.0,
-            bounds,
-            default_color: muted,
-            custom_glyphs: &[],
-        };
-        self.gutter_renderer
-            .prepare(
-                device,
-                queue,
-                &mut self.font_system,
-                &mut self.atlas,
-                &self.viewport,
-                [area],
-                &mut self.swash_cache,
-            )
-            .map_err(|e| anyhow::anyhow!("glyphon gutter prepare failed: {e:?}"))
     }
 
     /// Shape + upload the page-mode ORIENTATION GUTTER: a quiet stacked label in the
@@ -502,20 +457,5 @@ impl TextPipeline {
             // three things you can do about that state are named palette rows.
             GutterLine::Changed => None,
         }
-    }
-
-    /// True when a FULL-takeover overlay is up and the document RECEDES behind it (the
-    /// cached frosted-blur backdrop is active over the whole canvas). False for the
-    /// search SPLIT panel / no overlay (the doc stays bright), for the crisp THEME/CARET
-    /// pickers (the doc stays crisp so the live theme colours / caret preview read
-    /// honestly), for the POINTER-ANCHORED menu (it frosts its own footprint at most, and
-    /// a footprint dims by nothing), AND for the contextual SPELL panel (a small float
-    /// popup at the word — it recedes nothing). Reported in the sidecar as `dim_overlay`.
-    ///
-    /// ONE OWNER with the frost's own full-arm gate (`overlay_blur`): the sidecar's field
-    /// and the pass that draws the dim answer one question, and a second copy of the rule
-    /// is how the report comes to disagree with the pixels.
-    pub fn dims_doc(&self) -> bool {
-        self.overlay_blur()
     }
 }

@@ -24,7 +24,11 @@ fn layout_of(files: &[StackRow], changed: bool, project: bool, budget: usize) ->
     GutterLayout {
         avail: 120.0,
         name: "opening.md".to_string(),
-        project: if project { "notes".to_string() } else { String::new() },
+        project: if project {
+            "notes".to_string()
+        } else {
+            String::new()
+        },
         changed: if changed {
             "changed elsewhere".to_string()
         } else {
@@ -141,7 +145,9 @@ fn a_plate_marks_the_active_row_in_every_block_shape() {
                 assert_eq!(plates.len(), 1, "{shape}: expected exactly one plate");
                 let at = lines
                     .iter()
-                    .position(|(_, kind)| matches!(kind, gutter::GutterLine::File(i) if *i == active))
+                    .position(
+                        |(_, kind)| matches!(kind, gutter::GutterLine::File(i) if *i == active),
+                    )
                     .unwrap_or_else(|| panic!("{shape}: the active row is not in the block"));
                 let band = plan.rows[at];
                 let plate = plates[0];
@@ -155,7 +161,8 @@ fn a_plate_marks_the_active_row_in_every_block_shape() {
                         continue;
                     }
                     assert!(
-                        plate[1] + plate[3] <= neighbour[1] || plate[1] >= neighbour[1] + neighbour[3],
+                        plate[1] + plate[3] <= neighbour[1]
+                            || plate[1] >= neighbour[1] + neighbour[3],
                         "{shape}: plate {plate:?} overlaps row {other} at {neighbour:?}"
                     );
                 }
@@ -176,8 +183,14 @@ fn a_plate_marks_the_active_row_in_every_block_shape() {
 #[test]
 fn a_single_file_block_plates_nothing() {
     let layout = layout_of(&[], false, true, 24);
-    let plan =
-        crate::render::plan::plan_gutter_stack(300.0, layout.avail, 12.0, layout.lines().len(), 8.0, 0.5);
+    let plan = crate::render::plan::plan_gutter_stack(
+        300.0,
+        layout.avail,
+        12.0,
+        layout.lines().len(),
+        8.0,
+        0.5,
+    );
     assert!(plate_rects(&layout, &plan, 6.0, 2.0).is_empty());
     assert_eq!(stack_spans(&layout.files).len(), 0);
     // And the block is exactly the two lines it has always been.

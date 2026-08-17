@@ -21,27 +21,31 @@ const W: u32 = 1600;
 const H: u32 = 800;
 
 fn stack_view(active: usize) -> ViewState {
-    let mut v = view("# A document\n\nSome prose to give the page a body.\n", 0, 0);
+    let mut v = view(
+        "# A document\n\nSome prose to give the page a body.\n",
+        0,
+        0,
+    );
     v.zoom = 1.0;
     v.gutter_name = "field-notes.md".to_string();
     v.gutter_project = "notes".to_string();
-    v.gutter_files = [("opening.md", ""), ("field-notes.md", "journal/"), ("ledger.md", "")]
-        .into_iter()
-        .enumerate()
-        .map(|(at, (leaf, parent))| StackRow {
-            leaf: leaf.to_string(),
-            parent: parent.to_string(),
-            active: at == active,
-        })
-        .collect();
+    v.gutter_files = [
+        ("opening.md", ""),
+        ("field-notes.md", "journal/"),
+        ("ledger.md", ""),
+    ]
+    .into_iter()
+    .enumerate()
+    .map(|(at, (leaf, parent))| StackRow {
+        leaf: leaf.to_string(),
+        parent: parent.to_string(),
+        active: at == active,
+    })
+    .collect();
     v
 }
 
-fn render_frame(
-    device: &wgpu::Device,
-    queue: &wgpu::Queue,
-    p: &mut TextPipeline,
-) -> Vec<[u8; 4]> {
+fn render_frame(device: &wgpu::Device, queue: &wgpu::Queue, p: &mut TextPipeline) -> Vec<[u8; 4]> {
     p.prepare(device, queue, W, H).unwrap();
     let (texture, tview) = offscreen(device, W, H);
     let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
@@ -163,8 +167,8 @@ fn the_active_row_reads_forward_of_dimmed_siblings_on_every_world() {
 
         // rows: [file0, file1(active), file2, project]
         let active = ink_weight(&px, layout_rows[1], ground);
-        let sibling = ink_weight(&px, layout_rows[0], ground)
-            .max(ink_weight(&px, layout_rows[2], ground));
+        let sibling =
+            ink_weight(&px, layout_rows[0], ground).max(ink_weight(&px, layout_rows[2], ground));
         let project = ink_weight(&px, layout_rows[3], ground);
         assert!(
             project > 0.0,
