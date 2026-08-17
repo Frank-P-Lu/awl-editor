@@ -357,7 +357,6 @@ deadline without a surface).
 | `notice_clear` | Applied |
 | `notice_sticky` | Applied |
 | `notice_toast` | Applied |
-| `open_credits` | Applied |
 | `open_file_chooser` | Unsupported |
 | `open_folder_chooser` | Unsupported |
 | `open_guide` | Applied |
@@ -370,6 +369,7 @@ deadline without a surface).
 | `overlay_accept:Command` | Unsupported |
 | `overlay_accept:Conflict` | Unsupported |
 | `overlay_accept:Context` | Unsupported |
+| `overlay_accept:Credits` | Unsupported |
 | `overlay_accept:Date` | Applied |
 | `overlay_accept:Dictionary` | Applied |
 | `overlay_accept:ExportDest` | Unsupported |

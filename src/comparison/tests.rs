@@ -156,10 +156,14 @@ fn only_the_comparison_surfaces_produce_prose() {
     }
     // A generic card carries no History row meta and no conflict payload, so
     // neither comparison surface can answer from one — which is exactly the
-    // "unresolvable subject" degrade, asserted rather than assumed.
-    assert!(
-        answered.is_empty(),
-        "a bare card of these kinds produced prose from nothing: {answered:?}"
+    // "unresolvable subject" degrade, asserted rather than assumed. CREDITS is
+    // the one deliberate exception: its prose is a compiled-in constant, not a
+    // caller-supplied payload, so it answers from a bare card regardless of
+    // the request's view/subject — there is nothing else for it to gate on.
+    assert_eq!(
+        answered,
+        vec![crate::overlay::OverlayKind::Credits],
+        "only Credits should produce prose from a bare card with no payload: {answered:?}"
     );
     // …and the conflict card, which DOES carry its payload, answers.
     assert!(prose_for(&conflict_card(), &request, None, false, MINE).is_some());

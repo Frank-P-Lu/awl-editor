@@ -69,6 +69,7 @@ pub(super) fn card_for(kind: OverlayKind) -> OverlayState {
             std::path::PathBuf::from("/notes/heron.md"),
             Some("what the disk says\n".to_string()),
         ),
+        OverlayKind::Credits => OverlayState::new_credits(),
         other => panic!(
             "{other:?} is sustained but this law does not know how to build its card — a new \
              workspace member must state what its two regions advertise before it ships"
@@ -117,9 +118,9 @@ fn one_esc_leaves_a_workspace_from_its_detail_stage_on_every_sustained_kind() {
     // manuscripts there to choose between them.
     assert_eq!(
         kinds.len(),
-        3,
-        "the sustained roster is Settings + History + Conflict; a fourth member must answer \
-         this law rather than silently skip it — got {kinds:?}"
+        4,
+        "the sustained roster is Settings + History + Conflict + Credits; a fifth member must \
+         answer this law rather than silently skip it — got {kinds:?}"
     );
     for kind in kinds {
         // ESC LEAVES.
@@ -224,7 +225,7 @@ fn the_footer_names_the_back_it_actually_has_on_every_sustained_kind() {
             graded += 1;
         }
     }
-    assert_eq!(graded, 6, "three members x two stages must each be graded");
+    assert_eq!(graded, 8, "four members x two stages must each be graded");
 }
 
 /// AND THE TABLE AGREES WITH THE KEYBOARD. The lifecycle's own statement of the

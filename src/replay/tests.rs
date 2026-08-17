@@ -112,7 +112,6 @@ fn every_effect_lands_in_its_documented_bucket() {
         "none",
         "new_document",
         "open_settings",
-        "open_credits",
         "open_guide",
         "open_reference",
         "show_about",

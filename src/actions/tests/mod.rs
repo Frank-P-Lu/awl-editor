@@ -15,6 +15,7 @@ use crate::overlay::OverlayKind;
 
 /// The alternate-accept (⇧↵) byte-identity law over `disk_bytes`.
 mod alternate_accept;
+mod credits;
 mod export_gate;
 mod folds;
 mod format_editing;

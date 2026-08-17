@@ -39,7 +39,7 @@ fn workspace_shape_roster_is_exact() {
         let shape = kind.workspace_shape();
         let expected = match kind {
             OverlayKind::Settings => Some(WorkspaceShape::RailOverRows),
-            OverlayKind::History | OverlayKind::Conflict => {
+            OverlayKind::History | OverlayKind::Conflict | OverlayKind::Credits => {
                 Some(WorkspaceShape::TimelineOverComparison)
             }
             _ => None,
@@ -47,28 +47,31 @@ fn workspace_shape_roster_is_exact() {
         assert_eq!(shape, expected, "{kind:?} workspace_shape() drifted");
     }
     // Named directly, so a reader does not have to trust the loop above: the
-    // workspace roster is exactly the two members DESIGN.md §5 names, and each
+    // workspace roster is exactly the members DESIGN.md §5 names, and each
     // draws the shape that section describes for it (History uses its
     // timeline/comparison shape rather than a contextual card).
     assert_eq!(
         OverlayKind::History.workspace_shape(),
         Some(WorkspaceShape::TimelineOverComparison)
     );
-    // THREE, deliberately. The gate is "a workspace is not a default", not
+    // FOUR, deliberately. The gate is "a workspace is not a default", not
     // "there are exactly two workspaces": the conflict surface earns one on the
     // same grounds History does — sustained reading, in two coordinated regions,
-    // with the document behind it being the very thing under comparison. It
-    // reuses `TimelineOverComparison` unchanged, so the shape roster itself did
-    // not grow; only its membership did.
+    // with the document behind it being the very thing under comparison — and
+    // Credits earns one the same way, minus the "under comparison" half: sustained
+    // reading of a whole document, with the primary column degenerated to its
+    // simplest case (one fixed row standing in for a list with nothing to
+    // navigate). All three reuse `TimelineOverComparison` unchanged, so the shape
+    // roster itself did not grow; only its membership did.
     assert_eq!(
         OverlayKind::ALL
             .iter()
             .filter(|k| k.workspace_shape().is_some())
             .count(),
-        3,
+        4,
         "the workspace roster is deliberately short (DESIGN.md §5)"
     );
-    // …and it is still exactly TWO shapes for those three members, which is the
+    // …and it is still exactly TWO shapes for those four members, which is the
     // half of this gate that has not moved.
     assert_eq!(
         OverlayKind::ALL
@@ -76,8 +79,8 @@ fn workspace_shape_roster_is_exact() {
             .filter_map(|k| k.workspace_shape())
             .filter(|s| s.rows_are_primary())
             .count(),
-        2,
-        "History and the conflict share one shape; Settings has the other"
+        3,
+        "History, the conflict and Credits share one shape; Settings has the other"
     );
 }
 
