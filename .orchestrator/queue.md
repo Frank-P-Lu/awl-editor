@@ -6,6 +6,176 @@
 
 ## Ready to build
 
+### 457 — 🔵 BLOCKED (user decision): what the emacs flavor MEANS on Linux — clipboard chords and the Meta layer
+
+Two coupled taste calls, parked with a recommendation; the exact question was
+put to the user in-session 2026-08-17 and may resolve within the day.
+
+Today `keymap = "emacs"` on Linux keeps EVERY displaced Ctrl-letter to its
+emacs meaning (`src/config/model.rs:119-125` composes the preset unfiltered):
+C-c and C-x become prefixes, C-v page-down — so Omarchy's Super+C→Ctrl+C
+forwarding lands on `BeginPrefix` and "copy is broken." CLAUDE.md's
+"C-c/C-x/C-v stay native" tripwire holds only under the NATIVE flavor; the
+compensation is a manual `[keys]` carve-out (`src/config/write.rs:90-98`,
+GUIDE.md). And the flavor seeds no Meta layer at all: the Option-letter
+retirement is a macOS platform rule (Option types accents) that does not bind
+Linux Alt.
+
+**Question (a):** should the emacs preset leave C-c and C-v native by default —
+clipboard survives compositor forwarding; emacs hands keep C-w cut and C-y
+paste — while C-x stays the emacs prefix (it carries save/open; excluding it
+guts the flavor)? Purists reclaim chords via `[keys]`, the same recipe the
+generated config already prints, inverted.
+
+**Question (b):** should the emacs flavor on Linux seed the classic Meta
+layer — M-x command palette, M-w copy, M-f/M-b/M-d word ops, M-v/M-< /M-> —
+given Alt IS emacs's Meta? This is "use Alt on Linux" done the emacs-authentic
+way, and it completes item 456's Linux-emacs palette binding.
+
+**Recommendation: yes to both.** On accept: update the CLAUDE.md tripwire
+wording and the generated-config carve-out comment, and re-pin the flavor
+laws (`keymap_flavor_emacs_preset_reverts_every_displaced_chord_to_emacs_meaning`
+currently pins c/x/v to emacs meanings — it flips to pinning the new
+composition, swept over the whole displaced roster).
+
+### 456 — the command palette becomes a real command (USER DECISION 2026-08-17; ready to build)
+
+`OpenCommandPalette` is an uncatalogued hand-written resolver arm
+(`src/keymap/resolve.rs:126-138`). Confirmed consequences: absent from GUIDE's
+generated key table (the user looked and reasonably concluded it has no
+default binding); un-rebindable — `[keys]` resolves names through the catalog
+only; no menu item possible — the routed roster maps ids by catalog command
+name; and on Linux under the emacs flavor it has NO binding at all (C-p is
+kept as previous-line, and the resolver consults seeded defaults before the
+bespoke arm). Combined with item 454's silent toggle this stranded the user;
+recovery was Ctrl-, → Settings alone.
+
+Decided: catalog it. A real command ("Command palette", native slot Cmd-P,
+emacs slot EMPTY pending item 457 — M-x is the natural candidate), keeping
+Cmd-Shift-P → Open project intact, plus a menu item (lane picks the section).
+Behavior must not change on macOS or Linux-native: ⌘P / Ctrl-P resolve exactly
+as today. Check the web build: if the catalog path trips `webreserved` for
+Cmd-P where the bespoke arm did not, add the `WEB_ALTERNATE` entry rather than
+losing the web binding.
+
+Verify: existing Cmd-P/Ctrl-P/Cmd-Shift-P keymap laws stay green; a new law
+rebinds via `[keys]` and asserts dispatch; the GUIDE table gains its row,
+spot-checked against the dispatch it claims (generated-docs rule); the menu
+roster law covers the new item. Mutation: drop the catalog slot, watch the
+rebind law go red.
+
+### 455 — the drawn menu's chord column tells the truth (defect; ready to build)
+
+The Linux drawn menu bar's chord column is config-blind:
+`render/chrome/menubar/dropdown.rs` → `menu::item_chord_for_id` →
+`resolved_native_label_truthful`, which by its own doc
+(`src/commands/chords.rs:151-154`) applies only the unconditional builtin keep
+tier and EXPECTS a caller that knows the user's config to layer the rest on
+top. The menu never does — so under `keymap = "emacs"` it prints Ctrl+C beside
+Copy while Ctrl+C actually begins a prefix, and a `[keys]` rebind never
+updates any label. The palette already does this right
+(`visible_effective_bindings`, `src/overlay/build.rs:190-201`).
+
+Fix: thread the config's `[keys]` overrides and `effective_linux_keep()` into
+the menu chord column through the same owner the palette uses — one owner,
+never a second implementation — and re-read labels on flavor toggle / config
+reload. A chord suppressed for this user's config shows an EMPTY cell, like
+Insert-link's Linux cell, never a false chord.
+
+Also correct the stale claims this exposed: `docs/platform.md:52`
+("Linux/wasm have none") and Cargo.toml's muda scope comment both deny the
+drawn bar exists; it defaults ON off-macOS (`src/menubar.rs:30-31`). Give the
+drawn bar its own docs sentence while there.
+
+Verify: unit law over the menu roster × both flavors × sampled displaced
+letters: under emacs, Copy/Find/Select-all rows never print a Ctrl-letter the
+resolver dispatches elsewhere; under native they print the real chord. Prove
+non-vacuity by routing back through the config-blind path and watching it red.
+
+### 454 — Keymap setting becomes a picker with a name people can read (USER DECISION 2026-08-17; ready to build)
+
+The palette's "Keymap" row is a `Toggle`: Enter silently flips native↔emacs,
+persists it, closes the palette, and shows nothing
+(`dispatch_settings_row` → `SettingToggle "keymap"`; the refresh no-ops
+because the palette already closed). The user hit exactly this — flipped to
+emacs without knowing, then item 456's stranding. The repo already knows
+silent state flips are wrong: `Action::ConvertLineEndings` carries the comment
+and the notice ("which one am I on" is the question the user has).
+
+Decided: Keymap presents like Caret style — a catalog command ("Keymap…"),
+`COVERED_BY` suppressing the settings row in the palette, descending into a
+sub-overlay picker: one row per flavor, current value pre-selected, Esc
+resumes the palette. No audition; accept applies AND emits a notice naming
+the layout now in effect.
+
+Labels (recommendation — land it and await taste, per standing policy): plain
+language, never "emacs" bare — e.g. "Standard — Ctrl+C copies, Ctrl+V pastes"
+/ "Emacs — Ctrl navigates (C-p, C-n, C-a…)", descriptions in the secondary
+column. On macOS the flavor is structurally inert (`linux_keeps` gates on
+`Convention::Linux`) — hide the command/row there rather than shipping a
+setting that does nothing.
+
+Verify: unit laws at the overlay seam — picker rows, pre-selection,
+Esc-resume, notice text naming the RESULTING flavor. Persistence is App-owned
+(`persist_pref`), so that half drives `--screenshot-app` or the settings unit
+seam per docs/harness-reach.md. Mutation: re-silence the accept, watch the
+notice law go red.
+
+### 453 — rip out the in-app Guide and Reference (USER DECISION 2026-08-17; ready to build)
+
+Decided: the in-app Guide and Reference doors go. Remove the catalog commands
+(`src/commands/catalog/navigation.rs` Guide/Reference entries), their
+Help-menu items, embedded copies (`embedded_docs.rs`, `guide.rs`), and their
+`open_bundled_doc` callers — after item 452 lands, Credits is the only
+bundled-doc consumer and the helper shrinks to fit. Rationale: Reference
+belongs on the site, not in the editor; the user is writing a new starting
+guide to be baked in, which arrives as its own future item. Welcome/first-run
+seeding (`firstrun.rs`) is untouched.
+
+GUIDE.md and REFERENCE.md remain in the repo as site/source documents — this
+item removes the in-app doors only, not the files or their generators.
+Reconcile the laws that reference these doors: the keytoken starting-docs law
+drives chords the welcome/tour/GUIDE teach — keep whatever half still has a
+subject; GUIDE's generated key table keeps its generation laws while the file
+stays. If a law's whole subject is deleted, delete the law and say so in the
+landing note.
+
+Verify: the palette no longer offers Guide/Reference; the Help menu roster
+law passes with the shrunk roster; grep for dangling references (docs, About
+card spans, generated config comments, welcome/tour cross-links). Rust +
+docs change: full gate.
+
+### 452 — Credits becomes a summoned read-only viewer (USER DECISION 2026-08-17; ready to build)
+
+Help ▸ Credits (and ⌘P → Credits) swaps the editor to a real editable buffer:
+`open_credits` → `open_bundled_doc` (`src/app/files/open.rs:41-68`) writes the
+embedded text to `data_root()/credits.md` and runs ordinary `load_path`. The
+user reports it as disorienting — suddenly you are in another file, with no
+reason to edit it (edits are silently clobbered by the refresh write on next
+open).
+
+Decided: Credits renders in a summoned, scrollable, read-only viewer — a mini
+window over the document, lightly rendered markdown — never a buffer swap.
+DESIGN's summoned-overlays-over-persistent-chrome. No read-only document
+surface exists today: cards are span lists, not document renderers; the
+nearest machinery is the History/Conflict comparison pane
+(`src/overlay/comparison.rs`), read-only by overlay modality. Whether to grow
+that or build a sibling is the lane's call.
+
+Scope: Credits only — item 453 removes Guide/Reference. The on-disk refresh
+copy and its autosave rationale retire with the buffer route. The About
+card's "⌘P → Credits" span stays true; update `docs/licensing.md`'s
+description. The user's forthcoming baked-in starting guide may later share
+this viewer; do not design for it yet.
+
+Verify: read docs/harness-reach.md before promising captures. Overlay
+presence + scroll position land in the sidecar through the one redacting
+writer; `--keys` drives open/scroll/dismiss; pixel arithmetic asserts
+rendered credits text is present and legible across the world roster, with a
+companion presence floor (a viewer faded to the page fails, never passes
+happier). A law asserts the active buffer and its path did NOT change across
+open/dismiss — the regression this item exists to prevent.
+
 ### 450 — the bottom identity names the ACTIVE FILE's own folder (USER DECISION 2026-08-17; ready to build)
 
 Item 444's lane closed the cross-root ownership bug where OPENING or
