@@ -49,6 +49,9 @@ formatter — genuinely cheap to reverse.
 
 ### 444 — the working set becomes visible: a margin buffer stack (USER DECISION 2026-08-16; RESTING STACK RENDERS, INTERACTION NOT STARTED)
 
+🟡 IN PROGRESS (residuals 1+2: sidecar exposure, click-to-switch,
+hover-close) — claude, branch claude/item-444-working-set-interaction
+
 **Landed on `main` (`f8558c41`, `f53ffa6c`, `7c442d2b`, `dcb86fbb`, `8adcd961`,
 `05527cc1`, `49a76026`, `aa1972b0`, `809aad3d`, `d7024bbb`, `17090614`,
 `53e82629`, `df79d816`, `749b8e7e`):** the `--seed-tree` capture door; the
