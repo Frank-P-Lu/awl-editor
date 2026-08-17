@@ -28,18 +28,35 @@ pub(in crate::render) const GUTTER_CHANGED_LABEL: &str = "changed elsewhere";
 pub(super) enum GutterLine {
     Changed,
     Name,
+    /// One member of the WORKING SET, by its slot in the drawn stack. Present
+    /// only when the stack replaces [`GutterLine::Name`], so the two are never
+    /// both in one block.
+    File(usize),
     Project,
 }
 
 impl GutterLayout {
     /// The block's lines, TOP to BOTTOM, absent ones omitted. THE one owner of
     /// the block's shape.
+    ///
+    /// The identity line is EITHER the lone filename or the working set's rows,
+    /// never both: with one file open `files` is empty and this returns exactly
+    /// the list it always has. Every consumer — the drawn spans, the frost
+    /// seeds, the carve height, the hit-test — reads this one list, so widening
+    /// the identity moves all four together and none of them re-derives the
+    /// block's height from a second count.
     pub(super) fn lines(&self) -> Vec<(&str, GutterLine)> {
         let mut out = Vec::with_capacity(3);
         if !self.changed.is_empty() {
             out.push((self.changed.as_str(), GutterLine::Changed));
         }
-        out.push((self.name.as_str(), GutterLine::Name));
+        if self.files.is_empty() {
+            out.push((self.name.as_str(), GutterLine::Name));
+        } else {
+            for (at, line) in self.files.iter().enumerate() {
+                out.push((line.text.as_str(), GutterLine::File(at)));
+            }
+        }
         if !self.project.is_empty() {
             out.push((self.project.as_str(), GutterLine::Project));
         }
@@ -108,11 +125,17 @@ impl TextPipeline {
         } else {
             String::new()
         };
+        // The working set's rows ride the SAME per-line budget as the filename
+        // they widen into, through the same one elision door. Empty in, empty
+        // out: `stack_rows` already decided there is no stack to draw, and this
+        // does not second-guess it with a count of its own.
+        let files = gutter_stack::fit_rows(&self.gutter_files, plan.name_budget);
         Some(GutterLayout {
             avail,
             name,
             project,
             changed,
+            files,
         })
     }
 
@@ -196,6 +219,10 @@ impl TextPipeline {
         // Hidden: empty text parked off-screen, so nothing draws and a non-page (or
         // unnamed) capture stays byte-identical.
         let Some(layout) = self.gutter_layout() else {
+            // No block, no stack — drop whatever plate the previous frame left,
+            // so a hidden gutter cannot leave a band floating in the margin.
+            self.gutter_stack_plate
+                .prepare(device, queue, width, height, &[]);
             return self.park_gutter_offscreen(device, queue, bounds, muted);
         };
         // The filename AND the project line are ALREADY fit to one line each by
@@ -221,6 +248,10 @@ impl TextPipeline {
         } else {
             format!("\n{project}")
         };
+        // The WORKING SET's spans, already inked — empty for a single file, which
+        // is what sends the identity line below down its original path rather
+        // than through a stack of one.
+        let stack_ink = gutter_stack::stack_spans(&layout.files);
         let mut spans: Vec<(&str, Attrs)> = Vec::new();
         if !changed_line.is_empty() {
             spans.push((
@@ -228,7 +259,13 @@ impl TextPipeline {
                 base.clone().color(theme::base_content().to_glyphon()),
             ));
         }
-        spans.push((name.as_str(), base.clone().color(muted)));
+        if stack_ink.is_empty() {
+            spans.push((name.as_str(), base.clone().color(muted)));
+        } else {
+            for (text, ink) in &stack_ink {
+                spans.push((text.as_str(), base.clone().color(*ink)));
+            }
+        }
         if !proj_line.is_empty() {
             spans.push((proj_line.as_str(), base.clone().color(faint)));
         }
@@ -261,6 +298,22 @@ impl TextPipeline {
             m.px_physical(super::readout::CANVAS_INSET),
             GUTTER_CARVE_BREATH.0,
         );
+        // THE ACTIVE ROW'S PLATE, off the SAME planner rows the glyphs sit on.
+        // Empty whenever there is no stack, and an empty prepare leaves the
+        // pipeline with zero instances — so a single-file frame issues no draw
+        // here at all and stays byte-identical to a pre-stack one.
+        let plates = gutter_stack::plate_rects(
+            &layout,
+            &stack,
+            m.char_width * label,
+            m.line_height * label * gutter_stack::PLATE_PAD_X.0,
+        );
+        self.gutter_stack_plate
+            .set_color(theme::surface_selected().rgba_bytes());
+        self.gutter_stack_plate
+            .set_corner(m.px_physical(gutter_stack::PLATE_CORNER_PX));
+        self.gutter_stack_plate
+            .prepare(device, queue, width, height, &plates);
         let area = TextArea {
             buffer: &self.gutter_buffer,
             left: 0.0,
@@ -432,6 +485,18 @@ impl TextPipeline {
         let row = stack.hit_row(px, py)?;
         match layout.lines().get(row)?.1 {
             GutterLine::Name => Some(crate::context_menu::ContextTarget::Filename),
+            // The ACTIVE row is the same target the lone filename is — it names
+            // the same buffer, so the identity menu it has always opened keeps
+            // working when the identity widens. An INACTIVE row names a buffer
+            // that is not the active one, and every action on that menu operates
+            // on the active document; returning `Filename` here would point the
+            // reader at one file and rename another. Until a row can carry its
+            // own named-buffer target, it carries none.
+            GutterLine::File(at) => layout
+                .files
+                .get(at)
+                .filter(|line| line.active)
+                .map(|_| crate::context_menu::ContextTarget::Filename),
             GutterLine::Project => Some(crate::context_menu::ContextTarget::Folder),
             // The affordance is a LABEL, not a target: it names a state, and the
             // three things you can do about that state are named palette rows.

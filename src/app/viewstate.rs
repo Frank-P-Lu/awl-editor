@@ -209,6 +209,17 @@ impl App {
                 .and_then(|o| o.selected_caret_mode()),
             gutter_name: self.document.buffer().display_name(),
             gutter_project: self.project_location.project.name.clone(),
+            // The stack is scoped to the root the ACTIVE FILE remembers, which is
+            // the same root the folder line above names — not the ambient active
+            // root, so a buffer activated from another project cannot draw its
+            // siblings under this project's heading. Empty (single file, or no
+            // remembered root yet) leaves the gutter on its pre-stack path.
+            gutter_files: self
+                .document
+                .working_set()
+                .active_root()
+                .map(|root| self.document.working_set().stack_rows(root))
+                .unwrap_or_default(),
             // THE PERSISTENT AFFORDANCE. Asked of the latch itself, per FRAME —
             // not raised by an event and not re-raised by a poll — so it is true
             // for exactly as long as the conflict is and cannot be cleared by an

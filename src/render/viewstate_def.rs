@@ -108,6 +108,17 @@ pub struct ViewState {
     pub caret_preview: Option<CaretMode>,
     pub gutter_name: String,
     pub gutter_project: String,
+    /// THE VISIBLE WORKING SET the bottom identity widens into: one row per file
+    /// open under the ACTIVE project root, in stable open order, or EMPTY when
+    /// that root holds a single file.
+    ///
+    /// Empty is not merely "nothing to draw" — it is the one-file contract. The
+    /// gutter's single-name path is what shipped before this surface existed, so
+    /// an empty vector here routes the frame back through it unchanged rather
+    /// than through a stack of one that happens to look the same.
+    /// [`crate::workingset::WorkingSet::stack_rows`] is the sole author of that
+    /// emptiness.
+    pub gutter_files: Vec<crate::workingset::StackRow>,
     /// THE PERSISTENT `changed elsewhere` AFFORDANCE: is the active document's
     /// file holding an unresolved external change right now?
     ///
@@ -274,6 +285,7 @@ impl ViewState {
             caret_preview: None,
             gutter_name: String::new(),
             gutter_project: String::new(),
+            gutter_files: Vec::new(),
             gutter_changed: false,
             is_markdown: false,
             doc_dir: None,

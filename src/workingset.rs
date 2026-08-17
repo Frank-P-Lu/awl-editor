@@ -136,6 +136,22 @@ pub fn root_for(path: &Path, active_root: &Path, remembered: Option<&Path>) -> P
     path.parent().unwrap_or(path).to_path_buf()
 }
 
+/// ONE DRAWN ROW of the margin's resting stack, already reduced to the two
+/// pieces of text a row shows and which one of them is the reader's current
+/// file. Deliberately a projection rather than a borrow of [`OpenFile`]: the
+/// renderer never asks the working set a question mid-frame, so a row cannot
+/// answer one thing to the draw and another to the hit-test.
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
+pub struct StackRow {
+    /// The file name, in the row's normal ink.
+    pub leaf: String,
+    /// The root-relative parent with its trailing separator (`"journal/"`), in
+    /// quieter ink. Empty when the file sits directly under the root.
+    pub parent: String,
+    /// Is this the file the reader is currently editing?
+    pub active: bool,
+}
+
 /// The open files, in the order the margin draws them, plus which one is active.
 ///
 /// Always non-empty in practice — the app owns exactly one active document — but
@@ -236,6 +252,34 @@ impl WorkingSet {
 
     pub fn index_of(&self, key: &BufferKey) -> Option<usize> {
         self.files.iter().position(|f| &f.key == key)
+    }
+
+    /// THE ROWS THE MARGIN DRAWS for `root`'s group — and **empty whenever that
+    /// group holds fewer than two files.**
+    ///
+    /// That emptiness is the whole one-file contract, and it lives HERE so it
+    /// lives exactly once. The bottom identity widens into a stack only when
+    /// there is a working set to show; with a single file open the renderer is
+    /// handed nothing, takes the same path it took before this surface existed,
+    /// and draws the same bytes. A second `len() <= 1` guard further down would
+    /// be a second place for that rule to be true, and the day they disagree the
+    /// margin grows a row for a set of one.
+    ///
+    /// The count is the ACTIVE ROOT'S GROUP, never [`Self::len`]: a file parked
+    /// under another project must not summon a stack in this one.
+    pub fn stack_rows(&self, root: &Path) -> Vec<StackRow> {
+        let group = self.group(root);
+        if group.len() < 2 {
+            return Vec::new();
+        }
+        group
+            .into_iter()
+            .map(|at| StackRow {
+                leaf: self.files[at].leaf(),
+                parent: self.files[at].parent_label().unwrap_or_default(),
+                active: self.active == Some(at),
+            })
+            .collect()
     }
 
     /// The slots whose files belong to `root` — the resting stack's own group.

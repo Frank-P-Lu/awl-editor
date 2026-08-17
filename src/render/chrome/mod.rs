@@ -129,6 +129,10 @@ struct GutterLayout {
     /// filename in the strongest of the block's three inks — the ladder is
     /// value, not colour (DESIGN.md §4: the accent belongs to the caret alone).
     changed: String,
+    /// THE WORKING SET'S ROWS, replacing the single `name` line when more than
+    /// one file is open under the active root — empty otherwise, which is every
+    /// margin that shipped before this surface existed.
+    files: Vec<gutter_stack::StackLine>,
 }
 
 pub(in crate::render) struct PanelShape {
@@ -344,6 +348,7 @@ pub(in crate::render) use overlay_visual_sel::{
     overlay_selected_primary_ink, overlay_selected_rail_srgb, overlay_selected_secondary_ink,
 };
 mod gutter;
+mod gutter_stack;
 mod menubar;
 mod outline;
 mod theme_picker;

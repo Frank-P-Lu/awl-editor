@@ -77,7 +77,7 @@ pub(in crate::render) use floating::{
     plan_streaks_card, plan_toast, plan_whichkey_card,
 };
 pub(in crate::render) use margin::{
-    hit_outline_slot, plan_gutter_stack, plan_outline_left, plan_outline_slots,
+    GutterStackPlan, hit_outline_slot, plan_gutter_stack, plan_outline_left, plan_outline_slots,
 };
 pub(in crate::render) use overlay_header::{
     PlannedHeader, WorkspaceRowFit, beat_stands_alone, fit_workspace_item_rows, header_band_height,

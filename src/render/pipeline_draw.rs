@@ -150,6 +150,11 @@ impl TextPipeline {
         // the live theme (and the notice's kind) on every frame, so this seed only
         // has to be a valid colour, never the right one.
         let notice_plate = SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
+        // The margin working set's selected-row plate. Seeded like the others;
+        // `prepare_gutter` re-resolves the band off the live surface ramp each
+        // frame, so this seed only has to be a valid colour.
+        let gutter_stack_plate =
+            SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         let notice_rim =
             SelectionPipeline::new(device, &sel_shader, format, theme::muted().rgba_bytes());
         let page_drag_renderer =
@@ -371,6 +376,8 @@ impl TextPipeline {
             notice_buffer,
             notice_plate,
             notice_rim,
+            gutter_files: Vec::new(),
+            gutter_stack_plate,
             page_drag_renderer,
             page_drag_buffer,
             zoom_readout_renderer,

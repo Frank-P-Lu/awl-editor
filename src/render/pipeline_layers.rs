@@ -206,6 +206,11 @@ impl TextPipeline {
         // Inverse caret shares the after-text slot required by its blend mode.
         self.caret_invert.draw(pass);
         self.caret_glyph_pipeline.draw(pass);
+        // The working set's selected-row plate sits UNDER the gutter's own
+        // glyphs, so the active row's ink reads on top of its band. Zero
+        // instances whenever the stack is absent, which is every single-file
+        // frame.
+        self.gutter_stack_plate.draw(pass);
         self.gutter_renderer
             .render(&self.atlas, &self.viewport, pass)
             .map_err(|e| anyhow::anyhow!("glyphon gutter render failed: {e:?}"))?;

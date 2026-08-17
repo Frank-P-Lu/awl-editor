@@ -421,6 +421,7 @@ impl TextPipeline {
         self.gutter_name = view.gutter_name.clone();
         self.gutter_project = view.gutter_project.clone();
         self.gutter_changed = view.gutter_changed;
+        self.gutter_files.clone_from(&view.gutter_files);
         self.notice = view.notice.clone();
         self.notice_kind = view.notice_kind;
         self.eol = view.eol;

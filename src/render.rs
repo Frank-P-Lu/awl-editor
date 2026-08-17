@@ -2544,6 +2544,13 @@ pub struct TextPipeline {
     gutter_name: String,
     gutter_project: String,
     gutter_changed: bool,
+    /// The margin working set's rows, or empty for the single-file margin — see
+    /// [`ViewState::gutter_files`].
+    gutter_files: Vec<crate::workingset::StackRow>,
+    /// The soft row plate under the working set's ACTIVE row. Holds no instances
+    /// at all unless the stack is drawn, so a single-file frame issues no extra
+    /// draw (`SelectionPipeline::draw` returns early at zero instances).
+    gutter_stack_plate: crate::selection::SelectionPipeline,
     md_enabled: bool,
     /// WYSIWYG / INLINE-IMAGES LATCH: the last-shaped value of the two rendering
     /// process-globals (`markdown::wysiwyg_on()` / `inline_images_on()`), so
