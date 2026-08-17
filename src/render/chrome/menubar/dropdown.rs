@@ -82,12 +82,20 @@ impl TextPipeline {
 }
 
 impl DropdownPlan {
+    /// `keys`/`keep` are the user's config (`Config::keys` /
+    /// `Config::effective_linux_keep()`, mirrored onto the render pipeline each
+    /// `sync_view` — see [`ViewState::config_keys`](crate::render::ViewState::config_keys))
+    /// threaded into the chord column so it can never advertise a chord the
+    /// resolver would not actually dispatch under this user's `keymap` flavor
+    /// or a `[keys]` rebind (item 455).
     pub fn new(
         items: &[crate::menu::RosterItem],
         row_h: f32,
         label_char_w: f32,
         is_markdown: bool,
         scale: f32,
+        keys: &[(String, Vec<String>)],
+        keep: &[String],
     ) -> Self {
         let mut labels = String::new();
         let mut chords = String::new();
@@ -105,7 +113,7 @@ impl DropdownPlan {
             let chord_start = chords.len();
             match item {
                 crate::menu::RosterItem::Routed { id, label, .. } => {
-                    let chord = crate::menu::item_chord_for_id(id);
+                    let chord = crate::menu::item_chord_for_id(id, keys, keep);
                     widest_label = widest_label.max(label.chars().count());
                     widest_chord = widest_chord.max(chord.chars().count());
                     labels.push_str(label);

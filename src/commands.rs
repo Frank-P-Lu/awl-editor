@@ -294,13 +294,7 @@ pub(crate) fn join_slots_truthful(
     platform: Platform,
     keep: &[String],
 ) -> String {
-    let native_suppressed = convention == Convention::Linux
-        && crate::keymap::linux_keeps_chord(keep, &resolved_native(c, convention));
-    let native_label = if native_suppressed {
-        String::new()
-    } else {
-        resolved_native_label_truthful(c, convention, platform)
-    };
+    let native_label = native_label_effective(c, convention, platform, keep);
 
     let emacs_displaced = convention == Convention::Linux
         && crate::keymap::linux_displaces_emacs_default(c.emacs, keep);
@@ -312,6 +306,68 @@ pub(crate) fn join_slots_truthful(
         (true, false) => emacs_label.to_string(),
         (true, true) => String::new(),
     }
+}
+
+/// THE NATIVE-SLOT SUPPRESSION RULE, factored out of [`join_slots_truthful`] so
+/// a second reader can ask the SAME question — "is `c`'s resolved native chord
+/// actually true for this user's config" — without re-deriving it. `keep` is
+/// `Config::effective_linux_keep()` (the unconditional builtin floor, widened
+/// by `keymap = "emacs"`'s whole-catalog preset and any explicit
+/// `linux_keep_emacs` entries); when it has claimed `c`'s resolved native chord
+/// for its emacs meaning, the native label is `""` — never a false chord — same
+/// as [`join_slots_truthful`]'s own native half always computed.
+fn native_label_effective(
+    c: &Command,
+    convention: Convention,
+    platform: Platform,
+    keep: &[String],
+) -> String {
+    let native_suppressed = convention == Convention::Linux
+        && crate::keymap::linux_keeps_chord(keep, &resolved_native(c, convention));
+    if native_suppressed {
+        String::new()
+    } else {
+        resolved_native_label_truthful(c, convention, platform)
+    }
+}
+
+/// THE AWL-RENDERED MENU BAR'S EFFECTIVE CHORD COLUMN — item 455's fix. The
+/// menu's secondary column is native-only by design (`menu::item_chord`'s own
+/// doc): one true shortcut, matching what a native OS menu shows, never the
+/// palette's two-slot native-and-emacs join. But "native-only" still has to be
+/// TRUE for this user's config, and until this function existed nothing
+/// applied that: `resolved_native_label_truthful` alone only clears
+/// `keymap::linux_builtin_keep()` (its own doc says a caller "that knows the
+/// user's config still applies it on top" — the menu never did), so under
+/// `keymap = "emacs"` it printed a Ctrl-letter the resolver actually dispatches
+/// elsewhere, and a `[keys]` rebind never touched the label at all.
+///
+/// `keys`/`keep` are the SAME two config inputs [`join_slots_truthful`] already
+/// layers onto the palette (`keys` = `Config::keys`, `keep` =
+/// `Config::effective_linux_keep()`) — routed through [`native_label_effective`],
+/// the ONE shared owner of the suppression rule, rather than a second
+/// implementation. A `[keys]` override wins outright: its FIRST chord,
+/// glyph-ified per `convention` (mirroring `effective_binding_for`'s own "slot
+/// 1 speaks convention glyphs" rule for an override). A chord this function
+/// suppresses shows an EMPTY cell, matching Insert-link's existing Linux cell —
+/// never a chord the resolver would not actually dispatch.
+pub(crate) fn menu_native_label(
+    c: &Command,
+    keys: &[(String, Vec<String>)],
+    keep: &[String],
+    convention: Convention,
+    platform: Platform,
+) -> String {
+    if let Some(chords) = override_chords(c, keys) {
+        return chords
+            .first()
+            .map(|ch| match convention {
+                Convention::Mac => crate::keyspec::mac_glyph_chord(ch),
+                Convention::Linux => crate::keyspec::linux_glyph_chord(ch),
+            })
+            .unwrap_or_default();
+    }
+    native_label_effective(c, convention, platform, keep)
 }
 
 /// THE GUIDE'S GENERATED KEYS REFERENCE — the drift-proof source for the fenced

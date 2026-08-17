@@ -483,6 +483,8 @@ impl TextPipeline {
             gutter_name: String::new(),
             gutter_project: String::new(),
             gutter_changed: false,
+            config_keys: Vec::new(),
+            config_linux_keep: Vec::new(),
             md_enabled: false,
             wysiwyg_latched: crate::markdown::wysiwyg_on(),
             inline_images_latched: crate::markdown::inline_images_on(),

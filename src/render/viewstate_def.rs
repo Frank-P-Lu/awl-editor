@@ -130,6 +130,23 @@ pub struct ViewState {
     /// true for as long as the conflict is, and it is drawn beside the filename
     /// because the filename is the thing that changed underneath.
     pub gutter_changed: bool,
+    /// The user's config `[keys]` overrides — the SAME slice
+    /// [`crate::overlay::BuildCtx::config_keys`] hands the palette
+    /// (`commands::visible_effective_bindings`). Read by the awl-drawn menu
+    /// bar's chord column (`render::chrome::menubar::dropdown`) so a rebind
+    /// updates that label through the ONE owner both surfaces share, never a
+    /// second config-blind lookup. Empty on every scaffold that has no live
+    /// config (bench/perf/capture defaults), which is inert — an empty override
+    /// list never matches a command, so the static default chord shows.
+    pub config_keys: Vec<(String, Vec<String>)>,
+    /// [`crate::config::Config::effective_linux_keep`] — the composed Linux
+    /// keep-list (the unconditional builtin floor + the `keymap = "emacs"`
+    /// preset + any explicit `linux_keep_emacs` entries), mirrored beside
+    /// [`Self::config_keys`] for the same menu-bar reader. Empty by default,
+    /// which suppresses nothing (`linux_keeps_chord` is false against an empty
+    /// list) — the config-free scaffold default, byte-identical to today's
+    /// behavior on every convention other than a configured Linux one.
+    pub config_linux_keep: Vec<String>,
     pub is_markdown: bool,
     pub doc_dir: Option<std::path::PathBuf>,
     pub syn_lang: Option<crate::syntax::Lang>,
@@ -287,6 +304,8 @@ impl ViewState {
             gutter_project: String::new(),
             gutter_files: Vec::new(),
             gutter_changed: false,
+            config_keys: Vec::new(),
+            config_linux_keep: Vec::new(),
             is_markdown: false,
             doc_dir: None,
             syn_lang: None,

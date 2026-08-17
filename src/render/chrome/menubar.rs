@@ -259,6 +259,8 @@ impl TextPipeline {
             label_char_w,
             self.md_enabled,
             self.metrics.scale,
+            &self.config_keys,
+            &self.config_linux_keep,
         );
         let geometry =
             self.prepare_dropdown_card(device, queue, [width, height], menu_i, bar_h, &plan);

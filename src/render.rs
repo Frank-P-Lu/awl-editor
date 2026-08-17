@@ -2551,6 +2551,16 @@ pub struct TextPipeline {
     /// at all unless the stack is drawn, so a single-file frame issues no extra
     /// draw (`SelectionPipeline::draw` returns early at zero instances).
     gutter_stack_plate: crate::selection::SelectionPipeline,
+    /// Mirror of [`ViewState::config_keys`] — the user's `[keys]` overrides, the
+    /// SAME slice `overlay::BuildCtx::config_keys` hands the palette. Read by the
+    /// awl-drawn menu bar's chord column (`chrome::menubar::dropdown`) so a
+    /// rebind updates that label exactly like it already updates the palette's.
+    config_keys: Vec<(String, Vec<String>)>,
+    /// Mirror of [`ViewState::config_linux_keep`] — `Config::effective_linux_keep()`,
+    /// composed once per sync from the `keymap` flavor + `linux_keep_emacs`. Empty
+    /// (never `linux_keeps_chord`-true) on every non-Linux capture, so this is
+    /// inert everywhere the menu bar's own convention isn't `Convention::Linux`.
+    config_linux_keep: Vec<String>,
     md_enabled: bool,
     /// WYSIWYG / INLINE-IMAGES LATCH: the last-shaped value of the two rendering
     /// process-globals (`markdown::wysiwyg_on()` / `inline_images_on()`), so

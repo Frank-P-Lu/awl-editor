@@ -422,6 +422,12 @@ impl TextPipeline {
         self.gutter_project = view.gutter_project.clone();
         self.gutter_changed = view.gutter_changed;
         self.gutter_files.clone_from(&view.gutter_files);
+        // The awl-drawn menu bar's chord column reads these at prepare time
+        // (`chrome::menubar::dropdown`), so a config reload or a live `keymap`
+        // flavor toggle reaches the next frame the same way every other synced
+        // field does — no separate invalidation needed.
+        self.config_keys.clone_from(&view.config_keys);
+        self.config_linux_keep.clone_from(&view.config_linux_keep);
         self.notice = view.notice.clone();
         self.notice_kind = view.notice_kind;
         self.eol = view.eol;

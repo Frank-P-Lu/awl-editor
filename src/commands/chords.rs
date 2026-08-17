@@ -104,10 +104,11 @@ pub fn resolved_native_label(c: &Command, convention: Convention) -> String {
 /// [`Platform::Web`] — a native build's chords are never browser-shadowed, so
 /// this is byte-identical to [`resolved_native_label`] on every native call
 /// site. THE ONE OWNER of "is this command's native chord actually worth
-/// showing" — [`join_slots_truthful`] (the two-slot palette/rebind label),
-/// `menu::item_chord` (the awl-rendered menu bar's native-only column, which
-/// shows on web too), and `keytoken::key_token_label` (the starting docs'
-/// chord tokens) all route through it.
+/// showing" — [`join_slots_truthful`] and [`super::menu_native_label`] (the
+/// palette/rebind label's native half and the awl-rendered menu bar's
+/// native-only column, which shows on web too, both via
+/// [`super::native_label_effective`]) and `keytoken::key_token_label` (the
+/// starting docs' chord tokens) all route through it.
 pub fn resolved_native_label_truthful(
     c: &Command,
     convention: Convention,
@@ -150,8 +151,11 @@ pub fn resolved_native_label_truthful(
 ///
 /// Only the UNCONDITIONAL builtin list is applied, never the config-dependent
 /// `effective_linux_keep()`: a caller that knows the user's own keep list still
-/// applies it on top ([`join_slots_truthful`] does), and a caller that does not
-/// must never over-claim a suppression that some configs would not have.
+/// applies it on top ([`super::join_slots_truthful`] and
+/// [`super::menu_native_label`] — the palette's native half and the
+/// awl-rendered menu bar's chord column, respectively — both do), and a caller
+/// that does not must never over-claim a suppression that some configs would
+/// not have.
 pub fn resolved_native_truthful(c: &Command, convention: Convention, platform: Platform) -> String {
     let native = resolved_native(c, convention);
     if convention == Convention::Linux {

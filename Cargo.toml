@@ -167,8 +167,11 @@ objc2-metal = { version = "0.3.2", default-features = false, features = ["MTLDev
 # false` drops its `libxdo`/`gtk` defaults, which are Linux-only optional deps
 # that never build against a non-Linux target anyway but are disabled
 # explicitly for a lean mac-only dependency graph. Mac-only for now (SCOPE:
-# Linux/wasm never see a menu bar in v1 — muda supports gtk on Linux, but
-# wiring it is left for a future round; wasm has no native chrome at all).
+# this crate — the real AppKit/muda bar — never builds for Linux/wasm; muda
+# supports gtk on Linux, but wiring IT UP is left for a future round. Off
+# macOS the app is not bare of a menu bar, though: `src/menubar.rs` +
+# `src/render/chrome/menubar/` draw awl's OWN menu bar there instead, reading
+# the same `menu::roster()` this crate's bar does, with no muda dependency).
 muda = { version = "0.19.3", default-features = false }
 # Native macOS chrome for two MENU items that dodge the in-app overlay path:
 # File "Open..." -> NSOpenPanel (the standard file picker) and About ->

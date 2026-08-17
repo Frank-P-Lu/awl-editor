@@ -483,23 +483,31 @@ pub fn resolve(id: &str) -> Option<Action> {
         .and_then(|r| commands::action_for_name(r.command))
 }
 
-/// The NATIVE chord for a routed command NAME, CONVENTION-RESOLVED AND
-/// LABEL-TRUE (`commands::resolved_native_label_truthful`, e.g. `"Cmd-O"` ->
-/// `"⌘O"` on Mac / `"Ctrl+O"` on Linux, or `""` when the resolved chord is a
-/// browser-reserved accelerator — the WEB CHORD SANITY round's Tier 2) for the
-/// awl-rendered menu bar's secondary column, or `""` for a palette-only
-/// command with no native chord. Cross-platform (the awl bar shows on
-/// web/Linux — this is the ONE label door that surface reads, so it can never
-/// claim a chord the browser will actually eat). Reads the SAME catalog
+/// The EFFECTIVE native-slot chord for a routed command NAME — CONVENTION-
+/// RESOLVED, LABEL-TRUE, AND CONFIG-AWARE (`commands::menu_native_label`, e.g.
+/// `"Cmd-O"` -> `"⌘O"` on Mac / `"Ctrl+O"` on Linux, `""` when the resolved
+/// chord is a browser-reserved accelerator, and `""` when `keep` — the config's
+/// `Config::effective_linux_keep()` — has claimed it for its emacs meaning
+/// instead) for the awl-rendered menu bar's secondary column, or `""` for a
+/// palette-only command with no native chord. Cross-platform (the awl bar
+/// shows on web/Linux — this is the ONE label door that surface reads, so it
+/// can never claim a chord the browser, or this user's `keymap` flavor / `[keys]`
+/// rebind, would not actually dispatch). Reads the SAME catalog
 /// [`commands::COMMANDS`] the palette does, so a menu item's chord can never
-/// drift from the command it fires.
-pub fn item_chord(command: &str) -> String {
+/// drift from the command it fires. `keys`/`keep` are the caller's config —
+/// every real call site threads `Config::keys`/`Config::effective_linux_keep()`
+/// (mirrored onto the render pipeline each `sync_view`, see
+/// `render::viewstate_def::ViewState::config_keys`); a test that wants the
+/// static, config-free default passes `&[]`/`&[]`.
+pub fn item_chord(command: &str, keys: &[(String, Vec<String>)], keep: &[String]) -> String {
     commands::COMMANDS
         .iter()
         .find(|c| c.name == command)
         .map(|c| {
-            commands::resolved_native_label_truthful(
+            commands::menu_native_label(
                 c,
+                keys,
+                keep,
                 crate::convention::Convention::current(),
                 commands::Platform::current(),
             )
@@ -507,12 +515,12 @@ pub fn item_chord(command: &str) -> String {
         .unwrap_or_default()
 }
 
-pub fn item_chord_for_id(id: &str) -> String {
+pub fn item_chord_for_id(id: &str, keys: &[(String, Vec<String>)], keep: &[String]) -> String {
     SECTIONS
         .iter()
         .flat_map(|s| s.iter())
         .find(|r| r.id == id)
-        .map(|r| item_chord(r.command))
+        .map(|r| item_chord(r.command, keys, keep))
         .unwrap_or_default()
 }
 
@@ -761,7 +769,7 @@ mod tests {
                         );
                         // The secondary-column chord lookup must never panic (empty is
                         // fine for a palette-only command like About/Quit).
-                        let _ = item_chord_for_id(id);
+                        let _ = item_chord_for_id(id, &[], &[]);
                     }
                     RosterItem::Predefined(kind) => {
                         assert!(
