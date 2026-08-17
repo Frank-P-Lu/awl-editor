@@ -232,6 +232,13 @@ fn goto_heading_rows_keep_their_line_across_refilter() {
 /// their key (accept) + current value (secondary) across a `refilter`, and
 /// [`OverlayState::selected_setting_row`] still resolves the highlighted one
 /// correctly once the query has re-ranked the list.
+///
+/// "Autosave" stands in for an UNCOVERED row (no `COVERED_BY` entry, so it
+/// stays a `CommandSetting` row in this exact union rather than being
+/// suppressed like a covered row is — "Keymap" itself is COVERED now, by
+/// this item's own "Keymap…" catalog command, so it no longer appears here
+/// at all; that suppression is what `covered_rows_are_excluded_from_the_
+/// palette_on_both_platforms` in `settings/tests.rs` already proves).
 #[test]
 fn command_palette_settings_rows_keep_key_and_value_across_refilter() {
     let mut ov = OverlayState::new_command(
@@ -243,16 +250,20 @@ fn command_palette_settings_rows_keep_key_and_value_across_refilter() {
         crate::settings::palette_rows(),
         crate::settings::palette_value_cells(&Default::default()),
     );
-    let ci = ov.rows.iter().position(|r| r.accept == "Keymap").unwrap();
+    let ci = ov
+        .rows
+        .iter()
+        .position(|r| r.accept == "Autosave")
+        .unwrap();
     assert!(matches!(
         ov.rows[ci].meta,
-        RowMeta::CommandSetting { id } if id == crate::settings::SettingId::Keymap
+        RowMeta::CommandSetting { id } if id == crate::settings::SettingId::Autosave
     ));
     let value_before = ov.rows[ci].secondary.clone();
-    for c in "keym".chars() {
+    for c in "auto".chars() {
         ov.push(c);
     }
-    assert!(ov.items.contains(&ci), "the Keymap row survives the query");
+    assert!(ov.items.contains(&ci), "the Autosave row survives the query");
     assert_eq!(
         ov.rows[ci].secondary, value_before,
         "the value traveled with its OWN row"
@@ -261,7 +272,7 @@ fn command_palette_settings_rows_keep_key_and_value_across_refilter() {
     let resolved = ov
         .selected_setting_row()
         .expect("the highlighted row resolves to a SettingRow");
-    assert_eq!(resolved.name, "Keymap");
+    assert_eq!(resolved.name, "Autosave");
 }
 
 /// PRESERVATION LAW — History rows keep their restore `id` + `ts`
