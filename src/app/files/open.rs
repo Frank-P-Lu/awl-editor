@@ -38,17 +38,21 @@ impl App {
         self.load_path(path);
     }
 
-    /// THE ONE OWNER behind Credits, Guide, and Reference: open a bundled,
-    /// read-only document into the buffer by REFRESHING an on-disk view under
+    /// THE ONE OWNER behind Guide and Reference: open a bundled, read-only
+    /// document into the buffer by REFRESHING an on-disk view under
     /// `fs::data_root()` to `content` (never create-if-missing — the view must
     /// never drift from what shipped) and loading it. Routed through a real
     /// path rather than left path-less: a path-less buffer reads as SCRATCH to
     /// the autosave engine (`autosave_flush`'s `buffer.path().is_none()` arm),
     /// which would silently overwrite the user's real scratch stash the next
-    /// time autosave flushes — see `credits.rs`'s module doc for the full
-    /// reasoning, which applies identically to all three callers. `label`
-    /// names the document in the one write-failure diagnostic; `filename` is
-    /// the on-disk leaf under `data_root()`.
+    /// time autosave flushes. `label` names the document in the one
+    /// write-failure diagnostic; `filename` is the on-disk leaf under
+    /// `data_root()`.
+    ///
+    /// Credits used to be a third caller here; it now opens as a summoned
+    /// read-only VIEWER instead (`OverlayKind::Credits`, `App::open_credits`
+    /// no longer exists) — never a buffer, so there is no on-disk refresh copy
+    /// and no autosave-clobber risk to route around in the first place.
     fn open_bundled_doc(&mut self, label: &str, filename: &str, content: &str) {
         let path = crate::fs::data_root().join(filename);
         let fs = crate::fs::active();
@@ -62,12 +66,6 @@ impl App {
         self.load_path(path);
     }
 
-    /// Credits command: the source of truth is the BINARY (`credits::CREDITS_MD`),
-    /// not a user-owned disk file — see [`Self::open_bundled_doc`].
-    pub(in crate::app) fn open_credits(&mut self) {
-        self.open_bundled_doc("credits", "credits.md", crate::credits::CREDITS_MD);
-    }
-
     pub(in crate::app) fn open_guide(&mut self) {
         let rendered = crate::guide::render(
             crate::convention::Convention::current(),
@@ -79,7 +77,7 @@ impl App {
     /// Reference command: unlike Guide, `REFERENCE.md` carries no `{{key:}}`
     /// chord tokens to render per-convention (its command table already lists
     /// both conventions as explicit columns), so the embedded text opens
-    /// verbatim, like Credits — see `reference_doc.rs`'s module doc.
+    /// verbatim — see `reference_doc.rs`'s module doc.
     pub(in crate::app) fn open_reference(&mut self) {
         self.open_bundled_doc(
             "reference",

@@ -88,6 +88,7 @@ fn representative_overlay(kind: OverlayKind) -> OverlayState {
             std::path::PathBuf::from("/notes/a.md"),
             Some("what the disk says\n".to_string()),
         ),
+        OverlayKind::Credits => OverlayState::new_credits(),
         OverlayKind::Settings => {
             let mut ov = OverlayState::new(kind, crate::settings::visible_names(), vec![], vec![]);
             ov.set_secondaries(crate::settings::visible_value_cells(&Default::default()));

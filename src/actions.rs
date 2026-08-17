@@ -549,6 +549,15 @@ fn apply_overlay_open_action(ctx: &mut ActionCtx, action: &Action) -> bool {
         Action::OpenAssetClean => {
             ctx.journey.enter((ctx.make_overlay)(OverlayKind::Assets));
         }
+        // Cmd-P → "Credits": summon the read-only CREDITS VIEWER — a summoned
+        // workspace, never a buffer swap, so the active document's path and
+        // version are untouched by opening, scrolling or dismissing it
+        // (`OverlayKind::Credits`'s own module doc). `make_overlay` needs no
+        // caller-gathered context (the corpus is a compiled-in constant), so
+        // this always summons, exactly like History/Assets above.
+        Action::OpenCredits => {
+            ctx.journey.enter((ctx.make_overlay)(OverlayKind::Credits));
+        }
         // See `workspace_nav::open_keep_version`'s own doc: this parks
         // whatever is already open rather than `enter`-ing over it.
         Action::KeepVersion => workspace_nav::open_keep_version(ctx),
@@ -688,7 +697,8 @@ macro_rules! classify_action_family {
             | Action::OpenHistory
             | Action::OpenAssetClean
             | Action::KeepVersion
-            | Action::CompareVersion => ActionFamily::Overlay,
+            | Action::CompareVersion
+            | Action::OpenCredits => ActionFamily::Overlay,
             Action::LastBuffer
             | Action::NewDocument
             | Action::KeepTutorial
@@ -696,7 +706,6 @@ macro_rules! classify_action_family {
             | Action::OpenRenameNote
             | Action::DuplicateNote
             | Action::OpenSettings
-            | Action::OpenCredits
             | Action::OpenGuide
             | Action::OpenReference
             | Action::OpenSettingsMenu

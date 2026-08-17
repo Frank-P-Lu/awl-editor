@@ -774,7 +774,6 @@ impl App {
             actions::BufferEffect::Previous { .. } => self.last_buffer_toggle(),
             actions::BufferEffect::NewDocument => self.new_document(),
             actions::BufferEffect::OpenSettings => self.open_settings(),
-            actions::BufferEffect::OpenCredits => self.open_credits(),
             actions::BufferEffect::OpenGuide => self.open_guide(),
             actions::BufferEffect::OpenReference => self.open_reference(),
         }

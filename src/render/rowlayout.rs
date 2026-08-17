@@ -413,6 +413,7 @@ mod tests {
                 crate::overlay::CONFLICT_ROWS.iter().map(|r| r.to_string()).collect(),
                 None,
             ),
+            OverlayKind::Credits => (vec![OverlayKind::Credits.title().to_string()], None),
             OverlayKind::Context => (
                 vec!["Collapse other sections".into(), "Page width settings…".into()],
                 Some("unavailable".chars().count()),

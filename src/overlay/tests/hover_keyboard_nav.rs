@@ -369,6 +369,7 @@ fn hover_movement_slop_gate_holds_across_every_overlay_kind_no_wildcard() {
             | OverlayKind::Keybindings
             | OverlayKind::History
             | OverlayKind::Conflict
+            | OverlayKind::Credits
             | OverlayKind::Settings
             | OverlayKind::Assets
             | OverlayKind::Rename

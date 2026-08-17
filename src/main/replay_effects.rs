@@ -111,9 +111,6 @@ impl<'a> ReplaySession<'a> {
                     *self.buffer = Buffer::from_file(&self.config.path);
                 }
             }
-            actions::BufferEffect::OpenCredits => {
-                *self.buffer = Buffer::from_str(crate::credits::CREDITS_MD);
-            }
             actions::BufferEffect::OpenGuide => {
                 *self.buffer = Buffer::from_str(&crate::guide::render(
                     crate::convention::Convention::current(),

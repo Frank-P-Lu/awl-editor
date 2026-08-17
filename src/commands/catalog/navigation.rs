@@ -375,7 +375,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
-        description: Some("Open the bundled Credits document into the buffer."),
+        description: Some("Open the bundled Credits document in a read-only viewer."),
     },
     Command {
         name: "Guide",

@@ -1,16 +1,16 @@
 //! src/credits.rs — the embedded CREDITS.md text, `include_str!`'d at build
 //! time (zero network, mirroring every other bundled asset in this app).
 //!
-//! Summoned via Cmd-P → "Credits" (`Action::OpenCredits` / `Effect::OpenCredits`,
-//! see `commands.rs` + `actions.rs`), which opens this text into the buffer
-//! exactly like Settings opens the config file — see `App::open_credits`
-//! (`app/files/`) for why it is written to a real on-disk path (under
-//! `fs::data_root()`, refreshed to the embedded text on every open) rather than
-//! left path-less: a path-less buffer is indistinguishable from the SCRATCH
-//! surface to the autosave engine (`App::autosave_flush`'s `buffer.path().is_none()`
-//! arm stashes it as scratch), which would silently clobber the user's real
-//! scratch stash the next time autosave flushes. Routing through a real path
-//! keeps Credits an ordinary, harmlessly-editable buffer instead.
+//! Summoned via Cmd-P → "Credits" (`Action::OpenCredits`, see `commands.rs` +
+//! `actions.rs`), which opens a summoned, scrollable, READ-ONLY viewer
+//! (`OverlayKind::Credits`, `overlay/comparison.rs`'s `OverlayState::new_credits`)
+//! over the document — never a buffer swap. The active buffer's path and
+//! version are untouched by opening, scrolling or dismissing it: this text is
+//! pushed straight into the relocated document viewport
+//! (`comparison::prose_for`), the same mechanism the History/Conflict
+//! comparison panes use to show read-only prose without touching the buffer.
+//! There is no on-disk refresh copy and nothing for autosave to clobber,
+//! because there is no buffer here to autosave in the first place.
 
 /// The full text of the repo's `CREDITS.md`, embedded at compile time. The
 /// `include_str!` path itself lives in the ONE owner, `crate::embedded_docs`

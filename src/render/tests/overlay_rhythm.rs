@@ -61,8 +61,10 @@ fn surface_contract(kind: crate::overlay::OverlayKind) -> SurfaceContract {
         | K::InsertLink
         | K::KeepName
         // A workspace, but not a FACETED one: its three views are the whole
-        // list, so there is no lens strip above them to order.
+        // list, so there is no lens strip above them to order. Credits is the
+        // same shape with one row instead of three.
         | K::Conflict
+        | K::Credits
         | K::Context => SurfaceContract::Flat,
     }
 }

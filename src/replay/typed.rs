@@ -46,7 +46,6 @@ pub(super) fn classify_buffer(effect: &crate::actions::BufferEffect) -> Classifi
     match effect {
         crate::actions::BufferEffect::NewDocument => named("new_document", EffectClass::Applied),
         crate::actions::BufferEffect::OpenSettings => named("open_settings", EffectClass::Applied),
-        crate::actions::BufferEffect::OpenCredits => named("open_credits", EffectClass::Applied),
         crate::actions::BufferEffect::OpenGuide => named("open_guide", EffectClass::Applied),
         crate::actions::BufferEffect::OpenReference => {
             named("open_reference", EffectClass::Applied)

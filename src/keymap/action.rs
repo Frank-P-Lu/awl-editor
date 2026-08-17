@@ -203,13 +203,16 @@ pub enum Action {
     OpenSettings,
     OpenSettingsMenu,
     OpenKeybindings,
+    /// Palette "Credits": summon the read-only CREDITS VIEWER
+    /// (`OverlayKind::Credits`) — never a buffer swap, unlike
+    /// Guide/Reference below. See `credits.rs`.
     OpenCredits,
     OpenGuide,
     /// Palette "Reference": open the embedded `REFERENCE.md` into the buffer,
-    /// exactly like Guide/Credits — the third bundled document through the
-    /// same `App::open_bundled_doc` owner (`app/files/open.rs`). No default
-    /// chord (palette-only, like Guide/Credits/Settings/About); rebindable
-    /// via `[keys]`. See `reference_doc.rs`.
+    /// exactly like Guide — the second bundled document through the same
+    /// `App::open_bundled_doc` owner (`app/files/open.rs`). No default
+    /// chord (palette-only, like Guide/Settings/About); rebindable via
+    /// `[keys]`. See `reference_doc.rs`.
     OpenReference,
     OpenHistory,
     /// THE WRITER'S DIFF (palette "Compare with version…", markdown buffers only):

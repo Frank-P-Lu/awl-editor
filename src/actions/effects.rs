@@ -75,7 +75,6 @@ pub enum BufferEffect {
     },
     NewDocument,
     OpenSettings,
-    OpenCredits,
     OpenGuide,
     OpenReference,
 }

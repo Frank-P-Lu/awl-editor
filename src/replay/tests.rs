@@ -41,7 +41,6 @@ fn roster() -> Vec<Effect> {
         Effect::Buffer(crate::actions::BufferEffect::Previous { finished: true }),
         Effect::Buffer(crate::actions::BufferEffect::NewDocument),
         Effect::Buffer(crate::actions::BufferEffect::OpenSettings),
-        Effect::Buffer(crate::actions::BufferEffect::OpenCredits),
         Effect::Buffer(crate::actions::BufferEffect::OpenGuide),
         Effect::Buffer(crate::actions::BufferEffect::OpenReference),
         Effect::Daemon(crate::actions::DaemonEffect::NotifyFinished),

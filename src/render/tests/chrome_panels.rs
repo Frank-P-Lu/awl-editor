@@ -2198,6 +2198,7 @@ fn footer_contract(kind: crate::overlay::OverlayKind) -> FooterContract {
         | K::InsertLink
         | K::KeepName
         | K::Conflict
+        | K::Credits
         | K::Context => FooterContract::TakeoverCard,
     }
 }
@@ -2513,6 +2514,7 @@ fn card_pad_for(kind: crate::overlay::OverlayKind) -> f32 {
         | K::InsertLink
         | K::KeepName
         | K::Conflict
+        | K::Credits
         | K::Context => 12.0,
     }
 }

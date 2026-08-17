@@ -7,13 +7,16 @@
 //! THE BUNDLED-DOCUMENT-OWNER LAW — a source scan, in the shape of
 //! `embedded_docs_law.rs`'s `embed_owner_is_the_only_include_str_site`, for
 //! the OTHER half of the same discipline: not just where a document's BYTES
-//! are embedded, but where they are OPENED. Credits, Guide, and Reference all
-//! route through `open_bundled_doc` (write the embedded text under
+//! are embedded, but where they are OPENED. Guide and Reference both route
+//! through `open_bundled_doc` (write the embedded text under
 //! `fs::data_root()`, then `load_path` it) rather than each carrying its own
-//! copy of that two-step shape — before this item, `open_credits` and
-//! `open_guide` each hand-rolled it, and `open_reference` would have been a
-//! THIRD hand-roll. This test is what stops a FOURTH bundled document from
-//! reintroducing that duplication instead of reusing the owner.
+//! copy of that two-step shape — before that owner existed, `open_credits`
+//! and `open_guide` each hand-rolled it, and `open_reference` would have been
+//! a THIRD hand-roll. Credits has since left this family entirely: it opens
+//! as a summoned read-only VIEWER (`OverlayKind::Credits`) rather than a
+//! buffer, so it never reaches `load_path` at all. This test is what stops a
+//! new bundled DOCUMENT BUFFER from reintroducing the write+load duplication
+//! instead of reusing the owner.
 
 use std::fs;
 use std::path::PathBuf;
@@ -120,7 +123,7 @@ fn only_open_bundled_doc_writes_an_embedded_document_and_loads_it() {
         offenders.is_empty(),
         "these functions write an embedded document and load it INLINE \
          instead of routing through `open_bundled_doc` (the one owner \
-         Credits/Guide/Reference share): {offenders:?} — call \
+         Guide/Reference share): {offenders:?} — call \
          `self.open_bundled_doc(label, filename, content)` instead",
     );
 }

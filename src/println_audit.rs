@@ -54,10 +54,11 @@ const EXPECTED: &[(&str, usize)] = &[
     // rebind-menu writes in `rebind.rs`; the autosave/scratch-stash engine
     // in `autosave.rs`; the dictionary switch + personal-dictionary append
     // in `dictionary.rs`) — same total, same reasons, just relocated.
-    // Credits/Guide/Reference now route through the ONE shared
-    // `open_bundled_doc` owner, so their on-disk-refresh failure is a SINGLE
-    // line all three callers reach, not one per caller — one fewer line here
-    // than the split above counted, even with a third bundled document added.
+    // Guide/Reference route through the ONE shared `open_bundled_doc` owner,
+    // so their on-disk-refresh failure is a SINGLE line both callers reach,
+    // not one per caller. Credits has since left this family — it opens as a
+    // summoned read-only viewer, never a buffer, so it reaches no write path
+    // and adds no line here.
     ("app/files/open.rs", 4),
     ("app/files/settings.rs", 2),
     ("app/files/rebind.rs", 2),

@@ -1094,13 +1094,15 @@ macro_rules! classify_smoke_command {
         // (whose live preview IS the writer's diff) — byte-identical dispatch to
         // `OpenHistory`, so it is an Opener too. The old read-only-takeover
         // `Effect::CompareLatest`/`CompareVersion` deferral is retired.
-        | Action::CompareVersion => SmokeKind::Opener,
+        | Action::CompareVersion
+        // CREDITS VIEWER: summons `OverlayKind::Credits` directly — never a
+        // deferred buffer effect, unlike Guide/Reference below.
+        | Action::OpenCredits => SmokeKind::Opener,
 
         // Deferred effects (the pure core signals; the live App performs).
         Action::Quit
         | Action::LastBuffer
         | Action::NewDocument | Action::KeepTutorial
-        | Action::OpenCredits
         | Action::OpenGuide
         | Action::OpenReference
         | Action::FinishBuffer
