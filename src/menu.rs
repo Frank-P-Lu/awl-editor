@@ -403,7 +403,7 @@ fn roster_all() -> Vec<RosterMenu> {
                 routed(&FILE_ITEMS[7]), // Duplicate file
                 routed(&FILE_ITEMS[8]), // Version history…
                 RosterItem::Separator,
-                routed(&FILE_ITEMS[9]), // Save
+                routed(&FILE_ITEMS[9]),  // Save
                 routed(&FILE_ITEMS[10]), // Save and return
                 RosterItem::Separator,
                 routed(&FILE_ITEMS[11]), // Export as PDF

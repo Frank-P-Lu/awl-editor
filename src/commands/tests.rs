@@ -523,13 +523,9 @@ fn command_palette_command_present_and_rebindable_via_keys_override() {
     // A `[keys]` rebind to a chord neither convention's default table claims,
     // on EACH convention — the override is documented convention-agnostic
     // (taken literally, never Cmd->Ctrl translated).
-    let keys = vec![(
-        "command_palette".to_string(),
-        vec!["Cmd-Alt-9".to_string()],
-    )];
+    let keys = vec![("command_palette".to_string(), vec!["Cmd-Alt-9".to_string()])];
     for convention in [Convention::Mac, Convention::Linux] {
-        let mut km =
-            crate::keymap::KeymapState::with_overrides_and_convention(&keys, convention);
+        let mut km = crate::keymap::KeymapState::with_overrides_and_convention(&keys, convention);
         let (key, mods) = crate::keyspec::parse_chord("Cmd-Alt-9").expect("Cmd-Alt-9 parses");
         assert_eq!(
             km.resolve(&key, &mods),
