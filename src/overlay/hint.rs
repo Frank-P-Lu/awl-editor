@@ -77,6 +77,12 @@ impl OverlayKind {
                 vec![enter("rebind"), key("del", "reset"), key("esc", "close")]
             }
             OverlayKind::Conflict => vec![enter("read"), key("esc", "keep editing")],
+            // Unreachable in practice: `Credits` is a workspace kind
+            // (`workspace_shape().is_some()`), so `foot_hint_scoped` always
+            // routes its footer through `rail_hint_actions`/
+            // `detail_hint_actions` instead of this flat-picker line. Kept
+            // truthful anyway, mirroring the content stage's own hint.
+            OverlayKind::Credits => vec![key(ARROWS_UD, "scroll"), key("esc", "close")],
             OverlayKind::History => vec![
                 enter("compare"),
                 key("\u{21E7}\u{21B5}", "restore"),

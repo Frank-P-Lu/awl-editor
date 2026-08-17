@@ -50,6 +50,12 @@ pub fn prose_for(
             crate::history::comparison_prose(ov, request, buffer_path, is_unnamed_fresh, current)
         }
         OverlayKind::Conflict => conflict_prose(ov, request, current),
+        // CREDITS: the one static document, not a comparison of two texts at
+        // all — `credits_prose` ignores `ov`/`current` and hands back the
+        // embedded `CREDITS.md` verbatim. It already opens with its own `#
+        // CREDITS` heading, so unlike `whole()` this does NOT prepend a
+        // second one.
+        OverlayKind::Credits => credits_prose(request),
         OverlayKind::Settings
         | OverlayKind::Goto
         | OverlayKind::Project
@@ -132,8 +138,27 @@ fn conflict_prose(
             whole(&title, subject.theirs.as_deref().unwrap_or(DELETED_ON_DISK)),
             DiffCounts::default(),
         ),
+        // `Document` names no CONFLICT row: the `label` lookup two lines up
+        // already returned `None` (and this whole function with it) for any
+        // view absent from `ComparisonView::ALL`, so this arm is compiled for
+        // exhaustiveness but never actually reached.
+        ComparisonView::Document => unreachable!("Document is absent from ComparisonView::ALL"),
     };
     Some((request.subject.clone(), transcript, counts))
+}
+
+/// CREDITS' producer: the embedded document, whole and verbatim — read-only
+/// through the SAME relocated document layer a comparison uses
+/// (`TextPipeline::comparison_viewport`), never a second prose renderer.
+/// `DiffCounts::default()` because there is nothing to diff; the subject
+/// rides straight through from the request, which `comparison_request` always
+/// fills with the same constant.
+fn credits_prose(request: &ComparisonRequest) -> Option<(String, String, DiffCounts)> {
+    Some((
+        request.subject.clone(),
+        crate::credits::CREDITS_MD.to_string(),
+        DiffCounts::default(),
+    ))
 }
 
 /// One WHOLE, UNMARKED version under its own title — the same `# title` header

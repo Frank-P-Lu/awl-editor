@@ -186,6 +186,14 @@ impl OverlayKind {
             // sustained work, and because the document behind it is the very
             // thing being compared — leaving it visible would show a third text.
             OverlayKind::Conflict => Some(WorkspaceShape::TimelineOverComparison),
+            // THE SAME SHAPE AGAIN, degenerated to its simplest case: ONE fixed
+            // row standing in for the primary list (there is nothing to
+            // navigate), beside the same relocated read-only prose Conflict and
+            // History already draw into. A workspace because Credits is
+            // sustained reading of a whole document, not a brief contextual
+            // choice — the document behind it recedes as a quiet backdrop while
+            // you read, same as a comparison's.
+            OverlayKind::Credits => Some(WorkspaceShape::TimelineOverComparison),
             OverlayKind::Goto
             | OverlayKind::Project
             | OverlayKind::ProjectBrowse
@@ -263,6 +271,11 @@ impl OverlayKind {
                 },
                 key("esc", "keep editing"),
             ],
+            // THE ONE-ROW RAIL. Nothing to step — Credits opens with the
+            // content stage already focused, so a reader only lands here by
+            // pressing `tab` on purpose — and nothing to commit, so no `↵`
+            // cell either.
+            OverlayKind::Credits => vec![key("esc", "close")],
             OverlayKind::Goto
             | OverlayKind::Project
             | OverlayKind::ProjectBrowse
@@ -316,6 +329,10 @@ impl OverlayKind {
             // A comparison here is read-only prose exactly as it is on a
             // timeline, minus the one key that changes the document.
             OverlayKind::Conflict => vec![key(ARROWS_UD, "scroll")],
+            // Credits is the same read-only prose with nothing to restore —
+            // there is no earlier version, so not even Conflict's bare
+            // scroll cell needs a sibling.
+            OverlayKind::Credits => vec![key(ARROWS_UD, "scroll")],
             OverlayKind::Settings
             | OverlayKind::Goto
             | OverlayKind::Project

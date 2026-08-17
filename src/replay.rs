@@ -280,6 +280,11 @@ fn accept_class(kind: OverlayKind) -> EffectClass {
         | OverlayKind::InsertLink
         | OverlayKind::KeepName
         | OverlayKind::Conflict
+        // Read-only, like Conflict beside it: nothing on Credits' content pane
+        // ever emits an accept in the first place (`AcceptDisposition::StayOpen`,
+        // and the live App's own accept arm is a no-op), so this is
+        // belt-and-braces rather than a reachable case.
+        | OverlayKind::Credits
         // The export DESTINATION navigator rides `Effect::Export` (already
         // classified Intercepted) rather than an accept, exactly as Browse rides
         // Goto's — the folder it chose is a component of that effect, not a

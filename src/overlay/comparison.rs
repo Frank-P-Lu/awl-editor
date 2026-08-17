@@ -54,12 +54,19 @@ pub enum ComparisonView {
     /// The OTHER text for the subject, shown whole and unmarked — the conflict
     /// workspace's "Version on disk".
     Theirs,
+    /// A STANDALONE embedded document, shown whole and unmarked, belonging to
+    /// no roster of alternatives — Credits' one and only view. Deliberately
+    /// OUT of [`Self::ALL`]: that array is Conflict's row-index roster, and a
+    /// fourth entry there would silently offer Conflict a view it has no row
+    /// for.
+    Document,
 }
 
 impl ComparisonView {
-    /// The three views, in the order a reader wants them: what changed, then
-    /// each whole version. [`CONFLICT_ROWS`] is this roster's user-facing
-    /// spelling and a law pins the two in lockstep.
+    /// The three CONFLICT views, in the order a reader wants them: what
+    /// changed, then each whole version. [`CONFLICT_ROWS`] is this roster's
+    /// user-facing spelling and a law pins the two in lockstep. `Document` is
+    /// deliberately absent — it names no row of Conflict's.
     pub const ALL: [ComparisonView; 3] = [
         ComparisonView::Differences,
         ComparisonView::Mine,
@@ -75,6 +82,7 @@ impl ComparisonView {
             ComparisonView::Differences => "diff",
             ComparisonView::Mine => "mine",
             ComparisonView::Theirs => "theirs",
+            ComparisonView::Document => "document",
         }
     }
 }
@@ -149,6 +157,25 @@ impl OverlayState {
         s
     }
 
+    /// THE CREDITS VIEWER: one fixed row naming the document, standing in for
+    /// the primary list a `TimelineOverComparison` workspace otherwise needs —
+    /// there is nothing to navigate, so the "list" is the title. Opens with
+    /// the CONTENT stage already focused (`detail_focus: true`), unlike
+    /// History/Conflict, which open on their primary list: those ask the
+    /// reader to choose a row first, Credits has none to choose, so the first
+    /// keypress scrolls the document immediately rather than stepping an
+    /// inert one-row rail.
+    pub fn new_credits() -> Self {
+        let mut s = Self::new(
+            OverlayKind::Credits,
+            vec![OverlayKind::Credits.title().to_string()],
+            Vec::new(),
+            Vec::new(),
+        );
+        s.detail_focus = true;
+        s
+    }
+
     /// WHAT READ-ONLY PROSE THIS CARD'S COMPARISON REGION IS ASKING FOR, or `None`
     /// when it has nothing to show — a kind with no comparison at all, or a
     /// timeline standing on its empty-state row.
@@ -177,6 +204,14 @@ impl OverlayState {
                 let view = *ComparisonView::ALL.get(self.selected_corpus_index()?)?;
                 Some(ComparisonRequest { view, subject })
             }
+            // CREDITS: always Some — a THIRD consumer, and the simplest one.
+            // One fixed subject, one fixed view, no selection to read: unlike
+            // History/Conflict there is no empty state and no row that could
+            // fail to resolve, so this never returns `None`.
+            OverlayKind::Credits => Some(ComparisonRequest {
+                view: ComparisonView::Document,
+                subject: "credits".to_string(),
+            }),
             OverlayKind::Settings
             | OverlayKind::Goto
             | OverlayKind::Project
@@ -206,18 +241,17 @@ impl OverlayState {
 mod tests {
     use super::*;
 
-    /// THE ROSTER: exactly TWO kinds ask for read-only prose — the timeline, and
-    /// the external-change conflict. Wildcard-free at the source; this
-    /// pins what the roster currently reads so a kind that quietly grows a
-    /// comparison is noticed.
+    /// THE ROSTER: exactly THREE kinds ask for read-only prose — the timeline,
+    /// the external-change conflict, and Credits. Wildcard-free at the
+    /// source; this pins what the roster currently reads so a kind that
+    /// quietly grows a comparison is noticed.
     ///
-    /// The number moved from one to two DELIBERATELY, and that is the whole
-    /// point of the typed request: 116d built it for a second consumer, and this
-    /// is that consumer arriving. What has NOT moved is the shape of the
-    /// membership test — each member is named, and a bare card of every other
-    /// kind must still ask for nothing.
+    /// The number moved from one to two (116d, a second consumer) and now to
+    /// three (Credits, the first STATIC one). What has NOT moved is the shape
+    /// of the membership test — each member is named, and a bare card of
+    /// every other kind must still ask for nothing.
     #[test]
-    fn exactly_the_timeline_and_the_conflict_ask_for_read_only_prose() {
+    fn exactly_the_timeline_the_conflict_and_credits_ask_for_read_only_prose() {
         let _g = crate::testlock::serial();
         let mut asked = Vec::new();
         for kind in OverlayKind::ALL {
@@ -232,6 +266,13 @@ mod tests {
                     assert!(card.comparison_request().is_none());
                     asked.push(kind);
                 }
+                // CREDITS asks unconditionally — a bare generic card is already
+                // the whole story, unlike History/Conflict's payload-gated
+                // empty state.
+                OverlayKind::Credits => {
+                    assert!(card.comparison_request().is_some());
+                    asked.push(kind);
+                }
                 _ => assert!(
                     card.comparison_request().is_none(),
                     "{kind:?} is not a comparison surface and must ask for nothing"
@@ -240,8 +281,12 @@ mod tests {
         }
         assert_eq!(
             asked,
-            vec![OverlayKind::History, OverlayKind::Conflict],
-            "the comparison roster is the timeline and the conflict"
+            vec![
+                OverlayKind::History,
+                OverlayKind::Conflict,
+                OverlayKind::Credits
+            ],
+            "the comparison roster is the timeline, the conflict and credits"
         );
 
         // THE CONFLICT, POPULATED: it asks, on its own subject, for the view its
@@ -271,6 +316,17 @@ mod tests {
             .expect("a timeline standing on a version asks for its diff");
         assert_eq!(req.view, ComparisonView::Differences);
         assert_eq!(req.subject, "1700000000000");
+
+        // CREDITS: the real constructor asks for exactly the fixed view, and
+        // opens with the content stage already focused — there is no row to
+        // choose, so the first keypress must scroll rather than step a rail.
+        let credits = OverlayState::new_credits();
+        assert!(credits.detail_focus);
+        let req = credits
+            .comparison_request()
+            .expect("credits always has something to show");
+        assert_eq!(req.view, ComparisonView::Document);
+        assert_eq!(req.subject, "credits");
     }
 
     /// THE CACHE KEY NAMES THE VIEW, NOT ONLY THE SUBJECT.

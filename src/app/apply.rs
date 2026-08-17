@@ -618,7 +618,8 @@ impl App {
             // `Project` (one owner of "switch to this root", whichever door
             // reached it), so nothing arrives here under its own kind.
             Theme | Browse | ProjectBrowse | ExportDest | Command | Spell | Keybindings
-            | Settings | Assets | Rename | InsertLink | KeepName | Context | Conflict => {}
+            | Settings | Assets | Rename | InsertLink | KeepName | Context | Conflict
+            | Credits => {}
         }
     }
 

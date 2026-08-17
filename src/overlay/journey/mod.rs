@@ -117,7 +117,10 @@ impl OverlayKind {
     /// predicate, not two that can drift.
     pub fn sustained(self) -> bool {
         match self {
-            OverlayKind::Settings | OverlayKind::History | OverlayKind::Conflict => true,
+            OverlayKind::Settings
+            | OverlayKind::History
+            | OverlayKind::Conflict
+            | OverlayKind::Credits => true,
             OverlayKind::Goto
             | OverlayKind::Project
             | OverlayKind::ProjectBrowse

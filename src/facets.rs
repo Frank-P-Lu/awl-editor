@@ -215,8 +215,10 @@ pub fn scheme(kind: OverlayKind) -> Option<&'static FacetScheme> {
         | OverlayKind::InsertLink
         | OverlayKind::KeepName
         // The CONFLICT workspace's three views are the whole list — a lens over
-        // three fixed rows would be a strip with nothing to narrow.
+        // three fixed rows would be a strip with nothing to narrow. CREDITS is
+        // the same shape with one row instead of three.
         | OverlayKind::Conflict
+        | OverlayKind::Credits
         | OverlayKind::Context => None,
         // v1 note: the Settings menu FACETS (see the arm above); no None case here.
     }

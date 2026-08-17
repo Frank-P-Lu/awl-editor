@@ -17,6 +17,7 @@ enum_with_all! {
         Keybindings,
         History,
         Conflict,
+        Credits,
         Settings,
         Assets,
         Rename,
@@ -57,6 +58,7 @@ impl OverlayKind {
             OverlayKind::Keybindings => "keybindings",
             OverlayKind::History => "history",
             OverlayKind::Conflict => "conflict",
+            OverlayKind::Credits => "credits",
             OverlayKind::Settings => "settings",
             OverlayKind::Assets => "assets",
             OverlayKind::Rename => "rename",
@@ -89,7 +91,10 @@ impl OverlayKind {
             OverlayKind::Assets
             | OverlayKind::Keybindings
             | OverlayKind::Settings
-            | OverlayKind::Conflict => StayOpen,
+            | OverlayKind::Conflict
+            // Read-only, and `↵` on its content pane does nothing — the same
+            // "nothing to commit" shape as Conflict.
+            | OverlayKind::Credits => StayOpen,
             OverlayKind::Rename => Navigate,
             OverlayKind::InsertLink => Navigate,
             OverlayKind::KeepName => Navigate,
@@ -106,6 +111,7 @@ impl OverlayKind {
             OverlayKind::Spell => &[Plain, SpellAdd],
             OverlayKind::History => &[History],
             OverlayKind::Conflict => &[Plain],
+            OverlayKind::Credits => &[Plain],
             OverlayKind::Project => &[Plain, ProjectDoor],
             OverlayKind::ProjectBrowse
             | OverlayKind::Browse
@@ -165,6 +171,7 @@ impl OverlayKind {
             | OverlayKind::Keybindings
             | OverlayKind::History
             | OverlayKind::Conflict
+            | OverlayKind::Credits
             | OverlayKind::Settings
             | OverlayKind::Assets
             | OverlayKind::Rename
@@ -214,6 +221,7 @@ impl OverlayKind {
             | OverlayKind::Keybindings
             | OverlayKind::History
             | OverlayKind::Conflict
+            | OverlayKind::Credits
             | OverlayKind::Settings
             | OverlayKind::Assets
             | OverlayKind::Rename
@@ -273,6 +281,7 @@ impl OverlayKind {
             | OverlayKind::Keybindings
             | OverlayKind::History
             | OverlayKind::Conflict
+            | OverlayKind::Credits
             | OverlayKind::Settings
             | OverlayKind::Assets
             | OverlayKind::Rename
@@ -322,6 +331,9 @@ impl OverlayKind {
             // Unreachable in practice: the workspace is only summoned with a
             // conflict open, and it always carries its three fixed views.
             OverlayKind::Conflict => "nothing to review",
+            // Unreachable in practice: `new_credits` always carries its one
+            // fixed row.
+            OverlayKind::Credits => "nothing to review",
             OverlayKind::Spell => "no suggestions",
             OverlayKind::Browse => "this folder is empty",
             OverlayKind::Goto | OverlayKind::Project | OverlayKind::MoveDest => "no files here",
@@ -372,6 +384,7 @@ impl OverlayKind {
             // The SAME words the persistent gutter affordance uses, so the thing
             // you noticed and the place you review it read as one thing.
             OverlayKind::Conflict => "changed elsewhere",
+            OverlayKind::Credits => "credits",
             OverlayKind::Settings => "settings",
             OverlayKind::Assets => "unused assets",
             OverlayKind::Rename => "rename",
@@ -401,6 +414,7 @@ impl OverlayKind {
             | OverlayKind::Keybindings
             | OverlayKind::History
             | OverlayKind::Conflict
+            | OverlayKind::Credits
             | OverlayKind::Settings
             | OverlayKind::Assets
             | OverlayKind::Rename

@@ -308,6 +308,11 @@ pub fn build(kind: OverlayKind, ctx: &BuildCtx) -> Option<OverlayState> {
         // shared builder has no access to, and no headless summon can invent.
         // Exhaustiveness arm.
         OverlayKind::Conflict => None,
+        // CREDITS: a summoned read-only viewer over the embedded document, not
+        // a buffer swap. Needs no caller-gathered context at all — unlike
+        // every navigable/live-gathered kind above, the corpus is a compiled-in
+        // constant — so it ALWAYS summons, exactly like History/Assets.
+        OverlayKind::Credits => Some(OverlayState::new_credits()),
         OverlayKind::KeepName | OverlayKind::Context => None,
     }
 }
