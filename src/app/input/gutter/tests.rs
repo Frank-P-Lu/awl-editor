@@ -34,7 +34,9 @@ fn every_working_set_row_resolves_to_the_file_it_names() {
         crate::fs::InMemoryFs::new()
             .with_dir("/ws/notes")
             .with_dir("/ws/notes/journal")
+            .with_dir("/ws/archive")
             .with_file("/ws/notes/index.md", "index\n")
+            .with_file("/ws/archive/log.md", "log\n")
             .with_file("/ws/notes/journal/field.md", "field\n")
             .with_file("/ws/notes/alpha.md", "alpha\n"),
     );
@@ -46,13 +48,28 @@ fn every_working_set_row_resolves_to_the_file_it_names() {
             PathBuf::from("/ws/notes"),
             config,
         );
-        app.load_path(PathBuf::from("/ws/notes/journal/field.md"));
+        // A file under ANOTHER root, opened BETWEEN two of this root's, so the
+        // drawn group and the whole open set diverge IN THE MIDDLE — the one
+        // arrangement where a resolution that skipped the group filter still
+        // agrees at index 0 and is wrong everywhere after it.
+        app.load_path(PathBuf::from("/ws/archive/log.md"));
         app.load_path(PathBuf::from("/ws/notes/alpha.md"));
+        app.load_path(PathBuf::from("/ws/notes/journal/field.md"));
+        assert_eq!(
+            app.document.working_set().len(),
+            4,
+            "the foreign-root file is open too, and must not be a drawn row here"
+        );
+        assert_eq!(
+            app.document.working_set().files()[1].leaf(),
+            "log.md",
+            "the foreign file sits mid-list, so group() and files() disagree from index 1 on"
+        );
 
         let labels = drawn_labels(&app);
         assert_eq!(
             labels,
-            vec!["index.md", "journal/field.md", "alpha.md"],
+            vec!["index.md", "alpha.md", "journal/field.md"],
             "the margin draws the files in stable OPEN order"
         );
 
@@ -63,8 +80,8 @@ fn every_working_set_row_resolves_to_the_file_it_names() {
             resolved,
             vec![
                 Some(PathBuf::from("/ws/notes/index.md")),
-                Some(PathBuf::from("/ws/notes/journal/field.md")),
                 Some(PathBuf::from("/ws/notes/alpha.md")),
+                Some(PathBuf::from("/ws/notes/journal/field.md")),
             ],
             "each drawn row resolves to its own file, in the drawn order"
         );
