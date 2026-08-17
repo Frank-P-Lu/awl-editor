@@ -47,50 +47,49 @@ the natural place for "did my project switch land" to become visible later.
 Whichever way this goes, it is a one-line branch in the gutter identity
 formatter — genuinely cheap to reverse.
 
-### 444 — the working set becomes visible: a margin buffer stack (USER DECISION 2026-08-16; INFRASTRUCTURE LANDED, RENDER IN PROGRESS)
-
-🟡 IN PROGRESS (residual item 1, the resting-stack render only) — claude,
-branch claude/item-444-working-set-render
+### 444 — the working set becomes visible: a margin buffer stack (USER DECISION 2026-08-16; RESTING STACK RENDERS, INTERACTION NOT STARTED)
 
 **Landed on `main` (`f8558c41`, `f53ffa6c`, `7c442d2b`, `dcb86fbb`, `8adcd961`,
-`05527cc1`):** the `--seed-tree` capture door (a false premise in this item's
-own text, found on measurement: `--root` alone seeds only a directory marker,
-not a real multi-file project, so `--screenshot-app` could not reach a
-multi-file working set at all); the `WorkingSet` module (`src/workingset.rs`)
-— stable open order distinct from `BufferRegistry`'s MRU eviction order, each
-member remembering its own project root, `fit_parent` eliding a long relative
-path without lying about depth; and the cross-root ownership fix
-(`load_path` now restores an arriving buffer's remembered root before
-`sync_view`, closing the case where opening/activating a buffer from another
-root left the document and the bottom folder identity disagreeing). All
-mutation-proven. **None of this is visible yet — no gallery shots exist,
-because the resting stack has no renderer.** See item 450 for the one
-related product question this landed work surfaced (Switch-project alone,
-no document activated).
+`05527cc1`, `49a76026`, `aa1972b0`, `809aad3d`, `d7024bbb`, `17090614`,
+`53e82629`, `df79d816`, `749b8e7e`):** the `--seed-tree` capture door; the
+`WorkingSet` module; the cross-root ownership fix (see item 450 for the one
+related product question it surfaced); and now **the resting-stack render
+itself**. The bottom-left identity widens into a stable-order stack when the
+active project holds more than one open file — current file forward on a
+plate, siblings dimmed, nested files showing their root-relative parent in
+quieter ink. N=1 (today's single-file case) is BYTE-IDENTICAL by
+construction: `WorkingSet::stack_rows` returns empty below two files, so
+`GutterLayout::lines()` takes the exact old single-`Name`-line path — proven
+40/40 across all 20 worlds × 2 DPI against a real base-vs-branch binary
+comparison, non-vacuously (the same comparison DIFFERS at 3 files). This
+also found and fixed a real capture-harness gap: `--screenshot-app` drives a
+real `App` for STATE but rendered through a `ViewState` built from the
+buffer alone, so a 3-file working set photographed as a 1-file margin — the
+one door meant to witness this surface couldn't. `CaptureOpts::fold_gutter`
+closes it at zero line cost (`src/capture/modes.rs` stays at its frozen
+size). Mutation-proven throughout. Gallery shots exist now (worktree-local,
+not yet re-captured against a durable path — the next lane's first task is
+producing a reviewable set from this landed render, since the prototype
+crops used to validate it lived in a now-removed worktree).
 
-**Residual, in the order the landed work sets up (from the closing lane's
-own report):**
-1. **The resting-stack render** — `GutterLine`/`GutterLayout::lines()` in
-   `src/render/chrome/gutter.rs` already returns an ordered list and
-   `plan_gutter_stack` already takes a row count. Trap:
-   `src/render/plan/margin.rs:120-152` is a source-text law counting
-   `plan_gutter_stack(` call sites, expects exactly 4 — N≤1 must take
-   today's exact path so byte identity holds by construction.
-2. **Sidecar working set** — `buffers` gains `files[]` + `active_index`.
+**Residual, in the order the landed work sets up:**
+1. **Sidecar working set** — `buffers` gains `files[]` + `active_index`.
    Costs a `SCHEMA_VERSION` bump and a ledger row. `src/capture/modes.rs`
    is at its frozen size baseline already — new state can't grow it.
-3. **Click-to-switch + hover-close** — the gutter has no left-click path
+2. **Click-to-switch + hover-close** — the gutter has no left-click path
    today; `App::outline_click` is the template. `close_key` is already
    law-tested and waiting.
-4. **⌘W as the true removal owner** (today it parks, not closes).
-5. **Zero-document state** — the largest remaining piece; `DocumentSession`
+3. **⌘W as the true removal owner** (today it parks, not closes).
+4. **Zero-document state** — the largest remaining piece; `DocumentSession`
    would need an optional active slot, and every subsystem this item names
    (renderer, actions, autosave, session, title, accessibility tree,
    sidecar) needs an honest `no active document` representation.
-6. **Overflow windowing, expanded/grouped cross-project view, Move
+5. **Overflow windowing, expanded/grouped cross-project view, Move
    navigator** — deliberately last: this item's own text asks for captures
-   judged by the user before any of these get built, and none of them can
-   be captured before (1) exists.
+   judged by the user before any of these get built. The resting stack now
+   renders, so a >5-file / cross-project capture set can finally be
+   produced — but the exact windowing/grouping rule still needs the user's
+   eyes on that set before it's built, not guessed ahead of it.
 
 Design session 2026-08-16. The user works between a couple of files and wants
 tabs' affordance without tabs: ⌃Tab covers two files but not three, and a
