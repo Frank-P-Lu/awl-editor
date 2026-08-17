@@ -123,8 +123,14 @@ mod tests {
     #[test]
     fn margin_chrome_production_paths_route_through_the_planner() {
         let gutter = include_str!("../chrome/gutter.rs");
+        let gutter_hit = include_str!("../chrome/gutter_hit.rs");
         let outline = include_str!("../chrome/outline.rs");
-        assert_eq!(gutter.matches("plan::plan_gutter_stack(").count(), 4);
+        // The block's own three (draw, carve, frost seeds) plus the ONE the
+        // gutter's pointer routes share: both hit-tests read a single planner
+        // helper, so a second call here would mean a target hit-tested against
+        // geometry the other route does not have.
+        assert_eq!(gutter.matches("plan::plan_gutter_stack(").count(), 3);
+        assert_eq!(gutter_hit.matches("plan::plan_gutter_stack(").count(), 1);
         assert_eq!(outline.matches("plan::plan_outline_slots(").count(), 3);
         for (owner, next_owner) in [
             ("fn outline_keepout_rect(", "fn lava_frost_pill_rects("),
