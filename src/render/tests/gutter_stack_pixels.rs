@@ -136,7 +136,8 @@ fn the_active_row_reads_forward_of_dimmed_siblings_on_every_world() {
     let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(W as f32, H as f32) else {
         eprintln!(
-            "skipping the_active_row_reads_forward_of_dimmed_siblings_on_every_world: no wgpu adapter"
+            "skipping the_active_row_reads_forward_of_dimmed_siblings_on_every_world: \
+             no wgpu adapter"
         );
         return;
     };
