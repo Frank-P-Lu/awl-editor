@@ -303,8 +303,8 @@ lines = 580
 
 [[file_size_mark]]
 file = "src/render/caret.rs"
-lines = 897
-reason = "+31: `effective_caret_look` and `caret_row_start_col` — the one owner of the ink-caret Morph→Block fold, and the caret's own visual-row start. Both exist because the fold and the row-relative Morph rules had been spelled at their call sites: the fold in the paint path only (so geometry anchored a Morph caret a column back on a world that paints a Block) and the degrade against the logical column only (so a wrapped row's first column reached the row above). Owners, not helpers — the bypass is what the bug was."
+lines = 932
+reason = "+31: `effective_caret_look` and `caret_row_start_col` — the one owner of the ink-caret Morph→Block fold, and the caret's own visual-row start. Both exist because the fold and the row-relative Morph rules had been spelled at their call sites: the fold in the paint path only (so geometry anchored a Morph caret a column back on a world that paints a Block) and the degrade against the logical column only (so a wrapped row's first column reached the row above). Owners, not helpers — the bypass is what the bug was. +35: caret_cell_vertical's Block-only branch to the ink-envelope box (Morph and the mono/glyphless paths are untouched, bypassed before this code runs)."
 
 [[file_size_mark]]
 file = "src/render/chrome/hud.rs"
