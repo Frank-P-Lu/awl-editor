@@ -203,3 +203,87 @@ fn a_single_file_block_plates_nothing() {
         vec![gutter::GutterLine::Name, gutter::GutterLine::Project]
     );
 }
+
+/// THE CLOSE ZONE IS ONLY AT THE RIGHT EDGE, AND THE REST OF THE ROW STILL
+/// SWITCHES.
+///
+/// Swept over the margin widths a real window produces, because the two halves
+/// fail at opposite ends: a zone measured as a FRACTION of the row would eat
+/// half a narrow margin, and a zone pinned to an absolute px would vanish under
+/// a wide one. Each width is probed on BOTH SIDES of its own boundary — the
+/// boundary is derived from `close_zone`, so a law that moved with a broken
+/// implementation is not what is being asserted; the invariants below are.
+///
+/// The invariants, in the order they can fail:
+///   * the zone hugs the row's RIGHT edge exactly (that is the whole design —
+///     it is the one x every right-aligned row shares);
+///   * it never grows past the row (a full-row close target is a trap);
+///   * it leaves the MAJORITY of the row switching, at every width above the
+///     degenerate one — the asymmetry the design asks for;
+///   * a point one pixel left of the boundary switches, and a point one pixel
+///     right of it closes.
+#[test]
+fn only_the_rows_right_edge_closes_and_the_rest_of_it_switches() {
+    let row_h = 12.0;
+    // From a margin barely wider than the close square itself out to a wide one.
+    for avail in [14.0_f32, 20.0, 48.0, 96.0, 120.0, 300.0] {
+        for row_top in [0.0_f32, 37.5, 288.0] {
+            let band = [0.0, row_top, avail, row_h];
+            let zone = close_zone(band);
+            let label = format!("avail={avail} top={row_top}");
+
+            assert!(
+                (zone[0] + zone[2] - (band[0] + band[2])).abs() < 0.001,
+                "{label}: close zone {zone:?} does not end at the row's right edge {band:?}"
+            );
+            assert!(
+                zone[2] <= band[2] + 0.001 && zone[2] > 0.0,
+                "{label}: close zone width {} is not inside the row's {}",
+                zone[2],
+                band[2]
+            );
+            assert!(
+                (zone[1] - band[1]).abs() < 0.001 && (zone[3] - band[3]).abs() < 0.001,
+                "{label}: close zone {zone:?} does not share the row's own band vertically"
+            );
+
+            // PRESENCE, so this cannot pass by shrinking the zone to nothing:
+            // the target is a full row square wherever the margin can hold one.
+            if avail >= row_h {
+                assert!(
+                    (zone[2] - row_h).abs() < 0.001,
+                    "{label}: close zone width {} is not the row square it claims to be",
+                    zone[2]
+                );
+                assert!(
+                    zone[0] > band[0],
+                    "{label}: close zone {zone:?} swallowed the whole row"
+                );
+            }
+
+            // Both sides of the boundary, one pixel apart.
+            assert_eq!(
+                row_intent(band, zone[0] - 1.0),
+                RowIntent::Switch,
+                "{label}: a pixel left of the close zone must still switch"
+            );
+            assert_eq!(
+                row_intent(band, zone[0] + 1.0),
+                RowIntent::Close,
+                "{label}: a pixel inside the close zone must close"
+            );
+            // And the far left of the row — the empty margin a short name leaves
+            // — is switching territory, not a dead patch.
+            assert_eq!(
+                row_intent(band, band[0] + 0.5),
+                RowIntent::Switch,
+                "{label}: the row's left end must switch"
+            );
+            assert_eq!(
+                row_intent(band, band[0] + band[2] - 0.5),
+                RowIntent::Close,
+                "{label}: the row's extreme right must close"
+            );
+        }
+    }
+}
