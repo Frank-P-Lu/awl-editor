@@ -23,10 +23,10 @@ use super::*;
 /// surface to hug the column exactly as the outline does.
 pub(super) const PLATE_PAD_X: Rows = Rows(0.35);
 
-/// How much of a row's height the plate takes, centred. Short of the full row on
-/// purpose: adjacent plates must not meet, or a two-file stack reads as one tall
-/// block with a seam rather than two rows.
-pub(super) const PLATE_ROW_FRACTION: f32 = 0.86;
+/// THE PLATE'S HEIGHT, in LABEL rows, centred on the row it marks. Short of a
+/// full row on purpose: adjacent plates must not meet, or a two-file stack reads
+/// as one tall block with a seam rather than as two rows.
+pub(super) const PLATE_HEIGHT_ROWS: Rows = Rows(0.86);
 
 /// The plate's corner radius in device px — the same soft radius the overlay's
 /// living selection band wears, so a selected row reads as the same kind of
@@ -118,7 +118,7 @@ pub(super) fn stack_spans(lines: &[StackLine]) -> Vec<(String, glyphon::Color)> 
 pub(super) fn plate_rect(row_rect: [f32; 4], text_w: f32, pad_x: f32) -> [f32; 4] {
     let [x, y, w, h] = row_rect;
     let ink = text_w.min(w);
-    let plate_h = h * PLATE_ROW_FRACTION;
+    let plate_h = h * PLATE_HEIGHT_ROWS.0;
     let right = x + w + pad_x;
     let left = (x + w - ink - pad_x).max(0.0);
     [left, y + (h - plate_h) * 0.5, right - left, plate_h]
