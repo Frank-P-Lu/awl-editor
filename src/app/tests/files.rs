@@ -188,10 +188,13 @@ fn keymap_picker_accept_applies_persists_notifies_and_live_reapplies() {
 /// toggle that silently no-ops (the Keymap-row bug: wired in
 /// `settings::toggle_key` and in `settings_accept`, but never driven
 /// through `App::setting_toggle` itself by any prior test — the prior
-/// `settings_keymap_toggle_flips_persists_and_live_reapplies` test called
-/// `app.toggle_keymap_flavor()` directly, skipping the string-keyed
-/// dispatch a live Enter/click actually goes through) fails here instead
-/// of shipping quietly. Companion:
+/// `keymap_picker_accept_applies_persists_notifies_and_live_reapplies` test
+/// calls `app.apply_keymap_flavor(flavor)` directly, skipping the string-keyed
+/// dispatch a live Enter/click actually goes through, which is exactly why
+/// Keymap is NOT in this sweep at all any more — it left the Toggle roster
+/// for a `SettingKind::Picker`, so its live-dispatch coverage is that test's
+/// job now, not this one's) fails here instead of shipping quietly.
+/// Companion:
 /// `actions::tests::overlay_drive::every_settings_toggle_row_signals_its_own_setting_toggle_key`
 /// (the pure `apply_transition`-level half: Enter on the row signals the RIGHT
 /// key in the first place). Each toggle is undone immediately after
@@ -200,7 +203,8 @@ fn keymap_picker_accept_applies_persists_notifies_and_live_reapplies() {
 /// writing nits / outline / menu bar / reduce motion) is back to its
 /// pre-test value by the time the lock releases — no leak into a sibling
 /// test, mirroring the `page::measure()` save/restore convention used
-/// elsewhere in this file. (16 toggles with the "File visibility" row.)
+/// elsewhere in this file. (15 toggles: "File visibility" joined the roster,
+/// "Keymap" left it for a Picker.)
 #[test]
 fn every_settings_toggle_row_dispatches_live_and_flips_its_value() {
     use crate::fs::InMemoryFs;
@@ -220,7 +224,7 @@ fn every_settings_toggle_row_dispatches_live_and_flips_its_value() {
         .collect();
     assert_eq!(
         toggle_rows.len(),
-        16,
+        15,
         "the toggle roster changed size — update this sweep deliberately"
     );
 
@@ -271,17 +275,36 @@ fn every_settings_toggle_row_dispatches_live_and_flips_its_value() {
     }
 }
 
-/// The corpus GREW to carry the row: "Keymap" is a real, visible settings
-/// row (mirrors `settings::tests::settings_table_names_are_unique`'s own
-/// count law, exercised here through the App's own config/root — a
-/// belt-and-suspenders confirmation that the live overlay build would
-/// actually list it).
+/// "Keymap" is a real settings row: a `SettingKind::Picker` opening
+/// `OverlayKind::Keymap` (mirrors `settings::tests::
+/// settings_table_names_are_unique`'s own count law, exercised here through
+/// the App's own config/root — a belt-and-suspenders confirmation that the
+/// live overlay build would actually list it) — VISIBLE iff
+/// `Convention::current() == Linux` (`row_available_on`), since the flavor is
+/// structurally inert on `Convention::Mac`. `Convention` is process-frozen
+/// (`AWL_CONVENTION_FORCE` read once, memoized), so this branches on the
+/// ambient value rather than forcing one; `native-gate.sh`'s two-convention
+/// run exercises both arms across its two passes.
 #[test]
 fn settings_corpus_includes_the_keymap_row() {
-    assert!(crate::settings::visible_names().contains(&"Keymap".to_string()));
+    let expect_visible = crate::convention::Convention::current() == crate::convention::Convention::Linux;
+    assert_eq!(
+        crate::settings::visible_names().contains(&"Keymap".to_string()),
+        expect_visible,
+        "Keymap must be visible iff Convention::Linux"
+    );
+    assert_eq!(
+        crate::settings::row_of(crate::settings::SettingId::Keymap).kind,
+        crate::settings::SettingKind::Picker
+    );
+    assert_eq!(
+        crate::settings::sub_overlay(crate::settings::SettingId::Keymap),
+        Some(crate::overlay::OverlayKind::Keymap)
+    );
     assert_eq!(
         crate::settings::toggle_key(crate::settings::SettingId::Keymap),
-        Some("keymap")
+        None,
+        "a picker row has no toggle key"
     );
 }
 
