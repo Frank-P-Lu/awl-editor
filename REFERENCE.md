@@ -156,6 +156,7 @@ Commands are grouped by the same task categories the palette browses.
 |---|---|---|---|---|
 | Caret style… | Summon the caret style picker. | — | — | Native, browser |
 | Dictionary… | Summon the spelling dictionary picker. | — | — | Native, browser |
+| Keymap… | Summon the keymap flavor picker (native/emacs). | — | — | Native, browser |
 | Toggle spellcheck | Flip spellcheck on or off globally, silencing every squiggle when off. | — | — | Native, browser |
 | Toggle caret style | Cycle to the next caret style. | — | — | Native, browser |
 | Toggle writing nits | Toggle the writing-nits style underlines on or off. | — | — | Native, browser |
@@ -208,7 +209,7 @@ persists to that key on change; a row without one does not persist.
 | Autosave | Files | On/off | `autosave` |
 | Local history | Files | On/off | `history` |
 | Session restore | Files | On/off | `session_restore` |
-| Keymap | Keybindings | On/off | `keymap` |
+| Keymap | Keybindings | Opens a picker | — |
 | Keybindings | Keybindings | Opens a submenu | — |
 | Report a Problem | Advanced | Runs a command | — |
 | Edit config as text | Advanced | Runs a command | — |

@@ -152,7 +152,21 @@ fn the_navigation_rail_is_exactly_the_authored_settings_categories() {
 
     // EVERY setting is reachable: standing on its own category's rail entry
     // shows it. A category that filtered its own rows out would fail here.
+    //
+    // One deliberate exception: "Keymap" filters itself out entirely on
+    // `Convention::Mac` (`settings::row_available_on` — the flavor is
+    // structurally inert there), which is the intended behavior this same
+    // predicate is meant to catch as a BUG everywhere else. `Convention` is
+    // process-frozen, so this reads the ambient value rather than forcing
+    // one; `native-gate.sh`'s two-convention run exercises the row's
+    // reachability (Linux pass) and its absence (Mac pass) across its two
+    // passes.
+    let keymap_hidden =
+        crate::convention::Convention::current() != crate::convention::Convention::Linux;
     for row in crate::settings::SETTINGS {
+        if keymap_hidden && row.id == crate::settings::SettingId::Keymap {
+            continue;
+        }
         let idx = rail
             .iter()
             .position(|l| l == row.category)

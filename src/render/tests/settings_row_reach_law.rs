@@ -72,7 +72,18 @@ fn every_setting_kind_uses_the_measured_diagonal_cluster_rail_on_overlay_and_wor
         return;
     };
     let all = crate::settings::visible_rows();
-    assert_eq!(all.len(), crate::settings::SETTINGS.len());
+    // "Keymap" is the one row `visible_rows` ever drops from the full
+    // authored table on a native build: hidden on `Convention::Mac`, where
+    // the flavor is structurally inert (`settings::row_available_on`).
+    // `Convention` is process-frozen, so this reads the ambient value rather
+    // than forcing one — `native-gate.sh`'s two-convention run exercises
+    // both counts across its two passes.
+    let keymap_hidden =
+        crate::convention::Convention::current() != crate::convention::Convention::Linux;
+    assert_eq!(
+        all.len(),
+        crate::settings::SETTINGS.len() - usize::from(keymap_hidden)
+    );
 
     for world in ["Mangrove", "Magpie"] {
         theme::set_active_by_name(world).unwrap();

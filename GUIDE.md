@@ -209,6 +209,7 @@ drift into this page silently.
 | Switch theme… | ⌘T | Ctrl+T |
 | Caret style… |  |  |
 | Dictionary… |  |  |
+| Keymap… |  |  |
 | Toggle spellcheck |  |  |
 | Toggle caret style |  |  |
 | Toggle page mode |  |  |
