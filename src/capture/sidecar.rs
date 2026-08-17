@@ -152,7 +152,7 @@ pub(super) fn write_sidecar(
         panel = super::panel_sidecar::panel_json(pipeline),
         project = project_json(opts),
         overlay = overlay_json(opts, pipeline),
-        buffers = buffers_json(opts, view),
+        buffers = super::opts::buffers_json(opts, view),
         replay_skips = super::replay_sidecar::replay_skips_json(opts),
         diff = diff_json(opts),
     );
@@ -207,20 +207,6 @@ fn diff_json(opts: &CaptureOpts) -> String {
             d.folds
         ),
         None => "null".to_string(),
-    }
-}
-
-fn buffers_json(opts: &CaptureOpts, view: &ViewState) -> String {
-    match &opts.buffers {
-        Some(b) => format!(
-            "{{ \"open\": {}, \"active\": {} }}",
-            b.open,
-            json_string(&b.active)
-        ),
-        None => format!(
-            "{{ \"open\": 1, \"active\": {} }}",
-            json_string(&view.gutter_name)
-        ),
     }
 }
 

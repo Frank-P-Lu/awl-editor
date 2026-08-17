@@ -697,7 +697,7 @@ would otherwise assert a MECHANISM (an instance count, a dither flag, a
 computed color) and stop there — the mechanism proves the renderer INTENDED
 to draw something; the pixel diff proves it actually did.
 
-## The sidecar JSON — schema `awl-capture/203` (`/204` timeline, `/205` held)
+## The sidecar JSON — schema `awl-capture/204` (`/205` timeline, `/206` held)
 
 Field order is stable; consumers may parse positionally or by key.
 
@@ -1196,6 +1196,19 @@ that's already open switches to its live buffer" true, wired inline inside
 (`run::tests::replay_keys_goto_a_then_b_then_a_preserves_edits_and_cursor`).
 Tab-strip/selector UI, session restore, and cross-process buffer sharing are
 explicitly OUT of this round (state model only, no chrome).
+
+Schema `/204` widens that block with the VISIBLE WORKING SET the margin's
+bottom identity draws: `files` is one label per drawn stack row, in STABLE OPEN
+ORDER, and `active_index` names which row is the current file (`null` when
+there is no stack). A row's label is its file's full ROOT-RELATIVE path
+(`journal/field-notes.md`) — a state label, not the width-elided text the
+margin drew, which stays `gutter`'s business. `files` is `[]` whenever no stack
+is drawn: a single open file, and every capture door with no live `App` to ask.
+Because the working set is App-owned, the multi-file case is reachable only
+through `--screenshot-app` (`docs/harness-reach.md`), seeded with `--seed-tree`
+so a hermetic sandbox holds a real project to open a second file from. This is
+the oracle for the order contract: switching files moves `active_index` and
+must leave `files` untouched — the stack is stable-order, not MRU.
 
 Schema `/86` (timeline `/87`, held `/88`) adds a top-level **`wysiwyg`** block
 for the WYSIWYG amendment ("if the caret is on that line, show the actual
@@ -1744,7 +1757,7 @@ world.)
 | `search`       | isearch + find/replace state: `query`, `active`, `case_sensitive`, `hit_count`, `current`, `replace_active` (replace field revealed), `replacement` (replace text), plus `panel` — the card's PLANNED geometry (schema `/203`, see the narrative above), `null` while the panel is down |
 | `project`      | active project (`--root`), fields `root`/`name`/`branch`/`dirty`/`default_folder`/`workspace`/`keymap_flavor` (`branch`, `default_folder`, `workspace` may be null); `null` when no project. The three path fields are HOME-RELATIVE (`~/…`, see "Paths are home-relative" above) — expand `~` if you need a real path |
 | `overlay`      | summoned nav overlay: `active`, `mode` (`goto`/`switch`/`project_browse`/`browse`/`theme`/`caret`/`dictionary`/`cjk_lang`/`date`/`move`/`command`/`spell`/`keybindings`/`history`/`conflict`/`settings`/`assets`/`rename`/`insert_link`/`keep_version`/`context`/`export_dest`), `query`, `selected_index`, `browse_dir` (the level shown: root-relative for `browse`/`move`, ABSOLUTE for `switch` and the `project_browse` navigator — home-relative `~/…` when it falls under `$HOME` — else null), `items` (dirs trailing `/`, a git child tagged `"git"` in the secondary column rather than bulleted; `switch` pins the accept-this-folder row on top, reading `use this folder — <name>`; command names for `command`; the three variant labels for `dictionary`), `bindings` (command-palette key chords parallel to `items`; the caret/dictionary pickers' one-line descriptions; else `[]`) |
-| `buffers`      | MULTI-BUFFER registry: `{ open, active }`. `open` = how many buffers are currently open (the active one + everything backgrounded); `active` = the active buffer's path, or `"scratch"`. A plain `--screenshot` always reports `open: 1` |
+| `buffers`      | MULTI-BUFFER registry + the VISIBLE WORKING SET: `{ open, active, files, active_index }`. `open` = how many buffers are currently open (the active one + everything backgrounded); `active` = the active buffer's path, or `"scratch"`. A plain `--screenshot` always reports `open: 1`. `files` = one full root-relative label per drawn stack row, in stable open order (`[]` whenever the margin draws no stack — a single open file, or any capture door with no `App` to ask); `active_index` = which of those rows is the reader's current file, or `null` |
 | `replay_skips` | permissive `--keys` truthfulness record, always an array. Each skipped live-App-only effect is `{ effect, action }` in replay order: `effect` is the stable snake_case effect name and `action` is the resolved originating action name. Empty for a capture with no skipped effect. `--strict-replay` aborts before writing an artifact on any such effect, so it never emits a partial list. |
 
 ## How to interpret the outputs (verification recipe)

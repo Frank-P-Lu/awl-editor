@@ -38,6 +38,7 @@ mod redact_law;
 mod schema_chrome;
 mod schema_ledger;
 mod serialization_law;
+mod working_set_sidecar;
 
 /// Re-derive the DRAWN streak length (px) for the caret's current spring state
 /// through the exact production path (`streak_length` → `motion_geometry`),

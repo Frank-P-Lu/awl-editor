@@ -15,6 +15,48 @@ pub struct BuffersInfo {
     pub active: String,
 }
 
+/// The sidecar `buffers` block, serialized beside the type it reports rather
+/// than in the writer, so the count/identity half and the working-set half stay
+/// one owner's business.
+///
+/// `files` / `active_index` are the VISIBLE WORKING SET — the same rows the
+/// margin's bottom identity widened into this frame, read off the `ViewState`
+/// the frame was composed from rather than re-derived, so the sidecar cannot
+/// report a stack the pixels do not show.
+///
+/// **`buffers` is a STATE block, and these are state labels**: each row is its
+/// file's full root-relative path (`journal/field-notes.md`), never the
+/// width-elided text the margin drew. The drawn, possibly-elided line is
+/// `gutter`'s business, and the two answer different questions — an oracle
+/// asking "which files are open, in what order" must not have its answer
+/// truncated by how wide the window happened to be.
+///
+/// One fact, one field: WHICH row is active is `active_index` alone (JSON
+/// `null` when there is no stack), never also a per-row flag that could
+/// disagree with it.
+pub(super) fn buffers_json(opts: &CaptureOpts, view: &crate::render::ViewState) -> String {
+    let files = view
+        .gutter_files
+        .iter()
+        .map(|row| super::sidecar::json_string(&format!("{}{}", row.parent, row.leaf)))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let active_index = view
+        .gutter_files
+        .iter()
+        .position(|row| row.active)
+        .map(|at| at.to_string())
+        .unwrap_or_else(|| "null".to_string());
+    let (open, active) = match &opts.buffers {
+        Some(b) => (b.open, super::sidecar::json_string(&b.active)),
+        None => (1, super::sidecar::json_string(&view.gutter_name)),
+    };
+    format!(
+        "{{ \"open\": {open}, \"active\": {active}, \"files\": [{files}], \
+         \"active_index\": {active_index} }}"
+    )
+}
+
 /// THE WRITER'S DIFF (`crate::prosediff`): read-only STATE of an active prose-diff
 /// view for the sidecar `diff` block — reported only when the capture harness
 /// rendered a diff (`AWL_DIFF_OLD`/`AWL_DIFF_NEW`), so an agent can verify "am I

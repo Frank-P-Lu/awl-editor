@@ -32,8 +32,13 @@ pub const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 /// `/203` — `search.panel`: the summoned find/replace card's PLANNED geometry —
 ///          exterior rect, inner text origin, one band per shaped row, the `Aa`
 ///          toggle's click span — or `null` down. Its edge needed a pixel walk.
+/// `/204` — `buffers` gains `files` + `active_index`: the VISIBLE WORKING SET,
+///          one full root-relative label per drawn stack row in stable open
+///          order, and which of them is active (`null` with no stack). The
+///          margin's own rows were readable only from the PNG, so no oracle
+///          could say that switching files leaves the drawn order alone.
 /// History lives in Git. Bump this row with the const.
-pub const SCHEMA_VERSION: u32 = 203;
+pub const SCHEMA_VERSION: u32 = 204;
 /// Plain single-frame schema; timeline and held take the next two versions.
 pub fn schema_plain() -> String {
     format!("awl-capture/{SCHEMA_VERSION}")
