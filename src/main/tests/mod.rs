@@ -19,6 +19,7 @@ use super::*;
 mod buffer_switching;
 mod capture_scenarios;
 mod caret_mode;
+mod credits_capture;
 mod goto_project;
 mod headless_safety;
 mod history;
