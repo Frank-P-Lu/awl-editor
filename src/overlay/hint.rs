@@ -81,8 +81,10 @@ impl OverlayKind {
             // (`workspace_shape().is_some()`), so `foot_hint_scoped` always
             // routes its footer through `rail_hint_actions`/
             // `detail_hint_actions` instead of this flat-picker line. Kept
-            // truthful anyway, mirroring the content stage's own hint.
-            OverlayKind::Credits => vec![key(ARROWS_UD, "scroll"), key("esc", "close")],
+            // truthful anyway (the universal ↵-follows-the-filter-lead shape
+            // every kind's flat hint obeys), mirroring Conflict's own —
+            // the same "read-only, nothing to commit" content beside it.
+            OverlayKind::Credits => vec![enter("read"), key("esc", "close")],
             OverlayKind::History => vec![
                 enter("compare"),
                 key("\u{21E7}\u{21B5}", "restore"),

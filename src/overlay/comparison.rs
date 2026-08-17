@@ -159,21 +159,21 @@ impl OverlayState {
 
     /// THE CREDITS VIEWER: one fixed row naming the document, standing in for
     /// the primary list a `TimelineOverComparison` workspace otherwise needs —
-    /// there is nothing to navigate, so the "list" is the title. Opens with
-    /// the CONTENT stage already focused (`detail_focus: true`), unlike
-    /// History/Conflict, which open on their primary list: those ask the
-    /// reader to choose a row first, Credits has none to choose, so the first
-    /// keypress scrolls the document immediately rather than stepping an
-    /// inert one-row rail.
+    /// there is nothing to navigate, so the "list" is the title.
+    ///
+    /// Opens on the PRIMARY list, `detail_focus: false`, exactly like
+    /// History/Conflict — `detail_focus` is lifecycle state
+    /// (`overlay/journey/`'s own law: it may be written only there, never by a
+    /// constructor), so landing straight on the content stage is the CALLER's
+    /// job, the same `toggle_detail()` deep link `Action::CompareVersion`
+    /// already uses to skip History's primary list.
     pub fn new_credits() -> Self {
-        let mut s = Self::new(
+        Self::new(
             OverlayKind::Credits,
             vec![OverlayKind::Credits.title().to_string()],
             Vec::new(),
             Vec::new(),
-        );
-        s.detail_focus = true;
-        s
+        )
     }
 
     /// WHAT READ-ONLY PROSE THIS CARD'S COMPARISON REGION IS ASKING FOR, or `None`
@@ -317,11 +317,11 @@ mod tests {
         assert_eq!(req.view, ComparisonView::Differences);
         assert_eq!(req.subject, "1700000000000");
 
-        // CREDITS: the real constructor asks for exactly the fixed view, and
-        // opens with the content stage already focused — there is no row to
-        // choose, so the first keypress must scroll rather than step a rail.
+        // CREDITS: the real constructor asks for exactly the fixed view,
+        // unconditionally — the deep link to the content stage is the
+        // ACTION's job (`Action::OpenCredits`'s own `toggle_detail`), not
+        // this constructor's.
         let credits = OverlayState::new_credits();
-        assert!(credits.detail_focus);
         let req = credits
             .comparison_request()
             .expect("credits always has something to show");

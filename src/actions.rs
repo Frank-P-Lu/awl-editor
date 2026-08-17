@@ -554,9 +554,21 @@ fn apply_overlay_open_action(ctx: &mut ActionCtx, action: &Action) -> bool {
         // version are untouched by opening, scrolling or dismissing it
         // (`OverlayKind::Credits`'s own module doc). `make_overlay` needs no
         // caller-gathered context (the corpus is a compiled-in constant), so
-        // this always summons, exactly like History/Assets above.
+        // this always summons, exactly like History/Assets above. Then the
+        // SAME deep link `CompareVersion` uses below: transfer focus to the
+        // content stage through the lifecycle, never by constructing the
+        // card with `detail_focus` already set — there is no row to choose,
+        // so the first keypress must scroll rather than step the one-row
+        // rail.
         Action::OpenCredits => {
             ctx.journey.enter((ctx.make_overlay)(OverlayKind::Credits));
+            if ctx
+                .journey
+                .card()
+                .is_some_and(|o| o.comparison_request().is_some())
+            {
+                ctx.journey.toggle_detail();
+            }
         }
         // See `workspace_nav::open_keep_version`'s own doc: this parks
         // whatever is already open rather than `enter`-ing over it.

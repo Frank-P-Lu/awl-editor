@@ -192,19 +192,22 @@ fn breadcrumb_kinds_are_value_based_never_positional() {
         OverlayKind::ALL.len(),
         "every kind has a distinct name"
     );
-    // Exactly THREE kinds are SUSTAINED workspaces — the shared workspace's whole
-    // declared scope: Settings, Version History, and the external-change
-    // conflict. Everything else is a brief contextual
+    // Exactly FOUR kinds are SUSTAINED workspaces — the shared workspace's whole
+    // declared scope: Settings, Version History, the external-change
+    // conflict, and Credits. Everything else is a brief contextual
     // overlay, and a value-pick child returns to its parent exactly when that
-    // parent is one of these three.
+    // parent is one of these four.
     for k in OverlayKind::ALL {
         assert_eq!(
             k.sustained(),
             matches!(
                 k,
-                OverlayKind::Settings | OverlayKind::History | OverlayKind::Conflict
+                OverlayKind::Settings
+                    | OverlayKind::History
+                    | OverlayKind::Conflict
+                    | OverlayKind::Credits
             ),
-            "{k:?}: the sustained-workspace roster is Settings + History + Conflict"
+            "{k:?}: the sustained-workspace roster is Settings + History + Conflict + Credits"
         );
     }
 }
