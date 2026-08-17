@@ -1057,6 +1057,10 @@ macro_rules! classify_smoke_command {
         | Action::OpenSettingsMenu
         | Action::OpenKeybindings
         | Action::OpenAssetClean
+        // COMMAND PALETTE: a real catalog command now (item 456), dispatched
+        // identically to Open keybindings above — `ctx.journey.enter((ctx.
+        // make_overlay)(OverlayKind::Command))` — so it is an Opener too.
+        | Action::OpenCommandPalette
         // LINKS V2: the smoke fixture is a markdown buffer with the caret inside
         // an existing link (see the FollowLink note below), so Cmd-K always opens
         // the minibuffer here — an Opener, like every other summon.
@@ -1176,7 +1180,10 @@ macro_rules! classify_smoke_command {
         // keymap-only actions (the plain, unmodified ARROW keys still dispatch
         // these four motions directly and stay uncataloged themselves; only
         // the actions moved into the catalog, above). Present for
-        // exhaustiveness only.
+        // exhaustiveness only. `ShowStatsHud` stays here deliberately — the
+        // held stats HUD has no catalog row (see `keytoken::SYNTHETIC`'s
+        // doc); `OpenCommandPalette` moved OUT of this group (item 456) once
+        // it became a real catalog command, above.
         Action::InsertChar(_)
         | Action::Newline
         | Action::AcceptAlternate
@@ -1192,7 +1199,6 @@ macro_rules! classify_smoke_command {
         | Action::PageScrollDown
         | Action::PageScrollUp
         | Action::Cancel
-        | Action::OpenCommandPalette
         | Action::ShowStatsHud
         | Action::OpenSettings
         | Action::BeginPrefix
