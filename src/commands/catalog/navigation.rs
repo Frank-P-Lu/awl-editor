@@ -2,6 +2,21 @@ use super::Command;
 use crate::keymap::Action;
 
 pub(super) static COMMANDS: &[Command] = &[
+    // COMMAND PALETTE: the catalog's own front door, now catalogued rather than
+    // a hand-written resolver arm — so it carries a GUIDE row, a `[keys]`
+    // rebind, and a menu item. EMACS SLOT DELIBERATELY EMPTY: a catalog emacs
+    // slot fires on Mac too, where Option belongs to accent typing, so no
+    // default Meta binding ships here (a future Linux Meta-layer binding seeds
+    // through that separate machinery, never this slot).
+    Command {
+        name: "Command palette",
+        action: Action::OpenCommandPalette,
+        native: "",
+        emacs: "",
+        native_only: false,
+        web_only: false,
+        description: Some("Summon the command palette, searchable across every catalog command."),
+    },
     Command {
         name: "Go to…",
         action: Action::OpenGoto,

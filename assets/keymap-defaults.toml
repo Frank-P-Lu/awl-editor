@@ -44,6 +44,7 @@
 linux_builtin_keep = ["C-k"]
 
 [commands]
+command_palette = ["Cmd-P", ""]
 go_to = ["Cmd-O", ""]
 open_file = ["", ""]
 open_folder = ["", ""]
