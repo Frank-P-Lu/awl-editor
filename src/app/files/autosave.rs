@@ -30,10 +30,13 @@ impl App {
         if self.document.buffer().is_unnamed_fresh() {
             self.persistence
                 .note_write_owed(self.document.buffer().version())
-        } else if self.document.buffer().path().is_some() {
-            self.document.doc_saved_version() != Some(self.document.buffer().version())
         } else {
-            self.document.scratch_saved_version() != Some(self.document.buffer().version())
+            // THE ONE UNSAVED RULE (`DocumentSession::entry_unsaved`), which the
+            // removal owner asks of parked entries too. Spelled inline here, it
+            // was an active-buffer-only question by construction — and a close
+            // that judged "is there unsaved text" by a second copy of this
+            // arithmetic would eventually discard a buffer this one calls dirty.
+            self.document.active_unsaved()
         }
     }
 

@@ -11,6 +11,7 @@ use crate::app::*;
 use std::path::Path;
 
 mod cache;
+mod entries;
 #[cfg(not(target_arch = "wasm32"))]
 mod session_restore;
 #[cfg(test)]

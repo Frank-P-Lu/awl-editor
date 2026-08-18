@@ -34,6 +34,7 @@
 //! former files.rs's own test module) lives in [`tests`].
 
 mod autosave;
+mod close;
 mod dictionary;
 mod document;
 mod export;

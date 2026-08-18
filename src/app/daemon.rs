@@ -84,24 +84,18 @@ impl App {
 
     /// Live daemon interpreter. Headless replay classifies and records this
     /// request but has no socket capability.
+    ///
+    /// Notifies the waiters on the ACTIVE buffer's key, through the same keyed
+    /// owner ([`Self::notify_close_waiters`]) the parked-close route uses — so
+    /// there is one answer to "tell whoever is waiting on this file that it is
+    /// done", and the old ordering constraint (run me before the buffer swap,
+    /// while the finished buffer is still active) dissolves: the key is read
+    /// here and the notification cannot address the wrong file.
     pub(super) fn notify_finished_buffer(&mut self) {
-        #[cfg(all(not(target_arch = "wasm32"), not(feature = "mas")))]
-        self.notify_daemon_waiters();
-    }
-
-    /// Notify + drop every daemon connection waiting on the buffer we are
-    /// ABOUT to leave (called BEFORE the `last_buffer_toggle` swap in
-    /// [`Self::finish_buffer`], while `self.document.buffer()` is still the finished one).
-    #[cfg(all(not(target_arch = "wasm32"), not(feature = "mas")))]
-    fn notify_daemon_waiters(&mut self) {
         let Some(key) = crate::buffers::BufferKey::of(self.document.buffer()) else {
             return;
         };
-        if let Some(waiters) = self.wait_conns.remove(&key) {
-            for w in waiters {
-                w.notify_done();
-            }
-        }
+        self.notify_close_waiters(&key);
     }
 
     /// Clean-shutdown teardown (called from `exiting()`): flush every

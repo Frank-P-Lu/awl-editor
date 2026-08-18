@@ -1,0 +1,252 @@
+//! src/app/files/close.rs — **THE ONE REMOVAL OWNER for the working set.**
+//!
+//! Before this module, awl could not close a file. ⌘W *finished* one — it saved
+//! the active buffer through the external-change guard, notified any daemon
+//! waiter, and switched away — but the buffer it left stayed parked in the
+//! registry and stayed a row in the margin. The only path that ever removed an
+//! entry was [`crate::buffers::BufferRegistry`]'s clean-LRU eviction, which
+//! refuses a dirty buffer because it is a MEMORY-SAFETY bound, not a product
+//! verb: it exists so a long session does not grow without limit, and it is
+//! deliberately incapable of being told "the user meant this".
+//!
+//! So closing needed three things that existed nowhere: a save of an entry that
+//! is not `self.document.buffer()`, a conflict gate for that entry, and a
+//! daemon notification for its key rather than for whatever happens to be
+//! active. All three live here, and both routes — ⌘W and a stack row's close
+//! zone — go through [`App::close_buffer`].
+//!
+//! # Why the parked arm cannot simply reuse the active one
+//!
+//! [`App::settle_external_change`] is the one write guard, and two of its three
+//! outcomes are structurally active-only:
+//!
+//! * `Reloaded` replaces the buffer the reader is looking at with the disk's
+//!   text. For an entry about to be discarded that is pure waste, and it would
+//!   raise a `reloaded — changed elsewhere` toast about a document that is gone
+//!   by the time the frame draws.
+//! * `Held` latches the conflict into `persistence`'s SINGLE unresolved slot and
+//!   writes THE recovery record. Both are active-scoped, and pointing them at a
+//!   parked path is not a lesser version of the guard — it is a data-loss bug:
+//!   `resolve_keep_mine` writes `self.document.buffer()`'s bytes to
+//!   `unresolved.path`, so a conflict latched for a parked file would let the
+//!   user's next "Save your version" write the WRONG DOCUMENT over it.
+//!
+//! The parked arm therefore asks the same question — has the disk moved since
+//! awl last looked — and answers it by REFUSING, without latching anything. The
+//! entry stays exactly where it was, unsaved text intact, and the notice names
+//! both the file and the way out, because the conflict machinery only works on
+//! the active buffer and a notice describing a state with no exit is a dead end.
+//!
+//! # The bound this module does not cross
+//!
+//! Closing the LAST file would leave no active document, and `DocumentSession`
+//! owns exactly one active `Entry` by construction. That is the zero-document
+//! state, which is its own piece of product machinery (renderer, actions,
+//! autosave, session, title, accessibility tree and sidecar all need an honest
+//! `no active document`). Until it exists, a close with no successor saves and
+//! notifies exactly as ⌘W always has and simply does not remove — never a fake
+//! unnamed buffer standing in for the empty state.
+
+use crate::app::*;
+use std::path::Path;
+
+/// Whether a close actually happened. `Refused` is a first-class outcome, not
+/// an error: refusing to discard unsaved or conflicted text is the guarantee
+/// this module exists to make.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::app) enum CloseOutcome {
+    Closed,
+    /// Nothing was removed and nothing was lost. The entry is still open.
+    Refused,
+}
+
+impl App {
+    /// **CLOSE THE BUFFER NAMED BY `key`**, active or not.
+    ///
+    /// One door for both routes, so "what does closing a file mean" has one
+    /// answer. The pointer does not know whether the row it was aimed at is the
+    /// file on screen, and it must not have to: a row action targets the named
+    /// buffer rather than silently switching documents to make an
+    /// active-buffer-only function convenient.
+    pub(in crate::app) fn close_buffer(&mut self, key: crate::buffers::BufferKey) -> CloseOutcome {
+        if self.document.active_key().as_ref() == Some(&key) {
+            self.close_active_now()
+        } else {
+            self.close_parked(key)
+        }
+    }
+
+    /// The ACTIVE arm, spelled as the exact sequence ⌘W's three effects run in
+    /// (`Save(Finish)`, `NotifyFinished`, `CloseActive`) and calling the very
+    /// same methods — same behavior ⇒ same code. A row's close zone over the
+    /// active file is ⌘W, not a second implementation of it.
+    fn close_active_now(&mut self) -> CloseOutcome {
+        self.save_finished_buffer();
+        if self.change_unresolved() {
+            return CloseOutcome::Refused;
+        }
+        self.notify_finished_buffer();
+        if self.close_active_buffer() {
+            CloseOutcome::Closed
+        } else {
+            CloseOutcome::Refused
+        }
+    }
+
+    /// **The `CloseActive` effect's leg**: remove the active entry, having
+    /// already been saved and notified by the two effects before it.
+    ///
+    /// The gate ran in [`Self::save_finished_buffer`]; a latched conflict means
+    /// it REFUSED the write, and a buffer awl would not write is a buffer awl
+    /// must not drop. That check is the whole difference between this and the
+    /// `last_buffer_toggle` it replaced.
+    ///
+    /// Removal is deliberately expressed as *switch away, then discard what was
+    /// left behind*, rather than as a bespoke unseat-and-replace: the switch is
+    /// [`Self::load_path`], the one file-open door every picker, the Last-file
+    /// toggle and the daemon handoff already share, so the arriving document
+    /// restores its own project root exactly as it does on any other open.
+    /// Returns whether the entry was actually removed.
+    pub(in crate::app) fn close_active_buffer(&mut self) -> bool {
+        if self.change_unresolved() {
+            return false;
+        }
+        let Some(key) = self.document.active_key() else {
+            return false; // an unnamed fresh note has no identity to close
+        };
+        let closing_path = self.document.buffer().path().map(|p| p.to_path_buf());
+        // THE ZERO-DOCUMENT BOUND (see the module doc). Saving and notifying
+        // have already happened; only the removal is withheld.
+        let Some(successor) = self.document.successor_path(&key) else {
+            return false;
+        };
+        self.load_path(successor);
+        // `load_path` can decline — an unresolved conflict raised by its own
+        // autosave flush, a refused file kind, a cancelled sandbox grant. If the
+        // active buffer is still the one we meant to close, the switch did not
+        // happen and discarding now would drop a live document out from under
+        // the reader.
+        if self.document.active_key().as_ref() == Some(&key) {
+            return false;
+        }
+        self.document.discard(&key);
+        if let Some(path) = closing_path {
+            self.document.forget_previous(&path);
+        }
+        // The margin just lost a row; nothing else in this transition redraws
+        // the stack, because `load_path`'s own sync ran before the removal.
+        self.sync_view(false);
+        self.request_frame();
+        true
+    }
+
+    /// The PARKED arm: close a named entry that is not the active document,
+    /// without activating it first.
+    fn close_parked(&mut self, key: crate::buffers::BufferKey) -> CloseOutcome {
+        let Some(facts) = self.document.close_facts(&key) else {
+            return CloseOutcome::Refused; // no such entry
+        };
+        if facts.unsaved && !self.save_parked(&key, facts.path.as_deref(), facts.baseline) {
+            return CloseOutcome::Refused;
+        }
+        self.notify_close_waiters(&key);
+        if !self.document.discard(&key) {
+            return CloseOutcome::Refused;
+        }
+        if let Some(path) = facts.path {
+            self.document.forget_previous(&path);
+        }
+        self.sync_view(false);
+        self.request_frame();
+        CloseOutcome::Closed
+    }
+
+    /// SAVE A PARKED ENTRY through the generalized conflict gate. Returns
+    /// whether the close may proceed.
+    ///
+    /// Every refusal below leaves the entry byte-identical — including its
+    /// `disk_baseline`, which is deliberately NOT adopted on the refusing path,
+    /// so a second attempt re-looks at the disk rather than deciding from a
+    /// baseline this call moved.
+    fn save_parked(
+        &mut self,
+        key: &crate::buffers::BufferKey,
+        path: Option<&Path>,
+        baseline: crate::external::Seen,
+    ) -> bool {
+        let Some(path) = path else {
+            // A PATH-LESS SCRATCH holding unsaved text. The stash is the active
+            // buffer's own autosave arm and there is no scratch-activation door
+            // anywhere in the tree, so this cannot be saved from here and must
+            // not be dropped. A clean scratch row still closes — it is only the
+            // unsaved one that has nowhere to go.
+            self.set_sticky_notice("scratch has unsaved text — it cannot be closed yet");
+            self.request_frame();
+            return false;
+        };
+        // A conflict already latched for this path belongs to a document the
+        // user is being asked to resolve. Never write past it.
+        if self.persistence.unresolved_for(path) {
+            self.refuse_parked(path, "changed elsewhere — open it to resolve");
+            return false;
+        }
+        let (change, seen) = crate::external::look(path, &baseline);
+        if change != crate::external::Change::Unchanged {
+            self.refuse_parked(path, "changed elsewhere — open it to resolve");
+            return false;
+        }
+        let Some(bytes) = self.document.parked_disk_bytes(key) else {
+            return false;
+        };
+        if let Err(e) = crate::durable::write(crate::durable::Owner::ManualSave, path, &bytes) {
+            // A FAILED WRITE IS A REFUSAL, not a detail to log past: the entry
+            // still holds the only copy of that text.
+            self.set_sticky_notice(format!("save failed: {e}"));
+            self.request_frame();
+            return false;
+        }
+        // The local-history snapshot every other save takes, read from the
+        // ENTRY's own text rather than from the active buffer, which is a
+        // different document. `snapshot_after_save` cannot be reused for
+        // exactly that reason.
+        if let Some(text) = self.document.parked_text(key) {
+            crate::history::record(path, &text, &self.config);
+        }
+        self.document
+            .record_parked_saved(key, crate::external::Seen::after_write(path, &bytes));
+        let _ = seen;
+        true
+    }
+
+    /// Say WHICH file could not be closed and what to do about it. The leaf
+    /// alone, because the row the pointer was on shows the leaf — and because a
+    /// full path in a one-line notice is the part that gets elided away.
+    fn refuse_parked(&mut self, path: &Path, tail: &str) {
+        let leaf = path
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_else(|| path.display().to_string());
+        self.set_sticky_notice(format!("{leaf} {tail}"));
+        self.request_frame();
+    }
+
+    /// Notify and drop every daemon connection waiting on `key`.
+    ///
+    /// Keyed rather than derived from the active buffer, which is the piece
+    /// that did not exist: a `--wait` client blocked on a file the reader has
+    /// since switched away from is still owed its answer when that file closes.
+    /// A no-op on wasm and under `mas`, where the daemon compiles out entirely.
+    pub(in crate::app) fn notify_close_waiters(&mut self, key: &crate::buffers::BufferKey) {
+        #[cfg(all(not(target_arch = "wasm32"), not(feature = "mas")))]
+        if let Some(waiters) = self.wait_conns.remove(key) {
+            for w in waiters {
+                w.notify_done();
+            }
+        }
+        #[cfg(any(target_arch = "wasm32", feature = "mas"))]
+        let _ = key;
+    }
+}
+
+#[cfg(test)]
+mod tests;

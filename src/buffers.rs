@@ -260,6 +260,24 @@ impl<T> BufferRegistry<T> {
         }
     }
 
+    /// BORROW the entry for `key` without disturbing MRU order — the read half
+    /// of `take`, for a caller that must ask a backgrounded buffer a question
+    /// (is it unsaved, what would it write) before deciding whether to remove
+    /// it at all. Reading is not using: a close that inspects an entry and then
+    /// refuses must leave it exactly where it was in the eviction order.
+    pub fn get(&self, key: &BufferKey) -> Option<&Entry<T>> {
+        self.entries.iter().find(|(k, _)| k == key).map(|(_, e)| e)
+    }
+
+    /// The mutable half of [`Self::get`], for recording a save against the
+    /// entry that was just written. Same MRU-neutral contract.
+    pub fn get_mut(&mut self, key: &BufferKey) -> Option<&mut Entry<T>> {
+        self.entries
+            .iter_mut()
+            .find(|(k, _)| k == key)
+            .map(|(_, e)| e)
+    }
+
     /// Remove and return the entry for `key` (a buffer being brought back to
     /// the foreground), or `None` if it isn't backgrounded (first time open).
     pub fn take(&mut self, key: &BufferKey) -> Option<Entry<T>> {
