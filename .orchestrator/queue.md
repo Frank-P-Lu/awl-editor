@@ -6,6 +6,71 @@
 
 ## Ready to build
 
+### 459 — complete the ordinary-file vocabulary: Trash, Save a Copy, reveal/path, Go to line (USER DECISION 2026-08-18; ready to build in slices)
+
+awl is a complete home for ordinary Markdown files, and the current file verbs
+stop one step short of that promise. Add the five agreed capabilities below as
+one coherent filesystem-completeness pass. They are independently shippable;
+do not hold the small platform/path and navigation slices behind the larger
+destructive-file lifecycle work.
+
+1. **Move file to Trash.** Add the missing recoverable sibling of Rename,
+   Move and Duplicate. Use the OS Trash abstraction — never permanent deletion
+   and never a home-grown trash folder. The command targets the named buffer
+   when invoked from item 444's working-set context menu and the active document
+   from the palette; both doors dispatch one action. Run the existing
+   save/external-change/conflict gate first. A dirty or conflicted document is
+   never discarded or overwritten. A successful trash closes/removes that
+   buffer and selects the same successor the close owner would. **Dependency:**
+   trashing the final open document waits for item 444 residual 2's honest
+   zero-document state; until then, either land only the non-final case with a
+   truthful refusal for the last document or sequence the full slice after that
+   residual. Confirmation is owed only where the document is dirty/conflicted;
+   an ordinary clean file goes directly to the recoverable OS Trash.
+
+2. **Save a Copy…, not Save As….** Write the current Markdown bytes to a
+   user-chosen destination while preserving the current document's path,
+   working-set identity, history ownership, autosave target, cursor and undo
+   timeline. This is the useful Markdown "export" behavior without inventing
+   Export Markdown or ambiguously overlapping Rename/Move. No-clobber and
+   overwrite confirmation follow the platform save-panel contract. A copy is a
+   snapshot, not a newly active document and not a second live buffer unless the
+   user opens it later.
+
+3. **Reveal in File Manager + Copy File Path.** Add both to the palette and
+   item 444's shared filename context menu. On macOS the visible label may read
+   **Reveal in Finder**; elsewhere use the platform-neutral file-manager label.
+   Reuse the existing live-only reveal owner currently exercised by exports,
+   generalized to any document path. Copy File Path puts the absolute native
+   path on the system clipboard. Both commands are gated off for an unnamed
+   scratch document rather than fabricating a location. They perform no file
+   mutation and never change the active folder.
+
+4. **Go to Line….** Add a line-number route inside the existing unified **Go
+   to…** task rather than a parallel top-level navigation system. Accept a
+   one-based line number, clamp or clearly refuse out-of-range input, move the
+   caret through the shared jump owner, reveal any enclosing fold, and scroll
+   the destination into view. Preserve the existing Headings lens; this is its
+   numeric companion for long prose and light code.
+
+Product boundary: no permanent file tree, bulk deletion, folder deletion,
+cross-root file management, Export Markdown command, or second document model.
+The filesystem stays real and understandable. The context menu is a discovery
+door onto the same catalog actions, never a second implementation.
+
+Verify each slice at its purest reachable seam. Trash uses an injected fake
+Trash backend and sweeps active/parked × clean/dirty/conflicted ×
+last/non-last, proving a failed Trash leaves both disk and working set intact.
+Save a Copy drives a live headless `App` over `InMemoryFs` and asserts the
+destination bytes while every source identity/state field remains unchanged.
+Reveal is live-only and must remain suppressed on a headless surface, matching
+the export law; path-copy asserts exact native clipboard text and the unnamed
+gate. Go to Line sweeps first/middle/last/out-of-range lines, wrapped text,
+Unicode and a folded destination through `--keys`, with the sidecar proving
+caret and scroll state. Read `docs/platform.md` and `docs/harness-reach.md`
+before implementing or promising captures; render-touching slices receive the
+standing vision-smoke and DPI/world audit required by policy.
+
 ### 453 — rip out the in-app Guide and Reference (USER DECISION 2026-08-17; ready to build)
 
 🟡 IN PROGRESS — claude, branch `claude/item-453-remove-guide-reference`
