@@ -528,3 +528,89 @@ fn every_margin_orientation_surface_yields_to_a_relocated_document() {
     );
     crate::theme::set_active(crate::theme::DEFAULT_THEME);
 }
+
+/// LAW 6 — LENS-LESS MEMBERS OF `TimelineOverComparison` OPEN THE SAME CONTENT
+/// REGION HISTORY DOES.
+///
+/// Every fixture above drives `comparison_view`'s hand-authored History-shaped
+/// lens (`All`/`Today`/`Kept`). That is precisely what let a lens-GATED
+/// `overlay_is_workspace()` stay green for years: `Credits` and `Conflict` are
+/// registered LENS-LESS in `facets.rs` ("a lens over one/three fixed rows
+/// would be a strip with nothing to narrow"), so no existing workspace law
+/// ever drove one through this geometry. The roster is derived from
+/// `OverlayKind::ALL` filtered by `workspace_shape()`, not a named list, and
+/// an unhandled member panics by name below rather than being silently
+/// skipped — the exact class of hole that hid this bug the first time.
+#[test]
+fn every_timeline_over_comparison_kind_opens_its_content_region_even_lens_less() {
+    let _g = crate::testlock::serial();
+    let Some((device, queue, mut p)) = headless_dqp(1400.0, 900.0) else {
+        eprintln!(
+            "skipping every_timeline_over_comparison_kind_opens_its_content_region: no adapter"
+        );
+        return;
+    };
+
+    let timeline_kinds: Vec<crate::overlay::OverlayKind> = crate::overlay::OverlayKind::ALL
+        .iter()
+        .copied()
+        .filter(|k| {
+            k.workspace_shape()
+                == Some(crate::overlay::workspace::WorkspaceShape::TimelineOverComparison)
+        })
+        .collect();
+    assert!(
+        timeline_kinds.len() >= 2,
+        "the TimelineOverComparison roster must hold at least History and one lens-less \
+         member, got {timeline_kinds:?}"
+    );
+
+    let mut graded = 0usize;
+    for kind in timeline_kinds {
+        // `facets::scheme` is the SAME lens-registration door the render side
+        // reads through `overlay_lens`: `None` for Credits/Conflict, the real
+        // History facets for History. Driving the fixture through it — rather
+        // than hand-writing an empty vec — is what makes this the kind's own
+        // registered shape, not a guess at it.
+        let lens = crate::facets::scheme(kind)
+            .map(|sc| sc.strip_labels(0))
+            .unwrap_or_default();
+        match kind {
+            crate::overlay::OverlayKind::History => assert!(
+                !lens.is_empty(),
+                "precondition: History is registered with a real lens"
+            ),
+            crate::overlay::OverlayKind::Conflict | crate::overlay::OverlayKind::Credits => {
+                assert!(
+                    lens.is_empty(),
+                    "precondition: {kind:?} is registered lens-less"
+                );
+            }
+            other => panic!(
+                "{other:?} newly joined WorkspaceShape::TimelineOverComparison with no fixture \
+                 arm here — add one rather than letting it fall through"
+            ),
+        }
+
+        let mut v = comparison_view("# Transcript\n\nSome compared prose here.\n", 0, 0);
+        v.overlay_title = kind.title();
+        v.overlay_lens = lens;
+        p.set_view(&v);
+        p.set_size(1400.0, 900.0);
+        p.prepare(&device, &queue, 1400, 900).unwrap();
+
+        assert!(
+            p.overlay_is_workspace(),
+            "{kind:?}: not recognised as a workspace once its lens is empty — \
+             `overlay_is_workspace()` must follow the shape, not the lens strip"
+        );
+        assert!(
+            p.comparison_viewport().is_some(),
+            "{kind:?}: comparison_viewport() is None on a resolved TimelineOverComparison \
+             frame — the content pane never opens, so the relocated document falls back to \
+             the ordinary page column, exactly the frosted-fallback bug this law names"
+        );
+        graded += 1;
+    }
+    assert_eq!(graded, 3, "History, Conflict and Credits must all be graded");
+}
