@@ -71,32 +71,6 @@ caret and scroll state. Read `docs/platform.md` and `docs/harness-reach.md`
 before implementing or promising captures; render-touching slices receive the
 standing vision-smoke and DPI/world audit required by policy.
 
-### 453 — rip out the in-app Guide and Reference (USER DECISION 2026-08-17; ready to build)
-
-🟡 IN PROGRESS — claude, branch `claude/item-453-remove-guide-reference`
-
-Decided: the in-app Guide and Reference doors go. Remove the catalog commands
-(`src/commands/catalog/navigation.rs` Guide/Reference entries), their
-Help-menu items, embedded copies (`embedded_docs.rs`, `guide.rs`), and their
-`open_bundled_doc` callers — after item 452 lands, Credits is the only
-bundled-doc consumer and the helper shrinks to fit. Rationale: Reference
-belongs on the site, not in the editor; the user is writing a new starting
-guide to be baked in, which arrives as its own future item. Welcome/first-run
-seeding (`firstrun.rs`) is untouched.
-
-GUIDE.md and REFERENCE.md remain in the repo as site/source documents — this
-item removes the in-app doors only, not the files or their generators.
-Reconcile the laws that reference these doors: the keytoken starting-docs law
-drives chords the welcome/tour/GUIDE teach — keep whatever half still has a
-subject; GUIDE's generated key table keeps its generation laws while the file
-stays. If a law's whole subject is deleted, delete the law and say so in the
-landing note.
-
-Verify: the palette no longer offers Guide/Reference; the Help menu roster
-law passes with the shrunk roster; grep for dangling references (docs, About
-card spans, generated config comments, welcome/tour cross-links). Rust +
-docs change: full gate.
-
 ### 458 — 🔴 Credits is BROKEN, not merely the wrong size: it renders as a one-row palette over a blurred page (USER-REPORTED 2026-08-18; ready to build)
 
 🟡 IN PROGRESS — claude, branch `claude/item-458-workspace-predicate`
