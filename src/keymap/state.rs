@@ -39,6 +39,16 @@ pub struct KeymapState {
     /// unconditional floor chord; every OTHER letter still needs an explicit
     /// `linux_keep_emacs`/`keymap = "emacs"` opt-in, unchanged.
     pub(super) linux_keep: std::collections::HashSet<(Key, ModifiersState)>,
+    /// THE CLASSIC META LAYER gate — true only for `Convention::Linux` under
+    /// `keymap = "emacs"` (set by [`Self::set_linux_emacs_meta`], the config
+    /// layer's own boolean: this module stays unaware of `KeymapFlavor` itself,
+    /// mirroring how `linux_keep` stays unaware of the config field that built
+    /// it). Consulted ONLY inside [`Self::seed_defaults`], which re-checks
+    /// `convention == Convention::Linux` itself — so a stray `true` set before a
+    /// convention switch (or on `Convention::Mac`, where Option keeps typing
+    /// accented characters) stays structurally inert, the same belt-and-
+    /// suspenders shape `linux_keep`'s own doc describes.
+    pub(super) linux_emacs_meta: bool,
 }
 
 impl Default for KeymapState {

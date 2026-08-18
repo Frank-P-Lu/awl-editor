@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use winit::keyboard::{Key, ModifiersState};
 
 use super::binding::canon_key;
-use super::{Chord, parse_binding};
+use super::{Action, Chord, parse_binding};
 
 pub(super) fn linux_keeps_chord_raw(
     keep: &HashSet<(Key, ModifiersState)>,
@@ -207,3 +207,55 @@ pub fn linux_emacs_preset_keep() -> Vec<String> {
         .map(|c| format!("C-{c}"))
         .collect()
 }
+
+/// THE NATIVE-CLIPBOARD CARVE-OUT (user decision: the Omarchy/Hyprland compositor
+/// forwards Super+C/V as Ctrl+C/V for the system clipboard, so those two letters
+/// must survive the emacs preset even though [`LINUX_DISPLACED_LETTERS`] names
+/// them) — the two letters [`crate::config::Config::effective_linux_keep`] must
+/// never let the flavor PRESET'S OWN contribution claim, even though
+/// [`linux_emacs_preset_keep`] still names them (so a user's own explicit
+/// `linux_keep_emacs` entry for `"C-c"`/`"C-v"` is untouched by this — that
+/// per-chord door is a deliberate ask, not the preset's blanket one). `C-x` is
+/// deliberately NOT here: it carries Save/Open as the emacs prefix, and
+/// excluding it would gut the flavor. Emacs hands keep Cut/Paste on their
+/// existing `C-w`/`C-y` aliases regardless (`assets/keymap-defaults.toml`'s own
+/// `cut`/`paste` emacs slots).
+pub(crate) const NATIVE_CLIPBOARD_LETTERS: &[char] = &['c', 'v'];
+
+/// Is `chord_spec` one of [`linux_emacs_preset_keep`]'s own `"C-<letter>"`
+/// strings for a [`NATIVE_CLIPBOARD_LETTERS`] entry? Pure string match — the
+/// preset always emits that exact canonical shape itself, so no parse/
+/// canonicalize round-trip is needed. The ONE predicate
+/// [`crate::config::Config::effective_linux_keep`] filters the preset's own
+/// contribution through; never consulted for the user's `linux_keep_emacs`
+/// list, which stays unfiltered.
+pub(crate) fn linux_is_native_clipboard_chord(chord_spec: &str) -> bool {
+    NATIVE_CLIPBOARD_LETTERS
+        .iter()
+        .any(|c| chord_spec.eq_ignore_ascii_case(&format!("C-{c}")))
+}
+
+/// THE CLASSIC META LAYER (user decision) — Linux-only default `default_single`
+/// bindings [`super::KeymapState::seed_defaults`] seeds ONLY when
+/// [`super::KeymapState::linux_emacs_meta`] is set (i.e. `Convention::Linux`
+/// AND `keymap = "emacs"`; inert on every other combination, including Mac
+/// under the emacs flavor — Option keeps typing accented characters there, see
+/// `resolve.rs`'s `is_meta_chord` doc). Every entry fires an EXISTING catalog
+/// `Action`, the same way any other Meta chord in this list seeds one — `M-x`
+/// is a Linux-emacs-flavor-SEEDED binding onto the command palette's own
+/// `Action::OpenCommandPalette` (its catalog `emacs` slot is deliberately
+/// empty; this is a second, flavor-owned door onto the SAME action, never a
+/// parallel palette-open path). `M-Backspace` and `M-<`/`M->` use their
+/// standard-Emacs spellings; `M-<`/`M->` need no Shift companion since `<`/`>`
+/// are themselves the key tokens `parse_binding` matches.
+pub(crate) const LINUX_EMACS_META_SEED: &[(&str, Action)] = &[
+    ("M-x", Action::OpenCommandPalette),
+    ("M-w", Action::CopyRegion),
+    ("M-f", Action::ForwardWord),
+    ("M-b", Action::BackwardWord),
+    ("M-d", Action::DeleteWordForward),
+    ("M-Backspace", Action::DeleteWordBackward),
+    ("M-v", Action::PageScrollUp),
+    ("M-<", Action::BufferStart),
+    ("M->", Action::BufferEnd),
+];
