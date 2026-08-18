@@ -97,23 +97,66 @@ law passes with the shrunk roster; grep for dangling references (docs, About
 card spans, generated config comments, welcome/tour cross-links). Rust +
 docs change: full gate.
 
-### 458 — 🔵 Credits landed as a full workspace, not the "mini window" the user asked for (TASTE DIVERGENCE, found during item 452)
+### 458 — 🔴 Credits is BROKEN, not merely the wrong size: it renders as a one-row palette over a blurred page (USER-REPORTED 2026-08-18; ready to build)
 
-Item 452 (Credits summoned read-only viewer, landed `19339cd8`) asked for
-"a mini window over the document"; what shipped reuses
-`WorkspaceShape::TimelineOverComparison` — the same full-viewport
-presentation History/Conflict use, with the primary column degenerated to
-one fixed row. The lane's own call: DESIGN.md §5 reads sustained document
-reading as workspace territory, not a brief contextual choice, and no
-smaller read-only surface exists yet to reuse (cards are span lists, not
-document renderers). **Named honestly, not silently landed as
-cheap-to-revert**: a genuine floating mini-window would need new overlay
-geometry, not a one-line revert of this decision.
+**Premise revised.** This item was carried as a taste divergence ("full
+workspace, not the mini window asked for"). The user opened ⌘P → Credits and
+saw neither: a `credits ›` search line, one row reading `credits`, the
+`↑/↓ scroll ⌫ back` footer, and the CREDITS text only as the frosted BLUR
+behind the card. Reproduced headlessly with a real `--screenshot-app`
+capture (`s-p c r e d i t s Enter`, seeded root): the sidecar reports
+`overlay.workspace: true`, `detail_focus: true`, `preview_view: "document"`,
+`items: ["credits"]`, and the PNG shows the same one-row card over blurred
+credits prose — the content region is never opened.
 
-Open the app, ⌘P → Credits, and look: does the full-workspace presentation
-read as intended, or does a smaller floating card belong here instead? If
-the latter, that is new geometry work, not a revert — say so and it goes
-back on the board as its own item.
+**Root cause (read, not fixed — the user asked for the diagnosis to be
+queued):** the render side's `overlay_is_workspace()`
+(`src/render/chrome/workspace.rs`) is `self.overlay_workspace &&
+!self.overlay_lens.is_empty()` — a workspace is recognised by its LENS
+STRIP, a gate written when Settings was the only workspace and History (a
+faceting kind) was the second. `OverlayKind::Credits` is registered
+lens-less in `facets.rs` (as is `Conflict`; "a lens over one/three fixed
+rows would be a strip with nothing to narrow"). So on every Credits frame
+`overlay_is_workspace()` is false: `workspace_primary_w` measures 0,
+`comparison_viewport()` returns `None`, `transcript_parked()` is false, and
+the pushed CREDITS transcript falls back to the ordinary page column UNDER
+the card, where the overlay's blur frosts it — exactly the picture. The
+sidecar's `workspace: true` comes from the App-side
+`workspace_shape().is_some()` (`viewstate.rs`), so the two halves of the
+product disagree about what a workspace is, and the sidecar oracle
+reported the intended shape while the pixels drew a picker.
+
+**Why every law stayed green:** the workspace laws seed
+`v.overlay_lens = ov.lens_strip()` from History/Settings only — no render
+law drives `new_credits()` or `new_conflict()` through the workspace
+geometry — and 452's presence/legibility law asserted CREDITS ink was
+visible somewhere on the canvas, which the frosted fallback satisfies. The
+same defect must be checked on the Conflict workspace (also lens-less;
+its capture reach is via `preview_id`/`preview_view`): if it draws the
+same one-column card, it has been broken since it landed and its harness
+photos never showed the two-region shape.
+
+Decided fix shape: the renderer's workspace predicate follows the SHAPE,
+not the lens — `overlay_workspace` alone (the App already derives it from
+`workspace_shape()`), with the lens strip an optional header decoration a
+`TimelineOverComparison` workspace may or may not have. Then
+`measure_workspace_primary_w` measures the rows (it already handles
+`rows_primary` from `overlay_items`), the content pane opens, and the
+transcript relocates into it. Keep the deep-link (`toggle_detail` on
+`OpenCredits`) so Credits still lands focused on the content.
+
+Verify: a `--screenshot-app` law over `s-p c r e d i t s Enter` asserts
+`comparison_viewport()` is `Some` (or, at the sidecar seam, that the
+transcript is drawn INSIDE the card's content pane: sample the PNG for
+CREDITS ink at unblurred contrast within the pane rect and NONE at the
+page column outside the card) — the frosted-fallback frame must FAIL that,
+so run it against `main` first and watch it go red. Add `new_credits()`
+and `new_conflict()` to the render workspace-law fixtures so the
+lens-less members sweep the same geometry laws History does (enrolment
+derived from the roster: every kind whose `workspace_shape()` is `Some`,
+no named list). Rust change: full gate. Then, and only then, the original
+taste question — full workspace vs. smaller floating card — can be put to
+the user, because today they cannot see either.
 
 ### 450 — the bottom identity names the ACTIVE FILE's own folder (USER DECISION 2026-08-17; ready to build)
 
@@ -218,11 +261,42 @@ reachable via `autosave = false`.
 
 **Residual, in the order the landed work sets up:**
 
-1. **Hover-reveal close affordance** — draw the × (or equivalent) when the
-   pointer enters a row's right close zone, so the now-live close action has
-   a visual cue before more of the working set builds on top of it. New
-   live-only render axis; capture-prototype and put shots to the user before
-   committing to a treatment, same discipline as residual 3 below.
+1. **Hover-reveal close affordance + row cursor + folder-line distinction
+   (USER-REPORTED 2026-08-18 on the live app, three findings in one look).**
+   (a) The × is invisible: the row's right close zone is wired to
+   `close_buffer` but draws nothing — the user hovered and asked "I don't
+   see the x mark?" Draw the × (or equivalent) when the pointer enters the
+   zone; capture-prototype and put shots to the user before committing to a
+   treatment. New live-only render axis (hover), so `cursor_shape.rs`-style
+   unit laws + a live check.
+   (b) The pointer over a stack row must be the pointing HAND, like the
+   margin outline rows it sits beside (`cursor_shape.rs` arm 8 — the outline
+   already earns `CursorIcon::Pointer`; the stack rows do not, so a
+   clickable row reads as inert margin). Add the arm through the same
+   `CursorContext` roster and its no-wildcard law; hit-test via
+   `gutter_stack_hit`.
+   (c) The FOLDER line under the stack (`notes`) reads as a third file: it
+   is drawn at the same LABEL size and the same `faint` ink as the inactive
+   rows, so `awl-start.md / anxiety-2.md / notes` scan as three siblings.
+   The user asked whether the type scale has a smaller step — the chrome
+   scale has `LABEL` (the margin's one size) and the rotated location's
+   `LOCATION_SCALE 0.92`; a smaller size for the folder line is a DESIGN
+   §5 call (the identity's "position in the filesystem" was two lines of
+   one size when it was one file). Prototype at least two treatments and
+   put both to the user: a smaller/quieter step for the folder line, and a
+   spacing/heading treatment (folder as heading ABOVE the rows, which the
+   444 text already names: "the root heading names the active folder").
+   Byte-identity for the one-file case must hold whichever wins.
+   (d) **Wagtail (one-bit) draws the active-row plate as a solid WHITE bar
+   that swallows its own label** — the plate fills at page-inverse and the
+   name is drawn in the same value, so the selected file is the one file
+   you cannot read (the sidecar-vs-pixels tripwire, again on Wagtail).
+   `render/tests/one_bit.rs` enrols the overlay families for this exact
+   inversion rule; the stack's plate must join that roster (ink over a
+   filled plate inverts), with a pixel law that the active row's label ink
+   is legible against its plate on every one-bit world — presence floor
+   included, so a plate faded to nothing does not pass happier.
+
 2. **Zero-document state** — the largest remaining piece; `DocumentSession`
    would need an optional active slot, and every subsystem this item names
    (renderer, actions, autosave, session, title, accessibility tree,
