@@ -270,7 +270,15 @@ reachable via `autosave = false`.
    see the x mark?" Draw the × (or equivalent) when the pointer enters the
    zone; capture-prototype and put shots to the user before committing to a
    treatment. New live-only render axis (hover), so `cursor_shape.rs`-style
-   unit laws + a live check.
+   unit laws + a live check. **Decided 2026-08-18: hover-only (never a
+   persistent column), on the RIGHT — the ink is right-aligned so the right
+   end is the one stable edge across filename lengths, and `close_zone` is
+   already the rightmost row-height square.** The × occupies the plate's
+   right pad / the space past the ink's right edge; it must not shift the
+   label (no hover jitter). Prototype for the user: one-stage reveal
+   (× on row-hover) vs two-stage (faint × on row-hover, full ink inside
+   the close zone), and active-row-with-× vs siblings-only (⌘W already
+   closes the active file).
    (b) The pointer over a stack row must be the pointing HAND, like the
    margin outline rows it sits beside (`cursor_shape.rs` arm 8 — the outline
    already earns `CursorIcon::Pointer`; the stack rows do not, so a
