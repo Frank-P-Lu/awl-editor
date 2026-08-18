@@ -187,6 +187,51 @@ fn a_settings_child_returns_to_the_settings_row_it_was_opened_from() {
     crate::caret::clear_override();
 }
 
+/// THE SAME LAW FOR THE KEYMAP PICKER — the item this mirrors: unlike Caret
+/// (which auditions live on move, so Esc must REVERT the process-global) the
+/// Keymap picker never touches anything until Enter, so Esc is a pure
+/// descend/resume with nothing to undo. Only meaningful on
+/// `Convention::Linux` (the row is hidden on `Convention::Mac` —
+/// `settings::row_available_on`); `Convention` is process-frozen, so this
+/// branches on the ambient value rather than forcing one — the same reason
+/// the picker's live-App proof does
+/// (`run::live_app::tests::a_live_app_capture_photographs_a_keymap_pick_an_ordinary_capture_cannot_see`).
+#[test]
+fn a_keymap_child_esc_resumes_the_settings_row_it_was_opened_from() {
+    if crate::convention::Convention::current() != crate::convention::Convention::Linux {
+        return;
+    }
+    let _g = crate::testlock::serial();
+    let mut journey = Journey::seeded(Some(settings_overlay()));
+    for c in "keym".chars() {
+        settings_drive(&mut journey, &Action::InsertChar(c));
+    }
+    let row = journey
+        .card()
+        .unwrap()
+        .selected_value()
+        .unwrap()
+        .to_string();
+    assert_eq!(row, "Keymap");
+
+    settings_drive(&mut journey, &Action::Newline); // descend into the Keymap picker
+    assert_eq!(journey.card().unwrap().kind, OverlayKind::Keymap);
+    settings_drive(&mut journey, &Action::Cancel); // resume, nothing to revert
+
+    let back = journey.card().expect("the workspace resumed");
+    assert_eq!(back.kind, OverlayKind::Settings);
+    assert_eq!(
+        back.selected_value(),
+        Some(row.as_str()),
+        "resumed on the row the child was opened from, not on row 0"
+    );
+    assert_eq!(
+        back.query.text(),
+        "keym",
+        "and with the filter that found it"
+    );
+}
+
 /// A SETTINGS TOGGLE KEEPS THE WORKSPACE OPEN; the same row reached from the
 /// COMMAND PALETTE closes it. One dispatcher, one table, two outcomes — the
 /// pair that used to be a `close_on_toggle` boolean the caller had to pass

@@ -255,7 +255,8 @@ pub(super) fn settings_drive_zoom(
 }
 
 /// A make_overlay for the settings interaction tests: re-summons Settings (the
-/// breadcrumb target) and builds the Caret sub-picker; everything else is None.
+/// breadcrumb target) and builds the Caret/Theme/CjkLang/Keymap sub-pickers;
+/// everything else is None.
 pub(super) fn settings_drive(journey: &mut crate::overlay::Journey, action: &Action) -> Effect {
     let mut buffer = Buffer::scratch();
     let mut shift = false;
@@ -280,6 +281,13 @@ pub(super) fn settings_drive(journey: &mut crate::overlay::Journey, action: &Act
                 .first()
                 .copied()
                 .unwrap_or(crate::frontmatter::Lang::Ja),
+        )),
+        // The keymap flavor is Config-owned, not a process-global — this
+        // fixture has no live `Config` to read, so it pre-selects `Native`,
+        // the built-in default, mirroring how the other fixture-only builds
+        // above stand in for `overlay::build`'s real caller-gathered inputs.
+        OverlayKind::Keymap => Some(OverlayState::new_keymap(
+            crate::keymap::KeymapFlavor::Native,
         )),
         _ => None,
     };
