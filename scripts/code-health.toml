@@ -100,8 +100,8 @@ lines = 453
 
 [[file_size_mark]]
 file = "src/app/viewstate.rs"
-lines = 562
-reason = "`sync_view` is the sole exhaustive `ViewState` construction site, so every render datum must be spelled out here. It carries the fold chevron's real fold set, the summoned picker's secondary location, the persistent changed-elsewhere affordance, photographable/findable notices, and world-authored diagonal-mark weight without creating a second non-exhaustive construction path. +11: the working-set stack's row count and its own fold-independent geometry, the one new field a margin widening to more than one row needs. +7: mirrors config_keys/config_linux_keep, the menu chord column's config-awareness plumbing."
+lines = 575
+reason = "`sync_view` is the sole exhaustive `ViewState` construction site, so every render datum must be spelled out here. It carries the fold chevron's real fold set, the summoned picker's secondary location, the persistent changed-elsewhere affordance, photographable/findable notices, and world-authored diagonal-mark weight without creating a second non-exhaustive construction path. +11: the working-set stack's row count and its own fold-independent geometry, the one new field a margin widening to more than one row needs. +7: mirrors config_keys/config_linux_keep, the menu chord column's config-awareness plumbing. +13: the bottom identity's `gutter_project` reads the OPEN file's own remembered root through `working_set().active_root()` rather than the ambient switched-to project, falling back to the old ambient read only when the working set has no active file."
 
 [[file_size_mark]]
 file = "src/app/window.rs"
@@ -505,8 +505,8 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/app/viewstate.rs"
 function = "App::sync_view"
-message = "this function has too many lines (249/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. `sync_view` is the one exhaustive `ViewState` projection site, so each new render datum is spelled out here: the fold chevron's `folded_headings` (its direction needs the real fold set, not merely `fold_tails`'s own key set, so `fold::apply_to_view` takes the buffer's folds at its one call site here) and the summoned picker's secondary location. The document-session extraction replaced direct buffer and cache fields with explicit read projections while preserving that one exhaustive site."
+message = "this function has too many lines (254/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. `sync_view` is the one exhaustive `ViewState` projection site, so each new render datum is spelled out here: the fold chevron's `folded_headings` (its direction needs the real fold set, not merely `fold_tails`'s own key set, so `fold::apply_to_view` takes the buffer's folds at its one call site here) and the summoned picker's secondary location. The document-session extraction replaced direct buffer and cache fields with explicit read projections while preserving that one exhaustive site. +5: the bottom identity's folder label reads the open file's own remembered root instead of the ambient project."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
