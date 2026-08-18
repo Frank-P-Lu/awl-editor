@@ -64,7 +64,7 @@ fn replay_credits_opens_via_the_palette_onto_the_content_stage_and_scrolls() {
 }
 
 /// **THE REGRESSION LAW.** Credits used to swap the editor to a real editable
-/// buffer (`App::open_credits` -> `open_bundled_doc` -> `load_path`). Driven
+/// buffer (`App::open_credits`, routed through `load_path`). Driven
 /// through the real `--keys` seam end to end — palette open, scroll, dismiss —
 /// the active buffer's path and text must be byte-for-byte what they were
 /// before any of it happened.

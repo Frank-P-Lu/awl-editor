@@ -9,10 +9,11 @@
 //! Switch theme…) sees a chord that's silently eaten by the browser chrome
 //! before the page ever gets it. `{{key:slug}}` is the fix: a token substituted
 //! at the RIGHT moment for each surface (seed time for welcome/tour — see
-//! `fs::seed_write_if_absent` — open time for GUIDE.md — see `App::open_guide` /
-//! `main::run`'s headless arm) through the SAME truthful label owner every other
-//! chord surface reads (`commands::resolved_native_label_truthful`), so a doc
-//! can never show a chord that doesn't actually fire.
+//! `fs::seed_write_if_absent`) through the SAME truthful label owner every
+//! other chord surface reads (`commands::resolved_native_label_truthful`), so
+//! a doc can never show a chord that doesn't actually fire. GUIDE.md carries
+//! the same tokens but no runtime renders it — see `guide.rs`'s module doc —
+//! so its checked-in text is swept by the laws below instead of a live open.
 //!
 //! `slug` is a catalog command's own config slug (`commands::slug`) for the vast
 //! majority of `{{key:slug}}` tokens; [`SYNTHETIC`] covers the one chord that is

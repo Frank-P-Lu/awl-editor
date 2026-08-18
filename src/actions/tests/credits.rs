@@ -1,5 +1,5 @@
 //! THE BUFFER-IDENTITY LAW — Credits used to swap the editor to a real
-//! editable buffer (`App::open_credits` → `open_bundled_doc` → `load_path`),
+//! editable buffer (`App::open_credits`, routed through `load_path`),
 //! so opening it, looking at it, and dismissing it silently changed what
 //! document you were editing. `Action::OpenCredits` now performs exactly one
 //! thing — `ctx.journey.enter(...)` plus the same `toggle_detail()` deep
