@@ -49,8 +49,7 @@
 
 [[file_size_mark]]
 file = "src/actions.rs"
-lines = 890
-reason = "A non-Markdown Export raises an explicit notice rather than silently resolving to `Effect::None`: one named notice constant, one small helper the three Export arms share, and a doc comment explaining why the row stays enabled everywhere instead of being hidden (+13). This file also owns the photographable/findable notice, world-authored diagonal-mark weight, the Reference command's third `open_bundled_doc` consumer, explicit document-language tagging, and the switch-project accept/destination owner. +4: the Keymap picker's accept dispatch, alongside the other overlay-accept arms. +21: Credits opens through the same journey/overlay accept path as History/Conflict, replacing the retired open_bundled_doc buffer-swap route."
+lines = 888
 
 [[file_size_mark]]
 file = "src/actions/format.rs"
@@ -69,7 +68,7 @@ reason = "The clobber-notice predicate MOVED OUT to `app/files/external.rs` besi
 
 [[file_size_mark]]
 file = "src/app/apply.rs"
-lines = 856
+lines = 854
 reason = "The conflict workspace's summon reaches the live effect interpreter's one `PersistenceEffect` match and the one `apply_overlay_accept` roster, both exhaustive by design (+6). +34: `sync_theme_font_measured`, the ONE reshape door every live theme-font path runs through. The split-reach preview path shapes the presentable prefix immediately; the quiet-settle owner finishes only the latest highlighted world's tail. +11: `refresh_kill_from_clipboard`'s duplicate-read skip now also requires the active buffer's own kill ring to already equal the OS text, not just the App-global last-written stamp, so a buffer switch cannot leave a Paste reading a kill ring that stamp never actually hydrated. +11: `App::apply_keymap_flavor` — sets the config field, persists it, rebuilds the live keymap, refreshes an open Settings menu, and emits the resulting-flavor notice, replacing the old always-toggling handler. +1: `Previous`/`CloseActive` need two dispatch arms where there was one, now that Finish file's last leg is its own effect."
 
 [[file_size_mark]]
@@ -241,7 +240,7 @@ lines = 661
 
 [[file_size_mark]]
 file = "src/menu.rs"
-lines = 1115
+lines = 1113
 reason = "The three Export rows' File-menu label now diverges from their catalog command (dropping a stale ellipsis with no surface behind it — the shorthand `r()`/`ri()` constructors can't express that, so each grew into a full `Routed` literal), plus the label divergence law's `EXPLICIT_MENU_LABELS` entries and doc comment, and a two-line `#[cfg(test)] mod ellipsis_law;` declaration for the new law itself (+29). +25: the NATIVE_PANEL_IDS table and its one predicate, declared as DATA beside the roster it indexes so ellipsis_law can sweep the AppKit-panel door from any host — a literal buried in the macOS handler is unreadable to the law that must hold both doors to the same promise, which is exactly how `Browse files…` passed for the wrong reason. +10: `mod chord_truth;` and its own roster x flavor law proving the drawn menu's chord column agrees with real dispatch under both keymap flavors. +4: the real Command palette menu item, `awl.command_palette`, replacing the uncatalogued hand-written resolver arm."
 
 [[file_size_mark]]
