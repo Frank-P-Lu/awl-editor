@@ -102,61 +102,62 @@ prints no folder at all fails rather than passes; assert the label's content,
 not merely that it differs from B. Sweep the world roster at both DPI, since
 the label is a rendered margin string.
 
-### 444 — the working set becomes visible: a margin buffer stack (USER DECISION 2026-08-16; STACK RENDERS AND SWITCHES; CLOSE BLOCKED ON A REAL WALL)
+### 444 — the working set becomes visible: a margin buffer stack (USER DECISION 2026-08-16; STACK RENDERS, SWITCHES AND CLOSES; AFFORDANCE OWED NEXT)
 
 **Landed on `main`** (full sha list in `git log --grep 'item 444'`): the
 `--seed-tree` capture door; the `WorkingSet` module; the cross-root ownership
 fix; the resting-stack render (N=1 byte-identical by construction, 40/40
-proven non-vacuously); and now **sidecar exposure + click-to-switch**.
-`buffers` gains `files[]` (root-relative labels, stable open order) and
-`active_index` (`SCHEMA_VERSION` 203→204). Clicking an inactive stack row
-switches to it through `App::load_path` — the same door every picker/daemon
-handoff already shares, no second switching path. Stable-order proven at
-three independent seams (capture-door before/after, an App-level round
-trip, a sidecar unit law), including the exact non-vacuity case a weak
-single-root fixture let through on the first pass (see the landing commit
-for the caught vacuity). No capture door can drive a pointer
-(`docs/harness-reach.md` confirmed this has no exception) — the
-row→file resolution is law-driven, the actual click dispatch is owed a
-human confirmation.
+proven non-vacuously); sidecar exposure + click-to-switch (`buffers` gains
+`files[]`/`active_index`, `SCHEMA_VERSION` 203→204, through the same
+`App::load_path` door every picker/daemon handoff shares); and now **⌘W as
+the one true removal owner** (`9213f16d`). `App::close_buffer(key)`
+(`src/app/files/close.rs`) is reached by both ⌘W and a stack row's close
+zone, resolving to the active entry or a parked one without the caller
+choosing. Three pieces that didn't exist before now do, all law-tested with
+captured mutation panics: `DocumentSession::entry_unsaved` (save, generalized
+off any entry, not just the active one), a parked-entry conflict gate that
+**refuses** rather than latching into the single unresolved-conflict slot
+(pointing that slot at a parked path would let a later "Save your version"
+overwrite the wrong document), and `notify_close_waiters(key)` (daemon
+notify, generalized off the active buffer). Closing the last file saves and
+notifies but removes nothing — that's residual 1 below, not a bug.
 
-**Hover-close deliberately stopped short, and this is a real architectural
-wall, not a missed residual:** there is no lossless save/conflict-gated
-removal path for any NON-ACTIVE buffer anywhere in the tree.
-`BufferRegistry::park`'s only removal (clean-LRU eviction) refuses a dirty
-buffer and is a memory-safety bound, not a product close; `save_finished_buffer`
-(⌘W's own handler) carries the real lossless gate but only ever acts on
-`self.document.buffer()` — the ACTIVE one. So closing an inactive row needs
-three pieces that don't exist yet: save of a PARKED entry, conflict-gate of
-a parked entry, and daemon-waiter notification for a parked key. That is
-residual 3 below, not this round's job — the landed code ships only the
-close zone's pure geometry (no drawn ×, no action), law-tested and waiting,
-so nothing exposes a control with nothing behind it.
+**New gap this landing opens, sequencing decided 2026-08-18 (merge now,
+affordance next):** the stack row's right-edge close zone is now WIRED to
+`close_buffer` — always lossless (saves first, refuses on conflict) — but
+still draws NOTHING. No chrome hover-tracking exists anywhere in the margin
+outline (it's click-only too), so a click near a row's right edge now
+silently closes that file instead of switching to it, with no visual cue
+distinguishing the zone. Landed anyway on the user's explicit call, with the
+hover-reveal × treatment owed as the next residual, not deferred indefinitely.
 
-**Two findings carried forward, not fixed this round:**
-- `gutter` in the sidecar (the single name/project fact) is now stale
-  *documentation* once the stack draws — its doc claims "exactly as drawn,"
-  but at N≥2 the pixels show a whole stack while `gutter` still reports one
-  name. Changing that field's semantics is a schema-shape call; folding it
-  into residual 1's own follow-up (whoever touches sidecar `buffers`/`gutter`
-  next reconciles the doc, or the field itself, deliberately) rather than
-  drifting further.
-- The scratch buffer IS enrolled in the working set (`path: None`) and CAN
-  appear as a stack row, but no scratch-activation door exists anywhere in
-  the tree (`load_path` takes a path; `previous_path()` returns
-  `Option<PathBuf>`) — clicking a scratch row today silently swallows the
-  press. Relevant input for residual 3 (removal) and residual 4
-  (zero-document): a scratch row is a real member of "no path yet," which
-  the zero-document work will need to reason about anyway.
+**Two smaller findings, still carried forward:**
+- `gutter` in the sidecar (the single name/project fact) is stale
+  *documentation* once the stack draws at N≥2 — its doc claims "exactly as
+  drawn" but the pixels show a whole stack. Whoever next touches sidecar
+  `buffers`/`gutter` reconciles the doc, or the field, deliberately.
+- The scratch buffer is closeable (dirty scratch refuses like any other
+  entry, the successor search skips it) but still has no *activation* door
+  anywhere (`load_path` takes a path; `previous_path()` returns
+  `Option<PathBuf>`) — a scratch row still silently swallows a switch click.
+  Feeds residual 2 (zero-document), which needs the same "no path yet"
+  reasoning anyway.
+
+**Two facts worth knowing before the next residual touches this area:**
+`Finish file` is now a misnomer for a command that CLOSES — renaming it
+touches the palette, GUIDE, REFERENCE and the `finish_file` config key, so
+only its *description* was corrected this round, not its name. And
+`load_path` flushes autosave before parking, so under the default config a
+parked entry is essentially never dirty — the parked-conflict path is mainly
+reachable via `autosave = false`.
 
 **Residual, in the order the landed work sets up:**
 
-🟡 IN PROGRESS on residual 1 — claude, branch `claude/item-444-cmd-w-removal`
-
-1. **⌘W as the true removal owner** (today it parks, not closes) — the
-   three missing pieces are named above precisely; this is now the
-   critical-path item, since hover-close and the scratch-row gap both
-   converge on it.
+1. **Hover-reveal close affordance** — draw the × (or equivalent) when the
+   pointer enters a row's right close zone, so the now-live close action has
+   a visual cue before more of the working set builds on top of it. New
+   live-only render axis; capture-prototype and put shots to the user before
+   committing to a treatment, same discipline as residual 3 below.
 2. **Zero-document state** — the largest remaining piece; `DocumentSession`
    would need an optional active slot, and every subsystem this item names
    (renderer, actions, autosave, session, title, accessibility tree,
@@ -164,7 +165,7 @@ so nothing exposes a control with nothing behind it.
 3. **Overflow windowing, expanded/grouped cross-project view, Move
    navigator** — deliberately last: this item's own text asks for captures
    judged by the user before any of these get built. The resting stack now
-   renders and switches, so a >5-file / cross-project capture set can
+   renders, switches and closes, so a >5-file / cross-project capture set can
    finally be produced — but the exact windowing/grouping rule still needs
    the user's eyes on that set before it's built, not guessed ahead of it.
 
