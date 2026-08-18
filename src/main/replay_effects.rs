@@ -98,7 +98,10 @@ impl<'a> ReplaySession<'a> {
 
     fn interpret_buffer(&mut self, buffer: &actions::BufferEffect) {
         match buffer {
-            actions::BufferEffect::Previous { .. } => {}
+            // Replay owns one buffer and no working set, so neither switching
+            // away nor removing an entry has anything to act on. Both are
+            // classified Unsupported rather than silently doing nothing.
+            actions::BufferEffect::Previous | actions::BufferEffect::CloseActive => {}
             actions::BufferEffect::NewDocument => {
                 self.start_fresh_document();
             }

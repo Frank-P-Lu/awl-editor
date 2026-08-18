@@ -2,7 +2,7 @@ use super::*;
 
 pub(super) fn apply_deferred_action(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
     let effect = match action {
-        Action::LastBuffer => Effect::Buffer(BufferEffect::Previous { finished: false }),
+        Action::LastBuffer => Effect::Buffer(BufferEffect::Previous),
         Action::NewDocument => Effect::Buffer(BufferEffect::NewDocument),
         Action::KeepTutorial => Effect::RunAction(Action::OpenProject),
         Action::MoveFile => {

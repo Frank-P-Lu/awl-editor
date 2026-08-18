@@ -196,7 +196,7 @@ mod tests {
                     actions::SaveKind::Finish,
                 )),
                 actions::Effect::Daemon(actions::DaemonEffect::NotifyFinished),
-                actions::Effect::Buffer(actions::BufferEffect::Previous { finished: true }),
+                actions::Effect::Buffer(actions::BufferEffect::CloseActive),
             ],
             "the core orders finish-save, daemon notification, then buffer switch"
         );

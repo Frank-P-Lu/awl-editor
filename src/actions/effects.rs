@@ -67,12 +67,15 @@ pub(crate) fn image_reference_text(at_line_start: bool, reference: &str) -> Stri
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BufferEffect {
-    /// Switch to the previous live buffer. `finished` preserves whether the
-    /// request is the final leg of Finish, so headless truthfulness can name
-    /// that unsupported composite without consulting the originating Action.
-    Previous {
-        finished: bool,
-    },
+    /// Switch to the previously-open other buffer, leaving both open.
+    Previous,
+    /// Finish file's final leg: REMOVE the active buffer from the working set,
+    /// rather than parking it behind whatever becomes active. Deliberately its
+    /// own variant instead of a flag on [`Self::Previous`] — the two differ in
+    /// what happens to the buffer being left, which is the whole distinction
+    /// between switching and closing, and a bool spelled that difference as a
+    /// footnote on the wrong verb.
+    CloseActive,
     NewDocument,
     OpenSettings,
     OpenGuide,
@@ -355,7 +358,7 @@ pub(super) fn complete(primary: Effect, action: &Action) -> Transition {
     let mut transition = Transition::new(primary);
     if matches!(action, Action::FinishBuffer) {
         transition.push(Effect::Daemon(DaemonEffect::NotifyFinished));
-        transition.push(Effect::Buffer(BufferEffect::Previous { finished: true }));
+        transition.push(Effect::Buffer(BufferEffect::CloseActive));
     }
     if matches!(
         action,

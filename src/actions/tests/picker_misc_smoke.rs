@@ -722,7 +722,7 @@ fn history_restore_via_set_text_is_one_undoable_edit() {
 fn deferred_effect_matches(action: &Action, effect: &Effect) -> bool {
     match action {
         Action::Quit => effect == &Effect::Quit,
-        Action::LastBuffer => effect == &Effect::Buffer(BufferEffect::Previous { finished: false }),
+        Action::LastBuffer => effect == &Effect::Buffer(BufferEffect::Previous),
         Action::NewDocument => effect == &Effect::Buffer(BufferEffect::NewDocument),
         Action::KeepTutorial => effect == &Effect::RunAction(Action::OpenProject),
         Action::OpenGuide => effect == &Effect::Buffer(BufferEffect::OpenGuide),

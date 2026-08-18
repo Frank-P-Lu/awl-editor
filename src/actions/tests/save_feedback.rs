@@ -90,7 +90,7 @@ fn core_finish_transition_never_saves_and_orders_save_notify_switch() {
             &[
                 Effect::Persistence(PersistenceEffect::Save(SaveKind::Finish)),
                 Effect::Daemon(DaemonEffect::NotifyFinished),
-                Effect::Buffer(BufferEffect::Previous { finished: true }),
+                Effect::Buffer(BufferEffect::CloseActive),
             ]
         );
         assert!(

@@ -771,7 +771,10 @@ impl App {
 
     fn apply_buffer_effect(&mut self, effect: actions::BufferEffect) {
         match effect {
-            actions::BufferEffect::Previous { .. } => self.last_buffer_toggle(),
+            actions::BufferEffect::Previous => self.last_buffer_toggle(),
+            // Still the park-and-switch it has always been; the removal owner
+            // lands on top of this split.
+            actions::BufferEffect::CloseActive => self.last_buffer_toggle(),
             actions::BufferEffect::NewDocument => self.new_document(),
             actions::BufferEffect::OpenSettings => self.open_settings(),
             actions::BufferEffect::OpenGuide => self.open_guide(),

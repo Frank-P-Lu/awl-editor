@@ -50,16 +50,25 @@ pub(super) fn classify_buffer(effect: &crate::actions::BufferEffect) -> Classifi
         crate::actions::BufferEffect::OpenReference => {
             named("open_reference", EffectClass::Applied)
         }
-        crate::actions::BufferEffect::Previous { finished } => named(
-            if *finished {
-                "finish_buffer"
-            } else {
-                "last_buffer"
-            },
+        crate::actions::BufferEffect::Previous => named(
+            "last_buffer",
             EffectClass::Unsupported {
                 why: concat!(
                     "the 2-deep buffer history is live-App-only; ",
                     "the buffer switch would not happen"
+                ),
+            },
+        ),
+        // Named `finish_buffer` because that is the composite a reader of a
+        // sidecar is looking for, and the name predates the effect carrying its
+        // own variant — changing it would churn every recorded capture without
+        // telling anyone anything new.
+        crate::actions::BufferEffect::CloseActive => named(
+            "finish_buffer",
+            EffectClass::Unsupported {
+                why: concat!(
+                    "closing the active buffer is live-App-only; ",
+                    "replay owns no working set to remove it from"
                 ),
             },
         ),
