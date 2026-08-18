@@ -1127,3 +1127,143 @@ fn hud_about_and_menu_dropdown_already_carry_unconditional_elevation() {
 
     theme::set_active(theme::DEFAULT_THEME);
 }
+
+/// THE WORKING-SET STACK'S PLATE JOINS THE INVERSION ROSTER, at the
+/// REAL-PIXEL seam (the sidecar tripwire this whole file is named for:
+/// `selected_index` reads correctly while the row it names renders
+/// invisible).
+///
+/// On a one-bit world the active stack row's plate fills at page-inverse
+/// (`theme::surface_selected()`, which collapses to `base_content` — pure
+/// white on Wagtail — whenever a world's own `base_200`/`base_300` steps are
+/// equal). The row's own filename used to be drawn in the SAME page-inverse
+/// value (`muted`, also pure white on Wagtail) regardless of what it sat on —
+/// so the one file you are actually editing was the one row you could not
+/// read. `gutter_stack::stack_spans` now routes the active row's ink through
+/// `theme::selected_row_secondary_ink`, the SAME "ink over a filled plate
+/// inverts" mechanism this file already proves for the picker's own selected
+/// row (`wagtail_picker_selected_row_is_crisp_black_on_a_solid_white_band`
+/// above) and the toast rim.
+///
+/// Enrolment is DERIVED FROM THE ROSTER (`Theme::is_one_bit()`), never a
+/// hardcoded "Wagtail" — a second one-bit world is swept for free. Two
+/// independent floors, not one, so this cannot pass on a broken frame:
+///   1. PRESENCE — the plate itself must actually be there, a wide run of
+///      pure-white pixels riding the row (a plate fallen back to the bare
+///      margin ground, or faded to near-nothing, fails here even if some
+///      stray pixel happens to read dark);
+///   2. LEGIBILITY — the darkest pixel inside that same band must reach
+///      genuine near-black (the recolored glyph ink). The shipped bug (ink ==
+///      plate, both pure white) leaves NO dark pixel anywhere in the band —
+///      this is the assertion that fails on it, and only on it: a plate with
+///      no ink at all would still pass (1) while failing (2), and ink with no
+///      plate under it would fail (1) while (2) alone says nothing about
+///      whether the row is doing anything, which is why neither floor is
+///      dropped in favour of the other.
+#[test]
+fn wagtail_stack_active_row_label_reads_legible_on_its_own_plate() {
+    let _g = crate::testlock::serial();
+    let Some((device, queue, mut p)) = headless_dqp(1600.0, 800.0) else {
+        eprintln!("skipping the stack-plate legibility law: no wgpu adapter");
+        return;
+    };
+    let _g = crate::testlock::serial();
+    const W: u32 = 1600;
+    const H: u32 = 800;
+
+    crate::page::set_page_on(true);
+    p.set_dpi(1.0);
+
+    let one_bit: Vec<&theme::Theme> = theme::THEMES.iter().filter(|t| t.is_one_bit()).collect();
+    assert!(
+        !one_bit.is_empty(),
+        "no one-bit world found — Wagtail's 2026-07 rework should make this non-empty"
+    );
+
+    let mut judged = Vec::new();
+    for world in &one_bit {
+        theme::set_active_by_name(world.name).unwrap();
+        // The active row is the MIDDLE slot, same as the sibling ratio law in
+        // `gutter_stack_pixels.rs` — a rule pinned to the first or last row
+        // would pass a single-row-position test.
+        let v = super::gutter_stack_pixels::stack_view(1);
+        p.set_view(&v);
+        // THE EXACT DRAWN RECT, off the SAME production door `prepare_gutter`
+        // fills `gutter_stack_plate` from — never reconstructed padding
+        // arithmetic by hand. A rect derived any other way risks landing on
+        // the plate's own rounded-corner antialiasing (`PLATE_CORNER_PX`)
+        // rather than its flat interior, which reads as spuriously "dark"
+        // regardless of what ink the row actually drew — the failure this
+        // law's own first cut hit (a hand-estimated x-span reached a corner
+        // pixel blended against the black margin beyond the plate, satisfying
+        // the legibility floor for free even under the reinstated bug).
+        let plate = p
+            .gutter_stack_plate_rect(H)
+            .unwrap_or_else(|| panic!("{}: the active row has no plate", world.name));
+        let [px, py, pw, ph] = plate;
+        assert!(
+            pw > 8.0 && ph > 8.0,
+            "{}: plate {plate:?} is too small to inset away from its own corners",
+            world.name
+        );
+
+        p.prepare(&device, &queue, W, H).unwrap();
+        let (texture, tview) = super::dither::offscreen(&device, W, H);
+        let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+            label: Some("awl one-bit stack-row encoder"),
+        });
+        p.render(&mut encoder, &tview).unwrap();
+        queue.submit(Some(encoder.finish()));
+        let pixels = super::dither::read_pixels(&device, &queue, &texture, W, H);
+        let at = |x: i64, y: i64| pixels[(y as u32 * W + x as u32) as usize];
+
+        // INSET a few px past the corner radius on every side — clear of the
+        // rounded corner's antialiased blend against the margin beyond the
+        // plate, so every sampled pixel is either flat plate fill or real
+        // glyph ink, never edge blur.
+        const INSET: f32 = 5.0;
+        let x0 = ((px + INSET) as i64).clamp(0, W as i64 - 1);
+        let x1 = ((px + pw - INSET) as i64).clamp(x0 + 1, W as i64);
+        let y0 = ((py + INSET) as i64).clamp(0, H as i64 - 1);
+        let y1 = ((py + ph - INSET) as i64).clamp(y0 + 1, H as i64);
+
+        let mut darkest = 255u8;
+        let mut white_count = 0usize;
+        let mut total = 0usize;
+        for y in y0..y1 {
+            for x in x0..x1 {
+                let c = at(x, y);
+                if c == [255, 255, 255, 255] {
+                    white_count += 1;
+                }
+                darkest = darkest.min(c[0]);
+                total += 1;
+            }
+        }
+        assert!(
+            white_count as f32 > total as f32 * 0.3,
+            "{}: PRESENCE — the plate's own interior must be mostly pure-white fill \
+             ({white_count} white px of {total} sampled); a plate fallen back to bare \
+             margin (or faded to nothing) fails here",
+            world.name
+        );
+        assert!(
+            darkest < 60,
+            "{}: LEGIBILITY — the active row's own label must reach genuine near-black ink \
+             riding its plate (darkest pixel found in-plate: {darkest}); a value near 255 \
+             means the label vanished into its own plate — the Wagtail sidecar-vs-pixels \
+             tripwire",
+            world.name
+        );
+        judged.push(world.name);
+    }
+    assert_eq!(
+        judged.len(),
+        one_bit.len(),
+        "only {} of {} one-bit worlds were judged: {judged:?}",
+        judged.len(),
+        one_bit.len()
+    );
+
+    theme::set_active(theme::DEFAULT_THEME);
+}

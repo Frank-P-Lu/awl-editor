@@ -20,7 +20,10 @@ use crate::workingset::StackRow;
 const W: u32 = 1600;
 const H: u32 = 800;
 
-fn stack_view(active: usize) -> ViewState {
+/// `pub(super)`: reused by `one_bit.rs`'s active-row-on-its-own-plate law, so
+/// the two files drive the SAME three-file fixture rather than each keeping a
+/// copy that can drift apart.
+pub(super) fn stack_view(active: usize) -> ViewState {
     let mut v = view(
         "# A document\n\nSome prose to give the page a body.\n",
         0,
@@ -71,7 +74,7 @@ fn dist(a: [u8; 4], b: [u8; 4]) -> f32 {
 /// law honest about what the frame contains: if the stack stopped drawing rows,
 /// the bands would vanish with them rather than being recomputed from a formula
 /// that is still true of a block nobody drew.
-fn row_bands(seeds: &[[f32; 4]]) -> Vec<[f32; 4]> {
+pub(super) fn row_bands(seeds: &[[f32; 4]]) -> Vec<[f32; 4]> {
     let mut centres: Vec<f32> = Vec::new();
     for s in seeds {
         if !centres.iter().any(|c| (c - s[2]).abs() < 0.5) {

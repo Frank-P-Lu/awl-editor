@@ -403,6 +403,44 @@ impl TextPipeline {
         seeds
     }
 
+    /// THE ACTIVE STACK ROW'S PLATE RECT `[x, y, w, h]`, off the EXACT SAME
+    /// layout + planner rows [`Self::prepare_gutter`] draws
+    /// `gutter_stack_plate` from — `None` when nothing is plated (a
+    /// single-file margin, or the gutter itself hidden/off).
+    ///
+    /// Exists for real-pixel laws that need to sample INSIDE the plate without
+    /// re-deriving its padding arithmetic by hand (`render/tests/one_bit.rs`'s
+    /// stack-plate legibility law): a rect computed any differently than what
+    /// production actually filled would defeat the point of testing pixels —
+    /// the same reasoning [`Self::gutter_frost_seeds`] already documents for
+    /// itself, one door over.
+    #[cfg(test)]
+    pub(in crate::render) fn gutter_stack_plate_rect(&self, height: u32) -> Option<[f32; 4]> {
+        let layout = self.gutter_layout()?;
+        let label = crate::markdown::type_scale::LABEL;
+        let row_h = self.metrics.line_height * label;
+        if row_h <= 0.0 {
+            return None;
+        }
+        let stack = crate::render::plan::plan_gutter_stack(
+            height as f32,
+            layout.avail,
+            row_h,
+            layout.lines().len(),
+            self.metrics.px_physical(super::readout::CANVAS_INSET),
+            GUTTER_CARVE_BREATH.0,
+        );
+        let label_char_w = self.metrics.char_width * label;
+        gutter_stack::plate_rects(
+            &layout,
+            &stack,
+            label_char_w,
+            row_h * gutter_stack::PLATE_PAD_X.0,
+        )
+        .into_iter()
+        .next()
+    }
+
     /// The page-mode GUTTER state for the capture sidecar: `Some((name, project))`
     /// EXACTLY when the gutter is drawn (page mode on, a buffer name, a margin past
     /// the hard floor — the same gate as [`Self::prepare_gutter`]), else `None`.

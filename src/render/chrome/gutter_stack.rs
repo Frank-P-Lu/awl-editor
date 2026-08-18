@@ -123,21 +123,43 @@ pub(super) fn fit_rows(rows: &[crate::workingset::StackRow], budget: usize) -> V
 /// The stack's rich-text spans in draw order, each carrying the ink it wears.
 ///
 /// TWO AXES OF VALUE, both drawn from the block's existing two-step ladder
-/// rather than a new ink: the ACTIVE row's name is `muted` — the same ink the
-/// single-file identity has always spent on the filename — and every other row's
-/// is `faint`, so the reader's current file is the one that comes forward. A
-/// row's LOCATION is `faint` throughout, quieter than the name it qualifies on
-/// the row that matters.
+/// rather than a new ink: the ACTIVE row's name wants `muted` — the same ink
+/// the single-file identity has always spent on the filename — and every other
+/// row's is `faint`, so the reader's current file is the one that comes
+/// forward. A row's LOCATION is `faint` throughout, quieter than the name it
+/// qualifies on the row that matters.
+///
+/// The active row's name is drawn ON [`plate_rect`]'s own fill
+/// (`theme::surface_selected()`), not on the bare margin — so `muted` alone is
+/// only ever a DEFAULT, never the final answer. It is routed through
+/// [`theme::selected_row_secondary_ink`], the SAME ink-legibility mechanism the
+/// picker row's own secondary ink and the toast rim already use
+/// (`render/chrome/overlay_rows.rs`, `overlay_visual_sel.rs`): the function
+/// keeps `muted` wherever it already contrasts against the plate (every
+/// ordinary world, byte-identical to before) and falls back to whichever of
+/// the page's two poles reads better only where it does not — which is
+/// Wagtail, where the plate fills at page-inverse (`base_content`) and `muted`
+/// is the SAME page-inverse value, so the unrouted ink used to vanish into its
+/// own plate (the sidecar-vs-pixels tripwire: `selected_index` reads correctly
+/// while the row renders unreadable).
 ///
 /// Rows are joined by carrying a leading newline on the first span of every row
 /// after the first, so an absent location cannot swallow a line break.
+///
+/// Bails before touching the theme at all when `lines` is empty — the
+/// single-file margin's own no-op path, and it keeps that path from becoming
+/// an unguarded reader of the process-global active world (`crate::testlock`)
+/// for a frame that will never draw a plate to begin with.
 pub(super) fn stack_spans(lines: &[StackLine]) -> Vec<(String, glyphon::Color)> {
-    let muted = theme::muted().to_glyphon();
+    if lines.is_empty() {
+        return Vec::new();
+    }
+    let active_ink = theme::selected_row_secondary_ink(theme::surface_selected()).to_glyphon();
     let faint = theme::faint().to_glyphon();
     let mut out = Vec::with_capacity(lines.len() * 2);
     for (row, line) in lines.iter().enumerate() {
         let lead = if row == 0 { "" } else { "\n" };
-        let name_ink = if line.active { muted } else { faint };
+        let name_ink = if line.active { active_ink } else { faint };
         let (parent, leaf) = line.text.split_at(line.parent_byte);
         if parent.is_empty() {
             out.push((format!("{lead}{leaf}"), name_ink));

@@ -81,7 +81,12 @@ fn fit_rows_spend_the_budget_on_the_leaf_before_the_location() {
 /// cannot pass by pinning slot 0.
 #[test]
 fn stack_spans_bring_only_the_active_name_forward() {
-    crate::testlock::serial();
+    // `stack_spans` now reads the process-global active theme (the plate's own
+    // fill, to pick the active row's ink) — this held the guard's return value
+    // in a discarded temporary before, an unguarded reader of a swappable
+    // global (CLAUDE.md's testlock discipline) that happened to work only
+    // because nothing else in this test ever wrote the theme.
+    let _g = crate::testlock::serial();
     for active in 0..3 {
         let fitted = fit_rows(&rows(active), 24);
         let spans = stack_spans(&fitted);
