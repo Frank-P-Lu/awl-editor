@@ -69,8 +69,8 @@ reason = "The clobber-notice predicate MOVED OUT to `app/files/external.rs` besi
 
 [[file_size_mark]]
 file = "src/app/apply.rs"
-lines = 855
-reason = "The conflict workspace's summon reaches the live effect interpreter's one `PersistenceEffect` match and the one `apply_overlay_accept` roster, both exhaustive by design (+6). +34: `sync_theme_font_measured`, the ONE reshape door every live theme-font path runs through. The split-reach preview path shapes the presentable prefix immediately; the quiet-settle owner finishes only the latest highlighted world's tail. +11: `refresh_kill_from_clipboard`'s duplicate-read skip now also requires the active buffer's own kill ring to already equal the OS text, not just the App-global last-written stamp, so a buffer switch cannot leave a Paste reading a kill ring that stamp never actually hydrated. +11: `App::apply_keymap_flavor` — sets the config field, persists it, rebuilds the live keymap, refreshes an open Settings menu, and emits the resulting-flavor notice, replacing the old always-toggling handler."
+lines = 856
+reason = "The conflict workspace's summon reaches the live effect interpreter's one `PersistenceEffect` match and the one `apply_overlay_accept` roster, both exhaustive by design (+6). +34: `sync_theme_font_measured`, the ONE reshape door every live theme-font path runs through. The split-reach preview path shapes the presentable prefix immediately; the quiet-settle owner finishes only the latest highlighted world's tail. +11: `refresh_kill_from_clipboard`'s duplicate-read skip now also requires the active buffer's own kill ring to already equal the OS text, not just the App-global last-written stamp, so a buffer switch cannot leave a Paste reading a kill ring that stamp never actually hydrated. +11: `App::apply_keymap_flavor` — sets the config field, persists it, rebuilds the live keymap, refreshes an open Settings menu, and emits the resulting-flavor notice, replacing the old always-toggling handler. +1: `Previous`/`CloseActive` need two dispatch arms where there was one, now that Finish file's last leg is its own effect."
 
 [[file_size_mark]]
 file = "src/app/files/settings.rs"
@@ -125,7 +125,7 @@ lines = 548
 
 [[file_size_mark]]
 file = "src/buffers.rs"
-lines = 567
+lines = 309
 
 [[file_size_mark]]
 file = "src/capture.rs"
@@ -180,8 +180,7 @@ lines = 475
 
 [[file_size_mark]]
 file = "src/durable.rs"
-lines = 556
-reason = "The per-subject `src/main/tests/<subject>.rs` layout requires seven accounting rows whose counts still total 21. Real-disk fixtures need two further census rows because `InMemoryFs` has no symlink concept; a link requires a real file under `ScratchDir`. The law's `expected` array is the authority for the listed bare-write count. The scenario.rs test carve (moved into scenario/tests.rs) split one accounting row into two. +1: credits_capture.rs's disposable fixture, at the file's own frozen-baseline ceiling."
+lines = 160
 
 [[file_size_mark]]
 file = "src/export/docx.rs"
