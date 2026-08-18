@@ -319,7 +319,7 @@ fn the_successor_skips_the_pathless_scratch_row() {
     // And end to end: with no successor, the close withholds the removal rather
     // than stranding the reader or dropping the buffer.
     assert!(
-        !app.close_active_buffer(),
+        !app.remove_active_entry(),
         "no activatable successor means no removal"
     );
     assert_eq!(

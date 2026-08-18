@@ -351,10 +351,6 @@ mod gutter;
 mod gutter_hidden;
 mod gutter_hit;
 mod gutter_stack;
-/// What a pointer over a working-set row is aiming at. Re-exported for the
-/// App's pointer route, which must dispatch switch and close from the SAME
-/// classifier the drawn row is laid out by.
-pub use gutter_stack::RowIntent;
 mod menubar;
 mod outline;
 mod theme_picker;

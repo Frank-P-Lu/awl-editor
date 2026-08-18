@@ -772,9 +772,7 @@ impl App {
     fn apply_buffer_effect(&mut self, effect: actions::BufferEffect) {
         match effect {
             actions::BufferEffect::Previous => self.last_buffer_toggle(),
-            actions::BufferEffect::CloseActive => {
-                self.close_active_buffer();
-            }
+            actions::BufferEffect::CloseActive => self.close_active_buffer(),
             actions::BufferEffect::NewDocument => self.new_document(),
             actions::BufferEffect::OpenSettings => self.open_settings(),
             actions::BufferEffect::OpenGuide => self.open_guide(),

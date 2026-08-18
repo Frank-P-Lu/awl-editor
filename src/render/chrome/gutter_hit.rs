@@ -24,6 +24,17 @@ pub struct GutterStackHit {
     pub intent: RowIntent,
 }
 
+impl GutterStackHit {
+    /// Did the pointer land on the row's CLOSE zone rather than its switch
+    /// half? Asked here rather than by re-exporting [`RowIntent`] for the App to
+    /// match on: the classifier stays private to the renderer that lays the row
+    /// out, and the pointer route reads one predicate off the hit it already
+    /// holds instead of a second copy of the same arithmetic.
+    pub fn is_close(&self) -> bool {
+        matches!(self.intent, RowIntent::Close)
+    }
+}
+
 impl TextPipeline {
     /// The block's planner rows for this frame, off the SAME layout the glyphs
     /// are laid from. Both routes below read it, so neither hit-tests against

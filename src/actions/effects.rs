@@ -69,12 +69,9 @@ pub(crate) fn image_reference_text(at_line_start: bool, reference: &str) -> Stri
 pub enum BufferEffect {
     /// Switch to the previously-open other buffer, leaving both open.
     Previous,
-    /// Finish file's final leg: REMOVE the active buffer from the working set,
-    /// rather than parking it behind whatever becomes active. Deliberately its
-    /// own variant instead of a flag on [`Self::Previous`] — the two differ in
-    /// what happens to the buffer being left, which is the whole distinction
-    /// between switching and closing, and a bool spelled that difference as a
-    /// footnote on the wrong verb.
+    /// Finish file's final leg: REMOVE the active buffer from the working set
+    /// rather than parking it. Its own variant rather than a flag on Previous:
+    /// switching and closing differ in what happens to the buffer left behind.
     CloseActive,
     NewDocument,
     OpenSettings,

@@ -76,7 +76,7 @@ impl App {
     ///
     /// The row's RIGHT-EDGE close zone routes to [`App::close_buffer`] — the one
     /// removal owner — and the rest of the band still switches. Both meanings
-    /// come from [`crate::render::RowIntent`], the same
+    /// come from [`crate::render::chrome::gutter_stack::row_intent`], the same
     /// classifier any drawn affordance reads, so what the pointer accepts and
     /// what the reader is shown cannot disagree once that affordance exists.
     ///
@@ -92,17 +92,12 @@ impl App {
         let Some(hit) = hit else {
             return false;
         };
-        match hit.intent {
-            crate::render::RowIntent::Switch => {
-                if let Some(path) = self.gutter_stack_row_path(hit.row) {
-                    self.load_path(path);
-                }
+        if hit.is_close() {
+            if let Some(key) = self.gutter_stack_row_key(hit.row) {
+                self.close_buffer(key);
             }
-            crate::render::RowIntent::Close => {
-                if let Some(key) = self.gutter_stack_row_key(hit.row) {
-                    self.close_buffer(key);
-                }
-            }
+        } else if let Some(path) = self.gutter_stack_row_path(hit.row) {
+            self.load_path(path);
         }
         true
     }

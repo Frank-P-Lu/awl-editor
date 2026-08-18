@@ -86,7 +86,7 @@ impl App {
             return CloseOutcome::Refused;
         }
         self.notify_finished_buffer();
-        if self.close_active_buffer() {
+        if self.remove_active_entry() {
             CloseOutcome::Closed
         } else {
             CloseOutcome::Refused
@@ -106,8 +106,14 @@ impl App {
     /// [`Self::load_path`], the one file-open door every picker, the Last-file
     /// toggle and the daemon handoff already share, so the arriving document
     /// restores its own project root exactly as it does on any other open.
-    /// Returns whether the entry was actually removed.
-    pub(in crate::app) fn close_active_buffer(&mut self) -> bool {
+    /// The effect interpreter's arm, which has no use for the answer.
+    pub(in crate::app) fn close_active_buffer(&mut self) {
+        self.remove_active_entry();
+    }
+
+    /// The removal itself, reporting whether anything was removed so the
+    /// pointer route can tell a refusal from a close.
+    fn remove_active_entry(&mut self) -> bool {
         if self.change_unresolved() {
             return false;
         }
@@ -212,8 +218,8 @@ impl App {
         if let Some(text) = self.document.parked_text(key) {
             crate::history::record(path, &text, &self.config);
         }
-        self.document
-            .record_parked_saved(key, crate::external::Seen::after_write(path, &bytes));
+        // No saved-version bookkeeping: a successful parked save is always
+        // followed by discarding the entry, so there is no later reader.
         let _ = seen;
         true
     }

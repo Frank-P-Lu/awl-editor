@@ -106,19 +106,6 @@ impl DocumentSession {
         Some(self.registry.get(key)?.buffer.text())
     }
 
-    /// The entry's version, recorded against the save that just wrote it so a
-    /// re-close of the same untouched entry does not write again.
-    pub(in crate::app) fn record_parked_saved(
-        &mut self,
-        key: &crate::buffers::BufferKey,
-        seen: crate::external::Seen,
-    ) {
-        if let Some(entry) = self.registry.get_mut(key) {
-            entry.extra.doc_saved_version = Some(entry.buffer.version());
-            entry.extra.disk_baseline = seen;
-        }
-    }
-
     /// **THE ONE REMOVAL DOOR.** Drop `key`'s parked entry and its working-set
     /// row together, returning whether anything was there.
     ///
