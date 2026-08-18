@@ -325,6 +325,8 @@ impl App {
         ));
         self.input.apply_key_overrides(&keys_with_web_alt);
         self.input.apply_linux_keep(&cfg.effective_linux_keep());
+        self.input
+            .apply_linux_emacs_meta(cfg.keymap_flavor() == crate::keymap::KeymapFlavor::Emacs);
         // CACHE-KEY DISCIPLINE with `Config::apply_sticky_globals`: an ABSENT
         // key must leave the global AS-IS (the built-in default already
         // carries it), never force it back to ON. The old `unwrap_or(true)`

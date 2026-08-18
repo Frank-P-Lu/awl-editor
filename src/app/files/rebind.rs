@@ -45,6 +45,8 @@ impl App {
         let linux_keep = self.config.effective_linux_keep();
         self.input.apply_key_overrides(&keys_with_web_alt);
         self.input.apply_linux_keep(&linux_keep);
+        self.input
+            .apply_linux_emacs_meta(flavor == crate::keymap::KeymapFlavor::Emacs);
         self.refresh_settings_overlay();
         self.emit_notice(crate::actions::NoticeEffect::Toast(format!(
             "keymap: {}",

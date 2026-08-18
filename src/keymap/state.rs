@@ -64,6 +64,7 @@ impl Default for KeymapState {
             override_c_x: HashMap::new(),
             override_c_c: HashMap::new(),
             linux_keep: std::collections::HashSet::new(),
+            linux_emacs_meta: false,
         };
         // Seed the unconditional built-in keep floor (see `apply_linux_keep`'s
         // doc) — so even a `KeymapState` that never has `apply_linux_keep`
@@ -106,14 +107,22 @@ impl KeymapState {
     }
 
     /// [`Self::with_overrides`], ALSO applying the config `linux_keep_emacs` list
-    /// (see [`Self::apply_linux_keep`]) — the real production door every live/
+    /// (see [`Self::apply_linux_keep`]) and the classic-Meta-layer gate (see
+    /// [`Self::set_linux_emacs_meta`]) — the real production door every live/
     /// headless call site should use once it has a [`crate::config::Config`] in
     /// hand (`App::new`, the `--keys` replay keymap built in `main/args.rs`);
     /// `with_overrides` alone
     /// stays as the simpler door for the many call sites (mostly tests) that
-    /// never touch the keep-list.
-    pub fn with_overrides_and_keep(keys: &[(String, Vec<String>)], keep: &[String]) -> Self {
+    /// never touch the keep-list. `linux_emacs_meta` is set BEFORE
+    /// `apply_linux_keep` runs so the one `seed_defaults()` it triggers already
+    /// sees the correct gate — no double reseed.
+    pub fn with_overrides_and_keep(
+        keys: &[(String, Vec<String>)],
+        keep: &[String],
+        linux_emacs_meta: bool,
+    ) -> Self {
         let mut km = Self::with_overrides(keys);
+        km.linux_emacs_meta = linux_emacs_meta;
         km.apply_linux_keep(keep);
         km
     }
@@ -175,6 +184,30 @@ impl KeymapState {
                 );
             }
         }
+
+        // THE CLASSIC META LAYER (item 457) — seeded LAST, after the Shift-
+        // convenience duplication above, so a Meta entry never grows its own
+        // unrequested Shift companion the way an ordinary catalog default does.
+        // Every entry fires an EXISTING catalog `Action`; see
+        // `platform::LINUX_EMACS_META_SEED`'s doc for why `Convention::Mac`
+        // never reaches this branch regardless of the gate's value.
+        if self.convention == Convention::Linux && self.linux_emacs_meta {
+            for (spec, action) in super::platform::LINUX_EMACS_META_SEED {
+                self.insert_default(spec, action.clone(), "linux emacs Meta layer");
+            }
+        }
+    }
+
+    /// Flip the classic-Meta-layer gate (item 457) and reseed — the Meta-layer
+    /// sibling of [`Self::apply_linux_keep`], called right alongside it on every
+    /// door that can change `keymap` flavor live (`App::apply_keymap_flavor`,
+    /// config reload): both halves of a flavor flip land in the same reseed.
+    /// Structurally inert off `Convention::Linux` (see the gate field's own doc
+    /// above), so a caller may pass the raw `flavor == KeymapFlavor::Emacs` bool
+    /// unconditionally, on either convention.
+    pub fn set_linux_emacs_meta(&mut self, active: bool) {
+        self.linux_emacs_meta = active;
+        self.seed_defaults();
     }
 
     fn insert_default(&mut self, spec: &str, action: Action, name: &str) {

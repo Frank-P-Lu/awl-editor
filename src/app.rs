@@ -669,7 +669,11 @@ impl App {
             crate::convention::Convention::current(),
             crate::commands::Platform::current(),
         ));
-        let keymap = startup::keymap(&keys_with_web_alt, &config.effective_linux_keep());
+        let keymap = startup::keymap(
+            &keys_with_web_alt,
+            &config.effective_linux_keep(),
+            config.keymap_flavor() == crate::keymap::KeymapFlavor::Emacs,
+        );
         // Launch resolves the same authored default as every capture and Settings door.
         let zoom = render::clamp_zoom(config.zoom.unwrap_or(crate::range::ZOOM.default));
         let scroll_sensitivity = input::initial_scroll_sensitivity(config.scroll_sensitivity);

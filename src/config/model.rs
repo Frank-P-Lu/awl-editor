@@ -111,6 +111,18 @@ impl Config {
             .unwrap_or_default()
     }
 
+    /// THE ONE COMPOSITION OWNER of the effective Linux keep-list — every
+    /// caller (dispatch, label truth, the rebind menu, this struct's own
+    /// callers) reads the union this function returns, never re-derives it.
+    /// Item 457's native-clipboard carve-out lives HERE and nowhere else: the
+    /// `emacs` flavor preset's own contribution skips `"C-c"`/`"C-v"`
+    /// (`linux_is_native_clipboard_chord`) so Copy/Paste stay native under
+    /// `keymap = "emacs"` — a compositor that forwards Super+C/V as Ctrl+C/V
+    /// (Omarchy/Hyprland) needs no extra config. `"C-x"` is untouched (still
+    /// widened by the preset), so it stays the emacs prefix. The user's own
+    /// explicit `linux_keep_emacs` entries below are NOT filtered — naming
+    /// `"C-c"`/`"C-v"` there is a deliberate per-chord ask, unaffected by the
+    /// preset's own carve-out.
     pub fn effective_linux_keep(&self) -> Vec<String> {
         let mut keep: Vec<String> = crate::keymap::linux_builtin_keep()
             .iter()
@@ -118,6 +130,9 @@ impl Config {
             .collect();
         if self.keymap_flavor() == crate::keymap::KeymapFlavor::Emacs {
             for p in crate::keymap::linux_emacs_preset_keep() {
+                if crate::keymap::linux_is_native_clipboard_chord(&p) {
+                    continue;
+                }
                 if !crate::keymap::linux_keeps_chord(&keep, &p) {
                     keep.push(p);
                 }

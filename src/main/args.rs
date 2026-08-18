@@ -807,7 +807,11 @@ pub(crate) fn parse_args() -> Result<Mode> {
     };
     // The keymap every capture replay resolves through: config `[keys]`
     // rebinds + the `linux_keep_emacs` door, exactly what live `App::new` builds.
-    let km = KeymapState::with_overrides_and_keep(&config.keys, &config.effective_linux_keep());
+    let km = KeymapState::with_overrides_and_keep(
+        &config.keys,
+        &config.effective_linux_keep(),
+        config.keymap_flavor() == crate::keymap::KeymapFlavor::Emacs,
+    );
     // PRECEDENCE: explicit flag > config > built-in default. Fold the config value in
     // BEHIND the flag (the flag wins via `.or`) before the existing resolvers add the
     // built-in default. The Windowed path keeps the RAW flag + config so a live reload
