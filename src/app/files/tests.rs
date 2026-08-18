@@ -123,8 +123,7 @@ fn activating_a_buffer_from_another_root_restores_that_buffers_project() {
 /// document, Go to and Move would use) moves to the NEW one (`archive`) —
 /// item 450 deliberately does not re-sync them.
 #[test]
-fn switch_project_alone_leaves_the_open_files_own_folder_naming_it_while_the_dispatch_root_moves()
-{
+fn switch_project_alone_leaves_the_open_files_own_folder_naming_it_while_the_dispatch_root_moves() {
     let _guard = crate::testlock::serial();
     let mem = Arc::new(
         crate::fs::InMemoryFs::new()

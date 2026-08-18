@@ -600,11 +600,7 @@ fn switch_project_alone_names_the_open_files_folder_while_the_dispatch_root_foll
             theme: Some(world.to_string()),
             ..cfg()
         },
-        canvas: if dpi > 1.0 {
-            Some((2400, 1600))
-        } else {
-            None
-        },
+        canvas: if dpi > 1.0 { Some((2400, 1600)) } else { None },
         dpi: Some(dpi),
     };
 
