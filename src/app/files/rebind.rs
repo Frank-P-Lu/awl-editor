@@ -1,7 +1,7 @@
 //! src/app/files/rebind.rs — THE KEYMAP FLAVOR apply (native/emacs, picked
 //! from the "Keymap…" sub-overlay) and the REBIND MENU's capture commit/reset
-//! + still-open-menu refresh. Peeled out of `files/settings.rs` to keep each
-//! file under the ~500-line ceiling.
+//! and still-open-menu refresh. Peeled out of `files/settings.rs` to keep
+//! each file under the ~500-line ceiling.
 
 use crate::app::*;
 
