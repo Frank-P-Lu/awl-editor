@@ -1,21 +1,20 @@
-//! THE BUFFER-IDENTITY LAW — the regression item 452 exists to prevent.
-//!
-//! Credits used to swap the editor to a real editable buffer
-//! (`App::open_credits` → `open_bundled_doc` → `load_path`), so opening it,
-//! looking at it, and dismissing it silently changed what document you were
-//! editing. `Action::OpenCredits` now performs exactly one thing —
-//! `ctx.journey.enter(...)` plus the same `toggle_detail()` deep link
-//! `Action::CompareVersion` already uses — and neither touches `ctx.buffer`
-//! at all, so the regression is structurally impossible rather than merely
-//! avoided. This file proves it over a real `Buffer` carrying a real path,
-//! driven through the exact `apply_transition` seam `--keys` replay shares.
+//! THE BUFFER-IDENTITY LAW — Credits used to swap the editor to a real
+//! editable buffer (`App::open_credits` → `open_bundled_doc` → `load_path`),
+//! so opening it, looking at it, and dismissing it silently changed what
+//! document you were editing. `Action::OpenCredits` now performs exactly one
+//! thing — `ctx.journey.enter(...)` plus the same `toggle_detail()` deep
+//! link `Action::CompareVersion` already uses — and neither touches
+//! `ctx.buffer` at all, so the regression is structurally impossible rather
+//! than merely avoided. This file proves it over a real `Buffer` carrying a
+//! real path, driven through the exact `apply_transition` seam `--keys`
+//! replay shares.
 //!
 //! MUTATION-PROVED: temporarily reinstating the OLD dispatch — routing
-//! `Action::OpenCredits` through `Effect::Buffer(BufferEffect::OpenCredits)`
-//! and applying it with `ctx.buffer.set_path(...)` (standing in for the live
-//! App's `load_path`, which a pure-core test cannot reach) — turns
+//! `Action::OpenCredits` through a buffer-touching effect and applying it
+//! with `ctx.buffer.set_path(...)` (standing in for the live App's
+//! `load_path`, which a pure-core test cannot reach) — turns
 //! `opening_credits_scrolling_and_dismissing_never_touches_the_active_buffer`
-//! red by name; see the item's landing note for the verbatim panic text.
+//! red by name.
 
 use super::super::*;
 use crate::buffer::Buffer;
