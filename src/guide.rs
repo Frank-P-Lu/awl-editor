@@ -26,7 +26,9 @@
 /// The full text of the repo's `GUIDE.md`, embedded at compile time. The
 /// `include_str!` path itself lives in the ONE owner, `crate::embedded_docs`
 /// (a doc move is a one-line edit there); this re-export keeps `guide::GUIDE_MD`
-/// as the cohesive public name every consumer already imports.
+/// as the cohesive public name every consumer already imports. Test-only —
+/// see `embedded_docs::GUIDE_MD`'s own doc for why.
+#[cfg(test)]
 pub use crate::embedded_docs::GUIDE_MD;
 
 #[cfg(test)]

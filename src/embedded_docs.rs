@@ -21,14 +21,18 @@
 
 /// The repo's `GUIDE.md` — a site/source document (carries the generated
 /// keys table). No in-app door opens it; `guide.rs`'s module doc explains why
-/// it stays in `embedded_docs::STARTING_DOCS` regardless.
+/// it stays in `embedded_docs::STARTING_DOCS` regardless. Test-only: every
+/// remaining consumer (`guide::tests`, `doc_counts_law`, `save_model_law`,
+/// `docs_catalog_law`) is a law, never a production runtime path.
+#[cfg(test)]
 pub const GUIDE_MD: &str = include_str!("../GUIDE.md");
 
 /// The repo's `REFERENCE.md` — the COLD reference, whose every table is
 /// generated from the live rosters and diffed byte-for-byte against them by
-/// `reference::law` (that generator/law machinery is test-only and never
-/// ships). A site/source document only, like `GUIDE_MD` — no in-app door
-/// opens it.
+/// `reference::law` (that generator/law machinery is test-only, native-only,
+/// and never ships). A site/source document only, like `GUIDE_MD` — no
+/// in-app door opens it, and no other consumer remains.
+#[cfg(all(test, not(target_arch = "wasm32")))]
 pub const REFERENCE_MD: &str = include_str!("../REFERENCE.md");
 
 /// `site/reference.html` — the marketing site's copy of the reference. NOT a

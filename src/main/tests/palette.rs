@@ -15,66 +15,6 @@ fn replay_keys_runs_palette_chain_into_overlay() {
     );
 }
 
-#[test]
-fn replay_keys_drives_palette_guide_and_opens_the_guide_buffer() {
-    let mut buffer = Buffer::scratch();
-    let keys = keyspec::parse_keys("s-p g u i d e RET").unwrap();
-    let root = PathBuf::from("/tmp");
-    let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
-    assert!(
-        res.journey.card().is_none(),
-        "the palette closed itself on accept, no overlay left open"
-    );
-    let expected = crate::guide::render(
-        crate::convention::Convention::current(),
-        crate::commands::Platform::current(),
-    );
-    assert_eq!(
-        buffer.text(),
-        expected,
-        "the buffer now holds the token-rendered guide text"
-    );
-    assert!(
-        !buffer.text().contains("{{key:"),
-        "no raw chord token survives in the opened guide"
-    );
-    assert!(
-        buffer.path().is_none(),
-        "headless replay never writes/loads a real on-disk guide.md"
-    );
-}
-
-/// The reference manual's in-app door — proven at
-/// the purest reachable tier: a Rust assertion on the REAL `replay_keys`
-/// door (the same one `--keys` drives), not just `replay::classify_for`'s
-/// bucket. This is exactly the class of gap where an effect that
-/// classifies `Applied` while the interpreter silently drops it would still
-/// pass `the_harness_reach_map_matches_the_production_classifier` (it only
-/// checks the CLASSIFICATION), so the buffer's actual resulting TEXT has to be
-/// asserted here too, mirroring Guide's own test above (Reference carries no
-/// `{{key:}}` chord tokens to substitute, unlike Guide, so the embedded text
-/// opens verbatim — see `reference_doc.rs`'s module doc).
-#[test]
-fn replay_keys_drives_palette_reference_and_opens_the_reference_buffer() {
-    let mut buffer = Buffer::scratch();
-    let keys = keyspec::parse_keys("s-p r e f e r e n c e RET").unwrap();
-    let root = PathBuf::from("/tmp");
-    let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
-    assert!(
-        res.journey.card().is_none(),
-        "the palette closed itself on accept, no overlay left open"
-    );
-    assert_eq!(
-        buffer.text(),
-        crate::reference_doc::REFERENCE_MD,
-        "the buffer now holds the embedded reference text verbatim"
-    );
-    assert!(
-        buffer.path().is_none(),
-        "headless replay never writes/loads a real on-disk reference.md"
-    );
-}
-
 /// "Reduce motion" stands in for an UNCOVERED plain settings row (no
 /// `COVERED_BY` entry). "Keymap" itself is COVERED now, by this item's own
 /// "Keymap…" catalog command — and that command is, in turn, hidden on
