@@ -488,7 +488,7 @@ fn line_endings_command_present_and_rebindable() {
     );
 }
 
-/// **THE ITEM 456 REBIND LAW.** Command palette used to be a hand-written
+/// **THE COMMAND-PALETTE REBIND LAW.** Command palette used to be a hand-written
 /// resolver arm in `keymap::resolve`, invisible to `[keys]` entirely — a user
 /// rebind was silently ignored (`action_for_name` had no catalog row to find).
 /// Now that it is a real catalog command, a `[keys] command_palette = [...]`

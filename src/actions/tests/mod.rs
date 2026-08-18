@@ -1057,9 +1057,9 @@ macro_rules! classify_smoke_command {
         | Action::OpenSettingsMenu
         | Action::OpenKeybindings
         | Action::OpenAssetClean
-        // COMMAND PALETTE: a real catalog command now (item 456), dispatched
-        // identically to Open keybindings above — `ctx.journey.enter((ctx.
-        // make_overlay)(OverlayKind::Command))` — so it is an Opener too.
+        // COMMAND PALETTE: a real catalog command, dispatched identically to
+        // Open keybindings above — `ctx.journey.enter((ctx.make_overlay)
+        // (OverlayKind::Command))` — so it is an Opener too.
         | Action::OpenCommandPalette
         // LINKS V2: the smoke fixture is a markdown buffer with the caret inside
         // an existing link (see the FollowLink note below), so Cmd-K always opens
@@ -1182,8 +1182,8 @@ macro_rules! classify_smoke_command {
         // the actions moved into the catalog, above). Present for
         // exhaustiveness only. `ShowStatsHud` stays here deliberately — the
         // held stats HUD has no catalog row (see `keytoken::SYNTHETIC`'s
-        // doc); `OpenCommandPalette` moved OUT of this group (item 456) once
-        // it became a real catalog command, above.
+        // doc); `OpenCommandPalette` is a real catalog command now and moved
+        // OUT of this group, above.
         Action::InsertChar(_)
         | Action::Newline
         | Action::AcceptAlternate
