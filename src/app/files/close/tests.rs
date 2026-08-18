@@ -271,11 +271,18 @@ fn a_conflicted_inactive_entry_is_refused_and_nothing_is_lost() {
 
 /// THE SUCCESSOR NEVER LANDS ON THE PATH-LESS SCRATCH ROW.
 ///
-/// The axis that is easy to miss: the scratch surface IS a working-set member
-/// and can sit at index 0, so the obvious "take the neighbour" rule hands the
-/// close a slot the one file-open door cannot activate. The close would then
-/// find the active buffer unchanged and refuse — silently doing nothing on a
-/// perfectly ordinary two-file session.
+/// The scratch surface IS a working-set member — launching with no file enrols
+/// it — so the obvious "take the nearest neighbour" rule can hand the close a
+/// slot the one file-open door cannot activate.
+///
+/// ⚠️ THE ARRANGEMENT IS THE WHOLE LAW, and the obvious one proves nothing.
+/// `enrol_active` runs at startup, so the scratch row is ALWAYS slot 0 — which
+/// means in any session with two or more files there is a real file between the
+/// closing slot and the scratch, and the search finds it without ever reaching
+/// the row it is supposed to skip. A mutation that dropped the path requirement
+/// entirely stayed green under exactly that fixture. The state that reaches the
+/// scratch is the ONE-file session: `[scratch, a.txt]`, closing `a.txt`, where
+/// the scratch is the only thing left to search.
 #[test]
 fn the_successor_skips_the_pathless_scratch_row() {
     let _guard = crate::testlock::serial();
@@ -292,30 +299,42 @@ fn the_successor_skips_the_pathless_scratch_row() {
     // and it takes working-set slot 0.
     let mut app = App::new(None, dir.to_path_buf(), None, None, cfg);
     app.load_path(dir.join("a.txt"));
-    app.load_path(dir.join("b.txt"));
     let working = app.document.working_set();
-    assert_eq!(working.len(), 3, "scratch plus two files");
+    assert_eq!(working.len(), 2, "scratch plus the one file");
     assert!(
         working.files()[0].path.is_none(),
-        "precondition: the scratch row is slot 0, ahead of both files"
+        "precondition: the scratch row is slot 0, immediately behind the only file"
     );
 
-    // Closing the FIRST file searches forward, finds b.txt, and never considers
-    // the scratch row behind it.
-    let key = crate::buffers::BufferKey::path(&dir.join("a.txt"));
+    // THE LOAD-BEARING ARM. Backward from slot 1 reaches ONLY the scratch row,
+    // so a search that did not require a path answers with it here and nowhere
+    // else in any fixture this app can build.
+    let only = crate::buffers::BufferKey::path(&dir.join("a.txt"));
     assert_eq!(
-        app.document.successor_path(&key),
+        app.document.successor_path(&only),
+        None,
+        "the scratch row is not a place the reader can be sent"
+    );
+
+    // And end to end: with no successor, the close withholds the removal rather
+    // than stranding the reader or dropping the buffer.
+    assert!(
+        !app.close_active_buffer(),
+        "no activatable successor means no removal"
+    );
+    assert_eq!(
+        app.document.working_set().len(),
+        2,
+        "both rows survive — the file was not dropped to reach the scratch"
+    );
+
+    // With a second file open the forward search finds it, so the skip above is
+    // a refusal to use the scratch and not a refusal to find anything.
+    app.load_path(dir.join("b.txt"));
+    assert_eq!(
+        app.document.successor_path(&only),
         Some(dir.join("b.txt")),
         "forward search finds the next real file"
-    );
-
-    // Closing the LAST file must search BACKWARD past the scratch row to a.txt,
-    // not stop at the scratch slot immediately before it.
-    let last = crate::buffers::BufferKey::path(&dir.join("b.txt"));
-    assert_eq!(
-        app.document.successor_path(&last),
-        Some(dir.join("a.txt")),
-        "backward search steps OVER the path-less scratch row to a file it can open"
     );
 }
 
