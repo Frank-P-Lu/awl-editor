@@ -386,7 +386,8 @@ mod tests {
     //     and `seed_write_if_absent`. The latter never overwrites existing
     //     content; a tear cannot corrupt a returning visitor's data. The three
     //     production primitives cannot recursively route through themselves.
-    //   src/app/tests/{buffers,lifecycle}.rs, src/app/daemon.rs, src/buffers.rs,
+    //   src/app/tests/{buffers,lifecycle}.rs, src/app/daemon.rs,
+    //   src/app/files/close/tests.rs, src/buffers/tests.rs,
     //   src/daemon.rs, src/history/tests.rs, src/index.rs, src/main/tests/*.rs
     //     — every one of these is INSIDE a `#[cfg(test)]` module, seeding a
     //     real temp-dir fixture file directly (never a durable app store) or
@@ -417,7 +418,19 @@ mod tests {
             // --export-linux-icon`): same class of write, one committed
             // artifact cut into one file a packaging script asked for.
             ("app_icon/mod.rs", 4),
-            ("buffers.rs", 1),
+            // The REMOVAL OWNER's own laws (`app::files::close`). They seed and
+            // then externally rewrite real fixture files on a `ScratchDir`,
+            // because the subject under test is the conflict gate — whose whole
+            // job is to notice that a file moved between two observations.
+            // Routing these through `write_atomic`, or through `InMemoryFs`,
+            // would make the "somebody else wrote it" half unreachable: the
+            // fixture has to write BEHIND the App's back for the gate to have
+            // anything to detect.
+            ("app/files/close/tests.rs", 7),
+            // The registry's own laws, carved out of `buffers.rs` into a
+            // sibling to keep that file under its frozen size baseline. Same
+            // single temp-dir fixture seed it always was, one directory down.
+            ("buffers/tests.rs", 1),
             ("crashlog.rs", 1),
             ("daemon.rs", 1),
             ("durable.rs", 1),
