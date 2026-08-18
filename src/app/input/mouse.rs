@@ -635,6 +635,16 @@ impl App {
                 .pipeline
                 .outline_hit_line(px, py, gpu.config.height)
                 .is_some();
+        // A clickable WORKING-SET STACK ROW (the bottom-left margin identity's
+        // click-to-switch/close list) reads as the same clickable affordance,
+        // reusing the stack's OWN row geometry (`gutter_stack_hit`, which folds in
+        // the whole shown/hidden gate — single-file margin, no page mode, an open
+        // overlay). Only while no overlay is open, matching the outline row above.
+        let over_stack_row = !overlay_open
+            && gpu
+                .pipeline
+                .gutter_stack_hit(px, py, gpu.config.height)
+                .is_some();
         let image_hover = gpu
             .pipeline
             .image_handle_at(px, py)
@@ -683,6 +693,7 @@ impl App {
             over_clickable_lens,
             over_query_input,
             over_outline_row: over_outline_row || over_modified_link,
+            over_stack_row,
             over_menu_hand,
             over_menu_bar,
             over_case_toggle,

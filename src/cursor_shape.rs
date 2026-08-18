@@ -16,6 +16,12 @@ pub struct CursorContext {
     pub over_clickable_lens: bool,
     pub over_query_input: bool,
     pub over_outline_row: bool,
+    /// The pointer is over a WORKING-SET STACK ROW in the bottom-left margin
+    /// identity block — a clickable click-to-switch (or click-to-close) target,
+    /// same affordance class as a margin-outline row. Computed from the stack's
+    /// OWN hit-test (`TextPipeline::gutter_stack_hit`), so a hovered row can
+    /// never disagree with a clickable one.
+    pub over_stack_row: bool,
     /// The pointer is over a CLICKABLE menu-bar TITLE or an open-dropdown ITEM (the
     /// awl-rendered WEB/LINUX menu bar — NOT an overlay). A title/item you can click to
     /// act earns the pointing hand, exactly like a picker row. Computed from the bar's
@@ -112,6 +118,10 @@ pub fn image_handle_icon(handle: ImageHandle) -> CursorIcon {
 ///    click-to-toggle affordance, ranked with the outline row (the two never
 ///    geometrically overlap: the chevron sits in the leading pad, the outline
 ///    further left still, so which one is set never matters, only that either is);
+///    8c. hovering a WORKING-SET STACK ROW (the bottom-left margin identity's
+///    click-to-switch/close list) gets the pointing HAND too, ranked with the
+///    outline row — a different margin surface, so the two never geometrically
+///    overlap, only that either being set earns the hand;
 /// 9. plain document text gets the I-beam;
 /// 10. everywhere else (margins, scrim, gutter) is the plain arrow.
 pub fn cursor_icon_for(ctx: CursorContext) -> CursorIcon {
@@ -138,7 +148,7 @@ pub fn cursor_icon_for(ctx: CursorContext) -> CursorIcon {
         CursorIcon::ColResize
     } else if let Some(handle) = ctx.image_hover {
         image_handle_icon(handle)
-    } else if ctx.over_outline_row || ctx.over_fold_chevron {
+    } else if ctx.over_outline_row || ctx.over_fold_chevron || ctx.over_stack_row {
         CursorIcon::Pointer
     } else if ctx.over_text {
         CursorIcon::Text
@@ -190,6 +200,7 @@ mod tests {
             over_clickable_lens: false,
             over_query_input: false,
             over_outline_row: false,
+            over_stack_row: false,
             over_menu_hand: false,
             over_menu_bar: false,
             over_case_toggle: false,
@@ -216,6 +227,7 @@ mod tests {
             over_clickable_lens: false,
             over_query_input: false,
             over_outline_row: false,
+            over_stack_row: false,
             over_menu_hand: false,
             over_menu_bar: false,
             over_case_toggle: false,
@@ -242,6 +254,7 @@ mod tests {
             over_clickable_lens: false,
             over_query_input: false,
             over_outline_row: false,
+            over_stack_row: false,
             over_menu_hand: false,
             over_menu_bar: false,
             over_case_toggle: false,
@@ -265,6 +278,32 @@ mod tests {
             over_clickable_lens: false,
             over_query_input: false,
             over_outline_row: true,
+            over_stack_row: false,
+            over_menu_hand: false,
+            over_menu_bar: false,
+            over_case_toggle: false,
+            image_drag: None,
+            image_hover: None,
+            over_popover_button: false,
+            over_fold_chevron: false,
+        }
+    }
+
+    /// A context with the working-set STACK-ROW flag set (no overlay — the stack
+    /// is margin chrome, hidden behind an overlay's scrim, so the two never
+    /// co-occur, same as the outline above).
+    fn ctx_stack_row(dragging_edge: bool, over_edge: bool, over_text: bool) -> CursorContext {
+        CursorContext {
+            dragging_edge,
+            dragging_text: false,
+            overlay_open: false,
+            over_edge,
+            over_text,
+            over_clickable_overlay_row: false,
+            over_clickable_lens: false,
+            over_query_input: false,
+            over_outline_row: false,
+            over_stack_row: true,
             over_menu_hand: false,
             over_menu_bar: false,
             over_case_toggle: false,
@@ -286,6 +325,7 @@ mod tests {
             over_clickable_lens: false,
             over_query_input: false,
             over_outline_row: false,
+            over_stack_row: false,
             over_menu_hand: false,
             over_menu_bar: false,
             over_case_toggle: false,
@@ -307,6 +347,7 @@ mod tests {
             over_clickable_lens: true,
             over_query_input: false,
             over_outline_row: false,
+            over_stack_row: false,
             over_menu_hand: false,
             over_menu_bar: false,
             over_case_toggle: false,
@@ -328,6 +369,7 @@ mod tests {
             over_clickable_lens: false,
             over_query_input: true,
             over_outline_row: false,
+            over_stack_row: false,
             over_menu_hand: false,
             over_menu_bar: false,
             over_case_toggle: false,
@@ -598,6 +640,7 @@ mod tests {
             over_clickable_lens: true,
             over_query_input: false,
             over_outline_row: false,
+            over_stack_row: false,
             over_menu_hand: false,
             over_menu_bar: false,
             over_case_toggle: false,
@@ -639,6 +682,7 @@ mod tests {
             over_clickable_lens: false,
             over_query_input: true,
             over_outline_row: false,
+            over_stack_row: false,
             over_menu_hand: false,
             over_menu_bar: false,
             over_case_toggle: false,
@@ -667,6 +711,27 @@ mod tests {
     }
 
     #[test]
+    fn a_working_set_stack_row_is_the_pointing_hand() {
+        // THE BUG THIS CLOSES: a stack row is click-to-switch (and its close
+        // zone click-to-close), same as an outline row, but a hover over it used
+        // to fall all the way through to the plain arrow — a clickable row read
+        // as inert margin. `over_stack_row` must earn the hand exactly like
+        // `over_outline_row` does.
+        assert_eq!(
+            cursor_icon_for(ctx_stack_row(false, false, false)),
+            CursorIcon::Pointer
+        );
+    }
+
+    #[test]
+    fn a_working_set_stack_row_beats_the_plain_text_beneath_it() {
+        assert_eq!(
+            cursor_icon_for(ctx_stack_row(false, false, true)),
+            CursorIcon::Pointer
+        );
+    }
+
+    #[test]
     fn a_format_popover_button_is_the_pointing_hand() {
         // Hovering a popover button reads as a clickable affordance — the pointing
         // hand, exactly like a picker row (the popover never coexists with an
@@ -689,6 +754,7 @@ mod tests {
             over_clickable_lens: false,
             over_query_input: false,
             over_outline_row: false,
+            over_stack_row: false,
             over_menu_hand: true,
             over_menu_bar: true, // the hand is always within the bar surface
             over_case_toggle: false,
@@ -710,6 +776,7 @@ mod tests {
             over_clickable_lens: false,
             over_query_input: false,
             over_outline_row: false,
+            over_stack_row: false,
             over_menu_hand: false,
             over_menu_bar: true,
             over_case_toggle: false,
@@ -763,6 +830,7 @@ mod tests {
             over_clickable_lens: false,
             over_query_input: false,
             over_outline_row: false,
+            over_stack_row: false,
             over_menu_hand: false,
             over_menu_bar: false,
             over_case_toggle: true,
@@ -811,6 +879,18 @@ mod tests {
     }
 
     #[test]
+    fn the_page_edge_still_beats_a_working_set_stack_row() {
+        assert_eq!(
+            cursor_icon_for(ctx_stack_row(false, true, false)),
+            CursorIcon::ColResize
+        );
+        assert_eq!(
+            cursor_icon_for(ctx_stack_row(true, false, false)),
+            CursorIcon::ColResize
+        );
+    }
+
+    #[test]
     fn an_active_edge_drag_still_beats_the_query_input_i_beam() {
         assert_eq!(
             cursor_icon_for(ctx_query(true, false, false)),
@@ -831,6 +911,7 @@ mod tests {
             over_clickable_lens: false,
             over_query_input: false,
             over_outline_row: false,
+            over_stack_row: false,
             over_menu_hand: false,
             over_menu_bar: false,
             over_case_toggle: false,
