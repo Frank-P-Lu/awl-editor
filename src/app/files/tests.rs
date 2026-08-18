@@ -104,6 +104,99 @@ fn activating_a_buffer_from_another_root_restores_that_buffers_project() {
     });
 }
 
+/// **THE HALF ITEM 444's LANE LEFT OPEN, DECIDED (item 450): the bottom
+/// identity always names the ACTIVE FILE's own folder, never the nominally
+/// "active project."** Switch-project alone moves `project_location.root`
+/// without opening or activating a document, so the file that stays on
+/// screen never told the working set anything — `active_root()` must keep
+/// reporting the root it already had, and the identity formatter must read
+/// from it rather than from the ambient `project_location.project.name`.
+///
+/// Driven through the REAL "Switch project" chord (`Action::OpenProject`,
+/// `s-S-p`/`C-S-p`) into the unified Go to picker's `folders` facet — the
+/// same door every real switch takes — not a direct call to
+/// `switch_project`, so a regression in the picker's own row order would
+/// also be caught here.
+///
+/// Both halves of the decision are asserted: the identity's folder line
+/// stays on the OLD root (`notes`) while the DISPATCH root (what New
+/// document, Go to and Move would use) moves to the NEW one (`archive`) —
+/// item 450 deliberately does not re-sync them.
+#[test]
+fn switch_project_alone_leaves_the_open_files_own_folder_naming_it_while_the_dispatch_root_moves()
+{
+    let _guard = crate::testlock::serial();
+    let mem = Arc::new(
+        crate::fs::InMemoryFs::new()
+            .with_dir("/ws/notes")
+            .with_dir("/ws/archive")
+            .with_file("/ws/notes/index.md", "index\n"),
+    );
+    crate::fs::with_fs(mem, || {
+        let mut config = Config::empty();
+        config.workspace = Some(PathBuf::from("/ws"));
+        let mut app = App::new_hermetic(
+            Some(PathBuf::from("/ws/notes/index.md")),
+            PathBuf::from("/ws/notes"),
+            config,
+        );
+        assert_eq!(app.project_location.root, Path::new("/ws/notes"));
+        assert_eq!(
+            app.document.working_set().active_root(),
+            Some(Path::new("/ws/notes")),
+            "the open file's own remembered root, before any switch"
+        );
+
+        // "Switch project…" to `archive`, the real binding, real picker row
+        // order (the facet opens on the WORKSPACE row itself; one `Down`
+        // moves to its first alphabetical child, `archive`, ahead of
+        // `notes`), with NOTHING else — no open, no activate.
+        let open_project = match crate::convention::Convention::current() {
+            crate::convention::Convention::Mac => "s-S-p",
+            crate::convention::Convention::Linux => "C-S-p",
+        };
+        app.press_spec_headless(open_project)
+            .expect("the switch-project chord parses");
+        assert_eq!(
+            app.workspace_state
+                .overlay()
+                .and_then(|o| o.active_facet_id()),
+            Some("folders"),
+            "OpenProject focuses the unified picker's folders facet"
+        );
+        app.press_spec_headless("Down Enter")
+            .expect("accepting the selected row parses");
+        assert!(
+            !app.workspace_state.overlay_open(),
+            "accepting the row closes the picker"
+        );
+
+        // THE DISPATCH ROOT MOVED — Switch project keeps doing exactly what
+        // it says.
+        assert_eq!(
+            app.project_location.root,
+            Path::new("/ws/archive"),
+            "New document / Go to / Move / export must default into the \
+             newly chosen project"
+        );
+
+        // THE IDENTITY DID NOT — no document opened or activated, so the
+        // working set's memory of the visible file's own folder is
+        // untouched, and that is what the gutter must keep naming.
+        assert_eq!(
+            app.document.working_set().active_root(),
+            Some(Path::new("/ws/notes")),
+            "the active file never moved, so its own remembered root must \
+             not follow the ambient project switch"
+        );
+        assert_eq!(
+            app.document.buffer().path(),
+            Some(Path::new("/ws/notes/index.md")),
+            "no document was opened or activated by the switch itself"
+        );
+    });
+}
+
 #[test]
 fn platform_chooser_results_share_the_file_and_folder_owners() {
     let _guard = crate::testlock::serial();

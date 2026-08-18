@@ -208,12 +208,25 @@ impl App {
                 .filter(|o| o.kind == crate::overlay::OverlayKind::Caret)
                 .and_then(|o| o.selected_caret_mode()),
             gutter_name: self.document.buffer().display_name(),
-            gutter_project: self.project_location.project.name.clone(),
-            // The stack is scoped to the root the ACTIVE FILE remembers, which is
-            // the same root the folder line above names — not the ambient active
-            // root, so a buffer activated from another project cannot draw its
-            // siblings under this project's heading. Empty (single file, or no
-            // remembered root yet) leaves the gutter on its pre-stack path.
+            // THE ACTIVE FILE's OWN FOLDER, never the nominally "active project":
+            // DESIGN §5's "position in the filesystem" describes where the open
+            // document actually is, so Switch-project alone (which moves
+            // `project_location.root` without touching the working set) must not
+            // make this line claim the document lives somewhere it does not.
+            // Falls back to the ambient project only when the working set has no
+            // active file at all (empty registry), which does not arise once the
+            // app has enrolled its launch buffer.
+            gutter_project: self
+                .document
+                .working_set()
+                .active_root()
+                .map(crate::project::folder_name)
+                .unwrap_or_else(|| self.project_location.project.name.clone()),
+            // The stack is scoped to the same root the folder line above names —
+            // not the ambient active root, so a buffer activated from another
+            // project cannot draw its siblings under this project's heading.
+            // Empty (single file, or no remembered root yet) leaves the gutter on
+            // its pre-stack path.
             gutter_files: self
                 .document
                 .working_set()

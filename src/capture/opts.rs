@@ -428,19 +428,35 @@ pub struct CaptureOpts {
     /// one door able to reach it, which is exactly the gap `--seed-tree` was
     /// added to close from the other end.
     pub working_set: Vec<crate::workingset::StackRow>,
+    /// THE ACTIVE FILE's OWN REMEMBERED ROOT
+    /// ([`crate::workingset::WorkingSet::active_root`]) — the gutter's project
+    /// LABEL, never the nominally "active project" a Switch-project alone can
+    /// leave the open document sitting outside of. `None` for every capture
+    /// door with no App-owned working set to ask (byte-identical: `fold_gutter`
+    /// then leaves the base project name untouched), which is every ordinary
+    /// `--screenshot`/`--keys` replay — that shared-core path has no per-file
+    /// root memory at all, so it cannot diverge from the ambient project and
+    /// has nothing truer to report.
+    pub gutter_project_root: Option<std::path::PathBuf>,
 }
 
 impl CaptureOpts {
-    /// Fold the GUTTER's two live-App-only facts into the capture's view state:
-    /// the persistent `changed elsewhere` affordance and the working set the
-    /// bottom identity widens into.
+    /// Fold the GUTTER's three live-App-only facts into the capture's view
+    /// state: the persistent `changed elsewhere` affordance, the working set
+    /// the bottom identity widens into, and (item 450) the identity's own
+    /// folder LABEL — the active file's own remembered root, never the
+    /// ambient project `base_viewstate` filled in from `self.project`.
     ///
-    /// One door for both because they are one surface and they share one failure
-    /// mode — a fact the live editor has and the capture path silently drops.
-    /// Both default to "nothing", so every replay capture is byte-identical.
+    /// One door for all three because they are one surface and they share one
+    /// failure mode — a fact the live editor has and the capture path silently
+    /// drops. All default to "nothing", so every replay capture is
+    /// byte-identical.
     pub(super) fn fold_gutter(&self, view: &mut crate::render::ViewState) {
         view.gutter_changed = self.gutter_changed;
         view.gutter_files.clone_from(&self.working_set);
+        if let Some(root) = &self.gutter_project_root {
+            view.gutter_project = crate::project::folder_name(root);
+        }
     }
 
     /// The `semantic` sidecar field: the live-App semantic tree serialized
