@@ -206,7 +206,7 @@ fn the_close_route_resolves_every_row_to_the_same_file_the_switch_route_does() {
             "the drawn group excludes the foreign-root file"
         );
 
-        for (row, _) in labels.iter().enumerate() {
+        for (row, label) in labels.iter().enumerate() {
             let path = app
                 .gutter_stack_row_path(row)
                 .unwrap_or_else(|| panic!("row {row} names a file"));
@@ -216,9 +216,8 @@ fn the_close_route_resolves_every_row_to_the_same_file_the_switch_route_does() {
             assert_eq!(
                 key,
                 crate::buffers::BufferKey::path(&path),
-                "row {row} ({}) resolves to two different buffers depending on which \
-                 half of the row the pointer landed on",
-                labels[row]
+                "row {row} ({label}) resolves to two different buffers depending on which \
+                 half of the row the pointer landed on"
             );
         }
         assert_eq!(

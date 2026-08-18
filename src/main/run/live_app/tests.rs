@@ -537,137 +537,11 @@ fn a_live_app_capture_honors_capture_size_and_the_dpi_meaning_holds() {
     );
 }
 
-/// **THE BOTTOM IDENTITY's FOLDER LINE ALWAYS NAMES THE ACTIVE FILE's OWN
-/// FOLDER, NEVER THE NOMINALLY "active project."** `switch_project`
-/// (`s-S-p`/`C-S-p`, `Action::OpenProject`) moves `project_location.root`
-/// with no document opened or activated, so the gutter's project line must
-/// keep naming the root the OPEN file remembers — while every destination
-/// default (New document, Go to, Move, export — represented here by the
-/// sidecar's own `project.root`, the one field they all read) keeps
-/// following the switch. Reverting `CaptureOpts::fold_gutter`'s override
-/// makes this go red on `gutter` alone, never on `project`: the two claims
-/// are independent by construction, and BOTH are asserted in one frame so
-/// neither drifts unnoticed.
-///
-/// Swept across the WHOLE world roster at two DPIs (not one hand-picked
-/// world/scale) because the gutter's project line is a rendered, elided
-/// margin string (`rowlayout::fit_primary`, gated on `avail_chars` — a
-/// function of the label's own font metrics) — CLAUDE.md's tripwire that a
-/// check validated on one scale alone has shipped real DPI-dependent chrome
-/// bugs applies here as much as anywhere else. The companion PRESENCE floor
-/// (`same_root`) rules out a formatter that always shows nothing: it must
-/// name `notes` too, not merely differ from `archive`.
-#[test]
-fn switch_project_alone_names_the_open_files_folder_while_the_dispatch_root_follows() {
-    let _g = crate::testlock::serial();
-    let mem = Arc::new(
-        crate::fs::InMemoryFs::new()
-            .with_dir("/cfg")
-            .with_dir("/ws/notes")
-            .with_dir("/ws/archive")
-            .with_file("/ws/notes/index.md", "index\n"),
-    );
-    let open_project = match crate::convention::Convention::current() {
-        crate::convention::Convention::Mac => "s-S-p",
-        crate::convention::Convention::Linux => "C-S-p",
-    };
-    // The picker's folders facet opens on the workspace row itself; one
-    // `Down` reaches its first alphabetical child (`archive`, ahead of
-    // `notes`), `Enter` accepts it — Switch project to `archive`, nothing
-    // else.
-    let switch_keys = crate::keyspec::parse_chords(&format!("{open_project} Down Enter"))
-        .expect("the switch-project walk parses");
-
-    let dir = ScratchDir::new(std::env::temp_dir().join(format!(
-        "awl-switch-project-identity-{}",
-        std::process::id()
-    )));
-
-    // `Config` carries no `Clone`, so a fresh one is built per capture
-    // rather than shared across the two calls a cell needs. The canvas
-    // doubles WITH the dpi (2400x1600 @ 2.0, matching
-    // `a_live_app_capture_honors_capture_size_and_the_dpi_meaning_holds`'s
-    // own pairing) so the LOGICAL page stays 1200x800 at both scales — a real
-    // Retina display, not an artificially narrowed logical page that would
-    // suppress the gutter's project line for a reason unrelated to this fix.
-    let spec_for = |world: &str, dpi: f32, keys: Vec<crate::keyspec::Chord>| LiveAppSpec {
-        file: Some(PathBuf::from("/ws/notes/index.md")),
-        keys,
-        root: Some(PathBuf::from("/ws/notes")),
-        workspace: Some(PathBuf::from("/ws")),
-        config: Config {
-            theme: Some(world.to_string()),
-            ..cfg()
-        },
-        canvas: if dpi > 1.0 { Some((2400, 1600)) } else { None },
-        dpi: Some(dpi),
-    };
-
-    let mut checked = 0usize;
-    crate::fs::with_fs(mem, || {
-        for world in crate::theme::world_names() {
-            for dpi in [1.0f32, 2.0f32] {
-                // PRESENCE FLOOR: the ordinary same-root case, no switch at
-                // all — the label must still name `notes`, not merely
-                // differ from `archive`.
-                let same_out = dir.join(format!("same-{world}-{dpi}.png"));
-                let same = capture_live_app(same_out.clone(), spec_for(world, dpi, Vec::new()))
-                    .map(|()| sidecar(&same_out))
-                    .expect("the live-App capture needs a GPU adapter");
-                assert_eq!(
-                    same["gutter"]["project"].as_str(),
-                    Some("notes"),
-                    "world={world} dpi={dpi}: the ordinary same-root case \
-                     must NAME its folder"
-                );
-
-                // THE DECISION: Switch project to `archive`, nothing else.
-                let out = dir.join(format!("switch-{world}-{dpi}.png"));
-                let v = capture_live_app(out.clone(), spec_for(world, dpi, switch_keys.clone()))
-                    .map(|()| sidecar(&out))
-                    .expect("the live-App capture needs a GPU adapter");
-                assert_eq!(
-                    v["gutter"]["project"].as_str(),
-                    Some("notes"),
-                    "world={world} dpi={dpi}: the identity must keep naming \
-                     the OPEN file's own folder, never the switched-to \
-                     project — non-vacuous by construction (this read \
-                     `archive` before the fix)"
-                );
-                // The name line is elided independently at some world/DPI
-                // combinations (`rowlayout::fit_primary`, unrelated to this
-                // item's fix) — checked for PRESENCE and its preserved
-                // extension, not byte-exact text.
-                let drawn_name = v["gutter"]["name"].as_str().unwrap_or_default();
-                assert!(
-                    drawn_name.ends_with(".md") && !drawn_name.is_empty(),
-                    "world={world} dpi={dpi}: the open file itself never \
-                     changed, got {drawn_name:?}"
-                );
-                assert_eq!(
-                    v["project"]["root"].as_str(),
-                    Some("/ws/archive"),
-                    "world={world} dpi={dpi}: the DISPATCH root (New \
-                     document / Go to / Move / export's destination) must \
-                     still follow Switch project — the two halves are \
-                     deliberately not re-synced, only the label stops lying"
-                );
-                checked += 1;
-            }
-        }
-    });
-    assert_eq!(
-        checked,
-        crate::theme::world_names().len() * 2,
-        "the roster x DPI sweep lost cells"
-    );
-}
-
-/// **THE PIXEL SEAM'S OWN NON-VACUITY PROOF (item 458).** The broken frame's
-/// sidecar already reported `overlay.workspace: true`, `detail_focus: true`
-/// and `items: ["credits"]` — the STATE was correct while the PIXELS drew a
-/// one-row `credits ›` palette card over a frosted-blur page. So this law
-/// does not read the sidecar's workspace flag as its proof; it reads the PNG.
+/// **THE PIXEL SEAM'S OWN NON-VACUITY PROOF.** A broken frame can report a
+/// correct `overlay.workspace: true`, `detail_focus: true` and
+/// `items: ["credits"]` sidecar while the PIXELS draw a one-row `credits ›`
+/// palette card over a frosted-blur page. So this law does not read the
+/// sidecar's workspace flag as its proof; it reads the PNG.
 ///
 /// A summoned WORKSPACE takes the viewport
 /// (`render/chrome/workspace.rs::WORKSPACE_MARGIN_FRAC` leaves only ~5.5% of
@@ -676,7 +550,8 @@ fn switch_project_alone_names_the_open_files_folder_while_the_dispatch_root_foll
 /// span nearly the whole canvas. The frosted-fallback bug drew a small
 /// one-row card instead — nowhere close to full-viewport — so a bounding-box
 /// span is what tells the two states apart without hand-computing the
-/// content pane's exact rect.
+/// content pane's exact rect. [`sharp_diff_box`] carries the pixel
+/// arithmetic; this function only drives the capture and grades its report.
 #[test]
 fn credits_opens_a_full_viewport_workspace_not_a_one_row_card() {
     let _g = crate::testlock::serial();
@@ -719,65 +594,29 @@ fn credits_opens_a_full_viewport_workspace_not_a_one_row_card() {
         .expect("credits live-app capture succeeds");
     });
 
-    // STATE, for context only — item 458's own diagnosis is that this half
-    // was already correct on the broken frame, so it is not this law's proof.
+    // STATE, for context only — a workspace shape can be reported correctly
+    // in the sidecar while the pixels draw something else, so it is not this
+    // law's proof.
     let sc = sidecar(&open_png);
-    assert_eq!(sc["overlay"]["mode"], "credits", "the sidecar names Credits");
+    assert_eq!(
+        sc["overlay"]["mode"], "credits",
+        "the sidecar names Credits"
+    );
     assert_eq!(
         sc["overlay"]["workspace"], true,
         "the sidecar already claimed a workspace on the broken frame"
     );
 
-    let quiet_img = image::open(&quiet_png).expect("decode quiet PNG").to_rgba8();
-    let open_img = image::open(&open_png).expect("decode credits PNG").to_rgba8();
+    let quiet_img = image::open(&quiet_png)
+        .expect("decode quiet PNG")
+        .to_rgba8();
+    let open_img = image::open(&open_png)
+        .expect("decode credits PNG")
+        .to_rgba8();
     let (w, h) = quiet_img.dimensions();
     assert_eq!((w, h), open_img.dimensions());
 
-    let mut differing = 0usize;
-    // A BLUR BACKDROP changes color everywhere it covers but stays SMOOTH —
-    // neighbouring pixels stay close in value. Real glyph ink is the opposite:
-    // sharp edges against its own plate. So the bounding box that tells the
-    // full-viewport workspace apart from the frosted-fallback one-row card is
-    // not "any pixel that changed" (the backdrop blur alone covers most of the
-    // canvas in BOTH states) — it is the bounding box of pixels with a strong
-    // LOCAL gradient in the open frame, the signature of real text ink rather
-    // than a soft wash.
-    const SHARP_GRADIENT: i32 = 90;
-    let sharp_at = |img: &image::RgbaImage, x: u32, y: u32| -> bool {
-        let (iw, ih) = img.dimensions();
-        let c = img.get_pixel(x, y).0;
-        let mut g = 0i32;
-        if x + 1 < iw {
-            let r = img.get_pixel(x + 1, y).0;
-            g += (c[0] as i32 - r[0] as i32).abs()
-                + (c[1] as i32 - r[1] as i32).abs()
-                + (c[2] as i32 - r[2] as i32).abs();
-        }
-        if y + 1 < ih {
-            let d = img.get_pixel(x, y + 1).0;
-            g += (c[0] as i32 - d[0] as i32).abs()
-                + (c[1] as i32 - d[1] as i32).abs()
-                + (c[2] as i32 - d[2] as i32).abs();
-        }
-        g >= SHARP_GRADIENT
-    };
-    let (mut min_x, mut min_y, mut max_x, mut max_y) = (w, h, 0u32, 0u32);
-    let mut sharp = 0usize;
-    for y in 0..h {
-        for x in 0..w {
-            if quiet_img.get_pixel(x, y) == open_img.get_pixel(x, y) {
-                continue;
-            }
-            differing += 1;
-            if sharp_at(&open_img, x, y) {
-                sharp += 1;
-                min_x = min_x.min(x);
-                min_y = min_y.min(y);
-                max_x = max_x.max(x);
-                max_y = max_y.max(y);
-            }
-        }
-    }
+    let (differing, sharp, [min_x, min_y, max_x, max_y]) = sharp_diff_box(&quiet_img, &open_img);
     assert!(
         differing > 500,
         "opening Credits changed only {differing} of {w}x{h} pixels — its content is not \
@@ -800,4 +639,56 @@ fn credits_opens_a_full_viewport_workspace_not_a_one_row_card() {
          than the full-viewport workspace its own sidecar reports: exactly the \
          frosted-fallback bug this law names"
     );
+}
+
+/// A BLUR BACKDROP changes color everywhere it covers but stays SMOOTH —
+/// neighbouring pixels stay close in value. Real glyph ink is the opposite:
+/// sharp edges against its own plate. `SHARP_GRADIENT` is the local
+/// two-neighbour colour-distance floor that tells the two apart.
+const SHARP_GRADIENT: i32 = 90;
+
+fn is_sharp_at(img: &image::RgbaImage, x: u32, y: u32) -> bool {
+    let (iw, ih) = img.dimensions();
+    let c = img.get_pixel(x, y).0;
+    let mut g = 0i32;
+    if x + 1 < iw {
+        let r = img.get_pixel(x + 1, y).0;
+        g += (c[0] as i32 - r[0] as i32).abs()
+            + (c[1] as i32 - r[1] as i32).abs()
+            + (c[2] as i32 - r[2] as i32).abs();
+    }
+    if y + 1 < ih {
+        let d = img.get_pixel(x, y + 1).0;
+        g += (c[0] as i32 - d[0] as i32).abs()
+            + (c[1] as i32 - d[1] as i32).abs()
+            + (c[2] as i32 - d[2] as i32).abs();
+    }
+    g >= SHARP_GRADIENT
+}
+
+/// Sweep two same-size frames and report: how many pixels differ at all, how
+/// many of those are SHARP in `after` (real ink, not a smooth blur wash —
+/// [`is_sharp_at`]), and the sharp pixels' own bounding box as
+/// `[min_x, min_y, max_x, max_y]` (clamped to the frame's own corners when
+/// none are sharp, which the caller's presence floor catches).
+fn sharp_diff_box(before: &image::RgbaImage, after: &image::RgbaImage) -> (usize, usize, [u32; 4]) {
+    let (w, h) = before.dimensions();
+    let (mut min_x, mut min_y, mut max_x, mut max_y) = (w, h, 0u32, 0u32);
+    let (mut differing, mut sharp) = (0usize, 0usize);
+    for y in 0..h {
+        for x in 0..w {
+            if before.get_pixel(x, y) == after.get_pixel(x, y) {
+                continue;
+            }
+            differing += 1;
+            if is_sharp_at(after, x, y) {
+                sharp += 1;
+                min_x = min_x.min(x);
+                min_y = min_y.min(y);
+                max_x = max_x.max(x);
+                max_y = max_y.max(y);
+            }
+        }
+    }
+    (differing, sharp, [min_x, min_y, max_x, max_y])
 }

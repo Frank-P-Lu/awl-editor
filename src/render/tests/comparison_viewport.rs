@@ -612,5 +612,8 @@ fn every_timeline_over_comparison_kind_opens_its_content_region_even_lens_less()
         );
         graded += 1;
     }
-    assert_eq!(graded, 3, "History, Conflict and Credits must all be graded");
+    assert_eq!(
+        graded, 3,
+        "History, Conflict and Credits must all be graded"
+    );
 }
