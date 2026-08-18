@@ -187,15 +187,15 @@ fn a_settings_child_returns_to_the_settings_row_it_was_opened_from() {
     crate::caret::clear_override();
 }
 
-/// THE SAME LAW FOR THE KEYMAP PICKER — the item this mirrors: unlike Caret
-/// (which auditions live on move, so Esc must REVERT the process-global) the
-/// Keymap picker never touches anything until Enter, so Esc is a pure
-/// descend/resume with nothing to undo. Only meaningful on
-/// `Convention::Linux` (the row is hidden on `Convention::Mac` —
-/// `settings::row_available_on`); `Convention` is process-frozen, so this
-/// branches on the ambient value rather than forcing one — the same reason
-/// the picker's live-App proof does
-/// (`run::live_app::tests::a_live_app_capture_photographs_a_keymap_pick_an_ordinary_capture_cannot_see`).
+/// THE SAME LAW FOR THE KEYMAP PICKER — unlike Caret (which auditions live
+/// on move, so Esc must REVERT the process-global) the Keymap picker never
+/// touches anything until Enter, so Esc is a pure descend/resume with
+/// nothing to undo. Only meaningful on `Convention::Linux` (the row is
+/// hidden on `Convention::Mac` — `settings::row_available_on`);
+/// `Convention` is process-frozen, so this branches on the ambient value
+/// rather than forcing one — the same reason the picker's live-App proof
+/// does (`run::live_app::tests::
+/// a_live_app_capture_photographs_a_keymap_pick_an_ordinary_capture_cannot_see`).
 #[test]
 fn a_keymap_child_esc_resumes_the_settings_row_it_was_opened_from() {
     if crate::convention::Convention::current() != crate::convention::Convention::Linux {
