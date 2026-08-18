@@ -47,37 +47,6 @@ a prefix; every seeded Meta chord dispatches; a `[keys]` reclaim wins over
 the default in both directions. Mutation: unfilter the preset, watch the C-c
 law go red.
 
-### 454 — Keymap setting becomes a picker with a name people can read (USER DECISION 2026-08-17; ready to build)
-
-🟡 IN PROGRESS — claude, branch claude/item-454-keymap-picker
-
-The palette's "Keymap" row is a `Toggle`: Enter silently flips native↔emacs,
-persists it, closes the palette, and shows nothing
-(`dispatch_settings_row` → `SettingToggle "keymap"`; the refresh no-ops
-because the palette already closed). The user hit exactly this — flipped to
-emacs without knowing, then item 456's stranding. The repo already knows
-silent state flips are wrong: `Action::ConvertLineEndings` carries the comment
-and the notice ("which one am I on" is the question the user has).
-
-Decided: Keymap presents like Caret style — a catalog command ("Keymap…"),
-`COVERED_BY` suppressing the settings row in the palette, descending into a
-sub-overlay picker: one row per flavor, current value pre-selected, Esc
-resumes the palette. No audition; accept applies AND emits a notice naming
-the layout now in effect.
-
-Labels (recommendation — land it and await taste, per standing policy): plain
-language, never "emacs" bare — e.g. "Standard — Ctrl+C copies, Ctrl+V pastes"
-/ "Emacs — Ctrl navigates (C-p, C-n, C-a…)", descriptions in the secondary
-column. On macOS the flavor is structurally inert (`linux_keeps` gates on
-`Convention::Linux`) — hide the command/row there rather than shipping a
-setting that does nothing.
-
-Verify: unit laws at the overlay seam — picker rows, pre-selection,
-Esc-resume, notice text naming the RESULTING flavor. Persistence is App-owned
-(`persist_pref`), so that half drives `--screenshot-app` or the settings unit
-seam per docs/harness-reach.md. Mutation: re-silence the accept, watch the
-notice law go red.
-
 ### 453 — rip out the in-app Guide and Reference (USER DECISION 2026-08-17; ready to build)
 
 Decided: the in-app Guide and Reference doors go. Remove the catalog commands
