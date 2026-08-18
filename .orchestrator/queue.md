@@ -71,38 +71,23 @@ law passes with the shrunk roster; grep for dangling references (docs, About
 card spans, generated config comments, welcome/tour cross-links). Rust +
 docs change: full gate.
 
-### 452 — Credits becomes a summoned read-only viewer (USER DECISION 2026-08-17; ready to build)
+### 458 — 🔵 Credits landed as a full workspace, not the "mini window" the user asked for (TASTE DIVERGENCE, found during item 452)
 
-🟡 IN PROGRESS — claude, branch claude/item-452-credits-viewer
+Item 452 (Credits summoned read-only viewer, landed `19339cd8`) asked for
+"a mini window over the document"; what shipped reuses
+`WorkspaceShape::TimelineOverComparison` — the same full-viewport
+presentation History/Conflict use, with the primary column degenerated to
+one fixed row. The lane's own call: DESIGN.md §5 reads sustained document
+reading as workspace territory, not a brief contextual choice, and no
+smaller read-only surface exists yet to reuse (cards are span lists, not
+document renderers). **Named honestly, not silently landed as
+cheap-to-revert**: a genuine floating mini-window would need new overlay
+geometry, not a one-line revert of this decision.
 
-Help ▸ Credits (and ⌘P → Credits) swaps the editor to a real editable buffer:
-`open_credits` → `open_bundled_doc` (`src/app/files/open.rs:41-68`) writes the
-embedded text to `data_root()/credits.md` and runs ordinary `load_path`. The
-user reports it as disorienting — suddenly you are in another file, with no
-reason to edit it (edits are silently clobbered by the refresh write on next
-open).
-
-Decided: Credits renders in a summoned, scrollable, read-only viewer — a mini
-window over the document, lightly rendered markdown — never a buffer swap.
-DESIGN's summoned-overlays-over-persistent-chrome. No read-only document
-surface exists today: cards are span lists, not document renderers; the
-nearest machinery is the History/Conflict comparison pane
-(`src/overlay/comparison.rs`), read-only by overlay modality. Whether to grow
-that or build a sibling is the lane's call.
-
-Scope: Credits only — item 453 removes Guide/Reference. The on-disk refresh
-copy and its autosave rationale retire with the buffer route. The About
-card's "⌘P → Credits" span stays true; update `docs/licensing.md`'s
-description. The user's forthcoming baked-in starting guide may later share
-this viewer; do not design for it yet.
-
-Verify: read docs/harness-reach.md before promising captures. Overlay
-presence + scroll position land in the sidecar through the one redacting
-writer; `--keys` drives open/scroll/dismiss; pixel arithmetic asserts
-rendered credits text is present and legible across the world roster, with a
-companion presence floor (a viewer faded to the page fails, never passes
-happier). A law asserts the active buffer and its path did NOT change across
-open/dismiss — the regression this item exists to prevent.
+Open the app, ⌘P → Credits, and look: does the full-workspace presentation
+read as intended, or does a smaller floating card belong here instead? If
+the latter, that is new geometry work, not a revert — say so and it goes
+back on the board as its own item.
 
 ### 450 — the bottom identity names the ACTIVE FILE's own folder (USER DECISION 2026-08-17; ready to build)
 
