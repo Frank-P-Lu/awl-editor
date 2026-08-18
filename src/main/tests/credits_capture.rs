@@ -150,6 +150,7 @@ fn contrast(a: [u8; 4], b: [u8; 4]) -> f64 {
 ///     changed region's ink and its own plate clears the WCAG AA text floor
 ///     (4.5:1) — the same `INK_ON_PLATE_MIN` the notice channel's own
 ///     ink/plate law uses (`render/tests/notice.rs`).
+///
 /// A viewer faded toward the page fails PRESENCE outright rather than
 /// passing LEGIBILITY happier, because a `differing.len()` this small — a
 /// document whose ink cannot be told apart from its own quiet baseline —
