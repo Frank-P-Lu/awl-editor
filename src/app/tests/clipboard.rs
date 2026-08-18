@@ -375,8 +375,15 @@ fn copy_file_path_writes_the_exact_absolute_path_to_the_os_clipboard() {
 /// `context_menu::copy_file_path` and this fails by name — an unnamed scratch
 /// document would then push SOME text onto the OS clipboard instead of
 /// leaving it exactly as it started.
+///
+/// An EMPTY `InMemoryFs` is installed first (LOCK ORDER: fs seam before
+/// `testlock`, see `page::test_lock()`'s doc) so `App::new`'s no-argument
+/// scratch-stash restore reads a genuine `NotFound` rather than the real
+/// host's own scratch stash — without this the premise assertion below is
+/// answering a question about this machine, not about the product.
 #[test]
 fn copy_file_path_on_an_unnamed_scratch_document_leaves_the_os_clipboard_untouched() {
+    let _g2 = crate::fs::FsGuard::install(Arc::new(InMemoryFs::new()));
     let _g = crate::testlock::serial();
     let mut app = app_on(None, "/proj", Config::empty());
     assert_eq!(
