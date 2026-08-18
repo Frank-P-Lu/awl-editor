@@ -6,49 +6,6 @@
 
 ## Ready to build
 
-### 457 — the emacs flavor on Linux: native clipboard chords + the classic Meta layer (USER DECISION 2026-08-17; ready to build)
-
-🟡 IN PROGRESS — claude, branch `claude/item-457-linux-emacs-meta`
-
-Today `keymap = "emacs"` on Linux keeps EVERY displaced Ctrl-letter to its
-emacs meaning (`src/config/model.rs:119-125` composes the preset unfiltered):
-C-c and C-x become prefixes, C-v page-down — so Omarchy's Super+C→Ctrl+C
-forwarding lands on `BeginPrefix` and "copy is broken." And the flavor seeds
-no Meta layer: the Option-letter retirement is a macOS platform rule (Option
-types accents) that does not bind Linux Alt.
-
-**Decided, both halves:**
-
-(a) The emacs preset leaves **C-c and C-v native** — Copy/Paste survive the
-compositor forwarding; emacs hands keep C-w cut and C-y paste — while **C-x
-stays the emacs prefix** (it carries save/open; excluding it guts the
-flavor). Filter in the one composition owner, `Config::effective_linux_keep`
-(`src/config/model.rs:114-132`), never at call sites. Purists reclaim c/v via
-`[keys]`; update the generated-config carve-out comment
-(`src/config/write.rs:90-98`) and GUIDE.md's copy — the old recipe is now the
-default and the printed example inverts.
-
-(b) The emacs flavor on Linux seeds the **classic Meta layer**: M-x → command
-palette (a Linux-emacs seeded binding, not a catalog emacs slot — the command
-palette is now a real catalog command, landed: name `"Command palette…"`,
-slug `command_palette`, action `Action::OpenCommandPalette`, native slot
-Cmd-P/C-p, emacs slot deliberately EMPTY — seed M-x to that same action here,
-the same way any other Meta chord in this list seeds a catalog action),
-M-w copy, M-f/M-b word motion, M-d/M-Backspace word delete, M-v page-up,
-M-< / M-> document ends. Linux-only under the flavor; macOS keeps Option for
-typing (`src/keymap/resolve.rs:44-49`) and the flavor stays inert there.
-
-Also owned here: reword CLAUDE.md's "C-c/C-x/C-v stay native" tripwire to the
-new truth (c/v by construction, C-x deliberately emacs).
-
-Verify: re-pin
-`keymap_flavor_emacs_preset_reverts_every_displaced_chord_to_emacs_meaning`
-to the new composition, swept over the whole displaced roster, never a
-hand-picked sample. New laws: Linux+emacs C-c copies, C-v pastes, C-x begins
-a prefix; every seeded Meta chord dispatches; a `[keys]` reclaim wins over
-the default in both directions. Mutation: unfilter the preset, watch the C-c
-law go red.
-
 ### 453 — rip out the in-app Guide and Reference (USER DECISION 2026-08-17; ready to build)
 
 🟡 IN PROGRESS — claude, branch `claude/item-453-remove-guide-reference`
