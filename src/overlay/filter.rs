@@ -139,14 +139,14 @@ impl OverlayState {
         {
             ranked.retain(|&i| !matches!(self.rows[i].meta, RowMeta::GotoHeading { .. }));
         }
-        // The line-jump row is Go to Line's own home on the flat `All` lens
-        // (every other lens's bucket predicate already excludes it -- it is
-        // neither a heading, a file, a folder, nor recent); hide it outright
-        // while the query names no valid target, so a stale/placeholder label
-        // never shows.
+        // The line-jump row lives ONLY on the flat `All` lens -- it owns no
+        // dedicated lens of its own (unlike Headings), and the generic
+        // Files bucket (`!heading && !is_dir`) would otherwise happily claim
+        // it too. Also hide it outright while the query names no valid
+        // target, so a stale/placeholder label never shows.
         if self.kind == OverlayKind::Goto {
-            let has_target = self.goto_line_target().is_some();
-            ranked.retain(|&i| !matches!(self.rows[i].meta, RowMeta::GotoLine { .. }) || has_target);
+            let visible = self.facet_lens == 0 && self.goto_line_target().is_some();
+            ranked.retain(|&i| !matches!(self.rows[i].meta, RowMeta::GotoLine { .. }) || visible);
         }
     }
 

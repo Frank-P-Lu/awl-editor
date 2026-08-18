@@ -58,6 +58,7 @@ mod command_palette;
 mod elision_and_browse;
 mod flat_pickers;
 mod goto_headings;
+mod goto_line;
 mod hints;
 mod history_picker;
 mod hover_keyboard_nav;
