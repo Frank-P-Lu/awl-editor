@@ -1375,13 +1375,20 @@ fn visible_names_and_bindings_are_parallel_and_match_visible() {
 
 #[test]
 fn visible_hidden_mask_gates_finish_buffer_on_the_live_waiter_fact_alone() {
+    // Reveal/Copy-path's own `named_file` gate has its own law right below
+    // this one; hold it `true` here so this test's roster stays scoped to
+    // the waiter/conflict facts it names.
+    let always_named = RowGates {
+        named_file: true,
+        ..Default::default()
+    };
     let corpus = visible();
     let idx = corpus
         .iter()
         .position(|c| c.action == Action::FinishBuffer)
         .expect("FinishBuffer is a real catalog row");
 
-    let mask_no_waiter = visible_hidden_mask(Default::default());
+    let mask_no_waiter = visible_hidden_mask(always_named);
     assert_eq!(
         mask_no_waiter.len(),
         corpus.len(),
@@ -1398,18 +1405,10 @@ fn visible_hidden_mask_gates_finish_buffer_on_the_live_waiter_fact_alone() {
     // `Convention`, a process-frozen fact this test does not force — the
     // separate assertion right after this one names it explicitly instead of
     // baking one ambient convention's answer into an exact-list literal.
-    let hidden_now: Vec<&str> = corpus
-        .iter()
-        .zip(&mask_no_waiter)
-        .filter(|&(_, &h)| h)
-        .map(|(c, _)| c.name)
-        .filter(|&name| name != "Keymap…")
-        .collect();
+    let hidden_now = hidden_row_names(&corpus, &mask_no_waiter);
     assert_eq!(
         hidden_now,
         vec![
-            "Reveal in file manager",
-            "Copy file path",
             "Finish file",
             "Review the change",
             "Save your version",
@@ -1429,7 +1428,7 @@ fn visible_hidden_mask_gates_finish_buffer_on_the_live_waiter_fact_alone() {
 
     let mask_waiting = visible_hidden_mask(RowGates {
         has_waiter: true,
-        ..Default::default()
+        ..always_named
     });
     assert!(
         !mask_waiting[idx],
@@ -1437,55 +1436,65 @@ fn visible_hidden_mask_gates_finish_buffer_on_the_live_waiter_fact_alone() {
     );
     // The waiter fact unmasks the waiter row ALONE — it must not also reveal a
     // row gated on some other fact, which is the drift a single bool invited.
-    let still_hidden: Vec<&str> = corpus
-        .iter()
-        .zip(&mask_waiting)
-        .filter(|&(_, &h)| h)
-        .map(|(c, _)| c.name)
-        .filter(|&name| name != "Keymap…")
-        .collect();
     assert_eq!(
-        still_hidden,
-        vec![
-            "Reveal in file manager",
-            "Copy file path",
-            "Review the change",
-            "Save your version",
-            "Use disk version"
-        ],
+        hidden_row_names(&corpus, &mask_waiting),
+        vec!["Review the change", "Save your version", "Use disk version"],
         "the waiter fact gates the waiter row and nothing else"
     );
 
     // …and the conflict fact, symmetrically.
     let mask_conflicted = visible_hidden_mask(RowGates {
         change_unresolved: true,
-        ..Default::default()
+        ..always_named
     });
-    let hidden_in_conflict: Vec<&str> = corpus
+    assert_eq!(
+        hidden_row_names(&corpus, &mask_conflicted),
+        vec!["Finish file"],
+        "an open conflict reveals both resolutions and nothing else"
+    );
+}
+
+/// The catalog names a `visible_hidden_mask` result actually hides, in
+/// catalog order — the one reader every `RowGates` fact-isolation law in this
+/// file shares, dropping "Keymap…" (runtime-gated on `Convention`, not a
+/// `RowGates` fact — see the assertion right after this helper's first call).
+fn hidden_row_names<'a>(corpus: &[&'a Command], mask: &[bool]) -> Vec<&'a str> {
+    corpus
         .iter()
-        .zip(&mask_conflicted)
+        .zip(mask)
         .filter(|&(_, &h)| h)
         .map(|(c, _)| c.name)
         .filter(|&name| name != "Keymap…")
-        .collect();
-    assert_eq!(
-        hidden_in_conflict,
-        vec!["Reveal in file manager", "Copy file path", "Finish file"],
-        "an open conflict reveals both resolutions and nothing else"
+        .collect()
+}
+
+/// Reveal/Copy-path's own live fact, isolated from the waiter/conflict laws
+/// above the same way they are isolated from it: every other `RowGates` fact
+/// held at its "nothing live" default while only `named_file` varies.
+///
+/// MUTATION TARGET: change `row_hidden`'s `RevealInFileManager |
+/// Action::CopyFilePath` arm to an unconditional `false` and this fails by
+/// name — a scratch document would then offer both rows in the palette.
+#[test]
+fn visible_hidden_mask_gates_reveal_and_copy_path_on_the_named_file_fact_alone() {
+    let corpus = visible();
+    let hidden_unnamed = hidden_row_names(&corpus, &visible_hidden_mask(Default::default()));
+    assert!(
+        hidden_unnamed.contains(&"Reveal in file manager")
+            && hidden_unnamed.contains(&"Copy file path"),
+        "an unnamed scratch document must hide both rows: {hidden_unnamed:?}"
     );
 
-    // …and the named-file fact, symmetrically: Reveal/Copy-path alone unmask.
     let mask_named = visible_hidden_mask(RowGates {
         named_file: true,
         ..Default::default()
     });
-    let hidden_named: Vec<&str> = corpus
-        .iter()
-        .zip(&mask_named)
-        .filter(|&(_, &h)| h)
-        .map(|(c, _)| c.name)
-        .filter(|&name| name != "Keymap…")
-        .collect();
+    let hidden_named = hidden_row_names(&corpus, &mask_named);
+    assert!(
+        !hidden_named.contains(&"Reveal in file manager")
+            && !hidden_named.contains(&"Copy file path"),
+        "a named document must show both rows: {hidden_named:?}"
+    );
     assert_eq!(
         hidden_named,
         vec![

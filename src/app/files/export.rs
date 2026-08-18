@@ -236,12 +236,13 @@ impl App {
 
     /// Point the platform's own file viewer at `path` — the reveal owner,
     /// generalized beyond export writes: a just-exported file, or any other
-    /// document path the `RevealInFileManager` effect names (item 459's
-    /// palette/context-menu door), share this ONE gate rather than a second
-    /// implementation. Returns whether the reveal actually fired, which is
-    /// the seam a test reads: the AppKit call itself cannot be observed from
-    /// a test process, but "the headless arm never reaches it" can be, and
-    /// that is the property the hermetic tiers depend on.
+    /// document path the `RevealInFileManager` effect names (the palette's
+    /// and the working-set context menu's own Reveal doors), share this ONE
+    /// gate rather than a second implementation. Returns whether the reveal
+    /// actually fired, which is the seam a test reads: the AppKit call
+    /// itself cannot be observed from a test process, but "the headless arm
+    /// never reaches it" can be, and that is the property the hermetic
+    /// tiers depend on.
     ///
     /// Gated on a real surface, not on `cfg`: a live window means a person is
     /// watching and the Finder coming forward is the answer they asked for,

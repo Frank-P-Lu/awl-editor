@@ -292,8 +292,8 @@ mod tests {
     }
 
     /// Reveal + Copy-path join the working-set stack's shared filename menu
-    /// (item 444's landing spot: Rename/Move/Duplicate/Version-history) —
-    /// same catalog actions, same door, no second menu-wiring mechanism.
+    /// alongside Rename/Move/Duplicate/Version-history — same catalog
+    /// actions, same door, no second menu-wiring mechanism.
     #[test]
     fn filename_menu_carries_reveal_and_copy_path_on_native() {
         let rows = rows(ContextTarget::Filename, state(), Platform::Native);

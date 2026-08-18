@@ -335,7 +335,7 @@ fn same_buffer_copy_then_paste_twice_keeps_the_redundant_write_read_suppression(
     assert_eq!(app.clipboard_last_written.as_deref(), Some("hi"));
 }
 
-// ── COPY FILE PATH (item 459 slice 3) ─────────────────────────────────────
+// ── COPY FILE PATH ─────────────────────────────────────────────────────────
 //
 // The same real path as `copy_selection`/`paste` above: `Action::CopyFilePath`
 // -> `Effect::Clipboard(WriteKillRing)` -> `sync_kill_to_clipboard` — never a

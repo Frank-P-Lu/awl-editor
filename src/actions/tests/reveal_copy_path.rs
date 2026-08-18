@@ -1,8 +1,8 @@
-//! Reveal-in-file-manager + Copy-file-path: the pure-core half of item 459's
-//! third slice. Both actions need a real on-disk path; a path-less scratch
-//! buffer is the one axis worth sweeping here — everything live-only (the
-//! actual Finder handoff, the OS clipboard write) is proven at its own seam
-//! (`app::files::export::tests` for the shared reveal gate,
+//! Reveal-in-file-manager + Copy-file-path: the pure-core half of the two
+//! ordinary-file catalog commands. Both actions need a real on-disk path; a
+//! path-less scratch buffer is the one axis worth sweeping here — everything
+//! live-only (the actual Finder handoff, the OS clipboard write) is proven at
+//! its own seam (`app::files::export::tests` for the shared reveal gate,
 //! `app::tests::clipboard` for the OS clipboard mirror).
 
 use super::super::*;
