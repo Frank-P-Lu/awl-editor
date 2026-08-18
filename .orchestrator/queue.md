@@ -8,6 +8,9 @@
 
 ### 459 — complete the ordinary-file vocabulary: Trash, Save a Copy, reveal/path, Go to line (USER DECISION 2026-08-18; ready to build in slices)
 
+🟡 IN PROGRESS on slice 3 (Reveal/Copy Path) — claude, branch `claude/item-459-reveal-copy-path`
+🟡 IN PROGRESS on slice 4 (Go to Line) — claude, branch `claude/item-459-goto-line`
+
 awl is a complete home for ordinary Markdown files, and the current file verbs
 stop one step short of that promise. Add the five agreed capabilities below as
 one coherent filesystem-completeness pass. They are independently shippable;
@@ -184,6 +187,8 @@ parked entry is essentially never dirty — the parked-conflict path is mainly
 reachable via `autosave = false`.
 
 **Residual, in the order the landed work sets up:**
+
+🟡 IN PROGRESS on residual 1(b)+(d) (cursor + Wagtail legibility) — claude, branch `claude/item-444-cursor-wagtail`
 
 1. **Hover-reveal close affordance + row cursor + folder-line distinction
    (USER-REPORTED 2026-08-18 on the live app, three findings in one look).**
