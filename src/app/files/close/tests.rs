@@ -385,3 +385,124 @@ fn closing_a_file_clears_it_as_the_last_file_target() {
         "the closed file is no longer the Last file target"
     );
 }
+
+/// The DAEMON half, which needs a real socket pair and therefore the same cfg
+/// gate `crate::daemon` itself carries: under `mas` the daemon module compiles
+/// out entirely, and wasm has no unix sockets.
+#[cfg(all(not(target_arch = "wasm32"), not(feature = "mas")))]
+mod waiters {
+    use super::*;
+    use std::io::{BufRead, BufReader, Read};
+    use std::os::unix::net::UnixStream;
+
+    /// Register a mocked `--wait` client on `key`: a real connected pair, no
+    /// listener and no socket file. Returns OUR end of it.
+    fn park_waiter(
+        app: &mut App,
+        path: &std::path::Path,
+        key: crate::buffers::BufferKey,
+    ) -> UnixStream {
+        let (mine, theirs) = UnixStream::pair().expect("unix socketpair");
+        app.wait_conns
+            .entry(key)
+            .or_default()
+            .push(crate::daemon::Waiter::new(path.to_path_buf(), theirs));
+        mine
+    }
+
+    /// A `--wait` CLIENT BLOCKED ON A FILE THAT IS NOT ACTIVE is still notified
+    /// when that file closes.
+    ///
+    /// The third of the three missing pieces. The notification used to be
+    /// derived from `self.document.buffer()`, so a client blocked on a file the
+    /// reader had since switched away from could only be released by switching
+    /// back to it first. Keying it makes the question "who is waiting on THIS
+    /// file", which is what the client actually asked.
+    #[test]
+    fn a_daemon_waiter_on_a_parked_file_is_notified_when_that_file_closes() {
+        let _guard = crate::testlock::serial();
+        let mut s = Session::new("waiter-parked");
+        let a = s.a();
+        let key = crate::buffers::BufferKey::path(&a);
+        let mine = park_waiter(&mut s.app, &a, key.clone());
+        assert_eq!(
+            s.app.document.buffer().path(),
+            Some(s.b().as_path()),
+            "precondition: the waited-on file is PARKED, not the active one"
+        );
+
+        assert_eq!(s.app.close_buffer(key), CloseOutcome::Closed);
+
+        let mut reader = BufReader::new(mine);
+        let mut line = String::new();
+        reader.read_line(&mut line).unwrap();
+        assert_eq!(
+            line,
+            crate::daemon::format_done(&a),
+            "the client blocked on the PARKED file was told about that file"
+        );
+        let mut rest = String::new();
+        assert_eq!(
+            reader.read_line(&mut rest).unwrap(),
+            0,
+            "and its connection closed right after"
+        );
+        assert!(
+            !s.app
+                .wait_conns
+                .contains_key(&crate::buffers::BufferKey::path(&a)),
+            "the notified entry is drained"
+        );
+    }
+
+    /// A REFUSED ⌘W LEAVES THE WAITER CONNECTED.
+    ///
+    /// The conflict gate declines to write, so `done` would be a false claim
+    /// about the file: the client would proceed with the version on disk, which
+    /// is the one the user has not chosen. Asserted by a NON-BLOCKING read that
+    /// must report `WouldBlock` — not EOF, which is itself a valid "done" signal
+    /// to a real client (dropping a `Waiter` closes its socket), and not data.
+    /// Reading for silence is the only assertion that separates all three.
+    #[test]
+    fn a_held_conflict_leaves_the_daemon_waiter_connected() {
+        let _guard = crate::testlock::serial();
+        let mut s = Session::without_autosave("waiter-conflict");
+        // Make the ACTIVE file conflicted: edited here, moved on disk.
+        s.app.document.set_text("beta\nmy version\n");
+        std::fs::write(s.b(), "beta\ntheir version\n").unwrap();
+        let b = s.b();
+        let key = crate::buffers::BufferKey::path(&b);
+        let mine = park_waiter(&mut s.app, &b, key);
+
+        drive_finish_file(&mut s.app);
+
+        assert!(
+            s.app.change_unresolved(),
+            "precondition: the gate latched a conflict rather than writing"
+        );
+        assert_eq!(
+            s.open_files(),
+            vec![s.a(), s.b()],
+            "the conflicted buffer was not closed"
+        );
+        assert_eq!(
+            std::fs::read_to_string(s.b()).unwrap(),
+            "beta\ntheir version\n",
+            "and nothing was written over the other version"
+        );
+
+        mine.set_nonblocking(true).unwrap();
+        let mut buf = [0u8; 64];
+        match (&mine).read(&mut buf) {
+            Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {}
+            Ok(0) => {
+                panic!("the waiter's connection was CLOSED — a real client reads that as done")
+            }
+            Ok(n) => panic!(
+                "the waiter was told {:?} for a file awl refused to save",
+                String::from_utf8_lossy(&buf[..n])
+            ),
+            Err(e) => panic!("unexpected socket error: {e}"),
+        }
+    }
+}

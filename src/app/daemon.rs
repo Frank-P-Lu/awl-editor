@@ -92,6 +92,16 @@ impl App {
     /// while the finished buffer is still active) dissolves: the key is read
     /// here and the notification cannot address the wrong file.
     pub(super) fn notify_finished_buffer(&mut self) {
+        // A LATCHED CONFLICT MEANS THE GATE REFUSED THE WRITE, and `done` is a
+        // claim about the file, not about the keystroke. Telling a `--wait`
+        // client that a file it is blocked on is finished — while awl has just
+        // declined to save it and is keeping the buffer open — sends that client
+        // on with the version on disk, which is precisely the version the user
+        // has not chosen yet. `EDITOR=awl git commit` would commit the other
+        // side of the conflict.
+        if self.change_unresolved() {
+            return;
+        }
         let Some(key) = crate::buffers::BufferKey::of(self.document.buffer()) else {
             return;
         };
