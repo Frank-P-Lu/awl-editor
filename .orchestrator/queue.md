@@ -99,6 +99,8 @@ docs change: full gate.
 
 ### 458 — 🔴 Credits is BROKEN, not merely the wrong size: it renders as a one-row palette over a blurred page (USER-REPORTED 2026-08-18; ready to build)
 
+🟡 IN PROGRESS — claude, branch `claude/item-458-workspace-predicate`
+
 **Premise revised.** This item was carried as a taste divergence ("full
 workspace, not the mini window asked for"). The user opened ⌘P → Credits and
 saw neither: a `credits ›` search line, one row reading `credits`, the
