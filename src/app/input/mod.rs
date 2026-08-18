@@ -147,9 +147,9 @@ impl InputRuntime {
         self.keyboard.keymap.apply_linux_keep(keep);
     }
 
-    /// The classic-Meta-layer sibling of [`Self::apply_linux_keep`] (item 457)
-    /// — called right alongside it on every door that can flip `keymap` flavor
-    /// live, so both halves of the flavor land in the same reseed.
+    /// The classic-Meta-layer sibling of [`Self::apply_linux_keep`] — called
+    /// right alongside it on every door that can flip `keymap` flavor live, so
+    /// both halves of the flavor land in the same reseed.
     pub(in crate::app) fn apply_linux_emacs_meta(&mut self, active: bool) {
         self.keyboard.keymap.set_linux_emacs_meta(active);
     }

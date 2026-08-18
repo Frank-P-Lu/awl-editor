@@ -1834,7 +1834,7 @@ fn effective_linux_keep_under_native_is_the_builtin_floor_plus_the_raw_list() {
 }
 
 /// The number of PRESET chords `effective_linux_keep` actually contributes
-/// under `keymap = "emacs"` — the raw preset minus item 457's native-clipboard
+/// under `keymap = "emacs"` — the raw preset minus the native-clipboard
 /// carve-out (`"C-c"`/`"C-v"`), which the preset's own union skips by
 /// construction. Shared by every test below so the "minus 2" isn't re-derived
 /// three times.
@@ -1848,7 +1848,7 @@ fn effective_linux_keep_under_emacs_widens_to_the_whole_displaced_preset() {
     cfg.keymap = Some("emacs".to_string());
     let eff = cfg.effective_linux_keep();
     // Every letter `LINUX_DISPLACED_LETTERS` names is present as a plain "C-<letter>"
-    // chord EXCEPT the item 457 native-clipboard carve-out (`"C-c"`/`"C-v"`,
+    // chord EXCEPT the native-clipboard carve-out (`"C-c"`/`"C-v"`,
     // which stay OUT of the keep-list so Copy/Paste's own native default
     // dispatches instead) — the whole-catalog preset, derived from the SAME
     // table the dispatch collision uses (never hand-copied) — PLUS the

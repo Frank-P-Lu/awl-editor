@@ -114,7 +114,7 @@ impl Config {
     /// THE ONE COMPOSITION OWNER of the effective Linux keep-list — every
     /// caller (dispatch, label truth, the rebind menu, this struct's own
     /// callers) reads the union this function returns, never re-derives it.
-    /// Item 457's native-clipboard carve-out lives HERE and nowhere else: the
+    /// The native-clipboard carve-out lives HERE and nowhere else: the
     /// `emacs` flavor preset's own contribution skips `"C-c"`/`"C-v"`
     /// (`linux_is_native_clipboard_chord`) so Copy/Paste stay native under
     /// `keymap = "emacs"` — a compositor that forwards Super+C/V as Ctrl+C/V

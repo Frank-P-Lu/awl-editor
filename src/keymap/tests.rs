@@ -1346,7 +1346,8 @@ fn keymap_flavor_emacs_preset_reverts_every_displaced_chord_to_emacs_meaning() {
                 let want = mac_reference.resolve(&key, &ctrl());
                 assert_eq!(
                     got, want,
-                    "Ctrl-{letter} under the emacs flavor preset should match Mac's untouched emacs meaning"
+                    "Ctrl-{letter} under the emacs flavor preset should match \
+                     Mac's untouched emacs meaning"
                 );
             }
         }
@@ -1420,13 +1421,13 @@ fn config_keys_override_wins_over_the_emacs_preset() {
     );
 }
 
-/// LAW (item 457): a `[keys]` rebind wins over the native-clipboard carve-out's
-/// own default — in BOTH directions, independently. Since `c`/`v` already
-/// resolve to Copy/Paste BY DEFAULT under `keymap = "emacs"` post-457, a
-/// `[keys] copy = "C-c"` line would prove nothing (the default already
-/// agrees) — so each case rebinds the chord to a DIFFERENT action
-/// (`toggle_fold`) and asserts the override, not the default, is what fires,
-/// while the OTHER carved-out letter stays on its untouched default.
+/// LAW: a `[keys]` rebind wins over the native-clipboard carve-out's own
+/// default — in BOTH directions, independently. Since `c`/`v` already resolve
+/// to Copy/Paste BY DEFAULT under `keymap = "emacs"`, a `[keys] copy = "C-c"`
+/// line would prove nothing (the default already agrees) — so each case
+/// rebinds the chord to a DIFFERENT action (`fold_section`) and asserts the
+/// override, not the default, is what fires, while the OTHER carved-out
+/// letter stays on its untouched default.
 #[test]
 fn config_keys_override_wins_over_the_native_clipboard_carve_out_reclaiming_c() {
     let mut cfg = crate::config::Config::empty();
@@ -1467,11 +1468,10 @@ fn config_keys_override_wins_over_the_native_clipboard_carve_out_reclaiming_v() 
     );
 }
 
-/// LAW (item 457): under `keymap = "emacs"` on Linux, bare Ctrl-C copies,
-/// Ctrl-V pastes, and Ctrl-X still begins the emacs prefix — the three
-/// concrete outcomes the decision names, each pinned by its own small law so
-/// a regression in any one fails BY NAME rather than only inside the swept
-/// roster test above.
+/// LAW: under `keymap = "emacs"` on Linux, bare Ctrl-C copies, Ctrl-V pastes,
+/// and Ctrl-X still begins the emacs prefix — the three concrete carve-out
+/// outcomes, each pinned by its own small law so a regression in any one
+/// fails BY NAME rather than only inside the swept roster test above.
 #[test]
 fn linux_emacs_flavor_c_copies() {
     let mut cfg = crate::config::Config::empty();
@@ -1504,7 +1504,7 @@ fn linux_emacs_flavor_x_still_begins_a_prefix() {
     assert!(km.in_prefix(), "C-x still arms the emacs prefix");
 }
 
-/// LAW (item 457b): the classic Meta layer — every entry in
+/// LAW: the classic Meta layer — every entry in
 /// `platform::LINUX_EMACS_META_SEED` dispatches to its own named `Action`
 /// under `Convention::Linux` with the gate set, swept over the WHOLE table
 /// rather than a hand-picked chord.
@@ -1527,14 +1527,15 @@ fn linux_emacs_meta_layer_dispatches_every_seeded_chord() {
     }
 }
 
-/// LAW (item 457b): the Meta layer is OFF by default (flavor = native) even
-/// on Linux — it is seeded only under `keymap = "emacs"`, never unconditionally.
-/// A chord already reachable via some OTHER, gate-independent rule (`M-Backspace`
-/// — `resolve_named`'s generic Alt+Backspace-deletes-word arm, unrelated to
-/// item 457) is skipped: a baseline `KeymapState` that never sees the gate
-/// already resolves it to the SAME action, so the gate made no observable
-/// difference there and it is not evidence either way. Non-vacuity: at most
-/// ONE entry may be skipped this way, or the sweep is checking nothing.
+/// LAW: the Meta layer is OFF by default (flavor = native) even on Linux —
+/// it is seeded only under `keymap = "emacs"`, never unconditionally. A chord
+/// already reachable via some OTHER, gate-independent rule (`M-Backspace` —
+/// `resolve_named`'s generic Alt+Backspace-deletes-word arm, unrelated to
+/// this seed table) is skipped: a baseline `KeymapState` that never sees the
+/// gate already resolves it to the SAME action, so the gate made no
+/// observable difference there and it is not evidence either way.
+/// Non-vacuity: at most ONE entry may be skipped this way, or the sweep is
+/// checking nothing.
 #[test]
 fn linux_native_flavor_never_seeds_the_meta_layer() {
     let mut cfg = crate::config::Config::empty();
@@ -1564,9 +1565,9 @@ fn linux_native_flavor_never_seeds_the_meta_layer() {
     );
 }
 
-/// LAW (item 457b): the Meta layer stays structurally INERT on Mac even if a
-/// caller mistakenly sets the gate — Option keeps typing accented characters
-/// there, so `Convention::Mac` must never seed it regardless of flavor. Same
+/// LAW: the Meta layer stays structurally INERT on Mac even if a caller
+/// mistakenly sets the gate — Option keeps typing accented characters there,
+/// so `Convention::Mac` must never seed it regardless of flavor. Same
 /// gate-independent-chord skip and non-vacuity floor as the sibling law above.
 #[test]
 fn linux_emacs_meta_layer_stays_inert_on_mac() {

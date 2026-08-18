@@ -185,7 +185,7 @@ impl KeymapState {
             }
         }
 
-        // THE CLASSIC META LAYER (item 457) — seeded LAST, after the Shift-
+        // THE CLASSIC META LAYER — seeded LAST, after the Shift-
         // convenience duplication above, so a Meta entry never grows its own
         // unrequested Shift companion the way an ordinary catalog default does.
         // Every entry fires an EXISTING catalog `Action`; see
@@ -198,7 +198,7 @@ impl KeymapState {
         }
     }
 
-    /// Flip the classic-Meta-layer gate (item 457) and reseed — the Meta-layer
+    /// Flip the classic-Meta-layer gate and reseed — the Meta-layer
     /// sibling of [`Self::apply_linux_keep`], called right alongside it on every
     /// door that can change `keymap` flavor live (`App::apply_keymap_flavor`,
     /// config reload): both halves of a flavor flip land in the same reseed.
