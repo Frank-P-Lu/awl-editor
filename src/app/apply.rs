@@ -566,9 +566,16 @@ impl App {
             actions::Effect::DuplicateNote => self.duplicate_current_file(),
             // Shares the export write's own gate (`Self::reveal_path`) rather
             // than a second implementation: a surfaceless App reveals nothing.
+            // Native-only: the browser build has no OS file-manager handoff
+            // (the catalog row is `native_only`, but `Action`/`Effect` stay
+            // one unconditional enum for both targets, so this arm still
+            // needs a wasm counterpart to keep the match exhaustive there).
+            #[cfg(not(target_arch = "wasm32"))]
             actions::Effect::RevealInFileManager(path) => {
                 let _revealed = self.reveal_path(&path);
             }
+            #[cfg(target_arch = "wasm32")]
+            actions::Effect::RevealInFileManager(_) => {}
             actions::Effect::Quit | actions::Effect::None => {}
             actions::Effect::RunAction(_)
             | actions::Effect::Clipboard(actions::ClipboardEffect::PasteImage)
