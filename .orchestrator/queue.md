@@ -188,10 +188,17 @@ reachable via `autosave = false`.
 
 **Residual, in the order the landed work sets up:**
 
-🟡 IN PROGRESS on residual 1(b)+(d) (cursor + Wagtail legibility) — claude, branch `claude/item-444-cursor-wagtail`
+1. **Hover-reveal close affordance + folder-line distinction (USER-REPORTED
+   2026-08-18 on the live app). (b) row cursor and (d) Wagtail legibility
+   are LANDED** (`f8f3fb4c`): stack rows now earn the pointing hand via the
+   same `CursorContext` roster/no-wildcard law the outline rows already use
+   (`gutter_stack_hit`, no parallel hit-test), and the active row's label
+   ink routes through `theme::selected_row_secondary_ink`/`surface_selected`
+   — the same "ink over a filled plate inverts" mechanism `one_bit.rs`
+   already proves for the picker/toast — so Wagtail's selected file is
+   legible again, presence + legibility floors both mutation-proven
+   independently. (a) and (c) remain open, below.
 
-1. **Hover-reveal close affordance + row cursor + folder-line distinction
-   (USER-REPORTED 2026-08-18 on the live app, three findings in one look).**
    (a) The × is invisible: the row's right close zone is wired to
    `close_buffer` but draws nothing — the user hovered and asked "I don't
    see the x mark?" Draw the × (or equivalent) when the pointer enters the
@@ -206,12 +213,6 @@ reachable via `autosave = false`.
    (× on row-hover) vs two-stage (faint × on row-hover, full ink inside
    the close zone), and active-row-with-× vs siblings-only (⌘W already
    closes the active file).
-   (b) The pointer over a stack row must be the pointing HAND, like the
-   margin outline rows it sits beside (`cursor_shape.rs` arm 8 — the outline
-   already earns `CursorIcon::Pointer`; the stack rows do not, so a
-   clickable row reads as inert margin). Add the arm through the same
-   `CursorContext` roster and its no-wildcard law; hit-test via
-   `gutter_stack_hit`.
    (c) The FOLDER line under the stack (`notes`) reads as a third file: it
    is drawn at the same LABEL size and the same `faint` ink as the inactive
    rows, so `awl-start.md / anxiety-2.md / notes` scan as three siblings.
@@ -224,15 +225,6 @@ reachable via `autosave = false`.
    spacing/heading treatment (folder as heading ABOVE the rows, which the
    444 text already names: "the root heading names the active folder").
    Byte-identity for the one-file case must hold whichever wins.
-   (d) **Wagtail (one-bit) draws the active-row plate as a solid WHITE bar
-   that swallows its own label** — the plate fills at page-inverse and the
-   name is drawn in the same value, so the selected file is the one file
-   you cannot read (the sidecar-vs-pixels tripwire, again on Wagtail).
-   `render/tests/one_bit.rs` enrols the overlay families for this exact
-   inversion rule; the stack's plate must join that roster (ink over a
-   filled plate inverts), with a pixel law that the active row's label ink
-   is legible against its plate on every one-bit world — presence floor
-   included, so a plate faded to nothing does not pass happier.
 
 2. **Zero-document state** — the largest remaining piece; `DocumentSession`
    would need an optional active slot, and every subsystem this item names
