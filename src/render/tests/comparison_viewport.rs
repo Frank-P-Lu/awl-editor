@@ -556,13 +556,13 @@ fn every_timeline_over_comparison_kind_opens_its_content_region_even_lens_less()
         .copied()
         .filter(|k| {
             k.workspace_shape()
-                == Some(crate::overlay::workspace::WorkspaceShape::TimelineOverComparison)
+                .is_some_and(crate::overlay::workspace::WorkspaceShape::rows_are_primary)
         })
         .collect();
     assert!(
         timeline_kinds.len() >= 2,
-        "the TimelineOverComparison roster must hold at least History and one lens-less \
-         member, got {timeline_kinds:?}"
+        "the rows-are-primary workspace roster must hold at least History and one \
+         lens-less member, got {timeline_kinds:?}"
     );
 
     let mut graded = 0usize;
@@ -587,7 +587,7 @@ fn every_timeline_over_comparison_kind_opens_its_content_region_even_lens_less()
                 );
             }
             other => panic!(
-                "{other:?} newly joined WorkspaceShape::TimelineOverComparison with no fixture \
+                "{other:?} newly joined the rows-are-primary workspace shape with no fixture \
                  arm here — add one rather than letting it fall through"
             ),
         }

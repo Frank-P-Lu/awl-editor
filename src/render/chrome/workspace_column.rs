@@ -62,7 +62,14 @@ impl TextPipeline {
     /// bound differ (see [`TIMELINE_MAX_FRAC`]).
     pub(in crate::render) fn measure_workspace_primary_w(&mut self) -> f32 {
         let rows_primary = self.overlay_rows_primary;
-        if self.overlay_lens.is_empty() {
+        // A `RailOverRows` primary column HAS no corpus but the lens (its rows
+        // live in the content pane instead): empty lens, zero width. A
+        // `TimelineOverComparison` column's corpus is its OWN rows
+        // (`overlay_items`, below) whether or not it also carries an optional
+        // lens header — so this early return must not fire for it, or every
+        // lens-less member (Credits, Conflict) measures a zero-width primary
+        // column and never gets a content pane to open beside.
+        if !rows_primary && self.overlay_lens.is_empty() {
             return 0.0;
         }
         let text = match rows_primary {

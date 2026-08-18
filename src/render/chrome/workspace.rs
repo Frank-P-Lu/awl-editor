@@ -190,8 +190,19 @@ impl TextPipeline {
     }
 
     /// Is the summoned card drawn as a workspace this frame?
+    ///
+    /// Follows the SHAPE (`ViewState::overlay_workspace`, the App's own
+    /// `workspace_shape().is_some()` projection) alone — never the lens strip.
+    /// A lens is an OPTIONAL header decoration a `TimelineOverComparison`
+    /// workspace may or may not carry (`facets.rs`: Credits/Conflict are
+    /// registered lens-less — "a lens over one/three fixed rows would be a
+    /// strip with nothing to narrow"), not what makes a frame a workspace.
+    /// Gating on the lens made every lens-less member invisible to this
+    /// predicate: `workspace_primary_w` measured 0, `comparison_viewport()`
+    /// returned `None`, and the pushed transcript fell back to the ordinary
+    /// page column under the card's blur.
     pub(in crate::render) fn overlay_is_workspace(&self) -> bool {
-        self.overlay_workspace && !self.overlay_lens.is_empty()
+        self.overlay_workspace
     }
 
     /// TEST-ONLY readers for the workspace law probe.
