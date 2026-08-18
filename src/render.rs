@@ -41,6 +41,7 @@ mod chrome;
 #[cfg(test)]
 pub(crate) use chrome::POPOVER_VPAD;
 pub use chrome::PanelHit;
+pub use chrome::RowIntent;
 
 /// The `AWL_*_FORCE` dev-only render/theme override knobs, consolidated into
 /// ONE [`overrides::RenderOverrides`] struct. See that module's doc.

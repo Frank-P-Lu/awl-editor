@@ -35,6 +35,27 @@ impl App {
         working.files().get(at)?.path.clone()
     }
 
+    /// THE BUFFER A DRAWN STACK ROW NAMES — the CLOSE route's own resolution.
+    ///
+    /// Resolved through the same `group(root)` filter and the same remembered
+    /// root as [`Self::gutter_stack_row_path`], because the two must agree about
+    /// which file a given row index is: a switch and a close that disagreed by
+    /// one would close the file next to the one the pointer was over.
+    ///
+    /// Unlike the path route this answers for the SCRATCH row too. A path-less
+    /// entry cannot be switched to — the one file-open door takes a path — but
+    /// it has a registry identity, so it can be closed, and refusing to close a
+    /// row the reader can see would be its own dead end.
+    pub(in crate::app) fn gutter_stack_row_key(
+        &self,
+        row: usize,
+    ) -> Option<crate::buffers::BufferKey> {
+        let working = self.document.working_set();
+        let root = working.active_root()?;
+        let at = *working.group(root).get(row)?;
+        Some(working.files().get(at)?.key.clone())
+    }
+
     /// CLICK-TO-SWITCH on a working-set row: hit-test the pointer against the
     /// stack's OWN row geometry (`TextPipeline::gutter_stack_hit`, which folds
     /// in the whole shown/hidden gate — no page mode, no name, an open overlay,
@@ -53,11 +74,15 @@ impl App {
     /// press was consumed by the margin, and falling through would place the
     /// caret from a click the reader aimed at chrome.
     ///
-    /// The CLOSE zone is not wired here, and the whole row therefore switches.
-    /// Closing a named buffer needs a removal owner that can save and
-    /// conflict-gate a buffer that is not the active one; until that exists,
-    /// routing the right edge anywhere would either lose a dirty document or
-    /// leave a dead patch in the middle of a live control.
+    /// The row's RIGHT-EDGE close zone routes to [`App::close_buffer`] — the one
+    /// removal owner — and the rest of the band still switches. Both meanings
+    /// come from [`crate::render::RowIntent`], the same
+    /// classifier any drawn affordance reads, so what the pointer accepts and
+    /// what the reader is shown cannot disagree once that affordance exists.
+    ///
+    /// A close targets the NAMED buffer: an inactive row closes its own file
+    /// without first activating it, so the reader's document does not change
+    /// underneath a click aimed at a different one.
     pub(in crate::app) fn gutter_stack_click(&mut self) -> bool {
         let (px, py) = self.input.pointer.cursor_px;
         let hit = self
@@ -67,8 +92,17 @@ impl App {
         let Some(hit) = hit else {
             return false;
         };
-        if let Some(path) = self.gutter_stack_row_path(hit.row) {
-            self.load_path(path);
+        match hit.intent {
+            crate::render::RowIntent::Switch => {
+                if let Some(path) = self.gutter_stack_row_path(hit.row) {
+                    self.load_path(path);
+                }
+            }
+            crate::render::RowIntent::Close => {
+                if let Some(key) = self.gutter_stack_row_key(hit.row) {
+                    self.close_buffer(key);
+                }
+            }
         }
         true
     }

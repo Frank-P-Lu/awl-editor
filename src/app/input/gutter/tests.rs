@@ -162,3 +162,69 @@ fn accepting_a_row_switches_the_buffer_and_never_reorders_the_stack() {
         }
     });
 }
+
+/// THE CLOSE ROUTE AND THE SWITCH ROUTE NAME THE SAME FILE FOR THE SAME ROW.
+///
+/// Two resolutions of one row index is the shape that goes wrong quietly: a
+/// close that was off by one against the switch would still close a real,
+/// open file — just not the one under the pointer — and every assertion about
+/// "a file closed" would pass.
+///
+/// Swept over the WHOLE stack against a cross-root file parked mid-list, so a
+/// resolution that dropped the `group(root)` filter agrees at index 0 and is
+/// wrong from index 1 on. The scratch row is deliberately absent here (it has
+/// no path, so the pair cannot be compared on it) and is covered by the
+/// removal owner's own successor law.
+#[test]
+fn the_close_route_resolves_every_row_to_the_same_file_the_switch_route_does() {
+    let _guard = crate::testlock::serial();
+    let mem = Arc::new(
+        crate::fs::InMemoryFs::new()
+            .with_dir("/ws/notes")
+            .with_dir("/ws/notes/journal")
+            .with_dir("/ws/archive")
+            .with_file("/ws/notes/index.md", "index\n")
+            .with_file("/ws/archive/log.md", "log\n")
+            .with_file("/ws/notes/journal/field.md", "field\n")
+            .with_file("/ws/notes/alpha.md", "alpha\n"),
+    );
+    crate::fs::with_fs(mem, || {
+        let mut config = Config::empty();
+        config.workspace = Some(PathBuf::from("/ws"));
+        let mut app = App::new_hermetic(
+            Some(PathBuf::from("/ws/notes/index.md")),
+            PathBuf::from("/ws/notes"),
+            config,
+        );
+        app.load_path(PathBuf::from("/ws/archive/log.md"));
+        app.load_path(PathBuf::from("/ws/notes/alpha.md"));
+        app.load_path(PathBuf::from("/ws/notes/journal/field.md"));
+        let labels = drawn_labels(&app);
+        assert_eq!(
+            labels,
+            vec!["index.md", "alpha.md", "journal/field.md"],
+            "the drawn group excludes the foreign-root file"
+        );
+
+        for row in 0..labels.len() {
+            let path = app
+                .gutter_stack_row_path(row)
+                .unwrap_or_else(|| panic!("row {row} names a file"));
+            let key = app
+                .gutter_stack_row_key(row)
+                .unwrap_or_else(|| panic!("row {row} names a buffer"));
+            assert_eq!(
+                key,
+                crate::buffers::BufferKey::path(&path),
+                "row {row} ({}) resolves to two different buffers depending on which \
+                 half of the row the pointer landed on",
+                labels[row]
+            );
+        }
+        assert_eq!(
+            app.gutter_stack_row_key(labels.len()),
+            None,
+            "a row past the end of the stack names no buffer either"
+        );
+    });
+}
