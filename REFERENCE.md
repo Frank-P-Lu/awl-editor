@@ -141,7 +141,7 @@ Commands are grouped by the same task categories the palette browses.
 | Spell suggestions… | Summon spelling suggestions for the misspelled word at the caret. | `⌘;` | `Ctrl+;` | Native, browser |
 | Clean unused assets… | Summon the list of orphaned image files under the project, for moving to the trash. | — | — | Native |
 | About | Show the About panel. | — | — | Native, browser |
-| Credits | Open the bundled Credits document into the buffer. | — | — | Native, browser |
+| Credits | Open the bundled Credits document in a read-only viewer. | — | — | Native, browser |
 | Guide | Open the bundled Guide document into the buffer. | — | — | Native, browser |
 | Reference | Open the bundled Reference document into the buffer. | — | — | Native, browser |
 | Lifetime stats | Open the lifetime writing statistics panel. | — | — | Native |
