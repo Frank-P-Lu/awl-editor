@@ -125,11 +125,17 @@ mod tests {
         let gutter = include_str!("../chrome/gutter.rs");
         let gutter_hit = include_str!("../chrome/gutter_hit.rs");
         let outline = include_str!("../chrome/outline.rs");
-        // The block's own three (draw, carve, frost seeds) plus the ONE the
-        // gutter's pointer routes share: both hit-tests read a single planner
-        // helper, so a second call here would mean a target hit-tested against
+        // The block's own three (draw, carve, frost seeds) plus a FOURTH,
+        // test-only call (`#[cfg(test)] gutter_stack_plate_rect`): it reuses
+        // the SAME planner to hand a real-pixel law the exact rect production
+        // draws, rather than re-deriving the plate's padding arithmetic by
+        // hand — not a second independent geometry path, which is the thing
+        // this law actually guards against, so it is counted rather than
+        // excluded. `gutter_hit.rs` separately carries the ONE the gutter's
+        // pointer routes share: both hit-tests read a single planner helper,
+        // so a second call there would mean a target hit-tested against
         // geometry the other route does not have.
-        assert_eq!(gutter.matches("plan::plan_gutter_stack(").count(), 3);
+        assert_eq!(gutter.matches("plan::plan_gutter_stack(").count(), 4);
         assert_eq!(gutter_hit.matches("plan::plan_gutter_stack(").count(), 1);
         assert_eq!(outline.matches("plan::plan_outline_slots(").count(), 3);
         for (owner, next_owner) in [
