@@ -104,13 +104,13 @@ fn activating_a_buffer_from_another_root_restores_that_buffers_project() {
     });
 }
 
-/// **THE HALF ITEM 444's LANE LEFT OPEN, DECIDED (item 450): the bottom
-/// identity always names the ACTIVE FILE's own folder, never the nominally
-/// "active project."** Switch-project alone moves `project_location.root`
-/// without opening or activating a document, so the file that stays on
-/// screen never told the working set anything — `active_root()` must keep
-/// reporting the root it already had, and the identity formatter must read
-/// from it rather than from the ambient `project_location.project.name`.
+/// **THE BOTTOM IDENTITY ALWAYS NAMES THE ACTIVE FILE's OWN FOLDER, NEVER
+/// THE NOMINALLY "active project."** Switch-project alone moves
+/// `project_location.root` without opening or activating a document, so the
+/// file that stays on screen never told the working set anything —
+/// `active_root()` must keep reporting the root it already had, and the
+/// identity formatter must read from it rather than from the ambient
+/// `project_location.project.name`.
 ///
 /// Driven through the REAL "Switch project" chord (`Action::OpenProject`,
 /// `s-S-p`/`C-S-p`) into the unified Go to picker's `folders` facet — the
@@ -121,7 +121,7 @@ fn activating_a_buffer_from_another_root_restores_that_buffers_project() {
 /// Both halves of the decision are asserted: the identity's folder line
 /// stays on the OLD root (`notes`) while the DISPATCH root (what New
 /// document, Go to and Move would use) moves to the NEW one (`archive`) —
-/// item 450 deliberately does not re-sync them.
+/// the two are deliberately not re-synced.
 #[test]
 fn switch_project_alone_leaves_the_open_files_own_folder_naming_it_while_the_dispatch_root_moves() {
     let _guard = crate::testlock::serial();

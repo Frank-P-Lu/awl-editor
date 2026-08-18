@@ -91,11 +91,11 @@ impl App {
             .active_root()
             .map(|root| self.document.working_set().stack_rows(root))
             .unwrap_or_default();
-        // THE IDENTITY'S FOLDER LABEL (item 450): the same root `sync_view`
-        // draws the live gutter from, so a `--screenshot-app` capture and the
-        // running editor cannot disagree about which folder the open file is
-        // in — `None` only for the working set's own empty startup instant,
-        // which does not survive `App::new`.
+        // THE IDENTITY'S FOLDER LABEL: the same root `sync_view` draws the
+        // live gutter from, so a `--screenshot-app` capture and the running
+        // editor cannot disagree about which folder the open file is in —
+        // `None` only for the working set's own empty startup instant, which
+        // does not survive `App::new`.
         opts.gutter_project_root = self
             .document
             .working_set()

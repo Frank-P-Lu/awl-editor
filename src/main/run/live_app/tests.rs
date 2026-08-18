@@ -537,18 +537,17 @@ fn a_live_app_capture_honors_capture_size_and_the_dpi_meaning_holds() {
     );
 }
 
-/// **ITEM 450, THE DECIDED HALF OF ITEM 444's OPEN NOTE: the bottom
-/// identity's folder line always names the ACTIVE FILE's own folder, never
-/// the nominally "active project."** `switch_project` (`s-S-p`/`C-S-p`,
-/// `Action::OpenProject`) moves `project_location.root` with no document
-/// opened or activated, so the gutter's project line must keep naming the
-/// root the OPEN file remembers — while every destination default (New
-/// document, Go to, Move, export — represented here by the sidecar's own
-/// `project.root`, the one field they all read) keeps following the switch.
-/// Reverting the fix in `App::sync_view` makes this go red on `gutter`
-/// alone, never on `project`: the two claims are independent by
-/// construction, and BOTH are asserted in one frame so neither drifts
-/// unnoticed.
+/// **THE BOTTOM IDENTITY's FOLDER LINE ALWAYS NAMES THE ACTIVE FILE's OWN
+/// FOLDER, NEVER THE NOMINALLY "active project."** `switch_project`
+/// (`s-S-p`/`C-S-p`, `Action::OpenProject`) moves `project_location.root`
+/// with no document opened or activated, so the gutter's project line must
+/// keep naming the root the OPEN file remembers — while every destination
+/// default (New document, Go to, Move, export — represented here by the
+/// sidecar's own `project.root`, the one field they all read) keeps
+/// following the switch. Reverting `CaptureOpts::fold_gutter`'s override
+/// makes this go red on `gutter` alone, never on `project`: the two claims
+/// are independent by construction, and BOTH are asserted in one frame so
+/// neither drifts unnoticed.
 ///
 /// Swept across the WHOLE world roster at two DPIs (not one hand-picked
 /// world/scale) because the gutter's project line is a rendered, elided
@@ -650,8 +649,8 @@ fn switch_project_alone_names_the_open_files_folder_while_the_dispatch_root_foll
                     Some("/ws/archive"),
                     "world={world} dpi={dpi}: the DISPATCH root (New \
                      document / Go to / Move / export's destination) must \
-                     still follow Switch project — item 450 does not \
-                     re-sync the two halves, it only stops the label lying"
+                     still follow Switch project — the two halves are \
+                     deliberately not re-synced, only the label stops lying"
                 );
                 checked += 1;
             }

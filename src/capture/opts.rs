@@ -443,9 +443,9 @@ pub struct CaptureOpts {
 impl CaptureOpts {
     /// Fold the GUTTER's three live-App-only facts into the capture's view
     /// state: the persistent `changed elsewhere` affordance, the working set
-    /// the bottom identity widens into, and (item 450) the identity's own
-    /// folder LABEL — the active file's own remembered root, never the
-    /// ambient project `base_viewstate` filled in from `self.project`.
+    /// the bottom identity widens into, and the identity's own folder LABEL —
+    /// the active file's own remembered root, never the ambient project
+    /// `base_viewstate` filled in from `self.project`.
     ///
     /// One door for all three because they are one surface and they share one
     /// failure mode — a fact the live editor has and the capture path silently
