@@ -775,8 +775,6 @@ impl App {
             actions::BufferEffect::CloseActive => self.close_active_buffer(),
             actions::BufferEffect::NewDocument => self.new_document(),
             actions::BufferEffect::OpenSettings => self.open_settings(),
-            actions::BufferEffect::OpenGuide => self.open_guide(),
-            actions::BufferEffect::OpenReference => self.open_reference(),
         }
     }
 

@@ -75,8 +75,6 @@ pub enum BufferEffect {
     CloseActive,
     NewDocument,
     OpenSettings,
-    OpenGuide,
-    OpenReference,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -41,8 +41,6 @@ fn roster() -> Vec<Effect> {
         Effect::Buffer(crate::actions::BufferEffect::CloseActive),
         Effect::Buffer(crate::actions::BufferEffect::NewDocument),
         Effect::Buffer(crate::actions::BufferEffect::OpenSettings),
-        Effect::Buffer(crate::actions::BufferEffect::OpenGuide),
-        Effect::Buffer(crate::actions::BufferEffect::OpenReference),
         Effect::Daemon(crate::actions::DaemonEffect::NotifyFinished),
         Effect::Surface(crate::actions::SurfaceEffect::ShowAbout),
         Effect::Surface(crate::actions::SurfaceEffect::OpenFileChooser),

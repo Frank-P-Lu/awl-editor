@@ -220,7 +220,6 @@ const VIEW_ITEMS: &[Routed] = &[
 ];
 
 const HELP_ITEMS: &[Routed] = &[
-    r("awl.guide", "Guide"),
     r("awl.credits", "Credits"),
     r("awl.check_for_updates", "Check for Updates"),
     r("awl.report_problem", "Report a Problem"),
@@ -464,10 +463,9 @@ fn roster_all() -> Vec<RosterMenu> {
             title: "Help",
             items: vec![
                 routed(&HELP_ITEMS[0]),
-                routed(&HELP_ITEMS[1]),
                 RosterItem::Separator,
+                routed(&HELP_ITEMS[1]),
                 routed(&HELP_ITEMS[2]),
-                routed(&HELP_ITEMS[3]),
             ],
         },
     ]

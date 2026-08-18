@@ -34,32 +34,20 @@ const EXPECTED: &[(&str, usize)] = &[
     // probe is native-only and cannot reach the interactive App.
     ("app/persistence/fault_probe.rs", 4),
     ("app/apply.rs", 1),
-    // Best-effort background bookkeeping failures (config/credits/guide
-    // write, a sticky-pref/rebind write, the recent-files/projects MRU
-    // save, a dictionary switch, the autosave/scratch-stash engine) — all
-    // rare, all non-fatal by design ("never disrupt the edit/save").
-    // Flagged as future notice-routing candidates; not fixed this round to
-    // keep the round's own diff focused on the reported bug (manual Save +
-    // the toggle-chatter class it named explicitly). The USER GUIDE round
-    // added ONE more (`open_guide`'s on-disk-refresh failure), mirroring
-    // `open_credits`'s existing one verbatim. ONE more covers
-    // `add_to_dictionary`'s rare personal-dictionary FILE-append
-    // failure (I/O error, unresolvable path) — non-fatal by design (the word is
-    // already silenced in memory that session), same best-effort-write class as
-    // the sticky-pref writes above; a future notice-routing candidate.
-    // The former `app/files.rs` monolith is split into `app/files/`;
-    // the same 14 best-effort-write sites, redistributed by which submodule
-    // now owns each verb (open/credits/guide + the recent MRUs in
+    // Best-effort background bookkeeping failures (config write, a
+    // sticky-pref/rebind write, the recent-files/projects MRU save, a
+    // dictionary switch, the autosave/scratch-stash engine, the
+    // personal-dictionary FILE-append) — all rare, all non-fatal by design
+    // ("never disrupt the edit/save"). Flagged as future notice-routing
+    // candidates. `app/files/` is a split of the former `app/files.rs`
+    // monolith, the same best-effort-write sites redistributed by which
+    // submodule now owns each verb: config open + the recent MRUs in
     // `open.rs`; sticky-pref + page-width-reset in `settings.rs`; the
     // rebind-menu writes in `rebind.rs`; the autosave/scratch-stash engine
     // in `autosave.rs`; the dictionary switch + personal-dictionary append
-    // in `dictionary.rs`) — same total, same reasons, just relocated.
-    // Guide/Reference route through the ONE shared `open_bundled_doc` owner,
-    // so their on-disk-refresh failure is a SINGLE line both callers reach,
-    // not one per caller. Credits has since left this family — it opens as a
-    // summoned read-only viewer, never a buffer, so it reaches no write path
-    // and adds no line here.
-    ("app/files/open.rs", 4),
+    // in `dictionary.rs`. Credits opens as a summoned read-only viewer,
+    // never a buffer, so it reaches no write path and adds no line here.
+    ("app/files/open.rs", 3),
     ("app/files/settings.rs", 2),
     ("app/files/rebind.rs", 2),
     ("app/files/autosave.rs", 2),

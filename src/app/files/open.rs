@@ -38,54 +38,6 @@ impl App {
         self.load_path(path);
     }
 
-    /// THE ONE OWNER behind Guide and Reference: open a bundled, read-only
-    /// document into the buffer by REFRESHING an on-disk view under
-    /// `fs::data_root()` to `content` (never create-if-missing — the view must
-    /// never drift from what shipped) and loading it. Routed through a real
-    /// path rather than left path-less: a path-less buffer reads as SCRATCH to
-    /// the autosave engine (`autosave_flush`'s `buffer.path().is_none()` arm),
-    /// which would silently overwrite the user's real scratch stash the next
-    /// time autosave flushes. `label` names the document in the one
-    /// write-failure diagnostic; `filename` is the on-disk leaf under
-    /// `data_root()`.
-    ///
-    /// Credits used to be a third caller here; it now opens as a summoned
-    /// read-only VIEWER instead (`OverlayKind::Credits`, `App::open_credits`
-    /// no longer exists) — never a buffer, so there is no on-disk refresh copy
-    /// and no autosave-clobber risk to route around in the first place.
-    fn open_bundled_doc(&mut self, label: &str, filename: &str, content: &str) {
-        let path = crate::fs::data_root().join(filename);
-        let fs = crate::fs::active();
-        if let Some(parent) = path.parent() {
-            let _ = fs.create_dir_all(parent);
-        }
-        if let Err(e) = crate::fs::write_atomic(&path, content.as_bytes()) {
-            eprintln!("could not write {label} view {}: {e}", path.display());
-            return;
-        }
-        self.load_path(path);
-    }
-
-    pub(in crate::app) fn open_guide(&mut self) {
-        let rendered = crate::guide::render(
-            crate::convention::Convention::current(),
-            crate::commands::Platform::current(),
-        );
-        self.open_bundled_doc("guide", "guide.md", &rendered);
-    }
-
-    /// Reference command: unlike Guide, `REFERENCE.md` carries no `{{key:}}`
-    /// chord tokens to render per-convention (its command table already lists
-    /// both conventions as explicit columns), so the embedded text opens
-    /// verbatim — see `reference_doc.rs`'s module doc.
-    pub(in crate::app) fn open_reference(&mut self) {
-        self.open_bundled_doc(
-            "reference",
-            "reference.md",
-            crate::reference_doc::REFERENCE_MD,
-        );
-    }
-
     /// SWITCH the active folder to `new_root` — the ONE owner of a genuine
     /// switch-project (both the `Project` picker's accepted folder AND the
     /// Recent Projects picker route here). Re-scopes the root ([`Self::set_root`]),
@@ -418,6 +370,3 @@ impl App {
         self.start_fresh_document();
     }
 }
-
-#[cfg(test)]
-mod tests;

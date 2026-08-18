@@ -98,8 +98,6 @@ fn catalog_non_empty_and_named() {
         "Reset page width",
         "About",
         "Credits",
-        "Guide",
-        "Reference",
         "Lifetime stats",
         "Writing streaks",
         "Line endings…",
@@ -262,7 +260,7 @@ fn command_bucket_routes_each_lens() {
         command_bucket(FacetItem::new("Switch theme…"), 4),
         Some("View")
     );
-    assert_eq!(command_bucket(FacetItem::new("Guide"), 5), Some("Tools"));
+    assert_eq!(command_bucket(FacetItem::new("Credits"), 5), Some("Tools"));
     assert_eq!(
         command_bucket(FacetItem::new("Keybindings…"), 6),
         Some("Settings")

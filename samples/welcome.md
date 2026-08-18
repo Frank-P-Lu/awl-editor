@@ -96,7 +96,6 @@ short list of things writers genuinely differ about.
 
 ---
 
-That is enough to begin with. {{key:command_palette}} → "{{cmd:guide}}" opens
-the full guide whenever you want the rest of it.
+That is enough to begin with.
 
 Now write something.

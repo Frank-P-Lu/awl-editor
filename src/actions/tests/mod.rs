@@ -629,8 +629,6 @@ macro_rules! classify_delete_flinch {
             | Action::OpenSettingsMenu
             | Action::OpenKeybindings
             | Action::OpenCredits
-            | Action::OpenGuide
-            | Action::OpenReference
             | Action::OpenHistory
             | Action::CompareVersion
             | Action::OpenAssetClean
@@ -851,8 +849,6 @@ macro_rules! assert_action_roster {
             | Action::OpenSettingsMenu
             | Action::OpenKeybindings
             | Action::OpenCredits
-            | Action::OpenGuide
-            | Action::OpenReference
             | Action::OpenHistory
             | Action::CompareVersion
             | Action::OpenAssetClean
@@ -980,8 +976,6 @@ fn command_action_roster() -> Vec<Action> {
         Action::OpenSettingsMenu,
         Action::OpenKeybindings,
         Action::OpenCredits,
-        Action::OpenGuide,
-        Action::OpenReference,
         Action::OpenHistory,
         Action::CompareVersion,
         Action::OpenAssetClean,
@@ -1097,15 +1091,13 @@ macro_rules! classify_smoke_command {
         // `Effect::CompareLatest`/`CompareVersion` deferral is retired.
         | Action::CompareVersion
         // CREDITS VIEWER: summons `OverlayKind::Credits` directly — never a
-        // deferred buffer effect, unlike Guide/Reference below.
+        // deferred buffer effect.
         | Action::OpenCredits => SmokeKind::Opener,
 
         // Deferred effects (the pure core signals; the live App performs).
         Action::Quit
         | Action::LastBuffer
         | Action::NewDocument | Action::KeepTutorial
-        | Action::OpenGuide
-        | Action::OpenReference
         | Action::FinishBuffer
         | Action::ReviewChange
         | Action::ResolveKeepMine

@@ -1,16 +1,13 @@
 //! src/guide.rs — the embedded GUIDE.md text, `include_str!`'d at build time
 //! (zero network, mirroring `credits.rs`'s exact pattern).
 //!
-//! Summoned via Cmd-P → "Guide" (`Action::OpenGuide` / `Effect::OpenGuide`, see
-//! `commands.rs` + `actions.rs`), which opens this text into the buffer exactly
-//! like Credits opens `CREDITS.md` — see `App::open_guide` (`app/files/`) for
-//! why it is written to a real on-disk path (under `fs::data_root()`, refreshed
-//! to the embedded text on every open) rather than left path-less: a path-less
-//! buffer is indistinguishable from the SCRATCH surface to the autosave engine
-//! (`App::autosave_flush`'s `buffer.path().is_none()` arm stashes it as scratch),
-//! which would silently clobber the user's real scratch stash the next time
-//! autosave flushes. Routing through a real path keeps Guide an ordinary,
-//! harmlessly-editable buffer instead.
+//! GUIDE.md carries no in-app door: it is a site/source document only (the
+//! source `site/guide.html` is hand-mirrored from, per `docs_catalog_law.rs`),
+//! not opened into a buffer by any live or headless path. Its `{{key:slug}}`
+//! chord tokens (see `keytoken.rs`) still resolve against the live catalog —
+//! `keytoken::tests`' starting-docs laws sweep it via `embedded_docs::
+//! STARTING_DOCS` — so a stale or renamed chord in the checked-in prose still
+//! fails loudly, independent of any door.
 //!
 //! **The generated keys reference (the drift-proof centerpiece):** GUIDE.md's
 //! "Keys" section carries a fenced table, between
@@ -31,22 +28,6 @@
 /// (a doc move is a one-line edit there); this re-export keeps `guide::GUIDE_MD`
 /// as the cohesive public name every consumer already imports.
 pub use crate::embedded_docs::GUIDE_MD;
-
-/// [`GUIDE_MD`], with every `{{key:slug}}` chord token (see `keytoken.rs`)
-/// substituted for `convention`/`platform`'s ACTUAL resolved chord —
-/// rendered at OPEN TIME (not baked in at build time, unlike the seed docs),
-/// so the SAME embedded text always shows the right chord for whichever
-/// live/headless convention+platform is asking. The generated keys-reference
-/// TABLE is untouched (it carries no tokens — see its own doc, dual-column BY
-/// DESIGN). Called by `App::open_guide` (live) and `main::run`'s headless
-/// `Effect::OpenGuide` arm, both passing `Convention::current()`/
-/// `Platform::current()`.
-pub fn render(
-    convention: crate::convention::Convention,
-    platform: crate::commands::Platform,
-) -> String {
-    crate::keytoken::render_key_tokens(GUIDE_MD, convention, platform)
-}
 
 #[cfg(test)]
 mod tests {

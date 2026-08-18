@@ -19,16 +19,16 @@
 //! (`assets/fonts/…`) — the OWNER is this module, the SOURCE stays beside the
 //! asset it documents.
 
-/// The repo's `GUIDE.md` (the in-app Guide; carries the generated keys table).
+/// The repo's `GUIDE.md` — a site/source document (carries the generated
+/// keys table). No in-app door opens it; `guide.rs`'s module doc explains why
+/// it stays in `embedded_docs::STARTING_DOCS` regardless.
 pub const GUIDE_MD: &str = include_str!("../GUIDE.md");
 
 /// The repo's `REFERENCE.md` — the COLD reference, whose every table is
 /// generated from the live rosters and diffed byte-for-byte against them by
 /// `reference::law` (that generator/law machinery is test-only and never
-/// ships). The TEXT itself is not test-only: `reference_doc::REFERENCE_MD`
-/// re-exports this same constant for `App::open_reference` / headless
-/// replay's `Effect::Buffer(BufferEffect::OpenReference)` arm — the palette
-/// "Reference" command's in-app door, mirroring `GUIDE_MD`/`CREDITS_MD` above.
+/// ships). A site/source document only, like `GUIDE_MD` — no in-app door
+/// opens it.
 pub const REFERENCE_MD: &str = include_str!("../REFERENCE.md");
 
 /// `site/reference.html` — the marketing site's copy of the reference. NOT a
@@ -105,10 +105,14 @@ pub const THEMES_MD: &str = include_str!("../THEMES.md");
 #[cfg(test)]
 pub const PHILOSOPHY_MD: &str = include_str!("../PHILOSOPHY.md");
 
-/// THE STARTING DOCS — every document awl itself renders through the
+/// THE STARTING DOCS — every document written through the
 /// `{{key:}}`/`{{cmd:}}`/`{{count:}}` substitution seam (`keytoken.rs`):
-/// `GUIDE.md` at open time, the two seeded samples at seed time. `(name, text)`,
-/// the name being what a failure message should call the file.
+/// `welcome.md`/`tour.md` at SEED time (`firstrun.rs`, `fs::SEED_SAMPLES`).
+/// `GUIDE.md` carries the same tokens but no runtime consumer renders it —
+/// it is swept here anyway so its checked-in prose can never cite a stale or
+/// renamed chord, exactly as `welcome.md`/`tour.md` are (see `guide.rs`'s
+/// module doc). `(name, text)`, the name being what a failure message should
+/// call the file.
 ///
 /// One owner because the set is the ENROLMENT of every law about those docs —
 /// the chord-resolves laws in `keytoken::tests`, the roster-count laws in

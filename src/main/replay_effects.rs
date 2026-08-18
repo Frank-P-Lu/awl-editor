@@ -114,15 +114,6 @@ impl<'a> ReplaySession<'a> {
                     *self.buffer = Buffer::from_file(&self.config.path);
                 }
             }
-            actions::BufferEffect::OpenGuide => {
-                *self.buffer = Buffer::from_str(&crate::guide::render(
-                    crate::convention::Convention::current(),
-                    crate::commands::Platform::current(),
-                ));
-            }
-            actions::BufferEffect::OpenReference => {
-                *self.buffer = Buffer::from_str(crate::reference_doc::REFERENCE_MD);
-            }
         }
     }
 

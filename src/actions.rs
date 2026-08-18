@@ -718,8 +718,6 @@ macro_rules! classify_action_family {
             | Action::OpenRenameNote
             | Action::DuplicateNote
             | Action::OpenSettings
-            | Action::OpenGuide
-            | Action::OpenReference
             | Action::OpenSettingsMenu
             | Action::FinishBuffer
             | Action::ReviewChange
