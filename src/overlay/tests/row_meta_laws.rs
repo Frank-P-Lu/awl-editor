@@ -250,11 +250,7 @@ fn command_palette_settings_rows_keep_key_and_value_across_refilter() {
         crate::settings::palette_rows(),
         crate::settings::palette_value_cells(&Default::default()),
     );
-    let ci = ov
-        .rows
-        .iter()
-        .position(|r| r.accept == "Autosave")
-        .unwrap();
+    let ci = ov.rows.iter().position(|r| r.accept == "Autosave").unwrap();
     assert!(matches!(
         ov.rows[ci].meta,
         RowMeta::CommandSetting { id } if id == crate::settings::SettingId::Autosave
@@ -263,7 +259,10 @@ fn command_palette_settings_rows_keep_key_and_value_across_refilter() {
     for c in "auto".chars() {
         ov.push(c);
     }
-    assert!(ov.items.contains(&ci), "the Autosave row survives the query");
+    assert!(
+        ov.items.contains(&ci),
+        "the Autosave row survives the query"
+    );
     assert_eq!(
         ov.rows[ci].secondary, value_before,
         "the value traveled with its OWN row"

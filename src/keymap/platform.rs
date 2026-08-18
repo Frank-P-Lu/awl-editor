@@ -195,7 +195,6 @@ impl KeymapFlavor {
             KeymapFlavor::Emacs => "Ctrl navigates (C-p, C-n, C-a…)",
         }
     }
-
 }
 
 /// The Emacs preset derives every `C-<letter>` directly from

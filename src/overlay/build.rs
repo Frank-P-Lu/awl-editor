@@ -196,8 +196,8 @@ pub fn build(kind: OverlayKind, ctx: &BuildCtx) -> Option<OverlayState> {
         // call sites), so this reads correctly whether opened from the Settings
         // menu or straight from the palette's "Keymap…".
         OverlayKind::Keymap => {
-            let active = crate::keymap::KeymapFlavor::parse(&ctx.settings_values.keymap)
-                .unwrap_or_default();
+            let active =
+                crate::keymap::KeymapFlavor::parse(&ctx.settings_values.keymap).unwrap_or_default();
             Some(OverlayState::new_keymap(active))
         }
         // Command palette: the PLATFORM-FILTERED command catalog

@@ -287,7 +287,8 @@ fn every_settings_toggle_row_dispatches_live_and_flips_its_value() {
 /// run exercises both arms across its two passes.
 #[test]
 fn settings_corpus_includes_the_keymap_row() {
-    let expect_visible = crate::convention::Convention::current() == crate::convention::Convention::Linux;
+    let expect_visible =
+        crate::convention::Convention::current() == crate::convention::Convention::Linux;
     assert_eq!(
         crate::settings::visible_names().contains(&"Keymap".to_string()),
         expect_visible,

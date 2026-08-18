@@ -187,9 +187,7 @@ fn a_live_app_capture_photographs_a_keymap_pick_an_ordinary_capture_cannot_see()
         std::env::temp_dir().join(format!("awl-live-app-replay-{}", std::process::id())),
     );
     let mut keys = walk_to(SettingId::Keymap);
-    keys.extend(
-        crate::keyspec::parse_chords("Down Enter").expect("the pick-Emacs tail parses"),
-    );
+    keys.extend(crate::keyspec::parse_chords("Down Enter").expect("the pick-Emacs tail parses"));
 
     // ── THE LIVE-`App` CAPTURE ────────────────────────────────────────
     let live = dir.join("live.png");
