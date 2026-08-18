@@ -662,3 +662,104 @@ fn switch_project_alone_names_the_open_files_folder_while_the_dispatch_root_foll
         "the roster x DPI sweep lost cells"
     );
 }
+
+/// **THE PIXEL SEAM'S OWN NON-VACUITY PROOF (item 458).** The broken frame's
+/// sidecar already reported `overlay.workspace: true`, `detail_focus: true`
+/// and `items: ["credits"]` — the STATE was correct while the PIXELS drew a
+/// one-row `credits ›` palette card over a frosted-blur page. So this law
+/// does not read the sidecar's workspace flag as its proof; it reads the PNG.
+///
+/// A summoned WORKSPACE takes the viewport
+/// (`render/chrome/workspace.rs::WORKSPACE_MARGIN_FRAC` leaves only ~5.5% of
+/// the smaller dimension as margin on each side), so the bounding box of
+/// pixels a real `--screenshot-app` capture changes when Credits opens must
+/// span nearly the whole canvas. The frosted-fallback bug drew a small
+/// one-row card instead — nowhere close to full-viewport — so a bounding-box
+/// span is what tells the two states apart without hand-computing the
+/// content pane's exact rect.
+#[test]
+fn credits_opens_a_full_viewport_workspace_not_a_one_row_card() {
+    let _g = crate::testlock::serial();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl-live-app-credits-px-{}", std::process::id())),
+    );
+    let doc = PathBuf::from("/ws/proj/notes.md");
+    let quiet_png = dir.join("quiet.png");
+    let open_png = dir.join("credits.png");
+
+    in_sandbox_with(&doc, || {
+        capture_live_app(
+            quiet_png.clone(),
+            LiveAppSpec {
+                file: Some(doc.clone()),
+                keys: Vec::new(),
+                root: Some(proj()),
+                workspace: None,
+                config: cfg(),
+                canvas: None,
+                dpi: None,
+            },
+        )
+        .expect("quiet live-app capture succeeds");
+
+        let keys = crate::keyspec::parse_chords("s-p c r e d i t s Enter")
+            .expect("the credits palette chord parses");
+        capture_live_app(
+            open_png.clone(),
+            LiveAppSpec {
+                file: Some(doc.clone()),
+                keys,
+                root: Some(proj()),
+                workspace: None,
+                config: cfg(),
+                canvas: None,
+                dpi: None,
+            },
+        )
+        .expect("credits live-app capture succeeds");
+    });
+
+    // STATE, for context only — item 458's own diagnosis is that this half
+    // was already correct on the broken frame, so it is not this law's proof.
+    let sc = sidecar(&open_png);
+    assert_eq!(sc["overlay"]["mode"], "credits", "the sidecar names Credits");
+    assert_eq!(
+        sc["overlay"]["workspace"], true,
+        "the sidecar already claimed a workspace on the broken frame"
+    );
+
+    let quiet_img = image::open(&quiet_png).expect("decode quiet PNG").to_rgba8();
+    let open_img = image::open(&open_png).expect("decode credits PNG").to_rgba8();
+    let (w, h) = quiet_img.dimensions();
+    assert_eq!((w, h), open_img.dimensions());
+
+    let (mut min_x, mut min_y, mut max_x, mut max_y) = (w, h, 0u32, 0u32);
+    let mut differing = 0usize;
+    for y in 0..h {
+        for x in 0..w {
+            if quiet_img.get_pixel(x, y) != open_img.get_pixel(x, y) {
+                differing += 1;
+                min_x = min_x.min(x);
+                min_y = min_y.min(y);
+                max_x = max_x.max(x);
+                max_y = max_y.max(y);
+            }
+        }
+    }
+    assert!(
+        differing > 500,
+        "opening Credits changed only {differing} of {w}x{h} pixels — its content is not \
+         reaching the screen at all"
+    );
+    let box_w_frac = (max_x - min_x + 1) as f32 / w as f32;
+    let box_h_frac = (max_y - min_y + 1) as f32 / h as f32;
+    assert!(
+        box_w_frac > 0.7 && box_h_frac > 0.7,
+        "the changed-pixel bounding box is only {box_w_frac:.2}x{box_h_frac:.2} of the \
+         {w}x{h} canvas (box [{min_x},{min_y}]..[{max_x},{max_y}]) — a summoned workspace \
+         takes the viewport (WORKSPACE_MARGIN_FRAC leaves ~89% of it to the content), so a \
+         box this small means Credits opened as a small card over the page rather than the \
+         full-viewport workspace its own sidecar reports: exactly the frosted-fallback bug \
+         this law names"
+    );
+}
