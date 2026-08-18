@@ -8,6 +8,8 @@
 
 ### 457 — the emacs flavor on Linux: native clipboard chords + the classic Meta layer (USER DECISION 2026-08-17; ready to build)
 
+🟡 IN PROGRESS — claude, branch `claude/item-457-linux-emacs-meta`
+
 Today `keymap = "emacs"` on Linux keeps EVERY displaced Ctrl-letter to its
 emacs meaning (`src/config/model.rs:119-125` composes the preset unfiltered):
 C-c and C-x become prefixes, C-v page-down — so Omarchy's Super+C→Ctrl+C
@@ -48,6 +50,8 @@ the default in both directions. Mutation: unfilter the preset, watch the C-c
 law go red.
 
 ### 453 — rip out the in-app Guide and Reference (USER DECISION 2026-08-17; ready to build)
+
+🟡 IN PROGRESS — claude, branch `claude/item-453-remove-guide-reference`
 
 Decided: the in-app Guide and Reference doors go. Remove the catalog commands
 (`src/commands/catalog/navigation.rs` Guide/Reference entries), their
@@ -90,6 +94,8 @@ the latter, that is new geometry work, not a revert — say so and it goes
 back on the board as its own item.
 
 ### 450 — the bottom identity names the ACTIVE FILE's own folder (USER DECISION 2026-08-17; ready to build)
+
+🟡 IN PROGRESS — claude, branch `claude/item-450-folder-identity`
 
 Item 444's lane closed the cross-root ownership bug where OPENING or
 ACTIVATING a buffer from another root left `load_path` and the buffer
@@ -187,6 +193,9 @@ so nothing exposes a control with nothing behind it.
   the zero-document work will need to reason about anyway.
 
 **Residual, in the order the landed work sets up:**
+
+🟡 IN PROGRESS on residual 1 — claude, branch `claude/item-444-cmd-w-removal`
+
 1. **⌘W as the true removal owner** (today it parks, not closes) — the
    three missing pieces are named above precisely; this is now the
    critical-path item, since hover-close and the scratch-row gap both
