@@ -84,18 +84,25 @@ pub const DEFAULT_TEMPLATE: &str = "\
 #   wants EVERY displaced bare-control chord back at once rather than naming
 #   them one by one: keymap = \"emacs\" keeps every letter the native-wins
 #   collision would otherwise claim (Find/Bold/New document/Command palette/Select
-#   all/Inline code/Finish file/Replace/Backward char/Search backward/Copy/Cut/
-#   Paste), reachable instead by palette/menu/their other chord. On Mac this key
-#   is inert (no collisions exist there to keep). A [keys] rebind ALWAYS wins
-#   over the preset for that one chord — the carve-out an Omarchy/Hyprland user
-#   needs, since that compositor forwards Super+C/X/V as Ctrl+C/X/V (the system
-#   clipboard), so Copy/Cut/Paste must stay native even under the emacs preset:
+#   all/Inline code/Finish file/Replace/Backward char/Search backward/Cut),
+#   reachable instead by palette/menu/their other chord. Copy (Ctrl-C) and
+#   Paste (Ctrl-V) are the two exceptions: they stay NATIVE even under this
+#   preset, so a compositor that forwards Super+C/V as Ctrl+C/V (Omarchy/
+#   Hyprland) keeps the system clipboard working with no extra config — emacs
+#   hands still have Cut/Paste on their own C-w/C-y aliases. Ctrl-X still
+#   becomes the bare emacs prefix (it carries Save/Open) — want Cut on Ctrl-X
+#   too? One more [keys] line, the same carve-out mechanism as any other
+#   rebind:
 #     keymap = \"emacs\"
 #     [keys]
-#     copy = \"C-c\"
 #     cut = \"C-x\"
-#     paste = \"C-v\"
-#   Also flippable live: Settings -> Keybindings -> Keymap.
+#   This also seeds the classic Meta (Alt) layer on Linux: M-x opens the
+#   command palette, M-w copies, M-f/M-b move by word, M-d/M-Backspace delete
+#   a word, M-v pages up, M-</M-> jump to the document's ends. A [keys] rebind
+#   still ALWAYS wins over any preset/Meta default for that one chord. On Mac
+#   this key is otherwise inert (Option keeps typing accented characters, and
+#   no collisions exist there to keep). Also flippable live: Settings ->
+#   Keybindings -> Keymap.
 
 # default_folder = \"~/notes\"
 # workspace = \"~/code\"

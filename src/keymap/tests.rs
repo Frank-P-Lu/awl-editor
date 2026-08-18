@@ -1306,56 +1306,79 @@ fn linux_emacs_preset_keep_equals_the_displaced_letters_no_drift() {
     }
 }
 
-/// THE KEYMAP FLAVOR ROUND — the actual DISPATCH half: applying the WHOLE
-/// emacs preset (as `Config::effective_linux_keep` would under `keymap =
-/// "emacs"`) reverts EVERY displaced bare-control chord back to its emacs
-/// meaning under `Convention::Linux` — not just the three named in the task
-/// spec (C-f forward-char, C-s isearch-forward, C-g cancel), but ALL of
-/// them, since nothing was explicitly listed one by one (the preset IS the
-/// whole displaced set). Each reverted chord's resolution matches EXACTLY
-/// what the SAME bare Ctrl-letter resolves to under `Convention::Mac` (where
-/// Ctrl never carries a native meaning at all — i.e. the untouched emacs
-/// default), so this test doubles as "the flavor preset makes Linux behave
-/// like Mac's Ctrl reading, letter for letter".
+/// THE KEYMAP FLAVOR ROUND — the actual DISPATCH half, RE-PINNED to item
+/// 457's real composition: `Config::effective_linux_keep()` under `keymap =
+/// "emacs"`, never the raw `linux_emacs_preset_keep()` fed straight into
+/// `apply_linux_keep` (that would still exercise the PRE-457 shape, since the
+/// native-clipboard carve-out lives only in `effective_linux_keep`'s own
+/// filtering). Every letter [`LINUX_DISPLACED_LETTERS`] names reverts to its
+/// emacs meaning under `Convention::Linux` — not just a hand-picked few, ALL
+/// of them, swept — EXCEPT `c`/`v`: those two are the native-clipboard
+/// carve-out, so they resolve to Copy/Paste instead of Mac's untouched emacs
+/// reading. Every OTHER letter's resolution matches EXACTLY what the SAME
+/// bare Ctrl-letter resolves to under `Convention::Mac` (where Ctrl never
+/// carries a native meaning at all), so this test doubles as "the flavor
+/// preset makes Linux behave like Mac's Ctrl reading, letter for letter,
+/// minus the two carved-out clipboard letters".
 #[test]
 fn keymap_flavor_emacs_preset_reverts_every_displaced_chord_to_emacs_meaning() {
-    let preset = linux_emacs_preset_keep();
-    let mut km = KeymapState::new_with_convention(Convention::Linux);
-    km.apply_linux_keep(&preset);
+    let mut cfg = crate::config::Config::empty();
+    cfg.keymap = Some("emacs".to_string());
+    let keep = cfg.effective_linux_keep();
     for letter in LINUX_DISPLACED_LETTERS {
         let key = ch(&letter.to_string());
-        let mut mac_reference = KeymapState::new_with_convention(Convention::Mac);
-        let want = mac_reference.resolve(&key, &ctrl());
         let mut linux_kept = KeymapState::new_with_convention(Convention::Linux);
-        linux_kept.apply_linux_keep(&preset);
-        assert_eq!(
-            linux_kept.resolve(&key, &ctrl()),
-            want,
-            "Ctrl-{letter} under the emacs flavor preset should match Mac's untouched emacs meaning"
-        );
+        linux_kept.apply_linux_keep(&keep);
+        let got = linux_kept.resolve(&key, &ctrl());
+        match letter {
+            'c' => assert_eq!(
+                got,
+                Action::CopyRegion,
+                "C-c: the native-clipboard carve-out — Copy, not the emacs prefix"
+            ),
+            'v' => assert_eq!(
+                got,
+                Action::Yank,
+                "C-v: the native-clipboard carve-out — Paste, not page-down"
+            ),
+            _ => {
+                let mut mac_reference = KeymapState::new_with_convention(Convention::Mac);
+                let want = mac_reference.resolve(&key, &ctrl());
+                assert_eq!(
+                    got, want,
+                    "Ctrl-{letter} under the emacs flavor preset should match Mac's untouched emacs meaning"
+                );
+            }
+        }
     }
     let mut nav = KeymapState::new_with_convention(Convention::Linux);
-    nav.apply_linux_keep(&preset);
+    nav.apply_linux_keep(&keep);
     assert_eq!(
         nav.resolve(&ch("f"), &ctrl()),
         Action::ForwardChar,
         "C-f nav"
     );
     let mut isearch = KeymapState::new_with_convention(Convention::Linux);
-    isearch.apply_linux_keep(&preset);
+    isearch.apply_linux_keep(&keep);
     assert_eq!(
         isearch.resolve(&ch("s"), &ctrl()),
         Action::SearchForward,
         "C-s isearch"
     );
     let mut cancel = KeymapState::new_with_convention(Convention::Linux);
-    cancel.apply_linux_keep(&preset);
+    cancel.apply_linux_keep(&keep);
     assert_eq!(
         cancel.resolve(&ch("g"), &ctrl()),
         Action::Cancel,
         "C-g cancel"
     );
-    let _ = km; // exercised above; keep the earlier binding for readability
+    let mut xprefix = KeymapState::new_with_convention(Convention::Linux);
+    xprefix.apply_linux_keep(&keep);
+    assert_eq!(
+        xprefix.resolve(&ch("x"), &ctrl()),
+        Action::BeginPrefix,
+        "C-x: NOT carved out — still the emacs prefix (Save/Open outrank the clipboard trade)"
+    );
 }
 
 /// A chord OUTSIDE the displaced set is UNCHANGED by the emacs flavor
@@ -1394,6 +1417,180 @@ fn config_keys_override_wins_over_the_emacs_preset() {
         km.resolve(&ch("c"), &ctrl()),
         Action::CopyRegion,
         "[keys] override wins over the preset"
+    );
+}
+
+/// LAW (item 457): a `[keys]` rebind wins over the native-clipboard carve-out's
+/// own default — in BOTH directions, independently. Since `c`/`v` already
+/// resolve to Copy/Paste BY DEFAULT under `keymap = "emacs"` post-457, a
+/// `[keys] copy = "C-c"` line would prove nothing (the default already
+/// agrees) — so each case rebinds the chord to a DIFFERENT action
+/// (`toggle_fold`) and asserts the override, not the default, is what fires,
+/// while the OTHER carved-out letter stays on its untouched default.
+#[test]
+fn config_keys_override_wins_over_the_native_clipboard_carve_out_reclaiming_c() {
+    let mut cfg = crate::config::Config::empty();
+    cfg.keymap = Some("emacs".to_string());
+    cfg.keys
+        .push(("fold_section".to_string(), vec!["C-c".to_string()]));
+    let mut km = KeymapState::with_overrides_and_convention(&cfg.keys, Convention::Linux);
+    km.apply_linux_keep(&cfg.effective_linux_keep());
+    assert_eq!(
+        km.resolve(&ch("c"), &ctrl()),
+        Action::ToggleFold,
+        "[keys] reclaiming C-c must win over the carve-out's own native-Copy default"
+    );
+    assert_eq!(
+        km.resolve(&ch("v"), &ctrl()),
+        Action::Yank,
+        "reclaiming C-c must not disturb C-v's own untouched default"
+    );
+}
+
+#[test]
+fn config_keys_override_wins_over_the_native_clipboard_carve_out_reclaiming_v() {
+    let mut cfg = crate::config::Config::empty();
+    cfg.keymap = Some("emacs".to_string());
+    cfg.keys
+        .push(("fold_section".to_string(), vec!["C-v".to_string()]));
+    let mut km = KeymapState::with_overrides_and_convention(&cfg.keys, Convention::Linux);
+    km.apply_linux_keep(&cfg.effective_linux_keep());
+    assert_eq!(
+        km.resolve(&ch("v"), &ctrl()),
+        Action::ToggleFold,
+        "[keys] reclaiming C-v must win over the carve-out's own native-Paste default"
+    );
+    assert_eq!(
+        km.resolve(&ch("c"), &ctrl()),
+        Action::CopyRegion,
+        "reclaiming C-v must not disturb C-c's own untouched default"
+    );
+}
+
+/// LAW (item 457): under `keymap = "emacs"` on Linux, bare Ctrl-C copies,
+/// Ctrl-V pastes, and Ctrl-X still begins the emacs prefix — the three
+/// concrete outcomes the decision names, each pinned by its own small law so
+/// a regression in any one fails BY NAME rather than only inside the swept
+/// roster test above.
+#[test]
+fn linux_emacs_flavor_c_copies() {
+    let mut cfg = crate::config::Config::empty();
+    cfg.keymap = Some("emacs".to_string());
+    let mut km = KeymapState::new_with_convention(Convention::Linux);
+    km.apply_linux_keep(&cfg.effective_linux_keep());
+    assert_eq!(km.resolve(&ch("c"), &ctrl()), Action::CopyRegion);
+    assert!(
+        !km.in_prefix(),
+        "native Copy wins outright — the C-c prefix never arms"
+    );
+}
+
+#[test]
+fn linux_emacs_flavor_v_pastes() {
+    let mut cfg = crate::config::Config::empty();
+    cfg.keymap = Some("emacs".to_string());
+    let mut km = KeymapState::new_with_convention(Convention::Linux);
+    km.apply_linux_keep(&cfg.effective_linux_keep());
+    assert_eq!(km.resolve(&ch("v"), &ctrl()), Action::Yank);
+}
+
+#[test]
+fn linux_emacs_flavor_x_still_begins_a_prefix() {
+    let mut cfg = crate::config::Config::empty();
+    cfg.keymap = Some("emacs".to_string());
+    let mut km = KeymapState::new_with_convention(Convention::Linux);
+    km.apply_linux_keep(&cfg.effective_linux_keep());
+    assert_eq!(km.resolve(&ch("x"), &ctrl()), Action::BeginPrefix);
+    assert!(km.in_prefix(), "C-x still arms the emacs prefix");
+}
+
+/// LAW (item 457b): the classic Meta layer — every entry in
+/// `platform::LINUX_EMACS_META_SEED` dispatches to its own named `Action`
+/// under `Convention::Linux` with the gate set, swept over the WHOLE table
+/// rather than a hand-picked chord.
+#[test]
+fn linux_emacs_meta_layer_dispatches_every_seeded_chord() {
+    let mut cfg = crate::config::Config::empty();
+    cfg.keymap = Some("emacs".to_string());
+    let keep = cfg.effective_linux_keep();
+    for (spec, want) in LINUX_EMACS_META_SEED {
+        let mut km = KeymapState::new_with_convention(Convention::Linux);
+        km.apply_linux_keep(&keep);
+        km.set_linux_emacs_meta(true);
+        let (key, mods) =
+            crate::keyspec::parse_chord(spec).unwrap_or_else(|e| panic!("{spec:?}: {e}"));
+        assert_eq!(
+            km.resolve(&key, &mods),
+            *want,
+            "seeded Meta chord {spec:?} must dispatch to its own named action"
+        );
+    }
+}
+
+/// LAW (item 457b): the Meta layer is OFF by default (flavor = native) even
+/// on Linux — it is seeded only under `keymap = "emacs"`, never unconditionally.
+/// A chord already reachable via some OTHER, gate-independent rule (`M-Backspace`
+/// — `resolve_named`'s generic Alt+Backspace-deletes-word arm, unrelated to
+/// item 457) is skipped: a baseline `KeymapState` that never sees the gate
+/// already resolves it to the SAME action, so the gate made no observable
+/// difference there and it is not evidence either way. Non-vacuity: at most
+/// ONE entry may be skipped this way, or the sweep is checking nothing.
+#[test]
+fn linux_native_flavor_never_seeds_the_meta_layer() {
+    let mut cfg = crate::config::Config::empty();
+    cfg.keymap = Some("native".to_string());
+    let keep = cfg.effective_linux_keep();
+    let mut checked = 0usize;
+    for (spec, want) in LINUX_EMACS_META_SEED {
+        let (key, mods) = crate::keyspec::parse_chord(spec).unwrap();
+        let mut baseline = KeymapState::new_with_convention(Convention::Linux);
+        if baseline.resolve(&key, &mods) == *want {
+            continue;
+        }
+        checked += 1;
+        let mut native = KeymapState::new_with_convention(Convention::Linux);
+        native.apply_linux_keep(&keep);
+        assert_ne!(
+            native.resolve(&key, &mods),
+            *want,
+            "{spec:?} must not seed under the native flavor"
+        );
+    }
+    assert!(
+        checked + 1 >= LINUX_EMACS_META_SEED.len(),
+        "at most one entry may be skipped as gate-independent; {checked} of \
+         {} were actually exercised — the sweep is checking too little",
+        LINUX_EMACS_META_SEED.len()
+    );
+}
+
+/// LAW (item 457b): the Meta layer stays structurally INERT on Mac even if a
+/// caller mistakenly sets the gate — Option keeps typing accented characters
+/// there, so `Convention::Mac` must never seed it regardless of flavor. Same
+/// gate-independent-chord skip and non-vacuity floor as the sibling law above.
+#[test]
+fn linux_emacs_meta_layer_stays_inert_on_mac() {
+    let mut checked = 0usize;
+    for (spec, want) in LINUX_EMACS_META_SEED {
+        let (key, mods) = crate::keyspec::parse_chord(spec).unwrap();
+        let mut baseline = KeymapState::new_with_convention(Convention::Mac);
+        if baseline.resolve(&key, &mods) == *want {
+            continue;
+        }
+        checked += 1;
+        let mut km = KeymapState::new_with_convention(Convention::Mac);
+        km.set_linux_emacs_meta(true);
+        assert_ne!(
+            km.resolve(&key, &mods),
+            *want,
+            "{spec:?} must not seed on Mac even with the gate forced true"
+        );
+    }
+    assert!(
+        checked + 1 >= LINUX_EMACS_META_SEED.len(),
+        "at most one entry may be skipped as gate-independent; {checked} of \
+         {} were actually exercised — the sweep is checking too little",
+        LINUX_EMACS_META_SEED.len()
     );
 }
 

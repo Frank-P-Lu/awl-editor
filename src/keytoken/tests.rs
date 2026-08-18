@@ -356,11 +356,11 @@ fn no_literal_chord_glyphs_survive_outside_tokens_and_the_generated_table() {
         "**slot 1 is native** (\u{2318} on",
         "**The hold-\u{2318} peek.** Hold the arming modifier alone for a beat (\u{2318} on",
     ];
-    // The Omarchy/Hyprland recipe: `Ctrl+C/X/V` here names the LITERAL
+    // The Omarchy/Hyprland recipe: `Ctrl+C/V` here names the LITERAL
     // signal the compositor forwards to every app (a hardware/OS fact,
     // not an awl chord label) — explicitly out of scope, per the round's
     // own "curate honestly" instruction.
-    const ALLOWED_CTRL_WORD_SUBSTRINGS: &[&str] = &["as Ctrl+C/X/V for the system clipboard"];
+    const ALLOWED_CTRL_WORD_SUBSTRINGS: &[&str] = &["as Ctrl+C/V for the system clipboard"];
     for (name, doc) in crate::embedded_docs::STARTING_DOCS {
         let body = strip_generated_table(doc);
         for line in body.lines() {
