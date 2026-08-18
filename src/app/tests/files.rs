@@ -130,13 +130,25 @@ fn keymap_picker_accept_applies_persists_notifies_and_live_reapplies() {
     // The insert-link-yields-to-kill-line round's built-in floor
     // (`keymap::linux_builtin_keep()`) rides ALONG with the preset — it is
     // NOT flavor-gated, so it's present under emacs too, just not part of
-    // `preset` itself (see `linux_builtin_keep()`'s own doc).
+    // `preset` itself (see `linux_builtin_keep()`'s own doc). Item 457's
+    // native-clipboard carve-out means the preset's OWN contribution is two
+    // shorter than `preset.len()` — "C-c"/"C-v" stay OUT of the composed list
+    // so Copy/Paste's native default dispatches instead.
     assert_eq!(
         effective.len(),
-        preset.len() + crate::keymap::linux_builtin_keep().len(),
-        "the live rebuild's keep-list is the whole preset plus the built-in floor"
+        preset.len() - 2 + crate::keymap::linux_builtin_keep().len(),
+        "the live rebuild's keep-list is the whole preset (minus the native-\
+         clipboard carve-out) plus the built-in floor"
     );
     for chord in &preset {
+        if crate::keymap::linux_is_native_clipboard_chord(chord) {
+            assert!(
+                !effective.contains(chord),
+                "{chord:?} is the native-clipboard carve-out and must NOT be \
+                 in the live rebuild's keep-list"
+            );
+            continue;
+        }
         assert!(
             effective.contains(chord),
             "{chord:?} missing from the live rebuild's keep-list"
