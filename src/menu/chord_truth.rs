@@ -47,10 +47,6 @@ fn menu_chord_column_agrees_with_real_linux_dispatch_under_both_flavors() {
         cfg.keymap = Some(flavor.to_string());
         let keep = cfg.effective_linux_keep();
 
-        let mut km =
-            crate::keymap::KeymapState::new_with_convention(crate::convention::Convention::Linux);
-        km.apply_linux_keep(&keep);
-
         let mut suppressed = Vec::new();
         let mut checked = 0usize;
         for section in SECTIONS {
@@ -67,6 +63,16 @@ fn menu_chord_column_agrees_with_real_linux_dispatch_under_both_flavors() {
                     continue;
                 };
                 checked += 1;
+                // A FRESH `KeymapState` per row: `BeginPrefix` is stateful
+                // (arms `in_c_x`/`in_c_c`), so a shared keymap across the whole
+                // roster sweep would let one row's displaced C-x/C-c chord
+                // silently swallow the NEXT row's unrelated single-key press as
+                // a bogus prefix continuation — this probes "does a fresh press
+                // of this chord dispatch to X", never a multi-key sequence.
+                let mut km = crate::keymap::KeymapState::new_with_convention(
+                    crate::convention::Convention::Linux,
+                );
+                km.apply_linux_keep(&keep);
                 let dispatched = km.resolve(&key, &mods);
                 let rendered = commands::menu_native_label(
                     c,

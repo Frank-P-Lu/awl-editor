@@ -1833,17 +1833,35 @@ fn effective_linux_keep_under_native_is_the_builtin_floor_plus_the_raw_list() {
     assert_eq!(eff.len(), crate::keymap::linux_builtin_keep().len() + 1);
 }
 
+/// The number of PRESET chords `effective_linux_keep` actually contributes
+/// under `keymap = "emacs"` — the raw preset minus item 457's native-clipboard
+/// carve-out (`"C-c"`/`"C-v"`), which the preset's own union skips by
+/// construction. Shared by every test below so the "minus 2" isn't re-derived
+/// three times.
+fn emacs_preset_contribution_len() -> usize {
+    crate::keymap::linux_emacs_preset_keep().len() - 2
+}
+
 #[test]
 fn effective_linux_keep_under_emacs_widens_to_the_whole_displaced_preset() {
     let mut cfg = Config::empty();
     cfg.keymap = Some("emacs".to_string());
     let eff = cfg.effective_linux_keep();
     // Every letter `LINUX_DISPLACED_LETTERS` names is present as a plain "C-<letter>"
-    // chord — the whole-catalog preset, derived from the SAME table the dispatch
-    // collision uses (never hand-copied) — PLUS the built-in floor, which the
-    // preset itself deliberately never names (`C-k` is unconditional, not
-    // flavor-gated; see `linux_builtin_keep()`'s own doc).
+    // chord EXCEPT the item 457 native-clipboard carve-out (`"C-c"`/`"C-v"`,
+    // which stay OUT of the keep-list so Copy/Paste's own native default
+    // dispatches instead) — the whole-catalog preset, derived from the SAME
+    // table the dispatch collision uses (never hand-copied) — PLUS the
+    // built-in floor, which the preset itself deliberately never names (`C-k`
+    // is unconditional, not flavor-gated; see `linux_builtin_keep()`'s own doc).
     for letter in crate::keymap::linux_emacs_preset_keep() {
+        if crate::keymap::linux_is_native_clipboard_chord(&letter) {
+            assert!(
+                !eff.contains(&letter),
+                "native-clipboard carve-out chord {letter:?} must NOT be in effective_linux_keep"
+            );
+            continue;
+        }
         assert!(
             eff.contains(&letter),
             "preset chord {letter:?} missing from effective_linux_keep"
@@ -1857,7 +1875,7 @@ fn effective_linux_keep_under_emacs_widens_to_the_whole_displaced_preset() {
     }
     assert_eq!(
         eff.len(),
-        crate::keymap::linux_emacs_preset_keep().len() + crate::keymap::linux_builtin_keep().len()
+        emacs_preset_contribution_len() + crate::keymap::linux_builtin_keep().len()
     );
 }
 
@@ -1872,9 +1890,27 @@ fn effective_linux_keep_under_emacs_unions_with_an_explicit_extra_keep() {
     assert!(eff.contains(&"C-y".to_string()));
     assert_eq!(
         eff.len(),
-        crate::keymap::linux_emacs_preset_keep().len()
-            + crate::keymap::linux_builtin_keep().len()
-            + 1
+        emacs_preset_contribution_len() + crate::keymap::linux_builtin_keep().len() + 1
+    );
+}
+
+/// The native-clipboard carve-out filters only the PRESET's own contribution —
+/// a user's own explicit `linux_keep_emacs` entry for `"C-c"`/`"C-v"` is a
+/// deliberate per-chord ask and stays UNFILTERED, so it still lands in the
+/// composed list even though the preset itself would have skipped it.
+#[test]
+fn effective_linux_keep_under_emacs_explicit_entry_reclaims_a_carved_out_letter() {
+    let mut cfg = Config::empty();
+    cfg.keymap = Some("emacs".to_string());
+    cfg.linux_keep_emacs = vec!["C-c".to_string()];
+    let eff = cfg.effective_linux_keep();
+    assert!(
+        eff.contains(&"C-c".to_string()),
+        "an explicit linux_keep_emacs entry for a carved-out letter must still land"
+    );
+    assert_eq!(
+        eff.len(),
+        emacs_preset_contribution_len() + crate::keymap::linux_builtin_keep().len() + 1
     );
 }
 
@@ -1888,7 +1924,7 @@ fn effective_linux_keep_under_emacs_a_duplicate_explicit_entry_does_not_double_c
     let eff = cfg.effective_linux_keep();
     assert_eq!(
         eff.len(),
-        crate::keymap::linux_emacs_preset_keep().len() + crate::keymap::linux_builtin_keep().len()
+        emacs_preset_contribution_len() + crate::keymap::linux_builtin_keep().len()
     );
 }
 

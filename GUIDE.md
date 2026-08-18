@@ -141,15 +141,15 @@ collides with a bare-control Emacs default (Ctrl-S save vs. Emacs
 still one `[keys]` line away. Set `keymap = "emacs"` in the config to
 bring back the whole displaced cluster at once, instead of naming
 chords one at a time — except Copy and Paste, which stay native even
-under this preset: that compositor forwards Super+C/V as Ctrl+C/V for
-the system clipboard (Omarchy/Hyprland), and it just works with no
-extra config. Ctrl-X still becomes the Emacs prefix (it carries
-Save/Open); reclaim Cut on Ctrl-X too with `keymap = "emacs"` plus
-`[keys] cut = "C-x"`. The Emacs preset also seeds the classic Meta
-layer on Linux — `M-x` command palette, `M-w` copy, `M-f`/`M-b` word
-motion, `M-d`/`M-Backspace` word delete, `M-v` page up, `M-<`/`M->`
-document ends — inert on Mac, where Option keeps typing accented
-characters.
+under this preset (that Omarchy/Hyprland compositor forwards
+Super+C/V as Ctrl+C/V for the system clipboard, and it just works
+with no extra config). Ctrl-X still becomes the Emacs prefix (it
+carries Save/Open); reclaim Cut on Ctrl-X too with `keymap = "emacs"`
+plus `[keys] cut = "C-x"`. The Emacs preset also seeds the classic
+Meta layer on Linux — `M-x` command palette, `M-w` copy, `M-f`/`M-b`
+word motion, `M-d`/`M-Backspace` word delete, `M-v` page up,
+`M-<`/`M->` document ends — inert on Mac, where Option keeps typing
+accented characters.
 
 **Rebind anything.** `[keys]` in the config maps a command's slugified
 name to a chord, or up to two. Example — restoring the Option-letter
