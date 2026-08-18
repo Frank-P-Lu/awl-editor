@@ -359,8 +359,6 @@ deadline without a surface).
 | `notice_toast` | Applied |
 | `open_file_chooser` | Unsupported |
 | `open_folder_chooser` | Unsupported |
-| `open_guide` | Applied |
-| `open_reference` | Applied |
 | `open_settings` | Applied |
 | `overlay_accept:Assets` | Unsupported |
 | `overlay_accept:Browse` | Unsupported |

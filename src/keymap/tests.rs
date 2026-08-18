@@ -65,8 +65,6 @@ toggle_typewriter_scroll|||
 toggle_menu_bar|||
 about|||
 credits|||
-guide|||
-reference|||
 lifetime_stats|||
 writing_streaks|||
 line_endings|||

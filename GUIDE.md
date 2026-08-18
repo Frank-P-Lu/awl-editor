@@ -230,8 +230,6 @@ drift into this page silently.
 | Toggle menu bar |  |  |
 | About |  |  |
 | Credits |  |  |
-| Guide |  |  |
-| Reference |  |  |
 | Lifetime stats |  |  |
 | Writing streaks |  |  |
 | Line endings… |  |  |

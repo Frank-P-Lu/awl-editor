@@ -142,8 +142,6 @@ Commands are grouped by the same task categories the palette browses.
 | Clean unused assets… | Summon the list of orphaned image files under the project, for moving to the trash. | — | — | Native |
 | About | Show the About panel. | — | — | Native, browser |
 | Credits | Open the bundled Credits document in a read-only viewer. | — | — | Native, browser |
-| Guide | Open the bundled Guide document into the buffer. | — | — | Native, browser |
-| Reference | Open the bundled Reference document into the buffer. | — | — | Native, browser |
 | Lifetime stats | Open the lifetime writing statistics panel. | — | — | Native |
 | Writing streaks | Open the writing-streaks panel (per-day heatmap and cumulative total). | — | — | Native |
 | Line endings… | Toggle the file's on-disk line ending between LF and CRLF; not on the undo timeline. | — | — | Native, browser |
