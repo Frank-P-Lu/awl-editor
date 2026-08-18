@@ -64,6 +64,8 @@ const COMMAND_TASK_CATEGORIES: &[(&str, TaskCategory)] = &[
     ("Move…", Files),
     ("Rename note…", Files),
     ("Duplicate note", Files),
+    ("Reveal in file manager", Files),
+    ("Copy file path", Files),
     ("Finish file", Files),
     ("Follow link", Navigate),
     ("Copy link destination", Navigate),

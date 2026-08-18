@@ -751,6 +751,10 @@ fn deferred_effect_matches(action: &Action, effect: &Effect) -> bool {
         Action::OpenFolder => effect == &Effect::Surface(SurfaceEffect::OpenFolderChooser),
         Action::DuplicateNote => effect == &Effect::DuplicateNote,
         Action::InsertDate => effect == &Effect::InsertDate,
+        // The smoke fixture is a NO-PATH buffer, so this resolves to
+        // `Effect::None` here — `context_menu::tests`/`app::files::export::tests`
+        // own the real law over the named-document arm.
+        Action::RevealInFileManager => effect == &Effect::None,
         // An export on a NATIVE build summons the destination navigator and
         // emits nothing; the effect that writes comes later, from that card's
         // accept. `actions::tests::export_gate` owns the real law over both

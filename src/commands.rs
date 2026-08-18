@@ -565,6 +565,10 @@ pub struct RowGates {
     pub has_waiter: bool,
     /// Is there an unresolved external change on the current document?
     pub change_unresolved: bool,
+    /// Does the active document have a real on-disk path? Reveal/Copy-path
+    /// need a real location — an unnamed scratch buffer has none, and the
+    /// default `false` hides both rows exactly like the two gates above.
+    pub named_file: bool,
 }
 
 /// Is this catalog row hidden right now, given the live facts? The ONE place a
@@ -600,6 +604,12 @@ fn row_hidden(action: &Action, gates: RowGates) -> bool {
         Action::OpenKeymapMenu => {
             crate::convention::Convention::current() != crate::convention::Convention::Linux
         }
+        // Reveal / Copy-path need a real on-disk location; an unnamed
+        // scratch buffer has none. Gated OFF rather than left to silently
+        // no-op (the core's own defensive floor for a chord that reaches it
+        // directly is `context_menu::copy_file_path`'s own `path()` check
+        // and the deferred `RevealInFileManager` resolving to `Effect::None`).
+        Action::RevealInFileManager | Action::CopyFilePath => !gates.named_file,
         _ => false,
     }
 }

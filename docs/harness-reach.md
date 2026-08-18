@@ -403,6 +403,7 @@ deadline without a surface).
 | `reshape` | Applied |
 | `resolve_keep_mine` | Unsupported |
 | `resolve_take_theirs` | Unsupported |
+| `reveal_in_file_manager` | Intercepted |
 | `review_external_change` | Unsupported |
 | `run_action` | Applied |
 | `save` | Unsupported |

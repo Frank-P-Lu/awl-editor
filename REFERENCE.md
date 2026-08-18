@@ -52,6 +52,8 @@ Commands are grouped by the same task categories the palette browses.
 | Move… | Summon the destination browser to move the current file to another folder. | — | — | Native, browser |
 | Rename note… | Open the rename prompt, seeded with the current file's name. | — | — | Native, browser |
 | Duplicate note | Save a copy of the file beside it, deduplicated, and switch to editing the copy. | — | — | Native, browser |
+| Reveal in file manager | Show the current document's file in the platform's file manager (Finder on macOS). | — | — | Native |
+| Copy file path | Copy the current document's absolute file path to the clipboard. | — | — | Native |
 | Finish file | Save the file, notify any daemon `--wait` client, and close it. | `⌘W` | `Ctrl+W` | Native |
 | Download file | Download the buffer's text as a file — the web export, since there is no real disk. | — | — | Browser |
 | Export as Word… | Export as `.docx`; markdown buffers only, folder chosen on native. | — | — | Native, browser |

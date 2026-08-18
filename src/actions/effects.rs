@@ -231,6 +231,11 @@ pub enum Effect {
     },
     DuplicateNote,
     InsertDate,
+    /// Reveal this absolute path in the platform's file viewer — carries the
+    /// path so a headless replay records the SAME handoff a live App would
+    /// perform (`FollowLink`'s exact shape), rather than a payload-less
+    /// signal the App would have to re-resolve.
+    RevealInFileManager(std::path::PathBuf),
 }
 
 /// The complete result of one shared editor transition.
@@ -362,6 +367,7 @@ pub(super) fn complete(primary: Effect, action: &Action) -> Transition {
             | Action::CopyRegion
             | Action::KillRegion
             | Action::CopyLinkDestination
+            | Action::CopyFilePath
     ) {
         transition.push(Effect::Clipboard(ClipboardEffect::WriteKillRing));
     }

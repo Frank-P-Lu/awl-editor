@@ -159,6 +159,35 @@ pub(super) static COMMANDS: &[Command] = &[
             "Save a copy of the file beside it, deduplicated, and switch to editing the copy.",
         ),
     },
+    // REVEAL / COPY PATH: the platform-neutral catalog name — the visible
+    // label a macOS surface may narrow to "Reveal in Finder" is a display
+    // decision made where it is shown (`context_menu::reveal_label`), never
+    // baked into this name (see that function's doc for why: the generated
+    // GUIDE.md/REFERENCE.md tables regenerate on whichever host's CI job
+    // runs them, and a host-dependent name would make those doc-drift laws
+    // disagree with themselves between the mac and linux jobs). Native-only:
+    // a web build has no real filesystem to reveal or an absolute native
+    // path to copy.
+    Command {
+        name: "Reveal in file manager",
+        action: Action::RevealInFileManager,
+        native: "",
+        emacs: "",
+        native_only: true,
+        web_only: false,
+        description: Some(
+            "Show the current document's file in the platform's file manager (Finder on macOS).",
+        ),
+    },
+    Command {
+        name: "Copy file path",
+        action: Action::CopyFilePath,
+        native: "",
+        emacs: "",
+        native_only: true,
+        web_only: false,
+        description: Some("Copy the current document's absolute file path to the clipboard."),
+    },
     // FINISH FILE: the emacsclient "server-edit" convention — save, notify any
     // daemon `--wait` client, and CLOSE the file, removing it from the working
     // set. The emacs `C-x #` default is retired; Cmd-W is its native slot now.

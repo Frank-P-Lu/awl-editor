@@ -24,6 +24,7 @@ mod overlay_drive;
 mod picker_misc_smoke;
 mod pickers_nav;
 mod recoil_flinch;
+mod reveal_copy_path;
 mod save_feedback;
 mod settings_reach;
 /// The summoned workspace's state, focus and back, in the lifecycle's
@@ -667,6 +668,8 @@ macro_rules! classify_delete_flinch {
             | Action::ExportHtml
             | Action::ExportPdf
             | Action::InsertDate
+            | Action::RevealInFileManager
+            | Action::CopyFilePath
             | Action::Ignore => None,
         }
     };
@@ -885,6 +888,8 @@ macro_rules! assert_action_roster {
             | Action::ExportHtml
             | Action::ExportPdf
             | Action::InsertDate
+            | Action::RevealInFileManager
+            | Action::CopyFilePath
             | Action::Ignore => {}
         }
     };
@@ -1114,7 +1119,11 @@ macro_rules! classify_smoke_command {
         | Action::ExportHtml
         | Action::ExportPdf
         | Action::DuplicateNote
-        | Action::InsertDate => SmokeKind::Deferred,
+        | Action::InsertDate
+        // The smoke fixture is a NO-PATH buffer (see `OpenRenameNote`'s note
+        // below), so this resolves to `Effect::None` here — still the
+        // Deferred family (`actions/deferred.rs`), just its no-target arm.
+        | Action::RevealInFileManager => SmokeKind::Deferred,
 
         // Real catalog commands that mutate locally (buffer / globals / zoom /
         // search) — asserted only to not panic. (`Ignore` is no longer a catalog
@@ -1128,6 +1137,9 @@ macro_rules! classify_smoke_command {
         | Action::Redo
         | Action::CopyRegion
         | Action::CopyLinkDestination
+        // Same no-path-buffer shape as `CopyLinkDestination` just above: the
+        // smoke fixture has no path, so this is a calm in-place no-op.
+        | Action::CopyFilePath
         | Action::KillRegion
         | Action::Yank
         | Action::SelectAll

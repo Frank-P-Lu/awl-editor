@@ -191,6 +191,7 @@ live catalog by `cargo test` — a renamed or retired command can't
 drift into this page silently.
 
 <!-- GENERATED:keys-reference:BEGIN -->
+
 | Command | macOS | Linux |
 |---|---|---|
 | Command palette… | ⌘P | Ctrl+P |
@@ -208,6 +209,8 @@ drift into this page silently.
 | Move… |  |  |
 | Rename note… |  |  |
 | Duplicate note |  |  |
+| Reveal in file manager |  |  |
+| Copy file path |  |  |
 | Finish file | ⌘W | Ctrl+W |
 | Follow link | C-c C-o |  |
 | Copy link destination |  |  |

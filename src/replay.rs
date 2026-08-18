@@ -224,6 +224,12 @@ pub fn classify_for(effect: &Effect, filesystem: FilesystemCapability) -> Classi
             "duplicate_note",
             unsupported("the sibling copy + buffer swap are live-App-only"),
         ),
+        // An external handoff, the exact `Export`/`FollowLink` shape: recorded
+        // with its payload, never performed, and the skip changes nothing
+        // about subsequent in-app state (no window ever came forward).
+        Effect::RevealInFileManager(path) => {
+            intercepted("reveal_in_file_manager", path.display().to_string())
+        }
     }
 }
 

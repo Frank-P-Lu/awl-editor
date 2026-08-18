@@ -133,6 +133,7 @@ impl App {
             row_gates: crate::commands::RowGates {
                 has_waiter,
                 change_unresolved: self.change_unresolved(),
+                named_file: self.document.buffer().path().is_some(),
             },
         }
     }

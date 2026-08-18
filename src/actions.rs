@@ -247,6 +247,7 @@ fn apply_buffer_action(ctx: &mut ActionCtx, action: &Action) -> bool {
         }
         Action::CopyRegion => ctx.buffer.copy_region(),
         Action::CopyLinkDestination => crate::context_menu::copy_link_destination(ctx.buffer),
+        Action::CopyFilePath => crate::context_menu::copy_file_path(ctx.buffer),
         Action::KillRegion => ctx.buffer.kill_region(),
         Action::SelectAll => {
             ctx.buffer.select_all();
@@ -640,6 +641,7 @@ macro_rules! classify_action_family {
             | Action::SetMark
             | Action::CopyRegion
             | Action::CopyLinkDestination
+            | Action::CopyFilePath
             | Action::KillRegion
             | Action::SelectAll => ActionFamily::Buffer,
             Action::ZoomIn
@@ -724,6 +726,7 @@ macro_rules! classify_action_family {
             | Action::ResolveKeepMine
             | Action::ResolveTakeTheirs
             | Action::FollowLink
+            | Action::RevealInFileManager
             | Action::BeginPrefix
             | Action::Ignore => ActionFamily::Deferred,
         }

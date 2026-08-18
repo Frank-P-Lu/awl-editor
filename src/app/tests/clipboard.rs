@@ -334,3 +334,64 @@ fn same_buffer_copy_then_paste_twice_keeps_the_redundant_write_read_suppression(
     assert_eq!(app.document.buffer().text(), "hihihi\n");
     assert_eq!(app.clipboard_last_written.as_deref(), Some("hi"));
 }
+
+// ── COPY FILE PATH (item 459 slice 3) ─────────────────────────────────────
+//
+// The same real path as `copy_selection`/`paste` above: `Action::CopyFilePath`
+// -> `Effect::Clipboard(WriteKillRing)` -> `sync_kill_to_clipboard` — never a
+// second write door. Driven through the REAL live interpreter so a mirror
+// regression anywhere in that chain would show up here, not just in the pure
+// kill-ring law (`actions::tests::reveal_copy_path`).
+
+#[test]
+fn copy_file_path_writes_the_exact_absolute_path_to_the_os_clipboard() {
+    let doc = PathBuf::from("/proj/notes/draft.md");
+    let mem = InMemoryFs::new().with_file(&doc, "body");
+    let _g2 = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+    // LOCK ORDER: fs seam first, testlock LAST (see page::test_lock()'s doc).
+    let _g = crate::testlock::serial();
+    let mut app = app_on(
+        Some(doc.clone()),
+        "/proj",
+        Config {
+            autosave: Some(false),
+            ..Config::empty()
+        },
+    );
+    let fake = install_fake_clipboard(&mut app);
+
+    dispatch(&mut app, Action::CopyFilePath);
+
+    let want = doc.display().to_string();
+    assert_eq!(
+        fake.current().as_deref(),
+        Some(want.as_str()),
+        "the OS clipboard must hold the document's exact absolute path"
+    );
+    assert_eq!(app.clipboard_last_written.as_deref(), Some(want.as_str()));
+}
+
+/// MUTATION TARGET: drop the `buffer.path()` gate in
+/// `context_menu::copy_file_path` and this fails by name — an unnamed scratch
+/// document would then push SOME text onto the OS clipboard instead of
+/// leaving it exactly as it started.
+#[test]
+fn copy_file_path_on_an_unnamed_scratch_document_leaves_the_os_clipboard_untouched() {
+    let _g = crate::testlock::serial();
+    let mut app = app_on(None, "/proj", Config::empty());
+    assert_eq!(
+        app.document.buffer().path(),
+        None,
+        "premise: a scratch document has no path"
+    );
+    let fake = install_fake_clipboard(&mut app);
+
+    dispatch(&mut app, Action::CopyFilePath);
+
+    assert_eq!(
+        fake.current(),
+        None,
+        "nothing to copy — the OS clipboard must stay untouched"
+    );
+    assert_eq!(app.clipboard_last_written, None);
+}

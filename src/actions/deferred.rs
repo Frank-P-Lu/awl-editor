@@ -21,6 +21,16 @@ pub(super) fn apply_deferred_action(ctx: &mut ActionCtx, action: &Action) -> Opt
             Effect::None
         }
         Action::DuplicateNote => Effect::DuplicateNote,
+        // Resolved HERE (the pure core), not by the live App: a path-less
+        // scratch buffer signals `Effect::None`, the exact `FollowLink`
+        // shape, so a headless replay of this action against a scratch
+        // buffer records no handoff at all rather than an Intercepted one
+        // live would never perform.
+        Action::RevealInFileManager => ctx
+            .buffer
+            .path()
+            .map(|p| Effect::RevealInFileManager(p.to_path_buf()))
+            .unwrap_or(Effect::None),
         Action::OpenSettings => Effect::Buffer(BufferEffect::OpenSettings),
         Action::OpenSettingsMenu => {
             ctx.journey.enter((ctx.make_overlay)(OverlayKind::Settings));

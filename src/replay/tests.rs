@@ -99,6 +99,7 @@ fn roster() -> Vec<Effect> {
         },
         Effect::DuplicateNote,
         Effect::InsertDate,
+        Effect::RevealInFileManager(std::path::PathBuf::from("/proj/draft.md")),
     ]
 }
 
@@ -153,6 +154,7 @@ fn every_effect_lands_in_its_documented_bucket() {
         "clipboard_write",
         "clipboard_paste_image",
         "daemon_notify_finished",
+        "reveal_in_file_manager",
     ];
     let unsupported = [
         "quit",

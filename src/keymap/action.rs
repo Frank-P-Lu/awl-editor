@@ -199,6 +199,17 @@ pub enum Action {
     MoveFile,
     OpenRenameNote,
     DuplicateNote,
+    /// Point the platform's own file viewer at the active document's file —
+    /// the generalized [`crate::mac_chrome::reveal_in_file_viewer`] handoff
+    /// export already used, reached here for any named document. A path-less
+    /// scratch buffer has nowhere to reveal: the pure core resolves this to
+    /// `Effect::None` rather than signaling a handoff with no target.
+    RevealInFileManager,
+    /// Copy the active document's absolute native path onto the kill ring —
+    /// the same shape as [`Action::CopyLinkDestination`] (set-kill, then the
+    /// ordinary `WriteKillRing` effect mirrors it to the OS clipboard). A
+    /// no-op for a path-less scratch buffer.
+    CopyFilePath,
     #[allow(dead_code)] // next-phase: fired by the settings menu's "Edit config as text" row.
     OpenSettings,
     OpenSettingsMenu,

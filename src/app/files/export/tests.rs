@@ -201,7 +201,7 @@ fn a_headless_app_writes_the_export_at_the_destination_with_the_emitted_bytes() 
 /// the identical write path and reveals nothing.
 ///
 /// MUTATION TARGET: drop the `frame.gpu().is_none()` early return in
-/// `reveal_export` and this fails by name. It is also the one law that would
+/// `reveal_path` and this fails by name. It is also the one law that would
 /// notice the regression behaviourally: without the gate, running the suite on
 /// macOS opens a Finder window per export test.
 #[test]
@@ -221,7 +221,7 @@ fn a_headless_app_never_reveals_the_export_in_the_platform_file_viewer() {
              is untested rather than satisfied",
         );
         assert!(
-            !app.reveal_export(&doc),
+            !app.reveal_path(&doc),
             "a surface-less App must not reach the platform file viewer",
         );
     });

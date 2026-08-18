@@ -117,6 +117,8 @@ fn catalog_non_empty_and_named() {
         "Move…",
         "Rename note…",
         "Duplicate note",
+        "Reveal in file manager",
+        "Copy file path",
         "Toggle page mode",
         "Toggle caret style",
         "Widen page",
@@ -1157,6 +1159,8 @@ const HIDE_ON_WEB: &[&str] = &[
     "Check for Updates",
     "Keep tutorial…",
     "Export as PDF…",
+    "Reveal in file manager",
+    "Copy file path",
 ];
 
 const HIDE_ON_NATIVE: &[&str] = &["Download file"];
@@ -1404,6 +1408,8 @@ fn visible_hidden_mask_gates_finish_buffer_on_the_live_waiter_fact_alone() {
     assert_eq!(
         hidden_now,
         vec![
+            "Reveal in file manager",
+            "Copy file path",
             "Finish file",
             "Review the change",
             "Save your version",
@@ -1440,7 +1446,13 @@ fn visible_hidden_mask_gates_finish_buffer_on_the_live_waiter_fact_alone() {
         .collect();
     assert_eq!(
         still_hidden,
-        vec!["Review the change", "Save your version", "Use disk version"],
+        vec![
+            "Reveal in file manager",
+            "Copy file path",
+            "Review the change",
+            "Save your version",
+            "Use disk version"
+        ],
         "the waiter fact gates the waiter row and nothing else"
     );
 
@@ -1458,8 +1470,31 @@ fn visible_hidden_mask_gates_finish_buffer_on_the_live_waiter_fact_alone() {
         .collect();
     assert_eq!(
         hidden_in_conflict,
-        vec!["Finish file"],
+        vec!["Reveal in file manager", "Copy file path", "Finish file"],
         "an open conflict reveals both resolutions and nothing else"
+    );
+
+    // …and the named-file fact, symmetrically: Reveal/Copy-path alone unmask.
+    let mask_named = visible_hidden_mask(RowGates {
+        named_file: true,
+        ..Default::default()
+    });
+    let hidden_named: Vec<&str> = corpus
+        .iter()
+        .zip(&mask_named)
+        .filter(|&(_, &h)| h)
+        .map(|(c, _)| c.name)
+        .filter(|&name| name != "Keymap…")
+        .collect();
+    assert_eq!(
+        hidden_named,
+        vec![
+            "Finish file",
+            "Review the change",
+            "Save your version",
+            "Use disk version"
+        ],
+        "the named-file fact gates Reveal/Copy-path and nothing else"
     );
 }
 

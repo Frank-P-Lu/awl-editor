@@ -11,7 +11,8 @@
 //! all read the same arithmetic instead of four copies of it.
 //!
 //! **Two live-only doors, ONE gate.** On macOS a successful write asks the
-//! Finder to select the file (`mac_chrome::reveal_in_file_viewer`), and the menu
+//! Finder to select the file ([`App::reveal_path`], generalized beyond export —
+//! the palette/context-menu "Reveal in Finder" door shares it too), and the menu
 //! bar's Export rows ask `NSSavePanel` where to put it — both only when a real
 //! window exists. A headless `App` (`--screenshot-app`, every tier-2 test) has no
 //! surface, so it takes the identical write path, reveals nothing, and never
@@ -227,26 +228,30 @@ impl App {
                         .unwrap_or_default()
                 };
                 self.set_toast_notice(format!("exported {shown}"));
-                let _revealed = self.reveal_export(&target.path);
+                let _revealed = self.reveal_path(&target.path);
             }
             Err(e) => self.set_sticky_notice(format!("export failed: {e}")),
         }
     }
 
-    /// Point the platform's own file viewer at a just-written export. Returns
-    /// whether the reveal actually fired, which is the seam a test reads: the
-    /// AppKit call itself cannot be observed from a test process, but "the
-    /// headless arm never reaches it" can be, and that is the property the
-    /// hermetic tiers depend on.
+    /// Point the platform's own file viewer at `path` — the reveal owner,
+    /// generalized beyond export writes: a just-exported file, or any other
+    /// document path the `RevealInFileManager` effect names (item 459's
+    /// palette/context-menu door), share this ONE gate rather than a second
+    /// implementation. Returns whether the reveal actually fired, which is
+    /// the seam a test reads: the AppKit call itself cannot be observed from
+    /// a test process, but "the headless arm never reaches it" can be, and
+    /// that is the property the hermetic tiers depend on.
     ///
     /// Gated on a real surface, not on `cfg`: a live window means a person is
     /// watching and the Finder coming forward is the answer they asked for,
     /// while a GPU-less `App` is a capture or a test and must stay hermetic —
     /// the same "no surface, no live-only side effect" rule `set_toast_notice`
     /// applies to its own expiry deadline. Non-macOS has no file-viewer door, so
-    /// the toast's path is the whole answer there.
+    /// the toast's path (export) or the notice/kill-ring text (reveal) is the
+    /// whole answer there.
     #[cfg(not(target_arch = "wasm32"))]
-    fn reveal_export(&self, path: &std::path::Path) -> bool {
+    pub(in crate::app) fn reveal_path(&self, path: &std::path::Path) -> bool {
         if self.frame.gpu().is_none() {
             return false;
         }

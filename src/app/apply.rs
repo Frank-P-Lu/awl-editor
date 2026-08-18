@@ -564,6 +564,11 @@ impl App {
             // calmly on a git-managed file or a name collision).
             actions::Effect::RenameNoteCommit { new_name } => self.rename_current_file(&new_name),
             actions::Effect::DuplicateNote => self.duplicate_current_file(),
+            // Shares the export write's own gate (`Self::reveal_path`) rather
+            // than a second implementation: a surfaceless App reveals nothing.
+            actions::Effect::RevealInFileManager(path) => {
+                let _revealed = self.reveal_path(&path);
+            }
             actions::Effect::Quit | actions::Effect::None => {}
             actions::Effect::RunAction(_)
             | actions::Effect::Clipboard(actions::ClipboardEffect::PasteImage)
