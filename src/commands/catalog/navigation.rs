@@ -159,13 +159,18 @@ pub(super) static COMMANDS: &[Command] = &[
             "Save a copy of the file beside it, deduplicated, and switch to editing the copy.",
         ),
     },
-    // FINISH FILE: the emacsclient "server-edit" convention — save, notify any daemon
-    // `--wait` client, and switch to the previously-open file. The emacs `C-x #`
-    // default is retired; Cmd-W is its native slot now (P5 of the keybinding
-    // idiom audit — awl's closest analogue to "close the document": non-
-    // destructive under stray muscle memory, since it saves rather than closes
-    // anything). NATIVE-ONLY: the daemon handoff it notifies has no web analog.
-    // See `crate::daemon`. (Action stays `FinishBuffer`.)
+    // FINISH FILE: the emacsclient "server-edit" convention — save, notify any
+    // daemon `--wait` client, and CLOSE the file, removing it from the working
+    // set. The emacs `C-x #` default is retired; Cmd-W is its native slot now.
+    // It is still non-destructive under stray muscle memory, but for a
+    // different reason than it used to be: it no longer merely parks the
+    // buffer, it removes it — and what makes that safe is the lossless gate it
+    // closes through (`app::files::close`), which saves first and REFUSES
+    // outright rather than discard a buffer whose file moved underneath it.
+    // Closing the last open file removes nothing, since there is no
+    // zero-document state to land in. NATIVE-ONLY: the daemon handoff it
+    // notifies has no web analog. See `crate::daemon`. (Action stays
+    // `FinishBuffer`.)
     Command {
         name: "Finish file",
         action: Action::FinishBuffer,
@@ -173,9 +178,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: true,
         web_only: false,
-        description: Some(
-            "Save the file, notify any daemon `--wait` client, and switch to the prior file.",
-        ),
+        description: Some("Save the file, notify any daemon `--wait` client, and close it."),
     },
     Command {
         name: "Follow link",
