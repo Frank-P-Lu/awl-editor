@@ -87,8 +87,8 @@ reason = "The event-to-present flight recorder needs its winit-receipt and keyma
 
 [[file_size_mark]]
 file = "src/app/input/mouse.rs"
-lines = 1047
-reason = "The wheel-region predicate at the one pointer entry point stopped naming a single overlay kind and asks the shape-neutral question instead (+7, all of it the comment recording why the kind check was wrong). +3: the working-set stack's left-click-to-switch route, enrolled in this file's own input-substate privacy law."
+lines = 1058
+reason = "The wheel-region predicate at the one pointer entry point stopped naming a single overlay kind and asks the shape-neutral question instead (+7, all of it the comment recording why the kind check was wrong). +3: the working-set stack's left-click-to-switch route, enrolled in this file's own input-substate privacy law. +11: `sync_cursor_icon` gains the stack-row hand-cursor arm, hit-tested through the same `gutter_stack_hit` the click path already uses."
 
 [[file_size_mark]]
 file = "src/app/session.rs"
@@ -167,7 +167,8 @@ lines = 546
 
 [[file_size_mark]]
 file = "src/cursor_shape.rs"
-lines = 1028
+lines = 1109
+reason = "+81: `CursorContext` gains `over_stack_row`, ranked in `cursor_icon_for` alongside the sibling outline-row/fold-chevron arms, its doc comment, and the mutation-proven law pair (a stack row earns the hand, and beats plain text beneath it) — the no-wildcard roster forced all 13 existing test literals to declare the new field explicitly."
 
 [[file_size_mark]]
 file = "src/daemon.rs"
