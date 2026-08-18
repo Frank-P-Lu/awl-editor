@@ -27,14 +27,17 @@ flavor). Filter in the one composition owner, `Config::effective_linux_keep`
 default and the printed example inverts.
 
 (b) The emacs flavor on Linux seeds the **classic Meta layer**: M-x → command
-palette (this, not a catalog emacs slot, is item 456's Linux-emacs binding),
+palette (a Linux-emacs seeded binding, not a catalog emacs slot — the command
+palette is now a real catalog command, landed: name `"Command palette…"`,
+slug `command_palette`, action `Action::OpenCommandPalette`, native slot
+Cmd-P/C-p, emacs slot deliberately EMPTY — seed M-x to that same action here,
+the same way any other Meta chord in this list seeds a catalog action),
 M-w copy, M-f/M-b word motion, M-d/M-Backspace word delete, M-v page-up,
 M-< / M-> document ends. Linux-only under the flavor; macOS keeps Option for
 typing (`src/keymap/resolve.rs:44-49`) and the flavor stays inert there.
 
 Also owned here: reword CLAUDE.md's "C-c/C-x/C-v stay native" tripwire to the
-new truth (c/v by construction, C-x deliberately emacs). Same mechanism as
-item 456's seeding — sequence the two or give them one owner.
+new truth (c/v by construction, C-x deliberately emacs).
 
 Verify: re-pin
 `keymap_flavor_emacs_preset_reverts_every_displaced_chord_to_emacs_meaning`
@@ -43,36 +46,6 @@ hand-picked sample. New laws: Linux+emacs C-c copies, C-v pastes, C-x begins
 a prefix; every seeded Meta chord dispatches; a `[keys]` reclaim wins over
 the default in both directions. Mutation: unfilter the preset, watch the C-c
 law go red.
-
-### 456 — the command palette becomes a real command (USER DECISION 2026-08-17; ready to build)
-
-🟡 IN PROGRESS — claude, branch claude/item-456-command-palette-catalog
-
-`OpenCommandPalette` is an uncatalogued hand-written resolver arm
-(`src/keymap/resolve.rs:126-138`). Confirmed consequences: absent from GUIDE's
-generated key table (the user looked and reasonably concluded it has no
-default binding); un-rebindable — `[keys]` resolves names through the catalog
-only; no menu item possible — the routed roster maps ids by catalog command
-name; and on Linux under the emacs flavor it has NO binding at all (C-p is
-kept as previous-line, and the resolver consults seeded defaults before the
-bespoke arm). Combined with item 454's silent toggle this stranded the user;
-recovery was Ctrl-, → Settings alone.
-
-Decided: catalog it. A real command ("Command palette", native slot Cmd-P,
-emacs slot EMPTY — a catalog emacs slot would fire on macOS too, where Option
-belongs to typing; the Linux M-x binding arrives via item 457's Meta-layer
-seeding instead), keeping Cmd-Shift-P → Open project intact, plus a menu item
-(lane picks the section).
-Behavior must not change on macOS or Linux-native: ⌘P / Ctrl-P resolve exactly
-as today. Check the web build: if the catalog path trips `webreserved` for
-Cmd-P where the bespoke arm did not, add the `WEB_ALTERNATE` entry rather than
-losing the web binding.
-
-Verify: existing Cmd-P/Ctrl-P/Cmd-Shift-P keymap laws stay green; a new law
-rebinds via `[keys]` and asserts dispatch; the GUIDE table gains its row,
-spot-checked against the dispatch it claims (generated-docs rule); the menu
-roster law covers the new item. Mutation: drop the catalog slot, watch the
-rebind law go red.
 
 ### 454 — Keymap setting becomes a picker with a name people can read (USER DECISION 2026-08-17; ready to build)
 
