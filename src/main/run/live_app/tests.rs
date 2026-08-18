@@ -733,12 +733,44 @@ fn credits_opens_a_full_viewport_workspace_not_a_one_row_card() {
     let (w, h) = quiet_img.dimensions();
     assert_eq!((w, h), open_img.dimensions());
 
-    let (mut min_x, mut min_y, mut max_x, mut max_y) = (w, h, 0u32, 0u32);
     let mut differing = 0usize;
+    // A BLUR BACKDROP changes color everywhere it covers but stays SMOOTH —
+    // neighbouring pixels stay close in value. Real glyph ink is the opposite:
+    // sharp edges against its own plate. So the bounding box that tells the
+    // full-viewport workspace apart from the frosted-fallback one-row card is
+    // not "any pixel that changed" (the backdrop blur alone covers most of the
+    // canvas in BOTH states) — it is the bounding box of pixels with a strong
+    // LOCAL gradient in the open frame, the signature of real text ink rather
+    // than a soft wash.
+    const SHARP_GRADIENT: i32 = 90;
+    let sharp_at = |img: &image::RgbaImage, x: u32, y: u32| -> bool {
+        let (iw, ih) = img.dimensions();
+        let c = img.get_pixel(x, y).0;
+        let mut g = 0i32;
+        if x + 1 < iw {
+            let r = img.get_pixel(x + 1, y).0;
+            g += (c[0] as i32 - r[0] as i32).abs()
+                + (c[1] as i32 - r[1] as i32).abs()
+                + (c[2] as i32 - r[2] as i32).abs();
+        }
+        if y + 1 < ih {
+            let d = img.get_pixel(x, y + 1).0;
+            g += (c[0] as i32 - d[0] as i32).abs()
+                + (c[1] as i32 - d[1] as i32).abs()
+                + (c[2] as i32 - d[2] as i32).abs();
+        }
+        g >= SHARP_GRADIENT
+    };
+    let (mut min_x, mut min_y, mut max_x, mut max_y) = (w, h, 0u32, 0u32);
+    let mut sharp = 0usize;
     for y in 0..h {
         for x in 0..w {
-            if quiet_img.get_pixel(x, y) != open_img.get_pixel(x, y) {
-                differing += 1;
+            if quiet_img.get_pixel(x, y) == open_img.get_pixel(x, y) {
+                continue;
+            }
+            differing += 1;
+            if sharp_at(&open_img, x, y) {
+                sharp += 1;
                 min_x = min_x.min(x);
                 min_y = min_y.min(y);
                 max_x = max_x.max(x);
@@ -751,15 +783,21 @@ fn credits_opens_a_full_viewport_workspace_not_a_one_row_card() {
         "opening Credits changed only {differing} of {w}x{h} pixels — its content is not \
          reaching the screen at all"
     );
+    assert!(
+        sharp > 500,
+        "opening Credits produced only {sharp} sharp-edged (text-like) pixels of {differing} \
+         changed — no legible ink reached the screen, only a soft wash"
+    );
     let box_w_frac = (max_x - min_x + 1) as f32 / w as f32;
     let box_h_frac = (max_y - min_y + 1) as f32 / h as f32;
     assert!(
         box_w_frac > 0.7 && box_h_frac > 0.7,
-        "the changed-pixel bounding box is only {box_w_frac:.2}x{box_h_frac:.2} of the \
-         {w}x{h} canvas (box [{min_x},{min_y}]..[{max_x},{max_y}]) — a summoned workspace \
-         takes the viewport (WORKSPACE_MARGIN_FRAC leaves ~89% of it to the content), so a \
-         box this small means Credits opened as a small card over the page rather than the \
-         full-viewport workspace its own sidecar reports: exactly the frosted-fallback bug \
-         this law names"
+        "the SHARP (text-like) pixel bounding box is only {box_w_frac:.2}x{box_h_frac:.2} of \
+         the {w}x{h} canvas (box [{min_x},{min_y}]..[{max_x},{max_y}], {sharp} sharp of \
+         {differing} changed) — a summoned workspace takes the viewport \
+         (WORKSPACE_MARGIN_FRAC leaves ~89% of it to the content), so legible ink confined to \
+         a box this small means Credits opened as a one-row card over a blurred page rather \
+         than the full-viewport workspace its own sidecar reports: exactly the \
+         frosted-fallback bug this law names"
     );
 }
