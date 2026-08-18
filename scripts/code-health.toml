@@ -49,8 +49,8 @@
 
 [[file_size_mark]]
 file = "src/actions.rs"
-lines = 869
-reason = "A non-Markdown Export raises an explicit notice rather than silently resolving to `Effect::None`: one named notice constant, one small helper the three Export arms share, and a doc comment explaining why the row stays enabled everywhere instead of being hidden (+13). This file also owns the photographable/findable notice, world-authored diagonal-mark weight, the Reference command's third `open_bundled_doc` consumer, explicit document-language tagging, and the switch-project accept/destination owner. +4: the Keymap picker's accept dispatch, alongside the other overlay-accept arms."
+lines = 890
+reason = "A non-Markdown Export raises an explicit notice rather than silently resolving to `Effect::None`: one named notice constant, one small helper the three Export arms share, and a doc comment explaining why the row stays enabled everywhere instead of being hidden (+13). This file also owns the photographable/findable notice, world-authored diagonal-mark weight, the Reference command's third `open_bundled_doc` consumer, explicit document-language tagging, and the switch-project accept/destination owner. +4: the Keymap picker's accept dispatch, alongside the other overlay-accept arms. +21: Credits opens through the same journey/overlay accept path as History/Conflict, replacing the retired open_bundled_doc buffer-swap route."
 
 [[file_size_mark]]
 file = "src/actions/format.rs"
@@ -179,8 +179,8 @@ lines = 475
 
 [[file_size_mark]]
 file = "src/durable.rs"
-lines = 555
-reason = "The per-subject `src/main/tests/<subject>.rs` layout requires seven accounting rows whose counts still total 21. Real-disk fixtures need two further census rows because `InMemoryFs` has no symlink concept; a link requires a real file under `ScratchDir`. The law's `expected` array is the authority for the listed bare-write count. The scenario.rs test carve (moved into scenario/tests.rs) split one accounting row into two."
+lines = 556
+reason = "The per-subject `src/main/tests/<subject>.rs` layout requires seven accounting rows whose counts still total 21. Real-disk fixtures need two further census rows because `InMemoryFs` has no symlink concept; a link requires a real file under `ScratchDir`. The law's `expected` array is the authority for the listed bare-write count. The scenario.rs test carve (moved into scenario/tests.rs) split one accounting row into two. +1: credits_capture.rs's disposable fixture, at the file's own frozen-baseline ceiling."
 
 [[file_size_mark]]
 file = "src/export/docx.rs"
@@ -254,8 +254,8 @@ lines = 761
 
 [[file_size_mark]]
 file = "src/overlay/kind.rs"
-lines = 437
-reason = "A new `OverlayKind` variant crosses seven exhaustive per-kind matches in this one file — name, accept disposition, row-meta roster, hints, empty copy, title, row split — each of which exists so a new kind cannot inherit an untested path (+20). +45: `keeps_backdrop_crisp` becomes the ONE owner of which pickers keep the document sharp behind them, as a wildcard-free 21-arm match -- the eighth exhaustive per-kind match this file carries. It replaced two independent deciders, one of which keyed on the mode's own SPELLING (`o.mode == \"theme\" || o.mode == \"caret\"`) in the capture door, so the live App and a capture could disagree about the same kind. A comment naming a stale set was the symptom; two deciders were the cause. +49: `previews_live_document` is the ninth wildcard-free per-kind match this file carries. It is the subject of the equivalence law that replaced a subset law: the frost exemption and the live audition are ONE decision, so a kind repainting the page behind its card must not frost it, and a kind repainting nothing has no exemption to claim. +9: the detail stage's Back cell is appended by one owner rather than authored per kind, so a kind cannot name a key its own intercept does not honour. +22: `project_flat_hint` filters Project's own kind-level cells by GLYPH against `workspace::ERASE_GLYPH` rather than re-listing them, so a hint cell added elsewhere cannot be silently dropped here. +78: OverlayKind::ProjectBrowse crosses the file's exhaustive per-kind matches by design — that is the mechanism stopping a new kind inheriting an untested path — plus its hint arm, routed through the existing footer owner rather than a second answer. +10: OverlayKind::Keymap crosses the same exhaustive per-kind matches, grouped with Dictionary/CjkLang/Date (no live audition, unlike Caret/Theme)."
+lines = 451
+reason = "A new `OverlayKind` variant crosses seven exhaustive per-kind matches in this one file — name, accept disposition, row-meta roster, hints, empty copy, title, row split — each of which exists so a new kind cannot inherit an untested path (+20). +45: `keeps_backdrop_crisp` becomes the ONE owner of which pickers keep the document sharp behind them, as a wildcard-free 21-arm match -- the eighth exhaustive per-kind match this file carries. It replaced two independent deciders, one of which keyed on the mode's own SPELLING (`o.mode == \"theme\" || o.mode == \"caret\"`) in the capture door, so the live App and a capture could disagree about the same kind. A comment naming a stale set was the symptom; two deciders were the cause. +49: `previews_live_document` is the ninth wildcard-free per-kind match this file carries. It is the subject of the equivalence law that replaced a subset law: the frost exemption and the live audition are ONE decision, so a kind repainting the page behind its card must not frost it, and a kind repainting nothing has no exemption to claim. +9: the detail stage's Back cell is appended by one owner rather than authored per kind, so a kind cannot name a key its own intercept does not honour. +22: `project_flat_hint` filters Project's own kind-level cells by GLYPH against `workspace::ERASE_GLYPH` rather than re-listing them, so a hint cell added elsewhere cannot be silently dropped here. +78: OverlayKind::ProjectBrowse crosses the file's exhaustive per-kind matches by design — that is the mechanism stopping a new kind inheriting an untested path — plus its hint arm, routed through the existing footer owner rather than a second answer. +10: OverlayKind::Keymap crosses the same exhaustive per-kind matches, grouped with Dictionary/CjkLang/Date (no live audition, unlike Caret/Theme). +14: OverlayKind::Credits crosses the same matches, reusing TimelineOverComparison's shape with a degenerate one-row primary column."
 
 [[file_size_mark]]
 file = "src/overlay/nav.rs"
@@ -401,8 +401,8 @@ reason = "+4: panel_layout reads shared physical PANEL_PAD and PANEL_MARGIN and 
 
 [[file_size_mark]]
 file = "src/render/rowlayout.rs"
-lines = 757
-reason = "+69: `ColumnFlow` — the one signed answer to which way a row's column grows from the edge it hangs on, with the origin/span/mirror/align derivations every consumer reads instead of its own sign, plus `rail_geom` taking that flow so a mirrored accessory seats its rail inward of its value at either orientation. It lands here because a row's name and its accessory are one layout question and this file already owns it; the diagonal cluster then MIRRORS by asking this enum once. The hand-kept `ALL_KINDS` array — which had silently omitted a shipping kind — is now derived from `OverlayKind::ALL` (-10). +12: `rows_for`'s Keymap arm."
+lines = 758
+reason = "+69: `ColumnFlow` — the one signed answer to which way a row's column grows from the edge it hangs on, with the origin/span/mirror/align derivations every consumer reads instead of its own sign, plus `rail_geom` taking that flow so a mirrored accessory seats its rail inward of its value at either orientation. It lands here because a row's name and its accessory are one layout question and this file already owns it; the diagonal cluster then MIRRORS by asking this enum once. The hand-kept `ALL_KINDS` array — which had silently omitted a shipping kind — is now derived from `OverlayKind::ALL` (-10). +12: `rows_for`'s Keymap arm. +1: `rows_for`'s Credits arm."
 
 [[file_size_mark]]
 file = "src/render/spans.rs"
@@ -416,8 +416,8 @@ reason = "The text shaping and incremental-restyle hub remains an explicit rende
 
 [[file_size_mark]]
 file = "src/replay.rs"
-lines = 365
-reason = "The conflict kind's arm in `accept_class`, the exhaustive per-kind accept classifier, plus the correction to that arm's own premise — it is the one member there that really can reach the generic accept fallthrough (+7). +4: the door's kind in the replay classifier, so a capture and the live App agree about what it is. +12: the Keymap overlay kind's own arm in the same two exhaustive classifiers."
+lines = 370
+reason = "The conflict kind's arm in `accept_class`, the exhaustive per-kind accept classifier, plus the correction to that arm's own premise — it is the one member there that really can reach the generic accept fallthrough (+7). +4: the door's kind in the replay classifier, so a capture and the live App agree about what it is. +12: the Keymap overlay kind's own arm in the same two exhaustive classifiers. +5: the Credits overlay kind's own arm in the same two exhaustive classifiers."
 
 [[file_size_mark]]
 file = "src/search/keys.rs"
@@ -885,8 +885,15 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/render/rowlayout.rs"
 function = "rows_for"
-message = "this function has too many lines (123/100)"
-reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions. +12: the Keymap kind's row-shape arm."
+message = "this function has too many lines (124/100)"
+reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions. +12: the Keymap kind's row-shape arm. +1: the Credits kind's row-shape arm."
+
+[[clippy_exception]]
+lint = "clippy::too_many_lines"
+file = "src/main/tests/credits_capture.rs"
+function = "credits_text_is_present_and_legible_across_a_world_sample"
+message = "this function has too many lines (111/100)"
+reason = "Real `capture_screenshot` sweep over a three-world sample (Tawny, Mopoke, Wagtail — the same sample panels.rs uses for this shape of check), asserting both a presence floor (pixel-diff count) and a WCAG AA legibility floor (ink-vs-plate contrast) per world; the coverage is the point, not a setup/assertion split."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -937,15 +944,15 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 lint = "clippy::too_many_lines"
 file = "src/render/tests/list_surfaces.rs"
 function = "poster_bars_centered_lists_preserve_page_and_distinguish_plates"
-message = "this function has too many lines (150/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Shifted by the `testlock::serial()` guard that every test reaching the shared wgpu device now takes; the line count moves by one and the body is otherwise unchanged. Shifted by one more line: the new Keymap kind joins the roster this test sweeps."
+message = "this function has too many lines (151/100)"
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Shifted by the `testlock::serial()` guard that every test reaching the shared wgpu device now takes; the line count moves by one and the body is otherwise unchanged. Shifted by one more line: the new Keymap kind joins the roster this test sweeps. Shifted by one more line: the new Credits kind joins the roster this test sweeps."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/list_surfaces.rs"
 function = "bars_float_bounded_plates_for_every_overlay_kind"
-message = "this function has too many lines (116/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Shifted by the `testlock::serial()` guard that every test reaching the shared wgpu device now takes; the line count moves by one and the body is otherwise unchanged. Shifted by one more line: the new Keymap kind joins the roster this test sweeps."
+message = "this function has too many lines (117/100)"
+reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Shifted by the `testlock::serial()` guard that every test reaching the shared wgpu device now takes; the line count moves by one and the body is otherwise unchanged. Shifted by one more line: the new Keymap kind joins the roster this test sweeps. Shifted by one more line: the new Credits kind joins the roster this test sweeps."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"

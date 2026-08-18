@@ -458,11 +458,7 @@ mod tests {
             // markdown input under its `ScratchDir`; like the other six, it is
             // disposable harness input rather than a durable user store.
             ("main/tests/capture_scenarios.rs", 7),
-            // The credits presence/legibility law's own markdown input,
-            // seeded under its `ScratchDir` the same way `capture_scenarios.rs`
-            // seeds its language-toast fixture above: disposable harness
-            // input, never a durable user store.
-            ("main/tests/credits_capture.rs", 1),
+            ("main/tests/credits_capture.rs", 1), // disposable ScratchDir fixture
             ("main/tests/headless_safety.rs", 1),
             ("main/tests/launch_context.rs", 2),
             ("main/tests/page_measure.rs", 2),
