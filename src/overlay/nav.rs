@@ -236,7 +236,7 @@ impl OverlayState {
     pub fn selected_line(&self) -> Option<usize> {
         let i = self.selected_corpus_index()?;
         match self.rows.get(i)?.meta {
-            RowMeta::GotoHeading { line } => Some(line),
+            RowMeta::GotoHeading { line } | RowMeta::GotoLine { line } => Some(line),
             _ => None,
         }
     }
@@ -247,6 +247,21 @@ impl OverlayState {
                 matches!(
                     self.rows.get(i).map(|r| &r.meta),
                     Some(RowMeta::GotoHeading { .. })
+                )
+            })
+            .unwrap_or(false)
+    }
+
+    /// Go to Line's own accept-path gate, the numeric sibling of
+    /// [`Self::selected_is_heading`]: `true` only when the highlighted row is
+    /// the synthesized line-jump row (never a heading, file, or folder row
+    /// that merely happens to carry a numeric-looking label).
+    pub fn selected_is_line_jump(&self) -> bool {
+        self.selected_corpus_index()
+            .map(|i| {
+                matches!(
+                    self.rows.get(i).map(|r| &r.meta),
+                    Some(RowMeta::GotoLine { .. })
                 )
             })
             .unwrap_or(false)
@@ -418,6 +433,7 @@ impl OverlayState {
             .iter()
             .map(|&i| match &self.rows[i].meta {
                 RowMeta::GotoHeading { .. } => "heading".to_string(),
+                RowMeta::GotoLine { .. } => "line".to_string(),
                 RowMeta::GotoFolder => "folder".to_string(),
                 RowMeta::FolderChooser => String::new(),
                 RowMeta::GotoFile { time } => time.clone(),

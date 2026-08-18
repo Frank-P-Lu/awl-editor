@@ -53,6 +53,12 @@ pub struct OverlayState {
     /// picker is filling in — and the reason both are payloads rather than a
     /// field each rebuild site has to remember.
     pub export_format: Option<crate::export::Format>,
+    /// Go to Line's one fact: the destination buffer's total line count,
+    /// gathered once at build time (`attach_line_jump`). `0` is the inert
+    /// default every non-`Goto`/bare-constructed picker carries -- "no
+    /// buffer known", so the line-jump row never offers a target
+    /// (`OverlayState::goto_line_target`).
+    pub goto_line_count: usize,
 }
 
 impl OverlayState {
@@ -131,6 +137,7 @@ impl OverlayState {
             context_anchor: None,
             conflict: None,
             export_format: None,
+            goto_line_count: 0,
         };
         s.refilter();
         s
@@ -604,6 +611,32 @@ impl OverlayState {
         let mut chooser = OverlayRow::plain("Choose another folder…".to_string());
         chooser.meta = RowMeta::FolderChooser;
         self.rows.push(chooser);
+        self.refilter();
+    }
+
+    /// Fold the destination buffer's LINE COUNT into Go-to and append Go to
+    /// Line's own terminal row -- the Headings lens's numeric companion
+    /// (queue: "long prose and light code", where a title-typed heading jump
+    /// has nothing to search). The row is a single fixed slot: its label and
+    /// `RowMeta::GotoLine { line }` are refreshed live from the typed query by
+    /// `refilter`'s `sync_goto_line_row` step every keystroke, never rebuilt
+    /// here. A no-op past setting `goto_line_count` when `line_count` is `0`
+    /// (no buffer known -- most bare test-constructed pickers), mirroring
+    /// `attach_headings`/`attach_folders`'s own opt-in shape: nothing to
+    /// attach, so nothing is.
+    pub fn attach_line_jump(&mut self, line_count: usize) {
+        self.goto_line_count = line_count;
+        if line_count == 0 {
+            return;
+        }
+        self.rows.push(OverlayRow {
+            accept: String::new(),
+            secondary: String::new(),
+            is_dir: false,
+            git: false,
+            meta: RowMeta::GotoLine { line: 0 },
+            range: None,
+        });
         self.refilter();
     }
 

@@ -15,6 +15,7 @@ struct ResolvedChord {
 #[allow(clippy::type_complexity)]
 struct ReplayActionInputs {
     goto_headings: Vec<(String, usize)>,
+    goto_line_count: usize,
     spell_target: Option<(Vec<String>, (usize, usize, usize), String)>,
     history_entries: Vec<crate::history::TimelineRow>,
     assets: Vec<crate::assets::Orphan>,
@@ -102,6 +103,13 @@ impl ReplaySession<'_> {
         } else {
             Vec::new()
         };
+        // Go to Line's numeric companion: ANY buffer, not only markdown --
+        // the same summon gate as `goto_headings`, minus the markdown check.
+        let goto_line_count = if matches!(action, Action::OpenGoto | Action::OpenOutline) {
+            self.buffer.line_count()
+        } else {
+            0
+        };
         let spell_target = if matches!(action, Action::OpenSpellSuggest) {
             self.spell.as_ref().and_then(|checker| {
                 let (line, col) = self.buffer.cursor_line_col();
@@ -153,6 +161,7 @@ impl ReplaySession<'_> {
         };
         ReplayActionInputs {
             goto_headings,
+            goto_line_count,
             spell_target,
             history_entries,
             assets,
@@ -192,6 +201,7 @@ impl ReplaySession<'_> {
             config_keys: &self.config.keys,
             config_linux_keep: &effective_keep,
             goto_headings: inputs.goto_headings,
+            goto_line_count: inputs.goto_line_count,
             goto_folders: inputs.goto_folders,
             goto_recent_folders: inputs.goto_recent_folders,
             spell_target: inputs.spell_target,

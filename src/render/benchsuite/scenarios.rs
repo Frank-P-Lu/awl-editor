@@ -403,6 +403,7 @@ fn palette(cx: &mut Cx) -> Result<CellOut> {
             config_keys: &cx.config.keys,
             config_linux_keep: &keep,
             goto_headings: Vec::new(),
+            goto_line_count: 0,
             goto_folders: Vec::new(),
             goto_recent_folders: Vec::new(),
             spell_target: None,

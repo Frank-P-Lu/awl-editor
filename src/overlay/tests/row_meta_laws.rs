@@ -16,8 +16,8 @@ fn project_overlay() -> OverlayState {
 /// Build a REPRESENTATIVE overlay for `kind` — enough of a real corpus that
 /// every `RowMeta` variant [`OverlayKind::row_meta_roster`] declares for it
 /// actually gets produced at least once (Command: a hidden row + an appended
-/// settings row; Goto: a file row + an appended heading row; Spell: a
-/// suggestion + the terminal add row). Used only by
+/// settings row; Goto: a file row + an appended heading row + a typed
+/// line-jump row; Spell: a suggestion + the terminal add row). Used only by
 /// [`every_kind_produces_only_its_declared_row_meta_roster`] below.
 fn representative_overlay(kind: OverlayKind) -> OverlayState {
     match kind {
@@ -29,6 +29,8 @@ fn representative_overlay(kind: OverlayKind) -> OverlayState {
                 vec![],
             );
             ov.attach_headings(vec![("Intro".to_string(), 3)]);
+            ov.attach_line_jump(100);
+            ov.push('5'); // touches GotoLine -- a digit query names a target
             ov
         }
         OverlayKind::Project => project_overlay(),
@@ -172,6 +174,7 @@ fn row_meta_tag_maps_every_variant_correctly() {
         RowMeta::GotoHeading { line: 3 }.tag(),
         RowMetaTag::GotoHeading
     );
+    assert_eq!(RowMeta::GotoLine { line: 41 }.tag(), RowMetaTag::GotoLine);
     assert_eq!(RowMeta::GotoFolder.tag(), RowMetaTag::GotoFolder);
     assert_eq!(RowMeta::FolderChooser.tag(), RowMetaTag::FolderChooser);
     assert_eq!(

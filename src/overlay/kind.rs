@@ -105,7 +105,7 @@ impl OverlayKind {
     pub fn row_meta_roster(self) -> &'static [super::RowMetaTag] {
         use super::RowMetaTag::*;
         match self {
-            OverlayKind::Goto => &[GotoFile, GotoHeading, GotoFolder, FolderChooser],
+            OverlayKind::Goto => &[GotoFile, GotoHeading, GotoLine, GotoFolder, FolderChooser],
             OverlayKind::Command => &[Plain, CommandHidden, CommandSetting],
             OverlayKind::Context => &[Plain],
             OverlayKind::Spell => &[Plain, SpellAdd],

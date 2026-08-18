@@ -416,6 +416,7 @@ impl App {
             goto_open,
             goto_recent,
             goto_headings,
+            goto_line_count,
         } = self.gather_goto_inputs(action);
         let OverlayInputs {
             spell_target,
@@ -433,6 +434,7 @@ impl App {
             config_keys: &config_keys,
             config_linux_keep: &config_linux_keep,
             goto_headings,
+            goto_line_count,
             goto_folders,
             goto_recent_folders,
             spell_target,

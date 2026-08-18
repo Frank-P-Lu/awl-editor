@@ -18,6 +18,7 @@ pub(super) struct GotoInputs {
     pub(super) goto_open: Vec<usize>,
     pub(super) goto_recent: Vec<usize>,
     pub(super) goto_headings: Vec<(String, usize)>,
+    pub(super) goto_line_count: usize,
 }
 
 impl App {
@@ -63,12 +64,26 @@ impl App {
         } else {
             Vec::new()
         };
+        // Go to Line's numeric companion: ANY buffer, not only markdown --
+        // the same summon gate as `goto_headings`, minus the markdown check.
+        let goto_line_count = if matches!(
+            action,
+            Action::OpenGoto
+                | Action::OpenProject
+                | Action::OpenRecentProjects
+                | Action::OpenOutline
+        ) {
+            self.document.buffer().line_count()
+        } else {
+            0
+        };
         GotoInputs {
             goto_corpus,
             goto_times,
             goto_open,
             goto_recent,
             goto_headings,
+            goto_line_count,
         }
     }
 

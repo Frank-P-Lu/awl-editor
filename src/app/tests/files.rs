@@ -52,6 +52,7 @@ fn rescan_file_index_picks_up_a_file_created_after_the_last_scan() {
         config_keys: &app.config.keys,
         config_linux_keep: &effective_keep,
         goto_headings: Vec::new(),
+        goto_line_count: 0,
         goto_folders: Vec::new(),
         goto_recent_folders: Vec::new(),
         spell_target: None,

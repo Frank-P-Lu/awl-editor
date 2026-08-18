@@ -73,6 +73,14 @@ pub struct BuildCtx<'a> {
     /// Caller-gathered (it needs the live buffer text); EMPTY for a non-markdown
     /// buffer or one with no headings, so the Headings lens simply reads empty.
     pub goto_headings: Vec<(String, usize)>,
+    /// The CURRENT buffer's total line count for Go-to's LINE-JUMP row (Go to
+    /// Line, the Headings lens's numeric companion). Unlike `goto_headings`
+    /// this is gathered for ANY buffer, not just a markdown one -- prose and
+    /// light code both address by line number. `0` for a non-Go-to summon and
+    /// for a headless fixture that doesn't gather it, the harmless "no
+    /// line-jump offered" default `OverlayState::attach_line_jump` treats as
+    /// opt-out.
+    pub goto_line_count: usize,
     /// Absolute folder destinations for Go-to, each with its git marker.
     pub goto_folders: Vec<(String, bool)>,
     /// Absolute folder MRU, newest-first. `attach_folders` enrols these into the
@@ -149,6 +157,7 @@ pub fn build(kind: OverlayKind, ctx: &BuildCtx) -> Option<OverlayState> {
             // non-markdown buffer (the lens then reads "no headings yet").
             ov.attach_headings(ctx.goto_headings.clone());
             ov.attach_folders(ctx.goto_folders.clone(), &ctx.goto_recent_folders);
+            ov.attach_line_jump(ctx.goto_line_count);
             Some(ov)
         }
         // Theme picker: every world name + the active index (for revert). Built

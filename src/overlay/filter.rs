@@ -5,6 +5,7 @@ use crate::fuzzy::{self, Tier};
 
 impl OverlayState {
     pub fn refilter(&mut self) {
+        self.sync_goto_line_row();
         let accepts = self.accepts();
         let mut scored = fuzzy::rank(self.query.text(), &accepts, |i| {
             if self.open.contains(&i) {
@@ -38,6 +39,54 @@ impl OverlayState {
         }
         self.scroll_to_selected();
         self.diff_scroll = 0;
+    }
+
+    /// The ONE-BASED destination line the CURRENT query names, clamped to
+    /// `[1, goto_line_count]` -- `None` unless the trimmed query is a bare,
+    /// non-empty digit string AND a buffer's line count is known
+    /// (`goto_line_count > 0`, set once by `attach_line_jump`). CLAMPING
+    /// wild input rather than refusing it matches the shared jump owner
+    /// every other caller already gets for free (`Buffer::line_col_to_char`
+    /// clamps both its line and column arguments); the row's LABEL is always
+    /// written from this same clamped value (`sync_goto_line_row`), so what
+    /// it promises is always the line Enter actually reaches, never a silent
+    /// surprise past the buffer's end.
+    pub(super) fn goto_line_target(&self) -> Option<usize> {
+        if self.goto_line_count == 0 {
+            return None;
+        }
+        let text = self.query.text();
+        let trimmed = text.trim();
+        if trimmed.is_empty() || !trimmed.bytes().all(|b| b.is_ascii_digit()) {
+            return None;
+        }
+        let typed: u64 = trimmed.parse().unwrap_or(u64::MAX);
+        Some(typed.max(1).min(self.goto_line_count as u64) as usize)
+    }
+
+    /// Refresh Go to Line's ONE fixed row from the current query, before
+    /// ranking runs (`refilter`'s first step) -- the row itself never moves
+    /// or gets re-created (`attach_line_jump` appends it once); only its
+    /// label and `RowMeta::GotoLine { line }` change per keystroke. Visibility
+    /// (hiding the row entirely when the query names no valid line) is
+    /// `retain_visible_rows`'s job, not this one.
+    fn sync_goto_line_row(&mut self) {
+        if self.kind != OverlayKind::Goto {
+            return;
+        }
+        let Some(one_based) = self.goto_line_target() else {
+            return;
+        };
+        if let Some(row) = self
+            .rows
+            .iter_mut()
+            .find(|r| matches!(r.meta, RowMeta::GotoLine { .. }))
+        {
+            row.accept = format!("Go to line {one_based}");
+            row.meta = RowMeta::GotoLine {
+                line: one_based - 1,
+            };
+        }
     }
 
     /// Rows that act on something other than the query stay reachable last,
@@ -89,6 +138,15 @@ impl OverlayState {
             && self.active_facet_id() != Some("headings")
         {
             ranked.retain(|&i| !matches!(self.rows[i].meta, RowMeta::GotoHeading { .. }));
+        }
+        // The line-jump row is Go to Line's own home on the flat `All` lens
+        // (every other lens's bucket predicate already excludes it -- it is
+        // neither a heading, a file, a folder, nor recent); hide it outright
+        // while the query names no valid target, so a stale/placeholder label
+        // never shows.
+        if self.kind == OverlayKind::Goto {
+            let has_target = self.goto_line_target().is_some();
+            ranked.retain(|&i| !matches!(self.rows[i].meta, RowMeta::GotoLine { .. }) || has_target);
         }
     }
 

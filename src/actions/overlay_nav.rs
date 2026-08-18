@@ -541,6 +541,19 @@ fn accept_value_overlay(ctx: &mut ActionCtx) -> Effect {
         dispose_after_accept(ctx);
         return eff;
     }
+    // Go to Line's own accept path -- the Headings branch's numeric sibling.
+    // Both resolve through `selected_line()` into the SAME shared jump owner
+    // (`Effect::JumpToLine`, `src/app/files/open.rs`'s `App::jump_to_line` /
+    // its headless replay twin), which is the one place caret placement, fold
+    // reveal and follow-scroll happen -- neither branch repeats that work.
+    if ov.kind == crate::overlay::OverlayKind::Goto && ov.selected_is_line_jump() {
+        let eff = match ov.selected_line() {
+            Some(line) => Effect::JumpToLine(line),
+            None => Effect::None,
+        };
+        dispose_after_accept(ctx);
+        return eff;
+    }
     if ov.kind == crate::overlay::OverlayKind::Goto && ov.selected_is_goto_folder() {
         let eff = ov
             .selected_value()

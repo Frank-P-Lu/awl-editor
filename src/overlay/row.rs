@@ -42,6 +42,16 @@ pub enum RowMeta {
     GotoHeading {
         line: usize,
     },
+    /// Go to Line's own destination row -- the Headings lens's numeric
+    /// companion. Synthesized/refreshed live from the typed query
+    /// (`OverlayState::attach_line_jump` appends the one slot,
+    /// `OverlayState::refilter`'s `sync_goto_line_row` step keeps its label
+    /// and `line` in step with the query on every keystroke); `line` is
+    /// already clamped to the destination buffer's own line count and
+    /// zero-based, matching `GotoHeading`.
+    GotoLine {
+        line: usize,
+    },
     /// A folder destination in the unified Go-to roster. Its absolute path is
     /// carried in `OverlayRow::accept`; accepting it switches the active writing
     /// folder through the same typed `OverlayAccept(Project, ..)` effect as the
@@ -68,6 +78,7 @@ pub enum RowMetaTag {
     Plain,
     GotoFile,
     GotoHeading,
+    GotoLine,
     GotoFolder,
     FolderChooser,
     CommandSetting,
@@ -84,6 +95,7 @@ impl RowMeta {
             RowMeta::Plain => RowMetaTag::Plain,
             RowMeta::GotoFile { .. } => RowMetaTag::GotoFile,
             RowMeta::GotoHeading { .. } => RowMetaTag::GotoHeading,
+            RowMeta::GotoLine { .. } => RowMetaTag::GotoLine,
             RowMeta::GotoFolder => RowMetaTag::GotoFolder,
             RowMeta::FolderChooser => RowMetaTag::FolderChooser,
             RowMeta::CommandSetting { .. } => RowMetaTag::CommandSetting,
@@ -98,7 +110,10 @@ impl RowMeta {
     /// query. `OverlayState::refilter` is the one consumer of this taxonomy.
     pub fn terminal(&self) -> bool {
         match self {
-            RowMeta::SpellAdd | RowMeta::ProjectDoor | RowMeta::FolderChooser => true,
+            RowMeta::SpellAdd
+            | RowMeta::ProjectDoor
+            | RowMeta::FolderChooser
+            | RowMeta::GotoLine { .. } => true,
             RowMeta::Plain
             | RowMeta::GotoFile { .. }
             | RowMeta::GotoHeading { .. }
