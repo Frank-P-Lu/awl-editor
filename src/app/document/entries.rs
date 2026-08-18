@@ -114,7 +114,7 @@ impl DocumentSession {
     /// from one but not the other is either a row naming a buffer that no
     /// longer exists or a buffer no surface can reach again.
     pub(in crate::app) fn discard(&mut self, key: &crate::buffers::BufferKey) -> bool {
-        let parked = self.registry.take(key).is_some();
+        let parked = self.registry.remove(key);
         let row = self.working.close_key(key).is_some();
         parked || row
     }

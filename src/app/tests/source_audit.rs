@@ -153,6 +153,17 @@ fn real_fs_app_new_calls_are_all_accounted_for() {
         // the anchor-swallow fix: fresh-note + fresh-scratch record words typed
         // before the first flush, and the card-summon-freshness flush.)
         ("app/streaks.rs", 6),
+        // 3 REMOVAL-OWNER tests (`app::files::close`), each on a real
+        // `ScratchDir` with `session_restore: Some(false)` set inline, so no
+        // developer's own open files are ever parked into the fixture's
+        // registry. `new_hermetic` cannot serve these: its injected
+        // `InMemoryFs` is exactly what makes the subject unreachable. The laws
+        // are about the CONFLICT GATE, whose whole job is to notice that a file
+        // moved between two observations — so the fixture has to write behind
+        // the App's back, on a filesystem the App is really reading. (Two of
+        // the three also need the real disk to observe that a parked buffer's
+        // own bytes, not the active document's, are what a close writes.)
+        ("app/files/close/tests.rs", 3),
         // input.rs's click tests all moved onto `App::new_hermetic` —
         // zero raw calls left.
     ];

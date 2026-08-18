@@ -269,6 +269,26 @@ impl<T> BufferRegistry<T> {
         self.entries.iter().find(|(k, _)| k == key).map(|(_, e)| e)
     }
 
+    /// **DISCARD** `key`'s entry for good, reporting whether one was there.
+    ///
+    /// Deliberately NOT [`Self::take`], though the mechanism is nearly the
+    /// same. `take` is the ACTIVATION half of the park/activate swap: what it
+    /// removes from here is about to become the active slot, so the buffer
+    /// survives the call. This ends the buffer. Spelling both as one method
+    /// would make "bring this forward" and "drop this forever" indistinguishable
+    /// at every call site, and the source audit that pins `take` to its single
+    /// owner could no longer tell the two verbs apart.
+    ///
+    /// Note this is the ONLY removal that is not eviction. `park`'s clean-LRU
+    /// drop is a memory-safety bound and refuses a dirty buffer; this is a
+    /// product close, and the decision that the buffer is safe to end was made
+    /// by its caller's own save-and-conflict gate.
+    pub fn remove(&mut self, key: &BufferKey) -> bool {
+        let before = self.entries.len();
+        self.entries.retain(|(k, _)| k != key);
+        self.entries.len() != before
+    }
+
     /// Remove and return the entry for `key` (a buffer being brought back to
     /// the foreground), or `None` if it isn't backgrounded (first time open).
     pub fn take(&mut self, key: &BufferKey) -> Option<Entry<T>> {
