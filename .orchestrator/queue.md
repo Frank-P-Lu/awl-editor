@@ -123,9 +123,34 @@ caret and scroll state. Read `docs/platform.md` and `docs/harness-reach.md`
 before implementing or promising captures; render-touching slices receive the
 standing vision-smoke and DPI/world audit required by policy.
 
-### 458 — 🔴 Credits is BROKEN, not merely the wrong size: it renders as a one-row palette over a blurred page (USER-REPORTED 2026-08-18; ready to build)
+### 458 — 🟢 LANDED — Credits is BROKEN, not merely the wrong size: it renders as a one-row palette over a blurred page (USER-REPORTED 2026-08-18)
 
-🟡 IN PROGRESS — claude, branch `claude/item-458-workspace-predicate`
+**Landed on `main` (`1d4959a5`).** The render-side workspace predicate now
+follows the SHAPE (`overlay_workspace` alone) rather than the lens strip, so
+`OverlayKind::Credits` and `OverlayKind::Conflict` — both lens-less by design
+— are recognised as workspaces too: `comparison_viewport()` returns `Some`,
+the content pane opens, and the transcript relocates into it instead of
+falling back to the frosted page column under the card. The workspace-law
+fixtures now enrol every kind whose `workspace_shape()` is `Some`, derived
+from the roster rather than a named list, so History/Settings/Credits/
+Conflict sweep the same geometry laws together.
+
+The pixel-seam law (`credits_opens_a_full_viewport_workspace_not_a_one_row_card`)
+is its own non-vacuity proof: it diffs a quiet vs. Credits-open
+`--screenshot-app` capture and asserts the changed-pixel bounding box spans
+>70% of the canvas in both dimensions — a state-only sidecar assertion would
+have passed on the broken frame too, since `overlay.workspace: true` was
+already correct there. **A real gate failure surfaced and got fixed during
+merge:** the test's `s-p` (Cmd-P) palette-open chord was hardcoded Mac-only,
+so under the `linux` gate arm (`AWL_CONVENTION_FORCE=linux`, where
+`command_palette`'s native slot is `C-p`, not `Cmd-P`) it opened no overlay
+at all and the law failed for a reason unrelated to the fix; repaired to
+pick the chord from `Convention::current()`, matching the file's existing
+`open_settings_chord()`/`new_document_chord()` idiom.
+
+The original taste question (full workspace vs. a smaller floating card) can
+now be put to the user, since both are visible for the first time — not
+raised this round.
 
 **Premise revised.** This item was carried as a taste divergence ("full
 workspace, not the mini window asked for"). The user opened ⌘P → Credits and
