@@ -58,7 +58,38 @@ promising any capture of it. Rust change: full gate.
 ### 459 — complete the ordinary-file vocabulary: Trash, Save a Copy, reveal/path, Go to line (USER DECISION 2026-08-18; ready to build in slices)
 
 🟢 LANDED — slice 3 (Reveal in File Manager + Copy File Path), `cdd5a1bc`
-🟡 IN PROGRESS on slice 4 (Go to Line) — claude, branch `claude/item-459-goto-line`
+🟢 LANDED — slice 4 (Go to Line), `0d95045d`
+
+**Slice 4 landed on `main` (`0d95045d`).** Go to Line is a numeric row inside
+the existing unified Go to… overlay, not a parallel navigation system: it
+carries the destination buffer's line count (`OverlayState::goto_line_count`
+/ `attach_line_jump`), refreshes its single fixed row live from the typed
+query on every keystroke (`refilter`'s `sync_goto_line_row`), and its own
+accept-path gate (`selected_is_line_jump`) is the numeric sibling of the
+existing `selected_is_heading` gate. Both resolve through the SAME shared
+jump owner (`Effect::JumpToLine`) the Headings lens already uses, so caret
+placement, fold reveal and follow-scroll are not reimplemented. First,
+middle, last and out-of-range lines, wrapped text, Unicode and a folded
+destination are swept through `--keys` with the sidecar proving caret and
+scroll state (`src/capture/tests/goto_line_jump.rs`).
+
+**A real lens-leak bug surfaced and got fixed along the way** (found by the
+lane while writing the lens-scoping law, not briefed): the generic "Files"
+bucket predicate (`!heading && !is_dir`) accidentally also claimed the
+line-jump row, since it wasn't gated on anything but those two flags.
+`filter.rs`'s `retain_visible_rows` now scopes the row to `facet_lens == 0`
+explicitly, mirroring how `GotoHeading` is already scoped to its own lens —
+watched the law go red on the exact bug, then green after the fix; the
+accept-path wiring itself was separately mutation-tested by disabling it and
+confirming both the unit and capture-level laws go red on that regression.
+`overlay_nav.rs`, `app/apply.rs`, `overlay/nav.rs`, `overlay/state.rs` and
+`render/benchsuite/scenarios.rs` crossed their frozen code-health high-water
+marks with this slice's own additions; each raise verified against the
+merged tree.
+
+**Item 459 is now half-landed: slices 3 and 4 done, slices 1 (Trash) and 2
+(Save a Copy) not yet dispatched.** Slice 1 has an explicit dependency
+(item 444 residual 2's zero-document state) for its final-document case.
 
 **Slice 3 landed on `main` (`cdd5a1bc`).** `CopyFilePath` and
 `RevealInFileManager` join the palette and item 444's shared filename context
