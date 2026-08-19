@@ -577,7 +577,16 @@ fn credits_opens_a_full_viewport_workspace_not_a_one_row_card() {
         )
         .expect("quiet live-app capture succeeds");
 
-        let keys = crate::keyspec::parse_chords("s-p c r e d i t s Enter")
+        // `capture_live_app` drives a real App, which resolves chords through
+        // its own AMBIENT convention — so the palette-open chord must match
+        // whichever convention `native-gate.sh` is forcing for this pass
+        // (`command_palette` is Cmd-P on Mac, C-p on Linux; the Cmd/Super slot
+        // is unbound under `Convention::Linux`).
+        let palette_chord = match crate::convention::Convention::current() {
+            crate::convention::Convention::Mac => "s-p",
+            crate::convention::Convention::Linux => "C-p",
+        };
+        let keys = crate::keyspec::parse_chords(&format!("{palette_chord} c r e d i t s Enter"))
             .expect("the credits palette chord parses");
         capture_live_app(
             open_png.clone(),
