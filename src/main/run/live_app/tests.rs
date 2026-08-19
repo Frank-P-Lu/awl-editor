@@ -537,6 +537,132 @@ fn a_live_app_capture_honors_capture_size_and_the_dpi_meaning_holds() {
     );
 }
 
+/// **THE BOTTOM IDENTITY's FOLDER LINE ALWAYS NAMES THE ACTIVE FILE's OWN
+/// FOLDER, NEVER THE NOMINALLY "active project."** `switch_project`
+/// (`s-S-p`/`C-S-p`, `Action::OpenProject`) moves `project_location.root`
+/// with no document opened or activated, so the gutter's project line must
+/// keep naming the root the OPEN file remembers — while every destination
+/// default (New document, Go to, Move, export — represented here by the
+/// sidecar's own `project.root`, the one field they all read) keeps
+/// following the switch. Reverting `CaptureOpts::fold_gutter`'s override
+/// makes this go red on `gutter` alone, never on `project`: the two claims
+/// are independent by construction, and BOTH are asserted in one frame so
+/// neither drifts unnoticed.
+///
+/// Swept across the WHOLE world roster at two DPIs (not one hand-picked
+/// world/scale) because the gutter's project line is a rendered, elided
+/// margin string (`rowlayout::fit_primary`, gated on `avail_chars` — a
+/// function of the label's own font metrics) — CLAUDE.md's tripwire that a
+/// check validated on one scale alone has shipped real DPI-dependent chrome
+/// bugs applies here as much as anywhere else. The companion PRESENCE floor
+/// (`same_root`) rules out a formatter that always shows nothing: it must
+/// name `notes` too, not merely differ from `archive`.
+#[test]
+fn switch_project_alone_names_the_open_files_folder_while_the_dispatch_root_follows() {
+    let _g = crate::testlock::serial();
+    let mem = Arc::new(
+        crate::fs::InMemoryFs::new()
+            .with_dir("/cfg")
+            .with_dir("/ws/notes")
+            .with_dir("/ws/archive")
+            .with_file("/ws/notes/index.md", "index\n"),
+    );
+    let open_project = match crate::convention::Convention::current() {
+        crate::convention::Convention::Mac => "s-S-p",
+        crate::convention::Convention::Linux => "C-S-p",
+    };
+    // The picker's folders facet opens on the workspace row itself; one
+    // `Down` reaches its first alphabetical child (`archive`, ahead of
+    // `notes`), `Enter` accepts it — Switch project to `archive`, nothing
+    // else.
+    let switch_keys = crate::keyspec::parse_chords(&format!("{open_project} Down Enter"))
+        .expect("the switch-project walk parses");
+
+    let dir = ScratchDir::new(std::env::temp_dir().join(format!(
+        "awl-switch-project-identity-{}",
+        std::process::id()
+    )));
+
+    // `Config` carries no `Clone`, so a fresh one is built per capture
+    // rather than shared across the two calls a cell needs. The canvas
+    // doubles WITH the dpi (2400x1600 @ 2.0, matching
+    // `a_live_app_capture_honors_capture_size_and_the_dpi_meaning_holds`'s
+    // own pairing) so the LOGICAL page stays 1200x800 at both scales — a real
+    // Retina display, not an artificially narrowed logical page that would
+    // suppress the gutter's project line for a reason unrelated to this fix.
+    let spec_for = |world: &str, dpi: f32, keys: Vec<crate::keyspec::Chord>| LiveAppSpec {
+        file: Some(PathBuf::from("/ws/notes/index.md")),
+        keys,
+        root: Some(PathBuf::from("/ws/notes")),
+        workspace: Some(PathBuf::from("/ws")),
+        config: Config {
+            theme: Some(world.to_string()),
+            ..cfg()
+        },
+        canvas: if dpi > 1.0 { Some((2400, 1600)) } else { None },
+        dpi: Some(dpi),
+    };
+
+    let mut checked = 0usize;
+    crate::fs::with_fs(mem, || {
+        for world in crate::theme::world_names() {
+            for dpi in [1.0f32, 2.0f32] {
+                // PRESENCE FLOOR: the ordinary same-root case, no switch at
+                // all — the label must still name `notes`, not merely
+                // differ from `archive`.
+                let same_out = dir.join(format!("same-{world}-{dpi}.png"));
+                let same = capture_live_app(same_out.clone(), spec_for(world, dpi, Vec::new()))
+                    .map(|()| sidecar(&same_out))
+                    .expect("the live-App capture needs a GPU adapter");
+                assert_eq!(
+                    same["gutter"]["project"].as_str(),
+                    Some("notes"),
+                    "world={world} dpi={dpi}: the ordinary same-root case \
+                     must NAME its folder"
+                );
+
+                // THE DECISION: Switch project to `archive`, nothing else.
+                let out = dir.join(format!("switch-{world}-{dpi}.png"));
+                let v = capture_live_app(out.clone(), spec_for(world, dpi, switch_keys.clone()))
+                    .map(|()| sidecar(&out))
+                    .expect("the live-App capture needs a GPU adapter");
+                assert_eq!(
+                    v["gutter"]["project"].as_str(),
+                    Some("notes"),
+                    "world={world} dpi={dpi}: the identity must keep naming \
+                     the OPEN file's own folder, never the switched-to \
+                     project — non-vacuous by construction (this read \
+                     `archive` before the fix)"
+                );
+                // The name line is elided independently at some world/DPI
+                // combinations (`rowlayout::fit_primary`, unrelated to this
+                // item's fix) — checked for PRESENCE and its preserved
+                // extension, not byte-exact text.
+                let drawn_name = v["gutter"]["name"].as_str().unwrap_or_default();
+                assert!(
+                    drawn_name.ends_with(".md") && !drawn_name.is_empty(),
+                    "world={world} dpi={dpi}: the open file itself never \
+                     changed, got {drawn_name:?}"
+                );
+                assert_eq!(
+                    v["project"]["root"].as_str(),
+                    Some("/ws/archive"),
+                    "world={world} dpi={dpi}: the DISPATCH root (New \
+                     document / Go to / Move / export's destination) must \
+                     still follow Switch project — the two halves are \
+                     deliberately not re-synced, only the label stops lying"
+                );
+                checked += 1;
+            }
+        }
+    });
+    assert_eq!(
+        checked,
+        crate::theme::world_names().len() * 2,
+        "the roster x DPI sweep lost cells"
+    );
+}
+
 /// **THE PIXEL SEAM'S OWN NON-VACUITY PROOF.** A broken frame can report a
 /// correct `overlay.workspace: true`, `detail_focus: true` and
 /// `items: ["credits"]` sidecar while the PIXELS draw a one-row `credits ›`
