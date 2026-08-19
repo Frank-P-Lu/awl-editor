@@ -49,7 +49,8 @@
 
 [[file_size_mark]]
 file = "src/actions.rs"
-lines = 888
+lines = 891
+reason = "Reveal in File Manager / Copy File Path: the `CopyFilePath` dispatch arm in `apply_transition`, plus both actions' membership in the exhaustive `ActionFamily` classifier (`CopyFilePath` as Buffer, `RevealInFileManager` as Deferred) (+3)."
 
 [[file_size_mark]]
 file = "src/actions/format.rs"
@@ -68,8 +69,8 @@ reason = "The clobber-notice predicate MOVED OUT to `app/files/external.rs` besi
 
 [[file_size_mark]]
 file = "src/app/apply.rs"
-lines = 854
-reason = "The conflict workspace's summon reaches the live effect interpreter's one `PersistenceEffect` match and the one `apply_overlay_accept` roster, both exhaustive by design (+6). +34: `sync_theme_font_measured`, the ONE reshape door every live theme-font path runs through. The split-reach preview path shapes the presentable prefix immediately; the quiet-settle owner finishes only the latest highlighted world's tail. +11: `refresh_kill_from_clipboard`'s duplicate-read skip now also requires the active buffer's own kill ring to already equal the OS text, not just the App-global last-written stamp, so a buffer switch cannot leave a Paste reading a kill ring that stamp never actually hydrated. +11: `App::apply_keymap_flavor` — sets the config field, persists it, rebuilds the live keymap, refreshes an open Settings menu, and emits the resulting-flavor notice, replacing the old always-toggling handler. +1: `Previous`/`CloseActive` need two dispatch arms where there was one, now that Finish file's last leg is its own effect."
+lines = 866
+reason = "The conflict workspace's summon reaches the live effect interpreter's one `PersistenceEffect` match and the one `apply_overlay_accept` roster, both exhaustive by design (+6). +34: `sync_theme_font_measured`, the ONE reshape door every live theme-font path runs through. The split-reach preview path shapes the presentable prefix immediately; the quiet-settle owner finishes only the latest highlighted world's tail. +11: `refresh_kill_from_clipboard`'s duplicate-read skip now also requires the active buffer's own kill ring to already equal the OS text, not just the App-global last-written stamp, so a buffer switch cannot leave a Paste reading a kill ring that stamp never actually hydrated. +11: `App::apply_keymap_flavor` — sets the config field, persists it, rebuilds the live keymap, refreshes an open Settings menu, and emits the resulting-flavor notice, replacing the old always-toggling handler. +1: `Previous`/`CloseActive` need two dispatch arms where there was one, now that Finish file's last leg is its own effect. +12: Reveal in File Manager's `Effect::RevealInFileManager` arm reuses the export write's own `reveal_path` gate rather than a second implementation, with a wasm counterpart to keep the match exhaustive on the browser target too."
 
 [[file_size_mark]]
 file = "src/app/files/settings.rs"
@@ -153,8 +154,8 @@ reason = "+2: the glyph pipeline owns the Filled block's named zero-dilation kno
 
 [[file_size_mark]]
 file = "src/commands.rs"
-lines = 695
-reason = "The review row joins the two resolutions in `row_hidden`, the one place a runtime palette gate is written down (+4). +13: Command gains a `description` field, and the added lines are its doc comment explaining the mechanism that makes the omission unrepresentable — Option<&'static str> with no Default impl on the struct, so all 96 literals must write the arm and a 95th command cannot be added without one. +56: native_label_effective and menu_native_label, the one owner both the palette's join_slots_truthful and the drawn menu's chord column now share for a config-aware native label, plus their doc comments naming the shared-owner rule. +12: the new Keymap picker catalog command and row_hidden's macOS-inert arm, mirroring Command palette's own hide-on-macOS shape."
+lines = 705
+reason = "The review row joins the two resolutions in `row_hidden`, the one place a runtime palette gate is written down (+4). +13: Command gains a `description` field, and the added lines are its doc comment explaining the mechanism that makes the omission unrepresentable — Option<&'static str> with no Default impl on the struct, so all 96 literals must write the arm and a 95th command cannot be added without one. +56: native_label_effective and menu_native_label, the one owner both the palette's join_slots_truthful and the drawn menu's chord column now share for a config-aware native label, plus their doc comments naming the shared-owner rule. +12: the new Keymap picker catalog command and row_hidden's macOS-inert arm, mirroring Command palette's own hide-on-macOS shape. +10: Reveal in File Manager / Copy File Path need a real on-disk location, so `PaletteGates` grows a `named_file` field and `row_hidden` gates both rows off it — an unnamed scratch buffer hides both rather than silently no-opping."
 
 [[file_size_mark]]
 file = "src/config/model.rs"
@@ -417,8 +418,8 @@ reason = "The text shaping and incremental-restyle hub remains an explicit rende
 
 [[file_size_mark]]
 file = "src/replay.rs"
-lines = 370
-reason = "The conflict kind's arm in `accept_class`, the exhaustive per-kind accept classifier, plus the correction to that arm's own premise — it is the one member there that really can reach the generic accept fallthrough (+7). +4: the door's kind in the replay classifier, so a capture and the live App agree about what it is. +12: the Keymap overlay kind's own arm in the same two exhaustive classifiers. +5: the Credits overlay kind's own arm in the same two exhaustive classifiers."
+lines = 376
+reason = "The conflict kind's arm in `accept_class`, the exhaustive per-kind accept classifier, plus the correction to that arm's own premise — it is the one member there that really can reach the generic accept fallthrough (+7). +4: the door's kind in the replay classifier, so a capture and the live App agree about what it is. +12: the Keymap overlay kind's own arm in the same two exhaustive classifiers. +5: the Credits overlay kind's own arm in the same two exhaustive classifiers. +6: Reveal in File Manager's `Effect::RevealInFileManager` arm is recorded (intercepted, never performed) in `--keys` replay, the same external-handoff shape as `Export`/`FollowLink`."
 
 [[file_size_mark]]
 file = "src/search/keys.rs"
