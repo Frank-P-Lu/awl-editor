@@ -6,6 +6,55 @@
 
 ## Ready to build
 
+### 460 — context menu: omit unavailable commands instead of tagging them "unavailable" (USER DECISION 2026-08-19; ready to build)
+
+The right-click card shows state-gated commands as disabled rows carrying a
+literal `unavailable` secondary label (`context_menu::overlay`,
+`src/context_menu.rs`). A plain body right-click with no selection therefore
+reads `Cut — unavailable / Copy — unavailable` above Paste. The user's call:
+that makes no sense — a command that cannot apply here is simply not shown.
+The menu contains only what works, now. (macOS native menus grey such items
+out; this drawn card instead spells a word, and omission was chosen over
+imitating the grey.)
+
+The disabled roster today, read from `context_menu::rows`: the `Body`
+target's Cut/Copy (`has_selection` is false by construction — a selection
+routes to the `Selection` target, where both are always live), and the
+`Filename` target's four file verbs when the document is unnamed
+(`named_file` false). Under the decision: Body yields exactly Paste +
+Select all; an unnamed document's filename target yields no rows.
+
+Mechanism:
+- `rows()` stays the one owner of the roster; it returns only applicable
+  rows.
+- Empty rows ⇒ no menu, owned in ONE place. The gutter summon branch already
+  suppresses an empty card (`src/app/input/context_menu.rs`) while the
+  document and heading branches summon unconditionally — move the suppression
+  into the shared summon/overlay seam so no path can open an empty card.
+- With no producer of disabled rows left, cut the dead machinery rather than
+  leaving a dormant second path: `ContextRow.enabled`, the `None` slots the
+  overlay stores in `context_actions`, and the `unavailable` secondary
+  writer. If the lane finds a genuine near-term need for an informative
+  disabled row, keep the field and say so in the landing note; the default is
+  cut.
+- Named consequence: the accessory-ink law
+  (`src/render/tests/accessory_ink.rs`) proves per-row secondary ink on the
+  one overlay kind that combines zero header rows with a non-empty secondary
+  column — precisely the context card's `unavailable` tags. Removing the tags
+  removes that law's production subject; retire or re-target it deliberately
+  in the same landing, never incidentally.
+- Boundary: availability remains state-gated capability (selection present,
+  file named). No clipboard sniffing to gate Paste, no per-platform changes
+  beyond the existing web omissions.
+
+Verify at the purest reachable seam: unit laws over `rows()` sweeping
+target × state × platform — no cell returns an inapplicable row, Body with no
+selection is exactly Paste + Select all, unnamed Filename is empty — plus a
+law at the summon seam proving an empty rows list opens no card on ANY
+branch (the pre-fix document branch must fail it). Prove non-vacuity by
+mutation. The card is pointer-summoned; read `docs/harness-reach.md` before
+promising any capture of it. Rust change: full gate.
+
 ### 459 — complete the ordinary-file vocabulary: Trash, Save a Copy, reveal/path, Go to line (USER DECISION 2026-08-18; ready to build in slices)
 
 🟡 IN PROGRESS on slice 3 (Reveal/Copy Path) — claude, branch `claude/item-459-reveal-copy-path`
