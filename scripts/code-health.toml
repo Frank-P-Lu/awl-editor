@@ -59,8 +59,8 @@ reason = "Inline Code's shared toggle (content_is_kind) gained a fallback path f
 
 [[file_size_mark]]
 file = "src/actions/overlay_nav.rs"
-lines = 941
-reason = "The workspace keyboard and deep link route through `actions/workspace_nav.rs`; this file retains the intercept-chain entry and dispatcher arm. Preview opening is gated by the declared kind before its match, so an undeclared arm is inert. Project navigation shares `is_folder_destination`, direct children switch on Enter, non-path-bound projects cannot ascend above the configured workspace, and lifecycle wrappers rebuild through one owner. `descend_target` documents the one path-name rule shared by both row shapes. +11: the Keymap picker's accept-by-corpus-index arm, mirroring Date rather than label-parsing."
+lines = 954
+reason = "The workspace keyboard and deep link route through `actions/workspace_nav.rs`; this file retains the intercept-chain entry and dispatcher arm. Preview opening is gated by the declared kind before its match, so an undeclared arm is inert. Project navigation shares `is_folder_destination`, direct children switch on Enter, non-path-bound projects cannot ascend above the configured workspace, and lifecycle wrappers rebuild through one owner. `descend_target` documents the one path-name rule shared by both row shapes. +11: the Keymap picker's accept-by-corpus-index arm, mirroring Date rather than label-parsing. +13: Go to Line's own accept path, the Headings branch's numeric sibling — both resolve through the same shared jump owner (`Effect::JumpToLine`) rather than repeating caret/fold/scroll work."
 
 [[file_size_mark]]
 file = "src/app.rs"
@@ -69,8 +69,8 @@ reason = "The clobber-notice predicate MOVED OUT to `app/files/external.rs` besi
 
 [[file_size_mark]]
 file = "src/app/apply.rs"
-lines = 866
-reason = "The conflict workspace's summon reaches the live effect interpreter's one `PersistenceEffect` match and the one `apply_overlay_accept` roster, both exhaustive by design (+6). +34: `sync_theme_font_measured`, the ONE reshape door every live theme-font path runs through. The split-reach preview path shapes the presentable prefix immediately; the quiet-settle owner finishes only the latest highlighted world's tail. +11: `refresh_kill_from_clipboard`'s duplicate-read skip now also requires the active buffer's own kill ring to already equal the OS text, not just the App-global last-written stamp, so a buffer switch cannot leave a Paste reading a kill ring that stamp never actually hydrated. +11: `App::apply_keymap_flavor` — sets the config field, persists it, rebuilds the live keymap, refreshes an open Settings menu, and emits the resulting-flavor notice, replacing the old always-toggling handler. +1: `Previous`/`CloseActive` need two dispatch arms where there was one, now that Finish file's last leg is its own effect. +12: Reveal in File Manager's `Effect::RevealInFileManager` arm reuses the export write's own `reveal_path` gate rather than a second implementation, with a wasm counterpart to keep the match exhaustive on the browser target too."
+lines = 868
+reason = "The conflict workspace's summon reaches the live effect interpreter's one `PersistenceEffect` match and the one `apply_overlay_accept` roster, both exhaustive by design (+6). +34: `sync_theme_font_measured`, the ONE reshape door every live theme-font path runs through. The split-reach preview path shapes the presentable prefix immediately; the quiet-settle owner finishes only the latest highlighted world's tail. +11: `refresh_kill_from_clipboard`'s duplicate-read skip now also requires the active buffer's own kill ring to already equal the OS text, not just the App-global last-written stamp, so a buffer switch cannot leave a Paste reading a kill ring that stamp never actually hydrated. +11: `App::apply_keymap_flavor` — sets the config field, persists it, rebuilds the live keymap, refreshes an open Settings menu, and emits the resulting-flavor notice, replacing the old always-toggling handler. +1: `Previous`/`CloseActive` need two dispatch arms where there was one, now that Finish file's last leg is its own effect. +12: Reveal in File Manager's `Effect::RevealInFileManager` arm reuses the export write's own `reveal_path` gate rather than a second implementation, with a wasm counterpart to keep the match exhaustive on the browser target too. +2: Go to Line's `goto_line_count` field threads through the two `OverlayState` construction sites that gather it from the live buffer."
 
 [[file_size_mark]]
 file = "src/app/files/settings.rs"
@@ -261,13 +261,13 @@ reason = "A new `OverlayKind` variant crosses seven exhaustive per-kind matches 
 
 [[file_size_mark]]
 file = "src/overlay/nav.rs"
-lines = 428
-reason = "`item_sections` gives a workspace one category name in its rail and lets `refilter` own bucketing. The remembered dotfile exemption ensures a chosen project remains in Recent even when directory listings hide dotfiles."
+lines = 444
+reason = "`item_sections` gives a workspace one category name in its rail and lets `refilter` own bucketing. The remembered dotfile exemption ensures a chosen project remains in Recent even when directory listings hide dotfiles. +16: Go to Line's `selected_is_line_jump` accept-path gate, the numeric sibling of `selected_is_heading` — true only when the highlighted row is the synthesized line-jump row — plus its `RowMeta::GotoLine` arm in the shared line-target and label matches."
 
 [[file_size_mark]]
 file = "src/overlay/state.rs"
-lines = 744
-reason = "The conflict card's payload field on the one `OverlayState` struct and its one exhaustive `new_marked` initializer (+5). +10: `BackKey` is the one owner of what goes back from a detail stage — erase when free, focus while a live query owns the erase key, nothing during a value edit — so the footer and the intercept cannot disagree. +23: `foot_hint_scoped` takes the `Bind` the card was entered under, because whether Backspace ascends is a property of the JOURNEY and not of the kind — the two switch-project surfaces are the same `OverlayKind`. The zero-argument form remains, delegating with `None`, so roughly thirty bare-card call sites keep the correct default: a card with no journey is flat. +68: RowMeta::ProjectDoor and RowMeta::terminal, which merges the add-to-dictionary row's always-last exemption with the door's — both act on something other than the query, so a fuzzy match on their own label must not float them above the answers. +39: `OverlayState::new_keymap` — native/emacs rows with plain-language primary labels and the concrete chord difference in the secondary column, current flavor pre-selected, sourced from the caller-gathered Config-owned flavor rather than a process-global."
+lines = 777
+reason = "The conflict card's payload field on the one `OverlayState` struct and its one exhaustive `new_marked` initializer (+5). +10: `BackKey` is the one owner of what goes back from a detail stage — erase when free, focus while a live query owns the erase key, nothing during a value edit — so the footer and the intercept cannot disagree. +23: `foot_hint_scoped` takes the `Bind` the card was entered under, because whether Backspace ascends is a property of the JOURNEY and not of the kind — the two switch-project surfaces are the same `OverlayKind`. The zero-argument form remains, delegating with `None`, so roughly thirty bare-card call sites keep the correct default: a card with no journey is flat. +68: RowMeta::ProjectDoor and RowMeta::terminal, which merges the add-to-dictionary row's always-last exemption with the door's — both act on something other than the query, so a fuzzy match on their own label must not float them above the answers. +39: `OverlayState::new_keymap` — native/emacs rows with plain-language primary labels and the concrete chord difference in the secondary column, current flavor pre-selected, sourced from the caller-gathered Config-owned flavor rather than a process-global. +33: Go to Line's one fact (`goto_line_count`, the destination buffer's total line count) and `attach_line_jump`, which appends the line-jump row as a single fixed slot refreshed live by `refilter`'s `sync_goto_line_row` step, mirroring `attach_headings`/`attach_folders`'s own opt-in shape."
 
 [[file_size_mark]]
 file = "src/peek.rs"
@@ -302,7 +302,8 @@ lines = 598
 
 [[file_size_mark]]
 file = "src/render/benchsuite/scenarios.rs"
-lines = 580
+lines = 581
+reason = "Go to Line's `goto_line_count` field on the bench fixture's `OverlayState` construction, defaulted to 0 (no buffer known) like every other bare-constructed bench overlay."
 
 [[file_size_mark]]
 file = "src/render/caret.rs"
