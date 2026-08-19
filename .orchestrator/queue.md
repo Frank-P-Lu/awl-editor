@@ -57,8 +57,30 @@ promising any capture of it. Rust change: full gate.
 
 ### 459 — complete the ordinary-file vocabulary: Trash, Save a Copy, reveal/path, Go to line (USER DECISION 2026-08-18; ready to build in slices)
 
-🟡 IN PROGRESS on slice 3 (Reveal/Copy Path) — claude, branch `claude/item-459-reveal-copy-path`
+🟢 LANDED — slice 3 (Reveal in File Manager + Copy File Path), `cdd5a1bc`
 🟡 IN PROGRESS on slice 4 (Go to Line) — claude, branch `claude/item-459-goto-line`
+
+**Slice 3 landed on `main` (`cdd5a1bc`).** `CopyFilePath` and
+`RevealInFileManager` join the palette and item 444's shared filename context
+menu, both gated off (`PaletteGates::named_file`) for an unnamed scratch
+document rather than fabricating a location. Reveal reuses the export
+door's own `App::reveal_path` gate — no second live-only implementation —
+with an explicit `#[cfg(not(target_arch = "wasm32"))]`/wasm-stub split so
+the match stays exhaustive on the browser target, which never surfaces the
+command at all (native-only in the catalog). `Effect::RevealInFileManager`
+is recorded (intercepted, never performed) by `--keys` replay, the same
+external-handoff shape `Export`/`FollowLink` already use. Copy File Path
+puts the absolute native path on the system clipboard, asserted by exact
+text.
+
+Two real bugs the lane caught before landing: a non-hermetic clipboard test
+that read the real host's scratch clipboard stash instead of an injected
+fake, and a wasm build break in the `RevealInFileManager` effect arm (the
+match needed its browser-side stub, not just the native gate). Both fixed
+and reverified. `actions.rs`, `app/apply.rs`, `commands.rs` and `replay.rs`
+crossed their frozen code-health high-water marks with this slice's own
+additions; each raise verified against the merged tree, not the branch's
+pre-rebase number.
 
 awl is a complete home for ordinary Markdown files, and the current file verbs
 stop one step short of that promise. Add the five agreed capabilities below as
