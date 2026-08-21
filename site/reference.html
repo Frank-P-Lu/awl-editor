@@ -60,6 +60,8 @@
         on each run and fails if this page differs by a byte.</p>
         <p><a href="https://github.com/Frank-P-Lu/awl-editor/blob/main/REFERENCE.md">REFERENCE.md</a>
         is the same reference as a file in the repository.
+        <a href="/supported-markdown.html">Supported Markdown</a> gives the
+        fuller syntax guide.
         <a href="/guide.html">The guide</a> explains how awl's pieces fit
         together and is a separate document.</p>
 
@@ -86,12 +88,7 @@
 </ul>
 </li>
 <li><a href="#worlds">Worlds</a></li>
-<li><a href="#markdown">Markdown</a>
-<ul>
-<li><a href="#markdown-constructs">Constructs</a></li>
-<li><a href="#markdown-what-hides-off-the-caret">What hides off the caret</a></li>
-</ul>
-</li>
+<li><a href="#markdown">Markdown</a></li>
 <li><a href="#command-line">Command line</a>
 <ul>
 <li><a href="#command-line-capture-modes">Capture modes</a></li>
@@ -101,6 +98,7 @@
 </li>
 </ul>
 </div>
+
 <!-- GENERATED:reference-nav:END -->
         <div class="ref-content">
 
@@ -468,50 +466,28 @@
         markdown on whichever line the caret is on.</p>
 <!-- GENERATED:reference-markdown:BEGIN -->
 <h3 id="markdown-constructs">Constructs</h3>
-<p class="note">The file stays plain text. Only the render changes.</p>
+<p class="note">The file stays plain text. Only the render changes. The Supported Markdown guide has full syntax and portability notes.</p>
 <div class="table-scroll">
 <table>
 <thead>
 <tr><th>Construct</th><th>Written as</th></tr>
 </thead>
 <tbody>
-<tr><td>Heading, levels 1–6</td><td><code># Heading</code></td></tr>
-<tr><td>Bold</td><td><code>**bold**</code></td></tr>
-<tr><td>Italic</td><td><code>*italic*</code></td></tr>
-<tr><td>Bold italic</td><td><code>***both***</code></td></tr>
-<tr><td>Inline code and code blocks</td><td><code>`code`</code></td></tr>
-<tr><td>Syntax highlighting in a fenced block</td><td><code>```rust</code></td></tr>
-<tr><td>Blockquote</td><td><code>&gt; quoted</code></td></tr>
-<tr><td>List, bulleted or numbered</td><td><code>- item</code></td></tr>
-<tr><td>Link</td><td><code>[text](target)</code></td></tr>
-<tr><td>Task list</td><td><code>- [ ] task</code></td></tr>
-<tr><td>Highlight</td><td><code>==highlight==</code></td></tr>
-<tr><td>Strikethrough</td><td><code>~~struck~~</code></td></tr>
-<tr><td>Thematic break</td><td><code>---</code></td></tr>
-<tr><td>Table</td><td><code>| a | b |</code></td></tr>
-<tr><td>Syntax characters of every construct above</td><td><code># * ` &gt; [ ] |</code></td></tr>
-</tbody>
-</table>
-</div>
-<h3 id="markdown-what-hides-off-the-caret">What hides off the caret</h3>
-<p class="note">With `wysiwyg = true`, the markup below hides while the caret and the selection are elsewhere.</p>
-<div class="table-scroll">
-<table>
-<thead>
-<tr><th>Construct</th><th>Hidden markup</th><th>Revealed by</th><th>Reveals in place</th></tr>
-</thead>
-<tbody>
-<tr><td>Heading</td><td>The leading `#` run</td><td>The line</td><td>Yes</td></tr>
-<tr><td>Bold and italic</td><td>The `*` or `_` delimiters</td><td>The line</td><td>Yes</td></tr>
-<tr><td>Inline code</td><td>The backticks</td><td>The line</td><td>Yes</td></tr>
-<tr><td>Highlight</td><td>The `==` delimiters</td><td>The line</td><td>Yes</td></tr>
-<tr><td>Strikethrough</td><td>The `~~` delimiters</td><td>The line</td><td>Yes</td></tr>
-<tr><td>Fenced code block</td><td>Both fence lines and the info string</td><td>The whole block</td><td>Yes</td></tr>
-<tr><td>Frontmatter</td><td>The whole `---` block</td><td>The whole block</td><td>Yes</td></tr>
-<tr><td>Table</td><td>The whole source, replaced by a drawn grid</td><td>The whole block</td><td>No</td></tr>
-<tr><td>Image</td><td>The whole `![alt](path)` source</td><td>The line</td><td>Yes</td></tr>
-<tr><td>Link</td><td>The brackets and the target</td><td>The line</td><td>Yes</td></tr>
-<tr><td>Blockquote</td><td>The `&gt;` marker</td><td>The line</td><td>Yes</td></tr>
+<tr><td>ATX headings</td><td><code># Heading / ## Subheading</code></td></tr>
+<tr><td>Bold, italic, and bold italic</td><td><code>**bold** and *italic* and ***both***</code></td></tr>
+<tr><td>Inline code</td><td><code>Use `code` here.</code></td></tr>
+<tr><td>Fenced code blocks</td><td><code>```rust / let answer = 42; / ```</code></td></tr>
+<tr><td>Indented code blocks</td><td><code>    plain code</code></td></tr>
+<tr><td>Blockquotes</td><td><code>&gt; quoted text</code></td></tr>
+<tr><td>Bulleted and numbered lists</td><td><code>- first / - second /  / 1. one / 2. two</code></td></tr>
+<tr><td>Task lists</td><td><code>- [ ] open / - [x] done</code></td></tr>
+<tr><td>Inline links</td><td><code>[awl](https://awl-editor.fly.dev)</code></td></tr>
+<tr><td>Images</td><td><code>![A description](image.png)</code></td></tr>
+<tr><td>YAML frontmatter</td><td><code>--- / title: A note / lang: en / ---</code></td></tr>
+<tr><td>Thematic breaks</td><td><code>---</code></td></tr>
+<tr><td>Tables</td><td><code>| Name | Value | / | --- | --- | / | awl | editor |</code></td></tr>
+<tr><td>Highlight</td><td><code>==highlighted text==</code></td></tr>
+<tr><td>Strikethrough</td><td><code>~~removed text~~</code></td></tr>
 </tbody>
 </table>
 </div>
@@ -640,6 +616,7 @@
         <a href="https://github.com/Frank-P-Lu/awl-editor/blob/main/PHILOSOPHY.md">Philosophy</a>
         <a href="/guide.html">Guide</a>
         <a href="/reference.html">Reference</a>
+        <a href="/supported-markdown.html">Supported Markdown</a>
         <a href="/themes.html">Worlds</a>
       </nav>
       <p class="foot-meta">

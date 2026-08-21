@@ -41,6 +41,14 @@ pub const REFERENCE_MD: &str = include_str!("../REFERENCE.md");
 #[cfg(all(test, not(target_arch = "wasm32")))]
 pub const SITE_REFERENCE_HTML: &str = include_str!("../site/reference.html");
 
+/// The full generated Markdown dialect guide and its site copy. They share the
+/// authored roster behind the compact Reference table.
+#[cfg(all(test, not(target_arch = "wasm32")))]
+pub const SUPPORTED_MARKDOWN_MD: &str = include_str!("../SUPPORTED-MARKDOWN.md");
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+pub const SITE_SUPPORTED_MARKDOWN_HTML: &str = include_str!("../site/supported-markdown.html");
+
 /// The repo's `WORLDS.md` — the hand-written flavour reference for the theme
 /// worlds. Only its MEMBERSHIP is law-checked against `theme::THEMES`
 /// (`reference::law::worlds_md_names_exactly_the_theme_roster`); the prose is

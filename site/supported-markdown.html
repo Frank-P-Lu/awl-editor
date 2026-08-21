@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Supported Markdown — awl</title>
+  <meta name="description" content="The Markdown syntax awl renders, its portability, and its editing behavior.">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
+  <meta property="og:title" content="Supported Markdown — awl">
+  <meta property="og:description" content="The Markdown syntax awl renders, its portability, and its editing behavior.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://awl-editor.fly.dev/supported-markdown.html">
+  <meta property="og:image" content="https://awl-editor.fly.dev/img/social.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://awl-editor.fly.dev/img/social.png">
+  <link rel="stylesheet" href="style.css">
+  <script data-goatcounter="https://fluflu.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</head>
+<body>
+  <header class="hero" style="padding-bottom:1rem">
+    <div class="wrap"><h1 class="wordmark" style="font-size:2.4rem"><a href="/" style="color:inherit;text-decoration:none">awl</a></h1></div>
+  </header>
+  <section class="credits-page markdown-page">
+    <div class="wrap">
+      <p class="eyebrow">Documentation</p>
+      <h1 class="section-title">Supported Markdown</h1>
+      <div class="credits-body">
+<!-- GENERATED:supported-markdown:BEGIN -->
+<p>awl keeps documents as ordinary plain text. This page describes the syntax awl renders; unsupported syntax remains editable text. It does not promise parity with an unnamed Markdown dialect.</p>
+<h2>Syntax awl renders</h2>
+<section class="markdown-construct">
+<h3>ATX headings</h3>
+<pre><code class="language-markdown"># Heading
+## Subheading</code></pre>
+<table><thead><tr><th>awl renders</th><th>Caret and selection</th><th>Formatting command</th><th>Portability</th></tr></thead><tbody><tr><td>A six-level heading ladder with larger type.</td><td>The caret or a selection on the line shows its # markers.</td><td>Heading; Cycle heading</td><td>Core CommonMark</td></tr></tbody></table>
+</section>
+<section class="markdown-construct">
+<h3>Bold, italic, and bold italic</h3>
+<pre><code class="language-markdown">**bold** and *italic* and ***both***</code></pre>
+<table><thead><tr><th>awl renders</th><th>Caret and selection</th><th>Formatting command</th><th>Portability</th></tr></thead><tbody><tr><td>Weighted or italic text.</td><td>The caret or a selection on the line shows the delimiters.</td><td>Bold; Italic</td><td>Core CommonMark</td></tr></tbody></table>
+</section>
+<section class="markdown-construct">
+<h3>Inline code</h3>
+<pre><code class="language-markdown">Use `code` here.</code></pre>
+<table><thead><tr><th>awl renders</th><th>Caret and selection</th><th>Formatting command</th><th>Portability</th></tr></thead><tbody><tr><td>Monospace text with a quiet pill.</td><td>The caret or a selection on the line shows the backticks.</td><td>Inline code</td><td>Core CommonMark</td></tr></tbody></table>
+</section>
+<section class="markdown-construct">
+<h3>Fenced code blocks</h3>
+<pre><code class="language-markdown">```rust
+let answer = 42;
+```</code></pre>
+<table><thead><tr><th>awl renders</th><th>Caret and selection</th><th>Formatting command</th><th>Portability</th></tr></thead><tbody><tr><td>A monospace block panel. Recognised language tags add quiet syntax roles.</td><td>The caret anywhere in the block, or a selection touching it, shows its fences and language tag.</td><td>Code block</td><td>Core CommonMark</td></tr></tbody></table>
+</section>
+<section class="markdown-construct">
+<h3>Indented code blocks</h3>
+<pre><code class="language-markdown">    plain code</code></pre>
+<table><thead><tr><th>awl renders</th><th>Caret and selection</th><th>Formatting command</th><th>Portability</th></tr></thead><tbody><tr><td>A plain monospace code block.</td><td>Its source remains visible; it has no fence to conceal.</td><td>—</td><td>Core CommonMark</td></tr></tbody></table>
+</section>
+<section class="markdown-construct">
+<h3>Blockquotes</h3>
+<pre><code class="language-markdown">&gt; quoted text</code></pre>
+<table><thead><tr><th>awl renders</th><th>Caret and selection</th><th>Formatting command</th><th>Portability</th></tr></thead><tbody><tr><td>Quiet quoted text with a hanging quotation mark.</td><td>The caret or a selection on the line shows the &gt; marker.</td><td>Blockquote</td><td>Core CommonMark</td></tr></tbody></table>
+</section>
+<section class="markdown-construct">
+<h3>Bulleted and numbered lists</h3>
+<pre><code class="language-markdown">- first
+- second
+
+1. one
+2. two</code></pre>
+<table><thead><tr><th>awl renders</th><th>Caret and selection</th><th>Formatting command</th><th>Portability</th></tr></thead><tbody><tr><td>A list with quiet markers.</td><td>The caret or a selection on a line shows its marker.</td><td>Bullet list; Numbered list</td><td>Core CommonMark</td></tr></tbody></table>
+</section>
+<section class="markdown-construct">
+<h3>Task lists</h3>
+<pre><code class="language-markdown">- [ ] open
+- [x] done</code></pre>
+<table><thead><tr><th>awl renders</th><th>Caret and selection</th><th>Formatting command</th><th>Portability</th></tr></thead><tbody><tr><td>Open and completed task markers; completed text recedes.</td><td>The source remains editable on its line.</td><td>Task list</td><td>Widely used extension</td></tr></tbody></table>
+</section>
+<section class="markdown-construct">
+<h3>Inline links</h3>
+<pre><code class="language-markdown">[awl](https://awl-editor.fly.dev)</code></pre>
+<table><thead><tr><th>awl renders</th><th>Caret and selection</th><th>Formatting command</th><th>Portability</th></tr></thead><tbody><tr><td>Link text in the document ink.</td><td>The caret or a selection on the line shows brackets and destination.</td><td>Insert link…</td><td>Core CommonMark</td></tr></tbody></table>
+</section>
+<section class="markdown-construct">
+<h3>Images</h3>
+<pre><code class="language-markdown">![A description](image.png)</code></pre>
+<table><thead><tr><th>awl renders</th><th>Caret and selection</th><th>Formatting command</th><th>Portability</th></tr></thead><tbody><tr><td>A local image when inline images are enabled; otherwise its source stays visible.</td><td>The caret or a selection on the line overlays editable source on a dimmed image.</td><td>Paste can insert an image reference</td><td>Core CommonMark</td></tr></tbody></table>
+</section>
+<section class="markdown-construct">
+<h3>YAML frontmatter</h3>
+<pre><code class="language-markdown">---
+title: A note
+lang: en
+---</code></pre>
+<table><thead><tr><th>awl renders</th><th>Caret and selection</th><th>Formatting command</th><th>Portability</th></tr></thead><tbody><tr><td>Metadata is hidden away from the block when WYSIWYG is on.</td><td>The caret anywhere in the block, or a selection touching it, reveals the whole block.</td><td>Tag document language</td><td>Widely used extension</td></tr></tbody></table>
+</section>
+<section class="markdown-construct">
+<h3>Thematic breaks</h3>
+<pre><code class="language-markdown">---</code></pre>
+<table><thead><tr><th>awl renders</th><th>Caret and selection</th><th>Formatting command</th><th>Portability</th></tr></thead><tbody><tr><td>A centred section-break ornament.</td><td>The caret or a selection on the line shows the typed break.</td><td>—</td><td>Core CommonMark</td></tr></tbody></table>
+</section>
+<section class="markdown-construct">
+<h3>Tables</h3>
+<pre><code class="language-markdown">| Name | Value |
+| --- | --- |
+| awl | editor |</code></pre>
+<table><thead><tr><th>awl renders</th><th>Caret and selection</th><th>Formatting command</th><th>Portability</th></tr></thead><tbody><tr><td>A composed grid; header cells and structure stay legible.</td><td>The caret row, or rows touched by a selection, show their source over the grid.</td><td>Align table</td><td>Widely used extension</td></tr></tbody></table>
+</section>
+<section class="markdown-construct">
+<h3>Highlight</h3>
+<pre><code class="language-markdown">==highlighted text==</code></pre>
+<table><thead><tr><th>awl renders</th><th>Caret and selection</th><th>Formatting command</th><th>Portability</th></tr></thead><tbody><tr><td>Full-ink text on a warm highlighter wash.</td><td>The caret or a selection on the line shows the == delimiters.</td><td>Highlight</td><td>awl-specific extension</td></tr></tbody></table>
+</section>
+<section class="markdown-construct">
+<h3>Strikethrough</h3>
+<pre><code class="language-markdown">~~removed text~~</code></pre>
+<table><thead><tr><th>awl renders</th><th>Caret and selection</th><th>Formatting command</th><th>Portability</th></tr></thead><tbody><tr><td>Receding text with a strike line.</td><td>The caret or a selection on the line shows the ~~ delimiters.</td><td>Strikethrough</td><td>Widely used extension</td></tr></tbody></table>
+</section>
+<section class="markdown-construct">
+<h3>Footnotes (queued)</h3>
+<pre><code class="language-markdown">A note[^source]
+
+[^source]: Its text</code></pre>
+<table><thead><tr><th>awl renders</th><th>Caret and selection</th><th>Formatting command</th><th>Portability</th></tr></thead><tbody><tr><td>Not yet rendered specially; the source remains editable text until this queued feature lands.</td><td>No special reveal yet.</td><td>Insert footnote (queued)</td><td>Widely used extension</td></tr></tbody></table>
+</section>
+<h2>Not supported / deliberately different</h2>
+<section class="markdown-construct">
+<h3>Setext headings</h3>
+<pre><code class="language-markdown">A heading
+---</code></pre>
+<p>Not a heading in awl. A run of three or more dashes renders as a thematic break.</p>
+</section>
+<section class="markdown-construct">
+<h3>Reference-style links</h3>
+<pre><code class="language-markdown">[text][key]
+
+[key]: https://example.com</code></pre>
+<p>No special link preview. The source remains editable text.</p>
+</section>
+<section class="markdown-construct">
+<h3>Raw HTML</h3>
+<pre><code class="language-markdown">&lt;mark&gt;text&lt;/mark&gt;</code></pre>
+<p>No HTML rendering. The source remains editable text.</p>
+</section>
+<!-- GENERATED:supported-markdown:END -->
+      </div>
+    </div>
+  </section>
+  <footer>
+    <div class="wrap">
+      <p class="foot-mark">awl</p>
+      <nav class="foot-links">
+        <a href="https://github.com/Frank-P-Lu/awl-editor">GitHub</a>
+        <a href="/editor/">Try the editor</a>
+        <a href="https://github.com/Frank-P-Lu/awl-editor/blob/main/PHILOSOPHY.md">Philosophy</a>
+        <a href="/guide.html">Guide</a>
+        <a href="/reference.html">Reference</a>
+        <a href="/supported-markdown.html">Supported Markdown</a>
+        <a href="/themes.html">Worlds</a>
+      </nav>
+      <p class="foot-meta">GPL-3.0<span class="sep">·</span>by Frank Lu<span class="sep">·</span>zero-network (native)<span class="sep">·</span>built in Rust on wgpu</p>
+    </div>
+  </footer>
+</body>
+</html>

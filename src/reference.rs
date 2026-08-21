@@ -176,3 +176,14 @@ impl Section {
         out
     }
 }
+
+/// The fuller Markdown dialect document, emitted from the same authored roster
+/// as [`Section::Markdown`]. Its own files carry one marker pair because this
+/// is a complete page rather than another reference-table section.
+pub(crate) fn supported_markdown_markdown() -> String {
+    rows::supported_markdown_markdown()
+}
+
+pub(crate) fn supported_markdown_html() -> String {
+    rows::supported_markdown_html()
+}

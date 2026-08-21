@@ -107,6 +107,20 @@ fn the_reference_is_reachable_from_every_site_page() {
     }
 }
 
+/// The detailed Markdown guide is a first-class documentation destination,
+/// not a link hidden only inside the large Reference page.
+#[test]
+fn supported_markdown_is_reachable_from_every_site_page() {
+    for (name, text) in site_pages() {
+        assert!(
+            nav_hrefs(&text)
+                .iter()
+                .any(|h| h.ends_with("supported-markdown.html")),
+            "site/{name} does not link to Supported Markdown"
+        );
+    }
+}
+
 /// `site/llms.txt` is a third enumeration of awl's documents. It goes stale the
 /// moment a document exists that it does not name.
 #[test]
@@ -116,6 +130,19 @@ fn llms_txt_names_the_reference() {
         txt.contains("REFERENCE.md"),
         "site/llms.txt enumerates awl's documents and does not name \
          REFERENCE.md — a machine reader offered every doc but the reference"
+    );
+}
+
+#[test]
+fn readme_and_llms_name_supported_markdown() {
+    let llms = std::fs::read_to_string(site_dir().join("llms.txt")).expect("site/llms.txt");
+    assert!(
+        llms.contains("SUPPORTED-MARKDOWN.md"),
+        "site/llms.txt does not name the Supported Markdown guide"
+    );
+    assert!(
+        crate::embedded_docs::README_MD.contains("SUPPORTED-MARKDOWN.md"),
+        "README.md does not link to the Supported Markdown guide"
     );
 }
 

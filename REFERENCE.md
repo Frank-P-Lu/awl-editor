@@ -13,6 +13,9 @@ changing the code it describes and then running `scripts/regen-reference.sh`.
 `GUIDE.md` explains how awl's pieces fit together and remains a separate
 document. This file does not replace it.
 
+[Supported Markdown](SUPPORTED-MARKDOWN.md) has copyable syntax examples,
+portability, and caret/selection behavior.
+
 - [Commands](#commands)
 - [Settings](#settings)
 - [Configuration file](#configuration-file)
@@ -341,43 +344,25 @@ whichever line the caret is on.
 <!-- GENERATED:reference-markdown:BEGIN -->
 ### Constructs
 
-The file stays plain text. Only the render changes.
+The file stays plain text. Only the render changes. The Supported Markdown guide has full syntax and portability notes.
 
 | Construct | Written as |
 |---|---|
-| Heading, levels 1–6 | `# Heading` |
-| Bold | `**bold**` |
-| Italic | `*italic*` |
-| Bold italic | `***both***` |
-| Inline code and code blocks | `` `code` `` |
-| Syntax highlighting in a fenced block | ```` ```rust ```` |
-| Blockquote | `> quoted` |
-| List, bulleted or numbered | `- item` |
-| Link | `[text](target)` |
-| Task list | `- [ ] task` |
-| Highlight | `==highlight==` |
-| Strikethrough | `~~struck~~` |
-| Thematic break | `---` |
-| Table | `\| a \| b \|` |
-| Syntax characters of every construct above | ``# * ` > [ ] \|`` |
-
-### What hides off the caret
-
-With `wysiwyg = true`, the markup below hides while the caret and the selection are elsewhere.
-
-| Construct | Hidden markup | Revealed by | Reveals in place |
-|---|---|---|---|
-| Heading | The leading `#` run | The line | Yes |
-| Bold and italic | The `*` or `_` delimiters | The line | Yes |
-| Inline code | The backticks | The line | Yes |
-| Highlight | The `==` delimiters | The line | Yes |
-| Strikethrough | The `~~` delimiters | The line | Yes |
-| Fenced code block | Both fence lines and the info string | The whole block | Yes |
-| Frontmatter | The whole `---` block | The whole block | Yes |
-| Table | The whole source, replaced by a drawn grid | The whole block | No |
-| Image | The whole `![alt](path)` source | The line | Yes |
-| Link | The brackets and the target | The line | Yes |
-| Blockquote | The `>` marker | The line | Yes |
+| ATX headings | `# Heading / ## Subheading` |
+| Bold, italic, and bold italic | `**bold** and *italic* and ***both***` |
+| Inline code | ``Use `code` here.`` |
+| Fenced code blocks | ```` ```rust / let answer = 42; / ``` ```` |
+| Indented code blocks | `    plain code` |
+| Blockquotes | `> quoted text` |
+| Bulleted and numbered lists | `- first / - second /  / 1. one / 2. two` |
+| Task lists | `- [ ] open / - [x] done` |
+| Inline links | `[awl](https://awl-editor.fly.dev)` |
+| Images | `![A description](image.png)` |
+| YAML frontmatter | `--- / title: A note / lang: en / ---` |
+| Thematic breaks | `---` |
+| Tables | `\| Name \| Value \| / \| --- \| --- \| / \| awl \| editor \|` |
+| Highlight | `==highlighted text==` |
+| Strikethrough | `~~removed text~~` |
 <!-- GENERATED:reference-markdown:END -->
 
 ---
