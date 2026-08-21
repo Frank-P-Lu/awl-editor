@@ -338,7 +338,7 @@ mod tests {
     #[test]
     fn every_rostered_activity_is_enrolled_at_its_production_owner() {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-        let renderer = std::fs::read_to_string(root.join("src/render/pipeline_overlay.rs"))
+        let renderer = std::fs::read_to_string(root.join("src/render/pipeline_activity.rs"))
             .expect("read renderer activity owner");
         let host = std::fs::read_to_string(root.join("src/app/window.rs"))
             .expect("read host activity owner");

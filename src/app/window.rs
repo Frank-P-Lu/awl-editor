@@ -1,5 +1,8 @@
 use super::*;
 
+#[path = "window/frame.rs"]
+mod redraw;
+
 impl App {
     /// Forget the live Debug session when the panel has been turned off. This is the
     /// one explicit reset boundary for frame, input, and theme-transaction diagnostics;
@@ -501,72 +504,6 @@ impl App {
     /// Also feeds the
     /// DEBUG-panel perf lines (all timing work gated on `debug_on()`) and drives
     /// its settle-stamp.
-    /// Feed the DEBUG panel's per-frame diagnostics and say whether THIS redraw
-    /// is the settle STAMP. Lifted out of `on_redraw_requested` whole: it is the
-    /// only timing work in a frame and all of it is gated on the panel being on,
-    /// so sitting it beside the frame's control flow only made the control flow
-    /// harder to read. Returns `is_stamp` so the caller can keep the panel's own
-    /// bookkeeping frame out of the measured-cost ring.
-    fn feed_debug_panel(&mut self, now: Instant) -> bool {
-        // DEBUG panel feed — the ONLY timing work, and all of it gated on
-        // the panel being on (the pane never creates the work it measures;
-        // the pane-off editor takes zero clock reads). The panel text is
-        // shaped inside `pipeline.prepare`, so the values are fed at the
-        // TOP of the redraw, BEFORE `gpu.redraw()`: line 1 therefore shows
-        // the PREVIOUS completed frame's cost (one-frame lag — this frame's
-        // cost isn't knowable until it presents).
-        let mut is_stamp = false;
-        if crate::debug::debug_on() {
-            let debug = self.frame.wake_debug_panel(now);
-            is_stamp = debug.stamp_queued;
-            let engine_wrote = self.persistence.engine_last_write_at();
-            let since_secs = engine_wrote.map(|t| (now - t).as_secs());
-            let autosave = crate::debug::autosave_state(
-                self.config.autosave_on(),
-                self.frame.notice().active(),
-                since_secs,
-            );
-            if let Some(gpu) = self.frame.gpu_mut() {
-                let budget = crate::debug::budget_ms(
-                    gpu.window
-                        .current_monitor()
-                        .and_then(|m| m.refresh_rate_millihertz()),
-                );
-                gpu.pipeline.set_debug_perf(
-                    debug.cost,
-                    debug.last_latency_ms,
-                    Some(debug.redraw_count),
-                    is_stamp,
-                    Some(budget),
-                );
-                // Also surface the live GPU memory (macOS: Metal's
-                // currentAllocatedSize; `None` elsewhere → `gpu —`).
-                let bytes = gpu.current_gpu_bytes();
-                gpu.pipeline.set_debug_gpu_bytes(bytes);
-                // AUTOSAVE-ENGINE line: composed EXCLUSIVELY from what
-                // `App::autosave_flush`'s one door already tracks — config's
-                // `autosave_on()`, the clobber guard's `notice`, and the
-                // engine's own last-write clock — so it can never say
-                // anything the engine didn't just do. The only clock read
-                // here (`now - persistence.engine_last_write_at()`) is gated on
-                // `debug_on()` like every other perf read this block makes.
-                gpu.pipeline.set_debug_autosave(Some(autosave));
-                // Transaction diagnostics age on the App clock, not on frame count.
-                // This redraw already happened for real work; checking here never
-                // arms a timer or turns the Debug panel into a hot loop.
-                gpu.pipeline.set_debug_theme_settle(debug.theme_settle);
-            }
-        } else if self.clear_debug_session_if_populated() {
-            // Clear GPU diagnostics only when a live pipeline exists.
-            if let Some(gpu) = self.frame.gpu_mut() {
-                gpu.pipeline.set_debug_perf(None, None, None, true, None);
-                gpu.pipeline.set_debug_autosave(None);
-                gpu.pipeline.set_debug_theme_settle(None);
-            }
-        }
-        is_stamp
-    }
-
     pub(super) fn on_redraw_requested(&mut self, event_loop: &ActiveEventLoop) {
         let fault = self
             .frame
@@ -591,45 +528,9 @@ impl App {
         let sample = self.frame.frame_sample(now);
         self.frame.begin_redraw();
         let is_stamp = self.feed_debug_panel(now);
-        // A STATIC open overlay must NOT busy-loop: an idle menu is a frozen
-        // frame, so forcing ControlFlow::Poll just because an overlay is open
-        // re-ran prepare_overlay/set_rich_text every frame, pegging the CPU.
-        // Instead the overlay redraws ON INPUT — every overlay-affecting key
-        // (query edit, selection move, filter, open/close) is a KeyboardInput
-        // event that routes through `apply` and then calls request_redraw
-        // below, and OS key AUTO-REPEAT for a HELD arrow delivers a fresh
-        // KeyboardInput per repeat, so a held arrow still repaints promptly.
-        let config = self.config.scheduling_snapshot();
-        let presentation_available = self.frame.presentation_available();
-        let travelling_ground = crate::warpgrid::should_travel(
-            config.ambient_motion_on(),
-            crate::motion::reduced(),
-            presentation_available,
-            crate::lava::lava_paused(
-                self.frame.settles().resize_at.is_some(),
-                self.frame.settles().move_at.is_some(),
-                self.frame
-                    .gpu()
-                    .is_some_and(|gpu| gpu.pipeline.lava_blur_active()),
-            ),
-        );
-        let prepared = if let Some(gpu) = self.frame.gpu_mut() {
-            // Sample the theme picker's input-anchored band at the SAME `now`
-            // this redraw uses for every other animator. `prepare` below will
-            // resolve the new row geometry against this phase.
-            gpu.pipeline.begin_overlay_frame(now);
-            // Drive the virtual-clock seam (caret spring + any future live
-            // animator) so the timeline capture and the live loop advance
-            // animation through the SAME entry point.
-            if presentation_available {
-                gpu.pipeline.advance_frame(sample);
-            }
-            if travelling_ground {
-                gpu.pipeline
-                    .advance_warp(crate::lava::ambient_tick_dt(sample.elapsed_secs()));
-            }
-            gpu.redraw()
-        } else {
+        let Some((prepared, presentation_available, travelling_ground)) =
+            self.prepare_live_frame(now, sample)
+        else {
             return;
         };
         // A theme preview's off-screen shaping tail deliberately remains owed here.

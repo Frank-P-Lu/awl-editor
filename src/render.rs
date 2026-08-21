@@ -125,6 +125,7 @@ pub mod caretbench;
 mod viewstate_def;
 pub use viewstate_def::{DocSource, FoldTail, ViewState};
 
+mod pipeline_activity;
 mod pipeline_band_epoch;
 mod pipeline_draw;
 mod pipeline_geometry;

@@ -311,42 +311,6 @@ impl FrameRuntime {
         self.presentation.theme_settle.take()
     }
 
-    pub(in crate::app) fn stamp_input_if_absent(&mut self, now: Instant) {
-        self.presentation.input_stamp.get_or_insert(now);
-    }
-
-    pub(in crate::app) fn stamp_animation_input_if_absent(&mut self, now: Instant) {
-        self.presentation.animation_input_at.get_or_insert(now);
-    }
-
-    /// Close the input-to-animation-settled interval only after a visible,
-    /// input-bounded activity was observed. The travelling ground is ambient:
-    /// keeping a Kite window open must not make an ordinary editing gesture's
-    /// bounded animation appear never to settle.
-    pub(in crate::app) fn animation_settled(
-        &mut self,
-        now: Instant,
-        activities: crate::frame_clock::ActivitySet,
-    ) -> Option<Duration> {
-        let bounded_active = activities
-            .iter()
-            .any(|activity| activity != crate::frame_clock::Activity::TravellingGround);
-        if bounded_active {
-            self.presentation.animation_seen = true;
-            return None;
-        }
-        if self.presentation.animation_seen {
-            self.presentation.animation_seen = false;
-            return self
-                .presentation
-                .animation_input_at
-                .take()
-                .map(|input| now.saturating_duration_since(input));
-        }
-        self.presentation.animation_input_at = None;
-        None
-    }
-
     pub(in crate::app) fn begin_redraw(&mut self) {
         self.presentation.redraw_count += 1;
     }

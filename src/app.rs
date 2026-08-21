@@ -961,18 +961,13 @@ impl App {
 
     #[cfg(not(target_arch = "wasm32"))]
     fn drive_gpu_soak(&mut self, event_loop: &ActiveEventLoop) -> Option<Instant> {
-        if self.soak.is_none() {
-            return None;
-        }
         if self.soak_passed.is_some() {
             return None;
         }
         let now = self.frame.now();
         let metal = self.frame.gpu().and_then(Gpu::current_gpu_bytes);
         let (finished, stimuli) = {
-            let Some(soak) = self.soak.as_mut() else {
-                return None;
-            };
+            let soak = self.soak.as_mut()?;
             soak.sample_if_due(now, metal);
             let finished = soak.finished(now);
             let mut stimuli = Vec::new();
@@ -995,9 +990,7 @@ impl App {
             (finished, stimuli)
         };
         if finished {
-            let Some(soak) = self.soak.as_ref() else {
-                return None;
-            };
+            let soak = self.soak.as_ref()?;
             let report = soak.report(now);
             self.soak_passed = Some(report.passed());
             report.print();
