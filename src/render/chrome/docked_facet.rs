@@ -131,25 +131,26 @@ pub(super) fn push_docked_facet_areas<'a>(
     let Some(((dock, tab), original)) = dock.zip(tab).zip(original) else {
         return false;
     };
-    let mut push = |top: f32, clip_top: f32, clip_bottom: f32| {
-        areas.push(TextArea {
-            buffer: panel_buffer,
-            left: text_left,
-            top,
-            scale: 1.0,
-            bounds: TextBounds {
-                left: clip_left,
-                top: clip_top.max(0.0) as i32,
-                right: clip_right,
-                bottom: clip_bottom.min(height as f32) as i32,
-            },
-            default_color: ink,
-            custom_glyphs: &[],
-        });
-    };
-    push(text_top, 0.0, original.top);
-    push(text_top, original.bottom(), height as f32);
-    drop(push);
+    {
+        let mut push = |top: f32, clip_top: f32, clip_bottom: f32| {
+            areas.push(TextArea {
+                buffer: panel_buffer,
+                left: text_left,
+                top,
+                scale: 1.0,
+                bounds: TextBounds {
+                    left: clip_left,
+                    top: clip_top.max(0.0) as i32,
+                    right: clip_right,
+                    bottom: clip_bottom.min(height as f32) as i32,
+                },
+                default_color: ink,
+                custom_glyphs: &[],
+            });
+        };
+        push(text_top, 0.0, original.top);
+        push(text_top, original.bottom(), height as f32);
+    }
     let label_w = docked_facet_buffer
         .layout_runs()
         .next()
