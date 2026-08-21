@@ -209,7 +209,7 @@ strength; reverting either is theme data, while removing the shared capability
 is not. Read `docs/render.md`, `docs/harness-reach.md`, `THEMES.md` and
 `ACCESSIBILITY.md` before implementation.
 
-### 463 — the held HUD reports the selection as well as the document (USER DECISION 2026-08-21; ready to build)
+### 463 — the held HUD reports the selection as well as the document (USER DECISION 2026-08-21; 🟡 IN PROGRESS — item-463-selection-hud (codex), branch codex/item-463-selection-hud)
 
 Keep the existing held stats HUD and deepen it when a non-empty selection is
 active. The ordinary no-selection card stays exactly as shipped. With a
@@ -258,7 +258,7 @@ repeated/multiline cases. Render laws cover reference/definition geometry,
 selection reveal, variable wrapping and every world × DPI; read
 `docs/markdown.md` and `docs/harness-reach.md` before implementation.
 
-### 461 — pasting a URL over selected prose creates a Markdown link (USER DECISION 2026-08-21; ready to build)
+### 461 — pasting a URL over selected prose creates a Markdown link (USER DECISION 2026-08-21; 🟡 IN PROGRESS — item-461-url-paste-link (codex), branch codex/item-461-url-paste-link)
 
 When a Markdown document has a non-empty selection and the clipboard contains
 exactly one plausible URL, Paste replaces the selection with
