@@ -5,9 +5,8 @@ use super::*;
 impl App {
     pub(super) fn prepare_live_frame(
         &mut self,
-        now: Instant,
         sample: crate::frame_clock::FrameSample,
-    ) -> Option<(gpu::PreparedFrame, bool, bool)> {
+    ) -> Option<(gpu::PreparedFrame, bool)> {
         let config = self.config.scheduling_snapshot();
         let presentation_available = self.frame.presentation_available();
         let travelling_ground = crate::warpgrid::should_travel(
@@ -25,15 +24,14 @@ impl App {
         let gpu = self.frame.gpu_mut()?;
         // Input-anchored band timing and every bounded animator share this
         // sample. An unavailable presentation retains every visible pose.
-        gpu.pipeline.begin_overlay_frame(now);
         if presentation_available {
-            gpu.pipeline.advance_frame(sample);
+            gpu.pipeline.begin_overlay_frame(sample.now);
+            gpu.pipeline.advance_frame(sample, travelling_ground);
         }
-        if travelling_ground {
-            gpu.pipeline
-                .advance_warp(crate::lava::ambient_tick_dt(sample.elapsed_secs()));
-        }
-        Some((gpu.redraw(), presentation_available, travelling_ground))
+        Some((
+            gpu.redraw(presentation_available.then_some(travelling_ground)),
+            presentation_available,
+        ))
     }
 
     /// Feed the debug panel at the top of a real redraw and say whether this is

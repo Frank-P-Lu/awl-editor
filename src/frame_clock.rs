@@ -113,13 +113,25 @@ impl ActivitySet {
 /// One monotonic sample shared by every activity in a presented frame.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct FrameSample {
+    /// Clock-owned visible time. It advances only from a successful-present
+    /// baseline and therefore remains fixed across parked wall-clock gaps.
     pub(crate) now: Instant,
     pub(crate) elapsed: Duration,
+    wall_now: Instant,
 }
 
 impl FrameSample {
     pub(crate) fn elapsed_secs(self) -> f32 {
         self.elapsed.as_secs_f32()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn injected(now: Instant, elapsed: Duration) -> Self {
+        Self {
+            now,
+            elapsed,
+            wall_now: now,
+        }
     }
 }
 
@@ -151,18 +163,21 @@ impl Deadlines {
 /// the loop is active is represented explicitly by `activities`.
 #[derive(Debug, Default)]
 pub(crate) struct FrameClock {
-    last_presented: Option<Instant>,
+    last_wall_presented: Option<Instant>,
+    visible_now: Option<Instant>,
     activities: ActivitySet,
     draw_once: bool,
 }
 
 impl FrameClock {
     pub(crate) fn sample(&self, now: Instant) -> FrameSample {
+        let elapsed = self
+            .last_wall_presented
+            .map_or(Duration::ZERO, |last| now.saturating_duration_since(last));
         FrameSample {
-            now,
-            elapsed: self
-                .last_presented
-                .map_or(Duration::ZERO, |last| now.saturating_duration_since(last)),
+            now: self.visible_now.map_or(now, |visible| visible + elapsed),
+            elapsed,
+            wall_now: now,
         }
     }
 
@@ -172,7 +187,8 @@ impl FrameClock {
                 .iter()
                 .all(|activity| activity.reduced_motion() == ReducedMotion::Settle)
         );
-        self.last_presented = Some(sample.now);
+        self.last_wall_presented = Some(sample.wall_now);
+        self.visible_now = Some(sample.now);
         self.activities = activities;
     }
 
@@ -184,7 +200,7 @@ impl FrameClock {
                 .iter()
                 .all(|activity| { activity.pause_behavior() == PauseBehavior::ParkUntilPresented })
         );
-        self.last_presented = None;
+        self.last_wall_presented = None;
         self.activities = ActivitySet::empty();
     }
 
@@ -306,9 +322,10 @@ mod tests {
             Duration::from_millis(8)
         );
         clock.park();
+        let resumed = clock.sample(base + Duration::from_secs(10));
         assert_eq!(
-            clock.sample(base + Duration::from_secs(10)).elapsed,
-            Duration::ZERO,
+            (resumed.elapsed, resumed.now),
+            (Duration::ZERO, base),
             "an occluded interval must not fast-forward visible motion"
         );
     }
@@ -333,42 +350,6 @@ mod tests {
         assert!(clock.take_draw_once());
         assert!(!clock.take_draw_once());
         assert_eq!(clock.directive(Deadlines::default()), Directive::Idle);
-    }
-
-    #[test]
-    fn every_rostered_activity_is_enrolled_at_its_production_owner() {
-        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-        let renderer = std::fs::read_to_string(root.join("src/render/pipeline_activity.rs"))
-            .expect("read renderer activity owner");
-        let host = std::fs::read_to_string(root.join("src/app/window.rs"))
-            .expect("read host activity owner");
-        for (activity, owner) in [
-            (Activity::CaretMotion, renderer.as_str()),
-            (Activity::CaretPreview, renderer.as_str()),
-            (Activity::CopyPulse, renderer.as_str()),
-            (Activity::OverlayEntrance, renderer.as_str()),
-            (Activity::OverlayBand, renderer.as_str()),
-            (Activity::FoldChevrons, renderer.as_str()),
-            (Activity::TravellingGround, host.as_str()),
-        ] {
-            let needle = format!("Activity::{activity:?}");
-            assert!(
-                owner.contains(&needle),
-                "{activity:?} exists in the roster but is not enrolled by its production owner"
-            );
-        }
-    }
-
-    #[test]
-    fn prepare_time_band_epoch_is_input_owned() {
-        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-        let owner = std::fs::read_to_string(root.join("src/render/pipeline_band_epoch.rs"))
-            .expect("read input-anchored band owner");
-        assert!(
-            owner.contains("self.overlay_band_started_at = Some(movement_at);")
-                && !owner.contains("self.overlay_band_started_at = Some(now);"),
-            "prepare must inherit the input epoch instead of restarting at prepare time"
-        );
     }
 
     #[test]

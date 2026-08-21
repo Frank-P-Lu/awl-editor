@@ -353,7 +353,7 @@ fn one_live_frame(
     retarget(p);
     (
         stepped,
-        p.active_activities()
+        p.active_activities(false)
             .contains(crate::frame_clock::Activity::OverlayBand),
     )
 }

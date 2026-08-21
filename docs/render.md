@@ -175,7 +175,10 @@ Picker rows go through `render/rowlayout` — never place row text directly. A p
 - **LIVE MOTION SHARES ONE PRESENTATION SAMPLE.** Caret position and preview,
   copy pulse, overlay entrance and band, fold chevrons, and the travelling
   ground keep their authored curves but advance from one `FrameSample` (`now`
-  plus elapsed since the prior successful present). The post-prepare activity
+  plus elapsed since the prior successful present). `now` is the clock's
+  visible-time axis: blur, occlusion, and failed presentation retain its last
+  accepted value, so an absolute input epoch cannot fast-forward while pixels
+  are parked. The post-prepare activity
   set is exhaustive, so geometry that arms the band during prepare is visible
   to scheduling in the same frame. Reduce Motion still settles each owner at
   its existing final pose. Capture's explicit delta seam stays clock-free; it

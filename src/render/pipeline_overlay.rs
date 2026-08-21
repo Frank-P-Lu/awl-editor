@@ -30,26 +30,30 @@ impl TextPipeline {
     /// time-compression contract), mirroring `step_copy_pulse`'s gate
     /// exactly. Law-tested by `overlay_juice_folds_to_nothing_under_reduce_
     /// motion` (render/tests/motion_juice.rs).
-    pub(in crate::render) fn step_overlay_juice(&mut self, dt: f32) -> bool {
+    pub(in crate::render) fn step_overlay_entrance(&mut self, dt: f32) -> bool {
         if crate::motion::reduced() {
             self.overlay_enter_t = 1.0;
+            return false;
+        }
+        if self.overlay_enter_t < 1.0 {
+            self.overlay_enter_t =
+                (self.overlay_enter_t + OVERLAY_ENTRANCE_MS.progress_per(dt)).min(1.0);
+        }
+        self.overlay_enter_t < 1.0
+    }
+
+    pub(in crate::render) fn step_overlay_band(&mut self, dt: f32) -> bool {
+        if crate::motion::reduced() {
             self.overlay_band_t = 1.0;
             self.overlay_band_started_at = None;
             self.overlay_band_pending_at = None;
             return false;
         }
-        let mut hot = false;
-        if self.overlay_enter_t < 1.0 {
-            self.overlay_enter_t =
-                (self.overlay_enter_t + OVERLAY_ENTRANCE_MS.progress_per(dt)).min(1.0);
-            hot |= self.overlay_enter_t < 1.0;
-        }
         if self.overlay_band_started_at.is_none() && self.overlay_band_t < 1.0 {
             self.overlay_band_t =
                 (self.overlay_band_t + OVERLAY_BAND_SLIDE_MS.progress_per(dt)).min(1.0);
         }
-        hot |= self.overlay_band_t < 1.0;
-        hot
+        self.overlay_band_t < 1.0
     }
 
     pub(in crate::render) fn overlay_entrance_offset(&self) -> f32 {

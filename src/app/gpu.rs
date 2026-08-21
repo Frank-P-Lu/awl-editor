@@ -484,7 +484,7 @@ impl Gpu {
         Ok(img)
     }
 
-    pub(super) fn redraw(&mut self) -> PreparedFrame {
+    pub(super) fn redraw(&mut self, travelling_ground: Option<bool>) -> PreparedFrame {
         let (w, h) = (self.config.width, self.config.height);
         let debug = crate::debug::debug_on();
         let t0 = debug.then(Instant::now);
@@ -495,7 +495,9 @@ impl Gpu {
                 activities: crate::frame_clock::ActivitySet::empty(),
             };
         }
-        let activities = self.pipeline.active_activities();
+        let activities = self
+            .pipeline
+            .active_activities(travelling_ground.unwrap_or(false));
         if let Some(fault) = self.take_faults().into_iter().next() {
             return PreparedFrame {
                 outcome: GpuFrameOutcome::Fault(fault),

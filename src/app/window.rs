@@ -311,7 +311,7 @@ impl App {
         self.sync_view(true);
         if changed {
             self.arm_live_resize_sync();
-            let outcome = self.frame.gpu_mut().map(Gpu::redraw);
+            let outcome = self.frame.gpu_mut().map(|gpu| gpu.redraw(None));
             if let Some(prepared) = outcome {
                 request_redraw = self
                     .handle_gpu_frame_outcome(event_loop, prepared.outcome)
@@ -528,9 +528,7 @@ impl App {
         let sample = self.frame.frame_sample(now);
         self.frame.begin_redraw();
         let is_stamp = self.feed_debug_panel(now);
-        let Some((prepared, presentation_available, travelling_ground)) =
-            self.prepare_live_frame(now, sample)
-        else {
+        let Some((prepared, presentation_available)) = self.prepare_live_frame(sample) else {
             return;
         };
         // A theme preview's off-screen shaping tail deliberately remains owed here.
@@ -539,9 +537,6 @@ impl App {
         let mut activities = prepared.activities;
         if !presentation_available {
             activities = crate::frame_clock::ActivitySet::empty();
-        }
-        if travelling_ground {
-            activities.insert(crate::frame_clock::Activity::TravellingGround);
         }
         let (presented, frame_presented) =
             match self.handle_gpu_frame_outcome(event_loop, prepared.outcome) {
