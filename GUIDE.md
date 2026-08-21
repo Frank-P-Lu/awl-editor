@@ -210,6 +210,7 @@ drift into this page silently.
 | Rename note… |  |  |
 | Duplicate note |  |  |
 | Save a Copy… |  |  |
+| Move file to Trash |  |  |
 | Reveal in file manager |  |  |
 | Copy file path |  |  |
 | Finish file | ⌘W | Ctrl+W |

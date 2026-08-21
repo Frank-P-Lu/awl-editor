@@ -161,7 +161,7 @@ fn real_fs_app_new_calls_are_all_accounted_for() {
         // the anchor-swallow fix: fresh-note + fresh-scratch record words typed
         // before the first flush, and the card-summon-freshness flush.)
         ("app/streaks.rs", 6),
-        // 5 REMOVAL-OWNER tests (`app::files::close`), each on a real
+        // 6 REMOVAL-OWNER tests (`app::files::close`), each on a real
         // `ScratchDir` with `session_restore: Some(false)` set inline, so no
         // developer's own open files are ever parked into the fixture's
         // registry. `new_hermetic` cannot serve these: its injected
@@ -172,7 +172,7 @@ fn real_fs_app_new_calls_are_all_accounted_for() {
         // the App's back, on a filesystem the App is really reading. (Two of
         // the three also need the real disk to observe that a parked buffer's
         // own bytes, not the active document's, are what a close writes.)
-        ("app/files/close/tests.rs", 5),
+        ("app/files/close/tests.rs", 6),
         // Four Save a Copy laws construct against a seeded InMemoryFs so they
         // can inspect exact destination bytes and preserve source identity.
         ("app/files/export/tests.rs", 4),

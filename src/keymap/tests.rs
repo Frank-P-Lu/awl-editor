@@ -44,9 +44,9 @@ move|||
 rename_note|||
 duplicate_note|||
 save_a_copy|||
+move_file_to_trash|||
 reveal_in_file_manager|||
 copy_file_path|||
-move_file_to_trash|||
 finish_file|Cmd-W|C-w|
 follow_link|||C-c C-o
 copy_link_destination|||
