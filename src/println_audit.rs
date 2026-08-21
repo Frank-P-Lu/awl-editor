@@ -118,8 +118,9 @@ const EXPECTED: &[(&str, usize)] = &[
     // writes a repo file), and the module is `cfg(test)`, so none of these can
     // reach a shipped binary. The site page's generated sidebar nav adds a
     // second fenced block (BEGIN/END) printed the same way, ahead of the five
-    // section blocks — two more lines of the same mechanism, same fate.
-    ("reference/law/mod.rs", 6),
+    // section blocks. The supported-Markdown page adds its Markdown and HTML
+    // fenced blocks through that same ignored generator, with the same fate.
+    ("reference/law/mod.rs", 11),
     // `AWL_FONT` + `AWL_CHROME_FACE_FILE` dev-only env var override
     // diagnostics (the second is the Firetail-showcase round's audition-font
     // loader: a missing/unreadable candidate file prints a note and is
