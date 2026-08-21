@@ -69,8 +69,8 @@ reason = "The clobber-notice predicate MOVED OUT to `app/files/external.rs` besi
 
 [[file_size_mark]]
 file = "src/app/apply.rs"
-lines = 869
-reason = "The conflict workspace's summon reaches the live effect interpreter's one `PersistenceEffect` match and the one `apply_overlay_accept` roster, both exhaustive by design (+6). +34: `sync_theme_font_measured`, the ONE reshape door every live theme-font path runs through. The split-reach preview path shapes the presentable prefix immediately; the quiet-settle owner finishes only the latest highlighted world's tail. +11: `refresh_kill_from_clipboard`'s duplicate-read skip now also requires the active buffer's own kill ring to already equal the OS text, not just the App-global last-written stamp, so a buffer switch cannot leave a Paste reading a kill ring that stamp never actually hydrated. +11: `App::apply_keymap_flavor` — sets the config field, persists it, rebuilds the live keymap, refreshes an open Settings menu, and emits the resulting-flavor notice, replacing the old always-toggling handler. +1: `Previous`/`CloseActive` need two dispatch arms where there was one, now that Finish file's last leg is its own effect. +12: Reveal in File Manager's `Effect::RevealInFileManager` arm reuses the export write's own `reveal_path` gate rather than a second implementation, with a wasm counterpart to keep the match exhaustive on the browser target too. +2: Go to Line's `goto_line_count` field threads through the two `OverlayState` construction sites that gather it from the live buffer. +1: Save a Copy's named destination reaches the one exhaustive live effect interpreter."
+lines = 870
+reason = "The conflict workspace's summon reaches the live effect interpreter's one `PersistenceEffect` match and the one `apply_overlay_accept` roster, both exhaustive by design (+6). +34: `sync_theme_font_measured`, the ONE reshape door every live theme-font path runs through. The split-reach preview path shapes the presentable prefix immediately; the quiet-settle owner finishes only the latest highlighted world's tail. +11: `refresh_kill_from_clipboard`'s duplicate-read skip now also requires the active buffer's own kill ring to already equal the OS text, not just the App-global last-written stamp, so a buffer switch cannot leave a Paste reading a kill ring that stamp never actually hydrated. +11: `App::apply_keymap_flavor` — sets the config field, persists it, rebuilds the live keymap, refreshes an open Settings menu, and emits the resulting-flavor notice, replacing the old always-toggling handler. +1: `Previous`/`CloseActive` need two dispatch arms where there was one, now that Finish file's last leg is its own effect. +12: Reveal in File Manager's `Effect::RevealInFileManager` arm reuses the export write's own `reveal_path` gate rather than a second implementation, with a wasm counterpart to keep the match exhaustive on the browser target too. +2: Go to Line's `goto_line_count` field threads through the two `OverlayState` construction sites that gather it from the live buffer. +1: Save a Copy's named destination reaches the one exhaustive live effect interpreter. +1: the typed resolved-paste continuation reaches the one exhaustive live effect interpreter."
 
 [[file_size_mark]]
 file = "src/app/files/settings.rs"
@@ -116,12 +116,12 @@ reason = "The grouped per-frame AmbientUpload keeps the prepare call below the a
 
 [[file_size_mark]]
 file = "src/buffer.rs"
-lines = 782
-reason = "DOWN 67: save, save_owned, and save_into_folder moved to buffer/save.rs beside persistence ownership; Buffer keeps the data/editing core."
+lines = 783
+reason = "DOWN 67: save, save_owned, and save_into_folder moved to buffer/save.rs beside persistence ownership; Buffer keeps the data/editing core. +1: the URL plausibility owner is enrolled as a private buffer submodule."
 
 [[file_size_mark]]
 file = "src/buffer/edit.rs"
-lines = 547
+lines = 526
 
 [[file_size_mark]]
 file = "src/buffers.rs"
@@ -254,7 +254,7 @@ reason = "+163: the menu bar's own pixel-space declarations. Six pads move off b
 
 [[file_size_mark]]
 file = "src/overlay/capture.rs"
-lines = 761
+lines = 739
 
 [[file_size_mark]]
 file = "src/overlay/kind.rs"
