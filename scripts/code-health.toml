@@ -64,7 +64,7 @@ reason = "The workspace keyboard and deep link route through `actions/workspace_
 
 [[file_size_mark]]
 file = "src/app.rs"
-lines = 1423
+lines = 1391
 reason = "The clobber-notice predicate MOVED OUT to `app/files/external.rs` beside the constants it matches (-5); what remains is the disk-baseline construction at the one exhaustive `App::new` site now taking a `crate::external::Seen` rather than a bare stat (+4), the one-line relaunch-recovery call after the startup buffer decisions settle (+2), and a test-gated re-export of the notice constant so prose laws read the running app's own string instead of a retyped copy (+3). Net +3. +32: the theme-font CHEAP-RESHAPE threshold, its compile-time guard and the measured provenance that places it, beside the debounce constant this file already owns as the one scheduling-constant seam; plus the reshape-completion stamp on `ThemeSettleInFlight` that lets the settled-present fold measure the scheduling phase. +6: the launch buffer's project root is enrolled into the new working set inside `App::new`, after the scratch-stash and session-restore decisions settle, so every capture door gets it for free. +100: the clipboard bridge's `ClipboardBackend` trait (native-only, implemented for `arboard::Clipboard` and a test-only `FakeClipboard`) so a buffer-switch/clipboard law can substitute a hermetic stand-in, plus the shared `clipboard_disabled` helper both construction arms call. +4: `App::new`'s `linux_emacs_meta` gate threaded to the live keymap constructor alongside the existing config/keep plumbing."
 
 [[file_size_mark]]
@@ -79,7 +79,7 @@ reason = "`App::setting_toggle` and the replay interpreter both route through `c
 
 [[file_size_mark]]
 file = "src/app/gpu.rs"
-lines = 645
+lines = 634
 
 [[file_size_mark]]
 file = "src/app/input/keys.rs"
@@ -106,7 +106,7 @@ reason = "`sync_view` is the sole exhaustive `ViewState` construction site, so e
 
 [[file_size_mark]]
 file = "src/app/window.rs"
-lines = 706
+lines = 617
 reason = "The external-change check at focus return belongs at the winit focus callback. `fold_settled_theme_switch` owns the settled-present transaction and its scheduling/acquire phases. Preview redraw deliberately leaves superseded off-screen shaping debt to the latest-wins quiet settle. +4: redraw samples one monotonic instant before advancing and preparing the living theme-selection band."
 
 [[file_size_mark]]
@@ -293,7 +293,7 @@ lines = 559
 
 [[file_size_mark]]
 file = "src/render.rs"
-lines = 2786
+lines = 2778
 reason = "The footer plate uses the notice channel's one-pixel rim so it remains visible. `Millis` and `progress_per` keep durations out of pixel multiplication by type, while declaration docs name the entitled scale factor for page/caret pads, page-frame strokes, and spell gaps. `HudDefaults`, `WhichKeyDefaults`, and `DebugDefaults` give inert field groups exhaustive defaults beside their sole `TextPipeline` owner. Shape reach rejects unshaped-line sentinels, and `Metrics` carries `dpi` beside zoom scale so a logical floor does not vary by display density. `CARET_INK_PAD_W` gained a doc comment naming its rationale and the near-zero vertical headroom finding that kept the tuning to width alone. +7: the working-set stack plate's own row-height and inset constants, named beside the other margin-row geometry this file already owns. +10: the menu chord column's config-aware label plumbing (ViewState mirrors of config_keys/config_linux_keep). +4: inert hover defaults and mirrored row state keep the production close affordance explicit in the exhaustive pipeline state."
 
 [[file_size_mark]]
@@ -388,7 +388,7 @@ lines = 568
 
 [[file_size_mark]]
 file = "src/render/pipeline_draw.rs"
-lines = 513
+lines = 512
 reason = "The footer plate earns the notice channel's own one-pixel rim, which is what lifts it from delta-E 1.91 to 54 on Cassowary -- a plate nobody can see is not a plate. +5: the rim's construction and its draw slot immediately before `overlay_bars`, matching the order `notice_rim`/`notice_plate` already keep. +1: the `shape_tail_owed` field initialiser in TextPipeline::new's literal, its sole construction site — the flag that records a presented frame still owes its tail. +7: the working-set stack plate's draw call, slotted beside the other gutter-row draws it shares a pipeline with. +2: threads config_keys/config_linux_keep into the menu dropdown plan's construction. +1: initializes the inert hovered-row field beside the working-set stack's other exhaustive state."
 
 [[file_size_mark]]
@@ -398,7 +398,7 @@ reason = "`set_view` is the sole ViewState-to-pipeline mirror: it measures works
 
 [[file_size_mark]]
 file = "src/render/pipeline_overlay.rs"
-lines = 477
+lines = 444
 reason = "Overlay composition and ambient resolvers live here because they read the pipeline's own settled state; Kite shares that ambient ownership seam. The one `advance` OR-fold is the single per-frame stepper, so the diagonal marker's turn and the fold chevron's join it there beside the caret spring, the caret preview and the copy pulse. +12: the band reads the stamped input epoch and exposes its prepared phase through this same per-frame owner."
 
 [[file_size_mark]]
@@ -514,13 +514,6 @@ file = "src/app.rs"
 function = "App::new"
 message = "this function has too many lines (117/100)"
 reason = "Existing constructor owner and exhaustive App construction site. DocumentSession moved the active slot, registry, previous target, spell checker, and buffer extras behind one initializer, reducing the constructor by twenty counted lines. Shifted +32 lines, unchanged, by the theme-font cheap-reshape constant and its compile-time guard. UsageLedger folded nine loose odometer/streaks initializers into one, taking a further sixteen lines off. +9: the working-set enrolment call and its doc comment naming why it runs last; the clipboard construction arms grew by a shared helper call each. +4: the `linux_emacs_meta` gate threaded to the live keymap constructor."
-
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
-file = "src/app.rs"
-function = "App::drive_gpu_soak"
-message = "this function has too many lines (104/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. DocumentSession removed root fields and shifted this unchanged function upward. Shifted +32 lines, unchanged, by the theme-font cheap-reshape constant and its compile-time guard."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -743,7 +736,7 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 lint = "clippy::too_many_lines"
 file = "src/render/pipeline_draw.rs"
 function = "TextPipeline::new"
-message = "this function has too many lines (454/100)"
+message = "this function has too many lines (453/100)"
 reason = "The one exhaustive TextPipeline initializer keeps adjacent GPU state transitions together. Four added lines initialize arbitrary two-colour ground/ink endpoints for independent selection and caret pipelines; their shared baked construction lives in SelectionPipeline::new_two_colour. Five added lines initialize the living band's input epoch beside its existing selection-motion state."
 
 [[clippy_exception]]
