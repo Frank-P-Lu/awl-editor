@@ -159,7 +159,7 @@ fn the_active_row_reads_forward_of_dimmed_siblings_on_every_world() {
         assert_eq!(
             layout_rows.len(),
             4,
-            "{world:?}: expected three file rows over the project line, got {}",
+            "{world:?}: expected the project heading over three file rows, got {}",
             layout_rows.len()
         );
         let px = render_frame(&device, &queue, &mut p);
@@ -169,11 +169,11 @@ fn the_active_row_reads_forward_of_dimmed_siblings_on_every_world() {
         let ground_y = (band0[1] - band0[3] * 3.0).max(0.0) as u32;
         let ground = px[(ground_y * W + (band0[2] * 0.5) as u32) as usize];
 
-        // rows: [file0, file1(active), file2, project]
-        let active = ink_weight(&px, layout_rows[1], ground);
+        // rows: [project, file0, file1(active), file2]
+        let active = ink_weight(&px, layout_rows[2], ground);
         let sibling =
-            ink_weight(&px, layout_rows[0], ground).max(ink_weight(&px, layout_rows[2], ground));
-        let project = ink_weight(&px, layout_rows[3], ground);
+            ink_weight(&px, layout_rows[1], ground).max(ink_weight(&px, layout_rows[3], ground));
+        let project = ink_weight(&px, layout_rows[0], ground);
         assert!(
             project > 0.0,
             "{world:?}: the project line drew no ink at all — the fixture never reached the margin"

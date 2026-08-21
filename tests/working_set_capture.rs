@@ -79,6 +79,58 @@ fn buffers(dir: &Path, tag: &str, keys: &str) -> serde_json::Value {
     v["buffers"].clone()
 }
 
+/// Render the single-file launch through the production live-App path.
+fn one_file_capture(dir: &Path, tag: &str) -> (Vec<u8>, Vec<u8>) {
+    let notes = dir.join("notes");
+    let out = dir.join(format!("{tag}.png"));
+    let mut cmd = common::awl(dir);
+    cmd.env("AWL_CONVENTION_FORCE", "mac")
+        .arg("--screenshot-app")
+        .arg(&out)
+        .arg("--seed-tree")
+        .arg(dir)
+        .arg("--config")
+        .arg(dir.join("awl.toml"))
+        .arg("--root")
+        .arg(&notes)
+        .arg("--capture-size")
+        .arg("1600x900")
+        .arg(notes.join("opening.md"));
+    let run = cmd.output().expect("failed to spawn CARGO_BIN_EXE_awl");
+    assert!(
+        run.status.success(),
+        "{tag}: awl exited {}\n{}",
+        run.status,
+        String::from_utf8_lossy(&run.stderr)
+    );
+    (
+        std::fs::read(&out).expect("PNG exists"),
+        std::fs::read(out.with_extension("json")).expect("sidecar exists"),
+    )
+}
+
+/// The new treatments deepen only a MULTI-file identity. With one file, neither
+/// a reserved close lane nor folder reordering is enrolled, so repeated
+/// production captures retain exact deterministic PNG and sidecar identity.
+#[test]
+fn one_file_production_output_is_exact_identity() {
+    let dir = ScratchDir::new(std::env::temp_dir().join(format!(
+        "awl-working-set-one-file-identity-{}",
+        std::process::id()
+    )));
+    arrange(&dir);
+    let first = one_file_capture(&dir, "one-first");
+    let second = one_file_capture(&dir, "one-second");
+    assert_eq!(
+        second.0, first.0,
+        "single-file PNG bytes changed across identical production captures"
+    );
+    assert_eq!(
+        second.1, first.1,
+        "single-file sidecar bytes changed across identical production captures"
+    );
+}
+
 /// Go to (`Cmd-O`), filtered by a prefix unique to each fixture file, accepted.
 const TO_LEDGER: &str = "Cmd-o l e d Enter";
 const TO_FIELD: &str = "Cmd-o f i e Enter";

@@ -377,6 +377,7 @@ impl TextPipeline {
             notice_plate,
             notice_rim,
             gutter_files: Vec::new(),
+            gutter_stack_hover: None,
             gutter_stack_plate,
             page_drag_renderer,
             page_drag_buffer,

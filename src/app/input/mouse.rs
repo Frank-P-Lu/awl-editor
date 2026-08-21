@@ -764,7 +764,28 @@ impl App {
             }
         }
         self.update_fold_hover();
+        let (px, py) = self.input.pointer.cursor_px;
+        let stack_hover_changed = self.frame.gpu_mut().is_some_and(|gpu| {
+            gpu.pipeline
+                .resolve_gutter_stack_hover(px, py, gpu.config.height)
+        });
+        if stack_hover_changed {
+            self.request_frame();
+        }
         self.sync_cursor_icon();
+    }
+
+    /// `WindowEvent::CursorLeft`: a hover-only affordance cannot survive after
+    /// the pointer leaves the window. The no-prototype path holds no state, so
+    /// this remains a repaint-free no-op in production.
+    pub(in crate::app) fn on_cursor_left(&mut self) {
+        let changed = self
+            .frame
+            .gpu_mut()
+            .is_some_and(|gpu| gpu.pipeline.clear_gutter_stack_hover());
+        if changed {
+            self.request_frame();
+        }
     }
 
     /// Mirror the FILTERED document row under the pointer into the pipeline so a

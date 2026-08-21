@@ -54,11 +54,14 @@ impl GutterLayout {
         if self.files.is_empty() {
             out.push((self.name.as_str(), GutterLine::Name));
         } else {
+            if !self.project.is_empty() {
+                out.push((self.project.as_str(), GutterLine::Project));
+            }
             for (at, line) in self.files.iter().enumerate() {
                 out.push((line.text.as_str(), GutterLine::File(at)));
             }
         }
-        if !self.project.is_empty() {
+        if !self.project.is_empty() && self.files.is_empty() {
             out.push((self.project.as_str(), GutterLine::Project));
         }
         out
@@ -206,7 +209,7 @@ impl TextPipeline {
         // The WORKING SET's spans, already inked — empty for a single file, which
         // is what sends the identity line below down its original path rather
         // than through a stack of one.
-        let stack_ink = gutter_stack::stack_spans(&layout.files);
+        let stack_ink = gutter_stack::stack_spans(&layout.files, self.gutter_stack_hover);
         let mut spans: Vec<(&str, Attrs)> = Vec::new();
         if !changed_line.is_empty() {
             spans.push((
@@ -217,11 +220,15 @@ impl TextPipeline {
         if stack_ink.is_empty() {
             spans.push((name.as_str(), base.clone().color(muted)));
         } else {
+            if !project.is_empty() {
+                spans.push((project.as_str(), base.clone().color(muted)));
+                spans.push(("\n", base.clone().color(muted)));
+            }
             for (text, ink) in &stack_ink {
                 spans.push((text.as_str(), base.clone().color(*ink)));
             }
         }
-        if !proj_line.is_empty() {
+        if !proj_line.is_empty() && stack_ink.is_empty() {
             spans.push((proj_line.as_str(), base.clone().color(faint)));
         }
         self.gutter_buffer.set_size(

@@ -89,7 +89,7 @@ fn stack_spans_bring_only_the_active_name_forward() {
     let _g = crate::testlock::serial();
     for active in 0..3 {
         let fitted = fit_rows(&rows(active), 24);
-        let spans = stack_spans(&fitted);
+        let spans = stack_spans(&fitted, None);
         let name_inks: Vec<_> = spans
             .iter()
             .filter(|(text, _)| text.contains(".md"))
@@ -197,7 +197,11 @@ fn a_single_file_block_plates_nothing() {
         0.5,
     );
     assert!(plate_rects(&layout, &plan, 6.0, 2.0).is_empty());
-    assert_eq!(stack_spans(&layout.files).len(), 0);
+    assert_eq!(
+        stack_spans(&layout.files, None).len(),
+        0,
+        "an empty stack must not grow a reserved close lane"
+    );
     // And the block is exactly the two lines it has always been.
     assert_eq!(
         layout
@@ -206,6 +210,134 @@ fn a_single_file_block_plates_nothing() {
             .map(|(_, kind)| *kind)
             .collect::<Vec<_>>(),
         vec![gutter::GutterLine::Name, gutter::GutterLine::Project]
+    );
+}
+
+/// The production close mark is a one-stage color-only reveal over one
+/// already-shaped trailing run, enrolled from the same row/zone geometry the
+/// click consumes. The active document participates: "hovered" names the row
+/// under the pointer, independently of which document is selected.
+#[test]
+fn hover_close_keeps_label_geometry_fixed_and_enrols_every_truthful_row() {
+    let _g = crate::testlock::serial();
+    crate::theme::set_active_by_name("Saltpan").expect("Saltpan is in the world roster");
+    let fitted = fit_rows(&rows(0), 24);
+    let layout = layout_of(&rows(0), true, true, 24);
+    let plan = crate::render::plan::plan_gutter_stack(
+        300.0,
+        layout.avail,
+        12.0,
+        layout.lines().len(),
+        8.0,
+        0.5,
+    );
+    let file_lines: Vec<_> = layout
+        .lines()
+        .iter()
+        .enumerate()
+        .filter_map(|(line, (_, kind))| match kind {
+            gutter::GutterLine::File(row) => Some((line, *row)),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(file_lines.len(), 3, "fixture enrols every file row");
+
+    for (line, row) in file_lines {
+        let band = plan.rows[line];
+        let zone = close_zone(band);
+        let switch = super::super::gutter_hit::stack_hit_from_plan(
+            &layout,
+            &plan,
+            zone[0] - 1.0,
+            band[1] + band[3] * 0.5,
+        )
+        .expect("row-hover point enrols");
+        let close = super::super::gutter_hit::stack_hit_from_plan(
+            &layout,
+            &plan,
+            zone[0] + 1.0,
+            band[1] + band[3] * 0.5,
+        )
+        .expect("close-zone point enrols");
+        assert_eq!(switch.row, row);
+        assert!(!switch.is_close());
+        assert_eq!(close.row, row);
+        assert!(close.is_close());
+
+        let resting = stack_spans(&fitted, None);
+        let over_row = stack_spans(&fitted, Some(switch));
+        let over_zone = stack_spans(&fitted, Some(close));
+        let text = |spans: &[(String, glyphon::Color)]| {
+            spans.iter().map(|(s, _)| s.as_str()).collect::<String>()
+        };
+        assert_eq!(
+            text(&resting),
+            text(&over_row),
+            "row {row}: hover shifted the shaped label"
+        );
+        assert_eq!(
+            text(&resting),
+            text(&over_zone),
+            "row {row}: zone shifted the shaped label"
+        );
+        assert_eq!(
+            resting.iter().filter(|(s, _)| s.contains('×')).count(),
+            fitted.len(),
+            "every row reserves exactly one stable close run"
+        );
+        let marks = |spans: &[(String, glyphon::Color)]| {
+            spans
+                .iter()
+                .filter(|(s, _)| s.contains('×'))
+                .map(|(_, ink)| *ink)
+                .collect::<Vec<_>>()
+        };
+        let rest_marks = marks(&resting);
+        let row_marks = marks(&over_row);
+        let zone_marks = marks(&over_zone);
+        assert!(
+            rest_marks.iter().all(|ink| ink.a() == 0),
+            "a mark leaked into the resting frame"
+        );
+        for at in 0..fitted.len() {
+            assert_eq!(
+                row_marks[at].a() != 0,
+                at == row,
+                "row-hover enrollment disagrees at row {at}"
+            );
+            assert_eq!(
+                zone_marks[at].a() != 0,
+                at == row,
+                "zone-hover enrollment disagrees at row {at}"
+            );
+        }
+        assert_eq!(
+            row_marks[row].0, zone_marks[row].0,
+            "row {row}: one-stage reveal changed inside the zone"
+        );
+    }
+}
+
+#[test]
+fn project_heads_only_the_multi_file_hierarchy() {
+    let one = layout_of(&[], false, true, 24);
+    assert_eq!(
+        one.lines().iter().map(|(_, k)| *k).collect::<Vec<_>>(),
+        vec![gutter::GutterLine::Name, gutter::GutterLine::Project]
+    );
+
+    let many = layout_of(&rows(0), false, true, 24);
+    let above = many.lines();
+    assert!(matches!(
+        above.first().unwrap().1,
+        gutter::GutterLine::Project
+    ));
+    assert_eq!(
+        above
+            .iter()
+            .filter(|(_, k)| matches!(k, gutter::GutterLine::File(_)))
+            .count(),
+        3
     );
 }
 

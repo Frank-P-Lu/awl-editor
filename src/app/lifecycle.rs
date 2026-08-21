@@ -284,6 +284,7 @@ impl ApplicationHandler<AwlEvent> for App {
             }
             WindowEvent::ModifiersChanged(m) => self.on_modifiers_changed(m),
             WindowEvent::CursorMoved { position, .. } => self.on_cursor_moved(position),
+            WindowEvent::CursorLeft { .. } => self.on_cursor_left(),
             WindowEvent::MouseInput { state, button, .. } => {
                 self.on_mouse_input(event_loop, state, button);
             }

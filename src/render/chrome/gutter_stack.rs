@@ -150,7 +150,10 @@ pub(super) fn fit_rows(rows: &[crate::workingset::StackRow], budget: usize) -> V
 /// single-file margin's own no-op path, and it keeps that path from becoming
 /// an unguarded reader of the process-global active world (`crate::testlock`)
 /// for a frame that will never draw a plate to begin with.
-pub(super) fn stack_spans(lines: &[StackLine]) -> Vec<(String, glyphon::Color)> {
+pub(super) fn stack_spans(
+    lines: &[StackLine],
+    hover: Option<super::gutter_hit::GutterStackHit>,
+) -> Vec<(String, glyphon::Color)> {
     if lines.is_empty() {
         return Vec::new();
     }
@@ -167,6 +170,22 @@ pub(super) fn stack_spans(lines: &[StackLine]) -> Vec<(String, glyphon::Color)> 
             out.push((format!("{lead}{parent}"), faint));
             out.push((leaf.to_string(), name_ink));
         }
+        // The mark's text is ALWAYS shaped for a working-set row, even when its
+        // alpha is zero. That invisible run reserves the trailing close lane:
+        // revealing the × changes only ink, never the label's advances. A
+        // single-file identity never enters this function with a row, so it
+        // keeps its original bytes and geometry.
+        let shown = hover.filter(|hit| hit.row == row).map(|_| {
+            if line.active {
+                theme::selected_row_secondary_ink(theme::surface_selected()).to_glyphon()
+            } else {
+                theme::muted().to_glyphon()
+            }
+        });
+        out.push((
+            "  ×".to_string(),
+            shown.unwrap_or_else(|| glyphon::Color::rgba(0, 0, 0, 0)),
+        ));
     }
     out
 }
