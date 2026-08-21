@@ -209,7 +209,7 @@ strength; reverting either is theme data, while removing the shared capability
 is not. Read `docs/render.md`, `docs/harness-reach.md`, `THEMES.md` and
 `ACCESSIBILITY.md` before implementation.
 
-### 464 — publish a dedicated Supported Markdown page (USER DECISION 2026-08-21; ready to build)
+### 464 — publish a dedicated Supported Markdown page (USER DECISION 2026-08-21; 🟡 IN PROGRESS — item-464-supported-markdown (codex), branch codex/item-464-supported-markdown)
 
 Add a first-class user-facing **Supported Markdown** page to the repository docs
 and site. The existing generated Markdown section inside `REFERENCE.md` is the
@@ -432,7 +432,7 @@ caret and scroll state. Read `docs/platform.md` and `docs/harness-reach.md`
 before implementing or promising captures; render-touching slices receive the
 standing vision-smoke and DPI/world audit required by policy.
 
-### 444 — the working set becomes visible: a margin buffer stack (USER DECISION 2026-08-16; residual 1(a)+(c) 🟡 IN PROGRESS — item-444-affordance-prototypes (codex), branch codex/item-444-affordance-prototypes)
+### 444 — the working set becomes visible: a margin buffer stack (USER DECISION 2026-08-16; residual 1 LANDED; residual 2 🟡 IN PROGRESS — item-444-zero-document (codex), branch codex/item-444-zero-document)
 
 **Landed on `main`** (full sha list in `git log --grep 'item 444'`): the
 `--seed-tree` capture door; the `WorkingSet` module; the cross-root ownership
@@ -484,42 +484,19 @@ reachable via `autosave = false`.
 **Residual, in the order the landed work sets up:**
 
 1. **Hover-reveal close affordance + folder-line distinction (USER-REPORTED
-   2026-08-18 on the live app). (b) row cursor and (d) Wagtail legibility
-   are LANDED** (`f8f3fb4c`): stack rows now earn the pointing hand via the
+   2026-08-18 on the live app). LANDED.** The user chose a folder heading
+   above the file rows and a one-stage close mark on whichever row is under
+   the pointer, including the current document. The mark is transparent at
+   rest in a stable pre-shaped lane, so labels do not shift. This landed via
+   the merge recorded by `git log --grep 'item 444'`. (b) row cursor and (d)
+   Wagtail legibility landed earlier (`f8f3fb4c`): stack rows now earn the pointing hand via the
    same `CursorContext` roster/no-wildcard law the outline rows already use
    (`gutter_stack_hit`, no parallel hit-test), and the active row's label
    ink routes through `theme::selected_row_secondary_ink`/`surface_selected`
    — the same "ink over a filled plate inverts" mechanism `one_bit.rs`
    already proves for the picker/toast — so Wagtail's selected file is
    legible again, presence + legibility floors both mutation-proven
-   independently. (a) and (c) remain open, below.
-
-   (a) The × is invisible: the row's right close zone is wired to
-   `close_buffer` but draws nothing — the user hovered and asked "I don't
-   see the x mark?" Draw the × (or equivalent) when the pointer enters the
-   zone; capture-prototype and put shots to the user before committing to a
-   treatment. New live-only render axis (hover), so `cursor_shape.rs`-style
-   unit laws + a live check. **Decided 2026-08-18: hover-only (never a
-   persistent column), on the RIGHT — the ink is right-aligned so the right
-   end is the one stable edge across filename lengths, and `close_zone` is
-   already the rightmost row-height square.** The × occupies the plate's
-   right pad / the space past the ink's right edge; it must not shift the
-   label (no hover jitter). Prototype for the user: one-stage reveal
-   (× on row-hover) vs two-stage (faint × on row-hover, full ink inside
-   the close zone), and active-row-with-× vs siblings-only (⌘W already
-   closes the active file).
-   (c) The FOLDER line under the stack (`notes`) reads as a third file: it
-   is drawn at the same LABEL size and the same `faint` ink as the inactive
-   rows, so `awl-start.md / anxiety-2.md / notes` scan as three siblings.
-   The user asked whether the type scale has a smaller step — the chrome
-   scale has `LABEL` (the margin's one size) and the rotated location's
-   `LOCATION_SCALE 0.92`; a smaller size for the folder line is a DESIGN
-   §5 call (the identity's "position in the filesystem" was two lines of
-   one size when it was one file). Prototype at least two treatments and
-   put both to the user: a smaller/quieter step for the folder line, and a
-   spacing/heading treatment (folder as heading ABOVE the rows, which the
-   444 text already names: "the root heading names the active folder").
-   Byte-identity for the one-file case must hold whichever wins.
+   independently. The one-file case remains byte-identical.
 
 2. **Zero-document state** — the largest remaining piece; `DocumentSession`
    would need an optional active slot, and every subsystem this item names

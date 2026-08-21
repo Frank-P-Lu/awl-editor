@@ -88,8 +88,8 @@ reason = "The event-to-present flight recorder needs its winit-receipt and keyma
 
 [[file_size_mark]]
 file = "src/app/input/mouse.rs"
-lines = 1058
-reason = "The wheel-region predicate at the one pointer entry point stopped naming a single overlay kind and asks the shape-neutral question instead (+7, all of it the comment recording why the kind check was wrong). +3: the working-set stack's left-click-to-switch route, enrolled in this file's own input-substate privacy law. +11: `sync_cursor_icon` gains the stack-row hand-cursor arm, hit-tested through the same `gutter_stack_hit` the click path already uses."
+lines = 1079
+reason = "The wheel-region predicate at the one pointer entry point stopped naming a single overlay kind and asks the shape-neutral question instead (+7, all of it the comment recording why the kind check was wrong). +3: the working-set stack's left-click-to-switch route, enrolled in this file's own input-substate privacy law. +11: `sync_cursor_icon` gains the stack-row hand-cursor arm, hit-tested through the same `gutter_stack_hit` the click path already uses. +21: cursor movement and leave route one shared gutter-stack hit through the hover state, so the close mark follows exactly the row under the pointer and clears when the pointer exits."
 
 [[file_size_mark]]
 file = "src/app/session.rs"
@@ -289,8 +289,8 @@ lines = 559
 
 [[file_size_mark]]
 file = "src/render.rs"
-lines = 2771
-reason = "The footer plate uses the notice channel's one-pixel rim so it remains visible. `Millis` and `progress_per` keep durations out of pixel multiplication by type, while declaration docs name the entitled scale factor for page/caret pads, page-frame strokes, and spell gaps. `HudDefaults`, `WhichKeyDefaults`, and `DebugDefaults` give inert field groups exhaustive defaults beside their sole `TextPipeline` owner. Shape reach rejects unshaped-line sentinels, and `Metrics` carries `dpi` beside zoom scale so a logical floor does not vary by display density. `CARET_INK_PAD_W` gained a doc comment naming its rationale and the near-zero vertical headroom finding that kept the tuning to width alone. +7: the working-set stack plate's own row-height and inset constants, named beside the other margin-row geometry this file already owns. +10: the menu chord column's config-aware label plumbing (ViewState mirrors of config_keys/config_linux_keep)."
+lines = 2775
+reason = "The footer plate uses the notice channel's one-pixel rim so it remains visible. `Millis` and `progress_per` keep durations out of pixel multiplication by type, while declaration docs name the entitled scale factor for page/caret pads, page-frame strokes, and spell gaps. `HudDefaults`, `WhichKeyDefaults`, and `DebugDefaults` give inert field groups exhaustive defaults beside their sole `TextPipeline` owner. Shape reach rejects unshaped-line sentinels, and `Metrics` carries `dpi` beside zoom scale so a logical floor does not vary by display density. `CARET_INK_PAD_W` gained a doc comment naming its rationale and the near-zero vertical headroom finding that kept the tuning to width alone. +7: the working-set stack plate's own row-height and inset constants, named beside the other margin-row geometry this file already owns. +10: the menu chord column's config-aware label plumbing (ViewState mirrors of config_keys/config_linux_keep). +4: inert hover defaults and mirrored row state keep the production close affordance explicit in the exhaustive pipeline state."
 
 [[file_size_mark]]
 file = "src/render/benchsuite/corpus.rs"
@@ -322,8 +322,8 @@ reason = "+6: the dropdown plan takes the frame's scale so its minimum width res
 
 [[file_size_mark]]
 file = "src/render/chrome/mod.rs"
-lines = 1059
-reason = "+1: re-export PANEL_MARGIN and PANEL_PAD so panel shaping and rectangle layout resolve one physical panel inset owner. +6: re-exports the working-set stack's gutter submodules so the chrome pipeline resolves them through the same module surface as every other gutter row. +1: re-exports the new gutter_hit pointer module beside them."
+lines = 1060
+reason = "+1: re-export PANEL_MARGIN and PANEL_PAD so panel shaping and rectangle layout resolve one physical panel inset owner. +6: re-exports the working-set stack's gutter submodules so the chrome pipeline resolves them through the same module surface as every other gutter row. +1: re-exports the new gutter_hit pointer module beside them. +1: the shared chrome plan carries the hovered working-set row to the one draw owner."
 
 [[file_size_mark]]
 file = "src/render/chrome/outline.rs"
@@ -384,8 +384,8 @@ lines = 568
 
 [[file_size_mark]]
 file = "src/render/pipeline_draw.rs"
-lines = 507
-reason = "The footer plate earns the notice channel's own one-pixel rim, which is what lifts it from delta-E 1.91 to 54 on Cassowary -- a plate nobody can see is not a plate. +5: the rim's construction and its draw slot immediately before `overlay_bars`, matching the order `notice_rim`/`notice_plate` already keep. +1: the `shape_tail_owed` field initialiser in TextPipeline::new's literal, its sole construction site — the flag that records a presented frame still owes its tail. +7: the working-set stack plate's draw call, slotted beside the other gutter-row draws it shares a pipeline with. +2: threads config_keys/config_linux_keep into the menu dropdown plan's construction."
+lines = 508
+reason = "The footer plate earns the notice channel's own one-pixel rim, which is what lifts it from delta-E 1.91 to 54 on Cassowary -- a plate nobody can see is not a plate. +5: the rim's construction and its draw slot immediately before `overlay_bars`, matching the order `notice_rim`/`notice_plate` already keep. +1: the `shape_tail_owed` field initialiser in TextPipeline::new's literal, its sole construction site — the flag that records a presented frame still owes its tail. +7: the working-set stack plate's draw call, slotted beside the other gutter-row draws it shares a pipeline with. +2: threads config_keys/config_linux_keep into the menu dropdown plan's construction. +1: initializes the inert hovered-row field beside the working-set stack's other exhaustive state."
 
 [[file_size_mark]]
 file = "src/render/pipeline_geometry.rs"
@@ -753,7 +753,7 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 lint = "clippy::too_many_lines"
 file = "src/render/pipeline_draw.rs"
 function = "TextPipeline::new"
-message = "this function has too many lines (447/100)"
+message = "this function has too many lines (448/100)"
 reason = "The one exhaustive TextPipeline initializer keeps adjacent GPU state transitions together. Four added lines initialize arbitrary two-colour ground/ink endpoints for independent selection and caret pipelines; their shared baked construction lives in SelectionPipeline::new_two_colour."
 
 [[clippy_exception]]
@@ -767,8 +767,8 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/gutter.rs"
 function = "TextPipeline::prepare_gutter"
-message = "this function has too many lines (107/100)"
-reason = "The one shared owner every gutter block's shape and hit-test read; widening the block to a stable multi-row stack when the active project holds more than one open file is a single additional branch rather than a second construction path."
+message = "this function has too many lines (111/100)"
+reason = "The one shared owner every gutter block's shape and hit-test read; widening the block to a stable multi-row stack when the active project holds more than one open file is a single additional branch rather than a second construction path. The stable close lane is shaped in that same branch so hover changes ink only and cannot shift a filename."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
