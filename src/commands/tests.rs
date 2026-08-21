@@ -1502,15 +1502,16 @@ fn visible_hidden_mask_gates_reveal_and_copy_path_on_the_named_file_fact_alone()
     );
     assert_eq!(
         hidden_named,
-        [
-            "Finish file",
-            "Review the change",
-            "Save your version",
-            "Use disk version"
-        ]
-        .into_iter()
-        .chain((!cfg!(target_os = "macos")).then_some("Move file to Trash"))
-        .collect::<Vec<_>>(),
+        (!cfg!(target_os = "macos"))
+            .then_some("Move file to Trash")
+            .into_iter()
+            .chain([
+                "Finish file",
+                "Review the change",
+                "Save your version",
+                "Use disk version",
+            ])
+            .collect::<Vec<_>>(),
         "the named-file fact gates Reveal/Copy-path and nothing else"
     );
 }
