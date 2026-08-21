@@ -33,6 +33,17 @@ impl TextPipeline {
             .map(|dock| (dock, [geom.card_x, geom.card_y, geom.card_w, geom.card_h]))
     }
 
+    pub(super) fn docked_facet_text_top(
+        &self,
+        dock: Option<crate::render::plan::PlannedHeader>,
+    ) -> Option<f32> {
+        let dock = dock?;
+        self.panel_buffer
+            .layout_runs()
+            .find(|run| run.line_i == dock.line)
+            .map(|run| dock.top - run.line_top)
+    }
+
     /// Hit-test a pointer against the same shaped facet line the dock moves.
     pub fn overlay_lens_at(&self, px: f32, py: f32) -> Option<usize> {
         if !self.overlay_active || self.overlay_lens.is_empty() {
@@ -88,6 +99,7 @@ pub(super) fn push_docked_facet_areas<'a>(
     areas: &mut Vec<TextArea<'a>>,
     panel_buffer: &'a GlyphBuffer,
     dock: Option<crate::render::plan::PlannedHeader>,
+    docked_text_top: Option<f32>,
     original: Option<crate::render::plan::PlannedHeader>,
     text_left: f32,
     text_top: f32,
@@ -96,7 +108,7 @@ pub(super) fn push_docked_facet_areas<'a>(
     height: u32,
     ink: glyphon::Color,
 ) -> bool {
-    let Some((dock, original)) = dock.zip(original) else {
+    let Some(((dock, docked_text_top), original)) = dock.zip(docked_text_top).zip(original) else {
         return false;
     };
     let mut push = |top: f32, clip_top: f32, clip_bottom: f32| {
@@ -116,7 +128,7 @@ pub(super) fn push_docked_facet_areas<'a>(
         });
     };
     push(text_top, 0.0, original.top);
-    push(text_top + dock.top - original.top, dock.top, dock.bottom());
+    push(docked_text_top, dock.top, dock.bottom());
     push(text_top, original.bottom(), height as f32);
     true
 }
