@@ -43,6 +43,8 @@ pub(super) fn stack_view(active: usize) -> ViewState {
         leaf: leaf.to_string(),
         parent: parent.to_string(),
         active: at == active,
+        kind: crate::workingset::StackRowKind::File,
+        prototype_hovered: false,
     })
     .collect();
     v

@@ -90,6 +90,8 @@ pub(super) struct StackLine {
     /// file sitting directly under the root, which draws no location at all.
     pub parent_byte: usize,
     pub active: bool,
+    pub kind: crate::workingset::StackRowKind,
+    pub prototype_hovered: bool,
 }
 
 /// Fit each row to `budget` characters, THE LEAF FIRST.
@@ -115,6 +117,8 @@ pub(super) fn fit_rows(rows: &[crate::workingset::StackRow], budget: usize) -> V
                 parent_byte: parent.len(),
                 text: format!("{parent}{leaf}"),
                 active: row.active,
+                kind: row.kind,
+                prototype_hovered: row.prototype_hovered,
             }
         })
         .collect()
@@ -158,11 +162,16 @@ pub(super) fn stack_spans(
         return Vec::new();
     }
     let active_ink = theme::selected_row_secondary_ink(theme::surface_selected()).to_glyphon();
+    let muted = theme::muted().to_glyphon();
     let faint = theme::faint().to_glyphon();
     let mut out = Vec::with_capacity(lines.len() * 2);
     for (row, line) in lines.iter().enumerate() {
         let lead = if row == 0 { "" } else { "\n" };
-        let name_ink = if line.active { active_ink } else { faint };
+        let name_ink = match line.kind {
+            crate::workingset::StackRowKind::File if line.active => active_ink,
+            crate::workingset::StackRowKind::Group { active: true } => muted,
+            _ => faint,
+        };
         let (parent, leaf) = line.text.split_at(line.parent_byte);
         if parent.is_empty() {
             out.push((format!("{lead}{leaf}"), name_ink));
@@ -170,18 +179,25 @@ pub(super) fn stack_spans(
             out.push((format!("{lead}{parent}"), faint));
             out.push((leaf.to_string(), name_ink));
         }
+        if !matches!(line.kind, crate::workingset::StackRowKind::File) {
+            continue;
+        }
         // The mark's text is ALWAYS shaped for a working-set row, even when its
         // alpha is zero. That invisible run reserves the trailing close lane:
         // revealing the × changes only ink, never the label's advances. A
         // single-file identity never enters this function with a row, so it
         // keeps its original bytes and geometry.
-        let shown = hover.filter(|hit| hit.row == row).map(|_| {
-            if line.active {
-                theme::selected_row_secondary_ink(theme::surface_selected()).to_glyphon()
-            } else {
-                theme::muted().to_glyphon()
-            }
-        });
+        let shown = hover
+            .filter(|hit| hit.row == row)
+            .map(|_| ())
+            .or(line.prototype_hovered.then_some(()))
+            .map(|_| {
+                if line.active {
+                    theme::selected_row_secondary_ink(theme::surface_selected()).to_glyphon()
+                } else {
+                    theme::muted().to_glyphon()
+                }
+            });
         out.push((
             "  ×".to_string(),
             shown.unwrap_or_else(|| glyphon::Color::rgba(0, 0, 0, 0)),
@@ -235,7 +251,11 @@ pub(super) fn plate_rects(
             let gutter::GutterLine::File(at) = kind else {
                 return None;
             };
-            if !layout.files.get(at)?.active {
+            if !matches!(
+                layout.files.get(at)?.kind,
+                crate::workingset::StackRowKind::File
+            ) || !layout.files.get(at)?.active
+            {
                 return None;
             }
             let rect = *plan.rows.get(row)?;

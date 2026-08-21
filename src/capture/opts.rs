@@ -58,9 +58,62 @@ pub(super) fn buffers_json(opts: &CaptureOpts, view: &crate::render::ViewState) 
         ),
         None => (1, super::sidecar::json_string(&view.gutter_name)),
     };
+    let prototype = opts
+        .working_set_prototype
+        .as_ref()
+        .map(|report| prototype_json(report, &view.gutter_files))
+        .unwrap_or_default();
     format!(
         "{{ \"open\": {open}, \"active\": {active}, \"files\": [{files}], \
-         \"active_index\": {active_index} }}"
+         \"active_index\": {active_index}{prototype} }}"
+    )
+}
+
+fn prototype_json(
+    report: &crate::workingset::PrototypeReport,
+    rows: &[crate::workingset::StackRow],
+) -> String {
+    use crate::workingset::StackRowKind;
+    let rows = rows
+        .iter()
+        .map(|row| {
+            let label = format!("{}{}", row.parent, row.leaf);
+            let (kind, hidden, group_active) = match row.kind {
+                StackRowKind::File => ("file", "null".to_string(), "null".to_string()),
+                StackRowKind::More { hidden } => ("more", hidden.to_string(), "null".to_string()),
+                StackRowKind::Group { active } => ("group", "null".to_string(), active.to_string()),
+            };
+            format!(
+                "{{ \"kind\": \"{kind}\", \"label\": {}, \"active\": {}, \
+                 \"hidden\": {hidden}, \"group_active\": {group_active}, \
+                 \"hovered\": {} }}",
+                super::sidecar::json_string(&label),
+                row.active,
+                row.prototype_hovered,
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!(
+        ", \"prototype\": {{ \"mode\": \"{}\", \"total_open\": {}, \
+         \"total_file_rows\": {}, \"visible_file_rows\": {}, \"hidden\": {}, \
+         \"scroll\": {}, \"viewport\": {}, \"active_row\": {}, \
+         \"hovered_row\": {}, \"rows\": [{rows}] }}",
+        report.mode,
+        report.total_open,
+        report.total_file_rows,
+        report.visible_file_rows,
+        report.hidden,
+        report.scroll,
+        report.viewport,
+        report
+            .active_row
+            .map(|at| at.to_string())
+            .unwrap_or_else(|| "null".to_string()),
+        report
+            .hovered_row
+            .map(|at| at.to_string())
+            .unwrap_or_else(|| "null".to_string()),
     )
 }
 
@@ -440,6 +493,9 @@ pub struct CaptureOpts {
     /// one door able to reach it, which is exactly the gap `--seed-tree` was
     /// added to close from the other end.
     pub working_set: Vec<crate::workingset::StackRow>,
+    /// Report for the sealed working-set capture prototype. `None` in every
+    /// production frame, preserving the `buffers` block byte-for-byte.
+    pub working_set_prototype: Option<crate::workingset::PrototypeReport>,
     /// THE ACTIVE FILE's OWN REMEMBERED ROOT
     /// ([`crate::workingset::WorkingSet::active_root`]) — the gutter's project
     /// LABEL, never the nominally "active project" a Switch-project alone can
@@ -473,6 +529,15 @@ impl CaptureOpts {
             view.gutter_files.clone_from(&self.working_set);
             if let Some(root) = &self.gutter_project_root {
                 view.gutter_project = crate::project::folder_name(root);
+            }
+            if self
+                .working_set_prototype
+                .as_ref()
+                .is_some_and(|report| report.mode == "grouped")
+            {
+                // The grouped prototype carries its own truthful root headings.
+                // Suppress the ordinary one-root heading so it is not duplicated.
+                view.gutter_project.clear();
             }
         }
         view.gutter_changed = self.gutter_changed;

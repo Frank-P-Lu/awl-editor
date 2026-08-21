@@ -37,6 +37,12 @@ pub(super) fn stack_hit_from_plan(
     let GutterLine::File(row) = layout.lines().get(line)?.1 else {
         return None;
     };
+    if !matches!(
+        layout.files.get(row)?.kind,
+        crate::workingset::StackRowKind::File
+    ) {
+        return None;
+    }
     Some(GutterStackHit {
         row,
         intent: gutter_stack::row_intent(*plan.rows.get(line)?, px),

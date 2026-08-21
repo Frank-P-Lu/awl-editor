@@ -28,6 +28,9 @@ use std::path::{Path, PathBuf};
 
 use crate::buffers::BufferKey;
 
+mod prototype;
+pub use prototype::{PrototypeReport, PrototypeSpec};
+
 /// One member of the visible working set.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct OpenFile {
@@ -141,6 +144,19 @@ pub fn root_for(path: &Path, active_root: &Path, remembered: Option<&Path>) -> P
 /// file. Deliberately a projection rather than a borrow of [`OpenFile`]: the
 /// renderer never asks the working set a question mid-frame, so a row cannot
 /// answer one thing to the draw and another to the hit-test.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum StackRowKind {
+    /// A real open file. This is the only row kind that may show the close mark
+    /// or carry the active-file plate.
+    #[default]
+    File,
+    /// The collapsed view's single generic overflow affordance.
+    More { hidden: usize },
+    /// A project heading in the expanded cross-project prototype.
+    Group { active: bool },
+}
+
+/// One projected row in the margin stack.
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub struct StackRow {
     /// The file name, in the row's normal ink.
@@ -150,6 +166,15 @@ pub struct StackRow {
     pub parent: String,
     /// Is this the file the reader is currently editing?
     pub active: bool,
+    /// Whether this row is a file, the one overflow affordance, or a project
+    /// heading. Production [`WorkingSet::stack_rows`] emits only `File`; the
+    /// other arms are capture-prototype vocabulary and are inert otherwise.
+    pub kind: StackRowKind,
+    /// A sealed capture-prototype hover pose. The live app's real pointer still
+    /// rides the renderer's `gutter_stack_hover`; this bit exists only so a
+    /// windowless `--screenshot-app` run can photograph the already-shipped
+    /// close mark without fabricating pointer input.
+    pub prototype_hovered: bool,
 }
 
 /// The open files, in the order the margin draws them, plus which one is active.
@@ -284,6 +309,8 @@ impl WorkingSet {
                 leaf: self.files[at].leaf(),
                 parent: self.files[at].parent_label().unwrap_or_default(),
                 active: self.active == Some(at),
+                kind: StackRowKind::File,
+                prototype_hovered: false,
             })
             .collect()
     }

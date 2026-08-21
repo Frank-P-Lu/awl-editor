@@ -91,6 +91,15 @@ impl App {
             .active_root()
             .map(|root| self.document.working_set().stack_rows(root))
             .unwrap_or_default();
+        // SEALED CAPTURE PROTOTYPE: audition overflow/grouping presentations
+        // against the REAL live-App working set without changing a production
+        // window or persisting a choice. No env key means the production rows
+        // above remain exactly the artifact.
+        if let Some(spec) = crate::workingset::PrototypeSpec::from_env() {
+            let prototype = self.document.working_set().prototype_view(spec);
+            opts.working_set = prototype.rows;
+            opts.working_set_prototype = Some(prototype.report);
+        }
         // THE IDENTITY'S FOLDER LABEL: the same root `sync_view` draws the
         // live gutter from, so a `--screenshot-app` capture and the running
         // editor cannot disagree about which folder the open file is in —
