@@ -526,10 +526,10 @@ impl Buffer {
                 // the original selection; text comes from the rope and URL from
                 // the (already clipboard-refreshed) kill ring — no new plumbing.
                 let text = self.text();
-                if let Some(edit) =
+                if let Some((text, anchor, cursor)) =
                     crate::actions::link::paste_over_selection(&text, start, end, &s)
                 {
-                    self.apply_format(&edit.text, edit.anchor, edit.cursor);
+                    self.apply_format(&text, anchor, cursor);
                 } else {
                     let after = start + s.chars().count();
                     self.apply_edit(start, end - start, &s, before, after);

@@ -155,17 +155,17 @@ pub(crate) fn paste_over_selection(
     start: usize,
     end: usize,
     url: &str,
-) -> Option<format::FormatResult> {
+) -> Option<(String, Option<usize>, usize)> {
     if start >= end || !crate::markdown::link_paste_is_safe(text, start, end) {
         return None;
     }
     let selected: String = text.chars().skip(start).take(end - start).collect();
     let replacement = serialized(&selected, url);
-    Some(format::FormatResult {
-        text: replace_chars(text, start, end, &replacement),
-        anchor: None,
-        cursor: start + replacement.chars().count(),
-    })
+    Some((
+        replace_chars(text, start, end, &replacement),
+        None,
+        start + replacement.chars().count(),
+    ))
 }
 
 fn replace_chars(text: &str, start: usize, end: usize, replacement: &str) -> String {
