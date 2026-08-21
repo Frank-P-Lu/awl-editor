@@ -308,10 +308,12 @@ impl TextPipeline {
         // state break upstream or a present break downstream.
         #[cfg(not(target_arch = "wasm32"))]
         if crate::probe::recording() {
+            let phase = self.overlay_band_t;
             crate::probe::trace(format_args!(
                 "prepare_highlight logical={sel} target={target:.1} \
-                 band_top={band_top:?} reads={rows:?}"
+                 band_top={band_top:?} phase={phase:.3} reads={rows:?}"
             ));
+            crate::probe::note_band_phase(phase);
         }
         VisualSelection {
             logical,

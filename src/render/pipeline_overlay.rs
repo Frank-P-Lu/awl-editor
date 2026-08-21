@@ -42,6 +42,8 @@ impl TextPipeline {
         if crate::motion::reduced() {
             self.overlay_enter_t = 1.0;
             self.overlay_band_t = 1.0;
+            self.overlay_band_started_at = None;
+            self.overlay_band_pending_at = None;
             return false;
         }
         let mut hot = false;
@@ -50,11 +52,11 @@ impl TextPipeline {
                 (self.overlay_enter_t + OVERLAY_ENTRANCE_MS.progress_per(dt)).min(1.0);
             hot |= self.overlay_enter_t < 1.0;
         }
-        if self.overlay_band_t < 1.0 {
+        if self.overlay_band_started_at.is_none() && self.overlay_band_t < 1.0 {
             self.overlay_band_t =
                 (self.overlay_band_t + OVERLAY_BAND_SLIDE_MS.progress_per(dt)).min(1.0);
-            hot |= self.overlay_band_t < 1.0;
         }
+        hot |= self.overlay_band_t < 1.0;
         hot
     }
 
@@ -103,6 +105,7 @@ impl TextPipeline {
                 self.overlay_band_from = cur;
                 self.overlay_band_t = 0.0;
                 self.overlay_band_last = Some(target);
+                self.overlay_band_started_at = None;
                 self.band_ease_started = true;
             }
             None => {
@@ -149,6 +152,10 @@ impl TextPipeline {
     /// BEFORE reaching here (see the two callers), so this arbiter is structurally
     /// unreachable in a deterministic capture — the byte-identity gates stand.
     fn chase_or_snap(&mut self, target: f32) {
+        if self.consume_overlay_movement(target) {
+            return;
+        }
+
         let in_flight_move = matches!(
             self.overlay_band_last,
             Some(last) if (last - target).abs() > 0.5
@@ -157,6 +164,7 @@ impl TextPipeline {
             self.overlay_band_from = target;
             self.overlay_band_last = Some(target);
             self.overlay_band_t = 0.0;
+            self.overlay_band_started_at = None;
             self.band_ease_started = true;
         } else {
             self.retarget_band(target);
@@ -204,6 +212,8 @@ impl TextPipeline {
         if !slide {
             self.overlay_band_last = Some(target);
             self.overlay_band_t = 1.0;
+            self.overlay_band_started_at = None;
+            self.overlay_band_pending_at = None;
             return target;
         }
         self.chase_or_snap(target);
@@ -247,6 +257,8 @@ impl TextPipeline {
         if !self.juice_live || crate::motion::reduced() {
             self.overlay_band_last = Some(target);
             self.overlay_band_t = 1.0;
+            self.overlay_band_started_at = None;
+            self.overlay_band_pending_at = None;
             return (target, target, 1.0);
         }
         self.chase_or_snap(target);

@@ -227,6 +227,9 @@ pub(crate) fn disarm_flight_for_test() {
     if let Ok(mut sink) = FLIGHT_SINK.lock() {
         *sink = None;
     }
+    if let Ok(mut band) = BAND_SETTLE_PENDING.lock() {
+        *band = None;
+    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -312,6 +315,13 @@ static LATENCY_PENDING: std::sync::Mutex<std::collections::VecDeque<std::time::I
 #[cfg(not(target_arch = "wasm32"))]
 static LATENCY_SAMPLES: std::sync::Mutex<Vec<u128>> = std::sync::Mutex::new(Vec::new());
 
+/// Latest theme-picker input awaiting decorative-band settlement. Unlike the
+/// first-present FIFO above, this is deliberately latest-wins: a superseding
+/// selection retires the earlier decorative destination before it can settle.
+#[cfg(not(target_arch = "wasm32"))]
+static BAND_SETTLE_PENDING: std::sync::Mutex<Option<std::time::Instant>> =
+    std::sync::Mutex::new(None);
+
 /// Arm the latency clock for ONE theme-picker movement step. A cheap no-op unless
 /// [`recording`] — the same gate every other diagnostic trace point uses, so a
 /// plain launch never even reads the clock. Pushed onto the pending queue rather
@@ -327,7 +337,36 @@ pub fn mark_movement_input() {
         return;
     }
     if let Ok(mut pending) = LATENCY_PENDING.lock() {
-        pending.push_back(std::time::Instant::now());
+        let now = std::time::Instant::now();
+        pending.push_back(now);
+        if let Ok(mut band) = BAND_SETTLE_PENDING.lock() {
+            *band = Some(now);
+        }
+    }
+}
+
+/// Record the prepared selection band's authored phase and, once, the elapsed
+/// input-to-settled interval. Called from the render owner's prepared-highlight
+/// trace seam, so the recorder reports the phase the pixels actually use rather
+/// than a parallel estimate. Cheap no-op outside recording.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn note_band_phase(phase: f32) {
+    if !recording() {
+        return;
+    }
+    trace(format_args!(
+        "theme-band phase={:.3}",
+        phase.clamp(0.0, 1.0)
+    ));
+    if phase < 1.0 {
+        return;
+    }
+    let input = BAND_SETTLE_PENDING.lock().ok().and_then(|mut g| g.take());
+    if let Some(input) = input {
+        trace(format_args!(
+            "theme-band input-to-settled {:.3}ms",
+            input.elapsed().as_secs_f64() * 1000.0
+        ));
     }
 }
 

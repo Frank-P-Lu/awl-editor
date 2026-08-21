@@ -361,6 +361,9 @@ impl TextPipeline {
             self.overlay_enter_t = 1.0;
             self.overlay_band_t = 1.0;
             self.overlay_band_last = None;
+            self.overlay_band_started_at = None;
+            self.overlay_band_frame_now = None;
+            self.overlay_band_pending_at = None;
         }
         self.overlay_crisp = view.overlay_crisp;
         self.overlay_query = view.overlay_query.clone();

@@ -64,6 +64,12 @@ fn every_theme_preview_input_door_uses_the_one_latest_wins_policy() {
         "only retint_theme_preview may start a supersedable shape"
     );
     assert_eq!(
+        apply.matches("stamp_overlay_movement(").count(),
+        1,
+        "the shared preview owner stamps one input epoch, so keyboard, hover, \
+         wheel, and faceted-pointer movement cannot diverge"
+    );
+    assert_eq!(
         apply
             .matches("arm_settle(frame::SettleKind::Crossing")
             .count(),

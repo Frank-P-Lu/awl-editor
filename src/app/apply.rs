@@ -41,6 +41,15 @@ impl App {
     // the wasm build — which never runs a probe — reads it as unused.
     #[cfg_attr(target_arch = "wasm32", allow(unused_variables))]
     pub(super) fn retint_theme_preview(&mut self, prev: crate::theme::Theme) {
+        // The living band owns the same input epoch as the preview work. Stamp
+        // it before font/document shaping so work spent here consumes the
+        // authored 110 ms instead of adding a second post-prepare tail. The
+        // live App's injectable clock is the only clock read; a capture has no
+        // GPU and never reaches this seam.
+        let movement_at = self.frame.now();
+        if let Some(gpu) = self.frame.gpu_mut() {
+            gpu.pipeline.stamp_overlay_movement(movement_at);
+        }
         // Arm the MOVEMENT-LATENCY clock here: this is the ONE owner every input
         // kind (keyboard nav, mouse hover, mouse wheel) funnels a theme-picker world
         // change through, so marking HERE — right before the real relayout work below

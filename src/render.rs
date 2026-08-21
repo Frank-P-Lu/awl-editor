@@ -125,6 +125,7 @@ pub mod caretbench;
 mod viewstate_def;
 pub use viewstate_def::{DocSource, FoldTail, ViewState};
 
+mod pipeline_band_epoch;
 mod pipeline_draw;
 mod pipeline_geometry;
 mod pipeline_inverse;
@@ -2457,6 +2458,16 @@ pub struct TextPipeline {
     overlay_band_from: f32,
     overlay_band_t: f32,
     overlay_band_last: Option<f32>,
+    /// Live theme-picker timing. The movement epoch is stamped before the
+    /// synchronous preview reshape, then sampled at the redraw's injected
+    /// `now`; headless pipelines never stamp it and therefore never read a
+    /// clock. `pending_from` is the old pose sampled at input time, before a
+    /// rapid retarget applies the latest-selection-wins snap policy.
+    overlay_band_started_at: Option<crate::clock::Instant>,
+    overlay_band_frame_now: Option<crate::clock::Instant>,
+    overlay_band_pending_at: Option<crate::clock::Instant>,
+    overlay_band_pending_from: f32,
+    overlay_band_pending_snap: bool,
     /// Set by [`TextPipeline::chase_or_snap`] whenever a `prepare`
     /// pass RE-ZEROES the band's ease, and taken by the live redraw loop right
     /// after `prepare` returns. The band is the one animator whose target is set
