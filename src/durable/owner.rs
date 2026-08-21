@@ -37,3 +37,10 @@ pub fn write(owner: Owner, path: &Path, data: &[u8]) -> std::io::Result<()> {
     let _ = owner.name();
     crate::fs::write_atomic(path, data)
 }
+
+/// The durable create-if-absent door. It shares the temporary sibling write
+/// with [`write`], but never lets a racing creator be replaced at publish.
+pub fn write_new(owner: Owner, path: &Path, data: &[u8]) -> std::io::Result<()> {
+    let _ = owner.name();
+    crate::fs::write_atomic_new(path, data)
+}

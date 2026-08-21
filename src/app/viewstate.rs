@@ -166,7 +166,7 @@ impl App {
             overlay_query_caret: ov.map(|o| o.query.caret()).unwrap_or(0),
             overlay_title: ov
                 .filter(|o| o.kind.draws_title_prefix())
-                .map(|o| o.kind.title())
+                .map(crate::overlay::OverlayState::title)
                 .unwrap_or(""),
             overlay_row_path_splits: ov.map(|o| o.kind.row_path_splits()).unwrap_or(false),
             overlay_items: ov.map(|o| o.item_strings()).unwrap_or_default(),

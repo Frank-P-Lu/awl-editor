@@ -40,6 +40,28 @@ pub fn write_atomic(path: &Path, data: &[u8]) -> io::Result<()> {
     fs.rename(&tmp, path)
 }
 
+/// The no-clobber sibling of [`write_atomic`]. It retains the temporary-file
+/// durability shape, then atomically publishes only if `path` is still absent.
+pub fn write_atomic_new(path: &Path, data: &[u8]) -> io::Result<()> {
+    let fs = active();
+    let name = path
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "unnamed".to_string());
+    let tmp_name = format!(".{name}.awl-tmp");
+    let tmp = match path.parent() {
+        Some(p) if !p.as_os_str().is_empty() => p.join(tmp_name),
+        _ => PathBuf::from(tmp_name),
+    };
+    fs.write(&tmp, data)?;
+    super::fault::after_tmp_write(&tmp);
+    if let Err(e) = fs.rename_no_replace(&tmp, path) {
+        let _ = fs.remove_file(&tmp);
+        return Err(e);
+    }
+    Ok(())
+}
+
 /// THE ONE HOME-DIRECTORY LOOKUP — `$HOME`, read live rather than cached,
 /// because it is not a constant of the process: the MAS sandbox rewrites it to
 /// the container's own home at startup (`mas.rs`) and every path awl derives

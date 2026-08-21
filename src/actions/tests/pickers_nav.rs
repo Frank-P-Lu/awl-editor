@@ -39,6 +39,77 @@ fn command_palette_opens_then_filters() {
 }
 
 #[test]
+fn save_copy_uses_the_shared_folder_then_filename_journey() {
+    let mut buffer = Buffer::from_str("text\n");
+    let mut journey = crate::overlay::Journey::default();
+    let mut shift = false;
+    let mut zoom = 1.0;
+    let mut search = None;
+    let mut make = |_k| None;
+    let mut browse = |k, r| browse_level(k, r);
+    let mut ctx = ActionCtx {
+        buffer: &mut buffer,
+        shift_selecting: &mut shift,
+        zoom: &mut zoom,
+        search: &mut search,
+        scroll_page_lines: 1,
+        journey: &mut journey,
+        make_overlay: &mut make,
+        browse_to: &mut browse,
+        oracle: None,
+    };
+    assert!(matches!(
+        apply_transition(&mut ctx, &Action::SaveCopy, false).primary(),
+        Effect::None
+    ));
+    let card = ctx.journey.card().unwrap();
+    assert_eq!(card.kind, OverlayKind::ExportDest);
+    assert_eq!(card.title(), "save a copy to");
+    assert!(card.foot_hint().contains("save a copy here"));
+    let mut destination = OverlayState::new(
+        OverlayKind::ExportDest,
+        vec!["copies".into()],
+        vec![],
+        vec![],
+    );
+    destination.save_copy = true;
+    destination.rows[0].is_dir = true;
+    *ctx.journey = crate::overlay::Journey::seeded(Some(destination));
+    let _ = apply_transition(&mut ctx, &Action::Newline, false);
+    let card = ctx.journey.card().unwrap();
+    assert!(
+        card.rename_edit.is_some(),
+        "folder acceptance opens the seeded filename prompt"
+    );
+    assert_eq!(card.title(), "save a copy as");
+    assert!(card.foot_hint().starts_with("save a copy as:"));
+    let effect = apply_transition(&mut ctx, &Action::Newline, false).primary();
+    assert!(
+        matches!(effect, Effect::SaveCopyName { ref dest, .. } if dest == "copies"),
+        "{effect:?}"
+    );
+
+    let mut cancelled = OverlayState::new_rename("copy.md".into());
+    cancelled.save_copy_dest = Some("copies".into());
+    *ctx.journey = crate::overlay::Journey::seeded(Some(cancelled));
+    assert!(matches!(
+        apply_transition(&mut ctx, &Action::Cancel, false).primary(),
+        Effect::None
+    ));
+    assert!(ctx.journey.card().is_none(), "Cancel emits no copy");
+
+    let mut slash = OverlayState::new_rename("copy.md".into());
+    slash.save_copy_dest = Some("copies".into());
+    *ctx.journey = crate::overlay::Journey::seeded(Some(slash));
+    let _ = apply_transition(&mut ctx, &Action::InsertChar('/'), false);
+    let effect = apply_transition(&mut ctx, &Action::Newline, false).primary();
+    assert!(
+        matches!(effect, Effect::SaveCopyName { ref name, .. } if name == "copy.md"),
+        "slash must be rejected: {effect:?}"
+    );
+}
+
+#[test]
 fn command_palette_enter_dispatches_selected_action() {
     // Open, filter to "Go to file", Enter -> run_action == OpenGoto and the
     // palette closed (so the caller can re-dispatch into the goto overlay).

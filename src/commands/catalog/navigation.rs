@@ -159,6 +159,18 @@ pub(super) static COMMANDS: &[Command] = &[
             "Save a copy of the file beside it, deduplicated, and switch to editing the copy.",
         ),
     },
+    Command {
+        name: "Save a Copy…",
+        action: Action::SaveCopy,
+        native: "",
+        emacs: "",
+        native_only: true,
+        web_only: false,
+        description: Some(
+            "Choose a destination for a snapshot while keeping the current file open and \
+             unchanged.",
+        ),
+    },
     // REVEAL / COPY PATH: the platform-neutral catalog name — the visible
     // label a macOS surface may narrow to "Reveal in Finder" is a display
     // decision made where it is shown (`context_menu::reveal_label`), never

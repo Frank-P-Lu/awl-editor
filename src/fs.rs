@@ -3,7 +3,6 @@ use std::io;
 use std::path::{Path, PathBuf};
 #[cfg(test)]
 use std::sync::Arc;
-
 mod active;
 mod fault;
 #[cfg(any(test, not(target_arch = "wasm32")))]
@@ -12,7 +11,6 @@ mod native;
 mod paths;
 #[cfg(any(test, target_arch = "wasm32"))]
 mod web;
-
 #[cfg(test)]
 pub(crate) use active::{CwdGuard, FsGuard, UnwritableFs, with_fs};
 pub use active::{active, set_active};
@@ -24,13 +22,12 @@ pub use native::NativeFs;
 pub(crate) use paths::home_dir;
 #[cfg(target_arch = "wasm32")]
 pub use paths::web_config_path;
-pub use paths::{data_root, scratch_stash_path, write_atomic};
+pub use paths::{data_root, scratch_stash_path, write_atomic, write_atomic_new};
 #[cfg(target_arch = "wasm32")]
 pub use web::install_web_fs;
 #[cfg(any(test, target_arch = "wasm32"))]
 #[allow(unused_imports)]
 pub(crate) use web::{SEED_SAMPLES, SEED_SENTINEL_KEY, seed_write_if_absent};
-
 /// Cross-backend directory entry: leaf name, full path, and kind are all the
 /// walk/browse code consumes.
 ///
@@ -54,7 +51,6 @@ pub struct DirEntry {
     pub is_file: bool,
     pub is_symlink: bool,
 }
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Metadata {
     pub modified: Option<SystemTime>,
@@ -72,6 +68,10 @@ pub trait FileSystem: Send + Sync {
     fn create_dir_all(&self, path: &Path) -> io::Result<()>;
 
     fn rename(&self, from: &Path, to: &Path) -> io::Result<()>;
+
+    /// Atomically publish `from` at an absent `to`, refusing to replace an
+    /// existing destination. This is the no-clobber half of a durable write.
+    fn rename_no_replace(&self, from: &Path, to: &Path) -> io::Result<()>;
 
     fn exists(&self, path: &Path) -> bool;
 

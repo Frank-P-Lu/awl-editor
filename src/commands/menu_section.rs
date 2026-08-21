@@ -5,6 +5,7 @@ pub(super) const FILE_COMMANDS: &[&str] = &[
     "Open file…",
     "Open folder…",
     "Save",
+    "Save a Copy…",
     "Finish file",
     "Export as PDF…",
     "Export as Word…",

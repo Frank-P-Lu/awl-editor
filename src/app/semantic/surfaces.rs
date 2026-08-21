@@ -77,10 +77,10 @@ impl SemanticView<'_> {
         let dialog_id = format!("overlay.{kind}");
         let query_id = format!("{dialog_id}.query");
         let list_id = format!("{dialog_id}.rows");
-        let mut dialog = SemanticNode::new(&dialog_id, SemanticRole::Dialog, overlay.kind.title());
+        let mut dialog = SemanticNode::new(&dialog_id, SemanticRole::Dialog, overlay.title());
         dialog.description = Some(self.workspace_state.journey().foot_hint());
 
-        let mut query = SemanticNode::new(&query_id, SemanticRole::TextInput, overlay.kind.title());
+        let mut query = SemanticNode::new(&query_id, SemanticRole::TextInput, overlay.title());
         query.value = Some(overlay.query.text().to_string());
         query.character_lengths = crate::semantic::grapheme_lengths(overlay.query.text());
         let caret = crate::semantic::char_to_grapheme(overlay.query.text(), overlay.query.caret());
@@ -97,7 +97,7 @@ impl SemanticView<'_> {
         // does nothing.
         query.actions = vec![SemanticAction::SetValue];
 
-        let mut list = SemanticNode::new(&list_id, SemanticRole::ListBox, overlay.kind.title());
+        let mut list = SemanticNode::new(&list_id, SemanticRole::ListBox, overlay.title());
         let labels = overlay.item_strings();
         let values = overlay.item_bindings();
         for (visible, (&corpus, label)) in overlay

@@ -626,6 +626,7 @@ macro_rules! classify_delete_flinch {
             | Action::MoveFile
             | Action::OpenRenameNote
             | Action::DuplicateNote
+            | Action::SaveCopy
             | Action::OpenSettings
             | Action::OpenSettingsMenu
             | Action::OpenKeybindings
@@ -848,6 +849,7 @@ macro_rules! assert_action_roster {
             | Action::MoveFile
             | Action::OpenRenameNote
             | Action::DuplicateNote
+            | Action::SaveCopy
             | Action::OpenSettings
             | Action::OpenSettingsMenu
             | Action::OpenKeybindings
@@ -1118,7 +1120,8 @@ macro_rules! classify_smoke_command {
         | Action::ExportWord
         | Action::ExportHtml
         | Action::ExportPdf
-        | Action::DuplicateNote
+            | Action::DuplicateNote
+            | Action::SaveCopy
         | Action::InsertDate
         // The smoke fixture is a NO-PATH buffer (see `OpenRenameNote`'s note
         // below), so this resolves to `Effect::None` here — still the

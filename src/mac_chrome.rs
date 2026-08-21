@@ -100,10 +100,7 @@ pub fn pick_folder_to_open(initial_dir: Option<&std::path::Path>) -> Option<Path
 /// ⚠️ `runModal` BLOCKS THE PROCESS MAIN THREAD until a human closes the panel.
 /// The caller (`App::export_via_platform_panel`) gates on a real surface for
 /// exactly that reason — a surfaceless `App` reaching here hangs forever.
-pub fn pick_export_destination(
-    default_dir: &std::path::Path,
-    default_name: &str,
-) -> Option<PathBuf> {
+pub fn pick_save_destination(default_dir: &std::path::Path, default_name: &str) -> Option<PathBuf> {
     let mtm = MainThreadMarker::new()?;
     let panel = NSSavePanel::savePanel(mtm);
     panel.setCanCreateDirectories(true);

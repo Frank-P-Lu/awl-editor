@@ -194,7 +194,7 @@ impl App {
                 .file_name()
                 .map(|s| s.to_string_lossy().to_string())
                 .unwrap_or_default();
-            if let Some(chosen) = crate::mac_chrome::pick_export_destination(&dir, &name) {
+            if let Some(chosen) = crate::mac_chrome::pick_save_destination(&dir, &name) {
                 let bytes = self.export_bytes(format);
                 let doc_path = self.document.buffer().path().map(|p| p.to_path_buf());
                 self.write_export(&bytes, ExportTarget::at(chosen, doc_path.as_deref()));
@@ -232,6 +232,91 @@ impl App {
             }
             Err(e) => self.set_sticky_notice(format!("export failed: {e}")),
         }
+    }
+
+    /// Save one Markdown snapshot at `destination`. This deliberately reads only
+    /// `disk_bytes`: no buffer/session/history/autosave state is changed.
+    /// `overwrite_confirmed` belongs to the one platform save panel; the explicit
+    /// false arm is kept for headless verification and never clobbers a file.
+    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg_attr(not(any(target_os = "macos", test)), allow(dead_code))]
+    pub(in crate::app) fn save_copy_to(
+        &mut self,
+        destination: &std::path::Path,
+        overwrite_confirmed: bool,
+    ) -> bool {
+        if let Some(parent) = destination.parent()
+            && let Err(e) = crate::fs::active().create_dir_all(parent)
+        {
+            self.set_sticky_notice(format!("save a copy failed: {e}"));
+            return false;
+        }
+        let bytes = self.document.buffer().disk_bytes();
+        let result = if overwrite_confirmed {
+            crate::durable::write(crate::durable::Owner::Export, destination, &bytes)
+        } else {
+            crate::durable::write_new(crate::durable::Owner::Export, destination, &bytes)
+        };
+        match result {
+            Ok(()) => {
+                self.set_toast_notice("saved a copy");
+                true
+            }
+            Err(e) => {
+                self.set_sticky_notice(format!("save a copy failed: {e}"));
+                false
+            }
+        }
+    }
+
+    pub(in crate::app) fn save_copy_named(&mut self, dest_rel: &str, name: &str) {
+        if name.trim().is_empty() {
+            return;
+        }
+        let folder = if dest_rel.is_empty() {
+            self.project_location.root.clone()
+        } else {
+            self.project_location.root.join(dest_rel)
+        };
+        self.save_copy_to(&folder.join(name), false);
+    }
+
+    /// The sole interactive Save a Copy door. NSSavePanel owns cancellation and
+    /// overwrite confirmation; a headless App cannot reach it because a modal
+    /// panel would block the capture/test main thread.
+    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg_attr(not(any(target_os = "macos", test)), allow(dead_code))]
+    pub(in crate::app) fn save_copy_via_platform_panel(&mut self) -> bool {
+        if self.frame.gpu().is_none() {
+            return false;
+        }
+        #[cfg(target_os = "macos")]
+        {
+            let path = self.document.buffer().path();
+            let dir = path
+                .and_then(|p| p.parent())
+                .map(|p| p.to_path_buf())
+                .unwrap_or_else(|| self.project_location.root.clone());
+            let name = path
+                .and_then(|p| p.file_name())
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_else(|| self.document.buffer().display_name());
+            if let Some(destination) = crate::mac_chrome::pick_save_destination(&dir, &name) {
+                // A failed write leaves a sticky notice; the modal handler must
+                // still request a frame so that notice becomes visible.
+                let _ = self.save_copy_to(&destination, true);
+                true
+            } else {
+                false
+            }
+        }
+        #[cfg(not(target_os = "macos"))]
+        false
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub(in crate::app) fn save_copy_via_platform_panel(&mut self) -> bool {
+        false
     }
 
     /// Point the platform's own file viewer at `path` — the reveal owner,

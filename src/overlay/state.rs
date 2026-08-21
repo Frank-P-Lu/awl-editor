@@ -53,6 +53,10 @@ pub struct OverlayState {
     /// picker is filling in — and the reason both are payloads rather than a
     /// field each rebuild site has to remember.
     pub export_format: Option<crate::export::Format>,
+    /// A Save a Copy request reuses the folders-only export destination card;
+    /// this payload selects its distinct write on accept.
+    pub save_copy: bool,
+    pub save_copy_dest: Option<String>,
     /// Go to Line's one fact: the destination buffer's total line count,
     /// gathered once at build time (`attach_line_jump`). `0` is the inert
     /// default every non-`Goto`/bare-constructed picker carries -- "no
@@ -62,6 +66,18 @@ pub struct OverlayState {
 }
 
 impl OverlayState {
+    /// The visible errand for this card. Save a Copy reuses the folder and
+    /// filename mechanisms, but its payload changes what the user is doing.
+    pub fn title(&self) -> &'static str {
+        if self.save_copy && self.kind == OverlayKind::ExportDest {
+            "save a copy to"
+        } else if self.save_copy_dest.is_some() && self.rename_edit.is_some() {
+            "save a copy as"
+        } else {
+            self.kind.title()
+        }
+    }
+
     pub fn new(
         kind: OverlayKind,
         corpus: Vec<String>,
@@ -137,6 +153,8 @@ impl OverlayState {
             context_anchor: None,
             conflict: None,
             export_format: None,
+            save_copy: false,
+            save_copy_dest: None,
             goto_line_count: 0,
         };
         s.refilter();
@@ -153,6 +171,8 @@ impl OverlayState {
     /// not the disk".
     pub fn carry_level_payload_from(&mut self, prev: &Self) {
         self.export_format = prev.export_format;
+        self.save_copy = prev.save_copy;
+        self.save_copy_dest = prev.save_copy_dest.clone();
     }
 
     pub fn accepts(&self) -> Vec<&str> {
@@ -510,6 +530,12 @@ impl OverlayState {
     /// this one kind's line.
     pub fn foot_hint_scoped(&self, bind: Option<&super::Bind>) -> String {
         if let Some(re) = &self.rename_edit {
+            if self.save_copy_dest.is_some() {
+                return format!(
+                    "save a copy as: {}   Enter commit   Esc cancel",
+                    re.input.text()
+                );
+            }
             return re.prompt();
         }
         if let Some(le) = &self.link_edit {
@@ -558,6 +584,9 @@ impl OverlayState {
         }
         if self.kind == OverlayKind::Project && !matches!(bind, Some(super::Bind::Path { .. })) {
             return self.kind.project_flat_hint();
+        }
+        if self.save_copy && self.kind == OverlayKind::ExportDest {
+            return "type to filter   ↵ save a copy here   → open   ← up".to_string();
         }
         self.kind.hint()
     }

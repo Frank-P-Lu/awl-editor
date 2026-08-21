@@ -203,7 +203,7 @@ pub(crate) fn overlay_capture_info(
         lens: ov.active_facet_id(),
         lens_strip: ov.lens_strip(),
         sections: ov.item_sections(),
-        title: ov.kind.title(),
+        title: ov.title(),
     };
     Some((info, preview_text, diff))
 }

@@ -227,6 +227,239 @@ fn a_headless_app_never_reveals_the_export_in_the_platform_file_viewer() {
     });
 }
 
+/// TIER 2 (`docs/harness-reach.md`): a copy is a disk-byte snapshot, never a
+/// document transition. The source is deliberately dirty CRLF text with a
+/// selection, scroll position, undo group and working-set key, so a new buffer,
+/// path adoption, save bookkeeping, or even a newline-normalising write fails
+/// a concrete source-state assertion rather than a vague "unchanged" claim.
+///
+/// MUTATION TARGET: replace `save_copy_to` with `load_path(destination)`, call
+/// `Buffer::save`, or write `text().as_bytes()` instead of `disk_bytes()`; this
+/// fails by name on identity/state or destination bytes respectively.
+#[test]
+fn save_a_copy_writes_disk_bytes_without_changing_the_source_document() {
+    let _g = crate::testlock::serial();
+    let source = std::path::PathBuf::from("/w/proj/source.md");
+    let destination = std::path::PathBuf::from("/w/proj/copies/snapshot.md");
+    let mem = InMemoryFs::new()
+        .with_dir("/w/proj/copies")
+        .with_file(&source, "one\r\ntwo\r\n");
+    crate::fs::with_fs(Arc::new(mem.clone()), || {
+        let mut app = App::new(
+            Some(source.clone()),
+            std::path::PathBuf::from("/w/proj"),
+            None,
+            None,
+            Config {
+                session_restore: Some(false),
+                reduce_motion: Some(false),
+                ..Config::empty()
+            },
+        );
+        app.document.action_buffer_mut().insert_text("draft");
+        app.document.action_buffer_mut().select_range(1, 4);
+        app.document.set_scroll(crate::render::ScrollPos::at_row(2));
+        let before_path = app.document.buffer().path().map(|p| p.to_path_buf());
+        let before_key = app.document.active_key();
+        let before_bytes = app.document.buffer().disk_bytes();
+        let before_text = app.document.buffer().text();
+        let before_cursor = app.document.buffer().cursor_char();
+        let before_selection = app.document.buffer().selection_range();
+        let before_scroll = app.document.scroll();
+        let before_version = app.document.buffer().version();
+        assert!(
+            app.document.buffer().can_undo(),
+            "PRESENCE: the source has an undo timeline"
+        );
+
+        assert!(app.save_copy_to(&destination, false));
+        assert_eq!(
+            mem.read(&destination).unwrap(),
+            before_bytes,
+            "destination bytes are the source disk bytes"
+        );
+        assert_eq!(
+            app.document.buffer().path(),
+            before_path.as_deref(),
+            "copy never adopts its destination"
+        );
+        assert_eq!(
+            app.document.active_key(),
+            before_key,
+            "copy never swaps the working-set identity"
+        );
+        assert_eq!(
+            app.document.buffer().text(),
+            before_text,
+            "copy does not edit the source"
+        );
+        assert_eq!(
+            app.document.buffer().cursor_char(),
+            before_cursor,
+            "copy keeps the caret"
+        );
+        assert_eq!(
+            app.document.buffer().selection_range(),
+            before_selection,
+            "copy keeps the selection"
+        );
+        assert_eq!(
+            app.document.scroll(),
+            before_scroll,
+            "copy keeps the scroll position"
+        );
+        assert_eq!(
+            app.document.buffer().version(),
+            before_version,
+            "copy does not save or alter the autosave baseline"
+        );
+        app.document.undo();
+        assert_eq!(
+            app.document.buffer().text(),
+            "one\ntwo\n",
+            "the pre-existing undo timeline remains intact"
+        );
+    });
+}
+
+/// The modal panel owns cancellation and overwrite confirmation. A hermetic App
+/// has no surface and must not reach that modal; the lower write seam therefore
+/// refuses an existing destination unless that owner explicitly confirms it.
+#[test]
+fn save_a_copy_cancellation_and_no_clobber_leave_disk_and_source_intact() {
+    let _g = crate::testlock::serial();
+    let source = std::path::PathBuf::from(DOC);
+    let destination = std::path::PathBuf::from("/w/proj/existing.md");
+    let mem = InMemoryFs::new()
+        .with_file(&source, BODY)
+        .with_file(&destination, "keep this\n");
+    crate::fs::with_fs(Arc::new(mem.clone()), || {
+        let mut app = App::new(
+            Some(source.clone()),
+            std::path::PathBuf::from("/w/proj"),
+            None,
+            None,
+            Config {
+                session_restore: Some(false),
+                reduce_motion: Some(false),
+                ..Config::empty()
+            },
+        );
+        let source_before = app.document.buffer().disk_bytes();
+        assert!(
+            !app.save_copy_via_platform_panel(),
+            "a headless App cannot open a blocking save panel"
+        );
+        assert_eq!(
+            mem.read(&destination).unwrap(),
+            b"keep this\n",
+            "cancellation writes nothing"
+        );
+        assert!(
+            !app.save_copy_to(&destination, false),
+            "an unconfirmed existing destination is never clobbered"
+        );
+        assert_eq!(
+            mem.read(&destination).unwrap(),
+            b"keep this\n",
+            "no-clobber preserves destination bytes"
+        );
+        assert_eq!(
+            app.document.buffer().disk_bytes(),
+            source_before,
+            "failed/cancelled copies leave the source intact"
+        );
+    });
+}
+
+/// The shared destination route supplies both its chosen folder and the
+/// rename-seam filename; neither is silently replaced with the source name.
+#[test]
+fn save_a_copy_named_uses_the_chosen_filename_and_refuses_a_collision() {
+    let _g = crate::testlock::serial();
+    let source = std::path::PathBuf::from(DOC);
+    let target = std::path::PathBuf::from("/w/proj/copies/final.md");
+    let mem = InMemoryFs::new()
+        .with_dir("/w/proj/copies")
+        .with_file(&source, BODY);
+    crate::fs::with_fs(Arc::new(mem.clone()), || {
+        let mut app = App::new(
+            Some(source),
+            std::path::PathBuf::from("/w/proj"),
+            None,
+            None,
+            Config {
+                session_restore: Some(false),
+                reduce_motion: Some(false),
+                ..Config::empty()
+            },
+        );
+        app.save_copy_named("copies", "final.md");
+        assert_eq!(
+            mem.read(&target).unwrap(),
+            BODY.as_bytes(),
+            "chosen filename reaches the snapshot writer"
+        );
+        mem.write(&target, b"keep").unwrap();
+        app.save_copy_named("copies", "final.md");
+        assert_eq!(
+            mem.read(&target).unwrap(),
+            b"keep",
+            "a collision is never silently clobbered"
+        );
+    });
+}
+
+/// A destination can appear after the user chose its name. The no-clobber
+/// guarantee is therefore owned by the atomic publish, not an earlier exists
+/// check. The scripted filesystem creates the competing file between the temp
+/// write and `rename_no_replace`; its bytes must win.
+///
+/// MUTATION TARGET: replace `durable::write_new` in `save_copy_to` with
+/// `durable::write`; this fails because the ordinary rename overwrites the
+/// competing creator below.
+#[test]
+fn save_a_copy_never_clobbers_a_destination_created_after_preflight() {
+    let _g = crate::testlock::serial();
+    let source = std::path::PathBuf::from(DOC);
+    let destination = std::path::PathBuf::from("/w/proj/copies/raced.md");
+    let mem = InMemoryFs::new()
+        .with_dir("/w/proj/copies")
+        .with_file(&source, BODY);
+    let scripted = crate::fs::ScriptedFs::new(
+        mem.clone(),
+        crate::fs::ScriptedFailure {
+            operation: crate::fs::ScriptedOperation::Rename,
+            ordinal: 99,
+            kind: std::io::ErrorKind::Other,
+            reason: "not reached",
+        },
+    )
+    .race_create_before_no_replace(destination.clone(), b"racing creator");
+    crate::fs::with_fs(Arc::new(scripted), || {
+        let mut app = App::new(
+            Some(source),
+            std::path::PathBuf::from("/w/proj"),
+            None,
+            None,
+            Config {
+                session_restore: Some(false),
+                reduce_motion: Some(false),
+                ..Config::empty()
+            },
+        );
+        assert!(
+            !app.save_copy_to(&destination, false),
+            "the racing destination rejects an unconfirmed copy"
+        );
+        assert_eq!(
+            mem.read(&destination).unwrap(),
+            b"racing creator",
+            "the creator that won the destination name is never overwritten"
+        );
+    });
+}
+
 /// A FOLDER CHOSEN IN THE NAVIGATOR wins over both defaults, keeps the
 /// document's own stem, and — because it is not the folder the document lives in
 /// — is spoken in full. Swept over both sides of the path axis, since the stem

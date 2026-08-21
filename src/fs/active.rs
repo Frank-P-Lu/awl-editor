@@ -229,6 +229,16 @@ impl FileSystem for UnwritableFs {
             "folder unwritable",
         ))
     }
+    fn rename_no_replace(
+        &self,
+        _from: &std::path::Path,
+        _to: &std::path::Path,
+    ) -> std::io::Result<()> {
+        Err(std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            "folder unwritable",
+        ))
+    }
     fn exists(&self, _path: &std::path::Path) -> bool {
         false
     }

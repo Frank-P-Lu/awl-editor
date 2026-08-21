@@ -750,6 +750,9 @@ fn deferred_effect_matches(action: &Action, effect: &Effect) -> bool {
         Action::OpenBrowse => effect == &Effect::Surface(SurfaceEffect::OpenFileChooser),
         Action::OpenFolder => effect == &Effect::Surface(SurfaceEffect::OpenFolderChooser),
         Action::DuplicateNote => effect == &Effect::DuplicateNote,
+        // Save a Copy opens the shared destination navigator; its named write
+        // effect arrives only after folder and filename acceptance.
+        Action::SaveCopy => effect == &Effect::None,
         Action::InsertDate => effect == &Effect::InsertDate,
         // The smoke fixture is a NO-PATH buffer, so this resolves to
         // `Effect::None` here — `context_menu::tests`/`app::files::export::tests`
