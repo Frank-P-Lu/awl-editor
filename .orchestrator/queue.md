@@ -77,7 +77,7 @@ RAF smoothness and live 60/120 Hz feel remain human confirmations. Read
 `DESIGN.md` Motion/Performance, `ARCHITECTURE.md`, `docs/render.md`,
 `docs/platform.md`, `docs/harness-reach.md` and `WEB.md` before implementation.
 
-### 465 — Cassowary's summoned chrome becomes one submerged operations console (USER DECISION 2026-08-21; ready to build)
+### 465 — Cassowary's summoned chrome becomes one submerged operations console (USER DECISION 2026-08-21; 🟡 IN PROGRESS — item-465-cassowary-console (codex), branch codex/item-465-cassowary-console)
 
 Revamp Cassowary's command palette around the simplified composition chosen in
 the design session: one dark right-anchored console, the active category docked
