@@ -2,6 +2,8 @@
 
 use super::*;
 
+type RaceTarget = Arc<std::sync::Mutex<Option<(std::path::PathBuf, Vec<u8>)>>>;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum ScriptedOperation {
     CreateDirAll,
@@ -38,7 +40,7 @@ pub(crate) struct ScriptedFs {
     failure: ScriptedFailure,
     counts: Arc<std::sync::Mutex<std::collections::BTreeMap<ScriptedOperation, usize>>>,
     trace: Arc<std::sync::Mutex<Vec<String>>>,
-    race_target: Arc<std::sync::Mutex<Option<(std::path::PathBuf, Vec<u8>)>>>,
+    race_target: RaceTarget,
 }
 
 impl ScriptedFs {
