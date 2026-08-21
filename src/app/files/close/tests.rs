@@ -12,7 +12,11 @@
 
 use super::*;
 use crate::config::Config;
+#[cfg(not(target_arch = "wasm32"))]
+use crate::fs::FileSystem;
 use crate::testscratch::ScratchDir;
+#[cfg(not(target_arch = "wasm32"))]
+use std::sync::Arc;
 
 /// A two-file session on real disk: `a.txt` and `b.txt` under one root, both
 /// open, `b` active and `a` parked. The everyday shape every law below starts
@@ -363,12 +367,115 @@ fn closing_the_last_file_enters_the_honest_zero_document_state() {
         "Go to remains usable with no document"
     );
     app.apply(Action::Cancel, false, &exit, crate::stats::Door::Chord);
+    app.project_location.root = crate::fs::data_root();
+    assert_eq!(
+        app.prepare_tutorial_action(Action::NewDocument),
+        Action::NewDocument,
+        "with no document, New remains the exact start action even at the tutorial root"
+    );
+    assert_eq!(
+        app.workspace_state.take_tutorial_folder_intent(),
+        None,
+        "the zero-document start action leaves no deferred folder intent armed"
+    );
     app.apply(Action::NewDocument, false, &exit, crate::stats::Door::Chord);
     assert!(
         app.document.has_active(),
         "New document leaves the empty state"
     );
     assert!(app.document.buffer().is_unnamed_fresh());
+}
+
+#[test]
+fn zero_document_can_load_a_goto_choice_without_a_departing_buffer() {
+    let _guard = crate::testlock::serial();
+    let mut s = Session::new("zero-goto-accept");
+    let next = s.dir.join("next.txt");
+    std::fs::write(&next, "arrived\n").unwrap();
+    drive_finish_file(&mut s.app);
+    drive_finish_file(&mut s.app);
+    assert!(
+        !s.app.document.has_active(),
+        "precondition: the canvas is empty"
+    );
+
+    s.app.load_path(next.clone());
+
+    assert_eq!(s.app.document.buffer().path(), Some(next.as_path()));
+    assert_eq!(s.app.document.buffer().text(), "arrived\n");
+}
+
+#[test]
+fn close_successor_runs_the_same_external_arrival_boundary_as_an_explicit_switch() {
+    let _guard = crate::testlock::serial();
+    let mut s = Session::new("successor-arrival");
+    std::fs::write(s.a(), "changed while parked\n").unwrap();
+
+    drive_finish_file(&mut s.app);
+
+    assert_eq!(s.app.document.buffer().path(), Some(s.a().as_path()));
+    assert_eq!(
+        s.app.document.buffer().text(),
+        "changed while parked\n",
+        "the close-selected successor must be rechecked and adopt a clean external change"
+    );
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn failed_finish_save_keeps_dirty_document_open_and_never_claims_completion() {
+    let _guard = crate::testlock::serial();
+    let path = PathBuf::from("/finish-failure/note.txt");
+    let inner = crate::fs::InMemoryFs::new()
+        .with_dir("/finish-failure")
+        .with_file(&path, "old complete bytes\n");
+    let _memory = crate::fs::FsGuard::install(Arc::new(inner.clone()));
+    let cfg = Config {
+        session_restore: Some(false),
+        autosave: Some(false),
+        ..Config::empty()
+    };
+    let mut app = App::new(
+        Some(path.clone()),
+        PathBuf::from("/finish-failure"),
+        None,
+        None,
+        cfg,
+    );
+    app.document.set_text("dirty text that must survive\n");
+    let scripted = Arc::new(crate::fs::ScriptedFs::new(
+        inner.clone(),
+        crate::fs::ScriptedFailure {
+            operation: crate::fs::ScriptedOperation::Write,
+            ordinal: 1,
+            kind: std::io::ErrorKind::PermissionDenied,
+            reason: "finish save denied",
+        },
+    ));
+    let _failure = crate::fs::FsGuard::install(scripted.clone());
+
+    assert_eq!(app.close_active_now(), CloseOutcome::Refused);
+
+    assert_eq!(app.document.buffer().path(), Some(path.as_path()));
+    assert!(
+        app.document.active_unsaved(),
+        "the edit remains dirty and owned"
+    );
+    assert_eq!(inner.read_to_string(&path).unwrap(), "old complete bytes\n");
+    assert!(
+        app.frame
+            .notice()
+            .text()
+            .is_some_and(|text| text.starts_with("save failed:")),
+        "the refusal is visible rather than reported as completion"
+    );
+    assert!(
+        scripted
+            .trace()
+            .iter()
+            .any(|entry| entry.starts_with("write#1")),
+        "the law must enroll the named save failure"
+    );
 }
 
 /// ⌃TAB DOES NOT RESURRECT A FILE THE READER JUST CLOSED.

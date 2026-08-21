@@ -150,10 +150,13 @@ impl App {
         if let Some((menu, item)) = passive::menu_item_indices(id) {
             crate::menubar::set_open(None);
             let action = crate::menu::roster().get(menu).and_then(|menu| {
-                crate::menu::dropdown_action(menu, item, self.document.buffer().is_markdown())
+                crate::menu::dropdown_action(menu, item, self.document.active_is_markdown())
             });
             match action {
-                Some(action) => self.apply_semantic_action(action),
+                Some(action) if !self.reject_menu_without_document(&action) => {
+                    self.apply_semantic_action(action);
+                }
+                Some(_) => self.sync_view(true),
                 // An inert row (separator, OS-predefined, a disabled markdown
                 // item) is still a real row on screen; closing the dropdown is
                 // exactly what clicking it does.

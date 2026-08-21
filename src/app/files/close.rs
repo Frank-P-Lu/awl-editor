@@ -75,8 +75,7 @@ impl App {
     /// same methods — same behavior ⇒ same code. A row's close zone over the
     /// active file is ⌘W, not a second implementation of it.
     fn close_active_now(&mut self) -> CloseOutcome {
-        self.save_finished_buffer();
-        if self.change_unresolved() {
+        if !self.try_save_finished_buffer() {
             return CloseOutcome::Refused;
         }
         self.notify_finished_buffer();
@@ -128,20 +127,23 @@ impl App {
         };
         // `closed` is released only here, after the lossless gate above.
         closed.release();
+        let activated_path = self
+            .document
+            .buffer_opt()
+            .and_then(|buffer| buffer.path())
+            .map(Path::to_path_buf);
         if let Some(path) = closing_path {
             self.document.forget_previous(&path);
         }
-        if let Some(root) = self.document.working_set().active_root()
-            && root != self.project_location.root
-        {
-            self.project_location.root = root.to_path_buf();
-            self.resync_project_location(self.config.location_policy());
-        }
         self.workspace_state.dismiss_pickers();
-        self.input.clear_preedit();
-        self.update_title();
-        self.sync_view(false);
-        self.request_frame();
+        if successor.is_some() {
+            self.finish_buffer_activation(activated_path, false);
+        } else {
+            self.input.clear_preedit();
+            self.update_title();
+            self.sync_view(false);
+            self.request_frame();
+        }
         true
     }
 

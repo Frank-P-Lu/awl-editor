@@ -61,17 +61,28 @@ impl App {
     /// little longer, which is the correct trade against finishing a file with
     /// the wrong version in it.
     pub(super) fn save_finished_buffer(&mut self) {
+        self.try_save_finished_buffer();
+    }
+
+    pub(super) fn try_save_finished_buffer(&mut self) -> bool {
+        if !self.document.has_active() {
+            return false;
+        }
         match self.settle_external_change() {
             crate::app::files::WritePermission::Clear => {}
-            crate::app::files::WritePermission::Reloaded => return,
+            crate::app::files::WritePermission::Reloaded => return false,
             crate::app::files::WritePermission::Held => {
                 if let Some(path) = self.document.buffer().path().map(|p| p.to_path_buf()) {
                     self.write_recovery_record(&path);
                 }
-                return;
+                return false;
             }
         }
-        let _ = self.document.save();
+        if let Err(error) = self.document.save() {
+            self.set_sticky_notice(format!("save failed: {error}"));
+            self.request_frame();
+            return false;
+        }
         self.snapshot_after_save();
         if let Some(p) = self.document.buffer().path().map(|p| p.to_path_buf()) {
             self.document.record_document_saved(
@@ -80,6 +91,7 @@ impl App {
             );
             self.emit_notice(crate::actions::NoticeEffect::Clear);
         }
+        true
     }
 
     /// Live daemon interpreter. Headless replay classifies and records this
@@ -99,7 +111,7 @@ impl App {
         // on with the version on disk, which is precisely the version the user
         // has not chosen yet. `EDITOR=awl git commit` would commit the other
         // side of the conflict.
-        if self.change_unresolved() {
+        if self.change_unresolved() || self.document.active_unsaved() {
             return;
         }
         let Some(key) = crate::buffers::BufferKey::of(self.document.buffer()) else {

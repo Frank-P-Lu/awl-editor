@@ -177,6 +177,37 @@ fn live_app_close_last_sidecar_and_semantics_are_honestly_document_free() {
         .map(|node| node["name"].as_str().unwrap())
         .collect();
     assert_eq!(actions, ["New document", "Go to"]);
+
+    let goto_png = dir.join("zero-goto.png");
+    let goto = in_sandbox_with(&doc, || {
+        capture_live_app(
+            goto_png.clone(),
+            LiveAppSpec {
+                file: Some(doc.clone()),
+                keys: crate::keyspec::parse_chords("s-w s-o").unwrap(),
+                root: Some(proj()),
+                workspace: None,
+                config: cfg(),
+                canvas: None,
+                dpi: None,
+            },
+        )
+        .expect("live zero-document Go-to capture needs a GPU adapter");
+        sidecar(&goto_png)
+    });
+    assert_eq!(goto["document"]["active"], false);
+    assert_eq!(goto["overlay"]["active"], true);
+    assert_eq!(goto["overlay"]["mode"], "goto");
+    assert!(
+        goto["semantic"]["nodes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|node| node["id"]
+                .as_str()
+                .is_some_and(|id| id.starts_with("overlay.goto."))),
+        "the sidecar and accessibility projection see the same zero-document Go-to card"
+    );
 }
 
 /// THE PRIMARY LAW — the transition converted from

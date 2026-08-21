@@ -348,6 +348,27 @@ fn source_audit_the_active_slot_has_one_owner() {
     assert_eq!(loan_hits.get("app/document.rs"), Some(&1));
 }
 
+#[test]
+fn source_audit_menu_context_never_requires_an_active_document() {
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let menu = std::fs::read_to_string(root.join("src/app/menu.rs")).unwrap();
+    let semantic = std::fs::read_to_string(root.join("src/app/semantic/requests.rs")).unwrap();
+    let forbidden = ["document", ".buffer()"].concat();
+    assert!(
+        !menu.contains(&forbidden),
+        "native menu wiring must consume optional document facts"
+    );
+    assert!(
+        menu.contains("active_is_markdown()") && semantic.contains("active_is_markdown()"),
+        "both native and semantic menu contexts share the absence-safe markdown fact"
+    );
+    assert!(
+        menu.contains("reject_menu_without_document")
+            && semantic.contains("reject_menu_without_document"),
+        "both menu doors must gate document actions before dispatch or native panels"
+    );
+}
+
 /// Like [`count_substr_in_dir`], but COLLAPSES all whitespace runs to a
 /// single space before matching, per file — so a needle spanning a call's
 /// line-wrapped arguments (`self.registry\n    .park(..)`) is found

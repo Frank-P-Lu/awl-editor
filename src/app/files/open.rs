@@ -164,7 +164,7 @@ impl App {
         // the right document; the anchor is reset after the swap so the arriving
         // buffer's existing words are never miscounted (native only; gated inside).
         #[cfg(not(target_arch = "wasm32"))]
-        self.streaks_flush();
+        self.streaks_flush_if_document();
         // If the flush we just ran raised the clobber-guard notice (the file we
         // are LEAVING changed on disk outside awl, so its unsaved edit could
         // not be safely autosaved), that notice must survive the switch below
@@ -188,6 +188,17 @@ impl App {
         if opened == document::OpenPath::AlreadyActive {
             return;
         }
+        self.finish_buffer_activation(Some(path), clobber_notice_just_raised);
+    }
+
+    /// Finish activation of the whole slot already installed by the document
+    /// owner. Fresh opens, explicit working-set switches, and the successor of
+    /// a close all enter here, so arrival never depends on reloading the file.
+    pub(in crate::app) fn finish_buffer_activation(
+        &mut self,
+        path: Option<PathBuf>,
+        preserve_notice: bool,
+    ) {
         // THE ARRIVING DOCUMENT BRINGS ITS PROJECT WITH IT. A buffer opened
         // under one root can be activated while another is current — Last file
         // across a Switch-project is the everyday route — and until this, the
@@ -219,7 +230,7 @@ impl App {
         // that writes the tag is EXPLICIT: `actions::edit::tag_document_language`
         // ("Tag document language" in the palette). Law:
         // `opening_an_untagged_cjk_document_never_mutates_the_buffer`.
-        if !clobber_notice_just_raised {
+        if !preserve_notice {
             self.clear_notice();
         }
         // THE ARRIVING BUFFER is a persistence boundary of its own, in two
@@ -230,9 +241,11 @@ impl App {
         // parked in the registry, carrying the baseline it had when it was
         // parked — is re-checked, because the disk has had the whole
         // intervening session to move.
-        self.adopt_unresolved_for(&path);
-        if !self.change_unresolved() {
-            self.settle_external_change();
+        if let Some(path) = path.as_deref() {
+            self.adopt_unresolved_for(path);
+            if !self.change_unresolved() {
+                self.settle_external_change();
+            }
         }
         // `Buffer::path()` already carries this exact path — on the fresh-open
         // arm from `Buffer::from_file(&path)`, on the registry-hit arm from
@@ -244,9 +257,11 @@ impl App {
         // it to the front of the persisted MRU that feeds the go-to Recent lens +
         // recency tier. After the already-active early-return above, so re-selecting
         // the current file is a no-op that never re-orders the MRU.
-        self.push_recent_file(path.clone());
-        #[cfg(not(target_arch = "wasm32"))]
-        self.stats_touch_file(path);
+        if let Some(path) = path {
+            self.push_recent_file(path.clone());
+            #[cfg(not(target_arch = "wasm32"))]
+            self.stats_touch_file(path);
+        }
         #[cfg(not(target_arch = "wasm32"))]
         self.stats_reset_caret_anchor();
         // WRITING STREAKS: the buffer just swapped — drop the word-delta anchor so
@@ -303,18 +318,7 @@ impl App {
         if !self.document.activate_key(&key) {
             return;
         }
-        if let Some(root) = self.document.working_set().active_root()
-            && root != self.project_location.root
-        {
-            self.project_location.root = root.to_path_buf();
-            self.resync_project_location(self.config.location_policy());
-        }
-        self.workspace_state.close_search();
-        self.input.clear_preedit();
-        self.sync_page_measure();
-        self.update_title();
-        self.sync_view(true);
-        self.request_frame();
+        self.finish_buffer_activation(None, false);
     }
 
     pub(in crate::app) fn jump_to_line(&mut self, line: usize) {

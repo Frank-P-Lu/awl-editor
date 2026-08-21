@@ -106,8 +106,8 @@ pub(crate) fn fold_capture_state(
         opts.search_replacement = s.replacement().to_string();
         opts.search_editing_replacement = s.is_editing_replacement();
     }
-    if let Some(buffer) = buffer
-        && let Some((info, preview_text, diff)) = overlay_capture_info(subject.journey(), buffer)
+    if let Some((info, preview_text, diff)) =
+        overlay_capture_info_optional(subject.journey(), buffer)
     {
         opts.overlay = Some(info);
         opts.preview_text = preview_text;
@@ -148,12 +148,23 @@ pub(crate) fn overlay_capture_info(
     Option<String>,
     Option<capture::DiffInfo>,
 )> {
+    overlay_capture_info_optional(journey, Some(buffer))
+}
+
+fn overlay_capture_info_optional(
+    journey: &crate::overlay::Journey,
+    buffer: Option<&Buffer>,
+) -> Option<(
+    capture::OverlayInfo,
+    Option<String>,
+    Option<capture::DiffInfo>,
+)> {
     let ov = journey.card()?;
     // The REQUEST is read once here and reported beside its answer, so the
     // sidecar names the view it is showing rather than leaving a reader to infer
     // it from the selected row.
     let request = ov.comparison_request();
-    let preview = comparison_preview_for(ov, buffer);
+    let preview = buffer.and_then(|buffer| comparison_preview_for(ov, buffer));
     let preview_text = preview
         .as_ref()
         .map(|(_, transcript, _)| transcript.clone());
