@@ -579,6 +579,10 @@ pub struct RowGates {
 /// the catalog, and enumerating them here would be a second copy of the catalog
 /// that could disagree with it.
 fn row_hidden(action: &Action, gates: RowGates) -> bool {
+    row_hidden_on_host(action, gates, std::env::consts::OS)
+}
+
+fn row_hidden_on_host(action: &Action, gates: RowGates, host_os: &str) -> bool {
     match action {
         // "Finish file" (C-x #) only makes sense mid a daemon `--wait`
         // round-trip (`crate::daemon`'s module doc) — with no terminal actively
@@ -610,7 +614,7 @@ fn row_hidden(action: &Action, gates: RowGates) -> bool {
         // directly is `context_menu::copy_file_path`'s own `path()` check
         // and the deferred `RevealInFileManager` resolving to `Effect::None`).
         Action::RevealInFileManager | Action::CopyFilePath => !gates.named_file,
-        Action::TrashFile => !gates.named_file || !cfg!(target_os = "macos"),
+        Action::TrashFile => !gates.named_file || host_os != "macos",
         _ => false,
     }
 }
@@ -641,7 +645,11 @@ pub fn visible_hidden_mask(gates: RowGates) -> Vec<bool> {
 /// existed — now a plain `available_on` lookup on both platforms, since a `web_only`
 /// row must actually be gated on Native too.)
 pub fn action_available(action: &Action, platform: Platform) -> bool {
-    if matches!(action, Action::TrashFile) && !cfg!(target_os = "macos") {
+    action_available_on_host(action, platform, std::env::consts::OS)
+}
+
+fn action_available_on_host(action: &Action, platform: Platform, host_os: &str) -> bool {
+    if matches!(action, Action::TrashFile) && host_os != "macos" {
         return false;
     }
     match COMMANDS.iter().find(|c| &c.action == action) {

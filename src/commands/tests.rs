@@ -1502,14 +1502,37 @@ fn visible_hidden_mask_gates_reveal_and_copy_path_on_the_named_file_fact_alone()
     );
     assert_eq!(
         hidden_named,
-        vec![
+        [
             "Finish file",
             "Review the change",
             "Save your version",
             "Use disk version"
-        ],
+        ]
+        .into_iter()
+        .chain((!cfg!(target_os = "macos")).then_some("Move file to Trash"))
+        .collect::<Vec<_>>(),
         "the named-file fact gates Reveal/Copy-path and nothing else"
     );
+}
+
+#[test]
+fn non_macos_hides_trash_from_palette_and_rejects_direct_dispatch() {
+    let gates = RowGates {
+        named_file: true,
+        ..Default::default()
+    };
+    assert!(row_hidden_on_host(&Action::TrashFile, gates, "linux"));
+    assert!(!action_available_on_host(
+        &Action::TrashFile,
+        Platform::Native,
+        "linux"
+    ));
+    assert!(!row_hidden_on_host(&Action::TrashFile, gates, "macos"));
+    assert!(action_available_on_host(
+        &Action::TrashFile,
+        Platform::Native,
+        "macos"
+    ));
 }
 
 #[test]

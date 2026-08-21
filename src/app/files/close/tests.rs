@@ -326,6 +326,14 @@ fn true_conflict_refusal_preserves_active_parked_and_final_shapes_without_backen
             s.b()
         };
         let key = crate::buffers::BufferKey::path(&path);
+        if shape == "parked-nonfinal" {
+            s.app.load_path(path.clone());
+        }
+        let text_before = s.app.document.buffer().text();
+        let version_before = s.app.document.buffer().version();
+        if shape == "parked-nonfinal" {
+            s.app.load_path(s.b());
+        }
         s.app
             .persistence
             .set_unresolved(crate::app::persistence::UnresolvedChange {
@@ -333,6 +341,7 @@ fn true_conflict_refusal_preserves_active_parked_and_final_shapes_without_backen
                 theirs: Some("disk version\n".into()),
             });
         let before = s.open_files();
+        let facts_before = s.app.document.close_facts(&key).unwrap();
         let disk = std::fs::read(&path).unwrap();
         let fake = Arc::new(crate::assets::FakeTrash::default());
         let recorder = fake.clone();
@@ -343,7 +352,81 @@ fn true_conflict_refusal_preserves_active_parked_and_final_shapes_without_backen
         assert!(recorder.trashed.lock().unwrap().is_empty(), "{shape}");
         assert_eq!(s.open_files(), before, "{shape}");
         assert_eq!(std::fs::read(&path).unwrap(), disk, "{shape}");
+        let facts_after = s.app.document.close_facts(&key).unwrap();
+        assert_eq!(facts_after.baseline, facts_before.baseline, "{shape}");
+        let (text_after, version_after) = if shape == "parked-nonfinal" {
+            (
+                s.app.document.parked_text(&key).unwrap(),
+                s.app.document.parked_version(&key).unwrap(),
+            )
+        } else {
+            (
+                s.app.document.buffer().text(),
+                s.app.document.buffer().version(),
+            )
+        };
+        assert_eq!(text_after, text_before, "{shape}");
+        assert_eq!(version_after, version_before, "{shape}");
         assert!(s.app.persistence.unresolved_for(&path), "{shape}");
+    }
+}
+
+#[test]
+fn dirty_final_trash_refusal_preserves_the_only_document() {
+    let _guard = crate::testlock::serial();
+    let mut s = Session::without_autosave("trash-dirty-final");
+    assert_eq!(
+        s.app.close_buffer(crate::buffers::BufferKey::path(&s.a())),
+        CloseOutcome::Closed
+    );
+    s.app.document.set_text("beta\nunsaved\n");
+    let key = crate::buffers::BufferKey::path(&s.b());
+    let text_before = s.app.document.buffer().text();
+    let version_before = s.app.document.buffer().version();
+    let fake = Arc::new(crate::assets::FakeTrash::default());
+    let recorder = fake.clone();
+    assert_eq!(
+        crate::assets::with_trash(fake, || s.app.trash_buffer(key.clone())),
+        CloseOutcome::Refused
+    );
+    assert!(recorder.trashed.lock().unwrap().is_empty());
+    assert_eq!(s.app.document.buffer().text(), text_before);
+    assert_eq!(s.app.document.buffer().version(), version_before);
+    assert_eq!(s.open_files(), vec![s.b()]);
+}
+
+#[test]
+fn save_resolve_then_retry_trash_is_lossless_for_external_changes() {
+    let _guard = crate::testlock::serial();
+    for dirty in [false, true] {
+        let mut s = Session::without_autosave(&format!("trash-retry-{dirty}"));
+        let path = s.b();
+        let key = crate::buffers::BufferKey::path(&path);
+        if dirty {
+            s.app.document.set_text("my version\n");
+        }
+        std::fs::write(&path, "disk version\n").unwrap();
+        s.app.manual_save();
+        if dirty {
+            assert!(s.app.change_unresolved(), "Save latches the conflict");
+            s.app.resolve_keep_mine();
+            assert!(!s.app.change_unresolved(), "explicit resolution clears it");
+            assert_eq!(std::fs::read_to_string(&path).unwrap(), "my version\n");
+        } else {
+            assert!(
+                !s.app.change_unresolved(),
+                "clean rewrite reloads without conflict"
+            );
+            assert_eq!(s.app.document.buffer().text(), "disk version\n");
+        }
+        let fake = Arc::new(crate::assets::FakeTrash::default());
+        let recorder = fake.clone();
+        assert_eq!(
+            crate::assets::with_trash(fake, || s.app.trash_buffer(key)),
+            CloseOutcome::Closed,
+            "dirty={dirty}"
+        );
+        assert_eq!(recorder.trashed.lock().unwrap().as_slice(), [path]);
     }
 }
 
@@ -857,12 +940,36 @@ mod waiters {
             }
         }
         let _guard = crate::testlock::serial();
-        for failed_backend in [false, true] {
-            let mut s = Session::without_autosave(&format!("trash-waiter-refuse-{failed_backend}"));
-            let path = s.b();
+        for (shape, failed_backend) in [
+            ("active-nonfinal", false),
+            ("active-final", false),
+            ("parked-nonfinal", false),
+            ("active-nonfinal", true),
+            ("active-final", true),
+            ("parked-nonfinal", true),
+        ] {
+            let mut s =
+                Session::without_autosave(&format!("trash-waiter-{shape}-{failed_backend}"));
+            if shape == "active-final" {
+                assert_eq!(
+                    s.app.close_buffer(crate::buffers::BufferKey::path(&s.a())),
+                    CloseOutcome::Closed
+                );
+            }
+            let path = if shape == "parked-nonfinal" {
+                s.a()
+            } else {
+                s.b()
+            };
             let key = crate::buffers::BufferKey::path(&path);
             if !failed_backend {
-                s.app.document.set_text("dirty\n");
+                if shape == "parked-nonfinal" {
+                    s.app.load_path(path.clone());
+                    s.app.document.set_text("dirty\n");
+                    s.app.load_path(s.b());
+                } else {
+                    s.app.document.set_text("dirty\n");
+                }
             }
             let mine = park_waiter(&mut s.app, &path, key.clone());
             let backend: Arc<dyn crate::assets::TrashCan> = if failed_backend {
@@ -876,7 +983,10 @@ mod waiters {
             );
             assert_waiting(mine);
             assert!(s.app.wait_conns.contains_key(&key));
-            assert_eq!(s.open_files(), vec![s.a(), s.b()]);
+            assert!(
+                s.open_files().contains(&path),
+                "{shape} backend={failed_backend}"
+            );
             assert!(path.exists());
         }
     }
