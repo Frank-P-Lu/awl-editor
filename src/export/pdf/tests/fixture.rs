@@ -151,7 +151,7 @@ fn decode_base64(text: &str) -> Vec<u8> {
         .collect::<Vec<_>>();
     assert_eq!(clean.len() % 4, 0);
     let mut out = Vec::with_capacity(clean.len() / 4 * 3);
-    for chunk in clean.chunks_exact(4) {
+    for chunk in clean.as_chunks::<4>().0 {
         let a = value(chunk[0]).unwrap();
         let b = value(chunk[1]).unwrap();
         let c = (chunk[2] != b'=').then(|| value(chunk[2]).unwrap());

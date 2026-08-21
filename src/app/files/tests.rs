@@ -315,8 +315,8 @@ fn window_title_dirty_is_only_ever_a_leading_marker_insertion() {
     let clean = window_title(Some(Path::new("a.md")), false, "Bilby", false);
     let dirty = window_title(Some(Path::new("a.md")), false, "Bilby", true);
     assert_ne!(clean, dirty);
-    assert_eq!(dirty, format!("awl - \u{2022} a.md [Bilby]"));
-    assert_eq!(clean, format!("awl - a.md [Bilby]"));
+    assert_eq!(dirty, "awl - \u{2022} a.md [Bilby]".to_string());
+    assert_eq!(clean, "awl - a.md [Bilby]".to_string());
     assert_eq!(dirty, clean.replacen("awl - ", "awl - \u{2022} ", 1));
 }
 

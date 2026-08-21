@@ -365,7 +365,12 @@ fn main() -> Result<()> {
             .with_context(|| format!("no SF Symbol for menu id {id}"))?;
         let (rgba, w, h) = mac_chrome::render_symbol_rgba(symbol)
             .context("render_symbol_rgba returned None (off main thread / AppKit step failed)")?;
-        let covered = rgba.chunks_exact(4).filter(|px| px[3] != 0).count();
+        let covered = rgba
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .filter(|px| px[3] != 0)
+            .count();
         image::RgbaImage::from_raw(w, h, rgba)
             .context("failed to build RgbaImage from symbol RGBA")?
             .save(&out)

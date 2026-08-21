@@ -156,8 +156,10 @@ fn decode(png: &Path) -> (u32, u32, Vec<u8>) {
 /// constant 255 in a capture, so ignoring it keeps the count to VISIBLE change).
 fn changed_rgb_pixels(a: &[u8], b: &[u8]) -> usize {
     assert_eq!(a.len(), b.len(), "captures must share dimensions");
-    a.chunks_exact(4)
-        .zip(b.chunks_exact(4))
+    a.as_chunks::<4>()
+        .0
+        .iter()
+        .zip(b.as_chunks::<4>().0.iter())
         .filter(|(p, q)| p[0] != q[0] || p[1] != q[1] || p[2] != q[2])
         .count()
 }

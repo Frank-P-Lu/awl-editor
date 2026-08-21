@@ -189,7 +189,7 @@ fn latin_repository_fonts_are_per_document_glyph_subsets() {
             .collect::<Vec<_>>();
         assert_eq!(values.len() % 2, 0);
         let upm = u32::from(face.units_per_em());
-        for pair in values.chunks_exact(2) {
+        for pair in values.as_chunks::<2>().0 {
             let id = pair[0];
             let width = pair[1];
             let raw = u32::from(face.glyph_hor_advance(GlyphId(id)).unwrap_or(0));
@@ -665,7 +665,9 @@ fn glyph_operator<'a>(lines: &'a [&str], scalar: char) -> &'a str {
 
 fn hex_bytes(text: &str) -> Vec<u8> {
     text.as_bytes()
-        .chunks_exact(2)
+        .as_chunks::<2>()
+        .0
+        .iter()
         .map(|pair| u8::from_str_radix(std::str::from_utf8(pair).unwrap(), 16).unwrap())
         .collect()
 }

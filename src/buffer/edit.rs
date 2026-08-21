@@ -430,18 +430,17 @@ impl Buffer {
         let (line, _) = self.cursor_line_col();
         let line_end_no_nl = self.line_start(line) + self.line_len(line);
 
-        let end;
-        if self.cursor < line_end_no_nl {
+        let end = if self.cursor < line_end_no_nl {
             // Kill to end of line (not including newline).
-            end = line_end_no_nl;
+            line_end_no_nl
         } else if self.cursor < self.rope.len_chars() {
             // At end of line: kill the newline itself.
-            end = self.cursor + 1;
+            self.cursor + 1
         } else {
             // End of buffer: nothing to kill.
             self.last_was_kill = true;
             return;
-        }
+        };
         let killed: String = self.rope.slice(self.cursor..end).to_string();
         if self.last_was_kill {
             self.kill.push_str(&killed);

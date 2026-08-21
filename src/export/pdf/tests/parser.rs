@@ -157,7 +157,9 @@ pub(super) fn refs_in_array(text: String, marker: &str) -> Vec<u32> {
     let words = text[start..end].split_whitespace().collect::<Vec<_>>();
     assert_eq!(words.len() % 3, 0);
     words
-        .chunks_exact(3)
+        .as_chunks::<3>()
+        .0
+        .iter()
         .map(|chunk| {
             assert_eq!(&chunk[1..], &["0", "R"]);
             chunk[0].parse().unwrap()
@@ -169,7 +171,9 @@ pub(super) fn decode_utf16_hex(hex: &str) -> String {
     assert_eq!(hex.len() % 4, 0);
     let mut units = hex
         .as_bytes()
-        .chunks_exact(4)
+        .as_chunks::<4>()
+        .0
+        .iter()
         .map(|chunk| u16::from_str_radix(std::str::from_utf8(chunk).unwrap(), 16).unwrap())
         .collect::<Vec<_>>();
     if units.first() == Some(&0xfeff) {
