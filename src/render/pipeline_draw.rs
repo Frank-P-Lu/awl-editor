@@ -274,6 +274,7 @@ impl TextPipeline {
             panel_renderer,
             placard_renderer,
             panel_buffer: overlay_buffers.panel,
+            docked_facet_buffer: overlay_buffers.docked_facet,
             panel_bind_buffer: overlay_buffers.bindings,
             placard_buffer: overlay_buffers.placard,
             panel_caret,

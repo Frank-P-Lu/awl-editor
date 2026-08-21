@@ -28,6 +28,7 @@ const TIMELINE_MAX_FRAC: f32 = 0.34;
 
 pub(in crate::render) struct OverlayTextBuffers {
     pub panel: GlyphBuffer,
+    pub docked_facet: GlyphBuffer,
     pub bindings: GlyphBuffer,
     pub rail: GlyphBuffer,
     pub hint_measure: GlyphBuffer,
@@ -41,6 +42,7 @@ impl TextPipeline {
     ) -> OverlayTextBuffers {
         OverlayTextBuffers {
             panel: GlyphBuffer::new(font_system, metrics),
+            docked_facet: GlyphBuffer::new(font_system, metrics),
             bindings: GlyphBuffer::new(font_system, metrics),
             rail: GlyphBuffer::new(font_system, metrics),
             hint_measure: GlyphBuffer::new(font_system, metrics),

@@ -1974,6 +1974,7 @@ pub struct TextPipeline {
     /// every non-Bars world is byte-identical. Shares the atlas + viewport.
     pub placard_renderer: TextRenderer,
     pub panel_buffer: GlyphBuffer,
+    pub docked_facet_buffer: GlyphBuffer,
     pub panel_bind_buffer: GlyphBuffer,
     pub placard_buffer: GlyphBuffer,
     pub panel_caret: CaretPipeline,

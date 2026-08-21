@@ -134,6 +134,15 @@ fn docked_facet_draw_hit_and_pane_edge_are_one_geometry_across_canvas_and_dpi() 
             );
 
             let tab = p.overlay_theme_underline.expect("active tab fill");
+            let docked_label = p
+                .docked_facet_buffer
+                .layout_runs()
+                .next()
+                .expect("the dock owns a separately shaped visible label");
+            assert!(
+                !docked_label.glyphs.is_empty() && docked_label.line_w <= tab[2],
+                "the active category label has ink and fits its joined tab"
+            );
             assert!(
                 (tab[1] + tab[3] - card_y).abs() < 0.01,
                 "active tab's fill joins the same pane edge"

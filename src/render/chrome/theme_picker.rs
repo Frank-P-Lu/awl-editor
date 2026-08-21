@@ -417,6 +417,7 @@ impl TextPipeline {
             ghosts.push(tab);
         }
         self.overlay_theme_facet_ghosts = ghosts;
+        self.shape_docked_facet_label(geom);
         // A tab PILL is a plate, so `Rules` is deliberately absent — it draws
         // none anywhere. (`Diagonal` is on the yes side here and the no side of
         // `draws_row_plates`: it computes pills nothing consumes.)

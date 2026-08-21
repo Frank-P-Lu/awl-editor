@@ -319,12 +319,12 @@ impl TextPipeline {
             placard_in_panel = true;
         }
         let dock = self.docked_facet_band(geom, plan);
-        let docked_text_top = self.docked_facet_text_top(dock);
         let docked = push_docked_facet_areas(
             &mut areas,
             &self.panel_buffer,
+            &self.docked_facet_buffer,
             dock,
-            docked_text_top,
+            self.overlay_theme_underline,
             plan.strip_band(),
             text_left,
             text_top,
