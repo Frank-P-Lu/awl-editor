@@ -1,5 +1,5 @@
 use super::opts::CaptureOpts;
-use super::{CANVAS_HEIGHT, CANVAS_WIDTH, schema_held, schema_plain, schema_timeline};
+use super::{schema_held, schema_plain, schema_timeline, CANVAS_HEIGHT, CANVAS_WIDTH};
 use crate::render::{ScriptFontReports, TextPipeline, ViewState};
 use anyhow::{Context, Result};
 use std::io::Write;
@@ -689,7 +689,10 @@ fn hud_json(pipeline: &TextPipeline) -> String {
         None => "null".to_string(),
     };
     format!(
-        "{{ \"held\": {}, {}, \"percent\": {}, \"lang\": {}, \"eol\": {}, \"saved\": {}, \"selection\": {} }}",
+        concat!(
+            "{{ \"held\": {}, {}, \"percent\": {}, \"lang\": {}, ",
+            "\"eol\": {}, \"saved\": {}, \"selection\": {} }}"
+        ),
         hud.held,
         hud_words,
         hud.percent,

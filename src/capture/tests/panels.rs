@@ -372,6 +372,23 @@ fn hud_absent_by_default_and_held_shows_writer_stats() {
         );
     }
 
+    assert_selection_hud(&dir, &md);
+
+    // A NON-markdown buffer OMITS the word count (null).
+    let mut code = Buffer::from_str("fn main() {}\n");
+    code.set_path(dir.join("main.rs"));
+    let code_png = dir.join("code.png");
+    capture_with(&code_png, &code, &CaptureOpts::default()).expect("code capture");
+    let cv: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(code_png.with_extension("json")).unwrap())
+            .unwrap();
+    assert_eq!(cv["hud"]["words"], serde_json::json!(null));
+    assert_eq!(cv["hud"]["unit"], serde_json::json!(null));
+
+    crate::hud::set_held(false);
+}
+
+fn assert_selection_hud(dir: &ScratchDir, md: &Buffer) {
     let selection_png = dir.join("selection.png");
     capture_with(
         &selection_png,
@@ -391,27 +408,6 @@ fn hud_absent_by_default_and_held_shows_writer_stats() {
         serde_json::json!({ "words": 2, "characters": 10 }),
         "the sidecar reports the actual selected buffer text in words and graphemes"
     );
-
-    // A NON-markdown buffer OMITS the word count (null).
-    let mut code = Buffer::from_str("fn main() {}\n");
-    code.set_path(dir.join("main.rs"));
-    let code_png = dir.join("code.png");
-    capture_with(&code_png, &code, &CaptureOpts::default()).expect("code capture");
-    let cv: serde_json::Value =
-        serde_json::from_str(&std::fs::read_to_string(code_png.with_extension("json")).unwrap())
-            .unwrap();
-    assert_eq!(
-        cv["hud"]["words"],
-        serde_json::json!(null),
-        "non-markdown omits the word count"
-    );
-    assert_eq!(
-        cv["hud"]["unit"],
-        serde_json::json!(null),
-        "no count, no unit either"
-    );
-
-    crate::hud::set_held(false);
 }
 
 /// WEB/LINUX MENU BAR (`menubar.rs` + `render/chrome/menubar.rs`): the sidecar `menubar`

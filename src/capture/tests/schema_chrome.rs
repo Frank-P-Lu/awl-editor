@@ -316,6 +316,18 @@ fn assert_plain_details(obj: &serde_json::Map<String, serde_json::Value>) {
     assert_eq!(obj["font"]["size"].as_f64(), Some(24.0));
     assert_eq!(obj["font"]["line_height"].as_f64(), Some(32.0));
     assert!(obj["hud"].is_object());
+    assert_plain_hud_details(obj);
+    assert!(obj["page"].is_object());
+    assert!(obj["cursor"].is_object());
+    assert!(obj["project"].is_object() || obj["project"].is_null());
+    assert!(obj["overlay"].is_object() || obj["overlay"].is_null());
+    assert!(
+        !obj.contains_key("caret"),
+        "plain frame must omit the caret block"
+    );
+}
+
+fn assert_plain_hud_details(obj: &serde_json::Map<String, serde_json::Value>) {
     assert!(obj["hud"]["held"].is_boolean());
     assert!(obj["hud"]["percent"].is_number());
     assert!(
@@ -329,20 +341,10 @@ fn assert_plain_details(obj: &serde_json::Map<String, serde_json::Value>) {
     // the top-level `readout` block, never a second copy.
     assert_eq!(obj["hud"]["unit"], serde_json::json!("words"));
     assert_eq!(obj["readout"]["unit"], serde_json::json!("words"));
-    assert!(
-        !obj["md_spans"]
-            .as_array()
-            .expect("md_spans is an array")
-            .is_empty()
-    );
-    assert!(obj["page"].is_object());
-    assert!(obj["cursor"].is_object());
-    assert!(obj["project"].is_object() || obj["project"].is_null());
-    assert!(obj["overlay"].is_object() || obj["overlay"].is_null());
-    assert!(
-        !obj.contains_key("caret"),
-        "plain frame must omit the caret block"
-    );
+    assert!(!obj["md_spans"]
+        .as_array()
+        .expect("md_spans is an array")
+        .is_empty());
 }
 
 fn assert_timeline_schema(value: &serde_json::Value) {

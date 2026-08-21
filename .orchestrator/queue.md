@@ -209,27 +209,6 @@ strength; reverting either is theme data, while removing the shared capability
 is not. Read `docs/render.md`, `docs/harness-reach.md`, `THEMES.md` and
 `ACCESSIBILITY.md` before implementation.
 
-### 463 — the held HUD reports the selection as well as the document (USER DECISION 2026-08-21; 🟡 IN PROGRESS — item-463-selection-hud (codex), branch codex/item-463-selection-hud)
-
-Keep the existing held stats HUD and deepen it when a non-empty selection is
-active. The ordinary no-selection card stays exactly as shipped. With a
-selection, retain the document totals for context and add a clearly named
-**Selection** group reporting at minimum words and characters; never replace
-the document values with unlabeled selection values. Count the actual selected
-buffer text, independent of WYSIWYG conceal, folds, wrapping, History previews
-or shaped substitutes. Character count follows the editor's user-facing text
-unit (extended grapheme clusters), not UTF-8 bytes; state explicitly whether
-line endings count, and use one owner shared by document/selection statistics.
-
-This is statistics, not goals machinery: no quotas, deadlines, progress rings,
-document metadata or persistent dashboard. The HUD remains summon-while-held
-and schedules no work while absent. Verify empty/caret-only/multiline/Unicode
-selections, reversed selection direction, concealed Markdown and folded text at
-the pure counting seam and in the sidecar. Because the selected state changes
-HUD layout, run the standing world × DPI visual audit with presence and
-legibility floors, plus a vision-smoke that asks which figures belong to the
-selection. Read `docs/render.md` and `docs/harness-reach.md` first.
-
 ### 462 — footnotes join the WYSIWYG Markdown model (USER DECISION 2026-08-21; ready to build)
 
 Support the widely used Markdown footnote extension: an inline reference
