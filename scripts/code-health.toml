@@ -181,7 +181,8 @@ lines = 475
 
 [[file_size_mark]]
 file = "src/durable.rs"
-lines = 160
+lines = 162
+reason = "+2: the atomic create-if-absent writer is exported only on native targets, matching the Save a Copy filesystem boundary while ordinary durable writes remain shared."
 
 [[file_size_mark]]
 file = "src/export/docx.rs"
@@ -197,7 +198,8 @@ lines = 524
 
 [[file_size_mark]]
 file = "src/fs.rs"
-lines = 331
+lines = 334
+reason = "+3: the no-replace filesystem operation and its race-test fixture exports are native-only, keeping browser builds exhaustive without pretending to own a native destination."
 
 [[file_size_mark]]
 file = "src/history/store.rs"
