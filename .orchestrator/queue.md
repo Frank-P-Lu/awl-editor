@@ -6,7 +6,7 @@
 
 ## Ready to build
 
-### 467 — one conditional frame clock owns live motion and the idle boundary (USER DECISION 2026-08-21; ready after 466)
+### 467 — one conditional frame clock owns live motion and the idle boundary (USER DECISION 2026-08-21; 🟡 IN PROGRESS — item-467-frame-clock (codex), branch codex/item-467-frame-clock)
 
 Make awl's game-like behavior explicit without turning the editor into a
 permanent 60 fps loop. One frame-domain state machine reduces every source of
@@ -76,56 +76,6 @@ standing vision-smoke. Run the full native receipt and wasm smoke; real browser
 RAF smoothness and live 60/120 Hz feel remain human confirmations. Read
 `DESIGN.md` Motion/Performance, `ARCHITECTURE.md`, `docs/render.md`,
 `docs/platform.md`, `docs/harness-reach.md` and `WEB.md` before implementation.
-
-### 466 — the theme picker's living band counts its 110 ms from input, not from first prepare (USER-REPORTED BUG 2026-08-21; 🟡 IN PROGRESS — item-466-theme-input-epoch (codex), branch codex/item-466-theme-input-epoch)
-
-Fix the paced keyboard case the existing burst benchmark and debug-pane
-`theme worst` number do not describe. With ordinary motion enabled, a theme
-move performs synchronous font/document reshaping and atlas work before the
-new row can present; only inside that frame's `prepare` does the living band
-discover its target and reset its ~110 ms ease. A 30–70 ms theme frame therefore
-makes one key press occupy roughly 140–180 ms visually. At the user's ordinary
-~150 ms Up/Down cadence the next press can arrive while the prior band still
-claims to be in flight, crossing `chase_or_snap`'s glide/snap boundary and
-reading as a pause followed by a catch-up. Reduce Motion is lag-free because it
-removes precisely this post-render animation tail. The logical selection and
-theme preview are already current; do not defer either or remove the living
-band.
-
-Stamp a theme-picker movement at the real input/apply seam and carry that epoch
-to the renderer without introducing a wall clock into ordinary capture. When
-prepare first resolves the selected row's geometry, derive the band phase from
-`now - movement_at`, not zero from the prepare instant. Expensive work therefore
-uses up the animation budget: a quick frame shows most of the glide, a frame
-that consumes 110 ms or more shows the band settled, and no work makes the
-effect longer than authored. On a genuine rapid retarget, first sample the old
-pose at the same `now`, then preserve the current latest-selection-wins snap
-policy; logical selection, hit testing and Enter always target the newest row.
-Freshly opened overlays still begin settled, pointer and wheel movement use the
-same epoch owner, and Reduce Motion remains an immediate final pose.
-
-Extend the flight recorder rather than the debug pane's theme transaction
-headline: retain raw key/apply/prepare/present stamps and add the band phase plus
-an input-to-band-settled line. `theme latest/worst` continues to end when the
-new themed frame first presents; label or document that boundary rather than
-quietly folding decorative tail time into font/reshape/atlas phases. A paced
-release-mode run at approximately 150 ms per Up/Down is the human acceptance:
-each row responds continuously with motion on and remains instant with Reduce
-Motion, with no pause/catch-up rhythm.
-
-At the pure time seam, sweep render delay 0/40/80/110/150 ms and input cadence
-60/100/150/220 ms across Pane's living band and the ordinary sliding-band
-override. Assert that settlement is at most 110 ms after input, that delay never
-adds a second 110 ms, and that a superseding move cannot animate toward a stale
-row. Cover keyboard, wheel and pointer, world crossings, first-open and Reduce
-Motion. Mutation-proof the law by re-anchoring the epoch at prepare and require
-the 40/80 ms cases to fail. Ordinary settled captures remain byte-identical;
-the existing motion-frame harness proves intermediate geometry, while actual
-wall-clock feel is reported only from the live release build. Read
-`docs/fonts.md`, `docs/render.md`, `docs/platform.md` and
-`docs/harness-reach.md` before implementation. Item 467 may later replace the
-bridge machinery, but this fix lands independently and must not wait for that
-refactor.
 
 ### 465 — Cassowary's summoned chrome becomes one submerged operations console (USER DECISION 2026-08-21; ready to build)
 
