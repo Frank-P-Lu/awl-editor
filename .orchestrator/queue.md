@@ -237,27 +237,6 @@ repeated/multiline cases. Render laws cover reference/definition geometry,
 selection reveal, variable wrapping and every world × DPI; read
 `docs/markdown.md` and `docs/harness-reach.md` before implementation.
 
-### 461 — pasting a URL over selected prose creates a Markdown link (USER DECISION 2026-08-21; 🟡 IN PROGRESS — item-461-url-paste-link (codex), branch codex/item-461-url-paste-link)
-
-When a Markdown document has a non-empty selection and the clipboard contains
-exactly one plausible URL, Paste replaces the selection with
-`[selected prose](URL)` as one undoable edit and selects or places the caret in
-the same predictable way as Insert link. Route through the existing Markdown
-link-editing owner rather than growing a second serializer. Ordinary paste is
-byte-for-byte unchanged when there is no selection, the buffer is not Markdown,
-the clipboard is multiline, or the text is not a URL. Code spans/fences and a
-selection already forming link syntax stay literal unless the shared Markdown
-context owner proves transformation is safe.
-
-No page-title fetch, network request, rich clipboard, or hidden metadata: the
-selected prose supplies the label and the pasted URL supplies the destination.
-Define and test escaping for `]`, parentheses and backslashes so the generated
-Markdown is valid without changing the visible selected words. Verify Unicode
-labels, `http`/`https`/`mailto`, relative links if deliberately enrolled,
-selection direction, undo/redo and the literal-paste exclusions. The same
-clipboard payload driven through native and web dispatch must resolve through
-one transition; add a law proving a future Paste door cannot bypass the rule.
-
 ### 459 — complete the ordinary-file vocabulary: Trash, Save a Copy, reveal/path, Go to line (USER DECISION 2026-08-18; slices 2–4 LANDED; slice 1 waits for item 444 residual 2)
 
 🟢 LANDED — slice 3 (Reveal in File Manager + Copy File Path), `cdd5a1bc`
