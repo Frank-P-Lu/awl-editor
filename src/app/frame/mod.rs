@@ -223,9 +223,11 @@ impl FrameRuntime {
     pub(in crate::app) fn frame_presented(
         &mut self,
         sample: crate::frame_clock::FrameSample,
-        activities: crate::frame_clock::ActivitySet,
+        activities: super::gpu::PreparedActivities,
     ) {
-        self.presentation.clock.presented(sample, activities);
+        self.presentation
+            .clock
+            .presented(sample, activities.as_set());
     }
 
     pub(in crate::app) fn park_animations(&mut self) {

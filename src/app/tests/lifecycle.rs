@@ -178,14 +178,16 @@ fn skipped_surface_frame_never_drives_the_animation_poll_loop() {
 /// cannot be "fixed" by special-casing the symptom.
 #[test]
 fn a_prepare_time_band_activity_keeps_the_loop_hot_by_itself() {
-    use crate::frame_clock::{Activity, ActivitySet, Deadlines, Directive, FrameClock};
-    let now = Instant::now();
-    let mut clock = FrameClock::default();
-    clock.presented(clock.sample(now), ActivitySet::one(Activity::OverlayBand));
+    use crate::frame_clock::{Activity, ActivitySet, Deadlines, Directive};
+    let _g = crate::testlock::serial();
+    let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
+    let sample = app.frame.frame_sample(app.frame.now());
+    let prepared = gpu::PreparedActivities::injected(ActivitySet::one(Activity::OverlayBand));
+    app.frame.frame_presented(sample, prepared);
     assert_eq!(
-        clock.directive(Deadlines::default()),
+        app.frame.directive(Deadlines::default()),
         Directive::Animating(ActivitySet::one(Activity::OverlayBand)),
-        "a prepare-time band retarget is a named post-prepare activity"
+        "the typed post-prepare GPU report reaches the App's scheduler"
     );
 }
 

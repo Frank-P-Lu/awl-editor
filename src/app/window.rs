@@ -536,8 +536,9 @@ impl App {
         // may supersede it before then.
         let mut activities = prepared.activities;
         if !presentation_available {
-            activities = crate::frame_clock::ActivitySet::empty();
+            activities = gpu::PreparedActivities::parked();
         }
+        let activity_set = activities.as_set();
         let (presented, frame_presented) =
             match self.handle_gpu_frame_outcome(event_loop, prepared.outcome) {
                 Ok(result) => result,
@@ -550,7 +551,7 @@ impl App {
         if frame_presented {
             self.frame.frame_presented(sample, activities);
             #[cfg(not(target_arch = "wasm32"))]
-            if let Some(elapsed) = self.frame.animation_settled(sample.now, activities)
+            if let Some(elapsed) = self.frame.animation_settled(sample.now, activity_set)
                 && crate::probe::recording()
             {
                 crate::probe::trace(format_args!(
@@ -593,7 +594,7 @@ impl App {
             crate::probe::trace(format_args!(
                 "frame presented={frame_presented} interval={:.1}ms activities=[{}]",
                 sample.elapsed.as_secs_f32() * 1000.0,
-                activities.names(),
+                activity_set.names(),
             ));
         }
         // requestRedraw, issued by the reducer in `about_to_wait`, is winit's
@@ -609,7 +610,7 @@ impl App {
         // SAME composed animation state the keep-hot decision does —
         // otherwise the panel would stamp `still ·` on a frame that had just
         // started a band ease and was about to run hot again.
-        if crate::debug::debug_on() && self.frame.settle_debug_panel(!activities.is_empty()) {
+        if crate::debug::debug_on() && self.frame.settle_debug_panel(!activity_set.is_empty()) {
             self.frame.demand_draw_once();
         }
     }

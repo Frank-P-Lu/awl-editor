@@ -9,7 +9,7 @@ impl Gpu {
         debug: bool,
         t0: Option<Instant>,
         prepare_ms: Option<f32>,
-        activities: crate::frame_clock::ActivitySet,
+        activities: PreparedActivities,
     ) -> PreparedFrame {
         let t2 = debug.then(Instant::now);
         // Render through the sRGB VIEW format. On web this view supplies the

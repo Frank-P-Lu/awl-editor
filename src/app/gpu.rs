@@ -100,11 +100,33 @@ pub(super) enum GpuFrameOutcome {
     Skipped(GpuFrameSkip),
     Fault(GpuFault),
 }
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(super) struct PreparedActivities(crate::frame_clock::ActivitySet);
+
+impl PreparedActivities {
+    fn from_post_prepare(activities: crate::frame_clock::ActivitySet) -> Self {
+        Self(activities)
+    }
+
+    pub(super) fn parked() -> Self {
+        Self(crate::frame_clock::ActivitySet::empty())
+    }
+
+    pub(super) fn as_set(self) -> crate::frame_clock::ActivitySet {
+        self.0
+    }
+
+    #[cfg(test)]
+    pub(super) fn injected(activities: crate::frame_clock::ActivitySet) -> Self {
+        Self(activities)
+    }
+}
+
 pub(super) struct PreparedFrame {
     pub(super) outcome: GpuFrameOutcome,
     /// The renderer's one post-prepare activity report. In particular this sees
     /// a selection band retargeted while geometry was being resolved.
-    pub(super) activities: crate::frame_clock::ActivitySet,
+    pub(super) activities: PreparedActivities,
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum GpuResizeOutcome {
@@ -492,12 +514,13 @@ impl Gpu {
             eprintln!("prepare error: {e}");
             return PreparedFrame {
                 outcome: GpuFrameOutcome::Skipped(GpuFrameSkip::PrepareFailed),
-                activities: crate::frame_clock::ActivitySet::empty(),
+                activities: PreparedActivities::parked(),
             };
         }
-        let activities = self
-            .pipeline
-            .active_activities(travelling_ground.unwrap_or(false));
+        let activities = PreparedActivities::from_post_prepare(
+            self.pipeline
+                .active_activities(travelling_ground.unwrap_or(false)),
+        );
         if let Some(fault) = self.take_faults().into_iter().next() {
             return PreparedFrame {
                 outcome: GpuFrameOutcome::Fault(fault),
