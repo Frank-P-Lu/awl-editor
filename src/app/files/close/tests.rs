@@ -814,8 +814,7 @@ mod waiters {
     }
 
     fn assert_done(mut mine: UnixStream, path: &Path) {
-        mine.set_read_timeout(Some(std::time::Duration::from_millis(250)))
-            .unwrap();
+        mine.set_nonblocking(true).unwrap();
         let mut line = String::new();
         BufReader::new(&mut mine).read_line(&mut line).unwrap();
         assert_eq!(line, crate::daemon::format_done(path));
