@@ -42,6 +42,13 @@
 use super::*;
 
 impl App {
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(super) fn streaks_flush_if_document(&mut self) {
+        if self.document.has_active() {
+            self.streaks_flush();
+        }
+    }
+
     /// The active buffer's whole-document word count (the same
     /// `markdown::word_count` the readout / held HUD use). A `String` alloc per
     /// call, but flushes are infrequent (idle/blur/switch/quit), so this is

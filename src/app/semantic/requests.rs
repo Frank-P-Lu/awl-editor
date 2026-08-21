@@ -18,6 +18,9 @@ impl App {
             SemanticRequest::Focus { id } => self.focus_semantic_node(&id),
             SemanticRequest::Click { id } => self.click_semantic_node(&id),
             SemanticRequest::SetTextSelection { id, anchor, focus } if id == DOCUMENT_ID => {
+                if !self.document.has_active() {
+                    return false;
+                }
                 let text = self.document.buffer().text();
                 let anchor = crate::semantic::grapheme_to_char(&text, anchor);
                 let focus = crate::semantic::grapheme_to_char(&text, focus);
@@ -29,12 +32,18 @@ impl App {
                 true
             }
             SemanticRequest::ReplaceSelectedText { id, value } if id == DOCUMENT_ID => {
+                if !self.document.has_active() {
+                    return false;
+                }
                 self.document.insert_text(&value);
                 self.sync_view(true);
                 self.request_frame();
                 true
             }
             SemanticRequest::SetValue { id, value } if id == DOCUMENT_ID => {
+                if !self.document.has_active() {
+                    return false;
+                }
                 let len = self.document.buffer().text().chars().count();
                 self.document.replace_char_range(0, len, &value);
                 self.sync_view(true);
@@ -66,6 +75,9 @@ impl App {
     }
 
     fn focus_semantic_node(&mut self, id: &str) -> bool {
+        if id == START_NEW_ID || id == START_GOTO_ID {
+            return !self.document.has_active();
+        }
         if id == DOCUMENT_ID {
             return true;
         }
@@ -103,8 +115,22 @@ impl App {
     }
 
     fn click_semantic_node(&mut self, id: &str) -> bool {
+        if id == START_NEW_ID {
+            self.apply_semantic_action(Action::NewDocument);
+            return true;
+        }
+        if id == START_GOTO_ID {
+            self.apply_semantic_action(Action::OpenGoto);
+            return true;
+        }
         if id == super::SEARCH_CASE_ID {
-            let text = self.document.buffer().text();
+            let Some(text) = self
+                .document
+                .buffer_opt()
+                .map(|buffer| buffer.text().to_string())
+            else {
+                return false;
+            };
             let Some(search) = self.workspace_state.search_mut() else {
                 return false;
             };
@@ -130,10 +156,13 @@ impl App {
         if let Some((menu, item)) = passive::menu_item_indices(id) {
             crate::menubar::set_open(None);
             let action = crate::menu::roster().get(menu).and_then(|menu| {
-                crate::menu::dropdown_action(menu, item, self.document.buffer().is_markdown())
+                crate::menu::dropdown_action(menu, item, self.document.active_is_markdown())
             });
             match action {
-                Some(action) => self.apply_semantic_action(action),
+                Some(action) if !self.reject_menu_without_document(&action) => {
+                    self.apply_semantic_action(action);
+                }
+                Some(_) => self.sync_view(true),
                 // An inert row (separator, OS-predefined, a disabled markdown
                 // item) is still a real row on screen; closing the dropdown is
                 // exactly what clicking it does.
@@ -180,7 +209,11 @@ impl App {
     }
 
     fn set_semantic_value(&mut self, id: &str, value: &str) -> bool {
-        let document_text = self.document.buffer().text();
+        let document_text = self
+            .document
+            .buffer_opt()
+            .map(Buffer::text)
+            .unwrap_or_default();
         if id == super::SEARCH_QUERY_ID {
             let Some(search) = self.workspace_state.search_mut() else {
                 return false;

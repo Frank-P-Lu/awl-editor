@@ -82,7 +82,7 @@ fn every_path_bearing_sidecar_field_is_home_relative() {
         }),
         buffers: Some(BuffersInfo {
             open: 1,
-            active: active.to_string_lossy().to_string(),
+            active: Some(active.to_string_lossy().to_string()),
         }),
         ..CaptureOpts::default()
     };

@@ -65,6 +65,7 @@ pub(crate) struct SemanticProjection {
     content_rev: u64,
     shape_rev: u64,
     seeded: bool,
+    document_present: bool,
     /// The surface tail as last published, so a refresh can tell which of those
     /// nodes actually moved.
     tail: Vec<SemanticNode>,
@@ -95,6 +96,7 @@ impl SemanticProjection {
             content_rev: 0,
             shape_rev: 0,
             seeded: false,
+            document_present: false,
             tail: Vec::new(),
             resolved: None,
             changed: Vec::new(),
@@ -145,6 +147,13 @@ impl SemanticProjection {
     pub(in crate::app) fn refresh(&mut self, view: &SemanticView<'_>) {
         self.changed.clear();
         self.stats.refreshes += 1;
+        if view.buffer().is_none() {
+            self.refresh_start(view);
+            return;
+        }
+        if !self.document_present {
+            self.invalidate();
+        }
         let shape_moved = if self.seeded {
             self.sync_runs(view)
         } else {
@@ -153,6 +162,7 @@ impl SemanticProjection {
         };
         self.sync_document(view, shape_moved);
         self.rebuild_tail(view);
+        self.document_present = true;
         debug_assert_eq!(
             self.snapshot
                 .nodes
@@ -166,9 +176,52 @@ impl SemanticProjection {
 
     // --- the document half -------------------------------------------------
 
+    fn refresh_start(&mut self, view: &SemanticView<'_>) {
+        let mut root = SemanticNode::new(ROOT_ID, SemanticRole::Application, "awl");
+        root.children = vec![START_NEW_ID.to_string(), START_GOTO_ID.to_string()];
+        let button = |id, name| {
+            let mut node = SemanticNode::new(id, SemanticRole::Button, name);
+            node.focusable = true;
+            node.actions = vec![SemanticAction::Focus, SemanticAction::Click];
+            node
+        };
+        self.snapshot.nodes = vec![
+            root,
+            button(START_NEW_ID, "New document"),
+            button(START_GOTO_ID, "Go to"),
+        ];
+        let focus_id = view.fold_surfaces(&mut self.snapshot.nodes);
+        self.snapshot.focus_id = focus_id.clone();
+        for node in &mut self.snapshot.nodes {
+            node.focused = node.id == focus_id;
+        }
+        self.slots.clear();
+        self.tail.clear();
+        self.resolved = None;
+        self.content_rev = 0;
+        self.shape_rev = 0;
+        self.seeded = true;
+        self.document_present = false;
+        self.changed = self
+            .snapshot
+            .nodes
+            .iter()
+            .map(|node| node.id.clone())
+            .collect();
+        debug_assert_eq!(
+            self.snapshot
+                .nodes
+                .iter()
+                .filter(|node| node.focused)
+                .count(),
+            1,
+            "the start projection must publish one focus owner"
+        );
+    }
+
     fn seed(&mut self, view: &SemanticView<'_>) {
         self.stats.seeds += 1;
-        let buffer = view.buffer();
+        let buffer = view.buffer().expect("document projection has a buffer");
         let table = buffer.runs();
         let mut root = SemanticNode::new(ROOT_ID, SemanticRole::Application, "awl");
         root.children.push(DOCUMENT_ID.to_string());
@@ -203,7 +256,7 @@ impl SemanticProjection {
 
     /// Returns whether the run SEQUENCE moved.
     fn sync_runs(&mut self, view: &SemanticView<'_>) -> bool {
-        let buffer = view.buffer();
+        let buffer = view.buffer().expect("document projection has a buffer");
         let table = buffer.runs();
         if table.content_rev() == self.content_rev {
             return false;
@@ -285,7 +338,7 @@ impl SemanticProjection {
     /// The document node: its name, its focus, its selection, and — only when
     /// the run sequence moved — its children.
     fn sync_document(&mut self, view: &SemanticView<'_>, shape_moved: bool) {
-        let buffer = view.buffer();
+        let buffer = view.buffer().expect("document projection has a buffer");
         let name = buffer
             .path()
             .and_then(|path| path.file_name())

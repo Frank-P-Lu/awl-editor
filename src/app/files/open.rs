@@ -116,7 +116,7 @@ impl App {
     /// state all survive — the multi-buffer registry win) or read it fresh from
     /// disk for a first-time open. Shared by `open_rel` and the C-x b toggle so
     /// both keep the history honest.
-    pub(in crate::app) fn load_path(&mut self, path: PathBuf) {
+    pub(in crate::app) fn load_path(&mut self, path: PathBuf) -> bool {
         // THE ONE CAPABILITY OWNER, first: a binary/unsupported
         // `path` is refused HERE, before the MAS grant probe below (never
         // powerbox a file we're about to refuse) or any other side effect —
@@ -127,7 +127,7 @@ impl App {
         // see `crate::openable`'s module doc for the full door list.
         if let Some(msg) = crate::openable::classify(&path).refusal_message() {
             self.set_sticky_notice(msg);
-            return;
+            return false;
         }
         // MAS SANDBOX GRANT GATE (native macOS `mas` builds only — see
         // `src/mas.rs`'s module doc): `path` may live outside the container.
@@ -138,7 +138,7 @@ impl App {
         // fail against a silent sandbox `EPERM` instead.
         #[cfg(all(feature = "mas", target_os = "macos"))]
         if !crate::mas::ensure_access(&path) {
-            return;
+            return false;
         }
         // LEAVING AN UNRESOLVED DOCUMENT IS NOT ALLOWED. The conflicted buffer
         // is the sole editable copy of one of the two versions; parking it
@@ -146,7 +146,7 @@ impl App {
         // through the recovery record, and the conflict itself invisible. The
         // refusal names the two resolutions.
         if self.refuse_while_unresolved() {
-            return;
+            return false;
         }
         self.flush_note();
         self.autosave_flush();
@@ -157,14 +157,14 @@ impl App {
         // its notice showing and no way back to it — found by an existing
         // reopen law, not by this item's own tests.
         if self.refuse_while_unresolved() {
-            return;
+            return false;
         }
         // WRITING STREAKS: sample the LEAVING buffer's word-delta BEFORE it is
         // replaced below, so words written in it this session are recorded against
         // the right document; the anchor is reset after the swap so the arriving
         // buffer's existing words are never miscounted (native only; gated inside).
         #[cfg(not(target_arch = "wasm32"))]
-        self.streaks_flush();
+        self.streaks_flush_if_document();
         // If the flush we just ran raised the clobber-guard notice (the file we
         // are LEAVING changed on disk outside awl, so its unsaved edit could
         // not be safely autosaved), that notice must survive the switch below
@@ -186,8 +186,20 @@ impl App {
             &self.project_location.root,
         );
         if opened == document::OpenPath::AlreadyActive {
-            return;
+            return true;
         }
+        self.finish_buffer_activation(Some(path), clobber_notice_just_raised);
+        true
+    }
+
+    /// Finish activation of the whole slot already installed by the document
+    /// owner. Fresh opens, explicit working-set switches, and the successor of
+    /// a close all enter here, so arrival never depends on reloading the file.
+    pub(in crate::app) fn finish_buffer_activation(
+        &mut self,
+        path: Option<PathBuf>,
+        preserve_notice: bool,
+    ) {
         // THE ARRIVING DOCUMENT BRINGS ITS PROJECT WITH IT. A buffer opened
         // under one root can be activated while another is current — Last file
         // across a Switch-project is the everyday route — and until this, the
@@ -219,7 +231,7 @@ impl App {
         // that writes the tag is EXPLICIT: `actions::edit::tag_document_language`
         // ("Tag document language" in the palette). Law:
         // `opening_an_untagged_cjk_document_never_mutates_the_buffer`.
-        if !clobber_notice_just_raised {
+        if !preserve_notice {
             self.clear_notice();
         }
         // THE ARRIVING BUFFER is a persistence boundary of its own, in two
@@ -230,9 +242,11 @@ impl App {
         // parked in the registry, carrying the baseline it had when it was
         // parked — is re-checked, because the disk has had the whole
         // intervening session to move.
-        self.adopt_unresolved_for(&path);
-        if !self.change_unresolved() {
-            self.settle_external_change();
+        if let Some(path) = path.as_deref() {
+            self.adopt_unresolved_for(path);
+            if !self.change_unresolved() {
+                self.settle_external_change();
+            }
         }
         // `Buffer::path()` already carries this exact path — on the fresh-open
         // arm from `Buffer::from_file(&path)`, on the registry-hit arm from
@@ -244,9 +258,11 @@ impl App {
         // it to the front of the persisted MRU that feeds the go-to Recent lens +
         // recency tier. After the already-active early-return above, so re-selecting
         // the current file is a no-op that never re-orders the MRU.
-        self.push_recent_file(path.clone());
-        #[cfg(not(target_arch = "wasm32"))]
-        self.stats_touch_file(path);
+        if let Some(path) = path {
+            self.push_recent_file(path.clone());
+            #[cfg(not(target_arch = "wasm32"))]
+            self.stats_touch_file(path);
+        }
         #[cfg(not(target_arch = "wasm32"))]
         self.stats_reset_caret_anchor();
         // WRITING STREAKS: the buffer just swapped — drop the word-delta anchor so
@@ -274,6 +290,36 @@ impl App {
         self.update_title();
         self.sync_view(true);
         self.request_frame();
+    }
+
+    /// Activate one existing working-set entry by identity. Pathed entries
+    /// continue through `load_path`, the single file-open door. A scratch entry
+    /// has no path to feed that door, so it moves the complete parked slot here
+    /// while preserving the same leave/arrive boundaries.
+    pub(in crate::app) fn activate_open_buffer(&mut self, key: crate::buffers::BufferKey) {
+        if let Some(path) = self
+            .document
+            .working_set()
+            .path_for(&key)
+            .map(std::path::Path::to_path_buf)
+        {
+            self.load_path(path);
+            return;
+        }
+        if self.refuse_while_unresolved() {
+            return;
+        }
+        self.flush_note();
+        self.autosave_flush();
+        if self.refuse_while_unresolved() {
+            return;
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        self.streaks_flush();
+        if !self.document.activate_key(&key) {
+            return;
+        }
+        self.finish_buffer_activation(None, false);
     }
 
     pub(in crate::app) fn jump_to_line(&mut self, line: usize) {

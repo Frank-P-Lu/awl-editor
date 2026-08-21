@@ -40,9 +40,10 @@ pub const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 /// `/205` — `hud.selection`: `{ words, characters }` for a non-empty raw
 ///          buffer selection, else `null`. Characters are extended grapheme
 ///          clusters and a logical line break counts as one character.
-/// History lives in Git. Bump this row with the const.
-pub const SCHEMA_VERSION: u32 = 205;
-/// Plain single-frame schema; timeline and held take the next two versions.
+/// `/208` — honest document absence, its actions, and null page/buffer.
+/// History lives in Git. Bump this row with the const. Plain single-frame
+/// schema owns this number; timeline and held take the next two versions.
+pub const SCHEMA_VERSION: u32 = 208;
 pub fn schema_plain() -> String {
     format!("awl-capture/{SCHEMA_VERSION}")
 }
@@ -55,6 +56,7 @@ pub fn schema_held() -> String {
 
 mod animated;
 mod background_sidecar;
+mod document_sidecar;
 mod film;
 #[cfg(not(target_arch = "wasm32"))]
 mod frames;

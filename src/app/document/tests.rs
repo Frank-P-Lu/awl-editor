@@ -5,42 +5,59 @@ use std::sync::Arc;
 pub(in crate::app) struct TestExtraProjection(BufferExtra);
 
 impl DocumentSession {
+    fn test_active(&self) -> &crate::buffers::Entry<BufferExtra> {
+        self.active
+            .as_ref()
+            .expect("test fixture has an active document")
+    }
+
+    fn test_active_mut(&mut self) -> &mut crate::buffers::Entry<BufferExtra> {
+        self.active
+            .as_mut()
+            .expect("test fixture has an active document")
+    }
+
     pub(in crate::app) fn contains_background(&self, key: &crate::buffers::BufferKey) -> bool {
         self.registry.contains(key)
     }
 
     pub(in crate::app) fn replace_buffer(&mut self, buffer: Buffer) {
-        self.active.buffer = buffer;
-        self.active.extra = BufferExtra::default();
-        self.active.extra.caret_synced_version = self.active.buffer.version();
+        let active = self.test_active_mut();
+        active.buffer = buffer;
+        active.extra = BufferExtra::default();
+        active.extra.caret_synced_version = active.buffer.version();
     }
 
     pub(in crate::app) fn undo(&mut self) {
-        self.active.buffer.undo();
+        self.test_active_mut().buffer.undo();
     }
 
     pub(in crate::app) fn set_mark(&mut self) {
-        self.active.buffer.set_mark();
+        self.test_active_mut().buffer.set_mark();
     }
 
     pub(in crate::app) fn toggle_fold_at_cursor(&mut self) {
-        self.active.buffer.toggle_fold_at_cursor();
+        self.test_active_mut().buffer.toggle_fold_at_cursor();
     }
 
     pub(in crate::app) fn mark_list_continuation_generated(&mut self) {
-        self.active.buffer.mark_list_continuation_generated();
+        self.test_active_mut()
+            .buffer
+            .mark_list_continuation_generated();
     }
 
     pub(in crate::app) fn take_list_continuation_generated(&mut self) -> bool {
-        self.active.buffer.take_list_continuation_generated()
+        self.test_active_mut()
+            .buffer
+            .take_list_continuation_generated()
     }
 
     pub(in crate::app) fn start_fresh_for_test(&mut self, root: PathBuf) {
-        self.active.buffer.start_fresh_doc(root);
+        self.test_active_mut().buffer.start_fresh_doc(root);
     }
 
     fn extra(&self) -> &BufferExtra {
-        &self.active.extra
+        &self.test_active().extra
     }
 
     pub(in crate::app) fn sync_text_cached(&self) -> bool {
@@ -60,35 +77,37 @@ impl DocumentSession {
     }
 
     pub(in crate::app) fn seed_round_trip_extra(&mut self) {
-        self.active.extra.shift_selecting = true;
-        self.active.extra.scroll = crate::render::ScrollPos { row: 11, px_q: 29 };
+        self.test_active_mut().extra.shift_selecting = true;
+        self.test_active_mut().extra.scroll = crate::render::ScrollPos { row: 11, px_q: 29 };
         self.recompute_spell_cache();
-        self.active.extra.sync_text_cache =
-            Some((self.active.buffer.version(), self.active.buffer.text()));
-        self.active.extra.caret_synced_version = 999;
-        self.active.extra.doc_saved_version = Some(777);
-        self.active.extra.scratch_saved_version = Some(888);
-        self.active.extra.disk_baseline = crate::external::Seen::Present {
+        let version = self.test_active().buffer.version();
+        let text = self.test_active().buffer.text();
+        let active = self.test_active_mut();
+        active.extra.sync_text_cache = Some((version, text));
+        active.extra.caret_synced_version = 999;
+        active.extra.doc_saved_version = Some(777);
+        active.extra.scratch_saved_version = Some(888);
+        active.extra.disk_baseline = crate::external::Seen::Present {
             stat: crate::fs::Metadata {
                 modified: None,
                 len: Some(101),
             },
             digest: Some(101),
         };
-        self.active.extra.scratch_baseline = crate::external::Seen::Present {
+        active.extra.scratch_baseline = crate::external::Seen::Present {
             stat: crate::fs::Metadata {
                 modified: None,
                 len: Some(202),
             },
             digest: Some(202),
         };
-        self.active.extra.doc_autosave_at = None;
-        self.active.extra.history_preview = Some(("42".to_string(), "old text".to_string()));
-        self.active.extra.history_scroll_before = Some(crate::render::ScrollPos::at_row(55));
+        active.extra.doc_autosave_at = None;
+        active.extra.history_preview = Some(("42".to_string(), "old text".to_string()));
+        active.extra.history_scroll_before = Some(crate::render::ScrollPos::at_row(55));
     }
 
     pub(in crate::app) fn round_trip_extra_signature(&self) -> TestExtraProjection {
-        TestExtraProjection(self.active.extra.clone())
+        TestExtraProjection(self.test_active().extra.clone())
     }
 }
 
@@ -110,8 +129,8 @@ fn every_buffer_extra_field_round_trips_a_b_a_b_c_a() {
     );
 
     session.seed_round_trip_extra();
-    session.active.extra.doc_autosave_at = Some(Instant::now());
-    let expected = session.active.extra.clone();
+    session.test_active_mut().extra.doc_autosave_at = Some(Instant::now());
+    let expected = session.test_active().extra.clone();
     assert!(
         !expected.spell_cache.is_empty(),
         "fixture must exercise spell cache"
@@ -125,7 +144,7 @@ fn every_buffer_extra_field_round_trips_a_b_a_b_c_a() {
         session.open_path(&a, crate::external::Seen::Absent, Path::new("/")),
         OpenPath::Reactivated
     );
-    assert_eq!(session.active.extra, expected, "A -> B -> A");
+    assert_eq!(session.test_active().extra, expected, "A -> B -> A");
     assert_eq!(
         session.open_path(&b, crate::external::Seen::Absent, Path::new("/")),
         OpenPath::Reactivated
@@ -138,7 +157,7 @@ fn every_buffer_extra_field_round_trips_a_b_a_b_c_a() {
         session.open_path(&a, crate::external::Seen::Absent, Path::new("/")),
         OpenPath::Reactivated
     );
-    assert_eq!(session.active.extra, expected, "A -> B -> C -> A");
+    assert_eq!(session.test_active().extra, expected, "A -> B -> C -> A");
 }
 
 #[test]

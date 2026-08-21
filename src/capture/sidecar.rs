@@ -54,15 +54,6 @@ pub(super) fn write_sidecar(
 ) -> Result<()> {
     assert_capture_is_serialized();
     let json_path = out_png.with_extension("json");
-    let text = &view.text;
-    let (cursor_line, cursor_col) = (view.cursor_line, view.cursor_col);
-    let first_lines: Vec<String> = text.lines().take(12).map(|s| s.to_string()).collect();
-    let first_lines_json = first_lines
-        .iter()
-        .map(|l| json_string(l))
-        .collect::<Vec<_>>()
-        .join(", ");
-
     let search_cur = view
         .search_current
         .map(|i| i.to_string())
@@ -84,10 +75,18 @@ pub(super) fn write_sidecar(
     let (schema, caret_extra) = caret_block(caret);
     debug_assert!(!schema.is_empty());
     let (font_zoom, font_size, line_height) = pipeline.effective_font_metrics();
+    // Document-dependent fields are one bundle so the offscreen transport
+    // scratch cannot leak a cursor, text, layout, origin, or page claim into
+    // an honest empty-session capture. The renderer's presence bit is the
+    // owner: ordinary captures retain the established field shapes, while
+    // zero-document captures publish nulls and zero together.
+    //
+    let document = super::document_sidecar::fields(view, pipeline)?;
     let json = super::scroll_sidecar::sidecar_format!(
         schema_json = json_string(&schema),
         driver = json_string(opts.driver.as_str()),
         semantic = opts.semantic_json(),
+        document = document.summary,
         caret_extra = caret_extra,
         cjk = cjk_json(&script_fonts),
         scripts = scripts_json(&script_fonts),
@@ -130,17 +129,16 @@ pub(super) fn write_sidecar(
         tp = json_string(&active.primary.hex()),
         thb = crate::markdown::heading_weight_bold(active.heading_bold, 2),
         cm = json_string(caret_mode),
-        text_origin = super::layout_sidecar::text_origin_json(pipeline),
+        text_origin = document.text_origin,
         page = page_json(pipeline),
-        lc = pipeline.line_count(),
+        lc = document.line_count,
         scroll = super::scroll_sidecar::fields(view.scroll, pipeline),
-        cl = cursor_line,
-        cc = cursor_col,
+        cursor = document.cursor,
         folds = folds_json(view),
         sel = selection_json(view),
-        text_json = json_string(text),
-        fl = first_lines_json,
-        layout = super::layout_sidecar::from_pipeline(pipeline)?,
+        text_json = document.text,
+        fl = document.first_lines,
+        layout = document.layout,
         sq = json_string(&view.search_query),
         sa = view.search_active,
         scs = view.search_case_sensitive,
@@ -164,7 +162,6 @@ pub(super) fn write_sidecar(
 }
 
 /// THE CALM NOTICE block: `{ text, kind }`, or `null` when nothing is showing.
-///
 /// Read off the PIPELINE, not off `CaptureOpts` — the same field the notice
 /// chrome shapes from. A sidecar that reported the fold's input rather than the
 /// renderer's own copy could say "saved" about a frame that drew nothing, which
@@ -401,6 +398,9 @@ fn canvas_json(opts: &CaptureOpts) -> String {
 }
 
 fn page_json(pipeline: &TextPipeline) -> String {
+    if !pipeline.document_active() {
+        return "null".to_string();
+    }
     let (page_on, page_measure, col_left, col_w) = pipeline.page_geometry();
     let class = match pipeline.page_class() {
         crate::page::PageClass::Prose => "prose",

@@ -321,6 +321,11 @@ fn window_title_dirty_is_only_ever_a_leading_marker_insertion() {
 }
 
 #[test]
+fn window_title_without_a_document_invents_no_scratch_identity() {
+    assert_eq!(window_title_no_document("Bilby"), "awl [Bilby]");
+}
+
+#[test]
 fn update_title_uses_the_same_pure_window_title() {
     let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
     app.document.set_text("hello");

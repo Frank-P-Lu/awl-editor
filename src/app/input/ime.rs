@@ -15,6 +15,9 @@ impl App {
             Ime::Preedit(text, _cursor) => self.input.keyboard.preedit = text,
             Ime::Commit(text) => {
                 self.input.keyboard.preedit.clear();
+                if !self.document.has_active() {
+                    return;
+                }
                 for c in text.chars() {
                     self.document.insert_char(c);
                 }

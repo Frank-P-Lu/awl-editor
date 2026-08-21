@@ -4,8 +4,8 @@
 //! save, the save-feedback dirty/title/HUD-saved sync, and the local-history
 //! save-hook. Split out of the former `app/files.rs` monolith.
 
-use super::window_title;
 use super::{SCRATCH_CHANGED_NOTICE, WritePermission};
+use super::{window_title, window_title_no_document};
 use crate::app::*;
 
 impl App {
@@ -27,9 +27,11 @@ impl App {
     /// write lands, manual save or autosave alike — matching every
     /// conventional editor's own dirty-dot behavior.
     pub(in crate::app) fn is_document_dirty(&self) -> bool {
-        if self.document.buffer().is_unnamed_fresh() {
-            self.persistence
-                .note_write_owed(self.document.buffer().version())
+        let Some(buffer) = self.document.buffer_opt() else {
+            return false;
+        };
+        if buffer.is_unnamed_fresh() {
+            self.persistence.note_write_owed(buffer.version())
         } else {
             // THE ONE UNSAVED RULE (`DocumentSession::entry_unsaved`), which the
             // removal owner asks of parked entries too. Spelled inline here, it
@@ -94,12 +96,18 @@ impl App {
         let dirty = self.is_document_dirty();
         self.persistence.record_title(dirty);
         if let Some(gpu) = self.frame.gpu() {
-            gpu.window.set_title(&window_title(
-                self.document.buffer().path(),
-                self.document.buffer().is_unnamed_fresh(),
-                crate::theme::active().name,
-                dirty,
-            ));
+            let title = self.document.buffer_opt().map_or_else(
+                || window_title_no_document(crate::theme::active().name),
+                |buffer| {
+                    window_title(
+                        buffer.path(),
+                        buffer.is_unnamed_fresh(),
+                        crate::theme::active().name,
+                        dirty,
+                    )
+                },
+            );
+            gpu.window.set_title(&title);
             // NATIVE macOS TITLEBAR DIRTY-DOT: winit exposes this directly
             // (`WindowExtMacOS::set_document_edited` — the grey dot in the
             // titlebar's close button, the same convention every native Mac
@@ -123,6 +131,9 @@ impl App {
     /// quit. A truly empty note still writes nothing (no litter); a non-note buffer
     /// or an already-saved version is a no-op.
     pub(in crate::app) fn flush_note(&mut self) {
+        if !self.document.has_active() {
+            return;
+        }
         if self.document.buffer().is_unnamed_fresh()
             && self
                 .persistence
@@ -153,6 +164,9 @@ impl App {
     /// now being false) sees a freshly-saved, clean baseline rather than a
     /// stale/absent one that would misreport dirty.
     pub(in crate::app) fn autosave_note(&mut self) {
+        if !self.document.has_active() {
+            return;
+        }
         self.persistence
             .record_note_write(self.document.buffer().version());
         if !self.document.buffer().is_unnamed_fresh() {
@@ -206,6 +220,9 @@ impl App {
     /// pre-existing absolute data-root location rather than blocking the paste.
     #[cfg(not(target_arch = "wasm32"))]
     pub(in crate::app) fn ensure_note_named_before_paste(&mut self) {
+        if !self.document.has_active() {
+            return;
+        }
         if !self.document.buffer().is_unnamed_fresh() {
             let _ = crate::fs::active().create_dir_all(&self.project_location.root);
             self.document
@@ -229,8 +246,10 @@ impl App {
     /// major-surgery flag would be minted here and carried into the store,
     /// exempt from the ladder. See `history::prune_ladder`.
     pub(in crate::app) fn snapshot_after_save(&self) {
-        if let Some(path) = self.document.buffer().path() {
-            crate::history::record(path, &self.document.buffer().text(), &self.config);
+        if let Some(buffer) = self.document.buffer_opt()
+            && let Some(path) = buffer.path()
+        {
+            crate::history::record(path, &buffer.text(), &self.config);
         }
     }
 
@@ -243,7 +262,7 @@ impl App {
     /// autosave-free (determinism law).
     pub(in crate::app) fn autosave_flush(&mut self) {
         self.document.disarm_doc_autosave();
-        if !self.config.autosave_on() {
+        if !self.config.autosave_on() || !self.document.has_active() {
             return;
         }
         if self.document.buffer().is_unnamed_fresh() {

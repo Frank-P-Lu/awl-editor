@@ -256,8 +256,14 @@ fn save_a_copy_writes_disk_bytes_without_changing_the_source_document() {
                 ..Config::empty()
             },
         );
-        app.document.action_buffer_mut().insert_text("draft");
-        app.document.action_buffer_mut().select_range(1, 4);
+        app.document
+            .action_buffer_mut()
+            .expect("source document is active")
+            .insert_text("draft");
+        app.document
+            .action_buffer_mut()
+            .expect("source document is active")
+            .select_range(1, 4);
         app.document.set_scroll(crate::render::ScrollPos::at_row(2));
         let before_path = app.document.buffer().path().map(|p| p.to_path_buf());
         let before_key = app.document.active_key();

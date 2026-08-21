@@ -85,6 +85,9 @@ impl ScreenRect {
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct SessionState {
     pub root: Option<PathBuf>,
+    /// `Some(false)` records an intentional no-document session. `None` is a
+    /// legacy or missing session and preserves the first-launch scratch.
+    pub document_active: Option<bool>,
     pub active: Option<PathBuf>,
     pub buffers: Vec<(PathBuf, BufferPos)>,
     pub window: Option<WindowFrame>,
@@ -135,6 +138,9 @@ pub fn save(path: &Path, state: &SessionState) -> std::io::Result<()> {
 /// the two halves never have to hand-agree on escaping rules.
 pub fn to_toml(state: &SessionState) -> String {
     let mut out = String::new();
+    if let Some(document_active) = state.document_active {
+        out.push_str(&format!("document_active = {document_active}\n"));
+    }
     if let Some(root) = &state.root {
         out.push_str(&format!("root = {}\n", quote(root)));
     }
@@ -188,6 +194,7 @@ pub fn from_toml(src: &str) -> SessionState {
     if let Some(s) = table.get("root").and_then(|v| v.as_str()) {
         state.root = Some(PathBuf::from(s));
     }
+    state.document_active = table.get("document_active").and_then(|v| v.as_bool());
     if let Some(s) = table.get("active").and_then(|v| v.as_str()) {
         state.active = Some(PathBuf::from(s));
     }
@@ -278,44 +285,11 @@ pub fn clamp_frame_to_screens(frame: WindowFrame, screens: &[ScreenRect]) -> Win
 }
 
 #[cfg(test)]
+mod round_trip_test;
+
+#[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn round_trips_through_toml() {
-        let state = SessionState {
-            root: Some(PathBuf::from("/proj")),
-            active: Some(PathBuf::from("/proj/a.md")),
-            buffers: vec![
-                (
-                    PathBuf::from("/proj/a.md"),
-                    BufferPos {
-                        line: 3,
-                        col: 5,
-                        scroll: 2,
-                        scroll_px_q: 0,
-                    },
-                ),
-                (
-                    PathBuf::from("/proj/b.rs"),
-                    BufferPos {
-                        line: 0,
-                        col: 0,
-                        scroll: 0,
-                        scroll_px_q: 0,
-                    },
-                ),
-            ],
-            window: Some(WindowFrame {
-                x: 10,
-                y: 20,
-                width: 1200,
-                height: 800,
-            }),
-        };
-        let text = to_toml(&state);
-        assert_eq!(from_toml(&text), state);
-    }
 
     #[test]
     fn root_is_absent_when_never_set() {
@@ -324,6 +298,7 @@ mod tests {
         // `None` (the launch law's "nothing remembered" tier), never a crash.
         let state = SessionState {
             root: None,
+            document_active: None,
             active: Some(PathBuf::from("/proj/a.md")),
             buffers: Vec::new(),
             window: None,
@@ -345,6 +320,7 @@ mod tests {
         // (a real multi-monitor arrangement) has negative outer coordinates.
         let state = SessionState {
             root: None,
+            document_active: Some(false),
             active: None,
             buffers: Vec::new(),
             window: Some(WindowFrame {
@@ -370,6 +346,7 @@ mod tests {
             );
             let state = SessionState {
                 root: Some(PathBuf::from("/n")),
+                document_active: Some(true),
                 active: Some(PathBuf::from("/n/a.md")),
                 buffers: vec![(
                     PathBuf::from("/n/a.md"),
@@ -417,6 +394,7 @@ mod tests {
         crate::fs::with_fs(fake, || {
             let state = SessionState {
                 root: None,
+                document_active: Some(false),
                 active: None,
                 buffers: vec![
                     (PathBuf::from("/n/keep1.md"), BufferPos::default()),

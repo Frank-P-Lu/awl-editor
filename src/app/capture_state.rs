@@ -110,8 +110,8 @@ impl App {
 /// state the App already owns: nothing is recomputed for the capture, so the
 /// sidecar reports the editor rather than a model of it.
 impl crate::run::CaptureSubject for App {
-    fn buffer(&self) -> &crate::buffer::Buffer {
-        self.document.buffer()
+    fn buffer(&self) -> Option<&crate::buffer::Buffer> {
+        self.document.buffer_opt()
     }
     fn zoom(&self) -> f32 {
         self.frame.zoom()

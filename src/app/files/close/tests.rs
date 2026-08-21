@@ -12,7 +12,11 @@
 
 use super::*;
 use crate::config::Config;
+#[cfg(not(target_arch = "wasm32"))]
+use crate::fs::FileSystem;
 use crate::testscratch::ScratchDir;
+#[cfg(not(target_arch = "wasm32"))]
+use std::sync::Arc;
 
 /// A two-file session on real disk: `a.txt` and `b.txt` under one root, both
 /// open, `b` active and `a` parked. The everyday shape every law below starts
@@ -269,22 +273,13 @@ fn a_conflicted_inactive_entry_is_refused_and_nothing_is_lost() {
     assert_eq!(s.open_files(), vec![s.a(), s.b()]);
 }
 
-/// THE SUCCESSOR NEVER LANDS ON THE PATH-LESS SCRATCH ROW.
+/// A PATH-LESS SCRATCH IS A REAL SUCCESSOR.
 ///
-/// The scratch surface IS a working-set member — launching with no file enrols
-/// it — so the obvious "take the nearest neighbour" rule can hand the close a
-/// slot the one file-open door cannot activate.
-///
-/// ⚠️ THE ARRANGEMENT IS THE WHOLE LAW, and the obvious one proves nothing.
-/// `enrol_active` runs at startup, so the scratch row is ALWAYS slot 0 — which
-/// means in any session with two or more files there is a real file between the
-/// closing slot and the scratch, and the search finds it without ever reaching
-/// the row it is supposed to skip. A mutation that dropped the path requirement
-/// entirely stayed green under exactly that fixture. The state that reaches the
-/// scratch is the ONE-file session: `[scratch, a.txt]`, closing `a.txt`, where
-/// the scratch is the only thing left to search.
+/// The activation key, rather than a path, is the identity carried across the
+/// close. This is the fixture that previously exposed the dead seam:
+/// `[scratch, a.txt]`, closing `a.txt`, with only scratch left to activate.
 #[test]
-fn the_successor_skips_the_pathless_scratch_row() {
+fn the_successor_can_activate_the_pathless_scratch_row() {
     let _guard = crate::testlock::serial();
     let dir = ScratchDir::new(
         std::env::temp_dir().join(format!("awl-close-scratch-{}", std::process::id())),
@@ -306,46 +301,30 @@ fn the_successor_skips_the_pathless_scratch_row() {
         "precondition: the scratch row is slot 0, immediately behind the only file"
     );
 
-    // THE LOAD-BEARING ARM. Backward from slot 1 reaches ONLY the scratch row,
-    // so a search that did not require a path answers with it here and nowhere
-    // else in any fixture this app can build.
+    let scratch = working.files()[0].key.clone();
     let only = crate::buffers::BufferKey::path(&dir.join("a.txt"));
     assert_eq!(
-        app.document.successor_path(&only),
-        None,
-        "the scratch row is not a place the reader can be sent"
+        app.document.successor_key(&only),
+        Some(scratch),
+        "the path-less row remains activatable by registry identity"
     );
 
-    // And end to end: with no successor, the close withholds the removal rather
-    // than stranding the reader or dropping the buffer.
-    assert!(
-        !app.remove_active_entry(),
-        "no activatable successor means no removal"
-    );
+    assert!(app.remove_active_entry());
     assert_eq!(
         app.document.working_set().len(),
-        2,
-        "both rows survive — the file was not dropped to reach the scratch"
+        1,
+        "the file closes while the scratch survives"
     );
-
-    // With a second file open the forward search finds it, so the skip above is
-    // a refusal to use the scratch and not a refusal to find anything.
-    app.load_path(dir.join("b.txt"));
-    assert_eq!(
-        app.document.successor_path(&only),
-        Some(dir.join("b.txt")),
-        "forward search finds the next real file"
-    );
+    assert!(app.document.buffer().path().is_none());
 }
 
-/// CLOSING THE LAST FILE SAVES AND NOTIFIES BUT REMOVES NOTHING — the
-/// zero-document bound, stated as a law so it cannot be crossed by accident.
+/// CLOSING THE LAST FILE SAVES, NOTIFIES, AND LEAVES NO DOCUMENT.
 ///
 /// A single-file session is the DAEMON's primary shape (`EDITOR=awl` opens one
 /// file and waits), so the save and the notification are the load-bearing half
 /// here; only the removal is withheld.
 #[test]
-fn closing_the_last_file_still_saves_and_notifies_but_removes_nothing() {
+fn closing_the_last_file_enters_the_honest_zero_document_state() {
     let _guard = crate::testlock::serial();
     let dir = ScratchDir::new(
         std::env::temp_dir().join(format!("awl-close-last-{}", std::process::id())),
@@ -374,13 +353,181 @@ fn closing_the_last_file_still_saves_and_notifies_but_removes_nothing() {
     );
     assert_eq!(
         app.document.working_set().len(),
-        1,
-        "and the entry stays: there is no honest zero-document state yet"
+        0,
+        "the working set has no invented replacement row"
+    );
+    assert!(!app.document.has_active());
+    assert!(app.document.buffer_opt().is_none());
+    assert_eq!(app.project_location.root, dir.to_path_buf());
+
+    let exit = crate::app::schedule::RecordingExit::new();
+    app.apply(Action::OpenGoto, false, &exit, crate::stats::Door::Chord);
+    assert!(
+        app.workspace_state.overlay_open(),
+        "Go to remains usable with no document"
+    );
+    app.apply(Action::Cancel, false, &exit, crate::stats::Door::Chord);
+    app.project_location.root = crate::fs::data_root();
+    assert_eq!(
+        app.prepare_tutorial_action(Action::NewDocument),
+        Action::NewDocument,
+        "with no document, New remains the exact start action even at the tutorial root"
     );
     assert_eq!(
-        app.document.buffer().path(),
-        Some(dir.join("only.txt").as_path()),
-        "the reader is left on the document they had, never on a fake empty buffer"
+        app.workspace_state.take_tutorial_folder_intent(),
+        None,
+        "the zero-document start action leaves no deferred folder intent armed"
+    );
+    app.apply(Action::NewDocument, false, &exit, crate::stats::Door::Chord);
+    assert!(
+        app.document.has_active(),
+        "New document leaves the empty state"
+    );
+    assert!(app.document.buffer().is_unnamed_fresh());
+}
+
+#[test]
+fn zero_document_can_load_a_goto_choice_without_a_departing_buffer() {
+    let _guard = crate::testlock::serial();
+    let mut s = Session::new("zero-goto-accept");
+    let next = s.dir.join("next.txt");
+    std::fs::write(&next, "arrived\n").unwrap();
+    drive_finish_file(&mut s.app);
+    drive_finish_file(&mut s.app);
+    assert!(
+        !s.app.document.has_active(),
+        "precondition: the canvas is empty"
+    );
+
+    s.app.load_path(next.clone());
+
+    assert_eq!(s.app.document.buffer().path(), Some(next.as_path()));
+    assert_eq!(s.app.document.buffer().text(), "arrived\n");
+}
+
+#[test]
+fn close_successor_runs_the_same_external_arrival_boundary_as_an_explicit_switch() {
+    let _guard = crate::testlock::serial();
+    let mut s = Session::new("successor-arrival");
+    std::fs::write(s.a(), "changed while parked\n").unwrap();
+
+    drive_finish_file(&mut s.app);
+
+    assert_eq!(s.app.document.buffer().path(), Some(s.a().as_path()));
+    assert_eq!(
+        s.app.document.buffer().text(),
+        "changed while parked\n",
+        "the close-selected successor must be rechecked and adopt a clean external change"
+    );
+}
+
+#[test]
+fn pointer_close_and_finish_chord_both_close_after_adopting_a_clean_external_rewrite() {
+    let _guard = crate::testlock::serial();
+    for door in ["pointer", "chord"] {
+        let mut s = Session::new(&format!("external-close-{door}"));
+        std::fs::write(s.b(), "disk won cleanly\n").unwrap();
+        match door {
+            "pointer" => {
+                let key = s.app.document.active_key().unwrap();
+                assert_eq!(s.app.close_buffer(key), CloseOutcome::Closed);
+            }
+            "chord" => drive_finish_file(&mut s.app),
+            _ => unreachable!(),
+        }
+        assert_eq!(
+            s.app.document.buffer().path(),
+            Some(s.a().as_path()),
+            "{door} must converge on the same closed successor"
+        );
+        assert_eq!(
+            std::fs::read_to_string(s.b()).unwrap(),
+            "disk won cleanly\n",
+            "{door} preserves the adopted external bytes"
+        );
+    }
+}
+
+#[test]
+fn closing_final_clean_external_rewrite_clears_its_reload_notice() {
+    let _guard = crate::testlock::serial();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl-close-final-reload-{}", std::process::id())),
+    );
+    let path = dir.join("only.txt");
+    std::fs::write(&path, "first\n").unwrap();
+    let cfg = Config {
+        session_restore: Some(false),
+        ..Config::empty()
+    };
+    let mut app = App::new(Some(path.clone()), dir.to_path_buf(), None, None, cfg);
+    std::fs::write(&path, "disk changed cleanly\n").unwrap();
+    let key = app.document.active_key().unwrap();
+
+    assert_eq!(app.close_buffer(key), CloseOutcome::Closed);
+
+    assert!(!app.document.has_active());
+    assert_eq!(
+        app.frame.notice().text(),
+        None,
+        "the empty canvas must not retain a reload toast for a removed document"
+    );
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn failed_finish_save_keeps_dirty_document_open_and_never_claims_completion() {
+    let _guard = crate::testlock::serial();
+    let path = PathBuf::from("/finish-failure/note.txt");
+    let inner = crate::fs::InMemoryFs::new()
+        .with_dir("/finish-failure")
+        .with_file(&path, "old complete bytes\n");
+    let _memory = crate::fs::FsGuard::install(Arc::new(inner.clone()));
+    let cfg = Config {
+        session_restore: Some(false),
+        autosave: Some(false),
+        ..Config::empty()
+    };
+    let mut app = App::new(
+        Some(path.clone()),
+        PathBuf::from("/finish-failure"),
+        None,
+        None,
+        cfg,
+    );
+    app.document.set_text("dirty text that must survive\n");
+    let scripted = Arc::new(crate::fs::ScriptedFs::new(
+        inner.clone(),
+        crate::fs::ScriptedFailure {
+            operation: crate::fs::ScriptedOperation::Write,
+            ordinal: 1,
+            kind: std::io::ErrorKind::PermissionDenied,
+            reason: "finish save denied",
+        },
+    ));
+    let _failure = crate::fs::FsGuard::install(scripted.clone());
+
+    assert_eq!(app.close_active_now(), CloseOutcome::Refused);
+
+    assert_eq!(app.document.buffer().path(), Some(path.as_path()));
+    assert!(
+        app.document.active_unsaved(),
+        "the edit remains dirty and owned"
+    );
+    assert_eq!(inner.read_to_string(&path).unwrap(), "old complete bytes\n");
+    assert!(
+        app.frame
+            .notice()
+            .text()
+            .is_some_and(|text| text.starts_with("save failed:")),
+        "the refusal is visible rather than reported as completion"
+    );
+    assert!(
+        scripted
+            .trace()
+            .iter()
+            .any(|entry| entry.starts_with("write#1")),
+        "the law must enroll the named save failure"
     );
 }
 

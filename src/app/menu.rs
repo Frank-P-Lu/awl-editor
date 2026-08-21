@@ -45,6 +45,11 @@ impl App {
     /// The transition's typed render requests own the sync + redraw, exactly
     /// as on the keyboard door; this handler adds no trailing repaint path.
     pub(super) fn handle_menu_event(&mut self, id: String, exit: &dyn schedule::Exit) {
+        if crate::menu::resolve(&id)
+            .is_some_and(|action| self.reject_menu_without_document(&action))
+        {
+            return;
+        }
         // A row `crate::menu::NATIVE_PANEL_IDS` claims for the platform opens a
         // real AppKit panel instead of dispatching its routed action — the macOS
         // convention winning over the in-app overlay, and dodging that repaint
@@ -129,14 +134,14 @@ impl App {
         self._menu_bar = Some(crate::menu::install(
             proxy,
             AwlEvent::Menu,
-            self.document.buffer().is_markdown(),
+            self.document.active_is_markdown(),
         ));
     }
 
     pub(super) fn sync_menu_context_and_gpu_absent(&self) -> bool {
         #[cfg(target_os = "macos")]
         if let Some(menu) = self._menu_bar.as_ref() {
-            menu.set_markdown_enabled(self.document.buffer().is_markdown());
+            menu.set_markdown_enabled(self.document.active_is_markdown());
         }
         self.frame.gpu().is_none()
     }

@@ -83,7 +83,14 @@ pub(crate) fn capture_live_app(out: PathBuf, spec: LiveAppSpec) -> Result<()> {
     // means today's byte-stable 1200x800 @1x default.
     opts.canvas = canvas;
     opts.dpi = dpi;
-    capture::capture_with(&out, crate::run::CaptureSubject::buffer(&app), &opts)?;
+    let inert;
+    let buffer = if let Some(buffer) = crate::run::CaptureSubject::buffer(&app) {
+        buffer
+    } else {
+        inert = crate::buffer::Buffer::scratch();
+        &inert
+    };
+    capture::capture_with(&out, buffer, &opts)?;
     println!("wrote {} (+ sidecar .json)", out.display());
     Ok(())
 }

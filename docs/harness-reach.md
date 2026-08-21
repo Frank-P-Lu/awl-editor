@@ -418,6 +418,12 @@ deadline without a surface).
 | `zoom_changed` | Applied |
 <!-- reach-table:end -->
 
+`finish_buffer` remains Unsupported in the ordinary tier-1 replay above. The
+tier-2 `--screenshot-app` door performs its save/notify/close effects for real;
+when it closes the last file, the PNG and sidecar capture the resulting
+zero-document start surface (`document.active: false`, `page: null`, and the
+two semantic start buttons).
+
 ### ⚠️ A CAPTURE BUILDS ITS PIPELINES ONCE, SO BYTE-IDENTITY CANNOT SEE A LIVE THEME SWITCH
 
 **Measured, not reasoned:** a token routed to the wrong pipeline *in the live

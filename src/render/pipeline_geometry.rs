@@ -1,8 +1,7 @@
 //! Reconfiguration methods; pure layout and hit-test math lives in [`super::geometry`].
 use super::*;
 impl TextPipeline {
-    /// Re-tint every baked GPU pipeline (caret, selection, search-match, panel
-    /// card, panel caret, spell squiggle) from the ACTIVE theme AND, when the new
+    /// Re-tint every baked GPU pipeline from the ACTIVE theme AND, when the new
     /// world's effective display face differs from the one the document is shaped
     /// in, RESHAPE the whole document in the new family (the expensive half —
     /// see [`Self::sync_theme_colors`] for the split). Call this after switching
@@ -418,6 +417,7 @@ impl TextPipeline {
             Some(look) => self.caret_demo.mode = look,
             None => self.caret_demo.reset(),
         }
+        self.document_active = view.document_active;
         self.gutter_name = view.gutter_name.clone();
         self.gutter_project = view.gutter_project.clone();
         self.gutter_changed = view.gutter_changed;

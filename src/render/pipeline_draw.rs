@@ -11,8 +11,8 @@ impl TextPipeline {
         cache: &Cache,
         format: wgpu::TextureFormat,
     ) -> Self {
-        // Baked pipeline colours are deliberately placeholders here. The one
-        // retint owner, `sync_theme_colors`, runs before this constructor returns.
+        // Placeholder colours are inert here; the shared retint owner applies
+        // the active world before this constructor returns.
         const PLACEHOLDER_RGB: [u8; 3] = [0; 3];
         const PLACEHOLDER_RGBA: [u8; 4] = [0; 4];
         let mut font_system = build_font_system();
@@ -209,8 +209,7 @@ impl TextPipeline {
         let wk_renderer =
             TextRenderer::new(&mut atlas, device, wgpu::MultisampleState::default(), None);
         let wk_buffer = GlyphBuffer::new(&mut font_system, metrics.glyph_metrics());
-        // FORMAT POPOVER: an active-button value-step wash + a button-label text
-        // renderer. Its float-panel ELEVATION rides the shared `float_shadow`/
+        // FORMAT POPOVER: a value-step wash + label renderer. Its ELEVATION rides `float_shadow`/
         // `float_border`/`float_card` quads (`prepare_float_panel`) — no dedicated
         // trio of its own; see `render.rs`'s field doc. Empty/off until a mouse
         // selection summons it (or the `AWL_POPOVER` capture probe).
@@ -234,6 +233,7 @@ impl TextPipeline {
             atlas,
             renderer,
             buffer,
+            document_active: true,
             caret_pipeline,
             caret_trail_pipeline,
             caret_glyph_pipeline,

@@ -23,7 +23,7 @@ impl App {
     pub(super) fn handle_daemon_event(&mut self, event: crate::daemon::DaemonEvent) {
         match event {
             crate::daemon::DaemonEvent::OpenPath { path, waiter } => {
-                self.load_path(path);
+                let activated = self.load_path(path);
                 if let Some(gpu) = self.frame.gpu() {
                     // RAISE the window: bring it to front, and ask the OS for
                     // urgent attention (a mac dock bounce) in case it wasn't
@@ -34,7 +34,9 @@ impl App {
                     ));
                     self.request_frame();
                 }
-                if let Some(w) = waiter {
+                if let Some(w) = waiter
+                    && activated
+                {
                     match crate::buffers::BufferKey::of(self.document.buffer()) {
                         Some(key) => {
                             self.wait_conns.entry(key).or_default().push(w);
@@ -61,17 +63,31 @@ impl App {
     /// little longer, which is the correct trade against finishing a file with
     /// the wrong version in it.
     pub(super) fn save_finished_buffer(&mut self) {
+        self.try_save_finished_buffer();
+    }
+
+    pub(super) fn try_save_finished_buffer(&mut self) -> bool {
+        if !self.document.has_active() {
+            return false;
+        }
         match self.settle_external_change() {
             crate::app::files::WritePermission::Clear => {}
-            crate::app::files::WritePermission::Reloaded => return,
+            // The disk won because the buffer was clean. That is a successful
+            // finish boundary: both Cmd-W's typed sequence and a pointer close
+            // may release the freshly reloaded entry.
+            crate::app::files::WritePermission::Reloaded => return true,
             crate::app::files::WritePermission::Held => {
                 if let Some(path) = self.document.buffer().path().map(|p| p.to_path_buf()) {
                     self.write_recovery_record(&path);
                 }
-                return;
+                return false;
             }
         }
-        let _ = self.document.save();
+        if let Err(error) = self.document.save() {
+            self.set_sticky_notice(format!("save failed: {error}"));
+            self.request_frame();
+            return false;
+        }
         self.snapshot_after_save();
         if let Some(p) = self.document.buffer().path().map(|p| p.to_path_buf()) {
             self.document.record_document_saved(
@@ -80,6 +96,7 @@ impl App {
             );
             self.emit_notice(crate::actions::NoticeEffect::Clear);
         }
+        true
     }
 
     /// Live daemon interpreter. Headless replay classifies and records this
@@ -99,7 +116,7 @@ impl App {
         // on with the version on disk, which is precisely the version the user
         // has not chosen yet. `EDITOR=awl git commit` would commit the other
         // side of the conflict.
-        if self.change_unresolved() {
+        if self.change_unresolved() || self.document.active_unsaved() {
             return;
         }
         let Some(key) = crate::buffers::BufferKey::of(self.document.buffer()) else {
@@ -126,6 +143,7 @@ impl App {
 #[cfg(all(test, not(target_arch = "wasm32"), not(feature = "mas")))]
 mod tests {
     use super::*;
+    use crate::fs::FileSystem;
     use crate::testscratch::ScratchDir;
     use std::io::{BufRead, BufReader};
     use std::os::unix::net::UnixStream;
@@ -137,6 +155,35 @@ mod tests {
     /// resulting `Effect`.
     fn drive_finish_buffer(app: &mut App) -> actions::Transition {
         app.transition_for_test(&Action::FinishBuffer, false)
+    }
+
+    #[test]
+    fn unsupported_daemon_wait_after_zero_document_never_registers_against_absence() {
+        let _guard = crate::testlock::serial();
+        let memory = crate::fs::InMemoryFs::new().with_dir("/ws");
+        let path = PathBuf::from("/ws/unsupported.png");
+        memory
+            .write(&path, &[0x89, b'P', b'N', b'G', 0, 0])
+            .unwrap();
+        let _fs = crate::fs::FsGuard::install(std::sync::Arc::new(memory));
+        let mut app = App::new(None, PathBuf::from("/ws"), None, None, Config::empty());
+        app.document.restore_no_document();
+        let (mine, theirs) = UnixStream::pair().expect("unix socketpair");
+
+        app.handle_daemon_event(crate::daemon::DaemonEvent::OpenPath {
+            path: path.clone(),
+            waiter: Some(crate::daemon::Waiter::new(path, theirs)),
+        });
+
+        assert!(!app.document.has_active());
+        assert!(app.wait_conns.is_empty());
+        let mut reader = BufReader::new(mine);
+        let mut line = String::new();
+        assert_eq!(
+            reader.read_line(&mut line).unwrap(),
+            0,
+            "a refused activation drops the waiter without claiming done"
+        );
     }
 
     #[test]

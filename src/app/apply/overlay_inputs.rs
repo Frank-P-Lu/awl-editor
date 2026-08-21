@@ -31,11 +31,15 @@ impl App {
             (location.root == self.config.default_folder).then(crate::clock::system_now);
         let (goto_corpus, goto_times) =
             crate::index::with_recency(&location.root, location.file_index.clone(), recency_now);
-        let active_rel = self.document.buffer().path().and_then(|path| {
-            path.strip_prefix(&location.root)
-                .ok()
-                .map(|rel| rel.to_string_lossy().replace('\\', "/"))
-        });
+        let active_rel = self
+            .document
+            .buffer_opt()
+            .and_then(|buffer| buffer.path())
+            .and_then(|path| {
+                path.strip_prefix(&location.root)
+                    .ok()
+                    .map(|rel| rel.to_string_lossy().replace('\\', "/"))
+            });
         let goto_open = goto_corpus
             .iter()
             .enumerate()
@@ -55,9 +59,12 @@ impl App {
                 | Action::OpenProject
                 | Action::OpenRecentProjects
                 | Action::OpenOutline
-        ) && self.document.buffer().is_markdown()
+        ) && self
+            .document
+            .buffer_opt()
+            .is_some_and(crate::buffer::Buffer::is_markdown)
         {
-            crate::markdown::headings(&self.document.buffer().text())
+            crate::markdown::headings(&self.document.buffer_opt().unwrap().text())
                 .into_iter()
                 .map(|heading| (heading.label(), heading.line))
                 .collect()
@@ -73,7 +80,9 @@ impl App {
                 | Action::OpenRecentProjects
                 | Action::OpenOutline
         ) {
-            self.document.buffer().line_count()
+            self.document
+                .buffer_opt()
+                .map_or(0, crate::buffer::Buffer::line_count)
         } else {
             0
         };
@@ -88,25 +97,28 @@ impl App {
     }
 
     pub(super) fn gather_overlay_inputs(&mut self, action: &Action) -> OverlayInputs {
-        let spell_target = if matches!(action, Action::OpenSpellSuggest) {
-            let (line, col) = self.document.buffer().cursor_line_col();
-            self.document
-                .spell_suggestion_target(line, col)
-                .map(|target| {
-                    (
-                        target.suggestions,
+        let spell_target =
+            if matches!(action, Action::OpenSpellSuggest) && self.document.has_active() {
+                let (line, col) = self.document.buffer().cursor_line_col();
+                self.document
+                    .spell_suggestion_target(line, col)
+                    .map(|target| {
                         (
-                            target.misspelling.line,
-                            target.misspelling.start_col,
-                            target.misspelling.end_col,
-                        ),
-                        target.word,
-                    )
-                })
-        } else {
-            None
-        };
-        let history_entries = if matches!(action, Action::OpenHistory | Action::CompareVersion) {
+                            target.suggestions,
+                            (
+                                target.misspelling.line,
+                                target.misspelling.start_col,
+                                target.misspelling.end_col,
+                            ),
+                            target.word,
+                        )
+                    })
+            } else {
+                None
+            };
+        let history_entries = if matches!(action, Action::OpenHistory | Action::CompareVersion)
+            && self.document.has_active()
+        {
             crate::history::source_path(
                 self.document.buffer().path(),
                 self.document.buffer().is_unnamed_fresh(),
@@ -134,11 +146,15 @@ impl App {
         #[cfg(target_arch = "wasm32")]
         let assets = Vec::new();
         #[cfg(all(not(target_arch = "wasm32"), not(feature = "mas")))]
-        let has_waiter = crate::buffers::BufferKey::of(self.document.buffer()).is_some_and(|key| {
-            self.wait_conns
-                .get(&key)
-                .is_some_and(|waiters| !waiters.is_empty())
-        });
+        let has_waiter = self
+            .document
+            .buffer_opt()
+            .and_then(crate::buffers::BufferKey::of)
+            .is_some_and(|key| {
+                self.wait_conns
+                    .get(&key)
+                    .is_some_and(|waiters| !waiters.is_empty())
+            });
         #[cfg(any(target_arch = "wasm32", feature = "mas"))]
         let has_waiter = false;
         OverlayInputs {
@@ -148,7 +164,10 @@ impl App {
             row_gates: crate::commands::RowGates {
                 has_waiter,
                 change_unresolved: self.change_unresolved(),
-                named_file: self.document.buffer().path().is_some(),
+                named_file: self
+                    .document
+                    .buffer_opt()
+                    .is_some_and(|buffer| buffer.path().is_some()),
             },
         }
     }

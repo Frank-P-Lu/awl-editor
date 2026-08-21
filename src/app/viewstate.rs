@@ -1,26 +1,25 @@
 use super::*;
 mod scroll;
-
+mod zero_document;
 impl App {
     pub(super) fn sync_view(&mut self, follow: bool) {
         if self.sync_menu_context_and_gpu_absent() {
             return;
         }
         self.frame.clear_zoom_reflow();
+        if !self.document.has_active() {
+            self.sync_zero_document_view();
+            return;
+        }
         let height = self.frame.gpu().unwrap().config.height as f32;
         debug_assert!(height.is_finite());
         let (cursor_line, cursor_col) = self.document.buffer().cursor_line_col();
         self.sync_spell_cache();
-        // Update the title marker and native edited dot only on a clean↔dirty
-        // transition; sync_view already observes every live edit.
+        // Update the title marker and native edited dot on a clean↔dirty transition.
         if self.persistence.title_cache_stale(self.is_document_dirty()) {
             self.update_title();
         }
-        // Schedule a debounced AUTO-SAVE for the active quick note when its text
-        // changed. This lives ONLY here (the live windowed path, gated by the
-        // gpu-present check above), so the headless capture/replay never auto-writes
-        // — the determinism + no-fixture-mutation guarantee. The write fires in
-        // `about_to_wait` after a quiet period.
+        // Schedule live-only debounced autosave; capture/replay never writes.
         if self.document.buffer().is_unnamed_fresh()
             && self
                 .persistence
@@ -126,6 +125,7 @@ impl App {
         // fourteen times made rustfmt break every one across five lines.
         let ov = self.workspace_state.overlay();
         let mut view = ViewState {
+            document_active: true,
             text,
             cursor_line,
             cursor_col,

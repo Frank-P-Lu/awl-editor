@@ -545,6 +545,54 @@ fn menu_bar_expand_and_collapse_drive_the_real_dropdown() {
     calm_globals();
 }
 
+#[test]
+fn zero_document_semantic_menu_rejects_export_even_while_goto_is_open() {
+    let _guard = crate::testlock::serial();
+    let _restore = calm_globals_guarded();
+    crate::menubar::set_menu_bar_on(true);
+    let mut app = hermetic();
+    app.document.restore_no_document();
+    app.workspace_state
+        .install_overlay_for_test(seeded_overlay(OverlayKind::Goto));
+    let (menu_index, item_index) = crate::menu::roster()
+        .iter()
+        .enumerate()
+        .find_map(|(menu_index, menu)| {
+            (0..menu.items.len()).find_map(|item_index| {
+                (crate::menu::dropdown_action(menu, item_index, false) == Some(Action::ExportPdf))
+                    .then_some((menu_index, item_index))
+            })
+        })
+        .expect("Export PDF belongs to the semantic menu roster");
+    let id = format!("{MENUBAR_ID}.{menu_index}.item.{item_index}");
+
+    assert!(app.apply_semantic_request(SemanticRequest::Click { id }));
+
+    assert!(!app.document.has_active());
+    assert!(
+        app.workspace_state.overlay_open(),
+        "a rejected global menu command must not disturb the usable Go-to card"
+    );
+}
+
+#[test]
+fn stale_search_case_request_after_last_close_is_absence_safe() {
+    let _guard = crate::testlock::serial();
+    let _restore = calm_globals_guarded();
+    let mut app = hermetic();
+    app.workspace_state
+        .install_search_for_test(crate::search::SearchState::start(
+            0,
+            crate::search::Direction::Forward,
+        ));
+    app.document.restore_no_document();
+
+    assert!(!app.apply_semantic_request(SemanticRequest::Click {
+        id: SEARCH_CASE_ID.to_string(),
+    }));
+    assert!(!app.document.has_active());
+}
+
 /// A Settings range row advertises Increment / Decrement. They must move the
 /// real value, not the caret.
 #[test]

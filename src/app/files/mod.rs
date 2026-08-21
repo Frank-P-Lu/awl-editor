@@ -97,5 +97,12 @@ pub(in crate::app) fn window_title(
     format!("awl - {mark}{name} [{theme_name}]")
 }
 
+/// Window title when the working set intentionally has no active document.
+/// It names only the application and world; a scratch label here would invent
+/// a document that does not exist.
+pub(in crate::app) fn window_title_no_document(theme_name: &str) -> String {
+    format!("awl [{theme_name}]")
+}
+
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod tests;

@@ -16,6 +16,7 @@ mod gutter;
 mod ime;
 mod keys;
 mod mouse;
+mod mouse_button;
 mod wheel;
 
 use drags::ImageDrag;

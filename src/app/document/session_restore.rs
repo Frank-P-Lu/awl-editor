@@ -3,17 +3,30 @@
 use super::*;
 
 impl DocumentSession {
+    /// Restore an explicitly empty previous session. The launch scratch exists
+    /// only to keep first launch unchanged; it is not enrolled as a document in
+    /// the restored working set.
+    pub(in crate::app) fn restore_no_document(&mut self) {
+        if let Some(mut active) = self.take_active() {
+            active.buffer.take_list_continuation_generated();
+        }
+        self.registry = crate::buffers::BufferRegistry::default();
+        self.working = crate::workingset::WorkingSet::default();
+    }
+
     pub(in crate::app) fn session_buffers(&self) -> Vec<(PathBuf, crate::session::BufferPos)> {
         let mut buffers = Vec::new();
-        if let Some(path) = self.active.buffer.path() {
-            let (line, col) = self.active.buffer.cursor_line_col();
+        if let Some(active) = self.active.as_ref()
+            && let Some(path) = active.buffer.path()
+        {
+            let (line, col) = active.buffer.cursor_line_col();
             buffers.push((
                 path.to_path_buf(),
                 crate::session::BufferPos {
                     line,
                     col,
-                    scroll: self.active.extra.scroll.row,
-                    scroll_px_q: self.active.extra.scroll.px_q,
+                    scroll: active.extra.scroll.row,
+                    scroll_px_q: active.extra.scroll.px_q,
                 },
             ));
         }
@@ -44,7 +57,7 @@ impl DocumentSession {
         let mut buffer = Buffer::from_file(path);
         apply_restored_pos(&mut buffer, pos);
         let version = buffer.version();
-        self.active = crate::buffers::Entry {
+        self.active = Some(crate::buffers::Entry {
             buffer,
             extra: BufferExtra {
                 scroll: crate::render::ScrollPos {
@@ -56,7 +69,7 @@ impl DocumentSession {
                 caret_synced_version: version,
                 ..Default::default()
             },
-        };
+        });
     }
 
     pub(in crate::app) fn restore_background(

@@ -11,7 +11,8 @@ impl App {
         if action == Action::KeepTutorial {
             self.workspace_state
                 .set_tutorial_folder_intent(TutorialFolderIntent::KeepTutorial);
-        } else if self.project_location.root == crate::fs::data_root()
+        } else if self.document.has_active()
+            && self.project_location.root == crate::fs::data_root()
             && action == Action::NewDocument
         {
             self.workspace_state

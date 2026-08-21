@@ -86,7 +86,7 @@ impl SemanticView<'_> {
         }
         let open = crate::menubar::open_menu();
         let mut bar = SemanticNode::new(MENUBAR_ID, SemanticRole::MenuBar, "Menu bar");
-        let is_markdown = self.buffer().is_markdown();
+        let is_markdown = self.buffer().is_some_and(Buffer::is_markdown);
         for (index, menu) in crate::menu::roster().iter().enumerate() {
             let title_id = menu_title_id(index);
             let mut title = SemanticNode::new(&title_id, SemanticRole::MenuItem, menu.title);
