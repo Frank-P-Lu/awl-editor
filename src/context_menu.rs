@@ -275,7 +275,7 @@ mod tests {
                             matches!(action, Action::KillRegion | Action::CopyRegion)
                                 && target == ContextTarget::Body
                         }),
-                        "{target:?}/{platform:?}/bits={bits:06b}: Body has no selection, so Cut/Copy must be omitted: {actions:?}"
+                        "{target:?}/{platform:?}/{bits:06b}: Body exposed Cut/Copy: {actions:?}"
                     );
                     if target == ContextTarget::Body {
                         assert_eq!(actions, [Action::Yank, Action::SelectAll]);
@@ -285,7 +285,7 @@ mod tests {
                     {
                         assert!(
                             actions.is_empty(),
-                            "{target:?}/{platform:?}/bits={bits:06b}: an unavailable filename target must have no rows: {actions:?}"
+                            "{target:?}/{platform:?}/{bits:06b}: filename rows: {actions:?}"
                         );
                     }
                 }

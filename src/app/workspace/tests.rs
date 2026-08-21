@@ -192,7 +192,7 @@ fn context_summon_opens_a_card_if_and_only_if_its_roster_has_rows() {
                 assert_eq!(
                     workspace.overlay().is_some(),
                     !rows.is_empty(),
-                    "target={target:?} platform={platform:?} bits={bits:06b}: empty rows must not open a context card"
+                    "{target:?}/{platform:?}/{bits:06b}: empty roster opened a card"
                 );
             }
         }
