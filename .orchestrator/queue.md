@@ -159,34 +159,6 @@ strength; reverting either is theme data, while removing the shared capability
 is not. Read `docs/render.md`, `docs/harness-reach.md`, `THEMES.md` and
 `ACCESSIBILITY.md` before implementation.
 
-### 462 — footnotes join the WYSIWYG Markdown model (USER DECISION 2026-08-21; 🟡 IN PROGRESS — item-462-footnotes (codex), branch codex/item-462-footnotes)
-
-Support the widely used Markdown footnote extension: an inline reference
-`[^label]` paired with a definition `[^label]: text` (including continued
-indented lines). This syntax is supported in practice by GitHub and many prose
-Markdown tools, but it is **not core CommonMark and is not in the formal GFM
-spec**; document that portability honestly rather than calling it universal.
-Labels are identifiers, not display numbers: rendering numbers references by
-first appearance while preserving the authored label and source bytes.
-
-Follow awl's one WYSIWYG rule. Away from the caret, references render as quiet
-superscripts and definitions as composed footnote prose; the caret/selection
-reveals the exact Markdown needed to edit the affected line. Repeated
-references, definitions before references, missing definitions, duplicate
-labels and Unicode labels degrade to legible editable source without losing or
-inventing text. Add an **Insert footnote** formatting command that creates one
-reference/definition pair with a collision-free label and leaves a useful
-caret position; the feature remains fully usable by typing syntax manually.
-Reference activation jumps to its definition through the shared jump/fold
-reveal path, with a return route only if it can remain calm and deterministic.
-
-Export HTML/PDF/Word must preserve the footnote meaning rather than emitting
-concealed source or dropping definitions. Test parsing/conceal/edit boundaries
-at the purest seam, round-trip exact bytes, and sweep malformed/reordered/
-repeated/multiline cases. Render laws cover reference/definition geometry,
-selection reveal, variable wrapping and every world × DPI; read
-`docs/markdown.md` and `docs/harness-reach.md` before implementation.
-
 ### 459 — complete the ordinary-file vocabulary: Trash, Save a Copy, reveal/path, Go to line (USER DECISION 2026-08-18; slices 2–4 LANDED; slice 1 🟡 IN PROGRESS — item-459-trash (codex), branch codex/item-459-trash)
 
 🟢 LANDED — slice 3 (Reveal in File Manager + Copy File Path), `cdd5a1bc`
