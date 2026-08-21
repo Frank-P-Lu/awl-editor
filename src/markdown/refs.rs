@@ -232,11 +232,11 @@ pub fn link_at(text: &str, byte: usize) -> Option<String> {
 }
 
 /// LINKS V2: the full markdown link CONTAINING document byte offset `byte` —
-/// its whole `[text](url)` DOCUMENT byte range, the visible link TEXT (the raw
-/// substring between `[` and the first `]`, so any nested markup the user typed
-/// there — `**bold**`, inline code — round-trips verbatim), and the destination
-/// URL. The richer sibling of [`link_at`] (which this now delegates its URL
-/// extraction to structurally, by construction — the two can never disagree
+/// its whole `[text](url)` DOCUMENT byte range, the raw label source inside its
+/// structural closing `]` (escapes and nested brackets round-trip byte-for-byte),
+/// and the destination URL. The richer sibling of [`link_at`] (which this now
+/// delegates its URL extraction to structurally, by construction — they cannot
+/// disagree
 /// about which link a byte lands in): `link_at` narrows this to just the URL,
 /// [`crate::actions`]'s `Action::InsertLink` dispatch reads the whole thing to
 /// build its EDIT mode (rewrap `[new-text-preserved](new-url)` over the exact
@@ -264,10 +264,7 @@ pub fn link_at_full(text: &str, byte: usize) -> Option<LinkAt> {
             && range.contains(&target)
         {
             let src = &body[range.clone()];
-            let link_text = src
-                .strip_prefix('[')
-                .and_then(|rest| rest.find(']').map(|i| rest[..i].to_string()))
-                .unwrap_or_default();
+            let link_text = raw_link_label(src).unwrap_or_default().to_string();
             return Some(LinkAt {
                 start: range.start + body_offset,
                 end: range.end + body_offset,
@@ -277,4 +274,82 @@ pub fn link_at_full(text: &str, byte: usize) -> Option<LinkAt> {
         }
     }
     None
+}
+
+/// The raw label source inside a parsed link. Backslash escapes are source, not
+/// delimiters; nested brackets balance before the label's structural close.
+fn raw_link_label(src: &str) -> Option<&str> {
+    let label = src.strip_prefix('[')?;
+    let mut depth = 1usize;
+    let mut escaped = false;
+    for (byte, ch) in label.char_indices() {
+        if escaped {
+            escaped = false;
+            continue;
+        }
+        match ch {
+            '\\' => escaped = true,
+            '[' => depth += 1,
+            ']' => {
+                depth -= 1;
+                if depth == 0 {
+                    return label.get(..byte);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+/// Whether replacing the selected character range with a generated link is
+/// safe. This is the one parser-backed context owner shared by URL paste and
+/// future Markdown link doors: never wrap source which touches a link, inline
+/// code, or fenced-code block.
+pub fn link_paste_is_safe(text: &str, start: usize, end: usize) -> bool {
+    fn byte_at_char(text: &str, char_idx: usize) -> usize {
+        text.char_indices()
+            .nth(char_idx)
+            .map(|(byte, _)| byte)
+            .unwrap_or(text.len())
+    }
+    fn overlaps(a: &std::ops::Range<usize>, b: &std::ops::Range<usize>) -> bool {
+        a.start < b.end && b.start < a.end
+    }
+
+    let selected = byte_at_char(text, start)..byte_at_char(text, end);
+    if selected.is_empty() {
+        return false;
+    }
+    let unsafe_span = crate::markdown::spans(text)
+        .into_iter()
+        .any(|(range, kind)| {
+            overlaps(&selected, &range)
+                && matches!(
+                    kind,
+                    crate::markdown::MdKind::Code { .. }
+                        | crate::markdown::MdKind::ConcealMarkup(
+                            crate::markdown::ConcealKind::Code
+                                | crate::markdown::ConcealKind::Fence
+                                | crate::markdown::ConcealKind::Link
+                                | crate::markdown::ConcealKind::Frontmatter
+                        )
+                )
+        });
+    if unsafe_span {
+        return false;
+    }
+
+    use pulldown_cmark::{Event, Options, Parser, Tag};
+    let (body, offset) = match crate::frontmatter::detect(text) {
+        Some(fm) => (&text[fm.range.end..], fm.range.end),
+        None => (text, 0),
+    };
+    let options = Options::ENABLE_TASKLISTS | Options::ENABLE_TABLES;
+    !Parser::new_ext(body, options)
+        .into_offset_iter()
+        .any(|(event, range)| {
+            matches!(event, Event::Start(Tag::Link { .. } | Tag::Image { .. }))
+                && overlaps(&selected, &(range.start + offset..range.end + offset))
+        })
 }

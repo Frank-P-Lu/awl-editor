@@ -1,6 +1,6 @@
 //! Keybinding-capture and settings value-edit overlay state.
 
-use super::{OverlayKind, OverlayState};
+use super::{LinkEditMode, OverlayKind, OverlayState};
 use crate::textbox::TextBox;
 
 /// Which phase of a Keybindings CAPTURE we are in (carried by [`Capture`]). Drives
@@ -143,28 +143,6 @@ impl RenameEdit {
             self.input.text()
         )
     }
-}
-
-/// LINKS V2: what the committed URL is APPLIED to — decided once, purely, from
-/// buffer state the instant Cmd-K is pressed (`actions/link.rs`'s dispatch), then
-/// carried untouched through the whole minibuffer flow so the commit at Enter is
-/// a single pure text-build, no buffer re-inspection.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum LinkEditMode {
-    /// WRAP or REWRITE: replace the CHAR range `[start, end)` with
-    /// `[{text}]({url})` — `text` is the selection being wrapped into a NEW link,
-    /// or the EXISTING link's own visible text being carried over into a rewrite
-    /// (Cmd-K with the caret already inside a link). The two cases are the exact
-    /// same edit shape, so one variant covers both.
-    WithText {
-        start: usize,
-        end: usize,
-        text: String,
-    },
-    /// INSERT empty markup `[](url)` at char position `at` — no selection, no
-    /// existing link under the caret. The caret lands BETWEEN the brackets after
-    /// commit, ready to type the link text.
-    Empty { at: usize },
 }
 
 /// LINKS V2: the live Cmd-K minibuffer sub-state (`Some` only for

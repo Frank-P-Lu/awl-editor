@@ -322,12 +322,13 @@ impl App {
                 }
                 actions::Effect::Clipboard(actions::ClipboardEffect::PasteImage) => {
                     let continuation = match self.paste_image_reference() {
-                        Some(reference) => Action::InsertImageReference(reference),
+                        Some(reference) => actions::ResolvedPaste::ImageReference(reference),
                         None => {
                             self.refresh_kill_from_clipboard();
-                            Action::YankText
+                            actions::ResolvedPaste::Text
                         }
-                    };
+                    }
+                    .into_action();
                     nested_quit |=
                         self.apply(continuation, false, exit, crate::stats::Door::Palette);
                 }

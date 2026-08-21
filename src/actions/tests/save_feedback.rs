@@ -163,6 +163,23 @@ fn paste_is_a_typed_request_then_one_shared_core_continuation() {
     assert_eq!(buffer.text(), "hello");
 }
 
+#[test]
+fn resolved_paste_has_one_closed_typed_continuation_owner() {
+    for (resolved, expected) in [
+        (crate::actions::ResolvedPaste::Text, Action::YankText),
+        (
+            crate::actions::ResolvedPaste::ImageReference("assets/p.png".into()),
+            Action::InsertImageReference("assets/p.png".into()),
+        ),
+    ] {
+        assert_eq!(
+            resolved.into_action(),
+            expected,
+            "MUTATION TRAP: every resolved paste descends through the shared core action"
+        );
+    }
+}
+
 struct TwoRowsPerLine;
 
 impl LayoutOracle for TwoRowsPerLine {

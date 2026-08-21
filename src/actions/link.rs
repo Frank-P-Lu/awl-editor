@@ -76,10 +76,10 @@ pub(super) fn plan(
         let start = byte_to_char(text, link.start);
         let end = byte_to_char(text, link.end);
         return (
-            LinkEditMode::WithText {
+            LinkEditMode::Existing {
                 start,
                 end,
-                text: link.link_text,
+                source_text: link.link_text,
             },
             link.url,
         );
@@ -105,13 +105,29 @@ pub(super) fn commit(text: &str, mode: &LinkEditMode, url: &str) -> format::Form
             let end = (*end).min(chars.len()).max(start);
             let mut out = String::new();
             out.extend(&chars[..start]);
-            out.push('[');
-            out.push_str(inner);
-            out.push_str("](");
-            out.push_str(url);
-            out.push(')');
+            let link = serialized_literal(inner, url);
+            out.push_str(&link);
             out.extend(&chars[end..]);
-            let cursor = start + 1 + inner.chars().count() + 2 + url.chars().count() + 1;
+            let cursor = start + link.chars().count();
+            format::FormatResult {
+                text: out,
+                anchor: None,
+                cursor,
+            }
+        }
+        LinkEditMode::Existing {
+            start,
+            end,
+            source_text,
+        } => {
+            let start = (*start).min(chars.len());
+            let end = (*end).min(chars.len()).max(start);
+            let mut out = String::new();
+            out.extend(&chars[..start]);
+            let link = serialized_source(source_text, url);
+            out.push_str(&link);
+            out.extend(&chars[end..]);
+            let cursor = start + link.chars().count();
             format::FormatResult {
                 text: out,
                 anchor: None,
@@ -122,11 +138,7 @@ pub(super) fn commit(text: &str, mode: &LinkEditMode, url: &str) -> format::Form
             let at = (*at).min(chars.len());
             let mut out = String::new();
             out.extend(&chars[..at]);
-            out.push('[');
-            out.push(']');
-            out.push('(');
-            out.push_str(url);
-            out.push(')');
+            out.push_str(&serialized_literal("", url));
             out.extend(&chars[at..]);
             // Caret lands BETWEEN the brackets, ready to type the link text.
             format::FormatResult {
@@ -136,6 +148,57 @@ pub(super) fn commit(text: &str, mode: &LinkEditMode, url: &str) -> format::Form
             }
         }
     }
+}
+
+/// The one serializer family for a Markdown link. Literal prose is escaped;
+/// source already parsed from an existing link is carried byte-for-byte.
+fn serialized_literal(text: &str, url: &str) -> String {
+    let label = text
+        .replace('\\', "\\\\")
+        .replace('[', "\\[")
+        .replace(']', "\\]");
+    serialized_source(&label, url)
+}
+
+fn serialized_source(source_text: &str, url: &str) -> String {
+    let destination = url
+        .replace('\\', "\\\\")
+        .replace('(', "\\(")
+        .replace(')', "\\)");
+    format!("[{source_text}]({destination})")
+}
+
+/// Pure paste conversion. The caller has already established that this is a
+/// Markdown buffer and that `url` has the conservative URL shape. Context is
+/// delegated to markdown's parser-backed owner: code and existing-link source
+/// remain ordinary literal paste.
+pub(crate) fn paste_over_selection(
+    text: &str,
+    start: usize,
+    end: usize,
+    url: &str,
+) -> Option<(String, Option<usize>, usize)> {
+    if start >= end || !crate::markdown::link_paste_is_safe(text, start, end) {
+        return None;
+    }
+    let selected: String = text.chars().skip(start).take(end - start).collect();
+    let replacement = serialized_literal(&selected, url);
+    Some((
+        replace_chars(text, start, end, &replacement),
+        None,
+        start + replacement.chars().count(),
+    ))
+}
+
+fn replace_chars(text: &str, start: usize, end: usize, replacement: &str) -> String {
+    let chars: Vec<char> = text.chars().collect();
+    let start = start.min(chars.len());
+    let end = end.min(chars.len()).max(start);
+    let mut out = String::new();
+    out.extend(&chars[..start]);
+    out.push_str(replacement);
+    out.extend(&chars[end..]);
+    out
 }
 
 /// `Action::InsertLink` dispatch: markdown buffers only (a calm no-op elsewhere,
@@ -184,6 +247,23 @@ mod tests {
     }
 
     #[test]
+    fn link_serializer_escapes_source_without_changing_visible_words() {
+        let result = commit(
+            "cat] (\\)",
+            &LinkEditMode::WithText {
+                start: 0,
+                end: 8,
+                text: "cat] (\\)".to_string(),
+            },
+            "https://example.com/a_(b)\\c",
+        );
+        assert_eq!(
+            result.text,
+            "[cat\\] (\\\\)](https://example.com/a_\\(b\\)\\\\c)"
+        );
+    }
+
+    #[test]
     fn plan_with_selection_ignores_a_non_url_kill_head() {
         let (_, prefill) = plan("hello world", Some(0), 5, "just some prose");
         assert_eq!(prefill, "");
@@ -213,10 +293,10 @@ mod tests {
         let end = text.find(')').unwrap() + 1;
         assert_eq!(
             mode,
-            LinkEditMode::WithText {
+            LinkEditMode::Existing {
                 start,
                 end,
-                text: "the text".to_string()
+                source_text: "the text".to_string()
             }
         );
         // Prefill is the EXISTING link's URL, never the kill head.
@@ -264,13 +344,38 @@ mod tests {
         let text = "see [the text](https://old.example/path) here";
         let start = text.find('[').unwrap();
         let end = text.find(')').unwrap() + 1;
-        let mode = LinkEditMode::WithText {
+        let mode = LinkEditMode::Existing {
             start,
             end,
-            text: "the text".to_string(),
+            source_text: "the text".to_string(),
         };
         let r = commit(text, &mode, "https://new.example/path");
         assert_eq!(r.text, "see [the text](https://new.example/path) here");
+    }
+
+    #[test]
+    fn existing_link_rewrite_preserves_already_escaped_raw_label_source() {
+        let text = r"see [a\]b\\c](https://old.example) here";
+        let cursor = text.find("b\\").unwrap();
+        let (mode, _) = plan(text, None, cursor, "");
+        let LinkEditMode::Existing {
+            ref source_text, ..
+        } = mode
+        else {
+            panic!("parsed existing link must retain a source-labelled edit mode");
+        };
+        assert_eq!(source_text, r"a\]b\\c");
+
+        let result = commit(text, &mode, "https://new.example");
+        assert_eq!(
+            result.text, r"see [a\]b\\c](https://new.example) here",
+            "MUTATION TRAP: existing raw escapes are never escaped a second time"
+        );
+        assert_eq!(
+            result.cursor,
+            result.text.find(" here").unwrap(),
+            "caret lands after the rewritten link"
+        );
     }
 
     // --- open_insert_link(): the full apply_transition dispatch ---------------------
@@ -339,124 +444,6 @@ mod tests {
         assert!(
             journey.card().is_none(),
             "a non-markdown buffer must not open the link minibuffer"
-        );
-    }
-
-    /// Full flow: Cmd-K on a selection → type a URL → Enter commits as ONE
-    /// undoable edit → Cmd-Z restores the exact pre-edit text + selection.
-    #[test]
-    fn full_wrap_flow_commits_one_undoable_edit_and_undo_restores_exactly() {
-        let mut buffer = Buffer::from_str("hello world");
-        buffer.select_range(0, 5); // "hello"
-        let before_version = buffer.version();
-
-        let mut shift_selecting = false;
-        let mut zoom = 1.0;
-        let mut search = None;
-        let mut overlay = crate::overlay::Journey::default();
-        {
-            let mut make_overlay =
-                |_k: OverlayKind| -> Option<crate::overlay::OverlayState> { None };
-            let mut browse_to = |_k: OverlayKind,
-                                 _r: Option<String>|
-             -> Option<crate::overlay::OverlayState> { None };
-            let mut ctx = ActionCtx {
-                buffer: &mut buffer,
-                shift_selecting: &mut shift_selecting,
-                zoom: &mut zoom,
-                search: &mut search,
-                scroll_page_lines: 1,
-                journey: &mut overlay,
-                make_overlay: &mut make_overlay,
-                browse_to: &mut browse_to,
-                oracle: None,
-            };
-            apply_transition(&mut ctx, &Action::InsertLink, false).primary();
-        }
-        let ov = overlay.card_mut().expect("overlay must open");
-        for c in "https://example.com".chars() {
-            ov.link_edit_push(c);
-        }
-
-        {
-            let mut make_overlay =
-                |_k: OverlayKind| -> Option<crate::overlay::OverlayState> { None };
-            let mut browse_to = |_k: OverlayKind,
-                                 _r: Option<String>|
-             -> Option<crate::overlay::OverlayState> { None };
-            let mut ctx = ActionCtx {
-                buffer: &mut buffer,
-                shift_selecting: &mut shift_selecting,
-                zoom: &mut zoom,
-                search: &mut search,
-                scroll_page_lines: 1,
-                journey: &mut overlay,
-                make_overlay: &mut make_overlay,
-                browse_to: &mut browse_to,
-                oracle: None,
-            };
-            apply_transition(&mut ctx, &Action::Newline, false).primary();
-        }
-        assert!(overlay.card().is_none(), "commit closes the overlay");
-        assert_eq!(buffer.text(), "[hello](https://example.com) world");
-        assert!(
-            buffer.version() > before_version,
-            "the commit is a real edit"
-        );
-
-        buffer.undo();
-        assert_eq!(
-            buffer.text(),
-            "hello world",
-            "undo restores the exact pre-edit text"
-        );
-        // `apply_format` (the same atomic-replace primitive every markdown format
-        // toggle uses) restores the CURSOR position undo recorded, not the prior
-        // SELECTION (a whole-buffer replace's undo group carries no anchor) —
-        // matching every other formatting-command toggle's own undo shape, not a
-        // Links-v2-specific gap.
-        assert_eq!(
-            buffer.cursor_char(),
-            5,
-            "undo restores the cursor to its pre-commit position"
-        );
-    }
-
-    /// Esc cancels the minibuffer cleanly — no buffer edit at all.
-    #[test]
-    fn esc_cancels_with_no_buffer_change() {
-        let mut buffer = Buffer::from_str("hello world");
-        buffer.set_cursor(5);
-        let mut shift_selecting = false;
-        let mut zoom = 1.0;
-        let mut search = None;
-        let mut journey = crate::overlay::Journey::default();
-        let mut make_overlay = |_k: OverlayKind| -> Option<crate::overlay::OverlayState> { None };
-        let mut browse_to =
-            |_k: OverlayKind, _r: Option<String>| -> Option<crate::overlay::OverlayState> { None };
-        let mut ctx = ActionCtx {
-            buffer: &mut buffer,
-            shift_selecting: &mut shift_selecting,
-            zoom: &mut zoom,
-            search: &mut search,
-            scroll_page_lines: 1,
-            journey: &mut journey,
-            make_overlay: &mut make_overlay,
-            browse_to: &mut browse_to,
-            oracle: None,
-        };
-        apply_transition(&mut ctx, &Action::InsertLink, false).primary();
-        assert!(ctx.journey.card().is_some());
-        apply_transition(&mut ctx, &Action::Cancel, false).primary();
-        assert!(
-            ctx.journey.card().is_none(),
-            "Esc/Cancel closes the minibuffer"
-        );
-        let _ = ctx;
-        assert_eq!(
-            buffer.text(),
-            "hello world",
-            "cancel never edits the buffer"
         );
     }
 

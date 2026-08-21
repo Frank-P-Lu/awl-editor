@@ -258,6 +258,26 @@ fn paste_after_switch_replaces_an_existing_destination_selection() {
     assert_eq!(app.document.buffer().text(), "XXXalphaYYY");
 }
 
+#[test]
+fn native_clipboard_url_paste_over_markdown_selection_reaches_the_shared_link_transition() {
+    let path = PathBuf::from("/proj/note.md");
+    let mem = InMemoryFs::new().with_file(&path, "the essay");
+    let _fs = crate::fs::FsGuard::install(Arc::new(mem));
+    let _g = crate::testlock::serial();
+    let mut app = app_on(Some(path), "/proj", Config::empty());
+    let fake = install_fake_clipboard(&mut app);
+    fake.set_external("https://example.com");
+    app.document.select_range(0, 9);
+
+    paste(&mut app);
+
+    assert_eq!(
+        app.document.buffer().text(),
+        "[the essay](https://example.com)",
+        "the native clipboard bridge must descend into Action::YankText, never edit around the core"
+    );
+}
+
 // ── AN EXTERNAL OVERWRITE BETWEEN SWITCH AND PASTE WINS ───────────────────
 
 #[test]

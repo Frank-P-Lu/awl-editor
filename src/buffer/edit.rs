@@ -5,32 +5,7 @@
 //! `kill_line_to`), and C-y yank. Carved out of `buffer.rs` verbatim — inherent
 //! methods on [`Buffer`].
 
-use super::Buffer;
-
-/// URL-SHAPE test for the paste-URL-over-selection → markdown-link convention.
-/// Deliberately simple + conservative (documented shape, not a validator): the
-/// string must be a single `scheme://…` token — a `://` after an ASCII-alpha
-/// scheme (`http`, `https`, `ftp`, …), no interior whitespace, and non-empty
-/// authority text after the `://`. Anything else (plain prose, a bare filesystem
-/// path, a scheme with nothing after `://`, a multi-line clipboard) is NOT a URL,
-/// so the paste stays a normal replace.
-pub fn is_url(s: &str) -> bool {
-    // No surrounding or interior whitespace — a URL is one bare token.
-    if s.is_empty() || s.chars().any(char::is_whitespace) {
-        return false;
-    }
-    let Some(scheme_end) = s.find("://") else {
-        return false;
-    };
-    let scheme = &s[..scheme_end];
-    // A non-empty scheme of ASCII letters (RFC-ish: letter-led; we keep it to
-    // pure letters, which covers http/https/ftp/mailto-less real cases).
-    if scheme.is_empty() || !scheme.bytes().all(|b| b.is_ascii_alphabetic()) {
-        return false;
-    }
-    // Something must follow `://` (a host) — reject a bare `http://`.
-    !s[scheme_end + 3..].is_empty()
-}
+use super::{Buffer, is_url};
 
 impl Buffer {
     // --- Editing ----------------------------------------------------------
@@ -526,13 +501,17 @@ impl Buffer {
                 // only — a `.rs`/`.txt` paste of a URL over a selection stays a
                 // normal replace, never `[x](url)` in code). Wrap the selected
                 // text as `[selected](url)` in ONE undoable edit; Cmd-Z restores
-                // the original selection. The selected text comes from the rope,
-                // the URL from the (already clipboard-refreshed) kill ring — no
-                // new plumbing.
-                let sel = self.rope.slice(start..end).to_string();
-                let link = format!("[{sel}]({s})");
-                let after = start + link.chars().count();
-                self.apply_edit(start, end - start, &link, before, after);
+                // the original selection; text comes from the rope and URL from
+                // the (already clipboard-refreshed) kill ring — no new plumbing.
+                let text = self.text();
+                if let Some((text, anchor, cursor)) =
+                    crate::actions::link::paste_over_selection(&text, start, end, &s)
+                {
+                    self.apply_format(&text, anchor, cursor);
+                } else {
+                    let after = start + s.chars().count();
+                    self.apply_edit(start, end - start, &s, before, after);
+                }
             } else {
                 let after = start + s.chars().count();
                 self.apply_edit(start, end - start, &s, before, after);
