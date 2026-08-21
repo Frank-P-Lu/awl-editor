@@ -77,9 +77,9 @@ impl App {
     /// routed action, so a roster edit degrades to the in-app surface rather than
     /// to nothing.
     fn run_native_panel(&mut self, id: &str, exit: &dyn schedule::Exit) {
-        use crate::export::Format;
         use crate::keymap::Action;
-        let format = match crate::menu::resolve(id) {
+        let action = crate::menu::resolve(id);
+        match action {
             // File ▸ "Browse files…" → `NSOpenPanel`. On OK it loads the chosen
             // path through the SAME `load_path` every open uses (which itself
             // syncs); then paint, per the post-`apply` pattern above. Cancel /
@@ -91,25 +91,30 @@ impl App {
                     self.apply_file_choice(Some(path));
                     self.request_frame();
                 }
-                return;
             }
-            Some(Action::ExportWord) => Some(Format::Docx),
-            Some(Action::ExportHtml) => Some(Format::Html),
-            Some(Action::ExportPdf) => Some(Format::Pdf),
-            _ => None,
-        };
-        match format {
-            // The write, the notice and the Finder reveal are the ordinary export
-            // path — only the destination came from somewhere else.
-            Some(format) => {
-                if self.export_via_platform_panel(format) {
+            Some(Action::SaveCopy) => {
+                if self.save_copy_via_platform_panel() {
                     self.request_frame();
                 }
             }
-            None => {
-                if let Some(action) = crate::menu::resolve(id) {
-                    self.apply(action, false, exit, crate::stats::Door::Menu);
+            Some(Action::ExportWord) => {
+                if self.export_via_platform_panel(crate::export::Format::Docx) {
+                    self.request_frame();
                 }
+            }
+            Some(Action::ExportHtml) => {
+                if self.export_via_platform_panel(crate::export::Format::Html) {
+                    self.request_frame();
+                }
+            }
+            Some(Action::ExportPdf) => {
+                if self.export_via_platform_panel(crate::export::Format::Pdf) {
+                    self.request_frame();
+                }
+            }
+            None => {}
+            Some(action) => {
+                self.apply(action, false, exit, crate::stats::Door::Menu);
             }
         }
     }

@@ -719,6 +719,7 @@ macro_rules! classify_action_family {
             | Action::MoveFile
             | Action::OpenRenameNote
             | Action::DuplicateNote
+            | Action::SaveCopy
             | Action::OpenSettings
             | Action::OpenSettingsMenu
             | Action::FinishBuffer

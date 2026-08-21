@@ -116,6 +116,7 @@ const FILE_ITEMS: &[Routed] = &[
         label: "Duplicate file",
         icon: false,
     },
+    r("awl.save_copy", "Save a Copy…"),
     r("awl.history", "Version history…"),
     ri("awl.save", "Save"),
     Routed {
@@ -149,6 +150,9 @@ const FILE_ITEMS: &[Routed] = &[
 const NATIVE_PANEL_IDS: &[&str] = &[
     // File ▸ "Browse files…" → `NSOpenPanel`.
     "awl.open",
+    // File ▸ "Save a Copy…" uses the same NSSavePanel as exports. AppKit owns
+    // overwrite confirmation, so no second no-clobber prompt can drift from it.
+    "awl.save_copy",
     // File ▸ the three "Export as …" rows → `NSSavePanel`, opened at the folder
     // and under the name the destination owner would have chosen on its own
     // (`app::files::export::export_target`). The shared core's own answer for the
@@ -400,14 +404,15 @@ fn roster_all() -> Vec<RosterMenu> {
                 routed(&FILE_ITEMS[5]), // Rename file…
                 routed(&FILE_ITEMS[6]), // Move file…
                 routed(&FILE_ITEMS[7]), // Duplicate file
-                routed(&FILE_ITEMS[8]), // Version history…
+                routed(&FILE_ITEMS[8]), // Save a Copy…
+                routed(&FILE_ITEMS[9]), // Version history…
                 RosterItem::Separator,
-                routed(&FILE_ITEMS[9]),  // Save
-                routed(&FILE_ITEMS[10]), // Save and return
+                routed(&FILE_ITEMS[10]), // Save
+                routed(&FILE_ITEMS[11]), // Save and return
                 RosterItem::Separator,
-                routed(&FILE_ITEMS[11]), // Export as PDF
-                routed(&FILE_ITEMS[12]), // Export as Word
-                routed(&FILE_ITEMS[13]), // Export as HTML
+                routed(&FILE_ITEMS[12]), // Export as PDF
+                routed(&FILE_ITEMS[13]), // Export as Word
+                routed(&FILE_ITEMS[14]), // Export as HTML
             ],
         },
         RosterMenu {
@@ -858,6 +863,7 @@ mod tests {
                 "Rename file…",
                 "Move file…",
                 "Duplicate file",
+                "Save a Copy…",
                 "Version history…",
                 "Save",
                 "Save and return",
@@ -1041,6 +1047,7 @@ mod tests {
     /// catalog actions; they must never acquire an exporter-only dispatch path.
     #[test]
     fn file_export_ids_resolve_to_the_existing_catalog_actions() {
+        assert_eq!(resolve("awl.save_copy"), Some(Action::SaveCopy));
         assert_eq!(resolve("awl.export_pdf"), Some(Action::ExportPdf));
         assert_eq!(resolve("awl.export_word"), Some(Action::ExportWord));
         assert_eq!(resolve("awl.export_html"), Some(Action::ExportHtml));

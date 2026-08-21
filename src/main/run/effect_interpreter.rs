@@ -90,6 +90,7 @@ impl<'a> ReplaySession<'a> {
             | actions::Effect::TrashAsset { .. }
             | actions::Effect::RenameNoteCommit { .. }
             | actions::Effect::DuplicateNote
+            | actions::Effect::SaveCopy
             | actions::Effect::RevealInFileManager(_)
             | actions::Effect::AddToDictionary(_)
             | actions::Effect::None => {}

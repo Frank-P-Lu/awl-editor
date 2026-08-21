@@ -42,6 +42,9 @@ pub enum Action {
     PageScrollDown,
     PageScrollUp,
     Save,
+    /// Write a snapshot of the current document to a separately chosen path,
+    /// without adopting that path as this buffer's identity.
+    SaveCopy,
     Quit,
     SearchForward,
     SearchBackward,
