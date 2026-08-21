@@ -268,23 +268,6 @@ impl App {
         }
     }
 
-    pub(in crate::app) fn save_copy_in_folder(&mut self, dest_rel: &str) {
-        let name = self
-            .document
-            .buffer()
-            .path()
-            .and_then(|p| p.file_name())
-            .map(|n| n.to_os_string())
-            .unwrap_or_else(|| self.document.buffer().display_name().into());
-        let folder = if dest_rel.is_empty() {
-            self.project_location.root.clone()
-        } else {
-            self.project_location.root.join(dest_rel)
-        };
-        let target = folder.join(name);
-        self.save_copy_to(&target, false);
-    }
-
     pub(in crate::app) fn save_copy_named(&mut self, dest_rel: &str, name: &str) {
         if name.trim().is_empty() {
             return;

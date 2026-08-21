@@ -224,14 +224,6 @@ pub fn classify_for(effect: &Effect, filesystem: FilesystemCapability) -> Classi
             "duplicate_note",
             unsupported("the sibling copy + buffer swap are live-App-only"),
         ),
-        Effect::SaveCopy => c(
-            "save_copy",
-            unsupported("the platform save panel and its destination write are live-App-only"),
-        ),
-        Effect::SaveCopyTo(_) => c(
-            "save_copy",
-            unsupported("the destination write is live-App-only"),
-        ),
         Effect::SaveCopyName { .. } => c(
             "save_copy",
             unsupported("the destination write is live-App-only"),

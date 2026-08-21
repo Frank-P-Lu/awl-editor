@@ -372,6 +372,44 @@ fn save_a_copy_cancellation_and_no_clobber_leave_disk_and_source_intact() {
     });
 }
 
+/// The shared destination route supplies both its chosen folder and the
+/// rename-seam filename; neither is silently replaced with the source name.
+#[test]
+fn save_a_copy_named_uses_the_chosen_filename_and_refuses_a_collision() {
+    let _g = crate::testlock::serial();
+    let source = std::path::PathBuf::from(DOC);
+    let target = std::path::PathBuf::from("/w/proj/copies/final.md");
+    let mem = InMemoryFs::new()
+        .with_dir("/w/proj/copies")
+        .with_file(&source, BODY);
+    crate::fs::with_fs(Arc::new(mem.clone()), || {
+        let mut app = App::new(
+            Some(source),
+            std::path::PathBuf::from("/w/proj"),
+            None,
+            None,
+            Config {
+                session_restore: Some(false),
+                reduce_motion: Some(false),
+                ..Config::empty()
+            },
+        );
+        app.save_copy_named("copies", "final.md");
+        assert_eq!(
+            mem.read(&target).unwrap(),
+            BODY.as_bytes(),
+            "chosen filename reaches the snapshot writer"
+        );
+        mem.write(&target, b"keep").unwrap();
+        app.save_copy_named("copies", "final.md");
+        assert_eq!(
+            mem.read(&target).unwrap(),
+            b"keep",
+            "a collision is never silently clobbered"
+        );
+    });
+}
+
 /// A FOLDER CHOSEN IN THE NAVIGATOR wins over both defaults, keeps the
 /// document's own stem, and — because it is not the folder the document lives in
 /// — is spoken in full. Swept over both sides of the path axis, since the stem
