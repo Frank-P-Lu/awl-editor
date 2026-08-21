@@ -299,3 +299,51 @@ fn scanline_material_is_reusable_static_data_with_one_absolute_phase() {
     set_summoned_material_test_override(None);
     set_title_style_test_override(None);
 }
+
+#[test]
+fn static_material_enrolls_the_complete_overlay_surface_roster() {
+    let _guard = crate::testlock::serial();
+    let _world = theme::WorldPin::world("Cassowary").expect("Cassowary ships");
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
+        eprintln!("skipping material surface roster: no wgpu adapter");
+        return;
+    };
+    let mut enrolled = 0;
+    for kind in crate::overlay::OverlayKind::ALL {
+        match kind {
+            crate::overlay::OverlayKind::Goto
+            | crate::overlay::OverlayKind::Project
+            | crate::overlay::OverlayKind::ProjectBrowse
+            | crate::overlay::OverlayKind::Browse
+            | crate::overlay::OverlayKind::Theme
+            | crate::overlay::OverlayKind::Caret
+            | crate::overlay::OverlayKind::Dictionary
+            | crate::overlay::OverlayKind::CjkLang
+            | crate::overlay::OverlayKind::Date
+            | crate::overlay::OverlayKind::Keymap
+            | crate::overlay::OverlayKind::MoveDest
+            | crate::overlay::OverlayKind::Command
+            | crate::overlay::OverlayKind::Spell
+            | crate::overlay::OverlayKind::Keybindings
+            | crate::overlay::OverlayKind::History
+            | crate::overlay::OverlayKind::Conflict
+            | crate::overlay::OverlayKind::Credits
+            | crate::overlay::OverlayKind::Settings
+            | crate::overlay::OverlayKind::Assets
+            | crate::overlay::OverlayKind::Rename
+            | crate::overlay::OverlayKind::InsertLink
+            | crate::overlay::OverlayKind::KeepName
+            | crate::overlay::OverlayKind::Context
+            | crate::overlay::OverlayKind::ExportDest => {}
+        }
+        let mut v = console_view(1);
+        v.overlay_title = kind.title();
+        v.overlay_window_rows = kind.window_rows();
+        p.set_view(&v);
+        p.prepare(&device, &queue, 1200, 800).unwrap();
+        assert_eq!(p.panel_material.instance_count(), 1, "{kind:?} pane");
+        assert_eq!(p.placard_material.instance_count(), 1, "{kind:?} placard");
+        enrolled += 1;
+    }
+    assert_eq!(enrolled, crate::overlay::OverlayKind::ALL.len());
+}
