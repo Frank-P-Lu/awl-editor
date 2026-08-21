@@ -269,6 +269,7 @@ impl App {
         }
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub(in crate::app) fn save_copy_named(&mut self, dest_rel: &str, name: &str) {
         if name.trim().is_empty() {
             return;
@@ -279,6 +280,11 @@ impl App {
             self.project_location.root.join(dest_rel)
         };
         self.save_copy_to(&folder.join(name), false);
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub(in crate::app) fn save_copy_named(&mut self, dest_rel: &str, name: &str) {
+        let _ = (dest_rel, name);
     }
 
     /// The sole interactive Save a Copy door. NSSavePanel owns cancellation and

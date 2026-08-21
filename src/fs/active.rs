@@ -229,6 +229,7 @@ impl FileSystem for UnwritableFs {
             "folder unwritable",
         ))
     }
+    #[cfg(not(target_arch = "wasm32"))]
     fn rename_no_replace(
         &self,
         _from: &std::path::Path,

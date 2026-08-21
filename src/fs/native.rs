@@ -26,6 +26,7 @@ impl FileSystem for NativeFs {
         std::fs::rename(from, to)
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     fn rename_no_replace(&self, from: &Path, to: &Path) -> io::Result<()> {
         // `hard_link` is the native macOS/Linux create-if-absent primitive:
         // unlike rename it fails when `to` already exists, without a TOCTOU

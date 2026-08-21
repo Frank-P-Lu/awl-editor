@@ -22,7 +22,9 @@ pub use native::NativeFs;
 pub(crate) use paths::home_dir;
 #[cfg(target_arch = "wasm32")]
 pub use paths::web_config_path;
-pub use paths::{data_root, scratch_stash_path, write_atomic, write_atomic_new};
+#[cfg(not(target_arch = "wasm32"))]
+pub use paths::write_atomic_new;
+pub use paths::{data_root, scratch_stash_path, write_atomic};
 #[cfg(target_arch = "wasm32")]
 pub use web::install_web_fs;
 #[cfg(any(test, target_arch = "wasm32"))]
@@ -71,6 +73,7 @@ pub trait FileSystem: Send + Sync {
 
     /// Atomically publish `from` at an absent `to`, refusing to replace an
     /// existing destination. This is the no-clobber half of a durable write.
+    #[cfg(not(target_arch = "wasm32"))]
     fn rename_no_replace(&self, from: &Path, to: &Path) -> io::Result<()>;
 
     fn exists(&self, path: &Path) -> bool;
@@ -91,9 +94,9 @@ pub trait FileSystem: Send + Sync {
 #[cfg(test)]
 mod serialization_law;
 
-#[cfg(test)]
+#[cfg(all(test, not(target_arch = "wasm32")))]
 mod scripted;
-#[cfg(test)]
+#[cfg(all(test, not(target_arch = "wasm32")))]
 pub(crate) use scripted::{ScriptedFailure, ScriptedFs, ScriptedOperation};
 
 #[cfg(test)]

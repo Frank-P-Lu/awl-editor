@@ -127,6 +127,7 @@ impl FileSystem for ScriptedFs {
         self.inner.rename(from, to)
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     fn rename_no_replace(&self, from: &Path, to: &Path) -> io::Result<()> {
         if let Some((path, data)) = self.race_target.lock().unwrap().take() {
             self.inner.write(&path, &data)?;
