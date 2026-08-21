@@ -21,7 +21,14 @@ pub(super) fn apply_deferred_action(ctx: &mut ActionCtx, action: &Action) -> Opt
             Effect::None
         }
         Action::DuplicateNote => Effect::DuplicateNote,
-        Action::SaveCopy => Effect::SaveCopy,
+        Action::SaveCopy => {
+            let card = (ctx.browse_to)(OverlayKind::ExportDest, None).map(|mut card| {
+                card.save_copy = true;
+                card
+            });
+            ctx.journey.enter(card);
+            Effect::None
+        }
         // Resolved HERE (the pure core), not by the live App: a path-less
         // scratch buffer signals `Effect::None`, the exact `FollowLink`
         // shape, so a headless replay of this action against a scratch

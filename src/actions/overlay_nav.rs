@@ -80,10 +80,17 @@ fn rename_edit_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect>
         Action::DeleteWordForward => overlay.rename_edit_delete_word_forward(),
         Action::Newline => {
             let target = overlay.rename_edit_target();
+            let save_copy_dest = overlay.save_copy_dest.clone();
             ctx.journey.dismiss();
             return Some(
                 target
-                    .map(|new_name| Effect::RenameNoteCommit { new_name })
+                    .map(|new_name| match save_copy_dest {
+                        Some(dest) => Effect::SaveCopyName {
+                            dest,
+                            name: new_name,
+                        },
+                        None => Effect::RenameNoteCommit { new_name },
+                    })
                     .unwrap_or(Effect::None),
             );
         }
@@ -410,9 +417,18 @@ fn accept_path_overlay(ctx: &mut ActionCtx) -> Option<Effect> {
             Some(effect)
         }
         crate::overlay::OverlayKind::ExportDest => {
-            let effect = match (ov.export_format, dest_value(ov, true)) {
-                (Some(format), Some(dest)) => Effect::Export(format, Some(dest)),
-                _ => Effect::None,
+            let effect = if ov.save_copy {
+                if let Some(dest) = dest_value(ov, true) {
+                    let mut prompt = OverlayState::new_rename(ctx.buffer.display_name());
+                    prompt.save_copy_dest = Some(dest);
+                    ctx.journey.enter(Some(prompt));
+                }
+                Effect::None
+            } else {
+                match (ov.export_format, dest_value(ov, true)) {
+                    (Some(format), Some(dest)) => Effect::Export(format, Some(dest)),
+                    _ => Effect::None,
+                }
             };
             dispose_after_accept(ctx);
             Some(effect)

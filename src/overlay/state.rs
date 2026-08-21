@@ -53,6 +53,10 @@ pub struct OverlayState {
     /// picker is filling in — and the reason both are payloads rather than a
     /// field each rebuild site has to remember.
     pub export_format: Option<crate::export::Format>,
+    /// A Save a Copy request reuses the folders-only export destination card;
+    /// this payload selects its distinct write on accept.
+    pub save_copy: bool,
+    pub save_copy_dest: Option<String>,
     /// Go to Line's one fact: the destination buffer's total line count,
     /// gathered once at build time (`attach_line_jump`). `0` is the inert
     /// default every non-`Goto`/bare-constructed picker carries -- "no
@@ -137,6 +141,8 @@ impl OverlayState {
             context_anchor: None,
             conflict: None,
             export_format: None,
+            save_copy: false,
+            save_copy_dest: None,
             goto_line_count: 0,
         };
         s.refilter();
@@ -153,6 +159,8 @@ impl OverlayState {
     /// not the disk".
     pub fn carry_level_payload_from(&mut self, prev: &Self) {
         self.export_format = prev.export_format;
+        self.save_copy = prev.save_copy;
+        self.save_copy_dest = prev.save_copy_dest.clone();
     }
 
     pub fn accepts(&self) -> Vec<&str> {

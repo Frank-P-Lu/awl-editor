@@ -566,9 +566,7 @@ impl App {
             // calmly on a git-managed file or a name collision).
             actions::Effect::RenameNoteCommit { new_name } => self.rename_current_file(&new_name),
             actions::Effect::DuplicateNote => self.duplicate_current_file(),
-            actions::Effect::SaveCopy => {
-                self.save_copy_via_platform_panel();
-            }
+            actions::Effect::SaveCopyName { dest, name } => self.save_copy_named(&dest, &name),
             // Shares the export write's own gate (`Self::reveal_path`) rather
             // than a second implementation: a surfaceless App reveals nothing.
             // Native-only: the browser build has no OS file-manager handoff

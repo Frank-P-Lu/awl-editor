@@ -230,9 +230,10 @@ pub enum Effect {
         new_name: String,
     },
     DuplicateNote,
-    /// Ask the platform save-panel for a destination, then write a snapshot
-    /// without changing the source buffer's identity.
-    SaveCopy,
+    SaveCopyName {
+        dest: String,
+        name: String,
+    },
     InsertDate,
     /// Reveal this absolute path in the platform's file viewer — carries the
     /// path so a headless replay records the SAME handoff a live App would

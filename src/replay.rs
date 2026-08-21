@@ -228,6 +228,14 @@ pub fn classify_for(effect: &Effect, filesystem: FilesystemCapability) -> Classi
             "save_copy",
             unsupported("the platform save panel and its destination write are live-App-only"),
         ),
+        Effect::SaveCopyTo(_) => c(
+            "save_copy",
+            unsupported("the destination write is live-App-only"),
+        ),
+        Effect::SaveCopyName { .. } => c(
+            "save_copy",
+            unsupported("the destination write is live-App-only"),
+        ),
         // An external handoff, the exact `Export`/`FollowLink` shape: recorded
         // with its payload, never performed, and the skip changes nothing
         // about subsequent in-app state (no window ever came forward).
