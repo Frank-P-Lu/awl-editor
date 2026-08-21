@@ -128,12 +128,6 @@ impl TextPipeline {
     /// Returns whether the visible hover state changed, allowing the App to ask
     /// for exactly one repaint on entry, zone crossing, row crossing or exit.
     pub fn resolve_gutter_stack_hover(&mut self, px: f32, py: f32, height: u32) -> bool {
-        // Production has no drawn hover treatment yet, so it also takes no
-        // hidden hover-state or repaint cost. The live seam wakes only for an
-        // explicitly armed taste-gallery process.
-        if gutter_stack::close_prototype() == gutter_stack::ClosePrototype::Off {
-            return false;
-        }
         let next = self.gutter_stack_hit(px, py, height);
         if self.gutter_stack_hover == next {
             return false;

@@ -47,16 +47,6 @@ impl GutterLayout {
     /// the identity moves all four together and none of them re-derives the
     /// block's height from a second count.
     pub(super) fn lines(&self) -> Vec<(&str, GutterLine)> {
-        self.lines_with(gutter_stack::folder_prototype())
-    }
-
-    /// The same ordered block with an explicit prototype choice, split out so
-    /// the one-file identity and both folder candidates are testable without
-    /// mutating a process-global environment variable.
-    pub(super) fn lines_with(
-        &self,
-        folder: gutter_stack::FolderPrototype,
-    ) -> Vec<(&str, GutterLine)> {
         let mut out = Vec::with_capacity(3);
         if !self.changed.is_empty() {
             out.push((self.changed.as_str(), GutterLine::Changed));
@@ -64,16 +54,14 @@ impl GutterLayout {
         if self.files.is_empty() {
             out.push((self.name.as_str(), GutterLine::Name));
         } else {
-            if folder == gutter_stack::FolderPrototype::HeadingAbove && !self.project.is_empty() {
+            if !self.project.is_empty() {
                 out.push((self.project.as_str(), GutterLine::Project));
             }
             for (at, line) in self.files.iter().enumerate() {
                 out.push((line.text.as_str(), GutterLine::File(at)));
             }
         }
-        if !self.project.is_empty()
-            && (self.files.is_empty() || folder != gutter_stack::FolderPrototype::HeadingAbove)
-        {
+        if !self.project.is_empty() && self.files.is_empty() {
             out.push((self.project.as_str(), GutterLine::Project));
         }
         out
@@ -221,10 +209,7 @@ impl TextPipeline {
         // The WORKING SET's spans, already inked — empty for a single file, which
         // is what sends the identity line below down its original path rather
         // than through a stack of one.
-        let close_prototype = gutter_stack::close_prototype();
-        let folder_prototype = gutter_stack::folder_prototype();
-        let stack_ink =
-            gutter_stack::stack_spans(&layout.files, self.gutter_stack_hover, close_prototype);
+        let stack_ink = gutter_stack::stack_spans(&layout.files, self.gutter_stack_hover);
         let mut spans: Vec<(&str, Attrs)> = Vec::new();
         if !changed_line.is_empty() {
             spans.push((
@@ -235,9 +220,7 @@ impl TextPipeline {
         if stack_ink.is_empty() {
             spans.push((name.as_str(), base.clone().color(muted)));
         } else {
-            if folder_prototype == gutter_stack::FolderPrototype::HeadingAbove
-                && !project.is_empty()
-            {
+            if !project.is_empty() {
                 spans.push((project.as_str(), base.clone().color(muted)));
                 spans.push(("\n", base.clone().color(muted)));
             }
@@ -245,21 +228,8 @@ impl TextPipeline {
                 spans.push((text.as_str(), base.clone().color(*ink)));
             }
         }
-        if !proj_line.is_empty()
-            && (stack_ink.is_empty()
-                || folder_prototype != gutter_stack::FolderPrototype::HeadingAbove)
-        {
-            let attrs = if !stack_ink.is_empty()
-                && folder_prototype == gutter_stack::FolderPrototype::QuietBelow
-            {
-                base.clone().color(faint).metrics(GlyphMetrics::new(
-                    m.font_size * label * crate::render::rotated_location::LOCATION_SCALE,
-                    m.line_height * label,
-                ))
-            } else {
-                base.clone().color(faint)
-            };
-            spans.push((proj_line.as_str(), attrs));
+        if !proj_line.is_empty() && stack_ink.is_empty() {
+            spans.push((proj_line.as_str(), base.clone().color(faint)));
         }
         self.gutter_buffer.set_size(
             &mut self.font_system,

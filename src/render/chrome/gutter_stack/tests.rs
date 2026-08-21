@@ -89,7 +89,7 @@ fn stack_spans_bring_only_the_active_name_forward() {
     let _g = crate::testlock::serial();
     for active in 0..3 {
         let fitted = fit_rows(&rows(active), 24);
-        let spans = stack_spans(&fitted, None, ClosePrototype::Off);
+        let spans = stack_spans(&fitted, None);
         let name_inks: Vec<_> = spans
             .iter()
             .filter(|(text, _)| text.contains(".md"))
@@ -197,19 +197,11 @@ fn a_single_file_block_plates_nothing() {
         0.5,
     );
     assert!(plate_rects(&layout, &plan, 6.0, 2.0).is_empty());
-    for close in [
-        ClosePrototype::Off,
-        ClosePrototype::OneStageAll,
-        ClosePrototype::OneStageSiblings,
-        ClosePrototype::TwoStageAll,
-        ClosePrototype::TwoStageSiblings,
-    ] {
-        assert_eq!(
-            stack_spans(&layout.files, None, close).len(),
-            0,
-            "{close:?}: an empty stack must not grow a reserved close lane"
-        );
-    }
+    assert_eq!(
+        stack_spans(&layout.files, None).len(),
+        0,
+        "an empty stack must not grow a reserved close lane"
+    );
     // And the block is exactly the two lines it has always been.
     assert_eq!(
         layout
@@ -221,10 +213,12 @@ fn a_single_file_block_plates_nothing() {
     );
 }
 
-/// Every prototype is a color-only reveal over one already-shaped trailing
-/// run, enrolled from the same row/zone geometry the click consumes.
+/// The production close mark is a one-stage color-only reveal over one
+/// already-shaped trailing run, enrolled from the same row/zone geometry the
+/// click consumes. The active document participates: "hovered" names the row
+/// under the pointer, independently of which document is selected.
 #[test]
-fn hover_close_prototypes_keep_label_geometry_fixed_and_enrol_the_truthful_row() {
+fn hover_close_keeps_label_geometry_fixed_and_enrols_every_truthful_row() {
     let _g = crate::testlock::serial();
     crate::theme::set_active_by_name("Saltpan").expect("Saltpan is in the world roster");
     let fitted = fit_rows(&rows(0), 24);
@@ -270,146 +264,80 @@ fn hover_close_prototypes_keep_label_geometry_fixed_and_enrol_the_truthful_row()
         assert_eq!(close.row, row);
         assert!(close.is_close());
 
-        for prototype in [
-            ClosePrototype::OneStageAll,
-            ClosePrototype::OneStageSiblings,
-            ClosePrototype::TwoStageAll,
-            ClosePrototype::TwoStageSiblings,
-        ] {
-            let resting = stack_spans(&fitted, None, prototype);
-            let over_row = stack_spans(&fitted, Some(switch), prototype);
-            let over_zone = stack_spans(&fitted, Some(close), prototype);
-            let text = |spans: &[(String, glyphon::Color)]| {
-                spans.iter().map(|(s, _)| s.as_str()).collect::<String>()
-            };
+        let resting = stack_spans(&fitted, None);
+        let over_row = stack_spans(&fitted, Some(switch));
+        let over_zone = stack_spans(&fitted, Some(close));
+        let text = |spans: &[(String, glyphon::Color)]| {
+            spans.iter().map(|(s, _)| s.as_str()).collect::<String>()
+        };
+        assert_eq!(
+            text(&resting),
+            text(&over_row),
+            "row {row}: hover shifted the shaped label"
+        );
+        assert_eq!(
+            text(&resting),
+            text(&over_zone),
+            "row {row}: zone shifted the shaped label"
+        );
+        assert_eq!(
+            resting.iter().filter(|(s, _)| s.contains('×')).count(),
+            fitted.len(),
+            "every row reserves exactly one stable close run"
+        );
+        let marks = |spans: &[(String, glyphon::Color)]| {
+            spans
+                .iter()
+                .filter(|(s, _)| s.contains('×'))
+                .map(|(_, ink)| *ink)
+                .collect::<Vec<_>>()
+        };
+        let rest_marks = marks(&resting);
+        let row_marks = marks(&over_row);
+        let zone_marks = marks(&over_zone);
+        assert!(
+            rest_marks.iter().all(|ink| ink.a() == 0),
+            "a mark leaked into the resting frame"
+        );
+        for at in 0..fitted.len() {
             assert_eq!(
-                text(&resting),
-                text(&over_row),
-                "{prototype:?} row {row}: row-hover shifted the shaped label"
+                row_marks[at].a() != 0,
+                at == row,
+                "row-hover enrollment disagrees at row {at}"
             );
             assert_eq!(
-                text(&resting),
-                text(&over_zone),
-                "{prototype:?} row {row}: zone-hover shifted the shaped label"
+                zone_marks[at].a() != 0,
+                at == row,
+                "zone-hover enrollment disagrees at row {at}"
             );
-            assert_eq!(
-                resting.iter().filter(|(s, _)| s.contains('×')).count(),
-                fitted.len(),
-                "{prototype:?}: every row reserves exactly one stable close run"
-            );
-            let marks = |spans: &[(String, glyphon::Color)]| {
-                spans
-                    .iter()
-                    .filter(|(s, _)| s.contains('×'))
-                    .map(|(_, ink)| *ink)
-                    .collect::<Vec<_>>()
-            };
-            let rest_marks = marks(&resting);
-            let row_marks = marks(&over_row);
-            let zone_marks = marks(&over_zone);
-            assert!(
-                rest_marks.iter().all(|ink| ink.a() == 0),
-                "{prototype:?}: a mark leaked into the resting frame"
-            );
-            for at in 0..fitted.len() {
-                let enrolled = at == row && !(row == 0 && !prototype.includes_active());
-                assert_eq!(
-                    row_marks[at].a() != 0,
-                    enrolled,
-                    "{prototype:?} row-hover enrollment disagrees at row {at}"
-                );
-                assert_eq!(
-                    zone_marks[at].a() != 0,
-                    enrolled,
-                    "{prototype:?} zone-hover enrollment disagrees at row {at}"
-                );
-            }
-            if row != 0 || prototype.includes_active() {
-                if prototype.two_stage() {
-                    assert_ne!(
-                        row_marks[row].0, zone_marks[row].0,
-                        "{prototype:?} row {row}: faint and full stages collapsed in Saltpan"
-                    );
-                } else {
-                    assert_eq!(
-                        row_marks[row].0, zone_marks[row].0,
-                        "{prototype:?} row {row}: one-stage reveal changed inside the zone"
-                    );
-                }
-            }
         }
+        assert_eq!(
+            row_marks[row].0, zone_marks[row].0,
+            "row {row}: one-stage reveal changed inside the zone"
+        );
     }
 }
 
 #[test]
-fn folder_prototypes_change_only_the_multi_file_hierarchy() {
+fn project_heads_only_the_multi_file_hierarchy() {
     let one = layout_of(&[], false, true, 24);
-    let one_legacy = one.lines_with(FolderPrototype::Legacy);
-    for prototype in [FolderPrototype::QuietBelow, FolderPrototype::HeadingAbove] {
-        assert_eq!(
-            one.lines_with(prototype),
-            one_legacy,
-            "{prototype:?}: a one-file block must keep its exact line order"
-        );
-    }
+    assert_eq!(
+        one.lines().iter().map(|(_, k)| *k).collect::<Vec<_>>(),
+        vec![gutter::GutterLine::Name, gutter::GutterLine::Project]
+    );
 
     let many = layout_of(&rows(0), false, true, 24);
-    let below = many.lines_with(FolderPrototype::QuietBelow);
-    let above = many.lines_with(FolderPrototype::HeadingAbove);
-    assert!(matches!(
-        below.last().unwrap().1,
-        gutter::GutterLine::Project
-    ));
+    let above = many.lines();
     assert!(matches!(
         above.first().unwrap().1,
         gutter::GutterLine::Project
     ));
-    assert_eq!(
-        below
-            .iter()
-            .filter(|(_, k)| matches!(k, gutter::GutterLine::File(_)))
-            .count(),
-        3
-    );
     assert_eq!(
         above
             .iter()
             .filter(|(_, k)| matches!(k, gutter::GutterLine::File(_)))
             .count(),
         3
-    );
-}
-
-#[test]
-fn prototype_environment_vocabulary_is_closed() {
-    assert_eq!(
-        parse_close_prototype(Some("one-all")),
-        ClosePrototype::OneStageAll
-    );
-    assert_eq!(
-        parse_close_prototype(Some("one-siblings")),
-        ClosePrototype::OneStageSiblings
-    );
-    assert_eq!(
-        parse_close_prototype(Some("two-all")),
-        ClosePrototype::TwoStageAll
-    );
-    assert_eq!(
-        parse_close_prototype(Some("two-siblings")),
-        ClosePrototype::TwoStageSiblings
-    );
-    assert_eq!(parse_close_prototype(Some("typo")), ClosePrototype::Off);
-    assert_eq!(
-        parse_folder_prototype(Some("quiet-below")),
-        FolderPrototype::QuietBelow
-    );
-    assert_eq!(
-        parse_folder_prototype(Some("heading-above")),
-        FolderPrototype::HeadingAbove
-    );
-    assert_eq!(
-        parse_folder_prototype(Some("typo")),
-        FolderPrototype::Legacy
     );
 }
 
