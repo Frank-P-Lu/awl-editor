@@ -69,7 +69,7 @@ reason = "The clobber-notice predicate MOVED OUT to `app/files/external.rs` besi
 
 [[file_size_mark]]
 file = "src/app/apply.rs"
-lines = 870
+lines = 884
 reason = "The conflict workspace's summon reaches the live effect interpreter's one `PersistenceEffect` match and the one `apply_overlay_accept` roster, both exhaustive by design (+6). +34: `sync_theme_font_measured`, the ONE reshape door every live theme-font path runs through. The split-reach preview path shapes the presentable prefix immediately; the quiet-settle owner finishes only the latest highlighted world's tail. +11: `refresh_kill_from_clipboard`'s duplicate-read skip now also requires the active buffer's own kill ring to already equal the OS text, not just the App-global last-written stamp, so a buffer switch cannot leave a Paste reading a kill ring that stamp never actually hydrated. +11: `App::apply_keymap_flavor` — sets the config field, persists it, rebuilds the live keymap, refreshes an open Settings menu, and emits the resulting-flavor notice, replacing the old always-toggling handler. +1: `Previous`/`CloseActive` need two dispatch arms where there was one, now that Finish file's last leg is its own effect. +12: Reveal in File Manager's `Effect::RevealInFileManager` arm reuses the export write's own `reveal_path` gate rather than a second implementation, with a wasm counterpart to keep the match exhaustive on the browser target too. +2: Go to Line's `goto_line_count` field threads through the two `OverlayState` construction sites that gather it from the live buffer. +1: Save a Copy's named destination reaches the one exhaustive live effect interpreter. +1: the typed resolved-paste continuation reaches the one exhaustive live effect interpreter."
 
 [[file_size_mark]]
@@ -106,8 +106,8 @@ reason = "`sync_view` is the sole exhaustive `ViewState` construction site, so e
 
 [[file_size_mark]]
 file = "src/app/window.rs"
-lines = 702
-reason = "The external-change check at focus return belongs at the winit focus callback. `fold_settled_theme_switch` owns the settled-present transaction and its scheduling/acquire phases. Preview redraw deliberately leaves superseded off-screen shaping debt to the latest-wins quiet settle."
+lines = 706
+reason = "The external-change check at focus return belongs at the winit focus callback. `fold_settled_theme_switch` owns the settled-present transaction and its scheduling/acquire phases. Preview redraw deliberately leaves superseded off-screen shaping debt to the latest-wins quiet settle. +4: redraw samples one monotonic instant before advancing and preparing the living theme-selection band."
 
 [[file_size_mark]]
 file = "src/background.rs"
@@ -278,8 +278,8 @@ reason = "The STARTER SIX table's Command palette row comment updated to reflect
 
 [[file_size_mark]]
 file = "src/probe.rs"
-lines = 628
-reason = "Two test-only doors (arm/disarm) so a law can assert over the recorder's own lines rather than a reimplementation of them; the recorder is the one owner of every trace print. The inline `mod tests` is carved out to the sibling `src/probe/tests.rs`, which `production()` exempts by design — its own comment notes that counting a sibling `tests.rs` as production would defeat the point of carving one out — so this mark now measures production code alone and ratchets 825 -> 628."
+lines = 667
+reason = "Two test-only doors (arm/disarm) so a law can assert over the recorder's own lines rather than a reimplementation of them; the recorder is the one owner of every trace print. The inline `mod tests` is carved out to the sibling `src/probe/tests.rs`, which `production()` exempts by design — its own comment notes that counting a sibling `tests.rs` as production would defeat the point of carving one out — so this mark now measures production code alone and ratchets 825 -> 628. +39: the flight recorder publishes prepared phase and input-to-settled theme-band timing through its single trace owner."
 
 [[file_size_mark]]
 file = "src/prosediff.rs"
@@ -291,7 +291,7 @@ lines = 559
 
 [[file_size_mark]]
 file = "src/render.rs"
-lines = 2775
+lines = 2786
 reason = "The footer plate uses the notice channel's one-pixel rim so it remains visible. `Millis` and `progress_per` keep durations out of pixel multiplication by type, while declaration docs name the entitled scale factor for page/caret pads, page-frame strokes, and spell gaps. `HudDefaults`, `WhichKeyDefaults`, and `DebugDefaults` give inert field groups exhaustive defaults beside their sole `TextPipeline` owner. Shape reach rejects unshaped-line sentinels, and `Metrics` carries `dpi` beside zoom scale so a logical floor does not vary by display density. `CARET_INK_PAD_W` gained a doc comment naming its rationale and the near-zero vertical headroom finding that kept the tuning to width alone. +7: the working-set stack plate's own row-height and inset constants, named beside the other margin-row geometry this file already owns. +10: the menu chord column's config-aware label plumbing (ViewState mirrors of config_keys/config_linux_keep). +4: inert hover defaults and mirrored row state keep the production close affordance explicit in the exhaustive pipeline state."
 
 [[file_size_mark]]
@@ -386,18 +386,18 @@ lines = 568
 
 [[file_size_mark]]
 file = "src/render/pipeline_draw.rs"
-lines = 508
+lines = 513
 reason = "The footer plate earns the notice channel's own one-pixel rim, which is what lifts it from delta-E 1.91 to 54 on Cassowary -- a plate nobody can see is not a plate. +5: the rim's construction and its draw slot immediately before `overlay_bars`, matching the order `notice_rim`/`notice_plate` already keep. +1: the `shape_tail_owed` field initialiser in TextPipeline::new's literal, its sole construction site — the flag that records a presented frame still owes its tail. +7: the working-set stack plate's draw call, slotted beside the other gutter-row draws it shares a pipeline with. +2: threads config_keys/config_linux_keep into the menu dropdown plan's construction. +1: initializes the inert hovered-row field beside the working-set stack's other exhaustive state."
 
 [[file_size_mark]]
 file = "src/render/pipeline_geometry.rs"
-lines = 521
+lines = 524
 reason = "`set_view` is the sole ViewState-to-pipeline mirror: it measures workspace rails, mirrors row ownership, invalidates view-derived diagonal geometry, and publishes every projection. It carries fold-chevron retinting, fold headings/tails, secondary location, comparison/source mirrors, selection-ui overlay rows, photographable/findable notices, and world-authored diagonal-mark weight. +1: mirrors the working-set stack's row count alongside the other row-ownership mirrors. +6: mirrors config_keys/config_linux_keep onto TextPipeline alongside every other synced field, the plumbing the menu chord column's config-awareness rides."
 
 [[file_size_mark]]
 file = "src/render/pipeline_overlay.rs"
-lines = 465
-reason = "Overlay composition and ambient resolvers live here because they read the pipeline's own settled state; Kite shares that ambient ownership seam. The one `advance` OR-fold is the single per-frame stepper, so the diagonal marker's turn and the fold chevron's join it there beside the caret spring, the caret preview and the copy pulse."
+lines = 477
+reason = "Overlay composition and ambient resolvers live here because they read the pipeline's own settled state; Kite shares that ambient ownership seam. The one `advance` OR-fold is the single per-frame stepper, so the diagonal marker's turn and the fold chevron's join it there beside the caret spring, the caret preview and the copy pulse. +12: the band reads the stamped input epoch and exposes its prepared phase through this same per-frame owner."
 
 [[file_size_mark]]
 file = "src/render/rects.rs"
@@ -741,8 +741,8 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 lint = "clippy::too_many_lines"
 file = "src/render/pipeline_draw.rs"
 function = "TextPipeline::new"
-message = "this function has too many lines (449/100)"
-reason = "The one exhaustive TextPipeline initializer keeps adjacent GPU state transitions together. Four added lines initialize arbitrary two-colour ground/ink endpoints for independent selection and caret pipelines; their shared baked construction lives in SelectionPipeline::new_two_colour."
+message = "this function has too many lines (454/100)"
+reason = "The one exhaustive TextPipeline initializer keeps adjacent GPU state transitions together. Four added lines initialize arbitrary two-colour ground/ink endpoints for independent selection and caret pipelines; their shared baked construction lives in SelectionPipeline::new_two_colour. Five added lines initialize the living band's input epoch beside its existing selection-motion state."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
