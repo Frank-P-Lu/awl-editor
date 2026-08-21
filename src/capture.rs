@@ -37,8 +37,11 @@ pub const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 ///          order, and which of them is active (`null` with no stack). The
 ///          margin's own rows were readable only from the PNG, so no oracle
 ///          could say that switching files leaves the drawn order alone.
+/// `/205` — `hud.selection`: `{ words, characters }` for a non-empty raw
+///          buffer selection, else `null`. Characters are extended grapheme
+///          clusters and a logical line break counts as one character.
 /// History lives in Git. Bump this row with the const.
-pub const SCHEMA_VERSION: u32 = 204;
+pub const SCHEMA_VERSION: u32 = 205;
 /// Plain single-frame schema; timeline and held take the next two versions.
 pub fn schema_plain() -> String {
     format!("awl-capture/{SCHEMA_VERSION}")

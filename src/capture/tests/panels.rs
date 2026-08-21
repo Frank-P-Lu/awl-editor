@@ -335,6 +335,11 @@ fn hud_absent_by_default_and_held_shows_writer_stats() {
         serde_json::json!("—"),
         "no clock: the fixed placeholder"
     );
+    assert_eq!(
+        off["hud"]["selection"],
+        serde_json::json!(null),
+        "a caret-only frame names no Selection group"
+    );
 
     // HELD (`--hud` / `--keys "Cmd-M-i"` (Option-Cmd-I)): held=true, the settled panel, SAME writer
     // figures (a pure function of the doc — deterministic in a capture).
@@ -366,6 +371,26 @@ fn hud_absent_by_default_and_held_shows_writer_stats() {
             "odometer `{field}` is no longer in the held HUD block (it moved to `lifetime`)"
         );
     }
+
+    let selection_png = dir.join("selection.png");
+    capture_with(
+        &selection_png,
+        &md,
+        &CaptureOpts {
+            selection: Some(((2, 0), (2, 10))),
+            ..CaptureOpts::default()
+        },
+    )
+    .expect("selection capture");
+    let selection: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(selection_png.with_extension("json")).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        selection["hud"]["selection"],
+        serde_json::json!({ "words": 2, "characters": 10 }),
+        "the sidecar reports the actual selected buffer text in words and graphemes"
+    );
 
     // A NON-markdown buffer OMITS the word count (null).
     let mut code = Buffer::from_str("fn main() {}\n");

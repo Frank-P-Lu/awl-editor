@@ -697,7 +697,7 @@ would otherwise assert a MECHANISM (an instance count, a dither flag, a
 computed color) and stop there — the mechanism proves the renderer INTENDED
 to draw something; the pixel diff proves it actually did.
 
-## The sidecar JSON — schema `awl-capture/204` (`/205` timeline, `/206` held)
+## The sidecar JSON — schema `awl-capture/205` (`/206` timeline, `/207` held)
 
 Field order is stable; consumers may parse positionally or by key.
 
@@ -853,6 +853,16 @@ exactly when `words`/`reading_min` are (a non-markdown or wordless buffer).
 One owner, `crate::card::figures::{readout_figures, CountUnit}`, feeds both
 blocks and the drawn HUD card's WORD COUNT row, so a capture's `readout.unit`
 and `hud.unit` always agree with each other and with what the row draws.
+
+Schema `/205` adds **`hud.selection`**. It is `null` for no selection or a
+caret-only selection; otherwise it is `{ words, characters }` for the raw
+selected buffer text. `characters` counts extended grapheme clusters, not
+UTF-8 bytes or Unicode scalars. awl normalizes disk line endings into logical
+`\n` internally, and a selected logical line break counts as one character, so
+an LF file and a CRLF file report the same reader-facing selection count.
+Concealed Markdown, folded lines and History previews do not change it: the
+selection group is about the buffer bytes the writer selected, not the text a
+particular frame happens to shape.
 
 Vocabulary note (**no schema bump**; the shape is unchanged, only
 the existing `reading_min` field gains a corrected VALUE, per `capture.rs`'s
@@ -1743,7 +1753,7 @@ world.)
 | `notice`       | THE CALM NOTICE (schema `/200`): `{ text, kind }`, or `null` when nothing is showing. `text` is the sentence exactly as drawn (elided to the column's budget on a narrow canvas — `render::rowlayout::fit_primary_end_to_px`, the same pixel-truth door the margin outline uses); `kind` is `"toast"` or `"sticky"`. Read off the PIPELINE, not off the fold's input, so the block cannot claim a message the PNG does not carry — and `null` on a frame that YIELDS the notice (a relocated read-only comparison) even though one is set. Drawn as one plated LABEL line at the top of the writing column: fill `base_200`/`base_300` by kind, a one-pixel rim `muted`/`base_content`, text through `theme::selected_row_ink`; a true one-bit world inverts the sticky arm because it has no value step to spend |
 | `dim_overlay`  | `true` when a FULL-takeover overlay dims the document behind it (the scrim); `false` for the search SPLIT panel / no overlay (DESIGN §5) |
 | `debug`        | DEBUG panel (renamed from the old `fps` counter): `{ enabled, text, frame_ms, worst_ms, budget_ms, key_px_ms, redraws, still, autosave_state, autosave_since_s }`. OFF by default (empty `text` → byte-identical). `text` is the full stacked readout; `frame_ms`/`worst_ms`/`budget_ms`/`key_px_ms`/`redraws`/`still` are the machine-readable perf triad (all `null` + `still: true` in a capture — no clock runs headlessly). `autosave_state` (`"off"`/`"held"`/`"saved"`, else `null`) + `autosave_since_s` (whole seconds since the last successful autosave write, else `null`) mirror the panel's `autosave …` line, fed EXCLUSIVELY through `App::autosave_flush`'s one door — both `null` in every capture (the engine is structurally live-App-only) |
-| `hud`          | HELD STATS HUD: `{ held, words, reading_min, unit, percent, lang }`. `held` is the summon state (false by default → byte-identical); `words`/`reading_min`/`unit` null for non-markdown (`unit` is `"words"`/`"characters"`, schema `/198` — see the narrative above; always agrees with the top-level `readout` block, one owner); `percent` = cursor %-through-doc; `lang` (schema `/92`) is the document's frontmatter language. Every figure is a pure function of the USER'S DOCUMENT + cursor — the whole buffer, never the shaped page — so a collapsed fold or an open History preview leaves them unmoved (`readout` likewise). It follows that `lang` and the top-level `doc_lang` can differ: `doc_lang` is the SHAPED text's language, which is what the per-script font ladder must follow, and a diff transcript carries no frontmatter. No clock, fully capture-safe |
+| `hud`          | HELD STATS HUD: `{ held, words, reading_min, unit, percent, lang, selection }`. `held` is the summon state (false by default → byte-identical); `words`/`reading_min`/`unit` null for non-markdown (`unit` is `"words"`/`"characters"`, schema `/198` — see the narrative above; always agrees with the top-level `readout` block, one owner); `percent` = cursor %-through-doc; `lang` (schema `/92`) is the document's frontmatter language; `selection` (schema `/205`) is null or raw selected-text `{ words, characters }`, with extended-grapheme characters and one logical line break per selected newline. Every figure is a pure function of the USER'S DOCUMENT + cursor/selection — the whole buffer, never the shaped page — so a collapsed fold or an open History preview leaves them unmoved (`readout` likewise). It follows that `lang` and the top-level `doc_lang` can differ: `doc_lang` is the SHAPED text's language, which is what the per-script font ladder must follow, and a diff transcript carries no frontmatter. No clock, fully capture-safe |
 | `about`        | SUMMONED ABOUT CARD (schema `/99`): `{ open }`. `false` by default (byte-identical); `true` after the palette "About" command (or the macOS menu bar's App ▸ "About Awl") opens it. Shares the HUD's float-card pipeline (`about.rs` + `render/chrome.rs::prepare_hud`) rather than owning a parallel one |
 | `line_count`   | total logical lines in the buffer |
 | `scroll_lines` | top visual-row anchor (0 on load; retained for row-oriented diagnostics) |

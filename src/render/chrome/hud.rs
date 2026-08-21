@@ -52,7 +52,7 @@ impl TextPipeline {
     /// deliberately NOT `doc_lang_report()`: that is the SHAPED text's language,
     /// which the per-script font ladder follows; the sidecar reports it as `doc_lang`.
     pub fn hud_report(&self) -> HudReport {
-        let (text, cursor_line, cursor_col) = self.figure_source();
+        let (text, cursor_line, cursor_col, selection) = self.figure_source();
         HudReport {
             held: crate::hud::hud_held(),
             words: crate::card::figures::readout_figures(&text, self.md_enabled),
@@ -60,6 +60,7 @@ impl TextPipeline {
             lang: crate::card::figures::frontmatter_lang(&text),
             eol: self.eol,
             saved: crate::hud::saved_readout(self.hud.saved),
+            selection: crate::card::figures::SelectionFigures::of(&text, selection),
         }
     }
 

@@ -45,16 +45,33 @@ impl TextPipeline {
     /// figure below reads it, so none of them can be over a different text than
     /// its neighbour, and none can disagree with the semantic snapshot, which
     /// derives the same figures from the buffer.
-    pub(in crate::render) fn figure_source(&self) -> (String, usize, usize) {
+    pub(in crate::render) fn figure_source(
+        &self,
+    ) -> (
+        String,
+        usize,
+        usize,
+        Option<((usize, usize), (usize, usize))>,
+    ) {
         match &self.doc_source {
-            Some(doc) => (doc.text.clone(), doc.cursor_line, doc.cursor_col),
-            None => (self.doc_text(), self.cursor_line, self.cursor_col),
+            Some(doc) => (
+                doc.text.clone(),
+                doc.cursor_line,
+                doc.cursor_col,
+                doc.selection,
+            ),
+            None => (
+                self.doc_text(),
+                self.cursor_line,
+                self.cursor_col,
+                self.selection,
+            ),
         }
     }
 
     /// The three DOCUMENT figures this frame, through their one pure owner.
     pub(in crate::render) fn doc_figures(&self) -> crate::card::figures::DocFigures {
-        let (text, cursor_line, cursor_col) = self.figure_source();
+        let (text, cursor_line, cursor_col, _) = self.figure_source();
         crate::card::figures::DocFigures::of(&text, self.md_enabled, cursor_line, cursor_col)
     }
 
@@ -78,9 +95,20 @@ impl TextPipeline {
             peek_shown: self.peek_showing(),
             streaks_page: crate::streaks::card_view(),
             doc: self.doc_figures(),
+            selection: self.selection_figures(),
             eol: self.eol,
             live: self.card_live(),
         }
+    }
+
+    /// The active selection's raw-buffer figures, over the SAME source chosen
+    /// for the document figures above. This is evaluated only while the HUD is
+    /// summoned, through `card_inputs`, never on an ordinary frame.
+    pub(in crate::render) fn selection_figures(
+        &self,
+    ) -> Option<crate::card::figures::SelectionFigures> {
+        let (text, _, _, selection) = self.figure_source();
+        crate::card::figures::SelectionFigures::of(&text, selection)
     }
 
     /// The summoned card this frame, as CONTENT. The semantic tree composes the

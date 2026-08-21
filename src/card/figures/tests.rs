@@ -4,6 +4,57 @@
 
 use super::*;
 
+/// The HUD's selection group is a raw-buffer statistic. It counts selected
+/// logical newlines as one grapheme, accepts either direction, and never lets
+/// a decomposed letter or emoji family inflate the character count to scalars.
+#[test]
+fn selection_figures_count_raw_text_graphemes_and_normalize_direction() {
+    let text = "keep\ne\u{301}lan 👨\u{200d}👩\u{200d}👧\u{200d}👦\nlast";
+    let forward = SelectionFigures::of(text, Some(((1, 0), (2, 0))));
+    let reversed = SelectionFigures::of(text, Some(((2, 0), (1, 0))));
+    assert_eq!(
+        forward,
+        Some(SelectionFigures {
+            words: 2,
+            characters: 7,
+        }),
+        "e + combining acute, space, one family emoji, and one logical newline"
+    );
+    assert_eq!(
+        reversed, forward,
+        "selection direction changes no statistic"
+    );
+    assert_eq!(
+        SelectionFigures::of(text, Some(((1, 2), (1, 2)))),
+        None,
+        "a caret-only region has no Selection group"
+    );
+}
+
+/// Selection figures deliberately do not use the document's markdown
+/// manuscript rule: a writer selected bytes in a frontmatter or concealed
+/// Markdown line, so the count reports those selected bytes exactly.
+#[test]
+fn selection_figures_do_not_drop_frontmatter_or_concealed_markdown() {
+    let text = "---\ntitle: Hidden\n---\n**shown** prose\n";
+    assert_eq!(
+        SelectionFigures::of(text, Some(((0, 0), (1, 13)))),
+        Some(SelectionFigures {
+            words: 3,
+            characters: 17,
+        }),
+        "frontmatter is selected buffer text, not document-statistics metadata"
+    );
+    assert_eq!(
+        SelectionFigures::of(text, Some(((3, 0), (3, 9)))),
+        Some(SelectionFigures {
+            words: 1,
+            characters: 9,
+        }),
+        "concealed Markdown punctuation is selected buffer text too"
+    );
+}
+
 /// The frontmatter block is metadata, never manuscript: a `lang:`/`title:`
 /// line must not inflate the readout, and the language it declares must be
 /// the language the card shows.

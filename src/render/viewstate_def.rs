@@ -234,6 +234,10 @@ pub struct DocSource {
     pub cursor_line: usize,
     /// The caret's logical column in that text, in CHARACTERS.
     pub cursor_col: usize,
+    /// The active selection in the original document's line/character space.
+    /// Fold filtering remaps `ViewState::selection` for painting, but document
+    /// statistics must retain the raw buffer region.
+    pub selection: Option<((usize, usize), (usize, usize))>,
 }
 
 impl ViewState {
@@ -345,6 +349,7 @@ impl ViewState {
                 text: previous,
                 cursor_line: self.cursor_line,
                 cursor_col: self.cursor_col,
+                selection: self.selection,
             });
         }
     }

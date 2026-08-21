@@ -410,6 +410,7 @@ fn a_fold_keeps_the_whole_document_for_the_card_figures() {
         text: fixture::DOC.to_string(),
         cursor_line: fixture::CARET.0,
         cursor_col: fixture::CARET.1,
+        selection: Some(((4, 0), (5, 16))),
         is_markdown: true,
         ..crate::render::ViewState::base()
     };
@@ -427,6 +428,19 @@ fn a_fold_keeps_the_whole_document_for_the_card_figures() {
         .expect("a fold substitutes the shaped text, so it must record the document");
     assert_eq!(doc.text, fixture::DOC);
     assert_eq!((doc.cursor_line, doc.cursor_col), fixture::CARET);
+    assert_eq!(
+        crate::card::figures::SelectionFigures::of(&doc.text, doc.selection),
+        Some(crate::card::figures::SelectionFigures {
+            words: 6,
+            characters: 30,
+        }),
+        "a folded-out region remains the raw selected buffer text for the HUD"
+    );
+    assert_ne!(
+        crate::card::figures::SelectionFigures::of(&view.text, view.selection),
+        crate::card::figures::SelectionFigures::of(&doc.text, doc.selection),
+        "the filtered view cannot stand in for the selected document region"
+    );
 
     // The figures over that record are the WHOLE document's — the same answer
     // the semantic snapshot gets from the buffer.
