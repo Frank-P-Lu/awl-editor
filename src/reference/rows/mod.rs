@@ -31,6 +31,9 @@ pub(super) mod worlds;
 pub(super) use cli::cli;
 pub(super) use commands::{commands, synthetic_name};
 pub(super) use config::{CONFIG_NON_KEYS, config, config_default, documented_config_keys};
-pub(super) use markdown::{conceal_facts_for, documented_tags, markdown};
+pub(super) use markdown::{
+    deliberately_different_names, documented_conceal_kinds, documented_tags, markdown,
+    supported_markdown_html, supported_markdown_markdown, supported_markdown_names,
+};
 pub(super) use settings::{SETTINGS_DISPATCH_ONLY_KEYS, config_key_of, settings};
 pub(super) use worlds::worlds;

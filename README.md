@@ -30,6 +30,12 @@ The identity, priorities, and product boundary live in
 [`PHILOSOPHY.md`](PHILOSOPHY.md); the feel lives in
 [`DESIGN.md`](DESIGN.md).
 
+## Documentation
+
+- [Guide](GUIDE.md) explains the editor's workflows.
+- [Reference](REFERENCE.md) lists commands, settings, configuration, worlds, and compact Markdown facts.
+- [Supported Markdown](SUPPORTED-MARKDOWN.md) gives copyable syntax examples, portability, and editing behavior.
+
 ## What it is (and isn't)
 
 awl is a calm writing tool that also edits light code — the quick fix, the

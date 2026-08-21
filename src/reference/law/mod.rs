@@ -7,10 +7,12 @@
 //! [`print_generated_reference_blocks`] and splices the result into both
 //! documents.
 
-use super::{Section, nav};
+use super::{Section, nav, rows};
 
 const REFERENCE_MD: &str = crate::embedded_docs::REFERENCE_MD;
 const SITE_REFERENCE_HTML: &str = crate::embedded_docs::SITE_REFERENCE_HTML;
+const SUPPORTED_MARKDOWN_MD: &str = crate::embedded_docs::SUPPORTED_MARKDOWN_MD;
+const SITE_SUPPORTED_MARKDOWN_HTML: &str = crate::embedded_docs::SITE_SUPPORTED_MARKDOWN_HTML;
 
 const REGEN: &str = "regenerate with `scripts/regen-reference.sh` from the repo root";
 
@@ -110,6 +112,62 @@ fn no_generated_section_is_empty() {
     }
 }
 
+/// The detailed guide is emitted from the exact roster that supplies the
+/// compact Reference section. It therefore has its own byte-drift pair rather
+/// than becoming a second hand-maintained explanation.
+#[test]
+fn supported_markdown_pages_match_the_roster() {
+    let _g = crate::testlock::serial();
+    assert_eq!(
+        extract(
+            SUPPORTED_MARKDOWN_MD,
+            "SUPPORTED-MARKDOWN.md",
+            "supported-markdown"
+        ),
+        super::supported_markdown_markdown().trim_matches('\n'),
+        "SUPPORTED-MARKDOWN.md has drifted from the Markdown roster — {REGEN}"
+    );
+    assert_eq!(
+        extract(
+            SITE_SUPPORTED_MARKDOWN_HTML,
+            "site/supported-markdown.html",
+            "supported-markdown"
+        ),
+        super::supported_markdown_html().trim_matches('\n'),
+        "site/supported-markdown.html has drifted from the Markdown roster — {REGEN}"
+    );
+}
+
+/// A generated page can be byte-identical to a defective empty roster. Require
+/// every enrolled construct and every deliberately-different trap to appear in
+/// both targets, and reject duplicate headings that make a roster entry look
+/// documented twice.
+#[test]
+fn supported_markdown_enrolment_is_exact() {
+    let _g = crate::testlock::serial();
+    for name in rows::supported_markdown_names()
+        .into_iter()
+        .chain(rows::deliberately_different_names())
+    {
+        for (doc_name, doc) in [
+            ("SUPPORTED-MARKDOWN.md", SUPPORTED_MARKDOWN_MD),
+            ("site/supported-markdown.html", SITE_SUPPORTED_MARKDOWN_HTML),
+        ] {
+            let needle = format!("### {name}");
+            let html_needle = format!("<h3>{name}</h3>");
+            let count = if doc_name.ends_with(".md") {
+                doc.matches(&needle).count()
+            } else {
+                doc.matches(&html_needle).count()
+            };
+            assert_eq!(
+                count, 1,
+                "{doc_name} must enrol `{name}` exactly once, found {count}"
+            );
+        }
+    }
+}
+
 /// THE NAV CENTREPIECE: `site/reference.html`'s sidebar is byte-identical to
 /// what [`nav::nav_html`] builds from `Section::ALL` and each section's own
 /// captions right now — so a new section, or a new caption inside one, cannot
@@ -205,7 +263,13 @@ mod site;
 fn print_generated_reference_blocks() {
     let _g = crate::testlock::serial();
     println!("===AWL-REFERENCE-BLOCK html {NAV_MARKER}===");
-    print!("{}", nav::nav_html());
+    println!("{}", nav::nav_html());
+    println!("===AWL-REFERENCE-BLOCK-END===");
+    println!("===AWL-REFERENCE-BLOCK md supported-markdown===");
+    print!("{}", super::supported_markdown_markdown());
+    println!("===AWL-REFERENCE-BLOCK-END===");
+    println!("===AWL-REFERENCE-BLOCK html supported-markdown===");
+    print!("{}", super::supported_markdown_html());
     println!("===AWL-REFERENCE-BLOCK-END===");
     for s in Section::ALL {
         println!("===AWL-REFERENCE-BLOCK md {}===", s.marker());

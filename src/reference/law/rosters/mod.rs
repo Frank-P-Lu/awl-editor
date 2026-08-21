@@ -311,21 +311,60 @@ fn assert_md_kind_roster_covers(k: &crate::markdown::MdKind) {
     }
 }
 
-/// The conceal table lists every kind the renderer can conceal. `ConcealKind`
-/// derives its own `ALL` from its variant list (`enum_with_all!`), so this
-/// sweeps the real roster rather than a copy of it.
+/// Every conceal mechanism has a dialect row. `ConcealKind` derives its own
+/// `ALL` from its variant list, so a parser/render addition cannot ship without
+/// a public syntax fact in the Supported Markdown roster.
 #[test]
 fn every_conceal_kind_is_documented() {
     let _g = crate::testlock::serial();
-    let rendered = Section::Markdown.markdown();
+    let documented = rows::documented_conceal_kinds();
     for k in crate::markdown::ConcealKind::ALL {
-        let (name, _, _) = rows::conceal_facts_for(k);
         assert!(
-            rendered.contains(name),
-            "conceal kind {k:?} renders as `{name}`, which does not appear in \
-             the generated markdown section — {REGEN}"
+            documented.contains(&k),
+            "conceal kind {k:?} has no row in the Supported Markdown roster — \
+             add its source, render, reveal, command and portability facts"
         );
     }
+    for k in documented {
+        assert!(
+            crate::markdown::ConcealKind::ALL.contains(&k),
+            "the Supported Markdown roster claims removed conceal kind {k:?}"
+        );
+    }
+}
+
+/// Representative syntax is measured on both sides of the dialect's important
+/// conditions. This is deliberately not a prose check: it proves that rows
+/// naming tables, fences, ATX headings and the deliberately-different setext
+/// rule correspond to the parser/renderer's actual spans.
+#[test]
+fn supported_markdown_examples_match_parser_behavior() {
+    use crate::markdown::{MdKind, spans};
+    let _g = crate::testlock::serial();
+    let has_kind = |text: &str, want: MdKind| spans(text).iter().any(|(_, k)| *k == want);
+
+    assert!(
+        has_kind("# Heading", MdKind::Heading(1)),
+        "ATX heading example styles a heading"
+    );
+    assert!(
+        !has_kind("Heading\n---", MdKind::Heading(2)) && has_kind("Heading\n---", MdKind::Rule),
+        "setext is deliberately a thematic break, not a heading"
+    );
+    assert!(
+        has_kind("```rust\nlet n = 1;\n```", MdKind::Code { inline: false }),
+        "a fenced block has code body styling"
+    );
+    assert!(
+        has_kind("| A | B |\n| - | - |\n| x | y |", MdKind::TablePipe),
+        "a GFM table has table structure styling"
+    );
+    assert!(
+        !spans("[text][key]\n\n[key]: https://example.com")
+            .iter()
+            .any(|(_, k)| matches!(k, MdKind::ConcealMarkup(crate::markdown::ConcealKind::Link))),
+        "reference-style links remain editable source rather than claiming inline-link preview"
+    );
 }
 
 mod cli;

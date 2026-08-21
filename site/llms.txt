@@ -8,6 +8,7 @@ awl is for people who want to create Markdown files, especially people who enjoy
 
 - [README](https://github.com/Frank-P-Lu/awl-editor/blob/main/README.md): what awl is, build & run, status, and font/license notes.
 - [Reference](https://github.com/Frank-P-Lu/awl-editor/blob/main/REFERENCE.md): the cold reference — every command and its default chords under both conventions, every settings row, every config.toml key with its type and default, every world, and every markdown construct. Generated from the source and law-checked against it.
+- [Supported Markdown](https://github.com/Frank-P-Lu/awl-editor/blob/main/SUPPORTED-MARKDOWN.md): copyable source examples for the syntax awl renders, its caret and selection behavior, formatting commands, portability, and deliberately different cases. Generated from the same Markdown roster as the compact Reference table.
 - [Philosophy](https://github.com/Frank-P-Lu/awl-editor/blob/main/PHILOSOPHY.md): the identity, priorities, and product boundary — fun, beauty, calm; WYSIWYG plain text; offline single-player; no word-processor or IDE machinery.
 - [Design](https://github.com/Frank-P-Lu/awl-editor/blob/main/DESIGN.md): the visual and interaction contract — coherent worlds, typography, tactile performance, one-primary-task surfaces, and keyboard-native pointer support.
 - [Themes](https://github.com/Frank-P-Lu/awl-editor/blob/main/THEMES.md): the world contract — every measurable law a theme must satisfy, the ink-ladder / role-tint derivation, and the add-a-world process.
