@@ -19,6 +19,7 @@ use super::*;
 #[cfg(not(target_arch = "wasm32"))]
 mod alloc_bound_law;
 mod ambient_wrap_law;
+mod band_input_epoch;
 mod bands_waves;
 mod bowerbird_breathe;
 mod bowerbird_finds;

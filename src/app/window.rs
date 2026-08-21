@@ -603,6 +603,10 @@ impl App {
         // (`App::advance_travelling_ground`).
         let warp_hot = self.advance_travelling_ground(dt);
         let (stepped, outcome) = if let Some(gpu) = self.frame.gpu_mut() {
+            // Sample the theme picker's input-anchored band at the SAME `now`
+            // this redraw uses for every other animator. `prepare` below will
+            // resolve the new row geometry against this phase.
+            gpu.pipeline.begin_overlay_frame(now);
             // Drive the virtual-clock seam (caret spring + any future live
             // animator) so the timeline capture and the live loop advance
             // animation through the SAME entry point.

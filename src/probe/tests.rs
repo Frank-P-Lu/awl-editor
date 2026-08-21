@@ -127,6 +127,9 @@ fn movement_latency_mark_and_present_produce_a_sample_and_distribution() {
     if let Ok(mut s) = LATENCY_SAMPLES.lock() {
         s.clear();
     }
+    if let Ok(mut b) = BAND_SETTLE_PENDING.lock() {
+        *b = None;
+    }
 
     let path = std::env::temp_dir().join(format!("awl-latency-test-{}.log", std::process::id()));
     let _ = std::fs::remove_file(&path);
@@ -143,6 +146,20 @@ fn movement_latency_mark_and_present_produce_a_sample_and_distribution() {
     assert!(
         !LATENCY_PENDING.lock().unwrap().is_empty(),
         "the mark armed the clock"
+    );
+    assert!(
+        BAND_SETTLE_PENDING.lock().unwrap().is_some(),
+        "the same movement arms the decorative-band endpoint"
+    );
+    note_band_phase(0.4);
+    assert!(
+        BAND_SETTLE_PENDING.lock().unwrap().is_some(),
+        "an intermediate prepared phase stays pending"
+    );
+    note_band_phase(1.0);
+    assert!(
+        BAND_SETTLE_PENDING.lock().unwrap().is_none(),
+        "the prepared final phase closes input-to-band-settled"
     );
     std::thread::sleep(std::time::Duration::from_millis(2));
     note_presented_frame();
@@ -165,6 +182,10 @@ fn movement_latency_mark_and_present_produce_a_sample_and_distribution() {
         body.contains("movement-latency"),
         "the sample traced into the black box:\n{body}"
     );
+    assert!(
+        body.contains("theme-band phase=0.400") && body.contains("theme-band input-to-settled"),
+        "the recorder retains the prepared band phase and endpoint:\n{body}"
+    );
 
     note_presented_frame();
     assert!(
@@ -182,6 +203,9 @@ fn movement_latency_mark_and_present_produce_a_sample_and_distribution() {
     if let Ok(mut s) = LATENCY_SAMPLES.lock() {
         s.clear();
     }
+    if let Ok(mut b) = BAND_SETTLE_PENDING.lock() {
+        *b = None;
+    }
     let _ = std::fs::remove_file(&path);
     assert!(!recording(), "disarmed again — no leak into sibling tests");
 }
@@ -197,13 +221,18 @@ fn movement_latency_is_a_no_op_outside_recording() {
     if let Ok(mut s) = LATENCY_SAMPLES.lock() {
         s.clear();
     }
+    if let Ok(mut b) = BAND_SETTLE_PENDING.lock() {
+        *b = None;
+    }
     mark_movement_input();
     assert!(
         LATENCY_PENDING.lock().unwrap().is_empty(),
         "a mark outside recording never arms"
     );
     note_presented_frame();
+    note_band_phase(1.0);
     assert!(latency_distribution().is_none());
+    assert!(BAND_SETTLE_PENDING.lock().unwrap().is_none());
 }
 
 /// A single overwritten slot reports `n=1` for a burst of N reshaping
@@ -268,6 +297,9 @@ fn movement_latency_burst_of_n_reports_n_not_one() {
     }
     if let Ok(mut s) = LATENCY_SAMPLES.lock() {
         s.clear();
+    }
+    if let Ok(mut b) = BAND_SETTLE_PENDING.lock() {
+        *b = None;
     }
     let _ = std::fs::remove_file(&path);
     assert!(!recording(), "disarmed again — no leak into sibling tests");
