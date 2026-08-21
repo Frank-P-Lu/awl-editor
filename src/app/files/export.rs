@@ -284,6 +284,7 @@ impl App {
     /// overwrite confirmation; a headless App cannot reach it because a modal
     /// panel would block the capture/test main thread.
     #[cfg(not(target_arch = "wasm32"))]
+    #[cfg_attr(not(any(target_os = "macos", test)), allow(dead_code))]
     pub(in crate::app) fn save_copy_via_platform_panel(&mut self) -> bool {
         if self.frame.gpu().is_none() {
             return false;
