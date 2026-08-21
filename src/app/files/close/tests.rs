@@ -448,6 +448,32 @@ fn pointer_close_and_finish_chord_both_close_after_adopting_a_clean_external_rew
     }
 }
 
+#[test]
+fn closing_final_clean_external_rewrite_clears_its_reload_notice() {
+    let _guard = crate::testlock::serial();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl-close-final-reload-{}", std::process::id())),
+    );
+    let path = dir.join("only.txt");
+    std::fs::write(&path, "first\n").unwrap();
+    let cfg = Config {
+        session_restore: Some(false),
+        ..Config::empty()
+    };
+    let mut app = App::new(Some(path.clone()), dir.to_path_buf(), None, None, cfg);
+    std::fs::write(&path, "disk changed cleanly\n").unwrap();
+    let key = app.document.active_key().unwrap();
+
+    assert_eq!(app.close_buffer(key), CloseOutcome::Closed);
+
+    assert!(!app.document.has_active());
+    assert_eq!(
+        app.frame.notice().text(),
+        None,
+        "the empty canvas must not retain a reload toast for a removed document"
+    );
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn failed_finish_save_keeps_dirty_document_open_and_never_claims_completion() {

@@ -367,6 +367,24 @@ fn source_audit_menu_context_never_requires_an_active_document() {
             && semantic.contains("reject_menu_without_document"),
         "both menu doors must gate document actions before dispatch or native panels"
     );
+    let handler_start = menu
+        .find("pub(super) fn handle_menu_event")
+        .expect("native menu handler is enrolled");
+    let handler_tail = &menu[handler_start..];
+    let handler_end = handler_tail
+        .find("\n    /// Answer one")
+        .expect("native menu handler boundary is enrolled");
+    let handler = &handler_tail[..handler_end];
+    let gate = handler
+        .find("reject_menu_without_document")
+        .expect("no-document menu gate is enrolled inside the handler");
+    let native_panel = handler
+        .find("if crate::menu::opens_native_panel(&id)")
+        .expect("native-panel dispatch is enrolled inside the handler");
+    assert!(
+        gate < native_panel,
+        "the no-document gate must run before a native panel can bypass App::apply"
+    );
 }
 
 /// Like [`count_substr_in_dir`], but COLLAPSES all whitespace runs to a

@@ -139,6 +139,10 @@ impl App {
         if successor.is_some() {
             self.finish_buffer_activation(activated_path, false);
         } else {
+            // A reload notice describes the document that just left. With no
+            // successor there is no subject for any document notice, so the
+            // calm start surface begins without stale arrival chrome.
+            self.clear_notice();
             self.input.clear_preedit();
             self.update_title();
             self.sync_view(false);
