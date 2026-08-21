@@ -22,7 +22,7 @@ impl TextPipeline {
         let muted = theme::muted().to_glyphon();
         let geom = self.overlay_geometry(width);
         let mut plan = self.overlay_row_plan(&geom);
-        let placard = self.overlay_shape_placard(&geom);
+        let placard_geometry = self.overlay_shape_placard(&geom);
         let stipple = matches!(
             crate::render::effective_title_style(),
             theme::TitleStyle::Placard {
@@ -30,7 +30,7 @@ impl TextPipeline {
                 ..
             }
         );
-        let (placard, stipple_rects) = match placard {
+        let (placard, stipple_rects) = match placard_geometry {
             Some((x, y, _w, _h)) if stipple => (None, self.placard_stipple_rects((x, y))),
             other => (other, Vec::new()),
         };
@@ -55,6 +55,7 @@ impl TextPipeline {
         )?;
         self.prepare_overlay_rotated_location(device, queue, width, height, &geom, &plan);
         self.overlay_draw_card(device, queue, width, height, &geom, &plan, &vis);
+        self.prepare_overlay_material(device, queue, width, height, &geom, placard_geometry);
         self.overlay_place_caret(queue, width, height, &geom, &plan);
         Ok(())
     }
@@ -85,6 +86,8 @@ impl TextPipeline {
         self.panel_card.prepare(device, queue, width, height, &[]);
         self.panel_shadow.prepare(device, queue, width, height, &[]);
         self.panel_border.prepare(device, queue, width, height, &[]);
+        self.panel_material
+            .prepare(device, queue, width, height, &[]);
         self.overlay_rows.prepare(device, queue, width, height, &[]);
         self.overlay_bars.prepare(device, queue, width, height, &[]);
         self.footer_plate_rim
@@ -116,6 +119,8 @@ impl TextPipeline {
         // The stipple placard: parked (zero instances) — the frame after a
         // stipple-world overlay closes carries zero stale wordmark pixels.
         self.placard_stipple
+            .prepare(device, queue, width, height, &[]);
+        self.placard_material
             .prepare(device, queue, width, height, &[]);
         // The rotated location cue parks too, so the frame after a
         // `RotatedRail` world's overlay closes (or a lens change drops it)
@@ -236,16 +241,8 @@ impl TextPipeline {
             default_color: ink,
             custom_glyphs: &[],
         };
-        // DESIGNER PIXEL-PASS FIX (2026-07-16) — the placard's DRAW SLOT depends on
-        // the list style. Under `Bars` it must sit BEHIND the bar quads, so it rides
-        // its own `placard_renderer` pass (run between the page/scrims and the bars in
-        // `draw_overlay_card`); under `Pane` it stays FIRST-in-batch in
-        // `panel_renderer` below (drawn behind the rows, over the opaque card — the
-        // byte-identical historical slot). The dedicated pass is prepared empty
-        // whenever it is not used, so a stale wordmark never lingers.
-        // The BARE-chrome question, answered identically by the gate of the same
-        // name in `pipeline_layers::draw_overlay_card` (this one picks the pass
-        // the placard is PREPARED into, that one the pass that is drawn).
+        // Bars use the dedicated placard pass; Pane keeps the historical
+        // first-in-panel-batch slot. The unused pass is parked every frame.
         let bars = matches!(
             crate::render::effective_list_style(),
             theme::ListStyle::Bars | theme::ListStyle::Diagonal(_) | theme::ListStyle::Rules(_)
@@ -306,9 +303,6 @@ impl TextPipeline {
             }
         }
         let mut areas: Vec<TextArea> = Vec::new();
-        // Whether the placard rides THIS (Pane) panel batch as the FIRST area — the
-        // one entry whose giant glyphs could overflow the shared atlas. Tracked so the
-        // graceful-degradation retry below can drop exactly it (see the prepare site).
         let mut placard_in_panel = false;
         if let Some((px, py, _pw, _ph)) = placard
             && !bars
@@ -324,84 +318,42 @@ impl TextPipeline {
             });
             placard_in_panel = true;
         }
-        // ONE CLIP BAND PER PLANNED ROW, off the plan's own slots rather than re-derived
-        // from `first_top + k * lh` — the rows are not a uniform pitch once a compact row
-        // is in the budget. WHERE each band is seated is `overlay_panel_bands`, which the
-        // footprint frost measures its ink through, so the seat glyphon is handed and the
-        // seat a treatment reads are one object.
-        let docked = self.docked_facet_band(geom, plan).zip(plan.strip_band());
-        match (docked, self.overlay_panel_bands(geom, plan)) {
-            (Some((dock, original)), _) => {
-                // Query/title at its ordinary seat, the facet strip translated
-                // to the pane's top edge, then the unchanged candidate/footer
-                // body. Each slice is clipped from the same shaped buffer, so
-                // the label spans and hit spans remain one object.
-                areas.push(TextArea {
-                    buffer: &self.panel_buffer,
-                    left: text_left,
-                    top: text_top,
-                    scale: 1.0,
-                    bounds: TextBounds {
-                        left: bounds.left,
-                        top: 0,
-                        right: bounds.right,
-                        bottom: original.top.max(0.0) as i32,
-                    },
-                    default_color: ink,
-                    custom_glyphs: &[],
-                });
-                areas.push(TextArea {
-                    buffer: &self.panel_buffer,
-                    left: text_left,
-                    top: text_top + dock.top - original.top,
-                    scale: 1.0,
-                    bounds: TextBounds {
-                        left: bounds.left,
-                        top: dock.top.max(0.0) as i32,
-                        right: bounds.right,
-                        bottom: dock.bottom().min(height as f32) as i32,
-                    },
-                    default_color: ink,
-                    custom_glyphs: &[],
-                });
-                areas.push(TextArea {
-                    buffer: &self.panel_buffer,
-                    left: text_left,
-                    top: text_top,
-                    scale: 1.0,
-                    bounds: TextBounds {
-                        left: bounds.left,
-                        top: original.bottom().max(0.0) as i32,
-                        right: bounds.right,
-                        bottom: height as i32,
-                    },
-                    default_color: ink,
-                    custom_glyphs: &[],
-                });
-            }
-            (None, None) => {
-                areas.push(panel_area);
-            }
-            (None, Some(panel_bands)) => {
-                for band in &panel_bands {
-                    areas.push(TextArea {
-                        buffer: &self.panel_buffer,
-                        left: band.left,
-                        top: text_top,
-                        scale: 1.0,
-                        bounds: TextBounds {
-                            left: bounds.left,
-                            top: band.clip_top.max(0.0) as i32,
-                            right: bounds.right,
-                            bottom: (band.clip_bottom.min(height as f32)) as i32,
-                        },
-                        default_color: ink,
-                        custom_glyphs: &[],
-                    });
+        let dock = self.docked_facet_band(geom, plan);
+        let docked = push_docked_facet_areas(
+            &mut areas,
+            &self.panel_buffer,
+            dock,
+            plan.strip_band(),
+            text_left,
+            text_top,
+            bounds.left,
+            bounds.right,
+            height,
+            ink,
+        );
+        if !docked {
+            match self.overlay_panel_bands(geom, plan) {
+                None => areas.push(panel_area),
+                Some(panel_bands) => {
+                    for band in &panel_bands {
+                        areas.push(TextArea {
+                            buffer: &self.panel_buffer,
+                            left: band.left,
+                            top: text_top,
+                            scale: 1.0,
+                            bounds: TextBounds {
+                                left: bounds.left,
+                                top: band.clip_top.max(0.0) as i32,
+                                right: bounds.right,
+                                bottom: (band.clip_bottom.min(height as f32)) as i32,
+                            },
+                            default_color: ink,
+                            custom_glyphs: &[],
+                        });
+                    }
                 }
             }
         }
-        // The navigation rail, in the card's own z-slot.
         if has_rail && let Some((left, top, bounds)) = self.workspace_rail_area(geom, width, height)
         {
             areas.push(TextArea {
@@ -440,7 +392,6 @@ impl TextPipeline {
             } else {
                 areas.push(TextArea {
                     buffer: &self.panel_bind_buffer,
-                    // One edge for every row on an upright card.
                     left: self.overlay_accessory_span(geom, 0, bind_w).0,
                     top: plan.secondary_top(),
                     scale: 1.0,

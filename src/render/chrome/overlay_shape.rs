@@ -96,31 +96,6 @@ pub(in crate::render) fn snap_placard_size(target: f32, anchor: f32, round_down:
 
 const STIPPLE_COVERAGE_THRESHOLD: u8 = 0x80;
 
-fn placard_origin(
-    corner: theme::PlacardCorner,
-    anchor: (f32, f32, f32, f32),
-    w: f32,
-    h: f32,
-    inset: f32,
-) -> (f32, f32) {
-    let (ax, ay, aw, ah) = anchor;
-    let x = match corner {
-        theme::PlacardCorner::TL | theme::PlacardCorner::BL | theme::PlacardCorner::Auto => {
-            (ax + inset).min((ax + aw - w).max(ax))
-        }
-        theme::PlacardCorner::TR | theme::PlacardCorner::BR => (ax + aw - inset - w).max(ax),
-    };
-    let y = match corner {
-        theme::PlacardCorner::TL | theme::PlacardCorner::TR => {
-            (ay + inset).min((ay + ah - h).max(ay))
-        }
-        theme::PlacardCorner::BL | theme::PlacardCorner::BR | theme::PlacardCorner::Auto => {
-            (ay + ah - inset - h).max(ay)
-        }
-    };
-    (x, y)
-}
-
 fn widest_run(buffer: &GlyphBuffer) -> f32 {
     let mut w = 0.0f32;
     for run in buffer.layout_runs() {
@@ -315,7 +290,12 @@ impl TextPipeline {
                 .shape_until_scroll(&mut self.font_system, false);
             w = widest_run(&self.placard_buffer);
         }
-        let (x, y) = placard_origin(corner, anchor, w, line_height, inset);
+        let contained = placard_origin(corner, anchor, w, line_height, inset);
+        let (x, y) = apply_placard_placement(
+            contained,
+            font_size,
+            crate::render::overrides::effective_placard_placement(),
+        );
         Some((x, y, w, line_height))
     }
 

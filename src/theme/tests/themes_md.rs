@@ -75,6 +75,8 @@ fn field_of(row: &str) -> Reader {
         "image_reveal" => r!(image_reveal),
         "highlight_texture" => r!(highlight_texture),
         "title_style" => r!(title_style),
+        "placard_placement" => r!(placard_placement),
+        "summoned_material" => r!(summoned_material),
         "page_frame" => r!(page_frame),
         "card_anchor" => r!(card_anchor),
         "chrome_face" => r!(chrome_face),

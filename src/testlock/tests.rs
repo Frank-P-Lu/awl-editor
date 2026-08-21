@@ -258,7 +258,7 @@ fn a_window_that_forces_a_knob_and_then_panics_cannot_poison_the_next_test() {
 fn every_forced_knob_is_restored_not_just_the_one_that_bit_us() {
     // The axis the reported leak did not name: it was `list_style`, but the
     // guard must sweep the WHOLE roster — a knob left out of the restore is the
-    // next expensive discovery. Force all twelve, die, require a pristine exit.
+    // next expensive discovery. Force every knob, die, require a pristine exit.
     let before = {
         let _g = serial();
         crate::render::overrides::pins()
@@ -267,6 +267,10 @@ fn every_forced_knob_is_restored_not_just_the_one_that_bit_us() {
         let _g = serial();
         crate::render::set_test_override(crate::render::RenderOverrides {
             title_style: Some(crate::theme::TitleStyle::InlinePrefix),
+            placard_placement: Some(crate::theme::PlacardPlacement::Bleed {
+                x_em: 0.25,
+                y_em: 0.5,
+            }),
             card_anchor: Some(crate::theme::CardAnchor::TopLeft),
             chrome_face: Some(crate::theme::ChromeFace::Named("IBM Plex Mono")),
             motion_juice: Some(crate::theme::MotionJuice {
@@ -281,6 +285,11 @@ fn every_forced_knob_is_restored_not_just_the_one_that_bit_us() {
             bar_config: Some(poisoned_bar_config()),
             facet_style: Some(crate::theme::FacetStyle::Band),
             pane_split: Some(crate::theme::PaneSplit::Split),
+            summoned_material: Some(crate::theme::SummonedMaterial::Scanlines {
+                pitch_px: 4.0,
+                line_px: 1.0,
+                strength: 0.2,
+            }),
             density: Some(crate::render::TypeDensity {
                 scale: 1.25,
                 leading: 1.5,

@@ -11,8 +11,7 @@ impl TextPipeline {
         cache: &Cache,
         format: wgpu::TextureFormat,
     ) -> Self {
-        // Placeholder colours are inert here; the shared retint owner applies
-        // the active world before this constructor returns.
+        // Placeholder colours are retinted before this constructor returns.
         const PLACEHOLDER_RGB: [u8; 3] = [0; 3];
         const PLACEHOLDER_RGBA: [u8; 4] = [0; 4];
         let mut font_system = build_font_system();
@@ -32,11 +31,7 @@ impl TextPipeline {
             SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         page_frame_pipeline.set_dither(1.0);
         let stars_pipeline = SelectionPipeline::new(device, &sel_shader, format, [0, 0, 0, 0]);
-        // SYNTAX WASH quads (under selection, over the ground): the warm band
-        // behind prose comments + the green band behind dark-world strings. The
-        // tints come from THE role style provider (`role_style_for`, via
-        // `wash_rgba_bytes`); a role/world with no wash gets transparent bytes AND
-        // zero instances, so nothing draws.
+        // Syntax-wash quads are parked when their role/world has no wash.
         let wash_comment_pipeline =
             SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         let wash_string_pipeline =
@@ -92,6 +87,7 @@ impl TextPipeline {
         let panel_card = SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         let panel_shadow = SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         let panel_border = SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
+        let panel_material = SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         let blur = blur::BlurBackdrop::new(device, format);
         // Second text renderer for the panel string, sharing the atlas + viewport.
         let panel_renderer =
@@ -135,6 +131,8 @@ impl TextPipeline {
         let mut placard_stipple =
             SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         placard_stipple.set_dither(theme::placard_stipple_density());
+        let placard_material =
+            SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         // The rotated secondary-location cue. Shares the same rotation
         // shader every world's data can reach; parked (zero instances) until
         // a `RotatedRail` world's frame actually prepares one.
@@ -269,6 +267,7 @@ impl TextPipeline {
             panel_card,
             panel_shadow,
             panel_border,
+            panel_material,
             blur,
             blur_recompute: false,
             blur_sig: None,
@@ -363,6 +362,7 @@ impl TextPipeline {
             overlay_range_track,
             overlay_range_thumb,
             placard_stipple,
+            placard_material,
             rotated_label_pipeline,
             rotated_location_mask: None,
             overlay_theme_underline: None,

@@ -11,7 +11,7 @@ pub(super) const FACET_CHIP_RADIUS: Logical = Logical(6.0);
 
 /// The `ChipVariant::Underline` skin's own corner — a near-hairline rounding on
 /// a rule, not a pill's radius, which is why it is not [`FACET_CHIP_RADIUS`].
-const CHIP_UNDERLINE_CORNER: Logical = Logical(1.75);
+pub(super) const CHIP_UNDERLINE_CORNER: Logical = Logical(1.75);
 
 impl TextPipeline {
     /// TEST HOOK: total shaped glyphs the overlay text renderer would draw this
@@ -201,104 +201,6 @@ impl TextPipeline {
             .prepare(device, queue, width, height, &track_rects);
         self.overlay_range_thumb
             .prepare_multicolor(device, queue, width, height, &thumb_quads);
-    }
-
-    fn overlay_prepare_facet_marks(
-        &mut self,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        width: u32,
-        height: u32,
-        geom: &OverlayGeom,
-    ) {
-        // FACETED STRIP active-lens mark: the rect the shaper recorded (its SHAPE
-        // set by `facet_style` — hairline underline / band / active chip); a
-        // non-theme card parks it empty (so a stale rect never lingers).
-        let underline: Vec<[f32; 4]> = if geom.theme {
-            self.overlay_theme_underline.iter().copied().collect()
-        } else {
-            Vec::new()
-        };
-        // A WORKSPACE'S LABEL RAIL takes this same "active lens mark" slot whole
-        // (`workspace::prepare_rail_mark`). A workspace whose lens lives in its
-        // HEADER (`geom.theme`) has no rail to mark and takes the grouped card's
-        // own strip mark below instead.
-        if geom.workspace && !geom.theme {
-            self.prepare_rail_mark(device, queue, width, height, geom);
-            return;
-        }
-        // PER-ITEM LIST SURFACES round: `Text` (default) keeps the content-ink
-        // hairline byte-identically; `Band` recolors the ACTIVE mark to the
-        // selected-row band VALUE (never amber) and rounds it into a pill.
-        // V6 P5 [`theme::FacetStyle::Chips`] — REAL chips (third attempt): the
-        // ACTIVE label rides `overlay_lens_underline` as a FILLED value pill
-        // (same as `Band`), and EACH INACTIVE label draws a GHOST pill — a MUTED
-        // hairline STROKE — via `overlay_facet_ghost`. Both are recorded from the
-        // SAME shaped strip glyphs (in `overlay_shape_theme`), so the skin can't
-        // disagree with the hit-test.
-        let facet_style = crate::render::effective_facet_style();
-        let chip_radius = self.metrics.px(FACET_CHIP_RADIUS);
-        let bar_stroke = self.metrics.px(crate::render::BAR_OUTLINE_STROKE);
-        let underline_corner = self.metrics.px(CHIP_UNDERLINE_CORNER);
-        let mut ghosts: Vec<[f32; 4]> = Vec::new();
-        let band = super::overlay_selected_band_srgb();
-        match facet_style {
-            theme::FacetStyle::Text => {}
-            theme::FacetStyle::Band => {
-                self.overlay_lens_underline.set_color(band.rgba_bytes());
-                self.overlay_lens_underline.set_corner(chip_radius);
-                self.overlay_lens_underline.set_stroke(0.0);
-            }
-            theme::FacetStyle::DockedTab => {
-                self.overlay_lens_underline.set_color(
-                    theme::pane_surface(crate::render::effective_card_elevation()).rgba_bytes(),
-                );
-                self.overlay_lens_underline.set_corner(0.0);
-                self.overlay_lens_underline.set_stroke(0.0);
-                self.overlay_facet_ghost
-                    .set_color(theme::surface_selected().rgba_bytes());
-                self.overlay_facet_ghost.set_corner(0.0);
-                self.overlay_facet_ghost.set_stroke(bar_stroke);
-                ghosts = self.overlay_theme_facet_ghosts.clone();
-            }
-            theme::FacetStyle::Chips(v) => {
-                use theme::ChipVariant as V;
-                let content = theme::base_content();
-                let muted = theme::muted();
-                let stroke = bar_stroke;
-                let (a_fill, a_corner, a_stroke): ([u8; 4], f32, f32) = match v {
-                    V::Hairline => (band.rgba_bytes(), chip_radius, 0.0),
-                    V::FilledActive => (content.rgba_bytes(), chip_radius, 0.0),
-                    V::Underline => (content.rgba_bytes(), underline_corner, 0.0),
-                    V::Bracket => (content.rgba_bytes(), 0.0, 0.0),
-                };
-                self.overlay_lens_underline.set_color(a_fill);
-                self.overlay_lens_underline.set_corner(a_corner);
-                self.overlay_lens_underline.set_stroke(a_stroke);
-                let (g_color, g_corner, g_stroke): ([u8; 4], f32, f32) = match v {
-                    V::Hairline => (muted.rgba_bytes(), chip_radius, stroke),
-                    V::Bracket => (content.rgba_bytes(), 0.0, 0.0),
-                    V::FilledActive | V::Underline => (muted.rgba_bytes(), chip_radius, stroke),
-                };
-                self.overlay_facet_ghost.set_color(g_color);
-                self.overlay_facet_ghost.set_corner(g_corner);
-                self.overlay_facet_ghost.set_stroke(g_stroke);
-                if geom.theme {
-                    ghosts = self.overlay_theme_facet_ghosts.clone();
-                }
-            }
-        }
-        self.overlay_lens_underline
-            .prepare(device, queue, width, height, &underline);
-        if !matches!(
-            facet_style,
-            theme::FacetStyle::Chips(_) | theme::FacetStyle::DockedTab
-        ) {
-            self.overlay_facet_ghost.set_corner(chip_radius);
-            self.overlay_facet_ghost.set_stroke(bar_stroke);
-        }
-        self.overlay_facet_ghost
-            .prepare(device, queue, width, height, &ghosts);
     }
 
     #[allow(clippy::too_many_arguments)]

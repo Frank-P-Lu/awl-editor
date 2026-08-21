@@ -250,6 +250,7 @@ impl TextPipeline {
         self.panel_shadow.draw(pass);
         self.panel_border.draw(pass);
         self.panel_card.draw(pass);
+        self.panel_material.draw(pass);
         // "Is this world's chrome BARE?" — drawn straight onto the receded page
         // with no card under it. A bare world's wordmark rides its own pass
         // BEHIND the row quads; a card world's rides the row-text batch, over
@@ -266,6 +267,7 @@ impl TextPipeline {
             self.placard_renderer
                 .render(&self.atlas, &self.viewport, pass)
                 .map_err(|e| anyhow::anyhow!("glyphon placard render failed: {e:?}"))?;
+            self.placard_material.draw(pass);
         }
         // The footer plate's rim draws UNDER the plate — same painter's order
         // as `notice_rim`/`notice_plate` in `draw_chrome_tail`: an outset rect
@@ -287,6 +289,9 @@ impl TextPipeline {
         self.panel_renderer
             .render(&self.atlas, &self.viewport, pass)
             .map_err(|e| anyhow::anyhow!("glyphon overlay render failed: {e:?}"))?;
+        if !bars {
+            self.placard_material.draw(pass);
+        }
         // The rotated secondary-location cue, drawn after the row text so it
         // is never covered by it. It lives in the card's own left gutter
         // (outside the text column), so ordinary rows never draw over it

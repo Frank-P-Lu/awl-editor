@@ -304,6 +304,20 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
 
     // The ORIGINAL soft fill: solid inside with a ~1px antialiased edge.
     let fill = 1.0 - smoothstep(-1.0, 1.0, d);
+    if (g.halftone < 0.0) {
+        // STATIC SCANLINE MATERIAL: a negative halftone value selects a
+        // transparent-line-only branch for dedicated summoned-material
+        // pipelines. The phase is absolute canvas y, so separate console and
+        // placard rects share one raster and a selection move cannot shimmer
+        // it. `halftone_cell` is pitch, `halftone_angle` is line width, and the
+        // magnitude is the authored strength. No clock or randomness exists.
+        let pitch = max(g.halftone_cell, 1.0);
+        let line = clamp(g.halftone_angle, 0.5, pitch);
+        let phase = in.px.y - pitch * floor(in.px.y / pitch);
+        let stripe = 1.0 - smoothstep(line - 0.5, line + 0.5, phase);
+        let a = fill * stripe * (-g.halftone) * g.dot_color.a;
+        return vec4<f32>(g.dot_color.rgb, clamp(a, 0.0, 1.0));
+    }
     if (g.stroke > 0.0) {
         // OUTLINE MODE: keep only the RING between the outer edge and a rect
         // shrunk `stroke` px inward. `inner` is the fill coverage of that

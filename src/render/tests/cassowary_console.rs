@@ -5,7 +5,10 @@
 
 use super::super::*;
 use super::{headless_dqp, view};
-use crate::theme::{FacetStyle, ListStyle, LocationStyle, THEMES, Theme};
+use crate::theme::{
+    CardShape, FacetStyle, ListStyle, LocationStyle, PlacardPlacement, SummonedMaterial, THEMES,
+    Theme,
+};
 
 fn cassowary() -> &'static Theme {
     THEMES
@@ -30,6 +33,36 @@ fn cassowary_promotes_the_development_pane_composition_into_authored_data() {
         caps.list_style,
         ListStyle::Pane,
         "the operations console is one card-backed pane, not floating row bars"
+    );
+}
+
+#[test]
+fn cassowary_authors_a_submerged_placard_and_chamfered_console() {
+    let caps = cassowary().render_caps;
+    assert_eq!(
+        caps.placard_placement,
+        PlacardPlacement::Bleed {
+            x_em: 0.0,
+            y_em: 0.34,
+        },
+        "the COMMANDS placard deliberately leaves the bottom of the viewport"
+    );
+    assert_eq!(
+        caps.card_shape,
+        CardShape::Chamfered { cut_px: 11.0 },
+        "the console keeps the shared chamfered card geometry"
+    );
+}
+
+#[test]
+fn cassowary_authors_the_static_shared_scanline_material() {
+    assert_eq!(
+        cassowary().render_caps.summoned_material,
+        SummonedMaterial::Scanlines {
+            pitch_px: 4.0,
+            line_px: 1.0,
+            strength: 0.12,
+        }
     );
 }
 
@@ -145,4 +178,115 @@ fn docked_facet_is_reusable_data_not_a_cassowary_identity_branch() {
     set_facet_style_test_override(None);
     set_list_style_test_override(None);
     set_pane_split_test_override(None);
+}
+
+#[test]
+fn submerged_placard_geometry_is_drawn_reported_and_rail_consumed_across_dpi() {
+    let _guard = crate::testlock::serial();
+    let _world = theme::WorldPin::world("Cassowary").expect("Cassowary ships");
+    let mut logical_crops = Vec::new();
+
+    for dpi in [1.0f32, 2.0f32] {
+        let (w, h) = ((1200.0 * dpi) as u32, (800.0 * dpi) as u32);
+        let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
+            eprintln!("skipping submerged placard geometry: no wgpu adapter");
+            return;
+        };
+        p.set_dpi(dpi);
+        p.set_view(&console_view(1));
+        p.prepare(&device, &queue, w, h).unwrap();
+        let geom = p.overlay_geometry(w);
+        let (_, py, _, ph) = p
+            .overlay_shape_placard(&geom)
+            .expect("Cassowary's COMMANDS placard draws at this canvas");
+        let crop = py + ph - h as f32;
+        assert!(
+            crop > 2.0 * dpi,
+            "the authored bottom bleed must produce a visible crop at {dpi}x, got {crop}px"
+        );
+        assert!(
+            p.rotated_rail_probe(&geom).is_some(),
+            "the index rail consumes the same displaced placard geometry"
+        );
+        logical_crops.push(crop / dpi);
+    }
+    assert!(
+        (logical_crops[0] - logical_crops[1]).abs() < 8.0,
+        "em-relative crop depth stays logically stable across DPI: {logical_crops:?}"
+    );
+}
+
+#[test]
+fn placard_bleed_is_reusable_data_on_a_synthetic_world() {
+    let _guard = crate::testlock::serial();
+    let _world = theme::WorldPin::world("Saltpan").expect("synthetic carrier ships");
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
+        eprintln!("skipping synthetic placard placement: no wgpu adapter");
+        return;
+    };
+    set_title_style_test_override(Some(theme::TitleStyle::Placard {
+        corner: theme::PlacardCorner::BL,
+        scale: 3.0,
+        ink: theme::PlacardInk::Bold,
+    }));
+    p.set_view(&console_view(0));
+    p.prepare(&device, &queue, 1200, 800).unwrap();
+    let geom = p.overlay_geometry(1200);
+
+    set_placard_placement_test_override(Some(PlacardPlacement::Contained));
+    let contained = p
+        .overlay_shape_placard(&geom)
+        .expect("synthetic placard draws");
+    set_placard_placement_test_override(Some(PlacardPlacement::Bleed {
+        x_em: 0.0,
+        y_em: 0.5,
+    }));
+    let bled = p
+        .overlay_shape_placard(&geom)
+        .expect("synthetic bled placard draws");
+    let font_size = contained.3 / 1.1;
+    assert!((bled.1 - contained.1 - 0.5 * font_size).abs() < 0.01);
+    assert_eq!(bled.0, contained.0, "zero x-em leaves the x anchor alone");
+
+    set_placard_placement_test_override(None);
+    set_title_style_test_override(None);
+}
+
+#[test]
+fn scanline_material_is_reusable_static_data_with_one_absolute_phase() {
+    let _guard = crate::testlock::serial();
+    let _world = theme::WorldPin::world("Saltpan").expect("synthetic carrier ships");
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
+        eprintln!("skipping synthetic scanline material: no wgpu adapter");
+        return;
+    };
+    set_title_style_test_override(Some(theme::TitleStyle::Placard {
+        corner: theme::PlacardCorner::BL,
+        scale: 3.0,
+        ink: theme::PlacardInk::Bold,
+    }));
+    set_summoned_material_test_override(Some(SummonedMaterial::Scanlines {
+        pitch_px: 5.0,
+        line_px: 1.25,
+        strength: 0.2,
+    }));
+    p.set_view(&console_view(0));
+    p.prepare(&device, &queue, 1200, 800).unwrap();
+    assert_eq!(p.panel_material.instance_count(), 1);
+    assert_eq!(p.placard_material.instance_count(), 1);
+    assert_eq!(p.panel_material.scanlines(), Some((0.2, 5.0, 1.25)));
+    assert_eq!(p.placard_material.scanlines(), p.panel_material.scanlines());
+
+    let shader = include_str!("../../../shaders/selection.wgsl");
+    assert!(shader.contains("let phase = in.px.y"));
+    assert!(
+        !shader.contains("g.time"),
+        "the material shader owns no clock"
+    );
+    assert!(
+        !shader.contains("random("),
+        "the material owns no randomness"
+    );
+    set_summoned_material_test_override(None);
+    set_title_style_test_override(None);
 }

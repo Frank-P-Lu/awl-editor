@@ -2,6 +2,7 @@
 
 const CORNER_RADIUS: f32 = 2.5;
 
+mod material;
 mod pipeline;
 use pipeline::{Flavor, build_render_pipeline};
 
@@ -648,10 +649,7 @@ fn lerp4(a: [f32; 4], b: [f32; 4], t: f32) -> [f32; 4] {
     ]
 }
 
-/// Convert an 8-bit sRGB RGBA quad to linear-light floats for the shader (the
-/// render target is sRGB, so the GPU expects linear color it re-encodes on
-/// write). Alpha is linear already. Routes through `theme`'s one `f32`-width
-/// sRGB EOTF.
+/// Convert an 8-bit sRGB RGBA quad to linear-light floats for the shader.
 pub(crate) fn srgba_u8_to_linear(c: [u8; 4]) -> [f32; 4] {
     let ch = crate::theme::srgb_channel_to_linear_f32;
     [ch(c[0]), ch(c[1]), ch(c[2]), c[3] as f32 / 255.0]

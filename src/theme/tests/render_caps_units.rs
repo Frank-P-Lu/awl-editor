@@ -141,6 +141,31 @@ const UNIT_VERDICTS: &[(&str, Verdict, &str)] = &[
         Verdict::NotALength,
         "a multiple of the placard's font size, which is already scaled",
     ),
+    (
+        "PlacardPlacement.x_em",
+        Verdict::NotALength,
+        "an em multiple resolved against the placard font size by apply_placard_placement",
+    ),
+    (
+        "PlacardPlacement.y_em",
+        Verdict::NotALength,
+        "an em multiple resolved against the placard font size by apply_placard_placement",
+    ),
+    (
+        "SummonedMaterial.pitch_px",
+        Verdict::LengthDpiOnly,
+        "render/chrome/overlay_material.rs resolves it against dpi.max(1.0)",
+    ),
+    (
+        "SummonedMaterial.line_px",
+        Verdict::LengthDpiOnly,
+        "render/chrome/overlay_material.rs resolves it against dpi.max(1.0)",
+    ),
+    (
+        "SummonedMaterial.strength",
+        Verdict::NotALength,
+        "a clamped alpha ceiling in SelectionPipeline::set_scanlines",
+    ),
 ];
 
 /// A `Type.field` name for every field the `RenderCaps` family declares, paired
@@ -213,7 +238,11 @@ fn fields_in(body: &str) -> Vec<(String, String)> {
 }
 
 fn family_fields() -> Vec<(String, String)> {
-    let src = include_str!("../model.rs");
+    let src = [
+        include_str!("../model.rs"),
+        include_str!("../model/chrome.rs"),
+    ]
+    .join("\n");
     // Every `pub struct` / `pub enum` in the file, with its brace-balanced body.
     let mut bodies: Vec<(String, String)> = Vec::new();
     let mut at = 0usize;

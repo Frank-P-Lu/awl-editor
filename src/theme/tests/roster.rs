@@ -228,6 +228,7 @@ fn capability_adopters(field: &str) -> Vec<&'static str> {
             "image_reveal" => t.render_caps.image_reveal != d.image_reveal,
             "highlight_texture" => t.render_caps.highlight_texture != d.highlight_texture,
             "title_style" => t.render_caps.title_style != d.title_style,
+            "placard_placement" => t.render_caps.placard_placement != d.placard_placement,
             "page_frame" => t.render_caps.page_frame != d.page_frame,
             "card_anchor" => t.render_caps.card_anchor != d.card_anchor,
             "chrome_face" => t.render_caps.chrome_face != d.chrome_face,
@@ -238,6 +239,7 @@ fn capability_adopters(field: &str) -> Vec<&'static str> {
             "ambient" => t.render_caps.ambient != d.ambient,
             "spell_underline_gap" => t.render_caps.spell_underline_gap != d.spell_underline_gap,
             "fold_afford" => t.render_caps.fold_afford != d.fold_afford,
+            "summoned_material" => t.render_caps.summoned_material != d.summoned_material,
             "card_texture" => t.render_caps.card_texture != d.card_texture,
             "card_shape" => t.render_caps.card_shape != d.card_shape,
             other => {
@@ -255,7 +257,7 @@ fn capability_adopters(field: &str) -> Vec<&'static str> {
 #[test]
 fn every_zero_or_single_adopter_capability_is_named_and_classified() {
     let fields = render_caps_fields();
-    assert_eq!(fields.len(), 20, "RenderCaps declaration census drifted");
+    assert_eq!(fields.len(), 22, "RenderCaps declaration census drifted");
     let mut sparse = Vec::new();
     for field in fields {
         let verdict = match field.as_str() {
@@ -267,6 +269,7 @@ fn every_zero_or_single_adopter_capability_is_named_and_classified() {
             "image_reveal" => "keep: authored one-bit exclusion",
             "highlight_texture" => "keep: authored one-bit texture",
             "title_style" => "keep: authored title composition",
+            "placard_placement" => "keep: authored contained/bleeding placard placement",
             "page_frame" => "keep: authored frame expression",
             "card_anchor" => "keep: authored card composition",
             "chrome_face" => "keep: authored display face",
@@ -277,6 +280,7 @@ fn every_zero_or_single_adopter_capability_is_named_and_classified() {
             "ambient" => "keep: Stars is authored aliveness, not corrective geometry",
             "spell_underline_gap" => "excluded: separately resolved corrective dial",
             "fold_afford" => "keep: two measured lava-palette corrections",
+            "summoned_material" => "keep: authored summoned-chrome raster material",
             "card_texture" => "keep: Halftone is authored material",
             "card_shape" => "keep: Chamfer is authored geometry",
             other => panic!("RenderCaps field `{other}` has no classification"),
@@ -347,7 +351,7 @@ fn sparse_authored_variants_remain_classified_data() {
     );
     assert_eq!(
         adopters(&|t| matches!(t.render_caps.card_shape, CardShape::Chamfered { .. })),
-        ["Quokka"]
+        ["Quokka", "Cassowary"]
     );
     assert_eq!(
         adopters(&|t| matches!(t.render_caps.ambient, AmbientStyle::Stars { .. })),
@@ -399,6 +403,8 @@ fn promoted_facts_have_renderer_owners_and_no_theme_data_branch() {
     assert!(!model.contains("pub selection_ui:"));
     assert!(!model.contains("pub motion:"));
     assert!(model.contains("pub pane_split: PaneSplit"));
+    assert!(model.contains("pub placard_placement: PlacardPlacement"));
+    assert!(model.contains("pub summoned_material: SummonedMaterial"));
     assert!(!model.contains("pub frost:"));
 
     let derive = include_str!("../derive.rs");
@@ -410,6 +416,12 @@ fn promoted_facts_have_renderer_owners_and_no_theme_data_branch() {
     assert!(render.contains("None => theme::active().render_caps.pane_split"));
     assert!(render.contains("set_overlay_motion_test_override"));
     assert!(render.contains("set_pane_split_test_override"));
+    assert!(render.contains("set_placard_placement_test_override"));
+    assert!(render.contains("set_summoned_material_test_override"));
+
+    let overrides = include_str!("../../render/overrides/mod.rs");
+    assert!(overrides.contains("unwrap_or(theme::active().render_caps.placard_placement)"));
+    assert!(overrides.contains("unwrap_or(theme::active().render_caps.summoned_material)"));
 
     let layers = include_str!("../../render/layers.rs");
     let outline = include_str!("../../render/chrome/outline.rs");

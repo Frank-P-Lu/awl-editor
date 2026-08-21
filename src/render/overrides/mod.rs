@@ -49,6 +49,7 @@ use parsers::{
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct RenderOverrides {
     pub title_style: Option<theme::TitleStyle>,
+    pub placard_placement: Option<theme::PlacardPlacement>,
     pub card_anchor: Option<theme::CardAnchor>,
     pub chrome_face: Option<theme::ChromeFace>,
     pub motion_juice: Option<theme::MotionJuice>,
@@ -60,6 +61,7 @@ pub(crate) struct RenderOverrides {
     pub bar_config: Option<theme::BarConfig>,
     pub facet_style: Option<theme::FacetStyle>,
     pub pane_split: Option<theme::PaneSplit>,
+    pub summoned_material: Option<theme::SummonedMaterial>,
     pub density: Option<TypeDensity>,
     pub overlay_motion: Option<OverlayMotionProbe>,
 }
@@ -81,6 +83,7 @@ impl RenderOverrides {
             title_style: std::env::var("AWL_OVERLAY_STYLE_FORCE")
                 .ok()
                 .and_then(|s| parse_overlay_style_force(&s)),
+            placard_placement: None,
             card_anchor: std::env::var("AWL_OVERLAY_ALIGN")
                 .ok()
                 .and_then(|s| parse_overlay_align(&s))
@@ -120,6 +123,7 @@ impl RenderOverrides {
                 "unified | split",
                 parse_pane_split_force,
             ),
+            summoned_material: None,
             density: read_forced_knob(
                 "AWL_OVERLAY_DENSITY_FORCE",
                 "<scale> | <scale>:<leading>",
@@ -139,6 +143,7 @@ impl RenderOverrides {
     fn or(self, base: &RenderOverrides) -> RenderOverrides {
         RenderOverrides {
             title_style: self.title_style.or(base.title_style),
+            placard_placement: self.placard_placement.or(base.placard_placement),
             card_anchor: self.card_anchor.or(base.card_anchor),
             chrome_face: self.chrome_face.or(base.chrome_face),
             motion_juice: self.motion_juice.or(base.motion_juice),
@@ -147,6 +152,7 @@ impl RenderOverrides {
             bar_config: self.bar_config.or(base.bar_config),
             facet_style: self.facet_style.or(base.facet_style),
             pane_split: self.pane_split.or(base.pane_split),
+            summoned_material: self.summoned_material.or(base.summoned_material),
             density: self.density.or(base.density),
             overlay_motion: self.overlay_motion.or(base.overlay_motion),
         }
@@ -177,6 +183,7 @@ fn env_overrides() -> &'static RenderOverrides {
 #[cfg(test)]
 static TEST_OVERRIDE: std::sync::Mutex<RenderOverrides> = std::sync::Mutex::new(RenderOverrides {
     title_style: None,
+    placard_placement: None,
     card_anchor: None,
     chrome_face: None,
     motion_juice: None,
@@ -185,6 +192,7 @@ static TEST_OVERRIDE: std::sync::Mutex<RenderOverrides> = std::sync::Mutex::new(
     bar_config: None,
     facet_style: None,
     pane_split: None,
+    summoned_material: None,
     density: None,
     overlay_motion: None,
 });
@@ -205,6 +213,18 @@ pub(super) fn current() -> RenderOverrides {
     {
         env_overrides().clone()
     }
+}
+
+pub(in crate::render) fn effective_placard_placement() -> theme::PlacardPlacement {
+    current()
+        .placard_placement
+        .unwrap_or(theme::active().render_caps.placard_placement)
+}
+
+pub(in crate::render) fn effective_summoned_material() -> theme::SummonedMaterial {
+    current()
+        .summoned_material
+        .unwrap_or(theme::active().render_caps.summoned_material)
 }
 
 /// Install a whole [`RenderOverrides`] as the test override in one call,
@@ -321,6 +341,7 @@ pub(crate) fn leaked_knobs(before: &OverridePins, after: &OverridePins) -> Vec<S
         knobs:
             RenderOverrides {
                 title_style: b_title_style,
+                placard_placement: b_placard_placement,
                 card_anchor: b_card_anchor,
                 chrome_face: b_chrome_face,
                 motion_juice: b_motion_juice,
@@ -329,6 +350,7 @@ pub(crate) fn leaked_knobs(before: &OverridePins, after: &OverridePins) -> Vec<S
                 bar_config: b_bar_config,
                 facet_style: b_facet_style,
                 pane_split: b_pane_split,
+                summoned_material: b_summoned_material,
                 density: b_density,
                 overlay_motion: b_overlay_motion,
             },
@@ -338,6 +360,7 @@ pub(crate) fn leaked_knobs(before: &OverridePins, after: &OverridePins) -> Vec<S
         knobs:
             RenderOverrides {
                 title_style: a_title_style,
+                placard_placement: a_placard_placement,
                 card_anchor: a_card_anchor,
                 chrome_face: a_chrome_face,
                 motion_juice: a_motion_juice,
@@ -346,6 +369,7 @@ pub(crate) fn leaked_knobs(before: &OverridePins, after: &OverridePins) -> Vec<S
                 bar_config: a_bar_config,
                 facet_style: a_facet_style,
                 pane_split: a_pane_split,
+                summoned_material: a_summoned_material,
                 density: a_density,
                 overlay_motion: a_overlay_motion,
             },
@@ -361,6 +385,11 @@ pub(crate) fn leaked_knobs(before: &OverridePins, after: &OverridePins) -> Vec<S
         };
     }
     knob!("title_style", b_title_style, a_title_style);
+    knob!(
+        "placard_placement",
+        b_placard_placement,
+        a_placard_placement
+    );
     knob!("card_anchor", b_card_anchor, a_card_anchor);
     knob!("chrome_face", b_chrome_face, a_chrome_face);
     knob!("motion_juice", b_motion_juice, a_motion_juice);
@@ -369,6 +398,11 @@ pub(crate) fn leaked_knobs(before: &OverridePins, after: &OverridePins) -> Vec<S
     knob!("bar_config", b_bar_config, a_bar_config);
     knob!("facet_style", b_facet_style, a_facet_style);
     knob!("pane_split", b_pane_split, a_pane_split);
+    knob!(
+        "summoned_material",
+        b_summoned_material,
+        a_summoned_material
+    );
     knob!("density", b_density, a_density);
     knob!("overlay_motion", b_overlay_motion, a_overlay_motion);
     knob!("living_band", b_living_band, a_living_band);
@@ -381,6 +415,11 @@ pub(crate) fn leaked_knobs(before: &OverridePins, after: &OverridePins) -> Vec<S
 #[cfg(test)]
 pub(crate) fn set_title_style_test_override(style: Option<theme::TitleStyle>) {
     set_field(|o| o.title_style = style);
+}
+
+#[cfg(test)]
+pub(crate) fn set_placard_placement_test_override(placement: Option<theme::PlacardPlacement>) {
+    set_field(|o| o.placard_placement = placement);
 }
 
 #[cfg(test)]
@@ -421,6 +460,11 @@ pub(crate) fn set_facet_style_test_override(s: Option<theme::FacetStyle>) {
 #[cfg(test)]
 pub(crate) fn set_pane_split_test_override(s: Option<theme::PaneSplit>) {
     set_field(|o| o.pane_split = s);
+}
+
+#[cfg(test)]
+pub(crate) fn set_summoned_material_test_override(m: Option<theme::SummonedMaterial>) {
+    set_field(|o| o.summoned_material = m);
 }
 
 #[cfg(test)]

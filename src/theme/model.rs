@@ -3,6 +3,8 @@ pub use super::palette::{PaletteRole, ResolvedTwoColour, TwoColour};
 use super::{
     cjk::FontId, color::Srgb, diagonal::DiagonalSpine, ground::Background, ornament::Ornaments,
 };
+mod chrome;
+pub use chrome::{PlacardCorner, PlacardInk, PlacardPlacement, SummonedMaterial, TitleStyle};
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RoleOverrides {
     pub def_fg: Option<Srgb>,
@@ -84,34 +86,6 @@ pub enum DecorativeWash {
 pub enum ImageReveal {
     Translucent,
     Opaque,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum PlacardCorner {
-    TL,
-    TR,
-    BL,
-    BR,
-    Auto,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum PlacardInk {
-    Faint,
-    Ghost,
-    Stipple,
-    Muted,
-    Bold,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum TitleStyle {
-    InlinePrefix,
-    Placard {
-        corner: PlacardCorner,
-        scale: f32,
-        ink: PlacardInk,
-    },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -491,6 +465,7 @@ pub struct RenderCaps {
     pub image_reveal: ImageReveal,
     pub highlight_texture: HighlightTexture,
     pub title_style: TitleStyle,
+    pub placard_placement: PlacardPlacement,
     pub page_frame: PageFrame,
     pub card_anchor: CardAnchor,
     pub chrome_face: ChromeFace,
@@ -507,6 +482,7 @@ pub struct RenderCaps {
     /// half-size gap under a correctly-doubled wave on a dense panel.
     pub spell_underline_gap: crate::render::Logical,
     pub fold_afford: FoldAfford,
+    pub summoned_material: SummonedMaterial,
     pub card_texture: CardTexture,
     pub card_shape: CardShape,
 }
@@ -567,6 +543,7 @@ impl RenderCaps {
         image_reveal: ImageReveal::Translucent,
         highlight_texture: HighlightTexture::Wash,
         title_style: TitleStyle::InlinePrefix,
+        placard_placement: PlacardPlacement::DEFAULT,
         page_frame: PageFrame::None,
         card_anchor: CardAnchor::TopCenter,
         chrome_face: ChromeFace::Body,
@@ -577,6 +554,7 @@ impl RenderCaps {
         ambient: AmbientStyle::None,
         spell_underline_gap: SPELL_UNDERLINE_GAP_DEFAULT,
         fold_afford: FoldAfford::DEFAULT,
+        summoned_material: SummonedMaterial::DEFAULT,
         card_texture: CardTexture::DEFAULT,
         card_shape: CardShape::DEFAULT,
     };

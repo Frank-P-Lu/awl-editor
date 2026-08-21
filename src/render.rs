@@ -11,7 +11,6 @@ use crate::selection::SelectionPipeline;
 use crate::spell::Misspelling;
 use crate::spellunderline::{SpellUnderlinePipeline, Squiggle};
 use crate::theme;
-
 /// Layout-dependent caret geometry; animation and GPU pipelines live in crate modules.
 mod caret;
 mod caret_body;
@@ -53,8 +52,9 @@ pub(crate) use overrides::{
     parse_overlay_slant_force, parse_overlay_style_force, set_bar_config_test_override,
     set_card_anchor_test_override, set_chrome_face_test_override, set_facet_style_test_override,
     set_list_style_test_override, set_motion_test_override, set_overlay_density_test_override,
-    set_overlay_motion_test_override, set_pane_split_test_override, set_slant_test_override,
-    set_test_override, set_title_style_test_override,
+    set_overlay_motion_test_override, set_pane_split_test_override,
+    set_placard_placement_test_override, set_slant_test_override,
+    set_summoned_material_test_override, set_test_override, set_title_style_test_override,
 };
 pub(crate) use overrides::{OverlayMotionProbe, SlantProbe, TypeDensity};
 
@@ -1662,14 +1662,12 @@ pub(crate) fn effective_pane_split() -> theme::PaneSplit {
         None => theme::active().render_caps.pane_split,
     }
 }
-
 pub(crate) fn effective_overlay_density() -> TypeDensity {
     match overrides::current().density {
         Some(d) => d,
         None => TypeDensity::shipped(),
     }
 }
-
 pub(crate) fn effective_overlay_scale() -> f32 {
     effective_overlay_density().scale
 }
@@ -1955,6 +1953,7 @@ pub struct TextPipeline {
     pub panel_card: SelectionPipeline,
     pub panel_shadow: SelectionPipeline,
     pub panel_border: SelectionPipeline,
+    pub panel_material: SelectionPipeline,
     pub blur: blur::BlurBackdrop,
     blur_recompute: bool,
     /// The signature the cached blur was built for (`None` = no cache). Compared in
@@ -2303,6 +2302,7 @@ pub struct TextPipeline {
     /// placard's first-in-batch upload gives it); parked empty on every
     /// non-stipple world and whenever no overlay is up.
     pub placard_stipple: SelectionPipeline,
+    pub placard_material: SelectionPipeline,
     /// THE ROTATED SECONDARY-LOCATION HEADING: a `RenderCaps::location_style
     /// == LocationStyle::RotatedRail(_)` world's active facet locator, turned
     /// 90° in the ROOM's own outer margin — the one its wordmark placard keeps.

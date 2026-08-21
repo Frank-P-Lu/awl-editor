@@ -170,6 +170,7 @@ fn personality_assignments_are_exactly_the_decided_table() {
                     density: crate::render::dither::WAGTAIL_HIGHLIGHT_DITHER_DENSITY,
                 },
                 title_style: TitleStyle::InlinePrefix,
+                placard_placement: model::PlacardPlacement::Contained,
                 page_frame: frame(2.0),
                 card_anchor: model::CardAnchor::TopLeft,
                 chrome_face: model::ChromeFace::Body,
@@ -187,6 +188,7 @@ fn personality_assignments_are_exactly_the_decided_table() {
                 // Dormant default (no lava ground — the silent pole's column
                 // stays flat).
                 fold_afford: model::FoldAfford::DEFAULT,
+                summoned_material: model::SummonedMaterial::Flat,
                 // Dormant default — a fractional-alpha halftone dot
                 // is 1-bit-illegal, and the chamfer is Quokka's own separate
                 // personality statement.
@@ -230,41 +232,7 @@ fn personality_assignments_are_exactly_the_decided_table() {
             },
             "Potoroo" => expected_potoroo_caps(),
             "Tawny" | "Mopoke" | "Bombora" | "Mulga" | "Bowerbird" => RenderCaps::DEFAULT,
-            // CASSOWARY (the NERV-terminal statement world): the loud NERV console
-            // overlay — a bold Archivo-Black wordmark placard (Auto corner derives
-            // bottom-LEFT off the fable-pick RIGHT card), BORDERED elevation, the
-            // poster Bars list, and BRACKET facet chips (terminal corner-ticks). The
-            // writing page stays calm.
-            "Cassowary" => RenderCaps {
-                // The authentic CRT phosphor cursor — an ink caret (primary ==
-                // base_content) needs the Filled block so a lit green cell knocks
-                // the glyph out in the ground rather than erasing it green-on-green.
-                caret_block_style: model::CaretBlockStyle::Filled,
-                title_style: TitleStyle::Placard {
-                    corner: PlacardCorner::Auto,
-                    scale: 3.0,
-                    ink: PlacardInk::Bold,
-                },
-                // The fable pick: the terminal readout is a RIGHT rail (Auto
-                // corner then derives bottom-LEFT).
-                card_anchor: model::CardAnchor::TopRight,
-                chrome_face: model::ChromeFace::Named("Archivo Black"),
-                elevation: Elevation::Bordered,
-                list_style: model::ListStyle::Pane,
-                pane_split: model::PaneSplit::Unified,
-                facet_style: FacetStyle::DockedTab,
-                // The active facet reads as a subordinate technical locator:
-                // mono, muted, tracked through the shaper, and truthfully
-                // numbered from the real lens strip.
-                location_style: model::LocationStyle::RotatedRail(model::LocationLabelStyle {
-                    face: model::LocationFace::Mono,
-                    scale: 0.28,
-                    ink: model::LocationInk::Flat(model::PaletteRole::Muted),
-                    tracking_em: 0.06,
-                    locator: model::LocationLocator::IndexOnly { digits: 2 },
-                }),
-                ..RenderCaps::DEFAULT
-            },
+            "Cassowary" => expected_cassowary_caps(),
             // PAPERBARK (the handmade-paper studio): a LIGHT world, so
             // it carries the composition round's light-world card border, and
             // ⚠️ THE ONE CARRIER OF `Rules` — the quiet fourth list style,
@@ -351,6 +319,41 @@ fn bar_config_shipped_is_the_hug_all_hybrid() {
 fn expected_potoroo_caps() -> model::RenderCaps {
     model::RenderCaps {
         elevation: model::Elevation::Recessed,
+        ..model::RenderCaps::DEFAULT
+    }
+}
+
+fn expected_cassowary_caps() -> model::RenderCaps {
+    model::RenderCaps {
+        caret_block_style: model::CaretBlockStyle::Filled,
+        title_style: model::TitleStyle::Placard {
+            corner: model::PlacardCorner::Auto,
+            scale: 3.0,
+            ink: model::PlacardInk::Bold,
+        },
+        placard_placement: model::PlacardPlacement::Bleed {
+            x_em: 0.0,
+            y_em: 0.34,
+        },
+        card_anchor: model::CardAnchor::TopRight,
+        chrome_face: model::ChromeFace::Named("Archivo Black"),
+        elevation: model::Elevation::Bordered,
+        list_style: model::ListStyle::Pane,
+        pane_split: model::PaneSplit::Unified,
+        facet_style: model::FacetStyle::DockedTab,
+        location_style: model::LocationStyle::RotatedRail(model::LocationLabelStyle {
+            face: model::LocationFace::Mono,
+            scale: 0.28,
+            ink: model::LocationInk::Flat(model::PaletteRole::Muted),
+            tracking_em: 0.06,
+            locator: model::LocationLocator::IndexOnly { digits: 2 },
+        }),
+        summoned_material: model::SummonedMaterial::Scanlines {
+            pitch_px: 4.0,
+            line_px: 1.0,
+            strength: 0.12,
+        },
+        card_shape: model::CardShape::Chamfered { cut_px: 11.0 },
         ..model::RenderCaps::DEFAULT
     }
 }

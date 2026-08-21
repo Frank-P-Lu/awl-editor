@@ -22,41 +22,6 @@ const TEXT_MARK_THICKNESS: Logical = Logical(1.5);
 const UNDERLINE_CHIP_THICKNESS: Logical = Logical(3.5);
 
 impl TextPipeline {
-    /// The shared docked-facet line: the shaped strip keeps its ordinary x
-    /// spans and typography, but its line box seats immediately above the
-    /// card so its bottom edge and the pane's top edge are the same edge.
-    pub(in crate::render) fn docked_facet_band(
-        &self,
-        geom: &OverlayGeom,
-        plan: &OverlayRowPlan,
-    ) -> Option<crate::render::plan::PlannedHeader> {
-        let strip = plan.strip_band()?;
-        // The grouped strip's planned box also owns the calm beat below its
-        // glyph line. Dock only the glyph-bearing line: carrying that folded
-        // beat above the pane makes the tab taller than the available top
-        // margin on a narrow canvas.
-        let dock_h = self.overlay_lh().min(strip.height);
-        matches!(
-            crate::render::effective_facet_style(),
-            theme::FacetStyle::DockedTab
-        )
-        .then_some(crate::render::plan::PlannedHeader {
-            line: strip.line,
-            top: (geom.card_y - dock_h).max(0.0),
-            height: dock_h.min(geom.card_y),
-        })
-    }
-
-    #[cfg(test)]
-    pub(in crate::render) fn docked_facet_geometry_probe(
-        &self,
-    ) -> Option<(crate::render::plan::PlannedHeader, [f32; 4])> {
-        let geom = self.overlay_geometry(self.window_w as u32);
-        let plan = self.overlay_row_plan(&geom);
-        self.docked_facet_band(&geom, &plan)
-            .map(|dock| (dock, [geom.card_x, geom.card_y, geom.card_w, geom.card_h]))
-    }
-
     /// THEME PICKER display plan: the candidate-area sequence of section HEADERS +
     /// world ROWS, from the parallel `overlay_sections`. A header is emitted before a
     /// row whenever its section differs from the previous row's (so contiguous groups
@@ -207,60 +172,6 @@ impl TextPipeline {
             pane_w: 0.0,
             rows_focused: false,
         }
-    }
-
-    /// FACETED PICKER: hit-test a pointer against the lens STRIP (display line 1),
-    /// returning the STRIP INDEX (into the picker's [`crate::facets::FacetScheme::strip`])
-    /// the label under `(px, py)` selects — so a CLICK on a lens switches the facet (the
-    /// pointing counterpart to LEFT/RIGHT). `None` off the strip row, off the card, or for
-    /// a non-faceting overlay. Uses the same per-lens byte ranges the shaper laid out, read
-    /// back from the shaped strip glyphs so the hit lands on the same label the eye sees.
-    pub fn overlay_lens_at(&self, px: f32, py: f32) -> Option<usize> {
-        if !self.overlay_active || self.overlay_lens.is_empty() {
-            return None;
-        }
-        let geom = self.overlay_geometry(self.window_w as u32);
-        if !geom.theme || px < geom.card_x || px > geom.card_x + geom.card_w {
-            return None;
-        }
-        // The strip's clickable band is its PLANNED line box — the same object
-        // the mark centre and the strip's own glyph metrics read. A pointer entry
-        // point has no frame to ride, so it plans freshly, still O(visible).
-        let plan = self.overlay_row_plan(&geom);
-        let strip = self
-            .docked_facet_band(&geom, &plan)
-            .or_else(|| plan.strip_band())?;
-        if !strip.contains(py) {
-            return None;
-        }
-        let want = px - geom.text_left;
-        let mut hit: Option<usize> = None;
-        for run in self.panel_buffer.layout_runs() {
-            if run.line_i != 1 {
-                continue;
-            }
-            let mut s = String::from("\n");
-            let mut ranges: Vec<(usize, std::ops::Range<usize>)> = Vec::new();
-            for (idx, (lbl, _)) in self.overlay_lens.iter().enumerate() {
-                if idx > 0 {
-                    s.push_str(super::strip_gap());
-                }
-                let a = s.len();
-                s.push_str(lbl);
-                ranges.push((idx, a..s.len()));
-            }
-            for g in run.glyphs.iter() {
-                if want >= g.x && want < g.x + g.w {
-                    let b = g.start + 1;
-                    for (idx, r) in ranges.iter() {
-                        if b >= r.start && b < r.end {
-                            hit = Some(*idx);
-                        }
-                    }
-                }
-            }
-        }
-        hit
     }
 
     #[allow(clippy::too_many_arguments)]

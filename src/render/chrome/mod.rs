@@ -152,11 +152,6 @@ pub enum PanelHit {
     Elsewhere,
 }
 
-/// Resolved geometry for the summoned overlay card: the row WINDOW (`visible` rows
-/// from `top_idx`, `n_items` total, plus the foot `hint`/`hint_rows`), the card
-/// rectangle (`card_x/y/w/h`), and the inner text origin + width
-/// (`text_left/top/w`). Computed BEFORE the rows so the binding column can
-/// right-align to the text width.
 /// The gap between adjacent lens labels in the theme picker's strip. Kept modest so
 /// the whole strip fits one line on a wide mono world face. The `All` home (strip
 /// index 0) is not drawn as a label, so the strip is just the facets, gap-separated.
@@ -306,9 +301,6 @@ pub(super) fn overlay_hint_gap_rows(hint_rows: usize) -> usize {
     hint_rows
 }
 
-// The chrome cluster is decomposed into cohesive submodules with inherent impl blocks
-// Rust merges across the module tree. This file keeps the SHARED items they need —
-// the panel/overlay geometry structs, the float-quad primitive, the overlay row<->Y
 // owner and the sidecar report structs.
 pub(in crate::render) mod diagonal;
 mod overlay;
@@ -321,6 +313,9 @@ pub(in crate::render) use panel::{PANEL_MARGIN, PANEL_PAD};
 // regions' shared box arithmetic, and the RELOCATED
 // DOCUMENT VIEWPORT one of them can become (`comparison_viewport`).
 mod comparison;
+mod docked_facet;
+use docked_facet::push_docked_facet_areas;
+mod facet_marks;
 mod workspace;
 mod workspace_column;
 // The narrow region itself: its grid, shaping, active mark and hit-test —
@@ -329,6 +324,7 @@ mod workspace_rail;
 // Card draw/upload/composite; `overlay` owns its geometry and hit-test.
 mod overlay_draw;
 mod overlay_ink;
+mod overlay_material;
 mod overlay_rows;
 // The complete `Rules` composition, including shared picker/workspace ink.
 pub(in crate::render) mod overlay_rules;
@@ -337,6 +333,8 @@ mod overlay_selection;
 #[cfg(test)]
 mod overlay_selection_probe;
 mod overlay_shape;
+mod placard_placement;
+use placard_placement::{apply_placard_placement, placard_origin};
 mod overlay_timeline;
 pub(in crate::render) mod roster;
 mod rotated_location;
