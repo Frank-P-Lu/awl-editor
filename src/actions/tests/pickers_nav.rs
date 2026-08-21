@@ -62,7 +62,10 @@ fn save_copy_uses_the_shared_folder_then_filename_journey() {
         apply_transition(&mut ctx, &Action::SaveCopy, false).primary(),
         Effect::None
     ));
-    assert_eq!(ctx.journey.card().unwrap().kind, OverlayKind::ExportDest);
+    let card = ctx.journey.card().unwrap();
+    assert_eq!(card.kind, OverlayKind::ExportDest);
+    assert_eq!(card.title(), "save a copy to");
+    assert!(card.foot_hint().contains("save a copy here"));
     let mut destination = OverlayState::new(
         OverlayKind::ExportDest,
         vec!["copies".into()],
@@ -73,10 +76,13 @@ fn save_copy_uses_the_shared_folder_then_filename_journey() {
     destination.rows[0].is_dir = true;
     *ctx.journey = crate::overlay::Journey::seeded(Some(destination));
     let _ = apply_transition(&mut ctx, &Action::Newline, false);
+    let card = ctx.journey.card().unwrap();
     assert!(
-        ctx.journey.card().unwrap().rename_edit.is_some(),
+        card.rename_edit.is_some(),
         "folder acceptance opens the seeded filename prompt"
     );
+    assert_eq!(card.title(), "save a copy as");
+    assert!(card.foot_hint().starts_with("save a copy as:"));
     let effect = apply_transition(&mut ctx, &Action::Newline, false).primary();
     assert!(
         matches!(effect, Effect::SaveCopyName { ref dest, .. } if dest == "copies"),

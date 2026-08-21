@@ -167,7 +167,8 @@ pub(super) static COMMANDS: &[Command] = &[
         native_only: true,
         web_only: false,
         description: Some(
-            "Choose a destination for a snapshot while keeping the current file open and unchanged.",
+            "Choose a destination for a snapshot while keeping the current file open and \
+             unchanged.",
         ),
     },
     // REVEAL / COPY PATH: the platform-neutral catalog name — the visible

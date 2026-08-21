@@ -3,7 +3,6 @@ use std::io;
 use std::path::{Path, PathBuf};
 #[cfg(test)]
 use std::sync::Arc;
-
 mod active;
 mod fault;
 #[cfg(any(test, not(target_arch = "wasm32")))]
@@ -12,7 +11,6 @@ mod native;
 mod paths;
 #[cfg(any(test, target_arch = "wasm32"))]
 mod web;
-
 #[cfg(test)]
 pub(crate) use active::{CwdGuard, FsGuard, UnwritableFs, with_fs};
 pub use active::{active, set_active};
@@ -30,7 +28,6 @@ pub use web::install_web_fs;
 #[cfg(any(test, target_arch = "wasm32"))]
 #[allow(unused_imports)]
 pub(crate) use web::{SEED_SAMPLES, SEED_SENTINEL_KEY, seed_write_if_absent};
-
 /// Cross-backend directory entry: leaf name, full path, and kind are all the
 /// walk/browse code consumes.
 ///
@@ -54,7 +51,6 @@ pub struct DirEntry {
     pub is_file: bool,
     pub is_symlink: bool,
 }
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Metadata {
     pub modified: Option<SystemTime>,

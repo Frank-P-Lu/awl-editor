@@ -146,7 +146,7 @@ impl<'a> Cx<'a> {
     pub(super) fn open_overlay(&mut self, ov: &crate::overlay::OverlayState) {
         self.view.overlay_active = true;
         self.view.overlay_crisp = false;
-        self.view.overlay_title = ov.kind.title();
+        self.view.overlay_title = ov.title();
         self.view.overlay_query = String::new();
         self.view.overlay_items = ov.item_strings();
         self.view.overlay_bindings = ov.item_bindings();
