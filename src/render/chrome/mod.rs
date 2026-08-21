@@ -350,6 +350,7 @@ pub(in crate::render) use overlay_visual_sel::{
 mod gutter;
 mod gutter_hidden;
 mod gutter_hit;
+pub(in crate::render) use gutter_hit::GutterStackHit;
 mod gutter_stack;
 mod menubar;
 mod outline;

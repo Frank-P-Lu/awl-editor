@@ -79,6 +79,85 @@ fn buffers(dir: &Path, tag: &str, keys: &str) -> serde_json::Value {
     v["buffers"].clone()
 }
 
+/// Render the single-file launch under an optional prototype pair. Separate
+/// processes make the environment isolated per arm; no test-global mutation
+/// leaks into another render law.
+fn one_file_capture(
+    dir: &Path,
+    tag: &str,
+    close: Option<&str>,
+    folder: Option<&str>,
+) -> (Vec<u8>, Vec<u8>) {
+    let notes = dir.join("notes");
+    let out = dir.join(format!("{tag}.png"));
+    let mut cmd = common::awl(dir);
+    cmd.env("AWL_CONVENTION_FORCE", "mac")
+        .arg("--screenshot-app")
+        .arg(&out)
+        .arg("--seed-tree")
+        .arg(dir)
+        .arg("--config")
+        .arg(dir.join("awl.toml"))
+        .arg("--root")
+        .arg(&notes)
+        .arg("--capture-size")
+        .arg("1600x900")
+        .arg(notes.join("opening.md"));
+    if close.is_some() || folder.is_some() {
+        // This override is owned only by a REAL windowed live probe. Arming it
+        // here against candidate offscreen live-App captures, while leaving the
+        // baseline unarmed, proves ordinary captures do not accidentally
+        // inherit the gallery's wide-window scaffolding.
+        cmd.env("AWL_PROBE_WINDOW_SIZE", "1600x900");
+    }
+    if let Some(close) = close {
+        cmd.env("AWL_GUTTER_CLOSE_PROTOTYPE", close);
+    }
+    if let Some(folder) = folder {
+        cmd.env("AWL_GUTTER_FOLDER_PROTOTYPE", folder);
+    }
+    let run = cmd.output().expect("failed to spawn CARGO_BIN_EXE_awl");
+    assert!(
+        run.status.success(),
+        "{tag}: awl exited {}\n{}",
+        run.status,
+        String::from_utf8_lossy(&run.stderr)
+    );
+    (
+        std::fs::read(&out).expect("PNG exists"),
+        std::fs::read(out.with_extension("json")).expect("sidecar exists"),
+    )
+}
+
+/// The prototypes deepen only a MULTI-file identity. With one file, neither a
+/// reserved close lane nor a folder reordering/scale is enrolled, so both the
+/// rendered bytes and the state oracle remain exact identity.
+#[test]
+fn one_file_is_byte_identical_under_every_affordance_prototype() {
+    let dir = ScratchDir::new(std::env::temp_dir().join(format!(
+        "awl-working-set-one-file-prototypes-{}",
+        std::process::id()
+    )));
+    arrange(&dir);
+    let baseline = one_file_capture(&dir, "one-baseline", None, None);
+    for (tag, close, folder) in [
+        ("one-one-all-quiet", "one-all", "quiet-below"),
+        ("one-one-siblings-heading", "one-siblings", "heading-above"),
+        ("one-two-all-heading", "two-all", "heading-above"),
+        ("one-two-siblings-quiet", "two-siblings", "quiet-below"),
+    ] {
+        let candidate = one_file_capture(&dir, tag, Some(close), Some(folder));
+        assert_eq!(
+            candidate.0, baseline.0,
+            "{tag}: prototype changed one-file PNG bytes"
+        );
+        assert_eq!(
+            candidate.1, baseline.1,
+            "{tag}: prototype changed one-file sidecar bytes"
+        );
+    }
+}
+
 /// Go to (`Cmd-O`), filtered by a prefix unique to each fixture file, accepted.
 const TO_LEDGER: &str = "Cmd-o l e d Enter";
 const TO_FIELD: &str = "Cmd-o f i e Enter";

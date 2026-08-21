@@ -2547,6 +2547,10 @@ pub struct TextPipeline {
     /// The margin working set's rows, or empty for the single-file margin — see
     /// [`ViewState::gutter_files`].
     gutter_files: Vec<crate::workingset::StackRow>,
+    /// The working-set row/zone under the live pointer. `None` on every
+    /// headless frame (no pointer driver) and visually inert unless the explicit
+    /// affordance prototype environment switch is armed.
+    gutter_stack_hover: Option<chrome::GutterStackHit>,
     /// The soft row plate under the working set's ACTIVE row. Holds no instances
     /// at all unless the stack is drawn, so a single-file frame issues no extra
     /// draw (`SelectionPipeline::draw` returns early at zero instances).

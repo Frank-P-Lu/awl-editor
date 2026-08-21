@@ -24,6 +24,25 @@ pub struct GutterStackHit {
     pub intent: RowIntent,
 }
 
+/// Resolve a pointer against an already-planned block. Kept pure so the live
+/// hover/click enrolment can be swept without constructing a GPU pipeline; the
+/// production method below supplies the exact layout/plan it draws.
+pub(super) fn stack_hit_from_plan(
+    layout: &GutterLayout,
+    plan: &crate::render::plan::GutterStackPlan,
+    px: f32,
+    py: f32,
+) -> Option<GutterStackHit> {
+    let line = plan.hit_row(px, py)?;
+    let GutterLine::File(row) = layout.lines().get(line)?.1 else {
+        return None;
+    };
+    Some(GutterStackHit {
+        row,
+        intent: gutter_stack::row_intent(*plan.rows.get(line)?, px),
+    })
+}
+
 impl GutterStackHit {
     /// Did the pointer land on the row's CLOSE zone rather than its switch
     /// half? Asked here rather than by re-exporting [`RowIntent`] for the App to
@@ -99,13 +118,32 @@ impl TextPipeline {
     /// this surface existed.
     pub fn gutter_stack_hit(&self, px: f32, py: f32, height: u32) -> Option<GutterStackHit> {
         let (layout, plan) = self.gutter_hit_plan(height)?;
-        let line = plan.hit_row(px, py)?;
-        let GutterLine::File(row) = layout.lines().get(line)?.1 else {
-            return None;
-        };
-        Some(GutterStackHit {
-            row,
-            intent: gutter_stack::row_intent(*plan.rows.get(line)?, px),
-        })
+        stack_hit_from_plan(&layout, &plan, px, py)
+    }
+
+    /// Mirror the working-set row under the LIVE pointer into render state.
+    ///
+    /// The hit itself comes from [`Self::gutter_stack_hit`], so hover enrollment,
+    /// click routing and the drawn close mark all read one row/zone geometry.
+    /// Returns whether the visible hover state changed, allowing the App to ask
+    /// for exactly one repaint on entry, zone crossing, row crossing or exit.
+    pub fn resolve_gutter_stack_hover(&mut self, px: f32, py: f32, height: u32) -> bool {
+        // Production has no drawn hover treatment yet, so it also takes no
+        // hidden hover-state or repaint cost. The live seam wakes only for an
+        // explicitly armed taste-gallery process.
+        if gutter_stack::close_prototype() == gutter_stack::ClosePrototype::Off {
+            return false;
+        }
+        let next = self.gutter_stack_hit(px, py, height);
+        if self.gutter_stack_hover == next {
+            return false;
+        }
+        self.gutter_stack_hover = next;
+        true
+    }
+
+    /// Clear a live close-mark reveal when the pointer leaves the window.
+    pub fn clear_gutter_stack_hover(&mut self) -> bool {
+        self.gutter_stack_hover.take().is_some()
     }
 }

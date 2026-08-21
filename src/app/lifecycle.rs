@@ -99,11 +99,9 @@ impl ApplicationHandler<AwlEvent> for App {
             // FOCUS-GAINED stays 0). Small + cornered keeps the always-on-top
             // window out of the way.
             if crate::probe::live_active() {
+                let (probe_w, probe_h) = crate::probe::probe_logical_size();
                 attrs
-                    .with_inner_size(LogicalSize::new(
-                        crate::probe::PROBE_LOGICAL_W,
-                        crate::probe::PROBE_LOGICAL_H,
-                    ))
+                    .with_inner_size(LogicalSize::new(probe_w, probe_h))
                     .with_position(winit::dpi::LogicalPosition::new(48.0, 64.0))
                     // `with_active(false)` → winit shows the window via
                     // `orderFront` instead of `makeKeyAndOrderFront`, so it never
@@ -284,6 +282,7 @@ impl ApplicationHandler<AwlEvent> for App {
             }
             WindowEvent::ModifiersChanged(m) => self.on_modifiers_changed(m),
             WindowEvent::CursorMoved { position, .. } => self.on_cursor_moved(position),
+            WindowEvent::CursorLeft { .. } => self.on_cursor_left(),
             WindowEvent::MouseInput { state, button, .. } => {
                 self.on_mouse_input(event_loop, state, button);
             }

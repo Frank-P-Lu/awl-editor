@@ -16,6 +16,68 @@
 
 use super::*;
 
+/// The close-mark treatments carried only for the affordance taste gallery.
+///
+/// Production stays [`Off`]: the user has already decided the stable RIGHT
+/// zone and hover-only lifetime, but not whether the mark reveals in one or two
+/// stages or whether the active row participates. Keeping those answers behind
+/// one explicit prototype switch lets the real live App render comparable
+/// frames without quietly turning one candidate into shipped behaviour.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(super) enum ClosePrototype {
+    Off,
+    OneStageAll,
+    OneStageSiblings,
+    TwoStageAll,
+    TwoStageSiblings,
+}
+
+impl ClosePrototype {
+    fn includes_active(self) -> bool {
+        matches!(self, Self::OneStageAll | Self::TwoStageAll)
+    }
+
+    fn two_stage(self) -> bool {
+        matches!(self, Self::TwoStageAll | Self::TwoStageSiblings)
+    }
+}
+
+/// Parse without reading process state so the complete prototype roster can be
+/// law-tested without mutating the environment.
+pub(super) fn parse_close_prototype(value: Option<&str>) -> ClosePrototype {
+    match value {
+        Some("one-all") => ClosePrototype::OneStageAll,
+        Some("one-siblings") => ClosePrototype::OneStageSiblings,
+        Some("two-all") => ClosePrototype::TwoStageAll,
+        Some("two-siblings") => ClosePrototype::TwoStageSiblings,
+        _ => ClosePrototype::Off,
+    }
+}
+
+pub(super) fn close_prototype() -> ClosePrototype {
+    parse_close_prototype(std::env::var("AWL_GUTTER_CLOSE_PROTOTYPE").ok().as_deref())
+}
+
+/// The folder-line treatments carried only for the same taste gallery.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(super) enum FolderPrototype {
+    Legacy,
+    QuietBelow,
+    HeadingAbove,
+}
+
+pub(super) fn parse_folder_prototype(value: Option<&str>) -> FolderPrototype {
+    match value {
+        Some("quiet-below") => FolderPrototype::QuietBelow,
+        Some("heading-above") => FolderPrototype::HeadingAbove,
+        _ => FolderPrototype::Legacy,
+    }
+}
+
+pub(super) fn folder_prototype() -> FolderPrototype {
+    parse_folder_prototype(std::env::var("AWL_GUTTER_FOLDER_PROTOTYPE").ok().as_deref())
+}
+
 /// Horizontal breath either side of a plated row's ink, in LABEL rows. The plate
 /// hugs the ink rather than filling the margin's full width: the labels are
 /// right-aligned against the writing column, so a band spanning `[0, avail]`
@@ -150,7 +212,11 @@ pub(super) fn fit_rows(rows: &[crate::workingset::StackRow], budget: usize) -> V
 /// single-file margin's own no-op path, and it keeps that path from becoming
 /// an unguarded reader of the process-global active world (`crate::testlock`)
 /// for a frame that will never draw a plate to begin with.
-pub(super) fn stack_spans(lines: &[StackLine]) -> Vec<(String, glyphon::Color)> {
+pub(super) fn stack_spans(
+    lines: &[StackLine],
+    hover: Option<super::gutter_hit::GutterStackHit>,
+    prototype: ClosePrototype,
+) -> Vec<(String, glyphon::Color)> {
     if lines.is_empty() {
         return Vec::new();
     }
@@ -166,6 +232,30 @@ pub(super) fn stack_spans(lines: &[StackLine]) -> Vec<(String, glyphon::Color)> 
         } else {
             out.push((format!("{lead}{parent}"), faint));
             out.push((leaf.to_string(), name_ink));
+        }
+        // The mark's text is ALWAYS present under a prototype, even when its
+        // alpha is zero. That invisible shaped run is the reserved trailing
+        // lane: revealing the × changes only ink, never the label's advances,
+        // so hover cannot make the filename jump. With the prototype OFF the
+        // run does not exist at all, leaving production and the one-file path
+        // byte-identical.
+        if prototype != ClosePrototype::Off {
+            let shown = hover.filter(|hit| hit.row == row).and_then(|hit| {
+                if line.active && !prototype.includes_active() {
+                    return None;
+                }
+                if prototype.two_stage() && !hit.is_close() {
+                    Some(faint)
+                } else if line.active {
+                    Some(theme::selected_row_secondary_ink(theme::surface_selected()).to_glyphon())
+                } else {
+                    Some(theme::muted().to_glyphon())
+                }
+            });
+            out.push((
+                "  ×".to_string(),
+                shown.unwrap_or_else(|| glyphon::Color::rgba(0, 0, 0, 0)),
+            ));
         }
     }
     out

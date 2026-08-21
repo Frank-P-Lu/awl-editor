@@ -257,6 +257,24 @@ pub const PROBE_LOGICAL_W: f64 = 900.0;
 #[cfg(not(target_arch = "wasm32"))]
 pub const PROBE_LOGICAL_H: f64 = 600.0;
 
+/// Prototype-only window-size override for live affordance galleries whose
+/// subject lives in the page margin and is intentionally hidden at the normal
+/// compact probe width. The default remains the fixed 900×600 contract above;
+/// ordinary launches and every offscreen capture never call this function
+/// because `App::resumed` reads it only inside the `live_active()` branch.
+#[cfg(not(target_arch = "wasm32"))]
+pub fn probe_logical_size() -> (f64, f64) {
+    std::env::var("AWL_PROBE_WINDOW_SIZE")
+        .ok()
+        .and_then(|raw| {
+            let (w, h) = raw.split_once('x')?;
+            let w = w.parse::<f64>().ok()?;
+            let h = h.parse::<f64>().ok()?;
+            (w >= 640.0 && h >= 400.0).then_some((w, h))
+        })
+        .unwrap_or((PROBE_LOGICAL_W, PROBE_LOGICAL_H))
+}
+
 /// ONE owner of the `PROBE-TRACE …` diagnostic line — the present/crossing/move
 /// trace the vanish hunt reads (stamped with a wall-clock `Instant` so the
 /// ordering of retint → present-txn → present → settle is legible in the log).
