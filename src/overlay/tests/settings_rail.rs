@@ -127,7 +127,8 @@ fn set_selected_range_moves_the_selected_rows_step_and_readout_together() {
 /// on those rows that axis is the REGION SEAM's. The rest of
 /// The sweep is derived from the complete settings registry, so adding a Range row
 /// cannot inherit a stale neighbour assumption. (The keys-vs-hint OUTCOME sweep is
-/// `actions::tests::overlay_drive::the_foot_hint_names_what_left_right_actually_do_on_every_settings_row`.)
+/// `actions::tests::overlay_drive::
+/// the_foot_hint_names_what_left_right_actually_do_on_every_settings_row`.)
 #[test]
 fn the_settings_foot_hint_says_adjust_only_while_a_rail_row_is_selected() {
     let _g = crate::testlock::serial();

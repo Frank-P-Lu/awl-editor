@@ -121,7 +121,7 @@ reason = "DOWN 67: save, save_owned, and save_into_folder moved to buffer/save.r
 
 [[file_size_mark]]
 file = "src/buffer/edit.rs"
-lines = 548
+lines = 547
 
 [[file_size_mark]]
 file = "src/buffers.rs"
@@ -1273,13 +1273,6 @@ target = "src/theme/tests/placard.rs"
 kind = "architectural"
 line = 185
 text = "            \"{}: placard presence ordering inverted (Faint ΔY {dy_faint:.3} < Ghost ΔY {dy_ghost:.3})\","
-reason = "This already-long line lives in a per-subject test file. A one-file-to-many split has no prior per-path baseline for `git diff -M` to compare, so the 100-column ratchet cannot grandfather it; the line itself is unchanged."
-
-[[structural_exception]]
-target = "src/overlay/tests/settings_rail.rs"
-kind = "architectural"
-line = 131
-text = "/// `actions::tests::overlay_drive::the_foot_hint_names_what_left_right_actually_do_on_every_settings_row`.)"
 reason = "This already-long line lives in a per-subject test file. A one-file-to-many split has no prior per-path baseline for `git diff -M` to compare, so the 100-column ratchet cannot grandfather it; the line itself is unchanged."
 
 [[structural_exception]]
