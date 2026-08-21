@@ -6,6 +6,38 @@
 
 ## Ready to build
 
+### 464 — publish a dedicated Supported Markdown page (USER DECISION 2026-08-21; ready to build)
+
+Add a first-class user-facing **Supported Markdown** page to the repository docs
+and site. The existing generated Markdown section inside `REFERENCE.md` is the
+seed, not the finished page: it is accurate but buried, terse, and describes
+mostly renderer span kinds rather than the dialect a writer can rely on. Do not
+create a second hand-maintained truth. Extend `src/reference/`'s one Markdown
+roster so it generates both the concise Reference section and the dedicated
+page (plus its site HTML); a construct added to the parser/renderer must fail a
+law until its public syntax facts are enrolled.
+
+For every supported construct, state its name, copyable source example, what
+awl renders, how caret/selection reveal behaves, whether a formatting command
+exists, and portability class: core CommonMark, widely used extension, or
+awl-specific extension. Cover block and inline syntax, images, tables,
+frontmatter, fenced-code language tags and the queued footnote syntax. Add a
+short **Not supported / deliberately different** section for meaningful traps
+only (for example setext headings), derived from an explicit authored roster so
+silence is never mistaken for support. State that the file remains ordinary
+plain text and unsupported syntax remains editable text; never promise exact
+parity with an unnamed "Markdown" dialect.
+
+Link the page from the site's documentation navigation, README documentation
+links, and `site/llms.txt`. The large Reference may keep its compact table and
+link to the fuller page; do not duplicate prose between them. Follow the
+user-facing docs voice: short declarative sentences, tables, real examples, no
+marketing filler. Verification regenerates every target, checks byte drift,
+spot-checks representative rows against parser/render behavior on both sides
+of conditional constructs, rejects duplicate/missing roster enrolment, and
+checks all local links. Docs/generator work only unless Rust rosters change;
+claim the gate honestly according to the touched files.
+
 ### 463 — the held HUD reports the selection as well as the document (USER DECISION 2026-08-21; ready to build)
 
 Keep the existing held stats HUD and deepen it when a non-empty selection is
