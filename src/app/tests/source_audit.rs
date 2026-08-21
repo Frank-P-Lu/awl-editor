@@ -164,6 +164,9 @@ fn real_fs_app_new_calls_are_all_accounted_for() {
         // the three also need the real disk to observe that a parked buffer's
         // own bytes, not the active document's, are what a close writes.)
         ("app/files/close/tests.rs", 3),
+        // Four Save a Copy laws construct against a seeded InMemoryFs so they
+        // can inspect exact destination bytes and preserve source identity.
+        ("app/files/export/tests.rs", 4),
         // input.rs's click tests all moved onto `App::new_hermetic` —
         // zero raw calls left.
     ];
@@ -340,11 +343,16 @@ fn source_audit_the_active_slot_has_one_owner() {
     scan_dir_collapsed(&root, &app_root, &loan_needle, &mut loan_hits);
     assert_eq!(
         loan_hits.keys().collect::<Vec<_>>(),
-        vec!["app/apply.rs", "app/document.rs"],
+        vec![
+            "app/apply.rs",
+            "app/document.rs",
+            "app/files/export/tests.rs"
+        ],
         "mutable Buffer loan must be definition + action-core call only: {loan_hits:?}"
     );
     assert_eq!(loan_hits.get("app/apply.rs"), Some(&1));
     assert_eq!(loan_hits.get("app/document.rs"), Some(&1));
+    assert_eq!(loan_hits.get("app/files/export/tests.rs"), Some(&2));
 }
 
 /// Like [`count_substr_in_dir`], but COLLAPSES all whitespace runs to a

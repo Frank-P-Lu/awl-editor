@@ -117,6 +117,7 @@ fn catalog_non_empty_and_named() {
         "Move…",
         "Rename note…",
         "Duplicate note",
+        "Save a Copy…",
         "Reveal in file manager",
         "Copy file path",
         "Toggle page mode",
@@ -1159,6 +1160,7 @@ const HIDE_ON_WEB: &[&str] = &[
     "Check for Updates",
     "Keep tutorial…",
     "Export as PDF…",
+    "Save a Copy…",
     "Reveal in file manager",
     "Copy file path",
 ];

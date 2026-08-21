@@ -227,8 +227,8 @@ fn load_toml_store_next_flush_does_not_destroy_the_preserved_sibling() {
 //     primitive per this round's own instructions ("crashlog's mid-panic
 //     writer stays deliberately primitive") — a panicking thread must
 //     not risk taking a lock or doing a fancier multi-step write.
-//   src/fs.rs + src/fs/{native,paths,web}.rs (1 each) — an in-memory test
-//     seed, `NativeFs`'s primitive, `write_atomic`'s tmp-sibling write,
+//   src/fs.rs + src/fs/{native,paths,web}.rs (1 each, except paths' two) — an in-memory test
+//     seed, `NativeFs`'s primitive, `write_atomic` and `write_atomic_new`'s tmp-sibling writes,
 //     and `seed_write_if_absent`. The latter never overwrites existing
 //     content; a tear cannot corrupt a returning visitor's data. The three
 //     production primitives cannot recursively route through themselves.
@@ -288,7 +288,7 @@ fn no_bare_durable_write_bypasses_write_atomic_outside_the_accounted_for_sites()
         ("firstrun/tests.rs", 1),
         ("fs.rs", 1),
         ("fs/native.rs", 1),
-        ("fs/paths.rs", 1),
+        ("fs/paths.rs", 2),
         ("fs/web.rs", 1),
         ("history/tests.rs", 1),
         // Four are pre-existing index fixtures; four more seed
