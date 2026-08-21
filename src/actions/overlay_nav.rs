@@ -417,6 +417,7 @@ fn accept_path_overlay(ctx: &mut ActionCtx) -> Option<Effect> {
             Some(effect)
         }
         crate::overlay::OverlayKind::ExportDest => {
+            let save_copy = ov.save_copy;
             let effect = if ov.save_copy {
                 if let Some(dest) = dest_value(ov, true) {
                     let mut prompt = OverlayState::new_rename(ctx.buffer.display_name());
@@ -430,7 +431,9 @@ fn accept_path_overlay(ctx: &mut ActionCtx) -> Option<Effect> {
                     _ => Effect::None,
                 }
             };
-            dispose_after_accept(ctx);
+            if !save_copy {
+                dispose_after_accept(ctx);
+            }
             Some(effect)
         }
         // THE THIRD DESTINATION NAVIGATOR: the same walk and the same accept

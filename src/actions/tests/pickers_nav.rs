@@ -39,6 +39,52 @@ fn command_palette_opens_then_filters() {
 }
 
 #[test]
+fn save_copy_uses_the_shared_folder_then_filename_journey() {
+    let mut buffer = Buffer::from_str("text\n");
+    let mut journey = crate::overlay::Journey::default();
+    let mut shift = false;
+    let mut zoom = 1.0;
+    let mut search = None;
+    let mut make = |_k| None;
+    let mut browse = |k, r| browse_level(k, r);
+    let mut ctx = ActionCtx {
+        buffer: &mut buffer,
+        shift_selecting: &mut shift,
+        zoom: &mut zoom,
+        search: &mut search,
+        scroll_page_lines: 1,
+        journey: &mut journey,
+        make_overlay: &mut make,
+        browse_to: &mut browse,
+        oracle: None,
+    };
+    assert!(matches!(
+        apply_transition(&mut ctx, &Action::SaveCopy, false).primary(),
+        Effect::None
+    ));
+    assert_eq!(ctx.journey.card().unwrap().kind, OverlayKind::ExportDest);
+    let mut destination = OverlayState::new(
+        OverlayKind::ExportDest,
+        vec!["copies".into()],
+        vec![],
+        vec![],
+    );
+    destination.save_copy = true;
+    destination.rows[0].is_dir = true;
+    *ctx.journey = crate::overlay::Journey::seeded(Some(destination));
+    let _ = apply_transition(&mut ctx, &Action::Newline, false);
+    assert!(
+        ctx.journey.card().unwrap().rename_edit.is_some(),
+        "folder acceptance opens the seeded filename prompt"
+    );
+    let effect = apply_transition(&mut ctx, &Action::Newline, false).primary();
+    assert!(
+        matches!(effect, Effect::SaveCopyName { ref dest, .. } if dest == "copies"),
+        "{effect:?}"
+    );
+}
+
+#[test]
 fn command_palette_enter_dispatches_selected_action() {
     // Open, filter to "Go to file", Enter -> run_action == OpenGoto and the
     // palette closed (so the caller can re-dispatch into the goto overlay).
