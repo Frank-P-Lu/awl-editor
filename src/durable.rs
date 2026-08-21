@@ -28,7 +28,7 @@
 //! Scratch's one possible parse failure (invalid UTF-8) is checked in `app.rs`.
 
 pub(crate) mod owner;
-pub use owner::{Owner, write};
+pub use owner::{Owner, write, write_new};
 use std::path::Path;
 
 /// How many `.corrupt-*` siblings a single store keeps — a generous but

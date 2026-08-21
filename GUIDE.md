@@ -209,6 +209,7 @@ drift into this page silently.
 | Move… |  |  |
 | Rename note… |  |  |
 | Duplicate note |  |  |
+| Save a Copy… |  |  |
 | Reveal in file manager |  |  |
 | Copy file path |  |  |
 | Finish file | ⌘W | Ctrl+W |

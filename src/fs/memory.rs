@@ -118,6 +118,27 @@ impl FileSystem for InMemoryFs {
         Ok(())
     }
 
+    fn rename_no_replace(&self, from: &Path, to: &Path) -> io::Result<()> {
+        let mut state = self.inner.write().unwrap();
+        if state.files.contains_key(to) || state.dirs.contains(to) {
+            return Err(io::Error::new(
+                io::ErrorKind::AlreadyExists,
+                "destination exists",
+            ));
+        }
+        let file = state
+            .files
+            .remove(from)
+            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "no such file"))?;
+        if let Some(parent) = to.parent()
+            && !parent.as_os_str().is_empty()
+        {
+            InMemoryFs::insert_dirs(&mut state, parent);
+        }
+        state.files.insert(to.to_path_buf(), file);
+        Ok(())
+    }
+
     fn exists(&self, path: &Path) -> bool {
         let state = self.inner.read().unwrap();
         state.files.contains_key(path) || state.dirs.contains(path)

@@ -243,6 +243,16 @@ mod backend {
             Ok(())
         }
 
+        fn rename_no_replace(&self, from: &Path, to: &Path) -> io::Result<()> {
+            if self.exists(to) {
+                return Err(io::Error::new(
+                    io::ErrorKind::AlreadyExists,
+                    "destination exists",
+                ));
+            }
+            self.rename(from, to)
+        }
+
         fn exists(&self, path: &Path) -> bool {
             storage()
                 .map(|s| {

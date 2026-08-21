@@ -24,7 +24,7 @@ pub use native::NativeFs;
 pub(crate) use paths::home_dir;
 #[cfg(target_arch = "wasm32")]
 pub use paths::web_config_path;
-pub use paths::{data_root, scratch_stash_path, write_atomic};
+pub use paths::{data_root, scratch_stash_path, write_atomic, write_atomic_new};
 #[cfg(target_arch = "wasm32")]
 pub use web::install_web_fs;
 #[cfg(any(test, target_arch = "wasm32"))]
@@ -72,6 +72,10 @@ pub trait FileSystem: Send + Sync {
     fn create_dir_all(&self, path: &Path) -> io::Result<()>;
 
     fn rename(&self, from: &Path, to: &Path) -> io::Result<()>;
+
+    /// Atomically publish `from` at an absent `to`, refusing to replace an
+    /// existing destination. This is the no-clobber half of a durable write.
+    fn rename_no_replace(&self, from: &Path, to: &Path) -> io::Result<()>;
 
     fn exists(&self, path: &Path) -> bool;
 

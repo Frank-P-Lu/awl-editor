@@ -26,6 +26,14 @@ impl FileSystem for NativeFs {
         std::fs::rename(from, to)
     }
 
+    fn rename_no_replace(&self, from: &Path, to: &Path) -> io::Result<()> {
+        // `hard_link` is the native macOS/Linux create-if-absent primitive:
+        // unlike rename it fails when `to` already exists, without a TOCTOU
+        // preflight. The temp and destination are same-directory siblings.
+        std::fs::hard_link(from, to)?;
+        std::fs::remove_file(from)
+    }
+
     fn exists(&self, path: &Path) -> bool {
         path.exists()
     }

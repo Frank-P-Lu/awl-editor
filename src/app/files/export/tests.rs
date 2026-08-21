@@ -410,6 +410,56 @@ fn save_a_copy_named_uses_the_chosen_filename_and_refuses_a_collision() {
     });
 }
 
+/// A destination can appear after the user chose its name. The no-clobber
+/// guarantee is therefore owned by the atomic publish, not an earlier exists
+/// check. The scripted filesystem creates the competing file between the temp
+/// write and `rename_no_replace`; its bytes must win.
+///
+/// MUTATION TARGET: replace `durable::write_new` in `save_copy_to` with
+/// `durable::write`; this fails because the ordinary rename overwrites the
+/// competing creator below.
+#[test]
+fn save_a_copy_never_clobbers_a_destination_created_after_preflight() {
+    let _g = crate::testlock::serial();
+    let source = std::path::PathBuf::from(DOC);
+    let destination = std::path::PathBuf::from("/w/proj/copies/raced.md");
+    let mem = InMemoryFs::new()
+        .with_dir("/w/proj/copies")
+        .with_file(&source, BODY);
+    let scripted = crate::fs::ScriptedFs::new(
+        mem.clone(),
+        crate::fs::ScriptedFailure {
+            operation: crate::fs::ScriptedOperation::Rename,
+            ordinal: 99,
+            kind: std::io::ErrorKind::Other,
+            reason: "not reached",
+        },
+    )
+    .race_create_before_no_replace(destination.clone(), b"racing creator");
+    crate::fs::with_fs(Arc::new(scripted), || {
+        let mut app = App::new(
+            Some(source),
+            std::path::PathBuf::from("/w/proj"),
+            None,
+            None,
+            Config {
+                session_restore: Some(false),
+                reduce_motion: Some(false),
+                ..Config::empty()
+            },
+        );
+        assert!(
+            !app.save_copy_to(&destination, false),
+            "the racing destination rejects an unconfirmed copy"
+        );
+        assert_eq!(
+            mem.read(&destination).unwrap(),
+            b"racing creator",
+            "the creator that won the destination name is never overwritten"
+        );
+    });
+}
+
 /// A FOLDER CHOSEN IN THE NAVIGATOR wins over both defaults, keeps the
 /// document's own stem, and — because it is not the folder the document lives in
 /// — is spoken in full. Swept over both sides of the path axis, since the stem

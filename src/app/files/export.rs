@@ -245,10 +245,6 @@ impl App {
         destination: &std::path::Path,
         overwrite_confirmed: bool,
     ) -> bool {
-        if crate::fs::active().exists(destination) && !overwrite_confirmed {
-            self.set_sticky_notice("save a copy failed: destination already exists");
-            return false;
-        }
         if let Some(parent) = destination.parent()
             && let Err(e) = crate::fs::active().create_dir_all(parent)
         {
@@ -256,7 +252,12 @@ impl App {
             return false;
         }
         let bytes = self.document.buffer().disk_bytes();
-        match crate::durable::write(crate::durable::Owner::Export, destination, &bytes) {
+        let result = if overwrite_confirmed {
+            crate::durable::write(crate::durable::Owner::Export, destination, &bytes)
+        } else {
+            crate::durable::write_new(crate::durable::Owner::Export, destination, &bytes)
+        };
+        match result {
             Ok(()) => {
                 self.set_toast_notice("saved a copy");
                 true
@@ -300,8 +301,14 @@ impl App {
                 .and_then(|p| p.file_name())
                 .map(|p| p.to_string_lossy().to_string())
                 .unwrap_or_else(|| self.document.buffer().display_name());
-            crate::mac_chrome::pick_save_destination(&dir, &name)
-                .is_some_and(|destination| self.save_copy_to(&destination, true))
+            if let Some(destination) = crate::mac_chrome::pick_save_destination(&dir, &name) {
+                // A failed write leaves a sticky notice; the modal handler must
+                // still request a frame so that notice becomes visible.
+                let _ = self.save_copy_to(&destination, true);
+                true
+            } else {
+                false
+            }
         }
         #[cfg(not(target_os = "macos"))]
         false

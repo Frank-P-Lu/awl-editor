@@ -7,6 +7,7 @@ pub(crate) enum ScriptedOperation {
     CreateDirAll,
     Write,
     Rename,
+    RenameNoReplace,
     RemoveFile,
 }
 
@@ -16,6 +17,7 @@ impl ScriptedOperation {
             ScriptedOperation::CreateDirAll => "create-dir-all",
             ScriptedOperation::Write => "write",
             ScriptedOperation::Rename => "rename",
+            ScriptedOperation::RenameNoReplace => "rename-no-replace",
             ScriptedOperation::RemoveFile => "remove-file",
         }
     }
@@ -36,6 +38,7 @@ pub(crate) struct ScriptedFs {
     failure: ScriptedFailure,
     counts: Arc<std::sync::Mutex<std::collections::BTreeMap<ScriptedOperation, usize>>>,
     trace: Arc<std::sync::Mutex<Vec<String>>>,
+    race_target: Arc<std::sync::Mutex<Option<(std::path::PathBuf, Vec<u8>)>>>,
 }
 
 impl ScriptedFs {
@@ -49,7 +52,20 @@ impl ScriptedFs {
             failure,
             counts: Arc::new(std::sync::Mutex::new(std::collections::BTreeMap::new())),
             trace: Arc::new(std::sync::Mutex::new(Vec::new())),
+            race_target: Arc::new(std::sync::Mutex::new(None)),
         }
+    }
+
+    /// Arrange for a competing creator to publish `data` immediately before
+    /// the no-replace publish operation. This makes the TOCTOU window a
+    /// deterministic filesystem law rather than a timing test.
+    pub(crate) fn race_create_before_no_replace(
+        self,
+        path: impl Into<std::path::PathBuf>,
+        data: &[u8],
+    ) -> Self {
+        *self.race_target.lock().unwrap() = Some((path.into(), data.to_vec()));
+        self
     }
 
     fn mutation(&self, operation: ScriptedOperation, detail: String) -> io::Result<()> {
@@ -107,6 +123,17 @@ impl FileSystem for ScriptedFs {
             format!("{} -> {}", from.display(), to.display()),
         )?;
         self.inner.rename(from, to)
+    }
+
+    fn rename_no_replace(&self, from: &Path, to: &Path) -> io::Result<()> {
+        if let Some((path, data)) = self.race_target.lock().unwrap().take() {
+            self.inner.write(&path, &data)?;
+        }
+        self.mutation(
+            ScriptedOperation::RenameNoReplace,
+            format!("{} -> {}", from.display(), to.display()),
+        )?;
+        self.inner.rename_no_replace(from, to)
     }
 
     fn exists(&self, path: &Path) -> bool {
