@@ -575,6 +575,24 @@ fn zero_document_semantic_menu_rejects_export_even_while_goto_is_open() {
     );
 }
 
+#[test]
+fn stale_search_case_request_after_last_close_is_absence_safe() {
+    let _guard = crate::testlock::serial();
+    let _restore = calm_globals_guarded();
+    let mut app = hermetic();
+    app.workspace_state
+        .install_search_for_test(crate::search::SearchState::start(
+            0,
+            crate::search::Direction::Forward,
+        ));
+    app.document.restore_no_document();
+
+    assert!(!app.apply_semantic_request(SemanticRequest::Click {
+        id: SEARCH_CASE_ID.to_string(),
+    }));
+    assert!(!app.document.has_active());
+}
+
 /// A Settings range row advertises Increment / Decrement. They must move the
 /// real value, not the caret.
 #[test]

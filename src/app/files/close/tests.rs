@@ -421,6 +421,33 @@ fn close_successor_runs_the_same_external_arrival_boundary_as_an_explicit_switch
     );
 }
 
+#[test]
+fn pointer_close_and_finish_chord_both_close_after_adopting_a_clean_external_rewrite() {
+    let _guard = crate::testlock::serial();
+    for door in ["pointer", "chord"] {
+        let mut s = Session::new(&format!("external-close-{door}"));
+        std::fs::write(s.b(), "disk won cleanly\n").unwrap();
+        match door {
+            "pointer" => {
+                let key = s.app.document.active_key().unwrap();
+                assert_eq!(s.app.close_buffer(key), CloseOutcome::Closed);
+            }
+            "chord" => drive_finish_file(&mut s.app),
+            _ => unreachable!(),
+        }
+        assert_eq!(
+            s.app.document.buffer().path(),
+            Some(s.a().as_path()),
+            "{door} must converge on the same closed successor"
+        );
+        assert_eq!(
+            std::fs::read_to_string(s.b()).unwrap(),
+            "disk won cleanly\n",
+            "{door} preserves the adopted external bytes"
+        );
+    }
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn failed_finish_save_keeps_dirty_document_open_and_never_claims_completion() {

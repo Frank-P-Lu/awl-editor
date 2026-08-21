@@ -116,7 +116,7 @@ impl App {
     /// state all survive — the multi-buffer registry win) or read it fresh from
     /// disk for a first-time open. Shared by `open_rel` and the C-x b toggle so
     /// both keep the history honest.
-    pub(in crate::app) fn load_path(&mut self, path: PathBuf) {
+    pub(in crate::app) fn load_path(&mut self, path: PathBuf) -> bool {
         // THE ONE CAPABILITY OWNER, first: a binary/unsupported
         // `path` is refused HERE, before the MAS grant probe below (never
         // powerbox a file we're about to refuse) or any other side effect —
@@ -127,7 +127,7 @@ impl App {
         // see `crate::openable`'s module doc for the full door list.
         if let Some(msg) = crate::openable::classify(&path).refusal_message() {
             self.set_sticky_notice(msg);
-            return;
+            return false;
         }
         // MAS SANDBOX GRANT GATE (native macOS `mas` builds only — see
         // `src/mas.rs`'s module doc): `path` may live outside the container.
@@ -138,7 +138,7 @@ impl App {
         // fail against a silent sandbox `EPERM` instead.
         #[cfg(all(feature = "mas", target_os = "macos"))]
         if !crate::mas::ensure_access(&path) {
-            return;
+            return false;
         }
         // LEAVING AN UNRESOLVED DOCUMENT IS NOT ALLOWED. The conflicted buffer
         // is the sole editable copy of one of the two versions; parking it
@@ -146,7 +146,7 @@ impl App {
         // through the recovery record, and the conflict itself invisible. The
         // refusal names the two resolutions.
         if self.refuse_while_unresolved() {
-            return;
+            return false;
         }
         self.flush_note();
         self.autosave_flush();
@@ -157,7 +157,7 @@ impl App {
         // its notice showing and no way back to it — found by an existing
         // reopen law, not by this item's own tests.
         if self.refuse_while_unresolved() {
-            return;
+            return false;
         }
         // WRITING STREAKS: sample the LEAVING buffer's word-delta BEFORE it is
         // replaced below, so words written in it this session are recorded against
@@ -186,9 +186,10 @@ impl App {
             &self.project_location.root,
         );
         if opened == document::OpenPath::AlreadyActive {
-            return;
+            return true;
         }
         self.finish_buffer_activation(Some(path), clobber_notice_just_raised);
+        true
     }
 
     /// Finish activation of the whole slot already installed by the document

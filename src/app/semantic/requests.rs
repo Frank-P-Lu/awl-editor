@@ -124,7 +124,13 @@ impl App {
             return true;
         }
         if id == super::SEARCH_CASE_ID {
-            let text = self.document.buffer().text();
+            let Some(text) = self
+                .document
+                .buffer_opt()
+                .map(|buffer| buffer.text().to_string())
+            else {
+                return false;
+            };
             let Some(search) = self.workspace_state.search_mut() else {
                 return false;
             };

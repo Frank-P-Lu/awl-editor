@@ -849,9 +849,39 @@ fn zero_document_capture_has_two_start_actions_and_no_page_surface() {
     assert_eq!(json["buffers"]["open"], 0);
     assert!(json["buffers"]["active"].is_null());
     let image = image::open(on).unwrap().to_rgba8();
-    let ground = *image.get_pixel(0, 0);
-    assert!(
-        image.pixels().any(|pixel| *pixel != ground),
-        "the calm start actions must leave a real glyph witness"
+    let (width, height) = image.dimensions();
+    let ink_rows: Vec<u32> = (height * 2 / 5 + 1..height * 3 / 5)
+        .filter(|&y| {
+            (width * 2 / 5..width * 3 / 5)
+                .filter(|&x| {
+                    image
+                        .get_pixel(x, y)
+                        .0
+                        .iter()
+                        .zip(image.get_pixel(x, y - 1).0.iter())
+                        .map(|(a, b)| a.abs_diff(*b) as u32)
+                        .sum::<u32>()
+                        > 24
+                })
+                .count()
+                >= 8
+        })
+        .collect();
+    let bands = ink_rows
+        .iter()
+        .fold(Vec::<(u32, u32)>::new(), |mut bands, &y| {
+            if let Some(last) = bands.last_mut()
+                && y <= last.1 + 4
+            {
+                last.1 = y;
+            } else {
+                bands.push((y, y));
+            }
+            bands
+        });
+    assert_eq!(
+        bands.len(),
+        2,
+        "the exact two sidecar labels must each leave their own rendered glyph band; rows={ink_rows:?}, bands={bands:?}"
     );
 }

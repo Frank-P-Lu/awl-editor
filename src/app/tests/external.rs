@@ -124,7 +124,7 @@ fn every_gated_door_is_refused_while_the_change_is_unresolved() {
         ("idle autosave", |a| a.autosave_flush()),
         ("finish file", |a| a.save_finished_buffer()),
         ("switch buffer", |a| {
-            a.load_path(PathBuf::from("/notes/other.md"))
+            a.load_path(PathBuf::from("/notes/other.md"));
         }),
         ("rename", |a| a.rename_current_file("renamed.md")),
         ("move", |a| a.move_current_file("sub")),
