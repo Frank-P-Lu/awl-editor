@@ -82,6 +82,25 @@ fn save_copy_uses_the_shared_folder_then_filename_journey() {
         matches!(effect, Effect::SaveCopyName { ref dest, .. } if dest == "copies"),
         "{effect:?}"
     );
+
+    let mut cancelled = OverlayState::new_rename("copy.md".into());
+    cancelled.save_copy_dest = Some("copies".into());
+    *ctx.journey = crate::overlay::Journey::seeded(Some(cancelled));
+    assert!(matches!(
+        apply_transition(&mut ctx, &Action::Cancel, false).primary(),
+        Effect::None
+    ));
+    assert!(ctx.journey.card().is_none(), "Cancel emits no copy");
+
+    let mut slash = OverlayState::new_rename("copy.md".into());
+    slash.save_copy_dest = Some("copies".into());
+    *ctx.journey = crate::overlay::Journey::seeded(Some(slash));
+    let _ = apply_transition(&mut ctx, &Action::InsertChar('/'), false);
+    let effect = apply_transition(&mut ctx, &Action::Newline, false).primary();
+    assert!(
+        matches!(effect, Effect::SaveCopyName { ref name, .. } if name == "copy.md"),
+        "slash must be rejected: {effect:?}"
+    );
 }
 
 #[test]
