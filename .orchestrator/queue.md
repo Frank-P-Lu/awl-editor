@@ -6,6 +6,127 @@
 
 ## Ready to build
 
+### 467 — one conditional frame clock owns live motion and the idle boundary (USER DECISION 2026-08-21; ready after 466)
+
+Make awl's game-like behavior explicit without turning the editor into a
+permanent 60 fps loop. One frame-domain state machine reduces every source of
+work to exactly three host instructions: **Idle** (`Wait`, zero redraws),
+**Deadline(earliest instant)** (`WaitUntil`, one wake for a debounce/ambient
+tick/retry), or **Animating(active reasons)** (request the next display-synced
+frame until every reason settles). Native follows the window's presentation
+cadence; web follows winit's requestAnimationFrame path. Do not hard-code 60 Hz:
+60/120 Hz and dropped frames sample the same elapsed time, and a hidden,
+occluded, unfocused or failed-present surface must not spin.
+
+This is a time/scheduling ownership refactor, not a renderer rewrite. Introduce
+one injected-clock `FrameSample` (`now`, elapsed since the prior presented
+sample) and an exhaustive activity roster for caret motion, caret preview,
+copy pulse, overlay entrance/band, fold chevrons and the travelling Kite ground.
+Each animator keeps its own curve, endpoints and accessibility semantics; it
+samples the shared time and reports whether it remains active. Reduce Motion
+still settles each effect at its existing final pose. A new animator must fail
+a no-wildcard enrolment law until its wake, reduced-motion and pause behavior
+are named.
+
+Collapse the coordination glue into the one reducer:
+
+1. Replace `PresentationState::last_frame: Option<Instant>`'s double duty as
+   both a delta-time source and an implicit "the loop is hot" flag with explicit
+   clock/presentation state. Keep a plainly named last-presented timestamp only
+   if elapsed-time sampling needs it.
+2. Remove the renderer's one-off `band_ease_started` field/take bridge and
+   `keep_gpu_loop_hot(stepped, band_ease_started, frame_presented)`. The frame
+   outcome carries one post-prepare activity set, so motion first discovered
+   while resolving geometry cannot be invisible to the scheduler.
+3. Fold `App::advance_travelling_ground` into the same animation roster. Theme
+   data and the existing focus/motion/resize/blur eligibility rule still decide
+   whether Kite travels; there is no world-identity scheduling branch.
+4. Make which-key, peek, note/document autosave, zoom persistence,
+   resize/move/crossing settle, low-rate lava/stars/waves ticks, toast expiry and
+   GPU retry propose deadlines rather than setting control flow themselves.
+   The reducer chooses animation over the earliest deadline, eliminating the
+   scattered `last_frame().is_none()` guards and deadline-merging calls.
+5. Route the debug panel's one settle-stamp redraw through the same draw-once
+   demand and have the flight recorder name the active reasons and actual
+   presented-frame interval. Theme-switch work phases and input-to-first-pixel
+   latency remain separate measurements; add input-to-animation-settled timing
+   rather than pretending the first present is the end of visible motion.
+
+Do **not** convert sparse ambient ticks, autosaves or quiet-settle work into
+per-frame clients, and do not add a background thread, timer wheel, document
+layer cache or fixed-rate sleep. `request_frame` remains the ordinary one-shot
+invalidation door; the clock only decides whether another frame is owed after
+that draw. Preserve the headless no-clock rule for ordinary captures and use
+the existing injected/virtual clock for deterministic multi-frame laws.
+
+Stage the migration so the state reducer lands behind current behavior first,
+then move the bounded animators, the post-prepare band report and Kite one at a
+time; delete each old bridge only after its consumer is enrolled. Because this
+is an identity-gated render refactor, follow it with an outcome audit rather
+than treating byte identity as proof of correctness. Pure virtual-clock tables
+cover Idle/Deadline/Animating, earliest-deadline selection, one-shot redraws,
+60/120/coarse/dropped samples reaching the same wall-time pose, and every
+activity becoming idle exactly once. Mutation checks remove one activity and
+reintroduce a prepare-time zero epoch; both must fail. Laws prove a static
+window requests no follow-up frame and a failed/occluded present parks for the
+existing retry instead of polling. Settled captures remain byte-identical
+across worlds, list styles and 1x/2x DPI; a motion film and release-mode live
+flight cover caret, copy, fold, overlay and Kite journeys, followed by the
+standing vision-smoke. Run the full native receipt and wasm smoke; real browser
+RAF smoothness and live 60/120 Hz feel remain human confirmations. Read
+`DESIGN.md` Motion/Performance, `ARCHITECTURE.md`, `docs/render.md`,
+`docs/platform.md`, `docs/harness-reach.md` and `WEB.md` before implementation.
+
+### 466 — the theme picker's living band counts its 110 ms from input, not from first prepare (USER-REPORTED BUG 2026-08-21; ready to build)
+
+Fix the paced keyboard case the existing burst benchmark and debug-pane
+`theme worst` number do not describe. With ordinary motion enabled, a theme
+move performs synchronous font/document reshaping and atlas work before the
+new row can present; only inside that frame's `prepare` does the living band
+discover its target and reset its ~110 ms ease. A 30–70 ms theme frame therefore
+makes one key press occupy roughly 140–180 ms visually. At the user's ordinary
+~150 ms Up/Down cadence the next press can arrive while the prior band still
+claims to be in flight, crossing `chase_or_snap`'s glide/snap boundary and
+reading as a pause followed by a catch-up. Reduce Motion is lag-free because it
+removes precisely this post-render animation tail. The logical selection and
+theme preview are already current; do not defer either or remove the living
+band.
+
+Stamp a theme-picker movement at the real input/apply seam and carry that epoch
+to the renderer without introducing a wall clock into ordinary capture. When
+prepare first resolves the selected row's geometry, derive the band phase from
+`now - movement_at`, not zero from the prepare instant. Expensive work therefore
+uses up the animation budget: a quick frame shows most of the glide, a frame
+that consumes 110 ms or more shows the band settled, and no work makes the
+effect longer than authored. On a genuine rapid retarget, first sample the old
+pose at the same `now`, then preserve the current latest-selection-wins snap
+policy; logical selection, hit testing and Enter always target the newest row.
+Freshly opened overlays still begin settled, pointer and wheel movement use the
+same epoch owner, and Reduce Motion remains an immediate final pose.
+
+Extend the flight recorder rather than the debug pane's theme transaction
+headline: retain raw key/apply/prepare/present stamps and add the band phase plus
+an input-to-band-settled line. `theme latest/worst` continues to end when the
+new themed frame first presents; label or document that boundary rather than
+quietly folding decorative tail time into font/reshape/atlas phases. A paced
+release-mode run at approximately 150 ms per Up/Down is the human acceptance:
+each row responds continuously with motion on and remains instant with Reduce
+Motion, with no pause/catch-up rhythm.
+
+At the pure time seam, sweep render delay 0/40/80/110/150 ms and input cadence
+60/100/150/220 ms across Pane's living band and the ordinary sliding-band
+override. Assert that settlement is at most 110 ms after input, that delay never
+adds a second 110 ms, and that a superseding move cannot animate toward a stale
+row. Cover keyboard, wheel and pointer, world crossings, first-open and Reduce
+Motion. Mutation-proof the law by re-anchoring the epoch at prepare and require
+the 40/80 ms cases to fail. Ordinary settled captures remain byte-identical;
+the existing motion-frame harness proves intermediate geometry, while actual
+wall-clock feel is reported only from the live release build. Read
+`docs/fonts.md`, `docs/render.md`, `docs/platform.md` and
+`docs/harness-reach.md` before implementation. Item 467 may later replace the
+bridge machinery, but this fix lands independently and must not wait for that
+refactor.
+
 ### 465 — Cassowary's summoned chrome becomes one submerged operations console (USER DECISION 2026-08-21; ready to build)
 
 Revamp Cassowary's command palette around the simplified composition chosen in
