@@ -55,7 +55,7 @@ branch (the pre-fix document branch must fail it). Prove non-vacuity by
 mutation. The card is pointer-summoned; read `docs/harness-reach.md` before
 promising any capture of it. Rust change: full gate.
 
-### 459 — complete the ordinary-file vocabulary: Trash, Save a Copy, reveal/path, Go to line (USER DECISION 2026-08-18; ready to build in slices)
+### 459 — complete the ordinary-file vocabulary: Trash, Save a Copy, reveal/path, Go to line (USER DECISION 2026-08-18; slice 2 🟡 IN PROGRESS — item-459-save-copy (codex), branch codex/item-459-save-copy)
 
 🟢 LANDED — slice 3 (Reveal in File Manager + Copy File Path), `cdd5a1bc`
 🟢 LANDED — slice 4 (Go to Line), `0d95045d`
@@ -176,7 +176,7 @@ caret and scroll state. Read `docs/platform.md` and `docs/harness-reach.md`
 before implementing or promising captures; render-touching slices receive the
 standing vision-smoke and DPI/world audit required by policy.
 
-### 444 — the working set becomes visible: a margin buffer stack (USER DECISION 2026-08-16; STACK RENDERS, SWITCHES AND CLOSES; AFFORDANCE OWED NEXT)
+### 444 — the working set becomes visible: a margin buffer stack (USER DECISION 2026-08-16; residual 1(a)+(c) 🟡 IN PROGRESS — item-444-affordance-prototypes (codex), branch codex/item-444-affordance-prototypes)
 
 **Landed on `main`** (full sha list in `git log --grep 'item 444'`): the
 `--seed-tree` capture door; the `WorkingSet` module; the cross-root ownership
