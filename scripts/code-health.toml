@@ -49,8 +49,8 @@
 
 [[file_size_mark]]
 file = "src/actions.rs"
-lines = 891
-reason = "Reveal in File Manager / Copy File Path: the `CopyFilePath` dispatch arm in `apply_transition`, plus both actions' membership in the exhaustive `ActionFamily` classifier (`CopyFilePath` as Buffer, `RevealInFileManager` as Deferred) (+3)."
+lines = 892
+reason = "Reveal in File Manager / Copy File Path: the `CopyFilePath` dispatch arm in `apply_transition`, plus both actions' membership in the exhaustive `ActionFamily` classifier (`CopyFilePath` as Buffer, `RevealInFileManager` as Deferred) (+3). +1: Save a Copy enters the one exhaustive transition dispatcher beside the other file actions."
 
 [[file_size_mark]]
 file = "src/actions/format.rs"
@@ -59,7 +59,7 @@ reason = "Inline Code's shared toggle (content_is_kind) gained a fallback path f
 
 [[file_size_mark]]
 file = "src/actions/overlay_nav.rs"
-lines = 954
+lines = 950
 reason = "The workspace keyboard and deep link route through `actions/workspace_nav.rs`; this file retains the intercept-chain entry and dispatcher arm. Preview opening is gated by the declared kind before its match, so an undeclared arm is inert. Project navigation shares `is_folder_destination`, direct children switch on Enter, non-path-bound projects cannot ascend above the configured workspace, and lifecycle wrappers rebuild through one owner. `descend_target` documents the one path-name rule shared by both row shapes. +11: the Keymap picker's accept-by-corpus-index arm, mirroring Date rather than label-parsing. +13: Go to Line's own accept path, the Headings branch's numeric sibling — both resolve through the same shared jump owner (`Effect::JumpToLine`) rather than repeating caret/fold/scroll work."
 
 [[file_size_mark]]
@@ -69,8 +69,8 @@ reason = "The clobber-notice predicate MOVED OUT to `app/files/external.rs` besi
 
 [[file_size_mark]]
 file = "src/app/apply.rs"
-lines = 868
-reason = "The conflict workspace's summon reaches the live effect interpreter's one `PersistenceEffect` match and the one `apply_overlay_accept` roster, both exhaustive by design (+6). +34: `sync_theme_font_measured`, the ONE reshape door every live theme-font path runs through. The split-reach preview path shapes the presentable prefix immediately; the quiet-settle owner finishes only the latest highlighted world's tail. +11: `refresh_kill_from_clipboard`'s duplicate-read skip now also requires the active buffer's own kill ring to already equal the OS text, not just the App-global last-written stamp, so a buffer switch cannot leave a Paste reading a kill ring that stamp never actually hydrated. +11: `App::apply_keymap_flavor` — sets the config field, persists it, rebuilds the live keymap, refreshes an open Settings menu, and emits the resulting-flavor notice, replacing the old always-toggling handler. +1: `Previous`/`CloseActive` need two dispatch arms where there was one, now that Finish file's last leg is its own effect. +12: Reveal in File Manager's `Effect::RevealInFileManager` arm reuses the export write's own `reveal_path` gate rather than a second implementation, with a wasm counterpart to keep the match exhaustive on the browser target too. +2: Go to Line's `goto_line_count` field threads through the two `OverlayState` construction sites that gather it from the live buffer."
+lines = 869
+reason = "The conflict workspace's summon reaches the live effect interpreter's one `PersistenceEffect` match and the one `apply_overlay_accept` roster, both exhaustive by design (+6). +34: `sync_theme_font_measured`, the ONE reshape door every live theme-font path runs through. The split-reach preview path shapes the presentable prefix immediately; the quiet-settle owner finishes only the latest highlighted world's tail. +11: `refresh_kill_from_clipboard`'s duplicate-read skip now also requires the active buffer's own kill ring to already equal the OS text, not just the App-global last-written stamp, so a buffer switch cannot leave a Paste reading a kill ring that stamp never actually hydrated. +11: `App::apply_keymap_flavor` — sets the config field, persists it, rebuilds the live keymap, refreshes an open Settings menu, and emits the resulting-flavor notice, replacing the old always-toggling handler. +1: `Previous`/`CloseActive` need two dispatch arms where there was one, now that Finish file's last leg is its own effect. +12: Reveal in File Manager's `Effect::RevealInFileManager` arm reuses the export write's own `reveal_path` gate rather than a second implementation, with a wasm counterpart to keep the match exhaustive on the browser target too. +2: Go to Line's `goto_line_count` field threads through the two `OverlayState` construction sites that gather it from the live buffer. +1: Save a Copy's named destination reaches the one exhaustive live effect interpreter."
 
 [[file_size_mark]]
 file = "src/app/files/settings.rs"
@@ -242,8 +242,8 @@ lines = 661
 
 [[file_size_mark]]
 file = "src/menu.rs"
-lines = 1113
-reason = "The three Export rows' File-menu label now diverges from their catalog command (dropping a stale ellipsis with no surface behind it — the shorthand `r()`/`ri()` constructors can't express that, so each grew into a full `Routed` literal), plus the label divergence law's `EXPLICIT_MENU_LABELS` entries and doc comment, and a two-line `#[cfg(test)] mod ellipsis_law;` declaration for the new law itself (+29). +25: the NATIVE_PANEL_IDS table and its one predicate, declared as DATA beside the roster it indexes so ellipsis_law can sweep the AppKit-panel door from any host — a literal buried in the macOS handler is unreadable to the law that must hold both doors to the same promise, which is exactly how `Browse files…` passed for the wrong reason. +10: `mod chord_truth;` and its own roster x flavor law proving the drawn menu's chord column agrees with real dispatch under both keymap flavors. +4: the real Command palette menu item, `awl.command_palette`, replacing the uncatalogued hand-written resolver arm."
+lines = 1120
+reason = "The three Export rows' File-menu label now diverges from their catalog command (dropping a stale ellipsis with no surface behind it — the shorthand `r()`/`ri()` constructors can't express that, so each grew into a full `Routed` literal), plus the label divergence law's `EXPLICIT_MENU_LABELS` entries and doc comment, and a two-line `#[cfg(test)] mod ellipsis_law;` declaration for the new law itself (+29). +25: the NATIVE_PANEL_IDS table and its one predicate, declared as DATA beside the roster it indexes so ellipsis_law can sweep the AppKit-panel door from any host — a literal buried in the macOS handler is unreadable to the law that must hold both doors to the same promise, which is exactly how `Browse files…` passed for the wrong reason. +10: `mod chord_truth;` and its own roster x flavor law proving the drawn menu's chord column agrees with real dispatch under both keymap flavors. +4: the real Command palette menu item, `awl.command_palette`, replacing the uncatalogued hand-written resolver arm. +7: Save a Copy joins the one File-menu roster, native-panel roster, and exact command-resolution laws."
 
 [[file_size_mark]]
 file = "src/menubar.rs"
@@ -266,8 +266,8 @@ reason = "`item_sections` gives a workspace one category name in its rail and le
 
 [[file_size_mark]]
 file = "src/overlay/state.rs"
-lines = 777
-reason = "The conflict card's payload field on the one `OverlayState` struct and its one exhaustive `new_marked` initializer (+5). +10: `BackKey` is the one owner of what goes back from a detail stage — erase when free, focus while a live query owns the erase key, nothing during a value edit — so the footer and the intercept cannot disagree. +23: `foot_hint_scoped` takes the `Bind` the card was entered under, because whether Backspace ascends is a property of the JOURNEY and not of the kind — the two switch-project surfaces are the same `OverlayKind`. The zero-argument form remains, delegating with `None`, so roughly thirty bare-card call sites keep the correct default: a card with no journey is flat. +68: RowMeta::ProjectDoor and RowMeta::terminal, which merges the add-to-dictionary row's always-last exemption with the door's — both act on something other than the query, so a fuzzy match on their own label must not float them above the answers. +39: `OverlayState::new_keymap` — native/emacs rows with plain-language primary labels and the concrete chord difference in the secondary column, current flavor pre-selected, sourced from the caller-gathered Config-owned flavor rather than a process-global. +33: Go to Line's one fact (`goto_line_count`, the destination buffer's total line count) and `attach_line_jump`, which appends the line-jump row as a single fixed slot refreshed live by `refilter`'s `sync_goto_line_row` step, mirroring `attach_headings`/`attach_folders`'s own opt-in shape."
+lines = 806
+reason = "The conflict card's payload field on the one `OverlayState` struct and its one exhaustive `new_marked` initializer (+5). +10: `BackKey` is the one owner of what goes back from a detail stage — erase when free, focus while a live query owns the erase key, nothing during a value edit — so the footer and the intercept cannot disagree. +23: `foot_hint_scoped` takes the `Bind` the card was entered under, because whether Backspace ascends is a property of the JOURNEY and not of the kind — the two switch-project surfaces are the same `OverlayKind`. The zero-argument form remains, delegating with `None`, so roughly thirty bare-card call sites keep the correct default: a card with no journey is flat. +68: RowMeta::ProjectDoor and RowMeta::terminal, which merges the add-to-dictionary row's always-last exemption with the door's — both act on something other than the query, so a fuzzy match on their own label must not float them above the answers. +39: `OverlayState::new_keymap` — native/emacs rows with plain-language primary labels and the concrete chord difference in the secondary column, current flavor pre-selected, sourced from the caller-gathered Config-owned flavor rather than a process-global. +33: Go to Line's one fact (`goto_line_count`, the destination buffer's total line count) and `attach_line_jump`, which appends the line-jump row as a single fixed slot refreshed live by `refilter`'s `sync_goto_line_row` step, mirroring `attach_headings`/`attach_folders`'s own opt-in shape. +29: Save a Copy's payload, truthful shared-card title/footer owner, and exhaustive initializer values keep its folder-then-filename journey on the existing overlay mechanism."
 
 [[file_size_mark]]
 file = "src/peek.rs"
@@ -419,8 +419,8 @@ reason = "The text shaping and incremental-restyle hub remains an explicit rende
 
 [[file_size_mark]]
 file = "src/replay.rs"
-lines = 376
-reason = "The conflict kind's arm in `accept_class`, the exhaustive per-kind accept classifier, plus the correction to that arm's own premise — it is the one member there that really can reach the generic accept fallthrough (+7). +4: the door's kind in the replay classifier, so a capture and the live App agree about what it is. +12: the Keymap overlay kind's own arm in the same two exhaustive classifiers. +5: the Credits overlay kind's own arm in the same two exhaustive classifiers. +6: Reveal in File Manager's `Effect::RevealInFileManager` arm is recorded (intercepted, never performed) in `--keys` replay, the same external-handoff shape as `Export`/`FollowLink`."
+lines = 380
+reason = "The conflict kind's arm in `accept_class`, the exhaustive per-kind accept classifier, plus the correction to that arm's own premise — it is the one member there that really can reach the generic accept fallthrough (+7). +4: the door's kind in the replay classifier, so a capture and the live App agree about what it is. +12: the Keymap overlay kind's own arm in the same two exhaustive classifiers. +5: the Credits overlay kind's own arm in the same two exhaustive classifiers. +6: Reveal in File Manager's `Effect::RevealInFileManager` arm is recorded (intercepted, never performed) in `--keys` replay, the same external-handoff shape as `Export`/`FollowLink`. +4: Save a Copy's emitted payload shapes are exhaustively classified and recorded without performing filesystem writes in replay."
 
 [[file_size_mark]]
 file = "src/search/keys.rs"

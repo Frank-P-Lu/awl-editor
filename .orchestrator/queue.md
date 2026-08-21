@@ -311,10 +311,19 @@ selection direction, undo/redo and the literal-paste exclusions. The same
 clipboard payload driven through native and web dispatch must resolve through
 one transition; add a law proving a future Paste door cannot bypass the rule.
 
-### 459 — complete the ordinary-file vocabulary: Trash, Save a Copy, reveal/path, Go to line (USER DECISION 2026-08-18; slice 2 🟡 IN PROGRESS — item-459-save-copy (codex), branch codex/item-459-save-copy)
+### 459 — complete the ordinary-file vocabulary: Trash, Save a Copy, reveal/path, Go to line (USER DECISION 2026-08-18; slices 2–4 LANDED; slice 1 waits for item 444 residual 2)
 
 🟢 LANDED — slice 3 (Reveal in File Manager + Copy File Path), `cdd5a1bc`
 🟢 LANDED — slice 4 (Go to Line), `0d95045d`
+🟢 LANDED — slice 2 (Save a Copy), via the merge recorded by
+`git log --grep 'item 459'`
+
+**Slice 2 landed on `main`.** Save a Copy uses one folder-then-filename
+journey with truthful `save a copy to` / `save a copy as` labels. It writes
+the source document's exact disk bytes without changing its path, working-set
+identity, history, caret or undo state. The no-clobber path is atomic against a
+destination created after preflight; the ordinary macOS save panel retains its
+explicit overwrite-confirmation contract.
 
 **Slice 4 landed on `main` (`0d95045d`).** Go to Line is a numeric row inside
 the existing unified Go to… overlay, not a parallel navigation system: it
@@ -343,8 +352,7 @@ confirming both the unit and capture-level laws go red on that regression.
 marks with this slice's own additions; each raise verified against the
 merged tree.
 
-**Item 459 is now half-landed: slices 3 and 4 done, slices 1 (Trash) and 2
-(Save a Copy) not yet dispatched.** Slice 1 has an explicit dependency
+**Item 459 now has only slice 1 (Trash) open.** Slice 1 has an explicit dependency
 (item 444 residual 2's zero-document state) for its final-document case.
 
 **Slice 3 landed on `main` (`cdd5a1bc`).** `CopyFilePath` and
