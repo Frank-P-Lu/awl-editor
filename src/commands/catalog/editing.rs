@@ -1,6 +1,7 @@
 use super::Command;
 use crate::keymap::Action;
-
+mod footnotes;
+use footnotes::INSERT_FOOTNOTE;
 pub(super) static COMMANDS: &[Command] = &[
     Command {
         name: "Blockquote",
@@ -130,17 +131,7 @@ pub(super) static COMMANDS: &[Command] = &[
             "Toggle `~~strikethrough~~` markup around the selection or the word at the caret.",
         ),
     },
-    Command {
-        name: "Insert footnote",
-        action: Action::InsertFootnote,
-        native: "",
-        emacs: "",
-        native_only: false,
-        web_only: false,
-        description: Some(
-            "Insert a collision-free footnote reference and definition, then type the note.",
-        ),
-    },
+    INSERT_FOOTNOTE,
     Command {
         name: "Export as Word…",
         action: Action::ExportWord,

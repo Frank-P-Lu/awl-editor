@@ -54,7 +54,7 @@ reason = "Reveal in File Manager / Copy File Path: the `CopyFilePath` dispatch a
 
 [[file_size_mark]]
 file = "src/actions/format.rs"
-lines = 1119
+lines = 1052
 reason = "Inline Code's shared toggle (content_is_kind) gained a fallback path for InlineKind::InlineCode selections whose byte range crosses a block boundary, where the CommonMark parser cannot positively confirm a wrapped span; plus its mutation-proven law sweep (block-boundary sweep, multibyte, flanking-span negative guard, fenced-block guard)."
 
 [[file_size_mark]]
@@ -186,12 +186,12 @@ reason = "+2: the atomic create-if-absent writer is exported only on native targ
 
 [[file_size_mark]]
 file = "src/export/docx.rs"
-lines = 964
+lines = 690
 reason = "Word export keeps its package writer and semantic block emitters together. Footnotes add numbered reference runs, definition paragraphs, relationships, and a mechanically wrapped byte-identical styles roster."
 
 [[file_size_mark]]
 file = "src/export/model.rs"
-lines = 818
+lines = 693
 reason = "The one semantic export model now resolves footnote labels, first-reference numbering, repeated references, definitions, and missing-label fallbacks beside the other Markdown block/inline normalization."
 
 [[file_size_mark]]
@@ -500,26 +500,6 @@ reason = "The exhaustive theme model authors rotated-location treatment and toas
 file = "src/theme/worlds.rs"
 lines = 1223
 reason = "Every world explicitly authors its toast anchor, while Cassowary and Magpie author their shared rotated-location treatments in the same roster."
-
-[[file_size_mark]]
-file = "src/commands/catalog/editing.rs"
-lines = 509
-reason = "The authored editing-command roster stays exhaustive; Insert footnote adds one catalog row beside the shared formatting commands."
-
-[[file_size_mark]]
-file = "src/export/pdf/layout.rs"
-lines = 522
-reason = "PDF page layout owns block placement; footnote definitions add their numbered hanging layout through the same pagination seam."
-
-[[file_size_mark]]
-file = "src/render/layers/ornaments.rs"
-lines = 523
-reason = "Markdown ornaments share one visible-row renderer; footnote references and definition numbers join that bounded pass."
-
-[[file_size_mark]]
-file = "src/render/spans/conceal.rs"
-lines = 531
-reason = "The conceal planner owns Markdown source-to-rich-preview substitutions; footnote labels and definition prefixes use that same reveal boundary."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
