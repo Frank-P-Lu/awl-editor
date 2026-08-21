@@ -260,6 +260,15 @@ gate_load1() {
   else
     # `{ 5.70 12.72 16.79 }` — the braces are fields, so the first number is $2.
     raw="$(sysctl -n vm.loadavg 2>/dev/null | awk '{ print $2 }')"
+    if [[ -z "$raw" ]]; then
+      raw="$(uptime 2>/dev/null | awk '
+        {
+          for (i = 1; i < NF; i++) if ($i ~ /^averages?:$/) {
+            value = $(i + 1); sub(/,$/, "", value); print value; exit
+          }
+        }
+      ')"
+    fi
   fi
   # An unparsed reading says so. Printing 0.00 for one is the exact failure this
   # heartbeat has already shipped once: a memory probe that read macOS's page
@@ -277,7 +286,7 @@ gate_cpu_prev="$gate_run_dir/cpu-prev"
 # parser reads both, and the Linux quantum is 1 s against a 60 s window.
 gate_cpu_sample() {
   date +%s
-  ps -A -o pid=,pgid=,etime=,time=,comm= 2>/dev/null \
+  if ! ps -A -o pid=,pgid=,etime=,time=,comm= 2>/dev/null \
     | awk -v groups="$(tr '\n' ' ' <"$gate_pgid_file")" '
         function seconds(t,   days, parts, p, i, out) {
           days = 0
@@ -296,7 +305,9 @@ gate_cpu_sample() {
           if (name == "") name = "unnamed"
           print $1, seconds($4), seconds($3), name
         }
-      '
+      '; then
+    printf 'unavailable\n'
+  fi
 }
 
 # A pid present in both samples is measured over the window between them. A pid
@@ -324,6 +335,7 @@ gate_cpu_report() {
       else { window = ($1 + 0) - prev_epoch; if (window < 1) window = 1 }
       next
     }
+    $1 == "unavailable" { unavailable = 1; next }
     file == 1 { was[$1] = $2 + 0; seen[$1] = 1; next }
     {
       if ($1 in seen) {
@@ -347,7 +359,9 @@ gate_cpu_report() {
       if (pct > best_pct) { best_pct = pct; best = $4 ":" $1 }
     }
     END {
-      if (file < 2) {
+      if (unavailable) {
+        print "cpu_probe=unavailable window_seconds=0 tracked_procs=0 new_procs=0 tracked_cpu_pct=none busiest=[none]"
+      } else if (file < 2) {
         print "cpu_probe=broken window_seconds=0 tracked_procs=0 new_procs=0 tracked_cpu_pct=none busiest=[none]"
       } else if (matched == 0) {
         printf "window_seconds=%d tracked_procs=0 new_procs=0 tracked_cpu_pct=none busiest=[none]\n", window
@@ -733,6 +747,11 @@ if [[ -n "$gate_budget_seconds" ]]; then
 fi
 
 gate_launch vitals_pid untracked gate_vitals_loop
+# The teardown fixture needs the exact child identity even on managed runners
+# that deny `ps`/`pgrep`. Production leaves this unset and publishes nothing.
+if [[ -n "${AWL_NATIVE_GATE_PROBE_VITALS_PID_FILE:-}" ]]; then
+  printf '%s\n' "$vitals_pid" >"$AWL_NATIVE_GATE_PROBE_VITALS_PID_FILE"
+fi
 
 gate_aborted_on_budget() { [[ -f "$gate_budget_marker" ]]; }
 

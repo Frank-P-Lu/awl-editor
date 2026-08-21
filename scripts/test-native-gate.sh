@@ -335,13 +335,19 @@ refuse() {
 # other portability notes.
 #
 # The search POLLS, for the same reason the marker waits are loops: the marker
-# and the vitals loop are two separate spawns, so a caller that reads the pid
-# the instant the marker lands is racing the fork — and the loser reports
-# "could not find the vitals-loop child", aborting a law that was about to
-# pass. It is a probe of the machine's scheduling, not of the gate.
+# and the vitals loop are two separate spawns. A fixture pid file avoids a
+# process-table dependency on managed runners; the live census remains the
+# fallback for an ordinary host.
 find_vitals_pid() {
-  local gate_pid="$1" child grandchild attempt
+  local gate_pid="$1" pid_file="${2:-}" child grandchild attempt
   for attempt in $(seq 1 50); do
+    if [[ -n "$pid_file" && -s "$pid_file" ]]; then
+      child="$(cat "$pid_file")"
+      if kill -0 "$child" 2>/dev/null; then
+        printf '%s\n' "$child"
+        return 0
+      fi
+    fi
     for child in $(pgrep -P "$gate_pid" 2>/dev/null || true); do
       for grandchild in $(pgrep -P "$child" 2>/dev/null || true); do
         if ps -ww -o command= -p "$grandchild" 2>/dev/null | grep -q '^sleep '; then
@@ -463,7 +469,11 @@ done <"$WORK/orphans"
   echo "test-native-gate: the budget left grandchildren alive ($survivors) — they hold the CI step's stdout open" >&2
   exit 1
 }
-require "group kill" "native-gate-budget-proc"
+if ps -A -o pid=,ppid=,pgid=,etime=,time=,rss=,stat=,comm= >/dev/null 2>&1; then
+  require "group kill" "native-gate-budget-proc"
+else
+  echo "test-native-gate: SKIPPED process diagnostic: process table unavailable"
+fi
 
 echo "test-native-gate: an exhausted budget retires every descendant, not just the process it launched"
 
@@ -603,6 +613,14 @@ require "load average" "cpu_count=$(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/de
 
 echo "test-native-gate: the heartbeat reports this host's real load average beside the core count that makes it readable"
 
+# Per-process CPU is diagnostic only. Keep every non-process heartbeat law live
+# when a managed runner denies the exact process-table query used in production.
+process_cpu_table_available=0
+if ps -A -o pid=,pgid=,etime=,time=,comm= >/dev/null 2>&1; then
+  process_cpu_table_available=1
+fi
+
+if (( process_cpu_table_available )); then
 # Direction 1 — LIVELOCK. The fixture's conventions burn CPU in-process for 9 s
 # while producing no output, which is exactly what a spinning test binary looks
 # like from outside. The heartbeat must report a pegged core AND name the pid
@@ -681,6 +699,10 @@ awk -v peak="$idle_peak" 'BEGIN { exit !(peak < 25) }' || {
 refuse "cpu idle" "cpu_probe=broken"
 
 echo "test-native-gate: a blocked convention reads as idle over a heartbeat that still tracked its processes — the two failures are distinguishable"
+else
+  require "restricted CPU diagnostics" "cpu_probe=unavailable"
+  echo "test-native-gate: SKIPPED per-process CPU diagnostics: process table unavailable"
+fi
 
 assert_concurrent_and_complete() {
   local first_two
@@ -1089,6 +1111,7 @@ marker="$WORK/marker"
 : >"$WORK/events"
 PATH="$WORK:$PATH" \
   AWL_NATIVE_GATE_MARKER="$marker" \
+  AWL_NATIVE_GATE_PROBE_VITALS_PID_FILE="$WORK/vitals-marker-live" \
   AWL_NATIVE_GATE_PROBE_SLEEP=4 \
   AWL_NATIVE_GATE_PROBE_LOG="$WORK/events" \
   AWL_NATIVE_GATE_PROBE_TEST_BINARY="$WORK/awl-test-bin" \
@@ -1137,7 +1160,7 @@ echo "test-native-gate: a reader checking the marker mid-run sees a live pid (ki
 # This is the process the item's live-host diagnosis kept finding at
 # ppid=1 with a `sleep` child: the vitals heartbeat, orphaned by a SIGTERM
 # that only ever reached the top-level script.
-vitals_pid="$(find_vitals_pid "$marker_gate_pid")" || {
+vitals_pid="$(find_vitals_pid "$marker_gate_pid" "$WORK/vitals-marker-live")" || {
   echo "test-native-gate: could not find the running gate's vitals-loop child, so the leak law below would prove nothing" >&2
   kill -TERM "$marker_gate_pid" 2>/dev/null || true
   exit 1
@@ -1185,6 +1208,7 @@ sigint_marker="$WORK/marker-sigint"
 : >"$WORK/events"
 PATH="$WORK:$PATH" \
   AWL_NATIVE_GATE_MARKER="$sigint_marker" \
+  AWL_NATIVE_GATE_PROBE_VITALS_PID_FILE="$WORK/vitals-sigint" \
   AWL_NATIVE_GATE_PROBE_SLEEP=4 \
   AWL_NATIVE_GATE_PROBE_LOG="$WORK/events" \
   AWL_NATIVE_GATE_PROBE_TEST_BINARY="$WORK/awl-test-bin" \
@@ -1205,7 +1229,7 @@ done
   kill -TERM "$sigint_gate_pid" 2>/dev/null || true
   exit 1
 }
-sigint_vitals_pid="$(find_vitals_pid "$sigint_gate_pid")" || {
+sigint_vitals_pid="$(find_vitals_pid "$sigint_gate_pid" "$WORK/vitals-sigint")" || {
   echo "test-native-gate: could not find the SIGINT probe's vitals-loop child, so this law would prove nothing" >&2
   kill -TERM "$sigint_gate_pid" 2>/dev/null || true
   exit 1
