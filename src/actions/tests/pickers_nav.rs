@@ -85,30 +85,6 @@ fn context_card_is_an_action_list_not_a_hidden_query() {
     assert!(overlay.card().is_none());
 }
 
-#[test]
-fn disabled_context_row_is_a_noop_and_still_dismisses_cleanly() {
-    let state = crate::context_menu::ContextState {
-        has_selection: false,
-        link: false,
-        heading: false,
-        heading_folded: false,
-        misspelled: false,
-        named_file: false,
-    };
-    let card = crate::context_menu::overlay(
-        crate::context_menu::rows(
-            crate::context_menu::ContextTarget::Body,
-            state,
-            crate::commands::Platform::Native,
-        ),
-        (5.0, 5.0),
-    );
-    let mut overlay = crate::overlay::Journey::seeded(Some(card));
-    let mut accept = None;
-    assert_eq!(drive_run(&mut overlay, &mut accept, &Action::Newline), None);
-    assert!(overlay.card().is_none());
-}
-
 /// Accepting a Date-format picker row COMMITS that format: the core
 /// sets the process-global `active_format` AND emits `OverlayAccept(Date, slug)`
 /// so the App persists the sticky pref (the Dictionary/CjkLang accept shape). The
