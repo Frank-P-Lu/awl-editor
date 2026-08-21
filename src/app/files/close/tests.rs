@@ -256,6 +256,97 @@ fn trashing_the_last_clean_document_enters_zero_document_state() {
     assert!(app.document.working_set().files().is_empty());
 }
 
+#[test]
+fn backend_failure_attempts_once_and_preserves_final_nonfinal_and_parked_state() {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    struct Fail(Arc<AtomicUsize>);
+    impl crate::assets::TrashCan for Fail {
+        fn trash(&self, _: &Path) -> Result<(), String> {
+            self.0.fetch_add(1, Ordering::SeqCst);
+            Err("denied by OS".into())
+        }
+    }
+    let _guard = crate::testlock::serial();
+    for shape in ["active-nonfinal", "parked-nonfinal", "active-final"] {
+        let mut s = Session::without_autosave(&format!("trash-fail-{shape}"));
+        if shape == "active-final" {
+            assert_eq!(
+                s.app.close_buffer(crate::buffers::BufferKey::path(&s.a())),
+                CloseOutcome::Closed
+            );
+        }
+        let path = if shape == "parked-nonfinal" {
+            s.a()
+        } else {
+            s.b()
+        };
+        let key = crate::buffers::BufferKey::path(&path);
+        let open_before = s.open_files();
+        let facts_before = s.app.document.close_facts(&key).unwrap();
+        let active_text = s.app.document.buffer().text();
+        let active_version = s.app.document.buffer().version();
+        let disk = std::fs::read(&path).unwrap();
+        let attempts = Arc::new(AtomicUsize::new(0));
+        assert_eq!(
+            crate::assets::with_trash(Arc::new(Fail(attempts.clone())), || {
+                s.app.trash_buffer(key.clone())
+            }),
+            CloseOutcome::Refused
+        );
+        assert_eq!(attempts.load(Ordering::SeqCst), 1, "{shape}");
+        assert_eq!(s.open_files(), open_before, "{shape}");
+        let facts_after = s.app.document.close_facts(&key).unwrap();
+        assert_eq!(facts_after.path, facts_before.path, "{shape}");
+        assert_eq!(facts_after.unsaved, facts_before.unsaved, "{shape}");
+        assert_eq!(facts_after.baseline, facts_before.baseline, "{shape}");
+        assert_eq!(s.app.document.buffer().text(), active_text, "{shape}");
+        assert_eq!(s.app.document.buffer().version(), active_version, "{shape}");
+        assert_eq!(std::fs::read(&path).unwrap(), disk, "{shape}");
+        assert_eq!(
+            s.app.frame.notice().text(),
+            Some("couldn't move to Trash: denied by OS")
+        );
+    }
+}
+
+#[test]
+fn true_conflict_refusal_preserves_active_parked_and_final_shapes_without_backend_attempt() {
+    let _guard = crate::testlock::serial();
+    for shape in ["active-nonfinal", "parked-nonfinal", "active-final"] {
+        let mut s = Session::without_autosave(&format!("trash-conflict-{shape}"));
+        if shape == "active-final" {
+            assert_eq!(
+                s.app.close_buffer(crate::buffers::BufferKey::path(&s.a())),
+                CloseOutcome::Closed
+            );
+        }
+        let path = if shape == "parked-nonfinal" {
+            s.a()
+        } else {
+            s.b()
+        };
+        let key = crate::buffers::BufferKey::path(&path);
+        s.app
+            .persistence
+            .set_unresolved(crate::app::persistence::UnresolvedChange {
+                path: path.clone(),
+                theirs: Some("disk version\n".into()),
+            });
+        let before = s.open_files();
+        let disk = std::fs::read(&path).unwrap();
+        let fake = Arc::new(crate::assets::FakeTrash::default());
+        let recorder = fake.clone();
+        assert_eq!(
+            crate::assets::with_trash(fake, || s.app.trash_buffer(key.clone())),
+            CloseOutcome::Refused
+        );
+        assert!(recorder.trashed.lock().unwrap().is_empty(), "{shape}");
+        assert_eq!(s.open_files(), before, "{shape}");
+        assert_eq!(std::fs::read(&path).unwrap(), disk, "{shape}");
+        assert!(s.app.persistence.unresolved_for(&path), "{shape}");
+    }
+}
+
 /// The contextual filename card carries its parked row identity into the
 /// accept effect. Without that payload, Enter would re-dispatch `TrashFile`
 /// against the active document and this exact inactive-row case would remove
