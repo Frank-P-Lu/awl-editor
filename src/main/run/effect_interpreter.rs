@@ -15,7 +15,7 @@ impl<'a> ReplaySession<'a> {
         }
         match effect {
             actions::Effect::Clipboard(actions::ClipboardEffect::PasteImage) => {
-                work.descend(Action::YankText);
+                work.descend(actions::ResolvedPaste::Text.into_action());
             }
             actions::Effect::Buffer(_)
             | actions::Effect::Persistence(_)

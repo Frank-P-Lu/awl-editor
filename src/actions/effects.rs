@@ -58,6 +58,24 @@ pub enum ClipboardEffect {
     PasteImage,
 }
 
+/// The closed result of resolving a platform paste request. Native may resolve
+/// an image; web/headless resolves text. Both descend through this one typed
+/// continuation owner, so payload choice cannot grow a parallel edit path.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum ResolvedPaste {
+    Text,
+    ImageReference(String),
+}
+
+impl ResolvedPaste {
+    pub(crate) fn into_action(self) -> Action {
+        match self {
+            Self::Text => Action::YankText,
+            Self::ImageReference(reference) => Action::InsertImageReference(reference),
+        }
+    }
+}
+
 /// The exact core-owned text inserted for a pasted image reference. The image
 /// lands on its own line, and the caret lands on a fresh line after it.
 pub(crate) fn image_reference_text(at_line_start: bool, reference: &str) -> String {

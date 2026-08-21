@@ -1,4 +1,3 @@
-use super::super::*;
 use super::*;
 
 #[test]
@@ -7,6 +6,9 @@ fn is_url_enrols_http_https_mailto_and_rejects_other_paste_shapes() {
     assert!(is_url("https://example.com"));
     assert!(is_url("http://example.com/the/essay?q=1#frag"));
     assert!(is_url("mailto:writer@example.com"));
+    assert!(is_url("HTTPS://EXAMPLE.COM/path"));
+    assert!(is_url("https://[2001:db8::1]:8443/path"));
+    assert!(is_url("MAILTO:Writer@example.com?subject=hello"));
     // NOT URLs: plain prose, a bare path, an interior-space string, a bare
     // scheme with no host, an empty string, a multi-line clipboard.
     assert!(!is_url("the essay"));
@@ -20,6 +22,24 @@ fn is_url_enrols_http_https_mailto_and_rejects_other_paste_shapes() {
     assert!(!is_url("https://a\nhttps://b"));
     assert!(!is_url("ftp://host/file"));
     assert!(!is_url("mailto:writer"));
+    for malformed in [
+        "https:///path",
+        "https://?query",
+        "https://#fragment",
+        "https://---",
+        "https://:443/path",
+        "https://user@:443/path",
+        "https://[::1]bad/path",
+        "https://[::1]:bad/path",
+        "mailto:@",
+        "mailto:writer@",
+        "mailto:writer@@example.com",
+    ] {
+        assert!(
+            !is_url(malformed),
+            "{malformed:?} has no plausible authority"
+        );
+    }
 }
 
 #[test]
@@ -123,6 +143,31 @@ fn paste_url_stays_literal_in_markdown_code_and_existing_link_source() {
             buf.text(),
             expected,
             "{text:?} must remain a literal paste context"
+        );
+    }
+}
+
+#[test]
+fn paste_url_stays_literal_in_image_source_and_frontmatter() {
+    for (text, selected, expected) in [
+        ("![alt](old.png)", "alt", "![https://new.example](old.png)"),
+        (
+            "---\ntitle: words\n---\nbody",
+            "words",
+            "---\ntitle: https://new.example\n---\nbody",
+        ),
+    ] {
+        let start_byte = text.find(selected).unwrap();
+        let start = text[..start_byte].chars().count();
+        let end = start + selected.chars().count();
+        let mut buf = b(text);
+        buf.select_range(start, end);
+        buf.set_kill("https://new.example");
+        buf.yank();
+        assert_eq!(
+            buf.text(),
+            expected,
+            "MUTATION TRAP: parser-owned non-prose source must take literal paste"
         );
     }
 }

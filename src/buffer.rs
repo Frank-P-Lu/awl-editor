@@ -769,8 +769,9 @@ mod motion;
 mod undo;
 
 mod edit;
-#[allow(unused_imports)]
-pub use edit::is_url;
+
+mod url;
+pub use url::is_url;
 
 mod notes;
 pub use notes::*;

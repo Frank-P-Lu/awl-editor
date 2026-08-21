@@ -5,28 +5,7 @@
 //! `kill_line_to`), and C-y yank. Carved out of `buffer.rs` verbatim — inherent
 //! methods on [`Buffer`].
 
-use super::Buffer;
-
-/// URL-SHAPE test for the paste-URL-over-selection → markdown-link convention.
-/// Deliberately simple + conservative (documented shape, not a validator): the
-/// string must be one `http://` / `https://` token with non-empty authority, or
-/// one `mailto:` address. Anything else (plain prose, a bare filesystem path,
-/// a relative path, a multi-line clipboard) is NOT a URL, so the paste stays a
-/// normal replace.
-pub fn is_url(s: &str) -> bool {
-    // No surrounding or interior whitespace — a URL is one bare token.
-    if s.is_empty() || s.chars().any(char::is_whitespace) {
-        return false;
-    }
-    if let Some(authority) = s
-        .strip_prefix("https://")
-        .or_else(|| s.strip_prefix("http://"))
-    {
-        return !authority.is_empty();
-    }
-    s.strip_prefix("mailto:")
-        .is_some_and(|address| !address.is_empty() && address.contains('@'))
-}
+use super::{Buffer, is_url};
 
 impl Buffer {
     // --- Editing ----------------------------------------------------------
