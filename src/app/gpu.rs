@@ -104,7 +104,7 @@ pub(super) enum GpuFrameOutcome {
 pub(super) struct PreparedActivities(crate::frame_clock::ActivitySet);
 
 impl PreparedActivities {
-    fn from_post_prepare(activities: crate::frame_clock::ActivitySet) -> Self {
+    pub(super) fn from_post_prepare(activities: crate::frame_clock::ActivitySet) -> Self {
         Self(activities)
     }
 
@@ -114,11 +114,6 @@ impl PreparedActivities {
 
     pub(super) fn as_set(self) -> crate::frame_clock::ActivitySet {
         self.0
-    }
-
-    #[cfg(test)]
-    pub(super) fn injected(activities: crate::frame_clock::ActivitySet) -> Self {
-        Self(activities)
     }
 }
 

@@ -182,7 +182,8 @@ fn a_prepare_time_band_activity_keeps_the_loop_hot_by_itself() {
     let _g = crate::testlock::serial();
     let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
     let sample = app.frame.frame_sample(app.frame.now());
-    let prepared = gpu::PreparedActivities::injected(ActivitySet::one(Activity::OverlayBand));
+    let prepared =
+        gpu::PreparedActivities::from_post_prepare(ActivitySet::one(Activity::OverlayBand));
     app.frame.frame_presented(sample, prepared);
     assert_eq!(
         app.frame.directive(Deadlines::default()),

@@ -20,25 +20,34 @@ fn one_wall_time_drives_every_real_owner_at_60hz_120hz_coarse_and_dropped_cadenc
     }
     let saved = crate::motion::reduced();
     crate::motion::set_reduced(false);
-    let total = Duration::from_millis(60);
-    let schedules = [
-        ("60hz", equal_steps(total, 4)),
-        ("120hz", equal_steps(total, 8)),
-        ("coarse", equal_steps(total, 2)),
-        (
-            "dropped",
-            vec![
-                Duration::from_millis(8),
-                Duration::from_millis(17),
-                Duration::from_millis(35),
-            ],
-        ),
-    ];
     for activity in Activity::ALL {
+        let total = match activity {
+            Activity::CaretPreview => Duration::from_millis(600),
+            Activity::CopyPulse => Duration::from_millis(110),
+            Activity::OverlayEntrance => Duration::from_millis(100),
+            Activity::CaretMotion
+            | Activity::OverlayBand
+            | Activity::FoldChevrons
+            | Activity::TravellingGround => Duration::from_millis(60),
+        };
+        let sixty_steps = ((total.as_secs_f64() * 60.0).ceil() as u32).max(1);
+        let one_twenty_steps = ((total.as_secs_f64() * 120.0).ceil() as u32).max(1);
+        let first_drop = total / 8;
+        let second_drop = total / 4;
+        let schedules = [
+            ("60hz", equal_steps(total, sixty_steps)),
+            ("120hz", equal_steps(total, one_twenty_steps)),
+            ("coarse", equal_steps(total, 2)),
+            (
+                "dropped",
+                vec![first_drop, second_drop, total - first_drop - second_drop],
+            ),
+        ];
         let mut outcomes = Vec::new();
         for (name, steps) in &schedules {
             let mut pipeline = headless_pipeline().expect("adapter checked above");
             assert!(pipeline.arm_activity_law(activity), "{activity:?} fixture");
+            let armed_pose = pipeline.activity_law_pose(activity);
             let mut now = crate::clock::Instant::now();
             let mut active = crate::frame_clock::ActivitySet::empty();
             for elapsed in steps {
@@ -52,7 +61,17 @@ fn one_wall_time_drives_every_real_owner_at_60hz_120hz_coarse_and_dropped_cadenc
                 active.contains(activity),
                 "{activity:?} retired during {name}"
             );
-            outcomes.push((*name, pipeline.activity_law_pose(activity)));
+            let pose = pipeline.activity_law_pose(activity);
+            let movement_floor = if activity == Activity::CaretMotion {
+                0.01
+            } else {
+                1e-5
+            };
+            assert!(
+                (pose - armed_pose).abs() > movement_floor,
+                "{activity:?}/{name}: cadence law was vacuous; production pose never left {armed_pose}"
+            );
+            outcomes.push((*name, pose));
         }
         let expected = outcomes[0].1;
         for (name, got) in &outcomes[1..] {
@@ -66,6 +85,48 @@ fn one_wall_time_drives_every_real_owner_at_60hz_120hz_coarse_and_dropped_cadenc
                 "{activity:?}/{name}: equal presented time diverged: expected={expected}, got={got}"
             );
         }
+    }
+    crate::motion::set_reduced(saved);
+}
+
+#[test]
+fn newly_armed_bounded_owner_starts_at_zero_delta_after_a_long_idle() {
+    let _g = crate::testlock::serial();
+    if !crate::test_gpu::adapter_present() {
+        eprintln!("skipping idle-to-animation table: no wgpu adapter");
+        return;
+    }
+    let saved = crate::motion::reduced();
+    crate::motion::set_reduced(false);
+    let wall_start = crate::clock::Instant::now();
+    for activity in Activity::ALL {
+        let bounded = match activity {
+            Activity::CaretMotion
+            | Activity::CaretPreview
+            | Activity::CopyPulse
+            | Activity::OverlayEntrance
+            | Activity::OverlayBand
+            | Activity::FoldChevrons => true,
+            Activity::TravellingGround => false,
+        };
+        if !bounded {
+            continue;
+        }
+        let mut clock = crate::frame_clock::FrameClock::default();
+        let idle = clock.sample(wall_start);
+        clock.presented(idle, crate::frame_clock::ActivitySet::empty());
+        let mut pipeline = headless_pipeline().expect("adapter checked above");
+        assert!(pipeline.arm_activity_law(activity), "{activity:?} fixture");
+        let armed_pose = pipeline.activity_law_pose(activity);
+        let first = clock.sample(wall_start + Duration::from_secs(30));
+        assert_eq!(first.elapsed, Duration::ZERO, "{activity:?}");
+        let active = pipeline.advance_frame(first, false);
+        assert!(active.contains(activity), "{activity:?} jumped to settled");
+        assert_eq!(
+            pipeline.activity_law_pose(activity),
+            armed_pose,
+            "{activity:?} moved on its first visible frame after idle"
+        );
     }
     crate::motion::set_reduced(saved);
 }

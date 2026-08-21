@@ -171,12 +171,18 @@ pub(crate) struct FrameClock {
 
 impl FrameClock {
     pub(crate) fn sample(&self, now: Instant) -> FrameSample {
-        let elapsed = self
+        let wall_elapsed = self
             .last_wall_presented
             .map_or(Duration::ZERO, |last| now.saturating_duration_since(last));
         FrameSample {
-            now: self.visible_now.map_or(now, |visible| visible + elapsed),
-            elapsed,
+            now: self
+                .visible_now
+                .map_or(now, |visible| visible + wall_elapsed),
+            elapsed: if self.activities.is_empty() {
+                Duration::ZERO
+            } else {
+                wall_elapsed
+            },
             wall_now: now,
         }
     }
@@ -317,15 +323,19 @@ mod tests {
         let first = clock.sample(base);
         assert_eq!(first.elapsed, Duration::ZERO);
         clock.presented(first, ActivitySet::empty());
+        let idle = clock.sample(base + Duration::from_millis(8));
+        assert_eq!(idle.elapsed, Duration::ZERO);
+        assert_eq!(idle.now, base + Duration::from_millis(8));
+        clock.presented(idle, ActivitySet::one(Activity::CaretMotion));
         assert_eq!(
-            clock.sample(base + Duration::from_millis(8)).elapsed,
+            clock.sample(base + Duration::from_millis(16)).elapsed,
             Duration::from_millis(8)
         );
         clock.park();
         let resumed = clock.sample(base + Duration::from_secs(10));
         assert_eq!(
             (resumed.elapsed, resumed.now),
-            (Duration::ZERO, base),
+            (Duration::ZERO, base + Duration::from_millis(8)),
             "an occluded interval must not fast-forward visible motion"
         );
     }
