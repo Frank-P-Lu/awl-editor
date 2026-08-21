@@ -56,8 +56,10 @@ const EXPECTED: &[(&str, usize)] = &[
     // rare load failure remains the same best-effort diagnostic class.
     ("app/document/cache.rs", 1),
     // GPU/render-pipeline errors (`prepare`/`render`) retain a stderr
-    // diagnostic while App-owned recovery also paints the calm notice.
-    ("app/gpu.rs", 2),
+    // diagnostic while App-owned recovery also paints the calm notice. The
+    // presentation half lives with the extracted present transaction.
+    ("app/gpu.rs", 1),
+    ("app/gpu/present.rs", 1),
     ("app/window.rs", 1),
     ("app/session.rs", 1),
     // THE LOCAL USAGE LEDGER: ONE `{what} save failed: {e}` stderr line, in the
