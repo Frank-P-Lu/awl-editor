@@ -72,7 +72,10 @@ const CONSTRUCTS: &[Construct] = &[
         name: "Fenced code blocks",
         source: "```rust\nlet answer = 42;\n```",
         rendered: "A monospace block panel. Recognised language tags add quiet syntax roles.",
-        reveal: "The caret anywhere in the block, or a selection touching it, shows its fences and language tag.",
+        reveal: concat!(
+            "The caret anywhere in the block, or a selection touching it, shows its fences ",
+            "and language tag.",
+        ),
         command: "Code block",
         portability: Portability::CommonMark,
         tags: &[
@@ -138,7 +141,10 @@ const CONSTRUCTS: &[Construct] = &[
     Construct {
         name: "Images",
         source: "![A description](image.png)",
-        rendered: "A local image when inline images are enabled; otherwise its source stays visible.",
+        rendered: concat!(
+            "A local image when inline images are enabled; otherwise its source stays ",
+            "visible.",
+        ),
         reveal: "The caret or a selection on the line overlays editable source on a dimmed image.",
         command: "Paste can insert an image reference",
         portability: Portability::CommonMark,
@@ -149,7 +155,10 @@ const CONSTRUCTS: &[Construct] = &[
         name: "YAML frontmatter",
         source: "---\ntitle: A note\nlang: en\n---",
         rendered: "Metadata is hidden away from the block when WYSIWYG is on.",
-        reveal: "The caret anywhere in the block, or a selection touching it, reveals the whole block.",
+        reveal: concat!(
+            "The caret anywhere in the block, or a selection touching it, reveals the ",
+            "whole block.",
+        ),
         command: "Tag document language",
         portability: Portability::Extension,
         tags: &[],
@@ -198,7 +207,10 @@ const CONSTRUCTS: &[Construct] = &[
     Construct {
         name: "Footnotes (queued)",
         source: "A note[^source]\n\n[^source]: Its text",
-        rendered: "Not yet rendered specially; the source remains editable text until this queued feature lands.",
+        rendered: concat!(
+            "Not yet rendered specially; the source remains editable text until this queued ",
+            "feature lands.",
+        ),
         reveal: "No special reveal yet.",
         command: "Insert footnote (queued)",
         portability: Portability::Extension,
@@ -217,7 +229,10 @@ const DIFFERENT: &[Different] = &[
     Different {
         name: "Setext headings",
         source: "A heading\n---",
-        outcome: "Not a heading in awl. A run of three or more dashes renders as a thematic break.",
+        outcome: concat!(
+            "Not a heading in awl. A run of three or more dashes renders as a thematic ",
+            "break.",
+        ),
     },
     Different {
         name: "Reference-style links",
@@ -255,20 +270,26 @@ pub(crate) fn markdown() -> Vec<Block> {
     }
     vec![block(
         Some("Constructs"),
-        Some(
-            "The file stays plain text. Only the render changes. The Supported Markdown guide has full syntax and portability notes.",
-        ),
+        Some(concat!(
+            "The file stays plain text. Only the render changes. The Supported Markdown ",
+            "guide has full syntax and portability notes.",
+        )),
         constructs,
     )]
 }
 
 pub(crate) fn supported_markdown_markdown() -> String {
-    let mut out = String::from(
-        "awl keeps documents as ordinary plain text. This page describes the syntax awl renders; unsupported syntax remains editable text. It does not promise parity with an unnamed Markdown dialect.\n\n## Syntax awl renders\n\n",
-    );
+    let mut out = String::from(concat!(
+        "awl keeps documents as ordinary plain text. This page describes the syntax awl ",
+        "renders; unsupported syntax remains editable text. It does not promise parity ",
+        "with an unnamed Markdown dialect.\n\n## Syntax awl renders\n\n",
+    ));
     for c in CONSTRUCTS {
         out.push_str(&format!(
-            "### {}\n\n{}| awl renders | Caret and selection | Formatting command | Portability |\n|---|---|---|---|\n| {} | {} | {} | {} |\n\n",
+            concat!(
+                "### {}\n\n{}| awl renders | Caret and selection | Formatting command | ",
+                "Portability |\n|---|---|---|---|\n| {} | {} | {} | {} |\n\n",
+            ),
             c.name,
             markdown_example(c.source),
             c.rendered,
@@ -303,15 +324,41 @@ fn markdown_example(source: &str) -> String {
 }
 
 pub(crate) fn supported_markdown_html() -> String {
-    let mut out = String::from(
-        "<p>awl keeps documents as ordinary plain text. This page describes the syntax awl renders; unsupported syntax remains editable text. It does not promise parity with an unnamed Markdown dialect.</p>\n<h2>Syntax awl renders</h2>\n",
-    );
+    let mut out = String::from(concat!(
+        "<p>awl keeps documents as ordinary plain text. This page describes the syntax awl ",
+        "renders; unsupported syntax remains editable text. It does not promise parity ",
+        "with an unnamed Markdown dialect.</p>\n<h2>Syntax awl renders</h2>\n",
+    ));
     for c in CONSTRUCTS {
-        out.push_str(&format!("<section class=\"markdown-construct\">\n<h3>{}</h3>\n<pre><code class=\"language-markdown\">{}</code></pre>\n<table><thead><tr><th>awl renders</th><th>Caret and selection</th><th>Formatting command</th><th>Portability</th></tr></thead><tbody><tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr></tbody></table>\n</section>\n", escape_html(c.name), escape_html(c.source), escape_html(c.rendered), escape_html(c.reveal), escape_html(c.command), c.portability.label()));
+        out.push_str(&format!(
+            concat!(
+                "<section class=\"markdown-construct\">\n<h3>{}</h3>\n",
+                "<pre><code class=\"language-markdown\">{}</code></pre>\n",
+                "<table><thead><tr><th>awl renders</th><th>Caret and selection</th>",
+                "<th>Formatting command</th><th>Portability</th></tr></thead>",
+                "<tbody><tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td>",
+                "</tr></tbody></table>\n</section>\n",
+            ),
+            escape_html(c.name),
+            escape_html(c.source),
+            escape_html(c.rendered),
+            escape_html(c.reveal),
+            escape_html(c.command),
+            c.portability.label()
+        ));
     }
     out.push_str("<h2>Not supported / deliberately different</h2>\n");
     for d in DIFFERENT {
-        out.push_str(&format!("<section class=\"markdown-construct\">\n<h3>{}</h3>\n<pre><code class=\"language-markdown\">{}</code></pre>\n<p>{}</p>\n</section>\n", escape_html(d.name), escape_html(d.source), escape_html(d.outcome)));
+        out.push_str(&format!(
+            concat!(
+                "<section class=\"markdown-construct\">\n<h3>{}</h3>\n",
+                "<pre><code class=\"language-markdown\">{}</code></pre>\n",
+                "<p>{}</p>\n</section>\n",
+            ),
+            escape_html(d.name),
+            escape_html(d.source),
+            escape_html(d.outcome)
+        ));
     }
     out
 }
