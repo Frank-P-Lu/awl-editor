@@ -62,9 +62,11 @@ fn real_fs_app_new_calls_are_all_accounted_for() {
         // disables session restore inline, while each parent process pins
         // HOME/XDG/AWL_CONFIG to its own scratch root.
         ("app/persistence/fault_probe.rs", 1),
-        // 1 real-disk test (`finish_buffer_saves_...`), session_restore
-        // disabled inline.
-        ("app/daemon.rs", 1),
+        // One real-disk test (`finish_buffer_saves_...`) disables session
+        // restore inline. The zero-document refusal law uses an installed
+        // `InMemoryFs`: it must present an unsupported file to `load_path`
+        // while retaining the fake backend through daemon event handling.
+        ("app/daemon.rs", 2),
         // 8 calls, every one inside a `crate::fs::with_fs(fake, || ..)`
         // closure seeded with its own `InMemoryFs` — these tests exist
         // specifically to prove what `apply_session_restore` reads back (5),
@@ -159,17 +161,18 @@ fn real_fs_app_new_calls_are_all_accounted_for() {
         // the anchor-swallow fix: fresh-note + fresh-scratch record words typed
         // before the first flush, and the card-summon-freshness flush.)
         ("app/streaks.rs", 6),
-        // 3 REMOVAL-OWNER tests (`app::files::close`), each on a real
+        // 5 REMOVAL-OWNER tests (`app::files::close`), each on a real
         // `ScratchDir` with `session_restore: Some(false)` set inline, so no
         // developer's own open files are ever parked into the fixture's
         // registry. `new_hermetic` cannot serve these: its injected
         // `InMemoryFs` is exactly what makes the subject unreachable. The laws
-        // are about the CONFLICT GATE, whose whole job is to notice that a file
+        // are about the CONFLICT/EXTERNAL-CHANGE GATES, whose job is to notice
+        // that a file
         // moved between two observations — so the fixture has to write behind
         // the App's back, on a filesystem the App is really reading. (Two of
         // the three also need the real disk to observe that a parked buffer's
         // own bytes, not the active document's, are what a close writes.)
-        ("app/files/close/tests.rs", 3),
+        ("app/files/close/tests.rs", 5),
         // Four Save a Copy laws construct against a seeded InMemoryFs so they
         // can inspect exact destination bytes and preserve source identity.
         ("app/files/export/tests.rs", 4),
