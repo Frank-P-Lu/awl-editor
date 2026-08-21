@@ -14,6 +14,13 @@
 
 use super::*;
 
+type FigureSource = (
+    String,
+    usize,
+    usize,
+    Option<((usize, usize), (usize, usize))>,
+);
+
 impl TextPipeline {
     /// The SHAPED document, reassembled from the shaped lines — the `&str` the
     /// pure figure owners read.
@@ -45,14 +52,7 @@ impl TextPipeline {
     /// figure below reads it, so none of them can be over a different text than
     /// its neighbour, and none can disagree with the semantic snapshot, which
     /// derives the same figures from the buffer.
-    pub(in crate::render) fn figure_source(
-        &self,
-    ) -> (
-        String,
-        usize,
-        usize,
-        Option<((usize, usize), (usize, usize))>,
-    ) {
+    pub(in crate::render) fn figure_source(&self) -> FigureSource {
         match &self.doc_source {
             Some(doc) => (
                 doc.text.clone(),
