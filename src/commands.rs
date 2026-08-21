@@ -609,7 +609,8 @@ fn row_hidden(action: &Action, gates: RowGates) -> bool {
         // no-op (the core's own defensive floor for a chord that reaches it
         // directly is `context_menu::copy_file_path`'s own `path()` check
         // and the deferred `RevealInFileManager` resolving to `Effect::None`).
-        Action::RevealInFileManager | Action::CopyFilePath | Action::TrashFile => !gates.named_file,
+        Action::RevealInFileManager | Action::CopyFilePath => !gates.named_file,
+        Action::TrashFile => !gates.named_file || !cfg!(target_os = "macos"),
         _ => false,
     }
 }
@@ -640,6 +641,9 @@ pub fn visible_hidden_mask(gates: RowGates) -> Vec<bool> {
 /// existed — now a plain `available_on` lookup on both platforms, since a `web_only`
 /// row must actually be gated on Native too.)
 pub fn action_available(action: &Action, platform: Platform) -> bool {
+    if matches!(action, Action::TrashFile) && !cfg!(target_os = "macos") {
+        return false;
+    }
     match COMMANDS.iter().find(|c| &c.action == action) {
         Some(c) => c.available_on(platform),
         None => true,

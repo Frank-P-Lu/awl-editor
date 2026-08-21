@@ -70,10 +70,7 @@ impl App {
             return CloseOutcome::Refused;
         };
         if facts.unsaved {
-            self.refuse_parked(
-                &path,
-                "has unsaved text — save or discard it before moving to Trash",
-            );
+            self.refuse_parked(&path, "has unsaved text — save it before moving to Trash");
             return CloseOutcome::Refused;
         }
         if self.document.active_key().as_ref() == Some(&key) {
@@ -98,6 +95,10 @@ impl App {
             self.request_frame();
             return CloseOutcome::Refused;
         }
+        // A successful Trash ends this exact buffer just as surely as Finish
+        // file. Drain the keyed EDITOR waiter only after the OS accepted the
+        // recoverable move; every refusal above leaves it connected.
+        self.notify_close_waiters(&key);
         if self.document.active_key().as_ref() == Some(&key) {
             if self.remove_active_entry() {
                 CloseOutcome::Closed

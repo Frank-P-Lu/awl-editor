@@ -722,6 +722,73 @@ mod waiters {
         mine
     }
 
+    fn assert_done(mut mine: UnixStream, path: &Path) {
+        let mut line = String::new();
+        BufReader::new(&mut mine).read_line(&mut line).unwrap();
+        assert_eq!(line, crate::daemon::format_done(path));
+        let mut byte = [0u8; 1];
+        assert_eq!(mine.read(&mut byte).unwrap(), 0, "done is followed by EOF");
+    }
+
+    fn assert_waiting(mut mine: UnixStream) {
+        mine.set_nonblocking(true).unwrap();
+        let mut byte = [0u8; 1];
+        assert!(
+            matches!(mine.read(&mut byte), Err(e) if e.kind() == std::io::ErrorKind::WouldBlock)
+        );
+    }
+
+    #[test]
+    fn trash_notifies_exact_active_and_parked_waiters_only_after_backend_success() {
+        let _guard = crate::testlock::serial();
+        for parked in [false, true] {
+            let mut s = Session::without_autosave(&format!("trash-waiter-{parked}"));
+            let path = if parked { s.a() } else { s.b() };
+            let key = crate::buffers::BufferKey::path(&path);
+            let mine = park_waiter(&mut s.app, &path, key.clone());
+            let fake = Arc::new(crate::assets::FakeTrash::default());
+            assert_eq!(
+                crate::assets::with_trash(fake, || s.app.trash_buffer(key.clone())),
+                CloseOutcome::Closed
+            );
+            assert_done(mine, &path);
+            assert!(!s.app.wait_conns.contains_key(&key));
+        }
+    }
+
+    #[test]
+    fn refused_and_backend_failed_trash_leave_the_waiter_connected() {
+        struct Fail;
+        impl crate::assets::TrashCan for Fail {
+            fn trash(&self, _: &Path) -> Result<(), String> {
+                Err("denied".into())
+            }
+        }
+        let _guard = crate::testlock::serial();
+        for failed_backend in [false, true] {
+            let mut s = Session::without_autosave(&format!("trash-waiter-refuse-{failed_backend}"));
+            let path = s.b();
+            let key = crate::buffers::BufferKey::path(&path);
+            if !failed_backend {
+                s.app.document.set_text("dirty\n");
+            }
+            let mine = park_waiter(&mut s.app, &path, key.clone());
+            let backend: Arc<dyn crate::assets::TrashCan> = if failed_backend {
+                Arc::new(Fail)
+            } else {
+                Arc::new(crate::assets::FakeTrash::default())
+            };
+            assert_eq!(
+                crate::assets::with_trash(backend, || s.app.trash_buffer(key.clone())),
+                CloseOutcome::Refused
+            );
+            assert_waiting(mine);
+            assert!(s.app.wait_conns.contains_key(&key));
+            assert_eq!(s.open_files(), vec![s.a(), s.b()]);
+            assert!(path.exists());
+        }
+    }
+
     /// A `--wait` CLIENT BLOCKED ON A FILE THAT IS NOT ACTIVE is still notified
     /// when that file closes.
     ///
