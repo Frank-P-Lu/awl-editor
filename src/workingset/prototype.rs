@@ -13,6 +13,22 @@ use super::{StackRow, StackRowKind, WorkingSet};
 const RESTING_FILES: usize = 5;
 const EXPANDED_FILES: usize = 8;
 
+/// Capture-only candidate rows for the already-existing Move destination card.
+/// The production navigator currently expresses "move here" only in its footer
+/// and has no discoverable new-folder row; this makes both alternatives visible
+/// for the user-judgment capture without changing the live action grammar.
+pub fn prototype_move_rows(existing_folders: &[String]) -> Vec<String> {
+    let mut rows = Vec::with_capacity(existing_folders.len() + 2);
+    rows.push("Move here".to_string());
+    rows.push("New folder…".to_string());
+    rows.extend(existing_folders.iter().cloned());
+    rows
+}
+
+pub fn prototype_move_from_env() -> bool {
+    std::env::var("AWL_WORKING_SET_PROTOTYPE_MOVE").as_deref() == Ok("1")
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PrototypeSpec {
     Collapsed { hover: Option<usize> },

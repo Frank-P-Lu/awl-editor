@@ -100,6 +100,13 @@ impl App {
             opts.working_set = prototype.rows;
             opts.working_set_prototype = Some(prototype.report);
         }
+        if crate::workingset::prototype_move_from_env()
+            && let Some(overlay) = opts.overlay.as_mut()
+            && overlay.mode == "move"
+        {
+            overlay.items = crate::workingset::prototype_move_rows(&overlay.items);
+            overlay.selected_index = 0;
+        }
         // THE IDENTITY'S FOLDER LABEL: the same root `sync_view` draws the
         // live gutter from, so a `--screenshot-app` capture and the running
         // editor cannot disagree about which folder the open file is in —

@@ -29,7 +29,7 @@ use std::path::{Path, PathBuf};
 use crate::buffers::BufferKey;
 
 mod prototype;
-pub use prototype::{PrototypeReport, PrototypeSpec};
+pub use prototype::{PrototypeReport, PrototypeSpec, prototype_move_from_env, prototype_move_rows};
 
 /// One member of the visible working set.
 #[derive(Clone, Debug, PartialEq, Eq)]
