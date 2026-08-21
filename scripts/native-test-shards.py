@@ -68,7 +68,7 @@ HINTS = (
         "render::tests::frost_footprint:: render::tests::magpie_bands:: "
         "render::tests::stars:: render::tests::cluster_mirror:: "
         "render::tests::frost_width:: render::tests::marker_chevron_owner:: "
-        "render::tests::row_pitch_dpi_law:: render::tests::accessory_ink:: "
+        "render::tests::row_pitch_dpi_law:: "
         "render::tests::fold_chevron_center:: render::tests::palette_scroll_anchor:: "
         "render::tests::reanchor_crossing_law:: render::tests::workspace_plate:: "
         "render::tests::eotf_bit_identity:: render::tests::hover_slop_law:: "
