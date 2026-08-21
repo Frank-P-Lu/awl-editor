@@ -69,7 +69,8 @@ fn one_wall_time_drives_every_real_owner_at_60hz_120hz_coarse_and_dropped_cadenc
             };
             assert!(
                 (pose - armed_pose).abs() > movement_floor,
-                "{activity:?}/{name}: cadence law was vacuous; production pose never left {armed_pose}"
+                "{activity:?}/{name}: cadence law was vacuous; production pose never left \
+                 {armed_pose}"
             );
             outcomes.push((*name, pose));
         }
