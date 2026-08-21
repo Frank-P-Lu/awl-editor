@@ -61,7 +61,8 @@ th, td { border: 1px solid var(--rule); padding: 0.4em 0.7em; text-align: left; 
 th { background: var(--code-bg); font-weight: 600; }
 img { max-width: 100%; height: auto; }
 .footnote-reference { font-size: 0.72em; line-height: 0; vertical-align: super; }
-.footnote-definition { color: var(--muted); font-size: 0.92em; display: grid; grid-template-columns: 1.4em 1fr; gap: 0.25em; margin: 0.45em 0; }
+.footnote-definition { color: var(--muted); font-size: 0.92em; display: grid; \
+grid-template-columns: 1.4em 1fr; gap: 0.25em; margin: 0.45em 0; }
 .footnote-definition-label { grid-column: 1; vertical-align: super; }
 .footnote-definition-body { grid-column: 2; }
 .footnote-definition-body > :last-child { margin-bottom: 0; }
@@ -115,7 +116,11 @@ fn emit_block(out: &mut String, block: &Block, images: &dyn ImageSource, indent:
             blocks,
         } => {
             out.push_str(&format!(
-                "{pad}<section class=\"footnote-definition\" id=\"fn-{}\" data-footnote-label=\"{}\">\n",
+                concat!(
+                    "{}<section class=\"footnote-definition\" id=\"fn-{}\" ",
+                    "data-footnote-label=\"{}\">\n"
+                ),
+                pad,
                 footnote_fragment(label),
                 escape_attr(label),
             ));
@@ -246,7 +251,10 @@ fn emit_inline(out: &mut String, inline: &Inline, images: &dyn ImageSource) {
             };
             let fragment = footnote_fragment(label);
             out.push_str(&format!(
-                "<sup class=\"footnote-reference\" id=\"fnref-{}{}\" data-footnote-label=\"{}\"><a href=\"#fn-{}\">{}</a></sup>",
+                concat!(
+                    "<sup class=\"footnote-reference\" id=\"fnref-{}{}\" ",
+                    "data-footnote-label=\"{}\"><a href=\"#fn-{}\">{}</a></sup>"
+                ),
                 fragment,
                 suffix,
                 escape_attr(label),

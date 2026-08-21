@@ -49,12 +49,12 @@
 
 [[file_size_mark]]
 file = "src/actions.rs"
-lines = 892
+lines = 894
 reason = "Reveal in File Manager / Copy File Path: the `CopyFilePath` dispatch arm in `apply_transition`, plus both actions' membership in the exhaustive `ActionFamily` classifier (`CopyFilePath` as Buffer, `RevealInFileManager` as Deferred) (+3). +1: Save a Copy enters the one exhaustive transition dispatcher beside the other file actions."
 
 [[file_size_mark]]
 file = "src/actions/format.rs"
-lines = 1049
+lines = 1119
 reason = "Inline Code's shared toggle (content_is_kind) gained a fallback path for InlineKind::InlineCode selections whose byte range crosses a block boundary, where the CommonMark parser cannot positively confirm a wrapped span; plus its mutation-proven law sweep (block-boundary sweep, multibyte, flanking-span negative guard, fenced-block guard)."
 
 [[file_size_mark]]
@@ -88,7 +88,7 @@ reason = "The event-to-present flight recorder needs its winit-receipt and keyma
 
 [[file_size_mark]]
 file = "src/app/input/mouse.rs"
-lines = 940
+lines = 946
 reason = "The wheel-region predicate at the one pointer entry point stopped naming a single overlay kind and asks the shape-neutral question instead (+7, all of it the comment recording why the kind check was wrong). +3: the working-set stack's left-click-to-switch route, enrolled in this file's own input-substate privacy law. +11: `sync_cursor_icon` gains the stack-row hand-cursor arm, hit-tested through the same `gutter_stack_hit` the click path already uses. +21: cursor movement and leave route one shared gutter-stack hit through the hover state, so the close mark follows exactly the row under the pointer and clears when the pointer exits."
 
 [[file_size_mark]]
@@ -186,11 +186,13 @@ reason = "+2: the atomic create-if-absent writer is exported only on native targ
 
 [[file_size_mark]]
 file = "src/export/docx.rs"
-lines = 692
+lines = 964
+reason = "Word export keeps its package writer and semantic block emitters together. Footnotes add numbered reference runs, definition paragraphs, relationships, and a mechanically wrapped byte-identical styles roster."
 
 [[file_size_mark]]
 file = "src/export/model.rs"
-lines = 701
+lines = 818
+reason = "The one semantic export model now resolves footnote labels, first-reference numbering, repeated references, definitions, and missing-label fallbacks beside the other Markdown block/inline normalization."
 
 [[file_size_mark]]
 file = "src/frontmatter.rs"
@@ -244,7 +246,7 @@ lines = 661
 
 [[file_size_mark]]
 file = "src/menu.rs"
-lines = 1120
+lines = 1121
 reason = "The three Export rows' File-menu label now diverges from their catalog command (dropping a stale ellipsis with no surface behind it — the shorthand `r()`/`ri()` constructors can't express that, so each grew into a full `Routed` literal), plus the label divergence law's `EXPLICIT_MENU_LABELS` entries and doc comment, and a two-line `#[cfg(test)] mod ellipsis_law;` declaration for the new law itself (+29). +25: the NATIVE_PANEL_IDS table and its one predicate, declared as DATA beside the roster it indexes so ellipsis_law can sweep the AppKit-panel door from any host — a literal buried in the macOS handler is unreadable to the law that must hold both doors to the same promise, which is exactly how `Browse files…` passed for the wrong reason. +10: `mod chord_truth;` and its own roster x flavor law proving the drawn menu's chord column agrees with real dispatch under both keymap flavors. +4: the real Command palette menu item, `awl.command_palette`, replacing the uncatalogued hand-written resolver arm. +7: Save a Copy joins the one File-menu roster, native-panel roster, and exact command-resolution laws."
 
 [[file_size_mark]]
@@ -401,7 +403,7 @@ reason = "Overlay composition and ambient resolvers live here because they read 
 
 [[file_size_mark]]
 file = "src/render/rects.rs"
-lines = 1463
+lines = 1540
 reason = "+4: panel_layout reads shared physical PANEL_PAD and PANEL_MARGIN and clamps the content-sized card to narrow-canvas room, matching panel_shape_text fitted rows."
 
 [[file_size_mark]]
@@ -411,7 +413,7 @@ reason = "+69: `ColumnFlow` — the one signed answer to which way a row's colum
 
 [[file_size_mark]]
 file = "src/render/spans.rs"
-lines = 41
+lines = 42
 reason = "A new `line_has_rule_span` helper (matching the existing `line_has_image_span`/`line_has_code_span` family) plus a `confirmed_rule` parameter threaded through `md_line_scale` and its doc comment — the corroborating check that stops a bare-scan false positive (e.g. `---` inside a fenced code block) from growing a row for an ornament that never draws. `line_has_rule_span`'s and `md_line_scale`'s doc comments are re-authored (+4 net) now that a qualifying SETEXT dash underline is no longer an example of the gap — it gets a real Rule span and agrees with the bare scan."
 
 [[file_size_mark]]
@@ -498,6 +500,26 @@ reason = "The exhaustive theme model authors rotated-location treatment and toas
 file = "src/theme/worlds.rs"
 lines = 1223
 reason = "Every world explicitly authors its toast anchor, while Cassowary and Magpie author their shared rotated-location treatments in the same roster."
+
+[[file_size_mark]]
+file = "src/commands/catalog/editing.rs"
+lines = 509
+reason = "The authored editing-command roster stays exhaustive; Insert footnote adds one catalog row beside the shared formatting commands."
+
+[[file_size_mark]]
+file = "src/export/pdf/layout.rs"
+lines = 522
+reason = "PDF page layout owns block placement; footnote definitions add their numbered hanging layout through the same pagination seam."
+
+[[file_size_mark]]
+file = "src/render/layers/ornaments.rs"
+lines = 523
+reason = "Markdown ornaments share one visible-row renderer; footnote references and definition numbers join that bounded pass."
+
+[[file_size_mark]]
+file = "src/render/spans/conceal.rs"
+lines = 531
+reason = "The conceal planner owns Markdown source-to-rich-preview substitutions; footnote labels and definition prefixes use that same reveal boundary."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"

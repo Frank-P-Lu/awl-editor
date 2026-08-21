@@ -208,7 +208,10 @@ const CONSTRUCTS: &[Construct] = &[
         name: "Footnotes",
         source: "A note[^source]\n\n[^source]: Its text",
         rendered: "A quiet superscript reference and a composed numbered definition.",
-        reveal: "The caret or a selection on the line shows the exact label, marker, and indentation.",
+        reveal: concat!(
+            "The caret or a selection on the line shows the exact label, marker, ",
+            "and indentation."
+        ),
         command: "Insert footnote",
         portability: Portability::Extension,
         tags: &["footnote_ref", "footnote_def", "footnote_text"],
