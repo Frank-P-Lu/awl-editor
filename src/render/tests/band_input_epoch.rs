@@ -98,7 +98,8 @@ fn render_work_consumes_the_authored_band_budget_across_both_seams() {
             if delay_ms >= OVERLAY_BAND_SLIDE_MS.0 as u64 {
                 assert!(
                     (top - target(1)).abs() < EPS,
-                    "{seam:?}, delay={delay_ms}ms: work consumed the whole budget, so the band is settled"
+                    "{seam:?}, delay={delay_ms}ms: work consumed the whole budget; \
+                     the band is settled"
                 );
                 assert!(
                     !p.take_band_ease_started(),
@@ -144,7 +145,8 @@ fn full_delay_by_input_cadence_sweep_never_targets_a_superseded_row() {
                     let (phase, top) = phase_and_top(&mut p, seam, target(2));
                     assert!(
                         (top - target(1)).abs() > LH * 0.5,
-                        "{seam:?}, delay={delay_ms}, cadence={cadence_ms}: no frame may animate toward stale row 1"
+                        "{seam:?}, delay={delay_ms}, cadence={cadence_ms}: \
+                         no frame may animate toward stale row 1"
                     );
                     if phase >= 1.0 || p.overlay_band_pending_snap {
                         assert!(
@@ -162,7 +164,9 @@ fn full_delay_by_input_cadence_sweep_never_targets_a_superseded_row() {
                     assert_eq!(
                         p.overlay_band_last,
                         Some(target(2)),
-                        "{seam:?}, delay={delay_ms}, cadence={cadence_ms}: the animator may start at the old pose, but its destination is always the newest row"
+                        "{seam:?}, delay={delay_ms}, cadence={cadence_ms}: \
+                         the animator may start at the old pose, but its destination is \
+                         always the newest row"
                     );
                 }
 
