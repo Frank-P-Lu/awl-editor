@@ -237,7 +237,7 @@ repeated/multiline cases. Render laws cover reference/definition geometry,
 selection reveal, variable wrapping and every world × DPI; read
 `docs/markdown.md` and `docs/harness-reach.md` before implementation.
 
-### 459 — complete the ordinary-file vocabulary: Trash, Save a Copy, reveal/path, Go to line (USER DECISION 2026-08-18; slices 2–4 LANDED; slice 1 waits for item 444 residual 2)
+### 459 — complete the ordinary-file vocabulary: Trash, Save a Copy, reveal/path, Go to line (USER DECISION 2026-08-18; slices 2–4 LANDED; slice 1 🟡 IN PROGRESS — item-459-trash (codex), branch codex/item-459-trash)
 
 🟢 LANDED — slice 3 (Reveal in File Manager + Copy File Path), `cdd5a1bc`
 🟢 LANDED — slice 4 (Go to Line), `0d95045d`
@@ -278,8 +278,8 @@ confirming both the unit and capture-level laws go red on that regression.
 marks with this slice's own additions; each raise verified against the
 merged tree.
 
-**Item 459 now has only slice 1 (Trash) open.** Slice 1 has an explicit dependency
-(item 444 residual 2's zero-document state) for its final-document case.
+**Item 459 now has only slice 1 (Trash) open.** Its final-document dependency
+landed with item 444 residual 2.
 
 **Slice 3 landed on `main` (`cdd5a1bc`).** `CopyFilePath` and
 `RevealInFileManager` join the palette and item 444's shared filename context
@@ -366,7 +366,7 @@ caret and scroll state. Read `docs/platform.md` and `docs/harness-reach.md`
 before implementing or promising captures; render-touching slices receive the
 standing vision-smoke and DPI/world audit required by policy.
 
-### 444 — the working set becomes visible: a margin buffer stack (USER DECISION 2026-08-16; residual 1 LANDED; residual 2 🟡 IN PROGRESS — item-444-zero-document (codex), branch codex/item-444-zero-document)
+### 444 — the working set becomes visible: a margin buffer stack (USER DECISION 2026-08-16; residuals 1–2 LANDED; residual 3 open)
 
 **Landed on `main`** (full sha list in `git log --grep 'item 444'`): the
 `--seed-tree` capture door; the `WorkingSet` module; the cross-root ownership
@@ -383,8 +383,10 @@ off any entry, not just the active one), a parked-entry conflict gate that
 **refuses** rather than latching into the single unresolved-conflict slot
 (pointing that slot at a parked path would let a later "Save your version"
 overwrite the wrong document), and `notify_close_waiters(key)` (daemon
-notify, generalized off the active buffer). Closing the last file saves and
-notifies but removes nothing — that's residual 1 below, not a bug.
+notify, generalized off the active buffer). Closing the last file now enters
+the honest zero-document state, retaining the active folder and exposing exact
+New document and Go to actions. Absence is shared across rendering, input,
+menus, session restore, daemon events, accessibility and capture.
 
 **New gap this landing opens, sequencing decided 2026-08-18 (merge now,
 affordance next):** the stack row's right-edge close zone is now WIRED to
