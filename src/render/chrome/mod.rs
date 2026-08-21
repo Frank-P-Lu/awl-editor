@@ -814,6 +814,7 @@ pub struct HudReport {
     pub lang: Option<crate::frontmatter::Lang>,
     pub eol: crate::buffer::Eol,
     pub saved: String,
+    pub selection: Option<crate::card::figures::SelectionFigures>,
 }
 
 pub struct LifetimeReport {

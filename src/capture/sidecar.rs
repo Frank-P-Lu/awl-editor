@@ -681,14 +681,22 @@ fn hud_json(pipeline: &TextPipeline) -> String {
         Some(l) => json_string(l.code()),
         None => "null".to_string(),
     };
+    let selection = match hud.selection {
+        Some(selection) => format!(
+            "{{ \"words\": {}, \"characters\": {} }}",
+            selection.words, selection.characters
+        ),
+        None => "null".to_string(),
+    };
     format!(
-        "{{ \"held\": {}, {}, \"percent\": {}, \"lang\": {}, \"eol\": {}, \"saved\": {} }}",
+        "{{ \"held\": {}, {}, \"percent\": {}, \"lang\": {}, \"eol\": {}, \"saved\": {}, \"selection\": {} }}",
         hud.held,
         hud_words,
         hud.percent,
         lang,
         json_string(hud.eol.label()),
         json_string(&hud.saved),
+        selection,
     )
 }
 

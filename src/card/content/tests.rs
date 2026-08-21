@@ -127,6 +127,40 @@ fn hud_word_count_row_follows_the_documents_dominant_script() {
     );
 }
 
+#[test]
+fn hud_keeps_document_figures_and_names_an_active_selection_group() {
+    let _guard = crate::testlock::serial();
+    let content = card(
+        CardKind::Hud,
+        &CardInputs {
+            selection: Some(crate::card::figures::SelectionFigures {
+                words: 2,
+                characters: 7,
+            }),
+            ..inputs()
+        },
+    );
+    assert_eq!(
+        content.lines(),
+        vec![
+            "SAVED",
+            "—",
+            "WORD COUNT",
+            "12 words · 1 min",
+            "SELECTION",
+            "WORDS",
+            "2",
+            "CHARACTERS",
+            "7",
+            "THROUGH DOC",
+            "42%",
+            "LINE ENDINGS",
+            "LF",
+        ],
+        "selection figures deepen the held card; they never replace document totals"
+    );
+}
+
 /// A calm room composes no card at all — the gate the renderer's cheap
 /// early-out and the semantic fold both depend on.
 #[test]

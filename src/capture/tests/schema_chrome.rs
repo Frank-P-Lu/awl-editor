@@ -318,6 +318,10 @@ fn assert_plain_details(obj: &serde_json::Map<String, serde_json::Value>) {
     assert!(obj["hud"].is_object());
     assert!(obj["hud"]["held"].is_boolean());
     assert!(obj["hud"]["percent"].is_number());
+    assert!(
+        obj["hud"].get("selection").is_some(),
+        "schema /205 always publishes selection as an object or null"
+    );
     assert!(obj["hud"].get("file_created").is_none());
     assert!(obj["hud"].get("session").is_none());
     // The fixture is plain Latin prose, so the readout's own unit reads

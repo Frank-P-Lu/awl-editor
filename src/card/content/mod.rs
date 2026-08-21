@@ -166,6 +166,8 @@ pub struct CardInputs {
     /// The word count, frontmatter language and through-doc percent, derived
     /// from the document by their one owner.
     pub doc: crate::card::figures::DocFigures,
+    /// Counts for the raw selected buffer text, absent for a caret-only state.
+    pub selection: Option<crate::card::figures::SelectionFigures>,
     /// The document's line-ending convention.
     pub eol: crate::buffer::Eol,
     /// The figures only a running App can gather.
@@ -183,6 +185,7 @@ impl Default for CardInputs {
             peek_shown: false,
             streaks_page: CardView::Heatmap,
             doc: crate::card::figures::DocFigures::default(),
+            selection: None,
             eol: crate::buffer::Eol::Lf,
             live: CardLive::default(),
         }
@@ -282,12 +285,29 @@ fn hud_spans(inputs: &CardInputs) -> Vec<CardSpan> {
     if let Some(lang) = inputs.doc.lang {
         rows.push(("LANGUAGE".to_string(), lang.code().to_string()));
     }
+    if let Some(selection) = inputs.selection {
+        rows.push(("SELECTION".to_string(), String::new()));
+        rows.push(("WORDS".to_string(), selection.words.to_string()));
+        rows.push(("CHARACTERS".to_string(), selection.characters.to_string()));
+    }
     rows.push((
         "THROUGH DOC".to_string(),
         format!("{}%", inputs.doc.percent),
     ));
     rows.push(("LINE ENDINGS".to_string(), inputs.eol.label().to_string()));
-    figure_spans(rows.into_iter())
+    let mut spans = Vec::new();
+    for (caption, value) in rows {
+        if caption == "SELECTION" {
+            spans.push(CardSpan::new(caption, CardStyle::Caption, true));
+        } else {
+            spans.push(CardSpan::new(caption, CardStyle::Caption, false));
+            spans.push(CardSpan::new(value, CardStyle::Body, true));
+        }
+    }
+    if let Some(last) = spans.last_mut() {
+        last.gap_after = false;
+    }
+    spans
 }
 
 fn streaks_spans(inputs: &CardInputs) -> Vec<CardSpan> {

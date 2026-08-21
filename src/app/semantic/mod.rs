@@ -164,6 +164,10 @@ impl App {
                 cursor_line,
                 cursor_col,
             ),
+            selection: crate::card::figures::SelectionFigures::of(
+                text,
+                buffer.selection_line_col(),
+            ),
             eol: buffer.eol(),
             live: self
                 .frame

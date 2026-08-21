@@ -16,6 +16,7 @@
 
 use crate::frontmatter::Lang;
 use crate::script::{Script, classify_char};
+use unicode_segmentation::UnicodeSegmentation;
 
 /// The three document figures, gathered together so a caller cannot fill one
 /// from this owner and another by hand.
@@ -27,6 +28,48 @@ pub struct DocFigures {
     pub lang: Option<Lang>,
     /// How far through the document the caret sits, in whole percent.
     pub percent: u32,
+}
+
+/// The two facts the held HUD reports about an active selection. They are over
+/// the buffer's raw text, never its shaped substitute: conceal and folding are
+/// views of the document, not changes to what the writer selected.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SelectionFigures {
+    pub words: usize,
+    pub characters: usize,
+}
+
+impl SelectionFigures {
+    /// Count a non-empty region in the document's line/character coordinate
+    /// space. Endpoints are normalized here so every caller gets the same
+    /// answer for a forward or reversed selection. A logical line ending is
+    /// one `\n` in awl's normalized rope and counts as one extended grapheme
+    /// cluster; the disk spelling (LF versus CRLF) does not change a reader's
+    /// one selected line break.
+    pub fn of(text: &str, selection: Option<((usize, usize), (usize, usize))>) -> Option<Self> {
+        let ((start_line, start_col), (end_line, end_col)) = selection?;
+        let start = line_col_to_char(text, start_line, start_col);
+        let end = line_col_to_char(text, end_line, end_col);
+        let (start, end) = (start.min(end), start.max(end));
+        (start < end).then(|| {
+            let selected: String = text.chars().skip(start).take(end - start).collect();
+            Self {
+                words: count_tokens(&selected),
+                characters: selected.graphemes(true).count(),
+            }
+        })
+    }
+}
+
+/// Convert a line/character pair from a render selection into the text's
+/// absolute character index. This is the string-side twin of Buffer's
+/// `line_col_to_char`: clamped inputs make a stale capture/test endpoint safe,
+/// while production endpoints already arrive from the buffer in range.
+fn line_col_to_char(text: &str, line: usize, col: usize) -> usize {
+    let lines: Vec<&str> = text.split('\n').collect();
+    let line = line.min(lines.len().saturating_sub(1));
+    let before: usize = lines.iter().take(line).map(|s| s.chars().count() + 1).sum();
+    before + col.min(lines[line].chars().count())
 }
 
 impl DocFigures {

@@ -38,6 +38,7 @@ mod plan_geometry;
 mod redact_law;
 mod schema_chrome;
 mod schema_ledger;
+mod selection_hud;
 mod serialization_law;
 mod working_set_sidecar;
 
