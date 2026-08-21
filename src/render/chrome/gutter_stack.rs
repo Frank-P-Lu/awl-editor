@@ -43,6 +43,12 @@ pub(super) const PLATE_CORNER_PX: Physical = Physical(2.5);
 /// empty margin on a short name and over the text on a long one.
 pub(super) const CLOSE_ZONE_ROWS: Rows = Rows(1.0);
 
+/// The pre-shaped close lane. File labels reserve this exact run before fitting
+/// even while it is transparent; otherwise a full-budget nested label wraps the
+/// mark onto a second visual line and shifts every later glyph away from the
+/// planner row (including the active plate).
+const CLOSE_MARK_TEXT: &str = "  ×";
+
 /// WHAT A POINTER AT `px` OVER A ROW IS AIMING AT.
 ///
 /// The row is ONE band with two meanings, not two controls: the close zone is a
@@ -106,8 +112,13 @@ pub(super) struct StackLine {
 pub(super) fn fit_rows(rows: &[crate::workingset::StackRow], budget: usize) -> Vec<StackLine> {
     rows.iter()
         .map(|row| {
-            let leaf = rowlayout::fit_primary(&row.leaf, budget);
-            let left = budget.saturating_sub(leaf.chars().count());
+            let label_budget = if matches!(row.kind, crate::workingset::StackRowKind::File) {
+                budget.saturating_sub(CLOSE_MARK_TEXT.chars().count())
+            } else {
+                budget
+            };
+            let leaf = rowlayout::fit_primary(&row.leaf, label_budget);
+            let left = label_budget.saturating_sub(leaf.chars().count());
             let parent = if row.parent.is_empty() {
                 String::new()
             } else {
@@ -199,7 +210,7 @@ pub(super) fn stack_spans(
                 }
             });
         out.push((
-            "  ×".to_string(),
+            CLOSE_MARK_TEXT.to_string(),
             shown.unwrap_or_else(|| glyphon::Color::rgba(0, 0, 0, 0)),
         ));
     }

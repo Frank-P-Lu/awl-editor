@@ -73,8 +73,41 @@ fn fit_rows_spend_the_budget_on_the_leaf_before_the_location() {
     // And the deep path DOES get elided rather than dropped whenever there is
     // room for its elided form — otherwise this law would pass on a fit that
     // simply never draws a location at all.
-    let mid = fit_rows(std::slice::from_ref(&deep), 26);
+    let mid = fit_rows(std::slice::from_ref(&deep), 29);
     assert_eq!(&mid[0].text[..mid[0].parent_byte], "research/…/");
+}
+
+/// A long nested label used to consume the whole character budget before the
+/// always-shaped close run was appended. Cosmic text then wrapped that run onto
+/// a new visual row, shifting every following glyph while the device-free row
+/// planner (and its active plate) correctly stayed put.
+#[test]
+fn file_rows_reserve_the_close_lane_inside_their_one_line_budget() {
+    for budget in crate::render::rowlayout::GUTTER_MIN_NAME_CHARS..40 {
+        let fitted = fit_rows(
+            &[row(
+                "field-notes-with-a-long-name.md",
+                "journal/research/",
+                false,
+            )],
+            budget,
+        );
+        let occupied = fitted[0].text.chars().count() + super::CLOSE_MARK_TEXT.chars().count();
+        assert!(
+            occupied <= budget,
+            "budget={budget}: label + stable close lane occupies {occupied} characters"
+        );
+    }
+
+    // Prototype-only non-file rows carry no close lane, so their copy keeps the
+    // whole budget rather than paying for an affordance they can never reveal.
+    let more = crate::workingset::StackRow {
+        leaf: "+ 12 more…".to_string(),
+        kind: crate::workingset::StackRowKind::More { hidden: 12 },
+        ..crate::workingset::StackRow::default()
+    };
+    let fitted = fit_rows(&[more], 8);
+    assert_eq!(fitted[0].text.chars().count(), 8);
 }
 
 /// THE ACTIVE ROW'S NAME COMES FORWARD and every location stays quieter than the
@@ -90,7 +123,7 @@ fn stack_spans_bring_only_the_active_name_forward() {
     // because nothing else in this test ever wrote the theme.
     let _g = crate::testlock::serial();
     for active in 0..3 {
-        let fitted = fit_rows(&rows(active), 24);
+        let fitted = fit_rows(&rows(active), 27);
         let spans = stack_spans(&fitted, None);
         let name_inks: Vec<_> = spans
             .iter()
