@@ -77,7 +77,7 @@ RAF smoothness and live 60/120 Hz feel remain human confirmations. Read
 `DESIGN.md` Motion/Performance, `ARCHITECTURE.md`, `docs/render.md`,
 `docs/platform.md`, `docs/harness-reach.md` and `WEB.md` before implementation.
 
-### 466 — the theme picker's living band counts its 110 ms from input, not from first prepare (USER-REPORTED BUG 2026-08-21; ready to build)
+### 466 — the theme picker's living band counts its 110 ms from input, not from first prepare (USER-REPORTED BUG 2026-08-21; 🟡 IN PROGRESS — item-466-theme-input-epoch (codex), branch codex/item-466-theme-input-epoch)
 
 Fix the paced keyboard case the existing burst benchmark and debug-pane
 `theme worst` number do not describe. With ordinary motion enabled, a theme
