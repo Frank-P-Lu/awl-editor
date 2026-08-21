@@ -7,7 +7,8 @@
 //! Coverage: headings, bold/italic/strikethrough, `==highlight==`, inline +
 //! fenced code, links (real hyperlinks), bullet/numbered/task lists,
 //! blockquotes, thematic rules, GFM tables, and embedded images. Frontmatter is
-//! excluded (it never renders); footnotes are out of scope.
+//! excluded (it never renders). The widely used footnote extension is retained
+//! semantically in all three formats, with numbers assigned by first reference.
 //!
 //! Every emitter is PURE + DETERMINISTIC: a function of the markdown text plus a
 //! caller-supplied [`model::ImageSource`] (the live App reads the doc's `assets/`

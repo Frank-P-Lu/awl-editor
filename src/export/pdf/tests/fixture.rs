@@ -50,6 +50,11 @@ fn main() {
 ![jpeg photo](photo.jpg)
 
 ![missing picture](missing.png)
+
+PDF prose has a footnote[^source] and repeats it[^source].
+
+[^source]: PDF footnote prose.
+    Continued PDF footnote prose.
 ";
 
 pub(super) fn markdown() -> String {

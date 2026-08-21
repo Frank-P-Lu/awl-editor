@@ -84,6 +84,7 @@ pub(super) fn expected_kinds(doc: &Document) -> Vec<&'static str> {
                 Inline::Text(_)
                 | Inline::Code(_)
                 | Inline::Image { .. }
+                | Inline::FootnoteReference { .. }
                 | Inline::SoftBreak
                 | Inline::HardBreak => {}
             }
@@ -126,6 +127,12 @@ pub(super) fn expected_kinds(doc: &Document) -> Vec<&'static str> {
                     for cells in &table.rows {
                         row(cells, out);
                     }
+                }
+                Block::FootnoteDefinition {
+                    blocks: children, ..
+                } => {
+                    out.push("footnote-definition");
+                    blocks(children, out);
                 }
             }
         }
@@ -191,6 +198,7 @@ pub(super) fn text_fragments(doc: &Document) -> Vec<String> {
                 | Inline::Strikethrough(children)
                 | Inline::Highlight(children)
                 | Inline::Link { children, .. } => inlines(children, out),
+                Inline::FootnoteReference { number, .. } => out.push(number.to_string()),
                 Inline::Image { .. } | Inline::SoftBreak | Inline::HardBreak => {}
             }
         }
@@ -220,6 +228,7 @@ pub(super) fn text_fragments(doc: &Document) -> Vec<String> {
                         }
                     }
                 }
+                Block::FootnoteDefinition { blocks: body, .. } => blocks(body, out),
             }
         }
     }
@@ -241,6 +250,7 @@ pub(super) fn all_inlines(doc: &Document) -> Vec<&Inline> {
                 Inline::Text(_)
                 | Inline::Code(_)
                 | Inline::Image { .. }
+                | Inline::FootnoteReference { .. }
                 | Inline::SoftBreak
                 | Inline::HardBreak => {}
             }
@@ -252,7 +262,10 @@ pub(super) fn all_inlines(doc: &Document) -> Vec<&Inline> {
                 Block::Heading { inlines, .. } | Block::Paragraph(inlines) => {
                     visit_inlines(inlines, out)
                 }
-                Block::BlockQuote(children) => visit_blocks(children, out),
+                Block::BlockQuote(children)
+                | Block::FootnoteDefinition {
+                    blocks: children, ..
+                } => visit_blocks(children, out),
                 Block::CodeBlock { .. } | Block::Rule => {}
                 Block::List(list) => {
                     for item in &list.items {
@@ -287,6 +300,7 @@ pub(super) fn inline_kind(inline: &Inline) -> &'static str {
         Inline::Code(_) => "code",
         Inline::Link { .. } => "link",
         Inline::Image { .. } => "image",
+        Inline::FootnoteReference { .. } => "footnote-reference",
         Inline::SoftBreak => "softbreak",
         Inline::HardBreak => "hardbreak",
     }
@@ -301,9 +315,13 @@ pub(super) fn block_roster(block: &Block) -> Vec<&'static str> {
         Block::List(_) => "list",
         Block::Rule => "rule",
         Block::Table(_) => "table",
+        Block::FootnoteDefinition { .. } => "footnote-definition",
     }];
     match block {
         Block::BlockQuote(children) => out.extend(children.iter().flat_map(block_roster)),
+        Block::FootnoteDefinition { blocks, .. } => {
+            out.extend(blocks.iter().flat_map(block_roster))
+        }
         Block::List(list) => out.extend(
             list.items
                 .iter()

@@ -89,6 +89,7 @@ italic|Cmd-I|C-i|
 inline_code|Cmd-E|C-e|
 highlight|||
 strikethrough|||
+insert_footnote|||
 export_as_word|||
 export_as_html|||
 export_as_pdf|||

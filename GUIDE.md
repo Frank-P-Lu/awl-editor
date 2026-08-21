@@ -255,6 +255,7 @@ drift into this page silently.
 | Inline code | ⌘E | Ctrl+E |
 | Highlight |  |  |
 | Strikethrough |  |  |
+| Insert footnote |  |  |
 | Export as Word… |  |  |
 | Export as HTML… |  |  |
 | Export as PDF… |  |  |

@@ -453,6 +453,7 @@ fn manifest_roster_and_actual_page_text_cover_every_model_element() {
         BTreeSet::from([
             "blockquote",
             "codeblock",
+            "footnote-definition",
             "heading",
             "list",
             "paragraph",
@@ -469,6 +470,7 @@ fn manifest_roster_and_actual_page_text_cover_every_model_element() {
         BTreeSet::from([
             "code",
             "emphasis",
+            "footnote-reference",
             "hardbreak",
             "highlight",
             "image",

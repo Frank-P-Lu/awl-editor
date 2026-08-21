@@ -262,6 +262,9 @@ fn every_md_kind() -> Vec<crate::markdown::MdKind> {
         MdKind::TablePipe,
         MdKind::TableSep,
         MdKind::TableHeader,
+        MdKind::FootnoteReference(1),
+        MdKind::FootnoteDefinition(1),
+        MdKind::FootnoteText,
     ];
     for level in 1..=6u8 {
         out.push(MdKind::Heading(level));
@@ -307,7 +310,10 @@ fn assert_md_kind_roster_covers(k: &crate::markdown::MdKind) {
         | MdKind::Rule
         | MdKind::TablePipe
         | MdKind::TableSep
-        | MdKind::TableHeader => {}
+        | MdKind::TableHeader
+        | MdKind::FootnoteReference(_)
+        | MdKind::FootnoteDefinition(_)
+        | MdKind::FootnoteText => {}
     }
 }
 

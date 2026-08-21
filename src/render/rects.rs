@@ -2,6 +2,8 @@
 
 use super::*;
 
+type FootnoteMark = (usize, usize, std::ops::Range<usize>, usize);
+
 mod underlines;
 
 /// CACHED ORNAMENT LINE LISTS — the cursor-INDEPENDENT set of logical lines that
@@ -20,6 +22,10 @@ pub(super) struct OrnamentCache {
     table_blocks: std::cell::RefCell<Vec<(usize, std::ops::Range<usize>)>>,
     quote_blocks: std::cell::RefCell<Vec<usize>>,
     fence_lang_blocks: std::cell::RefCell<Vec<(usize, crate::syntax::Lang)>>,
+    /// `(line, char column, source range, display number)` for recognized
+    /// references and first-line definition labels. Cursor/selection reveal is
+    /// filtered per frame; text-derived membership is reshape-cached.
+    footnote_marks: std::cell::RefCell<Vec<FootnoteMark>>,
 }
 
 impl OrnamentCache {
@@ -31,6 +37,7 @@ impl OrnamentCache {
             table_blocks: std::cell::RefCell::new(Vec::new()),
             quote_blocks: std::cell::RefCell::new(Vec::new()),
             fence_lang_blocks: std::cell::RefCell::new(Vec::new()),
+            footnote_marks: std::cell::RefCell::new(Vec::new()),
         }
     }
 }
@@ -236,6 +243,7 @@ impl TextPipeline {
         let mut quotes: Vec<usize> = Vec::new();
         let mut prev_quote = false;
         let mut fence_langs: Vec<(usize, crate::syntax::Lang)> = Vec::new();
+        let mut footnotes = Vec::new();
         let mut start = 0usize;
         for (li, line) in self.buffer.lines.iter().enumerate() {
             let text = line.text();
@@ -251,6 +259,19 @@ impl TextPipeline {
                         && let Some(lang) = crate::markdown::fence_line_lang(text)
                     {
                         fence_langs.push((li, lang));
+                    }
+                    let number = match *k {
+                        crate::markdown::MdKind::FootnoteReference(number)
+                        | crate::markdown::MdKind::FootnoteDefinition(number) => Some(number),
+                        _ => None,
+                    };
+                    if let Some(number) = number
+                        && r.start >= start
+                        && r.start < end
+                    {
+                        let byte = r.start - start;
+                        let col = text[..byte].chars().count();
+                        footnotes.push((li, col, r.clone(), number));
                     }
                 }
             }
@@ -297,6 +318,7 @@ impl TextPipeline {
         *self.ornament_cache.table_blocks.borrow_mut() = tables;
         *self.ornament_cache.quote_blocks.borrow_mut() = quotes;
         *self.ornament_cache.fence_lang_blocks.borrow_mut() = fence_langs;
+        *self.ornament_cache.footnote_marks.borrow_mut() = footnotes;
         self.ornament_cache.version.set(Some(self.reshape_count));
     }
 
@@ -504,6 +526,61 @@ impl TextPipeline {
             .copied()
             .filter(|&(li, _)| self.line_ornament_visible(li))
             .map(|(li, lang)| (self.line_ornament_top(li), lang))
+            .collect()
+    }
+
+    /// Visible WYSIWYG footnote display numbers: `(row top, absolute left,
+    /// number, reserved slot width)`. The source marker itself is collapsed by
+    /// `add_wysiwyg_conceal_spans`; this uses its char boundary in the SAME
+    /// shaped row, so the ornament and the edit/hit-test cell cannot diverge.
+    pub(super) fn footnote_marks(&self) -> Vec<(f32, f32, usize, f32)> {
+        if !self.md_enabled || !crate::markdown::wysiwyg_on() || self.md_spans.is_empty() {
+            return Vec::new();
+        }
+        self.ensure_ornament_lists();
+        let selection_touch = selection_touch_bytes(
+            self.selection,
+            |li| self.line_doc_byte_start(li),
+            |li| {
+                self.buffer
+                    .lines
+                    .get(li)
+                    .map_or(0, |line| line.text().len())
+            },
+        );
+        let visible: Vec<_> = self
+            .ornament_cache
+            .footnote_marks
+            .borrow()
+            .iter()
+            .filter(|(line, _, range, _)| {
+                *line != self.cursor_line
+                    && !selection_touches(selection_touch.as_ref(), range)
+                    && self.line_ornament_visible(*line)
+            })
+            .cloned()
+            .collect();
+        let lines: std::collections::BTreeSet<_> =
+            visible.iter().map(|(line, _, _, _)| *line).collect();
+        let rows = self.visual_rows_for_lines(&lines);
+        let text_left = self.text_left();
+        let doc_top = self.doc_top();
+        visible
+            .into_iter()
+            .filter_map(|(line, col, _, number)| {
+                let row = rows
+                    .get(&line)?
+                    .iter()
+                    .find(|row| row.start_col <= col && col <= row.end_col)?;
+                let local = col.saturating_sub(row.start_col);
+                let x = *row.xs.get(local)?;
+                Some((
+                    doc_top + row.line_top,
+                    text_left + x,
+                    number,
+                    footnote_number_slot(number, row.line_height),
+                ))
+            })
             .collect()
     }
 

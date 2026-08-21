@@ -105,12 +105,15 @@ pub fn set_inline_images_on(on: bool) {
 }
 
 mod conceal;
+mod footnotes;
 mod headings;
 mod refs;
 mod spans;
 mod tables;
 
 pub use conceal::ConcealKind;
+pub use footnotes::footnote_target_at;
+pub(crate) use footnotes::{OPTIONS as PARSE_OPTIONS, from_events as footnotes_from_events};
 pub use headings::{
     Heading, heading_row_lead, heading_scale, heading_weight_bold, headings, headings_from_spans,
     type_scale,

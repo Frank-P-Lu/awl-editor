@@ -1213,6 +1213,36 @@ fn follow_link_signals_the_url_only_when_the_caret_is_inside_a_link() {
     );
 }
 
+#[test]
+fn follow_link_on_a_footnote_reference_uses_the_shared_line_jump_effect() {
+    let source = "See this[^note].\n\n[^note]: answer\n";
+    let mut buffer = Buffer::from_str(source);
+    buffer.set_cursor(source.find("[^note]").unwrap() + 2);
+    let mut shift = false;
+    let mut zoom = 1.0;
+    let mut search = None;
+    let mut journey = crate::overlay::Journey::default();
+    let mut make_overlay = |_k: OverlayKind| -> Option<OverlayState> { None };
+    let mut browse_to = |_k: OverlayKind, _r: Option<String>| -> Option<OverlayState> { None };
+    let mut ctx = ActionCtx {
+        buffer: &mut buffer,
+        shift_selecting: &mut shift,
+        zoom: &mut zoom,
+        search: &mut search,
+        scroll_page_lines: 1,
+        journey: &mut journey,
+        make_overlay: &mut make_overlay,
+        browse_to: &mut browse_to,
+        oracle: None,
+    };
+    assert_eq!(
+        apply_transition(&mut ctx, &Action::FollowLink, false).primary(),
+        Effect::JumpToLine(2),
+        "footnote activation joins the same JumpToLine route used by outline navigation"
+    );
+    assert!(!ctx.buffer.can_undo(), "activation is not an edit");
+}
+
 /// WORD-OPS ROUND (b) — the END-TO-END routing proof: ⌥⌫ (`DeleteWordBackward`)
 /// drives a WHOLE-word delete of the palette's fuzzy query through the real
 /// `apply_transition` → `overlay_intercept` seam, while plain ⌫ (`DeleteBackward`)

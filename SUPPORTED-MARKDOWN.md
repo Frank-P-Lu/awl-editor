@@ -171,7 +171,7 @@ lang: en
 |---|---|---|---|
 | Receding text with a strike line. | The caret or a selection on the line shows the ~~ delimiters. | Strikethrough | Widely used extension |
 
-### Footnotes (queued)
+### Footnotes
 
 ```markdown
 A note[^source]
@@ -181,7 +181,7 @@ A note[^source]
 
 | awl renders | Caret and selection | Formatting command | Portability |
 |---|---|---|---|
-| Not yet rendered specially; the source remains editable text until this queued feature lands. | No special reveal yet. | Insert footnote (queued) | Widely used extension |
+| A quiet superscript reference and a composed numbered definition. | The caret or a selection on the line shows the exact label, marker, and indentation. | Insert footnote | Widely used extension |
 
 ## Not supported / deliberately different
 

@@ -60,6 +60,11 @@ table { border-collapse: collapse; margin: 1em 0; width: 100%; }
 th, td { border: 1px solid var(--rule); padding: 0.4em 0.7em; text-align: left; }
 th { background: var(--code-bg); font-weight: 600; }
 img { max-width: 100%; height: auto; }
+.footnote-reference { font-size: 0.72em; line-height: 0; vertical-align: super; }
+.footnote-definition { color: var(--muted); font-size: 0.92em; display: grid; grid-template-columns: 1.4em 1fr; gap: 0.25em; margin: 0.45em 0; }
+.footnote-definition-label { grid-column: 1; vertical-align: super; }
+.footnote-definition-body { grid-column: 2; }
+.footnote-definition-body > :last-child { margin-bottom: 0; }
 @media print {
   @page { margin: 2cm; }
   body { max-width: none; margin: 0; font-size: 11pt; }
@@ -104,6 +109,27 @@ fn emit_block(out: &mut String, block: &Block, images: &dyn ImageSource, indent:
         Block::List(list) => emit_list(out, list, images, indent),
         Block::Rule => out.push_str(&format!("{pad}<hr>\n")),
         Block::Table(table) => emit_table(out, table, images, indent),
+        Block::FootnoteDefinition {
+            label,
+            number,
+            blocks,
+        } => {
+            out.push_str(&format!(
+                "{pad}<section class=\"footnote-definition\" id=\"fn-{}\" data-footnote-label=\"{}\">\n",
+                footnote_fragment(label),
+                escape_attr(label),
+            ));
+            out.push_str(&format!(
+                "{pad}  <sup class=\"footnote-definition-label\">{number}</sup>\n"
+            ));
+            out.push_str(&format!(
+                "{pad}  <div class=\"footnote-definition-body\">\n"
+            ));
+            for block in blocks {
+                emit_block(out, block, images, indent + 2);
+            }
+            out.push_str(&format!("{pad}  </div>\n{pad}</section>\n"));
+        }
     }
 }
 
@@ -208,9 +234,38 @@ fn emit_inline(out: &mut String, inline: &Inline, images: &dyn ImageSource) {
             alt,
             width_hint,
         } => emit_image(out, src, alt, *width_hint, images),
+        Inline::FootnoteReference {
+            label,
+            number,
+            occurrence,
+        } => {
+            let suffix = if *occurrence == 1 {
+                String::new()
+            } else {
+                format!("-{occurrence}")
+            };
+            let fragment = footnote_fragment(label);
+            out.push_str(&format!(
+                "<sup class=\"footnote-reference\" id=\"fnref-{}{}\" data-footnote-label=\"{}\"><a href=\"#fn-{}\">{}</a></sup>",
+                fragment,
+                suffix,
+                escape_attr(label),
+                fragment,
+                number
+            ));
+        }
         Inline::SoftBreak => out.push('\n'),
         Inline::HardBreak => out.push_str("<br>\n"),
     }
+}
+
+/// Collision-free, HTML-fragment-safe projection of an authored identifier.
+fn footnote_fragment(label: &str) -> String {
+    label
+        .as_bytes()
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect()
 }
 
 fn wrap(out: &mut String, tag: &str, children: &[Inline], images: &dyn ImageSource) {

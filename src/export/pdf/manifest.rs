@@ -134,6 +134,20 @@ impl Manifest<'_> {
                 self.close();
                 self.close();
             }
+            Block::FootnoteDefinition {
+                label,
+                number,
+                blocks,
+            } => {
+                self.open(
+                    "footnote-definition",
+                    &[("label", label.clone()), ("number", number.to_string())],
+                );
+                for block in blocks {
+                    self.block(block);
+                }
+                self.close();
+            }
         }
     }
 
@@ -210,6 +224,18 @@ impl Manifest<'_> {
                     }
                     self.empty("image", &attrs);
                 }
+                Inline::FootnoteReference {
+                    label,
+                    number,
+                    occurrence,
+                } => self.empty(
+                    "footnote-reference",
+                    &[
+                        ("label", label.clone()),
+                        ("number", number.to_string()),
+                        ("occurrence", occurrence.to_string()),
+                    ],
+                ),
                 Inline::SoftBreak => self.empty("softbreak", &[]),
                 Inline::HardBreak => self.empty("hardbreak", &[]),
             }

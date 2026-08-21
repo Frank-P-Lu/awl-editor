@@ -135,6 +135,7 @@ fn catalog_non_empty_and_named() {
         "Code block",
         "Highlight",
         "Strikethrough",
+        "Insert footnote",
         "Export as Word…",
         "Export as HTML…",
         "Export as PDF…",

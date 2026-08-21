@@ -215,16 +215,21 @@ impl App {
         }
     }
 
-    /// CMD-CLICK follow-link: hit-test the char under the pointer and, if a markdown
-    /// link sits there, hand its URL to the OS browser through the SAME
+    /// CMD-CLICK activation: hit-test the char under the pointer. A footnote
+    /// reference uses the shared folded-line jump; a markdown link hands its URL
+    /// to the OS browser through the SAME
     /// [`App::follow_link`] owner the `C-c C-o` keyboard path uses (so the two can't
     /// drift). Returns whether a link was followed, so the caller can SWALLOW the
     /// press — never moving the caret / starting a selection. Reads only. The
     /// mouse-affordance half of the identity round's "⌘-click Follow link" (the
     /// keyboard chord stays too).
-    pub(in crate::app) fn follow_link_at_pointer(&self) -> bool {
+    pub(in crate::app) fn follow_link_at_pointer(&mut self) -> bool {
         let byte = self.document.buffer().char_to_byte(self.hit_test_char());
-        if let Some(url) = crate::markdown::link_at(&self.document.buffer().text(), byte) {
+        let text = self.document.buffer().text();
+        if let Some(line) = crate::markdown::footnote_target_at(&text, byte) {
+            self.jump_to_line(line);
+            true
+        } else if let Some(url) = crate::markdown::link_at(&text, byte) {
             self.follow_link(&url);
             true
         } else {
@@ -677,11 +682,12 @@ impl App {
                     .mods
                     .state()
                     .contains(ModifiersState::SUPER),
-                crate::markdown::link_at(
-                    &self.document.buffer().text(),
-                    self.document.buffer().char_to_byte(self.hit_test_char()),
-                )
-                .is_some(),
+                {
+                    let text = self.document.buffer().text();
+                    let byte = self.document.buffer().char_to_byte(self.hit_test_char());
+                    crate::markdown::link_at(&text, byte).is_some()
+                        || crate::markdown::footnote_target_at(&text, byte).is_some()
+                },
             );
         let ctx = crate::cursor_shape::CursorContext {
             dragging_edge: self.input.pointer.page_resizing,

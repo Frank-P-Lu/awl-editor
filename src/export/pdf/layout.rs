@@ -122,6 +122,7 @@ fn document_uses_japanese(doc: &Document) -> bool {
             | Inline::Highlight(children)
             | Inline::Link { children, .. } => inlines(children),
             Inline::Image { alt, .. } => alt.chars().any(is_japanese_scalar),
+            Inline::FootnoteReference { .. } => false,
             Inline::SoftBreak | Inline::HardBreak => false,
         })
     }
@@ -136,6 +137,7 @@ fn document_uses_japanese(doc: &Document) -> bool {
                 .iter()
                 .chain(table.rows.iter().flatten())
                 .any(|cell| inlines(cell)),
+            Block::FootnoteDefinition { blocks: body, .. } => blocks(body),
             Block::Rule => false,
         })
     }
@@ -205,6 +207,9 @@ impl Engine<'_> {
                 self.y += 12.0;
             }
             Block::Table(table) => self.table(table, x, width),
+            Block::FootnoteDefinition { number, blocks, .. } => {
+                self.footnote_definition(*number, blocks, x, width)
+            }
         }
     }
 
@@ -243,8 +248,49 @@ impl Engine<'_> {
                 Block::List(l) => self.list(l, x, width),
                 Block::Rule => self.block(block, x, width),
                 Block::Table(t) => self.table(t, x, width),
+                Block::FootnoteDefinition { number, blocks, .. } => {
+                    self.footnote_definition(*number, blocks, x, width)
+                }
             }
         }
+    }
+
+    fn footnote_definition(&mut self, number: usize, blocks: &[Block], x: f32, width: f32) {
+        let indent = 16.0;
+        let mut rest = blocks;
+        if let Some(Block::Paragraph(inlines)) = rest.first() {
+            let mut composed = Vec::with_capacity(inlines.len() + 2);
+            composed.push(Inline::FootnoteReference {
+                label: String::new(),
+                number,
+                occurrence: 0,
+            });
+            composed.push(Inline::Text(" ".to_string()));
+            composed.extend(inlines.iter().cloned());
+            let mut style = Style::body();
+            style.size = 9.35;
+            style.leading = 13.0;
+            self.rich(&composed, style, x, width, 5.0, false, false);
+            rest = &rest[1..];
+        } else {
+            let mut style = Style::body();
+            style.size = 9.35;
+            style.leading = 13.0;
+            self.rich(
+                &[Inline::FootnoteReference {
+                    label: String::new(),
+                    number,
+                    occurrence: 0,
+                }],
+                style,
+                x,
+                width,
+                3.0,
+                false,
+                false,
+            );
+        }
+        self.blocks(rest, x + indent, (width - indent).max(40.0));
     }
 
     /// Paint a quote's vertical affordance once per occupied page segment. The

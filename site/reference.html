@@ -155,7 +155,7 @@
 <tr><td>Command palette…</td><td>Summon the command palette, searchable across every catalog command.</td><td><code>⌘P</code></td><td><code>Ctrl+P</code></td><td>Native, browser</td></tr>
 <tr><td>Go to…</td><td>Find files, headings, folders, and recent destinations.</td><td><code>⌘O</code></td><td><code>Ctrl+O</code></td><td>Native, browser</td></tr>
 <tr><td>Last file</td><td>Switch to the previously open file; a no-op with nothing to switch back to.</td><td><code>⌃Tab</code></td><td><code>Ctrl+Tab</code></td><td>Native, browser</td></tr>
-<tr><td>Follow link</td><td>Open the caret's markdown link URL in the default browser, if there is one.</td><td><code>C-c C-o</code></td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Follow link</td><td>Open the caret's markdown link, or jump from a footnote reference to its definition.</td><td><code>C-c C-o</code></td><td>—</td><td>Native, browser</td></tr>
 <tr><td>Copy link destination</td><td>Copy the URL of the markdown link under the caret to the kill buffer.</td><td>—</td><td>—</td><td>Native, browser</td></tr>
 <tr><td>Search forward</td><td>Open incremental search (prefilled from selection or last query), forward.</td><td><code>⌘F · C-s</code></td><td><code>Ctrl+F</code></td><td>Native, browser</td></tr>
 <tr><td>Search backward</td><td>Open incremental search (prefilled from selection or last query), backward.</td><td><code>⌘⇧F · C-r</code></td><td><code>Ctrl+Shift+F</code></td><td>Native, browser</td></tr>
@@ -197,6 +197,7 @@
 <tr><td>Inline code</td><td>Toggle `` `inline code` `` markup around the selection or the word at the caret.</td><td><code>⌘E</code></td><td><code>Ctrl+E</code></td><td>Native, browser</td></tr>
 <tr><td>Highlight</td><td>Toggle `==highlight==` markup around the selection or the word at the caret.</td><td>—</td><td>—</td><td>Native, browser</td></tr>
 <tr><td>Strikethrough</td><td>Toggle `~~strikethrough~~` markup around the selection or the word at the caret.</td><td>—</td><td>—</td><td>Native, browser</td></tr>
+<tr><td>Insert footnote</td><td>Insert a collision-free footnote reference and definition, then type the note.</td><td>—</td><td>—</td><td>Native, browser</td></tr>
 <tr><td>Insert link…</td><td>Summon the URL prompt for a markdown link: wrap, edit, or insert a link at the caret.</td><td><code>⌘K</code></td><td>—</td><td>Native, browser</td></tr>
 <tr><td>Undo</td><td>Undo the last edit group.</td><td><code>⌘Z · C-/</code></td><td><code>Ctrl+Z · C-/</code></td><td>Native, browser</td></tr>
 <tr><td>Redo</td><td>Redo the last undone edit group.</td><td><code>⌘⇧Z</code></td><td><code>Ctrl+Shift+Z</code></td><td>Native, browser</td></tr>
@@ -489,6 +490,7 @@
 <tr><td>Tables</td><td><code>| Name | Value | / | --- | --- | / | awl | editor |</code></td></tr>
 <tr><td>Highlight</td><td><code>==highlighted text==</code></td></tr>
 <tr><td>Strikethrough</td><td><code>~~removed text~~</code></td></tr>
+<tr><td>Footnotes</td><td><code>A note[^source] /  / [^source]: Its text</code></td></tr>
 </tbody>
 </table>
 </div>

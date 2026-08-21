@@ -82,6 +82,7 @@ mod folds;
 mod font_licence;
 mod foot_band_no_clip;
 mod foot_hint_lean;
+mod footnotes;
 mod frost;
 /// The card-ink VETO every frost pixel law measures through, and the contract that
 /// keeps it one-directional: its flagged set is a superset of the card's drawing whose

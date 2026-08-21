@@ -319,6 +319,85 @@ struct FoldTails {
     color: glyphon::Color,
 }
 
+/// Painted first-appearance footnote numbers. The document source owns their
+/// horizontal slot; this batch only supplies the visible superscript ink.
+struct FootnoteNumbers {
+    marks: Vec<(f32, f32, usize, f32)>,
+    glyphs: Vec<(usize, GlyphBuffer, f32)>,
+    color: glyphon::Color,
+    rise: f32,
+}
+
+impl FootnoteNumbers {
+    fn shape(pipeline: &mut TextPipeline, metrics: Metrics) -> Self {
+        let marks = pipeline.footnote_marks();
+        let color = theme::muted().to_glyphon();
+        let glyph_metrics = GlyphMetrics::new(metrics.font_size * 0.68, metrics.line_height);
+        let attrs = Attrs::new()
+            .family(Family::Name(theme::active().font))
+            .color(color);
+        let mut distinct = Vec::new();
+        for (_, _, number, _) in &marks {
+            if !distinct.contains(number) {
+                distinct.push(*number);
+            }
+        }
+        let glyphs = distinct
+            .into_iter()
+            .map(|number| {
+                let mut buffer = GlyphBuffer::new(&mut pipeline.font_system, glyph_metrics);
+                buffer.set_size(
+                    &mut pipeline.font_system,
+                    Some(metrics.line_height * 2.0),
+                    Some(metrics.line_height),
+                );
+                buffer.set_text(
+                    &mut pipeline.font_system,
+                    &number.to_string(),
+                    &attrs,
+                    Shaping::Advanced,
+                    None,
+                );
+                buffer.shape_until_scroll(&mut pipeline.font_system, false);
+                let width = buffer
+                    .layout_runs()
+                    .map(|run| run.line_w)
+                    .fold(0.0f32, f32::max);
+                (number, buffer, width)
+            })
+            .collect();
+        Self {
+            marks,
+            glyphs,
+            color,
+            rise: metrics.line_height * 0.20,
+        }
+    }
+
+    fn append_areas<'a>(&'a self, areas: &mut Vec<TextArea<'a>>, bounds: TextBounds) {
+        for (top, left, number, slot) in &self.marks {
+            let (_, buffer, width) = self
+                .glyphs
+                .iter()
+                .find(|(candidate, _, _)| candidate == number)
+                .expect("footnote number was deduped in");
+            debug_assert!(
+                *width <= *slot + 0.5,
+                "footnote number {number} width {width} exceeds reserved slot {slot}"
+            );
+            areas.push(TextArea {
+                buffer,
+                left: *left,
+                top: *top - self.rise,
+                scale: 1.0,
+                bounds,
+                default_color: self.color,
+                custom_glyphs: &[],
+            });
+        }
+    }
+}
+
 impl FoldTails {
     fn shape(pipeline: &mut TextPipeline, metrics: Metrics, col_w: f32) -> Self {
         let marks = pipeline.fold_tail_marks();
@@ -393,6 +472,7 @@ pub(super) struct OrnamentFrame {
     quotes: QuoteOrnaments,
     fence_labels: FenceLabels,
     fold_tails: FoldTails,
+    footnotes: FootnoteNumbers,
     muted: glyphon::Color,
     text_left: f32,
     col_w: f32,
@@ -410,6 +490,7 @@ impl OrnamentFrame {
             quotes: QuoteOrnaments::shape(pipeline, metrics),
             fence_labels: FenceLabels::shape(pipeline, metrics, muted, col_w),
             fold_tails: FoldTails::shape(pipeline, metrics, col_w),
+            footnotes: FootnoteNumbers::shape(pipeline, metrics),
             muted,
             text_left,
             col_w,
@@ -426,6 +507,7 @@ impl OrnamentFrame {
             + self.quotes.tops.len()
             + self.fence_labels.marks.len()
             + self.fold_tails.marks.len();
+        let capacity = capacity + self.footnotes.marks.len();
         let mut areas = Vec::with_capacity(capacity);
         self.rules
             .append_areas(&mut areas, self.text_left, bounds, self.muted);
@@ -435,6 +517,7 @@ impl OrnamentFrame {
             .append_areas(&mut areas, self.text_left, bounds, self.muted);
         self.fold_tails
             .append_areas(&mut areas, pipeline, self.text_left + self.col_w, bounds);
+        self.footnotes.append_areas(&mut areas, bounds);
         areas
     }
 }

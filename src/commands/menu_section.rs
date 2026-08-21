@@ -28,6 +28,7 @@ pub(super) const EDIT_COMMANDS: &[&str] = &[
     "Inline code",
     "Highlight",
     "Strikethrough",
+    "Insert footnote",
     "Insert link…",
     "Heading",
     "Blockquote",

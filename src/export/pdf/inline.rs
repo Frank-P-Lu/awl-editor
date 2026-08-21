@@ -15,6 +15,9 @@ pub(super) struct Style {
     pub code: bool,
     pub link: Option<String>,
     pub actual: Option<String>,
+    /// Upward baseline offset in points. Footnote numerals use this while
+    /// retaining the surrounding line's leading.
+    pub rise: f32,
     /// The Japanese fallback faces ship at Regular only. Strong prose and
     /// strong code retain emphasis with a restrained PDF text stroke.
     pub embolden: bool,
@@ -32,6 +35,7 @@ impl Style {
             code: false,
             link: None,
             actual: None,
+            rise: 0.0,
             embolden: false,
         }
     }
@@ -109,6 +113,12 @@ fn visit(inlines: &[Inline], style: &Style, out: &mut Vec<Piece>) {
                 alt: alt.clone(),
                 width_hint: *width_hint,
             }),
+            Inline::FootnoteReference { number, .. } => {
+                let mut next = style.clone();
+                next.size *= 0.68;
+                next.rise += style.size * 0.30;
+                push_checked(out, &number.to_string(), &next);
+            }
             Inline::SoftBreak => push_checked(out, " ", style),
             Inline::HardBreak => push_checked(out, "\n", style),
         }
