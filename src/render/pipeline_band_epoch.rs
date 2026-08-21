@@ -37,8 +37,10 @@ impl TextPipeline {
 
     /// Stamp a theme-picker movement before its synchronous preview work. The
     /// renderer does not read a clock: the live App supplies both this epoch and
-    /// [`Self::begin_overlay_frame`]'s `now`. An ordinary capture never calls
-    /// either method and remains structurally settled.
+    /// [`Self::begin_overlay_frame`]'s clock-owned visible `now`. The epoch
+    /// consumes synchronous preview work while a drawable surface is live but
+    /// remains frozen across parked wall-clock gaps. An ordinary capture never
+    /// calls either method and remains structurally settled.
     pub(crate) fn stamp_overlay_movement(&mut self, movement_at: crate::clock::Instant) {
         if !self.juice_live || crate::motion::reduced() {
             return;
@@ -90,7 +92,6 @@ impl TextPipeline {
         let now = self.overlay_band_frame_now.unwrap_or(movement_at);
         self.overlay_band_started_at = Some(movement_at);
         self.sample_anchored_band(now);
-        self.band_ease_started = self.overlay_band_t < 1.0;
         true
     }
 }

@@ -40,6 +40,12 @@ trunk build --release      # emits dist/  (index.html + the .js loader + .wasm)
 bundled ~49.5k-stem en_US Hunspell dictionary are all embedded via `include_bytes!`
 / `include_str!`, so the page needs **no** network round-trips to run).
 
+Live animation uses the same conditional frame reducer as native. While a
+bounded activity is present it asks winit for the next redraw; in the browser
+that follows winit's `requestAnimationFrame` path rather than a fixed-rate
+timer. Sparse autosave, settle, retry, and ambient work remain single
+deadlines, and a static canvas requests no follow-up frame.
+
 > Trunk reads `Trunk.toml` and `index.html`; **`cargo build` / `cargo test` never
 > read either.** The native build is unaffected by all of it.
 

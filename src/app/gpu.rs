@@ -7,6 +7,8 @@
 use super::*;
 use std::sync::Mutex;
 
+mod present;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum GpuFaultKind {
     OutOfMemory,
@@ -97,6 +99,29 @@ pub(super) enum GpuFrameOutcome {
     Presented(Option<(f32, Instant)>),
     Skipped(GpuFrameSkip),
     Fault(GpuFault),
+}
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(super) struct PreparedActivities(crate::frame_clock::ActivitySet);
+
+impl PreparedActivities {
+    pub(super) fn from_post_prepare(activities: crate::frame_clock::ActivitySet) -> Self {
+        Self(activities)
+    }
+
+    pub(super) fn parked() -> Self {
+        Self(crate::frame_clock::ActivitySet::empty())
+    }
+
+    pub(super) fn as_set(self) -> crate::frame_clock::ActivitySet {
+        self.0
+    }
+}
+
+pub(super) struct PreparedFrame {
+    pub(super) outcome: GpuFrameOutcome,
+    /// The renderer's one post-prepare activity report. In particular this sees
+    /// a selection band retargeted while geometry was being resolved.
+    pub(super) activities: PreparedActivities,
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum GpuResizeOutcome {
@@ -476,16 +501,26 @@ impl Gpu {
         Ok(img)
     }
 
-    pub(super) fn redraw(&mut self) -> GpuFrameOutcome {
+    pub(super) fn redraw(&mut self, travelling_ground: Option<bool>) -> PreparedFrame {
         let (w, h) = (self.config.width, self.config.height);
         let debug = crate::debug::debug_on();
         let t0 = debug.then(Instant::now);
         if let Err(e) = self.pipeline.prepare(&self.device, &self.queue, w, h) {
             eprintln!("prepare error: {e}");
-            return GpuFrameOutcome::Skipped(GpuFrameSkip::PrepareFailed);
+            return PreparedFrame {
+                outcome: GpuFrameOutcome::Skipped(GpuFrameSkip::PrepareFailed),
+                activities: PreparedActivities::parked(),
+            };
         }
+        let activities = PreparedActivities::from_post_prepare(
+            self.pipeline
+                .active_activities(travelling_ground.unwrap_or(false)),
+        );
         if let Some(fault) = self.take_faults().into_iter().next() {
-            return GpuFrameOutcome::Fault(fault);
+            return PreparedFrame {
+                outcome: GpuFrameOutcome::Fault(fault),
+                activities,
+            };
         }
         // Prepare's span ends here; the acquire wait below is its own span.
         let prepare_ms = t0.map(|t| t.elapsed().as_secs_f32() * 1000.0);
@@ -501,93 +536,47 @@ impl Gpu {
         let frame = match acquired {
             wgpu::CurrentSurfaceTexture::Success(f) => f,
             wgpu::CurrentSurfaceTexture::Timeout | wgpu::CurrentSurfaceTexture::Occluded => {
-                return GpuFrameOutcome::Skipped(
-                    if matches!(acquired, wgpu::CurrentSurfaceTexture::Timeout) {
-                        GpuFrameSkip::Timeout
-                    } else {
-                        GpuFrameSkip::Occluded
-                    },
-                );
+                return PreparedFrame {
+                    outcome: GpuFrameOutcome::Skipped(
+                        if matches!(acquired, wgpu::CurrentSurfaceTexture::Timeout) {
+                            GpuFrameSkip::Timeout
+                        } else {
+                            GpuFrameSkip::Occluded
+                        },
+                    ),
+                    activities,
+                };
             }
             wgpu::CurrentSurfaceTexture::Outdated | wgpu::CurrentSurfaceTexture::Suboptimal(_) => {
                 self.surface.configure(&self.device, &self.config);
-                return GpuFrameOutcome::Skipped(GpuFrameSkip::SurfaceReconfigured);
+                return PreparedFrame {
+                    outcome: GpuFrameOutcome::Skipped(GpuFrameSkip::SurfaceReconfigured),
+                    activities,
+                };
             }
             wgpu::CurrentSurfaceTexture::Lost => {
                 if let Err(fault) = self.recover_surface() {
-                    return GpuFrameOutcome::Fault(fault);
+                    return PreparedFrame {
+                        outcome: GpuFrameOutcome::Fault(fault),
+                        activities,
+                    };
                 }
-                return GpuFrameOutcome::Skipped(GpuFrameSkip::SurfaceRecreated);
+                return PreparedFrame {
+                    outcome: GpuFrameOutcome::Skipped(GpuFrameSkip::SurfaceRecreated),
+                    activities,
+                };
             }
             wgpu::CurrentSurfaceTexture::Validation => {
-                return GpuFrameOutcome::Fault(GpuFault {
-                    kind: GpuFaultKind::Validation,
-                    message: "surface validation error".into(),
-                });
+                return PreparedFrame {
+                    outcome: GpuFrameOutcome::Fault(GpuFault {
+                        kind: GpuFaultKind::Validation,
+                        message: "surface validation error".into(),
+                    }),
+                    activities,
+                };
             }
         };
-        // Acquire SUCCEEDED: the post-acquire span (encode + submit + present).
-        let t2 = debug.then(Instant::now);
-
-        // Render through the sRGB VIEW format (see `Gpu::new`): on native this is
-        // the config format itself (a no-op reinterpretation); on the web it is the
-        // srgb variant listed in `config.view_formats`, so the frame gets the
-        // linear→sRGB encode on write.
-        let view = frame.texture.create_view(&wgpu::TextureViewDescriptor {
-            format: Some(self.view_format),
-            ..Default::default()
-        });
-        let mut encoder = self
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("awl frame encoder"),
-            });
-        if let Err(e) = self.pipeline.render(&mut encoder, &view) {
-            eprintln!("render error: {e}");
-        }
-        // LIVE PROBE frame mirror: blit the finished frame into the persistent
-        // mirror texture INSIDE the same submission, so the mirror always holds
-        // exactly the last frame the compositor was handed. A no-op branch on
-        // every normal launch.
-        #[cfg(not(target_arch = "wasm32"))]
-        if crate::probe::live_active() {
-            self.mirror_presented_frame(&mut encoder, &frame.texture);
-        }
-        self.queue.submit(Some(encoder.finish()));
-        // Notify winit we're about to present, per its own documented practice
-        // ("call this after drawing, before you submit the buffer to the
-        // display"). A no-op on macOS/X11/Windows/Web (winit lists it
-        // "Unsupported" there) — the platform this matters for is Wayland,
-        // where it schedules winit's own frame-callback throttling for
-        // `RedrawRequested`; harmless everywhere else, so unconditional.
-        self.window.pre_present_notify();
-        frame.present();
-        #[cfg(not(target_arch = "wasm32"))]
-        if crate::probe::recording() {
-            crate::probe::trace(format_args!("present"));
-            // Close out any pending theme-picker MOVEMENT-LATENCY mark
-            // against THIS presented frame (a no-op when nothing is pending, i.e.
-            // this present is unrelated to any picker movement).
-            crate::probe::note_presented_frame();
-        }
-        // The latency endpoint: present-SUBMISSION return (wgpu exposes no
-        // presented-time), stamped before the off-frame atlas trim.
-        let done = debug.then(Instant::now);
-        self.pipeline.atlas.trim();
-        match (prepare_ms, t0, t2, done) {
-            (Some(prep), Some(t0), Some(t2), Some(done)) => {
-                // The SPLIT the settle readout attributes to atlas (prepare), ACQUIRE
-                // (the drawable wait, belonging to neither neighbour) and first-present
-                // — from stamps already read above, no new clock.
-                let pres = (done - t2).as_secs_f32() * 1000.0;
-                self.debug_frame_split = Some((prep, (t2 - t0).as_secs_f32() * 1e3 - prep, pres));
-                GpuFrameOutcome::Presented(Some((prep + pres, done)))
-            }
-            _ => {
-                self.debug_frame_split = None;
-                GpuFrameOutcome::Presented(None)
-            }
-        }
+        self.present_acquired(frame, debug, t0, prepare_ms, activities)
     }
 }
 

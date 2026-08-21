@@ -1,14 +1,6 @@
 use super::*;
 
 impl TextPipeline {
-    pub fn advance(&mut self, dt: f32) -> bool {
-        self.step_caret(dt)
-            | self.step_caret_preview(dt)
-            | self.step_copy_pulse(dt)
-            | self.step_overlay_juice(dt)
-            | self.step_fold_chevrons(dt)
-    }
-
     /// LIVE-APP-ONLY: arm the motion-juice animators (overlay entrance spring
     /// + selection-band slide — the FIRETAIL-MAXIMALIST-SHOWCASE round's
     ///   [`theme::MotionJuice`] capability). Called exactly once, from the live
@@ -38,26 +30,30 @@ impl TextPipeline {
     /// time-compression contract), mirroring `step_copy_pulse`'s gate
     /// exactly. Law-tested by `overlay_juice_folds_to_nothing_under_reduce_
     /// motion` (render/tests/motion_juice.rs).
-    fn step_overlay_juice(&mut self, dt: f32) -> bool {
+    pub(in crate::render) fn step_overlay_entrance(&mut self, dt: f32) -> bool {
         if crate::motion::reduced() {
             self.overlay_enter_t = 1.0;
+            return false;
+        }
+        if self.overlay_enter_t < 1.0 {
+            self.overlay_enter_t =
+                (self.overlay_enter_t + OVERLAY_ENTRANCE_MS.progress_per(dt)).min(1.0);
+        }
+        self.overlay_enter_t < 1.0
+    }
+
+    pub(in crate::render) fn step_overlay_band(&mut self, dt: f32) -> bool {
+        if crate::motion::reduced() {
             self.overlay_band_t = 1.0;
             self.overlay_band_started_at = None;
             self.overlay_band_pending_at = None;
             return false;
         }
-        let mut hot = false;
-        if self.overlay_enter_t < 1.0 {
-            self.overlay_enter_t =
-                (self.overlay_enter_t + OVERLAY_ENTRANCE_MS.progress_per(dt)).min(1.0);
-            hot |= self.overlay_enter_t < 1.0;
-        }
         if self.overlay_band_started_at.is_none() && self.overlay_band_t < 1.0 {
             self.overlay_band_t =
                 (self.overlay_band_t + OVERLAY_BAND_SLIDE_MS.progress_per(dt)).min(1.0);
         }
-        hot |= self.overlay_band_t < 1.0;
-        hot
+        self.overlay_band_t < 1.0
     }
 
     pub(in crate::render) fn overlay_entrance_offset(&self) -> f32 {
@@ -106,7 +102,6 @@ impl TextPipeline {
                 self.overlay_band_t = 0.0;
                 self.overlay_band_last = Some(target);
                 self.overlay_band_started_at = None;
-                self.band_ease_started = true;
             }
             None => {
                 self.overlay_band_from = target;
@@ -165,37 +160,9 @@ impl TextPipeline {
             self.overlay_band_last = Some(target);
             self.overlay_band_t = 0.0;
             self.overlay_band_started_at = None;
-            self.band_ease_started = true;
         } else {
             self.retarget_band(target);
         }
-    }
-
-    /// THE PREPARE-ORDERING BRIDGE. Did THIS `prepare` pass re-zero
-    /// the band's ease (a glide start or a snap re-zero)? Taken exactly once, by
-    /// the live redraw loop, immediately after `Gpu::redraw` returns.
-    ///
-    /// THE BUG THIS CLOSED (the every-other-input report, three sightings:
-    /// Firetail 2026-07-17, Settings 2026-07-26, Commands 2026-08-01). The band
-    /// is the ONE animator retargeted inside `prepare` — every other one
-    /// (entrance spring, caret spring, copy pulse) is armed at the apply seam,
-    /// where the next `advance` sees it. `App::on_redraw_requested` reads
-    /// `advance(dt)` BEFORE calling `Gpu::redraw`, and `prepare` runs INSIDE
-    /// that call, so on the frame a settled band is retargeted `advance` has
-    /// already returned `false`. The loop then parked on `ControlFlow::Wait`
-    /// with `last_frame = None` and requested no follow-up frame, so the ease it
-    /// had just started never got a second frame: the band stayed drawn at
-    /// `overlay_band_from` — the row the selection LEFT — while
-    /// `VisualSelection::logical` had already moved. The NEXT input's redraw
-    /// advanced the timer by one `dt`, found `overlay_band_t < 1.0`, and took
-    /// [`Self::chase_or_snap`]'s in-flight SNAP branch straight to the freshest
-    /// row. Two inputs, one visible jump of two rows, no transition.
-    ///
-    /// Live-only in effect: a settled/unarmed/Reduce-Motion pipeline never
-    /// reaches `chase_or_snap` at all (both callers gate first), so every
-    /// capture takes this as a constant `false` and schedules nothing.
-    pub fn take_band_ease_started(&mut self) -> bool {
-        std::mem::take(&mut self.band_ease_started)
     }
 
     /// The selection BAND's drawn row-top for a target `row_top` this frame —
@@ -437,7 +404,7 @@ impl TextPipeline {
         self.caret.copy_pulse();
     }
 
-    fn step_copy_pulse(&mut self, dt: f32) -> bool {
+    pub(in crate::render) fn step_copy_pulse(&mut self, dt: f32) -> bool {
         // ACCESSIBILITY TIER 1 — REDUCE MOTION: settle the selection-tint
         // brighten INSTANTLY to its resting (fully-settled) value instead of
         // decaying over `dt` — same final color, zero frames of ease. Mirrors
@@ -463,7 +430,7 @@ impl TextPipeline {
         copy_pulse_ease(self.copy_pulse_t)
     }
 
-    fn step_caret_preview(&mut self, dt: f32) -> bool {
+    pub(in crate::render) fn step_caret_preview(&mut self, dt: f32) -> bool {
         if self.caret_preview.is_none() {
             return false;
         }

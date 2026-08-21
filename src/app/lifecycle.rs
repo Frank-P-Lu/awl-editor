@@ -352,13 +352,13 @@ impl ApplicationHandler<AwlEvent> for App {
         // `App::about_to_wait_impl` moved there. `ActiveEventLoop` is the live
         // `Scheduler` sink (a headless `RecordingScheduler` is the other, driven by
         // `step_scheduling`), so the SAME body runs under the virtual-clock harness.
-        self.about_to_wait_impl(event_loop);
-        // The GPU SOAK drive runs LAST (its historical position at the end of the
-        // scheduling body) but OUTSIDE it: it needs the real `&ActiveEventLoop`
-        // (resizes the recovery window, sets its own control flow) and always runs on
-        // real time, so it never belongs on the clock-steppable path. No-ops unless a
-        // `--soak-gpu` run is active.
         #[cfg(not(target_arch = "wasm32"))]
-        self.drive_gpu_soak(event_loop);
+        let host_deadline = self.drive_gpu_soak(event_loop);
+        #[cfg(target_arch = "wasm32")]
+        let host_deadline = None;
+        // Soak remains a real-window stimulus source, but its next wake is only
+        // a proposal. The same reducer below chooses animation over it and folds
+        // it into every ordinary deadline.
+        self.about_to_wait_impl(event_loop, host_deadline);
     }
 }

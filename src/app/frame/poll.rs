@@ -22,6 +22,7 @@ pub(super) struct Deadlines {
     pub(super) crossing_teardown_pending: bool,
     pub(super) zoom_persist_at: Option<Instant>,
     pub(super) focused: bool,
+    pub(super) occluded: bool,
 }
 
 #[derive(Default)]
@@ -70,26 +71,19 @@ impl FrameRuntime {
         &mut self,
         now: Instant,
         input: input::SchedulingSnapshot,
-        document: document::SchedulingSnapshot,
         config: location::SchedulingSnapshot,
     ) -> PollOutcome {
         let mut out = PollOutcome::default();
-        self.poll_debounces(now, input, &mut out);
+        self.poll_debounces(now, input.zoom_persist_held, &mut out);
         self.poll_settles(now, &mut out);
         self.poll_ambient(now, config, &mut out);
         self.poll_lifetimes(now, &mut out);
-        Self::poll_owner_deadlines(now, input, document, &mut out);
         out
     }
 
-    fn poll_debounces(
-        &mut self,
-        now: Instant,
-        input: input::SchedulingSnapshot,
-        out: &mut PollOutcome,
-    ) {
+    fn poll_debounces(&mut self, now: Instant, zoom_persist_held: bool, out: &mut PollOutcome) {
         if let Some(dirty) = self.deadlines.zoom_persist_at
-            && !input.zoom_persist_held
+            && !zoom_persist_held
         {
             let deadline = dirty + ZOOM_PERSIST_DEBOUNCE;
             if now >= deadline {
@@ -157,7 +151,7 @@ impl FrameRuntime {
             lava_active,
             config.ambient_motion_on(),
             crate::motion::reduced(),
-            self.deadlines.focused,
+            self.deadlines.focused && !self.deadlines.occluded,
             lava_paused,
         ) {
             match self.deadlines.lava_tick_at {
@@ -203,32 +197,6 @@ impl FrameRuntime {
                 out.retry = true;
                 out.redraw = true;
             } else {
-                propose(out, deadline);
-            }
-        }
-    }
-
-    fn poll_owner_deadlines(
-        now: Instant,
-        input: input::SchedulingSnapshot,
-        document: document::SchedulingSnapshot,
-        out: &mut PollOutcome,
-    ) {
-        if let Some(pending) = input.prefix_pending_at
-            && !input.whichkey_shown
-            && now < pending + crate::whichkey::PAUSE
-        {
-            propose(out, pending + crate::whichkey::PAUSE);
-        }
-        if let Some(armed) = input.peek_armed_at {
-            let deadline = armed + Duration::from_millis(crate::peek::HOLD_PEEK_MS);
-            if now < deadline {
-                propose(out, deadline);
-            }
-        }
-        if let Some(dirty) = document.autosave_at {
-            let deadline = dirty + AUTOSAVE_IDLE;
-            if now < deadline {
                 propose(out, deadline);
             }
         }

@@ -337,13 +337,13 @@ fn rapid_snap_holds_under_left_center_right_anchors() {
 // back in flight so `chase_or_snap` SNAPPED two rows at once: "the selection
 // advances only every second input, with no transition".
 //
-// `take_band_ease_started` is the bridge across that ordering, and these laws
-// sweep the missing axis: not "where is the band drawn", but
-// "did this prepare tell the loop it owes another frame".
+// The post-prepare activity set closes that ordering, and these laws sweep the
+// missing axis: not "where is the band drawn", but "did this prepare tell the
+// loop it owes another frame".
 
 /// The exact ordering the live loop uses: `advance` first (what
 /// `on_redraw_requested` reads into `stepped`), then the retarget that `prepare`
-/// performs, then the take. Returns `(stepped, band_ease_started)`.
+/// performs, then the post-prepare activity report.
 fn one_live_frame(
     p: &mut TextPipeline,
     dt: f32,
@@ -351,7 +351,11 @@ fn one_live_frame(
 ) -> (bool, bool) {
     let stepped = p.advance(dt);
     retarget(p);
-    (stepped, p.take_band_ease_started())
+    (
+        stepped,
+        p.active_activities(false)
+            .contains(crate::frame_clock::Activity::OverlayBand),
+    )
 }
 
 /// THE SETTLED-BAND LAW, across both band seams. A move that arrives on a SETTLED band is
@@ -432,7 +436,6 @@ fn a_move_onto_a_settled_band_reports_the_ease_advance_could_not_see() {
     // Let it rest a full glide so the next move is a SETTLED-cadence glide.
     q.advance(3.0 * GLIDE_S);
     let _ = q.overlay_band_drawn(row(0));
-    let _ = q.take_band_ease_started();
     let (stepped, started) = one_live_frame(&mut q, dt, |q| {
         let _ = q.overlay_band_drawn(row(1));
     });

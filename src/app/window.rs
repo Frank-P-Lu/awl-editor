@@ -1,5 +1,8 @@
 use super::*;
 
+#[path = "window/frame.rs"]
+mod redraw;
+
 impl App {
     /// Forget the live Debug session when the panel has been turned off. This is the
     /// one explicit reset boundary for frame, input, and theme-transaction diagnostics;
@@ -212,6 +215,7 @@ impl App {
         if crate::probe::recording() {
             crate::probe::trace(format_args!("occluded={occluded}"));
         }
+        self.frame.set_occluded(occluded);
         if occluded_change_wants_redraw(occluded) {
             self.request_frame();
         }
@@ -224,6 +228,7 @@ impl App {
         }
         self.frame.set_focused(false);
         self.frame.clear_lava_tick();
+        self.frame.park_animations();
         // ROBUST AUTOSAVE: the window lost focus (the user switched away);
         // flush a pending note write now so a note is never left unsaved
         // behind another app — and flush the document autosave / scratch
@@ -306,10 +311,10 @@ impl App {
         self.sync_view(true);
         if changed {
             self.arm_live_resize_sync();
-            let outcome = self.frame.gpu_mut().map(Gpu::redraw);
-            if let Some(outcome) = outcome {
+            let outcome = self.frame.gpu_mut().map(|gpu| gpu.redraw(None));
+            if let Some(prepared) = outcome {
                 request_redraw = self
-                    .handle_gpu_frame_outcome(event_loop, outcome)
+                    .handle_gpu_frame_outcome(event_loop, prepared.outcome)
                     .is_ok_and(|(_, presented)| presented);
             }
         }
@@ -492,78 +497,13 @@ impl App {
         self.request_frame();
     }
 
-    /// `WindowEvent::RedrawRequested`: advance the caret spring by the real
-    /// elapsed time since the last animated frame, then draw. If still animating,
-    /// keep the loop hot (Poll + request another redraw); once settled, go back to
-    /// Wait so the app idles at 0% CPU until the next input. Also feeds the
+    /// `WindowEvent::RedrawRequested`: sample every activity from the elapsed
+    /// time since the prior presented frame, then draw. The post-prepare activity
+    /// report is handed to the conditional frame clock; `about_to_wait` asks that
+    /// one reducer whether another display-synced frame or sparse deadline is owed.
+    /// Also feeds the
     /// DEBUG-panel perf lines (all timing work gated on `debug_on()`) and drives
     /// its settle-stamp.
-    /// Feed the DEBUG panel's per-frame diagnostics and say whether THIS redraw
-    /// is the settle STAMP. Lifted out of `on_redraw_requested` whole: it is the
-    /// only timing work in a frame and all of it is gated on the panel being on,
-    /// so sitting it beside the frame's control flow only made the control flow
-    /// harder to read. Returns `is_stamp` so the caller can keep the panel's own
-    /// bookkeeping frame out of the measured-cost ring.
-    fn feed_debug_panel(&mut self, now: Instant) -> bool {
-        // DEBUG panel feed — the ONLY timing work, and all of it gated on
-        // the panel being on (the pane never creates the work it measures;
-        // the pane-off editor takes zero clock reads). The panel text is
-        // shaped inside `pipeline.prepare`, so the values are fed at the
-        // TOP of the redraw, BEFORE `gpu.redraw()`: line 1 therefore shows
-        // the PREVIOUS completed frame's cost (one-frame lag — this frame's
-        // cost isn't knowable until it presents).
-        let mut is_stamp = false;
-        if crate::debug::debug_on() {
-            let debug = self.frame.wake_debug_panel(now);
-            is_stamp = debug.stamp_queued;
-            let engine_wrote = self.persistence.engine_last_write_at();
-            let since_secs = engine_wrote.map(|t| (now - t).as_secs());
-            let autosave = crate::debug::autosave_state(
-                self.config.autosave_on(),
-                self.frame.notice().active(),
-                since_secs,
-            );
-            if let Some(gpu) = self.frame.gpu_mut() {
-                let budget = crate::debug::budget_ms(
-                    gpu.window
-                        .current_monitor()
-                        .and_then(|m| m.refresh_rate_millihertz()),
-                );
-                gpu.pipeline.set_debug_perf(
-                    debug.cost,
-                    debug.last_latency_ms,
-                    Some(debug.redraw_count),
-                    is_stamp,
-                    Some(budget),
-                );
-                // Also surface the live GPU memory (macOS: Metal's
-                // currentAllocatedSize; `None` elsewhere → `gpu —`).
-                let bytes = gpu.current_gpu_bytes();
-                gpu.pipeline.set_debug_gpu_bytes(bytes);
-                // AUTOSAVE-ENGINE line: composed EXCLUSIVELY from what
-                // `App::autosave_flush`'s one door already tracks — config's
-                // `autosave_on()`, the clobber guard's `notice`, and the
-                // engine's own last-write clock — so it can never say
-                // anything the engine didn't just do. The only clock read
-                // here (`now - persistence.engine_last_write_at()`) is gated on
-                // `debug_on()` like every other perf read this block makes.
-                gpu.pipeline.set_debug_autosave(Some(autosave));
-                // Transaction diagnostics age on the App clock, not on frame count.
-                // This redraw already happened for real work; checking here never
-                // arms a timer or turns the Debug panel into a hot loop.
-                gpu.pipeline.set_debug_theme_settle(debug.theme_settle);
-            }
-        } else if self.clear_debug_session_if_populated() {
-            // Clear GPU diagnostics only when a live pipeline exists.
-            if let Some(gpu) = self.frame.gpu_mut() {
-                gpu.pipeline.set_debug_perf(None, None, None, true, None);
-                gpu.pipeline.set_debug_autosave(None);
-                gpu.pipeline.set_debug_theme_settle(None);
-            }
-        }
-        is_stamp
-    }
-
     pub(super) fn on_redraw_requested(&mut self, event_loop: &ActiveEventLoop) {
         let fault = self
             .frame
@@ -585,55 +525,43 @@ impl App {
             self.sync_view(true);
         }
         let now = self.frame.now();
-        let dt = match self.frame.last_frame() {
-            Some(prev) => (now - prev).as_secs_f32(),
-            None => 1.0 / 60.0,
-        };
+        let sample = self.frame.frame_sample(now);
         self.frame.begin_redraw();
         let is_stamp = self.feed_debug_panel(now);
-        // A STATIC open overlay must NOT busy-loop: an idle menu is a frozen
-        // frame, so forcing ControlFlow::Poll just because an overlay is open
-        // re-ran prepare_overlay/set_rich_text every frame, pegging the CPU.
-        // Instead the overlay redraws ON INPUT — every overlay-affecting key
-        // (query edit, selection move, filter, open/close) is a KeyboardInput
-        // event that routes through `apply` and then calls request_redraw
-        // below, and OS key AUTO-REPEAT for a HELD arrow delivers a fresh
-        // KeyboardInput per repeat, so a held arrow still repaints promptly.
-        // HOT while either the caret spring animates or a TRAVELLING ground runs
-        // (`App::advance_travelling_ground`).
-        let warp_hot = self.advance_travelling_ground(dt);
-        let (stepped, outcome) = if let Some(gpu) = self.frame.gpu_mut() {
-            // Sample the theme picker's input-anchored band at the SAME `now`
-            // this redraw uses for every other animator. `prepare` below will
-            // resolve the new row geometry against this phase.
-            gpu.pipeline.begin_overlay_frame(now);
-            // Drive the virtual-clock seam (caret spring + any future live
-            // animator) so the timeline capture and the live loop advance
-            // animation through the SAME entry point.
-            (gpu.pipeline.advance(dt) || warp_hot, gpu.redraw())
-        } else {
+        let Some((prepared, presentation_available)) = self.prepare_live_frame(sample) else {
             return;
         };
         // A theme preview's off-screen shaping tail deliberately remains owed here.
         // The crossing quiet settle pays the latest selection once; another input
         // may supersede it before then.
-        // The SECOND animation term, and it can only be read HERE.
-        // `gpu.redraw()` above ran `prepare`, and `prepare` is the one place the
-        // selection band is retargeted, so an ease that started this frame is
-        // strictly after the `advance` that produced `stepped`. See
-        // `keep_gpu_loop_hot`'s doc and `TextPipeline::take_band_ease_started`.
-        let band_ease_started = self
-            .frame
-            .gpu_mut()
-            .is_some_and(|gpu| gpu.pipeline.take_band_ease_started());
-        let (presented, frame_presented) = match self.handle_gpu_frame_outcome(event_loop, outcome)
-        {
-            Ok(result) => result,
-            Err(()) => {
-                event_loop.set_control_flow(ControlFlow::Wait);
-                return;
+        let mut activities = prepared.activities;
+        if !presentation_available {
+            activities = gpu::PreparedActivities::parked();
+        }
+        let activity_set = activities.as_set();
+        let (presented, frame_presented) =
+            match self.handle_gpu_frame_outcome(event_loop, prepared.outcome) {
+                Ok(result) => result,
+                Err(()) => {
+                    self.frame.park_animations();
+                    event_loop.set_control_flow(ControlFlow::Wait);
+                    return;
+                }
+            };
+        if frame_presented {
+            self.frame.frame_presented(sample, activities);
+            #[cfg(not(target_arch = "wasm32"))]
+            if let Some(elapsed) = self.frame.animation_settled(sample.now, activity_set)
+                && crate::probe::recording()
+            {
+                crate::probe::trace(format_args!(
+                    "input-to-animation-settled {:.3}ms",
+                    elapsed.as_secs_f64() * 1000.0,
+                ));
             }
-        };
+        } else {
+            self.frame.park_animations();
+        }
         // DEBUG bookkeeping for the frame that just PRESENTED (`presented`
         // is `Some` only with the panel on — see `Gpu::redraw`): close the
         // key→px span at present-return, and push the measured cost into
@@ -658,37 +586,20 @@ impl App {
             self.finish_crossing_teardown();
         }
 
-        // Keep the loop hot ONLY while the spring animates — the debug panel
-        // schedules ZERO frames of its own (every metric it shows is
-        // meaningful for a single sparse frame). The held stats HUD does NOT
-        // force frames either: its figures are pure functions of the doc
-        // (no session clock), so a held HUD is a single settled frame over
-        // the cached frosted backdrop. `last_frame` still tracks ONLY the
-        // spring, so the dt fed to `advance` stays correct.
-        // A failed acquire never drives the animation Poll loop. The spring
-        // simply resumes from the next OS/input/timed wake; otherwise an
-        // occluded window can allocate and prepare thousands of unseen frames.
-        let keep_hot = keep_gpu_loop_hot(stepped, band_ease_started, frame_presented);
-        // FLIGHT RECORDER / PROBE: the ANIMATION-SCHEDULING link. Both
-        // animation terms are logged separately, because which of the two is true
-        // is exactly what tells a redraw/present gap apart from a settled frame:
-        // `stepped` is the PRE-prepare answer, `band_started` the POST-prepare one.
+        // FLIGHT RECORDER / PROBE: name every active reason and the actual
+        // interval between presented samples. Theme input/first-pixel timing is
+        // unchanged; this is the visible-motion tail.
         #[cfg(not(target_arch = "wasm32"))]
         if crate::probe::recording() {
             crate::probe::trace(format_args!(
-                "redraw dt={:.1}ms stepped={stepped} band_started={band_ease_started} \
-                 presented={frame_presented} keep_hot={keep_hot}",
-                dt * 1000.0
+                "frame presented={frame_presented} interval={:.1}ms activities=[{}]",
+                sample.elapsed.as_secs_f32() * 1000.0,
+                activity_set.names(),
             ));
         }
-        self.frame
-            .set_last_frame(if keep_hot { Some(now) } else { None });
-        if keep_hot {
-            event_loop.set_control_flow(ControlFlow::Poll);
-            self.request_frame();
-        } else {
-            event_loop.set_control_flow(ControlFlow::Wait);
-        }
+        // requestRedraw, issued by the reducer in `about_to_wait`, is winit's
+        // display-cadenced door on native and requestAnimationFrame on web.
+        event_loop.set_control_flow(ControlFlow::Wait);
         // DEBUG settle-stamp: the first redraw that ends SETTLED while the
         // panel is on queues exactly ONE more frame — the stamp that draws
         // the `still ·` readout with the final true numbers — and then the
@@ -699,8 +610,8 @@ impl App {
         // SAME composed animation state the keep-hot decision does —
         // otherwise the panel would stamp `still ·` on a frame that had just
         // started a band ease and was about to run hot again.
-        if crate::debug::debug_on() && self.frame.settle_debug_panel(stepped || band_ease_started) {
-            self.request_frame();
+        if crate::debug::debug_on() && self.frame.settle_debug_panel(!activity_set.is_empty()) {
+            self.frame.demand_draw_once();
         }
     }
 }

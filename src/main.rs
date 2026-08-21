@@ -80,6 +80,7 @@ mod facets;
 mod file_visibility;
 mod firstrun;
 mod fold;
+mod frame_clock;
 mod frontmatter;
 mod fs;
 mod fuzzy;

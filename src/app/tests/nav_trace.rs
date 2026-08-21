@@ -21,7 +21,7 @@
 //! `hybrid_band_snap::a_move_onto_a_settled_band_reports_the_ease_advance_could_not_see`
 //! (the prepared highlight endpoint + the ease the pre-prepare `advance` cannot
 //! see) and
-//! `app::tests::lifecycle::a_band_ease_started_inside_prepare_keeps_the_loop_hot_by_itself`
+//! `app::tests::lifecycle::a_prepare_time_band_activity_keeps_the_loop_hot_by_itself`
 //! (the follow-up-frame decision that was actually wrong). What THIS law owns is
 //! the front half: winit receipt → keymap resolve → `App::apply` → the logical
 //! selection, and specifically that each accepted navigation input moves the

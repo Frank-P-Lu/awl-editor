@@ -240,8 +240,16 @@ notice lifetime. These are one lifecycle: input arms work, the idle poll settles
 it, and a presented frame retires it. Theme and crossing stamps remain beside
 the effects they schedule.
 
-`frame/poll.rs` accepts copyable input, document, and configuration scheduling
-snapshots and returns a fixed `PollOutcome`: redraw, reshape, persist zoom,
+The presentation ledger holds one conditional `FrameClock`. Its explicit
+activity set replaces the former use of a last-frame timestamp as both a delta
+source and a hidden hot-loop flag. Post-prepare renderer activities and sparse
+deadline proposals reduce to `Idle`, `Deadline`, or `Animating`; only a
+successful present advances the shared elapsed sample. Failed, occluded,
+suspended, and unfocused presentation parks the sample so a later wake resumes
+without a catch-up jump.
+
+`frame/poll.rs` accepts copyable input and configuration scheduling snapshots
+and returns a fixed `PollOutcome`: redraw, reshape, persist zoom,
 expire notice, retry, and the next deadline. It is not a message bus.
 `frame/surface.rs` privately owns recovery, timeout, retry, and present-sync
 state. GPU replacement invalidates the present-sync shadow before equality may
