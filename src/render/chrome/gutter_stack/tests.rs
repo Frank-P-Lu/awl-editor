@@ -213,6 +213,18 @@ fn a_plate_marks_the_active_row_in_every_block_shape() {
                     (plate[0] + plate[2] - (band[0] + band[2] + 2.0)).abs() < 0.01,
                     "{shape}: plate {plate:?} does not hug the column like the frost pill"
                 );
+                // The transparent close run still advances the right-aligned
+                // label. A plate sized from visible label characters alone
+                // leaves that many characters outside its fill; Wagtail then
+                // draws black selected ink on the black page and loses them.
+                let text_chars = lines[at].0.chars().count();
+                let occupied_chars = text_chars + super::CLOSE_MARK_TEXT.chars().count();
+                let expected_left =
+                    (band[0] + band[2] - occupied_chars as f32 * 6.0 - 2.0).max(0.0);
+                assert!(
+                    (plate[0] - expected_left).abs() < 0.01,
+                    "{shape}: plate {plate:?} leaves its reserved close lane outside the fill"
+                );
             }
         }
     }

@@ -270,7 +270,13 @@ pub(super) fn plate_rects(
                 return None;
             }
             let rect = *plan.rows.get(row)?;
-            let ink_w = text.chars().count() as f32 * label_char_w;
+            // The shaped file line ends with the always-present close run. Even
+            // while that run is transparent it participates in right alignment,
+            // shifting the visible label left by its width. Include the lane in
+            // the plate's measured run so the selected ink never starts outside
+            // its own fill (fatal in a one-bit world: black ink on black ground).
+            let ink_w =
+                (text.chars().count() + CLOSE_MARK_TEXT.chars().count()) as f32 * label_char_w;
             Some(plate_rect(rect, ink_w, pad_x))
         })
         .into_iter()
