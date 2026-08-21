@@ -37,6 +37,9 @@ pub struct OverlayState {
     pub diff_scroll: usize,
     pub last_hover_px: Option<(f32, f32)>,
     pub context_actions: Vec<crate::keymap::Action>,
+    /// The named working-set buffer a contextual filename card was summoned
+    /// over. Ordinary context cards leave this absent.
+    pub context_buffer: Option<crate::buffers::BufferKey>,
     pub context_anchor: Option<(f32, f32)>,
     /// THE CONFLICT WORKSPACE'S OWN SUBJECT ([`super::ConflictSubject`]), or
     /// `None` for every other kind.
@@ -150,6 +153,7 @@ impl OverlayState {
             diff_scroll: 0,
             last_hover_px: None,
             context_actions: Vec::new(),
+            context_buffer: None,
             context_anchor: None,
             conflict: None,
             export_format: None,

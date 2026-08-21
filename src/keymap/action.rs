@@ -45,6 +45,10 @@ pub enum Action {
     /// Write a snapshot of the current document to a separately chosen path,
     /// without adopting that path as this buffer's identity.
     SaveCopy,
+    /// Move the current named document to the operating system's recoverable
+    /// Trash. The live document owner performs the external-change and
+    /// working-set gates before it asks the platform backend to move anything.
+    TrashFile,
     Quit,
     SearchForward,
     SearchBackward,

@@ -228,6 +228,8 @@ pub fn classify_for(effect: &Effect, filesystem: FilesystemCapability) -> Classi
             "save_copy",
             unsupported("the destination write is live-App-only"),
         ),
+        Effect::TrashFile(path) => intercepted("trash_file", path.display().to_string()),
+        Effect::TrashBuffer(key) => intercepted("trash_file", format!("{key:?}")),
         // An external handoff, the exact `Export`/`FollowLink` shape: recorded
         // with its payload, never performed, and the skip changes nothing
         // about subsequent in-app state (no window ever came forward).

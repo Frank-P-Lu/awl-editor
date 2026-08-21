@@ -148,6 +148,7 @@ pub fn rows(target: ContextTarget, state: ContextState, platform: Platform) -> V
             row("Rename file…", OpenRenameNote),
             row("Move file…", MoveFile),
             row("Duplicate file", DuplicateNote),
+            row("Move file to Trash", TrashFile),
             row("Version history…", OpenHistory),
             row(reveal_label(), RevealInFileManager),
             row("Copy file path", CopyFilePath),

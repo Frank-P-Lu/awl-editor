@@ -10,6 +10,34 @@ impl App {
             let _ = self.apply(Action::Cancel, false, exit, crate::stats::Door::Chord);
         }
         let (px, py) = self.input.pointer.cursor_px;
+        let stack_row = self.frame.gpu().and_then(|gpu| {
+            gpu.pipeline
+                .gutter_stack_hit(px, py, gpu.config.height)
+                .and_then(|hit| self.gutter_stack_row_key(hit.row))
+        });
+        if let Some(key) = stack_row {
+            let named_file = self
+                .document
+                .close_facts(&key)
+                .and_then(|facts| facts.path)
+                .is_some();
+            let state = crate::context_menu::ContextState {
+                has_selection: false,
+                link: false,
+                heading: false,
+                heading_folded: false,
+                misspelled: false,
+                named_file,
+            };
+            let rows = crate::context_menu::rows(
+                crate::context_menu::ContextTarget::Filename,
+                state,
+                crate::commands::Platform::current(),
+            );
+            self.workspace_state
+                .summon_context_for_buffer(crate::context_menu::overlay(rows, (px, py)), key);
+            return self.finish_context_summon();
+        }
         if self.summon_heading_context(px, py) {
             return self.finish_context_summon();
         }

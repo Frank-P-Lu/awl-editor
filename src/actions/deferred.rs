@@ -29,6 +29,11 @@ pub(super) fn apply_deferred_action(ctx: &mut ActionCtx, action: &Action) -> Opt
             ctx.journey.enter(card);
             Effect::None
         }
+        Action::TrashFile => ctx
+            .buffer
+            .path()
+            .map(|path| Effect::TrashFile(path.to_path_buf()))
+            .unwrap_or(Effect::None),
         // Resolved HERE (the pure core), not by the live App: a path-less
         // scratch buffer signals `Effect::None`, the exact `FollowLink`
         // shape, so a headless replay of this action against a scratch

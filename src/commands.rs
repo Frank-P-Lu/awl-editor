@@ -609,7 +609,7 @@ fn row_hidden(action: &Action, gates: RowGates) -> bool {
         // no-op (the core's own defensive floor for a chord that reaches it
         // directly is `context_menu::copy_file_path`'s own `path()` check
         // and the deferred `RevealInFileManager` resolving to `Effect::None`).
-        Action::RevealInFileManager | Action::CopyFilePath => !gates.named_file,
+        Action::RevealInFileManager | Action::CopyFilePath | Action::TrashFile => !gates.named_file,
         _ => false,
     }
 }

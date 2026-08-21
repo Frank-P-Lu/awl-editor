@@ -153,6 +153,152 @@ fn finish_file_still_saves_the_buffer_it_closes() {
     assert_eq!(s.open_files(), vec![s.a()], "and then it closed");
 }
 
+/// Trash owns the full active/parked × clean/dirty/external-change matrix. A
+/// fake records the one OS handoff without mutating the fixture file, so the
+/// assertions can separate "we asked the OS" from "we released the buffer".
+///
+/// MUTATION TARGET: removing the `facts.unsaved` or external-baseline gates in
+/// `App::trash_buffer` sends a dirty/conflicted path to the fake and this law
+/// fails by name before any working-set assertion can hide the loss.
+#[test]
+fn trash_refuses_dirty_or_changed_buffers_and_releases_only_clean_targets() {
+    let _guard = crate::testlock::serial();
+    for parked in [false, true] {
+        for state in ["clean", "dirty", "changed"] {
+            let mut s = Session::without_autosave(&format!("trash-{parked}-{state}"));
+            let target = if parked { s.a() } else { s.b() };
+            if state == "dirty" {
+                if parked {
+                    s.app.load_path(target.clone());
+                    s.app.document.set_text("alpha\nunsaved\n");
+                    s.app.load_path(s.b());
+                } else {
+                    s.app.document.set_text("beta\nunsaved\n");
+                }
+            }
+            if state == "changed" {
+                std::fs::write(&target, "changed elsewhere\n").unwrap();
+            }
+            let before = s.open_files();
+            let fake = Arc::new(crate::assets::FakeTrash::default());
+            let recorder = fake.clone();
+            let outcome = crate::assets::with_trash(fake, || {
+                s.app.trash_buffer(crate::buffers::BufferKey::path(&target))
+            });
+            let asked = recorder.trashed.lock().unwrap().clone();
+            match state {
+                "clean" => {
+                    assert_eq!(outcome, CloseOutcome::Closed, "parked={parked}");
+                    assert_eq!(asked, vec![target.clone()], "parked={parked}");
+                    assert!(
+                        !s.open_files().contains(&target),
+                        "parked={parked}: successful Trash removes its named working-set row"
+                    );
+                }
+                "changed" if !parked => {
+                    assert_eq!(outcome, CloseOutcome::Closed, "parked={parked}");
+                    assert_eq!(asked, vec![target.clone()], "parked={parked}");
+                    assert!(
+                        !s.open_files().contains(&target),
+                        "parked={parked}: successful Trash removes its named working-set row"
+                    );
+                }
+                "dirty" | "changed" => {
+                    assert_eq!(outcome, CloseOutcome::Refused, "parked={parked} {state}");
+                    assert!(
+                        asked.is_empty(),
+                        "parked={parked} {state}: Trash was never called"
+                    );
+                    assert_eq!(
+                        s.open_files(),
+                        before,
+                        "parked={parked} {state}: rows stay intact"
+                    );
+                    assert!(
+                        target.exists(),
+                        "parked={parked} {state}: disk file stays intact"
+                    );
+                }
+                _ => unreachable!(),
+            }
+        }
+    }
+}
+
+/// The final clean document leaves the honest no-document state only after the
+/// fake has accepted its OS handoff; this is the Trash analogue of close's own
+/// successor rule, rather than a new scratch-buffer invention.
+#[test]
+fn trashing_the_last_clean_document_enters_zero_document_state() {
+    let _guard = crate::testlock::serial();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl-trash-final-{}", std::process::id())),
+    );
+    let path = dir.join("only.md");
+    std::fs::write(&path, "only\n").unwrap();
+    let cfg = Config {
+        session_restore: Some(false),
+        autosave: Some(false),
+        ..Config::empty()
+    };
+    let mut app = App::new(Some(path.clone()), dir.to_path_buf(), None, None, cfg);
+    let fake = Arc::new(crate::assets::FakeTrash::default());
+    let recorder = fake.clone();
+    let outcome = crate::assets::with_trash(fake, || {
+        app.trash_buffer(crate::buffers::BufferKey::path(&path))
+    });
+    assert_eq!(outcome, CloseOutcome::Closed);
+    assert_eq!(recorder.trashed.lock().unwrap().as_slice(), [path]);
+    assert!(
+        !app.document.has_active(),
+        "no scratch replacement is invented"
+    );
+    assert!(app.document.working_set().files().is_empty());
+}
+
+/// The contextual filename card carries its parked row identity into the
+/// accept effect. Without that payload, Enter would re-dispatch `TrashFile`
+/// against the active document and this exact inactive-row case would remove
+/// `b.txt` instead of `a.txt`.
+#[test]
+fn working_set_context_trash_targets_the_parked_row_not_the_active_document() {
+    let _guard = crate::testlock::serial();
+    let mut s = Session::without_autosave("trash-context-parked");
+    let key = crate::buffers::BufferKey::path(&s.a());
+    let state = crate::context_menu::ContextState {
+        has_selection: false,
+        link: false,
+        heading: false,
+        heading_folded: false,
+        misspelled: false,
+        named_file: true,
+    };
+    let mut card = crate::context_menu::overlay(
+        crate::context_menu::rows(
+            crate::context_menu::ContextTarget::Filename,
+            state,
+            crate::commands::Platform::Native,
+        ),
+        (0.0, 0.0),
+    );
+    card.selected = card
+        .context_actions
+        .iter()
+        .position(|action| *action == crate::keymap::Action::TrashFile)
+        .expect("premise: filename menu exposes Trash");
+    s.app.workspace_state.summon_context_for_buffer(card, key);
+    let fake = Arc::new(crate::assets::FakeTrash::default());
+    let recorder = fake.clone();
+    crate::assets::with_trash(fake, || {
+        s.app
+            .press_spec_headless("Enter")
+            .expect("context Enter parses");
+    });
+    assert_eq!(recorder.trashed.lock().unwrap().as_slice(), [s.a()]);
+    assert_eq!(s.open_files(), vec![s.b()]);
+    assert_eq!(s.app.document.buffer().path(), Some(s.b().as_path()));
+}
+
 /// CLOSING AN INACTIVE ROW LEAVES THE ACTIVE DOCUMENT UNTOUCHED — asserted by
 /// byte-identity of its text AND by its version, because a close that reached
 /// through `self.document.buffer()` (the only save path that existed before this
