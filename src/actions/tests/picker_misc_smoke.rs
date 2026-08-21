@@ -753,6 +753,9 @@ fn deferred_effect_matches(action: &Action, effect: &Effect) -> bool {
         // Save a Copy opens the shared destination navigator; its named write
         // effect arrives only after folder and filename acceptance.
         Action::SaveCopy => effect == &Effect::None,
+        // The smoke fixture has no named path, so Trash is gated before it can
+        // emit a live-App filesystem effect.
+        Action::TrashFile => effect == &Effect::None,
         Action::InsertDate => effect == &Effect::InsertDate,
         // The smoke fixture is a NO-PATH buffer, so this resolves to
         // `Effect::None` here — `context_menu::tests`/`app::files::export::tests`
