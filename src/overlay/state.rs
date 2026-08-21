@@ -36,7 +36,7 @@ pub struct OverlayState {
     pub detail_focus: bool,
     pub diff_scroll: usize,
     pub last_hover_px: Option<(f32, f32)>,
-    pub context_actions: Vec<Option<crate::keymap::Action>>,
+    pub context_actions: Vec<crate::keymap::Action>,
     pub context_anchor: Option<(f32, f32)>,
     /// THE CONFLICT WORKSPACE'S OWN SUBJECT ([`super::ConflictSubject`]), or
     /// `None` for every other kind.

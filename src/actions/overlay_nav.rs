@@ -653,7 +653,7 @@ fn accept_context(ctx: &mut ActionCtx) -> Option<Effect> {
         .card()
         .unwrap()
         .selected_corpus_index()
-        .and_then(|i| ctx.journey.card().unwrap().context_actions[i].clone())
+        .and_then(|i| ctx.journey.card().unwrap().context_actions.get(i).cloned())
         .map(Effect::RunAction)
         .unwrap_or(Effect::None);
     dispose_after_accept(ctx);

@@ -242,6 +242,9 @@ impl WorkspaceState {
     /// rows remain ordinary catalog Actions and acceptance returns through the
     /// shared action core; this method owns only the named summon transition.
     pub(in crate::app) fn summon_context(&mut self, card: OverlayState) {
+        if card.rows.is_empty() {
+            return;
+        }
         self.search = None;
         self.popover_summoned = false;
         self.journey.enter(Some(card));
