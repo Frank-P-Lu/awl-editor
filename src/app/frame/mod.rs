@@ -216,10 +216,6 @@ impl FrameRuntime {
         self.presentation.clock.sample(now)
     }
 
-    pub(in crate::app) fn animation_now(&self, now: Instant) -> Instant {
-        self.presentation.clock.sample(now).now
-    }
-
     pub(in crate::app) fn frame_presented(
         &mut self,
         sample: crate::frame_clock::FrameSample,

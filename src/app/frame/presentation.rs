@@ -31,6 +31,10 @@ pub(in crate::app) struct DebugPanelSnapshot {
 }
 
 impl FrameRuntime {
+    pub(in crate::app) fn animation_now(&self, now: Instant) -> Instant {
+        self.presentation.clock.sample(now).now
+    }
+
     pub(in crate::app) fn stamp_input_if_absent(&mut self, now: Instant) {
         self.presentation.input_stamp.get_or_insert(now);
     }

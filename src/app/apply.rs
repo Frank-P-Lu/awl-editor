@@ -47,8 +47,7 @@ impl App {
         // authored 110 ms instead of adding a second post-prepare tail. The
         // live App's injectable clock is the only clock read; a capture has no
         // GPU and never reaches this seam.
-        let wall_now = self.frame.now();
-        let movement_at = self.frame.animation_now(wall_now);
+        let movement_at = self.frame.animation_now(self.frame.now());
         if let Some(gpu) = self.frame.gpu_mut() {
             gpu.pipeline.stamp_overlay_movement(movement_at);
         }
