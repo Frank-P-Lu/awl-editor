@@ -209,7 +209,7 @@ strength; reverting either is theme data, while removing the shared capability
 is not. Read `docs/render.md`, `docs/harness-reach.md`, `THEMES.md` and
 `ACCESSIBILITY.md` before implementation.
 
-### 462 — footnotes join the WYSIWYG Markdown model (USER DECISION 2026-08-21; ready to build)
+### 462 — footnotes join the WYSIWYG Markdown model (USER DECISION 2026-08-21; 🟡 IN PROGRESS — item-462-footnotes (codex), branch codex/item-462-footnotes)
 
 Support the widely used Markdown footnote extension: an inline reference
 `[^label]` paired with a definition `[^label]: text` (including continued
