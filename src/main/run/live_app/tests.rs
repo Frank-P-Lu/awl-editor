@@ -31,6 +31,13 @@ fn new_document_chord() -> &'static str {
     }
 }
 
+fn finish_file_chord() -> &'static str {
+    match crate::convention::Convention::current() {
+        crate::convention::Convention::Mac => "s-w",
+        crate::convention::Convention::Linux => "C-w",
+    }
+}
+
 /// The real chords a user walks in with: summon the workspace, `Tab` from
 /// the navigation rail into the content pane, one `Down` per row of the
 /// corpus, then `Enter` on the row. The row INDEX is derived from
@@ -153,7 +160,7 @@ fn live_app_close_last_sidecar_and_semantics_are_honestly_document_free() {
             png.clone(),
             LiveAppSpec {
                 file: Some(doc.clone()),
-                keys: crate::keyspec::parse_chords("s-w").unwrap(),
+                keys: crate::keyspec::parse_chords(finish_file_chord()).unwrap(),
                 root: Some(proj()),
                 workspace: None,
                 config: cfg(),
@@ -184,7 +191,15 @@ fn live_app_close_last_sidecar_and_semantics_are_honestly_document_free() {
             goto_png.clone(),
             LiveAppSpec {
                 file: Some(doc.clone()),
-                keys: crate::keyspec::parse_chords("s-w s-o").unwrap(),
+                keys: crate::keyspec::parse_chords(&format!(
+                    "{} {}",
+                    finish_file_chord(),
+                    match crate::convention::Convention::current() {
+                        crate::convention::Convention::Mac => "s-o",
+                        crate::convention::Convention::Linux => "C-o",
+                    }
+                ))
+                .unwrap(),
                 root: Some(proj()),
                 workspace: None,
                 config: cfg(),

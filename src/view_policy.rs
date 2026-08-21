@@ -173,6 +173,9 @@ mod tests {
             "capture.rs",
             "capture/animated.rs",
             "capture/background_sidecar.rs",
+            // Serializes document presence and the already-derived document
+            // fields; it owns no view-policy decision.
+            "capture/document_sidecar.rs",
             "capture/film.rs",
             "capture/frames.rs",
             "capture/gpu.rs",

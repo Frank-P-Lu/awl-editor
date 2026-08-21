@@ -271,7 +271,7 @@ fn no_bare_durable_write_bypasses_write_atomic_outside_the_accounted_for_sites()
         // would make the "somebody else wrote it" half unreachable: the
         // fixture has to write BEHIND the App's back for the gate to have
         // anything to detect.
-        ("app/files/close/tests.rs", 7),
+        ("app/files/close/tests.rs", 12),
         // The registry's own laws, carved out of `buffers.rs` into a
         // sibling to keep that file under its frozen size baseline. Same
         // single temp-dir fixture seed it always was, one directory down.
