@@ -269,9 +269,9 @@ fn finishing_a_file_removes_its_row_and_lands_the_reader_on_a_neighbour() {
     );
     assert_eq!(down_to_one["active_index"], serde_json::Value::Null);
 
-    // A THIRD ⌘W has nothing to remove: there is no honest zero-document state
-    // yet, so the last file stays open. Without this arm the law above is
-    // satisfiable by a close that keeps deleting until the set is empty.
+    // A THIRD ⌘W closes the final document into the honest zero-document
+    // state. The already-empty stack stays empty while the open-buffer count
+    // distinguishes one remaining document from none.
     let last = buffers(
         &dir,
         "close-three-times",
@@ -280,10 +280,16 @@ fn finishing_a_file_removes_its_row_and_lands_the_reader_on_a_neighbour() {
     assert_eq!(
         last["files"],
         serde_json::json!([]),
-        "still no stack — and still a document"
+        "the zero-document state still has no stack"
     );
     assert_eq!(
-        last["open"], down_to_one["open"],
-        "the last file was NOT closed: the open-buffer count is unchanged"
+        down_to_one["open"],
+        serde_json::json!(1),
+        "precondition: one document remains after the second close"
+    );
+    assert_eq!(
+        last["open"],
+        serde_json::json!(0),
+        "the third close enters the honest zero-document state"
     );
 }
