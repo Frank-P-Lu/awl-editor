@@ -187,6 +187,11 @@ pub enum Action {
     InlineCode,
     Highlight,
     Strikethrough,
+    /// Palette/menu formatting command: insert a collision-free `[^N]`
+    /// reference at the selection end (or caret), append its `[^N]: `
+    /// definition, and leave the caret ready to type the note. Markdown-only,
+    /// one undoable source edit, no hidden document model.
+    InsertFootnote,
     ExportWord,
     ExportHtml,
     ExportPdf,
@@ -330,6 +335,7 @@ impl Action {
                 | Action::InlineCode
                 | Action::Highlight
                 | Action::Strikethrough
+                | Action::InsertFootnote
         )
     }
 }

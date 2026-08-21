@@ -109,6 +109,7 @@ const COMMAND_TASK_CATEGORIES: &[(&str, TaskCategory)] = &[
     ("Inline code", Format),
     ("Highlight", Format),
     ("Strikethrough", Format),
+    ("Insert footnote", Format),
     ("Export as Word…", Files),
     ("Export as HTML…", Files),
     ("Export as PDF…", Files),

@@ -125,6 +125,20 @@ pub enum MdKind {
     /// distinguishable in the sidecar (`"table_header"`); it does not change pixels
     /// (body cells ride the same full default ink with no span).
     TableHeader,
+    /// A recognized `[^label]` reference. The source range also carries
+    /// `ConcealMarkup(Footnote)`; off-caret it collapses behind a separately
+    /// shaped first-appearance display number, while reveal shows this range in
+    /// quiet source ink. The number is the authored document's first-reference
+    /// order, never the label or definition position.
+    FootnoteReference(usize),
+    /// The first-line `[^label]: ` prefix of a recognized definition. Like a
+    /// reference, its raw bytes conceal behind the matching display number.
+    FootnoteDefinition(usize),
+    /// Definition prose (including continued indented lines), enrolled so the
+    /// sidecar and laws distinguish composed footnote text from ordinary prose.
+    /// No text transform: the quiet number + concealed prefixes carry hierarchy
+    /// without washing out the actual note.
+    FootnoteText,
 }
 
 /// WHICH of markdown's three thematic-break syntaxes a `Rule` line was typed with.
@@ -199,6 +213,9 @@ impl MdKind {
             MdKind::TablePipe => "table_pipe",
             MdKind::TableSep => "table_sep",
             MdKind::TableHeader => "table_header",
+            MdKind::FootnoteReference(_) => "footnote_ref",
+            MdKind::FootnoteDefinition(_) => "footnote_def",
+            MdKind::FootnoteText => "footnote_text",
         }
     }
 

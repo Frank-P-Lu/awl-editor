@@ -1158,6 +1158,60 @@ fn plain_prose_has_no_spans() {
 }
 
 #[test]
+fn footnote_spans_pair_exact_source_conceal_with_numbered_content_roles() {
+    let source = "Text[^note].\n\n[^note]: first line\n    continued\n";
+    let parsed = spans(source);
+    let reference = source.find("[^note]").unwrap();
+    assert!(has(
+        &parsed,
+        reference,
+        reference + "[^note]".len(),
+        MdKind::ConcealMarkup(ConcealKind::Footnote),
+    ));
+    assert!(has(
+        &parsed,
+        reference,
+        reference + "[^note]".len(),
+        MdKind::FootnoteReference(1),
+    ));
+    let definition = source.rfind("[^note]: ").unwrap();
+    assert!(has(
+        &parsed,
+        definition,
+        definition + "[^note]: ".len(),
+        MdKind::FootnoteDefinition(1),
+    ));
+    let continued = source.find("    continued").unwrap();
+    assert!(has(
+        &parsed,
+        continued,
+        continued + 4,
+        MdKind::ConcealMarkup(ConcealKind::Footnote),
+    ));
+    assert!(has(
+        &parsed,
+        continued + 4,
+        continued + "    continued".len(),
+        MdKind::FootnoteText,
+    ));
+}
+
+#[test]
+fn malformed_or_undefined_footnote_source_stays_literal_and_untagged() {
+    let parsed = spans("missing [^none] and [^broken\n");
+    assert!(
+        parsed.iter().all(|(_, kind)| !matches!(
+            kind,
+            MdKind::FootnoteReference(_)
+                | MdKind::FootnoteDefinition(_)
+                | MdKind::FootnoteText
+                | MdKind::ConcealMarkup(ConcealKind::Footnote)
+        )),
+        "unrecognized source must remain ordinary editable prose: {parsed:?}"
+    );
+}
+
+#[test]
 fn highlight_basic_pair_dims_markers_and_marks_content() {
     let s = spans("==marked==");
     let hl_markup = MdKind::ConcealMarkup(ConcealKind::Highlight);

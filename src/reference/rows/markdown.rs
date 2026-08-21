@@ -205,17 +205,14 @@ const CONSTRUCTS: &[Construct] = &[
         conceal: &[C::Strikethrough],
     },
     Construct {
-        name: "Footnotes (queued)",
+        name: "Footnotes",
         source: "A note[^source]\n\n[^source]: Its text",
-        rendered: concat!(
-            "Not yet rendered specially; the source remains editable text until this queued ",
-            "feature lands.",
-        ),
-        reveal: "No special reveal yet.",
-        command: "Insert footnote (queued)",
+        rendered: "A quiet superscript reference and a composed numbered definition.",
+        reveal: "The caret or a selection on the line shows the exact label, marker, and indentation.",
+        command: "Insert footnote",
         portability: Portability::Extension,
-        tags: &[],
-        conceal: &[],
+        tags: &["footnote_ref", "footnote_def", "footnote_text"],
+        conceal: &[C::Footnote],
     },
 ];
 

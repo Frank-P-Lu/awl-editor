@@ -229,7 +229,7 @@ pub(super) static COMMANDS: &[Command] = &[
         native_only: false,
         web_only: false,
         description: Some(
-            "Open the caret's markdown link URL in the default browser, if there is one.",
+            "Open the caret's markdown link, or jump from a footnote reference to its definition.",
         ),
     },
     Command {

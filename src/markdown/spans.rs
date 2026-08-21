@@ -7,10 +7,10 @@
 //! pushers `spans` calls into.
 
 mod detect;
+mod footnotes;
 mod kind;
 mod markers;
 mod parse;
-
 pub use detect::{
     LIST_INDENT, ListItem, READING_WPM, fence_line_lang, frontmatter_end, is_thematic_break,
     list_item, reading_time_min, strike_engaged, word_count,

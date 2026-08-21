@@ -20,7 +20,7 @@ impl Engine<'_> {
                     gray: if glyph.style.highlight { 0.90 } else { 0.945 },
                 });
             }
-            let baseline = top + line.baseline;
+            let baseline = top + line.baseline - glyph.style.rise;
             self.pages[self.page].ops.push(Op::Glyph(GlyphOp {
                 role: glyph.role,
                 glyph_id: glyph.id,

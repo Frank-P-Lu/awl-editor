@@ -642,6 +642,7 @@ macro_rules! classify_delete_flinch {
             | Action::ResolveTakeTheirs
             | Action::FollowLink
             | Action::InsertLink
+            | Action::InsertFootnote
             | Action::ReportProblem
             | Action::DownloadFile
             | Action::CheckForUpdates
@@ -865,6 +866,7 @@ macro_rules! assert_action_roster {
             | Action::ResolveTakeTheirs
             | Action::FollowLink
             | Action::InsertLink
+            | Action::InsertFootnote
             | Action::ReportProblem
             | Action::DownloadFile
             | Action::CheckForUpdates
@@ -994,6 +996,7 @@ fn command_action_roster() -> Vec<Action> {
         Action::ResolveTakeTheirs,
         Action::FollowLink,
         Action::InsertLink,
+        Action::InsertFootnote,
         Action::ReportProblem,
         Action::DownloadFile,
         Action::CheckForUpdates,
@@ -1196,6 +1199,7 @@ macro_rules! classify_smoke_command {
         | Action::InlineCode
         | Action::Highlight
         | Action::Strikethrough
+        | Action::InsertFootnote
         // WORD-DELETE joined the catalog (word-ops round, to be palette-visible +
         // rebindable via `[keys]`); dispatched from the palette they just edit the
         // buffer in place — assert-no-panic, like every other edit here. (Plain ⌫

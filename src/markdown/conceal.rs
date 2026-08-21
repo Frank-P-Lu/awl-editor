@@ -113,6 +113,12 @@ enum_with_all! {
         /// live in one line's run, so they conceal together). The blockquote BODY text
         /// keeps its own [`MdKind::Quote`] styling span (dim or full, a taste flag).
         Blockquote,
+        /// A footnote reference's complete `[^label]` source, or one structural
+        /// prefix inside a definition (`[^label]: ` / continued-line indent).
+        /// LINE-scoped: the quiet display number and composed prose replace the
+        /// source off-caret; the caret or a selection touching that exact line
+        /// reveals its authored bytes for direct editing.
+        Footnote,
     }
 }
 
@@ -131,6 +137,7 @@ impl ConcealKind {
             ConcealKind::Image => "image",
             ConcealKind::Link => "link",
             ConcealKind::Blockquote => "blockquote",
+            ConcealKind::Footnote => "footnote",
         }
     }
 }

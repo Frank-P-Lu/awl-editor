@@ -40,6 +40,10 @@ pub(in crate::render) fn md_attrs(
             natural = Some(dim);
         }
         MdKind::TableHeader => {}
+        MdKind::FootnoteReference(_) | MdKind::FootnoteDefinition(_) => {
+            natural = Some(dim);
+        }
+        MdKind::FootnoteText => {}
         MdKind::Task(false) => {}
         MdKind::Quote => {
             if quote_text_dim() {

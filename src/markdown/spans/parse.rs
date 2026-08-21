@@ -22,7 +22,7 @@ use std::ops::Range;
 /// what pulldown parses, with every span offset by the block's byte length. No
 /// (or malformed) frontmatter parses byte-identically to before.
 pub fn spans(text: &str) -> Vec<(Range<usize>, MdKind)> {
-    use pulldown_cmark::{CodeBlockKind, Event, HeadingLevel, Options, Parser, Tag, TagEnd};
+    use pulldown_cmark::{CodeBlockKind, Event, HeadingLevel, Tag, TagEnd};
 
     let mut out: Vec<(Range<usize>, MdKind)> = Vec::new();
     let (text, body_offset) = match crate::frontmatter::detect(text) {
@@ -91,13 +91,11 @@ pub fn spans(text: &str) -> Vec<(Range<usize>, MdKind)> {
         }
     };
 
-    // ENABLE_TASKLISTS so `- [ ]` / `- [x]` surface as `TaskListMarker` events;
-    // ENABLE_STRIKETHROUGH so `~~struck~~` surfaces as `Tag::Strikethrough`
-    // (matching the export model's own option set — `export/model.rs` already
-    // parsed it; the RENDER now catches up). Every other construct parses
-    // exactly as before (the options are additive).
-    let opts = Options::ENABLE_TASKLISTS | Options::ENABLE_TABLES | Options::ENABLE_STRIKETHROUGH;
-    for (ev, range) in Parser::new_ext(text, opts).into_offset_iter() {
+    // Collect ONCE so the footnote side table can assign first-reference numbers
+    // before the ordinary event fold reaches a definition written earlier in the
+    // file. Every live Markdown/export consumer shares `PARSE_OPTIONS`.
+    let events = super::footnotes::events_and_spans(&mut body, text);
+    for (ev, range) in events {
         match ev {
             Event::Start(tag) => match tag {
                 Tag::Heading { level, .. } => {

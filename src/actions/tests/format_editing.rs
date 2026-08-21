@@ -926,3 +926,13 @@ fn smart_newline_ordered_marker_at_usize_max_saturates_no_overflow() {
         _ => panic!("expected a continued ordered item at the usize::MAX marker"),
     }
 }
+
+#[test]
+fn insert_footnote_is_one_undoable_edit_through_the_real_action_seam() {
+    let source = "A note here.";
+    let mut buffer = drive_format(source, None, 6, &Action::InsertFootnote);
+    assert_eq!(buffer.text(), "A note[^1] here.\n\n[^1]: ");
+    assert!(buffer.can_undo());
+    buffer.undo();
+    assert_eq!(buffer.text(), source, "one undo restores every source byte");
+}

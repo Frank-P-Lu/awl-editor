@@ -158,8 +158,8 @@ fn attr_value<'a>(mut attrs: &'a str, wanted: &str) -> Option<&'a str> {
 
 /// Every covered construct: frontmatter (excluded), all heading levels,
 /// bold/italic/strike/highlight, inline + fenced code, a link, bullet/numbered/
-/// task lists (with nesting), a blockquote, a thematic break, a GFM table, and
-/// an embedded image.
+/// task lists (with nesting), a blockquote, a thematic break, a GFM table,
+/// footnotes (repeated reference + continuation), and an embedded image.
 const FIXTURE: &str = "\
 ---
 lang: en
@@ -207,7 +207,10 @@ fn main() {
 
 ![a picture|48](assets/pic.png)
 
-The end.
+The end has a note[^source] and cites it again[^source].
+
+[^source]: Footnote prose.
+    Continued footnote prose.
 ";
 
 /// A tiny, deterministic PNG (6×4, solid) for the fixture image — built through
@@ -437,6 +440,7 @@ fn every_fixture_text_fragment_survives_into_both_emitters() {
                 | Inline::Strikethrough(c)
                 | Inline::Highlight(c)
                 | Inline::Link { children: c, .. } => inline_fragments(c, out),
+                Inline::FootnoteReference { number, .. } => out.push(number.to_string()),
                 Inline::Image { .. } | Inline::SoftBreak | Inline::HardBreak => {}
             }
         }
@@ -447,7 +451,9 @@ fn every_fixture_text_fragment_survives_into_both_emitters() {
                 Block::Heading { inlines, .. } | Block::Paragraph(inlines) => {
                     inline_fragments(inlines, out)
                 }
-                Block::BlockQuote(inner) => block_fragments(inner, out),
+                Block::BlockQuote(inner) | Block::FootnoteDefinition { blocks: inner, .. } => {
+                    block_fragments(inner, out)
+                }
                 Block::CodeBlock { code, .. } => {
                     // The docx emitter splits code into one run per line
                     // (separated by `<w:br/>`), so assert at line granularity.
@@ -713,6 +719,114 @@ fn docx_body_carries_the_expected_ooxml() {
     assert!(MarkupDoc::xml(numbering).has_tag("w:startOverride"));
 }
 
+#[test]
+fn footnotes_preserve_first_reference_numbering_and_structure_in_every_export() {
+    let source = concat!(
+        "[^earlier]: defined first\n\n",
+        "B[^β] A[^earlier] B again[^β].\n\n",
+        "[^β]: unicode definition\n    continued line\n",
+    );
+    let doc = model::parse(source);
+    let references: Vec<_> = all_inlines(&doc.blocks)
+        .into_iter()
+        .filter_map(|inline| match inline {
+            Inline::FootnoteReference {
+                label,
+                number,
+                occurrence,
+            } => Some((label.as_str(), *number, *occurrence)),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        references,
+        [("β", 1, 1), ("earlier", 2, 1), ("β", 1, 2)],
+        "display numbers follow first reference, not definition order"
+    );
+    let definitions: Vec<_> = doc
+        .blocks
+        .iter()
+        .filter_map(|block| match block {
+            Block::FootnoteDefinition {
+                label,
+                number,
+                blocks,
+            } => Some((label.as_str(), *number, blocks.len())),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(definitions, [("earlier", 2, 1), ("β", 1, 1)]);
+
+    let html = to_html(source, &NoImages);
+    assert!(
+        html.contains("id=\"fnref-ceb2\" data-footnote-label=\"β\"><a href=\"#fn-ceb2\">1</a>")
+    );
+    assert!(
+        html.contains("id=\"fnref-ceb2-2\" data-footnote-label=\"β\"><a href=\"#fn-ceb2\">1</a>")
+    );
+    assert!(html.contains(concat!(
+        "class=\"footnote-definition\" id=\"fn-6561726c696572\" ",
+        "data-footnote-label=\"earlier\"",
+    )));
+    assert!(html.contains("continued line"));
+
+    let docx = to_docx(source, &NoImages);
+    let parts = unzip_stored(&docx);
+    let document = std::str::from_utf8(&parts["word/document.xml"]).unwrap();
+    assert!(document.contains("w:anchor=\"_awl_footnote_1\""));
+    assert!(document.contains("w:name=\"_awl_footnote_2\""));
+    assert!(document.contains("<w:vertAlign w:val=\"superscript\"/>"));
+    assert!(document.contains("continued line"));
+
+    let pdf_bytes = to_pdf(source, &NoImages);
+    let pdf = String::from_utf8_lossy(&pdf_bytes);
+    assert!(pdf.contains("kind=\"footnote-reference\" label=\"β\" number=\"1\" occurrence=\"2\""));
+    assert!(pdf.contains("kind=\"footnote-definition\" label=\"earlier\" number=\"2\""));
+    assert!(pdf.contains("continued line"));
+}
+
+#[test]
+fn duplicate_footnote_definition_degrades_to_exact_literal_source_in_export() {
+    let source = "Use[^x].\n\n[^x]: first\n[^x]: duplicate **source**\n";
+    let doc = model::parse(source);
+    assert_eq!(
+        doc.blocks
+            .iter()
+            .filter(|block| matches!(block, Block::FootnoteDefinition { .. }))
+            .count(),
+        1,
+        "only the first definition owns footnote semantics"
+    );
+    let html = to_html(source, &NoImages);
+    assert!(html.contains("[^x]: duplicate **source**"));
+    assert_eq!(html.matches("class=\"footnote-definition\"").count(), 1);
+}
+
+fn all_inlines(blocks: &[Block]) -> Vec<&Inline> {
+    fn visit<'a>(blocks: &'a [Block], out: &mut Vec<&'a Inline>) {
+        for block in blocks {
+            match block {
+                Block::Heading { inlines, .. } | Block::Paragraph(inlines) => {
+                    out.extend(inlines.iter());
+                }
+                Block::BlockQuote(children)
+                | Block::FootnoteDefinition {
+                    blocks: children, ..
+                } => visit(children, out),
+                Block::List(list) => {
+                    for item in &list.items {
+                        visit(&item.blocks, out);
+                    }
+                }
+                Block::CodeBlock { .. } | Block::Rule | Block::Table(_) => {}
+            }
+        }
+    }
+    let mut out = Vec::new();
+    visit(blocks, &mut out);
+    out
+}
+
 // --- Determinism + goldens --------------------------------------------------
 
 #[test]
@@ -939,7 +1053,9 @@ fn export_struck_tokens(md: &str) -> Vec<String> {
                 Block::Heading { inlines, .. } | Block::Paragraph(inlines) => {
                     walk_inlines(inlines, out)
                 }
-                Block::BlockQuote(bs) => walk_blocks(bs, out),
+                Block::BlockQuote(bs) | Block::FootnoteDefinition { blocks: bs, .. } => {
+                    walk_blocks(bs, out)
+                }
                 Block::List(l) => {
                     for it in &l.items {
                         walk_blocks(&it.blocks, out)
@@ -1101,7 +1217,9 @@ fn export_highlighted_tokens(md: &str) -> Vec<String> {
                 Block::Heading { inlines, .. } | Block::Paragraph(inlines) => {
                     walk_inlines(inlines, out)
                 }
-                Block::BlockQuote(bs) => walk_blocks(bs, out),
+                Block::BlockQuote(bs) | Block::FootnoteDefinition { blocks: bs, .. } => {
+                    walk_blocks(bs, out)
+                }
                 Block::List(l) => {
                     for it in &l.items {
                         walk_blocks(&it.blocks, out)

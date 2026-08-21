@@ -53,9 +53,15 @@ pub(super) fn apply_deferred_action(ctx: &mut ActionCtx, action: &Action) -> Opt
             Resolution::TakeTheirs,
         )),
         Action::FollowLink => {
-            crate::markdown::link_at(&ctx.buffer.text(), ctx.buffer.cursor_byte())
-                .map(Effect::FollowLink)
-                .unwrap_or(Effect::None)
+            let text = ctx.buffer.text();
+            let byte = ctx.buffer.cursor_byte();
+            if let Some(line) = crate::markdown::footnote_target_at(&text, byte) {
+                Effect::JumpToLine(line)
+            } else {
+                crate::markdown::link_at(&text, byte)
+                    .map(Effect::FollowLink)
+                    .unwrap_or(Effect::None)
+            }
         }
         Action::BeginPrefix | Action::Ignore => Effect::None,
         _ => return None,

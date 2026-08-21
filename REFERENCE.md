@@ -76,7 +76,7 @@ Commands are grouped by the same task categories the palette browses.
 | Command palette… | Summon the command palette, searchable across every catalog command. | `⌘P` | `Ctrl+P` | Native, browser |
 | Go to… | Find files, headings, folders, and recent destinations. | `⌘O` | `Ctrl+O` | Native, browser |
 | Last file | Switch to the previously open file; a no-op with nothing to switch back to. | `⌃Tab` | `Ctrl+Tab` | Native, browser |
-| Follow link | Open the caret's markdown link URL in the default browser, if there is one. | `C-c C-o` | — | Native, browser |
+| Follow link | Open the caret's markdown link, or jump from a footnote reference to its definition. | `C-c C-o` | — | Native, browser |
 | Copy link destination | Copy the URL of the markdown link under the caret to the kill buffer. | — | — | Native, browser |
 | Search forward | Open incremental search (prefilled from selection or last query), forward. | `⌘F · C-s` | `Ctrl+F` | Native, browser |
 | Search backward | Open incremental search (prefilled from selection or last query), backward. | `⌘⇧F · C-r` | `Ctrl+Shift+F` | Native, browser |
@@ -113,6 +113,7 @@ Commands are grouped by the same task categories the palette browses.
 | Inline code | Toggle `` `inline code` `` markup around the selection or the word at the caret. | `⌘E` | `Ctrl+E` | Native, browser |
 | Highlight | Toggle `==highlight==` markup around the selection or the word at the caret. | — | — | Native, browser |
 | Strikethrough | Toggle `~~strikethrough~~` markup around the selection or the word at the caret. | — | — | Native, browser |
+| Insert footnote | Insert a collision-free footnote reference and definition, then type the note. | — | — | Native, browser |
 | Insert link… | Summon the URL prompt for a markdown link: wrap, edit, or insert a link at the caret. | `⌘K` | — | Native, browser |
 | Undo | Undo the last edit group. | `⌘Z · C-/` | `Ctrl+Z · C-/` | Native, browser |
 | Redo | Redo the last undone edit group. | `⌘⇧Z` | `Ctrl+Shift+Z` | Native, browser |
@@ -364,6 +365,7 @@ The file stays plain text. Only the render changes. The Supported Markdown guide
 | Tables | `\| Name \| Value \| / \| --- \| --- \| / \| awl \| editor \|` |
 | Highlight | `==highlighted text==` |
 | Strikethrough | `~~removed text~~` |
+| Footnotes | `A note[^source] /  / [^source]: Its text` |
 <!-- GENERATED:reference-markdown:END -->
 
 ---

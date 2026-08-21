@@ -190,6 +190,7 @@ const MARKDOWN_ITEMS: &[Routed] = &[
     r("awl.inline_code", "Inline code"),
     r("awl.highlight", "Highlight"),
     r("awl.strikethrough", "Strikethrough"),
+    r("awl.insert_footnote", "Insert footnote"),
     r("awl.insert_link", "Insert link…"),
     r("awl.heading", "Heading"),
     r("awl.blockquote", "Blockquote"),

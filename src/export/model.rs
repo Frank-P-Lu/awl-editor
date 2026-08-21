@@ -1,11 +1,10 @@
 //! THE ONE EXPORTER CORE: a single walk of `pulldown-cmark`'s events into a
-//! neutral [`Document`] tree that BOTH emitters (`docx`, `html`) consume. The
+//! neutral [`Document`] tree that all emitters (`docx`, `html`, `pdf`) consume. The
 //! renderer's own `markdown::spans` walk styles the LIVE buffer in place (spans
 //! over the source bytes); an export instead wants a nesting-aware TREE (a
 //! blockquote's paragraphs, a list's items, a table's cells), so this is a
 //! second, purpose-built fold — but it reuses the SAME parse configuration
-//! (`Options::ENABLE_TASKLISTS | ENABLE_TABLES`, plus `ENABLE_STRIKETHROUGH`
-//! since `~~strike~~` is in the export's coverage) so the two never disagree on
+//! (task lists, tables, strikethrough, and footnotes) so the paths never disagree on
 //! what the markdown MEANS.
 //!
 //! STRIKETHROUGH shares the RENDERER's exactly-two-tilde gate: pulldown's GFM
@@ -38,7 +37,7 @@
 //! tests hand in a fixed map), so the tree — and therefore every exported byte —
 //! is reproducible.
 
-use pulldown_cmark::{CodeBlockKind, Event, HeadingLevel, Options, Parser, Tag, TagEnd};
+use pulldown_cmark::{CodeBlockKind, Event, HeadingLevel, Parser, Tag, TagEnd};
 
 /// A resolved, embeddable image: raw file bytes + intrinsic pixel dimensions +
 /// which of the two container-supported encodings it is. The exporter never
@@ -147,13 +146,24 @@ pub fn sniff_image(bytes: &[u8]) -> Option<(u32, u32, ImageMime)> {
 // Markdown terminology deliberately keeps block kind in the variant names at call sites.
 #[allow(clippy::enum_variant_names)]
 pub enum Block {
-    Heading { level: u8, inlines: Vec<Inline> },
+    Heading {
+        level: u8,
+        inlines: Vec<Inline>,
+    },
     Paragraph(Vec<Inline>),
     BlockQuote(Vec<Block>),
-    CodeBlock { lang: Option<String>, code: String },
+    CodeBlock {
+        lang: Option<String>,
+        code: String,
+    },
     List(List),
     Rule,
     Table(Table),
+    FootnoteDefinition {
+        label: String,
+        number: usize,
+        blocks: Vec<Block>,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -203,6 +213,11 @@ pub enum Inline {
         alt: String,
         width_hint: Option<u32>,
     },
+    FootnoteReference {
+        label: String,
+        number: usize,
+        occurrence: usize,
+    },
     SoftBreak,
     HardBreak,
 }
@@ -226,7 +241,24 @@ pub fn parse(markdown: &str) -> Document {
         .unwrap_or(0);
     let src = &markdown[body_start..];
 
-    let opts = Options::ENABLE_TASKLISTS | Options::ENABLE_TABLES | Options::ENABLE_STRIKETHROUGH;
+    let events: Vec<_> = Parser::new_ext(src, crate::markdown::PARSE_OPTIONS)
+        .into_offset_iter()
+        .collect();
+    let footnotes = crate::markdown::footnotes_from_events(src, &events);
+    let duplicate_footnote_ranges: Vec<_> = events
+        .iter()
+        .filter_map(|(event, range)| match event {
+            Event::Start(Tag::FootnoteDefinition(_))
+                if !footnotes
+                    .definitions
+                    .iter()
+                    .any(|definition| definition.range == *range) =>
+            {
+                Some(range.clone())
+            }
+            _ => None,
+        })
+        .collect();
     let mut stack: Vec<Frame> = vec![Frame::Root(Vec::new())];
     // A pending task marker: pulldown emits `TaskListMarker` at the START of the
     // item's paragraph, so we stash it and stamp the enclosing Item on close.
@@ -235,7 +267,19 @@ pub fn parse(markdown: &str) -> Document {
     // The OFFSET iterator: each event carries its byte range into `src`, which the
     // strikethrough gate needs (the exactly-two-tilde decision reads the span's
     // source slice — see `crate::markdown::strike_engaged`).
-    for (ev, range) in Parser::new_ext(src, opts).into_offset_iter() {
+    for (ev, range) in events {
+        if let Some(duplicate) = duplicate_footnote_ranges
+            .iter()
+            .find(|duplicate| duplicate.start <= range.start && range.end <= duplicate.end)
+        {
+            if matches!(ev, Event::Start(Tag::FootnoteDefinition(_))) && range == *duplicate {
+                accept_block(
+                    &mut stack,
+                    Block::Paragraph(vec![Inline::Text(src[duplicate.clone()].to_string())]),
+                );
+            }
+            continue;
+        }
         match ev {
             // STRIKETHROUGH is gated at its Start on the SHARED exactly-two-tilde
             // owner: an ENGAGED `~~x~~` opens a real `Strikethrough` frame; an
@@ -249,6 +293,21 @@ pub fn parse(markdown: &str) -> Document {
                     stack.push(Frame::StrikethroughInert(Vec::new()));
                 }
             }
+            Event::Start(Tag::FootnoteDefinition(label)) => {
+                let number = footnotes
+                    .definitions
+                    .iter()
+                    .find(|definition| definition.range.start == range.start)
+                    .map_or(footnotes.definitions.len() + 1, |definition| {
+                        definition.number
+                    });
+                stack.push(Frame::FootnoteDefinition {
+                    label: label.into_string(),
+                    number,
+                    blocks: Vec::new(),
+                    loose: Vec::new(),
+                });
+            }
             Event::Start(tag) => open_frame(&mut stack, tag),
             Event::End(tag) => close_frame(&mut stack, tag, &mut pending_task),
             Event::Text(t) => push_text(&mut stack, &t),
@@ -257,10 +316,24 @@ pub fn parse(markdown: &str) -> Document {
             Event::HardBreak => push_inline(&mut stack, Inline::HardBreak),
             Event::Rule => accept_block(&mut stack, Block::Rule),
             Event::TaskListMarker(checked) => pending_task = Some(checked),
-            // Raw HTML / footnote refs: flatten to their literal text (footnotes
-            // are explicitly out of scope; inline HTML renders as text).
+            // Raw HTML remains literal text.
             Event::Html(h) | Event::InlineHtml(h) => push_text(&mut stack, &h),
-            Event::FootnoteReference(_) => {}
+            Event::FootnoteReference(label) => {
+                if let Some(reference) = footnotes
+                    .references
+                    .iter()
+                    .find(|reference| reference.range == range)
+                {
+                    push_inline(
+                        &mut stack,
+                        Inline::FootnoteReference {
+                            label: label.into_string(),
+                            number: reference.number,
+                            occurrence: reference.occurrence,
+                        },
+                    );
+                }
+            }
             Event::InlineMath(_) | Event::DisplayMath(_) => {}
         }
     }
@@ -322,6 +395,12 @@ enum Frame {
     CodeBlock {
         lang: Option<String>,
         code: String,
+    },
+    FootnoteDefinition {
+        label: String,
+        number: usize,
+        blocks: Vec<Block>,
+        loose: Vec<Inline>,
     },
     Table(TableFrame),
 }
@@ -409,7 +488,7 @@ fn open_frame(stack: &mut Vec<Frame>, tag: Tag) {
                 t.cur_cell = Some(Vec::new());
             }
         }
-        // Out-of-scope containers (footnote definitions, HTML blocks, metadata):
+        // Out-of-scope containers (HTML blocks, metadata):
         // open a throwaway paragraph so their inner text has somewhere to land
         // without corrupting a real block; it's dropped as an empty paragraph if
         // it collects nothing.
@@ -520,8 +599,34 @@ fn close_frame(stack: &mut Vec<Frame>, tag: TagEnd, pending_task: &mut Option<bo
                 rows: t.rows,
             }),
         ),
+        Frame::FootnoteDefinition {
+            label,
+            number,
+            blocks,
+            loose,
+        } => close_footnote(stack, label, number, blocks, loose),
         Frame::Root(_) => {}
     }
+}
+
+fn close_footnote(
+    stack: &mut [Frame],
+    label: String,
+    number: usize,
+    mut blocks: Vec<Block>,
+    mut loose: Vec<Inline>,
+) {
+    if !loose.is_empty() {
+        blocks.push(Block::Paragraph(std::mem::take(&mut loose)));
+    }
+    accept_block(
+        stack,
+        Block::FootnoteDefinition {
+            label,
+            number,
+            blocks,
+        },
+    );
 }
 
 /// Append `block` to the nearest block-accepting container.
@@ -530,6 +635,13 @@ fn accept_block(stack: &mut [Frame], block: Block) {
         match frame {
             Frame::Root(b) | Frame::BlockQuote(b) => {
                 b.push(block);
+                return;
+            }
+            Frame::FootnoteDefinition { blocks, loose, .. } => {
+                if !loose.is_empty() {
+                    blocks.push(Block::Paragraph(std::mem::take(loose)));
+                }
+                blocks.push(block);
                 return;
             }
             Frame::Item { blocks, loose } => {
@@ -574,6 +686,10 @@ fn push_inline(stack: &mut [Frame], inline: Inline) {
             // frame ABOVE this one, so the rev-walk reaches that first and this
             // arm never fires for it.
             Frame::Item { loose, .. } => {
+                loose.push(inline);
+                return;
+            }
+            Frame::FootnoteDefinition { loose, .. } => {
                 loose.push(inline);
                 return;
             }
@@ -694,6 +810,7 @@ pub fn plain_text(inlines: &[Inline]) -> String {
             | Inline::Highlight(c)
             | Inline::Link { children: c, .. } => out.push_str(&plain_text(c)),
             Inline::Image { alt, .. } => out.push_str(alt),
+            Inline::FootnoteReference { number, .. } => out.push_str(&number.to_string()),
             Inline::SoftBreak | Inline::HardBreak => out.push(' '),
         }
     }

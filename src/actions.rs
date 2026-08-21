@@ -194,6 +194,7 @@ fn apply_format_action(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
         Action::InlineCode => apply_inline_format(ctx, format::InlineKind::InlineCode),
         Action::Highlight => apply_inline_format(ctx, format::InlineKind::Highlight),
         Action::Strikethrough => apply_inline_format(ctx, format::InlineKind::Strikethrough),
+        Action::InsertFootnote => format::apply_insert_footnote(ctx),
         Action::TagDocumentLanguage => return Some(tag_document_language(ctx)),
         _ => return None,
     };
@@ -689,6 +690,7 @@ macro_rules! classify_action_family {
             | Action::InlineCode
             | Action::Highlight
             | Action::Strikethrough
+            | Action::InsertFootnote
             | Action::TagDocumentLanguage => ActionFamily::Format,
             Action::ExportWord
             | Action::ExportHtml

@@ -28,6 +28,11 @@ table { border-collapse: collapse; margin: 1em 0; width: 100%; }
 th, td { border: 1px solid var(--rule); padding: 0.4em 0.7em; text-align: left; }
 th { background: var(--code-bg); font-weight: 600; }
 img { max-width: 100%; height: auto; }
+.footnote-reference { font-size: 0.72em; line-height: 0; vertical-align: super; }
+.footnote-definition { color: var(--muted); font-size: 0.92em; display: grid; grid-template-columns: 1.4em 1fr; gap: 0.25em; margin: 0.45em 0; }
+.footnote-definition-label { grid-column: 1; vertical-align: super; }
+.footnote-definition-body { grid-column: 2; }
+.footnote-definition-body > :last-child { margin-bottom: 0; }
 @media print {
   @page { margin: 2cm; }
   body { max-width: none; margin: 0; font-size: 11pt; }
@@ -94,6 +99,13 @@ A second quoted line.</p>
     println!("hello");
 }</code></pre>
 <p><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAYAAAAECAYAAACtBE5DAAAATUlEQVR4Ae3AA6AkWZbG8f937o3IzKdyS2Oubdu2bdu2bdu2bWmMnpZKr54yMyLu+Xa3anqmhztr1a++9mu/9mvzvAieP4Lnj+D54x8BZKABC6Rxy+gAAAAASUVORK5CYII=" alt="a picture" width="48"></p>
-<p>The end.</p>
+<p>The end has a note<sup class="footnote-reference" id="fnref-736f75726365" data-footnote-label="source"><a href="#fn-736f75726365">1</a></sup> and cites it again<sup class="footnote-reference" id="fnref-736f75726365-2" data-footnote-label="source"><a href="#fn-736f75726365">1</a></sup>.</p>
+<section class="footnote-definition" id="fn-736f75726365" data-footnote-label="source">
+  <sup class="footnote-definition-label">1</sup>
+  <div class="footnote-definition-body">
+    <p>Footnote prose.
+Continued footnote prose.</p>
+  </div>
+</section>
 </body>
 </html>
