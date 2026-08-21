@@ -6,6 +6,76 @@
 
 ## Ready to build
 
+### 463 — the held HUD reports the selection as well as the document (USER DECISION 2026-08-21; ready to build)
+
+Keep the existing held stats HUD and deepen it when a non-empty selection is
+active. The ordinary no-selection card stays exactly as shipped. With a
+selection, retain the document totals for context and add a clearly named
+**Selection** group reporting at minimum words and characters; never replace
+the document values with unlabeled selection values. Count the actual selected
+buffer text, independent of WYSIWYG conceal, folds, wrapping, History previews
+or shaped substitutes. Character count follows the editor's user-facing text
+unit (extended grapheme clusters), not UTF-8 bytes; state explicitly whether
+line endings count, and use one owner shared by document/selection statistics.
+
+This is statistics, not goals machinery: no quotas, deadlines, progress rings,
+document metadata or persistent dashboard. The HUD remains summon-while-held
+and schedules no work while absent. Verify empty/caret-only/multiline/Unicode
+selections, reversed selection direction, concealed Markdown and folded text at
+the pure counting seam and in the sidecar. Because the selected state changes
+HUD layout, run the standing world × DPI visual audit with presence and
+legibility floors, plus a vision-smoke that asks which figures belong to the
+selection. Read `docs/render.md` and `docs/harness-reach.md` first.
+
+### 462 — footnotes join the WYSIWYG Markdown model (USER DECISION 2026-08-21; ready to build)
+
+Support the widely used Markdown footnote extension: an inline reference
+`[^label]` paired with a definition `[^label]: text` (including continued
+indented lines). This syntax is supported in practice by GitHub and many prose
+Markdown tools, but it is **not core CommonMark and is not in the formal GFM
+spec**; document that portability honestly rather than calling it universal.
+Labels are identifiers, not display numbers: rendering numbers references by
+first appearance while preserving the authored label and source bytes.
+
+Follow awl's one WYSIWYG rule. Away from the caret, references render as quiet
+superscripts and definitions as composed footnote prose; the caret/selection
+reveals the exact Markdown needed to edit the affected line. Repeated
+references, definitions before references, missing definitions, duplicate
+labels and Unicode labels degrade to legible editable source without losing or
+inventing text. Add an **Insert footnote** formatting command that creates one
+reference/definition pair with a collision-free label and leaves a useful
+caret position; the feature remains fully usable by typing syntax manually.
+Reference activation jumps to its definition through the shared jump/fold
+reveal path, with a return route only if it can remain calm and deterministic.
+
+Export HTML/PDF/Word must preserve the footnote meaning rather than emitting
+concealed source or dropping definitions. Test parsing/conceal/edit boundaries
+at the purest seam, round-trip exact bytes, and sweep malformed/reordered/
+repeated/multiline cases. Render laws cover reference/definition geometry,
+selection reveal, variable wrapping and every world × DPI; read
+`docs/markdown.md` and `docs/harness-reach.md` before implementation.
+
+### 461 — pasting a URL over selected prose creates a Markdown link (USER DECISION 2026-08-21; ready to build)
+
+When a Markdown document has a non-empty selection and the clipboard contains
+exactly one plausible URL, Paste replaces the selection with
+`[selected prose](URL)` as one undoable edit and selects or places the caret in
+the same predictable way as Insert link. Route through the existing Markdown
+link-editing owner rather than growing a second serializer. Ordinary paste is
+byte-for-byte unchanged when there is no selection, the buffer is not Markdown,
+the clipboard is multiline, or the text is not a URL. Code spans/fences and a
+selection already forming link syntax stay literal unless the shared Markdown
+context owner proves transformation is safe.
+
+No page-title fetch, network request, rich clipboard, or hidden metadata: the
+selected prose supplies the label and the pasted URL supplies the destination.
+Define and test escaping for `]`, parentheses and backslashes so the generated
+Markdown is valid without changing the visible selected words. Verify Unicode
+labels, `http`/`https`/`mailto`, relative links if deliberately enrolled,
+selection direction, undo/redo and the literal-paste exclusions. The same
+clipboard payload driven through native and web dispatch must resolve through
+one transition; add a law proving a future Paste door cannot bypass the rule.
+
 ### 460 — context menu: omit unavailable commands instead of tagging them "unavailable" (USER DECISION 2026-08-19; 🟡 IN PROGRESS — item-460-context-menu (codex), branch codex/item-460-context-menu)
 
 The right-click card shows state-gated commands as disabled rows carrying a
