@@ -10,32 +10,7 @@ impl App {
             let _ = self.apply(Action::Cancel, false, exit, crate::stats::Door::Chord);
         }
         let (px, py) = self.input.pointer.cursor_px;
-        let stack_row = self.frame.gpu().and_then(|gpu| {
-            gpu.pipeline
-                .gutter_stack_hit(px, py, gpu.config.height)
-                .and_then(|hit| self.gutter_stack_row_key(hit.row))
-        });
-        if let Some(key) = stack_row {
-            let named_file = self
-                .document
-                .close_facts(&key)
-                .and_then(|facts| facts.path)
-                .is_some();
-            let state = crate::context_menu::ContextState {
-                has_selection: false,
-                link: false,
-                heading: false,
-                heading_folded: false,
-                misspelled: false,
-                named_file,
-            };
-            let rows = crate::context_menu::rows(
-                crate::context_menu::ContextTarget::Filename,
-                state,
-                crate::commands::Platform::current(),
-            );
-            self.workspace_state
-                .summon_context_for_buffer(crate::context_menu::overlay(rows, (px, py)), key);
+        if self.summon_stack_context(px, py) {
             return self.finish_context_summon();
         }
         if self.summon_heading_context(px, py) {
@@ -73,6 +48,43 @@ impl App {
         if !over_writing_column {
             return;
         }
+        self.summon_document_context(exit, px, py);
+        self.finish_context_summon();
+    }
+
+    fn summon_stack_context(&mut self, px: f32, py: f32) -> bool {
+        let stack_row = self.frame.gpu().and_then(|gpu| {
+            gpu.pipeline
+                .gutter_stack_hit(px, py, gpu.config.height)
+                .and_then(|hit| self.gutter_stack_row_key(hit.row))
+        });
+        if let Some(key) = stack_row {
+            let named_file = self
+                .document
+                .close_facts(&key)
+                .and_then(|facts| facts.path)
+                .is_some();
+            let state = crate::context_menu::ContextState {
+                has_selection: false,
+                link: false,
+                heading: false,
+                heading_folded: false,
+                misspelled: false,
+                named_file,
+            };
+            let rows = crate::context_menu::rows(
+                crate::context_menu::ContextTarget::Filename,
+                state,
+                crate::commands::Platform::current(),
+            );
+            self.workspace_state
+                .summon_context_for_buffer(crate::context_menu::overlay(rows, (px, py)), key);
+            return true;
+        }
+        false
+    }
+
+    fn summon_document_context(&mut self, exit: &dyn schedule::Exit, px: f32, py: f32) {
         self.document.seal_undo_group();
         let idx = self.hit_test_char();
         self.input.pointer.dragging = false;
@@ -120,7 +132,6 @@ impl App {
             self.workspace_state
                 .summon_context(crate::context_menu::overlay(rows, (px, py)));
         }
-        self.finish_context_summon();
     }
 
     fn summon_heading_context(&mut self, px: f32, py: f32) -> bool {

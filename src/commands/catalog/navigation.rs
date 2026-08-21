@@ -171,17 +171,7 @@ pub(super) static COMMANDS: &[Command] = &[
              unchanged.",
         ),
     },
-    Command {
-        name: "Move file to Trash",
-        action: Action::TrashFile,
-        native: "",
-        emacs: "",
-        native_only: true,
-        web_only: false,
-        description: Some(
-            "Move a clean file to the operating system's recoverable Trash. Save or resolve any changes first, then invoke this command again.",
-        ),
-    },
+    super::trash::COMMAND,
     // REVEAL / COPY PATH: the platform-neutral catalog name — the visible
     // label a macOS surface may narrow to "Reveal in Finder" is a display
     // decision made where it is shown (`context_menu::reveal_label`), never
