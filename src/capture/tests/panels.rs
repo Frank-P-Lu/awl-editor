@@ -392,7 +392,7 @@ fn assert_selection_hud(dir: &ScratchDir, md: &Buffer) {
     let selection_png = dir.join("selection.png");
     capture_with(
         &selection_png,
-        &md,
+        md,
         &CaptureOpts {
             selection: Some(((2, 0), (2, 10))),
             ..CaptureOpts::default()
