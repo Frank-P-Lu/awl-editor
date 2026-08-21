@@ -107,23 +107,67 @@ fn un_occlusion_wakes_a_repaint_and_occlusion_does_not() {
 }
 
 #[test]
-fn skipped_surface_frame_never_drives_the_animation_poll_loop() {
-    for stepped in [false, true] {
-        for band in [false, true] {
-            assert!(
-                !keep_gpu_loop_hot(stepped, band, false),
-                "a frame that never presented must not drive the Poll loop \
-                 (stepped={stepped} band_ease_started={band})"
-            );
-        }
-    }
-    assert!(!keep_gpu_loop_hot(false, false, true));
-    assert!(keep_gpu_loop_hot(true, false, true));
+fn focus_and_occlusion_are_both_presentation_gates() {
+    let _g = crate::testlock::serial();
+    let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
+    assert!(app.frame.presentation_available());
+    app.frame.set_occluded(true);
+    assert!(!app.frame.presentation_available());
+    app.frame.set_occluded(false);
+    assert!(app.frame.presentation_available());
+    app.frame.set_focused(false);
+    assert!(!app.frame.presentation_available());
 }
 
-/// THE PREPARE-ORDERING CELL. `stepped` is read BEFORE `Gpu::redraw`
-/// and `band_ease_started` reports what `prepare` did INSIDE it, so
-/// `(stepped=false, band_ease_started=true, presented=true)` is a real, routinely
+#[test]
+fn animation_settle_measurement_waits_for_bounded_activity_not_ambient_ground() {
+    use crate::frame_clock::{Activity, ActivitySet};
+    let _g = crate::testlock::serial();
+    let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
+    let input = app.frame.now();
+    app.frame.stamp_animation_input_if_absent(input);
+    assert_eq!(
+        app.frame
+            .animation_settled(input, ActivitySet::one(Activity::TravellingGround)),
+        None,
+        "an ambient-only frame does not invent an input animation"
+    );
+    app.frame.stamp_animation_input_if_absent(input);
+    assert_eq!(
+        app.frame
+            .animation_settled(input, ActivitySet::one(Activity::CopyPulse)),
+        None
+    );
+    assert_eq!(
+        app.frame.animation_settled(
+            input + Duration::from_millis(220),
+            ActivitySet::one(Activity::TravellingGround),
+        ),
+        Some(Duration::from_millis(220)),
+        "the bounded animation settles even while the ambient ground continues"
+    );
+}
+
+#[test]
+fn skipped_surface_frame_never_drives_the_animation_poll_loop() {
+    use crate::frame_clock::{Activity, ActivitySet, Deadlines, Directive, FrameClock};
+    let now = Instant::now();
+    let mut clock = FrameClock::default();
+    clock.presented(clock.sample(now), ActivitySet::one(Activity::CaretMotion));
+    assert!(matches!(
+        clock.directive(Deadlines::default()),
+        Directive::Animating(_)
+    ));
+    clock.park();
+    assert_eq!(
+        clock.directive(Deadlines::default()),
+        Directive::Idle,
+        "a failed or occluded present parks instead of polling"
+    );
+}
+
+/// THE PREPARE-ORDERING CELL. Activity is read again after `Gpu::redraw`, so
+/// a band armed inside prepare is a real, routinely
 /// reached frame: the one where a settled selection band is retargeted by a
 /// navigation input. Reading only `stepped` parks the loop on `Wait` there, the
 /// ease never gets its second frame, the band stays drawn on the row the
@@ -133,23 +177,16 @@ fn skipped_surface_frame_never_drives_the_animation_poll_loop() {
 /// The whole eight-cell product is swept, not just that cell, so the composition
 /// cannot be "fixed" by special-casing the symptom.
 #[test]
-fn a_band_ease_started_inside_prepare_keeps_the_loop_hot_by_itself() {
-    assert!(
-        keep_gpu_loop_hot(false, true, true),
-        "a presented frame whose `prepare` STARTED a selection-band ease must \
-         schedule the follow-up frame — `advance` ran before `prepare` and \
-         cannot have seen it"
+fn a_prepare_time_band_activity_keeps_the_loop_hot_by_itself() {
+    use crate::frame_clock::{Activity, ActivitySet, Deadlines, Directive, FrameClock};
+    let now = Instant::now();
+    let mut clock = FrameClock::default();
+    clock.presented(clock.sample(now), ActivitySet::one(Activity::OverlayBand));
+    assert_eq!(
+        clock.directive(Deadlines::default()),
+        Directive::Animating(ActivitySet::one(Activity::OverlayBand)),
+        "a prepare-time band retarget is a named post-prepare activity"
     );
-    for stepped in [false, true] {
-        for band in [false, true] {
-            assert_eq!(
-                keep_gpu_loop_hot(stepped, band, true),
-                stepped || band,
-                "either animation term alone must keep a PRESENTED frame hot \
-                 (stepped={stepped} band_ease_started={band})"
-            );
-        }
-    }
 }
 
 #[test]
@@ -530,30 +567,21 @@ fn only_live_toasts_expire_sticky_and_clockless_notices_do_not() {
 
 #[test]
 fn idle_deadlines_compose_without_delaying_poll_or_an_earlier_timer() {
+    use crate::frame_clock::{Activity, ActivitySet, Deadlines, Directive, FrameClock};
     let now = Instant::now();
     let earlier = now + Duration::from_millis(40);
     let later = now + Duration::from_millis(100);
-
+    let mut deadlines = Deadlines::default();
+    deadlines.propose(Some(later));
+    deadlines.propose(Some(earlier));
     assert_eq!(
-        control_flow_with_deadline(ControlFlow::Poll, later),
-        ControlFlow::Poll,
-        "a hot redraw loop always wins"
+        FrameClock::default().directive(deadlines),
+        Directive::Deadline(earlier),
+        "the reducer chooses the earliest sparse wake"
     );
-    assert_eq!(
-        control_flow_with_deadline(ControlFlow::Wait, later),
-        ControlFlow::WaitUntil(later),
-        "an idle unscheduled loop accepts the proposed deadline"
-    );
-    assert_eq!(
-        control_flow_with_deadline(ControlFlow::WaitUntil(earlier), later),
-        ControlFlow::WaitUntil(earlier),
-        "a later proposal cannot delay the current earlier deadline"
-    );
-    assert_eq!(
-        control_flow_with_deadline(ControlFlow::WaitUntil(later), earlier),
-        ControlFlow::WaitUntil(earlier),
-        "an earlier proposal advances the current later deadline"
-    );
+    let mut hot = FrameClock::default();
+    hot.presented(hot.sample(now), ActivitySet::one(Activity::CaretMotion));
+    assert!(matches!(hot.directive(deadlines), Directive::Animating(_)));
 }
 
 #[test]

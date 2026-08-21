@@ -102,7 +102,8 @@ fn render_work_consumes_the_authored_band_budget_across_both_seams() {
                      the band is settled"
                 );
                 assert!(
-                    !p.take_band_ease_started(),
+                    !p.active_activities()
+                        .contains(crate::frame_clock::Activity::OverlayBand),
                     "a phase already settled at first prepare owes no decorative follow-up frame"
                 );
             }
@@ -217,7 +218,11 @@ fn first_open_world_crossings_and_reduce_motion_keep_their_existing_policy() {
         (phase - 80.0 / 110.0).abs() < EPS,
         "world crossing keeps input epoch"
     );
-    let _ = p.take_band_ease_started(); // live redraw consumes this after prepare
+    assert!(
+        p.active_activities()
+            .contains(crate::frame_clock::Activity::OverlayBand),
+        "the post-prepare activity report carries the crossing band"
+    );
 
     // Bars -> Pane under Reduce Motion is still an immediate final pose and
     // does not claim a follow-up frame.
@@ -228,7 +233,10 @@ fn first_open_world_crossings_and_reduce_motion_keep_their_existing_policy() {
     let (phase, top) = phase_and_top(&mut p, Seam::Pane, target(2));
     assert_eq!(phase, 1.0);
     assert!((top - target(2)).abs() < EPS);
-    assert!(!p.take_band_ease_started());
+    assert!(
+        !p.active_activities()
+            .contains(crate::frame_clock::Activity::OverlayBand)
+    );
 
     set_motion_test_override(None);
     crate::motion::set_reduced(saved_reduced);

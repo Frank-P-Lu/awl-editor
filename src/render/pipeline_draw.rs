@@ -442,7 +442,6 @@ impl TextPipeline {
             overlay_band_pending_at: None,
             overlay_band_pending_from: 0.0,
             overlay_band_pending_snap: false,
-            band_ease_started: false,
             page_drag_readout: None,
             zoom_readout: None,
             debug: DebugDefaults::default(),

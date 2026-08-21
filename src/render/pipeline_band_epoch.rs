@@ -90,7 +90,6 @@ impl TextPipeline {
         let now = self.overlay_band_frame_now.unwrap_or(movement_at);
         self.overlay_band_started_at = Some(movement_at);
         self.sample_anchored_band(now);
-        self.band_ease_started = self.overlay_band_t < 1.0;
         true
     }
 }

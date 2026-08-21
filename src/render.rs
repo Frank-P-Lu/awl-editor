@@ -2468,15 +2468,6 @@ pub struct TextPipeline {
     overlay_band_pending_at: Option<crate::clock::Instant>,
     overlay_band_pending_from: f32,
     overlay_band_pending_snap: bool,
-    /// Set by [`TextPipeline::chase_or_snap`] whenever a `prepare`
-    /// pass RE-ZEROES the band's ease, and taken by the live redraw loop right
-    /// after `prepare` returns. The band is the one animator whose target is set
-    /// during `prepare` rather than at the apply seam, and `prepare` runs INSIDE
-    /// `Gpu::redraw` — i.e. after [`TextPipeline::advance`] has already answered
-    /// "is anything animating?" for this frame. Without this flag the frame that
-    /// STARTS a selection ease reports settled, parks the loop on `Wait`, and
-    /// leaves the band frozen on the row the selection left.
-    band_ease_started: bool,
     page_drag_readout: Option<(f32, f32, usize)>,
     zoom_readout: Option<(f32, f32, f32)>,
     debug: DebugDefaults,

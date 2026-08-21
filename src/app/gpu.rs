@@ -98,6 +98,12 @@ pub(super) enum GpuFrameOutcome {
     Skipped(GpuFrameSkip),
     Fault(GpuFault),
 }
+pub(super) struct PreparedFrame {
+    pub(super) outcome: GpuFrameOutcome,
+    /// The renderer's one post-prepare activity report. In particular this sees
+    /// a selection band retargeted while geometry was being resolved.
+    pub(super) activities: crate::frame_clock::ActivitySet,
+}
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum GpuResizeOutcome {
     IgnoredZeroExtent,
@@ -476,16 +482,23 @@ impl Gpu {
         Ok(img)
     }
 
-    pub(super) fn redraw(&mut self) -> GpuFrameOutcome {
+    pub(super) fn redraw(&mut self) -> PreparedFrame {
         let (w, h) = (self.config.width, self.config.height);
         let debug = crate::debug::debug_on();
         let t0 = debug.then(Instant::now);
         if let Err(e) = self.pipeline.prepare(&self.device, &self.queue, w, h) {
             eprintln!("prepare error: {e}");
-            return GpuFrameOutcome::Skipped(GpuFrameSkip::PrepareFailed);
+            return PreparedFrame {
+                outcome: GpuFrameOutcome::Skipped(GpuFrameSkip::PrepareFailed),
+                activities: crate::frame_clock::ActivitySet::empty(),
+            };
         }
+        let activities = self.pipeline.active_activities();
         if let Some(fault) = self.take_faults().into_iter().next() {
-            return GpuFrameOutcome::Fault(fault);
+            return PreparedFrame {
+                outcome: GpuFrameOutcome::Fault(fault),
+                activities,
+            };
         }
         // Prepare's span ends here; the acquire wait below is its own span.
         let prepare_ms = t0.map(|t| t.elapsed().as_secs_f32() * 1000.0);
@@ -501,29 +514,44 @@ impl Gpu {
         let frame = match acquired {
             wgpu::CurrentSurfaceTexture::Success(f) => f,
             wgpu::CurrentSurfaceTexture::Timeout | wgpu::CurrentSurfaceTexture::Occluded => {
-                return GpuFrameOutcome::Skipped(
-                    if matches!(acquired, wgpu::CurrentSurfaceTexture::Timeout) {
-                        GpuFrameSkip::Timeout
-                    } else {
-                        GpuFrameSkip::Occluded
-                    },
-                );
+                return PreparedFrame {
+                    outcome: GpuFrameOutcome::Skipped(
+                        if matches!(acquired, wgpu::CurrentSurfaceTexture::Timeout) {
+                            GpuFrameSkip::Timeout
+                        } else {
+                            GpuFrameSkip::Occluded
+                        },
+                    ),
+                    activities,
+                };
             }
             wgpu::CurrentSurfaceTexture::Outdated | wgpu::CurrentSurfaceTexture::Suboptimal(_) => {
                 self.surface.configure(&self.device, &self.config);
-                return GpuFrameOutcome::Skipped(GpuFrameSkip::SurfaceReconfigured);
+                return PreparedFrame {
+                    outcome: GpuFrameOutcome::Skipped(GpuFrameSkip::SurfaceReconfigured),
+                    activities,
+                };
             }
             wgpu::CurrentSurfaceTexture::Lost => {
                 if let Err(fault) = self.recover_surface() {
-                    return GpuFrameOutcome::Fault(fault);
+                    return PreparedFrame {
+                        outcome: GpuFrameOutcome::Fault(fault),
+                        activities,
+                    };
                 }
-                return GpuFrameOutcome::Skipped(GpuFrameSkip::SurfaceRecreated);
+                return PreparedFrame {
+                    outcome: GpuFrameOutcome::Skipped(GpuFrameSkip::SurfaceRecreated),
+                    activities,
+                };
             }
             wgpu::CurrentSurfaceTexture::Validation => {
-                return GpuFrameOutcome::Fault(GpuFault {
-                    kind: GpuFaultKind::Validation,
-                    message: "surface validation error".into(),
-                });
+                return PreparedFrame {
+                    outcome: GpuFrameOutcome::Fault(GpuFault {
+                        kind: GpuFaultKind::Validation,
+                        message: "surface validation error".into(),
+                    }),
+                    activities,
+                };
             }
         };
         // Acquire SUCCEEDED: the post-acquire span (encode + submit + present).
@@ -574,7 +602,7 @@ impl Gpu {
         // presented-time), stamped before the off-frame atlas trim.
         let done = debug.then(Instant::now);
         self.pipeline.atlas.trim();
-        match (prepare_ms, t0, t2, done) {
+        let outcome = match (prepare_ms, t0, t2, done) {
             (Some(prep), Some(t0), Some(t2), Some(done)) => {
                 // The SPLIT the settle readout attributes to atlas (prepare), ACQUIRE
                 // (the drawable wait, belonging to neither neighbour) and first-present
@@ -587,6 +615,10 @@ impl Gpu {
                 self.debug_frame_split = None;
                 GpuFrameOutcome::Presented(None)
             }
+        };
+        PreparedFrame {
+            outcome,
+            activities,
         }
     }
 }

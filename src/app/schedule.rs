@@ -4,47 +4,23 @@
 //! which-key + hold-peek pauses, the note / document autosave idle timers,
 //! the theme-font / sticky-zoom / resize / move / crossing settles, the
 //! ambient (lava/stars) tick, event-toast expiry, GPU acquire retries, and
-//! the GPU soak drive — each a single `WaitUntil` (never a hot per-frame
-//! loop), guarded on `last_frame` so the caret spring's `Poll` always wins.
+//! the GPU soak drive. Each proposes one deadline to the frame reducer; an
+//! active bounded animation wins, otherwise the earliest proposal becomes one
+//! `WaitUntil` (never a hot per-frame loop).
 //! (Spell-check is NOT debounced here — see `App::recompute_spell_cache`'s
 //! doc for why it's eager instead.)
 //!
 //! A trait impl can't span files, so the body moves to an inherent `App`
 //! method here and the `ApplicationHandler::about_to_wait` in `app.rs` stays
 //! a thin delegate. `use super::*` reaches every free helper it calls
-//! (`debounce_due`, `control_flow_with_deadline`, `notice_expired`, the
+//! (`debounce_due`, `notice_expired`, the
 //! debounce-window consts) — those stay in `app.rs`, shared with other sites.
 
 use super::*;
 
-impl App {
-    /// Advance the TRAVELLING ground by one HOT frame, and say whether it did.
-    /// The rule is `warpgrid::should_travel`'s; the bounded step is the ambient
-    /// tick's own, so a delayed wake cannot teleport the route.
-    pub(super) fn advance_travelling_ground(&mut self, dt: f32) -> bool {
-        let config = self.config.scheduling_snapshot();
-        let hot = crate::warpgrid::should_travel(
-            config.ambient_motion_on(),
-            crate::motion::reduced(),
-            self.frame.focused(),
-            crate::lava::lava_paused(
-                self.frame.settles().resize_at.is_some(),
-                self.frame.settles().move_at.is_some(),
-                self.frame
-                    .gpu()
-                    .is_some_and(|gpu| gpu.pipeline.lava_blur_active()),
-            ),
-        );
-        if hot && let Some(gpu) = self.frame.gpu_mut() {
-            gpu.pipeline.advance_warp(crate::lava::ambient_tick_dt(dt));
-        }
-        hot
-    }
-}
-
-/// The winit control-flow SINK the scheduling body writes its debounce / settle
-/// deadlines into. `about_to_wait_impl`'s ONLY dependency on the event loop is
-/// `set_control_flow` / `control_flow`, so abstracting exactly those two behind a
+/// The winit control-flow SINK the frame reducer writes its final instruction
+/// into. `about_to_wait_impl`'s ONLY dependency on the event loop is
+/// `set_control_flow`, so abstracting exactly that behind a
 /// trait lets the SAME scheduling body a live winit idle runs be STEPPED headlessly
 /// under a [`crate::clock::VirtualClock`] (the frame-loop capture + the multi-frame
 /// scheduling law), with the winit [`ActiveEventLoop`] and a headless
@@ -52,17 +28,12 @@ impl App {
 /// never drift from the live scheduling path.
 pub(crate) trait Scheduler {
     fn set_control_flow(&self, control_flow: ControlFlow);
-    fn control_flow(&self) -> ControlFlow;
 }
 
 impl Scheduler for ActiveEventLoop {
     #[inline]
     fn set_control_flow(&self, control_flow: ControlFlow) {
         ActiveEventLoop::set_control_flow(self, control_flow)
-    }
-    #[inline]
-    fn control_flow(&self) -> ControlFlow {
-        ActiveEventLoop::control_flow(self)
     }
 }
 
@@ -129,7 +100,6 @@ impl Exit for RecordingExit {
 /// each scheduling call.
 #[cfg(any(test, not(target_arch = "wasm32")))]
 pub(crate) struct RecordingScheduler {
-    current: std::cell::Cell<ControlFlow>,
     set_this_step: std::cell::Cell<Option<ControlFlow>>,
 }
 
@@ -137,7 +107,6 @@ pub(crate) struct RecordingScheduler {
 impl RecordingScheduler {
     pub(crate) fn new() -> Self {
         Self {
-            current: std::cell::Cell::new(ControlFlow::Wait),
             set_this_step: std::cell::Cell::new(None),
         }
     }
@@ -156,55 +125,53 @@ impl RecordingScheduler {
 #[cfg(any(test, not(target_arch = "wasm32")))]
 impl Scheduler for RecordingScheduler {
     fn set_control_flow(&self, control_flow: ControlFlow) {
-        self.current.set(control_flow);
         self.set_this_step.set(Some(control_flow));
-    }
-    fn control_flow(&self) -> ControlFlow {
-        self.current.get()
     }
 }
 
 impl App {
     fn schedule_prefix_surfaces(
         &mut self,
-        event_loop: &impl Scheduler,
         input: input::SchedulingSnapshot,
+        deadlines: &mut crate::frame_clock::Deadlines,
     ) {
+        let now = self.frame.now();
         if let Some(pending) = input.prefix_pending_at {
             let deadline = pending + crate::whichkey::PAUSE;
-            let elapsed = self.frame.now() >= deadline;
+            let elapsed = now >= deadline;
             if crate::whichkey::should_summon(true, input.whichkey_shown, elapsed) {
                 self.summon_whichkey();
-            } else if !input.whichkey_shown && !elapsed && self.frame.last_frame().is_none() {
-                event_loop.set_control_flow(ControlFlow::WaitUntil(deadline));
+            } else if !input.whichkey_shown && !elapsed {
+                deadlines.propose(Some(deadline));
             }
         }
         if let Some(armed) = input.peek_armed_at {
             let deadline = armed + Duration::from_millis(crate::peek::HOLD_PEEK_MS);
-            if self.frame.now() >= deadline {
+            if now >= deadline {
                 let stimulus = if crate::peek::peek_allowed(self.zoom_in_flight()) {
                     crate::peek::PeekStimulus::Elapsed
                 } else {
                     crate::peek::PeekStimulus::ArmBroken
                 };
                 self.feed_peek(stimulus);
-            } else if self.frame.last_frame().is_none() {
-                event_loop.set_control_flow(ControlFlow::WaitUntil(deadline));
+            } else {
+                deadlines.propose(Some(deadline));
             }
         }
     }
 
-    fn schedule_autosaves(&mut self, event_loop: &impl Scheduler) {
+    fn schedule_autosaves(&mut self, deadlines: &mut crate::frame_clock::Deadlines) {
+        let now = self.frame.now();
         if let Some(deadline) = self.persistence.note_debounce_deadline(AUTOSAVE_DEBOUNCE) {
-            if self.frame.now() >= deadline {
+            if now >= deadline {
                 self.persistence.disarm_note_debounce();
                 self.autosave_note();
                 self.request_frame();
-            } else if self.frame.last_frame().is_none() {
-                event_loop.set_control_flow(ControlFlow::WaitUntil(deadline));
+            } else {
+                deadlines.propose(Some(deadline));
             }
         }
-        match self.document.poll_autosave(self.frame.now(), AUTOSAVE_IDLE) {
+        match self.document.poll_autosave(now, AUTOSAVE_IDLE) {
             document::AutosavePoll::Due => {
                 self.autosave_flush();
                 #[cfg(not(target_arch = "wasm32"))]
@@ -213,24 +180,28 @@ impl App {
                 self.streaks_flush();
                 self.request_frame();
             }
-            document::AutosavePoll::WaitingUntil(deadline) if self.frame.last_frame().is_none() => {
-                event_loop.set_control_flow(ControlFlow::WaitUntil(deadline));
+            document::AutosavePoll::WaitingUntil(deadline) => {
+                deadlines.propose(Some(deadline));
             }
-            document::AutosavePoll::Idle | document::AutosavePoll::WaitingUntil(_) => {}
+            document::AutosavePoll::Idle => {}
         }
     }
 
-    pub(super) fn about_to_wait_impl(&mut self, event_loop: &impl Scheduler) {
+    pub(super) fn about_to_wait_impl(
+        &mut self,
+        event_loop: &impl Scheduler,
+        host_deadline: Option<Instant>,
+    ) {
         let input_schedule = self.input.scheduling_snapshot();
-        let document_schedule = self.document.scheduling_snapshot();
-        let config_schedule = self.config.scheduling_snapshot();
+        let mut deadlines = crate::frame_clock::Deadlines::default();
+        deadlines.propose(host_deadline);
         // WHICH-KEY pause: while a PREFIX (`C-x`) is pending its second key, summon the
         // continuation panel once ~500ms elapses without a follow-up. The timer is
         // ARMED ONLY here, while `prefix_pending_at` is `Some` AND the panel isn't yet
         // shown — a single `WaitUntil` deadline, no perpetual per-frame tick; once it
         // fires (or the prefix resolves, clearing `prefix_pending_at`) nothing re-arms,
         // so the app idles at 0% CPU (DESIGN §6).
-        self.schedule_prefix_surfaces(event_loop, input_schedule);
+        self.schedule_prefix_surfaces(input_schedule, &mut deadlines);
         // HOLD-⌘ SHORTCUT PEEK: while a bare-arming-modifier hold is PENDING, summon the
         // card once ~600ms elapses with the hold unbroken. The timer is ARMED ONLY while
         // `peek_armed_at` is `Some` (the `PeekArm::Pending` state) — a single `WaitUntil`
@@ -242,7 +213,7 @@ impl App {
         // `App::recompute_spell_cache`'s doc. Nothing left to schedule.
         // Debounced quick-note AUTO-SAVE: write the note after ~400ms of quiet, so
         // it persists calmly as you pause. An empty note writes nothing.
-        self.schedule_autosaves(event_loop);
+        self.schedule_autosaves(&mut deadlines);
         // Debounced DOCUMENT AUTOSAVE (the config-gated engine, default ON): the
         // open file is written atomically — or the no-path scratch stashed — after
         // ~1s of idle. Armed ONLY by the live `sync_view` (behind its gpu-present
@@ -252,9 +223,9 @@ impl App {
         // tail shares the crossing quiet window so superseded worlds never finish
         // work the user has already moved past.
         let now = self.frame.now();
-        let outcome = self
-            .frame
-            .poll(now, input_schedule, document_schedule, config_schedule);
+        let config_schedule = self.config.scheduling_snapshot();
+        let input_schedule = self.input.scheduling_snapshot();
+        let outcome = self.frame.poll(now, input_schedule, config_schedule);
         if outcome.persist_zoom {
             self.settle_zoom_persist();
         }
@@ -267,13 +238,22 @@ impl App {
             self.sync_present_txn();
             self.request_frame();
         }
-        if let Some(deadline) = outcome.next_deadline
-            && self.frame.last_frame().is_none()
-        {
-            event_loop.set_control_flow(control_flow_with_deadline(
-                event_loop.control_flow(),
-                deadline,
-            ));
+        deadlines.propose(outcome.next_deadline);
+        let draw_once = self.frame.take_draw_once();
+        match self.frame.directive(deadlines) {
+            crate::frame_clock::Directive::Idle => {
+                event_loop.set_control_flow(ControlFlow::Wait);
+            }
+            crate::frame_clock::Directive::Deadline(deadline) => {
+                event_loop.set_control_flow(ControlFlow::WaitUntil(deadline));
+            }
+            crate::frame_clock::Directive::Animating(_activities) => {
+                event_loop.set_control_flow(ControlFlow::Wait);
+                self.request_frame();
+            }
+        }
+        if draw_once {
+            self.request_frame();
         }
         // Debounced STICKY-ZOOM write: persist the SETTLED zoom after ~500ms of quiet,
         // so a rapid Cmd-=/Cmd-- run writes the final value once (not one-per-step).
@@ -332,7 +312,7 @@ impl App {
     /// touches the GPU soak.
     #[cfg(any(test, not(target_arch = "wasm32")))]
     pub(crate) fn step_scheduling(&mut self, sched: &RecordingScheduler) {
-        self.about_to_wait_impl(sched);
+        self.about_to_wait_impl(sched, None);
     }
 
     /// Arm the WHICH-KEY prefix pause as of the clock's CURRENT instant — the exact

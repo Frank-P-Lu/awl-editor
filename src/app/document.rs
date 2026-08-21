@@ -70,12 +70,6 @@ pub(in crate::app) enum AutosavePoll {
     Due,
 }
 
-/// Document-owned timer facts copied across the frame polling boundary.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::app) struct SchedulingSnapshot {
-    pub(in crate::app) autosave_at: Option<Instant>,
-}
-
 impl DocumentSession {
     fn active_entry_mut(&mut self) -> &mut crate::buffers::Entry<BufferExtra> {
         self.active.as_mut().expect("active document")
@@ -171,15 +165,6 @@ impl DocumentSession {
             AutosavePoll::Due
         } else {
             AutosavePoll::WaitingUntil(dirty + idle)
-        }
-    }
-
-    pub(in crate::app) fn scheduling_snapshot(&self) -> SchedulingSnapshot {
-        SchedulingSnapshot {
-            autosave_at: self
-                .active
-                .as_ref()
-                .and_then(|active| active.extra.doc_autosave_at),
         }
     }
 

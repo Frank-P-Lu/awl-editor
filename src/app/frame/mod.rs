@@ -54,10 +54,12 @@ impl FrameRuntime {
         Self {
             surface: SurfaceState::new(),
             presentation: PresentationState {
-                last_frame: None,
+                clock: crate::frame_clock::FrameClock::default(),
                 frame_costs: crate::debug::CostRing::default(),
                 theme_switches: crate::themeswitch::SwitchHistory::default(),
                 input_stamp: None,
+                animation_input_at: None,
+                animation_seen: false,
                 last_latency_ms: None,
                 redraw_count: 0,
                 debug_still: crate::debug::DebugStill::Active,
@@ -81,6 +83,7 @@ impl FrameRuntime {
                 crossing_teardown_pending: false,
                 zoom_persist_at: None,
                 focused: true,
+                occluded: false,
             },
             notice: NoticeState::default(),
             #[cfg(not(target_arch = "wasm32"))]
@@ -140,7 +143,7 @@ impl FrameRuntime {
         self.surface.set_lifecycle(GpuLifecycle::Rebuilding);
         self.surface.clear_retry();
         self.surface.clear_timeout_streak();
-        self.presentation.last_frame = None;
+        self.presentation.clock.park();
         self.presentation.input_stamp = None;
         GpuRebuildStart::Ready(window)
     }
@@ -209,12 +212,35 @@ impl FrameRuntime {
         self.deadlines.clock = clock;
     }
 
-    pub(in crate::app) fn last_frame(&self) -> Option<Instant> {
-        self.presentation.last_frame
+    pub(in crate::app) fn frame_sample(&self, now: Instant) -> crate::frame_clock::FrameSample {
+        self.presentation.clock.sample(now)
     }
 
-    pub(in crate::app) fn set_last_frame(&mut self, value: Option<Instant>) {
-        self.presentation.last_frame = value;
+    pub(in crate::app) fn frame_presented(
+        &mut self,
+        sample: crate::frame_clock::FrameSample,
+        activities: crate::frame_clock::ActivitySet,
+    ) {
+        self.presentation.clock.presented(sample, activities);
+    }
+
+    pub(in crate::app) fn park_animations(&mut self) {
+        self.presentation.clock.park();
+    }
+
+    pub(in crate::app) fn directive(
+        &self,
+        deadlines: crate::frame_clock::Deadlines,
+    ) -> crate::frame_clock::Directive {
+        self.presentation.clock.directive(deadlines)
+    }
+
+    pub(in crate::app) fn demand_draw_once(&mut self) {
+        self.presentation.clock.demand_draw_once();
+    }
+
+    pub(in crate::app) fn take_draw_once(&mut self) -> bool {
+        self.presentation.clock.take_draw_once()
     }
 
     pub(in crate::app) fn zoom(&self) -> f32 {
@@ -287,6 +313,38 @@ impl FrameRuntime {
 
     pub(in crate::app) fn stamp_input_if_absent(&mut self, now: Instant) {
         self.presentation.input_stamp.get_or_insert(now);
+    }
+
+    pub(in crate::app) fn stamp_animation_input_if_absent(&mut self, now: Instant) {
+        self.presentation.animation_input_at.get_or_insert(now);
+    }
+
+    /// Close the input-to-animation-settled interval only after a visible,
+    /// input-bounded activity was observed. The travelling ground is ambient:
+    /// keeping a Kite window open must not make an ordinary editing gesture's
+    /// bounded animation appear never to settle.
+    pub(in crate::app) fn animation_settled(
+        &mut self,
+        now: Instant,
+        activities: crate::frame_clock::ActivitySet,
+    ) -> Option<Duration> {
+        let bounded_active = activities
+            .iter()
+            .any(|activity| activity != crate::frame_clock::Activity::TravellingGround);
+        if bounded_active {
+            self.presentation.animation_seen = true;
+            return None;
+        }
+        if self.presentation.animation_seen {
+            self.presentation.animation_seen = false;
+            return self
+                .presentation
+                .animation_input_at
+                .take()
+                .map(|input| now.saturating_duration_since(input));
+        }
+        self.presentation.animation_input_at = None;
+        None
     }
 
     pub(in crate::app) fn begin_redraw(&mut self) {
@@ -390,8 +448,15 @@ impl FrameRuntime {
         self.presentation.caret_recoil.take()
     }
 
-    pub(in crate::app) fn focused(&self) -> bool {
-        self.deadlines.focused
+    pub(in crate::app) fn set_occluded(&mut self, occluded: bool) {
+        self.deadlines.occluded = occluded;
+        if occluded {
+            self.presentation.clock.park();
+        }
+    }
+
+    pub(in crate::app) fn presentation_available(&self) -> bool {
+        self.deadlines.focused && !self.deadlines.occluded
     }
 
     pub(in crate::app) fn set_focused(&mut self, focused: bool) {
@@ -457,7 +522,7 @@ impl FrameRuntime {
     }
 
     pub(in crate::app) fn suspend(&mut self) {
-        self.presentation.last_frame = None;
+        self.presentation.clock.park();
         self.presentation.input_stamp = None;
         self.deadlines.lava_tick_at = None;
         self.deadlines.resize_settle_at = None;

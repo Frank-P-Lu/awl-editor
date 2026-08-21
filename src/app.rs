@@ -327,24 +327,6 @@ fn gpu_skip_action(skip: gpu::GpuFrameSkip, timeout_streak: u8) -> GpuSkipAction
         }
     }
 }
-/// THE FOLLOW-UP-FRAME DECISION, and why it takes TWO animation terms.
-///
-/// `stepped` is what [`crate::render::TextPipeline::advance`] reported — read
-/// BEFORE `Gpu::redraw`, because the spring must advance by this frame's `dt`
-/// before the frame is drawn. `band_ease_started` is what `prepare` — which runs
-/// INSIDE that same `Gpu::redraw` call — did afterwards: the selection band is
-/// the one animator whose target is set at draw time rather than at the apply
-/// seam, so the frame that starts its ease is invisible to `stepped` by
-/// construction (see
-/// [`crate::render::TextPipeline::take_band_ease_started`] for the full
-/// mechanism and the user-visible symptom). Dropping the second term parks the
-/// loop on the very frame an ease began, which is the every-other-input defect.
-///
-/// `frame_presented` still gates both: a failed acquire must never drive the
-/// Poll loop, or an occluded window prepares thousands of unseen frames.
-fn keep_gpu_loop_hot(stepped: bool, band_ease_started: bool, frame_presented: bool) -> bool {
-    (stepped || band_ease_started) && frame_presented
-}
 /// Map a live GPU skip cause onto the soak probe's [`crate::soak_gpu::SkipKind`]
 /// so each cause is counted SEPARATELY (the collapse into one `skipped` total is
 /// what hid the zero-drawable occlusion investigation).
@@ -978,18 +960,18 @@ impl App {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    fn drive_gpu_soak(&mut self, event_loop: &ActiveEventLoop) {
+    fn drive_gpu_soak(&mut self, event_loop: &ActiveEventLoop) -> Option<Instant> {
         if self.soak.is_none() {
-            return;
+            return None;
         }
         if self.soak_passed.is_some() {
-            return;
+            return None;
         }
         let now = self.frame.now();
         let metal = self.frame.gpu().and_then(Gpu::current_gpu_bytes);
         let (finished, stimuli) = {
             let Some(soak) = self.soak.as_mut() else {
-                return;
+                return None;
             };
             soak.sample_if_due(now, metal);
             let finished = soak.finished(now);
@@ -1014,13 +996,13 @@ impl App {
         };
         if finished {
             let Some(soak) = self.soak.as_ref() else {
-                return;
+                return None;
             };
             let report = soak.report(now);
             self.soak_passed = Some(report.passed());
             report.print();
             event_loop.exit();
-            return;
+            return None;
         }
         for stimulus in stimuli.iter().copied() {
             match stimulus {
@@ -1080,22 +1062,28 @@ impl App {
         // `soak.finished` can flip on schedule completion. `finished` is false
         // here (the finished branch returned above).
         self.request_frame();
-        if self.frame.last_frame().is_none() {
-            event_loop.set_control_flow(control_flow_with_deadline(
-                event_loop.control_flow(),
-                now + if stimuli.len() == 32 {
-                    Duration::from_millis(1)
-                } else {
-                    Duration::from_millis(100)
-                },
-            ));
-        }
+        Some(
+            now + if stimuli.len() == 32 {
+                Duration::from_millis(1)
+            } else {
+                Duration::from_millis(100)
+            },
+        )
     }
 
     fn stamp_input(&mut self) {
-        if crate::debug::debug_on() {
+        #[cfg(not(target_arch = "wasm32"))]
+        let recording = crate::probe::recording();
+        #[cfg(target_arch = "wasm32")]
+        let recording = false;
+        if crate::debug::debug_on() || recording {
             let now = self.frame.now();
-            self.frame.stamp_input_if_absent(now);
+            if crate::debug::debug_on() {
+                self.frame.stamp_input_if_absent(now);
+            }
+            if recording {
+                self.frame.stamp_animation_input_if_absent(now);
+            }
         }
     }
 }
@@ -1119,19 +1107,6 @@ fn debounce_due(dirty: Instant, window: Duration, now: Instant) -> bool {
 /// is the sole applier.
 fn present_sync_armed(resize_active: bool, move_active: bool, crossing_active: bool) -> bool {
     resize_active || move_active || crossing_active
-}
-
-/// Compose one idle deadline with the event loop's current intent. A hot `Poll`
-/// always wins; an unscheduled `Wait` accepts the proposal; and two deadlines
-/// resolve to the earlier one so a slow ambient concern cannot delay a faster
-/// sibling timer. Pure, keeping the shared lava/toast scheduling law testable
-/// without a window or event loop.
-fn control_flow_with_deadline(current: ControlFlow, proposed: Instant) -> ControlFlow {
-    match current {
-        ControlFlow::Poll => ControlFlow::Poll,
-        ControlFlow::Wait => ControlFlow::WaitUntil(proposed),
-        ControlFlow::WaitUntil(current) => ControlFlow::WaitUntil(current.min(proposed)),
-    }
 }
 
 /// Pure notice lifetime law: only a Toast carrying a reached live deadline may

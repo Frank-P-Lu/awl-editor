@@ -242,6 +242,22 @@ impl TextPipeline {
         hot
     }
 
+    pub(in crate::render) fn fold_chevrons_active(&self) -> bool {
+        if crate::motion::reduced() {
+            return false;
+        }
+        self.outline_headings.iter().any(|heading| {
+            let target = if self.folded_headings.contains(&heading.line) {
+                0.0
+            } else {
+                1.0
+            };
+            self.fold_chevron_turn
+                .get(&heading.line)
+                .is_some_and(|turn| (*turn - target).abs() > f32::EPSILON)
+        })
+    }
+
     /// Build + upload this frame's fold-chevron arms (two per mark, from the
     /// shared [`crate::selection::chevron_arms`] owner) through
     /// `SelectionPipeline::prepare_rotated`. The pipeline's color is NOT set

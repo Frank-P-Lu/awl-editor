@@ -1,10 +1,12 @@
 use super::*;
 
 pub(super) struct PresentationState {
-    pub(super) last_frame: Option<Instant>,
+    pub(super) clock: crate::frame_clock::FrameClock,
     pub(super) frame_costs: crate::debug::CostRing,
     pub(super) theme_switches: crate::themeswitch::SwitchHistory,
     pub(super) input_stamp: Option<Instant>,
+    pub(super) animation_input_at: Option<Instant>,
+    pub(super) animation_seen: bool,
     pub(super) last_latency_ms: Option<f32>,
     pub(super) redraw_count: u64,
     pub(super) debug_still: crate::debug::DebugStill,

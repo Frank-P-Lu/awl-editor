@@ -117,6 +117,11 @@ impl CaretAnim {
         self.pop_t < 1.0
     }
 
+    /// Whether position, squash/pop, or the cosmetic trail still owes a frame.
+    pub fn is_active(&self) -> bool {
+        self.is_animating() || self.pop_t < 1.0 || self.trail_active()
+    }
+
     /// The cosmetic scale to draw the caret mark at THIS frame: 1.0 at rest, dipping
     /// to the current `pop_floor` ([`CARET_POP_SCALE`] for a nav bounce, a delete /
     /// gulp / typing floor for an edit flinch) the instant a kick fires and

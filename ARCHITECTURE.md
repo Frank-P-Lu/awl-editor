@@ -64,8 +64,8 @@ name); behavior is byte-identical. Submodules are listed under each root below.
   (`PersistenceRuntime` — the app-global save ledger: the fresh-document
   autosave debounce+version pair, the save-feedback clocks, the title dirty
   cache), `frame` (`FrameRuntime` — private GPU/surface lifecycle,
-  presentation ledger, injected-clock deadlines, notice lifetime, and the
-  typed idle-poll boundary), `usage` (`UsageLedger` — the two private
+  conditional presentation clock, injected-clock deadline reduction, notice
+  lifetime, and the typed idle-poll boundary), `usage` (`UsageLedger` — the two private
   local-usage records: the lifetime odometer + silent command ledger and the
   writing-streaks day map, with their sampling anchors, one privacy gate, and
   a `dirtying` submodule that makes a record and its unflushed-changes stamp

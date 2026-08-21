@@ -1,12 +1,58 @@
 use super::*;
 
 impl TextPipeline {
+    /// Deterministic delta-injection seam used by capture and focused unit
+    /// tests. The live App uses `advance_frame`, where every owner receives the
+    /// same monotonic sample.
     pub fn advance(&mut self, dt: f32) -> bool {
-        self.step_caret(dt)
-            | self.step_caret_preview(dt)
-            | self.step_copy_pulse(dt)
-            | self.step_overlay_juice(dt)
-            | self.step_fold_chevrons(dt)
+        let dt = dt.max(0.0);
+        self.step_caret(dt);
+        self.step_caret_preview(dt);
+        self.step_copy_pulse(dt);
+        self.step_overlay_juice(dt);
+        self.step_fold_chevrons(dt);
+        !self.active_activities().is_empty()
+    }
+
+    /// Advance every bounded animator from one shared injected sample and
+    /// return the exhaustive post-step activity set.
+    pub(crate) fn advance_frame(
+        &mut self,
+        sample: crate::frame_clock::FrameSample,
+    ) -> crate::frame_clock::ActivitySet {
+        let dt = sample.elapsed_secs();
+        self.step_caret(dt);
+        self.step_caret_preview(dt);
+        self.step_copy_pulse(dt);
+        self.step_overlay_juice(dt);
+        self.step_fold_chevrons(dt);
+        self.active_activities()
+    }
+
+    /// Read again after `prepare`, so geometry-time band retargets enter the
+    /// same report as animators armed before the frame.
+    pub(crate) fn active_activities(&self) -> crate::frame_clock::ActivitySet {
+        use crate::frame_clock::{Activity, ActivitySet};
+        let mut active = ActivitySet::empty();
+        if !crate::motion::reduced() && self.caret.is_active() {
+            active.insert(Activity::CaretMotion);
+        }
+        if !crate::motion::reduced() && self.caret_preview.is_some() {
+            active.insert(Activity::CaretPreview);
+        }
+        if !crate::motion::reduced() && self.copy_pulse_t < 1.0 {
+            active.insert(Activity::CopyPulse);
+        }
+        if !crate::motion::reduced() && self.overlay_enter_t < 1.0 {
+            active.insert(Activity::OverlayEntrance);
+        }
+        if !crate::motion::reduced() && self.juice_live && self.overlay_band_t < 1.0 {
+            active.insert(Activity::OverlayBand);
+        }
+        if self.fold_chevrons_active() {
+            active.insert(Activity::FoldChevrons);
+        }
+        active
     }
 
     /// LIVE-APP-ONLY: arm the motion-juice animators (overlay entrance spring
@@ -106,7 +152,6 @@ impl TextPipeline {
                 self.overlay_band_t = 0.0;
                 self.overlay_band_last = Some(target);
                 self.overlay_band_started_at = None;
-                self.band_ease_started = true;
             }
             None => {
                 self.overlay_band_from = target;
@@ -165,37 +210,9 @@ impl TextPipeline {
             self.overlay_band_last = Some(target);
             self.overlay_band_t = 0.0;
             self.overlay_band_started_at = None;
-            self.band_ease_started = true;
         } else {
             self.retarget_band(target);
         }
-    }
-
-    /// THE PREPARE-ORDERING BRIDGE. Did THIS `prepare` pass re-zero
-    /// the band's ease (a glide start or a snap re-zero)? Taken exactly once, by
-    /// the live redraw loop, immediately after `Gpu::redraw` returns.
-    ///
-    /// THE BUG THIS CLOSED (the every-other-input report, three sightings:
-    /// Firetail 2026-07-17, Settings 2026-07-26, Commands 2026-08-01). The band
-    /// is the ONE animator retargeted inside `prepare` — every other one
-    /// (entrance spring, caret spring, copy pulse) is armed at the apply seam,
-    /// where the next `advance` sees it. `App::on_redraw_requested` reads
-    /// `advance(dt)` BEFORE calling `Gpu::redraw`, and `prepare` runs INSIDE
-    /// that call, so on the frame a settled band is retargeted `advance` has
-    /// already returned `false`. The loop then parked on `ControlFlow::Wait`
-    /// with `last_frame = None` and requested no follow-up frame, so the ease it
-    /// had just started never got a second frame: the band stayed drawn at
-    /// `overlay_band_from` — the row the selection LEFT — while
-    /// `VisualSelection::logical` had already moved. The NEXT input's redraw
-    /// advanced the timer by one `dt`, found `overlay_band_t < 1.0`, and took
-    /// [`Self::chase_or_snap`]'s in-flight SNAP branch straight to the freshest
-    /// row. Two inputs, one visible jump of two rows, no transition.
-    ///
-    /// Live-only in effect: a settled/unarmed/Reduce-Motion pipeline never
-    /// reaches `chase_or_snap` at all (both callers gate first), so every
-    /// capture takes this as a constant `false` and schedules nothing.
-    pub fn take_band_ease_started(&mut self) -> bool {
-        std::mem::take(&mut self.band_ease_started)
     }
 
     /// The selection BAND's drawn row-top for a target `row_top` this frame —
