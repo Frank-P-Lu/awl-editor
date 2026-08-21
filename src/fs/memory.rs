@@ -118,6 +118,7 @@ impl FileSystem for InMemoryFs {
         Ok(())
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     fn rename_no_replace(&self, from: &Path, to: &Path) -> io::Result<()> {
         let mut state = self.inner.write().unwrap();
         if state.files.contains_key(to) || state.dirs.contains(to) {

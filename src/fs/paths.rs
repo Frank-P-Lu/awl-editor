@@ -42,6 +42,7 @@ pub fn write_atomic(path: &Path, data: &[u8]) -> io::Result<()> {
 
 /// The no-clobber sibling of [`write_atomic`]. It retains the temporary-file
 /// durability shape, then atomically publishes only if `path` is still absent.
+#[cfg(not(target_arch = "wasm32"))]
 pub fn write_atomic_new(path: &Path, data: &[u8]) -> io::Result<()> {
     let fs = active();
     let name = path

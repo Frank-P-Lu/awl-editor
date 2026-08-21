@@ -243,6 +243,7 @@ mod backend {
             Ok(())
         }
 
+        #[cfg(not(target_arch = "wasm32"))]
         fn rename_no_replace(&self, from: &Path, to: &Path) -> io::Result<()> {
             if self.exists(to) {
                 return Err(io::Error::new(
