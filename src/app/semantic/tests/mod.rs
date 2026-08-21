@@ -40,7 +40,7 @@ fn seeded_overlay(kind: OverlayKind) -> OverlayState {
         // A context card carries an action per row, built together by
         // `context_menu::overlay`; a card seeded without them is not a card
         // the product can produce.
-        overlay.context_actions = corpus.iter().map(|_| Some(Action::ForwardChar)).collect();
+        overlay.context_actions = corpus.iter().map(|_| Action::ForwardChar).collect();
     }
     overlay
 }

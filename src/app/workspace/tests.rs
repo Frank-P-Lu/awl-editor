@@ -166,6 +166,39 @@ fn every_overlay_kind_lands_on_the_rung_its_lifecycle_claims() {
     );
 }
 
+/// Empty contextual rosters do not summon a blank card. The gate belongs at
+/// `summon_context`, after every pointer branch has built its rows, so this
+/// sweep covers every target, state and platform rather than only the gutter
+/// branch that used to suppress its own empty list.
+#[test]
+fn context_summon_opens_a_card_if_and_only_if_its_roster_has_rows() {
+    for target in crate::context_menu::ContextTarget::ALL {
+        for platform in [
+            crate::commands::Platform::Native,
+            crate::commands::Platform::Web,
+        ] {
+            for bits in 0u8..64 {
+                let state = crate::context_menu::ContextState {
+                    has_selection: bits & 1 != 0,
+                    link: bits & 2 != 0,
+                    heading: bits & 4 != 0,
+                    heading_folded: bits & 8 != 0,
+                    misspelled: bits & 16 != 0,
+                    named_file: bits & 32 != 0,
+                };
+                let rows = crate::context_menu::rows(target, state, platform);
+                let mut workspace = WorkspaceState::default();
+                workspace.summon_context(crate::context_menu::overlay(rows.clone(), (0.0, 0.0)));
+                assert_eq!(
+                    workspace.overlay().is_some(),
+                    !rows.is_empty(),
+                    "target={target:?} platform={platform:?} bits={bits:06b}: empty rows must not open a context card"
+                );
+            }
+        }
+    }
+}
+
 /// THE SUMMON GATE: the popover bit can never be armed under a picker, no
 /// matter what the caller claims about eligibility — and that now includes a
 /// SUSTAINED workspace, the rung that did not exist when the gate was written.

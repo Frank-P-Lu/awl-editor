@@ -38,10 +38,8 @@ impl App {
             };
             let rows =
                 crate::context_menu::rows(target, state, crate::commands::Platform::current());
-            if !rows.is_empty() {
-                self.workspace_state
-                    .summon_context(crate::context_menu::overlay(rows, (px, py)));
-            }
+            self.workspace_state
+                .summon_context(crate::context_menu::overlay(rows, (px, py)));
             return self.finish_context_summon();
         }
         if !over_writing_column {

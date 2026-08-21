@@ -76,16 +76,7 @@ fn context_menu(text: &str, dpi: f32) -> ViewState {
     v.overlay_active = true;
     v.overlay_title = crate::overlay::OverlayKind::Context.title();
     v.overlay_items = rows.iter().map(|r| r.label.to_string()).collect();
-    v.overlay_bindings = rows
-        .iter()
-        .map(|r| {
-            if r.enabled {
-                String::new()
-            } else {
-                "unavailable".to_string()
-            }
-        })
-        .collect();
+    v.overlay_bindings = vec![String::new(); rows.len()];
     v.overlay_selected = 0;
     v.overlay_context_anchor = Some((ANCHOR.0 * dpi, ANCHOR.1 * dpi));
     v

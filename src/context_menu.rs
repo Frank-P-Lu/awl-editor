@@ -34,15 +34,10 @@ pub struct ContextState {
 pub struct ContextRow {
     pub label: &'static str,
     pub action: Action,
-    pub enabled: bool,
 }
 
-fn row(label: &'static str, action: Action, enabled: bool) -> ContextRow {
-    ContextRow {
-        label,
-        action,
-        enabled,
-    }
+fn row(label: &'static str, action: Action) -> ContextRow {
+    ContextRow { label, action }
 }
 
 /// Resolve overlapping document facts to exactly one target. Spelling and the
@@ -112,42 +107,29 @@ pub fn overlay(rows: Vec<ContextRow>, anchor: (f32, f32)) -> crate::overlay::Ove
         Vec::new(),
         Vec::new(),
     );
-    state.context_actions = rows
-        .iter()
-        .map(|row| row.enabled.then_some(row.action.clone()))
-        .collect();
-    state.set_secondaries(
-        rows.into_iter()
-            .map(|row| {
-                if row.enabled {
-                    String::new()
-                } else {
-                    "unavailable".to_string()
-                }
-            })
-            .collect(),
-    );
+    state.context_actions = rows.into_iter().map(|row| row.action).collect();
     state.context_anchor = Some(anchor);
     state
 }
 
 /// The complete target × state × platform owner. Every row routes through a
-/// catalog Action; unavailable native filesystem operations are omitted on web.
+/// catalog Action. A row exists only when it can apply at this target; native
+/// filesystem operations are omitted on web.
 pub fn rows(target: ContextTarget, state: ContextState, platform: Platform) -> Vec<ContextRow> {
     use Action::*;
     use ContextTarget::*;
     match target {
         Misspelling => Vec::new(), // the established spell picker owns this target
         Selection => vec![
-            row("Cut", KillRegion, state.has_selection),
-            row("Copy", CopyRegion, state.has_selection),
-            row("Paste", Yank, true),
-            row("Select all", SelectAll, true),
+            row("Cut", KillRegion),
+            row("Copy", CopyRegion),
+            row("Paste", Yank),
+            row("Select all", SelectAll),
         ],
         Link => vec![
-            row("Follow link", FollowLink, true),
-            row("Edit link…", InsertLink, true),
-            row("Copy destination", CopyLinkDestination, true),
+            row("Follow link", FollowLink),
+            row("Edit link…", InsertLink),
+            row("Copy destination", CopyLinkDestination),
         ],
         Heading => vec![
             row(
@@ -157,37 +139,31 @@ pub fn rows(target: ContextTarget, state: ContextState, platform: Platform) -> V
                     "Fold section"
                 },
                 ToggleFold,
-                true,
             ),
-            row("Collapse other sections", CollapseOtherSections, true),
-            row("Go to heading…", OpenOutline, true),
+            row("Collapse other sections", CollapseOtherSections),
+            row("Go to heading…", OpenOutline),
         ],
-        Body => vec![
-            row("Cut", KillRegion, false),
-            row("Copy", CopyRegion, false),
-            row("Paste", Yank, true),
-            row("Select all", SelectAll, true),
-        ],
-        Filename if platform == Platform::Native => vec![
-            row("Rename file…", OpenRenameNote, state.named_file),
-            row("Move file…", MoveFile, state.named_file),
-            row("Duplicate file", DuplicateNote, state.named_file),
-            row("Version history…", OpenHistory, state.named_file),
-            row(reveal_label(), RevealInFileManager, state.named_file),
-            row("Copy file path", CopyFilePath, state.named_file),
+        Body => vec![row("Paste", Yank), row("Select all", SelectAll)],
+        Filename if platform == Platform::Native && state.named_file => vec![
+            row("Rename file…", OpenRenameNote),
+            row("Move file…", MoveFile),
+            row("Duplicate file", DuplicateNote),
+            row("Version history…", OpenHistory),
+            row(reveal_label(), RevealInFileManager),
+            row("Copy file path", CopyFilePath),
         ],
         Filename => Vec::new(),
         Folder if platform == Platform::Native => vec![
-            row("Go to folders…", OpenProject, true),
-            row("Open file…", OpenBrowse, true),
+            row("Go to folders…", OpenProject),
+            row("Open file…", OpenBrowse),
         ],
-        Folder => vec![row("Go to folders…", OpenProject, true)],
+        Folder => vec![row("Go to folders…", OpenProject)],
         LeftEdge | RightEdge => vec![
-            row("Narrow", PageNarrower, true),
-            row("Widen", PageWider, true),
-            row("Reset page width", PageReset, true),
-            row("Toggle page mode", TogglePageMode, true),
-            row("Page width settings…", OpenSettingsMenu, true),
+            row("Narrow", PageNarrower),
+            row("Widen", PageWider),
+            row("Reset page width", PageReset),
+            row("Toggle page mode", TogglePageMode),
+            row("Page width settings…", OpenSettingsMenu),
         ],
     }
 }
@@ -275,6 +251,48 @@ mod tests {
         }
     }
 
+    /// The context roster is an applicability roster, not a disabled-command
+    /// roster: every target × state × platform cell contains only actions that
+    /// work at that target. The two formerly disabled cases are named by their
+    /// observable lists so this goes red if either gate becomes a grey row.
+    #[test]
+    fn roster_omits_inapplicable_actions_across_every_target_state_and_platform() {
+        for target in ContextTarget::ALL {
+            for platform in [Platform::Native, Platform::Web] {
+                for bits in 0u8..64 {
+                    let s = ContextState {
+                        has_selection: bits & 1 != 0,
+                        link: bits & 2 != 0,
+                        heading: bits & 4 != 0,
+                        heading_folded: bits & 8 != 0,
+                        misspelled: bits & 16 != 0,
+                        named_file: bits & 32 != 0,
+                    };
+                    let got = rows(target, s, platform);
+                    let actions: Vec<_> = got.iter().map(|row| row.action.clone()).collect();
+                    assert!(
+                        !actions.iter().any(|action| {
+                            matches!(action, Action::KillRegion | Action::CopyRegion)
+                                && target == ContextTarget::Body
+                        }),
+                        "{target:?}/{platform:?}/bits={bits:06b}: Body has no selection, so Cut/Copy must be omitted: {actions:?}"
+                    );
+                    if target == ContextTarget::Body {
+                        assert_eq!(actions, [Action::Yank, Action::SelectAll]);
+                    }
+                    if target == ContextTarget::Filename
+                        && (!s.named_file || platform == Platform::Web)
+                    {
+                        assert!(
+                            actions.is_empty(),
+                            "{target:?}/{platform:?}/bits={bits:06b}: an unavailable filename target must have no rows: {actions:?}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+
     #[test]
     fn edge_sides_are_identical_and_selection_never_duplicates_formatting() {
         let s = state();
@@ -311,56 +329,32 @@ mod tests {
         );
     }
 
-    /// MUTATION TARGET: change either new row's `enabled` argument from
-    /// `state.named_file` to a bare `true` and this fails by name — an
-    /// unnamed scratch document has nowhere to reveal and nothing to copy, so
-    /// the row must come back DISABLED (`row.enabled == false`, which
-    /// `overlay()` renders as an "unavailable" secondary), never a silent
-    /// no-op left for the dispatcher to swallow.
+    /// An unnamed scratch document has nowhere to reveal and no path to copy,
+    /// so its filename target is absent rather than a card of disabled rows.
     #[test]
-    fn reveal_and_copy_path_are_disabled_for_an_unnamed_scratch_document() {
+    fn filename_actions_are_omitted_for_an_unnamed_scratch_document() {
         let mut s = state();
         s.named_file = false;
         let rows = rows(ContextTarget::Filename, s, Platform::Native);
-        for action in [Action::RevealInFileManager, Action::CopyFilePath] {
-            let row = rows
-                .iter()
-                .find(|r| r.action == action)
-                .unwrap_or_else(|| panic!("{action:?} row is missing entirely"));
-            assert!(
-                !row.enabled,
-                "{action:?} must be disabled for an unnamed scratch document"
-            );
-        }
-        // …and the built overlay actually reflects it: no selectable action,
-        // an "unavailable" secondary — never merely absent from the list.
-        let built = overlay(rows, (0.0, 0.0));
-        for action in [Action::RevealInFileManager, Action::CopyFilePath] {
-            let label = context_menu_row_label(&action);
-            let i = built
-                .rows
-                .iter()
-                .position(|r| r.accept == label)
-                .expect("row survives into the overlay's own label list");
-            assert_eq!(built.context_actions[i], None, "{action:?} unselectable");
-            assert_eq!(built.rows[i].secondary, "unavailable");
-        }
+        assert!(
+            rows.is_empty(),
+            "an unnamed filename target has no applicable actions: {rows:?}"
+        );
     }
 
-    /// A named document flips both rows enabled, and the visible label tracks
-    /// the current build's OS: macOS says "Reveal in Finder" (matching every
+    /// A named document includes both rows, and the visible label tracks the
+    /// current build's OS: macOS says "Reveal in Finder" (matching every
     /// other native app's own context menu), any other native target gets the
     /// platform-neutral name. `cfg!(target_os)`, not `Convention` — see
     /// `reveal_label`'s own doc for why the two axes are not interchangeable
     /// here.
     #[test]
-    fn reveal_label_matches_the_build_os_and_both_rows_enable_for_a_named_document() {
+    fn reveal_label_matches_the_build_os_and_both_rows_exist_for_a_named_document() {
         let rows = rows(ContextTarget::Filename, state(), Platform::Native);
         let reveal = rows
             .iter()
             .find(|r| r.action == Action::RevealInFileManager)
             .expect("Reveal row is present");
-        assert!(reveal.enabled, "a named document must enable Reveal");
         let want = if cfg!(target_os = "macos") {
             "Reveal in Finder"
         } else {
@@ -368,23 +362,9 @@ mod tests {
         };
         assert_eq!(reveal.label, want);
 
-        let copy_path = rows
-            .iter()
-            .find(|r| r.action == Action::CopyFilePath)
-            .expect("Copy file path row is present");
         assert!(
-            copy_path.enabled,
-            "a named document must enable Copy file path"
+            rows.iter().any(|r| r.action == Action::CopyFilePath),
+            "Copy file path row is present"
         );
-    }
-
-    /// Small helper so the overlay-shape law above reads by NAME rather than
-    /// re-deriving the label string inline.
-    fn context_menu_row_label(action: &Action) -> &'static str {
-        match action {
-            Action::RevealInFileManager => reveal_label(),
-            Action::CopyFilePath => "Copy file path",
-            other => panic!("no label lookup wired for {other:?}"),
-        }
     }
 }
