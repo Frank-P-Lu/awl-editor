@@ -1,5 +1,5 @@
 use super::opts::CaptureOpts;
-use super::{schema_held, schema_plain, schema_timeline, CANVAS_HEIGHT, CANVAS_WIDTH};
+use super::{CANVAS_HEIGHT, CANVAS_WIDTH, schema_held, schema_plain, schema_timeline};
 use crate::render::{ScriptFontReports, TextPipeline, ViewState};
 use anyhow::{Context, Result};
 use std::io::Write;
