@@ -284,6 +284,9 @@ impl BarConfig {
 pub enum FacetStyle {
     Text,
     Band,
+    /// The active label is a tab joined to the card's top border; inactive
+    /// labels remain unplated text in the same shaped strip.
+    DockedTab,
     Chips(ChipVariant),
 }
 
@@ -311,6 +314,11 @@ pub enum LocationInk {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum LocationLocator {
     Label,
+    /// The active facet owns its own name elsewhere in the composition; this
+    /// locator reports only the real one-based strip position.
+    IndexOnly {
+        digits: usize,
+    },
     Indexed {
         digits: usize,
         separator: &'static str,
@@ -487,6 +495,9 @@ pub struct RenderCaps {
     pub card_anchor: CardAnchor,
     pub chrome_face: ChromeFace,
     pub list_style: ListStyle,
+    /// Whether a card-backed picker draws one exterior pane or separates its
+    /// query beat from the rows. Inert on bare list styles.
+    pub pane_split: PaneSplit,
     pub facet_style: FacetStyle,
     pub location_style: LocationStyle,
     pub ambient: AmbientStyle,
@@ -560,6 +571,7 @@ impl RenderCaps {
         card_anchor: CardAnchor::TopCenter,
         chrome_face: ChromeFace::Body,
         list_style: ListStyle::Pane,
+        pane_split: PaneSplit::Split,
         facet_style: FacetStyle::Text,
         location_style: LocationStyle::Inline,
         ambient: AmbientStyle::None,

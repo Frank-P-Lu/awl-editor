@@ -249,6 +249,18 @@ impl TextPipeline {
                 self.overlay_lens_underline.set_corner(chip_radius);
                 self.overlay_lens_underline.set_stroke(0.0);
             }
+            theme::FacetStyle::DockedTab => {
+                self.overlay_lens_underline.set_color(
+                    theme::pane_surface(crate::render::effective_card_elevation()).rgba_bytes(),
+                );
+                self.overlay_lens_underline.set_corner(0.0);
+                self.overlay_lens_underline.set_stroke(0.0);
+                self.overlay_facet_ghost
+                    .set_color(theme::surface_selected().rgba_bytes());
+                self.overlay_facet_ghost.set_corner(0.0);
+                self.overlay_facet_ghost.set_stroke(bar_stroke);
+                ghosts = self.overlay_theme_facet_ghosts.clone();
+            }
             theme::FacetStyle::Chips(v) => {
                 use theme::ChipVariant as V;
                 let content = theme::base_content();
@@ -278,7 +290,10 @@ impl TextPipeline {
         }
         self.overlay_lens_underline
             .prepare(device, queue, width, height, &underline);
-        if !matches!(facet_style, theme::FacetStyle::Chips(_)) {
+        if !matches!(
+            facet_style,
+            theme::FacetStyle::Chips(_) | theme::FacetStyle::DockedTab
+        ) {
             self.overlay_facet_ghost.set_corner(chip_radius);
             self.overlay_facet_ghost.set_stroke(bar_stroke);
         }

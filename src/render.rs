@@ -1659,7 +1659,7 @@ pub(crate) fn effective_facet_style() -> theme::FacetStyle {
 pub(crate) fn effective_pane_split() -> theme::PaneSplit {
     match overrides::current().pane_split {
         Some(s) => s,
-        None => theme::PaneSplit::Split,
+        None => theme::active().render_caps.pane_split,
     }
 }
 

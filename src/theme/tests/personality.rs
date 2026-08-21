@@ -174,6 +174,7 @@ fn personality_assignments_are_exactly_the_decided_table() {
                 card_anchor: model::CardAnchor::TopLeft,
                 chrome_face: model::ChromeFace::Body,
                 list_style: model::ListStyle::Pane,
+                pane_split: model::PaneSplit::Split,
                 facet_style: model::FacetStyle::Text,
                 // The silent pole keeps the shared inline treatment (only
                 // Cassowary opts to `RotatedRail`).
@@ -249,8 +250,9 @@ fn personality_assignments_are_exactly_the_decided_table() {
                 card_anchor: model::CardAnchor::TopRight,
                 chrome_face: model::ChromeFace::Named("Archivo Black"),
                 elevation: Elevation::Bordered,
-                list_style: poster_bars,
-                facet_style: FacetStyle::Chips(ChipVariant::Bracket),
+                list_style: model::ListStyle::Pane,
+                pane_split: model::PaneSplit::Unified,
+                facet_style: FacetStyle::DockedTab,
                 // The active facet reads as a subordinate technical locator:
                 // mono, muted, tracked through the shaper, and truthfully
                 // numbered from the real lens strip.
@@ -259,11 +261,7 @@ fn personality_assignments_are_exactly_the_decided_table() {
                     scale: 0.28,
                     ink: model::LocationInk::Flat(model::PaletteRole::Muted),
                     tracking_em: 0.06,
-                    locator: model::LocationLocator::Indexed {
-                        digits: 2,
-                        separator: " / ",
-                        uppercase: true,
-                    },
+                    locator: model::LocationLocator::IndexOnly { digits: 2 },
                 }),
                 ..RenderCaps::DEFAULT
             },

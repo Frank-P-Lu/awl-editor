@@ -329,11 +329,60 @@ impl TextPipeline {
         // is in the budget. WHERE each band is seated is `overlay_panel_bands`, which the
         // footprint frost measures its ink through, so the seat glyphon is handed and the
         // seat a treatment reads are one object.
-        match self.overlay_panel_bands(geom, plan) {
-            None => {
+        let docked = self.docked_facet_band(geom, plan).zip(plan.strip_band());
+        match (docked, self.overlay_panel_bands(geom, plan)) {
+            (Some((dock, original)), _) => {
+                // Query/title at its ordinary seat, the facet strip translated
+                // to the pane's top edge, then the unchanged candidate/footer
+                // body. Each slice is clipped from the same shaped buffer, so
+                // the label spans and hit spans remain one object.
+                areas.push(TextArea {
+                    buffer: &self.panel_buffer,
+                    left: text_left,
+                    top: text_top,
+                    scale: 1.0,
+                    bounds: TextBounds {
+                        left: bounds.left,
+                        top: 0,
+                        right: bounds.right,
+                        bottom: original.top.max(0.0) as i32,
+                    },
+                    default_color: ink,
+                    custom_glyphs: &[],
+                });
+                areas.push(TextArea {
+                    buffer: &self.panel_buffer,
+                    left: text_left,
+                    top: text_top + dock.top - original.top,
+                    scale: 1.0,
+                    bounds: TextBounds {
+                        left: bounds.left,
+                        top: dock.top.max(0.0) as i32,
+                        right: bounds.right,
+                        bottom: dock.bottom().min(height as f32) as i32,
+                    },
+                    default_color: ink,
+                    custom_glyphs: &[],
+                });
+                areas.push(TextArea {
+                    buffer: &self.panel_buffer,
+                    left: text_left,
+                    top: text_top,
+                    scale: 1.0,
+                    bounds: TextBounds {
+                        left: bounds.left,
+                        top: original.bottom().max(0.0) as i32,
+                        right: bounds.right,
+                        bottom: height as i32,
+                    },
+                    default_color: ink,
+                    custom_glyphs: &[],
+                });
+            }
+            (None, None) => {
                 areas.push(panel_area);
             }
-            Some(panel_bands) => {
+            (None, Some(panel_bands)) => {
                 for band in &panel_bands {
                     areas.push(TextArea {
                         buffer: &self.panel_buffer,

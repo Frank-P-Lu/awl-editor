@@ -79,6 +79,7 @@ fn field_of(row: &str) -> Reader {
         "card_anchor" => r!(card_anchor),
         "chrome_face" => r!(chrome_face),
         "list_style" => r!(list_style),
+        "pane_split" => r!(pane_split),
         "facet_style" => r!(facet_style),
         "location_style" => r!(location_style),
         other => panic!(

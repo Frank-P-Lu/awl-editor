@@ -22,6 +22,41 @@ const TEXT_MARK_THICKNESS: Logical = Logical(1.5);
 const UNDERLINE_CHIP_THICKNESS: Logical = Logical(3.5);
 
 impl TextPipeline {
+    /// The shared docked-facet line: the shaped strip keeps its ordinary x
+    /// spans and typography, but its line box seats immediately above the
+    /// card so its bottom edge and the pane's top edge are the same edge.
+    pub(in crate::render) fn docked_facet_band(
+        &self,
+        geom: &OverlayGeom,
+        plan: &OverlayRowPlan,
+    ) -> Option<crate::render::plan::PlannedHeader> {
+        let strip = plan.strip_band()?;
+        // The grouped strip's planned box also owns the calm beat below its
+        // glyph line. Dock only the glyph-bearing line: carrying that folded
+        // beat above the pane makes the tab taller than the available top
+        // margin on a narrow canvas.
+        let dock_h = self.overlay_lh().min(strip.height);
+        matches!(
+            crate::render::effective_facet_style(),
+            theme::FacetStyle::DockedTab
+        )
+        .then_some(crate::render::plan::PlannedHeader {
+            line: strip.line,
+            top: (geom.card_y - dock_h).max(0.0),
+            height: dock_h.min(geom.card_y),
+        })
+    }
+
+    #[cfg(test)]
+    pub(in crate::render) fn docked_facet_geometry_probe(
+        &self,
+    ) -> Option<(crate::render::plan::PlannedHeader, [f32; 4])> {
+        let geom = self.overlay_geometry(self.window_w as u32);
+        let plan = self.overlay_row_plan(&geom);
+        self.docked_facet_band(&geom, &plan)
+            .map(|dock| (dock, [geom.card_x, geom.card_y, geom.card_w, geom.card_h]))
+    }
+
     /// THEME PICKER display plan: the candidate-area sequence of section HEADERS +
     /// world ROWS, from the parallel `overlay_sections`. A header is emitted before a
     /// row whenever its section differs from the previous row's (so contiguous groups
@@ -191,7 +226,10 @@ impl TextPipeline {
         // The strip's clickable band is its PLANNED line box — the same object
         // the mark centre and the strip's own glyph metrics read. A pointer entry
         // point has no frame to ride, so it plans freshly, still O(visible).
-        let strip = self.overlay_row_plan(&geom).strip_band()?;
+        let plan = self.overlay_row_plan(&geom);
+        let strip = self
+            .docked_facet_band(&geom, &plan)
+            .or_else(|| plan.strip_band())?;
         if !strip.contains(py) {
             return None;
         }
@@ -360,20 +398,23 @@ impl TextPipeline {
         // of it; every other composition floors at the box's own top, which
         // leaves `s.center()` untouched: BYTE-IDENTICAL off either gate (every
         // `Bars`/`Diagonal`/`Rules` world, and Cassowary's `Unified` Bars).
-        let mark_cy = plan.strip_band().map_or(geom.text_top, |s| {
-            let plate_top = if crate::render::effective_list_style().list_backing(false)
-                == theme::ListBacking::Card
-                && matches!(
-                    crate::render::effective_pane_split(),
-                    theme::PaneSplit::Split
-                ) {
-                plan.split_bounds()
-                    .map_or(s.top, |(_, gap_bottom)| gap_bottom.max(s.top))
-            } else {
-                s.top
-            };
-            s.center().max(plate_top + chip_h * 0.5)
-        });
+        let mark_cy = self
+            .docked_facet_band(geom, plan)
+            .or_else(|| plan.strip_band())
+            .map_or(geom.text_top, |s| {
+                let plate_top = if crate::render::effective_list_style().list_backing(false)
+                    == theme::ListBacking::Card
+                    && matches!(
+                        crate::render::effective_pane_split(),
+                        theme::PaneSplit::Split
+                    ) {
+                    plan.split_bounds()
+                        .map_or(s.top, |(_, gap_bottom)| gap_bottom.max(s.top))
+                } else {
+                    s.top
+                };
+                s.center().max(plate_top + chip_h * 0.5)
+            });
         let pill_px = |left: f32, right: f32| -> [f32; 4] {
             [
                 geom.text_left + left,
@@ -430,6 +471,12 @@ impl TextPipeline {
                     ])
                 }
                 theme::FacetStyle::Band => Some(pill_px(min_x - chip_hpad, max_x + chip_hpad)),
+                theme::FacetStyle::DockedTab => Some([
+                    geom.text_left + min_x - chip_hpad,
+                    geom.card_y - chip_h,
+                    max_x - min_x + 2.0 * chip_hpad,
+                    chip_h,
+                ]),
                 theme::FacetStyle::Chips(v) => match v {
                     theme::ChipVariant::Hairline | theme::ChipVariant::FilledActive => {
                         if matches!(v, theme::ChipVariant::Hairline) {
@@ -453,6 +500,11 @@ impl TextPipeline {
                 },
             }
         });
+        if matches!(facet_style, theme::FacetStyle::DockedTab)
+            && let Some(tab) = self.overlay_theme_underline
+        {
+            ghosts.push(tab);
+        }
         self.overlay_theme_facet_ghosts = ghosts;
         // A tab PILL is a plate, so `Rules` is deliberately absent — it draws
         // none anywhere. (`Diagonal` is on the yes side here and the no side of

@@ -232,6 +232,7 @@ fn capability_adopters(field: &str) -> Vec<&'static str> {
             "card_anchor" => t.render_caps.card_anchor != d.card_anchor,
             "chrome_face" => t.render_caps.chrome_face != d.chrome_face,
             "list_style" => t.render_caps.list_style != d.list_style,
+            "pane_split" => t.render_caps.pane_split != d.pane_split,
             "facet_style" => t.render_caps.facet_style != d.facet_style,
             "location_style" => t.render_caps.location_style != d.location_style,
             "ambient" => t.render_caps.ambient != d.ambient,
@@ -254,7 +255,7 @@ fn capability_adopters(field: &str) -> Vec<&'static str> {
 #[test]
 fn every_zero_or_single_adopter_capability_is_named_and_classified() {
     let fields = render_caps_fields();
-    assert_eq!(fields.len(), 19, "RenderCaps declaration census drifted");
+    assert_eq!(fields.len(), 20, "RenderCaps declaration census drifted");
     let mut sparse = Vec::new();
     for field in fields {
         let verdict = match field.as_str() {
@@ -270,6 +271,7 @@ fn every_zero_or_single_adopter_capability_is_named_and_classified() {
             "card_anchor" => "keep: authored card composition",
             "chrome_face" => "keep: authored display face",
             "list_style" => "keep: authored Pane/Diagonal/Bars/Rules composition",
+            "pane_split" => "keep: authored unified/split pane composition",
             "facet_style" => "keep: authored facet composition",
             "location_style" => "keep: authored location composition",
             "ambient" => "keep: Stars is authored aliveness, not corrective geometry",
@@ -388,14 +390,15 @@ fn sparse_authored_variants_remain_classified_data() {
     }
 }
 
-/// Removed/no-variation facts have exactly one product owner, while their test
-/// overrides still mutation-prove the latent renderer axes.
+/// Removed/no-variation facts have exactly one product owner, while the pane
+/// split that gained an authored adopter remains routed through that owner and
+/// its test override still mutation-proves the axis.
 #[test]
 fn promoted_facts_have_renderer_owners_and_no_theme_data_branch() {
     let model = include_str!("../model.rs");
     assert!(!model.contains("pub selection_ui:"));
     assert!(!model.contains("pub motion:"));
-    assert!(!model.contains("pub pane_split:"));
+    assert!(model.contains("pub pane_split: PaneSplit"));
     assert!(!model.contains("pub frost:"));
 
     let derive = include_str!("../derive.rs");
@@ -404,7 +407,7 @@ fn promoted_facts_have_renderer_owners_and_no_theme_data_branch() {
 
     let render = include_str!("../../render.rs");
     assert!(render.contains("None => theme::MotionJuice::CALM"));
-    assert!(render.contains("None => theme::PaneSplit::Split"));
+    assert!(render.contains("None => theme::active().render_caps.pane_split"));
     assert!(render.contains("set_overlay_motion_test_override"));
     assert!(render.contains("set_pane_split_test_override"));
 

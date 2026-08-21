@@ -34,6 +34,7 @@ mod caret_one_height_pixels;
 mod caret_one_width_pixels;
 mod caret_transition;
 mod caret_visual_body;
+mod cassowary_console;
 mod chip_plate_floor;
 mod chrome_overlay;
 mod chrome_panels;

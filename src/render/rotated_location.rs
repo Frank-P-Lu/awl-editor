@@ -157,6 +157,10 @@ pub(in crate::render) fn format_location_text(
     }
     match style.locator {
         theme::LocationLocator::Label => Some(label.to_string()),
+        theme::LocationLocator::IndexOnly { digits } => {
+            let index = one_based?;
+            Some(format!("{index:0digits$}"))
+        }
         theme::LocationLocator::Indexed {
             digits,
             separator,

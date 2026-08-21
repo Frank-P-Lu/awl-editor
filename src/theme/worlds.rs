@@ -9,9 +9,10 @@ use super::model::{
     AmbientStyle, Backdrop, CardAnchor, CardShape, CardTexture, CaretBlockStyle, ChipVariant,
     ChromeFace, DecorativeWash, Elevation, FacetStyle, FoldAfford, HighlightTexture, IconCursor,
     IconGround, ImageReveal, ListStyle, LocationFace, LocationInk, LocationLabelStyle,
-    LocationLocator, LocationStyle, PageFrame, PaletteRole, PlacardCorner, PlacardInk, RenderCaps,
-    RoleOverrides, RuleSelection, SPELL_UNDERLINE_GAP_DEFAULT, SPELL_UNDERLINE_GAP_TIGHT,
-    SelectionStyle, Theme, ThemeTags, TitleStyle, ToastAnchor, TwoColour, WashOverride,
+    LocationLocator, LocationStyle, PageFrame, PaletteRole, PaneSplit, PlacardCorner, PlacardInk,
+    RenderCaps, RoleOverrides, RuleSelection, SPELL_UNDERLINE_GAP_DEFAULT,
+    SPELL_UNDERLINE_GAP_TIGHT, SelectionStyle, Theme, ThemeTags, TitleStyle, ToastAnchor,
+    TwoColour, WashOverride,
 };
 use super::ornament::{
     BULLET_SCALE_GARAMOND, BULLET_SCALE_ORNAMENT, BULLET_SCALE_PLAIN, BULLETS_PLAIN,
@@ -860,6 +861,7 @@ pub const WAGTAIL: Theme = Theme {
         card_anchor: CardAnchor::TopLeft,
         chrome_face: ChromeFace::Body,
         list_style: ListStyle::Pane,
+        pane_split: PaneSplit::Split,
         facet_style: FacetStyle::Text,
         location_style: LocationStyle::Inline,
         ambient: AmbientStyle::None,
@@ -988,8 +990,9 @@ pub const CASSOWARY: Theme = Theme {
         card_anchor: CardAnchor::TopRight,
         chrome_face: ChromeFace::Named("Archivo Black"),
         elevation: Elevation::Bordered,
-        list_style: ListStyle::Bars,
-        facet_style: FacetStyle::Chips(ChipVariant::Bracket),
+        list_style: ListStyle::Pane,
+        pane_split: PaneSplit::Unified,
+        facet_style: FacetStyle::DockedTab,
         // The active facet is a quiet technical locator beside the bold
         // "COMMANDS" placard: the world's own mono readout, lightly tracked,
         // muted, and indexed from the real lens-strip position.
@@ -998,11 +1001,7 @@ pub const CASSOWARY: Theme = Theme {
             scale: 0.28,
             ink: LocationInk::Flat(PaletteRole::Muted),
             tracking_em: 0.06,
-            locator: LocationLocator::Indexed {
-                digits: 2,
-                separator: " / ",
-                uppercase: true,
-            },
+            locator: LocationLocator::IndexOnly { digits: 2 },
         }),
         ..RenderCaps::DEFAULT
     },
