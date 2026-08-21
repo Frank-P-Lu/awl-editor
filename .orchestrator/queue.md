@@ -6,7 +6,7 @@
 
 ## Ready to build
 
-### 460 — context menu: omit unavailable commands instead of tagging them "unavailable" (USER DECISION 2026-08-19; ready to build)
+### 460 — context menu: omit unavailable commands instead of tagging them "unavailable" (USER DECISION 2026-08-19; 🟡 IN PROGRESS — item-460-context-menu (codex), branch codex/item-460-context-menu)
 
 The right-click card shows state-gated commands as disabled rows carrying a
 literal `unavailable` secondary label (`context_menu::overlay`,
@@ -175,94 +175,6 @@ Unicode and a folded destination through `--keys`, with the sidecar proving
 caret and scroll state. Read `docs/platform.md` and `docs/harness-reach.md`
 before implementing or promising captures; render-touching slices receive the
 standing vision-smoke and DPI/world audit required by policy.
-
-### 458 — 🟢 LANDED — Credits is BROKEN, not merely the wrong size: it renders as a one-row palette over a blurred page (USER-REPORTED 2026-08-18)
-
-**Landed on `main` (`1d4959a5`).** The render-side workspace predicate now
-follows the SHAPE (`overlay_workspace` alone) rather than the lens strip, so
-`OverlayKind::Credits` and `OverlayKind::Conflict` — both lens-less by design
-— are recognised as workspaces too: `comparison_viewport()` returns `Some`,
-the content pane opens, and the transcript relocates into it instead of
-falling back to the frosted page column under the card. The workspace-law
-fixtures now enrol every kind whose `workspace_shape()` is `Some`, derived
-from the roster rather than a named list, so History/Settings/Credits/
-Conflict sweep the same geometry laws together.
-
-The pixel-seam law (`credits_opens_a_full_viewport_workspace_not_a_one_row_card`)
-is its own non-vacuity proof: it diffs a quiet vs. Credits-open
-`--screenshot-app` capture and asserts the changed-pixel bounding box spans
->70% of the canvas in both dimensions — a state-only sidecar assertion would
-have passed on the broken frame too, since `overlay.workspace: true` was
-already correct there. **A real gate failure surfaced and got fixed during
-merge:** the test's `s-p` (Cmd-P) palette-open chord was hardcoded Mac-only,
-so under the `linux` gate arm (`AWL_CONVENTION_FORCE=linux`, where
-`command_palette`'s native slot is `C-p`, not `Cmd-P`) it opened no overlay
-at all and the law failed for a reason unrelated to the fix; repaired to
-pick the chord from `Convention::current()`, matching the file's existing
-`open_settings_chord()`/`new_document_chord()` idiom.
-
-The original taste question (full workspace vs. a smaller floating card) can
-now be put to the user, since both are visible for the first time — not
-raised this round.
-
-**Premise revised.** This item was carried as a taste divergence ("full
-workspace, not the mini window asked for"). The user opened ⌘P → Credits and
-saw neither: a `credits ›` search line, one row reading `credits`, the
-`↑/↓ scroll ⌫ back` footer, and the CREDITS text only as the frosted BLUR
-behind the card. Reproduced headlessly with a real `--screenshot-app`
-capture (`s-p c r e d i t s Enter`, seeded root): the sidecar reports
-`overlay.workspace: true`, `detail_focus: true`, `preview_view: "document"`,
-`items: ["credits"]`, and the PNG shows the same one-row card over blurred
-credits prose — the content region is never opened.
-
-**Root cause (read, not fixed — the user asked for the diagnosis to be
-queued):** the render side's `overlay_is_workspace()`
-(`src/render/chrome/workspace.rs`) is `self.overlay_workspace &&
-!self.overlay_lens.is_empty()` — a workspace is recognised by its LENS
-STRIP, a gate written when Settings was the only workspace and History (a
-faceting kind) was the second. `OverlayKind::Credits` is registered
-lens-less in `facets.rs` (as is `Conflict`; "a lens over one/three fixed
-rows would be a strip with nothing to narrow"). So on every Credits frame
-`overlay_is_workspace()` is false: `workspace_primary_w` measures 0,
-`comparison_viewport()` returns `None`, `transcript_parked()` is false, and
-the pushed CREDITS transcript falls back to the ordinary page column UNDER
-the card, where the overlay's blur frosts it — exactly the picture. The
-sidecar's `workspace: true` comes from the App-side
-`workspace_shape().is_some()` (`viewstate.rs`), so the two halves of the
-product disagree about what a workspace is, and the sidecar oracle
-reported the intended shape while the pixels drew a picker.
-
-**Why every law stayed green:** the workspace laws seed
-`v.overlay_lens = ov.lens_strip()` from History/Settings only — no render
-law drives `new_credits()` or `new_conflict()` through the workspace
-geometry — and 452's presence/legibility law asserted CREDITS ink was
-visible somewhere on the canvas, which the frosted fallback satisfies. The
-same defect must be checked on the Conflict workspace (also lens-less;
-its capture reach is via `preview_id`/`preview_view`): if it draws the
-same one-column card, it has been broken since it landed and its harness
-photos never showed the two-region shape.
-
-Decided fix shape: the renderer's workspace predicate follows the SHAPE,
-not the lens — `overlay_workspace` alone (the App already derives it from
-`workspace_shape()`), with the lens strip an optional header decoration a
-`TimelineOverComparison` workspace may or may not have. Then
-`measure_workspace_primary_w` measures the rows (it already handles
-`rows_primary` from `overlay_items`), the content pane opens, and the
-transcript relocates into it. Keep the deep-link (`toggle_detail` on
-`OpenCredits`) so Credits still lands focused on the content.
-
-Verify: a `--screenshot-app` law over `s-p c r e d i t s Enter` asserts
-`comparison_viewport()` is `Some` (or, at the sidecar seam, that the
-transcript is drawn INSIDE the card's content pane: sample the PNG for
-CREDITS ink at unblurred contrast within the pane rect and NONE at the
-page column outside the card) — the frosted-fallback frame must FAIL that,
-so run it against `main` first and watch it go red. Add `new_credits()`
-and `new_conflict()` to the render workspace-law fixtures so the
-lens-less members sweep the same geometry laws History does (enrolment
-derived from the roster: every kind whose `workspace_shape()` is `Some`,
-no named list). Rust change: full gate. Then, and only then, the original
-taste question — full workspace vs. smaller floating card — can be put to
-the user, because today they cannot see either.
 
 ### 444 — the working set becomes visible: a margin buffer stack (USER DECISION 2026-08-16; STACK RENDERS, SWITCHES AND CLOSES; AFFORDANCE OWED NEXT)
 
