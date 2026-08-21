@@ -43,6 +43,7 @@ keep_tutorial|||
 move|||
 rename_note|||
 duplicate_note|||
+save_a_copy|||
 reveal_in_file_manager|||
 copy_file_path|||
 finish_file|Cmd-W|C-w|

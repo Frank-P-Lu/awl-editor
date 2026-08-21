@@ -41,7 +41,7 @@ fn keybindings_capture_chord_mode_collects_then_finishes() {
     for c in "save".chars() {
         ov.push(c);
     }
-    assert_eq!(ov.selected_value(), Some("Save"));
+    assert_eq!(ov.selected_value(), Some("Save a Copy…"));
     ov.start_capture();
     ov.capture_move_mode(1); // CHORD row
     ov.capture_begin_recording();
@@ -53,7 +53,7 @@ fn keybindings_capture_chord_mode_collects_then_finishes() {
     assert!(ov.capture_record("C-q".to_string()));
     assert_eq!(
         ov.capture_target(),
-        Some(("save".to_string(), "C-x C-s".to_string()))
+        Some(("save_a_copy".to_string(), "C-x C-s".to_string()))
     );
 }
 

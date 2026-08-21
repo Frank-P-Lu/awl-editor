@@ -257,7 +257,7 @@ fn replay_keys_rebind_menu_recording_state_visible() {
     let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
     let ov = res.journey.card().expect("menu open");
     let cap = ov.capture.clone().expect("a capture is in progress");
-    assert_eq!(cap.cmd_name, "Save");
+    assert_eq!(cap.cmd_name, "Save a Copy…");
     assert_eq!(cap.stage, crate::overlay::CaptureStage::Recording);
     assert!(
         cap.chord_mode,
