@@ -278,3 +278,54 @@ pub fn link_at_full(text: &str, byte: usize) -> Option<LinkAt> {
     }
     None
 }
+
+/// Whether replacing the selected character range with a generated link is
+/// safe. This is the one parser-backed context owner shared by URL paste and
+/// future Markdown link doors: never wrap source which touches a link, inline
+/// code, or fenced-code block.
+pub fn link_paste_is_safe(text: &str, start: usize, end: usize) -> bool {
+    fn byte_at_char(text: &str, char_idx: usize) -> usize {
+        text.char_indices()
+            .nth(char_idx)
+            .map(|(byte, _)| byte)
+            .unwrap_or(text.len())
+    }
+    fn overlaps(a: &std::ops::Range<usize>, b: &std::ops::Range<usize>) -> bool {
+        a.start < b.end && b.start < a.end
+    }
+
+    let selected = byte_at_char(text, start)..byte_at_char(text, end);
+    if selected.is_empty() {
+        return false;
+    }
+    let code_or_fence = crate::markdown::spans(text)
+        .into_iter()
+        .any(|(range, kind)| {
+            overlaps(&selected, &range)
+                && matches!(
+                    kind,
+                    crate::markdown::MdKind::Code { .. }
+                        | crate::markdown::MdKind::ConcealMarkup(
+                            crate::markdown::ConcealKind::Code
+                                | crate::markdown::ConcealKind::Fence
+                                | crate::markdown::ConcealKind::Link
+                        )
+                )
+        });
+    if code_or_fence {
+        return false;
+    }
+
+    use pulldown_cmark::{Event, Options, Parser, Tag};
+    let (body, offset) = match crate::frontmatter::detect(text) {
+        Some(fm) => (&text[fm.range.end..], fm.range.end),
+        None => (text, 0),
+    };
+    let options = Options::ENABLE_TASKLISTS | Options::ENABLE_TABLES;
+    !Parser::new_ext(body, options)
+        .into_offset_iter()
+        .any(|(event, range)| {
+            matches!(event, Event::Start(Tag::Link { .. }))
+                && overlaps(&selected, &(range.start + offset..range.end + offset))
+        })
+}

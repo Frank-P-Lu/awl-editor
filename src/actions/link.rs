@@ -105,13 +105,10 @@ pub(super) fn commit(text: &str, mode: &LinkEditMode, url: &str) -> format::Form
             let end = (*end).min(chars.len()).max(start);
             let mut out = String::new();
             out.extend(&chars[..start]);
-            out.push('[');
-            out.push_str(inner);
-            out.push_str("](");
-            out.push_str(url);
-            out.push(')');
+            let link = serialized(inner, url);
+            out.push_str(&link);
             out.extend(&chars[end..]);
-            let cursor = start + 1 + inner.chars().count() + 2 + url.chars().count() + 1;
+            let cursor = start + link.chars().count();
             format::FormatResult {
                 text: out,
                 anchor: None,
@@ -122,11 +119,7 @@ pub(super) fn commit(text: &str, mode: &LinkEditMode, url: &str) -> format::Form
             let at = (*at).min(chars.len());
             let mut out = String::new();
             out.extend(&chars[..at]);
-            out.push('[');
-            out.push(']');
-            out.push('(');
-            out.push_str(url);
-            out.push(')');
+            out.push_str(&serialized("", url));
             out.extend(&chars[at..]);
             // Caret lands BETWEEN the brackets, ready to type the link text.
             format::FormatResult {
@@ -136,6 +129,54 @@ pub(super) fn commit(text: &str, mode: &LinkEditMode, url: &str) -> format::Form
             }
         }
     }
+}
+
+/// The one source serializer for a Markdown link. Escaping here makes both the
+/// Insert-link minibuffer and Paste-over-selection preserve the selected words
+/// while producing source the Markdown parser reads as one link.
+fn serialized(text: &str, url: &str) -> String {
+    let label = text
+        .replace('\\', "\\\\")
+        .replace('[', "\\[")
+        .replace(']', "\\]");
+    let destination = url
+        .replace('\\', "\\\\")
+        .replace('(', "\\(")
+        .replace(')', "\\)");
+    format!("[{label}]({destination})")
+}
+
+/// Pure paste conversion. The caller has already established that this is a
+/// Markdown buffer and that `url` has the conservative URL shape. Context is
+/// delegated to markdown's parser-backed owner: code and existing-link source
+/// remain ordinary literal paste.
+pub(crate) fn paste_over_selection(
+    text: &str,
+    start: usize,
+    end: usize,
+    url: &str,
+) -> Option<format::FormatResult> {
+    if start >= end || !crate::markdown::link_paste_is_safe(text, start, end) {
+        return None;
+    }
+    let selected: String = text.chars().skip(start).take(end - start).collect();
+    let replacement = serialized(&selected, url);
+    Some(format::FormatResult {
+        text: replace_chars(text, start, end, &replacement),
+        anchor: None,
+        cursor: start + replacement.chars().count(),
+    })
+}
+
+fn replace_chars(text: &str, start: usize, end: usize, replacement: &str) -> String {
+    let chars: Vec<char> = text.chars().collect();
+    let start = start.min(chars.len());
+    let end = end.min(chars.len()).max(start);
+    let mut out = String::new();
+    out.extend(&chars[..start]);
+    out.push_str(replacement);
+    out.extend(&chars[end..]);
+    out
 }
 
 /// `Action::InsertLink` dispatch: markdown buffers only (a calm no-op elsewhere,
@@ -181,6 +222,23 @@ mod tests {
     fn plan_with_selection_prefills_from_a_url_looking_kill_head() {
         let (_, prefill) = plan("hello world", Some(0), 5, "https://example.com");
         assert_eq!(prefill, "https://example.com");
+    }
+
+    #[test]
+    fn link_serializer_escapes_source_without_changing_visible_words() {
+        let result = commit(
+            "cat] (\\)",
+            &LinkEditMode::WithText {
+                start: 0,
+                end: 8,
+                text: "cat] (\\)".to_string(),
+            },
+            "https://example.com/a_(b)\\c",
+        );
+        assert_eq!(
+            result.text,
+            "[cat\\] (\\\\)](https://example.com/a_\\(b\\)\\\\c)"
+        );
     }
 
     #[test]

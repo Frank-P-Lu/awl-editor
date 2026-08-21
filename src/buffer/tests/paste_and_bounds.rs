@@ -2,11 +2,11 @@ use super::super::*;
 use super::*;
 
 #[test]
-fn is_url_recognizes_http_https_and_rejects_prose_and_paths() {
+fn is_url_enrols_http_https_mailto_and_rejects_other_paste_shapes() {
     // Real URLs.
     assert!(is_url("https://example.com"));
     assert!(is_url("http://example.com/the/essay?q=1#frag"));
-    assert!(is_url("ftp://host/file"));
+    assert!(is_url("mailto:writer@example.com"));
     // NOT URLs: plain prose, a bare path, an interior-space string, a bare
     // scheme with no host, an empty string, a multi-line clipboard.
     assert!(!is_url("the essay"));
@@ -18,6 +18,8 @@ fn is_url_recognizes_http_https_and_rejects_prose_and_paths() {
     assert!(!is_url("example.com")); // no scheme
     assert!(!is_url(""));
     assert!(!is_url("https://a\nhttps://b"));
+    assert!(!is_url("ftp://host/file"));
+    assert!(!is_url("mailto:writer"));
 }
 
 #[test]
@@ -32,6 +34,30 @@ fn paste_url_over_selection_in_markdown_wraps_as_one_undoable_link() {
     buf.undo();
     assert_eq!(buf.text(), "the essay");
     assert!(!buf.can_undo());
+    buf.redo();
+    assert_eq!(buf.text(), "[the essay](https://example.com)");
+}
+
+#[test]
+fn paste_url_sweeps_unicode_mailto_direction_and_markdown_escaping() {
+    let mut buf = b("before \u{732b}] (\\) after");
+    // Reverse selection direction must use the same source range.
+    buf.select_range(13, 7);
+    buf.set_kill("mailto:writer@example.com");
+    buf.yank();
+    assert_eq!(
+        buf.text(),
+        "before [\u{732b}\\] (\\\\)](mailto:writer@example.com) after"
+    );
+
+    let mut destination = b("words");
+    destination.select_range(0, 5);
+    destination.set_kill("https://example.com/a_(b)\\c");
+    destination.yank();
+    assert_eq!(
+        destination.text(),
+        "[words](https://example.com/a_\\(b\\)\\\\c)"
+    );
 }
 
 #[test]
@@ -45,11 +71,17 @@ fn paste_url_with_no_selection_is_a_normal_paste() {
 
 #[test]
 fn paste_nonurl_over_selection_is_a_normal_replace() {
-    let mut buf = b("the essay");
-    buf.set_kill("some prose");
-    buf.select_range(0, 9);
-    buf.yank();
-    assert_eq!(buf.text(), "some prose");
+    for replacement in ["some prose", "./relative/path", "https://a\nhttps://b"] {
+        let mut buf = b("the essay");
+        buf.set_kill(replacement);
+        buf.select_range(0, 9);
+        buf.yank();
+        assert_eq!(
+            buf.text(),
+            replacement,
+            "{replacement:?} stays byte-for-byte literal"
+        );
+    }
 }
 
 #[test]
@@ -63,6 +95,36 @@ fn paste_url_over_selection_in_code_buffer_is_a_normal_replace() {
     buf.select_range(0, 9);
     buf.yank();
     assert_eq!(buf.text(), "https://example.com");
+}
+
+#[test]
+fn paste_url_stays_literal_in_markdown_code_and_existing_link_source() {
+    for (text, start, end, expected) in [
+        ("`words`", 0, 1, "https://new.examplewords`"),
+        ("`words`", 1, 6, "`https://new.example`"),
+        (
+            "```rust\nwords\n```",
+            8,
+            13,
+            "```rust\nhttps://new.example\n```",
+        ),
+        (
+            "[words](https://old.example)",
+            1,
+            6,
+            "[https://new.example](https://old.example)",
+        ),
+    ] {
+        let mut buf = b(text);
+        buf.select_range(start, end);
+        buf.set_kill("https://new.example");
+        buf.yank();
+        assert_eq!(
+            buf.text(),
+            expected,
+            "{text:?} must remain a literal paste context"
+        );
+    }
 }
 
 #[test]

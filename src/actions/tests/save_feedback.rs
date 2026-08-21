@@ -163,6 +163,24 @@ fn paste_is_a_typed_request_then_one_shared_core_continuation() {
     assert_eq!(buffer.text(), "hello");
 }
 
+#[test]
+fn every_text_paste_door_descends_to_the_same_yank_text_transition() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    for path in ["src/app/apply.rs", "src/main/run/effect_interpreter.rs"] {
+        let source = std::fs::read_to_string(root.join(path)).unwrap();
+        assert!(
+            source.contains("Action::YankText"),
+            "{path} must hand its platform clipboard result to the one shared text-paste transition"
+        );
+    }
+    let edit = std::fs::read_to_string(root.join("src/buffer/edit.rs")).unwrap();
+    assert_eq!(
+        edit.matches("paste_over_selection").count(),
+        1,
+        "MUTATION TRAP: URL conversion has exactly one core owner, so native and web/internal paste cannot diverge"
+    );
+}
+
 struct TwoRowsPerLine;
 
 impl LayoutOracle for TwoRowsPerLine {
