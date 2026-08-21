@@ -890,6 +890,7 @@ fn zero_document_capture_has_two_start_actions_and_no_page_surface() {
     assert_eq!(
         bands.len(),
         2,
-        "the exact two sidecar labels must each leave their own rendered glyph band; rows={ink_rows:?}, bands={bands:?}"
+        "the exact two sidecar labels must each leave their own rendered glyph band; \
+         rows={ink_rows:?}, bands={bands:?}"
     );
 }

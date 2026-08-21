@@ -88,12 +88,12 @@ reason = "The event-to-present flight recorder needs its winit-receipt and keyma
 
 [[file_size_mark]]
 file = "src/app/input/mouse.rs"
-lines = 1079
+lines = 940
 reason = "The wheel-region predicate at the one pointer entry point stopped naming a single overlay kind and asks the shape-neutral question instead (+7, all of it the comment recording why the kind check was wrong). +3: the working-set stack's left-click-to-switch route, enrolled in this file's own input-substate privacy law. +11: `sync_cursor_icon` gains the stack-row hand-cursor arm, hit-tested through the same `gutter_stack_hit` the click path already uses. +21: cursor movement and leave route one shared gutter-stack hit through the hover state, so the close mark follows exactly the row under the pointer and clears when the pointer exits."
 
 [[file_size_mark]]
 file = "src/app/session.rs"
-lines = 463
+lines = 447
 
 [[file_size_mark]]
 file = "src/app/stats.rs"
@@ -106,7 +106,7 @@ reason = "`sync_view` is the sole exhaustive `ViewState` construction site, so e
 
 [[file_size_mark]]
 file = "src/app/window.rs"
-lines = 704
+lines = 702
 reason = "The external-change check at focus return belongs at the winit focus callback. `fold_settled_theme_switch` owns the settled-present transaction and its scheduling/acquire phases. Preview redraw deliberately leaves superseded off-screen shaping debt to the latest-wins quiet settle."
 
 [[file_size_mark]]
@@ -129,8 +129,8 @@ lines = 309
 
 [[file_size_mark]]
 file = "src/capture.rs"
-lines = 89
-reason = "Each schema addition includes its `/N` ledger row and moves with `SCHEMA_VERSION`, enforced by this file's law. Planned overlay geometry serializes in `plan_sidecar` rather than expanding the single writer, and `redact` runs over finished artifact text at that writer so a future path-bearing field cannot opt out. +5: the working-set stack's `/204` ledger row (SCHEMA_VERSION 203 -> 204, buffers.files[]/active_index). +3: `/205` records the held HUD's optional selection figures."
+lines = 91
+reason = "Each schema addition includes its `/N` ledger row and moves with `SCHEMA_VERSION`, enforced by this file's law. Planned overlay geometry serializes in `plan_sidecar` rather than expanding the single writer, and `redact` runs over finished artifact text at that writer so a future path-bearing field cannot opt out. +5: the working-set stack's `/204` ledger row (SCHEMA_VERSION 203 -> 204, buffers.files[]/active_index). +3: `/205` records the held HUD's optional selection figures. +2: `/208` records honest document absence and its start actions."
 
 [[file_size_mark]]
 file = "src/capture/modes.rs"
@@ -377,7 +377,7 @@ lines = 1262
 
 [[file_size_mark]]
 file = "src/render/layers.rs"
-lines = 1294
+lines = 1284
 reason = "The per-frame GPU preparation hub remains an explicit renderer exception; missing-image placeholder shaping lives in its own submodule rather than raising this ceiling. page_frame_vertical_bounds now takes an explicit stroke_px parameter so its top edge derives from the menu-bar reserve rather than the document text inset, with a doc comment naming the two quantities it must not conflate."
 
 [[file_size_mark]]
@@ -439,7 +439,7 @@ reason = "DOWN 86: baked blend/flavor/vertex-layout/render-pipeline construction
 
 [[file_size_mark]]
 file = "src/session.rs"
-lines = 536
+lines = 514
 
 [[file_size_mark]]
 file = "src/settings.rs"
@@ -501,16 +501,9 @@ reason = "Every world explicitly authors its toast anchor, while Cassowary and M
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
-file = "src/app/input/mouse.rs"
-function = "App::on_mouse_input"
-message = "this function has too many lines (108/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. Its private pointer and keyboard substate projections are explicit, while behavior and branch structure remain unchanged."
-
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
 file = "src/app/viewstate.rs"
 function = "App::sync_view"
-message = "this function has too many lines (254/100)"
+message = "this function has too many lines (259/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. `sync_view` is the one exhaustive `ViewState` projection site, so each new render datum is spelled out here: the fold chevron's `folded_headings` (its direction needs the real fold set, not merely `fold_tails`'s own key set, so `fold::apply_to_view` takes the buffer's folds at its one call site here) and the summoned picker's secondary location. The document-session extraction replaced direct buffer and cache fields with explicit read projections while preserving that one exhaustive site. +5: the bottom identity's folder label reads the open file's own remembered root instead of the ambient project."
 
 [[clippy_exception]]
@@ -531,7 +524,7 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/app/lifecycle.rs"
 function = "App::resumed"
-message = "this function has too many lines (123/100)"
+message = "this function has too many lines (118/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. +1: the accessibility tree must be parked BEFORE the adapter is constructed and the adapter before the window is shown, so the seed call has exactly one place it can stand in `resumed`."
 
 [[clippy_exception]]
@@ -561,13 +554,6 @@ file = "src/capture/modes.rs"
 function = "settled_viewstate"
 message = "this function has too many lines (228/100)"
 reason = "The snapshot rebuilds secondary picker location from its existing strip. Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. The capture path derives a summoned workspace's shape and whether its comparison region carries prose, because a sidecar records mode rather than shape."
-
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
-file = "src/capture/sidecar.rs"
-function = "write_sidecar"
-message = "this function has too many lines (107/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. The sole sidecar format call receives its `driver` argument here."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -755,7 +741,7 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 lint = "clippy::too_many_lines"
 file = "src/render/pipeline_draw.rs"
 function = "TextPipeline::new"
-message = "this function has too many lines (448/100)"
+message = "this function has too many lines (449/100)"
 reason = "The one exhaustive TextPipeline initializer keeps adjacent GPU state transitions together. Four added lines initialize arbitrary two-colour ground/ink endpoints for independent selection and caret pipelines; their shared baked construction lives in SelectionPipeline::new_two_colour."
 
 [[clippy_exception]]
@@ -769,7 +755,7 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/gutter.rs"
 function = "TextPipeline::prepare_gutter"
-message = "this function has too many lines (111/100)"
+message = "this function has too many lines (114/100)"
 reason = "The one shared owner every gutter block's shape and hit-test read; widening the block to a stable multi-row stack when the active project holds more than one open file is a single additional branch rather than a second construction path. The stable close lane is shaped in that same branch so hover changes ink only and cannot shift a filename."
 
 [[clippy_exception]]

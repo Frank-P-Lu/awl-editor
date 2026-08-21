@@ -464,11 +464,7 @@ impl DocumentSession {
             .set_path(path);
     }
     pub(in crate::app) fn set_note_dir(&mut self, path: PathBuf) {
-        self.active
-            .as_mut()
-            .expect("active document")
-            .buffer
-            .set_note_dir(path);
+        self.active_entry_mut().buffer.set_note_dir(path);
     }
     pub(in crate::app) fn set_kill(&mut self, text: &str) {
         self.active
