@@ -153,6 +153,326 @@ fn finish_file_still_saves_the_buffer_it_closes() {
     assert_eq!(s.open_files(), vec![s.a()], "and then it closed");
 }
 
+/// Trash owns the full active/parked × clean/dirty/external-change matrix. A
+/// fake records the one OS handoff without mutating the fixture file, so the
+/// assertions can separate "we asked the OS" from "we released the buffer".
+///
+/// MUTATION TARGET: removing the `facts.unsaved` or external-baseline gates in
+/// `App::trash_buffer` sends a dirty/conflicted path to the fake and this law
+/// fails by name before any working-set assertion can hide the loss.
+#[test]
+fn trash_refuses_dirty_or_changed_buffers_and_releases_only_clean_targets() {
+    let _guard = crate::testlock::serial();
+    for parked in [false, true] {
+        for state in ["clean", "dirty", "changed"] {
+            let mut s = Session::without_autosave(&format!("trash-{parked}-{state}"));
+            let target = if parked { s.a() } else { s.b() };
+            if state == "dirty" {
+                if parked {
+                    s.app.load_path(target.clone());
+                    s.app.document.set_text("alpha\nunsaved\n");
+                    s.app.load_path(s.b());
+                } else {
+                    s.app.document.set_text("beta\nunsaved\n");
+                }
+            }
+            if state == "changed" {
+                std::fs::write(&target, "changed elsewhere\n").unwrap();
+            }
+            let before = s.open_files();
+            let fake = Arc::new(crate::assets::FakeTrash::default());
+            let recorder = fake.clone();
+            let outcome = crate::assets::with_trash(fake, || {
+                s.app.trash_buffer(crate::buffers::BufferKey::path(&target))
+            });
+            let asked = recorder.trashed.lock().unwrap().clone();
+            match state {
+                "clean" => {
+                    assert_eq!(outcome, CloseOutcome::Closed, "parked={parked}");
+                    assert_eq!(asked, vec![target.clone()], "parked={parked}");
+                    assert!(
+                        !s.open_files().contains(&target),
+                        "parked={parked}: successful Trash removes its named working-set row"
+                    );
+                }
+                "changed" if !parked => {
+                    assert_eq!(outcome, CloseOutcome::Closed, "parked={parked}");
+                    assert_eq!(asked, vec![target.clone()], "parked={parked}");
+                    assert!(
+                        !s.open_files().contains(&target),
+                        "parked={parked}: successful Trash removes its named working-set row"
+                    );
+                }
+                "dirty" | "changed" => {
+                    assert_eq!(outcome, CloseOutcome::Refused, "parked={parked} {state}");
+                    assert!(
+                        asked.is_empty(),
+                        "parked={parked} {state}: Trash was never called"
+                    );
+                    assert_eq!(
+                        s.open_files(),
+                        before,
+                        "parked={parked} {state}: rows stay intact"
+                    );
+                    assert!(
+                        target.exists(),
+                        "parked={parked} {state}: disk file stays intact"
+                    );
+                }
+                _ => unreachable!(),
+            }
+        }
+    }
+}
+
+/// The final clean document leaves the honest no-document state only after the
+/// fake has accepted its OS handoff; this is the Trash analogue of close's own
+/// successor rule, rather than a new scratch-buffer invention.
+#[test]
+fn trashing_the_last_clean_document_enters_zero_document_state() {
+    let _guard = crate::testlock::serial();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl-trash-final-{}", std::process::id())),
+    );
+    let path = dir.join("only.md");
+    std::fs::write(&path, "only\n").unwrap();
+    let cfg = Config {
+        session_restore: Some(false),
+        autosave: Some(false),
+        ..Config::empty()
+    };
+    let mut app = App::new(Some(path.clone()), dir.to_path_buf(), None, None, cfg);
+    let fake = Arc::new(crate::assets::FakeTrash::default());
+    let recorder = fake.clone();
+    let outcome = crate::assets::with_trash(fake, || {
+        app.trash_buffer(crate::buffers::BufferKey::path(&path))
+    });
+    assert_eq!(outcome, CloseOutcome::Closed);
+    assert_eq!(recorder.trashed.lock().unwrap().as_slice(), [path]);
+    assert!(
+        !app.document.has_active(),
+        "no scratch replacement is invented"
+    );
+    assert!(app.document.working_set().files().is_empty());
+}
+
+#[test]
+fn backend_failure_attempts_once_and_preserves_final_nonfinal_and_parked_state() {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    struct Fail(Arc<AtomicUsize>);
+    impl crate::assets::TrashCan for Fail {
+        fn trash(&self, _: &Path) -> Result<(), String> {
+            self.0.fetch_add(1, Ordering::SeqCst);
+            Err("denied by OS".into())
+        }
+    }
+    let _guard = crate::testlock::serial();
+    for shape in ["active-nonfinal", "parked-nonfinal", "active-final"] {
+        let mut s = Session::without_autosave(&format!("trash-fail-{shape}"));
+        if shape == "active-final" {
+            assert_eq!(
+                s.app.close_buffer(crate::buffers::BufferKey::path(&s.a())),
+                CloseOutcome::Closed
+            );
+        }
+        let path = if shape == "parked-nonfinal" {
+            s.a()
+        } else {
+            s.b()
+        };
+        let key = crate::buffers::BufferKey::path(&path);
+        let open_before = s.open_files();
+        let facts_before = s.app.document.close_facts(&key).unwrap();
+        let active_text = s.app.document.buffer().text();
+        let active_version = s.app.document.buffer().version();
+        let disk = std::fs::read(&path).unwrap();
+        let attempts = Arc::new(AtomicUsize::new(0));
+        assert_eq!(
+            crate::assets::with_trash(Arc::new(Fail(attempts.clone())), || {
+                s.app.trash_buffer(key.clone())
+            }),
+            CloseOutcome::Refused
+        );
+        assert_eq!(attempts.load(Ordering::SeqCst), 1, "{shape}");
+        assert_eq!(s.open_files(), open_before, "{shape}");
+        let facts_after = s.app.document.close_facts(&key).unwrap();
+        assert_eq!(facts_after.path, facts_before.path, "{shape}");
+        assert_eq!(facts_after.unsaved, facts_before.unsaved, "{shape}");
+        assert_eq!(facts_after.baseline, facts_before.baseline, "{shape}");
+        assert_eq!(s.app.document.buffer().text(), active_text, "{shape}");
+        assert_eq!(s.app.document.buffer().version(), active_version, "{shape}");
+        assert_eq!(std::fs::read(&path).unwrap(), disk, "{shape}");
+        assert_eq!(
+            s.app.frame.notice().text(),
+            Some("couldn't move to Trash: denied by OS")
+        );
+    }
+}
+
+#[test]
+fn true_conflict_refusal_preserves_active_parked_and_final_shapes_without_backend_attempt() {
+    let _guard = crate::testlock::serial();
+    for shape in ["active-nonfinal", "parked-nonfinal", "active-final"] {
+        let mut s = Session::without_autosave(&format!("trash-conflict-{shape}"));
+        if shape == "active-final" {
+            assert_eq!(
+                s.app.close_buffer(crate::buffers::BufferKey::path(&s.a())),
+                CloseOutcome::Closed
+            );
+        }
+        let path = if shape == "parked-nonfinal" {
+            s.a()
+        } else {
+            s.b()
+        };
+        let key = crate::buffers::BufferKey::path(&path);
+        if shape == "parked-nonfinal" {
+            s.app.load_path(path.clone());
+        }
+        let text_before = s.app.document.buffer().text();
+        let version_before = s.app.document.buffer().version();
+        if shape == "parked-nonfinal" {
+            s.app.load_path(s.b());
+        }
+        s.app
+            .persistence
+            .set_unresolved(crate::app::persistence::UnresolvedChange {
+                path: path.clone(),
+                theirs: Some("disk version\n".into()),
+            });
+        let before = s.open_files();
+        let facts_before = s.app.document.close_facts(&key).unwrap();
+        let disk = std::fs::read(&path).unwrap();
+        let fake = Arc::new(crate::assets::FakeTrash::default());
+        let recorder = fake.clone();
+        assert_eq!(
+            crate::assets::with_trash(fake, || s.app.trash_buffer(key.clone())),
+            CloseOutcome::Refused
+        );
+        assert!(recorder.trashed.lock().unwrap().is_empty(), "{shape}");
+        assert_eq!(s.open_files(), before, "{shape}");
+        assert_eq!(std::fs::read(&path).unwrap(), disk, "{shape}");
+        let facts_after = s.app.document.close_facts(&key).unwrap();
+        assert_eq!(facts_after.baseline, facts_before.baseline, "{shape}");
+        let (text_after, version_after) = if shape == "parked-nonfinal" {
+            (
+                s.app.document.parked_text(&key).unwrap(),
+                s.app.document.parked_version(&key).unwrap(),
+            )
+        } else {
+            (
+                s.app.document.buffer().text(),
+                s.app.document.buffer().version(),
+            )
+        };
+        assert_eq!(text_after, text_before, "{shape}");
+        assert_eq!(version_after, version_before, "{shape}");
+        assert!(s.app.persistence.unresolved_for(&path), "{shape}");
+    }
+}
+
+#[test]
+fn dirty_final_trash_refusal_preserves_the_only_document() {
+    let _guard = crate::testlock::serial();
+    let mut s = Session::without_autosave("trash-dirty-final");
+    assert_eq!(
+        s.app.close_buffer(crate::buffers::BufferKey::path(&s.a())),
+        CloseOutcome::Closed
+    );
+    s.app.document.set_text("beta\nunsaved\n");
+    let key = crate::buffers::BufferKey::path(&s.b());
+    let text_before = s.app.document.buffer().text();
+    let version_before = s.app.document.buffer().version();
+    let fake = Arc::new(crate::assets::FakeTrash::default());
+    let recorder = fake.clone();
+    assert_eq!(
+        crate::assets::with_trash(fake, || s.app.trash_buffer(key.clone())),
+        CloseOutcome::Refused
+    );
+    assert!(recorder.trashed.lock().unwrap().is_empty());
+    assert_eq!(s.app.document.buffer().text(), text_before);
+    assert_eq!(s.app.document.buffer().version(), version_before);
+    assert_eq!(s.open_files(), vec![s.b()]);
+}
+
+#[test]
+fn save_resolve_then_retry_trash_is_lossless_for_external_changes() {
+    let _guard = crate::testlock::serial();
+    for dirty in [false, true] {
+        let mut s = Session::without_autosave(&format!("trash-retry-{dirty}"));
+        let path = s.b();
+        let key = crate::buffers::BufferKey::path(&path);
+        if dirty {
+            s.app.document.set_text("my version\n");
+        }
+        std::fs::write(&path, "disk version\n").unwrap();
+        s.app.manual_save();
+        if dirty {
+            assert!(s.app.change_unresolved(), "Save latches the conflict");
+            s.app.resolve_keep_mine();
+            assert!(!s.app.change_unresolved(), "explicit resolution clears it");
+            assert_eq!(std::fs::read_to_string(&path).unwrap(), "my version\n");
+        } else {
+            assert!(
+                !s.app.change_unresolved(),
+                "clean rewrite reloads without conflict"
+            );
+            assert_eq!(s.app.document.buffer().text(), "disk version\n");
+        }
+        let fake = Arc::new(crate::assets::FakeTrash::default());
+        let recorder = fake.clone();
+        assert_eq!(
+            crate::assets::with_trash(fake, || s.app.trash_buffer(key)),
+            CloseOutcome::Closed,
+            "dirty={dirty}"
+        );
+        assert_eq!(recorder.trashed.lock().unwrap().as_slice(), [path]);
+    }
+}
+
+/// The contextual filename card carries its parked row identity into the
+/// accept effect. Without that payload, Enter would re-dispatch `TrashFile`
+/// against the active document and this exact inactive-row case would remove
+/// `b.txt` instead of `a.txt`.
+#[test]
+fn working_set_context_trash_targets_the_parked_row_not_the_active_document() {
+    let _guard = crate::testlock::serial();
+    let mut s = Session::without_autosave("trash-context-parked");
+    let key = crate::buffers::BufferKey::path(&s.a());
+    let state = crate::context_menu::ContextState {
+        has_selection: false,
+        link: false,
+        heading: false,
+        heading_folded: false,
+        misspelled: false,
+        named_file: true,
+    };
+    let mut card = crate::context_menu::overlay(
+        crate::context_menu::rows(
+            crate::context_menu::ContextTarget::Filename,
+            state,
+            crate::commands::Platform::Native,
+        ),
+        (0.0, 0.0),
+    );
+    card.selected = card
+        .context_actions
+        .iter()
+        .position(|action| *action == crate::keymap::Action::TrashFile)
+        .expect("premise: filename menu exposes Trash");
+    s.app.workspace_state.summon_context_for_buffer(card, key);
+    let fake = Arc::new(crate::assets::FakeTrash::default());
+    let recorder = fake.clone();
+    crate::assets::with_trash(fake, || {
+        s.app
+            .press_spec_headless("Enter")
+            .expect("context Enter parses");
+    });
+    assert_eq!(recorder.trashed.lock().unwrap().as_slice(), [s.a()]);
+    assert_eq!(s.open_files(), vec![s.b()]);
+    assert_eq!(s.app.document.buffer().path(), Some(s.b().as_path()));
+}
+
 /// CLOSING AN INACTIVE ROW LEAVES THE ACTIVE DOCUMENT UNTOUCHED — asserted by
 /// byte-identity of its text AND by its version, because a close that reached
 /// through `self.document.buffer()` (the only save path that existed before this
@@ -574,6 +894,101 @@ mod waiters {
             .or_default()
             .push(crate::daemon::Waiter::new(path.to_path_buf(), theirs));
         mine
+    }
+
+    fn assert_done(mut mine: UnixStream, path: &Path) {
+        mine.set_nonblocking(true).unwrap();
+        let mut line = String::new();
+        BufReader::new(&mut mine).read_line(&mut line).unwrap();
+        assert_eq!(line, crate::daemon::format_done(path));
+        let mut byte = [0u8; 1];
+        assert_eq!(mine.read(&mut byte).unwrap(), 0, "done is followed by EOF");
+    }
+
+    fn assert_waiting(mut mine: UnixStream) {
+        mine.set_nonblocking(true).unwrap();
+        let mut byte = [0u8; 1];
+        assert!(
+            matches!(mine.read(&mut byte), Err(e) if e.kind() == std::io::ErrorKind::WouldBlock)
+        );
+    }
+
+    #[test]
+    fn trash_notifies_exact_active_and_parked_waiters_only_after_backend_success() {
+        let _guard = crate::testlock::serial();
+        for parked in [false, true] {
+            let mut s = Session::without_autosave(&format!("trash-waiter-{parked}"));
+            let path = if parked { s.a() } else { s.b() };
+            let key = crate::buffers::BufferKey::path(&path);
+            let mine = park_waiter(&mut s.app, &path, key.clone());
+            let fake = Arc::new(crate::assets::FakeTrash::default());
+            assert_eq!(
+                crate::assets::with_trash(fake, || s.app.trash_buffer(key.clone())),
+                CloseOutcome::Closed
+            );
+            assert_done(mine, &path);
+            assert!(!s.app.wait_conns.contains_key(&key));
+        }
+    }
+
+    #[test]
+    fn refused_and_backend_failed_trash_leave_the_waiter_connected() {
+        struct Fail;
+        impl crate::assets::TrashCan for Fail {
+            fn trash(&self, _: &Path) -> Result<(), String> {
+                Err("denied".into())
+            }
+        }
+        let _guard = crate::testlock::serial();
+        for (shape, failed_backend) in [
+            ("active-nonfinal", false),
+            ("active-final", false),
+            ("parked-nonfinal", false),
+            ("active-nonfinal", true),
+            ("active-final", true),
+            ("parked-nonfinal", true),
+        ] {
+            let mut s =
+                Session::without_autosave(&format!("trash-waiter-{shape}-{failed_backend}"));
+            if shape == "active-final" {
+                assert_eq!(
+                    s.app.close_buffer(crate::buffers::BufferKey::path(&s.a())),
+                    CloseOutcome::Closed
+                );
+            }
+            let path = if shape == "parked-nonfinal" {
+                s.a()
+            } else {
+                s.b()
+            };
+            let key = crate::buffers::BufferKey::path(&path);
+            if !failed_backend {
+                if shape == "parked-nonfinal" {
+                    s.app.load_path(path.clone());
+                    s.app.document.set_text("dirty\n");
+                    s.app.load_path(s.b());
+                } else {
+                    s.app.document.set_text("dirty\n");
+                }
+            }
+            let mine = park_waiter(&mut s.app, &path, key.clone());
+            let backend: Arc<dyn crate::assets::TrashCan> = if failed_backend {
+                Arc::new(Fail)
+            } else {
+                Arc::new(crate::assets::FakeTrash::default())
+            };
+            assert_eq!(
+                crate::assets::with_trash(backend, || s.app.trash_buffer(key.clone())),
+                CloseOutcome::Refused
+            );
+            assert_waiting(mine);
+            assert!(s.app.wait_conns.contains_key(&key));
+            assert!(
+                s.open_files().contains(&path),
+                "{shape} backend={failed_backend}"
+            );
+            assert!(path.exists());
+        }
     }
 
     /// A `--wait` CLIENT BLOCKED ON A FILE THAT IS NOT ACTIVE is still notified

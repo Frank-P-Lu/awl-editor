@@ -244,6 +244,14 @@ pub enum Effect {
     TrashAsset {
         rel: String,
     },
+    /// Move this named document to the OS Trash. The path is carried out of
+    /// the pure core so replay can observe the same requested handoff without
+    /// ever modifying its fixture filesystem.
+    TrashFile(std::path::PathBuf),
+    /// A working-set context row supplies an identity that is not necessarily
+    /// the document on screen. The named-buffer owner decides active versus
+    /// parked removal.
+    TrashBuffer(crate::buffers::BufferKey),
     RenameNoteCommit {
         new_name: String,
     },

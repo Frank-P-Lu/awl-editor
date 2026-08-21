@@ -644,13 +644,14 @@ fn accept_context(ctx: &mut ActionCtx) -> Option<Effect> {
     if ctx.journey.card().unwrap().kind != crate::overlay::OverlayKind::Context {
         return None;
     }
-    let effect = ctx
-        .journey
-        .card()
-        .unwrap()
+    let card = ctx.journey.card().unwrap();
+    let effect = card
         .selected_corpus_index()
-        .and_then(|i| ctx.journey.card().unwrap().context_actions.get(i).cloned())
-        .map(Effect::RunAction)
+        .and_then(|i| card.context_actions.get(i).cloned())
+        .map(|action| match (action, card.context_buffer.clone()) {
+            (Action::TrashFile, Some(key)) => Effect::TrashBuffer(key),
+            (action, _) => Effect::RunAction(action),
+        })
         .unwrap_or(Effect::None);
     dispose_after_accept(ctx);
     Some(effect)

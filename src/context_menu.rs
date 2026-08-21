@@ -144,14 +144,20 @@ pub fn rows(target: ContextTarget, state: ContextState, platform: Platform) -> V
             row("Go to heading…", OpenOutline),
         ],
         Body => vec![row("Paste", Yank), row("Select all", SelectAll)],
-        Filename if platform == Platform::Native && state.named_file => vec![
-            row("Rename file…", OpenRenameNote),
-            row("Move file…", MoveFile),
-            row("Duplicate file", DuplicateNote),
-            row("Version history…", OpenHistory),
-            row(reveal_label(), RevealInFileManager),
-            row("Copy file path", CopyFilePath),
-        ],
+        Filename if platform == Platform::Native && state.named_file => {
+            let mut rows = vec![
+                row("Rename file…", OpenRenameNote),
+                row("Move file…", MoveFile),
+                row("Duplicate file", DuplicateNote),
+                row("Version history…", OpenHistory),
+                row(reveal_label(), RevealInFileManager),
+                row("Copy file path", CopyFilePath),
+            ];
+            if cfg!(target_os = "macos") {
+                rows.insert(3, row("Move file to Trash", TrashFile));
+            }
+            rows
+        }
         Filename => Vec::new(),
         Folder if platform == Platform::Native => vec![
             row("Go to folders…", OpenProject),

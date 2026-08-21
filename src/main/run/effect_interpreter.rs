@@ -88,6 +88,8 @@ impl<'a> ReplaySession<'a> {
             | actions::Effect::Export(_, _)
             | actions::Effect::CheckForUpdates
             | actions::Effect::TrashAsset { .. }
+            | actions::Effect::TrashFile(_)
+            | actions::Effect::TrashBuffer(_)
             | actions::Effect::RenameNoteCommit { .. }
             | actions::Effect::DuplicateNote
             | actions::Effect::SaveCopyName { .. }

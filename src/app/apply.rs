@@ -556,6 +556,12 @@ impl App {
             actions::Effect::SettingPathPick { key, path } => self.setting_path_pick(&key, &path),
             actions::Effect::SettingRangeStep { key } => self.setting_range_step(&key),
             actions::Effect::TrashAsset { rel } => self.trash_asset(rel),
+            actions::Effect::TrashFile(path) => {
+                self.trash_buffer(crate::buffers::BufferKey::path(&path));
+            }
+            actions::Effect::TrashBuffer(key) => {
+                self.trash_buffer(key);
+            }
             actions::Effect::KeepVersion { name } => self.keep_version(name.as_deref()),
             actions::Effect::FollowLink(url) => self.follow_link(&url),
             actions::Effect::ReportProblem => self.report_problem(),

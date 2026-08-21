@@ -215,6 +215,8 @@ impl<'a> ReplaySession<'a> {
             | actions::Effect::CopyPulse
             | actions::Effect::SettingRangeStep { .. }
             | actions::Effect::TrashAsset { .. }
+            | actions::Effect::TrashFile(_)
+            | actions::Effect::TrashBuffer(_)
             | actions::Effect::RenameNoteCommit { .. }
             | actions::Effect::DuplicateNote
             | actions::Effect::SaveCopyName { .. }

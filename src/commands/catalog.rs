@@ -4,6 +4,7 @@ use std::sync::LazyLock;
 mod editing;
 mod navigation;
 mod tools;
+mod trash;
 
 fn clone_command(command: &Command) -> Command {
     Command {

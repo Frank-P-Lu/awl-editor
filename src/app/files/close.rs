@@ -41,6 +41,7 @@
 //! gates and leaves `DocumentSession::active == None`. That absence is carried
 //! end-to-end; this owner never manufactures an unnamed replacement buffer.
 
+use super::WritePermission;
 use crate::app::*;
 use std::path::Path;
 
@@ -55,6 +56,65 @@ pub(in crate::app) enum CloseOutcome {
 }
 
 impl App {
+    /// Move ONE named document to the operating system's recoverable Trash,
+    /// then release its working-set entry through this module's existing
+    /// successor/removal ownership. This deliberately does not reuse `close`:
+    /// close is authorized to save a dirty document, while Trash must refuse a
+    /// dirty or externally changed document before it asks the OS to move the
+    /// only on-disk copy.
+    pub(in crate::app) fn trash_buffer(&mut self, key: crate::buffers::BufferKey) -> CloseOutcome {
+        let Some(facts) = self.document.close_facts(&key) else {
+            return CloseOutcome::Refused;
+        };
+        let Some(path) = facts.path else {
+            return CloseOutcome::Refused;
+        };
+        if facts.unsaved {
+            self.refuse_parked(&path, "has unsaved text — save it before moving to Trash");
+            return CloseOutcome::Refused;
+        }
+        if self.document.active_key().as_ref() == Some(&key) {
+            // The active guard can safely reload a clean document before the
+            // irreversible-in-this-process handoff. A held conflict stays
+            // resolved through its existing workspace; never trash through it.
+            if !matches!(
+                self.settle_external_change(),
+                WritePermission::Clear | WritePermission::Reloaded
+            ) || self.change_unresolved()
+            {
+                return CloseOutcome::Refused;
+            }
+        } else if self.persistence.unresolved_for(&path)
+            || crate::external::look(&path, &facts.baseline).0 != crate::external::Change::Unchanged
+        {
+            self.refuse_parked(&path, "changed elsewhere — open it to resolve");
+            return CloseOutcome::Refused;
+        }
+        if let Err(message) = crate::assets::active_trash().trash(&path) {
+            self.set_sticky_notice(format!("couldn't move to Trash: {message}"));
+            self.request_frame();
+            return CloseOutcome::Refused;
+        }
+        // A successful Trash ends this exact buffer just as surely as Finish
+        // file. Drain the keyed EDITOR waiter only after the OS accepted the
+        // recoverable move; every refusal above leaves it connected.
+        self.notify_close_waiters(&key);
+        if self.document.active_key().as_ref() == Some(&key) {
+            if self.remove_active_entry() {
+                CloseOutcome::Closed
+            } else {
+                CloseOutcome::Refused
+            }
+        } else if self.document.discard(&key) {
+            self.document.forget_previous(&path);
+            self.sync_view(false);
+            self.request_frame();
+            CloseOutcome::Closed
+        } else {
+            CloseOutcome::Refused
+        }
+    }
+
     /// **CLOSE THE BUFFER NAMED BY `key`**, active or not.
     ///
     /// One door for both routes, so "what does closing a file mean" has one

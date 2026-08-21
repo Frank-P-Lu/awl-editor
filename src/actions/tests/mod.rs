@@ -673,6 +673,7 @@ macro_rules! classify_delete_flinch {
             | Action::InsertDate
             | Action::RevealInFileManager
             | Action::CopyFilePath
+            | Action::TrashFile
             | Action::Ignore => None,
         }
     };
@@ -895,6 +896,7 @@ macro_rules! assert_action_roster {
             | Action::InsertDate
             | Action::RevealInFileManager
             | Action::CopyFilePath
+            | Action::TrashFile
             | Action::Ignore => {}
         }
     };
@@ -1117,6 +1119,7 @@ macro_rules! classify_smoke_command {
         | Action::ReportProblem
         | Action::DownloadFile
         | Action::CheckForUpdates
+        | Action::TrashFile
         | Action::OpenBrowse
         | Action::OpenFolder
         // EXPORT: the smoke fixture is a markdown buffer, so both signal

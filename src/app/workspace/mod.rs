@@ -250,6 +250,17 @@ impl WorkspaceState {
         self.journey.enter(Some(card));
     }
 
+    /// The working-set filename menu carries the row's identity through its
+    /// contextual card, so Trash cannot quietly operate on the active document.
+    pub(in crate::app) fn summon_context_for_buffer(
+        &mut self,
+        mut card: OverlayState,
+        key: crate::buffers::BufferKey,
+    ) {
+        card.context_buffer = Some(key);
+        self.summon_context(card);
+    }
+
     /// Summon the CONFLICT WORKSPACE over the one unresolved external change.
     /// A named transition for the same reason [`Self::summon_context`] is one:
     /// its card is built from a live fact the shared action core cannot reach

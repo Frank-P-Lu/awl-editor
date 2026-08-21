@@ -171,6 +171,7 @@ pub(super) static COMMANDS: &[Command] = &[
              unchanged.",
         ),
     },
+    super::trash::COMMAND,
     // REVEAL / COPY PATH: the platform-neutral catalog name — the visible
     // label a macOS surface may narrow to "Reveal in Finder" is a display
     // decision made where it is shown (`context_menu::reveal_label`), never

@@ -118,6 +118,7 @@ fn catalog_non_empty_and_named() {
         "Rename note…",
         "Duplicate note",
         "Save a Copy…",
+        "Move file to Trash",
         "Reveal in file manager",
         "Copy file path",
         "Toggle page mode",
@@ -1162,6 +1163,7 @@ const HIDE_ON_WEB: &[&str] = &[
     "Keep tutorial…",
     "Export as PDF…",
     "Save a Copy…",
+    "Move file to Trash",
     "Reveal in file manager",
     "Copy file path",
 ];
@@ -1500,14 +1502,38 @@ fn visible_hidden_mask_gates_reveal_and_copy_path_on_the_named_file_fact_alone()
     );
     assert_eq!(
         hidden_named,
-        vec![
-            "Finish file",
-            "Review the change",
-            "Save your version",
-            "Use disk version"
-        ],
+        (!cfg!(target_os = "macos"))
+            .then_some("Move file to Trash")
+            .into_iter()
+            .chain([
+                "Finish file",
+                "Review the change",
+                "Save your version",
+                "Use disk version",
+            ])
+            .collect::<Vec<_>>(),
         "the named-file fact gates Reveal/Copy-path and nothing else"
     );
+}
+
+#[test]
+fn non_macos_hides_trash_from_palette_and_rejects_direct_dispatch() {
+    let gates = RowGates {
+        named_file: true,
+        ..Default::default()
+    };
+    assert!(row_hidden_on_host(&Action::TrashFile, gates, "linux"));
+    assert!(!action_available_on_host(
+        &Action::TrashFile,
+        Platform::Native,
+        "linux"
+    ));
+    assert!(!row_hidden_on_host(&Action::TrashFile, gates, "macos"));
+    assert!(action_available_on_host(
+        &Action::TrashFile,
+        Platform::Native,
+        "macos"
+    ));
 }
 
 #[test]

@@ -120,6 +120,11 @@ impl DocumentSession {
         Some(self.registry.get(key)?.buffer.text())
     }
 
+    #[cfg(test)]
+    pub(in crate::app) fn parked_version(&self, key: &crate::buffers::BufferKey) -> Option<u64> {
+        Some(self.registry.get(key)?.buffer.version())
+    }
+
     /// **THE ONE REMOVAL DOOR.** Drop `key`'s parked entry and its working-set
     /// row together, returning whether anything was there.
     ///
