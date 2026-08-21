@@ -37,9 +37,8 @@ pub const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 ///          order, and which of them is active (`null` with no stack). The
 ///          margin's own rows were readable only from the PNG, so no oracle
 ///          could say that switching files leaves the drawn order alone.
-/// History lives in Git. Bump this row with the const.
-pub const SCHEMA_VERSION: u32 = 204;
-/// Plain single-frame schema; timeline and held take the next two versions.
+/// `/207` — honest document absence, its actions, and null page/buffer. History is Git.
+pub const SCHEMA_VERSION: u32 = 207;
 pub fn schema_plain() -> String {
     format!("awl-capture/{SCHEMA_VERSION}")
 }
@@ -52,6 +51,7 @@ pub fn schema_held() -> String {
 
 mod animated;
 mod background_sidecar;
+mod document_sidecar;
 mod film;
 #[cfg(not(target_arch = "wasm32"))]
 mod frames;

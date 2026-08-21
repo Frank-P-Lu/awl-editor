@@ -519,10 +519,10 @@ fn capture_screenshot(
     }
     opts.buffers = Some(capture::BuffersInfo {
         open: res.buffers_open,
-        active: match buffer.path() {
+        active: Some(match buffer.path() {
             Some(p) => p.display().to_string(),
             None => "scratch".to_string(),
-        },
+        }),
     });
     opts.replay_skips = res.replay_skips;
     capture::capture_with(&out, &buffer, &opts)?;

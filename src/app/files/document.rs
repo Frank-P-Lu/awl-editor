@@ -18,7 +18,9 @@ impl App {
         // replaced by the fresh document (the anchor is reset below), so words
         // written in it are recorded before the swap (native only; gated inside).
         #[cfg(not(target_arch = "wasm32"))]
-        self.streaks_flush();
+        if self.document.has_active() {
+            self.streaks_flush();
+        }
         // PARK the buffer we are leaving (registered under its own identity if
         // it has one) exactly like `load_path`, so a later C-x b / reopen finds
         // it live rather than re-reading disk.

@@ -276,6 +276,47 @@ impl App {
         self.request_frame();
     }
 
+    /// Activate one existing working-set entry by identity. Pathed entries
+    /// continue through `load_path`, the single file-open door. A scratch entry
+    /// has no path to feed that door, so it moves the complete parked slot here
+    /// while preserving the same leave/arrive boundaries.
+    pub(in crate::app) fn activate_open_buffer(&mut self, key: crate::buffers::BufferKey) {
+        if let Some(path) = self
+            .document
+            .working_set()
+            .path_for(&key)
+            .map(std::path::Path::to_path_buf)
+        {
+            self.load_path(path);
+            return;
+        }
+        if self.refuse_while_unresolved() {
+            return;
+        }
+        self.flush_note();
+        self.autosave_flush();
+        if self.refuse_while_unresolved() {
+            return;
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        self.streaks_flush();
+        if !self.document.activate_key(&key) {
+            return;
+        }
+        if let Some(root) = self.document.working_set().active_root()
+            && root != self.project_location.root
+        {
+            self.project_location.root = root.to_path_buf();
+            self.resync_project_location(self.config.location_policy());
+        }
+        self.workspace_state.close_search();
+        self.input.clear_preedit();
+        self.sync_page_measure();
+        self.update_title();
+        self.sync_view(true);
+        self.request_frame();
+    }
+
     pub(in crate::app) fn jump_to_line(&mut self, line: usize) {
         let idx = self.document.buffer().line_col_to_char(line, 0);
         self.document.clear_mark();

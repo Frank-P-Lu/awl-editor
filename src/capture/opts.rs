@@ -8,11 +8,12 @@
 /// MULTI-BUFFER registry snapshot for the sidecar `buffers` block: how many
 /// buffers a `--keys` replay left open (the active one + anything still
 /// backgrounded — see `crate::buffers::BufferRegistry`), and the active
-/// buffer's identity (its path, or the literal `"scratch"`).
+/// buffer's identity (its path, the literal `"scratch"`, or `None` when the
+/// working set is intentionally empty).
 #[derive(Clone)]
 pub struct BuffersInfo {
     pub open: usize,
-    pub active: String,
+    pub active: Option<String>,
 }
 
 /// The sidecar `buffers` block, serialized beside the type it reports rather
@@ -48,7 +49,13 @@ pub(super) fn buffers_json(opts: &CaptureOpts, view: &crate::render::ViewState) 
         .map(|at| at.to_string())
         .unwrap_or_else(|| "null".to_string());
     let (open, active) = match &opts.buffers {
-        Some(b) => (b.open, super::sidecar::json_string(&b.active)),
+        Some(b) => (
+            b.open,
+            b.active
+                .as_ref()
+                .map(|active| super::sidecar::json_string(active))
+                .unwrap_or_else(|| "null".to_string()),
+        ),
         None => (1, super::sidecar::json_string(&view.gutter_name)),
     };
     format!(
@@ -301,6 +308,11 @@ impl CaptureDriver {
 
 #[derive(Clone, Default)]
 pub struct CaptureOpts {
+    /// A live-App capture reached the explicit no-active-document state. The
+    /// renderer still receives an inert scratch value as a transport detail,
+    /// but this bit suppresses every document surface and makes the sidecar's
+    /// active identity null.
+    pub document_absent: bool,
     /// Zoom factor (`None` = [`crate::range::ZOOM`]'s authored default).
     pub zoom: Option<f32>,
     /// Explicit semantic document top (None = cursor-follow default).  A
@@ -452,11 +464,18 @@ impl CaptureOpts {
     /// drops. All default to "nothing", so every replay capture is
     /// byte-identical.
     pub(super) fn fold_gutter(&self, view: &mut crate::render::ViewState) {
-        view.gutter_changed = self.gutter_changed;
-        view.gutter_files.clone_from(&self.working_set);
-        if let Some(root) = &self.gutter_project_root {
-            view.gutter_project = crate::project::folder_name(root);
+        view.document_active = !self.document_absent;
+        if self.document_absent {
+            view.gutter_name.clear();
+            view.gutter_project.clear();
+            view.gutter_files.clear();
+        } else {
+            view.gutter_files.clone_from(&self.working_set);
+            if let Some(root) = &self.gutter_project_root {
+                view.gutter_project = crate::project::folder_name(root);
+            }
         }
+        view.gutter_changed = self.gutter_changed;
     }
 
     /// The `semantic` sidecar field: the live-App semantic tree serialized

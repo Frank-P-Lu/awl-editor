@@ -557,6 +557,7 @@ fn frame_runtime_api_does_not_regrow_into_a_field_bag() {
 #[derive(Clone, Copy)]
 enum InputConsumer {
     Apply,
+    Close,
     Document,
     Open,
     RangeSettings,
@@ -568,6 +569,7 @@ enum InputConsumer {
     Ime,
     Keys,
     Mouse,
+    MouseButton,
     Press,
     Probe,
     Schedule,
@@ -578,6 +580,7 @@ enum InputConsumer {
 impl InputConsumer {
     const ROSTER: &'static [Self] = &[
         Self::Apply,
+        Self::Close,
         Self::Document,
         Self::Open,
         Self::RangeSettings,
@@ -589,6 +592,7 @@ impl InputConsumer {
         Self::Ime,
         Self::Keys,
         Self::Mouse,
+        Self::MouseButton,
         Self::Press,
         Self::Probe,
         Self::Schedule,
@@ -601,6 +605,7 @@ impl InputConsumer {
     fn path_and_reach(self) -> (&'static str, bool) {
         match self {
             Self::Apply => ("src/app/apply.rs", false),
+            Self::Close => ("src/app/files/close.rs", false),
             Self::Document => ("src/app/files/document.rs", false),
             Self::Open => ("src/app/files/open.rs", false),
             Self::RangeSettings => ("src/app/files/range_settings.rs", false),
@@ -612,6 +617,7 @@ impl InputConsumer {
             Self::Ime => ("src/app/input/ime.rs", true),
             Self::Keys => ("src/app/input/keys.rs", true),
             Self::Mouse => ("src/app/input/mouse.rs", true),
+            Self::MouseButton => ("src/app/input/mouse_button.rs", true),
             Self::Press => ("src/app/press.rs", false),
             Self::Probe => ("src/app/probe.rs", false),
             Self::Schedule => ("src/app/schedule.rs", false),

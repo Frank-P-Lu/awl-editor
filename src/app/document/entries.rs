@@ -36,6 +36,18 @@ pub(in crate::app) struct CloseFacts {
     pub(in crate::app) baseline: crate::external::Seen,
 }
 
+/// Ownership of an entry that has been unseated by the close owner. Its
+/// private payload prevents any caller from reading or mutating a half-closed
+/// document; only the explicit release below can finish the already-gated
+/// close.
+pub(in crate::app) struct CloseRelease(crate::buffers::Entry<BufferExtra>);
+
+impl CloseRelease {
+    pub(in crate::app) fn release(self) {
+        drop(self.0);
+    }
+}
+
 impl DocumentSession {
     /// THE ONE UNSAVED RULE, asked of ANY entry rather than only the active one.
     ///
@@ -58,13 +70,15 @@ impl DocumentSession {
     /// Is the ACTIVE buffer holding unsaved text? The same rule every parked
     /// entry is judged by, so the two can never drift.
     pub(in crate::app) fn active_unsaved(&self) -> bool {
-        Self::entry_unsaved(&self.active)
+        self.active.as_ref().is_some_and(Self::entry_unsaved)
     }
 
     /// The active buffer's registry identity, or `None` for an unnamed fresh
     /// note — which has none, and is therefore not a thing that can be closed.
     pub(in crate::app) fn active_key(&self) -> Option<crate::buffers::BufferKey> {
-        crate::buffers::BufferKey::of(&self.active.buffer)
+        self.active
+            .as_ref()
+            .and_then(|active| crate::buffers::BufferKey::of(&active.buffer))
     }
 
     /// The facts for `key`, whether it is the active entry or a parked one.
@@ -77,7 +91,7 @@ impl DocumentSession {
         key: &crate::buffers::BufferKey,
     ) -> Option<CloseFacts> {
         let entry = if self.active_key().as_ref() == Some(key) {
-            &self.active
+            self.active.as_ref()?
         } else {
             self.registry.get(key)?
         };
@@ -132,17 +146,71 @@ impl DocumentSession {
     /// Searches FORWARD from the closing slot first, then backward, then gives
     /// up. `None` means "nothing else to show" and is the zero-document bound,
     /// not an error.
-    pub(in crate::app) fn successor_path(
+    pub(in crate::app) fn successor_key(
         &self,
         closing: &crate::buffers::BufferKey,
-    ) -> Option<PathBuf> {
+    ) -> Option<crate::buffers::BufferKey> {
         let files = self.working.files();
         let at = self.working.index_of(closing)?;
         let forward = (at + 1)..files.len();
         let backward = (0..at).rev();
         forward
             .chain(backward)
-            .find_map(|i| files.get(i).and_then(|f| f.path.clone()))
+            .find_map(|i| files.get(i).map(|f| f.key.clone()))
+    }
+
+    /// Move the active entry out after the close owner has completed its save
+    /// and conflict gates. The removed entry is returned to that owner instead
+    /// of being discarded here, so this state transition itself cannot lose
+    /// document data. `successor` may name the path-less scratch entry.
+    pub(in crate::app) fn unseat_active(
+        &mut self,
+        closing: &crate::buffers::BufferKey,
+        successor: Option<&crate::buffers::BufferKey>,
+    ) -> Option<CloseRelease> {
+        if self.active_key().as_ref() != Some(closing) {
+            return None;
+        }
+        let outgoing = self.take_active()?;
+        if let Some(next) = successor {
+            let Some(mut incoming) = self.take_parked(next) else {
+                self.active = Some(outgoing);
+                return None;
+            };
+            incoming.buffer.take_list_continuation_generated();
+            self.active = Some(incoming);
+        }
+        self.working.close_key(closing);
+        if let Some(next) = successor
+            && let Some(at) = self.working.index_of(next)
+        {
+            self.working.set_active(at);
+        }
+        Some(CloseRelease(outgoing))
+    }
+
+    /// Activate an already-open entry, including the path-less scratch slot.
+    pub(in crate::app) fn activate_key(&mut self, key: &crate::buffers::BufferKey) -> bool {
+        if self.active_key().as_ref() == Some(key) {
+            return true;
+        }
+        self.previous = self
+            .active
+            .as_ref()
+            .and_then(|active| active.buffer.path())
+            .map(Path::to_path_buf);
+        let outgoing = self.active_key();
+        self.park_active();
+        if !self.activate(key) {
+            if let Some(outgoing) = outgoing {
+                let _ = self.activate(&outgoing);
+            }
+            return false;
+        }
+        if let Some(at) = self.working.index_of(key) {
+            self.working.set_active(at);
+        }
+        true
     }
 
     /// Forget the 2-deep last-file target when it names `path`.

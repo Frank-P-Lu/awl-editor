@@ -19,9 +19,11 @@ use unicode_segmentation::UnicodeSegmentation;
 pub mod native;
 pub mod runs;
 
-pub const SCHEMA: &str = "awl-semantic/2";
+pub const SCHEMA: &str = "awl-semantic/3";
 pub const ROOT_ID: &str = "app";
 pub const DOCUMENT_ID: &str = "document";
+pub const START_NEW_ID: &str = "start.new-document";
+pub const START_GOTO_ID: &str = "start.go-to";
 
 /// The document's text is a sequence of stable LINE RUNS, not one node holding
 /// the whole rope. `document.run.<id>` names one line; the id comes from

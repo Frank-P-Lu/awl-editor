@@ -97,12 +97,7 @@ impl TextPipeline {
         height: u32,
     ) {
         // Punch a page-column hole; page-off passes the full width, hiding the margins.
-        let (page_on, _measure, col_left, col_w) = self.page_geometry();
-        let (bg_left, bg_w) = if page_on {
-            (col_left, col_w)
-        } else {
-            (0.0, width as f32)
-        };
+        let (bg_left, bg_w) = self.background_bounds(width);
         let drift = if self.effective_background().is_waves() {
             crate::background::waves_drift_radians(self.waves_render_phase())
         } else {
@@ -131,12 +126,7 @@ impl TextPipeline {
     }
 
     pub(crate) fn prepare_lava_layer(&mut self, queue: &wgpu::Queue, width: u32, height: u32) {
-        let (page_on, _measure, col_left, col_w) = self.page_geometry();
-        let (bg_left, bg_w) = if page_on {
-            (col_left, col_w)
-        } else {
-            (0.0, width as f32)
-        };
+        let (bg_left, bg_w) = self.background_bounds(width);
         let rail_carved = self.lava_rail_carved(height);
         let gutter_rect = self.lava_gutter_carve_rect(height);
         // stack) seeds a small close halo `[x0, x1, yc, r]`; the shader SUMS them

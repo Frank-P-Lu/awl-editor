@@ -53,7 +53,11 @@ impl App {
         if !self.config.session_restore_on() {
             return;
         }
-        let active_path = self.document.buffer().path().map(Path::to_path_buf);
+        let active_path = self
+            .document
+            .buffer_opt()
+            .and_then(|buffer| buffer.path())
+            .map(Path::to_path_buf);
         let buffers = self.document.session_buffers();
         // Best-effort: `outer_position` can fail (e.g. some Wayland compositors
         // refuse it) — degrade to no window frame rather than skip the whole
@@ -71,6 +75,7 @@ impl App {
         });
         let state = crate::session::SessionState {
             root: Some(self.project_location.root.clone()),
+            document_active: Some(self.document.has_active()),
             active: active_path,
             buffers,
             window,
@@ -110,6 +115,10 @@ impl App {
         }
         let state = crate::session::load(&crate::session::session_path());
         self.restored_window = state.window;
+        if !file_arg_given && state.document_active == Some(false) {
+            self.document.restore_no_document();
+            return;
+        }
         let survivors = crate::session::existing_buffers(&state);
         if survivors.is_empty() {
             return;
@@ -143,6 +152,11 @@ impl App {
 }
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
+mod vanished_test;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod zero_document_tests;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
 mod tests {
     use super::*;
     use std::path::Path;
@@ -156,6 +170,7 @@ mod tests {
     ) -> crate::session::SessionState {
         crate::session::SessionState {
             root: None,
+            document_active: None,
             active: active.map(PathBuf::from),
             buffers: buffers
                 .iter()
@@ -259,37 +274,6 @@ mod tests {
             assert!(
                 app.document
                     .contains_background(&crate::buffers::BufferKey::path(Path::new("/n/b.md")))
-            );
-        });
-    }
-
-    #[test]
-    fn vanished_session_file_is_silently_skipped() {
-        let fake = Arc::new(crate::fs::InMemoryFs::new().with_file("/n/keep.md", "x\n"));
-        crate::fs::with_fs(fake, || {
-            let session_path = crate::session::session_path();
-            let s = state(
-                Some("/n/gone.md"),
-                &[("/n/gone.md", 5, 5, 5), ("/n/keep.md", 0, 0, 0)],
-            );
-            crate::session::save(&session_path, &s).unwrap();
-
-            let app = App::new(None, PathBuf::from("/n"), None, None, Config::empty());
-
-            // "/n/gone.md" never existed: it must never become active, and must
-            // never appear in the registry.
-            assert_ne!(app.document.buffer().path(), Some(Path::new("/n/gone.md")));
-            assert!(
-                !app.document
-                    .contains_background(&crate::buffers::BufferKey::path(Path::new("/n/gone.md")))
-            );
-            // "keep.md" survives and gets parked (it wasn't the session's
-            // `active`, which vanished, so it's just a background survivor —
-            // and since the session named no SURVIVING active file, the
-            // scratch-stash outcome for `self.document.buffer()` stands).
-            assert!(
-                app.document
-                    .contains_background(&crate::buffers::BufferKey::path(Path::new("/n/keep.md")))
             );
         });
     }

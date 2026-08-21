@@ -260,6 +260,13 @@ Margin surfaces:
 The Outline may click-to-jump. It is not a resizable or focusable file-tree
 substitute.
 
+When the last document closes, the Room is absent rather than replaced by a
+fake scratch page. The Frame keeps the remembered folder context and offers a
+centered, calm start surface with exactly two actions: **New document** and
+**Go to**. There is no caret, page, filename, outline, count, or document node
+until one of those actions creates or opens a real document. A first launch is
+unchanged: it still begins with the ordinary scratch document.
+
 Web and Linux may show a slim persistent menu bar because those environments
 otherwise provide no discoverable application menu. macOS uses its native menu
 bar and never draws the substitute.

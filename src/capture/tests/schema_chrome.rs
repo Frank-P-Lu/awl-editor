@@ -431,7 +431,7 @@ fn buffers_block_reports_the_explicit_registry_snapshot() {
     let opts = CaptureOpts {
         buffers: Some(crate::capture::BuffersInfo {
             open: 2,
-            active: "/proj/a.txt".to_string(),
+            active: Some("/proj/a.txt".to_string()),
         }),
         ..CaptureOpts::default()
     };
@@ -799,4 +799,59 @@ fn markdown_table_tags_present_in_sidecar() {
             "table span {tag} present: {md_spans:?}"
         );
     }
+}
+
+#[test]
+fn zero_document_capture_has_two_start_actions_and_no_page_surface() {
+    if !adapter_available() {
+        eprintln!("skipping zero-document capture law: no wgpu adapter");
+        return;
+    }
+    let _g = crate::testlock::serial();
+    let _page = crate::page::PagePin::snapshot();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl-zero-document-{}", std::process::id())),
+    );
+    let buffer = Buffer::scratch();
+    let opts = CaptureOpts {
+        document_absent: true,
+        buffers: Some(crate::capture::BuffersInfo {
+            open: 0,
+            active: None,
+        }),
+        ..CaptureOpts::default()
+    };
+    crate::page::set_page_on(true);
+    let on = dir.join("page-on.png");
+    capture_with(&on, &buffer, &opts).expect("zero-document capture");
+    crate::page::set_page_on(false);
+    let off = dir.join("page-off.png");
+    capture_with(&off, &buffer, &opts).expect("zero-document capture without page mode");
+
+    assert_eq!(
+        std::fs::read(&on).unwrap(),
+        std::fs::read(&off).unwrap(),
+        "page mode cannot change pixels when there is no page to draw"
+    );
+    let json = sidecar(&std::fs::read_to_string(on.with_extension("json")).unwrap());
+    assert_eq!(json["document"]["active"], false);
+    assert_eq!(
+        json["document"]["start_actions"],
+        serde_json::json!(["New document", "Go to"])
+    );
+    assert!(json["page"].is_null());
+    assert!(json["text_origin"].is_null());
+    assert_eq!(json["line_count"], 0);
+    assert!(json["cursor"].is_null());
+    assert!(json["text"].is_null());
+    assert_eq!(json["first_lines"], serde_json::json!([]));
+    assert!(json["layout"].is_null());
+    assert_eq!(json["buffers"]["open"], 0);
+    assert!(json["buffers"]["active"].is_null());
+    let image = image::open(on).unwrap().to_rgba8();
+    let ground = *image.get_pixel(0, 0);
+    assert!(
+        image.pixels().any(|pixel| *pixel != ground),
+        "the calm start actions must leave a real glyph witness"
+    );
 }

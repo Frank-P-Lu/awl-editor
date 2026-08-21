@@ -141,6 +141,44 @@ fn live_app_first_new_document_asks_for_a_folder_before_creating_a_file() {
     assert_eq!(json["overlay"]["mode"].as_str(), Some("goto"));
 }
 
+#[test]
+fn live_app_close_last_sidecar_and_semantics_are_honestly_document_free() {
+    let _g = crate::testlock::serial();
+    let dir =
+        ScratchDir::new(std::env::temp_dir().join(format!("awl-live-zero-{}", std::process::id())));
+    let png = dir.join("zero.png");
+    let doc = PathBuf::from("/ws/proj/probe.md");
+    let json = in_sandbox_with(&doc, || {
+        capture_live_app(
+            png.clone(),
+            LiveAppSpec {
+                file: Some(doc.clone()),
+                keys: crate::keyspec::parse_chords("s-w").unwrap(),
+                root: Some(proj()),
+                workspace: None,
+                config: cfg(),
+                canvas: None,
+                dpi: None,
+            },
+        )
+        .expect("live zero-document capture needs a GPU adapter");
+        sidecar(&png)
+    });
+    assert_eq!(json["driver"], "live-app");
+    assert_eq!(json["document"]["active"], false);
+    assert_eq!(json["buffers"]["open"], 0);
+    assert!(json["buffers"]["active"].is_null());
+    assert!(json["page"].is_null());
+    let nodes = json["semantic"]["nodes"].as_array().unwrap();
+    assert!(nodes.iter().all(|node| node["id"] != "document"));
+    let actions: Vec<_> = nodes
+        .iter()
+        .filter(|node| node["role"] == "button")
+        .map(|node| node["name"].as_str().unwrap())
+        .collect();
+    assert_eq!(actions, ["New document", "Go to"]);
+}
+
 /// THE PRIMARY LAW — the transition converted from
 /// Rust-only to sidecar-provable.
 ///

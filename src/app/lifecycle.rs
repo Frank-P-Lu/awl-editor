@@ -2,6 +2,20 @@
 
 use super::*;
 
+fn current_window_title(app: &App) -> String {
+    app.document.buffer_opt().map_or_else(
+        || files::window_title_no_document(crate::theme::active().name),
+        |buffer| {
+            files::window_title(
+                buffer.path(),
+                buffer.is_unnamed_fresh(),
+                crate::theme::active().name,
+                app.is_document_dirty(),
+            )
+        },
+    )
+}
+
 impl ApplicationHandler<AwlEvent> for App {
     /// A daemon event or (macOS only) a fired menu item, posted by their
     /// respective source (the daemon's accept-loop thread / muda's global
@@ -33,12 +47,12 @@ impl ApplicationHandler<AwlEvent> for App {
         // the very first frame's window title already names the document (and
         // the active world) rather than starting bare and waiting for the
         // first `update_title()` call to catch up.
-        let title = files::window_title(
-            self.document.buffer().path(),
-            self.document.buffer().is_unnamed_fresh(),
-            crate::theme::active().name,
-            self.is_document_dirty(),
-        );
+        // An intentional empty session has no synthetic scratch name here:
+        // the title names only awl and its world. Keeping that decision in the
+        // shared title helper also makes resume and every later title refresh
+        // agree before the first frame is presented.
+        //
+        let title = current_window_title(self);
         // MINIMUM window size, tied to the font metrics so the window can never be
         // dragged below roughly ONE readable line. Width = ~30 columns at the default
         // advance plus the side insets; height = a handful of lines plus the top inset.
@@ -320,7 +334,7 @@ impl ApplicationHandler<AwlEvent> for App {
         #[cfg(not(target_arch = "wasm32"))]
         self.stats_flush();
         #[cfg(not(target_arch = "wasm32"))]
-        self.streaks_flush();
+        self.streaks_flush_if_document();
         #[cfg(all(not(target_arch = "wasm32"), not(feature = "mas")))]
         self.daemon_shutdown();
         #[cfg(not(target_arch = "wasm32"))]

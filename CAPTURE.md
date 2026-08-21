@@ -697,7 +697,7 @@ would otherwise assert a MECHANISM (an instance count, a dither flag, a
 computed color) and stop there — the mechanism proves the renderer INTENDED
 to draw something; the pixel diff proves it actually did.
 
-## The sidecar JSON — schema `awl-capture/204` (`/205` timeline, `/206` held)
+## The sidecar JSON — schema `awl-capture/207` (`/208` timeline, `/209` held)
 
 Field order is stable; consumers may parse positionally or by key.
 
@@ -911,7 +911,7 @@ about what a screen reader actually receives, not about a model of it
 (`semantic::native::tests::json_and_accesskit_are_projections_of_the_same_snapshot`).
 
 The object is `{ schema, root_id, focus_id, nodes }`. `schema` is its own
-version string, **`awl-semantic/2`** (the document is split into line
+version string, **`awl-semantic/3`** (the document is split into line
 runs — see below), independent of the capture schema, because the semantic tree
 is consumed on its own by `--semantic-json` as well. `focus_id`
 names the ONE node with `focused: true`; that is an invariant, not a
@@ -927,7 +927,7 @@ Ids are stable across edits AND across filtering: a picker row is keyed by its
 CORPUS position, so typing a query narrows the visible rows without renaming
 the survivors.
 
-**The document is a sequence of LINE RUNS** (`awl-semantic/2`), not
+**The document is a sequence of LINE RUNS** (`awl-semantic/3`), not
 one node holding the whole rope. The document node's `children` are
 `document.run.<id>` nodes in reading order, one per line, each carrying that
 line's text as its `value` — INCLUDING its trailing newline, so the runs
@@ -1209,6 +1209,16 @@ through `--screenshot-app` (`docs/harness-reach.md`), seeded with `--seed-tree`
 so a hermetic sandbox holds a real project to open a second file from. This is
 the oracle for the order contract: switching files moves `active_index` and
 must leave `files` untouched — the stack is stable-order, not MRU.
+
+Schema `/207` adds top-level **`document`**: `{ active, start_actions }`.
+Ordinary frames report `active: true` and no start actions. After a tier-2
+live-App capture closes the last document it reports `active: false` and
+exactly `["New document", "Go to"]`; `page` and `buffers.active` are `null`,
+`buffers.open` is `0`, and the semantic tree contains the matching two buttons
+instead of a document node. The renderer receives no hidden scratch state: the
+transport buffer used by the offscreen capture is suppressed by this same fact,
+so `text_origin`, `cursor`, `text`, and `layout` are also `null`, `line_count`
+is `0`, and `first_lines` is empty.
 
 Schema `/86` (timeline `/87`, held `/88`) adds a top-level **`wysiwyg`** block
 for the WYSIWYG amendment ("if the caret is on that line, show the actual
@@ -1731,7 +1741,8 @@ world.)
 | `spellcheck`   | GLOBAL spell-check on/off; default `true`. `false` silences every squiggle (prose and scoped code strings/comments alike) and makes the spell-suggest picker a no-op. Set via `--config` (`spellcheck = false`) or the "Toggle Spellcheck" palette command |
 | `date_format`  | INSERT DATE (schema `/178`): `{ format, example }` — the active `crate::dateformat::DateFormat`'s persisted slug (`"ddmmyy"`/`"mmddyy"`/`"iso"`/`"yyyymmdd"`/`"dmonthyyyy"`; default `"ddmmyy"`) and that format rendered against the FIXED placeholder civil date (2009-03-07 — a headless capture has no clock, so "today" is always this same date). Set via `--config` (`date_format = "iso"`) or the Settings menu's "Date format" cycling row. `example` for the default is `"07/03/09"` |
 | `text_origin`  | top-left pixel of the first glyph row (`left` = the page column left, centered in page mode; `16.0` edge-to-edge) |
-| `page`         | PAGE MODE: `on` (centered column vs edge-to-edge), `measure` (column width in chars), `class` (schema `/98`: `"prose"`/`"code"` — which sticky measure, `page_width_prose`/`page_width_code`, is in effect for this document; see `crate::page::PageClass`), `column.{left,width}` (px), `background` (the active world's margin shader — a tagged `{kind, ...}` object, e.g. `{kind:"gradient", from, to, dir}`, `{kind:"dots", from, to, dir, tint, edge}`, `{kind:"bands", tones:[c0,c1,c2], angle}` (Gumtree), `{kind:"waves", tones:[c0,c1,c2]}` (Bombora), or `{kind:"deckle", ground, layer, deckle, weave, period_px, wander_px, density, static}` (Paperbark — `weave` is the theme-owned profile, `"strata"` on Paperbark and `"fibres"` on Galah; the `anchor` key was removed in `/199` when that dial collapsed to its viewport arm), or `{kind:"organic", tones:[c0,c1,c2], scale_px, density, phase}` (Bowerbird — the `arrangement` key was removed in `/199` for the same reason; the ground draws the crisp collected-treasure field and nothing else), or `{kind:"warped-grid", ground, minor, major, tunnel, spacing_px, density, forward_cells}` (Kite — `tunnel` is `"fixed"`; `"page-scaled"`, `"margin-placed"`, and `"reversed"` are mutation arms)) |
+| `document`     | `{ active, start_actions }`: whether a real document exists. With none, the actions are exactly `["New document", "Go to"]`; otherwise `[]` |
+| `page`         | PAGE MODE: `null` with no active document; otherwise `on` (centered column vs edge-to-edge), `measure` (column width in chars), `class` (schema `/98`: `"prose"`/`"code"` — which sticky measure, `page_width_prose`/`page_width_code`, is in effect for this document; see `crate::page::PageClass`), `column.{left,width}` (px), `background` (the active world's margin shader — a tagged `{kind, ...}` object, e.g. `{kind:"gradient", from, to, dir}`, `{kind:"dots", from, to, dir, tint, edge}`, `{kind:"bands", tones:[c0,c1,c2], angle}` (Gumtree), `{kind:"waves", tones:[c0,c1,c2]}` (Bombora), or `{kind:"deckle", ground, layer, deckle, weave, period_px, wander_px, density, static}` (Paperbark — `weave` is the theme-owned profile, `"strata"` on Paperbark and `"fibres"` on Galah; the `anchor` key was removed in `/199` when that dial collapsed to its viewport arm), or `{kind:"organic", tones:[c0,c1,c2], scale_px, density, phase}` (Bowerbird — the `arrangement` key was removed in `/199` for the same reason; the ground draws the crisp collected-treasure field and nothing else), or `{kind:"warped-grid", ground, minor, major, tunnel, spacing_px, density, forward_cells}` (Kite — `tunnel` is `"fixed"`; `"page-scaled"`, `"margin-placed"`, and `"reversed"` are mutation arms)) |
 | `focus`        | FOCUS MODE: `mode` (`off`/`paragraph`/`sentence`) + `active_start`/`active_end` (char offsets of the full-ink unit, `null` when off) |
 | `wysiwyg`      | WYSIWYG conceal: `{ on, concealed }`. `on` mirrors the sticky `wysiwyg` config pref (default `true`). `concealed` is `[start_byte, end_byte, "kind"]` ranges the renderer drew transparent THIS frame — `"heading"`/`"emphasis"`/`"code"`/`"highlight"` (LINE-scoped: revealed only on the caret's own line OR a line the active selection touches) or `"fence"`/`"frontmatter"` (BLOCK-scoped: revealed only with the caret anywhere inside the block, or the selection touching any line inside it — a frontmatter block reuses the `fence` rule verbatim, see schema `/92`; selection reveal, 2026-07-22, no schema bump — see `render::spans::wysiwyg_reveals`). `"table"` (schema `/163`-ish, see the `tables` narrative above) NEVER leaves `concealed` in place — a selected/caret-touched table row instead swaps to the `xray` float mechanism; `tables[].revealed` and the render-only `xray` state are the ones to check for a table. Empty when `on` is false or nothing is concealed this frame |
 | `doc_lang`     | i18n round (schema `/92`): the document's own frontmatter `lang:` tag (`"ja"`/`"zh-Hans"`/`"zh-Hant"`/`"ko"`/`"en"`), or `null` for an untagged/non-markdown document |
@@ -1757,7 +1768,7 @@ world.)
 | `search`       | isearch + find/replace state: `query`, `active`, `case_sensitive`, `hit_count`, `current`, `replace_active` (replace field revealed), `replacement` (replace text), plus `panel` — the card's PLANNED geometry (schema `/203`, see the narrative above), `null` while the panel is down |
 | `project`      | active project (`--root`), fields `root`/`name`/`branch`/`dirty`/`default_folder`/`workspace`/`keymap_flavor` (`branch`, `default_folder`, `workspace` may be null); `null` when no project. The three path fields are HOME-RELATIVE (`~/…`, see "Paths are home-relative" above) — expand `~` if you need a real path |
 | `overlay`      | summoned nav overlay: `active`, `mode` (`goto`/`switch`/`project_browse`/`browse`/`theme`/`caret`/`dictionary`/`cjk_lang`/`date`/`keymap`/`move`/`command`/`spell`/`keybindings`/`history`/`conflict`/`credits`/`settings`/`assets`/`rename`/`insert_link`/`keep_version`/`context`/`export_dest`), `query`, `selected_index`, `browse_dir` (the level shown: root-relative for `browse`/`move`, ABSOLUTE for `switch` and the `project_browse` navigator — home-relative `~/…` when it falls under `$HOME` — else null), `items` (dirs trailing `/`, a git child tagged `"git"` in the secondary column rather than bulleted; `switch` pins the accept-this-folder row on top, reading `use this folder — <name>`; command names for `command`; the three variant labels for `dictionary`; native/emacs labels for `keymap`), `bindings` (command-palette key chords parallel to `items`; the caret/dictionary/keymap pickers' one-line descriptions; else `[]`) |
-| `buffers`      | MULTI-BUFFER registry + the VISIBLE WORKING SET: `{ open, active, files, active_index }`. `open` = how many buffers are currently open (the active one + everything backgrounded); `active` = the active buffer's path, or `"scratch"`. A plain `--screenshot` always reports `open: 1`. `files` = one full root-relative label per drawn stack row, in stable open order (`[]` whenever the margin draws no stack — a single open file, or any capture door with no `App` to ask); `active_index` = which of those rows is the reader's current file, or `null` |
+| `buffers`      | MULTI-BUFFER registry + the VISIBLE WORKING SET: `{ open, active, files, active_index }`. `open` = how many buffers are currently open (the active one + everything backgrounded); `active` = the active buffer's path, `"scratch"`, or `null` with no document. A plain `--screenshot` always reports `open: 1`. `files` = one full root-relative label per drawn stack row, in stable open order (`[]` whenever the margin draws no stack — a single open file, the zero-document state, or any capture door with no `App` to ask); `active_index` = which of those rows is the reader's current file, or `null` |
 | `replay_skips` | permissive `--keys` truthfulness record, always an array. Each skipped live-App-only effect is `{ effect, action }` in replay order: `effect` is the stable snake_case effect name and `action` is the resolved originating action name. Empty for a capture with no skipped effect. `--strict-replay` aborts before writing an artifact on any such effect, so it never emits a partial list. |
 
 ## How to interpret the outputs (verification recipe)

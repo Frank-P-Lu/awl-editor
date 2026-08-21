@@ -269,22 +269,13 @@ fn a_conflicted_inactive_entry_is_refused_and_nothing_is_lost() {
     assert_eq!(s.open_files(), vec![s.a(), s.b()]);
 }
 
-/// THE SUCCESSOR NEVER LANDS ON THE PATH-LESS SCRATCH ROW.
+/// A PATH-LESS SCRATCH IS A REAL SUCCESSOR.
 ///
-/// The scratch surface IS a working-set member — launching with no file enrols
-/// it — so the obvious "take the nearest neighbour" rule can hand the close a
-/// slot the one file-open door cannot activate.
-///
-/// ⚠️ THE ARRANGEMENT IS THE WHOLE LAW, and the obvious one proves nothing.
-/// `enrol_active` runs at startup, so the scratch row is ALWAYS slot 0 — which
-/// means in any session with two or more files there is a real file between the
-/// closing slot and the scratch, and the search finds it without ever reaching
-/// the row it is supposed to skip. A mutation that dropped the path requirement
-/// entirely stayed green under exactly that fixture. The state that reaches the
-/// scratch is the ONE-file session: `[scratch, a.txt]`, closing `a.txt`, where
-/// the scratch is the only thing left to search.
+/// The activation key, rather than a path, is the identity carried across the
+/// close. This is the fixture that previously exposed the dead seam:
+/// `[scratch, a.txt]`, closing `a.txt`, with only scratch left to activate.
 #[test]
-fn the_successor_skips_the_pathless_scratch_row() {
+fn the_successor_can_activate_the_pathless_scratch_row() {
     let _guard = crate::testlock::serial();
     let dir = ScratchDir::new(
         std::env::temp_dir().join(format!("awl-close-scratch-{}", std::process::id())),
@@ -306,46 +297,30 @@ fn the_successor_skips_the_pathless_scratch_row() {
         "precondition: the scratch row is slot 0, immediately behind the only file"
     );
 
-    // THE LOAD-BEARING ARM. Backward from slot 1 reaches ONLY the scratch row,
-    // so a search that did not require a path answers with it here and nowhere
-    // else in any fixture this app can build.
+    let scratch = working.files()[0].key.clone();
     let only = crate::buffers::BufferKey::path(&dir.join("a.txt"));
     assert_eq!(
-        app.document.successor_path(&only),
-        None,
-        "the scratch row is not a place the reader can be sent"
+        app.document.successor_key(&only),
+        Some(scratch),
+        "the path-less row remains activatable by registry identity"
     );
 
-    // And end to end: with no successor, the close withholds the removal rather
-    // than stranding the reader or dropping the buffer.
-    assert!(
-        !app.remove_active_entry(),
-        "no activatable successor means no removal"
-    );
+    assert!(app.remove_active_entry());
     assert_eq!(
         app.document.working_set().len(),
-        2,
-        "both rows survive — the file was not dropped to reach the scratch"
+        1,
+        "the file closes while the scratch survives"
     );
-
-    // With a second file open the forward search finds it, so the skip above is
-    // a refusal to use the scratch and not a refusal to find anything.
-    app.load_path(dir.join("b.txt"));
-    assert_eq!(
-        app.document.successor_path(&only),
-        Some(dir.join("b.txt")),
-        "forward search finds the next real file"
-    );
+    assert!(app.document.buffer().path().is_none());
 }
 
-/// CLOSING THE LAST FILE SAVES AND NOTIFIES BUT REMOVES NOTHING — the
-/// zero-document bound, stated as a law so it cannot be crossed by accident.
+/// CLOSING THE LAST FILE SAVES, NOTIFIES, AND LEAVES NO DOCUMENT.
 ///
 /// A single-file session is the DAEMON's primary shape (`EDITOR=awl` opens one
 /// file and waits), so the save and the notification are the load-bearing half
 /// here; only the removal is withheld.
 #[test]
-fn closing_the_last_file_still_saves_and_notifies_but_removes_nothing() {
+fn closing_the_last_file_enters_the_honest_zero_document_state() {
     let _guard = crate::testlock::serial();
     let dir = ScratchDir::new(
         std::env::temp_dir().join(format!("awl-close-last-{}", std::process::id())),
@@ -374,14 +349,26 @@ fn closing_the_last_file_still_saves_and_notifies_but_removes_nothing() {
     );
     assert_eq!(
         app.document.working_set().len(),
-        1,
-        "and the entry stays: there is no honest zero-document state yet"
+        0,
+        "the working set has no invented replacement row"
     );
-    assert_eq!(
-        app.document.buffer().path(),
-        Some(dir.join("only.txt").as_path()),
-        "the reader is left on the document they had, never on a fake empty buffer"
+    assert!(!app.document.has_active());
+    assert!(app.document.buffer_opt().is_none());
+    assert_eq!(app.project_location.root, dir.to_path_buf());
+
+    let exit = crate::app::schedule::RecordingExit::new();
+    app.apply(Action::OpenGoto, false, &exit, crate::stats::Door::Chord);
+    assert!(
+        app.workspace_state.overlay_open(),
+        "Go to remains usable with no document"
     );
+    app.apply(Action::Cancel, false, &exit, crate::stats::Door::Chord);
+    app.apply(Action::NewDocument, false, &exit, crate::stats::Door::Chord);
+    assert!(
+        app.document.has_active(),
+        "New document leaves the empty state"
+    );
+    assert!(app.document.buffer().is_unnamed_fresh());
 }
 
 /// ⌃TAB DOES NOT RESURRECT A FILE THE READER JUST CLOSED.

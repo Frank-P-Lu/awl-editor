@@ -192,9 +192,7 @@ impl App {
         }
         self.frame.set_focused(true);
         self.frame.clear_lava_tick();
-        // EXTERNAL CHANGE ON RETURN — the check that replaces a filesystem
-        // watcher, at the one instant it changes anything (`files/external.rs`).
-        self.settle_external_change();
+        self.settle_external_change_if_document();
         self.request_frame();
     }
 
@@ -237,7 +235,7 @@ impl App {
         #[cfg(not(target_arch = "wasm32"))]
         self.stats_flush();
         #[cfg(not(target_arch = "wasm32"))]
-        self.streaks_flush();
+        self.streaks_flush_if_document();
         // HOLD-⌘ SHORTCUT PEEK: the window losing focus breaks the hold — cancel a
         // pending peek / close an open one, so it never lingers behind another app
         // (the macOS focus-loss edge the HUD's own `hud_release_on_mods` covers for

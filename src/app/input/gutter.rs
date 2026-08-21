@@ -25,9 +25,9 @@ impl App {
     /// different file exactly when a cross-root buffer is active, which is the
     /// case the remembered root exists for.
     ///
-    /// `None` for the path-less SCRATCH row. It holds a slot (it is open) but
-    /// has no path, and the one file-open door takes a path — see
-    /// [`Self::gutter_stack_click`].
+    /// `None` for the path-less SCRATCH row. Switching uses the row's key, so
+    /// this path-only projection remains only for tests and path assertions.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub(in crate::app) fn gutter_stack_row_path(&self, row: usize) -> Option<PathBuf> {
         let working = self.document.working_set();
         let root = working.active_root()?;
@@ -42,10 +42,8 @@ impl App {
     /// which file a given row index is: a switch and a close that disagreed by
     /// one would close the file next to the one the pointer was over.
     ///
-    /// Unlike the path route this answers for the SCRATCH row too. A path-less
-    /// entry cannot be switched to — the one file-open door takes a path — but
-    /// it has a registry identity, so it can be closed, and refusing to close a
-    /// row the reader can see would be its own dead end.
+    /// Unlike the path route this answers for the SCRATCH row too. Its registry
+    /// identity is the activation and close handle.
     pub(in crate::app) fn gutter_stack_row_key(
         &self,
         row: usize,
@@ -96,8 +94,8 @@ impl App {
             if let Some(key) = self.gutter_stack_row_key(hit.row) {
                 self.close_buffer(key);
             }
-        } else if let Some(path) = self.gutter_stack_row_path(hit.row) {
-            self.load_path(path);
+        } else if let Some(key) = self.gutter_stack_row_key(hit.row) {
+            self.activate_open_buffer(key);
         }
         true
     }

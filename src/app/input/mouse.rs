@@ -3,7 +3,7 @@ use crate::app::input::DragGranularity;
 use crate::app::*;
 
 impl App {
-    fn pointer_over_writing_column(&self) -> bool {
+    pub(in crate::app) fn pointer_over_writing_column(&self) -> bool {
         self.frame.gpu().is_some_and(|gpu| {
             gpu.pipeline
                 .over_writing_column(self.input.pointer.cursor_px.0)
@@ -512,7 +512,7 @@ impl App {
             let action = {
                 let menus = crate::menu::roster();
                 menus.get(menu).and_then(|menu| {
-                    crate::menu::dropdown_action(menu, item, self.document.buffer().is_markdown())
+                    crate::menu::dropdown_action(menu, item, self.document.active_is_markdown())
                 })
             };
             if let Some(action) = action {
@@ -641,10 +641,11 @@ impl App {
         // the whole shown/hidden gate — single-file margin, no page mode, an open
         // overlay). Only while no overlay is open, matching the outline row above.
         let over_stack_row = !overlay_open
-            && gpu
+            && (gpu
                 .pipeline
                 .gutter_stack_hit(px, py, gpu.config.height)
-                .is_some();
+                .is_some()
+                || gpu.pipeline.start_action_at(px, py).is_some());
         let image_hover = gpu
             .pipeline
             .image_handle_at(px, py)
@@ -669,7 +670,8 @@ impl App {
         // where a click would land. Only while no overlay is open (its scrim covers
         // the document).
         let over_fold_chevron = !overlay_open && gpu.pipeline.fold_chevron_hit(px, py).is_some();
-        let over_modified_link = !overlay_open
+        let over_modified_link = self.document.has_active()
+            && !overlay_open
             && gpu.pipeline.over_writing_column(px)
             && crate::context_menu::modified_link_hover(
                 self.input
@@ -687,8 +689,8 @@ impl App {
             dragging_edge: self.input.pointer.page_resizing,
             dragging_text: self.input.pointer.dragging,
             overlay_open,
-            over_edge: gpu.pipeline.page_resize_hover(px),
-            over_text: gpu.pipeline.over_writing_column(px),
+            over_edge: self.document.has_active() && gpu.pipeline.page_resize_hover(px),
+            over_text: self.document.has_active() && gpu.pipeline.over_writing_column(px),
             over_clickable_overlay_row,
             over_clickable_lens,
             over_query_input,
@@ -802,6 +804,16 @@ impl App {
     /// else `None` (so a chevron never lingers when the pointer leaves the text).
     /// See [`crate::fold::chevron_revealed`].
     pub(in crate::app) fn update_fold_hover(&mut self) {
+        if !self.document.has_active() {
+            if self
+                .frame
+                .gpu_mut()
+                .is_some_and(|gpu| gpu.pipeline.set_hover_line(None))
+            {
+                self.request_frame();
+            }
+            return;
+        }
         let over_col = self.document.buffer().is_markdown() && self.pointer_over_writing_column();
         let (px, py) = self.input.pointer.cursor_px;
         let scroll = self.document.scroll();
@@ -818,162 +830,11 @@ impl App {
         }
     }
 
-    pub(in crate::app) fn on_mouse_input(
-        &mut self,
-        exit: &dyn schedule::Exit,
-        state: ElementState,
-        button: MouseButton,
-    ) {
-        if state == ElementState::Pressed
-            && matches!(button, MouseButton::Left | MouseButton::Right)
-        {
-            self.stamp_input();
-            self.feed_peek(crate::peek::PeekStimulus::Interrupt);
-        }
-        // SUMMONED ABOUT / LIFETIME STATS CARDS: like `apply_transition`'s own
-        // top-of-function key intercept (`actions.rs`), ANY mouse press while
-        // either modal card is open dismisses it and is otherwise fully swallowed
-        // — never falls through to spell-suggest, an overlay click, or a document
-        // press/selection. Routes through the SAME owner (`card::dismiss_summoned_card`)
-        // apply_transition uses, so the key and click paths can't drift. See `card.rs`.
-        if state == ElementState::Pressed
-            && matches!(button, MouseButton::Left | MouseButton::Right)
-            && crate::card::dismiss_summoned_card()
-        {
-            self.sync_view(true);
-            self.request_frame();
-            return;
-        }
-        if button == MouseButton::Right {
-            if state == ElementState::Pressed {
-                let over_writing_column = self.pointer_over_writing_column();
-                self.on_right_press(exit, over_writing_column);
-            }
-            return;
-        }
-        if button != MouseButton::Left {
-            return;
-        }
-        match state {
-            ElementState::Pressed => {
-                if self.menubar_press(exit) {
-                    self.sync_cursor_icon();
-                    self.request_frame();
-                    return;
-                }
-                // Cmd-click follows a bare-document link and swallows the press.
-                if self
-                    .input
-                    .keyboard
-                    .mods
-                    .state()
-                    .contains(ModifiersState::SUPER)
-                    && self.workspace_state.pickers_clear()
-                    && self.pointer_over_writing_column()
-                    && self.follow_link_at_pointer()
-                {
-                    return;
-                }
-                // Format-popover buttons use the shared action path; off-card presses
-                // dismiss, while in-card gaps are swallowed.
-                if self.workspace_state.popover_holds_attention() {
-                    let (px, py) = self.input.pointer.cursor_px;
-                    let hit = self
-                        .frame
-                        .gpu()
-                        .and_then(|g| g.pipeline.popover_hit(px, py));
-                    if let Some(button) = hit {
-                        let _ = self.apply(button.action(), false, exit, crate::stats::Door::Chord);
-                        self.sync_view(true);
-                        self.request_frame();
-                        return;
-                    }
-                    if self
-                        .frame
-                        .gpu()
-                        .is_some_and(|g| g.pipeline.over_popover(px, py))
-                    {
-                        return;
-                    }
-                    self.workspace_state.dismiss_popover();
-                }
-                // A summoned picker OWNS the click (modal): a click ON a row
-                // ACCEPTS it (same as Enter), a click OUTSIDE the card DISMISSES
-                // it (same as Esc), a click inside but off a row is swallowed —
-                // it never falls through to move the document cursor beneath the
-                // card. Otherwise: a press ON a page-column edge begins a DIRECT
-                // width resize (symmetric about center) instead of a text
-                // selection; else it's a normal click / selection start.
-                if self.workspace_state.overlay_open() {
-                    self.overlay_click(exit);
-                } else if self.workspace_state.search_active() && self.panel_click() {
-                    // CLICK-TO-SWITCH-FIELD: a press on the find/replace panel
-                    // focused a field (or was an in-card no-op); it never falls
-                    // through to a document press. A press OFF the panel returns
-                    // false and continues to the page-resize / doc-click path.
-                } else if self.begin_image_resize_if_hovering() {
-                } else if !self.begin_page_resize_if_hovering(exit) {
-                    // Margin activation and document presses are separate
-                    // gestures: an outline row jumps, a working-set row switches
-                    // files. Both live in the left margin and neither can be
-                    // hit at the same y, so the order between them is arbitrary.
-                    if !self.outline_click() && !self.gutter_stack_click() {
-                        let shift = self
-                            .input
-                            .keyboard
-                            .mods
-                            .state()
-                            .contains(ModifiersState::SHIFT);
-                        // The SAME column-membership geometry that gives the gutter
-                        // its arrow cursor owns press admission too. Margin x values
-                        // must never reach the document hit-test (which correctly
-                        // clamps drags to line endpoints, but is the wrong behavior for
-                        // a gesture that STARTS outside the page).
-                        let over_writing_column = self.pointer_over_writing_column();
-                        self.on_press(shift, over_writing_column);
-                        if over_writing_column {
-                            self.sync_view(true);
-                            self.sync_cursor_icon();
-                        }
-                    }
-                }
-            }
-            ElementState::Released if self.input.pointer.range_drag.is_some() => {
-                self.end_range_drag();
-            }
-            ElementState::Released if self.input.pointer.image_resizing.is_some() => {
-                self.end_image_resize();
-            }
-            ElementState::Released if self.input.pointer.page_resizing => {
-                self.end_page_resize();
-            }
-            ElementState::Released => {
-                self.input.finish_text_drag();
-                self.sync_cursor_icon();
-                if !self.document.buffer().has_selection() {
-                    self.document.clear_mark();
-                }
-                // FORMAT POPOVER: a MOUSE selection that leaves a non-empty
-                // selection SUMMONS the reveal-on-select format toolbar (a
-                // drag-release, or a double-/triple-click select — all land on this
-                // release path). Markdown buffers only + config-gated. A KEYBOARD
-                // selection never reaches this mouse-release path, so it can never
-                // summon (the mouse-only rule); a plain click (no selection) leaves
-                // it down. A popover-button press returned early above, so its own
-                // release just re-affirms `true` here (stays open across applies).
-                // The LADDER half lives in `summon_popover`.
-                let eligible = crate::popover::popover_on()
-                    && self.document.buffer().has_selection()
-                    && self.document.buffer().is_markdown();
-                self.workspace_state.summon_popover(eligible);
-                self.sync_view(true);
-            }
-        }
-        self.request_frame();
-    }
-
     pub(in crate::app) fn on_mouse_wheel(&mut self, delta: MouseScrollDelta) {
         self.stamp_input();
+        if !self.document.has_active() && !self.workspace_state.overlay_open() {
+            return;
+        }
         // Zoom modifier: Cmd/Super only. (Ctrl must NOT zoom on mac.)
         let zoom_mod = scroll_zoom_intent(self.input.keyboard.mods.state());
         if !zoom_mod && !self.workspace_state.overlay_open() {

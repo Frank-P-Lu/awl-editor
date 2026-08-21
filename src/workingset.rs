@@ -154,8 +154,7 @@ pub struct StackRow {
 
 /// The open files, in the order the margin draws them, plus which one is active.
 ///
-/// Always non-empty in practice — the app owns exactly one active document — but
-/// [`Self::close`] can empty it, which is the zero-document state's own
+/// Empty after the last document closes; that is the zero-document state's own
 /// representation rather than a fake unnamed buffer.
 #[derive(Clone, Debug, Default)]
 pub struct WorkingSet {
@@ -226,6 +225,13 @@ impl WorkingSet {
 
     pub fn files(&self) -> &[OpenFile] {
         &self.files
+    }
+
+    pub fn path_for(&self, key: &BufferKey) -> Option<&Path> {
+        self.files
+            .iter()
+            .find(|file| &file.key == key)
+            .and_then(|file| file.path.as_deref())
     }
 
     pub fn len(&self) -> usize {

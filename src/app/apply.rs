@@ -1,5 +1,8 @@
 //! Live-only effects layered around shared pure action application.
+//! The no-document admission gate lives beside the overlay transition buffer,
+//! keeping this interpreter focused on effect ordering.
 
+mod no_document;
 mod overlay_inputs;
 mod overlay_sync;
 mod surface_effects;
@@ -34,24 +37,15 @@ impl App {
         self.sync_view(false);
     }
 
-    /// Preview colors and the paintable font prefix together. The off-screen
-    /// tail is latest-selection-wins: every preview re-stamps the shared quiet
-    /// settle, and only the final highlighted world finishes it.
+    /// Preview colors and the paintable prefix; only the latest world's tail settles.
     // `prev` (the outgoing world) is now only named by the native probe trace, so
     // the wasm build — which never runs a probe — reads it as unused.
     #[cfg_attr(target_arch = "wasm32", allow(unused_variables))]
     pub(super) fn retint_theme_preview(&mut self, prev: crate::theme::Theme) {
-        // Arm the MOVEMENT-LATENCY clock here: this is the ONE owner every input
-        // kind (keyboard nav, mouse hover, mouse wheel) funnels a theme-picker world
-        // change through, so marking HERE — right before the real relayout work below
-        // — measures the actual event → first-presented-frame round trip regardless
-        // of which input drove it. Closed out in `Gpu::redraw` at the exact point the
-        // frame this step produces gets presented. A no-op unless `probe::recording()`.
+        // The one picker-input seam starts the event-to-present probe clock here.
         #[cfg(not(target_arch = "wasm32"))]
         crate::probe::mark_movement_input();
-        // DEBUG settle readout (live-only): stamp the input that triggered this preview
-        // step as the switch's start. Gated on `debug_on()` — the pane never creates
-        // the work it measures. Off the headless path (replay never calls this seam).
+        // Live debug stamps the triggering input without creating replay work.
         if crate::debug::debug_on() {
             self.frame.stamp_theme_switch(self.frame.now());
         }
@@ -283,6 +277,10 @@ impl App {
         let action = self.prepare_tutorial_action(action);
         self.pre_apply(&action, door);
 
+        if self.reject_without_document(&action) {
+            return false;
+        }
+
         // FLIGHT RECORDER / PROBE: the STATE link of the event→present
         // chain, sampled either side of the shared core so one trace line answers
         // "did this input advance the selection, advance it twice, or not at all".
@@ -484,8 +482,10 @@ impl App {
             .gpu()
             .map(|g| &g.pipeline as &dyn actions::LayoutOracle);
         let (search, journey) = self.workspace_state.core_slots();
+        let mut inactive = crate::buffer::Buffer::scratch();
+        let buffer = self.document.action_buffer_mut().unwrap_or(&mut inactive);
         let mut ctx = actions::ActionCtx {
-            buffer: self.document.action_buffer_mut(),
+            buffer,
             shift_selecting: &mut shift_selecting,
             zoom: &mut zoom,
             search,

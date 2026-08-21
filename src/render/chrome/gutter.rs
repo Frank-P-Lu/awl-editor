@@ -157,12 +157,14 @@ impl TextPipeline {
         width: u32,
         height: u32,
     ) -> anyhow::Result<()> {
+        if !self.document_active {
+            return self.prepare_start_surface(device, queue, width, height);
+        }
         let m = self.metrics;
         let label = crate::markdown::type_scale::LABEL;
         let muted = theme::muted().to_glyphon();
         let faint = theme::faint().to_glyphon();
-        // A compact stacked label: scale BOTH font size and line height to LABEL so the
-        // two rows nest tightly (this buffer is standalone, not row-aligned to the doc).
+        // Scale font size and line height together so the standalone rows nest tightly.
         self.gutter_buffer.set_metrics(
             &mut self.font_system,
             GlyphMetrics::new(m.font_size * label, m.line_height * label),
@@ -174,11 +176,9 @@ impl TextPipeline {
             right: width as i32,
             bottom: height as i32,
         };
-        // Hidden: empty text parked off-screen, so nothing draws and a non-page (or
-        // unnamed) capture stays byte-identical.
+        // Hidden text parks off-screen so a non-page/unnamed capture stays identical.
         let Some(layout) = self.gutter_layout() else {
-            // No block, no stack — drop whatever plate the previous frame left,
-            // so a hidden gutter cannot leave a band floating in the margin.
+            // Drop any previous plate so a hidden gutter leaves no floating band.
             self.gutter_stack_plate
                 .prepare(device, queue, width, height, &[]);
             return self.park_gutter_offscreen(device, queue, bounds, muted);

@@ -37,15 +37,9 @@
 //! both the file and the way out, because the conflict machinery only works on
 //! the active buffer and a notice describing a state with no exit is a dead end.
 //!
-//! # The bound this module does not cross
-//!
-//! Closing the LAST file would leave no active document, and `DocumentSession`
-//! owns exactly one active `Entry` by construction. That is the zero-document
-//! state, which is its own piece of product machinery (renderer, actions,
-//! autosave, session, title, accessibility tree and sidecar all need an honest
-//! `no active document`). Until it exists, a close with no successor saves and
-//! notifies exactly as ⌘W always has and simply does not remove — never a fake
-//! unnamed buffer standing in for the empty state.
+//! Closing the last file unseats the active entry after the same save/conflict
+//! gates and leaves `DocumentSession::active == None`. That absence is carried
+//! end-to-end; this owner never manufactures an unnamed replacement buffer.
 
 use crate::app::*;
 use std::path::Path;
@@ -101,12 +95,9 @@ impl App {
     /// must not drop. That check is the whole difference between this and the
     /// `last_buffer_toggle` it replaced.
     ///
-    /// Removal is deliberately expressed as *switch away, then discard what was
-    /// left behind*, rather than as a bespoke unseat-and-replace: the switch is
-    /// [`Self::load_path`], the one file-open door every picker, the Last-file
-    /// toggle and the daemon handoff already share, so the arriving document
-    /// restores its own project root exactly as it does on any other open.
-    /// The effect interpreter's arm, which has no use for the answer.
+    /// The document state owner returns the gated entry explicitly, then this
+    /// close owner releases it. A successor moves by registry identity, which
+    /// includes the path-less scratch; no successor means honest absence.
     pub(in crate::app) fn close_active_buffer(&mut self) {
         self.remove_active_entry();
     }
@@ -121,26 +112,34 @@ impl App {
             return false; // an unnamed fresh note has no identity to close
         };
         let closing_path = self.document.buffer().path().map(|p| p.to_path_buf());
-        // THE ZERO-DOCUMENT BOUND (see the module doc). Saving and notifying
-        // have already happened; only the removal is withheld.
-        let Some(successor) = self.document.successor_path(&key) else {
-            return false;
-        };
-        self.load_path(successor);
-        // `load_path` can decline — an unresolved conflict raised by its own
-        // autosave flush, a refused file kind, a cancelled sandbox grant. If the
-        // active buffer is still the one we meant to close, the switch did not
-        // happen and discarding now would drop a live document out from under
-        // the reader.
-        if self.document.active_key().as_ref() == Some(&key) {
+        // The save/conflict gate above is what authorizes releasing the entry.
+        // Assert its postcondition before ownership moves; `unseat_active`
+        // returns the entry to this owner so the state layer never discards it.
+        if self
+            .document
+            .close_facts(&key)
+            .is_some_and(|facts| facts.unsaved)
+        {
             return false;
         }
-        self.document.discard(&key);
+        let successor = self.document.successor_key(&key);
+        let Some(closed) = self.document.unseat_active(&key, successor.as_ref()) else {
+            return false;
+        };
+        // `closed` is released only here, after the lossless gate above.
+        closed.release();
         if let Some(path) = closing_path {
             self.document.forget_previous(&path);
         }
-        // The margin just lost a row; nothing else in this transition redraws
-        // the stack, because `load_path`'s own sync ran before the removal.
+        if let Some(root) = self.document.working_set().active_root()
+            && root != self.project_location.root
+        {
+            self.project_location.root = root.to_path_buf();
+            self.resync_project_location(self.config.location_policy());
+        }
+        self.workspace_state.dismiss_pickers();
+        self.input.clear_preedit();
+        self.update_title();
         self.sync_view(false);
         self.request_frame();
         true
@@ -181,12 +180,10 @@ impl App {
         baseline: crate::external::Seen,
     ) -> bool {
         let Some(path) = path else {
-            // A PATH-LESS SCRATCH holding unsaved text. The stash is the active
-            // buffer's own autosave arm and there is no scratch-activation door
-            // anywhere in the tree, so this cannot be saved from here and must
-            // not be dropped. A clean scratch row still closes — it is only the
-            // unsaved one that has nowhere to go.
-            self.set_sticky_notice("scratch has unsaved text — it cannot be closed yet");
+            // A path-less parked scratch must be activated before its stash
+            // conflict guard can run; its stack row is now a real activation
+            // door, so this refusal tells the reader the available route.
+            self.set_sticky_notice("scratch has unsaved text — open it before closing");
             self.request_frame();
             return false;
         };

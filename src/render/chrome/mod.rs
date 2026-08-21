@@ -1,6 +1,6 @@
 //! Document chrome: overlays, gutter, and corner readouts.
-
 use super::*;
+mod start;
 // The scene planner owns the candidate-row geometry every overlay
 // consumer here reads (its forward/inverse row<->y arithmetic stays private to
 // `crate::render::plan`) and adds the shared item-row HEIGHT clamp.

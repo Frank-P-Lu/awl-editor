@@ -1784,7 +1784,6 @@ pub use scroll::ScrollPos;
 
 mod shape_reach;
 pub use shape_reach::{OFFSCREEN_CULL_MARGIN_ROWS, ShapeReach};
-
 pub struct TextPipeline {
     pub font_system: FontSystem,
     pub swash_cache: SwashCache,
@@ -1792,6 +1791,7 @@ pub struct TextPipeline {
     pub atlas: TextAtlas,
     pub renderer: TextRenderer,
     pub buffer: GlyphBuffer,
+    document_active: bool,
     /// The GPU quad pipeline that draws the caret underline/dot (no glow/trail).
     /// This is the classic BLOCK caret; left untouched by the Morph work.
     pub caret_pipeline: CaretPipeline,

@@ -1,5 +1,6 @@
-//! The live document session: one active whole slot, every backgrounded slot,
-//! the previous-buffer target, and the shared spell checker.
+//! The live document session: an optional active whole slot, every backgrounded
+//! slot, the previous-buffer target, and the shared spell checker. `None` is the
+//! honest state after the last document closes.
 //!
 //! `BufferExtra` is deliberately private here.  A buffer and every cache keyed
 //! to its identity/version move as one `Entry` when parked or activated.  The
@@ -46,7 +47,7 @@ pub(in crate::app) enum OpenPath {
 }
 
 pub(in crate::app) struct DocumentSession {
-    active: crate::buffers::Entry<BufferExtra>,
+    active: Option<crate::buffers::Entry<BufferExtra>>,
     registry: crate::buffers::BufferRegistry<BufferExtra>,
     previous: Option<PathBuf>,
     spell: Option<crate::spell::SpellChecker>,
@@ -76,6 +77,26 @@ pub(in crate::app) struct SchedulingSnapshot {
 }
 
 impl DocumentSession {
+    fn active_entry_mut(&mut self) -> &mut crate::buffers::Entry<BufferExtra> {
+        self.active.as_mut().expect("active document")
+    }
+
+    /// The sole whole-slot removal door. Parking, close, and explicit empty
+    /// session restore all route through it so adding buffer-owned state cannot
+    /// leave one transition holding a partial document.
+    fn take_active(&mut self) -> Option<crate::buffers::Entry<BufferExtra>> {
+        self.active.take()
+    }
+
+    /// The sole registry removal door, shared by ordinary activation and the
+    /// close successor transition.
+    fn take_parked(
+        &mut self,
+        key: &crate::buffers::BufferKey,
+    ) -> Option<crate::buffers::Entry<BufferExtra>> {
+        self.registry.take(key)
+    }
+
     pub(in crate::app) fn new(
         buffer: Buffer,
         disk_baseline: crate::external::Seen,
@@ -101,7 +122,7 @@ impl DocumentSession {
             }
         };
         Self {
-            active,
+            active: Some(active),
             registry: Default::default(),
             previous: None,
             spell,
@@ -116,10 +137,13 @@ impl DocumentSession {
     /// both can). Enrolling in `new` instead would register a buffer the launch
     /// then replaces, and the margin would name a document nobody opened.
     pub(in crate::app) fn enrol_active(&mut self, active_root: &Path) {
-        let Some(key) = crate::buffers::BufferKey::of(&self.active.buffer) else {
+        let Some(active) = self.active.as_ref() else {
             return;
         };
-        let path = self.active.buffer.path().map(Path::to_path_buf);
+        let Some(key) = crate::buffers::BufferKey::of(&active.buffer) else {
+            return;
+        };
+        let path = active.buffer.path().map(Path::to_path_buf);
         let root = match path.as_deref() {
             Some(p) => crate::workingset::root_for(p, active_root, None),
             None => active_root.to_path_buf(),
@@ -136,11 +160,14 @@ impl DocumentSession {
         now: Instant,
         idle: std::time::Duration,
     ) -> AutosavePoll {
-        let Some(dirty) = self.active.extra.doc_autosave_at else {
+        let Some(active) = self.active.as_mut() else {
+            return AutosavePoll::Idle;
+        };
+        let Some(dirty) = active.extra.doc_autosave_at else {
             return AutosavePoll::Idle;
         };
         if now.saturating_duration_since(dirty) >= idle {
-            self.active.extra.doc_autosave_at = None;
+            active.extra.doc_autosave_at = None;
             AutosavePoll::Due
         } else {
             AutosavePoll::WaitingUntil(dirty + idle)
@@ -149,40 +176,64 @@ impl DocumentSession {
 
     pub(in crate::app) fn scheduling_snapshot(&self) -> SchedulingSnapshot {
         SchedulingSnapshot {
-            autosave_at: self.active.extra.doc_autosave_at,
+            autosave_at: self
+                .active
+                .as_ref()
+                .and_then(|active| active.extra.doc_autosave_at),
         }
     }
 
+    pub(in crate::app) fn has_active(&self) -> bool {
+        self.active.is_some()
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(in crate::app) fn active_is_pathless(&self) -> bool {
+        self.buffer_opt()
+            .is_some_and(|buffer| buffer.path().is_none())
+    }
+
+    pub(in crate::app) fn active_is_markdown(&self) -> bool {
+        self.buffer_opt().is_some_and(Buffer::is_markdown)
+    }
+
+    pub(in crate::app) fn buffer_opt(&self) -> Option<&Buffer> {
+        self.active.as_ref().map(|active| &active.buffer)
+    }
+
     pub(in crate::app) fn buffer(&self) -> &Buffer {
-        &self.active.buffer
+        &self
+            .active
+            .as_ref()
+            .expect("active-document-only path reached with no document")
+            .buffer
     }
 
     /// The one mutable-buffer loan, fenced to `app/apply.rs` by a source law.
-    pub(in crate::app) fn action_buffer_mut(&mut self) -> &mut Buffer {
-        &mut self.active.buffer
+    /// `None` is the explicit no-document state; the action core uses an inert
+    /// transition buffer solely while the Go-to card is active.
+    pub(in crate::app) fn action_buffer_mut(&mut self) -> Option<&mut Buffer> {
+        self.active.as_mut().map(|active| &mut active.buffer)
     }
 
     fn park_active(&mut self) {
-        let Some(key) = crate::buffers::BufferKey::of(&self.active.buffer) else {
+        let Some(mut outgoing) = self.take_active() else {
             return;
         };
-        self.active.buffer.take_list_continuation_generated();
-        let outgoing = std::mem::replace(
-            &mut self.active,
-            crate::buffers::Entry {
-                buffer: Buffer::scratch(),
-                extra: BufferExtra::default(),
-            },
-        );
+        let Some(key) = crate::buffers::BufferKey::of(&outgoing.buffer) else {
+            self.active = Some(outgoing);
+            return;
+        };
+        outgoing.buffer.take_list_continuation_generated();
         self.registry.park(key, outgoing);
     }
 
     fn activate(&mut self, key: &crate::buffers::BufferKey) -> bool {
-        let Some(mut entry) = self.registry.take(key) else {
+        let Some(mut entry) = self.take_parked(key) else {
             return false;
         };
         entry.buffer.take_list_continuation_generated();
-        self.active = entry;
+        self.active = Some(entry);
         true
     }
 
@@ -195,8 +246,8 @@ impl DocumentSession {
         let key = crate::buffers::BufferKey::path(path);
         if self
             .active
-            .buffer
-            .path()
+            .as_ref()
+            .and_then(|active| active.buffer.path())
             .map(crate::buffers::BufferKey::path)
             == Some(key.clone())
         {
@@ -213,14 +264,18 @@ impl DocumentSession {
         let root = crate::workingset::root_for(path, active_root, remembered.as_deref());
         self.working
             .open(key.clone(), Some(path.to_path_buf()), root);
-        self.previous = self.active.buffer.path().map(Path::to_path_buf);
+        self.previous = self
+            .active
+            .as_ref()
+            .and_then(|active| active.buffer.path())
+            .map(Path::to_path_buf);
         self.park_active();
         if self.activate(&key) {
             return OpenPath::Reactivated;
         }
         let buffer = Buffer::from_file(path);
         let version = buffer.version();
-        self.active = crate::buffers::Entry {
+        self.active = Some(crate::buffers::Entry {
             buffer,
             extra: BufferExtra {
                 disk_baseline,
@@ -228,7 +283,7 @@ impl DocumentSession {
                 caret_synced_version: version,
                 ..Default::default()
             },
-        };
+        });
         OpenPath::Fresh
     }
 
@@ -243,14 +298,22 @@ impl DocumentSession {
     ///
     /// Returns `false` for a path-less buffer, which has no file to reload from.
     pub(in crate::app) fn reload_active_from_disk(&mut self, seen: crate::external::Seen) -> bool {
-        let Some(path) = self.active.buffer.path().map(Path::to_path_buf) else {
+        let Some(path) = self
+            .active
+            .as_ref()
+            .and_then(|active| active.buffer.path())
+            .map(Path::to_path_buf)
+        else {
             return false;
         };
+        let active = self.active.as_ref().expect("checked above");
         let (line, col) = self
             .active
+            .as_ref()
+            .expect("checked above")
             .buffer
-            .char_to_line_col(self.active.buffer.cursor_char());
-        let scroll = self.active.extra.scroll;
+            .char_to_line_col(active.buffer.cursor_char());
+        let scroll = active.extra.scroll;
         let mut buffer = Buffer::from_file(&path);
         // Both are clamped by the buffer, so a file that shrank leaves the
         // caret at the new end rather than past it.
@@ -258,7 +321,7 @@ impl DocumentSession {
         buffer.clear_mark();
         buffer.set_cursor(idx);
         let version = buffer.version();
-        self.active = crate::buffers::Entry {
+        self.active = Some(crate::buffers::Entry {
             buffer,
             extra: BufferExtra {
                 scroll,
@@ -267,15 +330,27 @@ impl DocumentSession {
                 caret_synced_version: version,
                 ..Default::default()
             },
-        };
+        });
         true
     }
 
     pub(in crate::app) fn start_fresh_document(&mut self, root: PathBuf) {
-        self.previous = self.active.buffer.path().map(Path::to_path_buf);
+        self.previous = self
+            .active
+            .as_ref()
+            .and_then(|active| active.buffer.path())
+            .map(Path::to_path_buf);
         self.park_active();
-        self.active.buffer.start_fresh_doc(root);
-        self.active.extra.caret_synced_version = self.active.buffer.version();
+        let mut buffer = Buffer::scratch();
+        buffer.start_fresh_doc(root);
+        let version = buffer.version();
+        self.active = Some(crate::buffers::Entry {
+            buffer,
+            extra: BufferExtra {
+                caret_synced_version: version,
+                ..Default::default()
+            },
+        });
     }
 
     pub(in crate::app) fn previous_path(&self) -> Option<PathBuf> {
@@ -288,71 +363,139 @@ impl DocumentSession {
         logical: &winit::keyboard::Key,
         mods: winit::keyboard::ModifiersState,
     ) -> Option<crate::caret::RecoilDir> {
-        crate::search::keys::intercept(search, &mut self.active.buffer, logical, mods)
+        crate::search::keys::intercept(search, &mut self.active_entry_mut().buffer, logical, mods)
     }
 
     #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     pub(in crate::app) fn open_count(&self) -> usize {
-        self.registry.len() + 1
+        self.registry.len() + usize::from(self.active.is_some())
     }
 
     // Named document mutations outside the shared action core.
     pub(in crate::app) fn set_cursor(&mut self, idx: usize) {
-        self.active.buffer.set_cursor(idx);
+        self.active
+            .as_mut()
+            .expect("active document")
+            .buffer
+            .set_cursor(idx);
     }
     pub(in crate::app) fn clear_mark(&mut self) {
-        self.active.buffer.clear_mark();
+        self.active
+            .as_mut()
+            .expect("active document")
+            .buffer
+            .clear_mark();
     }
     pub(in crate::app) fn set_anchor(&mut self, idx: usize) {
-        self.active.buffer.set_anchor(idx);
+        self.active
+            .as_mut()
+            .expect("active document")
+            .buffer
+            .set_anchor(idx);
     }
     pub(in crate::app) fn select_range(&mut self, start: usize, end: usize) {
-        self.active.buffer.select_range(start, end);
+        self.active
+            .as_mut()
+            .expect("active document")
+            .buffer
+            .select_range(start, end);
     }
     pub(in crate::app) fn seal_undo_group(&mut self) {
-        self.active.buffer.seal_undo_group();
+        self.active
+            .as_mut()
+            .expect("active document")
+            .buffer
+            .seal_undo_group();
     }
     pub(in crate::app) fn reveal_placement(&mut self) {
-        self.active.buffer.reveal_placement();
+        self.active
+            .as_mut()
+            .expect("active document")
+            .buffer
+            .reveal_placement();
     }
     pub(in crate::app) fn toggle_fold_at_line(&mut self, line: usize) {
-        self.active.buffer.toggle_fold_at_line(line);
+        self.active
+            .as_mut()
+            .expect("active document")
+            .buffer
+            .toggle_fold_at_line(line);
     }
     pub(in crate::app) fn unfold_at(&mut self, line: usize) {
-        self.active.buffer.unfold_at(line);
+        self.active
+            .as_mut()
+            .expect("active document")
+            .buffer
+            .unfold_at(line);
     }
     pub(in crate::app) fn insert_char(&mut self, ch: char) {
-        self.active.buffer.insert_char(ch);
+        self.active
+            .as_mut()
+            .expect("active document")
+            .buffer
+            .insert_char(ch);
     }
     pub(in crate::app) fn insert_text(&mut self, text: &str) {
-        self.active.buffer.insert_text(text);
+        self.active
+            .as_mut()
+            .expect("active document")
+            .buffer
+            .insert_text(text);
     }
     pub(in crate::app) fn replace_char_range(&mut self, start: usize, end: usize, text: &str) {
-        self.active.buffer.replace_char_range(start, end, text);
+        self.active
+            .as_mut()
+            .expect("active document")
+            .buffer
+            .replace_char_range(start, end, text);
     }
     pub(in crate::app) fn set_text(&mut self, text: &str) {
-        self.active.buffer.set_text(text);
+        self.active
+            .as_mut()
+            .expect("active document")
+            .buffer
+            .set_text(text);
     }
     pub(in crate::app) fn set_path(&mut self, path: PathBuf) {
-        self.active.buffer.set_path(path);
+        self.active
+            .as_mut()
+            .expect("active document")
+            .buffer
+            .set_path(path);
     }
     pub(in crate::app) fn set_note_dir(&mut self, path: PathBuf) {
-        self.active.buffer.set_note_dir(path);
+        self.active
+            .as_mut()
+            .expect("active document")
+            .buffer
+            .set_note_dir(path);
     }
     pub(in crate::app) fn set_kill(&mut self, text: &str) {
-        self.active.buffer.set_kill(text);
+        self.active
+            .as_mut()
+            .expect("active document")
+            .buffer
+            .set_kill(text);
     }
     pub(in crate::app) fn save(&mut self) -> anyhow::Result<()> {
-        self.active.buffer.save()
+        self.active.as_mut().expect("active document").buffer.save()
     }
 
     pub(in crate::app) fn save_owned(
         &mut self,
         owner: crate::durable::Owner,
     ) -> anyhow::Result<()> {
-        self.active.buffer.save_owned(owner)
+        self.active
+            .as_mut()
+            .expect("active document")
+            .buffer
+            .save_owned(owner)
     }
     pub(in crate::app) fn save_into_folder(&mut self, folder: &Path) -> anyhow::Result<()> {
-        self.active.buffer.save_into_folder(folder)
+        self.active
+            .as_mut()
+            .expect("active document")
+            .buffer
+            .save_into_folder(folder)
     }
 }

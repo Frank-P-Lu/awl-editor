@@ -55,7 +55,7 @@ pub(super) fn apply_replay_accept(
 /// driver behind `--screenshot-app`). The trait is the seam that lets one fold
 /// serve both without either knowing the other exists.
 pub(crate) trait CaptureSubject {
-    fn buffer(&self) -> &Buffer;
+    fn buffer(&self) -> Option<&Buffer>;
     fn zoom(&self) -> f32;
     fn search(&self) -> Option<&crate::search::SearchState>;
     fn journey(&self) -> &crate::overlay::Journey;
@@ -95,7 +95,8 @@ pub(crate) fn fold_capture_state(
     let mut opts = CaptureOpts {
         project: Some(project),
         zoom: (subject.zoom() != crate::range::ZOOM.default).then(|| subject.zoom()),
-        selection: buffer.selection_line_col(),
+        selection: buffer.and_then(Buffer::selection_line_col),
+        document_absent: buffer.is_none(),
         ..CaptureOpts::default()
     };
     if let Some(s) = subject.search() {
@@ -105,7 +106,9 @@ pub(crate) fn fold_capture_state(
         opts.search_replacement = s.replacement().to_string();
         opts.search_editing_replacement = s.is_editing_replacement();
     }
-    if let Some((info, preview_text, diff)) = overlay_capture_info(subject.journey(), buffer) {
+    if let Some(buffer) = buffer
+        && let Some((info, preview_text, diff)) = overlay_capture_info(subject.journey(), buffer)
+    {
         opts.overlay = Some(info);
         opts.preview_text = preview_text;
         // DIFF-AS-PREVIEW: mirror the one-shot capture's fold (diff state block
@@ -123,10 +126,10 @@ pub(crate) fn fold_capture_state(
     opts.notice = subject.notice();
     opts.buffers = Some(capture::BuffersInfo {
         open: subject.buffers_open(),
-        active: match buffer.path() {
+        active: buffer.map(|buffer| match buffer.path() {
             Some(p) => p.display().to_string(),
             None => "scratch".to_string(),
-        },
+        }),
     });
     opts
 }
@@ -213,8 +216,8 @@ pub(crate) fn overlay_capture_info(
 /// the fold's five facts, so the storyboard stepper reads them through the same
 /// seam the live `App` does.
 impl CaptureSubject for super::ReplaySession<'_> {
-    fn buffer(&self) -> &Buffer {
-        super::ReplaySession::buffer(self)
+    fn buffer(&self) -> Option<&Buffer> {
+        Some(super::ReplaySession::buffer(self))
     }
     fn zoom(&self) -> f32 {
         super::ReplaySession::zoom(self)

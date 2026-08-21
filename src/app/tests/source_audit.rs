@@ -74,7 +74,13 @@ fn real_fs_app_new_calls_are_all_accounted_for() {
         // that switches + flushes, a second bare-launch App that resumes from
         // the flushed state) — so they can't use a constructor that forces
         // `session_restore` off.
-        ("app/session.rs", 8),
+        ("app/session.rs", 7),
+        // Three fake-fs calls exercise the intentional zero-document marker:
+        // close + flush, restore, then remove the marker and prove a first
+        // launch still starts with a scratch document.
+        ("app/session/zero_document_tests.rs", 3),
+        // One fake-fs restore law deliberately names a vanished active path.
+        ("app/session/vanished_test.rs", 1),
         // 3 store tests (2 recent-projects + 1 recent-files), each inside its
         // own `fs::with_fs(fake, ..)` closure seeded with an `InMemoryFs` — they
         // exist specifically to prove what `App::switch_project` / `App::load_path`
@@ -283,29 +289,24 @@ fn source_audit_the_active_slot_has_one_owner() {
         "the retired per-buffer extra-state copy-BACK helper must never come back"
     );
 
-    // The WHOLE-SLOT mem::replace that parks the outgoing active buffer
-    // exists exactly once, in `document.rs` — the sole place permitted
-    // to tear the slot apart. Whitespace-COLLAPSED search (the real call
-    // wraps its arguments onto their own lines), so line-wrap reflow can
-    // never dodge this scan the way a raw substring match would.
-    let mut mem_replace_hits: std::collections::BTreeMap<String, usize> = Default::default();
-    // Split across two literals with NO trailing/leading whitespace inside
-    // either (the quote+comma noise between them in THIS file's own raw text
-    // breaks the contiguous match, so this scan's own source can't trip its
-    // own needle — only the RUNTIME-concatenated value can).
-    let mem_replace_needle = ["mem::replace(&mut", "self.active"].concat();
-    scan_dir_collapsed(&root, &app_root, &mem_replace_needle, &mut mem_replace_hits);
+    // The WHOLE-SLOT `Option::take` exists exactly once, in `document.rs` —
+    // parking, closing, and restoring an explicitly empty session must all
+    // route through that sole removal door. Split the runtime needle so this
+    // source law does not match itself.
+    let mut active_take_hits: std::collections::BTreeMap<String, usize> = Default::default();
+    let active_take_needle = ["self.active", ".take()"].concat();
+    scan_dir_collapsed(&root, &app_root, &active_take_needle, &mut active_take_hits);
     assert_eq!(
-        mem_replace_hits.keys().collect::<Vec<_>>(),
+        active_take_hits.keys().collect::<Vec<_>>(),
         vec!["app/document.rs"],
-        "the whole-slot mem::replace must exist ONLY in document.rs, found in: {mem_replace_hits:?}"
+        "the whole-slot take must exist ONLY in document.rs, found in: {active_take_hits:?}"
     );
-    assert_eq!(mem_replace_hits.get("app/document.rs"), Some(&1));
+    assert_eq!(active_take_hits.get("app/document.rs"), Some(&1));
 
     // `BufferRegistry::take` — the ACTIVATION half of the swap — is called
-    // raw in exactly one place, `document.rs`'s own
-    // `private activate`; every other switch site goes through THAT
-    // method (never touches `buffer_registry` directly for a take).
+    // raw in exactly one place, `document.rs`'s private removal door;
+    // ordinary activation and the close successor transition both route
+    // through it (never touch `buffer_registry` directly for a take).
     let mut take_hits: std::collections::BTreeMap<String, usize> = Default::default();
     let take_needle = ["self.reg", "istry.take("].concat();
     scan_dir_collapsed(&root, &app_root, &take_needle, &mut take_hits);

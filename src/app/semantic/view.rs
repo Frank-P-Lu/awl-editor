@@ -36,8 +36,8 @@ pub(in crate::app) struct SemanticView<'a> {
 }
 
 impl SemanticView<'_> {
-    pub(super) fn buffer(&self) -> &Buffer {
-        self.document.buffer()
+    pub(super) fn buffer(&self) -> Option<&Buffer> {
+        self.document.buffer_opt()
     }
 
     pub(super) fn layer(&self) -> workspace::Layer {

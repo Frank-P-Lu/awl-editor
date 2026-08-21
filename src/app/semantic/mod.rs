@@ -13,9 +13,11 @@
 
 use super::*;
 use crate::semantic::{
-    DOCUMENT_ID, ROOT_ID, SemanticAction, SemanticNode, SemanticRequest, SemanticRole,
-    SemanticSelection, SemanticSnapshot,
+    DOCUMENT_ID, ROOT_ID, START_GOTO_ID, START_NEW_ID, SemanticAction, SemanticNode,
+    SemanticRequest, SemanticRole, SemanticSelection, SemanticSnapshot,
 };
+
+const NO_DOCUMENT_STATE: (u64, u64) = (u64::MAX, u64::MAX);
 
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod bench;
@@ -112,8 +114,12 @@ impl App {
             && self.whichkey_panel_rows().is_none()
             && !crate::menubar::menu_bar_on()
             && self.frame.notice().text().is_none();
-        quiet_surface
-            && self.frame.published_document_state() == self.document.buffer().runs().state_key()
+        let state = self
+            .document
+            .buffer_opt()
+            .map(|buffer| buffer.runs().state_key())
+            .unwrap_or(NO_DOCUMENT_STATE);
+        quiet_surface && self.frame.published_document_state() == state
     }
 
     /// Build the tree the synchronous activation handler will serve, and park
@@ -125,7 +131,11 @@ impl App {
     pub(in crate::app) fn seed_accessibility_tree(&mut self) {
         let mut projection = self.frame.take_accessibility_projection();
         projection.refresh(&self.semantic_view());
-        let state = self.document.buffer().runs().state_key();
+        let state = self
+            .document
+            .buffer_opt()
+            .map(|buffer| buffer.runs().state_key())
+            .unwrap_or(NO_DOCUMENT_STATE);
         self.frame.seed_accessibility(projection, state);
     }
 
@@ -134,6 +144,9 @@ impl App {
     /// walks the whole document — so a frame with no card up must be able to
     /// find that out without walking one.
     pub(in crate::app) fn card_kind_open(&self) -> Option<crate::card::content::CardKind> {
+        if !self.document.has_active() {
+            return None;
+        }
         let overlay_active = self.workspace_state.overlay_open();
         crate::card::content::open_kind(
             crate::card::hud_shown(overlay_active),
@@ -177,6 +190,9 @@ impl App {
     /// [`crate::card::content::card`] the renderer draws from, and only when
     /// one is actually open.
     fn card_content(&self) -> Option<crate::card::content::CardContent> {
+        if !self.document.has_active() {
+            return None;
+        }
         let kind = self.card_kind_open()?;
         let text = self.document.buffer().text();
         Some(crate::card::content::card(kind, &self.card_inputs(&text)))
@@ -272,7 +288,8 @@ impl SemanticView<'_> {
         // field — is what says which. No wildcard arm: a sixth rung must be
         // placed here before it compiles.
         let focus_id = match self.layer() {
-            workspace::Layer::Editor => DOCUMENT_ID.to_string(),
+            workspace::Layer::Editor if self.buffer().is_some() => DOCUMENT_ID.to_string(),
+            workspace::Layer::Editor => START_NEW_ID.to_string(),
             workspace::Layer::Popover => self.fold_popover(nodes),
             workspace::Layer::Search => self.fold_search(nodes),
             workspace::Layer::Workspace | workspace::Layer::Overlay => self.fold_overlay(nodes),

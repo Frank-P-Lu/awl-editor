@@ -150,7 +150,9 @@ impl SemanticView<'_> {
     pub(super) fn fold_popover(&self, nodes: &mut Vec<SemanticNode>) -> String {
         let dialog_id = "format-popover";
         let mut dialog = SemanticNode::new(dialog_id, SemanticRole::Dialog, "Formatting");
-        let buffer = self.buffer();
+        let buffer = self
+            .buffer()
+            .expect("format popover cannot outlive its document");
         let model = actions::popover::plan(
             &buffer.text(),
             buffer.anchor_char(),

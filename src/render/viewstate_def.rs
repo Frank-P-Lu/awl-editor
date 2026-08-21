@@ -1,6 +1,10 @@
 use super::*;
 
 pub struct ViewState {
+    /// Whether this frame represents a real active document. `false` is the
+    /// explicit post-close start state: the world remains, while page, prose,
+    /// caret, outline, and filesystem identity are absent.
+    pub document_active: bool,
     pub text: String,
     pub cursor_line: usize,
     pub cursor_col: usize,
@@ -254,6 +258,7 @@ impl ViewState {
     /// `eol = Eol::Lf` — matching the value every scaffold previously spelled out.
     pub fn base() -> Self {
         ViewState {
+            document_active: true,
             text: String::new(),
             cursor_line: 0,
             cursor_col: 0,

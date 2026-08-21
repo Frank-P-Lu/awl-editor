@@ -763,7 +763,7 @@ impl App {
         // (CLI arg or session-restored active) keeps the LAZY anchor — its
         // pre-existing words are not "writing" — so `streaks_baseline` stays `None`.
         #[cfg(not(target_arch = "wasm32"))]
-        if app.document.buffer().path().is_none() {
+        if app.document.active_is_pathless() {
             app.streaks_anchor_now();
         }
         #[cfg(not(target_arch = "wasm32"))]

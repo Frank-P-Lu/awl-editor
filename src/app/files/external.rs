@@ -65,6 +65,12 @@ pub(in crate::app) enum WritePermission {
 }
 
 impl App {
+    pub(in crate::app) fn settle_external_change_if_document(&mut self) {
+        if self.document.has_active() {
+            self.settle_external_change();
+        }
+    }
+
     /// **THE ONE GUARD.** Look at the active document's file and settle what may
     /// happen next; see the module doc for the three outcomes.
     ///
@@ -296,7 +302,12 @@ impl App {
             return false;
         }
         self.set_sticky_notice(CHANGED_ELSEWHERE_NOTICE);
-        if let Some(path) = self.document.buffer().path().map(|p| p.to_path_buf()) {
+        if let Some(path) = self
+            .document
+            .buffer_opt()
+            .and_then(|buffer| buffer.path())
+            .map(|p| p.to_path_buf())
+        {
             self.write_recovery_record(&path);
         }
         self.request_frame();
@@ -307,7 +318,12 @@ impl App {
     /// that ended up active, take it. Separate from [`Self::adopt_unresolved_for`]
     /// only so the construction site stays one line.
     pub(in crate::app) fn adopt_unresolved_after_startup(&mut self) {
-        if let Some(path) = self.document.buffer().path().map(|p| p.to_path_buf()) {
+        if let Some(path) = self
+            .document
+            .buffer_opt()
+            .and_then(|buffer| buffer.path())
+            .map(|p| p.to_path_buf())
+        {
             self.adopt_unresolved_for(&path);
         }
     }

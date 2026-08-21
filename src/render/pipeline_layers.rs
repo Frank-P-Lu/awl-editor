@@ -172,7 +172,9 @@ impl TextPipeline {
         self.background_pipeline.draw(pass);
         self.lava_pipeline.draw(pass);
         self.stars_pipeline.draw(pass);
-        self.page_frame_pipeline.draw(pass);
+        if self.document_active {
+            self.page_frame_pipeline.draw(pass);
+        }
     }
 
     /// THE DOCUMENT'S CONTENT: the prose and everything hung off it. Every emitter
@@ -180,6 +182,12 @@ impl TextPipeline {
     /// whole block travels into a workspace's comparison region as one piece — which
     /// is what lets `render` submit it AFTER the card without re-drawing any ground.
     fn draw_document_content<'a>(&'a self, pass: &mut wgpu::RenderPass<'a>) -> anyhow::Result<()> {
+        if !self.document_active {
+            self.gutter_renderer
+                .render(&self.atlas, &self.viewport, pass)
+                .map_err(|e| anyhow::anyhow!("glyphon start-surface render failed: {e:?}"))?;
+            return Ok(());
+        }
         self.fence_panel_pipeline.draw(pass);
         self.code_pill_pipeline.draw(pass);
         self.table_rule_pipeline.draw(pass);
