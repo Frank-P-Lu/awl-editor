@@ -6,8 +6,6 @@
 //! `--screenshot-app` artifact and only when the sealed prototype environment
 //! key is present; an ordinary live frame never asks it a question.
 
-use std::path::Path;
-
 use super::{StackRow, StackRowKind, WorkingSet};
 
 const RESTING_FILES: usize = 5;
@@ -164,10 +162,7 @@ impl WorkingSet {
         let active_root = self.active_root();
         let mut roots = Vec::new();
         for file in self.files() {
-            if !roots
-                .iter()
-                .any(|root: &&Path| *root == file.root.as_path())
-            {
+            if !roots.contains(&file.root.as_path()) {
                 roots.push(file.root.as_path());
             }
         }
