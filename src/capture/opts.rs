@@ -1,5 +1,8 @@
 //! Public deterministic capture options and read-only metadata blocks.
 
+#[path = "buffers_sidecar.rs"]
+pub(super) mod buffers_sidecar;
+
 /// Deterministic overrides for the verification hooks. All default to the
 /// byte-stable baseline (the authored zoom default, cursor-follow scroll, no selection), so a
 /// plain `--screenshot` is unaffected. Each field is applied verbatim into the
