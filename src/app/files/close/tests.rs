@@ -434,6 +434,14 @@ fn save_resolve_then_retry_trash_is_lossless_for_external_changes() {
 /// accept effect. Without that payload, Enter would re-dispatch `TrashFile`
 /// against the active document and this exact inactive-row case would remove
 /// `b.txt` instead of `a.txt`.
+///
+/// macOS-only by the FEATURE's own gate, not by preference: `TrashFile` is
+/// compile-time absent off macOS (`row_hidden_on_host` / `action_available_on_host`
+/// read the frozen host), so on a Linux build the filename menu genuinely
+/// carries no Trash row and this flow is unreachable — the premise line below
+/// would fail honestly. The host gate itself is asserted for both hosts in
+/// `commands::tests::non_macos_hides_trash_from_palette_and_rejects_direct_dispatch`.
+#[cfg(target_os = "macos")]
 #[test]
 fn working_set_context_trash_targets_the_parked_row_not_the_active_document() {
     let _guard = crate::testlock::serial();

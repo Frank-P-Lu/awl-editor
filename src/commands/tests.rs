@@ -1410,15 +1410,25 @@ fn visible_hidden_mask_gates_finish_buffer_on_the_live_waiter_fact_alone() {
     // `Convention`, a process-frozen fact this test does not force — the
     // separate assertion right after this one names it explicitly instead of
     // baking one ambient convention's answer into an exact-list literal.
+    // "Move file to Trash" joins the list off macOS: its gate reads the
+    // compile-frozen host (`row_hidden_on_host`'s `host_os != "macos"` arm,
+    // asserted for both hosts by name in
+    // `non_macos_hides_trash_from_palette_and_rejects_direct_dispatch`), so the
+    // expected list derives from the same frozen fact — the shape the
+    // named-file law below already uses.
+    let trash_off_macos = (!cfg!(target_os = "macos")).then_some("Move file to Trash");
     let hidden_now = hidden_row_names(&corpus, &mask_no_waiter);
     assert_eq!(
         hidden_now,
-        vec![
-            "Finish file",
-            "Review the change",
-            "Save your version",
-            "Use disk version"
-        ],
+        trash_off_macos
+            .into_iter()
+            .chain([
+                "Finish file",
+                "Review the change",
+                "Save your version",
+                "Use disk version"
+            ])
+            .collect::<Vec<_>>(),
         "exactly these rows are runtime-gated on a RowGates fact, and each on its own live fact"
     );
     let keymap_idx = corpus
@@ -1443,7 +1453,10 @@ fn visible_hidden_mask_gates_finish_buffer_on_the_live_waiter_fact_alone() {
     // row gated on some other fact, which is the drift a single bool invited.
     assert_eq!(
         hidden_row_names(&corpus, &mask_waiting),
-        vec!["Review the change", "Save your version", "Use disk version"],
+        trash_off_macos
+            .into_iter()
+            .chain(["Review the change", "Save your version", "Use disk version"])
+            .collect::<Vec<_>>(),
         "the waiter fact gates the waiter row and nothing else"
     );
 
@@ -1454,7 +1467,10 @@ fn visible_hidden_mask_gates_finish_buffer_on_the_live_waiter_fact_alone() {
     });
     assert_eq!(
         hidden_row_names(&corpus, &mask_conflicted),
-        vec!["Finish file"],
+        trash_off_macos
+            .into_iter()
+            .chain(["Finish file"])
+            .collect::<Vec<_>>(),
         "an open conflict reveals both resolutions and nothing else"
     );
 }
