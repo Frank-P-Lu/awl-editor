@@ -291,7 +291,7 @@ fn located_and_header_peaks(
         let x1 = x_hi.round().min(1199.0) as usize;
         // ⚠️ THE SCANNED BAND IS THE ROW'S INTERIOR, NOT ITS WHOLE SLOT: a
         // slot's outer edges belong to whatever a world draws BETWEEN rows,
-        // and a `Rules` world puts a rule there in full-strength ink — the
+        // and a `Ruled` world puts a rule there in full-strength ink — the
         // same in both arms, saturating a peak-of-|Δluma| oracle at 211.0
         // apiece so the heading was compared to nothing. Inset by the same
         // half-gap the row-pitch owner folded in, zero on every world with

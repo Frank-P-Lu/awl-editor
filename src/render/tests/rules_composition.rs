@@ -1,4 +1,4 @@
-//! `ListStyle::Rules` GRADUATED: the reach and the proof a shipped
+//! `ListStyle::Ruled` GRADUATED: the reach and the proof a shipped
 //! row composition owes.
 //!
 //! The composition and its `Weight` selection are decided. What this file adds
@@ -32,7 +32,7 @@
 //! was BUILT with, never the state it was later re-seeded with. These laws build
 //! their pipeline once and set the world through the same door production's
 //! construction path does, so they see the composition; they do not see a
-//! mid-session `Cmd-T` into a `Rules` world.
+//! mid-session `Cmd-T` into a `Ruled` world.
 
 use super::super::*;
 use super::pixeldiff::render_frame;
@@ -148,7 +148,7 @@ fn content_rows(
 // LAW 1 — the full `OverlayKind` sweep: a rule is a rule, never a surface
 // ---------------------------------------------------------------------------
 
-/// GRADE ONE RENDERED `Rules` CARD against the whole composition: the two
+/// GRADE ONE RENDERED `Ruled` CARD against the whole composition: the two
 /// authored weights, the no-scrim/no-pane claim, boundary continuity, the two
 /// spans, and that the selection is marked exactly once. `None` when this cell
 /// draws no list at all (a staged workspace region, an empty popup); otherwise
@@ -183,13 +183,13 @@ fn grade_ruled_card(
     assert_eq!(
         p.float_card.instance_count(),
         0,
-        "{ctx}: a Rules world floats no pane — enclosure is the one thing the style refuses"
+        "{ctx}: a Ruled world floats no pane — enclosure is the one thing the style refuses"
     );
 
     for q in &quads {
         assert!(
             (q[3] - hair).abs() < 0.01 || (q[3] - heavy).abs() < 0.01,
-            "{ctx}: quad {q:?} is {}px tall — a `Rules` list emits only its two authored \
+            "{ctx}: quad {q:?} is {}px tall — a `Ruled` list emits only its two authored \
              weights (hairline {hair}, selected {heavy})",
             q[3]
         );
@@ -318,7 +318,7 @@ fn assert_mark_sits_on_the_selected_row(
 }
 
 /// THE HEADLINE SWEEP. On every `OverlayKind`, both treatments, both DPIs and
-/// four canvases, every quad a `Rules` frame emits for its row list is a RULE:
+/// four canvases, every quad a `Ruled` frame emits for its row list is a RULE:
 ///
 /// * its height is exactly one of the composition's two authored weights,
 /// * it never approaches a row's own height (a row-tall quad IS a filled band,
@@ -348,7 +348,7 @@ fn every_overlay_kinds_rules_are_rules_and_never_a_surface() {
     for mark in MARKS {
         theme::set_active_by_name("Paperbark").unwrap();
         p.sync_theme();
-        set_list_style_test_override(Some(theme::ListStyle::Rules(mark)));
+        set_list_style_test_override(Some(theme::ListStyle::Ruled(mark)));
         for dpi in [1.0f32, 2.0] {
             p.set_dpi(dpi);
             for &(lw, lh) in CANVASES {
@@ -419,7 +419,7 @@ fn the_row_a_rules_selection_bounds_is_the_row_the_pointer_and_the_sidecar_agree
     crate::motion::set_reduced(true);
     theme::set_active_by_name("Paperbark").unwrap();
     p.sync_theme();
-    set_list_style_test_override(Some(theme::ListStyle::Rules(Weight)));
+    set_list_style_test_override(Some(theme::ListStyle::Ruled(Weight)));
 
     let mut graded = 0usize;
     for dpi in [1.0f32, 2.0] {
@@ -533,7 +533,7 @@ fn the_row_a_rules_selection_bounds_is_the_row_the_pointer_and_the_sidecar_agree
 /// is selected, and the fraction of its interior that moved is exactly how much
 /// of the row the mark filled.
 ///
-/// A `Rules` selection may move a sliver — the `Gutter` segment genuinely hangs
+/// A `Ruled` selection may move a sliver — the `Gutter` segment genuinely hangs
 /// inside the row's vertical extent, in the gutter column — but never a BAND.
 /// NON-VACUITY IS THE POSITIVE CONTROL: the identical measurement on a `Pane`
 /// world must fill essentially the whole interior, so a probe that sampled the
@@ -604,17 +604,17 @@ fn a_rules_selection_fills_none_of_its_rows_interior_and_a_panes_fills_it_all() 
 
     let mut fills = Vec::new();
     for mark in MARKS {
-        set_list_style_test_override(Some(theme::ListStyle::Rules(mark)));
+        set_list_style_test_override(Some(theme::ListStyle::Ruled(mark)));
         for k in [2usize, 6, 9] {
             let (frac, total) = interior_fill(&mut p, &device, &queue, w, h, k);
             assert!(
                 total > 5000,
-                "Rules({mark:?}) row {k}: the interior sample must be a real region, got \
+                "Ruled({mark:?}) row {k}: the interior sample must be a real region, got \
                  {total} px — a law over nothing passes over anything"
             );
             assert!(
                 frac < 0.05,
-                "Rules({mark:?}) row {k}: selecting it repainted {:.1}% of its own interior \
+                "Ruled({mark:?}) row {k}: selecting it repainted {:.1}% of its own interior \
                  ({total} px sampled) — the row's interior must stay plain ground. A filled \
                  band is `Pane`'s answer, and borrowing it makes this a restyle of that.",
                 frac * 100.0
@@ -634,7 +634,7 @@ fn a_rules_selection_fills_none_of_its_rows_interior_and_a_panes_fills_it_all() 
         pane > 0.9,
         "NON-VACUITY: the identical measurement on a `Pane` world must find its filled band \
          over essentially the whole interior (got {:.1}% of {pane_total} px); if it does not, \
-         this law is measuring the wrong region and its `Rules` arms ({fills:?}) prove nothing",
+         this law is measuring the wrong region and its `Ruled` arms ({fills:?}) prove nothing",
         pane * 100.0
     );
 }
@@ -676,7 +676,7 @@ fn the_rules_mark_is_a_findable_step_of_page_ink_and_never_the_accent() {
 
     let mut graded = 0usize;
     for mark in MARKS {
-        set_list_style_test_override(Some(theme::ListStyle::Rules(mark)));
+        set_list_style_test_override(Some(theme::ListStyle::Ruled(mark)));
         for dpi in [1.0f32, 2.0] {
             p.set_dpi(dpi);
             let (cw, ch) = ((1400.0 * dpi) as u32, (900.0 * dpi) as u32);
@@ -765,7 +765,7 @@ fn the_rules_mark_is_a_findable_step_of_page_ink_and_never_the_accent() {
 // ---------------------------------------------------------------------------
 
 /// A rule that runs out past the text measure is the point of `Weight`, and it
-/// is one arithmetic slip from running out past the CARD. Every quad a `Rules`
+/// is one arithmetic slip from running out past the CARD. Every quad a `Ruled`
 /// frame emits must lie inside the band it belongs to — horizontally within the
 /// card/pane (the `Gutter` mark included, which hangs left of the measure but
 /// still inside the band) and vertically within the card's own box.
@@ -782,7 +782,7 @@ fn no_rule_is_drawn_outside_the_card_that_owns_it() {
     p.sync_theme();
     let mut graded = 0usize;
     for mark in MARKS {
-        set_list_style_test_override(Some(theme::ListStyle::Rules(mark)));
+        set_list_style_test_override(Some(theme::ListStyle::Ruled(mark)));
         for dpi in [1.0f32, 2.0] {
             p.set_dpi(dpi);
             for &(lw, lh) in CANVASES {
@@ -873,7 +873,7 @@ fn settings_view(ov: &OverlayState, selected: usize) -> ViewState {
     v
 }
 
-/// GRADE ONE RENDERED `Rules` RAIL. Every quad is one of the two authored
+/// GRADE ONE RENDERED `Ruled` RAIL. Every quad is one of the two authored
 /// weights and none approaches a rail row's height; a `Weight` selection bounds
 /// the active entry with exactly two rules running the full column while every
 /// hairline stops at the label measure; and — the arm that matters most — what
@@ -959,7 +959,7 @@ fn grade_ruled_rail(
 /// content pane arranged by rules and the rail beside it wearing a plate.
 ///
 /// A rail IS a list, so the style that says how a list is arranged says how this
-/// one is: on `Rules` the rail's entries are separated by hairlines and its
+/// one is: on `Ruled` the rail's entries are separated by hairlines and its
 /// active entry is bounded by two heavy rules running the rail's full column —
 /// the very rect the band occupied. On every other style the rail keeps its
 /// band, and that arm is the non-vacuity control: it proves this law is looking
@@ -980,8 +980,8 @@ fn the_workspace_rail_is_ruled_on_a_rules_world_and_banded_on_every_other() {
     let mut graded_banded = 0usize;
     // Every style, no wildcard: a fifth arm must decide what its rail does.
     let styles: [theme::ListStyle; 5] = [
-        theme::ListStyle::Rules(Weight),
-        theme::ListStyle::Rules(Gutter),
+        theme::ListStyle::Ruled(Weight),
+        theme::ListStyle::Ruled(Gutter),
         theme::ListStyle::Pane,
         theme::ListStyle::Bars,
         theme::ListStyle::Diagonal(theme::DiagonalSpine::descending(theme::DiagonalMark::CRISP)),
@@ -1007,7 +1007,7 @@ fn the_workspace_rail_is_ruled_on_a_rules_world_and_banded_on_every_other() {
                             continue; // the narrow stage showing its rows
                         }
                         match style {
-                            theme::ListStyle::Rules(mark) => {
+                            theme::ListStyle::Ruled(mark) => {
                                 grade_ruled_rail(&mut p, &rail, mark, &ctx);
                                 graded_rules += 1;
                             }
@@ -1057,7 +1057,7 @@ fn the_workspace_rail_is_ruled_on_a_rules_world_and_banded_on_every_other() {
 /// A filled band covers its whole entry, INCLUDING the glyph-free slack the rail
 /// column reserves past its longest label — `overlay_text_hpad` on each side, by
 /// the column's own measurement. So: sample that slack strip inside the ACTIVE
-/// entry, and the same strip inside an INACTIVE one, in one frame. On `Rules`
+/// entry, and the same strip inside an INACTIVE one, in one frame. On `Ruled`
 /// they must read the same ground; on every banded style they must not. No
 /// glyph can fall in that strip by construction, so the comparison is about the
 /// mark alone.
@@ -1110,11 +1110,11 @@ fn the_active_rail_entry_reads_as_plain_ground_on_a_rules_world_and_as_a_band_el
 
     let mut ruled = Vec::new();
     for mark in MARKS {
-        set_list_style_test_override(Some(theme::ListStyle::Rules(mark)));
+        set_list_style_test_override(Some(theme::ListStyle::Ruled(mark)));
         let d = slack_delta(&mut p, &device, &queue, w, h);
         assert!(
             d <= 4.0,
-            "Rules({mark:?}): the active rail entry's slack reads redmean {d:.1} from an \\
+            "Ruled({mark:?}): the active rail entry's slack reads redmean {d:.1} from an \\
              inactive one's — the rail's active entry must be plain ground with rules at its \\
              boundaries, not a filled band"
         );
@@ -1135,7 +1135,7 @@ fn the_active_rail_entry_reads_as_plain_ground_on_a_rules_world_and_as_a_band_el
             d > 20.0,
             "NON-VACUITY: {style}'s rail band must be visible in the very same strip \\
              (redmean {d:.1}); if it is not, this law samples the wrong pixels and its \\
-             `Rules` arms ({ruled:?}) prove nothing"
+             `Ruled` arms ({ruled:?}) prove nothing"
         );
     }
 }
@@ -1186,7 +1186,7 @@ fn every_setting_id_and_kind_is_ruled_in_the_settings_workspace() {
     let mut seen_kinds = std::collections::BTreeSet::new();
     let mut graded = 0usize;
     for mark in MARKS {
-        set_list_style_test_override(Some(theme::ListStyle::Rules(mark)));
+        set_list_style_test_override(Some(theme::ListStyle::Ruled(mark)));
         for dpi in [1.0f32, 2.0] {
             p.set_dpi(dpi);
             for &(lw, lh) in &[(1400u32, 900u32), (620, 820)] {
@@ -1291,7 +1291,7 @@ fn a_rules_lens_strip_marks_its_active_tab_with_a_rule_and_draws_no_pill() {
 
     let mut graded = 0usize;
     for mark in MARKS {
-        set_list_style_test_override(Some(theme::ListStyle::Rules(mark)));
+        set_list_style_test_override(Some(theme::ListStyle::Ruled(mark)));
         for dpi in [1.0f32, 2.0] {
             p.set_dpi(dpi);
             let (cw, ch) = ((1400.0 * dpi) as u32, (900.0 * dpi) as u32);
@@ -1341,7 +1341,7 @@ fn a_rules_lens_strip_marks_its_active_tab_with_a_rule_and_draws_no_pill() {
                     step >= 20.0,
                     "{ctx}: the active-lens underline {strip:?} reads {on:?} against the ground \
                      just below it {off:?} — only redmean {step:.1}. If the strip's one mark is \
-                     invisible then a `Rules` strip really is bare, and the tab question is \
+                     invisible then a `Ruled` strip really is bare, and the tab question is \
                      still open."
                 );
                 assert!(
@@ -1353,7 +1353,7 @@ fn a_rules_lens_strip_marks_its_active_tab_with_a_rule_and_draws_no_pill() {
         }
     }
     // THE CONTROL: the same strip on a `Bars` world DOES draw a pill per tab, so
-    // the emptiness above is a property of `Rules` rather than of the fixture.
+    // the emptiness above is a property of `Ruled` rather than of the fixture.
     set_list_style_test_override(Some(theme::ListStyle::Bars));
     p.set_dpi(1.0);
     p.set_size(1400.0, 900.0);
@@ -1367,7 +1367,7 @@ fn a_rules_lens_strip_marks_its_active_tab_with_a_rule_and_draws_no_pill() {
     assert!(
         pills >= 3,
         "NON-VACUITY: a `Bars` world must draw a pill per tab (got {pills}); if it does not, \
-         the `Rules` arms above prove nothing"
+         the `Ruled` arms above prove nothing"
     );
     assert!(
         graded >= 16,

@@ -309,7 +309,7 @@ impl TextPipeline {
         // `overlay_pane_fills` — and only `PaneSplit::Split` carves a seam out
         // of it; every other composition floors at the box's own top, which
         // leaves `s.center()` untouched: BYTE-IDENTICAL off either gate (every
-        // `Bars`/`Diagonal`/`Rules` world, and Cassowary's `Unified` Bars).
+        // `Bars`/`Diagonal`/`Ruled` world, and Cassowary's `Unified` Bars).
         let mark_cy = self
             .docked_facet_band(geom, plan)
             .or_else(|| plan.strip_band())
@@ -419,7 +419,7 @@ impl TextPipeline {
         }
         self.overlay_theme_facet_ghosts = ghosts;
         self.shape_docked_facet_strip(geom, strip_scale);
-        // A tab PILL is a plate, so `Rules` is deliberately absent — it draws
+        // A tab PILL is a plate, so `Ruled` is deliberately absent — it draws
         // none anywhere. (`Diagonal` is on the yes side here and the no side of
         // `draws_row_plates`: it computes pills nothing consumes.)
         let bars = matches!(

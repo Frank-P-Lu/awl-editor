@@ -2270,7 +2270,7 @@ pub struct TextPipeline {
     /// Colour resolved fresh every `overlay_prepare_selection` from
     /// `theme::overlay_footer_plate_rim`, so it carries no `sync_theme_colors`
     /// entry — same reasoning as `notice_rim`. Empty on every frame whose card
-    /// draws no footer plate (Pane, Diagonal, Rules, or a `Bars` card with no
+    /// draws no footer plate (Pane, Diagonal, Ruled, or a `Bars` card with no
     /// footer row).
     pub footer_plate_rim: SelectionPipeline,
     pub overlay_spine: SelectionPipeline,

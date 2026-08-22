@@ -176,7 +176,7 @@ impl TextPipeline {
             // no row-fill fallback: the planned outward span remains the pointer and
             // text truth while the line, rather than a poster bar, carries focus.
             theme::ListStyle::Diagonal(_) => OverlaySelectionRects::default(),
-            theme::ListStyle::Rules(mark) => self.overlay_rules_selection(geom, plan, vis, mark),
+            theme::ListStyle::Ruled(mark) => self.overlay_rules_selection(geom, plan, vis, mark),
         }
     }
 
@@ -463,14 +463,14 @@ impl TextPipeline {
                 crate::render::effective_bar_config().radius.max(0.0),
             )),
             theme::ListStyle::Diagonal(_) => self.metrics.px(DIAGONAL_SCRIM_CORNER),
-            // Like `Diagonal`, a corner for no scrim at all — `Rules` emits
+            // Like `Diagonal`, a corner for no scrim at all — `Ruled` emits
             // rules, not plates, and the gate below declines to pad them.
-            theme::ListStyle::Rules(_) => 0.0,
+            theme::ListStyle::Ruled(_) => 0.0,
             theme::ListStyle::Pane => 0.0,
         };
         // A SCRIM IS A PLATE'S OWN PAD, so only a plate-drawing style has one.
         // `Diagonal` reached here with an empty `rects` and was already
-        // scrimless by accident of that emptiness; `Rules` emits real quads that
+        // scrimless by accident of that emptiness; `Ruled` emits real quads that
         // are emphatically not plates, so the question is asked directly.
         // Padding a hairline by `BAR_SCRIM_PAD` on every side is precisely how a
         // rule would become the object this style exists to not draw.

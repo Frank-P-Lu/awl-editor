@@ -56,7 +56,7 @@ fn diagonal_worlds() -> Vec<(&'static str, theme::DiagonalSpine)> {
     for world in theme::THEMES {
         match world.render_caps.list_style {
             theme::ListStyle::Diagonal(spine) => out.push((world.name, spine)),
-            theme::ListStyle::Pane | theme::ListStyle::Bars | theme::ListStyle::Rules(_) => {}
+            theme::ListStyle::Pane | theme::ListStyle::Bars | theme::ListStyle::Ruled(_) => {}
         }
     }
     assert!(
@@ -912,7 +912,7 @@ fn no_upright_world_reserves_diagonal_side_territory() {
                 );
                 diagonal += 1;
             }
-            theme::ListStyle::Pane | theme::ListStyle::Bars | theme::ListStyle::Rules(_) => {
+            theme::ListStyle::Pane | theme::ListStyle::Bars | theme::ListStyle::Ruled(_) => {
                 assert_eq!(
                     p.diagonal_side_reserve_px(12),
                     0.0,

@@ -2,7 +2,7 @@
 //!
 //! A fixed-height workspace used the flat picker's one-candidate floor. At the
 //! enforced 464×288 minimum, zoom 1.4, and a visible menu bar, that floor spent
-//! room the footer already needed: Paperbark's Rules rhythm seated the footer
+//! room the footer already needed: Paperbark's Ruled rhythm seated the footer
 //! below the card and all three Bars worlds shaped no footer run at all. History
 //! shared the same allocator but had not been included in the exception ledger.
 //!
@@ -11,7 +11,7 @@
 //! go through the same workspace composition. Every footer must have shaped ink,
 //! fit horizontally and vertically inside its card, and reach real pixels. Every
 //! candidate row must remain inside the card at the world's own unchanged pitch.
-//! The minimum is required to spend fewer rows than the roomy control in Rules,
+//! The minimum is required to spend fewer rows than the roomy control in Ruled,
 //! Bars, and History, proving that the footer was protected by composition rather
 //! than by a coincidental font or geometry change.
 
@@ -324,7 +324,7 @@ fn prove_yield_enrolment(tally: &LawTally) -> (usize, usize, usize) {
         }
         match (surface, world.render_caps.list_style) {
             (Surface::History, _) => history += 1,
-            (_, theme::ListStyle::Rules(_)) => rules += 1,
+            (_, theme::ListStyle::Ruled(_)) => rules += 1,
             (_, theme::ListStyle::Bars) => bars += 1,
             _ => {}
         }
@@ -335,7 +335,7 @@ fn prove_yield_enrolment(tally: &LawTally) -> (usize, usize, usize) {
         .count();
     assert!(
         rules >= 2 && bars >= bar_worlds * 2 && history >= crate::theme::THEMES.len() * 2,
-        "minimum must yield Rules, Bars and History: rules={rules}, bars={bars}, history={history}"
+        "minimum must yield Ruled, Bars and History: rules={rules}, bars={bars}, history={history}"
     );
     (rules, bars, history)
 }

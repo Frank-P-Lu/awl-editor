@@ -245,7 +245,7 @@ impl TextPipeline {
         // first-in-panel-batch slot. The unused pass is parked every frame.
         let bars = matches!(
             crate::render::effective_list_style(),
-            theme::ListStyle::Bars | theme::ListStyle::Diagonal(_) | theme::ListStyle::Rules(_)
+            theme::ListStyle::Bars | theme::ListStyle::Diagonal(_) | theme::ListStyle::Ruled(_)
         );
         let canvas_bounds = TextBounds {
             left: 0,

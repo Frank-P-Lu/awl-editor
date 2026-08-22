@@ -182,11 +182,11 @@ fn split_row(
             };
             (probe.label_anchor(d), surface_below)
         }
-        // `Rules` is upright like these two: its row content starts at the
+        // `Ruled` is upright like these two: its row content starts at the
         // text edge, and the gutter to the left of it is surface. When a
         // `Gutter` mark hangs there the `min(obj_lo)` below pulls the cut out
         // to include it, so the mark is graded as LIST, never as surface.
-        theme::ListStyle::Pane | theme::ListStyle::Bars | theme::ListStyle::Rules(_) => {
+        theme::ListStyle::Pane | theme::ListStyle::Bars | theme::ListStyle::Ruled(_) => {
             (geom.text_left + plan.row_dx(d), true)
         }
     };

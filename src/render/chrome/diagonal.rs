@@ -301,9 +301,9 @@ pub(in crate::render) fn active(pipeline: &TextPipeline) -> Option<DiagonalCompo
         theme::ListStyle::Diagonal(spine) => {
             Some(DiagonalComposition::resolve(spine, pipeline.metrics.scale))
         }
-        // `Rules` also arranges with drawn lines and is deliberately not this:
+        // `Ruled` also arranges with drawn lines and is deliberately not this:
         // a spine is one geometry the rows hang off, a rule is a boundary.
-        theme::ListStyle::Pane | theme::ListStyle::Bars | theme::ListStyle::Rules(_) => None,
+        theme::ListStyle::Pane | theme::ListStyle::Bars | theme::ListStyle::Ruled(_) => None,
     }
 }
 

@@ -374,7 +374,7 @@ fn rail_draws_a_plate() -> bool {
         // band-presence floor against. The two floors below still apply, and on
         // this arm they read as "the label against the card", which is the right
         // claim when nothing is drawn under it.
-        theme::ListStyle::Rules(_) => false,
+        theme::ListStyle::Ruled(_) => false,
     }
 }
 

@@ -254,13 +254,13 @@ impl TextPipeline {
         // "Is this world's chrome BARE?" — drawn straight onto the receded page
         // with no card under it. A bare world's wordmark rides its own pass
         // BEHIND the row quads; a card world's rides the row-text batch, over
-        // the card the rows are drawn on. `Rules` is bare, so its rules and its
+        // the card the rows are drawn on. `Ruled` is bare, so its rules and its
         // marks read in front of the wordmark rather than under it. Must stay in
         // lockstep with the identically-named gate in `overlay_draw`, which
         // decides which of the two passes the placard was PREPARED into.
         let bars = matches!(
             crate::render::effective_list_style(),
-            theme::ListStyle::Bars | theme::ListStyle::Diagonal(_) | theme::ListStyle::Rules(_)
+            theme::ListStyle::Bars | theme::ListStyle::Diagonal(_) | theme::ListStyle::Ruled(_)
         );
         if bars {
             self.placard_stipple.draw(pass);

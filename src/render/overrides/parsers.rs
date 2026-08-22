@@ -221,19 +221,19 @@ pub(super) fn read_forced_knob_from<T>(
 /// asking it to validate here can't drift from what it accepts when read for
 /// real.
 ///
-/// `Rules` carries its one field — the selection treatment — in the value
-/// itself (`"rules:weight"` / `"rules:gutter"`), because that field is the
+/// `Ruled` carries its one field — the selection treatment — in the value
+/// itself (`"ruled:weight"` / `"ruled:gutter"`), because that field is the
 /// open taste question the style exists to ask, and forcing it is how the two
-/// answers get captured side by side against one world. Bare `"rules"` takes
+/// answers get captured side by side against one world. Bare `"ruled"` takes
 /// [`RULE_SELECTION_DEFAULT`].
 pub(crate) fn parse_list_style_force(s: &str) -> Option<theme::ListStyle> {
     let low = s.trim().to_ascii_lowercase();
     match low.as_str() {
         "pane" => Some(theme::ListStyle::Pane),
         "bars" => Some(theme::ListStyle::Bars),
-        "rules" => Some(theme::ListStyle::Rules(RULE_SELECTION_DEFAULT)),
-        "rules:weight" => Some(theme::ListStyle::Rules(theme::RuleSelection::Weight)),
-        "rules:gutter" => Some(theme::ListStyle::Rules(theme::RuleSelection::Gutter)),
+        "ruled" => Some(theme::ListStyle::Ruled(RULE_SELECTION_DEFAULT)),
+        "ruled:weight" => Some(theme::ListStyle::Ruled(theme::RuleSelection::Weight)),
+        "ruled:gutter" => Some(theme::ListStyle::Ruled(theme::RuleSelection::Gutter)),
         _ if low.starts_with("bars:") => {
             parse_bar_config_force(&low)?;
             Some(theme::ListStyle::Bars)
@@ -242,7 +242,7 @@ pub(crate) fn parse_list_style_force(s: &str) -> Option<theme::ListStyle> {
     }
 }
 
-/// What bare `"rules"` means. Not a renderer default — the shipped carrier
+/// What bare `"ruled"` means. Not a renderer default — the shipped carrier
 /// world names its own treatment in its `RenderCaps` — only the force knob's.
 const RULE_SELECTION_DEFAULT: theme::RuleSelection = theme::RuleSelection::Weight;
 

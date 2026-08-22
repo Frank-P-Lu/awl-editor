@@ -200,7 +200,7 @@ fn parse_list_style_force_grammar() {
     assert_eq!(parse_list_style_force(""), None);
 }
 
-/// The `Rules` half of the same grammar, in its own test because that variant
+/// The `Ruled` half of the same grammar, in its own test because that variant
 /// DOES carry its field in the forced value — the field is the open taste
 /// question, and forcing it is how both answers get captured against one world.
 #[test]
@@ -209,22 +209,22 @@ fn parse_rules_force_grammar() {
     // Bare `rules` takes the knob's own default, never a renderer default: a
     // shipped world names its treatment in its own `RenderCaps`.
     assert_eq!(
-        parse_list_style_force("rules"),
-        Some(theme::ListStyle::Rules(Weight))
+        parse_list_style_force("ruled"),
+        Some(theme::ListStyle::Ruled(Weight))
     );
     assert_eq!(
-        parse_list_style_force("rules:weight"),
-        Some(theme::ListStyle::Rules(Weight))
+        parse_list_style_force("ruled:weight"),
+        Some(theme::ListStyle::Ruled(Weight))
     );
     assert_eq!(
-        parse_list_style_force("rules:gutter"),
-        Some(theme::ListStyle::Rules(Gutter))
+        parse_list_style_force("ruled:gutter"),
+        Some(theme::ListStyle::Ruled(Gutter))
     );
-    for s in ["rules:", "rules:band", "rules:weight:gutter"] {
+    for s in ["ruled:", "ruled:band", "ruled:weight:gutter"] {
         assert_eq!(parse_list_style_force(s), None, "{s}");
     }
     // The `bars:` half of the same var never claims a `rules` value.
-    for s in ["rules", "rules:weight", "rules:gutter"] {
+    for s in ["ruled", "ruled:weight", "ruled:gutter"] {
         assert_eq!(parse_bar_config_force(s), None, "{s}");
     }
 }
@@ -986,16 +986,16 @@ fn spell_popup_floats_bare_on_bars_keeps_the_card_on_pane() {
                     t.name
                 );
             }
-            // `Rules`. Its claim is structural and negative — no card and no
+            // `Ruled`. Its claim is structural and negative — no card and no
             // plate — so that is what this arm asserts on the spell popup,
             // including the one thing neither selection treatment is allowed to
             // do. The composition's own suite — the full `OverlayKind` sweep,
             // the workspace, `SettingId × SettingKind`, the pixel laws — is
             // `render/tests/rules_composition.rs`.
-            theme::ListStyle::Rules(_) => {
+            theme::ListStyle::Ruled(_) => {
                 assert_eq!(
                     float_n, 0,
-                    "{}: a Rules world floats no pane behind the popup — enclosure \
+                    "{}: a Ruled world floats no pane behind the popup — enclosure \
                      is the one thing the style refuses",
                     t.name
                 );
@@ -1019,7 +1019,7 @@ fn spell_popup_floats_bare_on_bars_keeps_the_card_on_pane() {
                     .count();
                 assert_eq!(
                     tall, 0,
-                    "{}: no `Rules` quad may approach a row's own height (row pitch \
+                    "{}: no `Ruled` quad may approach a row's own height (row pitch \
                      {lh}) — a row-tall quad IS a filled band, whatever it is called",
                     t.name
                 );

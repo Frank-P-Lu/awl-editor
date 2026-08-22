@@ -218,7 +218,7 @@ impl TextPipeline {
         // not enter `overlay_declines_takeover`, but a Diagonal composition draws
         // neither a card nor row plates beneath it. Enrol that typed composition in
         // the same local footprint as the crisp/menu arms: never a world-name branch,
-        // never the full-canvas frost, and never a change to Pane/Bars/Rules.
+        // never the full-canvas frost, and never a change to Pane/Bars/Ruled.
         let diagonal_spell = self.diagonal_spell_popup();
         if self.overlay_active
             && (diagonal_spell
@@ -275,7 +275,7 @@ impl TextPipeline {
     /// reason.
     ///
     /// ZERO when the frame drew no rail at all, which is how the enrolment derives:
-    /// shear is a property of a spine, and an enrolled world with no spine — a `Rules`
+    /// shear is a property of a spine, and an enrolled world with no spine — a `Ruled`
     /// composition — takes the feather and keeps its upright rectangle without anything
     /// here naming it.
     /// THE CARD'S OWN CHROME THAT THE RAKE DOES NOT CARRY, as a box the frost's shape

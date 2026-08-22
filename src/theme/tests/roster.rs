@@ -273,7 +273,7 @@ fn every_zero_or_single_adopter_capability_is_named_and_classified() {
             "page_frame" => "keep: authored frame expression",
             "card_anchor" => "keep: authored card composition",
             "chrome_face" => "keep: authored display face",
-            "list_style" => "keep: authored Pane/Diagonal/Bars/Rules composition",
+            "list_style" => "keep: authored Pane/Diagonal/Bars/Ruled composition",
             "pane_split" => "keep: authored unified/split pane composition",
             "facet_style" => "keep: authored facet composition",
             "location_style" => "keep: authored location composition",
@@ -314,7 +314,7 @@ fn background_kind(t: &Theme) -> &'static str {
 }
 
 /// Sparse enum arms are expressions, not dead fields. This pins the explicitly
-/// protected roster: Rules, both Diagonal directions, chamfer, ambient stars,
+/// protected roster: Ruled, both Diagonal directions, chamfer, ambient stars,
 /// icon-ground presets, and every background kind all remain name-free data.
 #[test]
 fn sparse_authored_variants_remain_classified_data() {
@@ -326,8 +326,8 @@ fn sparse_authored_variants_remain_classified_data() {
             .collect::<Vec<_>>()
     };
     assert_eq!(
-        adopters(&|t| matches!(t.render_caps.list_style, ListStyle::Rules(_))),
-        ["Paperbark"]
+        adopters(&|t| matches!(t.render_caps.list_style, ListStyle::Ruled(_))),
+        ["Paperbark", "Kite"]
     );
     assert_eq!(
         adopters(&|t| matches!(

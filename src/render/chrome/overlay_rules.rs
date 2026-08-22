@@ -1,4 +1,4 @@
-//! `ListStyle::Rules` — the QUIET fourth list composition.
+//! `ListStyle::Ruled` — the QUIET fourth list composition.
 //!
 //! Organised by ABSENCE: leading and hairline rules do the arranging and
 //! nothing is drawn as an object. `Pane` organises by enclosure, `Bars` by
@@ -220,7 +220,7 @@ impl TextPipeline {
     pub(in crate::render) fn overlay_rule_spans(&self, geom: &OverlayGeom) -> Option<RuleSpans> {
         matches!(
             crate::render::effective_list_style(),
-            theme::ListStyle::Rules(_)
+            theme::ListStyle::Ruled(_)
         )
         .then(|| self.rule_spans_at(geom))
     }
@@ -240,7 +240,7 @@ impl TextPipeline {
         }
     }
 
-    /// THE `Rules` STYLE'S ROW SURFACES — which are not surfaces at all.
+    /// THE `Ruled` STYLE'S ROW SURFACES — which are not surfaces at all.
     ///
     /// `unselected` carries the separating hairlines and `selected` the
     /// selection mark, so the two existing quad pipelines draw them with no new

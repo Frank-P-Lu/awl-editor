@@ -131,7 +131,7 @@ fn a_workspace_footer_plate_ends_with_its_footer_on_every_bare_plate_world() {
             // not use. Two shapes satisfy that and both are measured here, from
             // the same production emitter and at the same fixture rather than
             // taken on trust: a `Diagonal` world emits no row quad at all, and a
-            // `Rules` world emits only rules — none of them a fraction as tall
+            // `Ruled` world emits only rules — none of them a fraction as tall
             // as a row, and none of them reaching below the list.
             if !plated.contains(world) {
                 let surfaces = p.overlay_row_surfaces_probe();

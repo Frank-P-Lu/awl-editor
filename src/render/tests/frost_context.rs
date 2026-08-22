@@ -25,7 +25,7 @@
 //!   the theme picker onto the context menu.
 //!
 //! Both are read off the roster's own two backing owners, never a name list — Paperbark is
-//! the `Rules` member with shear 0 that keeps the leaning worlds from standing in for the
+//! the `Ruled` member with shear 0 that keeps the leaning worlds from standing in for the
 //! whole enrolled set.
 //!
 //! # WHAT EACH LAW BELOW REFUSES

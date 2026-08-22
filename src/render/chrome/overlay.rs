@@ -19,11 +19,11 @@ impl TextPipeline {
     pub(in crate::render) fn overlay_row_gap(&self) -> f32 {
         let gap = match crate::render::effective_list_style() {
             theme::ListStyle::Bars => Logical(crate::render::effective_bar_config().gap.max(0.0)),
-            // The same quantity one style down: a `Rules` list separates its
+            // The same quantity one style down: a `Ruled` list separates its
             // rows with a rule and the AIR either side of it, so the air rides
             // the one row-pitch owner exactly as a plate gap does — text, rules,
             // card height and hit-test widen together and cannot disagree.
-            theme::ListStyle::Rules(_) => RULE_ROW_AIR,
+            theme::ListStyle::Ruled(_) => RULE_ROW_AIR,
             theme::ListStyle::Pane | theme::ListStyle::Diagonal(_) => Logical(0.0),
         };
         self.metrics.px(gap)
@@ -52,10 +52,10 @@ impl TextPipeline {
             theme::ListStyle::Bars => {
                 return self.metrics.px(BAR_SIDE_INSET) + self.metrics.px(BAR_TEXT_PAD);
             }
-            // The inset a `Rules` list holds is its GUTTER — the column its
+            // The inset a `Ruled` list holds is its GUTTER — the column its
             // selection mark hangs in and the margin its heavy rule runs out
             // into. Symmetric, so the secondary column mirrors it.
-            theme::ListStyle::Rules(_) => RULES_TEXT_HPAD,
+            theme::ListStyle::Ruled(_) => RULES_TEXT_HPAD,
             theme::ListStyle::Pane | theme::ListStyle::Diagonal(_) => PANE_TEXT_HPAD,
         };
         self.metrics.px(l)
@@ -389,7 +389,7 @@ impl TextPipeline {
         // one ellipsis, the secondary-column gap, and one rounding cell so integer
         // `floor(text_w / char_width)` clears the target when f32 division lands just
         // under a whole cell. That expression remains byte-identical for Pane, Bars and
-        // Rules and still permits a genuinely overlong row to elide at the card cap.
+        // Ruled and still permits a genuinely overlong row to elide at the card cap.
         //
         // Diagonal rows occupy a measured cluster beside their rake instead. Charging
         // both the document grid and the rake created the broad empty span, while the

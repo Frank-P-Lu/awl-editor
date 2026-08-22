@@ -24,7 +24,7 @@ fn authored_marks() -> Vec<(&'static str, theme::DiagonalSpine)> {
     for world in theme::THEMES {
         match world.render_caps.list_style {
             theme::ListStyle::Diagonal(spine) => out.push((world.name, spine)),
-            theme::ListStyle::Pane | theme::ListStyle::Bars | theme::ListStyle::Rules(_) => {}
+            theme::ListStyle::Pane | theme::ListStyle::Bars | theme::ListStyle::Ruled(_) => {}
         }
     }
     out
@@ -202,7 +202,7 @@ fn only_world_data_names_mangrove_and_magpie() {
     for world in theme::THEMES {
         match world.render_caps.list_style {
             theme::ListStyle::Diagonal(s) => diagonal.push((world.name, s.direction)),
-            theme::ListStyle::Pane | theme::ListStyle::Bars | theme::ListStyle::Rules(_) => {}
+            theme::ListStyle::Pane | theme::ListStyle::Bars | theme::ListStyle::Ruled(_) => {}
         }
     }
     assert_eq!(

@@ -1003,7 +1003,7 @@ fn assert_selected_rail_shows_its_flip(
 ///
 /// Swept over the full world roster (deriving which worlds carry a real flip
 /// from the roster itself, `overlay_selected_rail_srgb`, rather than naming a
-/// world), so the law is vacuous by construction on `Bars`/`Diagonal`/`Rules`
+/// world), so the law is vacuous by construction on `Bars`/`Diagonal`/`Ruled`
 /// (no flip ever applies there) and is required to be non-vacuous on at least
 /// one `Pane` world where the flip is real.
 #[test]

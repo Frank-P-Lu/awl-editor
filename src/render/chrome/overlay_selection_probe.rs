@@ -40,7 +40,7 @@ impl TextPipeline {
             theme::ListStyle::Pane => self.overlay_pane_selection(&geom, &plan, &vis).selected,
             // This probe asks for the PANE BAND specifically; a style that draws
             // no band answers with none rather than with whatever it does draw.
-            theme::ListStyle::Bars | theme::ListStyle::Diagonal(_) | theme::ListStyle::Rules(_) => {
+            theme::ListStyle::Bars | theme::ListStyle::Diagonal(_) | theme::ListStyle::Ruled(_) => {
                 Vec::new()
             }
         }
@@ -89,9 +89,9 @@ impl TextPipeline {
                     .map(|plate| super::bar_scrim_rect(plate, pad))
                     .collect()
             }
-            // A `Rules` rect IS its own ink — a rule carries no scrim to grow
+            // A `Ruled` rect IS its own ink — a rule carries no scrim to grow
             // into, which is the whole difference between a rule and a plate.
-            theme::ListStyle::Pane | theme::ListStyle::Diagonal(_) | theme::ListStyle::Rules(_) => {
+            theme::ListStyle::Pane | theme::ListStyle::Diagonal(_) | theme::ListStyle::Ruled(_) => {
                 plates
             }
         }

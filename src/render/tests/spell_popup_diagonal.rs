@@ -7,7 +7,7 @@
 //! rather than the document mono face's broad character grid.
 //!
 //! The laws sweep the complete theme roster with no wildcard. That makes the off-arm as
-//! important as the enrolled arm: Pane, Bars and Rules retain the old geometry and no
+//! important as the enrolled arm: Pane, Bars and Ruled retain the old geometry and no
 //! spell frost. The real-pixel law then grades both Diagonal directions at 1×/2× with a
 //! short and long Add row, including exact identity at every pixel where the shipping
 //! footprint mask is zero.
@@ -127,7 +127,7 @@ fn grade_geometry_cell(
         crate::theme::ListStyle::Diagonal(spine) => spine,
         crate::theme::ListStyle::Pane
         | crate::theme::ListStyle::Bars
-        | crate::theme::ListStyle::Rules(_) => {
+        | crate::theme::ListStyle::Ruled(_) => {
             assert_eq!(
                 card[2].to_bits(),
                 legacy.to_bits(),

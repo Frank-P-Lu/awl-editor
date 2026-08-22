@@ -267,7 +267,7 @@ fn no_row_fill_worlds() -> Vec<&'static str> {
             // A diagonal selection is the bright mark alone; the composition
             // deliberately has no row-fill fallback.
             theme::ListStyle::Diagonal(_) => true,
-            theme::ListStyle::Pane | theme::ListStyle::Bars | theme::ListStyle::Rules(_) => false,
+            theme::ListStyle::Pane | theme::ListStyle::Bars | theme::ListStyle::Ruled(_) => false,
         })
         .map(|t| t.name)
         .collect()

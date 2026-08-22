@@ -117,7 +117,7 @@ fn authored_step(p: &TextPipeline) -> f32 {
         }
         crate::theme::ListStyle::Pane
         | crate::theme::ListStyle::Bars
-        | crate::theme::ListStyle::Rules(_) => 0.0,
+        | crate::theme::ListStyle::Ruled(_) => 0.0,
     }
 }
 
@@ -367,7 +367,7 @@ fn median(v: &[f32]) -> f32 {
 /// requires the frost's shear to be the slope between them.
 ///
 /// ENROLMENT DERIVES FROM WHAT THE FRAME DREW, not from a world's name: the frost leans
-/// exactly when the frame measured a diagonal rail with a rake, so the `Rules` half of
+/// exactly when the frame measured a diagonal rail with a rake, so the `Ruled` half of
 /// the roster takes the feather and keeps its upright rectangle without anything here
 /// naming it. Both branches are required to be non-empty, and both are named on failure.
 ///
@@ -506,7 +506,7 @@ fn the_footprints_lean_is_read_from_the_spine_the_frame_actually_drew() {
     assert!(
         !upright.is_empty(),
         "every enrolled world leans — the feather-only arm has no subject, and a \
-         `Rules` world silently taking a shear is exactly what a name list would hide \
+         `Ruled` world silently taking a shear is exactly what a name list would hide \
          (leaning={leaning:?})"
     );
     crate::theme::set_active(entry);

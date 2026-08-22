@@ -51,12 +51,12 @@ fn selected_secondary_on_band() -> bool {
         theme::ListStyle::Bars => true,
         theme::ListStyle::Pane | theme::ListStyle::Diagonal(_) => true,
         // The first `false` this predicate has ever returned, and the reason it
-        // was kept as a per-family question: a `Rules` selection puts no fill
+        // was kept as a per-family question: a `Ruled` selection puts no fill
         // under the row at all, so there is no band for a secondary to flip
         // ONTO. Flipping anyway would recolour the shortcut against unchanged
         // ground — quieter or louder than the ink beside it for no reason a
         // reader can see.
-        theme::ListStyle::Rules(_) => false,
+        theme::ListStyle::Ruled(_) => false,
     }
 }
 
@@ -93,7 +93,7 @@ fn selected_secondary_on_band() -> bool {
 /// * `Diagonal` - no; that arm returns `OverlaySelectionRects::default()`, which is
 ///   no row fill at all ("Diagonal selection is the bright CHEVRON ... it
 ///   deliberately has no row-fill fallback").
-/// * `Rules` - no; a mark, never a fill. Already `None` via the sibling.
+/// * `Ruled` - no; a mark, never a fill. Already `None` via the sibling.
 ///
 /// Every world's thumb is held to a perceptual presence floor against whatever it
 /// actually sits on by `render::tests::range_rail`'s
@@ -103,7 +103,7 @@ fn selected_secondary_on_band() -> bool {
 fn rail_thumb_over_fill() -> bool {
     match crate::render::effective_list_style() {
         theme::ListStyle::Pane => true,
-        theme::ListStyle::Bars | theme::ListStyle::Diagonal(_) | theme::ListStyle::Rules(_) => {
+        theme::ListStyle::Bars | theme::ListStyle::Diagonal(_) | theme::ListStyle::Ruled(_) => {
             false
         }
     }

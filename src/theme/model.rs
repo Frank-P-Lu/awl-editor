@@ -143,10 +143,10 @@ pub enum ListStyle {
     /// treatment. Reached by one carrier world and by
     /// `AWL_OVERLAY_LIST_FORCE=rules:<weight|gutter>`; which further worlds
     /// adopt it is a taste call, not a capability gap.
-    Rules(RuleSelection),
+    Ruled(RuleSelection),
 }
 
-/// Which of the two credible selection treatments a [`ListStyle::Rules`] world
+/// Which of the two credible selection treatments a [`ListStyle::Ruled`] world
 /// draws. Neither may fill the row: a filled band is `Pane`'s answer, and
 /// borrowing it would make this style a restyle of that one.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -172,7 +172,7 @@ impl ListStyle {
             // is defined against. The blurred backdrop every world already
             // carries is what its chrome reads against, exactly as `Diagonal`'s
             // does.
-            ListStyle::Rules(_) => ListBacking::BarePlates,
+            ListStyle::Ruled(_) => ListBacking::BarePlates,
         }
     }
 
@@ -183,9 +183,9 @@ impl ListStyle {
     pub fn draws_row_plates(self) -> bool {
         match self {
             ListStyle::Bars => true,
-            // A rule is a boundary, not a surface — `Rules` joins `Diagonal` on
+            // A rule is a boundary, not a surface — `Ruled` joins `Diagonal` on
             // the bare-plate roster that draws no plate.
-            ListStyle::Pane | ListStyle::Diagonal(_) | ListStyle::Rules(_) => false,
+            ListStyle::Pane | ListStyle::Diagonal(_) | ListStyle::Ruled(_) => false,
         }
     }
 }

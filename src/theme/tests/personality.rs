@@ -235,7 +235,7 @@ fn personality_assignments_are_exactly_the_decided_table() {
             "Cassowary" => expected_cassowary_caps(),
             // PAPERBARK (the handmade-paper studio): a LIGHT world, so
             // it carries the composition round's light-world card border, and
-            // ⚠️ THE ONE CARRIER OF `Rules` — the quiet fourth list style,
+            // ⚠️ THE ONE CARRIER OF `Ruled` — the quiet fourth list style,
             // organised by absence rather than by enclosure. The room's whole
             // personality is its material ground, and a ruled index is that
             // ground one register up where a floating card was an object dropped
@@ -248,7 +248,7 @@ fn personality_assignments_are_exactly_the_decided_table() {
             // which would put a filled pill back on the lens strip.
             "Paperbark" => RenderCaps {
                 elevation: Elevation::Bordered,
-                list_style: model::ListStyle::Rules(model::RuleSelection::Weight),
+                list_style: model::ListStyle::Ruled(model::RuleSelection::Weight),
                 ..RenderCaps::DEFAULT
             },
             // KITE (the light warped-grid statement world). ⚠️ A STATEMENT
@@ -257,10 +257,14 @@ fn personality_assignments_are_exactly_the_decided_table() {
             // state when the margins narrow, and at `page_width_code` they
             // narrow to a stripe. Moving ONE of these twenty-two dials would
             // leave Kite chrome-identical to five QUIET worlds while its
-            // declared deliberate counterpart Firetail moves seven. Six dials,
-            // each traceable to the world's own four words (cool / geometric /
-            // crisp / directional) and each mirroring Firetail rather than
-            // copying it.
+            // declared deliberate counterpart Firetail moves seven. Seven
+            // dials, each traceable to the world's own four words (cool /
+            // geometric / crisp / directional) and each mirroring Firetail
+            // rather than copying it — including the bare-plate list, where
+            // Firetail wears Bars and Kite wears the ruled index (USER
+            // DECISION 2026-08-22: hairline rules with weight selection are
+            // the Swiss-poster grammar of Kite's display-type identity, and
+            // a pane hid its warped-grid ground).
             "Kite" => RenderCaps {
                 title_style: TitleStyle::Placard {
                     corner: PlacardCorner::BR,
@@ -272,6 +276,7 @@ fn personality_assignments_are_exactly_the_decided_table() {
                 elevation: Elevation::Bordered,
                 page_frame: frame(1.0),
                 facet_style: FacetStyle::Band,
+                list_style: model::ListStyle::Ruled(model::RuleSelection::Weight),
                 ..RenderCaps::DEFAULT
             },
             other => panic!(

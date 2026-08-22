@@ -131,7 +131,7 @@ fn the_footprint_arm_carries_no_dim_and_the_full_arm_keeps_its_own() {
     );
 }
 
-/// A footprint over an upright composition — the shape a `Rules` world takes.
+/// A footprint over an upright composition — the shape a `Ruled` world takes.
 fn upright(rect: [f32; 4]) -> Frost {
     Frost::Footprint(Footprint { rect, shear: 0.0 })
 }
@@ -633,7 +633,7 @@ fn footprint_enrolment_follows_the_rosters_own_backing_owners() {
     );
     // The style axis itself, exhaustively: one member per shape of backing, so a
     // new `ListStyle` cannot slip past with an unconsidered answer.
-    assert!(footprint_frost_applies(ListStyle::Rules(
+    assert!(footprint_frost_applies(ListStyle::Ruled(
         crate::theme::RuleSelection::Weight
     )));
     assert!(footprint_frost_applies(ListStyle::Diagonal(

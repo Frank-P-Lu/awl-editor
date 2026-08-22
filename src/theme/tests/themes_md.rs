@@ -21,7 +21,7 @@
 //!   two tunings, and the prose column is where a tuning gets described.
 //! * [`themes_md_values_column_names_every_shipped_variant`] — the Values column
 //!   names every variant a world actually carries. This is the arm that catches
-//!   the `Recessed`/`Filled`/`Diagonal`/`Rules` class: a row whose deviation list
+//!   the `Recessed`/`Filled`/`Diagonal`/`Ruled` class: a row whose deviation list
 //!   is right can still describe a two-variant field that has grown a third.
 //!
 //! ENROLMENT is the table's own rows, read out of the document, each keyed to

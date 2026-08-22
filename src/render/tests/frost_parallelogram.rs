@@ -312,7 +312,7 @@ fn the_card_boxs_two_off_rake_corners_are_unfrosted_and_the_document_there_is_sh
                 let short: Vec<_> = corners.iter().filter(|(_, m)| *m < 1.0).collect();
                 let full = corners.len() - short.len();
 
-                // Stated BEFORE the shear branch on purpose, so the upright `Rules` member is
+                // Stated BEFORE the shear branch on purpose, so the upright `Ruled` member is
                 // graded too — it is the one composition that draws at the card's full band,
                 // and therefore the only one whose surfaces a narrowing can strand.
                 fewest_surfaces =

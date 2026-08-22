@@ -63,7 +63,7 @@ fn diagonal_worlds() -> Vec<(&'static str, theme::DiagonalDirection)> {
     for world in theme::THEMES {
         match world.render_caps.list_style {
             theme::ListStyle::Diagonal(spine) => out.push((world.name, spine.direction)),
-            theme::ListStyle::Pane | theme::ListStyle::Bars | theme::ListStyle::Rules(_) => {}
+            theme::ListStyle::Pane | theme::ListStyle::Bars | theme::ListStyle::Ruled(_) => {}
         }
     }
     assert!(

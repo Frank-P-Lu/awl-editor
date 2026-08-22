@@ -94,7 +94,7 @@ mod tests {
     use super::*;
 
     /// AN UPRIGHT SHAPE'S UN-SHEARED FRAME IS THE CANVAS. The one cell where the
-    /// arithmetic must be the identity, because a `Rules` world is enrolled at shear 0
+    /// arithmetic must be the identity, because a `Ruled` world is enrolled at shear 0
     /// and any displacement there would move a shipped frost.
     #[test]
     fn an_upright_shape_leaves_every_span_where_it_found_it() {

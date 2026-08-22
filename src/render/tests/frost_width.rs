@@ -52,7 +52,7 @@
 //! someone maintains.
 //!
 //! Swept over the enrolled roster — derived from `blur::footprint_frost_applies`, so
-//! Paperbark (shear 0, `Rules`, whose selected rule runs the card's full band and whose
+//! Paperbark (shear 0, `Ruled`, whose selected rule runs the card's full band and whose
 //! frost is therefore UNCHANGED) keeps the sweep honest — at 1× and 2×, and over BOTH
 //! menu-bar states, whose reserve comes off the card's height budget and therefore off the
 //! rake the rail resolves. The bar's arm is taken from the AMBIENT value and its negation,
@@ -206,7 +206,7 @@ fn sweep(
 /// 520px box the user photographed.
 ///
 /// ⚠️ **THE ENROLMENT IS DERIVED AND BOTH ITS ARMS ARE REQUIRED NON-EMPTY.** A composition
-/// that draws something at the card's FULL band — every `Rules` world, whose selected rule
+/// that draws something at the card's FULL band — every `Ruled` world, whose selected rule
 /// runs `(band_x, band_w)` — legitimately narrows by nothing and must come out bit-identical.
 /// A leaning composition narrows. If the sweep ever held only the first kind, "the box equals
 /// the union" would be true of the defect.
@@ -288,7 +288,7 @@ fn the_frost_is_no_wider_than_the_surfaces_it_backs() {
     assert!(
         !narrowed.is_empty() && !unchanged.is_empty(),
         "this sweep must contain a composition whose frost NARROWS and one whose frost is \
-         unchanged (a full-band `Rules` world) — otherwise 'the box equals the union' is true \
+         unchanged (a full-band `Ruled` world) — otherwise 'the box equals the union' is true \
          of the box the user photographed: narrowed {narrowed:?}, unchanged {unchanged:?}"
     );
 }

@@ -175,7 +175,7 @@ impl TextPipeline {
         // the (unique) selected rail earned onto every OTHER rail's
         // fill/thumb too, a non-selected row reading the selected row's
         // flipped ink whenever a Pane world washes `muted` out
-        // (`rail_thumb_over_fill`; Bars/Diagonal/Rules never flip at all, so
+        // (`rail_thumb_over_fill`; Bars/Diagonal/Ruled never flip at all, so
         // that mistake would be invisible there). Each thumb/fill pair
         // carries the ink its OWN row earned.
         let rails = self.overlay_rails(geom, plan);

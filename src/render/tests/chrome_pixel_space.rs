@@ -55,7 +55,7 @@ fn palette_view() -> ViewState {
 /// first pixel that is emphatically not is its first mark.
 ///
 /// **THE SCAN BAND IS THE PLANNED ROWS, NOT A FRACTION OF THE CARD.** A
-/// `ListBacking::BarePlates` world (every `Bars`, `Diagonal` and `Rules`
+/// `ListBacking::BarePlates` world (every `Bars`, `Diagonal` and `Ruled`
 /// world) paints NO card plate, so the world's own ground shows through the
 /// card everywhere a row plate does not cover — and a fixed
 /// `0.30..0.95 * card_h` slice reaches past the last candidate row into that

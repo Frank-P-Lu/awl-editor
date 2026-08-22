@@ -326,7 +326,7 @@ mod overlay_draw;
 mod overlay_ink;
 mod overlay_material;
 mod overlay_rows;
-// The complete `Rules` composition, including shared picker/workspace ink.
+// The complete `Ruled` composition, including shared picker/workspace ink.
 pub(in crate::render) mod overlay_rules;
 use overlay_rules::{RULE_ROW_AIR, RULES_TEXT_HPAD};
 mod overlay_selection;

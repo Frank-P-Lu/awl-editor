@@ -354,19 +354,19 @@ fn every_world_splits_by_the_shared_default_never_by_identity() {
                     t.name
                 );
             }
-            // `Rules` is bare like `Diagonal`, but it DOES fill the row quad
+            // `Ruled` is bare like `Diagonal`, but it DOES fill the row quad
             // pipelines — with rules. The card-fill claim is the one that
             // matters here and it is the same: no panel fill, split or unified.
-            theme::ListStyle::Rules(_) => {
+            theme::ListStyle::Ruled(_) => {
                 assert!(
                     p.overlay_bars.instance_count() > 0,
-                    "{}: a Rules list draws its separating rules on the row quads",
+                    "{}: a Ruled list draws its separating rules on the row quads",
                     t.name
                 );
                 assert_eq!(
                     p.panel_card.instance_count(),
                     0,
-                    "{}: a Rules list has no card fill and no plate scrim",
+                    "{}: a Ruled list has no card fill and no plate scrim",
                     t.name
                 );
             }
@@ -397,10 +397,10 @@ fn every_world_splits_by_the_shared_default_never_by_identity() {
                 ),
                 // The split is a CARD composition and this style has no card, so
                 // forcing it must leave the list exactly as it was.
-                theme::ListStyle::Rules(_) => assert_eq!(
+                theme::ListStyle::Ruled(_) => assert_eq!(
                     p.panel_card.instance_count(),
                     0,
-                    "{}: pane split override cannot give a Rules list a card",
+                    "{}: pane split override cannot give a Ruled list a card",
                     t.name
                 ),
             }

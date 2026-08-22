@@ -61,7 +61,7 @@ fn plate_geometry(p: &mut TextPipeline, v: &ViewState, w: u32) -> (f32, Option<f
         .center();
     // `overlay_pane_fills` itself has no `list_style` gate — that gate lives one
     // call up, in `overlay_prepare_card_backing`, which only ever reaches it on
-    // `ListBacking::Card` (`ListStyle::Pane`); a `Bars`/`Diagonal`/`Rules` world
+    // `ListBacking::Card` (`ListStyle::Pane`); a `Bars`/`Diagonal`/`Ruled` world
     // takes the `BarePlates` branch and never draws this fill at all, even
     // though the probe below would still happily compute two rects for it.
     // Mirror that same production gate here, or a Bars world (whose own

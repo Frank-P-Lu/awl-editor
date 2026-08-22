@@ -78,7 +78,7 @@ fn wagtail_disables_the_frosted_blur_backdrop_for_a_crisp_pickers_footprint_too(
     v.overlay_active = true;
     v.overlay_crisp = true;
     v.overlay_items = vec!["one".into(), "two".into()];
-    crate::render::overrides::set_list_style_test_override(Some(theme::ListStyle::Rules(
+    crate::render::overrides::set_list_style_test_override(Some(theme::ListStyle::Ruled(
         theme::RuleSelection::Weight,
     )));
 

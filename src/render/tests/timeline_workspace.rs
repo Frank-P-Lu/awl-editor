@@ -55,7 +55,7 @@ fn timeline_metadata_uses_the_spare_left_inset_before_eliding() {
         eprintln!("skipping timeline metadata geometry: no adapter");
         return;
     };
-    crate::render::set_list_style_test_override(Some(crate::theme::ListStyle::Rules(
+    crate::render::set_list_style_test_override(Some(crate::theme::ListStyle::Ruled(
         crate::theme::RuleSelection::Weight,
     )));
     p.set_view(&timeline_view(6));
@@ -69,12 +69,12 @@ fn timeline_metadata_uses_the_spare_left_inset_before_eliding() {
         let gain = (geom.row_text_probe()[1] - geom.text_w) / dpi;
         assert!(
             (20.0..=24.0).contains(&inset),
-            "the reported Rules timeline leaves {inset:.1} logical px from the workspace outline; \
+            "the reported Ruled timeline leaves {inset:.1} logical px from the workspace outline; \
              its metadata should spend the otherwise empty inset down to the 20–24px floor"
         );
         assert!(
             (30.0..=50.0).contains(&gain),
-            "the reported Rules timeline gained only {gain:.1} logical px at dpi={dpi}; \
+            "the reported Ruled timeline gained only {gain:.1} logical px at dpi={dpi}; \
              the sighting calls for roughly 30–50px of real extra metadata allowance"
         );
         graded += 1;
@@ -235,15 +235,15 @@ fn gallery_timeline_metadata_reported_shape() {
     let out = std::path::Path::new("/tmp/awl-423-gallery");
     std::fs::create_dir_all(out).unwrap();
     let shots = [
-        ("01-narrow-rules-1x.png", 760, 620, 1.0, "Rules"),
-        ("02-ordinary-rules-1x.png", 1200, 800, 1.0, "Rules"),
-        ("03-wide-rules-1x.png", 1600, 1000, 1.0, "Rules"),
+        ("01-narrow-rules-1x.png", 760, 620, 1.0, "Ruled"),
+        ("02-ordinary-rules-1x.png", 1200, 800, 1.0, "Ruled"),
+        ("03-wide-rules-1x.png", 1600, 1000, 1.0, "Ruled"),
         ("04-narrow-pane-2x.png", 760, 620, 2.0, "Pane"),
         ("05-ordinary-bars-2x.png", 1200, 800, 2.0, "Bars"),
     ];
     for (name, logical_w, logical_h, dpi, style) in shots {
         let list = match style {
-            "Rules" => crate::theme::ListStyle::Rules(crate::theme::RuleSelection::Weight),
+            "Ruled" => crate::theme::ListStyle::Ruled(crate::theme::RuleSelection::Weight),
             "Bars" => crate::theme::ListStyle::Bars,
             _ => crate::theme::ListStyle::Pane,
         };

@@ -12,9 +12,9 @@
 //! strip's active label — so it bypasses the `FacetStyle` skins, which describe
 //! a horizontal chip run and say nothing about a column, and takes the world's
 //! own LIST composition instead. Every style but one answers with the filled
-//! selected-row band. `ListStyle::Rules` cannot: a filled band is the one thing
+//! selected-row band. `ListStyle::Ruled` cannot: a filled band is the one thing
 //! that composition refuses, and taking it here shipped a world whose content
-//! pane was arranged by rules while the rail beside it wore a plate. The `Rules`
+//! pane was arranged by rules while the rail beside it wore a plate. The `Ruled`
 //! arm therefore routes through the same owner the rows come out of
 //! (`overlay_rules::rules_ink`), on the two pipelines the chip skins otherwise
 //! use — hairlines on `overlay_facet_ghost`, the selection on
@@ -62,7 +62,7 @@ impl TextPipeline {
     /// of them says anything about a column. What it takes instead is the
     /// world's own list composition, because a rail IS a list: a filled band on
     /// a `Pane`/`Bars`/`Diagonal` world, and the same rules the rows beside it
-    /// are arranged by on a `Rules` one. Either way at the same reduced presence
+    /// are arranged by on a `Ruled` one. Either way at the same reduced presence
     /// the content pane's mark takes when IT is the unfocused region.
     pub(super) fn prepare_rail_mark(
         &mut self,
@@ -73,11 +73,11 @@ impl TextPipeline {
         geom: &OverlayGeom,
     ) {
         // A RAIL IS A LIST, so the style that says how a list is arranged says
-        // how this one is. Only `Rules` answers differently, because only
-        // `Rules` refuses the filled band every other style's mark is made of;
+        // how this one is. Only `Ruled` answers differently, because only
+        // `Ruled` refuses the filled band every other style's mark is made of;
         // no wildcard, so a fifth style has to decide.
         match crate::render::effective_list_style() {
-            theme::ListStyle::Rules(mark) => {
+            theme::ListStyle::Ruled(mark) => {
                 self.prepare_rail_rules(device, queue, width, height, geom, mark);
                 return;
             }
@@ -102,7 +102,7 @@ impl TextPipeline {
             .prepare(device, queue, width, height, &[]);
     }
 
-    /// THE RAIL AS A RULED LIST — the `Rules` arm of [`Self::prepare_rail_mark`].
+    /// THE RAIL AS A RULED LIST — the `Ruled` arm of [`Self::prepare_rail_mark`].
     ///
     /// A filled band is the one thing this style refuses, so the rail cannot
     /// take the world's selected-row band the way every other style's rail does;
