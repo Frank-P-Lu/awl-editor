@@ -210,6 +210,7 @@ impl TextPipeline {
             }
             _ => ink,
         };
+        let mut strip_scale = 1.0;
         self.shape_theme_spans(
             geom,
             plan,
@@ -227,7 +228,7 @@ impl TextPipeline {
         );
         let strip_w = self.theme_strip_px();
         if strip_w > geom.text_w {
-            let scale = (geom.text_w / strip_w).max(0.5);
+            strip_scale = (geom.text_w / strip_w).max(0.5);
             self.shape_theme_spans(
                 geom,
                 plan,
@@ -240,7 +241,7 @@ impl TextPipeline {
                 &label_ranges,
                 &sep_ranges,
                 trailing,
-                scale,
+                strip_scale,
                 elide,
             );
         }
@@ -417,7 +418,7 @@ impl TextPipeline {
             ghosts.push(tab);
         }
         self.overlay_theme_facet_ghosts = ghosts;
-        self.shape_docked_facet_label(geom);
+        self.shape_docked_facet_strip(geom, strip_scale);
         // A tab PILL is a plate, so `Rules` is deliberately absent — it draws
         // none anywhere. (`Diagonal` is on the yes side here and the no side of
         // `draws_row_plates`: it computes pills nothing consumes.)

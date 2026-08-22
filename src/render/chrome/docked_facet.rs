@@ -33,18 +33,11 @@ impl TextPipeline {
             .map(|dock| (dock, [geom.card_x, geom.card_y, geom.card_w, geom.card_h]))
     }
 
-    pub(super) fn shape_docked_facet_label(&mut self, geom: &OverlayGeom) {
-        let label = if matches!(
+    pub(super) fn shape_docked_facet_strip(&mut self, geom: &OverlayGeom, scale: f32) {
+        let docked = matches!(
             crate::render::effective_facet_style(),
             theme::FacetStyle::DockedTab
-        ) {
-            geom.strip
-                .iter()
-                .find_map(|(label, active)| active.then_some(label.as_str()))
-                .unwrap_or("")
-        } else {
-            ""
-        };
+        );
         let metrics = self.overlay_metrics();
         self.docked_facet_buffer
             .set_metrics(&mut self.font_system, metrics);
@@ -52,10 +45,34 @@ impl TextPipeline {
             .set_size(&mut self.font_system, None, None);
         self.docked_facet_buffer
             .set_wrap(&mut self.font_system, Wrap::None);
-        self.docked_facet_buffer.set_text(
+        let fs = self.metrics.font_size * crate::render::effective_overlay_scale() * scale;
+        let mut spans = Vec::new();
+        if docked {
+            for (idx, (label, active)) in geom.strip.iter().enumerate() {
+                if idx > 0 {
+                    spans.push((
+                        super::strip_gap(),
+                        chrome_attrs()
+                            .color(theme::faint().to_glyphon())
+                            .metrics(GlyphMetrics::new(fs, self.overlay_lh())),
+                    ));
+                }
+                spans.push((
+                    label.as_str(),
+                    chrome_attrs()
+                        .color(if *active {
+                            theme::base_content().to_glyphon()
+                        } else {
+                            theme::muted().to_glyphon()
+                        })
+                        .metrics(GlyphMetrics::new(fs, self.overlay_lh())),
+                ));
+            }
+        }
+        self.docked_facet_buffer.set_rich_text(
             &mut self.font_system,
-            label,
-            &panel_attrs().color(theme::base_content().to_glyphon()),
+            spans,
+            &panel_attrs(),
             Shaping::Advanced,
             None,
         );
@@ -128,7 +145,7 @@ pub(super) fn push_docked_facet_areas<'a>(
     height: u32,
     ink: glyphon::Color,
 ) -> bool {
-    let Some(((dock, tab), original)) = dock.zip(tab).zip(original) else {
+    let Some(((dock, _tab), original)) = dock.zip(tab).zip(original) else {
         return false;
     };
     {
@@ -150,50 +167,20 @@ pub(super) fn push_docked_facet_areas<'a>(
         };
         push(text_top, 0.0, original.top);
         push(text_top, original.bottom(), height as f32);
-
-        // Move the complete shaped strip with the active tab. Its active span
-        // is camouflaged in the tab surface and redrawn once below. Keeping
-        // the quiet labels in one TextArea avoids GlyphBuffer multi-clip
-        // behavior dropping the tail after the active label.
-        let strip_baseline = panel_buffer
-            .layout_runs()
-            .find(|run| run.line_i == original.line)
-            .map_or(original.top - text_top, |run| run.line_y);
-        let dock_baseline = docked_facet_buffer
-            .layout_runs()
-            .next()
-            .map_or(0.0, |run| run.line_y);
-        let moved_top = dock.top + dock_baseline - strip_baseline;
-        let clip_top = dock.top.max(0.0) as i32;
-        let clip_bottom = dock.bottom().min(height as f32) as i32;
-        areas.push(TextArea {
-            buffer: panel_buffer,
-            left: text_left,
-            top: moved_top,
-            scale: 1.0,
-            bounds: TextBounds {
-                left: clip_left,
-                top: clip_top,
-                right: clip_right,
-                bottom: clip_bottom,
-            },
-            default_color: ink,
-            custom_glyphs: &[],
-        });
     }
-    let label_w = docked_facet_buffer
-        .layout_runs()
-        .next()
-        .map_or(0.0, |run| run.line_w);
+    // The dock owns a dedicated buffer for the complete strip. Uploading the
+    // panel buffer three times with disjoint clips made glyphon enrollment
+    // order-dependent: a typed query or a non-first active facet could drop
+    // the tail. One buffer and one area make the whole navigation line stable.
     areas.push(TextArea {
         buffer: docked_facet_buffer,
-        left: tab[0] + (tab[2] - label_w) * 0.5,
+        left: text_left,
         top: dock.top,
         scale: 1.0,
         bounds: TextBounds {
-            left: tab[0].max(0.0) as i32,
+            left: clip_left,
             top: dock.top.max(0.0) as i32,
-            right: (tab[0] + tab[2]).min(clip_right as f32) as i32,
+            right: clip_right,
             bottom: dock.bottom().min(height as f32) as i32,
         },
         default_color: ink,

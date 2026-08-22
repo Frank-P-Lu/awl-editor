@@ -104,7 +104,9 @@ fn core_ink_pixels(pixels: &[[u8; 4]], width: u32, rect: [f32; 4], ink: [u8; 4])
     let x0 = rect[0].floor().max(0.0) as u32;
     let y0 = rect[1].floor().max(0.0) as u32;
     let x1 = (rect[0] + rect[2]).ceil().min(width as f32) as u32;
-    let y1 = (rect[1] + rect[3]).ceil() as u32;
+    let y1 = (rect[1] + rect[3])
+        .ceil()
+        .min((pixels.len() as u32 / width) as f32) as u32;
     (y0..y1)
         .flat_map(|y| (x0..x1).map(move |x| pixels[(y * width + x) as usize]))
         .filter(|px| {
@@ -154,10 +156,11 @@ fn docked_facet_draw_hit_and_pane_edge_are_one_geometry_across_canvas_and_dpi() 
                 .docked_facet_buffer
                 .layout_runs()
                 .next()
-                .expect("the dock owns a separately shaped visible label");
+                .expect("the dock owns a separately shaped navigation strip");
             assert!(
-                !docked_label.glyphs.is_empty() && docked_label.line_w <= tab[2],
-                "the active category label has ink and fits its joined tab"
+                !docked_label.glyphs.is_empty()
+                    && docked_label.line_w <= p.overlay_geometry(w).text_w,
+                "the complete category strip has ink and fits the card"
             );
             assert!(
                 (tab[1] + tab[3] - card_y).abs() < 0.01,
@@ -250,6 +253,64 @@ fn empty_results_keep_the_active_tab_and_commands_placard_visible() {
         core_ink_pixels(&pixels, w, visible_placard, placard_ink) >= 24,
         "COMMANDS placard has geometry but no visible phosphor ink"
     );
+}
+
+#[test]
+fn typed_filter_keeps_every_active_tab_complete_and_commands_placard_visible() {
+    let _guard = crate::testlock::serial();
+    let _world = theme::WorldPin::world("Cassowary").expect("Cassowary ships");
+    let (w, h) = (1200u32, 800u32);
+    let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
+        eprintln!("skipping Cassowary typed-filter appearance: no wgpu adapter");
+        return;
+    };
+    let mut enrolled = 0;
+    for active in 0..console_view(0).overlay_lens.len() {
+        let mut v = console_view(active);
+        v.overlay_query = "save".into();
+        v.overlay_items = vec!["Save".into(), "Save a Copy…".into()];
+        v.overlay_bindings = vec!["⌘S".into(), String::new()];
+        p.set_view(&v);
+        p.prepare(&device, &queue, w, h).unwrap();
+
+        let dock = p
+            .docked_facet_geometry_probe()
+            .expect("typed filter keeps dock")
+            .0;
+        let pixels = super::pixeldiff::render_frame(&mut p, &device, &queue, w, h);
+        for idx in 0..v.overlay_lens.len() {
+            let (left, right) = lens_hit_span(&p, idx, dock.center())
+                .unwrap_or_else(|| panic!("active {active}: facet {idx} lost its hit span"));
+            let expected = if idx == active {
+                theme::base_content().rgba_bytes()
+            } else {
+                theme::muted().rgba_bytes()
+            };
+            assert!(
+                core_ink_pixels(
+                    &pixels,
+                    w,
+                    [left, dock.top, right - left, dock.height],
+                    expected
+                ) >= 2,
+                "active {active}: facet {idx} has no visible ink under a typed query"
+            );
+        }
+        let placard = p
+            .overlay_shape_placard(&p.overlay_geometry(w))
+            .expect("typed filter keeps COMMANDS placard");
+        assert!(
+            core_ink_pixels(
+                &pixels,
+                w,
+                [placard.0, placard.1.max(0.0), placard.2, placard.3],
+                theme::placard_ink(theme::PlacardInk::Bold).rgba_bytes(),
+            ) >= 24,
+            "active {active}: typed filter loses COMMANDS placard ink"
+        );
+        enrolled += 1;
+    }
+    assert_eq!(enrolled, 5, "every active facet is appearance-enrolled");
 }
 
 #[test]
