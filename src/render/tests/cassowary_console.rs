@@ -95,10 +95,10 @@ fn console_view(active: usize) -> ViewState {
     v.overlay_lens = [
         "All", "Files", "Navigate", "Format", "View", "Tools", "Settings", "Recent",
     ]
-        .iter()
-        .enumerate()
-        .map(|(i, label)| (label.to_string(), i == active))
-        .collect();
+    .iter()
+    .enumerate()
+    .map(|(i, label)| (label.to_string(), i == active))
+    .collect();
     v
 }
 

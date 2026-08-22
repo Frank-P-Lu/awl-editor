@@ -171,10 +171,7 @@ impl App {
                 deadlines.propose(Some(deadline));
             }
         }
-        match self
-            .document
-            .poll_autosave(self.frame.now(), AUTOSAVE_IDLE)
-        {
+        match self.document.poll_autosave(self.frame.now(), AUTOSAVE_IDLE) {
             document::AutosavePoll::Due => {
                 self.autosave_flush();
                 #[cfg(not(target_arch = "wasm32"))]
