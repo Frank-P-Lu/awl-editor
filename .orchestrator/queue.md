@@ -146,23 +146,6 @@ gate is unchanged. Verify: a `--screenshot-app` law closes the sole file
 via the row's close zone and asserts the same zero-document state the ⌘W
 law already pins.
 
-### 470 — macOS menu bar items show no key equivalents (USER-REPORTED 2026-08-22, live screenshot)
-
-The File menu renders New document, Command palette…, Go to…, Open file…,
-Save et al. with NO ⌘ shortcuts in the right column, though these carry
-advertised default bindings. Premise check first: confirm live (menu bar is
-live-`App`-only; no headless capture reaches it — docs/harness-reach.md)
-and read where `menubar`/muda items acquire accelerators today — whether
-they were dropped in a refactor or never wired. Constraint: menu items
-route through `App::apply`, never muda-predefined (tripwire in CLAUDE.md),
-and the keymap is the one source of binding truth — the menu's accelerator
-column must derive from the same keymap the palette rows print, not a
-second hand-typed table. Verify: a unit law over the menu model asserting
-every item whose action has a default macOS binding names that binding,
-swept from the keymap roster (no hand-picked list), mutation-proven by
-blanking one accelerator; visual confirmation on the live app stays flagged
-for the user.
-
 ### 471 — Cassowary console: square top, chamfered bottom, one corner-mask owner (USER DECISION 2026-08-22)
 
 User-reported on the live app: the Cassowary console shows square artifacts

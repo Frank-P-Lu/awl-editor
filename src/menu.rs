@@ -477,6 +477,19 @@ fn roster_all() -> Vec<RosterMenu> {
     ]
 }
 
+/// The catalog command NAME a routed menu id fires — the one lookup
+/// `resolve`, `item_chord_for_id`, and the native accelerator builder
+/// (`native::accelerator_for_id`) all route through, so `id -> command` can
+/// never drift between what fires, what labels, and what the native menu's
+/// key-equivalent column shows.
+fn routed_command_for_id(id: &str) -> Option<&'static str> {
+    SECTIONS
+        .iter()
+        .flat_map(|s| s.iter())
+        .find(|r| r.id == id)
+        .map(|r| r.command)
+}
+
 /// Resolve a fired muda item id (its raw [`muda::MenuId`] string) back to the
 /// `Action` it routes to, via `commands::action_for_name` — the SAME catalog
 /// lookup the config `[keys]` rebinder uses, so a routed item can never name
@@ -484,11 +497,7 @@ fn roster_all() -> Vec<RosterMenu> {
 /// doesn't own (a predefined item, or a stray/foreign event) — a silent,
 /// harmless no-op at the `App::handle_menu_event` seam, never a panic.
 pub fn resolve(id: &str) -> Option<Action> {
-    SECTIONS
-        .iter()
-        .flat_map(|s| s.iter())
-        .find(|r| r.id == id)
-        .and_then(|r| commands::action_for_name(r.command))
+    routed_command_for_id(id).and_then(commands::action_for_name)
 }
 
 /// The EFFECTIVE native-slot chord for a routed command NAME — CONVENTION-
@@ -524,11 +533,8 @@ pub fn item_chord(command: &str, keys: &[(String, Vec<String>)], keep: &[String]
 }
 
 pub fn item_chord_for_id(id: &str, keys: &[(String, Vec<String>)], keep: &[String]) -> String {
-    SECTIONS
-        .iter()
-        .flat_map(|s| s.iter())
-        .find(|r| r.id == id)
-        .map(|r| item_chord(r.command, keys, keep))
+    routed_command_for_id(id)
+        .map(|command| item_chord(command, keys, keep))
         .unwrap_or_default()
 }
 
