@@ -6,7 +6,7 @@
 
 ## Ready to build
 
-### 444 — the working set becomes visible: a margin buffer stack (USER DECISION 2026-08-16; residuals 1–2 LANDED; residual 3 🟡 IN PROGRESS — item-444-overflow-prototypes (codex), branch codex/item-444-overflow-prototypes)
+### 444 — the working set becomes visible: a margin buffer stack (USER DECISION 2026-08-16; residuals 1–2 LANDED; residual 3 🟠 AWAITING USER CHOICE — prototype evidence landed)
 
 **Landed on `main`** (full sha list in `git log --grep 'item 444'`): the
 `--seed-tree` capture door; the `WorkingSet` module; the cross-root ownership
@@ -74,16 +74,15 @@ reachable via `autosave = false`.
    legible again, presence + legibility floors both mutation-proven
    independently. The one-file case remains byte-identical.
 
-2. **Zero-document state** — the largest remaining piece; `DocumentSession`
-   would need an optional active slot, and every subsystem this item names
-   (renderer, actions, autosave, session, title, accessibility tree,
-   sidecar) needs an honest `no active document` representation.
+2. **Zero-document state. LANDED.** `DocumentSession` has an optional active
+   slot, and rendering, actions, autosave, session restore, title,
+   accessibility and capture all represent `no active document` honestly.
 3. **Overflow windowing, expanded/grouped cross-project view, Move
-   navigator** — deliberately last: this item's own text asks for captures
-   judged by the user before any of these get built. The resting stack now
-   renders, switches and closes, so a >5-file / cross-project capture set can
-   finally be produced — but the exact windowing/grouping rule still needs
-   the user's eyes on that set before it's built, not guessed ahead of it.
+   navigator. AWAITING USER CHOICE.** The capture-only audition and its laws
+   are landed and full-gate green. No overflow interaction or Move action was
+   shipped. The remaining call is whether five rows plus one exact count at
+   rest expands into the grouped eight-row view, and whether Move permanently
+   shows `Move here` and `New folder…`.
 
 Design session 2026-08-16. The user works between a couple of files and wants
 tabs' affordance without tabs: ⌃Tab covers two files but not three, and a
