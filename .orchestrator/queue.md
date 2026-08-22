@@ -137,6 +137,15 @@ costs. Verify: `--screenshot-app` captures at N=1 and N=2 across a few
 worlds assert the folder line's position is the same in both states; the
 retired identity law is replaced, not silently deleted.
 
+Extension (USER 2026-08-22): once the one-file view adopts the stack
+layout, the single row also carries the hover-close mark — the pointer
+route to closing the last file, landing on the zero-document start surface
+exactly as ⌘W already does. Pointer and keyboard dispatch the same close
+owner (`App::close_buffer`), no new machinery; the lossless save/conflict
+gate is unchanged. Verify: a `--screenshot-app` law closes the sole file
+via the row's close zone and asserts the same zero-document state the ⌘W
+law already pins.
+
 ### 470 — macOS menu bar items show no key equivalents (USER-REPORTED 2026-08-22, live screenshot)
 
 The File menu renders New document, Command palette…, Go to…, Open file…,
@@ -179,6 +188,32 @@ desyncing one layer's mask; Quokka byte-identical before/after.
 
 Deliberately out of scope: the reference mockup's tab-on-border and left
 rail ticks — a separate taste call, easier once the mask has one owner.
+
+### 472 — bare-plate picker legibility: footer gap + backdrop treatment (USER-REPORTED 2026-08-22 on Firetail, live screenshot)
+
+Two reports from the Firetail theme picker (Switch themes), likely shared
+by every `ListBacking::BarePlates` world (Bars/Diagonal/Rules — Firetail,
+Galah, Mangrove, Magpie, Paperbark):
+
+1. **Footer gap.** The `type to filter · keep · esc revert` hint strip
+   sits nearly flush under the last row (`Kite`); the user wants more
+   breathing room between the list's end and the hint strip.
+2. **Backdrop.** Bare rows draw straight over the sharp document — body
+   text runs behind and between the plates, and the document's display-size
+   heading (`THEMES`) collides with the hint strip — "kind of hard to
+   read; the blur thing just needs to go there" (the user is pointing at
+   the backdrop blur the command palette already wears; interpretation to
+   confirm against the tree — establish what backdrop the palette uses in
+   these worlds and why the theme picker lacks it before building).
+
+Constraints: picker rows go through `render/rowlayout`; the fix is shared
+mechanism, not a Firetail special case; theme-preview must still show the
+world honestly behind the picker (the point of Switch themes is seeing the
+world), so the blur region is the picker's own column, not the whole page.
+Verify: pixel arithmetic on a seeded capture — a legibility floor for row
+labels over the busiest ground (display-heading behind the rows), a
+minimum gap between the last row and the hint strip swept across all
+BarePlates worlds and row counts, mutation-proven both ways.
 
 ## Needs specific hardware
 
