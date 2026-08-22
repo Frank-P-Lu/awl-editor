@@ -15,11 +15,11 @@ use super::CaptureOpts;
 /// width-elided text the margin drew. The drawn line is `gutter`'s business.
 /// Which ordinary file row is active stays `active_index` alone; the richer
 /// capture-only prototype report is emitted only when its sealed pose exists.
-pub(super) fn json(opts: &CaptureOpts, view: &crate::render::ViewState) -> String {
+pub(in crate::capture) fn json(opts: &CaptureOpts, view: &crate::render::ViewState) -> String {
     let files = view
         .gutter_files
         .iter()
-        .map(|row| super::sidecar::json_string(&format!("{}{}", row.parent, row.leaf)))
+        .map(|row| super::super::sidecar::json_string(&format!("{}{}", row.parent, row.leaf)))
         .collect::<Vec<_>>()
         .join(", ");
     let active_index = view
@@ -33,10 +33,10 @@ pub(super) fn json(opts: &CaptureOpts, view: &crate::render::ViewState) -> Strin
             b.open,
             b.active
                 .as_ref()
-                .map(|active| super::sidecar::json_string(active))
+                .map(|active| super::super::sidecar::json_string(active))
                 .unwrap_or_else(|| "null".to_string()),
         ),
-        None => (1, super::sidecar::json_string(&view.gutter_name)),
+        None => (1, super::super::sidecar::json_string(&view.gutter_name)),
     };
     let prototype = opts
         .working_set_prototype
@@ -67,7 +67,7 @@ fn prototype_json(
                 "{{ \"kind\": \"{kind}\", \"label\": {}, \"active\": {}, \
                  \"hidden\": {hidden}, \"group_active\": {group_active}, \
                  \"hovered\": {} }}",
-                super::sidecar::json_string(&label),
+                super::super::sidecar::json_string(&label),
                 row.active,
                 row.prototype_hovered,
             )
