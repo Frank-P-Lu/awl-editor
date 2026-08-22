@@ -240,6 +240,37 @@ retired as their sites are fixed; `code-health.toml` edits are
 orchestrator-owned at merge. Staleness needs no sweep — the health script
 already flags stale exception messages by name.
 
+### 474 — release binary bloat: font tables are `const`, duplicated across codegen units (AGENT-FOUND 2026-08-22, release-binary investigation, USER: queue it)
+
+The Linux release binary jumped 68 MB → 117 MB at v0.11.0 and has held flat
+through v0.12.0 (measured off the actual GitHub Release tarballs: `.rodata`
+41.3 → 90.0 MB, `.text` essentially unchanged). Not new assets — `assets/macos`
+and the font roster are byte-identical across all three tags, `Cargo.lock` is
+untouched. Found by searching each known font file's exact bytes inside the
+shipped ELF's `.rodata`: total duplicated font bytes go from 1.8 MB (v0.10.0)
+to 50.6 MB (v0.11.0) — `NotoSansJP-Regular`/`NotoSerifJP-Regular` are embedded
+5× each, several other CJK fonts 2×.
+
+Root cause: `src/render.rs`'s font tables (`FONT_DATA`, `FONT_THEME_FACES`,
+`FONT_CJK_FACES`, `FONT_JA_VARIETY_FACES`, `FONT_ZH_KO_FACES`,
+`FONT_CJK_COMPANION_FACES`, etc.) are declared `pub const` rather than
+`pub static`. A `const` is rematerialized at each reference/codegen unit
+instead of living at one address, so under the default release profile (no
+`[profile.release]` in `Cargo.toml`, `codegen-units = 16`) a multi-MB byte
+array referenced from enough places gets baked into more than one codegen
+unit and the linker keeps every copy. v0.11.0's Japanese PDF export
+(`src/export/pdf/fonts.rs`) added a second `include_bytes!` of
+`NotoSerifJP`/`NotoSansJP`, pushing the pre-existing (previously ~1.8 MB,
+invisible) bug onto multi-MB CJK fonts.
+
+Fix: change the font-table declarations in `render.rs` to `pub static`; have
+`export/pdf/fonts.rs` reference those statics instead of re-`include_bytes!`ing
+the same files, so each font exists exactly once in the binary. Verify:
+re-run the byte-occurrence count against a fresh release build's `.rodata` —
+every font file's bytes appear exactly once; `.rodata` shrinks by roughly the
+measured 50 MB; full native gate green; wasm build unaffected (this changes
+release-binary layout only, no runtime behavior).
+
 ## Needs specific hardware
 
 1. **AT-SPI journey** — on a real Linux desktop with Orca, exercise document
