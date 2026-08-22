@@ -8,34 +8,12 @@
 
 ### 444 — the working set becomes visible: a margin buffer stack (USER DECISION 2026-08-16; residuals 1–2 LANDED; residual 3 🟠 AWAITING USER CHOICE — prototype evidence landed)
 
-**Landed on `main`** (full sha list in `git log --grep 'item 444'`): the
-`--seed-tree` capture door; the `WorkingSet` module; the cross-root ownership
-fix; the resting-stack render (N=1 byte-identical by construction, 40/40
-proven non-vacuously); sidecar exposure + click-to-switch (`buffers` gains
-`files[]`/`active_index`, `SCHEMA_VERSION` 203→204, through the same
-`App::load_path` door every picker/daemon handoff shares); and now **⌘W as
-the one true removal owner** (`9213f16d`). `App::close_buffer(key)`
-(`src/app/files/close.rs`) is reached by both ⌘W and a stack row's close
-zone, resolving to the active entry or a parked one without the caller
-choosing. Three pieces that didn't exist before now do, all law-tested with
-captured mutation panics: `DocumentSession::entry_unsaved` (save, generalized
-off any entry, not just the active one), a parked-entry conflict gate that
-**refuses** rather than latching into the single unresolved-conflict slot
-(pointing that slot at a parked path would let a later "Save your version"
-overwrite the wrong document), and `notify_close_waiters(key)` (daemon
-notify, generalized off the active buffer). Closing the last file now enters
-the honest zero-document state, retaining the active folder and exposing exact
-New document and Go to actions. Absence is shared across rendering, input,
-menus, session restore, daemon events, accessibility and capture.
-
-**New gap this landing opens, sequencing decided 2026-08-18 (merge now,
-affordance next):** the stack row's right-edge close zone is now WIRED to
-`close_buffer` — always lossless (saves first, refuses on conflict) — but
-still draws NOTHING. No chrome hover-tracking exists anywhere in the margin
-outline (it's click-only too), so a click near a row's right edge now
-silently closes that file instead of switching to it, with no visual cue
-distinguishing the zone. Landed anyway on the user's explicit call, with the
-hover-reveal × treatment owed as the next residual, not deferred indefinitely.
+**Everything except residual 3 is LANDED on `main`** — the capture door, the
+`WorkingSet` module, resting-stack render, sidecar exposure +
+click-to-switch, ⌘W/close-zone removal through one owner, the hover-reveal
+close affordance with folder heading, and the honest zero-document state.
+Full sha list: `git log --grep 'item 444'`; design history and the landed
+residuals' detail: `git log -p -- .orchestrator/queue.md`.
 
 **Two smaller findings, still carried forward:**
 - `gutter` in the sidecar (the single name/project fact) is stale
@@ -57,95 +35,13 @@ only its *description* was corrected this round, not its name. And
 parked entry is essentially never dirty — the parked-conflict path is mainly
 reachable via `autosave = false`.
 
-**Residual, in the order the landed work sets up:**
-
-1. **Hover-reveal close affordance + folder-line distinction (USER-REPORTED
-   2026-08-18 on the live app). LANDED.** The user chose a folder heading
-   above the file rows and a one-stage close mark on whichever row is under
-   the pointer, including the current document. The mark is transparent at
-   rest in a stable pre-shaped lane, so labels do not shift. This landed via
-   the merge recorded by `git log --grep 'item 444'`. (b) row cursor and (d)
-   Wagtail legibility landed earlier (`f8f3fb4c`): stack rows now earn the pointing hand via the
-   same `CursorContext` roster/no-wildcard law the outline rows already use
-   (`gutter_stack_hit`, no parallel hit-test), and the active row's label
-   ink routes through `theme::selected_row_secondary_ink`/`surface_selected`
-   — the same "ink over a filled plate inverts" mechanism `one_bit.rs`
-   already proves for the picker/toast — so Wagtail's selected file is
-   legible again, presence + legibility floors both mutation-proven
-   independently. The one-file case remains byte-identical.
-
-2. **Zero-document state. LANDED.** `DocumentSession` has an optional active
-   slot, and rendering, actions, autosave, session restore, title,
-   accessibility and capture all represent `no active document` honestly.
-3. **Overflow windowing, expanded/grouped cross-project view, Move
-   navigator. AWAITING USER CHOICE.** The capture-only audition and its laws
-   are landed and full-gate green. No overflow interaction or Move action was
-   shipped. The remaining call is whether five rows plus one exact count at
-   rest expands into the grouped eight-row view, and whether Move permanently
-   shows `Move here` and `New folder…`.
-
-Design session 2026-08-16. The user works between a couple of files and wants
-tabs' affordance without tabs: ⌃Tab covers two files but not three, and a
-purely keyboard-summoned working set was judged too invisible for the widened
-audience — for a non-programmer, tabs are intuitive because they are visible
-and clickable. A persistent tab strip stays out (PHILOSOPHY §1 names it). The
-shape chosen instead lives inside DESIGN §5's existing margin grammar: the
-bottom-left identity (filename + folder — "position in the filesystem") WIDENS
-into a quiet stack of the open files — current file on a soft Arc-like selected
-row, the others dimmer, click to switch. Not a new chrome region; an existing
-orientation surface deepens by a line or two, and with one file open it is
-byte-identical to today. The user chose bottom over above-the-outline, and chose
-the visibly row-shaped Arc-like treatment over bare labels floating in the
-margin.
-
-The stack is PROJECT-SCOPED, not one global pile of arbitrary paths. The active
-folder remains load-bearing: it owns Go to's recursive file corpus, New
-document, Move and export destinations, git identity, and the session's folder
-context. All files below that root may coexist in the stack, including files in
-different subfolders; a nested file reads by its shortest unambiguous
-ROOT-RELATIVE path (`journal/field-notes.md`), not by a leaf name that throws
-away the location. Switching folders through Go to changes which stack is
-visible, while each folder's working set stays parked and returns when that
-folder becomes active again — the Arc-Space shape, without a permanent space
-switcher. Opening or activating a buffer from another root must restore that
-buffer's remembered project context in the same transition: the current
-registry can preserve cross-root buffers while `load_path` leaves the old root
-active, which would make the document and bottom folder identity disagree.
-Close that seam here; never present it as intentional mixed-root behavior.
-
-Nested files render as a FLAT working set, never a miniature tree. The root
-heading names the active folder (`notes`); each row shows the filename and, when
-it lives below the root, its root-relative parent in quieter ink
-(`journal/ field-notes.md`). Preserve the leaf and the nearest useful location
-when space is tight (`research/…/ final-draft.md`). No indentation, disclosure
-arrows or expandable folders: those marks promise a file tree this surface does
-not provide.
-
-What keeps it tabs-but-not-tabs: no reordering and no drag; hides under space
-pressure exactly as the outline does; inherits every §5 margin law (hug the
-column, quiet label treatment, never change the prose column's geometry).
-STABLE OPEN ORDER within a project, not MRU — reordering on every switch would
-jitter the margin while the pointer is reaching for a row.
-
-Closing is part of the feature, not an assumed affordance. Today ⌘W's
-"Finish file" saves, notifies any daemon waiter, and switches to the previous
-buffer but leaves the finished buffer parked; that is not close. Give the
-working set one true removal owner: ⌘W closes the active file after the same
-lossless save/conflict gate and still notifies a waiter, and a row exposes the
-same action through a quiet hover-only close target (never a persistent column
-of crosses). The close target appears when the pointer enters the row's RIGHT
-close zone; the rest of the row remains the larger switch target, so merely
-moving through the list does not fill it with controls. Closing an inactive row
-closes that named buffer without first activating it; a dirty or conflicted
-buffer is never discarded.
-
-The stack makes the existing file verbs discoverable without becoming their
-implementation. Secondary-click a row to open the SAME filename context menu
-the bottom identity already owns: Rename file…, Move file…, Duplicate file,
-Version history…, plus Close file. Pointer and keyboard routes dispatch the
-same catalog actions; Cmd-P → Move file… opens the identical destination
-navigator. A row action targets the named buffer rather than silently switching
-documents merely to make an active-buffer-only function convenient.
+**Open: residual 3 — overflow windowing, expanded/grouped cross-project
+view, Move navigator. 🟠 AWAITING USER CHOICE.** The capture-only audition
+and its laws are landed and full-gate green. No overflow interaction or Move
+action was shipped. The remaining call is whether five rows plus one exact
+count at rest expands into the grouped eight-row view, and whether Move
+permanently shows `Move here` and `New folder…`. (Residual 1's prototype
+gallery is preserved untracked at `gallery/item-444-affordance-prototypes/`.)
 
 Move stays deliberately bounded to the source file's owning root. Its summoned
 folders-only navigator says `move <filename>`, shows the current root-relative
@@ -156,17 +52,6 @@ folder moves or cross-root moves in this item: those are file-manager machinery,
 and a tiny contextual stack is the wrong place to imply them. Moving never
 silently rewrites Markdown or incoming links; when the file contains relative
 links/images, the completion feedback states that their paths may need review.
-
-Closing the LAST file enters a real ZERO-DOCUMENT state, not a fake unnamed
-buffer and not a closed application window. Today `DocumentSession` always owns
-one active `Entry`, so this is product machinery rather than empty-state copy:
-the renderer, actions, autosave, session, title, accessibility tree and sidecar
-must all represent `no active document` honestly. The world remains; the page
-surface disappears because drawing blank paper would imply an unsaved file. A
-small calm start surface offers exactly `New document` and `Go to…`; the active
-folder remains remembered, so either route has an unambiguous context. First
-launch still opens the authored Welcome document — zero-document is reached by
-an explicit close, never used as a replacement tour.
 
 Visible overflow is bounded independently of the registry's safety cap.
 PROTOTYPE five file rows plus a quiet `+ N more…` row. Accepting it EXPANDS the
@@ -203,35 +88,71 @@ Contract edits owned here: DESIGN §5's margin roster gains the stack as a
 member with the outline's own license (may click-to-switch; orientation, not
 management UI). PHILOSOPHY §1 is untouched — this is not a strip.
 
-Capture-prototype FIRST, judgement before machinery: gallery shots across a
-few worlds × {one root with nested files, only one file in the active root,
-more than five files, zero documents}, bottom-left, including right-edge
-hover-close, collapsed overflow, expanded scrolling and grouped cross-project
-states, put to the user before laws or bindings land. Harness reach
-(docs/harness-reach.md read for this clause):
-`last_buffer` and the multi-file working set are App-owned — tier-1 captures
-classify them Unsupported — so the prototype and every switching claim drive
-`--screenshot-app`, which skips nothing and is hermetic (sandbox seeded from
-the named CLI paths); that hermeticity also satisfies the path-leak rule,
-because the margin photographs filenames — shots run against seeded roots
-only, never the ambient ones. Verify: the sidecar gains the working set (open
-files + active index) through the one redacting writer; a `--screenshot-app`
-law opens A, opens B, accepts A's stack row and asserts the active buffer
-changed AND the stack's drawn order did not. A pixel law asserts that the
-active row is
-distinguishable from its dimmed siblings, with a companion presence floor
-(a stack faded to the page must fail, not pass happier); cross-root activate
-restores the matching project/root before the frame and the gutter never names
-the old root; nested same-root files render distinct relative labels; close
-removes exactly its target and never loses a dirty/conflicted buffer; overflow
-keeps the active file represented and its `+ N more…` count exact; expanded
-scroll remains inside the working set; closing the last file produces no active
-buffer, no page surface and exactly the two start actions without changing the
-remembered root; the one-file case before close is byte-identical to today's
-margin across the world roster; context-menu Move and palette Move dispatch the
-same action; moving a nested file keeps its stack slot and updates its relative
-label, and never crosses the source root. Generated reference rows are
-spot-checked against the dispatch they claim.
+Harness reach for whatever ships from residual 3
+(docs/harness-reach.md read for this clause): the working set is App-owned —
+tier-1 captures classify it Unsupported — so every claim drives
+`--screenshot-app`, hermetic against seeded roots only (the margin
+photographs filenames, so ambient roots would leak paths). Verify, for the
+still-unbuilt parts: overflow keeps the active file represented and its
+`+ N more…` count exact; expanded scroll remains inside the working set;
+cross-root activate restores the matching project/root before the frame and
+the gutter never names the old root; context-menu Move and palette Move
+dispatch the same action; moving a nested file keeps its stack slot and
+updates its relative label, and never crosses the source root. Generated
+reference rows are spot-checked against the dispatch they claim.
+
+### 468 — Firetail palette edges regressed (USER-REPORTED 2026-08-22, live screenshot)
+
+In Firetail, the command palette's row plates now show strange angular
+notched/jagged edges on every label — the user's words: "all of the edges
+look so weird". Hypothesis, unverified: the Cassowary docked-console corner
+treatment (landed this round) leaks into Firetail's plates or applies
+per-row where it should not — but the report is a hypothesis; first
+reproduce with a `--screenshot` palette capture in Firetail and locate the
+first bad commit before assigning a mechanism. Themes are data through one
+renderer (RenderCaps): a per-world personality must be expressed as caps,
+never a code path that bleeds across worlds. Standing policy applies twice:
+user-reported bug → audit the neighborhood (palette plates across the full
+world roster, pixel arithmetic per world), and render-touching → vision
+smoke. Verify: a law pinning Firetail's plate edge treatment to its authored
+caps, mutation-proven by re-enabling the leak; the audit ends by writing
+whatever law let this ship silently.
+
+### 469 — margin identity reading order flips between one file and the stack (USER-REPORTED 2026-08-22, live screenshots)
+
+With one file open the bottom-left identity reads filename over folder
+(`awl-start.md` above `notes`). At N≥2 the stack reads the opposite way:
+folder heading on top, file rows beneath (`notes`, then `awl-start.md`,
+then the active `awl-ramblings.md`). Same surface, inverted reading order
+depending on state, and the folder line jumps sides of the filename when a
+second file opens. The user finds it weird ("we didn't make the project
+folder above the notes folder usually"). Options: (a) one-file case adopts
+the stack's order — folder heading above the filename — making the N=1→N=2
+transition pure row insertion; this consciously retires the N=1
+byte-identical-to-today law (it was a construction guarantee, not a product
+promise); (b) keep N=1 as shipped and accept the flip. Recommendation: (a),
+for one consistent grammar; it is a small, cheap-to-revert render change,
+so per the standing preference land it for judgement and say what reverting
+costs. Verify: `--screenshot-app` captures at N=1 and N=2 across a few
+worlds assert the folder line's position is the same in both states; the
+retired identity law is replaced, not silently deleted.
+
+### 470 — macOS menu bar items show no key equivalents (USER-REPORTED 2026-08-22, live screenshot)
+
+The File menu renders New document, Command palette…, Go to…, Open file…,
+Save et al. with NO ⌘ shortcuts in the right column, though these carry
+advertised default bindings. Premise check first: confirm live (menu bar is
+live-`App`-only; no headless capture reaches it — docs/harness-reach.md)
+and read where `menubar`/muda items acquire accelerators today — whether
+they were dropped in a refactor or never wired. Constraint: menu items
+route through `App::apply`, never muda-predefined (tripwire in CLAUDE.md),
+and the keymap is the one source of binding truth — the menu's accelerator
+column must derive from the same keymap the palette rows print, not a
+second hand-typed table. Verify: a unit law over the menu model asserting
+every item whose action has a default macOS binding names that binding,
+swept from the keymap roster (no hand-picked list), mutation-proven by
+blanking one accelerator; visual confirmation on the live app stays flagged
+for the user.
 
 ## Needs specific hardware
 
