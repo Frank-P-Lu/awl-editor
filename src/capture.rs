@@ -56,6 +56,7 @@ pub fn schema_held() -> String {
 
 mod animated;
 mod background_sidecar;
+mod buffers_sidecar;
 mod document_sidecar;
 mod film;
 #[cfg(not(target_arch = "wasm32"))]

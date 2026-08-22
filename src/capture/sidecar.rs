@@ -150,7 +150,7 @@ pub(super) fn write_sidecar(
         panel = super::panel_sidecar::panel_json(pipeline),
         project = project_json(opts),
         overlay = overlay_json(opts, pipeline),
-        buffers = super::opts::buffers_json(opts, view),
+        buffers = super::buffers_sidecar::json(opts, view),
         replay_skips = super::replay_sidecar::replay_skips_json(opts),
         diff = diff_json(opts),
     );
