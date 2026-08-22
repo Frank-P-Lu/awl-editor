@@ -82,7 +82,7 @@ fn a_workspace_footer_plate_ends_with_its_footer_on_every_bare_plate_world() {
         (plated.as_slice(), plateless.as_slice()),
         (
             ["Galah", "Firetail"].as_slice(),
-            ["Mangrove", "Magpie", "Paperbark"].as_slice()
+            ["Mangrove", "Magpie", "Paperbark", "Kite"].as_slice()
         ),
         "the shipping bare-plate roster splits exactly this way — a new world joins \
          one arm or the other, never neither"

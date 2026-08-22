@@ -215,6 +215,31 @@ labels over the busiest ground (display-heading behind the rows), a
 minimum gap between the last row and the hint strip swept across all
 BarePlates worlds and row counts, mutation-proven both ways.
 
+### 473 — clippy debt: the slice worth paying (USER 2026-08-22)
+
+Ledger measured 2026-08-22: 92 recorded exceptions (84 `too_many_lines` —
+50 of them test-file law tables, which stay; 8 `cognitive_complexity`) and
+96 inline allows (70 `too_many_arguments`, 14 `type_complexity`). NOT a
+bulk lint-silencing pass — the valuable work is three bounded cuts:
+
+1. **`too_many_arguments` where params are same-typed and adjacent** (the
+   70 allows cluster in render chrome, caret/pipeline, main/run): a
+   transposed `f32, f32, f32` argument compiles clean and renders wrong,
+   so this is a real defect class, not cosmetics. Where ≥3 functions pass
+   the same parameter tail, extract one context struct and route them
+   through it (same behavior ⇒ same code); leave the deliberate mirrors
+   ("mirrors capture_screenshot's own surface") alone.
+2. **The 14 `type_complexity` allows** — named type aliases, mechanical.
+3. **Read the 8 `cognitive_complexity` functions** and decompose only
+   where a seam is honest; an exception with a good reason stays.
+
+Constraint: behavior-identical refactors only, and identity is proven —
+targeted tests per touched seam, full gate at landing; any site whose
+refactor would change an observable is reported, not "fixed". Exceptions
+retired as their sites are fixed; `code-health.toml` edits are
+orchestrator-owned at merge. Staleness needs no sweep — the health script
+already flags stale exception messages by name.
+
 ## Needs specific hardware
 
 1. **AT-SPI journey** — on a real Linux desktop with Orca, exercise document

@@ -259,20 +259,18 @@ fn only_worlds_that_draw_a_pane_split_plate_are_floored() {
         }
     }
 
-    // NAME WHAT ENROLLED. Today exactly `Kite` (`Band` on `Pane`/`Split`) —
-    // no shipped `Chips` world sits on `ListStyle::Pane` — but this asserts
-    // the DERIVED set, not the number, so a future world picking up `Pane` +
-    // a pill-shaped facet style is swept the day it lands.
-    assert!(
-        !floored.is_empty(),
-        "no world enrolled the plate floor — the defect this item fixes has \
-         no live carrier, so claim 1's forced sweep is this item's only proof"
-    );
-    assert!(
-        floored.iter().all(|n| *n == "Kite"),
-        "expected only Kite to enroll the plate floor today, got {floored:?} \
-         — a newly-affected world needs a human look at whether the floor \
-         reads right there too"
+    // NAME WHAT ENROLLED. Today the derived set is EMPTY: Kite — the floor's
+    // original and only carrier (`Band` on `Pane`/`Split`) — moved to
+    // `ListStyle::Ruled` (user decision 2026-08-22), and no shipped world
+    // wears a pill-shaped facet style on `ListStyle::Pane`. The floor's
+    // behaviour stays proven by claim 1's FORCED `Pane`+`Split` sweep above;
+    // this pin exists so a future world that satisfies the gate is named the
+    // day it lands and gets a human look, rather than silently enrolling.
+    assert_eq!(
+        floored,
+        Vec::<&str>::new(),
+        "a world newly enrolled the plate floor — a human confirms the floor \
+         reads right there before this pin grows"
     );
     assert!(
         untouched.len() + floored.len() == theme::THEMES.len(),
