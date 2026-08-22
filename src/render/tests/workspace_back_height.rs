@@ -329,8 +329,12 @@ fn prove_yield_enrolment(tally: &LawTally) -> (usize, usize, usize) {
             _ => {}
         }
     }
+    let bar_worlds = crate::theme::THEMES
+        .iter()
+        .filter(|world| matches!(world.render_caps.list_style, theme::ListStyle::Bars))
+        .count();
     assert!(
-        rules >= 2 && bars >= 6 && history >= crate::theme::THEMES.len() * 2,
+        rules >= 2 && bars >= bar_worlds * 2 && history >= crate::theme::THEMES.len() * 2,
         "minimum must yield Rules, Bars and History: rules={rules}, bars={bars}, history={history}"
     );
     (rules, bars, history)

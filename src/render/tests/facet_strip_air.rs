@@ -104,7 +104,8 @@ fn command_view(active: usize) -> ViewState {
 
 /// **THE PRESENCE + SEPARATION LAW.** Sweeps the axis the formula-only
 /// `SPLIT_GAP_FRAC` doc comment never checked: the WHOLE `Pane`-style world
-/// roster (never a named world), both dpi tiers, normal AND narrow width, and
+/// roster whose strip remains inside the split lower surface (never a named
+/// world), both dpi tiers, normal AND narrow width, and
 /// the WHOLE Command-palette facet roster (all 8 lenses, not just "All").
 ///
 /// For each cell: the lower surface's own visible top (`overlay_pane_fills`'s
@@ -113,19 +114,31 @@ fn command_view(active: usize) -> ViewState {
 /// must find real ink (PRESENCE — a floor that only "the label vanished"
 /// could satisfy is not a floor) whose topmost row sits strictly, and by a
 /// real margin, below that surface's top (SEPARATION).
+fn facet_air_enrolled() -> Vec<&'static theme::Theme> {
+    let (docked, enrolled): (Vec<&theme::Theme>, Vec<&theme::Theme>) = theme::THEMES
+        .iter()
+        .partition(|t| matches!(t.render_caps.facet_style, theme::FacetStyle::DockedTab));
+    assert_eq!(
+        docked.iter().map(|t| t.name).collect::<Vec<_>>(),
+        ["Cassowary"],
+        "DockedTab roster moved; its companion law must move too"
+    );
+    enrolled
+        .into_iter()
+        .filter(|t| t.render_caps.list_style.list_backing(false) == theme::ListBacking::Card)
+        .collect()
+}
+
 #[test]
 fn facet_strip_ink_clears_the_lower_surfaces_rule_with_presence_and_margin() {
     let _g = crate::testlock::serial();
     set_pane_split_test_override(Some(theme::PaneSplit::Split));
     set_card_anchor_test_override(Some(theme::CardAnchor::TopLeft));
 
-    // Enrolment derived from the roster: every world whose card backs with a
-    // filled panel (`ListBacking::Card`) draws this split composition when
-    // faceted. Named in the failure message, never assumed.
-    let enrolled: Vec<&'static theme::Theme> = theme::THEMES
-        .iter()
-        .filter(|t| t.render_caps.list_style.list_backing(false) == theme::ListBacking::Card)
-        .collect();
+    // Enrolment derived from the roster: DockedTab deliberately moves its strip
+    // above the pane and has its own connection/presence law. Every other card-
+    // backed facet remains inside the split lower surface graded here.
+    let enrolled = facet_air_enrolled();
     assert!(
         enrolled.len() >= 10,
         "sanity: expected most of the roster to default to ListStyle::Pane, got {} ({:?})",

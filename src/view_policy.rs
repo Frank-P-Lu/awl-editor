@@ -173,6 +173,9 @@ mod tests {
             "capture.rs",
             "capture/animated.rs",
             "capture/background_sidecar.rs",
+            // Serializes the already-owned working-set projection and decides
+            // no identifier-level view policy of its own.
+            "capture/buffers_sidecar.rs",
             // Serializes document presence and the already-derived document
             // fields; it owns no view-policy decision.
             "capture/document_sidecar.rs",

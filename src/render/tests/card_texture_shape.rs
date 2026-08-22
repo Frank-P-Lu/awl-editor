@@ -1,6 +1,7 @@
-//! PRINTED-CARD LAW SUITE — Quokka's `CardTexture::HalftoneDots` +
-//! `CardShape::Chamfered` caps. Structural rosters first (every OTHER world
-//! stays `Flat`/`Rectangular`, no-wildcard match over both closed enums),
+//! PRINTED-CARD LAW SUITE — Quokka's `CardTexture::HalftoneDots` and the
+//! shared `CardShape::Chamfered` cap Quokka and Cassowary author. Structural
+//! rosters first (every OTHER texture stays `Flat`; every other shape stays
+//! `Rectangular`, with no-wildcard matches over both closed enums),
 //! then real-pixel proofs (the Wagtail tripwire: appearance is arithmetic
 //! over the PNG, never inferred from state) — a chamfered corner reads as a
 //! genuine 45° cut distinguishable from the pre-existing small rounded
@@ -19,15 +20,15 @@ use super::{headless_dqp, pixeldiff};
 // --- structural rosters --------------------------------------------------
 
 /// EXHAUSTIVE ROSTER: every world but Quokka (`HalftoneDots`) carries the
-/// byte-identical `Flat` `CardTexture` default; every world but Quokka
-/// carries the byte-identical `Rectangular` `CardShape` default — a
+/// byte-identical `Flat` `CardTexture` default; Quokka and Cassowary author
+/// the shared chamfer while every other world stays rectangular — a
 /// no-wildcard match so a newly added `CardTexture`/`CardShape` variant
 /// can't silently dodge this sweep. (Bowerbird's `JaggedWave` woven card
 /// texture was retired outright; Bowerbird now
 /// falls into the plain `Flat`/`Rectangular` bucket like every other
 /// non-Quokka world.)
 #[test]
-fn card_caps_are_flat_rectangular_for_every_world_but_quokka() {
+fn card_caps_rosters_are_exact_for_every_world() {
     for t in theme::THEMES {
         let is_flat = match t.render_caps.card_texture {
             theme::CardTexture::Flat => true,
@@ -42,6 +43,16 @@ fn card_caps_are_flat_rectangular_for_every_world_but_quokka() {
                 assert!(!is_flat, "Quokka must assign a non-default CardTexture");
                 assert!(!is_rect, "Quokka must assign a non-default CardShape");
             }
+            "Cassowary" => {
+                assert!(
+                    is_flat,
+                    "Cassowary's scanlines are a summoned material, not CardTexture"
+                );
+                assert!(
+                    !is_rect,
+                    "Cassowary authors the shared chamfered console shape"
+                );
+            }
             _ => {
                 assert!(
                     is_flat,
@@ -50,7 +61,7 @@ fn card_caps_are_flat_rectangular_for_every_world_but_quokka() {
                 );
                 assert!(
                     is_rect,
-                    "{} must keep CardShape::Rectangular (Quokka is the only carrier)",
+                    "{} must keep CardShape::Rectangular (Quokka and Cassowary are the carriers)",
                     t.name
                 );
             }

@@ -657,11 +657,7 @@ fn cassowarys_locator_typography_is_authored_as_theme_data() {
     assert!((style.tracking_em - 0.06).abs() < 1e-6);
     assert_eq!(
         style.locator,
-        theme::LocationLocator::Indexed {
-            digits: 2,
-            separator: " / ",
-            uppercase: true,
-        }
+        theme::LocationLocator::IndexOnly { digits: 2 }
     );
     assert!(
         ROTATED_RAIL_PLACARD_GAP_EM > 0.0 && ROTATED_RAIL_PLACARD_GAP_EM < 0.5,
@@ -674,7 +670,7 @@ fn cassowarys_locator_typography_is_authored_as_theme_data() {
 /// The locator number is the active lens's REAL one-based position in its
 /// scheme, never a label-derived or Cassowary-specific fiction.
 #[test]
-fn indexed_locator_is_truthful_for_every_faceted_lens() {
+fn index_only_locator_is_truthful_for_every_faceted_lens() {
     let style = rail_style();
     let mut graded = 0usize;
     for kind in OverlayKind::ALL {
@@ -687,7 +683,7 @@ fn indexed_locator_is_truthful_for_every_faceted_lens() {
                 .expect("a real indexed lens must format");
             assert_eq!(
                 got,
-                format!("{:02} / {}", zero_based + 1, facet.label.to_uppercase()),
+                format!("{:02}", zero_based + 1),
                 "{kind:?} lens {zero_based}: locator disagrees with the strip"
             );
             graded += 1;
@@ -700,22 +696,11 @@ fn indexed_locator_is_truthful_for_every_faceted_lens() {
     );
 }
 
-/// **THE CARD REACHES OUTSIDE ITS OWN BOX, AND THE CUE IS BOUNDED BY THE REACH.**
-/// Under `Bars` on a right-anchored card the SELECTED row's plate grows OUTWARD
-/// past `card_x` (`grow_span`, mirrored) and its scrim pads that again, so
-/// `card_x` is not where the card's ink stops. This law is the witness for that
-/// discovery, and it has three arms because the first two alone are satisfiable
-/// by the defect:
-///
-/// 1. The span probe reports a left edge genuinely OUTSIDE the box — a bound
-///    reverted to `card_x` reads zero here and fails by name.
-/// 2. The plate's own leftmost PIXEL is outside the box too, so arm 1 is a fact
-///    about the drawn card rather than about arithmetic, and the probe's bound is
-///    at or left of it (conservative, never optimistic).
-/// 3. The cue's own fit box ends at or before that bound, so the authored run is
-///    measured against where the card's ink stops rather than where its box does.
+/// Cassowary's unified Pane no longer grows selected Bars beyond the card box.
+/// The drawn-span owner must therefore resolve to the pane's real left edge,
+/// and the rotated index must finish before that edge at every enrolled zoom.
 #[test]
-fn the_cue_is_bounded_by_the_cards_drawn_reach_not_by_its_box() {
+fn the_cue_is_bounded_by_the_unified_panes_drawn_left_edge() {
     let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!("skipping rail card-reach law: no wgpu adapter");
@@ -731,47 +716,12 @@ fn the_cue_is_bounded_by_the_cards_drawn_reach_not_by_its_box() {
         p.set_view(&v);
         p.prepare(&device, &queue, 1200, 800).unwrap();
         let geom = p.overlay_geometry(1200);
-        let plan = p.overlay_row_plan(&geom);
         let (card_left, _) = p.overlay_card_drawn_span_probe(&geom);
         let box_left = geom.band_x_probe();
-        let reach = box_left - card_left;
         assert!(
-            reach >= 10.0,
-            "zoom {zoom}: the card's drawn span starts at {card_left:.1} against a box at \
-             {box_left:.1} — only {reach:.1}px of outward reach, so the cue is being bounded \
-             by the BOX and the selected plate's own growth is unaccounted for"
+            (box_left - card_left).abs() <= 0.01,
+            "zoom {zoom}: unified Pane drawn edge {card_left:.1} drifted from box {box_left:.1}"
         );
-
-        // Arm 2: the plate's leftmost pixel, off the frame itself.
-        let selected = plan
-            .rows()
-            .iter()
-            .find(|r| r.item == Some(0))
-            .copied()
-            .expect("the selected row is planned");
-        let px = shoot(&device, &queue, &mut p, 1200, 800);
-        let mid = (selected.top + selected.height * 0.5).round() as i64;
-        let ground = luma(px[(mid * 1200 + (card_left * 0.5) as i64) as usize]);
-        let plate_left = (0..1200)
-            .find(|x| {
-                let l = luma(px[(mid * 1200 + x) as usize]);
-                *x as f32 >= card_left - 2.0 && (l - ground).abs() > 24.0
-            })
-            .map(|x| x as f32)
-            .unwrap_or_else(|| panic!("zoom {zoom}: no selected plate ink on row {mid}"));
-        assert!(
-            plate_left < box_left - 1.0,
-            "zoom {zoom}: the selected plate's leftmost ink is {plate_left:.0}, inside the \
-             card box ({box_left:.1}) — this law's own premise (the plate grows outward) is \
-             no longer true and the cue's bound should be revisited"
-        );
-        assert!(
-            card_left <= plate_left + 1.0,
-            "zoom {zoom}: the span probe's {card_left:.1} is RIGHT of the plate's own ink at \
-             {plate_left:.0} — the bound is optimistic, not conservative"
-        );
-
-        // Arm 3: the cue's fit box respects it.
         let (_natural, fit, _bottom, flush_x) = p
             .rotated_rail_probe(&geom)
             .expect("the cue draws at these zooms");

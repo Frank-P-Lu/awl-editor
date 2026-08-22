@@ -117,6 +117,10 @@ fn a_workspace_rows_text_sits_inside_its_own_plate_on_every_world() {
         .len();
     assert!(lenses >= 7, "the Settings category roster shrank: {lenses}");
 
+    let plate_worlds = theme::THEMES
+        .iter()
+        .filter(|t| t.render_caps.list_style.draws_row_plates())
+        .count();
     let mut graded = 0usize;
     for world in theme::THEMES.iter().map(|t| t.name) {
         theme::set_active_by_name(world).unwrap();
@@ -170,7 +174,7 @@ fn a_workspace_rows_text_sits_inside_its_own_plate_on_every_world() {
                     // this arm is scoped to `bars` on purpose. UNSELECTED/footer
                     // plates only: the SELECTED one can grow past this exact
                     // left edge on a `TopRight`/`mirrors_growth` world
-                    // (Cassowary, Firetail) — `overlay_selected_bar_rects`
+                    // (Firetail) — `overlay_selected_bar_rects`
                     // mirrors `grow_px` onto the left edge there, a real,
                     // unrelated product feature this arm must not trip on.
                     if bars {
@@ -199,14 +203,14 @@ fn a_workspace_rows_text_sits_inside_its_own_plate_on_every_world() {
     p.set_size(1200.0, 800.0);
     theme::set_active(theme::DEFAULT_THEME);
     assert!(
-        graded >= 100,
+        graded >= plate_worlds * 30,
         "the bound graded only {graded} plate-bearing cells"
     );
 }
 
 /// **THE REPORTED SYMPTOM, PER ROW, IN THE SHAPER'S OWN GLYPH WIDTHS.**
-/// Cassowary's Caret style row shows `Block` and its plate is the one that cut
-/// the final `k`. This is that claim for EVERY `SettingId` of every category, at
+/// The reported Caret-style row cut the final glyph in its plate. This is that
+/// claim for EVERY `SettingId` of every category, at
 /// the widths where it bites, on every world that draws plates: the value run
 /// the shaper laid out must sit inside the plate the frame drew behind it, with
 /// `BAR_TEXT_PAD` of air at each edge.
@@ -242,13 +246,14 @@ fn every_settings_value_sits_inside_its_own_plate_on_every_plated_world() {
         .filter(|t| matches!(t.render_caps.list_style, theme::ListStyle::Bars))
         .map(|t| t.name)
         .collect();
-    assert_eq!(plated, ["Galah", "Firetail", "Cassowary"]);
+    assert_eq!(plated, ["Galah", "Firetail"]);
     let lenses = crate::facets::scheme(OverlayKind::Settings)
         .expect("Settings facets")
         .strip
         .len();
 
     let mut graded = 0usize;
+    let mut eligible = 0usize;
     let mut tightest = f32::MAX;
     for world in &plated {
         theme::set_active_by_name(world).unwrap();
@@ -257,7 +262,8 @@ fn every_settings_value_sits_inside_its_own_plate_on_every_plated_world() {
             p.set_size(logical_w, 800.0);
             let cw = logical_w as u32;
             for lens in 0..lenses {
-                p.set_view(&settings_view(lens));
+                let v = settings_view(lens);
+                p.set_view(&v);
                 p.prepare(&device, &queue, cw, 800).unwrap();
                 let geom = p.overlay_geometry(cw);
                 let plan = p.overlay_row_plan(&geom);
@@ -266,6 +272,11 @@ fn every_settings_value_sits_inside_its_own_plate_on_every_plated_world() {
                 let column_right = geom.text_left + geom.text_w;
                 let band_right = geom.band_x_probe() + geom.band_w_probe();
                 for row in plan.rows().iter().filter(|r| r.item.is_some()) {
+                    let item = row.item.expect("filtered to item rows");
+                    if v.overlay_bindings.get(item).is_none_or(String::is_empty) {
+                        continue;
+                    }
+                    eligible += 1;
                     // The ACCESSORY plate on this row: the one in the band's right
                     // half, which is the value column's own.
                     let Some(plate) = plates
@@ -302,10 +313,10 @@ fn every_settings_value_sits_inside_its_own_plate_on_every_plated_world() {
     }
     p.set_size(1200.0, 800.0);
     theme::set_active(theme::DEFAULT_THEME);
-    assert!(
-        graded >= 300,
-        "the value-plate law graded only {graded} rows — it must reach every \
-         SettingId of every category at every swept width"
+    assert_eq!(
+        graded, eligible,
+        "the value-plate law graded {graded} of {eligible} eligible rows — it must reach \
+         every SettingId of every category at every swept width"
     );
     assert!(
         tightest.is_finite(),

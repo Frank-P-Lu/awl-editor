@@ -98,7 +98,7 @@ fn a_glyph_free_location_row_draws_no_plate_and_an_inline_one_still_does() {
     let plated = plated_roster();
     assert_eq!(
         plated,
-        ["Galah", "Firetail", "Cassowary"],
+        ["Galah", "Firetail"],
         "the plate-drawing `Bars` roster moved — this law's enrolment must move with it"
     );
 
@@ -106,7 +106,12 @@ fn a_glyph_free_location_row_draws_no_plate_and_an_inline_one_still_does() {
     let mut cells_checked = 0usize;
     let mut inline_seen = false;
     let mut off_card_seen = false;
-    for world in &plated {
+    for (world, force_bars) in plated
+        .iter()
+        .map(|world| (*world, false))
+        .chain(std::iter::once(("Cassowary", true)))
+    {
+        set_list_style_test_override(force_bars.then_some(theme::ListStyle::Bars));
         theme::set_active_by_name(world).unwrap();
         let location_inline = theme::active().render_caps.location_style.draws_inline();
         for kind in OverlayKind::ALL {
@@ -175,6 +180,7 @@ fn a_glyph_free_location_row_draws_no_plate_and_an_inline_one_still_does() {
             }
         }
     }
+    set_list_style_test_override(None);
     theme::set_active(entry_world);
     assert!(
         cells_checked > 0,

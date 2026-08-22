@@ -281,8 +281,15 @@ fn split_stays_valid_narrow_and_empty() {
 
 // --- exhaustive surface roster / no-world-branch -----------------------------
 
+fn pane_fill_count(split: theme::PaneSplit) -> usize {
+    match split {
+        theme::PaneSplit::Split => 2,
+        theme::PaneSplit::Unified => 1,
+    }
+}
+
 /// THE EXHAUSTIVE SURFACE-ROSTER LAW (no world branch): sweep EVERY shipped
-/// world. A Pane world's fill count follows the renderer-owned split default;
+/// world. A Pane world's fill count follows its authored `pane_split` data;
 /// a Bars world takes the bare-plate path (the split is
 /// inert — the card fill is the per-plate scrims, never the 1/2 split). And the
 /// decision is DATA, not identity: forcing the `pane_split` override to `Split`
@@ -312,8 +319,8 @@ fn every_world_splits_by_the_shared_default_never_by_identity() {
             theme::ListStyle::Pane => {
                 assert_eq!(
                     fills.len(),
-                    2,
-                    "{}: every Pane world takes the shared split default",
+                    pane_fill_count(t.render_caps.pane_split),
+                    "{}: Pane fill count must follow authored pane_split data",
                     t.name
                 );
             }

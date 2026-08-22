@@ -820,7 +820,7 @@ fn an_empty_states_notice_row_carries_no_footer_plate_on_any_bare_plate_world() 
     assert_eq!(
         (plated.as_slice(), plateless.as_slice()),
         (
-            ["Galah", "Firetail", "Cassowary"].as_slice(),
+            ["Galah", "Firetail"].as_slice(),
             ["Mangrove", "Magpie", "Paperbark"].as_slice()
         ),
         "the shipping bare-plate roster splits exactly this way — a new world joins \
@@ -989,7 +989,7 @@ fn footer_plate_clears_the_notice_channels_presence_floor_on_every_bars_world() 
         .collect();
     assert_eq!(
         plated,
-        ["Galah", "Firetail", "Cassowary"],
+        ["Galah", "Firetail"],
         "the plate-drawing `Bars` roster moved — this law's enrolment must move with it"
     );
 

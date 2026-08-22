@@ -336,7 +336,7 @@ fn derived_placard_corner_is_complementary_to_the_card_anchor() {
 /// table so a NEW placard world is swept automatically, and it cross-checks the
 /// derived corner against the ONE pure owner.
 #[test]
-fn every_shipped_placard_world_wordmark_stays_on_canvas() {
+fn every_shipped_placard_world_honors_its_authored_containment_or_bleed() {
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!("skipping every_shipped_placard_world_wordmark_stays_on_canvas: no wgpu adapter");
@@ -346,10 +346,12 @@ fn every_shipped_placard_world_wordmark_stays_on_canvas() {
     set_title_style_test_override(None); // each world's OWN placard data
     set_card_anchor_test_override(None); // each world's OWN card anchor
 
-    let placard_worlds: Vec<(&str, theme::PlacardCorner)> = theme::THEMES
+    let placard_worlds: Vec<(&str, theme::PlacardCorner, theme::PlacardPlacement)> = theme::THEMES
         .iter()
         .filter_map(|t| match t.render_caps.title_style {
-            theme::TitleStyle::Placard { corner, .. } => Some((t.name, corner)),
+            theme::TitleStyle::Placard { corner, .. } => {
+                Some((t.name, corner, t.render_caps.placard_placement))
+            }
             theme::TitleStyle::InlinePrefix => None,
         })
         .collect();
@@ -358,7 +360,9 @@ fn every_shipped_placard_world_wordmark_stays_on_canvas() {
         "the theme table must ship at least one placard world"
     );
     let (ww, wh) = (1200.0_f32, 800.0_f32);
-    for (world, data_corner) in placard_worlds {
+    let mut contained = 0usize;
+    let mut bleeding = 0usize;
+    for (world, data_corner, placement) in placard_worlds {
         theme::set_active_by_name(world).unwrap();
         p.sync_theme();
         let mut v = view("hello\n", 0, 0);
@@ -370,17 +374,30 @@ fn every_shipped_placard_world_wordmark_stays_on_canvas() {
         let (x, y, w, h) = p
             .overlay_shape_placard(&geom)
             .expect("a placard world must shape a wordmark");
-        // Fully within the canvas — never a clipped word at ANY assigned corner.
         assert!(
             x >= -0.5 && x + w <= ww + 0.5,
             "{world}: wordmark x-span [{x:.1}..{:.1}] must stay inside canvas width {ww}",
             x + w
         );
-        assert!(
-            y >= -0.5 && y + h <= wh + 0.5,
-            "{world}: wordmark y-span [{y:.1}..{:.1}] must stay inside canvas height {wh}",
-            y + h
-        );
+        match placement {
+            theme::PlacardPlacement::Contained => {
+                assert!(
+                    y >= -0.5 && y + h <= wh + 0.5,
+                    "{world}: contained wordmark y-span [{y:.1}..{:.1}] escaped canvas {wh}",
+                    y + h
+                );
+                contained += 1;
+            }
+            theme::PlacardPlacement::Bleed { .. } => {
+                assert!(
+                    y + h > wh + 0.5,
+                    "{world}: authored bleed produced no bottom crop: [{y:.1}..{:.1}] in {wh}",
+                    y + h
+                );
+                assert!(y < wh, "{world}: the authored bleed hid the whole placard");
+                bleeding += 1;
+            }
+        }
         // The corner it drew is the ONE pure owner's resolution of the data.
         let resolved = crate::render::derived_placard_corner(
             data_corner,
@@ -392,6 +409,10 @@ fn every_shipped_placard_world_wordmark_stays_on_canvas() {
             "{world}: the derivation must resolve Auto to a concrete corner"
         );
     }
+    assert!(
+        contained > 0 && bleeding > 0,
+        "both placard-placement arms must enroll"
+    );
     theme::set_active(theme::DEFAULT_THEME);
 }
 

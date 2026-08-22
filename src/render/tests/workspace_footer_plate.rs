@@ -5,10 +5,9 @@
 //! closes the card and the two are the same line. A summoned WORKSPACE's card
 //! comes from the CANVAS, so there is no bottom edge to close — the same rule
 //! paints a slab as tall as whatever vertical space the rows did not use, hanging
-//! below the footer's own glyphs with nothing in it. On Cassowary, whose plate
-//! ink is very nearly black, that slab is the reported "oversized black
-//! sub-settings bar"; on the two other PLATE-DRAWING worlds it is the same slab
-//! in a paler ink, which is why this sweeps a roster and not the report.
+//! below the footer's own glyphs with nothing in it. The plate-drawing worlds
+//! carry different inks, which is why this sweeps the roster rather than one
+//! representative.
 
 use super::super::*;
 use super::{headless_dqp, view};
@@ -38,10 +37,8 @@ fn shoot(
 /// closes the card and the two are the same line. A summoned WORKSPACE's card
 /// comes from the CANVAS, so there is no bottom edge to close — the same rule
 /// paints a slab as tall as whatever vertical space the rows did not use, hanging
-/// below the footer's own glyphs with nothing in it. On Cassowary, whose plate
-/// ink is very nearly black, that slab is the reported "oversized black
-/// sub-settings bar"; on the two other PLATE-DRAWING worlds it is the same slab
-/// in a paler ink, which is why this sweeps a roster and not the report.
+/// below the footer's own glyphs with nothing in it. The plate-drawing worlds
+/// carry different inks, so this law sweeps both.
 ///
 /// THE ROSTER IS THE WORLDS THAT DRAW PLATES, WHICH IS NOT THE BARE-PLATE
 /// ROSTER. `list_backing == BarePlates` is a claim about the CARD — no panel, no
@@ -84,7 +81,7 @@ fn a_workspace_footer_plate_ends_with_its_footer_on_every_bare_plate_world() {
     assert_eq!(
         (plated.as_slice(), plateless.as_slice()),
         (
-            ["Galah", "Firetail", "Cassowary"].as_slice(),
+            ["Galah", "Firetail"].as_slice(),
             ["Mangrove", "Magpie", "Paperbark"].as_slice()
         ),
         "the shipping bare-plate roster splits exactly this way — a new world joins \
