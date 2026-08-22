@@ -498,8 +498,8 @@ reason = "The exhaustive theme model authors rotated-location treatment and toas
 
 [[file_size_mark]]
 file = "src/theme/worlds.rs"
-lines = 1157
-reason = "Every world explicitly authors its toast anchor, while Cassowary and Magpie author their shared rotated-location treatments in the same roster."
+lines = 1158
+reason = "Every world explicitly authors its toast anchor, while Cassowary and Magpie author their shared rotated-location treatments in the same roster. Kite authors the ruled list style (one line)."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -1099,7 +1099,7 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/theme/tests/personality.rs"
 function = "personality_assignments_are_exactly_the_decided_table"
-message = "this function has too many lines (168/100)"
+message = "this function has too many lines (169/100)"
 reason = "The exhaustive per-world capabilities table includes rotated-location treatment assignments; its no-wildcard shape makes every world's face, scale, ink, tracking, and locator grammar an explicit decision."
 
 [[clippy_exception]]
