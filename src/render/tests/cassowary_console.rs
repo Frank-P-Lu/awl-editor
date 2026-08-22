@@ -100,6 +100,22 @@ fn console_view(active: usize) -> ViewState {
     v
 }
 
+fn core_ink_pixels(pixels: &[[u8; 4]], width: u32, rect: [f32; 4], ink: [u8; 4]) -> usize {
+    let x0 = rect[0].floor().max(0.0) as u32;
+    let y0 = rect[1].floor().max(0.0) as u32;
+    let x1 = (rect[0] + rect[2]).ceil().min(width as f32) as u32;
+    let y1 = (rect[1] + rect[3]).ceil() as u32;
+    (y0..y1)
+        .flat_map(|y| (x0..x1).map(move |x| pixels[(y * width + x) as usize]))
+        .filter(|px| {
+            px[..3]
+                .iter()
+                .zip(ink[..3].iter())
+                .all(|(a, b)| a.abs_diff(*b) <= 44)
+        })
+        .count()
+}
+
 #[test]
 fn docked_facet_draw_hit_and_pane_edge_are_one_geometry_across_canvas_and_dpi() {
     let _guard = crate::testlock::serial();
@@ -157,10 +173,83 @@ fn docked_facet_draw_hit_and_pane_edge_are_one_geometry_across_canvas_and_dpi() 
                 p.overlay_lens_at(x, dock.top - 0.1).is_none(),
                 "outside the drawn dock is outside its hit span"
             );
+
+            // APPEARANCE, not state: every inactive label must still put real
+            // phosphor ink on the docked navigation line. The bug retained all
+            // five hit spans while clipping the original strip wholesale, so
+            // geometry-only assertions stayed green as four labels vanished.
+            let pixels = super::pixeldiff::render_frame(&mut p, &device, &queue, w, h);
+            let ink = theme::muted().rgba_bytes();
+            for idx in (0..p.overlay_lens.len()).filter(|idx| *idx != 1) {
+                let label = &console_view(1).overlay_lens[idx].0;
+                let mut hits = 0usize;
+                let (left, right) = lens_hit_span(&p, idx, dock.center()).unwrap_or_else(|| {
+                    panic!(
+                        "{logical_w}x{logical_h}@{dpi}x: inactive facet {label:?} lost its hit span"
+                    )
+                });
+                hits +=
+                    core_ink_pixels(&pixels, w, [left, dock.top, right - left, dock.height], ink);
+                assert!(
+                    hits >= 2,
+                    "{logical_w}x{logical_h}@{dpi}x: inactive facet {label:?} has no visible ink"
+                );
+            }
             cells += 1;
         }
     }
     assert_eq!(cells, 6, "narrow/wide × 1x/2x sweep is enrolled");
+}
+
+fn lens_hit_span(p: &TextPipeline, index: usize, y: f32) -> Option<(f32, f32)> {
+    let card = p.overlay_card_rect()?;
+    let mut xs = (card[0].floor() as i32..(card[0] + card[2]).ceil() as i32)
+        .filter(|x| p.overlay_lens_at(*x as f32 + 0.5, y) == Some(index));
+    let first = xs.next()? as f32;
+    let last = xs.last().unwrap_or(first as i32) as f32 + 1.0;
+    Some((first, last))
+}
+
+#[test]
+fn empty_results_keep_the_active_tab_and_commands_placard_visible() {
+    let _guard = crate::testlock::serial();
+    let _world = theme::WorldPin::world("Cassowary").expect("Cassowary ships");
+    let (w, h) = (1200u32, 800u32);
+    let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
+        eprintln!("skipping Cassowary empty-result appearance: no wgpu adapter");
+        return;
+    };
+    let mut v = console_view(0);
+    v.overlay_items.clear();
+    v.overlay_bindings.clear();
+    v.overlay_empty = Some("no matches".into());
+    v.overlay_selected = 0;
+    p.set_view(&v);
+    p.prepare(&device, &queue, w, h).unwrap();
+
+    let tab = p
+        .overlay_theme_underline
+        .expect("empty result keeps active tab");
+    let placard = p
+        .overlay_shape_placard(&p.overlay_geometry(w))
+        .expect("empty result keeps COMMANDS placard");
+    let pixels = super::pixeldiff::render_frame(&mut p, &device, &queue, w, h);
+    let ink = theme::base_content().rgba_bytes();
+    assert!(
+        core_ink_pixels(&pixels, w, tab, ink) >= 3,
+        "active All tab has state but no visible label ink"
+    );
+    let visible_placard = [
+        placard.0,
+        placard.1.max(0.0),
+        placard.2,
+        (h as f32 - placard.1.max(0.0)).min(placard.3).max(0.0),
+    ];
+    let placard_ink = theme::placard_ink(theme::PlacardInk::Bold).rgba_bytes();
+    assert!(
+        core_ink_pixels(&pixels, w, visible_placard, placard_ink) >= 24,
+        "COMMANDS placard has geometry but no visible phosphor ink"
+    );
 }
 
 #[test]
@@ -285,6 +374,12 @@ fn scanline_material_is_reusable_static_data_with_one_absolute_phase() {
     assert_eq!(p.placard_material.instance_count(), 1);
     assert_eq!(p.panel_material.scanlines(), Some((0.2, 5.0, 1.25)));
     assert_eq!(p.placard_material.scanlines(), p.panel_material.scanlines());
+    for frame in 0..3 {
+        assert!(
+            !p.advance(1.0 / 60.0),
+            "static scanlines must request no render follow-up on idle frame {frame}"
+        );
+    }
 
     let shader = include_str!("../../../shaders/selection.wgsl");
     assert!(shader.contains("let phase = in.px.y"));
@@ -300,6 +395,70 @@ fn scanline_material_is_reusable_static_data_with_one_absolute_phase() {
     set_title_style_test_override(None);
 }
 
+/// Run explicitly with
+/// `cargo test --release --bin awl cassowary_static_material_release_cost`
+/// `-- --ignored --nocapture`.
+/// This is a report, not a timing threshold: hosted and local GPUs are unlike,
+/// but the two arms share one process/device/frame and differ only by the
+/// material capability, so the printed delta honestly isolates its local cost.
+#[test]
+#[ignore = "release-mode GPU cost report"]
+fn cassowary_static_material_release_cost() {
+    let _guard = crate::testlock::serial();
+    let _world = theme::WorldPin::world("Cassowary").expect("Cassowary ships");
+    let (w, h) = (1200u32, 800u32);
+    let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
+        eprintln!("skipping Cassowary material cost: no wgpu adapter");
+        return;
+    };
+    p.set_view(&console_view(1));
+
+    let sample = |p: &mut TextPipeline, material, rounds: usize| -> Vec<u128> {
+        set_summoned_material_test_override(Some(material));
+        (0..rounds)
+            .map(|_| {
+                let start = std::time::Instant::now();
+                p.prepare(&device, &queue, w, h).unwrap();
+                let _ = super::pixeldiff::render_frame(p, &device, &queue, w, h);
+                start.elapsed().as_nanos()
+            })
+            .collect()
+    };
+    let _ = sample(&mut p, SummonedMaterial::Flat, 8);
+    let _ = sample(
+        &mut p,
+        SummonedMaterial::Scanlines {
+            pitch_px: 4.0,
+            line_px: 1.0,
+            strength: 0.12,
+        },
+        8,
+    );
+    let median = |mut values: Vec<u128>| {
+        values.sort_unstable();
+        values[values.len() / 2]
+    };
+    let flat = median(sample(&mut p, SummonedMaterial::Flat, 40));
+    let scanlines = median(sample(
+        &mut p,
+        SummonedMaterial::Scanlines {
+            pitch_px: 4.0,
+            line_px: 1.0,
+            strength: 0.12,
+        },
+        40,
+    ));
+    set_summoned_material_test_override(None);
+    eprintln!(
+        "cassowary material release cost: flat={:.3}ms scanlines={:.3}ms \
+         delta={:+.3}ms (median of 40 serialized 1200x800 \
+         prepare+render+readback frames)",
+        flat as f64 / 1_000_000.0,
+        scanlines as f64 / 1_000_000.0,
+        (scanlines as i128 - flat as i128) as f64 / 1_000_000.0,
+    );
+}
+
 #[test]
 fn static_material_enrolls_the_complete_overlay_surface_roster() {
     let _guard = crate::testlock::serial();
@@ -309,6 +468,11 @@ fn static_material_enrolls_the_complete_overlay_surface_roster() {
         return;
     };
     let mut enrolled = 0;
+    let mut faceted = 0;
+    let mut flat = 0;
+    let mut contextual = 0;
+    let mut workspace = 0;
+    let mut fingerprints = std::collections::BTreeSet::new();
     for kind in crate::overlay::OverlayKind::ALL {
         match kind {
             crate::overlay::OverlayKind::Goto
@@ -336,14 +500,64 @@ fn static_material_enrolls_the_complete_overlay_surface_roster() {
             | crate::overlay::OverlayKind::Context
             | crate::overlay::OverlayKind::ExportDest => {}
         }
-        let mut v = console_view(1);
-        v.overlay_title = kind.title();
+        let mut v = view("teh\n", 0, 0);
+        v.overlay_active = true;
+        v.overlay_title = if kind.draws_title_prefix() {
+            kind.title()
+        } else {
+            ""
+        };
         v.overlay_window_rows = kind.window_rows();
+        v.overlay_items = vec!["Alpha".into(), "Omega".into()];
+        v.overlay_bindings = vec!["C-a".into(), "C-o".into()];
+        v.overlay_hint = kind.hint();
+        if kind == crate::overlay::OverlayKind::Spell {
+            v.overlay_spell = Some((0, 0, 3));
+            v.overlay_title = "";
+            v.overlay_hint.clear();
+            contextual += 1;
+        } else if kind.workspace_shape().is_some() {
+            v.overlay_workspace = true;
+            v.overlay_lens = crate::facets::scheme(kind)
+                .map(|scheme| scheme.strip_labels(0))
+                .unwrap_or_default();
+            workspace += 1;
+        } else if let Some(scheme) = crate::facets::scheme(kind) {
+            v.overlay_lens = scheme.strip_labels(0);
+            faceted += 1;
+        } else {
+            flat += 1;
+        }
         p.set_view(&v);
         p.prepare(&device, &queue, 1200, 800).unwrap();
         assert_eq!(p.panel_material.instance_count(), 1, "{kind:?} pane");
-        assert_eq!(p.placard_material.instance_count(), 1, "{kind:?} placard");
+        let geom = p.overlay_geometry(1200);
+        let has_placard = p.overlay_shape_placard(&geom).is_some();
+        assert_eq!(
+            p.placard_material.instance_count(),
+            u32::from(has_placard),
+            "{kind:?}: material follows the placard geometry this real surface actually owns"
+        );
+        let card = p.overlay_card_rect().expect("real surface has geometry");
+        fingerprints.insert((
+            geom.header_rows,
+            !v.overlay_lens.is_empty(),
+            v.overlay_workspace,
+            v.overlay_spell.is_some(),
+            (card[0].round() as i32, card[1].round() as i32),
+        ));
         enrolled += 1;
     }
     assert_eq!(enrolled, crate::overlay::OverlayKind::ALL.len());
+    assert!(
+        faceted > 0 && flat > 0 && contextual == 1 && workspace > 0,
+        "real roster must enroll every production surface family: \
+         faceted={faceted} flat={flat} contextual={contextual} \
+         workspace={workspace}"
+    );
+    assert!(
+        fingerprints.len() >= 4,
+        "the sweep must reach distinct production geometries, not replay one \
+         fake console view: {fingerprints:?}"
+    );
 }

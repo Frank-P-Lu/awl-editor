@@ -150,6 +150,36 @@ pub(super) fn push_docked_facet_areas<'a>(
         };
         push(text_top, 0.0, original.top);
         push(text_top, original.bottom(), height as f32);
+
+        // Move the complete shaped strip with the active tab. Its active span
+        // is camouflaged in the tab surface and redrawn once below. Keeping
+        // the quiet labels in one TextArea avoids GlyphBuffer multi-clip
+        // behavior dropping the tail after the active label.
+        let strip_baseline = panel_buffer
+            .layout_runs()
+            .find(|run| run.line_i == original.line)
+            .map_or(original.top - text_top, |run| run.line_y);
+        let dock_baseline = docked_facet_buffer
+            .layout_runs()
+            .next()
+            .map_or(0.0, |run| run.line_y);
+        let moved_top = dock.top + dock_baseline - strip_baseline;
+        let clip_top = dock.top.max(0.0) as i32;
+        let clip_bottom = dock.bottom().min(height as f32) as i32;
+        areas.push(TextArea {
+            buffer: panel_buffer,
+            left: text_left,
+            top: moved_top,
+            scale: 1.0,
+            bounds: TextBounds {
+                left: clip_left,
+                top: clip_top,
+                right: clip_right,
+                bottom: clip_bottom,
+            },
+            default_color: ink,
+            custom_glyphs: &[],
+        });
     }
     let label_w = docked_facet_buffer
         .layout_runs()

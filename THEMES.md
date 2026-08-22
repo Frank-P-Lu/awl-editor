@@ -281,10 +281,11 @@ inverting/filled block (`ink_caret ⇒ folds_morph_to_block`), so the green
 ink-ladder tints still hold their pairwise / perceptibility / luminance /
 ground-contrast laws ON the green ink. No other new law: Cassowary rides the
 shared derivations. Iosevka is its terminal-readout face; the summoned command
-overlay goes loud (Archivo Black wordmark placard, bordered console card, poster
-Bars) while the writing page stays a calm green terminal. The room-margin lens
-cue answers that poster with a quiet Iosevka locator such as `03 / NAVIGATE`:
-its number is the active strip mark's real one-based position, not decoration.
+overlay goes loud (Archivo Black wordmark placard, bordered unified console,
+docked active facet) while the writing page stays a calm green terminal. The
+room-margin lens cue answers that poster with a quiet Iosevka locator such as
+`03`: its number is the active strip mark's real one-based position, not
+decoration; the docked tab carries the category name once.
 
 ---
 

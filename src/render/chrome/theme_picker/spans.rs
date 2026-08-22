@@ -26,7 +26,25 @@ impl TextPipeline {
         let mut pushes: Vec<(std::ops::Range<usize>, glyphon::Color)> = strip
             .labels
             .iter()
-            .map(|(range, active)| (range.clone(), if *active { active_ink } else { muted }))
+            .map(|(range, active)| {
+                let color = if *active
+                    && matches!(
+                        crate::render::effective_facet_style(),
+                        theme::FacetStyle::DockedTab
+                    ) {
+                    // Keep the active glyphs shaped for the hit geometry. Paint
+                    // this original span in the tab's own surface colour; the
+                    // dock's line-height buffer then draws the label exactly
+                    // once. A transparent mid-line span made glyphon drop the
+                    // remainder of the strip on some active categories.
+                    theme::pane_surface(crate::render::effective_card_elevation()).to_glyphon()
+                } else if *active {
+                    active_ink
+                } else {
+                    muted
+                };
+                (range.clone(), color)
+            })
             .chain(strip.separators.iter().cloned().map(|range| (range, faint)))
             .collect();
         pushes.sort_by_key(|(range, _)| range.start);

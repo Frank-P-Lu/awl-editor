@@ -423,6 +423,41 @@ fn a_non_lava_world_takes_a_moved_stream_as_a_total_no_op() {
     crate::theme::set_active(prev);
 }
 
+/// Cassowary's scanline console is a static material, not an ambient world.
+/// Drive the real App scheduler with its real command palette left open: an
+/// idle pass must neither poll nor arm a follow-up deadline. The renderer-side
+/// companion in `cassowary_console` proves `advance` agrees frame-for-frame.
+#[test]
+fn cassowary_console_is_static_idle_in_the_real_scheduler() {
+    let _g = crate::testlock::serial();
+    let prev = crate::theme::active_index();
+    crate::theme::set_active_by_name("Cassowary").unwrap();
+    let _fs = crate::fs::FsGuard::install(Arc::new(crate::fs::InMemoryFs::new().with_dir("/ws")));
+    let mut app = App::new_hermetic(None, PathBuf::from("/ws"), Config::empty());
+    let chord = match crate::convention::Convention::current() {
+        crate::convention::Convention::Mac => "s-p",
+        crate::convention::Convention::Linux => "C-p",
+    };
+    app.press_spec_headless(chord)
+        .expect("palette chord parses");
+    assert!(
+        app.workspace_state.overlay_open(),
+        "the scheduler is grading the summoned Cassowary console"
+    );
+
+    let sched = schedule::RecordingScheduler::new();
+    for pass in 0..3 {
+        sched.begin_step();
+        app.step_scheduling(&sched);
+        assert_eq!(
+            sched.scheduled_this_step(),
+            None,
+            "static Cassowary console scheduled an idle follow-up on pass {pass}"
+        );
+    }
+    crate::theme::set_active(prev);
+}
+
 /// THE VANISHING-PAGE FIX — UNCONDITIONAL BRACKET + EVENT-ORDERED TEARDOWN
 /// (user report 2026-07-17/18, "arrowing into Magpie makes the writing surface
 /// vanish", which survived three `preview_crossing` widenings). Two laws on
