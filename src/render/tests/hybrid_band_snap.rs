@@ -393,16 +393,16 @@ fn a_move_onto_a_settled_band_reports_the_ease_advance_could_not_see() {
          not see (item 211 — otherwise the loop parks and the band freezes on \
          the row the selection left)"
     );
-    // The ease is now in flight, so the ORDINARY term carries it home and the
-    // bridge must go quiet — it reports a START, never a continuation.
-    let (stepped, started) = one_live_frame(&mut p, dt, |p| {
+    // The ease is now in flight, so the exhaustive activity report carries it
+    // home on every presented frame until the owner retires it.
+    let (stepped, active) = one_live_frame(&mut p, dt, |p| {
         let _ = pane_band_top(p, row(1), lh);
     });
     assert!(stepped, "mid-glide, `advance` itself keeps the loop hot");
     assert!(
-        !started,
-        "no new move: the bridge reports a START, not a continuation (it must \
-         not manufacture a perpetual hot loop)"
+        active,
+        "mid-glide: the exhaustive post-prepare activity report remains active \
+         until the production owner retires the ease"
     );
 
     // In-flight move (auto-repeat): `chase_or_snap`'s SNAP branch re-zeroes the

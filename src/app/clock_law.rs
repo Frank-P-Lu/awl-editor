@@ -40,7 +40,8 @@ const ALLOWED: &[(&str, usize)] = &[
     // submit latency the debug panel reports; a virtual clock would report a
     // fictional GPU cost, and the determinism contract already makes these
     // capture-invisible (fixed placeholders headless).
-    ("app/gpu.rs", 3),
+    ("app/gpu.rs", 1),
+    ("app/gpu/present.rs", 2),
     // `--bench-a11y`'s two stopwatches around the accessibility projection.
     // They measure real elapsed CPU work and print it; a virtual clock would
     // report a fictional cost, which is the whole thing the bench exists to

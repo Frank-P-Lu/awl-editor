@@ -171,7 +171,10 @@ impl App {
                 deadlines.propose(Some(deadline));
             }
         }
-        match self.document.poll_autosave(now, AUTOSAVE_IDLE) {
+        match self
+            .document
+            .poll_autosave(self.frame.now(), AUTOSAVE_IDLE)
+        {
             document::AutosavePoll::Due => {
                 self.autosave_flush();
                 #[cfg(not(target_arch = "wasm32"))]
@@ -241,9 +244,7 @@ impl App {
         deadlines.propose(outcome.next_deadline);
         let draw_once = self.frame.take_draw_once();
         match self.frame.directive(deadlines) {
-            crate::frame_clock::Directive::Idle => {
-                event_loop.set_control_flow(ControlFlow::Wait);
-            }
+            crate::frame_clock::Directive::Idle => {}
             crate::frame_clock::Directive::Deadline(deadline) => {
                 event_loop.set_control_flow(ControlFlow::WaitUntil(deadline));
             }
