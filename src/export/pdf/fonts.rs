@@ -42,7 +42,7 @@ pub(super) struct FontAsset {
     pub weight: u16,
 }
 
-pub(super) const ASSETS: [FontAsset; 6] = [
+pub(super) static ASSETS: [FontAsset; 6] = [
     FontAsset {
         role: FontRole::Serif,
         family: "Bitter",

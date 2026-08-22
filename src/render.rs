@@ -428,7 +428,7 @@ impl Metrics {
 /// face and the registered monospace family (so any glyph the theme face lacks
 /// falls back to it, and the panel / fallback paths resolve here via
 /// `Family::Monospace`).
-pub const FONT_DATA: &[u8] = include_bytes!("../assets/fonts/IBMPlexMono-Light.ttf");
+pub static FONT_DATA: &[u8] = include_bytes!("../assets/fonts/IBMPlexMono-Light.ttf");
 
 pub const FONT_DATA_PITCH: facepitch::Pitch = facepitch::Pitch::Mono;
 
@@ -450,7 +450,7 @@ pub const FONT_DATA_PITCH: facepitch::Pitch = facepitch::Pitch::Mono;
 /// back to TOFU) in every world. The same family also shapes the command-palette
 /// glyph chords and the markdown rule/end ornaments. Its cmap is a superset of the
 /// retired `AwlSymbols.ttf` (parity confirmed — identical 18 codepoints).
-pub const FONT_SYMBOLS: &[u8] = include_bytes!("../assets/fonts/AwlMarks.ttf");
+pub static FONT_SYMBOLS: &[u8] = include_bytes!("../assets/fonts/AwlMarks.ttf");
 
 /// The private family name [`FONT_SYMBOLS`] registers under (its `name` table
 /// family ID, verified through fontdb). Named only via `AttrsList` family spans —
@@ -489,7 +489,7 @@ pub const SYMBOL_FAMILY: &str = "Awl Marks";
 /// advance widths and the caret rides the measurement — it exists so a wrong or
 /// missing call FAILS `render::tests::facepitch` instead of quietly changing how
 /// the caret looks.
-pub const FONT_THEME_FACES: &[(&[u8], facepitch::Pitch)] = &[
+pub static FONT_THEME_FACES: &[(&[u8], facepitch::Pitch)] = &[
     (
         include_bytes!("../assets/fonts/Literata-Regular.ttf"),
         facepitch::Pitch::Proportional,
@@ -600,7 +600,7 @@ pub fn bundled_display_faces() -> impl Iterator<Item = (&'static [u8], facepitch
 /// `wght=700` instance can carry them; a bold occurrence of one of those 13
 /// characters falls back like any missing glyph. Every other bold (including all
 /// four monos) matches its Regular's coverage exactly.
-pub const FONT_THEME_BOLD_FACES: &[&[u8]] = &[
+pub static FONT_THEME_BOLD_FACES: &[&[u8]] = &[
     include_bytes!("../assets/fonts/Literata-Bold.ttf"),
     include_bytes!("../assets/fonts/Newsreader-Bold.ttf"),
     include_bytes!("../assets/fonts/IBMPlexSans-Bold.ttf"),
@@ -636,10 +636,10 @@ pub const FONT_THEME_BOLD_FACES: &[&[u8]] = &[
 /// [`crate::theme::ORNAMENT_MARKS`] IS the merged `SYMBOL_FAMILY` face. (The dud
 /// `Vollkorn-Ornaments.ttf` — it ships NO classic fleurons, only ¶ ‸ ‽ … — was
 /// dropped: no world could use it for a section break.)
-pub const FONT_ORNAMENT_FACES: &[&[u8]] =
+pub static FONT_ORNAMENT_FACES: &[&[u8]] =
     &[include_bytes!("../assets/fonts/Junicode-Ornaments.ttf")];
 
-pub const FONT_CHROME_FACES: &[&[u8]] = &[
+pub static FONT_CHROME_FACES: &[&[u8]] = &[
     include_bytes!("../assets/fonts/ArchivoBlack-Regular.ttf"),
     include_bytes!("../assets/fonts/AbrilFatface-Regular.ttf"),
 ];
@@ -665,7 +665,7 @@ pub const FONT_CHROME_FACES: &[&[u8]] = &[
 /// ([`apply_sourgummy_heavy_force`]), so the SAME `Weight::BOLD` request
 /// falls through to THIS file instead — a true in-app A/B capture of the
 /// heavy candidate, not a synthetic side-by-side image.
-pub const FONT_SOURGUMMY_HEAVY_CANDIDATE: &[u8] =
+pub static FONT_SOURGUMMY_HEAVY_CANDIDATE: &[u8] =
     include_bytes!("../assets/fonts/SourGummy-Black.ttf");
 
 /// BUNDLED per-script JAPANESE faces — the "Japanese bundle round" (TASTE-GATED,
@@ -687,7 +687,7 @@ pub const FONT_SOURGUMMY_HEAVY_CANDIDATE: &[u8] =
 ///   Hiragino/system entries stay as trailing candidates until the user's
 ///   gallery/jp-compare eyeball-call — see the seam comment on those lists for
 ///   the follow-up (bundled-only + `resolve_cjk` simplification).
-pub const FONT_CJK_FACES: &[&[u8]] = &[
+pub static FONT_CJK_FACES: &[&[u8]] = &[
     include_bytes!("../assets/fonts/NotoSerifJP-Regular.ttf"),
     // Noto Sans JP — gothic companion for the sans/mono worlds (registers as
     // "Noto Sans JP"). OFL, github.com/google/fonts/tree/main/ofl/notosansjp.
@@ -733,7 +733,7 @@ pub const FONT_CJK_FACES: &[&[u8]] = &[
 /// ladder for the before/after `gallery/jp-worlds/` captures). Named ONLY via
 /// the per-run CJK `AttrsList` spans — never a `Theme::font` — so no world's
 /// Latin display face is touched.
-pub const FONT_JA_VARIETY_FACES: &[&[u8]] = &[
+pub static FONT_JA_VARIETY_FACES: &[&[u8]] = &[
     include_bytes!("../assets/fonts/ShipporiMincho-Regular.ttf"),
     include_bytes!("../assets/fonts/ZenMaruGothic-Regular.ttf"),
     include_bytes!("../assets/fonts/KleeOne-Regular.ttf"),
@@ -786,7 +786,7 @@ pub const FONT_JA_VARIETY_FACES: &[&[u8]] = &[
 /// "bookish serif worlds' ZhHans" pairing this round's spec proposed for it
 /// has no candidate face in v1 (those worlds keep the plain [`theme::
 /// CJK_ZH_HANS_SERIF`] Noto Serif SC floor, no characterful override).
-pub const FONT_ZH_KO_FACES: &[&[u8]] = &[
+pub static FONT_ZH_KO_FACES: &[&[u8]] = &[
     include_bytes!("../assets/fonts/NotoSerifSC-Regular.ttf"),
     include_bytes!("../assets/fonts/NotoSansSC-Regular.ttf"),
     include_bytes!("../assets/fonts/NotoSansKR-Regular.ttf"),
@@ -846,7 +846,7 @@ pub const FONT_ZH_KO_FACES: &[&[u8]] = &[
 /// [`theme::CJK_ZH_HANS_SANS`] Noto Sans SC zh-Hans floor. Bundling it for a
 /// FUTURE rounded-zh-Hant round (a Big5 subset + a per-world zh-Hant split) is
 /// BANKED, not attempted here.
-pub const FONT_CJK_COMPANION_FACES: &[&[u8]] =
+pub static FONT_CJK_COMPANION_FACES: &[&[u8]] =
     &[include_bytes!("../assets/fonts/GowunBatang-Regular.ttf")];
 /// Thickness (LOGICAL px) of the underline drawn beneath an active IME
 /// preedit (composition) string. The underline reuses the selection quad
