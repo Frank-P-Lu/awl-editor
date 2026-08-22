@@ -92,7 +92,9 @@ fn console_view(active: usize) -> ViewState {
     v.overlay_bindings = (0..12).map(|i| format!("C-{i}")).collect();
     v.overlay_selected = 3;
     v.overlay_hint = "type to filter   ↵ choose   ←/→ category   esc close".into();
-    v.overlay_lens = ["All", "Files", "Navigate", "Format", "View"]
+    v.overlay_lens = [
+        "All", "Files", "Navigate", "Format", "View", "Tools", "Settings", "Recent",
+    ]
         .iter()
         .enumerate()
         .map(|(i, label)| (label.to_string(), i == active))
@@ -310,7 +312,7 @@ fn typed_filter_keeps_every_active_tab_complete_and_commands_placard_visible() {
         );
         enrolled += 1;
     }
-    assert_eq!(enrolled, 5, "every active facet is appearance-enrolled");
+    assert_eq!(enrolled, 8, "every active facet is appearance-enrolled");
 }
 
 #[test]
