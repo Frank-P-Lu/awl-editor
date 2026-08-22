@@ -154,6 +154,32 @@ swept from the keymap roster (no hand-picked list), mutation-proven by
 blanking one accelerator; visual confirmation on the live app stays flagged
 for the user.
 
+### 471 — Cassowary console: square top, chamfered bottom, one corner-mask owner (USER DECISION 2026-08-22)
+
+User-reported on the live app: the Cassowary console shows square artifacts
+at its chamfered top corners — the new console layers (panel material,
+placard bleed, scanlines, docked facet plates) hold independent opinions
+about the corner; `overlay_material.rs` already sets the placard's chamfer
+to 0.0 while the panel takes one card's mask. Quokka's palette proves the
+shared `CardShape::Chamfered` pipeline clips fill correctly with one layer.
+
+Decision: Cassowary's console goes SQUARE at the top corners (the docked
+seam edge, where the facet strip lives) and keeps the chamfer at the
+bottom (the free edge). Quokka stays all-four-corners, untouched.
+Mechanism: `CardShape` grows a per-corner (or top/bottom) axis as theme
+data — one renderer, no world-specific code path — and every console layer
+clips through the single corner-mask owner; the bypass goes module-private.
+
+New axis value ⇒ standing-policy probe across the full overlay surface
+roster (palette, placard, query bar, toast…) in both authoring worlds, plus
+the render-touching vision smoke. Verify: pixel arithmetic over the corner
+triangles — top corners match the panel ground exactly where square, bottom
+corners show the cut — mutation-proven by re-squaring one layer and by
+desyncing one layer's mask; Quokka byte-identical before/after.
+
+Deliberately out of scope: the reference mockup's tab-on-border and left
+rail ticks — a separate taste call, easier once the mask has one owner.
+
 ## Needs specific hardware
 
 1. **AT-SPI journey** — on a real Linux desktop with Orca, exercise document
