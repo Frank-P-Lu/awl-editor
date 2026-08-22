@@ -589,13 +589,18 @@ fn the_composite_uniform_carries_the_extent_and_the_full_arm_carries_none() {
 /// whether a crisp picker over it frosts its footprint — nothing here names a
 /// world, and the answer follows a world that changes its list style.
 ///
+/// `Bars` enrols alongside `Diagonal`/`Ruled`: its rows draw an opaque
+/// plate, but that plate covers only the row's own footprint, never the gaps
+/// between plates or the margin around them — the frost's job there is unchanged
+/// by whether a row happens to plate itself.
+///
 /// Non-vacuity is asserted in both directions: the enrolled set and the excluded
 /// set are both non-empty, and both are NAMED in the failure message. A predicate
 /// that quietly stopped matching anything (the shape that swept nothing for the
 /// life of a law once already) fails here rather than passing green.
 #[test]
-fn footprint_enrolment_follows_the_rosters_own_backing_owners() {
-    use crate::theme::{ListBacking, ListStyle};
+fn footprint_enrolment_follows_the_rosters_own_backing_owner() {
+    use crate::theme::ListBacking;
     let mut enrolled: Vec<&str> = Vec::new();
     let mut excluded: Vec<&str> = Vec::new();
     for t in crate::theme::THEMES.iter() {
@@ -607,17 +612,12 @@ fn footprint_enrolment_follows_the_rosters_own_backing_owners() {
                 "{}: enrolled but its card is a filled panel",
                 t.name
             );
-            assert!(
-                !style.draws_row_plates(),
-                "{}: enrolled but it plates its own rows",
-                t.name
-            );
         } else {
             excluded.push(t.name);
             assert!(
-                matches!(style.list_backing(false), ListBacking::Card) || style.draws_row_plates(),
-                "{}: excluded while drawing neither a panel nor plates — \
-                     the document shows straight through its rows",
+                matches!(style.list_backing(false), ListBacking::Card),
+                "{}: excluded without a filled panel — the document shows \
+                     straight through its footprint",
                 t.name
             );
         }
@@ -633,18 +633,18 @@ fn footprint_enrolment_follows_the_rosters_own_backing_owners() {
     );
     // The style axis itself, exhaustively: one member per shape of backing, so a
     // new `ListStyle` cannot slip past with an unconsidered answer.
-    assert!(footprint_frost_applies(ListStyle::Ruled(
+    assert!(footprint_frost_applies(crate::theme::ListStyle::Ruled(
         crate::theme::RuleSelection::Weight
     )));
-    assert!(footprint_frost_applies(ListStyle::Diagonal(
+    assert!(footprint_frost_applies(crate::theme::ListStyle::Diagonal(
         crate::theme::DiagonalSpine::descending(crate::theme::DiagonalMark::CRISP)
     )));
     assert!(
-        !footprint_frost_applies(ListStyle::Bars),
-        "Bars plates its rows: the plate is the frost's job already"
+        footprint_frost_applies(crate::theme::ListStyle::Bars),
+        "Bars plates its rows but not the gaps between them"
     );
     assert!(
-        !footprint_frost_applies(ListStyle::Pane),
+        !footprint_frost_applies(crate::theme::ListStyle::Pane),
         "Pane's panel covers its whole footprint"
     );
 }

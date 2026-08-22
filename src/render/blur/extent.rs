@@ -311,19 +311,24 @@ pub(super) fn footprint_bound(foot: Footprint, feather: f32) -> [f32; 4] {
 
 /// Does a CRISP picker over this list composition need its OWN FOOTPRINT frosted?
 ///
-/// True exactly when the composition puts NOTHING OPAQUE between its rows and the
-/// document: no card panel under the whole box, and no plate under the rows. Asked of
-/// the roster's own two backing owners — `ListStyle::list_backing` and
-/// `ListStyle::draws_row_plates` — rather than of a named world, so a new
-/// composition enrols (or doesn't) by what it actually draws, and a world that changes
-/// its list style changes its answer here with it. A `Pane` world is excluded by its
-/// panel and a `Bars` world by its plates; both stay byte-identical.
+/// True exactly when the composition puts no CARD PANEL under the whole box — asked of
+/// the roster's own backing owner, `ListStyle::list_backing`, rather than of a named
+/// world, so a new composition enrols (or doesn't) by what it actually draws, and a
+/// world that changes its list style changes its answer here with it. A `Pane` world is
+/// excluded by its panel and stays byte-identical.
+///
+/// `Bars` DOES draw an opaque plate under each row — but the plate covers only that
+/// row's own footprint, never the GAPS between plates or the margin around them, and
+/// an unfrosted document bleeds through exactly those gaps. Each row's own plate still
+/// draws OPAQUE, on top of the frost, at its own
+/// true colour — the "crisp live-colour preview" promise every enrolled world keeps is
+/// about what a ROW wears, never about what the space between rows shows, so enrolling
+/// `Bars` costs that promise nothing.
 ///
 /// `spell` is `false` because a crisp picker is never the contextual spell popup (that
 /// one is not `overlay_crisp` and recedes nothing).
 pub fn footprint_frost_applies(style: crate::theme::ListStyle) -> bool {
     !matches!(style.list_backing(false), crate::theme::ListBacking::Card)
-        && !style.draws_row_plates()
 }
 
 /// The SCISSOR rect for a footprint, in physical px, clamped to a `width`×`height`

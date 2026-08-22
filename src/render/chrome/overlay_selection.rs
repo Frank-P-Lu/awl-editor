@@ -12,7 +12,7 @@ pub(super) struct OverlaySelectionRects {
     pub(super) footer_plate: Option<[f32; 4]>,
 }
 
-struct OverlayBarLayout {
+pub(super) struct OverlayBarLayout {
     radius: f32,
     grow_px: f32,
     extent: theme::BarExtent,
@@ -267,7 +267,7 @@ impl TextPipeline {
         }
     }
 
-    fn overlay_bar_layout(
+    pub(super) fn overlay_bar_layout(
         &self,
         geom: &OverlayGeom,
         plan: &OverlayRowPlan,
@@ -306,7 +306,7 @@ impl TextPipeline {
 
     /// Returns the unselected bar rects, plus the footer plate's own rect
     /// separately (`None` if this frame draws no footer).
-    fn overlay_unselected_bar_rects(
+    pub(super) fn overlay_unselected_bar_rects(
         &self,
         geom: &OverlayGeom,
         plan: &OverlayRowPlan,

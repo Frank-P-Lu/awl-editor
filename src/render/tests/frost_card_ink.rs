@@ -54,7 +54,30 @@ pub(super) const INK_GRADIENT: f32 = 6.0;
 
 /// How far the flagged set is grown, in physical px per DPI unit: a glyph's anti-aliased
 /// skirt reaches a pixel or two past the gradient that betrays it.
-const INK_DILATE: i64 = 2;
+pub(super) const INK_DILATE: i64 = 2;
+
+/// How far a row's own PRODUCTION ink rect ([`TextPipeline::overlay_row_ink_probe`]) is
+/// grown, in physical px per DPI unit, before it vetoes a measured pixel. A `Bars` plate's
+/// SDF corner/feather reaches wider than a glyph's hinted anti-aliasing: measured on the
+/// enrolled roster, the shortfall between a plate's declared rect and where its own residue
+/// actually settles reaches 2.2 px at 1×. Twice [`INK_DILATE`] keeps a comfortable margin
+/// above that. It DOES eat into the ~6 px gap between two vertically stacked plates — but
+/// only inside each plate's own X span, where the frost's box already covers the full row
+/// band on both flanks at the same Y, so a defect there still has measured pixels to be
+/// caught in. What it stays well short of is the ~7 logical px marker-to-label span, the
+/// composition's smallest authored HORIZONTAL gap.
+pub(super) const ROW_INK_DILATE: i64 = 4;
+
+/// Does a row's own PRODUCTION ink rect ([`crate::render::TextPipeline::overlay_row_ink_probe`],
+/// XYWH) cover `(x, y)` once grown by [`ROW_INK_DILATE`]? The one owner every card-ink veto
+/// over a `Bars` composition shares, so a caller cannot drift from this dilation.
+pub(super) fn row_ink_vetoes(row_ink: &[[f32; 4]], dpi: f32, x: i64, y: i64) -> bool {
+    let pad = (ROW_INK_DILATE * dpi.round() as i64) as f32;
+    let (fx, fy) = (x as f32, y as f32);
+    row_ink.iter().any(|&[rx, ry, rw, rh]| {
+        fx >= rx - pad && fx < rx + rw + pad && fy >= ry - pad && fy < ry + rh + pad
+    })
+}
 
 /// The coverage a law over the card's own upright chrome requires of the frost beneath it
 /// — the level under which "the frost does not really reach here" begins. Used by this
@@ -346,8 +369,15 @@ fn the_card_ink_veto_flags_the_worlds_own_ground_and_so_cannot_be_inverted() {
          exclusion of nothing while still reading green",
         floors.0
     );
+    // The reach floor is roster-derived, not a round number: `Bars` joined the enrolled
+    // roster (its rows now back themselves in the same footprint arm `Diagonal`/`Ruled`
+    // already used), and its own ground pattern near the canvas's first rows reaches only
+    // 8 logical px on the roster's tightest cell — under the pre-`Bars` floor of 10. 6
+    // keeps two units of margin under that measured minimum while staying far enough over
+    // 0 that a veto which stopped flagging the world's ground above the card still fails
+    // here rather than reading green.
     assert!(
-        floors.1 >= 500 && floors.2 >= 10.0,
+        floors.1 >= 500 && floors.2 >= 6.0,
         "the veto flags as few as {} pixels OUTSIDE the card's own box, reaching only \
          {:.0} logical px above its top edge, somewhere in {worlds:?}. The header of this \
          module says the flagged set is a SUPERSET of the card's ink because the world's \

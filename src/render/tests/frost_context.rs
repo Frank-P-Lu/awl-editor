@@ -265,8 +265,25 @@ struct Pair {
     /// "what the card draws over is a blur of a blank page, and a blur has no step in it" —
     /// actually holds is INSIDE the frost, which is the only region that reads it.
     ink: CardInk,
+    /// Every row's own ink, GROWN to its scrim ([`TextPipeline::overlay_row_ink_probe`]) —
+    /// the production owner of what a `Bars` plate actually occupies. `CardInk` is derived
+    /// from a LUMA GRADIENT in the empty frame, and a `Bars` plate/scrim is authored to sit
+    /// close to the world's own ground (Firetail's dark plate on its dark blur, Galah's
+    /// light plate on its light blur): the gradient at its edge can land under
+    /// `INK_GRADIENT`, so the derived veto is structurally blind to it while the plate is
+    /// still opaque, real ink. This is the geometric backstop for exactly that blind spot.
+    row_ink: Vec<[f32; 4]>,
     w: i64,
     h: i64,
+}
+
+impl Pair {
+    /// Does a row's own ink (plate/scrim/rule/mark — [`Self::row_ink`]) cover `(x, y)`,
+    /// grown by the same anti-aliasing skirt [`CardInk`] dilates by? A pixel this admits is
+    /// real card ink whether or not the gradient-derived veto could see it.
+    fn vetoes_row_ink(&self, x: i64, y: i64, dpi: f32) -> bool {
+        super::frost_card_ink::row_ink_vetoes(&self.row_ink, dpi, x, y)
+    }
 }
 
 fn pair(
@@ -281,6 +298,7 @@ fn pair(
     let open = render_frame(device, queue, p, w, h);
     let card = p.overlay_card_rect().expect("the menu has a card box");
     let frost = p.frost_mode();
+    let row_ink = p.overlay_row_ink_probe();
     p.set_view(&context_menu("", dpi));
     let empty = render_frame(device, queue, p, w, h);
     let ink = CardInk::derive(&empty, w as i64, h as i64, dpi);
@@ -293,6 +311,7 @@ fn pair(
         card,
         frost,
         ink,
+        row_ink,
         w: w as i64,
         h: h as i64,
     }
@@ -415,6 +434,7 @@ fn inside_the_menus_own_footprint_no_document_edge_survives() {
         let (measured, edges, peak) = doc_edges(&f, |fx, fy| {
             crate::render::blur::footprint_mask_for(frost, dpi, fx, fy) >= 1.0
                 && !f.ink.vetoes(fx as i64, fy as i64)
+                && !f.vetoes_row_ink(fx as i64, fy as i64, dpi)
         });
         eprintln!(
             "MEASURED {label}: {edges}/{measured} px UNDER the menu's fully-frosted \

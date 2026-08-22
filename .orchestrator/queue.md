@@ -172,31 +172,39 @@ desyncing one layer's mask; Quokka byte-identical before/after.
 Deliberately out of scope: the reference mockup's tab-on-border and left
 rail ticks — a separate taste call, easier once the mask has one owner.
 
-### 472 — bare-plate picker legibility: footer gap + backdrop treatment (USER-REPORTED 2026-08-22 on Firetail, live screenshot)
+### 472 — bare-plate picker legibility: footer gap magnitude (USER-REPORTED 2026-08-22 on Firetail, live screenshot)
 
-Two reports from the Firetail theme picker (Switch themes), likely shared
-by every `ListBacking::BarePlates` world (Bars/Diagonal/Rules — Firetail,
-Galah, Mangrove, Magpie, Paperbark):
+Backdrop half LANDED: `Bars` (Firetail, Galah, Kite) now enrols in the
+footprint frost alongside `Diagonal`/`Ruled` — `blur::footprint_frost_applies`
+no longer excludes it, `TextPipeline::overlay_drawn_surfaces` contributes the
+row band's full width (a plate hugs its own label, narrower than the row's
+own clickable span, so the declared surface is the BAND, matching the term
+`Ruled`'s rule spans already contribute — not the per-row hug list). Three
+pixel-arithmetic oracles (`frost_context`, `frost_footprint`'s edge and hue
+laws) were blind to `Bars` plates/scrims authored close to the world's own
+ground (their edge gradient in the empty-document frame can sit under
+`CardInk`'s derived `INK_GRADIENT`); `TextPipeline::overlay_row_ink_probe`
+(the production ink owner) plus a shared `row_ink_vetoes` dilation is now
+the geometric backstop, mirrored in `frost_context::Pair` and
+`frosted_and_live_mean_lab`. Verified: headless captures on Firetail (dark)
+and Galah (light) show legible plates over a genuinely blurred document —
+no sharp interleaved text — confirmed against Paperbark (`Ruled`, already
+enrolled, unchanged). The predicate change also enrols the pointer-anchored
+CONTEXT MENU on `Bars` worlds (`frost_context` now proves it there too),
+which the original report didn't name but the same legibility rationale
+covers. `Kite` is a sixth `BarePlates` world the item predates; the
+roster-derived sweeps (`enrolled_worlds()`) already cover it.
 
-1. **Footer gap.** The `type to filter · keep · esc revert` hint strip
-   sits nearly flush under the last row (`Kite`); the user wants more
-   breathing room between the list's end and the hint strip.
-2. **Backdrop.** Bare rows draw straight over the sharp document — body
-   text runs behind and between the plates, and the document's display-size
-   heading (`THEMES`) collides with the hint strip — "kind of hard to
-   read; the blur thing just needs to go there" (the user is pointing at
-   the backdrop blur the command palette already wears; interpretation to
-   confirm against the tree — establish what backdrop the palette uses in
-   these worlds and why the theme picker lacks it before building).
-
-Constraints: picker rows go through `render/rowlayout`; the fix is shared
-mechanism, not a Firetail special case; theme-preview must still show the
-world honestly behind the picker (the point of Switch themes is seeing the
-world), so the blur region is the picker's own column, not the whole page.
-Verify: pixel arithmetic on a seeded capture — a legibility floor for row
-labels over the busiest ground (display-heading behind the rows), a
-minimum gap between the last row and the hint strip swept across all
-BarePlates worlds and row counts, mutation-proven both ways.
+**Still owed — the footer gap.** Confirmed present on ALL THREE captures
+above (Firetail, Galah, Paperbark): the hint strip sits flush under the
+last row, and the document's display-size heading (`THEMES`) reaches the
+hint strip's own line. The backdrop fix does not move it — it is a
+magnitude question on `OVERLAY_HINT_GAP_ROW` (`render/chrome/overlay_policy.rs`),
+shared by every overlay family on every world, so any bump is a separate,
+narrowly reviewable commit. Verify: a minimum gap between the last row and
+the hint strip swept across all `BarePlates` worlds and row counts, plus a
+legibility floor for row labels over the busiest ground (display-heading
+behind the rows), mutation-proven both ways.
 
 ### 473 — clippy debt: the slice worth paying (USER 2026-08-22)
 

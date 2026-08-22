@@ -47,7 +47,7 @@
 
 use super::super::*;
 use super::dither::{offscreen, read_pixels};
-use super::frost_card_ink::{CardInk, luma, step};
+use super::frost_card_ink::{CardInk, luma, row_ink_vetoes, step};
 use super::{headless_dqp, view_md};
 
 /// A local luma step (of 255) that only an EDGE produces. Set in the empty middle of
@@ -197,6 +197,7 @@ fn the_footprint_frost_unmakes_the_document_as_text_and_confines_itself_to_the_c
             let rect = p
                 .overlay_card_rect()
                 .expect("the crisp picker is open, so it has a card box");
+            let row_ink = p.overlay_row_ink_probe();
             p.set_view(&theme_picker(""));
             let b = render_frame(&device, &queue, &mut p, w, h);
 
@@ -207,6 +208,10 @@ fn the_footprint_frost_unmakes_the_document_as_text_and_confines_itself_to_the_c
                 .map(|(pa, pb)| luma(*pa) - luma(*pb))
                 .collect();
             let ink = CardInk::derive(&b, wi, hi, dpi);
+            // A `Bars` plate/scrim authored close to the world's own ground can sit
+            // under `CardInk`'s own `INK_GRADIENT`, leaving it blind to real, opaque
+            // row ink — `row_ink_vetoes` is the geometric backstop for that blind spot.
+            let row_veto = |x: i64, y: i64| row_ink_vetoes(&row_ink, dpi, x, y);
 
             // The footprint, and a collar outside it. The interior's inset stays small:
             // the frost's mask is FULL STRENGTH on and inside the card's faces (the
@@ -256,7 +261,9 @@ fn the_footprint_frost_unmakes_the_document_as_text_and_confines_itself_to_the_c
                 outer && !inner
             };
 
-            let within = measure(&residue, &ink, wi, hi, inside);
+            let within = measure(&residue, &ink, wi, hi, |x, y| {
+                inside(x, y) && !row_veto(x, y)
+            });
             let beyond = measure(&residue, &ink, wi, hi, collar_only);
             let label = format!("{world} @ {dpi}x ({w}x{h}), card {rect:?}");
             eprintln!("MEASURED {label}: within={within:?} beyond={beyond:?}");
@@ -333,6 +340,7 @@ struct MeanPair {
 fn frosted_and_live_mean_lab(
     frames: (&[[u8; 4]], &[[u8; 4]]),
     ink: &CardInk,
+    row_ink: &[[f32; 4]],
     card: [f32; 4],
     frost: crate::render::blur::Frost,
     (dpi, w): (f32, i64),
@@ -342,9 +350,14 @@ fn frosted_and_live_mean_lab(
     let mut n = 0.0f64;
     let mut short = 0u64;
     let mut acc = [[0.0f64; 3]; 2];
+    // Same blind spot as `CardInk` above: a `Bars` plate/scrim authored close to the
+    // world's own ground can sit under `INK_GRADIENT` at its own edge, so its opaque
+    // fill would otherwise drag this mean toward the plate's own colour rather than the
+    // page's. `overlay_row_ink_probe` is the production owner of that ink.
+    let row_veto = |x: i64, y: i64| row_ink_vetoes(row_ink, dpi, x, y);
     for y in (ry + 8.0) as i64..(ry + rh - 8.0) as i64 {
         for x in (rx + 8.0) as i64..(rx + rw - 8.0) as i64 {
-            if ink.vetoes(x, y) {
+            if ink.vetoes(x, y) || row_veto(x, y) {
                 continue;
             }
             if crate::render::blur::footprint_mask_for(frost, dpi, x as f32, y as f32) < 1.0 {
@@ -409,6 +422,7 @@ fn the_footprint_frost_keeps_the_pages_own_hue() {
             let open = render_frame(&device, &queue, &mut p, w, h);
             let rect = p.overlay_card_rect().expect("the picker is open");
             let frost = p.frost_mode().expect("an enrolled world reaches the frost");
+            let row_ink = p.overlay_row_ink_probe();
             // The same picker over an empty document: the card-ink oracle.
             p.set_view(&theme_picker(""));
             let empty = render_frame(&device, &queue, &mut p, w, h);
@@ -419,7 +433,14 @@ fn the_footprint_frost_keeps_the_pages_own_hue() {
             let closed = render_frame(&device, &queue, &mut p, w, h);
 
             let ink = CardInk::derive(&empty, w as i64, h as i64, dpi);
-            let m = frosted_and_live_mean_lab((&open, &closed), &ink, rect, frost, (dpi, w as i64));
+            let m = frosted_and_live_mean_lab(
+                (&open, &closed),
+                &ink,
+                &row_ink,
+                rect,
+                frost,
+                (dpi, w as i64),
+            );
             let ((fl, fa, fb), (ll, la, lb), n, short) = (m.frosted, m.live, m.n, m.short);
             let label = format!("{world} @ {dpi}x ({w}x{h})");
             assert!(
