@@ -132,7 +132,7 @@ impl TextPipeline {
                 height,
                 None,
                 FloatElevation::Rimmed,
-                0.0,
+                CardChamfer::default(),
                 None,
             );
         }
@@ -258,7 +258,7 @@ impl TextPipeline {
             height,
             Some(plan.card),
             FloatElevation::Rimmed,
-            0.0,
+            CardChamfer::default(),
             None,
         );
         let area = TextArea {
@@ -424,7 +424,7 @@ impl TextPipeline {
             height,
             Some(plan.card),
             FloatElevation::Rimmed,
-            0.0,
+            CardChamfer::default(),
             None,
         );
 

@@ -114,7 +114,12 @@ impl TextPipeline {
                 // itself requires), so this call is never actually skipped here —
                 // the guard's real job is the `None` arm below.
                 if touch_float {
-                    self.claim_float_panel(geom.card, FloatElevation::Rimmed, 0.0, None);
+                    self.claim_float_panel(
+                        geom.card,
+                        FloatElevation::Rimmed,
+                        CardChamfer::default(),
+                        None,
+                    );
                 }
                 // A value-step wash behind each LIT button (never amber) — a pill
                 // hugging the glyph ink band with a small halo (the card hugs the same

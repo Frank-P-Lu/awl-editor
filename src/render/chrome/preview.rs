@@ -79,7 +79,7 @@ impl TextPipeline {
                 }
             };
         self.caret_demo.mode = look;
-        self.claim_float_panel(rect, FloatElevation::Rimmed, 0.0, None);
+        self.claim_float_panel(rect, FloatElevation::Rimmed, CardChamfer::default(), None);
 
         // Shape the sample line into the preview buffer (calm content ink, world face).
         //

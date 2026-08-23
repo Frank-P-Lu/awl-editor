@@ -35,16 +35,24 @@ impl TextPipeline {
         let card = [geom.card_x, geom.card_y, geom.card_w, geom.card_h];
         let (chamfer, _) = self.card_shape_texture(&[card]);
 
-        self.panel_material.set_chamfer(chamfer);
+        self.panel_material.set_chamfer(chamfer.top, chamfer.bottom);
         self.panel_material
             .set_scanlines(strength, pitch, line, ink);
         self.panel_material
             .prepare(device, queue, width, height, &[card]);
 
-        self.placard_material.set_chamfer(0.0);
+        // The placard resolves its OWN corner shape through the same owner,
+        // against its OWN rect — never a per-layer opinion independent of the
+        // card it bleeds against (the bug this round names).
+        let placard = placard.map(|(x, y, w, h)| [x, y, w, h]);
+        let (placard_chamfer, _) = match &placard {
+            Some(rect) => self.card_shape_texture(std::slice::from_ref(rect)),
+            None => self.card_shape_texture(&[]),
+        };
+        self.placard_material
+            .set_chamfer(placard_chamfer.top, placard_chamfer.bottom);
         self.placard_material
             .set_scanlines(strength, pitch, line, ink);
-        let placard = placard.map(|(x, y, w, h)| [x, y, w, h]);
         self.placard_material
             .prepare(device, queue, width, height, placard.as_slice());
     }

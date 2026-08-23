@@ -526,7 +526,16 @@ impl CardTexture {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum CardShape {
     Rectangular,
-    Chamfered { cut_px: f32 },
+    /// A 45° cut at each corner, independently authored for the TOP pair and
+    /// the BOTTOM pair — a docked seam edge and a free edge can disagree.
+    /// `0.0` on either half keeps that half's corners the ORIGINAL
+    /// rounded-rect silhouette (see `shaders/selection.wgsl::sd_card_rect`).
+    /// Quokka gives both halves the same cut (its all-four-corner identity);
+    /// a world with a docked strip along one edge gives that half `0.0`.
+    Chamfered {
+        top_cut_px: f32,
+        bottom_cut_px: f32,
+    },
 }
 
 impl CardShape {

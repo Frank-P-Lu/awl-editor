@@ -43,14 +43,18 @@ struct Globals {
     /// ONE WAGTAIL HIGHLIGHT TEXTURE's three consumers raise it to ~2 logical
     /// px via [`Self::set_dither_cell`]. Unused by an `fs_two_colour` pipeline.
     cell: f32,
-    chamfer: f32,
+    /// TOP-half / BOTTOM-half chamfer depth (px), split so a docked seam
+    /// edge (top) can stay square while the free edge (bottom) keeps the
+    /// cut — see the WGSL `Globals::chamfer_top`/`chamfer_bottom` doc.
+    chamfer_top: f32,
+    chamfer_bottom: f32,
     halftone: f32,
     halftone_angle: f32,
     halftone_cell: f32,
     /// Std140 tail padding so `dot_color` (a vec4, 16-byte aligned) lands on
-    /// a 16-byte boundary — MUST match the equal-sized `_pad2: vec2<f32>` in
+    /// a 16-byte boundary — MUST match the equal-sized `_pad2: f32` in
     /// the WGSL `Globals` (see that struct's doc for the exact byte math).
-    _pad2: [f32; 2],
+    _pad2: f32,
     /// HALFTONE dot ink, LINEAR RGBA, derived Rust-side from the theme's own
     /// surface ladder (`theme::derive::card_texture_ink`), never a raw/amber
     /// literal. Fully transparent is a no-op paired with `halftone == 0.0`.
@@ -59,6 +63,14 @@ struct Globals {
     /// pipelines; see [`SelectionPipeline::set_two_colour`].
     second_color: [f32; 4],
 }
+
+/// std140 offers no automatic padding on the Rust side — this struct hand-fills
+/// every gap (see `_pad2`'s doc). A field added or reordered without recomputing
+/// the WGSL-side offsets corrupts every field after it silently (same SIZE,
+/// different bytes at each field); this catches a SIZE drift immediately, which
+/// a same-size reorder still would not, so the Quokka/Cassowary byte-identity
+/// captures remain the real oracle for field-order mistakes.
+const _: () = assert!(std::mem::size_of::<Globals>() == 80);
 
 pub struct SelectionPipeline {
     pipeline: wgpu::RenderPipeline,
@@ -84,11 +96,13 @@ pub struct SelectionPipeline {
     /// reads as deliberate dithered pixels rather than fine noise. Meaningless
     /// on an `fs_two_colour` pipeline.
     dither_cell: f32,
-    /// Chamfer depth (px) uploaded into `Globals::chamfer` each `prepare`
-    /// `0.0` (construction default) is the ORIGINAL rounded-rect
+    /// TOP-half / BOTTOM-half chamfer depth (px) uploaded into
+    /// `Globals::chamfer_top`/`chamfer_bottom` each `prepare`. `0.0` on a half
+    /// (the construction default) is that half's ORIGINAL rounded-rect
     /// silhouette — byte-identical for every pipeline that never calls
-    /// [`Self::set_chamfer`] (every world but Quokka's card family).
-    chamfer: f32,
+    /// [`Self::set_chamfer`] (every world but Quokka/Cassowary's card family).
+    chamfer_top: f32,
+    chamfer_bottom: f32,
     halftone: f32,
     halftone_angle: f32,
     halftone_cell: f32,
@@ -243,7 +257,8 @@ impl SelectionPipeline {
             corner,
             stroke: 0.0,
             dither_cell: 1.0,
-            chamfer: 0.0,
+            chamfer_top: 0.0,
+            chamfer_bottom: 0.0,
             halftone: 0.0,
             halftone_angle: 0.0,
             halftone_cell: 6.0,
@@ -335,16 +350,30 @@ impl SelectionPipeline {
         self.stroke = stroke.max(0.0);
     }
 
-    /// Set the CHAMFER depth in px that the NEXT `prepare` uploads into
-    /// `Globals::chamfer`. `0.0` (the construction default, and the value
-    /// every pipeline but Quokka's card family carries) restores the ORIGINAL
+    /// Set the TOP-half / BOTTOM-half chamfer depth in px that the NEXT
+    /// `prepare` uploads into `Globals::chamfer_top`/`chamfer_bottom`. `0.0`
+    /// on a half (the construction default, and the value every pipeline but
+    /// Quokka/Cassowary's card family carries) restores that half's ORIGINAL
     /// rounded-rect silhouette — byte-identical. `> 0.0` cuts a crisp 45°
-    /// corner that deep, replacing the rounded corner (see
+    /// corner that deep on that half, replacing the rounded corner (see
     /// `shaders/selection.wgsl`'s `sd_card_rect`). Set every frame from the
-    /// draw path (`render::chrome::effective_card_shape`), narrow-reduced
-    /// there, never re-derived here.
-    pub fn set_chamfer(&mut self, chamfer_px: f32) {
-        self.chamfer = chamfer_px.max(0.0);
+    /// draw path (`render::chrome::TextPipeline::card_shape_texture`, the
+    /// single corner-mask owner every console layer resolves through),
+    /// narrow-reduced there, never re-derived here.
+    pub fn set_chamfer(&mut self, top_px: f32, bottom_px: f32) {
+        self.chamfer_top = top_px.max(0.0);
+        self.chamfer_bottom = bottom_px.max(0.0);
+    }
+
+    /// The chamfer pair this pipeline is currently carrying (`(top, bottom)`
+    /// px), in the same units [`Self::set_chamfer`] stores. Test-only: the
+    /// ENFORCEMENT hook for "every console layer resolves its corner through
+    /// the same owner" — a law reads this off each of the panel/scanline/
+    /// placard pipelines and asserts they agree, rather than trusting the
+    /// call sites by convention.
+    #[cfg(test)]
+    pub(crate) fn chamfer(&self) -> (f32, f32) {
+        (self.chamfer_top, self.chamfer_bottom)
     }
 
     /// Set the HALFTONE dot texture the NEXT `prepare` uploads into
@@ -449,11 +478,12 @@ impl SelectionPipeline {
             dither: self.dither,
             stroke: self.stroke,
             cell: self.dither_cell,
-            chamfer: self.chamfer,
+            chamfer_top: self.chamfer_top,
+            chamfer_bottom: self.chamfer_bottom,
             halftone: self.halftone,
             halftone_angle: self.halftone_angle,
             halftone_cell: self.halftone_cell,
-            _pad2: [0.0; 2],
+            _pad2: 0.0,
             dot_color: self.dot_color,
             second_color: self.second_color,
         };
@@ -497,11 +527,12 @@ impl SelectionPipeline {
             dither: self.dither,
             stroke: self.stroke,
             cell: self.dither_cell,
-            chamfer: self.chamfer,
+            chamfer_top: self.chamfer_top,
+            chamfer_bottom: self.chamfer_bottom,
             halftone: self.halftone,
             halftone_angle: self.halftone_angle,
             halftone_cell: self.halftone_cell,
-            _pad2: [0.0; 2],
+            _pad2: 0.0,
             dot_color: self.dot_color,
             second_color: self.second_color,
         };
@@ -553,11 +584,12 @@ impl SelectionPipeline {
             dither: self.dither,
             stroke: self.stroke,
             cell: self.dither_cell,
-            chamfer: self.chamfer,
+            chamfer_top: self.chamfer_top,
+            chamfer_bottom: self.chamfer_bottom,
             halftone: self.halftone,
             halftone_angle: self.halftone_angle,
             halftone_cell: self.halftone_cell,
-            _pad2: [0.0; 2],
+            _pad2: 0.0,
             dot_color: self.dot_color,
             second_color: self.second_color,
         };

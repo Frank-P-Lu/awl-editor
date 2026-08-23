@@ -71,7 +71,13 @@ pub const CASSOWARY: Theme = Theme {
             line_px: 1.0,
             strength: 0.12,
         },
-        card_shape: CardShape::Chamfered { cut_px: 11.0 },
+        // The docked seam edge (where the facet strip lives, right above the
+        // card's top) stays square; the free bottom edge keeps the shared
+        // chamfer — CardShape data, not a Cassowary-only render path.
+        card_shape: CardShape::Chamfered {
+            top_cut_px: 0.0,
+            bottom_cut_px: 11.0,
+        },
         ..RenderCaps::DEFAULT
     },
 };

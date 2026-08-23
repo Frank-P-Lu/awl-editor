@@ -62,16 +62,19 @@ struct Globals {
     // raise it to ~2 logical px (`render::spans::wagtail_stipple_cell_px`,
     // Retina-aware). Unused by `fs_two_colour`.
     cell: f32,
-    // CHAMFER: `0.0` = the original
-    // ROUNDED-RECT silhouette (`g.corner`, byte-identical to before this
-    // field existed — every world but Quokka). `> 0.0` cuts a crisp 45°
-    // diagonal off each of the 4 corners this many PIXELS deep, replacing
-    // (not composing with) the rounded corner — see `sd_card_rect` below.
-    // Shared by `fs_main` AND `fs_two_colour` (the ONE silhouette both read), and
-    // uploaded identically to the fill/border/shadow pipelines of a card so
-    // the eight-edge boundary (4 straight + 4 chamfer edges) agrees across
-    // all three surfaces.
-    chamfer: f32,
+    // CHAMFER, split TOP/BOTTOM: `0.0` on a half = that half's original
+    // ROUNDED-RECT corners (`g.corner`, byte-identical to before this field
+    // existed — every world but Quokka's card family). `> 0.0` on a half cuts
+    // a crisp 45° diagonal off THAT half's 2 corners this many PIXELS deep,
+    // replacing (not composing with) the rounded corner — see
+    // `sd_card_rect` below. Shared by `fs_main` AND `fs_two_colour` (the ONE
+    // silhouette both read), and uploaded identically to the fill/border/
+    // shadow pipelines of a card so the eight-edge boundary (4 straight + up
+    // to 4 chamfer edges) agrees across all three surfaces. Quokka gives both
+    // halves the same cut; a world with a docked strip along the top gives
+    // `chamfer_top` alone `0.0`.
+    chamfer_top: f32,
+    chamfer_bottom: f32,
     // HALFTONE: `0.0` = no dot texture (every world but Quokka's
     // card FILL — border/shadow pipelines always leave this `0.0`, texture
     // is a fill-only decoration). `> 0.0` is the overall ink-intensity
@@ -85,12 +88,11 @@ struct Globals {
     halftone_angle: f32,
     // Lattice pitch, PHYSICAL px — the center-to-center spacing of dots.
     halftone_cell: f32,
-    // Std140 pad: `chamfer`..`halftone_cell` sit at 24..40, so `dot_color`
-    // (a vec4, 16-byte aligned) needs an 8-byte gap to land on 48. MUST
-    // match the equal-sized `_pad2: [f32; 2]` in `src/selection.rs::Globals`
-    // — the Rust struct has no automatic std140 padding, so it fills this
-    // gap by hand.
-    _pad2: vec2<f32>,
+    // Std140 pad: `viewport`..`halftone_cell` sit at 0..44, so `dot_color`
+    // (a vec4, 16-byte aligned) needs a 4-byte gap to land on 48. MUST match
+    // the equal-sized `_pad2: f32` in `src/selection.rs::Globals` — the Rust
+    // struct has no automatic std140 padding, so it fills this gap by hand.
+    _pad2: f32,
     // The halftone dot's own ink color (LINEAR RGBA) — derived Rust-side
     // from the theme's own surface-ladder rung (`theme::derive::
     // card_texture_ink`, e.g. `muted`), NEVER a raw/amber literal baked into
@@ -190,17 +192,24 @@ fn sd_round_rect(p: vec2<f32>, b: vec2<f32>, r: f32) -> f32 {
     return min(max(q.x, q.y), 0.0) + length(max(q, vec2<f32>(0.0, 0.0))) - r;
 }
 
-// THE ONE CARD SILHOUETTE: `chamfer <= 0.0` is byte-identical to a
-// bare `sd_round_rect(p, b, r)` call — every world but Quokka, and every
-// non-card surface (selection wash, caret, bars, chips…) that never uploads a
-// nonzero `chamfer`. `chamfer > 0.0` REPLACES the rounded corner with a crisp
-// 45° cut `chamfer` px deep on each of the 4 corners: intersect the plain box
-// SDF with a diamond `|x| + |y| <= (b.x + b.y - chamfer)`, whose boundary
+// THE ONE CARD SILHOUETTE: `chamfer_top <= 0.0 && chamfer_bottom <= 0.0` is
+// byte-identical to a bare `sd_round_rect(p, b, r)` call — every world but
+// Quokka/Cassowary's card family, and every non-card surface (selection wash,
+// caret, bars, chips…) that never uploads a nonzero chamfer. Otherwise each
+// half of the rect picks its OWN cut by the sign of `p.y` (negative = top,
+// per `vs_main`'s pixel-space-down convention) and REPLACES that half's
+// rounded corners with a crisp 45° cut `chamfer` px deep: intersect the plain
+// box SDF with a diamond `|x| + |y| <= (b.x + b.y - chamfer)`, whose boundary
 // passes through `(b.x - chamfer, b.y)` and `(b.x, b.y - chamfer)` — exactly a
 // `chamfer`-px cut along BOTH edges at each corner, an octagon (4 straight +
-// 4 diagonal edges). `max()` of two true SDFs is their CSG intersection.
-fn sd_card_rect(p: vec2<f32>, b: vec2<f32>, r: f32, chamfer: f32) -> f32 {
-    if (chamfer > 0.0) {
+// up to 4 diagonal edges). `max()` of two true SDFs is their CSG
+// intersection. A per-half `chamfer` of `0.0` reproduces the SQUARE box
+// corner exactly (the diamond boundary is then tangent to the box corner,
+// never cutting into it) rather than the small ROUNDED default — the docked
+// seam edge goes crisp-square, not merely "less chamfered".
+fn sd_card_rect(p: vec2<f32>, b: vec2<f32>, r: f32, chamfer_top: f32, chamfer_bottom: f32) -> f32 {
+    if (chamfer_top > 0.0 || chamfer_bottom > 0.0) {
+        let chamfer = select(chamfer_top, chamfer_bottom, p.y > 0.0);
         let d_box = sd_round_rect(p, b, 0.0);
         let d_diag = (abs(p.x) + abs(p.y) - (b.x + b.y - chamfer)) * 0.70710678;
         return max(d_box, d_diag);
@@ -282,7 +291,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
     // Clamp the corner radius to the smaller half-extent so thin/short rects
     // stay sane.
     let r = min(g.corner, min(in.hsize.x, in.hsize.y));
-    let d = sd_card_rect(in.local, in.hsize, r, g.chamfer);
+    let d = sd_card_rect(in.local, in.hsize, r, g.chamfer_top, g.chamfer_bottom);
 
     if (g.dither > 0.0) {
         // THE ONE WAGTAIL HIGHLIGHT TEXTURE: a HARD-edged (no smoothstep —
@@ -381,7 +390,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
 @fragment
 fn fs_two_colour(in: VsOut) -> @location(0) vec4<f32> {
     let r = min(g.corner, min(in.hsize.x, in.hsize.y));
-    let d = sd_card_rect(in.local, in.hsize, r, g.chamfer);
+    let d = sd_card_rect(in.local, in.hsize, r, g.chamfer_top, g.chamfer_bottom);
     if (d > 0.0) {
         discard;
     }
@@ -391,7 +400,7 @@ fn fs_two_colour(in: VsOut) -> @location(0) vec4<f32> {
 @fragment
 fn fs_two_colour_add(in: VsOut) -> @location(0) vec4<f32> {
     let r = min(g.corner, min(in.hsize.x, in.hsize.y));
-    let d = sd_card_rect(in.local, in.hsize, r, g.chamfer);
+    let d = sd_card_rect(in.local, in.hsize, r, g.chamfer_top, g.chamfer_bottom);
     if (d > 0.0) {
         discard;
     }
