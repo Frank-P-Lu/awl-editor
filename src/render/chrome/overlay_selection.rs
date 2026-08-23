@@ -486,10 +486,8 @@ impl TextPipeline {
                 .collect::<Vec<_>>(),
         };
         self.panel_card.set_corner(radius + pad);
-        // `panel_card`'s chamfer is a persistent field the CARD path sets for
-        // Quokka/Cassowary; a `Bars` scrim authors no `CardShape`, so this
-        // resets it every frame (mirrors `set_dither`'s reset-on-switch
-        // contract) or a prior chamfered world's cut corners survive here.
+        // `panel_card`'s chamfer is persistent (Quokka/Cassowary's CARD path
+        // sets it); a `Bars` scrim authors no `CardShape`, so reset it here.
         self.panel_card.set_chamfer(0.0, 0.0);
         self.panel_card
             .set_color(theme::overlay_bars_scrim().rgba_bytes());

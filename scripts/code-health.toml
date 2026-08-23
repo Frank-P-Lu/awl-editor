@@ -101,7 +101,7 @@ lines = 453
 
 [[file_size_mark]]
 file = "src/app/viewstate.rs"
-lines = 575
+lines = 581
 reason = "`sync_view` is the sole exhaustive `ViewState` construction site, so every render datum must be spelled out here. It carries the fold chevron's real fold set, the summoned picker's secondary location, the persistent changed-elsewhere affordance, photographable/findable notices, and world-authored diagonal-mark weight without creating a second non-exhaustive construction path. +11: the working-set stack's row count and its own fold-independent geometry, the one new field a margin widening to more than one row needs. +7: mirrors config_keys/config_linux_keep, the menu chord column's config-awareness plumbing. +13: the bottom identity's `gutter_project` reads the OPEN file's own remembered root through `working_set().active_root()` rather than the ambient switched-to project, falling back to the old ambient read only when the working set has no active file."
 
 [[file_size_mark]]
@@ -293,7 +293,7 @@ lines = 559
 
 [[file_size_mark]]
 file = "src/render.rs"
-lines = 2779
+lines = 2781
 reason = "The footer plate uses the notice channel's one-pixel rim so it remains visible. `Millis` and `progress_per` keep durations out of pixel multiplication by type, while declaration docs name the entitled scale factor for page/caret pads, page-frame strokes, and spell gaps. `HudDefaults`, `WhichKeyDefaults`, and `DebugDefaults` give inert field groups exhaustive defaults beside their sole `TextPipeline` owner. Shape reach rejects unshaped-line sentinels, and `Metrics` carries `dpi` beside zoom scale so a logical floor does not vary by display density. `CARET_INK_PAD_W` gained a doc comment naming its rationale and the near-zero vertical headroom finding that kept the tuning to width alone. +7: the working-set stack plate's own row-height and inset constants, named beside the other margin-row geometry this file already owns. +10: the menu chord column's config-aware label plumbing (ViewState mirrors of config_keys/config_linux_keep). +4: inert hover defaults and mirrored row state keep the production close affordance explicit in the exhaustive pipeline state. +1: the shared overlay-material module is declared beside the other data-driven chrome owners."
 
 [[file_size_mark]]
@@ -326,7 +326,7 @@ reason = "+6: the dropdown plan takes the frame's scale so its minimum width res
 
 [[file_size_mark]]
 file = "src/render/chrome/mod.rs"
-lines = 1092
+lines = 1091
 reason = "+1: re-export PANEL_MARGIN and PANEL_PAD so panel shaping and rectangle layout resolve one physical panel inset owner. +6: re-exports the working-set stack's gutter submodules so the chrome pipeline resolves them through the same module surface as every other gutter row. +1: re-exports the new gutter_hit pointer module beside them. +1: the shared chrome plan carries the hovered working-set row to the one draw owner. +1: selection HUD figures are re-exported through the shared chrome surface. +31: card_shape_texture becomes the single corner-mask owner every console layer (panel/scanline/placard) resolves its chamfer through, replacing overlay_material.rs's independent hardcoded zero."
 
 [[file_size_mark]]
@@ -341,22 +341,22 @@ reason = "+1: the Range rail's read hands the accessory column's ANCHOR and its 
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay_draw.rs"
-lines = 522
+lines = 542
 reason = "The footer plate earns the notice channel's own one-pixel rim, which is what lifts it from delta-E 1.91 to 54 on Cassowary -- a plate nobody can see is not a plate. +2: parking the new rim alongside every other overlay pipeline, so a frame that does not draw it cannot leave last frame's quad on screen. +2: the docked facet strip contributes its single dedicated text area through the shared overlay upload owner."
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay_rows.rs"
-lines = 237
+lines = 231
 reason = "+15: every range rail now computes its OWN thumb ink and uploads through `prepare_multicolor`, instead of one frame-wide `thumb_ink` painted onto every rail by a shared `set_color` -- a rail that was not the selected row wore the selected row's ink. No new pipeline: `prepare_multicolor` already carries per-instance colour for the writing-streaks heatmap, so this reaches for the existing mechanism rather than a second one. The track stays uniform."
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay_shape.rs"
-lines = 873
+lines = 838
 reason = "The chord column's glyph alignment is the accessory column's own flow rather than Right outright, so a mirrored cluster's chords hang on the end they are seated at. The placard family is chrome's annotated PHYSICAL exception and each of its four constants carries the reason it is one — the wordmark is frame, not text, and `placard_size_is_window_scaled_not_zoom_scaled` fails by name if that changes. `push_beat_spacer` emits the query beat as its OWN glyph-free line rather than as line height on a line that has glyphs, because cosmic-text centres a glyph run in its box and a folded beat otherwise draws the query field's text half a beat below its own bar; it is a free function so the flat shaper itself stays under the 100-line bar. Faceted diagonal rows must shape against their measured side territory and re-fit real glyph widths before the accessory column is granted, so the row plan is threaded to the two shapers: the inflated header line's height IS the query field's planned box (read, not re-summed) and the secondary column's leading-empty count comes from the same object as its upload origin. The content-hug measurement and the two roster widths it reads live in `chrome/roster.rs`, not here. +10: `right_bind_lines` leads the first secondary label with exactly `header_rows` empty lines instead of `header_rows.max(1)`, plus the doc comment stating the buffer contract it restores (`secondary_top() + (header_rows + r) * lh == row_top(r)`). The `.max(1)` was invisible everywhere `header_rows` is 1 and dragged every secondary label -- and the ink resolved for it -- one display row down on the ONE kind that has no header line. The comment is there because the expression looks like a harmless guard against zero."
 
 [[file_size_mark]]
 file = "src/render/chrome/popover.rs"
-lines = 552
+lines = 555
 reason = "+5: the format popover threads a CardChamfer pair through card_shape_texture instead of a bare chamfer f32, matching every other non-owner console-layer call site."
 
 [[file_size_mark]]
@@ -366,7 +366,7 @@ reason = "Toast placement and collision planning live in `readout/toast.rs`, lea
 
 [[file_size_mark]]
 file = "src/render/chrome/theme_picker.rs"
-lines = 570
+lines = 542
 reason = "`theme_overlay_geometry` is an exhaustive `OverlayGeom` construction site, so every workspace field is spelled out here, and the strip band reads the row plan threaded through the two shaping owners. The grouped card's pad, margin and top drop read the one owner rather than repeating the flat family's literals, and the lens strip's chip pads, corner ticks and underline drop resolve at the boundary. Its display plan carries a THIRD line kind: a section whose label is the card's own location is not a section, so it is planned and shaped as the second level of the heading hierarchy — its own scale const, its own metrics, its own span arm in the chrome face at `muted`, and the plan arm that chooses between the two. The location-scale constant itself lives in `render::rotated_location`, shared with the rotated-rail treatment, and the inline span arm carries a `RotatedRail`-world guard so that world's own vertical cue is not drawn twice; the guard reads the exhaustive `LocationStyle::draws_inline()` rather than a direct `!= RotatedRail` comparison, so a third style (`Raked`) is a conscious decision there too. The `Rules` PROTOTYPE draws no plates anywhere, so it is deliberately absent from the lens-strip TAB PILL gate — the comment records that absence as a decision rather than an oversight, and notes that `Diagonal` sits on the yes side here and the no side of `draws_row_plates`. Grew by 22 lines (610 -> 632): the active-lens mark's `Text` and `Chips(Underline)` stroke weights moved off bare device-pixel literals onto two documented `Logical` constants resolved through `Metrics::px`, and the two draw-call array literals each grew from one line to a multi-line `rustfmt` layout once their fourth element became a method call instead of a bare float."
 
 [[file_size_mark]]
@@ -380,7 +380,7 @@ lines = 1262
 
 [[file_size_mark]]
 file = "src/render/layers.rs"
-lines = 1284
+lines = 1338
 reason = "The per-frame GPU preparation hub remains an explicit renderer exception; missing-image placeholder shaping lives in its own submodule rather than raising this ceiling. page_frame_vertical_bounds now takes an explicit stroke_px parameter so its top edge derives from the menu-bar reserve rather than the document text inset, with a doc comment naming the two quantities it must not conflate."
 
 [[file_size_mark]]
@@ -399,12 +399,12 @@ reason = "`set_view` is the sole ViewState-to-pipeline mirror: it measures works
 
 [[file_size_mark]]
 file = "src/render/pipeline_overlay.rs"
-lines = 444
+lines = 449
 reason = "Overlay composition and ambient resolvers live here because they read the pipeline's own settled state; Kite shares that ambient ownership seam. The one `advance` OR-fold is the single per-frame stepper, so the diagonal marker's turn and the fold chevron's join it there beside the caret spring, the caret preview and the copy pulse. +12: the band reads the stamped input epoch and exposes its prepared phase through this same per-frame owner."
 
 [[file_size_mark]]
 file = "src/render/rects.rs"
-lines = 1540
+lines = 1543
 reason = "+4: panel_layout reads shared physical PANEL_PAD and PANEL_MARGIN and clamps the content-sized card to narrow-canvas room, matching panel_shape_text fitted rows."
 
 [[file_size_mark]]
@@ -429,7 +429,7 @@ reason = "The conflict kind's arm in `accept_class`, the exhaustive per-kind acc
 
 [[file_size_mark]]
 file = "src/search/keys.rs"
-lines = 377
+lines = 368
 
 [[file_size_mark]]
 file = "src/search/mod.rs"
@@ -604,7 +604,7 @@ reason = "One shaper owns responsive field width, semantic hint wrapping, and ro
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/overlay_draw.rs"
 function = "TextPipeline::overlay_upload_text"
-message = "this function has too many lines (197/100)"
+message = "this function has too many lines (205/100)"
 reason = "The mirrored row cluster seats names from shaped ink and chords from the accessory-column flow; the diagonal chord column uses the shaped buffer width for right-aligned ink. Existing chrome draw owner; extraction needs a deliberate rendering-state seam. The workspace rail has its own clipped text area, and rotated-location shaping/geometry lives in dedicated `chrome::rotated_location` rather than growing this function."
 
 [[clippy_exception]]
@@ -632,7 +632,7 @@ reason = "Existing chrome draw owner; extraction needs a deliberate rendering-st
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/theme_picker.rs"
 function = "TextPipeline::overlay_shape_theme"
-message = "this function has too many lines (208/100)"
+message = "this function has too many lines (209/100)"
 reason = "The row plan reaches this shaper so the strip's active mark rides its planned box. Existing chrome draw owner; extraction needs a deliberate rendering-state seam. `LOCATION_SCALE` lives in `render::rotated_location`; grouped-card pad, margin, and top drop share one owner with the flat family; and text/underline mark thicknesses use named `Logical` constants through `Metrics::px`."
 
 [[clippy_exception]]
@@ -667,7 +667,7 @@ reason = "Existing chrome draw owner; extraction needs a deliberate rendering-st
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/preview.rs"
 function = "TextPipeline::emit_preview_caret"
-message = "this function has too many lines (124/100)"
+message = "this function has too many lines (135/100)"
 reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam."
 
 [[clippy_exception]]
@@ -894,7 +894,7 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 lint = "clippy::too_many_lines"
 file = "src/render/tests/chrome_panels.rs"
 function = "faceted_palette_shapes_the_chord_column_aligned_to_its_rows"
-message = "this function has too many lines (124/100)"
+message = "this function has too many lines (154/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Shifted by the `testlock::serial()` guard that every test reaching the shared wgpu device now takes; the line count moves by one and the body is otherwise unchanged."
 
 [[clippy_exception]]
@@ -963,17 +963,10 @@ message = "this function has too many lines (109/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Shifted by the `testlock::serial()` guard that every test reaching the shared wgpu device now takes; the line count moves by one and the body is otherwise unchanged."
 
 [[clippy_exception]]
-lint = "clippy::cognitive_complexity"
-file = "src/render/tests/oracle.rs"
-function = "assert_vertical_sweep_clean"
-message = "the function has a cognitive complexity of (28/25)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
-
-[[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/tests/oracle.rs"
 function = "assert_vertical_sweep_clean"
-message = "this function has too many lines (122/100)"
+message = "this function has too many lines (107/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
 [[clippy_exception]]
@@ -995,20 +988,6 @@ lint = "clippy::too_many_lines"
 file = "src/render/tests/overlay_personality.rs"
 function = "every_shipping_placard_world_paints_visible_wordmark_ink_pixels"
 message = "this function has too many lines (121/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Shifted by the `testlock::serial()` guard that every test reaching the shared wgpu device now takes; the line count moves by one and the body is otherwise unchanged."
-
-[[clippy_exception]]
-lint = "clippy::cognitive_complexity"
-file = "src/render/tests/overlay_rhythm.rs"
-function = "every_overlay_kind_orders_drawn_title_facet_candidates_footer_and_hits_the_same_regions"
-message = "the function has a cognitive complexity of (27/25)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
-
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
-file = "src/render/tests/overlay_rhythm.rs"
-function = "every_overlay_kind_orders_drawn_title_facet_candidates_footer_and_hits_the_same_regions"
-message = "this function has too many lines (161/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Shifted by the `testlock::serial()` guard that every test reaching the shared wgpu device now takes; the line count moves by one and the body is otherwise unchanged."
 
 [[clippy_exception]]
@@ -1038,6 +1017,13 @@ file = "src/render/tests/overlay_plan_law.rs"
 function = "an_empty_states_notice_row_carries_no_footer_plate_on_any_bare_plate_world"
 message = "this function has too many lines (123/100)"
 reason = "One roster sweep with a geometry arm, a pixel arm and an exclusion arm over the same rendered frame; splitting them would render each world twice, and the exclusion arm exists precisely to be measured at the same fixture the other two are graded at."
+
+[[clippy_exception]]
+lint = "clippy::too_many_lines"
+file = "src/render/tests/footer_gap_magnitude.rs"
+function = "no_candidate_row_pixel_changes_when_the_pickers_own_placard_draws"
+message = "this function has too many lines (107/100)"
+reason = "One roster sweep over every placard world, grading each candidate row's pixels against its own best-overlap ink-backed region; splitting the per-row masking check from the roster loop that drives it would require re-rendering the same frame twice."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -1075,25 +1061,10 @@ message = "this function has too many lines (192/100)"
 reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam."
 
 [[clippy_exception]]
-lint = "clippy::cognitive_complexity"
-file = "src/syntax/tests.rs"
-function = "extension_detection_covers_all_languages"
-message = "the function has a cognitive complexity of (29/25)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn."
-
-
-[[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/theme/tests/ambient.rs"
 function = "ambient_stars_laws_hold_for_every_world"
 message = "this function has too many lines (130/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. The function lives in the per-subject theme test module and is otherwise untouched."
-
-[[clippy_exception]]
-lint = "clippy::cognitive_complexity"
-file = "src/theme/tests/ornament.rs"
-function = "every_world_has_a_bullet_pair"
-message = "the function has a cognitive complexity of (27/25)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. The function lives in the per-subject theme test module and is otherwise untouched."
 
 [[clippy_exception]]
@@ -1246,7 +1217,7 @@ reason = "This already-long line lives in a per-subject test file. A one-file-to
 [[structural_exception]]
 target = "src/theme/tests/ornament.rs"
 kind = "architectural"
-line = 203
+line = 213
 text = "        \"exactly one world uses the manicule bullet, at exactly one level (a hand everywhere is loud)\""
 reason = "This already-long line lives in a per-subject test file. A one-file-to-many split has no prior per-path baseline for `git diff -M` to compare, so the 100-column ratchet cannot grandfather it; the line itself is unchanged."
 

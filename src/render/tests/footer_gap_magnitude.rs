@@ -141,7 +141,8 @@ fn the_footer_gap_clears_the_retired_dials_own_ceiling_on_every_bare_plate_world
     let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!(
-            "skipping the_footer_gap_clears_the_retired_dials_own_ceiling_on_every_bare_plate_world: \
+            "skipping \
+             the_footer_gap_clears_the_retired_dials_own_ceiling_on_every_bare_plate_world: \
              no wgpu adapter"
         );
         return;
@@ -228,7 +229,8 @@ fn no_candidate_row_pixel_changes_when_the_pickers_own_placard_draws() {
     let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!(
-            "skipping no_candidate_row_pixel_changes_when_the_pickers_own_placard_draws: no wgpu adapter"
+            "skipping \
+             no_candidate_row_pixel_changes_when_the_pickers_own_placard_draws: no wgpu adapter"
         );
         return;
     };
@@ -383,7 +385,8 @@ fn the_placard_masking_check_fires_on_an_unbacked_row_forced_under_it() {
     let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!(
-            "skipping the_placard_masking_check_fires_on_an_unbacked_row_forced_under_it: no wgpu adapter"
+            "skipping \
+             the_placard_masking_check_fires_on_an_unbacked_row_forced_under_it: no wgpu adapter"
         );
         return;
     };

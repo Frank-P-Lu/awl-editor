@@ -336,7 +336,8 @@ fn the_identity_lines_close_lane_reservation_never_leaves_an_extensionless_name(
     let _page = crate::page::PagePin::snapshot();
     let Some(mut p) = headless_pipeline() else {
         eprintln!(
-            "skipping the_identity_lines_close_lane_reservation_never_leaves_an_extensionless_name: \
+            "skipping \
+             the_identity_lines_close_lane_reservation_never_leaves_an_extensionless_name: \
              no adapter"
         );
         return;

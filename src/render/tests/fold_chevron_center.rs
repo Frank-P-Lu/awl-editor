@@ -309,8 +309,11 @@ fn fold_chevron_ink_and_box_ride_the_heading_ladder() {
     crate::theme::set_active_by_name("Gumtree").unwrap();
     p.sync_theme();
 
-    let mut per_level: Vec<(u8, crate::render::layers::fold_chevron::FoldChevronGeom, PixelBox)> =
-        Vec::new();
+    let mut per_level: Vec<(
+        u8,
+        crate::render::layers::fold_chevron::FoldChevronGeom,
+        PixelBox,
+    )> = Vec::new();
     for level in 1..=3u8 {
         let bbox = assert_chevron_pixel_center(
             &mut p,
@@ -337,8 +340,8 @@ fn fold_chevron_ink_and_box_ride_the_heading_ladder() {
     // Geometry proportionality: width/scale and gap/scale are one shared base
     // value across all levels — the scaled box is the base box times the step.
     let base_w = per_level[0].1.width / per_level[0].1.scale;
-    let base_gap = (p.text_left() - (per_level[0].1.left + per_level[0].1.width))
-        / per_level[0].1.scale;
+    let base_gap =
+        (p.text_left() - (per_level[0].1.left + per_level[0].1.width)) / per_level[0].1.scale;
     for (level, geom, _) in &per_level {
         let w = geom.width / geom.scale;
         let gap = (p.text_left() - (geom.left + geom.width)) / geom.scale;
@@ -467,14 +470,21 @@ fn two_chevrons_of_different_levels_share_one_batch_each_at_its_own_size() {
     p.set_view(&view_md(text, 3, 0));
     p.set_hover_line(None);
     p.prepare(&device, &queue, width, height).unwrap();
-    assert!(p.fold_chevron_geometries().is_empty(), "base frame: no marks");
+    assert!(
+        p.fold_chevron_geometries().is_empty(),
+        "base frame: no marks"
+    );
     let base = pixeldiff::render_frame(&mut p, &device, &queue, width, height);
 
     // H3 alone: hover summons it, caret stays on the body line.
     p.set_hover_line(Some(h3_line));
     p.prepare(&device, &queue, width, height).unwrap();
     let solo_geoms = p.fold_chevron_geometries();
-    assert_eq!(solo_geoms.len(), 1, "hover alone summons exactly the H3 mark");
+    assert_eq!(
+        solo_geoms.len(),
+        1,
+        "hover alone summons exactly the H3 mark"
+    );
     let h3_solo = solo_geoms[0];
     let h3_frame = pixeldiff::render_frame(&mut p, &device, &queue, width, height);
 
