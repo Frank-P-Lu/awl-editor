@@ -43,6 +43,17 @@ count at rest expands into the grouped eight-row view, and whether Move
 permanently shows `Move here` and `New folder…`. (Residual 1's prototype
 gallery is preserved untracked at `gallery/item-444-affordance-prototypes/`.)
 
+**QUEUED NEXT ACTION (not yet dispatched):** before either call above can be
+made, build a throwaway prototype of the overflow row and its expanded view
+— enough real rendering to demonstrate the windowing rule (which files sit
+in the resting five, how the window holds steady as the active file
+changes) and the cross-project grouping, captured to screenshots via
+`--screenshot-app` against a seeded fixture (multiple roots, >5 open files),
+mirroring `captures/item-444/shoot.sh`'s hermetic pattern. Move navigator is
+a separate, still-untouched sub-scope — out of this prototype pass unless
+the user asks for it too. Put the shots in front of the user before writing
+any production windowing/grouping code.
+
 Move stays deliberately bounded to the source file's owning root. Its summoned
 folders-only navigator says `move <filename>`, shows the current root-relative
 destination, descends/ascends through folders, offers an explicit `New folder…`
