@@ -28,6 +28,21 @@ use super::*;
 const GAP_CHARS: f32 = 0.3;
 const WIDTH_CHARS: f32 = 1.0;
 
+/// The mark rides its OWN heading's type-scale step (Ladder J, via
+/// [`crate::markdown::heading_scale`]): an H1's chevron is bigger than an H3's
+/// exactly as its glyphs are, and the gap before the text grows in the same
+/// proportion — so the mark reads as part of the heading it folds, not as one
+/// fixed body-size ornament hung beside every size of title. Clamped so the
+/// scaled box (gap + mark) can never outgrow the leading pad it hangs in:
+/// [`TextPipeline::fold_chevron_has_room`] guarantees the BASE size fits, and a
+/// pad too tight for the full ladder step degrades the scale toward 1.0 rather
+/// than spilling into the outline margin or under the text.
+pub(in crate::render) fn fold_chevron_scale(level: u8, char_width: f32, pad: f32) -> f32 {
+    let need = char_width * (GAP_CHARS + WIDTH_CHARS);
+    let fit = if need > 0.0 { pad / need } else { 1.0 };
+    crate::markdown::heading_scale(level).clamp(1.0, fit.max(1.0))
+}
+
 /// Half the mark's reach along its pointing axis, and its half-spread across —
 /// both fractions of `char_width` (so the mark scales with zoom/dpi exactly as
 /// the glyph it replaces did). Sized to stay inside the mark's own hit box
@@ -64,6 +79,10 @@ pub(in crate::render) struct FoldChevronGeom {
     /// gated on a nonzero hidden count, so a heading folded over an EMPTY section
     /// would misreport as expanded there).
     pub(in crate::render) collapsed: bool,
+    /// This mark's OWN size multiplier — its heading's Ladder J step, pad-clamped
+    /// ([`fold_chevron_scale`]). Carried on the geom so paint sizes the ink from
+    /// the SAME number that sized the box, never a second copy of the derivation.
+    pub(in crate::render) scale: f32,
 }
 
 impl FoldChevronGeom {
@@ -109,23 +128,17 @@ impl TextPipeline {
         self.text_left() - self.column_left() >= need
     }
 
-    /// Hang the mark in the writing column's leading pad through the same shared
-    /// pull-quote placement rule as the other left-margin-adjacent ornament.
-    fn fold_chevron_left(&self) -> f32 {
-        let gap = self.metrics.char_width * GAP_CHARS;
-        let width = self.metrics.char_width * WIDTH_CHARS;
-        super::super::geometry::pull_quote_left(self.column_left(), self.text_left(), gap, width)
-    }
-
     /// One geometry owner for paint and hit-test: each currently summoned mark
     /// resolves to the exact first shaped-row box of its heading, PLUS whether
-    /// that heading is currently folded (the mark's direction).
+    /// that heading is currently folded (the mark's direction) and its OWN
+    /// Ladder-J size step. Placement stays the shared pull-quote rule (the other
+    /// left-margin-adjacent ornament), per mark because gap and width now scale
+    /// with the heading they hang beside.
     pub(in crate::render) fn fold_chevron_geometries(&self) -> Vec<FoldChevronGeom> {
         if self.outline_headings.is_empty() || !self.fold_chevron_has_room() {
             return Vec::new();
         }
-        let left = self.fold_chevron_left();
-        let width = self.metrics.char_width * WIDTH_CHARS;
+        let pad = self.text_left() - self.column_left();
         self.outline_headings
             .iter()
             .filter(|h| {
@@ -134,6 +147,15 @@ impl TextPipeline {
             })
             .filter_map(|h| {
                 let row = self.visual_rows(h.line).first()?.clone();
+                let scale = fold_chevron_scale(h.level, self.metrics.char_width, pad);
+                let gap = self.metrics.char_width * GAP_CHARS * scale;
+                let width = self.metrics.char_width * WIDTH_CHARS * scale;
+                let left = super::super::geometry::pull_quote_left(
+                    self.column_left(),
+                    self.text_left(),
+                    gap,
+                    width,
+                );
                 Some(FoldChevronGeom {
                     line: h.line,
                     left,
@@ -141,6 +163,7 @@ impl TextPipeline {
                     row_top: self.doc_top() + row.line_top,
                     row_height: row.line_height,
                     collapsed: self.folded_headings.contains(&h.line),
+                    scale,
                 })
             })
             .collect()
@@ -282,17 +305,42 @@ impl TextPipeline {
         height: u32,
     ) {
         let marks = self.fold_chevron_geometries();
-        let (reach, spread, thickness) = fold_chevron_mark_metrics(self.metrics.char_width);
-        let quads: Vec<([f32; 2], [f32; 2], [f32; 2])> = marks
+        // Each mark's ink is sized from the SAME pad-clamped Ladder-J scale its
+        // box was ([`FoldChevronGeom::scale`]) — the metrics owner still holds
+        // the three authored fractions, fed the mark's own effective char width.
+        let sized: Vec<(&FoldChevronGeom, (f32, f32, f32))> = marks
             .iter()
-            .flat_map(|g| {
+            .map(|g| {
+                (
+                    g,
+                    fold_chevron_mark_metrics(self.metrics.char_width * g.scale),
+                )
+            })
+            .collect();
+        let quads: Vec<([f32; 2], [f32; 2], [f32; 2])> = sized
+            .iter()
+            .flat_map(|(g, (reach, spread, thickness))| {
                 let center = [g.left + g.width * 0.5, g.row_center()];
                 let turn_deg =
                     fold_chevron_turn_deg(self.fold_chevron_turn_fraction(g.line, g.collapsed));
-                crate::selection::chevron_arms(center, reach, spread, turn_deg, thickness)
+                crate::selection::chevron_arms(center, *reach, *spread, turn_deg, *thickness)
             })
             .collect();
-        let corner = quads.iter().fold(thickness * 0.5, |corner, (_, half, _)| {
+        // `set_corner` stays one value per batch; a mixed-size batch (caret on
+        // one heading, hover on another) seeds from the SMALLEST mark's
+        // half-stroke so no mark's rounding exceeds its own stroke.
+        let seed = sized
+            .iter()
+            .map(|(_, (_, _, thickness))| thickness * 0.5)
+            .fold(f32::INFINITY, f32::min);
+        let seed = if seed.is_finite() {
+            seed
+        } else {
+            // Empty batch: no instances draw, but the uniform still wants a
+            // real number — the base mark's own half-stroke.
+            fold_chevron_mark_metrics(self.metrics.char_width).2 * 0.5
+        };
+        let corner = quads.iter().fold(seed, |corner, (_, half, _)| {
             crate::selection::narrowed_spine_corner_px(corner, half[0], half[1])
         });
         self.fold_chevron_pipeline.set_corner(corner);
