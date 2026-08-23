@@ -12,11 +12,12 @@ struct ResolvedChord {
     shift: bool,
 }
 
-#[allow(clippy::type_complexity)]
+use crate::overlay::SpellSuggestTarget;
+
 struct ReplayActionInputs {
     goto_headings: Vec<(String, usize)>,
     goto_line_count: usize,
-    spell_target: Option<(Vec<String>, (usize, usize, usize), String)>,
+    spell_target: Option<SpellSuggestTarget>,
     history_entries: Vec<crate::history::TimelineRow>,
     assets: Vec<crate::assets::Orphan>,
     goto_folders: Vec<(String, bool)>,

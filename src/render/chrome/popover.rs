@@ -32,6 +32,10 @@ use crate::render::plan::{
     MeasuredPopoverButton, PopoverButtonGeom, PopoverGeom, PopoverPlanInput,
 };
 
+/// [`TextPipeline::popover_report`]'s payload: the card rect, plus each
+/// button as `(label, active, [x0, x1])`.
+type PopoverReport = ([f32; 4], Vec<(String, bool, [f32; 2])>);
+
 /// Inner horizontal pad from the card edge to the first/last button glyph.
 const HPAD: Logical = Logical(12.0);
 /// Inner vertical pad above/below the button GLYPH INK BAND — the ONE pad token
@@ -470,8 +474,7 @@ impl TextPipeline {
     /// each row is `(label, active, [x0, x1])`, or `None` when the popover is down.
     /// Reads the same stashed geometry the buttons draw + the hit-test reads.
     // The compact tuple is the established sidecar schema for popover geometry and rows.
-    #[allow(clippy::type_complexity)]
-    pub fn popover_report(&self) -> Option<([f32; 4], Vec<(String, bool, [f32; 2])>)> {
+    pub fn popover_report(&self) -> Option<PopoverReport> {
         let g = self.popover_geom.as_ref()?;
         let rows = g
             .buttons

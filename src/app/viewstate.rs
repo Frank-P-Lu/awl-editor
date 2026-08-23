@@ -1,6 +1,26 @@
 use super::*;
 mod scroll;
 mod zero_document;
+
+/// [`App::search_view_fields`]'s tuple: matches (each a start/end line-col
+/// pair), the current match index, the query text, whether search is
+/// active, case sensitivity, whether replace is active, the replacement
+/// text, whether the replacement field is focused, and the query/replacement
+/// caret positions — in that order, matching the destructure at its call
+/// site.
+type SearchViewFields = (
+    Vec<((usize, usize), (usize, usize))>,
+    Option<usize>,
+    String,
+    bool,
+    bool,
+    bool,
+    String,
+    bool,
+    usize,
+    usize,
+);
+
 impl App {
     pub(super) fn sync_view(&mut self, follow: bool) {
         if self.sync_menu_context_and_gpu_absent() {
@@ -487,21 +507,7 @@ impl App {
         Some(transcript)
     }
 
-    #[allow(clippy::type_complexity)]
-    fn search_view_fields(
-        &self,
-    ) -> (
-        Vec<((usize, usize), (usize, usize))>,
-        Option<usize>,
-        String,
-        bool,
-        bool,
-        bool,
-        String,
-        bool,
-        usize,
-        usize,
-    ) {
+    fn search_view_fields(&self) -> SearchViewFields {
         if let Some(st) = self.workspace_state.search() {
             let matches = st
                 .matches()

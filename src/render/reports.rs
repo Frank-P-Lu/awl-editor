@@ -15,6 +15,11 @@
 
 use super::*;
 
+/// [`TextPipeline::outline_report`]'s tuple: whether the outline feature is
+/// on, each heading as `(text, level, line)`, the collapsed-under line (if
+/// any), and the set of collapsed heading lines.
+type OutlineReport<'a> = (bool, Vec<(&'a str, u8, usize)>, Option<usize>, Vec<usize>);
+
 impl TextPipeline {
     /// MARKDOWN STYLING: the styled spans for the capture sidecar, as
     /// `(start_byte, end_byte, tag)` over the shaped document text. Empty for a
@@ -186,8 +191,7 @@ impl TextPipeline {
     /// the on-screen drawing is gated on `on`, which stays OFF by default so a
     /// plain `--screenshot` reports `on: false` and is byte-identical.
     // This compact tuple is the established outline sidecar schema.
-    #[allow(clippy::type_complexity)]
-    pub fn outline_report(&self) -> (bool, Vec<(&str, u8, usize)>, Option<usize>, Vec<usize>) {
+    pub fn outline_report(&self) -> OutlineReport<'_> {
         let on = crate::outline::outline_on();
         let headings = self
             .outline_headings

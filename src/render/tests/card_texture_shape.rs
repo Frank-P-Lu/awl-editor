@@ -17,6 +17,10 @@
 use super::super::*;
 use super::{headless_dqp, pixeldiff};
 
+/// [`render_theme_picker`]'s result: the card's RGBA pixels, its pixel
+/// width and height, and its `[x, y, w, h]` rect.
+type RenderedThemeCard = (Vec<[u8; 4]>, i64, i64, [f32; 4]);
+
 // --- structural rosters --------------------------------------------------
 
 /// EXHAUSTIVE ROSTER: every world but Quokka (`HalftoneDots`) carries the
@@ -139,8 +143,7 @@ fn narrowed_chamfer_never_exceeds_the_authored_cut_and_shrinks_on_a_small_card()
 /// Open the theme picker on `world`, render one settled frame, and return
 /// `(pixels, canvas_w, canvas_h, card_rect)`.
 // Pixels, canvas geometry, and card rect are returned together for the pixel-law fixture.
-#[allow(clippy::type_complexity)]
-fn render_theme_picker(world: &str) -> Option<(Vec<[u8; 4]>, i64, i64, [f32; 4])> {
+fn render_theme_picker(world: &str) -> Option<RenderedThemeCard> {
     let (device, queue, mut p) = headless_dqp(1200.0, 800.0)?;
     let _g = crate::testlock::serial();
     theme::set_active_by_name(world).unwrap();

@@ -4,6 +4,10 @@ use super::*;
 
 type FootnoteMark = (usize, usize, std::ops::Range<usize>, usize);
 
+/// [`TextPipeline::wash_rects`]'s triple: comment-span, string-span, and
+/// syntax-highlight-span wash rects, in that order.
+type WashRects = (Vec<[f32; 4]>, Vec<[f32; 4]>, Vec<[f32; 4]>);
+
 mod underlines;
 
 /// CACHED ORNAMENT LINE LISTS — the cursor-INDEPENDENT set of logical lines that
@@ -1029,8 +1033,7 @@ impl TextPipeline {
     /// rebuilding). Both empty for a prose / non-fence buffer, keeping those
     /// renders byte-identical.
     // The three parallel quad lists map directly to the three shader wash buckets.
-    #[allow(clippy::type_complexity)]
-    pub(super) fn wash_rects(&self) -> (Vec<[f32; 4]>, Vec<[f32; 4]>, Vec<[f32; 4]>) {
+    pub(super) fn wash_rects(&self) -> WashRects {
         if self.syn_spans.is_empty() && self.md_spans.is_empty() {
             return (Vec::new(), Vec::new(), Vec::new());
         }
