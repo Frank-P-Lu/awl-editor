@@ -8,7 +8,11 @@
 
 ### 444 — the working set becomes visible: a margin buffer stack (USER DECISION 2026-08-16; residuals 1–2 LANDED; residual 3 🟠 AWAITING USER CHOICE — prototype evidence landed)
 
-🟡 IN PROGRESS — claude, branch (dispatched via Agent isolation:worktree, sha to follow)
+Residual 3's gallery is built and landed at `captures/item-444-residual3/`
+(fixture, `shoot.sh`, README with rationale) — collapsed/expanded/grouped
+states across several worlds. The agent found the render layer needed zero
+changes; the open question is a stateless-jitter UX call for the user to
+make from the gallery, not further engineering.
 
 **Everything except residual 3 is LANDED on `main`** — the capture door, the
 `WorkingSet` module, resting-stack render, sidecar exposure +
@@ -116,7 +120,12 @@ reference rows are spot-checked against the dispatch they claim.
 
 ### 475 — the fold mark becomes a font glyph: per-world symbols via rotated_label (USER DECISION 2026-08-23)
 
-🟡 IN PROGRESS — claude, branch (dispatched via Agent isolation:worktree, sha to follow)
+Symbol survey is built and landed at `captures/item-475-glyph-survey/`
+(`shoot.sh`, README with candidate rationale, dropped leads with coverage
+evidence, licensing notes). The agent checked candidate coverage by parsing
+the actual bundled font files rather than trusting Unicode charts — the
+item's own named glyph lead has zero real font coverage and was dropped.
+🟠 AWAITING USER CHOICE — the symbol pick is next, from the gallery.
 
 The fold chevron is four rotated quads (`selection::chevron_arms` →
 `prepare_rotated`) because glyphon 0.11 has no transforms — and it reads
