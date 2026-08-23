@@ -87,12 +87,27 @@ between shots.
 | --- | --- | --- |
 | `collapsed-opening-active.png` | collapsed | Resting stack: `notebook`'s first five files (`opening.md` active, at the top of its own group) + `+ 8 more…`. |
 | `collapsed-entry-active.png` | collapsed | Same 13-file set, but the active file is `journal/entry.md` — the LAST slot in `notebook`'s group. The candidate windowing rule slides the five-row window to keep it visible (`plan.md … entry.md`) instead of always pinning the first five. |
+| `collapsed-jitter.png` | collapsed | Same set again, activating `plan.md` right after `entry.md` — i.e. a file that was ALREADY the top row of the previous shot's window. See "A windowing finding" below: the row the reader was just looking at jumps to the opposite end of a four-slot-shifted window. |
 | `collapsed-atlas-active.png` | collapsed | Switched to `atlas` and stopped there (3 files, no cross-root reactivation). Demonstrates the OTHER half of the rule: only the ACTIVE root's group shows at rest (3 rows, no overflow needed within this root), while `+ 10 more…` still counts every hidden buffer across BOTH roots — the one generic overflow row the queue item specifies, not a bug in the arithmetic. |
 | `expanded-scroll0.png` | expanded | The 8-row scrollable window over `notebook`'s 10 files, unscrolled (`opening.md … archive.md`). |
 | `expanded-scroll2.png` | expanded | The same window scrolled by 2 (`ideas.md … journal/entry.md`). Note the active file (`opening.md`) has scrolled out of view — the prototype's expanded mode does not clamp scroll to keep the active row visible the way the collapsed mode's window does; that is a real open question for the windowing rule, not a defect in this gallery. |
 | `grouped-saltpan.png` | grouped | The cross-project view: every open file under BOTH roots, each headed by its root's name. `notebook`'s heading reads in the brighter `muted` ink (the active group); `atlas`'s reads `faint`. No truncation — all 13 rows draw, which is itself a data point: at this file count the grouped view already runs to 15 lines (2 headings + 13 files) with no scroll of its own. |
 | `grouped-magpie.png` | grouped | The identical grouped view under the `Magpie` world (a light horizontal-band ground), for contrast against the default. |
 | `collapsed-gumtree.png` | collapsed | The resting-stack view under the `Gumtree` world (a diagonal zigzag ground), for contrast against the default. |
+
+## A windowing finding
+
+The candidate rule in `prototype_collapsed` is **stateless**: it re-derives
+the five-row window from nothing but the active file's index in the group
+(`start = active_index.saturating_sub(4).min(max_start)`), never from the
+PREVIOUS window. `collapsed-entry-active.png` and `collapsed-jitter.png`
+both include `plan.md` — top row of the window in the first, bottom row of a
+window that has shifted four slots down in the second — even though
+`plan.md` was already visible on screen the whole time and nothing forced it
+off. A window that instead preferred to hold still when the newly active
+file is already inside it would show `plan.md` in the same row across both
+shots. This is exactly the kind of behavior the queue item asks the user to
+judge before it becomes the shipped rule, not a defect in this gallery.
 
 ## An incidental finding, not chased further
 

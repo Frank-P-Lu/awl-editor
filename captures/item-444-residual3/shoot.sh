@@ -36,6 +36,10 @@ OPEN10="s-o Right l e d g Enter s-o Right i d e a Enter s-o Right t o d o Enter 
 TO_ATLAS="s-S-p Down Enter s-o Right r e a d Enter s-o Right n o t e Enter s-o Right s e t u Enter "
 BACK_OPENING="s-S-p Down Down Enter s-o Right o p e n Enter"
 BACK_ENTRY="s-S-p Down Down Enter s-o Right e n t r Enter"
+# entry.md, then plan.md (already open, already visible in entry.md's own
+# window) -- probes whether the candidate rule re-anchors a file that never
+# left the resting five.
+BACK_ENTRY_THEN_PLAN="s-S-p Down Down Enter s-o Right e n t r Enter s-o Right p l a n Enter"
 
 shot() {
   name="$1"
@@ -66,6 +70,12 @@ shot collapsed-opening-active collapsed 0 "" "$OPEN10$TO_ATLAS$BACK_OPENING"
 # the resting five slide to keep it visible instead of always showing the
 # first five.
 shot collapsed-entry-active collapsed 0 "" "$OPEN10$TO_ATLAS$BACK_ENTRY"
+
+# Then activate plan.md, which was ALREADY visible (top row) in the previous
+# shot's window. The candidate rule is stateless -- it re-derives the window
+# from the active index alone -- so it re-anchors plan.md to the BOTTOM of a
+# window that jumps four slots, even though nothing forced it off screen.
+shot collapsed-jitter collapsed 0 "" "$OPEN10$TO_ATLAS$BACK_ENTRY_THEN_PLAN"
 
 # Switch away and stop: the active root is now atlas (3 files, all visible,
 # no overflow row needed within THIS root) -- demonstrating "only the active
