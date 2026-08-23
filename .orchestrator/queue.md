@@ -242,6 +242,44 @@ retired as their sites are fixed; `code-health.toml` edits are
 orchestrator-owned at merge. Staleness needs no sweep — the health script
 already flags stale exception messages by name.
 
+### 475 — the fold mark becomes a font glyph: per-world symbols via rotated_label (USER DECISION 2026-08-23)
+
+The fold chevron is four rotated quads (`selection::chevron_arms` →
+`prepare_rotated`) because glyphon 0.11 has no transforms — and it reads
+fat and world-generic (user, on Bowerbird). It WAS a real glyph (U+203A)
+before the quarter-turn animation forced geometry. The mechanism that
+reconciles the two now exists: `rotated_label/` rasterizes a shaped run
+into an R8 coverage mask and rotates the quad, and is world-neutral by
+construction — which symbol, which ink is caller-supplied theme data.
+
+Decision: the fold mark becomes a font glyph, chosen PER WORLD as
+`RenderCaps` data (`fold_afford` grows a mark spec — the bullets pattern,
+one renderer, no world code paths), drawn through `rotated_label` so the
+turn survives. Coverage home is `AwlMarks.ttf`, awl's own OFL-composed
+symbol face: chosen symbols are composed IN (Noto Sans Symbols 2 / Noto
+JP are already-licensed sources — user suggests Japanese forms are worth
+mining: 〈 U+3008 family, vertical-form ﹀/︿, CJK single kakko), making
+never-tofu a subsetting fact, not a per-world ladder gamble.
+
+**Symbol picking comes FIRST and is the user's taste call**: survey
+candidate glyphs by parsing the actual bundled faces (ask the fonts, not
+the Unicode charts), then land a capture gallery — candidates × light/dark
+worlds × H1/H3, collapsed and expanded — for the user to pick from. No
+mark ships unpicked.
+
+Constraints that carry over as the spec: the direction-at-rest law (a
+collapsed and an expanded mark must differ with zero animation frames),
+Reduce Motion's instant settle, and the full `fold_chevron_center.rs` law
+set — ladder scaling per heading, pad clamp, hit-box enclosure, mixed
+two-level batches — stays green or is consciously rewritten at the same
+seams. Cheap fallback if the glyph route stalls on taste: `STROKE_CHARS`
+(or a per-world `fold_afford` weight) thins today's quads in one line.
+
+Related, landed for judgement (`render: fold chevron rides its heading's
+ladder step`): the mark + gap now scale with the heading's Ladder J step.
+🔵 OWED: user verdict on the scaled sizes and gap; reverting is one
+commit.
+
 ## Needs specific hardware
 
 1. **AT-SPI journey** — on a real Linux desktop with Orca, exercise document
