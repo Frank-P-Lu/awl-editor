@@ -294,6 +294,66 @@ ladder step`): the mark + gap now scale with the heading's Ladder J step.
 🔵 OWED: user verdict on the scaled sizes and gap; reverting is one
 commit.
 
+---
+### 476 — Cassowary palette dead band: ~3.5 rows of empty card between query and first item (USER-REPORTED 2026-08-24, live screenshot; reproduced headlessly)
+
+Every lens of the Cmd-P palette on Cassowary shows a blank band between
+the query row and the first item, with the list reading bottom-anchored.
+Measured (ordinary capture, `--theme Cassowary --keys "Cmd-p Right Right
+Right"`; sidecar + code, not the report): three stacked charges.
+
+1. **The vacated strip row (1.0 lh).** `theme_overlay_geometry` hardcodes
+   `header_rows = 2` (`chrome/theme_picker.rs`), but under
+   `FacetStyle::DockedTab` the strip draws ABOVE the card
+   (`docked_facet_band`) and `push_docked_facet_areas` clips the in-card
+   strip band out of the panel buffer — the row is billed and never drawn.
+2. **A blank Location line (1.0 lh).** The plan's first display line is
+   `PlanLine::Location`; the shaper draws it only when
+   `location_style.draws_inline()` (`theme_picker/spans.rs`). Cassowary is
+   `RotatedRail`, which draws the location on the edge rail — the planned
+   line renders as nothing. The `draws_inline` gate lives at the shaper,
+   not the planner.
+3. **The query beat (1.55 lh).** `OVERLAY_QUERY_BEAT`
+   (`chrome/overlay_policy.rs`) — air between plates on bare-plate worlds
+   (Firetail is the control: every display line occupied), a hole inside
+   one unified pane.
+
+Fix direction: make `header_rows` facet-style-aware; gate the Location
+line at the planner; taste-pass the beat for unified panes. Verify: pixel
++ sidecar arithmetic that the first item row sits within one beat of the
+query row, swept across every lens and the DockedTab/RotatedRail roster
+(derive enrolment from the roster), with a presence floor on the query row
+itself; mutation — reinstate the flat `header_rows = 2` and watch it go
+red.
+
+---
+### 477 — docked facets become real tabs on the console's top border (USER 2026-08-24; promotes item 471's named deferral)
+
+Item 471 deliberately parked "the reference mockup's tab-on-border" as a
+separate taste call; the user has now made it: the category strip is
+"meant to be tabs". Today `FacetStyle::DockedTab` seats the strip line
+above the card with the active label on a filled box — it never reads as
+a tab attached to the border.
+
+Scope: the ACTIVE facet becomes a tab joined to the card's top edge — its
+plate continuous with the card ground across the seam, no border stroke
+through the tab's mouth; inactive facets stay quiet strip text. Depends
+on item 471's single corner-mask owner landing first (the tabs sit on the
+exact edge 471 squares); 471's other deferral, the left rail ticks, stays
+parked — not promoted here.
+
+Mechanism stays themes-as-data: the tab is drawn by the one docked-facet
+owner reading theme tokens, no world-specific code path. Hit-test and
+drawn geometry keep one owner (`overlay_lens_at` reads the same shaped
+strip the dock moves).
+
+Verify: pixel arithmetic at the seam — on the active facet the ink column
+crossing the border row is continuous with the card ground; on inactive
+facets and between tabs the border reads intact; swept across the
+DockedTab roster and both a first and a non-first active facet (the dock
+buffer once dropped the strip tail on exactly that axis). Cheap to
+revert, so per standing preference: land for judgement.
+
 ## Needs specific hardware
 
 1. **AT-SPI journey** — on a real Linux desktop with Orca, exercise document
