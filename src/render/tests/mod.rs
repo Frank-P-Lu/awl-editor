@@ -73,6 +73,7 @@ mod firetail_showcase;
 mod float_surface_law;
 mod fold_chevron_center;
 mod fold_chevron_direction;
+mod fold_mark_candidate_gallery;
 mod folds;
 /// `ttf_parser` (this law's `name`-table reader) and
 /// `embedded_docs::FONT_LICENSES_MD` are both `cfg(not(target_arch =
