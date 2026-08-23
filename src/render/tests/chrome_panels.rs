@@ -7,6 +7,7 @@
 use super::super::*;
 use super::pixeldiff::Region;
 use super::{headless_dqp, headless_pipeline, pixeldiff, view};
+use crate::render::chrome::OverlaySpanInks;
 
 /// The CONTEXTUAL SPELL PANEL: the spell overlay renders as a SMALL floating panel
 /// anchored AT the misspelled word (its left edge at the word start, hanging just
@@ -1443,7 +1444,17 @@ fn faceted_palette_shapes_the_chord_column_aligned_to_its_rows() {
         let geom = p.overlay_geometry(1200);
         let vs = super::no_vis();
         let row_plan = p.overlay_row_plan(&geom);
-        let has_right = p.overlay_shape_text(&geom, &row_plan, ink, muted, None, &vs, true);
+        let has_right = p.overlay_shape_text(
+            &geom,
+            &row_plan,
+            OverlaySpanInks {
+                ink,
+                muted,
+                selected: None,
+            },
+            &vs,
+            true,
+        );
 
         assert!(
             has_right,
@@ -1511,7 +1522,17 @@ fn faceted_palette_shapes_the_chord_column_aligned_to_its_rows() {
         let vs = super::no_vis();
         let row_plan = p.overlay_row_plan(&geom);
         assert!(
-            p.overlay_shape_text(&geom, &row_plan, ink, muted, None, &vs, true),
+            p.overlay_shape_text(
+                &geom,
+                &row_plan,
+                OverlaySpanInks {
+                    ink,
+                    muted,
+                    selected: None,
+                },
+                &vs,
+                true,
+            ),
             "still builds a right column with headers"
         );
         let name = |p: &TextPipeline, i: usize| p.panel_buffer.lines[i].text().to_string();
@@ -1548,7 +1569,17 @@ fn faceted_palette_shapes_the_chord_column_aligned_to_its_rows() {
         let geom = p.overlay_geometry(1200);
         let vs = super::no_vis();
         let row_plan = p.overlay_row_plan(&geom);
-        let has_right = p.overlay_shape_text(&geom, &row_plan, ink, muted, None, &vs, true);
+        let has_right = p.overlay_shape_text(
+            &geom,
+            &row_plan,
+            OverlaySpanInks {
+                ink,
+                muted,
+                selected: None,
+            },
+            &vs,
+            true,
+        );
         assert!(
             !has_right,
             "the literal Theme picker builds no right column"

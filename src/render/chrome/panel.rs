@@ -437,11 +437,13 @@ impl TextPipeline {
             queue,
             width,
             height,
-            caret_cx,
-            caret_cy,
-            m.caret_w,
-            caret_h,
-            m.px(CORNER_RADIUS),
+            CaretRect {
+                center_x: caret_cx,
+                center_y: caret_cy,
+                rect_w: m.caret_w,
+                rect_h: caret_h,
+                corner: m.px(CORNER_RADIUS),
+            },
         );
     }
 }

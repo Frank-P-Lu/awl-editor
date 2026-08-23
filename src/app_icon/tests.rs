@@ -1039,6 +1039,11 @@ const RATCHET_SLACK: f64 = 0.0005;
 
 type Read = fn(&Pair) -> f64;
 
+/// One axis's fixed test row: its label, its metric reader, the floor/danger
+/// threshold pair, its blessed-pair exception list, and whether the metric's
+/// direction is "higher is worse" (`true`) or "lower is worse" (`false`).
+type AxisSpec = (&'static str, Read, f64, f64, &'static [Blessed], bool);
+
 /// One pair already accepted into an axis's DANGER ZONE (below that axis's
 /// `danger` threshold in [`axes`]): today it crowds meaningfully and a human
 /// decided that crowding is fine. Order-insensitive against a measured
@@ -1336,8 +1341,7 @@ const INK_BLESSED: &[Blessed] = &[
 /// is the shape this deliberately is NOT; this one is sized to the roster's
 /// own measured danger zone instead.
 // Each axis couples its metric, thresholds, exceptions, and direction as one fixed test table.
-#[allow(clippy::type_complexity)]
-fn axes() -> [(&'static str, Read, f64, f64, &'static [Blessed], bool); 3] {
+fn axes() -> [AxisSpec; 3] {
     [
         (
             "differing pixels",

@@ -158,6 +158,21 @@ fn build_render_pipeline(
     })
 }
 
+/// The caret quad's geometry for one `prepare*` call: CENTER (px) + the
+/// already-morphed rect dimensions + the already-morphed rounded-rect corner
+/// radius. Bundled into one struct because the fields are same-typed and
+/// adjacent at every call site — passed as five bare `f32`s, a reordered pair
+/// (say `center_y`/`center_x`) compiles clean and draws the caret in the
+/// wrong place with no type error to catch it.
+#[derive(Clone, Copy)]
+pub struct CaretRect {
+    pub center_x: f32,
+    pub center_y: f32,
+    pub rect_w: f32,
+    pub rect_h: f32,
+    pub corner: f32,
+}
+
 impl CaretPipeline {
     pub fn new(device: &wgpu::Device, format: wgpu::TextureFormat, caret_srgb: [u8; 3]) -> Self {
         let shader = crate::gpu_cache::shader(device, crate::gpu_cache::Shader::Caret);
@@ -242,70 +257,44 @@ impl CaretPipeline {
 
     /// Build the single caret instance and upload globals + instance.
     ///
-    /// `center_x`/`center_y` are the caret rect CENTER in pixels (the renderer
-    /// computes this from the glyph cell + the morphed width). `rect_w`/`rect_h`
-    /// are the already-morphed rect dimensions (advance-wide roundish square when
-    /// settled, long thin streak when moving) and `corner` the already-morphed
-    /// rounded-rect corner radius (large at rest, small in motion). The whole
-    /// morph is done by the renderer (it knows the advance, the settle factor and
-    /// the spring velocity); this stage just draws what it's handed.
-    #[allow(clippy::too_many_arguments)]
-    pub fn prepare(
-        &mut self,
-        queue: &wgpu::Queue,
-        width: u32,
-        height: u32,
-        center_x: f32,
-        center_y: f32,
-        rect_w: f32,
-        rect_h: f32,
-        corner: f32,
-    ) {
+    /// `rect.center_x`/`center_y` are the caret rect CENTER in pixels (the
+    /// renderer computes this from the glyph cell + the morphed width).
+    /// `rect.rect_w`/`rect_h` are the already-morphed rect dimensions
+    /// (advance-wide roundish square when settled, long thin streak when
+    /// moving) and `rect.corner` the already-morphed rounded-rect corner
+    /// radius (large at rest, small in motion). The whole morph is done by
+    /// the renderer (it knows the advance, the settle factor and the spring
+    /// velocity); this stage just draws what it's handed.
+    pub fn prepare(&mut self, queue: &wgpu::Queue, width: u32, height: u32, rect: CaretRect) {
         // Fully-opaque, UPRIGHT caret (resting block / space bar / panel): axis
         // (1,0) leaves the quad unrotated, byte-identical to the pre-axis path.
-        self.prepare_axis(
-            queue, width, height, center_x, center_y, rect_w, rect_h, corner, 1.0, 1.0, 0.0,
-        );
+        self.prepare_axis(queue, width, height, rect, 1.0, [1.0, 0.0]);
     }
 
     /// Like [`Self::prepare`] but with an explicit unit travel `axis` `(ax, ay)`
     /// the quad rotates onto, so the in-motion streak is a direct line along the
     /// real travel vector (diagonal included). `(1, 0)` is upright/unrotated.
-    #[allow(clippy::too_many_arguments)]
     pub fn prepare_directed(
         &mut self,
         queue: &wgpu::Queue,
         width: u32,
         height: u32,
-        center_x: f32,
-        center_y: f32,
-        rect_w: f32,
-        rect_h: f32,
-        corner: f32,
-        ax: f32,
-        ay: f32,
+        rect: CaretRect,
+        axis: [f32; 2],
     ) {
-        self.prepare_axis(
-            queue, width, height, center_x, center_y, rect_w, rect_h, corner, 1.0, ax, ay,
-        );
+        self.prepare_axis(queue, width, height, rect, 1.0, axis);
     }
 
     /// The single instance upload, with both an `alpha` multiplier and a unit
     /// travel `axis`. All the other `prepare*` helpers funnel here.
-    #[allow(clippy::too_many_arguments)]
     pub fn prepare_axis(
         &mut self,
         queue: &wgpu::Queue,
         width: u32,
         height: u32,
-        center_x: f32,
-        center_y: f32,
-        rect_w: f32,
-        rect_h: f32,
-        corner: f32,
+        rect: CaretRect,
         alpha: f32,
-        ax: f32,
-        ay: f32,
+        axis: [f32; 2],
     ) {
         let globals = Globals {
             viewport: [width as f32, height as f32],
@@ -314,12 +303,12 @@ impl CaretPipeline {
         queue.write_buffer(&self.globals_buf, 0, bytemuck_lite::bytes_of(&globals));
 
         let inst = CaretInstance {
-            center: [center_x, center_y],
-            half_size: [rect_w * 0.5, rect_h * 0.5],
-            corner,
+            center: [rect.center_x, rect.center_y],
+            half_size: [rect.rect_w * 0.5, rect.rect_h * 0.5],
+            corner: rect.corner,
             alpha,
             color: self.color,
-            axis: [ax, ay],
+            axis,
             _pad: [0.0, 0.0],
         };
         queue.write_buffer(&self.instance_buf, 0, bytemuck_lite::bytes_of(&inst));

@@ -1,5 +1,10 @@
 use super::*;
 
+/// [`TextPipeline::living_band_rects`]'s triple: the primary (selected)
+/// band's rects, the echo (unselected/previous) band's rects, and the
+/// overlap-cross band's rects, in that order.
+type LivingBandRects = (Vec<[f32; 4]>, Vec<[f32; 4]>, Vec<[f32; 4]>);
+
 impl TextPipeline {
     /// LIVE-APP-ONLY: arm the motion-juice animators (overlay entrance spring
     /// + selection-band slide — the FIRETAIL-MAXIMALIST-SHOWCASE round's
@@ -244,7 +249,7 @@ impl TextPipeline {
     /// unless a two-shape overlap exists this frame). Pure over its inputs (no
     /// GPU, no clock); `&self` only.
     // Living-band geometry keeps the physical card and phase inputs explicit at this pure seam.
-    #[allow(clippy::too_many_arguments, clippy::type_complexity)]
+    #[allow(clippy::too_many_arguments)]
     pub(in crate::render) fn living_band_rects(
         &self,
         force: livingband::MotionForce,
@@ -254,7 +259,7 @@ impl TextPipeline {
         card_x: f32,
         card_w: f32,
         lh: f32,
-    ) -> (Vec<[f32; 4]>, Vec<[f32; 4]>, Vec<[f32; 4]>) {
+    ) -> LivingBandRects {
         let params = force.choreo.params();
         if force.choreo.is_two_shape() {
             let s = livingband::two_shape_band(from, to, lh, t, &params);

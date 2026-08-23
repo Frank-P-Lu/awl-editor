@@ -437,7 +437,6 @@ impl TextPipeline {
     /// popover — byte-identical); the SPELL POPUP arm of `overlay_draw_card`
     /// is the one caller that ever passes a real chamfer/texture (Quokka's
     /// "small card popup").
-    #[allow(clippy::too_many_arguments)]
     pub(super) fn claim_float_panel(
         &mut self,
         rect: [f32; 4],

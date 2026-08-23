@@ -201,7 +201,17 @@ impl TextPipeline {
         // Measured for what the card HOLDS, not what this scroll position fits:
         // reading the shaper's own yield verdict flipped the hug width whenever
         // a wide row scrolled through — the same defect one level up.
-        let _ = self.overlay_shape_text(&geom, &plan, ink, muted, None, &vis, false);
+        let _ = self.overlay_shape_text(
+            &geom,
+            &plan,
+            OverlaySpanInks {
+                ink,
+                muted,
+                selected: None,
+            },
+            &vis,
+            false,
+        );
         let has_right = !self.overlay_right_labels().is_empty();
         // The card's CHROME lines — query, lens strip, footer — are read before
         // the roster measurement reuses the same buffer.

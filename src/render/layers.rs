@@ -564,8 +564,18 @@ impl TextPipeline {
         if mode == CaretMode::Ibeam {
             let (cx, cy, cw, ch, ccorner) = self.caret_ibeam_geometry();
             let (cw, ch, ccorner) = self.pop_scaled(cw, ch, ccorner);
-            self.caret_pipeline
-                .prepare(queue, width, height, cx, cy, cw, ch, ccorner);
+            self.caret_pipeline.prepare(
+                queue,
+                width,
+                height,
+                CaretRect {
+                    center_x: cx,
+                    center_y: cy,
+                    rect_w: cw,
+                    rect_h: ch,
+                    corner: ccorner,
+                },
+            );
             self.caret_glyph_pipeline.clear();
         } else if paint_silhouette {
             self.prepare_morph_body_or_empty(device, queue, width, height);
@@ -591,8 +601,18 @@ impl TextPipeline {
                     self.caret_space_bar_geometry()
                 };
             let (cw, ch, ccorner) = self.pop_scaled(cw, ch, ccorner);
-            self.caret_pipeline
-                .prepare(queue, width, height, cx, cy, cw, ch, ccorner);
+            self.caret_pipeline.prepare(
+                queue,
+                width,
+                height,
+                CaretRect {
+                    center_x: cx,
+                    center_y: cy,
+                    rect_w: cw,
+                    rect_h: ch,
+                    corner: ccorner,
+                },
+            );
             self.caret_glyph_pipeline.clear();
         } else {
             self.prepare_caret_block(device, queue, width, height);
@@ -634,8 +654,19 @@ impl TextPipeline {
                 // keeps chromatic ink legible without InverseVideo's photo-negative;
                 // the knockout retains true raster weight because the block, unlike
                 // Morph's dilated silhouette, is already the accent affordance.
-                self.caret_pipeline
-                    .prepare_directed(queue, width, height, cx, cy, cw, ch, ccorner, ax, ay);
+                self.caret_pipeline.prepare_directed(
+                    queue,
+                    width,
+                    height,
+                    CaretRect {
+                        center_x: cx,
+                        center_y: cy,
+                        rect_w: cw,
+                        rect_h: ch,
+                        corner: ccorner,
+                    },
+                    [ax, ay],
+                );
                 let settled = self.caret.settle_factor() >= CARET_MORPH_SETTLE_SHOW;
                 if settled && self.prepare_caret_masks(device, queue) {
                     self.caret_glyph_pipeline
@@ -693,8 +724,19 @@ impl TextPipeline {
             }
             theme::CaretBlockStyle::Normal => {
                 self.caret_glyph_pipeline.clear();
-                self.caret_pipeline
-                    .prepare_directed(queue, width, height, cx, cy, cw, ch, ccorner, ax, ay);
+                self.caret_pipeline.prepare_directed(
+                    queue,
+                    width,
+                    height,
+                    CaretRect {
+                        center_x: cx,
+                        center_y: cy,
+                        rect_w: cw,
+                        rect_h: ch,
+                        corner: ccorner,
+                    },
+                    [ax, ay],
+                );
             }
         }
     }
@@ -702,8 +744,20 @@ impl TextPipeline {
     fn prepare_caret_trail(&mut self, queue: &wgpu::Queue, width: u32, height: u32) {
         match self.caret_trail_geometry() {
             Some((cx, cy, cw, ch, ccorner, ax, ay, alpha)) => {
-                self.caret_trail_pipeline
-                    .prepare_axis(queue, width, height, cx, cy, cw, ch, ccorner, alpha, ax, ay);
+                self.caret_trail_pipeline.prepare_axis(
+                    queue,
+                    width,
+                    height,
+                    CaretRect {
+                        center_x: cx,
+                        center_y: cy,
+                        rect_w: cw,
+                        rect_h: ch,
+                        corner: ccorner,
+                    },
+                    alpha,
+                    [ax, ay],
+                );
             }
             None => self.caret_trail_pipeline.prepare_empty(),
         }

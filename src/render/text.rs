@@ -1,5 +1,12 @@
 use super::*;
 
+/// [`TextPipeline::parse_doc_spans`]'s pair: the markdown spans and the
+/// syntax-highlight spans parsed from one document text.
+type DocSpans = (
+    Vec<(std::ops::Range<usize>, crate::markdown::MdKind)>,
+    Vec<(std::ops::Range<usize>, crate::syntax::SynKind)>,
+);
+
 mod conceal_image_force;
 #[cfg(not(target_arch = "wasm32"))]
 mod image_spans;
@@ -355,14 +362,7 @@ impl TextPipeline {
     /// buffer yields two empty lists, which makes the per-line attrs pass a no-op so
     /// the render stays byte-identical. Computed from the shaped text (preedit-spliced
     /// and all), so the span byte offsets line up with the buffer lines.
-    #[allow(clippy::type_complexity)]
-    fn parse_doc_spans(
-        &self,
-        text: &str,
-    ) -> (
-        Vec<(std::ops::Range<usize>, crate::markdown::MdKind)>,
-        Vec<(std::ops::Range<usize>, crate::syntax::SynKind)>,
-    ) {
+    fn parse_doc_spans(&self, text: &str) -> DocSpans {
         let md_spans = if self.md_enabled {
             crate::markdown::spans(text)
         } else {

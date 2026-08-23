@@ -29,8 +29,11 @@ fn replay_keys_builds_selection_from_mark_and_motion() {
 /// every catalog motion has somewhere to go from the middle.
 const SHIFT_FIXTURE: &str = "alpha beta\ngamma delta\nepsilon zeta\n";
 
-#[allow(clippy::type_complexity)]
-fn shift_replay(spec: &str) -> (Option<((usize, usize), (usize, usize))>, (usize, usize)) {
+/// [`shift_replay`]'s result: the replayed selection (as `(anchor,
+/// cursor)` line-col pairs, if any), and the final cursor line-col.
+type ShiftReplayResult = (Option<((usize, usize), (usize, usize))>, (usize, usize));
+
+fn shift_replay(spec: &str) -> ShiftReplayResult {
     let mut buffer = Buffer::from_str(SHIFT_FIXTURE);
     let keys = keyspec::parse_keys(spec).unwrap();
     let root = PathBuf::from("/tmp");

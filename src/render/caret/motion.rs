@@ -2,6 +2,14 @@
 
 use super::*;
 
+/// [`TextPipeline::caret_trail_geometry`]'s tuple: `(center_x, center_y,
+/// rect_w, rect_h, corner, axis_x, axis_y, alpha)`.
+type CaretTrailGeometry = (f32, f32, f32, f32, f32, f32, f32, f32);
+
+/// [`TextPipeline::caret_cosmetic_report`]'s tuple: `(present, length,
+/// vertical, held, alpha, sweep, tail_xy, head_xy)`.
+type CaretCosmeticReport = (bool, f32, bool, bool, f32, f32, (f32, f32), (f32, f32));
+
 impl TextPipeline {
     pub fn caret_pixel_rect(&self) -> (f32, f32, f32, f32) {
         // Affinity-aware so the OS composition cell sits at the caret's REAL screen
@@ -61,8 +69,7 @@ impl TextPipeline {
         (self.caret.is_holding(), w, tail, head)
     }
 
-    #[allow(clippy::type_complexity)]
-    pub(crate) fn caret_trail_geometry(&self) -> Option<(f32, f32, f32, f32, f32, f32, f32, f32)> {
+    pub(crate) fn caret_trail_geometry(&self) -> Option<CaretTrailGeometry> {
         if !self.caret.trail_active() {
             return None;
         }
@@ -95,10 +102,7 @@ impl TextPipeline {
         ))
     }
 
-    #[allow(clippy::type_complexity)]
-    pub fn caret_cosmetic_report(
-        &self,
-    ) -> (bool, f32, bool, bool, f32, f32, (f32, f32), (f32, f32)) {
+    pub fn caret_cosmetic_report(&self) -> CaretCosmeticReport {
         let held = self.caret.is_trail_held();
         let sweep = self.caret.trail_sweep_p();
         match self.caret_trail_geometry() {

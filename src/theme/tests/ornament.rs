@@ -88,6 +88,78 @@ fn every_world_has_an_ornament_scale() {
     set_active(DEFAULT_THEME);
 }
 
+/// One world's own bullet-pair law: the per-level pairwise distinctness, the
+/// `bullet_scale` tier membership (including the one named, face-derived
+/// off-tier exception), and the plain-pair/plain-scale/geometric lockstep —
+/// pulled out of [`every_world_has_a_bullet_pair`]'s roster loop as its own
+/// named unit, so "the law for one world" and "sweep every world" are two
+/// separate, independently readable concerns.
+fn assert_bullet_pair_law(t: &Theme) {
+    assert_ne!(
+        t.bullets.0, t.bullets.1,
+        "{}: levels 1/2 must be distinct glyphs, got {:?}",
+        t.name, t.bullets
+    );
+    assert_ne!(
+        t.bullets.1, t.bullets.2,
+        "{}: levels 2/3 must be distinct glyphs, got {:?}",
+        t.name, t.bullets
+    );
+    assert_ne!(
+        t.bullets.0, t.bullets.2,
+        "{}: levels 1/3 must be distinct glyphs, got {:?}",
+        t.name, t.bullets
+    );
+    // OFF-TIER EXCEPTION (EXACTLY one, pinned by NAME and VALUE — never a
+    // loose "any float passes" escape hatch): the shared
+    // [`BULLET_SCALE_ORNAMENT`] tier is a byproduct of two unrelated font
+    // metrics (see that constant's own doc) that pair badly on a manicule
+    // (too wide, touching the following text). Every other world stays on
+    // a shared tier.
+    // The exception is FACE-DERIVED, not a world list. The shared tier is
+    // scaled against the concealed `"- "` prefix's advance in the world's
+    // OWN BODY font, so the world that needs a tighter dial is decided by
+    // that face: EB Garamond's narrow punctuation advance crowds a
+    // half-body fleuron into the following text, on every world that wears
+    // it.
+    let off_tier_exception = (t.font == ORNAMENT_GARAMOND).then_some(BULLET_SCALE_GARAMOND);
+    assert!(
+        matches!(t.bullet_scale, BULLET_SCALE_PLAIN | BULLET_SCALE_ORNAMENT)
+            || off_tier_exception == Some(t.bullet_scale),
+        "{}: off-tier bullet_scale {} (not a logged theme-QA padding exception)",
+        t.name,
+        t.bullet_scale
+    );
+    // The geometric/technical worlds keep the plain pair AND body size, in
+    // lockstep — a characterful pair at body size (or plain at half) would be
+    // a taste drift; a geometric world is byte-identical to before this round.
+    // The two off-tier exceptions are excluded from this lockstep check (their
+    // whole POINT is a bullet_scale that differs from the shared ORNAMENT tier
+    // while keeping a characterful, non-plain pair).
+    let geometric = t.ornament_face == ORNAMENT_MARKS;
+    if off_tier_exception.is_none() {
+        assert_eq!(
+            t.bullets == BULLETS_PLAIN,
+            t.bullet_scale == BULLET_SCALE_PLAIN,
+            "{}: plain-pair and plain-scale must agree (geometric restraint)",
+            t.name
+        );
+    }
+    if geometric {
+        assert_eq!(
+            t.bullets, BULLETS_PLAIN,
+            "{}: an Awl-Marks world keeps the plain • / ◦ (restraint)",
+            t.name
+        );
+    } else {
+        assert_ne!(
+            t.bullets, BULLETS_PLAIN,
+            "{}: an antique/literary serif world draws a characterful bullet",
+            t.name
+        );
+    }
+}
+
 /// NEVER-DRIFT law (per-world LIST BULLETS): every world ships a three-glyph
 /// [`Theme::bullets`] triple (the per-level rotation) whose three levels
 /// are PAIRWISE DISTINCT, and a [`Theme::bullet_scale`] that is exactly one of
@@ -111,69 +183,7 @@ fn every_world_has_a_bullet_pair() {
         "ornament bullets shape smaller than the plain body-size bullets"
     );
     for t in THEMES.iter() {
-        assert_ne!(
-            t.bullets.0, t.bullets.1,
-            "{}: levels 1/2 must be distinct glyphs, got {:?}",
-            t.name, t.bullets
-        );
-        assert_ne!(
-            t.bullets.1, t.bullets.2,
-            "{}: levels 2/3 must be distinct glyphs, got {:?}",
-            t.name, t.bullets
-        );
-        assert_ne!(
-            t.bullets.0, t.bullets.2,
-            "{}: levels 1/3 must be distinct glyphs, got {:?}",
-            t.name, t.bullets
-        );
-        // OFF-TIER EXCEPTION (EXACTLY one, pinned by NAME and VALUE — never a
-        // loose "any float passes" escape hatch): the shared
-        // [`BULLET_SCALE_ORNAMENT`] tier is a byproduct of two unrelated font
-        // metrics (see that constant's own doc) that pair badly on a manicule
-        // (too wide, touching the following text). Every other world stays on
-        // a shared tier.
-        // The exception is FACE-DERIVED, not a world list. The shared tier is
-        // scaled against the concealed `"- "` prefix's advance in the world's
-        // OWN BODY font, so the world that needs a tighter dial is decided by
-        // that face: EB Garamond's narrow punctuation advance crowds a
-        // half-body fleuron into the following text, on every world that wears
-        // it.
-        let off_tier_exception = (t.font == ORNAMENT_GARAMOND).then_some(BULLET_SCALE_GARAMOND);
-        assert!(
-            matches!(t.bullet_scale, BULLET_SCALE_PLAIN | BULLET_SCALE_ORNAMENT)
-                || off_tier_exception == Some(t.bullet_scale),
-            "{}: off-tier bullet_scale {} (not a logged theme-QA padding exception)",
-            t.name,
-            t.bullet_scale
-        );
-        // The geometric/technical worlds keep the plain pair AND body size, in
-        // lockstep — a characterful pair at body size (or plain at half) would be
-        // a taste drift; a geometric world is byte-identical to before this round.
-        // The two off-tier exceptions are excluded from this lockstep check (their
-        // whole POINT is a bullet_scale that differs from the shared ORNAMENT tier
-        // while keeping a characterful, non-plain pair).
-        let geometric = t.ornament_face == ORNAMENT_MARKS;
-        if off_tier_exception.is_none() {
-            assert_eq!(
-                t.bullets == BULLETS_PLAIN,
-                t.bullet_scale == BULLET_SCALE_PLAIN,
-                "{}: plain-pair and plain-scale must agree (geometric restraint)",
-                t.name
-            );
-        }
-        if geometric {
-            assert_eq!(
-                t.bullets, BULLETS_PLAIN,
-                "{}: an Awl-Marks world keeps the plain • / ◦ (restraint)",
-                t.name
-            );
-        } else {
-            assert_ne!(
-                t.bullets, BULLETS_PLAIN,
-                "{}: an antique/literary serif world draws a characterful bullet",
-                t.name
-            );
-        }
+        assert_bullet_pair_law(t);
     }
     // The TRIPLE CYCLES every THREE levels — depth 2 is the third rung, and
     // depth 3 wraps back to level 1.
