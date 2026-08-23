@@ -114,6 +114,8 @@ reference rows are spot-checked against the dispatch they claim.
 
 ### 468 — Firetail palette edges regressed (USER-REPORTED 2026-08-22, live screenshot)
 
+🟡 IN PROGRESS — claude, branch (dispatched via Agent isolation:worktree, sha to follow)
+
 In Firetail, the command palette's row plates now show strange angular
 notched/jagged edges on every label — the user's words: "all of the edges
 look so weird". Hypothesis, unverified: the Cassowary docked-console corner
@@ -130,6 +132,8 @@ caps, mutation-proven by re-enabling the leak; the audit ends by writing
 whatever law let this ship silently.
 
 ### 469 — margin identity reading order flips between one file and the stack (USER-REPORTED 2026-08-22, live screenshots)
+
+🟡 IN PROGRESS — claude, branch (dispatched via Agent isolation:worktree, sha to follow)
 
 With one file open the bottom-left identity reads filename over folder
 (`awl-start.md` above `notes`). At N≥2 the stack reads the opposite way:
@@ -158,6 +162,8 @@ via the row's close zone and asserts the same zero-document state the ⌘W
 law already pins.
 
 ### 471 — Cassowary console: square top, chamfered bottom, one corner-mask owner (USER DECISION 2026-08-22)
+
+🟡 IN PROGRESS — claude, branch (dispatched via Agent isolation:worktree, sha to follow)
 
 User-reported on the live app: the Cassowary console shows square artifacts
 at its chamfered top corners — the new console layers (panel material,
@@ -218,6 +224,8 @@ legibility floor for row labels over the busiest ground (display-heading
 behind the rows), mutation-proven both ways.
 
 ### 473 — clippy debt: the slice worth paying (USER 2026-08-22)
+
+🟡 IN PROGRESS — claude, branch (dispatched via Agent isolation:worktree, sha to follow)
 
 Ledger measured 2026-08-22: 92 recorded exceptions (84 `too_many_lines` —
 50 of them test-file law tables, which stay; 8 `cognitive_complexity`) and
