@@ -227,7 +227,10 @@ fn personality_assignments_are_exactly_the_decided_table() {
                     cell_px: 8.0,
                     density: 0.30,
                 },
-                card_shape: model::CardShape::Chamfered { cut_px: 11.0 },
+                card_shape: model::CardShape::Chamfered {
+                    top_cut_px: 11.0,
+                    bottom_cut_px: 11.0,
+                },
                 ..RenderCaps::DEFAULT
             },
             "Potoroo" => expected_potoroo_caps(),
@@ -358,7 +361,10 @@ fn expected_cassowary_caps() -> model::RenderCaps {
             line_px: 1.0,
             strength: 0.12,
         },
-        card_shape: model::CardShape::Chamfered { cut_px: 11.0 },
+        card_shape: model::CardShape::Chamfered {
+            top_cut_px: 0.0,
+            bottom_cut_px: 11.0,
+        },
         ..model::RenderCaps::DEFAULT
     }
 }

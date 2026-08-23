@@ -341,7 +341,12 @@ impl TextPipeline {
         // document (DESIGN §5) — clearer, more present furniture than the old
         // flat pill. The flat `panel_card` is left empty; the search draw
         // branch draws the float quads (parked whenever the panel is down).
-        self.claim_float_panel(card_rect, FloatElevation::Rimmed, 0.0, None);
+        self.claim_float_panel(
+            card_rect,
+            FloatElevation::Rimmed,
+            CardChamfer::default(),
+            None,
+        );
         self.panel_card.prepare(device, queue, width, height, &[]);
         self.panel_shadow.prepare(device, queue, width, height, &[]);
         self.panel_border.prepare(device, queue, width, height, &[]);

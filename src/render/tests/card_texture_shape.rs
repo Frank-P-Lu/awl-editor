@@ -93,10 +93,22 @@ fn quokka_card_caps_are_within_the_rounds_authored_spec() {
         other => panic!("Quokka must ship HalftoneDots, got {other:?}"),
     }
     match caps.card_shape {
-        theme::CardShape::Chamfered { cut_px } => {
+        theme::CardShape::Chamfered {
+            top_cut_px,
+            bottom_cut_px,
+        } => {
             assert!(
-                (10.0..=12.0).contains(&cut_px),
-                "cut_px {cut_px} outside 10-12px"
+                (10.0..=12.0).contains(&top_cut_px),
+                "top_cut_px {top_cut_px} outside 10-12px"
+            );
+            assert!(
+                (10.0..=12.0).contains(&bottom_cut_px),
+                "bottom_cut_px {bottom_cut_px} outside 10-12px"
+            );
+            assert_eq!(
+                top_cut_px, bottom_cut_px,
+                "Quokka's own identity is the all-four-corner chamfer — top and \
+                 bottom must agree"
             );
         }
         theme::CardShape::Rectangular => panic!("Quokka must ship Chamfered"),

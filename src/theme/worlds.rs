@@ -269,7 +269,10 @@ pub const QUOKKA: Theme = Theme {
             cell_px: 8.0,
             density: 0.30,
         },
-        card_shape: CardShape::Chamfered { cut_px: 11.0 },
+        card_shape: CardShape::Chamfered {
+            top_cut_px: 11.0,
+            bottom_cut_px: 11.0,
+        },
         ..RenderCaps::DEFAULT
     },
 };

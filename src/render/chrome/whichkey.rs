@@ -59,7 +59,7 @@ impl TextPipeline {
                 height,
                 None,
                 FloatElevation::Rimmed,
-                0.0,
+                CardChamfer::default(),
                 None,
             );
             self.wk_buffer
@@ -170,7 +170,7 @@ impl TextPipeline {
             height,
             Some(plan.card),
             FloatElevation::Rimmed,
-            0.0,
+            CardChamfer::default(),
             None,
         );
         let area = TextArea {

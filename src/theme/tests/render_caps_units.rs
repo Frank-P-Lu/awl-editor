@@ -79,10 +79,16 @@ const UNIT_VERDICTS: &[(&str, Verdict, &str)] = &[
         "render/layers.rs::prepare_stars_layer, `* (metrics.zoom * dpi)`",
     ),
     (
-        "CardShape.cut_px",
+        "CardShape.top_cut_px",
         Verdict::LengthDpiOnly,
         "render/chrome/mod.rs::card_shape_texture, `* dpi.max(1.0)` — a grow-only \
          resolution that never meets the user's zoom",
+    ),
+    (
+        "CardShape.bottom_cut_px",
+        Verdict::LengthDpiOnly,
+        "render/chrome/mod.rs::card_shape_texture, `* dpi.max(1.0)`, same owner and \
+         resolution as its top-half sibling",
     ),
     (
         "CardTexture.cell_px",
