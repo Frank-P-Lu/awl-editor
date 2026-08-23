@@ -108,19 +108,21 @@ impl OverlayBarLayout {
 }
 
 impl TextPipeline {
-    #[allow(clippy::too_many_arguments)]
     pub(super) fn overlay_prepare_selection(
         &mut self,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        width: u32,
-        height: u32,
-        geom: &OverlayGeom,
-        plan: &OverlayRowPlan,
+        surface: OverlayCardSurface,
         list_style: theme::ListStyle,
         backing: theme::ListBacking,
         vis: &VisualSelection,
     ) {
+        let OverlayCardSurface {
+            device,
+            queue,
+            width,
+            height,
+            geom,
+            plan,
+        } = surface;
         let band_color = super::overlay_selected_band_srgb();
         // THE FOCUS CUE, and the whole of it. A workspace has two
         // regions that both keep a selection, so one of the two markers has to
@@ -484,6 +486,11 @@ impl TextPipeline {
                 .collect::<Vec<_>>(),
         };
         self.panel_card.set_corner(radius + pad);
+        // `panel_card`'s chamfer is a persistent field the CARD path sets for
+        // Quokka/Cassowary; a `Bars` scrim authors no `CardShape`, so this
+        // resets it every frame (mirrors `set_dither`'s reset-on-switch
+        // contract) or a prior chamfered world's cut corners survive here.
+        self.panel_card.set_chamfer(0.0, 0.0);
         self.panel_card
             .set_color(theme::overlay_bars_scrim().rgba_bytes());
         self.panel_card

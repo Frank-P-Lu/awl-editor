@@ -98,6 +98,27 @@ height to judge both margins at once, still without a single heading line.
 /// produced no PNG) — the caller then skips, mirroring the suite's
 /// `adapter_available()` tolerance on a headless box.
 fn capture(out: &Path, doc: &Path, theme: &str, lava: Option<&str>, frost: bool) -> bool {
+    capture_at_measure(out, doc, theme, lava, frost, None)
+}
+
+/// [`capture`], with an optional explicit `--measure` override.
+///
+/// The default page measure (70) happens to place the bottom-left GUTTER's
+/// own margin exactly on `GUTTER_MIN_NAME_CHARS`'s presence floor once the
+/// identity line's close-lane reservation is subtracted from it — a real,
+/// separately law-tested boundary (`render::tests::column_left_dpi::
+/// the_identity_lines_close_lane_reservation_never_leaves_an_extensionless_name`),
+/// not a fixed hidden/shown split. Cell 2 needs the gutter DRAWN to have a
+/// frost pill to measure at all, so it asks for a narrower column (a smaller
+/// measure widens the margin) rather than re-litigating that boundary here.
+fn capture_at_measure(
+    out: &Path,
+    doc: &Path,
+    theme: &str,
+    lava: Option<&str>,
+    frost: bool,
+    measure: Option<u32>,
+) -> bool {
     // `common::awl` PINS the config ladder inside the sandbox: this
     // helper used to `env_remove("AWL_CONFIG")`, which let the child fall
     // through to the developer's own `~/.config/awl/config.toml` — a personal
@@ -114,6 +135,9 @@ fn capture(out: &Path, doc: &Path, theme: &str, lava: Option<&str>, frost: bool)
         // is a fresh child. ON must NOT inherit an ambient `off` from the parent
         // suite env; OFF sets it explicitly. Same for `AWL_LAVA` below.
         .env_remove("AWL_CJK_FORCE");
+    if let Some(m) = measure {
+        cmd.arg("--measure").arg(m.to_string());
+    }
     if frost {
         cmd.env_remove("AWL_LAVA_FROST");
     } else {
@@ -233,8 +257,22 @@ fn frost_dims_the_gutter_corner_and_is_gated_on_the_lava_capability() {
     for (theme, spec) in [("Mangrove", "deepsea"), ("Firetail", "warm")] {
         let ord_on = root.join(format!("{theme}_ord_on.png"));
         let ord_off = root.join(format!("{theme}_ord_off.png"));
-        assert!(capture(&ord_on, &ordinary, theme, Some(spec), true));
-        assert!(capture(&ord_off, &ordinary, theme, Some(spec), false));
+        assert!(capture_at_measure(
+            &ord_on,
+            &ordinary,
+            theme,
+            Some(spec),
+            true,
+            Some(40)
+        ));
+        assert!(capture_at_measure(
+            &ord_off,
+            &ordinary,
+            theme,
+            Some(spec),
+            false,
+            Some(40)
+        ));
         let (w1, h1, on_px) = decode(&ord_on);
         let (w2, h2, off_px) = decode(&ord_off);
         assert_eq!((w1, h1), (w2, h2), "{theme}: same canvas");

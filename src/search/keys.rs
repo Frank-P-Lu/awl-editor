@@ -32,44 +32,35 @@ pub fn intercept(
     logical: &Key,
     mods: ModifiersState,
 ) -> Option<RecoilDir> {
-    let ctrl = mods.contains(ModifiersState::CONTROL);
-    let alt = mods.contains(ModifiersState::ALT);
-    let sup = mods.contains(ModifiersState::SUPER);
-    let shift = mods.contains(ModifiersState::SHIFT);
     let editing_replacement = search
         .as_ref()
         .map(|s| s.is_editing_replacement())
         .unwrap_or(false);
 
     match logical {
-        Key::Character(s) => intercept_character(
-            search,
-            buffer,
-            s.chars().next()?,
-            ctrl,
-            alt,
-            sup,
-            shift,
-            editing_replacement,
-        ),
-        Key::Named(named) => {
-            intercept_named(search, buffer, *named, ctrl, alt, sup, editing_replacement)
+        Key::Character(s) => {
+            intercept_character(search, buffer, s.chars().next()?, mods, editing_replacement)
         }
+        Key::Named(named) => intercept_named(search, buffer, *named, mods, editing_replacement),
         _ => None,
     }
 }
 
-#[allow(clippy::too_many_arguments)]
+/// The find/replace surface's own modifier reads, decomposed once from the
+/// `ModifiersState` `intercept` receives from winit rather than threaded as
+/// four same-typed adjacent bools — `ctrl`/`alt`/`sup`/`shift` transposed at
+/// a call site would compile clean and misfire a completely different chord.
 fn intercept_character(
     search: &mut Option<SearchState>,
     buffer: &mut Buffer,
     c: char,
-    ctrl: bool,
-    alt: bool,
-    sup: bool,
-    shift: bool,
+    mods: ModifiersState,
     editing_replacement: bool,
 ) -> Option<RecoilDir> {
+    let ctrl = mods.contains(ModifiersState::CONTROL);
+    let alt = mods.contains(ModifiersState::ALT);
+    let sup = mods.contains(ModifiersState::SUPER);
+    let shift = mods.contains(ModifiersState::SHIFT);
     // Cmd-based Find/Replace chords WITHIN the panel: Cmd-F skips to the
     // next match, Cmd-Shift-F the previous (so you can pass a match without
     // replacing it), Cmd-Option-F reveals+toggles the replace field, Cmd-R
@@ -143,16 +134,16 @@ fn intercept_character(
     None
 }
 
-#[allow(clippy::too_many_arguments)]
 fn intercept_named(
     search: &mut Option<SearchState>,
     buffer: &mut Buffer,
     named: NamedKey,
-    ctrl: bool,
-    alt: bool,
-    sup: bool,
+    mods: ModifiersState,
     editing_replacement: bool,
 ) -> Option<RecoilDir> {
+    let ctrl = mods.contains(ModifiersState::CONTROL);
+    let alt = mods.contains(ModifiersState::ALT);
+    let sup = mods.contains(ModifiersState::SUPER);
     match named {
         // Tab is the one FIELD-SWITCH key: flip focus find↔replace (revealing the
         // replace row the first time). No longer overloaded — Enter replaces, Tab

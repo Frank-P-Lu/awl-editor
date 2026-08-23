@@ -47,14 +47,30 @@ impl TextPipeline {
         // buffer before the content pane does, so its measured mark rect is in
         // hand by the time `overlay_draw_card` asks the facet-mark owner for it.
         let has_rail = self.workspace_shape_rail(&geom, &plan);
-        let has_right = self.overlay_shape_text(&geom, &plan, ink, muted, selected_ink, &vis, true);
+        let has_right = self.overlay_shape_text(
+            &geom,
+            &plan,
+            OverlaySpanInks {
+                ink,
+                muted,
+                selected: selected_ink,
+            },
+            &vis,
+            true,
+        );
         self.diagonal_cluster = self.resolve_diagonal_cluster(&geom, &plan, &vis);
         plan.complete_row_extent(self.diagonal_row_extent()); // completed, not rebuilt
-        self.overlay_upload_text(
-            device, queue, width, height, &geom, &plan, has_right, has_rail, ink, muted, placard,
-        )?;
+        let surface = OverlayCardSurface {
+            device,
+            queue,
+            width,
+            height,
+            geom: &geom,
+            plan: &plan,
+        };
+        self.overlay_upload_text(surface, has_right, has_rail, ink, muted, placard)?;
         self.prepare_overlay_rotated_location(device, queue, width, height, &geom, &plan);
-        self.overlay_draw_card(device, queue, width, height, &geom, &plan, &vis);
+        self.overlay_draw_card(surface, &vis);
         self.prepare_overlay_material(device, queue, width, height, &geom, placard_geometry);
         self.overlay_place_caret(queue, width, height, &geom, &plan);
         Ok(())
@@ -209,21 +225,23 @@ impl TextPipeline {
         );
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn overlay_upload_text(
         &mut self,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        width: u32,
-        height: u32,
-        geom: &OverlayGeom,
-        plan: &OverlayRowPlan,
+        surface: OverlayCardSurface,
         has_right: bool,
         has_rail: bool,
         ink: glyphon::Color,
         muted: glyphon::Color,
         placard: Option<(f32, f32, f32, f32)>,
     ) -> anyhow::Result<()> {
+        let OverlayCardSurface {
+            device,
+            queue,
+            width,
+            height,
+            geom,
+            plan,
+        } = surface;
         let text_left = geom.text_left;
         let text_top = geom.text_top;
         let bounds = TextBounds {
@@ -461,11 +479,13 @@ impl TextPipeline {
             queue,
             width,
             height,
-            x + w * 0.5,
-            y + h * 0.5,
-            w,
-            h,
-            self.metrics.px(CORNER_RADIUS),
+            CaretRect {
+                center_x: x + w * 0.5,
+                center_y: y + h * 0.5,
+                rect_w: w,
+                rect_h: h,
+                corner: self.metrics.px(CORNER_RADIUS),
+            },
         );
     }
 

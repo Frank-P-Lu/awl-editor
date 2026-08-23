@@ -112,42 +112,34 @@ impl TextPipeline {
         self.overlay_pane_fills(&geom, &plan)
     }
 
-    #[allow(clippy::too_many_arguments)]
-    pub(super) fn overlay_draw_card(
-        &mut self,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        width: u32,
-        height: u32,
-        geom: &OverlayGeom,
-        plan: &OverlayRowPlan,
-        vis: &VisualSelection,
-    ) {
+    pub(super) fn overlay_draw_card(&mut self, surface: OverlayCardSurface, vis: &VisualSelection) {
+        let OverlayCardSurface {
+            device,
+            queue,
+            width,
+            height,
+            geom,
+            plan,
+        } = surface;
         let list_style = crate::render::effective_list_style();
         let spell = self.overlay_spell.is_some();
         let card_rect = [geom.card_x, geom.card_y, geom.card_w, geom.card_h];
         let backing = list_style.list_backing(spell);
-        self.overlay_prepare_card_backing(
-            device, queue, width, height, geom, plan, backing, spell, card_rect,
-        );
-        self.overlay_prepare_selection(
-            device, queue, width, height, geom, plan, list_style, backing, vis,
-        );
+        self.overlay_prepare_card_backing(surface, backing, spell, card_rect);
+        self.overlay_prepare_selection(surface, list_style, backing, vis);
         self.prepare_diagonal_spine(device, queue, width, height, plan, vis);
-        self.overlay_prepare_range_rails(device, queue, width, height, geom, plan, vis);
+        self.overlay_prepare_range_rails(surface, vis);
         self.overlay_prepare_facet_marks(device, queue, width, height, geom);
     }
-    #[allow(clippy::too_many_arguments)]
-    fn overlay_prepare_range_rails(
-        &mut self,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        width: u32,
-        height: u32,
-        geom: &OverlayGeom,
-        plan: &OverlayRowPlan,
-        vis: &VisualSelection,
-    ) {
+    fn overlay_prepare_range_rails(&mut self, surface: OverlayCardSurface, vis: &VisualSelection) {
+        let OverlayCardSurface {
+            device,
+            queue,
+            width,
+            height,
+            geom,
+            plan,
+        } = surface;
         // THE RANGE ROW'S RAIL. Every visible range row's track / fill /
         // thumb, resolved by the ONE rail owner (`overlay_rails`, which the pointer
         // hit-test reads too — so the control is clickable exactly where it is
@@ -203,27 +195,29 @@ impl TextPipeline {
             .prepare_multicolor(device, queue, width, height, &thumb_quads);
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn overlay_prepare_card_backing(
         &mut self,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        width: u32,
-        height: u32,
-        geom: &OverlayGeom,
-        plan: &OverlayRowPlan,
+        surface: OverlayCardSurface,
         backing: theme::ListBacking,
         spell: bool,
         card_rect: [f32; 4],
     ) {
+        let OverlayCardSurface {
+            device,
+            queue,
+            width,
+            height,
+            geom,
+            plan,
+        } = surface;
         match backing {
             theme::ListBacking::BarePlates => {
                 self.panel_shadow.prepare(device, queue, width, height, &[]);
                 self.panel_border.prepare(device, queue, width, height, &[]);
             }
             theme::ListBacking::Card if spell => {
-                let (chamfer_px, texture) = self.card_shape_texture(&[card_rect]);
-                self.claim_float_panel(card_rect, FloatElevation::Rimmed, chamfer_px, texture);
+                let (chamfer, texture) = self.card_shape_texture(&[card_rect]);
+                self.claim_float_panel(card_rect, FloatElevation::Rimmed, chamfer, texture);
                 self.panel_card.prepare(device, queue, width, height, &[]);
                 self.panel_shadow.prepare(device, queue, width, height, &[]);
                 self.panel_border.prepare(device, queue, width, height, &[]);

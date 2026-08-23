@@ -3,6 +3,12 @@
 use super::{OverlayKind, OverlayState};
 use std::path::Path;
 
+/// A summoned spell-suggest picker's target: the suggestion list, the
+/// misspelling's `(line, start_col, end_col)`, and the misspelled word.
+/// Shared with the replay chord layer, which gathers this same value for
+/// [`BuildCtx::spell_target`] before a summon.
+pub type SpellSuggestTarget = (Vec<String>, (usize, usize, usize), String);
+
 /// Author the folder half of Go-to's destination roster from the configured
 /// workspace and persisted folder MRU. The workspace itself and its direct
 /// child folders are always known destinations; valid remembered folders may
@@ -91,9 +97,7 @@ pub struct BuildCtx<'a> {
     /// `None` when the cursor isn't on a flagged word (or spell-check is off), so
     /// the summon no-ops. The word text builds the "Add '<word>' to dictionary" row
     /// label + rides the add-row accept effect ([`OverlayState::new_spell`]).
-    // This public builder field mirrors the spell seam's suggestions, byte span, and source word.
-    #[allow(clippy::type_complexity)]
-    pub spell_target: Option<(Vec<String>, (usize, usize, usize), String)>,
+    pub spell_target: Option<SpellSuggestTarget>,
     /// The HISTORY TIMELINE rows for the current file — [`crate::history::TimelineRow`]
     /// (when / which / counts / id), newest-first — resolved by the caller (via
     /// [`crate::history::timeline_rows`]) ONLY when the History binding fired. EMPTY

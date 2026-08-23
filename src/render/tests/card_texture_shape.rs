@@ -17,6 +17,10 @@
 use super::super::*;
 use super::{headless_dqp, pixeldiff};
 
+/// [`render_theme_picker`]'s result: the card's RGBA pixels, its pixel
+/// width and height, and its `[x, y, w, h]` rect.
+type RenderedThemeCard = (Vec<[u8; 4]>, i64, i64, [f32; 4]);
+
 // --- structural rosters --------------------------------------------------
 
 /// EXHAUSTIVE ROSTER: every world but Quokka (`HalftoneDots`) carries the
@@ -93,10 +97,22 @@ fn quokka_card_caps_are_within_the_rounds_authored_spec() {
         other => panic!("Quokka must ship HalftoneDots, got {other:?}"),
     }
     match caps.card_shape {
-        theme::CardShape::Chamfered { cut_px } => {
+        theme::CardShape::Chamfered {
+            top_cut_px,
+            bottom_cut_px,
+        } => {
             assert!(
-                (10.0..=12.0).contains(&cut_px),
-                "cut_px {cut_px} outside 10-12px"
+                (10.0..=12.0).contains(&top_cut_px),
+                "top_cut_px {top_cut_px} outside 10-12px"
+            );
+            assert!(
+                (10.0..=12.0).contains(&bottom_cut_px),
+                "bottom_cut_px {bottom_cut_px} outside 10-12px"
+            );
+            assert_eq!(
+                top_cut_px, bottom_cut_px,
+                "Quokka's own identity is the all-four-corner chamfer — top and \
+                 bottom must agree"
             );
         }
         theme::CardShape::Rectangular => panic!("Quokka must ship Chamfered"),
@@ -139,8 +155,7 @@ fn narrowed_chamfer_never_exceeds_the_authored_cut_and_shrinks_on_a_small_card()
 /// Open the theme picker on `world`, render one settled frame, and return
 /// `(pixels, canvas_w, canvas_h, card_rect)`.
 // Pixels, canvas geometry, and card rect are returned together for the pixel-law fixture.
-#[allow(clippy::type_complexity)]
-fn render_theme_picker(world: &str) -> Option<(Vec<[u8; 4]>, i64, i64, [f32; 4])> {
+fn render_theme_picker(world: &str) -> Option<RenderedThemeCard> {
     let (device, queue, mut p) = headless_dqp(1200.0, 800.0)?;
     let _g = crate::testlock::serial();
     theme::set_active_by_name(world).unwrap();
@@ -327,5 +342,227 @@ fn bowerbird_card_corner_is_not_chamfered() {
         near(corner_5, card_fill),
         "Bowerbird's card corner must stay the pre-existing small rounded corner (filled at \
          5px inward), got {corner_5:?} vs fill {card_fill:?}"
+    );
+}
+
+// --- the bar-scrim chamfer leak -------------------------------------------
+//
+// `panel_card` is not just the CARD-backing pipeline the tests above probe —
+// it is also the one `overlay_prepare_bar_scrims` reuses to draw every
+// `ListStyle::Bars` world's row scrim (`overlay_row_ink_probe`). `chamfer` is
+// a field on the pipeline struct, uploaded fresh only when something calls
+// `set_chamfer` that frame; a `BarePlates` world's `ListBacking` never runs
+// the CARD branch (`card_shape_texture`) that would derive it from the ACTIVE
+// world, so a value a previous frame's chamfered card left behind survives
+// into a Bars world's scrim unless the scrim path resets it itself — the same
+// "reset on the world that doesn't own this treatment" contract
+// `SelectionPipeline::set_dither`'s own doc already states for the dither
+// field. A cold, single-world capture can never see this: it never puts two
+// worlds through the same pipeline in one process, which is exactly what a
+// live theme switch does.
+
+/// Every world whose `list_style` is `ListStyle::Bars`, derived from the
+/// roster rather than named, so a newly authored `Bars` world is swept for
+/// free.
+fn bars_worlds() -> Vec<&'static str> {
+    theme::THEMES
+        .iter()
+        .filter(|t| matches!(t.render_caps.list_style, theme::ListStyle::Bars))
+        .map(|t| t.name)
+        .collect()
+}
+
+/// Every world authoring a non-default `CardShape` — the chamfered-card
+/// family — derived from the roster rather than named.
+fn chamfered_worlds() -> Vec<&'static str> {
+    theme::THEMES
+        .iter()
+        .filter(|t| !matches!(t.render_caps.card_shape, theme::CardShape::Rectangular))
+        .map(|t| t.name)
+        .collect()
+}
+
+/// Prepare an overlay frame for `after` — optionally PRIMING the SAME
+/// pipeline with a `before` world's own frame first, the shared-pipeline
+/// shape a live theme switch takes (`before: None` is the control: a
+/// pipeline that has never drawn anything else, so `panel_card` still
+/// carries its construction-default `(0.0, 0.0)` chamfer). Returns `before`'s
+/// own `panel_card` chamfer pair where primed (a non-vacuity check: `before`
+/// must actually have chamfered it), `after`'s post-frame `panel_card`
+/// chamfer pair, `after`'s scrim rects, and the rendered pixels of the
+/// `after` frame.
+#[allow(clippy::type_complexity)]
+fn render_bars_scrim(
+    before: Option<&str>,
+    after: &str,
+) -> Option<(
+    (f32, f32),
+    (f32, f32),
+    Vec<[f32; 4]>,
+    Vec<[u8; 4]>,
+    i64,
+    i64,
+)> {
+    let _g = crate::testlock::serial();
+    let (device, queue, mut p) = headless_dqp(1200.0, 800.0)?;
+    let mut v = super::view("hello world\n", 0, 0);
+    v.overlay_active = true;
+    v.overlay_title = "commands";
+    v.overlay_items = (0..8).map(|i| format!("Command {i}")).collect();
+
+    let mut before_chamfer = (0.0f32, 0.0f32);
+    if let Some(before) = before {
+        theme::set_active_by_name(before).unwrap();
+        p.sync_theme();
+        p.set_view(&v);
+        p.prepare(&device, &queue, 1200, 800).unwrap();
+        before_chamfer = p.panel_card.chamfer();
+    }
+
+    theme::set_active_by_name(after).unwrap();
+    p.sync_theme();
+    p.set_view(&v);
+    p.prepare(&device, &queue, 1200, 800).unwrap();
+    let scrims = p.overlay_row_ink_probe();
+    let after_chamfer = p.panel_card.chamfer();
+    let pixels = pixeldiff::render_frame(&mut p, &device, &queue, 1200, 800);
+
+    theme::set_active(theme::DEFAULT_THEME);
+    p.sync_theme();
+    Some((before_chamfer, after_chamfer, scrims, pixels, 1200, 800))
+}
+
+/// **THE LEAK LAW.** Every `Bars` world, prepared right after every
+/// chamfered-card world on the same pipeline, must still carry a ZERO
+/// `panel_card` chamfer pair — a no-wildcard roster PRODUCT (every `Bars`
+/// world × every chamfered world), so neither roster can silently dodge the
+/// sweep by growing a new member.
+#[test]
+fn bar_scrim_chamfer_does_not_leak_from_a_chamfered_world() {
+    let bars = bars_worlds();
+    let chamfered = chamfered_worlds();
+    assert!(
+        !bars.is_empty(),
+        "the Bars roster is empty — this law would sweep nothing"
+    );
+    assert!(
+        !chamfered.is_empty(),
+        "the chamfered-card roster is empty — this law would sweep nothing"
+    );
+    let mut graded = 0usize;
+    for &before in &chamfered {
+        for &after in &bars {
+            let Some((before_chamfer, after_chamfer, scrims, ..)) =
+                render_bars_scrim(Some(before), after)
+            else {
+                eprintln!(
+                    "skipping bar_scrim_chamfer_does_not_leak_from_a_chamfered_world: \
+                     no wgpu adapter"
+                );
+                return;
+            };
+            // A per-half chamfer axis lets a world cut only ONE half
+            // (Cassowary: top 0.0, bottom > 0.0) — so "a real chamfer" means
+            // EITHER half is nonzero, not both.
+            assert!(
+                before_chamfer.0 > 0.0 || before_chamfer.1 > 0.0,
+                "{before}: its own card carried a {before_chamfer:?} chamfer, not a real \
+                 one — this fixture isn't exercising the chamfered state this law depends on"
+            );
+            assert!(
+                !scrims.is_empty(),
+                "{after} after {before}: the scrim probe drew nothing — this fixture isn't \
+                 exercising the scrim path this law grades"
+            );
+            assert_eq!(
+                after_chamfer,
+                (0.0, 0.0),
+                "{after}'s row scrim carries a {after_chamfer:?} chamfer left over from \
+                 {before}'s own chamfered card — a Bars world's scrim must reset it every frame"
+            );
+            graded += 1;
+        }
+    }
+    assert_eq!(
+        graded,
+        bars.len() * chamfered.len(),
+        "must grade the full Bars x chamfered-world roster product"
+    );
+}
+
+/// **THE APPEARANCE PROOF.** The state law above catches the leaked NUMBER;
+/// this catches what it actually DRAWS. A `Bars` world's scrim corner region
+/// must render PIXEL-IDENTICAL whether or not a chamfered world happened to
+/// prepare a frame on the same pipeline first — CONTROL (`before: None`, a
+/// pipeline that has drawn nothing else) against TEST (primed with a
+/// representative chamfered world). This never has to guess the scrim's own
+/// fill color (whether the 5px-inward point lands in the scrim's own halo or
+/// the plate it backs is exactly the kind of detail this sidesteps): if a
+/// chamfer leaks, SOMETHING in that corner box changes, whatever it is drawn
+/// over. Both representatives are the rosters' own first member (still
+/// roster-derived, not a name pinned in the law), so a roster reordering
+/// cannot silently point this at nothing.
+#[test]
+fn bar_scrim_corner_pixels_are_unchanged_by_a_preceding_chamfered_world() {
+    let bars = bars_worlds();
+    let chamfered = chamfered_worlds();
+    let (Some(&after), Some(&before)) = (bars.first(), chamfered.first()) else {
+        eprintln!(
+            "skipping bar_scrim_corner_pixels_are_unchanged_by_a_preceding_chamfered_world: \
+             an empty roster"
+        );
+        return;
+    };
+    let Some((_, _, control_scrims, control_pixels, w, _h)) = render_bars_scrim(None, after) else {
+        eprintln!(
+            "skipping bar_scrim_corner_pixels_are_unchanged_by_a_preceding_chamfered_world: \
+             no wgpu adapter"
+        );
+        return;
+    };
+    let Some((before_chamfer, after_chamfer, scrims, pixels, ..)) =
+        render_bars_scrim(Some(before), after)
+    else {
+        eprintln!(
+            "skipping bar_scrim_corner_pixels_are_unchanged_by_a_preceding_chamfered_world: \
+             no wgpu adapter"
+        );
+        return;
+    };
+    assert!(
+        before_chamfer.0 > 0.0 || before_chamfer.1 > 0.0,
+        "{before} must carry a real card chamfer, got {before_chamfer:?}"
+    );
+    assert_eq!(
+        after_chamfer,
+        (0.0, 0.0),
+        "{after}'s panel_card carries a leaked {after_chamfer:?} chamfer from {before}"
+    );
+    assert_eq!(
+        scrims, control_scrims,
+        "{after}'s scrim geometry differs depending on whether {before} rendered first — a \
+         differing rect would make the pixel comparison below meaningless"
+    );
+    let Some(&[sx, sy, sw, sh]) = scrims.first() else {
+        panic!("{after} after {before}: no scrim rect to grade");
+    };
+    assert!(
+        sw > 12.0 && sh > 12.0,
+        "the scrim [{sx}, {sy}, {sw}, {sh}] is too small to probe an 8x8 corner box"
+    );
+    let mut differing = 0usize;
+    for dy in 0..8i64 {
+        for dx in 0..8i64 {
+            let (x, y) = (sx as i64 + dx, sy as i64 + dy);
+            if px_at(&pixels, w, x, y) != px_at(&control_pixels, w, x, y) {
+                differing += 1;
+            }
+        }
+    }
+    assert_eq!(
+        differing, 0,
+        "{after}'s scrim corner has {differing}/64 pixels that differ depending on whether \
+         {before} rendered first on the same pipeline — a chamfer leaking from {before} changes \
+         what gets drawn there"
     );
 }

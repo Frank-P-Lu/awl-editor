@@ -15,9 +15,14 @@ use super::gutter_stack::RowIntent;
 use super::*;
 
 /// WHICH WORKING-SET ROW the pointer is over, and what it is aiming at within
-/// that row. `row` indexes the DRAWN STACK — the same list
-/// `crate::workingset::WorkingSet::stack_rows` produced — never the block's
-/// line numbering, which the optional `changed elsewhere` line shifts.
+/// that row. `row` indexes `crate::workingset::WorkingSet::group(root)` — the
+/// SAME slots `stack_rows` draws from — never the block's line numbering,
+/// which the optional `changed elsewhere`/project lines shift. A single-file
+/// margin has no drawn stack, but `group(root)` still holds exactly the one
+/// slot the identity line names, so [`GutterLine::Name`] resolves to `row: 0`
+/// through the identical index the App's row→file lookups already read
+/// (`App::gutter_stack_row_key`) — one door for both shapes, not a second one
+/// for the single-file case.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct GutterStackHit {
     pub row: usize,
@@ -34,15 +39,23 @@ pub(super) fn stack_hit_from_plan(
     py: f32,
 ) -> Option<GutterStackHit> {
     let line = plan.hit_row(px, py)?;
-    let GutterLine::File(row) = layout.lines().get(line)?.1 else {
-        return None;
+    let row = match layout.lines().get(line)?.1 {
+        GutterLine::File(row) => {
+            if !matches!(
+                layout.files.get(row)?.kind,
+                crate::workingset::StackRowKind::File
+            ) {
+                return None;
+            }
+            row
+        }
+        // The single-file identity names the same lone slot `group(root)`
+        // would draw as row 0 of a stack, whether or not the margin was ever
+        // wide enough to draw one — so it enrols in the SAME close/switch
+        // geometry a working-set row does rather than staying an inert label.
+        GutterLine::Name => 0,
+        GutterLine::Project | GutterLine::Changed => return None,
     };
-    if !matches!(
-        layout.files.get(row)?.kind,
-        crate::workingset::StackRowKind::File
-    ) {
-        return None;
-    }
     Some(GutterStackHit {
         row,
         intent: gutter_stack::row_intent(*plan.rows.get(line)?, px),
@@ -114,14 +127,17 @@ impl TextPipeline {
         }
     }
 
-    /// CLICK-TO-SWITCH on a working-set row: which drawn stack row the pointer
-    /// is over, and whether it is over that row's close zone.
+    /// CLICK-TO-SWITCH/CLOSE on an identity row: which row the pointer is
+    /// over (`group(root)`-indexed), and whether it is over that row's close
+    /// zone.
     ///
-    /// `None` for every line that is not a working-set row — the `changed
-    /// elsewhere` affordance, the project line, and the LONE filename of a
-    /// single-file margin, which is not a stack and has nothing to switch to.
-    /// So a one-file window's pointer behaviour is exactly what it was before
-    /// this surface existed.
+    /// `None` for every line that names no file — the `changed elsewhere`
+    /// affordance and the project heading. The LONE filename of a single-file
+    /// margin now resolves too (`row: 0`, [`GutterLine::Name`] in
+    /// [`stack_hit_from_plan`]): it carries the same close mark a working-set
+    /// row does, so a one-file window's pointer accepts a close exactly where
+    /// the mark is drawn. Switching a single-file row is a no-op past the
+    /// resolve (there is nowhere else to switch to), never a second code path.
     pub fn gutter_stack_hit(&self, px: f32, py: f32, height: u32) -> Option<GutterStackHit> {
         let (layout, plan) = self.gutter_hit_plan(height)?;
         stack_hit_from_plan(&layout, &plan, px, py)
@@ -147,3 +163,6 @@ impl TextPipeline {
         self.gutter_stack_hover.take().is_some()
     }
 }
+
+#[cfg(test)]
+mod tests;

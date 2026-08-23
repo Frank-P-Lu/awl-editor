@@ -418,7 +418,7 @@ impl TextPipeline {
             height,
             None,
             super::FloatElevation::Rimmed,
-            0.0,
+            super::CardChamfer::default(),
             None,
         );
         self.menu_drop_sep

@@ -183,12 +183,15 @@ fn a_workspace_footer_plate_ends_with_its_footer_on_every_bare_plate_world() {
             // THE RETIRED RULE, written out here rather than called: the plate ran
             // to `footer_top + footer_rows * lh + WORKSPACE_PAD`, bounded only by
             // a card bottom a workspace does not have. This fixture draws exactly
-            // one footer line and the workspace pad is 12.0 LOGICAL px — scaled by
-            // `dpi` (zoom is 1.0 throughout this fixture), a pre-existing gap in
-            // this reconstruction; the taller (still bounded) plate is
-            // the first thing to reach: at dpi 1 the unscaled literal is within
-            // rounding of the true value, so it never mattered until now.
-            let retired_bottom = footer_top + row_h + 12.0 * dpi;
+            // one footer line and the workspace pad is 12.0 LOGICAL px, scaled by
+            // `dpi` (zoom is 1.0 throughout this fixture). The retired formula
+            // predates the compact GAP row the hint strip now reserves ahead of
+            // itself (`overlay_hint_gap_h`) — it never had one — so its own
+            // reconstruction gains that same row here too, or a later bump to the
+            // gap row's own authored height keeps closing this margin for a
+            // reason that has nothing to do with the card-bottom defect this law
+            // actually grades.
+            let retired_bottom = footer_top + row_h + p.overlay_hint_gap_h() + 12.0 * dpi;
             let plate_bottom = footer_plate[1] + footer_plate[3];
             retired_overrun = retired_overrun.max(retired_bottom - plate_bottom);
             assert!(

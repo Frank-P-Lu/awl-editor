@@ -79,7 +79,7 @@ impl TextPipeline {
                 }
             };
         self.caret_demo.mode = look;
-        self.claim_float_panel(rect, FloatElevation::Rimmed, 0.0, None);
+        self.claim_float_panel(rect, FloatElevation::Rimmed, CardChamfer::default(), None);
 
         // Shape the sample line into the preview buffer (calm content ink, world face).
         //
@@ -398,7 +398,18 @@ impl TextPipeline {
                 .anim
                 .pop_scale_dims(half_along * 2.0, half_across * 2.0, corner);
         self.caret_preview_pipeline.prepare_axis(
-            queue, width, height, center.x, center.y, w, h, corner, 1.0, axis.0, axis.1,
+            queue,
+            width,
+            height,
+            CaretRect {
+                center_x: center.x,
+                center_y: center.y,
+                rect_w: w,
+                rect_h: h,
+                corner,
+            },
+            1.0,
+            [axis.0, axis.1],
         );
     }
 

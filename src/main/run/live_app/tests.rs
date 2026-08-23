@@ -669,11 +669,14 @@ fn switch_project_alone_names_the_open_files_folder_while_the_dispatch_root_foll
 
     // `Config` carries no `Clone`, so a fresh one is built per capture
     // rather than shared across the two calls a cell needs. The canvas
-    // doubles WITH the dpi (2400x1600 @ 2.0, matching
-    // `a_live_app_capture_honors_capture_size_and_the_dpi_meaning_holds`'s
-    // own pairing) so the LOGICAL page stays 1200x800 at both scales — a real
-    // Retina display, not an artificially narrowed logical page that would
-    // suppress the gutter's project line for a reason unrelated to this fix.
+    // doubles WITH the dpi (2800x1800 @ 2.0) so the LOGICAL page stays
+    // 1400x900 at both scales — a real Retina display, not an artificially
+    // narrowed logical page. 1400 rather than the bare 1200x800 default:
+    // at 1200 the gutter's own identity-line budget sits AT its presence
+    // floor once the close-lane reservation is subtracted (6 - 3 = 3 chars,
+    // too few to keep "index.md"'s own extension legible), which starves a
+    // law that wants to read a real name/project pair, not probe that floor
+    // (rowlayout.rs's own tests already sweep it directly).
     let spec_for = |world: &str, dpi: f32, keys: Vec<crate::keyspec::Chord>| LiveAppSpec {
         file: Some(PathBuf::from("/ws/notes/index.md")),
         keys,
@@ -683,7 +686,7 @@ fn switch_project_alone_names_the_open_files_folder_while_the_dispatch_root_foll
             theme: Some(world.to_string()),
             ..cfg()
         },
-        canvas: if dpi > 1.0 { Some((2400, 1600)) } else { None },
+        canvas: Some(if dpi > 1.0 { (2800, 1800) } else { (1400, 900) }),
         dpi: Some(dpi),
     };
 

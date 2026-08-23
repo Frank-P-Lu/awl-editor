@@ -174,18 +174,16 @@ impl TextPipeline {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub(super) fn overlay_shape_theme(
         &mut self,
         geom: &OverlayGeom,
         plan: &OverlayRowPlan,
-        ink: glyphon::Color,
-        muted: glyphon::Color,
-        selected_ink: Option<glyphon::Color>,
+        inks: OverlaySpanInks,
         vis: &VisualSelection,
         trailing: &[String],
         elide: bool,
     ) -> bool {
+        let ink = inks.ink;
         let mut strip_s = String::from("\n");
         let mut label_ranges: Vec<(std::ops::Range<usize>, bool)> = Vec::new();
         let mut sep_ranges: Vec<std::ops::Range<usize>> = Vec::new();
@@ -214,16 +212,16 @@ impl TextPipeline {
         self.shape_theme_spans(
             geom,
             plan,
-            ink,
             active_ink,
-            muted,
-            selected_ink,
+            inks,
             vis,
-            &strip_s,
-            &label_ranges,
-            &sep_ranges,
+            spans::ThemeStripSpec {
+                text: &strip_s,
+                labels: &label_ranges,
+                separators: &sep_ranges,
+                scale: 1.0,
+            },
             trailing,
-            1.0,
             elide,
         );
         let strip_w = self.theme_strip_px();
@@ -232,16 +230,16 @@ impl TextPipeline {
             self.shape_theme_spans(
                 geom,
                 plan,
-                ink,
                 active_ink,
-                muted,
-                selected_ink,
+                inks,
                 vis,
-                &strip_s,
-                &label_ranges,
-                &sep_ranges,
+                spans::ThemeStripSpec {
+                    text: &strip_s,
+                    labels: &label_ranges,
+                    separators: &sep_ranges,
+                    scale: strip_scale,
+                },
                 trailing,
-                strip_scale,
                 elide,
             );
         }
@@ -444,18 +442,14 @@ impl TextPipeline {
         &mut self,
         geom: &OverlayGeom,
         plan: &OverlayRowPlan,
-        ink: glyphon::Color,
         active_ink: glyphon::Color,
-        muted: glyphon::Color,
-        selected_ink: Option<glyphon::Color>,
+        inks: OverlaySpanInks,
         vis: &VisualSelection,
-        strip_s: &str,
-        label_ranges: &[(std::ops::Range<usize>, bool)],
-        sep_ranges: &[std::ops::Range<usize>],
+        strip: spans::ThemeStripSpec,
         trailing: &[String],
-        strip_scale: f32,
         elide: bool,
     ) {
+        let OverlaySpanInks { ink, muted, .. } = inks;
         let fitted_hint = self.overlay_fitted_hint(geom);
         // Per-line font sizes ride the overlay UI base (`OVERLAY_UI_SCALE`), and their
         // LINE HEIGHTS stay the uniform UI row height (`overlay_lh`) so the plan line
@@ -505,30 +499,8 @@ impl TextPipeline {
         // spans carry the strip font size at the `strip_lh` (= `lh + header_gap`)
         // row height; the leading "\n" keeps the buffer's UI font size so the strip
         // row's font stays scale-invariant.
-        self.push_theme_strip_spans(
-            &mut spans,
-            plan,
-            spans::ThemeStripSpec {
-                text: strip_s,
-                labels: label_ranges,
-                separators: sep_ranges,
-                scale: strip_scale,
-            },
-            active_ink,
-            muted,
-        );
-        self.push_theme_plan_spans(
-            &mut spans,
-            geom,
-            &fitted,
-            trailing,
-            OverlaySpanInks {
-                ink,
-                muted,
-                selected: selected_ink,
-            },
-            vis,
-        );
+        self.push_theme_strip_spans(&mut spans, plan, strip, active_ink, muted);
+        self.push_theme_plan_spans(&mut spans, geom, &fitted, trailing, inks, vis);
         if let Some(msg) = &geom.empty {
             spans.push(("\n", mk(muted)));
             spans.push((msg.as_str(), mk(muted)));

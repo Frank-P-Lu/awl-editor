@@ -84,6 +84,10 @@ mod folds;
 mod font_licence;
 mod foot_band_no_clip;
 mod foot_hint_lean;
+/// Two separate legibility claims sharing one file: the widened footer gap's
+/// own magnitude over the bare-plate roster, and the picker's own giant
+/// title placard never landing on a candidate row's label.
+mod footer_gap_magnitude;
 mod footnotes;
 mod frame_clock;
 mod frost;

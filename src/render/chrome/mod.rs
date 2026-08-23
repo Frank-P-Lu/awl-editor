@@ -21,6 +21,18 @@ pub(in crate::render) struct CardHalftone {
     pub ink: [u8; 4],
 }
 
+/// THE CORNER-MASK OWNER'S RESULT: the physical-px cut for a card's top and
+/// bottom corner pairs this frame, already narrowed to whatever rect(s) it
+/// was resolved against. Every console layer that draws a card-shaped quad
+/// (panel fill/border/shadow, the scanline material, the placard) carries this
+/// SAME pair for the SAME logical card rather than inventing its own — see
+/// [`TextPipeline::card_shape_texture`], the one function that produces it.
+#[derive(Clone, Copy, Default, PartialEq, Debug)]
+pub(in crate::render) struct CardChamfer {
+    pub top: f32,
+    pub bottom: f32,
+}
+
 pub(in crate::render) fn narrowed_chamfer_px(cut_px: f32, card_w: f32, card_h: f32) -> f32 {
     let cap = card_w.min(card_h).max(0.0) * 0.40;
     cut_px.min(cap).max(0.0)
@@ -46,7 +58,7 @@ pub(in crate::render) enum FloatElevation {
 pub(in crate::render) struct FloatPanelModel {
     rect: [f32; 4],
     elevation: FloatElevation,
-    chamfer_px: f32,
+    chamfer: CardChamfer,
     texture: Option<CardHalftone>,
 }
 
@@ -61,7 +73,7 @@ fn set_float_quads(
     height: u32,
     rect: Option<[f32; 4]>,
     elevation: FloatElevation,
-    chamfer_px: f32,
+    chamfer: CardChamfer,
     texture: Option<CardHalftone>,
 ) {
     let one = rect.map(|r| [r]);
@@ -75,7 +87,7 @@ fn set_float_quads(
         height,
         one.as_ref().map(|r| &r[..]).unwrap_or(&[]),
         elevation,
-        chamfer_px,
+        chamfer,
         texture,
     );
 }
@@ -91,12 +103,12 @@ fn set_float_quads_rects(
     height: u32,
     rects: &[[f32; 4]],
     elevation: FloatElevation,
-    chamfer_px: f32,
+    chamfer: CardChamfer,
     texture: Option<CardHalftone>,
 ) {
-    shadow.set_chamfer(chamfer_px);
-    border.set_chamfer(chamfer_px);
-    card.set_chamfer(chamfer_px);
+    shadow.set_chamfer(chamfer.top, chamfer.bottom);
+    border.set_chamfer(chamfer.top, chamfer.bottom);
+    card.set_chamfer(chamfer.top, chamfer.bottom);
     match texture {
         Some(t) => card.set_halftone(t.density, t.angle_rad, t.cell_px, t.ink),
         None => card.set_halftone(0.0, 0.0, 1.0, [0; 4]),
@@ -420,17 +432,16 @@ impl TextPipeline {
     /// race the caret-preview panel / spell popup / search panel. "Summoned,
     /// not furniture" (DESIGN §5).
     ///
-    /// `chamfer_px`/`texture`: `0.0`/`None` for every non-card
+    /// `chamfer`/`texture`: the zero pair/`None` for every non-card
     /// caller (the caret-style preview panel, the search panel, the format
     /// popover — byte-identical); the SPELL POPUP arm of `overlay_draw_card`
     /// is the one caller that ever passes a real chamfer/texture (Quokka's
     /// "small card popup").
-    #[allow(clippy::too_many_arguments)]
     pub(super) fn claim_float_panel(
         &mut self,
         rect: [f32; 4],
         elevation: FloatElevation,
-        chamfer_px: f32,
+        chamfer: CardChamfer,
         texture: Option<CardHalftone>,
     ) {
         debug_assert!(
@@ -440,7 +451,7 @@ impl TextPipeline {
         self.float_panel_model = Some(FloatPanelModel {
             rect,
             elevation,
-            chamfer_px,
+            chamfer,
             texture,
         });
     }
@@ -467,7 +478,7 @@ impl TextPipeline {
             height,
             model.map(|m| m.rect),
             model.map(|m| m.elevation).unwrap_or(FloatElevation::Rimmed),
-            model.map(|m| m.chamfer_px).unwrap_or(0.0),
+            model.map(|m| m.chamfer).unwrap_or_default(),
             model.and_then(|m| m.texture),
         );
     }
@@ -505,7 +516,7 @@ impl TextPipeline {
         } else {
             FloatElevation::Flat
         };
-        let (chamfer_px, texture) = self.card_shape_texture(rects);
+        let (chamfer, texture) = self.card_shape_texture(rects);
         set_float_quads_rects(
             &mut self.panel_shadow,
             &mut self.panel_border,
@@ -516,12 +527,24 @@ impl TextPipeline {
             height,
             rects,
             elevation,
-            chamfer_px,
+            chamfer,
             texture,
         );
     }
 
-    pub(super) fn card_shape_texture(&self, rects: &[[f32; 4]]) -> (f32, Option<CardHalftone>) {
+    /// THE SINGLE CORNER-MASK OWNER: given the rect(s) one logical card will
+    /// draw as this frame, resolves what shape that card's corners take —
+    /// the active world's `CardShape`, narrowed to the smallest of `rects` so
+    /// a tiny popup never lets the cut steal text room. Every console layer
+    /// that draws a card-shaped quad (the panel fill/border/shadow trio, the
+    /// scanline material, the placard) calls THIS for its own rect rather
+    /// than deciding its corner independently — see `overlay_material.rs`'s
+    /// `prepare_overlay_material`, which resolves the placard's shape here
+    /// too instead of hardcoding one.
+    pub(super) fn card_shape_texture(
+        &self,
+        rects: &[[f32; 4]],
+    ) -> (CardChamfer, Option<CardHalftone>) {
         let mut caps = theme::active().render_caps;
         // DEV-ONLY GALLERY PROBE (mirrors `AWL_CJK_FORCE`'s "total no-op unless
         // set" contract — no config key, no CLI flag): `AWL_CARD_CAPS_FORCE`
@@ -544,17 +567,24 @@ impl TextPipeline {
                 _ => {}
             }
         }
-        let chamfer_px = match caps.card_shape {
-            theme::CardShape::Rectangular => 0.0,
-            theme::CardShape::Chamfered { cut_px } => {
-                let physical_cut = cut_px * self.dpi.max(1.0);
-                rects
-                    .iter()
-                    .map(|&[_, _, w, h]| narrowed_chamfer_px(physical_cut, w, h))
-                    .fold(f32::INFINITY, f32::min)
-                    .min(physical_cut)
-                    .max(0.0)
-            }
+        let narrow_half = |cut_px: f32| {
+            let physical_cut = cut_px * self.dpi.max(1.0);
+            rects
+                .iter()
+                .map(|&[_, _, w, h]| narrowed_chamfer_px(physical_cut, w, h))
+                .fold(f32::INFINITY, f32::min)
+                .min(physical_cut)
+                .max(0.0)
+        };
+        let chamfer = match caps.card_shape {
+            theme::CardShape::Rectangular => CardChamfer::default(),
+            theme::CardShape::Chamfered {
+                top_cut_px,
+                bottom_cut_px,
+            } => CardChamfer {
+                top: narrow_half(top_cut_px),
+                bottom: narrow_half(bottom_cut_px),
+            },
         };
         let texture = match caps.card_texture {
             theme::CardTexture::Flat => None,
@@ -569,7 +599,7 @@ impl TextPipeline {
                 ink: theme::card_texture_ink().rgba_bytes(),
             }),
         };
-        (chamfer_px, texture)
+        (chamfer, texture)
     }
 }
 

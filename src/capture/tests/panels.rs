@@ -1362,8 +1362,9 @@ fn popover_card_hugs_the_button_row() {
     // (dpi, zoom, canvas): the byte-stable 1x default, the live retina surface, and
     // retina with a user zoom — the scale sweep the chin regressed across.
     // The fixed capture matrix keeps DPI, zoom, and canvas coupled for readable test labels.
-    #[allow(clippy::type_complexity)]
-    let scales: [(Option<f32>, Option<f32>, Option<(u32, u32)>); 3] = [
+    // (dpi override, zoom override, canvas override).
+    type DpiZoomCanvas = (Option<f32>, Option<f32>, Option<(u32, u32)>);
+    let scales: [DpiZoomCanvas; 3] = [
         (None, None, None),
         (Some(2.0), None, Some((2400, 1600))),
         (Some(2.0), Some(1.2), Some((2400, 1600))),
@@ -1543,9 +1544,9 @@ fn popover_lit_wash_pill_sits_inside_the_card() {
     let buf = Buffer::from_str("# Hello world\n\nThis is some **bold** text.\n");
 
     // The fixed capture matrix keeps DPI and canvas coupled for readable test labels.
-    #[allow(clippy::type_complexity)]
-    let scales: [(Option<f32>, Option<(u32, u32)>); 2] =
-        [(None, None), (Some(2.0), Some((2400, 1600)))];
+    // (dpi override, canvas override).
+    type DpiCanvas = (Option<f32>, Option<(u32, u32)>);
+    let scales: [DpiCanvas; 2] = [(None, None), (Some(2.0), Some((2400, 1600)))];
     for (dpi, canvas) in scales {
         let label = format!("dpi {dpi:?}");
         let mut opts = CaptureOpts {

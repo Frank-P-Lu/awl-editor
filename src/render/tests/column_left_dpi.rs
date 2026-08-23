@@ -315,3 +315,61 @@ fn gutter_visibility_boundary_with_a_rail_is_dpi_invariant() {
     }
     crate::outline::set_outline_on(false);
 }
+
+/// THE IDENTITY LINE'S CLOSE-LANE RESERVATION MUST NOT OUTLIVE ITS OWN
+/// PRESENCE FLOOR. A single-file gutter reserves room for its hover-close
+/// mark before fitting the name (matching a working-set row), so the name's
+/// own usable budget is `avail_chars - close_len`. A margin narrow enough to
+/// clear the gutter's raw `GUTTER_MIN_NAME_CHARS` floor but not narrow
+/// enough MINUS the close lane used to leave the elider only 1-2 real chars
+/// to work with — enough to keep a first/last letter but not the file's own
+/// extension ("i…d" instead of "in….md"). The gutter must go ABSENT there
+/// rather than draw a name that has silently lost its own extension.
+///
+/// Swept across the measure band the boundary sits in, asserted BOTH ways —
+/// a band with only hidden cells would make the presence half vacuous, and a
+/// band with only ever-legible names would never reach the starved gap this
+/// law exists to close.
+#[test]
+fn the_identity_lines_close_lane_reservation_never_leaves_an_extensionless_name() {
+    let _g = crate::testlock::serial();
+    let _page = crate::page::PagePin::snapshot();
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!(
+            "skipping the_identity_lines_close_lane_reservation_never_leaves_an_extensionless_name: \
+             no adapter"
+        );
+        return;
+    };
+    crate::page::set_page_on(true);
+
+    let (mut saw_hidden, mut saw_legible) = (false, false);
+    for measure in 20..=110usize {
+        crate::page::set_measure(measure);
+        p.set_size(1200.0, 800.0);
+        p.set_dpi(1.0);
+        let mut v = view_md("hello world\n", 0, 0);
+        v.gutter_name = "index.md".to_string();
+        v.gutter_project = "awl".to_string();
+        p.set_view(&v);
+        match p.gutter_report() {
+            None => saw_hidden = true,
+            Some((name, ..)) => {
+                assert!(
+                    name.ends_with(".md"),
+                    "measure={measure}: the identity line drew {name:?} — an \
+                     extensionless mangle, not a legible elision or an honest \
+                     absence"
+                );
+                saw_legible = true;
+            }
+        }
+    }
+    assert!(
+        saw_hidden && saw_legible,
+        "the measure sweep must cross both the gutter's presence floor and a \
+         width wide enough to keep the name's extension (hidden={saw_hidden} \
+         legible={saw_legible}) — a sweep that never reaches one side cannot \
+         prove the other"
+    );
+}

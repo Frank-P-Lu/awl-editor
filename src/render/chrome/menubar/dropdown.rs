@@ -52,7 +52,7 @@ impl TextPipeline {
             viewport[1],
             Some(rect),
             super::FloatElevation::Rimmed,
-            0.0,
+            super::CardChamfer::default(),
             None,
         );
 

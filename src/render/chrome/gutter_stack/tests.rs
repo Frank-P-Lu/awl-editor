@@ -249,14 +249,17 @@ fn a_single_file_block_plates_nothing() {
         0,
         "an empty stack must not grow a reserved close lane"
     );
-    // And the block is exactly the two lines it has always been.
+    // And the block is exactly the two lines it has always been, in the same
+    // top-to-bottom order the stack shape uses (`project_heads_only_the_
+    // multi_file_hierarchy` pins the shared ordering; this law's own subject
+    // is that a single file still plates nothing).
     assert_eq!(
         layout
             .lines()
             .iter()
             .map(|(_, kind)| *kind)
             .collect::<Vec<_>>(),
-        vec![gutter::GutterLine::Name, gutter::GutterLine::Project]
+        vec![gutter::GutterLine::Project, gutter::GutterLine::Name]
     );
 }
 
@@ -365,12 +368,27 @@ fn hover_close_keeps_label_geometry_fixed_and_enrols_every_truthful_row() {
     }
 }
 
+/// THE FOLDER HEADING SITS ABOVE THE IDENTITY LINE IN BOTH SHAPES — one file
+/// or a working set of many draw the SAME grammar, so opening a second file
+/// inserts a row beneath what was already drawn rather than resorting the
+/// block.
+///
+/// This replaces an earlier construction guarantee that pinned the one-file
+/// block's bytes against a prior baseline: that guarantee was a side effect of
+/// how the single-file path happened to be built, never a promise anything
+/// read from it, and it held the two shapes to OPPOSITE orders — the heading
+/// sat below the filename with one file, above it with two. The ordering this
+/// law now pins is the real product contract (`GutterLine::lines`'s doc), and
+/// `render::tests::gutter_stack_pixels`'s pixel-level law proves the N=1→N=2
+/// transition is pure row insertion in the rendered block, not just in this
+/// pure-data list.
 #[test]
 fn project_heads_only_the_multi_file_hierarchy() {
     let one = layout_of(&[], false, true, 24);
     assert_eq!(
         one.lines().iter().map(|(_, k)| *k).collect::<Vec<_>>(),
-        vec![gutter::GutterLine::Name, gutter::GutterLine::Project]
+        vec![gutter::GutterLine::Project, gutter::GutterLine::Name],
+        "the one-file block must head with the folder, exactly like the stack does"
     );
 
     let many = layout_of(&rows(0), false, true, 24);
@@ -386,6 +404,35 @@ fn project_heads_only_the_multi_file_hierarchy() {
             .count(),
         3
     );
+
+    // Swept over every shape the block draws (with/without the `changed
+    // elsewhere` affordance, with/without a project to head), the heading is
+    // either absent or first — it never sits after the identity line/rows.
+    for changed in [false, true] {
+        for project in [false, true] {
+            for files in [Vec::new(), rows(0)] {
+                let layout = layout_of(&files, changed, project, 24);
+                let kinds: Vec<_> = layout.lines().iter().map(|(_, k)| *k).collect();
+                if let Some(at) = kinds
+                    .iter()
+                    .position(|k| matches!(k, gutter::GutterLine::Project))
+                {
+                    let identity_at = kinds
+                        .iter()
+                        .position(|k| {
+                            matches!(k, gutter::GutterLine::Name | gutter::GutterLine::File(_))
+                        })
+                        .unwrap_or(usize::MAX);
+                    assert!(
+                        at < identity_at,
+                        "changed={changed} project={project} files_empty={}: project \
+                         at {at} does not precede identity at {identity_at}: {kinds:?}",
+                        files.is_empty()
+                    );
+                }
+            }
+        }
+    }
 }
 
 /// THE CLOSE ZONE IS ONLY AT THE RIGHT EDGE, AND THE REST OF THE ROW STILL

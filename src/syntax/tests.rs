@@ -121,42 +121,49 @@ fn no_lexer_module_writes_its_own_definition_walk() {
 
 #[test]
 fn extension_detection_covers_all_languages() {
-    assert_eq!(Lang::from_extension("rs"), Some(Lang::Rust));
-    assert_eq!(Lang::from_extension("py"), Some(Lang::Python));
-    for e in ["js", "mjs", "cjs", "jsx"] {
-        assert_eq!(Lang::from_extension(e), Some(Lang::JavaScript), "{e}");
+    // A flat extension -> language table, one row per recognized extension,
+    // so every case is the same assertion rather than a fresh branch per
+    // language (several distinct `for e in [...]` loops interleaved with
+    // bare single-extension asserts scored high on branching alone).
+    const CASES: &[(&str, Lang)] = &[
+        ("rs", Lang::Rust),
+        ("py", Lang::Python),
+        ("js", Lang::JavaScript),
+        ("mjs", Lang::JavaScript),
+        ("cjs", Lang::JavaScript),
+        ("jsx", Lang::JavaScript),
+        ("ts", Lang::TypeScript),
+        ("tsx", Lang::TypeScript),
+        ("go", Lang::Go),
+        ("c", Lang::C),
+        ("h", Lang::C),
+        ("cpp", Lang::Cpp),
+        ("cc", Lang::Cpp),
+        ("cxx", Lang::Cpp),
+        ("hpp", Lang::Cpp),
+        ("hh", Lang::Cpp),
+        ("java", Lang::Java),
+        ("cs", Lang::CSharp),
+        ("rb", Lang::Ruby),
+        ("php", Lang::Php),
+        ("swift", Lang::Swift),
+        ("kt", Lang::Kotlin),
+        ("kts", Lang::Kotlin),
+        ("sh", Lang::Bash),
+        ("bash", Lang::Bash),
+        ("zsh", Lang::Bash),
+        ("html", Lang::Html),
+        ("htm", Lang::Html),
+        ("css", Lang::Css),
+        ("json", Lang::Json),
+        ("yaml", Lang::Yaml),
+        ("yml", Lang::Yaml),
+        ("toml", Lang::Toml),
+        ("sql", Lang::Sql),
+    ];
+    for (ext, lang) in CASES {
+        assert_eq!(Lang::from_extension(ext), Some(*lang), "{ext}");
     }
-    for e in ["ts", "tsx"] {
-        assert_eq!(Lang::from_extension(e), Some(Lang::TypeScript), "{e}");
-    }
-    assert_eq!(Lang::from_extension("go"), Some(Lang::Go));
-    for e in ["c", "h"] {
-        assert_eq!(Lang::from_extension(e), Some(Lang::C), "{e}");
-    }
-    for e in ["cpp", "cc", "cxx", "hpp", "hh"] {
-        assert_eq!(Lang::from_extension(e), Some(Lang::Cpp), "{e}");
-    }
-    assert_eq!(Lang::from_extension("java"), Some(Lang::Java));
-    assert_eq!(Lang::from_extension("cs"), Some(Lang::CSharp));
-    assert_eq!(Lang::from_extension("rb"), Some(Lang::Ruby));
-    assert_eq!(Lang::from_extension("php"), Some(Lang::Php));
-    assert_eq!(Lang::from_extension("swift"), Some(Lang::Swift));
-    for e in ["kt", "kts"] {
-        assert_eq!(Lang::from_extension(e), Some(Lang::Kotlin), "{e}");
-    }
-    for e in ["sh", "bash", "zsh"] {
-        assert_eq!(Lang::from_extension(e), Some(Lang::Bash), "{e}");
-    }
-    for e in ["html", "htm"] {
-        assert_eq!(Lang::from_extension(e), Some(Lang::Html), "{e}");
-    }
-    assert_eq!(Lang::from_extension("css"), Some(Lang::Css));
-    assert_eq!(Lang::from_extension("json"), Some(Lang::Json));
-    for e in ["yaml", "yml"] {
-        assert_eq!(Lang::from_extension(e), Some(Lang::Yaml), "{e}");
-    }
-    assert_eq!(Lang::from_extension("toml"), Some(Lang::Toml));
-    assert_eq!(Lang::from_extension("sql"), Some(Lang::Sql));
 }
 
 #[test]

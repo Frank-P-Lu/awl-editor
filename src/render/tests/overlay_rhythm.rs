@@ -77,6 +77,181 @@ fn mid_in_row(rect: [f32; 4], row_h: f32) -> (f32, f32) {
     (rect[0] + rect[2] * 0.5, rect[1] + rect[3].min(row_h) * 0.5)
 }
 
+fn point_inside(card: [f32; 4], q: (f32, f32)) -> bool {
+    q.0 >= card[0] && q.0 <= card[0] + card[2] && q.1 >= card[1] && q.1 <= card[1] + card[3]
+}
+
+/// The TITLE/QUERY region's own law: present exactly when `header_rows > 0`,
+/// drawn inside the card, and hit-testing as the query (never a candidate or
+/// facet). Returns the new `previous_bottom` the next region orders against
+/// (the card top, unchanged, when there is no header row at all).
+fn assert_title_query_region(
+    p: &TextPipeline,
+    kind: crate::overlay::OverlayKind,
+    card: [f32; 4],
+    header_rows: usize,
+) -> f32 {
+    if header_rows == 0 {
+        return card[1];
+    }
+    let title_query = p
+        .overlay_line_glyph_box(0)
+        .unwrap_or_else(|| panic!("{kind:?}: title/query glyphs must draw"));
+    // The deliberate header gap lives in the shaped line's trailing
+    // cell metrics. Probe its glyph-bearing row, not that blank tail.
+    let q = mid_in_row(title_query, p.overlay_lh());
+    assert!(
+        point_inside(card, q),
+        "{kind:?}: title/query glyphs stay inside the card"
+    );
+    assert!(
+        p.over_overlay_query(q.0, q.1),
+        "{kind:?}: a point on the drawn title/query line belongs to the query hit region"
+    );
+    assert_eq!(
+        p.overlay_row_at(q.0, q.1),
+        None,
+        "{kind:?}: title/query glyphs never masquerade as a candidate"
+    );
+    assert_eq!(
+        p.overlay_lens_at(q.0, q.1),
+        None,
+        "{kind:?}: title/query glyphs never masquerade as a facet"
+    );
+    title_query[1] + title_query[3]
+}
+
+/// The FACET STRIP region's own law: present only under
+/// [`SurfaceContract::Faceted`], follows the title/query region, and its
+/// active mark hits its own strip index (never a candidate or the query).
+/// Returns the unchanged `previous_bottom` on every non-faceted kind.
+fn assert_facet_region(
+    p: &TextPipeline,
+    kind: crate::overlay::OverlayKind,
+    contract: SurfaceContract,
+    previous_bottom: f32,
+) -> f32 {
+    if contract != SurfaceContract::Faceted {
+        return previous_bottom;
+    }
+    let facet = p
+        .overlay_line_glyph_box(1)
+        .unwrap_or_else(|| panic!("{kind:?}: facet glyphs must draw"));
+    assert!(
+        facet[1] >= previous_bottom - 0.5,
+        "{kind:?}: facet strip follows the title/query line"
+    );
+    let [ux, _uy, uw, _uh] = p
+        .overlay_theme_underline
+        .expect("the active facet is visibly marked");
+    let facet_point = (ux + uw * 0.5, facet[1] + facet[3] * 0.5);
+    assert_eq!(
+        p.overlay_lens_at(facet_point.0, facet_point.1),
+        Some(1),
+        "{kind:?}: the active drawn facet hits its own strip index"
+    );
+    assert_eq!(
+        p.overlay_row_at(facet_point.0, facet_point.1),
+        None,
+        "{kind:?}: facet glyphs never masquerade as candidates"
+    );
+    assert!(
+        !p.over_overlay_query(facet_point.0, facet_point.1),
+        "{kind:?}: facet glyphs are below the query hit region"
+    );
+    facet[1] + facet[3]
+}
+
+/// The CANDIDATE ROWS region's own law: both seeded candidates follow the
+/// preceding region and hit-test as their own row index (never the facet
+/// strip or the query). Returns the bottom of the last candidate drawn.
+fn assert_candidate_rows(
+    p: &TextPipeline,
+    kind: crate::overlay::OverlayKind,
+    first_candidate_line: usize,
+    previous_bottom: f32,
+) -> f32 {
+    let mut previous_bottom = previous_bottom;
+    for row in 0..2usize {
+        let line = first_candidate_line + row;
+        let candidate = p
+            .overlay_line_glyph_box(line)
+            .unwrap_or_else(|| panic!("{kind:?}: candidate {row} glyphs must draw"));
+        assert!(
+            candidate[1] >= previous_bottom - 0.5,
+            "{kind:?}: candidate {row} follows the preceding semantic region"
+        );
+        let q = mid(candidate);
+        assert_eq!(
+            p.overlay_row_at(q.0, q.1),
+            Some(row),
+            "{kind:?}: drawn candidate {row} hits the same candidate"
+        );
+        assert_eq!(
+            p.overlay_lens_at(q.0, q.1),
+            None,
+            "{kind:?}: candidate {row} never hits the facet strip"
+        );
+        assert!(
+            !p.over_overlay_query(q.0, q.1),
+            "{kind:?}: candidate {row} never hits the query"
+        );
+        previous_bottom = candidate[1] + candidate[3];
+    }
+    previous_bottom
+}
+
+/// The FOOTER region's own law: absent under
+/// [`SurfaceContract::Contextual`]; otherwise follows every candidate, draws
+/// inside the card, hit-tests as inert (neither a candidate, a facet, nor
+/// the query), and never spills past the card's own bottom.
+fn assert_footer_region(
+    p: &TextPipeline,
+    kind: crate::overlay::OverlayKind,
+    contract: SurfaceContract,
+    card: [f32; 4],
+    first_candidate_line: usize,
+    last_candidate_bottom: f32,
+) {
+    if contract == SurfaceContract::Contextual {
+        return;
+    }
+    // `+ 1` for the blank separator row `overlay_hint_gap_rows`
+    // reserves ahead of the hint's own line (`+ 2` is the two candidate
+    // rows `assert_candidate_rows` just drew).
+    let footer_line = first_candidate_line + 2 + 1;
+    let footer = p
+        .overlay_line_glyph_box(footer_line)
+        .unwrap_or_else(|| panic!("{kind:?}: footer glyphs must draw"));
+    assert!(
+        footer[1] >= last_candidate_bottom - 0.5,
+        "{kind:?}: footer follows every candidate"
+    );
+    let q = mid(footer);
+    assert!(
+        point_inside(card, q),
+        "{kind:?}: footer glyphs stay inside the card"
+    );
+    assert_eq!(
+        p.overlay_row_at(q.0, q.1),
+        None,
+        "{kind:?}: inert footer is not candidate-clickable"
+    );
+    assert_eq!(
+        p.overlay_lens_at(q.0, q.1),
+        None,
+        "{kind:?}: inert footer is not a facet"
+    );
+    assert!(
+        !p.over_overlay_query(q.0, q.1),
+        "{kind:?}: inert footer is not the query"
+    );
+    assert!(
+        footer[1] + footer[3] <= card[1] + card[3] + 0.5,
+        "{kind:?}: footer stays above the card bottom"
+    );
+}
+
 /// TITLE/QUERY → optional FACET → CANDIDATES → FOOTER, over every kind.
 /// Points come from the shaped glyph buffer the draw uploads; classification
 /// comes from the production pointer doors. This is intentionally stronger
@@ -124,9 +299,6 @@ fn every_overlay_kind_orders_drawn_title_facet_candidates_footer_and_hits_the_sa
         p.prepare(&device, &queue, w, h).unwrap();
 
         let card = p.overlay_card_rect().expect("every kind draws a card");
-        let inside = |q: (f32, f32)| {
-            q.0 >= card[0] && q.0 <= card[0] + card[2] && q.1 >= card[1] && q.1 <= card[1] + card[3]
-        };
 
         let header_rows = match contract {
             SurfaceContract::Contextual => 0usize,
@@ -138,126 +310,21 @@ fn every_overlay_kind_orders_drawn_title_facet_candidates_footer_and_hits_the_sa
         // line between the query field and the candidates.
         let first_candidate_line = p.overlay_geometry(w).shaped_first_row_line();
 
-        let mut previous_bottom = card[1];
-        if header_rows > 0 {
-            let title_query = p
-                .overlay_line_glyph_box(0)
-                .unwrap_or_else(|| panic!("{kind:?}: title/query glyphs must draw"));
-            // The deliberate header gap lives in the shaped line's trailing
-            // cell metrics. Probe its glyph-bearing row, not that blank tail.
-            let q = mid_in_row(title_query, p.overlay_lh());
-            assert!(
-                inside(q),
-                "{kind:?}: title/query glyphs stay inside the card"
-            );
-            assert!(
-                p.over_overlay_query(q.0, q.1),
-                "{kind:?}: a point on the drawn title/query line belongs to the query hit region"
-            );
-            assert_eq!(
-                p.overlay_row_at(q.0, q.1),
-                None,
-                "{kind:?}: title/query glyphs never masquerade as a candidate"
-            );
-            assert_eq!(
-                p.overlay_lens_at(q.0, q.1),
-                None,
-                "{kind:?}: title/query glyphs never masquerade as a facet"
-            );
-            previous_bottom = title_query[1] + title_query[3];
-        }
-
-        if contract == SurfaceContract::Faceted {
-            let facet = p
-                .overlay_line_glyph_box(1)
-                .unwrap_or_else(|| panic!("{kind:?}: facet glyphs must draw"));
-            assert!(
-                facet[1] >= previous_bottom - 0.5,
-                "{kind:?}: facet strip follows the title/query line"
-            );
-            let [ux, _uy, uw, _uh] = p
-                .overlay_theme_underline
-                .expect("the active facet is visibly marked");
-            let facet_point = (ux + uw * 0.5, facet[1] + facet[3] * 0.5);
-            assert_eq!(
-                p.overlay_lens_at(facet_point.0, facet_point.1),
-                Some(1),
-                "{kind:?}: the active drawn facet hits its own strip index"
-            );
-            assert_eq!(
-                p.overlay_row_at(facet_point.0, facet_point.1),
-                None,
-                "{kind:?}: facet glyphs never masquerade as candidates"
-            );
-            assert!(
-                !p.over_overlay_query(facet_point.0, facet_point.1),
-                "{kind:?}: facet glyphs are below the query hit region"
-            );
-            previous_bottom = facet[1] + facet[3];
-        }
-
-        let mut last_candidate_bottom = previous_bottom;
-        for row in 0..2usize {
-            let line = first_candidate_line + row;
-            let candidate = p
-                .overlay_line_glyph_box(line)
-                .unwrap_or_else(|| panic!("{kind:?}: candidate {row} glyphs must draw"));
-            assert!(
-                candidate[1] >= previous_bottom - 0.5,
-                "{kind:?}: candidate {row} follows the preceding semantic region"
-            );
-            let q = mid(candidate);
-            assert_eq!(
-                p.overlay_row_at(q.0, q.1),
-                Some(row),
-                "{kind:?}: drawn candidate {row} hits the same candidate"
-            );
-            assert_eq!(
-                p.overlay_lens_at(q.0, q.1),
-                None,
-                "{kind:?}: candidate {row} never hits the facet strip"
-            );
-            assert!(
-                !p.over_overlay_query(q.0, q.1),
-                "{kind:?}: candidate {row} never hits the query"
-            );
-            previous_bottom = candidate[1] + candidate[3];
-            last_candidate_bottom = previous_bottom;
-        }
-
-        if contract != SurfaceContract::Contextual {
-            // `+ 1` for the blank separator row `overlay_hint_gap_rows`
-            // reserves ahead of the hint's own line (`+ 2` is the two candidate
-            // rows the loop above just drew).
-            let footer_line = first_candidate_line + 2 + 1;
-            let footer = p
-                .overlay_line_glyph_box(footer_line)
-                .unwrap_or_else(|| panic!("{kind:?}: footer glyphs must draw"));
-            assert!(
-                footer[1] >= last_candidate_bottom - 0.5,
-                "{kind:?}: footer follows every candidate"
-            );
-            let q = mid(footer);
-            assert!(inside(q), "{kind:?}: footer glyphs stay inside the card");
-            assert_eq!(
-                p.overlay_row_at(q.0, q.1),
-                None,
-                "{kind:?}: inert footer is not candidate-clickable"
-            );
-            assert_eq!(
-                p.overlay_lens_at(q.0, q.1),
-                None,
-                "{kind:?}: inert footer is not a facet"
-            );
-            assert!(
-                !p.over_overlay_query(q.0, q.1),
-                "{kind:?}: inert footer is not the query"
-            );
-            assert!(
-                footer[1] + footer[3] <= card[1] + card[3] + 0.5,
-                "{kind:?}: footer stays above the card bottom"
-            );
-        }
+        // TITLE/QUERY → optional FACET → CANDIDATES → FOOTER, each region's
+        // own law asked in drawn order and threading the running
+        // `previous_bottom` the next region orders against.
+        let previous_bottom = assert_title_query_region(&p, kind, card, header_rows);
+        let previous_bottom = assert_facet_region(&p, kind, contract, previous_bottom);
+        let last_candidate_bottom =
+            assert_candidate_rows(&p, kind, first_candidate_line, previous_bottom);
+        assert_footer_region(
+            &p,
+            kind,
+            contract,
+            card,
+            first_candidate_line,
+            last_candidate_bottom,
+        );
     }
 
     theme::set_active(theme::DEFAULT_THEME);

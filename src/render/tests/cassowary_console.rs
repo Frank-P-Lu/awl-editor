@@ -49,8 +49,12 @@ fn cassowary_authors_a_submerged_placard_and_chamfered_console() {
     );
     assert_eq!(
         caps.card_shape,
-        CardShape::Chamfered { cut_px: 11.0 },
-        "the console keeps the shared chamfered card geometry"
+        CardShape::Chamfered {
+            top_cut_px: 0.0,
+            bottom_cut_px: 11.0,
+        },
+        "the console's docked seam edge (top) is square; the free edge (bottom) \
+         keeps the shared chamfer"
     );
 }
 
@@ -622,5 +626,153 @@ fn static_material_enrolls_the_complete_overlay_surface_roster() {
         fingerprints.len() >= 4,
         "the sweep must reach distinct production geometries, not replay one \
          fake console view: {fingerprints:?}"
+    );
+}
+
+fn px_at(pixels: &[[u8; 4]], w: i64, x: i64, y: i64) -> [u8; 4] {
+    pixels[(y * w + x) as usize]
+}
+
+/// THE CORNER LAW: the console's docked seam edge (top, where the facet strip
+/// lives) is a SQUARE corner — sampled inward it must read as card fill, not
+/// page ground — while the free bottom edge keeps the shared 45° cut, reading
+/// the SAME discriminator `card_texture_shape.rs` proves against Quokka
+/// (`ex + ey < cut` lands outside the fill). Both halves are asserted, so a
+/// regression toward EITHER "still chamfered on top" or "no longer chamfered
+/// on bottom" goes red — a presence floor paired with an absence floor, not
+/// one alone. Swept across dpi so a chrome-padding-class bug (CLAUDE.md's
+/// `--capture-dpi 1` tripwire) can't hide at the one scale a capture defaults to.
+#[test]
+fn cassowary_console_top_square_bottom_chamfered_across_dpi() {
+    let _guard = crate::testlock::serial();
+    let _world = theme::WorldPin::world("Cassowary").expect("Cassowary ships");
+    let card_fill = cassowary().base_300.rgba_bytes();
+    let near = |a: [u8; 4], b: [u8; 4]| (0..3).all(|k| (a[k] as i16 - b[k] as i16).abs() <= 4);
+    let mut cells = 0;
+    for dpi in [1.0f32, 2.0f32] {
+        let (logical_w, logical_h) = (1200u32, 800u32);
+        let (w, h) = (
+            (logical_w as f32 * dpi) as u32,
+            (logical_h as f32 * dpi) as u32,
+        );
+        let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
+            eprintln!("skipping cassowary corner-shape law: no wgpu adapter");
+            return;
+        };
+        p.set_dpi(dpi);
+        p.set_view(&console_view(1));
+        p.prepare(&device, &queue, w, h).unwrap();
+        let [cx, cy, _cw, ch] = p.overlay_card_rect().expect("console card is open");
+        let pixels = super::pixeldiff::render_frame(&mut p, &device, &queue, w, h);
+
+        // 5 LOGICAL px inward on both axes: well inside a chamfer's cut
+        // (5+5=10 < the authored 11px) and trivially inside a square corner.
+        let inset = (5.0 * dpi) as i64;
+        let top_left = px_at(&pixels, w as i64, cx as i64 + inset, cy as i64 + inset);
+        assert!(
+            near(top_left, card_fill),
+            "{dpi}x: the docked seam's top-left corner, {inset}px inward, must be \
+             SQUARE (card fill), got {top_left:?} vs fill {card_fill:?}"
+        );
+        let bottom_left = px_at(
+            &pixels,
+            w as i64,
+            cx as i64 + inset,
+            (cy + ch) as i64 - inset,
+        );
+        assert!(
+            !near(bottom_left, card_fill),
+            "{dpi}x: the free bottom-left corner, {inset}px inward, must still show \
+             the authored 45° cut (page ground), got {bottom_left:?} which reads as \
+             card fill {card_fill:?}"
+        );
+        cells += 1;
+    }
+    assert_eq!(cells, 2, "1x/2x dpi sweep is enrolled");
+}
+
+/// THE ONE-OWNER LAW: every console layer that draws a card-shaped quad this
+/// frame carries the SAME chamfer pair `card_shape_texture` resolves for its
+/// OWN rect — never a per-layer opinion invented independently (the bug this
+/// round names: `overlay_material.rs` once hardcoded the placard's chamfer to
+/// `0.0` regardless of the card's real shape). Derived from the roster
+/// (`CardShape::Chamfered` adopters), not pinned to Cassowary by name, so a
+/// future adopter is swept the moment it authors the shape.
+#[test]
+fn every_console_layer_shares_the_corner_mask_owner() {
+    let _guard = crate::testlock::serial();
+    let adopters: Vec<&str> = THEMES
+        .iter()
+        .filter(|t| matches!(t.render_caps.card_shape, CardShape::Chamfered { .. }))
+        .map(|t| t.name)
+        .collect();
+    assert!(
+        adopters.len() >= 2,
+        "the corner-mask law needs at least two adopters to prove it isn't \
+         reading one world's own accidental agreement: {adopters:?}"
+    );
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
+        eprintln!("skipping corner-mask ownership law: no wgpu adapter");
+        return;
+    };
+    let mut checked_panel = 0;
+    let mut checked_scanlines = 0;
+    let mut checked_placard = 0;
+    for name in adopters {
+        let _world = theme::WorldPin::world(name).expect("adopter ships");
+        p.set_view(&console_view(1));
+        p.prepare(&device, &queue, 1200, 800).unwrap();
+        let card = p.overlay_card_rect().expect("card is open");
+        let (expected, _) = p.card_shape_texture(&[card]);
+        assert_eq!(
+            p.panel_card.chamfer(),
+            (expected.top, expected.bottom),
+            "{name}: panel fill disagrees with the corner-mask owner"
+        );
+        assert_eq!(
+            p.panel_shadow.chamfer(),
+            (expected.top, expected.bottom),
+            "{name}: panel shadow disagrees with the corner-mask owner"
+        );
+        assert_eq!(
+            p.panel_border.chamfer(),
+            (expected.top, expected.bottom),
+            "{name}: panel border disagrees with the corner-mask owner"
+        );
+        checked_panel += 1;
+
+        if p.panel_material.instance_count() > 0 {
+            assert_eq!(
+                p.panel_material.chamfer(),
+                (expected.top, expected.bottom),
+                "{name}: scanline material disagrees with the corner-mask owner"
+            );
+            checked_scanlines += 1;
+        }
+        if p.placard_material.instance_count() > 0 {
+            let geom = p.overlay_geometry(1200);
+            let placard_rect = p
+                .overlay_shape_placard(&geom)
+                .map(|(x, y, w, h)| [x, y, w, h])
+                .expect("placard_material drew an instance so its rect exists");
+            let (placard_expected, _) = p.card_shape_texture(&[placard_rect]);
+            assert_eq!(
+                p.placard_material.chamfer(),
+                (placard_expected.top, placard_expected.bottom),
+                "{name}: placard disagrees with the corner-mask owner resolved \
+                 against its OWN rect"
+            );
+            checked_placard += 1;
+        }
+    }
+    assert_eq!(checked_panel, 2, "both adopters carry a card-backed panel");
+    assert!(
+        checked_scanlines >= 1,
+        "no adopter enrolled the scanline material arm"
+    );
+    assert!(
+        checked_placard >= 1,
+        "no adopter enrolled the placard arm — the bug this law exists to catch \
+         can only hide if this stays zero"
     );
 }

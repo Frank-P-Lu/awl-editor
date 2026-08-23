@@ -281,6 +281,72 @@ fn oracle_full_vertical_walk_reaches_extremes_fixture() {
     }
 }
 
+/// One [`check_vertical_step`] call's inputs, bundled because `down: bool`
+/// otherwise sits among several other same-typed adjacent fields
+/// (`total`/`line`/`col`/`g0`/`landed_g` are all plain integers) at the one
+/// call site inside a hot sweep loop.
+struct VerticalStepCheck<'a> {
+    bad: &'a mut Vec<String>,
+    label: &'a str,
+    /// `true` checks the DOWN step's law (strictly descending, or a fixed
+    /// point only at the document's last row); `false` mirrors it for UP.
+    down: bool,
+    total: usize,
+    line: usize,
+    col: usize,
+    gx: f32,
+    /// The flattened visual-row index of `(line, col)` before the step.
+    g0: usize,
+    /// Where the step landed, as `(line, col)`.
+    landed: (usize, usize),
+    /// The flattened visual-row index of `landed`.
+    landed_g: usize,
+}
+
+/// The one-step monotonicity law `assert_vertical_sweep_clean`'s per-cell
+/// sweep checks in both directions: stepping `down` must land on a STRICTLY
+/// LATER flattened row, or be a legal fixed point at the document's very
+/// last row; stepping up mirrors that at row 0. Both directions shared this
+/// exact shape before under duplicated DOWN/UP blocks — the two could drift
+/// (a fix to one direction's threshold silently leaving the other stale, the
+/// bug class the sweep itself exists to catch one level up).
+fn check_vertical_step(c: VerticalStepCheck) {
+    let dir = if c.down { "DOWN" } else { "UP" };
+    if c.landed == (c.line, c.col) {
+        let at_edge = if c.down {
+            c.g0 + 1 == c.total
+        } else {
+            c.g0 == 0
+        };
+        if !at_edge {
+            let (line, col, gx) = (c.line, c.col, c.gx);
+            c.bad.push(format!(
+                "{}: {dir} fixed point line={line} col={col} gx={gx:.1}",
+                c.label
+            ));
+        }
+        return;
+    }
+    let wrong_way = if c.down {
+        c.landed_g <= c.g0
+    } else {
+        c.landed_g >= c.g0
+    };
+    if wrong_way {
+        let verb = if c.down {
+            "non-descending"
+        } else {
+            "non-ascending"
+        };
+        let (line, col, gx, g0, landed, landed_g) =
+            (c.line, c.col, c.gx, c.g0, c.landed, c.landed_g);
+        c.bad.push(format!(
+            "{}: {dir} {verb} line={line} col={col} gx={gx:.1} g{g0} -> ({},{}) g{landed_g}",
+            c.label, landed.0, landed.1
+        ));
+    }
+}
+
 /// The vertical-motion sweep body shared by the fixture width-grid test and
 /// the bullet+bold fixture test: for the CURRENTLY-shaped document, assert that
 /// ONE `visual_line_down` / `visual_line_up` step from EVERY (line, col, goal_x)
@@ -342,42 +408,27 @@ fn assert_vertical_sweep_clean(p: &TextPipeline, text: &str, label: &str, walks_
                 .or_else(|| line.checked_sub(1).and_then(|l| all_rows[l].last()));
             for &col in cols.iter().take(if cols[0] == cols[1] { 1 } else { 2 }) {
                 let g0 = gvrow(line, col);
-                if let Some(t) = down_target {
+                for (down, target) in [(true, down_target), (false, up_target)] {
+                    let Some(t) = target else { continue };
                     for gx in gxs_for(t) {
-                        let (dl, dc) =
-                            p.visual_line_down(line, col, gx, crate::caret::Affinity::Downstream);
-                        if (dl, dc) == (line, col) {
-                            if g0 + 1 != total {
-                                bad.push(format!(
-                                    "{label}: DOWN fixed point line={line} col={col} gx={gx:.1}"
-                                ));
-                            }
-                        } else if gvrow(dl, dc) <= g0 {
-                            bad.push(format!(
-                                "{label}: DOWN non-descending line={line} col={col} \
-                                 gx={gx:.1} g{g0} -> ({dl},{dc}) g{}",
-                                gvrow(dl, dc)
-                            ));
-                        }
-                    }
-                }
-                if let Some(t) = up_target {
-                    for gx in gxs_for(t) {
-                        let (ul, uc) =
-                            p.visual_line_up(line, col, gx, crate::caret::Affinity::Downstream);
-                        if (ul, uc) == (line, col) {
-                            if g0 != 0 {
-                                bad.push(format!(
-                                    "{label}: UP fixed point line={line} col={col} gx={gx:.1}"
-                                ));
-                            }
-                        } else if gvrow(ul, uc) >= g0 {
-                            bad.push(format!(
-                                "{label}: UP non-ascending line={line} col={col} \
-                                 gx={gx:.1} g{g0} -> ({ul},{uc}) g{}",
-                                gvrow(ul, uc)
-                            ));
-                        }
+                        let landed = if down {
+                            p.visual_line_down(line, col, gx, crate::caret::Affinity::Downstream)
+                        } else {
+                            p.visual_line_up(line, col, gx, crate::caret::Affinity::Downstream)
+                        };
+                        let landed_g = gvrow(landed.0, landed.1);
+                        check_vertical_step(VerticalStepCheck {
+                            bad: &mut bad,
+                            label,
+                            down,
+                            total,
+                            line,
+                            col,
+                            gx,
+                            g0,
+                            landed,
+                            landed_g,
+                        });
                     }
                 }
             }

@@ -1,9 +1,9 @@
 //! PAGE-MODE ORIENTATION GUTTER chrome — the quiet bottom-left stacked label
-//! (filename over project), right-aligned to hug the writing column from the
-//! margin — widening into the working set's rows when more than one file is open
-//! ([`super::gutter_stack`]) — plus its sidecar report. Inherent methods on
-//! [`super::TextPipeline`]. The hidden arm and the doc-dimming predicate live in
-//! [`super::gutter_hidden`]. See [`super`].
+//! (the folder heading over the filename), right-aligned to hug the writing
+//! column from the margin — widening into the working set's rows when more
+//! than one file is open ([`super::gutter_stack`]) — plus its sidecar report.
+//! Inherent methods on [`super::TextPipeline`]. The hidden arm and the
+//! doc-dimming predicate live in [`super::gutter_hidden`]. See [`super`].
 
 use super::*;
 
@@ -41,28 +41,29 @@ impl GutterLayout {
     /// the block's shape.
     ///
     /// The identity line is EITHER the lone filename or the working set's rows,
-    /// never both: with one file open `files` is empty and this returns exactly
-    /// the list it always has. Every consumer — the drawn spans, the frost
-    /// seeds, the carve height, the hit-test — reads this one list, so widening
-    /// the identity moves all four together and none of them re-derives the
-    /// block's height from a second count.
+    /// never both: with one file open `files` is empty and this draws the
+    /// filename where the working set's rows would otherwise start. The folder
+    /// heading sits ABOVE the identity line in BOTH shapes — one grammar, so
+    /// opening a second file inserts a row below what was already drawn rather
+    /// than resorting the block (`render/tests`' ordering-consistency law pins
+    /// this). Every consumer — the drawn spans, the frost seeds, the carve
+    /// height, the hit-test — reads this one list, so widening the identity
+    /// moves all four together and none of them re-derives the block's height
+    /// from a second count.
     pub(super) fn lines(&self) -> Vec<(&str, GutterLine)> {
         let mut out = Vec::with_capacity(3);
         if !self.changed.is_empty() {
             out.push((self.changed.as_str(), GutterLine::Changed));
         }
+        if !self.project.is_empty() {
+            out.push((self.project.as_str(), GutterLine::Project));
+        }
         if self.files.is_empty() {
             out.push((self.name.as_str(), GutterLine::Name));
         } else {
-            if !self.project.is_empty() {
-                out.push((self.project.as_str(), GutterLine::Project));
-            }
             for (at, line) in self.files.iter().enumerate() {
                 out.push((line.text.as_str(), GutterLine::File(at)));
             }
-        }
-        if !self.project.is_empty() && self.files.is_empty() {
-            out.push((self.project.as_str(), GutterLine::Project));
         }
         out
     }
@@ -114,8 +115,27 @@ impl TextPipeline {
         } else {
             0
         };
+        // The identity line's own budget must still clear the presence floor
+        // AFTER its close-lane reservation, not before — reserving room for a
+        // mark that then leaves too little to keep the name's extension
+        // legible ("i…d" instead of "in….md") is worse than not drawing the
+        // gutter at all ("better absent than confetti", this fn's own doc).
+        let close_len = gutter_stack::CLOSE_MARK_TEXT.chars().count();
+        if avail_chars.saturating_sub(close_len) < rowlayout::GUTTER_MIN_NAME_CHARS {
+            return None;
+        }
         let plan = rowlayout::gutter_plan(avail_chars)?;
-        let name = rowlayout::fit_primary(&self.gutter_name, plan.name_budget);
+        // Reserves the SAME trailing close lane a working-set file row does
+        // (`gutter_stack::fit_rows`) — the single-file identity carries the
+        // same close mark, so it needs the same room held for it before
+        // fitting, not after, or a long name would consume the budget the mark
+        // needs and wrap onto a second visual line the way an unreserved stack
+        // row once did.
+        let name = rowlayout::fit_primary(
+            &self.gutter_name,
+            plan.name_budget
+                .saturating_sub(gutter_stack::CLOSE_MARK_TEXT.chars().count()),
+        );
         let project = if plan.show_project && !self.gutter_project.is_empty() {
             rowlayout::fit_primary(&self.gutter_project, plan.project_budget)
         } else {
@@ -144,11 +164,12 @@ impl TextPipeline {
     }
 
     /// Shape + upload the page-mode ORIENTATION GUTTER: a quiet stacked label in the
-    /// BOTTOM-LEFT margin — the filename (LABEL size × MUTED ink) over the project (LABEL ×
-    /// FAINT ink), RIGHT-aligned so it hugs the writing column from the margin and
-    /// anchored to the BOTTOM of the left margin. This relocates orientation OUT of the
-    /// writing column into the side (DESIGN §4: the faintest inks at the smallest size,
-    /// present when you look, invisible when you don't). HIDDEN edge-to-edge / with no
+    /// BOTTOM-LEFT margin — the folder heading (LABEL size × MUTED ink) over the
+    /// filename or working-set stack it qualifies, RIGHT-aligned so it hugs the
+    /// writing column from the margin and anchored to the BOTTOM of the left
+    /// margin. This relocates orientation OUT of the writing column into the
+    /// side (DESIGN §4: the faintest inks at the smallest size, present when you
+    /// look, invisible when you don't). HIDDEN edge-to-edge / with no
     /// name (parked off-screen → byte-identical).
     pub(in crate::render) fn prepare_gutter(
         &mut self,
@@ -163,7 +184,6 @@ impl TextPipeline {
         let m = self.metrics;
         let label = crate::markdown::type_scale::LABEL;
         let muted = theme::muted().to_glyphon();
-        let faint = theme::faint().to_glyphon();
         // Scale font size and line height together so the standalone rows nest tightly.
         self.gutter_buffer.set_metrics(
             &mut self.font_system,
@@ -190,25 +210,20 @@ impl TextPipeline {
         let lines = layout.lines().len();
         let name = layout.name.clone();
         let project = layout.project.clone();
-        // `changed elsewhere` (base content) over filename (muted) over project
-        // (faint) — a three-step VALUE ladder with the state at the top of it,
-        // since that is the one line here that is news. Each lower line carries
-        // its own leading newline so the block stacks; an absent line contributes
-        // nothing at all, so an ordinary document's gutter is byte-identical to
-        // what it drew before this existed.
+        // `changed elsewhere` (base content) over the folder heading (muted)
+        // over the identity line — a VALUE ladder with the state at the top of
+        // it, since that is the one line here that is news. Each lower line
+        // carries its own leading newline so the block stacks; an absent line
+        // contributes nothing at all, so an ordinary document's gutter is
+        // byte-identical to what it drew before this existed.
         let changed_line = if layout.changed.is_empty() {
             String::new()
         } else {
             format!("{}\n", layout.changed)
         };
-        let proj_line = if project.is_empty() {
-            String::new()
-        } else {
-            format!("\n{project}")
-        };
         // The WORKING SET's spans, already inked — empty for a single file, which
-        // is what sends the identity line below down its original path rather
-        // than through a stack of one.
+        // is what sends the identity line below down its own close-marked path
+        // rather than through a stack of one.
         let stack_ink = gutter_stack::stack_spans(&layout.files, self.gutter_stack_hover);
         let mut spans: Vec<(&str, Attrs)> = Vec::new();
         if !changed_line.is_empty() {
@@ -217,19 +232,35 @@ impl TextPipeline {
                 base.clone().color(theme::base_content().to_glyphon()),
             ));
         }
+        // THE FOLDER HEADING SITS ABOVE THE IDENTITY LINE ALWAYS — the lone
+        // filename and the working set's stack share this one heading step
+        // (`GutterLayout::lines`'s own ordering), so the two shapes read the
+        // same grammar instead of each spelling "where is this" its own way.
+        if !project.is_empty() {
+            spans.push((project.as_str(), base.clone().color(muted)));
+            spans.push(("\n", base.clone().color(muted)));
+        }
         if stack_ink.is_empty() {
+            // The single-file identity rides the SAME close-mark door a
+            // working-set row does: `gutter_layout` already left room for the
+            // mark in `name`'s own budget, and the mark reveals under the same
+            // hover hit this line now enrols in through `GutterLine::Name`
+            // (`gutter_hit::stack_hit_from_plan`) — one mechanism, not a
+            // single-file copy of it.
             spans.push((name.as_str(), base.clone().color(muted)));
+            let revealed = self.gutter_stack_hover.is_some_and(|hit| hit.row == 0);
+            spans.push((
+                gutter_stack::CLOSE_MARK_TEXT,
+                base.clone().color(if revealed {
+                    muted
+                } else {
+                    glyphon::Color::rgba(0, 0, 0, 0)
+                }),
+            ));
         } else {
-            if !project.is_empty() {
-                spans.push((project.as_str(), base.clone().color(muted)));
-                spans.push(("\n", base.clone().color(muted)));
-            }
             for (text, ink) in &stack_ink {
                 spans.push((text.as_str(), base.clone().color(*ink)));
             }
-        }
-        if !proj_line.is_empty() && stack_ink.is_empty() {
-            spans.push((proj_line.as_str(), base.clone().color(faint)));
         }
         self.gutter_buffer.set_size(
             &mut self.font_system,
