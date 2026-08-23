@@ -81,6 +81,12 @@ impl App {
     /// A close targets the NAMED buffer: an inactive row closes its own file
     /// without first activating it, so the reader's document does not change
     /// underneath a click aimed at a different one.
+    ///
+    /// A SINGLE-FILE margin resolves through this exact door too
+    /// (`TextPipeline::gutter_stack_hit` answers `row: 0` for the identity
+    /// line's own close zone) — closing it is the pointer's route to the same
+    /// zero-document start surface ⌘W already reaches, since the sole open
+    /// file is always the active one.
     pub(in crate::app) fn gutter_stack_click(&mut self) -> bool {
         let (px, py) = self.input.pointer.cursor_px;
         let hit = self

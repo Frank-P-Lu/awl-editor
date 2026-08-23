@@ -202,3 +202,318 @@ fn the_active_row_reads_forward_of_dimmed_siblings_on_every_world() {
         theme::THEMES.len()
     );
 }
+
+/// Groups raw frost seeds into rows by `yc`, the same clustering
+/// [`row_bands`] does, but keeps each row's OWN ink extent instead of folding
+/// every row to the block's single widest one. Position alone cannot tell
+/// WHICH row's content sits at a given rank — two same-height rows that
+/// swapped which text they draw are geometrically identical to `row_bands` —
+/// so this reads the row's WIDTH as its content fingerprint: `"notes"` and
+/// `"opening.md"` are different lengths, and this test keeps them that way at
+/// every N, so a swap between them is a swap in this list too.
+fn row_ink_widths(seeds: &[[f32; 4]]) -> Vec<f32> {
+    let mut clusters: Vec<(f32, f32, f32)> = Vec::new();
+    for s in seeds {
+        match clusters.iter_mut().find(|c| (c.0 - s[2]).abs() < 0.5) {
+            Some(c) => {
+                c.1 = c.1.min(s[0]);
+                c.2 = c.2.max(s[1]);
+            }
+            None => clusters.push((s[2], s[0], s[1])),
+        }
+    }
+    clusters.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+    clusters.into_iter().map(|(_, x0, x1)| x1 - x0).collect()
+}
+
+/// **N=1 → N=2 → N=3 IS PURE ROW INSERTION: the folder heading and the file
+/// already on screen keep the same RANK and the same CONTENT at that rank as
+/// the block widens — a new row only ever appends below, never between or
+/// above, and never by swapping what an existing rank draws.**
+///
+/// The block is BOTTOM-anchored (`plan::plan_gutter_stack`'s `top = canvas_h -
+/// block_h - bottom_inset`), so a grown block's rows all shift up in absolute
+/// canvas Y as a unit — that shift is unrelated to this law and would happen
+/// even if a row were inserted correctly, so position alone is graded
+/// RELATIVELY (gap and shift-delta between the two known ranks), never
+/// against an absolute Y. And position alone is not enough on its own: two
+/// adjacent same-height rows that swapped content — the exact bug this
+/// block's ordering was fixed for — look identical to a position-only check,
+/// since both rows still occupy rank 0 and rank 1. So this also fingerprints
+/// each rank by its own ink WIDTH ([`row_ink_widths`]), keeping the heading
+/// (`"notes"`, short) and the pre-existing row (`"opening.md"`, long) fixed
+/// strings at every N specifically so a swap changes which width lands at
+/// which rank. `gutter_stack::tests::project_heads_only_the_multi_file_hierarchy`
+/// pins the same claim in pure data; this asks it of the real drawn geometry,
+/// off the same production door ([`TextPipeline::gutter_frost_seeds`]) the law
+/// above this one already trusts. Swept over the whole theme roster because
+/// the row planner reads theme-independent geometry, and this PROVES that
+/// rather than assuming it.
+#[test]
+fn opening_a_second_file_inserts_a_row_without_moving_the_first_on_every_world() {
+    let _g = crate::testlock::serial();
+    let Some((_device, _queue, mut p)) = headless_dqp(W as f32, H as f32) else {
+        eprintln!(
+            "skipping opening_a_second_file_inserts_a_row_without_moving_the_first_on_every_world: \
+             no wgpu adapter"
+        );
+        return;
+    };
+    crate::page::set_page_on(true);
+    p.set_dpi(1.0);
+    let _pin = theme::WorldPin::snapshot();
+
+    // `roster[0]` is the file already open at N=1; each larger N opens the
+    // NEXT roster member on top, so the newest file is always the active one
+    // and `roster[0]`'s own row never has a reason to reorder. The project
+    // name is deliberately much shorter than every roster member, so the two
+    // known ranks (heading, pre-existing row) never have coincidentally equal
+    // ink widths.
+    let roster = ["opening.md", "second.md", "third.md"];
+    let view_for = |n: usize| -> ViewState {
+        let mut v = view(
+            "# A document\n\nSome prose to give the page a body.\n",
+            0,
+            0,
+        );
+        v.zoom = 1.0;
+        v.gutter_project = "notes".to_string();
+        if n == 1 {
+            // The one-file shape: no working set at all, just the identity line.
+            v.gutter_name = roster[0].to_string();
+        } else {
+            v.gutter_name = roster[n - 1].to_string();
+            v.gutter_files = roster[..n]
+                .iter()
+                .enumerate()
+                .map(|(at, leaf)| StackRow {
+                    leaf: leaf.to_string(),
+                    parent: String::new(),
+                    active: at == n - 1,
+                    kind: crate::workingset::StackRowKind::File,
+                    prototype_hovered: false,
+                })
+                .collect();
+        }
+        v
+    };
+
+    let mut judged = Vec::new();
+    for (index, world) in theme::THEMES.iter().enumerate() {
+        theme::set_active(index);
+        let world = world.name;
+
+        let seeds_by_n: Vec<Vec<[f32; 4]>> = [1usize, 2, 3]
+            .into_iter()
+            .map(|n| {
+                p.set_view(&view_for(n));
+                let seeds = p.gutter_frost_seeds(H);
+                assert_eq!(
+                    row_bands(&seeds).len(),
+                    n + 1,
+                    "{world:?}: N={n} must draw the folder heading over {n} identity row(s)"
+                );
+                seeds
+            })
+            .collect();
+        let bands_by_n: Vec<Vec<[f32; 4]>> = seeds_by_n.iter().map(|s| row_bands(s)).collect();
+        let widths_by_n: Vec<Vec<f32>> = seeds_by_n.iter().map(|s| row_ink_widths(s)).collect();
+        assert_pure_row_insertion(world, &bands_by_n, &widths_by_n, roster[0]);
+        judged.push(world);
+    }
+    assert_eq!(
+        judged.len(),
+        theme::THEMES.len(),
+        "only {} of {} worlds were judged: {judged:?}",
+        judged.len(),
+        theme::THEMES.len()
+    );
+}
+
+/// The RANK/CONTENT/POSITION invariants one world's N=1/2/3 fixtures must all
+/// satisfy — split out from the sweep above purely to keep that loop body
+/// short; see its own doc for what each assertion proves and why.
+fn assert_pure_row_insertion(
+    world: &str,
+    bands_by_n: &[Vec<[f32; 4]>],
+    widths_by_n: &[Vec<f32>],
+    pre_existing: &str,
+) {
+    // The two known ranks read meaningfully different widths — the fixture's
+    // own precondition, so a passing law below is discriminating content and
+    // not just comparing two numbers that happen to agree.
+    assert!(
+        widths_by_n[0][1] > widths_by_n[0][0] * 1.3,
+        "{world:?}: the fixture's rank-1 row ({:.1}px, {pre_existing:?}) is not meaningfully \
+         wider than rank-0 ({:.1}px, \"notes\") — a swap between them would go undetected",
+        widths_by_n[0][1],
+        widths_by_n[0][0]
+    );
+
+    for n in [1, 2] {
+        // RANK 0 stays the folder heading's own width, and RANK 1 stays the
+        // pre-existing row's own width — a swap would show up here as rank 0
+        // suddenly reading the wide row's width (or vice versa).
+        for rank in [0usize, 1] {
+            let base = widths_by_n[0][rank];
+            let wider = widths_by_n[n][rank];
+            assert!(
+                (base - wider).abs() < 0.5,
+                "{world:?}: rank {rank}'s ink width was {base:.1}px at N=1 and {wider:.1}px at \
+                 N={} — a different row's content landed at this rank",
+                n + 1
+            );
+        }
+        // RELATIVE position: the gap between the two known ranks stays one
+        // row pitch, and both ranks shift by the SAME delta as the block
+        // widens (a rigid shift the bottom anchor causes, never a reflow of
+        // one rank independent of the other).
+        let gap = |bands: &[[f32; 4]]| bands[1][1] - bands[0][1];
+        assert!(
+            (gap(&bands_by_n[0]) - gap(&bands_by_n[n])).abs() < 0.01,
+            "{world:?}: the gap between rank 0 and rank 1 was {} at N=1 and {} at N={} — a row \
+             was inserted between them instead of appended below",
+            gap(&bands_by_n[0]),
+            gap(&bands_by_n[n]),
+            n + 1
+        );
+        let heading_delta = bands_by_n[0][0][1] - bands_by_n[n][0][1];
+        let identity_delta = bands_by_n[0][1][1] - bands_by_n[n][1][1];
+        assert!(
+            (heading_delta - identity_delta).abs() < 0.01,
+            "{world:?}: rank 0 shifted by {heading_delta} but rank 1 shifted by \
+             {identity_delta} going from N=1 to N={} — the pair no longer moves as a rigid unit",
+            n + 1
+        );
+    }
+}
+
+/// The right edge of the row `TextPipeline::gutter_stack_hit` accepts at
+/// `y` — found by asking that EXACT production door rather than re-deriving
+/// `avail`/pad arithmetic by hand, so this cannot drift from what a real
+/// pointer would land on. Scans downward from `upper` because the row's
+/// frost-seed skirt overshoots `avail` by its own pad, which makes the ink
+/// geometry an unreliable proxy for the hit-tested box.
+fn find_row_right_edge(p: &TextPipeline, upper: f32, y: f32, h: u32) -> f32 {
+    let mut x = upper;
+    while x > 0.0 && p.gutter_stack_hit(x, y, h).is_none() {
+        x -= 1.0;
+    }
+    x
+}
+
+/// **THE SINGLE-FILE ROW'S × MARK ACTUALLY REPAINTS ON HOVER — REAL PIXELS,
+/// NOT JUST A HIT-TEST ANSWER.**
+///
+/// Wagtail's own tripwire (CLAUDE.md) is exactly the failure mode this closes:
+/// a sidecar/geometry law can report `selected_index` (here, a hit resolving
+/// to `row: 0` with `is_close() == true`) while the thing it names never
+/// became visible pixels. `gutter_hit::tests` already proves the GEOMETRY
+/// resolves; this proves the RENDER actually reveals — off the same
+/// `render_frame`/`dist` doors the active-row law above uses — and that the
+/// label's own ink stays untouched (the stack's own hover law: a reveal
+/// changes ink only, never advances the shaped label).
+#[test]
+fn the_lone_row_close_mark_reveals_on_real_pixels_only_over_the_hovered_zone() {
+    let _g = crate::testlock::serial();
+    let Some((device, queue, mut p)) = headless_dqp(W as f32, H as f32) else {
+        eprintln!(
+            "skipping the_lone_row_close_mark_reveals_on_real_pixels_only_over_the_hovered_zone: \
+             no wgpu adapter"
+        );
+        return;
+    };
+    crate::page::set_page_on(true);
+    p.set_dpi(1.0);
+    let _pin = theme::WorldPin::snapshot();
+    theme::set_active_by_name("Saltpan").expect("Saltpan is in the world roster");
+
+    let mut v = view(
+        "# A document\n\nSome prose to give the page a body.\n",
+        0,
+        0,
+    );
+    v.zoom = 1.0;
+    v.gutter_project = "notes".to_string();
+    v.gutter_name = "opening.md".to_string();
+    p.set_view(&v);
+
+    let bands = row_bands(&p.gutter_frost_seeds(H));
+    assert_eq!(
+        bands.len(),
+        2,
+        "N=1 must draw the folder heading over the identity line"
+    );
+    let identity = bands[1];
+    let row_h = identity[3];
+    let y = identity[1] + row_h * 0.5;
+    let right_edge = find_row_right_edge(&p, W as f32 - 1.0, y, H);
+    assert!(
+        right_edge > row_h,
+        "could not locate the identity row's own right edge via hit-test (got {right_edge})"
+    );
+    let close_x = right_edge - 0.5;
+    let switch_x = (right_edge * 0.3).max(2.0);
+
+    let switch_hit = p
+        .gutter_stack_hit(switch_x, y, H)
+        .expect("the switch probe must enrol");
+    let close_hit = p
+        .gutter_stack_hit(close_x, y, H)
+        .expect("the close probe must enrol");
+    assert!(
+        !switch_hit.is_close(),
+        "fixture bug: the switch probe landed inside the close zone"
+    );
+    assert!(
+        close_hit.is_close(),
+        "fixture bug: the close probe missed the close zone"
+    );
+
+    p.clear_gutter_stack_hover();
+    let resting = render_frame(&device, &queue, &mut p);
+    let changed = p.resolve_gutter_stack_hover(close_x, y, H);
+    assert!(
+        changed,
+        "hovering the close zone must change the hover state"
+    );
+    let hovered = render_frame(&device, &queue, &mut p);
+
+    // The mark's own lane: `row_h` wide, hugging the row's right edge — the
+    // exact close-zone geometry `gutter_stack::CLOSE_ZONE_ROWS` reserves.
+    let mark_x0 = (right_edge - row_h).max(0.0) as u32;
+    let mark_x1 = (right_edge as u32).min(W);
+    let y0 = identity[1].max(0.0) as u32;
+    let y1 = ((identity[1] + row_h) as u32).min(H);
+    let mut mark_diff = 0u32;
+    for yy in y0..y1 {
+        for xx in mark_x0..mark_x1 {
+            let idx = (yy * W + xx) as usize;
+            if dist(resting[idx], hovered[idx]) > 4.0 {
+                mark_diff += 1;
+            }
+        }
+    }
+    assert!(
+        mark_diff > 0,
+        "hovering the close zone painted no pixels in the mark's own lane — the × never revealed"
+    );
+
+    // The label's own ink, well clear of the mark's lane, stays byte-identical:
+    // the reveal is a color-only change over an already-shaped run, never a
+    // reflow of the filename.
+    let label_x1 = mark_x0.saturating_sub(2);
+    let mut label_diff = 0u32;
+    for yy in y0..y1 {
+        for xx in 0..label_x1 {
+            let idx = (yy * W + xx) as usize;
+            if dist(resting[idx], hovered[idx]) > 4.0 {
+                label_diff += 1;
+            }
+        }
+    }
+    assert_eq!(
+        label_diff, 0,
+        "hovering the close zone repainted {label_diff} pixels of the label's own ink"
+    );
+}
