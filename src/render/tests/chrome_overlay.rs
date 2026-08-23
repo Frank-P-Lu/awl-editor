@@ -1263,8 +1263,11 @@ fn the_changed_elsewhere_affordance_reports_and_grows_the_block() {
 
 /// The affordance's APPEARANCE, asserted over the PNG's pixels (CLAUDE.md's
 /// Wagtail tripwire) rather than inferred from the state above: it is drawn in a
-/// STRONGER ink than the filename beneath it — a three-step value ladder, no new
-/// accent — and it is a LABEL, so the pointer targets under it do not shift.
+/// STRONGER ink than the folder/identity lines beneath it, no new accent — and
+/// it is a LABEL, so the pointer targets under it do not shift. Those two lines
+/// (folder heading, then the identity line — `GutterLayout::lines`'s own order)
+/// share ONE weaker tier: there is no plate to differentiate them, so the ladder
+/// is two steps, not three.
 #[test]
 fn the_changed_elsewhere_affordance_reads_stronger_than_the_name_it_sits_over() {
     let _g = crate::testlock::serial();
@@ -1311,17 +1314,21 @@ fn the_changed_elsewhere_affordance_reads_stronger_than_the_name_it_sits_over() 
         best
     };
     let affordance = ink_of(0.0);
-    let filename = ink_of(1.0);
-    let project_ink = ink_of(2.0);
+    // Row 1 is the folder heading, row 2 the identity line — `GutterLayout::
+    // lines`'s own order, folder always above the identity line.
+    let project_ink = ink_of(1.0);
+    let name_ink = ink_of(2.0);
     assert!(
-        affordance < filename,
-        "the affordance must read STRONGER than the filename beneath it \
-         (ink {affordance} vs {filename}) — it is the one line here that is news"
+        affordance < project_ink && affordance < name_ink,
+        "the affordance must read STRONGER than both lines beneath it \
+         (ink {affordance} vs project {project_ink}, name {name_ink}) — it is \
+         the one line here that is news"
     );
-    assert!(
-        filename < project_ink,
-        "…and the existing two-step ladder is unchanged beneath it \
-         (name {filename} vs project {project_ink})"
+    assert_eq!(
+        project_ink, name_ink,
+        "…and the folder/identity lines beneath it stay ONE tier: no plate \
+         differentiates them, so nothing here should give them separate inks \
+         (project {project_ink} vs name {name_ink})"
     );
 
     // …and the affordance is a LABEL, not a target: the rows below it still
@@ -1336,12 +1343,12 @@ fn the_changed_elsewhere_affordance_reads_stronger_than_the_name_it_sits_over() 
     );
     assert_eq!(
         at(1.0),
-        Some(crate::context_menu::ContextTarget::Filename),
-        "the filename row still targets the filename"
+        Some(crate::context_menu::ContextTarget::Folder),
+        "the folder row still targets the folder"
     );
     assert_eq!(
         at(2.0),
-        Some(crate::context_menu::ContextTarget::Folder),
-        "and the project row still targets the folder"
+        Some(crate::context_menu::ContextTarget::Filename),
+        "and the identity row still targets the filename"
     );
 }
