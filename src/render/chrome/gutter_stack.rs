@@ -46,8 +46,11 @@ pub(super) const CLOSE_ZONE_ROWS: Rows = Rows(1.0);
 /// The pre-shaped close lane. File labels reserve this exact run before fitting
 /// even while it is transparent; otherwise a full-budget nested label wraps the
 /// mark onto a second visual line and shifts every later glyph away from the
-/// planner row (including the active plate).
-const CLOSE_MARK_TEXT: &str = "  ×";
+/// planner row (including the active plate). `pub(super)` because the
+/// single-file identity line ([`super::gutter`]) reserves and draws the exact
+/// same lane through the exact same text, rather than a second close mark of
+/// its own.
+pub(super) const CLOSE_MARK_TEXT: &str = "  ×";
 
 /// WHAT A POINTER AT `px` OVER A ROW IS AIMING AT.
 ///

@@ -227,3 +227,62 @@ fn the_close_route_resolves_every_row_to_the_same_file_the_switch_route_does() {
         );
     });
 }
+
+/// **THE SINGLE-FILE ROW'S CLOSE ZONE REACHES THE SAME ZERO-DOCUMENT START
+/// SURFACE ⌘W DOES.**
+///
+/// The identity line now enrols in row 0 of this exact row→file door
+/// (`crate::render::chrome::gutter_hit::stack_hit_from_plan` answers
+/// `row: 0` for `GutterLine::Name`, `gutter_hit::tests`' own law), and its
+/// close zone dispatches through [`App::close_buffer`] — the SAME owner ⌘W's
+/// `Action::FinishBuffer` calls (`app/files/close.rs`'s doc: "same behavior ⇒
+/// same code"). So this asserts the SAME outcome
+/// `app::files::close::tests::closing_the_last_file_enters_the_honest_zero_document_state`
+/// pins for ⌘W, reached through the pointer's own row index instead — proving
+/// the single-file margin is not a second, undertested door to "no document
+/// left".
+#[test]
+fn closing_the_lone_row_reaches_the_same_zero_document_state_cmd_w_does() {
+    let _guard = crate::testlock::serial();
+    let mem = Arc::new(
+        crate::fs::InMemoryFs::new()
+            .with_dir("/ws/notes")
+            .with_file("/ws/notes/only.md", "one\n"),
+    );
+    crate::fs::with_fs(mem, || {
+        let mut config = Config::empty();
+        config.workspace = Some(PathBuf::from("/ws"));
+        let mut app = App::new_hermetic(
+            Some(PathBuf::from("/ws/notes/only.md")),
+            PathBuf::from("/ws/notes"),
+            config,
+        );
+        assert_eq!(app.document.working_set().len(), 1, "precondition: N=1");
+
+        // Row 0 is the ONLY row the single-file margin's close zone can ever
+        // enrol in (`gutter_hit::tests::the_lone_identity_row_resolves_the_
+        // same_close_zone_a_stack_row_would`), so this resolves through the
+        // exact index that hit-test answers rather than a hand-picked one.
+        let key = app
+            .gutter_stack_row_key(0)
+            .expect("row 0 names the lone open file");
+        assert_eq!(
+            key,
+            crate::buffers::BufferKey::path(Path::new("/ws/notes/only.md")),
+            "row 0 must name the one open file"
+        );
+
+        app.close_buffer(key);
+
+        assert_eq!(
+            app.document.working_set().len(),
+            0,
+            "the working set has no invented replacement row"
+        );
+        assert!(
+            !app.document.has_active(),
+            "closing the lone row must leave no active document"
+        );
+        assert!(app.document.buffer_opt().is_none());
+    });
+}
