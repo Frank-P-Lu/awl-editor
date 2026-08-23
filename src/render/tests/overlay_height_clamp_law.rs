@@ -740,10 +740,10 @@ fn already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix() {
                 zoom: 1.0,
             },
             (
-                479.800_02,
+                485.800_02,
                 (300.0, 900.0),
                 12,
-                Some((25, 12, 11, 479.800_02, 800.0)),
+                Some((25, 12, 11, 485.800_02, 800.0)),
             ),
         ),
         (
@@ -753,12 +753,7 @@ fn already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix() {
                 canvas: (1200, 800),
                 zoom: 1.0,
             },
-            (
-                507.000_03,
-                (300.0, 900.0),
-                13,
-                Some((25, 13, 12, 507.000_03, 800.0)),
-            ),
+            (513.0, (300.0, 900.0), 13, Some((25, 13, 12, 513.0, 800.0))),
         ),
         (
             Scenario {
@@ -784,8 +779,12 @@ fn already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix() {
             // gap row is shorter than a full row (`OVERLAY_HINT_GAP_ROW`),
             // and reclaiming that slack now outweighs `avail_px`'s own
             // clamp, so the card is content-derived here rather than
-            // window-clamped.
-            (578.8, (20.0, 680.0), 5, Some((32, 5, 4, 578.8, 800.0))),
+            // window-clamped. A widened `OVERLAY_HINT_GAP_ROW` (the footer
+            // legibility fix) grows the same gap row further still
+            // (578.8 -> 589.8): the row count this cell fits does not move
+            // again, only how much of the compact row's own slack survives
+            // the reclaim.
+            (589.8, (20.0, 680.0), 5, Some((32, 5, 4, 589.8, 800.0))),
         ),
         // This cell used to be `History`, which is no longer a GROUPED picker
         // either: it is presented as a summoned workspace, so its numbers here
@@ -807,10 +806,10 @@ fn already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix() {
             // moves it at every scale away from 1, not only on retina; the
             // card_x span is untouched because the edge floor never binds here.
             (
-                254.000_02,
+                257.0,
                 (400.0, 1000.0),
                 13,
-                Some((25, 13, 12, 254.000_02, 1600.0)),
+                Some((25, 13, 12, 257.0, 1600.0)),
             ),
         ),
         // This fifth cell used to be `Settings`, which is no longer a
@@ -828,8 +827,9 @@ fn already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix() {
             },
             // Same absorption shape as the `Goto` cell above: one
             // fewer visible row (7 -> 6), and `card_h` also drops (331.8 ->
-            // 316.6) for the same content-derived-not-window-clamped reason.
-            (316.6, (150.0, 750.0), 6, Some((32, 6, 5, 316.6, 460.0))),
+            // 316.6) for the same content-derived-not-window-clamped reason;
+            // the widened gap row grows it again (316.6 -> 322.6).
+            (322.6, (150.0, 750.0), 6, Some((32, 6, 5, 322.6, 460.0))),
         ),
     ];
     // EVERY cell is reported, not just the first to move: a pinned-fingerprint
