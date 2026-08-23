@@ -354,6 +354,157 @@ DockedTab roster and both a first and a non-first active facet (the dock
 buffer once dropped the strip tail on exactly that axis). Cheap to
 revert, so per standing preference: land for judgement.
 
+---
+### 478 — the palette query renders as a text field but is not one (UI-AFFORDANCE SWEEP 2026-08-24, code-verified)
+
+The overlay query line earns the I-beam (`cursor_shape.rs` via
+`over_overlay_query`), but a click inside the card off a row is
+deliberately swallowed (`app/input/mouse.rs`, overlay_click's
+inside-the-card arm) — no caret placement, no selection, no drag-select.
+And caret motion in the query is word-only: ForwardWord/BackwardWord
+reach `query_word_right/left`, while ForwardChar/BackwardChar cycle the
+lens on faceting pickers and LineStart/LineEnd jump the SELECTION to
+first/last row (`actions/overlay_nav.rs`). Once a word-step lands
+mid-query there is no char step and no End; the rename/link/keep/value
+sub-editors already bind full char motion, so the mechanism exists.
+
+Against DESIGN.md's "a surface that looks clickable must be clickable
+where it is drawn". Small design decision inside the item: what char
+keys and Home/End do while the caret sits mid-query vs at the end (the
+list-nav overloads are load-bearing and stay when the caret is at rest
+at the end — state the chosen rule in the item's landing note).
+
+Verify: `--keys` replay laws — click-to-place via the pointer path,
+char motion round-trips, Home/End behaviour on both sides of the chosen
+rule; sidecar asserts query caret position (extend the schema if it is
+not yet reported). Mutation: re-swallow the query click and watch the
+placement law go red.
+
+---
+### 479 — hover and cursor truth go stale when content moves under a stationary pointer (UI-AFFORDANCE SWEEP 2026-08-24, code-verified)
+
+`sync_cursor_icon`, `update_fold_hover` and `resolve_gutter_stack_hover`
+are driven by `CursorMoved` plus hand-patched doors (modifiers, overlay
+transitions, drag ends). `on_mouse_wheel` ends with no resync — so wheel
+scroll, wheel zoom and keyboard scroll leave the OS cursor shape and the
+revealed fold chevron pinned to what WAS under the pointer until the
+mouse next moves. Lifecycle half: `on_cursor_left` clears the stack
+hover but not the chevron hover (its own doc already states the
+principle), so a revealed chevron stays lit in an unfocused window;
+`on_focus_lost` touches neither hover.
+
+Fix direction is structural, not a fourth door-patch: recompute
+pointer-derived state at one frame-level seam whenever geometry or
+scroll changed under an unmoved pointer, and clear both hovers on
+cursor-left/focus-loss. Watch the cost: the resync must stay O(visible)
+and must not fire per frame of an animation without need.
+
+Verify: unit laws at the seam — after a synthetic scroll with an unmoved
+pointer, the recomputed `CursorContext` differs where the geometry says
+it must; fold/stack hover cleared after cursor-left and focus-loss.
+Stale-icon feel over real time is live-only — flag for human
+confirmation. Mutation: drop the wheel-path resync, watch the law go
+red.
+
+---
+### 480 — no autoscroll when a selection drag reaches the viewport edge (UI-AFFORDANCE SWEEP 2026-08-24, code-verified absence)
+
+Dragging a text selection to the window's edge stops at one screenful:
+`on_drag` → `hit_test_scroll` clamps to the visible band, and no
+scroll-on-drag exists anywhere (three comments explicitly deny it).
+Mouse selection beyond a screen requires the keyboard. Editing
+edge-cases are the product — this is the most consequential everyday gap
+the sweep found.
+
+Mechanism: while a range drag is live and the pointer sits beyond the
+column's top/bottom band, scroll at a rate derived from overshoot and
+extend the selection to the hit-test under the moving content — through
+the existing drag owner, not a parallel path. The headless path has no
+clock, so the rate lives behind the same seam live animation already
+uses; the settled state (selection extended to the scrolled-to point)
+stays deterministic.
+
+Verify: unit laws on the overshoot→rate function and on
+selection-extends-under-scroll at the drag owner's seam;
+`--screenshot-motion` for the deterministic settled frame. The feel of
+the rate over real time is live-only — flag for human confirmation, per
+harness-reach discipline. Mutation: clamp the rate to zero and watch the
+extension law go red.
+
+---
+### 481 — find/replace panel ranks only its Aa cell in the cursor ladder (UI-AFFORDANCE SWEEP 2026-08-24, code-verified)
+
+`panel_hit` already distinguishes the click-to-focus Find and Replace
+field cells and dead panel chrome (`render/chrome/panel.rs`), but
+`sync_cursor_icon` reads only `PanelHit::CaseToggle` — so the document's
+I-beam bleeds through the floating card, and the field cells earn their
+I-beam only by that accident (arrow when the panel floats over margin).
+The menu bar solved exactly this shape: clickable cells → their own
+shape, dead chrome → arrow, ranked above what the surface covers
+(`over_menu_hand`/`over_menu_bar`).
+
+Two `CursorContext` fields (`over_panel_field` → Text, `over_panel` →
+Default), computed from the SAME `panel_hit` the press path uses, ranked
+with the menu-bar arms. Small enough to land for judgement in one
+commit; a dispatch would cost more than the change.
+
+Verify: extend the existing `cursor_icon_for` unit sweep — panel field
+cells → Text, Aa → Pointer, panel dead chrome → Default even where the
+writing column sits beneath, all three with and without an active
+document. Mutation: drop the new fields from the context assembly and
+watch the sweep go red.
+
+---
+### 482 — modal summoned cards own the next key and click, but not the wheel; the streaks second page has no pointer route (UI-AFFORDANCE SWEEP 2026-08-24, code-verified)
+
+`dismiss_summoned_card` is consulted from exactly one input path, the
+mouse-button press. `on_mouse_wheel` has no card guard — with
+About/Lifetime/Streaks up, the wheel scrolls the DOCUMENT behind the
+card. Separately, the streaks card's cumulative page is reachable only
+by ←/→ intercept, nothing drawn advertises it, and any click — including
+on the chart — dismisses the card instead of paging.
+
+Decision folded in: does the wheel DISMISS the card (matching the
+any-key/any-click grammar) or is it swallowed? Recommendation: swallow —
+a wheel is not an intent the way a press is, and scrolling the hidden
+document moves state the user cannot see. For streaks: draw the ←/→
+hint on the card and give a click on the card's own surface the paging
+(or at minimum non-dismissing) role; click outside still dismisses.
+
+Verify: `--screenshot-app` laws — wheel with a card up leaves the
+document scroll byte-identical in the sidecar; streaks paging reachable
+by pointer; the hint present by pixel arithmetic (presence floor, not
+just contrast). Mutation: remove the wheel guard and watch the
+scroll-identity law go red.
+
+---
+### 483 — hover grammar for clickable chrome (USER DECISION NEEDED; UI-AFFORDANCE SWEEP 2026-08-24)
+
+🔵 PARKED — needs the user's taste call before any code.
+
+Exactly three surfaces draw hover state today: overlay rows, the fold
+chevron, the working-set stack. Seven more are clickable with a
+hit-test and NO hover visual: margin outline rows, workspace rail
+entries, settings range rails, find/replace panel cells, start-screen
+action rows, the drawn (web/Linux) menu bar, format popover buttons.
+Sharpest cases: the format popover's hit regions tile the WHOLE card —
+padding and inter-button gaps fire the nearest button
+(`render/plan/popover.rs::hit`) with no feedback about which — and
+inline-image resize handles are invisible (the OS cursor is the entire
+affordance), so image resizability is undiscoverable.
+
+The question: which chrome acknowledges the pointer, and how quietly?
+Options: (a) hover is an overlay-only gesture, persistent chrome stays
+still (today's de-facto rule, minus the chevron/stack exceptions);
+(b) one quiet grammar everywhere clickable — the existing hover
+treatment class extended to the roster above; (c) grammar only where
+ambiguity is real: popover buttons (which one fires) and image handles
+(that they exist), rest stays calm. Recommendation: (c) — it fixes the
+two genuine ambiguities without making the chrome restless.
+
+Whichever wins becomes a DESIGN.md sentence, and the popover's
+tile-to-the-edges hit regions get re-judged under it.
+
 ## Needs specific hardware
 
 1. **AT-SPI journey** — on a real Linux desktop with Orca, exercise document
