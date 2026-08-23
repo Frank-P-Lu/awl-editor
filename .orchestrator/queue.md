@@ -8,6 +8,8 @@
 
 ### 444 — the working set becomes visible: a margin buffer stack (USER DECISION 2026-08-16; residuals 1–2 LANDED; residual 3 🟠 AWAITING USER CHOICE — prototype evidence landed)
 
+🟡 IN PROGRESS — claude, branch (dispatched via Agent isolation:worktree, sha to follow)
+
 **Everything except residual 3 is LANDED on `main`** — the capture door, the
 `WorkingSet` module, resting-stack render, sidecar exposure +
 click-to-switch, ⌘W/close-zone removal through one owner, the hover-reveal
@@ -191,6 +193,8 @@ rail ticks — a separate taste call, easier once the mask has one owner.
 
 ### 472 — bare-plate picker legibility: footer gap magnitude (USER-REPORTED 2026-08-22 on Firetail, live screenshot)
 
+🟡 IN PROGRESS — claude, branch (dispatched via Agent isolation:worktree, sha to follow)
+
 Backdrop half LANDED: `Bars` (Firetail, Galah, Kite) now enrols in the
 footprint frost alongside `Diagonal`/`Ruled` — `blur::footprint_frost_applies`
 no longer excludes it, `TextPipeline::overlay_drawn_surfaces` contributes the
@@ -251,6 +255,8 @@ orchestrator-owned at merge. Staleness needs no sweep — the health script
 already flags stale exception messages by name.
 
 ### 475 — the fold mark becomes a font glyph: per-world symbols via rotated_label (USER DECISION 2026-08-23)
+
+🟡 IN PROGRESS — claude, branch (dispatched via Agent isolation:worktree, sha to follow)
 
 The fold chevron is four rotated quads (`selection::chevron_arms` →
 `prepare_rotated`) because glyphon 0.11 has no transforms — and it reads
