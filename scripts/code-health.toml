@@ -326,8 +326,8 @@ reason = "+6: the dropdown plan takes the frame's scale so its minimum width res
 
 [[file_size_mark]]
 file = "src/render/chrome/mod.rs"
-lines = 1061
-reason = "+1: re-export PANEL_MARGIN and PANEL_PAD so panel shaping and rectangle layout resolve one physical panel inset owner. +6: re-exports the working-set stack's gutter submodules so the chrome pipeline resolves them through the same module surface as every other gutter row. +1: re-exports the new gutter_hit pointer module beside them. +1: the shared chrome plan carries the hovered working-set row to the one draw owner. +1: selection HUD figures are re-exported through the shared chrome surface."
+lines = 1092
+reason = "+1: re-export PANEL_MARGIN and PANEL_PAD so panel shaping and rectangle layout resolve one physical panel inset owner. +6: re-exports the working-set stack's gutter submodules so the chrome pipeline resolves them through the same module surface as every other gutter row. +1: re-exports the new gutter_hit pointer module beside them. +1: the shared chrome plan carries the hovered working-set row to the one draw owner. +1: selection HUD figures are re-exported through the shared chrome surface. +31: card_shape_texture becomes the single corner-mask owner every console layer (panel/scanline/placard) resolves its chamfer through, replacing overlay_material.rs's independent hardcoded zero."
 
 [[file_size_mark]]
 file = "src/render/chrome/outline.rs"
@@ -356,7 +356,8 @@ reason = "The chord column's glyph alignment is the accessory column's own flow 
 
 [[file_size_mark]]
 file = "src/render/chrome/popover.rs"
-lines = 547
+lines = 552
+reason = "+5: the format popover threads a CardChamfer pair through card_shape_texture instead of a bare chamfer f32, matching every other non-owner console-layer call site."
 
 [[file_size_mark]]
 file = "src/render/chrome/readout.rs"
@@ -436,8 +437,8 @@ lines = 545
 
 [[file_size_mark]]
 file = "src/selection.rs"
-lines = 662
-reason = "DOWN 86: baked blend/flavor/vertex-layout/render-pipeline construction moved to selection/pipeline.rs; SelectionPipeline::build retains shared bind-group/buffer/uniform assembly and is now below the lint ceiling."
+lines = 694
+reason = "DOWN 86: baked blend/flavor/vertex-layout/render-pipeline construction moved to selection/pipeline.rs; SelectionPipeline::build retains shared bind-group/buffer/uniform assembly and is now below the lint ceiling. +32: chamfer splits into a top/bottom pair (Globals gains a field, _pad2 shrinks to keep std140 size fixed, a compile-time size assert, set_chamfer takes two args, a test-only chamfer() accessor, and the Globals-literal duplication across three prepare paths)."
 
 [[file_size_mark]]
 file = "src/session.rs"
@@ -493,13 +494,13 @@ reason = "The footer plate earns the notice channel's own one-pixel rim, which i
 
 [[file_size_mark]]
 file = "src/theme/model.rs"
-lines = 735
-reason = "The exhaustive theme model authors rotated-location treatment and toast anchor as data; shared renderers own both geometries without world-specific branches."
+lines = 744
+reason = "The exhaustive theme model authors rotated-location treatment and toast anchor as data; shared renderers own both geometries without world-specific branches. +9: CardShape::Chamfered splits cut_px into a top_cut_px/bottom_cut_px pair, so a world can cut only the free edge and keep a docked seam square."
 
 [[file_size_mark]]
 file = "src/theme/worlds.rs"
-lines = 1158
-reason = "Every world explicitly authors its toast anchor, while Cassowary and Magpie author their shared rotated-location treatments in the same roster. Kite authors the ruled list style (one line)."
+lines = 1161
+reason = "Every world explicitly authors its toast anchor, while Cassowary and Magpie author their shared rotated-location treatments in the same roster. Kite authors the ruled list style (one line). +3: Cassowary and Quokka each author their own top_cut_px/bottom_cut_px pair instead of one shared cut_px."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -1099,8 +1100,8 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/theme/tests/personality.rs"
 function = "personality_assignments_are_exactly_the_decided_table"
-message = "this function has too many lines (169/100)"
-reason = "The exhaustive per-world capabilities table includes rotated-location treatment assignments; its no-wildcard shape makes every world's face, scale, ink, tracking, and locator grammar an explicit decision."
+message = "this function has too many lines (172/100)"
+reason = "The exhaustive per-world capabilities table includes rotated-location treatment assignments; its no-wildcard shape makes every world's face, scale, ink, tracking, and locator grammar an explicit decision. +3: the table now asserts Cassowary and Quokka's own top/bottom chamfer pair instead of one shared cut."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
