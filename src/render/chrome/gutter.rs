@@ -115,6 +115,15 @@ impl TextPipeline {
         } else {
             0
         };
+        // The identity line's own budget must still clear the presence floor
+        // AFTER its close-lane reservation, not before — reserving room for a
+        // mark that then leaves too little to keep the name's extension
+        // legible ("i…d" instead of "in….md") is worse than not drawing the
+        // gutter at all ("better absent than confetti", this fn's own doc).
+        let close_len = gutter_stack::CLOSE_MARK_TEXT.chars().count();
+        if avail_chars.saturating_sub(close_len) < rowlayout::GUTTER_MIN_NAME_CHARS {
+            return None;
+        }
         let plan = rowlayout::gutter_plan(avail_chars)?;
         // Reserves the SAME trailing close lane a working-set file row does
         // (`gutter_stack::fit_rows`) — the single-file identity carries the
