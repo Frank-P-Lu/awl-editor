@@ -652,16 +652,16 @@ fn slant_width_tax_makes_rowlayout_elide_what_no_longer_fits() {
     let vs = super::no_vis();
     let row_plan = p.overlay_row_plan(&geom);
     p.overlay_shape_text(
-            &geom,
-            &row_plan,
-            OverlaySpanInks {
-                ink,
-                muted,
-                selected: None,
-            },
-            &vs,
-            true,
-        );
+        &geom,
+        &row_plan,
+        OverlaySpanInks {
+            ink,
+            muted,
+            selected: None,
+        },
+        &vs,
+        true,
+    );
     let (plain_w, plain_chars) = widest(&p);
     assert!(plain_w > 0.0 && plain_chars > 0);
 
@@ -673,16 +673,16 @@ fn slant_width_tax_makes_rowlayout_elide_what_no_longer_fits() {
     let vs = super::no_vis();
     let row_plan = p.overlay_row_plan(&geom);
     p.overlay_shape_text(
-            &geom,
-            &row_plan,
-            OverlaySpanInks {
-                ink,
-                muted,
-                selected: None,
-            },
-            &vs,
-            true,
-        );
+        &geom,
+        &row_plan,
+        OverlaySpanInks {
+            ink,
+            muted,
+            selected: None,
+        },
+        &vs,
+        true,
+    );
     let (slanted_w, slanted_chars) = widest(&p);
     set_slant_test_override(None);
 

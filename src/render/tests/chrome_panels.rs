@@ -1523,16 +1523,16 @@ fn faceted_palette_shapes_the_chord_column_aligned_to_its_rows() {
         let row_plan = p.overlay_row_plan(&geom);
         assert!(
             p.overlay_shape_text(
-            &geom,
-            &row_plan,
-            OverlaySpanInks {
-                ink,
-                muted,
-                selected: None,
-            },
-            &vs,
-            true,
-        ),
+                &geom,
+                &row_plan,
+                OverlaySpanInks {
+                    ink,
+                    muted,
+                    selected: None,
+                },
+                &vs,
+                true,
+            ),
             "still builds a right column with headers"
         );
         let name = |p: &TextPipeline, i: usize| p.panel_buffer.lines[i].text().to_string();

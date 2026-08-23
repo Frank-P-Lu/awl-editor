@@ -112,11 +112,7 @@ impl TextPipeline {
         self.overlay_pane_fills(&geom, &plan)
     }
 
-    pub(super) fn overlay_draw_card(
-        &mut self,
-        surface: OverlayCardSurface,
-        vis: &VisualSelection,
-    ) {
+    pub(super) fn overlay_draw_card(&mut self, surface: OverlayCardSurface, vis: &VisualSelection) {
         let OverlayCardSurface {
             device,
             queue,
