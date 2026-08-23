@@ -5,7 +5,9 @@ use glyphon::{
 };
 
 use crate::background::{BackgroundPipeline, BgDesc};
-use crate::caret::{CORNER_RADIUS, CaretAnim, CaretMode, CaretPipeline, STREAK_RADIUS, Sample};
+use crate::caret::{
+    CORNER_RADIUS, CaretAnim, CaretMode, CaretPipeline, CaretRect, STREAK_RADIUS, Sample,
+};
 use crate::caret_glyph::{CaretGlyphPipeline, GlyphMask};
 use crate::selection::SelectionPipeline;
 use crate::spell::Misspelling;

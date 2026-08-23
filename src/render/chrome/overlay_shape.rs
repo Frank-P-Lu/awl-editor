@@ -362,20 +362,18 @@ impl TextPipeline {
         rects
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub(in crate::render) fn overlay_shape_text(
         &mut self,
         geom: &OverlayGeom,
         plan: &OverlayRowPlan,
-        ink: glyphon::Color,
-        muted: glyphon::Color,
-        selected_ink: Option<glyphon::Color>,
+        inks: OverlaySpanInks,
         vis: &VisualSelection,
         elide: bool,
     ) -> bool {
+        let OverlaySpanInks { ink, muted, .. } = inks;
         self.overlay_right_shown = false;
         if geom.theme {
-            return self.shape_faceted(geom, plan, ink, muted, selected_ink, vis, elide);
+            return self.shape_faceted(geom, plan, inks, vis, elide);
         }
         // The shaped line `k` and the PLANNED row `k` are one object: a
         // row's item comes off the plan, never a second `top_idx + k` computed here.
@@ -422,7 +420,7 @@ impl TextPipeline {
         if has_right && super::bars_inline_shortcut() {
             let (rows, trailing) =
                 inline_shortcut_rows(&row_labels, &items, right_labels, total_chars, elide);
-            self.shape_overlay_names(geom, plan, ink, muted, selected_ink, vis, &rows, &trailing);
+            self.shape_overlay_names(geom, plan, inks, vis, &rows, &trailing);
             return false;
         }
         let widest_right = if has_right {
@@ -454,7 +452,7 @@ impl TextPipeline {
                 None => label.clone(),
             })
             .collect();
-        self.shape_overlay_names(geom, plan, ink, muted, selected_ink, vis, &rows, &[]);
+        self.shape_overlay_names(geom, plan, inks, vis, &rows, &[]);
         if !has_right {
             return false;
         }
@@ -475,21 +473,19 @@ impl TextPipeline {
             .iter()
             .map(|label| rowlayout::fit_primary(label, full))
             .collect();
-        self.shape_overlay_names(geom, plan, ink, muted, selected_ink, vis, &rows, &[]);
+        self.shape_overlay_names(geom, plan, inks, vis, &rows, &[]);
         false
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn shape_faceted(
         &mut self,
         geom: &OverlayGeom,
         plan: &OverlayRowPlan,
-        ink: glyphon::Color,
-        muted: glyphon::Color,
-        selected_ink: Option<glyphon::Color>,
+        inks: OverlaySpanInks,
         vis: &VisualSelection,
         elide: bool,
     ) -> bool {
+        let OverlaySpanInks { ink, muted, .. } = inks;
         // Diagonal rows occupy one side of their spine rather than the whole
         // card. Shape against that real side territory before deciding whether
         // a secondary cell fits, so narrow cards elide/yield instead of drawing
@@ -530,16 +526,7 @@ impl TextPipeline {
         } else {
             Vec::new()
         };
-        self.overlay_shape_theme(
-            &shaped_geom,
-            plan,
-            ink,
-            muted,
-            selected_ink,
-            vis,
-            &trailing,
-            elide,
-        );
+        self.overlay_shape_theme(&shaped_geom, plan, inks, vis, &trailing, elide);
         // `rowlayout` begins from a character-grid estimate, while the diagonal
         // side territory is a hard pixel bound. A display face can be wider than
         // that estimate (especially at 2×), so re-shape once against the actual
@@ -548,16 +535,7 @@ impl TextPipeline {
             let measured = self.widest_candidate_px(&shaped_geom, plan);
             if measured > budget && measured > 0.0 {
                 shaped_geom.text_w *= budget / measured;
-                self.overlay_shape_theme(
-                    &shaped_geom,
-                    plan,
-                    ink,
-                    muted,
-                    selected_ink,
-                    vis,
-                    &trailing,
-                    elide,
-                );
+                self.overlay_shape_theme(&shaped_geom, plan, inks, vis, &trailing, elide);
             }
         }
         if !has_right || hug_inline {
@@ -655,18 +633,16 @@ impl TextPipeline {
         push_symbol_split(spans, hint, || hk_hint(muted), || sym_hint(muted));
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn shape_overlay_names(
         &mut self,
         geom: &OverlayGeom,
         plan: &OverlayRowPlan,
-        ink: glyphon::Color,
-        muted: glyphon::Color,
-        selected_ink: Option<glyphon::Color>,
+        inks: OverlaySpanInks,
         vis: &VisualSelection,
         rows: &[String],
         trailing: &[String],
     ) {
+        let OverlaySpanInks { ink, muted, .. } = inks;
         let fitted_hint = self.overlay_fitted_hint(geom);
         let has_query = geom.header_rows > 0;
         let base = panel_attrs();
@@ -703,18 +679,7 @@ impl TextPipeline {
             spans.push((self.overlay_query.as_str(), hk(ink)));
         }
         push_beat_spacer(&mut spans, mk(muted), name_fs, plan.beat_line());
-        self.push_overlay_name_rows(
-            &mut spans,
-            rows,
-            trailing,
-            has_query,
-            OverlaySpanInks {
-                ink,
-                muted,
-                selected: selected_ink,
-            },
-            vis,
-        );
+        self.push_overlay_name_rows(&mut spans, rows, trailing, has_query, inks, vis);
         if let Some(msg) = &geom.empty {
             if has_query {
                 spans.push(("\n", mk(muted)));

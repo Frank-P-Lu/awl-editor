@@ -108,19 +108,21 @@ impl OverlayBarLayout {
 }
 
 impl TextPipeline {
-    #[allow(clippy::too_many_arguments)]
     pub(super) fn overlay_prepare_selection(
         &mut self,
-        device: &wgpu::Device,
-        queue: &wgpu::Queue,
-        width: u32,
-        height: u32,
-        geom: &OverlayGeom,
-        plan: &OverlayRowPlan,
+        surface: OverlayCardSurface,
         list_style: theme::ListStyle,
         backing: theme::ListBacking,
         vis: &VisualSelection,
     ) {
+        let OverlayCardSurface {
+            device,
+            queue,
+            width,
+            height,
+            geom,
+            plan,
+        } = surface;
         let band_color = super::overlay_selected_band_srgb();
         // THE FOCUS CUE, and the whole of it. A workspace has two
         // regions that both keep a selection, so one of the two markers has to

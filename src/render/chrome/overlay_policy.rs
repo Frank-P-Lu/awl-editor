@@ -22,11 +22,33 @@ pub(super) const SPELL_WORD_GAP: Logical = Logical(6.0);
 pub(super) const SPELL_MIN_W: LogicalGrowOnly = LogicalGrowOnly(140.0);
 pub(super) const SPELL_MAX_W: LogicalGrowOnly = LogicalGrowOnly(520.0);
 
+/// The overlay's three text inks bundled together: passed as bare adjacent
+/// `glyphon::Color`/`Option<glyphon::Color>` params, `ink` and `muted` are the
+/// same type in the same position — a swap compiles clean and recolors a row
+/// wrong with no type error to catch it. `pub(in crate::render)` (not
+/// `pub(super)`) because `render::tests` needs it too, to call the shapers
+/// this bundles directly.
 #[derive(Clone, Copy)]
-pub(super) struct OverlaySpanInks {
-    pub(super) ink: glyphon::Color,
-    pub(super) muted: glyphon::Color,
-    pub(super) selected: Option<glyphon::Color>,
+pub(in crate::render) struct OverlaySpanInks {
+    pub(in crate::render) ink: glyphon::Color,
+    pub(in crate::render) muted: glyphon::Color,
+    pub(in crate::render) selected: Option<glyphon::Color>,
+}
+
+/// The overlay card family's shared per-frame surface: the wgpu upload
+/// target plus the geometry/plan pair every quad-prep step in that family
+/// reads. `width`/`height` are same-typed adjacent `u32`s (a real transpose
+/// risk on their own), and this bundles them with the `device`/`queue`/
+/// `geom`/`plan` quartet that travels with them at every call in the family
+/// rather than repeating all six as bare positional params.
+#[derive(Clone, Copy)]
+pub(super) struct OverlayCardSurface<'a> {
+    pub(super) device: &'a wgpu::Device,
+    pub(super) queue: &'a wgpu::Queue,
+    pub(super) width: u32,
+    pub(super) height: u32,
+    pub(super) geom: &'a OverlayGeom,
+    pub(super) plan: &'a OverlayRowPlan,
 }
 
 const HINT_EXPLANATION: &str = "type to filter   ";
