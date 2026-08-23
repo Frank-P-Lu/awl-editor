@@ -101,6 +101,17 @@ fn a_seeded_data_root_starts_a_live_app_capture_already_conflicted() {
             doc.to_str().unwrap(),
             "--seed-data",
             seed.to_str().unwrap(),
+            // The default page measure happens to place the bottom-left
+            // GUTTER's own margin exactly on the identity line's presence
+            // floor once its close-lane reservation is subtracted — a real,
+            // separately law-tested boundary
+            // (`render::tests::column_left_dpi::
+            // the_identity_lines_close_lane_reservation_never_leaves_an_extensionless_name`),
+            // not a fixed hidden/shown split. Pinned narrower so the gutter
+            // this test grades is actually drawn, still eliding "draft.md"
+            // to "dr….md" as asserted below.
+            "--measure",
+            "65",
         ],
     );
     let json = sidecar(&seeded);
@@ -131,6 +142,8 @@ fn a_seeded_data_root_starts_a_live_app_capture_already_conflicted() {
             "--screenshot-app",
             bare.to_str().unwrap(),
             doc.to_str().unwrap(),
+            "--measure",
+            "65",
         ],
     );
     let bare_json = sidecar(&bare);
