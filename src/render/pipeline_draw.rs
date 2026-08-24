@@ -413,6 +413,8 @@ impl TextPipeline {
             streak_cells,
             hud_renderer,
             hud_buffer,
+            streaks_card_rect: None,
+            streaks_text_origin: None,
             wk_shadow,
             wk_border,
             wk_card,

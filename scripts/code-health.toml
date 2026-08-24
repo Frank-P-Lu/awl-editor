@@ -89,7 +89,7 @@ reason = "The event-to-present flight recorder needs its winit-receipt and keyma
 [[file_size_mark]]
 file = "src/app/input/mouse.rs"
 lines = 1030
-reason = "The wheel-region predicate at the one pointer entry point stopped naming a single overlay kind and asks the shape-neutral question instead (+7, all of it the comment recording why the kind check was wrong). +3: the working-set stack's left-click-to-switch route, enrolled in this file's own input-substate privacy law. +11: `sync_cursor_icon` gains the stack-row hand-cursor arm, hit-tested through the same `gutter_stack_hit` the click path already uses. +21: cursor movement and leave route one shared gutter-stack hit through the hover state, so the close mark follows exactly the row under the pointer and clears when the pointer exits. +7: the find/replace panel's hit-test is computed once and shared by the case-toggle, field-cell, and dead-chrome cursor arms instead of only the case toggle. The pointer-derived state resync (fold/stack hover, cursor icon) is pulled out into pointer_sync.rs behind one owner, netting this file down even after the panel/case-toggle growth. +84: scroll-on-drag's App-level owner — `drag_scroll_primed` (the one dragging+armed+overshoot-active predicate both `step_drag_scroll` and `App::schedule_drag_scroll` gate on, so a stationary unarmed press can never be mistaken for a held edge-drag) and `step_drag_scroll` itself, the ONE seam both `on_drag` (per-`CursorMoved`) and the idle-timer re-arm drive, so a held drag past the edge keeps scrolling even once the pointer stops generating move events."
+reason = "The wheel-region predicate at the one pointer entry point stopped naming a single overlay kind and asks the shape-neutral question instead (+7, all of it the comment recording why the kind check was wrong). +3: the working-set stack's left-click-to-switch route, enrolled in this file's own input-substate privacy law. +11: `sync_cursor_icon` gains the stack-row hand-cursor arm, hit-tested through the same `gutter_stack_hit` the click path already uses. +21: cursor movement and leave route one shared gutter-stack hit through the hover state, so the close mark follows exactly the row under the pointer and clears when the pointer exits. +7: the find/replace panel's hit-test is computed once and shared by the case-toggle, field-cell, and dead-chrome cursor arms instead of only the case toggle. The pointer-derived state resync (fold/stack hover, cursor icon) is pulled out into pointer_sync.rs behind one owner, netting this file down even after the panel/case-toggle growth. +84: scroll-on-drag's App-level owner — `drag_scroll_primed` (the one dragging+armed+overshoot-active predicate both `step_drag_scroll` and `App::schedule_drag_scroll` gate on, so a stationary unarmed press can never be mistaken for a held edge-drag) and `step_drag_scroll` itself, the ONE seam both `on_drag` (per-`CursorMoved`) and the idle-timer re-arm drive, so a held drag past the edge keeps scrolling even once the pointer stops generating move events. +8: `on_mouse_wheel` gains the swallow-not-scroll guard over a summoned modal card, ahead of every existing branch."
 
 [[file_size_mark]]
 file = "src/app/session.rs"
@@ -293,8 +293,8 @@ lines = 559
 
 [[file_size_mark]]
 file = "src/render.rs"
-lines = 2781
-reason = "The footer plate uses the notice channel's one-pixel rim so it remains visible. `Millis` and `progress_per` keep durations out of pixel multiplication by type, while declaration docs name the entitled scale factor for page/caret pads, page-frame strokes, and spell gaps. `HudDefaults`, `WhichKeyDefaults`, and `DebugDefaults` give inert field groups exhaustive defaults beside their sole `TextPipeline` owner. Shape reach rejects unshaped-line sentinels, and `Metrics` carries `dpi` beside zoom scale so a logical floor does not vary by display density. `CARET_INK_PAD_W` gained a doc comment naming its rationale and the near-zero vertical headroom finding that kept the tuning to width alone. +7: the working-set stack plate's own row-height and inset constants, named beside the other margin-row geometry this file already owns. +10: the menu chord column's config-aware label plumbing (ViewState mirrors of config_keys/config_linux_keep). +4: inert hover defaults and mirrored row state keep the production close affordance explicit in the exhaustive pipeline state. +1: the shared overlay-material module is declared beside the other data-driven chrome owners."
+lines = 2795
+reason = "The footer plate uses the notice channel's one-pixel rim so it remains visible. `Millis` and `progress_per` keep durations out of pixel multiplication by type, while declaration docs name the entitled scale factor for page/caret pads, page-frame strokes, and spell gaps. `HudDefaults`, `WhichKeyDefaults`, and `DebugDefaults` give inert field groups exhaustive defaults beside their sole `TextPipeline` owner. Shape reach rejects unshaped-line sentinels, and `Metrics` carries `dpi` beside zoom scale so a logical floor does not vary by display density. `CARET_INK_PAD_W` gained a doc comment naming its rationale and the near-zero vertical headroom finding that kept the tuning to width alone. +7: the working-set stack plate's own row-height and inset constants, named beside the other margin-row geometry this file already owns. +10: the menu chord column's config-aware label plumbing (ViewState mirrors of config_keys/config_linux_keep). +4: inert hover defaults and mirrored row state keep the production close affordance explicit in the exhaustive pipeline state. +1: the shared overlay-material module is declared beside the other data-driven chrome owners. +14: the streaks card's drawn rect and text origin join the other per-frame HUD state, named beside `HudDefaults`."
 
 [[file_size_mark]]
 file = "src/render/benchsuite/corpus.rs"
@@ -316,8 +316,8 @@ reason = "+31: `effective_caret_look` and `caret_row_start_col` — the one owne
 
 [[file_size_mark]]
 file = "src/render/chrome/hud.rs"
-lines = 453
-reason = "+2 net: prepare_hud and prepare_streaks_card consume the shared plan_float_card and plan_streaks_card geometry records instead of owning card arithmetic. +1: the HUD re-exports its selection-figure drawing owner."
+lines = 480
+reason = "+2 net: prepare_hud and prepare_streaks_card consume the shared plan_float_card and plan_streaks_card geometry records instead of owning card arithmetic. +1: the HUD re-exports its selection-figure drawing owner. +27: `streaks_card_rect`/`streaks_hint_row_rect` publish the drawn card's rect and its first line's rect (the ←/→ paging hint) — the one owner of both `prepare_hud`'s and `prepare_streaks_card`'s set/clear of that state, read by the click hit-test and by render-tier laws."
 
 [[file_size_mark]]
 file = "src/render/chrome/menubar.rs"
@@ -389,8 +389,8 @@ lines = 568
 
 [[file_size_mark]]
 file = "src/render/pipeline_draw.rs"
-lines = 513
-reason = "The footer plate earns the notice channel's own one-pixel rim, which is what lifts it from delta-E 1.91 to 54 on Cassowary -- a plate nobody can see is not a plate. +5: the rim's construction and its draw slot immediately before `overlay_bars`, matching the order `notice_rim`/`notice_plate` already keep. +1: the `shape_tail_owed` field initialiser in TextPipeline::new's literal, its sole construction site — the flag that records a presented frame still owes its tail. +7: the working-set stack plate's draw call, slotted beside the other gutter-row draws it shares a pipeline with. +2: threads config_keys/config_linux_keep into the menu dropdown plan's construction. +1: initializes the inert hovered-row field beside the working-set stack's other exhaustive state. +1: initializes the dedicated docked-facet strip buffer beside the overlay text buffers it replaces."
+lines = 515
+reason = "The footer plate earns the notice channel's own one-pixel rim, which is what lifts it from delta-E 1.91 to 54 on Cassowary -- a plate nobody can see is not a plate. +5: the rim's construction and its draw slot immediately before `overlay_bars`, matching the order `notice_rim`/`notice_plate` already keep. +1: the `shape_tail_owed` field initialiser in TextPipeline::new's literal, its sole construction site — the flag that records a presented frame still owes its tail. +7: the working-set stack plate's draw call, slotted beside the other gutter-row draws it shares a pipeline with. +2: threads config_keys/config_linux_keep into the menu dropdown plan's construction. +1: initializes the inert hovered-row field beside the working-set stack's other exhaustive state. +1: initializes the dedicated docked-facet strip buffer beside the overlay text buffers it replaces. +2: initializes the streaks card's rect/text-origin fields to `None` beside the other per-frame HUD state."
 
 [[file_size_mark]]
 file = "src/render/pipeline_geometry.rs"
@@ -639,15 +639,15 @@ reason = "The row plan reaches this shaper so the strip's active mark rides its 
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/hud.rs"
 function = "TextPipeline::prepare_hud"
-message = "this function has too many lines (160/100)"
-reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam."
+message = "this function has too many lines (162/100)"
+reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam. +2: clears the streaks card's rect/text-origin state in the `!streaks` arm, beside the sibling quad-clear it already performs there."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/render/chrome/hud.rs"
 function = "TextPipeline::prepare_streaks_card"
-message = "this function has too many lines (151/100)"
-reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam."
+message = "this function has too many lines (153/100)"
+reason = "Existing chrome draw owner; extraction needs a deliberate rendering-state seam. +2: stores the card's plan rect/text origin for the click hit-test and render-tier laws to read, beside the plan it is derived from."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -737,8 +737,8 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 lint = "clippy::too_many_lines"
 file = "src/render/pipeline_draw.rs"
 function = "TextPipeline::new"
-message = "this function has too many lines (459/100)"
-reason = "The one exhaustive TextPipeline initializer keeps adjacent GPU state transitions together. Four added lines initialize arbitrary two-colour ground/ink endpoints for independent selection and caret pipelines; their shared baked construction lives in SelectionPipeline::new_two_colour. Five added lines initialize the living band's input epoch beside its existing selection-motion state."
+message = "this function has too many lines (461/100)"
+reason = "The one exhaustive TextPipeline initializer keeps adjacent GPU state transitions together. Four added lines initialize arbitrary two-colour ground/ink endpoints for independent selection and caret pipelines; their shared baked construction lives in SelectionPipeline::new_two_colour. Five added lines initialize the living band's input epoch beside its existing selection-motion state. +2: initializes the streaks card's rect/text-origin fields to `None`, beside the other per-frame HUD state."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"

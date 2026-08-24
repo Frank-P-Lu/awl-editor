@@ -310,6 +310,14 @@ fn hud_spans(inputs: &CardInputs) -> Vec<CardSpan> {
     spans
 }
 
+/// The Writing-streaks card's paging affordance — the ←/→ page flip is
+/// otherwise reachable ONLY through the key intercept
+/// (`actions::intercept_action`'s `streaks_open` arm) or a click on the
+/// card's own surface (`app::press_with_card_open`), and nothing else drawn
+/// says either is possible. Public so a render-tier law can locate this exact
+/// string without duplicating it.
+pub const STREAKS_PAGE_HINT: &str = "← page →";
+
 fn streaks_spans(inputs: &CardInputs) -> Vec<CardSpan> {
     let view = inputs
         .live
@@ -334,13 +342,22 @@ fn streaks_spans(inputs: &CardInputs) -> Vec<CardSpan> {
             ),
         ),
     };
-    figure_spans(
+    let mut spans = figure_spans(
         [
             ("CURRENT STREAK".to_string(), streak),
             (caption.to_string(), value),
         ]
         .into_iter(),
-    )
+    );
+    // Sits directly under the page dots in the drawn card (the text block
+    // starts right where the dots leave off) — the FIRST line of the text
+    // flow, so `TextPipeline::streaks_hint_row_rect` (which reads the shaped
+    // buffer's first layout run) always names this exact line.
+    spans.insert(
+        0,
+        CardSpan::new(STREAKS_PAGE_HINT, CardStyle::Caption, true),
+    );
+    spans
 }
 
 fn peek_spans(inputs: &CardInputs) -> Vec<CardSpan> {

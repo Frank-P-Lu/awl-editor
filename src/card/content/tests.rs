@@ -216,3 +216,31 @@ fn open_card_follows_the_renderers_precedence_for_every_gate_combination() {
     crate::about::set_open(false);
     crate::lifetime::set_open(false);
 }
+
+/// The card's paging affordance is otherwise reachable only through the ←/→
+/// key intercept or a click on the card's own surface — nothing else drawn
+/// says either is possible. So the hint is the FIRST line on BOTH pages (the
+/// render pipeline's `streaks_hint_row_rect` locates whichever line index 0
+/// is, and this is the state half of the pairing: the render-tier ink law in
+/// `render::tests::streaks_card_ink` proves that line is legible, but only
+/// THIS assertion proves it is actually the hint text and not, say,
+/// "CURRENT STREAK" happening to land in the same place).
+#[test]
+fn the_streaks_hint_is_the_first_line_on_every_page() {
+    let _guard = crate::testlock::serial();
+    for page in [CardView::Heatmap, CardView::Cumulative] {
+        let inputs = CardInputs {
+            streaks_page: page,
+            ..inputs()
+        };
+        let content = card(CardKind::Streaks, &inputs);
+        assert_eq!(
+            content.lines().first().copied(),
+            Some(STREAKS_PAGE_HINT),
+            "{page:?}: the hint must be the card's first line"
+        );
+        // Both arrows are literally in the string — the render-tier law only
+        // proves SOME ink is there, not which glyphs.
+        assert!(STREAKS_PAGE_HINT.contains('←') && STREAKS_PAGE_HINT.contains('→'));
+    }
+}

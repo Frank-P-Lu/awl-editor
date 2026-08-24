@@ -207,6 +207,10 @@ mod settings_row_reach_law;
 mod spell_popup_diagonal;
 mod split_pane;
 mod stars;
+/// The Writing-streaks card's own drawn geometry: `streaks_card_rect` names
+/// the rect a click hit-test reads, and the ←/→ paging hint's presence is
+/// proven by real ink over the row that geometry locates.
+mod streaks_card_ink;
 mod syntax_ligatures;
 mod syntax_roles;
 mod tables;

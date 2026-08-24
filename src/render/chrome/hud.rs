@@ -95,6 +95,29 @@ impl TextPipeline {
             .unwrap_or_else(crate::streaks::placeholder)
     }
 
+    /// The Writing-streaks card's drawn rect `[x, y, w, h]` this frame, or
+    /// `None` when it is not open — from the SAME [`Self::prepare_streaks_card`]
+    /// plan the card renders from. Used by `app/input/mouse_button.rs`'s
+    /// CLICK-ON-CARD hit-test (a press on this rect pages instead of dismissing
+    /// the card) and by headless tests to assert WHERE the card sits.
+    pub fn streaks_card_rect(&self) -> Option<[f32; 4]> {
+        self.streaks_card_rect
+    }
+
+    /// The streaks card's FIRST drawn line's rect `[x, y, w, h]` this frame —
+    /// the ←/→ paging hint, since [`crate::card::content::streaks_spans`] puts
+    /// it first — from the shaped `hud_buffer` layout plus the stored text
+    /// origin, so a render-tier law can locate exactly the ink it wants to
+    /// count without re-deriving the card's layout math. `None` off the
+    /// streaks page (no text origin) or before any text has been shaped.
+    /// Test-only: nothing in production ever needs a specific line's rect.
+    #[cfg(test)]
+    pub(in crate::render) fn streaks_hint_row_rect(&self) -> Option<[f32; 4]> {
+        let [ox, oy] = self.streaks_text_origin?;
+        let run = self.hud_buffer.layout_runs().next()?;
+        Some([ox, oy + run.line_top, run.line_w, run.line_height])
+    }
+
     pub fn peek_report(&self) -> PeekReport {
         PeekReport {
             open: crate::peek::peek_open(),
@@ -118,6 +141,8 @@ impl TextPipeline {
         if !streaks {
             self.streak_cells
                 .prepare_multicolor(device, queue, width, height, &[]);
+            self.streaks_card_rect = None;
+            self.streaks_text_origin = None;
         } else {
             return self.prepare_streaks_card(device, queue, width, height);
         }
@@ -368,6 +393,8 @@ impl TextPipeline {
         });
         let [grid_x, grid_y, _, _] = plan.grid;
         let dots_y = plan.dots_y;
+        self.streaks_card_rect = Some(plan.card);
+        self.streaks_text_origin = Some(plan.text);
 
         let colors = theme::heatmap_colors();
         let mut quads: Vec<([f32; 4], [u8; 4])> = Vec::with_capacity(WEEKS * DAYS_PER_WEEK * 2 + 2);
