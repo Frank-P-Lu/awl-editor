@@ -168,9 +168,17 @@ fn docked_facet_draw_hit_and_pane_edge_are_one_geometry_across_canvas_and_dpi() 
                     && docked_label.line_w <= p.overlay_geometry(w).text_w,
                 "the complete category strip has ink and fits the card"
             );
+            // The fill deliberately OVERLAPS the pane edge rather than meeting
+            // it exactly — it bridges the card's own border ring so the tab's
+            // mouth reads continuous with the card ground (the pixel-level
+            // seam law lives in `docked_tab_seam.rs`; this is the geometry
+            // half, byte-for-byte against the same overlap the draw path uses).
+            let seam_overlap = p.docked_tab_seam_overlap_probe();
             assert!(
-                (tab[1] + tab[3] - card_y).abs() < 0.01,
-                "active tab's fill joins the same pane edge"
+                (tab[1] + tab[3] - (card_y + seam_overlap)).abs() < 0.01,
+                "active tab's fill overlaps the pane edge by exactly the seam \
+                 merge margin, got bottom {} vs card_y {card_y} + {seam_overlap}",
+                tab[1] + tab[3]
             );
             let x = tab[0] + tab[2] * 0.5;
             assert_eq!(
