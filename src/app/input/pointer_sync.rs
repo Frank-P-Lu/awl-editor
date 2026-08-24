@@ -1,14 +1,17 @@
 //! THE ONE OWNER of pointer-derived render state: the OS cursor icon, the
-//! fold-chevron hover reveal, and the working-set stack's close-mark hover.
-//! Every door that can change what these three answer for — a real
-//! `CursorMoved`, a click, a drag beginning or ending, an overlay opening or
-//! closing, a modifier change, a wheel scroll/zoom, or a keyboard action that
-//! scrolls or moves the caret off-screen — recomputes all three together
-//! through [`App::resync_pointer_derived_state`] (the pointer itself moved:
-//! the door is its own evidence) or
+//! fold-chevron hover reveal, the working-set stack's close-mark hover, the
+//! format popover's hover ring, and the inline-image resize-handle hover grip
+//! (the last two, item 483 — hover feedback drawn only where which-control-
+//! fires or that-a-control-exists is genuinely ambiguous). Every door that
+//! can change what these five answer for — a real `CursorMoved`, a click, a
+//! drag beginning or ending, an overlay opening or closing, a modifier
+//! change, a wheel scroll/zoom, or a keyboard action that scrolls or moves
+//! the caret off-screen — recomputes all five together through
+//! [`App::resync_pointer_derived_state`] (the pointer itself moved: the door
+//! is its own evidence) or
 //! [`App::resync_pointer_derived_state_if_geometry_changed`] (the pointer
 //! didn't move; `sync_view`'s one frame-level seam asks whether the geometry
-//! moved under it instead). The three components stay private to this module
+//! moved under it instead). The five components stay private to this module
 //! tree — this file is the only door in.
 //!
 //! # Why one seam instead of a fourth door-patch
@@ -73,7 +76,19 @@ impl App {
             gpu.pipeline
                 .resolve_gutter_stack_hover(px, py, gpu.config.height)
         });
-        if stack_hover_changed {
+        // FORMAT POPOVER hover ring + inline-image resize-handle grip (item
+        // 483): each reads the SAME hit-test the cursor-icon path already
+        // does (`popover_hit` / `image_handle_at`), so the drawn
+        // acknowledgement can never disagree with a clickable target.
+        let popover_hover_changed = self
+            .frame
+            .gpu_mut()
+            .is_some_and(|gpu| gpu.pipeline.resolve_popover_hover(px, py));
+        let image_hover_changed = self
+            .frame
+            .gpu_mut()
+            .is_some_and(|gpu| gpu.pipeline.resolve_image_hover(px, py));
+        if stack_hover_changed || popover_hover_changed || image_hover_changed {
             self.request_frame();
         }
         self.sync_cursor_icon();
@@ -98,18 +113,20 @@ impl App {
         self.resync_pointer_derived_state();
     }
 
-    /// Clear BOTH pointer-hover render facts — never just one. The two
+    /// Clear EVERY pointer-hover render fact — never just one. The two
     /// lifecycle edges that lose the pointer outright (the OS cursor leaving
     /// the window, the window losing focus) route through this one owner so
-    /// neither can independently forget the other, the way `on_cursor_left`
-    /// once forgot the chevron and `on_focus_lost` forgot both.
+    /// none can independently forget another, the way `on_cursor_left` once
+    /// forgot the chevron and `on_focus_lost` forgot both.
     pub(in crate::app) fn clear_pointer_hover_state(&mut self) -> bool {
         let Some(gpu) = self.frame.gpu_mut() else {
             return false;
         };
         let chevron_cleared = gpu.pipeline.set_hover_line(None);
         let stack_cleared = gpu.pipeline.clear_gutter_stack_hover();
-        chevron_cleared || stack_cleared
+        let popover_cleared = gpu.pipeline.clear_popover_hover();
+        let image_cleared = gpu.pipeline.clear_image_hover();
+        chevron_cleared || stack_cleared || popover_cleared || image_cleared
     }
 }
 

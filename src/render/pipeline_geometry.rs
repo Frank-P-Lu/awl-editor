@@ -68,6 +68,11 @@ impl TextPipeline {
         // preview re-tints for free.
         self.image_scrim_pipeline
             .set_color(theme::image_reveal_scrim().rgba_bytes());
+        // INLINE-IMAGE resize-handle hover grip (item 483): `muted`, the same
+        // quiet-affordance ink the Chips ghost pills and the fold chevron
+        // both spend — never `primary` (DESIGN's one accent stays the caret).
+        self.image_handle_mark
+            .set_color(theme::muted().rgba_bytes());
         self.table_rule_pipeline
             .set_color(theme::muted().rgba_bytes());
         self.fold_chevron_pipeline
@@ -96,6 +101,15 @@ impl TextPipeline {
         self.popover_hl_wash
             .set_dither_cell(wagtail_stipple_cell_px(self.dpi));
         self.popover_strike.set_color(strike_srgba_bytes());
+        // FORMAT POPOVER hover ring (item 483): `muted`, the SAME hairline
+        // stroke weight the Chips ghost pills ride (`BAR_OUTLINE_STROKE`) —
+        // never a fill, so it reads whether or not the button underneath also
+        // carries the active-state `base_200` wash. Set once (this pipeline
+        // never switches mode).
+        self.popover_hover_ring
+            .set_color(theme::muted().rgba_bytes());
+        self.popover_hover_ring
+            .set_stroke(self.metrics.px(BAR_OUTLINE_STROKE));
         // WEB/LINUX MENU BAR: re-tint from the world's own tokens (O(1) — the bar/
         // dropdown GEOMETRY is theme-independent, so the theme-picker preview re-tints
         // it for free). Bar ground = a value step off the room (`base_200`); the open

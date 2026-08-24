@@ -2197,6 +2197,22 @@ pub struct TextPipeline {
     pub image_placeholder_pipeline: SelectionPipeline,
     pub image_scrim_pipeline: SelectionPipeline,
     pub image_placeholder_renderer: TextRenderer,
+    /// INLINE-IMAGE resize-handle hover AFFORDANCE (item 483): a small filled
+    /// `muted` grip drawn at the hovered edge/corner, over the image — the
+    /// visible half of the invisible `IMAGE_RESIZE_GRAB_PX` hit tolerance, so
+    /// resizability stops relying on the OS cursor shape alone.
+    pub image_handle_mark: SelectionPipeline,
+    /// The inline-image resize HANDLE under the live pointer this frame — the
+    /// image's own byte `range` (identifying WHICH image, since more than one
+    /// may be on screen) plus which edge/corner. Set by
+    /// [`Self::resolve_image_hover`], the SAME `image_handle_at` hit-test the
+    /// cursor-icon and drag-arm paths already read, so the drawn grip can
+    /// never disagree with what a press there would grab. Deliberately holds
+    /// an IDENTIFIER rather than a stashed pixel rect — [`Self::image_hover_mark_rect`]
+    /// re-derives the rect from the CURRENT `image_hit_rects()` every frame,
+    /// so a document edit between hover and paint cannot leave the grip drawn
+    /// over where the image used to be.
+    image_hover: Option<((usize, usize), ImageHandle)>,
     /// INLINE IMAGES: the decode + GPU-upload cache (native-only), keyed by canonical
     /// path + mtime. Decodes O(visible) and downscales to the display width; pruned
     /// to the open doc's images each reshape ([`image_cache::ImageCache::retain_paths`]).
@@ -2438,6 +2454,13 @@ pub struct TextPipeline {
     pub popover_wash: SelectionPipeline,
     pub popover_hl_wash: SelectionPipeline,
     pub popover_strike: SpellUnderlinePipeline,
+    /// FORMAT POPOVER hover ring (item 483): a quiet `muted` hairline stroke
+    /// (`BAR_OUTLINE_STROKE`, the SAME weight the Chips ghost-pill affordance
+    /// already rides) drawn around the hovered button's own hit-region — never
+    /// a fill, so the acknowledgement reads regardless of whether the button
+    /// underneath is also carrying the active-state `base_200` wash. Empty
+    /// (parked) whenever no button is hovered.
+    pub popover_hover_ring: SelectionPipeline,
     pub popover_renderer: TextRenderer,
     pub popover_buffer: GlyphBuffer,
     popover_model: Option<crate::popover::PopoverModel>,
@@ -2447,6 +2470,13 @@ pub struct TextPipeline {
     /// from, so a click can never disagree with where a button is painted. `None`
     /// when the popover is down.
     popover_geom: Option<crate::render::chrome::PopoverGeom>,
+    /// The button under the live pointer this frame, or `None` off any button
+    /// / popover down. Set by [`Self::resolve_popover_hover`] (the SAME
+    /// `popover_hit` the click path and the cursor icon already read), and
+    /// force-cleared whenever `prepare_popover` finds the popover down — a
+    /// safety net so a stale hover can never survive the popover closing even
+    /// if a pointer-derived resync happens not to run that exact frame.
+    popover_hover: Option<crate::popover::PopoverButton>,
     notice: String,
     /// The notice text `prepare_notice` last SHAPED — the sentence after any
     /// elision to the column's budget, i.e. exactly what the PNG shows. The

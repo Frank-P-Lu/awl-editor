@@ -51,6 +51,10 @@ impl TextPipeline {
             SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         let image_placeholder_renderer =
             TextRenderer::new(&mut atlas, device, wgpu::MultisampleState::default(), None);
+        // INLINE-IMAGE resize-handle hover grip (item 483) — a small filled
+        // mark, never drawn until a hover resolves a handle.
+        let image_handle_mark =
+            SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         // Translucent selection highlight quads, drawn under the text. On a
         // one-bit world `prepare_selection_layer` uploads ZERO rects here
         // (the true-inverse-video `selection_invert` pipeline takes over
@@ -217,6 +221,11 @@ impl TextPipeline {
         popover_hl_wash.set_dither(wagtail_dither_density());
         popover_hl_wash.set_dither_cell(wagtail_stipple_cell_px(1.0));
         let popover_strike = SpellUnderlinePipeline::new(device, format, PLACEHOLDER_RGBA);
+        // FORMAT POPOVER hover ring (item 483) — a hairline stroke pipeline,
+        // never a fill; stroke width is set once in `sync_theme_colors`
+        // (this pipeline never switches mode, unlike `overlay_facet_ghost`).
+        let popover_hover_ring =
+            SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         let popover_renderer =
             TextRenderer::new(&mut atlas, device, wgpu::MultisampleState::default(), None);
         let popover_buffer = GlyphBuffer::new(&mut font_system, metrics.glyph_metrics());
@@ -331,6 +340,8 @@ impl TextPipeline {
             image_placeholder_pipeline,
             image_scrim_pipeline,
             image_placeholder_renderer,
+            image_handle_mark,
+            image_hover: None,
             #[cfg(not(target_arch = "wasm32"))]
             image_cache: image_cache::ImageCache::default(),
             squiggle_cache: rects::UnderlineCache::new(),
@@ -423,10 +434,12 @@ impl TextPipeline {
             popover_wash,
             popover_hl_wash,
             popover_strike,
+            popover_hover_ring,
             popover_renderer,
             popover_buffer,
             popover_model: None,
             popover_geom: None,
+            popover_hover: None,
             hud: HudDefaults::default(),
             streaks_view: None,
             peek_rows: Vec::new(),

@@ -704,6 +704,48 @@ impl TextPipeline {
             })
     }
 
+    /// Mirror the resize handle under the LIVE pointer into render state
+    /// (item 483) — the SAME `image_handle_at` hit-test the cursor-icon path
+    /// already reads, so the drawn grip can never disagree with a clickable
+    /// one. Returns whether the visible hover state changed, so the caller
+    /// can request exactly one repaint on entry, handle crossing, or exit.
+    pub fn resolve_image_hover(&mut self, px: f32, py: f32) -> bool {
+        let next = self
+            .image_handle_at(px, py)
+            .map(|(range, handle, _)| (range, handle));
+        if self.image_hover == next {
+            return false;
+        }
+        self.image_hover = next;
+        true
+    }
+
+    /// Clear a live resize-handle grip when the pointer leaves the window (or
+    /// loses focus) — the image-hover companion to `clear_gutter_stack_hover`.
+    pub fn clear_image_hover(&mut self) -> bool {
+        self.image_hover.take().is_some()
+    }
+
+    /// The RESIZE-HANDLE GRIP quad for this frame, or `None` off any image
+    /// border / no hover. Re-derives the rect from the CURRENT
+    /// `image_hit_rects()` by the hovered image's own byte range rather than
+    /// trusting a stashed pixel rect, so a document edit between the last
+    /// hover resolve and this paint can never leave the grip drawn over where
+    /// the image used to be.
+    pub(super) fn image_hover_mark_rect(&self) -> Option<[f32; 4]> {
+        let (range, handle) = self.image_hover?;
+        let rect = self
+            .image_hit_rects()
+            .into_iter()
+            .find(|(r, _)| *r == range)?
+            .1;
+        Some(super::geometry::image_handle_mark_rect(
+            handle,
+            rect,
+            self.metrics.px(super::geometry::IMAGE_HANDLE_MARK_PX),
+        ))
+    }
+
     pub(super) fn set_text_incremental(&mut self, text: &str) {
         let attrs = self.doc_attrs();
         // Resolve fallback faces once, then overlay each changed line through

@@ -1132,6 +1132,12 @@ impl TextPipeline {
         self.image_scrim_pipeline
             .prepare(device, queue, width, height, &scrim_bands);
 
+        // Resize-handle hover grip (item 483) — at most one rect, off any
+        // image border / no hover.
+        let handle_rect: Vec<[f32; 4]> = self.image_hover_mark_rect().into_iter().collect();
+        self.image_handle_mark
+            .prepare(device, queue, width, height, &handle_rect);
+
         let buffers = self.build_missing_placeholder_text_buffers(&missing);
         let bounds = self.clip_text_bounds(TextBounds {
             left: 0,
@@ -1179,6 +1185,8 @@ impl TextPipeline {
         self.image_placeholder_pipeline
             .prepare(device, queue, width, height, &[]);
         self.image_scrim_pipeline
+            .prepare(device, queue, width, height, &[]);
+        self.image_handle_mark
             .prepare(device, queue, width, height, &[]);
         self.image_placeholder_renderer
             .prepare(
