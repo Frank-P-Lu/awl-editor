@@ -6,22 +6,48 @@
 
 ## Ready to build
 
-### 444 — the working set becomes visible: a margin buffer stack (USER DECISION 2026-08-16; residuals 1–2 LANDED; residual 3 windowing + scroll DECIDED USER 2026-08-25, ready to build; Move rows question still open)
+### 444 — the working set becomes visible: a margin buffer stack (USER DECISION 2026-08-16; residuals 1–3 LANDED; Move rows sub-scope still open)
 
-**CLAIMED 2026-08-25 — building in worktree `item-444-residual3-build`.**
+**Residual 3 LANDED 2026-08-25** (`d38cbe1e`, merge of `item-444-residual3-build`): the
+overflow `+ N more…` row, the hold-still/minimal-slide resting window, and the
+expanded scrollable/grouped panel — all three per the user's 2026-08-25 gallery
+decisions (open order seeds the stack and activation never reorders it; the
+window holds still when the newly active file is already visible and slides
+the minimum otherwise; the expanded view reveals the active row on open and on
+every re-activation but never fights the reader's own scroll). Render layer
+needed zero changes; one shared `margin_rows(root)` now feeds both the live App
+margin and the `--screenshot-app` capture fold. Full native-gate receipt
+(mac+linux+menubar-full) and web-smoke both green. **Owed to a human, live-only
+and structurally unreachable from any capture door** (same class as the
+pre-existing switch/close click): the actual pointer press on the `+N more…`
+row, a file row inside the expanded panel, and the wheel-over-panel gesture —
+proven at every seam short of the literal window/pointer. Also owed: the
+expanded panel's 8-row viewport size and click-away/Esc feel are judged from
+the gallery's numbers, not yet confirmed live in a real window.
 
-Residual 3's gallery is built and landed at `captures/item-444-residual3/`
-(fixture, `shoot.sh`, README with rationale) — collapsed/expanded/grouped
-states across several worlds. The agent found the render layer needed zero
-changes. The user judged the gallery 2026-08-25 and decided both UX
-questions it posed (recorded in "Residual 3 decisions" below).
+**Everything except the Move navigator is now LANDED on `main`.** Full sha
+list: `git log --grep 'item 444'`; design history and every landed residual's
+detail: `git log -p -- .orchestrator/queue.md`.
 
-**Everything except residual 3 is LANDED on `main`** — the capture door, the
-`WorkingSet` module, resting-stack render, sidecar exposure +
-click-to-switch, ⌘W/close-zone removal through one owner, the hover-reveal
-close affordance with folder heading, and the honest zero-document state.
-Full sha list: `git log --grep 'item 444'`; design history and the landed
-residuals' detail: `git log -p -- .orchestrator/queue.md`.
+**Still open, NOT decided — the Move navigator sub-scope**, untouched by every
+prototype pass so far and awaiting its own round (Residual 1's prototype
+gallery is preserved untracked at `gallery/item-444-affordance-prototypes/`):
+
+Move stays deliberately bounded to the source file's owning root. Its summoned
+folders-only navigator says `move <filename>`, shows the current root-relative
+destination, descends/ascends through folders, offers an explicit `New folder…`
+row and a `Move here` action at every level, including whether those two rows
+show permanently or contextually. A successful move keeps the stack slot
+stable and updates its quiet parent path. No drag-to-move, bulk selection,
+folder moves or cross-root moves in this item: those are file-manager machinery,
+and a tiny contextual stack is the wrong place to imply them. Moving never
+silently rewrites Markdown or incoming links; when the file contains relative
+links/images, the completion feedback states that their paths may need review.
+
+Verify, once built: context-menu Move and palette Move dispatch the same
+action; moving a nested file keeps its stack slot and updates its relative
+label, and never crosses the source root. Generated reference rows are
+spot-checked against the dispatch they claim.
 
 **Two smaller findings, still carried forward:**
 - `gutter` in the sidecar (the single name/project fact) is stale
@@ -32,8 +58,6 @@ residuals' detail: `git log -p -- .orchestrator/queue.md`.
   entry, the successor search skips it) but still has no *activation* door
   anywhere (`load_path` takes a path; `previous_path()` returns
   `Option<PathBuf>`) — a scratch row still silently swallows a switch click.
-  Feeds residual 2 (zero-document), which needs the same "no path yet"
-  reasoning anyway.
 
 **Two facts worth knowing before the next residual touches this area:**
 `Finish file` is now a misnomer for a command that CLOSES — renaming it
@@ -42,96 +66,6 @@ only its *description* was corrected this round, not its name. And
 `load_path` flushes autosave before parking, so under the default config a
 parked entry is essentially never dirty — the parked-conflict path is mainly
 reachable via `autosave = false`.
-
-**Residual 3 decisions (USER 2026-08-25, from the gallery):**
-- **Ordering law:** open order seeds the stack; activating a file NEVER
-  reorders it. (Already the built behavior; now pinned as the user's rule,
-  and item 484's drag-to-reorder makes a drag the ONE order-changing
-  gesture.)
-- **Resting window rule — hold still, slide minimally.** The gallery's
-  stateless candidate (window re-derived from the active index alone) was
-  rejected on its own `collapsed-jitter.png` evidence: activating a file
-  already visible slid the window four slots. The shipped rule is
-  stateful: when the newly active file is already inside the visible
-  window, the window does not move; when it is outside, the window slides
-  the minimum distance that reveals it.
-- **Expanded scroll — reveal on open, never clamp during scroll.** The
-  browser-tab convention: the expanded view opens scrolled so the active
-  row is visible, and any activation re-reveals it, but a user's own
-  wheel/trackpad scroll is never fought — the active row may scroll out
-  and nothing pulls it back.
-
-**Ready to build:** overflow row interaction (`+ N more…` click/hit-test),
-the expanded scrollable view, and the grouped cross-project view, per the
-spec paragraphs below under the three decisions above. **Still open, NOT
-decided:** the Move navigator sub-scope (including whether it permanently
-shows `Move here` and `New folder…`) — untouched by the prototype pass and
-awaiting its own round. (Residual 1's prototype gallery is preserved
-untracked at `gallery/item-444-affordance-prototypes/`.)
-
-Move stays deliberately bounded to the source file's owning root. Its summoned
-folders-only navigator says `move <filename>`, shows the current root-relative
-destination, descends/ascends through folders, offers an explicit `New folder…`
-row and a `Move here` action at every level. A successful move keeps the stack
-slot stable and updates its quiet parent path. No drag-to-move, bulk selection,
-folder moves or cross-root moves in this item: those are file-manager machinery,
-and a tiny contextual stack is the wrong place to imply them. Moving never
-silently rewrites Markdown or incoming links; when the file contains relative
-links/images, the completion feedback states that their paths may need review.
-
-Visible overflow is bounded independently of the registry's safety cap.
-PROTOTYPE five file rows plus a quiet `+ N more…` row. Accepting it EXPANDS the
-same bottom-anchored stack UPWARD into a transient scrollable working-set view;
-it does not detour through Go to, permanently lengthen the resting margin, or
-turn the whole window into a sidebar. Wheel/trackpad motion over the expanded
-list scrolls that list, Esc/click-away collapses it, and choosing a file returns
-to the resting stack. The active file must always be represented in the visible
-five; the windowing and scroll rules are the DECIDED ones above (hold-still
-minimal-slide window; reveal-on-open, unclamped scroll). Do not silently evict a sixth
-file merely to make the drawing easy: the existing registry's
-clean-LRU/never-dirty eviction is a memory safety bound, not a visible-stack
-product rule.
-
-PROTOTYPE the cross-project half in that SAME expanded view, taking the useful
-part of Codex's sidebar grammar without adopting its permanent project-manager
-shell: group retained open files under folder headings; mark the active file's
-group clearly; keep only the active folder's group in the resting stack. The
-ONE generic `+ N more…` row counts every hidden open buffer — same-root overflow
-and other roots alike — and expands this grouped view; never add a parallel
-`N files in other folders…` row. Clicking a file in another group atomically
-restores its remembered project root AND activates its buffer, after which Go
-to, New, Move, export and the resting stack all operate in that folder. This is
-why the main folder remains meaningful: it is the ACTIVE group, not a claim that
-no other folder may retain buffers. Do not show multiple groups persistently;
-awl is not a project manager.
-
-No new digit shortcuts. Once the working set can be grouped, partially hidden
-and scrolled, “the third file” has no stable, obvious meaning across resting and
-expanded states. ⌃Tab Last file stays exactly as shipped, `C-x b` may remain its
-quiet Emacs alias, and Go to… remains the complete keyboard route.
-
-Contract edits owned here: DESIGN §5's margin roster gains the stack as a
-member with the outline's own license (may click-to-switch; orientation, not
-management UI). PHILOSOPHY §1 is untouched — this is not a strip.
-
-Harness reach for whatever ships from residual 3
-(docs/harness-reach.md read for this clause): the working set is App-owned —
-tier-1 captures classify it Unsupported — so every claim drives
-`--screenshot-app`, hermetic against seeded roots only (the margin
-photographs filenames, so ambient roots would leak paths). Verify, for the
-still-unbuilt parts: overflow keeps the active file represented and its
-`+ N more…` count exact; the hold-still law — activating a file already
-inside the visible window leaves every drawn row in place (the exact
-`collapsed-jitter.png` sequence, asserted by sidecar row identity), and
-activating one outside slides the window by the minimum; the expanded view
-opens with the active row visible, a scripted scroll moves it off-screen
-with no clamp, and a subsequent activation re-reveals it; expanded scroll
-remains inside the working set;
-cross-root activate restores the matching project/root before the frame and
-the gutter never names the old root; context-menu Move and palette Move
-dispatch the same action; moving a nested file keeps its stack slot and
-updates its relative label, and never crosses the source root. Generated
-reference rows are spot-checked against the dispatch they claim.
 
 ### 475 — the fold mark becomes a font glyph: per-world symbols via rotated_label (USER DECISION 2026-08-23)
 
