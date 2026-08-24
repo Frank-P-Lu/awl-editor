@@ -15,7 +15,7 @@ ambient path involved, so nothing here can leak a real directory.
 
 ## What's shown
 
-Each sheet is a candidates-by-(level × turn) grid: 5 rows (candidates) × 4
+Each sheet is a candidates-by-(level × turn) grid: 6 rows (candidates) × 4
 columns (H1 collapsed, H1 expanded, H3 collapsed, H3 expanded). Every cell
 pairs the candidate mark with an upright "Heading" specimen in the world's
 own display face, at the SAME font-size ladder rung the real heading text
@@ -57,6 +57,19 @@ font asset changes, no new license surface: see "Licensing" below.
 5. **JetBrains Mono, U+276F `❯`** (HEAVY RIGHT-POINTING ANGLE QUOTATION MARK
    ORNAMENT) — a heavier weight in the same angle-quote family, from a third
    already-bundled mono face.
+6. **EB Garamond, U+261E `☞`** (WHITE RIGHT POINTING INDEX) — the wildcard,
+   added at the user's request for one wilder option: the MANICULE, the
+   pointing hand scribes drew in manuscript margins to flag a passage.
+   Same warm serif as candidate 1; points right at rest, so the
+   quarter-turn grammar and the direction-at-rest law hold unchanged
+   (fingertip tapers, cuff is the open end).
+
+   A follow-up scan of the ten bundled CJK faces (same `ttf_parser`-class
+   read, via fontTools) found no directional wildcard there: the JP/KR/SC
+   faces carry ※ 〆 〒 ♪ (and NotoSansKR alone carries 〽 and 〠), but
+   none of the manicule family, no shogi pieces, no arrows — nothing with
+   a point that could survive the direction law. The vertical presentation
+   forms remain absent from all 45 files, as already noted below.
 
 ## Leads investigated and dropped
 

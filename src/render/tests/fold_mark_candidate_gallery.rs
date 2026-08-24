@@ -76,6 +76,18 @@ const CANDIDATES: &[Candidate] = &[
         ch: '\u{276F}',
         slug: "jetbrainsmono-heavy-angle-quote",
     },
+    // The wildcard, at the user's request for one wilder option: the
+    // MANICULE — the pointing hand scribes drew in manuscript margins to
+    // flag a passage, which is a fold mark's exact job. Real coverage in
+    // the same warm serif as the original angle quote, and it points right
+    // at rest like every other member, so the quarter-turn grammar and the
+    // direction-at-rest law hold unchanged (fingertip tapers, cuff is the
+    // open end).
+    Candidate {
+        family: "EB Garamond",
+        ch: '\u{261E}',
+        slug: "ebgaramond-manicule",
+    },
 ];
 
 struct World {
