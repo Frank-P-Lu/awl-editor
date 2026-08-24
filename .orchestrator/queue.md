@@ -166,6 +166,8 @@ commit.
 ---
 ### 476 — Cassowary palette dead band: ~3.5 rows of empty card between query and first item (USER-REPORTED 2026-08-24, live screenshot; reproduced headlessly)
 
+🟡 IN PROGRESS — claude, branch (dispatched via Agent isolation:worktree, sha to follow)
+
 Every lens of the Cmd-P palette on Cassowary shows a blank band between
 the query row and the first item, with the list reading bottom-anchored.
 Measured (ordinary capture, `--theme Cassowary --keys "Cmd-p Right Right
@@ -198,6 +200,8 @@ red.
 ---
 ### 477 — docked facets become real tabs on the console's top border (USER 2026-08-24; promotes item 471's named deferral)
 
+🟡 IN PROGRESS — claude, branch (dispatched via Agent isolation:worktree, sha to follow)
+
 Item 471 deliberately parked "the reference mockup's tab-on-border" as a
 separate taste call; the user has now made it: the category strip is
 "meant to be tabs". Today `FacetStyle::DockedTab` seats the strip line
@@ -226,6 +230,8 @@ revert, so per standing preference: land for judgement.
 ---
 ### 478 — the palette query renders as a text field but is not one (UI-AFFORDANCE SWEEP 2026-08-24, code-verified)
 
+🟡 IN PROGRESS — claude, branch (dispatched via Agent isolation:worktree, sha to follow)
+
 The overlay query line earns the I-beam (`cursor_shape.rs` via
 `over_overlay_query`), but a click inside the card off a row is
 deliberately swallowed (`app/input/mouse.rs`, overlay_click's
@@ -251,6 +257,8 @@ placement law go red.
 
 ---
 ### 479 — hover and cursor truth go stale when content moves under a stationary pointer (UI-AFFORDANCE SWEEP 2026-08-24, code-verified)
+
+🟡 IN PROGRESS — claude, branch (dispatched via Agent isolation:worktree, sha to follow)
 
 `sync_cursor_icon`, `update_fold_hover` and `resolve_gutter_stack_hover`
 are driven by `CursorMoved` plus hand-patched doors (modifiers, overlay
@@ -278,6 +286,8 @@ red.
 ---
 ### 480 — no autoscroll when a selection drag reaches the viewport edge (UI-AFFORDANCE SWEEP 2026-08-24, code-verified absence)
 
+🟡 IN PROGRESS — claude, branch (dispatched via Agent isolation:worktree, sha to follow)
+
 Dragging a text selection to the window's edge stops at one screenful:
 `on_drag` → `hit_test_scroll` clamps to the visible band, and no
 scroll-on-drag exists anywhere (three comments explicitly deny it).
@@ -303,6 +313,8 @@ extension law go red.
 ---
 ### 481 — find/replace panel ranks only its Aa cell in the cursor ladder (UI-AFFORDANCE SWEEP 2026-08-24, code-verified)
 
+🟡 IN PROGRESS — claude, direct (orchestrator-implemented, dispatch costs more than the change)
+
 `panel_hit` already distinguishes the click-to-focus Find and Replace
 field cells and dead panel chrome (`render/chrome/panel.rs`), but
 `sync_cursor_icon` reads only `PanelHit::CaseToggle` — so the document's
@@ -325,6 +337,8 @@ watch the sweep go red.
 
 ---
 ### 482 — modal summoned cards own the next key and click, but not the wheel; the streaks second page has no pointer route (UI-AFFORDANCE SWEEP 2026-08-24, code-verified)
+
+🟡 IN PROGRESS — claude, branch (dispatched via Agent isolation:worktree, sha to follow)
 
 `dismiss_summoned_card` is consulted from exactly one input path, the
 mouse-button press. `on_mouse_wheel` has no card guard — with
