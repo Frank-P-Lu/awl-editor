@@ -149,6 +149,15 @@ impl DocumentSession {
         &self.working
     }
 
+    /// The margin's own transient panel state (expand/collapse/scroll) is
+    /// UI, not order or root truth, but it lives on the same owner rather than
+    /// on root `App` (`app/tests/domains.rs::root_app_does_not_grow`'s field
+    /// ceiling) — and mutating it never touches `active`/`registry`/`spell`,
+    /// so it cannot desync the invariants those fields hold.
+    pub(in crate::app) fn working_set_mut(&mut self) -> &mut crate::workingset::WorkingSet {
+        &mut self.working
+    }
+
     pub(in crate::app) fn poll_autosave(
         &mut self,
         now: Instant,

@@ -291,6 +291,18 @@ impl App {
         let action = self.prepare_tutorial_action(action);
         self.pre_apply(&action, door);
 
+        // ESC COLLAPSES THE EXPANDED WORKING-SET PANEL — the surface's own
+        // dismiss key, alongside the shared core's ordinary Cancel (clearing
+        // the mark/selection) rather than instead of it. The panel is not part
+        // of `workspace_state`'s summoned-overlay precedence ladder (it draws
+        // in the margin, not as an overlay), so it needs its own arm here
+        // rather than inheriting one from that ladder.
+        if matches!(action, Action::Cancel) && self.document.working_set().is_expanded() {
+            self.document.working_set_mut().collapse();
+            self.sync_view(true);
+            self.request_frame();
+        }
+
         if self.reject_without_document(&action) {
             return false;
         }

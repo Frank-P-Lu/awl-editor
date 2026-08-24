@@ -983,6 +983,42 @@ impl App {
         if !self.document.has_active() && !self.workspace_state.overlay_open() {
             return;
         }
+        // THE EXPANDED WORKING-SET PANEL owns a wheel gesture that lands
+        // inside its own drawn band — "wheel/trackpad motion over the
+        // expanded list scrolls that list" (this surface's brief) — rather
+        // than the document sitting behind it. Hit-tested against the SAME
+        // rect the lava carve uses (`gutter_stack_bounds`), so the region a
+        // scroll must land inside cannot drift from the region the panel is
+        // actually drawn in. `WorkingSet::scroll_expanded` is the ONE door
+        // this moves through — it clamps to the panel's own bounds and never
+        // re-centres on the active row, so a reader's own scroll is never
+        // fought (see that method's doc).
+        if self.document.working_set().is_expanded() {
+            let (px, py) = self.input.pointer.cursor_px;
+            let over_panel = self
+                .frame
+                .gpu()
+                .and_then(|g| g.pipeline.gutter_stack_bounds(g.config.height))
+                .is_some_and(|[x, y, w, h]| px >= x && px < x + w && py >= y && py < y + h);
+            if over_panel {
+                let lines = match delta {
+                    MouseScrollDelta::LineDelta(_, y) => y * WHEEL_LINES_PER_NOTCH,
+                    MouseScrollDelta::PixelDelta(p) => accumulate_picker_pixels(
+                        &mut self.input.pointer.scroll_px_accum,
+                        p.y as f32,
+                    ),
+                };
+                if lines.abs() >= 1.0 {
+                    // wheel up = toward the top, the SAME sign convention the
+                    // overlay's own diff-panel wheel below uses.
+                    let delta = -lines.round() as isize;
+                    self.document.working_set_mut().scroll_expanded(delta);
+                    self.sync_view(false);
+                }
+                self.request_frame();
+                return;
+            }
+        }
         // Zoom modifier: Cmd/Super only. (Ctrl must NOT zoom on mac.)
         let zoom_mod = scroll_zoom_intent(self.input.keyboard.mods.state());
         if !zoom_mod && !self.workspace_state.overlay_open() {
