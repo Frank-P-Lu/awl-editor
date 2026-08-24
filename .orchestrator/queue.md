@@ -116,6 +116,8 @@ commit.
 ---
 ### 484 — drag-to-reorder the working-set stack rows (USER 2026-08-25)
 
+**CLAIMED 2026-08-25 — building in worktree `item-484-drag-reorder`, on top of item 444 residual 3 (landed `d38cbe1e`).**
+
 The user wants the open-file rows in the margin stack reorderable by
 pointer drag, the way browser tabs reorder. This makes the stack's order
 USER-OWNED, which locks in item 444 residual 3's ordering law from the
