@@ -168,6 +168,7 @@ impl DiagonalComposition {
 }
 
 mod cluster;
+pub(in crate::render) mod gallery;
 mod location;
 mod offband;
 #[cfg(test)]
@@ -344,6 +345,13 @@ impl TextPipeline {
         self.overlay_spine
             .prepare_rotated(device, queue, width, height, &[segment]);
 
+        // CAPTURE-ONLY: the gallery's "chevron reach shortened" candidate reads
+        // each selected row's own measured NAME ink width, off the SAME shaped
+        // `panel_buffer` `overlay_shape_text` already filled this frame — never a
+        // second shaping pass. `None` (the ordinary run) skips the measurement
+        // entirely, so an unset env var costs this frame nothing.
+        let gallery_ink = gallery::short_chevron_reach()
+            .then(|| self.overlay_row_primary_px(&self.overlay_geometry(width)));
         let selected_segments = plan
             .rows()
             .iter()
@@ -358,7 +366,17 @@ impl TextPipeline {
                 // the mirror and the selected row's outward shift together, with
                 // no second sign and no world branch living in the draw.
                 let (top, bottom) = composition.mark_span_y(row.top, row.height);
-                let (vertex_x, arm_x) = cluster.mark_span(row.display);
+                let (vertex_x, arm_x) = match &gallery_ink {
+                    Some(primary) => {
+                        let ink_w = primary.get(&row.display).copied().unwrap_or(0.0);
+                        let outward = composition.direction.sign();
+                        let vertex = cluster.label_anchor(row.display)
+                            + ink_w * outward
+                            + composition.mark_gap * outward;
+                        (vertex, vertex + composition.mark_reach * 2.0 * outward)
+                    }
+                    None => cluster.mark_span(row.display),
+                };
                 selected_chevron(vertex_x, arm_x, top, bottom, composition.mark_weight)
             })
             .collect::<Vec<_>>();

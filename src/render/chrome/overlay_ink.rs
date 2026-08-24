@@ -92,7 +92,11 @@ impl TextPipeline {
             return None;
         }
         let mut bands = vec![PanelBand {
-            left: geom.text_left,
+            // `geom.text_left` on every ordinary run — see
+            // `diagonal::offband::overlay_head_left`'s own doc for the one
+            // caller that can move it (the gallery's right-aligned query
+            // candidate).
+            left: self.overlay_head_left(geom, plan),
             clip_top: 0.0,
             clip_bottom: plan.first_top(),
         }];
