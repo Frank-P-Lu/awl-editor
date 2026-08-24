@@ -92,6 +92,12 @@ fn set_float_quads(
     );
 }
 
+/// The float-panel border's own outset, device px, unscaled by DPI (a crisp
+/// hairline at any zoom/density rather than a term that doubles on Retina).
+/// Named so a reader can size a term against the ring's own width without
+/// re-deriving it from the literal below.
+pub(in crate::render) const FLOAT_BORDER_RING_PX: f32 = 1.0;
+
 #[allow(clippy::too_many_arguments)]
 fn set_float_quads_rects(
     shadow: &mut SelectionPipeline,
@@ -117,7 +123,14 @@ fn set_float_quads_rects(
     let borders: Vec<[f32; 4]> = if elevation != FloatElevation::Flat {
         rects
             .iter()
-            .map(|&[x, y, w, h]| [x - 1.0, y - 1.0, w + 2.0, h + 2.0])
+            .map(|&[x, y, w, h]| {
+                [
+                    x - FLOAT_BORDER_RING_PX,
+                    y - FLOAT_BORDER_RING_PX,
+                    w + 2.0 * FLOAT_BORDER_RING_PX,
+                    h + 2.0 * FLOAT_BORDER_RING_PX,
+                ]
+            })
             .collect()
     } else {
         Vec::new()

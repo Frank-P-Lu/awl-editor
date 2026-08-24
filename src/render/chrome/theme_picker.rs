@@ -21,6 +21,13 @@ const TEXT_MARK_THICKNESS: Logical = Logical(1.5);
 /// boundary.
 const UNDERLINE_CHIP_THICKNESS: Logical = Logical(3.5);
 
+/// How far the `DockedTab` active plate's fill overlaps the card's own top
+/// edge — enough to paint over the card's flat, dpi-unscaled border hairline
+/// (`FLOAT_BORDER_RING_PX`) and its AA feather, so no border pixel survives
+/// the tab's mouth. `Logical` + `Metrics::px` like the rest of this rect, so
+/// the overlap only grows relative to that flat hairline as dpi/zoom rise.
+const DOCKED_TAB_SEAM_OVERLAP: Logical = Logical(2.0);
+
 impl TextPipeline {
     /// THEME PICKER display plan: the candidate-area sequence of section HEADERS +
     /// world ROWS, from the parallel `overlay_sections`. A header is emitted before a
@@ -381,12 +388,23 @@ impl TextPipeline {
                     ])
                 }
                 theme::FacetStyle::Band => Some(pill_px(min_x - chip_hpad, max_x + chip_hpad)),
-                theme::FacetStyle::DockedTab => Some([
-                    geom.text_left + min_x - chip_hpad,
-                    geom.card_y - chip_h,
-                    max_x - min_x + 2.0 * chip_hpad,
-                    chip_h,
-                ]),
+                theme::FacetStyle::DockedTab => {
+                    let tab = [
+                        geom.text_left + min_x - chip_hpad,
+                        geom.card_y - chip_h,
+                        max_x - min_x + 2.0 * chip_hpad,
+                        chip_h,
+                    ];
+                    // THE TAB'S MOUTH: the ghost ring frames the tab at its true
+                    // bounds (its own bottom-edge stroke lands on the card's top
+                    // border). The PLATE below is deliberately taller — it
+                    // overlaps that stroke AND the card's own border sliver with
+                    // the card's own ground color, so the active facet reads
+                    // continuous with the card instead of a chip floating above it.
+                    ghosts.push(tab);
+                    let seam_overlap = self.metrics.px(DOCKED_TAB_SEAM_OVERLAP);
+                    Some([tab[0], tab[1], tab[2], tab[3] + seam_overlap])
+                }
                 theme::FacetStyle::Chips(v) => match v {
                     theme::ChipVariant::Hairline | theme::ChipVariant::FilledActive => {
                         if matches!(v, theme::ChipVariant::Hairline) {
@@ -410,11 +428,6 @@ impl TextPipeline {
                 },
             }
         });
-        if matches!(facet_style, theme::FacetStyle::DockedTab)
-            && let Some(tab) = self.overlay_theme_underline
-        {
-            ghosts.push(tab);
-        }
         self.overlay_theme_facet_ghosts = ghosts;
         self.shape_docked_facet_strip(geom, strip_scale);
         // A tab PILL is a plate, so `Ruled` is deliberately absent — it draws
@@ -437,6 +450,16 @@ impl TextPipeline {
         };
         false
     }
+
+    /// TEST HOOK: the DockedTab active-plate seam overlap this frame's
+    /// `Metrics` resolves `DOCKED_TAB_SEAM_OVERLAP` to — so a law can assert
+    /// the drawn geometry against the SAME scaled value the draw path used
+    /// rather than a re-derived guess.
+    #[cfg(test)]
+    pub(in crate::render) fn docked_tab_seam_overlap_probe(&self) -> f32 {
+        self.metrics.px(DOCKED_TAB_SEAM_OVERLAP)
+    }
+
     #[allow(clippy::too_many_arguments)]
     fn shape_theme_spans(
         &mut self,
