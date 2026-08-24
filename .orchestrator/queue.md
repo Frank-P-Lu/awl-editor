@@ -6,13 +6,13 @@
 
 ## Ready to build
 
-### 444 — the working set becomes visible: a margin buffer stack (USER DECISION 2026-08-16; residuals 1–2 LANDED; residual 3 🟠 AWAITING USER CHOICE — prototype evidence landed)
+### 444 — the working set becomes visible: a margin buffer stack (USER DECISION 2026-08-16; residuals 1–2 LANDED; residual 3 windowing + scroll DECIDED USER 2026-08-25, ready to build; Move rows question still open)
 
 Residual 3's gallery is built and landed at `captures/item-444-residual3/`
 (fixture, `shoot.sh`, README with rationale) — collapsed/expanded/grouped
 states across several worlds. The agent found the render layer needed zero
-changes; the open question is a stateless-jitter UX call for the user to
-make from the gallery, not further engineering.
+changes. The user judged the gallery 2026-08-25 and decided both UX
+questions it posed (recorded in "Residual 3 decisions" below).
 
 **Everything except residual 3 is LANDED on `main`** — the capture door, the
 `WorkingSet` module, resting-stack render, sidecar exposure +
@@ -41,24 +41,31 @@ only its *description* was corrected this round, not its name. And
 parked entry is essentially never dirty — the parked-conflict path is mainly
 reachable via `autosave = false`.
 
-**Open: residual 3 — overflow windowing, expanded/grouped cross-project
-view, Move navigator. 🟠 AWAITING USER CHOICE.** The capture-only audition
-and its laws are landed and full-gate green. No overflow interaction or Move
-action was shipped. The remaining call is whether five rows plus one exact
-count at rest expands into the grouped eight-row view, and whether Move
-permanently shows `Move here` and `New folder…`. (Residual 1's prototype
-gallery is preserved untracked at `gallery/item-444-affordance-prototypes/`.)
+**Residual 3 decisions (USER 2026-08-25, from the gallery):**
+- **Ordering law:** open order seeds the stack; activating a file NEVER
+  reorders it. (Already the built behavior; now pinned as the user's rule,
+  and item 484's drag-to-reorder makes a drag the ONE order-changing
+  gesture.)
+- **Resting window rule — hold still, slide minimally.** The gallery's
+  stateless candidate (window re-derived from the active index alone) was
+  rejected on its own `collapsed-jitter.png` evidence: activating a file
+  already visible slid the window four slots. The shipped rule is
+  stateful: when the newly active file is already inside the visible
+  window, the window does not move; when it is outside, the window slides
+  the minimum distance that reveals it.
+- **Expanded scroll — reveal on open, never clamp during scroll.** The
+  browser-tab convention: the expanded view opens scrolled so the active
+  row is visible, and any activation re-reveals it, but a user's own
+  wheel/trackpad scroll is never fought — the active row may scroll out
+  and nothing pulls it back.
 
-**QUEUED NEXT ACTION (not yet dispatched):** before either call above can be
-made, build a throwaway prototype of the overflow row and its expanded view
-— enough real rendering to demonstrate the windowing rule (which files sit
-in the resting five, how the window holds steady as the active file
-changes) and the cross-project grouping, captured to screenshots via
-`--screenshot-app` against a seeded fixture (multiple roots, >5 open files),
-mirroring `captures/item-444/shoot.sh`'s hermetic pattern. Move navigator is
-a separate, still-untouched sub-scope — out of this prototype pass unless
-the user asks for it too. Put the shots in front of the user before writing
-any production windowing/grouping code.
+**Ready to build:** overflow row interaction (`+ N more…` click/hit-test),
+the expanded scrollable view, and the grouped cross-project view, per the
+spec paragraphs below under the three decisions above. **Still open, NOT
+decided:** the Move navigator sub-scope (including whether it permanently
+shows `Move here` and `New folder…`) — untouched by the prototype pass and
+awaiting its own round. (Residual 1's prototype gallery is preserved
+untracked at `gallery/item-444-affordance-prototypes/`.)
 
 Move stays deliberately bounded to the source file's owning root. Its summoned
 folders-only navigator says `move <filename>`, shows the current root-relative
@@ -77,8 +84,8 @@ it does not detour through Go to, permanently lengthen the resting margin, or
 turn the whole window into a sidebar. Wheel/trackpad motion over the expanded
 list scrolls that list, Esc/click-away collapses it, and choosing a file returns
 to the resting stack. The active file must always be represented in the visible
-five; prototype the least-jittering stable-order window and put the >5 shots to
-the user before fixing its exact windowing rule. Do not silently evict a sixth
+five; the windowing and scroll rules are the DECIDED ones above (hold-still
+minimal-slide window; reveal-on-open, unclamped scroll). Do not silently evict a sixth
 file merely to make the drawing easy: the existing registry's
 clean-LRU/never-dirty eviction is a memory safety bound, not a visible-stack
 product rule.
@@ -111,7 +118,13 @@ tier-1 captures classify it Unsupported — so every claim drives
 `--screenshot-app`, hermetic against seeded roots only (the margin
 photographs filenames, so ambient roots would leak paths). Verify, for the
 still-unbuilt parts: overflow keeps the active file represented and its
-`+ N more…` count exact; expanded scroll remains inside the working set;
+`+ N more…` count exact; the hold-still law — activating a file already
+inside the visible window leaves every drawn row in place (the exact
+`collapsed-jitter.png` sequence, asserted by sidecar row identity), and
+activating one outside slides the window by the minimum; the expanded view
+opens with the active row visible, a scripted scroll moves it off-screen
+with no clamp, and a subsequent activation re-reveals it; expanded scroll
+remains inside the working set;
 cross-root activate restores the matching project/root before the frame and
 the gutter never names the old root; context-menu Move and palette Move
 dispatch the same action; moving a nested file keeps its stack slot and
