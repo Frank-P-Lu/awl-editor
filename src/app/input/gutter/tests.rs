@@ -423,7 +423,10 @@ fn activating_an_open_file_from_another_root_restores_its_remembered_project_roo
 /// SAME fold `--screenshot-app` writes into its sidecar
 /// (`app/capture_state.rs`), so a law reading through this proves the
 /// SIDECAR-FACING order agrees, not just an internal field. Filtered to
-/// `StackRowKind::File` for the same reason `drawn_labels` is.
+/// `StackRowKind::File` for the same reason `drawn_labels` is. Native-only:
+/// `capture_opts` lives on `app/capture_state.rs`, gated the same way
+/// (`--screenshot-app` is a native-only CLI mode).
+#[cfg(not(target_arch = "wasm32"))]
 fn sidecar_labels(app: &App) -> Vec<String> {
     app.capture_opts()
         .working_set
@@ -436,7 +439,9 @@ fn sidecar_labels(app: &App) -> Vec<String> {
 /// **A DRAG-AND-DROP REORDERS THE GROUP, and the sidecar fold agrees** — the
 /// GPU-free seam `gutter_stack_row_drop` gives the live pointer machinery,
 /// driven directly with two row indices (as if a recognized drag had already
-/// resolved them) rather than through pixel geometry.
+/// resolved them) rather than through pixel geometry. Native-only: see
+/// `sidecar_labels`'s own doc.
+#[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn dragging_a_file_row_reorders_its_own_group_and_the_sidecar_fold_agrees() {
     let _guard = crate::testlock::serial();
