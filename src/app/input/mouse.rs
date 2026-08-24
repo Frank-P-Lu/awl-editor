@@ -596,10 +596,13 @@ impl App {
     /// this never invents parallel geometry, it only arbitrates priority among the
     /// existing regions (`cursor_shape::cursor_icon_for`).
     ///
-    /// Called on every `CursorMoved`, and again from the two doors that change this
-    /// context WITHOUT any mouse motion: a page-edge drag beginning/ending
-    /// (`begin_page_resize_if_hovering` / `end_page_resize`) and a summoned overlay
-    /// opening/closing (`App::apply`'s shared-core slot lend).
+    /// Private to `pointer_sync`'s reach: the ONLY caller is
+    /// `App::resync_pointer_derived_state`, which every door that changes this
+    /// context calls — a real `CursorMoved`, and every door that changes it
+    /// WITHOUT mouse motion (a page-edge drag beginning/ending, a summoned
+    /// overlay opening/closing, a click/release, a wheel scroll/zoom via
+    /// `sync_view`'s gated resync). See `pointer_sync`'s module doc for the
+    /// full door list and why one seam replaced the old hand-patches.
     ///
     /// COMPOSES with pointer auto-hide: while the OS pointer is `Hidden`
     /// (`pointer_hide::PointerHide`), the `set_cursor` call is skipped outright (there
@@ -607,7 +610,7 @@ impl App {
     /// un-hide — always a `CursorMoved`, which recomputes context before anything else
     /// — compares the fresh icon against the still-accurate cache and lands directly on
     /// the context-correct shape instead of a stale one from before the hide.
-    pub(in crate::app) fn sync_cursor_icon(&mut self) {
+    pub(in crate::app::input) fn sync_cursor_icon(&mut self) {
         let Some(gpu) = self.frame.gpu() else { return };
         let (px, py) = self.input.pointer.cursor_px;
         // The pointing-hand affordance now covers EVERY summoned picker's clickable
@@ -731,8 +734,10 @@ impl App {
 
     /// `WindowEvent::CursorMoved`: track the pointer, un-hide the auto-hidden OS
     /// pointer, drive whichever pointer OWNER is active (overlay hover / live
-    /// page-resize drag / text-selection drag), then recompute the context-aware
-    /// cursor shape once for the move regardless of which branch fired.
+    /// page-resize drag / text-selection drag), then recompute every
+    /// pointer-derived render fact — cursor shape, fold-chevron hover,
+    /// working-set stack hover — once for the move regardless of which branch
+    /// fired (`resync_pointer_derived_state`, `pointer_sync`'s one owner).
     pub(in crate::app) fn on_cursor_moved(&mut self, position: winit::dpi::PhysicalPosition<f64>) {
         self.input.pointer.cursor_px = (position.x as f32, position.y as f32);
         let prev_pointer_hide = self.input.pointer.pointer_hide;
@@ -771,27 +776,16 @@ impl App {
                 self.request_frame();
             }
         }
-        self.update_fold_hover();
-        let (px, py) = self.input.pointer.cursor_px;
-        let stack_hover_changed = self.frame.gpu_mut().is_some_and(|gpu| {
-            gpu.pipeline
-                .resolve_gutter_stack_hover(px, py, gpu.config.height)
-        });
-        if stack_hover_changed {
-            self.request_frame();
-        }
-        self.sync_cursor_icon();
+        self.resync_pointer_derived_state();
     }
 
-    /// `WindowEvent::CursorLeft`: a hover-only affordance cannot survive after
-    /// the pointer leaves the window. The no-prototype path holds no state, so
-    /// this remains a repaint-free no-op in production.
+    /// `WindowEvent::CursorLeft`: every hover-only affordance the pointer
+    /// itself carries cannot survive after it leaves the window — the fold
+    /// chevron exactly as much as the working-set stack's close mark, through
+    /// the one owner that clears both together (`clear_pointer_hover_state`),
+    /// so a departing pointer can never leave one lit while the other clears.
     pub(in crate::app) fn on_cursor_left(&mut self) {
-        let changed = self
-            .frame
-            .gpu_mut()
-            .is_some_and(|gpu| gpu.pipeline.clear_gutter_stack_hover());
-        if changed {
+        if self.clear_pointer_hover_state() {
             self.request_frame();
         }
     }
@@ -807,9 +801,14 @@ impl App {
     /// `has_folds()` the way the item-47b original did. Requests a redraw only when
     /// the hovered row changes (so a chevron flip repaints without a per-move redraw
     /// storm). The row is the pointer's hit-test line when over the writing column,
-    /// else `None` (so a chevron never lingers when the pointer leaves the text).
+    /// else `None` (so a chevron never lingers over the margin). The pointer
+    /// LEAVING the window entirely is a different edge, cleared by
+    /// `clear_pointer_hover_state` instead — this method never sees a
+    /// position outside the window to answer `None` from. Private to
+    /// `pointer_sync`'s reach: the only caller is
+    /// `App::resync_pointer_derived_state`.
     /// See [`crate::fold::chevron_revealed`].
-    pub(in crate::app) fn update_fold_hover(&mut self) {
+    pub(in crate::app::input) fn update_fold_hover(&mut self) {
         if !self.document.has_active() {
             if self
                 .frame

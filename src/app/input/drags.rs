@@ -227,7 +227,7 @@ impl App {
         // The context flipped to "dragging the edge" WITHOUT any mouse motion: recompute
         // the cursor shape right now (`dragging_edge` outranks everything), not just on
         // the next `CursorMoved`.
-        self.sync_cursor_icon();
+        self.resync_pointer_derived_state();
         self.apply_page_resize();
         true
     }
@@ -297,7 +297,7 @@ impl App {
         // The context flipped off "dragging the edge" WITHOUT any mouse motion:
         // recompute now (usually resumes the edge-hover or plain-text shape rather
         // than waiting for the next `CursorMoved`).
-        self.sync_cursor_icon();
+        self.resync_pointer_derived_state();
     }
 
     /// If a left press landed ON an inline image's resize EDGE/CORNER, begin a DIRECT
@@ -333,7 +333,7 @@ impl App {
         });
         // The context flipped to "dragging an image" WITHOUT any mouse motion:
         // recompute the cursor shape now, not just on the next `CursorMoved`.
-        self.sync_cursor_icon();
+        self.resync_pointer_derived_state();
         self.apply_image_resize();
         true
     }
@@ -392,7 +392,7 @@ impl App {
         self.write_back_image_width(drag.range, drag.width);
         self.sync_view(false);
         // The context flipped off "dragging an image" WITHOUT any mouse motion.
-        self.sync_cursor_icon();
+        self.resync_pointer_derived_state();
         self.request_frame();
     }
 }
