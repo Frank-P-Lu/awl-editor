@@ -204,7 +204,8 @@ fn right_anchored_secondary_survives_shrink_and_stays_content_bounded() {
     let [rx, _, rw, _] = p.overlay_card_rect().unwrap();
     let hpad = p.overlay_text_hpad();
     let geom = p.overlay_geometry(w);
-    let secs = p.overlay_row_secondary_px(&geom);
+    let plan = p.overlay_row_plan(&geom);
+    let secs = p.overlay_row_secondary_px(plan.billed_header_rows());
     assert!(
         !secs.is_empty(),
         "every row carries a chord, so the secondary map is populated"

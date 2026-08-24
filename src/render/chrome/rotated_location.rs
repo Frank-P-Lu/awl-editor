@@ -28,10 +28,15 @@ fn location_ink(style: theme::LocationLabelStyle) -> ([f32; 3], [f32; 3]) {
 }
 
 impl TextPipeline {
-    /// Read THIS frame's location line (the shared row planner's
-    /// `PlanLine::Location`, still the row-plan's own single slot) and, on any
-    /// world whose style paints it itself (`draws_inline() == false`), hand
-    /// its text and a composed placement to the rotated-label capability.
+    /// On any world whose style paints the location itself
+    /// (`draws_inline() == false`), hand its text and a composed placement to
+    /// the rotated-label capability. The text comes from two different
+    /// places, per `LocationStyle::needs_plan_row`: `RotatedRail` composes
+    /// independently of any row (against the room's own wordmark margin), so
+    /// `theme_plan` charges it no `PlanLine::Location` at all — its label is
+    /// read straight off the view's own `overlay_location`. `Raked` anchors
+    /// its run to that row's own `dx`/`bottom`/`height`, so it still reads
+    /// the shared row planner's single `PlanLine::Location` slot.
     pub(super) fn prepare_overlay_rotated_location(
         &mut self,
         device: &wgpu::Device,
@@ -42,34 +47,37 @@ impl TextPipeline {
         plan: &OverlayRowPlan,
     ) {
         let style = theme::active().render_caps.location_style;
-        let cue = (!style.draws_inline())
-            .then(|| {
-                geom.plan
+        let active_index =
+            crate::render::rotated_location::active_location_index(&self.overlay_lens);
+        let (label_style, label, placement) = match style {
+            theme::LocationStyle::Inline => {
+                self.rotated_label_pipeline.clear();
+                return;
+            }
+            theme::LocationStyle::RotatedRail(label_style) => {
+                let Some(label) = self.overlay_location.clone() else {
+                    self.rotated_label_pipeline.clear();
+                    return;
+                };
+                let placement = self.rotated_rail_placement(geom, label_style);
+                (label_style, label, placement)
+            }
+            theme::LocationStyle::Raked(label_style) => {
+                let cue = geom
+                    .plan
                     .iter()
                     .enumerate()
                     .find_map(|(display, line)| match line {
                         PlanLine::Location(l) => Some((display, l.clone())),
                         _ => None,
                     })
-            })
-            .flatten()
-            .and_then(|(display, label)| plan.rows().get(display).map(|row| (label, *row)));
-        let Some((label, row)) = cue else {
-            self.rotated_label_pipeline.clear();
-            return;
-        };
-
-        let active_index =
-            crate::render::rotated_location::active_location_index(&self.overlay_lens);
-        let cluster = self.diagonal_cluster;
-        let (label_style, placement) = match style {
-            theme::LocationStyle::Inline => return, // excluded by `draws_inline()` above
-            theme::LocationStyle::RotatedRail(label_style) => {
-                (label_style, self.rotated_rail_placement(geom, label_style))
-            }
-            theme::LocationStyle::Raked(label_style) => (
-                label_style,
-                cluster.map(|cluster| {
+                    .and_then(|(display, label)| plan.rows().get(display).map(|row| (label, *row)));
+                let Some((label, row)) = cue else {
+                    self.rotated_label_pipeline.clear();
+                    return;
+                };
+                let cluster = self.diagonal_cluster;
+                let placement = cluster.map(|cluster| {
                     // THE MEASURED step, not `DiagonalComposition::row_step` — see
                     // `location_axis_deg`'s own doc for why reading the narrow-card
                     // yield here is what keeps the cue and the spine beside it
@@ -97,8 +105,9 @@ impl TextPipeline {
                         color_b,
                         overflow: Overflow::Shrink,
                     }
-                }),
-            ),
+                });
+                (label_style, label, placement)
+            }
         };
 
         let Some(label) = format_location_text(label_style, &label, active_index) else {

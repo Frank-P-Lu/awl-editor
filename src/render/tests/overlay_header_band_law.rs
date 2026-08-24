@@ -467,12 +467,24 @@ fn the_query_bar_closes_below_the_field_and_the_folded_beat_would_overrun_it() {
                         grouped_cells += 1;
                         // The grouped card's own beat still rides its STRIP, so
                         // its field and its seam are untouched: the folded box IS
-                        // the strip's box here.
+                        // the strip's box here — UNLESS the active `FacetStyle`
+                        // docks that strip outside the card (`docked_facet_band`),
+                        // in which case the strip's own box charges no `lh` of
+                        // its own and the folded box is the field's alone.
                         let strip = plan.strip_band().expect("a grouped card draws a strip");
+                        let docked = matches!(
+                            crate::render::effective_facet_style(),
+                            theme::FacetStyle::DockedTab
+                        );
+                        let want = if docked {
+                            folded_bottom
+                        } else {
+                            folded_bottom + plan.lh()
+                        };
                         assert!(
-                            (strip.bottom() - (folded_bottom + plan.lh())).abs() < 0.75,
+                            (strip.bottom() - want).abs() < 0.75,
                             "{ctx}: a grouped card's beat must still inflate its strip \
-                             — strip box [{}, {}]",
+                             (docked={docked}) — strip box [{}, {}], wanted bottom {want}",
                             strip.top,
                             strip.bottom()
                         );

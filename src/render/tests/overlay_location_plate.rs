@@ -3,9 +3,8 @@
 //! **Defect (exposed, not introduced, by the rotated-rail location cue):** a
 //! `Bars` card's own LOCATION line (`PlanLine::Location`, the second-level
 //! heading above the candidate rows) used to shape real inline text on every
-//! world. Once `LocationStyle::RotatedRail` (Cassowary) moved that text
-//! off-card into the room's own margin, the line stayed glyph-free — but the
-//! per-row plate loop in
+//! world. Once a `LocationStyle` moved that text off-card (`RotatedRail`,
+//! `Raked`), the line stayed glyph-free — but the per-row plate loop in
 //! `overlay_selection.rs::overlay_unselected_bar_rects` kept backing EVERY
 //! `item.is_none()` row (header or location) with a plate regardless, so the
 //! location row drew a visibly empty rounded chip.
@@ -14,6 +13,13 @@
 //! shaper itself reads (`LocationStyle::draws_inline()`) before pushing a
 //! plate for a location row — never a named-world check, so a future
 //! non-inline style loses its chip for free and a future inline one keeps it.
+//!
+//! **The off-card arm reads `Magpie` (`Raked`), not `RotatedRail`.**
+//! `RotatedRail` composes independently of any row
+//! (`LocationStyle::needs_plan_row`) — `theme_plan` charges it no
+//! `PlanLine::Location` at all, so it has no row left to draw a stray plate
+//! over. `Raked` still anchors its own rotated run to that row's geometry, so
+//! its row survives and remains this law's one live non-inline case.
 //!
 //! **Two arms, over the plate-drawing roster × every faceting `OverlayKind` ×
 //! both DPI tiers:**
@@ -109,7 +115,7 @@ fn a_glyph_free_location_row_draws_no_plate_and_an_inline_one_still_does() {
     for (world, force_bars) in plated
         .iter()
         .map(|world| (*world, false))
-        .chain(std::iter::once(("Cassowary", true)))
+        .chain(std::iter::once(("Magpie", true)))
     {
         set_list_style_test_override(force_bars.then_some(theme::ListStyle::Bars));
         theme::set_active_by_name(world).unwrap();

@@ -359,6 +359,24 @@ impl LocationStyle {
             Self::RotatedRail(_) | Self::Raked(_) => false,
         }
     }
+
+    /// Whether the row planner must still reserve a display line for
+    /// `PlanLine::Location` — exhaustive so a future style is a conscious
+    /// decision here too, not a silent extra (or silently vacated) row.
+    /// `Inline` obviously needs it (the glyphs shape into that slot); `Raked`
+    /// needs it for a second reason even though it paints nothing inline —
+    /// its rotated run is anchored to that SAME row's own `dx`/`bottom`/
+    /// `height` (`render/chrome/rotated_location.rs`), so removing the row
+    /// would move the cue, not just hide a blank one. Only `RotatedRail`
+    /// composes independently of any row (against the room's own wordmark
+    /// margin, never the card), so it is the one style whose row is pure
+    /// overhead — the vacated line `theme_plan` must not emit at all.
+    pub fn needs_plan_row(self) -> bool {
+        match self {
+            Self::Inline | Self::Raked(_) => true,
+            Self::RotatedRail(_) => false,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -394,13 +394,21 @@ fn grade_one_cell(
     p.prepare(device, queue, cw, chh).unwrap();
     let geom = p.overlay_geometry(cw);
     let cell = format!("lens {label:?} (roster: {kind:?}) on a faceted card, {cw}x{chh} dpi {dpi}");
+    // `RotatedRail` composes independently of any row
+    // (`LocationStyle::needs_plan_row`), so the planner charges it no
+    // `PlanLine::Location` at all — the datum still reaches the cue straight
+    // off the view's own `overlay_location`, never through a planned line.
     assert_eq!(
+        v.overlay_location.as_deref(),
+        Some(label),
+        "{cell}: the view's own location datum is missing"
+    );
+    assert!(
         geom.plan_labels_probe()
             .iter()
-            .filter(|s| s.as_str() == format!("loc:{label}"))
-            .count(),
-        1,
-        "{cell}: no location line planned ({:?})",
+            .all(|s| !s.starts_with("loc:")),
+        "{cell}: a `RotatedRail` world's plan carries a `PlanLine::Location` ({:?}) — that \
+         row is pure overhead for this style and should never be charged",
         geom.plan_labels_probe()
     );
 
@@ -554,7 +562,9 @@ fn grade_cell_pixels(
 /// The zoom sweep grows the widest card until its drawn left edge closes the
 /// room's margin.
 /// Graded on real pixels — zero cue ink in the whole margin — and proven to be
-/// the PARK rather than a missing location line (the plan still carries one).
+/// the PARK rather than a missing datum (the view's own `overlay_location`
+/// still carries one; `RotatedRail` reads it directly, never through a
+/// planned row).
 ///
 /// NON-VACUITY is the lower-zoom arm: the same cell draws before it parks.
 #[test]
@@ -575,10 +585,17 @@ fn rotated_rail_parks_rather_than_shrinking_when_the_rooms_margin_closes() {
         p.prepare(&device, &queue, 1200, 800).unwrap();
         let geom = p.overlay_geometry(1200);
         assert_eq!(
-            geom.plan_labels_probe(),
-            ["loc:Navigate"],
-            "zoom {zoom}: the location line itself is missing, so an absent cue would \
+            v.overlay_location.as_deref(),
+            Some("Navigate"),
+            "zoom {zoom}: the location datum itself is missing, so an absent cue would \
              prove nothing about the park"
+        );
+        assert!(
+            geom.plan_labels_probe()
+                .iter()
+                .all(|s| !s.starts_with("loc:")),
+            "zoom {zoom}: `RotatedRail` plans no location row; one showed up ({:?})",
+            geom.plan_labels_probe()
         );
         let with = shoot(&device, &queue, &mut p, 1200, 800);
         let mut b = command_view("Navigate");

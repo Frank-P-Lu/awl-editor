@@ -106,9 +106,12 @@ fn chord_view(n: usize, selected: usize) -> ViewState {
 fn accessory_box(
     p: &TextPipeline,
     geom: &crate::render::chrome::OverlayGeom,
+    plan: &crate::render::plan::OverlayRowPlan,
     display: usize,
 ) -> Option<(f32, f32)> {
-    let w = *p.overlay_row_secondary_px(geom).get(&display)?;
+    let w = *p
+        .overlay_row_secondary_px(plan.billed_header_rows())
+        .get(&display)?;
     if w <= 0.0 {
         return None;
     }
@@ -148,7 +151,7 @@ fn read_column(
 ) -> Option<ColumnReading> {
     let row = plan.rows().iter().find(|r| r.display == display)?;
     row.item?;
-    let (l, r) = accessory_box(p, geom, display)?;
+    let (l, r) = accessory_box(p, geom, plan, display)?;
     // A pixel of slack at each edge for the glyph's own antialiasing, and the
     // row's vertical slot inset by a pixel so an adjacent row's shadow bleed —
     // a real rendering fact, not this defect — stays out of the population.

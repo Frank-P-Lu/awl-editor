@@ -166,8 +166,37 @@ impl TextPipeline {
     /// and band move together, never a half-row split. Both geometry owners read
     /// this; the contextual spell popup passes `0.0` (no header to divide from).
     /// LIVE-ONLY taste: whether the widened beat reads right needs a human eye.
+    ///
+    /// A UNIFIED-PANE world (`OVERLAY_QUERY_BEAT_UNIFIED_PANE`'s own doc)
+    /// takes a smaller ratio: its one continuous plate has no seam and no
+    /// occupied row either side of the beat to keep it reading as a
+    /// considered divider rather than a hole. Scoped to the CARD families
+    /// (this — flat and grouped/faceted alike) via [`Self::overlay_header_gap_for`];
+    /// the WORKSPACE family reads [`Self::overlay_header_gap_workspace`]
+    /// instead — a full-canvas room shares none of a floating card's
+    /// one-plate composition, so the taste dial does not reach it.
     pub(in crate::render) fn overlay_header_gap(&self) -> f32 {
-        (self.overlay_lh() * OVERLAY_QUERY_BEAT.0).round()
+        self.overlay_header_gap_for(false)
+    }
+
+    /// The WORKSPACE family's own beat — never the unified-pane taste dial;
+    /// see [`Self::overlay_header_gap`]'s own doc for why.
+    pub(in crate::render) fn overlay_header_gap_workspace(&self) -> f32 {
+        self.overlay_header_gap_for(true)
+    }
+
+    fn overlay_header_gap_for(&self, workspace: bool) -> f32 {
+        let beat = match (
+            workspace,
+            crate::render::effective_list_style(),
+            crate::render::effective_pane_split(),
+        ) {
+            (false, theme::ListStyle::Pane, theme::PaneSplit::Unified) => {
+                OVERLAY_QUERY_BEAT_UNIFIED_PANE
+            }
+            _ => OVERLAY_QUERY_BEAT,
+        };
+        (self.overlay_lh() * beat.0).round()
     }
 
     pub(in crate::render) fn overlay_hint_h(&self) -> f32 {
@@ -547,6 +576,18 @@ impl TextPipeline {
     /// standalone pointer/report entry points, which have no frame to ride.
     pub(in crate::render) fn overlay_row_plan(&self, geom: &OverlayGeom) -> OverlayRowPlan {
         let (cluster_span, selected_offset, selected_display) = self.diagonal_row_extent();
+        // `geom.theme` alone is not exclusive to the GROUPED CARD family — a
+        // `TimelineOverComparison` workspace reuses the same shaper for its own
+        // header-line lens strip (`workspace.rs`'s `strip_in_header`) and also
+        // sets it. `theme_overlay_geometry` is the one owner that bills a
+        // docked strip's row out of `card_h`/`item_cap`
+        // (`theme_picker.rs`'s own `billed_header_rows`); a workspace's fixed
+        // chrome is resolved independently by `fit_workspace_item_rows`, which
+        // does not yet know about this reduction, so `!geom.workspace` keeps
+        // the two billed counts from disagreeing until that family gets the
+        // same treatment.
+        let billed_header_rows =
+            geom.header_rows - (geom.theme && !geom.workspace && facet_strip_is_docked()) as usize;
         plan_overlay_rows(&OverlayRowPlanInput {
             card_x: geom.band_x(),
             card_w: geom.band_w(),
@@ -554,6 +595,7 @@ impl TextPipeline {
             lh: self.overlay_lh(),
             header_gap: geom.header_gap,
             header_rows: geom.header_rows,
+            billed_header_rows,
             visible: geom.visible,
             top_idx: geom.top_idx,
             n_items: geom.n_items,
@@ -586,7 +628,7 @@ impl TextPipeline {
         if self.overlay_ranges.is_empty() || !self.overlay_right_shown {
             return Vec::new();
         }
-        let secondary = self.overlay_row_secondary_px(geom);
+        let secondary = self.overlay_row_secondary_px(plan.billed_header_rows());
         let primary = self.overlay_row_primary_px(geom);
         let cluster = self.diagonal_cluster;
         let mut out = Vec::new();

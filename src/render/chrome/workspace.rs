@@ -298,7 +298,7 @@ impl TextPipeline {
             authored_pad,
             lh,
             header_rows,
-            self.overlay_header_gap(),
+            self.overlay_header_gap_workspace(),
             empty.is_some() as usize,
             self.overlay_footer_reserve(hint_rows, hint_gap_rows),
             self.overlay_footer_reserve(hint_rows, 0),

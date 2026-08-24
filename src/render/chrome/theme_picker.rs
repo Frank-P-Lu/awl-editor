@@ -40,12 +40,20 @@ impl TextPipeline {
     /// When the group being headed is the very place the picker is
     /// (`overlay_location`, the active lens), that line is the SECOND LEVEL of
     /// the card's heading hierarchy rather than chrome dividing a list into
-    /// parts, and is planned as [`PlanLine::Location`] so the shaper can say so.
-    /// Its SLOT is unchanged: the defect was a heading in a list's voice.
+    /// parts, and is planned as [`PlanLine::Location`] so the shaper can say so
+    /// — UNLESS the active `LocationStyle` composes independently of any row
+    /// (`LocationStyle::needs_plan_row`), in which case no line is planned for
+    /// it at all: a style that draws itself off the card (`RotatedRail`) has
+    /// no glyphs and no anchor to seat there, so charging it a row would only
+    /// vacate one. A style that still anchors its OWN cue to that row's
+    /// geometry (`Raked`) keeps the line; its slot is otherwise unchanged —
+    /// the original defect was a heading in a list's voice, not the row's
+    /// existence.
     pub(in crate::render) fn theme_plan(&self) -> Vec<PlanLine> {
         let mut out = Vec::with_capacity(self.overlay_items.len());
         let mut prev: Option<String> = None;
         let location = self.overlay_location.as_deref();
+        let location_needs_row = theme::active().render_caps.location_style.needs_plan_row();
         for i in 0..self.overlay_items.len() {
             let sect = self
                 .overlay_sections
@@ -53,10 +61,11 @@ impl TextPipeline {
                 .map(|s| s.as_str())
                 .unwrap_or("");
             if !sect.is_empty() && prev.as_deref() != Some(sect) {
-                out.push(match location == Some(sect) {
-                    true => PlanLine::Location(sect.to_string()),
-                    false => PlanLine::Header(sect.to_uppercase()),
-                });
+                match location == Some(sect) {
+                    true if location_needs_row => out.push(PlanLine::Location(sect.to_string())),
+                    true => {}
+                    false => out.push(PlanLine::Header(sect.to_uppercase())),
+                }
             }
             out.push(PlanLine::Item(i));
             prev = if sect.is_empty() {
@@ -93,12 +102,21 @@ impl TextPipeline {
         };
         let empty_rows = empty.is_some() as usize;
         let header_rows = 2;
+        // The QUERY line and the lens STRIP each own a header box (so
+        // `strip_band()`/`docked_facet_band()` and every `line_i == 1` reader —
+        // the hit-test, the tab-mark spans, the clip carve — keep a strip line to
+        // read), but under `FacetStyle::DockedTab` the strip draws OUTSIDE the
+        // card (`docked_facet_band`), so its box charges no `lh` toward the
+        // rows/height math below — only the box COUNT stays 2, never the billed
+        // space. Derived from the facet style's own data, not this world's name,
+        // so any future `DockedTab` world reclaims the same row.
+        let billed_header_rows = header_rows - facet_strip_is_docked() as usize;
         let header_gap = self.overlay_header_gap();
         let card_y = margin + self.metrics.px(super::CARD_TOP_DROP) + self.menubar_reserve();
         let total_headers = full_plan.len() - n_items;
         // Strip + hint + footer here, at `min_items: 0`; the SECTION headers are
         // charged to the drawn WINDOW (`fit_sectioned_item_rows`).
-        let chrome_rows = header_rows + hint_gap_rows + hint_rows + empty_rows + footer_rows;
+        let chrome_rows = billed_header_rows + hint_gap_rows + hint_rows + empty_rows + footer_rows;
         // THE ONE HEIGHT-CLAMP OWNER, shared with the flat family.
         let avail_px = (self.window_h - card_y - margin - 2.0 * pad - header_gap).max(lh);
         let item_cap = self.overlay_sectioned_item_cap(avail_px, lh, chrome_rows, total_headers, 0);
@@ -110,7 +128,7 @@ impl TextPipeline {
         );
         let plan = window_plan(&full_plan, item_top, item_top + item_visible);
         let mut total_rows =
-            header_rows + plan.len() + empty_rows + hint_gap_rows + hint_rows + footer_rows;
+            billed_header_rows + plan.len() + empty_rows + hint_gap_rows + hint_rows + footer_rows;
         // Wider than the flat pickers so the whole lens strip (Time … All) fits on
         // one line even on a WIDE mono world face without the far-right All clipping
         // — via the SAME horizontal-box owner (edge inset + narrow-window fallback),

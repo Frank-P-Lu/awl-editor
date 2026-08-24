@@ -56,9 +56,10 @@ impl TextPipeline {
             .collect();
 
         loop {
-            let lines = right_bind_lines(plan.header_rows(), fitted.iter().map(String::as_str));
+            let lines =
+                right_bind_lines(plan.billed_header_rows(), fitted.iter().map(String::as_str));
             self.shape_overlay_right(geom, ink, muted, vis, &lines);
-            let secondary = self.overlay_row_secondary_px(geom);
+            let secondary = self.overlay_row_secondary_px(plan.billed_header_rows());
             let mut changed = false;
             for (display, label) in fitted.iter_mut().enumerate() {
                 let used = primary.get(&display).copied().unwrap_or(0.0)

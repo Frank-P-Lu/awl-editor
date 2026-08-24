@@ -143,18 +143,31 @@ fn a_category_heads_its_band_with_a_location_and_the_home_shows_none() {
             home.plan_labels_probe()
         );
 
-        // A CATEGORY: one location line, no section headers.
+        // A CATEGORY: one location line, no section headers — UNLESS the
+        // active style composes independently of any row
+        // (`LocationStyle::needs_plan_row`), in which case the planner
+        // charges it no line at all (`RotatedRail`'s off-card composition).
+        let needs_row = theme::active().render_caps.location_style.needs_plan_row();
         let mut v = palette_view(files);
         assert_eq!(v.overlay_location.as_deref(), Some("Files"));
         p.set_view(&v);
         p.prepare(&device, &queue, 1200, 800).unwrap();
         let cat = p.overlay_geometry(1200);
-        assert_eq!(
-            cat.plan_labels_probe(),
-            ["loc:Files"],
-            "{world}: the Files category must head its band with exactly one LOCATION and \
-             no section header"
-        );
+        if needs_row {
+            assert_eq!(
+                cat.plan_labels_probe(),
+                ["loc:Files"],
+                "{world}: the Files category must head its band with exactly one LOCATION \
+                 and no section header"
+            );
+        } else {
+            assert!(
+                cat.plan_labels_probe().is_empty(),
+                "{world}: a `RotatedRail`-shaped style composes off any row — its category \
+                 must plan no location line at all, but drew {:?}",
+                cat.plan_labels_probe()
+            );
+        }
 
         // NON-VACUITY — the product as it stood before the datum existed.
         v.overlay_location = None;
@@ -167,13 +180,25 @@ fn a_category_heads_its_band_with_a_location_and_the_home_shows_none() {
             "{world}: withholding the location must reproduce the duplicated uppercase \
              header, or this law is grading nothing"
         );
-        // The SLOT never moved: the defect was a heading in a list's voice, not
-        // geometry, and a reader relying on that has to be told if it changes.
-        assert_eq!(
-            cat.plan_len_probe(),
-            pre.plan_len_probe(),
-            "{world}: the location must occupy the same slot the section header did"
-        );
+        if needs_row {
+            // The SLOT never moved: the defect was a heading in a list's
+            // voice, not geometry, and a reader relying on that has to be
+            // told if it changes.
+            assert_eq!(
+                cat.plan_len_probe(),
+                pre.plan_len_probe(),
+                "{world}: the location must occupy the same slot the section header did"
+            );
+        } else {
+            // A style that plans no line at all reclaims that slot outright
+            // rather than occupying it glyph-free.
+            assert_eq!(
+                cat.plan_len_probe() + 1,
+                pre.plan_len_probe(),
+                "{world}: a `RotatedRail`-shaped style must reclaim the row the retired \
+                 header occupied, not just leave it blank"
+            );
+        }
         graded += 1;
     }
     theme::set_active(theme::DEFAULT_THEME);
@@ -327,23 +352,29 @@ fn the_location_heading_reads_stronger_than_the_faint_header_it_replaced_in_ever
     // "no weaker" instead. The roster of such worlds is PINNED, so a second
     // one-ink world has to arrive here and say so.
     let mut one_ink: Vec<String> = Vec::new();
-    // ⚠️ A WORLD MAY COMPOSE ITS CUE OUTSIDE THE CARD, and then this oracle is
-    // structurally blind to it rather than measuring a weak one. `RotatedRail`
-    // seats its run in the ROOM's own outer margin beside the wordmark placard,
-    // so the card band scanned below holds no cue ink at all — the claim there
-    // is not "stronger than the whisper" but "the inline slot stays glyph-free",
-    // asserted as such, with the cue's own strength graded against the
-    // wordmark's ink by `rotated_rail`. The roster of such worlds is
+    // ⚠️ A WORLD MAY COMPOSE ITS CUE OUTSIDE THE CARD, and then this oracle's
+    // whole ROW-0-IN-BOTH-ARMS technique does not apply to it at all.
+    // `RotatedRail` composes independently of any row
+    // (`LocationStyle::needs_plan_row`), so `theme_plan` charges it no
+    // `PlanLine::Location` — the located arm's candidate row 0 is not a
+    // blank slot to grade as glyph-free, it is the FIRST REAL ITEM, reclaimed
+    // into the row the header arm's retired heading still occupies. There is
+    // no shared slot left for a peak comparison to mean anything, so this law
+    // skips the pixel measurement for these worlds entirely; the cue's own
+    // strength (against the wordmark, off-card) is `rotated_rail`'s claim,
+    // and the row's reclamation is `a_category_heads_its_band_with_a_
+    // location_and_the_home_shows_none`'s. The roster of such worlds is
     // PINNED, so a second one has to arrive here and say so.
     let mut off_card: Vec<String> = Vec::new();
     for world in theme::THEMES.iter().map(|t| t.name) {
         theme::set_active_by_name(world).unwrap();
         p.sync_theme();
         let distinct = theme::faint().rgba_bytes() != theme::muted().rgba_bytes();
-        let off = matches!(
-            theme::active().render_caps.location_style,
-            theme::LocationStyle::RotatedRail(_)
-        );
+        let off = !theme::active().render_caps.location_style.needs_plan_row();
+        if off {
+            off_card.push(world.to_string());
+            continue;
+        }
         let (peaks, band) = located_and_header_peaks(&device, &queue, &mut p, files);
         assert!(
             peaks[1] > 2.0,
@@ -351,20 +382,7 @@ fn the_location_heading_reads_stronger_than_the_faint_header_it_replaced_in_ever
              {band:?} (peak {:.1}) — the comparison would be vacuous",
             peaks[1]
         );
-        if off {
-            // The inline slot really is glyph-free: whatever the card draws on
-            // that line in the LOCATED arm must be weaker than the header the
-            // other arm draws there, because the located arm draws nothing.
-            assert!(
-                peaks[0] < peaks[1],
-                "{world}: composes its cue outside the card, so the card's own location \
-                 band must be glyph-free — it reads {:.1} against the retired header's \
-                 {:.1}",
-                peaks[0],
-                peaks[1]
-            );
-            off_card.push(world.to_string());
-        } else if distinct {
+        if distinct {
             assert!(
                 peaks[0] > peaks[1],
                 "{world}: the location heading reads at {:.1} against the card's ground \

@@ -201,7 +201,7 @@ impl TextPipeline {
         // the text column's far edge on an upright card), leading with the header's own
         // empty lines. `overlay_right_shown` is the emitter's own gate.
         if self.overlay_right_shown {
-            let secondary = self.overlay_row_secondary_px(geom);
+            let secondary = self.overlay_row_secondary_px(plan.billed_header_rows());
             for row in plan.rows() {
                 let w = secondary.get(&row.display).copied().unwrap_or(0.0);
                 if w <= 0.0 {

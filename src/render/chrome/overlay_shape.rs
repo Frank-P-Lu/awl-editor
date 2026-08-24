@@ -391,7 +391,7 @@ impl TextPipeline {
             i.and_then(|i| right_labels.get(i))
                 .map_or("", |s| s.as_str())
         };
-        let bind_strs = right_bind_lines(plan.header_rows(), items.iter().map(chord));
+        let bind_strs = right_bind_lines(plan.billed_header_rows(), items.iter().map(chord));
 
         // One shared row budget: card text width against the widest right label. `Split`/
         // `Full` elide the names to their granted budget (the historical math);
@@ -517,7 +517,7 @@ impl TextPipeline {
         };
         let bind_strs: Vec<String> = if has_right && !hug_inline {
             right_bind_lines(
-                plan.header_rows(),
+                plan.billed_header_rows(),
                 geom.plan.iter().map(|line| match line {
                     PlanLine::Item(i) => right_labels.get(*i).map(|s| s.as_str()).unwrap_or(""),
                     PlanLine::Location(_) | PlanLine::Header(_) => "",
@@ -808,14 +808,20 @@ impl TextPipeline {
         m
     }
 
+    // Takes `billed_header_rows`, not `geom.header_rows`: the secondary
+    // buffer's own leading empties come from `right_bind_lines`, which is
+    // built against the row PLAN's billed count (the docked facet strip's
+    // box never reaches this buffer), while `geom.header_rows` is the box
+    // count used for hit-testing and clip carving. Reading the box count
+    // here desyncs every row below it by one under `FacetStyle::DockedTab`.
     pub(in crate::render) fn overlay_row_secondary_px(
         &self,
-        geom: &OverlayGeom,
+        billed_header_rows: usize,
     ) -> std::collections::BTreeMap<usize, f32> {
         let mut m = std::collections::BTreeMap::new();
         for run in self.panel_bind_buffer.layout_runs() {
-            if run.line_i >= geom.header_rows && run.line_w > 0.0 {
-                m.insert(run.line_i - geom.header_rows, run.line_w);
+            if run.line_i >= billed_header_rows && run.line_w > 0.0 {
+                m.insert(run.line_i - billed_header_rows, run.line_w);
             }
         }
         m

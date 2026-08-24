@@ -8,6 +8,23 @@ pub(in crate::render) const CARD_MAX_W: LogicalGrowOnly = LogicalGrowOnly(545.0)
 pub(in crate::render) const CARD_MAX_W_FACETED: LogicalGrowOnly = LogicalGrowOnly(600.0);
 pub(in crate::render) const CARD_CONTENT_MIN_W: LogicalGrowOnly = LogicalGrowOnly(160.0);
 pub(in crate::render) const OVERLAY_QUERY_BEAT: Rows = Rows(1.55);
+/// TASTE CALL, unified-pane worlds only (`ListStyle::Pane` + `PaneSplit::
+/// Unified` — one continuous card surface, no seam splitting the query field
+/// from the list, `Cassowary` the only shipping member today). On a SPLIT
+/// pane or a plated world (Bars/Diagonal/Ruled) the beat sits inside a seam
+/// or between occupied rows and reads as a considered divider; inside one
+/// unbroken plate the same `OVERLAY_QUERY_BEAT` reads as an unoccupied strip
+/// — measured on Cassowary's own command palette after the docked-strip and
+/// planner fixes landed (`render/chrome/theme_picker.rs`,
+/// `render/chrome/rotated_location.rs`) freed the row those fixes were
+/// charging alongside it. Held at a full row rather than cut further: a full
+/// row still reads as a deliberate beat (the `query_input_beat_reads_as_
+/// more_than_a_full_row_flat_and_faceted` law's own floor, which this constant
+/// does not have to clear itself — it is graded only where it applies).
+/// REVERT COST: one line — delete this constant and the `unified_pane` arm in
+/// `overlay_header_gap` reading it, leaving every world back on the plain
+/// `OVERLAY_QUERY_BEAT`.
+pub(in crate::render) const OVERLAY_QUERY_BEAT_UNIFIED_PANE: Rows = Rows(1.0);
 pub(in crate::render) const OVERLAY_HINT_ROW: Rows = Rows(0.70);
 pub(in crate::render) const OVERLAY_HINT_GAP_ROW: Rows = Rows(0.65);
 pub(super) const OVERLAY_FOOTER_PAD: Logical = Logical(2.0);
@@ -106,4 +123,19 @@ pub(in crate::render) fn overlay_card_box_policy(
 
 pub(in crate::render) fn overlay_card_fill_regime(ww: f32, desired_w: f32, scale: f32) -> bool {
     desired_w > (ww - 2.0 * CARD_EDGE_INSET_FLOOR.px(scale)).max(0.0)
+}
+
+/// Whether the active `FacetStyle` docks the lens strip's line ABOVE the card
+/// (`docked_facet_band`) instead of leaving it drawn in the panel's own header
+/// band. Read at both geometry owners that need it — `theme_overlay_geometry`
+/// (how much row budget the strip's own box bills) and `overlay_row_plan`
+/// (the SAME fact, fed into the row planner as a plain scalar so the pure
+/// `render::plan` module never reads theme state itself) — from this one
+/// place, so a future style added to the `DockedTab` family is picked up by
+/// both without either call site re-deriving the match.
+pub(in crate::render) fn facet_strip_is_docked() -> bool {
+    matches!(
+        crate::render::effective_facet_style(),
+        theme::FacetStyle::DockedTab
+    )
 }

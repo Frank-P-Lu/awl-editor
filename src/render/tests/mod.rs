@@ -62,6 +62,7 @@ mod diagonal_composition;
 mod diagonal_pixel_composition;
 mod distinguishability;
 mod dither;
+mod docked_facet_gap_law;
 mod docked_tab_seam;
 /// The overshoot-to-rate curve and the composed drag-scroll tick a
 /// text-selection drag past the writing column's edge advances scroll +

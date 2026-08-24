@@ -160,20 +160,24 @@ fn split_draws_two_surfaces_unified_draws_one() {
         set_pane_split_test_override(Some(theme::PaneSplit::Unified));
         p.set_view(&v);
         p.prepare(&device, &queue, w, h).unwrap();
-        let rect = p.overlay_card_rect().expect("card rect");
+        let rect_uni = p.overlay_card_rect().expect("card rect");
         let uni = p.overlay_pane_fills_probe();
         assert_eq!(uni.len(), 1, "Unified draws ONE fill (faceted={faceted})");
-        assert_eq!(uni[0], rect, "Unified fill == the whole card rect");
+        assert_eq!(uni[0], rect_uni, "Unified fill == the whole card rect");
         assert_eq!(
             p.panel_card.instance_count(),
             1,
             "Unified uploads one card quad (faceted={faceted})"
         );
 
-        // SPLIT: two fills, a real gap between, both inside the card.
+        // SPLIT: two fills, a real gap between, both inside the card. Its OWN
+        // card rect — the query beat is a unified-pane taste dial
+        // (`OVERLAY_QUERY_BEAT_UNIFIED_PANE`), so the card this arm draws is
+        // not guaranteed to be the same size as the Unified arm's above.
         set_pane_split_test_override(Some(theme::PaneSplit::Split));
         p.set_view(&v);
         p.prepare(&device, &queue, w, h).unwrap();
+        let rect = p.overlay_card_rect().expect("card rect");
         let fills = p.overlay_pane_fills_probe();
         assert_eq!(fills.len(), 2, "Split draws TWO fills (faceted={faceted})");
         assert_eq!(

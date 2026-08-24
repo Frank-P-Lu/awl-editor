@@ -48,7 +48,13 @@ impl TextPipeline {
         // built from `right_bind_lines`' leading empties and never carries one,
         // so each buffer is asked for its own first line.
         let first_primary = geom.shaped_first_row_line();
-        let header_rows = geom.header_rows;
+        // The SECONDARY buffer's own leading-empties count is `billed_header_rows`
+        // (`right_bind_lines`' own caller), not the header BOX count
+        // (`geom.header_rows`): a docked facet strip still carries a real box
+        // (so the PRIMARY buffer's `line_i` mapping above stays box-counted),
+        // but bills the row budget nothing of its own `lh` — the same split
+        // `secondary_top`'s own doc names.
+        let billed_header_rows = plan.billed_header_rows();
         let mut primary = BTreeMap::new();
         for run in self.panel_buffer.layout_runs() {
             let li = run.line_i;
@@ -60,8 +66,8 @@ impl TextPipeline {
         let mut secondary = BTreeMap::new();
         for run in self.panel_bind_buffer.layout_runs() {
             let li = run.line_i;
-            if li >= header_rows && li < header_rows + plan.candidate_rows() {
-                secondary.insert(li - header_rows, sec_top + run.line_top);
+            if li >= billed_header_rows && li < billed_header_rows + plan.candidate_rows() {
+                secondary.insert(li - billed_header_rows, sec_top + run.line_top);
             }
         }
         let sel_disp = plan.selected_display().unwrap_or(0);
