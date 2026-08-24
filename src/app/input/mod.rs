@@ -17,6 +17,7 @@ mod ime;
 mod keys;
 mod mouse;
 mod mouse_button;
+mod pointer_sync;
 mod wheel;
 
 use drags::ImageDrag;
@@ -77,6 +78,12 @@ struct PointerInput {
     click_count: u32,
     scroll_px_accum: f32,
     scroll_sensitivity: f32,
+    /// The geometry the pointer-derived render state (cursor icon, fold
+    /// hover, gutter-stack hover — `pointer_sync`'s one owner) was last
+    /// recomputed against. `sync_view`'s dirty-check compares against this so
+    /// a pass that changed neither scroll, viewport size, zoom nor the
+    /// active document skips every pointer-derived hit-test outright.
+    resynced_geometry: Option<pointer_sync::PointerGeometry>,
 }
 
 impl InputRuntime {
@@ -112,6 +119,7 @@ impl InputRuntime {
                 click_count: 0,
                 scroll_px_accum: 0.0,
                 scroll_sensitivity,
+                resynced_geometry: None,
             },
         }
     }

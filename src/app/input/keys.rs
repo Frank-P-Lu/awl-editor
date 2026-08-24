@@ -266,7 +266,7 @@ impl App {
             crate::peek::PeekStimulus::ArmBroken
         };
         self.feed_peek(stim);
-        self.sync_cursor_icon();
+        self.resync_pointer_derived_state();
     }
     /// `WindowEvent::KeyboardInput`: the full press pipeline — release handling,
     /// the preedit / lone-modifier / search / rebind-capture guards, the macOS

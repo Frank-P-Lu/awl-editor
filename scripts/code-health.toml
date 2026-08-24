@@ -89,7 +89,7 @@ reason = "The event-to-present flight recorder needs its winit-receipt and keyma
 [[file_size_mark]]
 file = "src/app/input/mouse.rs"
 lines = 953
-reason = "The wheel-region predicate at the one pointer entry point stopped naming a single overlay kind and asks the shape-neutral question instead (+7, all of it the comment recording why the kind check was wrong). +3: the working-set stack's left-click-to-switch route, enrolled in this file's own input-substate privacy law. +11: `sync_cursor_icon` gains the stack-row hand-cursor arm, hit-tested through the same `gutter_stack_hit` the click path already uses. +21: cursor movement and leave route one shared gutter-stack hit through the hover state, so the close mark follows exactly the row under the pointer and clears when the pointer exits. +7: the find/replace panel's hit-test is computed once and shared by the case-toggle, field-cell, and dead-chrome cursor arms instead of only the case toggle."
+reason = "The wheel-region predicate at the one pointer entry point stopped naming a single overlay kind and asks the shape-neutral question instead (+7, all of it the comment recording why the kind check was wrong). +3: the working-set stack's left-click-to-switch route, enrolled in this file's own input-substate privacy law. +11: `sync_cursor_icon` gains the stack-row hand-cursor arm, hit-tested through the same `gutter_stack_hit` the click path already uses. +21: cursor movement and leave route one shared gutter-stack hit through the hover state, so the close mark follows exactly the row under the pointer and clears when the pointer exits. +7: the find/replace panel's hit-test is computed once and shared by the case-toggle, field-cell, and dead-chrome cursor arms instead of only the case toggle. The pointer-derived state resync (fold/stack hover, cursor icon) is pulled out into pointer_sync.rs behind one owner, netting this file down even after the panel/case-toggle growth."
 
 [[file_size_mark]]
 file = "src/app/session.rs"
@@ -101,13 +101,13 @@ lines = 453
 
 [[file_size_mark]]
 file = "src/app/viewstate.rs"
-lines = 581
-reason = "`sync_view` is the sole exhaustive `ViewState` construction site, so every render datum must be spelled out here. It carries the fold chevron's real fold set, the summoned picker's secondary location, the persistent changed-elsewhere affordance, photographable/findable notices, and world-authored diagonal-mark weight without creating a second non-exhaustive construction path. +11: the working-set stack's row count and its own fold-independent geometry, the one new field a margin widening to more than one row needs. +7: mirrors config_keys/config_linux_keep, the menu chord column's config-awareness plumbing. +13: the bottom identity's `gutter_project` reads the OPEN file's own remembered root through `working_set().active_root()` rather than the ambient switched-to project, falling back to the old ambient read only when the working set has no active file."
+lines = 583
+reason = "`sync_view` is the sole exhaustive `ViewState` construction site, so every render datum must be spelled out here. It carries the fold chevron's real fold set, the summoned picker's secondary location, the persistent changed-elsewhere affordance, photographable/findable notices, and world-authored diagonal-mark weight without creating a second non-exhaustive construction path. +11: the working-set stack's row count and its own fold-independent geometry, the one new field a margin widening to more than one row needs. +7: mirrors config_keys/config_linux_keep, the menu chord column's config-awareness plumbing. +13: the bottom identity's `gutter_project` reads the OPEN file's own remembered root through `working_set().active_root()` rather than the ambient switched-to project, falling back to the old ambient read only when the working set has no active file. +2: the gated pointer-derived resync's one call site — `sync_view` is where scroll/zoom/the active document are settled for the frame, so it is the seam every non-`CursorMoved` door (wheel scroll, wheel zoom's deferred reflow, keyboard-driven scroll) reaches without a per-door special case."
 
 [[file_size_mark]]
 file = "src/app/window.rs"
-lines = 617
-reason = "The external-change check at focus return belongs at the winit focus callback. `fold_settled_theme_switch` owns the settled-present transaction and its scheduling/acquire phases. Preview redraw deliberately leaves superseded off-screen shaping debt to the latest-wins quiet settle. +4: redraw samples one monotonic instant before advancing and preparing the living theme-selection band."
+lines = 624
+reason = "The external-change check at focus return belongs at the winit focus callback. `fold_settled_theme_switch` owns the settled-present transaction and its scheduling/acquire phases. Preview redraw deliberately leaves superseded off-screen shaping debt to the latest-wins quiet settle. +4: redraw samples one monotonic instant before advancing and preparing the living theme-selection band. +7: focus loss clears pointer-derived hover state through the same owner cursor-left uses, so a fold chevron or a working-set close mark can never survive behind another app."
 
 [[file_size_mark]]
 file = "src/background.rs"
@@ -506,8 +506,8 @@ reason = "Every world explicitly authors its toast anchor, while Cassowary and M
 lint = "clippy::too_many_lines"
 file = "src/app/viewstate.rs"
 function = "App::sync_view"
-message = "this function has too many lines (259/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. `sync_view` is the one exhaustive `ViewState` projection site, so each new render datum is spelled out here: the fold chevron's `folded_headings` (its direction needs the real fold set, not merely `fold_tails`'s own key set, so `fold::apply_to_view` takes the buffer's folds at its one call site here) and the summoned picker's secondary location. The document-session extraction replaced direct buffer and cache fields with explicit read projections while preserving that one exhaustive site. +5: the bottom identity's folder label reads the open file's own remembered root instead of the ambient project."
+message = "this function has too many lines (260/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. `sync_view` is the one exhaustive `ViewState` projection site, so each new render datum is spelled out here: the fold chevron's `folded_headings` (its direction needs the real fold set, not merely `fold_tails`'s own key set, so `fold::apply_to_view` takes the buffer's folds at its one call site here) and the summoned picker's secondary location. The document-session extraction replaced direct buffer and cache fields with explicit read projections while preserving that one exhaustive site. +5: the bottom identity's folder label reads the open file's own remembered root instead of the ambient project. +1: the gated pointer-derived resync's one call site, reached after scroll/zoom/the active document settle for the frame."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"

@@ -254,6 +254,13 @@ impl App {
         {
             gpu.window.set_cursor_visible(visible);
         }
+        // POINTER HOVER STATE: a focus change loses the pointer just as
+        // surely as it leaving the window does — the fold chevron and the
+        // working-set stack's close mark cannot survive behind another app,
+        // through the SAME owner `on_cursor_left` clears both through.
+        if self.clear_pointer_hover_state() {
+            self.request_frame();
+        }
     }
 
     /// `WindowEvent::Resized`: resize the surface, re-sync the view (re-wraps the

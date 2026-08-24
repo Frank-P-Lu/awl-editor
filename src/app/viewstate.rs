@@ -405,6 +405,8 @@ impl App {
                 debug_assert!(self.document.scroll().px_q >= 0);
             }
         }
+        // Geometry is settled for this frame now — `pointer_sync`'s gated door.
+        self.resync_pointer_derived_state_if_geometry_changed();
         self.update_ime_cursor_area();
 
         self.apply_caret_impulses();

@@ -52,7 +52,7 @@ impl App {
 
     fn on_left_press(&mut self, exit: &dyn schedule::Exit) {
         if self.menubar_press(exit) {
-            self.sync_cursor_icon();
+            self.resync_pointer_derived_state();
             self.request_frame();
             return;
         }
@@ -65,7 +65,7 @@ impl App {
             {
                 let _ = self.apply(action, false, exit, crate::stats::Door::Chord);
             }
-            self.sync_cursor_icon();
+            self.resync_pointer_derived_state();
             self.request_frame();
             return;
         }
@@ -120,19 +120,19 @@ impl App {
             self.on_press(shift, over_writing_column);
             if over_writing_column {
                 self.sync_view(true);
-                self.sync_cursor_icon();
+                self.resync_pointer_derived_state();
             }
         }
     }
 
     fn on_left_release(&mut self) {
         if !self.document.has_active() {
-            self.sync_cursor_icon();
+            self.resync_pointer_derived_state();
             self.request_frame();
             return;
         }
         self.input.finish_text_drag();
-        self.sync_cursor_icon();
+        self.resync_pointer_derived_state();
         if !self.document.buffer().has_selection() {
             self.document.clear_mark();
         }

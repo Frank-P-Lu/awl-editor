@@ -15,7 +15,7 @@ impl App {
             overlay.arm_hover_baseline(px, py);
         }
         if self.workspace_state.overlay_open() != overlay_was_open {
-            self.sync_cursor_icon();
+            self.resync_pointer_derived_state();
         }
     }
 }

@@ -248,6 +248,7 @@ fn release_resets_drag_arm_and_next_press_snapshots_a_fresh_baseline() {
         click_count: 0,
         scroll_px_accum: 0.0,
         scroll_sensitivity: 1.0,
+        resynced_geometry: None,
     };
 
     pointer.begin_text_drag();

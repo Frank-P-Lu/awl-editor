@@ -802,3 +802,108 @@ fn zoom_default_is_one_owned_one_hundred_percent_across_launch_capture_and_confi
         "the config's prose default must agree with the authored 100% value"
     );
 }
+
+// ── POINTER-DERIVED RENDER STATE: ONE OWNER, ONE GATED SEAM ─────────────
+//
+// `sync_cursor_icon` / `update_fold_hover` / the raw `resolve_gutter_stack_hover`
+// call are GPU-backed (they read a live `TextPipeline` a hermetic `App` test
+// never has), so their wiring cannot be proven by driving a hermetic `App` and
+// reading pixels — the live window this needs can only be built inside a real
+// winit event loop. These structural laws are the honest fallback in the same
+// spirit as the guard above: they cannot observe that the icon actually
+// changes, but they CAN observe, exactly, which functions call which — and a
+// mutation that removes the wheel/keyboard-scroll resync (dropping the one
+// call site the second law below names) makes that law fail by name.
+
+/// The three pointer-derived components are reached from exactly ONE call
+/// site each, inside `app/input/pointer_sync.rs` — never from a door
+/// directly. Module-privacy (`pub(in crate::app::input)` on the first two)
+/// already makes a bypass from outside `app::input` a compile error; this
+/// names the fact so a regression fails with a message instead of a mystery
+/// diff, and it also catches a bypass reintroduced from WITHIN `app::input`
+/// itself, which privacy alone does not block.
+#[test]
+fn pointer_derived_components_are_reached_only_through_the_one_owner() {
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src");
+    let app_root = root.join("app");
+    // Built from concatenated fragments (this file's own needle-avoidance
+    // discipline, see the `App::new` guard's module doc above) so this law's
+    // own source text — which necessarily writes each name out in full,
+    // elsewhere in this very function — can never inflate its own count.
+    for (needle, label) in [
+        (
+            [".", "sync_", "cursor_icon", "()"].concat(),
+            "sync_cursor_icon",
+        ),
+        (
+            [".", "update_", "fold_hover", "()"].concat(),
+            "update_fold_hover",
+        ),
+        (
+            [".", "resolve_gutter", "_stack_hover", "("].concat(),
+            "resolve_gutter_stack_hover",
+        ),
+    ] {
+        let mut hits: std::collections::BTreeMap<String, usize> = Default::default();
+        scan_dir_collapsed(&root, &app_root, &needle, &mut hits);
+        assert_eq!(
+            hits.keys().collect::<Vec<_>>(),
+            vec!["app/input/pointer_sync.rs"],
+            "{label} must be called ONLY from pointer_sync.rs's one owner; found in: {hits:?}"
+        );
+        assert_eq!(hits.get("app/input/pointer_sync.rs"), Some(&1));
+    }
+}
+
+/// `sync_view` — the seam reached after essentially every mutating action —
+/// is the ONLY caller of the gated resync, exactly once. This is the
+/// mutation gate for the wheel/keyboard-scroll resync itself: deleting that
+/// one call (dropping wheel scroll's, wheel zoom's, and every
+/// keyboard-driven scroll's resync in one stroke, since they all reach
+/// pointer-derived state through this seam and no other) drops the count to
+/// zero and fails this assertion by name.
+#[test]
+fn the_gated_pointer_resync_has_exactly_one_call_site_in_sync_view() {
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src");
+    let app_root = root.join("app");
+    let needle = [
+        "self.resync_pointer_derived",
+        "_state_if_geometry_changed()",
+    ]
+    .concat();
+    let mut hits: std::collections::BTreeMap<String, usize> = Default::default();
+    scan_dir_collapsed(&root, &app_root, &needle, &mut hits);
+    assert_eq!(
+        hits,
+        std::collections::BTreeMap::from([("app/viewstate.rs".to_string(), 1)]),
+        "the gated pointer-derived resync must be called exactly once, from \
+         sync_view — found: {hits:?}"
+    );
+}
+
+/// BOTH lifecycle edges that lose the pointer outright — the OS cursor
+/// leaving the window (`on_cursor_left`) and the window losing focus
+/// (`on_focus_lost`) — clear pointer hover state through the SAME owner,
+/// never a partial clear of their own. `on_cursor_left` used to clear only
+/// the working-set stack hover, forgetting the fold chevron; `on_focus_lost`
+/// cleared neither. A regression to either shape drops one of the two
+/// expected call sites below.
+#[test]
+fn both_pointer_lost_lifecycle_edges_clear_hover_through_the_one_owner() {
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src");
+    let app_root = root.join("app");
+    // Concatenated so this law's own two call-site examples above, spelled
+    // out in prose, cannot inflate its own count.
+    let needle = ["self.clear_pointer", "_hover_state()"].concat();
+    let mut hits: std::collections::BTreeMap<String, usize> = Default::default();
+    scan_dir_collapsed(&root, &app_root, &needle, &mut hits);
+    assert_eq!(
+        hits,
+        std::collections::BTreeMap::from([
+            ("app/input/mouse.rs".to_string(), 1),
+            ("app/window.rs".to_string(), 1),
+        ]),
+        "cursor-left and focus-lost must each clear pointer hover state through \
+         the one owner exactly once — found: {hits:?}"
+    );
+}

@@ -690,3 +690,75 @@ fn a_folded_section_never_moves_the_card_figures_the_pipeline_draws() {
         fixture::FOLDED_WORDS,
     );
 }
+
+// === GEOMETRY CHANGED UNDER AN UNMOVED POINTER ============================
+//
+// `App::update_fold_hover` decides which row's chevron to reveal by asking
+// `hit_test_scroll(px, py, scroll)` — the SAME pixel, a DIFFERENT `scroll`,
+// can answer a different document row without the pointer ever producing a
+// `CursorMoved` (a wheel scroll, a keyboard-driven page-down or caret-chase).
+// This proves that sensitivity at the exact primitive the resync reads, then
+// the downstream effect: re-deriving the hover row from the POST-scroll
+// geometry must clear a chevron that scrolled away, not leave it lit.
+
+#[test]
+fn fold_hover_tracks_the_row_under_an_unmoved_pointer_across_a_scroll() {
+    let _g = crate::testlock::serial();
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!("no GPU adapter; skipping scroll-resync law");
+        return;
+    };
+    let _g = crate::testlock::serial();
+    crate::page::set_page_on(true);
+
+    // DOC = "# A\na1\na2\n# B\nb1" — a heading on line 0, plain text below.
+    // Caret parked on line 2 (body text, not a heading): `chevron_revealed`
+    // also lights up on `line == cursor_line`, so the caret must sit away
+    // from every heading or it would keep # A's chevron lit on its own,
+    // independent of whatever `hover_line` this law drives.
+    let view = view_md(DOC, 2, 0);
+    p.set_view(&view);
+
+    let px = p.text_left() + 1.0;
+    let py = p.text_origin_top() + 1.0;
+
+    // AT REST (scroll row 0): the fixed pixel resolves to line 0, the heading.
+    let (line_before, _) = p.hit_test_scroll(px, py, crate::render::ScrollPos::at_row(0));
+    assert_eq!(
+        line_before, 0,
+        "fixture sanity: unscrolled, the pixel sits on the heading"
+    );
+
+    // A SYNTHETIC SCROLL, same pointer position — no `CursorMoved` at all: the
+    // SAME pixel now resolves to a DIFFERENT document row, the doc's last
+    // line scrolled up under it.
+    let (line_after, _) = p.hit_test_scroll(px, py, crate::render::ScrollPos::at_row(4));
+    assert_ne!(
+        line_after, line_before,
+        "a scroll must change which row an unmoved pixel resolves to — the \
+         exact geometry fact the wheel/keyboard-scroll resync depends on"
+    );
+    assert_eq!(
+        line_after, 4,
+        "fixture sanity: scrolled, the pixel sits on b1"
+    );
+
+    // THE DOWNSTREAM EFFECT: hovering the PRE-scroll row reveals # A's chevron…
+    p.set_hover_line(Some(line_before));
+    assert_eq!(
+        p.fold_chevron_marks().len(),
+        1,
+        "hovering the heading row reveals its chevron"
+    );
+    // …but re-deriving the hover row from the POST-scroll geometry — exactly
+    // what the gated resync now does every `sync_view` — hovers "b1" instead:
+    // no heading there, so the chevron must clear. Before this fix nothing
+    // ever re-asked this question after a scroll, so a chevron revealed
+    // pre-scroll stayed lit here.
+    p.set_hover_line(Some(line_after));
+    assert!(
+        p.fold_chevron_marks().is_empty(),
+        "the row a scroll moved under the pointer is plain text — no chevron may remain lit"
+    );
+    crate::page::set_page_on(true);
+}
