@@ -356,19 +356,40 @@ fn a_stack_appears_only_once_the_active_root_holds_two_files() {
     // The second file under the ACTIVE root is what widens it.
     opened(&mut ws, "journal/field-notes.md");
     let rows = ws.stack_rows(&root());
+    // The FILE rows are still exactly the group, in opening order, excluding
+    // the other root — the group filter is unchanged by residual 3.
+    let file_rows: Vec<&StackRow> = rows
+        .iter()
+        .filter(|r| matches!(r.kind, StackRowKind::File))
+        .collect();
     assert_eq!(
-        rows.iter()
+        file_rows
+            .iter()
             .map(|r| format!("{}{}", r.parent, r.leaf))
             .collect::<Vec<_>>(),
         vec!["index.md", "journal/field-notes.md"],
-        "the stack is the group, in opening order, and excludes the other root"
+        "the FILE rows are the group, in opening order, and exclude the other root"
     );
     assert_eq!(
-        rows.iter().filter(|r| r.active).count(),
+        file_rows.iter().filter(|r| r.active).count(),
         1,
         "exactly one row is the reader's current file"
     );
-    assert!(rows[1].active, "the file just opened is the active one");
+    assert!(
+        file_rows[1].active,
+        "the file just opened is the active one"
+    );
+    // RESIDUAL 3's overflow row: the OTHER root's file is hidden from this
+    // group, but it is still an OPEN buffer nowhere else on screen, so the
+    // generic `+ N more…` row must count it — "same-root overflow and other
+    // roots alike" (the queue item's own wording). Before residual 3 this
+    // group drew no overflow row at all; the trailing row is the deliberate
+    // change, not a regression.
+    assert_eq!(
+        rows.last().map(|r| &r.kind),
+        Some(&StackRowKind::More { hidden: 1 }),
+        "the one file parked under the other root is hidden, and counted"
+    );
 }
 
 /// **WHICH ROW IS MARKED ACTIVE, SWEPT OVER EVERY SLOT.** A stack that marked
@@ -396,4 +417,336 @@ fn exactly_the_activated_row_is_marked_in_every_slot() {
             "activating slot {target} marked {marked:?}"
         );
     }
+}
+
+/// Ten files under one root, named `f0.md`..`f9.md` — the fixture every
+/// residual-3 law below sweeps, standing in for the judged gallery's
+/// `opening.md`..`archive.md` set at the same count.
+fn ten(ws: &mut WorkingSet) {
+    for i in 0..10 {
+        opened(ws, &format!("f{i}.md"));
+    }
+}
+
+fn file_leaves(rows: &[StackRow]) -> Vec<String> {
+    rows.iter()
+        .filter(|r| matches!(r.kind, StackRowKind::File))
+        .map(|r| r.leaf.clone())
+        .collect()
+}
+
+/// **THE HOLD-STILL LAW, reproducing the exact `collapsed-jitter.png`
+/// sequence the gallery rejected the stateless candidate on.**
+///
+/// `f7` (the gallery's `journal/entry.md`) activates last, at the BOTTOM of
+/// its five-row window; `f3` (the gallery's `plan.md`) sits at the window's
+/// TOP row and is already fully visible. Activating it next must leave every
+/// drawn row exactly where it was — the row the reader was just looking at
+/// does not jump to the opposite end of a shifted window.
+///
+/// **Non-vacuity, proved without touching the shipped formula**: the
+/// REJECTED stateless candidate is still in the tree
+/// (`prototype::PrototypeSpec::Collapsed`, unchanged on purpose — this
+/// surface's own brief calls it out as "the rejected candidate on its own
+/// `collapsed-jitter.png` evidence"), so this asks it the identical question
+/// and shows it DOES move — proving the fixture reproduces the real bug and
+/// the fix is not testing a formula so close to the old one that both would
+/// pass by accident.
+#[test]
+fn resting_window_holds_still_when_the_newly_active_file_is_already_visible() {
+    let mut ws = WorkingSet::default();
+    ten(&mut ws);
+    // Opening ten files one at a time already slides the window as each new
+    // file becomes active in turn (the SAME hold-still/minimal-slide rule
+    // this law is about) — so `f0` re-establishes a KNOWN fresh baseline
+    // window (`[0..5)`) before the actual jitter-reproduction sequence below,
+    // rather than the test depending on wherever the incidental open sequence
+    // happened to leave it.
+    assert!(ws.set_active(0));
+    assert_eq!(
+        file_leaves(&ws.stack_rows(&root())),
+        vec!["f0.md", "f1.md", "f2.md", "f3.md", "f4.md"],
+        "known baseline window"
+    );
+
+    assert!(ws.set_active(7), "f7 exists");
+    let window_a = file_leaves(&ws.stack_rows(&root()));
+    assert_eq!(
+        window_a,
+        vec!["f3.md", "f4.md", "f5.md", "f6.md", "f7.md"],
+        "f7 active lands at the bottom row of a fresh five-row reveal"
+    );
+
+    assert!(ws.set_active(3), "f3 exists");
+    let window_b = file_leaves(&ws.stack_rows(&root()));
+    assert_eq!(
+        window_b, window_a,
+        "f3 was already the window's own top row — activating it must not move a single drawn row"
+    );
+
+    // THE RED-ARM REFERENCE: the same two activations, asked of the rejected
+    // stateless candidate, on the SAME underlying state.
+    let mut rejected = WorkingSet::default();
+    ten(&mut rejected);
+    assert!(rejected.set_active(7));
+    let rejected_a = rejected.prototype_view(PrototypeSpec::Collapsed { hover: None });
+    assert!(rejected.set_active(3));
+    let rejected_b = rejected.prototype_view(PrototypeSpec::Collapsed { hover: None });
+    let rejected_leaves = |v: &super::prototype::PrototypeView| -> Vec<String> {
+        v.rows
+            .iter()
+            .filter(|r| matches!(r.kind, StackRowKind::File))
+            .map(|r| r.leaf.clone())
+            .collect()
+    };
+    assert_ne!(
+        rejected_leaves(&rejected_a),
+        rejected_leaves(&rejected_b),
+        "the rejected stateless candidate must actually reproduce the jitter on this exact \
+         sequence, or this law is not proving anything about the fix"
+    );
+}
+
+/// **MINIMAL SLIDE: when the active file leaves the window, it moves by
+/// exactly enough to reveal it — never re-centring, never jumping further
+/// than the file itself required.**
+#[test]
+fn resting_window_slides_the_minimum_distance_when_the_active_file_leaves_it() {
+    let mut ws = WorkingSet::default();
+    ten(&mut ws);
+    assert!(ws.set_active(0));
+    assert_eq!(
+        file_leaves(&ws.stack_rows(&root())),
+        vec!["f0.md", "f1.md", "f2.md", "f3.md", "f4.md"],
+        "fresh window anchored at the top"
+    );
+
+    // f9 is four rows past the window's bottom edge — the slide must land it
+    // EXACTLY at the new bottom row, not recentre the window around it.
+    assert!(ws.set_active(9));
+    assert_eq!(
+        file_leaves(&ws.stack_rows(&root())),
+        vec!["f5.md", "f6.md", "f7.md", "f8.md", "f9.md"],
+        "the window slides down by the minimum distance that reveals f9"
+    );
+
+    // f5 is already the window's own top row: hold still.
+    assert!(ws.set_active(5));
+    assert_eq!(
+        file_leaves(&ws.stack_rows(&root())),
+        vec!["f5.md", "f6.md", "f7.md", "f8.md", "f9.md"],
+        "f5 was already visible; the window must not move"
+    );
+
+    // f0 is five rows above the window's top edge — the slide must land it
+    // EXACTLY at the new top row, the same minimal-distance law in the other
+    // direction.
+    assert!(ws.set_active(0));
+    assert_eq!(
+        file_leaves(&ws.stack_rows(&root())),
+        vec!["f0.md", "f1.md", "f2.md", "f3.md", "f4.md"],
+        "the window slides up by the minimum distance that reveals f0"
+    );
+}
+
+/// **THE ACTIVE FILE IS ALWAYS REPRESENTED, and the overflow row's count is
+/// EXACT — swept over every slot rather than one hand-picked activation.**
+/// Two roots are open at once so the count has to include a hidden buffer
+/// that is not even in this root's own group ("same-root overflow and other
+/// roots alike", the queue item's own wording).
+#[test]
+fn overflow_count_is_exact_and_the_active_file_is_always_in_the_visible_window() {
+    let mut ws = WorkingSet::default();
+    ten(&mut ws);
+    let other = PathBuf::from("/proj/archive");
+    for i in 0..2 {
+        let p = other.join(format!("g{i}.md"));
+        ws.open(BufferKey::path(&p), Some(p), other.clone());
+    }
+    // Re-activate a `notes` file so the active root's group is `notes` again
+    // (opening `archive`'s files last made `archive` active).
+    assert!(ws.set_active(0));
+    assert_eq!(ws.len(), 12, "ten notes files plus two archive files");
+
+    for target in 0..10 {
+        assert!(ws.set_active(target), "f{target} exists");
+        let rows = ws.stack_rows(&root());
+        let visible_files = file_leaves(&rows);
+        assert!(
+            visible_files.len() <= RESTING_FILES,
+            "target={target}: {} visible file rows exceeds the cap",
+            visible_files.len()
+        );
+        assert!(
+            visible_files.contains(&format!("f{target}.md")),
+            "target={target}: the active file is not in the drawn window {visible_files:?}"
+        );
+        let more = rows.iter().find_map(|r| match r.kind {
+            StackRowKind::More { hidden } => Some(hidden),
+            _ => None,
+        });
+        let expected_hidden = ws.len() - visible_files.len();
+        assert_eq!(
+            more,
+            Some(expected_hidden),
+            "target={target}: the +N more row must count every open buffer this window \
+             does not draw, across both roots"
+        );
+    }
+}
+
+/// **REVEAL ON OPEN**: the expanded panel opens scrolled so the active row is
+/// visible, by the minimal jump — never re-centred arbitrarily.
+#[test]
+fn expand_opens_scrolled_so_the_active_row_is_visible() {
+    let mut ws = WorkingSet::default();
+    ten(&mut ws);
+    assert!(ws.set_active(9), "the last-opened file is deep in the list");
+    assert!(!ws.is_expanded());
+    ws.expand();
+    assert!(ws.is_expanded());
+    let rows = ws.expanded_rows();
+    assert!(
+        rows.iter().any(|r| r.active),
+        "the active row must be inside the panel's own first drawn window: {rows:?}"
+    );
+    // f9 is the group's last file — the panel's own viewport (EXPANDED_VIEWPORT
+    // rows, one heading + ten files = 11 total) cannot show all ten files AND
+    // the heading in 8 rows, so the reveal must have scrolled forward rather
+    // than defaulting to scroll 0.
+    let leaf_at_active = rows
+        .iter()
+        .find(|r| r.active)
+        .map(|r| r.leaf.as_str())
+        .unwrap();
+    assert_eq!(leaf_at_active, "f9.md");
+}
+
+/// **A READER'S OWN SCROLL IS NEVER FOUGHT: the panel does not clamp back
+/// toward the active row once open, only to the panel's own bounds.**
+#[test]
+fn scroll_expanded_never_reverts_toward_the_active_row_and_clamps_only_to_bounds() {
+    let mut ws = WorkingSet::default();
+    ten(&mut ws);
+    assert!(ws.set_active(0));
+    ws.expand();
+    assert!(
+        ws.expanded_rows().iter().any(|r| r.active),
+        "opens revealing f0"
+    );
+
+    // Scroll far past the end — an oversized delta must clamp to the panel's
+    // own max, not error or wrap.
+    ws.scroll_expanded(1000);
+    let scrolled_rows = ws.expanded_rows();
+    assert!(
+        !scrolled_rows.iter().any(|r| r.active),
+        "f0 must have scrolled OFF screen — nothing pulls it back"
+    );
+
+    // A further activation-free scroll must not creep past the same bound —
+    // clamped, not merely "still off-screen by luck".
+    ws.scroll_expanded(1);
+    let still = ws.expanded_rows();
+    assert_eq!(
+        still, scrolled_rows,
+        "scrolling past the bottom bound is a no-op, not a further slide"
+    );
+
+    // And the bottom bound is real: scrolling all the way back to 0 and past
+    // it clamps at 0 rather than going negative.
+    ws.scroll_expanded(-1000);
+    assert!(
+        ws.expanded_rows().iter().any(|r| r.active),
+        "scrolling back past the top bound must land at 0, revealing f0 again"
+    );
+}
+
+/// **ANY ACTIVATION RE-REVEALS the expanded panel** — the brief's own second
+/// scroll clause, read together with the first: opening reveals, a reader's
+/// OWN scroll is never fought, but a NEW activation while the panel remains
+/// open re-centres exactly the way opening did.
+#[test]
+fn activating_a_different_file_while_expanded_re_reveals_it() {
+    let mut ws = WorkingSet::default();
+    ten(&mut ws);
+    assert!(ws.set_active(0));
+    ws.expand();
+    ws.scroll_expanded(1000); // scroll f0 away, as the previous law proved
+    assert!(!ws.expanded_rows().iter().any(|r| r.active));
+
+    assert!(
+        ws.set_active(9),
+        "a fresh activation while the panel is open"
+    );
+    assert!(
+        ws.is_expanded(),
+        "the panel stays open across the activation"
+    );
+    assert!(
+        ws.expanded_rows().iter().any(|r| r.active),
+        "the newly active file must be re-revealed, not left behind the stale scroll"
+    );
+}
+
+/// **THE PANEL NEVER OUTLIVES A WORKING SET THAT CAN NO LONGER SHOW ONE.**
+/// Closing down to a single file collapses the expanded panel outright — an
+/// open panel over a working set with nothing left to browse would be a
+/// summoned surface with no reason to exist.
+#[test]
+fn closing_down_to_one_file_collapses_an_open_panel() {
+    let mut ws = WorkingSet::default();
+    opened(&mut ws, "a.md");
+    opened(&mut ws, "b.md");
+    ws.expand();
+    assert!(ws.is_expanded());
+    let key_a = ws.files()[0].key.clone();
+    ws.close_key(&key_a);
+    assert!(
+        !ws.is_expanded(),
+        "the panel must not survive the working set dropping below two files"
+    );
+    assert!(ws.expanded_rows().is_empty());
+}
+
+/// **ROW→FILE RESOLUTION AGREES WITH THE DRAWN ROW**, in the expanded panel's
+/// own multi-root, scrolled index space — the click-resolution counterpart to
+/// `expanded_rows`, swept the same way `stack_rows`' row→file door is swept
+/// elsewhere in this file.
+#[test]
+fn expanded_row_open_file_resolves_the_exact_row_expanded_rows_draws() {
+    let mut ws = WorkingSet::default();
+    for n in ["a.md", "b.md"] {
+        opened(&mut ws, n);
+    }
+    let other = PathBuf::from("/proj/archive");
+    let far = other.join("c.md");
+    ws.open(BufferKey::path(&far), Some(far.clone()), other.clone());
+    ws.expand();
+    let rows = ws.expanded_rows();
+    for (row, drawn) in rows.iter().enumerate() {
+        match drawn.kind {
+            StackRowKind::File => {
+                let file = ws
+                    .expanded_row_open_file(row)
+                    .unwrap_or_else(|| panic!("row {row} names a file"));
+                assert_eq!(
+                    file.leaf(),
+                    drawn.leaf,
+                    "row {row} resolves to a different file than the one drawn"
+                );
+            }
+            StackRowKind::Group { .. } => {
+                assert!(
+                    ws.expanded_row_open_file(row).is_none(),
+                    "row {row} is a heading and must name no file"
+                );
+            }
+            StackRowKind::More { .. } => unreachable!("the expanded panel draws no More row"),
+        }
+    }
+    assert!(
+        ws.expanded_row_open_file(rows.len()).is_none(),
+        "a row past the end of the drawn panel names no file"
+    );
 }

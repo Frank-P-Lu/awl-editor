@@ -26,6 +26,14 @@ use super::*;
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct GutterStackHit {
     pub row: usize,
+    /// The row's own [`crate::workingset::StackRowKind`] — the pointer route's
+    /// answer to "what kind of row is this", read off the SAME drawn
+    /// [`StackRow`](crate::workingset::StackRow) `row` indexes rather than
+    /// re-derived. A `More`/`Group` row never carries a close mark
+    /// ([`super::gutter_stack::stack_spans`]'s own gate), so a caller must
+    /// branch on this BEFORE trusting [`Self::is_close`] — `intent` is purely
+    /// geometric and does not know a close lane was never reserved there.
+    pub kind: crate::workingset::StackRowKind,
     pub intent: RowIntent,
 }
 
@@ -39,25 +47,28 @@ pub(super) fn stack_hit_from_plan(
     py: f32,
 ) -> Option<GutterStackHit> {
     let line = plan.hit_row(px, py)?;
-    let row = match layout.lines().get(line)?.1 {
+    let (row, kind) = match layout.lines().get(line)?.1 {
         GutterLine::File(row) => {
-            if !matches!(
-                layout.files.get(row)?.kind,
-                crate::workingset::StackRowKind::File
-            ) {
+            let kind = layout.files.get(row)?.kind;
+            // A project HEADING draws in this same slot list once the panel is
+            // expanded, but it names no file and carries no action of its own
+            // (the design boundary: mark the active group, never make the
+            // heading itself a target) — inert here exactly as it always was.
+            if matches!(kind, crate::workingset::StackRowKind::Group { .. }) {
                 return None;
             }
-            row
+            (row, kind)
         }
         // The single-file identity names the same lone slot `group(root)`
         // would draw as row 0 of a stack, whether or not the margin was ever
         // wide enough to draw one — so it enrols in the SAME close/switch
         // geometry a working-set row does rather than staying an inert label.
-        GutterLine::Name => 0,
+        GutterLine::Name => (0, crate::workingset::StackRowKind::File),
         GutterLine::Project | GutterLine::Changed => return None,
     };
     Some(GutterStackHit {
         row,
+        kind,
         intent: gutter_stack::row_intent(*plan.rows.get(line)?, px),
     })
 }
@@ -91,6 +102,15 @@ impl TextPipeline {
             super::gutter::GUTTER_CARVE_BREATH.0,
         );
         Some((layout, plan))
+    }
+
+    /// THE MARGIN STACK'S OWN BOUNDING BAND `[left, top, right, bottom]` — the
+    /// same rect the lava carve uses ([`Self::gutter_carve_rect`]), exposed
+    /// here because the wheel route needs the same region a scroll gesture
+    /// must land inside to move the expanded panel rather than the document
+    /// sitting behind it. `None` when the block is hidden.
+    pub fn gutter_stack_bounds(&self, height: u32) -> Option<[f32; 4]> {
+        self.gutter_carve_rect(height)
     }
 
     /// Hit-test the two identity rows from the exact layout that draws them.

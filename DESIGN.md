@@ -260,6 +260,12 @@ Margin surfaces:
 The Outline may click-to-jump. It is not a resizable or focusable file-tree
 substitute.
 
+The bottom-left identity's working-set stack carries the same license: it may
+click-to-switch, and its overflow row may expand into a transient scrollable
+panel grouped by project — but it remains orientation, never a persistent
+file-tree or project-manager sidebar. The expanded panel is summoned and
+dismissed (Esc, click-away, choosing a row), not a standing surface.
+
 When the last document closes, the Room is absent rather than replaced by a
 fake scratch page. The Frame keeps the remembered folder context and offers a
 centered, calm start surface with exactly two actions: **New document** and

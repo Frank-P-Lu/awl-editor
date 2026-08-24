@@ -167,14 +167,57 @@ pub struct StackRow {
     /// Is this the file the reader is currently editing?
     pub active: bool,
     /// Whether this row is a file, the one overflow affordance, or a project
-    /// heading. Production [`WorkingSet::stack_rows`] emits only `File`; the
-    /// other arms are capture-prototype vocabulary and are inert otherwise.
+    /// heading. [`WorkingSet::stack_rows`] (the resting stack) emits `File` and,
+    /// once the active root's group overflows [`RESTING_FILES`], one trailing
+    /// `More`; [`WorkingSet::expanded_rows`] (the transient scrollable panel)
+    /// emits `File` and `Group` heading rows.
     pub kind: StackRowKind,
     /// A sealed capture-prototype hover pose. The live app's real pointer still
     /// rides the renderer's `gutter_stack_hover`; this bit exists only so a
     /// windowless `--screenshot-app` run can photograph the already-shipped
     /// close mark without fabricating pointer input.
     pub prototype_hovered: bool,
+}
+
+/// THE RESTING STACK'S OWN ROW CAP — the number of FILE rows the collapsed
+/// margin draws before folding the rest behind one `+ N more…` row. Fixed at
+/// the number the user judged in the item 444 residual-3 gallery
+/// (`captures/item-444-residual3/README.md`); [`prototype::PrototypeSpec`]'s
+/// own candidate reuses this constant rather than a second literal, so the
+/// judged number and the shipped one cannot drift apart.
+pub const RESTING_FILES: usize = 5;
+
+/// THE EXPANDED/GROUPED PANEL'S OWN SCROLLABLE VIEWPORT, in total drawn rows
+/// (file rows and folder headings together) — the number judged in the same
+/// gallery pass.
+pub const EXPANDED_VIEWPORT: usize = 8;
+
+/// The margin's OWN transient UI state: is the reader looking at the resting
+/// five-row stack, or the panel it expands into? Lives beside the order and
+/// root state it presents rather than on `App` (which has a hard field
+/// ceiling, `app/tests/domains.rs::root_app_does_not_grow`) — and the module's
+/// own contract, "what does the reader see, where, and does it stay there",
+/// already covers a transient viewport as much as it covers the stable order.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+enum Panel {
+    #[default]
+    Resting,
+    /// `scroll` is the FIRST drawn row's index into [`WorkingSet::expanded_full`]
+    /// (headings and files counted together) — never re-derived from the
+    /// active file once the panel is open, so a reader's own wheel motion is
+    /// never fought (see [`WorkingSet::scroll_expanded`]'s doc).
+    Expanded { scroll: usize },
+}
+
+/// One row of the EXPANDED panel's full, unwindowed content — every open
+/// file, headed by its root, in the SAME first-seen root order the judged
+/// gallery's `Grouped` prototype used. Kept distinct from [`StackRow`]: this
+/// carries the row's real identity ([`OpenFile`] index or root), which a
+/// click needs to resolve and a drawn [`StackRow`] deliberately does not.
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum PanelRow {
+    Group(PathBuf, bool),
+    File(usize),
 }
 
 /// The open files, in the order the margin draws them, plus which one is active.
@@ -185,6 +228,11 @@ pub struct StackRow {
 pub struct WorkingSet {
     files: Vec<OpenFile>,
     active: Option<usize>,
+    /// The RESTING stack's own hold-still window: the root it was last
+    /// computed for, and the first visible slot within that root's group.
+    /// `None` until the first activation. See [`Self::recompute_resting_window`].
+    resting_window: Option<(PathBuf, usize)>,
+    panel: Panel,
 }
 
 #[cfg_attr(not(test), allow(dead_code))]
@@ -209,6 +257,7 @@ impl WorkingSet {
             }
         };
         self.active = Some(at);
+        self.on_active_changed();
         at
     }
 
@@ -227,6 +276,7 @@ impl WorkingSet {
             Some(a) if a == at => Some(a.min(self.files.len() - 1)),
             other => other,
         };
+        self.on_active_changed();
         Some(gone)
     }
 
@@ -245,7 +295,82 @@ impl WorkingSet {
             return false;
         }
         self.active = Some(at);
+        self.on_active_changed();
         true
+    }
+
+    /// Recompute everything that depends on WHICH slot is active, after any
+    /// mutation that can change it (open/re-activate, switch, close). Two
+    /// independent recomputations, each a no-op when it does not apply:
+    ///
+    /// * The resting stack's hold-still window ([`Self::recompute_resting_window`]).
+    /// * The expanded panel's reveal — "any activation re-reveals it"
+    ///   (`CLAUDE.md`'s brief for this surface): if the panel is open when the
+    ///   active slot changes, its scroll re-centres on the new active row
+    ///   through the SAME minimal-jump formula opening it uses
+    ///   ([`Self::expanded_reveal_scroll`]), rather than staying wherever a
+    ///   PREVIOUS reader's scroll left it. A working set that drops below two
+    ///   files closes the panel outright — there is nothing left to expand.
+    fn on_active_changed(&mut self) {
+        self.recompute_resting_window();
+        if self.len() < 2 {
+            self.panel = Panel::Resting;
+        } else if matches!(self.panel, Panel::Expanded { .. }) {
+            self.panel = Panel::Expanded {
+                scroll: self.expanded_reveal_scroll(),
+            };
+        }
+    }
+
+    /// THE HOLD-STILL / MINIMAL-SLIDE LAW.
+    ///
+    /// The gallery's rejected candidate (`prototype::PrototypeSpec::Collapsed`,
+    /// unchanged — it stays on the record as the law's own red-arm reference)
+    /// re-derives the resting window from nothing but the active file's index
+    /// EVERY time, which is what let an already-visible row jump across the
+    /// window on the very next activation (`collapsed-jitter.png`). This is
+    /// STATEFUL instead: the window remembered here only MOVES when the newly
+    /// active file has left it, and then by the minimum distance that brings
+    /// it back — never re-centring on a file the reader was already looking
+    /// at.
+    ///
+    /// A window computed for a DIFFERENT root (or none yet) falls back to the
+    /// same fresh reveal the rejected candidate used — there is no PREVIOUS
+    /// window to hold still against the first time a root is visited.
+    fn recompute_resting_window(&mut self) {
+        let Some(active) = self.active else {
+            self.resting_window = None;
+            return;
+        };
+        let root = self.files[active].root.clone();
+        let group = self.group(&root);
+        let Some(active_in_group) = group.iter().position(|&at| at == active) else {
+            self.resting_window = None;
+            return;
+        };
+        let max_start = group.len().saturating_sub(RESTING_FILES);
+        let start = match &self.resting_window {
+            Some((prev_root, prev_start)) if *prev_root == root => {
+                let prev_start = (*prev_start).min(max_start);
+                if active_in_group >= prev_start && active_in_group < prev_start + RESTING_FILES {
+                    // HOLD STILL: the newly active file is already inside the
+                    // drawn window, so nothing about it moves.
+                    prev_start
+                } else if active_in_group < prev_start {
+                    // SLIDE UP by exactly enough to reveal it at the window's
+                    // own top edge — never further.
+                    active_in_group
+                } else {
+                    // SLIDE DOWN by exactly enough to reveal it at the
+                    // window's own bottom edge.
+                    (active_in_group + 1).saturating_sub(RESTING_FILES)
+                }
+            }
+            _ => active_in_group
+                .saturating_sub(RESTING_FILES.saturating_sub(1))
+                .min(max_start),
+        };
+        self.resting_window = Some((root, start.min(max_start)));
     }
 
     pub fn files(&self) -> &[OpenFile] {
@@ -296,23 +421,59 @@ impl WorkingSet {
     /// be a second place for that rule to be true, and the day they disagree the
     /// margin grows a row for a set of one.
     ///
-    /// The count is the ACTIVE ROOT'S GROUP, never [`Self::len`]: a file parked
-    /// under another project must not summon a stack in this one.
+    /// The count that GATES the stack is the ACTIVE ROOT'S GROUP, never
+    /// [`Self::len`]: a file parked under another project must not summon a
+    /// stack in this one. Once gated, the window shown is bounded to
+    /// [`RESTING_FILES`] rows through [`Self::recompute_resting_window`]'s
+    /// hold-still/minimal-slide state, with one trailing `+ N more…` row
+    /// whenever anything is hidden — counting every open buffer this window
+    /// does not draw, in this root's own overflow AND every other root alike,
+    /// since that row is the margin's one door to all of them (the panel this
+    /// overflow row expands: [`Self::expanded_rows`]).
     pub fn stack_rows(&self, root: &Path) -> Vec<StackRow> {
         let group = self.group(root);
         if group.len() < 2 {
             return Vec::new();
         }
-        group
-            .into_iter()
-            .map(|at| StackRow {
-                leaf: self.files[at].leaf(),
-                parent: self.files[at].parent_label().unwrap_or_default(),
-                active: self.active == Some(at),
-                kind: StackRowKind::File,
-                prototype_hovered: false,
-            })
-            .collect()
+        let max_start = group.len().saturating_sub(RESTING_FILES);
+        let start = match &self.resting_window {
+            Some((r, s)) if r.as_path() == root => (*s).min(max_start),
+            _ => {
+                let active_in_group = self
+                    .active_index()
+                    .and_then(|active| group.iter().position(|&at| at == active));
+                active_in_group
+                    .map(|a| {
+                        a.saturating_sub(RESTING_FILES.saturating_sub(1))
+                            .min(max_start)
+                    })
+                    .unwrap_or(0)
+            }
+        };
+        let visible = &group[start..(start + RESTING_FILES).min(group.len())];
+        let mut rows: Vec<StackRow> = visible.iter().map(|&at| self.file_row(at)).collect();
+        let hidden = self.len().saturating_sub(visible.len());
+        if hidden > 0 {
+            rows.push(StackRow {
+                leaf: format!("+ {hidden} more…"),
+                kind: StackRowKind::More { hidden },
+                ..StackRow::default()
+            });
+        }
+        rows
+    }
+
+    /// The one row projection both [`Self::stack_rows`] and
+    /// [`Self::expanded_rows`] build a `File` row from, so the two views cannot
+    /// describe the same open file differently.
+    fn file_row(&self, at: usize) -> StackRow {
+        StackRow {
+            leaf: self.files[at].leaf(),
+            parent: self.files[at].parent_label().unwrap_or_default(),
+            active: self.active == Some(at),
+            kind: StackRowKind::File,
+            prototype_hovered: false,
+        }
     }
 
     /// The slots whose files belong to `root` — the resting stack's own group.
@@ -325,6 +486,154 @@ impl WorkingSet {
             .filter(|(_, f)| f.root == root)
             .map(|(i, _)| i)
             .collect()
+    }
+
+    /// THE MARGIN'S ONE ROW SOURCE: the resting stack, or the expanded panel it
+    /// opens into, whichever the reader is currently looking at. Both live
+    /// call sites that draw the margin (`app/viewstate.rs`'s `sync_view`,
+    /// `app/capture_state.rs`'s live-App capture fold) route through this ONE
+    /// owner instead of each asking [`Self::is_expanded`] on its own — the
+    /// shape "two call sites, one condition" is exactly how a live frame and
+    /// its own capture drift apart the day only one of them is edited.
+    pub fn margin_rows(&self, root: &Path) -> Vec<StackRow> {
+        if self.is_expanded() {
+            self.expanded_rows()
+        } else {
+            self.stack_rows(root)
+        }
+    }
+
+    /// Is the reader looking at the resting stack, or the panel it expands
+    /// into?
+    pub fn is_expanded(&self) -> bool {
+        matches!(self.panel, Panel::Expanded { .. })
+    }
+
+    /// OPEN THE EXPANDED PANEL, scrolled so the active row is visible (the
+    /// browser-tab reveal-on-open convention this surface's brief names) — a
+    /// no-op below two open files, since there is then no overflow row that
+    /// could have summoned it.
+    pub fn expand(&mut self) {
+        if self.len() < 2 {
+            return;
+        }
+        self.panel = Panel::Expanded {
+            scroll: self.expanded_reveal_scroll(),
+        };
+    }
+
+    /// Return to the resting stack. Idempotent.
+    pub fn collapse(&mut self) {
+        self.panel = Panel::Resting;
+    }
+
+    /// SCROLL THE EXPANDED PANEL by `delta` rows (negative toward the top),
+    /// clamped to `[0, max]` — the panel's own bounds, never toward the active
+    /// row. A no-op while the panel is not open. This is the ONE door a
+    /// reader's own wheel/trackpad motion moves the panel through, and it never
+    /// re-centres on the active file the way [`Self::on_active_changed`]'s
+    /// reveal does — the two clauses in this surface's brief ("opens scrolled
+    /// so the active row is visible" / "a user's own scroll is never fought")
+    /// are not in tension: the first is a bound, the second is that this
+    /// function never moves `scroll` toward anything but where the caller
+    /// asked.
+    pub fn scroll_expanded(&mut self, delta: isize) {
+        let Panel::Expanded { scroll } = self.panel else {
+            return;
+        };
+        let max = self.expanded_full().len().saturating_sub(EXPANDED_VIEWPORT) as isize;
+        let next = (scroll as isize + delta).clamp(0, max.max(0)) as usize;
+        self.panel = Panel::Expanded { scroll: next };
+    }
+
+    /// THE EXPANDED PANEL'S FULL, UNWINDOWED CONTENT: every open file, headed
+    /// by its root, roots in FIRST-SEEN order (the same order the judged
+    /// gallery's `Grouped` prototype drew them in — `grouped-saltpan.png`
+    /// heads `notebook` before `atlas` because `notebook`'s files were opened
+    /// first).
+    fn expanded_full(&self) -> Vec<PanelRow> {
+        let mut roots: Vec<&Path> = Vec::new();
+        for f in &self.files {
+            if !roots.contains(&f.root.as_path()) {
+                roots.push(f.root.as_path());
+            }
+        }
+        let active_root = self.active_root();
+        let mut rows = Vec::with_capacity(self.files.len() + roots.len());
+        for root in roots {
+            rows.push(PanelRow::Group(
+                root.to_path_buf(),
+                Some(root) == active_root,
+            ));
+            for at in self.group(root) {
+                rows.push(PanelRow::File(at));
+            }
+        }
+        rows
+    }
+
+    /// The minimal-jump scroll that brings the active row into
+    /// [`EXPANDED_VIEWPORT`] rows of the panel — mirrors the resting window's
+    /// own fresh-reveal formula (`stack_rows`' fallback arm), over the FULL
+    /// grouped list rather than one root's group. `0` when nothing is active
+    /// (there is no row to reveal).
+    fn expanded_reveal_scroll(&self) -> usize {
+        let full = self.expanded_full();
+        let max_scroll = full.len().saturating_sub(EXPANDED_VIEWPORT);
+        let active_row = self.active.and_then(|active| {
+            full.iter()
+                .position(|row| matches!(row, PanelRow::File(at) if *at == active))
+        });
+        active_row
+            .map(|a| {
+                a.saturating_sub(EXPANDED_VIEWPORT.saturating_sub(1))
+                    .min(max_scroll)
+            })
+            .unwrap_or(0)
+    }
+
+    /// THE EXPANDED PANEL'S DRAWN ROWS: [`EXPANDED_VIEWPORT`] rows of
+    /// [`Self::expanded_full`] starting at the current scroll, clamped to
+    /// bounds at READ time (never trusting a stored `scroll` that a close
+    /// since made too large — [`Self::on_active_changed`] already recomputes
+    /// it on most closes, but this stays correct even if that changes). Empty
+    /// while the panel is not open.
+    pub fn expanded_rows(&self) -> Vec<StackRow> {
+        let Panel::Expanded { scroll } = self.panel else {
+            return Vec::new();
+        };
+        let full = self.expanded_full();
+        let max_scroll = full.len().saturating_sub(EXPANDED_VIEWPORT);
+        let scroll = scroll.min(max_scroll);
+        full[scroll..(scroll + EXPANDED_VIEWPORT).min(full.len())]
+            .iter()
+            .map(|row| match row {
+                PanelRow::Group(root, active) => StackRow {
+                    leaf: crate::project::folder_name(root),
+                    kind: StackRowKind::Group { active: *active },
+                    ..StackRow::default()
+                },
+                PanelRow::File(at) => self.file_row(*at),
+            })
+            .collect()
+    }
+
+    /// THE FILE a drawn EXPANDED-PANEL row names, or `None` for a heading row
+    /// or a row past the panel's own drawn window. The click-resolution
+    /// counterpart to [`Self::expanded_rows`] — resolved through the exact
+    /// same windowed slice, so a click can never name a file a different row
+    /// than the one drawn under the pointer.
+    pub fn expanded_row_open_file(&self, row: usize) -> Option<&OpenFile> {
+        let Panel::Expanded { scroll } = self.panel else {
+            return None;
+        };
+        let full = self.expanded_full();
+        let max_scroll = full.len().saturating_sub(EXPANDED_VIEWPORT);
+        let scroll = scroll.min(max_scroll);
+        match full.get(scroll + row)? {
+            PanelRow::File(at) => self.files.get(*at),
+            PanelRow::Group(..) => None,
+        }
     }
 }
 

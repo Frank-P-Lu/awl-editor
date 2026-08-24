@@ -6,10 +6,9 @@
 //! `--screenshot-app` artifact and only when the sealed prototype environment
 //! key is present; an ordinary live frame never asks it a question.
 
-use super::{StackRow, StackRowKind, WorkingSet};
-
-const RESTING_FILES: usize = 5;
-const EXPANDED_FILES: usize = 8;
+use super::{
+    EXPANDED_VIEWPORT as EXPANDED_FILES, RESTING_FILES, StackRow, StackRowKind, WorkingSet,
+};
 
 /// Capture-only candidate rows for the already-existing Move destination card.
 /// The production navigator currently expresses "move here" only in its footer
@@ -177,16 +176,6 @@ impl WorkingSet {
             rows.extend(self.group(root).into_iter().map(|at| self.file_row(at)));
         }
         self.finish(spec, rows, self.len(), 0, 0, self.len())
-    }
-
-    fn file_row(&self, at: usize) -> StackRow {
-        StackRow {
-            leaf: self.files[at].leaf(),
-            parent: self.files[at].parent_label().unwrap_or_default(),
-            active: self.active_index() == Some(at),
-            kind: StackRowKind::File,
-            prototype_hovered: false,
-        }
     }
 
     fn finish(

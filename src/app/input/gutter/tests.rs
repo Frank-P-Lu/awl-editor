@@ -6,9 +6,14 @@ use crate::config::Config;
 use std::path::Path;
 use std::sync::Arc;
 
-/// The rows the MARGIN would draw for `app`, as labels — read through the same
-/// owner the renderer reads (`ViewState`'s `gutter_files` comes from
+/// The FILE rows the MARGIN would draw for `app`, as labels — read through the
+/// same owner the renderer reads (`ViewState`'s `gutter_files` comes from
 /// `stack_rows(active_root())`), so the law's row indices are the drawn ones.
+/// Filtered to `StackRowKind::File`: every law below asserts row→file
+/// resolution, and the trailing `+ N more…` row (residual 3's overflow
+/// affordance, present once a hidden buffer exists anywhere) names no file at
+/// all — including it here would assert a leaf/parent pair for a row that is
+/// not one.
 fn drawn_labels(app: &App) -> Vec<String> {
     let working = app.document.working_set();
     working
@@ -16,6 +21,7 @@ fn drawn_labels(app: &App) -> Vec<String> {
         .map(|root| working.stack_rows(root))
         .unwrap_or_default()
         .iter()
+        .filter(|row| matches!(row.kind, crate::workingset::StackRowKind::File))
         .map(|row| format!("{}{}", row.parent, row.leaf))
         .collect()
 }
@@ -284,5 +290,166 @@ fn closing_the_lone_row_reaches_the_same_zero_document_state_cmd_w_does() {
             "closing the lone row must leave no active document"
         );
         assert!(app.document.buffer_opt().is_none());
+    });
+}
+
+/// **THE EXPANDED PANEL'S ROWS RESOLVE TO THEIR OWN FILES, across TWO roots
+/// at once** — the residual-3 counterpart of
+/// `every_working_set_row_resolves_to_the_file_it_names`, in the panel's own
+/// multi-root, headed index space rather than `group(root)`. Swept over the
+/// whole drawn panel so an off-by-one at a root boundary is not hidden by
+/// checking only row 0.
+#[test]
+fn every_expanded_panel_row_resolves_to_the_file_it_names() {
+    let _guard = crate::testlock::serial();
+    let mem = Arc::new(
+        crate::fs::InMemoryFs::new()
+            .with_dir("/ws/notes")
+            .with_dir("/ws/archive")
+            .with_file("/ws/notes/index.md", "index\n")
+            .with_file("/ws/notes/alpha.md", "alpha\n")
+            .with_file("/ws/archive/log.md", "log\n"),
+    );
+    crate::fs::with_fs(mem, || {
+        let mut config = Config::empty();
+        config.workspace = Some(PathBuf::from("/ws"));
+        let mut app = App::new_hermetic(
+            Some(PathBuf::from("/ws/notes/index.md")),
+            PathBuf::from("/ws/notes"),
+            config,
+        );
+        app.load_path(PathBuf::from("/ws/notes/alpha.md"));
+        app.load_path(PathBuf::from("/ws/archive/log.md"));
+        app.document.working_set_mut().expand();
+        assert!(app.document.working_set().is_expanded());
+
+        let rows = app.document.working_set().expanded_rows();
+        for (row, drawn) in rows.iter().enumerate() {
+            match drawn.kind {
+                crate::workingset::StackRowKind::File => {
+                    let path = app
+                        .gutter_stack_row_path(row)
+                        .unwrap_or_else(|| panic!("row {row} names a file"));
+                    let key = app
+                        .gutter_stack_row_key(row)
+                        .unwrap_or_else(|| panic!("row {row} names a buffer"));
+                    assert_eq!(
+                        path.file_name().and_then(|n| n.to_str()),
+                        Some(drawn.leaf.as_str()),
+                        "row {row} resolves to a different file than the one drawn"
+                    );
+                    assert_eq!(
+                        key,
+                        crate::buffers::BufferKey::path(&path),
+                        "row {row}'s path and key routes disagree about which file it names"
+                    );
+                }
+                crate::workingset::StackRowKind::Group { .. } => {
+                    assert_eq!(
+                        app.gutter_stack_row_path(row),
+                        None,
+                        "row {row} is a heading and must name no file"
+                    );
+                }
+                crate::workingset::StackRowKind::More { .. } => {
+                    unreachable!("the expanded panel draws no More row")
+                }
+            }
+        }
+    });
+}
+
+/// **CROSS-ROOT ACTIVATION RESTORES THE MATCHING PROJECT ROOT** — the
+/// end-to-end proof behind clicking a file in another group of the expanded
+/// panel. The click plumbing itself resolves a row to a [`crate::buffers::BufferKey`]
+/// and hands it to [`App::activate_open_buffer`] exactly as the resting
+/// stack's own switch already does (`accepting_a_row_switches_the_buffer_and_never_reorders_the_stack`,
+/// above); this proves the DOOR that call lands on already restores the root,
+/// so the panel needed no second restoration mechanism of its own — only the
+/// click wiring, which is what this dispatch built.
+#[test]
+fn activating_an_open_file_from_another_root_restores_its_remembered_project_root() {
+    let _guard = crate::testlock::serial();
+    let mem = Arc::new(
+        crate::fs::InMemoryFs::new()
+            .with_dir("/ws/notes")
+            .with_dir("/ws/archive")
+            .with_file("/ws/notes/index.md", "index\n")
+            .with_file("/ws/notes/alpha.md", "alpha\n")
+            .with_file("/ws/archive/log.md", "log\n"),
+    );
+    crate::fs::with_fs(mem, || {
+        let mut config = Config::empty();
+        config.workspace = Some(PathBuf::from("/ws"));
+        let mut app = App::new_hermetic(
+            Some(PathBuf::from("/ws/notes/index.md")),
+            PathBuf::from("/ws/notes"),
+            config,
+        );
+        app.load_path(PathBuf::from("/ws/notes/alpha.md"));
+        app.load_path(PathBuf::from("/ws/archive/log.md"));
+        // Back to `notes` — the active root when the cross-root activation
+        // below fires, so the restore is genuinely exercised rather than a
+        // no-op against the root already active.
+        app.load_path(PathBuf::from("/ws/notes/index.md"));
+        assert_eq!(app.project_location.root, PathBuf::from("/ws/notes"));
+        assert_eq!(
+            app.document.working_set().active_root(),
+            Some(Path::new("/ws/notes"))
+        );
+
+        let key = crate::buffers::BufferKey::path(Path::new("/ws/archive/log.md"));
+        app.activate_open_buffer(key);
+
+        assert_eq!(
+            app.document.buffer().path(),
+            Some(Path::new("/ws/archive/log.md")),
+            "the cross-root file is now the active document"
+        );
+        assert_eq!(
+            app.project_location.root,
+            PathBuf::from("/ws/archive"),
+            "the project root must follow the arriving document's own remembered root"
+        );
+        assert_eq!(
+            app.document.working_set().active_root(),
+            Some(Path::new("/ws/archive")),
+            "the working set's own active-root readout agrees"
+        );
+    });
+}
+
+/// **ESC COLLAPSES AN OPEN EXPANDED PANEL** — driven through the real
+/// `Action::Cancel` dispatch (`app/apply.rs`), the same door a live Escape
+/// keypress resolves to (`keymap/resolve.rs`), rather than calling
+/// `WorkingSet::collapse` directly.
+#[test]
+fn escape_collapses_an_open_expanded_panel() {
+    let _guard = crate::testlock::serial();
+    let mem = Arc::new(
+        crate::fs::InMemoryFs::new()
+            .with_dir("/ws/notes")
+            .with_file("/ws/notes/a.md", "a\n")
+            .with_file("/ws/notes/b.md", "b\n"),
+    );
+    crate::fs::with_fs(mem, || {
+        let mut config = Config::empty();
+        config.workspace = Some(PathBuf::from("/ws"));
+        let mut app = App::new_hermetic(
+            Some(PathBuf::from("/ws/notes/a.md")),
+            PathBuf::from("/ws/notes"),
+            config,
+        );
+        app.load_path(PathBuf::from("/ws/notes/b.md"));
+        app.document.working_set_mut().expand();
+        assert!(app.document.working_set().is_expanded());
+
+        let exit = crate::app::schedule::RecordingExit::new();
+        app.apply(Action::Cancel, false, &exit, crate::stats::Door::Chord);
+
+        assert!(
+            !app.document.working_set().is_expanded(),
+            "Escape must collapse the open panel"
+        );
     });
 }

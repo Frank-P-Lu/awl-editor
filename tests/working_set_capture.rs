@@ -293,3 +293,123 @@ fn finishing_a_file_removes_its_row_and_lands_the_reader_on_a_neighbour() {
         "the third close enters the honest zero-document state"
     );
 }
+
+/// Seven files under one root, unique first letters so a one-letter Go-to
+/// query resolves each unambiguously — the fixture residual 3's overflow and
+/// hold-still laws need, since `RESTING_FILES` (5) has to be exceeded for
+/// either to have anything to prove.
+fn arrange_seven(dir: &Path) -> PathBuf {
+    let notes = dir.join("notes");
+    std::fs::create_dir_all(&notes).unwrap();
+    for name in ["aaa", "bbb", "ccc", "ddd", "eee", "fff", "ggg"] {
+        std::fs::write(notes.join(format!("{name}.md")), format!("# {name}\n")).unwrap();
+    }
+    std::fs::write(dir.join("awl.toml"), "theme = \"Alabaster\"\n").unwrap();
+    notes
+}
+
+const TO_BBB: &str = "Cmd-o b b b Enter";
+const TO_CCC: &str = "Cmd-o c c c Enter";
+const TO_DDD: &str = "Cmd-o d d d Enter";
+const TO_EEE: &str = "Cmd-o e e e Enter";
+const TO_FFF: &str = "Cmd-o f f f Enter";
+const TO_GGG: &str = "Cmd-o g g g Enter";
+
+/// [`buffers`]'s sibling for the seven-file fixture: launches on `aaa.md`
+/// (`arrange`'s `buffers` hardcodes `opening.md`, which [`arrange_seven`]
+/// does not create) so the sequence below opens exactly seven files in a
+/// known order, never eight.
+fn buffers_seven(dir: &Path, tag: &str, keys: &str) -> serde_json::Value {
+    let notes = dir.join("notes");
+    let out = dir.join(format!("{tag}.png"));
+    let mut cmd = common::awl(dir);
+    cmd.env("AWL_CONVENTION_FORCE", "mac")
+        .arg("--screenshot-app")
+        .arg(&out)
+        .arg("--seed-tree")
+        .arg(dir)
+        .arg("--config")
+        .arg(dir.join("awl.toml"))
+        .arg("--root")
+        .arg(&notes)
+        .arg(notes.join("aaa.md"));
+    if !keys.is_empty() {
+        cmd.arg("--keys").arg(keys);
+    }
+    let run = cmd.output().expect("failed to spawn CARGO_BIN_EXE_awl");
+    assert!(
+        run.status.success(),
+        "{tag}: awl exited {}\n{}",
+        run.status,
+        String::from_utf8_lossy(&run.stderr)
+    );
+    let json = std::fs::read_to_string(out.with_extension("json")).expect("sidecar exists");
+    let v: serde_json::Value = serde_json::from_str(&json).expect("sidecar parses");
+    v["buffers"].clone()
+}
+
+/// **THE OVERFLOW ROW'S COUNT IS EXACT ON THE REAL LIVE-APP CHAIN** — the same
+/// claim `workingset::tests::overflow_count_is_exact_and_the_active_file_is_
+/// always_in_the_visible_window` proves at the pure model seam, driven here
+/// through real `Cmd-o` chords into a real headless `App` instead, so the
+/// live margin (`app/viewstate.rs`'s `sync_view`) and the sidecar
+/// (`app/capture_state.rs`'s fold) are proven to agree with the model rather
+/// than assumed to.
+#[test]
+fn the_overflow_row_counts_every_hidden_file_on_the_real_chain() {
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl-working-set-overflow-{}", std::process::id())),
+    );
+    arrange_seven(&dir);
+
+    let opened = buffers_seven(
+        &dir,
+        "overflow-seven",
+        &format!("{TO_BBB} {TO_CCC} {TO_DDD} {TO_EEE} {TO_FFF} {TO_GGG}"),
+    );
+    let files = opened["files"].as_array().expect("files is an array");
+    assert_eq!(
+        files.len(),
+        6,
+        "five visible file rows plus one overflow row: {files:?}"
+    );
+    assert_eq!(
+        files.last().unwrap(),
+        &serde_json::json!("+ 2 more…"),
+        "seven open, five drawn, two hidden — aaa.md and bbb.md, the two the window slid past"
+    );
+}
+
+/// **THE HOLD-STILL LAW ON THE REAL LIVE-APP CHAIN.** `ddd.md` activates
+/// already inside the window a prior activation left behind (`ggg.md`
+/// slides the five-row window down to `ccc..ggg`, and `ddd` sits inside it) —
+/// the exact shape `collapsed-jitter.png` named, reproduced through real
+/// `Cmd-o` chords rather than the pure model's direct `set_active` calls.
+#[test]
+fn activating_an_already_visible_file_holds_the_drawn_window_still_on_the_real_chain() {
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl-working-set-holdstill-{}", std::process::id())),
+    );
+    arrange_seven(&dir);
+
+    let before = buffers_seven(
+        &dir,
+        "holdstill-before",
+        &format!("{TO_BBB} {TO_CCC} {TO_DDD} {TO_EEE} {TO_FFF} {TO_GGG}"),
+    );
+    let after = buffers_seven(
+        &dir,
+        "holdstill-after",
+        &format!("{TO_BBB} {TO_CCC} {TO_DDD} {TO_EEE} {TO_FFF} {TO_GGG} {TO_DDD}"),
+    );
+    assert_eq!(
+        after["files"], before["files"],
+        "ddd.md was already inside the drawn window — activating it again must not \
+         move a single drawn row: {} -> {}",
+        before["files"], after["files"]
+    );
+    assert_ne!(
+        after["active_index"], before["active_index"],
+        "the active row still genuinely moved, to ddd's own row"
+    );
+}

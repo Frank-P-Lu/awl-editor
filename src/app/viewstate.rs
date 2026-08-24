@@ -31,6 +31,16 @@ impl App {
             self.sync_zero_document_view();
             return;
         }
+        // THE EXPANDED WORKING-SET PANEL IS A TRANSIENT UI SURFACE, not a
+        // persistent one: a summoned overlay already hides the whole gutter
+        // block (`gutter_layout`'s own `overlay_active` gate), so leaving the
+        // panel's MODEL open underneath it would let it resurface stale —
+        // scrolled wherever a reader left it — the moment the overlay closes.
+        // Collapsing it the same frame the overlay claims the margin keeps
+        // "transient" honest.
+        if self.workspace_state.overlay_open() && self.document.working_set().is_expanded() {
+            self.document.working_set_mut().collapse();
+        }
         let height = self.frame.gpu().unwrap().config.height as f32;
         debug_assert!(height.is_finite());
         let (cursor_line, cursor_col) = self.document.buffer().cursor_line_col();
@@ -251,7 +261,7 @@ impl App {
                 .document
                 .working_set()
                 .active_root()
-                .map(|root| self.document.working_set().stack_rows(root))
+                .map(|root| self.document.working_set().margin_rows(root))
                 .unwrap_or_default(),
             // THE PERSISTENT AFFORDANCE. Asked of the latch itself, per FRAME —
             // not raised by an event and not re-raised by a poll — so it is true

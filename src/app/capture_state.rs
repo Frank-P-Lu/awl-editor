@@ -89,7 +89,7 @@ impl App {
             .document
             .working_set()
             .active_root()
-            .map(|root| self.document.working_set().stack_rows(root))
+            .map(|root| self.document.working_set().margin_rows(root))
             .unwrap_or_default();
         // SEALED CAPTURE PROTOTYPE: audition overflow/grouping presentations
         // against the REAL live-App working set without changing a production
