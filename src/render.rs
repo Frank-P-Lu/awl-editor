@@ -2411,6 +2411,20 @@ pub struct TextPipeline {
     pub streak_cells: SelectionPipeline,
     pub hud_renderer: TextRenderer,
     pub hud_buffer: GlyphBuffer,
+    /// The Writing-streaks card's drawn rect `[x, y, w, h]` this frame, or
+    /// `None` when it is not open — set by `prepare_streaks_card`, cleared by
+    /// `prepare_hud`'s `!streaks` arm, so the two can never disagree about
+    /// whether one is current. Read by `app/input/mouse_button.rs`'s click
+    /// hit-test (a press on this rect pages instead of dismissing) and by the
+    /// render-tier laws that prove the hint text they draw sits where this
+    /// rect says the card is.
+    streaks_card_rect: Option<[f32; 4]>,
+    /// The streaks card's TEXT block origin `[x, y]` this frame (the same
+    /// `plan.text` `prepare_streaks_card` positions its `TextArea` at) —
+    /// companion to `streaks_card_rect`, kept only for a render-tier law to
+    /// locate a specific drawn line (the ←/→ paging hint) without
+    /// re-deriving the layout math.
+    streaks_text_origin: Option<[f32; 2]>,
     hud: HudDefaults,
     streaks_view: Option<crate::streaks::StreaksView>,
     peek_rows: Vec<crate::peek::PeekRow>,

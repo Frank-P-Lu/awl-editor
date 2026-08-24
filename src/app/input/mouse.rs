@@ -838,6 +838,14 @@ impl App {
 
     pub(in crate::app) fn on_mouse_wheel(&mut self, delta: MouseScrollDelta) {
         self.stamp_input();
+        // A summoned MODAL card (About / Lifetime / Streaks) owns any press
+        // (`card::dismiss_summoned_card`), but a wheel is not that same kind of
+        // intent — SWALLOW it whole rather than either dismissing the card or
+        // scrolling the document sitting invisibly behind it. The card itself
+        // does not respond to a bare wheel either (Streaks pages by click/←→).
+        if crate::card::modal_card_open() {
+            return;
+        }
         if !self.document.has_active() && !self.workspace_state.overlay_open() {
             return;
         }

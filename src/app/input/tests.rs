@@ -719,3 +719,130 @@ fn wheel_scroll_from_cold_start_does_not_expose_selection_to_the_next_hover_chec
         "the wheel-driven selection survives the stray re-check"
     );
 }
+
+/// **A SUMMONED MODAL CARD SWALLOWS THE WHEEL WHOLE** — it neither dismisses
+/// the card (a wheel is not the press-owns-the-next-input intent a click is)
+/// nor reaches ANY of `on_mouse_wheel`'s branches below the guard, proved on
+/// the one branch that is genuinely GPU-free and so headlessly observable:
+/// ⌘-wheel ZOOM (`App::new_hermetic` builds no window, so plain vertical
+/// document scroll is itself resolved through `gpu.pipeline.scroll_by_px` —
+/// GPU-gated and a no-op on every headless `App` regardless of this guard;
+/// zoom is a bare `Frame` field with no such dependency, and this guard fires
+/// before the wheel is even inspected for its zoom modifier, so zoom is
+/// exactly as swallowed as scroll would be). Swept across all three modal
+/// cards — About, Lifetime, Streaks — since the guard is one predicate over
+/// all three, not a per-card check.
+///
+/// NON-VACUITY: for each card, the IDENTICAL ⌘-wheel with the card closed
+/// DOES move zoom immediately afterward — proving this fixture's wheel is
+/// able to mutate state at all, so the "card open ⇒ zoom unchanged"
+/// assertion above is not satisfied merely because nothing in this fixture
+/// can ever move. Removing the guard in `on_mouse_wheel` turns the first
+/// assertion of each iteration red.
+#[test]
+fn wheel_with_a_modal_card_open_is_swallowed_whole_not_dismissed_or_applied() {
+    let _g = crate::testlock::serial();
+    crate::about::set_open(false);
+    crate::lifetime::set_open(false);
+    crate::streaks::set_open(false);
+
+    type CardGates = (&'static str, fn(bool), fn() -> bool);
+    let cards: [CardGates; 3] = [
+        ("about", crate::about::set_open, crate::about::about_open),
+        (
+            "lifetime",
+            crate::lifetime::set_open,
+            crate::lifetime::lifetime_open,
+        ),
+        (
+            "streaks",
+            crate::streaks::set_open,
+            crate::streaks::streaks_open,
+        ),
+    ];
+
+    for (name, set_open, is_open) in cards {
+        let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
+        app.document.set_text("hello world\n");
+        app.input
+            .set_modifiers(winit::event::Modifiers::from(ModifiersState::SUPER));
+
+        set_open(true);
+        let before = app.frame.zoom();
+        app.on_mouse_wheel(MouseScrollDelta::LineDelta(0.0, -3.0));
+        assert_eq!(
+            app.frame.zoom(),
+            before,
+            "{name}: a modal card up must swallow the wheel outright — zoom must not move"
+        );
+        assert!(
+            is_open(),
+            "{name}: the wheel must not dismiss the card either — swallow, not dismiss"
+        );
+        set_open(false);
+
+        // Non-vacuity precondition, checked AFTER (not instead of) the real
+        // assertions above: the same wheel, same App, card now closed.
+        let before2 = app.frame.zoom();
+        app.on_mouse_wheel(MouseScrollDelta::LineDelta(0.0, -3.0));
+        assert_ne!(
+            app.frame.zoom(),
+            before2,
+            "{name}: precondition failed — this fixture's ⌘-wheel must be ABLE \
+             to move zoom once no card is up, or the assertion above proves nothing"
+        );
+    }
+}
+
+/// **A PRESS ON THE STREAKS CARD'S OWN SURFACE PAGES; OFF IT, DISMISSES —**
+/// the decision half of the click-routing split in `mouse_button.rs`
+/// (`press_with_card_open`), driven with the real hit-test's ANSWER rather
+/// than real geometry: the geometry lookup itself
+/// (`streaks_card_rect`, read through `self.frame.gpu()`) is live-only, the
+/// same as every other pixel-position hit-test in that file (`popover_hit`,
+/// `start_action_at`) — `render::tests::streaks_card_ink` proves that
+/// geometry matches the drawn card instead. This law proves the round trip:
+/// paging twice returns to the starting page (mirroring the ←/→ key
+/// intercept's own round-trip law), the card stays open the whole time an
+/// on-card press lands, and an off-card press dismisses exactly like every
+/// other summoned-card press.
+#[test]
+fn press_with_card_open_pages_streaks_on_card_and_dismisses_off_it() {
+    let _g = crate::testlock::serial();
+    crate::about::set_open(false);
+    crate::lifetime::set_open(false);
+    crate::streaks::set_open(true);
+    let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
+    assert_eq!(
+        crate::streaks::card_view(),
+        crate::streaks::CardView::Heatmap,
+        "precondition: a fresh summon opens on the habit view"
+    );
+
+    app.press_with_card_open(true);
+    assert_eq!(
+        crate::streaks::card_view(),
+        crate::streaks::CardView::Cumulative,
+        "an on-card press pages, the same flip the ←/→ key intercept performs"
+    );
+    assert!(
+        crate::streaks::streaks_open(),
+        "the card stays open across an on-card press"
+    );
+
+    app.press_with_card_open(true);
+    assert_eq!(
+        crate::streaks::card_view(),
+        crate::streaks::CardView::Heatmap,
+        "a second on-card press pages back — the round trip"
+    );
+    assert!(crate::streaks::streaks_open());
+
+    app.press_with_card_open(false);
+    assert!(
+        !crate::streaks::streaks_open(),
+        "a press OFF the card dismisses it, exactly like every other summoned-card press"
+    );
+
+    crate::streaks::set_open(false);
+}

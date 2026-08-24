@@ -15,14 +15,30 @@ impl App {
             self.stamp_input();
             self.feed_peek(crate::peek::PeekStimulus::Interrupt);
         }
-        // Summoned cards own any mouse press, matching the key intercept.
+        // Summoned cards own any mouse press, matching the key intercept —
+        // except the Writing-streaks card, whose own surface PAGES instead
+        // of dismissing (see `press_with_card_open`); a press outside it
+        // still dismisses, exactly like About/Lifetime everywhere else.
         if state == ElementState::Pressed
             && matches!(button, MouseButton::Left | MouseButton::Right)
-            && crate::card::dismiss_summoned_card()
         {
-            self.sync_view(true);
-            self.request_frame();
-            return;
+            if crate::streaks::streaks_open() {
+                let (px, py) = self.input.pointer.cursor_px;
+                let on_card = crate::card::point_in_card(
+                    px,
+                    py,
+                    self.frame
+                        .gpu()
+                        .and_then(|g| g.pipeline.streaks_card_rect()),
+                );
+                self.press_with_card_open(on_card);
+                return;
+            }
+            if crate::card::dismiss_summoned_card() {
+                self.sync_view(true);
+                self.request_frame();
+                return;
+            }
         }
         if button == MouseButton::Right {
             if state == ElementState::Pressed && self.document.has_active() {
@@ -47,6 +63,26 @@ impl App {
             }
             ElementState::Released => self.on_left_release(),
         }
+        self.request_frame();
+    }
+
+    /// What a press does while the Writing-streaks card is up, given only
+    /// whether it landed ON the card's own drawn surface: `true` PAGES —
+    /// flips heatmap⇄cumulative, the exact same flip the ←/→ key intercept
+    /// performs (`streaks::toggle_view`) — and leaves the card open; `false`
+    /// DISMISSES it, through the one shared owner every other summoned-card
+    /// press closes through. Split out from the real geometry lookup (`on_card`,
+    /// read through `self.frame.gpu()` in [`Self::on_mouse_input`] — live-only
+    /// like every other pixel-position hit-test in this file: `popover_hit`,
+    /// `start_action_at`) so this decision is testable given just the hit-test's
+    /// answer, with no renderer at all.
+    pub(in crate::app) fn press_with_card_open(&mut self, on_card: bool) {
+        if on_card {
+            crate::streaks::toggle_view();
+        } else {
+            crate::card::dismiss_summoned_card();
+        }
+        self.sync_view(true);
         self.request_frame();
     }
 
