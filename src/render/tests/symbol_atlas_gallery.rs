@@ -324,7 +324,8 @@ fn render_html(catalogs: &[FaceCatalog], roster: &BTreeMap<u32, Vec<String>>) ->
         let b64 = base64_encode(&c.bytes);
         writeln!(
             out,
-            "@font-face {{ font-family: '{}'; src: url(data:font/ttf;base64,{}) format('truetype'); \
+            "@font-face {{ font-family: '{}'; \
+             src: url(data:font/ttf;base64,{}) format('truetype'); \
              font-display: swap; }}",
             c.css_family, b64
         )
@@ -431,7 +432,8 @@ fn render_html(catalogs: &[FaceCatalog], roster: &BTreeMap<u32, Vec<String>>) ->
                 };
                 writeln!(
                     out,
-                    "<div class=\"cell\"><div class=\"glyph\" style=\"font-family:'{}';\">&#x{:X};</div>\
+                    "<div class=\"cell\"><div class=\"glyph\" style=\"font-family:'{}';\">\
+                     &#x{:X};</div>\
                      <div class=\"cp\">U+{:04X}</div><div class=\"name\">{}</div>\
                      <div class=\"roster\">{}</div></div>",
                     c.css_family,

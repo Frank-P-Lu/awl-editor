@@ -51,7 +51,7 @@ const ANCHOR_GAP: Logical = Logical(8.0);
 const EDGE_PAD: Logical = Logical(6.0);
 /// The hover ring's own vertical breath above/below the button GLYPH INK
 /// BAND — matches the active-state wash pill's `vpad` so the two treatments
-/// hug the row identically (item 483).
+/// hug the row identically.
 const HOVER_RING_VPAD: Logical = Logical(3.0);
 
 /// SELF-DEMONSTRATING label attrs: the per-button `Attrs` transform that makes a
@@ -192,7 +192,7 @@ impl TextPipeline {
                         _ => {}
                     }
                 }
-                // HOVER RING (item 483): a quiet outline over the hovered
+                // HOVER RING: a quiet outline over the hovered
                 // button's own hit-region — the SAME `hit_span_x` a press
                 // resolves against, so the acknowledgement and the actual
                 // clickable area can never disagree. At most one rect; empty
@@ -493,7 +493,7 @@ impl TextPipeline {
         geom.hit(px, py)
     }
 
-    /// Mirror the button under the LIVE pointer into render state (item 483)
+    /// Mirror the button under the LIVE pointer into render state
     /// — reads the SAME `popover_hit` the click path and the cursor icon
     /// already use, so the drawn hover ring can never disagree with a
     /// clickable button. Returns whether the visible hover state changed, so

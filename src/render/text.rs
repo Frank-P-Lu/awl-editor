@@ -704,8 +704,8 @@ impl TextPipeline {
             })
     }
 
-    /// Mirror the resize handle under the LIVE pointer into render state
-    /// (item 483) — the SAME `image_handle_at` hit-test the cursor-icon path
+    /// Mirror the resize handle under the LIVE pointer into render state —
+    /// the SAME `image_handle_at` hit-test the cursor-icon path
     /// already reads, so the drawn grip can never disagree with a clickable
     /// one. Returns whether the visible hover state changed, so the caller
     /// can request exactly one repaint on entry, handle crossing, or exit.

@@ -363,10 +363,11 @@ fn every_expanded_panel_row_resolves_to_the_file_it_names() {
 /// end-to-end proof behind clicking a file in another group of the expanded
 /// panel. The click plumbing itself resolves a row to a [`crate::buffers::BufferKey`]
 /// and hands it to [`App::activate_open_buffer`] exactly as the resting
-/// stack's own switch already does (`accepting_a_row_switches_the_buffer_and_never_reorders_the_stack`,
-/// above); this proves the DOOR that call lands on already restores the root,
-/// so the panel needed no second restoration mechanism of its own — only the
-/// click wiring, which is what this dispatch built.
+/// stack's own switch already does (the sibling law just above proving that,
+/// `accepting_a_row_switches_the_buffer_and_never_reorders_the_stack`); this
+/// proves the DOOR that call lands on already restores the root, so the panel
+/// needed no second restoration mechanism of its own — only the click wiring,
+/// which is what this dispatch built.
 #[test]
 fn activating_an_open_file_from_another_root_restores_its_remembered_project_root() {
     let _guard = crate::testlock::serial();

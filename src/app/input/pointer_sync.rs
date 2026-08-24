@@ -1,8 +1,8 @@
 //! THE ONE OWNER of pointer-derived render state: the OS cursor icon, the
 //! fold-chevron hover reveal, the working-set stack's close-mark hover, the
 //! format popover's hover ring, and the inline-image resize-handle hover grip
-//! (the last two, item 483 — hover feedback drawn only where which-control-
-//! fires or that-a-control-exists is genuinely ambiguous). Every door that
+//! (the last two drawn only where which-control-fires or that-a-control-
+//! exists is genuinely ambiguous). Every door that
 //! can change what these five answer for — a real `CursorMoved`, a click, a
 //! drag beginning or ending, an overlay opening or closing, a modifier
 //! change, a wheel scroll/zoom, or a keyboard action that scrolls or moves

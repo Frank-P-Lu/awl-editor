@@ -69,8 +69,8 @@ reason = "The clobber-notice predicate MOVED OUT to `app/files/external.rs` besi
 
 [[file_size_mark]]
 file = "src/app/apply.rs"
-lines = 890
-reason = "The conflict workspace's summon reaches the live effect interpreter's one `PersistenceEffect` match and the one `apply_overlay_accept` roster, both exhaustive by design (+6). +34: `sync_theme_font_measured`, the ONE reshape door every live theme-font path runs through. The split-reach preview path shapes the presentable prefix immediately; the quiet-settle owner finishes only the latest highlighted world's tail. +11: `refresh_kill_from_clipboard`'s duplicate-read skip now also requires the active buffer's own kill ring to already equal the OS text, not just the App-global last-written stamp, so a buffer switch cannot leave a Paste reading a kill ring that stamp never actually hydrated. +11: `App::apply_keymap_flavor` — sets the config field, persists it, rebuilds the live keymap, refreshes an open Settings menu, and emits the resulting-flavor notice, replacing the old always-toggling handler. +1: `Previous`/`CloseActive` need two dispatch arms where there was one, now that Finish file's last leg is its own effect. +12: Reveal in File Manager's `Effect::RevealInFileManager` arm reuses the export write's own `reveal_path` gate rather than a second implementation, with a wasm counterpart to keep the match exhaustive on the browser target too. +2: Go to Line's `goto_line_count` field threads through the two `OverlayState` construction sites that gather it from the live buffer. +1: Save a Copy's named destination reaches the one exhaustive live effect interpreter. +1: the typed resolved-paste continuation reaches the one exhaustive live effect interpreter."
+lines = 902
+reason = "The conflict workspace's summon reaches the live effect interpreter's one `PersistenceEffect` match and the one `apply_overlay_accept` roster, both exhaustive by design (+6). +34: `sync_theme_font_measured`, the ONE reshape door every live theme-font path runs through. The split-reach preview path shapes the presentable prefix immediately; the quiet-settle owner finishes only the latest highlighted world's tail. +11: `refresh_kill_from_clipboard`'s duplicate-read skip now also requires the active buffer's own kill ring to already equal the OS text, not just the App-global last-written stamp, so a buffer switch cannot leave a Paste reading a kill ring that stamp never actually hydrated. +11: `App::apply_keymap_flavor` — sets the config field, persists it, rebuilds the live keymap, refreshes an open Settings menu, and emits the resulting-flavor notice, replacing the old always-toggling handler. +1: `Previous`/`CloseActive` need two dispatch arms where there was one, now that Finish file's last leg is its own effect. +12: Reveal in File Manager's `Effect::RevealInFileManager` arm reuses the export write's own `reveal_path` gate rather than a second implementation, with a wasm counterpart to keep the match exhaustive on the browser target too. +2: Go to Line's `goto_line_count` field threads through the two `OverlayState` construction sites that gather it from the live buffer. +1: Save a Copy's named destination reaches the one exhaustive live effect interpreter. +1: the typed resolved-paste continuation reaches the one exhaustive live effect interpreter. +12: the expanded working-set panel's own Esc-collapse arm, alongside the shared core's ordinary Cancel rather than instead of it — the panel is not part of `workspace_state`'s summoned-overlay precedence ladder (it draws in the margin, not as an overlay), so it needs its own arm here."
 
 [[file_size_mark]]
 file = "src/app/files/settings.rs"
@@ -88,8 +88,8 @@ reason = "The event-to-present flight recorder needs its winit-receipt and keyma
 
 [[file_size_mark]]
 file = "src/app/input/mouse.rs"
-lines = 1088
-reason = "The wheel-region predicate at the one pointer entry point stopped naming a single overlay kind and asks the shape-neutral question instead (+7, all of it the comment recording why the kind check was wrong). +3: the working-set stack's left-click-to-switch route, enrolled in this file's own input-substate privacy law. +11: `sync_cursor_icon` gains the stack-row hand-cursor arm, hit-tested through the same `gutter_stack_hit` the click path already uses. +21: cursor movement and leave route one shared gutter-stack hit through the hover state, so the close mark follows exactly the row under the pointer and clears when the pointer exits. +7: the find/replace panel's hit-test is computed once and shared by the case-toggle, field-cell, and dead-chrome cursor arms instead of only the case toggle. The pointer-derived state resync (fold/stack hover, cursor icon) is pulled out into pointer_sync.rs behind one owner, netting this file down even after the panel/case-toggle growth. +84: scroll-on-drag's App-level owner — `drag_scroll_primed` (the one dragging+armed+overshoot-active predicate both `step_drag_scroll` and `App::schedule_drag_scroll` gate on, so a stationary unarmed press can never be mistaken for a held edge-drag) and `step_drag_scroll` itself, the ONE seam both `on_drag` (per-`CursorMoved`) and the idle-timer re-arm drive, so a held drag past the edge keeps scrolling even once the pointer stops generating move events. +8: `on_mouse_wheel` gains the swallow-not-scroll guard over a summoned modal card, ahead of every existing branch. +44: the query field's own click-to-place — `overlay_click` resolves a query-line press to a char index and arms `on_query_drag` for the rest of the gesture, released by `on_mouse_input`'s own `query_drag` arm. +58: the six-item merge round's own reconciliation — the wheel guard, query-drag release, drag-scroll tick reset, and panel hit-test share the one pointer-button/wheel dispatch after independently-authored diffs to the same functions landed together."
+lines = 1124
+reason = "The wheel-region predicate at the one pointer entry point stopped naming a single overlay kind and asks the shape-neutral question instead (+7, all of it the comment recording why the kind check was wrong). +3: the working-set stack's left-click-to-switch route, enrolled in this file's own input-substate privacy law. +11: `sync_cursor_icon` gains the stack-row hand-cursor arm, hit-tested through the same `gutter_stack_hit` the click path already uses. +21: cursor movement and leave route one shared gutter-stack hit through the hover state, so the close mark follows exactly the row under the pointer and clears when the pointer exits. +7: the find/replace panel's hit-test is computed once and shared by the case-toggle, field-cell, and dead-chrome cursor arms instead of only the case toggle. The pointer-derived state resync (fold/stack hover, cursor icon) is pulled out into pointer_sync.rs behind one owner, netting this file down even after the panel/case-toggle growth. +84: scroll-on-drag's App-level owner — `drag_scroll_primed` (the one dragging+armed+overshoot-active predicate both `step_drag_scroll` and `App::schedule_drag_scroll` gate on, so a stationary unarmed press can never be mistaken for a held edge-drag) and `step_drag_scroll` itself, the ONE seam both `on_drag` (per-`CursorMoved`) and the idle-timer re-arm drive, so a held drag past the edge keeps scrolling even once the pointer stops generating move events. +8: `on_mouse_wheel` gains the swallow-not-scroll guard over a summoned modal card, ahead of every existing branch. +44: the query field's own click-to-place — `overlay_click` resolves a query-line press to a char index and arms `on_query_drag` for the rest of the gesture, released by `on_mouse_input`'s own `query_drag` arm. +58: the six-item merge round's own reconciliation — the wheel guard, query-drag release, drag-scroll tick reset, and panel hit-test share the one pointer-button/wheel dispatch after independently-authored diffs to the same functions landed together. +36: a wheel gesture landing inside the working-set stack's own bounds routes to the expanded panel's scroll instead of the document's, sharing the existing wheel-region predicate's early-exit shape."
 
 [[file_size_mark]]
 file = "src/app/session.rs"
@@ -101,8 +101,8 @@ lines = 453
 
 [[file_size_mark]]
 file = "src/app/viewstate.rs"
-lines = 583
-reason = "`sync_view` is the sole exhaustive `ViewState` construction site, so every render datum must be spelled out here. It carries the fold chevron's real fold set, the summoned picker's secondary location, the persistent changed-elsewhere affordance, photographable/findable notices, and world-authored diagonal-mark weight without creating a second non-exhaustive construction path. +11: the working-set stack's row count and its own fold-independent geometry, the one new field a margin widening to more than one row needs. +7: mirrors config_keys/config_linux_keep, the menu chord column's config-awareness plumbing. +13: the bottom identity's `gutter_project` reads the OPEN file's own remembered root through `working_set().active_root()` rather than the ambient switched-to project, falling back to the old ambient read only when the working set has no active file. +2: the gated pointer-derived resync's one call site — `sync_view` is where scroll/zoom/the active document are settled for the frame, so it is the seam every non-`CursorMoved` door (wheel scroll, wheel zoom's deferred reflow, keyboard-driven scroll) reaches without a per-door special case."
+lines = 593
+reason = "`sync_view` is the sole exhaustive `ViewState` construction site, so every render datum must be spelled out here. It carries the fold chevron's real fold set, the summoned picker's secondary location, the persistent changed-elsewhere affordance, photographable/findable notices, and world-authored diagonal-mark weight without creating a second non-exhaustive construction path. +11: the working-set stack's row count and its own fold-independent geometry, the one new field a margin widening to more than one row needs. +7: mirrors config_keys/config_linux_keep, the menu chord column's config-awareness plumbing. +13: the bottom identity's `gutter_project` reads the OPEN file's own remembered root through `working_set().active_root()` rather than the ambient switched-to project, falling back to the old ambient read only when the working set has no active file. +2: the gated pointer-derived resync's one call site — `sync_view` is where scroll/zoom/the active document are settled for the frame, so it is the seam every non-`CursorMoved` door (wheel scroll, wheel zoom's deferred reflow, keyboard-driven scroll) reaches without a per-door special case. +10: `sync_view` auto-collapses the expanded working-set panel whenever an overlay opens, so the two summoned surfaces can never be up at once."
 
 [[file_size_mark]]
 file = "src/app/window.rs"
@@ -293,8 +293,8 @@ lines = 559
 
 [[file_size_mark]]
 file = "src/render.rs"
-lines = 2795
-reason = "The footer plate uses the notice channel's one-pixel rim so it remains visible. `Millis` and `progress_per` keep durations out of pixel multiplication by type, while declaration docs name the entitled scale factor for page/caret pads, page-frame strokes, and spell gaps. `HudDefaults`, `WhichKeyDefaults`, and `DebugDefaults` give inert field groups exhaustive defaults beside their sole `TextPipeline` owner. Shape reach rejects unshaped-line sentinels, and `Metrics` carries `dpi` beside zoom scale so a logical floor does not vary by display density. `CARET_INK_PAD_W` gained a doc comment naming its rationale and the near-zero vertical headroom finding that kept the tuning to width alone. +7: the working-set stack plate's own row-height and inset constants, named beside the other margin-row geometry this file already owns. +10: the menu chord column's config-aware label plumbing (ViewState mirrors of config_keys/config_linux_keep). +4: inert hover defaults and mirrored row state keep the production close affordance explicit in the exhaustive pipeline state. +1: the shared overlay-material module is declared beside the other data-driven chrome owners. +14: the streaks card's drawn rect and text origin join the other per-frame HUD state, named beside `HudDefaults`."
+lines = 2825
+reason = "The footer plate uses the notice channel's one-pixel rim so it remains visible. `Millis` and `progress_per` keep durations out of pixel multiplication by type, while declaration docs name the entitled scale factor for page/caret pads, page-frame strokes, and spell gaps. `HudDefaults`, `WhichKeyDefaults`, and `DebugDefaults` give inert field groups exhaustive defaults beside their sole `TextPipeline` owner. Shape reach rejects unshaped-line sentinels, and `Metrics` carries `dpi` beside zoom scale so a logical floor does not vary by display density. `CARET_INK_PAD_W` gained a doc comment naming its rationale and the near-zero vertical headroom finding that kept the tuning to width alone. +7: the working-set stack plate's own row-height and inset constants, named beside the other margin-row geometry this file already owns. +10: the menu chord column's config-aware label plumbing (ViewState mirrors of config_keys/config_linux_keep). +4: inert hover defaults and mirrored row state keep the production close affordance explicit in the exhaustive pipeline state. +1: the shared overlay-material module is declared beside the other data-driven chrome owners. +14: the streaks card's drawn rect and text origin join the other per-frame HUD state, named beside `HudDefaults`. +30: the format popover's hover-ring pipeline field and the inline-image resize-handle's hover-grip pipeline field, declared beside their sibling `TextPipeline` fields with doc comments naming what each draws and why — a hairline stroke and a small filled mark that can never disagree with the hit-test each mirrors."
 
 [[file_size_mark]]
 file = "src/render/benchsuite/corpus.rs"
@@ -356,8 +356,8 @@ reason = "The chord column's glyph alignment is the accessory column's own flow 
 
 [[file_size_mark]]
 file = "src/render/chrome/popover.rs"
-lines = 555
-reason = "+5: the format popover threads a CardChamfer pair through card_shape_texture instead of a bare chamfer f32, matching every other non-owner console-layer call site."
+lines = 604
+reason = "+5: the format popover threads a CardChamfer pair through card_shape_texture instead of a bare chamfer f32, matching every other non-owner console-layer call site. +49: the format popover's hover state (`popover_hover`, `resolve_popover_hover`, `clear_popover_hover`) and its paint — a hairline ring drawn over the hovered button's full hit region (padding plus half the inter-button gap either side), sharing one owner with the actual click-routing hit-test so the drawn acknowledgement and the clickable region can never disagree."
 
 [[file_size_mark]]
 file = "src/render/chrome/readout.rs"
@@ -376,12 +376,13 @@ reason = "`--bench-theme-burst` uses shared `assert_reshape_witness` checks: eve
 
 [[file_size_mark]]
 file = "src/render/geometry.rs"
-lines = 1262
+lines = 1291
+reason = "+29: `image_handle_mark_rect`, a pure function centering the drawn resize-handle grip exactly on the point the image resize hit-test itself arms — one owner for both, so the visible grip and the clickable zone can never drift apart."
 
 [[file_size_mark]]
 file = "src/render/layers.rs"
-lines = 1338
-reason = "The per-frame GPU preparation hub remains an explicit renderer exception; missing-image placeholder shaping lives in its own submodule rather than raising this ceiling. page_frame_vertical_bounds now takes an explicit stroke_px parameter so its top edge derives from the menu-bar reserve rather than the document text inset, with a doc comment naming the two quantities it must not conflate."
+lines = 1346
+reason = "The per-frame GPU preparation hub remains an explicit renderer exception; missing-image placeholder shaping lives in its own submodule rather than raising this ceiling. page_frame_vertical_bounds now takes an explicit stroke_px parameter so its top edge derives from the menu-bar reserve rather than the document text inset, with a doc comment naming the two quantities it must not conflate. +8: the resize-handle hover grip's own draw call, gated to at most one rect and cleared whenever no image border is hovered."
 
 [[file_size_mark]]
 file = "src/render/livingband.rs"
@@ -389,13 +390,13 @@ lines = 568
 
 [[file_size_mark]]
 file = "src/render/pipeline_draw.rs"
-lines = 515
-reason = "The footer plate earns the notice channel's own one-pixel rim, which is what lifts it from delta-E 1.91 to 54 on Cassowary -- a plate nobody can see is not a plate. +5: the rim's construction and its draw slot immediately before `overlay_bars`, matching the order `notice_rim`/`notice_plate` already keep. +1: the `shape_tail_owed` field initialiser in TextPipeline::new's literal, its sole construction site — the flag that records a presented frame still owes its tail. +7: the working-set stack plate's draw call, slotted beside the other gutter-row draws it shares a pipeline with. +2: threads config_keys/config_linux_keep into the menu dropdown plan's construction. +1: initializes the inert hovered-row field beside the working-set stack's other exhaustive state. +1: initializes the dedicated docked-facet strip buffer beside the overlay text buffers it replaces. +2: initializes the streaks card's rect/text-origin fields to `None` beside the other per-frame HUD state."
+lines = 528
+reason = "The footer plate earns the notice channel's own one-pixel rim, which is what lifts it from delta-E 1.91 to 54 on Cassowary -- a plate nobody can see is not a plate. +5: the rim's construction and its draw slot immediately before `overlay_bars`, matching the order `notice_rim`/`notice_plate` already keep. +1: the `shape_tail_owed` field initialiser in TextPipeline::new's literal, its sole construction site — the flag that records a presented frame still owes its tail. +7: the working-set stack plate's draw call, slotted beside the other gutter-row draws it shares a pipeline with. +2: threads config_keys/config_linux_keep into the menu dropdown plan's construction. +1: initializes the inert hovered-row field beside the working-set stack's other exhaustive state. +1: initializes the dedicated docked-facet strip buffer beside the overlay text buffers it replaces. +2: initializes the streaks card's rect/text-origin fields to `None` beside the other per-frame HUD state. +13: the format popover's hover-ring pipeline and the inline-image resize-handle's hover-grip pipeline, initialized beside their sibling `SelectionPipeline` construction sites."
 
 [[file_size_mark]]
 file = "src/render/pipeline_geometry.rs"
-lines = 524
-reason = "`set_view` is the sole ViewState-to-pipeline mirror: it measures workspace rails, mirrors row ownership, invalidates view-derived diagonal geometry, and publishes every projection. It carries fold-chevron retinting, fold headings/tails, secondary location, comparison/source mirrors, selection-ui overlay rows, photographable/findable notices, and world-authored diagonal-mark weight. +1: mirrors the working-set stack's row count alongside the other row-ownership mirrors. +6: mirrors config_keys/config_linux_keep onto TextPipeline alongside every other synced field, the plumbing the menu chord column's config-awareness rides."
+lines = 538
+reason = "`set_view` is the sole ViewState-to-pipeline mirror: it measures workspace rails, mirrors row ownership, invalidates view-derived diagonal geometry, and publishes every projection. It carries fold-chevron retinting, fold headings/tails, secondary location, comparison/source mirrors, selection-ui overlay rows, photographable/findable notices, and world-authored diagonal-mark weight. +1: mirrors the working-set stack's row count alongside the other row-ownership mirrors. +6: mirrors config_keys/config_linux_keep onto TextPipeline alongside every other synced field, the plumbing the menu chord column's config-awareness rides. +14: the format popover's hover ring and the inline-image resize-handle's hover grip both take the same `muted` ink the Chips ghost pills and fold chevron already use, synced beside the pipeline's other per-theme colors."
 
 [[file_size_mark]]
 file = "src/render/pipeline_overlay.rs"
@@ -419,8 +420,8 @@ reason = "A new `line_has_rule_span` helper (matching the existing `line_has_ima
 
 [[file_size_mark]]
 file = "src/render/text.rs"
-lines = 1393
-reason = "The text shaping and incremental-restyle hub remains an explicit renderer exception; image span discovery and cursor-only image forcing live in focused submodules rather than raising this ceiling."
+lines = 1435
+reason = "The text shaping and incremental-restyle hub remains an explicit renderer exception; image span discovery and cursor-only image forcing live in focused submodules rather than raising this ceiling. +42: the resize handle under the live pointer is mirrored into render state by re-deriving its rect fresh from `image_hit_rects()` each frame — never a stashed pixel rect, so it cannot go stale across a document edit — through the SAME `image_handle_at` hit-test the cursor-icon path already reads, so the drawn grip can never disagree with a clickable target."
 
 [[file_size_mark]]
 file = "src/replay.rs"
@@ -506,8 +507,8 @@ reason = "Every world explicitly authors its toast anchor, while Cassowary and M
 lint = "clippy::too_many_lines"
 file = "src/app/viewstate.rs"
 function = "App::sync_view"
-message = "this function has too many lines (260/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. `sync_view` is the one exhaustive `ViewState` projection site, so each new render datum is spelled out here: the fold chevron's `folded_headings` (its direction needs the real fold set, not merely `fold_tails`'s own key set, so `fold::apply_to_view` takes the buffer's folds at its one call site here) and the summoned picker's secondary location. The document-session extraction replaced direct buffer and cache fields with explicit read projections while preserving that one exhaustive site. +5: the bottom identity's folder label reads the open file's own remembered root instead of the ambient project. +1: the gated pointer-derived resync's one call site, reached after scroll/zoom/the active document settle for the frame."
+message = "this function has too many lines (263/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. `sync_view` is the one exhaustive `ViewState` projection site, so each new render datum is spelled out here: the fold chevron's `folded_headings` (its direction needs the real fold set, not merely `fold_tails`'s own key set, so `fold::apply_to_view` takes the buffer's folds at its one call site here) and the summoned picker's secondary location. The document-session extraction replaced direct buffer and cache fields with explicit read projections while preserving that one exhaustive site. +5: the bottom identity's folder label reads the open file's own remembered root instead of the ambient project. +1: the gated pointer-derived resync's one call site, reached after scroll/zoom/the active document settle for the frame. +3: auto-collapses the expanded working-set panel whenever an overlay opens."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -709,8 +710,8 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 lint = "clippy::too_many_lines"
 file = "src/render/layers.rs"
 function = "TextPipeline::prepare_images"
-message = "this function has too many lines (118/100)"
-reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions."
+message = "this function has too many lines (121/100)"
+reason = "Existing renderer owner; extraction must preserve adjacent GPU state transitions. +3: the resize-handle hover grip's own draw call, gated to at most one rect."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -737,8 +738,8 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 lint = "clippy::too_many_lines"
 file = "src/render/pipeline_draw.rs"
 function = "TextPipeline::new"
-message = "this function has too many lines (461/100)"
-reason = "The one exhaustive TextPipeline initializer keeps adjacent GPU state transitions together. Four added lines initialize arbitrary two-colour ground/ink endpoints for independent selection and caret pipelines; their shared baked construction lives in SelectionPipeline::new_two_colour. Five added lines initialize the living band's input epoch beside its existing selection-motion state. +2: initializes the streaks card's rect/text-origin fields to `None`, beside the other per-frame HUD state."
+message = "this function has too many lines (469/100)"
+reason = "The one exhaustive TextPipeline initializer keeps adjacent GPU state transitions together. Four added lines initialize arbitrary two-colour ground/ink endpoints for independent selection and caret pipelines; their shared baked construction lives in SelectionPipeline::new_two_colour. Five added lines initialize the living band's input epoch beside its existing selection-motion state. +2: initializes the streaks card's rect/text-origin fields to `None`, beside the other per-frame HUD state. +8: the format popover's hover-ring pipeline and the inline-image resize-handle's hover-grip pipeline, initialized beside their sibling SelectionPipeline construction sites."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -1268,3 +1269,31 @@ file = "src/theme/tests/frost.rs"
 function = "gutter_frost_pill_keeps_ink_contrast_on_every_lava_world"
 message = "this function has too many lines (102/100)"
 reason = "One exhaustive lava-world phase-by-in-pill grid plus phase-free and locality controls; splitting would duplicate the enrolled world and shared non-vacuity state for metric-only churn."
+
+[[clippy_exception]]
+lint = "clippy::too_many_lines"
+file = "src/app/input/mouse.rs"
+function = "App::on_mouse_wheel"
+message = "this function has too many lines (115/100)"
+reason = "The one pointer-wheel entry point: the modal-card swallow guard, the expanded working-set panel's own scroll route, and every pre-existing overlay/document scroll branch share this one dispatch so a wheel gesture is resolved in exactly one place. Splitting the panel branch out would give the same predicate (is the pointer over the stack, is the panel open) two owners instead of one."
+
+[[clippy_exception]]
+lint = "clippy::too_many_lines"
+file = "src/render/pipeline_geometry.rs"
+function = "TextPipeline::sync_theme_colors"
+message = "this function has too many lines (102/100)"
+reason = "The one per-theme color sync site every pipeline's ink is mirrored through; the format popover's hover ring and the inline-image resize-handle's hover grip take the same `muted` ink the Chips ghost pills and fold chevron already read here, so their sync lives beside those rather than in a second per-theme seam."
+
+[[clippy_exception]]
+lint = "clippy::too_many_lines"
+file = "src/render/tests/hover_grammar.rs"
+function = "engaging_new_hover_leaves_the_outline_and_menu_bar_untouched_on_every_world"
+message = "this function has too many lines (119/100)"
+reason = "Engages both new hover mechanisms in one fixture and proves three things at once (the file's own module doc names all three): the mechanisms are genuinely live in this fixture (non-vacuous), the margin outline column stays byte-identical, and the drawn menu bar's own band stays byte-identical — splitting the three assertions apart would need three separate live-mechanism fixtures instead of one shared one."
+
+[[clippy_exception]]
+lint = "clippy::too_many_lines"
+file = "src/render/tests/symbol_atlas_gallery.rs"
+function = "render_html"
+message = "this function has too many lines (129/100)"
+reason = "The one HTML-emission owner for the survey page: page shell/CSS, the per-face @font-face block, and the per-block glyph grid all write through this single writer so the generated markup and its styling cannot drift into two owners."

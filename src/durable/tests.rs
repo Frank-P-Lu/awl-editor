@@ -340,7 +340,7 @@ fn no_bare_durable_write_bypasses_write_atomic_outside_the_accounted_for_sites()
         // under a `ScratchDir`.
         ("overlay/tests/project.rs", 1),
         ("render/overrides/tests.rs", 1), // render_overrides_env_read_law's own fixture.
-        // The symbol-atlas survey's `symbol-atlas.html` write (item 486): a
+        // The symbol-atlas survey's `symbol-atlas.html` write: a
         // HARNESS DELIVERABLE the caller asked to inspect on disk, the same
         // class as `main/story.rs`'s trace.json below — routing it through
         // `write_atomic`/`fs::active()` would swallow it into the hermetic

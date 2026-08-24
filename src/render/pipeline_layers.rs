@@ -198,7 +198,7 @@ impl TextPipeline {
         self.image_placeholder_pipeline.draw(pass);
         self.image_pipeline.draw(pass);
         self.image_scrim_pipeline.draw(pass);
-        // Resize-handle hover grip (item 483): over the image, under selection.
+        // Resize-handle hover grip: over the image, under selection.
         self.image_handle_mark.draw(pass);
         self.selection_pipeline.draw(pass);
         self.match_pipeline.draw(pass);

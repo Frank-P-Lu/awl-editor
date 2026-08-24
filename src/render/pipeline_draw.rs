@@ -51,7 +51,7 @@ impl TextPipeline {
             SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         let image_placeholder_renderer =
             TextRenderer::new(&mut atlas, device, wgpu::MultisampleState::default(), None);
-        // INLINE-IMAGE resize-handle hover grip (item 483) — a small filled
+        // INLINE-IMAGE resize-handle hover grip — a small filled
         // mark, never drawn until a hover resolves a handle.
         let image_handle_mark =
             SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
@@ -221,7 +221,7 @@ impl TextPipeline {
         popover_hl_wash.set_dither(wagtail_dither_density());
         popover_hl_wash.set_dither_cell(wagtail_stipple_cell_px(1.0));
         let popover_strike = SpellUnderlinePipeline::new(device, format, PLACEHOLDER_RGBA);
-        // FORMAT POPOVER hover ring (item 483) — a hairline stroke pipeline,
+        // FORMAT POPOVER hover ring — a hairline stroke pipeline,
         // never a fill; stroke width is set once in `sync_theme_colors`
         // (this pipeline never switches mode, unlike `overlay_facet_ghost`).
         let popover_hover_ring =

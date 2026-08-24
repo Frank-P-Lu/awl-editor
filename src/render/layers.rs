@@ -1132,7 +1132,7 @@ impl TextPipeline {
         self.image_scrim_pipeline
             .prepare(device, queue, width, height, &scrim_bands);
 
-        // Resize-handle hover grip (item 483) — at most one rect, off any
+        // Resize-handle hover grip — at most one rect, off any
         // image border / no hover.
         let handle_rect: Vec<[f32; 4]> = self.image_hover_mark_rect().into_iter().collect();
         self.image_handle_mark

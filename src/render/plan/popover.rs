@@ -147,7 +147,7 @@ impl PopoverGeom {
 
     /// The FULL horizontal hit-region `[lo, hi]` `button` claims — the SAME
     /// midpoint-split boundaries [`Self::hit`] resolves a press against
-    /// (re-judged, item 483): the popover's tile-to-the-edges hit regions used
+    /// (re-judged for the hover ring): the popover's tile-to-the-edges hit regions used
     /// to give no visual feedback about which button padding and inter-button
     /// gaps would fire. The hover ring paints exactly this span, so what a
     /// button visually claims under the pointer and what a click there fires
@@ -225,7 +225,7 @@ mod tests {
     /// hit button back through `hit_span_x` must reproduce the sample's own x
     /// position falling inside that span. A drift here would mean the drawn
     /// acknowledgement and the actual clickable region disagree — exactly the
-    /// ambiguity item 483 re-judges.
+    /// ambiguity the hover ring's geometry re-judges.
     #[test]
     fn hover_span_agrees_with_the_hit_test_everywhere_on_the_card() {
         let geom = plan_popover(inputs([250.0, 160.0, 22.0]));

@@ -2197,7 +2197,7 @@ pub struct TextPipeline {
     pub image_placeholder_pipeline: SelectionPipeline,
     pub image_scrim_pipeline: SelectionPipeline,
     pub image_placeholder_renderer: TextRenderer,
-    /// INLINE-IMAGE resize-handle hover AFFORDANCE (item 483): a small filled
+    /// INLINE-IMAGE resize-handle hover AFFORDANCE: a small filled
     /// `muted` grip drawn at the hovered edge/corner, over the image — the
     /// visible half of the invisible `IMAGE_RESIZE_GRAB_PX` hit tolerance, so
     /// resizability stops relying on the OS cursor shape alone.
@@ -2454,7 +2454,7 @@ pub struct TextPipeline {
     pub popover_wash: SelectionPipeline,
     pub popover_hl_wash: SelectionPipeline,
     pub popover_strike: SpellUnderlinePipeline,
-    /// FORMAT POPOVER hover ring (item 483): a quiet `muted` hairline stroke
+    /// FORMAT POPOVER hover ring: a quiet `muted` hairline stroke
     /// (`BAR_OUTLINE_STROKE`, the SAME weight the Chips ghost-pill affordance
     /// already rides) drawn around the hovered button's own hit-region — never
     /// a fill, so the acknowledgement reads regardless of whether the button

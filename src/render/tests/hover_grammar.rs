@@ -1,4 +1,4 @@
-//! **HOVER GRAMMAR (item 483)** — hover feedback is drawn only where WHICH
+//! **HOVER GRAMMAR** — hover feedback is drawn only where WHICH
 //! control fires or THAT a control exists is genuinely ambiguous: the format
 //! popover's buttons, and inline-image resize handles. Every other clickable
 //! surface stays visually still under hover.
@@ -69,8 +69,8 @@ fn the_hovered_popover_button_carries_a_ring_and_its_sibling_does_not_on_every_w
     let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(W as f32, H as f32) else {
         eprintln!(
-            "skipping the_hovered_popover_button_carries_a_ring_and_its_sibling_does_not_on_every_world: \
-             no wgpu adapter"
+            "skipping the_hovered_popover_button_carries_a_ring_and_its_sibling_does_not_\
+             on_every_world: no wgpu adapter"
         );
         return;
     };
@@ -137,7 +137,7 @@ fn the_hovered_popover_button_carries_a_ring_and_its_sibling_does_not_on_every_w
 /// INTERIOR DOES NOT — on every world.**
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn hovering_an_image_resize_handle_draws_its_grip_and_the_interior_stays_still_on_every_world() {
+fn hovering_an_image_handle_draws_its_grip_and_the_interior_stays_still_on_every_world() {
     let _g = crate::testlock::serial();
     std::fs::metadata("samples/tiny.png")
         .expect("tracked samples/tiny.png fixture must be present");
@@ -151,8 +151,8 @@ fn hovering_an_image_resize_handle_draws_its_grip_and_the_interior_stays_still_o
     };
     let Some((device, queue, mut p)) = headless_dqp(W as f32, H as f32) else {
         eprintln!(
-            "skipping hovering_an_image_resize_handle_draws_its_grip_and_the_interior_stays_still_on_every_world: \
-             no wgpu adapter"
+            "skipping hovering_an_image_handle_draws_its_grip_and_the_interior_stays_still_\
+             on_every_world: no wgpu adapter"
         );
         restore();
         return;
@@ -245,8 +245,7 @@ fn hovering_an_image_resize_handle_draws_its_grip_and_the_interior_stays_still_o
 /// never reach, while the mechanism is provably live elsewhere in the frame.
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
-fn engaging_the_new_hover_mechanisms_leaves_the_outline_column_and_menu_bar_untouched_on_every_world()
- {
+fn engaging_new_hover_leaves_the_outline_and_menu_bar_untouched_on_every_world() {
     let _g = crate::testlock::serial();
     std::fs::metadata("samples/tiny.png")
         .expect("tracked samples/tiny.png fixture must be present");
@@ -263,7 +262,7 @@ fn engaging_the_new_hover_mechanisms_leaves_the_outline_column_and_menu_bar_unto
     };
     let Some((device, queue, mut p)) = headless_dqp(W as f32, H as f32) else {
         eprintln!(
-            "skipping engaging_the_new_hover_mechanisms_leaves_the_outline_column_and_menu_bar_untouched_on_every_world: \
+            "skipping engaging_new_hover_leaves_the_outline_and_menu_bar_untouched_on_every_world: \
              no wgpu adapter"
         );
         restore();

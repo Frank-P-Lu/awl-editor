@@ -269,7 +269,7 @@ pub fn image_handle_hit(
     }
 }
 
-/// The drawn resize-handle GRIP's side (item 483) — a small square painted
+/// The drawn resize-handle GRIP's side — a small square painted
 /// centered on the hovered edge/corner, the VISIBLE half of the invisible
 /// [`IMAGE_RESIZE_GRAB_PX`] hit tolerance. Deliberately smaller than the grab
 /// zone it sits inside: the mark is an announcement, not the whole target.
