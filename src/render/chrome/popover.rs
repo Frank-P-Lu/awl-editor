@@ -49,6 +49,10 @@ const SEP: &str = "   ";
 /// between the card and the canvas's own left/right edges (`EDGE_PAD`).
 const ANCHOR_GAP: Logical = Logical(8.0);
 const EDGE_PAD: Logical = Logical(6.0);
+/// The hover ring's own vertical breath above/below the button GLYPH INK
+/// BAND — matches the active-state wash pill's `vpad` so the two treatments
+/// hug the row identically (item 483).
+const HOVER_RING_VPAD: Logical = Logical(3.0);
 
 /// SELF-DEMONSTRATING label attrs: the per-button `Attrs` transform that makes a
 /// button PREVIEW ITS OWN EFFECT — the same transforms the document's `md_attrs`
@@ -188,6 +192,22 @@ impl TextPipeline {
                         _ => {}
                     }
                 }
+                // HOVER RING (item 483): a quiet outline over the hovered
+                // button's own hit-region — the SAME `hit_span_x` a press
+                // resolves against, so the acknowledgement and the actual
+                // clickable area can never disagree. At most one rect; empty
+                // whenever nothing is hovered.
+                let hover_ring: Vec<[f32; 4]> = self
+                    .popover_hover
+                    .and_then(|button| geom.hit_span_x(button))
+                    .map(|(lo, hi)| {
+                        let vpad = self.metrics.px(HOVER_RING_VPAD);
+                        [lo, geom.band_top - vpad, hi - lo, geom.band_h + 2.0 * vpad]
+                    })
+                    .into_iter()
+                    .collect();
+                self.popover_hover_ring
+                    .prepare(device, queue, width, height, &hover_ring);
                 self.popover_wash
                     .prepare(device, queue, width, height, &washes);
                 self.popover_hl_wash
@@ -207,10 +227,18 @@ impl TextPipeline {
                 self.popover_wash.prepare(device, queue, width, height, &[]);
                 self.popover_hl_wash
                     .prepare(device, queue, width, height, &[]);
+                self.popover_hover_ring
+                    .prepare(device, queue, width, height, &[]);
                 self.popover_strike
                     .prepare(device, queue, width, height, &[]);
                 self.park_popover_text(device, queue, width, height)?;
                 self.popover_geom = None;
+                // Safety net: a closed popover can never leave a stale ring
+                // even if a pointer-derived resync happens not to run this
+                // exact frame (`resolve_popover_hover` would also settle this
+                // to `None` — reading `popover_hit` against a `None` geom —
+                // but that door is event-driven, not guaranteed every frame).
+                self.popover_hover = None;
                 Ok(())
             }
         }
@@ -463,6 +491,27 @@ impl TextPipeline {
     pub fn popover_hit(&self, px: f32, py: f32) -> Option<PopoverButton> {
         let geom = self.popover_geom.as_ref()?;
         geom.hit(px, py)
+    }
+
+    /// Mirror the button under the LIVE pointer into render state (item 483)
+    /// — reads the SAME `popover_hit` the click path and the cursor icon
+    /// already use, so the drawn hover ring can never disagree with a
+    /// clickable button. Returns whether the visible hover state changed, so
+    /// the caller can request exactly one repaint on entry, button crossing,
+    /// or exit.
+    pub fn resolve_popover_hover(&mut self, px: f32, py: f32) -> bool {
+        let next = self.popover_hit(px, py);
+        if self.popover_hover == next {
+            return false;
+        }
+        self.popover_hover = next;
+        true
+    }
+
+    /// Clear a live hover ring when the pointer leaves the window (or loses
+    /// focus) — the popover-hover companion to `clear_gutter_stack_hover`.
+    pub fn clear_popover_hover(&mut self) -> bool {
+        self.popover_hover.take().is_some()
     }
 
     /// Whether the physical pointer is anywhere over the popover CARD (for the

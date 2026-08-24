@@ -627,6 +627,41 @@ fn image_handle_hit_arms_the_right_zone_per_edge_and_corner() {
     );
 }
 
+/// **THE DRAWN GRIP SITS EXACTLY WHERE `image_handle_hit` ITSELF ARMS THAT
+/// HANDLE** — the no-wildcard roster of all eight edges/corners, each mapped
+/// against the SAME `rect` `image_handle_hit_arms_the_right_zone_per_edge_and_corner`
+/// uses, so the two can never name a different point for the same handle.
+#[test]
+fn image_handle_mark_rect_centers_on_the_exact_point_image_handle_hit_arms() {
+    let rect = [100.0_f32, 50.0, 300.0, 200.0];
+    let size = 7.0_f32;
+    let center_of = |r: [f32; 4]| [r[0] + r[2] * 0.5, r[1] + r[3] * 0.5];
+    for handle in [
+        ImageHandle::Left,
+        ImageHandle::Right,
+        ImageHandle::Top,
+        ImageHandle::Bottom,
+        ImageHandle::TopLeft,
+        ImageHandle::TopRight,
+        ImageHandle::BottomLeft,
+        ImageHandle::BottomRight,
+    ] {
+        let mark = image_handle_mark_rect(handle, rect, size);
+        assert_eq!(mark[2], size, "{handle:?}: mark is {size}px on a side");
+        assert_eq!(mark[3], size, "{handle:?}: mark is {size}px on a side");
+        let point = center_of(mark);
+        // A grab exactly at the mark's own center must resolve to THIS handle
+        // — proves the drawn grip and the hit-test agree on the point, not
+        // merely on the handle's name.
+        let tol = IMAGE_RESIZE_GRAB_PX.px(1.0);
+        assert_eq!(
+            image_handle_hit((point[0], point[1]), rect, tol),
+            Some(handle),
+            "{handle:?}: the grip's own center must hit-test back to itself"
+        );
+    }
+}
+
 #[test]
 fn image_resize_width_drives_per_handle_clamped_to_min_and_wrap() {
     let rect = [100.0_f32, 50.0, 300.0, 200.0];

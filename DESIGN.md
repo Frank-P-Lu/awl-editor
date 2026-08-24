@@ -291,6 +291,12 @@ dismisses with that context, and does not grow into a persistent toolbar.
 Do not create separate keyboard and pointer products. They share actions,
 state, geometry, and validation.
 
+Hover feedback is drawn only where which control fires, or that a control
+exists at all, is genuinely ambiguous — the format popover's buttons (its hit
+regions tile edge to edge) and inline-image resize handles (the OS cursor is
+otherwise the whole affordance). Every other clickable surface stays visually
+still under hover; the pointing-hand cursor alone is the acknowledgement.
+
 ## 7. Rich content
 
 WYSIWYG content should feel native to the page rather than embedded as a foreign

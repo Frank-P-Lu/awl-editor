@@ -269,6 +269,35 @@ pub fn image_handle_hit(
     }
 }
 
+/// The drawn resize-handle GRIP's side (item 483) — a small square painted
+/// centered on the hovered edge/corner, the VISIBLE half of the invisible
+/// [`IMAGE_RESIZE_GRAB_PX`] hit tolerance. Deliberately smaller than the grab
+/// zone it sits inside: the mark is an announcement, not the whole target.
+pub const IMAGE_HANDLE_MARK_PX: Logical = Logical(7.0);
+
+/// The `[x, y, w, h]` grip quad centered on `handle`'s own anchor point of
+/// `image_rect` (`[left, top, w, h]`), `size` px on a side. THE ONE OWNER
+/// both the paint quad and its own law read, matching [`image_handle_hit`]'s
+/// edge/corner naming exactly — so the drawn mark can never sit at a point
+/// other than the one a press there actually grabs.
+pub fn image_handle_mark_rect(handle: ImageHandle, image_rect: [f32; 4], size: f32) -> [f32; 4] {
+    let [left, top, w, h] = image_rect;
+    let right = left + w;
+    let bottom = top + h;
+    let (cx, cy) = (left + w * 0.5, top + h * 0.5);
+    let (x, y) = match handle {
+        ImageHandle::Left => (left, cy),
+        ImageHandle::Right => (right, cy),
+        ImageHandle::Top => (cx, top),
+        ImageHandle::Bottom => (cx, bottom),
+        ImageHandle::TopLeft => (left, top),
+        ImageHandle::TopRight => (right, top),
+        ImageHandle::BottomLeft => (left, bottom),
+        ImageHandle::BottomRight => (right, bottom),
+    };
+    [x - size * 0.5, y - size * 0.5, size, size]
+}
+
 fn diagonal_width(gx: f32, gy: f32, w: f32, h: f32) -> f32 {
     let denom = w * w + h * h;
     if denom <= 0.0 {
