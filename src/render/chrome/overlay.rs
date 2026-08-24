@@ -716,4 +716,54 @@ impl TextPipeline {
         };
         px >= geom.card_x && px <= geom.card_x + geom.card_w && field.contains(py)
     }
+
+    /// The CHAR index into the raw query text nearest pointer `(px, py)` — the
+    /// click-to-place counterpart to [`Self::over_overlay_query`]'s I-beam gate:
+    /// same box (same `geom.card_x`/`card_w`/`field.contains`), so a click can
+    /// only place a caret where the I-beam already promised one. `None` off the
+    /// field.
+    ///
+    /// Walks the SAME shaped run [`Self::overlay_query_caret_box`] reads a
+    /// caret's x from, skipping the prefix (title / `› ` sigil) by byte offset
+    /// so the first placeable column sits right after it, never inside it. A
+    /// press at or before the first glyph's center resolves to 0; past the
+    /// last glyph's center resolves to the query's own length — "round to the
+    /// nearer glyph edge", the plain text-field rule.
+    pub fn overlay_query_char_at(&self, px: f32, py: f32) -> Option<usize> {
+        if !self.overlay_active {
+            return None;
+        }
+        let geom = self.overlay_geometry(self.window_w as u32);
+        let plan = self.overlay_row_plan(&geom);
+        let field = plan.query_band()?;
+        if !(px >= geom.card_x && px <= geom.card_x + geom.card_w && field.contains(py)) {
+            return None;
+        }
+        let title_prefix = self.overlay_title_prefix(&geom);
+        let prefix_len = if title_prefix.is_empty() {
+            "› ".len()
+        } else {
+            title_prefix.len()
+        };
+        let query_len = self.overlay_query.chars().count();
+        let Some(run) = self.panel_buffer.layout_runs().next() else {
+            return Some(query_len);
+        };
+        for g in run.glyphs.iter() {
+            if g.start < prefix_len {
+                continue;
+            }
+            let Some(char_idx) = self
+                .overlay_query
+                .get(..g.start - prefix_len)
+                .map(|s| s.chars().count())
+            else {
+                continue;
+            };
+            if px < geom.text_left + g.x + g.w * 0.5 {
+                return Some(char_idx);
+            }
+        }
+        Some(query_len)
+    }
 }

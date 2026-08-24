@@ -203,6 +203,7 @@ fn blank_overlay() -> OverlayInfo {
         mode: "switch",
         align: crate::theme::CardAnchor::TopCenter,
         query: String::new(),
+        query_caret: 0,
         items: Vec::new(),
         empty: None,
         bindings: Vec::new(),

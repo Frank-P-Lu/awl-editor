@@ -236,6 +236,7 @@ fn release_resets_drag_arm_and_next_press_snapshots_a_fresh_baseline() {
         dragging: false,
         drag_press_px: (0.0, 0.0),
         drag_armed: false,
+        query_drag: false,
         page_resizing: false,
         page_resize_edge: None,
         page_resize_anchor: None,

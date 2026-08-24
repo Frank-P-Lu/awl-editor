@@ -151,6 +151,7 @@ mod overlay_location_plate;
 mod overlay_personality;
 mod overlay_plan_law;
 pub(super) mod overlay_probe;
+mod overlay_query_hit_law;
 mod overlay_rail_thirds_law;
 mod overlay_rhythm;
 mod overlay_right_hug_law;

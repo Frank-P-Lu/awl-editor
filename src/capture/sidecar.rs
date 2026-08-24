@@ -331,6 +331,7 @@ fn overlay_json(opts: &CaptureOpts, pipeline: &TextPipeline) -> String {
             format!(
                 concat!(
                     "{{ \"active\": {}, \"mode\": {}, \"title\": {}, \"query\": {}, ",
+                    "\"query_caret\": {}, ",
                     "\"selected_index\": {}, \"browse_dir\": {}, \"return_to\": {}, ",
                     "\"spell_target\": {}, \"context_anchor\": {}, \"hint\": {}, ",
                     "\"notice\": {}, \"lens\": {}, ",
@@ -345,6 +346,7 @@ fn overlay_json(opts: &CaptureOpts, pipeline: &TextPipeline) -> String {
                 json_string(o.mode),
                 json_string(o.title),
                 json_string(&o.query),
+                o.query_caret,
                 o.selected_index,
                 browse_dir,
                 return_to,
@@ -372,6 +374,7 @@ fn overlay_json(opts: &CaptureOpts, pipeline: &TextPipeline) -> String {
         }
         None => concat!(
             "{ \"active\": false, \"mode\": null, \"title\": null, \"query\": \"\", ",
+            "\"query_caret\": 0, ",
             "\"selected_index\": null, \"browse_dir\": null, \"return_to\": null, ",
             "\"spell_target\": null, \"context_anchor\": null, \"hint\": null, ",
             "\"notice\": \"\", ",

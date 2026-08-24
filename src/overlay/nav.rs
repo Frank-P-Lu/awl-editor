@@ -48,6 +48,49 @@ impl OverlayState {
         self.query.word_left();
     }
 
+    /// Whether the query caret sits AT its own resting position — the END of
+    /// the typed text, where every ordinary keystroke (`push`/`pop`) leaves
+    /// it, and where a fresh/empty field starts. The list-nav overloads on
+    /// `ForwardChar`/`BackwardChar`/`LineStart`/`LineEnd` (lens cycle / folder
+    /// descend-ascend / row jump — see `actions::overlay_nav::navigate_overlay`)
+    /// stay live exactly here; once the caret sits anywhere else — a click, a
+    /// drag, or a word-step landing short of the end — those same keys fall
+    /// through to ordinary text motion instead, and reaching the end again
+    /// (an End, or a char-step that lands there) restores the list-nav
+    /// reading on the very next keypress.
+    pub fn query_at_rest(&self) -> bool {
+        self.query.caret() == self.query.text().chars().count()
+    }
+
+    pub fn query_char_left(&mut self) {
+        self.query.char_left();
+    }
+
+    pub fn query_char_right(&mut self) {
+        self.query.char_right();
+    }
+
+    /// Text-field Home: the query caret to its own start (char 0), never the
+    /// list's first row — the mid-query half of the [`Self::query_at_rest`]
+    /// split.
+    pub fn query_home(&mut self) {
+        self.query.set_caret(0);
+    }
+
+    /// Text-field End: the query caret to its own end, never the list's last
+    /// row — the mid-query half of the [`Self::query_at_rest`] split.
+    pub fn query_end(&mut self) {
+        self.query.set_caret(self.query.text().chars().count());
+    }
+
+    /// Place the query caret at an arbitrary CHAR index (clamped by
+    /// [`TextBox::set_caret`]) — the one door a pointer click or drag uses,
+    /// mirroring the click-to-place the rename/link/keep/value sub-editors'
+    /// own `TextBox` already supports for a future caller.
+    pub fn query_set_caret(&mut self, at: usize) {
+        self.query.set_caret(at);
+    }
+
     /// The per-kind visible ROW CAP (delegates to [`OverlayKind::window_rows`], the ONE
     /// owner). Both the scroll math here AND the pipeline's drawn window (via
     /// [`crate::render::ViewState::overlay_window_rows`]) read the same value, so the
