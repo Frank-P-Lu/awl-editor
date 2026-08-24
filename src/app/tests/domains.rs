@@ -664,6 +664,7 @@ fn input_substates_are_private_and_every_consumer_is_swept() {
             "drag_press_px",
             "drag_armed",
             "drag_scroll_last_tick",
+            "query_drag",
             "page_resizing",
             "page_resize_edge",
             "page_resize_anchor",
@@ -676,6 +677,7 @@ fn input_substates_are_private_and_every_consumer_is_swept() {
             "click_count",
             "scroll_px_accum",
             "scroll_sensitivity",
+            "resynced_geometry",
         ],
         "pointer state roster drifted"
     );

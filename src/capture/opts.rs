@@ -81,6 +81,11 @@ pub struct OverlayInfo {
     /// this reflects for the audition gallery's right-aligned shots.
     pub align: crate::theme::CardAnchor,
     pub query: String,
+    /// The query field's own CHAR-index caret ([`crate::textbox::TextBox::
+    /// caret`]), so a click-to-place / drag / mid-query char-motion law can
+    /// assert exactly where it landed rather than inferring it from `query`'s
+    /// text alone. Emitted as `overlay.query_caret`.
+    pub query_caret: usize,
     pub items: Vec<String>,
     /// EMPTY STATE: the shared calm message shown when NO rows match (empty corpus →
     /// per-kind "no history yet"/"no suggestions"/…; a query that matched nothing →

@@ -71,6 +71,12 @@ struct PointerInput {
     /// tick helpers below). `None` between drags and whenever the pointer
     /// sits back inside the band.
     drag_scroll_last_tick: Option<crate::clock::Instant>,
+    /// A press landed on the summoned overlay's own QUERY FIELD — every
+    /// subsequent `CursorMoved`, until release, scrubs that field's caret
+    /// (`App`'s `on_query_drag`) instead of the document drag/hover this
+    /// pointer otherwise owns, checked ahead of `overlay_hover` in the move
+    /// dispatch so a query drag can never be read as a row hover.
+    query_drag: bool,
     page_resizing: bool,
     page_resize_edge: Option<crate::render::ResizeEdge>,
     page_resize_anchor: Option<f32>,
@@ -113,6 +119,7 @@ impl InputRuntime {
                 drag_press_px: (0.0, 0.0),
                 drag_armed: false,
                 drag_scroll_last_tick: None,
+                query_drag: false,
                 page_resizing: false,
                 page_resize_edge: None,
                 page_resize_anchor: None,

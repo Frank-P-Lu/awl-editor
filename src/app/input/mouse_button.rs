@@ -61,6 +61,9 @@ impl App {
             ElementState::Released if self.input.pointer.page_resizing => {
                 self.end_page_resize();
             }
+            ElementState::Released if self.input.pointer.query_drag => {
+                self.input.pointer.query_drag = false;
+            }
             ElementState::Released => self.on_left_release(),
         }
         self.request_frame();

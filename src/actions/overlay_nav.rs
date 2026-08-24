@@ -309,7 +309,49 @@ fn cancel_overlay(ctx: &mut ActionCtx) -> Effect {
         Effect::None
     }
 }
+/// THE MID-QUERY GATE. `ForwardChar`/`BackwardChar`/`LineStart`(`BufferStart`)/
+/// `LineEnd`(`BufferEnd`) carry TWO meanings on this card: the list-nav
+/// overloads below (range scrub, lens cycle, folder descend/ascend, row
+/// jump) and the query field's own char motion / Home-End. Which one fires is
+/// decided by ONE fact, [`crate::overlay::OverlayState::query_at_rest`] — the
+/// list-nav reading holds while the caret sits at the query's own resting
+/// end (the common "type to filter, arrow through the list" case), and falls
+/// through to ordinary text motion the instant a click, a drag, or a
+/// word-step leaves the caret sitting anywhere else. Checked once, ahead of
+/// every list-nav arm in [`navigate_overlay`], so a mid-query edit can never
+/// be shadowed by the range-scrub / lens-cycle / folder-nav branches below.
+/// `Some` when it claimed the key; `None` to fall through to the ordinary
+/// list-nav match.
+fn mid_query_motion(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
+    if !matches!(
+        action,
+        Action::ForwardChar
+            | Action::BackwardChar
+            | Action::LineStart
+            | Action::BufferStart
+            | Action::LineEnd
+            | Action::BufferEnd
+    ) {
+        return None;
+    }
+    if ctx.journey.card().unwrap().query_at_rest() {
+        return None;
+    }
+    let ov = ctx.journey.card_mut().unwrap();
+    match action {
+        Action::ForwardChar => ov.query_char_right(),
+        Action::BackwardChar => ov.query_char_left(),
+        Action::LineStart | Action::BufferStart => ov.query_home(),
+        Action::LineEnd | Action::BufferEnd => ov.query_end(),
+        _ => unreachable!("guarded above"),
+    }
+    Some(Effect::None)
+}
+
 fn navigate_overlay(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
+    if let Some(effect) = mid_query_motion(ctx, action) {
+        return Some(effect);
+    }
     match action {
         Action::NextLine => {
             ctx.journey.card_mut().unwrap().move_sel(1);

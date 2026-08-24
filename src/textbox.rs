@@ -80,10 +80,10 @@ impl TextBox {
     }
 
     /// Move the caret to `at`, CLAMPED to `[0, len_chars]` — never panics on
-    /// an out-of-range request. Not yet wired to a live surface (no field
-    /// currently jumps its caret to an arbitrary position); exercised by the
-    /// parity/unit tests and kept for a future click-to-place caller.
-    #[allow(dead_code)]
+    /// an out-of-range request. The click-to-place / drag-scrub door for the
+    /// picker query field ([`crate::overlay::OverlayState::query_set_caret`])
+    /// and the mid-query Home/End split ([`crate::overlay::OverlayState::
+    /// query_home`] / `query_end`).
     pub fn set_caret(&mut self, at: usize) {
         self.caret = at.min(self.len_chars());
     }

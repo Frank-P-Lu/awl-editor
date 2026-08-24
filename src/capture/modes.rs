@@ -313,8 +313,14 @@ pub(super) fn settled_viewstate(
         .as_ref()
         .map(|o| o.query.clone())
         .unwrap_or_default();
-    // `OverlayInfo` does not carry a caret, so render it at the end.
-    vstate.overlay_query_caret = vstate.overlay_query.chars().count();
+    // `OverlayInfo::query_caret` is the real caret when the overlay came
+    // through the live replay path (`capture_fold`); a synthetic override
+    // built by hand still defaults to the end, matching `query`'s own default.
+    vstate.overlay_query_caret = opts
+        .overlay
+        .as_ref()
+        .map(|o| o.query_caret)
+        .unwrap_or_else(|| vstate.overlay_query.chars().count());
     // Modal prompts orient via `foot_hint`; unknown modes keep a visible title.
     vstate.overlay_title = opts
         .overlay

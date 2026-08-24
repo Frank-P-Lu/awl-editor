@@ -979,6 +979,7 @@ fn caret_picker_absent_by_default_and_open_reflects_selected_style() {
         mode: "caret",
         title: "caret style",
         query: String::new(),
+        query_caret: 0,
         items: vec!["Block".into(), "Morph".into(), "I-beam".into()],
         ranges: Vec::new(),
         bindings: vec![
@@ -1050,6 +1051,7 @@ fn context_menu_capture_names_its_anchor_and_paints_the_anchored_card() {
         mode: "context",
         title: "context menu",
         query: String::new(),
+        query_caret: 0,
         items: vec![
             "Follow link".into(),
             "Edit link…".into(),
@@ -1137,6 +1139,7 @@ fn caret_picker_morph_preview_paints_the_silhouette() {
         mode: "caret",
         title: "caret style",
         query: String::new(),
+        query_caret: 0,
         items: vec!["Block".into(), "Morph".into(), "I-beam".into()],
         ranges: Vec::new(),
         bindings: vec![
@@ -1243,6 +1246,7 @@ fn dictionary_picker_absent_by_default_and_open_does_not_preview() {
         mode: ov.kind.as_str(),
         title: ov.kind.title(),
         query: ov.query.text().to_string(),
+        query_caret: ov.query.caret(),
         items: ov.item_strings(),
         bindings: ov.item_bindings(),
         ranges: ov.item_range_fracs(),
@@ -1857,6 +1861,7 @@ fn history_comparison_is_relocated_by_the_capture_path_in_every_world() {
         mode: "history",
         title: "version history",
         query: String::new(),
+        query_caret: 0,
         items: vec!["2 hr ago · edited \"Middle\"".into()],
         bindings: vec!["+3 −4".into()],
         ranges: Vec::new(),
@@ -2061,6 +2066,7 @@ fn open_caret_preview_panel(dir: &std::path::Path, tag: &str) -> (image::RgbaIma
             mode: "caret",
             title: "caret style",
             query: String::new(),
+            query_caret: 0,
             items: vec!["Block".into(), "Morph".into(), "I-beam".into()],
             bindings: vec![String::new(), String::new(), String::new()],
             ranges: Vec::new(),

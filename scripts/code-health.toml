@@ -59,8 +59,8 @@ reason = "Inline Code's shared toggle (content_is_kind) gained a fallback path f
 
 [[file_size_mark]]
 file = "src/actions/overlay_nav.rs"
-lines = 951
-reason = "The workspace keyboard and deep link route through `actions/workspace_nav.rs`; this file retains the intercept-chain entry and dispatcher arm. Preview opening is gated by the declared kind before its match, so an undeclared arm is inert. Project navigation shares `is_folder_destination`, direct children switch on Enter, non-path-bound projects cannot ascend above the configured workspace, and lifecycle wrappers rebuild through one owner. `descend_target` documents the one path-name rule shared by both row shapes. +11: the Keymap picker's accept-by-corpus-index arm, mirroring Date rather than label-parsing. +13: Go to Line's own accept path, the Headings branch's numeric sibling — both resolve through the same shared jump owner (`Effect::JumpToLine`) rather than repeating caret/fold/scroll work."
+lines = 993
+reason = "The workspace keyboard and deep link route through `actions/workspace_nav.rs`; this file retains the intercept-chain entry and dispatcher arm. Preview opening is gated by the declared kind before its match, so an undeclared arm is inert. Project navigation shares `is_folder_destination`, direct children switch on Enter, non-path-bound projects cannot ascend above the configured workspace, and lifecycle wrappers rebuild through one owner. `descend_target` documents the one path-name rule shared by both row shapes. +11: the Keymap picker's accept-by-corpus-index arm, mirroring Date rather than label-parsing. +13: Go to Line's own accept path, the Headings branch's numeric sibling — both resolve through the same shared jump owner (`Effect::JumpToLine`) rather than repeating caret/fold/scroll work. +42: the mid-query gate — one owner deciding whether `ForwardChar`/`BackwardChar`/`LineStart`/`LineEnd` read as the list-nav overloads or the query field's own char motion / Home-End, checked once ahead of every arm below it."
 
 [[file_size_mark]]
 file = "src/app.rs"
@@ -89,7 +89,7 @@ reason = "The event-to-present flight recorder needs its winit-receipt and keyma
 [[file_size_mark]]
 file = "src/app/input/mouse.rs"
 lines = 1030
-reason = "The wheel-region predicate at the one pointer entry point stopped naming a single overlay kind and asks the shape-neutral question instead (+7, all of it the comment recording why the kind check was wrong). +3: the working-set stack's left-click-to-switch route, enrolled in this file's own input-substate privacy law. +11: `sync_cursor_icon` gains the stack-row hand-cursor arm, hit-tested through the same `gutter_stack_hit` the click path already uses. +21: cursor movement and leave route one shared gutter-stack hit through the hover state, so the close mark follows exactly the row under the pointer and clears when the pointer exits. +7: the find/replace panel's hit-test is computed once and shared by the case-toggle, field-cell, and dead-chrome cursor arms instead of only the case toggle. The pointer-derived state resync (fold/stack hover, cursor icon) is pulled out into pointer_sync.rs behind one owner, netting this file down even after the panel/case-toggle growth. +84: scroll-on-drag's App-level owner — `drag_scroll_primed` (the one dragging+armed+overshoot-active predicate both `step_drag_scroll` and `App::schedule_drag_scroll` gate on, so a stationary unarmed press can never be mistaken for a held edge-drag) and `step_drag_scroll` itself, the ONE seam both `on_drag` (per-`CursorMoved`) and the idle-timer re-arm drive, so a held drag past the edge keeps scrolling even once the pointer stops generating move events. +8: `on_mouse_wheel` gains the swallow-not-scroll guard over a summoned modal card, ahead of every existing branch."
+reason = "The wheel-region predicate at the one pointer entry point stopped naming a single overlay kind and asks the shape-neutral question instead (+7, all of it the comment recording why the kind check was wrong). +3: the working-set stack's left-click-to-switch route, enrolled in this file's own input-substate privacy law. +11: `sync_cursor_icon` gains the stack-row hand-cursor arm, hit-tested through the same `gutter_stack_hit` the click path already uses. +21: cursor movement and leave route one shared gutter-stack hit through the hover state, so the close mark follows exactly the row under the pointer and clears when the pointer exits. +7: the find/replace panel's hit-test is computed once and shared by the case-toggle, field-cell, and dead-chrome cursor arms instead of only the case toggle. The pointer-derived state resync (fold/stack hover, cursor icon) is pulled out into pointer_sync.rs behind one owner, netting this file down even after the panel/case-toggle growth. +84: scroll-on-drag's App-level owner — `drag_scroll_primed` (the one dragging+armed+overshoot-active predicate both `step_drag_scroll` and `App::schedule_drag_scroll` gate on, so a stationary unarmed press can never be mistaken for a held edge-drag) and `step_drag_scroll` itself, the ONE seam both `on_drag` (per-`CursorMoved`) and the idle-timer re-arm drive, so a held drag past the edge keeps scrolling even once the pointer stops generating move events. +8: `on_mouse_wheel` gains the swallow-not-scroll guard over a summoned modal card, ahead of every existing branch. +44: the query field's own click-to-place — `overlay_click` resolves a query-line press to a char index and arms `on_query_drag` for the rest of the gesture, released by `on_mouse_input`'s own `query_drag` arm."
 
 [[file_size_mark]]
 file = "src/app/session.rs"
@@ -129,18 +129,18 @@ lines = 309
 
 [[file_size_mark]]
 file = "src/capture.rs"
-lines = 91
-reason = "Each schema addition includes its `/N` ledger row and moves with `SCHEMA_VERSION`, enforced by this file's law. Planned overlay geometry serializes in `plan_sidecar` rather than expanding the single writer, and `redact` runs over finished artifact text at that writer so a future path-bearing field cannot opt out. +5: the working-set stack's `/204` ledger row (SCHEMA_VERSION 203 -> 204, buffers.files[]/active_index). +3: `/205` records the held HUD's optional selection figures. +2: `/208` records honest document absence and its start actions."
+lines = 92
+reason = "Each schema addition includes its `/N` ledger row and moves with `SCHEMA_VERSION`, enforced by this file's law. Planned overlay geometry serializes in `plan_sidecar` rather than expanding the single writer, and `redact` runs over finished artifact text at that writer so a future path-bearing field cannot opt out. +5: the working-set stack's `/204` ledger row (SCHEMA_VERSION 203 -> 204, buffers.files[]/active_index). +3: `/205` records the held HUD's optional selection figures. +2: `/208` records honest document absence and its start actions. +1: `/209` records the query field's own char-index caret."
 
 [[file_size_mark]]
 file = "src/capture/modes.rs"
-lines = 539
-reason = "The headless snapshot rebuilds secondary picker location through `facets::strip_location` rather than serializing a duplicate fact, and `gutter.changed` sits at the sole `base_viewstate` consumer. It also carries photographable/findable notices, world-authored diagonal-mark weight, and caret-kind resolution through `from_mode`. This file is at its frozen baseline exactly; further growth requires a carve-out."
+lines = 545
+reason = "The headless snapshot rebuilds secondary picker location through `facets::strip_location` rather than serializing a duplicate fact, and `gutter.changed` sits at the sole `base_viewstate` consumer. It also carries photographable/findable notices, world-authored diagonal-mark weight, and caret-kind resolution through `from_mode`. +6: `overlay_query_caret` now threads the real caret through from a live-replay `OverlayInfo`, falling back to the query's own end only for a hand-built synthetic override."
 
 [[file_size_mark]]
 file = "src/capture/sidecar.rs"
-lines = 868
-reason = "`gutter.changed` and `overlay.preview_view` belong in the sole serializer, whose no-overlay literal remains in lockstep with its populated arm. `readout_json` and `hud_json` share the count/unit owner, and the serializer also carries photographable/findable notices and world-authored diagonal-mark weight. Shrank 871 -> 857: `buffers_json` moved out to sit beside its own type, `BuffersInfo`, in `capture/opts.rs`, rather than growing this file for the working-set stack's files[]/active_index. +11: `hud_json` serializes the optional selection word/grapheme figures from the same HUD report the renderer consumes."
+lines = 871
+reason = "`gutter.changed` and `overlay.preview_view` belong in the sole serializer, whose no-overlay literal remains in lockstep with its populated arm. `readout_json` and `hud_json` share the count/unit owner, and the serializer also carries photographable/findable notices and world-authored diagonal-mark weight. Shrank 871 -> 857: `buffers_json` moved out to sit beside its own type, `BuffersInfo`, in `capture/opts.rs`, rather than growing this file for the working-set stack's files[]/active_index. +11: `hud_json` serializes the optional selection word/grapheme figures from the same HUD report the renderer consumes. +3: `overlay.query_caret` in both the populated and no-overlay literal arms."
 
 [[file_size_mark]]
 file = "src/caret.rs"
@@ -265,8 +265,8 @@ reason = "A new `OverlayKind` variant crosses seven exhaustive per-kind matches 
 
 [[file_size_mark]]
 file = "src/overlay/nav.rs"
-lines = 444
-reason = "`item_sections` gives a workspace one category name in its rail and lets `refilter` own bucketing. The remembered dotfile exemption ensures a chosen project remains in Recent even when directory listings hide dotfiles. +16: Go to Line's `selected_is_line_jump` accept-path gate, the numeric sibling of `selected_is_heading` — true only when the highlighted row is the synthesized line-jump row — plus its `RowMeta::GotoLine` arm in the shared line-target and label matches."
+lines = 487
+reason = "`item_sections` gives a workspace one category name in its rail and lets `refilter` own bucketing. The remembered dotfile exemption ensures a chosen project remains in Recent even when directory listings hide dotfiles. +16: Go to Line's `selected_is_line_jump` accept-path gate, the numeric sibling of `selected_is_heading` — true only when the highlighted row is the synthesized line-jump row — plus its `RowMeta::GotoLine` arm in the shared line-target and label matches. +43: the query field's own caret door — `query_at_rest`, `query_char_left`/`query_char_right`, `query_home`/`query_end`, `query_set_caret` — the one seat both the mid-query gate and a pointer click/drag read."
 
 [[file_size_mark]]
 file = "src/overlay/state.rs"
@@ -336,8 +336,8 @@ reason = "The persistent outline publishes its interactive geometry to the share
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay.rs"
-lines = 719
-reason = "+1: the Range rail's read hands the accessory column's ANCHOR and its flow to `rail_geom`, so a mirrored cluster seats its rail on the other side of its value through the same owner. +34: eight bare geometry literals inside the two geometry owners become named constants of a declared unit family (the Pane text inset, the card's pad / margin / top drop / anchor drop, the spell popup's pad / window breath / word gap), each with the doc line that records why, plus the resolved locals the owners read them through and `overlay_leading`, the third term of the row pitch. DOWN 27: the roster-width measurements moved to `chrome/roster.rs`. The overlay owns the one shared row plan and pointer geometry; the measured diagonal span and Range rail read remain at that seam alongside the workspace dispatch and row-offset inputs. The lens strip's Y band left for the scene planner. The `Rules` PROTOTYPE (the quiet fourth list composition, organised by absence) takes two of this file's three list-style match arms: the row AIR between rules rides the one row-pitch owner `overlay_row_gap` exactly as a `Bars` plate gap does, and the GUTTER a selection mark hangs in rides `overlay_text_hpad`. Both are the seams that already exist for exactly this question, so the growth is the two arms and the comments saying why a rule's air is the same quantity as a plate's gap (+9). +13: the rail inset and card-box policy take `dpi`, since the inset resolves the cap that seats the card."
+lines = 769
+reason = "+1: the Range rail's read hands the accessory column's ANCHOR and its flow to `rail_geom`, so a mirrored cluster seats its rail on the other side of its value through the same owner. +34: eight bare geometry literals inside the two geometry owners become named constants of a declared unit family (the Pane text inset, the card's pad / margin / top drop / anchor drop, the spell popup's pad / window breath / word gap), each with the doc line that records why, plus the resolved locals the owners read them through and `overlay_leading`, the third term of the row pitch. DOWN 27: the roster-width measurements moved to `chrome/roster.rs`. The overlay owns the one shared row plan and pointer geometry; the measured diagonal span and Range rail read remain at that seam alongside the workspace dispatch and row-offset inputs. The lens strip's Y band left for the scene planner. The `Rules` PROTOTYPE (the quiet fourth list composition, organised by absence) takes two of this file's three list-style match arms: the row AIR between rules rides the one row-pitch owner `overlay_row_gap` exactly as a `Bars` plate gap does, and the GUTTER a selection mark hangs in rides `overlay_text_hpad`. Both are the seams that already exist for exactly this question, so the growth is the two arms and the comments saying why a rule's air is the same quantity as a plate's gap (+9). +13: the rail inset and card-box policy take `dpi`, since the inset resolves the cap that seats the card. +50: `overlay_query_char_at`, the click-to-place pointer inverse of `overlay_query_caret_box` — same containment box as `over_overlay_query`'s I-beam gate, so a click can only land where the I-beam already promised a caret."
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay_draw.rs"
@@ -548,14 +548,14 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/capture/modes.rs"
 function = "settled_viewstate"
-message = "this function has too many lines (228/100)"
+message = "this function has too many lines (232/100)"
 reason = "The snapshot rebuilds secondary picker location from its existing strip. Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. The capture path derives a summoned workspace's shape and whether its comparison region carries prose, because a sidecar records mode rather than shape."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/sidecar.rs"
 function = "overlay_json"
-message = "this function has too many lines (143/100)"
+message = "this function has too many lines (146/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. `overlay_json` is one format string over the whole overlay record, so each serialized field — the workspace, the `driver` argument — is a line in it."
 
 [[clippy_exception]]
@@ -837,15 +837,15 @@ reason = "Existing end-to-end scenario with no coherent setup/assertion split. R
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/panels.rs"
 function = "history_comparison_is_relocated_by_the_capture_path_in_every_world"
-message = "this function has too many lines (135/100)"
-reason = "Existing end-to-end scenario with no coherent setup/assertion split. Its two identity-wrapper call sites became explicit default constructions, adding four source lines without changing behaviour."
+message = "this function has too many lines (136/100)"
+reason = "Existing end-to-end scenario with no coherent setup/assertion split. Its two identity-wrapper call sites became explicit default constructions, adding four source lines without changing behaviour. +1: the `OverlayInfo` literal gained its own `query_caret` field."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/pickers_faceted.rs"
 function = "command_and_history_pickers_faceted_lens_render_and_report"
-message = "this function has too many lines (164/100)"
-reason = "Existing end-to-end scenario with no coherent setup/assertion split. Removing the identity fixture wrapper makes the direct default construction two lines longer without changing this test's behaviour."
+message = "this function has too many lines (165/100)"
+reason = "Existing end-to-end scenario with no coherent setup/assertion split. Removing the identity fixture wrapper makes the direct default construction two lines longer without changing this test's behaviour. +1: the `OverlayInfo` literal gained its own `query_caret` field."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"

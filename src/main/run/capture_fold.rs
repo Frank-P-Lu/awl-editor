@@ -185,6 +185,7 @@ fn overlay_capture_info_optional(
         mode: ov.kind.as_str(),
         align: ov.align,
         query: ov.query.text().to_string(),
+        query_caret: ov.query.caret(),
         items: ov.item_strings(),
         empty: ov.empty_notice(),
         bindings: ov.item_bindings(),

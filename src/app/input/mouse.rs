@@ -334,26 +334,55 @@ impl App {
         self.request_frame();
     }
 
+    /// THE QUERY FIELD'S OWN DRAG: scrub its caret to the pointer's current x,
+    /// mirroring [`Self::on_range_drag`]'s "apply the same step the press did,
+    /// on every subsequent move" shape. A no-op off the field (past the card
+    /// edge, or a frame with no GPU up yet) — the caret simply stops
+    /// following until the pointer re-enters the band, rather than jumping to
+    /// a clamped edge no glyph sits under.
+    pub(in crate::app) fn on_query_drag(&mut self) {
+        let (px, py) = self.input.pointer.cursor_px;
+        let Some(idx) = self
+            .frame
+            .gpu()
+            .and_then(|g| g.pipeline.overlay_query_char_at(px, py))
+        else {
+            return;
+        };
+        if let Some(ov) = self.workspace_state.overlay_mut() {
+            ov.query_set_caret(idx);
+        }
+        self.sync_view(true);
+        self.request_frame();
+    }
+
     /// A LEFT-CLICK while a picker is open, resolved against the overlay card:
     ///   * ON a candidate ROW → move the selection there and ACCEPT it — the exact
     ///     `Action::Newline` the keyboard's Enter runs, so a click opens the file /
     ///     runs the command / commits the theme / descends the folder identically
     ///     (one path, every kind).
+    ///   * ON the QUERY LINE, off a row → place the field's OWN caret at the
+    ///     pressed column (through [`OverlayState::query_set_caret`], the same
+    ///     `TextBox` seat `ForwardChar`/`BackwardChar` read once the caret has
+    ///     left its resting end — see `actions::overlay_nav::navigate_overlay`)
+    ///     and arm [`Self::on_query_drag`] for the rest of the gesture, released
+    ///     by `on_mouse_input`'s own `query_drag` arm. A surface that looks
+    ///     clickable is now clickable where it is drawn.
     ///   * OUTSIDE the card rect → DISMISS the overlay, routed through the SAME
     ///     `Action::Cancel` Esc / C-g uses (so a Theme / Caret live preview reverts
     ///     too). Click-away-to-dismiss is GENERAL across every summoned overlay
     ///     (palette / pickers / spell / history / …) — the card rect + row hit-test
     ///     both come from the one kind-agnostic `overlay_geometry`.
-    ///   * INSIDE the card but off a row (query line / foot hint) → SWALLOWED (the
-    ///     picker stays modal; it never falls through to `on_press`, which would place
-    ///     the document cursor beneath the card).
+    ///   * INSIDE the card but off the query line AND off a row (the foot hint) →
+    ///     SWALLOWED (the picker stays modal; it never falls through to
+    ///     `on_press`, which would place the document cursor beneath the card).
     ///     Always consumes the click while an overlay is open.
     ///
     /// Activate the overlay row under the press-time pointer position. Release
     /// position and cached hover state never choose the row.
     pub(in crate::app) fn overlay_click(&mut self, exit: &dyn schedule::Exit) {
         let (px, py) = self.input.pointer.cursor_px;
-        let (row_hit, lens_hit, rail_hit, card) = self
+        let (row_hit, lens_hit, rail_hit, query_hit, card) = self
             .frame
             .gpu()
             .map(|g| {
@@ -361,10 +390,11 @@ impl App {
                     g.pipeline.overlay_row_at(px, py),
                     g.pipeline.overlay_lens_at(px, py),
                     g.pipeline.workspace_rail_at(px, py),
+                    g.pipeline.overlay_query_char_at(px, py),
                     g.pipeline.overlay_card_rect(),
                 )
             })
-            .unwrap_or((None, None, None, None));
+            .unwrap_or((None, None, None, None, None));
 
         // Rail clicks use the same lens and focus transitions as keyboard entry.
         if let Some(rail_idx) = rail_hit {
@@ -425,6 +455,14 @@ impl App {
                 return;
             }
             self.apply(Action::Newline, false, exit, crate::stats::Door::Chord);
+        } else if let Some(char_idx) = query_hit {
+            // ON the query line, off a row: place the field's own caret there
+            // and arm the drag so a press-drag scrubs it, rather than falling
+            // through to the generic "inside, off a row" swallow below.
+            if let Some(ov) = self.workspace_state.overlay_mut() {
+                ov.query_set_caret(char_idx);
+            }
+            self.input.pointer.query_drag = true;
         } else {
             let inside = card
                 .map(|[x, y, w, h]| px >= x && px <= x + w && py >= y && py <= y + h)
@@ -846,6 +884,12 @@ impl App {
             // spec, and the hover below must NOT also re-select rows under the
             // travelling pointer mid-gesture.
             self.on_range_drag();
+        } else if self.input.pointer.query_drag {
+            // A press landed on the query field itself: every move scrubs its
+            // caret, never a row hover — checked ahead of `overlay_open` below
+            // so a query drag can't be read as a row hover crossing rows the
+            // pointer is no longer over.
+            self.on_query_drag();
         } else if self.workspace_state.overlay_open() {
             self.overlay_hover();
         } else if self.input.pointer.page_resizing {

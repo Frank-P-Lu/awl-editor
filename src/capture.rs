@@ -41,9 +41,10 @@ pub const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 ///          buffer selection, else `null`. Characters are extended grapheme
 ///          clusters and a logical line break counts as one character.
 /// `/208` — honest document absence, its actions, and null page/buffer.
+/// `/209` — `overlay.query_caret`: the query field's own CHAR-index caret.
 /// History lives in Git. Bump this row with the const. Plain single-frame
 /// schema owns this number; timeline and held take the next two versions.
-pub const SCHEMA_VERSION: u32 = 208;
+pub const SCHEMA_VERSION: u32 = 209;
 pub fn schema_plain() -> String {
     format!("awl-capture/{SCHEMA_VERSION}")
 }
