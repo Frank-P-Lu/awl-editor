@@ -1,5 +1,9 @@
 /target
-/gallery
+# `/*` (not a bare `/gallery`) so a later `!` exception below can still
+# un-ignore one specific subtree — git never descends into an excluded
+# DIRECTORY to evaluate deeper negations, only into an excluded directory's
+# CONTENTS.
+/gallery/*
 /tmp
 /dist
 /coverage
@@ -27,6 +31,16 @@
 # they stay untracked rather than bloating the history.
 /assets/macos/candidates/tiles/*
 !/assets/macos/candidates/tiles/*-1024.png
+
+# The symbol-atlas SURVEY (item 486) is a rare `/gallery` exception: unlike
+# its sibling prototype galleries (which stay fully untracked scratch), this
+# one's generator + README are real, regenerable tooling worth keeping. The
+# generated page itself carries every bundled font's raw bytes re-encoded as
+# base64 — tens of MB, pure derivative, never committed.
+!/gallery/item-486-symbol-atlas/
+!/gallery/item-486-symbol-atlas/shoot.sh
+!/gallery/item-486-symbol-atlas/README.md
+/gallery/item-486-symbol-atlas/*.html
 
 # The HTML-export Playwright harness bootstraps Playwright on first run
 # (scripts/smoke-export-html.sh); its node_modules is scratch, never committed.

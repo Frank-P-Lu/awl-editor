@@ -214,6 +214,12 @@ mod stars;
 /// the rect a click hit-test reads, and the ←/→ paging hint's presence is
 /// proven by real ink over the row that geometry locates.
 mod streaks_card_ink;
+/// A shopping catalog of bundled-face symbol/ornament coverage — see the
+/// module doc for what it reads and why. `ttf_parser` is `cfg(not(target_arch
+/// = "wasm32"))` (native PDF export's own reason), so this survey has no wasm
+/// counterpart either, matching `font_licence`'s same gate.
+#[cfg(not(target_arch = "wasm32"))]
+mod symbol_atlas_gallery;
 mod syntax_ligatures;
 mod syntax_roles;
 mod tables;
