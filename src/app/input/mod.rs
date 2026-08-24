@@ -66,6 +66,11 @@ struct PointerInput {
     dragging: bool,
     drag_press_px: (f32, f32),
     drag_armed: bool,
+    /// Last time a drag-scroll step actually advanced the scroll, so the next
+    /// step's `dt` is real elapsed time rather than a fixed guess (see the
+    /// tick helpers below). `None` between drags and whenever the pointer
+    /// sits back inside the band.
+    drag_scroll_last_tick: Option<crate::clock::Instant>,
     page_resizing: bool,
     page_resize_edge: Option<crate::render::ResizeEdge>,
     page_resize_anchor: Option<f32>,
@@ -107,6 +112,7 @@ impl InputRuntime {
                 dragging: false,
                 drag_press_px: (0.0, 0.0),
                 drag_armed: false,
+                drag_scroll_last_tick: None,
                 page_resizing: false,
                 page_resize_edge: None,
                 page_resize_anchor: None,
@@ -247,6 +253,7 @@ impl PointerInput {
         self.dragging = true;
         self.drag_press_px = self.cursor_px;
         self.drag_armed = false;
+        self.drag_scroll_last_tick = None;
     }
 
     fn arm_text_drag_if_moved(&mut self) -> bool {
@@ -265,6 +272,33 @@ impl PointerInput {
     fn finish_text_drag(&mut self) {
         self.dragging = false;
         self.drag_armed = false;
+        self.drag_scroll_last_tick = None;
+    }
+
+    /// Elapsed time since the last drag-scroll tick (zero on the first tick
+    /// past the edge, priming the clock rather than guessing a step), and
+    /// stamp `now` as the new last tick. The caller only reaches this once it
+    /// already knows the pointer sits beyond the band — see
+    /// [`Self::clear_drag_scroll_tick`] for the other half.
+    pub(super) fn drag_scroll_tick_dt(
+        &mut self,
+        now: crate::clock::Instant,
+    ) -> std::time::Duration {
+        let dt = self
+            .drag_scroll_last_tick
+            .map_or(std::time::Duration::ZERO, |last| {
+                now.saturating_duration_since(last)
+            });
+        self.drag_scroll_last_tick = Some(now);
+        dt
+    }
+
+    /// Forget the drag-scroll clock: called the instant the pointer re-enters
+    /// the band (or the drag ends), so a LATER re-crossing primes fresh at
+    /// `dt = 0` instead of replaying the gap spent inside the band as one
+    /// huge scroll jump.
+    pub(super) fn clear_drag_scroll_tick(&mut self) {
+        self.drag_scroll_last_tick = None;
     }
 }
 

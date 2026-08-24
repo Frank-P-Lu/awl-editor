@@ -663,6 +663,7 @@ fn input_substates_are_private_and_every_consumer_is_swept() {
             "dragging",
             "drag_press_px",
             "drag_armed",
+            "drag_scroll_last_tick",
             "page_resizing",
             "page_resize_edge",
             "page_resize_anchor",

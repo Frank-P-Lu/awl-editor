@@ -252,4 +252,100 @@ impl TextPipeline {
             None => (0, 0),
         }
     }
+
+    /// Signed pixel overshoot of `py` past the writing column's vertical
+    /// band: negative above [`Self::text_origin_top`], positive below
+    /// `height`, zero strictly inside. Both edges are screen-fixed (neither
+    /// reads `scroll`), so a drag held at the same physical spot reports the
+    /// same overshoot no matter how far the document has already scrolled —
+    /// the quantity [`drag_scroll_rate`] and [`Self::drag_scroll_step`] read.
+    pub fn drag_scroll_overshoot(&self, py: f32, height: f32) -> f32 {
+        let top = self.text_origin_top();
+        if py < top {
+            py - top
+        } else if py > height {
+            py - height
+        } else {
+            0.0
+        }
+    }
+
+    /// Whether the overshoot at `py` earns a nonzero drag-scroll rate — the
+    /// SAME dead-zone test [`Self::drag_scroll_step`] applies internally,
+    /// exposed so a caller deciding whether to keep RE-ARMING a periodic
+    /// re-check (rather than taking a step right now) doesn't re-derive the
+    /// dead-zone rule. Without this, a pointer resting just past the edge but
+    /// still inside the dead zone would spin an idle-timer re-arm forever for
+    /// a scroll that never actually happens.
+    pub fn drag_scroll_active(&self, py: f32, height: f32) -> bool {
+        drag_scroll_rate(self.drag_scroll_overshoot(py, height)) > 0.0
+    }
+
+    /// ONE drag-scroll tick, through the two owners that already exist:
+    /// [`Self::scroll_by_px`] advances `scroll` by the overshoot-derived rate
+    /// (`dt` seconds' worth, in the overshot direction), then
+    /// [`Self::hit_test_scroll`] resolves `(px, py)` against that ADVANCED
+    /// scroll — so the caller extends a selection to wherever the moving
+    /// content now sits under a pointer that never had to move itself.
+    ///
+    /// `None` when the pointer sits inside the band (nothing to scroll — the
+    /// caller falls through to its ordinary in-band hit-test) or `dt` is
+    /// non-positive (a drag's first tick, before any real time has elapsed
+    /// past the edge; the caller primes its clock on that same tick and gets
+    /// a real `dt` next call).
+    pub fn drag_scroll_step(
+        &self,
+        scroll: ScrollPos,
+        px: f32,
+        py: f32,
+        height: f32,
+        dt: f32,
+    ) -> Option<(ScrollPos, usize, usize)> {
+        let overshoot = self.drag_scroll_overshoot(py, height);
+        if overshoot == 0.0 || dt <= 0.0 {
+            return None;
+        }
+        let rate = drag_scroll_rate(overshoot);
+        if rate <= 0.0 {
+            return None;
+        }
+        let delta = rate * dt * overshoot.signum();
+        let new_scroll = self.scroll_by_px(scroll, delta, height);
+        let (line, col) = self.hit_test_scroll(px, py, new_scroll);
+        Some((new_scroll, line, col))
+    }
+}
+
+/// Overshoot right at the column edge (sub-pixel geometry noise, a drag that
+/// merely grazes the boundary) earns no scroll at all.
+const DRAG_SCROLL_DEAD_ZONE_PX: f32 = 6.0;
+
+/// Overshoot past the dead zone at which the rate reaches its cap.
+const DRAG_SCROLL_RAMP_PX: f32 = 140.0;
+
+/// The rate the instant the dead zone clears — visibly moving, not a
+/// barely-perceptible crawl.
+const DRAG_SCROLL_MIN_RATE: f32 = 80.0;
+
+/// The rate cap (px/sec): fast enough to reach the far end of a long
+/// document within a few held seconds, slow enough that a screenful never
+/// blurs past unseen. TASTE TUNABLE — flagged for live review, per
+/// CLAUDE.md's harness-reach discipline: this map is design INTENT the
+/// headless harness can prove is honored exactly, never that the honored
+/// curve FEELS right in the hand.
+const DRAG_SCROLL_MAX_RATE: f32 = 1400.0;
+
+/// Overshoot-to-scroll-speed curve for a drag held past the writing column's
+/// top/bottom edge (px/sec magnitude; direction is the caller's sign on the
+/// overshoot). Zero within [`DRAG_SCROLL_DEAD_ZONE_PX`] of the edge; beyond
+/// it, an EASED ramp (quadratic — gentle just past the dead zone, steep
+/// nearer the cap) up to [`DRAG_SCROLL_MAX_RATE`] at
+/// [`DRAG_SCROLL_RAMP_PX`] overshoot, then held flat past that.
+pub fn drag_scroll_rate(overshoot_px: f32) -> f32 {
+    let overshoot = overshoot_px.abs();
+    if overshoot <= DRAG_SCROLL_DEAD_ZONE_PX {
+        return 0.0;
+    }
+    let t = ((overshoot - DRAG_SCROLL_DEAD_ZONE_PX) / DRAG_SCROLL_RAMP_PX).min(1.0);
+    DRAG_SCROLL_MIN_RATE + (DRAG_SCROLL_MAX_RATE - DRAG_SCROLL_MIN_RATE) * t * t
 }

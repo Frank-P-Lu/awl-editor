@@ -544,6 +544,14 @@ impl App {
         over_surface
     }
 
+    /// A `CursorMoved` while a text-selection drag is live: extend the
+    /// selection to whatever sits under the pointer. When the pointer has
+    /// left the writing column's top/bottom band, [`Self::step_drag_scroll`]
+    /// (THE ONE drag-scroll owner, also driven by `about_to_wait` while the
+    /// pointer holds still — `App::schedule_drag_scroll`) scrolls first and
+    /// extends the selection to the point under the now-moved content; only
+    /// when it declines (pointer still inside the band) does this hit-test at
+    /// the UNCHANGED scroll, exactly as before scroll-on-drag existed.
     pub(in crate::app) fn on_drag(&mut self) {
         if !self.input.pointer.dragging {
             return;
@@ -551,8 +559,84 @@ impl App {
         let Some(_) = self.frame.gpu() else {
             return;
         };
+        if self.step_drag_scroll() {
+            return;
+        }
         let idx = self.hit_test_char();
         self.drag_to_char(idx);
+    }
+
+    /// THE ONE PREDICATE both [`Self::step_drag_scroll`]'s own guard and
+    /// `App::schedule_drag_scroll`'s (`app/schedule.rs`) re-arm decision
+    /// read, so the two can never disagree about whether there is anything
+    /// left to scroll. Three conditions, all required:
+    ///
+    ///  - `dragging` — a text-selection drag is live at all;
+    ///  - `drag_armed` — the drag has already crossed
+    ///    [`super::DRAG_ARM_SLOP_PX`] (the phantom-selection-click gate).
+    ///    Without this, a plain press held stationary in the narrow strip
+    ///    above [`crate::render::TextPipeline::text_origin_top`] (in-column
+    ///    x, no real drag yet) would arm the idle-timer re-arm and scroll —
+    ///    and extend a selection — under a motionless pointer, the exact
+    ///    phantom class `drag_armed` exists to keep out of an ordinary click;
+    ///  - the pointer's overshoot earns a nonzero rate
+    ///    ([`crate::render::TextPipeline::drag_scroll_active`]) — `false`
+    ///    off a live GPU (headless / no window yet), inside the band, OR
+    ///    inside the dead zone just past the edge, so a pointer resting a
+    ///    couple of pixels over the line never spins the idle-timer re-arm
+    ///    forever for a scroll that never actually happens.
+    pub(in crate::app) fn drag_scroll_primed(&self) -> bool {
+        if !self.input.pointer.dragging || !self.input.pointer.drag_armed {
+            return false;
+        }
+        let (_, py) = self.input.pointer.cursor_px;
+        let Some(gpu) = self.frame.gpu() else {
+            return false;
+        };
+        gpu.pipeline
+            .drag_scroll_active(py, gpu.config.height as f32)
+    }
+
+    /// THE ONE DRAG-SCROLL OWNER: while [`Self::drag_scroll_primed`] holds,
+    /// advance the document scroll at the overshoot-derived rate (through
+    /// [`crate::render::TextPipeline::drag_scroll_step`] — overshoot → rate →
+    /// [`crate::render::TextPipeline::scroll_by_px`], the one scroll owner)
+    /// and extend the selection to the hit-test under the ADVANCED scroll,
+    /// through [`Self::drag_to_char`] — the SAME selection-state owner an
+    /// ordinary in-band drag uses, never a parallel path. Two callers reach
+    /// this: [`Self::on_drag`] on every `CursorMoved`, and
+    /// `App::schedule_drag_scroll` on the `about_to_wait` re-arm, so scrolling
+    /// continues even while a held pointer stops generating new move events.
+    ///
+    /// `dt` is real elapsed time since this drag's last step
+    /// (`PointerInput::drag_scroll_tick_dt`), so a sparse or dense caller
+    /// integrates the identical rate curve — never a caller-chosen fixed
+    /// step. Returns `false` (no scroll applied) when [`Self::drag_scroll_primed`]
+    /// declines, or this is the drag's first tick past the edge (which
+    /// primes the clock instead of guessing a step) — the caller's cue to
+    /// fall back to its normal in-band path.
+    pub(in crate::app) fn step_drag_scroll(&mut self) -> bool {
+        if !self.drag_scroll_primed() {
+            self.input.pointer.clear_drag_scroll_tick();
+            return false;
+        }
+        let (px, py) = self.input.pointer.cursor_px;
+        let scroll = self.document.scroll();
+        let now = self.frame.now();
+        let dt = self.input.pointer.drag_scroll_tick_dt(now).as_secs_f32();
+        let Some(gpu) = self.frame.gpu() else {
+            return false;
+        };
+        let height = gpu.config.height as f32;
+        let Some((new_scroll, line, col)) =
+            gpu.pipeline.drag_scroll_step(scroll, px, py, height, dt)
+        else {
+            return false;
+        };
+        self.document.set_scroll(new_scroll);
+        let idx = self.document.buffer().hit_char(line, col);
+        self.drag_to_char(idx);
+        true
     }
 
     /// Selection-state half of a text drag after the live pipeline has resolved

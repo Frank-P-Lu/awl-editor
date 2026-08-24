@@ -147,6 +147,16 @@ use crate::actions::NoticeKind;
 
 const ZOOM_PERSIST_DEBOUNCE: Duration = Duration::from_millis(500);
 
+/// Re-arm period for a text-selection drag held past the writing column's
+/// top/bottom edge (`App::schedule_drag_scroll`): while the pointer sits
+/// beyond the band, `about_to_wait` proposes a `WaitUntil` this far out so the
+/// scroll keeps advancing — and the selection keeps extending — even while
+/// the pointer itself generates no further `CursorMoved` (the OS delivers
+/// those only on real motion; a held drag at the edge is the point).
+/// `GPU_SURFACE_RETRY`-sized: fast enough to read as continuous motion, far
+/// from the caret spring's hot per-frame `Poll` loop.
+const DRAG_SCROLL_TICK: Duration = Duration::from_millis(16);
+
 /// AMBIENT LAVA TICK period — the lava-lamp ground's slow drift cadence
 /// (`crate::lava::LAVA_TICK_MS`). A single `WaitUntil` this far out in
 /// `about_to_wait` advances the phase + requests one redraw + re-arms, so a lava

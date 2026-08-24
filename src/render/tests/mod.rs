@@ -62,6 +62,10 @@ mod diagonal_composition;
 mod diagonal_pixel_composition;
 mod distinguishability;
 mod dither;
+/// The overshoot-to-rate curve and the composed drag-scroll tick a
+/// text-selection drag past the writing column's edge advances scroll +
+/// hit-tests through.
+mod drag_scroll;
 /// The virtual breathing room past the last line: its one scroll owner, its
 /// composition with typewriter mode, and the law that none of it reaches disk.
 mod end_pad;

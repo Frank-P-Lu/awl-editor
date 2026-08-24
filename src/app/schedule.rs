@@ -187,6 +187,30 @@ impl App {
         }
     }
 
+    /// Re-arm while a text-selection drag holds the pointer past the writing
+    /// column's top/bottom band: step the scroll (through
+    /// [`crate::app::input::mouse`]'s `App::step_drag_scroll`, THE ONE
+    /// drag-scroll owner — also driven per-`CursorMoved` by `App::on_drag`)
+    /// and, while `App::drag_scroll_primed` still holds, propose the next
+    /// `WaitUntil` so scrolling continues even once the pointer stops
+    /// generating new move events — mirroring the debounce/tick shape every
+    /// other proposer in this file uses (a bounded, self-disarming
+    /// `WaitUntil`, never a hot per-frame loop). Reading the SAME predicate
+    /// `step_drag_scroll` itself gates on means this can never re-arm for a
+    /// pointer that is unarmed (a stationary press, never a real drag) or
+    /// sitting in the overshoot dead zone (nothing left to scroll) —
+    /// `step_drag_scroll` itself also clears the drag-scroll clock the
+    /// instant either condition holds.
+    fn schedule_drag_scroll(&mut self, deadlines: &mut crate::frame_clock::Deadlines) {
+        if self.step_drag_scroll() {
+            self.sync_view(true);
+            self.request_frame();
+        }
+        if self.drag_scroll_primed() {
+            deadlines.propose(Some(self.frame.now() + DRAG_SCROLL_TICK));
+        }
+    }
+
     pub(super) fn about_to_wait_impl(
         &mut self,
         event_loop: &impl Scheduler,
@@ -214,6 +238,13 @@ impl App {
         // Debounced quick-note AUTO-SAVE: write the note after ~400ms of quiet, so
         // it persists calmly as you pause. An empty note writes nothing.
         self.schedule_autosaves(&mut deadlines);
+        // DRAG-SCROLL re-arm: while a text-selection drag holds the pointer
+        // past the writing column's edge, keep scrolling (and extending the
+        // selection) on this same single-`WaitUntil` shape even when the
+        // pointer itself has stopped moving. Armed ONLY while dragging AND
+        // beyond the band — an ordinary in-band drag, and every non-drag
+        // idle, schedule nothing here.
+        self.schedule_drag_scroll(&mut deadlines);
         // Debounced DOCUMENT AUTOSAVE (the config-gated engine, default ON): the
         // open file is written atomically — or the no-path scratch stashed — after
         // ~1s of idle. Armed ONLY by the live `sync_view` (behind its gpu-present
