@@ -14,7 +14,14 @@ impl App {
             let (px, py) = pointer.px();
             overlay.arm_hover_baseline(px, py);
         }
-        if self.workspace_state.overlay_open() != overlay_was_open {
+        let overlay_open = self.workspace_state.overlay_open();
+        if overlay_was_open && !overlay_open {
+            // The open->closed edge, not the button release, owns the query
+            // drag's lifecycle from here: the press that armed it may still be
+            // held when a keyboard action closes the overlay out from under it.
+            self.input.clear_query_drag();
+        }
+        if overlay_open != overlay_was_open {
             self.resync_pointer_derived_state();
         }
     }

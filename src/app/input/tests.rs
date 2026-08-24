@@ -926,3 +926,69 @@ fn press_with_card_open_pages_streaks_on_card_and_dismisses_off_it() {
 
     crate::streaks::set_open(false);
 }
+
+/// **THE OVERLAY-CLOSE EDGE MUST RETIRE `query_drag`, NOT JUST THE BUTTON
+/// RELEASE.** A press on the summoned overlay's own query line arms
+/// `query_drag` (`overlay_click`'s query-hit arm, `app/input/mouse.rs`) for
+/// the rest of that gesture, ordinarily released by the matching
+/// `ButtonReleased` in `on_mouse_input`. But a keyboard action can close the
+/// overlay out from under a still-held press — the button-up arm that owns
+/// the flag then never runs. Without a clear on the open->closed edge, the
+/// flag would survive with no query field left to scrub, and
+/// `on_cursor_moved`'s dispatch checks it AHEAD of every other branch
+/// (including a later overlay's own hover) — this is the mutation this law
+/// pins: comment out `sync_overlay_after_core`'s clear and the FIRST
+/// assertion below goes red.
+#[test]
+fn query_drag_does_not_survive_a_keyboard_close_of_its_overlay() {
+    let _guard = crate::testlock::serial();
+    let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
+    let corpus: Vec<String> = (0..5).map(|i| format!("row{i}")).collect();
+    let ov = crate::overlay::OverlayState::new(
+        crate::overlay::OverlayKind::Goto,
+        corpus,
+        vec![],
+        vec![],
+    );
+    app.workspace_state.install_overlay_for_test(ov);
+    assert!(
+        app.workspace_state.overlay_open(),
+        "precondition: the overlay is up"
+    );
+
+    // A press landed on the query line and is still held down (the pixel
+    // hit-test half of arming this — `overlay_query_char_at` — is a
+    // live-GPU concern exercised at the pipeline level by
+    // `render::tests::overlay_query_hit_law`; this drives the flag the
+    // press sets, which is everything the close edge under test can see).
+    app.input.pointer.query_drag = true;
+
+    // Keyboard-close, exactly as Esc/C-g resolves through the real dispatch
+    // seam — the button is still down and never generates its own
+    // `ButtonReleased` arm.
+    let exit = crate::app::schedule::RecordingExit::new();
+    app.apply(Action::Cancel, false, &exit, crate::stats::Door::Chord);
+    assert!(
+        !app.workspace_state.overlay_open(),
+        "precondition: Cancel actually closed the overlay"
+    );
+    assert!(
+        !app.input.pointer.query_drag,
+        "the open->closed edge must retire the query drag itself, not wait \
+         for a button release that is never coming"
+    );
+
+    // The pointer moving afterward reads as an ordinary move — never a
+    // phantom query-caret scrub, and never a flag that reappears on its own.
+    app.on_cursor_moved(winit::dpi::PhysicalPosition::new(123.0, 45.0));
+    assert!(
+        !app.input.pointer.query_drag,
+        "a later CursorMoved must not resurrect the retired flag"
+    );
+
+    // The eventual release finds nothing left to swallow: it reaches
+    // `on_left_release`'s ordinary path rather than the `query_drag` arm in
+    // `on_mouse_input`, and leaves the flag clear either way.
+    app.on_mouse_input(&exit, ElementState::Released, MouseButton::Left);
+    assert!(!app.input.pointer.query_drag);
+}
