@@ -275,6 +275,68 @@ the model-routing table's "adversarial verification" row. Out of scope:
 clippy debt (item 473 owns it), taste calls (they go to the user, not
 the board), and anything already boarded 476–484.
 
+---
+### 486 — symbol atlas: a browsable artifact of every symbol the bundled faces actually ship (USER 2026-08-25)
+
+A shopping catalog for future marks — fold glyphs, ornaments, bullets,
+world flourishes — built from what awl ALREADY bundles, so nothing in it
+carries a new-font cost. Measured inventory going in: `AwlMarks.ttf`
+maps 34 codepoints (awl's own composed OFL symbol face);
+`Junicode-Ornaments.ttf` maps 48, **most in the Private Use Area** — so
+the atlas must enumerate each face's cmap directly (fontTools/ttf_parser
+read), never Unicode chart ranges, or the ornaments face's best material
+is invisible. The CJK faces add ~94 symbol-range codepoints each (Noto
+JP pair; Shippori 56), and the Latin faces carry scattered
+dingbat/ornament coverage.
+
+Deliverable: one HTML page, grouped by face then Unicode block, each
+glyph at browse size with codepoint, name (PUA entries labeled from the
+font's own glyph names where present), and the roster of faces carrying
+it. Browser-rendered via the OFL faces embedded as data-URI @font-face —
+acceptable for a BROWSE INVENTORY. The "no web mockups" convention still
+binds decisions: any glyph shortlisted from the atlas is re-rendered
+through the item-475 gallery machinery (real awl pipeline, real ladder
+sizes, real worlds) before any taste call. A worker builds the page and
+its generator script; publishing as a Claude artifact happens from an
+artifact-capable session (the orchestrator's own).
+
+---
+### 487 — Magpie theme-picker composition: query-to-list distance, frost boundaries through legible content, stranded chevron (USER-REPORTED 2026-08-25, live screenshot; reproduced + diagnosed headlessly)
+
+Repro: `--theme Magpie --keys "Cmd-p t h e m e Ret"` over any document
+with a title. Three compounding symptoms, all diagnosed this session —
+and the blur MATH is exonerated (kernel verified symmetric ±4-tap; rows
+above the footprint's top face are byte-identical to the unfrosted
+frame), so this is boundary PLACEMENT and composition, not shaders:
+
+1. **Query-to-first-item distance.** The faceted card is wide (sized for
+   the lens strip) and Magpie's ascending diagonal list right-aligns, so
+   the FIRST item lands top-right — ~900px from the query caret at the
+   card's left on a moderate window. The eye has nowhere to rest between
+   typing and results; same defect family as Cassowary's dead band
+   (landed with the 476-482 wave), one world at a time.
+2. **Frost boundaries crossing legible content.** The footprint frost's
+   feathered top face crosses the document's H1 (an alpha ramp through
+   big glyphs reads as ink MELTING downward); its raking side face
+   slices sentences mid-word (half-blurred, half-sharp lines); and over
+   the empty left margin the film itself shows as a gray WEDGE bounded
+   by the leaning face and the page column edge. On a wide window the
+   band leaves most of the document crisply readable beside frosted
+   fragments, which reads broken rather than defocused.
+3. **The selected-row chevron** (`diagonal.rs::selected_chevron`) sits
+   at the window's far-left edge, a full window-width from the
+   right-anchored labels it points at — it reads as stranded debris over
+   the frosted band.
+
+Taste-heavy: audition candidate compositions via capture gallery before
+shipping (the 444/475 pattern) — e.g. full-canvas frost when the
+footprint would leave a large legible fraction sharp; the top face
+seated above the first document line; query seated nearer the list's
+anchor side; chevron reach shortened. Verify for whatever ships: pixel
+arithmetic that no feather face crosses document glyph rows sharper than
+the shipped floor, the query-to-first-item distance bounded, swept
+across the Diagonal-world roster (derive enrolment), both DPIs.
+
 ## Needs specific hardware
 
 1. **AT-SPI journey** — on a real Linux desktop with Orca, exercise document
