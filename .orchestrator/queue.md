@@ -113,45 +113,6 @@ ladder step`): the mark + gap now scale with the heading's Ladder J step.
 commit.
 
 ---
-### 483 — hover grammar for clickable chrome (DECIDED: option (c), USER 2026-08-25 — ready to build)
-
-**CLAIMED 2026-08-25 — building in worktree `item-483-hover-grammar`.**
-
-**USER DECISION 2026-08-25: option (c)** — hover feedback only where the
-ambiguity is real: the format popover's buttons (which one a click fires)
-and the inline-image resize handles (that they exist at all). Every other
-clickable surface stays still; hover elsewhere remains an overlay-only
-gesture. The decision becomes a DESIGN.md sentence, and the popover's
-tile-to-the-edges hit regions are re-judged as part of the popover half.
-Verify: the popover's hovered button carries a visible acknowledgement
-asserted by pixel arithmetic (presence floor, both themes' worlds
-sampled), the non-hovered buttons do not; an image border hover draws its
-handle affordance; and a sweep asserts the OTHER seven rosters' surfaces
-draw NO new hover state (the calm is the law too).
-
-Exactly three surfaces draw hover state today: overlay rows, the fold
-chevron, the working-set stack. Seven more are clickable with a
-hit-test and NO hover visual: margin outline rows, workspace rail
-entries, settings range rails, find/replace panel cells, start-screen
-action rows, the drawn (web/Linux) menu bar, format popover buttons.
-Sharpest cases: the format popover's hit regions tile the WHOLE card —
-padding and inter-button gaps fire the nearest button
-(`render/plan/popover.rs::hit`) with no feedback about which — and
-inline-image resize handles are invisible (the OS cursor is the entire
-affordance), so image resizability is undiscoverable.
-
-The question: which chrome acknowledges the pointer, and how quietly?
-Options: (a) hover is an overlay-only gesture, persistent chrome stays
-still (today's de-facto rule, minus the chevron/stack exceptions);
-(b) one quiet grammar everywhere clickable — the existing hover
-treatment class extended to the roster above; (c) grammar only where
-ambiguity is real: popover buttons (which one fires) and image handles
-(that they exist), rest stays calm. Recommendation: (c) — it fixes the
-two genuine ambiguities without making the chrome restless.
-
-Whichever wins becomes a DESIGN.md sentence, and the popover's
-tile-to-the-edges hit regions get re-judged under it.
-
 ---
 ### 484 — drag-to-reorder the working-set stack rows (USER 2026-08-25)
 
