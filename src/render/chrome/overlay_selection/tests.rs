@@ -15,6 +15,7 @@ fn twoshape_echo_uses_its_own_nearest_planned_row_span() {
         lh: 20.0,
         header_gap: 0.0,
         header_rows: 0,
+        billed_header_rows: 0,
         visible: 3,
         top_idx: 0,
         n_items: 3,

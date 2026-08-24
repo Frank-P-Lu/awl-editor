@@ -43,6 +43,7 @@ fn flat(
         lh: LH,
         header_gap: 0.0,
         header_rows,
+        billed_header_rows: header_rows,
         visible,
         top_idx,
         n_items,
@@ -584,6 +585,19 @@ fn planning_is_deterministic() {
 /// A plan with `header_rows` header lines, `header_gap` of beat and two
 /// candidate rows.
 fn headered(header_rows: usize, header_gap: f32, lh: f32) -> super::OverlayRowPlan {
+    headered_billed(header_rows, header_rows, header_gap, lh)
+}
+
+/// [`headered`], with the header BOX count and the BILLED count set
+/// independently — the shape a docked facet strip's own box takes (a real
+/// box, `header_rows` of them, that bills fewer than `header_rows` rows of
+/// `lh`).
+fn headered_billed(
+    header_rows: usize,
+    billed_header_rows: usize,
+    header_gap: f32,
+    lh: f32,
+) -> super::OverlayRowPlan {
     plan_overlay_rows(&OverlayRowPlanInput {
         card_x: CARD_X,
         card_w: CARD_W,
@@ -591,6 +605,7 @@ fn headered(header_rows: usize, header_gap: f32, lh: f32) -> super::OverlayRowPl
         lh,
         header_gap,
         header_rows,
+        billed_header_rows,
         visible: 2,
         top_idx: 0,
         n_items: 2,
@@ -704,36 +719,52 @@ fn the_header_band_tiles_from_text_top_to_the_first_candidate_row() {
 }
 
 /// THE SECONDARY COLUMN AND THE CANDIDATE BAND SHARE ONE Y-ORIGIN. The right
-/// column is a uniform-`lh` buffer leading with `header_rows` empty lines, so
-/// uploading it at `secondary_top()` must land label `r` exactly on `row_top(r)`.
+/// column is a uniform-`lh` buffer leading with `billed_header_rows` empty
+/// lines — NOT `header_rows`, the header BOX count, which a docked facet
+/// strip's own box (billed for none of its own `lh`) makes a different
+/// number — so uploading it at `secondary_top()` must land label `r` exactly
+/// on `row_top(r)`.
 ///
 /// The oracle walks the buffer's OWN model — `origin + leading_lines * lh` —
-/// rather than asking the plan a second time.
+/// rather than asking the plan a second time. Swept over `billed <=
+/// header_rows` (never more: a box can bill at most its own `lh`), including
+/// `billed < header_rows` — the docked-strip shape — so this law can tell the
+/// billed count from the box count rather than a fixture where they always
+/// agree.
 #[test]
 fn the_secondary_origin_lands_every_label_on_its_own_planned_row() {
+    let mut billed_below_header_rows_seen = false;
     for header_rows in 0usize..=2 {
-        for &gap in &[0.0f32, 5.0, 42.0] {
-            for &lh in &[12.0f32, 27.2, 81.6] {
-                let plan = headered(header_rows, gap, lh);
-                let origin = plan.secondary_top();
-                assert_eq!(
-                    plan.header_rows(),
-                    header_rows,
-                    "the plan must report the leading-line count the column pads with"
-                );
-                for r in 0usize..2 {
-                    let label_top = origin + (plan.header_rows() + r) as f32 * lh;
-                    let band_top = plan.row_top(r).unwrap();
-                    assert!(
-                        (label_top - band_top).abs() < 1e-3,
-                        "hdr={header_rows} gap={gap} lh={lh}: secondary label {r} lands \
-                         at {label_top}, its band at {band_top} — the shortcut would ride \
-                         off its own row"
+        for billed_header_rows in 0..=header_rows {
+            billed_below_header_rows_seen |= billed_header_rows < header_rows;
+            for &gap in &[0.0f32, 5.0, 42.0] {
+                for &lh in &[12.0f32, 27.2, 81.6] {
+                    let plan = headered_billed(header_rows, billed_header_rows, gap, lh);
+                    let origin = plan.secondary_top();
+                    assert_eq!(
+                        plan.billed_header_rows(),
+                        billed_header_rows,
+                        "the plan must report the leading-line count the column pads with"
                     );
+                    for r in 0usize..2 {
+                        let label_top = origin + (plan.billed_header_rows() + r) as f32 * lh;
+                        let band_top = plan.row_top(r).unwrap();
+                        assert!(
+                            (label_top - band_top).abs() < 1e-3,
+                            "hdr={header_rows} billed={billed_header_rows} gap={gap} lh={lh}: \
+                             secondary label {r} lands at {label_top}, its band at {band_top} \
+                             — the shortcut would ride off its own row"
+                        );
+                    }
                 }
             }
         }
     }
+    assert!(
+        billed_below_header_rows_seen,
+        "the sweep never graded a docked-strip-shaped plan (billed < header_rows) — this \
+         law could not tell `billed_header_rows` from `header_rows`"
+    );
 }
 
 /// THE SPLIT-PANE GAP IS CARVED OUT OF THE BEAT, BELOW THE QUERY FIELD'S OWN
@@ -798,7 +829,7 @@ fn a_contextual_popup_plans_no_header_band() {
         assert_eq!(plan.query_band(), None);
         assert_eq!(plan.strip_band(), None);
         assert_eq!(plan.split_bounds(), None);
-        assert_eq!(plan.header_rows(), 0);
+        assert_eq!(plan.header_lines().len(), 0);
         // The candidate band starts at the card's own text top, with no beat.
         assert!((plan.row_top(0).unwrap() - TEXT_TOP).abs() < 1e-3);
         // A zero BEAT never splits either, even with a header line.

@@ -252,7 +252,7 @@ impl TextPipeline {
         // The accessory column's own INK width — how far in from the rail's far
         // edge a chord, value or Range readout reaches. Only rails and hit bands
         // read it; the column's outer edge is the rail's, and does not move.
-        let secondary = self.overlay_row_secondary_px(geom);
+        let secondary = self.overlay_row_secondary_px(plan.billed_header_rows());
         let mut accessory_w = plan
             .rows()
             .iter()

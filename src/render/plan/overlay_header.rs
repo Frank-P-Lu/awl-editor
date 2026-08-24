@@ -91,7 +91,16 @@ pub(in crate::render) fn beat_stands_alone(header_rows: usize, header_gap: f32) 
 /// derivation.
 pub(super) fn plan_header_band(input: &OverlayRowPlanInput<'_>) -> Vec<PlannedHeader> {
     let n = input.header_rows;
-    let band_bottom = input.text_top + header_band_height(n, input.lh, input.header_gap);
+    // `band_bottom` — and so `first_top`, via the SAME `header_band_height`
+    // call `row_top` makes — reads the BILLED count, not the box count: a
+    // docked facet strip still gets its own box below (so `strip_band()`
+    // keeps a real line to hand `docked_facet_band`), but that box's OWN
+    // height comes out of whatever `band_bottom` leaves over, never a fixed
+    // `lh` of its own. `spans.rs` shapes the strip's glyph line at exactly
+    // this box's height (`plan.strip_band().height`), so the shrink reaches
+    // the shaped buffer through the one plan both read, never a second edit.
+    let band_bottom =
+        input.text_top + header_band_height(input.billed_header_rows, input.lh, input.header_gap);
     let folded = !beat_stands_alone(n, input.header_gap);
     (0..n)
         .map(|line| {
@@ -165,12 +174,14 @@ impl OverlayRowPlan {
         &self.headers
     }
 
-    /// How many display lines the card draws ABOVE its candidate band. Paired
-    /// with [`Self::secondary_top`]: a right-column buffer leads with exactly
-    /// this many empty lines, and the two must come from one object or the
-    /// column's origin and its own leading can disagree.
-    pub(in crate::render) fn header_rows(&self) -> usize {
-        self.headers.len()
+    /// How many `lh`-tall rows the header band actually BILLS before the
+    /// candidate band starts — see [`super::overlay_rows::OverlayRowPlanInput
+    /// ::billed_header_rows`]'s own doc. Paired with [`Self::secondary_top`]:
+    /// a right-column buffer leads with exactly this many empty lines, and the
+    /// two must come from one object or the column's origin and its own
+    /// leading can disagree.
+    pub(in crate::render) fn billed_header_rows(&self) -> usize {
+        self.billed_header_rows
     }
 
     /// THE QUERY FIELD's own line box — where its glyphs are half-led, where its
@@ -207,11 +218,12 @@ impl OverlayRowPlan {
     }
 
     /// The device-px TOP a uniform-line-height RIGHT-COLUMN buffer must be
-    /// uploaded at so its chord/time labels — which lead with `header_rows` empty
-    /// lines — land EXACTLY on this plan's candidate band. The two share ONE
-    /// y-origin by the invariant `secondary_top() + (header_rows + r) * lh ==
-    /// row_top(r)`; the leading empties supply `header_rows * lh` and this
-    /// supplies the beat.
+    /// uploaded at so its chord/time labels — which lead with
+    /// `billed_header_rows` empty lines — land EXACTLY on this plan's
+    /// candidate band. The two share ONE y-origin by the invariant
+    /// `secondary_top() + (billed_header_rows + r) * lh == row_top(r)`; the
+    /// leading empties supply `billed_header_rows * lh` and this supplies the
+    /// beat.
     ///
     /// THE COMPOSITION-ROUND BUG this closes: the beat is folded into the primary
     /// column (its inflated header line) AND the band/hit-test (through the

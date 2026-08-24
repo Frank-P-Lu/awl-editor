@@ -131,7 +131,7 @@ impl TextPipeline {
         // question the accessory upload and the frost's surface list ask.
         let secondary = self
             .overlay_right_shown
-            .then(|| self.overlay_row_secondary_px(geom));
+            .then(|| self.overlay_row_secondary_px(plan.billed_header_rows()));
         let rails: BTreeMap<usize, crate::render::rowlayout::Rail> = self
             .overlay_rails(geom, plan)
             .into_iter()

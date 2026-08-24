@@ -335,7 +335,8 @@ impl TextPipeline {
         &self,
         geom: &OverlayGeom,
     ) -> (Vec<usize>, Vec<usize>) {
-        let candidate_rows = self.overlay_row_plan(geom).candidate_rows();
+        let plan = self.overlay_row_plan(geom);
+        let candidate_rows = plan.candidate_rows();
         let primary_flip = super::overlay_selected_primary_ink();
         let secondary_flip = super::overlay_selected_secondary_ink();
         // The PRIMARY buffer may carry the beat's own glyph-free line between the
@@ -369,7 +370,11 @@ impl TextPipeline {
                 geom.shaped_first_row_line(),
                 primary_flip,
             ),
-            rows_of(&self.panel_bind_buffer, geom.header_rows, secondary_flip),
+            rows_of(
+                &self.panel_bind_buffer,
+                plan.billed_header_rows(),
+                secondary_flip,
+            ),
         )
     }
 

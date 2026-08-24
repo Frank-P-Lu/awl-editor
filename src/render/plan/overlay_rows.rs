@@ -97,6 +97,9 @@ pub(in crate::render) struct OverlayRowPlanInput<'a> {
     pub lh: f32,
     pub header_gap: f32,
     pub header_rows: usize,
+    /// How many of `header_rows`' own `lh` this band bills — a docked strip
+    /// occupies a box but draws outside the panel, charging no `lh`.
+    pub billed_header_rows: usize,
     /// Candidate display lines the FLAT family shows. Ignored when `lines` is
     /// `Some` (the grouped family's own line count is authoritative).
     pub visible: usize,
@@ -143,6 +146,10 @@ pub(in crate::render) struct OverlayRowPlan {
     pub(super) lh: f32,
     pub(super) headers: Vec<PlannedHeader>,
     pub(super) rows: Vec<PlannedRow>,
+    /// The billed header count this plan was built with (see
+    /// [`OverlayRowPlanInput::billed_header_rows`]), stored so a second
+    /// buffer on the same band leads with this many empties, not the box count.
+    pub(super) billed_header_rows: usize,
     pub(super) empty_rows: usize,
     pub(super) selected_display: Option<usize>,
     /// The composition's own signed step, constant for the frame — so completing
@@ -322,6 +329,7 @@ pub(in crate::render) fn test_row_top(
         lh,
         header_gap,
         header_rows,
+        billed_header_rows: header_rows,
         visible: row + 1,
         top_idx: 0,
         n_items: row + 1,
@@ -355,6 +363,7 @@ pub(in crate::render) fn test_header_plan(
         lh,
         header_gap,
         header_rows,
+        billed_header_rows: header_rows,
         visible: 2,
         top_idx: 0,
         n_items: 2,
@@ -380,6 +389,7 @@ pub(in crate::render) fn test_rows(text_top: f32, lh: f32, n: usize) -> Vec<Plan
         lh,
         header_gap: 0.0,
         header_rows: 0,
+        billed_header_rows: 0,
         visible: n,
         top_idx: 0,
         n_items: n,
@@ -400,7 +410,7 @@ pub(in crate::render) fn test_rows(text_top: f32, lh: f32, n: usize) -> Vec<Plan
 pub(in crate::render) fn plan_overlay_rows(input: &OverlayRowPlanInput<'_>) -> OverlayRowPlan {
     let first_top = row_top(
         input.text_top,
-        input.header_rows,
+        input.billed_header_rows,
         input.header_gap,
         0,
         input.lh,
@@ -482,6 +492,7 @@ pub(in crate::render) fn plan_overlay_rows(input: &OverlayRowPlanInput<'_>) -> O
         lh: input.lh,
         headers,
         rows,
+        billed_header_rows: input.billed_header_rows,
         empty_rows: input.empty_rows,
         selected_display,
         dx_per_row: input.dx_per_row,
