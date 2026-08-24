@@ -125,16 +125,6 @@ commit.
 **Fix shape**: give `query_drag` the same lifecycle its siblings have — clear it in `sync_overlay_after_core` on the open→closed edge (and consider whether `on_focus_lost` should clear all gesture flags, not just hover). Then write the missing law: a headless `--keys` test driving press-query-line → keyboard-close-overlay → cursor-move → release, asserting the flag never survives past the close edge. Not itself proof of the `runModal` question — that stays a flagged live-only unknown.
 
 ---
-### 489 — merge `fold::heading_level` and `render::spans::md_line_heading_level` under one owner (found by item 485's discovery pass, deep-tier verified 2026-08-25)
-
-`src/fold.rs:28-39` and `src/render/spans/layout.rs:45-59` (`md_line_heading_level`) are byte-identical token-for-token — same indent-skip loop, same `#`-run count with `saturating_add`. `fold.rs`'s own doc comment says so outright ("Mirrors... EXACTLY so a foldable section is precisely a sized heading"), but there is no shared owner and **no law enforcing the two stay equal** — confirmed zero test files reference `md_line_heading_level` by name.
-
-Blast radius if they silently diverge: `Buffer::fold_levels` (`src/buffer.rs:511`) derives the whole per-line fold-level vector from `fold::heading_levels`, and 11 render tests fold against it, so a drift would surface as fold ranges disagreeing with what actually renders as a heading — low probability (both copies are simple and stable), high blast radius (silent, cross-cutting).
-
-**Mechanical wrinkle for whoever picks this up**: `md_line_heading_level` is `pub(in crate::render)`, and `fold.rs` sits at the crate root — merging to one owner means relocating the function (or widening its visibility with a documented reason), not just adding a delegation call.
-
-**Fix shape**: extract one owner (either move the shared logic to a neutral module both sides call, or make one call the other with a visibility change), and add a property/equivalence test over a line corpus so a future edit to either can't silently desync from the other. Small enough to fix inline per README's "smaller than its brief" clause rather than a full dispatch, if whoever picks it up agrees.
-
 ---
 ### 490 — macOS native menu key-equivalents never track a live keymap rebind (found by item 485's discovery pass, deep-tier verified + broadened 2026-08-25)
 
