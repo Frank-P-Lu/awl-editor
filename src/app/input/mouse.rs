@@ -657,15 +657,20 @@ impl App {
             .map(|(_, handle, _)| handle);
         let over_menu_hand = gpu.pipeline.menubar_hand_at(px, py);
         let over_menu_bar = gpu.pipeline.over_menu_surface(px, py);
-        // The summoned find/replace panel's `Aa` case-toggle cell reads as click-to-
-        // toggle (the pointing hand) — reuses the SAME `panel_hit` the press path uses,
-        // so a hover can never disagree with where a click would land. Only while no
-        // overlay is open (the panel is its own floating card, never behind a scrim).
-        let over_case_toggle = !overlay_open
-            && matches!(
-                gpu.pipeline.panel_hit(px, py),
-                Some(crate::render::PanelHit::CaseToggle)
-            );
+        // The summoned find/replace panel's own hit-test, shared by every panel cursor
+        // arm below (case toggle, field cells, dead chrome) — reuses the SAME
+        // `panel_hit` the press path uses, so a hover can never disagree with where a
+        // click would land. Only while no overlay is open (the panel is its own
+        // floating card, never behind a scrim).
+        let panel_hit = (!overlay_open)
+            .then(|| gpu.pipeline.panel_hit(px, py))
+            .flatten();
+        let over_case_toggle = matches!(panel_hit, Some(crate::render::PanelHit::CaseToggle));
+        let over_panel_field = matches!(
+            panel_hit,
+            Some(crate::render::PanelHit::Find) | Some(crate::render::PanelHit::Replace)
+        );
+        let over_panel = matches!(panel_hit, Some(crate::render::PanelHit::Elsewhere));
         // The RAW summon bit, deliberately ladder-free — see its own doc.
         let summoned = self.workspace_state.popover_summon_bit();
         let over_popover_button = summoned && gpu.pipeline.popover_hit(px, py).is_some();
@@ -705,6 +710,8 @@ impl App {
             over_menu_hand,
             over_menu_bar,
             over_case_toggle,
+            over_panel_field,
+            over_panel,
             image_drag: self.input.pointer.image_resizing.map(|d| d.handle),
             image_hover,
             over_popover_button,

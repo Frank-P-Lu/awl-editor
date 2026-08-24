@@ -311,31 +311,6 @@ harness-reach discipline. Mutation: clamp the rate to zero and watch the
 extension law go red.
 
 ---
-### 481 — find/replace panel ranks only its Aa cell in the cursor ladder (UI-AFFORDANCE SWEEP 2026-08-24, code-verified)
-
-🟡 IN PROGRESS — claude, direct (orchestrator-implemented, dispatch costs more than the change)
-
-`panel_hit` already distinguishes the click-to-focus Find and Replace
-field cells and dead panel chrome (`render/chrome/panel.rs`), but
-`sync_cursor_icon` reads only `PanelHit::CaseToggle` — so the document's
-I-beam bleeds through the floating card, and the field cells earn their
-I-beam only by that accident (arrow when the panel floats over margin).
-The menu bar solved exactly this shape: clickable cells → their own
-shape, dead chrome → arrow, ranked above what the surface covers
-(`over_menu_hand`/`over_menu_bar`).
-
-Two `CursorContext` fields (`over_panel_field` → Text, `over_panel` →
-Default), computed from the SAME `panel_hit` the press path uses, ranked
-with the menu-bar arms. Small enough to land for judgement in one
-commit; a dispatch would cost more than the change.
-
-Verify: extend the existing `cursor_icon_for` unit sweep — panel field
-cells → Text, Aa → Pointer, panel dead chrome → Default even where the
-writing column sits beneath, all three with and without an active
-document. Mutation: drop the new fields from the context assembly and
-watch the sweep go red.
-
----
 ### 482 — modal summoned cards own the next key and click, but not the wheel; the streaks second page has no pointer route (UI-AFFORDANCE SWEEP 2026-08-24, code-verified)
 
 🟡 IN PROGRESS — claude, branch (dispatched via Agent isolation:worktree, sha to follow)

@@ -88,8 +88,8 @@ reason = "The event-to-present flight recorder needs its winit-receipt and keyma
 
 [[file_size_mark]]
 file = "src/app/input/mouse.rs"
-lines = 946
-reason = "The wheel-region predicate at the one pointer entry point stopped naming a single overlay kind and asks the shape-neutral question instead (+7, all of it the comment recording why the kind check was wrong). +3: the working-set stack's left-click-to-switch route, enrolled in this file's own input-substate privacy law. +11: `sync_cursor_icon` gains the stack-row hand-cursor arm, hit-tested through the same `gutter_stack_hit` the click path already uses. +21: cursor movement and leave route one shared gutter-stack hit through the hover state, so the close mark follows exactly the row under the pointer and clears when the pointer exits."
+lines = 953
+reason = "The wheel-region predicate at the one pointer entry point stopped naming a single overlay kind and asks the shape-neutral question instead (+7, all of it the comment recording why the kind check was wrong). +3: the working-set stack's left-click-to-switch route, enrolled in this file's own input-substate privacy law. +11: `sync_cursor_icon` gains the stack-row hand-cursor arm, hit-tested through the same `gutter_stack_hit` the click path already uses. +21: cursor movement and leave route one shared gutter-stack hit through the hover state, so the close mark follows exactly the row under the pointer and clears when the pointer exits. +7: the find/replace panel's hit-test is computed once and shared by the case-toggle, field-cell, and dead-chrome cursor arms instead of only the case toggle."
 
 [[file_size_mark]]
 file = "src/app/session.rs"
@@ -168,8 +168,8 @@ lines = 546
 
 [[file_size_mark]]
 file = "src/cursor_shape.rs"
-lines = 1109
-reason = "+81: `CursorContext` gains `over_stack_row`, ranked in `cursor_icon_for` alongside the sibling outline-row/fold-chevron arms, its doc comment, and the mutation-proven law pair (a stack row earns the hand, and beats plain text beneath it) — the no-wildcard roster forced all 13 existing test literals to declare the new field explicitly."
+lines = 1200
+reason = "+81: `CursorContext` gains `over_stack_row`, ranked in `cursor_icon_for` alongside the sibling outline-row/fold-chevron arms, its doc comment, and the mutation-proven law pair (a stack row earns the hand, and beats plain text beneath it) — the no-wildcard roster forced all 13 existing test literals to declare the new field explicitly. +91: `CursorContext` gains `over_panel_field`/`over_panel`, ranked with the case toggle so the find/replace panel's field cells earn the I-beam and its dead chrome earns the plain arrow instead of the document beneath the floating card bleeding through; the no-wildcard roster forced every existing test literal to declare both fields, plus a mutation-proven law pair for each new arm."
 
 [[file_size_mark]]
 file = "src/daemon.rs"

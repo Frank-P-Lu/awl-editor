@@ -33,6 +33,17 @@ pub struct CursorContext {
     /// (the bar covers them). Computed from `TextPipeline::over_menu_surface`.
     pub over_menu_bar: bool,
     pub over_case_toggle: bool,
+    /// The pointer is over a clickable FIND or REPLACE FIELD CELL of the summoned
+    /// find/replace panel — a text field, computed from the SAME `panel_hit` the
+    /// press path and `over_case_toggle` use, so it can never disagree with where a
+    /// click would land. Ranked with the case-toggle/menu-bar arms, above the
+    /// document edge/text it covers.
+    pub over_panel_field: bool,
+    /// The pointer is over the find/replace panel's DEAD chrome (padding,
+    /// inter-cell gaps) — not a field, not the case toggle. Ranked with
+    /// `over_panel_field`/`over_case_toggle`, so the plain arrow wins there
+    /// instead of the document's own affordance bleeding through the floating card.
+    pub over_panel: bool,
     pub image_drag: Option<ImageHandle>,
     /// The pointer is hovering (not yet dragging) one of an inline image's resize
     /// EDGES/CORNERS — `Some(handle)` names which, whose glyph ([`image_handle_icon`])
@@ -105,8 +116,14 @@ pub fn image_handle_icon(handle: ImageHandle) -> CursorIcon {
 ///    bar reads as chrome not the document beneath it;
 ///    5c. hovering the find/replace panel's `Aa` CASE-TOGGLE cell gets the pointing HAND —
 ///    a clickable-affordance signal like a picker row, ranked ABOVE the page edge + text
-///    the floating panel covers (the panel is not an overlay, so this is the only arm
-///    that surfaces its clickability);
+///    the floating panel covers (the panel is not an overlay, so this is one of three
+///    arms that surface the panel's own affordances);
+///    5d. hovering one of the panel's FIND/REPLACE FIELD CELLS gets the I-beam — a text
+///    field, ranked with the case toggle (mutually exclusive with it: `panel_hit` names
+///    exactly one cell per point);
+///    5e. hovering the panel's own DEAD chrome (padding, inter-cell gaps) gets the plain
+///    arrow, ranked with the other two panel arms, so the document's I-beam/edge never
+///    bleeds through the floating card where it isn't a field or the toggle;
 /// 6. hovering a page-column edge (not yet dragging) still beats plain text;
 /// 7. hovering an inline image's resize EDGE/CORNER gets that handle's glyph — a
 ///    resize affordance like the page edge, ranked just under it (the page edge wins
@@ -144,6 +161,10 @@ pub fn cursor_icon_for(ctx: CursorContext) -> CursorIcon {
         CursorIcon::Default
     } else if ctx.over_case_toggle {
         CursorIcon::Pointer
+    } else if ctx.over_panel_field {
+        CursorIcon::Text
+    } else if ctx.over_panel {
+        CursorIcon::Default
     } else if ctx.over_edge {
         CursorIcon::ColResize
     } else if let Some(handle) = ctx.image_hover {
@@ -204,6 +225,8 @@ mod tests {
             over_menu_hand: false,
             over_menu_bar: false,
             over_case_toggle: false,
+            over_panel_field: false,
+            over_panel: false,
             image_drag: None,
             image_hover: None,
             over_popover_button: false,
@@ -231,6 +254,8 @@ mod tests {
             over_menu_hand: false,
             over_menu_bar: false,
             over_case_toggle: false,
+            over_panel_field: false,
+            over_panel: false,
             image_drag: Some(handle),
             image_hover: None,
             over_popover_button: false,
@@ -258,6 +283,8 @@ mod tests {
             over_menu_hand: false,
             over_menu_bar: false,
             over_case_toggle: false,
+            over_panel_field: false,
+            over_panel: false,
             image_drag: None,
             image_hover: Some(handle),
             over_popover_button: false,
@@ -282,6 +309,8 @@ mod tests {
             over_menu_hand: false,
             over_menu_bar: false,
             over_case_toggle: false,
+            over_panel_field: false,
+            over_panel: false,
             image_drag: None,
             image_hover: None,
             over_popover_button: false,
@@ -307,6 +336,8 @@ mod tests {
             over_menu_hand: false,
             over_menu_bar: false,
             over_case_toggle: false,
+            over_panel_field: false,
+            over_panel: false,
             image_drag: None,
             image_hover: None,
             over_popover_button: false,
@@ -329,6 +360,8 @@ mod tests {
             over_menu_hand: false,
             over_menu_bar: false,
             over_case_toggle: false,
+            over_panel_field: false,
+            over_panel: false,
             image_drag: None,
             image_hover: None,
             over_popover_button: false,
@@ -351,6 +384,8 @@ mod tests {
             over_menu_hand: false,
             over_menu_bar: false,
             over_case_toggle: false,
+            over_panel_field: false,
+            over_panel: false,
             image_drag: None,
             image_hover: None,
             over_popover_button: false,
@@ -373,6 +408,8 @@ mod tests {
             over_menu_hand: false,
             over_menu_bar: false,
             over_case_toggle: false,
+            over_panel_field: false,
+            over_panel: false,
             image_drag: None,
             image_hover: None,
             over_popover_button: false,
@@ -644,6 +681,8 @@ mod tests {
             over_menu_hand: false,
             over_menu_bar: false,
             over_case_toggle: false,
+            over_panel_field: false,
+            over_panel: false,
             image_drag: None,
             image_hover: None,
             over_popover_button: false,
@@ -686,6 +725,8 @@ mod tests {
             over_menu_hand: false,
             over_menu_bar: false,
             over_case_toggle: false,
+            over_panel_field: false,
+            over_panel: false,
             image_drag: None,
             image_hover: None,
             over_popover_button: false,
@@ -758,6 +799,8 @@ mod tests {
             over_menu_hand: true,
             over_menu_bar: true, // the hand is always within the bar surface
             over_case_toggle: false,
+            over_panel_field: false,
+            over_panel: false,
             image_drag: None,
             image_hover: None,
             over_popover_button: false,
@@ -780,6 +823,8 @@ mod tests {
             over_menu_hand: false,
             over_menu_bar: true,
             over_case_toggle: false,
+            over_panel_field: false,
+            over_panel: false,
             image_drag: None,
             image_hover: None,
             over_popover_button: false,
@@ -834,6 +879,8 @@ mod tests {
             over_menu_hand: false,
             over_menu_bar: false,
             over_case_toggle: true,
+            over_panel_field: false,
+            over_panel: false,
             image_drag: None,
             image_hover: None,
             over_popover_button: false,
@@ -862,6 +909,48 @@ mod tests {
     #[test]
     fn an_active_page_edge_drag_still_beats_the_case_toggle_hand() {
         let mut c = ctx_case_toggle(false, false);
+        c.dragging_edge = true;
+        assert_eq!(cursor_icon_for(c), CursorIcon::ColResize);
+    }
+
+    #[test]
+    fn a_panel_field_cell_is_the_i_beam_and_beats_the_column_beneath_it() {
+        let mut c = ctx(false, false, false, false);
+        c.over_panel_field = true;
+        assert_eq!(cursor_icon_for(c), CursorIcon::Text);
+        // The floating panel covers the column: the field cell still wins even
+        // with the document's own edge/text flags also set beneath it.
+        c.over_edge = true;
+        c.over_text = true;
+        assert_eq!(cursor_icon_for(c), CursorIcon::Text);
+    }
+
+    #[test]
+    fn an_active_page_edge_drag_still_beats_the_panel_field_i_beam() {
+        let mut c = ctx(false, false, false, false);
+        c.over_panel_field = true;
+        c.dragging_edge = true;
+        assert_eq!(cursor_icon_for(c), CursorIcon::ColResize);
+    }
+
+    #[test]
+    fn panel_dead_chrome_is_the_plain_arrow_and_beats_the_column_beneath_it() {
+        // THE BUG THIS CLOSES: dead panel chrome (padding, inter-cell gaps) used to
+        // fall through to whatever the document underneath the floating card shows —
+        // the column edge's resize glyph or the I-beam. It must read as the plain
+        // arrow instead, exactly like dead menu-bar space over the same document.
+        let mut c = ctx(false, false, false, true);
+        c.over_panel = true;
+        assert_eq!(cursor_icon_for(c), CursorIcon::Default);
+        c.over_text = false;
+        c.over_edge = true;
+        assert_eq!(cursor_icon_for(c), CursorIcon::Default);
+    }
+
+    #[test]
+    fn an_active_page_edge_drag_still_beats_panel_dead_chrome() {
+        let mut c = ctx(false, false, false, false);
+        c.over_panel = true;
         c.dragging_edge = true;
         assert_eq!(cursor_icon_for(c), CursorIcon::ColResize);
     }
@@ -915,6 +1004,8 @@ mod tests {
             over_menu_hand: false,
             over_menu_bar: false,
             over_case_toggle: false,
+            over_panel_field: false,
+            over_panel: false,
             image_drag: None,
             image_hover: None,
             over_popover_button: false,
