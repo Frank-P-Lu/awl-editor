@@ -177,9 +177,19 @@ ladder step`): the mark + gap now scale with the heading's Ladder J step.
 commit.
 
 ---
-### 483 — hover grammar for clickable chrome (USER DECISION NEEDED; UI-AFFORDANCE SWEEP 2026-08-24)
+### 483 — hover grammar for clickable chrome (DECIDED: option (c), USER 2026-08-25 — ready to build)
 
-🔵 PARKED — needs the user's taste call before any code.
+**USER DECISION 2026-08-25: option (c)** — hover feedback only where the
+ambiguity is real: the format popover's buttons (which one a click fires)
+and the inline-image resize handles (that they exist at all). Every other
+clickable surface stays still; hover elsewhere remains an overlay-only
+gesture. The decision becomes a DESIGN.md sentence, and the popover's
+tile-to-the-edges hit regions are re-judged as part of the popover half.
+Verify: the popover's hovered button carries a visible acknowledgement
+asserted by pixel arithmetic (presence floor, both themes' worlds
+sampled), the non-hovered buttons do not; an image border hover draws its
+handle affordance; and a sweep asserts the OTHER seven rosters' surfaces
+draw NO new hover state (the calm is the law too).
 
 Exactly three surfaces draw hover state today: overlay rows, the fold
 chevron, the working-set stack. Seven more are clickable with a
