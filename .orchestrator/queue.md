@@ -289,33 +289,6 @@ Scope is bounded to menu-routed commands `accelerator_for_id` covers (the roster
 **Fix shape, feasibility-checked not designed**: muda 0.19.3 exposes `set_accelerator` on both item kinds used here (`items/normal.rs:104`, `items/icon.rs:173`) — a fix would have `InstalledMenu` retain per-item handles (today only the root `Menu` and the Markdown `Submenu` are retained) and call a refresh from the same seam `reload_config`/`apply_keymap_flavor` already reach.
 
 ---
-### 486 — symbol atlas: a browsable artifact of every symbol the bundled faces actually ship (USER 2026-08-25)
-
-**CLAIMED 2026-08-25 — building in worktree `item-486-symbol-atlas`.**
-
-A shopping catalog for future marks — fold glyphs, ornaments, bullets,
-world flourishes — built from what awl ALREADY bundles, so nothing in it
-carries a new-font cost. Measured inventory going in: `AwlMarks.ttf`
-maps 34 codepoints (awl's own composed OFL symbol face);
-`Junicode-Ornaments.ttf` maps 48, **most in the Private Use Area** — so
-the atlas must enumerate each face's cmap directly (fontTools/ttf_parser
-read), never Unicode chart ranges, or the ornaments face's best material
-is invisible. The CJK faces add ~94 symbol-range codepoints each (Noto
-JP pair; Shippori 56), and the Latin faces carry scattered
-dingbat/ornament coverage.
-
-Deliverable: one HTML page, grouped by face then Unicode block, each
-glyph at browse size with codepoint, name (PUA entries labeled from the
-font's own glyph names where present), and the roster of faces carrying
-it. Browser-rendered via the OFL faces embedded as data-URI @font-face —
-acceptable for a BROWSE INVENTORY. The "no web mockups" convention still
-binds decisions: any glyph shortlisted from the atlas is re-rendered
-through the item-475 gallery machinery (real awl pipeline, real ladder
-sizes, real worlds) before any taste call. A worker builds the page and
-its generator script; publishing as a Claude artifact happens from an
-artifact-capable session (the orchestrator's own).
-
----
 ### 487 — Magpie theme-picker composition: query-to-list distance, frost boundaries through legible content, stranded chevron (USER-REPORTED 2026-08-25, live screenshot; reproduced + diagnosed headlessly)
 
 Repro: `--theme Magpie --keys "Cmd-p t h e m e Ret"` over any document
