@@ -116,6 +116,8 @@ commit.
 ---
 ### 488 — `query_drag` has no exit-path owner: give the flag a lifecycle and a law (found by item 485's discovery pass, deep-tier verified 2026-08-25)
 
+**CLAIMED 2026-08-25 — building in worktree `item-488-query-drag-lifecycle`.**
+
 `query_drag` (`src/app/input/mod.rs:79`) is set only at `src/app/input/mouse.rs:465` (the query-hit arm of `overlay_click`) and cleared only at `src/app/input/mouse_button.rs:64-66` on button release. Unlike its sibling gesture flags (`dragging`, `drag_armed`, `range_drag`), nothing clears it on the overlay-close edge: `begin_text_drag`/`finish_text_drag` (`mod.rs:259-285`) don't touch it, `sync_overlay_after_core` (`src/app/apply/overlay_sync.rs`) calls `resync_pointer_derived_state()` but that function never names it, and `on_focus_lost` clears pointer-hover state but no gesture flag at all.
 
 **Verified structurally airtight; the originally-reported symptom (pointer motion over the document silently does nothing while stuck) does NOT reproduce** — every competing branch in `on_cursor_moved`'s chain is dead in the same state anyway (the press that could set `query_drag` came from the mutually-exclusive overlay-open branch of `on_left_press`, so `dragging`/`range_drag` can't be concurrently live), and `resync_pointer_derived_state()` still runs unconditionally at the tail. So today this is a **latent trap, not a live bug**: real severity is that a future gesture owner inserted into that chain, or any path that sets `dragging` while an overlay is open, turns this into a live bug with nothing standing in the way. Two smaller things ARE reachable today: (a) press-hold the query line, keyboard-open a *different* overlay, move — `query_drag` wins over that overlay's own hover branch and scrubs its query caret instead of hovering rows (cosmetic); (b) **unconfirmed, needs a live macOS build**: if `App::run_native_panel`'s documented application-modal `runModal` (`src/app/menu.rs:84`) ever drops the main window's `ButtonReleased`, `query_drag` (and `dragging`, if a press followed) survives indefinitely and a later release skips `on_left_release()` entirely (the `Released if query_drag` arm at `mouse_button.rs:64` returns without calling it) — flag for human confirmation, do not assume it reproduces.
@@ -136,6 +138,8 @@ Blast radius if they silently diverge: `Buffer::fold_levels` (`src/buffer.rs:511
 ---
 ### 490 — macOS native menu key-equivalents never track a live keymap rebind (found by item 485's discovery pass, deep-tier verified + broadened 2026-08-25)
 
+**CLAIMED 2026-08-25 — building in worktree `item-490-menu-accelerator-rebind`.**
+
 `accelerator_for_id` (`src/menu/native.rs:46-51`) builds each native `NSMenuItem`'s key equivalent from `commands::COMMANDS[..].native` — static defaults sourced from `assets/keymap-defaults.toml` at process start, with **no path to `self.config.keys` or the live keymap**. `install()` (`native.rs:136-148`) sets these once, from `App::resumed()` (`src/app/lifecycle.rs:207`). `rebind_commit`/`rebind_reset`/`apply_keymap_flavor` (`src/app/files/rebind.rs`) write `config.toml` and reload the live keymap (`apply_key_overrides`) but **never touch or reinstall `self._menu_bar`** — confirmed the menu has exactly two consumers in the whole tree (`install_native_menu`, called once, and `sync_menu_context_and_gpu_absent`, which only ever calls `set_markdown_enabled`).
 
 **The contrast proves this is a bypass, not a missing capability**: the codebase already owns a live-keymap chord resolver, `menu::item_chord_for_id`, and the app's own DRAWN (web/Linux) menu bar already uses it (`src/render/chrome/menubar/dropdown.rs:116`) — only the native macOS path skips the live owner.
@@ -153,6 +157,8 @@ Scope is bounded to menu-routed commands `accelerator_for_id` covers (the roster
 
 ---
 ### 487 — Magpie theme-picker composition: query-to-list distance, frost boundaries through legible content, stranded chevron (USER-REPORTED 2026-08-25, live screenshot; reproduced + diagnosed headlessly)
+
+**CLAIMED 2026-08-25 — building in worktree `item-487-magpie-picker-gallery`.**
 
 Repro: `--theme Magpie --keys "Cmd-p t h e m e Ret"` over any document
 with a title. Three compounding symptoms, all diagnosed this session —
