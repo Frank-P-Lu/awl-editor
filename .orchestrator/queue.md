@@ -251,35 +251,42 @@ lands clamped inside the group. Reorder feel over real time is
 live-only — flag for human confirmation.
 
 ---
-### 485 — cleanup discovery pass: hunt bugs and smells, board the verified ones (USER 2026-08-25)
+### 488 — `query_drag` has no exit-path owner: give the flag a lifecycle and a law (found by item 485's discovery pass, deep-tier verified 2026-08-25)
 
-**CLAIMED 2026-08-25 — three read-only investigation lanes dispatched directly by the orchestrator (no worktree; findings only, no code changes), gated through one deep-tier verification pass before any finding boards.**
+`query_drag` (`src/app/input/mod.rs:79`) is set only at `src/app/input/mouse.rs:465` (the query-hit arm of `overlay_click`) and cleared only at `src/app/input/mouse_button.rs:64-66` on button release. Unlike its sibling gesture flags (`dragging`, `drag_armed`, `range_drag`), nothing clears it on the overlay-close edge: `begin_text_drag`/`finish_text_drag` (`mod.rs:259-285`) don't touch it, `sync_overlay_after_core` (`src/app/apply/overlay_sync.rs`) calls `resync_pointer_derived_state()` but that function never names it, and `on_focus_lost` clears pointer-hover state but no gesture flag at all.
 
-A deliberate defect-and-smell sweep over the tree. **The deliverable is
-QUEUE ITEMS, not fixes** — each finding lands on this board as its own
-scoped item (or is fixed inline only when smaller than its brief, per
-README). Every finding is verified against the tree before boarding: a
-defect report is a hypothesis, and a sweep that boards unverified
-findings wastes the next wave.
+**Verified structurally airtight; the originally-reported symptom (pointer motion over the document silently does nothing while stuck) does NOT reproduce** — every competing branch in `on_cursor_moved`'s chain is dead in the same state anyway (the press that could set `query_drag` came from the mutually-exclusive overlay-open branch of `on_left_press`, so `dragging`/`range_drag` can't be concurrently live), and `resync_pointer_derived_state()` still runs unconditionally at the tail. So today this is a **latent trap, not a live bug**: real severity is that a future gesture owner inserted into that chain, or any path that sets `dragging` while an overlay is open, turns this into a live bug with nothing standing in the way. Two smaller things ARE reachable today: (a) press-hold the query line, keyboard-open a *different* overlay, move — `query_drag` wins over that overlay's own hover branch and scrubs its query caret instead of hovering rows (cosmetic); (b) **unconfirmed, needs a live macOS build**: if `App::run_native_panel`'s documented application-modal `runModal` (`src/app/menu.rs:84`) ever drops the main window's `ButtonReleased`, `query_drag` (and `dragging`, if a press followed) survives indefinitely and a later release skips `on_left_release()` entirely (the `Released if query_drag` arm at `mouse_button.rs:64` returns without calling it) — flag for human confirmation, do not assume it reproduces.
 
-Axes, one lane each (production tier, current Sonnet medium):
-1. **The freshly-landed neighborhood** — items 476–482 landed as one
-   six-branch merge train; bugs cluster near new code, and any
-   identity-gated refactor in that wave owes the standing outcome audit
-   anyway. Sweep the merge's touched files and their callers.
-2. **Cross-cutting smell census** — same-behavior-twice (rule owners
-   with bypasses), cache-key discipline (`buffer.version()` without
-   identity), unguarded readers of swappable globals, O(doc) work in
-   per-frame paths, `ViewState` fields dodging `sync_view`.
-3. **Live-only gap hunt** — stale caches across buffer swaps, missing
-   invalidation on resize/page-drag, redraw-scheduling gaps (the class
-   CLAUDE.md names for replay-clean-but-user-sees-it bugs).
+**Fix shape**: give `query_drag` the same lifecycle its siblings have — clear it in `sync_overlay_after_core` on the open→closed edge (and consider whether `on_focus_lost` should clear all gesture flags, not just hover). Then write the missing law: a headless `--keys` test driving press-query-line → keyboard-close-overlay → cursor-move → release, asserting the flag never survives past the close edge. Not itself proof of the `runModal` question — that stays a flagged live-only unknown.
 
-Findings then pass one **deep-tier adversarial verification** (current
-Opus, high) before boarding: refute-or-confirm with tree evidence, per
-the model-routing table's "adversarial verification" row. Out of scope:
-clippy debt (item 473 owns it), taste calls (they go to the user, not
-the board), and anything already boarded 476–484.
+---
+### 489 — merge `fold::heading_level` and `render::spans::md_line_heading_level` under one owner (found by item 485's discovery pass, deep-tier verified 2026-08-25)
+
+`src/fold.rs:28-39` and `src/render/spans/layout.rs:45-59` (`md_line_heading_level`) are byte-identical token-for-token — same indent-skip loop, same `#`-run count with `saturating_add`. `fold.rs`'s own doc comment says so outright ("Mirrors... EXACTLY so a foldable section is precisely a sized heading"), but there is no shared owner and **no law enforcing the two stay equal** — confirmed zero test files reference `md_line_heading_level` by name.
+
+Blast radius if they silently diverge: `Buffer::fold_levels` (`src/buffer.rs:511`) derives the whole per-line fold-level vector from `fold::heading_levels`, and 11 render tests fold against it, so a drift would surface as fold ranges disagreeing with what actually renders as a heading — low probability (both copies are simple and stable), high blast radius (silent, cross-cutting).
+
+**Mechanical wrinkle for whoever picks this up**: `md_line_heading_level` is `pub(in crate::render)`, and `fold.rs` sits at the crate root — merging to one owner means relocating the function (or widening its visibility with a documented reason), not just adding a delegation call.
+
+**Fix shape**: extract one owner (either move the shared logic to a neutral module both sides call, or make one call the other with a visibility change), and add a property/equivalence test over a line corpus so a future edit to either can't silently desync from the other. Small enough to fix inline per README's "smaller than its brief" clause rather than a full dispatch, if whoever picks it up agrees.
+
+---
+### 490 — macOS native menu key-equivalents never track a live keymap rebind (found by item 485's discovery pass, deep-tier verified + broadened 2026-08-25)
+
+`accelerator_for_id` (`src/menu/native.rs:46-51`) builds each native `NSMenuItem`'s key equivalent from `commands::COMMANDS[..].native` — static defaults sourced from `assets/keymap-defaults.toml` at process start, with **no path to `self.config.keys` or the live keymap**. `install()` (`native.rs:136-148`) sets these once, from `App::resumed()` (`src/app/lifecycle.rs:207`). `rebind_commit`/`rebind_reset`/`apply_keymap_flavor` (`src/app/files/rebind.rs`) write `config.toml` and reload the live keymap (`apply_key_overrides`) but **never touch or reinstall `self._menu_bar`** — confirmed the menu has exactly two consumers in the whole tree (`install_native_menu`, called once, and `sync_menu_context_and_gpu_absent`, which only ever calls `set_markdown_enabled`).
+
+**The contrast proves this is a bypass, not a missing capability**: the codebase already owns a live-keymap chord resolver, `menu::item_chord_for_id`, and the app's own DRAWN (web/Linux) menu bar already uses it (`src/render/chrome/menubar/dropdown.rs:116`) — only the native macOS path skips the live owner.
+
+**Mechanism, verified against muda 0.19.3 source**: `setKeyEquivalent`/`setKeyEquivalentModifierMask` register a real, intercepting AppKit key equivalent — `NSApplication.sendEvent:` gives the main menu first look at a keydown before it reaches the key window's normal path. Nothing in this codebase's own event pipeline short-circuits that (the only `performKeyEquivalent:` override in the tree is on the About panel, unrelated). Confirmed NOT a previously-known/accepted limitation: item 470's own landing commit (`39798a1b`) enumerates its scope limits and doesn't mention rebind staleness; `docs/harness-reach.md`/`docs/platform.md` are silent on it too.
+
+**Three concrete, macOS-only, live-only consequences** (broader than "a rebind can lose to a collision" — that's only the most damaging of three):
+1. A retired default chord stays live: rebind Save off ⌘S, and ⌘S still fires Save via the stale native menu item.
+2. A collision silently defeats the NEW binding (the original finding): rebind Find onto ⌘S, and the still-registered Save item's ⌘S intercepts first — the user gets a save, not a find, with no error.
+3. The visible menu column goes stale: the native bar keeps showing the old chord next to its command after a rebind, disagreeing with awl's own drawn bar.
+
+Scope is bounded to menu-routed commands `accelerator_for_id` covers (the roster named by `native_accelerator_law_names_every_routed_items_default_mac_chord`). Not reachable by any headless capture — the native menu is AppKit-owned and outside the capture path (same limitation item 470's own work already flagged); a fix needs live human confirmation on a real macOS build.
+
+**Fix shape, feasibility-checked not designed**: muda 0.19.3 exposes `set_accelerator` on both item kinds used here (`items/normal.rs:104`, `items/icon.rs:173`) — a fix would have `InstalledMenu` retain per-item handles (today only the root `Menu` and the Markdown `Submenu` are retained) and call a refresh from the same seam `reload_config`/`apply_keymap_flavor` already reach.
 
 ---
 ### 486 — symbol atlas: a browsable artifact of every symbol the bundled faces actually ship (USER 2026-08-25)
