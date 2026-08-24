@@ -547,6 +547,16 @@ const DIMENSIONLESS: &[(&str, &str)] = &[
         "a settle FRACTION compared against the caret animation's own progress \
          in 0..1",
     ),
+    (
+        "DRAG_SCROLL_MIN_RATE",
+        "a RATE in device px/sec, not a length — the overshoot-to-rate curve's \
+         floor the instant the dead zone clears",
+    ),
+    (
+        "DRAG_SCROLL_MAX_RATE",
+        "a RATE in device px/sec, not a length — the overshoot-to-rate curve's \
+         cap, reached at DRAG_SCROLL_RAMP_PX overshoot",
+    ),
 ];
 
 /// The `NAME: TYPE ...` tail of a constant declaration, whatever visibility it

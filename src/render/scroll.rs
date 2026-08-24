@@ -317,11 +317,14 @@ impl TextPipeline {
 }
 
 /// Overshoot right at the column edge (sub-pixel geometry noise, a drag that
-/// merely grazes the boundary) earns no scroll at all.
-const DRAG_SCROLL_DEAD_ZONE_PX: f32 = 6.0;
+/// merely grazes the boundary) earns no scroll at all. Device px, deliberately
+/// NOT dpi-scaled: it is compared directly against `drag_scroll_overshoot`'s
+/// raw pointer-vs-band distance, which carries no `Metrics::px` term either.
+const DRAG_SCROLL_DEAD_ZONE_PX: Physical = Physical(6.0);
 
-/// Overshoot past the dead zone at which the rate reaches its cap.
-const DRAG_SCROLL_RAMP_PX: f32 = 140.0;
+/// Overshoot past the dead zone at which the rate reaches its cap. Same
+/// device-px space as [`DRAG_SCROLL_DEAD_ZONE_PX`].
+const DRAG_SCROLL_RAMP_PX: Physical = Physical(140.0);
 
 /// The rate the instant the dead zone clears — visibly moving, not a
 /// barely-perceptible crawl.
@@ -343,9 +346,9 @@ const DRAG_SCROLL_MAX_RATE: f32 = 1400.0;
 /// [`DRAG_SCROLL_RAMP_PX`] overshoot, then held flat past that.
 pub fn drag_scroll_rate(overshoot_px: f32) -> f32 {
     let overshoot = overshoot_px.abs();
-    if overshoot <= DRAG_SCROLL_DEAD_ZONE_PX {
+    if overshoot <= DRAG_SCROLL_DEAD_ZONE_PX.0 {
         return 0.0;
     }
-    let t = ((overshoot - DRAG_SCROLL_DEAD_ZONE_PX) / DRAG_SCROLL_RAMP_PX).min(1.0);
+    let t = ((overshoot - DRAG_SCROLL_DEAD_ZONE_PX.0) / DRAG_SCROLL_RAMP_PX.0).min(1.0);
     DRAG_SCROLL_MIN_RATE + (DRAG_SCROLL_MAX_RATE - DRAG_SCROLL_MIN_RATE) * t * t
 }

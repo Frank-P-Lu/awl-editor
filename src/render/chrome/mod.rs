@@ -96,7 +96,7 @@ fn set_float_quads(
 /// hairline at any zoom/density rather than a term that doubles on Retina).
 /// Named so a reader can size a term against the ring's own width without
 /// re-deriving it from the literal below.
-pub(in crate::render) const FLOAT_BORDER_RING_PX: f32 = 1.0;
+pub(in crate::render) const FLOAT_BORDER_RING_PX: Physical = Physical(1.0);
 
 #[allow(clippy::too_many_arguments)]
 fn set_float_quads_rects(
@@ -125,10 +125,10 @@ fn set_float_quads_rects(
             .iter()
             .map(|&[x, y, w, h]| {
                 [
-                    x - FLOAT_BORDER_RING_PX,
-                    y - FLOAT_BORDER_RING_PX,
-                    w + 2.0 * FLOAT_BORDER_RING_PX,
-                    h + 2.0 * FLOAT_BORDER_RING_PX,
+                    x - FLOAT_BORDER_RING_PX.0,
+                    y - FLOAT_BORDER_RING_PX.0,
+                    w + 2.0 * FLOAT_BORDER_RING_PX.0,
+                    h + 2.0 * FLOAT_BORDER_RING_PX.0,
                 ]
             })
             .collect()
