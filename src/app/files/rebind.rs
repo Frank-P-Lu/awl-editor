@@ -47,6 +47,7 @@ impl App {
         self.input.apply_linux_keep(&linux_keep);
         self.input
             .apply_linux_emacs_meta(flavor == crate::keymap::KeymapFlavor::Emacs);
+        self.refresh_native_menu_accelerators();
         self.refresh_settings_overlay();
         self.emit_notice(crate::actions::NoticeEffect::Toast(format!(
             "keymap: {}",

@@ -578,9 +578,10 @@ pub struct App {
     /// this value's owned `Rc<RefCell<MenuChild>>` chain, so letting it drop
     /// (the v1 bug — the return value used to be an unstored local) leaves
     /// every menu item pointing at freed memory, and clicking ANY of them —
-    /// About, Quit, a routed item — is a use-after-free. Never read after
-    /// `resumed()` stores it; `Option` only so the field can start `None`
-    /// before the window/NSApp exist.
+    /// About, Quit, a routed item — is a use-after-free. Read (never taken)
+    /// after `resumed()` stores it — `set_markdown_enabled` on every sync,
+    /// `refresh_accelerators` on a rebind/keymap-flavor apply; `Option` only
+    /// so the field can start `None` before the window/NSApp exist.
     #[cfg(target_os = "macos")]
     _menu_bar: Option<crate::menu::InstalledMenu>,
 }

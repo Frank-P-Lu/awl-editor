@@ -434,6 +434,40 @@ fn effective_is_override(c: &Command, keys: &[(String, Vec<String>)]) -> bool {
     override_chords(c, keys).is_some()
 }
 
+/// THE MACOS NATIVE MENU'S live-keymap chord SPEC for `c` — a raw string
+/// [`crate::keyspec::parse_chord`] accepts (`"Cmd-Shift-S"`), not a display
+/// glyph: the native menu needs `(Key, Modifiers)` to build a real
+/// `muda::Accelerator`, so it reads this rather than [`menu_native_label`]'s
+/// glyphified output. `None` when `c` has no chord at all under this config.
+///
+/// Same override-wins rule as [`menu_native_label`] — a `[keys]` override's
+/// first parseable chord beats the static default — but with `keep`/
+/// `convention`/`platform` dropped entirely, because the real AppKit menu bar
+/// is always `Convention::Mac` + `Platform::Native`, and on exactly that pair
+/// [`native_label_effective`]'s own doc proves `keep` is structurally inert
+/// (the Linux keep-list and web-reserved checks both require a different
+/// convention/platform to ever fire). So this is the ONE Mac-only reduction
+/// both the native accelerator table and the label surface agree on by
+/// construction — never a second hand-typed resolution that could drift from
+/// what the drawn bar's own [`item_chord`]/[`menu_native_label`] would show.
+/// `target_os = "macos"`-gated because its one reader, `menu::native`, is
+/// itself Mac-only — an unused-on-Linux warning would be real dead code, not
+/// a false positive, if this compiled everywhere that reader doesn't.
+#[cfg(target_os = "macos")]
+pub(crate) fn native_accelerator_chord(
+    c: &Command,
+    keys: &[(String, Vec<String>)],
+) -> Option<String> {
+    if let Some(chords) = override_chords(c, keys) {
+        return chords.into_iter().next();
+    }
+    if c.native.trim().is_empty() {
+        None
+    } else {
+        Some(c.native.to_string())
+    }
+}
+
 /// CONFLICT check for the rebind menu: is `binding` already an effective chord of a
 /// command OTHER than `exclude_slug`? Returns the conflicting command's display NAME
 /// (the first match) so the menu can warn "already bound to X" before/while writing.
