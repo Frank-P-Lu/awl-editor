@@ -203,6 +203,24 @@ The macOS arm needs a person to accept or cancel the platform panel. The Linux
 arm needs a real Linux window and pointer click. Neither may be claimed from a
 `--keys` or `--screenshot-app` capture.
 
+### Mouse-drag gestures have zero `--keys` vocabulary
+
+`--keys` chords replay through the real keymap (`keymap.rs` -> `Action`), and
+the keymap carries no mouse events at all — a click, a drag, or a held
+edge-scroll cannot be spelled as a chord on any capture door, tier 1 or tier
+2. So the *pixel geometry* a drag gesture computes (a hit-test, an
+overshoot-derived rate, the scroll step it advances) is provable at the
+`TextPipeline` level with a real test-GPU device (`render/tests/`) — the
+device gives real shaped-glyph geometry without a window — but the gesture
+ITSELF (a live `CursorMoved` stream, and the `about_to_wait` re-arm that keeps
+a held drag scrolling once the pointer stops moving) can only be driven by a
+real window and pointer. Scroll-on-drag (`App::step_drag_scroll`,
+`app/input/mouse.rs`) follows this shape exactly: the overshoot-to-rate curve
+and the composed overshoot -> scroll -> hit-test tick are pipeline laws
+(`render::tests::drag_scroll`); the App wiring that drives them from a real
+drag is live-only, flagged for human confirmation like every other pointer
+gesture on this map.
+
 ### The switch-project Recent lens is EMPTY at every capture door, on purpose
 
 The recent-projects MRU is live-only persisted state, and the headless path

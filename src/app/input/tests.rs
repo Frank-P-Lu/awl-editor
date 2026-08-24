@@ -236,6 +236,7 @@ fn release_resets_drag_arm_and_next_press_snapshots_a_fresh_baseline() {
         dragging: false,
         drag_press_px: (0.0, 0.0),
         drag_armed: false,
+        drag_scroll_last_tick: None,
         page_resizing: false,
         page_resize_edge: None,
         page_resize_anchor: None,
@@ -717,5 +718,81 @@ fn wheel_scroll_from_cold_start_does_not_expose_selection_to_the_next_hover_chec
     assert_eq!(
         ov.selected, 22,
         "the wheel-driven selection survives the stray re-check"
+    );
+}
+
+/// `App::step_drag_scroll` (`app/input/mouse.rs`) is the drag-scroll owner
+/// both `on_drag` and `App::schedule_drag_scroll` (the idle-timer re-arm)
+/// drive, gated on `App::drag_scroll_primed`. A hermetic test `App` never has
+/// a live GPU pipeline (only a real window builds one), so this pins the
+/// SAME degrade-to-no-op gate `on_drag` itself already relies on (`let
+/// Some(_) = self.frame.gpu() else { return };`) — the pixel geometry
+/// (`drag_scroll_overshoot`, the composed `drag_scroll_step`) is exercised
+/// at the pipeline level instead (`render::tests::drag_scroll`), where a
+/// real device is available.
+#[test]
+fn step_drag_scroll_is_a_no_op_without_a_live_gpu() {
+    let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
+    app.document.set_text("hello world");
+    app.input.pointer.dragging = true;
+    app.input.pointer.drag_armed = true;
+    app.input.pointer.cursor_px = (0.0, -500.0);
+    assert!(
+        !app.drag_scroll_primed(),
+        "off a live GPU there is no viewport to read an overshoot against"
+    );
+    assert!(
+        !app.step_drag_scroll(),
+        "off a live GPU there is nothing to scroll"
+    );
+}
+
+/// THE PHANTOM-SCROLL GUARD: a press that hasn't crossed the drag-arm slop
+/// yet (`dragging` true, `drag_armed` still false — an ordinary stationary
+/// click, or a drag whose first `CursorMoved` hasn't arrived) must never
+/// scroll, no matter how far past the edge its press coordinates happen to
+/// sit. Without gating on `drag_armed`, the idle-timer re-arm
+/// (`App::schedule_drag_scroll`) would scroll — and extend a selection —
+/// under a motionless pointer, exactly the phantom-selection class
+/// `DRAG_ARM_SLOP_PX` exists to keep out of an ordinary click.
+#[test]
+fn drag_scroll_is_never_primed_before_the_drag_arm_slop_is_crossed() {
+    let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
+    app.document.set_text("hello world");
+    app.input.pointer.dragging = true;
+    app.input.pointer.drag_armed = false;
+    app.input.pointer.cursor_px = (TEXT_LEFT.0, TEXT_TOP.0 - 500.0);
+    assert!(
+        !app.drag_scroll_primed(),
+        "an unarmed drag must never be primed to scroll, however far past the edge the press sits"
+    );
+    assert!(
+        !app.step_drag_scroll(),
+        "an unarmed drag must not scroll even if a caller reaches step_drag_scroll directly"
+    );
+}
+
+/// The drag-scroll clock (`PointerInput::drag_scroll_last_tick`) must not
+/// survive past its drag: a NEW press priming a stale timestamp would hand
+/// the very first post-press drag-scroll tick a huge, bogus `dt` computed
+/// against the PREVIOUS drag's last tick.
+#[test]
+fn drag_scroll_tick_resets_on_release_and_does_not_survive_into_the_next_press() {
+    let mut app = App::new_hermetic(None, PathBuf::from("/tmp"), Config::empty());
+    app.document.set_text("hello world");
+
+    app.input.pointer.drag_scroll_last_tick = Some(app.frame.now());
+    app.input.finish_text_drag();
+    assert!(
+        app.input.pointer.drag_scroll_last_tick.is_none(),
+        "releasing a drag must forget its drag-scroll clock"
+    );
+
+    app.input.pointer.drag_scroll_last_tick = Some(app.frame.now());
+    app.input.pointer.cursor_px = (TEXT_LEFT.0, TEXT_TOP.0);
+    app.press_at_char(0, false);
+    assert!(
+        app.input.pointer.drag_scroll_last_tick.is_none(),
+        "a fresh press must not inherit a stale drag-scroll clock from an earlier drag"
     );
 }
