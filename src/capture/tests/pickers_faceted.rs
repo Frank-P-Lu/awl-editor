@@ -1239,3 +1239,58 @@ fn a_settings_range_row_steps_and_reports_its_rail_through_the_sidecar() {
         );
     }
 }
+
+/// `overlay.query_caret` (schema `/209`) round-trips from the query field's
+/// own `TextBox` caret through the sidecar writer — the caret position a
+/// click-to-place / mid-query char-motion law asserts, proven at the actual
+/// JSON serializer rather than only at `picker_opts`' construction.
+#[test]
+fn query_caret_reports_the_fields_own_position_not_just_its_length() {
+    if !adapter_available() {
+        eprintln!(
+            "skipping query_caret_reports_the_fields_own_position_not_just_its_length: \
+             no wgpu adapter"
+        );
+        return;
+    }
+    let _tg = crate::testlock::serial();
+    use crate::overlay::{OverlayKind, OverlayState};
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl_querycaret_test_{}", std::process::id())),
+    );
+    let buf = Buffer::from_str("hello\n");
+    let mut goto = OverlayState::new(
+        OverlayKind::Goto,
+        vec!["alpha.md".into(), "beta.md".into()],
+        vec![],
+        vec![],
+    );
+
+    // Ordinary typing (the common case): the caret rests at the query's own
+    // end, mirroring `query.text()`'s own length.
+    goto.push('a');
+    goto.push('b');
+    let png = dir.join("at_rest.png");
+    capture_with(&png, &buf, &picker_opts(&goto, None)).expect("at-rest capture renders");
+    let sidecar = read_sidecar(&png);
+    assert_eq!(sidecar["overlay"]["query"], serde_json::json!("ab"));
+    assert_eq!(
+        sidecar["overlay"]["query_caret"],
+        serde_json::json!(2),
+        "an ordinary typed query reports its caret at the field's own end"
+    );
+
+    // A click landing mid-query (`OverlayState::query_set_caret`, the same
+    // door a pointer press resolves through) reports the INTERIOR position,
+    // not the length again by coincidence.
+    goto.query_set_caret(1);
+    let png = dir.join("mid_query.png");
+    capture_with(&png, &buf, &picker_opts(&goto, None)).expect("mid-query capture renders");
+    let sidecar = read_sidecar(&png);
+    assert_eq!(sidecar["overlay"]["query"], serde_json::json!("ab"));
+    assert_eq!(
+        sidecar["overlay"]["query_caret"],
+        serde_json::json!(1),
+        "a mid-query click's caret position must reach the sidecar, not just the query text"
+    );
+}
