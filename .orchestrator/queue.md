@@ -8,6 +8,8 @@
 
 ### 444 — the working set becomes visible: a margin buffer stack (USER DECISION 2026-08-16; residuals 1–2 LANDED; residual 3 windowing + scroll DECIDED USER 2026-08-25, ready to build; Move rows question still open)
 
+**CLAIMED 2026-08-25 — building in worktree `item-444-residual3-build`.**
+
 Residual 3's gallery is built and landed at `captures/item-444-residual3/`
 (fixture, `shoot.sh`, README with rationale) — collapsed/expanded/grouped
 states across several worlds. The agent found the render layer needed zero
@@ -179,6 +181,8 @@ commit.
 ---
 ### 483 — hover grammar for clickable chrome (DECIDED: option (c), USER 2026-08-25 — ready to build)
 
+**CLAIMED 2026-08-25 — building in worktree `item-483-hover-grammar`.**
+
 **USER DECISION 2026-08-25: option (c)** — hover feedback only where the
 ambiguity is real: the format popover's buttons (which one a click fires)
 and the inline-image resize handles (that they exist at all). Every other
@@ -249,6 +253,8 @@ live-only — flag for human confirmation.
 ---
 ### 485 — cleanup discovery pass: hunt bugs and smells, board the verified ones (USER 2026-08-25)
 
+**CLAIMED 2026-08-25 — three read-only investigation lanes dispatched directly by the orchestrator (no worktree; findings only, no code changes), gated through one deep-tier verification pass before any finding boards.**
+
 A deliberate defect-and-smell sweep over the tree. **The deliverable is
 QUEUE ITEMS, not fixes** — each finding lands on this board as its own
 scoped item (or is fixed inline only when smaller than its brief, per
@@ -277,6 +283,8 @@ the board), and anything already boarded 476–484.
 
 ---
 ### 486 — symbol atlas: a browsable artifact of every symbol the bundled faces actually ship (USER 2026-08-25)
+
+**CLAIMED 2026-08-25 — building in worktree `item-486-symbol-atlas`.**
 
 A shopping catalog for future marks — fold glyphs, ornaments, bullets,
 world flourishes — built from what awl ALREADY bundles, so nothing in it
