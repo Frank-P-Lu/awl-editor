@@ -884,6 +884,12 @@ impl App {
             // spec, and the hover below must NOT also re-select rows under the
             // travelling pointer mid-gesture.
             self.on_range_drag();
+        } else if self.input.pointer.row_drag.is_some() {
+            // A press-armed WORKING-SET ROW DRAG owns the pointer outright,
+            // the same way a rail scrub does: no row hover/switch may fire
+            // under the travelling pointer until release settles the
+            // gesture (`RowDrag`'s own doc).
+            self.on_row_drag();
         } else if self.input.pointer.query_drag {
             // A press landed on the query field itself: every move scrubs its
             // caret, never a row hover — checked ahead of `overlay_open` below
@@ -920,6 +926,10 @@ impl App {
     /// the one owner that clears both together (`clear_pointer_hover_state`),
     /// so a departing pointer can never leave one lit while the other clears.
     pub(in crate::app) fn on_cursor_left(&mut self) {
+        // An in-flight row drag cannot survive the pointer leaving the
+        // window — there is no release to resolve it against, so it aborts
+        // rather than replaying a stale click or reorder on the next press.
+        self.abort_row_drag();
         if self.clear_pointer_hover_state() {
             self.request_frame();
         }

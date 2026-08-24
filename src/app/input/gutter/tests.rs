@@ -420,6 +420,262 @@ fn activating_an_open_file_from_another_root_restores_its_remembered_project_roo
     });
 }
 
+/// The FILE leaves `capture_opts().working_set` reports, in drawn order — the
+/// SAME fold `--screenshot-app` writes into its sidecar
+/// (`app/capture_state.rs`), so a law reading through this proves the
+/// SIDECAR-FACING order agrees, not just an internal field. Filtered to
+/// `StackRowKind::File` for the same reason `drawn_labels` is. Native-only:
+/// `capture_opts` lives on `app/capture_state.rs`, gated the same way
+/// (`--screenshot-app` is a native-only CLI mode).
+#[cfg(not(target_arch = "wasm32"))]
+fn sidecar_labels(app: &App) -> Vec<String> {
+    app.capture_opts()
+        .working_set
+        .iter()
+        .filter(|row| matches!(row.kind, crate::workingset::StackRowKind::File))
+        .map(|row| format!("{}{}", row.parent, row.leaf))
+        .collect()
+}
+
+/// **A DRAG-AND-DROP REORDERS THE GROUP, and the sidecar fold agrees** — the
+/// GPU-free seam `gutter_stack_row_drop` gives the live pointer machinery,
+/// driven directly with two row indices (as if a recognized drag had already
+/// resolved them) rather than through pixel geometry. Native-only: see
+/// `sidecar_labels`'s own doc.
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn dragging_a_file_row_reorders_its_own_group_and_the_sidecar_fold_agrees() {
+    let _guard = crate::testlock::serial();
+    let mem = Arc::new(
+        crate::fs::InMemoryFs::new()
+            .with_dir("/ws/notes")
+            .with_file("/ws/notes/a.md", "a\n")
+            .with_file("/ws/notes/b.md", "b\n")
+            .with_file("/ws/notes/c.md", "c\n")
+            .with_file("/ws/notes/d.md", "d\n"),
+    );
+    crate::fs::with_fs(mem, || {
+        let mut config = Config::empty();
+        config.workspace = Some(PathBuf::from("/ws"));
+        let mut app = App::new_hermetic(
+            Some(PathBuf::from("/ws/notes/a.md")),
+            PathBuf::from("/ws/notes"),
+            config,
+        );
+        app.load_path(PathBuf::from("/ws/notes/b.md"));
+        app.load_path(PathBuf::from("/ws/notes/c.md"));
+        app.load_path(PathBuf::from("/ws/notes/d.md"));
+        assert_eq!(
+            drawn_labels(&app),
+            vec!["a.md", "b.md", "c.md", "d.md"],
+            "opened order"
+        );
+
+        // Drag row 0 (a.md) to row 2's slot — the standard "move to this
+        // position in the final order" convention `reorder_in_group` documents.
+        assert!(app.gutter_stack_row_drop(0, 2));
+
+        let want = vec!["b.md", "c.md", "a.md", "d.md"];
+        assert_eq!(drawn_labels(&app), want, "the internal stack order moved");
+        assert_eq!(
+            sidecar_labels(&app),
+            want,
+            "the sidecar-facing fold (capture_opts) must report the same order"
+        );
+    });
+}
+
+/// **A DRAG NEVER ACTIVATES THE ROW IT DROPS** — it moves a row without
+/// disturbing what the reader is looking at, even when the dragged file
+/// itself is not the active one.
+#[test]
+fn dropping_a_row_never_changes_which_file_is_active() {
+    let _guard = crate::testlock::serial();
+    let mem = Arc::new(
+        crate::fs::InMemoryFs::new()
+            .with_dir("/ws/notes")
+            .with_file("/ws/notes/a.md", "a\n")
+            .with_file("/ws/notes/b.md", "b\n")
+            .with_file("/ws/notes/c.md", "c\n"),
+    );
+    crate::fs::with_fs(mem, || {
+        let mut config = Config::empty();
+        config.workspace = Some(PathBuf::from("/ws"));
+        let mut app = App::new_hermetic(
+            Some(PathBuf::from("/ws/notes/a.md")),
+            PathBuf::from("/ws/notes"),
+            config,
+        );
+        app.load_path(PathBuf::from("/ws/notes/b.md"));
+        app.load_path(PathBuf::from("/ws/notes/c.md"));
+        // c.md is active. Drag a.md (row 0, background) to the end.
+        assert_eq!(
+            app.document.buffer().path(),
+            Some(Path::new("/ws/notes/c.md"))
+        );
+        assert!(app.gutter_stack_row_drop(0, 2));
+        assert_eq!(
+            app.document.buffer().path(),
+            Some(Path::new("/ws/notes/c.md")),
+            "dragging a background row must not switch the active document"
+        );
+        assert_eq!(drawn_labels(&app), vec!["b.md", "c.md", "a.md"]);
+    });
+}
+
+/// **THE WINDOW-OFFSET REGRESSION, END TO END**: with more than `RESTING_FILES`
+/// files open under one root and the hold-still window slid away from the
+/// top, dragging the drawn row 0 must move the file the window ACTUALLY shows
+/// there — the exact bug a naive `group(root)[row]` resolution carried,
+/// dormant until a group grew past the resting cap.
+#[test]
+fn dragging_a_row_in_a_slid_resting_window_moves_the_file_actually_drawn_there() {
+    let _guard = crate::testlock::serial();
+    let mut fs = crate::fs::InMemoryFs::new().with_dir("/ws/notes");
+    for i in 0..8 {
+        fs = fs.with_file(format!("/ws/notes/f{i}.md"), "x\n");
+    }
+    let mem = Arc::new(fs);
+    crate::fs::with_fs(mem, || {
+        let mut config = Config::empty();
+        config.workspace = Some(PathBuf::from("/ws"));
+        let mut app = App::new_hermetic(
+            Some(PathBuf::from("/ws/notes/f0.md")),
+            PathBuf::from("/ws/notes"),
+            config,
+        );
+        for i in 1..8 {
+            app.load_path(PathBuf::from(format!("/ws/notes/f{i}.md")));
+        }
+        // Eight files, RESTING_FILES=5: the window has slid to show the last
+        // five (f3..f7), with f0 the reader was just looking at now hidden.
+        assert_eq!(
+            drawn_labels(&app),
+            vec!["f3.md", "f4.md", "f5.md", "f6.md", "f7.md"],
+            "precondition: the window has slid"
+        );
+
+        // Drawn row 0 names f3.md, NOT f0.md — dragging it to the drawn row-2
+        // slot must move f3.md, not the group's absolute index 0.
+        assert!(app.gutter_stack_row_drop(0, 2));
+        assert_eq!(
+            drawn_labels(&app),
+            vec!["f4.md", "f5.md", "f3.md", "f6.md", "f7.md"],
+            "the window-aware resolver moved the file actually drawn at row 0"
+        );
+        // f0/f1/f2 (never touched by the drag — outside the visible window)
+        // keep their original relative order ahead of the moved group.
+        assert_eq!(
+            app.document
+                .working_set()
+                .files()
+                .iter()
+                .map(|f| f.leaf())
+                .collect::<Vec<_>>(),
+            vec![
+                "f0.md", "f1.md", "f2.md", "f4.md", "f5.md", "f3.md", "f6.md", "f7.md"
+            ]
+        );
+    });
+}
+
+/// **IN-GROUP ONLY: A DRAG IN THE EXPANDED PANEL CANNOT CROSS A GROUP
+/// HEADING.** Dragging a `notes` file onto a row belonging to `archive` (or
+/// its own heading) clamps the drop to the nearest edge of `notes`' own
+/// block — `archive`'s own group is untouched.
+#[test]
+fn a_drag_in_the_expanded_panel_never_crosses_into_another_roots_group() {
+    let _guard = crate::testlock::serial();
+    let mem = Arc::new(
+        crate::fs::InMemoryFs::new()
+            .with_dir("/ws/notes")
+            .with_dir("/ws/archive")
+            .with_file("/ws/notes/a.md", "a\n")
+            .with_file("/ws/notes/b.md", "b\n")
+            .with_file("/ws/notes/c.md", "c\n")
+            .with_file("/ws/archive/x.md", "x\n")
+            .with_file("/ws/archive/y.md", "y\n"),
+    );
+    crate::fs::with_fs(mem, || {
+        let mut config = Config::empty();
+        config.workspace = Some(PathBuf::from("/ws"));
+        let mut app = App::new_hermetic(
+            Some(PathBuf::from("/ws/notes/a.md")),
+            PathBuf::from("/ws/notes"),
+            config,
+        );
+        app.load_path(PathBuf::from("/ws/notes/b.md"));
+        app.load_path(PathBuf::from("/ws/notes/c.md"));
+        app.load_path(PathBuf::from("/ws/archive/x.md"));
+        app.load_path(PathBuf::from("/ws/archive/y.md"));
+        app.document.working_set_mut().expand();
+        assert!(app.document.working_set().is_expanded());
+
+        // Drawn rows: [Group(notes), a, b, c, Group(archive), x, y] (7 rows).
+        let rows = app.document.working_set().expanded_rows();
+        assert_eq!(rows.len(), 7);
+
+        // Drag `notes/a.md` (row 1) onto `archive`'s OWN heading (row 4): must
+        // clamp to the BOTTOM of notes' own group, never move into archive's.
+        assert!(app.gutter_stack_row_drop(1, 4));
+        let notes_group: Vec<String> = app
+            .document
+            .working_set()
+            .group(Path::new("/ws/notes"))
+            .iter()
+            .map(|&at| app.document.working_set().files()[at].leaf())
+            .collect();
+        assert_eq!(
+            notes_group,
+            vec!["b.md", "c.md", "a.md"],
+            "a.md landed at the bottom of its OWN group, never crossing into archive's"
+        );
+        let archive_group: Vec<String> = app
+            .document
+            .working_set()
+            .group(Path::new("/ws/archive"))
+            .iter()
+            .map(|&at| app.document.working_set().files()[at].leaf())
+            .collect();
+        assert_eq!(
+            archive_group,
+            vec!["x.md", "y.md"],
+            "archive's own group is untouched by a drag that never belonged to it"
+        );
+    });
+}
+
+/// **A ROW THAT NAMES NO FILE REFUSES THE DROP**, leaving the working set
+/// exactly as it was — the close-zone press is not this door's concern (it
+/// never reaches here), but a stale/past-the-end `from_row` must still be
+/// refused rather than panicking or moving an arbitrary row.
+#[test]
+fn gutter_stack_row_drop_refuses_a_row_that_names_no_file() {
+    let _guard = crate::testlock::serial();
+    let mem = Arc::new(
+        crate::fs::InMemoryFs::new()
+            .with_dir("/ws/notes")
+            .with_file("/ws/notes/a.md", "a\n")
+            .with_file("/ws/notes/b.md", "b\n"),
+    );
+    crate::fs::with_fs(mem, || {
+        let mut config = Config::empty();
+        config.workspace = Some(PathBuf::from("/ws"));
+        let mut app = App::new_hermetic(
+            Some(PathBuf::from("/ws/notes/a.md")),
+            PathBuf::from("/ws/notes"),
+            config,
+        );
+        app.load_path(PathBuf::from("/ws/notes/b.md"));
+        let before = drawn_labels(&app);
+        assert!(
+            !app.gutter_stack_row_drop(99, 0),
+            "a row past the end of the stack names no file"
+        );
+        assert_eq!(drawn_labels(&app), before, "a refused drop changes nothing");
+    });
+}
+
 /// **ESC COLLAPSES AN OPEN EXPANDED PANEL** — driven through the real
 /// `Action::Cancel` dispatch (`app/apply.rs`), the same door a live Escape
 /// keypress resolves to (`keymap/resolve.rs`), rather than calling

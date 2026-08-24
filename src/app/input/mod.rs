@@ -25,6 +25,7 @@ use drags::ImageDrag;
 pub(in crate::app) use drags::RangeDrag;
 #[cfg(not(test))]
 use drags::RangeDrag;
+use gutter::RowDrag;
 pub(in crate::app) use wheel::initial_sensitivity as initial_scroll_sensitivity;
 
 /// The live input handle. It is the one `App` field for input, while its two
@@ -82,6 +83,10 @@ struct PointerInput {
     page_resize_anchor: Option<f32>,
     image_resizing: Option<ImageDrag>,
     range_drag: Option<RangeDrag>,
+    /// A press-armed working-set row drag — `None` off a File-row press
+    /// entirely, `Some` from the moment such a press lands until release
+    /// (armed or not — see [`RowDrag`]'s own doc for the deferred-click shape).
+    row_drag: Option<RowDrag>,
     cursor_icon: winit::window::CursorIcon,
     drag_granularity: DragGranularity,
     last_click_time: Option<crate::clock::Instant>,
@@ -125,6 +130,7 @@ impl InputRuntime {
                 page_resize_anchor: None,
                 image_resizing: None,
                 range_drag: None,
+                row_drag: None,
                 cursor_icon: winit::window::CursorIcon::Default,
                 drag_granularity: DragGranularity::Char,
                 last_click_time: None,

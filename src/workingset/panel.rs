@@ -37,7 +37,7 @@ pub(super) enum Panel {
 /// carries the row's real identity ([`OpenFile`] index or root), which a
 /// click needs to resolve and a drawn [`StackRow`] deliberately does not.
 #[derive(Clone, Debug, PartialEq, Eq)]
-enum PanelRow {
+pub(super) enum PanelRow {
     Group(PathBuf, bool),
     File(usize),
 }
@@ -92,7 +92,7 @@ impl WorkingSet {
     /// gallery's `Grouped` prototype drew them in — `grouped-saltpan.png`
     /// heads `notebook` before `atlas` because `notebook`'s files were opened
     /// first).
-    fn expanded_full(&self) -> Vec<PanelRow> {
+    pub(super) fn expanded_full(&self) -> Vec<PanelRow> {
         let mut roots: Vec<&Path> = Vec::new();
         for f in &self.files {
             if !roots.contains(&f.root.as_path()) {

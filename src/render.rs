@@ -2605,6 +2605,17 @@ pub struct TextPipeline {
     /// at all unless the stack is drawn, so a single-file frame issues no extra
     /// draw (`SelectionPipeline::draw` returns early at zero instances).
     gutter_stack_plate: crate::selection::SelectionPipeline,
+    /// A live row-DRAG's own drop-slot indicator: the drawn row index to
+    /// insert BEFORE (`gutter_files.len()` means "at the very end"). `None`
+    /// off a drag entirely — mirrors [`Self::gutter_stack_hover`]'s own
+    /// shape: set directly by the live pointer machinery
+    /// (`app/input/gutter.rs`), never through `ViewState`/`sync_view`, since
+    /// it is exactly as pointer-only and headless-absent as a hover is.
+    gutter_drag_indicator: Option<usize>,
+    /// The hairline quad [`Self::gutter_drag_indicator`] draws. Holds no
+    /// instances outside a live drag, so an ordinary frame issues no extra
+    /// draw here either.
+    gutter_drag_indicator_plate: crate::selection::SelectionPipeline,
     /// Mirror of [`ViewState::config_keys`] — the user's `[keys]` overrides, the
     /// SAME slice `overlay::BuildCtx::config_keys` hands the palette. Read by the
     /// awl-drawn menu bar's chord column (`chrome::menubar::dropdown`) so a

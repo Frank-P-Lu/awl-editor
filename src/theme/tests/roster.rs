@@ -426,11 +426,15 @@ fn promoted_facts_have_renderer_owners_and_no_theme_data_branch() {
     let layers = include_str!("../../render/layers.rs");
     let outline = include_str!("../../render/chrome/outline.rs");
     let gutter = include_str!("../../render/chrome/gutter.rs");
+    // The gutter's own frost-seed computation split into a sibling file to
+    // keep gutter.rs under its production-line ceiling; the promoted fact's
+    // renderer-owner check follows it there.
+    let gutter_frost = include_str!("../../render/chrome/gutter_frost.rs");
     assert!(layers.contains("crate::lava::FROST_DIM"));
     assert!(layers.contains("crate::lava::FROST_BLUR_PX"));
     assert!(outline.contains("crate::lava::FROST_FEATHER_PX"));
-    assert!(gutter.contains("crate::lava::FROST_FEATHER_PX"));
-    for source in [layers, outline, gutter] {
+    assert!(gutter_frost.contains("crate::lava::FROST_FEATHER_PX"));
+    for source in [layers, outline, gutter, gutter_frost] {
         assert!(!source.contains("render_caps.frost"));
     }
 }

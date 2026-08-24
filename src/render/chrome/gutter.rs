@@ -70,6 +70,15 @@ impl GutterLayout {
 }
 
 impl TextPipeline {
+    /// Set the live row-drag's own insertion-slot indicator — the drawn FILE
+    /// row to straddle above (`gutter_files.len()` for "below the last row"),
+    /// or `None` off a drag. Mirrors [`Self::resolve_gutter_stack_hover`]'s
+    /// shape: pointer-only state, set directly by the live drag machinery
+    /// (`app/input/gutter.rs`) rather than through `ViewState`/`sync_view`.
+    pub fn set_gutter_drag_indicator(&mut self, at: Option<usize>) {
+        self.gutter_drag_indicator = at;
+    }
+
     /// The page-mode GUTTER's fully decided layout for this frame: the available
     /// RIGHT-aligned box width (px), the filename AND the project line each
     /// ALREADY fit to ONE line independently (never left to cosmic-text's own
@@ -201,6 +210,8 @@ impl TextPipeline {
             // Drop any previous plate so a hidden gutter leaves no floating band.
             self.gutter_stack_plate
                 .prepare(device, queue, width, height, &[]);
+            self.gutter_drag_indicator_plate
+                .prepare(device, queue, width, height, &[]);
             return self.park_gutter_offscreen(device, queue, bounds, muted);
         };
         // The filename AND the project line are ALREADY fit to one line each by
@@ -291,15 +302,23 @@ impl TextPipeline {
             m.px_physical(super::readout::CANVAS_INSET),
             GUTTER_CARVE_BREATH.0,
         );
-        // THE ACTIVE ROW'S PLATE, off the SAME planner rows the glyphs sit on.
-        // Empty whenever there is no stack, and an empty prepare leaves the
-        // pipeline with zero instances — so a single-file frame issues no draw
-        // here at all and stays byte-identical to a pre-stack one.
-        let plates = gutter_stack::plate_rects(
+        // THE ACTIVE ROW'S PLATE and THE ROW-DRAG'S OWN INSERTION HAIRLINE,
+        // off the SAME planner rows the glyphs sit on — a drag indicator can
+        // never draw off a row the plate math disagrees about
+        // (`gutter_stack::plates_and_drag_indicator`). Both come back empty
+        // whenever there is no stack / no live drag, and an empty `prepare`
+        // leaves its pipeline with zero instances — so a single-file, non-
+        // dragging frame issues no extra draw and stays byte-identical to a
+        // pre-stack one. The indicator's ink is `muted`, not the caret's
+        // accent — DESIGN.md's "one accent" law reserves that for the caret
+        // alone.
+        let (plates, indicator) = gutter_stack::plates_and_drag_indicator(
             &layout,
             &stack,
             m.char_width * label,
             m.line_height * label * gutter_stack::PLATE_PAD_X.0,
+            m.px_physical(gutter_stack::DRAG_INDICATOR_THICKNESS_PX),
+            self.gutter_drag_indicator,
         );
         self.gutter_stack_plate
             .set_color(theme::surface_selected().rgba_bytes());
@@ -307,6 +326,11 @@ impl TextPipeline {
             .set_corner(m.px_physical(gutter_stack::PLATE_CORNER_PX));
         self.gutter_stack_plate
             .prepare(device, queue, width, height, &plates);
+        self.gutter_drag_indicator_plate
+            .set_color(theme::muted().rgba_bytes());
+        self.gutter_drag_indicator_plate.set_corner(0.0);
+        self.gutter_drag_indicator_plate
+            .prepare(device, queue, width, height, &indicator);
         let area = TextArea {
             buffer: &self.gutter_buffer,
             left: 0.0,
@@ -373,72 +397,6 @@ impl TextPipeline {
             )
             .carve,
         )
-    }
-
-    /// THE ORGANIC FROST SEEDS for the bottom-left GUTTER (the shipped lava
-    /// treatment): the filename + project lines each seed halos `[x0, x1, yc, r]`
-    /// (device px) hugging their RIGHT-aligned ink near the column, so they join the
-    /// SAME summed field the outline feeds ([`TextPipeline::prepare_lava_layer`]) —
-    /// a warm organic whisper under the stack instead of the old full-width
-    /// rectangle. Seeds hug the ACTUAL ink (each line's width, right-aligned to
-    /// `avail`) rather than the whole `[0, avail]` box. `None`-empty when the gutter
-    /// is HIDDEN. Rides the SAME [`Self::gutter_layout`] owner + the shared
-    /// [`crate::render::frost_seed_radius`] / [`crate::render::push_text_seeds`] the
-    /// outline uses, so both surfaces (and both worlds) seed identically.
-    pub(in crate::render) fn gutter_frost_seeds(&self, height: u32) -> Vec<[f32; 4]> {
-        let Some(layout) = self.gutter_layout() else {
-            return Vec::new();
-        };
-        let label = crate::markdown::type_scale::LABEL;
-        let row_h = self.metrics.line_height * label;
-        if row_h <= 0.0 {
-            return Vec::new();
-        }
-        let r_row = crate::render::frost_seed_radius(
-            row_h,
-            crate::lava::FROST_FEATHER_PX,
-            self.metrics.zoom,
-            self.dpi,
-        );
-        let skirt =
-            crate::lava::frost_px(crate::lava::FROST_FEATHER_PX, self.metrics.zoom, self.dpi);
-        let pad_x =
-            crate::lava::frost_px(crate::lava::FROST_PILL_PAD_X, self.metrics.zoom, self.dpi);
-        // The two stacked LABEL rows, bottom-anchored at the SAME named inset
-        // (mirrors `prepare_gutter` / `gutter_carve_rect`, and the corner
-        // readouts): name over project. Each line is RIGHT-aligned within
-        // `[0, avail]`, so its ink hugs the column at the right edge.
-        let stack = crate::render::plan::plan_gutter_stack(
-            height as f32,
-            layout.avail,
-            row_h,
-            layout.lines().len(),
-            self.metrics.px_physical(super::readout::CANVAS_INSET),
-            GUTTER_CARVE_BREATH.0,
-        );
-        // The gutter's own LABEL advance (its glyphs are the doc advance × LABEL).
-        let label_char_w = self.metrics.char_width * label;
-        let push_line = |seeds: &mut Vec<[f32; 4]>, text: &str, row: f32| {
-            if text.is_empty() {
-                return;
-            }
-            let w = (text.chars().count() as f32 * label_char_w).min(layout.avail);
-            let yc = stack.rows[row as usize][1] + row_h * 0.5;
-            crate::render::push_text_seeds(
-                seeds,
-                layout.avail - w - pad_x,
-                w + 2.0 * pad_x,
-                yc,
-                r_row,
-                skirt,
-                text,
-            );
-        };
-        let mut seeds = Vec::new();
-        for (row, (text, _)) in layout.lines().into_iter().enumerate() {
-            push_line(&mut seeds, text, row as f32);
-        }
-        seeds
     }
 
     /// THE ACTIVE STACK ROW'S PLATE RECT `[x, y, w, h]`, off the EXACT SAME

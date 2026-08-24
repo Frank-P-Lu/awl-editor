@@ -750,3 +750,267 @@ fn expanded_row_open_file_resolves_the_exact_row_expanded_rows_draws() {
         "a row past the end of the drawn panel names no file"
     );
 }
+
+/// **`resting_row_index` AGREES WITH THE DRAWN WINDOW AFTER IT SLIDES** — the
+/// window-offset bug a naive `group(root)[row]` resolution carries: once the
+/// hold-still window has moved away from the top, row 0 of the drawn stack is
+/// `group[start]`, not `group[0]`.
+///
+/// Non-vacuity: the naive resolution is computed alongside the real one and
+/// asserted to DISAGREE at this exact window, so the fixture is proved to
+/// actually exercise the slid case rather than one where `start` happens to
+/// still be `0`.
+#[test]
+fn resting_row_index_agrees_with_the_drawn_window_after_it_slides() {
+    let mut ws = WorkingSet::default();
+    ten(&mut ws);
+    // A known fresh baseline window ([0..5)) before the real sequence, exactly
+    // like `resting_window_holds_still_when_the_newly_active_file_is_already_visible`'s
+    // own setup — opening ten files one at a time already slides the window as
+    // each becomes active in turn.
+    assert!(ws.set_active(0));
+    assert!(ws.set_active(7), "f7 exists");
+    // The hold-still law (asserted elsewhere) puts the window at [3..8).
+    assert_eq!(
+        file_leaves(&ws.stack_rows(&root())),
+        vec!["f3.md", "f4.md", "f5.md", "f6.md", "f7.md"],
+        "precondition: the window has slid to start=3"
+    );
+
+    let naive: Vec<usize> = ws.group(&root());
+    for (row, &naive_at) in naive.iter().enumerate().take(RESTING_FILES) {
+        let resolved = ws
+            .resting_row_index(&root(), row)
+            .unwrap_or_else(|| panic!("row {row} of a full window must resolve"));
+        assert_eq!(
+            ws.files()[resolved].leaf(),
+            format!("f{}.md", row + 3),
+            "row {row} of the slid window must name f{}.md",
+            row + 3
+        );
+        assert_ne!(
+            resolved, naive_at,
+            "row {row}: the window-aware and the naive (unslid) resolution must \
+             disagree here, or this fixture proves nothing about the slide"
+        );
+    }
+    // `RESTING_FILES` (row 5, the +more row's own slot in a 10-file group)
+    // still resolves — `group[start + 5] = group[8]`, f8's real slot, one
+    // past the visible window but still inside the group. Only a row far
+    // enough to run past the group's own length resolves to nothing.
+    assert_eq!(
+        ws.resting_row_index(&root(), RESTING_FILES)
+            .map(|at| ws.files()[at].leaf()),
+        Some("f8.md".to_string())
+    );
+    assert_eq!(
+        ws.resting_row_index(&root(), 50),
+        None,
+        "a row far past the group's own length names no file"
+    );
+
+    // A group of exactly one still resolves row 0 — the single-file identity
+    // line's own door, which draws no STACK but must still resolve a row.
+    let mut lone = WorkingSet::default();
+    opened(&mut lone, "only.md");
+    assert_eq!(
+        lone.resting_row_index(&root(), 0)
+            .map(|at| lone.files()[at].leaf()),
+        Some("only.md".to_string())
+    );
+}
+
+/// A file interleaved from a foreign root, mid-list — the arrangement that
+/// makes a resolution which forgot the group filter wrong from index 1 on,
+/// matching the pattern `app/input/gutter/tests.rs` already sweeps this
+/// module's click routes with.
+fn foreign_interleaved(ws: &mut WorkingSet) -> PathBuf {
+    let other = PathBuf::from("/proj/archive");
+    opened(ws, "index.md");
+    let far = other.join("outside.md");
+    ws.open(BufferKey::path(&far), Some(far), other.clone());
+    opened(ws, "alpha.md");
+    opened(ws, "beta.md");
+    opened(ws, "gamma.md");
+    other
+}
+
+/// **`reorder_in_group`, SWEPT OVER EVERY (from, to, starting-active) CELL.**
+/// The three invariants the item's own brief names: the group lands in the
+/// exact order a plain `remove`+`insert` on its own sequence would produce,
+/// every OTHER root's absolute slot is untouched (in-group only holds at the
+/// storage layer), and reordering never changes WHICH file is active — only
+/// where it sits.
+#[test]
+fn reorder_in_group_moves_the_file_and_leaves_every_foreign_slot_untouched() {
+    let group_names = ["index.md", "alpha.md", "beta.md", "gamma.md"];
+    for from in 0..group_names.len() {
+        for to in 0..group_names.len() {
+            for active_at in 0..group_names.len() {
+                let mut ws = WorkingSet::default();
+                let other = foreign_interleaved(&mut ws);
+                let group_before = ws.group(&root());
+                assert!(ws.set_active(group_before[active_at]));
+                let active_key_before = ws.active_file().unwrap().key.clone();
+                let outside_key = ws
+                    .files()
+                    .iter()
+                    .find(|f| f.root == other)
+                    .unwrap()
+                    .key
+                    .clone();
+                let outside_slot_before = ws.index_of(&outside_key).unwrap();
+
+                ws.reorder_in_group(&root(), from, to);
+
+                let mut expected: Vec<&str> = group_names.to_vec();
+                let moved = expected.remove(from);
+                expected.insert(to.min(expected.len()), moved);
+                let got: Vec<String> = ws
+                    .group(&root())
+                    .iter()
+                    .map(|&at| ws.files()[at].leaf())
+                    .collect();
+                assert_eq!(
+                    got, expected,
+                    "from={from} to={to}: group order after reorder"
+                );
+
+                assert_eq!(
+                    ws.index_of(&outside_key),
+                    Some(outside_slot_before),
+                    "from={from} to={to}: the foreign root's own absolute slot moved"
+                );
+
+                assert_eq!(
+                    ws.active_file().map(|f| f.key.clone()),
+                    Some(active_key_before),
+                    "from={from} to={to} active_at={active_at}: reorder changed WHICH \
+                     file is active, not just where it sits"
+                );
+            }
+        }
+    }
+}
+
+/// **`reorder_in_group` IS A NO-OP off a single-member group, and on an
+/// out-of-range `from`** — a stale drop target (the group shrank underneath a
+/// held drag, or `from` never named a real slot) must never panic or corrupt
+/// the list.
+#[test]
+fn reorder_in_group_is_a_no_op_off_range_or_a_single_file_group() {
+    let mut ws = WorkingSet::default();
+    opened(&mut ws, "only.md");
+    ws.reorder_in_group(&root(), 0, 0);
+    assert_eq!(
+        drawn(&ws),
+        vec!["only.md"],
+        "a single-file group never moves"
+    );
+
+    let mut ws2 = WorkingSet::default();
+    for n in ["a.md", "b.md", "c.md"] {
+        opened(&mut ws2, n);
+    }
+    let before = drawn(&ws2);
+    ws2.reorder_in_group(&root(), 99, 1);
+    assert_eq!(
+        before,
+        drawn(&ws2),
+        "an out-of-range `from` changes nothing"
+    );
+}
+
+/// **`reorder_target` IN THE RESTING STACK is window-aware**, mirroring
+/// `resting_row_index`'s own fix: a drop row resolves against the SLID
+/// window, not group index `0..RESTING_FILES` unconditionally.
+#[test]
+fn reorder_target_in_the_resting_stack_follows_the_slid_window() {
+    let mut ws = WorkingSet::default();
+    ten(&mut ws);
+    assert!(ws.set_active(0));
+    assert!(ws.set_active(7));
+    // Window is [3..8) — see the hold-still law elsewhere in this file.
+    for row in 0..RESTING_FILES {
+        assert_eq!(
+            ws.reorder_target(&root(), row),
+            row + 3,
+            "row {row} of the slid resting window must target group slot {}",
+            row + 3
+        );
+    }
+    // A row far past the visible window clamps to the group's own last slot
+    // rather than reaching past it.
+    assert_eq!(
+        ws.reorder_target(&root(), 6),
+        9,
+        "row 6: exactly the last slot"
+    );
+    assert_eq!(
+        ws.reorder_target(&root(), 999),
+        9,
+        "row far past the group: clamped"
+    );
+}
+
+/// **`reorder_target` IN THE EXPANDED PANEL clamps DIRECTIONALLY into the
+/// origin root's own block** — swept over EVERY drawn row for BOTH roots as
+/// the origin, so a clamp that only ever tested one direction (or one origin)
+/// cannot pass by accident. Two roots, `notes` (3 files) opened first and
+/// `archive` (2 files) opened last — `expanded_full` heads them
+/// `[Group(notes), a0, a1, a2, Group(archive), b0, b1]`, seven rows.
+#[test]
+fn reorder_target_in_the_expanded_panel_clamps_into_the_source_block() {
+    let mut ws = WorkingSet::default();
+    for n in ["a0.md", "a1.md", "a2.md"] {
+        opened(&mut ws, n);
+    }
+    let other = PathBuf::from("/proj/archive");
+    for n in ["b0.md", "b1.md"] {
+        let p = other.join(n);
+        ws.open(BufferKey::path(&p), Some(p), other.clone());
+    }
+    ws.expand();
+    assert!(ws.is_expanded());
+    assert_eq!(
+        ws.expanded_rows().len(),
+        7,
+        "precondition: all seven rows fit inside one unscrolled viewport"
+    );
+
+    // origin = `notes` (its own block spans rows 0..=3: its heading + a0/a1/a2).
+    let expected_for_notes = [
+        0, // row 0: notes' own heading -> top of its own group
+        0, // row 1: a0 -> its own slot
+        1, // row 2: a1
+        2, // row 3: a2 (last)
+        2, // row 4: archive's heading -> below notes' block -> clamps to bottom
+        2, // row 5: b0 -> same clamp
+        2, // row 6: b1 -> same clamp
+    ];
+    for (row, &want) in expected_for_notes.iter().enumerate() {
+        assert_eq!(
+            ws.reorder_target(&root(), row),
+            want,
+            "origin=notes row={row}"
+        );
+    }
+
+    // origin = `archive` (its own block spans rows 4..=6).
+    let expected_for_archive = [
+        0, // row 0: notes' heading -> above archive's block -> clamps to top
+        0, // row 1: a0 -> same clamp
+        0, // row 2: a1 -> same clamp
+        0, // row 3: a2 -> same clamp
+        0, // row 4: archive's OWN heading -> top of its own group
+        0, // row 5: b0 -> its own slot
+        1, // row 6: b1 (last)
+    ];
+    for (row, &want) in expected_for_archive.iter().enumerate() {
+        assert_eq!(
+            ws.reorder_target(&other, row),
+            want,
+            "origin=archive row={row}"
+        );
+    }
+}

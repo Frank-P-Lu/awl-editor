@@ -33,6 +33,8 @@ mod prototype;
 pub use panel::EXPANDED_VIEWPORT;
 pub use prototype::{PrototypeReport, PrototypeSpec, prototype_move_from_env, prototype_move_rows};
 
+mod reorder;
+
 /// One member of the visible working set.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct OpenFile {
@@ -399,13 +401,18 @@ impl WorkingSet {
     /// does not draw, in this root's own overflow AND every other root alike,
     /// since that row is the margin's one door to all of them (the panel this
     /// overflow row expands: [`Self::expanded_rows`]).
-    pub fn stack_rows(&self, root: &Path) -> Vec<StackRow> {
-        let group = self.group(root);
-        if group.len() < 2 {
-            return Vec::new();
-        }
+    /// THE RESTING STACK'S OWN WINDOW START for `root`'s group, in
+    /// group-relative units — the ONE computation [`Self::stack_rows`] draws
+    /// from and [`Self::resting_row_index`] resolves a pointer against, so a
+    /// click, a drag, and the drawn window can never disagree about which
+    /// group slot row 0 names. Mirrors [`Self::recompute_resting_window`]'s own
+    /// fallback formula (a window computed for a DIFFERENT root, or none yet,
+    /// falls back to the same fresh reveal that method's own last arm uses),
+    /// but never WRITES `resting_window` — this is the read-only half, asked
+    /// by any caller that needs the number without mutating state.
+    fn resting_start(&self, root: &Path, group: &[usize]) -> usize {
         let max_start = group.len().saturating_sub(RESTING_FILES);
-        let start = match &self.resting_window {
+        match &self.resting_window {
             Some((r, s)) if r.as_path() == root => (*s).min(max_start),
             _ => {
                 let active_in_group = self
@@ -418,7 +425,15 @@ impl WorkingSet {
                     })
                     .unwrap_or(0)
             }
-        };
+        }
+    }
+
+    pub fn stack_rows(&self, root: &Path) -> Vec<StackRow> {
+        let group = self.group(root);
+        if group.len() < 2 {
+            return Vec::new();
+        }
+        let start = self.resting_start(root, &group);
         let visible = &group[start..(start + RESTING_FILES).min(group.len())];
         let mut rows: Vec<StackRow> = visible.iter().map(|&at| self.file_row(at)).collect();
         let hidden = self.len().saturating_sub(visible.len());

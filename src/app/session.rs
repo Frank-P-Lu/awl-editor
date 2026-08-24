@@ -148,6 +148,22 @@ impl App {
             self.document
                 .restore_background(path, *pos, crate::external::Seen::at(path));
         }
+        // THE MARGIN'S OWN ORDER, restored — every survivor gets a working-set
+        // row here, in the SESSION FILE'S OWN ORDER (`existing_buffers`
+        // preserves it), so a restart round-trips the drawn stack like every
+        // other consumer of the one order (`session_buffers`' own doc). Safe
+        // to enrol before `App::new`'s later `enrol_active`: `WorkingSet::open`
+        // on an already-open key only updates root/path in place, so that
+        // call lands on this same slot rather than disturbing the order. A
+        // CLI-argument file with no matching survivor gets a fresh slot from
+        // `enrol_active` afterward, at the end — ordinary "first open" rules.
+        for (path, _pos) in &survivors {
+            let key = crate::buffers::BufferKey::path(path);
+            let root = crate::workingset::root_for(path, &self.project_location.root, None);
+            self.document
+                .working_set_mut()
+                .open(key, Some(path.clone()), root);
+        }
     }
 }
 
@@ -360,6 +376,69 @@ mod tests {
                     scroll: 7,
                     scroll_px_q: 23,
                 }
+            );
+        });
+    }
+
+    /// **THE WORKING SET'S OWN ORDER SURVIVES A RESTART**, including a USER
+    /// DRAG performed before the flush — the same order every OTHER consumer
+    /// reads (resting window, expanded view, grouped view) is what session
+    /// restore round-trips too, not the registry's own separate MRU. Before
+    /// `session_buffers`/`apply_session_restore` read/wrote through
+    /// `WorkingSet` rather than `registry.iter()`, a drag was invisible to
+    /// the save (MRU order does not move on a drag) and every BACKGROUND
+    /// survivor lost its row on restore (only the active file re-enrolled) —
+    /// a relaunch silently collapsed a multi-file stack to one row.
+    #[test]
+    fn session_restore_round_trips_the_working_sets_own_drag_reordered_stack() {
+        let fake = Arc::new(
+            crate::fs::InMemoryFs::new()
+                .with_file("/n/a.md", "a\n")
+                .with_file("/n/b.md", "b\n")
+                .with_file("/n/c.md", "c\n"),
+        );
+        crate::fs::with_fs(fake, || {
+            let mut app = App::new(
+                Some(PathBuf::from("/n/a.md")),
+                PathBuf::from("/n"),
+                None,
+                None,
+                Config::empty(),
+            );
+            app.load_path(PathBuf::from("/n/b.md"));
+            app.load_path(PathBuf::from("/n/c.md"));
+            let leaves = |app: &App| -> Vec<String> {
+                app.document
+                    .working_set()
+                    .files()
+                    .iter()
+                    .map(|f| f.leaf())
+                    .collect()
+            };
+            assert_eq!(leaves(&app), vec!["a.md", "b.md", "c.md"], "opened order");
+
+            // Drag a.md (row 0) to the end — the reorder gesture this item adds.
+            assert!(app.gutter_stack_row_drop(0, 2));
+            assert_eq!(
+                leaves(&app),
+                vec!["b.md", "c.md", "a.md"],
+                "the drag reordered the stack before any flush"
+            );
+
+            app.session_flush();
+
+            // A fresh launch (the relaunch) reads the SAME data root back.
+            let restarted = App::new(None, PathBuf::from("/n"), None, None, Config::empty());
+            assert_eq!(
+                leaves(&restarted),
+                vec!["b.md", "c.md", "a.md"],
+                "the restarted app's working set must draw the SAME order the drag left, \
+                 not the opened order and not the registry's own MRU"
+            );
+            assert_eq!(
+                restarted.document.buffer().path(),
+                Some(Path::new("/n/c.md")),
+                "the active file (c.md, the last one opened) survives the restart too"
             );
         });
     }

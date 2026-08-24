@@ -243,6 +243,42 @@ pub(super) fn plate_rect(row_rect: [f32; 4], text_w: f32, pad_x: f32) -> [f32; 4
     [left, y + (h - plate_h) * 0.5, right - left, plate_h]
 }
 
+/// THE ROW-DRAG INSERTION HAIRLINE's own thickness, device px, unscaled by
+/// DPI — a crisp line at any zoom/density, the same convention
+/// [`super::FLOAT_BORDER_RING_PX`] uses for the float-panel border.
+pub(super) const DRAG_INDICATOR_THICKNESS_PX: Physical = Physical(2.0);
+
+/// **THE ROW-DRAG'S OWN INSERTION-SLOT RECT** — a thin band spanning a row's
+/// full width, straddling the boundary ABOVE the drawn file-row `file_row`
+/// (`file_row == 0` sits above the FIRST file row; `file_row ==
+/// layout.files.len()` sits below the LAST). `None` while no stack is drawn
+/// at all (nothing to straddle).
+///
+/// `file_row` is in the SAME index space [`super::gutter_hit::GutterStackHit::row`]
+/// uses (0-based over the drawn FILE rows only), which is NOT
+/// `plan.rows`'s own index space (the whole block's lines, `changed`/
+/// `project` included) — [`plate_rects`] bridges the same two spaces for the
+/// active-row plate; this mirrors it rather than re-deriving the offset a
+/// second way.
+pub(super) fn drag_indicator_rect(
+    layout: &GutterLayout,
+    plan: &crate::render::plan::GutterStackPlan,
+    file_row: usize,
+    thickness_px: f32,
+) -> Option<[f32; 4]> {
+    if layout.files.is_empty() {
+        return None;
+    }
+    let offset = layout.lines().len() - layout.files.len();
+    if file_row == 0 {
+        let &[x, y, w, _] = plan.rows.get(offset)?;
+        return Some([x, y - thickness_px * 0.5, w, thickness_px]);
+    }
+    let above = offset + (file_row - 1).min(layout.files.len() - 1);
+    let &[x, y, w, h] = plan.rows.get(above)?;
+    Some([x, y + h - thickness_px * 0.5, w, thickness_px])
+}
+
 /// THE PLATED ROWS of a block — at most one, and none at all when there is no
 /// stack.
 ///
@@ -284,6 +320,27 @@ pub(super) fn plate_rects(
         })
         .into_iter()
         .collect()
+}
+
+/// The active-row plate rects AND the row-drag insertion-hairline rect (at
+/// most one each), both derived from the SAME planner rows — so a drag
+/// indicator can never draw off a row the plate math disagrees about.
+/// `drag_row` is `None` outside a live drag, which is the whole reason the
+/// indicator half comes back empty.
+pub(super) fn plates_and_drag_indicator(
+    layout: &GutterLayout,
+    plan: &crate::render::plan::GutterStackPlan,
+    label_char_w: f32,
+    pad_x: f32,
+    indicator_thickness_px: f32,
+    drag_row: Option<usize>,
+) -> (Vec<[f32; 4]>, Vec<[f32; 4]>) {
+    let plates = plate_rects(layout, plan, label_char_w, pad_x);
+    let indicator = drag_row
+        .and_then(|row| drag_indicator_rect(layout, plan, row, indicator_thickness_px))
+        .into_iter()
+        .collect();
+    (plates, indicator)
 }
 
 #[cfg(test)]

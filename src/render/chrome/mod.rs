@@ -373,6 +373,7 @@ pub(in crate::render) use overlay_visual_sel::{
     overlay_selected_primary_ink, overlay_selected_rail_srgb, overlay_selected_secondary_ink,
 };
 mod gutter;
+mod gutter_frost;
 mod gutter_hidden;
 mod gutter_hit;
 pub(in crate::render) use gutter_hit::GutterStackHit;

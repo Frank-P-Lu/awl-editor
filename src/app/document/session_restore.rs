@@ -14,38 +14,44 @@ impl DocumentSession {
         self.working = crate::workingset::WorkingSet::default();
     }
 
+    /// Every open PATHED file's remembered position, in the SAME order
+    /// [`crate::workingset::WorkingSet`] draws the margin from — the one
+    /// order every consumer (the resting stack, the expanded panel, a drag)
+    /// reads, so session restore is not a second, silently-MRU-ordered list.
+    /// Iterating `registry.iter()` directly (the old shape) read the
+    /// registry's own MRU order instead, which drifts from the drawn order
+    /// the moment a background row is switched to and back — the working
+    /// set's whole reason for existing separately from the registry (this
+    /// module's own doc).
     pub(in crate::app) fn session_buffers(&self) -> Vec<(PathBuf, crate::session::BufferPos)> {
-        let mut buffers = Vec::new();
-        if let Some(active) = self.active.as_ref()
-            && let Some(path) = active.buffer.path()
-        {
-            let (line, col) = active.buffer.cursor_line_col();
-            buffers.push((
-                path.to_path_buf(),
-                crate::session::BufferPos {
-                    line,
-                    col,
-                    scroll: active.extra.scroll.row,
-                    scroll_px_q: active.extra.scroll.px_q,
-                },
-            ));
-        }
-        for (_key, entry) in self.registry.iter() {
-            let Some(path) = entry.buffer.path() else {
-                continue;
-            };
-            let (line, col) = entry.buffer.cursor_line_col();
-            buffers.push((
-                path.to_path_buf(),
-                crate::session::BufferPos {
-                    line,
-                    col,
-                    scroll: entry.extra.scroll.row,
-                    scroll_px_q: entry.extra.scroll.px_q,
-                },
-            ));
-        }
-        buffers
+        self.working
+            .files()
+            .iter()
+            .filter_map(|file| {
+                let path = file.path.clone()?;
+                let pos = self.entry_pos(&file.key)?;
+                Some((path, pos))
+            })
+            .collect()
+    }
+
+    /// The cursor/scroll a session save records for `key` — the active entry
+    /// when `key` names it, else the parked one. `None` only if a working-set
+    /// row somehow names neither, which the removal owner's "both halves or
+    /// neither" discipline (`entries.rs::discard`) should make unreachable.
+    fn entry_pos(&self, key: &crate::buffers::BufferKey) -> Option<crate::session::BufferPos> {
+        let entry = if self.active_key().as_ref() == Some(key) {
+            self.active.as_ref()
+        } else {
+            self.registry.get(key)
+        }?;
+        let (line, col) = entry.buffer.cursor_line_col();
+        Some(crate::session::BufferPos {
+            line,
+            col,
+            scroll: entry.extra.scroll.row,
+            scroll_px_q: entry.extra.scroll.px_q,
+        })
     }
 
     pub(in crate::app) fn restore_active(
