@@ -246,6 +246,35 @@ restart-with-session-restore, and that a drag attempt across a heading
 lands clamped inside the group. Reorder feel over real time is
 live-only — flag for human confirmation.
 
+---
+### 485 — cleanup discovery pass: hunt bugs and smells, board the verified ones (USER 2026-08-25)
+
+A deliberate defect-and-smell sweep over the tree. **The deliverable is
+QUEUE ITEMS, not fixes** — each finding lands on this board as its own
+scoped item (or is fixed inline only when smaller than its brief, per
+README). Every finding is verified against the tree before boarding: a
+defect report is a hypothesis, and a sweep that boards unverified
+findings wastes the next wave.
+
+Axes, one lane each (production tier, current Sonnet medium):
+1. **The freshly-landed neighborhood** — items 476–482 landed as one
+   six-branch merge train; bugs cluster near new code, and any
+   identity-gated refactor in that wave owes the standing outcome audit
+   anyway. Sweep the merge's touched files and their callers.
+2. **Cross-cutting smell census** — same-behavior-twice (rule owners
+   with bypasses), cache-key discipline (`buffer.version()` without
+   identity), unguarded readers of swappable globals, O(doc) work in
+   per-frame paths, `ViewState` fields dodging `sync_view`.
+3. **Live-only gap hunt** — stale caches across buffer swaps, missing
+   invalidation on resize/page-drag, redraw-scheduling gaps (the class
+   CLAUDE.md names for replay-clean-but-user-sees-it bugs).
+
+Findings then pass one **deep-tier adversarial verification** (current
+Opus, high) before boarding: refute-or-confirm with tree evidence, per
+the model-routing table's "adversarial verification" row. Out of scope:
+clippy debt (item 473 owns it), taste calls (they go to the user, not
+the board), and anything already boarded 476–484.
+
 ## Needs specific hardware
 
 1. **AT-SPI journey** — on a real Linux desktop with Orca, exercise document
