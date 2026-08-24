@@ -221,6 +221,23 @@ and the composed overshoot -> scroll -> hit-test tick are pipeline laws
 drag is live-only, flagged for human confirmation like every other pointer
 gesture on this map.
 
+**The working-set row DRAG follows this shape exactly, one layer up:**
+`App::gutter_stack_click`/`on_row_drag`/`end_row_drag` (`app/input/gutter.rs`)
+arm, track and settle a press-and-drag reorder of a margin stack row, but the
+gesture ITSELF — the press, the `CursorMoved` stream past the drag-arm slop,
+the release — has no `--keys` chord and is live-only, same as every other
+pointer gesture on this map. What IS provable headlessly, at the purest reachable
+seam, is everything the gesture computes: the reorder state machine
+(`WorkingSet::reorder_in_group`, `WorkingSet::reorder_target`, `WorkingSet::
+resting_row_index`) is pure and exhaustively unit-tested in
+`workingset/tests.rs`, and the App-side "given a recognized drag-and-drop of
+row A to position B" seam (`App::gutter_stack_row_drop`) is GPU-free and driven
+directly by row index in `app/input/gutter/tests.rs`, mirroring the existing
+click-resolution laws. A Verify clause may assert the POST-DROP order through
+`App::capture_opts().working_set` (the same fold `--screenshot-app` writes into
+its sidecar) after driving `gutter_stack_row_drop` directly — it may not ask
+for a `--screenshot-app` capture of the drag GESTURE itself, which cannot exist.
+
 ### The switch-project Recent lens is EMPTY at every capture door, on purpose
 
 The recent-projects MRU is live-only persisted state, and the headless path

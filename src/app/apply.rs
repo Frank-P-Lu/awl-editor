@@ -297,10 +297,18 @@ impl App {
         // of `workspace_state`'s summoned-overlay precedence ladder (it draws
         // in the margin, not as an overlay), so it needs its own arm here
         // rather than inheriting one from that ladder.
-        if matches!(action, Action::Cancel) && self.document.working_set().is_expanded() {
-            self.document.working_set_mut().collapse();
-            self.sync_view(true);
-            self.request_frame();
+        if matches!(action, Action::Cancel) {
+            // A held row drag cannot survive the row-index space it was
+            // resolved against changing underneath it — abort BEFORE the
+            // panel (if any) collapses, so a stray keyboard Escape mid-drag
+            // can never replay a click or reorder against a row that no
+            // longer means what it did when the drag was armed.
+            self.abort_row_drag();
+            if self.document.working_set().is_expanded() {
+                self.document.working_set_mut().collapse();
+                self.sync_view(true);
+                self.request_frame();
+            }
         }
 
         if self.reject_without_document(&action) {

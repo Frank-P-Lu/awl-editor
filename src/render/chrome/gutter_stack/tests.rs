@@ -518,3 +518,71 @@ fn only_the_rows_right_edge_closes_and_the_rest_of_it_switches() {
         }
     }
 }
+
+/// **THE DRAG INDICATOR IS CENTERED ON THE BOUNDARY it names**, swept over
+/// every `file_row` in `0..=files.len()` and every block shape: `file_row: 0`
+/// centers on the TOP edge of the first file row; every other `file_row`
+/// centers on the BOTTOM edge of the row before it (so `file_row ==
+/// files.len()` sits below the LAST row) — a straddling hairline
+/// legitimately dips half its own thickness into the row(s) either side of
+/// the boundary, so the invariant is the CENTER, not "never touches a row".
+#[test]
+fn drag_indicator_centers_on_the_boundary_above_the_named_file_row() {
+    for changed in [false, true] {
+        for project in [false, true] {
+            let files = rows(1);
+            let layout = layout_of(&files, changed, project, 24);
+            let lines = layout.lines();
+            let plan = crate::render::plan::plan_gutter_stack(
+                300.0,
+                layout.avail,
+                12.0,
+                lines.len(),
+                8.0,
+                0.5,
+            );
+            let shape = format!("changed={changed} project={project}");
+            let offset = lines.len() - layout.files.len();
+            for file_row in 0..=layout.files.len() {
+                let rect = drag_indicator_rect(&layout, &plan, file_row, 2.0)
+                    .unwrap_or_else(|| panic!("{shape} file_row={file_row}: must resolve"));
+                let [x, y, w, h] = rect;
+                assert_eq!(h, 2.0, "{shape} file_row={file_row}: fixed thickness");
+                let center = y + h * 0.5;
+                let (band, want_top) = if file_row == 0 {
+                    (plan.rows[offset], true)
+                } else {
+                    (plan.rows[offset + file_row - 1], false)
+                };
+                let boundary = if want_top { band[1] } else { band[1] + band[3] };
+                assert!(
+                    (center - boundary).abs() < 0.01,
+                    "{shape} file_row={file_row}: indicator {rect:?} centers on {center}, \
+                     not the boundary {boundary} of band {band:?}"
+                );
+                // Hugs the SAME right edge every row's own band does.
+                assert!(
+                    (x + w - (band[0] + band[2])).abs() < 0.01,
+                    "{shape} file_row={file_row}: indicator {rect:?} does not span row's \
+                     own width {band:?}"
+                );
+            }
+        }
+    }
+}
+
+/// A BLOCK WITH NO WORKING SET (the single-file margin) never draws an
+/// indicator — there is no slot list to straddle a boundary in.
+#[test]
+fn drag_indicator_is_absent_off_a_working_set() {
+    let layout = layout_of(&[], false, true, 24);
+    let plan = crate::render::plan::plan_gutter_stack(
+        300.0,
+        layout.avail,
+        12.0,
+        layout.lines().len(),
+        8.0,
+        0.5,
+    );
+    assert_eq!(drag_indicator_rect(&layout, &plan, 0, 2.0), None);
+}

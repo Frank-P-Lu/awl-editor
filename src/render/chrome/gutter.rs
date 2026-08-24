@@ -70,6 +70,15 @@ impl GutterLayout {
 }
 
 impl TextPipeline {
+    /// Set the live row-drag's own insertion-slot indicator — the drawn FILE
+    /// row to straddle above (`gutter_files.len()` for "below the last row"),
+    /// or `None` off a drag. Mirrors [`Self::resolve_gutter_stack_hover`]'s
+    /// shape: pointer-only state, set directly by the live drag machinery
+    /// (`app/input/gutter.rs`) rather than through `ViewState`/`sync_view`.
+    pub fn set_gutter_drag_indicator(&mut self, at: Option<usize>) {
+        self.gutter_drag_indicator = at;
+    }
+
     /// The page-mode GUTTER's fully decided layout for this frame: the available
     /// RIGHT-aligned box width (px), the filename AND the project line each
     /// ALREADY fit to ONE line independently (never left to cosmic-text's own
@@ -201,6 +210,8 @@ impl TextPipeline {
             // Drop any previous plate so a hidden gutter leaves no floating band.
             self.gutter_stack_plate
                 .prepare(device, queue, width, height, &[]);
+            self.gutter_drag_indicator_plate
+                .prepare(device, queue, width, height, &[]);
             return self.park_gutter_offscreen(device, queue, bounds, muted);
         };
         // The filename AND the project line are ALREADY fit to one line each by
@@ -307,6 +318,28 @@ impl TextPipeline {
             .set_corner(m.px_physical(gutter_stack::PLATE_CORNER_PX));
         self.gutter_stack_plate
             .prepare(device, queue, width, height, &plates);
+        // THE ROW-DRAG'S OWN INSERTION HAIRLINE, off the SAME planner rows —
+        // empty (zero instances) outside a live drag, so an ordinary frame
+        // draws nothing extra here. A quiet ink (`muted`), not the caret's
+        // accent — DESIGN.md's "one accent" law reserves that for the caret
+        // alone.
+        let indicator = self
+            .gutter_drag_indicator
+            .and_then(|row| {
+                gutter_stack::drag_indicator_rect(
+                    &layout,
+                    &stack,
+                    row,
+                    m.px_physical(gutter_stack::DRAG_INDICATOR_THICKNESS_PX),
+                )
+            })
+            .into_iter()
+            .collect::<Vec<_>>();
+        self.gutter_drag_indicator_plate
+            .set_color(theme::muted().rgba_bytes());
+        self.gutter_drag_indicator_plate.set_corner(0.0);
+        self.gutter_drag_indicator_plate
+            .prepare(device, queue, width, height, &indicator);
         let area = TextArea {
             buffer: &self.gutter_buffer,
             left: 0.0,

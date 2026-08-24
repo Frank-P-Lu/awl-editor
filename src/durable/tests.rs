@@ -340,6 +340,13 @@ fn no_bare_durable_write_bypasses_write_atomic_outside_the_accounted_for_sites()
         // under a `ScratchDir`.
         ("overlay/tests/project.rs", 1),
         ("render/overrides/tests.rs", 1), // render_overrides_env_read_law's own fixture.
+        // The symbol-atlas gallery tool's own HTML report
+        // (`AWL_SYMBOL_ATLAS_OUT`, off by default) — a human-inspected
+        // catalog of bundled-face ornament material, the same "repo
+        // artifact / harness deliverable, not durable app state" class as
+        // `app_icon/mod.rs` and `main/story.rs` above: a torn write means
+        // re-running the gallery, never a lost user store.
+        ("render/tests/symbol_atlas_gallery.rs", 1),
         // The seeding boundary itself (`cli_seeds`/`data_root_seeds`/
         // `tree_seeds`) READs the real disk before the sandbox exists;
         // neither is a durable store.

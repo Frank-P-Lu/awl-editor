@@ -243,6 +243,7 @@ fn release_resets_drag_arm_and_next_press_snapshots_a_fresh_baseline() {
         page_resize_anchor: None,
         image_resizing: None,
         range_drag: None,
+        row_drag: None,
         cursor_icon: winit::window::CursorIcon::Default,
         drag_granularity: DragGranularity::Char,
         last_click_time: None,

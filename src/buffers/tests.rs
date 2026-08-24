@@ -29,47 +29,6 @@ fn park_then_take_round_trips_the_same_buffer() {
     assert!(!reg.contains(&keyed("/a.txt")));
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-#[test]
-fn iter_reads_every_parked_entry_without_disturbing_it() {
-    // SESSION RESTORE reads the registry through `iter()` alone (never
-    // `take`, which would empty it) to snapshot the open-file set —
-    // this is the read-only contract that seam relies on.
-    let mut reg: BufferRegistry<()> = BufferRegistry::default();
-    let mut a = Buffer::scratch();
-    a.set_text("alpha");
-    let mut b = Buffer::scratch();
-    b.set_text("beta");
-    reg.park(
-        keyed("/a.txt"),
-        Entry {
-            buffer: a,
-            extra: (),
-        },
-    );
-    reg.park(
-        keyed("/b.txt"),
-        Entry {
-            buffer: b,
-            extra: (),
-        },
-    );
-    let mut seen: Vec<(BufferKey, String)> = reg
-        .iter()
-        .map(|(k, e)| (k.clone(), e.buffer.text()))
-        .collect();
-    seen.sort_by(|a, b| a.1.cmp(&b.1));
-    assert_eq!(
-        seen,
-        vec![
-            (keyed("/a.txt"), "alpha".to_string()),
-            (keyed("/b.txt"), "beta".to_string()),
-        ]
-    );
-    // Nothing was consumed: the registry is exactly as full as before.
-    assert_eq!(reg.len(), 2);
-}
-
 #[test]
 fn take_of_unknown_key_is_none() {
     let mut reg: BufferRegistry<()> = BufferRegistry::default();

@@ -75,8 +75,12 @@ fn real_fs_app_new_calls_are_all_accounted_for() {
         // A→B→A folder/document/view round-trip test (2 calls — a first App
         // that switches + flushes, a second bare-launch App that resumes from
         // the flushed state) — so they can't use a constructor that forces
-        // `session_restore` off.
-        ("app/session.rs", 7),
+        // `session_restore` off. Plus 2 more: the working-set drag-reorder
+        // round-trip law (a first App that drags a row then flushes, a second
+        // bare-launch App that must restore the SAME reordered order) needs
+        // the real session-restore path on both ends of the restart for the
+        // same reason the A→B→A law does.
+        ("app/session.rs", 9),
         // Three fake-fs calls exercise the intentional zero-document marker:
         // close + flush, restore, then remove the marker and prove a first
         // launch still starts with a scratch document.

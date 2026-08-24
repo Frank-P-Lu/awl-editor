@@ -55,6 +55,9 @@ impl App {
             ElementState::Released if self.input.pointer.range_drag.is_some() => {
                 self.end_range_drag();
             }
+            ElementState::Released if self.input.pointer.row_drag.is_some() => {
+                self.end_row_drag();
+            }
             ElementState::Released if self.input.pointer.image_resizing.is_some() => {
                 self.end_image_resize();
             }

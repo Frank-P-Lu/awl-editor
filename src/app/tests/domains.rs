@@ -673,6 +673,7 @@ fn input_substates_are_private_and_every_consumer_is_swept() {
             "page_resize_anchor",
             "image_resizing",
             "range_drag",
+            "row_drag",
             "cursor_icon",
             "drag_granularity",
             "last_click_time",

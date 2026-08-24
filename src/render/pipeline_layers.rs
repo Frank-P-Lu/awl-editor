@@ -224,6 +224,11 @@ impl TextPipeline {
         self.gutter_renderer
             .render(&self.atlas, &self.viewport, pass)
             .map_err(|e| anyhow::anyhow!("glyphon gutter render failed: {e:?}"))?;
+        // The row-drag insertion hairline sits ON TOP of the gutter's own
+        // glyphs — it marks a SLOT between rows, not a row's own fill, so it
+        // must read over whatever text happens to sit at that boundary. Zero
+        // instances outside a live drag.
+        self.gutter_drag_indicator_plate.draw(pass);
         self.outline_renderer
             .render(&self.atlas, &self.viewport, pass)
             .map_err(|e| anyhow::anyhow!("glyphon outline render failed: {e:?}"))?;
