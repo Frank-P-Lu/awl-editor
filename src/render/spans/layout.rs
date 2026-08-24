@@ -42,21 +42,12 @@ pub(in crate::render) fn md_line_scale(line_text: &str, md: bool, confirmed_rule
     1.0
 }
 
+/// Delegates to [`crate::fold::heading_level`], the one owner — see its own
+/// doc for the exact rule. Kept as a distinct name in this module because
+/// every call site here reads as "the render SIZE half"; the fold half is
+/// [`crate::fold::heading_level`] itself.
 pub(in crate::render) fn md_line_heading_level(line_text: &str, md: bool) -> u8 {
-    if !md {
-        return 0;
-    }
-    let b = line_text.as_bytes();
-    let mut i = 0;
-    while i < b.len() && (b[i] == b' ' || b[i] == b'\t') {
-        i += 1;
-    }
-    let mut hashes = 0u8;
-    while i < b.len() && b[i] == b'#' {
-        hashes = hashes.saturating_add(1);
-        i += 1;
-    }
-    hashes
+    crate::fold::heading_level(line_text, md)
 }
 
 /// `base` with a per-line metrics override applied (heading lines render LARGER,

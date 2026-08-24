@@ -201,6 +201,38 @@ fn md_line_scale_keys_off_leading_hash_count() {
     assert_eq!(md_line_scale("plain prose", true, true), 1.0);
 }
 
+/// **THE RENDER SIZE HALF AND THE FOLD HALF AGREE — BY CONSTRUCTION.**
+/// `md_line_heading_level` delegates to `crate::fold::heading_level` (its one
+/// owner) rather than keeping a second copy, so a divergence is impossible
+/// without deliberately undoing that delegation. This law exists to catch
+/// exactly that regression: if a future edit reintroduces an independent
+/// body here, this goes red on the first line where the two heuristics
+/// disagree.
+#[test]
+fn heading_level_agrees_with_folds_own_heading_level_over_a_line_corpus() {
+    let corpus = [
+        ("# h1", true),
+        ("## h2", true),
+        ("### h3", true),
+        ("###### deep", true),
+        ("#", true),
+        ("#nospace", true),
+        ("  ## indented", true),
+        ("not a #heading", true),
+        ("plain prose", true),
+        ("", true),
+        ("# h1", false),
+        ("#nospace", false),
+    ];
+    for (line, md) in corpus {
+        assert_eq!(
+            crate::render::md_line_heading_level(line, md),
+            crate::fold::heading_level(line, md),
+            "{line:?} (md={md}): render size half and fold half must agree"
+        );
+    }
+}
+
 #[test]
 fn md_line_scale_grows_thematic_break_rows_to_the_active_worlds_ornament_scale() {
     // A thematic break grows its row to the ACTIVE WORLD'S per-world ornament scale

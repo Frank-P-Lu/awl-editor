@@ -19,12 +19,13 @@
 use std::collections::BTreeSet;
 
 /// The heading LEVEL implied by a line's LEADING `#` run (after optional indent) —
-/// `0` (not a heading) / `1` (`#`) / `2` (`##`) / `3+`. Mirrors
-/// [`crate::render::spans::md_line_heading_level`] (the render SIZE half) EXACTLY so
-/// a foldable section is precisely a sized heading: keyed off the raw hash COUNT,
-/// not a fully-valid ATX heading, so `#foo` (no space) is a level-1 heading just as
-/// it renders larger. `md` gates it: a non-markdown buffer has no headings, so
-/// nothing is ever foldable there.
+/// `0` (not a heading) / `1` (`#`) / `2` (`##`) / `3+`. THE ONE OWNER: the render
+/// SIZE half ([`crate::render::spans::md_line_heading_level`]) delegates here
+/// rather than keeping a second copy, so a foldable section is precisely a sized
+/// heading by construction, not by two implementations staying in sync by hand.
+/// Keyed off the raw hash COUNT, not a fully-valid ATX heading, so `#foo` (no
+/// space) is a level-1 heading just as it renders larger. `md` gates it: a
+/// non-markdown buffer has no headings, so nothing is ever foldable there.
 pub fn heading_level(line: &str, md: bool) -> u8 {
     if !md {
         return 0;
