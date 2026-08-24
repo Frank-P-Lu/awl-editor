@@ -340,6 +340,14 @@ fn no_bare_durable_write_bypasses_write_atomic_outside_the_accounted_for_sites()
         // under a `ScratchDir`.
         ("overlay/tests/project.rs", 1),
         ("render/overrides/tests.rs", 1), // render_overrides_env_read_law's own fixture.
+        // The symbol-atlas survey's `symbol-atlas.html` write (item 486): a
+        // HARNESS DELIVERABLE the caller asked to inspect on disk, the same
+        // class as `main/story.rs`'s trace.json below — routing it through
+        // `write_atomic`/`fs::active()` would swallow it into the hermetic
+        // test sandbox instead of leaving it where `AWL_SYMBOL_ATLAS_OUT`
+        // pointed. `#[ignore]`d and env-gated, so an ordinary gate run never
+        // reaches it; a torn write just means one re-run of the generator.
+        ("render/tests/symbol_atlas_gallery.rs", 1),
         // The seeding boundary itself (`cli_seeds`/`data_root_seeds`/
         // `tree_seeds`) READs the real disk before the sandbox exists;
         // neither is a durable store.
