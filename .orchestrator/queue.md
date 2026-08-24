@@ -114,40 +114,6 @@ commit.
 
 ---
 ---
-### 484 — drag-to-reorder the working-set stack rows (USER 2026-08-25)
-
-**CLAIMED 2026-08-25 — building in worktree `item-484-drag-reorder`, on top of item 444 residual 3 (landed `d38cbe1e`).**
-
-The user wants the open-file rows in the margin stack reorderable by
-pointer drag, the way browser tabs reorder. This makes the stack's order
-USER-OWNED, which locks in item 444 residual 3's ordering law from the
-other side: open order seeds the list, activation NEVER reorders, and
-now a drag is the ONE gesture that changes order — so no windowing or
-activation rule may shuffle rows behind the user's back.
-
-Scope: press-and-drag on a `File` stack row lifts it and drops it at a
-new position within its own root's group, in both the resting stack and
-the (once shipped) expanded view; a quiet insertion indicator marks the
-drop slot while dragging. In-group only — a row never drags across a
-group heading (cross-root movement stays the Switch-project /
-activation route, and moving the FILE between folders stays item 444's
-Move navigator; this item moves rows, not files). The reordered
-sequence is the same order every consumer reads — resting window,
-expanded view, grouped view, session restore — one owner, no parallel
-list. Drag vs click disambiguation follows the platform threshold (a
-sloppy click must still switch); the close-zone press is not a drag
-handle.
-
-Depends on 444 residual 3's windowing choice only for which rows are
-VISIBLE — the reorder mechanism itself does not. Working set is
-App-owned, so verification drives `--screenshot-app` against a seeded
-multi-file fixture (`captures/item-444-residual3/fixture` pattern):
-sidecar asserts the post-drop order, its persistence across a
-restart-with-session-restore, and that a drag attempt across a heading
-lands clamped inside the group. Reorder feel over real time is
-live-only — flag for human confirmation.
-
----
 ### 488 — `query_drag` has no exit-path owner: give the flag a lifecycle and a law (found by item 485's discovery pass, deep-tier verified 2026-08-25)
 
 `query_drag` (`src/app/input/mod.rs:79`) is set only at `src/app/input/mouse.rs:465` (the query-hit arm of `overlay_click`) and cleared only at `src/app/input/mouse_button.rs:64-66` on button release. Unlike its sibling gesture flags (`dragging`, `drag_armed`, `range_drag`), nothing clears it on the overlay-close edge: `begin_text_drag`/`finish_text_drag` (`mod.rs:259-285`) don't touch it, `sync_overlay_after_core` (`src/app/apply/overlay_sync.rs`) calls `resync_pointer_derived_state()` but that function never names it, and `on_focus_lost` clears pointer-hover state but no gesture flag at all.
