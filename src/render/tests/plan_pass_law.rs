@@ -22,7 +22,7 @@
 //! not a second copy of it.
 
 use super::super::*;
-use super::{headless_dqp, view};
+use super::{diagonal_worlds, headless_dqp, view};
 use crate::overlay::OverlayKind;
 use crate::render::benchsuite::{FramePasses, PlanWitness};
 
@@ -130,7 +130,7 @@ fn a_real_diagonal_frame_leaves_the_planned_span_around_its_drawn_ink() {
     };
     let v = palette_view(40);
     let mut graded = 0usize;
-    for name in ["Mangrove", "Magpie"] {
+    for name in diagonal_worlds() {
         theme::set_active_by_name(name).expect("the diagonal worlds exist");
         p.sync_theme();
         p.set_view(&v);

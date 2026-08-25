@@ -16,7 +16,9 @@
 //! item, never bleeding into one another.
 
 use super::super::*;
-use super::{SETTINGS_VIEW_PARKED_WINDOW_ROWS, headless_dqp, settings_overlay_view};
+use super::{
+    SETTINGS_VIEW_PARKED_WINDOW_ROWS, diagonal_worlds, headless_dqp, settings_overlay_view,
+};
 use crate::overlay::{OverlayKind, OverlayState};
 
 fn values(zoom: f32) -> crate::settings::SettingsValues {
@@ -85,7 +87,7 @@ fn every_setting_kind_uses_the_measured_diagonal_cluster_rail_on_overlay_and_wor
         crate::settings::SETTINGS.len() - usize::from(keymap_hidden)
     );
 
-    for world in ["Mangrove", "Magpie"] {
+    for world in diagonal_worlds() {
         theme::set_active_by_name(world).unwrap();
         p.sync_theme();
         for dpi in [1.0, 2.0] {

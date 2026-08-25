@@ -366,6 +366,46 @@ pub(super) fn no_vis() -> crate::render::chrome::VisualSelection {
     crate::render::chrome::VisualSelection::default()
 }
 
+/// The world names that currently wear `ListStyle::Diagonal`, derived from
+/// `THEMES` rather than pinned as a bare literal at each call site. Four
+/// diagonal-composition law files each fixture a two-world sweep; before this
+/// only one of them derived its pair from the roster, so a THIRD world
+/// adopting `Diagonal` would trip that one file's own completeness check while
+/// the other three kept quietly grading the same two worlds forever — the
+/// class of hole CLAUDE.md's enrolment discipline names: an enrolment pinned
+/// to named members rather than derived from the roster.
+///
+/// The `assert_eq!` below is not redundant with the derivation above it: it
+/// pins TODAY'S known pair, so a roster change that adds or removes a
+/// `Diagonal` world is a loud, visible failure HERE — the one place every
+/// caller's two-world sweep would otherwise need reviewing — rather than a
+/// silent widen every caller inherits unreviewed.
+pub(super) fn diagonal_worlds() -> Vec<&'static str> {
+    // Fully qualified: this module declares its own child `mod theme;` (the
+    // `theme.rs` law file), which shadows the glob-imported `crate::theme` for
+    // bare `theme::` references written directly in this file.
+    let worlds: Vec<&'static str> = crate::theme::THEMES
+        .iter()
+        .filter(|t| {
+            matches!(
+                t.render_caps.list_style,
+                crate::theme::ListStyle::Diagonal(_)
+            )
+        })
+        .map(|t| t.name)
+        .collect();
+    assert_eq!(
+        worlds,
+        vec!["Mangrove", "Magpie"],
+        "ListStyle::Diagonal is now worn by {worlds:?}, not [\"Mangrove\", \"Magpie\"] — every \
+         law that sweeps `diagonal_worlds()` (cluster_mirror, settings_row_reach_law, \
+         plan_pass_law, diagonal_composition) now covers this new set; update this pinned pair \
+         as a conscious edit and check whether those laws' two-world fixtures still make sense \
+         for the new count"
+    );
+    worlds
+}
+
 pub(super) fn view(text: &str, line: usize, col: usize) -> ViewState {
     ViewState {
         text: text.to_string(),

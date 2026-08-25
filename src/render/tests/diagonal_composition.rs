@@ -205,6 +205,16 @@ fn only_world_data_names_mangrove_and_magpie() {
             theme::ListStyle::Pane | theme::ListStyle::Bars | theme::ListStyle::Ruled(_) => {}
         }
     }
+    // Cross-checked against the shared `diagonal_worlds()` roster (also routed
+    // through by cluster_mirror / settings_row_reach_law / plan_pass_law) so
+    // this file's own derivation and theirs cannot silently name different
+    // worlds.
+    assert_eq!(
+        diagonal.iter().map(|(name, _)| *name).collect::<Vec<_>>(),
+        super::diagonal_worlds(),
+        "this file's own Diagonal-direction derivation disagrees with the shared \
+         diagonal_worlds() roster"
+    );
     assert_eq!(
         diagonal,
         vec![
@@ -212,7 +222,7 @@ fn only_world_data_names_mangrove_and_magpie() {
             ("Magpie", theme::DiagonalDirection::Ascending),
         ]
     );
-    for name in ["Mangrove", "Magpie"] {
+    for name in super::diagonal_worlds() {
         theme::set_active_by_name(name).unwrap();
         assert_ne!(
             theme::muted(),
