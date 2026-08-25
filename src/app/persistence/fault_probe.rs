@@ -60,7 +60,7 @@ pub(super) fn run(operation: &str, args: &[PathBuf]) -> anyhow::Result<()> {
         ("export-bytes", [source, payload_path]) => {
             let mut app = app_on(source, false);
             app.document.set_text(&payload(payload_path)?);
-            let bytes = app.export_bytes(crate::export::Format::Html);
+            let bytes = app.export_bytes(crate::export::Format::Html).unwrap();
             std::io::stdout().write_all(&bytes)?;
         }
         ("large-save", [target, payload_path]) => {

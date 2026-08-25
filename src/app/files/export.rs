@@ -97,8 +97,9 @@ impl App {
     /// says — inside `dest_dir` when the destination navigator chose one. Images
     /// embedded in the export are read off the doc's own `assets/` directory
     /// through the filesystem seam (`export::FsImages`). A calm toast names the
-    /// target on success; a write failure raises a sticky notice (export never
-    /// crashes). On the WEB build there is no real filesystem, so DOCX/HTML bytes
+    /// target on success; a generation failure or a write failure both raise
+    /// the identical sticky notice through [`Self::report_export_failure`]
+    /// (export never crashes). On the WEB build there is no real filesystem, so DOCX/HTML bytes
     /// are handed to the browser download shim
     /// (`web_export::trigger_download_bytes`) instead — which is also why nothing
     /// chooses a folder there (`actions::export_picks_destination`); PDF has no
@@ -108,7 +109,13 @@ impl App {
         format: crate::export::Format,
         dest_dir: Option<&str>,
     ) {
-        let bytes = self.export_bytes(format);
+        let bytes = match self.export_bytes(format) {
+            Ok(bytes) => bytes,
+            Err(e) => {
+                self.report_export_failure(&e);
+                return;
+            }
+        };
 
         #[cfg(target_arch = "wasm32")]
         {
@@ -127,7 +134,13 @@ impl App {
     /// The rendered bytes for one export — the pure emitters, plus the one
     /// filesystem seam they read embedded images through. Shared by every
     /// destination door, so no door can render differently from another.
-    pub(in crate::app) fn export_bytes(&self, format: crate::export::Format) -> Vec<u8> {
+    /// `Err` never comes from a filesystem access here (no I/O has happened
+    /// yet); it is the PDF object writer's own defense-in-depth invariant
+    /// (see `crate::export::to_pdf`'s doc) surfacing before any bytes exist.
+    pub(in crate::app) fn export_bytes(
+        &self,
+        format: crate::export::Format,
+    ) -> Result<Vec<u8>, String> {
         let markdown = self.document.buffer().text();
         let doc_dir = self
             .document
@@ -137,6 +150,14 @@ impl App {
             .map(|p| p.to_path_buf());
         let images = crate::export::FsImages { doc_dir };
         crate::export::to_bytes(&markdown, format, &images)
+    }
+
+    /// THE ONE OWNER of "export failed" wording — a generation failure (this
+    /// arm) and [`Self::write_export`]'s own I/O `Err` arm both read as the
+    /// identical calm, sticky notice, so a test asserting the message's
+    /// shape covers both doors at once.
+    pub(in crate::app) fn report_export_failure(&mut self, e: &str) {
+        self.set_sticky_notice(format!("export failed: {e}"));
     }
 
     /// Resolve this App's export destination through the ONE pure owner.
@@ -195,9 +216,13 @@ impl App {
                 .map(|s| s.to_string_lossy().to_string())
                 .unwrap_or_default();
             if let Some(chosen) = crate::mac_chrome::pick_save_destination(&dir, &name) {
-                let bytes = self.export_bytes(format);
-                let doc_path = self.document.buffer().path().map(|p| p.to_path_buf());
-                self.write_export(&bytes, ExportTarget::at(chosen, doc_path.as_deref()));
+                match self.export_bytes(format) {
+                    Ok(bytes) => {
+                        let doc_path = self.document.buffer().path().map(|p| p.to_path_buf());
+                        self.write_export(&bytes, ExportTarget::at(chosen, doc_path.as_deref()));
+                    }
+                    Err(e) => self.report_export_failure(&e),
+                }
             }
             true
         }
@@ -230,7 +255,7 @@ impl App {
                 self.set_toast_notice(format!("exported {shown}"));
                 let _revealed = self.reveal_path(&target.path);
             }
-            Err(e) => self.set_sticky_notice(format!("export failed: {e}")),
+            Err(e) => self.report_export_failure(&e.to_string()),
         }
     }
 

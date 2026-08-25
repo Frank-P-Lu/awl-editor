@@ -10,7 +10,7 @@ use crate::export::{model, pdf::emit};
 #[test]
 fn japanese_fallback_paints_real_subset_glyphs_and_preserves_semantics() {
     let markdown = fixture::japanese_markdown();
-    let bytes = emit(&model::parse(&markdown), &NoImages);
+    let bytes = emit(&model::parse(&markdown), &NoImages).unwrap();
     let pdf = Pdf::parse(&bytes);
     let pages = recover_page_text(&pdf);
     let recovered = pages.join("");

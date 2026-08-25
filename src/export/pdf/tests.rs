@@ -18,7 +18,7 @@ use semantic::*;
 
 fn rich_bytes() -> (String, Vec<u8>) {
     let markdown = fixture::markdown();
-    let bytes = emit(&model::parse(&markdown), &Images::new());
+    let bytes = emit(&model::parse(&markdown), &Images::new()).unwrap();
     (markdown, bytes)
 }
 
@@ -269,7 +269,7 @@ fn png_alpha_jpeg_and_link_are_backed_by_real_pdf_objects() {
 #[test]
 fn rich_styles_are_proven_by_their_emitted_content_stream_operators() {
     let markdown = "**B** *I* ~~S~~ ==H== `M` **`N`**\n\n> Q\n\n---\n";
-    let bytes = emit(&model::parse(markdown), &NoImages);
+    let bytes = emit(&model::parse(markdown), &NoImages).unwrap();
     let pdf = Pdf::parse(&bytes);
     let streams = pdf.page_streams();
     assert_eq!(streams.len(), 1);
@@ -519,7 +519,7 @@ fn pagination_stays_in_margins_and_prevents_heading_or_paragraph_orphans() {
     for count in 24..34 {
         let prefix = pad_paragraphs(count);
         let markdown = format!("{prefix}## KEEP HEADING\n\nFOLLOWER stays with heading.\n");
-        let bytes = emit(&model::parse(&markdown), &NoImages);
+        let bytes = emit(&model::parse(&markdown), &NoImages).unwrap();
         let pages = recover_page_text(&Pdf::parse(&bytes));
         let previous = page_of(&pages, &format!("pad {:02}", count - 1));
         let heading = page_of(&pages, "KEEP HEADING");
@@ -544,7 +544,7 @@ fn pagination_stays_in_margins_and_prevents_heading_or_paragraph_orphans() {
         let markdown = format!(
             "{prefix}---\n\nSPLIT ALPHA begins a deliberately long paragraph whose second wrapped line must never be orphaned behind its first line near the bottom margin; SPLIT OMEGA closes it.\n"
         );
-        let bytes = emit(&model::parse(&markdown), &NoImages);
+        let bytes = emit(&model::parse(&markdown), &NoImages).unwrap();
         let pages = recover_page_text(&Pdf::parse(&bytes));
         let previous = page_of(&pages, &format!("pad {:02}", count - 1));
         let first = page_of(&pages, "SPLIT ALPHA");
@@ -573,7 +573,7 @@ fn multipage_and_nested_blockquotes_emit_an_in_bounds_rule_on_every_occupied_pag
         ));
     }
     markdown.push_str("> OUTER END\n");
-    let bytes = emit(&model::parse(&markdown), &NoImages);
+    let bytes = emit(&model::parse(&markdown), &NoImages).unwrap();
     let pdf = Pdf::parse(&bytes);
     let pages = recover_page_text(&pdf);
     assert!(pages.len() >= 3, "fixture must span pages: {}", pages.len());
@@ -610,11 +610,11 @@ fn multipage_and_nested_blockquotes_emit_an_in_bounds_rule_on_every_occupied_pag
 #[test]
 fn pdf_golden_and_public_format_path_are_byte_identical() {
     let markdown = fixture::markdown();
-    let direct = crate::export::to_pdf(&markdown, &Images::new());
-    let second = crate::export::to_pdf(&markdown, &Images::new());
+    let direct = crate::export::to_pdf(&markdown, &Images::new()).unwrap();
+    let second = crate::export::to_pdf(&markdown, &Images::new()).unwrap();
     assert_eq!(direct, second, "two complete exports are byte-identical");
     assert_eq!(
-        crate::export::to_bytes(&markdown, crate::export::Format::Pdf, &Images::new()),
+        crate::export::to_bytes(&markdown, crate::export::Format::Pdf, &Images::new()).unwrap(),
         direct
     );
     assert_eq!(crate::export::Format::Pdf.ext(), "pdf");

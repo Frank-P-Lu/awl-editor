@@ -11,7 +11,7 @@ use super::layout::{GlyphOp, Layout, Op, PAGE_H, PAGE_W};
 const FONT_BASE: u32 = 3;
 const FONT_OBJECTS: u32 = 5;
 
-pub(super) fn emit(layout: &Layout, metadata: &[u8]) -> Vec<u8> {
+pub(super) fn emit(layout: &Layout, metadata: &[u8]) -> Result<Vec<u8>, String> {
     let (active_roles, mut next) = active_role_plan(layout);
     let mut image_ids = Vec::new();
     for image in &layout.images {
@@ -300,13 +300,24 @@ fn stream(dict: &str, data: &[u8]) -> Vec<u8> {
     out.extend_from_slice(b"\nendstream");
     out
 }
-fn finish(objects: Vec<Option<Vec<u8>>>) -> Vec<u8> {
+// Every object id `finish` walks was reserved by exactly one allocation site
+// in `emit` above, paired with exactly one write over the SAME collection
+// (the per-role font quintuple, the per-image main+conditional-alpha pair,
+// the per-page content+annots+page triple, the two fixed catalog/pages ids,
+// and metadata) — so a hole here means an id was reserved without a matching
+// write, not that any document shape can trigger one today. `Err` rather
+// than a panic is defense against that pairing silently drifting apart in a
+// future change, with nothing but this function to catch it.
+fn finish(objects: Vec<Option<Vec<u8>>>) -> Result<Vec<u8>, String> {
     let mut out = b"%PDF-1.7\n%\xE2\xE3\xCF\xD3\n".to_vec();
     let mut offsets = vec![0usize; objects.len()];
     for id in 1..objects.len() {
         offsets[id] = out.len();
         out.extend_from_slice(format!("{id} 0 obj\n").as_bytes());
-        out.extend_from_slice(objects[id].as_ref().expect("planned PDF object"));
+        let body = objects[id]
+            .as_ref()
+            .ok_or_else(|| format!("PDF object {id} reserved but never written"))?;
+        out.extend_from_slice(body);
         out.extend_from_slice(b"\nendobj\n");
     }
     let xref = out.len();
@@ -321,7 +332,7 @@ fn finish(objects: Vec<Option<Vec<u8>>>) -> Vec<u8> {
         )
         .as_bytes(),
     );
-    out
+    Ok(out)
 }
 fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02X}")).collect()
@@ -335,4 +346,31 @@ fn utf16_hex(text: &str, bom: bool) -> String {
         write!(out, "{unit:04X}").unwrap();
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::finish;
+
+    /// `finish` is only reachable from within this module (`fn finish` is
+    /// private, not even `pub(super)`), so this is the one seam that can
+    /// drive its own defense-in-depth directly: a hand-built object plan
+    /// with a hole at id 2 (`emit` never produces one — see this file's
+    /// doc on `finish`) must return `Err`, not unwind.
+    #[test]
+    fn a_reserved_object_never_written_is_an_error_not_a_panic() {
+        let objects: Vec<Option<Vec<u8>>> =
+            vec![None, Some(b"<< /Type /Catalog >>".to_vec()), None];
+        let err = finish(objects).expect_err("a hole in the object plan must not panic");
+        assert_eq!(err, "PDF object 2 reserved but never written");
+    }
+
+    /// The companion PRESENCE check: an object plan with every slot written
+    /// succeeds, so the error path above is exercised by an actual hole and
+    /// not by some unrelated always-Err bug in `finish`.
+    #[test]
+    fn a_fully_written_object_plan_still_succeeds() {
+        let objects: Vec<Option<Vec<u8>>> = vec![None, Some(b"<< /Type /Catalog >>".to_vec())];
+        finish(objects).expect("every slot is written, so this must succeed");
+    }
 }
