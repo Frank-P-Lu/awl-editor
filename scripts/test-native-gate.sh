@@ -5,7 +5,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PYTHONDONTWRITEBYTECODE=1 python3 "$ROOT/scripts/test-native-test-shards.py"
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/awl-native-gate-test.XXXXXX")"
-trap 'rm -rf "$WORK"' EXIT
+trap 'echo KEEPING $WORK' EXIT
 # Every fixture gate inherits its own arbiter state. Besides keeping this test
 # hermetic, that lets the concurrent-holder law choose a fresh marker without
 # ever touching a real orchestrator's queue.
@@ -19,6 +19,38 @@ export AWL_NATIVE_GATE_ARBITER_LOCK="$WORK/default-arbiter.lock"
 # ARE about the axis override this explicitly, including one that unsets it to
 # prove the derivation.
 export AWL_NATIVE_GATE_MENUBAR_FULL=0
+
+# THE HEALTH ARM IS PINNED FOR EVERY LAW THAT IS NOT ABOUT IT, same reason as
+# the menu-bar pin above: the real scripts/code-health.sh runs full clippy and
+# recurses into this very file, so every probe below that did not override
+# this would compile clippy from scratch and then re-run the whole suite you
+# are reading right now, once per probe. The three laws that ARE about the
+# health arm override this explicitly.
+cat >"$WORK/health-stub" <<'HEALTHEOF'
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ -n "${AWL_NATIVE_GATE_PROBE_HEALTH_SLEEP:-}" ]]; then
+  sleep "$AWL_NATIVE_GATE_PROBE_HEALTH_SLEEP"
+fi
+# These two bodies are code-health.py's OWN message shapes, copied verbatim
+# (check_structural's mark-shrink message and its ungrandfathered production-
+# limit message) rather than invented text — a wording law over an invented
+# signal would prove nothing about the real distinction it is pinning.
+if [[ -n "${AWL_NATIVE_GATE_PROBE_HEALTH_RAISABLE:-}" ]]; then
+  echo "code-health: policy check failed" >&2
+  echo "src/large.rs: stored file-size mark is 500 lines but current file is 480; marks may only decrease" >&2
+  echo "  paste into scripts/code-health.toml, replacing the existing block for this file (the size genuinely shrank; no reason needed for a lower mark):" >&2
+  exit 1
+fi
+if [[ -n "${AWL_NATIVE_GATE_PROBE_HEALTH_CEILING:-}" ]]; then
+  echo "code-health: policy check failed" >&2
+  echo "src/new.rs: 501 lines (production limit is 500)" >&2
+  exit 1
+fi
+echo "code-health: structural and Clippy ratchets clean (baseline deadbeef; 0 Clippy exceptions)"
+HEALTHEOF
+chmod +x "$WORK/health-stub"
+export AWL_NATIVE_GATE_PROBE_HEALTH_COMMAND="$WORK/health-stub"
 
 PYTHONDONTWRITEBYTECODE=1 python3 - "$ROOT/scripts/native-test-shards.py" \
   >"$WORK/awl-test-list" <<'PY'
@@ -174,6 +206,15 @@ cat >"$WORK/git" <<'EOF'
 if [[ "$*" == 'rev-parse --path-format=absolute --git-common-dir' \
   && -n "${AWL_NATIVE_GATE_PROBE_COMMON_GIT_DIR:-}" ]]; then
   printf '%s\n' "$AWL_NATIVE_GATE_PROBE_COMMON_GIT_DIR"
+elif [[ "$*" == 'status --short' ]]; then
+  # Intercepted UNCONDITIONALLY, not only when a probe asks for dirt: this
+  # repo's own working tree is ambient state a probe does not control, and
+  # CLAUDE.md's own workflow runs code-health.sh (which reaches this file)
+  # from a deliberately dirty tree (after `git add`, before commit). Default
+  # clean; the one law that is actually about this axis sets the override.
+  if [[ -n "${AWL_NATIVE_GATE_PROBE_DIRTY_STATUS:-}" ]]; then
+    printf '%s\n' "$AWL_NATIVE_GATE_PROBE_DIRTY_STATUS"
+  fi
 else
   /usr/bin/git "$@"
 fi
@@ -1273,3 +1314,101 @@ set -e
 }
 
 echo "test-native-gate: a normal completion leaves no marker behind"
+
+# ── THE HEALTH ARM: NAMED ON THE RECEIPT, BEFORE THE ARBITER, TWO FAILURE TIERS ──
+# The stub is deliberately not the real code-health.sh (see the export at the
+# top of this file for why); a stubbed pass must not read like a real one, so
+# the gate labels it `mode=override` rather than a fabricated elapsed time.
+probe health-pass
+(( probe_status == 0 )) || { echo "test-native-gate: health-pass probe failed ($probe_status)" >&2; exit 1; }
+require "health pass" "native-gate-health status=ok"
+require "health pass" "mode=override"
+require "health pass" "native-gate-receipt"
+grep -Eq 'health=override:[0-9]+s' "$probe_output" || {
+  echo "test-native-gate: a passing health arm did not name itself override:<seconds>s on the receipt" >&2
+  exit 1
+}
+
+echo "test-native-gate: a passing health arm names itself on the receipt rather than reading as a real pass"
+
+# A raisable mark failure — missing/must-decrease/raised-without-reason — is
+# code-health.py's own text always naming the toml paste site. The stub emits
+# that exact message shape (copied from check_structural, not invented), so
+# this law pins the gate's label against the real distinguishing signal.
+probe health-raisable AWL_NATIVE_GATE_PROBE_HEALTH_RAISABLE=1
+(( probe_status == 1 )) || {
+  echo "test-native-gate: a raisable health failure returned $probe_status, expected gate status 1" >&2
+  exit 1
+}
+require "raisable health failure" "native-gate: code-health failed"
+require "raisable health failure" "native-gate: RAISABLE"
+refuse "raisable health failure" "native-gate: HARD CEILING"
+refuse "raisable health failure" "native-gate-receipt"
+
+echo "test-native-gate: a raisable mark failure is labelled RAISABLE, not HARD CEILING, and issues no receipt"
+
+# The flat 500-line production ceiling never carries a toml paste site — no
+# edit to code-health.toml can move it — so the gate's other label applies.
+probe health-ceiling AWL_NATIVE_GATE_PROBE_HEALTH_CEILING=1
+(( probe_status == 1 )) || {
+  echo "test-native-gate: a hard-ceiling health failure returned $probe_status, expected gate status 1" >&2
+  exit 1
+}
+require "hard-ceiling health failure" "native-gate: code-health failed"
+require "hard-ceiling health failure" "native-gate: HARD CEILING"
+refuse "hard-ceiling health failure" "native-gate: RAISABLE"
+refuse "hard-ceiling health failure" "native-gate-receipt"
+
+echo "test-native-gate: a hard-ceiling failure is labelled HARD CEILING, distinctly from a raisable mark, and issues no receipt"
+
+# The dirty-tree refusal is asserted BEFORE health or the arbiter, so a dirty
+# tree must never show either one having run at all.
+probe health-dirty-tree AWL_NATIVE_GATE_PROBE_DIRTY_STATUS=' M scripts/native-gate.sh'
+(( probe_status == 1 )) || {
+  echo "test-native-gate: a dirty-tree probe returned $probe_status, expected gate status 1" >&2
+  exit 1
+}
+require "dirty tree refusal" "native-gate: working tree is dirty"
+refuse "dirty tree refusal" "native-gate-health"
+refuse "dirty tree refusal" "native-gate-arbiter"
+refuse "dirty tree refusal" "native-gate-receipt"
+
+echo "test-native-gate: a dirty working tree is refused before health or the arbiter ever run"
+
+# ── The arbiter's held window excludes the health arm, MEASURED ─────────────
+# Health runs before gate_arbiter_acquire, so `gate_started_epoch` — the
+# reference point every `elapsed_seconds` in this file is relative to — is
+# captured strictly after it. The law below is the actual measurement that
+# fact implies, not an assumption from reading the source: wall time grows by
+# the stub's own sleep (health really ran), the arbiter's own published
+# `start_epoch` is delayed by roughly that same sleep (health really precedes
+# acquisition), and the suite's `elapsed_seconds` — what a queued sibling
+# gate actually waits behind — stays near the fast test phase's own duration,
+# not the health sleep added on top of it.
+health_measure_launch="$(date +%s)"
+probe health-cpu-only AWL_NATIVE_GATE_PROBE_HEALTH_SLEEP=3
+(( probe_status == 0 )) || { echo "test-native-gate: health-cpu-only probe failed ($probe_status)" >&2; exit 1; }
+(( probe_elapsed >= 2 )) || {
+  echo "test-native-gate: a 3s health sleep barely moved the gate's wall time (${probe_elapsed}s) — the arm may not actually be running" >&2
+  exit 1
+}
+health_arbiter_start_epoch="$(awk '/^native-gate-arbiter capacity=1 holder / { for (i = 1; i <= NF; i++) if ($i ~ /^start_epoch=/) { sub(/^start_epoch=/, "", $i); print $i; exit } }' "$probe_output")"
+[[ "$health_arbiter_start_epoch" =~ ^[0-9]+$ ]] || {
+  echo "test-native-gate: the health-cpu-only probe published no arbiter start_epoch" >&2
+  exit 1
+}
+(( health_arbiter_start_epoch - health_measure_launch >= 2 )) || {
+  echo "test-native-gate: the arbiter acquired only $((health_arbiter_start_epoch - health_measure_launch))s after launch against a 3s health sleep — health is not actually running before acquisition" >&2
+  exit 1
+}
+health_suite_elapsed="$(sed -n 's/.*label=mac event=suite-end elapsed_seconds=\([0-9]*\).*/\1/p' "$probe_output" | head -n1)"
+[[ -n "$health_suite_elapsed" ]] || {
+  echo "test-native-gate: no mac suite-end phase marker in the health-cpu-only probe" >&2
+  exit 1
+}
+(( health_suite_elapsed < 3 )) || {
+  echo "test-native-gate: the mac suite reported elapsed_seconds=$health_suite_elapsed against a 3s health sleep — the arbiter-held window grew by the health arm's own time instead of excluding it" >&2
+  exit 1
+}
+
+echo "test-native-gate: a 3s health arm grows the gate's wall time but not the arbiter-held window — measured, not assumed"
