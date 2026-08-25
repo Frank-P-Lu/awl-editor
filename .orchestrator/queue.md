@@ -155,7 +155,7 @@ floor, the query-to-first-item distance bounded, swept across the
 Diagonal-world roster, both DPIs.
 
 ---
-### 488 — the native gate grows a health arm: code-health.sh becomes structurally unskippable (USER 2026-08-25, after repeated red-main repair rounds)
+### 491 — the native gate grows a health arm: code-health.sh becomes structurally unskippable (USER 2026-08-25, after repeated red-main repair rounds; renumbered from a colliding 488 — that number was already spent by item 485's query_drag finding)
 
 `scripts/native-gate.sh` contains no reference to code-health;
 `scripts/code-health.sh` carries fmt, full clippy `-D warnings`,
