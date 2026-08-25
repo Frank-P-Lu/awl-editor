@@ -154,6 +154,41 @@ feather face crosses document glyph rows sharper than the shipped
 floor, the query-to-first-item distance bounded, swept across the
 Diagonal-world roster, both DPIs.
 
+---
+### 488 — the native gate grows a health arm: code-health.sh becomes structurally unskippable (USER 2026-08-25, after repeated red-main repair rounds)
+
+`scripts/native-gate.sh` contains no reference to code-health;
+`scripts/code-health.sh` carries fmt, full clippy `-D warnings`,
+cargo-machete, and `code-health.py`'s ratchets (size marks + frozen
+baseline, stale exceptions, item-number citation bans). So a lane holds
+a full green receipt while its diff is health-red, and the failure
+surfaces post-merge on `main` — measured cost this round: several
+red-main repairs, including genuine shrinks where marks were capped by
+the frozen baseline rather than raisable. README's landing list already
+names code health; nothing structural enforces it. The fix is the gate,
+not another instruction.
+
+Mechanism: native-gate.sh runs `code-health.sh` as a named arm BEFORE
+acquiring the full-width arbiter slot (health is CPU-only; the
+serialized GPU window must not grow), on the commit the receipt names,
+and the receipt gains a `health=` line — no receipt without it. On
+failure the arm's output must carry the policy: a RAISABLE mark failure
+says "report the number; the orchestrator raises code-health.toml at
+merge" (lanes may not edit the toml), distinct from a hard-ceiling
+failure (500-line/baseline — shrink is the only remedy);
+`code-health.py`'s messages already distinguish the tiers, so this is
+labeling, not new analysis. The gate also asserts `git status --short`
+clean before starting — closing the documented dirty-tree-receipt and
+unstaged-toml hazards in the same move. CI is untouched (linux already
+runs the script); this closes the LOCAL lane gap only.
+
+Verify: a receipt from the new gate names the health arm; a seeded
+worktree with a health-red diff gets no receipt and the mark-vs-ceiling
+wording matches the failure class (drive both classes); the arbiter
+marker's hold window is measured unchanged; `test-native-gate.sh`'s own
+law set gains the arm. Record the added wall-clock in the landing note —
+worker briefs' timeout guidance depends on it.
+
 ## Needs specific hardware
 
 1. **AT-SPI journey** — on a real Linux desktop with Orca, exercise document
