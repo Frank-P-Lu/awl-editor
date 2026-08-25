@@ -7,7 +7,6 @@ fn row(leaf: &str, parent: &str, active: bool) -> StackRow {
         parent: parent.to_string(),
         active,
         kind: crate::workingset::StackRowKind::File,
-        prototype_hovered: false,
     }
 }
 

@@ -400,9 +400,6 @@ pub struct CaptureOpts {
     /// one door able to reach it, which is exactly the gap `--seed-tree` was
     /// added to close from the other end.
     pub working_set: Vec<crate::workingset::StackRow>,
-    /// Report for the sealed working-set capture prototype. `None` in every
-    /// production frame, preserving the `buffers` block byte-for-byte.
-    pub working_set_prototype: Option<crate::workingset::PrototypeReport>,
     /// THE ACTIVE FILE's OWN REMEMBERED ROOT
     /// ([`crate::workingset::WorkingSet::active_root`]) — the gutter's project
     /// LABEL, never the nominally "active project" a Switch-project alone can
@@ -436,15 +433,6 @@ impl CaptureOpts {
             view.gutter_files.clone_from(&self.working_set);
             if let Some(root) = &self.gutter_project_root {
                 view.gutter_project = crate::project::folder_name(root);
-            }
-            if self
-                .working_set_prototype
-                .as_ref()
-                .is_some_and(|report| report.mode == "grouped")
-            {
-                // The grouped prototype carries its own truthful root headings.
-                // Suppress the ordinary one-root heading so it is not duplicated.
-                view.gutter_project.clear();
             }
         }
         view.gutter_changed = self.gutter_changed;

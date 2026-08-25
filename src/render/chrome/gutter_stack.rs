@@ -100,7 +100,6 @@ pub(super) struct StackLine {
     pub parent_byte: usize,
     pub active: bool,
     pub kind: crate::workingset::StackRowKind,
-    pub prototype_hovered: bool,
 }
 
 /// Fit each row to `budget` characters, THE LEAF FIRST.
@@ -132,7 +131,6 @@ pub(super) fn fit_rows(rows: &[crate::workingset::StackRow], budget: usize) -> V
                 text: format!("{parent}{leaf}"),
                 active: row.active,
                 kind: row.kind,
-                prototype_hovered: row.prototype_hovered,
             }
         })
         .collect()
@@ -201,17 +199,13 @@ pub(super) fn stack_spans(
         // revealing the × changes only ink, never the label's advances. A
         // single-file identity never enters this function with a row, so it
         // keeps its original bytes and geometry.
-        let shown = hover
-            .filter(|hit| hit.row == row)
-            .map(|_| ())
-            .or(line.prototype_hovered.then_some(()))
-            .map(|_| {
-                if line.active {
-                    theme::selected_row_secondary_ink(theme::surface_selected()).to_glyphon()
-                } else {
-                    theme::muted().to_glyphon()
-                }
-            });
+        let shown = hover.filter(|hit| hit.row == row).map(|_| {
+            if line.active {
+                theme::selected_row_secondary_ink(theme::surface_selected()).to_glyphon()
+            } else {
+                theme::muted().to_glyphon()
+            }
+        });
         out.push((
             CLOSE_MARK_TEXT.to_string(),
             shown.unwrap_or_else(|| glyphon::Color::rgba(0, 0, 0, 0)),

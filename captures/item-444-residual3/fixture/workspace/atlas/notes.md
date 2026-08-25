@@ -1,3 +1,0 @@
-# Notes
-
-atlas second file.

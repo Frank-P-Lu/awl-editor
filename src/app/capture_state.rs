@@ -91,15 +91,9 @@ impl App {
             .active_root()
             .map(|root| self.document.working_set().margin_rows(root))
             .unwrap_or_default();
-        // SEALED CAPTURE PROTOTYPE: audition overflow/grouping presentations
-        // against the REAL live-App working set without changing a production
-        // window or persisting a choice. No env key means the production rows
-        // above remain exactly the artifact.
-        if let Some(spec) = crate::workingset::PrototypeSpec::from_env() {
-            let prototype = self.document.working_set().prototype_view(spec);
-            opts.working_set = prototype.rows;
-            opts.working_set_prototype = Some(prototype.report);
-        }
+        // THE MOVE-NAVIGATOR AUDITION DOOR: still-undecided candidate rows for
+        // the Move destination card, sealed behind an env key so no live frame
+        // asks it a question by accident.
         if crate::workingset::prototype_move_from_env()
             && let Some(overlay) = opts.overlay.as_mut()
             && overlay.mode == "move"

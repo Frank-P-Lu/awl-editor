@@ -2598,8 +2598,8 @@ pub struct TextPipeline {
     /// [`ViewState::gutter_files`].
     gutter_files: Vec<crate::workingset::StackRow>,
     /// The working-set row/zone under the live pointer. `None` on every
-    /// headless frame (no pointer driver) and visually inert unless the explicit
-    /// affordance prototype environment switch is armed.
+    /// headless frame (no pointer driver), so the close-mark reveal it drives
+    /// is live-pointer-only and unreachable from any capture door.
     gutter_stack_hover: Option<chrome::GutterStackHit>,
     /// The soft row plate under the working set's ACTIVE row. Holds no instances
     /// at all unless the stack is drawn, so a single-file frame issues no extra
