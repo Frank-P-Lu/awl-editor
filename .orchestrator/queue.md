@@ -157,6 +157,8 @@ Diagonal-world roster, both DPIs.
 ---
 ### 491 — the native gate grows a health arm: code-health.sh becomes structurally unskippable (USER 2026-08-25, after repeated red-main repair rounds; renumbered from a colliding 488 — that number was already spent by item 485's query_drag finding)
 
+**CLAIMED 2026-08-25 — building in worktree `item-491-health-gate-arm`.**
+
 `scripts/native-gate.sh` contains no reference to code-health;
 `scripts/code-health.sh` carries fmt, full clippy `-D warnings`,
 cargo-machete, and `code-health.py`'s ratchets (size marks + frozen
@@ -217,6 +219,8 @@ law non-vacuous by re-introducing the spaces-only loop and watching it go red.
 ---
 ### 493 — retire the stray sRGB EOTF copy in `theme::derive`, and harden the law that missed it (found by the 2026-08-25 duplication census, verified)
 
+**CLAIMED 2026-08-25 — building in worktree `item-493-srgb-eotf-copy`.**
+
 `src/theme/derive.rs:169-179` (`rel_lum`/`contrast_ratio` — live runtime
 inputs to `placard_stipple_density` and `selected_row_ink`) reimplements the
 sRGB EOTF locally with breakpoint `0.03928` (the pre-2017 WCAG draft value)
@@ -266,6 +270,8 @@ tilde-fenced selection. Red-first on the pre-fix tree for the tilde cases.
 ---
 ### 495 — writing streaks count the words the readout shows (found by the 2026-08-25 duplication census, verified)
 
+**CLAIMED 2026-08-25 — building in worktree `item-495-streaks-word-count`.**
+
 `streaks_current_words` (`src/app/streaks.rs:52`) counts via
 `markdown::word_count` — plain `split_whitespace().count()` — while its own
 comment claims it is "the same `markdown::word_count` the readout / held HUD
@@ -289,6 +295,8 @@ count_tokens agree on spaced prose — assert it rather than assume it).
 
 ---
 ### 496 — law enrolment repairs: three sweeps that a roster change silently narrows (found by the 2026-08-25 test-quality census, verified)
+
+**CLAIMED 2026-08-25 — building in worktree `item-496-law-enrolment-repairs`.**
 
 Three enrolment holes, same family, one item:
 
@@ -350,6 +358,8 @@ marks for both files RATCHET DOWN in the same change, not merely hold.
 ---
 ### 498 — retire the judged working-set prototype machinery, keep the Move-rows audition (found by the 2026-08-25 structure census, verified)
 
+**CLAIMED 2026-08-25 — building in worktree `item-498-retire-prototype`.**
+
 `src/workingset/prototype.rs:28-218` — `PrototypeSpec`
 (Collapsed/Expanded/Grouped), `prototype_view`, the three builders,
 `PrototypeReport`, wiring at `src/app/capture_state.rs:98`, plus its
@@ -378,6 +388,8 @@ deleted helper before deletion, not after.
 
 ---
 ### 499 — hardening two panic-on-missing-state seams: PDF `finish()` and `range_apply_live` (found by the 2026-08-25 correctness census; NO reproduced defect — defense in depth)
+
+**CLAIMED 2026-08-25 — building in worktree `item-499-panic-hardening`.**
 
 Neither is a demonstrated bug; both are single-point invariants a future
 change reopens with no compiler signal. Board-verified reachability status
