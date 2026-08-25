@@ -105,20 +105,26 @@ pub(super) fn setext_break_range(text: &str, range: &Range<usize>) -> Option<Ran
 /// The number of leading-indent SPACES that make up ONE nesting level for a
 /// markdown list. awl's list model is "every 2 spaces = one level" (see
 /// [`ListItem::depth`]); this is the single place that ratio lives, shared by the
-/// depth derivation (rendering) and the Tab/Shift-Tab indent step (editing).
+/// depth derivation (rendering) and the Tab/Shift-Tab indent step (editing). A tab
+/// in the leading run counts as one unit toward `indent`, same as a space — see
+/// [`list_item`].
 pub const LIST_INDENT: usize = 2;
 
 /// A detected markdown LIST ITEM on ONE line — the SHARED list-detection primitive
-/// behind both the depth-derived bullet GLYPH (rendering, `spans.rs`/`rects.rs`) and
-/// the Tab/Shift-Tab indent/outdent EDIT (`actions.rs`/`buffer`). Pure per-line scan
-/// (no full parse), matching the per-line precedent of [`crate::render::spans::md_line_scale`]:
-/// optional leading spaces, then either an unordered marker (`-`/`*`/`+`) or an
-/// ordered one (digits + `.`/`)`), then a REQUIRED single space. Byte offsets are
-/// into the line; since the indent is spaces, `indent` is both the leading-space
-/// COUNT and the marker char's byte offset. See [`list_item`].
+/// behind the depth-derived bullet GLYPH (rendering, `spans.rs`/`rects.rs`), the
+/// Tab/Shift-Tab indent/outdent EDIT (`actions.rs`/`buffer`), AND the Enter-list-
+/// continuation decision (`actions::edit::smart_newline_for`, which layers its own
+/// checkbox-suffix and blockquote handling on top). Pure per-line scan (no full
+/// parse), matching the per-line precedent of [`crate::render::spans::md_line_scale`]:
+/// optional leading spaces OR TABS, then either an unordered marker (`-`/`*`/`+`) or
+/// an ordered one (digits + `.`/`)`), then a REQUIRED single space. Byte offsets are
+/// into the line; since a leading space and a leading tab are each one byte, `indent`
+/// is both the leading-indent CHAR COUNT and the marker char's byte offset. See
+/// [`list_item`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ListItem {
-    /// Leading-space count == the byte/char offset of the marker character.
+    /// Leading-indent (space or tab) count == the byte/char offset of the marker
+    /// character.
     pub indent: usize,
     /// True for an ordered (`1.`) item; false for an unordered (`-`) bullet. Only
     /// unordered items get a depth-cycling bullet glyph — ordered keep their number.
@@ -140,14 +146,16 @@ impl ListItem {
 }
 
 /// Detect a markdown list item on `line` — the SHARED detection used by the bullet
-/// glyph, its reveal-on-cursor concealment, and the Tab/Shift-Tab indent edit.
-/// Recognizes, after optional leading spaces, an unordered marker (`-`/`*`/`+`) or an
-/// ordered one (a digit run + `.`/`)`), each REQUIRING a single following space (so a
-/// bare `-` or `12 monkeys` is NOT a list). Returns `None` for a non-list line. Pure.
+/// glyph, its reveal-on-cursor concealment, the Tab/Shift-Tab indent edit, and the
+/// Enter-list-continuation decision. Recognizes, after optional leading spaces OR
+/// TABS (CommonMark's tab-as-indent — mixing the two is fine, each counts as one
+/// unit of `indent`), an unordered marker (`-`/`*`/`+`) or an ordered one (a digit
+/// run + `.`/`)`), each REQUIRING a single following space (so a bare `-` or
+/// `12 monkeys` is NOT a list). Returns `None` for a non-list line. Pure.
 pub fn list_item(line: &str) -> Option<ListItem> {
     let b = line.as_bytes();
     let mut i = 0;
-    while i < b.len() && b[i] == b' ' {
+    while i < b.len() && (b[i] == b' ' || b[i] == b'\t') {
         i += 1;
     }
     let indent = i;
