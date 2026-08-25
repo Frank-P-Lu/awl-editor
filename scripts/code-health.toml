@@ -229,8 +229,8 @@ reason = "The one construction site each pipeline family has now sits inside gpu
 
 [[file_size_mark]]
 file = "src/main/args.rs"
-lines = 974
-reason = "+2: resolve_default_folder documents the default-folder candidate separately from the explicit-setting gate owned by run::location::resolve_launch_context; generated reference facts read that live boundary. +18: the --seed-tree CLI parse arm, its two loud refusal bounds (256 files / 4 MiB), and the doc comment distinguishing it from --root's bare directory marker and --seed-data's flat data root. +4: `--keys` replay threads `linux_emacs_meta` through the same construction call `App::new` uses, so a replayed M-x reaches the seeded Meta layer."
+lines = 54
+reason = "DOWN 920: `parse_args`'s own body (the argument-token loop, the hidden bench/soak short-circuit, CLI validation, hermetic scenario filesystem setup, config load, sticky-preference resolution, capture-opts assembly, final `Mode` construction) moved to `args/parse.rs` and its own `loop_flags.rs`/`validate.rs`/`finish.rs` phase files, the same submodule shape this file already used for `flags.rs`/`modes.rs`/`parsers.rs`. What remains here is the module-declaration shell plus `resolve_default_folder`, the one function other modules reach through `crate::args::`."
 
 [[file_size_mark]]
 file = "src/main/run.rs"
@@ -534,10 +534,17 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
-file = "src/main/args.rs"
-function = "parse_args"
-message = "this function has too many lines (644/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. The parser owns the minimal `--ground-audition` arm, capture-mode flag/Mode/live-App selection, one unconditional hermetic-fs installation through `scenario::seed_document`, and the three native-only pieces each hidden benchmark flag requires. Plus the new --seed-tree arm. +4: `--keys` replay threads `linux_emacs_meta` through the same construction call `App::new` uses."
+file = "src/main/args/parse/loop_flags.rs"
+function = "parse_flag_loop"
+message = "this function has too many lines (255/100)"
+reason = "The one argument-token loop, decomposed out of the former `parse_args` monolith (644 lines) into named phase functions threaded through `Ctx` (see `args/parse.rs`'s module doc). What remains here is the no-wildcard match on `FlagId` the flag roster's own doc requires — a new roster row fails to compile until an arm reads it — so splitting the match itself would break the exhaustiveness property the design exists for, the same shape `main/run.rs`'s own `run` exception documents for its exhaustive `Mode` match."
+
+[[clippy_exception]]
+lint = "clippy::too_many_lines"
+file = "src/main/args/parse/finish.rs"
+function = "build_mode"
+message = "this function has too many lines (142/100)"
+reason = "The final phase of the decomposed `parse_args` (see the `parse_flag_loop` exception above for the decomposition): the exhaustive `Mode`-construction match, whose arm order mirrors `resolve_capture_kind`'s own precedence (held > timeline > screenshot-app > screenshot-frames > motion > screenshot > windowed). Splitting the match would give that precedence two owners instead of one."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
