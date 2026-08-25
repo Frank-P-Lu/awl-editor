@@ -106,7 +106,7 @@ pub(crate) fn footprint_narrow(card: [f32; 4], shear: f32, surfaces: &[[f32; 4]]
 /// and never above the top. Shrinking the bottom moves the shape's own pivot
 /// (`cy = y + h/2`), and the X faces `card`'s own left/width were un-sheared about the OLD
 /// one — so holding them at their canvas position needs the same compensation
-/// [`super::extent::footprint_seat_top`] applies from the other end: shift `x` by
+/// [`footprint_seat_top`] applies from the other end: shift `x` by
 /// `shear * (new_cy - old_cy)`.
 pub(crate) fn footprint_narrow_bottom(
     card: [f32; 4],
@@ -134,6 +134,38 @@ pub(crate) fn footprint_narrow_bottom(
         0.0
     };
     [x + dx, y, w, new_h]
+}
+
+/// THE FOOTPRINT'S TOP FACE, SEATED AT THE CANVAS TOP — extending a card-anchored box
+/// upward to `y = 0`, which sits above any document line drawn beneath a card seated
+/// near the window's top. A composition whose top face sits mid-way through the
+/// document's own opening heading straddles it: the ink above the face reads sharp,
+/// the ink below reads through the frost, and the seam falls inside a single glyph
+/// row. Seating the face at the canvas top puts the whole heading on one side of it.
+///
+/// The naive edit (`rect[1] = 0.0; rect[3] = old_bottom`) SILENTLY MOVES THE RAKING
+/// SIDE FACES: [`super::extent::footprint_dist_outside`] un-shears every point about
+/// the box's own vertical centre (`cy = y + h/2`), so changing `y`/`h` moves `cy` and
+/// therefore slides the sheared side faces sideways at every row. Compensating `x` by
+/// `shear * (new_cy - old_cy)` keeps every side face at the exact canvas x it already
+/// had; only the top boundary moves. [`footprint_narrow_bottom`] compensates the same
+/// way, for the same reason, when it shrinks `h` from the other end.
+///
+/// A non-finite shear or rect returns the rect unchanged — the inert answer, since a
+/// caller already checked finiteness upstream and this is not the place to invent a
+/// box.
+pub(crate) fn footprint_seat_top(rect: [f32; 4], shear: f32) -> [f32; 4] {
+    let [x, y, w, h] = rect;
+    if !(x.is_finite() && y.is_finite() && w.is_finite() && h.is_finite() && shear.is_finite()) {
+        return rect;
+    }
+    let bottom = y + h;
+    let new_y = y.min(0.0);
+    let new_h = (bottom - new_y).max(0.0);
+    let old_cy = y + h * 0.5;
+    let new_cy = new_y + new_h * 0.5;
+    let new_x = x + shear * (new_cy - old_cy);
+    [new_x, new_y, w, new_h]
 }
 
 #[cfg(test)]

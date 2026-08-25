@@ -224,13 +224,18 @@ fn assert_mark_is_outboard(r: &MarkReading, ctx: &str) {
     // name's own ink on a row too cramped to afford the full reach, which is
     // the clamp working, not the ink going unread.
     if r.accessory_ink_w <= 0.0 {
+        // `(vertex - label_anchor) * s` is the SIGNED outboard distance — always
+        // non-negative once the headline claim above holds. `ink_w` is a plain
+        // unsigned width (never itself multiplied by `s`), so it is compared
+        // against that distance directly.
+        let past_label = (r.vertex - r.label_anchor) * s;
         assert!(
-            (r.vertex - r.label_anchor) * s >= r.ink_w * s - 0.51,
-            "{ctx}: the vertex ({}) sits only {} past the label end ({}) — the \
-             row's own measured name ink ({}) is not reaching the placement, \
-             which is indistinguishable from every row sharing one fixed reach",
+            past_label >= r.ink_w - 0.51,
+            "{ctx}: the vertex ({}) sits only {past_label} past the label end \
+             ({}) — the row's own measured name ink ({}) is not reaching the \
+             placement, which is indistinguishable from every row sharing one \
+             fixed reach",
             r.vertex,
-            (r.vertex - r.label_anchor) * s,
             r.label_anchor,
             r.ink_w
         );
@@ -239,12 +244,14 @@ fn assert_mark_is_outboard(r: &MarkReading, ctx: &str) {
         // the authored gap at every DPI and zoom this sweep runs while sitting far
         // under any real accessory-column reach, so this floor is what actually
         // catches a `mark_span` reverted to its old `accessory_anchor`-based reach.
-        let past_ink = (r.vertex - r.label_anchor) * s - r.ink_w * s;
+        let past_ink = past_label - r.ink_w;
         assert!(
             past_ink <= 60.0,
-            "{ctx}: the vertex sits {past_ink:.1} px past the row's own name ink — \
-             far more than a seating gap, which reads as the mark standing at the \
-             cluster's whole reserved width again rather than just past the name"
+            "{ctx}: the vertex sits {past_ink:.1} px past the row's own name ink \
+             ({}) — far more than a seating gap, which reads as the mark \
+             standing at the cluster's whole reserved width again rather than \
+             just past the name",
+            r.ink_w
         );
     }
     // THE MARK POINTS BACK INTO THE ROW: the vertex is its inner end and the
