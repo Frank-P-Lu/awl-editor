@@ -55,7 +55,7 @@ fn settings_view(lens: usize) -> ViewState {
 }
 
 /// **THE ROW TEXT SITS INSIDE ITS OWN PLATE.** Swept over the whole world
-/// roster (the reported world is one of twenty, and the two neighbouring items
+/// roster (the reported world is only one of them, and the two neighbouring items
 /// this one was bundled with were both reported world-specific and both turned
 /// out universal), every `SettingId` category lens, and the widths where the
 /// clip bites — including the narrowest the workspace still draws both regions

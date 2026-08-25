@@ -234,8 +234,8 @@ fn hex_round_trips_known_values() {
 /// hand-rolled `if selection_style == InverseVideo { .. } else { .. }` at
 /// each of those two sites. This pins the STRUCTURAL half of the contract
 /// (every world resolves to EXACTLY the treatment its `selection_style`
-/// names, with no third "neither" outcome reachable) across all sixteen
-/// worlds; the REAL-PIXEL half — does the renderer actually honor it — lives
+/// names, with no third "neither" outcome reachable) across every world; the
+/// REAL-PIXEL half — does the renderer actually honor it — lives
 /// in `render::tests::distinguishability`.
 #[test]
 fn highlight_treatment_matches_selection_style_on_every_world_no_absent_case() {

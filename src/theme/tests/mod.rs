@@ -1,4 +1,4 @@
-//! Tests for the `theme` module (the sixteen worlds + their derivation laws)
+//! Tests for the `theme` module (the world roster + its derivation laws)
 //! -- split by SUBJECT (the 2026-08 code-organization pass, following
 //! `render/tests/`'s established shape) out of one 4256-line `theme::tests`
 //! file into this `theme/tests/` directory -- every test's NAME is

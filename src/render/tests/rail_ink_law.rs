@@ -617,11 +617,11 @@ fn grade_menu_bar_arm(
         }
     }
 
-    // NON-VACUITY, PER ARM. 20 worlds x 4 cells x 2 focus states = 160, of which
-    // the two NARROW rows-focused stages draw no rail at all (the pane takes the
-    // card there) — so 120 is this arm's real ceiling and every one of them is
-    // expected to grade. The counts are floors, so adding a canvas does not turn
-    // this into a bookkeeping test.
+    // NON-VACUITY, PER ARM. The sweep is the roster x 4 cells x 2 focus
+    // states, less the two NARROW rows-focused stages, which draw no rail at
+    // all (the pane takes the card there). The counts below are FLOORS, not
+    // equalities, so growing the roster or adding a canvas does not turn this
+    // into a bookkeeping test.
     let graded = rects.len();
     assert!(
         graded >= 100 && plated >= 90,

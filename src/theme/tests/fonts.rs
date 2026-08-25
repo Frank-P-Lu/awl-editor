@@ -432,7 +432,7 @@ fn axis_coverage_ruler() {
     assert_eq!(Lens::STRIP.len(), 5);
 }
 
-/// The sixteen worlds map onto at least SIX CLEARLY-distinct display faces
+/// The roster maps onto at least SIX CLEARLY-distinct display faces
 /// (IBM Plex Mono / JetBrains Mono / Literata / Newsreader / IBM Plex Sans /
 /// Figtree / Zilla Slab), so cycling worlds visibly reskins the glyph shapes,
 /// not just the palette. The two newly-registered faces (JetBrains Mono,

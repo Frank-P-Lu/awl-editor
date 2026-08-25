@@ -198,7 +198,7 @@ fn ambient_stars_laws_hold_for_every_world() {
 /// `has_ambient_motion() || background.is_waves()` for every world, no
 /// per-world name comparison and no re-derived OR at a call site.
 ///
-/// (1) Composition holds for all sixteen worlds.
+/// (1) Composition holds for every world on the roster.
 /// (2) It is a STRICT SUPERSET of `has_ambient_motion` — the only worlds it
 ///     flips true that `has_ambient_motion` didn't are the `Waves` worlds
 ///     (today: Bombora alone).

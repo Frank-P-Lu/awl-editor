@@ -245,11 +245,10 @@ fn overlay_row_elements_agree_in_y_flat_and_faceted_every_world() {
     // pipeline metrics exactly like the live app's monitor scale.
     for dpi in [1.0f32, 2.0] {
         p.set_dpi(dpi);
-        // THE FULL ROSTER, not a hand-picked subset: the original
-        // seven (four Bars poster worlds + three calm ones) left eleven worlds
-        // unswept, Mopoke (the live Settings "every second row" witness,
-        // 2026-07-26) among them — Pane/RenderCaps::DEFAULT, never exercised by
-        // the original list. `crate::theme::world_names()` is the SAME ordered
+        // THE FULL ROSTER, not a hand-picked subset — a hand-picked list
+        // leaves Pane/`RenderCaps::DEFAULT` worlds unswept, Mopoke (the live
+        // Settings "every second row" witness) among them.
+        // `crate::theme::world_names()` is the SAME ordered
         // roster `THEMES` derives from (law-pinned:
         // `world_names_mirrors_themes_order_exactly`), so a new world is swept
         // for free. The `set_list_style_test_override` below still forces BOTH

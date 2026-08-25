@@ -19,8 +19,8 @@
 //! byte-identical (`split_pane.rs`'s own suite covers that).
 //!
 //! Enrolment is derived from the ROSTER (`render_caps.list_style ==
-//! ListStyle::Pane`), not a named world — 14 of the 20 shipped worlds default
-//! to it. A separation floor is satisfiable by deleting its own subject (the
+//! ListStyle::Pane`), not a named world — most of the roster defaults to it.
+//! A separation floor is satisfiable by deleting its own subject (the
 //! label reads clear of the rule if it never draws at all), so this pairs a
 //! PRESENCE floor (real ink found within the strip's own box) with the
 //! SEPARATION floor (that ink starts strictly, and by a real margin, below the

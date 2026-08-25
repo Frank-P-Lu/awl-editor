@@ -27,7 +27,7 @@
 //!   row-anchored origin formulas as the oracle and sweep the new shared
 //!   solvers against them, so `Raked`'s pixels are provably unmoved by the
 //!   generalisation the rail's own composition needed. (`Raked` is Magpie's,
-//!   and Magpie is one of the nineteen worlds whose bytes must not move.)
+//!   and Magpie is among the worlds whose bytes must not move.)
 
 use super::super::*;
 use super::{headless_dqp, view};

@@ -239,7 +239,7 @@ impl TextPipeline {
     /// tiny individually-phased breathing points in the page-mode MARGINS,
     /// drawn right after the lava layer and before the page frame / washes /
     /// text. A TOTAL no-op (zero instances) for every `AmbientStyle::None`
-    /// world — fifteen of the sixteen stay byte-identical — and for page-off
+    /// world — each one stays byte-identical — and for page-off
     /// (the column spans the canvas → the margin gate culls everything, the
     /// background pass's own collapse).
     ///

@@ -11,8 +11,8 @@
 //! ⚠️ **WHY THIS IS A LAW AND NOT A CAPTURE.** A headless capture builds its
 //! pipelines ONCE and never calls `sync_theme_colors` — the O(1) colour half of
 //! a LIVE theme switch. So a token mis-routed in the sync half alone repaints
-//! nothing any capture can see, and a full byte-identity sweep across all
-//! twenty worlds stays green through it; the repaint only reaches a user who
+//! nothing any capture can see, and a full byte-identity sweep across the
+//! whole roster stays green through it; the repaint only reaches a user who
 //! switches worlds while the app is running. That was measured, not assumed:
 //! swapping `sync_theme_colors`'s `selection_pipeline` seed from
 //! `selection_document` to `selection_ui` moved ZERO of 120 captured files.
