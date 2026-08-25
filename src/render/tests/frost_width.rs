@@ -225,7 +225,13 @@ fn the_frost_is_no_wider_than_the_surfaces_it_backs() {
              bound over an empty set — and the narrowing's own inert answer is to keep the \
              whole box, so this law would pass by finding nothing"
         );
-        let cy = c.card[1] + c.card[3] * 0.5;
+        // The FROST's own pivot, not the card's: `footprint_seat_top` and the bottom
+        // narrowing both move the shape's own vertical centre off the card's, and
+        // `footprint_dist_outside` (what the shader actually evaluates) un-shears every
+        // point about the RECT it is given, never about the card that produced it.
+        // Comparing a card-cy reading of the surfaces to the rect's own X faces would be
+        // comparing two different frames of the same shear.
+        let cy = c.rect[1] + c.rect[3] * 0.5;
         let (mut lo, mut hi) = (f32::INFINITY, f32::NEG_INFINITY);
         for s in &c.surfaces {
             let (a, b) = unsheared(*s, c.shear, cy);

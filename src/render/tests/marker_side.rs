@@ -128,9 +128,13 @@ struct MarkReading {
     label_anchor: f32,
     resting_label_anchor: f32,
     accessory_anchor: f32,
-    /// The accessory column's own `(left, right)` ink box — the nearest thing the
-    /// mark could collide with, and the only row content on its side.
-    accessory_span: (f32, f32),
+    /// The row's own measured NAME ink — what `mark_span` seats the vertex
+    /// just past.
+    ink_w: f32,
+    /// The row's own measured ACCESSORY ink (a chord, a value, a Range
+    /// readout), `0.0` when the row draws none — what `mark_span` holds the
+    /// mark clear of, never the shared column's reserved width.
+    accessory_ink_w: f32,
     vertex: f32,
     arm: f32,
     /// The ITEM the selected row carries — what `overlay_row_at` answers with.
@@ -154,7 +158,17 @@ fn read_mark(p: &TextPipeline, cw: u32) -> Option<MarkReading> {
     row.item?;
     let probe = p.diagonal_cluster_probe()?;
     let span = probe.span;
-    let (vertex, arm) = probe.mark_span(sel);
+    let ink_w = p
+        .overlay_row_primary_px(&geom)
+        .get(&sel)
+        .copied()
+        .unwrap_or(0.0);
+    let accessory_ink_w = p
+        .overlay_row_secondary_px(plan.billed_header_rows())
+        .get(&sel)
+        .copied()
+        .unwrap_or(0.0);
+    let (vertex, arm) = probe.mark_span(sel, ink_w, accessory_ink_w);
     let (card_x0, card_x1) = plan.card_x_span();
     Some(MarkReading {
         inset: span.dx + span.dw,
@@ -166,7 +180,8 @@ fn read_mark(p: &TextPipeline, cw: u32) -> Option<MarkReading> {
         // of moved ink reads as the mark.
         resting_label_anchor: probe.label_anchor(sel) - probe.selected_offset().0,
         accessory_anchor: probe.accessory_anchor(sel),
-        accessory_span: probe.accessory_span(sel),
+        ink_w,
+        accessory_ink_w,
         vertex,
         arm,
         row_item: row.item?,
@@ -179,9 +194,9 @@ fn read_mark(p: &TextPipeline, cw: u32) -> Option<MarkReading> {
 }
 
 /// THE WHOLE SIDE CLAIM on one cell, asserted against the planner's own signed
-/// inset. Every comparison below is multiplied by `inset`, so the same four
-/// lines grade both mirrors and there is nowhere for a per-world constant to
-/// hide: swap the sign in `DiagonalClusterRail::mark_span` and every cell fails.
+/// inset. Every comparison below is multiplied by `inset`, so the same lines
+/// grade both mirrors and there is nowhere for a per-world constant to hide:
+/// swap the sign in `DiagonalClusterRail::mark_span` and every cell fails.
 fn assert_mark_is_outboard(r: &MarkReading, ctx: &str) {
     let s = r.inset.signum();
     assert!(
@@ -190,31 +205,55 @@ fn assert_mark_is_outboard(r: &MarkReading, ctx: &str) {
          oracle is that sign, so a zero makes every claim below vacuous",
         r.inset
     );
-    // The cluster's OUTER end is downstream of its spine end, along the inset's
-    // own direction. This is the premise the mark inherits.
+    // THE HEADLINE: the mark stands past the row's own NAME, on the side away
+    // from the spine — never at the cluster's whole reserved width, which is
+    // the stranded placement this law replaced.
     assert!(
-        (r.accessory_anchor - r.label_anchor) * s >= 0.0,
-        "{ctx}: the cluster's accessory end ({}) is not outboard of its label end \
-         ({}) along the planner's inset sign {s}",
-        r.accessory_anchor,
-        r.label_anchor
-    );
-    // THE HEADLINE: the mark stands beyond the cluster's outer end, on the side
-    // away from the spine.
-    assert!(
-        (r.vertex - r.accessory_anchor) * s > 0.0,
-        "{ctx}: the mark's vertex ({}) is not outboard of the cluster's outer end \
-         ({}) — it is on the SPINE side of the row, which is the defect this law \
-         is named for (inset sign {s}, spine at {})",
+        (r.vertex - r.label_anchor) * s > 0.0,
+        "{ctx}: the mark's vertex ({}) is not outboard of the row's own label \
+         end ({}) — it is on the SPINE side of the row, or sitting on the label \
+         itself (inset sign {s}, spine at {})",
         r.vertex,
-        r.accessory_anchor,
+        r.label_anchor,
         r.spine_x
     );
-    // …and therefore beyond the spine by more than the whole cluster.
-    assert!(
-        (r.vertex - r.spine_x) * s > (r.accessory_anchor - r.spine_x) * s,
-        "{ctx}: the mark must be further from the spine than the cluster is"
-    );
+    // NON-VACUITY: the vertex actually moved past the NAME's own measured ink,
+    // not just past the label's bare anchor — the reading this law would get
+    // if `mark_span` silently dropped `ink_w` on the floor. Skipped when the
+    // accessory clamp is live: it is free to pull the vertex back inside the
+    // name's own ink on a row too cramped to afford the full reach, which is
+    // the clamp working, not the ink going unread.
+    if r.accessory_ink_w <= 0.0 {
+        // `(vertex - label_anchor) * s` is the SIGNED outboard distance — always
+        // non-negative once the headline claim above holds. `ink_w` is a plain
+        // unsigned width (never itself multiplied by `s`), so it is compared
+        // against that distance directly.
+        let past_label = (r.vertex - r.label_anchor) * s;
+        assert!(
+            past_label >= r.ink_w - 0.51,
+            "{ctx}: the vertex ({}) sits only {past_label} past the label end \
+             ({}) — the row's own measured name ink ({}) is not reaching the \
+             placement, which is indistinguishable from every row sharing one \
+             fixed reach",
+            r.vertex,
+            r.label_anchor,
+            r.ink_w
+        );
+        // …and it stands only a SEATING GAP past that ink, not the cluster's whole
+        // reserved width — the far placement this law replaced. 60 device px covers
+        // the authored gap at every DPI and zoom this sweep runs while sitting far
+        // under any real accessory-column reach, so this floor is what actually
+        // catches a `mark_span` reverted to its old `accessory_anchor`-based reach.
+        let past_ink = past_label - r.ink_w;
+        assert!(
+            past_ink <= 60.0,
+            "{ctx}: the vertex sits {past_ink:.1} px past the row's own name ink \
+             ({}) — far more than a seating gap, which reads as the mark \
+             standing at the cluster's whole reserved width again rather than \
+             just past the name",
+            r.ink_w
+        );
+    }
     // THE MARK POINTS BACK INTO THE ROW: the vertex is its inner end and the
     // arms open outward, into the card's margin.
     assert!(
@@ -224,19 +263,25 @@ fn assert_mark_is_outboard(r: &MarkReading, ctx: &str) {
         r.arm,
         r.vertex
     );
-    // NO COLLISION with the row's own accessory column, which is the only row
-    // content on the mark's side of the cluster. The two are disjoint by
-    // construction — the mark's lane is reserved beyond the column's outer edge —
-    // and that is asserted rather than argued, because a chord, a value readout
-    // and a Range rail all land in that column at different widths.
-    let (lo, hi) = (r.vertex.min(r.arm), r.vertex.max(r.arm));
-    let (alo, ahi) = r.accessory_span;
-    assert!(
-        hi <= alo + 0.01 || lo >= ahi - 0.01,
-        "{ctx}: the mark [{lo}, {hi}] overlaps the accessory column's ink box \
-         [{alo}, {ahi}] — the mark's lane is meant to be reserved clear of it"
-    );
+    // NO COLLISION with the row's OWN accessory ink — a chord, a value or a
+    // Range readout — when it draws one. A row with none has nothing on this
+    // side to collide with, so the check is gated on real ink rather than the
+    // shared column's reserved width, which the mark is free to cross when
+    // this row leaves it empty.
+    if r.accessory_ink_w > 0.0 {
+        let far = r.accessory_anchor - r.accessory_ink_w * s;
+        let (alo, ahi) = (r.accessory_anchor.min(far), r.accessory_anchor.max(far));
+        let (lo, hi) = (r.vertex.min(r.arm), r.vertex.max(r.arm));
+        assert!(
+            hi <= alo + 0.01 || lo >= ahi - 0.01,
+            "{ctx}: the mark [{lo}, {hi}] overlaps its own row's accessory ink \
+             [{alo}, {ahi}] ({} px wide) — the clamp meant to hold it clear did \
+             not",
+            r.accessory_ink_w
+        );
+    }
     // NO CLIPPING: both abscissae stay inside the card.
+    let (lo, hi) = (r.vertex.min(r.arm), r.vertex.max(r.arm));
     assert!(
         lo >= r.card[0] - 0.51 && hi <= r.card[0] + r.card[2] + 0.51,
         "{ctx}: the mark [{lo}, {hi}] leaves the card [{}, {}]",

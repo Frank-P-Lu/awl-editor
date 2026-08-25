@@ -955,18 +955,34 @@ fn both_row_lanes_hang_off_the_spine_so_the_name_control_gap_is_the_cards_own() 
 // LAW 5 — PLACARD / ROW NON-OVERLAP
 // ---------------------------------------------------------------------------
 
+/// THE FRAME'S OWN ROW MEASUREMENTS — bundled so a grading function reads one
+/// argument for "what this frame measured about its rows" rather than four,
+/// none of them re-derived here.
+#[derive(Clone, Copy)]
+struct RowMeasurements<'a> {
+    plan: &'a crate::render::plan::OverlayRowPlan,
+    probe: &'a crate::render::chrome::diagonal::DiagonalClusterProbe,
+    primary: &'a std::collections::BTreeMap<usize, f32>,
+    secondary: &'a std::collections::BTreeMap<usize, f32>,
+}
+
 /// ONE CELL'S WORDMARK GRADING: the wordmark's own ink is present, the card's
 /// ground is measured OUTSIDE its box, and every row is both geometrically
 /// disjoint from it and sitting on that same ground.
 fn grade_wordmark(
     cell: &Cell,
-    plan: &crate::render::plan::OverlayRowPlan,
-    probe: &crate::render::chrome::diagonal::DiagonalClusterProbe,
+    rows: &RowMeasurements,
     placard: [f32; 4],
     cw: u32,
     ch: u32,
     ctx: &str,
 ) {
+    let RowMeasurements {
+        plan,
+        probe,
+        primary,
+        secondary,
+    } = *rows;
     let [px, py, pw, ph] = placard;
     let mut wordmark_ink = 0usize;
     for y in (py.max(0.0) as i64)..((py + ph) as i64).min(ch as i64) {
@@ -992,7 +1008,9 @@ fn grade_wordmark(
 
     for r in &cell.rows {
         let (cl, cr) = probe.cluster_span(r.display);
-        let (mv, ma) = probe.mark_span(r.display);
+        let ink_w = primary.get(&r.display).copied().unwrap_or(0.0);
+        let accessory_ink_w = secondary.get(&r.display).copied().unwrap_or(0.0);
+        let (mv, ma) = probe.mark_span(r.display, ink_w, accessory_ink_w);
         let lo = cl.min(cr).min(mv).min(ma);
         let hi = cl.max(cr).max(mv).max(ma);
         let row_box = [lo, r.top, hi - lo, r.bottom - r.top];
@@ -1094,7 +1112,15 @@ fn the_room_wordmark_never_lands_under_a_diagonal_row() {
                         let ctx = format!("{world} bar={bar} dpi={dpi} {cw}x{ch} {anchor:?}");
                         anchors_seen.insert(format!("{anchor:?}"));
 
-                        grade_wordmark(&cell, &plan, &probe, placard, cw, ch, &ctx);
+                        let primary = p.overlay_row_primary_px(&geom);
+                        let secondary = p.overlay_row_secondary_px(plan.billed_header_rows());
+                        let rows = RowMeasurements {
+                            plan: &plan,
+                            probe: &probe,
+                            primary: &primary,
+                            secondary: &secondary,
+                        };
+                        grade_wordmark(&cell, &rows, placard, cw, ch, &ctx);
                         placard_seen += 1;
                         graded += 1;
                     }

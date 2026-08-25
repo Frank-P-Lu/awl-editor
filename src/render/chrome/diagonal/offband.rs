@@ -5,13 +5,15 @@
 //! it on the one kind that carries one, placed on the spine the rows above them hang
 //! on instead of holding the card's left edge.
 //!
-//! The HEAD band's x is still the card's own text edge — a query FIELD is an input,
-//! and right-aligning one on a mirrored composition would make its sigil travel as
-//! the user types. What lives here for the head band is therefore not a placement but
-//! a MEASUREMENT ([`TextPipeline::overlay_head_band_ink`]): the box its drawn ink
-//! occupies, which the footprint frost's own shape has to contain. The two answers
-//! are in one module because they are the same question asked of the same two bands —
-//! does this chrome rake with the rows, and if not, where is it?
+//! The HEAD band's x follows the row cluster's own mirror ([`Self::overlay_head_left`]):
+//! the card's text edge on a world whose rows already anchor left, and right-aligned
+//! against the card's own text column on a world whose rows anchor right — so the
+//! query sits on the SAME side the first candidate does, on both mirrors. What lives
+//! here for the head band is therefore also a MEASUREMENT
+//! ([`TextPipeline::overlay_head_band_ink`]): the box its drawn ink occupies, which
+//! the footprint frost's own shape has to contain. The three answers are in one module
+//! because they are the same question asked of the same two bands — does this chrome
+//! rake with the rows, and if not, where is it?
 //!
 //! # The shape, and why it is neither a second run nor a second buffer
 //!
@@ -120,10 +122,10 @@ impl TextPipeline {
     /// cannot cover by raking.
     ///
     /// Every header line — the query field, and the grouped family's lens strip under it
-    /// — rides ONE `TextArea` seated at `geom.text_left`, so the box is that edge, the
-    /// widest of their shaped runs, and the vertical run from the first line's box top to
-    /// the last line's bottom. The width is taken over EVERY planned header line rather
-    /// than the two that have names today, so a third enrols by existing.
+    /// — rides ONE `TextArea` seated at [`Self::overlay_head_left`], so the box is that
+    /// edge, the widest of their shaped runs, and the vertical run from the first line's
+    /// box top to the last line's bottom. The width is taken over EVERY planned header
+    /// line rather than the two that have names today, so a third enrols by existing.
     ///
     /// `None` when the card plans no header line at all (the contextual spell popup),
     /// which is exactly when there is no upright chrome for a shape to contain.
@@ -139,8 +141,8 @@ impl TextPipeline {
 
     /// The head band's ink width and vertical run alone, over every planned
     /// header line — the shared measurement [`Self::overlay_head_band_ink`]
-    /// and the gallery's right-aligned query candidate both read, so a header
-    /// line neither has walked twice.
+    /// and [`Self::overlay_head_left`]'s own right-aligned seat both read, so
+    /// a header line neither has walked twice.
     fn overlay_header_extent(
         &self,
         geom: &OverlayGeom,
@@ -160,19 +162,41 @@ impl TextPipeline {
         (ink_w > 0.0 && top.is_finite() && bottom > top).then_some((ink_w, top, bottom))
     }
 
-    /// Where the head band's `TextArea` is seated this frame — `geom.text_left`
-    /// on every ordinary run, unchanged from before this function existed.
-    /// [`super::gallery`]'s right-aligned query candidate is the one caller
-    /// that can move it, and only while its own env var is set.
+    /// Where the head band's `TextArea` is seated this frame — the card's text
+    /// edge on an upright world and on a descending diagonal (Mangrove:
+    /// row names already hang left, so the query at the text edge already sits
+    /// next to the first item), and right-aligned against the card's own text
+    /// column on an ascending diagonal (Magpie: every row name right-aligns,
+    /// so a query at the text edge leaves the whole row width as dead air
+    /// between the caret and the first item — seating it on the same side the
+    /// rows anchor closes that gap).
+    ///
+    /// This is the row cluster's own [`ColumnFlow`] mirror, read off the
+    /// SAME rail the rows hang on — never a second direction test — so the
+    /// query moves with the composition it is seated in, not by a world name.
+    ///
+    /// A query FIELD is an input, and right-aligning one is a live tradeoff
+    /// this measurement does not resolve: the caret sits at the ink's own end,
+    /// so on the right-aligned seat it travels right as the user types — the
+    /// opposite of a left-anchored field, where typing grows away from the
+    /// caret's rest position. Left-aligned, over both worlds, whether the
+    /// travel is worth the closed gap is a live-feel question, not a static
+    /// one.
     pub(in crate::render) fn overlay_head_left(
         &self,
         geom: &OverlayGeom,
         plan: &OverlayRowPlan,
     ) -> f32 {
-        self.diagonal_cluster
-            .and_then(|_| self.overlay_header_extent(geom, plan))
-            .and_then(|(ink_w, ..)| super::gallery::head_left_override(geom, ink_w))
-            .unwrap_or(geom.text_left)
+        let Some(cluster) = self.diagonal_cluster else {
+            return geom.text_left;
+        };
+        let Some((ink_w, ..)) = self.overlay_header_extent(geom, plan) else {
+            return geom.text_left;
+        };
+        match cluster.label_flow() {
+            ColumnFlow::Leftward => (geom.text_left + geom.text_w - ink_w).max(geom.text_left),
+            ColumnFlow::Rightward => geom.text_left,
+        }
     }
 
     /// WHERE THIS FRAME'S FOOT CHROME IS SEATED, or `None` when it is seated at the

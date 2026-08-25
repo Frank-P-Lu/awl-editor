@@ -106,9 +106,16 @@ impl DiagonalClusterProbe {
     }
 
     /// The selected mark's `(vertex_x, arm_x)` off the same rail the draw read
-    /// it from — never a law's own re-derivation of the outward sign.
-    pub(in crate::render) fn mark_span(self, display: usize) -> (f32, f32) {
-        self.rail.mark_span(display)
+    /// it from — never a law's own re-derivation of the outward sign. `ink_w`
+    /// and `accessory_ink_w` are the row's own measured name and accessory
+    /// ink, the same maps the draw path reads.
+    pub(in crate::render) fn mark_span(
+        self,
+        display: usize,
+        ink_w: f32,
+        accessory_ink_w: f32,
+    ) -> (f32, f32) {
+        self.rail.mark_span(display, ink_w, accessory_ink_w)
     }
 
     /// The row's own MEASURED horizontal step — see
@@ -279,22 +286,61 @@ impl DiagonalClusterRail {
     }
 
     /// THE SELECTED ROW'S MARK, as `(vertex_x, arm_x)` — its row-facing end and
-    /// its arm line — standing on the row's OUTER edge, away from the spine.
+    /// its arm line — standing just past the row's own measured NAME ink,
+    /// `ink_w` (the SAME shaped-buffer measurement `overlay_row_primary_px`
+    /// already gives every other label placement, never a second shaping
+    /// pass), rather than at the far edge of the row's whole reserved cluster
+    /// width. A row with no accessory content leaves that width unclaimed air,
+    /// and a mark seated past it read as stranded — a chevron the label's own
+    /// ink end owns instead touches what it marks.
     ///
     /// THE SIDE IS NOT CHOSEN HERE. It falls out of [`Self::outward`], the one
-    /// signed dial this whole cluster mirrors on: `accessory_anchor` is already
-    /// the cluster's card-edge end because that same sign put it there, and the
-    /// mark simply continues one gap further along it. So the mark cannot end up
-    /// on the spine side of a row without the row's own name and accessory
-    /// swapping ends first — which is what makes "the mark mirrors with the
-    /// cluster" true by construction rather than by a second per-world branch.
+    /// signed dial this whole cluster mirrors on: `label_anchor` is already the
+    /// cluster's spine-facing end because that same sign put it there, and the
+    /// mark continues past the name's own ink and one gap further along it. So
+    /// the mark cannot end up on the spine side of a row without the row's own
+    /// name swapping ends first — which is what makes "the mark mirrors with
+    /// the cluster" true by construction rather than by a second per-world
+    /// branch.
     ///
     /// The VERTEX is the inner end, so the mark points back into the row it
     /// marks; the arms open outward, into the card's own margin. The selected
-    /// row's outward shift arrives free, carried by `accessory_anchor`.
-    pub(in crate::render) fn mark_span(self, display: usize) -> (f32, f32) {
-        let vertex = self.accessory_anchor(display) + self.mark_gap * self.outward();
-        (vertex, vertex + self.mark_reach * 2.0 * self.outward())
+    /// row's outward shift arrives free, carried by `label_anchor`.
+    ///
+    /// `accessory_ink_w` is THIS row's own accessory ink — a chord, a value or
+    /// a Range readout, `0.0` when the row draws none — never the shared
+    /// column's reserved width, which a row with nothing of its own to show
+    /// occupies with no ink to collide with. A name long enough that the
+    /// mark's own OUTER edge would reach that ink is held clear of it, and
+    /// never pushed back past the label's own end — the clamp yields a mark
+    /// seated just short of the accessory rather than one stranded ahead of
+    /// the name it marks.
+    pub(in crate::render) fn mark_span(
+        self,
+        display: usize,
+        ink_w: f32,
+        accessory_ink_w: f32,
+    ) -> (f32, f32) {
+        let anchor = self.label_anchor(display);
+        let o = self.outward();
+        let natural_vertex = anchor + (ink_w + self.mark_gap) * o;
+        let vertex = if accessory_ink_w > 0.0 {
+            let ceiling =
+                self.accessory_anchor(display) - accessory_ink_w * o - self.mark_reach * 2.0 * o;
+            let clamped = if o > 0.0 {
+                natural_vertex.min(ceiling)
+            } else {
+                natural_vertex.max(ceiling)
+            };
+            if o > 0.0 {
+                clamped.max(anchor)
+            } else {
+                clamped.min(anchor)
+            }
+        } else {
+            natural_vertex
+        };
+        (vertex, vertex + self.mark_reach * 2.0 * o)
     }
 
     /// THE ONE SIGNED DIAL the whole cluster mirrors on — the direction "away

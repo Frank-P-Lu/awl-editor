@@ -24,10 +24,11 @@
 //! which is why the narrowed shape does not have to widen for the rake, only for the
 //! chrome that does NOT rake.
 //!
-//! Only the HORIZONTAL faces move. The reported defect is a width, the card's height is
-//! already derived from its row budget rather than from a cap, and the two axes decouple
-//! exactly ([`super::extent::footprint_box`]'s own note: the pivot `cy` is a function of
-//! `y` and `h` alone, so narrowing in x cannot move it).
+//! Only the HORIZONTAL faces move in [`footprint_narrow`] itself, the card's height
+//! unchanged — a caller may safely ask it of a card FAR taller than any surface (a way to
+//! read the X-only span in isolation) without a bottom face sliding in to meet it.
+//! [`footprint_narrow_bottom`] is the bottom-only counterpart, its own separate step so
+//! the two narrowings can compose without either changing the other's contract.
 
 /// THE HORIZONTAL SPAN A BOX OCCUPIES IN THE SHAPE'S UN-SHEARED FRAME — `[left, top,
 /// right, bottom]` in, `(min, max)` out, about a shape whose vertical centre is `cy`.
@@ -87,6 +88,84 @@ pub(crate) fn footprint_narrow(card: [f32; 4], shear: f32, surfaces: &[[f32; 4]]
         return card;
     }
     [x0, y, x1 - x0, h]
+}
+
+/// THE CARD'S BOX, NARROWED AT THE BOTTOM to the deepest of `surfaces` — the card's own
+/// bottom pad past the foot hint's ink is reserved chrome breathing room, not a surface,
+/// so a footprint scoped to the card's whole box frosted that margin along with
+/// everything below it. `y` (the top) is untouched here: [`super::extent::footprint_seat_top`]
+/// has its own reason to move it, reading the bottom this narrows to first.
+///
+/// A SEPARATE STEP from [`footprint_narrow`], deliberately: fusing the two would make
+/// `footprint_narrow`'s X-only reading depend on the CALLER's own card height (a card far
+/// taller than any surface would narrow its bottom to that surface too, corrupting an
+/// X-only reading built on a deliberately oversized dummy card — exactly the trick
+/// `frost_width`'s own `unsheared` helper uses to isolate the X arithmetic).
+///
+/// IT ONLY EVER SHRINKS, clamped so a surface past the card's own bottom cannot grow it
+/// and never above the top. Shrinking the bottom moves the shape's own pivot
+/// (`cy = y + h/2`), and the X faces `card`'s own left/width were un-sheared about the OLD
+/// one — so holding them at their canvas position needs the same compensation
+/// [`footprint_seat_top`] applies from the other end: shift `x` by
+/// `shear * (new_cy - old_cy)`.
+pub(crate) fn footprint_narrow_bottom(
+    card: [f32; 4],
+    shear: f32,
+    surfaces: &[[f32; 4]],
+) -> [f32; 4] {
+    let [x, y, w, h] = card;
+    if !(x.is_finite() && y.is_finite() && w.is_finite() && h.is_finite()) {
+        return card;
+    }
+    let bottom = surfaces
+        .iter()
+        .filter(|s| s.iter().all(|v| v.is_finite()))
+        .map(|s| s[3])
+        .fold(f32::NEG_INFINITY, f32::max);
+    if !bottom.is_finite() {
+        return card;
+    }
+    let old_cy = y + h * 0.5;
+    let new_h = (bottom.min(y + h).max(y) - y).max(0.0);
+    let new_cy = y + new_h * 0.5;
+    let dx = if shear.is_finite() {
+        shear * (new_cy - old_cy)
+    } else {
+        0.0
+    };
+    [x + dx, y, w, new_h]
+}
+
+/// THE FOOTPRINT'S TOP FACE, SEATED AT THE CANVAS TOP — extending a card-anchored box
+/// upward to `y = 0`, which sits above any document line drawn beneath a card seated
+/// near the window's top. A composition whose top face sits mid-way through the
+/// document's own opening heading straddles it: the ink above the face reads sharp,
+/// the ink below reads through the frost, and the seam falls inside a single glyph
+/// row. Seating the face at the canvas top puts the whole heading on one side of it.
+///
+/// The naive edit (`rect[1] = 0.0; rect[3] = old_bottom`) SILENTLY MOVES THE RAKING
+/// SIDE FACES: [`super::extent::footprint_dist_outside`] un-shears every point about
+/// the box's own vertical centre (`cy = y + h/2`), so changing `y`/`h` moves `cy` and
+/// therefore slides the sheared side faces sideways at every row. Compensating `x` by
+/// `shear * (new_cy - old_cy)` keeps every side face at the exact canvas x it already
+/// had; only the top boundary moves. [`footprint_narrow_bottom`] compensates the same
+/// way, for the same reason, when it shrinks `h` from the other end.
+///
+/// A non-finite shear or rect returns the rect unchanged — the inert answer, since a
+/// caller already checked finiteness upstream and this is not the place to invent a
+/// box.
+pub(crate) fn footprint_seat_top(rect: [f32; 4], shear: f32) -> [f32; 4] {
+    let [x, y, w, h] = rect;
+    if !(x.is_finite() && y.is_finite() && w.is_finite() && h.is_finite() && shear.is_finite()) {
+        return rect;
+    }
+    let bottom = y + h;
+    let new_y = y.min(0.0);
+    let new_h = (bottom - new_y).max(0.0);
+    let old_cy = y + h * 0.5;
+    let new_cy = new_y + new_h * 0.5;
+    let new_x = x + shear * (new_cy - old_cy);
+    [new_x, new_y, w, new_h]
 }
 
 #[cfg(test)]
@@ -205,6 +284,93 @@ mod tests {
         assert!(
             nw < card[2] * 0.3,
             "one 110-wide surface in a 520-wide card narrowed to {nw}"
+        );
+    }
+
+    /// THE BOTTOM FACE NARROWS TO THE DEEPEST SURFACE, and the X face it moves the pivot
+    /// for holds its canvas position — the same compensation
+    /// `super::extent::footprint_seat_top` applies from the top, checked here by direct
+    /// arithmetic rather than by the shipping mask's own tolerance, so a drift too small
+    /// for that check's epsilon still fails this one.
+    #[test]
+    fn the_bottom_face_narrows_and_the_x_face_holds_its_canvas_position() {
+        let _g = crate::testlock::serial();
+        let card = [200.0f32, 100.0, 520.0, 450.0]; // bottom = 550
+        let surface = [220.0f32, 120.0, 260.0, 300.0]; // bottom = 300, well short of 550
+        for shear in [-0.3f32, -0.05, 0.0, 0.05, 0.3] {
+            let [nx, ny, nw, nh] = footprint_narrow_bottom(card, shear, &[surface]);
+            assert_eq!(
+                ny, card[1],
+                "shear {shear}: the top face is not this fn's job"
+            );
+            assert_eq!(nw, card[2], "shear {shear}: the width is not this fn's job");
+            assert!(
+                (nh - 200.0).abs() < 1e-2,
+                "shear {shear}: narrowed height {nh}, want ~200 (bottom 300 − card top 100)"
+            );
+            let old_cy = card[1] + card[3] * 0.5;
+            let new_cy = card[1] + nh * 0.5;
+            let want_dx = shear * (new_cy - old_cy);
+            assert!(
+                (nx - (card[0] + want_dx)).abs() < 1e-2,
+                "shear {shear}: x face {nx}, want {} ({} compensated by {want_dx} for the \
+                 pivot the bottom-narrow moved — an uncompensated x face slides this far out \
+                 of canvas position on a raking card",
+                card[0] + want_dx,
+                card[0]
+            );
+            // NON-VACUITY: a real shear must actually produce a nonzero compensation for
+            // this fixture, or the check above never distinguishes compensated from not.
+            if shear != 0.0 {
+                assert!(
+                    want_dx.abs() > 1e-3,
+                    "shear {shear}: the pivot shift is {want_dx}, too small to tell a \
+                     compensated x face from an uncompensated one — check the fixture"
+                );
+            }
+        }
+    }
+
+    /// COMPOSED WITH [`footprint_narrow`]: narrowing X first and the bottom second reaches
+    /// the same physical shape as the production pipeline does — every corner of a surface
+    /// the un-narrowed card covered stays covered by the composed (tighter) shape, checked
+    /// the same way `every_surface_is_inside_the_parallelogram_the_narrowing_returns` checks
+    /// the X-only narrowing.
+    #[test]
+    fn the_composed_x_and_bottom_narrowing_still_contains_every_surface() {
+        let _g = crate::testlock::serial();
+        let card = [200.0f32, 100.0, 520.0, 450.0];
+        let surfaces = [
+            [212.0f32, 110.0, 330.0, 132.0],
+            [260.0, 300.0, 371.0, 322.0],
+            [300.0, 500.0, 480.0, 528.0],
+        ];
+        let mut covered = 0usize;
+        for shear in [-0.3f32, -0.02, 0.0, 0.02, 0.3] {
+            let x_narrowed = footprint_narrow(card, shear, &surfaces);
+            let rect = footprint_narrow_bottom(x_narrowed, shear, &surfaces);
+            let foot = super::super::Footprint { rect, shear };
+            let before = super::super::Footprint { rect: card, shear };
+            for s in &surfaces {
+                for (px, py) in [(s[0], s[1]), (s[2], s[1]), (s[0], s[3]), (s[2], s[3])] {
+                    if super::super::extent::footprint_dist_outside(before, px, py) > 1e-3 {
+                        continue;
+                    }
+                    covered += 1;
+                    let d = super::super::extent::footprint_dist_outside(foot, px, py);
+                    assert!(
+                        d <= 1e-3,
+                        "shear {shear}: surface corner ({px},{py}) was inside the card's own \
+                         sheared shape {card:?} and sits {d} OUTSIDE the composed narrowed \
+                         shape {rect:?}"
+                    );
+                }
+            }
+        }
+        assert!(
+            covered >= 50,
+            "only {covered} surface corners were inside the un-narrowed shape across the \
+             swept shears, so this law graded almost nothing"
         );
     }
 }

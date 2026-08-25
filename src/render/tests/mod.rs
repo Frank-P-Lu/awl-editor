@@ -105,6 +105,9 @@ mod frost_card_ink;
 /// A POINTER-ANCHORED menu is not a takeover of the room: the full arm is not its arm,
 /// and the roster's own backing question then answers a footprint or nothing at all.
 mod frost_context;
+/// The picked diagonal composition's frost top-seat and its query-to-first-item
+/// distance — the shipped defaults, not the audition candidates behind them.
+mod frost_diagonal_seat;
 mod frost_feather;
 mod frost_footprint;
 mod frost_parallelogram;
