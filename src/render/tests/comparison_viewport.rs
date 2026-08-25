@@ -593,7 +593,7 @@ fn every_timeline_over_comparison_kind_opens_its_content_region_even_lens_less()
         }
 
         let mut v = comparison_view("# Transcript\n\nSome compared prose here.\n", 0, 0);
-        v.overlay_title = kind.title();
+        v.overlay_title = kind.title().to_string();
         v.overlay_lens = lens;
         p.set_view(&v);
         p.set_size(1400.0, 900.0);

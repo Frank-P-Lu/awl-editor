@@ -344,7 +344,7 @@ fn overlay_json(opts: &CaptureOpts, pipeline: &TextPipeline) -> String {
                 ),
                 o.active,
                 json_string(o.mode),
-                json_string(o.title),
+                json_string(&o.title),
                 json_string(&o.query),
                 o.query_caret,
                 o.selected_index,

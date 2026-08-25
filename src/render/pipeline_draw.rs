@@ -476,7 +476,7 @@ impl TextPipeline {
             overlay_crisp: false,
             overlay_query: String::new(),
             overlay_query_caret: usize::MAX,
-            overlay_title: "",
+            overlay_title: String::new(),
             overlay_row_path_splits: false,
             overlay_items: Vec::new(),
             overlay_empty: None,

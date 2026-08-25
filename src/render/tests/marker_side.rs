@@ -82,7 +82,7 @@ fn marked_view_at(kind: OverlayKind, n: usize, scroll: usize, zoom: f32) -> View
     let mut v = view("hello world\nsecond line\nthird line\n", 0, 0);
     v.zoom = zoom;
     v.overlay_active = true;
-    v.overlay_title = kind.title();
+    v.overlay_title = kind.title().to_string();
     v.overlay_items = (0..n).map(|i| format!("candidate row {i}")).collect();
     v.overlay_bindings = (0..n).map(|i| format!("C-{}", i % 10)).collect();
     v.overlay_selected = (scroll + n / 2).min(n.saturating_sub(1));
@@ -788,7 +788,7 @@ fn each_diagonal_world_paints_its_own_authored_mark() {
 fn settings_view(ov: &OverlayState, selected: usize) -> ViewState {
     let mut v = view("hello\nthere\n", 0, 0);
     v.overlay_active = true;
-    v.overlay_title = OverlayKind::Settings.title();
+    v.overlay_title = OverlayKind::Settings.title().to_string();
     v.overlay_items = ov.item_strings();
     v.overlay_bindings = ov.item_bindings();
     v.overlay_ranges = ov.item_range_fracs();

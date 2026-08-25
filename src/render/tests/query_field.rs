@@ -102,7 +102,7 @@ fn a_flat_pickers_query_ink_centres_on_its_own_line_in_every_world() {
 
                 let mut v = view("hello world\n", 0, 0);
                 v.overlay_active = true;
-                v.overlay_title = OverlayKind::Theme.title();
+                v.overlay_title = OverlayKind::Theme.title().to_string();
                 v.overlay_items = vec!["Alpha".into(), "Beta".into(), "Gamma".into()];
                 v.overlay_selected = 0;
                 v.overlay_hint = OverlayKind::Theme.hint();

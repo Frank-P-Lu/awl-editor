@@ -20,8 +20,8 @@ impl App {
         view.overlay_query_caret = ov.map(|o| o.query.caret()).unwrap_or(0);
         view.overlay_title = ov
             .filter(|o| o.kind.draws_title_prefix())
-            .map(|o| o.kind.title())
-            .unwrap_or("");
+            .map(|o| o.kind.title().to_string())
+            .unwrap_or_default();
         view.overlay_row_path_splits = ov.map(|o| o.kind.row_path_splits()).unwrap_or(false);
         view.overlay_items = ov.map(|o| o.item_strings()).unwrap_or_default();
         view.overlay_empty = ov.and_then(|o| o.empty_notice());

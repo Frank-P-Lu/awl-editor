@@ -183,7 +183,7 @@ fn card_view(kind: OverlayKind, zoom: f32) -> ViewState {
     let mut v = view("hello\n", 0, 0);
     v.overlay_active = true;
     v.zoom = zoom;
-    v.overlay_title = kind.title();
+    v.overlay_title = kind.title().to_string();
     v.overlay_hint = kind.hint();
     v.overlay_items = vec!["Go to file".into(), "Save".into(), "Undo".into()];
     v.overlay_selected = 0;

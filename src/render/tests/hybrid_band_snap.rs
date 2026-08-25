@@ -262,7 +262,7 @@ fn rapid_snap_holds_under_left_center_right_anchors() {
     let set_sel = |p: &mut TextPipeline, k: usize| {
         let mut v = view("hello\n", 0, 0);
         v.overlay_active = true;
-        v.overlay_title = "commands";
+        v.overlay_title = "commands".to_string();
         v.overlay_items = items.clone();
         v.overlay_selected = k;
         p.set_view(&v);

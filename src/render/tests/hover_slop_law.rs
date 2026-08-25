@@ -25,7 +25,7 @@ fn goto_overlay(n: usize) -> OverlayState {
 fn goto_view(ov: &OverlayState) -> ViewState {
     let mut v = view("hello world\n", 0, 0);
     v.overlay_active = true;
-    v.overlay_title = OverlayKind::Goto.title();
+    v.overlay_title = OverlayKind::Goto.title().to_string();
     v.overlay_items = ov.item_strings();
     v.overlay_selected = ov.selected;
     v.overlay_scroll = ov.scroll;

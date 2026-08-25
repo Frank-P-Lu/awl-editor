@@ -99,7 +99,7 @@ fn faceted_view(kind: OverlayKind, lens: usize) -> ViewState {
     let n = items.len();
     let mut v = view("hello world\n", 0, 0);
     v.overlay_active = true;
-    v.overlay_title = kind.title();
+    v.overlay_title = kind.title().to_string();
     v.overlay_items = items;
     v.overlay_bindings = vec![String::new(); n];
     v.overlay_lens = scheme.strip_labels(lens);
@@ -139,7 +139,7 @@ fn command_view(label: &str) -> ViewState {
     ov.set_facet_lens(lens);
     let mut v = view("hello world\n", 0, 0);
     v.overlay_active = true;
-    v.overlay_title = OverlayKind::Command.title();
+    v.overlay_title = OverlayKind::Command.title().to_string();
     v.overlay_items = ov.item_strings();
     v.overlay_bindings = ov.item_bindings();
     v.overlay_lens = ov.lens_strip();

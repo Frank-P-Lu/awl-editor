@@ -77,7 +77,7 @@ fn family(kind: OverlayKind) -> Family {
 fn overlay_view(kind: OverlayKind, n: usize) -> ViewState {
     let mut v = view("hello world\nsecond line\n", 0, 0);
     v.overlay_active = true;
-    v.overlay_title = kind.title();
+    v.overlay_title = kind.title().to_string();
     v.overlay_items = (0..n).map(|i| format!("candidate row {i}")).collect();
     v.overlay_bindings = (0..n).map(|i| format!("C-{}", i % 10)).collect();
     v.overlay_selected = (n / 3).min(n.saturating_sub(1));
@@ -838,7 +838,7 @@ fn an_empty_states_notice_row_carries_no_footer_plate_on_any_bare_plate_world() 
         // then the foot hint.
         let mut v = view("hello world\n", 0, 0);
         v.overlay_active = true;
-        v.overlay_title = OverlayKind::Command.title();
+        v.overlay_title = OverlayKind::Command.title().to_string();
         v.overlay_items = Vec::new();
         v.overlay_empty = Some("no matches".into());
         v.overlay_hint = "type to filter".into();
@@ -1009,7 +1009,7 @@ fn footer_plate_clears_the_notice_channels_presence_floor_on_every_bars_world() 
 
             let mut v = view("hello world\n", 0, 0);
             v.overlay_active = true;
-            v.overlay_title = OverlayKind::Command.title();
+            v.overlay_title = OverlayKind::Command.title().to_string();
             v.overlay_items = vec!["Go to file...".into(), "Switch project...".into()];
             v.overlay_hint = "type to filter".into();
             p.set_view(&v);

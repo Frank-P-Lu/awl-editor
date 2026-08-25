@@ -218,7 +218,7 @@ fn placard_corners_place_the_wordmark_in_four_screen_quadrants() {
     let _g = crate::testlock::serial();
     let mut v = view("hello\n", 0, 0);
     v.overlay_active = true;
-    v.overlay_title = "commands";
+    v.overlay_title = "commands".to_string();
     // A few rows so the card is a normal centered picker; the wordmark's y no
     // longer depends on the card height at all (it anchors to the canvas), but
     // a realistic card keeps the fixture honest.
@@ -368,7 +368,7 @@ fn every_shipped_placard_world_honors_its_authored_containment_or_bleed() {
         p.sync_theme();
         let mut v = view("hello\n", 0, 0);
         v.overlay_active = true;
-        v.overlay_title = "version history"; // a long worst-case wordmark
+        v.overlay_title = "version history".to_string(); // a long worst-case wordmark
         v.overlay_items = (0..10).map(|i| format!("Command {i}")).collect();
         p.set_view(&v);
         let geom = p.overlay_geometry(ww as u32);
@@ -493,7 +493,7 @@ fn placard_resize_sweep_stays_atlas_bounded_and_error_free() {
     }));
     let mut v = view("hello world\n", 0, 0);
     v.overlay_active = true;
-    v.overlay_title = "version history"; // long → the shrink-to-fit path fires too
+    v.overlay_title = "version history".to_string(); // long → the shrink-to-fit path fires too
     v.overlay_items = (0..12).map(|i| format!("Command {i}")).collect();
 
     let mut sizes = std::collections::BTreeSet::new();
@@ -544,7 +544,7 @@ fn no_placard_when_title_style_is_inline_prefix_the_default_on_every_world() {
     set_title_style_test_override(None); // ensure no stale override from a prior test
     let mut v = view("hello\n", 0, 0);
     v.overlay_active = true;
-    v.overlay_title = "commands";
+    v.overlay_title = "commands".to_string();
     v.overlay_items = vec!["Save".into(), "Undo".into()];
     p.set_view(&v);
     let geom = p.overlay_geometry(1200);
@@ -581,7 +581,7 @@ fn forced_placard_shapes_a_wordmark_inside_the_canvas_corner() {
     }));
     let mut v = view("hello\n", 0, 0);
     v.overlay_active = true;
-    v.overlay_title = "commands";
+    v.overlay_title = "commands".to_string();
     v.overlay_items = vec!["Save".into(), "Undo".into()];
     p.set_view(&v);
     let geom = p.overlay_geometry(1200);
@@ -724,7 +724,7 @@ fn forced_placard_composes_with_a_faceted_picker_lens_strip_set() {
     // full command-catalog machinery).
     let mut cv = view("hello\n", 0, 0);
     cv.overlay_active = true;
-    cv.overlay_title = "commands";
+    cv.overlay_title = "commands".to_string();
     cv.overlay_lens = vec![
         ("All".to_string(), true),
         ("File".to_string(), false),
@@ -792,7 +792,7 @@ fn forced_placard_composes_with_the_literal_theme_picker_too() {
 
     let mut tv = view("hello\n", 0, 0);
     tv.overlay_active = true;
-    tv.overlay_title = "themes";
+    tv.overlay_title = "themes".to_string();
     tv.overlay_lens = vec![("All".to_string(), true)];
     tv.overlay_items = vec!["Tawny".into(), "Mopoke".into()];
     p.set_view(&tv);
@@ -865,7 +865,7 @@ fn selected_row_stays_distinguishable_with_a_forced_placard_behind_it() {
 
     let mut v = view("hello world\n", 0, 0);
     v.overlay_active = true;
-    v.overlay_title = "commands";
+    v.overlay_title = "commands".to_string();
     v.overlay_items = vec!["Save".into(), "Undo".into(), "Redo".into()];
     v.overlay_selected = 0;
     p.set_view(&v);
@@ -917,7 +917,7 @@ fn selected_row_stays_distinguishable_with_a_forced_placard_behind_it_on_a_facet
 
     let mut v = view("hello world\n", 0, 0);
     v.overlay_active = true;
-    v.overlay_title = "commands";
+    v.overlay_title = "commands".to_string();
     v.overlay_lens = vec![
         ("All".to_string(), true),
         ("File".to_string(), false),
@@ -1008,13 +1008,13 @@ fn forced_placard_suppresses_the_inline_title_prefix_on_both_shapers() {
     // FLAT picker (no lens strip → shape_overlay_names).
     let mut flat = view("", 0, 0);
     flat.overlay_active = true;
-    flat.overlay_title = "commands";
+    flat.overlay_title = "commands".to_string();
     flat.overlay_items = vec!["Save".into(), "Undo".into()];
 
     // FACETED picker (lens strip set → theme_overlay_geometry + overlay_shape_theme).
     let mut faceted = view("", 0, 0);
     faceted.overlay_active = true;
-    faceted.overlay_title = "commands";
+    faceted.overlay_title = "commands".to_string();
     faceted.overlay_lens = vec![("All".to_string(), true), ("File".to_string(), false)];
     faceted.overlay_items = vec!["Save".into(), "Undo".into()];
 
@@ -1095,7 +1095,7 @@ fn placard_width_sweep_folds_narrow_shows_wide_never_clips() {
         set_card_anchor_test_override(Some(theme::CardAnchor::TopCenter));
         let mut v = view("", 0, 0);
         v.overlay_active = true;
-        v.overlay_title = "commands";
+        v.overlay_title = "commands".to_string();
         v.overlay_items = (0..6).map(|i| format!("Command {i}")).collect();
         p.set_view(&v);
         let geom = p.overlay_geometry(wpx as u32);
@@ -1179,7 +1179,7 @@ fn placard_size_is_window_scaled_not_zoom_scaled() {
         set_card_anchor_test_override(Some(theme::CardAnchor::TopCenter));
         let mut v = view("", 0, 0);
         v.overlay_active = true;
-        v.overlay_title = "commands";
+        v.overlay_title = "commands".to_string();
         v.overlay_items = vec!["Save".into(), "Undo".into()];
         v.zoom = zoom;
         p.set_view(&v);
@@ -1242,7 +1242,7 @@ fn mangrove_stipple_placard_paints_only_ladder_ink_pixels_at_real_density() {
 
     let mut v = view("hello world\n", 0, 0);
     v.overlay_active = true;
-    v.overlay_title = "commands";
+    v.overlay_title = "commands".to_string();
     v.overlay_items = vec!["Save".into(), "Undo".into(), "Redo".into()];
     p.set_view(&v);
 
@@ -1380,7 +1380,7 @@ fn every_shipping_placard_world_paints_visible_wordmark_ink_pixels() {
 
         let mut v = view("hello world\n", 0, 0);
         v.overlay_active = true;
-        v.overlay_title = "commands";
+        v.overlay_title = "commands".to_string();
         v.overlay_items = vec!["Save".into(), "Undo".into(), "Redo".into()];
         p.set_view(&v);
 
@@ -1513,7 +1513,7 @@ fn selected_row_stays_distinguishable_with_a_forced_stipple_placard_behind_it() 
 
     let mut v = view("hello world\n", 0, 0);
     v.overlay_active = true;
-    v.overlay_title = "commands";
+    v.overlay_title = "commands".to_string();
     v.overlay_items = vec!["Save".into(), "Undo".into(), "Redo".into()];
     v.overlay_selected = 0;
     p.set_view(&v);
@@ -1628,7 +1628,7 @@ fn placard_wordmark_stays_in_bounds_at_the_apps_own_minimum_window_size() {
             let title = kind.title();
             let mut v = view("hello\n", 0, 0);
             v.overlay_active = true;
-            v.overlay_title = title;
+            v.overlay_title = title.to_string();
             v.overlay_items = vec!["Row one".into(), "Row two".into()];
             p.set_view(&v);
             let geom = p.overlay_geometry(min_w as u32);

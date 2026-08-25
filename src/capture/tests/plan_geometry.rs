@@ -55,7 +55,7 @@ pub(super) fn flat_picker_opts(ov: &OverlayState, canvas: (u32, u32), dpi: f32) 
         align: crate::render::effective_card_anchor(),
         active: true,
         mode: ov.kind.as_str(),
-        title: ov.kind.title(),
+        title: ov.kind.title().to_string(),
         query: ov.query.text().to_string(),
         query_caret: ov.query.caret(),
         items: ov.item_strings(),

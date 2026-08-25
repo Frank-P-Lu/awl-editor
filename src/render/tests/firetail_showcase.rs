@@ -94,7 +94,7 @@ fn inset_anchor_sweeps_from_topleft_through_center_to_right_pinned() {
     let _g = crate::testlock::serial();
     let mut v = view("hello\n", 0, 0);
     v.overlay_active = true;
-    v.overlay_title = "commands";
+    v.overlay_title = "commands".to_string();
     v.overlay_items = vec!["Save".into(), "Undo".into()];
     p.set_view(&v);
 
@@ -275,7 +275,7 @@ fn unarmed_pipeline_never_kicks_the_entrance() {
     p.set_view(&closed); // overlay closed
     let mut open = view("hello\n", 0, 0);
     open.overlay_active = true;
-    open.overlay_title = "commands";
+    open.overlay_title = "commands".to_string();
     open.overlay_items = vec!["Save".into(), "Undo".into()];
     p.set_view(&open); // the OPEN flip — the only kick site
     assert_eq!(
@@ -312,7 +312,7 @@ fn armed_entrance_kicks_then_reduce_motion_folds_instantly() {
     p.set_view(&closed);
     let mut open = view("hello\n", 0, 0);
     open.overlay_active = true;
-    open.overlay_title = "commands";
+    open.overlay_title = "commands".to_string();
     open.overlay_items = vec!["Save".into(), "Undo".into()];
     p.set_view(&open);
     let kicked = p.overlay_entrance_offset();
@@ -623,7 +623,7 @@ fn slant_width_tax_makes_rowlayout_elide_what_no_longer_fits() {
     let long = "a".repeat(200);
     let mut v = view("hello\n", 0, 0);
     v.overlay_active = true;
-    v.overlay_title = "commands";
+    v.overlay_title = "commands".to_string();
     v.overlay_items = vec![long.clone(), long.clone(), long.clone()];
     p.set_view(&v);
     let geom = p.overlay_geometry(1200);
@@ -753,7 +753,7 @@ fn slanted_overlay_renders_and_differs_from_the_straight_one() {
 
     let mut v = view("hello world\n", 0, 0);
     v.overlay_active = true;
-    v.overlay_title = "commands";
+    v.overlay_title = "commands".to_string();
     v.overlay_items = vec!["Save".into(), "Undo".into(), "Redo".into()];
     v.overlay_selected = 1;
     p.set_view(&v);
@@ -856,7 +856,7 @@ fn overlay_density_scales_the_row_pitch_owner() {
     set_overlay_density_test_override(None);
     let mut v = view("hello\n", 0, 0);
     v.overlay_active = true;
-    v.overlay_title = "commands";
+    v.overlay_title = "commands".to_string();
     v.overlay_items = vec!["Save".into(), "Undo".into()];
     p.set_view(&v);
     let base_lh = p.overlay_lh();
@@ -968,7 +968,7 @@ fn slanted_bars_render_and_differ_from_straight_bars() {
 
     let mut v = view("hello world\n", 0, 0);
     v.overlay_active = true;
-    v.overlay_title = "commands";
+    v.overlay_title = "commands".to_string();
     v.overlay_items = vec!["Save".into(), "Undo".into(), "Redo".into(), "Find".into()];
     v.overlay_selected = 1;
     p.set_view(&v);
@@ -1137,7 +1137,7 @@ fn motion_frame_dump_probe_pins_phase_and_settles() {
     p.set_view(&closed);
     let mut open = view("hello\n", 0, 0);
     open.overlay_active = true;
-    open.overlay_title = "commands";
+    open.overlay_title = "commands".to_string();
     open.overlay_items = vec!["Save".into(), "Undo".into(), "Redo".into(), "Find".into()];
     p.set_view(&open);
     let kicked = p.overlay_slant_progress();

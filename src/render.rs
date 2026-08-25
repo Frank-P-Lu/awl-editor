@@ -2539,7 +2539,7 @@ pub struct TextPipeline {
     overlay_crisp: bool,
     overlay_query: String,
     overlay_query_caret: usize,
-    overlay_title: &'static str,
+    overlay_title: String,
     overlay_row_path_splits: bool,
     overlay_items: Vec<String>,
     overlay_empty: Option<String>,

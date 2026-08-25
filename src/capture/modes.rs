@@ -328,8 +328,8 @@ pub(super) fn settled_viewstate(
         .filter(|o| {
             crate::overlay::OverlayKind::from_mode(o.mode).is_none_or(|k| k.draws_title_prefix())
         })
-        .map(|o| o.title)
-        .unwrap_or("");
+        .map(|o| o.title.clone())
+        .unwrap_or_default();
     // Share the live path/URL figure-ground gate; unknown modes stay single-ink.
     vstate.overlay_row_path_splits = opts
         .overlay

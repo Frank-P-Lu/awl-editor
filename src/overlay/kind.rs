@@ -113,6 +113,7 @@ impl OverlayKind {
             OverlayKind::Conflict => &[Plain],
             OverlayKind::Credits => &[Plain],
             OverlayKind::Project => &[Plain, ProjectDoor],
+            OverlayKind::MoveDest => &[Plain, MoveHere, NewFolder],
             OverlayKind::ProjectBrowse
             | OverlayKind::Browse
             | OverlayKind::Theme
@@ -121,7 +122,6 @@ impl OverlayKind {
             | OverlayKind::CjkLang
             | OverlayKind::Date
             | OverlayKind::Keymap
-            | OverlayKind::MoveDest
             | OverlayKind::ExportDest
             | OverlayKind::Keybindings
             | OverlayKind::Settings
@@ -232,19 +232,28 @@ impl OverlayKind {
         }
     }
 
-    /// A DESTINATION NAVIGATOR: a folders-only walk whose accept names the
-    /// folder you stopped on. Every member shares the entire navigation grammar
-    /// — `→` descends, `←` ascends, `↵` takes the highlighted folder — and they
-    /// differ only in WHAT lands there and WHICH tree they walk, which is why
-    /// every navigation site asks this instead of naming one kind and growing a
+    /// A DESTINATION NAVIGATOR: a folders-only walk. Every member shares the
+    /// `→` descends / `←` ascends grammar, and they differ only in WHAT lands
+    /// in the folder you stop on and WHICH tree they walk, which is why every
+    /// navigation site asks this instead of naming one kind and growing a
     /// second branch later.
+    ///
+    /// `↵` no longer reads identically across the family: `ExportDest` and
+    /// `ProjectBrowse` still take the highlighted folder directly
+    /// (`actions::overlay_nav::dest_value`). `MoveDest` does not — its
+    /// contextual `Move here`/`New folder…` rows (`RowMeta::MoveHere`/
+    /// `NewFolder`) make `↵` on a FOLDER row descend instead, mirroring `→`,
+    /// so the primary "commit here" verb needs its own reachable row rather
+    /// than living in the ambiguity of "nothing else is highlighted"
+    /// (`actions::overlay_nav::accept_move_dest`).
     ///
     /// The two `Dest` members walk the ACTIVE ROOT and put something in the
     /// folder; [`Self::ProjectBrowse`] walks the WORKSPACE by absolute path and
-    /// makes the folder the project. Only the first two take a typed name that
-    /// does not exist yet (`actions::overlay_nav::dest_value`'s `allow_new`): a
-    /// move creates the folder it names, and there is nothing to switch to in a
-    /// folder that isn't there.
+    /// makes the folder the project. `ExportDest` alone still takes a typed
+    /// name that does not exist yet through `dest_value`'s `allow_new` — an
+    /// export creates the folder it names; `MoveDest`'s create-a-folder door
+    /// is its own `New folder…` row instead, and `ProjectBrowse` has neither,
+    /// because there is nothing to switch to in a folder that isn't there.
     pub fn is_folder_destination(self) -> bool {
         matches!(
             self,

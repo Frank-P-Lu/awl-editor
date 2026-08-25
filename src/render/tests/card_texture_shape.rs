@@ -162,7 +162,7 @@ fn render_theme_picker(world: &str) -> Option<RenderedThemeCard> {
     p.sync_theme();
     let mut v = super::view("hello world\n", 0, 0);
     v.overlay_active = true;
-    v.overlay_title = "themes";
+    v.overlay_title = "themes".to_string();
     v.overlay_items = theme::world_names().iter().map(|s| s.to_string()).collect();
     p.set_view(&v);
     p.prepare(&device, &queue, 1200, 800).unwrap();
@@ -407,7 +407,7 @@ fn render_bars_scrim(
     let (device, queue, mut p) = headless_dqp(1200.0, 800.0)?;
     let mut v = super::view("hello world\n", 0, 0);
     v.overlay_active = true;
-    v.overlay_title = "commands";
+    v.overlay_title = "commands".to_string();
     v.overlay_items = (0..8).map(|i| format!("Command {i}")).collect();
 
     let mut before_chamfer = (0.0f32, 0.0f32);

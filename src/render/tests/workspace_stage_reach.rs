@@ -130,7 +130,7 @@ fn arm_view(rows_primary: bool, detail: bool) -> ViewState {
     let ov = settings_card(detail);
     let mut v = view("hello\nthere\n", 0, 0);
     v.overlay_active = true;
-    v.overlay_title = OverlayKind::Settings.title();
+    v.overlay_title = OverlayKind::Settings.title().to_string();
     v.overlay_items = ov.item_strings();
     v.overlay_lens = ov.lens_strip();
     v.overlay_workspace = ov.workspace_shape().is_some();

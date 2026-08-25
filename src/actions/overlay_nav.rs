@@ -443,6 +443,47 @@ fn accept_browse(ctx: &mut ActionCtx, ov: &OverlayState) -> Option<Effect> {
     Some(effect)
 }
 
+/// MOVE'S OWN ACCEPT. Unlike `ExportDest`/`ProjectBrowse` (`↵` always takes
+/// the highlighted folder), Move's contextual action rows make `↵` mean three
+/// different things depending on what is highlighted: descend into a folder
+/// row (mirroring `→` — the primary "commit here" verb lives on its own row
+/// instead), commit at the current level (`RowMeta::MoveHere`), or
+/// create-and-move into a typed name in one stroke (`RowMeta::NewFolder`,
+/// gated the same way its own row's visibility is —
+/// `OverlayState::move_dest_new_folder_target`). Reached only through a real
+/// click or `↵`, so a row with neither meta and no directory (unreachable in
+/// practice — `new_move_dest` never emits one) is the calm no-op.
+fn accept_move_dest(ctx: &mut ActionCtx, ov: &OverlayState) -> Effect {
+    let meta = ov
+        .selected_corpus_index()
+        .and_then(|ci| ov.rows.get(ci))
+        .map(|r| &r.meta);
+    match meta {
+        Some(crate::overlay::RowMeta::MoveHere) => {
+            let dest = ov.browse_dir.clone().unwrap_or_default();
+            dispose_after_accept(ctx);
+            Effect::OverlayAccept(crate::overlay::OverlayKind::MoveDest, dest)
+        }
+        Some(crate::overlay::RowMeta::NewFolder) => {
+            let Some(name) = ov.move_dest_new_folder_target() else {
+                return Effect::None;
+            };
+            let dest = join_browse(ov.browse_dir.as_deref(), &name);
+            dispose_after_accept(ctx);
+            Effect::OverlayAccept(crate::overlay::OverlayKind::MoveDest, dest)
+        }
+        _ if ov.selected_is_dir() => {
+            if let Some(name) = ov.selected_value().map(str::to_string)
+                && let Some(next) = (ctx.browse_to)(ov.kind, Some(descend_target(ov, &name)))
+            {
+                ctx.journey.relevel(next);
+            }
+            Effect::None
+        }
+        _ => Effect::None,
+    }
+}
+
 fn accept_export_destination(ctx: &mut ActionCtx, ov: &OverlayState) -> Effect {
     if ov.save_copy {
         if let Some(dest) = dest_value(ov, true) {
@@ -513,19 +554,15 @@ fn accept_path_overlay(ctx: &mut ActionCtx) -> Option<Effect> {
     let ov = ctx.journey.card().unwrap().clone();
     match ov.kind {
         crate::overlay::OverlayKind::Browse => accept_browse(ctx, &ov),
-        // THE TWO DESTINATION NAVIGATORS: one folder answer
-        // ([`move_dest_value`]), two things to put in it. The move rides the
-        // generic accept; the export rides `Effect::Export`, because the folder
-        // is one component of a request that also carries the FORMAT the summon
-        // chose — carried on the card across every level change (`OverlayState::
-        // carry_level_payload_from`).
-        crate::overlay::OverlayKind::MoveDest => {
-            let effect = dest_value(&ov, true)
-                .map(|dest| Effect::OverlayAccept(crate::overlay::OverlayKind::MoveDest, dest))
-                .unwrap_or(Effect::None);
-            dispose_after_accept(ctx);
-            Some(effect)
-        }
+        // MoveDest's contextual action rows give it a bespoke accept — see
+        // `accept_move_dest`'s own doc for why it cannot share `dest_value`
+        // with its two siblings below.
+        crate::overlay::OverlayKind::MoveDest => Some(accept_move_dest(ctx, &ov)),
+        // THE EXPORT DESTINATION: one folder answer ([`dest_value`]), routed
+        // through `Effect::Export` rather than the generic accept because the
+        // folder is one component of a request that also carries the FORMAT
+        // the summon chose — carried on the card across every level change
+        // (`OverlayState::carry_level_payload_from`).
         crate::overlay::OverlayKind::ExportDest => Some(accept_export_destination(ctx, &ov)),
         // THE THIRD DESTINATION NAVIGATOR: the same walk and the same accept
         // arithmetic, and what lands in the folder is the PROJECT ITSELF. It
@@ -934,11 +971,14 @@ pub(super) fn ascend_target(ov: &OverlayState) -> Option<Option<String>> {
     }
 }
 
-/// THE FOLDER A DESTINATION NAVIGATOR'S ACCEPT NAMES: the highlighted folder,
-/// else the level you are standing in.
+/// THE FOLDER `ExportDest`/`ProjectBrowse`'S ACCEPT NAMES: the highlighted
+/// folder, else the level you are standing in. `MoveDest` left this family
+/// for its own bespoke accept (`accept_move_dest`) once its contextual action
+/// rows made "the highlighted folder, else the level" ambiguous with
+/// "descend into the highlighted folder".
 ///
-/// `allow_new` is whether a TYPED name with no matching row counts as an answer.
-/// A move or an export CREATES the folder it names, so they say yes; the
+/// `allow_new` is whether a TYPED name with no matching row counts as an
+/// answer. An export CREATES the folder it names, so it says yes; the
 /// switch-project door says no, because there is no project to switch to in a
 /// folder that does not exist — and its typed query is a filter that simply
 /// matched nothing, which leaves the level itself as the honest answer.

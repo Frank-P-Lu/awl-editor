@@ -81,7 +81,7 @@ pub(super) fn theme_picker(text: &str) -> ViewState {
     v.overlay_items = crate::theme::THEMES.iter().map(|t| t.name.into()).collect();
     v.overlay_sections = vec![String::new(); v.overlay_items.len()];
     v.overlay_selected = 11;
-    v.overlay_title = "themes";
+    v.overlay_title = "themes".to_string();
     v.overlay_hint = "type to filter   ↵ keep   esc revert".to_string();
     v
 }
@@ -101,7 +101,7 @@ fn hug_picker() -> ViewState {
     v.overlay_items = (0..13).map(|_| "a".to_string()).collect();
     v.overlay_sections = vec![String::new(); 13];
     v.overlay_selected = 1;
-    v.overlay_title = "";
+    v.overlay_title = "".to_string();
     v.overlay_hint = String::new();
     v
 }

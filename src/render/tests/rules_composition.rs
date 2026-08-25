@@ -93,7 +93,7 @@ fn redmean(a: theme::Srgb, b: theme::Srgb) -> f32 {
 fn rules_view(kind: OverlayKind, n: usize) -> ViewState {
     let mut v = view("hello world\nsecond line\nthird line\n", 0, 0);
     v.overlay_active = true;
-    v.overlay_title = kind.title();
+    v.overlay_title = kind.title().to_string();
     v.overlay_items = (0..n).map(|i| format!("candidate row {i}")).collect();
     v.overlay_bindings = (0..n).map(|i| format!("C-{}", i % 10)).collect();
     v.overlay_selected = n / 2;
@@ -855,7 +855,7 @@ fn settings_card(lens: usize, detail: bool) -> OverlayState {
 fn settings_view(ov: &OverlayState, selected: usize) -> ViewState {
     let mut v = view("hello\nthere\n", 0, 0);
     v.overlay_active = true;
-    v.overlay_title = OverlayKind::Settings.title();
+    v.overlay_title = OverlayKind::Settings.title().to_string();
     v.overlay_items = ov.item_strings();
     v.overlay_bindings = ov.item_bindings();
     v.overlay_ranges = ov.item_range_fracs();

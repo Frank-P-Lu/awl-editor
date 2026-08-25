@@ -148,7 +148,7 @@ fn theme_view(ov: &OverlayState, selected_item: usize) -> ViewState {
     let mut v = super::view("hello world\nsecond line\nthird line\n", 0, 0);
     v.overlay_active = true;
     v.overlay_crisp = ov.kind.keeps_backdrop_crisp();
-    v.overlay_title = ov.kind.title();
+    v.overlay_title = ov.kind.title().to_string();
     v.overlay_items = ov.item_strings();
     v.overlay_sections = ov.item_sections();
     v.overlay_lens = ov.lens_strip();

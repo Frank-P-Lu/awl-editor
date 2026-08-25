@@ -226,6 +226,6 @@ fn blank_overlay() -> OverlayInfo {
         diff_scroll: 0,
         show_hidden: false,
         return_to: None,
-        title: "switch project",
+        title: "switch project".to_string(),
     }
 }

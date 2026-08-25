@@ -65,6 +65,7 @@ mod hover_keyboard_nav;
 mod keybindings_capture;
 mod kind_roster_laws;
 mod minibuffer_word_motion;
+mod move_dest;
 mod picker_visibility;
 mod project;
 mod row_meta_laws;

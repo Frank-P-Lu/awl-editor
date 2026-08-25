@@ -37,7 +37,7 @@ const GLIDE_S: f32 = OVERLAY_BAND_SLIDE_MS.0 / 1000.0;
 fn palette_view(faceted: bool) -> ViewState {
     let mut v = view("hello world\n", 0, 0);
     v.overlay_active = true;
-    v.overlay_title = "commands";
+    v.overlay_title = "commands".to_string();
     v.overlay_items = vec![
         "Go to file".into(),
         "Switch project".into(),

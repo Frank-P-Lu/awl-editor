@@ -38,7 +38,7 @@ fn settings_view(lens: usize) -> ViewState {
     v.overlay_active = true;
     v.overlay_workspace = true;
     v.overlay_rows_primary = false;
-    v.overlay_title = OverlayKind::Settings.title();
+    v.overlay_title = OverlayKind::Settings.title().to_string();
     v.overlay_items = ov.item_strings();
     v.overlay_bindings = ov.item_bindings();
     v.overlay_ranges = ov.item_range_fracs();

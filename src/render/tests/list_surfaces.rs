@@ -507,7 +507,7 @@ fn list_and_facet_probe_off_matches_world_default() {
     for faceted in [false, true] {
         let mut v = view("hello\n", 0, 0);
         v.overlay_active = true;
-        v.overlay_title = "themes";
+        v.overlay_title = "themes".to_string();
         v.overlay_items = (0..8).map(|i| format!("Command {i}")).collect();
         v.overlay_selected = 3;
         if faceted {
@@ -1065,7 +1065,7 @@ fn bars_query_caret_overlaps_the_query_text() {
     let dx = (card_left - old_card_left).round() as i64;
     let mut v = view("hello world\n", 0, 0);
     v.overlay_active = true;
-    v.overlay_title = "themes";
+    v.overlay_title = "themes".to_string();
     v.overlay_items = (0..8).map(|i| format!("Command {i}")).collect();
     v.overlay_selected = 1;
     // FLAT path (no lens) — the real theme picker with faceting off, where the
@@ -1156,7 +1156,7 @@ fn overlay_query_caret_places_at_begin_mid_end_char_index() {
         let (device, queue, mut p) = headless_dqp(w as f32, h as f32)?;
         let mut v = view("hello world\n", 0, 0);
         v.overlay_active = true;
-        v.overlay_title = ""; // bare "› " sigil — no title prefix to account for
+        v.overlay_title = "".to_string(); // bare "› " sigil — no title prefix to account for
         v.overlay_items = (0..4).map(|i| format!("Command {i}")).collect();
         v.overlay_selected = 0;
         v.overlay_query = "abcxyz".to_string(); // 6 ASCII chars, mono-ish spacing
@@ -1286,7 +1286,7 @@ fn poster_bars_centered_lists_preserve_page_and_distinguish_plates() {
 
             let mut overlay = view(&doc, 0, 0);
             overlay.overlay_active = true;
-            overlay.overlay_title = "actions";
+            overlay.overlay_title = "actions".to_string();
             overlay.overlay_items = (0..7)
                 .map(|i| format!("{kind:?} action label {i}"))
                 .collect();
@@ -1668,7 +1668,7 @@ fn bars_footer_stays_legible_over_a_giant_placard() {
 
     let mut v = view("hello\n", 0, 0);
     v.overlay_active = true;
-    v.overlay_title = "commands";
+    v.overlay_title = "commands".to_string();
     v.overlay_items = (0..8).map(|i| format!("Command {i}")).collect();
     v.overlay_selected = 2;
     v.overlay_hint = "up/dn move    run    esc close".into();
@@ -2361,7 +2361,7 @@ fn context_menu_anchor_clamps_and_hits_across_world_dpi_and_edges() {
             ] {
                 let mut v = view("body\n", 0, 0);
                 v.overlay_active = true;
-                v.overlay_title = "context menu";
+                v.overlay_title = "context menu".to_string();
                 v.overlay_items = vec!["Cut".into(), "Copy".into(), "Paste".into()];
                 v.overlay_bindings = vec![String::new(); 3];
                 v.overlay_hint = "↵ choose   esc close".into();

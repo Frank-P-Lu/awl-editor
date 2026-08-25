@@ -36,7 +36,7 @@ const LOGICAL: (f32, f32) = (1200.0, 800.0);
 fn facet_view() -> ViewState {
     let mut v = view("hello world\n", 0, 0);
     v.overlay_active = true;
-    v.overlay_title = "commands";
+    v.overlay_title = "commands".to_string();
     v.overlay_items = (0..6).map(|i| format!("Command {i}")).collect();
     v.overlay_selected = 0;
     v.overlay_lens = vec![

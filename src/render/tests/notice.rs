@@ -69,7 +69,7 @@ fn toast_surface_view(surface: ToastSurface, notice: bool) -> ViewState {
         ToastSurface::Document => {}
         ToastSurface::Picker => {
             v.overlay_active = true;
-            v.overlay_title = "Commands";
+            v.overlay_title = "Commands".to_string();
             v.overlay_items = vec![
                 "Save".into(),
                 "Open".into(),
@@ -81,7 +81,7 @@ fn toast_surface_view(surface: ToastSurface, notice: bool) -> ViewState {
         ToastSurface::Workspace => {
             v.overlay_active = true;
             v.overlay_workspace = true;
-            v.overlay_title = "Settings";
+            v.overlay_title = "Settings".to_string();
             v.overlay_lens = vec![
                 ("All".into(), true),
                 ("Writing".into(), false),

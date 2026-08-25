@@ -61,7 +61,7 @@ pub(super) fn workspace_card(lens: usize, detail: bool) -> OverlayState {
 pub(super) fn workspace_view(ov: &OverlayState) -> ViewState {
     let mut v = view("hello\nthere\n", 0, 0);
     v.overlay_active = true;
-    v.overlay_title = OverlayKind::Settings.title();
+    v.overlay_title = OverlayKind::Settings.title().to_string();
     v.overlay_items = ov.item_strings();
     v.overlay_bindings = ov.item_bindings();
     v.overlay_ranges = ov.item_range_fracs();
@@ -438,7 +438,7 @@ fn a_contextual_overlay_never_enters_the_workspace_family() {
         crate::commands::visible_hidden_mask(Default::default()),
     );
     let mut v = workspace_view(&ov);
-    v.overlay_title = OverlayKind::Command.title();
+    v.overlay_title = OverlayKind::Command.title().to_string();
     v.overlay_workspace = false;
     v.overlay_lens = ov.lens_strip();
     p.set_view(&v);

@@ -13,6 +13,17 @@ fn project_overlay() -> OverlayState {
     ov
 }
 
+/// MoveDest's real rows come from `new_move_dest` — a plain `new_marked`
+/// fixture (like its two destination-navigator siblings in
+/// [`representative_overlay`]) would never produce `MoveHere`/`NewFolder`,
+/// and the roster check below is a SUBSET check: it would pass vacuously
+/// without ever exercising either declared tag.
+fn move_dest_overlay() -> OverlayState {
+    let mut ov = OverlayState::new_move_dest(None, vec![("folder".to_string(), false)]);
+    ov.push('z'); // matches no listed folder -> touches NewFolder
+    ov
+}
+
 /// Build a REPRESENTATIVE overlay for `kind` — enough of a real corpus that
 /// every `RowMeta` variant [`OverlayKind::row_meta_roster`] declares for it
 /// actually gets produced at least once (Command: a hidden row + an appended
@@ -53,17 +64,16 @@ fn representative_overlay(kind: OverlayKind) -> OverlayState {
             OverlayState::new_date(crate::dateformat::DateFormat::ALL[0], (2024, 1, 1))
         }
         OverlayKind::Keymap => OverlayState::new_keymap(crate::keymap::KeymapFlavor::ALL[0]),
-        OverlayKind::MoveDest | OverlayKind::ExportDest | OverlayKind::ProjectBrowse => {
-            OverlayState::new_marked(
-                kind,
-                vec!["folder".to_string()],
-                vec![false],
-                vec![true],
-                vec![],
-                vec![],
-                None,
-            )
-        }
+        OverlayKind::MoveDest => move_dest_overlay(),
+        OverlayKind::ExportDest | OverlayKind::ProjectBrowse => OverlayState::new_marked(
+            kind,
+            vec!["folder".to_string()],
+            vec![false],
+            vec![true],
+            vec![],
+            vec![],
+            None,
+        ),
         OverlayKind::Command => {
             let names = crate::commands::visible_names();
             let n = names.len();
@@ -194,6 +204,9 @@ fn row_meta_tag_maps_every_variant_correctly() {
         .tag(),
         RowMetaTag::History
     );
+    assert_eq!(RowMeta::ProjectDoor.tag(), RowMetaTag::ProjectDoor);
+    assert_eq!(RowMeta::MoveHere.tag(), RowMetaTag::MoveHere);
+    assert_eq!(RowMeta::NewFolder.tag(), RowMetaTag::NewFolder);
 }
 
 /// PRESERVATION LAW — Go-to HEADING rows keep their `line` across a

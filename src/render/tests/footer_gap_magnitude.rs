@@ -74,7 +74,7 @@ fn placard_worlds() -> Vec<&'static str> {
 fn theme_view(n: usize) -> ViewState {
     let mut v = view("hello world\nsecond line\n", 0, 0);
     v.overlay_active = true;
-    v.overlay_title = "themes";
+    v.overlay_title = "themes".to_string();
     v.overlay_hint = "type to filter   ↵ keep   esc revert".to_string();
     v.overlay_items = (0..n).map(|i| format!("World candidate {i}")).collect();
     v.overlay_selected = n.saturating_sub(1);

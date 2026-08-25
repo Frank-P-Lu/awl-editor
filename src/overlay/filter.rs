@@ -6,6 +6,7 @@ use crate::fuzzy::{self, Tier};
 impl OverlayState {
     pub fn refilter(&mut self) {
         self.sync_goto_line_row();
+        self.sync_move_new_folder_row();
         let accepts = self.accepts();
         let mut scored = fuzzy::rank(self.query.text(), &accepts, |i| {
             if self.open.contains(&i) {
@@ -32,6 +33,7 @@ impl OverlayState {
         });
         let mut ranked: Vec<usize> = scored.into_iter().map(|r| r.index).collect();
         self.park_terminal_rows_last(&mut ranked);
+        self.pin_move_here(&mut ranked);
         self.retain_visible_rows(&mut ranked);
         self.apply_active_facet(ranked);
         if self.selected >= self.items.len() {
@@ -86,6 +88,88 @@ impl OverlayState {
             row.meta = RowMeta::GotoLine {
                 line: one_based - 1,
             };
+        }
+    }
+
+    /// Refresh the Move navigator's `New folder…` row from the current query
+    /// — mirrors [`Self::sync_goto_line_row`]'s shape (the row never moves or
+    /// gets re-created; only its label changes per keystroke). Visibility is
+    /// [`Self::retain_visible_rows`]'s job, gated by the same
+    /// [`Self::move_dest_new_folder_target`] this reads, so the label shown
+    /// and the decision to show it can never disagree.
+    fn sync_move_new_folder_row(&mut self) {
+        if self.kind != OverlayKind::MoveDest {
+            return;
+        }
+        let label = match self.move_dest_new_folder_target() {
+            Some(name) => format!("New folder \"{name}\"\u{2026}"),
+            None => "New folder\u{2026}".to_string(),
+        };
+        if let Some(row) = self
+            .rows
+            .iter_mut()
+            .find(|r| matches!(r.meta, RowMeta::NewFolder))
+        {
+            row.accept = label;
+        }
+    }
+
+    /// THE ONE GATE for the Move navigator's `New folder…` row — read by the
+    /// label sync above, [`Self::retain_visible_rows`]'s visibility check, and
+    /// `actions::overlay_nav::accept_move_dest`'s create-and-move commit, so
+    /// the row's wording, its presence, and what it does on Enter cannot
+    /// drift apart.
+    ///
+    /// `None` when there is nothing safe or meaningful to create: an empty
+    /// query (nothing typed yet), a name that already belongs to a folder
+    /// listed at THIS level (case-insensitive — that folder is the honest
+    /// answer, reachable by descending into it instead), or a name that isn't
+    /// a single path segment (`/`, `\`, `.`, `..`) — Move stays bounded to the
+    /// source file's owning root, and a typed `../elsewhere` or `a/b` must
+    /// never ride the create-a-folder door past that bound.
+    pub fn move_dest_new_folder_target(&self) -> Option<String> {
+        if self.kind != OverlayKind::MoveDest {
+            return None;
+        }
+        let q = self.query.text().trim();
+        if q.is_empty() || q == "." || q == ".." || q.contains(['/', '\\']) {
+            return None;
+        }
+        let exists = self
+            .rows
+            .iter()
+            .any(|r| r.is_dir && r.accept.eq_ignore_ascii_case(q));
+        if exists { None } else { Some(q.to_string()) }
+    }
+
+    /// `Move here` is the Move navigator's PRIMARY VERB — the card was
+    /// summoned to move the file, and doing so at the level you're standing
+    /// on is always a valid answer, unlike every folder row (which the typed
+    /// query can filter away entirely). So it is exempt from the fuzzy
+    /// filter's own drop-on-no-match, unlike [`Self::park_terminal_rows_last`]'s
+    /// family: those park LAST (a fallback once real answers run out); this
+    /// one is the row a bare Enter should hit AT REST, so an EMPTY query pins
+    /// it FIRST (and default-selected, since `selected` already reads 0 here).
+    /// The instant something is typed, a folder match or the create-a-folder
+    /// row becomes the natural target of a bare Enter instead, so a
+    /// NON-EMPTY query parks `Move here` last — still reachable (never
+    /// dropped), just no longer first in line.
+    fn pin_move_here(&self, ranked: &mut Vec<usize>) {
+        if self.kind != OverlayKind::MoveDest {
+            return;
+        }
+        let Some(mh) = self
+            .rows
+            .iter()
+            .position(|r| matches!(r.meta, RowMeta::MoveHere))
+        else {
+            return;
+        };
+        ranked.retain(|&ci| ci != mh);
+        if self.query.text().trim().is_empty() {
+            ranked.insert(0, mh);
+        } else {
+            ranked.push(mh);
         }
     }
 
@@ -147,6 +231,14 @@ impl OverlayState {
         if self.kind == OverlayKind::Goto {
             let visible = self.facet_lens == 0 && self.goto_line_target().is_some();
             ranked.retain(|&i| !matches!(self.rows[i].meta, RowMeta::GotoLine { .. }) || visible);
+        }
+        // `New folder…` is the quiet create-on-unmatched-name row: present
+        // only while `move_dest_new_folder_target` names a safe, genuinely
+        // new folder — never while the query is empty (nothing typed to
+        // create) or already names a folder listed at this level.
+        if self.kind == OverlayKind::MoveDest {
+            let visible = self.move_dest_new_folder_target().is_some();
+            ranked.retain(|&i| !matches!(self.rows[i].meta, RowMeta::NewFolder) || visible);
         }
     }
 

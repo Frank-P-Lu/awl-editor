@@ -434,10 +434,23 @@ pub fn browse_level(
             Some(dir.to_string_lossy().to_string()),
         ));
     }
-    // The DESTINATION navigators (MoveDest, ExportDest) and Browse all walk the
+    // MOVE'S OWN LEVEL: the same folders-only walk of the active root, but its
+    // contextual `Move here`/`New folder…` rows need `new_move_dest`'s own
+    // construction rather than the generic `new_marked` every other explorer
+    // below shares (see that constructor's doc).
+    if kind == OverlayKind::MoveDest {
+        let folders: Vec<(String, bool)> =
+            crate::index::list_dir_level(active_root, rel.as_deref())
+                .into_iter()
+                .filter(|e| e.is_dir)
+                .map(|e| (e.name, e.is_git))
+                .collect();
+        return Some(OverlayState::new_move_dest(rel, folders));
+    }
+    // The DESTINATION navigators (ExportDest) and Browse all walk the
     // active root; a destination lists folders only (something lands IN a
     // folder), Browse lists files + folders.
-    let folders_only = matches!(kind, OverlayKind::MoveDest | OverlayKind::ExportDest);
+    let folders_only = kind == OverlayKind::ExportDest;
     let level = crate::index::list_dir_level(active_root, rel.as_deref());
     // Browse alone classifies each FILE entry's openability up front
     // (bounded to ONE directory level — see `crate::openable::classify`'s doc

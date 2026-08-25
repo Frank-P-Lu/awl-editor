@@ -47,7 +47,7 @@ const CANVASES: [(u32, u32); 3] = [(1200, 800), (1400, 900), (1040, 760)];
 fn ragged_view() -> ViewState {
     let mut v = view("hello\n", 0, 0);
     v.overlay_active = true;
-    v.overlay_title = "go to";
+    v.overlay_title = "go to".to_string();
     v.overlay_items = (0..24)
         .map(|i| match i % 4 {
             0 => format!("n{i}"),

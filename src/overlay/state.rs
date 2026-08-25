@@ -66,18 +66,31 @@ pub struct OverlayState {
     /// buffer known", so the line-jump row never offers a target
     /// (`OverlayState::goto_line_target`).
     pub goto_line_count: usize,
+    /// The file Move is finding a destination for. The DIRECTORY LEVEL can't
+    /// know this -- only the summon did -- so `title()` reads it to name the
+    /// errand ("move welcome.md") instead of the generic kind title, and it
+    /// survives every descend/ascend via `carry_level_payload_from`. `None`
+    /// on every non-`MoveDest` card.
+    pub move_filename: Option<String>,
 }
 
 impl OverlayState {
     /// The visible errand for this card. Save a Copy reuses the folder and
-    /// filename mechanisms, but its payload changes what the user is doing.
-    pub fn title(&self) -> &'static str {
+    /// filename mechanisms, but its payload changes what the user is doing;
+    /// Move names the file it is finding a destination for the same way.
+    pub fn title(&self) -> String {
         if self.save_copy && self.kind == OverlayKind::ExportDest {
-            "save a copy to"
+            "save a copy to".to_string()
         } else if self.save_copy_dest.is_some() && self.rename_edit.is_some() {
-            "save a copy as"
+            "save a copy as".to_string()
+        } else if let Some(name) = self
+            .move_filename
+            .as_deref()
+            .filter(|_| self.kind == OverlayKind::MoveDest)
+        {
+            format!("move {name}")
         } else {
-            self.kind.title()
+            self.kind.title().to_string()
         }
     }
 
@@ -160,6 +173,7 @@ impl OverlayState {
             save_copy: false,
             save_copy_dest: None,
             goto_line_count: 0,
+            move_filename: None,
         };
         s.refilter();
         s
@@ -177,6 +191,7 @@ impl OverlayState {
         self.export_format = prev.export_format;
         self.save_copy = prev.save_copy;
         self.save_copy_dest = prev.save_copy_dest.clone();
+        self.move_filename = prev.move_filename.clone();
     }
 
     pub fn accepts(&self) -> Vec<&str> {
@@ -434,6 +449,53 @@ impl OverlayState {
             .position(|&i| s.rows[i].accept != super::HERE_ACCEPT)
             .unwrap_or(0);
         s.scroll_to_selected();
+        s
+    }
+
+    /// THE MOVE NAVIGATOR'S OWN LEVEL: a folders-only listing plus its two
+    /// CONTEXTUAL action rows, `Move here` (always reachable — the picker's
+    /// primary verb, see [`RowMeta::MoveHere`]) and `New folder…` (visible
+    /// only while the typed query names no listed folder, see
+    /// [`RowMeta::NewFolder`] / [`Self::move_dest_new_folder_target`]).
+    /// `folders` is the caller-read directory listing (name, is-git), exactly
+    /// like [`Self::new_project`]'s own `folders` argument — this stays a pure
+    /// constructor over already-gathered data so a test can build a level
+    /// without touching disk.
+    pub fn new_move_dest(dir_rel: Option<String>, folders: Vec<(String, bool)>) -> Self {
+        let mut corpus = Vec::with_capacity(folders.len() + 2);
+        let mut git = Vec::with_capacity(folders.len() + 2);
+        let mut is_dir = Vec::with_capacity(folders.len() + 2);
+        corpus.push("Move here".to_string());
+        git.push(false);
+        is_dir.push(false);
+        for (name, is_git) in folders {
+            corpus.push(name);
+            git.push(is_git);
+            is_dir.push(true);
+        }
+        // `New folder…`'s real label is written by `sync_move_new_folder_row`
+        // on the `refilter` below; the placeholder here is never drawn.
+        corpus.push(String::new());
+        git.push(false);
+        is_dir.push(false);
+        let mut s = Self::new_marked(
+            OverlayKind::MoveDest,
+            corpus,
+            git,
+            is_dir,
+            Vec::new(),
+            Vec::new(),
+            dir_rel,
+        );
+        s.rows[0].meta = RowMeta::MoveHere;
+        let last = s.rows.len() - 1;
+        s.rows[last].meta = RowMeta::NewFolder;
+        // `new_marked`'s own construction already ran one `refilter()` before
+        // these two rows carried their real metadata (`RowMeta::Plain` sorts
+        // and filters like any ordinary row), so `pin_move_here` and the
+        // `New folder…` visibility gate never saw them — rerun it now that
+        // the metadata is in place.
+        s.refilter();
         s
     }
 

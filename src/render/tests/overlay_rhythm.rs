@@ -276,9 +276,9 @@ fn every_overlay_kind_orders_drawn_title_facet_candidates_footer_and_hits_the_sa
         let mut v = view("teh\n", 0, 0);
         v.overlay_active = true;
         v.overlay_title = if kind.draws_title_prefix() {
-            kind.title()
+            kind.title().to_string()
         } else {
-            ""
+            "".to_string()
         };
         v.overlay_items = vec!["Alpha candidate".into(), "Omega candidate".into()];
         v.overlay_selected = 0;
@@ -292,7 +292,7 @@ fn every_overlay_kind_orders_drawn_title_facet_candidates_footer_and_hits_the_sa
             SurfaceContract::Contextual => {
                 v.overlay_spell = Some((0, 0, 3));
                 v.overlay_hint.clear();
-                v.overlay_title = "";
+                v.overlay_title = "".to_string();
             }
         }
         p.set_view(&v);
@@ -381,7 +381,7 @@ fn footer_pixels_add_clear_air_above_trim_the_chin_and_reject_the_old_dials() {
         p.sync_theme();
         let mut v = view("hello\n", 0, 0);
         v.overlay_active = true;
-        v.overlay_title = "settings";
+        v.overlay_title = "settings".to_string();
         v.overlay_items = vec![
             "Alpha candidate".into(),
             "Middle candidate".into(),

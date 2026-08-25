@@ -1951,3 +1951,53 @@ fn destination_ranges_excludes_addresses_but_never_label_or_alt_text() {
     let prose = "just some prose, no addresses here\n";
     assert!(destination_ranges(prose, &spans(prose)).is_empty());
 }
+
+// ── `has_relative_references` — the Move-navigator completion notice's own
+// signal for "these paths may need review" ─────────────────────────────────
+
+#[test]
+fn relative_image_or_link_paths_are_flagged() {
+    assert!(
+        has_relative_references("![pic](img/pic.png)\n"),
+        "a relative image destination"
+    );
+    assert!(
+        has_relative_references("see [sibling](../notes/sibling.md)\n"),
+        "a relative link destination"
+    );
+    assert!(
+        has_relative_references("see [here](sibling.md)\n"),
+        "a bare relative filename, no leading directory"
+    );
+}
+
+#[test]
+fn absolute_urls_and_paths_and_anchors_are_not_flagged() {
+    assert!(
+        !has_relative_references("![pic](https://example.com/pic.png)\n"),
+        "an absolute URL"
+    );
+    assert!(
+        !has_relative_references("see [mail](mailto:a@example.com)\n"),
+        "a non-file scheme"
+    );
+    assert!(
+        !has_relative_references("see [root](/absolute/path.md)\n"),
+        "a filesystem-absolute path"
+    );
+    assert!(
+        !has_relative_references("see [section](#heading)\n"),
+        "a same-document anchor"
+    );
+    assert!(
+        !has_relative_references("just prose, no links or images\n"),
+        "no references at all"
+    );
+}
+
+#[test]
+fn a_relative_image_alone_is_enough_even_with_only_absolute_links() {
+    assert!(has_relative_references(
+        "see [site](https://example.com) ![pic](assets/pic.png)\n"
+    ));
+}

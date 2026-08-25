@@ -94,7 +94,7 @@ fn palette_view(lens: usize) -> ViewState {
     ov.set_facet_lens(lens);
     let mut v = view("hello world\n", 0, 0);
     v.overlay_active = true;
-    v.overlay_title = OverlayKind::Command.title();
+    v.overlay_title = OverlayKind::Command.title().to_string();
     v.overlay_items = ov.item_strings();
     v.overlay_bindings = ov.item_bindings();
     v.overlay_lens = ov.lens_strip();

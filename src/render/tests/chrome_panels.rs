@@ -1432,7 +1432,7 @@ fn faceted_palette_shapes_the_chord_column_aligned_to_its_rows() {
         };
         let mut v = view("hello\n", 0, 0);
         v.overlay_active = true;
-        v.overlay_title = "commands";
+        v.overlay_title = "commands".to_string();
         v.overlay_lens = vec![
             ("All".into(), true),
             ("File".into(), false),
@@ -1512,7 +1512,7 @@ fn faceted_palette_shapes_the_chord_column_aligned_to_its_rows() {
         };
         let mut v = view("hello\n", 0, 0);
         v.overlay_active = true;
-        v.overlay_title = "commands";
+        v.overlay_title = "commands".to_string();
         v.overlay_lens = vec![("All".into(), false), ("File".into(), true)];
         v.overlay_items = vec!["Save".into(), "Open".into(), "Copy".into()];
         v.overlay_sections = vec!["File".into(), "File".into(), "Edit".into()];
@@ -1561,7 +1561,7 @@ fn faceted_palette_shapes_the_chord_column_aligned_to_its_rows() {
         };
         let mut v = view("hello\n", 0, 0);
         v.overlay_active = true;
-        v.overlay_title = "themes";
+        v.overlay_title = "themes".to_string();
         v.overlay_lens = vec![("All".into(), true)];
         v.overlay_items = vec!["Tawny".into(), "Mopoke".into()];
         // no bindings / times / git — the literal Theme picker
