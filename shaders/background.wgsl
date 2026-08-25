@@ -18,7 +18,7 @@
 // upload), like the selection shader.
 //
 // When page mode is OFF the host passes col_w == viewport width, so the column
-// covers everything and the margins vanish — identical to the old flat clear.
+// covers everything and the margins vanish, leaving a flat clear.
 
 struct Globals {
     // Framebuffer size in physical pixels.
@@ -91,9 +91,9 @@ struct Globals {
     // every settled/headless frame. Read directly by `organic_finds_rgb`'s
     // companion (`kind_b`) value-breathe, whose envelope shape matches
     // `stars.rs:185`'s `rate * phase / LAVA_LOOP_CYCLES`. Must byte-match
-    // `Globals.organic_phase` in src/background.rs. Replaces the field
-    // TRANSLATION `organic_rgb` used to compute from `drift` —
-    // deleted outright, so the ground no longer translates at all.
+    // `Globals.organic_phase` in src/background.rs — the ground's only
+    // ambient input; it never translates (see the design note near
+    // `organic_finds_rgb`, below).
     organic_phase: f32,
     // std140 tail padding — a uniform struct is rounded up to its 16-byte
     // alignment, and the Rust mirror must allocate the same bytes. A LONE
@@ -158,14 +158,9 @@ struct VsOut {
     @location(0) px: vec2<f32>,
 };
 
-// A single oversized triangle covering the whole clip space.
-var<private> VERTS: array<vec2<f32>, 3> = array<vec2<f32>, 3>(
-    vec2<f32>(-1.0, -1.0), vec2<f32>( 3.0, -1.0), vec2<f32>(-1.0,  3.0),
-);
-
 @vertex
 fn vs_main(@builtin(vertex_index) vid: u32) -> VsOut {
-    let ndc = VERTS[vid];
+    let ndc = TRI_NDC[vid];
     var out: VsOut;
     out.clip = vec4<f32>(ndc, 0.0, 1.0);
     // Map clip [-1,1] (y-up) back to pixels (y-down, top-left origin).
@@ -994,10 +989,9 @@ fn waves_rgb(px: vec2<f32>) -> vec3<f32> {
 // An axis that is a function of WHICH MARGIN a fragment falls in gives each
 // margin its own vanishing point, and a reader sees exactly what that is: two
 // tunnels, side by side, disagreeing across the page. One axis at `vp.x * 0.5`
-// is the whole fix, and it costs only the reason the old placement existed —
-// it puts the vanishing point BEHIND THE PAGE. That is the composition: the
-// thing you are travelling toward is hidden behind your own writing, and each
-// margin carries one flank of the single tube around it.
+// is the whole fix: it puts the vanishing point BEHIND THE PAGE. That is the
+// composition — the thing you are travelling toward is hidden behind your own
+// writing, and each margin carries one flank of the single tube around it.
 //
 // The placement takes no page term and no margin term, so the page column can
 // only MASK this field. Both flanks are equidistant from the axis at every page
@@ -1006,9 +1000,9 @@ fn waves_rgb(px: vec2<f32>) -> vec3<f32> {
 // THE FIELD CROSSES THE PAGE, SIMPLIFIED TO ITS SCAFFOLD. Two flanks with
 // nothing between them are still two pictures as far as the eye is concerned;
 // the evidence that they are ONE tube is that a ring leaving the left margin
-// ARRIVES in the right one at the same height. So the page column no longer
-// punches this ground away — it veils the field to `WARP_PAGE_VEIL` and retires
-// the minor lattice, leaving the major scaffold alone to make the crossing.
+// ARRIVES in the right one at the same height. So the page column VEILS this
+// field to `WARP_PAGE_VEIL` rather than masking it away, and retires the minor
+// lattice, leaving the major scaffold alone to make the crossing.
 // That simplification is not a new idea: it is the same one `WARP_NARROW_LO_PX`
 // already applies as a margin narrows. Prose keeps its figure/ground because
 // the veil is held by a legibility floor measured over the rendered page, not
@@ -1061,9 +1055,8 @@ const WARP_WINDOW_STRADDLE: f32 = 0.4;
 // the reader has.
 const WARP_RING_PITCH_AT: f32 = 0.8333333;
 const WARP_RPO_MIN: f32 = 3.0;
-// The ceiling rises with the reference point, for the same reason: it exists to
-// bite at extreme rooms, and against the new reference the old value would begin
-// biting on an ordinary 4K-at-1x desktop. Ring DENSITY is not what makes a
+// The ceiling exists to bite only at extreme rooms — high enough that it never
+// fires on an ordinary 4K-at-1x desktop. Ring DENSITY is not what makes a
 // converging lattice unsafe — `alias_fade` and `WARP_CORE_FRAC` are the moire
 // defences, and neither one reads this bound.
 const WARP_RPO_MAX: f32 = 20.0;
@@ -1260,12 +1253,10 @@ fn warped_grid_rgba(p: vec2<f32>, in_page: bool) -> vec4<f32> {
     let edge_d = max(select(cl - p.x, p.x - col_right, on_right), 0.0);
     // THE CROSSING, as ONE signed profile over the whole room. `sd` is the
     // distance to the nearer page edge: positive out in a margin, negative under
-    // the page. The margin ramp keeps its shape; what changed is its FLOOR. It
-    // used to reach zero at the page edge because the page edge was the end of
-    // the world — now the field continues past it, so the floor is the veil, and
-    // the stroke that leaves the left flank is the same stroke that arrives in
-    // the right one. A ramp that touched zero in between would break exactly the
-    // continuity this ground exists to show.
+    // the page. The margin ramp's FLOOR is the veil, not zero: the field
+    // continues past the page edge, so the stroke that leaves the left flank is
+    // the same stroke that arrives in the right one. A ramp that touched zero in
+    // between would break exactly the continuity this ground exists to show.
     let depth_in = max(min(p.x - cl, col_right - p.x), 0.0);
     let sd = select(edge_d, -depth_in, in_page);
     // THE RAMP LIVES ENTIRELY IN THE MARGIN. It starts AT the page edge, so the
@@ -1309,33 +1300,12 @@ fn warped_grid_rgba(p: vec2<f32>, in_page: bool) -> vec4<f32> {
     return vec4<f32>(mix(with_minor, g.c_to.rgb, major_cov), 1.0);
 }
 
-// BANDING KILL — the classic 8x8 ordered (Bayer) dither matrix, values 0..64.
-// A pure function of PIXEL POSITION alone (no time, no random), so the headless
-// capture stays deterministic. Rust mirror + full derivation notes:
-// `src/render/dither.rs` (kept in sync by hand — see that file's module doc for
-// why a small cross-language duplication is the accepted answer here).
-var<private> BAYER8: array<u32, 64> = array<u32, 64>(
-     0u, 32u,  8u, 40u,  2u, 34u, 10u, 42u,
-    48u, 16u, 56u, 24u, 50u, 18u, 58u, 26u,
-    12u, 44u,  4u, 36u, 14u, 46u,  6u, 38u,
-    60u, 28u, 52u, 20u, 62u, 30u, 54u, 22u,
-     3u, 35u, 11u, 43u,  1u, 33u,  9u, 41u,
-    51u, 19u, 59u, 27u, 49u, 17u, 57u, 25u,
-    15u, 47u,  7u, 39u, 13u, 45u,  5u, 37u,
-    63u, 31u, 55u, 23u, 61u, 29u, 53u, 21u,
-);
-
-// The Bayer threshold at pixel `px`, normalized to [0,1) — tiles every 8px.
-// Called with the PHYSICAL fragment position, deliberately. This is
-// the purest SAMPLING quantity in the file — a threshold matrix whose job is to
-// perturb each DEVICE pixel by half a quantization step before the render
-// target rounds it to 8 bits. Tiling it in logical px would put four device
-// pixels on one threshold at 2x and hand the banding back.
-fn bayer_threshold01(px: vec2<f32>) -> f32 {
-    let x = u32(floor(px.x)) % 8u;
-    let y = u32(floor(px.y)) % 8u;
-    return f32(BAYER8[y * 8u + x]) / 64.0;
-}
+// `BAYER8`/`bayer_threshold01` (the dither matrix `shaders/common/dither.wgsl`
+// prepends): the purest SAMPLING quantity in this file, called with the
+// PHYSICAL fragment position deliberately — it perturbs each DEVICE pixel by
+// half a quantization step before the render target rounds to 8 bits, so
+// tiling it in logical px would put four device pixels on one threshold at 2x
+// and hand the banding back.
 
 // sRGB transfer function (encode: linear -> sRGB, decode: sRGB -> linear),
 // applied per-channel. NEEDED for the dither below: the render target is
