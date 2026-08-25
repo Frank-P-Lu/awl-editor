@@ -163,8 +163,11 @@ fn real_fs_app_new_calls_are_all_accounted_for() {
         // keep driving the fs AFTER construction (`new_document`, the summon flush),
         // so the fake must stay active across the whole closure. (The 3 added by
         // the anchor-swallow fix: fresh-note + fresh-scratch record words typed
-        // before the first flush, and the card-summon-freshness flush.)
-        ("app/streaks.rs", 6),
+        // before the first flush, and the card-summon-freshness flush.) Plus 3
+        // added by the CJK-aware word-count fix: the unspaced-CJK-sentence
+        // regression, the plain-English no-op proof, and the frontmatter-strip
+        // landing note — same CONTROL + INSPECT need, same treatment.
+        ("app/streaks.rs", 9),
         // 6 REMOVAL-OWNER tests (`app::files::close`), each on a real
         // `ScratchDir` with `session_restore: Some(false)` set inline, so no
         // developer's own open files are ever parked into the fixture's
