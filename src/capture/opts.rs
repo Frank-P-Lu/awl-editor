@@ -196,12 +196,15 @@ pub struct OverlayInfo {
     /// (palette → theme → Esc → palette) is assertable straight from the sidecar.
     pub return_to: Option<&'static str>,
     /// THE OVERLAY-TITLES ROUND: this picker's short, lowercase self-announcement
-    /// ([`crate::overlay::OverlayKind::title`]) — the same text the render path
+    /// ([`crate::overlay::OverlayState::title`]) — the same text the render path
     /// draws as a quiet prefix on the input line. Emitted as `overlay.title` so the
     /// destination of a palette→picker route is agent-verifiable straight from the
     /// sidecar (a picker with no title-carrying render surface still reports it
     /// here — the law is "every kind names itself", not "every kind draws it").
-    pub title: &'static str,
+    /// Owned rather than `&'static str`: Move's title carries the filename it
+    /// is finding a destination for, a per-summon fact no kind-level constant
+    /// can hold.
+    pub title: String,
 }
 
 pub(super) fn spell_target_json(target: Option<(usize, usize, usize)>) -> String {

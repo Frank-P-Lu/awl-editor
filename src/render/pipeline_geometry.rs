@@ -381,7 +381,7 @@ impl TextPipeline {
         self.overlay_crisp = view.overlay_crisp;
         self.overlay_query = view.overlay_query.clone();
         self.overlay_query_caret = view.overlay_query_caret;
-        self.overlay_title = view.overlay_title;
+        self.overlay_title = view.overlay_title.clone();
         self.overlay_row_path_splits = view.overlay_row_path_splits;
         self.overlay_items = view.overlay_items.clone();
         self.overlay_empty = view.overlay_empty.clone();

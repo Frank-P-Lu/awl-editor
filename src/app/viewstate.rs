@@ -197,7 +197,7 @@ impl App {
             overlay_title: ov
                 .filter(|o| o.kind.draws_title_prefix())
                 .map(crate::overlay::OverlayState::title)
-                .unwrap_or(""),
+                .unwrap_or_default(),
             overlay_row_path_splits: ov.map(|o| o.kind.row_path_splits()).unwrap_or(false),
             overlay_items: ov.map(|o| o.item_strings()).unwrap_or_default(),
             // EMPTY STATE: the shared calm message when the overlay has no rows (empty

@@ -105,7 +105,7 @@ fn a_workspace_footer_plate_ends_with_its_footer_on_every_bare_plate_world() {
             v.overlay_active = true;
             v.overlay_workspace = true;
             v.overlay_rows_primary = false;
-            v.overlay_title = OverlayKind::Settings.title();
+            v.overlay_title = OverlayKind::Settings.title().to_string();
             v.overlay_items = vec!["Alpha".into(), "Beta".into()];
             v.overlay_selected = 0;
             v.overlay_hint = "↑/↓ category   ↵ settings   esc close".into();

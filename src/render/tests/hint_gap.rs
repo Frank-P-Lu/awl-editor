@@ -54,7 +54,7 @@ enum Shape {
 fn overlay_view(kind: OverlayKind, shape: Shape) -> ViewState {
     let mut v = view("hello world\nsecond line\n", 0, 0);
     v.overlay_active = true;
-    v.overlay_title = kind.title();
+    v.overlay_title = kind.title().to_string();
     v.overlay_hint = kind.hint();
     v.overlay_query = "co".into();
     v.overlay_query_caret = 2;

@@ -163,7 +163,7 @@ impl<'a> Cx<'a> {
         self.view.overlay_items = Vec::new();
         self.view.overlay_bindings = Vec::new();
         self.view.overlay_git = Vec::new();
-        self.view.overlay_title = "";
+        self.view.overlay_title = String::new();
         self.view.overlay_hint = String::new();
         self.view.overlay_empty = None;
     }

@@ -579,7 +579,7 @@ fn wagtail_living_band_ink_rides_the_band_on_the_faceted_palette() {
     // a middle selection with a full list.
     let mut v = view("hello world\n", 0, 0);
     v.overlay_active = true;
-    v.overlay_title = "commands";
+    v.overlay_title = "commands".to_string();
     v.overlay_lens = vec![("All".into(), true), ("File".into(), false)];
     v.overlay_items = vec![
         "Save all files".into(),

@@ -83,7 +83,7 @@ const NO_TRADE_SLACK: f64 = 1.0;
 fn chord_view(n: usize, selected: usize) -> ViewState {
     let mut v = view("hello world\nsecond line\n", 0, 0);
     v.overlay_active = true;
-    v.overlay_title = OverlayKind::Command.title();
+    v.overlay_title = OverlayKind::Command.title().to_string();
     v.overlay_items = (0..n)
         .map(|i| {
             if i % 3 == 0 {

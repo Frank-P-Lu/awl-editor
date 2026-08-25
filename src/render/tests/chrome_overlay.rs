@@ -162,7 +162,7 @@ fn overlay_card_width_is_zoom_aware_no_elision_when_the_window_has_room() {
         let mut v = view("hello\n", 0, 0);
         v.zoom = zoom;
         v.overlay_active = true;
-        v.overlay_title = "commands";
+        v.overlay_title = "commands".to_string();
         v.overlay_items = items.clone();
         v.overlay_bindings = binds.clone();
         v.overlay_lens = vec![("All".into(), true), ("File".into(), false)];
@@ -264,7 +264,7 @@ fn overlay_row_elements_agree_in_y_flat_and_faceted_every_world() {
                     crate::render::set_list_style_test_override(style);
                     let mut v = view("hello\n", 0, 0);
                     v.overlay_active = true;
-                    v.overlay_title = "themes";
+                    v.overlay_title = "themes".to_string();
                     v.overlay_items = items.clone();
                     v.overlay_bindings = binds.clone();
                     v.overlay_selected = 3;

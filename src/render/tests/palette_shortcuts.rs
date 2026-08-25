@@ -29,7 +29,7 @@ use crate::render::chrome::diagonal::DiagonalComposition;
 fn palette_view() -> ViewState {
     let mut v = view("hello\n", 0, 0);
     v.overlay_active = true;
-    v.overlay_title = "commands";
+    v.overlay_title = "commands".to_string();
     v.overlay_items = crate::commands::names();
     v.overlay_bindings = crate::commands::effective_bindings(&[], &[]);
     v.overlay_selected = 0;

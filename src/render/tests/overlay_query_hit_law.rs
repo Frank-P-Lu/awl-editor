@@ -17,7 +17,7 @@ use super::{headless_dqp, view};
 fn query_view(text: &str, query: &str, title: &'static str) -> ViewState {
     let mut v = view(text, 0, 0);
     v.overlay_active = true;
-    v.overlay_title = title;
+    v.overlay_title = title.to_string();
     v.overlay_items = vec!["row one".into(), "row two".into(), "row three".into()];
     v.overlay_selected = 0;
     v.overlay_hint = "type to filter".into();

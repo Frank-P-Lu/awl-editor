@@ -54,7 +54,7 @@ fn date_picker_view(selected: usize) -> ViewState {
     let (items, labels) = date_examples();
     let mut v = view("hello world\n", 0, 0);
     v.overlay_active = true;
-    v.overlay_title = crate::overlay::OverlayKind::Date.title();
+    v.overlay_title = crate::overlay::OverlayKind::Date.title().to_string();
     v.overlay_items = items;
     v.overlay_bindings = labels;
     v.overlay_selected = selected;
@@ -123,7 +123,7 @@ fn capture_date_picker(
     opts.overlay = Some(OverlayInfo {
         active: true,
         mode: crate::overlay::OverlayKind::Date.as_str(),
-        title: crate::overlay::OverlayKind::Date.title(),
+        title: crate::overlay::OverlayKind::Date.title().to_string(),
         align: crate::render::effective_card_anchor(),
         query: String::new(),
         query_caret: 0,

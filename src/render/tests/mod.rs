@@ -439,7 +439,7 @@ pub(super) fn comparison_view(text: &str, line: usize, col: usize) -> ViewState 
     // Both halves are `sync_view`'s own projections, and the second is what makes
     // the document relocate: the timeline can be up with nothing to compare.
     v.overlay_comparison = true;
-    v.overlay_title = "Version history";
+    v.overlay_title = "Version history".to_string();
     v.overlay_lens = vec![
         ("All".into(), true),
         ("Today".into(), false),
@@ -517,7 +517,7 @@ pub(super) fn settings_overlay_view(
 ) -> ViewState {
     let mut v = view("hello\n", 0, 0);
     v.overlay_active = true;
-    v.overlay_title = crate::overlay::OverlayKind::Settings.title();
+    v.overlay_title = crate::overlay::OverlayKind::Settings.title().to_string();
     v.overlay_items = ov.item_strings();
     v.overlay_bindings = ov.item_bindings();
     v.overlay_ranges = ov.item_range_fracs();

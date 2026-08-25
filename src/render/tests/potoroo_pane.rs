@@ -48,7 +48,7 @@ fn avg(px: &[[u8; 4]], w: u32, x: i32, y: i32) -> theme::Srgb {
 fn pane_view(selected: usize) -> ViewState {
     let mut v = view("quiet Room text stays behind this command surface\n", 0, 0);
     v.overlay_active = true;
-    v.overlay_title = "Commands";
+    v.overlay_title = "Commands".to_string();
     v.overlay_items = vec![
         "Open…".into(),
         "Save".into(),

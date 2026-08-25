@@ -86,7 +86,7 @@ fn picker(kind: OverlayKind, rows: usize, label: &str) -> ViewState {
     let mut v = view("hello world\nsecond line\n", 0, 0);
     v.overlay_active = true;
     v.overlay_crisp = kind == OverlayKind::Theme;
-    v.overlay_title = kind.title();
+    v.overlay_title = kind.title().to_string();
     v.overlay_hint = kind.hint();
     v.overlay_items = (0..rows).map(|i| format!("{label}{i}")).collect();
     // THE WINDOW IS THE CANVAS'S, not a per-kind row cap. `OverlayKind::window_rows`

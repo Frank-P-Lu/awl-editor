@@ -74,7 +74,7 @@ fn context_menu(text: &str, dpi: f32) -> ViewState {
     );
     let mut v = view_md(text, 0, 0);
     v.overlay_active = true;
-    v.overlay_title = crate::overlay::OverlayKind::Context.title();
+    v.overlay_title = crate::overlay::OverlayKind::Context.title().to_string();
     v.overlay_items = rows.iter().map(|r| r.label.to_string()).collect();
     v.overlay_bindings = vec![String::new(); rows.len()];
     v.overlay_selected = 0;

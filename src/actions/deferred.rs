@@ -6,8 +6,16 @@ pub(super) fn apply_deferred_action(ctx: &mut ActionCtx, action: &Action) -> Opt
         Action::NewDocument => Effect::Buffer(BufferEffect::NewDocument),
         Action::KeepTutorial => Effect::RunAction(Action::OpenProject),
         Action::MoveFile => {
-            ctx.journey
-                .enter((ctx.browse_to)(OverlayKind::MoveDest, None));
+            let name = ctx
+                .buffer
+                .path()
+                .and_then(|p| p.file_name())
+                .map(|s| s.to_string_lossy().to_string());
+            let card = (ctx.browse_to)(OverlayKind::MoveDest, None).map(|mut card| {
+                card.move_filename = name;
+                card
+            });
+            ctx.journey.enter(card);
             Effect::None
         }
         Action::OpenRenameNote => {

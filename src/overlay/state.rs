@@ -66,18 +66,31 @@ pub struct OverlayState {
     /// buffer known", so the line-jump row never offers a target
     /// (`OverlayState::goto_line_target`).
     pub goto_line_count: usize,
+    /// The file Move is finding a destination for. The DIRECTORY LEVEL can't
+    /// know this -- only the summon did -- so `title()` reads it to name the
+    /// errand ("move welcome.md") instead of the generic kind title, and it
+    /// survives every descend/ascend via `carry_level_payload_from`. `None`
+    /// on every non-`MoveDest` card.
+    pub move_filename: Option<String>,
 }
 
 impl OverlayState {
     /// The visible errand for this card. Save a Copy reuses the folder and
-    /// filename mechanisms, but its payload changes what the user is doing.
-    pub fn title(&self) -> &'static str {
+    /// filename mechanisms, but its payload changes what the user is doing;
+    /// Move names the file it is finding a destination for the same way.
+    pub fn title(&self) -> String {
         if self.save_copy && self.kind == OverlayKind::ExportDest {
-            "save a copy to"
+            "save a copy to".to_string()
         } else if self.save_copy_dest.is_some() && self.rename_edit.is_some() {
-            "save a copy as"
+            "save a copy as".to_string()
+        } else if let Some(name) = self
+            .move_filename
+            .as_deref()
+            .filter(|_| self.kind == OverlayKind::MoveDest)
+        {
+            format!("move {name}")
         } else {
-            self.kind.title()
+            self.kind.title().to_string()
         }
     }
 
@@ -160,6 +173,7 @@ impl OverlayState {
             save_copy: false,
             save_copy_dest: None,
             goto_line_count: 0,
+            move_filename: None,
         };
         s.refilter();
         s
@@ -177,6 +191,7 @@ impl OverlayState {
         self.export_format = prev.export_format;
         self.save_copy = prev.save_copy;
         self.save_copy_dest = prev.save_copy_dest.clone();
+        self.move_filename = prev.move_filename.clone();
     }
 
     pub fn accepts(&self) -> Vec<&str> {

@@ -110,6 +110,55 @@ fn save_copy_uses_the_shared_folder_then_filename_journey() {
 }
 
 #[test]
+fn move_dest_names_the_moving_file_in_its_title_and_keeps_it_across_a_descend() {
+    let mut buffer = Buffer::from_str("text\n");
+    buffer.set_path(std::path::PathBuf::from("/root/welcome.md"));
+    let mut journey = crate::overlay::Journey::default();
+    let mut shift = false;
+    let mut zoom = 1.0;
+    let mut search = None;
+    let mut make = |_k| None;
+    let mut browse = |k, r| browse_level(k, r);
+    let mut ctx = ActionCtx {
+        buffer: &mut buffer,
+        shift_selecting: &mut shift,
+        zoom: &mut zoom,
+        search: &mut search,
+        scroll_page_lines: 1,
+        journey: &mut journey,
+        make_overlay: &mut make,
+        browse_to: &mut browse,
+        oracle: None,
+    };
+    assert!(matches!(
+        apply_transition(&mut ctx, &Action::MoveFile, false).primary(),
+        Effect::None
+    ));
+    let card = ctx.journey.card().unwrap();
+    assert_eq!(card.kind, OverlayKind::MoveDest);
+    assert_eq!(card.title(), "move welcome.md");
+
+    // Descend into a folder row -- a level rebuild, which reads only the
+    // disk. The filename survives only because `carry_level_payload_from`
+    // carries it: this asserts the survival, not merely the summon.
+    let ov = ctx.journey.card().unwrap();
+    let folder_row = ov
+        .rows
+        .iter()
+        .position(|r| r.is_dir)
+        .expect("browse_level seeds at least one folder row");
+    ctx.journey.card_mut().unwrap().selected = folder_row;
+    let _ = apply_transition(&mut ctx, &Action::Newline, false);
+    let card = ctx.journey.card().unwrap();
+    assert_eq!(
+        card.title(),
+        "move welcome.md",
+        "the descend rebuilt the folder listing from disk, which cannot know \
+         the filename -- only carry_level_payload_from could have kept it"
+    );
+}
+
+#[test]
 fn command_palette_enter_dispatches_selected_action() {
     // Open, filter to "Go to file", Enter -> run_action == OpenGoto and the
     // palette closed (so the caller can re-dispatch into the goto overlay).

@@ -81,7 +81,7 @@ fn diagonal_worlds() -> Vec<(&'static str, theme::DiagonalDirection)> {
 fn spread_view(kind: OverlayKind, n: usize, scroll: usize, selected: usize) -> ViewState {
     let mut v = view("hello world\nsecond line\nthird line\n", 0, 0);
     v.overlay_active = true;
-    v.overlay_title = kind.title();
+    v.overlay_title = kind.title().to_string();
     v.overlay_items = (0..n)
         .map(|i| match i % 4 {
             0 => format!("go {i}"),

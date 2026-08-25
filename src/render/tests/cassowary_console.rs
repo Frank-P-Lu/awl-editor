@@ -91,7 +91,7 @@ fn indexed_locator_can_report_only_the_real_active_category_index() {
 fn console_view(active: usize) -> ViewState {
     let mut v = view("# Console\n\nThe document stays behind the frame.\n", 0, 0);
     v.overlay_active = true;
-    v.overlay_title = "commands";
+    v.overlay_title = "commands".to_string();
     v.overlay_items = (0..12).map(|i| format!("Command {i}")).collect();
     v.overlay_bindings = (0..12).map(|i| format!("C-{i}")).collect();
     v.overlay_selected = 3;
@@ -578,9 +578,9 @@ fn static_material_enrolls_the_complete_overlay_surface_roster() {
         let mut v = view("teh\n", 0, 0);
         v.overlay_active = true;
         v.overlay_title = if kind.draws_title_prefix() {
-            kind.title()
+            kind.title().to_string()
         } else {
-            ""
+            "".to_string()
         };
         v.overlay_window_rows = kind.window_rows();
         v.overlay_items = vec!["Alpha".into(), "Omega".into()];
@@ -588,7 +588,7 @@ fn static_material_enrolls_the_complete_overlay_surface_roster() {
         v.overlay_hint = kind.hint();
         if kind == crate::overlay::OverlayKind::Spell {
             v.overlay_spell = Some((0, 0, 3));
-            v.overlay_title = "";
+            v.overlay_title = "".to_string();
             v.overlay_hint.clear();
             contextual += 1;
         } else if kind.workspace_shape().is_some() {

@@ -67,7 +67,7 @@ fn faceted_view(kind: OverlayKind) -> Option<ViewState> {
     let n = items.len();
     let mut v = view("hello world\n", 0, 0);
     v.overlay_active = true;
-    v.overlay_title = kind.title();
+    v.overlay_title = kind.title().to_string();
     v.overlay_items = items;
     v.overlay_bindings = vec![String::new(); n];
     v.overlay_lens = scheme.strip_labels(lens);

@@ -125,7 +125,7 @@ fn faceted_query_strip_is_optically_centered_not_bottom_heavy() {
 fn picker(faceted: bool, n: usize) -> ViewState {
     let mut v = view("hello world this is the page behind the card\n", 0, 0);
     v.overlay_active = true;
-    v.overlay_title = "themes";
+    v.overlay_title = "themes".to_string();
     v.overlay_items = (0..n).map(|i| format!("Command {i}")).collect();
     v.overlay_selected = if n == 0 { 0 } else { (n - 1).min(3) };
     if faceted {

@@ -43,7 +43,7 @@ pub(super) fn card_in_content(kind: OverlayKind) -> OverlayState {
 pub(super) fn content_view(overlay: &OverlayState) -> ViewState {
     let mut v = view("hello\nthere\n", 0, 0);
     v.overlay_active = true;
-    v.overlay_title = overlay.kind.title();
+    v.overlay_title = overlay.kind.title().to_string();
     v.overlay_items = overlay.item_strings();
     v.overlay_lens = overlay.lens_strip();
     v.overlay_workspace = overlay.workspace_shape().is_some();

@@ -156,7 +156,7 @@ fn card_in_content(kind: OverlayKind, lens: usize, root: &str) -> OverlayState {
 /// settings folder plus the four workspace fields that folder does not carry.
 fn content_view(ov: &OverlayState) -> ViewState {
     let mut v = settings_overlay_view(ov, SETTINGS_VIEW_PARKED_WINDOW_ROWS);
-    v.overlay_title = ov.kind.title();
+    v.overlay_title = ov.kind.title().to_string();
     v.overlay_lens = ov.lens_strip();
     v.overlay_workspace = ov.workspace_shape().is_some();
     v.overlay_rows_primary = ov
