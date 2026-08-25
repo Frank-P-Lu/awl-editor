@@ -491,6 +491,8 @@ change claims no receipt beyond the law's own test run.
 ---
 ### 501 — docs drift audit: every load-bearing doc claim spot-checked against the tree (USER 2026-08-25)
 
+**CLAIMED 2026-08-25 — building in worktree `item-501-docs-drift-audit`.**
+
 The eight `docs/*.md` feature docs plus CAPTURE.md and WEB.md are
 protocol-load-bearing: every lane reads the matching doc before working
 an area, so a stale mechanism claim there misleads an entire round —
@@ -520,6 +522,8 @@ the tree, not against the first reader's report.
 ---
 ### 502 — dependency hygiene: duplicate versions, unused features, stale pins (USER 2026-08-25)
 
+**CLAIMED 2026-08-25 — building in worktree `item-502-dependency-hygiene`.**
+
 cargo-machete (already in code-health) catches only UNUSED deps.
 Nothing measures: duplicate versions in the resolved graph
 (`cargo tree -d` — each duplicate compiles twice and bloats the
@@ -548,6 +552,8 @@ cargo-machete still clean; the regenerated license list diff reviewed
 
 ---
 ### 503 — shader pass: the one surface no linter reads (USER 2026-08-25)
+
+**CLAIMED 2026-08-25 — building in worktree `item-503-shader-pass`.**
 
 9 WGSL files, 2,892 lines (1,257 code + 1,467 comments — denser than
 the Rust), half of it `shaders/background.wgsl` (1,420). No clippy, no
