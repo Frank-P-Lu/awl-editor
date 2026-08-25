@@ -524,6 +524,44 @@ cargo-machete still clean; the regenerated license list diff reviewed
 — license facts are never fabricated, the unverifiable gets flagged.
 
 ---
+### 503 — shader pass: the one surface no linter reads (USER 2026-08-25)
+
+9 WGSL files, 2,892 lines (1,257 code + 1,467 comments — denser than
+the Rust), half of it `shaders/background.wgsl` (1,420). No clippy, no
+code-health, no census has ever read them. Two verified defect-class
+instances already: `sd_round_rect` is defined in THREE shaders and
+`bayer_threshold01` in two — there is no shared-include mechanism, each
+pipeline `include_str!`s its own file (18 sites), so helpers are
+copy-pasted and free to drift.
+
+Audit axes: (1) duplicated helpers across files — prefer a STRUCTURAL
+fix over policing: a shared preamble/include prepended at
+pipeline-build time next to the existing `include_str!` seams, so the
+duplication becomes impossible rather than scanned-for. (2) Rust↔WGSL
+constant twins — constants living in both a `.rs` and a `.wgsl` file
+with nothing keeping them equal (the veil-constant class: a board once
+carried 0.20 while the shader said 0.13). Single-source where feasible
+(push constants/uniforms already cross the boundary; a generated
+constants block is the fallback). (3) dead functions/bindings —
+uniforms declared but unread, helpers with no callers. (4) the item-500
+comment classes (stale facts, history narration, restatement) applied
+to the 1,467 shader comment lines, same rules, same exemptions.
+
+Law policy, per the user: NO fragile text-scanning law. A pin ships
+only if it parses (naga is already in the tree via wgpu — assert over
+the AST/module, e.g. "this constant's value in the parsed shader
+equals the Rust const") or if the fix is structural and needs no law
+at all. Otherwise the audit stands alone as a one-off.
+
+Verify: every de-duplicated helper's pipelines render byte-identical
+before/after on a capture sweep across the world roster (identity-
+gated refactor → the standing outcome audit applies); dead-code
+removals compile on BOTH backends' validation paths (naga validates at
+pipeline creation — run the gate AND `--soak-gpu`'s startup on native);
+the constant-twin ledger lands in the landing note naming each pair
+and how it was single-sourced or why it stayed split.
+
+---
 ## Needs specific hardware
 
 1. **AT-SPI journey** — on a real Linux desktop with Orca, exercise document
