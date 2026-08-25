@@ -224,33 +224,28 @@ impl TextPipeline {
             && (diagonal_spell
                 || (self.overlay_declines_takeover() && blur::footprint_frost_applies(style)))
         {
-            // CAPTURE-ONLY: the gallery's "full-canvas frost" candidate for the
-            // query-to-first-item distance symptom. Inert (`None`) on every
-            // ordinary run — see `chrome::diagonal::gallery`'s module doc.
-            if crate::render::chrome::diagonal::gallery::frost_candidate()
-                == Some(crate::render::chrome::diagonal::gallery::FrostCandidate::Full)
-            {
-                return Some(blur::Frost::Full);
-            }
             return self.overlay_card_rect().map(|rect| {
                 let shear = self.footprint_shear();
-                // NARROWED to the surfaces the card actually drew, THEN widened for the
-                // upright chrome the rake cannot carry. Both steps read the shape's own
-                // un-sheared frame, and only the horizontal faces move.
+                // NARROWED to the surfaces the card actually drew (the X faces, always;
+                // the bottom too on a diagonal composition — see `footprint_drawn_box`'s
+                // own doc), THEN widened for the upright chrome the rake cannot carry.
+                // Every step reads the shape's own un-sheared frame, and each one that
+                // moves the pivot compensates the faces the LAST step left in canvas
+                // position.
                 let drawn = self.footprint_drawn_box(rect, shear);
-                let mut foot_rect =
-                    blur::footprint_box(drawn, shear, self.footprint_upright_chrome());
-                // CAPTURE-ONLY: the gallery's "top face above the first document
-                // line" candidate. Inert on every ordinary run.
-                if crate::render::chrome::diagonal::gallery::frost_candidate()
-                    == Some(
-                        crate::render::chrome::diagonal::gallery::FrostCandidate::TopAboveFirstLine,
-                    )
-                {
-                    foot_rect = crate::render::chrome::diagonal::gallery::seat_top_above_first_line(
-                        foot_rect, shear,
-                    );
-                }
+                let foot_rect = blur::footprint_box(drawn, shear, self.footprint_upright_chrome());
+                // SEATED AT THE CANVAS TOP so a heading straddled by the card's own top
+                // edge sits wholly on one side of the face rather than split mid-glyph —
+                // a diagonal composition's own defect (the raking spine is what carries a
+                // card deep enough into the page for its top edge to land inside a title's
+                // own row) and this item's own audition never reached an upright world, so
+                // it stays out of scope here: an upright card's top edge is its own
+                // placement, untouched.
+                let foot_rect = if super::chrome::diagonal::active(self).is_some() {
+                    blur::footprint_seat_top(foot_rect, shear)
+                } else {
+                    foot_rect
+                };
                 blur::Frost::Footprint(blur::Footprint {
                     rect: foot_rect,
                     shear,
@@ -260,14 +255,16 @@ impl TextPipeline {
         None
     }
 
-    /// THE CARD'S BOX NARROWED TO WHAT THE FRAME DREW INSIDE IT.
+    /// THE CARD'S BOX NARROWED TO WHAT THE FRAME DREW INSIDE IT — both the X faces and
+    /// the bottom.
     ///
     /// `overlay_card_rect` is a PLACEMENT policy — a fixed desired width clamped to the
     /// window — and on a composition that draws no panel under the card and no plate under
     /// its rows, nothing occupies the width it claims: measured on this tree, a
-    /// cross-section of 576 logical px over a row carrying at most 110 of ink. So the
-    /// frost, which owes a backdrop to the card's own surfaces and to nothing beside them,
-    /// asks the surfaces instead (`TextPipeline::overlay_drawn_surfaces`).
+    /// cross-section of 576 logical px over a row carrying at most 110 of ink. The card's
+    /// own bottom pad past the foot hint's ink is the same kind of air along the other
+    /// axis. So the frost, which owes a backdrop to the card's own surfaces and to nothing
+    /// beside them, asks the surfaces instead (`TextPipeline::overlay_drawn_surfaces`).
     ///
     /// THE HIT REGION KEEPS THE LAYOUT BOX. A click a hair outside the ink still means
     /// "dismiss the picker", and the frost's extent and the clickable band were already
@@ -276,11 +273,24 @@ impl TextPipeline {
     ///
     /// It only ever SHRINKS, and never past the card, so every claim about the page outside
     /// the old footprint holds unchanged. A frame that reports no drawn surface at all
-    /// keeps the whole box rather than collapsing to nothing.
+    /// keeps the whole box rather than collapsing to nothing. The two narrowings are
+    /// separate calls (`blur::footprint_narrow`'s own doc): fusing them would make the
+    /// X-only arithmetic depend on the height of whatever card it is asked about.
     fn footprint_drawn_box(&self, card: [f32; 4], shear: f32) -> [f32; 4] {
         let geom = self.overlay_geometry(self.window_w as u32);
         let plan = self.overlay_row_plan(&geom);
-        blur::footprint_narrow(card, shear, &self.overlay_drawn_surfaces(&geom, &plan))
+        let surfaces = self.overlay_drawn_surfaces(&geom, &plan);
+        let x_narrowed = blur::footprint_narrow(card, shear, &surfaces);
+        // The BOTTOM narrows only on a diagonal composition — the one whose row band
+        // and foot chrome rake past the card's own reserved bottom pad, leaving air an
+        // upright composition's rows do not: an upright card's own coverage law (all
+        // four corners frosted when `shear == 0`) has no rake to earn the trim back
+        // with, so it keeps its box exactly as it always has.
+        if super::chrome::diagonal::active(self).is_some() {
+            blur::footprint_narrow_bottom(x_narrowed, shear, &surfaces)
+        } else {
+            x_narrowed
+        }
     }
 
     /// THE FOOTPRINT'S LEAN, READ FROM THE COMPOSITION THE FRAME DREW — physical px of
@@ -305,9 +315,10 @@ impl TextPipeline {
     /// It is the HEAD band, and only the head band, and that is a measured claim rather
     /// than a survey: the rows and their accessory column are seated per row by the
     /// diagonal rail, and the foot band hangs on the same rail's own extrapolated line,
-    /// so all three rake. The head band is the one `TextArea` still seated at the card's
-    /// text edge, because a query FIELD is an input and mirroring one onto the spine would
-    /// make its sigil travel as the user types.
+    /// so all three rake. The head band is the one `TextArea` that does not: it is a
+    /// query FIELD, an input rather than chrome, seated at the card's own text edge or
+    /// right-aligned against the text column depending on which side the composition's
+    /// own rows anchor (`overlay_head_left`'s own doc) — either way, upright.
     ///
     /// ⚠️ **The enumeration is not what the guarantee rests on.** `frost_footprint`'s
     /// coverage law derives the card's ink from the PIXELS — the same picker over an empty

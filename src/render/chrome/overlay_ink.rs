@@ -92,10 +92,9 @@ impl TextPipeline {
             return None;
         }
         let mut bands = vec![PanelBand {
-            // `geom.text_left` on every ordinary run — see
-            // `diagonal::offband::overlay_head_left`'s own doc for the one
-            // caller that can move it (the gallery's right-aligned query
-            // candidate).
+            // The card's own text edge, or right-aligned against the text
+            // column on a world whose rows anchor right — see
+            // `diagonal::offband::overlay_head_left`'s own doc.
             left: self.overlay_head_left(geom, plan),
             clip_top: 0.0,
             clip_bottom: plan.first_top(),
@@ -263,8 +262,17 @@ impl TextPipeline {
             // the frame drew, and every unshifted sibling collapses inside it. The frost's
             // box comes out INDEPENDENT of the selection, which also keeps a selection move
             // from invalidating the cached backdrop.
+            //
+            // `mark_span` also reads each row's own measured name and accessory ink
+            // (the same maps `overlay_panel_bands` reads above for label placement),
+            // because the mark's reach now ends just past the name's own ink, held
+            // clear of the row's own accessory, rather than at a fixed cluster width.
+            let primary = self.overlay_row_primary_px(geom);
+            let secondary = self.overlay_row_secondary_px(plan.billed_header_rows());
             for row in plan.rows() {
-                let (vertex, arm) = cluster.mark_span(row.display);
+                let ink_w = primary.get(&row.display).copied().unwrap_or(0.0);
+                let accessory_ink_w = secondary.get(&row.display).copied().unwrap_or(0.0);
+                let (vertex, arm) = cluster.mark_span(row.display, ink_w, accessory_ink_w);
                 let (top, bottom) = composition.mark_span_y(row.top, row.height);
                 let half = composition.mark_weight * 0.5;
                 out.push([

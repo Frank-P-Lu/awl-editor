@@ -230,6 +230,39 @@ pub fn footprint_box(card: [f32; 4], shear: f32, upright: Option<[f32; 4]>) -> [
     [x0, y, (x1 - x0).max(w), h]
 }
 
+/// THE FOOTPRINT'S TOP FACE, SEATED AT THE CANVAS TOP — extending a card-anchored box
+/// upward to `y = 0`, which sits above any document line drawn beneath a card seated
+/// near the window's top. A composition whose top face sits mid-way through the
+/// document's own opening heading straddles it: the ink above the face reads sharp,
+/// the ink below reads through the frost, and the seam falls inside a single glyph
+/// row. Seating the face at the canvas top puts the whole heading on one side of it.
+///
+/// The naive edit (`rect[1] = 0.0; rect[3] = old_bottom`) SILENTLY MOVES THE RAKING
+/// SIDE FACES: [`footprint_dist_outside`] un-shears every point about the box's own
+/// vertical centre (`cy = y + h/2`), so changing `y`/`h` moves `cy` and therefore
+/// slides the sheared side faces sideways at every row. Compensating `x` by
+/// `shear * (new_cy - old_cy)` keeps every side face at the exact canvas x it already
+/// had; only the top boundary moves. [`super::narrow::footprint_narrow`]'s own bottom
+/// face compensates the same way, for the same reason, when it shrinks `h` from the
+/// other end.
+///
+/// A non-finite shear or rect returns the rect unchanged — the inert answer, since a
+/// caller already checked finiteness upstream and this is not the place to invent a
+/// box.
+pub fn footprint_seat_top(rect: [f32; 4], shear: f32) -> [f32; 4] {
+    let [x, y, w, h] = rect;
+    if !(x.is_finite() && y.is_finite() && w.is_finite() && h.is_finite() && shear.is_finite()) {
+        return rect;
+    }
+    let bottom = y + h;
+    let new_y = y.min(0.0);
+    let new_h = (bottom - new_y).max(0.0);
+    let old_cy = y + h * 0.5;
+    let new_cy = new_y + new_h * 0.5;
+    let new_x = x + shear * (new_cy - old_cy);
+    [new_x, new_y, w, new_h]
+}
+
 /// THE FOOTPRINT'S COVERAGE at physical pixel `(px, py)`: `1.0` on and inside the
 /// shape's faces, ramping to `0.0` across `feather` px OUTSIDE them.
 ///

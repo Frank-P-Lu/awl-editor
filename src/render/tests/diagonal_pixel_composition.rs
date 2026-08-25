@@ -962,6 +962,8 @@ fn grade_wordmark(
     cell: &Cell,
     plan: &crate::render::plan::OverlayRowPlan,
     probe: &crate::render::chrome::diagonal::DiagonalClusterProbe,
+    primary: &std::collections::BTreeMap<usize, f32>,
+    secondary: &std::collections::BTreeMap<usize, f32>,
     placard: [f32; 4],
     cw: u32,
     ch: u32,
@@ -992,7 +994,9 @@ fn grade_wordmark(
 
     for r in &cell.rows {
         let (cl, cr) = probe.cluster_span(r.display);
-        let (mv, ma) = probe.mark_span(r.display);
+        let ink_w = primary.get(&r.display).copied().unwrap_or(0.0);
+        let accessory_ink_w = secondary.get(&r.display).copied().unwrap_or(0.0);
+        let (mv, ma) = probe.mark_span(r.display, ink_w, accessory_ink_w);
         let lo = cl.min(cr).min(mv).min(ma);
         let hi = cl.max(cr).max(mv).max(ma);
         let row_box = [lo, r.top, hi - lo, r.bottom - r.top];
@@ -1094,7 +1098,11 @@ fn the_room_wordmark_never_lands_under_a_diagonal_row() {
                         let ctx = format!("{world} bar={bar} dpi={dpi} {cw}x{ch} {anchor:?}");
                         anchors_seen.insert(format!("{anchor:?}"));
 
-                        grade_wordmark(&cell, &plan, &probe, placard, cw, ch, &ctx);
+                        let primary = p.overlay_row_primary_px(&geom);
+                        let secondary = p.overlay_row_secondary_px(plan.billed_header_rows());
+                        grade_wordmark(
+                            &cell, &plan, &probe, &primary, &secondary, placard, cw, ch, &ctx,
+                        );
                         placard_seen += 1;
                         graded += 1;
                     }

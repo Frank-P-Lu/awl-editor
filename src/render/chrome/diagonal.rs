@@ -168,7 +168,6 @@ impl DiagonalComposition {
 }
 
 mod cluster;
-pub(in crate::render) mod gallery;
 mod location;
 mod offband;
 #[cfg(test)]
@@ -345,38 +344,32 @@ impl TextPipeline {
         self.overlay_spine
             .prepare_rotated(device, queue, width, height, &[segment]);
 
-        // CAPTURE-ONLY: the gallery's "chevron reach shortened" candidate reads
-        // each selected row's own measured NAME ink width, off the SAME shaped
-        // `panel_buffer` `overlay_shape_text` already filled this frame — never a
-        // second shaping pass. `None` (the ordinary run) skips the measurement
-        // entirely, so an unset env var costs this frame nothing.
-        let gallery_ink = gallery::short_chevron_reach()
-            .then(|| self.overlay_row_primary_px(&self.overlay_geometry(width)));
+        // The row's own measured NAME and accessory ink, off the SAME shaped
+        // buffers this frame already filled — never a second shaping pass.
+        // `mark_span` seats the vertex just past the name's own ink rather
+        // than at the cluster's whole reserved width, so the mark touches
+        // what it marks instead of standing off in the row's unclaimed
+        // accessory lane, and holds clear of the row's own accessory ink
+        // when it draws one.
+        let primary = self.overlay_row_primary_px(&self.overlay_geometry(width));
+        let secondary = self.overlay_row_secondary_px(plan.billed_header_rows());
         let selected_segments = plan
             .rows()
             .iter()
             .filter(|row| vis.reads_selected(row.display))
             .flat_map(|row| {
-                // THE MARK STANDS ON THE ROW'S OUTER EDGE, away from the spine —
+                // THE MARK STANDS PAST THE ROW'S OWN NAME, away from the spine —
                 // pointing back INTO the row rather than out of the card — and
                 // both of its abscissae are READ FROM the cluster
                 // (`DiagonalClusterRail::mark_span`) rather than re-derived here.
                 // That is what mirrors it: the cluster's own outward sign already
-                // put its accessory end on the card side, so the mark inherits
+                // put its label end on the card side, so the mark inherits
                 // the mirror and the selected row's outward shift together, with
                 // no second sign and no world branch living in the draw.
                 let (top, bottom) = composition.mark_span_y(row.top, row.height);
-                let (vertex_x, arm_x) = match &gallery_ink {
-                    Some(primary) => {
-                        let ink_w = primary.get(&row.display).copied().unwrap_or(0.0);
-                        let outward = composition.direction.sign();
-                        let vertex = cluster.label_anchor(row.display)
-                            + ink_w * outward
-                            + composition.mark_gap * outward;
-                        (vertex, vertex + composition.mark_reach * 2.0 * outward)
-                    }
-                    None => cluster.mark_span(row.display),
-                };
+                let ink_w = primary.get(&row.display).copied().unwrap_or(0.0);
+                let accessory_ink_w = secondary.get(&row.display).copied().unwrap_or(0.0);
+                let (vertex_x, arm_x) = cluster.mark_span(row.display, ink_w, accessory_ink_w);
                 selected_chevron(vertex_x, arm_x, top, bottom, composition.mark_weight)
             })
             .collect::<Vec<_>>();
