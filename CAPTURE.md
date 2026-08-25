@@ -95,7 +95,7 @@ riding it) never leaves a later motion on stale wrap geometry.
 With isearch active, the live window routes EVERY key to the search surface
 before the keymap ever sees it. The replay loop now runs the SAME code — one
 shared interception seam, `search::keys::intercept`, consumed by both the live
-guard (`app/input/keys.rs`) and the replay guard (`main/run.rs`) — so a
+guard (`app/input/keys.rs`) and the replay guard (`main/run/chord.rs`) — so a
 `--keys` spec drives the panel's whole operation set exactly like live typing:
 
 - **Query typing + Backspace** — `--keys "C-s h i"` searches for `hi` (the
@@ -606,8 +606,11 @@ A capture is **byte-stable across runs on the same machine** for the same input
 file. The render is pinned so nothing varies frame to frame:
 
 - **Fixed canvas:** always 1200×800 (`capture::CANVAS_WIDTH/HEIGHT`).
-- **Fixed format:** `Rgba8UnormSrgb`, single sample (no MSAA), fixed clear color
-  (`render::BG`).
+- **Fixed format:** `Rgba8UnormSrgb`, single sample (no MSAA), a deterministic
+  clear color — the active world's own `base_100` (`theme::base_100().to_wgpu_clear()`),
+  not a single fixed constant (the old `render::BG` dark-mode-only clear was
+  retired when per-world clear color shipped); still byte-stable per capture
+  since the theme is a resolved input, not a clock.
 - **Fixed default font geometry:** size 24.0, line height 32.0, text origin
   (16, 16) — all constants in `render.rs`. Explicit `--zoom` and
   `--capture-dpi` scale this geometry deterministically; the sidecar reports
@@ -1419,7 +1422,7 @@ content ink + the per-world comment wash). Markdown fenced spans gain the same
 tier through the shared seam: `md_spans` may report `code_<lang>_comment_code`
 (e.g. `code_rust_comment_code`) next to the existing `code_<lang>_comment`.
 The role COLORS the tags map to are now derived by `role_style_for`
-(`render/spans.rs`) — quiet per-world hue tints + low-alpha background washes;
+(`render/spans/colors.rs`) — quiet per-world hue tints + low-alpha background washes;
 same tags, new pixels, law-tested per world.
 
 Schema `/70` (timeline `/71`, held `/72`) adds a top-level **`dictionary`**
