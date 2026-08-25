@@ -406,6 +406,50 @@ settings path gets a `--screenshot-app` law asserting no panic and no-op
 behavior; suite green.
 
 ---
+### 500 — comment audit: stale roster counts, history narration, restatement (USER 2026-08-25, after a measured density audit)
+
+Measured (tokei): 81,596 comment lines against 254,962 code lines — 32%
+comment-to-code, ~70% of it doc comments. The density itself is house
+style and mostly load-bearing (coverage facts, never-tofu constraints,
+law rationale) — this item is NOT a bulk deletion. Three verified defect
+classes, in priority order:
+
+1. **Stale facts.** The world roster is 19–20; live comments assert
+   "all fifteen shipped worlds" (`src/render.rs:1825`, `:1852`),
+   "fifteen of the sixteen" (`src/render/layers.rs:242`), "the sixteen
+   worlds" (`src/theme/ornament.rs:5`). Actively false documentation.
+   Fix each with roster-relative phrasing ("every `AmbientStyle::None`
+   world"), never a fresh literal count; then extend the
+   `doc_counts_law` mechanism to source comments — a law that finds any
+   spelled-out `<numeral>-world` claim in `src/` and requires it to
+   match `THEMES.len()` (or simply bans the pattern in favor of
+   roster-relative phrasing). Sweep the same class for other rosters
+   (face counts, arm counts) while the law is being written.
+2. **History narration.** ~80 genuine sites of "used to be…"/"before
+   this existed"/"an earlier version…" narration (grep inventory:
+   `used to be|used to call|before this existed|an earlier version|a
+   prior version|byte-identical to before`) — the convention sends
+   history to commit messages. EXEMPT: a law file recounting why its
+   own assertion is shaped a certain way (e.g. `range_rail.rs`,
+   `nits.rs`, `alloc_bound_law.rs`) — that is a constraint the code
+   cannot state, the highest-value comment class in the tree. Judge
+   each site: does deleting the sentence lose a constraint, or only a
+   changelog?
+3. **Restatement.** In the top comment-share files (12 files exceed 55%
+   — roster in this item's discovery notes, worst: `theme/ornament.rs`
+   75%, `capture/opts.rs` 64%), the same fact is often stated 2–3×
+   (module doc, item doc, field doc). Diet rule: every fact stated
+   ONCE at its owning declaration, cross-referenced elsewhere; never
+   cut a fact stated nowhere else.
+
+Verify: the new count-claim law goes red on the pre-fix tree (proves it
+catches the three known stale sites), green after; the history-grep
+inventory is empty post-pass except documented exemptions; a
+before/after diff of class 3 shows only deletions/cross-references, no
+lost constraint (reviewer judgment, named in the landing note).
+Comment-only change claims no receipt beyond the law's own test run.
+
+---
 ## Needs specific hardware
 
 1. **AT-SPI journey** — on a real Linux desktop with Orca, exercise document
