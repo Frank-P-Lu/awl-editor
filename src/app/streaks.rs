@@ -41,6 +41,18 @@
 
 use super::*;
 
+/// The one door both streak word-count call sites route through — see
+/// [`App::streaks_current_words`] for why it is [`crate::card::figures::word_count`]
+/// and not the plain whitespace-split counter. A free function rather than a
+/// second `App` method because [`App::streaks_flush`] borrows only
+/// `self.document` ahead of a closure passed to `self.usage.flush_writing`; a
+/// method taking `&self` there would capture the whole `App` and collide with
+/// that call's own `&mut self.usage` borrow.
+#[cfg(not(target_arch = "wasm32"))]
+fn streaks_word_count(text: &str) -> usize {
+    crate::card::figures::word_count(text)
+}
+
 impl App {
     #[cfg(not(target_arch = "wasm32"))]
     pub(super) fn streaks_flush_if_document(&mut self) {
@@ -49,13 +61,20 @@ impl App {
         }
     }
 
-    /// The active buffer's whole-document word count (the same
-    /// `markdown::word_count` the readout / held HUD use). A `String` alloc per
-    /// call, but flushes are infrequent (idle/blur/switch/quit), so this is
-    /// cheap — and with tracking off the ledger never asks for it at all.
+    /// The active buffer's whole-document word count — the SAME
+    /// [`crate::card::figures::word_count`] the readout / held HUD use, not the
+    /// plain whitespace-split `markdown::word_count` this used to call (which
+    /// silently undercounted CJK-majority prose, since an unspaced run of
+    /// ideographs has no whitespace to split on and so counted as one "word"
+    /// no matter how long it ran). `figures::word_count` also strips a leading
+    /// frontmatter block before counting — a deliberate improvement for the
+    /// streak ledger too, since typing frontmatter isn't writing prose. A
+    /// `String` alloc per call, but flushes are infrequent (idle/blur/switch/
+    /// quit), so this is cheap — and with tracking off the ledger never asks
+    /// for it at all.
     #[cfg(not(target_arch = "wasm32"))]
     fn streaks_current_words(&self) -> usize {
-        crate::markdown::word_count(&self.document.buffer().text())
+        streaks_word_count(&self.document.buffer().text())
     }
 
     /// Drop the word-delta ANCHOR to LAZY across a BUFFER SWAP into an OPENED
@@ -95,9 +114,8 @@ impl App {
     pub(super) fn streaks_flush(&mut self) {
         let recording = self.config.usage_recording();
         let document = &self.document;
-        self.usage.flush_writing(recording, || {
-            crate::markdown::word_count(&document.buffer().text())
-        });
+        self.usage
+            .flush_writing(recording, || streaks_word_count(&document.buffer().text()));
     }
 
     /// Push the live year-VIEW into the pipeline so a summoned Writing streaks card
@@ -277,6 +295,103 @@ mod tests {
                     .read(&crate::streaks::streaks_path())
                     .is_err(),
                 "off: never writes streaks.toml"
+            );
+        });
+    }
+
+    #[test]
+    fn cjk_prose_records_the_readout_s_word_count_not_a_whitespace_undercount() {
+        // Unspaced Japanese: no ASCII/Unicode whitespace anywhere in the run,
+        // so the plain whitespace-split counter this module used to call
+        // would see the whole sentence as ONE "word". The readout's own
+        // counter (`card::figures::word_count`) treats each ideograph as its
+        // own token — 11 here (10 Han/Kana + the trailing `。`).
+        let ja = "今日はいい天気ですね。";
+        let readout_count = crate::card::figures::word_count(ja);
+        assert_eq!(
+            readout_count, 11,
+            "sanity: pins the readout counter's own CJK figure this test compares against"
+        );
+        let old_whitespace_count = crate::markdown::word_count(ja);
+        assert_eq!(
+            old_whitespace_count, 1,
+            "sanity: the retired whitespace-split counter collapses the whole \
+             unspaced sentence to a single token — the undercount this fix closes"
+        );
+
+        crate::fs::with_fs(Arc::new(crate::fs::InMemoryFs::new()), || {
+            let mut app = App::new(None, PathBuf::from("/n"), None, None, Config::empty());
+            app.streaks_flush(); // anchors the empty scratch buffer, records nothing
+            let today = usage::local_today();
+            app.document.set_text(ja);
+            app.streaks_flush();
+            assert_eq!(
+                app.usage.writing().words_on(&today),
+                readout_count as u64,
+                "the streak delta must equal the readout's own CJK-aware count \
+                 (11), not the whitespace-split undercount (1) the ledger used \
+                 to accrue for this exact sentence"
+            );
+        });
+    }
+
+    #[test]
+    fn plain_english_prose_records_the_same_count_either_counter_would_give() {
+        // The switch is a no-op for ordinary spaced Latin prose: prove it by
+        // actually running BOTH counters over the same fixture and asserting
+        // they agree, rather than assuming whitespace tokenization and
+        // `count_tokens` coincide.
+        let prose = "the quick brown fox jumps over the lazy dog";
+        let old_whitespace_count = crate::markdown::word_count(prose);
+        let readout_count = crate::card::figures::word_count(prose);
+        assert_eq!(
+            old_whitespace_count, readout_count,
+            "plain English: the retired whitespace-split counter and the \
+             CJK-aware readout counter must agree on ordinary spaced prose"
+        );
+        assert_eq!(readout_count, 9);
+
+        crate::fs::with_fs(Arc::new(crate::fs::InMemoryFs::new()), || {
+            let mut app = App::new(None, PathBuf::from("/n"), None, None, Config::empty());
+            app.streaks_flush();
+            let today = usage::local_today();
+            app.document.set_text(prose);
+            app.streaks_flush();
+            assert_eq!(
+                app.usage.writing().words_on(&today),
+                readout_count as u64,
+                "unchanged behavior on plain English prose"
+            );
+        });
+    }
+
+    #[test]
+    fn frontmatter_words_never_tick_the_streak_ledger() {
+        // Landing note: `card::figures::word_count` routes through
+        // `manuscript()`, which strips a leading frontmatter block before
+        // counting — a deliberate improvement for the streak ledger, since
+        // typing frontmatter (`title:`, `tags:`, …) isn't writing prose. Pin
+        // it: the frontmatter block here carries 6 words of its own
+        // ("My Great Document", "alpha beta gamma"), and none of them may
+        // reach the ledger.
+        let doc =
+            "---\ntitle: My Great Document\ntags: alpha beta gamma\n---\nthree real words here\n";
+        let readout_count = crate::card::figures::word_count(doc);
+        assert_eq!(
+            readout_count, 4,
+            "sanity: only the body's 4 words count, the frontmatter's 6 are stripped"
+        );
+
+        crate::fs::with_fs(Arc::new(crate::fs::InMemoryFs::new()), || {
+            let mut app = App::new(None, PathBuf::from("/n"), None, None, Config::empty());
+            app.streaks_flush(); // anchors the empty scratch buffer
+            let today = usage::local_today();
+            app.document.set_text(doc);
+            app.streaks_flush();
+            assert_eq!(
+                app.usage.writing().words_on(&today),
+                4,
+                "the frontmatter block's own words must never tick the streak ledger"
             );
         });
     }

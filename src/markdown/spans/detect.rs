@@ -207,7 +207,13 @@ pub const READING_WPM: usize = 200;
 
 /// Count words in `text` — whitespace-separated tokens. A blank document is 0.
 /// Pure + cheap; markup characters ride along with their word (`**bold**` counts as
-/// one), which is a fine approximation for a calm prose readout.
+/// one). No production caller: [`crate::card::figures::word_count`] is the one
+/// every readout/streak-ledger surface now goes through (CJK-aware — see its
+/// own doc comment for why a plain whitespace split undercounts unspaced
+/// scripts). This stays as the documented naive baseline `card::figures`'
+/// own token-counting doc comment contrasts itself against, pinned by its
+/// own test.
+#[cfg_attr(not(test), allow(dead_code))]
 pub fn word_count(text: &str) -> usize {
     text.split_whitespace().count()
 }
