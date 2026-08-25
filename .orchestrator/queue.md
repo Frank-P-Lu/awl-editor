@@ -29,6 +29,8 @@ the gallery's numbers, not yet confirmed live in a real window.
 list: `git log --grep 'item 444'`; design history and every landed residual's
 detail: `git log -p -- .orchestrator/queue.md`.
 
+**CLAIMED 2026-08-25 — building in worktree `item-444-move-navigator`.**
+
 **✅ Move navigator sub-scope DECIDED 2026-08-25 — READY TO BUILD** (three
 user answers; Residual 1's prototype gallery is preserved untracked at
 `gallery/item-444-affordance-prototypes/`):
@@ -87,6 +89,8 @@ Symbol survey is built and landed at `captures/item-475-glyph-survey/`
 evidence, licensing notes). The agent checked candidate coverage by parsing
 the actual bundled font files rather than trusting Unicode charts — the
 item's own named glyph lead has zero real font coverage and was dropped.
+
+**CLAIMED 2026-08-25 — building in worktree `item-475-fold-mark-glyph`.**
 
 **✅ PICKED 2026-08-25 — READY TO BUILD.** The user approved the survey
 ("actually great") and DELEGATED the per-world assignment; the recorded
@@ -149,6 +153,8 @@ commit.
 
 ---
 ### 487 — Magpie theme-picker composition: query-to-list distance, frost boundaries through legible content, stranded chevron (USER-REPORTED 2026-08-25; ✅ USER PICKED 2026-08-25 — READY TO BUILD)
+
+**CLAIMED 2026-08-25 — building in worktree `item-487-diagonal-picker-build`.**
 
 **THE PICKS (user, 2026-08-25, from the audition artifact):**
 
