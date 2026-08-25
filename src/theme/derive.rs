@@ -1,6 +1,6 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use super::color::Srgb;
+use super::color::{Srgb, srgb_channel_to_linear_f32};
 use super::model::{Elevation, ImageReveal, Lens, Theme};
 use super::worlds::{DEFAULT_THEME, THEMES};
 
@@ -167,15 +167,9 @@ pub fn placard_ink(ink: super::model::PlacardInk) -> Srgb {
 const PLACARD_BOLD_LIFT: f32 = 0.5;
 
 fn rel_lum(c: Srgb) -> f32 {
-    fn lin(u: u8) -> f32 {
-        let s = u as f32 / 255.0;
-        if s <= 0.03928 {
-            s / 12.92
-        } else {
-            ((s + 0.055) / 1.055).powf(2.4)
-        }
-    }
-    0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b)
+    0.2126 * srgb_channel_to_linear_f32(c.r)
+        + 0.7152 * srgb_channel_to_linear_f32(c.g)
+        + 0.0722 * srgb_channel_to_linear_f32(c.b)
 }
 
 pub fn heatmap_colors() -> [Srgb; crate::streaks::LEVELS] {
