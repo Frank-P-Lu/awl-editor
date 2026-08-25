@@ -884,8 +884,12 @@ def native_gate_audit(script: str, ci: str) -> list[str]:
             "native-gate-audit: gate must await the Linux convention",
         'if (( mac_status != 0 || linux_status != 0 )); then':
             "native-gate-audit: either convention failure must suppress the receipt",
-        "printf 'native-gate-receipt commit=%s conventions=mac,linux scope=all-targets menubar=%s unit_tests=%s unit_shards=%s integration_targets=%s\\n'":
-            "native-gate-audit: receipt must name the exact commit, both conventions, all-target scope, and which menu-bar coverage it actually ran",
+        "printf 'native-gate-receipt commit=%s health=%s conventions=mac,linux scope=all-targets menubar=%s unit_tests=%s unit_shards=%s integration_targets=%s\\n'":
+            "native-gate-audit: receipt must name the exact commit, whether code health ran for real, both conventions, all-target scope, and which menu-bar coverage it actually ran",
+        'git status --short':
+            "native-gate-audit: gate must refuse a dirty working tree before anything else runs",
+        'gate_health_command=("$gate_root/scripts/code-health.sh")':
+            "native-gate-audit: gate must run the real code-health.sh as its default health command",
         # THE MENU-BAR AXIS, PINNED THE SAME WAY THE CONVENTIONS ARE. A name
         # filter reached 2 of the 1455 unit tests that read this platform-forked
         # default without pinning it, so the arm that replaced it runs the WHOLE

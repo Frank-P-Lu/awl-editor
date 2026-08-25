@@ -72,6 +72,71 @@ gate_arbiter_release() {
   exec 8>&-
 }
 
+# ── Code health, before anything queues for the arbiter ──────────────────────
+# fmt, full clippy `-D warnings`, cargo-machete, and code-health.py's ratchets
+# never touch the GPU or the shared test binary — they are CPU-only — so this
+# runs before gate_arbiter_acquire, on purpose: the arbiter's serialized window
+# is what a queued sibling gate actually waits on, and growing it here would
+# cost every other lane the whole of fmt/clippy/machete for zero reason. A lane
+# can otherwise hold a green native-gate.sh receipt while its diff is
+# health-red, and the failure then only surfaces after merge onto `main`.
+#
+# `git status --short` is asserted clean first, before health or anything
+# else: a receipt names a commit, and fmt/clippy/code-health.py all read the
+# WORKING TREE, not `git show HEAD`. An uncommitted change — a code-health.toml
+# fix included — passes here and is invisible to the commit the receipt names
+# once merged.
+gate_dirty_status="$(git status --short)"
+if [[ -n "$gate_dirty_status" ]]; then
+  printf 'native-gate: working tree is dirty; commit (or stash) before running the gate — a receipt names a commit, and an uncommitted change (a code-health.toml fix included) is invisible to that commit once merged:\n%s\n' \
+    "$gate_dirty_status" >&2
+  exit 1
+fi
+
+gate_health_command=("$gate_root/scripts/code-health.sh")
+gate_health_mode="real"
+if [[ -n "${AWL_NATIVE_GATE_PROBE_HEALTH_COMMAND:-}" ]]; then
+  # Test seam only: production leaves this unset and runs the real script.
+  # A stubbed run must never read like a real pass, so both the announcement
+  # line and the receipt say "override" instead of a fabricated elapsed time.
+  read -r -a gate_health_command <<<"$AWL_NATIVE_GATE_PROBE_HEALTH_COMMAND"
+  gate_health_mode="override"
+fi
+gate_health_started_epoch="$(date +%s)"
+gate_health_output="$(mktemp "${TMPDIR:-/tmp}/awl-native-gate-health.XXXXXX")"
+set +e
+"${gate_health_command[@]}" >"$gate_health_output" 2>&1
+gate_health_status=$?
+set -e
+gate_health_elapsed=$(( $(date +%s) - gate_health_started_epoch ))
+cat "$gate_health_output"
+if (( gate_health_status != 0 )); then
+  printf 'native-gate: code-health failed (status=%s, %ss, mode=%s); no receipt issued\n' \
+    "$gate_health_status" "$gate_health_elapsed" "$gate_health_mode" >&2
+  # code-health.py's own failure text already distinguishes the two tiers,
+  # this only labels it: a mark failure (missing, must-decrease, or raised
+  # past the prior branch state) always names the toml paste site, because the
+  # fix IS a toml edit; the two hard ceilings — the flat 500-line production
+  # limit and the 100-column line limit — never do, because no toml edit moves
+  # either one.
+  if grep -qi 'paste into scripts/code-health\.toml' "$gate_health_output"; then
+    printf 'native-gate: RAISABLE — report the number to the orchestrator; it raises code-health.toml at merge. A lane does not edit code-health.toml itself in this failure mode.\n' >&2
+  fi
+  if grep -Eq '\(production limit is [0-9]+\)$' "$gate_health_output" \
+    || grep -Eq 'Rust limit is [0-9]+;' "$gate_health_output"; then
+    printf 'native-gate: HARD CEILING — the flat production limit or the frozen baseline itself; shrink is the only remedy, no code-health.toml edit clears this.\n' >&2
+  fi
+  rm -f "$gate_health_output"
+  exit 1
+fi
+rm -f "$gate_health_output"
+printf 'native-gate-health status=ok elapsed_seconds=%s mode=%s\n' "$gate_health_elapsed" "$gate_health_mode"
+if [[ "$gate_health_mode" == override ]]; then
+  gate_health_claim="override:${gate_health_elapsed}s"
+else
+  gate_health_claim="pass:${gate_health_elapsed}s"
+fi
+
 gate_arbiter_acquire
 start_commit="$(git rev-parse HEAD)"
 gate_started_epoch="$(date +%s)"
@@ -923,5 +988,5 @@ if (( gate_menubar_full )); then
 else
   gate_menubar_claim="filtered:on,off"
 fi
-printf 'native-gate-receipt commit=%s conventions=mac,linux scope=all-targets menubar=%s unit_tests=%s unit_shards=%s integration_targets=%s\n' \
-  "$end_commit" "$gate_menubar_claim" "$gate_unit_tests" "$gate_shard_count" "$gate_integration_targets"
+printf 'native-gate-receipt commit=%s health=%s conventions=mac,linux scope=all-targets menubar=%s unit_tests=%s unit_shards=%s integration_targets=%s\n' \
+  "$end_commit" "$gate_health_claim" "$gate_menubar_claim" "$gate_unit_tests" "$gate_shard_count" "$gate_integration_targets"
