@@ -345,5 +345,6 @@ impl App {
         self.resync_project_location(outcome.location_policy);
         self.sync_page_measure();
         self.run_spellcheck_now();
+        self.refresh_native_menu_accelerators();
     }
 }

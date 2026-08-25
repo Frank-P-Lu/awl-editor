@@ -135,6 +135,7 @@ impl App {
             proxy,
             AwlEvent::Menu,
             self.document.active_is_markdown(),
+            &self.config.keys,
         ));
     }
 
@@ -144,5 +145,20 @@ impl App {
             menu.set_markdown_enabled(self.document.active_is_markdown());
         }
         self.frame.gpu().is_none()
+    }
+
+    /// Re-derive every routed native menu item's key equivalent from the
+    /// CURRENT `Config::keys` — the seam `reload_config` and
+    /// `apply_keymap_flavor` both call after they change what the live
+    /// keymap dispatches, so the AppKit menu bar's key-equivalent column
+    /// (and the real interception AppKit does with it) can never keep
+    /// showing — or worse, keep firing — a chord a rebind already retired.
+    /// A no-op before `resumed()` installs the menu, and on every non-macOS
+    /// build (no native menu exists there to refresh).
+    pub(in crate::app) fn refresh_native_menu_accelerators(&self) {
+        #[cfg(target_os = "macos")]
+        if let Some(menu) = self._menu_bar.as_ref() {
+            menu.refresh_accelerators(&self.config.keys);
+        }
     }
 }
