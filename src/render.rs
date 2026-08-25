@@ -1943,20 +1943,14 @@ pub struct TextPipeline {
     pub ornament_renderer: TextRenderer,
     /// THE FOLD CHEVRON — a real font glyph (`Theme::fold_mark`: `›`/`☞`/`▸`,
     /// per world), composed into an R8 coverage mask and drawn on a QUAD
-    /// rotated onto an axis, exactly the mechanism `rotated_label_pipeline`
-    /// draws the rotated location cue through — reused wholesale rather than a
-    /// second rotation mechanism (glyphon 0.11 carries no transform, so a
-    /// shaped run cannot rotate itself — `docs/render.md`'s "Rotated labels"
-    /// section). Built + uploaded by `TextPipeline::prepare_fold_chevron_marks`,
-    /// drawn in `draw_document_content` alongside `ornament_renderer` (the
-    /// mark's other document-margin siblings — rule glyphs, bullets, the fold
-    /// TAIL — stay glyphon; only the mark, which must turn, left that
-    /// pipeline). `fold::chevron_revealed` allows at most two marks summoned at
-    /// once (the caret's own heading, the hovered heading), so this holds one
-    /// label pipeline PER SUMMONED MARK, grown lazily and left in place
-    /// (`gpu_cache` already caches the shared render pipeline + layout by
-    /// name; only each mark's own mask texture and small buffers are real
-    /// per-slot state).
+    /// rotated onto an axis — the SAME mechanism `rotated_label_pipeline`
+    /// draws the rotated location cue through, reused wholesale rather than a
+    /// second rotation mechanism (glyphon 0.11 carries no transform). Built +
+    /// uploaded by `TextPipeline::prepare_fold_chevron_marks`, drawn in
+    /// `draw_document_content` alongside `ornament_renderer`. At most two
+    /// marks are ever summoned at once (`fold::chevron_revealed`: the caret's
+    /// own heading, the hovered heading), so this holds one label pipeline
+    /// PER SUMMONED MARK, grown lazily and left in place.
     pub fold_chevron_labels: Vec<crate::rotated_label::RotatedLabelPipeline>,
     /// Compose-once cache parallel to [`Self::fold_chevron_labels`], the same
     /// shape `rotated_location_mask` caches the location cue with: an
@@ -2035,10 +2029,8 @@ pub struct TextPipeline {
     scroll: ScrollPos,
     metrics: Metrics,
     /// The swap-chain/capture target format, from construction — kept so a
-    /// pipeline grown LAZILY after `new()` (`fold_chevron_labels`, one per
-    /// summoned mark) can build with the same format every other pipeline
-    /// here was built with, without threading it through every call site that
-    /// might need to grow the vec.
+    /// pipeline grown LAZILY after `new()` (`fold_chevron_labels`) can build
+    /// with the same format every other pipeline here was built with.
     format: wgpu::TextureFormat,
     dpi: f32,
     /// Last window/canvas WIDTH in physical pixels (from `set_size`). PAGE MODE
