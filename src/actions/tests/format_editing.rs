@@ -953,7 +953,7 @@ fn tab_gate_and_enter_continuation_agree_on_is_list_line() {
         );
         assert_eq!(
             is_list, enter_is_list,
-            "list_item ({is_list}) and smart_newline_for ({enter_is_list}) disagree on is-list for {line:?}"
+            "list_item and smart_newline_for disagree on is-list for {line:?}"
         );
     }
 }
