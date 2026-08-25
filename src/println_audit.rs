@@ -84,8 +84,10 @@ const EXPECTED: &[(&str, usize)] = &[
     // summary the icon export prints as its deliverable receipt. Plus
     // `--export-linux-icon`'s own one-line deliverable receipt, same shape
     // as `--pack-icns`'s summary line. All five are fate (c) — genuine
-    // CLI/diagnostic stdout, not app-runtime chatter.
-    ("main/args.rs", 5),
+    // CLI/diagnostic stdout, not app-runtime chatter. Lives in the
+    // argument-token loop, one phase of `parse_args`'s own decomposition
+    // (`args/parse.rs`'s module doc) — the former `main/args.rs` row.
+    ("main/args/parse/loop_flags.rs", 5),
     // `--screenshot`/`--screenshot-motion*`/`--screenshot-frames`/`--capture-*`'s
     // "wrote …" deliverable output — this IS the CLI's product, read by
     // scripts/agents — plus the permissive `--keys` replay's ONE stderr warning

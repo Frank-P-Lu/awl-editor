@@ -88,8 +88,8 @@ reason = "The event-to-present flight recorder needs its winit-receipt and keyma
 
 [[file_size_mark]]
 file = "src/app/input/mouse.rs"
-lines = 1134
-reason = "The wheel-region predicate at the one pointer entry point stopped naming a single overlay kind and asks the shape-neutral question instead (+7, all of it the comment recording why the kind check was wrong). +3: the working-set stack's left-click-to-switch route, enrolled in this file's own input-substate privacy law. +11: `sync_cursor_icon` gains the stack-row hand-cursor arm, hit-tested through the same `gutter_stack_hit` the click path already uses. +21: cursor movement and leave route one shared gutter-stack hit through the hover state, so the close mark follows exactly the row under the pointer and clears when the pointer exits. +7: the find/replace panel's hit-test is computed once and shared by the case-toggle, field-cell, and dead-chrome cursor arms instead of only the case toggle. The pointer-derived state resync (fold/stack hover, cursor icon) is pulled out into pointer_sync.rs behind one owner, netting this file down even after the panel/case-toggle growth. +84: scroll-on-drag's App-level owner — `drag_scroll_primed` (the one dragging+armed+overshoot-active predicate both `step_drag_scroll` and `App::schedule_drag_scroll` gate on, so a stationary unarmed press can never be mistaken for a held edge-drag) and `step_drag_scroll` itself, the ONE seam both `on_drag` (per-`CursorMoved`) and the idle-timer re-arm drive, so a held drag past the edge keeps scrolling even once the pointer stops generating move events. +8: `on_mouse_wheel` gains the swallow-not-scroll guard over a summoned modal card, ahead of every existing branch. +44: the query field's own click-to-place — `overlay_click` resolves a query-line press to a char index and arms `on_query_drag` for the rest of the gesture, released by `on_mouse_input`'s own `query_drag` arm. +58: the six-item merge round's own reconciliation — the wheel guard, query-drag release, drag-scroll tick reset, and panel hit-test share the one pointer-button/wheel dispatch after independently-authored diffs to the same functions landed together. +36: a wheel gesture landing inside the working-set stack's own bounds routes to the expanded panel's scroll instead of the document's, sharing the existing wheel-region predicate's early-exit shape. +10: a press-armed row drag owns the pointer outright once armed (no row hover/switch fires under the travelling pointer), and aborts on cursor-left rather than replaying a stale click or reorder on the next press."
+lines = 1133
+reason = "The wheel-region predicate at the one pointer entry point stopped naming a single overlay kind and asks the shape-neutral question instead (+7, all of it the comment recording why the kind check was wrong). +3: the working-set stack's left-click-to-switch route, enrolled in this file's own input-substate privacy law. +11: `sync_cursor_icon` gains the stack-row hand-cursor arm, hit-tested through the same `gutter_stack_hit` the click path already uses. +21: cursor movement and leave route one shared gutter-stack hit through the hover state, so the close mark follows exactly the row under the pointer and clears when the pointer exits. +7: the find/replace panel's hit-test is computed once and shared by the case-toggle, field-cell, and dead-chrome cursor arms instead of only the case toggle. The pointer-derived state resync (fold/stack hover, cursor icon) is pulled out into pointer_sync.rs behind one owner, netting this file down even after the panel/case-toggle growth. +84: scroll-on-drag's App-level owner — `drag_scroll_primed` (the one dragging+armed+overshoot-active predicate both `step_drag_scroll` and `App::schedule_drag_scroll` gate on, so a stationary unarmed press can never be mistaken for a held edge-drag) and `step_drag_scroll` itself, the ONE seam both `on_drag` (per-`CursorMoved`) and the idle-timer re-arm drive, so a held drag past the edge keeps scrolling even once the pointer stops generating move events. +8: `on_mouse_wheel` gains the swallow-not-scroll guard over a summoned modal card, ahead of every existing branch. +44: the query field's own click-to-place — `overlay_click` resolves a query-line press to a char index and arms `on_query_drag` for the rest of the gesture, released by `on_mouse_input`'s own `query_drag` arm. +58: the six-item merge round's own reconciliation — the wheel guard, query-drag release, drag-scroll tick reset, and panel hit-test share the one pointer-button/wheel dispatch after independently-authored diffs to the same functions landed together. +36: a wheel gesture landing inside the working-set stack's own bounds routes to the expanded panel's scroll instead of the document's, sharing the existing wheel-region predicate's early-exit shape. +10: a press-armed row drag owns the pointer outright once armed (no row hover/switch fires under the travelling pointer), and aborts on cursor-left rather than replaying a stale click or reorder on the next press. DOWN 1 (net): `on_mouse_wheel` decomposes into a short dispatcher plus five private phase helpers (`try_working_set_panel_scroll`, `try_horizontal_table_pan`, `try_overlay_wheel_route`, `try_zoom_wheel`, `scroll_document_wheel`), mirroring this file's own `on_press`/`on_drag` shape; the decomposition's structural cost (new signatures/braces/doc lines) is offset by two real simplifications surfaced while extracting it — `try_overlay_wheel_route`'s add/sub branch collapses to `saturating_add_signed`, and `scroll_document_wheel`'s two match arms share one tail instead of repeating it."
 
 [[file_size_mark]]
 file = "src/app/session.rs"
@@ -229,8 +229,8 @@ reason = "The one construction site each pipeline family has now sits inside gpu
 
 [[file_size_mark]]
 file = "src/main/args.rs"
-lines = 974
-reason = "+2: resolve_default_folder documents the default-folder candidate separately from the explicit-setting gate owned by run::location::resolve_launch_context; generated reference facts read that live boundary. +18: the --seed-tree CLI parse arm, its two loud refusal bounds (256 files / 4 MiB), and the doc comment distinguishing it from --root's bare directory marker and --seed-data's flat data root. +4: `--keys` replay threads `linux_emacs_meta` through the same construction call `App::new` uses, so a replayed M-x reaches the seeded Meta layer."
+lines = 54
+reason = "DOWN 920: `parse_args`'s own body (the argument-token loop, the hidden bench/soak short-circuit, CLI validation, hermetic scenario filesystem setup, config load, sticky-preference resolution, capture-opts assembly, final `Mode` construction) moved to `args/parse.rs` and its own `loop_flags.rs`/`validate.rs`/`finish.rs` phase files, the same submodule shape this file already used for `flags.rs`/`modes.rs`/`parsers.rs`. What remains here is the module-declaration shell plus `resolve_default_folder`, the one function other modules reach through `crate::args::`."
 
 [[file_size_mark]]
 file = "src/main/run.rs"
@@ -534,10 +534,17 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
-file = "src/main/args.rs"
-function = "parse_args"
-message = "this function has too many lines (644/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. The parser owns the minimal `--ground-audition` arm, capture-mode flag/Mode/live-App selection, one unconditional hermetic-fs installation through `scenario::seed_document`, and the three native-only pieces each hidden benchmark flag requires. Plus the new --seed-tree arm. +4: `--keys` replay threads `linux_emacs_meta` through the same construction call `App::new` uses."
+file = "src/main/args/parse/loop_flags.rs"
+function = "parse_flag_loop"
+message = "this function has too many lines (255/100)"
+reason = "The one argument-token loop, decomposed out of the former `parse_args` monolith (644 lines) into named phase functions threaded through `Ctx` (see `args/parse.rs`'s module doc). What remains here is the no-wildcard match on `FlagId` the flag roster's own doc requires — a new roster row fails to compile until an arm reads it — so splitting the match itself would break the exhaustiveness property the design exists for, the same shape `main/run.rs`'s own `run` exception documents for its exhaustive `Mode` match."
+
+[[clippy_exception]]
+lint = "clippy::too_many_lines"
+file = "src/main/args/parse/finish.rs"
+function = "build_mode"
+message = "this function has too many lines (142/100)"
+reason = "The final phase of the decomposed `parse_args` (see the `parse_flag_loop` exception above for the decomposition): the exhaustive `Mode`-construction match, whose arm order mirrors `resolve_capture_kind`'s own precedence (held > timeline > screenshot-app > screenshot-frames > motion > screenshot > windowed). Splitting the match would give that precedence two owners instead of one."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -1270,13 +1277,6 @@ file = "src/theme/tests/frost.rs"
 function = "gutter_frost_pill_keeps_ink_contrast_on_every_lava_world"
 message = "this function has too many lines (102/100)"
 reason = "One exhaustive lava-world phase-by-in-pill grid plus phase-free and locality controls; splitting would duplicate the enrolled world and shared non-vacuity state for metric-only churn."
-
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
-file = "src/app/input/mouse.rs"
-function = "App::on_mouse_wheel"
-message = "this function has too many lines (115/100)"
-reason = "The one pointer-wheel entry point: the modal-card swallow guard, the expanded working-set panel's own scroll route, and every pre-existing overlay/document scroll branch share this one dispatch so a wheel gesture is resolved in exactly one place. Splitting the panel branch out would give the same predicate (is the pointer over the stack, is the panel open) two owners instead of one."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
