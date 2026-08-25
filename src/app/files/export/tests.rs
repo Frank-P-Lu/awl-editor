@@ -169,7 +169,8 @@ fn a_headless_app_writes_the_export_at_the_destination_with_the_emitted_bytes() 
                 &crate::export::FsImages {
                     doc_dir: Some(std::path::PathBuf::from("/w/proj")),
                 },
-            );
+            )
+            .unwrap();
             app.export_document(format, None);
             let written = mem
                 .read(&want_path)
@@ -611,5 +612,38 @@ fn a_headless_app_never_opens_the_platform_save_panel() {
                 format.ext(),
             );
         }
+    });
+}
+
+/// A GENERATION failure (the PDF object writer's own defense-in-depth
+/// invariant — see `crate::export::to_pdf`'s doc) and a WRITE failure
+/// (`Owner::Export`'s own arm in `persistence_faults.rs`) must read as the
+/// identical notice: this is [`App::report_export_failure`], the one owner
+/// both arms call, driven directly with a synthetic message rather than a
+/// contrived writer defect (`finish`'s own unit tests, `writer.rs`, already
+/// prove that failure returns `Err` rather than panicking).
+///
+/// MUTATION TARGET: drop the "export failed: " prefix, or route either
+/// failing arm around this function, and this fails by name — as would the
+/// `persistence_faults` write-failure matrix, which asserts the same prefix
+/// over a real I/O fault.
+#[test]
+fn report_export_failure_raises_the_real_sticky_notice() {
+    let _g = crate::testlock::serial();
+    let doc = std::path::PathBuf::from(DOC);
+    let fake = Arc::new(InMemoryFs::new().with_file(doc.clone(), BODY));
+    crate::fs::with_fs(fake, || {
+        let mut app = App::new_hermetic(
+            Some(doc),
+            std::path::PathBuf::from("/w/proj"),
+            Config::empty(),
+        );
+        assert_eq!(app.frame.notice().text(), None, "no notice before the call");
+        app.report_export_failure("PDF object 7 reserved but never written");
+        assert_eq!(
+            app.frame.notice().text(),
+            Some("export failed: PDF object 7 reserved but never written"),
+            "the real notice mechanism carries the exact message"
+        );
     });
 }

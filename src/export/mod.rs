@@ -90,8 +90,12 @@ pub fn to_html(markdown: &str, images: &dyn ImageSource) -> String {
 
 /// Export `markdown` to a native, self-contained A4 PDF. The browser build does
 /// not compile the shaping/emitter stack and deliberately has no PDF API.
+///
+/// `Err` is the object-writer's own defense-in-depth invariant failing (a
+/// reserved PDF object id written by nothing) — not a case any known document
+/// shape reaches today; see `pdf::writer::finish`'s doc.
 #[cfg(not(target_arch = "wasm32"))]
-pub fn to_pdf(markdown: &str, images: &dyn ImageSource) -> Vec<u8> {
+pub fn to_pdf(markdown: &str, images: &dyn ImageSource) -> Result<Vec<u8>, String> {
     let doc = model::parse(markdown);
     pdf::emit(&doc, images)
 }
@@ -103,10 +107,16 @@ pub(crate) fn pdf_glyph_probe() -> usize {
 }
 
 /// Export `markdown` in `format`, returning the raw bytes to write/download.
-pub fn to_bytes(markdown: &str, format: Format, images: &dyn ImageSource) -> Vec<u8> {
+/// DOCX and HTML never fail; only [`to_pdf`] can (see its doc), so the whole
+/// door reports one uniform `Result` rather than a format-specific one.
+pub fn to_bytes(
+    markdown: &str,
+    format: Format,
+    images: &dyn ImageSource,
+) -> Result<Vec<u8>, String> {
     match format {
-        Format::Docx => to_docx(markdown, images),
-        Format::Html => to_html(markdown, images).into_bytes(),
+        Format::Docx => Ok(to_docx(markdown, images)),
+        Format::Html => Ok(to_html(markdown, images).into_bytes()),
         #[cfg(not(target_arch = "wasm32"))]
         Format::Pdf => to_pdf(markdown, images),
     }

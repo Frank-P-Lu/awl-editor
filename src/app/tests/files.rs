@@ -2011,3 +2011,48 @@ fn every_range_row_applies_and_persists_through_the_app_side_doors() {
     }
     crate::page::set_measure(initial_measure);
 }
+
+/// THE ZERO-DOCUMENT NO-OP: `range_apply_live`'s page-width branch used to
+/// read the current page class through the panicking `document.buffer()`
+/// accessor unconditionally, so any future gap in the three call sites that
+/// currently keep this door out of the zero-document reach (keyboard
+/// dispatch's `reject_without_document`, the pointer-drag twin, the menu's
+/// stricter variant) would panic the live app instead of degrading. Driven
+/// directly against a real zero-document `App` — bypassing all three guards
+/// on purpose — this proves the door itself no longer depends on any of them
+/// agreeing forever: the config write still lands (the setting is real even
+/// with the canvas empty), and only the measure/re-page step, which has
+/// nothing to act on, is skipped.
+#[test]
+fn range_apply_live_page_width_no_ops_with_no_active_document() {
+    use crate::fs::InMemoryFs;
+    let _g2 = crate::fs::FsGuard::install(Arc::new(
+        InMemoryFs::new().with_file("/proj/only.md", "one\n"),
+    ));
+    let _g = crate::testlock::serial();
+    let mut app = app_on(
+        Some(PathBuf::from("/proj/only.md")),
+        "/proj",
+        Config::empty(),
+    );
+    let key = app
+        .document
+        .active_key()
+        .expect("the seeded file is active");
+    let _ = app.close_buffer(key);
+    assert!(
+        !app.document.has_active(),
+        "the fixture must reach the true zero-document state"
+    );
+
+    let spec = crate::settings::range_spec(crate::settings::SettingId::PageWidthProse).unwrap();
+    let target = spec.stepped(spec.default, 3);
+    assert_ne!(target, spec.default, "pick a genuinely different value");
+    // Would panic on `document.buffer()` before the `buffer_opt()` hardening.
+    app.range_apply_live(crate::settings::SettingId::PageWidthProse, target);
+    assert_eq!(
+        app.config.page_width_prose,
+        Some(spec.quantize(target) as usize),
+        "the config write still lands with no document to measure"
+    );
+}

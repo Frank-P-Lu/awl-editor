@@ -225,6 +225,70 @@ fn live_app_close_last_sidecar_and_semantics_are_honestly_document_free() {
     );
 }
 
+/// THE GUARD CHAIN HOLDS AT THE LIVE TIER: `range_apply_live`'s
+/// document-dependent branch (`App::document::buffer_opt`, hardened against
+/// the panicking `buffer()`) is reachable only from `SettingRangeStep`, which
+/// itself needs an open Settings overlay with a range row selected —
+/// unreachable through any `--keys` chord once the last document is closed,
+/// because `reject_without_document` refuses every action but the two
+/// zero-document start actions (see the sibling law above). This drives the
+/// exact real-world attempt — summon Settings, then send the keys a range
+/// row's live rail would interpret as a step — from a real zero-document
+/// live `App`, and asserts the whole sequence is a no-op: no panic (a crash
+/// here would fail this test by aborting the process, not by an assertion),
+/// no overlay summoned, still zero-document. This is NOT a capture of
+/// `range_apply_live` itself — no `--keys` vocabulary reaches that call at
+/// all from this state, which is the point being proved.
+#[test]
+fn live_app_zero_document_settings_and_range_step_attempt_is_a_silent_no_op() {
+    let _g = crate::testlock::serial();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl-live-zero-range-{}", std::process::id())),
+    );
+    let png = dir.join("zero-range.png");
+    let doc = PathBuf::from("/ws/proj/probe.md");
+    let json = in_sandbox_with(&doc, || {
+        capture_live_app(
+            png.clone(),
+            LiveAppSpec {
+                file: Some(doc.clone()),
+                keys: crate::keyspec::parse_chords(&format!(
+                    "{} {} Right Right Left",
+                    finish_file_chord(),
+                    open_settings_chord()
+                ))
+                .unwrap(),
+                root: Some(proj()),
+                workspace: None,
+                config: cfg(),
+                canvas: None,
+                dpi: None,
+            },
+        )
+        .expect(
+            "live zero-document range-step attempt needs a GPU adapter — a panic here \
+             would fail this call instead of reaching a sidecar assertion",
+        );
+        sidecar(&png)
+    });
+    assert_eq!(json["document"]["active"], false);
+    assert_eq!(
+        json["overlay"]["active"], false,
+        "Settings never opens with no document to gate it, so no range row is ever there to step"
+    );
+    let nodes = json["semantic"]["nodes"].as_array().unwrap();
+    let actions: Vec<_> = nodes
+        .iter()
+        .filter(|node| node["role"] == "button")
+        .map(|node| node["name"].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        actions,
+        ["New document", "Go to"],
+        "the zero-document start surface is unchanged by the whole attempt"
+    );
+}
+
 /// THE PRIMARY LAW — the transition converted from
 /// Rust-only to sidecar-provable.
 ///

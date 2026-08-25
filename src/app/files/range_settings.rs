@@ -11,8 +11,13 @@ impl App {
                 } else {
                     crate::settings::SettingId::PageWidthCode
                 };
-                let spec = crate::settings::range_spec(id).unwrap();
-                if let Some(value) = spec.parse(raw) {
+                // `range_spec` and this `key` match are two independently
+                // maintained tables that must agree on every `Range`-kind
+                // setting; a future divergence no-ops the commit rather than
+                // panicking mid-edit.
+                if let Some(spec) = crate::settings::range_spec(id)
+                    && let Some(value) = spec.parse(raw)
+                {
                     self.range_apply_live(id, value);
                     self.range_persist(key);
                     self.sync_view(true);
@@ -44,8 +49,8 @@ impl App {
             .overlay()
             .and_then(|o| o.selected_range())
             && crate::settings::value_key(cell.id) == Some(key)
+            && let Some(spec) = crate::settings::range_spec(cell.id)
         {
-            let spec = crate::settings::range_spec(cell.id).unwrap();
             self.range_apply_live(cell.id, spec.value_of_step(cell.step));
         }
         if key == "zoom" {
@@ -72,7 +77,13 @@ impl App {
             id,
             crate::settings::SettingId::PageWidthProse | crate::settings::SettingId::PageWidthCode
         ) {
-            let spec = crate::settings::range_spec(id).unwrap();
+            // `range_spec` and this `matches!` are two independently
+            // maintained tables that must agree on every page-width id; a
+            // future divergence no-ops the live apply rather than panicking
+            // mid-scrub.
+            let Some(spec) = crate::settings::range_spec(id) else {
+                return;
+            };
             let width = spec.quantize(value) as usize;
             let class = match id {
                 crate::settings::SettingId::PageWidthProse => {
@@ -85,7 +96,16 @@ impl App {
                 }
                 _ => unreachable!(),
             };
-            if self.document.buffer().page_class() == class {
+            // The zero-document state has no buffer to measure or re-page —
+            // this live-apply door no-ops there rather than depending on the
+            // three independently maintained guards ahead of it (keyboard
+            // dispatch, the pointer-drag twin, the menu variant) to have kept
+            // this transition unreachable forever.
+            if self
+                .document
+                .buffer_opt()
+                .is_some_and(|buffer| buffer.page_class() == class)
+            {
                 self.sync_page_measure();
             }
         }

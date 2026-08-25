@@ -18,7 +18,7 @@ pub(super) fn glyph_probe() -> usize {
 
 use super::model::{Document, ImageSource};
 
-pub(super) fn emit(doc: &Document, images: &dyn ImageSource) -> Vec<u8> {
+pub(super) fn emit(doc: &Document, images: &dyn ImageSource) -> Result<Vec<u8>, String> {
     let layout = layout::build(doc, images);
     let metadata = manifest::build(doc, &layout);
     writer::emit(&layout, &metadata)

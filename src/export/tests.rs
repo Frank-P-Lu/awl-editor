@@ -778,7 +778,7 @@ fn footnotes_preserve_first_reference_numbering_and_structure_in_every_export() 
     assert!(document.contains("<w:vertAlign w:val=\"superscript\"/>"));
     assert!(document.contains("continued line"));
 
-    let pdf_bytes = to_pdf(source, &NoImages);
+    let pdf_bytes = to_pdf(source, &NoImages).unwrap();
     let pdf = String::from_utf8_lossy(&pdf_bytes);
     assert!(pdf.contains("kind=\"footnote-reference\" label=\"β\" number=\"1\" occurrence=\"2\""));
     assert!(pdf.contains("kind=\"footnote-definition\" label=\"earlier\" number=\"2\""));
@@ -838,13 +838,19 @@ fn exports_are_byte_deterministic() {
     let h2 = to_html(FIXTURE, &fixture_images());
     assert_eq!(h1, h2, "html export is not deterministic");
     // to_bytes agrees with the direct emitters.
-    assert_eq!(to_bytes(FIXTURE, Format::Docx, &fixture_images()), a);
     assert_eq!(
-        to_bytes(FIXTURE, Format::Html, &fixture_images()),
+        to_bytes(FIXTURE, Format::Docx, &fixture_images()).unwrap(),
+        a
+    );
+    assert_eq!(
+        to_bytes(FIXTURE, Format::Html, &fixture_images()).unwrap(),
         h1.into_bytes()
     );
-    let p = to_pdf(FIXTURE, &fixture_images());
-    assert_eq!(to_bytes(FIXTURE, Format::Pdf, &fixture_images()), p);
+    let p = to_pdf(FIXTURE, &fixture_images()).unwrap();
+    assert_eq!(
+        to_bytes(FIXTURE, Format::Pdf, &fixture_images()).unwrap(),
+        p
+    );
     assert_eq!(Format::Pdf.ext(), "pdf");
 }
 
