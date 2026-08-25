@@ -1,13 +1,14 @@
 //! Public deterministic capture options and read-only metadata blocks.
+//!
+//! ONE INVARIANT GOVERNS EVERY FIELD HERE, so it is stated once rather than on
+//! each: every option defaults to the byte-stable baseline and every metadata
+//! block defaults to absent, so a plain `--screenshot` renders and reports
+//! exactly as if none of this existed. A field that cannot honour that is the
+//! exception and says so itself.
 
 #[path = "buffers_sidecar.rs"]
 pub(super) mod buffers_sidecar;
 
-/// Deterministic overrides for the verification hooks. All default to the
-/// byte-stable baseline (the authored zoom default, cursor-follow scroll, no selection), so a
-/// plain `--screenshot` is unaffected. Each field is applied verbatim into the
-/// render snapshot, letting a reviewer capture a selection / zoom / semantic-scroll still
-/// as a reproducible PNG.
 /// MULTI-BUFFER registry snapshot for the sidecar `buffers` block: how many
 /// buffers a `--keys` replay left open (the active one + anything still
 /// backgrounded — see `crate::buffers::BufferRegistry`), and the active
@@ -25,8 +26,7 @@ pub struct BuffersInfo {
 /// looking at a diff, and does it carry the deletions / insertions / moves / folds
 /// I expect". APPEARANCE (the struck region is muted, the wash is present) is
 /// asserted over the PNG's pixels, per the sidecar-vs-appearance tripwire — these
-/// counts are a state oracle only. `active` is always true when present (the field
-/// is `None` for every ordinary capture, so a plain `--screenshot` omits the block).
+/// counts are a state oracle only. `active` is always true when present.
 #[derive(Clone)]
 pub struct DiffInfo {
     pub active: bool,
@@ -58,12 +58,10 @@ pub struct ProjectInfo {
     pub default_folder: Option<std::path::PathBuf>,
     /// The EFFECTIVE workspace (flag > config > root.parent). `None` -> JSON null.
     pub workspace: Option<std::path::PathBuf>,
-    /// THE KEYMAP FLAVOR ROUND — the EFFECTIVE keymap flavor's config NAME
+    /// The EFFECTIVE keymap flavor's config NAME
     /// (`"native"`/`"emacs"`, see `crate::keymap::KeymapFlavor::config_name`),
     /// so a `--config`-driven launch's `keymap = "emacs"` is verifiable from the
-    /// sidecar with no flags, mirroring `default_folder`/`workspace` above. Every
-    /// construction site defaults it to `"native"` (the built-in default),
-    /// keeping a plain capture with no `--config` byte-identical.
+    /// sidecar with no flags, mirroring `default_folder`/`workspace` above.
     pub keymap_flavor: &'static str,
 }
 
@@ -135,9 +133,8 @@ pub struct OverlayInfo {
     pub notice: String,
     /// FACETING pickers (Go-to / Browse / Switch-project / Command / History /
     /// Settings): the ACTIVE lens name (e.g. `"recent"`/`"file"`/`"session"`/`"all"`),
-    /// or `None` for a flat, non-faceting picker (the theme picker is flat — its lens
-    /// strip was retired 2026-07-15). Emitted as `overlay.lens` so a `--keys` lens
-    /// switch is verifiable.
+    /// or `None` for a flat, non-faceting picker (the theme picker is flat).
+    /// Emitted as `overlay.lens` so a `--keys` lens switch is verifiable.
     pub lens: Option<&'static str>,
     /// FACETING pickers only: the lens STRIP — each lens label + a flag marking the
     /// active one. Drives the rendered strip; emitted as `overlay.lens_strip`. Empty
@@ -183,10 +180,8 @@ pub struct OverlayInfo {
     /// File pickers only (go-to / browse): whether dot-prefixed entries (AND,
     /// unsupported/binary Browse rows) are REVEALED. Mirrors the
     /// STICKY `crate::file_visibility::all_on()` global (Settings -> Files ->
-    /// "File visibility") gated on `kind.hides_dotfiles()`, NOT a per-picker
-    /// flag any more (the old `Cmd-Shift-.` toggle +
-    /// `OverlayState::show_hidden`) — so the OBSERVABLE CONTRACT is unchanged:
-    /// `false` for a non-file picker (Theme/Settings/…), `items` already
+    /// "File visibility") gated on `kind.hides_dotfiles()`, never a per-picker
+    /// flag. `false` for a non-file picker (Theme/Settings/…); `items` already
     /// reflects the filtering either way. Emitted as `overlay.show_hidden`.
     pub show_hidden: bool,
     /// BREADCRUMB: the summoning overlay's mode string (`"settings"` / `"command"`) to
@@ -195,7 +190,7 @@ pub struct OverlayInfo {
     /// via its `as_str`; emitted as `overlay.return_to` so a `--keys` breadcrumb chain
     /// (palette → theme → Esc → palette) is assertable straight from the sidecar.
     pub return_to: Option<&'static str>,
-    /// THE OVERLAY-TITLES ROUND: this picker's short, lowercase self-announcement
+    /// This picker's short, lowercase self-announcement
     /// ([`crate::overlay::OverlayState::title`]) — the same text the render path
     /// draws as a quiet prefix on the input line. Emitted as `overlay.title` so the
     /// destination of a palette→picker route is agent-verifiable straight from the
@@ -276,7 +271,10 @@ pub struct CaptureOpts {
     /// but this bit suppresses every document surface and makes the sidecar's
     /// active identity null.
     pub document_absent: bool,
-    /// Zoom factor (`None` = [`crate::range::ZOOM`]'s authored default).
+    /// Zoom factor (`None` = [`crate::range::ZOOM`]'s authored default). This
+    /// and the three fields below are applied verbatim into the render
+    /// snapshot, so a reviewer can capture a zoom / scroll / selection still as
+    /// a reproducible PNG.
     pub zoom: Option<f32>,
     /// Explicit semantic document top (None = cursor-follow default).  A
     /// fixed-point offset makes sub-row geometry reproducible in capture.
@@ -299,76 +297,65 @@ pub struct CaptureOpts {
     /// is verifiable from the capture.
     pub search_replace_active: bool,
     /// The replacement string — typed headlessly through the shared search-key
-    /// seam (a `--keys "Cmd-r <needle> Tab <text>"` replay fills it; the old
-    /// always-empty "isearch-input gap" is retired).
+    /// seam (a `--keys "Cmd-r <needle> Tab <text>"` replay fills it).
     pub search_replacement: String,
     /// Whether typing currently edits the REPLACEMENT field (vs. the query) —
     /// a replayed Tab/Cmd-R focus move folds in here so the panel's focused
     /// row + the sidecar's `editing_replacement` reflect it (default false).
     pub search_editing_replacement: bool,
     /// The active project (`--root`-derived) for the sidecar `project` block.
-    /// None (default) -> `project: null` so a plain `--screenshot` is unchanged.
+    /// `None` -> `project: null`.
     pub project: Option<ProjectInfo>,
     /// The summoned overlay state for the sidecar `overlay` block. None ->
     /// overlay inactive.
     pub overlay: Option<OverlayInfo>,
     /// PHYSICAL canvas dimensions for this run (`--capture-size WxH`). `None` =
-    /// the byte-stable default [`super::CANVAS_WIDTH`]x[`super::CANVAS_HEIGHT`]
-    /// (1200x800), so a plain `--screenshot` is unchanged. Lets a capture render at
-    /// the REAL window size so size-dependent layout bugs (e.g. the page
-    /// right-margin) are visible.
+    /// [`super::CANVAS_WIDTH`]x[`super::CANVAS_HEIGHT`]. Lets a capture render at
+    /// the REAL window size, where size-dependent layout bugs (the page
+    /// right-margin among them) are visible at all.
     pub canvas: Option<(u32, u32)>,
     /// Display DPI `scale_factor` fed to the renderer metrics (`--capture-dpi N`).
-    /// `None` = 1.0 (today's implied capture scale, a no-op via `set_dpi`'s guard),
-    /// so the no-flag path stays byte-identical. A 2400x1600 canvas at dpi 2.0
-    /// renders like a 1200x800 LOGICAL retina window (text + column geometry scale
-    /// exactly like the live retina app).
+    /// `None` = 1.0, a no-op via `set_dpi`'s guard. A 2400x1600 canvas at dpi 2.0
+    /// renders like a 1200x800 LOGICAL retina window — text and column geometry
+    /// scale exactly like the live retina app.
     pub dpi: Option<f32>,
-    /// The WHICH-KEY panel's `(key, command-name)` rows to render (`--whichkey`), or
-    /// `None` (default) so a plain `--screenshot` draws no panel and stays
-    /// byte-identical. Populated in `run.rs` from the command catalog + config when the
-    /// `--whichkey` force-global is set, so the capture shows the SETTLED summoned panel
-    /// deterministically (the live 500ms pause is windowed; only the shown STATE is
-    /// captured here).
+    /// The WHICH-KEY panel's `(key, command-name)` rows to render (`--whichkey`).
+    /// Populated in `run.rs` from the command catalog + config when the
+    /// `--whichkey` force-global is set. Only the SETTLED panel STATE is
+    /// captured — the live 500ms pause is a window no capture has a clock for.
     pub whichkey: Option<Vec<(String, String)>>,
     /// HISTORY timeline live preview: the CONTENT of the version the still-open
     /// History overlay's highlighted row resolves to (paired with the
     /// `OverlayInfo::preview_id`). Folded over the render snapshot's `text`
     /// BEFORE the scroll math, exactly like the live preview — the capture then
     /// shows THAT VERSION in the document itself, and the sidecar `text` reports
-    /// it (assertable). `None` (default) = no preview, so a plain `--screenshot`
-    /// is unchanged. Populated in `run.rs` from the replay's open overlay.
+    /// it. Populated in `run.rs` from the replay's open overlay.
     pub preview_text: Option<String>,
     /// MULTI-BUFFER registry snapshot for the sidecar `buffers` block. `None`
-    /// (default) means "derive it from the loaded buffer alone" (`open: 1`,
-    /// `active` = its path or `"scratch"`) — so a plain `--screenshot` needs no
-    /// wiring, and every test/caller that never touches multi-buffer state
-    /// gets a sensible default. Populated in `run.rs`'s main capture path from
-    /// the replay's registry count.
+    /// means "derive it from the loaded buffer alone" (`open: 1`, `active` = its
+    /// path or `"scratch"`), so a caller that never touches multi-buffer state
+    /// needs no wiring. Populated in `run.rs`'s main capture path from the
+    /// replay's registry count.
     pub buffers: Option<BuffersInfo>,
     /// Unsupported live-only effects a permissive `--keys` replay skipped, in
     /// replay order. Empty for an ordinary capture and for a replay that crossed
     /// no unsupported seam.
     pub replay_skips: Vec<crate::replay::SkippedEffect>,
     /// THE WRITER'S DIFF: read-only STATE of an active prose-diff view for the
-    /// sidecar `diff` block. `None` (default) for every ordinary capture — the block
-    /// is omitted, so a plain `--screenshot` is byte-identical. Populated only by the
-    /// capture harness's env-gated diff render (`AWL_DIFF_OLD`/`AWL_DIFF_NEW`).
+    /// sidecar `diff` block. Populated only by the capture harness's env-gated
+    /// diff render (`AWL_DIFF_OLD`/`AWL_DIFF_NEW`).
     pub diff: Option<DiffInfo>,
     /// Is the captured document holding an UNRESOLVED external change? Drives
     /// the page-mode gutter's persistent `changed elsewhere` affordance and is
     /// emitted as `gutter.changed`. Only a `driver: "live-app"` capture can ever
     /// set it — see `run::CaptureSubject::changed_elsewhere`.
     pub gutter_changed: bool,
-    /// THE CALM NOTICE the driven editor is showing, with its kind — `None` when
-    /// there is none, which is every capture that raises no notice-bearing
-    /// effect (so those stay byte-identical).
+    /// THE CALM NOTICE the driven editor is showing, with its kind.
     ///
-    /// This slot exists because the notice channel was invisible to every capture
-    /// door for as long as it existed: `CaptureOpts` had nowhere to put it, so a
-    /// live `App` that had genuinely raised "saved" produced a PNG byte-identical
-    /// to one that had not — while the SAME sidecar's `semantic` block announced
-    /// that notice to a screen reader. One artifact, two answers. Fed by
+    /// Without this slot the notice channel is invisible to every capture door:
+    /// a live `App` that genuinely raised "saved" produces a PNG identical to one
+    /// that did not, while the SAME sidecar's `semantic` block announces that
+    /// notice to a screen reader — one artifact, two answers. Fed by
     /// [`crate::run::CaptureSubject::notice`] from whichever driver is running;
     /// emitted as the top-level `notice` block.
     pub notice: Option<(String, crate::actions::NoticeKind)>,
@@ -377,8 +364,7 @@ pub struct CaptureOpts {
     /// files and remain deterministic.
     pub pending_crash: bool,
     /// WHICH DRIVER produced this capture ([`CaptureDriver`]) — emitted as the
-    /// top-level `driver` field. Defaults to `Replay`, so every existing capture
-    /// path is unchanged; only `--screenshot-app` sets `LiveApp`.
+    /// top-level `driver` field. Only `--screenshot-app` sets `LiveApp`.
     pub driver: CaptureDriver,
     /// The exact renderer-independent semantic tree owned by a live `App`.
     /// Replay captures leave this `None`; `--screenshot-app` embeds the same
@@ -386,13 +372,13 @@ pub struct CaptureOpts {
     pub semantic: Option<crate::semantic::SemanticSnapshot>,
     /// FORCE the format popover over the current `selection` (the deterministic
     /// in-test equivalent of the CLI's `AWL_POPOVER` env probe — the live summon is
-    /// a mouse gesture the headless path has no pointer for). Default false, so an
-    /// ordinary capture is byte-identical; the `popover.rs` card-fits law sets it
-    /// to render the toolbar without racing a process-global env var.
+    /// a mouse gesture the headless path has no pointer for). The `popover.rs`
+    /// card-fits law sets it to render the toolbar without racing a
+    /// process-global env var.
     pub force_popover: bool,
     /// THE VISIBLE WORKING SET — one row per file open under the active project
-    /// root, or EMPTY for a single-file margin (and for every capture door that
-    /// has no App to ask, which keeps those byte-identical).
+    /// root, or EMPTY for a single-file margin and for every capture door with
+    /// no App to ask.
     ///
     /// It has to travel on the opts rather than be re-derived here, because the
     /// working set is owned by the live `App` and this door renders from a
@@ -406,12 +392,11 @@ pub struct CaptureOpts {
     /// THE ACTIVE FILE's OWN REMEMBERED ROOT
     /// ([`crate::workingset::WorkingSet::active_root`]) — the gutter's project
     /// LABEL, never the nominally "active project" a Switch-project alone can
-    /// leave the open document sitting outside of. `None` for every capture
-    /// door with no App-owned working set to ask (byte-identical: `fold_gutter`
-    /// then leaves the base project name untouched), which is every ordinary
-    /// `--screenshot`/`--keys` replay — that shared-core path has no per-file
-    /// root memory at all, so it cannot diverge from the ambient project and
-    /// has nothing truer to report.
+    /// leave the open document sitting outside of. `None` for every capture door
+    /// with no App-owned working set to ask — `fold_gutter` then leaves the base
+    /// project name alone. That is every ordinary `--screenshot`/`--keys` replay:
+    /// the shared-core path keeps no per-file root memory, so it cannot diverge
+    /// from the ambient project and has nothing truer to report.
     pub gutter_project_root: Option<std::path::PathBuf>,
 }
 
@@ -422,10 +407,8 @@ impl CaptureOpts {
     /// the active file's own remembered root, never the ambient project
     /// `base_viewstate` filled in from `self.project`.
     ///
-    /// One door for all three because they are one surface and they share one
-    /// failure mode — a fact the live editor has and the capture path silently
-    /// drops. All default to "nothing", so every replay capture is
-    /// byte-identical.
+    /// One door for all three because they are one surface sharing one failure
+    /// mode: a fact the live editor holds and the capture path silently drops.
     pub(super) fn fold_gutter(&self, view: &mut crate::render::ViewState) {
         view.document_active = !self.document_absent;
         if self.document_absent {
