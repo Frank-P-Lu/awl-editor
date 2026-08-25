@@ -6,81 +6,23 @@
 
 ## Ready to build
 
-### 444 — the working set becomes visible: a margin buffer stack (USER DECISION 2026-08-16; residuals 1–3 LANDED; Move rows sub-scope still open)
+---
+### 504 — destination navigators show no current-folder indication while browsing (found by item 444's Move-navigator verification, 2026-08-26)
 
-**Residual 3 LANDED 2026-08-25** (`d38cbe1e`, merge of `item-444-residual3-build`): the
-overflow `+ N more…` row, the hold-still/minimal-slide resting window, and the
-expanded scrollable/grouped panel — all three per the user's 2026-08-25 gallery
-decisions (open order seeds the stack and activation never reorders it; the
-window holds still when the newly active file is already visible and slides
-the minimum otherwise; the expanded view reveals the active row on open and on
-every re-activation but never fights the reader's own scroll). Render layer
-needed zero changes; one shared `margin_rows(root)` now feeds both the live App
-margin and the `--screenshot-app` capture fold. Full native-gate receipt
-(mac+linux+menubar-full) and web-smoke both green. **Owed to a human, live-only
-and structurally unreachable from any capture door** (same class as the
-pre-existing switch/close click): the actual pointer press on the `+N more…`
-row, a file row inside the expanded panel, and the wheel-over-panel gesture —
-proven at every seam short of the literal window/pointer. Also owed: the
-expanded panel's 8-row viewport size and click-away/Esc feel are judged from
-the gallery's numbers, not yet confirmed live in a real window.
+Move, Export, and ProjectBrowse all navigate `browse_dir` internally but never
+render it: the card title stays static (e.g. `move welcome.md`) with no
+breadcrumb after descending into a subfolder, confirmed by real
+`--screenshot-app` pixels on Move. Item 444's decided UX said the Move
+navigator "shows the current root-relative destination" — this is the gap
+against that line, left unbuilt there because a Move-only fix would violate
+"same behavior ⇒ same code" (this is shared, pre-existing infrastructure, not
+something Move's build introduced).
 
-**Everything except the Move navigator is now LANDED on `main`.** Full sha
-list: `git log --grep 'item 444'`; design history and every landed residual's
-detail: `git log -p -- .orchestrator/queue.md`.
-
-**CLAIMED 2026-08-25 — building in worktree `item-444-move-navigator`.**
-
-**✅ Move navigator sub-scope DECIDED 2026-08-25 — READY TO BUILD** (three
-user answers; Residual 1's prototype gallery is preserved untracked at
-`gallery/item-444-affordance-prototypes/`):
-
-- **Action rows are CONTEXTUAL:** `Move here` is always visible (the
-  primary verb — the navigator was summoned to move), but `New folder…`
-  appears only when the typed query matches no existing folder — the
-  quiet create-on-unmatched-name picker idiom; the folder name is
-  already typed when the row appears.
-- **`New folder…` creates AND moves in one stroke** — no descend-and-
-  confirm ceremony; the completion notice names the full new path.
-- **Keyboard grammar confirmed:** Enter on a folder row descends,
-  Backspace/Left at an empty query ascends, Enter on `Move here`
-  commits.
-
-The bounded scope below stands as previously specified:
-
-Move stays deliberately bounded to the source file's owning root. Its summoned
-folders-only navigator says `move <filename>`, shows the current root-relative
-destination, descends/ascends through folders, offers an explicit `New folder…`
-row and a `Move here` action at every level, including whether those two rows
-show permanently or contextually. A successful move keeps the stack slot
-stable and updates its quiet parent path. No drag-to-move, bulk selection,
-folder moves or cross-root moves in this item: those are file-manager machinery,
-and a tiny contextual stack is the wrong place to imply them. Moving never
-silently rewrites Markdown or incoming links; when the file contains relative
-links/images, the completion feedback states that their paths may need review.
-
-Verify, once built: context-menu Move and palette Move dispatch the same
-action; moving a nested file keeps its stack slot and updates its relative
-label, and never crosses the source root. Generated reference rows are
-spot-checked against the dispatch they claim.
-
-**Two smaller findings, still carried forward:**
-- `gutter` in the sidecar (the single name/project fact) is stale
-  *documentation* once the stack draws at N≥2 — its doc claims "exactly as
-  drawn" but the pixels show a whole stack. Whoever next touches sidecar
-  `buffers`/`gutter` reconciles the doc, or the field, deliberately.
-- The scratch buffer is closeable (dirty scratch refuses like any other
-  entry, the successor search skips it) but still has no *activation* door
-  anywhere (`load_path` takes a path; `previous_path()` returns
-  `Option<PathBuf>`) — a scratch row still silently swallows a switch click.
-
-**Two facts worth knowing before the next residual touches this area:**
-`Finish file` is now a misnomer for a command that CLOSES — renaming it
-touches the palette, GUIDE, REFERENCE and the `finish_file` config key, so
-only its *description* was corrected this round, not its name. And
-`load_path` flushes autosave before parking, so under the default config a
-parked entry is essentially never dirty — the parked-conflict path is mainly
-reachable via `autosave = false`.
+Fix shape (not yet decided): a breadcrumb rendered beside the title, or the
+current folder folded into the row label — one owner all three navigators
+route through, matching the pattern the mechanism already uses elsewhere.
+Small enough to scope as its own item; needs a taste call on presentation
+before building.
 
 ---
 ### 500 — comment audit: stale roster counts, history narration, restatement (USER 2026-08-25, after a measured density audit)
