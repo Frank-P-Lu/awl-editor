@@ -193,6 +193,8 @@ worker briefs' timeout guidance depends on it.
 
 ### 492 — one list-marker grammar: Enter-continuation routes through `markdown::list_item` (found by the 2026-08-25 duplication census, verified)
 
+**CLAIMED 2026-08-25 — building in worktree `item-492-list-marker-grammar`.**
+
 `markdown::list_item` (`src/markdown/spans/detect.rs:147`) is the documented
 SHARED list-detection primitive — the Tab/Shift-Tab indent gate calls it
 (`src/actions/edit.rs:188`). But `smart_newline_for` (`src/actions/edit.rs:235`),
@@ -329,6 +331,8 @@ the specific law go red.
 
 ---
 ### 497 — decompose `parse_args` (a 941-line function) and `on_mouse_wheel`'s phases (found by the 2026-08-25 structure census, verified)
+
+**CLAIMED 2026-08-25 — building in worktree `item-497-decompose-parse-args`. NOTE: 494 deferred until this lands (both touch src/markdown/spans/detect.rs).**
 
 `src/main/args.rs::parse_args` is 941 lines of the file's 974 — the largest
 function in the tree by ~3× — with already-commented phase seams: the
