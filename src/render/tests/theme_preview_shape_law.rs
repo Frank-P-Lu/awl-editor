@@ -77,6 +77,39 @@ use crate::render::{OFFSCREEN_CULL_MARGIN_ROWS, ShapeReach};
 /// that stopped being tall rather than on ordinary metric drift.
 const MIN_OFFSCREEN_MULTIPLE: f32 = 4.0;
 
+/// One representative world per DISTINCT `Theme::font`, derived from `THEMES`
+/// rather than pinned to a hand-picked handful. The claim below is stated as
+/// face-independent over the whole roster, and a face is what actually varies
+/// the shaping path this law exercises — a fixed four-world literal reads as
+/// total but in fact covers only whichever four faces those four worlds
+/// happened to wear, with no tether that keeps the sample representative as
+/// the roster grows. "One world per face suffices" because the property under
+/// test is row-table ARITHMETIC, not glyph shaping itself, so a second world
+/// sharing an already-swept face adds no coverage this law can see.
+///
+/// The floor below is a non-vacuity check, not a pin: it fails loudly if the
+/// roster's face diversity collapses well under today's count, rather than
+/// silently sweeping a handful of faces while the doc comment still reads
+/// "every world".
+fn one_world_per_display_face() -> Vec<&'static str> {
+    let mut seen_fonts: Vec<&'static str> = Vec::new();
+    let mut worlds: Vec<&'static str> = Vec::new();
+    for t in crate::theme::THEMES {
+        if !seen_fonts.contains(&t.font) {
+            seen_fonts.push(t.font);
+            worlds.push(t.name);
+        }
+    }
+    assert!(
+        worlds.len() >= 10,
+        "the display-face roster collapsed to {} distinct faces ({worlds:?}) — the \
+         face-independence sweep below would no longer cover enough of the roster to mean \
+         anything",
+        worlds.len()
+    );
+    worlds
+}
+
 /// A document of `n` short, non-wrapping lines — one visual row each, at any
 /// column width a page-mode window can produce — so the shaped-row COUNT is an
 /// exact oracle rather than a wrap-dependent estimate.
@@ -611,7 +644,7 @@ fn row_geometry_keeps_the_documents_own_origin_at_every_scroll_depth() {
         // Walk faces too — the ORIGIN must be face-independent even though the
         // wrapped-row COUNT is not. `tall_doc` never wraps, so the arithmetic
         // below holds in every world and any face-dependence is a defect.
-        for world in ["Mangrove", "Bombora", "Galah", "Tawny"] {
+        for world in one_world_per_display_face() {
             crate::theme::set_active_by_name(world);
             let mut v = view(&text, 0, 0);
             p.set_view(&v);

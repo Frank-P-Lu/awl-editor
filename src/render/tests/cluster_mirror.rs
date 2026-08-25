@@ -34,14 +34,12 @@
 //! elision into the drawn pixels.
 
 use super::super::*;
-use super::{headless_dqp, pixeldiff, view};
+use super::{diagonal_worlds, headless_dqp, pixeldiff, view};
 use crate::render::rowlayout::ColumnFlow;
 
 /// Canvases, because a cluster is measured against its card and one width is one
 /// hypothesis: a roomy card, a taller one, and a cramped one whose budget bites.
 const CANVASES: [(u32, u32); 3] = [(1200, 800), (1400, 900), (1040, 760)];
-
-const WORLDS: [&str; 2] = ["Mangrove", "Magpie"];
 
 /// A picker whose names span the whole plausible range in ONE visible window —
 /// the axis the pre-mirror composition hid behind. Half the rows carry a chord,
@@ -155,7 +153,7 @@ fn every_diagonal_name_hangs_on_its_own_spine_end_however_long_the_name_is() {
     };
     let mut graded = 0usize;
     let mut spread_seen = 0usize;
-    for world in WORLDS {
+    for world in diagonal_worlds() {
         let _pin = theme::WorldPin::world(world).expect("both diagonal worlds ship");
         for (w, h) in CANVASES {
             p.set_size(w as f32, h as f32);
@@ -211,7 +209,7 @@ fn every_diagonal_name_hangs_on_its_own_spine_end_however_long_the_name_is() {
         "the law must grade real drawn names, got {graded}"
     );
     assert!(
-        spread_seen >= WORLDS.len(),
+        spread_seen >= diagonal_worlds().len(),
         "no swept cell drew names more than 100 px apart in width — the axis this \
          law exists for never varied, so it proves nothing ({spread_seen} cells)"
     );
@@ -229,7 +227,7 @@ fn the_accessory_column_hangs_on_the_cluster_end_the_name_does_not() {
         return;
     };
     let mut graded = 0usize;
-    for world in WORLDS {
+    for world in diagonal_worlds() {
         let _pin = theme::WorldPin::world(world).expect("both diagonal worlds ship");
         for (w, h) in CANVASES {
             p.set_size(w as f32, h as f32);
@@ -281,7 +279,7 @@ fn a_mirrored_name_is_clickable_across_exactly_the_ink_it_is_drawn_at() {
         return;
     };
     let mut graded = 0usize;
-    for world in WORLDS {
+    for world in diagonal_worlds() {
         let _pin = theme::WorldPin::world(world).expect("both diagonal worlds ship");
         for (w, h) in CANVASES {
             p.set_size(w as f32, h as f32);

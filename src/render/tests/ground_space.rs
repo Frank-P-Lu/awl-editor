@@ -131,78 +131,105 @@ fn dormant_edge_dots() -> Vec<Ground> {
 /// The PROFILE arms — a shipping ground's other face, adopted by writing one
 /// word in a world literal. Each is a distinct branch of the shader, so each is
 /// swept on its own rather than riding its sibling's proof.
+///
+/// ROSTER-DERIVED, NOT A NAMED WORLD, for the same reason as
+/// `dormant_edge_dots` above: Deckle and Zigzag each have two wearers in
+/// `THEMES`, so pinning the arm to one world's literal means the OTHER wearer
+/// silently keeps the variant covered — the sweep stays green while the named
+/// world drifts to a different ground and the arm it fed goes unswept. Scanning
+/// `THEMES` for whichever world currently wears the shape means any wearer
+/// changing its ground can retarget the representative but cannot un-enrol it,
+/// and losing every wearer fails loudly instead of quietly.
 fn dormant_profile_arms() -> Vec<Ground> {
-    let bowerbird = theme::BOWERBIRD.background;
-    let paperbark = theme::PAPERBARK.background;
-    let quokka_zigzag = theme::QUOKKA.background;
     let mut out: Vec<Ground> = Vec::new();
-    if let Background::Organic {
-        tones,
-        scale_px,
-        density,
-        ..
-    } = bowerbird
-    {
-        out.push(Ground {
-            label: "dormant:organic-finds",
-            bg: Background::Organic {
-                tones,
-                scale_px,
-                density,
-            },
-        });
-    }
-    if let Background::Deckle {
-        ground,
-        layer,
-        deckle,
-        period_px,
-        wander_px,
-        density,
-        ..
-    } = paperbark
-    {
-        out.push(Ground {
-            label: "dormant:deckle-fibres",
-            bg: Background::Deckle {
-                ground,
-                layer,
-                deckle,
-                weave: theme::Weave::Fibres,
-                period_px,
-                wander_px,
-                density,
-            },
-        });
-    }
+    out.push(Ground {
+        label: "dormant:organic-finds",
+        bg: theme::THEMES
+            .iter()
+            .find_map(|t| match t.background {
+                Background::Organic {
+                    tones,
+                    scale_px,
+                    density,
+                    ..
+                } => Some(Background::Organic {
+                    tones,
+                    scale_px,
+                    density,
+                }),
+                _ => None,
+            })
+            .expect(
+                "no world in THEMES wears Background::Organic — the \
+                 dormant:organic-finds representative has nothing to derive from; give it a \
+                 literal field until an Organic world returns to the roster",
+            ),
+    });
+    out.push(Ground {
+        label: "dormant:deckle-fibres",
+        bg: theme::THEMES
+            .iter()
+            .find_map(|t| match t.background {
+                Background::Deckle {
+                    ground,
+                    layer,
+                    deckle,
+                    period_px,
+                    wander_px,
+                    density,
+                    ..
+                } => Some(Background::Deckle {
+                    ground,
+                    layer,
+                    deckle,
+                    weave: theme::Weave::Fibres,
+                    period_px,
+                    wander_px,
+                    density,
+                }),
+                _ => None,
+            })
+            .expect(
+                "no world in THEMES wears Background::Deckle — the \
+                 dormant:deckle-fibres representative has nothing to derive from; give it a \
+                 literal field until a Deckle world returns to the roster",
+            ),
+    });
     // Zigzag's banded arm is data-authored too; keep the sweep honest about it.
-    if let Background::Zigzag {
-        from,
-        to,
-        dir,
-        tint,
-        period_px,
-        amplitude_px,
-        angle,
-        density,
-        banded,
-    } = quokka_zigzag
-    {
-        out.push(Ground {
-            label: "dormant:zigzag-flipped-band",
-            bg: Background::Zigzag {
-                from,
-                to,
-                dir,
-                tint,
-                period_px,
-                amplitude_px,
-                angle,
-                density,
-                banded: !banded,
-            },
-        });
-    }
+    out.push(Ground {
+        label: "dormant:zigzag-flipped-band",
+        bg: theme::THEMES
+            .iter()
+            .find_map(|t| match t.background {
+                Background::Zigzag {
+                    from,
+                    to,
+                    dir,
+                    tint,
+                    period_px,
+                    amplitude_px,
+                    angle,
+                    density,
+                    banded,
+                } => Some(Background::Zigzag {
+                    from,
+                    to,
+                    dir,
+                    tint,
+                    period_px,
+                    amplitude_px,
+                    angle,
+                    density,
+                    banded: !banded,
+                }),
+                _ => None,
+            })
+            .expect(
+                "no world in THEMES wears Background::Zigzag — the \
+                 dormant:zigzag-flipped-band representative has nothing to derive from; give it \
+                 a literal field until a Zigzag world returns to the roster",
+            ),
+    });
     out
 }
 
