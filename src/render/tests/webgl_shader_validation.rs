@@ -126,15 +126,26 @@ fn every_shader_under_shaders_dir_targets_webgl2() {
 
     for path in &files {
         let file = path.file_name().unwrap().to_string_lossy().to_string();
-        let source = fs::read_to_string(path).unwrap_or_else(|e| panic!("cannot read {file}: {e}"));
-        let points = entry_points(&source);
+        // The ASSEMBLED source — the shader's own file plus whichever
+        // `shaders/common/*.wgsl` preambles `gpu_cache::Shader::source`
+        // prepends for it — not a raw read of the file alone: several
+        // helpers (the rounded-rect SDF, the dither matrix, the unit quads)
+        // now live only in a preamble, so validating the bare file would
+        // fail to parse for a reason that has nothing to do with WebGL.
+        let source = crate::gpu_cache::source_for_file(&file).unwrap_or_else(|| {
+            panic!(
+                "{file} exists under shaders/ but no `gpu_cache::Shader` variant owns it — a \
+                 shader file the real pipeline never compiles is not one this sweep can validate"
+            )
+        });
+        let points = entry_points(source);
         assert!(
             !points.is_empty(),
             "{file} has no @vertex/@fragment entry point -- the sweep found nothing to validate, \
              which means it would silently skip this shader rather than covering it"
         );
         for (stage, entry_point) in &points {
-            validate_and_glsl(&source, *stage, &file, entry_point);
+            validate_and_glsl(source, *stage, &file, entry_point);
         }
     }
 }

@@ -42,15 +42,9 @@ struct VsOut {
     @location(4) corner: f32,
 };
 
-// Unit quad corners (two triangles) in [0,1] (UV space).
-var<private> UV_CORNERS: array<vec2<f32>, 6> = array<vec2<f32>, 6>(
-    vec2<f32>(0.0, 0.0), vec2<f32>(1.0, 0.0), vec2<f32>(1.0, 1.0),
-    vec2<f32>(0.0, 0.0), vec2<f32>(1.0, 1.0), vec2<f32>(0.0, 1.0),
-);
-
 @vertex
 fn vs_main(@builtin(vertex_index) vid: u32, inst: Instance) -> VsOut {
-    let uv = UV_CORNERS[vid];
+    let uv = QUAD_UV[vid];
     let px = inst.dst_min + uv * inst.dst_size;
 
     let ndc = vec2<f32>(
@@ -67,13 +61,6 @@ fn vs_main(@builtin(vertex_index) vid: u32, inst: Instance) -> VsOut {
     out.alpha = inst.alpha;
     out.corner = inst.corner;
     return out;
-}
-
-// Signed distance to a rounded rectangle centered at origin with half-size `b`
-// and corner radius `r`. Negative inside, positive outside. (selection.wgsl.)
-fn sd_round_rect(p: vec2<f32>, b: vec2<f32>, r: f32) -> f32 {
-    let q = abs(p) - b + vec2<f32>(r, r);
-    return min(max(q.x, q.y), 0.0) + length(max(q, vec2<f32>(0.0, 0.0))) - r;
 }
 
 @fragment

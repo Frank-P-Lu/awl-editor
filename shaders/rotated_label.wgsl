@@ -58,15 +58,9 @@ struct VsOut {
     @location(3) alpha: f32,
 };
 
-// Unit quad corners (two triangles) in [0,1].
-var<private> CORNERS: array<vec2<f32>, 6> = array<vec2<f32>, 6>(
-    vec2<f32>(0.0, 0.0), vec2<f32>(1.0, 0.0), vec2<f32>(1.0, 1.0),
-    vec2<f32>(0.0, 0.0), vec2<f32>(1.0, 1.0), vec2<f32>(0.0, 1.0),
-);
-
 @vertex
 fn vs_main(@builtin(vertex_index) vid: u32, inst: Instance) -> VsOut {
-    let corner = CORNERS[vid];
+    let corner = QUAD_UV[vid];
     // The corner in the RUN'S OWN frame, then rotated onto the screen axis.
     let local = inst.ink_min + corner * inst.ink_size;
     let ax = normalize(inst.axis);
