@@ -342,8 +342,8 @@ reason = "+1: the Range rail's read hands the accessory column's ANCHOR and its 
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay_draw.rs"
-lines = 542
-reason = "The footer plate earns the notice channel's own one-pixel rim, which is what lifts it from delta-E 1.91 to 54 on Cassowary -- a plate nobody can see is not a plate. +2: parking the new rim alongside every other overlay pipeline, so a frame that does not draw it cannot leave last frame's quad on screen. +2: the docked facet strip contributes its single dedicated text area through the shared overlay upload owner."
+lines = 543
+reason = "The footer plate earns the notice channel's own one-pixel rim, which is what lifts it from delta-E 1.91 to 54 on Cassowary -- a plate nobody can see is not a plate. +2: parking the new rim alongside every other overlay pipeline, so a frame that does not draw it cannot leave last frame's quad on screen. +2: the docked facet strip contributes its single dedicated text area through the shared overlay upload owner. +1: a query-caret comment split to its own line under the column limit."
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay_rows.rs"
