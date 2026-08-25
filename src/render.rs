@@ -1941,15 +1941,22 @@ pub struct TextPipeline {
     /// rectangle, exactly right for a selection range.
     pub caret_invert: SelectionPipeline,
     pub ornament_renderer: TextRenderer,
-    /// THE FOLD CHEVRON — `›`/`⌄`, two rotated-quad arms meeting at a vertex
-    /// ([`crate::selection::chevron_arms`]), drawn OUTSIDE the glyphon
-    /// text pipeline (glyphon 0.11 carries no transform, so a shaped run cannot
-    /// rotate — `docs/render.md`'s "Rotated labels" section). Built + uploaded by
-    /// `TextPipeline::prepare_fold_chevron_marks`, drawn in `draw_document_content`
-    /// alongside `ornament_renderer` (the mark's other document-margin siblings —
-    /// rule glyphs, bullets, the fold TAIL — stay glyphon; only the chevron, which
-    /// must turn, left that pipeline).
-    pub fold_chevron_pipeline: SelectionPipeline,
+    /// THE FOLD CHEVRON — a real font glyph (`Theme::fold_mark`: `›`/`☞`/`▸`,
+    /// per world), composed into an R8 coverage mask and drawn on a QUAD
+    /// rotated onto an axis — the SAME mechanism `rotated_label_pipeline`
+    /// draws the rotated location cue through, reused wholesale rather than a
+    /// second rotation mechanism (glyphon 0.11 carries no transform). Built +
+    /// uploaded by `TextPipeline::prepare_fold_chevron_marks`, drawn in
+    /// `draw_document_content` alongside `ornament_renderer`. At most two
+    /// marks are ever summoned at once (`fold::chevron_revealed`: the caret's
+    /// own heading, the hovered heading), so this holds one label pipeline
+    /// PER SUMMONED MARK, grown lazily and left in place.
+    pub fold_chevron_labels: Vec<crate::rotated_label::RotatedLabelPipeline>,
+    /// Compose-once cache parallel to [`Self::fold_chevron_labels`], the same
+    /// shape `rotated_location_mask` caches the location cue with: an
+    /// unchanged mark in a slot (the common case — the caret parked on the
+    /// same heading across many frames) re-uploads no texture.
+    fold_chevron_label_masks: Vec<Option<crate::rotated_label::mask::LabelMask>>,
     pub table_renderer: TextRenderer,
     pub table_rule_pipeline: SelectionPipeline,
     pub panel_card: SelectionPipeline,
@@ -2021,6 +2028,10 @@ pub struct TextPipeline {
     caret_affinity: crate::caret::Affinity,
     scroll: ScrollPos,
     metrics: Metrics,
+    /// The swap-chain/capture target format, from construction — kept so a
+    /// pipeline grown LAZILY after `new()` (`fold_chevron_labels`) can build
+    /// with the same format every other pipeline here was built with.
+    format: wgpu::TextureFormat,
     dpi: f32,
     /// Last window/canvas WIDTH in physical pixels (from `set_size`). PAGE MODE
     /// centers the column within this, so the column left/width are derived from

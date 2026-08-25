@@ -26,23 +26,6 @@ pub fn spine_segment(
     (center, half, axis)
 }
 
-/// Cap a spine segment's own corner radius to at most its
-/// SHORTER half-extent (half its length, half its thickness), mirroring
-/// `render::chrome::narrowed_chamfer_px`'s "clamp a decorative cut to the
-/// shape's own geometry" shape. The shader's per-fragment SDF already clamps
-/// `min(g.corner, min(hsize.x, hsize.y))` (`selection.wgsl`'s `fs_main`), so
-/// this CPU-side twin is belt-and-suspenders: it lets a caller reason about
-/// the drawn shape (and pick one shared `SelectionPipeline::set_corner` value
-/// across a whole spine of differently-sized segments) before anything
-/// reaches the GPU, rather than discovering the clamp only in the rendered
-/// pixels.
-pub fn narrowed_spine_corner_px(corner_px: f32, half_len: f32, half_thick: f32) -> f32 {
-    corner_px
-        .min(half_len.max(0.0))
-        .min(half_thick.max(0.0))
-        .max(0.0)
-}
-
 /// THE ROTATABLE CHEVRON — the ONE owner of the mark's shape, for every surface
 /// that draws a chevron out of rotated quads. Two [`spine_segment`] arms meeting
 /// at a vertex DERIVED from the arm ends, so the mark's two halves cannot drift

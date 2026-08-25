@@ -13,20 +13,33 @@
 //! **The mark lives outside the glyphon text pipeline.** glyphon 0.11 carries no
 //! transform of any kind — `TextArea` exposes `left/top/scale/bounds/default_color/
 //! custom_glyphs` and nothing else — so a shaped run cannot rotate (`docs/render.md`'s
-//! "Rotated labels" section). The mark's SHAPE is not this module's to own: it comes
-//! from [`crate::selection::chevron_arms`], the one rotatable-chevron owner shared by
-//! every surface that draws this mark, and is uploaded through
-//! `SelectionPipeline::prepare_rotated`. What this module owns is the mark's PLACEMENT
-//! (the writing column's leading pad), its SUMMONING (caret or hover on a heading) and
-//! its DIRECTION SOURCE (`folded_headings`). `rotated_label/` and
-//! `render/rotated_location.rs` are the other two rotation precedents in this codebase;
-//! this is not a third — it rides `prepare_rotated`, the same axis-rotated-quad
-//! primitive the overlay's diagonal spine rides, not a new transform mechanism.
+//! "Rotated labels" section). The mark's SHAPE is not this module's to own: each world
+//! draws a real font glyph ([`crate::theme::Theme::fold_mark`] — `›`/`☞`/`▸`, derived
+//! from the world's own ornament register, never a hand-picked list), composed into an
+//! R8 coverage mask and drawn on a quad rotated onto an axis through
+//! [`crate::rotated_label::RotatedLabelPipeline`] — the SAME mechanism the rotated
+//! location cue rides (`render/rotated_location.rs`), reused wholesale rather than a
+//! second rotation mechanism. What this module owns is the mark's PLACEMENT (the
+//! writing column's leading pad), its SUMMONING (caret or hover on a heading), its
+//! DIRECTION SOURCE (`folded_headings`), and the shape+size fit that keeps the composed
+//! glyph inside that placement box.
 
 use super::*;
 
-const GAP_CHARS: f32 = 0.3;
-const WIDTH_CHARS: f32 = 1.0;
+/// The gap (chars, at the mark's own scale) between the mark's box and the
+/// text it hangs beside.
+const GAP_CHARS: f32 = 0.2;
+/// The mark's own box width (chars, at the mark's own scale) — sized to hold
+/// the WIDEST shipped mark (the Junicode register's manicule) at its own
+/// [`crate::theme::FoldMark::size_frac`], not merely a single glyph's advance.
+/// `GAP_CHARS + WIDTH_CHARS` must stay comfortably under `3.0` (the fixed
+/// `PAGE_TEXT_PAD_CHARS` lead every world reserves): `fold_chevron_scale`'s own
+/// pad-fit ratio is `PAGE_TEXT_PAD_CHARS / (GAP_CHARS + WIDTH_CHARS)`, and that
+/// ratio must clear the tallest heading rung ([`crate::markdown::heading_scale`]'s
+/// own `TITLE` = 1.6) with real margin or H1's mark silently loses its
+/// full ladder step to the pad clamp — see
+/// `render::tests::fold_chevron_center::fold_chevron_ink_and_box_ride_the_heading_ladder`.
+const WIDTH_CHARS: f32 = 1.6;
 
 /// The mark rides its OWN heading's type-scale step (Ladder J, via
 /// [`crate::markdown::heading_scale`]): an H1's chevron is bigger than an H3's
@@ -42,20 +55,6 @@ pub(in crate::render) fn fold_chevron_scale(level: u8, char_width: f32, pad: f32
     let fit = if need > 0.0 { pad / need } else { 1.0 };
     crate::markdown::heading_scale(level).clamp(1.0, fit.max(1.0))
 }
-
-/// Half the mark's reach along its pointing axis, and its half-spread across —
-/// both fractions of `char_width` (so the mark scales with zoom/dpi exactly as
-/// the glyph it replaces did). Sized to stay inside the mark's own hit box
-/// (`WIDTH_CHARS` wide) at ANY turn angle: at `turn=0°` the shape's horizontal
-/// extent is `2*reach` and its vertical extent `2*spread`; at `turn=90°` the two
-/// SWAP. Both stay comfortably under `WIDTH_CHARS * char_width` with room left
-/// for the stroke's own half-thickness. Deliberately UNEQUAL (not a square): a
-/// collapsed `›` reads WIDER than tall, an expanded `⌄` reads TALLER than wide —
-/// so the mark's own ink footprint, not merely its vertex angle, carries the
-/// direction cue, and a law can grade that swap directly off rendered pixels.
-const REACH_CHARS: f32 = 0.30;
-const SPREAD_CHARS: f32 = 0.22;
-const STROKE_CHARS: f32 = 0.14;
 
 /// The quarter turn's duration — a snappy, occasional-choice motion (DESIGN.md
 /// §4: "Menu navigation and other occasional choices may use visible transitions,
@@ -98,26 +97,48 @@ impl FoldChevronGeom {
     }
 }
 
-/// This mark's own turn, in degrees, from the fold state's turn FRACTION: `0.0`
-/// traces `›` (collapsed — pointing INTO the hidden section) and `90.0` traces
-/// `⌄` (expanded — pointing DOWN at the now-visible body), with every value in
-/// between a continuous glide of the quarter turn. Which angles those are, and
-/// how the shape rotates through them, belongs to
-/// [`crate::selection::chevron_arms`]; what belongs HERE is only that this
-/// mark's two settled states are a quarter turn apart.
-fn fold_chevron_turn_deg(fraction: f32) -> f32 {
-    90.0 * fraction
+/// This mark's own screen AXIS ANGLE, in [`crate::rotated_label::geometry::
+/// label_axis_deg`]'s own protractor convention, from the fold state's turn
+/// FRACTION. Every shipped mark is authored pointing RIGHT at rest (the
+/// glyph's own natural reading, `›`/`☞`/`▸` all point right unrotated) — `0.0`
+/// keeps that reading (collapsed). `label_axis_deg` reads its angle
+/// counter-clockwise as a reader would name it, so turning the SAME rightward
+/// advance direction to point straight DOWN the screen (expanded) is `-90.0`,
+/// which `label_axis_deg`'s own `rem_euclid` folds to its exact `270.0`
+/// quadrant branch — never `90.0`, which is the OTHER quarter turn (up) and
+/// would mirror the mark rather than rotate it. Proved on rendered pixels, not
+/// merely derived: `captures/item-475-glyph-survey`'s
+/// `fold_mark_candidates_settle_in_opposite_directions` grades exactly this
+/// sign for every candidate before this round picked one.
+fn fold_mark_axis_deg(fraction: f32) -> f32 {
+    -90.0 * fraction
 }
 
-/// The mark's `(reach, spread, thickness)` at a given `char_width` — ONE owner
-/// for the three authored fractions, so a law grades the numbers the frame
-/// actually draws with rather than a second copy of the same arithmetic.
-pub(in crate::render) fn fold_chevron_mark_metrics(char_width: f32) -> (f32, f32, f32) {
-    (
-        char_width * REACH_CHARS,
-        char_width * SPREAD_CHARS,
-        (char_width * STROKE_CHARS).max(1.0),
-    )
+/// Shape one mark glyph into its own one-glyph buffer — the CPU-only half
+/// `LabelMask::compose` then rasterises. Mirrors the survey's own
+/// `shape_one_char` (`captures/item-475-glyph-survey`'s gallery test): a
+/// short-lived buffer just big enough for one glyph, no wrap, no line
+/// breaking (a label capability, not the document renderer).
+fn shape_fold_mark(
+    font_system: &mut FontSystem,
+    face: &'static str,
+    ch: char,
+    px: f32,
+) -> GlyphBuffer {
+    let mut buf = GlyphBuffer::new(font_system, GlyphMetrics::new(px, px * 1.3));
+    buf.set_size(font_system, Some(px * 4.0), Some(px * 2.0));
+    buf.set_wrap(font_system, Wrap::None);
+    let mut s = String::new();
+    s.push(ch);
+    buf.set_text(
+        font_system,
+        &s,
+        &Attrs::new().family(Family::Name(face)),
+        Shaping::Advanced,
+        None,
+    );
+    buf.shape_until_scroll(font_system, false);
+    buf
 }
 
 impl TextPipeline {
@@ -281,22 +302,28 @@ impl TextPipeline {
         })
     }
 
-    /// Build + upload this frame's fold-chevron arms (two per mark, from the
-    /// shared [`crate::selection::chevron_arms`] owner) through
-    /// `SelectionPipeline::prepare_rotated`. The pipeline's color is NOT set
-    /// here — it re-tints in `sync_theme_colors`, matching every other
-    /// document-layer `SelectionPipeline`'s construction-time /
-    /// theme-sync-only convention (`wash_comment_pipeline` et al.), never a
-    /// per-frame re-set. Empty when nothing is summoned, so a default (no
-    /// hover/caret-on-heading) capture uploads zero instances.
+    /// Build + upload this frame's fold-chevron marks — one
+    /// [`crate::rotated_label::RotatedLabelPipeline`] per currently-summoned
+    /// mark (`fold::chevron_revealed` allows at most two: the caret's own
+    /// heading, the hovered heading), grown into [`Self::fold_chevron_labels`]
+    /// lazily and parked (`clear()`) past however many marks this frame
+    /// actually carries. Every mark this frame draws the SAME world-picked
+    /// glyph ([`crate::theme::Theme::fold_mark`]) — the only thing that
+    /// differs between two simultaneous marks is their own heading's size
+    /// step and fold state, exactly mirroring the old quad implementation's
+    /// per-mark independence (`render::tests::fold_chevron_center`'s
+    /// mixed-batch law: one mark's pixels are byte-identical to its solo
+    /// frame's, regardless of who shares the frame — trivially true here
+    /// since each mark owns its own pipeline and texture, not a shared
+    /// per-batch uniform).
     ///
-    /// The batch's shared corner radius is narrowed by
-    /// [`crate::selection::narrowed_spine_corner_px`] across every arm this
-    /// frame actually built, because `set_corner` is ONE value for the whole
-    /// batch: at the shipped `REACH_CHARS`/`SPREAD_CHARS`/`STROKE_CHARS` an arm
-    /// is always several times longer than the stroke is thick, so the fold is
-    /// inert there — it binds only if a future weight or reach makes an arm
-    /// shorter than its own stroke, which is the case that over-rounds.
+    /// The mask CACHE ([`Self::fold_chevron_label_masks`]) is content-addressed
+    /// per slot (`LabelMask::matches`), not heading-addressed: two marks
+    /// asking for the same glyph at the same size (two same-level headings)
+    /// share a cache hit if they land in the same slot, and a slot recomposes
+    /// on any real change (fold state, heading level, or the mark swapping
+    /// which heading it belongs to) — cheap either way, since at most two
+    /// marks ever draw in one frame.
     pub(in crate::render) fn prepare_fold_chevron_marks(
         &mut self,
         device: &wgpu::Device,
@@ -305,46 +332,71 @@ impl TextPipeline {
         height: u32,
     ) {
         let marks = self.fold_chevron_geometries();
-        // Each mark's ink is sized from the SAME pad-clamped Ladder-J scale its
-        // box was ([`FoldChevronGeom::scale`]) — the metrics owner still holds
-        // the three authored fractions, fed the mark's own effective char width.
-        let sized: Vec<(&FoldChevronGeom, (f32, f32, f32))> = marks
-            .iter()
-            .map(|g| {
-                (
-                    g,
-                    fold_chevron_mark_metrics(self.metrics.char_width * g.scale),
-                )
-            })
-            .collect();
-        let quads: Vec<([f32; 2], [f32; 2], [f32; 2])> = sized
-            .iter()
-            .flat_map(|(g, (reach, spread, thickness))| {
-                let center = [g.left + g.width * 0.5, g.row_center()];
-                let turn_deg =
-                    fold_chevron_turn_deg(self.fold_chevron_turn_fraction(g.line, g.collapsed));
-                crate::selection::chevron_arms(center, *reach, *spread, turn_deg, *thickness)
-            })
-            .collect();
-        // `set_corner` stays one value per batch; a mixed-size batch (caret on
-        // one heading, hover on another) seeds from the SMALLEST mark's
-        // half-stroke so no mark's rounding exceeds its own stroke.
-        let seed = sized
-            .iter()
-            .map(|(_, (_, _, thickness))| thickness * 0.5)
-            .fold(f32::INFINITY, f32::min);
-        let seed = if seed.is_finite() {
-            seed
-        } else {
-            // Empty batch: no instances draw, but the uniform still wants a
-            // real number — the base mark's own half-stroke.
-            fold_chevron_mark_metrics(self.metrics.char_width).2 * 0.5
-        };
-        let corner = quads.iter().fold(seed, |corner, (_, half, _)| {
-            crate::selection::narrowed_spine_corner_px(corner, half[0], half[1])
-        });
-        self.fold_chevron_pipeline.set_corner(corner);
-        self.fold_chevron_pipeline
-            .prepare_rotated(device, queue, width, height, &quads);
+        let spec = theme::fold_mark();
+        let ink = srgb_u8_to_linear3(theme::fold_afford_chevron_ink().rgba_bytes());
+
+        while self.fold_chevron_labels.len() < marks.len() {
+            self.fold_chevron_labels
+                .push(crate::rotated_label::RotatedLabelPipeline::new(
+                    device,
+                    self.format,
+                ));
+            self.fold_chevron_label_masks.push(None);
+        }
+        for label in self.fold_chevron_labels.iter_mut().skip(marks.len()) {
+            label.clear();
+        }
+
+        for (i, g) in marks.iter().enumerate() {
+            // The SAME pad-clamped Ladder-J scale the box was built from
+            // ([`FoldChevronGeom::scale`]), applied to the heading's own font
+            // size — so the mark rides the ladder exactly as the box does —
+            // then the register's own [`crate::theme::FoldMark::size_frac`],
+            // which exists ONLY because the manicule's ink footprint is wider,
+            // at any font size, than the box `WIDTH_CHARS` affords (see that
+            // field's own doc); every other register's `1.0` leaves this a
+            // pure ladder-scaled font size.
+            let font_size = self.metrics.font_size * g.scale * spec.size_frac;
+            let buf = shape_fold_mark(&mut self.font_system, spec.face, spec.ch, font_size);
+            let stale = match &self.fold_chevron_label_masks[i] {
+                Some(mk) => !mk.matches(&buf),
+                None => true,
+            };
+            if stale {
+                self.fold_chevron_label_masks[i] = crate::rotated_label::mask::LabelMask::compose(
+                    device,
+                    queue,
+                    &mut self.font_system,
+                    &mut self.swash_cache,
+                    &buf,
+                );
+            }
+            let Some(mask) = self.fold_chevron_label_masks[i].as_ref() else {
+                // Whitespace-only / no rasterisable ink for this glyph — should
+                // not happen for a real mark spec, but leaves nothing to draw
+                // rather than upload a stale texture.
+                self.fold_chevron_labels[i].clear();
+                continue;
+            };
+
+            let fraction = self.fold_chevron_turn_fraction(g.line, g.collapsed);
+            let axis = crate::rotated_label::geometry::label_axis_deg(fold_mark_axis_deg(fraction));
+            // Solve the pen ORIGIN so the mask's own ink CENTER — not its
+            // corner — lands on the box's screen center at every turn: the
+            // ink center's local offset rotates WITH the axis (the same two
+            // basis vectors the shader draws through), so re-deriving it each
+            // frame is what keeps the mark visually pivoting in place through
+            // the glide rather than orbiting around a fixed corner.
+            let ink_box = mask.ink();
+            let local_center = [ink_box[0] + ink_box[2] * 0.5, ink_box[1] + ink_box[3] * 0.5];
+            let screen_center = [g.left + g.width * 0.5, g.row_center()];
+            let offset =
+                crate::rotated_label::geometry::label_point([0.0, 0.0], axis, local_center);
+            let origin = [screen_center[0] - offset[0], screen_center[1] - offset[1]];
+
+            self.fold_chevron_labels[i].prepare(
+                device, queue, width, height, mask, origin, axis, ink, ink, 1.0,
+            );
+        }
     }
 }

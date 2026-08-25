@@ -143,6 +143,11 @@ pub fn fold_afford_tail_ink() -> Srgb {
     )
 }
 
+/// The active world's fold-chevron mark — see [`Theme::fold_mark`].
+pub fn fold_mark() -> super::ornament::FoldMark {
+    active().fold_mark()
+}
+
 pub fn card_texture_ink() -> Srgb {
     let t = active();
     t.muted.lerp(t.base_300, 0.25)

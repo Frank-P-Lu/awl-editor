@@ -688,7 +688,7 @@ pub(crate) fn srgba_u8_to_linear(c: [u8; 4]) -> [f32; 4] {
 }
 
 mod spine;
-pub use spine::{chevron_arms, narrowed_spine_corner_px, spine_segment};
+pub use spine::{chevron_arms, spine_segment};
 
 #[cfg(test)]
 mod tests;

@@ -29,7 +29,11 @@ fn every_sync_owned_pipeline_is_tinted_the_same_after_construction_and_a_live_sy
 }
 
 /// Exactly the fields `sync_theme_colors` writes. Per-frame owners such as the
-/// footer rim and selected spine are deliberately absent.
+/// footer rim and selected spine are deliberately absent — as is
+/// `fold_chevron_labels` (a `Vec`, not a `SelectionPipeline`, so it carries no
+/// `test_color()` at all): it reads `theme::fold_afford_chevron_ink()` fresh
+/// at `prepare()` time, matching `rotated_label_pipeline`'s own
+/// prepare-time-argument convention rather than a persistent `set_color`.
 fn sync_owned_tints(p: &TextPipeline) -> Vec<(&'static str, Vec<f32>)> {
     let mut tints = sync_owned_surface_tints(p);
     tints.extend(sync_owned_overlay_tints(p));
@@ -84,10 +88,6 @@ fn sync_owned_surface_tints(p: &TextPipeline) -> Vec<(&'static str, Vec<f32>)> {
         (
             "table_rule_pipeline",
             p.table_rule_pipeline.test_color().to_vec(),
-        ),
-        (
-            "fold_chevron_pipeline",
-            p.fold_chevron_pipeline.test_color().to_vec(),
         ),
         ("panel_card", p.panel_card.test_color().to_vec()),
         ("panel_shadow", p.panel_shadow.test_color().to_vec()),

@@ -214,6 +214,92 @@ fn every_world_has_a_bullet_pair() {
     );
 }
 
+/// NEVER-DRIFT law (per-world FOLD MARK): every world's fold-chevron glyph
+/// (`Theme::fold_mark`) is DERIVED from its `ornament_face`, never a
+/// per-world literal — proved by construction rather than by inspection:
+/// [`OrnamentRegister::ALL`] is the exhaustive roster `fold_mark_for` matches
+/// with no wildcard arm (a fourth register fails to compile there until it is
+/// given a mark), so this test only has to prove EVERY world's own
+/// `ornament_face` actually resolves to one of the three (no silent
+/// fallthrough), and that the resolved mark for a given register is the SAME
+/// mark regardless of which world asked — the only way `fold_mark` could stay
+/// per-world data by accident (two Junicode-register worlds getting two
+/// different marks) rather than a real derivation.
+#[test]
+fn every_world_has_a_fold_mark_derived_from_its_ornament_register() {
+    // The user-picked spec (item-475 glyph survey), pinned by VALUE: a
+    // regression here is a taste regression, not a mechanism one.
+    assert_eq!(
+        fold_mark_for(OrnamentRegister::Garamond),
+        FoldMark {
+            ch: '\u{203A}',
+            face: ORNAMENT_GARAMOND,
+            size_frac: 1.0,
+        },
+        "Garamond register: EB Garamond's angle-quote"
+    );
+    assert_eq!(
+        fold_mark_for(OrnamentRegister::Junicode),
+        FoldMark {
+            ch: '\u{261E}',
+            face: ORNAMENT_GARAMOND,
+            size_frac: 0.7,
+        },
+        "Junicode register: the EB-Garamond manicule"
+    );
+    assert_eq!(
+        fold_mark_for(OrnamentRegister::Marks),
+        FoldMark {
+            ch: '\u{25B8}',
+            face: "Iosevka",
+            size_frac: 1.0,
+        },
+        "Marks register: Iosevka's disclosure triangle"
+    );
+
+    // Every register in the roster gets a mark with REAL ink dimensions (a
+    // sentinel default/zero spec would pass every other assertion here).
+    for register in OrnamentRegister::ALL {
+        let mark = fold_mark_for(register);
+        assert!(
+            !mark.face.is_empty() && mark.size_frac > 0.0,
+            "{register:?}: fold mark must be a real (face, size) spec, got {mark:?}"
+        );
+    }
+
+    // Every world's ornament_face resolves (no panic — `ornament_register`
+    // panics on an unregistered face) to the SAME mark every other world
+    // sharing that register gets: the derivation is a pure function of the
+    // register, not a second per-world table that happens to agree today.
+    for t in THEMES.iter() {
+        let register = ornament_register(t.ornament_face);
+        assert_eq!(
+            t.fold_mark(),
+            fold_mark_for(register),
+            "{}: Theme::fold_mark must equal fold_mark_for(its own register) exactly",
+            t.name
+        );
+    }
+
+    // Non-vacuous grouping check: the three registers are represented (every
+    // world lands in one of them), and worlds sharing a register share a
+    // mark while worlds in different registers draw different marks — the
+    // property a hand-per-world list could violate silently.
+    for a in THEMES.iter() {
+        for b in THEMES.iter() {
+            let same_register =
+                ornament_register(a.ornament_face) == ornament_register(b.ornament_face);
+            assert_eq!(
+                a.fold_mark() == b.fold_mark(),
+                same_register,
+                "{} vs {}: fold marks must agree iff their ornament registers agree",
+                a.name,
+                b.name
+            );
+        }
+    }
+}
+
 /// NEVER-DRIFT law (per-world LIST-ITEM INDENT): every world's
 /// [`Theme::list_indent_scale`] is exactly one of the two named tier constants
 /// (no stray literal, mirroring [`every_world_has_a_bullet_pair`]'s

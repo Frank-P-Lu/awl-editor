@@ -1,14 +1,27 @@
-//! The fold chevron's DIRECTION law: a collapsed heading and an
+//! The fold mark's DIRECTION law: a collapsed heading and an
 //! expanded one must draw genuinely DIFFERENT marks in a still frame, before
-//! any animation exists. This is the defect's core (`fold_chevron.rs` used to
-//! shape one fixed glyph, `\u{203A}`, regardless of fold state) and the exact
-//! property CLAUDE.md's tripwire list warns a law can miss: "a law that
+//! any animation exists. This is the defect's original core (`fold_chevron.rs`
+//! once shaped one fixed glyph, `\u{203A}`, regardless of fold state) and the
+//! exact property CLAUDE.md's tripwire list warns a law can miss: "a law that
 //! counts instances or measures extent cannot see the property it is named
 //! for" — a selected mark can change shape completely while three
 //! `instance_count() == 2` laws stay green, because a chevron is ALSO two
 //! segments spanning the same box. Every law below grades the ANGLE or the
 //! ink's own SHAPE — never a count — so a reintroduced direction-blind bug
 //! cannot hide behind "the mechanism still fired".
+//!
+//! The fold mark itself moved from rotated quads to a real font glyph
+//! (`Theme::fold_mark`) rotated through `RotatedLabelPipeline` — the
+//! REAL-PIXEL laws below (`fold_chevron_ink_bbox_flips_aspect_…`,
+//! `fold_chevron_turn_progresses_…`, `a_heading_folded_over_an_empty_section_…`)
+//! grade that production path directly and stay the file's headline
+//! coverage. The two PURE-GEOMETRY laws just below them
+//! (`fold_chevron_arms_point_right_…`,
+//! `fold_chevron_arms_turn_continuously_…`) grade `chevron_arms` itself — the
+//! rotatable-chevron primitive the fold mark no longer draws through, but the
+//! overlay's diagonal selected-row marker (`chrome::diagonal::selected_chevron`,
+//! `render::tests::marker_chevron_owner`) still does — kept here as the
+//! general contract the mark's own two-arm shape must hold for ANY caller.
 
 use super::super::*;
 use super::{headless_dqp, pixeldiff, view_md};
@@ -244,21 +257,37 @@ fn fold_chevron_turn_progresses_on_injected_dt_and_settles_exactly() {
 }
 
 /// THE HEADLINE STILL-FRAME LAW, on real rendered pixels rather than only the
-/// pure formula above. Isolates the mark exactly as
-/// `fold_chevron_center.rs` does (differenced against a no-hover REST
-/// frame, so only the mark's own ink survives), then measures each state's
-/// own ink BOUNDING BOX. `fold_chevron.rs`'s `REACH_CHARS`/`SPREAD_CHARS` are
-/// deliberately unequal, so the collapsed mark's box reads WIDER than tall and
-/// the expanded mark's reads TALLER than wide — an aspect-ratio INVERSION,
-/// not merely "some pixel changed". A same-shape regression collapses both
-/// ratios toward the same side of 1.0; this is the law watched red against
-/// exactly that mutation (see the round's report for the panic text).
+/// pure formula above. Isolates the mark exactly as `fold_chevron_center.rs`
+/// does (differenced against a no-hover REST frame, so only the mark's own
+/// ink survives), then grades TWO glyph-shape-agnostic properties on each
+/// state's own ink — the same pair
+/// `captures/item-475-glyph-survey`'s own
+/// `fold_mark_candidates_settle_in_opposite_directions` proved on every
+/// candidate before this round picked one:
+///
+/// 1. EXACT TRANSPOSE: a quarter turn swaps the ink bbox's width and height —
+///    a hard geometric identity for ANY non-square glyph rotated 90°, so it
+///    proves the turn genuinely rotates the mask rather than leaving it
+///    inert. (An aspect-RATIO assertion — "collapsed reads wider than tall" —
+///    does NOT generalize across the three shipped marks: Iosevka's `▸`
+///    upright reads taller than wide, so that framing would fail on a
+///    correctly-turning mark. Transpose holds regardless of which way a
+///    particular glyph leans.)
+/// 2. TAPER TOWARD THE POINT: the expanded mark's horizontal ink SPAN narrows
+///    toward its BOTTOM edge (the vertex, now pointing down) and stays wider
+///    at its TOP edge (the open end) — the actual "points down" signature, not
+///    merely "some pixel changed".
+///
+/// A same-shape (direction-blind) regression fails BOTH: transpose collapses
+/// to near-identity (collapsed and expanded read the same box), and the taper
+/// direction becomes arbitrary rather than consistently bottom-narrow.
 #[test]
 fn fold_chevron_ink_bbox_flips_aspect_between_collapsed_and_expanded() {
     let _g = crate::testlock::serial();
     let _world = crate::theme::WorldPin::snapshot();
     crate::page::set_page_on(true);
-    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
+    let (width, height) = (1200u32, 800u32);
+    let Some((device, queue, mut p)) = headless_dqp(width as f32, height as f32) else {
         eprintln!("skipping fold-chevron aspect law: no GPU adapter");
         return;
     };
@@ -268,7 +297,12 @@ fn fold_chevron_ink_bbox_flips_aspect_between_collapsed_and_expanded() {
     // Two sibling sections, no soft-wrap — the same fixture `folds.rs` uses.
     let text = "# A\na1\na2\n# B\nb1";
 
-    let bbox_for = |p: &mut TextPipeline, collapsed: bool| -> (i64, i64, i64, i64) {
+    // A diff-isolated ink measurement: the bbox, plus the horizontal SPAN of
+    // changed pixels in a thin strip at the bbox's own top and bottom edge —
+    // the taper law's own oracle, mirroring the survey's `ink_x_span` but
+    // graded off the diff (this frame vs the no-hover rest) rather than off
+    // the page ground, matching this file's own isolation convention.
+    let ink_for = |p: &mut TextPipeline, collapsed: bool| -> (i64, i64, i64, i64, f32, f32) {
         // Caret parked away from the heading in BOTH states (line 4), so only
         // HOVER toggles the chevron — the same isolation the hover laws
         // in `folds.rs` use, so WYSIWYG conceal never contaminates the diff.
@@ -282,11 +316,11 @@ fn fold_chevron_ink_bbox_flips_aspect_between_collapsed_and_expanded() {
         }
         p.set_view(&rest);
         p.set_hover_line(None);
-        p.prepare(&device, &queue, 1200, 800).unwrap();
-        let before = pixeldiff::render_frame(p, &device, &queue, 1200, 800);
+        p.prepare(&device, &queue, width, height).unwrap();
+        let before = pixeldiff::render_frame(p, &device, &queue, width, height);
 
         p.set_hover_line(Some(0));
-        p.prepare(&device, &queue, 1200, 800).unwrap();
+        p.prepare(&device, &queue, width, height).unwrap();
         let geoms = p.fold_chevron_geometries();
         assert_eq!(
             geoms.len(),
@@ -299,17 +333,20 @@ fn fold_chevron_ink_bbox_flips_aspect_between_collapsed_and_expanded() {
             "fixture self-check: the summoned mark's own collapsed bit must match \
              what this closure asked for"
         );
-        let after = pixeldiff::render_frame(p, &device, &queue, 1200, 800);
+        let after = pixeldiff::render_frame(p, &device, &queue, width, height);
 
         let x0 = p.column_left().floor() as i64;
         let x1 = p.text_left().ceil() as i64;
         let y0 = (geom.row_top - geom.row_height).floor() as i64;
         let y1 = (geom.row_top + geom.row_height * 2.0).ceil() as i64;
+        let is_diff = |x: i64, y: i64| -> bool {
+            let i = (y * width as i64 + x) as usize;
+            before[i] != after[i]
+        };
         let (mut minx, mut miny, mut maxx, mut maxy) = (i64::MAX, i64::MAX, i64::MIN, i64::MIN);
-        for y in y0.max(0)..y1.min(800) {
-            for x in x0.max(0)..x1.min(1200) {
-                let i = (y * 1200 + x) as usize;
-                if before[i] != after[i] {
+        for y in y0.max(0)..y1.min(height as i64) {
+            for x in x0.max(0)..x1.min(width as i64) {
+                if is_diff(x, y) {
                     minx = minx.min(x);
                     maxx = maxx.max(x);
                     miny = miny.min(y);
@@ -322,24 +359,47 @@ fn fold_chevron_ink_bbox_flips_aspect_between_collapsed_and_expanded() {
             "the {} chevron must paint SOME pixel in its own margin lane",
             if collapsed { "collapsed" } else { "expanded" }
         );
-        (minx, miny, maxx, maxy)
+        let span = |sy0: i64, sy1: i64| -> f32 {
+            let (mut lo, mut hi) = (i64::MAX, i64::MIN);
+            for y in sy0.max(0)..sy1.min(height as i64) {
+                for x in minx..=maxx {
+                    if is_diff(x, y) {
+                        lo = lo.min(x);
+                        hi = hi.max(x);
+                    }
+                }
+            }
+            if hi >= lo { (hi - lo) as f32 } else { 0.0 }
+        };
+        let strip = ((maxy - miny + 1) as f32 * 0.15).ceil().max(1.0) as i64;
+        let top_span = span(miny, miny + strip);
+        let bottom_span = span(maxy - strip + 1, maxy + 1);
+        (minx, miny, maxx, maxy, top_span, bottom_span)
     };
 
-    let (l0, t0, r0, b0) = bbox_for(&mut p, true);
-    let (l1, t1, r1, b1) = bbox_for(&mut p, false);
+    let (l0, t0, r0, b0, _, _) = ink_for(&mut p, true);
+    let (l1, t1, r1, b1, top1, bottom1) = ink_for(&mut p, false);
     let w0 = (r0 - l0 + 1) as f32;
     let h0 = (b0 - t0 + 1) as f32;
     let w1 = (r1 - l1 + 1) as f32;
     let h1 = (b1 - t1 + 1) as f32;
-    let ratio_collapsed = w0 / h0;
-    let ratio_expanded = w1 / h1;
+
+    // (1) EXACT TRANSPOSE — allowing a couple of raster px for anti-aliased
+    // edge rounding that need not agree bit-for-bit between two independently
+    // rasterised orientations.
+    const TRANSPOSE_EPS: f32 = 2.5;
     assert!(
-        ratio_collapsed > 1.05,
-        "collapsed (›) ink must read WIDER than tall: bbox {w0}x{h0}px, ratio {ratio_collapsed:.3}"
+        (w0 - h1).abs() <= TRANSPOSE_EPS && (h0 - w1).abs() <= TRANSPOSE_EPS,
+        "a quarter turn must transpose the ink bbox's width/height: collapsed \
+         {w0}x{h0}px, expanded {w1}x{h1}px"
     );
+
+    // (2) TAPER TOWARD THE POINT — the expanded mark's ink narrows toward its
+    // bottom (the vertex, now pointing down at the revealed body).
     assert!(
-        ratio_expanded < 0.95,
-        "expanded (⌄) ink must read TALLER than wide: bbox {w1}x{h1}px, ratio {ratio_expanded:.3}"
+        bottom1 < top1,
+        "expanded mark must TAPER toward its BOTTOM edge (vertex pointing \
+         down): top_span={top1:.1}px bottom_span={bottom1:.1}px"
     );
     crate::page::set_page_on(true);
 }

@@ -102,6 +102,107 @@ pub const ORNAMENT_JUNICODE: &str = "Junicode";
 /// equal by a test.
 pub const ORNAMENT_MARKS: &str = "Awl Marks";
 
+// --- The per-world FOLD-MARK glyph (a THIRD thing this same register drives) --
+//
+// The fold chevron (`render::layers::fold_chevron`) draws a real font glyph —
+// `›`/`☞`/`▸` depending on flavour — rotated a quarter turn between its
+// collapsed and expanded states through the `rotated_label` mask capability.
+// WHICH glyph a world draws is keyed off the SAME [`OrnamentRegister`] its
+// section-break fleuron already reads (`Theme::ornament_face`), never a second
+// per-world list: a world's own `ornament_face` classifies it once, and both
+// the fleuron AND the fold mark read that one classification. A new world
+// inherits a fold mark the moment it sets `ornament_face` — there is no
+// second field to remember.
+
+enum_with_all! {
+    /// The three ornament-face FLAVOUR TIERS every world's `ornament_face`
+    /// resolves to — see [`ornament_register`]. Exhaustively matched by
+    /// [`fold_mark_for`], so a fourth tier (a new ornament face constant) is a
+    /// compile error here until it is given a fold mark, not a silent
+    /// fallthrough to one of the other three.
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    pub enum OrnamentRegister {
+        /// The true literary serifs — [`ORNAMENT_GARAMOND`]'s own register.
+        Garamond,
+        /// The antique/expressive worlds — [`ORNAMENT_JUNICODE`]'s register.
+        Junicode,
+        /// The modern/technical/geometric worlds — [`ORNAMENT_MARKS`]'s
+        /// register.
+        Marks,
+    }
+}
+
+/// Classify a world's own `ornament_face` into its [`OrnamentRegister`].
+/// PANICS on an unrecognised face rather than defaulting: `ornament_face` only
+/// ever holds one of the three registered constants (every world literal in
+/// `theme::worlds` sets it to one of them), so reaching the `else` arm means a
+/// FOURTH ornament face was registered without a matching register variant —
+/// exactly the silent-fallthrough this round's brief forbids, so it fails
+/// loud instead of guessing.
+pub fn ornament_register(face: &'static str) -> OrnamentRegister {
+    if face == ORNAMENT_GARAMOND {
+        OrnamentRegister::Garamond
+    } else if face == ORNAMENT_JUNICODE {
+        OrnamentRegister::Junicode
+    } else if face == ORNAMENT_MARKS {
+        OrnamentRegister::Marks
+    } else {
+        panic!(
+            "ornament_register: {face:?} is not one of the three registered ornament \
+             faces (ORNAMENT_GARAMOND/ORNAMENT_JUNICODE/ORNAMENT_MARKS) — a world's \
+             ornament_face must resolve to a real register so its fold mark is never \
+             silently unset"
+        );
+    }
+}
+
+/// One register's fold-mark glyph spec: which char, in which already-bundled
+/// face, at what fraction of the heading's own font size.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct FoldMark {
+    pub ch: char,
+    pub face: &'static str,
+    /// Fraction of the heading's own font size the mark composes at. Every
+    /// register but one draws a glyph already comfortably narrower than its
+    /// leading-pad box at full size (see `render::layers::fold_chevron`'s own
+    /// box-fit numbers); the manicule alone needs a real fraction below 1.0,
+    /// because a pointing hand's ink footprint is wider — at ANY font size —
+    /// than the angle marks the box was originally sized around.
+    pub size_frac: f32,
+}
+
+/// The fold mark this register draws — user-picked from the item-475 glyph
+/// survey (`captures/item-475-glyph-survey/README.md`), each already covered
+/// by an already-bundled OFL face (`assets/fonts/LICENSES.md`; no new font
+/// bytes). An EXHAUSTIVE match, no wildcard arm: a new [`OrnamentRegister`]
+/// variant fails to compile here until it is given a mark.
+pub fn fold_mark_for(register: OrnamentRegister) -> FoldMark {
+    match register {
+        // EB Garamond's own angle-quote — the pre-quad original, from the
+        // true literary serifs' own display face.
+        OrnamentRegister::Garamond => FoldMark {
+            ch: '\u{203A}',
+            face: ORNAMENT_GARAMOND,
+            size_frac: 1.0,
+        },
+        // The manuscript-margin manicule — from EB Garamond (Junicode itself
+        // carries no such glyph), the antique/expressive register's wilder
+        // pick.
+        OrnamentRegister::Junicode => FoldMark {
+            ch: '\u{261E}',
+            face: ORNAMENT_GARAMOND,
+            size_frac: 0.7,
+        },
+        // Iosevka's own disclosure triangle — the modern/technical
+        // register's pick, the classic Finder/macOS convention.
+        OrnamentRegister::Marks => FoldMark {
+            ch: '\u{25B8}',
+            face: "Iosevka",
+            size_frac: 1.0,
+        },
+    }
+}
+
 // --- The per-world ORNAMENT SCALE (how big the section-break fleuron reads) ----
 //
 // A thematic-break line (`---`/`***`/`___`) grows its whole ROW by a scale factor

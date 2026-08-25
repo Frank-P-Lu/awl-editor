@@ -163,7 +163,8 @@ fn assert_chevron_pixel_center(
 }
 
 /// The appearance law baseline alignment cannot express. Every world's real
-/// U+203A mask is differenced against its identical no-hover frame, then its
+/// fold-mark mask (`Theme::fold_mark` — `›`/`☞`/`▸`, per its own ornament
+/// register) is differenced against its identical no-hover frame, then its
 /// visible-pixel bbox is centred on the actual shaped H1/H2/H3 row. This is the
 /// full authored world roster, and the click owner encloses every painted pixel.
 #[test]
@@ -510,18 +511,24 @@ fn two_chevrons_of_different_levels_share_one_batch_each_at_its_own_size() {
     assert_eq!(*h3, h3_solo, "the H3 geom is unchanged by the H1 joining");
     let mixed = pixeldiff::render_frame(&mut p, &device, &queue, width, height);
 
-    // A geom's pixel box, padded a row either side so escaping ink is seen.
-    let boxed = |g: &crate::render::layers::fold_chevron::FoldChevronGeom| {
+    // A geom's EXACT row pixel box — no vertical padding. A font-glyph mark's
+    // own ink can reach further from its row centre than the old quad's did
+    // (the manicule especially, in its EXPANDED/rotated orientation), so a
+    // NEIGHBOURING heading close enough by can have its own ink land inside a
+    // padded search box; the solo centring laws (`assert_chevron_pixel_center`)
+    // already own the escaped-ink sweep with the room to isolate one mark at a
+    // time, so this shared helper stays exact rather than padded.
+    let rowbox = |g: &crate::render::layers::fold_chevron::FoldChevronGeom| {
         (
             g.left.floor() as i32,
-            (g.row_top - g.row_height).floor() as i32,
+            g.row_top.floor() as i32,
             (g.left + g.width).ceil() as i32,
-            (g.row_top + g.row_height * 2.0).ceil() as i32,
+            (g.row_top + g.row_height).ceil() as i32,
         )
     };
 
     // (2) Byte-identity of the H3 mark's box between solo and mixed frames.
-    let (x0, y0, x1, y1) = boxed(h3);
+    let (x0, y0, x1, y1) = rowbox(h3);
     for y in y0.max(0) as u32..(y1.min(height as i32)).max(0) as u32 {
         for x in x0.max(0) as u32..(x1.min(width as i32)).max(0) as u32 {
             let i = (y * width + x) as usize;
@@ -538,18 +545,7 @@ fn two_chevrons_of_different_levels_share_one_batch_each_at_its_own_size() {
     // measured inside its own box in the frame where both are live. The caret
     // also reveals the H1's raw markdown, but that ink lives at text_left and
     // rightward — each geom box ends a gap short of it, so the diff inside the
-    // box is the chevron alone. EXACT row bounds here, not the padded box: the
-    // tall H1 row's padded box reaches down into the H3 mark's own rows, and a
-    // measure that swept both would blame one mark for the other's ink (the
-    // solo centring laws already own the escaped-ink sweep).
-    let rowbox = |g: &crate::render::layers::fold_chevron::FoldChevronGeom| {
-        (
-            g.left.floor() as i32,
-            g.row_top.floor() as i32,
-            (g.left + g.width).ceil() as i32,
-            (g.row_top + g.row_height).ceil() as i32,
-        )
-    };
+    // box is the chevron alone.
     let (bx, by, bx1, by1) = rowbox(h1);
     let (h1_ink, _) = changed_pixels_in(&base, &mixed, width, height, bx, by, bx1, by1);
     let (cx, cy, cx1, cy1) = rowbox(h3);
@@ -568,6 +564,46 @@ fn two_chevrons_of_different_levels_share_one_batch_each_at_its_own_size() {
             delta <= 1.5,
             "line {}: mixed-batch mark ink centres {delta:.2}px off its own row",
             g.line
+        );
+    }
+}
+
+/// COVERAGE, through the REAL production fontdb rather than assumed from the
+/// survey — mirrors `markdown::bullet_glyphs_resolve_in_each_worlds_assigned_face`'s
+/// own method (a real `charmap.map(ch)` lookup against the loaded face), swept
+/// over [`crate::theme::OrnamentRegister::ALL`] rather than the world roster:
+/// every register's `fold_mark_for` glyph is real ink in its own named face,
+/// no tofu, checked against the SAME `FontSystem` `prepare_fold_chevron_marks`
+/// shapes through.
+#[test]
+fn fold_mark_glyphs_resolve_in_their_own_registers_face() {
+    let _g = crate::testlock::serial();
+    let Some(mut p) = super::headless_pipeline() else {
+        eprintln!("skipping fold_mark_glyphs_resolve_in_their_own_registers_face: no wgpu adapter");
+        return;
+    };
+    for register in crate::theme::OrnamentRegister::ALL {
+        let mark = crate::theme::fold_mark_for(register);
+        let id = p
+            .font_system
+            .db()
+            .faces()
+            .find(|f| f.families.iter().any(|(n, _)| n == mark.face))
+            .map(|f| f.id)
+            .unwrap_or_else(|| {
+                panic!("{register:?}: fold-mark face {:?} is registered", mark.face)
+            });
+        let font = p
+            .font_system
+            .get_font(id, glyphon::cosmic_text::fontdb::Weight::NORMAL)
+            .unwrap_or_else(|| panic!("{register:?}: fold-mark face {:?} loads", mark.face));
+        let charmap = font.as_swash().charmap();
+        assert!(
+            charmap.map(mark.ch) != 0,
+            "{register:?}: fold mark {:?} (U+{:04X}) is NOT in its own face {:?} — tofu",
+            mark.ch,
+            mark.ch as u32,
+            mark.face
         );
     }
 }

@@ -1,7 +1,11 @@
 pub use super::icon_ground::IconGround;
 pub use super::palette::{PaletteRole, ResolvedTwoColour, TwoColour};
 use super::{
-    cjk::FontId, color::Srgb, diagonal::DiagonalSpine, ground::Background, ornament::Ornaments,
+    cjk::FontId,
+    color::Srgb,
+    diagonal::DiagonalSpine,
+    ground::Background,
+    ornament::{FoldMark, Ornaments, fold_mark_for, ornament_register},
 };
 mod chrome;
 pub use chrome::{PlacardCorner, PlacardInk, PlacardPlacement, SummonedMaterial, TitleStyle};
@@ -683,6 +687,15 @@ impl Theme {
             1 => self.bullets.1,
             _ => self.bullets.2,
         }
+    }
+
+    /// This world's fold-chevron mark — DERIVED from `ornament_face`, never a
+    /// per-world literal: a new world sets `ornament_face` for its own
+    /// section-break fleuron and inherits a fold mark from the same
+    /// classification with nothing else to touch. See
+    /// [`crate::theme::ornament::fold_mark_for`] for the register→glyph table.
+    pub fn fold_mark(&self) -> FoldMark {
+        fold_mark_for(ornament_register(self.ornament_face))
     }
 
     pub fn is_monochrome(&self) -> bool {
