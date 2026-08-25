@@ -157,6 +157,17 @@ impl InputRuntime {
         self.pointer.finish_text_drag();
     }
 
+    /// Retire the query field's own drag on the overlay open→closed edge —
+    /// the button release that ordinarily owns it (`on_mouse_input`'s
+    /// `query_drag` arm) never fires when the overlay closes some other way
+    /// (Esc/Cancel, a row accept, a keyboard dismiss) while the press is
+    /// still held. Left set, it would out-rank every other branch in
+    /// `on_cursor_moved`'s dispatch chain — including a later overlay's own
+    /// hover — for a query field that no longer exists.
+    pub(in crate::app) fn clear_query_drag(&mut self) {
+        self.pointer.query_drag = false;
+    }
+
     #[cfg(any(not(target_arch = "wasm32"), test))]
     pub(in crate::app) fn set_modifiers(&mut self, mods: winit::event::Modifiers) {
         self.keyboard.mods = mods;

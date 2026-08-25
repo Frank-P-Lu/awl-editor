@@ -557,6 +557,7 @@ fn frame_runtime_api_does_not_regrow_into_a_field_bag() {
 #[derive(Clone, Copy)]
 enum InputConsumer {
     Apply,
+    OverlaySync,
     Close,
     Document,
     Open,
@@ -581,6 +582,7 @@ enum InputConsumer {
 impl InputConsumer {
     const ROSTER: &'static [Self] = &[
         Self::Apply,
+        Self::OverlaySync,
         Self::Close,
         Self::Document,
         Self::Open,
@@ -607,6 +609,7 @@ impl InputConsumer {
     fn path_and_reach(self) -> (&'static str, bool) {
         match self {
             Self::Apply => ("src/app/apply.rs", false),
+            Self::OverlaySync => ("src/app/apply/overlay_sync.rs", false),
             Self::Close => ("src/app/files/close.rs", false),
             Self::Document => ("src/app/files/document.rs", false),
             Self::Open => ("src/app/files/open.rs", false),
