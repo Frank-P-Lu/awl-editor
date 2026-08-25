@@ -37,7 +37,7 @@ faithful state oracle for everything that transition owns: buffer, selection,
 search, zoom, folds, the summoned-overlay `Journey`, page state, theme.
 
 **Tier 2 is new as of item 183.** `App::apply` no longer takes an
-`&ActiveEventLoop`; it takes `app::Exit`, the one capability it actually used
+`&ActiveEventLoop`; it takes `app::schedule::Exit`, the one capability it actually used
 (`exit()`). The whole input-dispatch chain followed, so a test can now drive a
 hermetic `App` from real chords — `App::press_spec_headless("s-S-p Backspace
 Enter")` goes `dispatch_pressed_key` → keymap resolve → `apply` → the live
@@ -241,7 +241,7 @@ for a `--screenshot-app` capture of the drag GESTURE itself, which cannot exist.
 ### The switch-project Recent lens is EMPTY at every capture door, on purpose
 
 The recent-projects MRU is live-only persisted state, and the headless path
-feeds `overlay::browse_level` an empty list (`main/run.rs`) as a determinism
+feeds `overlay::browse_level` an empty list (`main/run/chord.rs`) as a determinism
 gate — a capture whose rows depended on which projects this machine had opened
 would not be byte-stable. `--screenshot-app` does **not** widen this: it is the
 one live-only fact a live `App` in a capture still does not carry, because the
@@ -291,7 +291,7 @@ in the suite would notice.
 Two capabilities have already escaped this tier by being narrowed rather than
 stubbed, and they are the pattern to copy: `app::Scheduler` (the
 `about_to_wait` debounce/settle body, steppable under a `VirtualClock` — that
-is what `--screenshot-frames` drives) and `app::Exit` (this item).
+is what `--screenshot-frames` drives) and `app::schedule::Exit` (this item).
 
 **`--capture-size`/`--capture-dpi` are honored (item 339 — the identical gap
 item 334 closed on `--screenshot-app`, found by that item's own lane while

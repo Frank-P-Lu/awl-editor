@@ -36,9 +36,12 @@ trunk build --release      # emits dist/  (index.html + the .js loader + .wasm)
 ```
 
 `--release` matters: the debug wasm is large and slow to instantiate. The release
-`.wasm` is ~7.2 MB (the full glyphon text stack, the IBM Plex font faces, and the
-bundled ~49.5k-stem en_US Hunspell dictionary are all embedded via `include_bytes!`
-/ `include_str!`, so the page needs **no** network round-trips to run).
+`.wasm` is ~43 MB (the full glyphon text stack, the IBM Plex font faces, the
+bundled CJK faces, and the bundled ~49.5k-stem en_US Hunspell dictionary are all
+embedded via `include_bytes!` / `include_str!`, so the page needs **no** network
+round-trips to run — measured 2026-08-25 via a clean `trunk build --release`,
+45,733,921 bytes pre-`wasm-opt` / ~43.3 MB served, matching the byte counts in
+the loading-screen section below).
 
 Live animation uses the same conditional frame reducer as native. While a
 bounded activity is present it asks winit for the next redraw; in the browser
@@ -212,9 +215,11 @@ hermetic setup for automated input-state testing.
   WebGL is still the untuned path relative to WebGPU — **Chrome is the
   recommended browser for the demo** — but it now has a real confirmed floor
   rather than an assumed one.
-- **Bundle size** ~7.2 MB wasm (release) as last measured; the bundled Japanese
-  CJK faces (see next bullet) add on top of the fonts + dictionary baseline this
-  figure already reflects — not independently re-measured post-merge.
+- **Bundle size** ~43 MB wasm (release), measured 2026-08-25 via a clean `trunk
+  build --release` (45,733,921 bytes pre-`wasm-opt` / ~43.3 MB served — see the
+  loading-screen section above for the same pre-/post-opt split). This figure
+  already includes the bundled Japanese CJK faces (see next bullet), which are
+  merged into the same build, not a separate add-on measured elsewhere.
 - **CJK — the bundled Japanese faces load on web too (verify before relying on
   this).** The Japanese-bundle round's `FONT_CJK_FACES` (Noto Serif/Sans JP)
   register inside `render::build_font_system` with no platform `cfg` gate — the
