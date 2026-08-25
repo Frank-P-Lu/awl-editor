@@ -113,9 +113,9 @@ fn real_fs_app_new_calls_are_all_accounted_for() {
         // `InMemoryFs` handle — they exist specifically to prove what
         // `App::reload_config` reads back from `config.path` on disk (and,
         // for the absent-key case, that it must NOT force a default), same
-        // CONTROL + INSPECT need `new_hermetic` hides. (The retired four
-        // two-desk "Notes" flip tests that used to be accounted for here — the
-        // command is retired; there is now exactly one active folder.) Plus 2
+        // CONTROL + INSPECT need `new_hermetic` hides. (No two-desk "Notes"
+        // flip tests are counted here: there is exactly one active folder.)
+        // Plus 2
         // ADD-TO-DICTIONARY tests:
         // `add_to_dictionary_persists_the_word_and_silences_it_live` +
         // `startup_loads_the_personal_dictionary_so_an_added_word_never_squiggles_across_a_restart`),

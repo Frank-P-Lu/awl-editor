@@ -311,10 +311,10 @@ impl OverlayGeom {
 
 /// THE BLANK ROW THAT SEPARATES THE CANDIDATE/EMPTY-STATE BAND FROM THE FOOT
 /// HINT — the row-count twin of the footer band's own `+ 1`
-/// (`TextPipeline::overlay_footer_lines`). Before this existed, `hint_rows`
-/// budgeted only the hint's own (shrunk) line, so every geometry family that
-/// shows a hint sat it flush against the last candidate row (or the
-/// empty-state notice, which shares this band) while the footer already got
+/// (`TextPipeline::overlay_footer_lines`). Without it, `hint_rows` budgets
+/// only the hint's own (shrunk) line, so every geometry family that shows a
+/// hint sits it flush against the last candidate row (or the empty-state
+/// notice, which shares this band) while the footer already gets
 /// a blank line before IT — an inconsistency in the same file. Every
 /// geometry family that constructs a hint calls this ONE owner rather than
 /// re-deriving "one more row when there is a hint" three times; `push_overlay_hint_spans`

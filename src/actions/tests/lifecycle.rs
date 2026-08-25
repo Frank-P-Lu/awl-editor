@@ -233,9 +233,8 @@ fn a_keymap_child_esc_resumes_the_settings_row_it_was_opened_from() {
 }
 
 /// A SETTINGS TOGGLE KEEPS THE WORKSPACE OPEN; the same row reached from the
-/// COMMAND PALETTE closes it. One dispatcher, one table, two outcomes — the
-/// pair that used to be a `close_on_toggle` boolean the caller had to pass
-/// correctly.
+/// COMMAND PALETTE closes it. One dispatcher, one table, two outcomes — never
+/// a `close_on_toggle` boolean the caller has to pass correctly.
 #[test]
 fn a_toggle_keeps_a_workspace_and_completes_a_launcher() {
     let _g = crate::testlock::serial();

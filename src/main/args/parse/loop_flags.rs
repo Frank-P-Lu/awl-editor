@@ -293,10 +293,9 @@ pub(super) fn parse_flag_loop(ctx: &mut Ctx) -> Result<()> {
             FlagId::ListWorlds => {
                 // Machine-readable roster dump — one world name per line, in
                 // `theme::THEMES` cycle order — read straight off the ONE
-                // code-owned source (`--help` once drifted to only ten of the
-                // twenty shipped worlds; a script that shells out to THIS flag
-                // can never drift the same way, since it never keeps its own
-                // copy of the list). See `scripts/capture-worlds.sh`.
+                // code-owned source. A script that shells out to THIS flag
+                // cannot drift from the roster, since it never keeps its own
+                // copy of the list. See `scripts/capture-worlds.sh`.
                 for name in theme::world_names() {
                     println!("{name}");
                 }

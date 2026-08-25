@@ -3,7 +3,7 @@
 //! A flat picker's query BEAT was folded into the query field's own line box.
 //! cosmic-text CENTRES a line's glyph run in its box, so the field's glyphs were
 //! drawn half a beat below the bar's own top pad and the bar opened a blank strip
-//! above them. Reported against five worlds; present, identically, on all twenty
+//! above them. Reported against five worlds; present, identically, on every one
 //! — which is why this sweeps the roster and not the report.
 //!
 //! The appearance claim is arithmetic over real rendered pixels, and the oracle

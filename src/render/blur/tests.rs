@@ -49,8 +49,8 @@ fn doc_capture_cap_scales_a_genuinely_large_surface_and_preserves_aspect() {
 /// to be constant, which is what a fixed downsample fails.
 #[test]
 fn the_frosts_logical_reach_is_constant_across_dpi() {
-    // 1× is the historical value exactly — so every capture, and every 1× frame,
-    // is byte-identical to before the DPI scaling existed.
+    // 1× resolves to the base constant exactly — so every capture, and every
+    // 1× frame, is untouched by the DPI scaling.
     assert_eq!(
         downsample_for(1.0),
         DOWNSAMPLE,

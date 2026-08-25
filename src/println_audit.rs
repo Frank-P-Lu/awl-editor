@@ -65,8 +65,7 @@ const EXPECTED: &[(&str, usize)] = &[
     // THE LOCAL USAGE LEDGER: ONE `{what} save failed: {e}` stderr line, in the
     // `Dirtying::flush` door both records share (a failed atomic write of
     // `stats.toml` / `streaks.toml` must never disrupt the editor — it warns
-    // and moves on). This used to be two identical lines, one per record, in
-    // `app/stats.rs` and `app/streaks.rs`; merging the flush merged them.
+    // and moves on).
     ("app/usage.rs", 1),
     ("bench.rs", 4),
     ("buffers.rs", 1),

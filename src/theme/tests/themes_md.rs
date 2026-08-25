@@ -333,9 +333,8 @@ fn every_render_caps_field_has_a_themes_md_row_or_is_excused() {
 }
 
 /// THE CJK ASSIGNMENT-TABLE LAW. THEMES.md's zh-Hans / ko table gives one row
-/// per world; it had rows for thirteen of twenty, so seven worlds' Chinese and
-/// Korean faces were undocumented — including every world added after the
-/// Chinese round.
+/// per world; a partial table left some worlds' Chinese and Korean faces
+/// undocumented, which is what this law exists to stop.
 ///
 /// Two facts, both derived: every world has a row, and the row's `ko` cell names
 /// `CJK_KO_SERIF` exactly when the world is actually on that list. The second is

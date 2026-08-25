@@ -3,8 +3,8 @@
 //! continue a list / blockquote (ordered lists AUTO-INCREMENT), unconditionally END
 //! the block on an empty BLOCKQUOTE, PRESERVE-or-END an empty LIST item (bullet /
 //! numbered / task) by provenance, or carry leading
-//! indentation forward; a `false` return falls through to a plain `insert_newline`,
-//! byte-identical to before. The DECISION ([`SmartNewline`] + [`smart_newline_for`])
+//! indentation forward; a `false` return falls through to a plain
+//! `insert_newline`. The DECISION ([`SmartNewline`] + [`smart_newline_for`])
 //! is pure over one line's text + cursor column, so it is unit-testable without a
 //! buffer/GPU; the ONE impure bit — reading/writing the buffer's short-lived
 //! list-continuation provenance flag — lives here in [`smart_newline`] itself.
@@ -164,7 +164,7 @@ pub(super) fn tag_document_language(ctx: &mut ActionCtx) -> Effect {
 
 /// TAB dispatch: on a markdown LIST context (the caret line — or ANY line of an
 /// active selection — is a list item), indent one nesting level; ELSEWHERE fall back
-/// to the soft-tab insert, byte-identical to before. Keeping the list-vs-plain gate
+/// to the soft-tab insert. Keeping the list-vs-plain gate
 /// here (over the SHARED [`crate::markdown::list_item`] detection) is what makes Tab
 /// `--keys`-drivable and testable without a GPU.
 pub(super) fn list_tab(ctx: &mut ActionCtx) {

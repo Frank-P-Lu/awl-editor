@@ -8,21 +8,18 @@
 //! only THEIR OWN FOOTPRINT: the card's box and nothing outside it, so the
 //! surrounding page keeps the world's live colours (the preview those two pickers
 //! exist for) while the document under the card stops competing with the rows. The
-//! footprint arm exists because frost was a property of the PLATE, and a composition
-//! that draws no plate at all left the document and the list interleaving
-//! glyph-for-glyph; a composition that DOES back its own rows already covers what it
-//! sits on and stays crisp, byte-identical. Which compositions enrol is
-//! [`footprint_frost_applies`] — asked of the ROSTER's own two backing owners, never
-//! of a named world. The search SPLIT panel keeps the doc bright either way.
+//! footprint arm exists because a composition that draws no plate leaves the
+//! document and the list interleaving glyph-for-glyph. Which compositions enrol
+//! is [`footprint_frost_applies`]'s to say. The search SPLIT panel keeps the doc
+//! bright either way.
 //!
 //! THE FOOTPRINT IS A MASK IN `fs_comp` ([`footprint_mask`]), CARRIED IN THE
-//! COMPOSITE'S ALPHA, with a SCISSOR kept only as a conservative bound. An earlier
-//! reading of this module preferred the scissor alone and dismissed the rect uniform
-//! because it "would produce the same hard edge anyway" — true of a rect uniform, and
-//! FALSE of a feathered one. A scissor can only answer yes or no per pixel, so the
-//! frost's boundary was a knife edge that sliced words mid-glyph, and no value
-//! anywhere in the path could soften it: `blend: None` on the composite target plus an
-//! alpha of `1.0` out of `fs_comp` is a hard rectangle by CONSTRUCTION.
+//! COMPOSITE'S ALPHA, with a SCISSOR kept only as a conservative bound. ⚠️ The
+//! scissor CANNOT stand in for the mask: it answers yes or no per pixel, so a
+//! scissor-only boundary is a knife edge that slices words mid-glyph, and no
+//! value anywhere in the path can soften it — `blend: None` on the composite
+//! target plus an alpha of `1.0` out of `fs_comp` is a hard rectangle by
+//! CONSTRUCTION.
 //!
 //! So the extent now arrives in [`U`] as a shape — box, shear and feather width — and
 //! the composite target blends. Three properties hold it together:
@@ -143,8 +140,8 @@ pub struct Footprint {
 /// caller's decision arrives at [`BlurBackdrop::ensure`] in ONE argument.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Frost {
-    /// The whole canvas — a full-takeover overlay, the held HUD, the lifetime card,
-    /// the hold-⌘ peek. The historical behaviour, unchanged.
+    /// The whole canvas — a full-takeover overlay, the held HUD, the lifetime
+    /// card, the hold-⌘ peek.
     Full,
     /// The summoned card's own footprint, and nothing more than a feather outside it.
     Footprint(Footprint),
@@ -171,16 +168,15 @@ impl Frost {
 /// its right face translate by the same `shear × (py − cy)`, which is what makes it read
 /// as leaning rather than as a leaning thing inside an upright thing.
 ///
-/// AN EARLIER READING OF THIS MODULE UNIONED THE LEANING TERM WITH THE UPRIGHT BOX and
-/// called that union a coverage floor. The floor was real — the card's query line is
-/// upright and flush to its text edge, and frosting the lean alone left it over sharp
-/// document on a mirrored composition — but the union CANNOT read as a parallelogram at
-/// any shear on any world, because the box is one of its terms and therefore always
-/// wholly inside the result. The shear could only add two overhang corners to a
-/// rectangle. So the coverage duty moved OFF the mask and INTO the box: [`footprint_box`]
-/// widens the rect until the parallelogram contains the card's upright chrome, and
-/// widening a parallelogram leaves a parallelogram. The floor did not go away; it stopped
-/// being a second shape.
+/// ⚠️ DO NOT UNION THE LEANING TERM WITH THE UPRIGHT BOX to buy coverage. The
+/// coverage floor is real — the card's query line is upright and flush to its text
+/// edge, and frosting the lean alone leaves it over sharp document on a mirrored
+/// composition — but such a union CANNOT read as a parallelogram at any shear on
+/// any world, because the box is one of its terms and so always wholly inside the
+/// result; the shear can then only add two overhang corners to a rectangle. The
+/// coverage duty belongs in the BOX instead: [`footprint_box`] widens the rect
+/// until the parallelogram contains the upright chrome, and widening a
+/// parallelogram leaves a parallelogram.
 ///
 /// MUST match `shaders/blur.wgsl`'s `footprint_dist_outside`.
 // The SHIP path evaluates this on the GPU; this is the pure mirror a law grades and a
@@ -252,12 +248,12 @@ pub(super) fn footprint_mask(foot: Footprint, feather: f32, px: f32, py: f32) ->
 /// THE SHIPPING MASK AT A CANVAS PIXEL, asked of a whole [`Frost`] — the ONE door a
 /// render-tier law reads the frost's coverage through.
 ///
-/// It exists so a law measuring pixels cannot carry its own copy of the shape, which is how
-/// a law comes to grade a shape the frame stopped drawing: the retired box-union lived in
-/// the mirror, the shader AND two laws' own region predicates, and both of those laws were
-/// satisfied BY the defect rather than by the product. Everything here — the shear, the
-/// DPI-resolved feather, the [`Frost::Full`] arm's exact `1.0` — is the value the composite
-/// pass was handed.
+/// It exists so a law measuring pixels cannot carry its own copy of the shape,
+/// which is how a law comes to grade a shape the frame stopped drawing: when the
+/// box-union lived in the mirror, the shader AND two laws' own region predicates,
+/// both of those laws were satisfied BY the defect rather than by the product.
+/// Everything here — the shear, the DPI-resolved feather, the [`Frost::Full`]
+/// arm's exact `1.0` — is the value the composite pass was handed.
 #[cfg(test)]
 pub(crate) fn footprint_mask_for(frost: Frost, dpi: f32, px: f32, py: f32) -> f32 {
     match frost {
@@ -269,15 +265,15 @@ pub(crate) fn footprint_mask_for(frost: Frost, dpi: f32, px: f32, py: f32) -> f3
 /// THE SHAPE'S RAKING FACE at row `py`, in physical px — its LEFT face for `side < 0` and
 /// its RIGHT face for `side > 0`, both displaced by the same `shear × (py − cy)`.
 ///
-/// It exists for the same reason [`footprint_mask_for`] does, and it was earned the same
-/// way. A render-tier law that profiles the frost's edge has to know where that edge IS at
-/// each row, and the one that does carried its OWN copy of the answer — spelled
-/// `min(0, shear × (py − cy))` on the left face and `max(0, …)` on the right, which is the
-/// retired box-UNION's boundary, where each face moved on only the half of the card the rake
-/// reached toward. It stayed spelled that way after the shape stopped being a union, so the
-/// law was profiling a face up to `|shear| × h/2` from the drawn one on half of every leaning
-/// card and reporting a soft edge where there might have been a knife. One owner, so the face
-/// a law measures across cannot part company with the face the shader drew.
+/// It exists for the same reason [`footprint_mask_for`] does, and was earned the
+/// same way. A render-tier law that profiles the frost's edge has to know where
+/// that edge IS at each row; one that carries its own copy — spelled
+/// `min(0, shear × (py − cy))` on the left face and `max(0, …)` on the right, the
+/// box-UNION's boundary, where each face moves on only the half of the card the
+/// rake reaches toward — profiles a face up to `|shear| × h/2` from the drawn one
+/// on half of every leaning card, and reports a soft edge where there may be a
+/// knife. ONE owner, so the face a law measures across cannot part company with
+/// the face the shader drew.
 #[cfg(test)]
 pub(crate) fn footprint_face_x(foot: Footprint, py: f32, side: f32) -> f32 {
     let [x, y, w, h] = foot.rect;
@@ -314,16 +310,15 @@ pub(super) fn footprint_bound(foot: Footprint, feather: f32) -> [f32; 4] {
 /// True exactly when the composition puts no CARD PANEL under the whole box — asked of
 /// the roster's own backing owner, `ListStyle::list_backing`, rather than of a named
 /// world, so a new composition enrols (or doesn't) by what it actually draws, and a
-/// world that changes its list style changes its answer here with it. A `Pane` world is
-/// excluded by its panel and stays byte-identical.
+/// world that changes its list style changes its answer here with it. A `Pane`
+/// world is excluded by its panel.
 ///
 /// `Bars` DOES draw an opaque plate under each row — but the plate covers only that
-/// row's own footprint, never the GAPS between plates or the margin around them, and
-/// an unfrosted document bleeds through exactly those gaps. Each row's own plate still
-/// draws OPAQUE, on top of the frost, at its own
-/// true colour — the "crisp live-colour preview" promise every enrolled world keeps is
-/// about what a ROW wears, never about what the space between rows shows, so enrolling
-/// `Bars` costs that promise nothing.
+/// row's own footprint, never the GAPS between plates or the margin around them,
+/// and an unfrosted document bleeds through exactly those gaps. Each row's plate
+/// still draws OPAQUE, on top of the frost, at its own true colour — the "crisp
+/// live-colour preview" promise is about what a ROW wears, never about what the
+/// space between rows shows, so enrolling `Bars` costs that promise nothing.
 ///
 /// `spell` is `false` because a crisp picker is never the contextual spell popup (that
 /// one is not `overlay_crisp` and recedes nothing).
@@ -360,15 +355,14 @@ pub(super) fn scissor_px(rect: [f32; 4], width: u32, height: u32) -> Option<(u32
 /// the quarter-res downsample + Gaussian — so on a genuinely-large / high-DPI surface
 /// (4K/5K) the full resolution is wasted VRAM. Clamping the capture's longest side to
 /// this cap sheds that waste with NO visible change (it is blurred + quarter-
-/// downsampled either way). Chosen well ABOVE any normal or 2× retina surface, so it
-/// only bites when the surface is truly large — every capture at or below the cap is
-/// byte-identical.
+/// downsampled either way). Chosen well ABOVE any normal or 2× retina surface, so
+/// it only bites when the surface is truly large.
 pub(super) const DOC_CAPTURE_MAX: u32 = 3200;
 
-/// The doc-capture texture size for a `width`×`height` surface. UNCHANGED at or below
-/// [`DOC_CAPTURE_MAX`] (so any normal / retina surface captures full-res and stays
-/// byte-identical); above it, scaled DOWN proportionally so the longest side is the
-/// cap. Never below the quarter-res blur working size (so the downsample stays a
+/// The doc-capture texture size for a `width`×`height` surface. UNCHANGED at or
+/// below [`DOC_CAPTURE_MAX`], so any normal / retina surface captures full-res;
+/// above it, scaled DOWN proportionally so the longest side is the cap. Never
+/// below the quarter-res blur working size (so the downsample stays a
 /// downsample), and never zero. The document is drawn into this texture via the shared
 /// glyphon viewport (still sized to the full surface), so a smaller target simply scales
 /// the whole document down to fill it — a reduced-scale capture, not a cropped one.
@@ -475,10 +469,9 @@ pub(super) fn bytes_of(u: &U) -> &[u8] {
 /// apart — the DPI is what turns the blur's authored LOGICAL reach into texels, so a
 /// width and height without it cannot say how far the Gaussian should carry.
 ///
-/// This exists so `BlurBackdrop::ensure` stays under clippy's argument ceiling without
-/// the first `too_many_arguments` waiver in a tree that has 103 exceptions and none of
-/// that class — the ceiling was pointing at a real bundle rather than at a limit worth
-/// suppressing.
+/// Bundling them also keeps `BlurBackdrop::ensure` under clippy's argument
+/// ceiling with no `too_many_arguments` waiver — the ceiling was pointing at a
+/// real bundle rather than at a limit worth suppressing.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct BlurSurface {
     pub width: u32,

@@ -392,8 +392,8 @@ fn mulga_star_conceals_to_the_literal_asterism() {
     }
 
     // EXHAUSTIVE NON-MULGA IDENTITY: every other world's ornament trio is
-    // byte-identical to before this round — this swap touches Mulga's `const`
-    // alone. A no-wildcard match over the full roster: a future world added to
+    // untouched — this swap reaches Mulga's `const` alone. A no-wildcard match
+    // over the full roster: a future world added to
     // `theme::THEMES` without a line here panics loudly instead of silently
     // passing.
     for t in theme::THEMES.iter() {
@@ -426,7 +426,7 @@ fn mulga_star_conceals_to_the_literal_asterism() {
         };
         assert_eq!(
             got, want,
-            "{}: ornament trio must be byte-identical to before item 88 (Mulga alone changed): \
+            "{}: ornament trio must be unchanged (Mulga alone changed): \
              got {got:?}, want {want:?}",
             t.name
         );

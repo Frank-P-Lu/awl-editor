@@ -481,9 +481,9 @@ pub struct App {
     /// the modal picker, the find/replace panel, and the format popover's
     /// summon bit, with their PRECEDENCE LADDER. The three former `App`
     /// fields (`overlay`/`search`/`popover_open`) are private to that module
-    /// now, so the ladder cannot be re-derived by a consumer — it used to be
-    /// the same conjunction hand-written across five files. The expanded layer grows the
-    /// typed summoned-workspace lifecycle inside this type.
+    /// now, so the ladder cannot be re-derived by a consumer as a hand-written
+    /// conjunction. The layer also carries the typed summoned-workspace
+    /// lifecycle.
     workspace_state: workspace::WorkspaceState,
     /// THE APP-GLOBAL SAVE LEDGER (the second owner —
     /// `app/persistence.rs`): the fresh-document autosave debounce + the
@@ -575,8 +575,8 @@ pub struct App {
     /// whole lifetime. **This field's only job is to never be dropped before
     /// `App` itself is.** `crate::menu::install`'s doc explains why: every
     /// native `NSMenuItem` stashes a raw (non-retaining) pointer back into
-    /// this value's owned `Rc<RefCell<MenuChild>>` chain, so letting it drop
-    /// (the v1 bug — the return value used to be an unstored local) leaves
+    /// this value's owned `Rc<RefCell<MenuChild>>` chain, so letting it drop —
+    /// storing the return value in an unnamed local is enough — leaves
     /// every menu item pointing at freed memory, and clicking ANY of them —
     /// About, Quit, a routed item — is a use-after-free. Read (never taken)
     /// after `resumed()` stores it — `set_markdown_enabled` on every sync,

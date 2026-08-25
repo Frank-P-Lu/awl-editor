@@ -225,8 +225,8 @@ impl TextPipeline {
         // over the identity line — a VALUE ladder with the state at the top of
         // it, since that is the one line here that is news. Each lower line
         // carries its own leading newline so the block stacks; an absent line
-        // contributes nothing at all, so an ordinary document's gutter is
-        // byte-identical to what it drew before this existed.
+        // contributes nothing at all, so an ordinary document's gutter carries
+        // none of this block.
         let changed_line = if layout.changed.is_empty() {
             String::new()
         } else {

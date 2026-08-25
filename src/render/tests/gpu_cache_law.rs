@@ -166,8 +166,8 @@ fn every_render_pipeline_is_built_inside_the_cache() {
 /// one that can see the failure worth fearing here: a cache that shared a
 /// uniform buffer or a bind group as well as a program would still render every
 /// world correctly when each is drawn alone, because each `prepare` would
-/// overwrite the last in time. Standing all twenty up FIRST, preparing all
-/// twenty, and only then drawing them is what makes one world's state visible
+/// overwrite the last in time. Standing the WHOLE ROSTER up first, preparing
+/// all of it, and only then drawing is what makes one world's state visible
 /// in another's picture — a cross-test state leak, which is not a trade worth
 /// making to fix a CI hang.
 #[test]

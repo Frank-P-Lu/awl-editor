@@ -1,7 +1,7 @@
 //! THE SCENE-PLAN LAWS AGAINST THE REAL PIPELINE.
 //!
 //! The pure planner laws live beside the planner (`render/plan/tests.rs`); this
-//! file is the device-level half — the three answers that used to be computed in
+//! file is the device-level half — the three answers a reader could compute in
 //! parallel places must be ONE planned object:
 //!
 //! * DRAWN — the shaped candidate line's own y, read back from the buffer the
@@ -1333,9 +1333,10 @@ fn assert_plate_separation_is_not_vacuous(measured: &[(&str, f64)]) {
 /// draws a RIM — the mechanism this footer plate has never had.
 ///
 /// [`NOTICE_IS_GROUND_MAX`] is the arm's REAL claim: the notice row reads as plain
-/// card ground, i.e. is not plated. Splitting the constant made it STRICTER — it
-/// used to be bounded by whatever the visibility gate happened to need, and every
-/// enrolled world measures ΔE 0.00 against a ceiling of 1.0.
+/// card ground, i.e. is not plated. Splitting the constant is what makes it
+/// STRICT: one shared constant is bounded by whatever the visibility gate
+/// happens to need. Every enrolled world measures ΔE 0.00 against a ceiling
+/// of 1.0.
 ///
 /// The separation is not a matter of one literal being written smaller than the
 /// other: the caller asserts every enrolled world's MEASURED plate presence clears

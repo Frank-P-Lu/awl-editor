@@ -1,14 +1,15 @@
-//! src/doc_counts_law.rs — THE ROSTER-COUNT LAWS for the reader-facing docs.
+//! src/doc_counts_law.rs — THE ROSTER-COUNT LAWS, for the reader-facing docs
+//! and for the tree's own comments.
 //!
-//! WHY THIS EXISTS: `GUIDE.md` shipped "Nineteen worlds, one chord away" against
-//! a twenty-world roster, `site/guide.html` mirrored the same sentence, and
-//! `ACCESSIBILITY.md` said fourteen — three different answers to a question
-//! `theme::THEMES` already answers exactly. A roster size typed into prose is a
-//! second copy of a compiled-in fact; it rots on the next roster change with
-//! nothing to catch it, and a reader comparing two docs finds the product unsure
-//! how many worlds it has.
+//! WHY THIS EXISTS: `GUIDE.md` shipped a spelled-out world count one short of
+//! the roster, `site/guide.html` mirrored the same sentence, and
+//! `ACCESSIBILITY.md` gave a third number — three different answers to a
+//! question `theme::THEMES` already answers exactly. A roster size typed into
+//! prose is a second copy of a compiled-in fact; it rots on the next roster
+//! change with nothing to catch it, and a reader comparing two docs finds the
+//! product unsure how many worlds it has.
 //!
-//! THE ARRANGEMENT IS IN TWO HALVES, because the two reader surfaces have
+//! THE ARRANGEMENT IS IN THREE PARTS, because the three surfaces have
 //! different seams:
 //!
 //! 1. The docs awl RENDERS ([`crate::embedded_docs::STARTING_DOCS`]) carry no
@@ -24,6 +25,10 @@
 //!    arrangement and why it is accepted). Its digits stay literal, and
 //!    [`the_site_guide_mirror_states_the_live_world_count`] holds them to the
 //!    roster.
+//! 3. The tree's OWN comments have no seam and no reader-facing digits worth
+//!    keeping, so [`no_source_comment_types_the_world_roster_size`] bans the
+//!    literal outright and asks for roster-relative phrasing instead. That
+//!    half is a BAN rather than a value law on purpose — see its own header.
 //!
 //! ⚠️ SOURCING, not transcription, is the residual risk once a number is
 //! generated: a generated figure states a wrong answer with a law behind it if
@@ -82,7 +87,7 @@ const CARDINAL_WORDS: &[(&str, usize)] = &[
 
 /// A word's cardinal value: an ASCII decimal run, or a spelled-out
 /// [`CARDINAL_WORDS`] entry (case-insensitive). `None` for anything else.
-fn cardinal(word: &str) -> Option<usize> {
+pub(crate) fn cardinal(word: &str) -> Option<usize> {
     let w = word.trim_matches(|c: char| !c.is_ascii_alphanumeric() && c != '-');
     if w.is_empty() {
         return None;
@@ -122,7 +127,7 @@ fn without_tags(text: &str) -> String {
 }
 
 /// How far back from the noun a modifier may sit and still be read as counting
-/// it: "20 worlds", "14 curated theme worlds". Three words covers every
+/// it: "N worlds", "N curated theme worlds". Three words covers every
 /// phrasing the doc web actually uses and stops well short of swallowing a
 /// previous sentence's number.
 const MODIFIER_WINDOW: usize = 3;
@@ -132,7 +137,7 @@ const MODIFIER_WINDOW: usize = 3;
 ///
 /// Walks left from each occurrence of the word from at most
 /// [`MODIFIER_WINDOW`] words back, taking the FIRST cardinal it meets — so
-/// "14 curated theme worlds" harvests 14 and "each world pairs its own"
+/// "N curated theme worlds" harvests N and "each world pairs its own"
 /// harvests nothing.
 ///
 /// TAGS ARE STRIPPED FIRST, and that is load-bearing rather than tidy: this

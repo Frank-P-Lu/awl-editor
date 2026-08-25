@@ -33,7 +33,7 @@ struct CaretInstance {
     /// Unit travel AXIS (cos, sin) the quad is rotated onto, so the in-motion
     /// streak is a DIRECT line along the real travel vector (diagonal included),
     /// not axis-snapped. `(1, 0)` = upright/unrotated (the resting block, the
-    /// horizontal underline, the space bar, the I-beam) — byte-identical to before.
+    /// horizontal underline, the space bar, the I-beam).
     axis: [f32; 2],
     /// Pad to keep the struct 16-byte friendly for the vertex buffer stride.
     _pad: [f32; 2],

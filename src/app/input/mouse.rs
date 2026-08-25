@@ -185,7 +185,7 @@ impl App {
     /// hit-tested line is remapped here through `visible_line_to_full` — the SAME
     /// owner `hit_test_char`/`fold_tail_hit` already route every other click-to-rope
     /// seam through. The identity when nothing is folded, so a no-fold click's target
-    /// is byte-identical to before this fix. Split out of `outline_click` as its own
+    /// is unchanged by it. Split out of `outline_click` as its own
     /// method so this pure line-space remap is unit-testable without a live GPU hit
     /// test (`outline_click`'s pixel half is live-only).
     pub(in crate::app) fn outline_row_target_line(&self, filtered_line: usize) -> usize {

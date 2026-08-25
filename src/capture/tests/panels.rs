@@ -104,7 +104,7 @@ fn debug_panel_absent_by_default_and_toggles() {
     // behind a real present, so a capture never measures a switch and
     // `themeswitch::settle_lines(None)` yields NO lines — the panel text carries
     // neither the `theme latest`/`theme worst` headlines nor the worst transaction's
-    // phase breakdown, keeping the capture byte-identical to before the feature.
+    // phase breakdown.
     assert!(
         [
             "theme latest",

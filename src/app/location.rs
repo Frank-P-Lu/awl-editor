@@ -97,10 +97,10 @@ impl ConfigurationRuntime {
     /// [`Self::location_policy`]: configuration states a policy, and the
     /// domain that acts on it never re-derives one of its own.
     ///
-    /// It used to be re-read at eight sites across the odometer and streaks
-    /// wiring, where a tracking hook that forgot the `if` was a privacy defect
-    /// one missing line away. `the_usage_privacy_gate_has_exactly_one_reader`
-    /// in `app/tests/domains.rs` keeps it singular.
+    /// A tracking hook that re-reads the gate itself, and forgets the `if`, is
+    /// a privacy defect one missing line away.
+    /// `the_usage_privacy_gate_has_exactly_one_reader` in `app/tests/domains.rs`
+    /// keeps this the only reader.
     #[cfg(not(target_arch = "wasm32"))]
     pub(in crate::app) fn usage_recording(&self) -> super::usage::Recording {
         super::usage::Recording::from_config(self.config.stats_on())

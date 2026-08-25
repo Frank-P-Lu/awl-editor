@@ -33,8 +33,8 @@ pub(crate) fn cjk_runs(text: &str) -> Vec<std::ops::Range<usize>> {
 
 /// i18n: lay PER-SCRIPT family spans over `al` for every CJK-family run in
 /// `text` — the render wiring for `crate::script`'s classifier + ladder,
-/// generalizing what used to be a single ja-only CJK family span into an
-/// independent [`theme::FontId`] resolution per run. Walks
+/// resolving an independent [`theme::FontId`] per run rather than one
+/// CJK-wide family span. Walks
 /// [`crate::script::script_runs`] (kana / hangul / bopomofo / han, each
 /// named) and resolves EACH run's [`theme::FontId`] via
 /// [`crate::script::resolve_font_id`]'s ladder — (a) the document's own

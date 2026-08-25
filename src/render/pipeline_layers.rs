@@ -27,7 +27,7 @@ impl TextPipeline {
     ///
     /// Two paths. For the COMMON case (no overlay, the search SPLIT panel, or a crisp
     /// THEME/CARET picker) everything composites in ONE pass over the cleared view —
-    /// byte-identical to before, so a non-overlay document capture is unchanged. For a
+    /// so a non-overlay document capture never reaches the blur path. For a
     /// blur-eligible full overlay the document is rendered ONCE to an offscreen
     /// texture, blurred (only when [`Self::blur_recompute`] — else the cache stands),
     /// and the frosted result is composited behind the overlay card in the final pass.

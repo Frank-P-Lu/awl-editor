@@ -170,7 +170,7 @@ impl TextPipeline {
         // THEME-SWITCH SETTLE readout (live-only): two extra lines — the felt
         // input→settled-present latency + the per-phase breakdown — but ONLY once a
         // real switch has settled. A capture never feeds one (`None`), so
-        // `settle_lines` yields nothing and the panel text is byte-identical to before.
+        // `settle_lines` yields nothing and the panel text carries neither line.
         lines.extend(crate::themeswitch::settle_lines(self.debug.theme_settle));
         lines.join("\n")
     }

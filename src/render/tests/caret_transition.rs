@@ -1798,9 +1798,9 @@ fn endpoint_classes() -> Vec<(GlyphClass, &'static str)> {
 /// each of the 7 endpoint classes' own ISOLATED cell is measured per world and
 /// required to be the SAME cell, while the classes' own raster ink
 /// ([`TextPipeline::caret_anchor_raster_box`]) is required to be genuinely
-/// spread. What used to be the ceiling — "no worse than the glyph-to-glyph
-/// transitions nobody has filed as a bug" — is the quantity the reversal
-/// removed.
+/// spread. This claims more than a comparative ceiling ("no worse than the
+/// glyph-to-glyph transitions nobody has filed as a bug") — the reversal
+/// removed that quantity outright.
 ///
 /// Phases 2–4 place the three STRUCTURAL classes (`Eol`, `EmptyLine`,
 /// and `Space` as an endpoint in its own right — leading and trailing) in the

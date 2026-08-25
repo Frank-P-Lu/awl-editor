@@ -360,8 +360,8 @@ fn crisp_backdrop_is_exactly_the_live_document_audition() {
         );
     }
 
-    // The NECESSARY (never sufficient) condition the subset law used to be: an
-    // audition commits a value, so it pops back to its summoning surface.
+    // The NECESSARY (never sufficient) condition: an audition commits a value,
+    // so it pops back to its summoning surface.
     for k in &crisp {
         assert_eq!(
             k.accept_disposition(),

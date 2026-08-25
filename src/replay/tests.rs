@@ -316,10 +316,9 @@ fn isolated_filesystem_authority_promotes_only_save_and_setting_requests() {
 /// classifier's ONE shared owner) recognizes, and an Isolated replay must
 /// promise it `Applied`.
 ///
-/// `Keymap` used to be a NAMED, deliberate exclusion in this sweep (a live
-/// keymap rebuild, not a boolean flip, so `SettingToggle{"keymap"}` stayed
-/// Unsupported even Isolated) — it is a `SettingKind::Picker` now, so
-/// `toggle_key` names nothing for it and it folds into the plain non-toggle
+/// `Keymap` needs no NAMED exclusion in this sweep: it is a
+/// `SettingKind::Picker`, so `toggle_key` names nothing for it and it folds
+/// into the plain non-toggle
 /// bucket below. The equivalent claim for its NEW door
 /// (`Effect::OverlayAccept(OverlayKind::Keymap, _)`) lives in
 /// `accept_class`'s own `Keymap` arm, asserted by

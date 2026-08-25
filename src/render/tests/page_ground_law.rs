@@ -15,7 +15,7 @@
 //! The MODE of the page column's interior, per world, at 1× and 2×. A single
 //! sampled pixel would have to dodge every ground personality the roster
 //! carries — a lava blob, a star, a warped-grid ring under Kite's page veil, a
-//! stripe band — and a probe point tuned to miss them on twenty worlds today is
+//! stripe band — and a probe point tuned to miss them on today's roster is
 //! a probe point that lands on one tomorrow. The mode is what a reader calls
 //! "the page", it is immune to what any ornament paints over it, and it is
 //! derived from the roster rather than from a chosen coordinate.
@@ -41,7 +41,7 @@
 //!
 //! The pure-arithmetic half of the same law — that the number handed to the
 //! clear survives the attachment's encode, swept over all 256 channel values
-//! rather than the twenty grounds that happen to be authored today, with the
+//! rather than the grounds that happen to be authored today, with the
 //! retired rule written out inline for non-vacuity — is `theme::tests::clear`.
 
 use super::super::*;

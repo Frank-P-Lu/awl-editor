@@ -10,7 +10,7 @@
 //! by the plate's left edge, and the right-aligned VALUE hanging past its right
 //! one. That right-hand half is the reported "Block" plate cutting its final
 //! `k` on Cassowary; it is the same 8px on every world the plates are visible
-//! on, and the left-hand half was on all twenty.
+//! on, and the left-hand half was on every world of the roster.
 
 use super::super::*;
 use super::{headless_dqp, view};
@@ -55,7 +55,7 @@ fn settings_view(lens: usize) -> ViewState {
 }
 
 /// **THE ROW TEXT SITS INSIDE ITS OWN PLATE.** Swept over the whole world
-/// roster (the reported world is one of twenty, and the two neighbouring items
+/// roster (the reported world is only one of them, and the two neighbouring items
 /// this one was bundled with were both reported world-specific and both turned
 /// out universal), every `SettingId` category lens, and the widths where the
 /// clip bites — including the narrowest the workspace still draws both regions

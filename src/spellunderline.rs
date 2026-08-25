@@ -446,10 +446,10 @@ mod tests {
     /// `SpellUnderlinePipeline::new` call sites) directly over the flat
     /// `base_100` clear the writing column always shows ("Punches a hole for
     /// the page column so the flat base_100 clear shows there" — `render.rs`).
-    /// A `--screenshot` sweep over all 16 worlds with a real misspelled fixture
+    /// A `--screenshot` sweep over the roster with a real misspelled fixture
     /// confirmed pixel-for-pixel that the squiggle's crest renders at EXACTLY
-    /// `error`'s byte value (distance 0 in 14/16 worlds, ≤2.2 in the other two
-    /// from anti-aliasing) directly on the page ground — so a WCAG contrast
+    /// `error`'s byte value (exact on all but a couple of worlds, and within
+    /// 2.2 there from anti-aliasing) directly on the page ground — so a WCAG contrast
     /// check between the two DATA tokens is a faithful, no-GPU proxy for "is
     /// the squiggle visible against the page," at the same 3:1 floor WCAG uses
     /// for non-text graphical/UI-component contrast. No world in the sweep

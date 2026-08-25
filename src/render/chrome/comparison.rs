@@ -10,9 +10,8 @@
 //! the document layer draw this frame", read by the four geometry owners every
 //! document consumer already routes through ([`TextPipeline::column_left`],
 //! [`TextPipeline::column_width`], `doc_top`, `doc_clip_band`). Nothing else in
-//! the tree learns a second placement rule; ~45 existing call sites compose it
-//! for free, exactly as the content clip and adaptive column already
-//! do.
+//! the tree learns a second placement rule; every existing call site composes it
+//! for free, exactly as the content clip and adaptive column already do.
 //!
 //! # The bypass is module-private, and it is named
 //!

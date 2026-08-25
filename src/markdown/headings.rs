@@ -1,9 +1,6 @@
 //! The heading SIZE ladder ([`type_scale`]/[`heading_scale`]) and the
 //! [`Heading`] extraction ([`headings`]/[`headings_from_spans`]) that feeds
-//! the go-to-heading picker. Split out of the former `markdown.rs` monolith
-//! (2026-07 code-organization pass); every item's path is unchanged
-//! (`markdown::heading_scale`, `markdown::Heading`, …) -- only the file it
-//! lives in moved.
+//! the go-to-heading picker.
 
 use super::MdKind;
 use super::spans::spans;
@@ -16,34 +13,29 @@ use std::ops::Range;
 /// rungs (rather than scattering bare `1.8`/`1.5` literals) makes the ladder
 /// explicit and keeps the ratios tunable in ONE place.
 pub mod type_scale {
-    /// h1 — the document / top TITLE (the biggest rung). LADDER J (the
-    /// heading-probe pick, user-decided 2026-07-18, superseding the original
-    /// 1.8/1.5/1.25 ladder): the title stays Regular WEIGHT always (see
-    /// [`super::heading_weight_bold`] — `#` never bolds, on any world), so it
-    /// spends SIZE alone; 1.6 buys clear daylight over the SECTION rung below
-    /// it (which may carry per-world bold) without shouting the way 1.8 did.
+    /// h1 — the document / top TITLE (the biggest rung). The whole ladder is
+    /// the USER'S OWN PICK from a rendered heading probe. The title stays
+    /// Regular WEIGHT always (see [`super::heading_weight_bold`] — `#` never
+    /// bolds, on any world), so it spends SIZE alone, and this rung has to buy
+    /// clear daylight over the SECTION rung below it (which may carry per-world
+    /// bold) without shouting.
     pub const TITLE: f32 = 1.6;
-    /// h2 — a SECTION head. LADDER J: 1.3 — size spends less here than the old
-    /// 1.5; on the worlds whose [`crate::theme::Theme::heading_bold`] bit is
-    /// set, WEIGHT backfills the difference.
+    /// h2 — a SECTION head. Size spends modestly here; on the worlds whose
+    /// [`crate::theme::Theme::heading_bold`] bit is set, WEIGHT backfills the
+    /// difference.
     pub const SECTION: f32 = 1.3;
-    /// h3+ — a SUBHEAD. LADDER J: 1.15 — one quiet step over body, weight
-    /// (where the world's bit grants it) doing the rest.
+    /// h3+ — a SUBHEAD. One quiet step over body, weight (where the world's bit
+    /// grants it) doing the rest.
     pub const SUBHEAD: f32 = 1.15;
     /// BODY prose / code — the baseline rung (no scaling).
     pub const BODY: f32 = 1.0;
     /// LABEL — UI metadata that should read SMALLER than body: a future gutter's
     /// line numbers, the stats / word-count readout. Pairs with the `faint` ink
-    /// (DESIGN.md §4). Defined now; consumed by the later gutter/stats pass.
+    /// (DESIGN.md §4).
     #[allow(dead_code)] // reserved for the gutter/stats pass (see DESIGN.md §4).
     pub const LABEL: f32 = 0.8;
-    // NOTE: the centered `---`/`***`/`___` section-break FLEURON's size is NO LONGER a
-    // single rung here — it is PER-WORLD ([`crate::theme::Theme::ornament_scale`]), keyed
-    // to the ornament's character (Junicode flowers reward size; clean geometric marks
-    // don't). Both readers — `render::spans::md_line_scale` (the break ROW height) and
-    // `render::layers::prepare_ornaments` (the glyph LINE-BOX) — consult that field, so
-    // the two stay in lockstep. Tune the three tiers in `theme/ornament.rs`
-    // (`ORNAMENT_SCALE_ORNATE` / `_FLEURON` / `_GEOMETRIC`).
+    // NOTE: the section-break FLEURON's size is NOT a rung here. It is PER-WORLD
+    // ([`crate::theme::Theme::ornament_scale`]) — tune it in `theme/ornament.rs`.
 }
 
 /// The font / line-height SCALE for a heading, by the COUNT of leading `#` marks
@@ -69,25 +61,24 @@ pub fn heading_scale(level: u8) -> f32 {
 /// The ROW-HEIGHT LEAD — vertical breathing room a heading's ROW grows
 /// BEYOND what its own [`heading_scale`] SIZE already gives its font, decoupled
 /// from glyph size exactly like an inline image's absolute row height
-/// (`render::spans::build_line_attrs`'s `image_row_height` arm). THEME-QA
-/// round (2026-07-22): a no-bold world (`Theme::heading_bold == false` —
-/// Bombora, Mulga, …) has neither WEIGHT nor, at the SUBHEAD rung, much SIZE
-/// to carry `###` above body text — measured, its row-to-row gap around an h3
-/// was pixel-identical to the gap between two ordinary body paragraphs (the
-/// reported bug: "h3 reads as body"). A real spacing floor gives every
-/// world's heading hierarchy a SECOND axis to read on (size AND space, not
-/// size alone), universal DATA keyed by LEVEL — never a per-world branch, so
-/// it helps the no-bold worlds where it is load-bearing and costs the bold
-/// worlds only a little extra (still calibrated small enough that Tawny's
-/// already-legible weight+size break doesn't grow into an ungainly gap — see
-/// `render::tests::markdown_headings::heading_levels_stay_measurably_distinct_from_body_in_every_world`).
+/// (`render::spans::build_line_attrs`'s `image_row_height` arm).
+///
+/// WHY IT EXISTS, measured: a no-bold world (`Theme::heading_bold == false`) has
+/// neither WEIGHT nor, at the SUBHEAD rung, much SIZE to carry `###` above body
+/// text — its row-to-row gap around an h3 came out pixel-identical to the gap
+/// between two ordinary body paragraphs, which is the reported "h3 reads as
+/// body". This lead gives every world's hierarchy a SECOND axis to read on, as
+/// universal DATA keyed by LEVEL rather than a per-world branch: load-bearing on
+/// the no-bold worlds, and small enough on the bold ones that an
+/// already-legible weight+size break does not grow into an ungainly gap. Held
+/// by `render::tests::markdown_headings`'s
+/// `heading_levels_stay_measurably_distinct_from_body_in_every_world`.
 ///
 /// Rungs run OPPOSITE `heading_scale`'s own direction: SUBHEAD has the LEAST
 /// size to lean on, so it gets the MOST lead; TITLE already commands the room
 /// via 1.6x size alone, so it gets the least. `0` (body / a non-heading line,
-/// including a thematic break — see `render::spans::md_line_scale`) is
-/// exactly `1.0`, so every non-heading row's height is BYTE-IDENTICAL to
-/// before this constant existed.
+/// including a thematic break — see `render::spans::md_line_scale`) is exactly
+/// `1.0`, so no non-heading row's height is touched by this at all.
 pub fn heading_row_lead(level: u8) -> f32 {
     match level {
         0 => 1.0,
@@ -189,9 +180,9 @@ impl Heading {
 /// heading, a paragraph underlined by `===`/`---`; see its `Tag::Heading` arm),
 /// matching heading-SIZE + the WYSIWYG conceal, both of which key off the leading
 /// `#`. Without that source-level filter a stray `-` typed under a paragraph
-/// promoted it to an outline heading (the reported bug) — and, worse, styled it
-/// as a heading everywhere else too, since this function is downstream of the
-/// same span list every other consumer reads. One entry per
+/// promotes it to an outline heading — and, worse, styles it as a heading
+/// everywhere else too, since this function is downstream of the same span list
+/// every other consumer reads. One entry per
 /// heading line — a title built from several runs (e.g. `# a *b*`) emits multiple
 /// Heading spans on the same line, so we keep the first. A heading whose title is
 /// ENTIRELY styled (e.g. `# *all italic*`) yields no plain Heading span and is the
@@ -209,13 +200,11 @@ pub fn headings(text: &str) -> Vec<Heading> {
 /// document's span list in document byte coords (as [`spans`] returns) or the
 /// per-span newline count is wrong.
 ///
-/// NO ATX filter lives here (deliberate — dropped when the source-level fix
-/// landed): every `MdKind::Heading` this function ever sees already came through
-/// `spans()`, which is now the ONE place that decides ATX vs SETEXT, so a
-/// second filter here could only ever be dead code (unreachable given a
-/// `spans()`-produced input, and this function's own doc requires exactly that
-/// input). Re-deriving the same rule here would be the "four consumers
-/// re-deriving one rule" shape this round explicitly closed.
+/// ⚠️ NO ATX filter belongs here. Every `MdKind::Heading` this function sees
+/// already came through `spans()`, which is the ONE place that decides ATX vs
+/// SETEXT, so a second filter could only ever be dead code — unreachable given a
+/// `spans()`-produced input, which this function's own doc requires. Adding one
+/// re-derives a rule that has an owner.
 pub fn headings_from_spans(text: &str, spans: &[(Range<usize>, MdKind)]) -> Vec<Heading> {
     let mut out: Vec<Heading> = Vec::new();
     for (range, kind) in spans {

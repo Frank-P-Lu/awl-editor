@@ -2,10 +2,10 @@
 //! nothing else.
 //!
 //! Three of a card's lines — the word-count readout, the frontmatter language,
-//! and the through-doc percent — used to be computable only inside the render
-//! pipeline, because the pipeline was the only holder of the shaped lines they
-//! were summed over. That made the pipeline the one description of them, so the
-//! semantic fold could not derive a card at all: it had to be HANDED one, and a
+//! and the through-doc percent — are computed HERE rather than inside the
+//! render pipeline. Summing them over the pipeline's shaped lines would make
+//! the pipeline their one description, and the semantic fold could then not
+//! derive a card at all: it would have to be HANDED one, and a
 //! `--screenshot-app` capture (which has no pipeline of its own) announced no
 //! card for a card its PNG plainly drew.
 //!

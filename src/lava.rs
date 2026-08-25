@@ -612,7 +612,7 @@ fn spec() -> &'static Option<(Background, f32)> {
 
 /// The dev gallery override [`Background::Lava`], if `AWL_LAVA` was set at startup
 /// and parses. `None` (every normal + headless run) means: no override, the
-/// active world's real background stands — byte-identical to before this feature.
+/// active world's real background stands.
 pub fn env_override() -> Option<Background> {
     spec().as_ref().map(|(bg, _)| *bg)
 }
@@ -885,8 +885,8 @@ impl LavaPipeline {
     }
 
     /// Record the fullscreen-triangle draw — a TOTAL NO-OP while inactive (no
-    /// lava world / the last `prepare` saw `None`), so a non-lava frame is
-    /// byte-identical to before this feature existed.
+    /// lava world / the last `prepare` saw `None`), so a non-lava frame records
+    /// no draw at all.
     pub fn draw<'a>(&'a self, pass: &mut wgpu::RenderPass<'a>) {
         if !self.active {
             return;

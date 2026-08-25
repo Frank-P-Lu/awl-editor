@@ -210,7 +210,7 @@ impl Gpu {
         // per-pipeline color converters all emit LINEAR light expecting exactly
         // that). On native `config_format` is already srgb, so this is a no-op
         // (`view_format == config_format`, `view_formats` stays empty → the surface
-        // config is byte-identical to before). On the web it upgrades the non-srgb
+        // config is untouched). On the web it upgrades the non-srgb
         // canvas: we list the srgb variant in `view_formats` and create the frame
         // view with it in `redraw`, which is the WebGPU-blessed way to get an sRGB
         // canvas (config a base format, render through an srgb view). WITHOUT this

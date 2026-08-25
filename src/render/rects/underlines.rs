@@ -175,8 +175,8 @@ impl TextPipeline {
     /// trailing spaces after a semicolon, and identifier punctuation never nit
     /// (commented-OUT code — `SynKind::CommentCode` — is excluded too, same as
     /// spell). A non-code buffer (prose / markdown / the no-path scratch buffer,
-    /// `syn_lang == None`) is untouched — every span from every line is eligible,
-    /// byte-identical to before this scoping existed.
+    /// `syn_lang == None`) is untouched — every span from every line is
+    /// eligible.
     fn ensure_nit_protos(&self) {
         let key = (self.row_geom.generation(), self.reshape_count);
         if self.nit_cache.version.get() == Some(key) {

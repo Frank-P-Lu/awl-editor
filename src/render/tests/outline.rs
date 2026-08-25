@@ -374,7 +374,7 @@ fn outline_click_target_maps_the_fold_filtered_row_back_to_the_raw_heading_line(
 
     // NO-FOLD CASE UNCHANGED: with nothing folded, the mapping is the identity —
     // the filtered line already equals raw — so an unfolded click's resolved jump
-    // target is byte-identical to before this fix.
+    // target is unchanged by the remap.
     let no_hidden = crate::fold::hidden_lines(&levels, &std::collections::BTreeSet::new());
     assert_eq!(
         crate::fold::visible_to_full(&no_hidden, raw_section_b),

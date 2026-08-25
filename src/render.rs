@@ -174,9 +174,9 @@ pub const CARET_INK_PAD: Logical = Logical(3.0);
 /// equally on both sides of the anchored glyph's own ink centre (never a
 /// per-glyph raster read of its own — `caret_visual_body_dims` folds it in
 /// alongside the width floor, so every anchor still comes from the ONE shared
-/// body owner). Before this existed the resting body was the bare raster ink
-/// width with no accent margin at all, which read as hugging the letter
-/// rather than standing beside it — the vertical pad's own dead-space law
+/// body owner). Without it the resting body is the bare raster ink width with
+/// no accent margin at all, which reads as hugging the letter rather than
+/// standing beside it — the vertical pad's own dead-space law
 /// (`proportional_worlds_take_one_caret_top_at_every_letter`) already sits
 /// within a fraction of a pixel of its ceiling on the roster's tightest face,
 /// so this axis, not a taller pad, is where a modestly larger body has room.
@@ -464,22 +464,15 @@ pub const SYMBOL_FAMILY: &str = "Awl Marks";
 /// SHAPES with zero runtime font discovery. Each is loaded into the glyphon
 /// `FontSystem` at startup (see [`TextPipeline::new`]); a theme selects its face
 /// by the exact registered family name recorded in `Theme::font`, shaped via
-/// `Family::Name`. The registered family names (verified through fontdb) are, in
-/// order: "IBM Plex Mono" (already FONT_DATA, the default), "Literata",
-/// "Newsreader 16pt 16pt" (the static Newsreader master registers under this
-/// optical-size name), "IBM Plex Sans", "Zilla Slab", "JetBrains Mono"
-/// (Mangrove), "Figtree" (Galah), "iA Writer Quattro S" (now unassigned),
-/// "Monaspace Xenon" (Potoroo), "Fraunces 9pt"
-/// (Saltpan), and "EB Garamond" (Bombora) — eleven distinct faces.
+/// `Family::Name` — so the name a world records must be the family FONTDB
+/// registers, which is not always the file's stem. "Newsreader 16pt 16pt" is
+/// where the two part company: the static Newsreader master registers under its
+/// optical-size name. The default face is not in this list; it lives in
+/// [`FONT_DATA`], and [`bundled_display_faces`] is the seam that joins them.
 ///
-/// Literata/Newsreader/Plex Sans/Zilla/Fraunces/EB Garamond are PROPORTIONAL and
-/// iA Writer Quattro S / Monaspace Xenon are (duo/mono)spaced; cosmic-text shapes
-/// them all with real per-glyph advances and awl's caret / hit-test / selection
-/// ride those real advances (see [`Self::line_glyph_xs`]), so switching the
-/// document family is all that is needed to make each world render and track
-/// correctly. Every face here is a static Regular/400 (Monaspace Xenon was
-/// instanced from its variable master at `wght=400`), so no `mono_safe_weight`
-/// exception is needed beyond IBM Plex Mono's Light.
+/// Every face here is a static Regular/400 (Monaspace Xenon was instanced from
+/// its variable master at `wght=400`), so no `mono_safe_weight` exception is
+/// needed beyond IBM Plex Mono's Light.
 ///
 /// EACH FACE DECLARES ITS PITCH. The second tuple field is the
 /// face's [`facepitch::Pitch`] — the tuple type is the point: a new
@@ -569,14 +562,11 @@ pub fn bundled_display_faces() -> impl Iterator<Item = (&'static [u8], facepitch
 /// request, so it survives name-matching and resolves to the bold FILE — no new
 /// family, no wiring beyond this list (the `MdKind::Bold` arm is unchanged).
 ///
-/// EVERY bundled display face now gets a bold — the 10 PROPORTIONAL faces plus,
-/// as of the mono-bolds round, the 4 MONOSPACE display faces (IBM Plex Mono,
-/// JetBrains Mono, Monaspace Xenon, Iosevka). The monos were the last Regular-only
-/// families, so a `**bold**` span in the five mono-display worlds (Tawny = Plex
-/// Mono, Mangrove = JetBrains, Firetail/Potoroo = Monaspace Xenon, Currawong =
-/// Iosevka) tripped the SAME trap and fell into a FOREIGN proportional sans (the
-/// user's "weird fi-ligature" report) — worse than the proportional case. A real
-/// 700 mono keeps the fixed grid (same advance) AND gives true emphasis. Each face
+/// EVERY bundled display face gets a bold, MONOSPACE ONES INCLUDED. A mono
+/// without a 700 trips the same trap and falls into a FOREIGN proportional sans
+/// (the user's "weird fi-ligature" report) — worse than the proportional case,
+/// because it also breaks the fixed grid. A real 700 mono keeps the advance AND
+/// gives true emphasis. Each face
 /// is sourced exactly like the bundled CJK faces: a static upstream Bold where one
 /// ships (Fira Sans, IBM Plex Sans, Zilla Slab, iA Writer Quattro S, IBM Plex Mono,
 /// Iosevka), else instanced from the OFL variable source at `wght=700`
@@ -1822,7 +1812,7 @@ pub struct TextPipeline {
     /// THE LAVA-LAMP GROUND ([`Background::Lava`]): a slow 2D metaball field
     /// painted MARGINS-ONLY, drawn right AFTER `background_pipeline` and BEFORE the
     /// washes/selection/text. INACTIVE (draws nothing) for every non-lava world,
-    /// so all fifteen shipped worlds stay byte-identical. The animation PHASE is
+    /// which leaves the rest of the roster byte-identical. The animation PHASE is
     /// driven by the live App's slow ~10 fps tick (never `advance()`'s hot loop);
     /// [`Self::lava_phase`] holds it. See [`crate::lava`].
     pub lava_pipeline: crate::lava::LavaPipeline,
@@ -1849,8 +1839,8 @@ pub struct TextPipeline {
     /// `SelectionPipeline` (fully-rounded tiny quads via `set_corner`,
     /// per-star alpha via `prepare_multicolor` — the writing-streaks
     /// per-instance-color path; no new shader, nothing new for WebGL2).
-    /// ZERO instances for every `AmbientStyle::None` world (fifteen of
-    /// sixteen — byte-identical), and for page-off (no margins → no stars).
+    /// ZERO instances for every `AmbientStyle::None` world (byte-identical
+    /// there), and for page-off (no margins → no stars).
     /// The twinkle rides [`Self::lava_phase`] — ONE ambient clock, two
     /// consumers. See [`Self::prepare_stars_layer`] + [`crate::stars`].
     pub stars_pipeline: SelectionPipeline,

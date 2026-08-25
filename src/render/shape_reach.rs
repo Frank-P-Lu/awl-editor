@@ -27,17 +27,8 @@ use super::*;
 /// can never disagree about which rows a frame is allowed to need.
 pub const OFFSCREEN_CULL_MARGIN_ROWS: Rows = Rows(8.0);
 
-/// How far a shaping pass REACHES through the document.
-///
-/// [`TextPipeline::full_shape_height`] budgets every visual row, which is what
-/// keeps the whole document's geometry real (an unshaped row has no geometry at
-/// all — the scroll-jump / wrong-image-height class that budget exists to
-/// prevent). It is also, on a long document, ~95% of a theme-preview arrow's cost,
-/// spent on rows no frame can draw.
-///
-/// A preview shapes [`ShapeReach::Presentable`] — everything its frame can paint.
-/// Newer selections may replace its off-screen tail before a quiet settle pays it.
-/// Every settled path stays [`ShapeReach::Whole`].
+/// How far a shaping pass REACHES through the document. See this module's
+/// header for why the split exists and where it is allowed to be taken.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum ShapeReach {
     /// Every visual row of the document — the settled reach.
@@ -230,19 +221,18 @@ impl TextPipeline {
     /// and the timed [`Self::sync_theme_font_timed`] (so the two can never drift). The
     /// following `restyle_all_lines` does the actual shape + row-geom invalidation.
     ///
-    /// NOTE: the redundant `buffer.set_text` (a WHOLE-document cosmic-text reshape in
-    /// the new plain family) was dropped here — `restyle_all_lines` ALREADY re-lays
-    /// every line's attrs in the new family (via `doc_attrs()`) AND covers the per-line
-    /// markdown / heading / CJK spans, then reshapes the document. The old `set_text`
-    /// shaped every line in the new face only to have `restyle_all_lines` immediately
-    /// re-lay + reshape it again — one full reshape per theme-preview step for nothing.
-    /// The text is unchanged by a theme switch, so the buffer already holds it; we only
-    /// need the new wrap size + the restyle. Byte-identical (same final attrs/shape).
+    /// ⚠️ NO `buffer.set_text` HERE. A theme switch does not change the text, and
+    /// `restyle_all_lines` already re-lays every line's attrs in the new family
+    /// (via `doc_attrs()`), covers the per-line markdown / heading / CJK spans,
+    /// and reshapes. Adding a `set_text` shapes every line in the new face only
+    /// for the restyle to re-lay and reshape it again — a second full reshape
+    /// per theme-preview step, for nothing.
+    ///
     /// Re-derive the wrap width from the live page COLUMN, never the buffer's own
-    /// (possibly stale) size — preserving `self.buffer.size().0` here would carry a
-    /// divergent edge-to-edge width through a theme switch and leave the page running
-    /// off the right edge. Set it BEFORE restyling so the new-face reshape wraps at the
-    /// right width.
+    /// (possibly stale) size: preserving `self.buffer.size().0` here carries a
+    /// divergent edge-to-edge width through the switch and leaves the page running
+    /// off the right edge. Set it BEFORE restyling so the new-face reshape wraps at
+    /// the right width.
     ///
     /// `reach` picks the shaping BUDGET the following restyle fills (see
     /// [`ShapeReach`]). This is the ONE site that can narrow it, and it is also the
@@ -282,10 +272,10 @@ impl TextPipeline {
     /// settled frame. The plain `sync_theme_font` — the ONLY variant the headless path
     /// calls — reads no clock, so a capture never touches an `Instant` here.
     ///
-    /// The row-geom walk is FORCED here (a plain reshape leaves it lazy for the next
-    /// prepare) purely so its cost is timed as its own phase — identical work moved a
-    /// few microseconds earlier, warming the cache the frame's prepare would rebuild
-    /// anyway, so the rendered frame stays byte-identical.
+    /// The row-geom walk is FORCED here (a plain reshape leaves it lazy for the
+    /// next prepare) purely so its cost is timed as its own phase. It is the same
+    /// work a few microseconds earlier, warming the cache the frame's prepare
+    /// would rebuild anyway, so the rendered frame is unaffected.
     pub fn sync_theme_font_timed(
         &mut self,
         reach: ShapeReach,

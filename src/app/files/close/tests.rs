@@ -1002,10 +1002,9 @@ mod waiters {
     /// A `--wait` CLIENT BLOCKED ON A FILE THAT IS NOT ACTIVE is still notified
     /// when that file closes.
     ///
-    /// The third of the three missing pieces. The notification used to be
-    /// derived from `self.document.buffer()`, so a client blocked on a file the
-    /// reader had since switched away from could only be released by switching
-    /// back to it first. Keying it makes the question "who is waiting on THIS
+    /// Deriving the notification from `self.document.buffer()` releases a
+    /// client only when the reader is still ON the file it blocked for — switch
+    /// away and the client waits forever. Keying it makes the question "who is waiting on THIS
     /// file", which is what the client actually asked.
     #[test]
     fn a_daemon_waiter_on_a_parked_file_is_notified_when_that_file_closes() {

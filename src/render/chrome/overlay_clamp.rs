@@ -12,10 +12,11 @@ use super::*;
 impl TextPipeline {
     /// Caps a candidate window to what `avail_px` fits at row pitch `lh`,
     /// given `overhead_rows` non-item display lines — never above the
-    /// per-kind cap (`overlay_window_rows`). Before this existed the flat
-    /// family had no such bound at all: a big flat corpus (the theme picker's
-    /// own world roster, `overlay_window_rows() == theme::THEMES.len()`) drew
-    /// a card taller than the canvas (`card_h: 934` against `canvas_h: 800`).
+    /// per-kind cap (`overlay_window_rows`). Without the cap the flat family
+    /// has no such bound at all: a big flat corpus (the theme picker's own
+    /// world roster, `overlay_window_rows() == theme::THEMES.len()`) draws a
+    /// card taller than the canvas — measured `card_h: 934` against
+    /// `canvas_h: 800`.
     ///
     /// `min_items` is `fit_item_rows`'s own family floor — see its doc for why
     /// the FLAT family and the GROUPED family pass different

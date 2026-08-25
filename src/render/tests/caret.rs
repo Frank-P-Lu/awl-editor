@@ -839,8 +839,8 @@ fn copy_pulse_settles_at_construction_then_kicks_and_decays_back() {
     let _g = crate::testlock::serial();
     // A freshly-built pipeline (and every headless capture, which never calls
     // `copy_pulse`) sits permanently at the settled fraction (1.0) — the
-    // selection quad draws its plain theme tint, byte-identical to before this
-    // round existed. Kicking it drops to 0 (full brighten); running the live
+    // selection quad draws its plain theme tint. Kicking it drops to 0 (full
+    // brighten); running the live
     // clock out settles it back to exactly 1.0 (byte-identical to the pre-kick
     // rendering) — the LIVE-ONLY animation's "decays to exactly the pre-copy
     // rendering" contract, exercised without a GPU present/draw.

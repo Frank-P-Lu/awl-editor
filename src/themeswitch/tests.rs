@@ -178,7 +178,7 @@ fn settle_lines_are_absent_without_a_measured_switch() {
     // DETERMINISM LAW (formatting seam): the `None` value — the ONLY value a
     // headless capture ever holds, since the live App never feeds a switch on the
     // deterministic path — yields ZERO lines. No data, no readout: a `--debug`
-    // screenshot stays byte-identical to before this feature.
+    // screenshot carries no settle readout at all.
     assert_eq!(settle_lines(None), Vec::<String>::new());
 }
 

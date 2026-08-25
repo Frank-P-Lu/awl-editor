@@ -1010,10 +1010,10 @@ fn burst_frame(
 }
 
 // ============================================================================
-// BENCH-MUST-WITNESS-THE-WORK (CLAUDE.md's own rule): the "wash layer (cull +
-// upload)" stage added this round used to be entirely UNCALLED in this bench's
-// replayed sequence — not folded into a neighbor's number, just skipped, so a
-// reader of the printed table would never know the cost was missing. This
+// BENCH-MUST-WITNESS-THE-WORK (CLAUDE.md's own rule): a stage can go entirely
+// UNCALLED in this bench's replayed sequence — not folded into a neighbor's
+// number, just skipped — so a reader of the printed table would never know the
+// cost was missing. This
 // confirms, on the same class of content the real fixtures (`CAPTURE.md` /
 // `CLAUDE.md`) carry — a fenced code block with a prose comment + a string
 // literal, inheriting the wash through the markdown seam (see
