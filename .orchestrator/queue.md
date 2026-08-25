@@ -545,7 +545,14 @@ carried 0.20 while the shader said 0.13). Single-source where feasible
 constants block is the fallback). (3) dead functions/bindings —
 uniforms declared but unread, helpers with no callers. (4) the item-500
 comment classes (stale facts, history narration, restatement) applied
-to the 1,467 shader comment lines, same rules, same exemptions.
+to the 1,467 shader comment lines, same rules, same exemptions — and
+the history class is VERIFIED present, ~a dozen sites concentrated in
+`background.wgsl` ("used to compute from `drift` — deleted outright",
+"identical to the old flat clear", "the reason the old placement
+existed", "used to reach zero at the page edge", `blur.wgsl`'s "used
+to be a knife edge"; grep inventory: `used to |the old |no longer`,
+judged per site against the same lose-a-constraint-or-only-a-changelog
+test).
 
 Law policy, per the user: NO fragile text-scanning law. A pin ships
 only if it parses (naga is already in the tree via wgpu — assert over
