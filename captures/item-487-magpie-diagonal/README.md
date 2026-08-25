@@ -1,5 +1,19 @@
 # item 487 — Magpie/Mangrove diagonal picker composition candidate gallery
 
+**RESOLVED — historical audition artifact.** The picks below were made and
+built: `frost-top0` and `chevron-short` shipped as the production default
+(no env var — read the composition's own code), `query-right` shipped
+direction-derived (right-aligned only on the mirror whose rows anchor
+right), and `frost-full` was rejected and its hook deleted outright. The
+`AWL_DIAGONAL_GALLERY_*` env vars this README and `shoot.sh` describe **no
+longer exist** — every "candidate" shot below now renders byte-identical to
+its own "current" shot, so re-running `shoot.sh` no longer demonstrates
+alternatives. The fixture, `shoot.sh` and `measure.py` stay committed as the
+record of the audition and its own pixel-arithmetic method (kept for the
+same reason `captures/item-444-residual3/README.md` keeps its own); the
+shipped laws are `src/render/tests/marker_side.rs` and
+`src/render/tests/frost_diagonal_seat.rs`.
+
 `sh captures/item-487-magpie-diagonal/shoot.sh` from the repo root regenerates
 the gallery and re-runs `measure.py`'s pixel-arithmetic checks.
 

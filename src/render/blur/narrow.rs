@@ -267,7 +267,10 @@ mod tests {
         let surface = [220.0f32, 120.0, 260.0, 300.0]; // bottom = 300, well short of 550
         for shear in [-0.3f32, -0.05, 0.0, 0.05, 0.3] {
             let [nx, ny, nw, nh] = footprint_narrow_bottom(card, shear, &[surface]);
-            assert_eq!(ny, card[1], "shear {shear}: the top face is not this fn's job");
+            assert_eq!(
+                ny, card[1],
+                "shear {shear}: the top face is not this fn's job"
+            );
             assert_eq!(nw, card[2], "shear {shear}: the width is not this fn's job");
             assert!(
                 (nh - 200.0).abs() < 1e-2,

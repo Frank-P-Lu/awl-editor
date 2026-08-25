@@ -1,4 +1,11 @@
 #!/bin/sh
+# RESOLVED — historical audition artifact. The picks were built: frost-top0
+# and chevron-short are the unconditional production default, query-right
+# ships direction-derived, frost-full was rejected and deleted. The
+# AWL_DIAGONAL_GALLERY_* vars this script sets NO LONGER EXIST, so every
+# "candidate" shot below now renders byte-identical to its own "current"
+# shot — see README.md's own note before trusting a re-run's diff.
+#
 # Reproduce this item's capture gallery from the repo root:
 #   sh captures/item-487-magpie-diagonal/shoot.sh
 #

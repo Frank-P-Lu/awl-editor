@@ -158,7 +158,11 @@ fn read_mark(p: &TextPipeline, cw: u32) -> Option<MarkReading> {
     row.item?;
     let probe = p.diagonal_cluster_probe()?;
     let span = probe.span;
-    let ink_w = p.overlay_row_primary_px(&geom).get(&sel).copied().unwrap_or(0.0);
+    let ink_w = p
+        .overlay_row_primary_px(&geom)
+        .get(&sel)
+        .copied()
+        .unwrap_or(0.0);
     let accessory_ink_w = p
         .overlay_row_secondary_px(plan.billed_header_rows())
         .get(&sel)
@@ -229,6 +233,18 @@ fn assert_mark_is_outboard(r: &MarkReading, ctx: &str) {
             (r.vertex - r.label_anchor) * s,
             r.label_anchor,
             r.ink_w
+        );
+        // …and it stands only a SEATING GAP past that ink, not the cluster's whole
+        // reserved width — the far placement this law replaced. 60 device px covers
+        // the authored gap at every DPI and zoom this sweep runs while sitting far
+        // under any real accessory-column reach, so this floor is what actually
+        // catches a `mark_span` reverted to its old `accessory_anchor`-based reach.
+        let past_ink = (r.vertex - r.label_anchor) * s - r.ink_w * s;
+        assert!(
+            past_ink <= 60.0,
+            "{ctx}: the vertex sits {past_ink:.1} px past the row's own name ink — \
+             far more than a seating gap, which reads as the mark standing at the \
+             cluster's whole reserved width again rather than just past the name"
         );
     }
     // THE MARK POINTS BACK INTO THE ROW: the vertex is its inner end and the

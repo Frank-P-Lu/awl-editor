@@ -517,7 +517,8 @@ impl TextPipeline {
             .min(self.overlay_query.chars().count());
         let target_byte = prefix_len + field_caret_byte(&self.overlay_query, caret_char);
         let first_run = self.panel_buffer.layout_runs().next();
-        // `geom.text_left` unless the gallery moved it.
+        // `geom.text_left`, or right-aligned against the text column on a world
+        // whose rows anchor right — see `overlay_head_left`'s own doc.
         let caret_x = self.overlay_head_left(geom, plan)
             + first_run
                 .as_ref()
