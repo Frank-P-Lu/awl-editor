@@ -27,6 +27,8 @@ before building.
 ---
 ### 500 — comment audit: stale roster counts, history narration, restatement (USER 2026-08-25, after a measured density audit)
 
+**CLAIMED 2026-08-26 — building in worktree `item-500-comment-audit`.**
+
 Measured (tokei): 81,596 comment lines against 254,962 code lines — 32%
 comment-to-code, ~70% of it doc comments.
 
