@@ -471,10 +471,10 @@ pub fn misspelled_spans<F: Fn(&str) -> bool>(text: &str, check: F) -> Vec<Misspe
     let mut in_fence = false;
 
     for (line_no, line) in text.split('\n').enumerate() {
-        // Fenced code block toggle: a line that is just ``` (optionally with an
-        // info string / indentation) flips the state. The fence line itself is
-        // never spell-checked.
-        if line.trim_start().starts_with("```") {
+        // Fenced code block toggle: a line that opens a backtick OR tilde fence
+        // (optionally with an info string / up to 3 leading indent spaces) flips
+        // the state. The fence line itself is never spell-checked.
+        if crate::markdown::is_fence_line(line) {
             in_fence = !in_fence;
             continue;
         }

@@ -15,11 +15,34 @@ use std::ops::Range;
 /// [`crate::syntax::Lang::from_info`] — THE SAME gate `spans` uses to decide
 /// whether a fence's body gets `CodeSyntax` highlighting at all — so the drawn quiet
 /// LABEL and the fence's own syntax highlighting can never disagree about which
-/// language a fence names. Skips up to 3 leading indent spaces (CommonMark's fence-
-/// indent allowance) then a run of 3+ matching `` ` `` or `~` fence characters;
-/// anything short of that (no fence, an indented code block, an unmatched run) is
-/// `None`. Pure + total.
+/// language a fence names. The prefix recognition itself ([`is_fence_line`]'s
+/// domain: up to 3 leading indent spaces, then a run of 3+ matching `` ` `` or
+/// `~` fence characters) is a shared owner this layers its lang gate on top
+/// of; anything short of that (no fence, an indented code block, an unmatched
+/// run) is `None`. Pure + total.
 pub fn fence_line_lang(line: &str) -> Option<crate::syntax::Lang> {
+    let info = fence_info(line)?;
+    crate::syntax::Lang::from_info(info)
+}
+
+/// True when `line` opens a CommonMark fence: up to 3 leading indent spaces,
+/// then a run of 3+ matching `` ` `` or `~` characters — the prefix gate
+/// [`fence_line_lang`] layers its name→language lookup on top of. THE shared
+/// owner for every production site that needs "is this line a fence" without
+/// caring which language it names: the spell-checker's fence-skip toggle
+/// (`spell::misspelled_spans`) and the code-block-toggle's already-fenced
+/// judgment (`actions::format::code_block_toggle`) both route through this
+/// rather than re-deriving the prefix rule with a naive `` starts_with("```") ``
+/// that misses `~~~` fences and the indent allowance. Pure + total.
+pub fn is_fence_line(line: &str) -> bool {
+    fence_info(line).is_some()
+}
+
+/// The shared fence-prefix scan: skips up to 3 leading spaces, then a run of
+/// 3+ matching `` ` `` or `~` fence characters, returning the info string that
+/// follows. `None` when the line isn't a fence opener at all (no fence, an
+/// indented code block, an unmatched run).
+fn fence_info(line: &str) -> Option<&str> {
     let mut chars = line.chars();
     let mut rest = line;
     for _ in 0..3 {
@@ -39,8 +62,7 @@ pub fn fence_line_lang(line: &str) -> Option<crate::syntax::Lang> {
     if run < 3 {
         return None;
     }
-    let info = &rest[run..];
-    crate::syntax::Lang::from_info(info)
+    Some(&rest[run..])
 }
 
 /// True when `line` is a CommonMark THEMATIC BREAK: after up to 3 leading spaces, a

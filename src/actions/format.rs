@@ -151,7 +151,7 @@ fn present_prefix_len(kind: BlockKind, line: &[char], ind: usize) -> Option<usiz
 }
 
 fn is_fence(line: &str) -> bool {
-    line.trim_start().starts_with("```")
+    crate::markdown::is_fence_line(line)
 }
 
 fn block_toggle(kind: BlockKind, text: &str, anchor: Option<usize>, cursor: usize) -> FormatResult {
@@ -834,6 +834,17 @@ mod tests {
     fn code_block_wraps_a_single_line_with_no_selection() {
         let r = blk(BlockKind::CodeBlock, "code\n", None, 2);
         assert_eq!(r.text, "```\ncode\n```\n");
+    }
+
+    #[test]
+    fn code_block_toggle_recognizes_an_already_tilde_fenced_selection() {
+        // `is_fence` (the already-fenced judgment) must recognize `~~~`
+        // fences, not just backtick ones -- the renderer treats a tilde
+        // fence as a real fence, so the toggle must unwrap it in one step
+        // rather than nesting a second (backtick) fence around it.
+        let src = "~~~\nlet x = 1;\nlet y = 2;\n~~~\n";
+        let r = blk(BlockKind::CodeBlock, src, Some(0), src.chars().count());
+        assert_eq!(r.text, "let x = 1;\nlet y = 2;\n");
     }
 
     #[test]

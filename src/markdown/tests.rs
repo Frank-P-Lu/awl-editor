@@ -1484,6 +1484,54 @@ fn fence_line_lang_matches_the_syntax_highlighting_gate() {
     }
 }
 
+/// THE FENCE-LINE-RECOGNITION parity law: [`is_fence_line`] is the shared
+/// prefix gate every production site (spell-check's fence-skip toggle,
+/// format's already-fenced judgment) routes through instead of re-deriving a
+/// naive `` starts_with("```") `` — so it must agree with [`fence_line_lang`]'s
+/// own recognition domain: whenever `fence_line_lang` recognizes a line as a
+/// fence opener (Some OR None-for-unrecognized-lang), `is_fence_line` must
+/// call it a fence too, and whenever `fence_line_lang` refuses the line
+/// outright (not a fence at all), `is_fence_line` must refuse it as well.
+#[test]
+fn is_fence_line_matches_fence_line_lang_recognition_domain() {
+    // (line, expected is_fence_line) — backtick, tilde, indented (0..=3
+    // spaces, the CommonMark allowance), short-run, and mid-line cases.
+    let corpus = [
+        ("```rust", true),
+        ("```", true),
+        ("```made-up-lang", true),
+        ("~~~", true),
+        ("~~~rust", true),
+        ("~~~toml", true),
+        (" ```rust", true),
+        ("  ```rust", true),
+        ("   ```rust", true),   // 3-space indent: still a fence
+        ("    ```rust", false), // 4-space indent: an indented code block, not a fence
+        ("``rust", false),      // 2 backticks: short run
+        ("~~", false),          // 2 tildes: short run
+        ("not a fence", false),
+        ("", false),
+        ("text ``` more", false), // backticks mid-line: not an opener
+    ];
+    for (line, expect_fence) in corpus {
+        assert_eq!(
+            is_fence_line(line),
+            expect_fence,
+            "is_fence_line({line:?}) should be {expect_fence}"
+        );
+        // Whenever `fence_line_lang` recognizes a language on this line, it
+        // necessarily recognized the line's fence prefix first -- `is_fence_line`
+        // must agree it's a fence. (The converse doesn't hold: a fence with
+        // an unrecognized/absent language is still a fence, just label-less.)
+        if fence_line_lang(line).is_some() {
+            assert!(
+                is_fence_line(line),
+                "fence_line_lang recognized {line:?} but is_fence_line refused it"
+            );
+        }
+    }
+}
+
 #[test]
 fn setext_dash_underline_that_qualifies_as_a_break_is_a_rule() {
     // DECIDED: `---` always draws as the rule, whatever precedes it — awl has no
