@@ -733,6 +733,40 @@ fn tab_indents_an_ordered_list_without_renumbering() {
 }
 
 #[test]
+fn tab_indents_a_tab_indented_list_line_not_a_soft_tab() {
+    // Regression: `list_item`'s indent scan used to accept spaces only, so a
+    // TAB-indented bullet failed the Tab/Shift-Tab list gate
+    // (`selection_or_cursor_on_list`) and fell through to a soft-tab insert —
+    // even though Enter on the SAME line happily continued it as a list
+    // (`smart_newline_for`'s own indent scan already accepted tabs). Driven
+    // through the real `apply_transition` seam exactly as `--keys "Tab"` would.
+    let mut b = md("\t- item", 7); // caret at end of line
+    drive_act(&mut b, &Action::InsertTab);
+    assert_eq!(
+        b.text(),
+        "  \t- item",
+        "Tab indents the tab-indented bullet by one nesting level, not a soft-tab"
+    );
+
+    // Same gate, ordered and task variants — every marker kind list_item covers.
+    let mut ordered = md("\t1. item", 8);
+    drive_act(&mut ordered, &Action::InsertTab);
+    assert_eq!(
+        ordered.text(),
+        "  \t1. item",
+        "tab-indented ordered item indents"
+    );
+
+    let mut task = md("\t- [ ] item", 11);
+    drive_act(&mut task, &Action::InsertTab);
+    assert_eq!(
+        task.text(),
+        "  \t- [ ] item",
+        "tab-indented task item indents"
+    );
+}
+
+#[test]
 fn tab_off_a_list_inserts_spaces_not_an_indent() {
     // On a plain prose line Tab keeps the existing soft-tab (to the next 4-stop),
     // so non-list editing is unchanged.
@@ -869,6 +903,59 @@ fn smart_newline_parser_declines_plain_and_inside_marker() {
     assert!(smart_newline_for("- item", 0).is_none());
     // A lone "-" without a trailing space is not a list yet.
     assert!(smart_newline_for("-", 1).is_none());
+}
+
+#[test]
+fn tab_gate_and_enter_continuation_agree_on_is_list_line() {
+    // Parity law: `list_item` is the documented SHARED list-detection primitive
+    // behind BOTH the Tab/Shift-Tab indent gate (`selection_or_cursor_on_list`,
+    // which calls it directly) and the Enter continuation (`smart_newline_for`,
+    // which now routes its marker detection through it too). Sweep a corpus of
+    // tab-indented bullets/ordered/task items and near-misses and assert the two
+    // consumers can never disagree on whether a line IS a list item. Caret is
+    // parked at the line's own end, which — for any real list marker — always
+    // sits at or past the marker (so `smart_newline_for` never declines on a
+    // caret-inside-marker technicality here).
+    let corpus = [
+        "- item",
+        "* item",
+        "+ item",
+        "\t- tab-indented bullet",
+        "\t\t- double-tab-indented bullet",
+        "  - space-indented bullet",
+        "\t* tab-indented star",
+        "\t+ tab-indented plus",
+        " \t- mixed space-then-tab bullet",
+        "\t - tab-then-space bullet",
+        "1. ordered",
+        "12) ordered paren",
+        "\t1. tab-indented ordered",
+        "\t12) tab-indented ordered paren",
+        "- [ ] task",
+        "- [x] task checked",
+        "\t- [ ] tab-indented task",
+        "\t- [X] tab-indented task, capital X",
+        "-", // bare dash, no trailing space — not a list
+        "-nope",
+        "12 monkeys", // digits + space with no '.'/')' delimiter — not a list
+        "just prose",
+        "",
+        "\t", // only indentation, nothing else
+        "\tjust indented prose",
+        "\t\t\tdeeply indented prose",
+    ];
+    for line in corpus {
+        let is_list = crate::markdown::list_item(line).is_some();
+        let col = line.chars().count();
+        let enter_is_list = matches!(
+            smart_newline_for(line, col),
+            Some(SmartNewline::ContinueListItem { .. }) | Some(SmartNewline::EmptyListItem { .. })
+        );
+        assert_eq!(
+            is_list, enter_is_list,
+            "list_item and smart_newline_for disagree on is-list for {line:?}"
+        );
+    }
 }
 
 #[test]

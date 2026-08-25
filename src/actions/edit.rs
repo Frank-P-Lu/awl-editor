@@ -221,10 +221,13 @@ pub(super) enum SmartNewline {
 /// cursor `col` (chars from the line start). Pure — no buffer / GPU. After any
 /// leading indentation it recognizes, in order:
 ///  * a blockquote (`>`…) — continued with the same `>` run;
-///  * an unordered list (`-`/`*`/`+` + space), including a task checkbox (`[ ]`/
-///    `[x]`/`[X]` + space right after) — continued with the same bullet (a task
-///    item's checkbox continues UNCHECKED, never carrying `[x]` forward);
-///  * an ordered list (`N.`/`N)` + space) — continued with the number INCREMENTED;
+///  * a list item ([`crate::markdown::list_item`] — the SAME shared grammar the
+///    Tab/Shift-Tab indent gate uses, so a line the two commands disagree about
+///    can't exist), with a task checkbox (`[ ]`/`[x]`/`[X]` + space right after
+///    an unordered marker) layered on top here since `list_item` doesn't know
+///    task syntax — continued with the same bullet (a task item's checkbox
+///    continues UNCHECKED, never carrying `[x]` forward) or, for an ordered
+///    item, the number INCREMENTED;
 ///  * else bare indentation — preserved on a plain Enter.
 ///    An EMPTY blockquote unconditionally ends the block (`EndBlockquote`); an EMPTY
 ///    list item (bullet / numbered / task) is `EmptyListItem` — its caller decides
@@ -255,57 +258,46 @@ pub(super) fn smart_newline_for(line: &str, col: usize) -> Option<SmartNewline> 
         return Some(SmartNewline::Continue(chars[..j].iter().collect()));
     }
 
-    // Unordered list: '-' / '*' / '+' then a space; optionally a task checkbox
-    // (`[ ]`/`[x]`/`[X]` then a space) immediately after.
-    if i + 1 < chars.len() && matches!(chars[i], '-' | '*' | '+') && chars[i + 1] == ' ' {
-        let bullet_len = i + 2;
-        let is_task = chars.len() >= bullet_len + 4
-            && chars[bullet_len] == '['
-            && matches!(chars[bullet_len + 1], ' ' | 'x' | 'X')
-            && chars[bullet_len + 2] == ']'
-            && chars[bullet_len + 3] == ' ';
-        let prefix_len = if is_task { bullet_len + 4 } else { bullet_len };
+    // List item (bullet or ordered): the SHARED grammar, `list_item` — the same
+    // primitive the Tab/Shift-Tab indent gate calls — decides is-list; a task
+    // checkbox (`[ ]`/`[x]`/`[X]` then a space, right after an unordered marker)
+    // is layered on top here since `list_item` doesn't parse task syntax.
+    if let Some(it) = crate::markdown::list_item(line) {
+        let is_task = !it.ordered
+            && chars.len() >= it.content + 4
+            && chars[it.content] == '['
+            && matches!(chars[it.content + 1], ' ' | 'x' | 'X')
+            && chars[it.content + 2] == ']'
+            && chars[it.content + 3] == ' ';
+        let prefix_len = if is_task { it.content + 4 } else { it.content };
         if col < prefix_len {
-            return None;
+            return None; // caret inside the marker → plain newline
         }
-        let indent: String = chars[..i].iter().collect();
         if chars[prefix_len..].iter().all(|c| c.is_whitespace()) {
             // For every supported marker, an empty list item's
             // preserve-vs-end is the CALLER's provenance-gated decision.
             return Some(SmartNewline::EmptyListItem { strip: col });
         }
-        let prefix = if is_task {
-            format!("{indent}{} [ ] ", chars[i]) // continuation opens UNCHECKED
+        let indent: String = chars[..it.indent].iter().collect();
+        // The marker text (indent..content) minus its required trailing space
+        // ends in the bullet char (unordered) or the digit run + delimiter
+        // (ordered) — decompose it rather than re-deriving the grammar.
+        let mut marker: Vec<char> = chars[it.indent..it.content].to_vec();
+        marker.pop(); // the required trailing space
+        let last = marker.pop().expect("list_item guarantees a marker char");
+        let bare = chars[col..].iter().all(|c| c.is_whitespace());
+        let prefix = if it.ordered {
+            let n: usize = marker.iter().collect::<String>().parse().unwrap_or(0);
+            // `saturating_add` so a pathological `usize::MAX.` marker can't
+            // overflow (panic in debug, wrap-to-0 in release) — it simply pins
+            // at usize::MAX.
+            format!("{indent}{}{last} ", n.saturating_add(1))
+        } else if is_task {
+            format!("{indent}{last} [ ] ") // continuation opens UNCHECKED
         } else {
-            format!("{indent}{} ", chars[i])
+            format!("{indent}{last} ")
         };
-        let bare = chars[col..].iter().all(|c| c.is_whitespace());
         return Some(SmartNewline::ContinueListItem { prefix, bare });
-    }
-
-    // Ordered list: a run of digits then '.' or ')' then a space.
-    let mut d = i;
-    while d < chars.len() && chars[d].is_ascii_digit() {
-        d += 1;
-    }
-    if d > i && d + 1 < chars.len() && matches!(chars[d], '.' | ')') && chars[d + 1] == ' ' {
-        let prefix_len = d + 2;
-        if col < prefix_len {
-            return None;
-        }
-        if chars[prefix_len..].iter().all(|c| c.is_whitespace()) {
-            return Some(SmartNewline::EmptyListItem { strip: col });
-        }
-        let indent: String = chars[..i].iter().collect();
-        let n: usize = chars[i..d].iter().collect::<String>().parse().unwrap_or(0);
-        let delim = chars[d];
-        // `saturating_add` so a pathological `usize::MAX.` marker can't overflow
-        // (panic in debug, wrap-to-0 in release) — it simply pins at usize::MAX.
-        let bare = chars[col..].iter().all(|c| c.is_whitespace());
-        return Some(SmartNewline::ContinueListItem {
-            prefix: format!("{indent}{}{delim} ", n.saturating_add(1)),
-            bare,
-        });
     }
 
     // Bare indentation: carry it forward on a plain Enter (only when the caret is
