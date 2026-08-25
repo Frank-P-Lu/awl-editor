@@ -113,7 +113,38 @@ ladder step`): the mark + gap now scale with the heading's Ladder J step.
 commit.
 
 ---
-### 487 — Magpie theme-picker composition: query-to-list distance, frost boundaries through legible content, stranded chevron (USER-REPORTED 2026-08-25; diagnosed + candidate gallery LANDED, 🟠 AWAITING USER PICK)
+### 487 — Magpie theme-picker composition: query-to-list distance, frost boundaries through legible content, stranded chevron (USER-REPORTED 2026-08-25; ✅ USER PICKED 2026-08-25 — READY TO BUILD)
+
+**THE PICKS (user, 2026-08-25, from the audition artifact):**
+
+1. **`frost-top0` — ADOPT.** The Mangrove frame decided it: the blur
+   stays a selective band and the title stops melting. Ship the
+   pivot-compensated top-seat as the gallery built it.
+2. **`frost-full` — REJECTED, on principle:** "the whole point of
+   selective blur is so that you can see the themes underneath." No
+   full-canvas frost on Diagonal worlds; do not re-audition it.
+3. **`query-right` — ADOPT.** The user's own diagnosis: Magpie's
+   fundamental problem is that everything right-aligns EXCEPT the
+   caret, so the caret joins the composition. Carry `offband.rs`'s
+   recorded objection (an input's sigil travels as the user types)
+   into the build as a LIVE-FEEL question flagged for human
+   confirmation on the real window — the pick stands unless typing
+   feel disproves it, and a static capture cannot answer it either
+   way.
+4. **`chevron-short` — ADOPT**, at `mark_span`'s own layer
+   (`cluster.rs`) per the one-owner note, not the gallery's
+   `prepare_diagonal_spine` override.
+5. **Refinement riding the adoption (user):** the frosted footprint
+   should hug the diagonal list more tightly — "slightly more just
+   underneath the diagonal themes scroll" — i.e. the footprint tracks
+   the roster's own drawn extent rather than sprawling, so more of the
+   theme preview stays sharp around the band. Bounded: a footprint
+   geometry change within the same owner the gallery already touched,
+   auditioned at the same seams if it needs its own taste check.
+
+Build = promote the picked candidates from their `AWL_DIAGONAL_GALLERY_*`
+env gates to the shipped default (deleting the gates and the rejected
+`frost-full` hook), plus the item's Ready-once-picked verify below.
 
 Candidate gallery is built and landed at `captures/item-487-magpie-diagonal/`
 (fixture, `shoot.sh`, `measure.py`, README with rationale) — the current
