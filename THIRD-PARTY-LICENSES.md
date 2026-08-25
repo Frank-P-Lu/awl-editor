@@ -7828,7 +7828,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 - wayland-protocols-plasma 0.3.12
 - wayland-protocols-wlr 0.3.12
 - wayland-protocols 0.32.12
-- wayland-scanner 0.31.10
+- wayland-scanner 0.31.11
 - wayland-sys 0.31.11
 
 <details>
@@ -9358,7 +9358,7 @@ THE SOFTWARE.
 **SPDX identifier:** `MIT`
 
 **Used by:**
-- quick-xml 0.39.4
+- quick-xml 0.41.0
 
 <details>
 <summary>License text</summary>
