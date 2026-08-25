@@ -29,9 +29,22 @@ the gallery's numbers, not yet confirmed live in a real window.
 list: `git log --grep 'item 444'`; design history and every landed residual's
 detail: `git log -p -- .orchestrator/queue.md`.
 
-**Still open, NOT decided — the Move navigator sub-scope**, untouched by every
-prototype pass so far and awaiting its own round (Residual 1's prototype
-gallery is preserved untracked at `gallery/item-444-affordance-prototypes/`):
+**✅ Move navigator sub-scope DECIDED 2026-08-25 — READY TO BUILD** (three
+user answers; Residual 1's prototype gallery is preserved untracked at
+`gallery/item-444-affordance-prototypes/`):
+
+- **Action rows are CONTEXTUAL:** `Move here` is always visible (the
+  primary verb — the navigator was summoned to move), but `New folder…`
+  appears only when the typed query matches no existing folder — the
+  quiet create-on-unmatched-name picker idiom; the folder name is
+  already typed when the row appears.
+- **`New folder…` creates AND moves in one stroke** — no descend-and-
+  confirm ceremony; the completion notice names the full new path.
+- **Keyboard grammar confirmed:** Enter on a folder row descends,
+  Backspace/Left at an empty query ascends, Enter on `Move here`
+  commits.
+
+The bounded scope below stands as previously specified:
 
 Move stays deliberately bounded to the source file's owning root. Its summoned
 folders-only navigator says `move <filename>`, shows the current root-relative
@@ -74,7 +87,29 @@ Symbol survey is built and landed at `captures/item-475-glyph-survey/`
 evidence, licensing notes). The agent checked candidate coverage by parsing
 the actual bundled font files rather than trusting Unicode charts — the
 item's own named glyph lead has zero real font coverage and was dropped.
-🟠 AWAITING USER CHOICE — the symbol pick is next, from the gallery.
+
+**✅ PICKED 2026-08-25 — READY TO BUILD.** The user approved the survey
+("actually great") and DELEGATED the per-world assignment; the recorded
+mapping keys off the ornament-face registers (`theme/ornament.rs`), a
+roster that already classifies every world's flavor — derived, not a
+hand list, so a new world inherits a mark from its register:
+
+- **ORNAMENT_GARAMOND register** (true literary serifs — Bilby,
+  Bombora): EB Garamond `›` (U+203A), candidate 1.
+- **ORNAMENT_JUNICODE register** (antique/expressive — Gumtree,
+  Saltpan, Magpie, Mopoke, Mulga): EB Garamond `☞` (U+261E), the
+  manicule, candidate 6 — the manuscript-margin hand in the antique
+  register.
+- **ORNAMENT_MARKS register** (modern/technical/geometric — the rest,
+  mono worlds included): Iosevka `▸` (U+25B8), candidate 4.
+
+Candidates 2 and 5 unused. The mapping is per-world `RenderCaps` data,
+so any world re-assigns in one line; final taste sign-off rides the
+BUILT result in real worlds (flag a gallery re-shoot of the wired marks
+for the user's glance before merge). The 🔵 ladder-step verdict is
+settled: the user twice approved the sheets, which show the scaled
+sizes at rest ("the fold marks look good", "survey is actually great")
+— reverting the scaling stays one commit if live feel disagrees.
 
 The fold chevron is four rotated quads (`selection::chevron_arms` →
 `prepare_rotated`) because glyphon 0.11 has no transforms — and it reads
