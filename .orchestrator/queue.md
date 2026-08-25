@@ -227,32 +227,6 @@ floor, the query-to-first-item distance bounded, swept across the
 Diagonal-world roster, both DPIs.
 
 ---
-### 494 — fence-line detection gets one owner: spellcheck and the code-block toggle miss `~~~` fences (found by the 2026-08-25 duplication census, verified)
-
-**CLAIMED 2026-08-25 — building in worktree `item-494-fence-line-owner`.**
-
-`markdown::spans::detect::fence_line_lang` (`src/markdown/spans/detect.rs:8`)
-is the authoritative fence recognizer: up to 3 leading indent spaces, a run
-of 3+ backticks OR tildes. Two production sites substitute a naive
-`trim_start().starts_with("```")`: `src/spell.rs:477` (the fence-skip toggle
-in `misspelled_spans`) and `src/actions/format.rs:154` (`is_fence`, the
-code-block-toggle's already-fenced judgment). Both miss `~~~` fences the
-renderer treats as real — so spellcheck squiggles inside a tilde-fenced
-block's body, and the toggle misjudges a tilde-fenced selection. Neither
-copy honors the 3-space indent allowance either.
-
-Fix: factor the prefix logic out of `fence_line_lang` into a small
-`is_fence_line(&str) -> bool` in the same module (one owner, the lang gate
-layered on top), route both call sites through it, delete the local checks.
-
-Verify: a parity law asserting `is_fence_line` agrees with
-`fence_line_lang`'s recognition domain over a corpus (backtick, tilde,
-indented, short-run, mid-line); a spell unit test with a `~~~` fence
-asserting its body produces zero misspelled spans; a format test toggling a
-tilde-fenced selection. Red-first on the pre-fix tree for the tilde cases.
-
-
----
 ### 500 — comment audit: stale roster counts, history narration, restatement (USER 2026-08-25, after a measured density audit)
 
 Measured (tokei): 81,596 comment lines against 254,962 code lines — 32%
