@@ -425,10 +425,28 @@ behavior; suite green.
 ### 500 — comment audit: stale roster counts, history narration, restatement (USER 2026-08-25, after a measured density audit)
 
 Measured (tokei): 81,596 comment lines against 254,962 code lines — 32%
-comment-to-code, ~70% of it doc comments. The density itself is house
-style and mostly load-bearing (coverage facts, never-tofu constraints,
-law rationale) — this item is NOT a bulk deletion. Three verified defect
-classes, in priority order:
+comment-to-code, ~70% of it doc comments.
+
+**Standing rule (USER 2026-08-25, deliberately aggressive): the burden
+of proof is on the COMMENT, not the deleter.** This tree is
+AI-authored end to end, so a comment's existence is no evidence anyone
+found it worth writing — the default for prose that cannot justify
+itself is deletion. A comment survives only as one of three things:
+(a) a constraint the code cannot express, VERIFIED against the tree
+during this pass (tripwire-class entries carry git-log receipts —
+those count as verification); (b) recorded decision provenance (the
+user's calls — the one irreplaceable class); (c) a bare
+cross-reference to the fact's living owner. Narration of what the
+code does, mechanism essays recoverable by reading the code,
+restatement, and manufactured gravitas all go. Two asymmetries make
+this safe: git preserves every deleted sentence, and a wrongly-KEPT
+unverified comment now costs more than a wrongly-deleted one — untrue
+prose is what misleads the next cold-start agent. Doc comments whose
+API-contract half is load-bearing keep the contract sentence and lose
+the essay.
+
+Three verified defect classes ride inside that rule, in priority
+order:
 
 1. **Stale facts.** The world roster is 19–20; live comments assert
    "all fifteen shipped worlds" (`src/render.rs:1825`, `:1852`),
@@ -451,19 +469,24 @@ classes, in priority order:
    cannot state, the highest-value comment class in the tree. Judge
    each site: does deleting the sentence lose a constraint, or only a
    changelog?
-3. **Restatement.** In the top comment-share files (12 files exceed 55%
-   — roster in this item's discovery notes, worst: `theme/ornament.rs`
-   75%, `capture/opts.rs` 64%), the same fact is often stated 2–3×
-   (module doc, item doc, field doc). Diet rule: every fact stated
-   ONCE at its owning declaration, cross-referenced elsewhere; never
-   cut a fact stated nowhere else.
+3. **Restatement and narration.** In the top comment-share files (12
+   files exceed 55% — worst: `theme/ornament.rs` 75%, `capture/opts.rs`
+   64%), the same fact is often stated 2–3× (module doc, item doc,
+   field doc), padded with narration. Under the standing rule: every
+   surviving fact stated ONCE at its owning declaration,
+   cross-referenced elsewhere; narration deleted outright. Start with
+   the 12-file roster, then sweep outward as budget allows — the rule
+   applies tree-wide, the roster is just the richest seam.
 
 Verify: the new count-claim law goes red on the pre-fix tree (proves it
 catches the three known stale sites), green after; the history-grep
-inventory is empty post-pass except documented exemptions; a
-before/after diff of class 3 shows only deletions/cross-references, no
-lost constraint (reviewer judgment, named in the landing note).
-Comment-only change claims no receipt beyond the law's own test run.
+inventory is empty post-pass except documented exemptions; the landing
+note reports lines removed and the kept-comment verification ledger (a
+sample of ~20 kept class-(a) comments with the tree evidence that
+verified each). A second reader spot-checks a sample of DELETIONS
+against the survival test — the check is that nothing deleted was an
+unrestated verified constraint, judged from the diff. Comment-only
+change claims no receipt beyond the law's own test run.
 
 ---
 ### 501 — docs drift audit: every load-bearing doc claim spot-checked against the tree (USER 2026-08-25)
