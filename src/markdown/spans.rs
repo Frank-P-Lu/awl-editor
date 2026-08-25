@@ -12,8 +12,8 @@ mod kind;
 mod markers;
 mod parse;
 pub use detect::{
-    LIST_INDENT, ListItem, READING_WPM, fence_line_lang, frontmatter_end, is_thematic_break,
-    list_item, reading_time_min, strike_engaged, word_count,
+    LIST_INDENT, ListItem, READING_WPM, fence_line_lang, frontmatter_end, is_fence_line,
+    is_thematic_break, list_item, reading_time_min, strike_engaged, word_count,
 };
 pub use kind::{BreakKind, MdKind, break_kind};
 pub use markers::equals_runs;

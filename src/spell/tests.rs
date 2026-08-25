@@ -91,6 +91,23 @@ fn fenced_code_block_is_skipped() {
 }
 
 #[test]
+fn tilde_fenced_code_block_is_skipped() {
+    // The renderer treats `~~~` as a real fence (`is_fence_line`'s domain,
+    // shared with `fence_line_lang`) — the spell-checker's fence-skip toggle
+    // must recognize it too, not just backtick fences.
+    let none = stub(&[]);
+    let text = "before\n~~~\nnonsenseword\n~~~\nafter";
+    let ms = misspelled_spans(text, &none);
+    let lines: Vec<usize> = ms.iter().map(|m| m.line).collect();
+    assert!(lines.contains(&0));
+    assert!(lines.contains(&4));
+    assert!(
+        !lines.contains(&2),
+        "tilde-fenced word must be skipped, got: {ms:?}"
+    );
+}
+
+#[test]
 fn url_is_skipped() {
     let none = stub(&[]);
     // The misspelling embedded in the URL ("teh") must NOT be flagged.
