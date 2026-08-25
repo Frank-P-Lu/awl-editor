@@ -54,8 +54,8 @@ reason = "Reveal in File Manager / Copy File Path: the `CopyFilePath` dispatch a
 
 [[file_size_mark]]
 file = "src/actions/format.rs"
-lines = 1052
-reason = "Inline Code's shared toggle (content_is_kind) gained a fallback path for InlineKind::InlineCode selections whose byte range crosses a block boundary, where the CommonMark parser cannot positively confirm a wrapped span; plus its mutation-proven law sweep (block-boundary sweep, multibyte, flanking-span negative guard, fenced-block guard)."
+lines = 590
+reason = "The mod tests block (~470 lines) was split out to src/actions/format/tests.rs, restoring real headroom below the frozen baseline rather than raising it. The already-fenced judgment (is_fence, format.rs's own duplicate of the fence-line prefix scan) now routes through markdown::is_fence_line, the one shared owner spell.rs's fence-skip toggle also reads."
 
 [[file_size_mark]]
 file = "src/actions/overlay_nav.rs"
