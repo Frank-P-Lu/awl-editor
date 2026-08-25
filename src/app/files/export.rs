@@ -188,7 +188,7 @@ impl App {
     /// the process MAIN THREAD until a human closes the panel, so a surfaceless
     /// `App` reaching this would hang `cargo test` and `--screenshot-app` forever
     /// — no output, no timeout, no diagnosis. It is deliberately the SAME gate
-    /// [`Self::reveal_export`] already applies rather than a second one: a live
+    /// [`Self::reveal_path`] already applies rather than a second one: a live
     /// window means a person is watching, and everything else is a capture.
     ///
     /// Non-macOS has no platform save panel; the in-app destination navigator is

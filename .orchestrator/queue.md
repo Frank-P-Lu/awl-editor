@@ -489,36 +489,6 @@ unrestated verified constraint, judged from the diff. Comment-only
 change claims no receipt beyond the law's own test run.
 
 ---
-### 501 — docs drift audit: every load-bearing doc claim spot-checked against the tree (USER 2026-08-25)
-
-**CLAIMED 2026-08-25 — building in worktree `item-501-docs-drift-audit`.**
-
-The eight `docs/*.md` feature docs plus CAPTURE.md and WEB.md are
-protocol-load-bearing: every lane reads the matching doc before working
-an area, so a stale mechanism claim there misleads an entire round —
-higher blast radius than the stale source comments item 500 just
-caught ("fifteen worlds" vs a 19–20 roster proves the drift class is
-live in this tree). No audit has ever run over the docs themselves.
-
-Mechanism: per doc, extract its CONCRETE, checkable claims — function/
-module/file names, config keys, flag names, key bindings, schema
-fields, named mechanisms ("X invalidates Y", "Z is the one owner") —
-and verify each against the code with a parser or a direct read, never
-a text scanner (the `strings -e` lesson: the measurement is part of
-what needs checking). Corrections are doc-only commits claiming no
-receipt. Any REAL code defect a stale claim exposes (the doc was right,
-the code drifted) boards as its own item rather than being fixed
-inline — this item's deliverable is true docs plus a drift ledger, not
-code changes. Where a claim is generated from a roster, spot-check the
-generated entries on both sides of the axis the generator collapsed,
-per the standing generated-document principle.
-
-Verify: the landing note carries the per-doc ledger — claims checked,
-claims corrected (with the code evidence), claims that exposed code
-defects (with the boarded item number). A sampled re-check of ~10
-corrected claims by a second reader confirms the corrections against
-the tree, not against the first reader's report.
-
 ---
 ### 502 — dependency hygiene: duplicate versions, unused features, stale pins (USER 2026-08-25)
 
