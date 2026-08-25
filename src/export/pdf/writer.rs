@@ -371,6 +371,6 @@ mod tests {
     #[test]
     fn a_fully_written_object_plan_still_succeeds() {
         let objects: Vec<Option<Vec<u8>>> = vec![None, Some(b"<< /Type /Catalog >>".to_vec())];
-        assert!(finish(objects).is_ok());
+        finish(objects).expect("every slot is written, so this must succeed");
     }
 }
