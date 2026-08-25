@@ -41,7 +41,7 @@
 //!
 //! The pure-arithmetic half of the same law — that the number handed to the
 //! clear survives the attachment's encode, swept over all 256 channel values
-//! rather than the twenty grounds that happen to be authored today, with the
+//! rather than the grounds that happen to be authored today, with the
 //! retired rule written out inline for non-vacuity — is `theme::tests::clear`.
 
 use super::super::*;

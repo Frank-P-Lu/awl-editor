@@ -29,6 +29,11 @@
 //!   either fire on legitimate prose or miss the claims worth catching. A
 //!   second roster earns a second arm only once it has one `len()`-able owner
 //!   and a noun that is not shared.
+//! * Only claims that NAME the noun. "on all twenty", with `worlds` left
+//!   implied by the sentence around it, is invisible here — the noun is what
+//!   tells a cardinal apart from a count of rings, rows or lines, and
+//!   harvesting bare cardinals would fire on every unrelated number in the
+//!   tree. That blind spot is deliberate, and it is swept by hand.
 //! * Only comments. A `worlds` inside a string literal — an assertion message
 //!   most of all — is never read as prose.
 #![cfg(test)]

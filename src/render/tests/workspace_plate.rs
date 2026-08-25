@@ -10,7 +10,7 @@
 //! by the plate's left edge, and the right-aligned VALUE hanging past its right
 //! one. That right-hand half is the reported "Block" plate cutting its final
 //! `k` on Cassowary; it is the same 8px on every world the plates are visible
-//! on, and the left-hand half was on all twenty.
+//! on, and the left-hand half was on every world of the roster.
 
 use super::super::*;
 use super::{headless_dqp, view};
