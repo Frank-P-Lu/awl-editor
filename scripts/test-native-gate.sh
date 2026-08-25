@@ -5,7 +5,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PYTHONDONTWRITEBYTECODE=1 python3 "$ROOT/scripts/test-native-test-shards.py"
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/awl-native-gate-test.XXXXXX")"
-trap 'echo KEEPING $WORK' EXIT
+trap 'rm -rf "$WORK"' EXIT
 # Every fixture gate inherits its own arbiter state. Besides keeping this test
 # hermetic, that lets the concurrent-holder law choose a fresh marker without
 # ever touching a real orchestrator's queue.
