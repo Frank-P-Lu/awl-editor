@@ -309,11 +309,18 @@ impl App {
     /// the filename. Creates the destination folder if needed, refuses to
     /// clobber (numeric suffix), then re-points the buffer so editing/auto-save
     /// continue at the new path. A true `std::fs::rename` move — never a copy.
+    ///
+    /// The navigator only ever composes `dest_rel` from real folder names or
+    /// the single-segment create-a-folder gate, but a `..` segment is refused
+    /// here too, belt-and-braces.
     pub(in crate::app) fn move_current_file(&mut self, dest_rel: &str) {
-        // A move is an IDENTITY boundary: it re-points every path-keyed store at
-        // a new name, and doing that while one version of the file is unwritten
-        // would strand the conflict on a path that no longer holds the document.
+        // A move is an IDENTITY boundary: doing it while one version of the
+        // file is unwritten would strand the conflict on a dead path.
         if self.refuse_while_unresolved() {
+            return;
+        }
+        if dest_rel.split('/').any(|seg| seg == "..") {
+            self.set_sticky_notice("can't move above the current folder".to_string());
             return;
         }
         let Some(old) = self.document.buffer().path().map(|p| p.to_path_buf()) else {
@@ -324,14 +331,11 @@ impl App {
         } else {
             self.project_location.root.join(dest_rel)
         };
-        // The actual mkdir + no-clobber + rename lives in `buffer::move_file` (the
-        // one move primitive, unit-tested on a temp dir).
+        // The actual mkdir + no-clobber + rename lives in `buffer::move_file`.
         let new_path = match crate::buffer::move_file(&old, &dest_dir) {
             Ok(p) => p,
             Err(e) => {
-                // SAVE-FEEDBACK round: an explicit "Move…" is a discrete
-                // user action, so a failure gets the SAME calm bottom-center
-                // notice a failed manual save does — never a terminal print.
+                // A failure gets the SAME calm bottom-center notice a failed save does.
                 self.set_sticky_notice(format!("move failed: {e}"));
                 return;
             }
@@ -339,13 +343,17 @@ impl App {
         if new_path == old {
             return; // already there: nothing changed
         }
-        // No success notice — the window title already renders the new path.
         self.document.set_path(new_path.clone());
-        // The guard's baseline is keyed to a PATH. Re-take it at the new one, or
-        // every later check would compare this document against a file it is no
-        // longer stored in — the stale-key defect the move used to leave behind.
+        // The guard's baseline is keyed to a PATH; re-take it at the new one
+        // or a later check compares against a file it no longer lives in.
         self.document
             .adopt_disk_baseline(crate::external::Seen::at(&new_path));
+        // KEEP THE STACK SLOT: `rekey_active` re-points the working set's own
+        // row in place (its doc explains why `open()` cannot).
+        self.document.working_set_mut().rekey_active(
+            crate::buffers::BufferKey::path(&new_path),
+            Some(new_path.clone()),
+        );
         // An UNNAMED fresh document being moved before its first save (rare —
         // the picker only opens for a pathed file) keeps auto-saving into its
         // new home.
@@ -354,7 +362,22 @@ impl App {
         }
         self.update_title();
         self.rescan_file_index();
-        self.set_toast_notice("moved");
+        // The notice names the full new path, root-relative (never
+        // absolute). Moving never rewrites links, so it flags a relative one.
+        let rel_display = new_path
+            .strip_prefix(&self.project_location.root)
+            .unwrap_or(&new_path)
+            .to_string_lossy()
+            .replace('\\', "/");
+        let needs_link_review = self.document.buffer().is_markdown()
+            && crate::markdown::has_relative_references(&self.document.buffer().text());
+        if needs_link_review {
+            self.set_sticky_notice(format!(
+                "moved to {rel_display} — relative links/images may need review"
+            ));
+        } else {
+            self.set_toast_notice(format!("moved to {rel_display}"));
+        }
         self.request_frame();
     }
 

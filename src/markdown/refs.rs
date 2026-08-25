@@ -86,6 +86,56 @@ pub fn image_refs(text: &str) -> Vec<ImageRef> {
     out
 }
 
+/// Whether `text` contains a markdown LINK or IMAGE destination that reads as
+/// a RELATIVE filesystem path — one resolved against the document's OWN
+/// directory rather than naming an absolute location. Read after a file MOVE
+/// (`app::files::verbs::move_current_file`) to decide whether the completion
+/// notice should say those paths may need review: a relative destination that
+/// pointed at a sibling file before the move may no longer resolve to the
+/// same target once the file's directory changes — awl never rewrites
+/// Markdown or incoming links on a move, so this is the one signal the
+/// notice can offer instead. A `scheme:` URL (`https://…`, `mailto:…`), an
+/// absolute path (`/…`), and a same-document anchor (`#…`) are NOT relative:
+/// none of them resolve against the document's directory, so a move never
+/// disturbs them.
+pub fn has_relative_references(text: &str) -> bool {
+    if image_refs(text)
+        .iter()
+        .any(|img| is_relative_destination(&img.path))
+    {
+        return true;
+    }
+    use pulldown_cmark::{Event, Options, Parser, Tag};
+    let body = match crate::frontmatter::detect(text) {
+        Some(fm) => &text[fm.range.end..],
+        None => text,
+    };
+    let opts = Options::ENABLE_TASKLISTS | Options::ENABLE_TABLES;
+    Parser::new_ext(body, opts).any(|ev| {
+        matches!(ev, Event::Start(Tag::Link { dest_url, .. }) if is_relative_destination(&dest_url))
+    })
+}
+
+/// Not a same-document anchor, not an absolute filesystem path, and not
+/// carrying a URI SCHEME (a leading run of ASCII letters/digits/`+`/`-`/`.`,
+/// starting with a letter, followed by `:` before any `/` — `https:`,
+/// `mailto:`, `obsidian:`, … all count, so a web/app link is never mistaken
+/// for a relative file path).
+fn is_relative_destination(dest: &str) -> bool {
+    let d = dest.trim();
+    if d.is_empty() || d.starts_with('/') || d.starts_with('#') {
+        return false;
+    }
+    let has_scheme = d.find(':').is_some_and(|i| {
+        i > 0
+            && d.as_bytes()[0].is_ascii_alphabetic()
+            && d[..i]
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || matches!(c, '+' | '-' | '.'))
+    });
+    !has_scheme
+}
+
 /// Split an image alt on a trailing `|NNN` / `|WxH` size hint (the Obsidian
 /// `![alt|300](p)` convention — the size lives in the ALT so pulldown still
 /// parses the image cleanly). Returns the alt with the hint removed + the WIDTH

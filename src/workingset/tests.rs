@@ -186,6 +186,61 @@ fn a_rows_location_is_relative_to_its_own_root() {
     );
 }
 
+/// **`rekey_active` keeps the moved file's slot, and updates its label from
+/// the new path — not `open`, which would read the moved file's new
+/// (path-derived) key as a DIFFERENT identity and push a second row.**
+#[test]
+fn rekey_active_keeps_the_slot_and_updates_the_label() {
+    let mut ws = WorkingSet::default();
+    let root = PathBuf::from("/proj/notes");
+    opened(&mut ws, "a.md");
+    let moved = opened(&mut ws, "journal/field.md"); // slot 1, the active one
+    opened(&mut ws, "c.md");
+    assert_eq!(ws.active_index(), Some(2), "opening c.md moved the pointer");
+    assert!(ws.set_active(moved));
+    assert_eq!(
+        ws.files()[1].parent_label().as_deref(),
+        Some("journal/"),
+        "precondition: the row starts nested"
+    );
+
+    let new_path = root.join("field.md"); // moved UP a level, to the root
+    ws.rekey_active(BufferKey::path(&new_path), Some(new_path.clone()));
+
+    assert_eq!(
+        drawn(&ws),
+        vec!["a.md", "field.md", "c.md"],
+        "the slot never moved — only its own label changed"
+    );
+    assert_eq!(
+        ws.files()[1].parent_label(),
+        None,
+        "the row now reads as living directly under its root"
+    );
+    assert_eq!(ws.files()[1].path.as_deref(), Some(new_path.as_path()));
+    assert_eq!(
+        ws.index_of(&BufferKey::path(&new_path)),
+        Some(1),
+        "the row is findable by its NEW identity"
+    );
+    assert_eq!(
+        ws.index_of(&BufferKey::path(&root.join("journal/field.md"))),
+        None,
+        "and no longer findable by the old one"
+    );
+    // The root itself never moved (Move stays bounded to the source file's
+    // owning root), so the row's group membership is untouched.
+    assert_eq!(ws.group(&root), vec![0, 1, 2]);
+}
+
+#[test]
+fn rekey_active_is_a_no_op_with_nothing_active() {
+    let mut ws = WorkingSet::default();
+    let p = PathBuf::from("/proj/notes/a.md");
+    ws.rekey_active(BufferKey::path(&p), Some(p));
+    assert!(ws.is_empty(), "nothing was opened, nothing to rekey");
+}
+
 /// **Closing an INACTIVE row closes that named buffer without activating it.**
 /// The pointer route the design decision spells out, and the one an
 /// implementation that routes every close through "activate, then close the

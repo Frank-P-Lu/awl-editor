@@ -250,6 +250,22 @@ impl WorkingSet {
         self.close(at)
     }
 
+    /// Re-point the ACTIVE file's identity + path after it moves ON DISK —
+    /// [`Self::open`] cannot do this: its lookup is BY KEY, and a move's new
+    /// (path-derived) key never equals the old one, so it would read the
+    /// moved file as a DIFFERENT file and push a second row instead of
+    /// updating this one. A move never changes which root owns the slot, so
+    /// this updates IN PLACE: the row stays exactly where it was, and its
+    /// quiet parent label (derived live from `path`/`root`, see
+    /// [`OpenFile::parent_label`]) reads correctly on the next draw. A no-op
+    /// when nothing is active.
+    pub fn rekey_active(&mut self, key: BufferKey, path: Option<PathBuf>) {
+        if let Some(file) = self.active.and_then(|at| self.files.get_mut(at)) {
+            file.key = key;
+            file.path = path;
+        }
+    }
+
     /// Make the file at `at` active without disturbing the order. `false` if the
     /// slot does not exist.
     pub fn set_active(&mut self, at: usize) -> bool {

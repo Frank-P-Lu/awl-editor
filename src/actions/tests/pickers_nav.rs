@@ -934,9 +934,12 @@ fn history_arrows_cycle_the_lens() {
 
 #[test]
 fn move_dest_right_descends_left_ascends() {
-    // MoveDest opens at root; Right DESCENDS into the highlighted folder.
+    // MoveDest opens at root with `Move here` default-selected (the primary
+    // verb, pinned first at rest — see `pin_move_here`); Down reaches the
+    // `docs` folder row, and Right DESCENDS into it.
     let mut overlay = crate::overlay::Journey::seeded(browse_level(OverlayKind::MoveDest, None));
     let mut accept = None;
+    drive(&mut overlay, &mut accept, &Action::NextLine);
     drive(&mut overlay, &mut accept, &Action::ForwardChar);
     let ov = overlay.card().expect("still open after descend");
     assert_eq!(
@@ -1568,26 +1571,139 @@ fn browse_backspace_pops_filter_before_ascending() {
 }
 
 #[test]
-fn move_dest_enter_accepts_highlighted_folder() {
-    // Enter on the highlighted `docs` folder accepts it as the destination.
+fn move_dest_opens_on_move_here_and_enter_commits_at_rest() {
+    // At rest (no query typed), `Move here` is pinned first and
+    // default-selected — the picker's primary verb — so a bare Enter commits
+    // the CURRENT level rather than descending into whatever folder happened
+    // to sort first.
     let mut overlay = crate::overlay::Journey::seeded(browse_level(OverlayKind::MoveDest, None));
+    assert_eq!(
+        overlay.card().unwrap().selected_value(),
+        Some("Move here"),
+        "Move here is default-selected at rest"
+    );
     let mut accept = None;
     drive(&mut overlay, &mut accept, &Action::Newline);
     assert!(overlay.card().is_none(), "accept closes the picker");
-    assert_eq!(accept, Some((OverlayKind::MoveDest, "docs".to_string())));
+    assert_eq!(accept, Some((OverlayKind::MoveDest, String::new())));
 }
 
 #[test]
-fn move_dest_type_to_create_folder() {
-    // Type a name that matches no listed folder -> accept CREATES that folder.
+fn move_dest_enter_on_a_folder_row_descends() {
+    // Enter on a highlighted FOLDER row now mirrors → (descend), not the old
+    // "accept the highlighted folder as the destination" grammar — the
+    // primary "commit here" verb moved to its own `Move here` row.
+    let mut overlay = crate::overlay::Journey::seeded(browse_level(OverlayKind::MoveDest, None));
+    let mut accept = None;
+    drive(&mut overlay, &mut accept, &Action::NextLine);
+    assert_eq!(overlay.card().unwrap().selected_value(), Some("docs"));
+    drive(&mut overlay, &mut accept, &Action::Newline);
+    let ov = overlay.card().expect("descend must not close the picker");
+    assert_eq!(ov.browse_dir.as_deref(), Some("docs"));
+    assert!(accept.is_none(), "descend must not accept");
+}
+
+#[test]
+fn move_dest_type_to_create_folder_creates_and_moves_in_one_stroke() {
+    // Type a name that matches no listed folder: `New folder "ideas"…`
+    // becomes the default-selected row, and Enter creates AND moves in one
+    // stroke — no separate descend-and-confirm step.
     let mut overlay = crate::overlay::Journey::seeded(browse_level(OverlayKind::MoveDest, None));
     let mut accept = None;
     for c in "ideas".chars() {
         drive(&mut overlay, &mut accept, &Action::InsertChar(c));
     }
-    // "ideas" matches nothing in {docs, README.md}, so the query is the dest.
+    assert_eq!(
+        overlay.card().unwrap().selected_value(),
+        Some("New folder \"ideas\"\u{2026}"),
+        "no folder named \"ideas\" exists, so the create row leads"
+    );
     drive(&mut overlay, &mut accept, &Action::Newline);
     assert_eq!(accept, Some((OverlayKind::MoveDest, "ideas".to_string())));
+}
+
+#[test]
+fn move_dest_typing_an_existing_folder_name_hides_new_folder_and_offers_the_match() {
+    // "docs" already exists at this level: `New folder…` stays hidden (the
+    // one folder that matches is the honest answer, reachable by descending
+    // into it), and it leads the ranked list.
+    let mut overlay = crate::overlay::Journey::seeded(browse_level(OverlayKind::MoveDest, None));
+    let mut accept = None;
+    for c in "docs".chars() {
+        drive(&mut overlay, &mut accept, &Action::InsertChar(c));
+    }
+    let ov = overlay.card().unwrap();
+    assert!(
+        !ov.item_strings()
+            .iter()
+            .any(|s| s.starts_with("New folder")),
+        "an exact folder-name match hides New folder…: {:?}",
+        ov.item_strings()
+    );
+    assert_eq!(ov.selected_value(), Some("docs"));
+}
+
+#[test]
+fn move_dest_default_selection_follows_the_query_state() {
+    // The three states the decided keyboard grammar names, in one law: at
+    // rest `Move here` leads; a query with a real match leads with that
+    // match (Enter descends); a query with no match leads with `New
+    // folder…` (Enter creates-and-moves). `Move here` stays reachable
+    // (never dropped) in every state — just not first once something is
+    // typed, per `OverlayState::pin_move_here`.
+    let mut overlay = crate::overlay::Journey::seeded(browse_level(OverlayKind::MoveDest, None));
+    let mut accept = None;
+    assert_eq!(overlay.card().unwrap().selected_value(), Some("Move here"));
+    assert!(
+        overlay
+            .card()
+            .unwrap()
+            .item_strings()
+            .iter()
+            .any(|s| s == "Move here"),
+        "reachable at rest too (trivially, since it leads)"
+    );
+
+    for c in "do".chars() {
+        drive(&mut overlay, &mut accept, &Action::InsertChar(c));
+    }
+    assert_eq!(
+        overlay.card().unwrap().selected_value(),
+        Some("docs"),
+        "a real match leads a non-empty query"
+    );
+    assert!(
+        overlay
+            .card()
+            .unwrap()
+            .item_strings()
+            .iter()
+            .any(|s| s == "Move here"),
+        "Move here stays reachable, just not first: {:?}",
+        overlay.card().unwrap().item_strings()
+    );
+
+    for _ in 0..2 {
+        drive(&mut overlay, &mut accept, &Action::DeleteBackward);
+    }
+    for c in "ideas".chars() {
+        drive(&mut overlay, &mut accept, &Action::InsertChar(c));
+    }
+    assert_eq!(
+        overlay.card().unwrap().selected_value(),
+        Some("New folder \"ideas\"\u{2026}"),
+        "no match leads with the create row"
+    );
+    assert!(
+        overlay
+            .card()
+            .unwrap()
+            .item_strings()
+            .iter()
+            .any(|s| s == "Move here"),
+        "Move here stays reachable here too: {:?}",
+        overlay.card().unwrap().item_strings()
+    );
 }
 
 #[test]

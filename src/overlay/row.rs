@@ -70,6 +70,16 @@ pub enum RowMeta {
     /// The flat switch-project picker's door row. Metadata, rather than its
     /// wording, identifies the row that opens `OverlayKind::ProjectBrowse`.
     ProjectDoor,
+    /// The Move navigator's primary verb: commit the move at the CURRENT
+    /// level. Pinned first while the query is empty and reachable last
+    /// otherwise (`OverlayState::refilter`'s `pin_move_here`) — the one row
+    /// this card shows regardless of what is typed.
+    MoveHere,
+    /// The Move navigator's create-on-unmatched-name row: visible only while
+    /// the typed query names no folder already listed at this level
+    /// (`OverlayState::move_dest_new_folder_target`). Accepting it creates the
+    /// named folder and moves into it in one stroke.
+    NewFolder,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -86,6 +96,8 @@ pub enum RowMetaTag {
     SpellAdd,
     History,
     ProjectDoor,
+    MoveHere,
+    NewFolder,
 }
 
 impl RowMeta {
@@ -103,16 +115,23 @@ impl RowMeta {
             RowMeta::SpellAdd => RowMetaTag::SpellAdd,
             RowMeta::History { .. } => RowMetaTag::History,
             RowMeta::ProjectDoor => RowMetaTag::ProjectDoor,
+            RowMeta::MoveHere => RowMetaTag::MoveHere,
+            RowMeta::NewFolder => RowMetaTag::NewFolder,
         }
     }
 
     /// A row that must stay last because it acts on something other than the
     /// query. `OverlayState::refilter` is the one consumer of this taxonomy.
+    ///
+    /// `MoveHere` is deliberately NOT terminal — it is pinned FIRST at rest
+    /// (`OverlayState::pin_move_here`), the opposite end from every row here,
+    /// so it owns its own placement rule rather than sharing this one.
     pub fn terminal(&self) -> bool {
         match self {
             RowMeta::SpellAdd
             | RowMeta::ProjectDoor
             | RowMeta::FolderChooser
+            | RowMeta::NewFolder
             | RowMeta::GotoLine { .. } => true,
             RowMeta::Plain
             | RowMeta::GotoFile { .. }
@@ -120,7 +139,8 @@ impl RowMeta {
             | RowMeta::GotoFolder
             | RowMeta::CommandSetting { .. }
             | RowMeta::CommandHidden
-            | RowMeta::History { .. } => false,
+            | RowMeta::History { .. }
+            | RowMeta::MoveHere => false,
         }
     }
 }

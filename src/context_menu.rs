@@ -227,6 +227,26 @@ mod tests {
         }
     }
 
+    /// Named directly rather than left to the generic roster law below to
+    /// imply: the context menu's "Move file…"
+    /// row and the palette's "Move…" catalog entry both carry the SAME
+    /// `Action::MoveFile`, so both reach `actions::deferred::
+    /// apply_deferred_action`'s one `MoveFile` arm — there is no second
+    /// implementation for either door to drift from.
+    #[test]
+    fn context_menu_move_and_palette_move_dispatch_the_same_action() {
+        let context_row = rows(ContextTarget::Filename, state(), Platform::Native)
+            .into_iter()
+            .find(|r| r.action == Action::MoveFile)
+            .expect("the named-file context menu offers a Move row");
+        let palette_command = crate::commands::COMMANDS
+            .iter()
+            .find(|c| c.action == Action::MoveFile)
+            .expect("the palette catalog carries a Move entry");
+        assert_eq!(context_row.action, palette_command.action);
+        assert_eq!(context_row.action, Action::MoveFile);
+    }
+
     #[test]
     fn every_target_state_platform_cell_has_only_catalog_actions() {
         for target in ContextTarget::ALL {

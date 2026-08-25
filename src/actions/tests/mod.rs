@@ -54,6 +54,21 @@ pub(super) fn browse_level(kind: OverlayKind, rel: Option<String>) -> Option<Ove
         ),
         _ => (vec![], vec![], vec![]),
     };
+    if kind == OverlayKind::MoveDest {
+        // MoveDest's real level builder (`overlay::browse_level`) routes
+        // through `OverlayState::new_move_dest` for its contextual `Move
+        // here`/`New folder…` rows — mirror that here rather than the bare
+        // `new_marked` below, or every MoveDest drive test would exercise a
+        // level shape the live picker never actually builds.
+        let folders: Vec<(String, bool)> = corpus
+            .iter()
+            .cloned()
+            .zip(git.iter().copied())
+            .zip(is_dir.iter().copied())
+            .filter_map(|((name, git), is_dir)| is_dir.then_some((name, git)))
+            .collect();
+        return Some(OverlayState::new_move_dest(rel, folders));
+    }
     Some(OverlayState::new_marked(
         kind,
         corpus,

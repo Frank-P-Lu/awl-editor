@@ -1608,6 +1608,118 @@ fn path_law_across_a_document_lifecycle_new_document_one_shot_name_no_rename_mov
     );
 }
 
+/// A move keeps the working-set STACK SLOT stable and updates its quiet
+/// parent label, never crossing the source file's own root.
+#[test]
+fn move_keeps_the_stack_slot_and_updates_the_relative_label_never_crossing_root() {
+    use crate::fs::InMemoryFs;
+    let a = PathBuf::from("/proj/a.md");
+    let nested = PathBuf::from("/proj/journal/entry.md");
+    let mem = InMemoryFs::new()
+        .with_file(&a, "a\n")
+        .with_file(&nested, "entry\n");
+    let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+    let mut app = app_on(Some(a.clone()), "/proj", Config::empty());
+    app.load_path(nested.clone());
+    assert_eq!(app.document.working_set().len(), 2, "both files are open");
+    let slot = app.document.working_set().active_index().unwrap();
+    assert_eq!(
+        app.document.working_set().files()[slot]
+            .parent_label()
+            .as_deref(),
+        Some("journal/"),
+        "precondition: the active row starts nested"
+    );
+
+    app.move_current_file(""); // "" = the active folder itself: up to the root
+    assert_eq!(
+        app.document.working_set().active_index(),
+        Some(slot),
+        "the move never disturbed the stack slot"
+    );
+    assert_eq!(
+        app.document.working_set().files()[slot].parent_label(),
+        None,
+        "the row now reads as living directly under its root"
+    );
+    assert_eq!(
+        app.document.working_set().active_root(),
+        Some(std::path::Path::new("/proj")),
+        "the move stayed inside the source file's own root"
+    );
+    assert_eq!(
+        app.document.buffer().path(),
+        Some(std::path::Path::new("/proj/entry.md")),
+        "the file itself landed at the root, keeping its name"
+    );
+}
+
+#[test]
+fn move_completion_notice_names_the_full_root_relative_path() {
+    use crate::fs::InMemoryFs;
+    let a = PathBuf::from("/proj/a.md");
+    let mem = InMemoryFs::new().with_file(&a, "a\n");
+    let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+    let mut app = app_on(Some(a.clone()), "/proj", Config::empty());
+    app.move_current_file("sub");
+    assert_eq!(
+        app.frame.notice().text(),
+        Some("moved to sub/a.md"),
+        "the notice names the moved file's own root-relative path"
+    );
+}
+
+#[test]
+fn move_completion_notice_flags_relative_links_for_review() {
+    use crate::fs::InMemoryFs;
+    let a = PathBuf::from("/proj/a.md");
+    let mem =
+        InMemoryFs::new().with_file(&a, "see [sibling](sibling.md) and ![img](img/pic.png)\n");
+    let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+    let mut app = app_on(Some(a.clone()), "/proj", Config::empty());
+    app.move_current_file("sub");
+    let text = app.frame.notice().text().unwrap_or_default().to_string();
+    assert!(
+        text.contains("sub/a.md") && text.contains("review"),
+        "the notice names the new path and flags the relative refs: {text:?}"
+    );
+}
+
+#[test]
+fn move_completion_notice_stays_a_plain_toast_with_no_relative_references() {
+    use crate::fs::InMemoryFs;
+    let a = PathBuf::from("/proj/a.md");
+    let mem = InMemoryFs::new().with_file(&a, "see [an example](https://example.com)\n");
+    let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+    let mut app = app_on(Some(a.clone()), "/proj", Config::empty());
+    app.move_current_file("sub");
+    assert_eq!(app.frame.notice().text(), Some("moved to sub/a.md"));
+}
+
+/// Belt-and-braces: the navigator itself never composes a `..` segment (its
+/// create-a-folder row is gated to a single safe path component — see
+/// `OverlayState::move_dest_new_folder_target`), but the live effect refuses
+/// one too rather than trusting every future caller of this effect to have
+/// gone through that gate.
+#[test]
+fn move_refuses_a_dest_rel_that_escapes_the_root() {
+    use crate::fs::InMemoryFs;
+    let a = PathBuf::from("/proj/a.md");
+    let mem = InMemoryFs::new().with_file(&a, "a\n");
+    let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+    let mut app = app_on(Some(a.clone()), "/proj", Config::empty());
+    app.move_current_file("../outside");
+    assert_eq!(
+        app.document.buffer().path(),
+        Some(a.as_path()),
+        "a `..` segment is refused, not silently walked"
+    );
+    assert!(
+        app.frame.notice().active(),
+        "the refusal is a real notice, never silent"
+    );
+}
+
 // ── RANGE ROWS at the LIVE APP seam (apply / persist accounting) ─────────────
 
 /// Build a Settings overlay with its rail column, selected on the Zoom row, and

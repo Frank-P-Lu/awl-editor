@@ -437,6 +437,53 @@ impl OverlayState {
         s
     }
 
+    /// THE MOVE NAVIGATOR'S OWN LEVEL: a folders-only listing plus its two
+    /// CONTEXTUAL action rows, `Move here` (always reachable — the picker's
+    /// primary verb, see [`RowMeta::MoveHere`]) and `New folder…` (visible
+    /// only while the typed query names no listed folder, see
+    /// [`RowMeta::NewFolder`] / [`Self::move_dest_new_folder_target`]).
+    /// `folders` is the caller-read directory listing (name, is-git), exactly
+    /// like [`Self::new_project`]'s own `folders` argument — this stays a pure
+    /// constructor over already-gathered data so a test can build a level
+    /// without touching disk.
+    pub fn new_move_dest(dir_rel: Option<String>, folders: Vec<(String, bool)>) -> Self {
+        let mut corpus = Vec::with_capacity(folders.len() + 2);
+        let mut git = Vec::with_capacity(folders.len() + 2);
+        let mut is_dir = Vec::with_capacity(folders.len() + 2);
+        corpus.push("Move here".to_string());
+        git.push(false);
+        is_dir.push(false);
+        for (name, is_git) in folders {
+            corpus.push(name);
+            git.push(is_git);
+            is_dir.push(true);
+        }
+        // `New folder…`'s real label is written by `sync_move_new_folder_row`
+        // on the `refilter` below; the placeholder here is never drawn.
+        corpus.push(String::new());
+        git.push(false);
+        is_dir.push(false);
+        let mut s = Self::new_marked(
+            OverlayKind::MoveDest,
+            corpus,
+            git,
+            is_dir,
+            Vec::new(),
+            Vec::new(),
+            dir_rel,
+        );
+        s.rows[0].meta = RowMeta::MoveHere;
+        let last = s.rows.len() - 1;
+        s.rows[last].meta = RowMeta::NewFolder;
+        // `new_marked`'s own construction already ran one `refilter()` before
+        // these two rows carried their real metadata (`RowMeta::Plain` sorts
+        // and filters like any ordinary row), so `pin_move_here` and the
+        // `New folder…` visibility gate never saw them — rerun it now that
+        // the metadata is in place.
+        s.refilter();
+        s
+    }
+
     /// GIVE THE FLAT SWITCH-PROJECT PICKER ITS ONE DOOR — a terminal
     /// [`RowMeta::ProjectDoor`] row that opens the folder navigator
     /// ([`OverlayKind::ProjectBrowse`]). A NO-OP for every other kind, and
