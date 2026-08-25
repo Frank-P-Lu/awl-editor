@@ -132,6 +132,20 @@ impl TextPipeline {
         geom: &OverlayGeom,
         plan: &OverlayRowPlan,
     ) -> Option<[f32; 4]> {
+        let (ink_w, top, bottom) = self.overlay_header_extent(geom, plan)?;
+        let left = self.overlay_head_left(geom, plan);
+        Some([left, top, left + ink_w, bottom])
+    }
+
+    /// The head band's ink width and vertical run alone, over every planned
+    /// header line — the shared measurement [`Self::overlay_head_band_ink`]
+    /// and the gallery's right-aligned query candidate both read, so a header
+    /// line neither has walked twice.
+    fn overlay_header_extent(
+        &self,
+        geom: &OverlayGeom,
+        plan: &OverlayRowPlan,
+    ) -> Option<(f32, f32, f32)> {
         let mut ink_w = 0.0f32;
         let mut top = f32::INFINITY;
         let mut bottom = f32::NEG_INFINITY;
@@ -143,12 +157,22 @@ impl TextPipeline {
             top = top.min(t);
             bottom = bottom.max(t + h);
         }
-        (ink_w > 0.0 && top.is_finite() && bottom > top).then_some([
-            geom.text_left,
-            top,
-            geom.text_left + ink_w,
-            bottom,
-        ])
+        (ink_w > 0.0 && top.is_finite() && bottom > top).then_some((ink_w, top, bottom))
+    }
+
+    /// Where the head band's `TextArea` is seated this frame — `geom.text_left`
+    /// on every ordinary run, unchanged from before this function existed.
+    /// [`super::gallery`]'s right-aligned query candidate is the one caller
+    /// that can move it, and only while its own env var is set.
+    pub(in crate::render) fn overlay_head_left(
+        &self,
+        geom: &OverlayGeom,
+        plan: &OverlayRowPlan,
+    ) -> f32 {
+        self.diagonal_cluster
+            .and_then(|_| self.overlay_header_extent(geom, plan))
+            .and_then(|(ink_w, ..)| super::gallery::head_left_override(geom, ink_w))
+            .unwrap_or(geom.text_left)
     }
 
     /// WHERE THIS FRAME'S FOOT CHROME IS SEATED, or `None` when it is seated at the

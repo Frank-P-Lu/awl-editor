@@ -517,7 +517,8 @@ impl TextPipeline {
             .min(self.overlay_query.chars().count());
         let target_byte = prefix_len + field_caret_byte(&self.overlay_query, caret_char);
         let first_run = self.panel_buffer.layout_runs().next();
-        let caret_x = geom.text_left
+        // `geom.text_left` unless the gallery moved it.
+        let caret_x = self.overlay_head_left(geom, plan)
             + first_run
                 .as_ref()
                 .and_then(|r| {

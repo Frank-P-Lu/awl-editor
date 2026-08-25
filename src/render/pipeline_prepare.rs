@@ -224,14 +224,35 @@ impl TextPipeline {
             && (diagonal_spell
                 || (self.overlay_declines_takeover() && blur::footprint_frost_applies(style)))
         {
+            // CAPTURE-ONLY: the gallery's "full-canvas frost" candidate for the
+            // query-to-first-item distance symptom. Inert (`None`) on every
+            // ordinary run — see `chrome::diagonal::gallery`'s module doc.
+            if crate::render::chrome::diagonal::gallery::frost_candidate()
+                == Some(crate::render::chrome::diagonal::gallery::FrostCandidate::Full)
+            {
+                return Some(blur::Frost::Full);
+            }
             return self.overlay_card_rect().map(|rect| {
                 let shear = self.footprint_shear();
                 // NARROWED to the surfaces the card actually drew, THEN widened for the
                 // upright chrome the rake cannot carry. Both steps read the shape's own
                 // un-sheared frame, and only the horizontal faces move.
                 let drawn = self.footprint_drawn_box(rect, shear);
+                let mut foot_rect =
+                    blur::footprint_box(drawn, shear, self.footprint_upright_chrome());
+                // CAPTURE-ONLY: the gallery's "top face above the first document
+                // line" candidate. Inert on every ordinary run.
+                if crate::render::chrome::diagonal::gallery::frost_candidate()
+                    == Some(
+                        crate::render::chrome::diagonal::gallery::FrostCandidate::TopAboveFirstLine,
+                    )
+                {
+                    foot_rect = crate::render::chrome::diagonal::gallery::seat_top_above_first_line(
+                        foot_rect, shear,
+                    );
+                }
                 blur::Frost::Footprint(blur::Footprint {
-                    rect: blur::footprint_box(drawn, shear, self.footprint_upright_chrome()),
+                    rect: foot_rect,
                     shear,
                 })
             });
