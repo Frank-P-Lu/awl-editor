@@ -249,6 +249,8 @@ for a taste glance, since the old curve was numerically wrong but shipped.
 ---
 ### 494 — fence-line detection gets one owner: spellcheck and the code-block toggle miss `~~~` fences (found by the 2026-08-25 duplication census, verified)
 
+**CLAIMED 2026-08-25 — building in worktree `item-494-fence-line-owner`.**
+
 `markdown::spans::detect::fence_line_lang` (`src/markdown/spans/detect.rs:8`)
 is the authoritative fence recognizer: up to 3 leading indent spaces, a run
 of 3+ backticks OR tildes. Two production sites substitute a naive
