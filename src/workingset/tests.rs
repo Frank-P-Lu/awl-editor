@@ -435,6 +435,18 @@ fn file_leaves(rows: &[StackRow]) -> Vec<String> {
         .collect()
 }
 
+/// THE GALLERY'S REJECTED CANDIDATE, reproduced inline for the non-vacuity
+/// proof below: a STATELESS window that re-derives itself from nothing but
+/// the active file's index EVERY time, with no memory of where it sat a
+/// moment ago — exactly the formula `collapsed-jitter.png` caught jumping an
+/// already-visible row to the opposite end of the window.
+fn stateless_start(active_in_group: usize, group_len: usize) -> usize {
+    let max_start = group_len.saturating_sub(RESTING_FILES);
+    active_in_group
+        .saturating_sub(RESTING_FILES.saturating_sub(1))
+        .min(max_start)
+}
+
 /// **THE HOLD-STILL LAW, reproducing the exact `collapsed-jitter.png`
 /// sequence the gallery rejected the stateless candidate on.**
 ///
@@ -444,14 +456,11 @@ fn file_leaves(rows: &[StackRow]) -> Vec<String> {
 /// drawn row exactly where it was — the row the reader was just looking at
 /// does not jump to the opposite end of a shifted window.
 ///
-/// **Non-vacuity, proved without touching the shipped formula**: the
-/// REJECTED stateless candidate is still in the tree
-/// (`prototype::PrototypeSpec::Collapsed`, unchanged on purpose — this
-/// surface's own brief calls it out as "the rejected candidate on its own
-/// `collapsed-jitter.png` evidence"), so this asks it the identical question
-/// and shows it DOES move — proving the fixture reproduces the real bug and
-/// the fix is not testing a formula so close to the old one that both would
-/// pass by accident.
+/// **Non-vacuity, proved without touching the shipped formula**: this asks
+/// [`stateless_start`] — the rejected candidate's own formula — the identical
+/// question and shows it DOES move, proving the fixture reproduces the real
+/// bug and the fix is not testing a formula so close to the old one that both
+/// would pass by accident.
 #[test]
 fn resting_window_holds_still_when_the_newly_active_file_is_already_visible() {
     let mut ws = WorkingSet::default();
@@ -485,24 +494,18 @@ fn resting_window_holds_still_when_the_newly_active_file_is_already_visible() {
     );
 
     // THE RED-ARM REFERENCE: the same two activations, asked of the rejected
-    // stateless candidate, on the SAME underlying state.
-    let mut rejected = WorkingSet::default();
-    ten(&mut rejected);
-    assert!(rejected.set_active(7));
-    let rejected_a = rejected.prototype_view(PrototypeSpec::Collapsed { hover: None });
-    assert!(rejected.set_active(3));
-    let rejected_b = rejected.prototype_view(PrototypeSpec::Collapsed { hover: None });
-    let rejected_leaves = |v: &super::prototype::PrototypeView| -> Vec<String> {
-        v.rows
-            .iter()
-            .filter(|r| matches!(r.kind, StackRowKind::File))
-            .map(|r| r.leaf.clone())
+    // stateless formula, on the SAME ten-file group.
+    let group_len = 10;
+    let leaves_from = |start: usize| -> Vec<String> {
+        (start..(start + RESTING_FILES).min(group_len))
+            .map(|at| format!("f{at}.md"))
             .collect()
     };
+    let rejected_a = leaves_from(stateless_start(7, group_len));
+    let rejected_b = leaves_from(stateless_start(3, group_len));
     assert_ne!(
-        rejected_leaves(&rejected_a),
-        rejected_leaves(&rejected_b),
-        "the rejected stateless candidate must actually reproduce the jitter on this exact \
+        rejected_a, rejected_b,
+        "the rejected stateless formula must actually reproduce the jitter on this exact \
          sequence, or this law is not proving anything about the fix"
     );
 }

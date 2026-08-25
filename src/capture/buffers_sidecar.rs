@@ -13,8 +13,7 @@ use super::CaptureOpts;
 ///
 /// These are state labels: each row is its full root-relative path, never the
 /// width-elided text the margin drew. The drawn line is `gutter`'s business.
-/// Which ordinary file row is active stays `active_index` alone; the richer
-/// capture-only prototype report is emitted only when its sealed pose exists.
+/// Which ordinary file row is active stays `active_index` alone.
 pub(in crate::capture) fn json(opts: &CaptureOpts, view: &crate::render::ViewState) -> String {
     let files = view
         .gutter_files
@@ -38,61 +37,8 @@ pub(in crate::capture) fn json(opts: &CaptureOpts, view: &crate::render::ViewSta
         ),
         None => (1, super::super::sidecar::json_string(&view.gutter_name)),
     };
-    let prototype = opts
-        .working_set_prototype
-        .as_ref()
-        .map(|report| prototype_json(report, &view.gutter_files))
-        .unwrap_or_default();
     format!(
         "{{ \"open\": {open}, \"active\": {active}, \"files\": [{files}], \
-         \"active_index\": {active_index}{prototype} }}"
-    )
-}
-
-fn prototype_json(
-    report: &crate::workingset::PrototypeReport,
-    rows: &[crate::workingset::StackRow],
-) -> String {
-    use crate::workingset::StackRowKind;
-    let rows = rows
-        .iter()
-        .map(|row| {
-            let label = format!("{}{}", row.parent, row.leaf);
-            let (kind, hidden, group_active) = match row.kind {
-                StackRowKind::File => ("file", "null".to_string(), "null".to_string()),
-                StackRowKind::More { hidden } => ("more", hidden.to_string(), "null".to_string()),
-                StackRowKind::Group { active } => ("group", "null".to_string(), active.to_string()),
-            };
-            format!(
-                "{{ \"kind\": \"{kind}\", \"label\": {}, \"active\": {}, \
-                 \"hidden\": {hidden}, \"group_active\": {group_active}, \
-                 \"hovered\": {} }}",
-                super::super::sidecar::json_string(&label),
-                row.active,
-                row.prototype_hovered,
-            )
-        })
-        .collect::<Vec<_>>()
-        .join(", ");
-    format!(
-        ", \"prototype\": {{ \"mode\": \"{}\", \"total_open\": {}, \
-         \"total_file_rows\": {}, \"visible_file_rows\": {}, \"hidden\": {}, \
-         \"scroll\": {}, \"viewport\": {}, \"active_row\": {}, \
-         \"hovered_row\": {}, \"rows\": [{rows}] }}",
-        report.mode,
-        report.total_open,
-        report.total_file_rows,
-        report.visible_file_rows,
-        report.hidden,
-        report.scroll,
-        report.viewport,
-        report
-            .active_row
-            .map(|at| at.to_string())
-            .unwrap_or_else(|| "null".to_string()),
-        report
-            .hovered_row
-            .map(|at| at.to_string())
-            .unwrap_or_else(|| "null".to_string()),
+         \"active_index\": {active_index} }}"
     )
 }

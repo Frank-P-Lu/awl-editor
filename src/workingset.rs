@@ -30,8 +30,7 @@ use crate::buffers::BufferKey;
 
 mod panel;
 mod prototype;
-pub use panel::EXPANDED_VIEWPORT;
-pub use prototype::{PrototypeReport, PrototypeSpec, prototype_move_from_env, prototype_move_rows};
+pub use prototype::{prototype_move_from_env, prototype_move_rows};
 
 mod reorder;
 
@@ -156,7 +155,7 @@ pub enum StackRowKind {
     File,
     /// The collapsed view's single generic overflow affordance.
     More { hidden: usize },
-    /// A project heading in the expanded cross-project prototype.
+    /// A project heading in the expanded cross-project panel.
     Group { active: bool },
 }
 
@@ -176,19 +175,11 @@ pub struct StackRow {
     /// `More`; [`WorkingSet::expanded_rows`] (the transient scrollable panel)
     /// emits `File` and `Group` heading rows.
     pub kind: StackRowKind,
-    /// A sealed capture-prototype hover pose. The live app's real pointer still
-    /// rides the renderer's `gutter_stack_hover`; this bit exists only so a
-    /// windowless `--screenshot-app` run can photograph the already-shipped
-    /// close mark without fabricating pointer input.
-    pub prototype_hovered: bool,
 }
 
 /// THE RESTING STACK'S OWN ROW CAP — the number of FILE rows the collapsed
 /// margin draws before folding the rest behind one `+ N more…` row. Fixed at
-/// the number the user judged in the working-set residual-3 gallery
-/// (`captures/item-444-residual3/README.md`); [`prototype::PrototypeSpec`]'s
-/// own candidate reuses this constant rather than a second literal, so the
-/// judged number and the shipped one cannot drift apart.
+/// the number the user judged in the working-set residual-3 gallery.
 pub const RESTING_FILES: usize = 5;
 
 /// The open files, in the order the margin draws them, plus which one is active.
@@ -295,11 +286,11 @@ impl WorkingSet {
 
     /// THE HOLD-STILL / MINIMAL-SLIDE LAW.
     ///
-    /// The gallery's rejected candidate (`prototype::PrototypeSpec::Collapsed`,
-    /// unchanged — it stays on the record as the law's own red-arm reference)
-    /// re-derives the resting window from nothing but the active file's index
-    /// EVERY time, which is what let an already-visible row jump across the
-    /// window on the very next activation (`collapsed-jitter.png`). This is
+    /// The gallery's rejected candidate re-derived the resting window from
+    /// nothing but the active file's index EVERY time, which is what let an
+    /// already-visible row jump across the window on the very next activation
+    /// (`collapsed-jitter.png` — the law's own non-vacuity proof in `tests.rs`
+    /// reproduces that stateless formula inline as its red arm). This is
     /// STATEFUL instead: the window remembered here only MOVES when the newly
     /// active file has left it, and then by the minimum distance that brings
     /// it back — never re-centring on a file the reader was already looking
@@ -456,7 +447,6 @@ impl WorkingSet {
             parent: self.files[at].parent_label().unwrap_or_default(),
             active: self.active == Some(at),
             kind: StackRowKind::File,
-            prototype_hovered: false,
         }
     }
 

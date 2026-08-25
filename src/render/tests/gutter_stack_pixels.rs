@@ -44,7 +44,6 @@ pub(super) fn stack_view(active: usize) -> ViewState {
         parent: parent.to_string(),
         active: at == active,
         kind: crate::workingset::StackRowKind::File,
-        prototype_hovered: false,
     })
     .collect();
     v
@@ -291,7 +290,6 @@ fn opening_a_second_file_inserts_a_row_without_moving_the_first_on_every_world()
                     parent: String::new(),
                     active: at == n - 1,
                     kind: crate::workingset::StackRowKind::File,
-                    prototype_hovered: false,
                 })
                 .collect();
         }

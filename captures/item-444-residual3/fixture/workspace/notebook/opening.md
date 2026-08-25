@@ -1,3 +1,0 @@
-# Opening
-
-the first file.
