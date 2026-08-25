@@ -46,9 +46,9 @@ pub(super) const BREATHE_FRAC: f32 = 0.2;
 /// above the band at pitch `lh` and a query beat of `header_gap`.
 ///
 /// ONE owner, because this number is asked for from three unrelated places and
-/// used to be re-summed at each: the row planner's forward y arithmetic
-/// (`row_top`), the header boxes below (whose LAST box closes exactly on it), and
-/// and a summoned workspace's relocated document viewport, which opens at the
+/// re-summing it at each is how they drift: the row planner's forward y
+/// arithmetic (`row_top`), the header boxes below (whose LAST box closes exactly
+/// on it), and a summoned workspace's relocated document viewport, which opens at the
 /// same line the candidate band does. A workspace whose lens moved into
 /// its header carries TWO header lines, so a consumer that re-summed `lh +
 /// header_gap` for itself would seat the comparison a whole line high the moment
@@ -158,10 +158,10 @@ impl PlannedHeader {
 impl OverlayRowPlan {
     // --- THE HEADER BAND ------------------------------------------------------
     //
-    // The three answers that used to be three separate owners in
-    // `render/chrome` — the query field's box, the lens strip's box, and the
+    // The three answers — the query field's box, the lens strip's box, and the
     // split-pane gap carved between the two surfaces — are one planned object
-    // read three ways. `overlay_secondary_top`, `overlay_split_bounds`,
+    // read three ways, never three separate owners in `render/chrome`.
+    // `overlay_secondary_top`, `overlay_split_bounds`,
     // `overlay_strip_band` and `overlay_query_center` are GONE from
     // `render/chrome`; a consumer cannot re-derive a header line's position,
     // only read it off the plan the pixels came from.

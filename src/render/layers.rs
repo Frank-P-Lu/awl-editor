@@ -632,9 +632,9 @@ impl TextPipeline {
     /// extent — the anchored glyph's padded INK BOX on a proportional world, the
     /// row-scaled line cell WITH its descender-aware bottom on a mono / ligature /
     /// glyphless anchor — belongs entirely to `caret_cell_vertical`, folded into
-    /// `caret_geometry`'s rest endpoints. The descender extension used to be
-    /// re-derived HERE off the already motion-blended rect; keeping a second
-    /// vertical rule at the draw site is exactly how the top edge came to disagree
+    /// `caret_geometry`'s rest endpoints. Re-deriving the descender extension
+    /// HERE, off the already motion-blended rect, keeps a second vertical rule
+    /// at the draw site — which is exactly how the top edge comes to disagree
     /// with the bottom. `render::tests::caret_ink_box`'s grep-law fails if a raster
     /// box, a descender depth or a line-cell height reappears in this file.
     pub(super) fn prepare_caret_block(

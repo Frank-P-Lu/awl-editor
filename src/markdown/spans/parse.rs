@@ -159,7 +159,7 @@ pub fn spans(text: &str) -> Vec<(Range<usize>, MdKind)> {
                     // its marker lines hide behind the always-present panel unless
                     // the caret sits inside the block; an INDENTED block has no
                     // fence to hide behind a panel, so it keeps the plain,
-                    // non-concealing `Markup` (byte-identical to before this round).
+                    // non-concealing `Markup`.
                     let fenced = matches!(kind, CodeBlockKind::Fenced(_));
                     body.push((
                         range.clone(),
@@ -196,11 +196,11 @@ pub fn spans(text: &str) -> Vec<(Range<usize>, MdKind)> {
                 // read back from this span's byte range — see
                 // `render::TextPipeline::rebuild_image_rows`). Only when inline
                 // images are ON (native + enabled): off/wasm pushes nothing, so
-                // the source renders as plain text exactly as before this round.
+                // the source renders as plain text.
                 Tag::Image { .. } => {
                     // Only engage (span + alt-text suppression) when images are
                     // ON: off/wasm leaves `image` at 0 so the alt text flows
-                    // through the ordinary Text path, byte-identical to before.
+                    // through the ordinary Text path.
                     if inline_images_on() {
                         image += 1;
                         body.push((range.clone(), MdKind::ConcealMarkup(ConcealKind::Image)));

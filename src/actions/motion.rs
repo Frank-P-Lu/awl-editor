@@ -28,7 +28,7 @@ pub(super) fn vertical_motion(ctx: &mut ActionCtx, down: bool) {
         // The caret's affinity resolves which visual row it starts on at a shared
         // boundary (an `Upstream` caret — right after C-e — sits on the UPPER row).
         // `set_cursor_visual` clears it to `Downstream` after the step, so a RUN of
-        // Up/Down reads `Downstream` from the second move on (byte-identical to before).
+        // Up/Down reads `Downstream` from the second move on.
         let aff = ctx.buffer.affinity();
         // Reuse the sticky goal-x across a run; seed it on the first move.
         let goal_x = ctx

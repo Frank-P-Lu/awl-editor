@@ -174,9 +174,9 @@ pub const CARET_INK_PAD: Logical = Logical(3.0);
 /// equally on both sides of the anchored glyph's own ink centre (never a
 /// per-glyph raster read of its own — `caret_visual_body_dims` folds it in
 /// alongside the width floor, so every anchor still comes from the ONE shared
-/// body owner). Before this existed the resting body was the bare raster ink
-/// width with no accent margin at all, which read as hugging the letter
-/// rather than standing beside it — the vertical pad's own dead-space law
+/// body owner). Without it the resting body is the bare raster ink width with
+/// no accent margin at all, which reads as hugging the letter rather than
+/// standing beside it — the vertical pad's own dead-space law
 /// (`proportional_worlds_take_one_caret_top_at_every_letter`) already sits
 /// within a fraction of a pixel of its ceiling on the roster's tightest face,
 /// so this axis, not a taller pad, is where a modestly larger body has room.

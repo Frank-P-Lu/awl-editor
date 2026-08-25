@@ -273,8 +273,7 @@ fn right_anchor_content_shrink_still_shares_one_right_edge_at_the_policy_level()
 
 #[test]
 fn shipped_world_anchor_assignments_are_unchanged() {
-    // The SHARED ARITHMETIC changes only — every world keeps its own
-    // anchor CHOICE, byte-identical to before this round.
+    // The SHARED ARITHMETIC only — every world keeps its own anchor CHOICE.
     let anchor_of = |name: &str| {
         theme::THEMES
             .iter()

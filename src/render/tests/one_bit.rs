@@ -862,7 +862,7 @@ fn light_worlds_carry_the_summoned_card_border() {
     }
 
     // OUTCOME: the border actually draws on a light world, and a Flat dark world
-    // keeps its border parked (byte-identical to before this round).
+    // keeps its border parked.
     //
     // FLIP ROUND (2026-07-17): the OUTCOME worlds must be PANE light worlds — a
     // world that ships `ListStyle::Bars` (Galah / Magpie / Mangrove / Firetail

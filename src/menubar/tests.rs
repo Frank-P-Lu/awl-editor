@@ -131,7 +131,7 @@ fn classify_force_reads_on_and_off_and_leaves_everything_else_alone() {
 ///
 /// The unforced arm deliberately claims less than an equality against
 /// `platform_default(cfg!(…))` would: asserting a `cfg!`-derived value against the
-/// identical `cfg!` is the tautology `Config::menu_bar_on` used to be. It asserts
+/// identical `cfg!` is a tautology. It asserts
 /// the answer is one of the two NAMED consts, which a third default would break.
 #[test]
 fn menu_bar_default_honours_the_forcing_and_otherwise_reads_a_named_const() {

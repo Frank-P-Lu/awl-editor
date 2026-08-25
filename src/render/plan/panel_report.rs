@@ -47,10 +47,9 @@ use crate::render::TextPipeline;
 /// find/replace card. Uniform rows (the panel does no markdown scaling), so a
 /// band is the text origin stepped by whole line heights.
 ///
-/// The three arms are the three spellings that used to be scattered: a band for
-/// the projection, its centre for the caret block, and the inverse for the
-/// pointer. Each is the arithmetic its old caller used, verbatim, so routing
-/// them here moves no pixel.
+/// The three arms are the three spellings a caller needs: a band for the
+/// projection, its centre for the caret block, and the inverse for the pointer.
+/// Scattering them is what lets the three disagree.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(in crate::render) struct PanelRowBands {
     text_top: f32,

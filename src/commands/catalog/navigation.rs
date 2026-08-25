@@ -204,9 +204,9 @@ pub(super) static COMMANDS: &[Command] = &[
     // FINISH FILE: the emacsclient "server-edit" convention — save, notify any
     // daemon `--wait` client, and CLOSE the file, removing it from the working
     // set. The emacs `C-x #` default is retired; Cmd-W is its native slot now.
-    // It is still non-destructive under stray muscle memory, but for a
-    // different reason than it used to be: it no longer merely parks the
-    // buffer, it removes it — and what makes that safe is the lossless gate it
+    // It is non-destructive under stray muscle memory, but not because it
+    // merely parks the buffer — it REMOVES it, and what makes that safe is
+    // the lossless gate it
     // closes through (`app::files::close`), which saves first and REFUSES
     // outright rather than discard a buffer whose file moved underneath it.
     // Closing the last open file removes nothing, since there is no

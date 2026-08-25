@@ -595,9 +595,9 @@ fn the_major_minor_hierarchy_reads_as_two_distinct_rungs() {
 /// THE FIELD QUIETS BESIDE THE PAGE — BUT NO LONGER TO NOTHING, AND BOTH HALVES
 /// OF THAT ARE ASSERTED. Nothing may compete with prose at the boundary the eye
 /// reads across, so the band immediately outside the column carries materially
-/// less ink than the open margin further out. What the crossing changed is the FLOOR
-/// of that recession: it used to be zero, because the page edge was the end of
-/// the world; it is now `WARP_PAGE_VEIL`, because the field continues across. A
+/// less ink than the open margin further out. The FLOOR of that recession is
+/// `WARP_PAGE_VEIL` rather than zero, because the field continues ACROSS the
+/// page instead of ending at its edge. A
 /// ramp that still touched zero here would break every ring at exactly the one
 /// boundary a reader can check the two flanks against each other. So the near
 /// band must be quieter than the open margin AND must not be empty, and the two

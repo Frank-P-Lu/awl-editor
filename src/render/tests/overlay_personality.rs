@@ -645,9 +645,8 @@ fn forced_placard_shapes_a_wordmark_inside_the_canvas_corner() {
 /// line at all (`header_rows == 0`, no query line to prefix), so there is
 /// nothing for `overlay_shape_placard`'s own `header_rows == 0` guard to do
 /// but bail. This is the ONE genuinely kind-shaped exclusion left in the
-/// guard (see `THE PLACARD-FACETS FIX ROUND` below for the other guard arm
-/// this round REMOVED — a faceted picker used to be excluded here too, which
-/// was the actual bug).
+/// guard (see `THE PLACARD-FACETS FIX ROUND` below for the other guard arm —
+/// excluding a faceted picker here too was the actual bug).
 #[test]
 fn forced_placard_is_inert_on_the_spell_popup_no_title_line() {
     let _g = crate::testlock::serial();

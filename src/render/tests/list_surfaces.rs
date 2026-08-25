@@ -1742,7 +1742,7 @@ fn bars_footer_stays_legible_over_a_giant_placard() {
 //
 // Four INERT-by-default axes the user's P5 study asked for. Each is reachable
 // only through the `AWL_*_FORCE` probes / test overrides; the DEFAULT arm is the
-// shipped v5 look (a bare `bars` is byte-identical to before this round — the
+// shipped v5 look (a bare `bars` engages none of them — the
 // `parse_list_style_force_grammar` case above pins that). These prove the
 // OUTCOME over real pixels / pure geometry (the Wagtail invisible-row lesson),
 // never the mere mechanism.

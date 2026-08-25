@@ -80,8 +80,7 @@ pub const ORNAMENTS_DEFAULT: Ornaments = Ornaments {
 //     2 geometric marks (its ❡ ❥ come from NS2; ❧ ❦ ☙ from EB Garamond; ⁂ from
 //     Junicode). There is no STANDALONE "Noto Sans Symbols 2" registered face —
 //     its glyphs live in this merged face, which is exactly the clean geometric
-//     look the technical worlds want, so they simply keep it (their ornament is
-//     byte-identical to before this round).
+//     look the technical worlds want, so they simply keep it.
 
 /// The EB Garamond ornament face — refined Renaissance fleurons for the literary
 /// serif worlds. Registered from `EBGaramond-Regular.ttf` (also Bombora's own
@@ -329,8 +328,7 @@ pub const BULLET_SCALE_GARAMOND: f32 = 0.35;
 // with every existing nesting depth) is what this round commits to.
 
 /// PLAIN list-indent scale — the geometric/technical worlds' nested list items
-/// render at exactly their literal typed indent (byte-identical to before this
-/// round).
+/// render at exactly their literal typed indent.
 pub const LIST_INDENT_SCALE_PLAIN: f32 = 1.0;
 
 /// WIDE list-indent scale — the antique/literary-serif worlds' nested list

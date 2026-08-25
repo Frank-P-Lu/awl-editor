@@ -31,8 +31,9 @@ const RUN_BASE: usize = 2;
 
 /// What one refresh actually cost, in units a law can assert on.
 ///
-/// `bytes_read` and `graphemes_segmented` used to be the whole document on
-/// every frame; `runs_rebuilt` is how many line runs were reprojected;
+/// `bytes_read` and `graphemes_segmented` are what the refresh actually
+/// touched, which an unincremental one makes the whole document every frame;
+/// `runs_rebuilt` is how many line runs were reprojected;
 /// `nodes_published` is how many nodes reached the platform. A witness asserts
 /// these counts, not just the clock — CLAUDE.md records a theme bench that
 /// "measured" 5 ms while nothing reshaped.

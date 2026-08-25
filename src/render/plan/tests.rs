@@ -116,9 +116,10 @@ fn a_visible_row_past_the_corpus_end_clamps_to_none() {
 /// same object, over every header count, every header gap, and every row — not a
 /// forward formula checked against a hand-written inverse.
 ///
-/// The swept axis is the one the pre-plan code got away with: the two directions
-/// used to be separate free functions taking five loose scalars each, and every
-/// call site re-assembled the arguments itself.
+/// The swept axis is the one loose-scalar arithmetic gets away with: two
+/// directions written as separate free functions over five scalars each, with
+/// every call site re-assembling the arguments, agree on the cases their author
+/// tried and nowhere else.
 #[test]
 fn every_planned_row_slot_hit_tests_back_to_its_own_row() {
     for &header_rows in &[0usize, 1, 2, 3] {

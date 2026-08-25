@@ -63,10 +63,10 @@ impl App {
 
     /// The active buffer's whole-document word count — the SAME
     /// [`crate::card::figures::word_count`] the readout / held HUD use, not the
-    /// plain whitespace-split `markdown::word_count` this used to call (which
-    /// silently undercounted CJK-majority prose, since an unspaced run of
-    /// ideographs has no whitespace to split on and so counted as one "word"
-    /// no matter how long it ran). `figures::word_count` also strips a leading
+    /// plain whitespace-split `markdown::word_count`, which silently
+    /// undercounts CJK-majority prose: an unspaced run of ideographs has no
+    /// whitespace to split on, so it counts as one "word" no matter how long
+    /// it runs. `figures::word_count` also strips a leading
     /// frontmatter block before counting — a deliberate improvement for the
     /// streak ledger too, since typing frontmatter isn't writing prose. A
     /// `String` alloc per call, but flushes are infrequent (idle/blur/switch/
@@ -302,8 +302,8 @@ mod tests {
     #[test]
     fn cjk_prose_records_the_readout_s_word_count_not_a_whitespace_undercount() {
         // Unspaced Japanese: no ASCII/Unicode whitespace anywhere in the run,
-        // so the plain whitespace-split counter this module used to call
-        // would see the whole sentence as ONE "word". The readout's own
+        // so a plain whitespace-split counter would see the whole sentence as
+        // ONE "word". The readout's own
         // counter (`card::figures::word_count`) treats each ideograph as its
         // own token — 11 here (10 Han/Kana + the trailing `。`).
         let ja = "今日はいい天気ですね。";

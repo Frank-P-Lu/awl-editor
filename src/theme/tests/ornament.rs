@@ -132,7 +132,7 @@ fn assert_bullet_pair_law(t: &Theme) {
     );
     // The geometric/technical worlds keep the plain pair AND body size, in
     // lockstep — a characterful pair at body size (or plain at half) would be
-    // a taste drift; a geometric world is byte-identical to before this round.
+    // a taste drift; a geometric world keeps both.
     // The two off-tier exceptions are excluded from this lockstep check (their
     // whole POINT is a bullet_scale that differs from the shared ORNAMENT tier
     // while keeping a characterful, non-plain pair).

@@ -152,10 +152,10 @@ pub(super) fn fit_rows(rows: &[crate::workingset::StackRow], budget: usize) -> V
 /// picker row's own secondary ink and the toast rim already use
 /// (`render/chrome/overlay_rows.rs`, `overlay_visual_sel.rs`): the function
 /// keeps `muted` wherever it already contrasts against the plate (every
-/// ordinary world, byte-identical to before) and falls back to whichever of
+/// ordinary world) and falls back to whichever of
 /// the page's two poles reads better only where it does not — which is
 /// Wagtail, where the plate fills at page-inverse (`base_content`) and `muted`
-/// is the SAME page-inverse value, so the unrouted ink used to vanish into its
+/// is the SAME page-inverse value, so unrouted ink vanishes into its
 /// own plate (the sidecar-vs-pixels tripwire: `selected_index` reads correctly
 /// while the row renders unreadable).
 ///

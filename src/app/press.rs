@@ -12,8 +12,8 @@ use super::*;
 /// `App::dispatch_pressed_key`, beside the real
 /// `WindowEvent::KeyboardInput` path and the `--live-script` probe.
 ///
-/// It exists because the live `App` used to be undrivable off-window at all:
-/// every door into it wanted an `&ActiveEventLoop`, which can only be borrowed
+/// It exists because the live `App` is otherwise undrivable off-window: every
+/// other door into it wants an `&ActiveEventLoop`, which can only be borrowed
 /// from inside a running winit loop. A whole class of transitions — everything
 /// `App::apply` interprets, including `switch_project` → `set_root` and
 /// `reload_config` — therefore had no headless driver, so no test and no

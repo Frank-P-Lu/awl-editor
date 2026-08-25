@@ -762,9 +762,9 @@ fn already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix() {
                 canvas: (700, 800),
                 zoom: 2.0,
             },
-            // THE CELL THE CHROME PIXEL-SPACE ROUND MOVED MOST. Three logical
-            // lengths bind here at zoom 2 and every one of them used to be a
-            // physical number sitting beside doubled text. The card's edge-inset
+            // THE CELL WHERE LOGICAL-VS-PHYSICAL BITES HARDEST. Three logical
+            // lengths bind here at zoom 2, and a physical number left sitting
+            // beside doubled text is the defect this cell catches. The card's edge-inset
             // FLOOR resolves to 20px rather than 10 (the span narrows 10..690 ->
             // 20..680); the grouped card's own pad and its drop from the canvas
             // top resolve to 24 and 80 rather than 12 and 40, which is 84px less
@@ -786,10 +786,10 @@ fn already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix() {
             // the reclaim.
             (589.8, (20.0, 680.0), 5, Some((32, 5, 4, 589.8, 800.0))),
         ),
-        // This cell used to be `History`, which is no longer a GROUPED picker
-        // either: it is presented as a summoned workspace, so its numbers here
-        // would be measuring a card production does not draw — the same reason
-        // the `Settings` cell below was retired. `Project` is the
+        // `History` does not belong in this cell: it is not a GROUPED picker
+        // either, but a summoned workspace, so its numbers here would be
+        // measuring a card production does not draw — the same reason
+        // `Settings` is absent below. `Project` is the
         // grouped kind that was not otherwise covered, held at the same tall-canvas
         // shape the History cell was chosen for.
         (
@@ -812,10 +812,10 @@ fn already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix() {
                 Some((25, 13, 12, 257.0, 1600.0)),
             ),
         ),
-        // This fifth cell used to be `Settings`, which is no longer a
-        // GROUPED picker: it is presented as a summoned workspace, whose box
-        // comes from the canvas rather than from a width cap, so its numbers
-        // here would be measuring a card production does not draw. `Browse` is
+        // `Settings` does not belong in this fifth cell: it is not a GROUPED
+        // picker but a summoned workspace, whose box comes from the canvas
+        // rather than from a width cap, so its numbers here would be measuring
+        // a card production does not draw. `Browse` is
         // the grouped kind that was not otherwise covered, held at the same
         // short-canvas shape the Settings cell was chosen for.
         (

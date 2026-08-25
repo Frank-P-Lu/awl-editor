@@ -846,7 +846,7 @@ fn wysiwyg_off_keeps_real_advances_never_zero_width() {
 /// REGRESSION GUARD: a non-markdown buffer never runs the WYSIWYG conceal
 /// pass at all (no `md_spans`, so `add_wysiwyg_conceal_spans` no-ops
 /// trivially) — a `.rs`-style line containing literal `# ` / `*` characters
-/// renders at their real advances, byte-identical to before this round.
+/// renders at their real advances.
 #[test]
 fn wysiwyg_non_markdown_buffer_untouched_by_zero_width_conceal() {
     let _w = crate::testlock::serial();

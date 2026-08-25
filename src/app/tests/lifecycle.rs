@@ -401,8 +401,7 @@ fn one_streams_settle_never_strips_the_other_streams_present_sync() {
 
 /// STRUCTURAL: a non-lava world takes the whole move machinery as a total
 /// no-op — no hold stamped, so the settle arm can never fire and a window
-/// move schedules ZERO redraws (byte-identical to before the machinery
-/// existed).
+/// move schedules ZERO redraws.
 #[test]
 fn a_non_lava_world_takes_a_moved_stream_as_a_total_no_op() {
     let _g = crate::testlock::serial();

@@ -122,8 +122,8 @@ impl PersistenceRuntime {
 
     /// Is the fresh document OWED a write at `version`?
     ///
-    /// **The sole spelling** of what used to be three hand-written
-    /// `note_saved_version != Some(buffer.version())` comparisons. The caller
+    /// **The sole spelling** of the
+    /// `note_saved_version != Some(buffer.version())` comparison. The caller
     /// still supplies "is this buffer an unnamed fresh document" — that is the
     /// buffer's own fact, not this ledger's.
     pub(in crate::app) fn note_write_owed(&self, version: u64) -> bool {

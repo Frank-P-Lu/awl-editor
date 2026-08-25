@@ -51,8 +51,8 @@ pub fn system_now() -> SystemTime {
 }
 
 /// The live editor's ONE owner of "what monotonic time is it" for SCHEDULING
-/// and ANIMATION. Every consumer that used to call the free `Instant::now()` on
-/// the scheduling/animation path — each debounce/settle deadline in
+/// and ANIMATION. Every consumer on the scheduling/animation path — each
+/// debounce/settle deadline in
 /// `app::schedule`, the caret-spring frame `dt`, the ambient (lava/stars) tick,
 /// toast expiry, GPU-retry timing, and the App's own sense-of-time stamps
 /// (session origin, save marks, the key→px input receipt) — now reads
