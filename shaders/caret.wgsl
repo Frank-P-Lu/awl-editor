@@ -43,15 +43,9 @@ struct VsOut {
     @location(4) color: vec3<f32>,
 };
 
-// Unit quad corners (two triangles) in [-1,1].
-var<private> CORNERS: array<vec2<f32>, 6> = array<vec2<f32>, 6>(
-    vec2<f32>(-1.0, -1.0), vec2<f32>( 1.0, -1.0), vec2<f32>( 1.0,  1.0),
-    vec2<f32>(-1.0, -1.0), vec2<f32>( 1.0,  1.0), vec2<f32>(-1.0,  1.0),
-);
-
 @vertex
 fn vs_main(@builtin(vertex_index) vid: u32, inst: Instance) -> VsOut {
-    let corner = CORNERS[vid];
+    let corner = QUAD_NDC[vid];
     // Expand the quad by 1px beyond the rect so the anti-aliased edge has room.
     let extent = inst.half_size + vec2<f32>(1.0, 1.0);
     // `local` is in the rect's OWN frame: x = along travel (length), y = across
@@ -77,13 +71,6 @@ fn vs_main(@builtin(vertex_index) vid: u32, inst: Instance) -> VsOut {
     out.alpha = inst.alpha;
     out.color = inst.color;
     return out;
-}
-
-// Signed distance to a rounded rectangle centered at origin with half-size `b`
-// and corner radius `r`. Negative inside, positive outside.
-fn sd_round_rect(p: vec2<f32>, b: vec2<f32>, r: f32) -> f32 {
-    let q = abs(p) - b + vec2<f32>(r, r);
-    return min(max(q.x, q.y), 0.0) + length(max(q, vec2<f32>(0.0, 0.0))) - r;
 }
 
 @fragment

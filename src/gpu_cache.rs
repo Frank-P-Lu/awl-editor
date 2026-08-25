@@ -88,19 +88,124 @@ impl Shader {
         }
     }
 
-    fn source(self) -> &'static str {
+    /// The bare filename the WebGL validation sweep (`render::tests::
+    /// webgl_shader_validation`) keys off — the sweep discovers files on disk
+    /// and must land on the SAME assembled source [`Shader::source`] hands
+    /// the real pipeline, or the two could drift about what "this shader"
+    /// even parses. Test-only: nothing in the live pipeline path looks a
+    /// `Shader` up BY its file name.
+    #[cfg(test)]
+    fn file_name(self) -> &'static str {
         match self {
-            Shader::Background => include_str!("../shaders/background.wgsl"),
-            Shader::Blur => include_str!("../shaders/blur.wgsl"),
-            Shader::Caret => include_str!("../shaders/caret.wgsl"),
-            Shader::CaretGlyph => include_str!("../shaders/caret_glyph.wgsl"),
-            Shader::Image => include_str!("../shaders/image.wgsl"),
-            Shader::Lava => include_str!("../shaders/lava.wgsl"),
-            Shader::RotatedLabel => include_str!("../shaders/rotated_label.wgsl"),
-            Shader::Selection => include_str!("../shaders/selection.wgsl"),
-            Shader::SpellUnderline => include_str!("../shaders/spellunderline.wgsl"),
+            Shader::Background => "background.wgsl",
+            Shader::Blur => "blur.wgsl",
+            Shader::Caret => "caret.wgsl",
+            Shader::CaretGlyph => "caret_glyph.wgsl",
+            Shader::Image => "image.wgsl",
+            Shader::Lava => "lava.wgsl",
+            Shader::RotatedLabel => "rotated_label.wgsl",
+            Shader::Selection => "selection.wgsl",
+            Shader::SpellUnderline => "spellunderline.wgsl",
         }
     }
+
+    /// The exact source naga/wgpu compiles: the shader's own file, preceded
+    /// by whichever `shaders/common/*.wgsl` preambles it calls into. One
+    /// helper (`sd_round_rect`, the dither matrix, the two unit quads, the
+    /// oversized triangle) lives in exactly one preamble file now, never
+    /// copy-pasted per pipeline — `concat!` splices it in at compile time, so
+    /// there is nothing left to keep in sync by hand.
+    fn source(self) -> &'static str {
+        match self {
+            Shader::Background => {
+                concat!(
+                    include_str!("../shaders/common/dither.wgsl"),
+                    include_str!("../shaders/common/tri3.wgsl"),
+                    include_str!("../shaders/background.wgsl"),
+                )
+            }
+            Shader::Blur => {
+                concat!(
+                    include_str!("../shaders/common/tri3.wgsl"),
+                    include_str!("../shaders/blur.wgsl"),
+                )
+            }
+            Shader::Caret => {
+                concat!(
+                    include_str!("../shaders/common/sdf.wgsl"),
+                    include_str!("../shaders/common/quad_ndc.wgsl"),
+                    include_str!("../shaders/caret.wgsl"),
+                )
+            }
+            Shader::CaretGlyph => {
+                concat!(
+                    include_str!("../shaders/common/quad_uv.wgsl"),
+                    include_str!("../shaders/caret_glyph.wgsl"),
+                )
+            }
+            Shader::Image => {
+                concat!(
+                    include_str!("../shaders/common/sdf.wgsl"),
+                    include_str!("../shaders/common/quad_uv.wgsl"),
+                    include_str!("../shaders/image.wgsl"),
+                )
+            }
+            Shader::Lava => {
+                concat!(
+                    include_str!("../shaders/common/dither.wgsl"),
+                    include_str!("../shaders/common/tri3.wgsl"),
+                    include_str!("../shaders/lava.wgsl"),
+                )
+            }
+            Shader::RotatedLabel => {
+                concat!(
+                    include_str!("../shaders/common/quad_uv.wgsl"),
+                    include_str!("../shaders/rotated_label.wgsl"),
+                )
+            }
+            Shader::Selection => {
+                concat!(
+                    include_str!("../shaders/common/sdf.wgsl"),
+                    include_str!("../shaders/common/dither.wgsl"),
+                    include_str!("../shaders/common/quad_ndc.wgsl"),
+                    include_str!("../shaders/selection.wgsl"),
+                )
+            }
+            Shader::SpellUnderline => {
+                concat!(
+                    include_str!("../shaders/common/quad_ndc.wgsl"),
+                    include_str!("../shaders/spellunderline.wgsl"),
+                )
+            }
+        }
+    }
+}
+
+/// Every [`Shader`] variant, for a caller that must sweep them all (the
+/// WebGL validation test's file-to-variant lookup below).
+#[cfg(test)]
+const ALL: [Shader; 9] = [
+    Shader::Background,
+    Shader::Blur,
+    Shader::Caret,
+    Shader::CaretGlyph,
+    Shader::Image,
+    Shader::Lava,
+    Shader::RotatedLabel,
+    Shader::Selection,
+    Shader::SpellUnderline,
+];
+
+/// The exact source [`compile`] hands naga/wgpu for the shader whose file is
+/// named `file_name` (e.g. `"caret.wgsl"`), or `None` if no [`Shader`] variant
+/// owns that file — the WebGL validation sweep's one entry point, so a shader
+/// file that exists on disk but was never wired into the enum fails loudly
+/// there instead of validating a fiction.
+#[cfg(test)]
+pub(crate) fn source_for_file(file_name: &str) -> Option<&'static str> {
+    ALL.into_iter()
+        .find(|s| s.file_name() == file_name)
+        .map(Shader::source)
 }
 
 fn compile(device: &wgpu::Device, which: Shader) -> wgpu::ShaderModule {

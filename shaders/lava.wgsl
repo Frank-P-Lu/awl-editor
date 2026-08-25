@@ -35,8 +35,8 @@ struct Globals {
     // (a HEADED doc — `TextPipeline::lava_rail_carved`), making the whole LEFT
     // margin its rail — another no-lava zone, so the outline's dim entries sit on
     // the flat ground instead of inside the lamp. 0 (outline hidden) reclaims the
-    // full margin. The bottom-left gutter no longer sets this — it drives the
-    // LOCAL corner carve below. MUST match `lava::rail_dist_outside`.
+    // full margin. The bottom-left gutter does NOT set this field — it drives
+    // the LOCAL corner carve below (`gutter`). MUST match `lava::rail_dist_outside`.
     rail: u32,
     // THE GUTTER'S LOCAL CORNER CARVE: 1 when the bottom-left gutter is DRAWN this
     // frame, so the bounded `gutter_rect` region is carved out of the field mask
@@ -88,13 +88,9 @@ struct VsOut {
     @location(0) px: vec2<f32>,
 };
 
-var<private> VERTS: array<vec2<f32>, 3> = array<vec2<f32>, 3>(
-    vec2<f32>(-1.0, -1.0), vec2<f32>( 3.0, -1.0), vec2<f32>(-1.0,  3.0),
-);
-
 @vertex
 fn vs_main(@builtin(vertex_index) vid: u32) -> VsOut {
-    let ndc = VERTS[vid];
+    let ndc = TRI_NDC[vid];
     var out: VsOut;
     out.clip = vec4<f32>(ndc, 0.0, 1.0);
     out.px = vec2<f32>(
@@ -174,25 +170,8 @@ fn frost_field(px: vec2<f32>, blur: f32) -> f32 {
     return acc / 9.0;
 }
 
-// The classic 8x8 ordered (Bayer) dither matrix — the SAME values as
-// `shaders/background.wgsl`'s BAYER8 (a small, accepted cross-shader
-// duplication; the product's own copy stays the single source of truth).
-var<private> BAYER8: array<u32, 64> = array<u32, 64>(
-     0u, 32u,  8u, 40u,  2u, 34u, 10u, 42u,
-    48u, 16u, 56u, 24u, 50u, 18u, 58u, 26u,
-    12u, 44u,  4u, 36u, 14u, 46u,  6u, 38u,
-    60u, 28u, 52u, 20u, 62u, 30u, 54u, 22u,
-     3u, 35u, 11u, 43u,  1u, 33u,  9u, 41u,
-    51u, 19u, 59u, 27u, 49u, 17u, 57u, 25u,
-    15u, 47u,  7u, 39u, 13u, 45u,  5u, 37u,
-    63u, 31u, 55u, 23u, 61u, 29u, 53u, 21u,
-);
-
-fn bayer_threshold01(px: vec2<f32>) -> f32 {
-    let x = u32(floor(px.x)) % 8u;
-    let y = u32(floor(px.y)) % 8u;
-    return f32(BAYER8[y * 8u + x]) / 64.0;
-}
+// `bayer_threshold01`/`BAYER8` (used below in the coarse-dither branch) live
+// in `shaders/common/dither.wgsl`, prepended to this file.
 
 // EDGE-GLOW boundary tunables — a genuinely SEPARATE, gentler falloff of the raw
 // field (never a peek at the blob's own `edge_t` silhouette), so a faint tint can

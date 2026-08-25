@@ -206,6 +206,11 @@ mod selection_token_routing_law;
 #[cfg(not(target_arch = "wasm32"))]
 mod settings_fixture_law;
 mod settings_row_reach_law;
+/// A parsed-AST pin over the Rust<->WGSL constant twins the shader dedup
+/// round could single-source only by adding a live crossing mechanism it
+/// wasn't worth adding — naga, not a string scan.
+#[cfg(not(target_arch = "wasm32"))]
+mod shader_const_law;
 /// The contextual spelling popup's Diagonal-only measured cluster and local frost:
 /// exhaustive style enrolment, full Add row, raking coverage and outside identity.
 mod spell_popup_diagonal;

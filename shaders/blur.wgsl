@@ -45,13 +45,7 @@ struct VOut {
 
 @vertex
 fn vs_main(@builtin(vertex_index) vi: u32) -> VOut {
-    // A single oversized triangle covering the viewport (no vertex buffer).
-    var corners = array<vec2<f32>, 3>(
-        vec2<f32>(-1.0, -1.0),
-        vec2<f32>( 3.0, -1.0),
-        vec2<f32>(-1.0,  3.0),
-    );
-    let xy = corners[vi];
+    let xy = TRI_NDC[vi];
     var out: VOut;
     out.pos = vec4<f32>(xy, 0.0, 1.0);
     // Map clip space to texture UV (origin top-left): x in [0,1], y flipped so the
@@ -126,9 +120,8 @@ fn footprint_mask(p: vec2<f32>) -> f32 {
 
 // Upsample the blurred quarter texture (linear filtering smooths it back to full
 // res) and dim a touch toward the theme's base_100 so the doc recedes a value. The
-// footprint's coverage rides in the ALPHA: a scissor can only answer yes or no per
-// pixel, which is why the frost's boundary used to be a knife edge that sliced words
-// mid-glyph.
+// footprint's coverage rides in the ALPHA, not a scissor: a scissor can only
+// answer yes or no per pixel, which would slice words mid-glyph at the boundary.
 @fragment
 fn fs_comp(in: VOut) -> @location(0) vec4<f32> {
     let c = textureSample(tex, samp, in.uv).rgb;

@@ -62,15 +62,9 @@ struct VsOut {
     @location(8) dilate_px: f32,
 };
 
-// Unit quad corners (two triangles) in [0,1].
-var<private> CORNERS: array<vec2<f32>, 6> = array<vec2<f32>, 6>(
-    vec2<f32>(0.0, 0.0), vec2<f32>(1.0, 0.0), vec2<f32>(1.0, 1.0),
-    vec2<f32>(0.0, 0.0), vec2<f32>(1.0, 1.0), vec2<f32>(0.0, 1.0),
-);
-
 @vertex
 fn vs_main(@builtin(vertex_index) vid: u32, inst: Instance) -> VsOut {
-    let corner = CORNERS[vid];
+    let corner = QUAD_UV[vid];
     let px = inst.rect_min + corner * inst.rect_size;
 
     // Pixel -> clip space. y flips (pixels are y-down, clip is y-up).

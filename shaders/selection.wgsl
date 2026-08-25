@@ -150,15 +150,9 @@ struct VsOut {
     @location(3) px: vec2<f32>,
 };
 
-// Unit quad corners (two triangles) in [-1,1].
-var<private> CORNERS: array<vec2<f32>, 6> = array<vec2<f32>, 6>(
-    vec2<f32>(-1.0, -1.0), vec2<f32>( 1.0, -1.0), vec2<f32>( 1.0,  1.0),
-    vec2<f32>(-1.0, -1.0), vec2<f32>( 1.0,  1.0), vec2<f32>(-1.0,  1.0),
-);
-
 @vertex
 fn vs_main(@builtin(vertex_index) vid: u32, inst: Instance) -> VsOut {
-    let corner = CORNERS[vid];
+    let corner = QUAD_NDC[vid];
     // 1px margin so the antialiased edge is not clipped by the quad.
     let extent = inst.hsize + vec2<f32>(1.0, 1.0);
     // `local` stays the rect's OWN (unrotated) frame — the SDF and every
@@ -183,13 +177,6 @@ fn vs_main(@builtin(vertex_index) vid: u32, inst: Instance) -> VsOut {
     out.color = inst.color;
     out.px = px;
     return out;
-}
-
-// Signed distance to a rounded rectangle centered at origin with half-size `b`
-// and corner radius `r`. Negative inside, positive outside.
-fn sd_round_rect(p: vec2<f32>, b: vec2<f32>, r: f32) -> f32 {
-    let q = abs(p) - b + vec2<f32>(r, r);
-    return min(max(q.x, q.y), 0.0) + length(max(q, vec2<f32>(0.0, 0.0))) - r;
 }
 
 // THE ONE CARD SILHOUETTE: `chamfer_top <= 0.0 && chamfer_bottom <= 0.0` is
@@ -256,30 +243,17 @@ fn halftone_rolloff(tx: f32) -> f32 {
 // cards to the plain flat treatment. See `git log -p` on this file for the
 // removed shape if a future world wants a woven texture again.)
 
-// THE ONE WAGTAIL HIGHLIGHT TEXTURE's Bayer matrix — identical values to
-// `background.wgsl`'s copy (both mirror `src/render/dither.rs::BAYER8`; see
-// that file's module doc for why the small cross-file/cross-language
-// duplication is the accepted answer here rather than a shared WGSL include,
-// which naga/wgpu has no mechanism for).
-var<private> BAYER8: array<u32, 64> = array<u32, 64>(
-     0u, 32u,  8u, 40u,  2u, 34u, 10u, 42u,
-    48u, 16u, 56u, 24u, 50u, 18u, 58u, 26u,
-    12u, 44u,  4u, 36u, 14u, 46u,  6u, 38u,
-    60u, 28u, 52u, 20u, 62u, 30u, 54u, 22u,
-     3u, 35u, 11u, 43u,  1u, 33u,  9u, 41u,
-    51u, 19u, 59u, 27u, 49u, 17u, 57u, 25u,
-    15u, 47u,  7u, 39u, 13u, 45u,  5u, 37u,
-    63u, 31u, 55u, 23u, 61u, 29u, 53u, 21u,
-);
-
+// THE ONE WAGTAIL HIGHLIGHT TEXTURE's Bayer lookup — CHUNKED (see below),
+// reading the shared `BAYER8` matrix `shaders/common/dither.wgsl` prepends.
+//
 // The Bayer threshold at absolute canvas position `px`, quantized to `cell`-px
 // blocks first (CHUNK round): `floor(px / cell)` lands every physical pixel in
 // its `cell`x`cell` block on ONE Bayer coordinate, so the whole block shares a
-// rank and the stipple coarsens. `cell = 1.0` is the exact pre-chunk behavior
+// rank and the stipple coarsens. `cell = 1.0` is the exact unchunked behavior
 // (`floor(px / 1.0) == floor(px)`); a `max(cell, 1.0)` guard keeps a stray
 // `0.0` uniform (never uploaded — the field defaults to `1.0`) from dividing by
 // zero.
-fn bayer_threshold01(px: vec2<f32>, cell: f32) -> f32 {
+fn bayer_threshold01_chunked(px: vec2<f32>, cell: f32) -> f32 {
     let c = max(cell, 1.0);
     let x = u32(floor(px.x / c)) % 8u;
     let y = u32(floor(px.y / c)) % 8u;
@@ -305,7 +279,7 @@ fn fs_main(in: VsOut) -> @location(0) vec4<f32> {
         if (d > 0.0) {
             return vec4<f32>(0.0, 0.0, 0.0, 0.0);
         }
-        if (bayer_threshold01(in.px, g.cell) < g.dither) {
+        if (bayer_threshold01_chunked(in.px, g.cell) < g.dither) {
             return vec4<f32>(in.color.rgb, 1.0);
         }
         return vec4<f32>(0.0, 0.0, 0.0, 0.0);
