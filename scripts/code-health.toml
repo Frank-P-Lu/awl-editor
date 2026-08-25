@@ -491,7 +491,7 @@ lines = 515
 
 [[file_size_mark]]
 file = "src/theme/derive.rs"
-lines = 344
+lines = 338
 reason = "The footer plate earns the notice channel's own one-pixel rim, which is what lifts it from delta-E 1.91 to 54 on Cassowary -- a plate nobody can see is not a plate. +14: `overlay_footer_plate_rim()` resolved fresh every frame with no `sync_theme_colors` entry -- the notice channel's own reasoning, so a theme swap cannot serve last world's rim."
 
 [[file_size_mark]]
