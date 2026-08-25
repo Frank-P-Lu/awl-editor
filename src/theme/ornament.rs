@@ -191,7 +191,7 @@ pub fn fold_mark_for(register: OrnamentRegister) -> FoldMark {
         OrnamentRegister::Junicode => FoldMark {
             ch: '\u{261E}',
             face: ORNAMENT_GARAMOND,
-            size_frac: 0.65,
+            size_frac: 0.7,
         },
         // Iosevka's own disclosure triangle — the modern/technical
         // register's pick, the classic Finder/macOS convention.

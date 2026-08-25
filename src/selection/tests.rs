@@ -145,19 +145,6 @@ fn spine_segment_degenerates_to_upright_on_a_zero_length_segment() {
     assert!(axis[0].is_finite() && axis[1].is_finite());
 }
 
-#[test]
-fn narrowed_spine_corner_px_caps_to_the_shorter_half_extent() {
-    // A generous corner request against a long, thin segment caps to the
-    // thickness, never the length.
-    assert_eq!(narrowed_spine_corner_px(50.0, 200.0, 3.0), 3.0);
-    // The reverse: a short, thick segment caps to the length.
-    assert_eq!(narrowed_spine_corner_px(50.0, 2.0, 30.0), 2.0);
-    // A modest request under both extents passes through unchanged.
-    assert_eq!(narrowed_spine_corner_px(2.0, 200.0, 30.0), 2.0);
-    // Never negative, even from a negative input.
-    assert_eq!(narrowed_spine_corner_px(-5.0, 200.0, 30.0), 0.0);
-}
-
 const OFFSCREEN_FMT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 
 fn offscreen(device: &wgpu::Device, width: u32, height: u32) -> (wgpu::Texture, wgpu::TextureView) {

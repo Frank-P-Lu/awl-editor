@@ -75,8 +75,9 @@ impl TextPipeline {
             .set_color(theme::muted().rgba_bytes());
         self.table_rule_pipeline
             .set_color(theme::muted().rgba_bytes());
-        self.fold_chevron_pipeline
-            .set_color(theme::fold_afford_chevron_ink().rgba_bytes());
+        // The fold mark reads `theme::fold_afford_chevron_ink()` fresh at PREPARE
+        // time (`prepare_fold_chevron_marks`), not here: a `RotatedLabelPipeline`
+        // takes its colour as a `prepare()` argument, not a persistent `set_color`.
         self.panel_card
             .set_color(theme::pane_surface(effective_card_elevation()).rgba_bytes());
         self.panel_shadow.set_color(float_shadow_srgba());

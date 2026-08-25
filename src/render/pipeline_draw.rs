@@ -80,10 +80,11 @@ impl TextPipeline {
         let ornament_renderer =
             TextRenderer::new(&mut atlas, device, wgpu::MultisampleState::default(), None);
         // THE FOLD CHEVRON — leaves the glyphon pipeline entirely (it must rotate a
-        // quarter turn on fold/unfold; glyphon 0.11 has no transform). Two
-        // `spine_segment` arms per mark, uploaded through `prepare_rotated`.
-        let fold_chevron_pipeline =
-            SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
+        // quarter turn on fold/unfold; glyphon 0.11 has no transform). Grown lazily,
+        // one rotated-label pipeline per summoned mark — see the field's own doc.
+        let fold_chevron_labels: Vec<crate::rotated_label::RotatedLabelPipeline> = Vec::new();
+        let fold_chevron_label_masks: Vec<Option<crate::rotated_label::mask::LabelMask>> =
+            Vec::new();
         let table_renderer =
             TextRenderer::new(&mut atlas, device, wgpu::MultisampleState::default(), None);
         let table_rule_pipeline =
@@ -274,7 +275,8 @@ impl TextPipeline {
             selection_invert,
             caret_invert,
             ornament_renderer,
-            fold_chevron_pipeline,
+            fold_chevron_labels,
+            fold_chevron_label_masks,
             table_renderer,
             table_rule_pipeline,
             panel_card,
@@ -309,6 +311,7 @@ impl TextPipeline {
             caret_affinity: crate::caret::Affinity::Downstream,
             scroll: ScrollPos::default(),
             metrics,
+            format,
             dpi: 1.0,
             window_w: crate::capture::CANVAS_WIDTH as f32,
             window_h: crate::capture::CANVAS_HEIGHT as f32,

@@ -243,7 +243,7 @@ fn every_world_has_a_fold_mark_derived_from_its_ornament_register() {
         FoldMark {
             ch: '\u{261E}',
             face: ORNAMENT_GARAMOND,
-            size_frac: 0.65,
+            size_frac: 0.7,
         },
         "Junicode register: the EB-Garamond manicule"
     );
@@ -287,7 +287,8 @@ fn every_world_has_a_fold_mark_derived_from_its_ornament_register() {
     // property a hand-per-world list could violate silently.
     for a in THEMES.iter() {
         for b in THEMES.iter() {
-            let same_register = ornament_register(a.ornament_face) == ornament_register(b.ornament_face);
+            let same_register =
+                ornament_register(a.ornament_face) == ornament_register(b.ornament_face);
             assert_eq!(
                 a.fold_mark() == b.fold_mark(),
                 same_register,

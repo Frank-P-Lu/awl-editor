@@ -1,26 +1,29 @@
-//! THE MARKER IS ONE ROTATABLE SYMBOL, and its turn is the thing
-//! that carries meaning.
+//! THE ROTATABLE CHEVRON IS ONE SHAPE, and its turn is the thing that carries
+//! meaning.
 //!
-//! Two surfaces draw this mark: the overlay's selected-row marker on a
-//! `ListStyle::Diagonal` world (`chrome::diagonal::selected_chevron`) and the
-//! fold chevron in the writing column's leading pad
-//! (`layers::fold_chevron::prepare_fold_chevron_marks`). They have TWO entry
-//! points and must have ONE shape, because the design that makes the mark worth
-//! turning — a chevron is the simplest mark with no rotational symmetry, so its
-//! angle is legible AT REST — is a property of the shape, not of either caller.
+//! [`crate::selection::chevron_arms`] is the shared owner: the overlay's
+//! selected-row marker on a `ListStyle::Diagonal` world
+//! (`chrome::diagonal::selected_chevron`) is a derived parameterization of it,
+//! proved below rather than assumed. The fold chevron in the writing column's
+//! leading pad (`layers::fold_chevron`) drew a SECOND consumer of this same
+//! shape until it moved to a real font glyph, rotated through
+//! [`crate::rotated_label::RotatedLabelPipeline`] instead — its own laws now
+//! live in `render::tests::fold_chevron_direction` /
+//! `render::tests::fold_chevron_center`, graded on rendered pixels rather than
+//! on this pure-geometry primitive.
 //!
-//! ⚠️ ONLY THE FOLD CHEVRON TURNS. The selected-row marker is upright: it says
-//! which row by standing beside it, and its DIRECTION is the mirror the whole
-//! diagonal cluster carries, not a rotation. Its parameterization is still swept
-//! by the revolution law below, because the shape it draws is still this owner's
-//! and a symmetry that folded the mark onto itself would make the FOLD
-//! chevron's turn unreadable at the marker's own proportions.
+//! ⚠️ ONLY the fold chevron ever turned. The selected-row marker is upright: it
+//! says which row by standing beside it, and its DIRECTION is the mirror the
+//! whole diagonal cluster carries, not a rotation. Its parameterization is
+//! still swept by the revolution law below at real row heights, because the
+//! shape it draws is still this owner's and a symmetry that folded the mark
+//! onto itself would make ANY consumer's turn unreadable at the marker's own
+//! proportions.
 //!
 //! Both laws below therefore grade the ANGLE and the POINTS, never the instance
 //! count: the mark is exactly two segments at every turn, which is precisely
 //! what a counting law cannot see.
 
-use crate::render::layers::fold_chevron::fold_chevron_mark_metrics;
 use crate::selection::chevron_arms;
 
 const EPS: f32 = 1e-3;
@@ -168,14 +171,16 @@ fn the_diagonal_marker_is_the_shared_chevron_owner_at_a_derived_parameterization
 /// which Reduce Motion removes. A mark that reads the same at two different
 /// turns cannot say which way the selection travelled.
 ///
-/// Graded over a full revolution at one-degree resolution, at BOTH consumers'
-/// REAL parameterizations rather than a pretty hand-picked pair: the fold
-/// chevron's own `(reach, spread, thickness)` at char widths from a tiny face
-/// to a large one, and the diagonal marker's derived `(reach, spread)` at real
-/// row heights and both cluster signs. The nearest-approach distance is
-/// asserted, not merely "some pair differs", so a shape that is ALMOST
-/// symmetric — the direction of the degradation — is caught before it reads as
-/// symmetric on screen.
+/// Graded over a full revolution at one-degree resolution, at the surviving
+/// consumer's REAL parameterization rather than a pretty hand-picked pair: the
+/// diagonal marker's derived `(reach, spread)` at real row heights and both
+/// cluster signs. (The fold chevron no longer draws `chevron_arms` — it moved
+/// to a real font glyph rotated through `RotatedLabelPipeline`, so it no
+/// longer contributes parameters to this sweep; its own direction properties
+/// are graded on rendered pixels in `render::tests::fold_chevron_direction`.)
+/// The nearest-approach distance is asserted, not merely "some pair differs",
+/// so a shape that is ALMOST symmetric — the direction of the degradation —
+/// is caught before it reads as symmetric on screen.
 ///
 /// ⚠️ SCOPE, stated plainly: this law grades ONE function, the shared owner.
 /// It is the law above that makes that one function the whole story for the
@@ -183,15 +188,6 @@ fn the_diagonal_marker_is_the_shared_chevron_owner_at_a_derived_parameterization
 #[test]
 fn the_marker_reads_differently_at_every_turn_over_a_full_revolution() {
     let mut params: Vec<(f32, f32, f32, String)> = Vec::new();
-    for char_width in [4.0_f32, 7.2, 11.5, 24.0] {
-        let (reach, spread, thickness) = fold_chevron_mark_metrics(char_width);
-        params.push((
-            reach,
-            spread,
-            thickness,
-            format!("fold chevron @ char_width {char_width}"),
-        ));
-    }
     for height in [12.0_f32, 27.5, 88.0] {
         for reach in [-40.0_f32, -3.0, 3.0, 40.0] {
             let (_, r, s) = marker_in_owner_terms(64.0, 64.0 + reach, 0.0, height);
@@ -203,7 +199,7 @@ fn the_marker_reads_differently_at_every_turn_over_a_full_revolution() {
             ));
         }
     }
-    assert_eq!(params.len(), 16, "the parameter roster must not shrink");
+    assert_eq!(params.len(), 12, "the parameter roster must not shrink");
 
     let center = [200.0_f32, 120.0];
     for (reach, spread, thickness, what) in params {
@@ -239,42 +235,4 @@ fn the_marker_reads_differently_at_every_turn_over_a_full_revolution() {
             worst_pair.1
         );
     }
-}
-
-/// THE NEW BATCH-CORNER CONSUMER IS INERT AT EVERY SHIPPED METRIC.
-///
-/// `prepare_fold_chevron_marks` narrows its one shared `set_corner` value
-/// through `selection::narrowed_spine_corner_px` across every arm it built,
-/// because the radius is a per-BATCH uniform while the arms are not all the
-/// same size. At the shipped fractions an arm is always several times longer
-/// than the stroke is thick, so the fold changes nothing — which is what makes
-/// the change byte-identical rather than merely small. Asserted here across the
-/// char-width range rather than argued, and paired with the case that DOES
-/// bind, so the guard is not silently vacuous.
-#[test]
-fn the_fold_chevron_batch_corner_is_unchanged_at_every_shipped_char_width() {
-    for char_width in [2.0_f32, 4.0, 7.2, 11.5, 24.0, 48.0] {
-        let (reach, spread, thickness) = fold_chevron_mark_metrics(char_width);
-        let arms = chevron_arms([0.0, 0.0], reach, spread, 37.0, thickness);
-        let corner = arms.iter().fold(thickness * 0.5, |corner, (_, half, _)| {
-            crate::selection::narrowed_spine_corner_px(corner, half[0], half[1])
-        });
-        assert!(
-            (corner - thickness * 0.5).abs() < 1e-6,
-            "char_width {char_width}: the narrowed batch corner must equal the \
-             un-narrowed {} the mark shipped with, got {corner}",
-            thickness * 0.5
-        );
-    }
-    // The case the guard exists for: an arm SHORTER than its own stroke is
-    // thick. Without the narrowing this over-rounds as it shortens.
-    let stubby = chevron_arms([0.0, 0.0], 0.4, 0.3, 0.0, 6.0);
-    let corner = stubby.iter().fold(3.0_f32, |corner, (_, half, _)| {
-        crate::selection::narrowed_spine_corner_px(corner, half[0], half[1])
-    });
-    assert!(
-        corner < 3.0,
-        "a mark whose arms are shorter than its stroke is thick MUST narrow its \
-         corner — got {corner}, the un-narrowed 3.0"
-    );
 }
