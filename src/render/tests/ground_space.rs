@@ -141,96 +141,99 @@ fn dormant_edge_dots() -> Vec<Ground> {
 /// changing its ground can retarget the representative but cannot un-enrol it,
 /// and losing every wearer fails loudly instead of quietly.
 fn dormant_profile_arms() -> Vec<Ground> {
-    let mut out: Vec<Ground> = Vec::new();
-    out.push(Ground {
-        label: "dormant:organic-finds",
-        bg: theme::THEMES
-            .iter()
-            .find_map(|t| match t.background {
-                Background::Organic {
-                    tones,
-                    scale_px,
-                    density,
-                    ..
-                } => Some(Background::Organic {
-                    tones,
-                    scale_px,
-                    density,
-                }),
-                _ => None,
-            })
-            .expect(
-                "no world in THEMES wears Background::Organic — the \
-                 dormant:organic-finds representative has nothing to derive from; give it a \
-                 literal field until an Organic world returns to the roster",
-            ),
-    });
-    out.push(Ground {
-        label: "dormant:deckle-fibres",
-        bg: theme::THEMES
-            .iter()
-            .find_map(|t| match t.background {
-                Background::Deckle {
-                    ground,
-                    layer,
-                    deckle,
-                    period_px,
-                    wander_px,
-                    density,
-                    ..
-                } => Some(Background::Deckle {
-                    ground,
-                    layer,
-                    deckle,
-                    weave: theme::Weave::Fibres,
-                    period_px,
-                    wander_px,
-                    density,
-                }),
-                _ => None,
-            })
-            .expect(
-                "no world in THEMES wears Background::Deckle — the \
-                 dormant:deckle-fibres representative has nothing to derive from; give it a \
-                 literal field until a Deckle world returns to the roster",
-            ),
-    });
+    let organic_finds = theme::THEMES
+        .iter()
+        .find_map(|t| match t.background {
+            Background::Organic {
+                tones,
+                scale_px,
+                density,
+                ..
+            } => Some(Background::Organic {
+                tones,
+                scale_px,
+                density,
+            }),
+            _ => None,
+        })
+        .expect(
+            "no world in THEMES wears Background::Organic — the \
+             dormant:organic-finds representative has nothing to derive from; give it a \
+             literal field until an Organic world returns to the roster",
+        );
+    let deckle_fibres = theme::THEMES
+        .iter()
+        .find_map(|t| match t.background {
+            Background::Deckle {
+                ground,
+                layer,
+                deckle,
+                period_px,
+                wander_px,
+                density,
+                ..
+            } => Some(Background::Deckle {
+                ground,
+                layer,
+                deckle,
+                weave: theme::Weave::Fibres,
+                period_px,
+                wander_px,
+                density,
+            }),
+            _ => None,
+        })
+        .expect(
+            "no world in THEMES wears Background::Deckle — the \
+             dormant:deckle-fibres representative has nothing to derive from; give it a \
+             literal field until a Deckle world returns to the roster",
+        );
     // Zigzag's banded arm is data-authored too; keep the sweep honest about it.
-    out.push(Ground {
-        label: "dormant:zigzag-flipped-band",
-        bg: theme::THEMES
-            .iter()
-            .find_map(|t| match t.background {
-                Background::Zigzag {
-                    from,
-                    to,
-                    dir,
-                    tint,
-                    period_px,
-                    amplitude_px,
-                    angle,
-                    density,
-                    banded,
-                } => Some(Background::Zigzag {
-                    from,
-                    to,
-                    dir,
-                    tint,
-                    period_px,
-                    amplitude_px,
-                    angle,
-                    density,
-                    banded: !banded,
-                }),
-                _ => None,
-            })
-            .expect(
-                "no world in THEMES wears Background::Zigzag — the \
-                 dormant:zigzag-flipped-band representative has nothing to derive from; give it \
-                 a literal field until a Zigzag world returns to the roster",
-            ),
-    });
-    out
+    let zigzag_flipped_band = theme::THEMES
+        .iter()
+        .find_map(|t| match t.background {
+            Background::Zigzag {
+                from,
+                to,
+                dir,
+                tint,
+                period_px,
+                amplitude_px,
+                angle,
+                density,
+                banded,
+            } => Some(Background::Zigzag {
+                from,
+                to,
+                dir,
+                tint,
+                period_px,
+                amplitude_px,
+                angle,
+                density,
+                banded: !banded,
+            }),
+            _ => None,
+        })
+        .expect(
+            "no world in THEMES wears Background::Zigzag — the \
+             dormant:zigzag-flipped-band representative has nothing to derive from; give it \
+             a literal field until a Zigzag world returns to the roster",
+        );
+    vec![
+        Ground {
+            label: "dormant:organic-finds",
+            bg: organic_finds,
+        },
+        Ground {
+            label: "dormant:deckle-fibres",
+            bg: deckle_fibres,
+        },
+        Ground {
+            label: "dormant:zigzag-flipped-band",
+            bg: zigzag_flipped_band,
+        },
+    ]
 }
 
 /// The two renders a composition claim compares: the ground at 1x on a `W`x`H`
