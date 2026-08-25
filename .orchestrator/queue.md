@@ -466,6 +466,64 @@ lost constraint (reviewer judgment, named in the landing note).
 Comment-only change claims no receipt beyond the law's own test run.
 
 ---
+### 501 — docs drift audit: every load-bearing doc claim spot-checked against the tree (USER 2026-08-25)
+
+The eight `docs/*.md` feature docs plus CAPTURE.md and WEB.md are
+protocol-load-bearing: every lane reads the matching doc before working
+an area, so a stale mechanism claim there misleads an entire round —
+higher blast radius than the stale source comments item 500 just
+caught ("fifteen worlds" vs a 19–20 roster proves the drift class is
+live in this tree). No audit has ever run over the docs themselves.
+
+Mechanism: per doc, extract its CONCRETE, checkable claims — function/
+module/file names, config keys, flag names, key bindings, schema
+fields, named mechanisms ("X invalidates Y", "Z is the one owner") —
+and verify each against the code with a parser or a direct read, never
+a text scanner (the `strings -e` lesson: the measurement is part of
+what needs checking). Corrections are doc-only commits claiming no
+receipt. Any REAL code defect a stale claim exposes (the doc was right,
+the code drifted) boards as its own item rather than being fixed
+inline — this item's deliverable is true docs plus a drift ledger, not
+code changes. Where a claim is generated from a roster, spot-check the
+generated entries on both sides of the axis the generator collapsed,
+per the standing generated-document principle.
+
+Verify: the landing note carries the per-doc ledger — claims checked,
+claims corrected (with the code evidence), claims that exposed code
+defects (with the boarded item number). A sampled re-check of ~10
+corrected claims by a second reader confirms the corrections against
+the tree, not against the first reader's report.
+
+---
+### 502 — dependency hygiene: duplicate versions, unused features, stale pins (USER 2026-08-25)
+
+cargo-machete (already in code-health) catches only UNUSED deps.
+Nothing measures: duplicate versions in the resolved graph
+(`cargo tree -d` — each duplicate compiles twice and bloats the
+binary), features enabled but unused (default-features that could be
+trimmed), or stale pins with cheap upgrades. Cost surfaces: build
+time, binary size, and the licensing roster (every crate in the graph
+is licensing surface — docs/licensing.md's audit cadence applies).
+
+Mechanism, measure-first: record the baseline (`cargo tree -d` output,
+release binary size, dep count for both native and wasm32 targets —
+the two builds resolve differently). Then, batched into ONE round so
+the incremental-build cost is paid once: unify duplicate versions
+where a compatible bump exists, trim default-features where the build
+proves them unused, take patch/minor upgrades only where they collapse
+a duplicate — no major-version churn for its own sake, and wgpu/winit/
+glyphon stay untouched (their upgrades are product work, not hygiene).
+Zero-network invariant is unaffected (build-time deps only), but say
+so in the landing note. Regenerate the third-party license list if the
+graph changes, per docs/licensing.md.
+
+Verify: before/after `cargo tree -d` duplicate count and release
+binary size recorded in the landing note; full native-gate receipt AND
+wasm build green (dep changes reach both builds by construction);
+cargo-machete still clean; the regenerated license list diff reviewed
+— license facts are never fabricated, the unverifiable gets flagged.
+
+---
 ## Needs specific hardware
 
 1. **AT-SPI journey** — on a real Linux desktop with Orca, exercise document
