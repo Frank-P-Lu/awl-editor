@@ -15,19 +15,30 @@
 //! and `println_audit.rs`'s cfg(test)-block-skipping scanner, applied to this
 //! constant instead of a macro name.
 //!
+//! A copy of the curve that retypes the breakpoint as the pre-2017 WCAG draft
+//! value `0.03928` (rather than the standard's `0.04045`) is a real, shipped
+//! instance of this bug — `theme::derive::rel_lum` carried exactly this
+//! retyped breakpoint, invisible to a scan that only knew the CORRECT
+//! spelling. Two more needles close that gap: `0.03928` itself, and the
+//! curve's tail formula (`12.92` co-occurring with `1.055` in one file) —
+//! the tail is unchanged by which breakpoint literal the author typed, so it
+//! catches a re-derivation under ANY misspelled breakpoint, not just this
+//! one. Both are verified false-positive-free against the tree as it stands
+//! (see the two needle consts' own doc comments).
+//!
 //! **WHAT THIS CANNOT SEE** (a source scan is a grep, not a compiler, and its
 //! own configuration is therefore a hypothesis, not a guarantee — the same
 //! admission `app/files/open/tests.rs`'s bundled-document law makes about
 //! itself):
 //! - A copy that retypes the breakpoint as `4.045e-2` or otherwise re-spells
-//!   the literal is invisible: this scans for the exact text `0.04045`, not
-//!   its numeric value.
-//! - A copy reached through a renamed `use` or a local alias of the needle
+//!   the literal, AND rewrites `12.92`/`1.055` too (e.g. as `1.0 / 0.0774`),
+//!   is invisible: every needle here scans for exact text, not numeric value.
+//! - A copy reached through a renamed `use` or a local alias of a needle
 //!   (unlikely for a float literal, but not impossible via a `const`) would
-//!   still spell `0.04045` at its own definition site, so it would still be
+//!   still spell the literal at its own definition site, so it would still be
 //!   caught there — but a copy that imports awl's OWN owner and then
 //!   re-derives a second, textually different formula from the same standard
-//!   would not share this needle and would not be caught at all.
+//!   would not share these needles and would not be caught at all.
 //! - Only `src/**/*.rs` is scanned. A shader (`.wgsl`) or build script
 //!   performing this conversion independently is outside this law's reach.
 //!
@@ -100,6 +111,33 @@ const OWNER: &str = "src/theme/color.rs";
 /// this tree, verified while writing this law) never appears for any other
 /// reason.
 const NEEDLE: &str = "0.04045";
+
+/// A second needle: the pre-2017 WCAG draft's breakpoint, `0.03928` — wrong
+/// (the shipped standard is `0.04045`), but a plausible retype precisely
+/// because it once WAS the draft value. `theme::derive::rel_lum` carried this
+/// exact copy, unreachable by [`NEEDLE`] alone, until this item's fix. Grepped
+/// against this tree: every current occurrence sits under a `tests/`
+/// directory, a `tests.rs`/`_test.rs` file, or (after the fix) nowhere in
+/// production — a bare-number false positive would need an unrelated file to
+/// spell this precise five-digit fraction, which nothing in this tree does.
+const NEEDLE_DRAFT_BREAKPOINT: &str = "0.03928";
+
+/// A third, breakpoint-independent needle: the curve's TAIL formula, present
+/// under any breakpoint spelling (correct, draft, or a third typo this law
+/// doesn't yet name). A file is flagged when it spells BOTH `12.92` (the
+/// linear-segment divisor) AND `1.055` (the gamma-segment's additive-then-
+/// divide constant) outside the owner — `2.4` (the power) is deliberately
+/// excluded from this pair, since it also appears in this tree for reasons
+/// having nothing to do with sRGB (a wave-phase constant, a zoom-level
+/// fixture, a percentage-of-margin comment) and would reintroduce the false
+/// positive `NEEDLE`'s own doc comment already declined to risk. `1.055`
+/// alone is already unique to this curve in this tree (grepped while writing
+/// this law: every occurrence is this formula, in a production file's own
+/// `#[cfg(test)]` oracle, a `tests/`-path file, or the owner) — pairing it
+/// with `12.92` keeps the signature tied to the curve's actual arithmetic
+/// rather than either constant read in isolation.
+const NEEDLE_TAIL_A: &str = "12.92";
+const NEEDLE_TAIL_B: &str = "1.055";
 
 /// Strip `#[cfg(test)]`-gated blocks from `text`, mirroring
 /// `println_audit::scan_file`'s state machine exactly (a stray `#[cfg(test)]`
@@ -178,8 +216,11 @@ pub(crate) fn strip_line_comments(text: &str) -> String {
 }
 
 /// THE LAW. Every production `.rs` file under `src/`, other than the owner
-/// itself, must not spell the sRGB EOTF's breakpoint constant outside a
-/// `#[cfg(test)]` block. A seventh hand-rolled copy fails here by NAME.
+/// itself, must not spell the sRGB EOTF's breakpoint constant (correct OR the
+/// pre-2017 draft misspelling) outside a `#[cfg(test)]` block, and must not
+/// spell the curve's tail formula (`12.92` co-occurring with `1.055`) there
+/// either. A seventh hand-rolled copy — under any of these three needles —
+/// fails here by NAME.
 #[test]
 fn no_srgb_eotf_copy_outside_its_one_owner() {
     let root = repo_root();
@@ -187,7 +228,7 @@ fn no_srgb_eotf_copy_outside_its_one_owner() {
     let mut owner_seen = false;
     for rel in src_rs_files(&root) {
         if rel == "src/srgb_eotf_law.rs" {
-            continue; // this law's own doc/prose names the needle
+            continue; // this law's own doc/prose names the needles
         }
         let text = fs::read_to_string(root.join(&rel)).expect("read src file");
         if rel == OWNER {
@@ -198,8 +239,18 @@ fn no_srgb_eotf_copy_outside_its_one_owner() {
             continue; // test oracles are allowed their own independent copy
         }
         let production_text = strip_cfg_test_blocks(&text);
-        if production_text.contains(NEEDLE) {
-            offenders.push(rel);
+        let hit = if production_text.contains(NEEDLE) {
+            Some("correct breakpoint 0.04045")
+        } else if production_text.contains(NEEDLE_DRAFT_BREAKPOINT) {
+            Some("pre-2017 draft breakpoint 0.03928")
+        } else if production_text.contains(NEEDLE_TAIL_A) && production_text.contains(NEEDLE_TAIL_B)
+        {
+            Some("curve tail formula (12.92 with 1.055) under an unrecognized breakpoint")
+        } else {
+            None
+        };
+        if let Some(why) = hit {
+            offenders.push(format!("{rel} ({why})"));
         }
     }
     assert!(
