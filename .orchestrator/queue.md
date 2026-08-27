@@ -81,7 +81,18 @@ arrow-key window sliding via `scroll_window`); the cue is orientation on top.
 If direct manipulation is ever wanted, match the app's one existing
 scrollbar-like object — the transient, thumb-proportioned table pan bar
 (`markdown/tables.rs::table_pan_bar`) — rather than standing up persistent
-chrome. Build as one owner across the folded surfaces.
+chrome.
+
+Scope (user-confirmed): STRUCTURAL, not per-surface. Derive the cue at the
+one windowing owner (`scroll_window`'s `item_top`/`item_visible`/`n_items`),
+so every windowed list — Go-to, command palette, theme picker, the
+destination navigators, the expanded working-set panel — enrols for free and
+a fitting list draws nothing. Two traps: sectioned cards (theme picker)
+window DISPLAY LINES, but the cue counts hidden ITEMS, which the
+plan/window split already distinguishes; and the resting stack's `+ N more…`
+is an expand affordance, not a count — it stays, the cue lives in the
+scrolling views only. Law: one sweep over the picker roster, no-wildcard
+match, so a new picker cannot ship windowed rows without the cue.
 
 ---
 ### 509 — right-click menu summons the full-page scrim instead of a localized panel (user decision, 2026-08-27)
