@@ -94,6 +94,13 @@ is an expand affordance, not a count — it stays, the cue lives in the
 scrolling views only. Law: one sweep over the picker roster, no-wildcard
 match, so a new picker cannot ship windowed rows without the cue.
 
+Acceptance case (the user's own screenshot, 2026-08-27): the COMMAND
+PALETTE's unfiltered All lens — a dozen-ish rows drawn from a much longer
+command roster, ending at an ordinary row with nothing saying the list
+continues. After the fix, that exact frame shows the below-window count; a
+capture of the palette at the default window with the cue present and
+arithmetic-correct (hidden = roster − visible) is the item's verify.
+
 ---
 ### 509 — right-click menu summons the full-page scrim instead of a localized panel (user decision, 2026-08-27)
 
