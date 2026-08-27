@@ -53,16 +53,6 @@ the enrolled world named in the failure message. Prove non-vacuity by
 reintroducing the `text_left` seat and watching it go red.
 
 ---
-### 506 — the same folder can be opened twice (user-reported, unreproduced, 2026-08-27)
-
-The user's words: "you can open the same folder twice??" — no steps captured.
-First task is the premise check: find the open path that admits a duplicate
-(Go-to's Folders lens, "Choose another folder…", recent projects, the
-working-set rail?) and reproduce before touching code. If real: dedup at the
-one owner of folder-open, plus a law; if the premise dies, close as "premise
-false, oracle repaired" with the measurement that killed it.
-
----
 ### 507 — an opened folder's row reads as a file and gets no current highlight (user-reported, 2026-08-27)
 
 The user opened the `syntax` folder and, in the right-anchored list, its row
