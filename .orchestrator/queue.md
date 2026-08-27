@@ -101,6 +101,13 @@ continues. After the fix, that exact frame shows the below-window count; a
 capture of the palette at the default window with the cue present and
 arithmetic-correct (hidden = roster − visible) is the item's verify.
 
+Second acceptance case, and the law's geometry axis (user's screenshot,
+2026-08-27): the THEME PICKER in a SHORT window — eight world rows visible
+of the full roster, nothing below the last row saying more exist. The cue
+fires whenever the window clips the list, so the law sweeps window
+geometries (tall-fits → no cue; short-clips → cue, arithmetic-correct) —
+one geometry is the classic way this law would go green while blind.
+
 ---
 ### 509 — right-click menu summons the full-page scrim instead of a localized panel (user decision, 2026-08-27)
 
