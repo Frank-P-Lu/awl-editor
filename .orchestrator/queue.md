@@ -72,12 +72,16 @@ Long lists fold behind `+ N more…` (`workingset.rs`) and pickers window their
 rows, but nothing tells the user where they are in the list or how much is
 below: "there is no scroll bar so like how do i even know where my files
 are... when you click the show more, it needs to show a scroll bar."
-Recommended shape (proposed, not yet user-confirmed): no literal scrollbar —
-a faint positional count cue at the window's edges ("↑ 3 more" / "↓ 41
-more"), extending the existing `+ N more…` idiom; text-only, so it fits the
-summoned-card personality and adds no interactive machinery. A transient
-hairline thumb during scroll is the fallback if the user wants direct
-manipulation. Build as one owner across the folded surfaces.
+DECIDED (user-confirmed 2026-08-27): no literal scrollbar — a faint
+positional count cue at the window's edges ("↑ 3 more" / "↓ 41 more"),
+extending the existing `+ N more…` idiom; text-only, so it fits the
+summoned-card personality and adds no interactive machinery. Scrolling
+already works (picker wheel accumulation in `app/input/wheel.rs`, plus
+arrow-key window sliding via `scroll_window`); the cue is orientation on top.
+If direct manipulation is ever wanted, match the app's one existing
+scrollbar-like object — the transient, thumb-proportioned table pan bar
+(`markdown/tables.rs::table_pan_bar`) — rather than standing up persistent
+chrome. Build as one owner across the folded surfaces.
 
 ---
 ### 509 — right-click menu summons the full-page scrim instead of a localized panel (user decision, 2026-08-27)
