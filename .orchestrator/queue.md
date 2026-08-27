@@ -71,11 +71,13 @@ pattern, not two.
 Long lists fold behind `+ N more…` (`workingset.rs`) and pickers window their
 rows, but nothing tells the user where they are in the list or how much is
 below: "there is no scroll bar so like how do i even know where my files
-are... when you click the show more, it needs to show a scroll bar." Needs a
-taste call first — a literal scrollbar cuts against the summoned-overlay
-personality (DESIGN.md), so weigh a position cue (e.g. "12–19 of 64" or a
-minimal thumb) against the user's explicit ask, then build it as one owner
-across the folded surfaces.
+are... when you click the show more, it needs to show a scroll bar."
+Recommended shape (proposed, not yet user-confirmed): no literal scrollbar —
+a faint positional count cue at the window's edges ("↑ 3 more" / "↓ 41
+more"), extending the existing `+ N more…` idiom; text-only, so it fits the
+summoned-card personality and adds no interactive machinery. A transient
+hairline thumb during scroll is the fallback if the user wants direct
+manipulation. Build as one owner across the folded surfaces.
 
 ---
 ### 509 — right-click menu summons the full-page scrim instead of a localized panel (user decision, 2026-08-27)
@@ -95,11 +97,48 @@ mechanics; sweep worlds so every composition draws it localized.
 The Rename prompt shows a bare caret with the existing name only in the faint
 hint ("rename to: fukushima-trip.md"); the user expected the field
 pre-populated for editing: "it doesn't populate the existing file name? it's
-kinda weird." Fix shape: seed the query with the current name. Taste call on
-the seed's ergonomics — caret at end, name selected for overtype, or stem
-selected with the extension left alone (the common file-manager convention) —
-then a law that the field opens seeded and a `--keys` journey that edits the
-seed rather than typing from scratch.
+kinda weird." Fix shape: seed the query with the current name. DECIDED
+(user-confirmed 2026-08-27): stem selected, extension left untouched — the
+file-manager convention. Law: the field opens seeded with that selection, plus
+a `--keys` journey that edits the seed rather than typing from scratch.
+
+---
+### 511 — long bare URLs render as a raw multi-line wall (user-reported, 2026-08-27)
+
+A pasted tracking-heavy URL wraps across seven lines of raw query string:
+"isn't this kinda ugly?" On the Live-Preview model this is a conceal
+candidate: a bare URL could display tamed while the caret is off its line
+(e.g. domain + a quiet ellipsis, the full text returning on caret entry —
+the same reveal mechanics `[text](url)` links already use, docs/markdown.md).
+Taste call on the tamed form before building; the file stays plain text
+throughout, per the product boundary.
+
+---
+### 512 — working-set groups and folder history dedup by exact path spelling, and group labels carry leaf-only identity (measured, supersedes withdrawn 506, 2026-08-27)
+
+The user reported "you can open the same folder twice??" (no steps captured).
+Measured against the code rather than reproduced live: opening the same
+folder twice through the SAME spelling cannot duplicate anything —
+`recents::push` retains-out prior occurrences, `WorkingSet::open` matches by
+key, `workingset/panel.rs::expanded_full` contains-checks roots. Two adjacent
+gaps are certain from the code, either of which reads as "the same folder
+twice":
+
+(a) Group headings print `project::folder_name(root)` — the leaf alone — so
+two different projects both named `notes` draw two identical,
+indistinguishable headings. Any two same-named folders opened as projects in
+one session hit this.
+
+(b) Root identity is exact `PathBuf` equality everywhere (groups, recents
+MRU), so alias spellings of ONE folder — macOS `/System/Volumes/Data`
+firmlink vs `/Users/...`, symlinks, case-variant paths on case-insensitive
+APFS — become two groups / two recent rows.
+
+Fix shape: (a) disambiguate same-leaf group labels (quiet parent, like file
+rows' `parent` label); (b) canonicalize at the one root-identity owner before
+compare/store. Presentation of group rows lands with item 507's
+folder-identity work. Laws at the unit seam with injected paths (the Recent
+lens is tier-1-only, docs/harness-reach.md).
 
 ---
 ## Needs specific hardware
