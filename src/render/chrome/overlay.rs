@@ -300,41 +300,56 @@ impl TextPipeline {
         (0, card_h)
     }
 
-    pub(in crate::render) fn overlay_geometry(&self, width: u32) -> OverlayGeom {
-        if let Some((line, start_col, end_col)) = self.overlay_spell {
-            return self.spell_overlay_geometry(width, line, start_col, end_col);
-        }
-        // The THIRD family. Checked before the faceted one because a
-        // workspace's rail IS its facet strip, stood on its end: the same data
-        // reaches a different presentation, and there is no card to place.
-        if self.overlay_is_workspace() {
-            return self.workspace_geometry(width);
-        }
-        if !self.overlay_lens.is_empty() {
-            return self.theme_overlay_geometry(width);
-        }
-        let pad = self.metrics.px(CARD_PAD);
-        let margin = self.metrics.px(CARD_MARGIN);
-        let n_items = self.overlay_items.len();
-
-        let mut hint = self.overlay_hint.clone();
+    /// The item-independent chrome inventory both card families resolve
+    /// before they can size the candidate window — the hint text and its
+    /// reserved gap, the footer lines, and the empty-state notice. Shared
+    /// rather than duplicated (`theme_overlay_geometry` reads the identical
+    /// six quantities off the identical three sources) so the two owners
+    /// cannot drift; split out of `overlay_geometry` purely to keep it under
+    /// its own line budget, and owns no policy of its own.
+    pub(super) fn overlay_chrome_inventory(
+        &self,
+        n_items: usize,
+    ) -> (
+        String,
+        usize,
+        usize,
+        Vec<String>,
+        usize,
+        Option<String>,
+        usize,
+    ) {
+        let hint = self.overlay_hint.clone();
         let hint_rows = if hint.is_empty() { 0 } else { 1 };
-        let mut hint_gap_rows = overlay_hint_gap_rows(hint_rows);
-
+        let hint_gap_rows = overlay_hint_gap_rows(hint_rows);
         let (footer, footer_rows) = self.overlay_footer_lines();
-
         let empty = if n_items == 0 {
             self.overlay_empty.clone()
         } else {
             None
         };
         let empty_rows = empty.is_some() as usize;
+        (
+            hint,
+            hint_rows,
+            hint_gap_rows,
+            footer,
+            footer_rows,
+            empty,
+            empty_rows,
+        )
+    }
 
-        let contextual = self.overlay_contextual();
-        let header_rows = usize::from(!contextual); // contextual rows need no query field
-        // PALETTE-COMPOSITION round: a calm gap after the query header, before the
-        // candidate list (negative space as the divider). Grows the card by exactly
-        // this and offsets the candidate band/hit-test through the planned rows.
+    /// Where the flat card's query-header gap, top-left origin, and candidate
+    /// window's own vertical pixel budget resolve to — every quantity
+    /// [`Self::overlay_geometry`] needs before it can fit the window against
+    /// the row pitch. Split out purely to keep that function under its own
+    /// line budget; it owns no policy of its own.
+    fn flat_card_placement(&self, contextual: bool, pad: f32, margin: f32) -> (f32, f32, f32) {
+        // PALETTE-COMPOSITION round: a calm gap after the query header, before
+        // the candidate list (negative space as the divider). Grows the card
+        // by exactly this and offsets the candidate band/hit-test through the
+        // planned rows.
         let header_gap = if contextual {
             0.0
         } else {
@@ -351,6 +366,31 @@ impl TextPipeline {
         } else {
             (self.window_h - card_y - margin - 2.0 * pad - header_gap).max(self.overlay_lh())
         };
+        (header_gap, card_y, avail_px)
+    }
+
+    pub(in crate::render) fn overlay_geometry(&self, width: u32) -> OverlayGeom {
+        if let Some((line, start_col, end_col)) = self.overlay_spell {
+            return self.spell_overlay_geometry(width, line, start_col, end_col);
+        }
+        // The THIRD family. Checked before the faceted one because a
+        // workspace's rail IS its facet strip, stood on its end: the same data
+        // reaches a different presentation, and there is no card to place.
+        if self.overlay_is_workspace() {
+            return self.workspace_geometry(width);
+        }
+        if !self.overlay_lens.is_empty() {
+            return self.theme_overlay_geometry(width);
+        }
+        let pad = self.metrics.px(CARD_PAD);
+        let margin = self.metrics.px(CARD_MARGIN);
+        let n_items = self.overlay_items.len();
+        let (mut hint, hint_rows, mut hint_gap_rows, footer, footer_rows, empty, empty_rows) =
+            self.overlay_chrome_inventory(n_items);
+
+        let contextual = self.overlay_contextual();
+        let header_rows = usize::from(!contextual); // contextual rows need no query field
+        let (header_gap, card_y, avail_px) = self.flat_card_placement(contextual, pad, margin);
         let chrome_rows = header_rows + hint_gap_rows + hint_rows + empty_rows + footer_rows;
         let fit_window =
             |chrome_rows: usize| self.overlay_flat_window(n_items, avail_px, chrome_rows);

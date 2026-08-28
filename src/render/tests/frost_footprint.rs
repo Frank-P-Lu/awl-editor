@@ -47,7 +47,7 @@
 
 use super::super::*;
 use super::dither::{offscreen, read_pixels};
-use super::frost_card_ink::{CardInk, luma, row_ink_vetoes, step};
+use super::frost_card_ink::{CardInk, luma, placard_vetoes, row_ink_vetoes, step};
 use super::{headless_dqp, view_md};
 
 /// A local luma step (of 255) that only an EDGE produces. Set in the empty middle of
@@ -341,6 +341,7 @@ fn frosted_and_live_mean_lab(
     frames: (&[[u8; 4]], &[[u8; 4]]),
     ink: &CardInk,
     row_ink: &[[f32; 4]],
+    placard: Option<(f32, f32, f32, f32)>,
     card: [f32; 4],
     frost: crate::render::blur::Frost,
     (dpi, w): (f32, i64),
@@ -357,7 +358,7 @@ fn frosted_and_live_mean_lab(
     let row_veto = |x: i64, y: i64| row_ink_vetoes(row_ink, dpi, x, y);
     for y in (ry + 8.0) as i64..(ry + rh - 8.0) as i64 {
         for x in (rx + 8.0) as i64..(rx + rw - 8.0) as i64 {
-            if ink.vetoes(x, y) || row_veto(x, y) {
+            if ink.vetoes(x, y) || row_veto(x, y) || placard_vetoes(placard, x, y) {
                 continue;
             }
             if crate::render::blur::footprint_mask_for(frost, dpi, x as f32, y as f32) < 1.0 {
@@ -423,6 +424,16 @@ fn the_footprint_frost_keeps_the_pages_own_hue() {
             let rect = p.overlay_card_rect().expect("the picker is open");
             let frost = p.frost_mode().expect("an enrolled world reaches the frost");
             let row_ink = p.overlay_row_ink_probe();
+            // The crisp TITLE PLACARD (`overlay_shape_placard`) is drawn un-frosted, on
+            // top of the backdrop, at a WINDOW-anchored corner independent of the
+            // card's own box — real, correct card content that this "open vs closed"
+            // comparison must exclude the same way it excludes row ink, or the
+            // placard's own opaque wordmark (present in `open`, absent from `closed`,
+            // which never summons the picker) reads as the document losing its hue.
+            // Read from the SAME open-picker state `rect`/`row_ink` came from — not
+            // whatever view is active later, which by then has no picker at all.
+            let open_geom = p.overlay_geometry(w);
+            let placard = p.overlay_shape_placard(&open_geom);
             // The same picker over an empty document: the card-ink oracle.
             p.set_view(&theme_picker(""));
             let empty = render_frame(&device, &queue, &mut p, w, h);
@@ -437,6 +448,7 @@ fn the_footprint_frost_keeps_the_pages_own_hue() {
                 (&open, &closed),
                 &ink,
                 &row_ink,
+                placard,
                 rect,
                 frost,
                 (dpi, w as i64),

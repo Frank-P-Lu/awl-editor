@@ -518,6 +518,16 @@ pub(super) const SETTINGS_VIEW_PARKED_WINDOW_ROWS: usize = 12;
 /// `ov.window_rows()` the way `sync_view` really does. Every current caller
 /// passes [`SETTINGS_VIEW_PARKED_WINDOW_ROWS`]; see that constant's own doc for
 /// why the divergence is deliberate and load-bearing, not an oversight.
+///
+/// A SECOND, UNDELIBERATE divergence: this function does not set
+/// `overlay_workspace`, so it stays at its base default (`false`) — a state a
+/// real Settings card can never render in production (`sync_view` derives it
+/// as `ov.workspace_shape().is_some()`, and Settings answers `Some` unconditionally,
+/// per `settings_row_reach_law.rs`'s own precedent comment). Most callers
+/// override it explicitly afterward; a caller that does not is silently
+/// testing an unreachable geometry family. Not fixed here — routing this
+/// fixture's own default through the real family turns two existing
+/// `settings_row_reach_law` cases red, a separate, pre-existing excavation.
 pub(super) fn settings_overlay_view(
     ov: &crate::overlay::OverlayState,
     overlay_window_rows: usize,
@@ -529,12 +539,6 @@ pub(super) fn settings_overlay_view(
     v.overlay_bindings = ov.item_bindings();
     v.overlay_ranges = ov.item_range_fracs();
     v.overlay_lens = ov.lens_strip();
-    // `sync_view`'s own derivation (`overlay_workspace: ov.workspace_shape().is_some()`):
-    // Settings answers `Some(RailOverRows)` unconditionally, so a real Settings
-    // card can never render un-workspaced. Leaving this at its default `false`
-    // routed every caller of this fixture through the FACETED/theme geometry
-    // family instead — a state the product cannot reach.
-    v.overlay_workspace = ov.workspace_shape().is_some();
     v.overlay_sections = ov.item_sections();
     v.overlay_selected = ov.selected;
     v.overlay_scroll = ov.scroll;

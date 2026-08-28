@@ -79,6 +79,30 @@ pub(super) fn row_ink_vetoes(row_ink: &[[f32; 4]], dpi: f32, x: i64, y: i64) -> 
     })
 }
 
+/// How far the crisp TITLE PLACARD's own declared box
+/// ([`TextPipeline::overlay_shape_placard`], already in PHYSICAL px) is grown
+/// before it vetoes a measured pixel — an anti-aliasing skirt only, not a
+/// scale-dependent SDF feather the way a `Bars` plate's is, so a flat few px
+/// covers every DPI without a second multiply.
+pub(super) const PLACARD_INK_DILATE: f32 = 4.0;
+
+/// Does the crisp TITLE PLACARD cover `(x, y)`? The placard draws un-frosted, on
+/// top of the backdrop, at a WINDOW-anchored corner independent of the card's own
+/// box (`overlay_shape_placard`'s own doc: its anchor is the window, not the
+/// card) — real, correct card content, so an "open vs closed" comparison must
+/// exclude it the same way [`row_ink_vetoes`] excludes a row's own plate, or its
+/// opaque wordmark (present with the picker open, absent when it is not) reads
+/// as the document itself losing its hue. `None` when the active world draws no
+/// placard at all.
+pub(super) fn placard_vetoes(placard: Option<(f32, f32, f32, f32)>, x: i64, y: i64) -> bool {
+    let Some((px, py, pw, ph)) = placard else {
+        return false;
+    };
+    let pad = PLACARD_INK_DILATE;
+    let (fx, fy) = (x as f32, y as f32);
+    fx >= px - pad && fx < px + pw + pad && fy >= py - pad && fy < py + ph + pad
+}
+
 /// The coverage a law over the card's own upright chrome requires of the frost beneath it
 /// — the level under which "the frost does not really reach here" begins. Used by this
 /// module's law only to say WHERE the veto's premise has failed.
