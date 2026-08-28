@@ -128,6 +128,8 @@ impl TextPipeline {
             .set_color(theme::base_300().rgba_bytes());
         self.menu_drop_sep.set_color(theme::muted().rgba_bytes());
         self.panel_caret.set_color(theme::primary().rgb_bytes());
+        self.panel_query_selection
+            .set_color(theme::selection_document().rgba_bytes());
         self.caret_preview_pipeline
             .set_color(theme::primary().rgb_bytes());
         self.caret_preview_glyph_pipeline
@@ -382,6 +384,7 @@ impl TextPipeline {
         self.overlay_crisp = view.overlay_crisp;
         self.overlay_query = view.overlay_query.clone();
         self.overlay_query_caret = view.overlay_query_caret;
+        self.overlay_query_selection = view.overlay_query_selection;
         self.overlay_title = view.overlay_title.clone();
         self.overlay_row_path_splits = view.overlay_row_path_splits;
         self.overlay_items = view.overlay_items.clone();

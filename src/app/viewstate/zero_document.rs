@@ -18,6 +18,7 @@ impl App {
         view.overlay_crisp = ov.is_some_and(|o| o.kind.keeps_backdrop_crisp());
         view.overlay_query = ov.map(|o| o.query.text().to_string()).unwrap_or_default();
         view.overlay_query_caret = ov.map(|o| o.query.caret()).unwrap_or(0);
+        view.overlay_query_selection = ov.and_then(|o| o.query.selection_range());
         view.overlay_title = ov
             .filter(|o| o.kind.draws_title_prefix())
             .map(|o| o.kind.title().to_string())

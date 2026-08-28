@@ -84,6 +84,19 @@ pub struct OverlayInfo {
     /// assert exactly where it landed rather than inferring it from `query`'s
     /// text alone. Emitted as `overlay.query_caret`.
     pub query_caret: usize,
+    /// The active selection in `query`, as CHAR indices `(start, end)`
+    /// ([`crate::textbox::TextBox::selection_range`]) — armed only while a
+    /// Rename minibuffer's seeded stem-selection hasn't yet been collapsed.
+    /// `None` for every other mode, and for Rename itself once collapsed.
+    /// NOT part of the sidecar JSON (no `SCHEMA_VERSION` bump for this alone):
+    /// `capture::modes::settled_viewstate` reads it straight into
+    /// `ViewState::overlay_query_selection` to drive the render, the same
+    /// consumer `query_caret` feeds. Both capture doors — `--screenshot`
+    /// (shared-core replay) and `--screenshot-app` (a real headless `App`) —
+    /// route through this ONE struct (see `main::run::live_app`'s own doc on
+    /// growing no second serializer), so the render is verifiable from
+    /// either.
+    pub query_selection: Option<(usize, usize)>,
     pub items: Vec<String>,
     /// EMPTY STATE: the shared calm message shown when NO rows match (empty corpus →
     /// per-kind "no history yet"/"no suggestions"/…; a query that matched nothing →

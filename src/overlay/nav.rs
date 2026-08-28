@@ -86,8 +86,16 @@ impl OverlayState {
     /// Place the query caret at an arbitrary CHAR index (clamped by
     /// [`TextBox::set_caret`]) — the one door a pointer click or drag uses,
     /// mirroring the click-to-place the rename/link/keep/value sub-editors'
-    /// own `TextBox` already supports for a future caller.
+    /// own `TextBox` already supports for a future caller. RENAME is that
+    /// caller today: while a rename edit is active, `query` is a MIRROR (see
+    /// [`super::capture::RenameEdit`]'s doc via `OverlayState::rename_edit_mirror`),
+    /// so the click has to land on `rename_edit.input` first or the next
+    /// keystroke's mirror snaps the caret straight back.
     pub fn query_set_caret(&mut self, at: usize) {
+        if self.rename_edit.is_some() {
+            self.rename_edit_set_caret(at);
+            return;
+        }
         self.query.set_caret(at);
     }
 

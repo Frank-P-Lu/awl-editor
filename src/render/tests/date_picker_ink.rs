@@ -127,6 +127,7 @@ fn capture_date_picker(
         align: crate::render::effective_card_anchor(),
         query: String::new(),
         query_caret: 0,
+        query_selection: None,
         items,
         empty: None,
         bindings: labels,

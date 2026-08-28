@@ -52,6 +52,12 @@ pub struct ViewState {
     pub overlay_crisp: bool,
     pub overlay_query: String,
     pub overlay_query_caret: usize,
+    /// The active selection in `overlay_query`, as CHAR indices `(start, end)`
+    /// — armed only while a Rename minibuffer's seeded stem-selection hasn't
+    /// yet been collapsed (`OverlayState::query`'s own [`crate::textbox::
+    /// TextBox::selection_range`]). `None` for every other card and field,
+    /// and for Rename itself once the first keystroke or motion collapses it.
+    pub overlay_query_selection: Option<(usize, usize)>,
     pub overlay_title: String,
     pub overlay_row_path_splits: bool,
     pub overlay_items: Vec<String>,
@@ -290,6 +296,7 @@ impl ViewState {
             overlay_crisp: false,
             overlay_query: String::new(),
             overlay_query_caret: usize::MAX,
+            overlay_query_selection: None,
             overlay_title: String::new(),
             overlay_row_path_splits: false,
             overlay_items: Vec::new(),

@@ -204,6 +204,7 @@ fn blank_overlay() -> OverlayInfo {
         align: crate::theme::CardAnchor::TopCenter,
         query: String::new(),
         query_caret: 0,
+        query_selection: None,
         items: Vec::new(),
         empty: None,
         bindings: Vec::new(),

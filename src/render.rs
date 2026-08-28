@@ -1977,6 +1977,18 @@ pub struct TextPipeline {
     pub panel_bind_buffer: GlyphBuffer,
     pub placard_buffer: GlyphBuffer,
     pub panel_caret: CaretPipeline,
+    /// The RENAME MINIBUFFER's seeded-stem selection wash — a query-field
+    /// selection band, the same rounded-quad primitive [`Self::overlay_rows`]
+    /// draws for a selected ROW but its own instance, because the two carry
+    /// DIFFERENT colors (this one the DOCUMENT'S own text-selection wash,
+    /// `theme::selection_document()` — DESIGN's one-accent rule keeps the
+    /// caret amber alone, so a second selected-text surface reuses the
+    /// document's own treatment rather than inventing one) and different
+    /// globals (`overlay_rows`' corner/dither ride the world's ROW-band
+    /// treatment, which would stipple a thin text-selection sliver on a
+    /// Wagtail-class world). Empty on every frame but Rename's, and empty on
+    /// Rename's own frame once the seeded selection collapses.
+    pub panel_query_selection: SelectionPipeline,
     pub caret_preview_pipeline: CaretPipeline,
     pub caret_preview_glyph_pipeline: CaretGlyphPipeline,
     pub float_shadow: SelectionPipeline,
@@ -2529,6 +2541,7 @@ pub struct TextPipeline {
     overlay_crisp: bool,
     overlay_query: String,
     overlay_query_caret: usize,
+    overlay_query_selection: Option<(usize, usize)>,
     overlay_title: String,
     overlay_row_path_splits: bool,
     overlay_items: Vec<String>,

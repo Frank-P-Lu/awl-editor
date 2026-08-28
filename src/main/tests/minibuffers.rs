@@ -4,13 +4,18 @@ use super::{keyspec, replay_keys};
 #[test]
 fn replay_keys_drives_the_rename_minibuffer_prompt_and_sidecar_reflects_typing() {
     // Cmd-P → "rename" → Enter opens the Rename overlay pre-filled with the
-    // current filename; typing MORE characters extends it live — all through
-    // the shared core, so both the overlay STATE and its sidecar-facing
-    // `foot_hint()` (the same seam the Keybindings capture prompt rides)
-    // reflect the in-progress edit with zero live App involved.
+    // current filename, its STEM pre-selected (the file-manager convention:
+    // the first keystroke would REPLACE "old", not extend it — see the
+    // dedicated type-over-selection law below). Right COLLAPSES that
+    // selection to ITS OWN end — right before the extension, not the very
+    // end of the text (a plain caret motion, not a replace) — and typing MORE
+    // characters from there extends the STEM live — all through the shared
+    // core, so both the overlay STATE and its sidecar-facing `foot_hint()`
+    // (the same seam the Keybindings capture prompt rides) reflect the
+    // in-progress edit with zero live App involved.
     let mut buffer = Buffer::scratch();
     buffer.set_path(PathBuf::from("/proj/old.md"));
-    let keys = keyspec::parse_keys("s-p r e n a m e RET 2").unwrap();
+    let keys = keyspec::parse_keys("s-p r e n a m e RET Right 2").unwrap();
     let root = PathBuf::from("/proj");
     let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
     let ov = res
@@ -20,13 +25,39 @@ fn replay_keys_drives_the_rename_minibuffer_prompt_and_sidecar_reflects_typing()
     assert_eq!(ov.kind, crate::overlay::OverlayKind::Rename);
     assert_eq!(
         ov.accepts(),
-        vec!["old.md2"],
-        "typing extends the seeded name"
+        vec!["old2.md"],
+        "collapsing the seeded selection first lands the caret right after \
+         the stem, before the extension — typing there extends the stem, \
+         never the extension"
     );
     assert_eq!(
         ov.foot_hint(),
-        "rename to: old.md2   Enter commit   Esc cancel",
+        "rename to: old2.md   Enter commit   Esc cancel",
         "the live prompt is sidecar-visible via the same foot_hint seam Keybindings uses"
+    );
+}
+
+/// REQUIRED LAW (2/2): typing right after Rename opens REPLACES the seeded
+/// STEM selection outright — proving the selection this module arms is not
+/// decorative. `report.md` -> stem `"report"` selected -> typing "q3-summary"
+/// replaces it, and the untouched extension survives verbatim.
+#[test]
+fn replay_keys_typing_over_the_seeded_rename_selection_replaces_the_stem() {
+    let mut buffer = Buffer::scratch();
+    buffer.set_path(PathBuf::from("/proj/report.md"));
+    let keys = keyspec::parse_keys("s-p r e n a m e RET q 3 - s u m m a r y").unwrap();
+    let root = PathBuf::from("/proj");
+    let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
+    let ov = res
+        .journey
+        .card()
+        .expect("Rename note… opens the minibuffer overlay");
+    assert_eq!(
+        ov.accepts(),
+        vec!["q3-summary.md"],
+        "the FIRST keystroke deletes the selected stem \"report\" rather than \
+         appending after it — the typed text plus the ORIGINAL extension, \
+         untouched"
     );
 }
 
