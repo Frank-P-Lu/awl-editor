@@ -4,9 +4,9 @@ use super::{keyspec, replay_keys};
 #[test]
 fn replay_keys_drives_the_rename_minibuffer_prompt_and_sidecar_reflects_typing() {
     // Cmd-P → "rename" → Enter opens the Rename overlay pre-filled with the
-    // current filename, its STEM pre-selected (item 510's file-manager
-    // convention: the first keystroke would REPLACE "old", not extend it —
-    // see the dedicated type-over-selection law below). Right COLLAPSES that
+    // current filename, its STEM pre-selected (the file-manager convention:
+    // the first keystroke would REPLACE "old", not extend it — see the
+    // dedicated type-over-selection law below). Right COLLAPSES that
     // selection to ITS OWN end — right before the extension, not the very
     // end of the text (a plain caret motion, not a replace) — and typing MORE
     // characters from there extends the STEM live — all through the shared

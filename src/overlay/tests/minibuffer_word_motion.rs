@@ -51,8 +51,8 @@ fn rename_minibuffer_word_delete() {
 }
 
 // ── RENAME SEEDED SELECTION: stem selected, extension untouched ─────────────
-// item 510 -- the file-manager rename convention. `Path::file_stem` gets
-// every shape right with no special case: a normal `name.ext` selects `name`;
+// The file-manager rename convention. `Path::file_stem` gets every shape
+// right with no special case: a normal `name.ext` selects `name`;
 // no extension AND a dotfile (whose own `file_stem` IS the whole name, per
 // `Path`'s documented rule) select the WHOLE name; `archive.tar.gz` selects
 // `archive.tar`, stripping only the LAST extension, same as a file manager.
