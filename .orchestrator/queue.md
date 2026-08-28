@@ -18,11 +18,22 @@ against that line, left unbuilt there because a Move-only fix would violate
 "same behavior ⇒ same code" (this is shared, pre-existing infrastructure, not
 something Move's build introduced).
 
-Fix shape (not yet decided): a breadcrumb rendered beside the title, or the
-current folder folded into the row label — one owner all three navigators
-route through, matching the pattern the mechanism already uses elsewhere.
-Small enough to scope as its own item; needs a taste call on presentation
-before building.
+DECIDED (orchestrator, cheap to revert — one function): fold the current
+root-relative destination into the card title itself rather than adding a
+separate breadcrumb widget, extending `OverlayState::title()`
+(`src/overlay/state.rs`) — the one existing owner that already builds
+`"move welcome.md"` — to append the browse-relative folder when
+`browse_dir` is `Some` and non-root (e.g. `"move welcome.md to notes/drafts/"`),
+unchanged when at root. All three navigators (Move/Export/ProjectBrowse)
+route through this one function already, so no forking. Revert cost: one
+function in `overlay/state.rs`.
+
+Item 507 (folder identity + current-item indication elsewhere) follows the
+same convention once its surface is identified: the existing trailing-`/`
+rule in `row_display` (`row.is_dir` / `RowMeta::GotoFolder`) for identity,
+and the existing `active: bool` marker already carried by `StackRow` /
+panel rows for current-item indication — reuse both rather than inventing a
+third.
 
 ---
 ### 505 — active-lens mark draws at the wrong x on banded compositions (user-reported, reproduced headlessly, 2026-08-27)
@@ -139,8 +150,19 @@ A pasted tracking-heavy URL wraps across seven lines of raw query string:
 candidate: a bare URL could display tamed while the caret is off its line
 (e.g. domain + a quiet ellipsis, the full text returning on caret entry —
 the same reveal mechanics `[text](url)` links already use, docs/markdown.md).
-Taste call on the tamed form before building; the file stays plain text
-throughout, per the product boundary.
+The file stays plain text throughout, per the product boundary.
+
+DECIDED (orchestrator, cheap to revert — one new `ConcealKind` arm): tamed
+form is scheme-stripped domain plus a quiet ellipsis, dropping path/query
+entirely when concealed (`https://example.com/track?x=1&y=2` →
+`example.com…`); full raw text reveals on caret entry or selection touch,
+same as existing link conceal. Detect a bare URL as its own new
+`ConcealKind::BareUrl` variant (`src/markdown/spans/kind.rs` +
+`src/markdown/spans/detect.rs`) and route its reveal decision through the
+existing line-scoped branch of `wysiwyg_reveals`
+(`src/render/spans/conceal.rs`) rather than adding a second reveal rule.
+Revert cost: remove the new `ConcealKind` variant, its detector arm, and its
+`wysiwyg_reveals` match arm.
 
 ---
 ### 512 — working-set groups and folder history dedup by exact path spelling, and group labels carry leaf-only identity (measured, supersedes withdrawn 506, 2026-08-27)
