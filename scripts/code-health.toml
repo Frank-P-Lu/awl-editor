@@ -238,8 +238,8 @@ lines = 835
 
 [[file_size_mark]]
 file = "src/markdown/spans.rs"
-lines = 22
-reason = "The `Tag::Heading` Start arm's else branch now promotes a qualifying SETEXT dash underline to a real `MdKind::Rule` span over exactly its own bytes (inline, no second single-call-site helper — the file was already sitting at its frozen ceiling), `is_thematic_break`'s doc comment is re-authored now that the setext case is no longer a false positive under the decided rule, and several pre-existing doc comments in the same neighborhood are tightened to make room without losing their content — net -2 lines even after the new logic."
+lines = 24
+reason = "The `Tag::Heading` Start arm's else branch now promotes a qualifying SETEXT dash underline to a real `MdKind::Rule` span over exactly its own bytes (inline, no second single-call-site helper — the file was already sitting at its frozen ceiling), `is_thematic_break`'s doc comment is re-authored now that the setext case is no longer a false positive under the decided rule, and several pre-existing doc comments in the same neighborhood are tightened to make room without losing their content — net -2 lines even after the new logic. +2: a `#[cfg(test)]` re-export of `bare_url_ranges`/`bare_url_split` for the bare-URL detector's own unit tests, mirroring `push_highlight_spans`'s existing test-export pattern."
 
 [[file_size_mark]]
 file = "src/mas.rs"
@@ -271,8 +271,8 @@ reason = "`item_sections` gives a workspace one category name in its rail and le
 
 [[file_size_mark]]
 file = "src/overlay/state.rs"
-lines = 872
-reason = "The conflict card's payload field on the one `OverlayState` struct and its one exhaustive `new_marked` initializer (+5). +10: `BackKey` is the one owner of what goes back from a detail stage — erase when free, focus while a live query owns the erase key, nothing during a value edit — so the footer and the intercept cannot disagree. +23: `foot_hint_scoped` takes the `Bind` the card was entered under, because whether Backspace ascends is a property of the JOURNEY and not of the kind — the two switch-project surfaces are the same `OverlayKind`. The zero-argument form remains, delegating with `None`, so roughly thirty bare-card call sites keep the correct default: a card with no journey is flat. +68: RowMeta::ProjectDoor and RowMeta::terminal, which merges the add-to-dictionary row's always-last exemption with the door's — both act on something other than the query, so a fuzzy match on their own label must not float them above the answers. +39: `OverlayState::new_keymap` — native/emacs rows with plain-language primary labels and the concrete chord difference in the secondary column, current flavor pre-selected, sourced from the caller-gathered Config-owned flavor rather than a process-global. +33: Go to Line's one fact (`goto_line_count`, the destination buffer's total line count) and `attach_line_jump`, which appends the line-jump row as a single fixed slot refreshed live by `refilter`'s `sync_goto_line_row` step, mirroring `attach_headings`/`attach_folders`'s own opt-in shape. +29: Save a Copy's payload, truthful shared-card title/footer owner, and exhaustive initializer values keep its folder-then-filename journey on the existing overlay mechanism. +47: `OverlayState::new_move_dest`, the Move navigator's own level constructor — folders-only rows plus its two contextual action rows (`Move here` pinned first at rest, `New folder…` synced live from the query), pure over caller-gathered data so a test can build a level without touching disk, mirroring `new_project`'s own shape one level down in this same file. +15: `move_filename`, the file Move is finding a destination for — a per-summon fact the directory-rebuilt LEVEL cannot know, so `title()` reads it to name the errand instead of the generic kind title, and it survives every descend/ascend through the same `carry_level_payload_from` seam `export_format`/`save_copy` already use."
+lines = 930
+reason = "The conflict card's payload field on the one `OverlayState` struct and its one exhaustive `new_marked` initializer (+5). +10: `BackKey` is the one owner of what goes back from a detail stage — erase when free, focus while a live query owns the erase key, nothing during a value edit — so the footer and the intercept cannot disagree. +23: `foot_hint_scoped` takes the `Bind` the card was entered under, because whether Backspace ascends is a property of the JOURNEY and not of the kind — the two switch-project surfaces are the same `OverlayKind`. The zero-argument form remains, delegating with `None`, so roughly thirty bare-card call sites keep the correct default: a card with no journey is flat. +68: RowMeta::ProjectDoor and RowMeta::terminal, which merges the add-to-dictionary row's always-last exemption with the door's — both act on something other than the query, so a fuzzy match on their own label must not float them above the answers. +39: `OverlayState::new_keymap` — native/emacs rows with plain-language primary labels and the concrete chord difference in the secondary column, current flavor pre-selected, sourced from the caller-gathered Config-owned flavor rather than a process-global. +33: Go to Line's one fact (`goto_line_count`, the destination buffer's total line count) and `attach_line_jump`, which appends the line-jump row as a single fixed slot refreshed live by `refilter`'s `sync_goto_line_row` step, mirroring `attach_headings`/`attach_folders`'s own opt-in shape. +29: Save a Copy's payload, truthful shared-card title/footer owner, and exhaustive initializer values keep its folder-then-filename journey on the existing overlay mechanism. +47: `OverlayState::new_move_dest`, the Move navigator's own level constructor — folders-only rows plus its two contextual action rows (`Move here` pinned first at rest, `New folder…` synced live from the query), pure over caller-gathered data so a test can build a level without touching disk, mirroring `new_project`'s own shape one level down in this same file. +15: `move_filename`, the file Move is finding a destination for — a per-summon fact the directory-rebuilt LEVEL cannot know, so `title()` reads it to name the errand instead of the generic kind title, and it survives every descend/ascend through the same `carry_level_payload_from` seam `export_format`/`save_copy` already use. +58: `OverlayState::title()` folds the current root-relative destination into the Move/Export/Save-a-Copy card title once descended (`browse_dir` was already tracked, never rendered), reusing the one existing title-building owner rather than a second breadcrumb widget."
 
 [[file_size_mark]]
 file = "src/peek.rs"
@@ -406,8 +406,8 @@ reason = "Overlay composition and ambient resolvers live here because they read 
 
 [[file_size_mark]]
 file = "src/render/rects.rs"
-lines = 1543
-reason = "+4: panel_layout reads shared physical PANEL_PAD and PANEL_MARGIN and clamps the content-sized card to narrow-canvas room, matching panel_shape_text fitted rows."
+lines = 1619
+reason = "+4: panel_layout reads shared physical PANEL_PAD and PANEL_MARGIN and clamps the content-sized card to narrow-canvas room, matching panel_shape_text fitted rows. +76: `OrnamentCache::bare_url_tails`'s field, its `ensure_ornament_lists` collection arm, and `bare_url_marks()`, beside the other per-frame ornament collections."
 
 [[file_size_mark]]
 file = "src/render/rowlayout.rs"
@@ -599,8 +599,8 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/markdown/spans/parse.rs"
 function = "spans"
-message = "this function has too many lines (165/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. The `Tag::Heading` Start arm grew with an `else if` arm that promotes a qualifying SETEXT dash underline to a real `MdKind::Rule` span, inlined here (rather than a second single-call-site helper) to stay under the file's own frozen line ceiling — DECIDED: `---` always draws as the rule, whatever precedes it."
+message = "this function has too many lines (168/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. The `Tag::Heading` Start arm grew with an `else if` arm that promotes a qualifying SETEXT dash underline to a real `MdKind::Rule` span, inlined here (rather than a second single-call-site helper) to stay under the file's own frozen line ceiling — DECIDED: `---` always draws as the rule, whatever precedes it. +3: the guarded `push_bare_url_spans` call in the `Event::Text` arm."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"

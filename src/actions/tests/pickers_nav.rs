@@ -157,7 +157,7 @@ fn move_dest_names_the_moving_file_in_its_title_and_keeps_it_across_a_descend() 
         "the descend rebuilt the folder listing from disk (proving \
          carry_level_payload_from kept the filename, not the level itself) \
          AND must now say where it landed -- the destination navigators' own \
-         current-folder indication (item 504)"
+         current-folder indication"
     );
 }
 
@@ -181,7 +181,7 @@ fn move_dest_and_export_dest_titles_are_unchanged_at_the_root() {
 
 /// **A DESCENDED EXPORT NAVIGATOR NAMES ITS FOLDER TOO** -- the same
 /// current-folder indication as Move, composed onto `"export to"` without
-/// doubling the preposition already in that base title (item 504).
+/// doubling the preposition already in that base title.
 #[test]
 fn export_dest_title_folds_in_the_browse_relative_destination_once_descended() {
     let mut s = OverlayState::new(

@@ -322,12 +322,12 @@ fn root_for_keeps_a_file_with_its_own_project() {
     );
 }
 
-/// **512(b) — THE WORKING-SET HALF of the root-identity fix.** Two spellings
+/// **THE WORKING-SET HALF of the root-identity fix.** Two spellings
 /// of one REAL folder (a firmlink/symlink alias) must resolve to ONE
 /// `root_for` answer, or the SAME real project draws as two groups in the
 /// expanded panel. `crate::buffers::normalize_path` is the ONE
 /// canonicalizer [`crate::app::App::set_root`]/`ProjectLocation::new` now
-/// route every active root through (item 512(b)); this proves it against a
+/// route every active root through; this proves it against a
 /// REAL symlinked directory — the `buffers/tests.rs` precedent
 /// (`buffer_key_path_resolves_a_symlinked_directory_to_the_real_path`) — for
 /// the `root_for` half rather than the `BufferKey` half that law already

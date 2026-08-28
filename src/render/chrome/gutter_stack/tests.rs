@@ -13,7 +13,7 @@ fn row(leaf: &str, parent: &str, active: bool) -> StackRow {
 /// A project HEADING row, the outer `active` field set the same way
 /// [`crate::workingset::WorkingSet::expanded_rows`] now sets it — mirroring
 /// [`crate::workingset::StackRowKind::Group`]'s own copy rather than
-/// disagreeing with it, the shape item 507 fixed.
+/// disagreeing with it.
 fn group_row(leaf: &str, active: bool) -> StackRow {
     StackRow {
         leaf: leaf.to_string(),
