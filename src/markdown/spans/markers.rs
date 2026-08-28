@@ -1,7 +1,7 @@
 //! Per-construct span pushers: the small `spans()` helpers that mark
 //! heading/link/quote/list/task/highlight/inline-code markup.
 
-use super::detect::list_item;
+use super::detect::{bare_url_ranges, bare_url_split, list_item};
 use super::kind::MdKind;
 use crate::markdown::ConcealKind;
 use std::ops::Range;
@@ -287,6 +287,36 @@ pub(in crate::markdown) fn push_highlight_spans(
         ));
         out.push((range.start + close.start..range.start + close.end, k_markup));
         k += 2;
+    }
+}
+
+/// Detect bare `scheme://…` URLs within ONE text-event's range (`range`, into
+/// the document `text`) and push their flanking [`ConcealKind::BareUrl`] spans
+/// — a SCHEME span always, a TAIL span only when the URL carries a path/query
+/// beyond its authority (see [`bare_url_split`]). The authority itself
+/// (host[:port]) gets no span at all: it stays real, always-visible content
+/// ink, exactly the way a link's visible text stays untouched by its own
+/// flanking [`ConcealKind::Link`] plumbing — this is that same precedent, one
+/// event later. Detection candidates come from [`bare_url_ranges`], which never
+/// crosses a whitespace boundary, so multiple URLs in one run are each split
+/// and pushed independently.
+pub(super) fn push_bare_url_spans(
+    out: &mut Vec<(Range<usize>, MdKind)>,
+    text: &str,
+    range: &Range<usize>,
+) {
+    let s = &text[range.clone()];
+    let k = MdKind::ConcealMarkup(ConcealKind::BareUrl);
+    for url_rel in bare_url_ranges(s) {
+        let url = &s[url_rel.clone()];
+        let (scheme_rel, tail_rel) = bare_url_split(url);
+        let base = range.start + url_rel.start;
+        if scheme_rel.end > scheme_rel.start {
+            out.push((base + scheme_rel.start..base + scheme_rel.end, k));
+        }
+        if let Some(tail_rel) = tail_rel {
+            out.push((base + tail_rel.start..base + tail_rel.end, k));
+        }
     }
 }
 

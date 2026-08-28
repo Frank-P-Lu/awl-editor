@@ -760,6 +760,55 @@ fn bullet_glyph_never_touches_the_following_text_at_depth_two_in_any_world() {
     p.sync_theme();
 }
 
+/// The bare-URL ellipsis's reserved slot (`bare_url_ellipsis_slot`) is a
+/// FIXED, `line_height`-only formula — it has to cover the real shaped "…"
+/// glyph in EVERY world's own display face, not just whichever world a
+/// hand-picked example happens to hit. `BareUrlEllipses::append_areas` carries
+/// a `debug_assert!` for exactly this, but an assert nothing ever reaches is
+/// silent: NO-WILDCARD over `theme::THEMES`, through the real GPU prepare
+/// pass (`TextPipeline::prepare`, which calls `prepare_ornaments` and so
+/// reaches the assert), is what actually exercises it. Non-vacuity: a mono
+/// world's wider "…" advance tripped this at `line_height * 0.55` while this
+/// law was being written (`Cassowary`, `bare-URL ellipsis width 24 exceeds
+/// reserved slot 17.6`); the slot constant was widened until every world in
+/// the roster passed before this law was allowed to ship.
+#[test]
+fn bare_url_ellipsis_slot_fits_the_real_glyph_in_every_world() {
+    let _t = crate::testlock::serial();
+    crate::markdown::set_wysiwyg_on(true);
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
+        eprintln!(
+            "skipping bare_url_ellipsis_slot_fits_the_real_glyph_in_every_world: no wgpu adapter"
+        );
+        return;
+    };
+    let w = 1200u32;
+    let h = 800u32;
+    // Caret parks on the blank line 1 so line 0's tail conceals and its
+    // ellipsis ornament actually paints (reveal-on-cursor) — a port keeps the
+    // authority long, matching the shape that tripped the assert above.
+    let text = "see https://example.com:8080/dashboard now\n\n";
+    for t in theme::THEMES.iter() {
+        theme::set_active_by_name(t.name).unwrap();
+        p.sync_theme();
+        let mut v = view(text, 1, 0);
+        v.is_markdown = true;
+        p.set_view(&v);
+        assert!(
+            !p.bare_url_marks().is_empty(),
+            "{}: no bare-URL ellipsis mark produced — this law would be testing nothing",
+            t.name
+        );
+        // The `debug_assert!` inside `BareUrlEllipses::append_areas` IS this
+        // law's real assertion; a slot too small for the real glyph panics
+        // here.
+        p.prepare(&device, &queue, w, h).unwrap();
+    }
+    theme::set_active(theme::DEFAULT_THEME);
+    p.sync_theme();
+    crate::markdown::set_wysiwyg_on(true);
+}
+
 /// The PER-LEVEL INDENT half: `Theme::list_indent_scale` widens a nested
 /// list line's leading-space RUN before layout (`render::spans::
 /// add_list_indent_span`) — DATA-DRIVEN, not hardcoded, and DISTINCT per world

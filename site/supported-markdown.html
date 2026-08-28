@@ -123,6 +123,11 @@ lang: en
 [^source]: Its text</code></pre>
 <table><thead><tr><th>awl renders</th><th>Caret and selection</th><th>Formatting command</th><th>Portability</th></tr></thead><tbody><tr><td>A quiet superscript reference and a composed numbered definition.</td><td>The caret or a selection on the line shows the exact label, marker, and indentation.</td><td>Insert footnote</td><td>Widely used extension</td></tr></tbody></table>
 </section>
+<section class="markdown-construct">
+<h3>Bare URLs</h3>
+<pre><code class="language-markdown">See https://example.com/track?utm_source=x for details.</code></pre>
+<table><thead><tr><th>awl renders</th><th>Caret and selection</th><th>Formatting command</th><th>Portability</th></tr></thead><tbody><tr><td>The domain, followed by a quiet ellipsis when a path or query is hidden. A URL with nothing past its domain shows in full, with no ellipsis.</td><td>The caret or a selection on the line shows the full address.</td><td>—</td><td>awl-specific extension</td></tr></tbody></table>
+</section>
 <h2>Not supported / deliberately different</h2>
 <section class="markdown-construct">
 <h3>Setext headings</h3>

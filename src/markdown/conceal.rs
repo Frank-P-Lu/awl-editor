@@ -119,6 +119,22 @@ enum_with_all! {
         /// source off-caret; the caret or a selection touching that exact line
         /// reveals its authored bytes for direct editing.
         Footnote,
+        /// A BARE URL typed as plain text (never `[text](url)` or an angle-bracket
+        /// autolink, both of which are [`Link`](Self::Link) instead) — LINE-scoped
+        /// exactly like every other line-scoped kind. TWO spans per URL flank the
+        /// authority (host + optional port) the way [`Link`](Self::Link)'s plumbing
+        /// flanks its visible text: a leading SCHEME span (`http://`/`https://`)
+        /// always hides off-cursor, and a trailing TAIL span (everything from the
+        /// first `/` or `?` after the authority) hides too, IF the URL carries one —
+        /// a bare `https://example.com` with nothing past the authority gets no tail
+        /// span and so no ellipsis promise. The authority itself carries no span at
+        /// all: it is real, always-visible document text, never a painted
+        /// substitute (unlike the tail's off-cursor affordance — a single quiet "…"
+        /// glyph painted into the tail's reserved zero-width slot, see
+        /// `render::spans::conceal::bare_url`). On the caret's own line both
+        /// flanking spans reveal, so `https://example.com/track?x=1` shows in full
+        /// for editing.
+        BareUrl,
     }
 }
 
@@ -138,6 +154,7 @@ impl ConcealKind {
             ConcealKind::Link => "link",
             ConcealKind::Blockquote => "blockquote",
             ConcealKind::Footnote => "footnote",
+            ConcealKind::BareUrl => "bare_url",
         }
     }
 }

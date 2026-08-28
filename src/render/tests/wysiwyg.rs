@@ -661,6 +661,111 @@ fn wysiwyg_link_plumbing_conceals_off_cursor_text_stays_visible() {
     crate::markdown::set_wysiwyg_on(true);
 }
 
+/// A bare URL's two flanking spans are LINE-scoped, exactly like a link's own
+/// plumbing: concealed off its own line, revealed on it.
+#[test]
+fn wysiwyg_reveals_bare_url_is_line_scoped() {
+    use crate::markdown::ConcealKind;
+    let range = 4..12;
+    assert!(!super::spans::wysiwyg_reveals(
+        ConcealKind::BareUrl,
+        true,
+        0,
+        &range,
+        None
+    ));
+    assert!(super::spans::wysiwyg_reveals(
+        ConcealKind::BareUrl,
+        false,
+        10,
+        &range,
+        None
+    ));
+}
+
+/// END-TO-END WYSIWYG bare URLs: off the caret's line the scheme and tail
+/// conceal to transparent (zero-width) ink while the AUTHORITY (domain,
+/// optional port) between them stays visible content ink — never a painted
+/// substitute; on the caret's own line the whole source reveals for editing.
+/// NON-VACUITY: commenting out the `link == 0 && code_block == 0` guard's
+/// `push_bare_url_spans` call in `parse.rs` turns every assertion here red
+/// (nothing conceals at all), and removing the `ConcealKind::BareUrl` arm from
+/// `wysiwyg_reveals`'s line-scoped match fails to compile — both were checked
+/// by hand while writing this law.
+#[test]
+fn wysiwyg_bare_url_conceals_scheme_and_tail_domain_stays_visible() {
+    let _w = crate::testlock::serial();
+    crate::markdown::set_wysiwyg_on(true);
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!("skipping wysiwyg_bare_url_conceals_scheme_and_tail: no wgpu adapter");
+        return;
+    };
+    // Line 0: a tracking-heavy bare URL. Line 1: plain prose (caret parks here).
+    let text = "see https://example.com/track?x=1&y=2 now\nprose\n";
+    let scheme_byte = text.find("https://").unwrap();
+    let tail_byte = text.find("/track").unwrap();
+    let domain_byte = text.find("example").unwrap();
+
+    let mut off = view(text, 1, 0);
+    off.is_markdown = true;
+    p.set_view(&off);
+    assert!(
+        p.concealed_at(0, scheme_byte),
+        "scheme concealed off the line"
+    );
+    assert!(p.concealed_at(0, tail_byte), "tail concealed off the line");
+    assert!(
+        !p.concealed_at(0, domain_byte),
+        "the domain stays visible (never concealed)"
+    );
+
+    // Caret ON line 0: the whole URL reveals for editing.
+    let mut on = view(text, 0, 0);
+    on.is_markdown = true;
+    p.set_view(&on);
+    assert!(
+        !p.concealed_at(0, scheme_byte),
+        "caret on the URL's line reveals the scheme"
+    );
+    assert!(
+        !p.concealed_at(0, tail_byte),
+        "caret on the URL's line reveals the tail"
+    );
+
+    crate::markdown::set_wysiwyg_on(true);
+}
+
+/// A bare URL used AS a link's own visible text (`[https://x](https://x)`)
+/// must not double-conceal: only the link's `[`/`](url)` plumbing hides, never
+/// a second BareUrl-flavoured collapse eating into the visible text.
+#[test]
+fn wysiwyg_bare_url_inside_a_real_link_does_not_double_conceal() {
+    let _w = crate::testlock::serial();
+    crate::markdown::set_wysiwyg_on(true);
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!(
+            "skipping wysiwyg_bare_url_inside_a_real_link_does_not_double_conceal: no wgpu adapter"
+        );
+        return;
+    };
+    let text = "[https://example.com/x](https://example.com/x)\nprose\n";
+    let bracket_byte = text.find('[').unwrap();
+    let text_byte = text.find("https").unwrap() + 3; // inside the link's visible text
+    let mut off = view(text, 1, 0);
+    off.is_markdown = true;
+    p.set_view(&off);
+    assert!(
+        p.concealed_at(0, bracket_byte),
+        "the link's opening '[' still conceals"
+    );
+    assert!(
+        !p.concealed_at(0, text_byte),
+        "the link's visible text (itself a URL) is never concealed"
+    );
+
+    crate::markdown::set_wysiwyg_on(true);
+}
+
 /// GHOST SPACING is gone: a concealed heading's `"# "` collapses to ~0
 /// advance, so the title starts FLUSH at the column edge (not indented by
 /// the markup's natural width), and a concealed emphasis pair collapses to

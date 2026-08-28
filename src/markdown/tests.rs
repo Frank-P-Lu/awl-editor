@@ -4,7 +4,7 @@
 //! and MODULE PATH are unchanged (`markdown::tests::foo`) -- only which
 //! file its source lives in moved.
 
-use super::spans::push_highlight_spans;
+use super::spans::{bare_url_ranges, bare_url_split, push_highlight_spans};
 use super::*;
 use std::ops::Range;
 
@@ -389,6 +389,169 @@ fn reference_link_falls_back_to_plain_markup_no_conceal() {
         !s.iter()
             .any(|(_, k)| *k == MdKind::ConcealMarkup(ConcealKind::Link)),
         "no Link conceal span for a reference link: {s:?}"
+    );
+}
+
+#[test]
+fn bare_url_ranges_matches_a_scheme_prefix_and_stops_at_whitespace() {
+    let s = "see https://example.com/track?x=1&y=2 now";
+    let start = s.find("https://").unwrap();
+    let end = s.find(" now").unwrap();
+    assert_eq!(bare_url_ranges(s), vec![start..end]);
+
+    // No scheme at all: no match.
+    assert!(bare_url_ranges("just plain prose, no urls here").is_empty());
+
+    // A bare scheme with nothing after it (end of string): no match, and no
+    // infinite loop / panic.
+    assert!(bare_url_ranges("see https://").is_empty());
+
+    // Two URLs in one run: each is its own range, neither swallows the gap.
+    let s = "https://a.example and https://b.example done";
+    let a_start = s.find("https://a").unwrap();
+    let a_end = s.find(" and").unwrap();
+    let b_start = s.find("https://b").unwrap();
+    let b_end = s.find(" done").unwrap();
+    assert_eq!(bare_url_ranges(s), vec![a_start..a_end, b_start..b_end]);
+}
+
+#[test]
+fn bare_url_split_cuts_at_the_first_slash_or_question_mark() {
+    // Plain path + query: the tail starts at the first '/'.
+    let (scheme, tail) = bare_url_split("https://example.com/track?x=1&y=2");
+    assert_eq!(scheme, 0.."https://".len());
+    assert_eq!(
+        tail,
+        Some("https://example.com".len().."https://example.com/track?x=1&y=2".len())
+    );
+
+    // No path at all: no tail — the decided "no ellipsis promise" edge case.
+    let (_, tail) = bare_url_split("https://example.com");
+    assert_eq!(tail, None);
+
+    // A port stays part of the authority: the tail still starts at the '/'
+    // AFTER the port (not the two '/'s inside the scheme itself).
+    let url = "https://example.com:8080/x";
+    let (_, tail) = bare_url_split(url);
+    let path_slash = url.rfind('/').unwrap();
+    assert_eq!(tail, Some(path_slash..url.len()));
+
+    // A query with no leading path ('?' alone) still cuts the tail.
+    let url = "https://example.com?x=1";
+    let (_, tail) = bare_url_split(url);
+    assert_eq!(tail, Some(url.find('?').unwrap()..url.len()));
+}
+
+#[test]
+fn bare_url_tamed_form_covers_the_representative_shapes() {
+    let bare_url = MdKind::ConcealMarkup(ConcealKind::BareUrl);
+
+    // Plain path + query: scheme conceals, tail conceals, the authority (domain)
+    // between them carries no BareUrl span at all.
+    let text = "see https://example.com/track?x=1&y=2 now";
+    let s = spans(text);
+    let scheme_start = text.find("https://").unwrap();
+    let scheme_end = scheme_start + "https://".len();
+    let tail_start = text.find("/track").unwrap();
+    let tail_end = text.find(" now").unwrap();
+    assert!(
+        has(&s, scheme_start, scheme_end, bare_url),
+        "scheme conceals: {s:?}"
+    );
+    assert!(
+        has(&s, tail_start, tail_end, bare_url),
+        "tail conceals: {s:?}"
+    );
+    assert!(
+        !s.iter()
+            .any(|(r, k)| *k == bare_url && r.start < tail_start && r.end > scheme_end),
+        "the authority (domain) carries no BareUrl span: {s:?}"
+    );
+
+    // No path: scheme conceals, no tail span at all — no ellipsis promise.
+    let text = "visit https://example.com today";
+    let s = spans(text);
+    let scheme_start = text.find("https://").unwrap();
+    let scheme_end = scheme_start + "https://".len();
+    assert!(
+        has(&s, scheme_start, scheme_end, bare_url),
+        "scheme conceals: {s:?}"
+    );
+    assert_eq!(
+        s.iter().filter(|(_, k)| *k == bare_url).count(),
+        1,
+        "a URL with nothing past its authority gets no tail span: {s:?}"
+    );
+
+    // Port: it stays part of the visible authority, uncovered by any span.
+    let text = "https://example.com:8080/x";
+    let s = spans(text);
+    let scheme_end = "https://".len();
+    let tail_start = text.find("/x").unwrap();
+    assert!(has(&s, 0, scheme_end, bare_url), "scheme conceals: {s:?}");
+    assert!(
+        has(&s, tail_start, text.len(), bare_url),
+        "tail conceals: {s:?}"
+    );
+    assert_eq!(
+        s.iter().filter(|(_, k)| *k == bare_url).count(),
+        2,
+        "exactly scheme + tail conceal — the port in between stays visible: {s:?}"
+    );
+
+    // www. survives verbatim — it's part of the visible authority, never stripped.
+    let text = "https://www.example.com/x";
+    let s = spans(text);
+    let scheme_end = "https://".len();
+    let tail_start = text.find("/x").unwrap();
+    assert!(has(&s, 0, scheme_end, bare_url), "scheme conceals: {s:?}");
+    assert!(
+        has(&s, tail_start, text.len(), bare_url),
+        "tail conceals: {s:?}"
+    );
+    assert!(
+        text[scheme_end..tail_start].starts_with("www."),
+        "www. survives verbatim in the visible authority: {}",
+        &text[scheme_end..tail_start]
+    );
+}
+
+#[test]
+fn bare_url_inside_a_real_link_produces_no_bare_url_conceal_span() {
+    // The link's own VISIBLE TEXT is itself a bare URL string — the bare-URL scan
+    // must not fire a second time inside it: only the link's `[`/`](url)`
+    // plumbing conceals, never a BareUrl-flavoured span eating into the text.
+    let s = spans("[https://example.com/x](https://example.com/x)");
+    assert!(
+        !s.iter()
+            .any(|(_, k)| *k == MdKind::ConcealMarkup(ConcealKind::BareUrl)),
+        "a URL that's already a link's visible text must not also get \
+         BareUrl-flavoured conceal spans: {s:?}"
+    );
+}
+
+#[test]
+fn bare_url_inside_an_autolink_produces_no_bare_url_conceal_span() {
+    // `<https://…>` is a core-CommonMark autolink, parsed as a real link
+    // (`ConcealKind::Link`) with no options needed — the bare-URL scan must
+    // leave it alone.
+    let s = spans("before <https://example.com/x> after");
+    assert!(
+        !s.iter()
+            .any(|(_, k)| *k == MdKind::ConcealMarkup(ConcealKind::BareUrl)),
+        "an autolink is already Link-concealed; no BareUrl span too: {s:?}"
+    );
+}
+
+#[test]
+fn bare_url_inside_a_fenced_code_block_stays_plain() {
+    // A URL inside a fenced code sample is literal code, not prose — it must
+    // not get bare-URL conceal treatment either.
+    let s = spans("```\nsee https://example.com/x\n```");
+    assert!(
+        !s.iter()
+            .any(|(_, k)| *k == MdKind::ConcealMarkup(ConcealKind::BareUrl)),
+        "a URL inside a fenced code block stays plain code, never BareUrl-concealed: {s:?}"
     );
 }
 
