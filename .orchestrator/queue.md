@@ -138,7 +138,7 @@ mechanics; sweep worlds so every composition draws it localized.
 ---
 ### 510 — Rename opens with an empty field instead of the current name (user-reported, 2026-08-27)
 
-🟡 IN PROGRESS — claude (orchestrator-direct), branch item-510
+🟡 IN PROGRESS — claude, branch item-510
 
 The Rename prompt shows a bare caret with the existing name only in the faint
 hint ("rename to: fukushima-trip.md"); the user expected the field
