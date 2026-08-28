@@ -24,7 +24,22 @@ pub fn format_hint(actions: &[HintAction]) -> String {
 }
 
 impl OverlayKind {
+    /// Does this kind draw NO teaching footer at all — the pocket palette's own
+    /// world-list grammar, whose right-click idiom is ambient and needs no
+    /// lesson? Filtering and Enter/Esc keep working silently either way; this
+    /// only gates the DISPLAYED line, never the capability. One predicate
+    /// shared by [`Self::hint_actions`] and [`Self::range_row_actions`] so the
+    /// two cannot drift into a state where one still authors a partial line
+    /// (an arrows-only cell with no `type to filter` lead) the other has
+    /// already dropped in full.
+    fn draws_no_teaching_footer(self) -> bool {
+        matches!(self, OverlayKind::Context)
+    }
+
     pub fn hint_actions(self) -> Vec<HintAction> {
+        if self.draws_no_teaching_footer() {
+            return Vec::new();
+        }
         let mut actions = vec![HintAction {
             glyph: "type",
             label: "to filter",
@@ -72,6 +87,10 @@ impl OverlayKind {
             | OverlayKind::Keymap => vec![enter("apply")],
             OverlayKind::Command => super::command_hint_actions(),
             OverlayKind::Spell => vec![enter("replace")],
+            // Never actually formatted into a line: `hint_actions` returns
+            // empty for Context before this arm is reached. Kept truthful
+            // anyway — Enter still chooses a row and Esc still closes, this
+            // is the real capability roster, only the teaching text is gone.
             OverlayKind::Context => vec![enter("choose"), key("esc", "close")],
             OverlayKind::Keybindings => {
                 vec![enter("rebind"), key("del", "reset"), key("esc", "close")]
@@ -115,6 +134,16 @@ impl OverlayKind {
     }
 
     pub fn range_row_actions(self) -> Vec<HintAction> {
+        if self.draws_no_teaching_footer() {
+            // No context row ever carries a range cell (`OverlayState::
+            // selected_range` reads `rows[].range`, which the context-menu
+            // constructor never sets), so this variant is unreachable in
+            // product data. Answering it with the same empty line
+            // `hint_actions` does — rather than the bare `←/→ adjust` cell
+            // the fallthrough below would push — keeps "no footer for a
+            // pocket palette" one fact instead of two.
+            return Vec::new();
+        }
         let mut actions = self.hint_actions();
         match actions.iter_mut().find(|a| a.glyph == ARROWS_LR) {
             Some(cell) => cell.label = RANGE_LR_LABEL,

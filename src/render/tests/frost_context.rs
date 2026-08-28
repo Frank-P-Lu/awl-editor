@@ -567,6 +567,127 @@ fn inside_the_menus_own_footprint_no_document_edge_survives() {
     );
 }
 
+/// THE FORMER TEACHING LINE, forced back on — the counterfactual a card would
+/// draw if it still authored a footer, over the same production actions
+/// (`OverlayKind::Context::hint_actions`'s retained capability roster:
+/// choose/close). Naming the string here rather than importing it keeps this
+/// law's subject the CARD's response to a hint of a given shape, independent
+/// of whatever `OverlayKind::Context.hint()` answers today — the policy
+/// question (does Context carry one) is proven at the roster seam
+/// (`overlay::tests::hints::context_menu_draws_no_teaching_footer_...`), not
+/// here.
+const FORMER_TEACHING_LINE: &str = "type to filter   \u{21B5} choose   esc close";
+
+/// THE CARD HUGS ITS ROWS: dropping the pointer-anchored menu's teaching
+/// footer must shrink the card by close to two row pitches (the hint's own
+/// line plus its blank separator, `overlay_hint_gap_rows`) — never more
+/// (something else moved too) and never less (a residual blank band
+/// survived where the footer used to sit). Swept over every
+/// [`ContextTarget`] that opens a real card (Misspelling is skipped, checked
+/// rather than assumed — `context_menu::rows`'s own documented exemption),
+/// both worlds the routing law's two backing arms name, and both DPIs.
+///
+/// The claim is read directly off two REAL rendered cards — the shipped one
+/// and the counterfactual with [`FORMER_TEACHING_LINE`] forced back in — not
+/// re-derived from the card-height formula, so a shared bug in that formula
+/// cannot make this law agree with itself for the wrong reason.
+#[test]
+fn context_menu_card_hugs_its_rows_with_no_hint_reserved() {
+    let _g = crate::testlock::serial();
+    let entry = crate::theme::active_index();
+    let state = ContextState {
+        has_selection: true,
+        link: true,
+        heading: true,
+        heading_folded: false,
+        misspelled: true,
+        named_file: true,
+    };
+    let mut swept = 0usize;
+    let mut skipped_misspelling = 0usize;
+    let (lw, lh_win) = (1200.0f32, 900.0f32);
+    for world in ["Magpie", "Wagtail"] {
+        for dpi in [1.0f32, 2.0] {
+            // Scale the CANVAS with the DPI, same as `sweep()` above, so the
+            // LOGICAL window (and the anchor's placement inside it) stays
+            // constant across both arms — the anchor is otherwise far
+            // enough from either edge to be placed by itself rather than by
+            // the clamp, and that must stay true here too.
+            let (pw, ph) = ((lw * dpi) as u32, (lh_win * dpi) as u32);
+            let Some((device, queue, mut p)) = headless_dqp(pw as f32, ph as f32) else {
+                eprintln!(
+                    "skipping context_menu_card_hugs_its_rows_with_no_hint_reserved: \
+                     no wgpu adapter"
+                );
+                crate::theme::set_active(entry);
+                return;
+            };
+            crate::theme::set_active_by_name(world).unwrap();
+            p.set_dpi(dpi);
+            for target in ContextTarget::ALL {
+                let rows =
+                    crate::context_menu::rows(target, state, crate::commands::Platform::Native);
+                if rows.is_empty() {
+                    assert_eq!(
+                        target,
+                        ContextTarget::Misspelling,
+                        "{world}/{target:?}: an anchored menu with no rows is not \
+                         Misspelling — this law's own skip has quietly widened"
+                    );
+                    skipped_misspelling += 1;
+                    continue;
+                }
+
+                let mut real = context_menu_with_rows(&rows, DENSE, dpi);
+                real.overlay_hint = crate::overlay::OverlayKind::Context.hint();
+                p.set_view(&real);
+                let _ = render_frame(&device, &queue, &mut p, pw, ph);
+                let real_card = p.overlay_card_rect().expect("a real anchored card");
+
+                let mut hinted = context_menu_with_rows(&rows, DENSE, dpi);
+                hinted.overlay_hint = FORMER_TEACHING_LINE.to_string();
+                p.set_view(&hinted);
+                let _ = render_frame(&device, &queue, &mut p, pw, ph);
+                let hinted_card = p.overlay_card_rect().expect("the counterfactual card");
+
+                let lh = p.overlay_lh();
+                let shrink = hinted_card[3] - real_card[3];
+                let ctx = format!("{world}/{target:?} dpi={dpi}");
+                assert!(
+                    shrink > lh * 1.2,
+                    "{ctx}: dropping the footer must shrink the card by close to two row \
+                     pitches ({lh:.1}px each), got {shrink:.1}px — a residual blank band \
+                     would show up here as a near-zero shrink"
+                );
+                assert!(
+                    shrink < lh * 3.0,
+                    "{ctx}: the card shrank by {shrink:.1}px, more than the footer's own \
+                     two rows ({:.1}px) can account for — something else moved too",
+                    lh * 2.0
+                );
+                // The two cards' rows themselves are identical (same anchor, same
+                // width, same items) — only the footer differs, so their top edges
+                // and x/w must agree exactly.
+                assert_eq!(
+                    (real_card[0], real_card[1], real_card[2]),
+                    (hinted_card[0], hinted_card[1], hinted_card[2]),
+                    "{ctx}: only the card's own height should differ between the two"
+                );
+                swept += 1;
+            }
+            crate::theme::set_active(entry);
+        }
+    }
+    assert!(
+        swept > 20,
+        "the target × world × dpi sweep must actually run, got {swept}"
+    );
+    assert!(
+        skipped_misspelling > 0,
+        "the Misspelling skip must actually be reached, or the check above is vacuous"
+    );
+}
+
 /// THE BEFORE/AFTER PAIR FOR THE TASTE CALL — a regeneration tool, not a law.
 ///
 /// The final width and the decision itself are taste, and no capture settles them; what a

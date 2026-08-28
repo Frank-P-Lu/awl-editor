@@ -202,9 +202,13 @@ fn assert_candidate_rows(
 }
 
 /// The FOOTER region's own law: absent under
-/// [`SurfaceContract::Contextual`]; otherwise follows every candidate, draws
-/// inside the card, hit-tests as inert (neither a candidate, a facet, nor
-/// the query), and never spills past the card's own bottom.
+/// [`SurfaceContract::Contextual`] (the word-anchored popup's geometry never
+/// draws one) and absent on any kind whose product hint is empty (today only
+/// the pointer-anchored context menu, `SurfaceContract::Flat` in every other
+/// respect but with no teaching line to draw) — otherwise follows every
+/// candidate, draws inside the card, hit-tests as inert (neither a
+/// candidate, a facet, nor the query), and never spills past the card's own
+/// bottom.
 fn assert_footer_region(
     p: &TextPipeline,
     kind: crate::overlay::OverlayKind,
@@ -213,7 +217,7 @@ fn assert_footer_region(
     first_candidate_line: usize,
     last_candidate_bottom: f32,
 ) {
-    if contract == SurfaceContract::Contextual {
+    if contract == SurfaceContract::Contextual || kind.hint().is_empty() {
         return;
     }
     // `+ 1` for the blank separator row `overlay_hint_gap_rows`
