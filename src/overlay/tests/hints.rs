@@ -109,6 +109,21 @@ fn hint_formatter_is_consistent_across_pickers() {
     // cancel action is the lowercase `esc` (never `Esc`) LAST.
     for k in OverlayKind::ALL {
         let actions = k.hint_actions();
+        if k == OverlayKind::Context {
+            // THE ONE EXCEPTION: a pointer-anchored contextual menu is
+            // ambient idiom and draws no teaching line at all — filtering
+            // and Enter/Esc keep working silently, the lesson is just gone.
+            // Checked, not assumed: both the actions and the rendered
+            // string must be empty (`context_menu_draws_no_teaching_footer_
+            // while_other_kinds_still_teach_it` below covers the
+            // range-row variant and the production `foot_hint` door too).
+            assert!(
+                actions.is_empty(),
+                "{k:?} must carry no footer actions: {actions:?}"
+            );
+            assert_eq!(k.hint(), "", "{k:?} must draw no footer line");
+            continue;
+        }
         assert!(
             actions.len() >= 2,
             "{k:?} must teach the filter lead + ↵ primary"
@@ -150,4 +165,60 @@ fn hint_formatter_is_consistent_across_pickers() {
             );
         }
     }
+}
+
+/// THE POLICY LAW, at the production door — [`OverlayState::foot_hint`], not
+/// the bare [`OverlayKind::hint`] the sweep above already covers, so a future
+/// special-case branch inside `foot_hint_scoped` (rename/link/keep/capture/
+/// notice, all checked ahead of the plain `self.kind.hint()` fallthrough)
+/// cannot silently re-grow a footer for a REAL context card the roster law
+/// above never sees. Built through [`crate::context_menu::overlay`], the one
+/// production constructor a right-click menu is actually made with — not a
+/// bare `OverlayState::new`, which never sets `context_actions` and is not a
+/// card the product can produce.
+///
+/// The contrast is load-bearing: a law satisfied by every kind going quiet
+/// would be a law about the formatter breaking, not about the one policy
+/// decision this item made. The command palette is the sibling the item
+/// names explicitly ("The palette's own footer is untouched") — chosen
+/// because it shares the pocket-palette grammar Context borrows (509) while
+/// keeping its lesson (journeys, the workspace Back key are non-ambient).
+#[test]
+fn context_menu_draws_no_teaching_footer_while_the_command_palette_still_teaches_it() {
+    let context = crate::context_menu::overlay(
+        crate::context_menu::rows(
+            crate::context_menu::ContextTarget::Selection,
+            crate::context_menu::ContextState {
+                has_selection: true,
+                link: false,
+                heading: false,
+                heading_folded: false,
+                misspelled: false,
+                named_file: true,
+            },
+            crate::commands::Platform::Native,
+        ),
+        (10.0, 10.0),
+    );
+    assert!(
+        !context.item_strings().is_empty(),
+        "the fixture must open a real, non-empty context card or the claim below is vacuous"
+    );
+    assert_eq!(
+        context.foot_hint(),
+        "",
+        "a real right-click card must draw no footer line at all"
+    );
+
+    let palette = OverlayState::new(
+        OverlayKind::Command,
+        vec!["Go to file".into(), "Save".into()],
+        vec![],
+        vec![],
+    );
+    let palette_hint = palette.foot_hint();
+    assert!(
+        !palette_hint.is_empty() && palette_hint.contains("type to filter"),
+        "the command palette must keep its own teaching line: {palette_hint:?}"
+    );
 }

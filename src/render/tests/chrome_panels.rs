@@ -2391,7 +2391,21 @@ fn jump_hint_is_present_and_never_clips_for_every_kind() {
     // (1) PRESENT — no adapter needed: every kind's foot hint teaches the jump. Both
     // VARIANTS of the line are swept: the ordinary one and the RANGE-ROW one
     // (`←/→ adjust`), which is a genuinely wider string and therefore its own clip risk.
+    //
+    // THE ONE EXCEPTION: the pointer-anchored context menu draws no teaching
+    // line at all (`OverlayKind::hint_actions`) — checked, not skipped, so a
+    // future partial-revert (a line that teaches SOMETHING but not the
+    // filter lead) still trips this law.
     for k in OverlayKind::ALL {
+        if k == OverlayKind::Context {
+            assert_eq!(k.hint(), "", "{k:?} must draw no footer line at all");
+            assert_eq!(
+                k.range_row_hint(),
+                "",
+                "{k:?} must draw no footer line at all, range-row variant included"
+            );
+            continue;
+        }
         for h in [k.hint(), k.range_row_hint()] {
             assert!(
                 h.contains("type to filter"),
@@ -2408,6 +2422,13 @@ fn jump_hint_is_present_and_never_clips_for_every_kind() {
     for world in ["Tawny", "Mopoke", "Wagtail"] {
         theme::set_active_by_name(world).unwrap();
         for k in OverlayKind::ALL {
+            if k == OverlayKind::Context {
+                // No footer to fit or clip — the geometry law covering the
+                // card's own height is `overlay_card_h_owner_reproduces_
+                // every_kinds_card_height` below and
+                // `frost_context.rs`'s dedicated sweep.
+                continue;
+            }
             // BOTH variants of the real line: the ordinary one, and the
             // range-row one (its `adjust` cell is two glyphs wider than `lens`, so it
             // gets its own measured budget rather than riding the other's).
@@ -2553,12 +2574,16 @@ fn card_pad_for(kind: crate::overlay::OverlayKind) -> f32 {
 /// CARD-HEIGHT ONE-OWNER LAW (behavioral). Every picker's `card_h` now comes from
 /// [`TextPipeline::overlay_card_h`]; before the sweep the flat, faceted, and spell
 /// geometries each spelled the formula out (the faceted copy had already diverged
-/// once — the C2 footer drift). Here the flat takeover card and the Spell
-/// contextual popup are DRIVEN, their real `card_h` read back from the card rect,
-/// and independently reproduced by feeding the owner the same `(total_rows,
-/// header_gap, hint_rows, pad)` — with `pad` sourced from the no-wildcard
-/// [`card_pad_for`] classification. If a future geometry re-derives the height off
-/// the owner, its value drifts from `overlay_card_h`'s and this fails.
+/// once — the C2 footer drift). Here the flat takeover card, the Spell
+/// contextual popup, and the pointer-anchored Context menu are DRIVEN, their real
+/// `card_h` read back from the card rect, and independently reproduced by feeding
+/// the owner the same `(total_rows, header_gap, hint_rows, gap_rows, pad)` — with
+/// `pad` sourced from the no-wildcard [`card_pad_for`] classification. If a future
+/// geometry re-derives the height off the owner, its value drifts from
+/// `overlay_card_h`'s and this fails. The Context block additionally proves the
+/// reproduction is non-vacuous: a card that still reserved the dropped teaching
+/// footer's two rows would measure taller, so this is a real "hugs its rows"
+/// claim and not one satisfied by every card height alike.
 #[test]
 fn overlay_card_h_owner_reproduces_every_kinds_card_height() {
     let _g = crate::testlock::serial();
@@ -2620,6 +2645,39 @@ fn overlay_card_h_owner_reproduces_every_kinds_card_height() {
         assert!(
             (expect_s - ch_s).abs() < 0.01,
             "{world} spell: card_h {ch_s:.2} must come from overlay_card_h ({expect_s:.2})"
+        );
+
+        // CONTEXT MENU (pointer-anchored, contextual): header_rows == 0 (the
+        // contextual arm already drops the query header), and — the fact this
+        // item adds — no hint/gap row either, so the card hugs its rows with
+        // no residual band where the teaching line used to sit. Fed the REAL
+        // production hint (`OverlayKind::Context.hint()`), not a hardcoded
+        // empty string, so a regression that re-grows the footer trips this
+        // reproduction instead of silently matching a stale fixture.
+        let mut vc = view("hello\n", 0, 0);
+        vc.overlay_active = true;
+        vc.overlay_items = vec!["Cut".into(), "Copy".into(), "Paste".into()];
+        vc.overlay_selected = 0;
+        vc.overlay_context_anchor = Some((40.0, 40.0));
+        vc.overlay_hint = K::Context.hint();
+        p.set_view(&vc);
+        let [_xc, _yc, _wc, ch_c] = p.overlay_card_rect().expect("an open context card");
+        let (_tc, lines_c, _sc, _rhc, _cc) = p.overlay_window_report().expect("a context report");
+        let expect_c = p.overlay_card_h(lines_c, 0.0, 0, 0, card_pad_for(K::Context));
+        assert!(
+            (expect_c - ch_c).abs() < 0.01,
+            "{world} context: card_h {ch_c:.2} must come from overlay_card_h ({expect_c:.2})"
+        );
+        // NON-VACUITY: a card that still reserved the dropped footer's two
+        // rows (hint + its separator) would be measurably taller than the
+        // one just proven above — so this reproduction is not trivially true
+        // regardless of whether the footer is there.
+        let would_be_hinted = p.overlay_card_h(lines_c + 2, 0.0, 1, 1, card_pad_for(K::Context));
+        assert!(
+            would_be_hinted - ch_c > p.overlay_lh() * 1.2,
+            "{world} context: a card that still reserved the dropped footer would be \
+             {would_be_hinted:.2} tall against the real {ch_c:.2} — this law would not \
+             have caught the footer's removal being reverted"
         );
     }
     theme::set_active(theme::DEFAULT_THEME);

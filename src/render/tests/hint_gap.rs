@@ -179,6 +179,7 @@ fn the_hint_sits_a_full_row_below_the_content_band() {
     let (lw, lh_win) = (1200u32, 800u32);
     let mut graded = 0usize;
     let mut empty_graded = 0usize;
+    let mut footerless_graded = 0usize;
     for dpi in [1.0f32, 2.0] {
         p.set_dpi(dpi);
         let (cw, ch) = ((lw as f32 * dpi) as u32, (lh_win as f32 * dpi) as u32);
@@ -200,6 +201,23 @@ fn the_hint_sits_a_full_row_below_the_content_band() {
                             "{kind:?}: a word-anchored popup unexpectedly enrolled \
                              in the card foot-band law"
                         );
+                        continue;
+                    }
+                    // THE SECOND (POLICY, not structural) EXCLUSION: a kind
+                    // whose product hint is the empty string — today only the
+                    // pointer-anchored context menu, which draws pure rows
+                    // with no teaching line at all (`OverlayKind::hint_actions`).
+                    // Unlike Spell it reaches the ordinary flat geometry
+                    // family; it just has nothing to reserve a gap ahead of.
+                    if v.overlay_hint.is_empty() {
+                        p.set_view(&v);
+                        p.prepare(&device, &queue, cw, ch).unwrap();
+                        assert!(
+                            p.overlay_hint_gap_probe(cw).is_none(),
+                            "{kind:?}: a kind with an empty product hint drew a \
+                             hint line anyway"
+                        );
+                        footerless_graded += 1;
                         continue;
                     }
                     p.set_view(&v);
@@ -224,11 +242,24 @@ fn the_hint_sits_a_full_row_below_the_content_band() {
         "the empty-state notice cell must be reached — item 174's own \
          collision — got {empty_graded}"
     );
+    assert!(
+        footerless_graded > 4,
+        "the empty-product-hint exclusion (the context menu's dropped \
+         teaching line) must actually be reached, got {footerless_graded}"
+    );
 }
 
 /// FILTERED and SCROLLED shapes, plus the WORKSPACE family (Settings' rail
 /// and timeline stages), swept over the world roster — a targeted companion
 /// to the headline sweep rather than a repeat of its full breadth.
+///
+/// `Goto` stands in for `Context` here on purpose: this law's whole subject
+/// is a REAL hint's gap surviving filtering/scrolling, and the pocket
+/// palette carries no hint to have a gap ahead of (the headline sweep above
+/// already proves that emptiness holds under Full/Empty; a dedicated law —
+/// `context_menu_card_hugs_its_rows_with_no_hint_reserved` in
+/// `frost_context.rs` — proves the same absence over the real anchored
+/// geometry, world by world).
 #[test]
 fn the_hint_gap_holds_when_filtered_scrolled_or_in_a_workspace() {
     let _g = crate::testlock::serial();
@@ -248,11 +279,7 @@ fn the_hint_gap_holds_when_filtered_scrolled_or_in_a_workspace() {
         for world in crate::theme::world_names() {
             theme::set_active_by_name(world).unwrap();
             p.sync_theme();
-            for kind in [
-                OverlayKind::Command,
-                OverlayKind::Context,
-                OverlayKind::Theme,
-            ] {
+            for kind in [OverlayKind::Command, OverlayKind::Goto, OverlayKind::Theme] {
                 for shape in [Shape::Filtered, Shape::Scrolled] {
                     let v = overlay_view(kind, shape);
                     p.set_view(&v);
@@ -370,10 +397,20 @@ fn a_hint_reserves_compact_pixels_before_workspace_rows_and_two_slots_on_cards()
 
         let mut enrolled = 0usize;
         let mut excluded_popups = 0usize;
+        let mut excluded_footerless = 0usize;
         for kind in OverlayKind::ALL {
             let mut v = overlay_view(kind, Shape::Scrolled);
             if v.overlay_spell.is_some() {
                 excluded_popups += 1;
+                continue;
+            }
+            // A kind whose product hint is the empty string — today only the
+            // pointer-anchored context menu — has no "bare vs hinted" row
+            // cost to measure: there is nothing to clear before the `bare`
+            // reading, so the two readings would trivially agree at cost 0
+            // rather than proving anything about the reservation.
+            if v.overlay_hint.is_empty() {
+                excluded_footerless += 1;
                 continue;
             }
             if let Some(shape) = kind.workspace_shape() {
@@ -410,13 +447,14 @@ fn a_hint_reserves_compact_pixels_before_workspace_rows_and_two_slots_on_cards()
             enrolled += 1;
         }
         assert_eq!(
-            enrolled + excluded_popups,
+            enrolled + excluded_popups + excluded_footerless,
             OverlayKind::ALL.len(),
             "every roster member must be enrolled or excluded by its presentation"
         );
         assert!(
-            enrolled > 10 && excluded_popups > 0,
-            "the roster sweep and its popup exclusion must both be non-vacuous"
+            enrolled > 10 && excluded_popups > 0 && excluded_footerless > 0,
+            "the roster sweep and both its exclusions (word-anchored popup, \
+             empty-hint policy) must be non-vacuous"
         );
     }
     crate::menubar::set_menu_bar_on(ambient_menu_bar);

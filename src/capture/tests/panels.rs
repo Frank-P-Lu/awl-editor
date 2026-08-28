@@ -1139,6 +1139,12 @@ const HEADING_MENU_FOOTPRINT_DOC: &str = concat!(
 /// The heading menu's real rows (`context_menu::rows`) laid onto an `OverlayInfo`
 /// at `anchor`, mirroring `context_menu_capture_names_its_anchor_and_paints_the_anchored_card`'s
 /// construction — factored out so the law itself fits under the line budget.
+///
+/// `hint` is the empty string — the real production answer
+/// (`OverlayKind::Context.hint()`, item 513's own change) for a pointer-anchored
+/// menu, which draws pure rows with no teaching line at all.
+/// `context_menu_footer_removal_hugs_its_rows_with_no_dead_band_below`
+/// overrides it back to the pre-513 line as its own counterfactual.
 fn heading_context_overlay(items: &[String], anchor: (f32, f32)) -> OverlayInfo {
     OverlayInfo {
         align: crate::render::effective_card_anchor(),
@@ -1153,7 +1159,7 @@ fn heading_context_overlay(items: &[String], anchor: (f32, f32)) -> OverlayInfo 
         bindings: vec![String::new(); items.len()],
         git: Vec::new(),
         selected_index: 0,
-        hint: "↵ choose   esc close".into(),
+        hint: String::new(),
         browse_dir: None,
         return_to: None,
         spell_target: None,
@@ -1285,6 +1291,133 @@ fn heading_context_menu_capture_leaves_the_page_outside_its_footprint_byte_ident
         );
     }
     crate::theme::set_active(entry);
+}
+
+/// The bottommost y (within `[y0, y0 + search_h)`) at which any pixel in
+/// `[x0, x0 + w)` differs between `off` and `on` — `None` when nothing in the
+/// searched strip differs at all. The oracle is the same one `region_diff`
+/// already counts (does this pixel differ from the plain, overlay-free
+/// page), just tracked positionally instead of counted, so it needs no
+/// world's plate colour to know where a menu's own drawn footprint ends.
+fn column_diff_bottom(
+    off: &image::RgbaImage,
+    on: &image::RgbaImage,
+    x0: u32,
+    y0: u32,
+    w: u32,
+    search_h: u32,
+) -> Option<u32> {
+    let mut bottom = None;
+    for y in y0..y0 + search_h {
+        if (x0..x0 + w).any(|x| off.get_pixel(x, y) != on.get_pixel(x, y)) {
+            bottom = Some(y);
+        }
+    }
+    bottom
+}
+
+/// VISION-SMOKE: DOES THE CARD END RIGHT AFTER THE LAST ROW, WITH NO DEAD
+/// SPACE BELOW IT? — item 513(b)'s own affordance question, asked of real GPU
+/// pixels through the SAME production capture door `--screenshot` uses (not
+/// geometry arithmetic — that mechanism-level proof is
+/// `context_menu_card_hugs_its_rows_with_no_hint_reserved` in
+/// `render::tests::frost_context`, which this law does not repeat).
+///
+/// Two captures of the SAME heading menu (`heading_context_overlay`),
+/// differing only in `hint`: the shipped answer (`""`) and the pre-513
+/// counterfactual (the former teaching line, forced back in). If the footer
+/// had NOT been removed, the menu's own drawn footprint would reach
+/// measurably farther down the page than the shipped one's — which is
+/// exactly the "no dead band" claim, read off pixels rather than assumed.
+#[test]
+fn context_menu_footer_removal_hugs_its_rows_with_no_dead_band_below() {
+    if !adapter_available() {
+        eprintln!("skipping context_menu_footer_removal_hugs_its_rows_...: no wgpu adapter");
+        return;
+    }
+    let _g = crate::testlock::serial();
+    let entry = crate::theme::active_index();
+    let dir = ScratchDir::new(std::env::temp_dir().join(format!(
+        "awl_context_footer_removal_capture_{}",
+        std::process::id()
+    )));
+    let buf = Buffer::from_str(HEADING_MENU_FOOTPRINT_DOC);
+    let state = crate::context_menu::ContextState {
+        has_selection: false,
+        link: false,
+        heading: true,
+        heading_folded: false,
+        misspelled: false,
+        named_file: true,
+    };
+    let rows = crate::context_menu::rows(
+        crate::context_menu::ContextTarget::Heading,
+        state,
+        crate::commands::Platform::Native,
+    );
+    let items: Vec<String> = rows.iter().map(|r| r.label.to_string()).collect();
+    let anchor = (140.0, 120.0);
+    // Wide enough to hold the card's own column; tall enough to hold several
+    // candidate rows plus a two-row footer on any shipped world's chrome
+    // face, short of the far region `heading_context_menu_capture_...`
+    // protects as untouched.
+    let (strip_w, strip_h) = (280u32, 260u32);
+
+    let mut widened = 0usize;
+    for world in ["Magpie", "Wagtail"] {
+        crate::theme::set_active_by_name(world).unwrap();
+
+        let off_png = dir.join(format!("{world}-off.png"));
+        capture_with(&off_png, &buf, &CaptureOpts::default()).expect("plain capture");
+        let off = image::open(&off_png).unwrap().to_rgba8();
+
+        let real_png = dir.join(format!("{world}-real.png"));
+        capture_with(
+            &real_png,
+            &buf,
+            &CaptureOpts {
+                overlay: Some(heading_context_overlay(&items, anchor)),
+                ..CaptureOpts::default()
+            },
+        )
+        .expect("real (footer-dropped) capture");
+        let real = image::open(&real_png).unwrap().to_rgba8();
+
+        let mut hinted_overlay = heading_context_overlay(&items, anchor);
+        hinted_overlay.hint = "type to filter   \u{21B5} choose   esc close".to_string();
+        let hinted_png = dir.join(format!("{world}-hinted.png"));
+        capture_with(
+            &hinted_png,
+            &buf,
+            &CaptureOpts {
+                overlay: Some(hinted_overlay),
+                ..CaptureOpts::default()
+            },
+        )
+        .expect("counterfactual (footer-forced) capture");
+        let hinted = image::open(&hinted_png).unwrap().to_rgba8();
+
+        let x0 = anchor.0 as u32;
+        let y0 = anchor.1 as u32;
+        let real_bottom = column_diff_bottom(&off, &real, x0, y0, strip_w, strip_h)
+            .unwrap_or_else(|| panic!("{world}: the shipped menu painted nothing at all"));
+        let hinted_bottom = column_diff_bottom(&off, &hinted, x0, y0, strip_w, strip_h)
+            .unwrap_or_else(|| panic!("{world}: the counterfactual menu painted nothing at all"));
+
+        eprintln!(
+            "MEASURED {world}: shipped footprint reaches y={real_bottom}, \
+             counterfactual (footer forced back in) reaches y={hinted_bottom}"
+        );
+        assert!(
+            hinted_bottom > real_bottom + 10,
+            "{world}: forcing the dropped footer back in must reach measurably farther \
+             down the page (shipped={real_bottom}, counterfactual={hinted_bottom}) — \
+             otherwise this law cannot tell a hugging card from a dead band"
+        );
+        widened += 1;
+    }
+    crate::theme::set_active(entry);
+    assert_eq!(widened, 2, "both worlds must be measured");
 }
 
 /// CARET-STYLE PICKER, MORPH highlighted: the settled preview demo actually PAINTS
