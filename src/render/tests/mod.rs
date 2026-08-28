@@ -75,6 +75,7 @@ mod eotf_bit_identity;
 mod facepitch;
 mod facet_mark_dpi;
 mod facet_strip_air;
+mod facet_strip_seat_law;
 mod firetail_showcase;
 mod float_surface_law;
 mod fold_chevron_center;

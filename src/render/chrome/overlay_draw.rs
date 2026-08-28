@@ -60,6 +60,12 @@ impl TextPipeline {
         );
         self.diagonal_cluster = self.resolve_diagonal_cluster(&geom, &plan, &vis);
         plan.complete_row_extent(self.diagonal_row_extent()); // completed, not rebuilt
+        // The strip's mark rects were recorded buffer-local by
+        // `overlay_shape_text` above — before this frame's cluster existed to
+        // seat them against. Seat them now, once, before the upload below (the
+        // `DockedTab` ghost) or the facet-mark quads (`overlay_draw_card`) read
+        // them.
+        self.theme_reseat_marks(&geom, &plan);
         let surface = OverlayCardSurface {
             device,
             queue,
