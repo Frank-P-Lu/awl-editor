@@ -119,16 +119,33 @@ impl TextPipeline {
         let chrome_rows = billed_header_rows + hint_gap_rows + hint_rows + empty_rows + footer_rows;
         // THE ONE HEIGHT-CLAMP OWNER, shared with the flat family.
         let avail_px = (self.window_h - card_y - margin - 2.0 * pad - header_gap).max(lh);
-        let item_cap = self.overlay_sectioned_item_cap(avail_px, lh, chrome_rows, total_headers, 0);
-        let (item_top, item_visible) = scroll_window(
-            n_items,
-            self.overlay_selected,
-            self.overlay_scroll,
-            item_cap,
-        );
-        let plan = window_plan(&full_plan, item_top, item_top + item_visible);
-        let mut total_rows =
-            billed_header_rows + plan.len() + empty_rows + hint_gap_rows + hint_rows + footer_rows;
+        // The cue's own fixed point (`resolve_window_and_cue`): `item_top`/
+        // `item_visible` are ITEM counts straight off `scroll_window`, read
+        // BEFORE `window_plan` turns them into a display-line count that
+        // also bills section headers — passing THAT count here would
+        // double-charge every header as a hidden item.
+        let fit_window = |chrome_rows: usize| {
+            let item_cap =
+                self.overlay_sectioned_item_cap(avail_px, lh, chrome_rows, total_headers, 0);
+            scroll_window(
+                n_items,
+                self.overlay_selected,
+                self.overlay_scroll,
+                item_cap,
+            )
+        };
+        let (mut item_top, mut item_visible, mut cue_above, mut cue_below, mut cue_rows) =
+            super::overlay_clamp::resolve_window_and_cue(n_items, |extra| {
+                fit_window(chrome_rows + extra)
+            });
+        let mut plan = window_plan(&full_plan, item_top, item_top + item_visible);
+        let mut total_rows = billed_header_rows
+            + plan.len()
+            + empty_rows
+            + hint_gap_rows
+            + hint_rows
+            + footer_rows
+            + cue_rows;
         // Wider than the flat pickers so the whole lens strip (Time … All) fits on
         // one line even on a WIDE mono world face without the far-right All clipping
         // — via the SAME horizontal-box owner (edge inset + narrow-window fallback),
@@ -156,6 +173,25 @@ impl TextPipeline {
         if card_y + card_h > self.window_h + 0.01 && hint_gap_rows > 0 {
             total_rows -= hint_gap_rows;
             hint_gap_rows = 0;
+            card_h = self.overlay_card_h(total_rows, header_gap, hint_rows, hint_gap_rows, pad);
+        }
+        // The count cue is the SAME kind of decorative, non-load-bearing chrome
+        // the hint gap already degrades above — in the same starvation corner,
+        // drop it and re-fit the window at the ORIGINAL (uninflated) overhead
+        // rather than let two rows of ambient position-keeping force a card
+        // past its own canvas. Re-derives the window (never re-uses the
+        // now-stale one) because freeing the cue's reserved overhead can let
+        // the corpus fit a real item that overhead was crowding out.
+        if card_y + card_h > self.window_h + 0.01 && cue_rows > 0 {
+            (item_top, item_visible) = fit_window(chrome_rows);
+            (cue_above, cue_below, cue_rows) = (None, None, 0);
+            plan = window_plan(&full_plan, item_top, item_top + item_visible);
+            total_rows = billed_header_rows
+                + plan.len()
+                + empty_rows
+                + hint_gap_rows
+                + hint_rows
+                + footer_rows;
             card_h = self.overlay_card_h(total_rows, header_gap, hint_rows, hint_gap_rows, pad);
         }
         let card_y = card_y + self.overlay_entrance_offset();
@@ -196,6 +232,9 @@ impl TextPipeline {
             pane_x: 0.0,
             pane_w: 0.0,
             rows_focused: false,
+            cue_above,
+            cue_below,
+            cue_reserved: cue_rows > 0,
         }
     }
 
@@ -581,10 +620,38 @@ impl TextPipeline {
         // row height; the leading "\n" keeps the buffer's UI font size so the strip
         // row's font stays scale-invariant.
         self.push_theme_strip_spans(&mut spans, plan, strip, active_ink, muted);
+        // The ABOVE-edge count cue's own line, opened between the strip and
+        // the first candidate row by `plan_overlay_rows`'s `first_top` shift
+        // (`OverlayRowPlanInput::cue_above_rows`, fed from `geom.cue_reserved`
+        // — the scroll-INVARIANT reservation, never `geom.cue_above.is_some()`
+        // itself, so this line's existence cannot appear or vanish as the
+        // reader scrolls through an already-open card). `push_theme_plan_spans`
+        // always opens ITS OWN leading "\n" for display line 0, so this needs
+        // no `content_before` bookkeeping. Blank (a bare space) when this
+        // edge's own `cue_above` has nothing to say at the CURRENT scroll.
+        // Owned `String`s, not temporaries: `spans` borrows past this
+        // function's own scope (into `set_rich_text`), so the cue text must
+        // live at least as long as `title_prefix` does.
+        let cue_above_text = geom.cue_above.map(|n| super::edge_cue_text(true, n));
+        if geom.cue_reserved {
+            spans.push(("\n", mk(muted)));
+            spans.push((cue_above_text.as_deref().unwrap_or(" "), mk(muted)));
+        }
         self.push_theme_plan_spans(&mut spans, geom, &fitted, trailing, inks, vis);
         if let Some(msg) = &geom.empty {
             spans.push(("\n", mk(muted)));
             spans.push((msg.as_str(), mk(muted)));
+        }
+        // The BELOW-edge cue, directly under the last drawn line of
+        // `geom.plan` (or the empty-state notice, sharing that band —
+        // `content_rows`'s own ordering: rows, then the notice, then this;
+        // mutually exclusive in practice, since the reservation only ever
+        // fires while `n_items > 0`), ahead of the hint/footer that may
+        // follow it. Same reservation-vs-content split as above.
+        let cue_below_text = geom.cue_below.map(|n| super::edge_cue_text(false, n));
+        if geom.cue_reserved {
+            spans.push(("\n", mk(muted)));
+            spans.push((cue_below_text.as_deref().unwrap_or(" "), mk(muted)));
         }
         if geom.hint_rows > 0 {
             self.push_overlay_hint_spans(

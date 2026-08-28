@@ -109,9 +109,7 @@ fn accessory_box(
     plan: &crate::render::plan::OverlayRowPlan,
     display: usize,
 ) -> Option<(f32, f32)> {
-    let w = *p
-        .overlay_row_secondary_px(plan.billed_header_rows())
-        .get(&display)?;
+    let w = *p.overlay_row_secondary_px(plan).get(&display)?;
     if w <= 0.0 {
         return None;
     }

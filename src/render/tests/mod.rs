@@ -68,6 +68,9 @@ mod docked_tab_seam;
 /// text-selection drag past the writing column's edge advances scroll +
 /// hit-tests through.
 mod drag_scroll;
+/// THE POSITIONAL COUNT CUE — the roster sweep, both acceptance captures'
+/// geometry, and the arithmetic non-vacuity floors.
+mod edge_count_cue_law;
 /// The virtual breathing room past the last line: its one scroll owner, its
 /// composition with typewriter mode, and the law that none of it reaches disk.
 mod end_pad;

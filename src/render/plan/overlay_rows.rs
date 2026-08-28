@@ -132,6 +132,19 @@ pub(in crate::render) struct OverlayRowPlanInput<'a> {
     /// share the same two-sided span.
     pub selected_offset: Option<(f32, f32)>,
     pub selected_display: Option<usize>,
+    /// `1` when the geometry owner reserved a line for the "items hidden
+    /// above" count cue, else `0` — never more than one: the cue names how
+    /// many are hidden, it does not enumerate them. Seats the cue's own
+    /// display line directly above candidate row 0 by pushing `first_top`
+    /// down by exactly this many `lh`, so drawn glyphs and planned hit-test
+    /// geometry (which reads `first_top` too) cannot disagree about where
+    /// row 0 actually starts.
+    pub cue_above_rows: usize,
+    /// The count cue's bottom-edge counterpart: `1` when a line was reserved
+    /// directly below the last candidate row, else `0`. Folded into
+    /// [`OverlayRowPlan::content_rows`] so the footer band seats below it
+    /// exactly as it already does for the empty-state notice.
+    pub cue_below_rows: usize,
 }
 
 /// THE PLANNED CANDIDATE BAND. Built once per overlay frame; read by the draw
@@ -155,6 +168,11 @@ pub(in crate::render) struct OverlayRowPlan {
     /// The composition's own signed step, constant for the frame — so completing
     /// this plan's extent needs only the MEASURED half.
     pub(super) dx_per_row: f32,
+    /// Mirrors [`OverlayRowPlanInput::cue_above_rows`] / `cue_below_rows` —
+    /// stored so [`OverlayRowPlan::content_rows`]/`footer_top` and the cue's
+    /// own draw position can read them back without a second input.
+    pub(super) cue_above_rows: usize,
+    pub(super) cue_below_rows: usize,
 }
 
 /// PLAN WORK WITNESSES, counted by the planner itself so no consumer can dodge
@@ -340,6 +358,8 @@ pub(in crate::render) fn test_row_top(
         cluster_span: None,
         selected_offset: None,
         selected_display: None,
+        cue_above_rows: 0,
+        cue_below_rows: 0,
     });
     plan.row_top(row).expect("row is inside the planned window")
 }
@@ -374,6 +394,8 @@ pub(in crate::render) fn test_header_plan(
         cluster_span: None,
         selected_offset: None,
         selected_display: None,
+        cue_above_rows: 0,
+        cue_below_rows: 0,
     })
 }
 
@@ -400,6 +422,8 @@ pub(in crate::render) fn test_rows(text_top: f32, lh: f32, n: usize) -> Vec<Plan
         cluster_span: None,
         selected_offset: None,
         selected_display: None,
+        cue_above_rows: 0,
+        cue_below_rows: 0,
     })
     .rows()
     .to_vec()
@@ -408,13 +432,23 @@ pub(in crate::render) fn test_rows(text_top: f32, lh: f32, n: usize) -> Vec<Plan
 /// Build the plan. Pure: no clock, no randomness, no device, no allocation per
 /// item — one [`PlannedRow`] per DISPLAY LINE the card shows.
 pub(in crate::render) fn plan_overlay_rows(input: &OverlayRowPlanInput<'_>) -> OverlayRowPlan {
-    let first_top = row_top(
+    // Where the HEADER band itself closes — unmoved by the count cue, so the
+    // query field/lens strip's own boxes (`plan_header_band`, below) stay
+    // exactly where they always sat. The candidate band's `first_top` seats
+    // one `lh` PAST that close for every reserved `cue_above_rows`, opening
+    // the exact slot the "items hidden above" cue text draws into and
+    // pushing every real candidate row down with it — the one shift both the
+    // drawn glyphs (which follow this same line count, sequentially) and this
+    // plan's own hit-test/selected-band geometry read, so they cannot disagree
+    // about where row 0 starts.
+    let header_close = row_top(
         input.text_top,
         input.billed_header_rows,
         input.header_gap,
         0,
         input.lh,
     );
+    let first_top = header_close + input.cue_above_rows as f32 * input.lh;
     let headers = super::overlay_header::plan_header_band(input);
     let mut rows: Vec<PlannedRow> = match input.lines {
         Some(lines) => lines
@@ -496,5 +530,7 @@ pub(in crate::render) fn plan_overlay_rows(input: &OverlayRowPlanInput<'_>) -> O
         empty_rows: input.empty_rows,
         selected_display,
         dx_per_row: input.dx_per_row,
+        cue_above_rows: input.cue_above_rows,
+        cue_below_rows: input.cue_below_rows,
     }
 }

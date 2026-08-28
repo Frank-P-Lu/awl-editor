@@ -164,7 +164,7 @@ fn read_mark(p: &TextPipeline, cw: u32) -> Option<MarkReading> {
         .copied()
         .unwrap_or(0.0);
     let accessory_ink_w = p
-        .overlay_row_secondary_px(plan.billed_header_rows())
+        .overlay_row_secondary_px(&plan)
         .get(&sel)
         .copied()
         .unwrap_or(0.0);

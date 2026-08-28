@@ -88,10 +88,15 @@ fn a_keyboard_scroll_moves_what_a_stationary_pixel_hits_and_the_gate_refuses_it(
             );
             assert_eq!(ov.selected, 3, "{ctx}");
 
-            // A REAL keyboard session: Down deep enough that the window must
-            // scroll (selected 3 -> 25, well past the 12-row window).
-            ov.move_sel(22);
-            assert_eq!(ov.selected, 25, "{ctx}");
+            // A REAL keyboard session: all the way to the LAST row — not a
+            // fixed mid-list offset, whose exact landing display-index is
+            // sensitive to the window's own item cap (item 508's count cue
+            // trims it by up to two rows once a card is windowed at all,
+            // moving exactly how far a fixed-size jump lands). Scrolling to
+            // the corpus's own end is qualitatively different from the
+            // pixel this test parked on regardless of that cap.
+            ov.move_sel(36);
+            assert_eq!(ov.selected, 39, "{ctx}");
             assert!(
                 ov.scroll > 0,
                 "{ctx}: the keyboard session must have actually scrolled the window"
@@ -111,11 +116,20 @@ fn a_keyboard_scroll_moves_what_a_stationary_pixel_hits_and_the_gate_refuses_it(
                 hit1.is_some(),
                 "{ctx}: the scrolled window still draws SOME row at that pixel"
             );
+            // THE HAZARD'S OWN PREMISE, stated exactly as this file's module
+            // doc states it: the item under the STATIONARY pixel changed —
+            // `hit1` (now) against `hit0` (before the scroll), never against
+            // the keyboard's own selected index. Comparing against `Some(39)`
+            // (the selection) instead used to coincide with the real claim
+            // only because the window's own item cap happened to make them
+            // equal; item 508's count cue trims that cap by up to two rows
+            // once a card is windowed at all, which moved the coincidence
+            // without changing the actual hazard this law exists to prove.
             assert_ne!(
-                hit1,
-                Some(25),
-                "{ctx}: the row now under the stationary pixel is a DIFFERENT item than the \
-                 keyboard's own selection — exactly the hazard's premise (item 106)"
+                hit1, hit0,
+                "{ctx}: the row now under the stationary pixel ({hit1:?}) is the SAME item \
+                 that was there before the keyboard scrolled ({hit0:?}) — exactly the \
+                 hazard's premise (item 106) failed to reproduce"
             );
 
             // THE LAW: a REAL 1px jitter off the parked pixel — not the exact
@@ -131,7 +145,7 @@ fn a_keyboard_scroll_moves_what_a_stationary_pixel_hits_and_the_gate_refuses_it(
                  must not steal the keyboard's selection"
             );
             assert_eq!(
-                ov.selected, 25,
+                ov.selected, 39,
                 "{ctx}: the keyboard selection survives the scroll"
             );
 

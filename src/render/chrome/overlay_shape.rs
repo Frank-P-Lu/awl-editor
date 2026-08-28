@@ -129,19 +129,39 @@ fn inline_shortcut_rows(
     (rows, items.iter().map(tail).collect())
 }
 
-/// THE QUERY BEAT'S OWN GLYPH-FREE LINE, when the band plans one — one space at
-/// the planned beat's height. A LINE, not line height on a line that has glyphs:
-/// cosmic-text centres a glyph run in its box, so a beat folded into the query
-/// field's line draws the field's text half a beat below its own bar.
+/// THE QUERY BEAT'S OWN LINE, when the band plans one — glyph-free (one space)
+/// at the planned beat's height, or carrying the ABOVE-EDGE COUNT CUE's text
+/// at that same height when one is reserved. A LINE, not line height on a line
+/// that has glyphs: cosmic-text centres a glyph run in its box, so a beat
+/// folded into the query field's line draws the field's text half a beat below
+/// its own bar.
+///
+/// **The cue rides this line rather than adding a second one, and this is why
+/// it must:** `beat` is `plan.beat_line()`, itself derived as `first_top() -
+/// last.bottom()` — "whatever run the header lines leave... IS the beat". Once
+/// `plan_overlay_rows` shifts `first_top` down to reserve the cue's own room
+/// (`OverlayRowPlanInput::cue_above_rows`), that derivation auto-inflates
+/// `beat` to already include it — so drawing the cue as a SEPARATE line on top
+/// would reserve the room twice: once inside this now-taller beat, once again
+/// as its own line, landing every candidate row one full pitch below where the
+/// plan (and the pointer hit-test, and the selected-row band) says they are.
+/// `TextPipeline::shaped_first_row_line` is the line-count half of the same
+/// fact: it counts the cue only when NO beat stands alone to ride (a grouped
+/// card's own explicit line in `theme_picker.rs`, or a contextual card with no
+/// header at all).
 fn push_beat_spacer<'a>(
     spans: &mut Vec<(&'a str, glyphon::Attrs<'a>)>,
     attrs: glyphon::Attrs<'a>,
     font_size: f32,
     beat: Option<f32>,
+    cue_text: Option<&'a str>,
 ) {
     if let Some(beat) = beat {
         spans.push(("\n", attrs.clone()));
-        spans.push((" ", attrs.metrics(GlyphMetrics::new(font_size, beat))));
+        spans.push((
+            cue_text.unwrap_or(" "),
+            attrs.metrics(GlyphMetrics::new(font_size, beat)),
+        ));
     }
 }
 
@@ -391,7 +411,10 @@ impl TextPipeline {
             i.and_then(|i| right_labels.get(i))
                 .map_or("", |s| s.as_str())
         };
-        let bind_strs = right_bind_lines(plan.billed_header_rows(), items.iter().map(chord));
+        let bind_strs = right_bind_lines(
+            plan.billed_header_rows() + plan.cue_above_rows(),
+            items.iter().map(chord),
+        );
 
         // One shared row budget: card text width against the widest right label. `Split`/
         // `Full` elide the names to their granted budget (the historical math);
@@ -517,7 +540,7 @@ impl TextPipeline {
         };
         let bind_strs: Vec<String> = if has_right && !hug_inline {
             right_bind_lines(
-                plan.billed_header_rows(),
+                plan.billed_header_rows() + plan.cue_above_rows(),
                 geom.plan.iter().map(|line| match line {
                     PlanLine::Item(i) => right_labels.get(*i).map(|s| s.as_str()).unwrap_or(""),
                     PlanLine::Location(_) | PlanLine::Header(_) => "",
@@ -678,13 +701,51 @@ impl TextPipeline {
             }
             spans.push((self.overlay_query.as_str(), hk(ink)));
         }
-        push_beat_spacer(&mut spans, mk(muted), name_fs, plan.beat_line());
-        self.push_overlay_name_rows(&mut spans, rows, trailing, has_query, inks, vis);
+        // The ABOVE-EDGE count cue: `push_beat_spacer`'s own doc has the
+        // mechanism — it rides the beat's existing line when one stands
+        // alone (every ordinary flat query card), and only a card with NO
+        // beat at all (a contextual card, no header line to speak of) needs
+        // a genuinely new line for it. Gated on `geom.cue_reserved` — the
+        // scroll-INVARIANT reservation, never `geom.cue_above.is_some()` (the
+        // per-scroll CONTENT) — so this line's very existence cannot appear
+        // or vanish as the reader scrolls through an already-open card; only
+        // whether it carries text or sits blank does.
+        let cue_above_text = geom.cue_above.map(|n| edge_cue_text(true, n));
+        let beat = plan.beat_line();
+        push_beat_spacer(
+            &mut spans,
+            mk(muted),
+            name_fs,
+            beat,
+            cue_above_text.as_deref(),
+        );
+        let mut content_before_rows = has_query;
+        if beat.is_none() && geom.cue_reserved {
+            if content_before_rows {
+                spans.push(("\n", mk(muted)));
+            }
+            spans.push((cue_above_text.as_deref().unwrap_or(" "), mk(muted)));
+            content_before_rows = true;
+        }
+        self.push_overlay_name_rows(&mut spans, rows, trailing, content_before_rows, inks, vis);
         if let Some(msg) = &geom.empty {
             if has_query {
                 spans.push(("\n", mk(muted)));
             }
             spans.push((msg.as_str(), mk(muted)));
+        }
+        // The BELOW-EDGE cue sits directly under the last candidate row (or
+        // the empty-state notice, sharing that band — `content_rows`'s own
+        // ordering: rows, then the notice, then this), ahead of wherever the
+        // hint/footer starts. Same reservation-vs-content split as above:
+        // the LINE exists whenever `geom.cue_reserved`, blank when this
+        // edge's own `cue_below` has nothing to say at the current scroll.
+        let cue_below_text = geom.cue_below.map(|n| edge_cue_text(false, n));
+        if geom.cue_reserved {
+            if content_before_rows || !rows.is_empty() || geom.empty.is_some() {
+                spans.push(("\n", mk(muted)));
+            }
+            spans.push((cue_below_text.as_deref().unwrap_or(" "), mk(muted)));
         }
         if geom.hint_rows > 0 {
             self.push_overlay_hint_spans(
@@ -808,20 +869,24 @@ impl TextPipeline {
         m
     }
 
-    // Takes `billed_header_rows`, not `geom.header_rows`: the secondary
-    // buffer's own leading empties come from `right_bind_lines`, which is
-    // built against the row PLAN's billed count (the docked facet strip's
-    // box never reaches this buffer), while `geom.header_rows` is the box
-    // count used for hit-testing and clip carving. Reading the box count
-    // here desyncs every row below it by one under `FacetStyle::DockedTab`.
+    // Takes the PLAN, not a bare `usize`: the secondary buffer's own leading
+    // empties come from `right_bind_lines`, built against `billed_header_rows
+    // + cue_above_rows` (`overlay_shape.rs`/`shape_faceted`'s own
+    // `bind_strs`) — `billed_header_rows` because the docked facet strip's box
+    // never reaches this buffer (`geom.header_rows`, the box count used for
+    // hit-testing and clip carving, would desync every row below it under
+    // `FacetStyle::DockedTab`) and `cue_above_rows` because the above-edge
+    // count cue shifts the PRIMARY buffer's row 0 down by the same one line
+    // (`OverlayGeom::shaped_first_row_line`) and this buffer moved with it.
     pub(in crate::render) fn overlay_row_secondary_px(
         &self,
-        billed_header_rows: usize,
+        plan: &OverlayRowPlan,
     ) -> std::collections::BTreeMap<usize, f32> {
+        let leading = plan.billed_header_rows() + plan.cue_above_rows();
         let mut m = std::collections::BTreeMap::new();
         for run in self.panel_bind_buffer.layout_runs() {
-            if run.line_i >= billed_header_rows && run.line_w > 0.0 {
-                m.insert(run.line_i - billed_header_rows, run.line_w);
+            if run.line_i >= leading && run.line_w > 0.0 {
+                m.insert(run.line_i - leading, run.line_w);
             }
         }
         m

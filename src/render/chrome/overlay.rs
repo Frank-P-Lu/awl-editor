@@ -310,9 +310,14 @@ impl TextPipeline {
             (self.window_h - card_y - margin - 2.0 * pad - header_gap).max(self.overlay_lh())
         };
         let chrome_rows = header_rows + hint_gap_rows + hint_rows + empty_rows + footer_rows;
-        let (top_idx, visible) = self.overlay_flat_window(n_items, avail_px, chrome_rows);
+        let fit_window =
+            |chrome_rows: usize| self.overlay_flat_window(n_items, avail_px, chrome_rows);
+        let (mut top_idx, mut visible, mut cue_above, mut cue_below, mut cue_rows) =
+            super::overlay_clamp::resolve_window_and_cue(n_items, |extra| {
+                fit_window(chrome_rows + extra)
+            });
         let mut total_rows =
-            header_rows + visible + empty_rows + hint_gap_rows + hint_rows + footer_rows;
+            header_rows + visible + empty_rows + hint_gap_rows + hint_rows + footer_rows + cue_rows;
         let desired_w = self.overlay_desired_w(CARD_MAX_W);
         let (mut card_x, card_w) = self.overlay_card_box(width, desired_w);
         if let Some((x, _)) = self.overlay_context_anchor {
@@ -334,6 +339,17 @@ impl TextPipeline {
         if !contextual && card_y + card_h > self.window_h + 0.01 && hint_gap_rows > 0 {
             total_rows -= hint_gap_rows;
             hint_gap_rows = 0;
+            card_h = self.overlay_card_h(total_rows, header_gap, hint_rows, hint_gap_rows, pad);
+        }
+        // The count cue is decorative, non-load-bearing chrome exactly like the
+        // hint gap above — in the same starvation corner, drop it and re-fit
+        // the window at the ORIGINAL overhead rather than let it force the
+        // card past the canvas.
+        if !contextual && card_y + card_h > self.window_h + 0.01 && cue_rows > 0 {
+            (top_idx, visible) = fit_window(chrome_rows);
+            (cue_above, cue_below, cue_rows) = (None, None, 0);
+            total_rows =
+                header_rows + visible + empty_rows + hint_gap_rows + hint_rows + footer_rows;
             card_h = self.overlay_card_h(total_rows, header_gap, hint_rows, hint_gap_rows, pad);
         }
         let card_y = if contextual {
@@ -363,6 +379,9 @@ impl TextPipeline {
             text_top,
             text_w,
             card_narrow,
+            cue_above,
+            cue_below,
+            cue_reserved: cue_rows > 0,
             ..OverlayGeom::base()
         }
     }
@@ -402,8 +421,10 @@ impl TextPipeline {
         let below_avail = self.window_h - (word_top + word_h + gap) - margin;
         let above_avail = word_top - gap - margin;
         let avail_px = below_avail.max(above_avail).max(self.overlay_lh());
-        let (top_idx, visible) =
-            self.overlay_flat_window(n_items, avail_px, header_rows + hint_rows);
+        let (top_idx, visible, cue_above, cue_below, cue_rows) =
+            super::overlay_clamp::resolve_window_and_cue(n_items, |extra| {
+                self.overlay_flat_window(n_items, avail_px, header_rows + hint_rows + extra)
+            });
 
         // Width fits the WIDEST suggestion ROW: its SHAPED width measured into
         // `overlay_spell_w`, not the anchor word. A short misspelling therefore cannot
@@ -440,7 +461,7 @@ impl TextPipeline {
         } else {
             char_grid_w
         };
-        let rows = header_rows + visible.max(1) + hint_rows;
+        let rows = header_rows + visible.max(1) + hint_rows + cue_rows;
         // The MIN/MAX bounds are tuned for the 1:1 capture canvas; GROW them with the
         // current zoom/DPI (the SAME grow-only `LogicalGrowOnly` the takeover
         // card's width uses) so a long correction isn't clamped to an unzoomed cap
@@ -487,6 +508,9 @@ impl TextPipeline {
             text_left,
             text_top,
             text_w,
+            cue_above,
+            cue_below,
+            cue_reserved: cue_rows > 0,
             ..OverlayGeom::base()
         }
     }
@@ -563,6 +587,20 @@ impl TextPipeline {
         ))
     }
 
+    /// The POSITIONAL COUNT CUE's own state for the sidecar, or `None` when no
+    /// overlay is open: `(above, below)`, items hidden past each edge of the
+    /// drawn window — `None` on a side that draws no cue. Reads the SAME
+    /// [`Self::overlay_geometry`] `overlay_window_report` does, so a sidecar
+    /// reader can never see a cue the card did not actually reserve a line
+    /// for (or miss one it did).
+    pub fn overlay_edge_cue_report(&self) -> Option<(Option<usize>, Option<usize>)> {
+        if !self.overlay_active {
+            return None;
+        }
+        let geom = self.overlay_geometry(self.window_w as u32);
+        Some((geom.cue_above, geom.cue_below))
+    }
+
     /// THE ONE PLANNING SEAM for the candidate-row band. Hands the
     /// already-resolved [`OverlayGeom`] (card box + window + header metrics) and
     /// the row pitch to the device-free scene planner, which emits one
@@ -603,6 +641,8 @@ impl TextPipeline {
             empty_rows: geom.empty.is_some() as usize,
             lines: geom.theme.then_some(geom.plan.as_slice()),
             dx_per_row: self.overlay_row_dx_step(),
+            cue_above_rows: geom.cue_reserved as usize,
+            cue_below_rows: geom.cue_reserved as usize,
             cluster_span,
             selected_offset,
             selected_display,
@@ -628,7 +668,7 @@ impl TextPipeline {
         if self.overlay_ranges.is_empty() || !self.overlay_right_shown {
             return Vec::new();
         }
-        let secondary = self.overlay_row_secondary_px(plan.billed_header_rows());
+        let secondary = self.overlay_row_secondary_px(plan);
         let primary = self.overlay_row_primary_px(geom);
         let cluster = self.diagonal_cluster;
         let mut out = Vec::new();

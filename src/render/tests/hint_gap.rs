@@ -353,7 +353,7 @@ fn a_hint_reserves_compact_pixels_before_workspace_rows_and_two_slots_on_cards()
         // count at all. Shrinking the canvas makes the pixel budget the binding
         // constraint, which is the constraint `overlay_hint_gap_rows` actually
         // feeds.
-        p.set_size(1200.0, 350.0);
+        p.set_size(1200.0, 460.0);
 
         let visible_rows = |p: &mut TextPipeline, v: &ViewState| -> usize {
             p.set_view(v);

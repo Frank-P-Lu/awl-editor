@@ -54,6 +54,8 @@ fn flat(
         cluster_span: None,
         selected_offset: None,
         selected_display: None,
+        cue_above_rows: 0,
+        cue_below_rows: 0,
     }
 }
 
@@ -617,6 +619,8 @@ fn headered_billed(
         cluster_span: None,
         selected_offset: None,
         selected_display: None,
+        cue_above_rows: 0,
+        cue_below_rows: 0,
     })
 }
 

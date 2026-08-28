@@ -62,7 +62,7 @@ use super::{headless_dqp, view};
 use crate::overlay::OverlayKind;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-enum Family {
+pub(super) enum Family {
     Flat,
     Grouped,
     Contextual,
@@ -75,8 +75,10 @@ enum Family {
 
 /// Classify a kind by the SAME no-wildcard match production reads
 /// (`facets::scheme`), not a second hand-maintained copy — seeing exactly why
-/// this file exists in the first place (its module doc above).
-fn family(kind: OverlayKind) -> Family {
+/// this file exists in the first place (its module doc above). `pub(super)`:
+/// `edge_count_cue_law.rs` reuses this and `overlay_view` below rather than
+/// carrying a second hand-copied corpus/classifier fixture.
+pub(super) fn family(kind: OverlayKind) -> Family {
     if kind == OverlayKind::Spell {
         return Family::Contextual;
     }
@@ -106,7 +108,7 @@ fn family(kind: OverlayKind) -> Family {
 /// has cycled to (real section headers). A grouped picker spends the vast
 /// majority of its open time on "All"; `sectioned` lets a caller choose which
 /// shape it wants rather than always paying the extra header overhead.
-fn overlay_view(kind: OverlayKind, n: usize, sectioned: bool) -> ViewState {
+pub(super) fn overlay_view(kind: OverlayKind, n: usize, sectioned: bool) -> ViewState {
     let mut v = view("hello world\nsecond line\n", 0, 0);
     v.overlay_active = true;
     v.overlay_title = kind.title().to_string();
@@ -715,6 +717,37 @@ fn fingerprint(
 /// visible row count drops by exactly one where it did not (`Goto`,
 /// `Browse`) — this test's own claim (the FLOOR fix stays a no-op here) is
 /// untouched; only the baseline it diffs against moved.
+///
+/// **Re-pinned again for the positional COUNT CUE.** Every one of these five
+/// scenarios is deliberately windowed (`overlay_view` seeds `window_rows() +
+/// 25` items), so every one now draws a below-edge "↓ N more" line — the
+/// exact axis this item exists to surface. `card_h` grows one more row where
+/// the per-kind cap was already binding and the canvas had slack (`Command`,
+/// `Project`: the window shows the same rows as before, just with a cue line
+/// added beneath them); the visible row count drops by one more where the
+/// CANVAS was the binding constraint (`Goto`: 5 -> 4, `Browse`: 6 -> 5) —
+/// the cue's own reserved line is carved out of the same fixed budget an
+/// ordinary overhead row already was. This is the count cue actually firing,
+/// not a floor-fix regression; the floor-fix claim above is still the thing
+/// under test and is still a no-op everywhere it was before.
+///
+/// **Re-pinned a second time: the reservation became SYMMETRIC.** The cue's
+/// budget fixed point (`resolve_window_and_cue`) originally charged exactly
+/// as many extra rows as the edges clipping at the fixture's own scroll
+/// position — one, here, since every one of these opens scrolled to its
+/// LAST item (`overlay_view`'s own default `selected`), which clips only
+/// above. That charge is scroll-DEPENDENT, and a card whose height depends
+/// on which edges happen to clip at the CURRENT selection resizes as the
+/// reader scrolls through an already-open card — `render/tests/
+/// edge_count_cue_law.rs`'s own module doc has the caught regression. The
+/// fix reserves BOTH edges unconditionally once a corpus is windowed at all,
+/// so every one of these five numbers moves by one more row/line again:
+/// `card_h` grows a second row where it grew one before (`Command`,
+/// `Project`), and the visible count drops a second row where IT dropped one
+/// before (`Goto`: 4 -> 3, `Browse`: 5 -> 4) — even though only ONE edge
+/// (`above`) actually carries text at this scroll position, the OTHER edge's
+/// line is still reserved, blank, so the reservation itself cannot change
+/// shape if the reader scrolls to where `below` also has something to say.
 #[test]
 fn already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix() {
     let _g = crate::testlock::serial();
@@ -740,10 +773,10 @@ fn already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix() {
                 zoom: 1.0,
             },
             (
-                485.800_02,
+                540.199_95,
                 (300.0, 900.0),
                 12,
-                Some((25, 12, 11, 485.800_02, 800.0)),
+                Some((25, 12, 11, 540.199_95, 800.0)),
             ),
         ),
         (
@@ -753,7 +786,12 @@ fn already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix() {
                 canvas: (1200, 800),
                 zoom: 1.0,
             },
-            (513.0, (300.0, 900.0), 13, Some((25, 13, 12, 513.0, 800.0))),
+            (
+                567.399_96,
+                (300.0, 900.0),
+                13,
+                Some((25, 13, 12, 567.399_96, 800.0)),
+            ),
         ),
         (
             Scenario {
@@ -784,7 +822,7 @@ fn already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix() {
             // (578.8 -> 589.8): the row count this cell fits does not move
             // again, only how much of the compact row's own slack survives
             // the reclaim.
-            (589.8, (20.0, 680.0), 5, Some((32, 5, 4, 589.8, 800.0))),
+            (589.8, (20.0, 680.0), 3, Some((34, 3, 2, 589.8, 800.0))),
         ),
         // `History` does not belong in this cell: it is not a GROUPED picker
         // either, but a summoned workspace, so its numbers here would be
@@ -806,10 +844,10 @@ fn already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix() {
             // moves it at every scale away from 1, not only on retina; the
             // card_x span is untouched because the edge floor never binds here.
             (
-                257.0,
+                284.199_98,
                 (400.0, 1000.0),
                 13,
-                Some((25, 13, 12, 257.0, 1600.0)),
+                Some((25, 13, 12, 284.199_98, 1600.0)),
             ),
         ),
         // `Settings` does not belong in this fifth cell: it is not a GROUPED
@@ -829,7 +867,7 @@ fn already_fitting_grouped_pickers_stay_byte_identical_across_the_floor_fix() {
             // fewer visible row (7 -> 6), and `card_h` also drops (331.8 ->
             // 316.6) for the same content-derived-not-window-clamped reason;
             // the widened gap row grows it again (316.6 -> 322.6).
-            (322.6, (150.0, 750.0), 6, Some((32, 6, 5, 322.6, 460.0))),
+            (322.6, (150.0, 750.0), 4, Some((34, 4, 3, 322.6, 460.0))),
         ),
     ];
     // EVERY cell is reported, not just the first to move: a pinned-fingerprint

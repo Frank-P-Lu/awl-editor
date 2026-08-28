@@ -1113,7 +1113,7 @@ fn the_room_wordmark_never_lands_under_a_diagonal_row() {
                         anchors_seen.insert(format!("{anchor:?}"));
 
                         let primary = p.overlay_row_primary_px(&geom);
-                        let secondary = p.overlay_row_secondary_px(plan.billed_header_rows());
+                        let secondary = p.overlay_row_secondary_px(&plan);
                         let rows = RowMeasurements {
                             plan: &plan,
                             probe: &probe,

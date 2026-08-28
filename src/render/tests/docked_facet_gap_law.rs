@@ -118,11 +118,24 @@ fn the_first_item_row_sits_within_one_beat_of_the_query_row_on_every_docked_face
             };
             let gap = first_row.top - query.bottom();
             let beat = p.overlay_header_gap();
+            // The full command roster this fixture drives routinely exceeds
+            // the palette's own window cap, so the ABOVE-EDGE count cue
+            // (item 508) can reserve its own line ahead of row 0 regardless
+            // of scroll position (`OverlayRowPlan::cue_above_rows`, always
+            // `0` or `1`, unconditional once the corpus is windowed at all —
+            // never re-derived from whether this SPECIFIC lens happens to
+            // scroll a hidden item into view). That is a real, separately
+            // law-tested feature (`render/tests/edge_count_cue_law.rs`), not
+            // the docked-strip regression this law is about, so its own
+            // reserved room is allowed here rather than re-widening the
+            // floor and hiding a real docked-strip regression behind it.
+            let cue_above_px = plan.cue_above_rows() as f32 * lh;
             assert!(
-                gap <= beat + 0.75,
+                gap <= beat + cue_above_px + 0.75,
                 "{world} lens {lens}: the first item row sits {gap:.1}px below the query \
-                 row, more than one beat ({beat:.1}px) — the docked strip's own header box \
-                 is billing the row budget a full row it never draws"
+                 row, more than one beat ({beat:.1}px) plus the count cue's own reserved \
+                 room ({cue_above_px:.1}px) — the docked strip's own header box is billing \
+                 the row budget a full row it never draws"
             );
             graded += 1;
         }
@@ -175,6 +188,13 @@ fn header_rows_billing_regression_reopens_the_vacated_strip_row() {
         .first()
         .expect("a faceted card plans a first candidate row")
         .top;
+    // The full command roster this fixture drives routinely windows, so the
+    // above-edge count cue (item 508) may add its own reserved line ahead of
+    // row 0 — real, separately law-tested room this reconstruction must
+    // subtract back out before comparing against the retired formula, or a
+    // coincidence of the two rows' pixel heights (both `lh`) would silently
+    // cancel the very regression this test exists to reopen.
+    let actual_first_top_without_cue = actual_first_top - plan.cue_above_rows() as f32 * lh;
 
     // THE RETIRED FORMULA: both header boxes (query + strip) billed their own
     // full `lh` regardless of `FacetStyle::DockedTab`
@@ -183,10 +203,10 @@ fn header_rows_billing_regression_reopens_the_vacated_strip_row() {
     let retired_first_top = query.top + 2.0 * lh + beat;
 
     assert!(
-        (retired_first_top - actual_first_top - lh).abs() < 0.75,
+        (retired_first_top - actual_first_top_without_cue - lh).abs() < 0.75,
         "{world}: the retired formula and the shipped one must differ by exactly the \
          reclaimed row ({lh:.1}px), or this fixture no longer reconstructs the regression \
-         — retired {retired_first_top:.1}, actual {actual_first_top:.1}"
+         — retired {retired_first_top:.1}, actual (cue-adjusted) {actual_first_top_without_cue:.1}"
     );
     let retired_gap = retired_first_top - query.bottom();
     assert!(
