@@ -9,6 +9,8 @@
 ---
 ### 504 — destination navigators show no current-folder indication while browsing (found by item 444's Move-navigator verification, 2026-08-26)
 
+🟡 IN PROGRESS — claude, branch item-504-507-512 (combined lane with 507, 512)
+
 Move, Export, and ProjectBrowse all navigate `browse_dir` internally but never
 render it: the card title stays static (e.g. `move welcome.md`) with no
 breadcrumb after descending into a subfolder, confirmed by real
@@ -38,6 +40,8 @@ third.
 ---
 ### 507 — an opened folder's row reads as a file and gets no current highlight (user-reported, 2026-08-27)
 
+🟡 IN PROGRESS — claude, branch item-504-507-512 (combined lane with 504, 512)
+
 The user opened the `syntax` folder and, in the right-anchored list, its row
 shows no folder identity (no trailing `/`, unlike Go-to's Folders-lens rows
 which carry one by law) and no indication it is the current/open one: "it's
@@ -50,6 +54,8 @@ pattern, not two.
 
 ---
 ### 508 — truncated lists give no scroll or position indication (user-reported UX gap, 2026-08-27)
+
+🟡 IN PROGRESS — claude, branch item-508
 
 Long lists fold behind `+ N more…` (`workingset.rs`) and pickers window their
 rows, but nothing tells the user where they are in the list or how much is
@@ -94,6 +100,8 @@ one geometry is the classic way this law would go green while blind.
 ---
 ### 511 — long bare URLs render as a raw multi-line wall (user-reported, 2026-08-27)
 
+🟡 IN PROGRESS — claude, branch item-511
+
 A pasted tracking-heavy URL wraps across seven lines of raw query string:
 "isn't this kinda ugly?" On the Live-Preview model this is a conceal
 candidate: a bare URL could display tamed while the caret is off its line
@@ -115,6 +123,8 @@ Revert cost: remove the new `ConcealKind` variant, its detector arm, and its
 
 ---
 ### 512 — working-set groups and folder history dedup by exact path spelling, and group labels carry leaf-only identity (measured, supersedes withdrawn 506, 2026-08-27)
+
+🟡 IN PROGRESS — claude, branch item-504-507-512 (combined lane with 504, 507)
 
 The user reported "you can open the same folder twice??" (no steps captured).
 Measured against the code rather than reproduced live: opening the same
@@ -142,6 +152,8 @@ lens is tier-1-only, docs/harness-reach.md).
 
 ---
 ### 513 — contextual menus lose the teaching footer; summoned-surface material taxonomy decided (design session, 2026-08-29)
+
+🟡 IN PROGRESS — claude, branch item-513
 
 DECIDED (user-confirmed 2026-08-29), three parts. The design question was
 "the format popover looks too different from the right-click menu — should
