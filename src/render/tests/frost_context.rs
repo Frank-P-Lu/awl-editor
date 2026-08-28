@@ -72,6 +72,18 @@ fn context_menu(text: &str, dpi: f32) -> ViewState {
         state,
         crate::commands::Platform::Native,
     );
+    context_menu_with_rows(&rows, text, dpi)
+}
+
+/// Same construction as [`context_menu`], generalized to an arbitrary already-built
+/// row list — the seam [`every_anchored_target_declines_the_full_takeover`] drives
+/// once per [`ContextTarget`] so the routing is proved for the target the item
+/// itself names (Heading), not only Selection.
+fn context_menu_with_rows(
+    rows: &[crate::context_menu::ContextRow],
+    text: &str,
+    dpi: f32,
+) -> ViewState {
     let mut v = view_md(text, 0, 0);
     v.overlay_active = true;
     v.overlay_title = crate::overlay::OverlayKind::Context.title().to_string();
@@ -250,6 +262,90 @@ fn a_pointer_anchored_menu_declines_the_full_takeover_and_a_room_summoned_card_k
         !room_full.is_empty(),
         "no world reached the full-canvas frost from a room-summoned card — the control arm \
          is empty and clause 3 proves nothing"
+    );
+}
+
+/// THE ROUTING LAW SWEPT OVER EVERY [`ContextTarget`], NOT SELECTION ALONE — a
+/// NO-WILDCARD `match` over [`ContextTarget::ALL`], so a target added to that enum
+/// tomorrow is swept by this law the moment it exists rather than when someone
+/// remembers to list it here. The item's own report is the Heading target
+/// specifically; this is what proves the routing is the ANCHOR's doing (every
+/// target reaches the same `context_menu::overlay` door) and not a property only
+/// Selection happens to have.
+///
+/// One dichotomy, one DPI, the ambient menu-bar state — the full world × DPI × bar
+/// sweep already lives in the routing law above and stays keyed to Selection; this
+/// law adds the target axis instead of multiplying every other axis by it, which
+/// would turn a 17s test into one that times out the gate for no new coverage
+/// (every target reaches the SAME anchor-only predicate, so no cell here can
+/// disagree by world or DPI once the routing law above has already swept those).
+///
+/// [`ContextTarget::Misspelling`] is the one target whose row list is
+/// deliberately empty ("the established spell picker owns this target" —
+/// `context_menu::rows`'s own doc) — asserted explicitly below, not skipped by a
+/// blanket continue, so a future target that returns rows for the first time is
+/// caught rather than silently joining the exemption.
+#[test]
+fn every_anchored_target_declines_the_full_takeover() {
+    let _g = crate::testlock::serial();
+    let entry = crate::theme::active_index();
+    // Named, not derived: one member of each arm the routing law above already
+    // measured (`backs_its_rows`/`flat_backdrop`) — this law's subject is the
+    // TARGET axis, and the world roster is already proved by the law above.
+    let worlds = ["Magpie", "Wagtail"];
+    let state = crate::context_menu::ContextState {
+        has_selection: true,
+        link: true,
+        heading: true,
+        heading_folded: false,
+        misspelled: true,
+        named_file: true,
+    };
+    let mut swept = Vec::new();
+    for world in worlds {
+        let Some((device, queue, mut p)) = headless_dqp(1200.0, 900.0) else {
+            eprintln!("skipping every_anchored_target_declines_the_full_takeover: no wgpu adapter");
+            crate::theme::set_active(entry);
+            return;
+        };
+        crate::theme::set_active_by_name(world).unwrap();
+        for target in ContextTarget::ALL {
+            let rows = crate::context_menu::rows(target, state, crate::commands::Platform::Native);
+            if rows.is_empty() {
+                assert_eq!(
+                    target,
+                    ContextTarget::Misspelling,
+                    "{world}/{target:?}: an anchored context menu with no rows is not \
+                     `Misspelling` — the one target this law lets through empty. \
+                     Either this target needs a state field flipped on above, or it \
+                     has quietly joined the spell-picker exemption without a law \
+                     saying so."
+                );
+                continue;
+            }
+            let v = context_menu_with_rows(&rows, DENSE, 1.0);
+            p.set_view(&v);
+            let _ = render_frame(&device, &queue, &mut p, 1200, 900);
+            let frost = p.frost_mode();
+            assert_ne!(
+                frost,
+                Some(crate::render::blur::Frost::Full),
+                "{world}/{target:?}: an anchored context menu ({} row(s)) took the \
+                 whole-canvas frost",
+                rows.len()
+            );
+            assert!(
+                !p.dims_doc(),
+                "{world}/{target:?}: `dim_overlay` is set under an anchored menu"
+            );
+            swept.push((world, target));
+        }
+    }
+    crate::theme::set_active(entry);
+    assert_eq!(
+        swept.len(),
+        worlds.len() * (ContextTarget::ALL.len() - 1),
+        "every target but Misspelling must have run on every named world: {swept:?}"
     );
 }
 

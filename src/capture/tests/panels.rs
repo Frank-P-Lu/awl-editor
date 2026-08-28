@@ -1105,6 +1105,185 @@ fn context_menu_capture_names_its_anchor_and_paints_the_anchored_card() {
     );
 }
 
+/// THE HEADING CONTEXT MENU DOES NOT TOUCH THE PAGE OUTSIDE ITS OWN FOOTPRINT —
+/// proved through the SAME production capture door `--screenshot` uses
+/// (`capture_with`), companion to `render::tests::frost_context`'s pipeline-level
+/// sweep of the WHOLE world roster (which drives `TextPipeline` directly and
+/// cannot exist as a `--screenshot`/`--screenshot-app` artifact: a right-click has
+/// zero `--keys` vocabulary, docs/harness-reach.md "Mouse-drag gestures have zero
+/// `--keys` vocabulary" — the gesture itself is live-only, the STATE it produces is
+/// what a capture literal reproduces). Two worlds stand in for that sweep's two
+/// answers, picked from its own measured output rather than guessed: Magpie
+/// reaches the FOOTPRINT arm (its composition backs neither the card nor its
+/// rows), Wagtail backs its own rows (frost is `None` outright). If either world's
+/// own composition ever drifts off its arm, `render::tests::frost_context` goes red
+/// first — this law only needs one member of each to prove the capture door itself
+/// agrees.
+///
+/// The menu built here is the HEADING menu specifically — the item's own report —
+/// through the production row policy (`context_menu::rows`), not a synthetic list.
+const HEADING_MENU_FOOTPRINT_DOC: &str = concat!(
+    "# Fold this section\n\n",
+    "The right-click card lands near the pointer, and the page it was summoned\n",
+    "over keeps its own colours everywhere the card and its feather do not\n",
+    "reach — the region this law samples, far from the anchor.\n\n",
+    "A second paragraph gives the lower canvas real glyph edges too, so an\n",
+    "unchanged claim there is a claim about something rather than a blank.\n\n",
+    "- Fold section\n",
+    "- Collapse other sections\n",
+    "- Go to heading…\n",
+);
+
+/// The heading menu's real rows (`context_menu::rows`) laid onto an `OverlayInfo`
+/// at `anchor`, mirroring `context_menu_capture_names_its_anchor_and_paints_the_anchored_card`'s
+/// construction — factored out so the law itself fits under the line budget.
+fn heading_context_overlay(items: &[String], anchor: (f32, f32)) -> OverlayInfo {
+    OverlayInfo {
+        align: crate::render::effective_card_anchor(),
+        active: true,
+        mode: "context",
+        title: "context menu".to_string(),
+        query: String::new(),
+        query_caret: 0,
+        items: items.to_vec(),
+        ranges: Vec::new(),
+        bindings: vec![String::new(); items.len()],
+        git: Vec::new(),
+        selected_index: 0,
+        hint: "↵ choose   esc close".into(),
+        browse_dir: None,
+        return_to: None,
+        spell_target: None,
+        context_anchor: Some(anchor),
+        capture: None,
+        notice: String::new(),
+        lens: None,
+        lens_strip: Vec::new(),
+        sections: Vec::new(),
+        preview_id: None,
+        preview_view: None,
+        workspace: false,
+        detail_focus: false,
+        diff_scroll: 0,
+        empty: None,
+        show_hidden: false,
+    }
+}
+
+/// Count of pixels differing between two same-sized frames inside `(x0, y0,
+/// w, h)` — the one region-diff owner both the inside and outside floors call.
+fn region_diff(
+    off: &image::RgbaImage,
+    on: &image::RgbaImage,
+    x0: u32,
+    y0: u32,
+    w: u32,
+    h: u32,
+) -> usize {
+    (y0..y0 + h)
+        .flat_map(|y| (x0..x0 + w).map(move |x| (x, y)))
+        .filter(|&(x, y)| off.get_pixel(x, y) != on.get_pixel(x, y))
+        .count()
+}
+
+/// THE HEADING CONTEXT MENU DOES NOT TOUCH THE PAGE OUTSIDE ITS OWN FOOTPRINT —
+/// proved through the SAME production capture door `--screenshot` uses
+/// (`capture_with`), companion to `render::tests::frost_context`'s pipeline-level
+/// sweep of the WHOLE world roster (which drives `TextPipeline` directly and
+/// cannot exist as a `--screenshot`/`--screenshot-app` artifact: a right-click has
+/// zero `--keys` vocabulary, docs/harness-reach.md "Mouse-drag gestures have zero
+/// `--keys` vocabulary" — the gesture itself is live-only, the STATE it produces is
+/// what a capture literal reproduces). Two worlds stand in for that sweep's two
+/// answers, picked from its own measured output rather than guessed: Magpie
+/// reaches the FOOTPRINT arm (its composition backs neither the card nor its
+/// rows), Wagtail backs its own rows (frost is `None` outright). If either world's
+/// own composition ever drifts off its arm, `render::tests::frost_context` goes red
+/// first — this law only needs one member of each to prove the capture door itself
+/// agrees.
+///
+/// The menu built here is the HEADING menu specifically — the item's own report —
+/// through the production row policy (`context_menu::rows`), not a synthetic list.
+#[test]
+fn heading_context_menu_capture_leaves_the_page_outside_its_footprint_byte_identical() {
+    if !adapter_available() {
+        eprintln!("skipping heading_context_menu_capture_...: no wgpu adapter");
+        return;
+    }
+    let _g = crate::testlock::serial();
+    let entry = crate::theme::active_index();
+    let dir = ScratchDir::new(std::env::temp_dir().join(format!(
+        "awl_context_footprint_capture_{}",
+        std::process::id()
+    )));
+    let buf = Buffer::from_str(HEADING_MENU_FOOTPRINT_DOC);
+    let state = crate::context_menu::ContextState {
+        has_selection: false,
+        link: false,
+        heading: true,
+        heading_folded: false,
+        misspelled: false,
+        named_file: true,
+    };
+    let rows = crate::context_menu::rows(
+        crate::context_menu::ContextTarget::Heading,
+        state,
+        crate::commands::Platform::Native,
+    );
+    let items: Vec<String> = rows.iter().map(|r| r.label.to_string()).collect();
+    let anchor = (140.0, 120.0);
+
+    for world in ["Magpie", "Wagtail"] {
+        crate::theme::set_active_by_name(world).unwrap();
+
+        let off_png = dir.join(format!("{world}-off.png"));
+        capture_with(&off_png, &buf, &CaptureOpts::default()).expect("plain capture");
+
+        let opts = CaptureOpts {
+            overlay: Some(heading_context_overlay(&items, anchor)),
+            ..CaptureOpts::default()
+        };
+        let on_png = dir.join(format!("{world}-on.png"));
+        capture_with(&on_png, &buf, &opts).expect("context capture");
+
+        let sidecar: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(on_png.with_extension("json")).unwrap())
+                .unwrap();
+        assert_eq!(
+            sidecar["dim_overlay"],
+            serde_json::json!(false),
+            "{world}: a pointer-anchored heading menu must not dim the document"
+        );
+
+        let off = image::open(&off_png).unwrap().to_rgba8();
+        let on = image::open(&on_png).unwrap().to_rgba8();
+
+        // INSIDE floor: the card painted real pixels near the anchor — the
+        // companion presence floor, so this law is not satisfiable by a card
+        // that draws nothing.
+        let inside_changed = region_diff(&off, &on, anchor.0 as u32, anchor.1 as u32, 240, 80);
+        assert!(
+            inside_changed > 500,
+            "{world}: the heading menu must paint real pixels near its anchor, got {inside_changed}"
+        );
+
+        // OUTSIDE floor: a region far from the anchor — well beyond the largest
+        // skirt `render::tests::frost_context` ever measures (~170px at 2x) —
+        // stays BYTE IDENTICAL. This is the item's own claim: the page around the
+        // panel stays fully legible, not frosted/blurred/dimmed, and a `0` count
+        // refuses even a faint wash a "mostly unchanged" threshold would let
+        // through.
+        let outside_diff = region_diff(&off, &on, 820, 560, 280, 200);
+        assert_eq!(
+            outside_diff, 0,
+            "{world}: {outside_diff} px far from the heading menu's anchor changed \
+             between the plain page and the menu capture — the item's own report was \
+             a full-page frost behind the card, and this is the region that must stay \
+             untouched"
+        );
+    }
+    crate::theme::set_active(entry);
+}
+
 /// CARET-STYLE PICKER, MORPH highlighted: the settled preview demo actually PAINTS
 /// the glyph silhouette (`caret_preview.silhouette == true`) — the bug fix. Drives
 /// the exact overlay shape a real `--keys "Cmd-P C a r e t Enter Down"` replay
