@@ -1147,6 +1147,7 @@ fn heading_context_overlay(items: &[String], anchor: (f32, f32)) -> OverlayInfo 
         title: "context menu".to_string(),
         query: String::new(),
         query_caret: 0,
+        query_selection: None,
         items: items.to_vec(),
         ranges: Vec::new(),
         bindings: vec![String::new(); items.len()],
