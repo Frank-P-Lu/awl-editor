@@ -287,6 +287,7 @@ impl TextPipeline {
         self.overlay_spine.draw(pass);
         self.overlay_spine_selected.draw(pass);
         self.overlay_rows.draw(pass);
+        self.panel_query_selection.draw(pass);
         self.overlay_cross.draw(pass);
         self.overlay_range_track.draw(pass);
         self.overlay_range_thumb.draw(pass);

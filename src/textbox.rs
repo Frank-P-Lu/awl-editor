@@ -36,14 +36,44 @@ use crate::buffer::{
     word_forward_boundary,
 };
 
-/// A single-line text field: its content plus a CHAR-index caret. Shared by
-/// every end-only minibuffer field (see the module doc) so motion/edit/word
-/// rules exist in exactly ONE place — "same behavior ⇒ same code".
+/// A single-line text field: its content plus a CHAR-index caret, plus an
+/// OPTIONAL selection anchor. Shared by every end-only minibuffer field (see
+/// the module doc) so motion/edit/word rules exist in exactly ONE place —
+/// "same behavior ⇒ same code".
+///
+/// SELECTION MECHANICS (minimal by design — only [`Self::seeded_selecting_prefix`]
+/// ever arms one today, for the Rename minibuffer's seeded stem): `anchor` is
+/// the selection's OTHER edge, `caret` is always the ACTIVE edge. The
+/// invariant every mutator below upholds is structural, not defensive:
+/// `anchor` is `None` whenever there is nothing selected, and is NEVER left
+/// equal to `caret` (a zero-width "selection" is the same as no selection, so
+/// every op that would produce one clears `anchor` instead). Two rules cover
+/// every existing method:
+///   * an EDIT op (`insert`, `delete_back`, `delete_forward`,
+///     `delete_word_back`, `delete_word_forward`) deletes the active
+///     selection FIRST (the file-manager "type/delete replaces the
+///     selection" convention) and never compounds it with its own char/word
+///     rule;
+///   * a MOTION op (`char_left`/`right`, `word_left`/`right`, `set_caret`)
+///     COLLAPSES an active selection to the edge the motion implies, rather
+///     than stepping further from either edge.
+///
+/// A field with no selection (every one of the other 6 minibuffer fields, and
+/// Rename itself after its first keystroke) never sets `anchor`, so every
+/// rule above is a no-op for it — this is purely additive.
+///
+/// Deliberately UNIMPLEMENTED (no current caller needs it): shift-to-extend,
+/// mouse-drag-select, copy/cut of a selection. Adding one of those later is a
+/// new caller of `anchor`, not a change to the mechanics above.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct TextBox {
     text: String,
-    /// CHAR index into `text`, always in `0..=text.chars().count()`.
+    /// CHAR index into `text`, always in `0..=text.chars().count()`. The
+    /// ACTIVE selection edge (see the struct doc) when `anchor` is `Some`.
     caret: usize,
+    /// The selection's OTHER edge, or `None` when nothing is selected. Never
+    /// equal to `caret` — see the struct doc's invariant.
+    anchor: Option<usize>,
 }
 
 impl TextBox {
@@ -60,6 +90,25 @@ impl TextBox {
         Self {
             text: s.to_string(),
             caret: s.chars().count(),
+            anchor: None,
+        }
+    }
+
+    /// A field pre-filled with `s`, with characters `[0, prefix_len)`
+    /// SELECTED (anchor at 0) and the caret at `prefix_len` — the Rename
+    /// minibuffer's file-manager convention: the editable STEM arrives
+    /// pre-selected so the very first keystroke replaces it outright, while
+    /// an untouched tail (a file extension) sits past the caret rather than
+    /// inside the selection. `prefix_len` is CLAMPED to `s`'s char count. A
+    /// `prefix_len` of `0` seeds NO selection (`anchor` stays `None`) — the
+    /// struct doc's "never a zero-width selection" invariant, kept here at
+    /// the one place a selection is born rather than papered over later.
+    pub fn seeded_selecting_prefix(s: &str, prefix_len: usize) -> Self {
+        let caret = prefix_len.min(s.chars().count());
+        Self {
+            text: s.to_string(),
+            caret,
+            anchor: (caret > 0).then_some(0),
         }
     }
 
@@ -69,6 +118,31 @@ impl TextBox {
 
     pub fn caret(&self) -> usize {
         self.caret
+    }
+
+    /// The active selection as CHAR indices `(start, end)`, `start <= end`,
+    /// or `None` when there is none. Never `Some((x, x))` — see the struct
+    /// doc's invariant; a caller never has to special-case a zero-width
+    /// range.
+    pub fn selection_range(&self) -> Option<(usize, usize)> {
+        let a = self.anchor?;
+        (a != self.caret).then(|| (a.min(self.caret), a.max(self.caret)))
+    }
+
+    /// Deletes the active selection (if any), leaving the caret at its START
+    /// with no anchor. Every EDIT op below calls this FIRST — the
+    /// file-manager "type/delete replaces the selection" rule — and returns
+    /// early on `true` rather than compounding with its own char/word rule.
+    fn delete_selection_if_any(&mut self) -> bool {
+        let Some((start, end)) = self.selection_range() else {
+            return false;
+        };
+        let sb = self.byte_of(start);
+        let eb = self.byte_of(end);
+        self.text.replace_range(sb..eb, "");
+        self.caret = start;
+        self.anchor = None;
+        true
     }
 
     pub fn is_empty(&self) -> bool {
@@ -86,6 +160,7 @@ impl TextBox {
     /// query_home`] / `query_end`).
     pub fn set_caret(&mut self, at: usize) {
         self.caret = at.min(self.len_chars());
+        self.anchor = None;
     }
 
     /// The BYTE offset of CHAR index `idx` within `text` (`idx` may equal
@@ -109,6 +184,7 @@ impl TextBox {
     /// filtering (a Settings digit gate / Rename `/`-reject is the CALLER's
     /// job, applied before this is reached; see the module doc).
     pub fn insert(&mut self, c: char) {
+        self.delete_selection_if_any();
         let b = self.byte_of(self.caret);
         self.text.insert(b, c);
         self.caret += 1;
@@ -116,8 +192,12 @@ impl TextBox {
 
     /// Backspace: delete the CHARACTER before the caret — one extended
     /// grapheme cluster, through the same [`crate::grapheme`] owner the
-    /// document buffer's own Backspace uses. A no-op at the start.
+    /// document buffer's own Backspace uses. A no-op at the start. Replaces
+    /// (never compounds with) an active selection — see the struct doc.
     pub fn delete_back(&mut self) {
+        if self.delete_selection_if_any() {
+            return;
+        }
         if self.caret == 0 {
             return;
         }
@@ -135,6 +215,9 @@ impl TextBox {
     /// is claimed); kept for API completeness + its boundary-safety test.
     #[allow(dead_code)]
     pub fn delete_forward(&mut self) {
+        if self.delete_selection_if_any() {
+            return;
+        }
         if self.caret >= self.len_chars() {
             return;
         }
@@ -160,27 +243,53 @@ impl TextBox {
         crate::grapheme::prev_cluster_boundary(self.caret, |i| chars[i])
     }
 
-    /// One CHARACTER left — one grapheme cluster.
+    /// One CHARACTER left — one grapheme cluster. COLLAPSES an active
+    /// selection to its start instead of stepping past it — see the struct
+    /// doc's MOTION rule.
     pub fn char_left(&mut self) {
+        if let Some((start, _)) = self.selection_range() {
+            self.caret = start;
+            self.anchor = None;
+            return;
+        }
         self.caret = self.prev_boundary();
     }
 
-    /// One CHARACTER right — one grapheme cluster.
+    /// One CHARACTER right — one grapheme cluster. Collapses an active
+    /// selection to its end, mirroring [`Self::char_left`].
     pub fn char_right(&mut self) {
+        if let Some((_, end)) = self.selection_range() {
+            self.caret = end;
+            self.anchor = None;
+            return;
+        }
         self.caret = self.next_boundary();
     }
 
     /// WORD motion right — delegates to the SAME boundary rule
     /// [`Buffer::forward_word`](crate::buffer::Buffer::forward_word) uses
     /// (skip non-word, then skip word). NEVER the word-DELETE boundary — see
-    /// the module doc's "two word rules" trap.
+    /// the module doc's "two word rules" trap. Collapses an active selection
+    /// to its end rather than stepping a word past it, mirroring
+    /// [`Self::char_right`].
     pub fn word_right(&mut self) {
+        if let Some((_, end)) = self.selection_range() {
+            self.caret = end;
+            self.anchor = None;
+            return;
+        }
         let chars: Vec<char> = self.text.chars().collect();
         self.caret = word_forward_boundary(self.caret, chars.len(), |i| chars[i]);
     }
 
-    /// WORD motion left — the exact mirror of [`Self::word_right`].
+    /// WORD motion left — the exact mirror of [`Self::word_right`],
+    /// including its selection-collapse rule.
     pub fn word_left(&mut self) {
+        if let Some((start, _)) = self.selection_range() {
+            self.caret = start;
+            self.anchor = None;
+            return;
+        }
         let chars: Vec<char> = self.text.chars().collect();
         self.caret = word_backward_boundary(self.caret, |i| chars[i]);
     }
@@ -188,6 +297,9 @@ impl TextBox {
     /// WORD delete backward (⌥⌫) — the SAME token-class rule the document
     /// buffer's `delete_word_backward` uses, NOT the motion rule above.
     pub fn delete_word_back(&mut self) {
+        if self.delete_selection_if_any() {
+            return;
+        }
         if self.caret == 0 {
             return;
         }
@@ -203,6 +315,9 @@ impl TextBox {
     /// WORD delete forward (⌥+forward-Delete) — the exact mirror of
     /// [`Self::delete_word_back`].
     pub fn delete_word_forward(&mut self) {
+        if self.delete_selection_if_any() {
+            return;
+        }
         let chars: Vec<char> = self.text.chars().collect();
         let len = chars.len();
         if self.caret >= len {

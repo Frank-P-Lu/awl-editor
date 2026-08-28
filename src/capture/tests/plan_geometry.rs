@@ -58,6 +58,7 @@ pub(super) fn flat_picker_opts(ov: &OverlayState, canvas: (u32, u32), dpi: f32) 
         title: ov.kind.title().to_string(),
         query: ov.query.text().to_string(),
         query_caret: ov.query.caret(),
+        query_selection: None,
         items: ov.item_strings(),
         bindings: ov.item_bindings(),
         ranges: ov.item_range_fracs(),

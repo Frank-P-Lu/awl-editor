@@ -321,6 +321,7 @@ pub(super) fn settled_viewstate(
         .as_ref()
         .map(|o| o.query_caret)
         .unwrap_or_else(|| vstate.overlay_query.chars().count());
+    vstate.overlay_query_selection = opts.overlay.as_ref().and_then(|o| o.query_selection);
     // Modal prompts orient via `foot_hint`; unknown modes keep a visible title.
     vstate.overlay_title = opts
         .overlay

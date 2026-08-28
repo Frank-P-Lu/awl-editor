@@ -35,11 +35,83 @@ fn query_word_delete_removes_a_trailing_word_not_a_char() {
 #[test]
 fn rename_minibuffer_word_delete() {
     let mut ov = OverlayState::new_rename("hello world".to_string());
+    // "hello world" carries no extension, so the WHOLE name arrives
+    // pre-selected (see `rename_seeds_stem_selected_extension_untouched`
+    // below) -- collapse it first (a plain caret motion, the ⌥⌫ word-delete
+    // rule's OWN coverage lives here, not the "replace on delete" one) so
+    // this test still exercises `delete_word_back`'s boundary rule the way
+    // it always has.
+    ov.rename_edit_char_right();
+    assert_eq!(ov.rows[0].accept, "hello world");
     ov.rename_edit_pop_word();
     // The word-deleted value mirrors into corpus[0] (the visible editable row).
     assert_eq!(ov.rows[0].accept, "hello ");
     ov.rename_edit_pop_word();
     assert_eq!(ov.rows[0].accept, "");
+}
+
+// ── RENAME SEEDED SELECTION: stem selected, extension untouched ─────────────
+// item 510 -- the file-manager rename convention. `Path::file_stem` gets
+// every shape right with no special case: a normal `name.ext` selects `name`;
+// no extension AND a dotfile (whose own `file_stem` IS the whole name, per
+// `Path`'s documented rule) select the WHOLE name; `archive.tar.gz` selects
+// `archive.tar`, stripping only the LAST extension, same as a file manager.
+
+/// REQUIRED LAW (1/2): `new_rename` seeds the EXACT selection range + caret
+/// position `Path::file_stem` implies, swept over the four shapes the
+/// convention has to agree with a file manager on. Also asserts `query` --
+/// the ONE field the render path tracks a per-character caret/selection box
+/// for -- mirrors the seed from frame one, so the selection this module arms
+/// is not a fact only `rename_edit.input` itself can see.
+#[test]
+fn rename_seeds_stem_selected_extension_untouched() {
+    // (name, expected selection range, expected caret position).
+    type Case = (&'static str, Option<(usize, usize)>, usize);
+    let cases: [Case; 4] = [
+        // A normal `name.ext`: the stem alone is selected.
+        ("fukushima-trip.md", Some((0, 14)), 14),
+        // No extension at all: the WHOLE name is selected (nothing to
+        // protect from a bare Backspace/Delete).
+        ("README", Some((0, 6)), 6),
+        // A dotfile: its OWN `file_stem` is the whole name (Path's rule for
+        // a name that begins with '.' and has no other '.' within), so the
+        // whole name is selected here too.
+        (".gitignore", Some((0, 10)), 10),
+        // Multiple dots: only the LAST extension is excluded.
+        ("archive.tar.gz", Some((0, 11)), 11),
+    ];
+    for (name, expected_selection, expected_caret) in cases {
+        let ov = OverlayState::new_rename(name.to_string());
+        let re = ov.rename_edit.as_ref().expect("rename edit armed");
+        assert_eq!(
+            re.input.selection_range(),
+            expected_selection,
+            "{name}: seeded selection range"
+        );
+        assert_eq!(
+            re.input.caret(),
+            expected_caret,
+            "{name}: seeded caret position"
+        );
+        assert_eq!(
+            ov.query,
+            re.input.clone(),
+            "{name}: query mirrors the seed from frame one"
+        );
+    }
+}
+
+/// An EMPTY name (the "unchanged input is a no-op" shape a caller passes
+/// when there is nothing to rename FROM) seeds no selection at all --
+/// `Path::file_stem` on an empty path is `None`, and [`TextBox::
+/// seeded_selecting_prefix`]'s own zero-width guard keeps `anchor` at
+/// `None` rather than arming a phantom selection.
+#[test]
+fn rename_seeds_no_selection_for_an_empty_name() {
+    let ov = OverlayState::new_rename(String::new());
+    let re = ov.rename_edit.as_ref().expect("rename edit armed");
+    assert_eq!(re.input.selection_range(), None);
+    assert_eq!(re.input.caret(), 0);
 }
 
 #[test]

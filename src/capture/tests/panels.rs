@@ -980,6 +980,7 @@ fn caret_picker_absent_by_default_and_open_reflects_selected_style() {
         title: "caret style".to_string(),
         query: String::new(),
         query_caret: 0,
+        query_selection: None,
         items: vec!["Block".into(), "Morph".into(), "I-beam".into()],
         ranges: Vec::new(),
         bindings: vec![
@@ -1052,6 +1053,7 @@ fn context_menu_capture_names_its_anchor_and_paints_the_anchored_card() {
         title: "context menu".to_string(),
         query: String::new(),
         query_caret: 0,
+        query_selection: None,
         items: vec![
             "Follow link".into(),
             "Edit link…".into(),
@@ -1140,6 +1142,7 @@ fn caret_picker_morph_preview_paints_the_silhouette() {
         title: "caret style".to_string(),
         query: String::new(),
         query_caret: 0,
+        query_selection: None,
         items: vec!["Block".into(), "Morph".into(), "I-beam".into()],
         ranges: Vec::new(),
         bindings: vec![
@@ -1247,6 +1250,7 @@ fn dictionary_picker_absent_by_default_and_open_does_not_preview() {
         title: ov.kind.title().to_string(),
         query: ov.query.text().to_string(),
         query_caret: ov.query.caret(),
+        query_selection: None,
         items: ov.item_strings(),
         bindings: ov.item_bindings(),
         ranges: ov.item_range_fracs(),
@@ -1862,6 +1866,7 @@ fn history_comparison_is_relocated_by_the_capture_path_in_every_world() {
         title: "version history".to_string(),
         query: String::new(),
         query_caret: 0,
+        query_selection: None,
         items: vec!["2 hr ago · edited \"Middle\"".into()],
         bindings: vec!["+3 −4".into()],
         ranges: Vec::new(),
@@ -2067,6 +2072,7 @@ fn open_caret_preview_panel(dir: &std::path::Path, tag: &str) -> (image::RgbaIma
             title: "caret style".to_string(),
             query: String::new(),
             query_caret: 0,
+            query_selection: None,
             items: vec!["Block".into(), "Morph".into(), "I-beam".into()],
             bindings: vec![String::new(), String::new(), String::new()],
             ranges: Vec::new(),

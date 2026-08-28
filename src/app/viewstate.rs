@@ -194,6 +194,7 @@ impl App {
             overlay_crisp: ov.is_some_and(|o| o.kind.keeps_backdrop_crisp()),
             overlay_query: ov.map(|o| o.query.text().to_string()).unwrap_or_default(),
             overlay_query_caret: ov.map(|o| o.query.caret()).unwrap_or(0),
+            overlay_query_selection: ov.and_then(|o| o.query.selection_range()),
             overlay_title: ov
                 .filter(|o| o.kind.draws_title_prefix())
                 .map(crate::overlay::OverlayState::title)
