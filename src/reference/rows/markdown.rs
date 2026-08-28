@@ -217,6 +217,19 @@ const CONSTRUCTS: &[Construct] = &[
         tags: &["footnote_ref", "footnote_def", "footnote_text"],
         conceal: &[C::Footnote],
     },
+    Construct {
+        name: "Bare URLs",
+        source: "See https://example.com/track?utm_source=x for details.",
+        rendered: concat!(
+            "The domain, followed by a quiet ellipsis when a path or query is hidden. A URL ",
+            "with nothing past its domain shows in full, with no ellipsis.",
+        ),
+        reveal: "The caret or a selection on the line shows the full address.",
+        command: "—",
+        portability: Portability::Awl,
+        tags: &[],
+        conceal: &[C::BareUrl],
+    },
 ];
 
 struct Different {

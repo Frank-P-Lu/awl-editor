@@ -258,6 +258,77 @@ pub fn reading_time_min(words: usize, pace_per_minute: usize) -> usize {
     }
 }
 
+/// The literal URL schemes a BARE (non-bracketed, non-autolink) URL may open
+/// with — the brief's own minimal, defensible heuristic rather than a general
+/// URI-scheme grammar. Shared by [`bare_url_ranges`] (which scheme opened this
+/// match) and [`bare_url_split`] (how far the scheme prefix itself runs).
+const BARE_URL_SCHEMES: [&str; 2] = ["https://", "http://"];
+
+/// Byte ranges of every bare `scheme://<non-whitespace>` URL substring within
+/// one text-event's own slice `s` — mirrors [`equals_runs`](super::markers::equals_runs)'s
+/// per-run scan shape (a pure, greedy, non-overlapping walk). A match is a
+/// literal [`BARE_URL_SCHEMES`] prefix immediately followed by a NON-EMPTY run
+/// of non-whitespace bytes; the scan never crosses a whitespace boundary, so it
+/// cannot straddle a soft-wrapped line (pulldown always emits `Event::SoftBreak`
+/// between the two `Text` events rather than embedding the newline in either
+/// one, the same property `push_highlight_spans`'s own cross-line note relies
+/// on). Deliberately NOT a URI-spec parser: trailing prose punctuation (a
+/// sentence-ending `.`, a wrapping `)`) rides into the match — awl accepts that
+/// as the cost of staying minimal, per the decided brief. The caller
+/// ([`crate::markdown::spans::markers::push_bare_url_spans`]) only ever calls
+/// this on a `Text` event already outside link/autolink/image-alt/code-block
+/// context, so it never double-matches a URL a real markdown link already owns.
+pub(in crate::markdown) fn bare_url_ranges(s: &str) -> Vec<Range<usize>> {
+    let mut out = Vec::new();
+    let mut from = 0usize;
+    while from < s.len() {
+        let hit = BARE_URL_SCHEMES
+            .iter()
+            .filter_map(|&scheme| s[from..].find(scheme).map(|off| (from + off, scheme)))
+            .min_by_key(|&(pos, _)| pos);
+        let Some((start, scheme)) = hit else { break };
+        let body_start = start + scheme.len();
+        let end = s[body_start..]
+            .find(char::is_whitespace)
+            .map_or(s.len(), |off| body_start + off);
+        if end > body_start {
+            out.push(start..end);
+            from = end;
+        } else {
+            // A bare scheme with nothing after it (end of text): advance past the
+            // scheme itself so the outer loop can't spin on the same match.
+            from = body_start;
+        }
+    }
+    out
+}
+
+/// Split one detected bare URL's own source slice `url` (scheme included, e.g.
+/// `url == &text[range]` for a range [`bare_url_ranges`] returned) into its
+/// SCHEME prefix (`0..scheme_end`, always present) and its TAIL (`Some(tail_start
+/// ..url.len())`, present only when the URL carries a path/query beyond its
+/// authority) — the render-only counterpart
+/// [`crate::render::spans::conceal::add_wysiwyg_conceal_spans`]'s two flanking
+/// [`crate::markdown::ConcealKind::BareUrl`] spans conceal independently: the
+/// authority (host, optionally `:port`) between them is real, always-visible
+/// document text, never covered by either span. The tail boundary is the FIRST
+/// `/` or `?` after the scheme — a port survives untouched (`example.com:8080…`
+/// keeps its port because neither delimiter appears before the path), and a URL
+/// with nothing past its authority (`https://example.com`) returns `None` for
+/// the tail rather than an empty range, so the decided "no path, no ellipsis
+/// promise" edge case falls out with no extra branch anywhere downstream — a
+/// missing tail span is exactly the render's own signal to paint no ellipsis.
+pub(in crate::markdown) fn bare_url_split(url: &str) -> (Range<usize>, Option<Range<usize>>) {
+    let scheme_end = BARE_URL_SCHEMES
+        .iter()
+        .find_map(|scheme| url.starts_with(scheme).then_some(scheme.len()))
+        .unwrap_or(0);
+    let tail_start = url[scheme_end..]
+        .find(['/', '?'])
+        .map(|off| scheme_end + off);
+    (0..scheme_end, tail_start.map(|t| t..url.len()))
+}
+
 /// THE strikethrough ENGAGEMENT gate — awl's exactly-two-tilde rule, the ONE
 /// place BOTH the live renderer ([`spans`]) and every exporter
 /// ([`crate::export`]'s `model::parse`) decide whether a pulldown

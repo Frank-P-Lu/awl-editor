@@ -183,6 +183,16 @@ A note[^source]
 |---|---|---|---|
 | A quiet superscript reference and a composed numbered definition. | The caret or a selection on the line shows the exact label, marker, and indentation. | Insert footnote | Widely used extension |
 
+### Bare URLs
+
+```markdown
+See https://example.com/track?utm_source=x for details.
+```
+
+| awl renders | Caret and selection | Formatting command | Portability |
+|---|---|---|---|
+| The domain, followed by a quiet ellipsis when a path or query is hidden. A URL with nothing past its domain shows in full, with no ellipsis. | The caret or a selection on the line shows the full address. | — | awl-specific extension |
+
 ## Not supported / deliberately different
 
 ### Setext headings

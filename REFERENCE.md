@@ -367,6 +367,7 @@ The file stays plain text. Only the render changes. The Supported Markdown guide
 | Highlight | `==highlighted text==` |
 | Strikethrough | `~~removed text~~` |
 | Footnotes | `A note[^source] /  / [^source]: Its text` |
+| Bare URLs | `See https://example.com/track?utm_source=x for details.` |
 <!-- GENERATED:reference-markdown:END -->
 
 ---

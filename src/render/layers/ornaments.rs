@@ -7,7 +7,9 @@
 //! lines") stays here; only the chevron lives outside this glyphon pipeline.
 use super::*;
 
+mod bare_url;
 mod footnotes;
+use bare_url::BareUrlEllipses;
 use footnotes::FootnoteNumbers;
 
 struct RuleOrnaments {
@@ -397,6 +399,7 @@ pub(super) struct OrnamentFrame {
     fence_labels: FenceLabels,
     fold_tails: FoldTails,
     footnotes: FootnoteNumbers,
+    bare_urls: BareUrlEllipses,
     muted: glyphon::Color,
     text_left: f32,
     col_w: f32,
@@ -415,6 +418,7 @@ impl OrnamentFrame {
             fence_labels: FenceLabels::shape(pipeline, metrics, muted, col_w),
             fold_tails: FoldTails::shape(pipeline, metrics, col_w),
             footnotes: FootnoteNumbers::shape(pipeline, metrics),
+            bare_urls: BareUrlEllipses::shape(pipeline, metrics),
             muted,
             text_left,
             col_w,
@@ -431,7 +435,7 @@ impl OrnamentFrame {
             + self.quotes.tops.len()
             + self.fence_labels.marks.len()
             + self.fold_tails.marks.len();
-        let capacity = capacity + self.footnotes.len();
+        let capacity = capacity + self.footnotes.len() + self.bare_urls.len();
         let mut areas = Vec::with_capacity(capacity);
         self.rules
             .append_areas(&mut areas, self.text_left, bounds, self.muted);
@@ -442,6 +446,7 @@ impl OrnamentFrame {
         self.fold_tails
             .append_areas(&mut areas, pipeline, self.text_left + self.col_w, bounds);
         self.footnotes.append_areas(&mut areas, bounds);
+        self.bare_urls.append_areas(&mut areas, bounds);
         areas
     }
 }

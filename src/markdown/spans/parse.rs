@@ -4,8 +4,8 @@
 use super::detect::{setext_break_range, strike_engaged};
 use super::kind::MdKind;
 use super::markers::{
-    push_delim, push_heading_markers, push_highlight_spans, push_inline_code, push_link_markers,
-    push_list_marker, push_quote_markers, push_task_marker,
+    push_bare_url_spans, push_delim, push_heading_markers, push_highlight_spans, push_inline_code,
+    push_link_markers, push_list_marker, push_quote_markers, push_task_marker,
 };
 use crate::markdown::ConcealKind;
 use crate::markdown::inline_images_on;
@@ -301,6 +301,16 @@ pub fn spans(text: &str) -> Vec<(Range<usize>, MdKind)> {
                 // `Event::Code`, not `Event::Text`).
                 if code_block == 0 {
                     push_highlight_spans(&mut body, text, &range);
+                }
+                // BARE URL: scan this text run for a plain `scheme://…` URL typed
+                // as prose, never inside a real link/autolink (`link > 0` already
+                // owns that byte range as `LinkText`/plumbing — this arm never
+                // sees a link's destination at all, only its visible text, so the
+                // guard only matters for a URL used AS a link's visible text, e.g.
+                // `[https://x.com](https://x.com)`) and never inside a code block
+                // (a URL in a fenced/indented sample is literal code, not prose).
+                if link == 0 && code_block == 0 {
+                    push_bare_url_spans(&mut body, text, &range);
                 }
             }
             Event::Code(_) => push_inline_code(&mut body, text, &range),
