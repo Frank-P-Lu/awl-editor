@@ -357,6 +357,10 @@ fn no_bare_durable_write_bypasses_write_atomic_outside_the_accounted_for_sites()
         // symlinked-alias regression law needs a real file under a real
         // symlink for the alias dual-seed to have anything to resolve.
         ("scenario/tests.rs", 15),
+        // The Go-to root-relative alias law needs a real file under a real
+        // symlink for canonicalization to have anything to resolve, same
+        // reason as the scenario/tests.rs entry above.
+        ("app/apply/overlay_inputs.rs", 1),
         ("testscratch.rs", 3), // ScratchDir's own fixtures, not a store.
     ];
     let expected_map: std::collections::BTreeMap<String, usize> =
