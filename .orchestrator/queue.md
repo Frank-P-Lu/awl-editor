@@ -38,6 +38,8 @@ third.
 ---
 ### 505 — active-lens mark draws at the wrong x on banded compositions (user-reported, reproduced headlessly, 2026-08-27)
 
+🟡 IN PROGRESS — claude, branch item-505
+
 Verified by real pixels:
 `cargo run -- --screenshot OUT.png --theme Magpie --keys "s-o Right Right f i l e" README.md`
 — the Go-to strip shows Headings active in full ink, while the underline
@@ -122,6 +124,8 @@ one geometry is the classic way this law would go green while blind.
 ---
 ### 509 — right-click menu summons the full-page scrim instead of a localized panel (user decision, 2026-08-27)
 
+🟡 IN PROGRESS — claude, branch item-509
+
 Right-clicking a heading opens the context actions (Fold section / Collapse
 other sections / Go to heading…) positioned near the pointer, but with the
 whole page frosted/blurred — the theme-picker's summoned-card treatment. The
@@ -133,6 +137,8 @@ mechanics; sweep worlds so every composition draws it localized.
 
 ---
 ### 510 — Rename opens with an empty field instead of the current name (user-reported, 2026-08-27)
+
+🟡 IN PROGRESS — claude (orchestrator-direct), branch item-510
 
 The Rename prompt shows a bare caret with the existing name only in the faint
 hint ("rename to: fukushima-trip.md"); the user expected the field
