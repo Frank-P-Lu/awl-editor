@@ -36,36 +36,6 @@ panel rows for current-item indication — reuse both rather than inventing a
 third.
 
 ---
-### 505 — active-lens mark draws at the wrong x on banded compositions (user-reported, reproduced headlessly, 2026-08-27)
-
-🟡 IN PROGRESS — claude, branch item-505
-
-Verified by real pixels:
-`cargo run -- --screenshot OUT.png --theme Magpie --keys "s-o Right Right f i l e" README.md`
-— the Go-to strip shows Headings active in full ink, while the underline
-draws left of "All", under empty card. Reproduces identically with the theme
-pinned, so the law can be hermetic.
-
-Mechanism (hypothesis; the lane confirms before fixing): `overlay_shape_theme`
-(`render/chrome/theme_picker.rs`) computes every mark rect — underline, pill,
-tab, brackets, and the ghost/tab-plate collections — as `geom.text_left +
-shaped glyph x`. But the emitter seats the head band (query + strip lines) at
-`overlay_head_left(geom, plan)` (`overlay_ink.rs::overlay_panel_bands`), which
-differs from `text_left` on any banded composition (right-anchored faceted
-card, split row lane, diagonal cluster — Magpie). The mark misses by exactly
-the seat delta. The strip hit-test reads the same raw spans ("the skin can
-never disagree with where a label is clicked" — true, but both can disagree
-with where the label is *drawn*), so clicking a drawn label likely selects the
-wrong lens on those worlds — probe that too.
-
-Fix shape: the mark and hit-test ride the same seat owner the emitter uses —
-one owner, no second reading. Law: the active mark's x-span sits under the
-ACTIVE label's drawn glyphs, swept across facet-style × composition (upright
-AND banded worlds — the green law that misses this sweeps only upright), with
-the enrolled world named in the failure message. Prove non-vacuity by
-reintroducing the `text_left` seat and watching it go red.
-
----
 ### 507 — an opened folder's row reads as a file and gets no current highlight (user-reported, 2026-08-27)
 
 The user opened the `syntax` folder and, in the right-anchored list, its row
@@ -120,33 +90,6 @@ of the full roster, nothing below the last row saying more exist. The cue
 fires whenever the window clips the list, so the law sweeps window
 geometries (tall-fits → no cue; short-clips → cue, arithmetic-correct) —
 one geometry is the classic way this law would go green while blind.
-
----
-### 509 — right-click menu summons the full-page scrim instead of a localized panel (user decision, 2026-08-27)
-
-🟡 IN PROGRESS — claude, branch item-509
-
-Right-clicking a heading opens the context actions (Fold section / Collapse
-other sections / Go to heading…) positioned near the pointer, but with the
-whole page frosted/blurred — the theme-picker's summoned-card treatment. The
-user's direction is explicit: "we want like a localised right click panel" —
-a compact panel at the click, the page around it staying legible, no
-full-page scrim. Scope: give the context menu its own presentation (or a
-scrim-free arm of the card machinery) without forking the row/hit-test
-mechanics; sweep worlds so every composition draws it localized.
-
----
-### 510 — Rename opens with an empty field instead of the current name (user-reported, 2026-08-27)
-
-🟡 IN PROGRESS — claude, branch item-510
-
-The Rename prompt shows a bare caret with the existing name only in the faint
-hint ("rename to: fukushima-trip.md"); the user expected the field
-pre-populated for editing: "it doesn't populate the existing file name? it's
-kinda weird." Fix shape: seed the query with the current name. DECIDED
-(user-confirmed 2026-08-27): stem selected, extension left untouched — the
-file-manager convention. Law: the field opens seeded with that selection, plus
-a `--keys` journey that edits the seed rather than typing from scratch.
 
 ---
 ### 511 — long bare URLs render as a raw multi-line wall (user-reported, 2026-08-27)
