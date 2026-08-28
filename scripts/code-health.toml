@@ -1306,3 +1306,10 @@ function = "active_lens_mark_sits_under_the_active_labels_own_glyphs"
 message = "this function has too many lines (107/100)"
 reason = "One roster sweep over every world, classifying upright vs. banded via the same gate the emitter itself uses and reading the active label's glyph span independently off the panel buffer -- splitting the sweep from its own independent oracle would let the two drift apart, which is the exact class of bug this law exists to catch."
 
+[[clippy_exception]]
+lint = "clippy::too_many_lines"
+file = "src/render/tests/hover_slop_law.rs"
+function = "a_keyboard_scroll_moves_what_a_stationary_pixel_hits_and_the_gate_refuses_it"
+message = "this function has too many lines (103/100)"
+reason = "One real-pipeline scenario proving the item's own named live hazard end to end, swept over list style x DPI in one loop rather than four near-duplicate functions -- the menu-bar pin/restore this session added (capture ambient, force off, restore) is the same three lines chrome_panels.rs's own convention costs, and belongs beside the scenario it protects, not a second helper."
+
