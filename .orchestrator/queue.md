@@ -7,51 +7,6 @@
 ## Ready to build
 
 ---
-### 508 — truncated lists give no scroll or position indication (user-reported UX gap, 2026-08-27)
-
-🟡 IN PROGRESS — claude, branch item-508
-
-Long lists fold behind `+ N more…` (`workingset.rs`) and pickers window their
-rows, but nothing tells the user where they are in the list or how much is
-below: "there is no scroll bar so like how do i even know where my files
-are... when you click the show more, it needs to show a scroll bar."
-DECIDED (user-confirmed 2026-08-27): no literal scrollbar — a faint
-positional count cue at the window's edges ("↑ 3 more" / "↓ 41 more"),
-extending the existing `+ N more…` idiom; text-only, so it fits the
-summoned-card personality and adds no interactive machinery. Scrolling
-already works (picker wheel accumulation in `app/input/wheel.rs`, plus
-arrow-key window sliding via `scroll_window`); the cue is orientation on top.
-If direct manipulation is ever wanted, match the app's one existing
-scrollbar-like object — the transient, thumb-proportioned table pan bar
-(`markdown/tables.rs::table_pan_bar`) — rather than standing up persistent
-chrome.
-
-Scope (user-confirmed): STRUCTURAL, not per-surface. Derive the cue at the
-one windowing owner (`scroll_window`'s `item_top`/`item_visible`/`n_items`),
-so every windowed list — Go-to, command palette, theme picker, the
-destination navigators, the expanded working-set panel — enrols for free and
-a fitting list draws nothing. Two traps: sectioned cards (theme picker)
-window DISPLAY LINES, but the cue counts hidden ITEMS, which the
-plan/window split already distinguishes; and the resting stack's `+ N more…`
-is an expand affordance, not a count — it stays, the cue lives in the
-scrolling views only. Law: one sweep over the picker roster, no-wildcard
-match, so a new picker cannot ship windowed rows without the cue.
-
-Acceptance case (the user's own screenshot, 2026-08-27): the COMMAND
-PALETTE's unfiltered All lens — a dozen-ish rows drawn from a much longer
-command roster, ending at an ordinary row with nothing saying the list
-continues. After the fix, that exact frame shows the below-window count; a
-capture of the palette at the default window with the cue present and
-arithmetic-correct (hidden = roster − visible) is the item's verify.
-
-Second acceptance case, and the law's geometry axis (user's screenshot,
-2026-08-27): the THEME PICKER in a SHORT window — eight world rows visible
-of the full roster, nothing below the last row saying more exist. The cue
-fires whenever the window clips the list, so the law sweeps window
-geometries (tall-fits → no cue; short-clips → cue, arithmetic-correct) —
-one geometry is the classic way this law would go green while blind.
-
----
 ### 513 — the spell popup's material is unjudged (residual of the 2026-08-29 design session)
 
 Parts (a) (context menu keeps palette grammar) and (c) (float material
@@ -63,6 +18,29 @@ stray — a float that is actually a command list, unjudged rather than
 menu shipped). Judge it side by side with the context menu on Kite and a
 Pane world, and either re-home it onto the pocket-palette grammar or record
 why it stays a float.
+
+---
+### 514 — two defects `range_rail.rs` work surfaced, neither caused by that work (found while building item 508, 2026-08-29)
+
+(a) `settings_overlay_view` (`src/render/tests/mod.rs`) never sets
+`overlay_workspace`, so any caller that doesn't override it afterward tests
+a state production can't reach (the Settings card renders through the wrong,
+faceted geometry family instead of the real `RailOverRows` workspace
+family). Repro: add `v.overlay_workspace = ov.workspace_shape().is_some();`
+after `v.overlay_lens = ov.lens_strip();`, run
+`settings_row_reach_law::{every_editor_row_is_hoverable_at_its_own_y_center_across_the_world_roster,
+the_zoom_rows_band_and_its_neighbours_never_bleed_into_one_another}` — both
+go red. Fix shape: set `overlay_workspace` correctly in the shared fixture
+(every caller wants the real state; `range_rail.rs` worked around it locally
+rather than fixing the shared one, since that was out of its own scope).
+
+(b) `range_rail::a_non_selected_rails_thumb_never_wears_the_selected_rails_ink`
+is `#[ignore]`d with the full evidence chain in its own doc comment: on
+`world=Potoroo`, `assert_selected_rail_shows_its_flip` hits a documented,
+pre-existing oracle weakness (Potoroo's striped background is a known
+pixel-search false-positive source for a sibling assertion, per that file's
+own history). Judge and repair the oracle, then un-ignore; this parks the
+law's differential non-selected-ink coverage until fixed.
 
 ---
 ## Needs specific hardware
