@@ -1141,10 +1141,10 @@ const HEADING_MENU_FOOTPRINT_DOC: &str = concat!(
 /// construction — factored out so the law itself fits under the line budget.
 ///
 /// `hint` is the empty string — the real production answer
-/// (`OverlayKind::Context.hint()`, item 513's own change) for a pointer-anchored
-/// menu, which draws pure rows with no teaching line at all.
+/// (`OverlayKind::Context.hint()`) for a pointer-anchored menu, which draws
+/// pure rows with no teaching line at all.
 /// `context_menu_footer_removal_hugs_its_rows_with_no_dead_band_below`
-/// overrides it back to the pre-513 line as its own counterfactual.
+/// overrides it back to a forced teaching line as its own counterfactual.
 fn heading_context_overlay(items: &[String], anchor: (f32, f32)) -> OverlayInfo {
     OverlayInfo {
         align: crate::render::effective_card_anchor(),
@@ -1317,17 +1317,17 @@ fn column_diff_bottom(
 }
 
 /// VISION-SMOKE: DOES THE CARD END RIGHT AFTER THE LAST ROW, WITH NO DEAD
-/// SPACE BELOW IT? — item 513(b)'s own affordance question, asked of real GPU
-/// pixels through the SAME production capture door `--screenshot` uses (not
-/// geometry arithmetic — that mechanism-level proof is
+/// SPACE BELOW IT? — an affordance question asked of real GPU pixels through
+/// the SAME production capture door `--screenshot` uses (not geometry
+/// arithmetic — that mechanism-level proof is
 /// `context_menu_card_hugs_its_rows_with_no_hint_reserved` in
 /// `render::tests::frost_context`, which this law does not repeat).
 ///
 /// Two captures of the SAME heading menu (`heading_context_overlay`),
-/// differing only in `hint`: the shipped answer (`""`) and the pre-513
-/// counterfactual (the former teaching line, forced back in). If the footer
-/// had NOT been removed, the menu's own drawn footprint would reach
-/// measurably farther down the page than the shipped one's — which is
+/// differing only in `hint`: the shipped answer (`""`) and a counterfactual
+/// with a teaching line forced back in. If the footer had NOT been removed,
+/// the menu's own drawn footprint would reach measurably farther down the
+/// page than the shipped one's — which is
 /// exactly the "no dead band" claim, read off pixels rather than assumed.
 #[test]
 fn context_menu_footer_removal_hugs_its_rows_with_no_dead_band_below() {

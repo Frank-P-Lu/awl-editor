@@ -568,7 +568,7 @@ fn inside_the_menus_own_footprint_no_document_edge_survives() {
 }
 
 /// THE FORMER TEACHING LINE, forced back on — the counterfactual a card would
-/// have drawn before this item, over the same production actions
+/// draw if it still authored a footer, over the same production actions
 /// (`OverlayKind::Context::hint_actions`'s retained capability roster:
 /// choose/close). Naming the string here rather than importing it keeps this
 /// law's subject the CARD's response to a hint of a given shape, independent

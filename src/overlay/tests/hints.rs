@@ -178,11 +178,11 @@ fn hint_formatter_is_consistent_across_pickers() {
 /// card the product can produce.
 ///
 /// The contrast is load-bearing: a law satisfied by every kind going quiet
-/// would be a law about the formatter breaking, not about the one policy
-/// decision this item made. The command palette is the sibling the item
-/// names explicitly ("The palette's own footer is untouched") — chosen
-/// because it shares the pocket-palette grammar Context borrows (509) while
-/// keeping its lesson (journeys, the workspace Back key are non-ambient).
+/// would be a law about the formatter breaking, not about the one kind whose
+/// footer went silent. The command palette is chosen deliberately: it shares
+/// Context's own world-list grammar, and unlike a right-click popup it still
+/// teaches non-ambient idioms (journeys, the workspace Back key) — so its
+/// footer stays untouched while Context's own goes quiet.
 #[test]
 fn context_menu_draws_no_teaching_footer_while_the_command_palette_still_teaches_it() {
     let context = crate::context_menu::overlay(
