@@ -198,6 +198,51 @@ folder-identity work. Laws at the unit seam with injected paths (the Recent
 lens is tier-1-only, docs/harness-reach.md).
 
 ---
+### 513 — contextual menus lose the teaching footer; summoned-surface material taxonomy decided (design session, 2026-08-29)
+
+DECIDED (user-confirmed 2026-08-29), three parts. The design question was
+"the format popover looks too different from the right-click menu — should
+they be one material, and which?"; the answer that held after seeing the
+command palette on Kite is a taxonomy, not a transplant:
+
+(a) **The context menu keeps the palette's world list grammar — it is a
+pocket palette.** One command system, one grammar, at every size: right-click
+on a Ruled world draws the same hairline arrangement as the palette, just
+fewer rows. Do NOT re-home `OverlayKind::Context` onto the float-panel
+primitive; an earlier float recommendation was reversed on the user's
+evidence (a plated context menu matches the tiny popover and clashes with
+the big, frequent sibling).
+
+(b) **The teaching footer goes on contextual menus — the build item.** Drop
+the `type to filter ↵ choose esc close` line entirely for
+`OverlayKind::Context` (the contextual arm already drops the query header;
+this leaves pure rows). Filtering keeps WORKING silently wherever it works
+today — the capability stays, the lesson goes; a right-click popup is
+ambient idiom and needs no teaching. The palette's own footer is untouched
+(it teaches non-ambient idioms: journeys, the workspace Back key). The
+footer machinery feeds card-height math (`overlay_footer_lines` →
+`overlay_card_h`), so the card must hug its rows after removal, not keep a
+blank band.
+
+(c) **The float material is reserved for content-preview surfaces** — the
+format popover (and kin like the caret preview), whose material kinship is
+with the page, not the chrome: its plate hosts real document styling
+(highlight wash, code pill). It is deliberately NOT restyled toward list
+grammar.
+
+FLAGGED, no committed direction: the **spell popup** is now the stray — a
+float that is a command list. Judge it (unjudged, not "well-loved") after
+the de-footered context menu ships, side by side on Kite and a Pane world.
+
+Coordination: item 509 (in progress) owns the same contextual presentation
+(localized panel, no full-page scrim) and its branch touches the same arm —
+build (b) after 509 lands, or fold it into that branch if the lane has not
+shipped. Judge the footer removal on the absence-grammar worlds under 509's
+chosen localized ground, not under today's full-page frost. Verify: the
+footer-roster decision is pure policy (unit seam); the drawn card sweeps
+target × world per 509's mechanism, plus the standing vision-smoke.
+
+---
 ## Needs specific hardware
 
 1. **AT-SPI journey** — on a real Linux desktop with Orca, exercise document
