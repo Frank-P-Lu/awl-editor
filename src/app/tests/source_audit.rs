@@ -138,7 +138,13 @@ fn real_fs_app_new_calls_are_all_accounted_for() {
         // Switch-project law (it drives `App::apply` through the whole picker
         // journey, so it needs a controlled workspace to navigate) — same
         // CONTROL + INSPECT need, same `fs::with_fs` + `InMemoryFs` treatment.
-        ("app/files/tests.rs", 18),
+        // Plus one: the symlinked-recent-root law
+        // (`switching_to_a_symlinked_alias_of_a_recent_root_moves_it_to_the_front_
+        // instead_of_duplicating_it`) needs a REAL filesystem symlink for root
+        // canonicalization to have anything real to resolve — `InMemoryFs` has
+        // no symlinks at all — while still running the App over an injected
+        // `InMemoryFs` so the recents write stays in the sandbox.
+        ("app/files/tests.rs", 19),
         // 9 LIFETIME STATS + USAGE LEDGER + DISCOVERABILITY tests, each inside its own
         // `fs::with_fs(fake, ..)` closure seeded with an `InMemoryFs` — they exist
         // specifically to prove what the tracking hooks / the ledger's
