@@ -21,25 +21,44 @@ pub(super) struct GotoInputs {
     pub(super) goto_line_count: usize,
 }
 
+/// `path` root-relativized against `root` (`/`-separated, matching every
+/// `goto_corpus` entry's own spelling) — the ONE comparison owner for
+/// `gather_goto_inputs`'s two identity checks below. `path` is canonicalized
+/// FIRST, through the same [`crate::buffers::normalize_path`] `root` (already
+/// canonical — [`crate::app::ProjectLocation::new`]/`App::set_root`) was
+/// resolved through: `Buffer::path()` and a persisted `recent_files` entry
+/// both carry whatever spelling they were OPENED under (a raw CLI argument, a
+/// native file-chooser result, an alias-joined path) and are never themselves
+/// canonicalized at rest — see `workingset::root_for`'s doc for why the
+/// STORED path stays the display spelling and the canonicalizing happens at
+/// the comparison instead. Without this, a symlinked/firmlinked spelling of a
+/// file genuinely under `root` (macOS's `/tmp` -> `/private/tmp`, the same
+/// alias class `App::set_root` already resolves) fails `strip_prefix` and the
+/// file silently drops out of both the active-file marker and the Recent lens
+/// bucket, though it is really there.
+fn root_relative(path: &std::path::Path, root: &std::path::Path) -> Option<String> {
+    crate::buffers::normalize_path(path)
+        .strip_prefix(root)
+        .ok()
+        .map(|rel| rel.to_string_lossy().replace('\\', "/"))
+}
+
 impl App {
     pub(super) fn gather_goto_inputs(&mut self, action: &Action) -> GotoInputs {
         if matches!(action, Action::OpenGoto | Action::OpenAssetClean) {
             self.rescan_file_index();
         }
         let location = &self.project_location;
-        let recency_now =
-            (location.root == self.config.default_folder).then(crate::clock::system_now);
+        let recency_now = (location.root
+            == crate::buffers::normalize_path(&self.config.default_folder))
+        .then(crate::clock::system_now);
         let (goto_corpus, goto_times) =
             crate::index::with_recency(&location.root, location.file_index.clone(), recency_now);
         let active_rel = self
             .document
             .buffer_opt()
             .and_then(|buffer| buffer.path())
-            .and_then(|path| {
-                path.strip_prefix(&location.root)
-                    .ok()
-                    .map(|rel| rel.to_string_lossy().replace('\\', "/"))
-            });
+            .and_then(|path| root_relative(path, &location.root));
         let goto_open = goto_corpus
             .iter()
             .enumerate()
@@ -49,8 +68,7 @@ impl App {
         let goto_recent = location
             .recent_files
             .iter()
-            .filter_map(|path| path.strip_prefix(&location.root).ok())
-            .map(|rel| rel.to_string_lossy().replace('\\', "/"))
+            .filter_map(|path| root_relative(path, &location.root))
             .filter_map(|rel| goto_corpus.iter().position(|candidate| *candidate == rel))
             .collect();
         let goto_headings = if matches!(
@@ -192,5 +210,78 @@ impl App {
             .map(|path| path.to_string_lossy().to_string())
             .collect();
         crate::overlay::goto_folder_roster(self.project_location.workspace_root.as_deref(), &recent)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::root_relative;
+
+    /// **A THIRD INSTANCE of 512(b)'s bug class**, in the Go-to picker's
+    /// active-file marker and Recent-lens membership: `gather_goto_inputs`
+    /// used to `strip_prefix` a raw `Buffer::path()`/`recent_files` entry —
+    /// whatever spelling the file was opened under — against the already-
+    /// canonical `location.root`, so a symlinked/firmlinked alias of a file
+    /// genuinely under the root (macOS's `/tmp` -> `/private/tmp`, the same
+    /// class `App::set_root` already resolves) silently failed the prefix
+    /// match: the active file lost its ranking bias, and a recent file
+    /// dropped out of the Recent lens bucket entirely (`overlay::filter`'s
+    /// `recent` flag gates both ranking AND facet-bucket membership, not
+    /// only tiebreak order).
+    ///
+    /// Real symlinked directory (`normalize_path` reaches real disk directly
+    /// via `std::fs::canonicalize`, so a fabricated pair of strings would
+    /// prove nothing) — the same precedent
+    /// `buffer_key_path_resolves_a_symlinked_directory_to_the_real_path` /
+    /// `a_symlinked_alias_of_a_root_normalizes_to_the_same_root_for_answer`
+    /// already establish for the sibling identities this bug class keeps
+    /// turning up in.
+    #[test]
+    #[cfg(unix)]
+    fn root_relative_resolves_a_symlinked_alias_to_the_canonical_roots_relative_spelling() {
+        let _guard = crate::testlock::serial();
+        let base = crate::testscratch::ScratchDir::new(std::env::temp_dir().join(format!(
+            "awl-goto-root-relative-alias-{}",
+            std::process::id()
+        )));
+        let real_dir = base.join("real");
+        let link_dir = base.join("link");
+        std::fs::create_dir_all(real_dir.join("sub")).unwrap();
+        std::os::unix::fs::symlink(&real_dir, &link_dir).unwrap();
+        std::fs::write(real_dir.join("sub/a.md"), "a").unwrap();
+
+        let canon_root = crate::buffers::normalize_path(&real_dir);
+        // The file reached THROUGH THE ALIAS (never typed under the real
+        // spelling) must still relativize against the canonical root, or
+        // an open buffer / recent-files entry that happened to be opened
+        // via the alias would drop out of both the active marker and the
+        // Recent lens.
+        let via_alias = link_dir.join("sub/a.md");
+        assert_eq!(
+            root_relative(&via_alias, &canon_root),
+            Some("sub/a.md".to_string()),
+            "a file reached through a symlinked alias of the root must still \
+             resolve to its canonical root-relative spelling"
+        );
+        // Non-vacuity: prove the alias and the real spelling actually differ
+        // as raw strings, or the assertion above could pass by coincidence
+        // rather than by the canonicalization actually running.
+        assert_ne!(
+            via_alias,
+            real_dir.join("sub/a.md"),
+            "the alias spelling must genuinely differ from the real one, or this \
+             law never exercises the canonicalization it exists to prove"
+        );
+    }
+
+    #[test]
+    fn root_relative_is_none_for_a_path_genuinely_outside_the_root() {
+        assert_eq!(
+            root_relative(
+                std::path::Path::new("/elsewhere/a.md"),
+                std::path::Path::new("/root")
+            ),
+            None
+        );
     }
 }

@@ -1010,6 +1010,74 @@ fn opening_files_pushes_them_onto_the_recent_files_mru_and_persists() {
     });
 }
 
+/// **A THIRD INSTANCE of 512(b)'s bug class, in the RECENT-FILES sibling of
+/// the recent-PROJECTS fix above.** `push_recent_file` used to push whatever
+/// spelling `load_path` was called with verbatim — a raw CLI argument, a
+/// native file-chooser result — while `recents::push`'s own dedupe compares
+/// by exact `PathBuf` equality, so a symlinked/firmlinked alias of an
+/// already-recent FILE grew a second MRU entry instead of moving the
+/// existing one to the front (`recents.rs`'s own documented "never
+/// duplicates" contract, broken for this one call site). Same fix shape:
+/// `push_recent_file` now canonicalizes through `crate::buffers::
+/// normalize_path` before pushing, mirroring `switch_project`'s existing
+/// canonical-root read for the project-root sibling.
+///
+/// Real symlinked directory (`buffers/tests.rs`'s
+/// `buffer_key_path_resolves_a_symlinked_directory_to_the_real_path`
+/// precedent) rather than fabricated strings, since `normalize_path` reaches
+/// real disk directly via `std::fs::canonicalize`, bypassing the swappable
+/// `FileSystem` backend. The App still runs over `InMemoryFs` (seeded at
+/// both spellings' own path strings) so this never touches the real
+/// developer's `recent-files.toml`.
+#[test]
+#[cfg(unix)]
+fn opening_the_same_file_through_a_symlinked_alias_moves_it_to_the_front_instead_of_duplicating_it()
+{
+    let _guard = crate::testlock::serial();
+    let base = crate::testscratch::ScratchDir::new(
+        std::env::temp_dir().join(format!("awl-recent-file-alias-{}", std::process::id())),
+    );
+    let real_dir = base.join("real");
+    let link_dir = base.join("link");
+    std::fs::create_dir_all(&real_dir).unwrap();
+    std::os::unix::fs::symlink(&real_dir, &link_dir).unwrap();
+    let real_file = real_dir.join("a.md");
+    let link_file = link_dir.join("a.md");
+    let other_file = real_dir.join("b.md");
+
+    let fake = Arc::new(
+        crate::fs::InMemoryFs::new()
+            .with_file(real_file.to_str().unwrap(), "a")
+            .with_file(link_file.to_str().unwrap(), "a")
+            .with_file(other_file.to_str().unwrap(), "b"),
+    );
+    crate::fs::with_fs(fake, || {
+        let mut app = App::new(None, real_dir.clone(), None, None, Config::empty());
+        assert!(app.project_location.recent_files.is_empty());
+
+        app.load_path(real_file.clone());
+        app.load_path(other_file.clone());
+        // The ALIAS spelling of `real_file`, never typed before under this
+        // exact string -- collapses to the same entry only if
+        // `push_recent_file` already normalized both spellings before
+        // either reached `recents::push`.
+        app.load_path(link_file.clone());
+
+        assert_eq!(
+            app.project_location.recent_files.len(),
+            2,
+            "a symlinked alias of an already-recent file must MOVE it to the \
+             front, never grow a THIRD entry: {:?}",
+            app.project_location.recent_files
+        );
+        assert_eq!(
+            app.project_location.recent_files[0],
+            crate::buffers::normalize_path(&real_file),
+            "the alias open must have moved the real file's entry to the front"
+        );
+    });
+}
+
 #[test]
 fn app_new_loads_the_persisted_recent_projects() {
     let fake = Arc::new(crate::fs::InMemoryFs::new().with_dir("/w/proj-a"));
