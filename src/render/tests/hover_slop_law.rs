@@ -90,8 +90,8 @@ fn a_keyboard_scroll_moves_what_a_stationary_pixel_hits_and_the_gate_refuses_it(
 
             // A REAL keyboard session: all the way to the LAST row — not a
             // fixed mid-list offset, whose exact landing display-index is
-            // sensitive to the window's own item cap (item 508's count cue
-            // trims it by up to two rows once a card is windowed at all,
+            // sensitive to the window's own item cap (the positional count
+            // cue trims it by up to two rows once a card is windowed at all,
             // moving exactly how far a fixed-size jump lands). Scrolling to
             // the corpus's own end is qualitatively different from the
             // pixel this test parked on regardless of that cap.
@@ -122,9 +122,10 @@ fn a_keyboard_scroll_moves_what_a_stationary_pixel_hits_and_the_gate_refuses_it(
             // the keyboard's own selected index. Comparing against `Some(39)`
             // (the selection) instead used to coincide with the real claim
             // only because the window's own item cap happened to make them
-            // equal; item 508's count cue trims that cap by up to two rows
-            // once a card is windowed at all, which moved the coincidence
-            // without changing the actual hazard this law exists to prove.
+            // equal; the positional count cue trims that cap by up to two
+            // rows once a card is windowed at all, which moved the
+            // coincidence without changing the actual hazard this law
+            // exists to prove.
             assert_ne!(
                 hit1, hit0,
                 "{ctx}: the row now under the stationary pixel ({hit1:?}) is the SAME item \

@@ -119,8 +119,8 @@ fn the_first_item_row_sits_within_one_beat_of_the_query_row_on_every_docked_face
             let gap = first_row.top - query.bottom();
             let beat = p.overlay_header_gap();
             // The full command roster this fixture drives routinely exceeds
-            // the palette's own window cap, so the ABOVE-EDGE count cue
-            // (item 508) can reserve its own line ahead of row 0 regardless
+            // the palette's own window cap, so the ABOVE-EDGE POSITIONAL
+            // COUNT CUE can reserve its own line ahead of row 0 regardless
             // of scroll position (`OverlayRowPlan::cue_above_rows`, always
             // `0` or `1`, unconditional once the corpus is windowed at all —
             // never re-derived from whether this SPECIFIC lens happens to
@@ -189,7 +189,7 @@ fn header_rows_billing_regression_reopens_the_vacated_strip_row() {
         .expect("a faceted card plans a first candidate row")
         .top;
     // The full command roster this fixture drives routinely windows, so the
-    // above-edge count cue (item 508) may add its own reserved line ahead of
+    // above-edge positional count cue may add its own reserved line ahead of
     // row 0 — real, separately law-tested room this reconstruction must
     // subtract back out before comparing against the retired formula, or a
     // coincidence of the two rows' pixel heights (both `lh`) would silently

@@ -258,6 +258,48 @@ impl TextPipeline {
         geom.theme
     }
 
+    /// The flat family's starvation-degrade arm for the count cue: re-fit the
+    /// window at `(top_idx, visible)` (already re-derived by the caller with
+    /// the cue's own overhead dropped) and recompute the row/height totals
+    /// that follow from it. Split out of `overlay_geometry` purely to keep
+    /// that function under its own line budget — every input here is a value
+    /// that function already resolved, so this owns no policy of its own.
+    #[allow(clippy::too_many_arguments)]
+    fn flat_window_without_cue(
+        &self,
+        (top_idx, visible): (usize, usize),
+        header_rows: usize,
+        empty_rows: usize,
+        hint_rows: usize,
+        hint_gap_rows: usize,
+        footer_rows: usize,
+        header_gap: f32,
+        pad: f32,
+    ) -> (usize, usize, f32) {
+        let total_rows =
+            header_rows + visible + empty_rows + hint_gap_rows + hint_rows + footer_rows;
+        let card_h = self.overlay_card_h(total_rows, header_gap, hint_rows, hint_gap_rows, pad);
+        (top_idx, visible, card_h)
+    }
+
+    /// The flat family's starvation-degrade arm for the header/query gap: the
+    /// gap is decorative breathing room, not load-bearing chrome, so in the
+    /// same starvation corner as [`Self::flat_window_without_cue`] it is
+    /// dropped rather than pushing the card past the canvas, and `total_rows`/
+    /// `card_h` are recomputed from the deflated overhead.
+    fn flat_card_h_without_header_gap(
+        &self,
+        total_rows: usize,
+        hint_gap_rows: usize,
+        header_gap: f32,
+        hint_rows: usize,
+        pad: f32,
+    ) -> (usize, f32) {
+        let total_rows = total_rows - hint_gap_rows;
+        let card_h = self.overlay_card_h(total_rows, header_gap, hint_rows, 0, pad);
+        (0, card_h)
+    }
+
     pub(in crate::render) fn overlay_geometry(&self, width: u32) -> OverlayGeom {
         if let Some((line, start_col, end_col)) = self.overlay_spell {
             return self.spell_overlay_geometry(width, line, start_col, end_col);
@@ -316,7 +358,7 @@ impl TextPipeline {
             super::overlay_clamp::resolve_window_and_cue(n_items, |extra| {
                 fit_window(chrome_rows + extra)
             });
-        let mut total_rows =
+        let total_rows =
             header_rows + visible + empty_rows + hint_gap_rows + hint_rows + footer_rows + cue_rows;
         let desired_w = self.overlay_desired_w(CARD_MAX_W);
         let (mut card_x, card_w) = self.overlay_card_box(width, desired_w);
@@ -329,28 +371,31 @@ impl TextPipeline {
         let text_w = card_w - 2.0 * hpad;
         hint = hint_yielding_explanation(&hint, width as f32 / self.metrics.scale.max(0.01));
         let mut card_h = self.overlay_card_h(total_rows, header_gap, hint_rows, hint_gap_rows, pad);
-        // The gap is decorative breathing room, not load-bearing chrome: in the
-        // starvation corner (a `min_items: 1` floor still
-        // outgrows the canvas at an extreme zoom — the flat family's own
-        // arm), drop it rather than push the card past the canvas the way a
-        // sectioned header's own overhead already degrades at the grouped
-        // family's `min_items: 0` floor. `total_rows`/`card_h` are the only
-        // two callers see, so this can't drift from the struct below.
         if !contextual && card_y + card_h > self.window_h + 0.01 && hint_gap_rows > 0 {
-            total_rows -= hint_gap_rows;
-            hint_gap_rows = 0;
-            card_h = self.overlay_card_h(total_rows, header_gap, hint_rows, hint_gap_rows, pad);
+            (hint_gap_rows, card_h) = self.flat_card_h_without_header_gap(
+                total_rows,
+                hint_gap_rows,
+                header_gap,
+                hint_rows,
+                pad,
+            );
         }
         // The count cue is decorative, non-load-bearing chrome exactly like the
         // hint gap above — in the same starvation corner, drop it and re-fit
         // the window at the ORIGINAL overhead rather than let it force the
         // card past the canvas.
         if !contextual && card_y + card_h > self.window_h + 0.01 && cue_rows > 0 {
-            (top_idx, visible) = fit_window(chrome_rows);
             (cue_above, cue_below, cue_rows) = (None, None, 0);
-            total_rows =
-                header_rows + visible + empty_rows + hint_gap_rows + hint_rows + footer_rows;
-            card_h = self.overlay_card_h(total_rows, header_gap, hint_rows, hint_gap_rows, pad);
+            (top_idx, visible, card_h) = self.flat_window_without_cue(
+                fit_window(chrome_rows),
+                header_rows,
+                empty_rows,
+                hint_rows,
+                hint_gap_rows,
+                footer_rows,
+                header_gap,
+                pad,
+            );
         }
         let card_y = if contextual {
             card_y.clamp(margin, (self.window_h - card_h - margin).max(margin))

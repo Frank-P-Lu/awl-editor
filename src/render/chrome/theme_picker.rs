@@ -77,6 +77,50 @@ impl TextPipeline {
         out
     }
 
+    /// The grouped family's starvation-degrade arm for the count cue:
+    /// re-window `full_plan` at `(item_top, item_visible)` (already re-derived
+    /// by the caller with the cue's own overhead dropped) and recompute the
+    /// row/height totals that follow from it. Split out of
+    /// `theme_overlay_geometry` purely to keep that function under its own
+    /// line budget — every input here is a value that function already
+    /// resolved, so this owns no policy of its own.
+    #[allow(clippy::too_many_arguments)]
+    fn theme_window_without_cue(
+        &self,
+        full_plan: &[PlanLine],
+        (item_top, item_visible): (usize, usize),
+        billed_header_rows: usize,
+        empty_rows: usize,
+        hint_rows: usize,
+        hint_gap_rows: usize,
+        footer_rows: usize,
+        header_gap: f32,
+        pad: f32,
+    ) -> (usize, Vec<PlanLine>, f32) {
+        let plan = window_plan(full_plan, item_top, item_top + item_visible);
+        let total_rows =
+            billed_header_rows + plan.len() + empty_rows + hint_gap_rows + hint_rows + footer_rows;
+        let card_h = self.overlay_card_h(total_rows, header_gap, hint_rows, hint_gap_rows, pad);
+        (item_top, plan, card_h)
+    }
+
+    /// The grouped family's starvation-degrade arm for the header/query gap —
+    /// the same kind of decorative, non-load-bearing chrome
+    /// [`Self::theme_window_without_cue`] already degrades, dropped rather
+    /// than pushing the card past the canvas.
+    fn theme_card_h_without_header_gap(
+        &self,
+        total_rows: usize,
+        hint_gap_rows: usize,
+        header_gap: f32,
+        hint_rows: usize,
+        pad: f32,
+    ) -> (usize, f32) {
+        let total_rows = total_rows - hint_gap_rows;
+        let card_h = self.overlay_card_h(total_rows, header_gap, hint_rows, 0, pad);
+        (0, card_h)
+    }
+
     pub(super) fn theme_overlay_geometry(&self, width: u32) -> OverlayGeom {
         let lh = self.overlay_lh();
         // THE SAME THREE TOKENS THE FLAT FAMILY PLACES ITS CARD WITH — they were
@@ -134,12 +178,12 @@ impl TextPipeline {
                 item_cap,
             )
         };
-        let (mut item_top, mut item_visible, mut cue_above, mut cue_below, mut cue_rows) =
+        let (mut item_top, item_visible, mut cue_above, mut cue_below, mut cue_rows) =
             super::overlay_clamp::resolve_window_and_cue(n_items, |extra| {
                 fit_window(chrome_rows + extra)
             });
         let mut plan = window_plan(&full_plan, item_top, item_top + item_visible);
-        let mut total_rows = billed_header_rows
+        let total_rows = billed_header_rows
             + plan.len()
             + empty_rows
             + hint_gap_rows
@@ -164,16 +208,14 @@ impl TextPipeline {
         let text_w = card_w - 2.0 * hpad;
         hint = super::hint_yielding_explanation(&hint, width as f32 / self.metrics.scale.max(0.01));
         let mut card_h = self.overlay_card_h(total_rows, header_gap, hint_rows, hint_gap_rows, pad);
-        // The hint gap is decorative breathing room, not load-bearing chrome:
-        // in the starvation corner (a sectioned card's own fixed
-        // header/hint/footer overhead, at the `min_items: 0` floor, already
-        // outgrowing the canvas at an extreme zoom), drop it rather than push
-        // the card past the canvas — the same degrade the flat family's own
-        // arm takes (`overlay.rs::overlay_geometry`).
         if card_y + card_h > self.window_h + 0.01 && hint_gap_rows > 0 {
-            total_rows -= hint_gap_rows;
-            hint_gap_rows = 0;
-            card_h = self.overlay_card_h(total_rows, header_gap, hint_rows, hint_gap_rows, pad);
+            (hint_gap_rows, card_h) = self.theme_card_h_without_header_gap(
+                total_rows,
+                hint_gap_rows,
+                header_gap,
+                hint_rows,
+                pad,
+            );
         }
         // The count cue is the SAME kind of decorative, non-load-bearing chrome
         // the hint gap already degrades above — in the same starvation corner,
@@ -183,16 +225,18 @@ impl TextPipeline {
         // now-stale one) because freeing the cue's reserved overhead can let
         // the corpus fit a real item that overhead was crowding out.
         if card_y + card_h > self.window_h + 0.01 && cue_rows > 0 {
-            (item_top, item_visible) = fit_window(chrome_rows);
             (cue_above, cue_below, cue_rows) = (None, None, 0);
-            plan = window_plan(&full_plan, item_top, item_top + item_visible);
-            total_rows = billed_header_rows
-                + plan.len()
-                + empty_rows
-                + hint_gap_rows
-                + hint_rows
-                + footer_rows;
-            card_h = self.overlay_card_h(total_rows, header_gap, hint_rows, hint_gap_rows, pad);
+            (item_top, plan, card_h) = self.theme_window_without_cue(
+                &full_plan,
+                fit_window(chrome_rows),
+                billed_header_rows,
+                empty_rows,
+                hint_rows,
+                hint_gap_rows,
+                footer_rows,
+                header_gap,
+                pad,
+            );
         }
         let card_y = card_y + self.overlay_entrance_offset();
         let text_left = card_x + hpad;

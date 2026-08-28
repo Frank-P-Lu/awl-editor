@@ -20,10 +20,9 @@ mod accessory_law;
 /// deliberately do without.
 mod panel_law;
 
+use super::fit_rows::{fit_item_rows, fit_item_rows_after_px};
 use super::overlay_header::{WorkspaceRowFit, fit_workspace_item_rows};
-use super::overlay_rows::{
-    OverlayRowPlanInput, PlanLine, fit_item_rows, fit_item_rows_after_px, plan_overlay_rows,
-};
+use super::overlay_rows::{OverlayRowPlanInput, PlanLine, plan_overlay_rows};
 
 const CARD_X: f32 = 420.0;
 const CARD_W: f32 = 360.0;
@@ -407,7 +406,7 @@ fn fit_item_rows_allows_zero_once_the_groups_own_chrome_overruns_the_budget() {
 ///     budget; the tight branch fires where it does not.
 #[test]
 fn fit_sectioned_item_rows_bills_headers_tightly_only_to_avoid_an_empty_band() {
-    use super::overlay_rows::fit_sectioned_item_rows;
+    use super::fit_rows::fit_sectioned_item_rows;
     const PITCH: f32 = 20.0;
     let (mut identical, mut relaxed, mut degraded) = (0usize, 0usize, 0usize);
     for fit_lines in 0..24usize {

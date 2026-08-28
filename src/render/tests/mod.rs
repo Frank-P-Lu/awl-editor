@@ -529,6 +529,12 @@ pub(super) fn settings_overlay_view(
     v.overlay_bindings = ov.item_bindings();
     v.overlay_ranges = ov.item_range_fracs();
     v.overlay_lens = ov.lens_strip();
+    // `sync_view`'s own derivation (`overlay_workspace: ov.workspace_shape().is_some()`):
+    // Settings answers `Some(RailOverRows)` unconditionally, so a real Settings
+    // card can never render un-workspaced. Leaving this at its default `false`
+    // routed every caller of this fixture through the FACETED/theme geometry
+    // family instead — a state the product cannot reach.
+    v.overlay_workspace = ov.workspace_shape().is_some();
     v.overlay_sections = ov.item_sections();
     v.overlay_selected = ov.selected;
     v.overlay_scroll = ov.scroll;

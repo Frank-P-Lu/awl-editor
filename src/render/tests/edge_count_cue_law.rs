@@ -45,11 +45,13 @@
 //! **THE GEOMETRY AXIS** (the item's own callout: one window alone is
 //! exactly the shape of law that would go green while blind to this) is
 //! swept two ways: a roomy canvas with a corpus bigger than any picker's own
-//! `window_rows()` (the per-KIND cap binds — `command_palette_default_window_shows_the_below_edge_cue`,
-//! acceptance case 1), and a short canvas with a modest corpus (the CANVAS
-//! binds — `theme_picker_short_window_shows_the_below_edge_cue`, acceptance
-//! case 2) — plus the full roster swept at both a tall-fits and a
-//! corpus-forced-clip geometry (`every_picker_kinds_cue_is_present_iff_the_window_clips`).
+//! `window_rows()` (the per-KIND cap binds —
+//! `command_palette_default_window_shows_the_below_edge_cue`, acceptance
+//! case 1), and a short canvas with a modest corpus (the CANVAS binds —
+//! `theme_picker_short_window_shows_the_below_edge_cue`, acceptance case
+//! 2) — plus the full roster swept at both a tall-fits and a
+//! corpus-forced-clip geometry
+//! (`every_picker_kinds_cue_is_present_iff_the_window_clips`).
 
 use super::super::*;
 use super::overlay_height_clamp_law::{Family, family, overlay_view};
@@ -225,8 +227,9 @@ fn every_picker_kinds_cue_is_present_iff_the_window_clips() {
             // the BELOW edge's — a gap a mutated `below` formula sailed
             // through here while still being caught by the acceptance
             // captures below, which happen to open scrolled to the top.
-            // Selecting item 0 here closes that gap across the WHOLE
-            // roster rather than leaving it to two named kinds.
+            // Selecting the corpus's first entry here closes that gap
+            // across the WHOLE roster rather than leaving it to two named
+            // kinds.
             let mut v_top = overlay_view(kind, big_n, false);
             v_top.overlay_selected = 0;
             p.set_view(&v_top);

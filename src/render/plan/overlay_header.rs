@@ -288,7 +288,7 @@ impl OverlayRowPlan {
             .map(|row| row.display)
     }
 }
-use super::overlay_rows::fit_item_rows_after_px;
+use super::fit_rows::fit_item_rows_after_px;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(in crate::render) struct WorkspaceRowFit {
