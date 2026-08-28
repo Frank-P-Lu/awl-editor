@@ -138,26 +138,26 @@ pub(super) fn fit_rows(rows: &[crate::workingset::StackRow], budget: usize) -> V
 
 /// The stack's rich-text spans in draw order, each carrying the ink it wears.
 ///
-/// TWO AXES OF VALUE, both drawn from the block's existing two-step ladder
-/// rather than a new ink: the ACTIVE row's name wants `muted` — the same ink
-/// the single-file identity has always spent on the filename — and every other
-/// row's is `faint`, so the reader's current file is the one that comes
-/// forward. A row's LOCATION is `faint` throughout, quieter than the name it
-/// qualifies on the row that matters.
+/// ONE AXIS OF VALUE: the ACTIVE row's name comes forward, whether that row
+/// is a file or a project heading — [`plate_rects`] plates a heading exactly
+/// when it is the reader's current project, the same `active` field a File
+/// row's own plate reads — and every other row's name is `faint`. A row's
+/// LOCATION is `faint` throughout, quieter than the name it qualifies on the
+/// row that matters.
 ///
-/// The active row's name is drawn ON [`plate_rect`]'s own fill
-/// (`theme::surface_selected()`), not on the bare margin — so `muted` alone is
-/// only ever a DEFAULT, never the final answer. It is routed through
-/// [`theme::selected_row_secondary_ink`], the SAME ink-legibility mechanism the
-/// picker row's own secondary ink and the toast rim already use
-/// (`render/chrome/overlay_rows.rs`, `overlay_visual_sel.rs`): the function
-/// keeps `muted` wherever it already contrasts against the plate (every
-/// ordinary world) and falls back to whichever of
-/// the page's two poles reads better only where it does not — which is
-/// Wagtail, where the plate fills at page-inverse (`base_content`) and `muted`
-/// is the SAME page-inverse value, so unrouted ink vanishes into its
-/// own plate (the sidecar-vs-pixels tripwire: `selected_index` reads correctly
-/// while the row renders unreadable).
+/// An active row's name is drawn ON [`plate_rect`]'s own fill
+/// (`theme::surface_selected()`), not on the bare margin — so the ladder's
+/// plain `muted` default is never the answer here, active row or heading
+/// alike. It is routed through [`theme::selected_row_secondary_ink`], the
+/// SAME ink-legibility mechanism the picker row's own secondary ink and the
+/// toast rim already use (`render/chrome/overlay_rows.rs`,
+/// `overlay_visual_sel.rs`): the function keeps `muted` wherever it already
+/// contrasts against the plate (every ordinary world) and falls back to
+/// whichever of the page's two poles reads better only where it does not —
+/// which is Wagtail, where the plate fills at page-inverse (`base_content`)
+/// and `muted` is the SAME page-inverse value, so unrouted ink vanishes into
+/// its own plate (the sidecar-vs-pixels tripwire: `selected_index` reads
+/// correctly while the row renders unreadable).
 ///
 /// Rows are joined by carrying a leading newline on the first span of every row
 /// after the first, so an absent location cannot swallow a line break.
@@ -174,16 +174,11 @@ pub(super) fn stack_spans(
         return Vec::new();
     }
     let active_ink = theme::selected_row_secondary_ink(theme::surface_selected()).to_glyphon();
-    let muted = theme::muted().to_glyphon();
     let faint = theme::faint().to_glyphon();
     let mut out = Vec::with_capacity(lines.len() * 2);
     for (row, line) in lines.iter().enumerate() {
         let lead = if row == 0 { "" } else { "\n" };
-        let name_ink = match line.kind {
-            crate::workingset::StackRowKind::File if line.active => active_ink,
-            crate::workingset::StackRowKind::Group { active: true } => muted,
-            _ => faint,
-        };
+        let name_ink = if line.active { active_ink } else { faint };
         let (parent, leaf) = line.text.split_at(line.parent_byte);
         if parent.is_empty() {
             out.push((format!("{lead}{leaf}"), name_ink));
@@ -273,14 +268,21 @@ pub(super) fn drag_indicator_rect(
     Some([x, y + h - thickness_px * 0.5, w, thickness_px])
 }
 
-/// THE PLATED ROWS of a block — at most one, and none at all when there is no
-/// stack.
+/// THE PLATED ROWS of a block — at most one PER ROW KIND (a File row and a
+/// Group heading are different questions, "which file" and "which project",
+/// and both can be true in the same drawn window), none at all when there is
+/// no stack.
 ///
 /// Read off the SAME [`GutterLayout::lines`] list the glyphs are laid from and
-/// the SAME planner rows they sit on, so the plate cannot mark a different line
+/// the SAME planner rows they sit on, so a plate cannot mark a different line
 /// than the one the reader is editing. Adding a line to the block (an affordance
 /// appearing, the project line vanishing) moves the glyphs and the plate through
 /// one shared index rather than two agreeing counts.
+///
+/// Reads the OUTER [`crate::workingset::StackRow::active`] field uniformly —
+/// the one marker [`crate::workingset::WorkingSet::expanded_rows`] now sets
+/// for a Group heading too, not the kind's own nested copy — so a heading and
+/// a file are plated by the same rule rather than two.
 pub(super) fn plate_rects(
     layout: &GutterLayout,
     plan: &crate::render::plan::GutterStackPlan,
@@ -291,28 +293,30 @@ pub(super) fn plate_rects(
         .lines()
         .into_iter()
         .enumerate()
-        .find_map(|(row, (text, kind))| {
+        .filter_map(|(row, (text, kind))| {
             let gutter::GutterLine::File(at) = kind else {
                 return None;
             };
-            if !matches!(
-                layout.files.get(at)?.kind,
-                crate::workingset::StackRowKind::File
-            ) || !layout.files.get(at)?.active
-            {
+            let file = layout.files.get(at)?;
+            if !file.active {
                 return None;
             }
             let rect = *plan.rows.get(row)?;
-            // The shaped file line ends with the always-present close run. Even
-            // while that run is transparent it participates in right alignment,
-            // shifting the visible label left by its width. Include the lane in
-            // the plate's measured run so the selected ink never starts outside
-            // its own fill (fatal in a one-bit world: black ink on black ground).
-            let ink_w =
-                (text.chars().count() + CLOSE_MARK_TEXT.chars().count()) as f32 * label_char_w;
+            // The shaped FILE line alone ends with the always-present close
+            // run: even while transparent it participates in right alignment,
+            // shifting the visible label left by its width, so a File plate's
+            // measured run includes it (the ink must never start outside its
+            // own fill — fatal in a one-bit world, black on black). A Group
+            // heading never shapes that run (`stack_spans` skips it outright
+            // for any non-File kind), so its own plate is sized from the
+            // label alone.
+            let close_lane = match file.kind {
+                crate::workingset::StackRowKind::File => CLOSE_MARK_TEXT.chars().count(),
+                _ => 0,
+            };
+            let ink_w = (text.chars().count() + close_lane) as f32 * label_char_w;
             Some(plate_rect(rect, ink_w, pad_x))
         })
-        .into_iter()
         .collect()
 }
 

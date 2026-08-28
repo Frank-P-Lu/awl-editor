@@ -686,7 +686,15 @@ fn closing_the_last_file_enters_the_honest_zero_document_state() {
     );
     assert!(!app.document.has_active());
     assert!(app.document.buffer_opt().is_none());
-    assert_eq!(app.project_location.root, dir.to_path_buf());
+    // Canonicalized against the SAME normalizer `App::new`/`ProjectLocation::
+    // new` route the launch root through (item 512(b)'s root-identity fix) —
+    // a real scratch dir under the OS temp root crosses a real symlink on
+    // macOS (`/var` -> `/private/var`), so the raw `dir.to_path_buf()` this
+    // fixture built from is no longer the spelling the app itself stores.
+    assert_eq!(
+        app.project_location.root,
+        crate::buffers::normalize_path(&dir)
+    );
 
     let exit = crate::app::schedule::RecordingExit::new();
     app.apply(Action::OpenGoto, false, &exit, crate::stats::Door::Chord);

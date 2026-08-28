@@ -10,6 +10,19 @@ fn row(leaf: &str, parent: &str, active: bool) -> StackRow {
     }
 }
 
+/// A project HEADING row, the outer `active` field set the same way
+/// [`crate::workingset::WorkingSet::expanded_rows`] now sets it — mirroring
+/// [`crate::workingset::StackRowKind::Group`]'s own copy rather than
+/// disagreeing with it, the shape item 507 fixed.
+fn group_row(leaf: &str, active: bool) -> StackRow {
+    StackRow {
+        leaf: leaf.to_string(),
+        parent: String::new(),
+        active,
+        kind: crate::workingset::StackRowKind::Group { active },
+    }
+}
+
 /// The three-file set every block-shape sweep below draws, with `active` naming
 /// which slot is the reader's current file.
 fn rows(active: usize) -> Vec<StackRow> {
@@ -259,6 +272,94 @@ fn a_single_file_block_plates_nothing() {
             .map(|(_, kind)| *kind)
             .collect::<Vec<_>>(),
         vec![gutter::GutterLine::Project, gutter::GutterLine::Name]
+    );
+}
+
+/// **507: A PROJECT HEADING PLATES TOO, INDEPENDENTLY OF ITS OWN ACTIVE
+/// FILE'S PLATE.** `plate_rects`'s law above (`a_plate_marks_the_active_
+/// row_in_every_block_shape`) only ever proved "at most one" because its own
+/// fixture is File rows exclusively — the resting stack's real shape, which
+/// never draws a Group row at all. The EXPANDED panel does, and an active
+/// heading with its own active file both visible in the same window answer
+/// two different questions ("which project", "which file") — a reader
+/// revealed hasn't been told either if only one of the two plates.
+#[test]
+fn an_active_group_heading_and_its_active_file_are_both_plated() {
+    let files = vec![
+        group_row("notes/", true),
+        row("welcome.md", "", true),
+        row("draft.md", "", false),
+    ];
+    let layout = layout_of(&files, false, false, 24);
+    let plan = crate::render::plan::plan_gutter_stack(
+        300.0,
+        layout.avail,
+        12.0,
+        layout.lines().len(),
+        8.0,
+        0.5,
+    );
+    let plates = plate_rects(&layout, &plan, 6.0, 2.0);
+    assert_eq!(
+        plates.len(),
+        2,
+        "the active heading and the active file must each plate: {plates:?}"
+    );
+}
+
+/// A heading that is NOT the reader's current project draws no plate, even
+/// while sitting beside another (active) project's heading and file —
+/// `StackRow::active`, not "any row in this block", is the source of truth.
+#[test]
+fn an_inactive_group_heading_is_never_plated() {
+    let files = vec![
+        group_row("archive/", false),
+        row("old.md", "", false),
+        group_row("notes/", true),
+        row("welcome.md", "", true),
+    ];
+    let layout = layout_of(&files, false, false, 24);
+    let plan = crate::render::plan::plan_gutter_stack(
+        300.0,
+        layout.avail,
+        12.0,
+        layout.lines().len(),
+        8.0,
+        0.5,
+    );
+    let plates = plate_rects(&layout, &plan, 6.0, 2.0);
+    assert_eq!(
+        plates.len(),
+        2,
+        "only the active heading + its active file may plate: {plates:?}"
+    );
+}
+
+/// **507: AN ACTIVE HEADING WEARS THE SAME ROUTED INK AN ACTIVE FILE DOES.**
+/// Before this fix a heading's ink came from the ladder's plain `muted`
+/// default, never [`theme::selected_row_secondary_ink`] — exactly the shape
+/// this file's own tripwire names for File rows (a plate that fills at
+/// page-inverse on Wagtail swallows unrouted ink). Now that a heading plates
+/// too, it must be routed the same way.
+#[test]
+fn an_active_group_heading_wears_the_same_routed_ink_as_an_active_file() {
+    let _g = crate::testlock::serial();
+    let files = vec![group_row("notes/", true), row("welcome.md", "", true)];
+    let fitted = fit_rows(&files, 24);
+    let spans = stack_spans(&fitted, None);
+    let heading_ink = spans
+        .iter()
+        .find(|(text, _)| text.contains("notes/"))
+        .expect("the heading draws its own name span")
+        .1;
+    let file_ink = spans
+        .iter()
+        .find(|(text, _)| text.contains("welcome.md"))
+        .expect("the file draws its own name span")
+        .1;
+    assert_eq!(
+        heading_ink.0, file_ink.0,
+        "an active heading and an active file must share the same routed ink"
     );
 }
 

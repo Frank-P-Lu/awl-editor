@@ -78,9 +78,19 @@ impl OverlayState {
     /// The visible errand for this card. Save a Copy reuses the folder and
     /// filename mechanisms, but its payload changes what the user is doing;
     /// Move names the file it is finding a destination for the same way.
+    ///
+    /// Once standing anywhere but the level it opened at, the current
+    /// ROOT-RELATIVE destination folds into the title too (`"move welcome.md
+    /// to notes/drafts/"`) — the one place a descended destination navigator
+    /// says where it is standing, since [`Self::browse_dir`] is otherwise a
+    /// fact only the sidecar could see. Unchanged at the level it opened at:
+    /// `browse_dir` is `None` there for [`OverlayKind::MoveDest`] and
+    /// [`OverlayKind::ExportDest`] (both walk the active root by a
+    /// root-relative `rel`, [`crate::overlay::browse_level`]'s doc), so the
+    /// suffix has nothing to append until a real descend happens.
     pub fn title(&self) -> String {
         if self.save_copy && self.kind == OverlayKind::ExportDest {
-            "save a copy to".to_string()
+            self.with_browse_dir_suffix("save a copy to".to_string())
         } else if self.save_copy_dest.is_some() && self.rename_edit.is_some() {
             "save a copy as".to_string()
         } else if let Some(name) = self
@@ -88,10 +98,58 @@ impl OverlayState {
             .as_deref()
             .filter(|_| self.kind == OverlayKind::MoveDest)
         {
-            format!("move {name}")
+            self.move_dest_title(name)
+        } else if self.kind == OverlayKind::ExportDest {
+            self.with_browse_dir_suffix(self.kind.title().to_string())
         } else {
             self.kind.title().to_string()
         }
+    }
+
+    /// `title`'s composition for [`OverlayKind::MoveDest`]: `"move {name}"`
+    /// at the level it opened at, `"move {name} to {dir}/"` once descended —
+    /// `to` belongs to Move's own phrasing (it names an action, not a
+    /// question), unlike [`OverlayKind::ExportDest`]'s `"export to"`, whose
+    /// title already ends in the word a plain append would double.
+    fn move_dest_title(&self, name: &str) -> String {
+        match self.browse_dir_display() {
+            Some(dir) => format!("move {name} to {dir}"),
+            None => format!("move {name}"),
+        }
+    }
+
+    /// Append the current destination folder to `base`, unchanged when
+    /// [`Self::browse_dir_display`] has nothing to show. `base` is assumed to
+    /// already read naturally with a folder after it (`"export to"`, `"save a
+    /// copy to"`) — every caller's own title already ends in a preposition,
+    /// so this never doubles one.
+    fn with_browse_dir_suffix(&self, base: String) -> String {
+        match self.browse_dir_display() {
+            Some(dir) => format!("{base} {dir}"),
+            None => base,
+        }
+    }
+
+    /// The destination folder `title` shows, root-relative with a trailing
+    /// `/` (`"notes/drafts/"`), or `None` at the level the card opened at.
+    ///
+    /// [`OverlayKind::MoveDest`]/[`OverlayKind::ExportDest`] walk the active
+    /// root by a root-relative `rel`, so [`Self::browse_dir`] IS that string
+    /// already (`crate::actions::overlay_nav::join_browse`'s callers) —
+    /// `None` at the root, never `Some("")`. Every other kind (including the
+    /// two ABSOLUTE-path walkers, `Project`/`ProjectBrowse`) shows nothing:
+    /// their `browse_dir` is a whole directory rather than a root-relative
+    /// fragment, and folding that into this title would need the workspace
+    /// baseline to relativize against, which this card does not carry.
+    fn browse_dir_display(&self) -> Option<String> {
+        if !matches!(self.kind, OverlayKind::MoveDest | OverlayKind::ExportDest) {
+            return None;
+        }
+        let dir = self.browse_dir.as_deref()?;
+        if dir.is_empty() {
+            return None;
+        }
+        Some(format!("{dir}/"))
     }
 
     pub fn new(
