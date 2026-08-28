@@ -48,6 +48,7 @@ mod journey;
 mod kind;
 mod link;
 mod nav;
+mod rename_edit;
 mod row;
 mod semantic;
 mod state;
@@ -62,7 +63,7 @@ pub use build::{
 // the module surface because the law guarding the split lives outside it, and a
 // law that re-derives "is this a remembered path" is a second owner of it.
 pub(crate) use build::recent::is_remembered_root;
-pub use capture::{Capture, CaptureStage, KeepEdit, LinkEdit, RenameEdit, ValueEdit};
+pub use capture::{Capture, CaptureStage, KeepEdit, LinkEdit, ValueEdit};
 pub use comparison::{CONFLICT_ROWS, ComparisonRequest, ComparisonView, ConflictSubject};
 #[allow(unused_imports)]
 // used by overlay::tests (format_hint/HintAction directly; PIN_TAG below)
@@ -75,6 +76,7 @@ pub use journey::{
 };
 pub use kind::{AcceptDisposition, OverlayKind};
 pub use link::LinkEditMode;
+pub use rename_edit::RenameEdit;
 #[allow(unused_imports)]
 // OverlayRow/RowMeta/RowMetaTag: used by overlay tests and source-audit laws
 pub use row::{OverlayRow, RangeCell, RowMeta, RowMetaTag, add_to_dictionary_label};

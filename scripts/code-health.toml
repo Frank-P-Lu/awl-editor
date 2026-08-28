@@ -102,8 +102,8 @@ lines = 453
 
 [[file_size_mark]]
 file = "src/app/viewstate.rs"
-lines = 593
-reason = "`sync_view` is the sole exhaustive `ViewState` construction site, so every render datum must be spelled out here. It carries the fold chevron's real fold set, the summoned picker's secondary location, the persistent changed-elsewhere affordance, photographable/findable notices, and world-authored diagonal-mark weight without creating a second non-exhaustive construction path. +11: the working-set stack's row count and its own fold-independent geometry, the one new field a margin widening to more than one row needs. +7: mirrors config_keys/config_linux_keep, the menu chord column's config-awareness plumbing. +13: the bottom identity's `gutter_project` reads the OPEN file's own remembered root through `working_set().active_root()` rather than the ambient switched-to project, falling back to the old ambient read only when the working set has no active file. +2: the gated pointer-derived resync's one call site — `sync_view` is where scroll/zoom/the active document are settled for the frame, so it is the seam every non-`CursorMoved` door (wheel scroll, wheel zoom's deferred reflow, keyboard-driven scroll) reaches without a per-door special case. +10: `sync_view` auto-collapses the expanded working-set panel whenever an overlay opens, so the two summoned surfaces can never be up at once."
+lines = 594
+reason = "`sync_view` is the sole exhaustive `ViewState` construction site, so every render datum must be spelled out here. It carries the fold chevron's real fold set, the summoned picker's secondary location, the persistent changed-elsewhere affordance, photographable/findable notices, and world-authored diagonal-mark weight without creating a second non-exhaustive construction path. +11: the working-set stack's row count and its own fold-independent geometry, the one new field a margin widening to more than one row needs. +7: mirrors config_keys/config_linux_keep, the menu chord column's config-awareness plumbing. +13: the bottom identity's `gutter_project` reads the OPEN file's own remembered root through `working_set().active_root()` rather than the ambient switched-to project, falling back to the old ambient read only when the working set has no active file. +2: the gated pointer-derived resync's one call site — `sync_view` is where scroll/zoom/the active document are settled for the frame, so it is the seam every non-`CursorMoved` door (wheel scroll, wheel zoom's deferred reflow, keyboard-driven scroll) reaches without a per-door special case. +10: `sync_view` auto-collapses the expanded working-set panel whenever an overlay opens, so the two summoned surfaces can never be up at once. +1: mirrors the query field's own seeded selection range from `OverlayInfo`/live query into `overlay_query_selection`, beside the other query-caret mirrors."
 
 [[file_size_mark]]
 file = "src/app/window.rs"
@@ -135,8 +135,8 @@ reason = "Each schema addition includes its `/N` ledger row and moves with `SCHE
 
 [[file_size_mark]]
 file = "src/capture/modes.rs"
-lines = 545
-reason = "The headless snapshot rebuilds secondary picker location through `facets::strip_location` rather than serializing a duplicate fact, and `gutter.changed` sits at the sole `base_viewstate` consumer. It also carries photographable/findable notices, world-authored diagonal-mark weight, and caret-kind resolution through `from_mode`. +6: `overlay_query_caret` now threads the real caret through from a live-replay `OverlayInfo`, falling back to the query's own end only for a hand-built synthetic override."
+lines = 546
+reason = "The headless snapshot rebuilds secondary picker location through `facets::strip_location` rather than serializing a duplicate fact, and `gutter.changed` sits at the sole `base_viewstate` consumer. It also carries photographable/findable notices, world-authored diagonal-mark weight, and caret-kind resolution through `from_mode`. +6: `overlay_query_caret` now threads the real caret through from a live-replay `OverlayInfo`, falling back to the query's own end only for a hand-built synthetic override. +1: mirrors `opts.overlay.query_selection` into `overlay_query_selection` for the headless capture path."
 
 [[file_size_mark]]
 file = "src/capture/sidecar.rs"
@@ -257,7 +257,7 @@ reason = "+163: the menu bar's own pixel-space declarations. Six pads move off b
 
 [[file_size_mark]]
 file = "src/overlay/capture.rs"
-lines = 739
+lines = 595
 
 [[file_size_mark]]
 file = "src/overlay/kind.rs"
@@ -266,8 +266,8 @@ reason = "A new `OverlayKind` variant crosses seven exhaustive per-kind matches 
 
 [[file_size_mark]]
 file = "src/overlay/nav.rs"
-lines = 487
-reason = "`item_sections` gives a workspace one category name in its rail and lets `refilter` own bucketing. The remembered dotfile exemption ensures a chosen project remains in Recent even when directory listings hide dotfiles. +16: Go to Line's `selected_is_line_jump` accept-path gate, the numeric sibling of `selected_is_heading` — true only when the highlighted row is the synthesized line-jump row — plus its `RowMeta::GotoLine` arm in the shared line-target and label matches. +43: the query field's own caret door — `query_at_rest`, `query_char_left`/`query_char_right`, `query_home`/`query_end`, `query_set_caret` — the one seat both the mid-query gate and a pointer click/drag read."
+lines = 495
+reason = "`item_sections` gives a workspace one category name in its rail and lets `refilter` own bucketing. The remembered dotfile exemption ensures a chosen project remains in Recent even when directory listings hide dotfiles. +16: Go to Line's `selected_is_line_jump` accept-path gate, the numeric sibling of `selected_is_heading` — true only when the highlighted row is the synthesized line-jump row — plus its `RowMeta::GotoLine` arm in the shared line-target and label matches. +43: the query field's own caret door — `query_at_rest`, `query_char_left`/`query_char_right`, `query_home`/`query_end`, `query_set_caret` — the one seat both the mid-query gate and a pointer click/drag read. +8: `query_set_caret` routes a click through `rename_edit_set_caret` first when a rename edit is active, so a click can't be overwritten by the next keystroke's mirror."
 
 [[file_size_mark]]
 file = "src/overlay/state.rs"
@@ -294,8 +294,8 @@ lines = 559
 
 [[file_size_mark]]
 file = "src/render.rs"
-lines = 2837
-reason = "The footer plate uses the notice channel's one-pixel rim so it remains visible. `Millis` and `progress_per` keep durations out of pixel multiplication by type, while declaration docs name the entitled scale factor for page/caret pads, page-frame strokes, and spell gaps. `HudDefaults`, `WhichKeyDefaults`, and `DebugDefaults` give inert field groups exhaustive defaults beside their sole `TextPipeline` owner. Shape reach rejects unshaped-line sentinels, and `Metrics` carries `dpi` beside zoom scale so a logical floor does not vary by display density. `CARET_INK_PAD_W` gained a doc comment naming its rationale and the near-zero vertical headroom finding that kept the tuning to width alone. +7: the working-set stack plate's own row-height and inset constants, named beside the other margin-row geometry this file already owns. +10: the menu chord column's config-aware label plumbing (ViewState mirrors of config_keys/config_linux_keep). +4: inert hover defaults and mirrored row state keep the production close affordance explicit in the exhaustive pipeline state. +1: the shared overlay-material module is declared beside the other data-driven chrome owners. +14: the streaks card's drawn rect and text origin join the other per-frame HUD state, named beside `HudDefaults`. +30: the format popover's hover-ring pipeline field and the inline-image resize-handle's hover-grip pipeline field, declared beside their sibling `TextPipeline` fields with doc comments naming what each draws and why — a hairline stroke and a small filled mark that can never disagree with the hit-test each mirrors. +11: the row-drag insertion hairline's own field pair (the drop-slot index and its drawn plate), mirroring gutter_stack_hover's own pointer-only, ViewState-free shape. +11: the fold-chevron mark grew from a two-quad pair to a per-mark rotated-glyph pipeline (RotatedLabelPipeline slots + a content-addressed mask cache), replacing the retired quad geometry."
+lines = 2850
+reason = "The footer plate uses the notice channel's one-pixel rim so it remains visible. `Millis` and `progress_per` keep durations out of pixel multiplication by type, while declaration docs name the entitled scale factor for page/caret pads, page-frame strokes, and spell gaps. `HudDefaults`, `WhichKeyDefaults`, and `DebugDefaults` give inert field groups exhaustive defaults beside their sole `TextPipeline` owner. Shape reach rejects unshaped-line sentinels, and `Metrics` carries `dpi` beside zoom scale so a logical floor does not vary by display density. `CARET_INK_PAD_W` gained a doc comment naming its rationale and the near-zero vertical headroom finding that kept the tuning to width alone. +7: the working-set stack plate's own row-height and inset constants, named beside the other margin-row geometry this file already owns. +10: the menu chord column's config-aware label plumbing (ViewState mirrors of config_keys/config_linux_keep). +4: inert hover defaults and mirrored row state keep the production close affordance explicit in the exhaustive pipeline state. +1: the shared overlay-material module is declared beside the other data-driven chrome owners. +14: the streaks card's drawn rect and text origin join the other per-frame HUD state, named beside `HudDefaults`. +30: the format popover's hover-ring pipeline field and the inline-image resize-handle's hover-grip pipeline field, declared beside their sibling `TextPipeline` fields with doc comments naming what each draws and why — a hairline stroke and a small filled mark that can never disagree with the hit-test each mirrors. +11: the row-drag insertion hairline's own field pair (the drop-slot index and its drawn plate), mirroring gutter_stack_hover's own pointer-only, ViewState-free shape. +11: the fold-chevron mark grew from a two-quad pair to a per-mark rotated-glyph pipeline (RotatedLabelPipeline slots + a content-addressed mask cache), replacing the retired quad geometry. +13: the Rename minibuffer's seeded-stem selection wash -- its own `SelectionPipeline` field (`panel_query_selection`) and the `overlay_query_selection` range it reads, doc-commented beside the other per-frame query state."
 
 [[file_size_mark]]
 file = "src/render/benchsuite/corpus.rs"
@@ -327,8 +327,8 @@ reason = "+6: the dropdown plan takes the frame's scale so its minimum width res
 
 [[file_size_mark]]
 file = "src/render/chrome/mod.rs"
-lines = 1105
-reason = "+1: re-export PANEL_MARGIN and PANEL_PAD so panel shaping and rectangle layout resolve one physical panel inset owner. +6: re-exports the working-set stack's gutter submodules so the chrome pipeline resolves them through the same module surface as every other gutter row. +1: re-exports the new gutter_hit pointer module beside them. +1: the shared chrome plan carries the hovered working-set row to the one draw owner. +1: selection HUD figures are re-exported through the shared chrome surface. +31: card_shape_texture becomes the single corner-mask owner every console layer (panel/scanline/placard) resolves its chamfer through, replacing overlay_material.rs's independent hardcoded zero. +13: the float-panel border's outset moves off an inline literal onto a named, documented `FLOAT_BORDER_RING_PX` constant, so the docked-tab seam merge can size its own overlap against the ring's real width instead of guessing it. +1: declares the gutter's own lava frost seeds as a sibling module, split out to keep gutter.rs under its production ceiling."
+lines = 1106
+reason = "+1: re-export PANEL_MARGIN and PANEL_PAD so panel shaping and rectangle layout resolve one physical panel inset owner. +6: re-exports the working-set stack's gutter submodules so the chrome pipeline resolves them through the same module surface as every other gutter row. +1: re-exports the new gutter_hit pointer module beside them. +1: the shared chrome plan carries the hovered working-set row to the one draw owner. +1: selection HUD figures are re-exported through the shared chrome surface. +31: card_shape_texture becomes the single corner-mask owner every console layer (panel/scanline/placard) resolves its chamfer through, replacing overlay_material.rs's independent hardcoded zero. +13: the float-panel border's outset moves off an inline literal onto a named, documented `FLOAT_BORDER_RING_PX` constant, so the docked-tab seam merge can size its own overlap against the ring's real width instead of guessing it. +1: declares the gutter's own lava frost seeds as a sibling module, split out to keep gutter.rs under its production ceiling. +1: declares the new overlay_query_field module beside its sibling overlay_draw/overlay_rows, split out to keep overlay_draw.rs under its own file-size mark."
 
 [[file_size_mark]]
 file = "src/render/chrome/outline.rs"
@@ -342,7 +342,7 @@ reason = "+1: the Range rail's read hands the accessory column's ANCHOR and its 
 
 [[file_size_mark]]
 file = "src/render/chrome/overlay_draw.rs"
-lines = 543
+lines = 512
 reason = "The footer plate earns the notice channel's own one-pixel rim, which is what lifts it from delta-E 1.91 to 54 on Cassowary -- a plate nobody can see is not a plate. +2: parking the new rim alongside every other overlay pipeline, so a frame that does not draw it cannot leave last frame's quad on screen. +2: the docked facet strip contributes its single dedicated text area through the shared overlay upload owner. +1: a query-caret comment split to its own line under the column limit."
 
 [[file_size_mark]]
@@ -367,8 +367,8 @@ reason = "Toast placement and collision planning live in `readout/toast.rs`, lea
 
 [[file_size_mark]]
 file = "src/render/chrome/theme_picker.rs"
-lines = 583
-reason = "`theme_overlay_geometry` is an exhaustive `OverlayGeom` construction site, so every workspace field is spelled out here, and the strip band reads the row plan threaded through the two shaping owners. The grouped card's pad, margin and top drop read the one owner rather than repeating the flat family's literals, and the lens strip's chip pads, corner ticks and underline drop resolve at the boundary. Its display plan carries a THIRD line kind: a section whose label is the card's own location is not a section, so it is planned and shaped as the second level of the heading hierarchy — its own scale const, its own metrics, its own span arm in the chrome face at `muted`, and the plan arm that chooses between the two. The location-scale constant itself lives in `render::rotated_location`, shared with the rotated-rail treatment, and the inline span arm carries a `RotatedRail`-world guard so that world's own vertical cue is not drawn twice; the guard reads the exhaustive `LocationStyle::draws_inline()` rather than a direct `!= RotatedRail` comparison, so a third style (`Raked`) is a conscious decision there too. The `Rules` PROTOTYPE draws no plates anywhere, so it is deliberately absent from the lens-strip TAB PILL gate — the comment records that absence as a decision rather than an oversight, and notes that `Diagonal` sits on the yes side here and the no side of `draws_row_plates`. Grew by 22 lines (610 -> 632): the active-lens mark's `Text` and `Chips(Underline)` stroke weights moved off bare device-pixel literals onto two documented `Logical` constants resolved through `Metrics::px`, and the two draw-call array literals each grew from one line to a multi-line `rustfmt` layout once their fourth element became a method call instead of a bare float. Grew by 23 lines (542 -> 565): the DockedTab active-facet plate now overlaps the card's own top border by a named, dpi-scaled `DOCKED_TAB_SEAM_OVERLAP` so the tab's mouth reads continuous with the card ground instead of showing a border stroke through it, plus a `#[cfg(test)]` probe exposing that resolved overlap to the geometry law that asserts against it. +18: `theme_plan` gates `PlanLine::Location` on `LocationStyle::needs_plan_row` so a `RotatedRail` world's off-card cue is charged no row at all, and `theme_overlay_geometry` derives `billed_header_rows` from whether the active facet style docks its strip outside the card, so a docked strip's own header box stops billing a row of `lh` it never draws. +18: the six-item merge round's own reconciliation of the DockedTab seam overlap and billed-header-rows diffs, both touching the same `overlay_shape_theme`/`theme_overlay_geometry` arms."
+lines = 623
+reason = "`theme_overlay_geometry` is an exhaustive `OverlayGeom` construction site, so every workspace field is spelled out here, and the strip band reads the row plan threaded through the two shaping owners. The grouped card's pad, margin and top drop read the one owner rather than repeating the flat family's literals, and the lens strip's chip pads, corner ticks and underline drop resolve at the boundary. Its display plan carries a THIRD line kind: a section whose label is the card's own location is not a section, so it is planned and shaped as the second level of the heading hierarchy — its own scale const, its own metrics, its own span arm in the chrome face at `muted`, and the plan arm that chooses between the two. The location-scale constant itself lives in `render::rotated_location`, shared with the rotated-rail treatment, and the inline span arm carries a `RotatedRail`-world guard so that world's own vertical cue is not drawn twice; the guard reads the exhaustive `LocationStyle::draws_inline()` rather than a direct `!= RotatedRail` comparison, so a third style (`Raked`) is a conscious decision there too. The `Rules` PROTOTYPE draws no plates anywhere, so it is deliberately absent from the lens-strip TAB PILL gate — the comment records that absence as a decision rather than an oversight, and notes that `Diagonal` sits on the yes side here and the no side of `draws_row_plates`. Grew by 22 lines (610 -> 632): the active-lens mark's `Text` and `Chips(Underline)` stroke weights moved off bare device-pixel literals onto two documented `Logical` constants resolved through `Metrics::px`, and the two draw-call array literals each grew from one line to a multi-line `rustfmt` layout once their fourth element became a method call instead of a bare float. Grew by 23 lines (542 -> 565): the DockedTab active-facet plate now overlaps the card's own top border by a named, dpi-scaled `DOCKED_TAB_SEAM_OVERLAP` so the tab's mouth reads continuous with the card ground instead of showing a border stroke through it, plus a `#[cfg(test)]` probe exposing that resolved overlap to the geometry law that asserts against it. +18: `theme_plan` gates `PlanLine::Location` on `LocationStyle::needs_plan_row` so a `RotatedRail` world's off-card cue is charged no row at all, and `theme_overlay_geometry` derives `billed_header_rows` from whether the active facet style docks its strip outside the card, so a docked strip's own header box stops billing a row of `lh` it never draws. +18: the six-item merge round's own reconciliation of the DockedTab seam overlap and billed-header-rows diffs, both touching the same `overlay_shape_theme`/`theme_overlay_geometry` arms. +40: `theme_reseat_marks` is the one owner both the shape pass and the hit-test route through for the active-lens mark's seat, called after the diagonal cluster resolves (shape time is too early to see it) -- every mark rect is now recorded buffer-local at shape time and reseated once, in one place, instead of each site computing its own upright-only `text_left` reading."
 
 [[file_size_mark]]
 file = "src/render/framebench.rs"
@@ -391,13 +391,13 @@ lines = 568
 
 [[file_size_mark]]
 file = "src/render/pipeline_draw.rs"
-lines = 537
-reason = "The footer plate earns the notice channel's own one-pixel rim, which is what lifts it from delta-E 1.91 to 54 on Cassowary -- a plate nobody can see is not a plate. +5: the rim's construction and its draw slot immediately before `overlay_bars`, matching the order `notice_rim`/`notice_plate` already keep. +1: the `shape_tail_owed` field initialiser in TextPipeline::new's literal, its sole construction site — the flag that records a presented frame still owes its tail. +7: the working-set stack plate's draw call, slotted beside the other gutter-row draws it shares a pipeline with. +2: threads config_keys/config_linux_keep into the menu dropdown plan's construction. +1: initializes the inert hovered-row field beside the working-set stack's other exhaustive state. +1: initializes the dedicated docked-facet strip buffer beside the overlay text buffers it replaces. +2: initializes the streaks card's rect/text-origin fields to `None` beside the other per-frame HUD state. +13: the format popover's hover-ring pipeline and the inline-image resize-handle's hover-grip pipeline, initialized beside their sibling `SelectionPipeline` construction sites. +6: the row-drag insertion hairline's own seeded pipeline, beside gutter_stack_plate's construction. +3: seeds the per-mark fold-chevron rotated-label pipeline slots beside the other per-mark construction sites."
+lines = 541
+reason = "The footer plate earns the notice channel's own one-pixel rim, which is what lifts it from delta-E 1.91 to 54 on Cassowary -- a plate nobody can see is not a plate. +5: the rim's construction and its draw slot immediately before `overlay_bars`, matching the order `notice_rim`/`notice_plate` already keep. +1: the `shape_tail_owed` field initialiser in TextPipeline::new's literal, its sole construction site — the flag that records a presented frame still owes its tail. +7: the working-set stack plate's draw call, slotted beside the other gutter-row draws it shares a pipeline with. +2: threads config_keys/config_linux_keep into the menu dropdown plan's construction. +1: initializes the inert hovered-row field beside the working-set stack's other exhaustive state. +1: initializes the dedicated docked-facet strip buffer beside the overlay text buffers it replaces. +2: initializes the streaks card's rect/text-origin fields to `None` beside the other per-frame HUD state. +13: the format popover's hover-ring pipeline and the inline-image resize-handle's hover-grip pipeline, initialized beside their sibling `SelectionPipeline` construction sites. +6: the row-drag insertion hairline's own seeded pipeline, beside gutter_stack_plate's construction. +3: seeds the per-mark fold-chevron rotated-label pipeline slots beside the other per-mark construction sites. +4: `panel_query_selection`'s construction and its `overlay_query_selection: None` initializer, beside the other per-frame query-caret state."
 
 [[file_size_mark]]
 file = "src/render/pipeline_geometry.rs"
-lines = 539
-reason = "`set_view` is the sole ViewState-to-pipeline mirror: it measures workspace rails, mirrors row ownership, invalidates view-derived diagonal geometry, and publishes every projection. It carries fold-chevron retinting, fold headings/tails, secondary location, comparison/source mirrors, selection-ui overlay rows, photographable/findable notices, and world-authored diagonal-mark weight. +1: mirrors the working-set stack's row count alongside the other row-ownership mirrors. +6: mirrors config_keys/config_linux_keep onto TextPipeline alongside every other synced field, the plumbing the menu chord column's config-awareness rides. +14: the format popover's hover ring and the inline-image resize-handle's hover grip both take the same `muted` ink the Chips ghost pills and fold chevron already use, synced beside the pipeline's other per-theme colors. +1: retints the fold-chevron mark's mask-based pipelines instead of the retired quad ink field."
+lines = 542
+reason = "`set_view` is the sole ViewState-to-pipeline mirror: it measures workspace rails, mirrors row ownership, invalidates view-derived diagonal geometry, and publishes every projection. It carries fold-chevron retinting, fold headings/tails, secondary location, comparison/source mirrors, selection-ui overlay rows, photographable/findable notices, and world-authored diagonal-mark weight. +1: mirrors the working-set stack's row count alongside the other row-ownership mirrors. +6: mirrors config_keys/config_linux_keep onto TextPipeline alongside every other synced field, the plumbing the menu chord column's config-awareness rides. +14: the format popover's hover ring and the inline-image resize-handle's hover grip both take the same `muted` ink the Chips ghost pills and fold chevron already use, synced beside the pipeline's other per-theme colors. +1: retints the fold-chevron mark's mask-based pipelines instead of the retired quad ink field. +3: colors `panel_query_selection` via `theme::selection_document()` and mirrors `overlay_query_selection` from the view, beside the pipeline's other per-frame syncs."
 
 [[file_size_mark]]
 file = "src/render/pipeline_overlay.rs"
@@ -508,8 +508,8 @@ reason = "Every world explicitly authors its toast anchor, while Cassowary and M
 lint = "clippy::too_many_lines"
 file = "src/app/viewstate.rs"
 function = "App::sync_view"
-message = "this function has too many lines (263/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. `sync_view` is the one exhaustive `ViewState` projection site, so each new render datum is spelled out here: the fold chevron's `folded_headings` (its direction needs the real fold set, not merely `fold_tails`'s own key set, so `fold::apply_to_view` takes the buffer's folds at its one call site here) and the summoned picker's secondary location. The document-session extraction replaced direct buffer and cache fields with explicit read projections while preserving that one exhaustive site. +5: the bottom identity's folder label reads the open file's own remembered root instead of the ambient project. +1: the gated pointer-derived resync's one call site, reached after scroll/zoom/the active document settle for the frame. +3: auto-collapses the expanded working-set panel whenever an overlay opens."
+message = "this function has too many lines (264/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. `sync_view` is the one exhaustive `ViewState` projection site, so each new render datum is spelled out here: the fold chevron's `folded_headings` (its direction needs the real fold set, not merely `fold_tails`'s own key set, so `fold::apply_to_view` takes the buffer's folds at its one call site here) and the summoned picker's secondary location. The document-session extraction replaced direct buffer and cache fields with explicit read projections while preserving that one exhaustive site. +5: the bottom identity's folder label reads the open file's own remembered root instead of the ambient project. +1: the gated pointer-derived resync's one call site, reached after scroll/zoom/the active document settle for the frame. +3: auto-collapses the expanded working-set panel whenever an overlay opens. +1: mirrors the query field's own seeded selection range into `overlay_query_selection`, beside the other query-caret mirrors."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -557,8 +557,8 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/capture/modes.rs"
 function = "settled_viewstate"
-message = "this function has too many lines (232/100)"
-reason = "The snapshot rebuilds secondary picker location from its existing strip. Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. The capture path derives a summoned workspace's shape and whether its comparison region carries prose, because a sidecar records mode rather than shape."
+message = "this function has too many lines (233/100)"
+reason = "The snapshot rebuilds secondary picker location from its existing strip. Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. The capture path derives a summoned workspace's shape and whether its comparison region carries prose, because a sidecar records mode rather than shape. +1: mirrors `opts.overlay.query_selection` into `overlay_query_selection` for the headless capture path."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -746,8 +746,8 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 lint = "clippy::too_many_lines"
 file = "src/render/pipeline_draw.rs"
 function = "TextPipeline::new"
-message = "this function has too many lines (476/100)"
-reason = "The one exhaustive TextPipeline initializer keeps adjacent GPU state transitions together. Four added lines initialize arbitrary two-colour ground/ink endpoints for independent selection and caret pipelines; their shared baked construction lives in SelectionPipeline::new_two_colour. Five added lines initialize the living band's input epoch beside its existing selection-motion state. +2: initializes the streaks card's rect/text-origin fields to `None`, beside the other per-frame HUD state. +8: the format popover's hover-ring pipeline and the inline-image resize-handle's hover-grip pipeline, initialized beside their sibling SelectionPipeline construction sites. +4: the row-drag insertion hairline's own seeded pipeline, beside gutter_stack_plate's construction. +3: seeds the per-mark fold-chevron rotated-label pipeline slots beside the other per-mark construction sites."
+message = "this function has too many lines (480/100)"
+reason = "The one exhaustive TextPipeline initializer keeps adjacent GPU state transitions together. Four added lines initialize arbitrary two-colour ground/ink endpoints for independent selection and caret pipelines; their shared baked construction lives in SelectionPipeline::new_two_colour. Five added lines initialize the living band's input epoch beside its existing selection-motion state. +2: initializes the streaks card's rect/text-origin fields to `None`, beside the other per-frame HUD state. +8: the format popover's hover-ring pipeline and the inline-image resize-handle's hover-grip pipeline, initialized beside their sibling SelectionPipeline construction sites. +4: the row-drag insertion hairline's own seeded pipeline, beside gutter_stack_plate's construction. +3: seeds the per-mark fold-chevron rotated-label pipeline slots beside the other per-mark construction sites. +4: `panel_query_selection`'s construction and its `overlay_query_selection: None` initializer, beside the other per-frame query-caret state."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -846,15 +846,15 @@ reason = "Existing end-to-end scenario with no coherent setup/assertion split. R
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/panels.rs"
 function = "history_comparison_is_relocated_by_the_capture_path_in_every_world"
-message = "this function has too many lines (136/100)"
-reason = "Existing end-to-end scenario with no coherent setup/assertion split. Its two identity-wrapper call sites became explicit default constructions, adding four source lines without changing behaviour. +1: the `OverlayInfo` literal gained its own `query_caret` field."
+message = "this function has too many lines (137/100)"
+reason = "Existing end-to-end scenario with no coherent setup/assertion split. Its two identity-wrapper call sites became explicit default constructions, adding four source lines without changing behaviour. +1: the `OverlayInfo` literal gained its own `query_caret` field. +1: the `OverlayInfo` literal gained its own `query_selection` field."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
 file = "src/capture/tests/pickers_faceted.rs"
 function = "command_and_history_pickers_faceted_lens_render_and_report"
-message = "this function has too many lines (165/100)"
-reason = "Existing end-to-end scenario with no coherent setup/assertion split. Removing the identity fixture wrapper makes the direct default construction two lines longer without changing this test's behaviour. +1: the `OverlayInfo` literal gained its own `query_caret` field."
+message = "this function has too many lines (166/100)"
+reason = "Existing end-to-end scenario with no coherent setup/assertion split. Removing the identity fixture wrapper makes the direct default construction two lines longer without changing this test's behaviour. +1: the `OverlayInfo` literal gained its own `query_caret` field. +1: the `OverlayInfo` literal gained its own `query_selection` field."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -1291,3 +1291,18 @@ file = "src/render/tests/symbol_atlas_gallery.rs"
 function = "render_html"
 message = "this function has too many lines (129/100)"
 reason = "The one HTML-emission owner for the survey page: page shell/CSS, the per-face @font-face block, and the per-block glyph grid all write through this single writer so the generated markup and its styling cannot drift into two owners."
+
+[[clippy_exception]]
+lint = "clippy::too_many_lines"
+file = "src/render/pipeline_geometry.rs"
+function = "TextPipeline::sync_theme_colors"
+message = "this function has too many lines (102/100)"
+reason = "The one exhaustive per-theme color sync keeps every pipeline's recolor beside its siblings so a new theme constant cannot be wired to only some of them. +2: colors `panel_query_selection` via `theme::selection_document()` and mirrors `overlay_query_selection` from the view."
+
+[[clippy_exception]]
+lint = "clippy::too_many_lines"
+file = "src/render/tests/facet_strip_seat_law.rs"
+function = "active_lens_mark_sits_under_the_active_labels_own_glyphs"
+message = "this function has too many lines (107/100)"
+reason = "One roster sweep over every world, classifying upright vs. banded via the same gate the emitter itself uses and reading the active label's glyph span independently off the panel buffer -- splitting the sweep from its own independent oracle would let the two drift apart, which is the exact class of bug this law exists to catch."
+

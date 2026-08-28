@@ -350,6 +350,7 @@ mod workspace_rail;
 mod overlay_draw;
 mod overlay_ink;
 mod overlay_material;
+mod overlay_query_field;
 mod overlay_rows;
 // The complete `Ruled` composition, including shared picker/workspace ink.
 pub(in crate::render) mod overlay_rules;
