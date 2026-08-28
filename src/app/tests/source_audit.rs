@@ -143,8 +143,11 @@ fn real_fs_app_new_calls_are_all_accounted_for() {
         // instead_of_duplicating_it`) needs a REAL filesystem symlink for root
         // canonicalization to have anything real to resolve — `InMemoryFs` has
         // no symlinks at all — while still running the App over an injected
-        // `InMemoryFs` so the recents write stays in the sandbox.
-        ("app/files/tests.rs", 19),
+        // `InMemoryFs` so the recents write stays in the sandbox. Plus one more,
+        // same reason: the symlinked-recent-FILE law
+        // (`opening_the_same_file_through_a_symlinked_alias_moves_it_to_the_front_
+        // instead_of_duplicating_it`).
+        ("app/files/tests.rs", 20),
         // 9 LIFETIME STATS + USAGE LEDGER + DISCOVERABILITY tests, each inside its own
         // `fs::with_fs(fake, ..)` closure seeded with an `InMemoryFs` — they exist
         // specifically to prove what the tracking hooks / the ledger's
