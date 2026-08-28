@@ -90,13 +90,26 @@ impl TextPipeline {
             return None;
         }
         let plan = self.overlay_row_plan(&geom);
-        let strip = self
-            .docked_facet_band(&geom, &plan)
-            .or_else(|| plan.strip_band())?;
+        let docked = self.docked_facet_band(&geom, &plan);
+        let strip = docked.or_else(|| plan.strip_band())?;
         if !strip.contains(py) {
             return None;
         }
-        let want = px - geom.text_left;
+        // THE SAME SEAT THE DRAW PATH USED: a `DockedTab` strip draws in its
+        // own buffer at the card's plain text edge (`push_docked_facet_areas`
+        // always seats it there, off the card entirely), every other facet
+        // style draws the strip INSIDE `panel_buffer`'s head band, seated at
+        // `overlay_head_left` — the card's text edge on an upright world, but
+        // right-aligned to the text column on an ascending diagonal cluster
+        // (Magpie). Reading `geom.text_left` unconditionally here missed that
+        // second seat: a click on a drawn label could resolve to no lens, or
+        // the wrong one, on any banded world.
+        let seat = if docked.is_some() {
+            geom.text_left
+        } else {
+            self.overlay_head_left(&geom, &plan)
+        };
+        let want = px - seat;
         let mut hit = None;
         for run in self
             .panel_buffer

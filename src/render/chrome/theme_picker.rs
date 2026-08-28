@@ -313,6 +313,18 @@ impl TextPipeline {
         };
         let facet_style = crate::render::effective_facet_style();
         let scale = self.metrics.scale;
+        // NO SEAT YET. Every mark rect below is computed in the strip's own
+        // BUFFER-LOCAL x (as if seated at 0) and shifted to its real seat —
+        // the same `overlay_head_left(geom, plan)` the emitter uses for the
+        // head band's `TextArea` — only once [`Self::theme_reseat_marks`]
+        // runs, later this frame. It cannot be added here: this shaping pass
+        // runs BEFORE `self.diagonal_cluster` is resolved for the frame (the
+        // cluster's own measurement reads THIS pass's shaped row widths), so
+        // `overlay_head_left` would still see last frame's — or no — cluster
+        // and silently answer with the upright seat on a banded world. Adding
+        // it here once produced exactly that: correct on every world this
+        // pass could see resolved, wrong on the one whose resolution hadn't
+        // happened yet.
         const CHIP_HPAD: Logical = Logical(6.0);
         const CHIP_VPAD: Logical = Logical(2.0);
         let chip_hpad = self.metrics.px(CHIP_HPAD);
@@ -352,7 +364,7 @@ impl TextPipeline {
             });
         let pill_px = |left: f32, right: f32| -> [f32; 4] {
             [
-                geom.text_left + left,
+                left,
                 mark_cy - chip_h * 0.5,
                 (right - left).max(1.0),
                 chip_h,
@@ -364,8 +376,8 @@ impl TextPipeline {
             let (tick, th) = (TICK_L.px(scale), TH_L.px(scale));
             let top = mark_cy - chip_h * 0.5;
             let bot = mark_cy + chip_h * 0.5;
-            let x0 = geom.text_left + l;
-            let x1 = geom.text_left + r;
+            let x0 = l;
+            let x1 = r;
             vec![
                 [x0, top, tick, th],
                 [x0, top, th, tick], // TL
@@ -399,7 +411,7 @@ impl TextPipeline {
                 theme::FacetStyle::Text => {
                     let y = geom.text_top + baseline + underline_drop;
                     Some([
-                        geom.text_left + min_x,
+                        min_x,
                         y,
                         max_x - min_x,
                         self.metrics.px(TEXT_MARK_THICKNESS),
@@ -408,7 +420,7 @@ impl TextPipeline {
                 theme::FacetStyle::Band => Some(pill_px(min_x - chip_hpad, max_x + chip_hpad)),
                 theme::FacetStyle::DockedTab => {
                     let tab = [
-                        geom.text_left + min_x - chip_hpad,
+                        min_x - chip_hpad,
                         geom.card_y - chip_h,
                         max_x - min_x + 2.0 * chip_hpad,
                         chip_h,
@@ -433,7 +445,7 @@ impl TextPipeline {
                     theme::ChipVariant::Underline => {
                         let y = geom.text_top + baseline + underline_drop;
                         Some([
-                            geom.text_left + min_x,
+                            min_x,
                             y,
                             max_x - min_x,
                             self.metrics.px(UNDERLINE_CHIP_THICKNESS),
@@ -467,6 +479,34 @@ impl TextPipeline {
             Vec::new()
         };
         false
+    }
+
+    /// THE ONE PLACE THE STRIP MARKS' X GAINS A SEAT — called once per frame,
+    /// after `self.diagonal_cluster` has resolved (`overlay_draw::prepare_overlay`,
+    /// right after `resolve_diagonal_cluster`, before anything downstream reads
+    /// these rects). `overlay_shape_theme` above records every mark rect
+    /// BUFFER-LOCAL (as if seated at 0), because it runs earlier in the same
+    /// frame than the cluster it would otherwise need to ask
+    /// [`Self::overlay_head_left`] for — this is the single, later point where
+    /// that seat is actually known, so it is added exactly once, to exactly
+    /// the rects `overlay_shape_theme` left local. A no-op (adds `0.0`) on any
+    /// contextual card (`geom.theme` false — no strip, no marks recorded)
+    /// or any upright world, where `overlay_head_left` already answers
+    /// `geom.text_left`.
+    pub(super) fn theme_reseat_marks(&mut self, geom: &OverlayGeom, plan: &OverlayRowPlan) {
+        if !geom.theme {
+            return;
+        }
+        let seat = self.overlay_head_left(geom, plan);
+        if let Some(r) = self.overlay_theme_underline.as_mut() {
+            r[0] += seat;
+        }
+        for r in self.overlay_theme_facet_ghosts.iter_mut() {
+            r[0] += seat;
+        }
+        for r in self.overlay_strip_tab_plates.iter_mut() {
+            r[0] += seat;
+        }
     }
 
     /// TEST HOOK: the DockedTab active-plate seam overlap this frame's
