@@ -186,7 +186,7 @@ fn every_picker_kinds_cue_is_present_iff_the_window_clips() {
         let fam = family(kind);
         // TALL-FITS: a corpus no bigger than the kind's own window cap, at a
         // roomy canvas — nothing clips anywhere, at any family.
-        let small_n = kind.window_rows().min(3).max(1);
+        let small_n = kind.window_rows().clamp(1, 3);
         let v = overlay_view(kind, small_n, false);
         p.set_view(&v);
         p.prepare(&device, &queue, ROOMY.0, ROOMY.1).unwrap();
