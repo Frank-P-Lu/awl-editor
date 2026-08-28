@@ -353,8 +353,10 @@ fn no_bare_durable_write_bypasses_write_atomic_outside_the_accounted_for_sites()
         // neither is a durable store.
         ("scenario.rs", 1),
         // The module's own tests WRITE real-disk fixtures the same way,
-        // carved into their own file by the size ceiling.
-        ("scenario/tests.rs", 14),
+        // carved into their own file by the size ceiling. Plus one: the
+        // symlinked-alias regression law needs a real file under a real
+        // symlink for the alias dual-seed to have anything to resolve.
+        ("scenario/tests.rs", 15),
         ("testscratch.rs", 3), // ScratchDir's own fixtures, not a store.
     ];
     let expected_map: std::collections::BTreeMap<String, usize> =

@@ -78,9 +78,18 @@ fn a_tree_seed_carries_a_nested_project_in_at_its_own_paths() {
     .unwrap();
 
     let seeds = tree_seeds(Some(&root)).unwrap();
-    let paths: Vec<&Path> = seeds.iter().map(|s| s.path.as_path()).collect();
+    // Filtered to the VERBATIM spelling: on a host where the tmp dir sits
+    // behind a real symlink (macOS's `/var` -> `/private/var`), `tree_seeds`
+    // also dual-seeds each file at its canonicalized alias (see its own doc)
+    // — additive, so the verbatim set this law is actually about must be read
+    // as a subset, not the whole list, on every host either way.
+    let verbatim: Vec<&Path> = seeds
+        .iter()
+        .map(|s| s.path.as_path())
+        .filter(|p| p.starts_with(&root))
+        .collect();
     assert_eq!(
-        paths,
+        verbatim,
         vec![
             root.join("index.md").as_path(),
             root.join("journal").join("field-notes.md").as_path(),
@@ -115,6 +124,45 @@ fn a_tree_seed_carries_a_nested_project_in_at_its_own_paths() {
     );
 }
 
+/// **REGRESSION LAW for the exact bug the alias dual-seed exists to fix**: a
+/// `--seed-tree` reached through a REAL symlinked alias of its own root must
+/// answer at the CANONICALIZED spelling too, not only the verbatim one.
+/// `ProjectLocation::new`/`App::set_root` canonicalize every root through
+/// `crate::buffers::normalize_path` — a real, disk-backed canonicalize that
+/// bypasses the sandbox entirely — so `index::build_index` and every other
+/// post-startup fs consumer look the tree up at the RESOLVED spelling, not
+/// the one the command line typed. Measured as a real regression, not a
+/// hypothetical one: a `--seed-tree` project reached through a symlinked temp
+/// dir (macOS's `/tmp` -> `/private/tmp`) opened its first file fine but its
+/// Go-to index came back completely empty, because the un-aliased sandbox
+/// only ever answered the verbatim spelling.
+#[test]
+#[cfg(unix)]
+fn a_tree_seed_through_a_symlinked_alias_answers_both_spellings() {
+    let dir = tmp_dir("tree-alias");
+    let real_root = dir.join("real");
+    let link_root = dir.join("link");
+    std::fs::create_dir_all(&real_root).unwrap();
+    std::os::unix::fs::symlink(&real_root, &link_root).unwrap();
+    std::fs::write(real_root.join("a.md"), "# a\n").unwrap();
+
+    let seeds = tree_seeds(Some(&link_root)).unwrap();
+    let canon_root = std::fs::canonicalize(&real_root).unwrap();
+    let fs = build_sandbox(&seeds, &[&link_root]);
+    assert_eq!(
+        fs.read_to_string(&link_root.join("a.md")).unwrap(),
+        "# a\n",
+        "the verbatim spelling this door's own contract promises still answers"
+    );
+    assert_eq!(
+        fs.read_to_string(&canon_root.join("a.md")).unwrap(),
+        "# a\n",
+        "the canonicalized spelling ProjectLocation::new resolves every root to must ALSO \
+         answer -- this is the exact bug: index::build_index walks the canonical root, and \
+         an un-aliased sandbox answers it with nothing"
+    );
+}
+
 /// The bounds fail LOUDLY rather than truncating. A silently trimmed tree
 /// photographs a working set that is not the one the command line asked for,
 /// and nothing downstream could tell that from a product bug.
@@ -135,10 +183,17 @@ fn a_tree_seed_over_its_file_bound_is_refused_by_name() {
         "the refusal names the flag and the bound it hit: {err}"
     );
     // …and one file FEWER is accepted, so the bound is the cliff and not a
-    // blanket refusal of any sizeable fixture.
+    // blanket refusal of any sizeable fixture. Counted by VERBATIM path only
+    // (see the dual-seed note above `a_tree_seed_carries_a_nested_project_
+    // in_at_its_own_paths`): the alias copies are additive and would double
+    // this count on a host where the tmp dir sits behind a real symlink.
     std::fs::remove_file(root.join(format!("f{:04}", MAX_TREE_SEED_FILES) + ".md")).unwrap();
+    let at_bound = tree_seeds(Some(&root)).unwrap();
     assert_eq!(
-        tree_seeds(Some(&root)).unwrap().len(),
+        at_bound
+            .iter()
+            .filter(|s| s.path.starts_with(&root))
+            .count(),
         MAX_TREE_SEED_FILES,
         "exactly at the bound is fine"
     );

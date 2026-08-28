@@ -124,7 +124,14 @@ pub fn fit_parent(label: &str, budget: usize) -> Option<String> {
 /// opened under for as long as it still lives beneath it, falls back to the
 /// active root when that root contains it, and otherwise stands on its own
 /// parent directory rather than borrowing a root it is not inside.
+///
+/// `path` is canonicalized before every `starts_with` comparison, through the
+/// SAME [`crate::buffers::normalize_path`] the root-identity owners already
+/// route `active_root` through — otherwise it disagrees in spelling with an
+/// alias-resolved root (macOS's `/var` -> `/private/var`) and falls through
+/// to "orphan", a real regression. A fictional path round-trips unchanged.
 pub fn root_for(path: &Path, active_root: &Path, remembered: Option<&Path>) -> PathBuf {
+    let path = crate::buffers::normalize_path(path);
     if let Some(r) = remembered
         && path.starts_with(r)
     {
@@ -133,7 +140,7 @@ pub fn root_for(path: &Path, active_root: &Path, remembered: Option<&Path>) -> P
     if path.starts_with(active_root) {
         return active_root.to_path_buf();
     }
-    path.parent().unwrap_or(path).to_path_buf()
+    path.parent().unwrap_or(&path).to_path_buf()
 }
 
 /// ONE DRAWN ROW of the margin's resting stack, already reduced to the two

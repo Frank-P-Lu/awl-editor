@@ -230,6 +230,35 @@ pub fn tree_seeds(dir: Option<&Path>) -> anyhow::Result<Vec<Seed>> {
     // not specified, and the directory stack above visits siblings in whatever
     // order it hands back).
     seeds.sort_by(|a, b| a.path.cmp(&b.path));
+    // ALIAS DUAL-SEED: a real filesystem alias of `dir` itself (macOS's
+    // `/tmp` -> `/private/tmp`, `/var` -> `/private/var`) is invisible to this
+    // verbatim walk, but `App::set_root`/`ProjectLocation::new` canonicalize
+    // every root through `crate::buffers::normalize_path` — a REAL, disk-
+    // backed canonicalize that bypasses the sandbox entirely, so it resolves
+    // the alias regardless of which backend is active. Left alone, the two
+    // disagree: the sandbox answers only at the CLI's verbatim spelling while
+    // every fs consumer downstream (`index::build_index` first) looks it up at
+    // the resolved one, and the walk it drives finds nothing — measured as a
+    // real regression, not a hypothetical one (a `--seed-tree` project under a
+    // symlinked temp dir opened one file but its Go-to index came back empty).
+    // Seeding BOTH spellings when they differ is additive, not a replacement:
+    // the verbatim spelling this door's own contract promises keeps answering
+    // exactly as named.
+    if let Ok(canon_dir) = std::fs::canonicalize(dir)
+        && canon_dir != dir
+    {
+        let aliased: Vec<Seed> = seeds
+            .iter()
+            .filter_map(|s| {
+                let rel = s.path.strip_prefix(dir).ok()?;
+                Some(Seed {
+                    path: canon_dir.join(rel),
+                    bytes: s.bytes.clone(),
+                })
+            })
+            .collect();
+        seeds.extend(aliased);
+    }
     Ok(seeds)
 }
 
@@ -278,7 +307,16 @@ pub fn install_hermetic_fs(
     // slot already read.
     let mut all = tree_seeds(tree_seed)?;
     all.append(&mut seeds);
-    let roots: Vec<&Path> = root.into_iter().collect();
+    // The canonical alias of `--root` too (same reasoning as `tree_seeds`'
+    // own dual-seed above), so `is_dir`/`read_dir` on the resolved root see a
+    // directory even for the degenerate case where nothing was seeded under
+    // it yet — a `--root` with no `--seed-tree` still gets a marker, and this
+    // keeps that marker answering the canonical spelling too.
+    let canon_root = root.and_then(|r| std::fs::canonicalize(r).ok());
+    let roots: Vec<&Path> = root
+        .into_iter()
+        .chain(canon_root.as_deref().filter(|c| Some(*c) != root))
+        .collect();
     crate::fs::set_active(Arc::new(build_sandbox(&all, &roots)));
     Ok(())
 }
