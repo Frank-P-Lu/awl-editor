@@ -77,6 +77,82 @@ impl TextPipeline {
         out
     }
 
+    /// The grouped family's starvation-degrade arm for the count cue:
+    /// re-window `full_plan` at `(item_top, item_visible)` (already re-derived
+    /// by the caller with the cue's own overhead dropped) and recompute the
+    /// row/height totals that follow from it. Split out of
+    /// `theme_overlay_geometry` purely to keep that function under its own
+    /// line budget — every input here is a value that function already
+    /// resolved, so this owns no policy of its own.
+    #[allow(clippy::too_many_arguments)]
+    fn theme_window_without_cue(
+        &self,
+        full_plan: &[PlanLine],
+        (item_top, item_visible): (usize, usize),
+        billed_header_rows: usize,
+        empty_rows: usize,
+        hint_rows: usize,
+        hint_gap_rows: usize,
+        footer_rows: usize,
+        header_gap: f32,
+        pad: f32,
+    ) -> (usize, Vec<PlanLine>, f32) {
+        let plan = window_plan(full_plan, item_top, item_top + item_visible);
+        let total_rows =
+            billed_header_rows + plan.len() + empty_rows + hint_gap_rows + hint_rows + footer_rows;
+        let card_h = self.overlay_card_h(total_rows, header_gap, hint_rows, hint_gap_rows, pad);
+        (item_top, plan, card_h)
+    }
+
+    /// The grouped family's starvation-degrade arm for the header/query gap —
+    /// the same kind of decorative, non-load-bearing chrome
+    /// [`Self::theme_window_without_cue`] already degrades, dropped rather
+    /// than pushing the card past the canvas.
+    fn theme_card_h_without_header_gap(
+        &self,
+        total_rows: usize,
+        hint_gap_rows: usize,
+        header_gap: f32,
+        hint_rows: usize,
+        pad: f32,
+    ) -> (usize, f32) {
+        let total_rows = total_rows - hint_gap_rows;
+        let card_h = self.overlay_card_h(total_rows, header_gap, hint_rows, 0, pad);
+        (0, card_h)
+    }
+
+    /// Where the grouped card's billed header-row count and top-left origin
+    /// resolve to. Split out of `theme_overlay_geometry` purely to keep it
+    /// under its own line budget; it owns no policy of its own.
+    fn theme_card_placement(&self, header_rows: usize, margin: f32) -> (usize, f32) {
+        // The QUERY line and the lens STRIP each own a header box (so
+        // `strip_band()`/`docked_facet_band()` and every `line_i == 1` reader
+        // — the hit-test, the tab-mark spans, the clip carve — keep a strip
+        // line to read), but under `FacetStyle::DockedTab` the strip draws
+        // OUTSIDE the card (`docked_facet_band`), so its box charges no `lh`
+        // toward the rows/height math below — only the box COUNT stays 2,
+        // never the billed space. Derived from the facet style's own data,
+        // not this world's name, so any future `DockedTab` world reclaims
+        // the same row.
+        let billed_header_rows = header_rows - facet_strip_is_docked() as usize;
+        let card_y = margin + self.metrics.px(super::CARD_TOP_DROP) + self.menubar_reserve();
+        (billed_header_rows, card_y)
+    }
+
+    /// The grouped card's own box: its x/width (content-hugging on a
+    /// right-anchored card, the wide `CARD_MAX_W_FACETED` cap otherwise), its
+    /// fill regime, and the text column the two shapers read. Split out of
+    /// `theme_overlay_geometry` purely to keep it under its own line budget.
+    fn theme_card_box(&self, width: u32) -> (f32, f32, bool, f32, f32) {
+        let desired_w = self.overlay_desired_w(super::CARD_MAX_W_FACETED);
+        let (card_x, card_w) = self.overlay_card_box(width, desired_w);
+        let card_narrow =
+            super::overlay_card_fill_regime(width as f32, desired_w, self.metrics.scale);
+        let hpad = self.overlay_text_hpad();
+        let text_w = card_w - 2.0 * hpad;
+        (card_x, card_w, card_narrow, hpad, text_w)
+    }
+
     pub(super) fn theme_overlay_geometry(&self, width: u32) -> OverlayGeom {
         let lh = self.overlay_lh();
         // THE SAME THREE TOKENS THE FLAT FAMILY PLACES ITS CARD WITH — they were
@@ -87,48 +163,48 @@ impl TextPipeline {
         let margin = self.metrics.px(super::CARD_MARGIN);
         let n_items = self.overlay_items.len();
         let full_plan = self.theme_plan();
-        let mut hint = self.overlay_hint.clone();
-        let hint_rows = if hint.is_empty() { 0 } else { 1 };
         // See `overlay_hint_gap_rows`'s own doc (`chrome/mod.rs`) — the ONE owner
         // this grouped family shares with the flat family (`overlay.rs`) and the
         // workspace family (`workspace.rs`), so a hint can't stop sitting flush
         // against the last row in one family while still doing it in another.
-        let mut hint_gap_rows = overlay_hint_gap_rows(hint_rows);
-        let (footer, footer_rows) = self.overlay_footer_lines();
-        let empty = if n_items == 0 {
-            self.overlay_empty.clone()
-        } else {
-            None
-        };
-        let empty_rows = empty.is_some() as usize;
+        let (mut hint, hint_rows, mut hint_gap_rows, footer, footer_rows, empty, empty_rows) =
+            self.overlay_chrome_inventory(n_items);
         let header_rows = 2;
-        // The QUERY line and the lens STRIP each own a header box (so
-        // `strip_band()`/`docked_facet_band()` and every `line_i == 1` reader —
-        // the hit-test, the tab-mark spans, the clip carve — keep a strip line to
-        // read), but under `FacetStyle::DockedTab` the strip draws OUTSIDE the
-        // card (`docked_facet_band`), so its box charges no `lh` toward the
-        // rows/height math below — only the box COUNT stays 2, never the billed
-        // space. Derived from the facet style's own data, not this world's name,
-        // so any future `DockedTab` world reclaims the same row.
-        let billed_header_rows = header_rows - facet_strip_is_docked() as usize;
+        let (billed_header_rows, card_y) = self.theme_card_placement(header_rows, margin);
         let header_gap = self.overlay_header_gap();
-        let card_y = margin + self.metrics.px(super::CARD_TOP_DROP) + self.menubar_reserve();
         let total_headers = full_plan.len() - n_items;
         // Strip + hint + footer here, at `min_items: 0`; the SECTION headers are
         // charged to the drawn WINDOW (`fit_sectioned_item_rows`).
         let chrome_rows = billed_header_rows + hint_gap_rows + hint_rows + empty_rows + footer_rows;
         // THE ONE HEIGHT-CLAMP OWNER, shared with the flat family.
         let avail_px = (self.window_h - card_y - margin - 2.0 * pad - header_gap).max(lh);
-        let item_cap = self.overlay_sectioned_item_cap(avail_px, lh, chrome_rows, total_headers, 0);
-        let (item_top, item_visible) = scroll_window(
-            n_items,
-            self.overlay_selected,
-            self.overlay_scroll,
-            item_cap,
-        );
-        let plan = window_plan(&full_plan, item_top, item_top + item_visible);
-        let mut total_rows =
-            billed_header_rows + plan.len() + empty_rows + hint_gap_rows + hint_rows + footer_rows;
+        // The cue's own fixed point (`resolve_window_and_cue`): `item_top`/
+        // `item_visible` are ITEM counts straight off `scroll_window`, read
+        // BEFORE `window_plan` turns them into a display-line count that
+        // also bills section headers — passing THAT count here would
+        // double-charge every header as a hidden item.
+        let fit_window = |chrome_rows: usize| {
+            let item_cap =
+                self.overlay_sectioned_item_cap(avail_px, lh, chrome_rows, total_headers, 0);
+            scroll_window(
+                n_items,
+                self.overlay_selected,
+                self.overlay_scroll,
+                item_cap,
+            )
+        };
+        let (mut item_top, item_visible, mut cue_above, mut cue_below, mut cue_rows) =
+            super::overlay_clamp::resolve_window_and_cue(n_items, |extra| {
+                fit_window(chrome_rows + extra)
+            });
+        let mut plan = window_plan(&full_plan, item_top, item_top + item_visible);
+        let total_rows = billed_header_rows
+            + plan.len()
+            + empty_rows
+            + hint_gap_rows
+            + hint_rows
+            + footer_rows
+            + cue_rows;
         // Wider than the flat pickers so the whole lens strip (Time … All) fits on
         // one line even on a WIDE mono world face without the far-right All clipping
         // — via the SAME horizontal-box owner (edge inset + narrow-window fallback),
@@ -139,24 +215,38 @@ impl TextPipeline {
         // elided (the zoom-blind card bug).
         // Content-hug for a RIGHT-ANCHORED faceted card (via the ONE
         // `overlay_desired_w` owner), the wide `CARD_MAX_W_FACETED` cap otherwise.
-        let desired_w = self.overlay_desired_w(super::CARD_MAX_W_FACETED);
-        let (card_x, card_w) = self.overlay_card_box(width, desired_w);
-        let card_narrow =
-            super::overlay_card_fill_regime(width as f32, desired_w, self.metrics.scale);
-        let hpad = self.overlay_text_hpad();
-        let text_w = card_w - 2.0 * hpad;
+        let (card_x, card_w, card_narrow, hpad, text_w) = self.theme_card_box(width);
         hint = super::hint_yielding_explanation(&hint, width as f32 / self.metrics.scale.max(0.01));
         let mut card_h = self.overlay_card_h(total_rows, header_gap, hint_rows, hint_gap_rows, pad);
-        // The hint gap is decorative breathing room, not load-bearing chrome:
-        // in the starvation corner (a sectioned card's own fixed
-        // header/hint/footer overhead, at the `min_items: 0` floor, already
-        // outgrowing the canvas at an extreme zoom), drop it rather than push
-        // the card past the canvas — the same degrade the flat family's own
-        // arm takes (`overlay.rs::overlay_geometry`).
         if card_y + card_h > self.window_h + 0.01 && hint_gap_rows > 0 {
-            total_rows -= hint_gap_rows;
-            hint_gap_rows = 0;
-            card_h = self.overlay_card_h(total_rows, header_gap, hint_rows, hint_gap_rows, pad);
+            (hint_gap_rows, card_h) = self.theme_card_h_without_header_gap(
+                total_rows,
+                hint_gap_rows,
+                header_gap,
+                hint_rows,
+                pad,
+            );
+        }
+        // The count cue is the SAME kind of decorative, non-load-bearing chrome
+        // the hint gap already degrades above — in the same starvation corner,
+        // drop it and re-fit the window at the ORIGINAL (uninflated) overhead
+        // rather than let two rows of ambient position-keeping force a card
+        // past its own canvas. Re-derives the window (never re-uses the
+        // now-stale one) because freeing the cue's reserved overhead can let
+        // the corpus fit a real item that overhead was crowding out.
+        if card_y + card_h > self.window_h + 0.01 && cue_rows > 0 {
+            (cue_above, cue_below, cue_rows) = (None, None, 0);
+            (item_top, plan, card_h) = self.theme_window_without_cue(
+                &full_plan,
+                fit_window(chrome_rows),
+                billed_header_rows,
+                empty_rows,
+                hint_rows,
+                hint_gap_rows,
+                footer_rows,
+                header_gap,
+                pad,
+            );
         }
         let card_y = card_y + self.overlay_entrance_offset();
         let text_left = card_x + hpad;
@@ -196,6 +286,9 @@ impl TextPipeline {
             pane_x: 0.0,
             pane_w: 0.0,
             rows_focused: false,
+            cue_above,
+            cue_below,
+            cue_reserved: cue_rows > 0,
         }
     }
 
@@ -581,10 +674,38 @@ impl TextPipeline {
         // row height; the leading "\n" keeps the buffer's UI font size so the strip
         // row's font stays scale-invariant.
         self.push_theme_strip_spans(&mut spans, plan, strip, active_ink, muted);
+        // The ABOVE-edge count cue's own line, opened between the strip and
+        // the first candidate row by `plan_overlay_rows`'s `first_top` shift
+        // (`OverlayRowPlanInput::cue_above_rows`, fed from `geom.cue_reserved`
+        // — the scroll-INVARIANT reservation, never `geom.cue_above.is_some()`
+        // itself, so this line's existence cannot appear or vanish as the
+        // reader scrolls through an already-open card). `push_theme_plan_spans`
+        // always opens ITS OWN leading "\n" for display line 0, so this needs
+        // no `content_before` bookkeeping. Blank (a bare space) when this
+        // edge's own `cue_above` has nothing to say at the CURRENT scroll.
+        // Owned `String`s, not temporaries: `spans` borrows past this
+        // function's own scope (into `set_rich_text`), so the cue text must
+        // live at least as long as `title_prefix` does.
+        let cue_above_text = geom.cue_above.map(|n| super::edge_cue_text(true, n));
+        if geom.cue_reserved {
+            spans.push(("\n", mk(muted)));
+            spans.push((cue_above_text.as_deref().unwrap_or(" "), mk(muted)));
+        }
         self.push_theme_plan_spans(&mut spans, geom, &fitted, trailing, inks, vis);
         if let Some(msg) = &geom.empty {
             spans.push(("\n", mk(muted)));
             spans.push((msg.as_str(), mk(muted)));
+        }
+        // The BELOW-edge cue, directly under the last drawn line of
+        // `geom.plan` (or the empty-state notice, sharing that band —
+        // `content_rows`'s own ordering: rows, then the notice, then this;
+        // mutually exclusive in practice, since the reservation only ever
+        // fires while `n_items > 0`), ahead of the hint/footer that may
+        // follow it. Same reservation-vs-content split as above.
+        let cue_below_text = geom.cue_below.map(|n| super::edge_cue_text(false, n));
+        if geom.cue_reserved {
+            spans.push(("\n", mk(muted)));
+            spans.push((cue_below_text.as_deref().unwrap_or(" "), mk(muted)));
         }
         if geom.hint_rows > 0 {
             self.push_overlay_hint_spans(

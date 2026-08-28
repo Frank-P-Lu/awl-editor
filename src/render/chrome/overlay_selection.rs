@@ -286,7 +286,7 @@ impl TextPipeline {
             std::collections::BTreeMap::new()
         };
         let chord_px = if hugs && !cfg.extent.inline_shortcut() && self.overlay_right_shown {
-            self.overlay_row_secondary_px(plan.billed_header_rows())
+            self.overlay_row_secondary_px(plan)
         } else {
             std::collections::BTreeMap::new()
         };

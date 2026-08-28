@@ -259,6 +259,35 @@ pub(super) struct OverlayGeom {
     /// Does the workspace's CONTENT pane hold focus (rather than its rail)? The
     /// one input to the focus cue. Always `false` off a workspace.
     pub(super) rows_focused: bool,
+    /// The faint POSITIONAL COUNT CUE's CONTENT at the candidate window's top
+    /// edge, for THIS frame's scroll position — `Some(n)` when `n` items sit
+    /// above the drawn window, from [`window_edge_counts`] read on the
+    /// window's OWN item counts (never a grouped card's display-line count,
+    /// which double-bills section headers). `None` either when the corpus
+    /// shows in full or (scrolled all the way to the top) when nothing
+    /// happens to sit above THIS window even though the corpus is windowed —
+    /// see [`Self::cue_reserved`] for the layout half of that distinction.
+    pub(super) cue_above: Option<usize>,
+    /// The count cue's content at the window's BOTTOM edge — `Some(n)` when
+    /// `n` items sit below it. Same owner, same non-conflation rule as
+    /// [`Self::cue_above`].
+    pub(super) cue_below: Option<usize>,
+    /// Is a display line reserved for EACH edge cue, regardless of whether
+    /// this frame's scroll position happens to populate it? The layout half
+    /// of the cue, deliberately separate from `cue_above`/`cue_below`
+    /// (the CONTENT half): reservation is a property of the corpus/canvas/
+    /// query alone (`resolve_window_and_cue`'s own doc — `scroll_window`'s
+    /// `visible` already ignores the scroll position, so "is this windowed
+    /// at all" is scroll-invariant), while which edge actually shows text
+    /// changes every time the reader scrolls. Sizing the card off the
+    /// CONTENT instead let scrolling from "only below clips" to "both clip"
+    /// resize the card under the reader's own cursor — caught by
+    /// `render/tests/palette_scroll_anchor.rs`'s pre-existing "scrolling
+    /// moves only the list, never the surface" law on an unrelated
+    /// composition. `false` means neither edge reserves a line; `true`
+    /// reserves BOTH symmetrically (never just one), so the reservation
+    /// itself never changes shape as the same open card scrolls.
+    pub(super) cue_reserved: bool,
 }
 
 impl OverlayGeom {
@@ -292,6 +321,9 @@ impl OverlayGeom {
             pane_x: 0.0,
             pane_w: 0.0,
             rows_focused: false,
+            cue_above: None,
+            cue_below: None,
+            cue_reserved: false,
         }
     }
 
@@ -300,12 +332,31 @@ impl OverlayGeom {
     /// a beat that stands on its own (`plan::beat_stands_alone`) takes a
     /// glyph-free line between the header and the candidates, and a reader that
     /// re-derived `header_rows` would measure that spacer as a candidate row.
+    ///
+    /// **The above-edge count cue's own RESERVATION (`cue_reserved` — see its
+    /// doc; a scroll-invariant fact, never per-scroll content) adds a
+    /// genuinely NEW line only when there is no standing beat to ride.** When
+    /// one DOES stand alone (an ordinary flat query card), `plan.beat_line()`'s
+    /// own derivation — `first_top() - last.bottom()`, "whatever run the
+    /// header lines leave... IS the beat" — auto-inflates to include the cue's
+    /// reserved room the moment `plan_overlay_rows` shifts `first_top` for it;
+    /// drawing the cue's line (text this frame, or blank when this edge has
+    /// nothing to say at the current scroll) INSIDE that now-taller line
+    /// rather than as a second one keeps the shifted `first_top` and the
+    /// shaped line count in agreement (`push_beat_spacer`, `overlay_shape.rs`).
+    /// A GROUPED card's beat never stands alone (it folds into the strip's own
+    /// header box instead, `plan_header_band`'s `folded` branch) and a
+    /// CONTEXTUAL card has no header/beat at all — both shapers
+    /// (`theme_picker.rs`'s `shape_theme_spans`, this file's
+    /// `shape_overlay_names`) push the reserved line as its own new line in
+    /// exactly those two cases, so this owner must count it there and only
+    /// there.
     pub(super) fn shaped_first_row_line(&self) -> usize {
+        let beat_stands_alone =
+            crate::render::plan::beat_stands_alone(self.header_rows, self.header_gap);
         self.header_rows
-            + usize::from(crate::render::plan::beat_stands_alone(
-                self.header_rows,
-                self.header_gap,
-            ))
+            + usize::from(beat_stands_alone)
+            + usize::from(self.cue_reserved && !beat_stands_alone)
     }
 }
 
@@ -852,6 +903,40 @@ pub(super) fn scroll_window(
     (top, count)
 }
 
+/// THE POSITIONAL COUNT CUE'S OWN ARITHMETIC — the ONE owner every windowing
+/// site reads, so a picker's card and a margin's own transient panel (which
+/// windows through its own separate mechanism, `workingset/panel.rs`, not
+/// through [`scroll_window`]) cannot describe "how many are hidden" two
+/// different ways. Takes exactly [`scroll_window`]'s own shape — a window's
+/// first shown ITEM (`top`), how many items it shows (`visible` — an ITEM
+/// count, never a display-line count: a sectioned card's section headers are
+/// not items, and passing its display-line total here double-counts them),
+/// and the corpus size — and answers which edges the window clips. A list
+/// that fits (`top == 0 && visible == n_items`) answers `(None, None)`, so a
+/// picker that never clips draws neither half — extending the `+ N more…`
+/// idiom (`workingset.rs`) rather than duplicating it: that row is a
+/// resting-stack EXPAND affordance and stays exactly as it is; this is a
+/// passive position cue for an already-scrolling window.
+pub(super) fn window_edge_counts(
+    top: usize,
+    visible: usize,
+    n_items: usize,
+) -> (Option<usize>, Option<usize>) {
+    let above = (top > 0).then_some(top);
+    let shown_end = top.saturating_add(visible);
+    let below = (shown_end < n_items).then_some(n_items - shown_end);
+    (above, below)
+}
+
+/// The cue's own TEXT, one owner shared by every drawer (the overlay card
+/// shapers and the working-set expanded panel) so the wording can't drift
+/// between surfaces. `up` picks the arrow; `n` is always the count
+/// [`window_edge_counts`] returned, never re-derived at the draw site.
+pub(super) fn edge_cue_text(up: bool, n: usize) -> String {
+    let arrow = if up { "↑" } else { "↓" };
+    format!("{arrow} {n} more")
+}
+
 pub struct HudReport {
     pub held: bool,
     pub words: Option<(usize, usize, crate::card::figures::CountUnit)>,
@@ -956,6 +1041,72 @@ mod window_tests {
     #[test]
     fn empty_list_yields_an_empty_window() {
         assert_eq!(scroll_window(0, 0, 0, 12), (0, 0));
+    }
+}
+
+#[cfg(test)]
+mod edge_cue_tests {
+    use super::{edge_cue_text, scroll_window, window_edge_counts};
+
+    #[test]
+    fn a_fitting_window_reports_neither_edge() {
+        assert_eq!(window_edge_counts(0, 5, 5), (None, None));
+        assert_eq!(window_edge_counts(0, 0, 0), (None, None));
+    }
+
+    #[test]
+    fn a_window_scrolled_off_the_top_reports_the_hidden_head() {
+        assert_eq!(window_edge_counts(3, 12, 100), (Some(3), Some(85)));
+    }
+
+    #[test]
+    fn a_window_at_the_top_with_a_tail_reports_only_below() {
+        assert_eq!(window_edge_counts(0, 12, 100), (None, Some(88)));
+    }
+
+    #[test]
+    fn a_window_scrolled_to_the_end_reports_only_above() {
+        assert_eq!(window_edge_counts(88, 12, 100), (Some(88), None));
+    }
+
+    /// The exact arithmetic identity the item's acceptance clauses assert:
+    /// hidden = roster − visible, on BOTH edges combined, whenever the window
+    /// starts at 0 XOR ends at `n_items` — the one-sided cases every real
+    /// picker actually reaches (a card never opens scrolled).
+    #[test]
+    fn hidden_counts_sum_to_roster_minus_visible_when_scrolled_to_one_end() {
+        for (top, visible, n) in [(0usize, 12usize, 41usize), (29, 12, 41), (0, 41, 41)] {
+            let (above, below) = window_edge_counts(top, visible, n);
+            let hidden = above.unwrap_or(0) + below.unwrap_or(0);
+            assert_eq!(hidden, n - visible, "top={top} visible={visible} n={n}");
+        }
+    }
+
+    /// Real windows: every `(top, visible)` [`scroll_window`] can return keeps
+    /// the identity — swept rather than hand-picked, so a future arithmetic
+    /// slip anywhere in that pairing is caught here rather than only at the
+    /// two acceptance geometries.
+    #[test]
+    fn hidden_counts_agree_with_scroll_window_over_a_swept_roster() {
+        for n in [0usize, 1, 12, 13, 41, 200] {
+            for cap in [1usize, 8, 12] {
+                for sel in 0..n {
+                    let (top, visible) = scroll_window(n, sel, 0, cap);
+                    let (above, below) = window_edge_counts(top, visible, n);
+                    assert_eq!(
+                        above.unwrap_or(0) + visible + below.unwrap_or(0),
+                        n,
+                        "n={n} cap={cap} sel={sel}: above+visible+below must equal n"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn cue_text_names_the_direction_and_the_count() {
+        assert_eq!(edge_cue_text(true, 3), "↑ 3 more");
+        assert_eq!(edge_cue_text(false, 41), "↓ 41 more");
     }
 }
 

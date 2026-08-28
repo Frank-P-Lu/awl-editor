@@ -26,6 +26,8 @@ fn twoshape_echo_uses_its_own_nearest_planned_row_span() {
         cluster_span: None,
         selected_offset: None,
         selected_display: None,
+        cue_above_rows: 0,
+        cue_below_rows: 0,
     });
     // These are the leading, echo, and overlap bands from one TwoShape
     // crossing. Their centres deliberately belong to three different rows.

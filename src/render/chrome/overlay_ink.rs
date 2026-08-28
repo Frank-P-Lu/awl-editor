@@ -204,7 +204,7 @@ impl TextPipeline {
         // the text column's far edge on an upright card), leading with the header's own
         // empty lines. `overlay_right_shown` is the emitter's own gate.
         if self.overlay_right_shown {
-            let secondary = self.overlay_row_secondary_px(plan.billed_header_rows());
+            let secondary = self.overlay_row_secondary_px(plan);
             for row in plan.rows() {
                 let w = secondary.get(&row.display).copied().unwrap_or(0.0);
                 if w <= 0.0 {
@@ -268,7 +268,7 @@ impl TextPipeline {
             // because the mark's reach now ends just past the name's own ink, held
             // clear of the row's own accessory, rather than at a fixed cluster width.
             let primary = self.overlay_row_primary_px(geom);
-            let secondary = self.overlay_row_secondary_px(plan.billed_header_rows());
+            let secondary = self.overlay_row_secondary_px(plan);
             for row in plan.rows() {
                 let ink_w = primary.get(&row.display).copied().unwrap_or(0.0);
                 let accessory_ink_w = secondary.get(&row.display).copied().unwrap_or(0.0);

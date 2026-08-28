@@ -15,8 +15,24 @@ impl OverlayRowPlan {
     pub(in crate::render) fn candidate_rows(&self) -> usize {
         self.rows.len()
     }
+    /// Mirrors [`super::overlay_rows::OverlayRowPlanInput::cue_above_rows`] —
+    /// the SECONDARY (chord/bind) buffer's own leading-empties count adds this
+    /// too, exactly as it already adds [`Self::billed_header_rows`]: the
+    /// above-edge cue shifts the PRIMARY buffer's row 0 down by one line
+    /// (`OverlayGeom::shaped_first_row_line`), and a right column built
+    /// against the unshifted count would then bind chord `k` to name `k`'s
+    /// row a line early.
+    pub(in crate::render) fn cue_above_rows(&self) -> usize {
+        self.cue_above_rows
+    }
+    /// Display lines that precede the footer: the candidate band, the
+    /// empty-state notice, AND the below-edge count cue — the one owner every
+    /// consumer of "how far down does content run" (the footer plate's seat,
+    /// the sidecar) reads, so a cue line can't seat a footer plate on top of
+    /// its own glyphs the way the empty-state notice once did before it was
+    /// counted here.
     pub(in crate::render) fn content_rows(&self) -> usize {
-        self.rows.len() + self.empty_rows
+        self.rows.len() + self.empty_rows + self.cue_below_rows
     }
     pub(in crate::render) fn first_top(&self) -> f32 {
         self.first_top

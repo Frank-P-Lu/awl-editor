@@ -68,6 +68,9 @@ mod docked_tab_seam;
 /// text-selection drag past the writing column's edge advances scroll +
 /// hit-tests through.
 mod drag_scroll;
+/// THE POSITIONAL COUNT CUE — the roster sweep, both acceptance captures'
+/// geometry, and the arithmetic non-vacuity floors.
+mod edge_count_cue_law;
 /// The virtual breathing room past the last line: its one scroll owner, its
 /// composition with typewriter mode, and the law that none of it reaches disk.
 mod end_pad;
@@ -515,6 +518,16 @@ pub(super) const SETTINGS_VIEW_PARKED_WINDOW_ROWS: usize = 12;
 /// `ov.window_rows()` the way `sync_view` really does. Every current caller
 /// passes [`SETTINGS_VIEW_PARKED_WINDOW_ROWS`]; see that constant's own doc for
 /// why the divergence is deliberate and load-bearing, not an oversight.
+///
+/// A SECOND, UNDELIBERATE divergence: this function does not set
+/// `overlay_workspace`, so it stays at its base default (`false`) — a state a
+/// real Settings card can never render in production (`sync_view` derives it
+/// as `ov.workspace_shape().is_some()`, and Settings answers `Some` unconditionally,
+/// per `settings_row_reach_law.rs`'s own precedent comment). Most callers
+/// override it explicitly afterward; a caller that does not is silently
+/// testing an unreachable geometry family. Not fixed here — routing this
+/// fixture's own default through the real family turns two existing
+/// `settings_row_reach_law` cases red, a separate, pre-existing excavation.
 pub(super) fn settings_overlay_view(
     ov: &crate::overlay::OverlayState,
     overlay_window_rows: usize,

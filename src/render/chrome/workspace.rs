@@ -407,10 +407,31 @@ impl TextPipeline {
         // enforced minimum — zero rows is the honest staged degradation.
         let fit = frame.fit;
         let pad = fit.pad;
+        // THE COUNT CUE IS DELIBERATELY NOT WIRED FOR THIS FAMILY.
+        // A workspace's ROW ORIGIN (`first_top`, via `plan_overlay_rows`) is
+        // shared with its RAIL — the primary column's own category labels,
+        // for a `RailOverRows` shape — so shifting it for the cue (the same
+        // shift the flat/grouped families use) moves the rail whenever the
+        // CONTENT pane's own item count happens to clip, even though the
+        // rail's rows never changed at all: measured directly, switching a
+        // Settings category from one with few rows to one with many moved
+        // the rail's own row 0 by exactly one row pitch
+        // (`render/tests/rail_ink_law.rs`'s pre-existing "the same rect
+        // photographed twice" oracle, which this broke immediately). Unlike
+        // the flat/grouped families, this family's card is CANVAS-sized, so
+        // fixing this by threading the shift into the rail's own geometry
+        // too — decoupling it back out is not a smaller job than getting it
+        // right the first time — is future work; today the cue is simply
+        // absent from every summoned workspace, `visible` alone answers how
+        // many rows fit (byte-identical to pre-508 behaviour), and
+        // `render/tests/edge_count_cue_law.rs`'s own roster sweep excludes
+        // the workspace family from the "must show a cue when clipped"
+        // claim for the same reason.
         let (top_idx, visible) = match show_rows {
             true => self.overlay_workspace_window(n_items, fit.item_cap),
             false => (0, 0),
         };
+        let (cue_above, cue_below): (Option<usize>, Option<usize>) = (None, None);
 
         // A LENS IN THE HEADER IS THE GROUPED CARD'S OWN COMPOSITION,
         // so it takes the grouped card's own shaper rather than a second one.
@@ -466,6 +487,8 @@ impl TextPipeline {
             pane_x: band_x,
             pane_w: band_w,
             rows_focused,
+            cue_above,
+            cue_below,
             ..OverlayGeom::base()
         }
     }

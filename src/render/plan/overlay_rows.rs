@@ -132,6 +132,19 @@ pub(in crate::render) struct OverlayRowPlanInput<'a> {
     /// share the same two-sided span.
     pub selected_offset: Option<(f32, f32)>,
     pub selected_display: Option<usize>,
+    /// `1` when the geometry owner reserved a line for the "items hidden
+    /// above" count cue, else `0` — never more than one: the cue names how
+    /// many are hidden, it does not enumerate them. Seats the cue's own
+    /// display line directly above candidate row 0 by pushing `first_top`
+    /// down by exactly this many `lh`, so drawn glyphs and planned hit-test
+    /// geometry (which reads `first_top` too) cannot disagree about where
+    /// row 0 actually starts.
+    pub cue_above_rows: usize,
+    /// The count cue's bottom-edge counterpart: `1` when a line was reserved
+    /// directly below the last candidate row, else `0`. Folded into
+    /// [`OverlayRowPlan::content_rows`] so the footer band seats below it
+    /// exactly as it already does for the empty-state notice.
+    pub cue_below_rows: usize,
 }
 
 /// THE PLANNED CANDIDATE BAND. Built once per overlay frame; read by the draw
@@ -155,6 +168,11 @@ pub(in crate::render) struct OverlayRowPlan {
     /// The composition's own signed step, constant for the frame — so completing
     /// this plan's extent needs only the MEASURED half.
     pub(super) dx_per_row: f32,
+    /// Mirrors [`OverlayRowPlanInput::cue_above_rows`] / `cue_below_rows` —
+    /// stored so [`OverlayRowPlan::content_rows`]/`footer_top` and the cue's
+    /// own draw position can read them back without a second input.
+    pub(super) cue_above_rows: usize,
+    pub(super) cue_below_rows: usize,
 }
 
 /// PLAN WORK WITNESSES, counted by the planner itself so no consumer can dodge
@@ -180,133 +198,6 @@ fn row_top(text_top: f32, header_rows: usize, header_gap: f32, row: usize, lh: f
     text_top
         + super::overlay_header::header_band_height(header_rows, lh, header_gap)
         + row as f32 * lh
-}
-
-/// THE ONE HEIGHT-CLAMP OWNER. The GROUPED family previously
-/// (`theme_overlay_geometry`) alone divided its own available pixels by the row
-/// pitch to bound its item window; the FLAT family (`overlay_geometry`) capped
-/// its window only at a per-kind row COUNT (`OverlayKind::window_rows`) that
-/// knows nothing about the canvas. A flat picker whose kind sets that count to
-/// its whole corpus — the theme picker, `window_rows() ==
-/// crate::theme::THEMES.len()`, once its runtime lens strip retired (making it
-/// flat) — drew a card taller than the canvas at ordinary sizes (`card_h: 934`
-/// against `canvas_h: 800`, 19 world rows). This is now the ONE place either
-/// family divides `avail_px` by `lh`; a caller may not re-derive the floor
-/// division or the overhead subtraction itself, only ask this how many item
-/// rows fit.
-///
-/// `avail_px` is the vertical space the caller has already resolved for the
-/// candidate band (canvas height minus margins/padding/the query beat — the
-/// SAME arithmetic every geometry owner already performed; this function does
-/// not know about card_y, margin, or pad, only the pixel budget those leave
-/// behind). `overhead_rows` is every display line in the card that is NOT a
-/// candidate item — header/hint/footer/empty-state rows for a flat card,
-/// PLUS the section-header count for a grouped card (its caller's own
-/// concern; this function is generic over what counts as overhead).
-///
-/// `min_items` is the FAMILY's own floor, never a bare constant: the FLAT
-/// family and the spell popup pass `1` — "a card always attempts to show its
-/// own selection" — because their fixed overhead (one query line, no lens
-/// strip) never grows past what a real canvas holds. The GROUPED
-/// family passes `0`. Its own fixed overhead (the query line, the lens strip,
-/// and the query BEAT between them — `theme_overlay_geometry`'s
-/// `header_rows * lh + header_gap`) has no independent zoom ceiling, so at
-/// the documented zoom limit on a short canvas that overhead ALONE can already
-/// exceed `avail_px` before a single item or section header is counted (the
-/// 900x460/zoom-3.0 sectioned command-palette case, `render/tests/
-/// overlay_height_clamp_law.rs`). Forcing `.max(1)` there regardless cannot be
-/// satisfied without overrunning the canvas: this is a chrome-overhead sizing
-/// question, not a row-count one. Below the
-/// floor no amount of item-count clamping can help either way; the difference
-/// is only whether the family is CONTRACTUALLY guaranteed a row at that
-/// floor (flat/spell) or willing to show an empty candidate band rather than
-/// overrun the canvas (grouped). This is a no-op change wherever the floor
-/// does not bind — `saturating_sub` already returns `>= min_items` whenever
-/// `fit_lines > overhead_rows`, so every already-fitting picker (either
-/// family) is byte-identical.
-pub(in crate::render) fn fit_item_rows(
-    avail_px: f32,
-    lh: f32,
-    overhead_rows: usize,
-    min_items: usize,
-) -> usize {
-    if lh <= 0.0 {
-        return min_items;
-    }
-    let fit_lines = (avail_px / lh).floor() as usize;
-    fit_lines.saturating_sub(overhead_rows).max(min_items)
-}
-
-/// The pixel-reserved form of [`fit_item_rows`]. A fixed-height composition
-/// uses this when its non-candidate chrome is not an integer number of row
-/// pitches: the workspace teaching footer has a compact separator and compact
-/// text line, so rounding both up to full rows can hide a candidate that really
-/// fits, while rounding either down can seat the footer beyond its card.
-///
-/// `reserved_px` is charged before the remaining height is divided by the
-/// candidate pitch. `min_items` retains the caller's family policy; a workspace
-/// with a teaching footer passes zero because the footer is the navigation
-/// instruction that must survive the minimum geometry.
-pub(in crate::render) fn fit_item_rows_after_px(
-    avail_px: f32,
-    lh: f32,
-    reserved_px: f32,
-    min_items: usize,
-) -> usize {
-    if lh <= 0.0 {
-        return min_items;
-    }
-    (((avail_px - reserved_px.max(0.0)).max(0.0) / lh).floor() as usize).max(min_items)
-}
-
-/// A SECTIONED card's item cap: [`fit_item_rows`]'s answer, except that an
-/// answer of ZERO is re-derived with the section headers billed TIGHTLY before
-/// it is accepted.
-///
-/// **THE `total_headers` CHARGE IS AN UPPER BOUND, NOT A COST.** `window_plan`
-/// emits a header only ahead of the first SURVIVING item of a section, so a
-/// window of `k` items can carry at most `k` headers — and at most
-/// `total_headers`, the number the whole plan has. Charging every section
-/// against a window that will show two of twenty-four items bills the budget
-/// for headers no one will draw. That is harmless while the budget is roomy: a
-/// conservative charge only ever costs a row nobody misses, and re-billing it
-/// tightly EVERYWHERE would move shipped row counts on cards that already work
-/// (including the contract that a hint costs exactly two rows of the candidate
-/// window, pinned by `hint_gap`). It is not harmless at the one
-/// outcome that is never
-/// acceptable — a card that plans NO candidate rows at all. A 900x460 canvas
-/// with the drawn menu bar's own vertical reserve taken out fits 7 display
-/// lines, spends 4 on the query line, the lens strip, the hint and its
-/// separator, and pays the last 3 for sections it has no room to reach: zero
-/// item rows in a 192px card inside a 460px canvas.
-///
-/// So the tight bound is a FLOOR, engaged only there. It is the largest `k`
-/// satisfying `chrome_rows + min(k, total_headers) + k <= fit_lines`, which
-/// where the conservative charge already zeroed the band (`budget <=
-/// total_headers`) is `budget / 2`. It is never optimistic — `min(k,
-/// total_headers)` bounds the headers the window can carry — so the card it
-/// sizes still cannot outgrow `avail_px`.
-///
-/// `min_items` keeps the grouped family's own `0` floor: where the fixed chrome
-/// ALONE already exceeds the budget, no row count can help and an empty band
-/// beats overrunning the canvas. That degradation is preserved exactly; what
-/// this removes is the case where it fired with room to spare.
-pub(in crate::render) fn fit_sectioned_item_rows(
-    avail_px: f32,
-    lh: f32,
-    chrome_rows: usize,
-    total_headers: usize,
-    min_items: usize,
-) -> usize {
-    if lh <= 0.0 {
-        return min_items;
-    }
-    let conservative = fit_item_rows(avail_px, lh, chrome_rows + total_headers, min_items);
-    if conservative > 0 {
-        return conservative;
-    }
-    let fit_lines = (avail_px / lh).floor() as usize;
-    (fit_lines.saturating_sub(chrome_rows) / 2).max(min_items)
 }
 
 /// TEST-ONLY: the planned top of candidate display row `row` for a card with
@@ -340,6 +231,8 @@ pub(in crate::render) fn test_row_top(
         cluster_span: None,
         selected_offset: None,
         selected_display: None,
+        cue_above_rows: 0,
+        cue_below_rows: 0,
     });
     plan.row_top(row).expect("row is inside the planned window")
 }
@@ -374,6 +267,8 @@ pub(in crate::render) fn test_header_plan(
         cluster_span: None,
         selected_offset: None,
         selected_display: None,
+        cue_above_rows: 0,
+        cue_below_rows: 0,
     })
 }
 
@@ -400,6 +295,8 @@ pub(in crate::render) fn test_rows(text_top: f32, lh: f32, n: usize) -> Vec<Plan
         cluster_span: None,
         selected_offset: None,
         selected_display: None,
+        cue_above_rows: 0,
+        cue_below_rows: 0,
     })
     .rows()
     .to_vec()
@@ -408,13 +305,23 @@ pub(in crate::render) fn test_rows(text_top: f32, lh: f32, n: usize) -> Vec<Plan
 /// Build the plan. Pure: no clock, no randomness, no device, no allocation per
 /// item — one [`PlannedRow`] per DISPLAY LINE the card shows.
 pub(in crate::render) fn plan_overlay_rows(input: &OverlayRowPlanInput<'_>) -> OverlayRowPlan {
-    let first_top = row_top(
+    // Where the HEADER band itself closes — unmoved by the count cue, so the
+    // query field/lens strip's own boxes (`plan_header_band`, below) stay
+    // exactly where they always sat. The candidate band's `first_top` seats
+    // one `lh` PAST that close for every reserved `cue_above_rows`, opening
+    // the exact slot the "items hidden above" cue text draws into and
+    // pushing every real candidate row down with it — the one shift both the
+    // drawn glyphs (which follow this same line count, sequentially) and this
+    // plan's own hit-test/selected-band geometry read, so they cannot disagree
+    // about where row 0 starts.
+    let header_close = row_top(
         input.text_top,
         input.billed_header_rows,
         input.header_gap,
         0,
         input.lh,
     );
+    let first_top = header_close + input.cue_above_rows as f32 * input.lh;
     let headers = super::overlay_header::plan_header_band(input);
     let mut rows: Vec<PlannedRow> = match input.lines {
         Some(lines) => lines
@@ -496,5 +403,7 @@ pub(in crate::render) fn plan_overlay_rows(input: &OverlayRowPlanInput<'_>) -> O
         empty_rows: input.empty_rows,
         selected_display,
         dx_per_row: input.dx_per_row,
+        cue_above_rows: input.cue_above_rows,
+        cue_below_rows: input.cue_below_rows,
     }
 }

@@ -126,6 +126,72 @@ impl TextPipeline {
     }
 }
 
+/// **THE COUNT CUE'S BUDGET FIXED POINT**, shared by every geometry family
+/// (flat, grouped, workspace).
+///
+/// **THE RESERVATION IS SYMMETRIC AND SCROLL-INVARIANT — NEVER "HOWEVER MANY
+/// EDGES CLIP RIGHT NOW".** `scroll_window`'s own `visible` (`resolve`'s
+/// second return) already ignores `top`/the selection — it is a pure function
+/// of the corpus size and the window's byte budget — so "is this
+/// corpus/canvas/query combination windowed AT ALL" is itself scroll-
+/// invariant, decided once by `resolve(0)`. Whether the CURRENTLY VISIBLE
+/// slice happens to clip above, below, both or neither is NOT: scrolling from
+/// the top (clips only below) to the middle (clips both) of the SAME windowed
+/// corpus changes which edges are non-empty every frame. An earlier cut of
+/// this function charged `resolve` exactly as many extra rows as the
+/// CURRENTLY clipped edges (0, 1 or 2) — so the reserved overhead, and with it
+/// `first_top`/`card_h`/every real row's own Y, changed shape as the user
+/// scrolled through nothing but the SAME already-open card: a scroll that
+/// crossed from "only below clips" to "both clip" grew the card under the
+/// reader's cursor (`render/tests/palette_scroll_anchor.rs`'s own law, which
+/// exists for exactly this class of defect on an unrelated composition and
+/// caught this one immediately). So: once `resolve(0)` shows the corpus is
+/// windowed at all, BOTH edges' rows are reserved unconditionally
+/// (`resolve(2)`) — worst case, but the ONLY value that cannot change with
+/// scroll — and the actual per-edge CONTENT (whether a slot draws text or sits
+/// blank this frame) is read off THAT fixed window via [`window_edge_counts`],
+/// never fed back into the reservation itself.
+///
+/// `resolve` closes over whatever the family's own fit function needs
+/// (`avail_px`, `lh`, the family's fixed chrome, its `min_items` floor) and
+/// maps "how many EXTRA overhead rows to reserve for the cue" to `(top,
+/// visible)` — so this stays ignorant of `fit_item_rows` /
+/// `fit_sectioned_item_rows` / `fit_workspace_item_rows` and cannot drift
+/// from whichever one a family actually reads.
+///
+/// **THE CUE MAY NEVER BE THE THING THAT EMPTIES THE WINDOW.** Reserving the
+/// two rows can push a family at its own `min_items: 0` floor (the grouped
+/// card's own starvation arm) to answer with zero items — so a corpus that
+/// comfortably showed a row without the cue could lose its LAST row to the
+/// cue's own reserved lines. That trade is never worth making: a passive
+/// position cue is not worth an empty candidate band. So when the reserved
+/// pass's `visible` drops to zero while the naive (uncued) pass had at least
+/// one, this returns the NAIVE window with no cue reservation at all — the
+/// corpus still shows what little of itself fits, silently, rather than
+/// nothing plus an announcement that there was more.
+///
+/// Returns `(top, visible, cue_above, cue_below, reserved)` — `reserved` is
+/// the fixed row COUNT (`0` or `2`) every caller charges to its own
+/// `total_rows`/`first_top` math, kept deliberately separate from
+/// `cue_above`/`cue_below` (`Option<usize>`, the per-edge CONTENT for THIS
+/// frame's scroll position) so a caller can never accidentally derive the
+/// scroll-varying content count back into the reservation.
+pub(super) fn resolve_window_and_cue(
+    n_items: usize,
+    resolve: impl Fn(usize) -> (usize, usize),
+) -> (usize, usize, Option<usize>, Option<usize>, usize) {
+    let (top0, visible0) = resolve(0);
+    if visible0 >= n_items {
+        return (top0, visible0, None, None, 0);
+    }
+    let (top, visible) = resolve(2);
+    if visible == 0 {
+        return (top0, visible0, None, None, 0);
+    }
+    let (above, below) = window_edge_counts(top, visible, n_items);
+    (top, visible, above, below, 2)
+}
+
 /// Slice a full display plan (headers + item rows, from [`TextPipeline::theme_plan`]) to
 /// the ITEM window `[lo, hi)`: keep every `Item(i)` with `lo ≤ i < hi`, and re-hang the
 /// SECTION HEADER above the first surviving item of each section (a header whose whole

@@ -32,9 +32,18 @@ pub(super) fn window_json(pipeline: &TextPipeline) -> String {
     let Some((top, lines, sel_row, card_h, canvas_h)) = pipeline.overlay_window_report() else {
         return "null".to_string();
     };
+    // `(above, below)`: items hidden past each edge of the drawn window, or
+    // `null` on an edge with nothing hidden — the positional count cue's own
+    // state, read off the SAME geometry `overlay_window_report` reports so a
+    // reader can check "hidden = roster − visible" without a pixel walk.
+    let (above, below) = pipeline.overlay_edge_cue_report().unwrap_or_default();
+    let opt = |n: Option<usize>| n.map_or_else(|| "null".to_string(), |n| n.to_string());
     format!(
         "{{ \"top\": {top}, \"lines\": {lines}, \"sel_row\": {sel_row}, \
-         \"card_h\": {card_h}, \"canvas_h\": {canvas_h}{} }}",
+         \"card_h\": {card_h}, \"canvas_h\": {canvas_h}, \"cue_above\": {}, \
+         \"cue_below\": {}{} }}",
+        opt(above),
+        opt(below),
         geometry_fields(pipeline)
     )
 }

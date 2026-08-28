@@ -42,9 +42,16 @@ pub const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 ///          clusters and a logical line break counts as one character.
 /// `/208` — honest document absence, its actions, and null page/buffer.
 /// `/209` — `overlay.query_caret`: the query field's own CHAR-index caret.
+/// `/210` — `overlay.window` gains `cue_above` / `cue_below`: the positional
+///          count cue's own state, `null` on an edge with nothing hidden
+///          past the drawn window, else the item count — the arithmetic a
+///          reader previously had to infer from `top`/`lines`/`n_items`
+///          plus which geometry family drew the frame (a grouped card's
+///          `lines` bills section headers, not items, so that inference was
+///          wrong for exactly the picker this bump was written for).
 /// History lives in Git. Bump this row with the const. Plain single-frame
 /// schema owns this number; timeline and held take the next two versions.
-pub const SCHEMA_VERSION: u32 = 209;
+pub const SCHEMA_VERSION: u32 = 210;
 pub fn schema_plain() -> String {
     format!("awl-capture/{SCHEMA_VERSION}")
 }

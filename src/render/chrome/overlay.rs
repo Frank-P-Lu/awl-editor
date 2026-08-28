@@ -258,41 +258,98 @@ impl TextPipeline {
         geom.theme
     }
 
-    pub(in crate::render) fn overlay_geometry(&self, width: u32) -> OverlayGeom {
-        if let Some((line, start_col, end_col)) = self.overlay_spell {
-            return self.spell_overlay_geometry(width, line, start_col, end_col);
-        }
-        // The THIRD family. Checked before the faceted one because a
-        // workspace's rail IS its facet strip, stood on its end: the same data
-        // reaches a different presentation, and there is no card to place.
-        if self.overlay_is_workspace() {
-            return self.workspace_geometry(width);
-        }
-        if !self.overlay_lens.is_empty() {
-            return self.theme_overlay_geometry(width);
-        }
-        let pad = self.metrics.px(CARD_PAD);
-        let margin = self.metrics.px(CARD_MARGIN);
-        let n_items = self.overlay_items.len();
+    /// The flat family's starvation-degrade arm for the count cue: re-fit the
+    /// window at `(top_idx, visible)` (already re-derived by the caller with
+    /// the cue's own overhead dropped) and recompute the row/height totals
+    /// that follow from it. Split out of `overlay_geometry` purely to keep
+    /// that function under its own line budget — every input here is a value
+    /// that function already resolved, so this owns no policy of its own.
+    #[allow(clippy::too_many_arguments)]
+    fn flat_window_without_cue(
+        &self,
+        (top_idx, visible): (usize, usize),
+        header_rows: usize,
+        empty_rows: usize,
+        hint_rows: usize,
+        hint_gap_rows: usize,
+        footer_rows: usize,
+        header_gap: f32,
+        pad: f32,
+    ) -> (usize, usize, f32) {
+        let total_rows =
+            header_rows + visible + empty_rows + hint_gap_rows + hint_rows + footer_rows;
+        let card_h = self.overlay_card_h(total_rows, header_gap, hint_rows, hint_gap_rows, pad);
+        (top_idx, visible, card_h)
+    }
 
-        let mut hint = self.overlay_hint.clone();
+    /// The flat family's starvation-degrade arm for the header/query gap: the
+    /// gap is decorative breathing room, not load-bearing chrome, so in the
+    /// same starvation corner as [`Self::flat_window_without_cue`] it is
+    /// dropped rather than pushing the card past the canvas, and `total_rows`/
+    /// `card_h` are recomputed from the deflated overhead.
+    fn flat_card_h_without_header_gap(
+        &self,
+        total_rows: usize,
+        hint_gap_rows: usize,
+        header_gap: f32,
+        hint_rows: usize,
+        pad: f32,
+    ) -> (usize, f32) {
+        let total_rows = total_rows - hint_gap_rows;
+        let card_h = self.overlay_card_h(total_rows, header_gap, hint_rows, 0, pad);
+        (0, card_h)
+    }
+
+    /// The item-independent chrome inventory both card families resolve
+    /// before they can size the candidate window — the hint text and its
+    /// reserved gap, the footer lines, and the empty-state notice. Shared
+    /// rather than duplicated (`theme_overlay_geometry` reads the identical
+    /// six quantities off the identical three sources) so the two owners
+    /// cannot drift; split out of `overlay_geometry` purely to keep it under
+    /// its own line budget, and owns no policy of its own.
+    pub(super) fn overlay_chrome_inventory(
+        &self,
+        n_items: usize,
+    ) -> (
+        String,
+        usize,
+        usize,
+        Vec<String>,
+        usize,
+        Option<String>,
+        usize,
+    ) {
+        let hint = self.overlay_hint.clone();
         let hint_rows = if hint.is_empty() { 0 } else { 1 };
-        let mut hint_gap_rows = overlay_hint_gap_rows(hint_rows);
-
+        let hint_gap_rows = overlay_hint_gap_rows(hint_rows);
         let (footer, footer_rows) = self.overlay_footer_lines();
-
         let empty = if n_items == 0 {
             self.overlay_empty.clone()
         } else {
             None
         };
         let empty_rows = empty.is_some() as usize;
+        (
+            hint,
+            hint_rows,
+            hint_gap_rows,
+            footer,
+            footer_rows,
+            empty,
+            empty_rows,
+        )
+    }
 
-        let contextual = self.overlay_contextual();
-        let header_rows = usize::from(!contextual); // contextual rows need no query field
-        // PALETTE-COMPOSITION round: a calm gap after the query header, before the
-        // candidate list (negative space as the divider). Grows the card by exactly
-        // this and offsets the candidate band/hit-test through the planned rows.
+    /// Where the flat card's query-header gap, top-left origin, and candidate
+    /// window's own vertical pixel budget resolve to — every quantity
+    /// [`Self::overlay_geometry`] needs before it can fit the window against
+    /// the row pitch. Split out purely to keep that function under its own
+    /// line budget; it owns no policy of its own.
+    fn flat_card_placement(&self, contextual: bool, pad: f32, margin: f32) -> (f32, f32, f32) {
+        // PALETTE-COMPOSITION round: a calm gap after the query header, before
+        // the candidate list (negative space as the divider). Grows the card
+        // by exactly this and offsets the candidate band/hit-test through the
+        // planned rows.
         let header_gap = if contextual {
             0.0
         } else {
@@ -309,10 +366,40 @@ impl TextPipeline {
         } else {
             (self.window_h - card_y - margin - 2.0 * pad - header_gap).max(self.overlay_lh())
         };
+        (header_gap, card_y, avail_px)
+    }
+
+    pub(in crate::render) fn overlay_geometry(&self, width: u32) -> OverlayGeom {
+        if let Some((line, start_col, end_col)) = self.overlay_spell {
+            return self.spell_overlay_geometry(width, line, start_col, end_col);
+        }
+        // The THIRD family. Checked before the faceted one because a
+        // workspace's rail IS its facet strip, stood on its end: the same data
+        // reaches a different presentation, and there is no card to place.
+        if self.overlay_is_workspace() {
+            return self.workspace_geometry(width);
+        }
+        if !self.overlay_lens.is_empty() {
+            return self.theme_overlay_geometry(width);
+        }
+        let pad = self.metrics.px(CARD_PAD);
+        let margin = self.metrics.px(CARD_MARGIN);
+        let n_items = self.overlay_items.len();
+        let (mut hint, hint_rows, mut hint_gap_rows, footer, footer_rows, empty, empty_rows) =
+            self.overlay_chrome_inventory(n_items);
+
+        let contextual = self.overlay_contextual();
+        let header_rows = usize::from(!contextual); // contextual rows need no query field
+        let (header_gap, card_y, avail_px) = self.flat_card_placement(contextual, pad, margin);
         let chrome_rows = header_rows + hint_gap_rows + hint_rows + empty_rows + footer_rows;
-        let (top_idx, visible) = self.overlay_flat_window(n_items, avail_px, chrome_rows);
-        let mut total_rows =
-            header_rows + visible + empty_rows + hint_gap_rows + hint_rows + footer_rows;
+        let fit_window =
+            |chrome_rows: usize| self.overlay_flat_window(n_items, avail_px, chrome_rows);
+        let (mut top_idx, mut visible, mut cue_above, mut cue_below, mut cue_rows) =
+            super::overlay_clamp::resolve_window_and_cue(n_items, |extra| {
+                fit_window(chrome_rows + extra)
+            });
+        let total_rows =
+            header_rows + visible + empty_rows + hint_gap_rows + hint_rows + footer_rows + cue_rows;
         let desired_w = self.overlay_desired_w(CARD_MAX_W);
         let (mut card_x, card_w) = self.overlay_card_box(width, desired_w);
         if let Some((x, _)) = self.overlay_context_anchor {
@@ -324,17 +411,31 @@ impl TextPipeline {
         let text_w = card_w - 2.0 * hpad;
         hint = hint_yielding_explanation(&hint, width as f32 / self.metrics.scale.max(0.01));
         let mut card_h = self.overlay_card_h(total_rows, header_gap, hint_rows, hint_gap_rows, pad);
-        // The gap is decorative breathing room, not load-bearing chrome: in the
-        // starvation corner (a `min_items: 1` floor still
-        // outgrows the canvas at an extreme zoom — the flat family's own
-        // arm), drop it rather than push the card past the canvas the way a
-        // sectioned header's own overhead already degrades at the grouped
-        // family's `min_items: 0` floor. `total_rows`/`card_h` are the only
-        // two callers see, so this can't drift from the struct below.
         if !contextual && card_y + card_h > self.window_h + 0.01 && hint_gap_rows > 0 {
-            total_rows -= hint_gap_rows;
-            hint_gap_rows = 0;
-            card_h = self.overlay_card_h(total_rows, header_gap, hint_rows, hint_gap_rows, pad);
+            (hint_gap_rows, card_h) = self.flat_card_h_without_header_gap(
+                total_rows,
+                hint_gap_rows,
+                header_gap,
+                hint_rows,
+                pad,
+            );
+        }
+        // The count cue is decorative, non-load-bearing chrome exactly like the
+        // hint gap above — in the same starvation corner, drop it and re-fit
+        // the window at the ORIGINAL overhead rather than let it force the
+        // card past the canvas.
+        if !contextual && card_y + card_h > self.window_h + 0.01 && cue_rows > 0 {
+            (cue_above, cue_below, cue_rows) = (None, None, 0);
+            (top_idx, visible, card_h) = self.flat_window_without_cue(
+                fit_window(chrome_rows),
+                header_rows,
+                empty_rows,
+                hint_rows,
+                hint_gap_rows,
+                footer_rows,
+                header_gap,
+                pad,
+            );
         }
         let card_y = if contextual {
             card_y.clamp(margin, (self.window_h - card_h - margin).max(margin))
@@ -363,6 +464,9 @@ impl TextPipeline {
             text_top,
             text_w,
             card_narrow,
+            cue_above,
+            cue_below,
+            cue_reserved: cue_rows > 0,
             ..OverlayGeom::base()
         }
     }
@@ -402,8 +506,10 @@ impl TextPipeline {
         let below_avail = self.window_h - (word_top + word_h + gap) - margin;
         let above_avail = word_top - gap - margin;
         let avail_px = below_avail.max(above_avail).max(self.overlay_lh());
-        let (top_idx, visible) =
-            self.overlay_flat_window(n_items, avail_px, header_rows + hint_rows);
+        let (top_idx, visible, cue_above, cue_below, cue_rows) =
+            super::overlay_clamp::resolve_window_and_cue(n_items, |extra| {
+                self.overlay_flat_window(n_items, avail_px, header_rows + hint_rows + extra)
+            });
 
         // Width fits the WIDEST suggestion ROW: its SHAPED width measured into
         // `overlay_spell_w`, not the anchor word. A short misspelling therefore cannot
@@ -440,7 +546,7 @@ impl TextPipeline {
         } else {
             char_grid_w
         };
-        let rows = header_rows + visible.max(1) + hint_rows;
+        let rows = header_rows + visible.max(1) + hint_rows + cue_rows;
         // The MIN/MAX bounds are tuned for the 1:1 capture canvas; GROW them with the
         // current zoom/DPI (the SAME grow-only `LogicalGrowOnly` the takeover
         // card's width uses) so a long correction isn't clamped to an unzoomed cap
@@ -487,6 +593,9 @@ impl TextPipeline {
             text_left,
             text_top,
             text_w,
+            cue_above,
+            cue_below,
+            cue_reserved: cue_rows > 0,
             ..OverlayGeom::base()
         }
     }
@@ -563,6 +672,20 @@ impl TextPipeline {
         ))
     }
 
+    /// The POSITIONAL COUNT CUE's own state for the sidecar, or `None` when no
+    /// overlay is open: `(above, below)`, items hidden past each edge of the
+    /// drawn window — `None` on a side that draws no cue. Reads the SAME
+    /// [`Self::overlay_geometry`] `overlay_window_report` does, so a sidecar
+    /// reader can never see a cue the card did not actually reserve a line
+    /// for (or miss one it did).
+    pub fn overlay_edge_cue_report(&self) -> Option<(Option<usize>, Option<usize>)> {
+        if !self.overlay_active {
+            return None;
+        }
+        let geom = self.overlay_geometry(self.window_w as u32);
+        Some((geom.cue_above, geom.cue_below))
+    }
+
     /// THE ONE PLANNING SEAM for the candidate-row band. Hands the
     /// already-resolved [`OverlayGeom`] (card box + window + header metrics) and
     /// the row pitch to the device-free scene planner, which emits one
@@ -603,6 +726,8 @@ impl TextPipeline {
             empty_rows: geom.empty.is_some() as usize,
             lines: geom.theme.then_some(geom.plan.as_slice()),
             dx_per_row: self.overlay_row_dx_step(),
+            cue_above_rows: geom.cue_reserved as usize,
+            cue_below_rows: geom.cue_reserved as usize,
             cluster_span,
             selected_offset,
             selected_display,
@@ -628,7 +753,7 @@ impl TextPipeline {
         if self.overlay_ranges.is_empty() || !self.overlay_right_shown {
             return Vec::new();
         }
-        let secondary = self.overlay_row_secondary_px(plan.billed_header_rows());
+        let secondary = self.overlay_row_secondary_px(plan);
         let primary = self.overlay_row_primary_px(geom);
         let cluster = self.diagonal_cluster;
         let mut out = Vec::new();

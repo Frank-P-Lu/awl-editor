@@ -48,13 +48,19 @@ impl TextPipeline {
         // built from `right_bind_lines`' leading empties and never carries one,
         // so each buffer is asked for its own first line.
         let first_primary = geom.shaped_first_row_line();
-        // The SECONDARY buffer's own leading-empties count is `billed_header_rows`
-        // (`right_bind_lines`' own caller), not the header BOX count
-        // (`geom.header_rows`): a docked facet strip still carries a real box
-        // (so the PRIMARY buffer's `line_i` mapping above stays box-counted),
-        // but bills the row budget nothing of its own `lh` — the same split
-        // `secondary_top`'s own doc names.
-        let billed_header_rows = plan.billed_header_rows();
+        // The SECONDARY buffer's own leading-empties count is
+        // `billed_header_rows + cue_above_rows` (`right_bind_lines`'s own
+        // caller, `overlay_shape.rs`/`shape_faceted`), not the header BOX
+        // count (`geom.header_rows`): a docked facet strip still carries a
+        // real box (so the PRIMARY buffer's `line_i` mapping above stays
+        // box-counted), but bills the row budget nothing of its own `lh` —
+        // the same split `secondary_top`'s own doc names. The above-edge
+        // count cue shifts the PRIMARY buffer's row 0 down by one line
+        // whenever `cue_above_rows > 0` (`shaped_first_row_line`'s own
+        // reservation-driven `+1`), and `secondary_top`'s own pixel origin
+        // does not know about that shift — this leading count is what moves
+        // the SECONDARY buffer's row 0 down to meet it instead.
+        let billed_header_rows = plan.billed_header_rows() + plan.cue_above_rows();
         let mut primary = BTreeMap::new();
         for run in self.panel_buffer.layout_runs() {
             let li = run.line_i;
@@ -160,6 +166,34 @@ impl TextPipeline {
             self.overlay_footer_content_px(&geom, plan.content_rows()),
             geom.footer_text_w(),
         )
+    }
+
+    /// THE POSITIONAL COUNT CUE's own presence, found by its TEXT — never by
+    /// row-count arithmetic, for the same reason `overlay_hint_line` reads the
+    /// buffer rather than re-deriving the shaper's own stacking (the flat
+    /// family's cue rides the beat spacer's line rather than adding a new
+    /// one, `overlay_shape.rs::push_beat_spacer`'s own doc). `(above, below)`,
+    /// each `Some(line_i)` when this frame's `panel_buffer` shaped that exact
+    /// cue string somewhere, else `None`.
+    pub(in crate::render) fn overlay_cue_lines(
+        &self,
+        width: u32,
+    ) -> (Option<usize>, Option<usize>) {
+        let geom = self.overlay_geometry(width);
+        let above = geom
+            .cue_above
+            .map(|n| crate::render::chrome::edge_cue_text(true, n));
+        let below = geom
+            .cue_below
+            .map(|n| crate::render::chrome::edge_cue_text(false, n));
+        let find = |text: &Option<String>| -> Option<usize> {
+            let text = text.as_ref()?;
+            self.panel_buffer
+                .lines
+                .iter()
+                .position(|l| l.text() == text.as_str())
+        };
+        (find(&above), find(&below))
     }
 }
 

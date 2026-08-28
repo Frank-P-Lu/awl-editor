@@ -700,7 +700,7 @@ would otherwise assert a MECHANISM (an instance count, a dither flag, a
 computed color) and stop there — the mechanism proves the renderer INTENDED
 to draw something; the pixel diff proves it actually did.
 
-## The sidecar JSON — schema `awl-capture/209` (`/210` timeline, `/211` held)
+## The sidecar JSON — schema `awl-capture/210` (`/211` timeline, `/212` held)
 
 Field order is stable; consumers may parse positionally or by key.
 
@@ -1234,6 +1234,20 @@ list-nav overloads (lens cycle, folder descend/ascend, row jump); anywhere
 else they fall through to the field's own char motion / Home-End, and
 reaching the end again (an End, or a char-step that lands there) restores the
 list-nav reading on the very next keypress.
+
+Schema `/210` adds **`overlay.window.cue_above`** / **`overlay.window.cue_below`**:
+the faint positional COUNT CUE ("↑ 3 more" / "↓ 41 more", extending the
+`+ N more…` idiom `workingset.rs` already uses for the resting stack) that
+draws when a candidate window clips the corpus. Each is `null` when nothing
+is hidden past that edge, else the ITEM count — never a display-line count: a
+sectioned card (the theme picker) windows DISPLAY LINES (headers + item
+rows), but the cue counts hidden ITEMS, so `cue_below` plus `n_items` minus
+`top` minus the ITEM count in the drawn window (not `lines`, which bills
+section headers too) is the arithmetic to check, not a bare subtraction
+against `lines`. Derived at the one windowing owner (`scroll_window`'s own
+`(top, visible)` pair, read through `window_edge_counts`,
+`render/chrome/mod.rs`) shared by every candidate window — flat, grouped, and
+the summoned workspace — so a picker that never clips reports both `null`.
 
 Schema `/207` adds top-level **`document`**: `{ active, start_actions }`.
 Ordinary frames report `active: true` and no start actions. After a tier-2
