@@ -92,6 +92,14 @@ impl App {
     ///   it: `--screenshot-app` reaches here too and writes into its hermetic
     ///   sandbox. The FILE sibling of that owner.
     pub(in crate::app) fn push_recent_file(&mut self, file: PathBuf) {
+        // CANONICALIZED, mirroring `switch_project`'s own comment: `file` is
+        // whatever spelling this open arrived under (a raw CLI argument, a
+        // native file-chooser result), and `crate::recents::push`'s dedupe
+        // compares by exact `PathBuf` equality — two spellings of one real
+        // file (a symlink/firmlink alias) would otherwise both stay in the
+        // MRU as separate entries, breaking its own documented "never
+        // duplicates" contract.
+        let file = crate::buffers::normalize_path(&file);
         let list = std::mem::take(&mut self.project_location.recent_files);
         self.project_location.recent_files = crate::recent_files::push(list, file);
         if let Err(e) = crate::recent_files::save(&self.project_location.recent_files) {
