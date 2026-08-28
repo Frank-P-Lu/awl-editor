@@ -42,6 +42,14 @@ fn a_keyboard_scroll_moves_what_a_stationary_pixel_hits_and_the_gate_refuses_it(
         );
         return;
     };
+    // This law is about hover/hit-test geometry, not the menu bar, so it pins
+    // the bar OFF for a deterministic content height rather than inheriting
+    // whatever the ambient default (or `AWL_MENU_BAR_FORCE`) happens to be —
+    // `menu_bar`'s default is platform-dependent, and native-gate.sh's
+    // menubar-full arm forces it on for the whole suite. Restored below,
+    // mirroring `chrome_panels.rs`'s own convention.
+    let ambient_menu_bar = crate::menubar::menu_bar_on();
+    crate::menubar::set_menu_bar_on(false);
 
     let styles = [
         ("pane", None, None),
@@ -173,4 +181,5 @@ fn a_keyboard_scroll_moves_what_a_stationary_pixel_hits_and_the_gate_refuses_it(
     }
     crate::render::set_list_style_test_override(None);
     crate::render::set_bar_config_test_override(None);
+    crate::menubar::set_menu_bar_on(ambient_menu_bar);
 }
