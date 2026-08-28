@@ -42,6 +42,41 @@ pub(super) enum PanelRow {
     File(usize),
 }
 
+/// **A GROUP HEADING'S OWN QUIET PARENT** — a disambiguating segment
+/// (`"research/"` vs `"archive/"`) for a root whose LEAF name collides with
+/// another root drawn in the same panel (two different projects both named
+/// `notes`), `None` when no other drawn root shares this leaf.
+///
+/// Routed through [`super::quiet_parent::common_ancestor`] + the SAME
+/// strip-then-format primitive [`OpenFile::parent_label`] uses
+/// ([`super::quiet_parent::quiet_relative_label`]) rather than a second
+/// parent-eliding mechanism: the base here is the deepest ancestor `root`
+/// shares with EVERY other same-leaf root (folded pairwise), one level up
+/// from a file's own root-relative parent, but the same "strip, drop if
+/// empty, add `/`" rule.
+///
+/// A root that sits DIRECTLY under that shared ancestor (e.g. `~/notes`
+/// beside `~/archive/notes`) strips to nothing and draws no quiet label of
+/// its own — still distinguishable, because its same-leaf rival gets one.
+pub(super) fn group_parent_label(root: &Path, all_roots: &[&Path]) -> Option<String> {
+    let leaf = crate::project::folder_name(root);
+    let mut colliding = all_roots
+        .iter()
+        .copied()
+        .filter(|r| crate::project::folder_name(r) == leaf);
+    let first = colliding.next()?;
+    let base = colliding.fold(first.to_path_buf(), |acc, r| {
+        super::quiet_parent::common_ancestor(&acc, r)
+    });
+    // `root`'s own PARENT against the shared base — one level up from a
+    // file's own `path.parent()` against its root, the same rule
+    // `quiet_relative_label` already applies. A leaf with no collision
+    // (`colliding` held only `root` itself) folds `base` to `root`, and
+    // `root.parent()` is never `root` itself, so this falls through to
+    // `None` the same way an empty relative path would.
+    super::quiet_parent::quiet_relative_label(root.parent()?, &base)
+}
+
 #[cfg_attr(not(test), allow(dead_code))]
 impl WorkingSet {
     /// Is the reader looking at the resting stack, or the panel it expands
@@ -146,13 +181,33 @@ impl WorkingSet {
         let full = self.expanded_full();
         let max_scroll = full.len().saturating_sub(EXPANDED_VIEWPORT);
         let scroll = scroll.min(max_scroll);
+        let roots: Vec<&Path> = full
+            .iter()
+            .filter_map(|row| match row {
+                PanelRow::Group(root, _) => Some(root.as_path()),
+                PanelRow::File(_) => None,
+            })
+            .collect();
         full[scroll..(scroll + EXPANDED_VIEWPORT).min(full.len())]
             .iter()
             .map(|row| match row {
                 PanelRow::Group(root, active) => StackRow {
-                    leaf: crate::project::folder_name(root),
+                    // Trailing `/` for FOLDER identity — the same rule
+                    // `row_display` already applies to a picker's own folder
+                    // rows (`row.is_dir` / `RowMeta::GotoFolder`); a project
+                    // heading is a folder every time, so it always carries
+                    // one rather than reading as a bare (file-like) name.
+                    leaf: format!("{}/", crate::project::folder_name(root)),
+                    parent: group_parent_label(root, &roots).unwrap_or_default(),
+                    // The OUTER field, not just the kind's own copy: this is
+                    // the one `active: bool` marker `plate_rects` and every
+                    // reader outside `stack_spans`' ink match already reads
+                    // for "is this the current row" (`StackRow::file_row`
+                    // sets the same field for a File row) — a heading that
+                    // only carried the nested copy read as never current to
+                    // any of them.
+                    active: *active,
                     kind: StackRowKind::Group { active: *active },
-                    ..StackRow::default()
                 },
                 PanelRow::File(at) => self.file_row(*at),
             })

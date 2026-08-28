@@ -51,12 +51,19 @@ impl App {
         // A cancelled MAS grant panel (see `set_root`'s doc) means the switch
         // never happened — never persist/MRU a root we didn't actually move
         // into.
-        if !self.set_root(new_root.clone()) {
+        if !self.set_root(new_root) {
             return;
         }
         #[cfg(not(target_arch = "wasm32"))]
         self.session_flush();
-        self.push_recent_project(new_root);
+        // Read the CANONICAL root `set_root` just stored, not the raw
+        // argument this function was called with — an alias spelling of an
+        // already-open project (a firmlink/symlink/case variant) must MOVE
+        // its existing MRU entry to the front, never grow a second one
+        // (`crate::recents::push`'s own dedupe compares by exact `PathBuf`
+        // equality, so it only collapses aliases if both sides already agree
+        // on one spelling).
+        self.push_recent_project(self.project_location.root.clone());
     }
 
     /// Push `root` to the FRONT of the persisted RECENT PROJECT ROOTS (deduped +
@@ -388,7 +395,21 @@ impl App {
     /// was cancelled (see the gate below) — every other path always switches
     /// and returns `true`; callers that persist a "switched to" fact (the
     /// sticky root, the recent-projects MRU) must check this before doing so.
+    ///
+    /// `new_root` is CANONICALIZED before it becomes `project_location.root`
+    /// — the ONE root-identity owner: every later comparison (a working-set
+    /// group's `OpenFile::root`, via [`crate::workingset::root_for`]'s
+    /// `active_root` argument; the recent-projects MRU, via
+    /// [`Self::push_recent_project`] reading this same field back after this
+    /// call rather than trusting its own un-normalized argument) inherits one
+    /// stable spelling instead of re-deriving its own. Reuses
+    /// [`crate::buffers::normalize_path`] rather than a second
+    /// canonicalizer — the same absolutize + symlink/firmlink-resolve +
+    /// not-yet-existing-tail fallback [`crate::buffers::BufferKey`] already
+    /// trusts for file identity, so a root and a file under it agree on what
+    /// "the same path" means.
     pub(in crate::app) fn set_root(&mut self, new_root: PathBuf) -> bool {
+        let new_root = crate::buffers::normalize_path(&new_root);
         // MAS SANDBOX GRANT GATE (native macOS `mas` builds only — see
         // `src/mas.rs`'s module doc): a project root reaches outside the
         // container far more often than a single file does, so this is the

@@ -882,6 +882,72 @@ fn switch_project_pushes_and_persists_the_recent_root() {
     });
 }
 
+/// **512(b): TWO SPELLINGS OF ONE REAL FOLDER COLLAPSE TO ONE RECENT ENTRY.**
+///
+/// `crate::buffers::normalize_path` (the SAME canonicalizer `BufferKey::path`
+/// already trusts for FILE identity) reaches real disk directly, bypassing
+/// the swappable `FileSystem` backend — so this proves the fix against a REAL
+/// symlinked directory, the `buffers/tests.rs` precedent
+/// (`buffer_key_path_resolves_a_symlinked_directory_to_the_real_path`), rather
+/// than a fabricated pair of strings. The App itself still runs over
+/// `InMemoryFs` (nothing seeded — `Project::resolve`/`index::build_index`
+/// degrade gracefully on a directory the fake backend has never heard of,
+/// same as every other fictional-path test in this file), so the recents
+/// file this test exercises is the sandbox's own, never the real developer's
+/// `recent-projects.toml` on disk.
+#[test]
+#[cfg(unix)]
+fn switching_to_a_symlinked_alias_of_a_recent_root_moves_it_to_the_front_instead_of_duplicating_it()
+{
+    let _guard = crate::testlock::serial();
+    let base = crate::testscratch::ScratchDir::new(
+        std::env::temp_dir().join(format!("awl-recent-alias-{}", std::process::id())),
+    );
+    let real_dir = base.join("real");
+    let link_dir = base.join("link");
+    std::fs::create_dir_all(&real_dir).unwrap();
+    std::os::unix::fs::symlink(&real_dir, &link_dir).unwrap();
+    let other_dir = base.join("other");
+    std::fs::create_dir_all(&other_dir).unwrap();
+
+    let fake = Arc::new(crate::fs::InMemoryFs::new());
+    crate::fs::with_fs(fake, || {
+        let mut app = App::new(
+            None,
+            real_dir.clone(),
+            None,
+            None,
+            Config {
+                session_restore: Some(false),
+                ..Config::empty()
+            },
+        );
+        assert!(app.project_location.recent_projects.is_empty());
+
+        app.switch_project(real_dir.clone());
+        app.switch_project(other_dir.clone());
+        // The ALIAS spelling of `real_dir`, never typed before under this
+        // exact string -- `recents::push`'s own dedupe compares by exact
+        // `PathBuf` equality, so this only collapses if `switch_project`
+        // already normalized both spellings to the same value before either
+        // reached it.
+        app.switch_project(link_dir.clone());
+
+        assert_eq!(
+            app.project_location.recent_projects.len(),
+            2,
+            "a symlinked alias of an already-recent root must MOVE it to the \
+             front, never grow a THIRD entry: {:?}",
+            app.project_location.recent_projects
+        );
+        assert_eq!(
+            app.project_location.recent_projects[0],
+            crate::buffers::normalize_path(&real_dir),
+            "the alias switch must have moved the real folder's entry to the front"
+        );
+    });
+}
+
 #[test]
 fn opening_files_pushes_them_onto_the_recent_files_mru_and_persists() {
     let fake = Arc::new(

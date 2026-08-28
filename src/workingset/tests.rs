@@ -322,6 +322,49 @@ fn root_for_keeps_a_file_with_its_own_project() {
     );
 }
 
+/// **512(b) — THE WORKING-SET HALF of the root-identity fix.** Two spellings
+/// of one REAL folder (a firmlink/symlink alias) must resolve to ONE
+/// `root_for` answer, or the SAME real project draws as two groups in the
+/// expanded panel. `crate::buffers::normalize_path` is the ONE
+/// canonicalizer [`crate::app::App::set_root`]/`ProjectLocation::new` now
+/// route every active root through (item 512(b)); this proves it against a
+/// REAL symlinked directory — the `buffers/tests.rs` precedent
+/// (`buffer_key_path_resolves_a_symlinked_directory_to_the_real_path`) — for
+/// the `root_for` half rather than the `BufferKey` half that law already
+/// covers.
+///
+/// A file reached by JOINING the active root (`index::resolve`'s own shape —
+/// every picker-built candidate is the root plus a relative name) inherits
+/// whichever spelling the root itself carries, so canonicalizing the root
+/// alone is enough: this does not additionally canonicalize the file path.
+#[test]
+#[cfg(unix)]
+fn a_symlinked_alias_of_a_root_normalizes_to_the_same_root_for_answer() {
+    let _guard = crate::testlock::serial();
+    let base = crate::testscratch::ScratchDir::new(
+        std::env::temp_dir().join(format!("awl-root-for-alias-{}", std::process::id())),
+    );
+    let real_dir = base.join("real");
+    let link_dir = base.join("link");
+    std::fs::create_dir_all(&real_dir).unwrap();
+    std::os::unix::fs::symlink(&real_dir, &link_dir).unwrap();
+
+    let root_via_real = crate::buffers::normalize_path(&real_dir);
+    let root_via_link = crate::buffers::normalize_path(&link_dir);
+    assert_eq!(
+        root_via_real, root_via_link,
+        "the real folder and its symlinked alias must normalize to one identity"
+    );
+
+    let file_via_real = root_via_real.join("a.md");
+    let file_via_link = root_via_link.join("b.md");
+    assert_eq!(
+        root_for(&file_via_real, &root_via_real, None),
+        root_for(&file_via_link, &root_via_link, None),
+        "both files must resolve to ONE working-set group root"
+    );
+}
+
 /// `fit_parent` swept across EVERY budget from 0 to past the label's length,
 /// asserting three invariants at once rather than checking one comfortable
 /// width. The third is the one a "just truncate it" implementation fails: an
@@ -806,6 +849,140 @@ fn expanded_row_open_file_resolves_the_exact_row_expanded_rows_draws() {
     assert!(
         ws.expanded_row_open_file(rows.len()).is_none(),
         "a row past the end of the drawn panel names no file"
+    );
+}
+
+/// **507: A PROJECT HEADING CARRIES FOLDER IDENTITY** — the same trailing
+/// `/` rule `row_display` already applies to any folder row (`row.is_dir` /
+/// `RowMeta::GotoFolder`), reused here rather than reinvented: a project
+/// heading is a folder every time, so it must never read as a bare
+/// (file-like) name the way the pre-fix leaf did.
+#[test]
+fn expanded_panel_group_headings_carry_a_trailing_slash() {
+    let mut ws = WorkingSet::default();
+    opened(&mut ws, "welcome.md"); // root() == /proj/notes
+    let other = PathBuf::from("/proj/syntax");
+    let p = other.join("lexer.md");
+    ws.open(BufferKey::path(&p), Some(p), other);
+    ws.expand();
+    let rows = ws.expanded_rows();
+    let headings: Vec<&str> = rows
+        .iter()
+        .filter(|r| matches!(r.kind, StackRowKind::Group { .. }))
+        .map(|r| r.leaf.as_str())
+        .collect();
+    assert_eq!(headings, vec!["notes/", "syntax/"]);
+}
+
+/// **507: THE ACTIVE PROJECT'S HEADING CARRIES THE SAME `active: bool`
+/// MARKER A FILE ROW DOES** — the OUTER [`StackRow::active`] field, not only
+/// [`StackRowKind::Group`]'s own nested copy. Before this fix the outer
+/// field was never set for a heading, so every reader that checks it the
+/// way a File row's plate does (`plate_rects`) read every heading as never
+/// current.
+#[test]
+fn the_active_projects_group_heading_carries_the_same_active_marker_a_file_row_does() {
+    let mut ws = WorkingSet::default();
+    opened(&mut ws, "welcome.md"); // root() == /proj/notes
+    let other = PathBuf::from("/proj/syntax");
+    let p = other.join("lexer.md");
+    ws.open(BufferKey::path(&p), Some(p), other); // opening activates it -> syntax is current
+    ws.expand();
+    let rows = ws.expanded_rows();
+    let notes_heading = rows
+        .iter()
+        .find(|r| r.leaf == "notes/")
+        .expect("notes heading drawn");
+    let syntax_heading = rows
+        .iter()
+        .find(|r| r.leaf == "syntax/")
+        .expect("syntax heading drawn");
+    assert!(!notes_heading.active, "notes is not the active project");
+    assert!(syntax_heading.active, "syntax is the active project");
+    // The kind's own nested copy must never disagree with the outer field —
+    // `stack_spans`' ink match and every other reader would otherwise be
+    // free to read two different answers to "is this row current".
+    assert_eq!(syntax_heading.kind, StackRowKind::Group { active: true });
+    assert_eq!(notes_heading.kind, StackRowKind::Group { active: false });
+}
+
+/// **512(a): SAME-LEAF GROUP HEADINGS GET A DISAMBIGUATING QUIET PARENT** —
+/// two different projects both named `notes` must draw two DIFFERENT
+/// headings, reusing the exact strip-then-format mechanism a file row
+/// already carries for the same problem (`OpenFile::parent_label`'s core,
+/// extracted as `quiet_relative_label`) rather than a second one.
+#[test]
+fn same_leaf_group_headings_get_a_disambiguating_quiet_parent() {
+    let mut ws = WorkingSet::default();
+    let research = PathBuf::from("/proj/research/notes");
+    let archive = PathBuf::from("/proj/archive/notes");
+    let a = research.join("a.md");
+    let b = archive.join("b.md");
+    ws.open(BufferKey::path(&a), Some(a), research.clone());
+    ws.open(BufferKey::path(&b), Some(b), archive.clone());
+    ws.expand();
+    let rows = ws.expanded_rows();
+    let headings: Vec<(&str, &str)> = rows
+        .iter()
+        .filter(|r| matches!(r.kind, StackRowKind::Group { .. }))
+        .map(|r| (r.parent.as_str(), r.leaf.as_str()))
+        .collect();
+    assert_eq!(
+        headings,
+        vec![("research/", "notes/"), ("archive/", "notes/")],
+        "two same-named projects must draw two DIFFERENT headings"
+    );
+}
+
+/// **512(a): NO COLLISION, NO QUIET PARENT** — a heading whose leaf is
+/// unique among the drawn roots shows no location at all, matching a file
+/// row that sits directly under its own root.
+#[test]
+fn a_unique_leaf_group_heading_draws_no_quiet_parent() {
+    let mut ws = WorkingSet::default();
+    opened(&mut ws, "welcome.md"); // root() == /proj/notes
+    let other = PathBuf::from("/proj/syntax");
+    let p = other.join("lexer.md");
+    ws.open(BufferKey::path(&p), Some(p), other);
+    ws.expand();
+    for r in ws
+        .expanded_rows()
+        .iter()
+        .filter(|r| matches!(r.kind, StackRowKind::Group { .. }))
+    {
+        assert_eq!(
+            r.parent, "",
+            "{} has no same-leaf rival and must draw no location",
+            r.leaf
+        );
+    }
+}
+
+/// **512(a) EDGE CASE: a root sitting DIRECTLY under the shared ancestor
+/// draws no quiet parent even though its same-leaf rival does** — the
+/// shallow root's own relative path to that ancestor strips to nothing, the
+/// honest "no segment to name" answer; it stays distinguishable only
+/// because the rival draws one.
+#[test]
+fn a_same_leaf_root_directly_under_the_shared_ancestor_draws_no_quiet_parent() {
+    let mut ws = WorkingSet::default();
+    let shallow = PathBuf::from("/proj/notes");
+    let deep = PathBuf::from("/proj/archive/notes");
+    let a = shallow.join("a.md");
+    let b = deep.join("b.md");
+    ws.open(BufferKey::path(&a), Some(a), shallow.clone());
+    ws.open(BufferKey::path(&b), Some(b), deep.clone());
+    ws.expand();
+    let rows = ws.expanded_rows();
+    let headings: Vec<(&str, &str)> = rows
+        .iter()
+        .filter(|r| matches!(r.kind, StackRowKind::Group { .. }))
+        .map(|r| (r.parent.as_str(), r.leaf.as_str()))
+        .collect();
+    assert_eq!(
+        headings,
+        vec![("", "notes/"), ("archive/", "notes/")],
+        "the shallow root has no ancestor segment to show; its rival still gets one"
     );
 }
 

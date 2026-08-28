@@ -147,15 +147,56 @@ fn move_dest_names_the_moving_file_in_its_title_and_keeps_it_across_a_descend() 
         .iter()
         .position(|r| r.is_dir)
         .expect("browse_level seeds at least one folder row");
+    let folder_name = ov.rows[folder_row].accept.clone();
     ctx.journey.card_mut().unwrap().selected = folder_row;
     let _ = apply_transition(&mut ctx, &Action::Newline, false);
     let card = ctx.journey.card().unwrap();
     assert_eq!(
         card.title(),
-        "move welcome.md",
-        "the descend rebuilt the folder listing from disk, which cannot know \
-         the filename -- only carry_level_payload_from could have kept it"
+        format!("move welcome.md to {folder_name}/"),
+        "the descend rebuilt the folder listing from disk (proving \
+         carry_level_payload_from kept the filename, not the level itself) \
+         AND must now say where it landed -- the destination navigators' own \
+         current-folder indication (item 504)"
     );
+}
+
+/// **THE ROOT CASE IS UNCHANGED**: a destination navigator at the level it
+/// opened at names only the errand, with nothing appended -- `browse_dir` is
+/// `None` there (`crate::overlay::browse_level`'s doc), so
+/// `OverlayState::title` has nothing to fold in.
+#[test]
+fn move_dest_and_export_dest_titles_are_unchanged_at_the_root() {
+    let move_dest = {
+        let mut s = OverlayState::new(OverlayKind::MoveDest, vec!["docs".into()], vec![], vec![]);
+        s.move_filename = Some("welcome.md".into());
+        s
+    };
+    assert_eq!(move_dest.title(), "move welcome.md");
+
+    let export_dest =
+        OverlayState::new(OverlayKind::ExportDest, vec!["docs".into()], vec![], vec![]);
+    assert_eq!(export_dest.title(), "export to");
+}
+
+/// **A DESCENDED EXPORT NAVIGATOR NAMES ITS FOLDER TOO** -- the same
+/// current-folder indication as Move, composed onto `"export to"` without
+/// doubling the preposition already in that base title (item 504).
+#[test]
+fn export_dest_title_folds_in_the_browse_relative_destination_once_descended() {
+    let mut s = OverlayState::new(
+        OverlayKind::ExportDest,
+        vec!["guide.md".into()],
+        vec![],
+        vec![],
+    );
+    s.browse_dir = Some("docs".into());
+    assert_eq!(s.title(), "export to docs/");
+
+    // Save a Copy reuses the same folder navigator; its own base title
+    // ("save a copy to") composes the exact same way.
+    s.save_copy = true;
+    assert_eq!(s.title(), "save a copy to docs/");
 }
 
 #[test]

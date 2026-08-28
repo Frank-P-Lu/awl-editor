@@ -145,7 +145,13 @@ pub(in crate::app) struct ProjectLocation {
 }
 
 impl ProjectLocation {
+    /// `root` is CANONICALIZED here — the SAME [`crate::buffers::
+    /// normalize_path`] [`super::App::set_root`] routes every LATER switch
+    /// through, so the launch root and every root a switch lands on agree on
+    /// one spelling from the very first frame rather than only from the
+    /// first switch onward.
     pub(in crate::app) fn new(root: PathBuf, policy: &LocationPolicy) -> Self {
+        let root = crate::buffers::normalize_path(&root);
         Self {
             project: crate::project::Project::resolve(&root),
             file_index: crate::index::build_index(&root),

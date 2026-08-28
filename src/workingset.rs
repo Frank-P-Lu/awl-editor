@@ -32,6 +32,7 @@ mod panel;
 mod prototype;
 pub use prototype::{prototype_move_from_env, prototype_move_rows};
 
+mod quiet_parent;
 mod reorder;
 
 /// One member of the visible working set.
@@ -76,14 +77,7 @@ impl OpenFile {
     /// file actually lives.
     pub fn parent_label(&self) -> Option<String> {
         let path = self.path.as_deref()?;
-        let rel = path.strip_prefix(&self.root).ok()?;
-        let parent = rel.parent()?;
-        if parent.as_os_str().is_empty() {
-            return None;
-        }
-        let mut s = parent.to_string_lossy().replace('\\', "/");
-        s.push('/');
-        Some(s)
+        quiet_parent::quiet_relative_label(path.parent()?, &self.root)
     }
 }
 
