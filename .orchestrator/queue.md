@@ -7,36 +7,6 @@
 ## Ready to build
 
 ---
-### 517 — Insert table: tables render as grids but nothing creates one (user request, 2026-08-29)
-
-🟡 IN PROGRESS — claude, branch item-517
-
-"I think we want a table creation command." On-thesis: the committed
-direction is finishing the live-preview model — "tables as real grids —
-through the markdown formatting commands." Rendering exists
-(`prepare_table_grid`, the table x-ray reveal, docs/markdown.md); creation
-does not: no `InsertTable` action, so a writer must already know raw `|`
-syntax to ever see the grid — exactly the knowledge the formatting
-commands exist to remove (the popover's own law: no raw markdown in
-chrome).
-
-Shape: a catalog Action + palette entry ("Insert table…"), routed like
-every formatting command (keys → Action → apply_transition, drivable by
-`--keys`, visible in the sidecar). DECIDED (user, 2026-08-29): a creation
-dialogue — a small summoned DIMENSION PICKER, keyboard-first with mouse
-support. Form: a drawn mini-grid the arrows sculpt (`↑/↓` rows, `←/→`
-columns) with the chosen `R × C` read out beside it, `↵` inserts, `Esc`
-cancels; typed digits also accepted (a forgiving `3x4` / `3 4` parse);
-the pointer picks by clicking a cell of the same drawn grid — one
-geometry for arrows, readout, and clicks, so drawn and clickable cannot
-disagree (the rowlayout discipline). Modest default (e.g. 3×2) so bare
-`↵` is already useful. Insertion: header row + separator + body rows on
-their own blank lines at the caret, caret landing in the first header
-cell. Follow-ups deliberately OUT of this item: Tab walking cells inside
-a table; popover/context-menu exposure (the popover roster is a locked
-seven — a separate decision).
-
----
 ### 525 — start screen: equal ink + chord hints now; per-world dress later (user decision, 2026-08-29)
 
 🟡 IN PROGRESS — claude, branch item-525
