@@ -242,6 +242,47 @@ strict sequence on one branch — parallel lanes here would merge-conflict
 on every file they share.
 
 ---
+### 523 — followable spans get the quiet underline (user decision, 2026-08-29)
+
+The URL taming (landed as item 511) removed the one thing that made a
+bare URL self-identify — the scheme costume — so a tamed `r.goope.jp…`
+reads as prose; a concealed `[text](url)` link has always had the same
+problem. User: "they kinda don't look like links... make it like
+underline or something." DECIDED: **one grammar for every followable
+span** — named links and tamed bare URLs both draw a quiet baseline
+underline. Form: a hairline in a muted step of the text's OWN ink —
+structural, not hued, so the one-accent law holds; SOLID ink, never a
+translucent wash (Wagtail's `decorative_wash: Off` bans low-alpha
+treatments — the nit-underline already learned this). Distinct by
+position and shape from the other line-marks: spell is wavy below,
+strike is through the middle, link sits at the baseline. One owner for
+the band geometry (the `strike_line_band` precedent), `Logical` units
+(the DPI lesson). Lane decides with a recorded reason: whether the
+underline persists or drops while the caret's line reveals raw markdown.
+Laws: presence + geometry swept worlds × 1x/2x, a differential arm (non-
+link text never underlined), and docs/markdown.md updated.
+
+---
+### 524 — the reserved close-mark lane dents the stack's right edge on file rows only (user-reported, 2026-08-29)
+
+Screenshot on Potoroo (resting stack): `notes` (heading) ends flush
+right while `fukushima-trip.md` stops visibly short of it — file rows
+reserve the trailing `×` close lane at ALL times (`gutter_stack::
+fit_rows` / `gutter.rs`, reserved so the name never reflows when the
+hover × appears — sound reasoning), but headings don't, so the two row
+kinds disagree about where the right edge IS and the ragged edge reads
+as misalignment ("the spacing for the x button is always there? but it
+looks so odd?"). Fix shape: UNIFORM reservation — every row kind in the
+stack reserves the same trailing lane, which item 522 half-delivers
+anyway (headings grow their own hover ×, so they need the lane too);
+verify the single-file identity line (which also reserves, per
+`gutter.rs`) joins the same edge. The no-reflow-on-hover property stays.
+Law: every drawn row's right ink edge within one advance of every
+other's, swept row kinds × both panel shapes × worlds; non-vacuity by
+un-reserving one kind. Same lane as the 515/518/520/521/522 working-set
+batch (this is the sixth item on that one surface).
+
+---
 ## Needs specific hardware
 
 1. **AT-SPI journey** — on a real Linux desktop with Orca, exercise document
