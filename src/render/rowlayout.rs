@@ -418,6 +418,9 @@ mod tests {
                 vec!["Collapse other sections".into(), "Page width settings…".into()],
                 Some("unavailable".chars().count()),
             ),
+            // The dimension picker draws a grid, never a candidate row list --
+            // no primary text and no secondary column for this law to sweep.
+            OverlayKind::TableDims => (Vec::new(), None),
         }
     }
 

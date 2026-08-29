@@ -290,6 +290,15 @@ pub enum Action {
     FollowLink,
     CopyLinkDestination,
     InsertLink,
+    /// Palette "Insert table…" (markdown only): summon the keyboard-first
+    /// DIMENSION PICKER — a small drawn grid `↑/↓`/`←/→` sculpt (rows/columns),
+    /// typed digits parse forgivingly (`3x4`/`3 4`), a click on the same drawn
+    /// grid picks a cell outright. `↵` inserts a fresh GFM table (header row +
+    /// separator + blank body rows) at the caret and lands the caret in the
+    /// first header cell; `Esc` cancels. No default chord (like Align table);
+    /// rebindable via `[keys]`. See `overlay::TableDimsEdit` +
+    /// `markdown::build_table`.
+    InsertTable,
     InsertDate,
     BeginPrefix,
     Ignore,

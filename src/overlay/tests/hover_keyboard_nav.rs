@@ -375,7 +375,8 @@ fn hover_movement_slop_gate_holds_across_every_overlay_kind_no_wildcard() {
             | OverlayKind::Rename
             | OverlayKind::InsertLink
             | OverlayKind::KeepName
-            | OverlayKind::Context => {}
+            | OverlayKind::Context
+            | OverlayKind::TableDims => {}
         }
         let ctx = format!("kind={kind:?}");
         let corpus: Vec<String> = (0..30).map(|i| format!("row{i}")).collect();

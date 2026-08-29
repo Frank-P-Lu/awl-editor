@@ -76,7 +76,8 @@ pub fn prose_for(
         | OverlayKind::Rename
         | OverlayKind::InsertLink
         | OverlayKind::KeepName
-        | OverlayKind::Context => None,
+        | OverlayKind::Context
+        | OverlayKind::TableDims => None,
     }
 }
 

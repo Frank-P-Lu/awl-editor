@@ -161,6 +161,12 @@ pub struct ViewState {
     pub doc_dir: Option<std::path::PathBuf>,
     pub syn_lang: Option<crate::syntax::Lang>,
     pub overlay_spell: Option<(usize, usize, usize)>,
+    /// Mirror of the live INSERT-TABLE dimension picker's sculpted
+    /// `(rows, cols)`, `Some` only while [`crate::overlay::TableDimsEdit`] is
+    /// active. Gates the picker's own dedicated geometry + quad-grid draw
+    /// exactly the way `overlay_spell` gates the contextual spell popup's —
+    /// an `Option` the render layer reads, never a kind string.
+    pub overlay_table_dims: Option<(usize, usize)>,
     pub overlay_context_anchor: Option<(f32, f32)>,
     /// THE CALM NOTICE's text this frame, empty when there is none.
     pub notice: String,
@@ -326,6 +332,7 @@ impl ViewState {
             doc_dir: None,
             syn_lang: None,
             overlay_spell: None,
+            overlay_table_dims: None,
             overlay_context_anchor: None,
             notice: String::new(),
             notice_kind: crate::actions::NoticeKind::default(),

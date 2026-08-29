@@ -291,6 +291,10 @@ fn accept_class(kind: OverlayKind) -> EffectClass {
         | OverlayKind::Rename
         | OverlayKind::InsertLink
         | OverlayKind::KeepName
+        // The dimension picker mutates the buffer directly on commit, exactly
+        // like InsertLink beside it (`actions::overlay_nav::table_dims_intercept`)
+        // -- never a generic accept.
+        | OverlayKind::TableDims
         | OverlayKind::Conflict
         // Read-only, like Conflict beside it: nothing on Credits' content pane
         // ever emits an accept in the first place (`AcceptDisposition::StayOpen`,

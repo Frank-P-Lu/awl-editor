@@ -15,6 +15,7 @@ mod motion; // the oracle-aware caret motions + page scroll + search open
 mod overlay_nav; // the modal overlay intercept + browse-path helpers + live preview
 pub(crate) mod popover; // the format-popover pure plan (reads format.rs's active-state)
 mod rebind; // the game-style rebind-menu key handling
+pub(crate) mod table; // Insert-table -- open the dimension picker + build its FormatResult
 mod workspace_nav; // the workspace's two-region keys + the Cmd-P deep link
 use deferred::*;
 use edit::*;
@@ -26,6 +27,7 @@ use motion::*;
 use overlay_nav::*;
 pub(crate) use overlay_nav::{preview_move, preview_overlay};
 use rebind::*;
+use table::*;
 
 /// Renderer-owned visual-row geometry for shared motion.
 pub trait LayoutOracle {
@@ -455,6 +457,10 @@ fn apply_export_action(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
             open_insert_link(ctx);
             Effect::None
         }
+        Action::InsertTable => {
+            open_insert_table(ctx);
+            Effect::None
+        }
         Action::InsertDate => Effect::InsertDate,
         _ => return None,
     };
@@ -696,6 +702,7 @@ macro_rules! classify_action_family {
             | Action::ExportHtml
             | Action::ExportPdf
             | Action::InsertLink
+            | Action::InsertTable
             | Action::InsertDate => ActionFamily::Export,
             Action::OpenGoto
             | Action::OpenProject

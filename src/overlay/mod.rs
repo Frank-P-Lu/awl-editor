@@ -52,6 +52,7 @@ mod rename_edit;
 mod row;
 mod semantic;
 mod state;
+mod table_dims;
 pub(crate) mod workspace;
 
 #[allow(unused_imports)] // HERE_LABEL / here_folder_label: read by the row-label laws
@@ -81,6 +82,11 @@ pub use rename_edit::RenameEdit;
 // OverlayRow/RowMeta/RowMetaTag: used by overlay tests and source-audit laws
 pub use row::{OverlayRow, RangeCell, RowMeta, RowMetaTag, add_to_dictionary_label};
 pub use state::OverlayState;
+#[allow(unused_imports)]
+// DEFAULT_COLS/DEFAULT_ROWS/MIN_DIM: read only by test-only journeys
+// (actions::tests::insert_table, main/tests::minibuffers), never by a
+// non-test caller.
+pub use table_dims::{DEFAULT_COLS, DEFAULT_ROWS, MAX_COLS, MAX_ROWS, MIN_DIM, TableDimsEdit};
 
 fn command_hint_actions() -> Vec<HintAction> {
     vec![

@@ -197,6 +197,7 @@ fn overlay_capture_info_optional(
         browse_dir: ov.browse_dir.clone(),
         return_to: journey.parked().map(|p| p.kind().as_str()),
         spell_target: ov.spell_target,
+        table_dims: ov.table_dims_target(),
         context_anchor: ov.context_anchor,
         preview_id: preview.map(|(id, _, _)| id),
         preview_view: request.as_ref().map(|r| r.view.tag()),

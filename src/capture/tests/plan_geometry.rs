@@ -68,6 +68,7 @@ pub(super) fn flat_picker_opts(ov: &OverlayState, canvas: (u32, u32), dpi: f32) 
         browse_dir: ov.browse_dir.clone(),
         return_to: None,
         spell_target: None,
+        table_dims: None,
         context_anchor: None,
         capture: None,
         notice: String::new(),

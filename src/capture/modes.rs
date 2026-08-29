@@ -451,6 +451,7 @@ pub(super) fn settled_viewstate(
         .unwrap_or(false);
     // Spell and context cards retain their real pointer/text anchors.
     vstate.overlay_spell = opts.overlay.as_ref().and_then(|o| o.spell_target);
+    vstate.overlay_table_dims = opts.overlay.as_ref().and_then(|o| o.table_dims);
     vstate.overlay_context_anchor = opts.overlay.as_ref().and_then(|o| o.context_anchor);
     // CARET-STYLE PICKER preview: when the still-open overlay is the caret picker,
     // map its highlighted row label back to the look so the headless capture renders

@@ -138,6 +138,7 @@ fn catalog_non_empty_and_named() {
         "Highlight",
         "Strikethrough",
         "Insert footnote",
+        "Insert table…",
         "Export as Word…",
         "Export as HTML…",
         "Export as PDF…",

@@ -673,9 +673,13 @@ impl App {
             // The switch-project DOOR's navigator emits its answer AS
             // `Project` (one owner of "switch to this root", whichever door
             // reached it), so nothing arrives here under its own kind.
+            // Like InsertLink, the picker's own intercept mutates the buffer
+            // directly on commit (`actions::overlay_nav::table_dims_intercept`)
+            // rather than emitting a generic accept -- nothing arrives here
+            // under this kind.
             Theme | Browse | ProjectBrowse | ExportDest | Command | Spell | Keybindings
-            | Settings | Assets | Rename | InsertLink | KeepName | Context | Conflict | Credits => {
-            }
+            | Settings | Assets | Rename | InsertLink | KeepName | Context | Conflict | Credits
+            | TableDims => {}
         }
     }
 

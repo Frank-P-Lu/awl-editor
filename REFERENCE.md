@@ -117,6 +117,7 @@ Commands are grouped by the same task categories the palette browses.
 | Strikethrough | Toggle `~~strikethrough~~` markup around the selection or the word at the caret. | — | — | Native, browser |
 | Insert footnote | Insert a collision-free footnote reference and definition, then type the note. | — | — | Native, browser |
 | Insert link… | Summon the URL prompt for a markdown link: wrap, edit, or insert a link at the caret. | `⌘K` | — | Native, browser |
+| Insert table… | Summon the dimension picker: sculpt rows/columns, then insert a fresh GFM table. | — | — | Native, browser |
 | Undo | Undo the last edit group. | `⌘Z · C-/` | `Ctrl+Z · C-/` | Native, browser |
 | Redo | Redo the last undone edit group. | `⌘⇧Z` | `Ctrl+Shift+Z` | Native, browser |
 | Copy | Copy the selection to the kill buffer, leaving the text and clearing the mark. | `⌘C` | `Ctrl+C` | Native, browser |

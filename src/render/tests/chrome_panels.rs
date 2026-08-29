@@ -2230,7 +2230,11 @@ fn footer_contract(kind: crate::overlay::OverlayKind) -> FooterContract {
         | K::KeepName
         | K::Conflict
         | K::Credits
-        | K::Context => FooterContract::TakeoverCard,
+        | K::Context
+        // The dimension picker's own geometry arm still routes its live
+        // readout through the ONE shared foot-hint mechanism (`overlay_hint`)
+        // -- unlike Spell it is not a footer-less contextual popup.
+        | K::TableDims => FooterContract::TakeoverCard,
     }
 }
 
@@ -2567,7 +2571,8 @@ fn card_pad_for(kind: crate::overlay::OverlayKind) -> f32 {
         | K::KeepName
         | K::Conflict
         | K::Credits
-        | K::Context => 12.0,
+        | K::Context
+        | K::TableDims => 12.0,
     }
 }
 

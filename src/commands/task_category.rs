@@ -116,6 +116,7 @@ const COMMAND_TASK_CATEGORIES: &[(&str, TaskCategory)] = &[
     ("Export as HTML…", Files),
     ("Export as PDF…", Files),
     ("Insert link…", Format),
+    ("Insert table…", Format),
     ("Save", Files),
     ("Save a Copy…", Files),
     ("Quit", Files),

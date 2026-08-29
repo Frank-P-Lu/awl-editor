@@ -418,6 +418,7 @@ deadline without a surface).
 | `overlay_accept:Rename` | Unsupported |
 | `overlay_accept:Settings` | Unsupported |
 | `overlay_accept:Spell` | Unsupported |
+| `overlay_accept:TableDims` | Unsupported |
 | `overlay_accept:Theme` | Applied |
 | `persist_caret_mode` | Applied |
 | `persist_menu_bar` | Applied |

@@ -1273,7 +1273,8 @@ fn poster_bars_centered_lists_preserve_page_and_distinguish_plates() {
                 | OverlayKind::InsertLink
                 | OverlayKind::Conflict
                 | OverlayKind::Credits
-                | OverlayKind::KeepName => true,
+                | OverlayKind::KeepName
+                | OverlayKind::TableDims => true,
             };
             if !centered {
                 continue;
@@ -1531,7 +1532,8 @@ fn bars_float_bounded_plates_for_every_overlay_kind() {
             | OverlayKind::Conflict
             | OverlayKind::Credits
             | OverlayKind::KeepName
-            | OverlayKind::Context => false,
+            | OverlayKind::Context
+            | OverlayKind::TableDims => false,
         };
 
         let mut v = view("the quick brown fox jumps\n", 0, 0);

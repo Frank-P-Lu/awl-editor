@@ -416,6 +416,7 @@ mod overlay_timeline;
 pub(in crate::render) mod roster;
 mod rotated_location;
 mod spell_popup;
+mod table_dims;
 // The ONE visual-selection transaction every selected visual reads.
 mod overlay_visual_sel;
 #[cfg(test)]

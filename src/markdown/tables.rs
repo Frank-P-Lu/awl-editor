@@ -252,6 +252,35 @@ pub fn align_table(table_src: &str) -> String {
     out.join("\n")
 }
 
+/// Build a fresh GFM table's raw source: `rows` total content rows (the FIRST
+/// is the header; the rest are body rows — the separator is emitted as syntax
+/// and is never counted here) by `cols` columns, every cell blank. Re-emitted
+/// through [`align_table`] itself — the ONE formatting owner — rather than
+/// hand-padding a second time, so a freshly inserted table can never disagree
+/// with what `align_table`/the WYSIWYG grid already expect of a GFM table's
+/// shape. Pure; `rows`/`cols` are floored to 1 (a caller-side clamp is
+/// expected to keep them sane before this ever runs).
+pub fn build_table(rows: usize, cols: usize) -> String {
+    let rows = rows.max(1);
+    let cols = cols.max(1);
+    let blank_row = || format!("|{}", " |".repeat(cols));
+    let mut lines = Vec::with_capacity(rows + 1);
+    lines.push(blank_row()); // header
+    lines.push(format!("|{}", "---|".repeat(cols))); // separator
+    for _ in 1..rows {
+        lines.push(blank_row());
+    }
+    align_table(&lines.join("\n"))
+}
+
+/// The BYTE OFFSET, into a table built by [`build_table`], of the first
+/// header cell's content — right after its opening `"| "`. `build_table`'s
+/// output always starts its first line with a bare `|` then one padding
+/// space before any cell content (every column, blank or not, gets that same
+/// lead), so this is a fixed constant rather than something callers
+/// re-derive by scanning.
+pub const FIRST_CELL_OFFSET: usize = 2;
+
 /// Lay out a table's columns in pixels the CSS AUTO-TABLE way — the fix for the
 /// "Da wn"/"Tim e" mid-word-break bug the old proportional-shrink clamp caused.
 ///

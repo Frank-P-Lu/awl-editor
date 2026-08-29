@@ -1,6 +1,6 @@
 use super::{
     Capture, KeepEdit, LinkEdit, OverlayKind, OverlayRow, PIN_TAG, RangeCell, RenameEdit, RowMeta,
-    ValueEdit,
+    TableDimsEdit, ValueEdit,
 };
 use crate::textbox::TextBox;
 
@@ -33,6 +33,11 @@ pub struct OverlayState {
     pub rename_edit: Option<RenameEdit>,
     pub link_edit: Option<LinkEdit>,
     pub keep_edit: Option<KeepEdit>,
+    /// The INSERT-TABLE dimension picker's live sculpted state, `Some` only
+    /// on an [`OverlayKind::TableDims`] card. Unlike its `*_edit` siblings
+    /// this card carries no candidate row list at all -- see
+    /// [`TableDimsEdit`]'s own doc for why.
+    pub table_dims: Option<TableDimsEdit>,
     pub detail_focus: bool,
     pub diff_scroll: usize,
     pub last_hover_px: Option<(f32, f32)>,
@@ -220,6 +225,7 @@ impl OverlayState {
             rename_edit: None,
             link_edit: None,
             keep_edit: None,
+            table_dims: None,
             detail_focus: false,
             diff_scroll: 0,
             last_hover_px: None,
@@ -667,6 +673,9 @@ impl OverlayState {
         }
         if let Some(ke) = &self.keep_edit {
             return ke.prompt();
+        }
+        if let Some(td) = &self.table_dims {
+            return td.prompt();
         }
         if let Some(cap) = &self.capture {
             return cap.prompt();

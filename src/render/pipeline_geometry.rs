@@ -404,6 +404,7 @@ impl TextPipeline {
         self.overlay_sections = view.overlay_sections.clone();
         self.overlay_location = view.overlay_location.clone();
         self.overlay_spell = view.overlay_spell;
+        self.overlay_table_dims = view.overlay_table_dims;
         self.overlay_context_anchor = view.overlay_context_anchor;
         self.overlay_detail_focus = view.overlay_detail_focus;
         self.overlay_spell_w = if self.overlay_spell.is_some() {

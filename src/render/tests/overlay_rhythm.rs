@@ -65,7 +65,8 @@ fn surface_contract(kind: crate::overlay::OverlayKind) -> SurfaceContract {
         // same shape with one row instead of three.
         | K::Conflict
         | K::Credits
-        | K::Context => SurfaceContract::Flat,
+        | K::Context
+        | K::TableDims => SurfaceContract::Flat,
     }
 }
 

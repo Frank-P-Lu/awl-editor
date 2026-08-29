@@ -219,7 +219,10 @@ pub fn scheme(kind: OverlayKind) -> Option<&'static FacetScheme> {
         // the same shape with one row instead of three.
         | OverlayKind::Conflict
         | OverlayKind::Credits
-        | OverlayKind::Context => None,
+        | OverlayKind::Context
+        // The DIMENSION PICKER draws a grid, not a row list — no lens strip,
+        // nothing to facet.
+        | OverlayKind::TableDims => None,
         // v1 note: the Settings menu FACETS (see the arm above); no None case here.
     }
 }

@@ -169,3 +169,54 @@ fn replay_keys_keep_version_commit_closes_and_defers_the_store_write() {
     assert!(res.journey.card().is_none(), "commit closes the minibuffer");
     assert_eq!(buffer.text(), "hi", "the keep never edits the buffer");
 }
+
+/// INSERT TABLE: Cmd-P → "insert table" → Enter opens the
+/// dimension picker at its modest seeded default; `↓`/`→` sculpt it live
+/// through the REAL keymap, and the sidecar-facing `foot_hint()` reflects the
+/// in-progress readout with zero live App involved -- the same seam the
+/// Rename minibuffer prompt above rides.
+#[test]
+fn replay_keys_drives_the_insert_table_picker_and_sidecar_reflects_sculpting() {
+    let mut buffer = Buffer::scratch();
+    let keys = keyspec::parse_keys("s-p i n s e r t Space t a b l e RET Down Down Right").unwrap();
+    let root = PathBuf::from("/proj");
+    let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
+    let ov = res
+        .journey
+        .card()
+        .expect("Insert table… opens the dimension picker");
+    assert_eq!(ov.kind, crate::overlay::OverlayKind::TableDims);
+    let want_rows = crate::overlay::DEFAULT_ROWS + 2;
+    let want_cols = crate::overlay::DEFAULT_COLS + 1;
+    assert_eq!(
+        ov.table_dims_target(),
+        Some((want_rows, want_cols)),
+        "two Down + one Right sculpt through the real keymap"
+    );
+    assert_eq!(
+        ov.foot_hint(),
+        format!("{want_rows} × {want_cols} table   ↵ insert   Esc cancel"),
+        "the live readout is sidecar-visible via the same foot_hint seam Rename uses"
+    );
+}
+
+/// The commit half of the same journey: `Enter` inserts the sculpted table
+/// at the caret as one edit and closes the picker.
+#[test]
+fn replay_keys_insert_table_commit_inserts_the_sculpted_table() {
+    let mut buffer = Buffer::scratch();
+    let keys =
+        keyspec::parse_keys("s-p i n s e r t Space t a b l e RET Down Down Right RET").unwrap();
+    let root = PathBuf::from("/proj");
+    let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
+    assert!(res.journey.card().is_none(), "commit closes the picker");
+    let table = crate::markdown::build_table(
+        crate::overlay::DEFAULT_ROWS + 2,
+        crate::overlay::DEFAULT_COLS + 1,
+    );
+    assert_eq!(
+        buffer.text(),
+        table,
+        "an empty scratch buffer: the table lands with no padding blank lines"
+    );
+}
