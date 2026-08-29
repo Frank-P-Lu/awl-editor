@@ -1613,6 +1613,10 @@ fn closing_a_parked_scratch_row_stashes_it_and_discards_it_without_a_notice() {
     );
 }
 
+// `ScriptedFs` (precise write-fault injection) is a native-only test seam
+// (`src/fs.rs` gates it `cfg(not(target_arch = "wasm32"))`, matching
+// `persistence_faults`'s own module gate) — no wasm equivalent exists.
+#[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn a_scratch_stash_write_failure_refuses_the_close_in_product_voice() {
     // The defect this guards against is a raw anyhow string ("no file bound
