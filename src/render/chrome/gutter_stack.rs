@@ -43,13 +43,15 @@ pub(super) const PLATE_CORNER_PX: Physical = Physical(2.5);
 /// empty margin on a short name and over the text on a long one.
 pub(super) const CLOSE_ZONE_ROWS: Rows = Rows(1.0);
 
-/// The pre-shaped close lane. File labels reserve this exact run before fitting
-/// even while it is transparent; otherwise a full-budget nested label wraps the
-/// mark onto a second visual line and shifts every later glyph away from the
-/// planner row (including the active plate). `pub(super)` because the
-/// single-file identity line ([`super::gutter`]) reserves and draws the exact
-/// same lane through the exact same text, rather than a second close mark of
-/// its own.
+/// The pre-shaped close lane. EVERY row of the stack reserves this exact run
+/// before fitting, even a `More`/`Overflow` row that can never reveal it and
+/// even while it is transparent; otherwise a full-budget nested label wraps
+/// the mark onto a second visual line and shifts every later glyph away from
+/// the planner row (including the active plate) — and an un-reserved row
+/// kind would dent the stack's own right edge wherever it sat. `pub(super)`
+/// because the single-file identity line ([`super::gutter`]) reserves and
+/// draws the exact same lane through the exact same text, rather than a
+/// second close mark of its own.
 pub(super) const CLOSE_MARK_TEXT: &str = "  ×";
 
 /// WHAT A POINTER AT `px` OVER A ROW IS AIMING AT.
@@ -114,19 +116,13 @@ pub(super) struct StackLine {
 pub(super) fn fit_rows(rows: &[crate::workingset::StackRow], budget: usize) -> Vec<StackLine> {
     rows.iter()
         .map(|row| {
-            // A project heading's own close mark shuts its whole group, so it
-            // reserves the same lane a file row does; the resting stack's
-            // overflow affordance carries no close action and keeps its whole
-            // budget.
-            let label_budget = if matches!(
-                row.kind,
-                crate::workingset::StackRowKind::File
-                    | crate::workingset::StackRowKind::Group { .. }
-            ) {
-                budget.saturating_sub(CLOSE_MARK_TEXT.chars().count())
-            } else {
-                budget
-            };
+            // UNIFORM ACROSS EVERY ROW KIND — a `More`/`Overflow` row can
+            // never reveal the mark (`stack_hit_from_plan` never enrols
+            // either as a target, so `stack_spans` never lights their run),
+            // but it still reserves the same trailing lane every other row
+            // does: the stack's own right edge is one x for every row, never
+            // one that dents wherever a mark happens to be revealable.
+            let label_budget = budget.saturating_sub(CLOSE_MARK_TEXT.chars().count());
             let leaf = rowlayout::fit_primary(&row.leaf, label_budget);
             let left = label_budget.saturating_sub(leaf.chars().count());
             let parent = if row.parent.is_empty() {
@@ -194,18 +190,16 @@ pub(super) fn stack_spans(
             out.push((format!("{lead}{parent}"), faint));
             out.push((leaf.to_string(), name_ink));
         }
-        if !matches!(
-            line.kind,
-            crate::workingset::StackRowKind::File | crate::workingset::StackRowKind::Group { .. }
-        ) {
-            continue;
-        }
-        // The mark's text is ALWAYS shaped for a working-set row, even when its
-        // alpha is zero. That invisible run reserves the trailing close lane:
-        // revealing the × changes only ink, never the label's advances. A
-        // single-file identity never enters this function with a row, so it
-        // keeps its original bytes and geometry. A heading's own mark closes
-        // its whole group — never a plate, but the same reveal.
+        // The mark's text is ALWAYS shaped for EVERY row kind, even when its
+        // alpha is zero — the trailing close lane is reserved uniformly
+        // (`fit_rows`), so the shaped run must be too, or the reservation and
+        // the ink it is reserved for would drift apart. Revealing the × only
+        // ever changes ink, never the label's advances. A single-file
+        // identity never enters this function with a row, so it keeps its
+        // original bytes and geometry. `hover` can only ever name a `File` or
+        // `Group` row (`stack_hit_from_plan`'s own enrolment), so a `More` or
+        // `Overflow` row's mark is shaped but permanently transparent — it
+        // reserves the lane without ever being able to reveal it.
         let shown = hover.filter(|hit| hit.row == row).map(|_| {
             if line.active {
                 theme::selected_row_secondary_ink(theme::surface_selected()).to_glyphon()

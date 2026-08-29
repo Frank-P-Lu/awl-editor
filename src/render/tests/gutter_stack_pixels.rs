@@ -515,3 +515,70 @@ fn the_lone_row_close_mark_reveals_on_real_pixels_only_over_the_hovered_zone() {
         "hovering the close zone repainted {label_diff} pixels of the label's own ink"
     );
 }
+
+/// **524: THE SINGLE-FILE IDENTITY LINE'S RIGHT EDGE IS THE SAME X A
+/// WORKING-SET ROW'S OWN RIGHT EDGE SITS AT** — real pixels, not just the
+/// shared constant both budgets subtract (`gutter_stack::CLOSE_MARK_TEXT`).
+/// The close lane's own reservation is a uniform right edge only if opening
+/// a second file never shifts where that edge actually falls; this proves it
+/// with the SAME hit-tested door `find_row_right_edge` already reads for the
+/// lone row above, rather than re-deriving the column/pad arithmetic by hand.
+#[test]
+fn the_lone_identity_lines_right_edge_matches_a_stack_rows_own_right_edge() {
+    let _g = crate::testlock::serial();
+    let Some((_device, _queue, mut p)) = headless_dqp(W as f32, H as f32) else {
+        eprintln!(
+            "skipping the_lone_identity_lines_right_edge_matches_a_stack_rows_own_right_edge: \
+             no wgpu adapter"
+        );
+        return;
+    };
+    crate::page::set_page_on(true);
+    p.set_dpi(1.0);
+    let _pin = theme::WorldPin::snapshot();
+    theme::set_active_by_name("Saltpan").expect("Saltpan is in the world roster");
+
+    let mut lone = view(
+        "# A document\n\nSome prose to give the page a body.\n",
+        0,
+        0,
+    );
+    lone.zoom = 1.0;
+    lone.gutter_project = "notes".to_string();
+    lone.gutter_name = "opening.md".to_string();
+    p.set_view(&lone);
+    let lone_bands = row_bands(&p.gutter_frost_seeds(H));
+    assert_eq!(
+        lone_bands.len(),
+        2,
+        "N=1 must draw the folder heading over the identity line"
+    );
+    let lone_identity = lone_bands[1];
+    let lone_edge = find_row_right_edge(
+        &p,
+        W as f32 - 1.0,
+        lone_identity[1] + lone_identity[3] * 0.5,
+        H,
+    );
+
+    let stack = stack_view(0);
+    p.set_view(&stack);
+    let stack_bands = row_bands(&p.gutter_frost_seeds(H));
+    assert_eq!(
+        stack_bands.len(),
+        4,
+        "N=3 must draw the folder heading over three file rows"
+    );
+    let first_row = stack_bands[1];
+    let stack_edge = find_row_right_edge(&p, W as f32 - 1.0, first_row[1] + first_row[3] * 0.5, H);
+
+    assert!(
+        lone_edge > lone_identity[3] && stack_edge > first_row[3],
+        "could not locate a real right edge for both shapes (lone={lone_edge} stack={stack_edge})"
+    );
+    assert!(
+        (lone_edge - stack_edge).abs() < 1.0,
+        "the identity line's own right edge ({lone_edge}) does not match a stack row's \
+         ({stack_edge}) — opening a second file must never shift where the lane sits"
+    );
+}

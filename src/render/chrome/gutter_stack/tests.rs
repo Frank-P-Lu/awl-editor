@@ -111,15 +111,21 @@ fn file_rows_reserve_the_close_lane_inside_their_one_line_budget() {
         );
     }
 
-    // Prototype-only non-file rows carry no close lane, so their copy keeps the
-    // whole budget rather than paying for an affordance they can never reveal.
+    // The `More` row can never reveal the mark (`stack_hit_from_plan` filters
+    // it out of the hit-test the same way it filters `Overflow`), but it
+    // still reserves the SAME lane every other row does — a uniform right
+    // edge, not one that only dents where the mark happens to be revealable.
     let more = crate::workingset::StackRow {
         leaf: "+ 12 more…".to_string(),
         kind: crate::workingset::StackRowKind::More { hidden: 12 },
         ..crate::workingset::StackRow::default()
     };
     let fitted = fit_rows(&[more], 8);
-    assert_eq!(fitted[0].text.chars().count(), 8);
+    assert_eq!(
+        fitted[0].text.chars().count(),
+        8 - super::CLOSE_MARK_TEXT.chars().count(),
+        "a More row must reserve the same close lane a File row does"
+    );
 }
 
 /// A GROUP HEADING RESERVES THE SAME CLOSE LANE A FILE ROW DOES — its own
@@ -135,6 +141,52 @@ fn group_headings_reserve_the_close_lane_inside_their_one_line_budget() {
             occupied <= budget,
             "budget={budget}: heading + stable close lane occupies {occupied} characters"
         );
+    }
+}
+
+/// **THE CLOSE LANE IS RESERVED IDENTICALLY ACROSS EVERY ROW KIND** — not
+/// sampled per kind (a `File` law and a `Group` law and a `More` law that
+/// each happen to pass on their own can still each reserve a DIFFERENT
+/// amount), but proved as one shared budget: the SAME leaf text, fit at the
+/// SAME overall budget, occupies the exact same width no matter which kind
+/// carries it. Swept over the whole `StackRowKind` roster and the budget
+/// range, so a kind added later that forgets the reservation — or a kind
+/// that reserves a different amount — fails this law rather than silently
+/// denting the stack's own right edge wherever that kind happens to sit.
+#[test]
+fn the_close_lane_is_reserved_identically_across_every_row_kind() {
+    let leaf = "a-name-long-enough-to-fill-most-of-the-budget.md";
+    let kinds = [
+        crate::workingset::StackRowKind::File,
+        crate::workingset::StackRowKind::More { hidden: 3 },
+        crate::workingset::StackRowKind::Group { active: false },
+        crate::workingset::StackRowKind::Overflow {
+            up: true,
+            hidden: 3,
+        },
+    ];
+    for budget in crate::render::rowlayout::GUTTER_MIN_NAME_CHARS..40 {
+        let widths: Vec<(crate::workingset::StackRowKind, usize)> = kinds
+            .iter()
+            .map(|&kind| {
+                let row = crate::workingset::StackRow {
+                    leaf: leaf.to_string(),
+                    kind,
+                    ..crate::workingset::StackRow::default()
+                };
+                let fitted = fit_rows(std::slice::from_ref(&row), budget);
+                (kind, fitted[0].text.chars().count())
+            })
+            .collect();
+        let want = widths[0].1;
+        for (kind, got) in &widths {
+            assert_eq!(
+                *got, want,
+                "budget={budget}: {kind:?} occupies {got} chars, {:?} occupies {want} — \
+                 the close lane is not reserved uniformly",
+                widths[0].0
+            );
+        }
     }
 }
 
