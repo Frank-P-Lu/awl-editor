@@ -373,6 +373,9 @@ impl TextPipeline {
         if let Some((line, start_col, end_col)) = self.overlay_spell {
             return self.spell_overlay_geometry(width, line, start_col, end_col);
         }
+        if self.overlay_table_dims.is_some() {
+            return self.table_dims_overlay_geometry(width);
+        }
         // The THIRD family. Checked before the faceted one because a
         // workspace's rail IS its facet strip, stood on its end: the same data
         // reaches a different presentation, and there is no card to place.

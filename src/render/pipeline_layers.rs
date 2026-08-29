@@ -291,6 +291,7 @@ impl TextPipeline {
         self.overlay_cross.draw(pass);
         self.overlay_range_track.draw(pass);
         self.overlay_range_thumb.draw(pass);
+        self.table_dims_cells.draw(pass);
         self.overlay_facet_ghost.draw(pass);
         self.overlay_lens_underline.draw(pass);
         self.panel_caret.draw(pass);

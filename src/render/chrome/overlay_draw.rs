@@ -79,6 +79,7 @@ impl TextPipeline {
         self.overlay_draw_card(surface, &vis);
         self.prepare_overlay_material(device, queue, width, height, &geom, placard_geometry);
         self.overlay_place_caret(device, queue, width, height, &geom, &plan);
+        self.prepare_table_dims_grid(device, queue, width, height);
         Ok(())
     }
 
@@ -129,6 +130,11 @@ impl TextPipeline {
         self.overlay_range_thumb
             .prepare(device, queue, width, height, &[]);
         self.overlay_lens_underline
+            .prepare(device, queue, width, height, &[]);
+        // The dimension picker's drawn grid parks empty too, so a closed
+        // picker carries no stale cell quads into the next frame (the same
+        // ghosting `park_overlay`'s own doc warns about).
+        self.table_dims_cells
             .prepare(device, queue, width, height, &[]);
         // The workspace rail's placement and its active mark park with
         // the card, so the frame after a workspace closes carries neither.

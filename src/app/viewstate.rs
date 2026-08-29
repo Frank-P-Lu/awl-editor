@@ -287,6 +287,7 @@ impl App {
             overlay_spell: ov
                 .filter(|o| o.kind == crate::overlay::OverlayKind::Spell)
                 .and_then(|o| o.spell_target),
+            overlay_table_dims: ov.and_then(|o| o.table_dims_target()),
             overlay_context_anchor: ov.and_then(|o| o.context_anchor),
             notice: self.frame.notice().owned().unwrap_or_default(),
             // The KIND rides with the text from the one snapshot, so the render

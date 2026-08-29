@@ -135,6 +135,8 @@ impl TextPipeline {
             SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         let overlay_range_thumb =
             SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
+        let table_dims_cells =
+            SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         let mut placard_stipple =
             SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         placard_stipple.set_dither(theme::placard_stipple_density());
@@ -383,6 +385,7 @@ impl TextPipeline {
             overlay_cross,
             overlay_range_track,
             overlay_range_thumb,
+            table_dims_cells,
             placard_stipple,
             placard_material,
             rotated_label_pipeline,
@@ -496,6 +499,7 @@ impl TextPipeline {
             overlay_sections: Vec::new(),
             overlay_location: None,
             overlay_spell: None,
+            overlay_table_dims: None,
             overlay_context_anchor: None,
             overlay_detail_focus: false,
             overlay_workspace: false,

@@ -573,7 +573,8 @@ fn static_material_enrolls_the_complete_overlay_surface_roster() {
             | crate::overlay::OverlayKind::InsertLink
             | crate::overlay::OverlayKind::KeepName
             | crate::overlay::OverlayKind::Context
-            | crate::overlay::OverlayKind::ExportDest => {}
+            | crate::overlay::OverlayKind::ExportDest
+            | crate::overlay::OverlayKind::TableDims => {}
         }
         let mut v = view("teh\n", 0, 0);
         v.overlay_active = true;

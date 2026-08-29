@@ -2317,6 +2317,12 @@ pub struct TextPipeline {
     pub overlay_cross: SelectionPipeline,
     pub overlay_range_track: SelectionPipeline,
     pub overlay_range_thumb: SelectionPipeline,
+    /// THE INSERT-TABLE DIMENSION PICKER'S drawn grid cells — one instance
+    /// per cell, filled vs. empty ink resolved fresh every frame from the
+    /// live `(rows, cols)` (`overlay_table_dims`), mirroring `streak_cells`'
+    /// own per-cell multicolor quad shape. Empty on every frame the picker is
+    /// not open (`park_overlay` parks it alongside its siblings).
+    pub table_dims_cells: SelectionPipeline,
     /// THE STIPPLE PLACARD (`theme::PlacardInk::Stipple`): the corner wordmark
     /// rendered as a Bayer-matrix stipple of individual full-ink pixels
     /// instead of ordinary antialiased glyphs. The SHAPING half is shared
@@ -2566,6 +2572,10 @@ pub struct TextPipeline {
     /// consumes it; no render path re-derives it from `overlay_lens`.
     overlay_location: Option<String>,
     overlay_spell: Option<(usize, usize, usize)>,
+    /// Mirror of [`ViewState::overlay_table_dims`] — gates the dimension
+    /// picker's dedicated geometry arm + quad-grid draw, exactly like
+    /// `overlay_spell` gates the contextual spell popup's.
+    overlay_table_dims: Option<(usize, usize)>,
     overlay_context_anchor: Option<(f32, f32)>,
     overlay_detail_focus: bool,
     /// Whether the summoned card is drawn as a workspace (mirror of

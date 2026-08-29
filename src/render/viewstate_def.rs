@@ -332,6 +332,7 @@ impl ViewState {
             doc_dir: None,
             syn_lang: None,
             overlay_spell: None,
+            overlay_table_dims: None,
             overlay_context_anchor: None,
             notice: String::new(),
             notice_kind: crate::actions::NoticeKind::default(),
