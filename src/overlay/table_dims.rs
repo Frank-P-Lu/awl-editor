@@ -195,7 +195,11 @@ mod tests {
     fn seeds_the_modest_default() {
         let ov = OverlayState::new_table_dims();
         assert_eq!(ov.table_dims_target(), Some((DEFAULT_ROWS, DEFAULT_COLS)));
-        assert_eq!(ov.rows.len(), 0, "no candidate row list -- this card is not a list");
+        assert_eq!(
+            ov.rows.len(),
+            0,
+            "no candidate row list -- this card is not a list"
+        );
     }
 
     #[test]
@@ -203,7 +207,10 @@ mod tests {
         let mut ov = OverlayState::new_table_dims();
         ov.table_dims_row_delta(1);
         ov.table_dims_col_delta(1);
-        assert_eq!(ov.table_dims_target(), Some((DEFAULT_ROWS + 1, DEFAULT_COLS + 1)));
+        assert_eq!(
+            ov.table_dims_target(),
+            Some((DEFAULT_ROWS + 1, DEFAULT_COLS + 1))
+        );
         // Down past MIN_DIM floors at MIN_DIM, never underflows/panics.
         for _ in 0..20 {
             ov.table_dims_row_delta(-1);
@@ -220,7 +227,12 @@ mod tests {
 
     #[test]
     fn typed_digits_parse_forgivingly_with_x_or_space_separator() {
-        for (typed, want) in [("3x4", (3, 4)), ("3X4", (3, 4)), ("3 4", (3, 4)), ("7x1", (7, 1))] {
+        for (typed, want) in [
+            ("3x4", (3, 4)),
+            ("3X4", (3, 4)),
+            ("3 4", (3, 4)),
+            ("7x1", (7, 1)),
+        ] {
             let mut ov = OverlayState::new_table_dims();
             for c in typed.chars() {
                 ov.table_dims_push(c);
@@ -254,7 +266,10 @@ mod tests {
         let mut ov = OverlayState::new_table_dims();
         ov.table_dims_row_delta(2); // rows now DEFAULT_ROWS+2, typed buffer empty
         ov.table_dims_pop(); // nothing to pop -- no-op
-        assert_eq!(ov.table_dims_target(), Some((DEFAULT_ROWS + 2, DEFAULT_COLS)));
+        assert_eq!(
+            ov.table_dims_target(),
+            Some((DEFAULT_ROWS + 2, DEFAULT_COLS))
+        );
         for c in "6x3".chars() {
             ov.table_dims_push(c);
         }
@@ -271,7 +286,10 @@ mod tests {
         // The stray "2" must not resurface and combine with a later digit.
         ov.table_dims_push('4');
         // "4" alone parses to nothing (no separator) -- the arrow-set rows/cols hold.
-        assert_eq!(ov.table_dims_target(), Some((DEFAULT_ROWS + 1, DEFAULT_COLS)));
+        assert_eq!(
+            ov.table_dims_target(),
+            Some((DEFAULT_ROWS + 1, DEFAULT_COLS))
+        );
     }
 
     #[test]

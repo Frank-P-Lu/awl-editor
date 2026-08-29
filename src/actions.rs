@@ -23,11 +23,11 @@ pub use effects::*;
 use flinch::*;
 use format::*;
 use link::*;
-use table::*;
 use motion::*;
 use overlay_nav::*;
 pub(crate) use overlay_nav::{preview_move, preview_overlay};
 use rebind::*;
+use table::*;
 
 /// Renderer-owned visual-row geometry for shared motion.
 pub trait LayoutOracle {

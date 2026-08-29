@@ -6,7 +6,9 @@
 use super::super::*;
 use crate::buffer::Buffer;
 use crate::keymap::Action;
-use crate::overlay::{DEFAULT_COLS, DEFAULT_ROWS, MAX_COLS, MAX_ROWS, Journey, OverlayKind, OverlayState};
+use crate::overlay::{
+    DEFAULT_COLS, DEFAULT_ROWS, Journey, MAX_COLS, MAX_ROWS, OverlayKind, OverlayState,
+};
 
 fn drive(buffer: &mut Buffer, journey: &mut Journey, action: Action) {
     let mut shift_selecting = false;
@@ -60,7 +62,10 @@ fn keyboard_journey_sculpts_and_inserts_landing_in_the_first_header_cell() {
 
     drive(&mut buffer, &mut journey, Action::Newline);
     assert!(journey.card().is_none(), "commit closes the picker");
-    assert!(buffer.version() > before_version, "the commit is a real edit");
+    assert!(
+        buffer.version() > before_version,
+        "the commit is a real edit"
+    );
 
     let table = crate::markdown::build_table(rows, cols);
     let text = buffer.text();
@@ -83,7 +88,11 @@ fn keyboard_journey_sculpts_and_inserts_landing_in_the_first_header_cell() {
     );
 
     buffer.undo();
-    assert_eq!(buffer.text(), "intro\n", "one undo restores every source byte");
+    assert_eq!(
+        buffer.text(),
+        "intro\n",
+        "one undo restores every source byte"
+    );
 }
 
 /// ARROW-KEY CLAMPING through the real seam: driving past either bound never
@@ -128,7 +137,10 @@ fn typed_digit_journey_parses_forgivingly_and_commits_the_typed_size() {
         drive(&mut buffer, &mut journey, Action::InsertChar(c));
     }
     assert_eq!(journey.card().unwrap().table_dims_target(), Some((5, 3)));
-    assert_eq!(journey.card().unwrap().foot_hint(), "5 × 3 table   ↵ insert   Esc cancel");
+    assert_eq!(
+        journey.card().unwrap().foot_hint(),
+        "5 × 3 table   ↵ insert   Esc cancel"
+    );
 
     // Backspace the trailing digit; the incomplete "5x" leaves 5x3 standing.
     drive(&mut buffer, &mut journey, Action::DeleteBackward);
@@ -136,7 +148,11 @@ fn typed_digit_journey_parses_forgivingly_and_commits_the_typed_size() {
 
     drive(&mut buffer, &mut journey, Action::Newline);
     let table = crate::markdown::build_table(5, 3);
-    assert_eq!(buffer.text(), table, "empty document: no padding blank lines");
+    assert_eq!(
+        buffer.text(),
+        table,
+        "empty document: no padding blank lines"
+    );
 }
 
 /// `Esc` CANCELS with zero buffer change and no undo entry -- mirrors
@@ -153,7 +169,11 @@ fn esc_cancels_with_no_buffer_change() {
     drive(&mut buffer, &mut journey, Action::Cancel);
 
     assert!(journey.card().is_none(), "Esc closes the picker");
-    assert_eq!(buffer.text(), "hello world", "cancel never edits the buffer");
+    assert_eq!(
+        buffer.text(),
+        "hello world",
+        "cancel never edits the buffer"
+    );
     assert!(!buffer.can_undo(), "…so there is nothing to undo");
 }
 

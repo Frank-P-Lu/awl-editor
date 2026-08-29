@@ -170,7 +170,7 @@ fn replay_keys_keep_version_commit_closes_and_defers_the_store_write() {
     assert_eq!(buffer.text(), "hi", "the keep never edits the buffer");
 }
 
-/// INSERT TABLE (item 517): Cmd-P → "insert table" → Enter opens the
+/// INSERT TABLE: Cmd-P → "insert table" → Enter opens the
 /// dimension picker at its modest seeded default; `↓`/`→` sculpt it live
 /// through the REAL keymap, and the sidecar-facing `foot_hint()` reflects the
 /// in-progress readout with zero live App involved -- the same seam the

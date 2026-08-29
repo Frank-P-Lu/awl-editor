@@ -158,7 +158,11 @@ impl TextPipeline {
         for row in 0..crate::overlay::MAX_ROWS {
             for col in 0..crate::overlay::MAX_COLS {
                 let rect = self.table_dims_cell_rect(&geom, row, col);
-                let color = if row < rows && col < cols { filled } else { empty };
+                let color = if row < rows && col < cols {
+                    filled
+                } else {
+                    empty
+                };
                 quads.push((rect, color));
             }
         }

@@ -96,7 +96,7 @@ fn the_hint_line_starts_at_or_below_the_grids_own_bottom_edge() {
     let _g = crate::testlock::serial();
     for (w, h) in [(1200.0f32, 800.0f32), (900.0, 700.0)] {
         let Some((device, queue, mut p)) = headless_dqp(w, h) else {
-            eprintln!("skipping the_hint_line_starts_at_or_below_the_grids_own_bottom_edge: no wgpu adapter");
+            eprintln!("skipping hint-vs-grid overlap law: no wgpu adapter");
             return;
         };
         p.set_view(&dims_view("hello\n", 3, 2));
@@ -148,8 +148,11 @@ fn filled_and_empty_cells_are_visible_against_each_other_and_the_card() {
 
         let [fx, fy, fw, fh] = p.table_dims_cell_rect(&geom, 0, 0); // filled (inside 3x2)
         let filled_px = sample(fx + fw * 0.5, fy + fh * 0.5);
-        let [ex, ey, ew, eh] =
-            p.table_dims_cell_rect(&geom, crate::overlay::MAX_ROWS - 1, crate::overlay::MAX_COLS - 1); // empty
+        let [ex, ey, ew, eh] = p.table_dims_cell_rect(
+            &geom,
+            crate::overlay::MAX_ROWS - 1,
+            crate::overlay::MAX_COLS - 1,
+        ); // empty
         let empty_px = sample(ex + ew * 0.5, ey + eh * 0.5);
         // A patch of card fill with no cell over it: a few px right of the
         // grid's own right edge, still well inside the card.

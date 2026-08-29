@@ -115,11 +115,10 @@ mod tests {
         let cursor = text.find("after").unwrap();
         let result = insert_table_at(text, None, cursor, 1, 1);
         // `before` already ends "\n\n" (two-plus blank lines) -- no extra lead.
-        assert!(
-            result
-                .text
-                .starts_with(&format!("para\n\n\n\n{}", crate::markdown::build_table(1, 1)))
-        );
+        assert!(result.text.starts_with(&format!(
+            "para\n\n\n\n{}",
+            crate::markdown::build_table(1, 1)
+        )));
     }
 
     #[test]
