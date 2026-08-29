@@ -7,34 +7,6 @@
 ## Ready to build
 
 ---
-### 531 — a concealed table row's trailing whitespace draws the same stray nit tick (found while building item 526, 2026-08-30)
-
-🟡 IN PROGRESS — claude, branch item-531
-
-The same defect class item 526 fixed for concealed thematic-break lines
-also affects a WYSIWYG-concealed GFM table row: with the row's glyph
-x-positions collapsed near-zero, `nit_underlines`'s `DECOR_MIN_W` floor
-still emits a stray `Squiggle` with no source glyphs under it. Confirmed
-empirically (probe fixture: a concealed table row with one trailing space
-after the final `|`, caret off the table — `concealed_at` true, shaped
-x-positions <0.04px, one nit still emitted).
-
-Not a simple copy of 526's fix: `ConcealKind::Table` conceals only when
-`wysiwyg_on()` is true, and that global can flip WITHOUT a reshape (the
-wash-cache's own doc comment already names this hazard as the reason a
-cache-key membership check — the shape 526 used — is unsound here). Needs
-its own read-time gate that re-checks `wysiwyg_on()` rather than a
-cached-set lookup. Law shape: mirror 526's off-caret/caret-on sweep, over
-a concealed table row with trailing whitespace after the final `|`;
-non-vacuity is the current code failing red (already confirmed).
-
-Separately noted, not scoped here: `rule_lines()`/`bullet_marks()`/table
-conceal are selection-agnostic while in-place conceal is selection-aware,
-so a selection-revealed rule/table line can show raw source AND keep
-drawing its ornament — a pre-existing quirk, orchestrator's call whether
-it needs its own item.
-
----
 ### 529 — Nishiki-teki: audition a Japanese symbol cabinet, then give each adopted mark one honest purpose (user decision, 2026-08-29)
 
 🟡 IN PROGRESS — claude, branch item-529 (phase 1 only: audit + gallery + Artifact publish, then STOP for the user's taste review before any asset lands)
