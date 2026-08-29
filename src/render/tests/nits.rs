@@ -1293,3 +1293,110 @@ fn spell_squiggle_keeps_full_amplitude_at_its_ends() {
     theme::set_active(theme::DEFAULT_THEME);
     p.sync_theme();
 }
+
+/// RULE-LINE CONCEAL (nits): a concealed thematic break (`---`/`***`/`___`,
+/// trailing SPACE or TAB alike) never draws its own trailing-whitespace nit —
+/// the whole line collapses to the fleuron ornament, so a nit tick beside it
+/// would float over no source glyphs at all. Sweeps all three rule characters
+/// plus a tab-trailing variant (the item's named axis), each checked against a
+/// PRESENCE floor (the raw detector really does flag the line, and the parse
+/// really does rule it a concealed `Rule` line) so "zero nits" can't be
+/// satisfied by the fixture failing to parse rather than by the suppression.
+/// An ordinary control line's OWN trailing-space nit survives untouched in
+/// every case, proving the suppression is scoped to rule-line membership, not
+/// a blanket kill. On the CARET's own line the rule reveals raw text (the
+/// existing, unrelated rule-conceal mechanism) but its nit still does not
+/// draw — not because of this fix, but because `nit_underlines`'s pre-existing
+/// caret-line exclusion (pinned by
+/// `nit_underlines_suppress_the_entire_caret_line_only`) already drops every
+/// nit on the caret's own line unconditionally; this test asserts that
+/// resulting state rather than attributing it to the wrong mechanism.
+#[test]
+fn nit_underlines_suppress_concealed_rule_lines_sweep() {
+    let _g = crate::testlock::serial();
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!("skipping nit_underlines_suppress_concealed_rule_lines_sweep: no wgpu adapter");
+        return;
+    };
+    crate::nits::set_nits_on(true);
+    for variant in ["--- ", "*** ", "___ ", "---\t"] {
+        // PRESENCE FLOOR: the raw per-line detector really flags this exact
+        // line text (a trailing space or tab, not the 2-space hard break) —
+        // otherwise "zero nits" would be trivially true for the wrong reason.
+        assert!(
+            !crate::nits::line_nits(variant).is_empty(),
+            "{variant:?}: sanity — the raw detector must flag this line's trailing whitespace"
+        );
+
+        let text = format!("{variant}\nprose\ncontrol \n");
+        // Caret parked on line 1 ("prose"), off BOTH the rule line and the
+        // control line, so reveal-on-cursor never masks either fixture.
+        let mut v = view(&text, 1, 0);
+        v.is_markdown = true;
+        p.set_view(&v);
+
+        // PRESENCE FLOOR: the parse really does rule line 0 a concealed thematic
+        // break off the caret's line.
+        assert!(
+            p.rule_line_concealed(0),
+            "{variant:?}: sanity — off-caret, the rule line must conceal to the ornament"
+        );
+
+        // OFF-CARET: only the control line's own nit survives; the concealed
+        // rule line contributes ZERO.
+        let ul = p.nit_underlines();
+        assert_eq!(
+            ul.len(),
+            1,
+            "{variant:?}: off-caret, only the control line's trailing-space nit should \
+             show; the concealed rule line must contribute none: {ul:?}"
+        );
+
+        // CARET-ON: move the caret onto the rule line itself. The raw markup
+        // reveals (unrelated mechanism), but the nit still doesn't draw there —
+        // attributable to the PRE-EXISTING caret-line exclusion, not this fix.
+        // The control line (still off-caret) keeps its own nit either way.
+        let mut v_on = view(&text, 0, 0);
+        v_on.is_markdown = true;
+        p.set_view(&v_on);
+        assert!(
+            !p.rule_line_concealed(0),
+            "{variant:?}: on-caret, the rule line's raw markup must reveal"
+        );
+        let ul_on = p.nit_underlines();
+        assert_eq!(
+            ul_on.len(),
+            1,
+            "{variant:?}: on-caret, the control line's nit still shows; the rule line's \
+             own nit stays hidden by the pre-existing caret-line exclusion: {ul_on:?}"
+        );
+    }
+    crate::nits::set_nits_on(true);
+}
+
+/// NEIGHBORHOOD CONFIRMATION: spell squiggles are structurally unreachable on a
+/// bare thematic-break line — not merely assumed. `misspelled_spans`'s word
+/// boundary is [`crate::spell::misspelled_spans`]'s `is_latin_letter` gate
+/// (alphabetic only), and `-`/`*`/`_` are punctuation/connector characters,
+/// never alphabetic, so no token is even FORMED on `---`/`***`/`___` for any
+/// checker to judge — proven with an ALWAYS-WRONG checker (`|_| false`, which
+/// would flag every real word) so the empty result can only mean "no word was
+/// extracted," never "the dictionary happened to accept it." A positive
+/// control on ordinary text proves the always-wrong checker is actually live.
+#[test]
+fn spell_squiggles_structurally_unreachable_on_bare_rule_lines() {
+    let always_wrong = |_: &str| false;
+    for rule in ["---", "***", "___", "--- ", "*** ", "___ ", "---\t"] {
+        assert!(
+            crate::spell::misspelled_spans(rule, always_wrong).is_empty(),
+            "{rule:?}: no word chars exist for a checker to ever flag"
+        );
+    }
+    // Positive control: the always-wrong checker really does flag a real word,
+    // so the empty results above are the rule-line text itself, not a checker
+    // that never fires.
+    assert!(
+        !crate::spell::misspelled_spans("abc", always_wrong).is_empty(),
+        "sanity: the always-wrong checker must flag an ordinary word"
+    );
+}
