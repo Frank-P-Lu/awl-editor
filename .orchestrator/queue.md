@@ -410,6 +410,51 @@ Git history even if reverted, the gallery/taste checkpoint precedes the asset
 commit despite the standing land-easy-taste-changes policy.
 
 ---
+### 530 — smart punctuation, phase one: dashes and ellipsis as display-only conceal (user decision, 2026-08-29)
+
+DECIDED (user-confirmed 2026-08-29): render `--` as an en dash (–),
+`---` as an em dash (—) and `...` as an ellipsis (…) — **display-only
+conceal through the existing markdown machinery, never an as-you-type
+buffer mutation.** The file keeps the literal bytes; the caret's own
+line reveals raw source and moving off it renders the substitute, the
+user's stated semantics ("when you're on the line, nothing changes.
+when you move your cursor off, then it renders live") — the same
+reveal-on-cursor contract as bold/italic conceal, with the bare-URL
+ellipsis slot as the painted-substitute precedent.
+
+Mapping is CommonMark smart punctuation (`--` en, `---` em), chosen so
+the Word/HTML/PDF exporters can adopt the same standard mapping —
+ONE mapping owner read by both display and export, so what the page
+shows and what an export emits can never disagree. Runs of exactly two
+and exactly three dashes only; four or more stay literal (ASCII
+dividers keep their shape).
+
+SCOPE — where the real work is; each region law-tested: inline prose
+text runs ONLY. Never inside inline code or fenced blocks (prose about
+CLI flags — `--keys`, `--release` — is this repo's own daily bread),
+never in frontmatter, and never on a line that block-parses as a
+thematic break: `---` alone on a line IS the section break and stays
+the rule ornament, byte-identically (user raised the collision
+explicitly; block-parse precedence resolves it by construction — the
+inline arm only ever sees runs with other content on the line).
+Conceal changes glyph advances (the `refresh_rule_conceal` tripwire):
+the reveal must invalidate `row_geom`, and wrap positions legitimately
+shift between raw and rendered — a law asserts the reshape actually
+happens rather than a stale layout surviving the toggle.
+
+Law shape: state × surface sweep — off-caret conceal renders the
+substitute and the sidecar still carries the raw text; caret-on is
+byte-identical to today; code-span/fence/frontmatter/thematic-break
+exemptions each pinned with a would-be-hit fixture; export/display
+mapping agreement via the shared owner. Non-vacuity: break each
+exemption and watch its law go red.
+
+Deferred, deliberately: straight → curly quotes. Pairing heuristics
+(apostrophes, '90s, nested quotes) are where smart punctuation earns
+its bad name — a separate taste session decides if that half ever
+ships.
+
+---
 ## Needs specific hardware
 
 1. **AT-SPI journey** — on a real Linux desktop with Orca, exercise document
