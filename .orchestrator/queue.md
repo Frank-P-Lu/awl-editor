@@ -9,6 +9,8 @@
 ---
 ### 526 — a concealed thematic break still draws its trailing-whitespace nit tick (user-reported, 2026-08-29)
 
+🟡 IN PROGRESS — claude, branch item-526
+
 Typing `--- ` (a rule plus one trailing space) conceals to the rule
 ornament once the caret leaves the line, but the trailing-whitespace nit
 still renders — a stray underscore-looking tick beside the glyph
@@ -41,6 +43,8 @@ raw text plus the nit; non-vacuity is the current code failing red.
 ---
 ### 527 — label truth is one-directional: seeded Meta-layer chords dispatch but are advertised nowhere (user-reported, 2026-08-29)
 
+🟡 IN PROGRESS — claude, branch item-527-528 (528 sequenced after 527 on this one branch)
+
 On Linux under `keymap = "emacs"`, `M-x` opens the command palette
 (`LINUX_EMACS_META_SEED`, dispatch-layer only) — the user confirmed it
 fires — but no label surface shows it: the drawn menu's chord column
@@ -67,6 +71,8 @@ convention × flavor, non-vacuous today (M-x fails the second half).
 
 ---
 ### 528 — Linux emacs flavor: re-seed the classic chords the displaced letters orphan (user decision, 2026-08-29)
+
+🟡 IN PROGRESS — claude, branch item-527-528
 
 Under Linux `keymap = "emacs"`, keeping the displaced letters as their
 emacs meanings leaves common commands with NO chord at all: Save
@@ -167,6 +173,8 @@ commit despite the standing land-easy-taste-changes policy.
 
 ---
 ### 530 — smart punctuation, phase one: dashes and ellipsis as display-only conceal (user decision, 2026-08-29)
+
+🟡 IN PROGRESS — claude, branch item-530
 
 DECIDED (user-confirmed 2026-08-29): render `--` as an en dash (–),
 `---` as an em dash (—) and `...` as an ellipsis (…) — **display-only
