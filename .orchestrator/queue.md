@@ -9,6 +9,8 @@
 ---
 ### 531 — a concealed table row's trailing whitespace draws the same stray nit tick (found while building item 526, 2026-08-30)
 
+🟡 IN PROGRESS — claude, branch item-531
+
 The same defect class item 526 fixed for concealed thematic-break lines
 also affects a WYSIWYG-concealed GFM table row: with the row's glyph
 x-positions collapsed near-zero, `nit_underlines`'s `DECOR_MIN_W` floor
@@ -34,6 +36,8 @@ it needs its own item.
 
 ---
 ### 529 — Nishiki-teki: audition a Japanese symbol cabinet, then give each adopted mark one honest purpose (user decision, 2026-08-29)
+
+🟡 IN PROGRESS — claude, branch item-529 (phase 1 only: audit + gallery + Artifact publish, then STOP for the user's taste review before any asset lands)
 
 "It's beautiful"; DECIDED: **Nishiki-teki is the first symbol face awl
 should pursue. Character comes before byte count.** This is not a request
