@@ -1532,6 +1532,88 @@ fn linux_emacs_meta_layer_dispatches_every_seeded_chord() {
     }
 }
 
+/// LAW: the classic `C-x` continuations — every entry in
+/// `platform::LINUX_EMACS_CLASSIC_SEED` — dispatch to their own named
+/// `Action` under `Convention::Linux` with the gate set, via the REAL
+/// two-key sequence (arm the prefix, then resolve the second key), swept
+/// over the whole table rather than a hand-picked chord.
+#[test]
+fn linux_emacs_classic_seed_dispatches_every_seeded_cx_chord() {
+    assert!(
+        !LINUX_EMACS_CLASSIC_SEED.is_empty(),
+        "non-vacuity: the classic C-x seed table must not be empty, or this sweep checks nothing"
+    );
+    let mut cfg = crate::config::Config::empty();
+    cfg.keymap = Some("emacs".to_string());
+    let keep = cfg.effective_linux_keep();
+    for (spec, want) in LINUX_EMACS_CLASSIC_SEED {
+        let toks: Vec<&str> = spec.split_whitespace().collect();
+        assert_eq!(toks.len(), 2, "{spec:?} must be a two-token C-x sequence");
+        let mut km = KeymapState::new_with_convention(Convention::Linux);
+        km.apply_linux_keep(&keep);
+        km.set_linux_emacs_meta(true);
+        let (px, pm) =
+            crate::keyspec::parse_chord(toks[0]).unwrap_or_else(|e| panic!("{spec:?}: {e}"));
+        assert_eq!(
+            km.resolve(&px, &pm),
+            Action::BeginPrefix,
+            "{spec:?}: the first key must arm the C-x prefix"
+        );
+        assert!(
+            km.in_prefix(),
+            "{spec:?}: the prefix must be pending after the first key"
+        );
+        let (kx, km2) =
+            crate::keyspec::parse_chord(toks[1]).unwrap_or_else(|e| panic!("{spec:?}: {e}"));
+        assert_eq!(
+            km.resolve(&kx, &km2),
+            *want,
+            "seeded classic chord {spec:?} must dispatch to its own action"
+        );
+    }
+}
+
+/// LAW: a config `[keys]` override for a seeded action's OWN command still
+/// outranks the seed — same precedence `KeymapState::resolve` already gives
+/// every override over every default, exercised here specifically over a
+/// classic `C-x` seed (`Save`'s `C-x C-s`) and the Meta seed (Command
+/// palette's `M-x`), so the override door this round threads seeds through
+/// is proven, not assumed.
+#[test]
+fn keys_override_outranks_a_seeded_chord() {
+    let mut cfg = crate::config::Config::empty();
+    cfg.keymap = Some("emacs".to_string());
+    let keep = cfg.effective_linux_keep();
+
+    // Rebind "C-x C-s" itself to a different action (Quit) — the override
+    // must fire instead of the seeded Save.
+    let overrides = vec![("quit".to_string(), vec!["C-x C-s".to_string()])];
+    let mut km = KeymapState::with_overrides_and_convention(&overrides, Convention::Linux);
+    km.apply_linux_keep(&keep);
+    km.set_linux_emacs_meta(true);
+    let (px, pm) = crate::keyspec::parse_chord("C-x").unwrap();
+    assert_eq!(km.resolve(&px, &pm), Action::BeginPrefix);
+    let (kx, kmods) = crate::keyspec::parse_chord("C-s").unwrap();
+    assert_eq!(
+        km.resolve(&kx, &kmods),
+        Action::Quit,
+        "a [keys] override on the exact seeded chord must win over the seed"
+    );
+
+    // A single-key seed (M-x -> Command palette): reclaim M-x for a
+    // different action (Redo) — the override must fire instead of the seed.
+    let overrides2 = vec![("redo".to_string(), vec!["M-x".to_string()])];
+    let mut km2 = KeymapState::with_overrides_and_convention(&overrides2, Convention::Linux);
+    km2.apply_linux_keep(&keep);
+    km2.set_linux_emacs_meta(true);
+    let (mx, mmods) = crate::keyspec::parse_chord("M-x").unwrap();
+    assert_eq!(
+        km2.resolve(&mx, &mmods),
+        Action::Redo,
+        "a [keys] override on the exact seeded Meta chord must win over the seed"
+    );
+}
+
 /// LAW: the Meta layer is OFF by default (flavor = native) even on Linux —
 /// it is seeded only under `keymap = "emacs"`, never unconditionally. A chord
 /// already reachable via some OTHER, gate-independent rule (`M-Backspace` —

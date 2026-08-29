@@ -92,10 +92,14 @@ impl App {
 
     pub(in crate::app) fn summon_whichkey(&mut self) {
         self.input.keyboard.whichkey_shown = true;
-        let rows: Vec<(String, String)> = crate::whichkey::continuations_cx(&self.config.keys)
-            .into_iter()
-            .map(|c| (c.key, c.name))
-            .collect();
+        let rows: Vec<(String, String)> = crate::whichkey::continuations_cx(
+            &self.config.keys,
+            crate::convention::Convention::current(),
+            self.config.keymap_flavor(),
+        )
+        .into_iter()
+        .map(|c| (c.key, c.name))
+        .collect();
         if let Some(gpu) = self.frame.gpu_mut() {
             gpu.pipeline.set_whichkey(Some(rows));
             self.request_frame();

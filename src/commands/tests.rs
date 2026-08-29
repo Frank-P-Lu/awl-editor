@@ -2331,11 +2331,14 @@ fn effective_linux_keep_builtin_floor_is_inert_on_mac_for_the_whole_catalog() {
 ///     dance `KeymapState::resolve` alone can't take in one call; other laws
 ///     already cover that shape), but a NON-VACUITY floor below proves this
 ///     still checks a real number of single-token chords.
-/// (b) every seeded chord [`crate::keymap::LINUX_EMACS_META_SEED`] names for
-///     this cell is advertised on the palette or the menu — unless its
-///     `Action` has no catalog [`Command`] to attach a label to at all
-///     ([`SEEDED_ACTIONS_WITH_NO_CATALOG_ROW`]), in which case no label
-///     surface here could ever name it regardless of this round's fix.
+/// (b) every seeded chord any table [`crate::keymap::active_seed_tables`]
+///     returns for this cell names is advertised on the palette or the
+///     menu — unless its `Action` has no catalog [`Command`] to attach a
+///     label to at all ([`SEEDED_ACTIONS_WITH_NO_CATALOG_ROW`]), in which
+///     case no label surface here could ever name it regardless of this
+///     round's fix. Reading the table LIST rather than a single named
+///     table means a future seeded layer (a second table appended to
+///     `active_seed_tables`'s returned list) is swept here automatically.
 ///
 /// The GUIDE generator ([`generate_keys_reference_markdown_for`]) is not
 /// re-checked separately: it calls [`join_slots_truthful`] with the exact
@@ -2350,13 +2353,13 @@ fn effective_linux_keep_builtin_floor_is_inert_on_mac_for_the_whole_catalog() {
 /// entry lacks a row" pass can't slip through:
 #[test]
 fn label_dispatch_agreement_sweeps_convention_and_flavor() {
-    use crate::keymap::{KeymapFlavor, KeymapState, LINUX_EMACS_META_SEED};
+    use crate::keymap::{KeymapFlavor, KeymapState, active_seed_tables};
 
     /// Seeded actions with NO catalog [`Command`] row to attach a label to —
-    /// see [`LINUX_EMACS_META_SEED`]'s own doc. `PageScrollUp` (`M-v`) is
-    /// reachable only via the static `NamedKey::PageUp` arm and this seed;
-    /// no palette/menu row exists to advertise it on, by construction, not
-    /// by an oversight this law should chase.
+    /// see `platform::LINUX_EMACS_META_SEED`'s own doc. `PageScrollUp`
+    /// (`M-v`) is reachable only via the static `NamedKey::PageUp` arm and
+    /// this seed; no palette/menu row exists to advertise it on, by
+    /// construction, not by an oversight this law should chase.
     const SEEDED_ACTIONS_WITH_NO_CATALOG_ROW: &[Action] = &[Action::PageScrollUp];
 
     let mut checked_chords = 0usize;
@@ -2404,8 +2407,8 @@ fn label_dispatch_agreement_sweeps_convention_and_flavor() {
             // somewhere. Off (Linux, Emacs) the table seeds nothing, so the
             // loop is empty and the check is vacuously satisfied — correctly,
             // since there is nothing to advertise there.
-            if convention == Convention::Linux && flavor == KeymapFlavor::Emacs {
-                for (spec, action) in LINUX_EMACS_META_SEED {
+            for table in active_seed_tables(convention, flavor) {
+                for (spec, action) in *table {
                     let Some(c) = COMMANDS.iter().find(|c| &c.action == action) else {
                         assert!(
                             SEEDED_ACTIONS_WITH_NO_CATALOG_ROW.contains(action),
@@ -2438,8 +2441,151 @@ fn label_dispatch_agreement_sweeps_convention_and_flavor() {
          little"
     );
     assert!(
-        checked_seed_rows >= 1,
-        "direction (b) found no seeded action with a catalog row to check — the sweep \
-         would be vacuous"
+        // A literal floor, not derived from the live tables themselves —
+        // comparing the sweep's count against a quantity computed from the
+        // SAME tables would still match after either table was emptied.
+        // Today: 9 catalog-covered Meta entries (10 minus PageScrollUp) + 4
+        // classic C-x entries = 13; this may only rise.
+        checked_seed_rows >= 13,
+        "direction (b) checked only {checked_seed_rows} seeded/catalog-row pairs — \
+         expected at least 13 (9 Meta + 4 classic); the sweep would be vacuous if either \
+         seed table went missing"
     );
+}
+
+/// HARD LAW (the classic-chords round's "deliberately not scoped" claim, VERIFIED against
+/// real keymap resolution rather than restated): under Linux `keymap =
+/// "emacs"`, Bold's and Inline code's native chords ARE displaced (`b`/`e`
+/// are both in `LINUX_DISPLACED_LETTERS`), so both go palette-only — no
+/// native label, no emacs label (their catalog emacs slots are blank), no
+/// seed. Neither is in this round's reseed list (deliberately: taste-scoped
+/// separately), so both stay blank.
+#[test]
+fn bold_and_inline_code_are_palette_only_on_linux_emacs_flavor() {
+    let mut cfg = crate::config::Config::empty();
+    cfg.keymap = Some("emacs".to_string());
+    let keep = cfg.effective_linux_keep();
+    for name in ["Bold", "Inline code"] {
+        let c = COMMANDS.iter().find(|c| c.name == name).unwrap();
+        let label = join_slots_truthful(
+            c,
+            Convention::Linux,
+            Platform::Native,
+            &keep,
+            crate::keymap::KeymapFlavor::Emacs,
+        );
+        assert_eq!(
+            label, "",
+            "{name}: must be palette-only (no Linux emacs-flavor chord), got {label:?}"
+        );
+    }
+}
+
+/// HARD LAW — the CORRECTION to a false premise: Italic's native letter
+/// (`i`) is NOT in `LINUX_DISPLACED_LETTERS`, so — unlike Bold/Inline code —
+/// its native Ctrl-I chord is NEVER displaced on Linux, under EITHER keymap
+/// flavor. Italic is therefore NOT palette-only on Linux emacs, despite a
+/// brief's claim grouping it with Bold/Inline code; this law pins the real
+/// behavior so that claim can't quietly re-enter as fact. Checked both as a
+/// LABEL (the chord is still advertised) and as DISPATCH (the chord still
+/// resolves to Italic through a real keymap).
+#[test]
+fn italic_survives_linux_emacs_flavor_unlike_bold_and_inline_code() {
+    let mut cfg = crate::config::Config::empty();
+    cfg.keymap = Some("emacs".to_string());
+    let keep = cfg.effective_linux_keep();
+    let italic = COMMANDS.iter().find(|c| c.name == "Italic").unwrap();
+    let label = join_slots_truthful(
+        italic,
+        Convention::Linux,
+        Platform::Native,
+        &keep,
+        crate::keymap::KeymapFlavor::Emacs,
+    );
+    assert_eq!(
+        label, "Ctrl+I",
+        "Italic's native Ctrl-I must survive Linux emacs flavor (not displaced), got {label:?}"
+    );
+
+    let mut km = crate::keymap::KeymapState::new_with_convention(Convention::Linux);
+    km.apply_linux_keep(&keep);
+    km.set_linux_emacs_meta(true);
+    let (key, mods) = crate::keyspec::parse_chord("C-i").unwrap();
+    assert_eq!(
+        km.resolve(&key, &mods),
+        Action::Italic,
+        "Ctrl-I must still dispatch Italic under Linux emacs flavor"
+    );
+}
+
+/// HARD LAW — the whole `C-c` emacs-slot layer (Follow link's `C-c C-o`,
+/// Fold section's `C-c C-f`, Collapse other sections' `C-c C-t`, Insert
+/// Date's `C-c .`) is DEAD on Linux under BOTH keymap flavors, verified
+/// against real dispatch rather than restated: `c` sits in
+/// `NATIVE_CLIPBOARD_LETTERS`, so Ctrl-C resolves straight to Copy on Linux
+/// unconditionally (`linux_emacs_preset_keep`'s own carve-out) — the `C-c`
+/// prefix state is never entered, so no two-key `C-c <key>` sequence can
+/// ever complete. Three of the four (Fold section, Collapse other sections,
+/// Insert Date) also carry a WORKING native Cmd-Shift-<letter> chord, so
+/// their Linux label is NOT blank — it shows that native chord ALONE, never
+/// joined with the dead `C-c ...` segment (verified as a per-segment
+/// exclusion, not a blank-label assertion, which a naive version of this
+/// law got wrong on first write against these three). Only Follow link has
+/// no native slot at all, so its Linux label is genuinely blank — the GUIDE
+/// table's own printed row confirms this split precisely (`Ctrl+Shift+E`
+/// alone for Fold section vs. a blank cell for Follow link).
+#[test]
+fn c_c_emacs_slot_layer_is_dead_on_linux_under_both_flavors() {
+    for flavor_name in ["native", "emacs"] {
+        let mut cfg = crate::config::Config::empty();
+        cfg.keymap = Some(flavor_name.to_string());
+        let keep = cfg.effective_linux_keep();
+        let flavor = crate::keymap::KeymapFlavor::parse(flavor_name).unwrap();
+
+        // The prefix itself never arms.
+        let mut km = crate::keymap::KeymapState::new_with_convention(Convention::Linux);
+        km.apply_linux_keep(&keep);
+        km.set_linux_emacs_meta(flavor == crate::keymap::KeymapFlavor::Emacs);
+        let (key, mods) = crate::keyspec::parse_chord("C-c").unwrap();
+        assert_eq!(
+            km.resolve(&key, &mods),
+            Action::CopyRegion,
+            "Ctrl-C must resolve straight to Copy on Linux ({flavor_name})"
+        );
+        assert!(
+            !km.in_prefix(),
+            "the C-c prefix must never arm on Linux ({flavor_name})"
+        );
+
+        // Every C-c-slotted command's Linux label never carries the dead
+        // C-c segment — Follow link (no native slot) goes fully blank;
+        // the other three keep showing their own working native chord.
+        for name in [
+            "Follow link",
+            "Fold section",
+            "Collapse other sections",
+            "Insert Date",
+        ] {
+            let c = COMMANDS.iter().find(|c| c.name == name).unwrap();
+            assert!(
+                c.emacs.starts_with("C-c "),
+                "{name}: this law assumes a C-c-prefixed emacs slot, catalog has {:?}",
+                c.emacs
+            );
+            let label = join_slots_truthful(c, Convention::Linux, Platform::Native, &keep, flavor);
+            assert!(
+                !label.split(" · ").any(|seg| seg.trim() == c.emacs),
+                "{name}: the dead C-c segment {:?} must never appear in the Linux \
+                 label ({flavor_name}), got {label:?}",
+                c.emacs
+            );
+            if c.native.trim().is_empty() {
+                assert_eq!(
+                    label, "",
+                    "{name}: no native slot and a dead C-c slot must leave the \
+                     Linux label blank ({flavor_name}), got {label:?}"
+                );
+            }
+        }
+    }
 }

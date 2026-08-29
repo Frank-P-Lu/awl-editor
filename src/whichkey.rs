@@ -49,18 +49,27 @@ pub struct Continuation {
 }
 
 /// The `(follow-up key, command name)` rows for `prefix`, DERIVED from the command
-/// catalog's effective bindings (`keys` = the config `[keys]` overrides). A command
+/// catalog's effective bindings (`keys` = the config `[keys]` overrides, PLUS any
+/// seeded layer chord active under `convention`+`flavor` — see
+/// `commands::visible_effective_chord_lists`'s own doc: a seeded `C-x` continuation
+/// (Linux `keymap = "emacs"`'s classic `C-x C-s`/`C-x C-f`/`C-x k`/`C-x h`) reads
+/// from the SAME roster dispatch consumes, never a second hand-kept list). A command
 /// contributes a row when one of its effective chords is `"<prefix> <key>"` (exactly
 /// two tokens whose first canonicalises to `prefix`); the second token is the row's
 /// key. Sorted by key so the panel order is stable + groups the `C-…` continuations
 /// together. Pure — no window, no clock — so the whole derivation is unit-testable.
-pub fn continuations(prefix: &str, keys: &[(String, Vec<String>)]) -> Vec<Continuation> {
+pub fn continuations(
+    prefix: &str,
+    keys: &[(String, Vec<String>)],
+    convention: crate::convention::Convention,
+    flavor: crate::keymap::KeymapFlavor,
+) -> Vec<Continuation> {
     let want = match crate::keyspec::canonical_binding(prefix) {
         Some(p) => p,
         None => return Vec::new(),
     };
     let names = crate::commands::visible_names();
-    let chord_lists = crate::commands::visible_effective_chord_lists(keys);
+    let chord_lists = crate::commands::visible_effective_chord_lists(keys, convention, flavor);
     let mut rows: Vec<Continuation> = Vec::new();
     for (name, chords) in names.iter().zip(chord_lists.iter()) {
         for chord in chords {
@@ -80,8 +89,16 @@ pub fn continuations(prefix: &str, keys: &[(String, Vec<String>)]) -> Vec<Contin
 }
 
 /// The which-key rows for the main `C-x` prefix (the common call site).
-pub fn continuations_cx(keys: &[(String, Vec<String>)]) -> Vec<Continuation> {
-    continuations(PREFIX_CX, keys)
+/// `convention`/`flavor` are the caller's REAL values (every live call site
+/// passes `Convention::current()` + `Config::keymap_flavor()`), so a seeded
+/// classic `C-x` chord shows up in the panel exactly when it would actually
+/// dispatch — never a config-free default that would hide it.
+pub fn continuations_cx(
+    keys: &[(String, Vec<String>)],
+    convention: crate::convention::Convention,
+    flavor: crate::keymap::KeymapFlavor,
+) -> Vec<Continuation> {
+    continuations(PREFIX_CX, keys, convention, flavor)
 }
 
 /// If `chord` is a two-token sequence whose FIRST token canonicalises to `want`
@@ -155,13 +172,22 @@ pub fn force_shown() -> bool {
 mod tests {
     use super::*;
 
+    /// Every EXISTING test in this module drives `continuations`/`continuations_cx`
+    /// under a cell where the seeded layer is structurally inert (`Convention::Mac`),
+    /// so they exercise exactly the pre-seed-round behavior they document — the
+    /// seed-aware behavior gets its OWN tests below (`seeded_cx_continuation_*`).
+    const INERT: (crate::convention::Convention, crate::keymap::KeymapFlavor) = (
+        crate::convention::Convention::Mac,
+        crate::keymap::KeymapFlavor::Native,
+    );
+
     /// The C-x continuations derive from the catalog's EFFECTIVE bindings. Since the
     /// identity round retired every C-x default, the DEFAULT (no-config) list is now
     /// EMPTY — the panel only teaches C-x chords a user has RECLAIMED via `[keys]`.
     #[test]
     fn cx_continuations_are_empty_by_default_and_reflect_reclaimed_chords() {
         assert!(
-            continuations_cx(&[]).is_empty(),
+            continuations_cx(&[], INERT.0, INERT.1).is_empty(),
             "no C-x defaults remain to teach"
         );
         // A user reclaims a few C-x sequences; the panel teaches exactly those.
@@ -170,7 +196,7 @@ mod tests {
             ("switch_theme".to_string(), vec!["C-x t".to_string()]),
             ("new_document".to_string(), vec!["C-x n".to_string()]),
         ];
-        let rows = continuations_cx(&keys);
+        let rows = continuations_cx(&keys, INERT.0, INERT.1);
         let has = |key: &str, name: &str| rows.iter().any(|r| r.key == key && r.name == name);
         assert!(has("C-s", "Save"));
         assert!(has("t", "Switch theme…"));
@@ -183,7 +209,7 @@ mod tests {
     #[test]
     fn non_prefix_bindings_excluded() {
         let keys = vec![("save".to_string(), vec!["C-x C-s".to_string()])];
-        let rows = continuations_cx(&keys);
+        let rows = continuations_cx(&keys, INERT.0, INERT.1);
         assert!(!rows.iter().any(|r| r.name == "Zoom in"));
         assert!(!rows.iter().any(|r| r.name == "Search forward"));
         // Settings… carries Cmd-, (P1) but no C-x continuation — never a row here.
@@ -199,7 +225,7 @@ mod tests {
             ("switch_theme".to_string(), vec!["C-x t".to_string()]),
             ("new_document".to_string(), vec!["C-x n".to_string()]),
         ];
-        let rows = continuations_cx(&keys);
+        let rows = continuations_cx(&keys, INERT.0, INERT.1);
         let ks: Vec<&str> = rows.iter().map(|r| r.key.as_str()).collect();
         let mut sorted = ks.clone();
         sorted.sort();
@@ -216,7 +242,7 @@ mod tests {
     fn config_override_reflected() {
         // Rebind "Switch theme…" from `C-x t` to `C-x g`; the panel should show `g`.
         let keys = vec![("switch_theme".to_string(), vec!["C-x g".to_string()])];
-        let rows = continuations(PREFIX_CX, &keys);
+        let rows = continuations(PREFIX_CX, &keys, INERT.0, INERT.1);
         assert!(
             rows.iter()
                 .any(|r| r.key == "g" && r.name == "Switch theme…")
@@ -232,7 +258,79 @@ mod tests {
     /// An unknown / unparseable prefix yields no rows (never a panic).
     #[test]
     fn bad_prefix_is_empty() {
-        assert!(continuations("C-frobnicate", &[]).is_empty());
+        assert!(continuations("C-frobnicate", &[], INERT.0, INERT.1).is_empty());
+    }
+
+    /// LAW: under Linux `keymap = "emacs"`, the panel teaches the seeded
+    /// classic `C-x` continuations — reading `commands::visible_effective_
+    /// chord_lists`'s seed fallback rather than a config override — even
+    /// with an EMPTY `[keys]` list. This is the requirement the classic-chords
+    /// round called out to verify rather than assume: the panel must read the
+    /// SEEDED map, not just config overrides.
+    #[test]
+    fn seeded_cx_continuations_are_taught_under_linux_emacs_flavor() {
+        use crate::convention::Convention;
+        use crate::keymap::KeymapFlavor;
+        let rows = continuations_cx(&[], Convention::Linux, KeymapFlavor::Emacs);
+        let has = |key: &str, name: &str| rows.iter().any(|r| r.key == key && r.name == name);
+        assert!(
+            has("C-s", "Save"),
+            "seeded C-x C-s must teach Save; rows: {rows:?}"
+        );
+        assert!(
+            has("C-f", "Go to…"),
+            "seeded C-x C-f must teach Go to…; rows: {rows:?}"
+        );
+        assert!(
+            has("k", "Finish file"),
+            "seeded C-x k must teach Finish file; rows: {rows:?}"
+        );
+        assert!(
+            has("h", "Select all"),
+            "seeded C-x h must teach Select all; rows: {rows:?}"
+        );
+    }
+
+    /// LAW: the SAME seeds are silent off the (Linux, Emacs) cell — under
+    /// Native flavor, or on Mac, the panel is back to empty-by-default
+    /// (mirroring `cx_continuations_are_empty_by_default_and_reflect_
+    /// reclaimed_chords`), proving the seed rows above are gated, not
+    /// unconditional.
+    #[test]
+    fn seeded_cx_continuations_are_silent_off_the_seeded_cell() {
+        use crate::convention::Convention;
+        use crate::keymap::KeymapFlavor;
+        for (convention, flavor) in [
+            (Convention::Linux, KeymapFlavor::Native),
+            (Convention::Mac, KeymapFlavor::Emacs),
+            (Convention::Mac, KeymapFlavor::Native),
+        ] {
+            let rows = continuations_cx(&[], convention, flavor);
+            assert!(
+                rows.is_empty(),
+                "{convention:?}/{flavor:?}: expected no C-x continuations, got {rows:?}"
+            );
+        }
+    }
+
+    /// LAW: a `[keys]` override on the SAME seeded action still wins — the
+    /// panel teaches the user's OWN chord, never the superseded seed
+    /// alongside it (no duplicate/stale row).
+    #[test]
+    fn config_override_on_a_seeded_action_suppresses_the_seed_row() {
+        use crate::convention::Convention;
+        use crate::keymap::KeymapFlavor;
+        // Reclaim Save onto a different C-x chord than its own seed.
+        let keys = vec![("save".to_string(), vec!["C-x g".to_string()])];
+        let rows = continuations_cx(&keys, Convention::Linux, KeymapFlavor::Emacs);
+        assert!(
+            rows.iter().any(|r| r.key == "g" && r.name == "Save"),
+            "the override's own chord must teach Save; rows: {rows:?}"
+        );
+        assert!(
+            !rows.iter().any(|r| r.key == "C-s" && r.name == "Save"),
+            "the superseded seed must not ALSO show as a second Save row; rows: {rows:?}"
+        );
     }
 
     /// The force-global round-trips (the `--whichkey` capture door).

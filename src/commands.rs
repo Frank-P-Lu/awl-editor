@@ -622,14 +622,35 @@ pub fn visible_effective_bindings(
 
 /// The EFFECTIVE chord LISTS for [`visible`], parallel to [`visible_names`] — each
 /// command's active chords (a valid config override, else the static native/emacs
-/// slots), UN-joined and un-glyphified (empty slots dropped), narrowed to the
-/// platform-visible set. This is what which-key (`crate::whichkey::continuations`)
-/// derives its prefix rows from, so a hidden command's chord (if it happened to
-/// start with a prefix) never surfaces as a continuation on web.
-pub fn visible_effective_chord_lists(keys: &[(String, Vec<String>)]) -> Vec<Vec<String>> {
+/// slots, PLUS any seeded layer chord targeting this command's action under
+/// `convention`+`flavor` when the command has no `[keys]` override of its own —
+/// an override always wins over a seed at dispatch, so a seed's continuation
+/// would teach a chord that no longer fires once a user has overridden the
+/// command), UN-joined and un-glyphified (empty slots dropped), narrowed to
+/// the platform-visible set. This is what which-key
+/// (`crate::whichkey::continuations`) derives its prefix rows from, so a
+/// hidden command's chord (if it happened to start with a prefix) never
+/// surfaces as a continuation on web, and a seeded `C-x` continuation (Linux
+/// `keymap = "emacs"`'s classic `C-x C-s`/`C-x C-f`/`C-x k`/`C-x h`) reads
+/// from the SAME roster dispatch consumes rather than a second hand-kept list.
+pub fn visible_effective_chord_lists(
+    keys: &[(String, Vec<String>)],
+    convention: Convention,
+    flavor: KeymapFlavor,
+) -> Vec<Vec<String>> {
     visible()
         .iter()
-        .map(|c| effective_chords(c, keys))
+        .map(|c| {
+            let mut chords = effective_chords(c, keys);
+            if !effective_is_override(c, keys) {
+                chords.extend(
+                    crate::keymap::seeded_chords_for(&c.action, convention, flavor)
+                        .into_iter()
+                        .map(str::to_string),
+                );
+            }
+            chords
+        })
         .collect()
 }
 

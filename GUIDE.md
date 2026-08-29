@@ -143,13 +143,26 @@ bring back the whole displaced cluster at once, instead of naming
 chords one at a time — except Copy and Paste, which stay native even
 under this preset (that Omarchy/Hyprland compositor forwards
 Super+C/V as Ctrl+C/V for the system clipboard, and it just works
-with no extra config). Ctrl-X still becomes the Emacs prefix (it
-carries Save/Open); reclaim Cut on Ctrl-X too with `keymap = "emacs"`
-plus `[keys] cut = "C-x"`. The Emacs preset also seeds the classic
-Meta layer on Linux — `M-x` command palette, `M-w` copy, `M-f`/`M-b`
-word motion, `M-d`/`M-Backspace` word delete, `M-v` page up,
-`M-<`/`M->` document ends — inert on Mac, where Option keeps typing
-accented characters.
+with no extra config). Ctrl-X becomes the Emacs prefix; reclaim Cut on
+Ctrl-X too with `keymap = "emacs"` plus `[keys] cut = "C-x"`.
+
+The Emacs preset also seeds the classic chords back on Linux: a Meta
+(Alt) layer — `M-x` command palette, `M-w` copy, `M-f`/`M-b` word
+motion, `M-d`/`M-Backspace` word delete, `M-v` page up, `M-<`/`M->`
+document ends, `M-%` find and replace — and four classic `Ctrl-X`
+continuations — `Ctrl-X Ctrl-S` save, `Ctrl-X Ctrl-F` go to, `Ctrl-X
+K` finish file, `Ctrl-X H` select all. Both layers are inert on Mac,
+where Option keeps typing accented characters. Not every displaced
+letter gets one of these back: Bold (`Ctrl-B`) and Inline code
+(`Ctrl-E`) lose their chord under this preset and stay palette-only by
+design, while Italic keeps working — its letter, `i`, was never
+claimed by an Emacs default in the first place. Separately, the whole
+`Ctrl-C`-prefixed layer (Follow link, Fold section, Collapse other
+sections, Insert Date) never arms on Linux under either preset, since
+`Ctrl-C` always resolves straight to Copy there; those four stay
+palette-only on Linux (Fold section, Collapse other sections, and
+Insert Date each still answer to their own `Ctrl-Shift-<letter>`
+chord, unrelated to the dead `Ctrl-C` one).
 
 **Rebind anything.** `[keys]` in the config maps a command's slugified
 name to a chord, or up to two. Example — restoring the Option-letter

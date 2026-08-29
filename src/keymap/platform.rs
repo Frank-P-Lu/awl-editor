@@ -259,6 +259,31 @@ pub(crate) const LINUX_EMACS_META_SEED: &[(&str, Action)] = &[
     ("M-v", Action::PageScrollUp),
     ("M-<", Action::BufferStart),
     ("M->", Action::BufferEnd),
+    // THE CLASSIC-CHORDS ROUND (user decision) — `M-%` joins this table rather
+    // than `LINUX_EMACS_CLASSIC_SEED` below: it is a single Meta-modified key,
+    // the exact shape every other entry here already is, not a `C-x`
+    // continuation.
+    ("M-%", Action::OpenReplace),
+];
+
+/// THE CLASSIC-CHORDS ROUND (user decision, Linux `keymap = "emacs"` only) —
+/// the classic emacs `C-x` continuations that a Linux hand loses when the
+/// displaced-letter cluster above claims their single-key native equivalents
+/// (Save's Ctrl-S becomes isearch, Finish file's Ctrl-W becomes kill-region,
+/// Select all's Ctrl-A becomes line-start): `C-x C-s` Save, `C-x C-f` Go to
+/// (the classic emacs find-file binding), `C-x k` Finish file (kill-buffer's
+/// own key), `C-x h` Select all (mark-whole-buffer's own key). Same gate as
+/// [`LINUX_EMACS_META_SEED`] (this table is a SECOND entry in
+/// [`active_seed_tables`]'s returned list, not a second gate or a second
+/// consumption loop), same doc precedent: every entry fires an EXISTING
+/// catalog `Action`. The prefix machinery, which-key panel, and `c_x`
+/// override map all already existed for the identity round's now-empty
+/// defaults — this table is data flowing through them, not new machinery.
+pub(crate) const LINUX_EMACS_CLASSIC_SEED: &[(&str, Action)] = &[
+    ("C-x C-s", Action::Save),
+    ("C-x C-f", Action::OpenGoto),
+    ("C-x k", Action::FinishBuffer),
+    ("C-x h", Action::SelectAll),
 ];
 
 /// THE LABEL-TRUTH ROUND — every SEED TABLE active under `convention`+`flavor`,
@@ -276,7 +301,7 @@ pub(crate) fn active_seed_tables(
     flavor: KeymapFlavor,
 ) -> &'static [&'static [(&'static str, Action)]] {
     if convention == Convention::Linux && flavor == KeymapFlavor::Emacs {
-        &[LINUX_EMACS_META_SEED]
+        &[LINUX_EMACS_META_SEED, LINUX_EMACS_CLASSIC_SEED]
     } else {
         &[]
     }
