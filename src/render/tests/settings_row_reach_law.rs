@@ -31,12 +31,15 @@ fn values(zoom: f32) -> crate::settings::SettingsValues {
 /// `overlay::build`'s Settings arm uses (see `range_rail::settings_state`,
 /// this file's sibling for the un-faceted Zoom-row rail tests).
 ///
-/// `detail_focus = true` because landing on a category is only HALF of what a
-/// real `Right` press does: `set_facet_lens` (above) is `rail_move`'s own
-/// mechanism (stepping the RAIL to a category), and entering that category's
-/// ROWS is a second, distinct step — `Journey::toggle_detail`
-/// (`actions/workspace_nav.rs`'s `ForwardChar | Newline | AcceptAlternate`
-/// arm). Left unset, `render/plan/workspace.rs`'s
+/// Landing on a category is only HALF of what a real `Right` press does:
+/// `set_facet_lens` (above) is `rail_move`'s own mechanism (stepping the RAIL
+/// to a category), and entering that category's ROWS is a second, distinct
+/// step owned by the lifecycle, not this card — routed here through
+/// `Journey::toggle_detail` (`workspace_two_column_accessory.rs`'s own
+/// `card_in_content` uses the identical walk) rather than assigned on the
+/// card directly, which a standing law forbids
+/// (`overlay::journey::tests::the_workspace_focus_stage_is_written_only_by_the_lifecycle`).
+/// Left un-entered, `render/plan/workspace.rs`'s
 /// `content_visible() = wide || content_focused` shows the RAIL instead of
 /// the Editor facet's rows on any canvas too narrow to stage both regions at
 /// once — a fixture gap this file's own rows-hoverability sweep exists to
@@ -59,8 +62,9 @@ fn editor_overlay() -> OverlayState {
         .position(|f| f.id == "editor")
         .expect("Settings has an Editor facet");
     ov.set_facet_lens(idx);
-    ov.detail_focus = true;
-    ov
+    let mut journey = crate::overlay::Journey::seeded(Some(ov));
+    journey.toggle_detail();
+    journey.card().expect("the card is up").clone()
 }
 
 /// Fold a Settings overlay into a `ViewState` the way `App::sync_view` does,

@@ -525,16 +525,18 @@ pub(super) const SETTINGS_VIEW_PARKED_WINDOW_ROWS: usize = 12;
 /// instead of the un-reachable faceted-card geometry this fixture used to
 /// default callers into silently.
 ///
-/// `overlay_detail_focus` is likewise derived from `ov.detail_focus`
-/// (`sync_view`'s own `ov.map(|o| o.detail_focus).unwrap_or(false)`) rather
-/// than left at its inert `false` default — load-bearing for the SAME reason
-/// as `overlay_workspace`: `content_visible() = wide || content_focused`
+/// `overlay_detail_focus` is likewise derived from `ov`'s own detail-focus
+/// field (`sync_view`'s own `ov.map(|o| o.detail_focus).unwrap_or(false)`)
+/// rather than left at its inert `false` default — load-bearing for the SAME
+/// reason as `overlay_workspace`: `content_visible() = wide || content_focused`
 /// (`render/plan/workspace.rs`), so on any canvas narrow enough to stage the
 /// workspace's two regions, a card built with this flag unset shows the
 /// RAIL, not the rows, however the caller populated `ov`. A caller
-/// representing a real "entered this category's rows" state sets
-/// `ov.detail_focus = true` itself, the same fact a live `→`/`Enter` off the
-/// rail commits via `Journey::toggle_detail`.
+/// representing a real "entered this category's rows" state reaches that
+/// field the way `Journey::toggle_detail` does — the lifecycle owns writing
+/// it (`overlay::journey::tests::the_workspace_focus_stage_is_written_only_by_the_lifecycle`),
+/// so a fixture builds one through `Journey::seeded` + `toggle_detail` rather
+/// than assigning the card's field directly.
 pub(super) fn settings_overlay_view(
     ov: &crate::overlay::OverlayState,
     overlay_window_rows: usize,
