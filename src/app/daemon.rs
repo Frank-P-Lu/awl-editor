@@ -83,6 +83,19 @@ impl App {
                 return false;
             }
         }
+        // TRUE SCRATCH IS A PLACE, NOT A DOCUMENT: `Buffer::save` bails on it
+        // in developer voice ("no file bound to this buffer"), because it was
+        // never meant to be reached for a path-less, not-fresh buffer — the
+        // finish/close boundary flushes the persistent stash instead, the
+        // exact door the autosave engine's idle/blur/quit triggers already
+        // use, so "saved" means the same thing everywhere scratch appears.
+        if self.document.buffer().path().is_none() && !self.document.buffer().is_unnamed_fresh() {
+            if self.stash_scratch_now() {
+                return true;
+            }
+            self.request_frame();
+            return false;
+        }
         if let Err(error) = self.document.save() {
             self.set_sticky_notice(format!("save failed: {error}"));
             self.request_frame();

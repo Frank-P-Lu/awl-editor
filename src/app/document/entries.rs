@@ -120,6 +120,21 @@ impl DocumentSession {
         Some(self.registry.get(key)?.buffer.text())
     }
 
+    /// What a PARKED entry's own stash flush last saw at the persistent
+    /// scratch path — the parked counterpart of [`Self::scratch_baseline`],
+    /// needed to close a parked true scratch through the same clobber check
+    /// the active arm uses, keyed off the entry that is about to be discarded
+    /// rather than whatever happens to be active.
+    pub(in crate::app) fn parked_scratch_baseline(
+        &self,
+        key: &crate::buffers::BufferKey,
+    ) -> crate::external::Seen {
+        self.registry
+            .get(key)
+            .map(|entry| entry.extra.scratch_baseline)
+            .unwrap_or_default()
+    }
+
     #[cfg(test)]
     pub(in crate::app) fn parked_version(&self, key: &crate::buffers::BufferKey) -> Option<u64> {
         Some(self.registry.get(key)?.buffer.version())
@@ -141,12 +156,11 @@ impl DocumentSession {
     /// WHICH FILE SHOULD BECOME ACTIVE when `closing` is the active entry.
     ///
     /// The working set's own neighbour rule ([`crate::workingset::WorkingSet::close`]
-    /// keeps the reader near the row they closed), narrowed by one hard
-    /// constraint: the successor must have a PATH. The path-less scratch row is
-    /// a real working-set member, but the one file-open door takes a path and no
-    /// scratch-activation door exists anywhere in the tree — so a successor
-    /// search that returned it would hand the caller a slot it cannot activate,
-    /// and the close would strand the reader on the buffer it just closed.
+    /// keeps the reader near the row they closed). The path-less scratch row is
+    /// a real working-set member and a real successor: `unseat_active` moves
+    /// the registry entry by KEY, not through the path-taking file-open door,
+    /// so activating scratch this way needs no path at all (see
+    /// `the_successor_can_activate_the_pathless_scratch_row`).
     ///
     /// Searches FORWARD from the closing slot first, then backward, then gives
     /// up. `None` means "nothing else to show" and is the zero-document bound,
