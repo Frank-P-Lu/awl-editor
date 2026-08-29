@@ -283,6 +283,29 @@ un-reserving one kind. Same lane as the 515/518/520/521/522 working-set
 batch (this is the sixth item on that one surface).
 
 ---
+### 525 — start screen: equal ink + chord hints now; per-world dress later (user decision, 2026-08-29)
+
+Today's start screen draws its two actions in different inks —
+`New document` in `base_content`, `Go to` in `theme::muted()`
+(`render/chrome/start.rs::prepare_start_surface`) — and the muted one
+wears the universal disabled costume ("why are the two buttons
+differently coloured?"). DECIDED: the minimal repair — both actions in
+the SAME full ink, hierarchy carried by order alone, each with its chord
+beside it in the established footer-hint grammar (`↵ New document ·
+⌘O Go to` — quiet chord, full-ink verb) so they read as commands, not
+buttons. Verify the drawn hit rects still match (`start_rows` is the
+shared geometry). Cheap to revert (one function's ink + label shaping):
+land on main per the standing taste policy.
+
+FLAGGED for a later design session, deliberately not scoped here: the
+user wants per-world start screens eventually ("each theme can have a
+starting screen that suits them... stylise it later"). Constraint to
+carry into that session: **no theme may need its own code path** — any
+per-world start expression is authored RenderCaps-style DATA through the
+one start renderer (the backgrounds already prove the pattern), never a
+per-world start module.
+
+---
 ## Needs specific hardware
 
 1. **AT-SPI journey** — on a real Linux desktop with Orca, exercise document
