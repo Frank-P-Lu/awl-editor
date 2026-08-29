@@ -258,6 +258,38 @@ one start renderer (the backgrounds already prove the pattern), never a
 per-world start module.
 
 ---
+### 526 — a concealed thematic break still draws its trailing-whitespace nit tick (user-reported, 2026-08-29)
+
+Typing `--- ` (a rule plus one trailing space) conceals to the rule
+ornament once the caret leaves the line, but the trailing-whitespace nit
+still renders — a stray underscore-looking tick beside the glyph
+("the special glyph thing renders, BUT ... the _ gets rendered"). Root:
+`nit_underlines` (`render/rects/underlines.rs`) has read-time
+suppressions for the caret line, the bullet-glyph mask and off-screen
+rows, but no membership check against the concealed rule-line set; the
+image-conceal advance guard (`rects.rs`,
+`IMAGE_CONCEAL_UNDERLINE_MIN_ADVANCE`) is deliberately gated on
+`line_is_inline_image` — its own doc says it must never suppress the
+ordinary trailing-whitespace tick — so it correctly does not fire here.
+
+Shape: suppress nit underlines on lines in the cached rule-line set,
+caret line excepted — reveal-on-cursor keeps the nit visible while the
+raw `---` text shows, the same semantics as the ornament itself. The
+detector (`nits.rs`) stays a pure per-line function of text; this is a
+third renderer-side scope refinement alongside the two its module doc
+already names. Cheap: `ornament_cache.rule_lines` is already built and
+the filter loop is the seam.
+
+Neighborhood probe (bugs cluster): a concealed TABLE source row with
+trailing whitespace after the final `|` — the wash builder already skips
+table-overlapping spans for the sliver reason, and nits may have the
+same gap; and confirm spell squiggles are structurally unreachable on
+rule lines (no word chars in `---`/`***`/`___`) rather than assuming it.
+Law shape: off-caret `--- ` / `*** ` / `___ ` (and a tab-trailing
+variant) draw the ornament and zero nit protos; the caret-on line draws
+raw text plus the nit; non-vacuity is the current code failing red.
+
+---
 ## Needs specific hardware
 
 1. **AT-SPI journey** — on a real Linux desktop with Orca, exercise document
