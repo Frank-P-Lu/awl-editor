@@ -290,6 +290,64 @@ variant) draw the ornament and zero nit protos; the caret-on line draws
 raw text plus the nit; non-vacuity is the current code failing red.
 
 ---
+### 527 — label truth is one-directional: seeded Meta-layer chords dispatch but are advertised nowhere (user-reported, 2026-08-29)
+
+On Linux under `keymap = "emacs"`, `M-x` opens the command palette
+(`LINUX_EMACS_META_SEED`, dispatch-layer only) — the user confirmed it
+fires — but no label surface shows it: the drawn menu's chord column
+(`commands::menu_native_label`) prints an empty cell (native Ctrl-P is
+correctly suppressed as a kept letter, the emacs slot is empty), the
+palette's own chord join (`join_slots_truthful`) shows nothing, and the
+generated GUIDE keys table can't see it either. "i just dont see it in
+the file tab though.. it didn't show this binding." Every label surface
+reads the two catalog slots; the Meta seed feeds `KeymapState` alone —
+so the codebase's own label-truth rule ("never a chord the resolver
+would not actually dispatch") holds in one direction only, and a chord
+the resolver DOES dispatch goes unadvertised.
+
+Shape: the seed roster becomes readable by the label layer — one owner
+(`LINUX_EMACS_META_SEED` already is the data; labels need a "what seeded
+chords target this action, under this convention/flavor" query off the
+same table dispatch consumes), never a second hand-kept list. Applies
+identically to any future seeded layer (item 528's C-x seeds inherit
+whatever mechanism lands here — sequence 527 first). Law shape: a
+label↔dispatch agreement sweep — for every catalog command, every chord
+any surface advertises resolves to that command's action, AND every
+seeded default chord is advertised on at least one surface — swept over
+convention × flavor, non-vacuous today (M-x fails the second half).
+
+---
+### 528 — Linux emacs flavor: re-seed the classic chords the displaced letters orphan (user decision, 2026-08-29)
+
+Under Linux `keymap = "emacs"`, keeping the displaced letters as their
+emacs meanings leaves common commands with NO chord at all: Save
+(C-s → isearch; the C-x C-s default was retired in the identity round),
+New document (C-n), Finish file (C-w), Select all (C-a), Bold (C-b),
+Inline code (C-e), Find & replace (C-r). DECIDED (user-confirmed
+2026-08-29): seed the classic emacs chords back, **emacs flavor on Linux
+only** — `C-x C-s` Save (the user's explicit ask: "bring it back for
+save... on the emacs binding only"), `C-x C-f` Go to, `C-x k` Finish
+file, `C-x h` Select all, and `M-%` Find & replace joining the Meta
+seed. The prefix machinery, which-key panel and `c_x` override map all
+survived the retirement and sit unused; the retirement itself stays
+intact for the native flavor and for Mac — these are flavor-gated seeds,
+the same gate as `LINUX_EMACS_META_SEED`, never a return of the static
+arms. A `[keys]` override still outranks a seed, same as every default.
+
+Sequenced AFTER 527: the new seeds must be advertised by whatever
+label mechanism 527 lands, and the which-key panel should list the C-x
+continuations (verify it reads the seeded map, not just overrides).
+
+Noted, deliberately not scoped: Bold/Italic/Inline code stay
+palette-only on Linux emacs (their emacs home is the C-c prefix, which
+stays native Copy by the clipboard carve-out); and the whole C-c
+emacs-slot layer (`follow_link` C-c C-o, `fold_section` C-c C-f,
+`collapse_other_sections` C-c C-t, `insert_date` C-c .) is dead on
+Linux under BOTH flavors for the same reason — the lane confirms and
+documents that fact (GUIDE Linux column must not advertise them) but
+any replacement chords are a separate taste session.
+
+---
 ## Needs specific hardware
 
 1. **AT-SPI journey** — on a real Linux desktop with Orca, exercise document
