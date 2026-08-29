@@ -244,6 +244,7 @@ drift into this page silently.
 | Report a Problem |  |  |
 | Download file |  |  |
 | Check for Updates |  |  |
+| Open scratch |  |  |
 | Blockquote |  |  |
 | Bullet list |  |  |
 | Numbered list |  |  |

@@ -724,6 +724,7 @@ fn deferred_effect_matches(action: &Action, effect: &Effect) -> bool {
         Action::Quit => effect == &Effect::Quit,
         Action::LastBuffer => effect == &Effect::Buffer(BufferEffect::Previous),
         Action::NewDocument => effect == &Effect::Buffer(BufferEffect::NewDocument),
+        Action::OpenScratch => effect == &Effect::Buffer(BufferEffect::OpenScratch),
         Action::KeepTutorial => effect == &Effect::RunAction(Action::OpenProject),
         Action::FinishBuffer => {
             effect == &Effect::Persistence(PersistenceEffect::Save(SaveKind::Finish))

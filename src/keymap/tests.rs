@@ -78,6 +78,7 @@ insert_date|Cmd-S-d|C-S-d|C-c .
 report_a_problem|||
 download_file|||
 check_for_updates|||
+open_scratch|||
 blockquote|||
 bullet_list|||
 numbered_list|||

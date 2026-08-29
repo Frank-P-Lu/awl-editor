@@ -640,6 +640,7 @@ macro_rules! classify_delete_flinch {
             | Action::OpenRecentProjects
             | Action::LastBuffer
             | Action::NewDocument
+            | Action::OpenScratch
             | Action::MoveFile
             | Action::OpenRenameNote
             | Action::DuplicateNote
@@ -865,6 +866,7 @@ macro_rules! assert_action_roster {
             | Action::OpenFolder
             | Action::LastBuffer
             | Action::NewDocument
+            | Action::OpenScratch
             | Action::MoveFile
             | Action::OpenRenameNote
             | Action::DuplicateNote
@@ -991,6 +993,7 @@ fn editor_action_roster() -> Vec<Action> {
         Action::OpenBrowse,
         Action::LastBuffer,
         Action::NewDocument,
+        Action::OpenScratch,
         Action::KeepTutorial,
     ]
 }
@@ -1126,7 +1129,7 @@ macro_rules! classify_smoke_command {
         // Deferred effects (the pure core signals; the live App performs).
         Action::Quit
         | Action::LastBuffer
-        | Action::NewDocument | Action::KeepTutorial
+        | Action::NewDocument | Action::OpenScratch | Action::KeepTutorial
         | Action::FinishBuffer
         | Action::ReviewChange
         | Action::ResolveKeepMine
