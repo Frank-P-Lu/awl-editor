@@ -691,7 +691,9 @@ impl TextPipeline {
     /// painted glyph, the reserved zero-width slot, and the concealed source
     /// can never diverge — the `bare_url_marks`/`footnote_marks` precedent,
     /// with a per-mark KIND payload instead of a per-mark NUMBER.
-    pub(super) fn smart_punct_marks(&self) -> Vec<(f32, f32, crate::markdown::SmartPunctKind, f32)> {
+    pub(super) fn smart_punct_marks(
+        &self,
+    ) -> Vec<(f32, f32, crate::markdown::SmartPunctKind, f32)> {
         if !self.md_enabled || !crate::markdown::wysiwyg_on() || self.md_spans.is_empty() {
             return Vec::new();
         }

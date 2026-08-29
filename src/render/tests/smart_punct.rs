@@ -99,10 +99,7 @@ fn wysiwyg_smart_punct_conceals_off_cursor_and_reveals_byte_identical_on() {
         !p.concealed_at(0, dash_byte),
         "caret on the line reveals the literal '--'"
     );
-    let revealed_color = p.buffer.lines[0]
-        .attrs_list()
-        .get_span(dash_byte)
-        .color_opt;
+    let revealed_color = p.buffer.lines[0].attrs_list().get_span(dash_byte).color_opt;
     let plain_color = p.buffer.lines[0].attrs_list().get_span(0).color_opt;
     assert_eq!(
         revealed_color, plain_color,
@@ -221,7 +218,11 @@ fn smart_punct_marks_resolve_each_kind_to_its_own_glyph() {
     let mut v = view(text, 1, 0);
     v.is_markdown = true;
     p.set_view(&v);
-    let kinds: Vec<_> = p.smart_punct_marks().into_iter().map(|(_, _, k, _)| k).collect();
+    let kinds: Vec<_> = p
+        .smart_punct_marks()
+        .into_iter()
+        .map(|(_, _, k, _)| k)
+        .collect();
     assert_eq!(
         kinds,
         vec![

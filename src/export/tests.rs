@@ -1544,13 +1544,13 @@ fn render_export_smart_punct_agree() {
     let cases: &[(&str, &[char])] = &[
         ("a -- b", &[en]),
         ("a --- b", &[em]),
-        ("a ---- b", &[]),          // four dashes: literal ASCII divider
+        ("a ---- b", &[]), // four dashes: literal ASCII divider
         ("wait... really", &[ell]),
         ("two dots.. stay", &[]),
         ("four dots.... stay", &[]),
         ("mix -- and ... together", &[en, ell]),
         ("run with `--release` here", &[]), // inline code: never converts
-        ("```\nawl --keys\n```", &[]),       // fenced block: never converts
+        ("```\nawl --keys\n```", &[]),      // fenced block: never converts
         ("[a -- b](https://example.com)", &[en]), // a link's visible text
         ("# Title -- Sub", &[en]),
         ("> quote -- em", &[en]),
@@ -1576,7 +1576,10 @@ fn render_export_smart_punct_agree() {
 /// dashes UNCHANGED.
 #[test]
 fn export_html_smart_punct_gate() {
-    let html = to_html("double -- dash, triple --- dash, an ellipsis...\n", &NoImages);
+    let html = to_html(
+        "double -- dash, triple --- dash, an ellipsis...\n",
+        &NoImages,
+    );
     let doc = MarkupDoc::html(&html);
     assert!(
         doc.has_text("double \u{2013} dash, triple \u{2014} dash, an ellipsis\u{2026}"),
