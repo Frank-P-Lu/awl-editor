@@ -43,6 +43,38 @@ own history). Judge and repair the oracle, then un-ignore; this parks the
 law's differential non-selected-ink coverage until fixed.
 
 ---
+### 515 — one plate, one meaning: the working-set panel plates the current project AND the active file at once (user-confirmed confusing, 2026-08-29)
+
+Screenshot evidence on Kite: the expanded panel drew TWO purple plates —
+the `notes/` group heading (plated because it is the current project,
+`workingset/panel.rs` Group arm + `gutter_stack.rs::plate_rects`) and the
+`scratch` file row (plated because it is the active buffer,
+`workingset.rs::file_row`). The code itself names these as two different
+questions ("which file" / "which project", `gutter_stack.rs` doc) but
+answers both with the same treatment in the same column, and the gutter
+block's own folder heading ALREADY names the current project directly above
+the rows — so "you are in notes" is stated twice and the double plate reads
+as two selections. User: "it's confusing as heck? like we already have
+'notes' at the top no?"
+
+DECIDED (user-confirmed 2026-08-29): **the plate means the active file,
+and nothing else.** A group heading that is the current project keeps its
+`active_ink` distinction but loses its plate; the project identity is the
+gutter folder heading's job. The lane enumerates every `plate_rects`-family
+consumer rather than patching the one arm the screenshot showed (the module
+doc also names a "bottom identity" plate — same sweep, same one-meaning
+rule judged against it). Cheap to revert (render-side row treatment; no
+state change), so per the standing taste policy: land on main and await
+feedback, revert cost stated in the commit.
+
+Law shape: at most one plated row per frame across the resting stack and
+the expanded panel, and when one exists it is the active FILE row — swept
+across worlds (Wagtail's page-inverse plate arm included), with non-vacuity
+proven by re-plating a heading and watching it go red. Coordination: group-
+row presentation is also touched by 507/512's folder-identity work — same
+surface, keep the label conventions theirs and the plate rule this item's.
+
+---
 ## Needs specific hardware
 
 1. **AT-SPI journey** — on a real Linux desktop with Orca, exercise document
