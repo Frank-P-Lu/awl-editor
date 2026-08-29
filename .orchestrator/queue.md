@@ -75,6 +75,65 @@ row presentation is also touched by 507/512's folder-identity work — same
 surface, keep the label conventions theirs and the plate rule this item's.
 
 ---
+### 516 — closing the scratch shows a developer-register dead-end notice (user-reported, 2026-08-29)
+
+⌘W on the active scratch with unsaved text shows `save failed: no file
+bound to this buffer (scratch)`. Mechanism, verified in code: the close
+gate (`app/daemon.rs::try_save_finished_buffer`, reached from
+`files/close.rs`) calls raw `document.save()`, and a true scratch bails in
+`buffer/save.rs` with an anyhow string written for developers — which
+lands VERBATIM in the sticky notice. Two defects in one cell:
+
+(a) **Voice.** "buffer" is not a user word (user: "'buffer' is too
+technical"), and the parenthetical reads as debug output. `close.rs`'s own
+module doc states the principle this violates: "a notice describing a
+state with no exit is a dead end." The PARKED-scratch arm already answers
+in product voice ("scratch has unsaved text — open it before closing");
+the ACTIVE-scratch arm is the gap. DECIDED: the refusal notice names the
+exit in product voice — the route that already exists is ⌘S, which
+promotes scratch into a real note (`verbs.rs::convert_scratch_and_save`,
+decided behavior). Internal error strings may stay for logs but never
+reach a notice untranslated; sweep the other `save failed: {e}` notice
+sites for the same leak class.
+
+(b) **Flow, flagged not decided:** should ⌘W on a text-bearing scratch
+instead PROMOTE like ⌘S does and then close (one door, "same behavior ⇒
+same code"), rather than refuse? `verbs.rs`'s own USER-FLIPPABLE note says
+either is one function to swap. Refusal-with-route is the conservative
+default (close never silently manufactures a file from scratch text);
+promote-on-close is more seamless. User taste call — ship (a) either way.
+An EMPTY scratch has nothing to lose and should close without ceremony;
+verify what it does today.
+
+Law shape: a `--keys`/`--screenshot-app` journey closing a text-bearing
+scratch asserts the notice names an exit and contains no internal
+register; plus a voice law over the user-facing notice roster (no
+"buffer") at whatever seam the notice strings can be enumerated.
+
+---
+### 517 — Insert table: tables render as grids but nothing creates one (user request, 2026-08-29)
+
+"I think we want a table creation command." On-thesis: the committed
+direction is finishing the live-preview model — "tables as real grids —
+through the markdown formatting commands." Rendering exists
+(`prepare_table_grid`, the table x-ray reveal, docs/markdown.md); creation
+does not: no `InsertTable` action, so a writer must already know raw `|`
+syntax to ever see the grid — exactly the knowledge the formatting
+commands exist to remove (the popover's own law: no raw markdown in
+chrome).
+
+Shape: a catalog Action + palette entry ("Insert table…"), routed like
+every formatting command (keys → Action → apply_transition, drivable by
+`--keys`, visible in the sidecar). Insert a small starter table on its own
+blank lines at the caret — header row, separator, one body row — caret
+landing in the first header cell ready to type. Open UX questions for the
+brief: starter dimensions (fixed 2×2 vs a size prompt — lean fixed +
+grow-by-editing, calmer); whether Tab walks cells inside a table (likely
+its own follow-up item, not this one); popover/context-menu exposure
+(the popover roster is a locked seven — adding there is a separate
+decision, not part of this item).
+
+---
 ## Needs specific hardware
 
 1. **AT-SPI journey** — on a real Linux desktop with Orca, exercise document
