@@ -268,21 +268,27 @@ pub(super) fn drag_indicator_rect(
     Some([x, y + h - thickness_px * 0.5, w, thickness_px])
 }
 
-/// THE PLATED ROWS of a block — at most one PER ROW KIND (a File row and a
-/// Group heading are different questions, "which file" and "which project",
-/// and both can be true in the same drawn window), none at all when there is
-/// no stack.
+/// **515: THE PLATE MEANS THE ACTIVE FILE, AND NOTHING ELSE.** At most ONE
+/// plate per frame, across the resting stack and the expanded panel alike —
+/// never a Group heading, even the current project's own, and never the
+/// single-file identity line's projection.
+///
+/// A heading that IS the current project keeps its distinct ink
+/// ([`stack_spans`] still routes it through
+/// [`theme::selected_row_secondary_ink`]) but draws no fill: the project
+/// identity is stated once, by the gutter's own folder heading above the
+/// block (or, once the panel draws headings itself, by that ink-marked
+/// heading) — plating it too would state "you are in this project" a second
+/// time in the same column the active file's own plate already occupies,
+/// which is the exact double-selection a screenshot once caught (two purple
+/// plates answering two different questions, "which file" and "which
+/// project", read together as two selections).
 ///
 /// Read off the SAME [`GutterLayout::lines`] list the glyphs are laid from and
 /// the SAME planner rows they sit on, so a plate cannot mark a different line
 /// than the one the reader is editing. Adding a line to the block (an affordance
 /// appearing, the project line vanishing) moves the glyphs and the plate through
 /// one shared index rather than two agreeing counts.
-///
-/// Reads the OUTER [`crate::workingset::StackRow::active`] field uniformly —
-/// the one marker [`crate::workingset::WorkingSet::expanded_rows`] now sets
-/// for a Group heading too, not the kind's own nested copy — so a heading and
-/// a file are plated by the same rule rather than two.
 pub(super) fn plate_rects(
     layout: &GutterLayout,
     plan: &crate::render::plan::GutterStackPlan,
@@ -298,23 +304,19 @@ pub(super) fn plate_rects(
                 return None;
             };
             let file = layout.files.get(at)?;
-            if !file.active {
+            if !file.active || !matches!(file.kind, crate::workingset::StackRowKind::File) {
                 return None;
             }
             let rect = *plan.rows.get(row)?;
-            // The shaped FILE line alone ends with the always-present close
-            // run: even while transparent it participates in right alignment,
-            // shifting the visible label left by its width, so a File plate's
-            // measured run includes it (the ink must never start outside its
-            // own fill — fatal in a one-bit world, black on black). A Group
-            // heading never shapes that run (`stack_spans` skips it outright
-            // for any non-File kind), so its own plate is sized from the
-            // label alone.
-            let close_lane = match file.kind {
-                crate::workingset::StackRowKind::File => CLOSE_MARK_TEXT.chars().count(),
-                _ => 0,
-            };
-            let ink_w = (text.chars().count() + close_lane) as f32 * label_char_w;
+            // The shaped line ends with the always-present close run: even
+            // while transparent it participates in right alignment, shifting
+            // the visible label left by its width, so the plate's measured
+            // run includes it (the ink must never start outside its own fill
+            // — fatal in a one-bit world, black on black). Only a File line
+            // ever reaches here (the filter above), so the lane is always
+            // present.
+            let ink_w = (text.chars().count() + CLOSE_MARK_TEXT.chars().count()) as f32
+                * label_char_w;
             Some(plate_rect(rect, ink_w, pad_x))
         })
         .collect()

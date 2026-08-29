@@ -200,12 +200,13 @@ impl WorkingSet {
                     leaf: format!("{}/", crate::project::folder_name(root)),
                     parent: group_parent_label(root, &roots).unwrap_or_default(),
                     // The OUTER field, not just the kind's own copy: this is
-                    // the one `active: bool` marker `plate_rects` and every
-                    // reader outside `stack_spans`' ink match already reads
-                    // for "is this the current row" (`StackRow::file_row`
+                    // the one `active: bool` marker `stack_spans`' ink match
+                    // reads for "is this the current row" (`StackRow::file_row`
                     // sets the same field for a File row) — a heading that
                     // only carried the nested copy read as never current to
-                    // any of them.
+                    // it. `plate_rects` deliberately does NOT read this field
+                    // for a Group row (515's one-meaning rule: the plate is
+                    // the active file's, never the project's own heading).
                     active: *active,
                     kind: StackRowKind::Group { active: *active },
                 },

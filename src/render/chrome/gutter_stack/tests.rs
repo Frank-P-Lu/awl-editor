@@ -275,16 +275,20 @@ fn a_single_file_block_plates_nothing() {
     );
 }
 
-/// **507: A PROJECT HEADING PLATES TOO, INDEPENDENTLY OF ITS OWN ACTIVE
-/// FILE'S PLATE.** `plate_rects`'s law above (`a_plate_marks_the_active_
-/// row_in_every_block_shape`) only ever proved "at most one" because its own
-/// fixture is File rows exclusively — the resting stack's real shape, which
-/// never draws a Group row at all. The EXPANDED panel does, and an active
-/// heading with its own active file both visible in the same window answer
-/// two different questions ("which project", "which file") — a reader
-/// revealed hasn't been told either if only one of the two plates.
+/// **515: AN ACTIVE GROUP HEADING NEVER PLATES, EVEN WITH ITS OWN ACTIVE
+/// FILE VISIBLE IN THE SAME WINDOW.** Superseded 507's law of the same
+/// fixture shape (`an_active_group_heading_and_its_active_file_are_both_
+/// plated`), which asserted the double-plate this item exists to remove:
+/// a screenshot caught the expanded panel drawing two purple plates for one
+/// project — the heading (current project) and the active file (current
+/// document) — reading as two selections when only one answer, "which
+/// file", owns a fill. `plate_rects`'s law above
+/// (`a_plate_marks_the_active_row_in_every_block_shape`) only ever proved
+/// "at most one" because its own fixture is File rows exclusively — the
+/// resting stack's real shape, which never draws a Group row at all; this
+/// sweeps the EXPANDED panel's real shape instead.
 #[test]
-fn an_active_group_heading_and_its_active_file_are_both_plated() {
+fn an_active_group_heading_never_plates_only_its_active_file_does() {
     let files = vec![
         group_row("notes/", true),
         row("welcome.md", "", true),
@@ -302,16 +306,19 @@ fn an_active_group_heading_and_its_active_file_are_both_plated() {
     let plates = plate_rects(&layout, &plan, 6.0, 2.0);
     assert_eq!(
         plates.len(),
-        2,
-        "the active heading and the active file must each plate: {plates:?}"
+        1,
+        "only the active FILE may plate, never its group heading too: {plates:?}"
     );
 }
 
-/// A heading that is NOT the reader's current project draws no plate, even
-/// while sitting beside another (active) project's heading and file —
-/// `StackRow::active`, not "any row in this block", is the source of truth.
+/// A heading that is NOT the reader's current project draws no plate either
+/// — and neither does the active project's own heading, only its active
+/// file — while sitting beside another (inactive) project's heading and file.
+/// `StackRow::active` combined with `StackRowKind::File` is the plate's
+/// whole source of truth; a Group's own `active` field still drives its ink
+/// ([`stack_spans`]) but never its fill.
 #[test]
-fn an_inactive_group_heading_is_never_plated() {
+fn only_the_active_file_ever_plates_never_any_group_heading() {
     let files = vec![
         group_row("archive/", false),
         row("old.md", "", false),
@@ -330,8 +337,8 @@ fn an_inactive_group_heading_is_never_plated() {
     let plates = plate_rects(&layout, &plan, 6.0, 2.0);
     assert_eq!(
         plates.len(),
-        2,
-        "only the active heading + its active file may plate: {plates:?}"
+        1,
+        "only the active file may plate: {plates:?}"
     );
 }
 
