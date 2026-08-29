@@ -369,7 +369,14 @@ and 1x/2x scale. Sample the WHOLE relevant cabinet by range, not a hand-picked
 page of known beauties, and identify every sample by code point, glyph/range
 name, provenance family, and whether it is standard Unicode or PUA. The
 gallery is owed to the user for the taste call; report exact enrolment so a
-missing range cannot make the audit vacuously pretty.
+missing range cannot make the audit vacuously pretty. DELIVERY (user ask,
+2026-08-29): publish the gallery as a Claude Artifact page — the captures
+embedded with their code-point/name/provenance labels — so the user can
+flip through it in a browser rather than opening PNGs by hand. This does
+not touch the no-web-artifacts convention: the glyphs themselves are still
+rendered by awl's real pipeline via headless capture (never an HTML
+re-rendering of the font); the artifact is only the viewing surface for
+the taste review.
 
 Classify the findings by an intended product role, with the present hypotheses
 treated as questions the rendered evidence may overturn:
