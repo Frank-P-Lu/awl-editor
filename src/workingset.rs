@@ -35,6 +35,9 @@ pub use prototype::{prototype_move_from_env, prototype_move_rows};
 mod quiet_parent;
 mod reorder;
 
+mod stackrow;
+pub use stackrow::{StackRow, StackRowKind};
+
 /// One member of the visible working set.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct OpenFile {
@@ -141,41 +144,6 @@ pub fn root_for(path: &Path, active_root: &Path, remembered: Option<&Path>) -> P
         return active_root.to_path_buf();
     }
     path.parent().unwrap_or(&path).to_path_buf()
-}
-
-/// ONE DRAWN ROW of the margin's resting stack, already reduced to the two
-/// pieces of text a row shows and which one of them is the reader's current
-/// file. Deliberately a projection rather than a borrow of [`OpenFile`]: the
-/// renderer never asks the working set a question mid-frame, so a row cannot
-/// answer one thing to the draw and another to the hit-test.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
-pub enum StackRowKind {
-    /// A real open file. This is the only row kind that may show the close mark
-    /// or carry the active-file plate.
-    #[default]
-    File,
-    /// The collapsed view's single generic overflow affordance.
-    More { hidden: usize },
-    /// A project heading in the expanded cross-project panel.
-    Group { active: bool },
-}
-
-/// One projected row in the margin stack.
-#[derive(Clone, Debug, PartialEq, Eq, Default)]
-pub struct StackRow {
-    /// The file name, in the row's normal ink.
-    pub leaf: String,
-    /// The root-relative parent with its trailing separator (`"journal/"`), in
-    /// quieter ink. Empty when the file sits directly under the root.
-    pub parent: String,
-    /// Is this the file the reader is currently editing?
-    pub active: bool,
-    /// Whether this row is a file, the one overflow affordance, or a project
-    /// heading. [`WorkingSet::stack_rows`] (the resting stack) emits `File` and,
-    /// once the active root's group overflows [`RESTING_FILES`], one trailing
-    /// `More`; [`WorkingSet::expanded_rows`] (the transient scrollable panel)
-    /// emits `File` and `Group` heading rows.
-    pub kind: StackRowKind,
 }
 
 /// THE RESTING STACK'S OWN ROW CAP — the number of FILE rows the collapsed

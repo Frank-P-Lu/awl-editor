@@ -351,11 +351,76 @@ fn every_expanded_panel_row_resolves_to_the_file_it_names() {
                         "row {row} is a heading and must name no file"
                     );
                 }
+                crate::workingset::StackRowKind::Overflow { .. } => {
+                    assert_eq!(
+                        app.gutter_stack_row_path(row),
+                        None,
+                        "row {row} is a passive overflow cue and must name no file"
+                    );
+                }
                 crate::workingset::StackRowKind::More { .. } => {
                     unreachable!("the expanded panel draws no More row")
                 }
             }
         }
+    });
+}
+
+/// **A GROUP HEADING'S CLOSE ROUTE CLOSES ONLY ITS OWN ROOT'S FILES** — the
+/// end-to-end proof behind clicking a heading's own close zone. Resolves the
+/// heading row through the exact GPU-free door the pixel hit-test hands off
+/// to ([`App::gutter_stack_row_group_root`]), then folds through
+/// [`App::close_group`], and checks the SIBLING root's files never moved —
+/// the failure this exists to catch is a group-close that reads `root` from
+/// the wrong row, or that closes across the whole working set rather than one
+/// group of it.
+#[test]
+fn a_group_headings_close_route_closes_only_its_own_root_never_a_sibling_groups_files() {
+    let _guard = crate::testlock::serial();
+    let mem = Arc::new(
+        crate::fs::InMemoryFs::new()
+            .with_dir("/ws/notes")
+            .with_dir("/ws/archive")
+            .with_file("/ws/notes/index.md", "index\n")
+            .with_file("/ws/notes/alpha.md", "alpha\n")
+            .with_file("/ws/archive/log.md", "log\n"),
+    );
+    crate::fs::with_fs(mem, || {
+        let mut config = Config::empty();
+        config.workspace = Some(PathBuf::from("/ws"));
+        let mut app = App::new_hermetic(
+            Some(PathBuf::from("/ws/notes/index.md")),
+            PathBuf::from("/ws/notes"),
+            config,
+        );
+        app.load_path(PathBuf::from("/ws/notes/alpha.md"));
+        app.load_path(PathBuf::from("/ws/archive/log.md"));
+        app.document.working_set_mut().expand();
+
+        let rows = app.document.working_set().expanded_rows();
+        let heading_row = rows
+            .iter()
+            .position(|r| r.leaf == "notes/")
+            .expect("the notes group draws its own heading");
+        let root = app
+            .gutter_stack_row_group_root(heading_row)
+            .expect("a heading row names its own root");
+
+        app.close_group(root);
+
+        let remaining: Vec<_> = app
+            .document
+            .working_set()
+            .files()
+            .iter()
+            .filter_map(|f| f.path.clone())
+            .collect();
+        assert_eq!(
+            remaining,
+            vec![PathBuf::from("/ws/archive/log.md")],
+            "closing the notes heading must close every notes file and \
+             leave archive's own file untouched"
+        );
     });
 }
 

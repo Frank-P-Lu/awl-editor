@@ -38,7 +38,7 @@ use spans::*;
 
 mod rowgeom;
 
-mod chrome;
+pub(crate) mod chrome; // workingset/panel.rs reaches its edge-cue arithmetic through this path
 #[cfg(test)]
 pub(crate) use chrome::POPOVER_VPAD;
 pub use chrome::PanelHit;

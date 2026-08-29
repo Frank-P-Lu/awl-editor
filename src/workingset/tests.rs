@@ -533,6 +533,15 @@ fn file_leaves(rows: &[StackRow]) -> Vec<String> {
         .collect()
 }
 
+/// Is the active FILE (never a Group heading — the pinned sticky heading
+/// for the reader's own project also carries `active: true`, which
+/// would false-positive a plain `.any(|r| r.active)` check into reading "the
+/// active file is visible" when only its scrolled-off heading is pinned).
+fn active_file_shown(rows: &[StackRow]) -> bool {
+    rows.iter()
+        .any(|r| r.active && matches!(r.kind, StackRowKind::File))
+}
+
 /// THE GALLERY'S REJECTED CANDIDATE, reproduced inline for the non-vacuity
 /// proof below: a STATELESS window that re-derives itself from nothing but
 /// the active file's index EVERY time, with no memory of where it sat a
@@ -708,7 +717,7 @@ fn expand_opens_scrolled_so_the_active_row_is_visible() {
     assert!(ws.is_expanded());
     let rows = ws.expanded_rows();
     assert!(
-        rows.iter().any(|r| r.active),
+        active_file_shown(&rows),
         "the active row must be inside the panel's own first drawn window: {rows:?}"
     );
     // f9 is the group's last file — the panel's own viewport (EXPANDED_VIEWPORT
@@ -717,7 +726,7 @@ fn expand_opens_scrolled_so_the_active_row_is_visible() {
     // than defaulting to scroll 0.
     let leaf_at_active = rows
         .iter()
-        .find(|r| r.active)
+        .find(|r| r.active && matches!(r.kind, StackRowKind::File))
         .map(|r| r.leaf.as_str())
         .unwrap();
     assert_eq!(leaf_at_active, "f9.md");
@@ -731,17 +740,14 @@ fn scroll_expanded_never_reverts_toward_the_active_row_and_clamps_only_to_bounds
     ten(&mut ws);
     assert!(ws.set_active(0));
     ws.expand();
-    assert!(
-        ws.expanded_rows().iter().any(|r| r.active),
-        "opens revealing f0"
-    );
+    assert!(active_file_shown(&ws.expanded_rows()), "opens revealing f0");
 
     // Scroll far past the end — an oversized delta must clamp to the panel's
     // own max, not error or wrap.
     ws.scroll_expanded(1000);
     let scrolled_rows = ws.expanded_rows();
     assert!(
-        !scrolled_rows.iter().any(|r| r.active),
+        !active_file_shown(&scrolled_rows),
         "f0 must have scrolled OFF screen — nothing pulls it back"
     );
 
@@ -758,7 +764,7 @@ fn scroll_expanded_never_reverts_toward_the_active_row_and_clamps_only_to_bounds
     // it clamps at 0 rather than going negative.
     ws.scroll_expanded(-1000);
     assert!(
-        ws.expanded_rows().iter().any(|r| r.active),
+        active_file_shown(&ws.expanded_rows()),
         "scrolling back past the top bound must land at 0, revealing f0 again"
     );
 }
@@ -774,7 +780,7 @@ fn activating_a_different_file_while_expanded_re_reveals_it() {
     assert!(ws.set_active(0));
     ws.expand();
     ws.scroll_expanded(1000); // scroll f0 away, as the previous law proved
-    assert!(!ws.expanded_rows().iter().any(|r| r.active));
+    assert!(!active_file_shown(&ws.expanded_rows()));
 
     assert!(
         ws.set_active(9),
@@ -785,7 +791,7 @@ fn activating_a_different_file_while_expanded_re_reveals_it() {
         "the panel stays open across the activation"
     );
     assert!(
-        ws.expanded_rows().iter().any(|r| r.active),
+        active_file_shown(&ws.expanded_rows()),
         "the newly active file must be re-revealed, not left behind the stale scroll"
     );
 }
@@ -808,6 +814,186 @@ fn closing_down_to_one_file_collapses_an_open_panel() {
         "the panel must not survive the working set dropping below two files"
     );
     assert!(ws.expanded_rows().is_empty());
+}
+
+/// **518: EVERY VISIBLE FILE ROW'S GROUP IS NAMEABLE FROM THE DRAWN WINDOW
+/// ALONE**, swept across every scroll position over a two-group set deep
+/// enough that a scroll can land mid-group (6 files each — the naive plain
+/// slice opens on a bare File row, with its own heading scrolled off, at
+/// several scroll values this sweep passes through).
+#[test]
+fn every_visible_file_rows_group_heading_is_drawn_in_the_same_window() {
+    let mut ws = WorkingSet::default();
+    for n in ["a0.md", "a1.md", "a2.md", "a3.md", "a4.md", "a5.md"] {
+        opened(&mut ws, n);
+    }
+    let other = PathBuf::from("/proj/archive");
+    for n in ["b0.md", "b1.md", "b2.md", "b3.md", "b4.md", "b5.md"] {
+        let p = other.join(n);
+        ws.open(BufferKey::path(&p), Some(p), other.clone());
+    }
+    ws.expand();
+    let full_len = 14; // 2 headings + 12 files
+    for target in 0..full_len {
+        ws.scroll_expanded(-1000);
+        ws.scroll_expanded(target as isize);
+        let rows = ws.expanded_rows();
+        let headings: Vec<&str> = rows
+            .iter()
+            .filter(|r| matches!(r.kind, StackRowKind::Group { .. }))
+            .map(|r| r.leaf.as_str())
+            .collect();
+        for (i, r) in rows.iter().enumerate() {
+            if !matches!(r.kind, StackRowKind::File) {
+                continue;
+            }
+            let file = ws.expanded_row_open_file(i).unwrap_or_else(|| {
+                panic!("target={target}: drawn File row {i} resolves to no file")
+            });
+            let want = format!("{}/", crate::project::folder_name(&file.root));
+            assert!(
+                headings.contains(&want.as_str()),
+                "target={target} row={i}: {} is drawn with no heading for its own \
+                 group {want}, only {headings:?}",
+                file.leaf()
+            );
+        }
+    }
+}
+
+/// EVERY DRAWN HEADING NAMES ITS OWN GROUP'S REAL ROOT, real or pinned sticky
+/// alike — the read side of a heading's own close route: a click there
+/// resolves through this method, so a wrong answer would close the wrong
+/// project's files. Swept over every scroll position of a two-root set larger
+/// than the viewport, so a pinned STICKY heading is exercised as often as a
+/// real one, and every non-heading row is checked to name no root at all.
+#[test]
+fn expanded_row_group_root_names_the_drawn_headings_own_root_at_every_scroll_position() {
+    let mut ws = WorkingSet::default();
+    for n in ["a0.md", "a1.md", "a2.md", "a3.md", "a4.md", "a5.md"] {
+        opened(&mut ws, n);
+    }
+    let other = PathBuf::from("/proj/archive");
+    for n in ["b0.md", "b1.md", "b2.md", "b3.md", "b4.md", "b5.md"] {
+        let p = other.join(n);
+        ws.open(BufferKey::path(&p), Some(p), other.clone());
+    }
+    ws.expand();
+    let full_len = 14; // 2 headings + 12 files
+    for target in 0..full_len {
+        ws.scroll_expanded(-1000);
+        ws.scroll_expanded(target as isize);
+        let rows = ws.expanded_rows();
+        for (i, r) in rows.iter().enumerate() {
+            match r.kind {
+                StackRowKind::Group { .. } => {
+                    let got = ws.expanded_row_group_root(i).unwrap_or_else(|| {
+                        panic!("target={target} row={i}: a drawn heading names no root")
+                    });
+                    let want = format!("{}/", crate::project::folder_name(&got));
+                    assert_eq!(
+                        want, r.leaf,
+                        "target={target} row={i}: the resolved root's own folder name \
+                         disagrees with the heading's own drawn label"
+                    );
+                }
+                StackRowKind::File | StackRowKind::Overflow { .. } => {
+                    assert_eq!(
+                        ws.expanded_row_group_root(i),
+                        None,
+                        "target={target} row={i}: a {:?} row must name no group root",
+                        r.kind
+                    );
+                }
+                StackRowKind::More { .. } => {
+                    unreachable!("the expanded panel draws no More row")
+                }
+            }
+        }
+    }
+}
+
+/// **520: THE OVERFLOW CUE'S PRESENCE AND COUNT ARE EXACT AT BOTH EDGES**,
+/// swept over every scroll position across a set larger than the viewport.
+/// `↑ N more` is present exactly when a FILE precedes the window; `↓ N more`
+/// exactly when a FILE remains after it; `N` is always a FILE count (a
+/// project heading is not an item) — asserted as a conservation law: hidden
+/// above + shown + hidden below always equals every open file, at every
+/// scroll position, never just the two edges a hand-picked sweep would check.
+#[test]
+fn overflow_cues_are_present_and_exact_at_every_scroll_position() {
+    let mut ws = WorkingSet::default();
+    ten(&mut ws);
+    ws.expand();
+    for target in 0..=11 {
+        ws.scroll_expanded(-1000);
+        ws.scroll_expanded(target as isize);
+        let rows = ws.expanded_rows();
+        assert!(
+            rows.len() <= panel::EXPANDED_VIEWPORT,
+            "target={target}: drawn {} rows exceeds the viewport",
+            rows.len()
+        );
+        let shown = file_leaves(&rows).len();
+        let top = rows.iter().find_map(|r| match r.kind {
+            StackRowKind::Overflow { up: true, hidden } => Some(hidden),
+            _ => None,
+        });
+        let bottom = rows.iter().find_map(|r| match r.kind {
+            StackRowKind::Overflow { up: false, hidden } => Some(hidden),
+            _ => None,
+        });
+        assert_eq!(
+            top.unwrap_or(0) + shown + bottom.unwrap_or(0),
+            ws.len(),
+            "target={target}: hidden-above ({top:?}) + shown ({shown}) + \
+             hidden-below ({bottom:?}) must equal every open file ({}): {rows:?}",
+            ws.len()
+        );
+        // Presence law, stated the other way: no scroll at 0 ever shows a
+        // top cue (nothing precedes it), and no window that reaches the
+        // group's own last file ever shows a bottom cue.
+        if target == 0 {
+            assert_eq!(top, None, "target=0 must show no `↑ N more` cue");
+        }
+    }
+    // The panel's OWN max scroll (reached via a saturating over-scroll) must
+    // show no bottom cue — the window has reached the tail, matching the
+    // non-vacuity fixture `reveal_and_max_scroll_still_reach_the_groups_own_last_file`
+    // proves f9 is inside.
+    ws.scroll_expanded(1000);
+    let at_max = ws.expanded_rows();
+    assert!(
+        !at_max
+            .iter()
+            .any(|r| matches!(r.kind, StackRowKind::Overflow { up: false, .. })),
+        "the panel's own max scroll must show no `↓ N more` cue: {at_max:?}"
+    );
+}
+
+/// **518: THE SAME LAW, PROVEN AT THE TAIL OF A SINGLE GROUP** — non-vacuity
+/// for the reveal/max-scroll arithmetic rather than the sticky heading
+/// itself: ten files under ONE root, `EXPANDED_VIEWPORT = 8`, so the old
+/// `full.len() - EXPANDED_VIEWPORT` bound clamped scroll at 3, and a
+/// sticky-widened window opened there shows files 2..8 — never reaching
+/// file 9. The reveal must still land the LAST file inside the window.
+#[test]
+fn reveal_and_max_scroll_still_reach_the_groups_own_last_file() {
+    let mut ws = WorkingSet::default();
+    ten(&mut ws);
+    assert!(ws.set_active(9), "the last-opened file is deep in the list");
+    ws.expand();
+    let leaf_at_active = ws
+        .expanded_rows()
+        .iter()
+        .find(|r| r.active && matches!(r.kind, StackRowKind::File))
+        .map(|r| r.leaf.clone());
+    assert_eq!(
+        leaf_at_active.as_deref(),
+        Some("f9.md"),
+        "the reveal must still land on the group's own last file once a \
+         sticky heading can narrow the window"
+    );
 }
 
 /// **ROW→FILE RESOLUTION AGREES WITH THE DRAWN ROW**, in the expanded panel's
@@ -841,6 +1027,12 @@ fn expanded_row_open_file_resolves_the_exact_row_expanded_rows_draws() {
                 assert!(
                     ws.expanded_row_open_file(row).is_none(),
                     "row {row} is a heading and must name no file"
+                );
+            }
+            StackRowKind::Overflow { .. } => {
+                assert!(
+                    ws.expanded_row_open_file(row).is_none(),
+                    "row {row} is a passive overflow cue and must name no file"
                 );
             }
             StackRowKind::More { .. } => unreachable!("the expanded panel draws no More row"),
@@ -1246,6 +1438,81 @@ fn reorder_target_in_the_expanded_panel_clamps_into_the_source_block() {
             ws.reorder_target(&other, row),
             want,
             "origin=archive row={row}"
+        );
+    }
+}
+
+/// **518: `reorder_target` RESOLVES A DRAWN ROW THROUGH THE SAME STICKY
+/// WINDOW `expanded_rows` DRAWS**, not a plain `scroll + row` offset — the
+/// regression the sticky heading would otherwise cause: once a pinned
+/// heading occupies row 0, every content row after it sits ONE PAST where a
+/// raw offset would place it, and a reorder computed the old way would drop
+/// every drag in a scrolled, sticky-widened window one file short of where
+/// the pointer actually is.
+#[test]
+fn reorder_target_resolves_through_the_sticky_window_not_a_raw_offset() {
+    let mut ws = WorkingSet::default();
+    for n in ["a0.md", "a1.md", "a2.md", "a3.md", "a4.md", "a5.md"] {
+        opened(&mut ws, n);
+    }
+    let other = PathBuf::from("/proj/archive");
+    for n in ["b0.md", "b1.md", "b2.md", "b3.md", "b4.md", "b5.md"] {
+        let p = other.join(n);
+        ws.open(BufferKey::path(&p), Some(p), other.clone());
+    }
+    ws.expand();
+    ws.scroll_expanded(-1000); // reset to 0 regardless of where the reveal opened
+    ws.scroll_expanded(1); // full[1] (a0) is a bare File, so row 0 of the
+    // drawn window is now the STICKY pinned `notes/` heading, not
+    // `expanded_full[1]` — the exact shift a raw `scroll + row` would miss.
+    // scroll=1 (rather than 2) keeps the `↑ N more` cue OUT of this fixture
+    // (no FILE precedes it, only the heading itself), so the sticky mapping
+    // is exercised in isolation from the top cue.
+    let rows = ws.expanded_rows();
+    assert_eq!(
+        rows.iter().map(|r| r.leaf.clone()).collect::<Vec<_>>(),
+        vec![
+            "notes/",
+            "a0.md",
+            "a1.md",
+            "a2.md",
+            "a3.md",
+            "a4.md",
+            "a5.md",
+            "↓ 6 more",
+        ],
+        "precondition: row 0 is the pinned sticky heading, row 7 the overflow cue"
+    );
+
+    let expected_for_notes = [
+        0, // row 0: the pinned notes/ heading -> top of its own group
+        0, // row 1: a0 -> its own slot
+        1, // row 2: a1
+        2, // row 3: a2
+        3, // row 4: a3
+        4, // row 5: a4
+        5, // row 6: a5 (last)
+        // row 7 is the passive `↓ N more` cue — never a real drag target
+        // (the hit-test filters it out before a caller ever sees a row for
+        // it, same as a Group heading), so this is the documented "past the
+        // drawn window" fallback: clamps to the bottom of notes' own group,
+        // same answer a row past the block's end always gets.
+        5,
+    ];
+    for (row, &want) in expected_for_notes.iter().enumerate() {
+        assert_eq!(
+            ws.reorder_target(&root(), row),
+            want,
+            "origin=notes row={row} (sticky window)"
+        );
+    }
+
+    let expected_for_archive = [0, 0, 0, 0, 0, 0, 0, 5];
+    for (row, &want) in expected_for_archive.iter().enumerate() {
+        assert_eq!(
+            ws.reorder_target(&other, row),
+            want,
+            "origin=archive row={row} (sticky window)"
         );
     }
 }

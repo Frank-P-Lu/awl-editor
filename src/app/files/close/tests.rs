@@ -601,6 +601,66 @@ fn a_conflicted_inactive_entry_is_refused_and_nothing_is_lost() {
     assert_eq!(s.open_files(), vec![s.a(), s.b()]);
 }
 
+/// CLOSING A GROUP HEADING CLOSES EVERY CLEAN FILE UNDER ITS ROOT — folded
+/// through the exact same per-file gate a row's own close zone uses, one call
+/// at a time, never a second bulk-discard path.
+#[test]
+fn closing_a_group_closes_every_clean_file_under_its_root() {
+    let _guard = crate::testlock::serial();
+    let mut s = Session::new("group-close-clean");
+
+    s.app.close_group(crate::buffers::normalize_path(&s.dir));
+
+    assert_eq!(
+        s.open_files(),
+        Vec::<PathBuf>::new(),
+        "both of the group's files closed"
+    );
+    assert_eq!(s.app.document.working_set().len(), 0);
+    assert!(!s.app.document.has_active());
+}
+
+/// CLOSING A GROUP STOPS AT THE FIRST REFUSAL, NOT PAST IT.
+///
+/// The non-vacuous half of the law above: a fold that simply skipped a
+/// refused entry and kept going would pass a test that only ever checked "did
+/// everything closable close" — this fixture puts a REFUSABLE file in the
+/// MIDDLE of the group's stable order and asserts the file AFTER it, which is
+/// perfectly closable on its own, is left untouched too.
+#[test]
+fn closing_a_group_stops_at_the_first_refusal_and_leaves_the_rest_open() {
+    let _guard = crate::testlock::serial();
+    let mut s = Session::without_autosave("group-close-partial");
+    // Dirty B while it is still active, THEN park it by loading C — a clean
+    // parked entry that merely moved on disk is not a conflict worth losing
+    // anything over (`close_parked` only ever consults the disk once there is
+    // unsaved text of the reader's own at stake).
+    s.app.document.set_text("beta\nunsaved edit\n");
+    std::fs::write(s.dir.join("c.txt"), "gamma\n").unwrap();
+    s.app.load_path(s.dir.join("c.txt"));
+    assert_eq!(
+        s.open_files(),
+        vec![s.a(), s.b(), s.dir.join("c.txt")],
+        "precondition: stable order is a, b, c"
+    );
+    // SOMEONE ELSE writes B while it is parked, dirty and unsaved — the
+    // middle entry refuses.
+    std::fs::write(s.b(), "beta\ntheir version\n").unwrap();
+
+    s.app.close_group(crate::buffers::normalize_path(&s.dir));
+
+    assert_eq!(
+        s.open_files(),
+        vec![s.b(), s.dir.join("c.txt")],
+        "a closed before the refusal; b and c both stayed open after it"
+    );
+    let notice = s.app.frame.notice().owned().unwrap_or_default();
+    assert!(
+        notice.contains("b.txt") && notice.contains("open it to resolve"),
+        "the notice names the file that stopped the fold, got {notice:?}"
+    );
+}
+
 /// A PATH-LESS SCRATCH IS A REAL SUCCESSOR.
 ///
 /// The activation key, rather than a path, is the identity carried across the

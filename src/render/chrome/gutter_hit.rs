@@ -29,10 +29,11 @@ pub struct GutterStackHit {
     /// The row's own [`crate::workingset::StackRowKind`] — the pointer route's
     /// answer to "what kind of row is this", read off the SAME drawn
     /// [`StackRow`](crate::workingset::StackRow) `row` indexes rather than
-    /// re-derived. A `More`/`Group` row never carries a close mark
-    /// ([`super::gutter_stack::stack_spans`]'s own gate), so a caller must
-    /// branch on this BEFORE trusting [`Self::is_close`] — `intent` is purely
-    /// geometric and does not know a close lane was never reserved there.
+    /// re-derived. A `More` row never carries a close mark
+    /// ([`super::gutter_stack::stack_spans`]'s own gate); a `Group` heading's
+    /// own mark closes its whole group rather than itself. Either way a
+    /// caller branches on `kind` BEFORE trusting [`Self::is_close`] — `intent`
+    /// is purely geometric and does not know what a close means for this row.
     pub kind: crate::workingset::StackRowKind,
     pub intent: RowIntent,
 }
@@ -47,15 +48,23 @@ pub(super) fn stack_hit_from_plan(
     py: f32,
 ) -> Option<GutterStackHit> {
     let line = plan.hit_row(px, py)?;
+    let band = *plan.rows.get(line)?;
+    let intent = gutter_stack::row_intent(band, px);
     let (row, kind) = match layout.lines().get(line)?.1 {
         GutterLine::File(row) => {
             let kind = layout.files.get(row)?.kind;
-            // A project HEADING draws in this same slot list once the panel is
-            // expanded, but it names no file and carries no action of its own
-            // (the design boundary: mark the active group, never make the
-            // heading itself a target) — inert here exactly as it always was.
-            if matches!(kind, crate::workingset::StackRowKind::Group { .. }) {
-                return None;
+            match kind {
+                // A project HEADING carries no switch target of its own (the
+                // design boundary: mark the active group, never make the
+                // heading itself a target) — a press elsewhere on it stays
+                // click-away, exactly as it always was. Its own close zone is
+                // the one exception: closing a heading closes its whole group,
+                // so it enrols for that intent alone.
+                crate::workingset::StackRowKind::Group { .. } if intent == RowIntent::Close => {}
+                crate::workingset::StackRowKind::Group { .. } => return None,
+                // A passive scroll-position cue is inert in both halves.
+                crate::workingset::StackRowKind::Overflow { .. } => return None,
+                _ => {}
             }
             (row, kind)
         }
@@ -66,11 +75,7 @@ pub(super) fn stack_hit_from_plan(
         GutterLine::Name => (0, crate::workingset::StackRowKind::File),
         GutterLine::Project | GutterLine::Changed => return None,
     };
-    Some(GutterStackHit {
-        row,
-        kind,
-        intent: gutter_stack::row_intent(*plan.rows.get(line)?, px),
-    })
+    Some(GutterStackHit { row, kind, intent })
 }
 
 impl GutterStackHit {

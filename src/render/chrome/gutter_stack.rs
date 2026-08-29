@@ -43,13 +43,15 @@ pub(super) const PLATE_CORNER_PX: Physical = Physical(2.5);
 /// empty margin on a short name and over the text on a long one.
 pub(super) const CLOSE_ZONE_ROWS: Rows = Rows(1.0);
 
-/// The pre-shaped close lane. File labels reserve this exact run before fitting
-/// even while it is transparent; otherwise a full-budget nested label wraps the
-/// mark onto a second visual line and shifts every later glyph away from the
-/// planner row (including the active plate). `pub(super)` because the
-/// single-file identity line ([`super::gutter`]) reserves and draws the exact
-/// same lane through the exact same text, rather than a second close mark of
-/// its own.
+/// The pre-shaped close lane. EVERY row of the stack reserves this exact run
+/// before fitting, even a `More`/`Overflow` row that can never reveal it and
+/// even while it is transparent; otherwise a full-budget nested label wraps
+/// the mark onto a second visual line and shifts every later glyph away from
+/// the planner row (including the active plate) — and an un-reserved row
+/// kind would dent the stack's own right edge wherever it sat. `pub(super)`
+/// because the single-file identity line ([`super::gutter`]) reserves and
+/// draws the exact same lane through the exact same text, rather than a
+/// second close mark of its own.
 pub(super) const CLOSE_MARK_TEXT: &str = "  ×";
 
 /// WHAT A POINTER AT `px` OVER A ROW IS AIMING AT.
@@ -114,11 +116,13 @@ pub(super) struct StackLine {
 pub(super) fn fit_rows(rows: &[crate::workingset::StackRow], budget: usize) -> Vec<StackLine> {
     rows.iter()
         .map(|row| {
-            let label_budget = if matches!(row.kind, crate::workingset::StackRowKind::File) {
-                budget.saturating_sub(CLOSE_MARK_TEXT.chars().count())
-            } else {
-                budget
-            };
+            // UNIFORM ACROSS EVERY ROW KIND — a `More`/`Overflow` row can
+            // never reveal the mark (`stack_hit_from_plan` never enrols
+            // either as a target, so `stack_spans` never lights their run),
+            // but it still reserves the same trailing lane every other row
+            // does: the stack's own right edge is one x for every row, never
+            // one that dents wherever a mark happens to be revealable.
+            let label_budget = budget.saturating_sub(CLOSE_MARK_TEXT.chars().count());
             let leaf = rowlayout::fit_primary(&row.leaf, label_budget);
             let left = label_budget.saturating_sub(leaf.chars().count());
             let parent = if row.parent.is_empty() {
@@ -186,14 +190,16 @@ pub(super) fn stack_spans(
             out.push((format!("{lead}{parent}"), faint));
             out.push((leaf.to_string(), name_ink));
         }
-        if !matches!(line.kind, crate::workingset::StackRowKind::File) {
-            continue;
-        }
-        // The mark's text is ALWAYS shaped for a working-set row, even when its
-        // alpha is zero. That invisible run reserves the trailing close lane:
-        // revealing the × changes only ink, never the label's advances. A
-        // single-file identity never enters this function with a row, so it
-        // keeps its original bytes and geometry.
+        // The mark's text is ALWAYS shaped for EVERY row kind, even when its
+        // alpha is zero — the trailing close lane is reserved uniformly
+        // (`fit_rows`), so the shaped run must be too, or the reservation and
+        // the ink it is reserved for would drift apart. Revealing the × only
+        // ever changes ink, never the label's advances. A single-file
+        // identity never enters this function with a row, so it keeps its
+        // original bytes and geometry. `hover` can only ever name a `File` or
+        // `Group` row (`stack_hit_from_plan`'s own enrolment), so a `More` or
+        // `Overflow` row's mark is shaped but permanently transparent — it
+        // reserves the lane without ever being able to reveal it.
         let shown = hover.filter(|hit| hit.row == row).map(|_| {
             if line.active {
                 theme::selected_row_secondary_ink(theme::surface_selected()).to_glyphon()
@@ -268,21 +274,27 @@ pub(super) fn drag_indicator_rect(
     Some([x, y + h - thickness_px * 0.5, w, thickness_px])
 }
 
-/// THE PLATED ROWS of a block — at most one PER ROW KIND (a File row and a
-/// Group heading are different questions, "which file" and "which project",
-/// and both can be true in the same drawn window), none at all when there is
-/// no stack.
+/// **515: THE PLATE MEANS THE ACTIVE FILE, AND NOTHING ELSE.** At most ONE
+/// plate per frame, across the resting stack and the expanded panel alike —
+/// never a Group heading, even the current project's own, and never the
+/// single-file identity line's projection.
+///
+/// A heading that IS the current project keeps its distinct ink
+/// ([`stack_spans`] still routes it through
+/// [`theme::selected_row_secondary_ink`]) but draws no fill: the project
+/// identity is stated once, by the gutter's own folder heading above the
+/// block (or, once the panel draws headings itself, by that ink-marked
+/// heading) — plating it too would state "you are in this project" a second
+/// time in the same column the active file's own plate already occupies,
+/// which is the exact double-selection a screenshot once caught (two purple
+/// plates answering two different questions, "which file" and "which
+/// project", read together as two selections).
 ///
 /// Read off the SAME [`GutterLayout::lines`] list the glyphs are laid from and
 /// the SAME planner rows they sit on, so a plate cannot mark a different line
 /// than the one the reader is editing. Adding a line to the block (an affordance
 /// appearing, the project line vanishing) moves the glyphs and the plate through
 /// one shared index rather than two agreeing counts.
-///
-/// Reads the OUTER [`crate::workingset::StackRow::active`] field uniformly —
-/// the one marker [`crate::workingset::WorkingSet::expanded_rows`] now sets
-/// for a Group heading too, not the kind's own nested copy — so a heading and
-/// a file are plated by the same rule rather than two.
 pub(super) fn plate_rects(
     layout: &GutterLayout,
     plan: &crate::render::plan::GutterStackPlan,
@@ -298,23 +310,19 @@ pub(super) fn plate_rects(
                 return None;
             };
             let file = layout.files.get(at)?;
-            if !file.active {
+            if !file.active || !matches!(file.kind, crate::workingset::StackRowKind::File) {
                 return None;
             }
             let rect = *plan.rows.get(row)?;
-            // The shaped FILE line alone ends with the always-present close
-            // run: even while transparent it participates in right alignment,
-            // shifting the visible label left by its width, so a File plate's
-            // measured run includes it (the ink must never start outside its
-            // own fill — fatal in a one-bit world, black on black). A Group
-            // heading never shapes that run (`stack_spans` skips it outright
-            // for any non-File kind), so its own plate is sized from the
-            // label alone.
-            let close_lane = match file.kind {
-                crate::workingset::StackRowKind::File => CLOSE_MARK_TEXT.chars().count(),
-                _ => 0,
-            };
-            let ink_w = (text.chars().count() + close_lane) as f32 * label_char_w;
+            // The shaped line ends with the always-present close run: even
+            // while transparent it participates in right alignment, shifting
+            // the visible label left by its width, so the plate's measured
+            // run includes it (the ink must never start outside its own fill
+            // — fatal in a one-bit world, black on black). Only a File line
+            // ever reaches here (the filter above), so the lane is always
+            // present.
+            let ink_w =
+                (text.chars().count() + CLOSE_MARK_TEXT.chars().count()) as f32 * label_char_w;
             Some(plate_rect(rect, ink_w, pad_x))
         })
         .collect()

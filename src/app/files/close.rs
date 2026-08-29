@@ -43,7 +43,7 @@
 
 use super::{SCRATCH_CHANGED_NOTICE, WritePermission};
 use crate::app::*;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// Whether a close actually happened. `Refused` is a first-class outcome, not
 /// an error: refusing to discard unsaved or conflicted text is the guarantee
@@ -127,6 +127,35 @@ impl App {
             self.close_active_now()
         } else {
             self.close_parked(key)
+        }
+    }
+
+    /// **CLOSE EVERY FILE UNDER `root`** — the expanded panel's own heading
+    /// close zone, folding one call to [`Self::close_buffer`] per file rather
+    /// than inventing a second, bulk-discard removal path. Snapshots the
+    /// group's keys before closing any of them: a close can activate a
+    /// successor, and a successor's own root may reorder or shrink
+    /// [`crate::workingset::WorkingSet::group`]'s live indices out from under
+    /// a loop that re-read them mid-fold.
+    ///
+    /// Stops at the FIRST refusal — [`Self::close_buffer`] has already left
+    /// its own notice naming that file and the way out — rather than skipping
+    /// past it to close the rest: a heading whose group half-closes while a
+    /// hidden middle file silently survives is a worse surprise than a
+    /// heading that stops.
+    pub(in crate::app) fn close_group(&mut self, root: PathBuf) {
+        let keys: Vec<crate::buffers::BufferKey> = self
+            .document
+            .working_set()
+            .group(&root)
+            .iter()
+            .filter_map(|&at| self.document.working_set().files().get(at))
+            .map(|file| file.key.clone())
+            .collect();
+        for key in keys {
+            if self.close_buffer(key) != CloseOutcome::Closed {
+                break;
+            }
         }
     }
 

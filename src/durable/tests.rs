@@ -273,7 +273,9 @@ fn no_bare_durable_write_bypasses_write_atomic_outside_the_accounted_for_sites()
         // anything to detect.
         // Real-disk removal fixtures write behind the App to create clean
         // rewrites and true conflicts; these are disposable ScratchDir inputs.
-        ("app/files/close/tests.rs", 15),
+        // Two more seed a group-close fixture's third file and its own
+        // external rewrite — same class, same reason.
+        ("app/files/close/tests.rs", 17),
         // The registry's own laws, carved out of `buffers.rs` into a
         // sibling to keep that file under its frozen size baseline. Same
         // single temp-dir fixture seed it always was, one directory down.

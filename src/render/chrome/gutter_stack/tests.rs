@@ -111,15 +111,83 @@ fn file_rows_reserve_the_close_lane_inside_their_one_line_budget() {
         );
     }
 
-    // Prototype-only non-file rows carry no close lane, so their copy keeps the
-    // whole budget rather than paying for an affordance they can never reveal.
+    // The `More` row can never reveal the mark (`stack_hit_from_plan` filters
+    // it out of the hit-test the same way it filters `Overflow`), but it
+    // still reserves the SAME lane every other row does — a uniform right
+    // edge, not one that only dents where the mark happens to be revealable.
     let more = crate::workingset::StackRow {
         leaf: "+ 12 more…".to_string(),
         kind: crate::workingset::StackRowKind::More { hidden: 12 },
         ..crate::workingset::StackRow::default()
     };
     let fitted = fit_rows(&[more], 8);
-    assert_eq!(fitted[0].text.chars().count(), 8);
+    assert_eq!(
+        fitted[0].text.chars().count(),
+        8 - super::CLOSE_MARK_TEXT.chars().count(),
+        "a More row must reserve the same close lane a File row does"
+    );
+}
+
+/// A GROUP HEADING RESERVES THE SAME CLOSE LANE A FILE ROW DOES — its own
+/// mark closes the whole group, so a long project name must not be allowed to
+/// wrap that run onto a second visual line the way an un-reserved file label
+/// once did.
+#[test]
+fn group_headings_reserve_the_close_lane_inside_their_one_line_budget() {
+    for budget in crate::render::rowlayout::GUTTER_MIN_NAME_CHARS..40 {
+        let fitted = fit_rows(&[group_row("a-long-nested-project-folder/", true)], budget);
+        let occupied = fitted[0].text.chars().count() + super::CLOSE_MARK_TEXT.chars().count();
+        assert!(
+            occupied <= budget,
+            "budget={budget}: heading + stable close lane occupies {occupied} characters"
+        );
+    }
+}
+
+/// **THE CLOSE LANE IS RESERVED IDENTICALLY ACROSS EVERY ROW KIND** — not
+/// sampled per kind (a `File` law and a `Group` law and a `More` law that
+/// each happen to pass on their own can still each reserve a DIFFERENT
+/// amount), but proved as one shared budget: the SAME leaf text, fit at the
+/// SAME overall budget, occupies the exact same width no matter which kind
+/// carries it. Swept over the whole `StackRowKind` roster and the budget
+/// range, so a kind added later that forgets the reservation — or a kind
+/// that reserves a different amount — fails this law rather than silently
+/// denting the stack's own right edge wherever that kind happens to sit.
+#[test]
+fn the_close_lane_is_reserved_identically_across_every_row_kind() {
+    let leaf = "a-name-long-enough-to-fill-most-of-the-budget.md";
+    let kinds = [
+        crate::workingset::StackRowKind::File,
+        crate::workingset::StackRowKind::More { hidden: 3 },
+        crate::workingset::StackRowKind::Group { active: false },
+        crate::workingset::StackRowKind::Overflow {
+            up: true,
+            hidden: 3,
+        },
+    ];
+    for budget in crate::render::rowlayout::GUTTER_MIN_NAME_CHARS..40 {
+        let widths: Vec<(crate::workingset::StackRowKind, usize)> = kinds
+            .iter()
+            .map(|&kind| {
+                let row = crate::workingset::StackRow {
+                    leaf: leaf.to_string(),
+                    kind,
+                    ..crate::workingset::StackRow::default()
+                };
+                let fitted = fit_rows(std::slice::from_ref(&row), budget);
+                (kind, fitted[0].text.chars().count())
+            })
+            .collect();
+        let want = widths[0].1;
+        for (kind, got) in &widths {
+            assert_eq!(
+                *got, want,
+                "budget={budget}: {kind:?} occupies {got} chars, {:?} occupies {want} — \
+                 the close lane is not reserved uniformly",
+                widths[0].0
+            );
+        }
+    }
 }
 
 /// THE ACTIVE ROW'S NAME COMES FORWARD and every location stays quieter than the
@@ -275,16 +343,20 @@ fn a_single_file_block_plates_nothing() {
     );
 }
 
-/// **507: A PROJECT HEADING PLATES TOO, INDEPENDENTLY OF ITS OWN ACTIVE
-/// FILE'S PLATE.** `plate_rects`'s law above (`a_plate_marks_the_active_
-/// row_in_every_block_shape`) only ever proved "at most one" because its own
-/// fixture is File rows exclusively — the resting stack's real shape, which
-/// never draws a Group row at all. The EXPANDED panel does, and an active
-/// heading with its own active file both visible in the same window answer
-/// two different questions ("which project", "which file") — a reader
-/// revealed hasn't been told either if only one of the two plates.
+/// **515: AN ACTIVE GROUP HEADING NEVER PLATES, EVEN WITH ITS OWN ACTIVE
+/// FILE VISIBLE IN THE SAME WINDOW.** Superseded 507's law of the same
+/// fixture shape (`an_active_group_heading_and_its_active_file_are_both_
+/// plated`), which asserted the double-plate this item exists to remove:
+/// a screenshot caught the expanded panel drawing two purple plates for one
+/// project — the heading (current project) and the active file (current
+/// document) — reading as two selections when only one answer, "which
+/// file", owns a fill. `plate_rects`'s law above
+/// (`a_plate_marks_the_active_row_in_every_block_shape`) only ever proved
+/// "at most one" because its own fixture is File rows exclusively — the
+/// resting stack's real shape, which never draws a Group row at all; this
+/// sweeps the EXPANDED panel's real shape instead.
 #[test]
-fn an_active_group_heading_and_its_active_file_are_both_plated() {
+fn an_active_group_heading_never_plates_only_its_active_file_does() {
     let files = vec![
         group_row("notes/", true),
         row("welcome.md", "", true),
@@ -302,16 +374,19 @@ fn an_active_group_heading_and_its_active_file_are_both_plated() {
     let plates = plate_rects(&layout, &plan, 6.0, 2.0);
     assert_eq!(
         plates.len(),
-        2,
-        "the active heading and the active file must each plate: {plates:?}"
+        1,
+        "only the active FILE may plate, never its group heading too: {plates:?}"
     );
 }
 
-/// A heading that is NOT the reader's current project draws no plate, even
-/// while sitting beside another (active) project's heading and file —
-/// `StackRow::active`, not "any row in this block", is the source of truth.
+/// A heading that is NOT the reader's current project draws no plate either
+/// — and neither does the active project's own heading, only its active
+/// file — while sitting beside another (inactive) project's heading and file.
+/// `StackRow::active` combined with `StackRowKind::File` is the plate's
+/// whole source of truth; a Group's own `active` field still drives its ink
+/// ([`stack_spans`]) but never its fill.
 #[test]
-fn an_inactive_group_heading_is_never_plated() {
+fn only_the_active_file_ever_plates_never_any_group_heading() {
     let files = vec![
         group_row("archive/", false),
         row("old.md", "", false),
@@ -330,8 +405,8 @@ fn an_inactive_group_heading_is_never_plated() {
     let plates = plate_rects(&layout, &plan, 6.0, 2.0);
     assert_eq!(
         plates.len(),
-        2,
-        "only the active heading + its active file may plate: {plates:?}"
+        1,
+        "only the active file may plate: {plates:?}"
     );
 }
 
@@ -468,6 +543,74 @@ fn hover_close_keeps_label_geometry_fixed_and_enrols_every_truthful_row() {
     }
 }
 
+/// A GROUP HEADING'S OWN CLOSE ZONE IS THE ONLY TARGET IT EVER OFFERS —
+/// the switch half stays exactly as inert as it was before this row could
+/// close anything (a press there is click-away, `App::gutter_stack_click`),
+/// while a press on the reserved lane at its right edge enrols for `Close`
+/// and names the SAME row the heading itself drew at. Mirrors the file-row
+/// law above's own zone/switch split, but a heading has only one of the two
+/// live — this is the law that would fail if the switch half were ever
+/// wired up by accident, or if the close half silently stayed inert too.
+#[test]
+fn a_group_headings_switch_half_stays_inert_and_only_its_close_zone_enrols() {
+    let files = vec![group_row("notes/", true), row("welcome.md", "", true)];
+    let fitted = fit_rows(&files, 24);
+    let layout = layout_of(&files, false, true, 24);
+    let plan = crate::render::plan::plan_gutter_stack(
+        300.0,
+        layout.avail,
+        12.0,
+        layout.lines().len(),
+        8.0,
+        0.5,
+    );
+    let (heading_line, heading_row) = layout
+        .lines()
+        .iter()
+        .enumerate()
+        .find_map(|(line, (_, kind))| match kind {
+            gutter::GutterLine::File(row)
+                if matches!(
+                    layout.files[*row].kind,
+                    crate::workingset::StackRowKind::Group { .. }
+                ) =>
+            {
+                Some((line, *row))
+            }
+            _ => None,
+        })
+        .expect("the fixture draws exactly one heading");
+    let band = plan.rows[heading_line];
+    let zone = close_zone(band);
+    let mid_y = band[1] + band[3] * 0.5;
+
+    let switch =
+        super::super::gutter_hit::stack_hit_from_plan(&layout, &plan, zone[0] - 1.0, mid_y);
+    assert_eq!(
+        switch, None,
+        "a heading's switch half must stay inert — it is click-away, not a target"
+    );
+
+    let close = super::super::gutter_hit::stack_hit_from_plan(&layout, &plan, zone[0] + 1.0, mid_y)
+        .expect("a heading's own close zone enrols");
+    assert_eq!(
+        close.row, heading_row,
+        "the close hit must name the heading's own row"
+    );
+    assert!(close.is_close());
+    assert!(matches!(
+        close.kind,
+        crate::workingset::StackRowKind::Group { .. }
+    ));
+    // The reservation this hit-test depends on: the heading's own mark is
+    // shaped (even at zero alpha) so the zone geometry it is tested against
+    // is the one the label was actually fitted around.
+    assert!(
+        fitted[heading_row].text.chars().count() + super::CLOSE_MARK_TEXT.chars().count() <= 24,
+        "the heading's own fit did not reserve its close lane"
+    );
+}
+
 /// THE FOLDER HEADING SITS ABOVE THE IDENTITY LINE IN BOTH SHAPES — one file
 /// or a working set of many draw the SAME grammar, so opening a second file
 /// inserts a row beneath what was already drawn rather than resorting the
@@ -531,6 +674,43 @@ fn project_heads_only_the_multi_file_hierarchy() {
                     );
                 }
             }
+        }
+    }
+}
+
+/// **521: EXACTLY ONE VISIBLE OWNER OF THE PROJECT NAME.** The gutter's own
+/// folder line is the project's one label whenever the stack draws no
+/// heading of its own (a single-file identity, or a resting stack — which
+/// never emits a `Group` row, [`crate::workingset::WorkingSet::stack_rows`]);
+/// it vanishes the moment the stack DOES draw one, because that heading
+/// already states which project this is (its own ink stays routed even
+/// though it draws no plate) and a second label would repeat it. Swept over
+/// both block shapes and both project-presence states, so the law cannot
+/// pass by only ever exercising the case where the two rules happen to agree.
+#[test]
+fn the_folder_line_and_a_drawn_group_heading_never_both_own_the_project_name() {
+    let heading_shapes: [(&str, Vec<StackRow>); 2] = [
+        ("resting (no heading)", rows(0)),
+        (
+            "expanded (heading drawn)",
+            vec![group_row("notes/", true), row("welcome.md", "", true)],
+        ),
+    ];
+    for (shape, files) in &heading_shapes {
+        for project in [true, false] {
+            let layout = layout_of(files, false, project, 24);
+            let lines = layout.lines();
+            let project_lines = lines
+                .iter()
+                .filter(|(_, k)| matches!(k, gutter::GutterLine::Project))
+                .count();
+            let has_heading = shape.contains("heading drawn");
+            let expected = usize::from(project && !has_heading);
+            assert_eq!(
+                project_lines, expected,
+                "shape={shape} project={project}: expected {expected} folder line(s), \
+                 found {project_lines} in {lines:?}"
+            );
         }
     }
 }

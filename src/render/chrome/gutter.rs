@@ -37,6 +37,34 @@ pub(super) enum GutterLine {
 }
 
 impl GutterLayout {
+    /// **ONE VISIBLE OWNER OF THE PROJECT NAME.** `true` once the stack
+    /// itself draws a project heading — that heading, ink-marked when it is
+    /// the current project (kept even though it draws no plate of its own),
+    /// already states "which project" inside the block, so the separate
+    /// folder line above would repeat it. The single-file
+    /// identity and a resting stack (which never emits a `Group` row at all,
+    /// [`crate::workingset::WorkingSet::stack_rows`]) keep this line as their
+    /// one project label.
+    fn project_line_visible(&self) -> bool {
+        !self.project.is_empty()
+            && !self
+                .files
+                .iter()
+                .any(|f| matches!(f.kind, crate::workingset::StackRowKind::Group { .. }))
+    }
+
+    /// [`Self::project`] when [`Self::project_line_visible`], else empty —
+    /// the one owner both the drawn spans (`prepare_gutter`) and the sidecar
+    /// (`TextPipeline::gutter_report`) read, so neither can independently
+    /// forget to gate on it.
+    fn project_visible_or_empty(&self) -> String {
+        if self.project_line_visible() {
+            self.project.clone()
+        } else {
+            String::new()
+        }
+    }
+
     /// The block's lines, TOP to BOTTOM, absent ones omitted. THE one owner of
     /// the block's shape.
     ///
@@ -46,16 +74,20 @@ impl GutterLayout {
     /// heading sits ABOVE the identity line in BOTH shapes — one grammar, so
     /// opening a second file inserts a row below what was already drawn rather
     /// than resorting the block (`render/tests`' ordering-consistency law pins
-    /// this). Every consumer — the drawn spans, the frost seeds, the carve
-    /// height, the hit-test — reads this one list, so widening the identity
-    /// moves all four together and none of them re-derives the block's height
-    /// from a second count.
+    /// this) — EXCEPT when [`Self::project_line_visible`] answers `false`: the
+    /// stack's own heading rows already carry the project identity, so this
+    /// omits the line rather than stating it twice. Every consumer — the drawn
+    /// spans, the frost seeds, the carve height, the hit-test, the sidecar
+    /// report — reads this one list (or the same predicate,
+    /// [`TextPipeline::gutter_report`]), so widening the identity or hiding this
+    /// line moves every reader together and none of them re-derives either
+    /// decision from a second count.
     pub(super) fn lines(&self) -> Vec<(&str, GutterLine)> {
         let mut out = Vec::with_capacity(3);
         if !self.changed.is_empty() {
             out.push((self.changed.as_str(), GutterLine::Changed));
         }
-        if !self.project.is_empty() {
+        if self.project_line_visible() {
             out.push((self.project.as_str(), GutterLine::Project));
         }
         if self.files.is_empty() {
@@ -220,7 +252,9 @@ impl TextPipeline {
         // neither line can ever word-wrap mid-word.
         let lines = layout.lines().len();
         let name = layout.name.clone();
-        let project = layout.project.clone();
+        // Empty when the stack's own heading rows already state the project —
+        // the SAME predicate that just sized `lines` above.
+        let project = layout.project_visible_or_empty();
         // `changed elsewhere` (base content) over the folder heading (muted)
         // over the identity line — a VALUE ladder with the state at the top of
         // it, since that is the one line here that is news. Each lower line
@@ -442,11 +476,18 @@ impl TextPipeline {
     /// the hard floor — the same gate as [`Self::prepare_gutter`]), else `None`.
     /// Both `name` and `project` are EXACTLY as drawn — each already fit to one
     /// line, independently middle-elided (extension preserved) only once the
-    /// margin can't hold it whole. Neither one yields to the other from width
-    /// pressure: `project` is empty here only when there is genuinely no project
-    /// to show, so the sidecar always agrees with the pixels.
+    /// margin can't hold it whole. `project` is empty both when there is
+    /// genuinely no project to show AND when the stack's own heading rows
+    /// already state it ([`GutterLayout::project_visible_or_empty`]) — either
+    /// way the sidecar names exactly what the pixels do, never a value the
+    /// block never drew.
     pub fn gutter_report(&self) -> Option<(String, String, bool)> {
-        self.gutter_layout()
-            .map(|g| (g.name, g.project, !g.changed.is_empty()))
+        self.gutter_layout().map(|g| {
+            (
+                g.name.clone(),
+                g.project_visible_or_empty(),
+                !g.changed.is_empty(),
+            )
+        })
     }
 }
