@@ -9,6 +9,8 @@
 ---
 ### 514 — two defects `range_rail.rs` work surfaced, neither caused by that work (found while building item 508, 2026-08-29)
 
+🟡 IN PROGRESS — claude, branch item-514
+
 (a) `settings_overlay_view` (`src/render/tests/mod.rs`) never sets
 `overlay_workspace`, so any caller that doesn't override it afterward tests
 a state production can't reach (the Settings card renders through the wrong,
@@ -31,6 +33,8 @@ law's differential non-selected-ink coverage until fixed.
 
 ---
 ### 515 — one plate, one meaning: the working-set panel plates the current project AND the active file at once (user-confirmed confusing, 2026-08-29)
+
+🟡 IN PROGRESS — claude, branch ws-stack-515-524 (sequenced with 518/520/521/522/524 on one branch, per the coordination note under 522)
 
 Screenshot evidence on Kite: the expanded panel drew TWO purple plates —
 the `notes/` group heading (plated because it is the current project,
@@ -65,6 +69,8 @@ surface, keep the label conventions theirs and the plate rule this item's.
 
 ---
 ### 516 — closing the scratch shows a developer-register dead-end notice (user-reported, 2026-08-29)
+
+🟡 IN PROGRESS — claude, branch item-516
 
 ⌘W on the active scratch with unsaved text shows `save failed: no file
 bound to this buffer (scratch)`. Mechanism, verified in code: the close
@@ -111,6 +117,8 @@ resummon restores it; plus a voice law over user-facing notices (no
 ---
 ### 517 — Insert table: tables render as grids but nothing creates one (user request, 2026-08-29)
 
+🟡 IN PROGRESS — claude, branch item-517
+
 "I think we want a table creation command." On-thesis: the committed
 direction is finishing the live-preview model — "tables as real grids —
 through the markdown formatting commands." Rendering exists
@@ -139,6 +147,8 @@ seven — a separate decision).
 ---
 ### 518 — the expanded panel's window can orphan file rows from their group heading (found decoding the user's screenshot, 2026-08-29)
 
+🟡 IN PROGRESS — claude, branch ws-stack-515-524
+
 `expanded_rows` (`workingset/panel.rs`) windows `expanded_full` with a
 plain slice, so when the scroll starts mid-group the visible file rows
 carry no group context — the user read three files from a DIFFERENT root
@@ -157,6 +167,8 @@ group-label rules — reuse, don't fork.
 
 ---
 ### 519 — the Go-to lens strip hugs the card's top edge (user-reported, 2026-08-29)
+
+🟡 IN PROGRESS — claude, branch item-519
 
 Screenshot evidence on a dark mono world (split query card, amber
 selection bar): inside the main card, the lens strip (`All Files Headings
@@ -177,6 +189,8 @@ by re-shrinking the pad.
 
 ---
 ### 520 — the expanded working-set panel gives no sign of overflow above (user-reported, 2026-08-29)
+
+🟡 IN PROGRESS — claude, branch ws-stack-515-524
 
 Screenshot on Potoroo: the expanded panel scrolled to its bottom shows a
 plain first row — nothing says more items exist above the window ("i've
@@ -199,6 +213,8 @@ oracle trap — sample inside the drawn row band, not the ground).
 ---
 ### 521 — the gutter's standalone project label duplicates the drawn group headings (user decision, 2026-08-29)
 
+🟡 IN PROGRESS — claude, branch ws-stack-515-524
+
 Screenshot on Potoroo: the block reads `work` (the gutter folder heading)
 directly above a list whose own headings — `notes/`, plated `work/` —
 already carry the structure. User: "the first work... that's our current
@@ -218,6 +234,8 @@ policy, revert cost stated in the commit.
 
 ---
 ### 522 — group headings are not closable; closing a group means closing its files (user request, 2026-08-29)
+
+🟡 IN PROGRESS — claude, branch ws-stack-515-524
 
 "I want to be able to close work..." — file rows already grow a hover ×
 (`gutter_stack::CLOSE_MARK_TEXT`); a group heading offers nothing, so
@@ -244,6 +262,8 @@ on every file they share.
 ---
 ### 523 — followable spans get the quiet underline (user decision, 2026-08-29)
 
+🟡 IN PROGRESS — claude, branch item-523
+
 The URL taming (landed as item 511) removed the one thing that made a
 bare URL self-identify — the scheme costume — so a tamed `r.goope.jp…`
 reads as prose; a concealed `[text](url)` link has always had the same
@@ -265,6 +285,8 @@ link text never underlined), and docs/markdown.md updated.
 ---
 ### 524 — the reserved close-mark lane dents the stack's right edge on file rows only (user-reported, 2026-08-29)
 
+🟡 IN PROGRESS — claude, branch ws-stack-515-524
+
 Screenshot on Potoroo (resting stack): `notes` (heading) ends flush
 right while `fukushima-trip.md` stops visibly short of it — file rows
 reserve the trailing `×` close lane at ALL times (`gutter_stack::
@@ -284,6 +306,8 @@ batch (this is the sixth item on that one surface).
 
 ---
 ### 525 — start screen: equal ink + chord hints now; per-world dress later (user decision, 2026-08-29)
+
+🟡 IN PROGRESS — claude, branch item-525
 
 Today's start screen draws its two actions in different inks —
 `New document` in `base_content`, `Go to` in `theme::muted()`
