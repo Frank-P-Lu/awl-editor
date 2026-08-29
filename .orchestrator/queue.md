@@ -46,8 +46,10 @@ as two selections. User: "it's confusing as heck? like we already have
 
 DECIDED (user-confirmed 2026-08-29): **the plate means the active file,
 and nothing else.** A group heading that is the current project keeps its
-`active_ink` distinction but loses its plate; the project identity is the
-gutter folder heading's job. The lane enumerates every `plate_rects`-family
+`active_ink` distinction but loses its plate; the project identity is
+stated ONCE — by the gutter folder heading, or, once item 521 lands, by
+the ink-marked group heading in the list (521 removes the separate gutter
+line whenever group headings are drawn). The lane enumerates every `plate_rects`-family
 consumer rather than patching the one arm the screenshot showed (the module
 doc also names a "bottom identity" plate — same sweep, same one-meaning
 rule judged against it). Cheap to revert (render-side row treatment; no
@@ -193,6 +195,51 @@ second, both costing viewport slots). Law: sweep scroll positions over a
 set larger than the viewport and assert the indicator's presence/count at
 both ends, pixel-verified on Potoroo (its stripes are a known pixel-
 oracle trap — sample inside the drawn row band, not the ground).
+
+---
+### 521 — the gutter's standalone project label duplicates the drawn group headings (user decision, 2026-08-29)
+
+Screenshot on Potoroo: the block reads `work` (the gutter folder heading)
+directly above a list whose own headings — `notes/`, plated `work/` —
+already carry the structure. User: "the first work... that's our current
+project right, I think we get rid of that... notes and work look like
+they are some headings anyways." DECIDED: **when the stack draws group
+headings, the separate gutter folder-heading line is not drawn — the
+headings ARE the structure, and the current project is the ink-marked
+heading among them** (515's ink rule; the plate stays the active file's).
+When NO group heading is visible — the single-file identity line, or a
+resting stack showing only the active root's files — the gutter folder
+heading remains the one project label. Net law: exactly ONE visible owner
+of the project name at any time, never two. The heading/identity stacking
+lives in `render/chrome/gutter.rs::lines` + `gutter_stack`; sweep both
+shapes (resting/expanded) × single/multi-group × worlds. Cheap to revert
+(render-side block composition): land on main per the standing taste
+policy, revert cost stated in the commit.
+
+---
+### 522 — group headings are not closable; closing a group means closing its files (user request, 2026-08-29)
+
+"I want to be able to close work..." — file rows already grow a hover ×
+(`gutter_stack::CLOSE_MARK_TEXT`); a group heading offers nothing, so
+retiring a whole project from the working set is one close per file. Shape:
+the same hover × on a group heading closes every file in that group —
+**as a fold of the ORDINARY per-file close**, each file through the
+existing save/conflict gate (`files/close.rs`), stopping at the first
+refusal with that file's own notice (never a new bulk-discard path; the
+gate's guarantees are the product). A parked scratch in the group follows
+516's rule (dismiss, stash intact). If the active file is in the closed
+group, the existing successor logic decides what's next. Hit-test rides
+the shared rowlayout geometry the file rows' × already uses — one owner,
+no second close-lane mechanism. Laws: a multi-group journey closing a
+clean group (all gone, working set intact elsewhere), a dirty-file group
+(stops at the refusal, prior files closed, notice names the file), and
+drawn-equals-clickable for the heading's × across worlds × both panel
+shapes.
+
+Coordination for 515/518/520/521/522: five open items now touch the
+working-set stack's row plan and hit-test. Dispatch as one lane or a
+strict sequence on one branch — parallel lanes here would merge-conflict
+on every file they share.
 
 ---
 ## Needs specific hardware
