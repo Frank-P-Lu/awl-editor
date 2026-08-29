@@ -3,6 +3,15 @@
 use super::*;
 
 const START_ACTIONS: [&str; 2] = ["New document", "Go to"];
+/// The two actions' real bound chords (`assets/keymap-defaults.toml`'s
+/// `new_document`/`go_to` slugs — Cmd-N, Cmd-O), hardcoded as mac glyphs like
+/// every other render-side hint string (`panel.rs`'s replace-hint, `whichkey.rs`):
+/// this layer never re-derives a convention-aware label. Bare Enter is NOT one of
+/// these — `resolve.rs` sends it to `Action::Newline`, and `no_document.rs::
+/// reject_without_document` rejects anything but `NewDocument`/`OpenGoto`/`Quit`
+/// with no document open, so a `↵` glyph here would draw a control that does
+/// nothing.
+const START_CHORDS: [&str; 2] = ["\u{2318}N", "\u{2318}O"];
 
 fn start_rows(width: f32, height: f32, row_h: f32) -> [[f32; 4]; 2] {
     let block_h = row_h * START_ACTIONS.len() as f32;
@@ -33,20 +42,37 @@ impl TextPipeline {
         self.gutter_buffer
             .set_size(&mut self.font_system, Some(row_w), Some(row_h * 2.0 + 1.0));
         let base = panel_attrs();
-        let first = format!("{}\n", START_ACTIONS[0]);
+        // BOTH actions read in the SAME full ink — hierarchy is order alone, not
+        // ink (DECIDED: neither reads as disabled). Each row's chord rides beside
+        // its verb in the established quiet-chord/full-ink-verb split every
+        // secondary-column reads (`shape_overlay_right`'s `ink`-primary/
+        // `muted`-chord pairing): the chord glyph through `push_symbol_split` (⌘
+        // is `is_symbol`, tofu on the display face without the symbol-family
+        // split) in `muted`, the verb that follows in `ink`.
+        let ink = theme::base_content().to_glyphon();
+        let muted = theme::muted().to_glyphon();
+        let sym = |c| Attrs::new().family(Family::Name(SYMBOL_FAMILY)).color(c);
+        let mut spans: Vec<(&str, glyphon::Attrs)> = Vec::new();
+        push_symbol_split(
+            &mut spans,
+            START_CHORDS[0],
+            || base.clone().color(muted),
+            || sym(muted),
+        );
+        let verb0 = format!(" {}\n", START_ACTIONS[0]);
+        spans.push((verb0.as_str(), base.clone().color(ink)));
+        push_symbol_split(
+            &mut spans,
+            START_CHORDS[1],
+            || base.clone().color(muted),
+            || sym(muted),
+        );
+        let verb1 = format!(" {}", START_ACTIONS[1]);
+        spans.push((verb1.as_str(), base.clone().color(ink)));
         self.gutter_buffer.set_rich_text(
             &mut self.font_system,
-            [
-                (
-                    first.as_str(),
-                    base.clone().color(theme::base_content().to_glyphon()),
-                ),
-                (
-                    START_ACTIONS[1],
-                    base.clone().color(theme::muted().to_glyphon()),
-                ),
-            ],
-            &base.color(theme::muted().to_glyphon()),
+            spans,
+            &base.color(ink),
             Shaping::Advanced,
             Some(glyphon::cosmic_text::Align::Center),
         );
@@ -63,7 +89,7 @@ impl TextPipeline {
                 right: width as i32,
                 bottom: height as i32,
             },
-            default_color: theme::muted().to_glyphon(),
+            default_color: ink,
             custom_glyphs: &[],
         };
         self.gutter_renderer
