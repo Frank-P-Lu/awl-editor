@@ -79,7 +79,7 @@ let answer = 42;
 <section class="markdown-construct">
 <h3>Inline links</h3>
 <pre><code class="language-markdown">[awl](https://awl-editor.fly.dev)</code></pre>
-<table><thead><tr><th>awl renders</th><th>Caret and selection</th><th>Formatting command</th><th>Portability</th></tr></thead><tbody><tr><td>Link text in the document ink.</td><td>The caret or a selection on the line shows brackets and destination.</td><td>Insert link…</td><td>Core CommonMark</td></tr></tbody></table>
+<table><thead><tr><th>awl renders</th><th>Caret and selection</th><th>Formatting command</th><th>Portability</th></tr></thead><tbody><tr><td>Link text in the document ink, with a quiet baseline underline.</td><td>The caret or a selection on the line shows brackets and destination.</td><td>Insert link…</td><td>Core CommonMark</td></tr></tbody></table>
 </section>
 <section class="markdown-construct">
 <h3>Images</h3>
@@ -126,7 +126,7 @@ lang: en
 <section class="markdown-construct">
 <h3>Bare URLs</h3>
 <pre><code class="language-markdown">See https://example.com/track?utm_source=x for details.</code></pre>
-<table><thead><tr><th>awl renders</th><th>Caret and selection</th><th>Formatting command</th><th>Portability</th></tr></thead><tbody><tr><td>The domain, followed by a quiet ellipsis when a path or query is hidden. A URL with nothing past its domain shows in full, with no ellipsis.</td><td>The caret or a selection on the line shows the full address.</td><td>—</td><td>awl-specific extension</td></tr></tbody></table>
+<table><thead><tr><th>awl renders</th><th>Caret and selection</th><th>Formatting command</th><th>Portability</th></tr></thead><tbody><tr><td>The domain, followed by a quiet ellipsis when a path or query is hidden, both carrying the same quiet baseline underline as an inline link. A URL with nothing past its domain shows in full, with no ellipsis.</td><td>The caret or a selection on the line shows the full address.</td><td>—</td><td>awl-specific extension</td></tr></tbody></table>
 </section>
 <h2>Not supported / deliberately different</h2>
 <section class="markdown-construct">

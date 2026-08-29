@@ -133,8 +133,9 @@ pub(super) struct WashCache {
     /// owner `super::spans::strike_line_band`). A fifth bucket of the SAME
     /// cache/build walk, not a parallel cache.
     strike_protos: std::cell::RefCell<Vec<UnderlineProto>>,
-    /// `MdKind::LinkText` span segments — the per-visual-row x-extents the quiet
-    /// link UNDERLINE rides ([`TextPipeline::link_underlines`], positioned by
+    /// `MdKind::LinkText` AND `MdKind::BareUrlText` span segments — the ONE
+    /// followable-span grammar, per-visual-row x-extents for the quiet
+    /// UNDERLINE both ride ([`TextPipeline::link_underlines`], positioned by
     /// `super::spans::link_underline_band` — the SAME line-band primitive
     /// `strike_line_band` rides, just a different vertical fraction). A sixth
     /// bucket of the SAME cache/build walk.
@@ -987,7 +988,7 @@ impl TextPipeline {
                 crate::markdown::MdKind::Strikethrough => {
                     spans.push((r.clone(), Bucket::Strike));
                 }
-                crate::markdown::MdKind::LinkText => {
+                crate::markdown::MdKind::LinkText | crate::markdown::MdKind::BareUrlText => {
                     spans.push((r.clone(), Bucket::LinkUnderline));
                 }
                 crate::markdown::MdKind::Code { inline: true } if wysiwyg => {
@@ -1240,20 +1241,26 @@ impl TextPipeline {
         out
     }
 
-    /// Build the link-text UNDERLINE — one flat [`Squiggle`] (`amp: 0.0`) per
-    /// visual-row segment of every [`crate::markdown::MdKind::LinkText`] span, in
-    /// pixels for the current scroll + zoom, from the cached
+    /// Build the FOLLOWABLE-SPAN UNDERLINE — one flat [`Squiggle`] (`amp: 0.0`)
+    /// per visual-row segment of every [`crate::markdown::MdKind::LinkText`] OR
+    /// [`crate::markdown::MdKind::BareUrlText`] span (one grammar, two span
+    /// sources — a named `[text](url)` link and a tamed bare URL both draw it),
+    /// in pixels for the current scroll + zoom, from the cached
     /// [`WashCache::link_underline_protos`] (the SAME cache/build as
     /// [`Self::strike_lines`], a sixth bucket). The band's vertical placement +
     /// stroke come from `super::spans::link_underline_band` — THE SAME line-band
     /// primitive [`Self::strike_lines`] rides (`super::spans::line_band`), just
-    /// near the BASELINE instead of mid-run, so it reads as an underline under the
-    /// link text rather than a line through it: the decided quiet affordance (the
-    /// link TEXT itself stays full content ink — see `md_attrs`'s `LinkText` arm —
-    /// only this underline carries the muted tint). NOT caret-gated (content
-    /// styling, like the strike line — only the `[]()` plumbing's OWN conceal is
-    /// reveal-on-cursor) and NOT WYSIWYG-gated. Empty for a link-less / non-
-    /// markdown buffer, keeping those frames byte-identical.
+    /// near the BASELINE instead of mid-run, so it reads as an underline under
+    /// the followable text rather than a line through it: the decided quiet
+    /// affordance (the text itself stays full content ink — see `md_attrs`'s
+    /// `LinkText`/`BareUrlText` arms — only this underline carries the muted
+    /// tint, SOLID ink, never a wash). NOT caret-gated (content styling, like
+    /// the strike line — only the markup/conceal plumbing's OWN reveal is
+    /// caret-gated; for a bare URL the underline's own EXTENT still moves with
+    /// that reveal, because it hugs `row.xs`, the same collapsed/revealed glyph
+    /// advances the conceal mechanism already produces — no separate persist/
+    /// drop branch) and NOT WYSIWYG-gated. Empty for a followable-span-less /
+    /// non-markdown buffer, keeping those frames byte-identical.
     pub(super) fn link_underlines(&self) -> Vec<Squiggle> {
         if self.md_spans.is_empty() {
             return Vec::new();

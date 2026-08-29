@@ -104,7 +104,7 @@ let answer = 42;
 
 | awl renders | Caret and selection | Formatting command | Portability |
 |---|---|---|---|
-| Link text in the document ink. | The caret or a selection on the line shows brackets and destination. | Insert link… | Core CommonMark |
+| Link text in the document ink, with a quiet baseline underline. | The caret or a selection on the line shows brackets and destination. | Insert link… | Core CommonMark |
 
 ### Images
 
@@ -191,7 +191,7 @@ See https://example.com/track?utm_source=x for details.
 
 | awl renders | Caret and selection | Formatting command | Portability |
 |---|---|---|---|
-| The domain, followed by a quiet ellipsis when a path or query is hidden. A URL with nothing past its domain shows in full, with no ellipsis. | The caret or a selection on the line shows the full address. | — | awl-specific extension |
+| The domain, followed by a quiet ellipsis when a path or query is hidden, both carrying the same quiet baseline underline as an inline link. A URL with nothing past its domain shows in full, with no ellipsis. | The caret or a selection on the line shows the full address. | — | awl-specific extension |
 
 ## Not supported / deliberately different
 

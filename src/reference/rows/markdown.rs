@@ -131,7 +131,7 @@ const CONSTRUCTS: &[Construct] = &[
     Construct {
         name: "Inline links",
         source: "[awl](https://awl-editor.fly.dev)",
-        rendered: "Link text in the document ink.",
+        rendered: "Link text in the document ink, with a quiet baseline underline.",
         reveal: "The caret or a selection on the line shows brackets and destination.",
         command: "Insert link…",
         portability: Portability::CommonMark,
@@ -221,13 +221,14 @@ const CONSTRUCTS: &[Construct] = &[
         name: "Bare URLs",
         source: "See https://example.com/track?utm_source=x for details.",
         rendered: concat!(
-            "The domain, followed by a quiet ellipsis when a path or query is hidden. A URL ",
-            "with nothing past its domain shows in full, with no ellipsis.",
+            "The domain, followed by a quiet ellipsis when a path or query is hidden, both ",
+            "carrying the same quiet baseline underline as an inline link. A URL with nothing ",
+            "past its domain shows in full, with no ellipsis.",
         ),
         reveal: "The caret or a selection on the line shows the full address.",
         command: "—",
         portability: Portability::Awl,
-        tags: &[],
+        tags: &["bare_url_text"],
         conceal: &[C::BareUrl],
     },
 ];

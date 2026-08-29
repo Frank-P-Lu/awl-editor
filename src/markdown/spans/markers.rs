@@ -291,13 +291,16 @@ pub(in crate::markdown) fn push_highlight_spans(
 }
 
 /// Detect bare `scheme://…` URLs within ONE text-event's range (`range`, into
-/// the document `text`) and push their flanking [`ConcealKind::BareUrl`] spans
-/// — a SCHEME span always, a TAIL span only when the URL carries a path/query
-/// beyond its authority (see [`bare_url_split`]). The authority itself
-/// (host[:port]) gets no span at all: it stays real, always-visible content
-/// ink, exactly the way a link's visible text stays untouched by its own
-/// flanking [`ConcealKind::Link`] plumbing — this is that same precedent, one
-/// event later. Detection candidates come from [`bare_url_ranges`], which never
+/// the document `text`) and push [`MdKind::BareUrlText`] over the WHOLE match
+/// first, then its flanking [`ConcealKind::BareUrl`] spans — a SCHEME span
+/// always, a TAIL span only when the URL carries a path/query beyond its
+/// authority (see [`bare_url_split`]). The authority itself (host[:port]) gets
+/// no OWN span — it rides `BareUrlText`'s no-op transform, real always-visible
+/// content ink, exactly the way a link's visible text stays untouched by its
+/// own flanking [`ConcealKind::Link`] plumbing, this is that same precedent one
+/// event later — while the scheme/tail spans, pushed AFTER, win their own bytes
+/// on overlap (the `Highlight`-over-context last-wins rule `MdKind::BareUrlText`
+/// documents). Detection candidates come from [`bare_url_ranges`], which never
 /// crosses a whitespace boundary, so multiple URLs in one run are each split
 /// and pushed independently.
 pub(super) fn push_bare_url_spans(
@@ -311,6 +314,10 @@ pub(super) fn push_bare_url_spans(
         let url = &s[url_rel.clone()];
         let (scheme_rel, tail_rel) = bare_url_split(url);
         let base = range.start + url_rel.start;
+        out.push((
+            range.start + url_rel.start..range.start + url_rel.end,
+            MdKind::BareUrlText,
+        ));
         if scheme_rel.end > scheme_rel.start {
             out.push((base + scheme_rel.start..base + scheme_rel.end, k));
         }
