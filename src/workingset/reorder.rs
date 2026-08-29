@@ -14,7 +14,7 @@ use std::path::Path;
 
 use crate::buffers::BufferKey;
 
-use super::panel::{Panel, PanelRow};
+use super::panel::{DrawnRow, Panel, PanelRow};
 use super::{OpenFile, WorkingSet};
 
 impl WorkingSet {
@@ -76,24 +76,38 @@ impl WorkingSet {
     /// top (group index `0`); at or below its last file clamps to its bottom
     /// (`group.len() - 1`). A row that lands ON the block itself (its heading
     /// or one of its own files) resolves to the exact group slot drawn there.
+    ///
+    /// `row` is a DRAWN-window index — [`WorkingSet::expanded_window`]'s own
+    /// space, not a plain offset from `scroll` — because item 518's pinned
+    /// sticky heading can sit ahead of real content and shift that
+    /// correspondence. Resolved through [`super::panel::DrawnRow::full_index`],
+    /// the SAME mapping [`WorkingSet::expanded_rows`] draws from, so a drag
+    /// can never target a different `expanded_full` position than the row
+    /// the pointer is actually over.
     pub fn reorder_target(&self, origin_root: &Path, row: usize) -> usize {
         let group = self.group(origin_root);
         let last = group.len().saturating_sub(1);
         if group.is_empty() {
             return 0;
         }
-        let Panel::Expanded { scroll } = self.panel else {
+        let Panel::Expanded { .. } = self.panel else {
             let start = self.resting_start(origin_root, &group);
             return (start + row).min(last);
         };
         let full = self.expanded_full();
-        let absolute = scroll + row;
         let Some(block_start) = full
             .iter()
             .position(|r| matches!(r, PanelRow::Group(root, _) if root == origin_root))
         else {
             return last;
         };
+        // A row past the drawn window names no `expanded_full` position of
+        // its own — clamp past the block's own end, same as any row below it.
+        let absolute = self
+            .expanded_window()
+            .get(row)
+            .and_then(DrawnRow::full_index)
+            .unwrap_or(full.len());
         if absolute <= block_start {
             0
         } else {
