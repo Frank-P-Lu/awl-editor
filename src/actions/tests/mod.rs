@@ -19,6 +19,7 @@ mod credits;
 mod export_gate;
 mod folds;
 mod format_editing;
+mod insert_table;
 mod lifecycle;
 mod link_flow;
 mod overlay_drive;
