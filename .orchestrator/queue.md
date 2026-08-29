@@ -7,19 +7,6 @@
 ## Ready to build
 
 ---
-### 513 — the spell popup's material is unjudged (residual of the 2026-08-29 design session)
-
-Parts (a) (context menu keeps palette grammar) and (c) (float material
-reserved for content-preview surfaces) are pure decisions with nothing to
-build, and part (b) (teaching footer dropped from contextual menus) has
-landed on `main`. The one open piece: the **spell popup** is the taxonomy's
-stray — a float that is actually a command list, unjudged rather than
-"well-loved." Its precondition is now satisfied (the de-footered context
-menu shipped). Judge it side by side with the context menu on Kite and a
-Pane world, and either re-home it onto the pocket-palette grammar or record
-why it stays a float.
-
----
 ### 514 — two defects `range_rail.rs` work surfaced, neither caused by that work (found while building item 508, 2026-08-29)
 
 (a) `settings_overlay_view` (`src/render/tests/mod.rs`) never sets
@@ -165,6 +152,26 @@ assert each visible File row's group heading is drawn in the same window;
 non-vacuity via the pre-fix mid-group scroll. Related conventions: the
 scroll/position-indication work that closed as item 508, and 507/512's
 group-label rules — reuse, don't fork.
+
+---
+### 519 — the Go-to lens strip hugs the card's top edge (user-reported, 2026-08-29)
+
+Screenshot evidence on a dark mono world (split query card, amber
+selection bar): inside the main card, the lens strip (`All Files Headings
+Folders Recent`) sits tight under the card's top edge — visibly less
+breath above it than the generous air below it before the section
+heading, so the strip reads clipped against the rim ("there's not enough
+visual padding above the all files navigate etc"). Probe first (a defect
+report is a hypothesis): measure the strip band's top inset against the
+card's other band pads across compositions — split query card vs
+in-card query header, faceted vs flat — and against the same strip on
+Kite (where the strip renders fine), to find WHICH composition arm loses
+the pad and which owner should carry it (`overlay_head_left`/band pads
+neighborhood; item 505's mark-seat delta is a reminder this area has
+per-composition seats). Fix at the one owner, not per world. Law: pixel
+arithmetic — the strip's ink-band top inset clears the same floor the
+card's other bands get, swept worlds × compositions × 1x/2x; non-vacuity
+by re-shrinking the pad.
 
 ---
 ## Needs specific hardware
