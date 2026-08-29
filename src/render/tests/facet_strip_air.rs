@@ -1,4 +1,4 @@
-//! THE FACET STRIP'S OWN TOP CLEARANCE, on every `ListStyle::Pane` world
+//! THE FACET STRIP'S OWN CLEARANCE — TOP AND BOTTOM — on every `ListStyle::Pane` world
 //! (`list_backing() == Card`) under the default `PaneSplit::Split`
 //! composition. The strip's label ink is centred by cosmic-text's half-leading
 //! over a box that ALSO carries the split composition's visible seam
@@ -8,25 +8,35 @@
 //! naturally centres that the two nearly touch. Measured on Wagtail's Command
 //! palette (pixel arithmetic over a real capture, not the sidecar): ~3 physical
 //! px of clearance at dpi 1 at the historical fraction, one JetBrains-Mono
-//! cap-height away from the rim it sits under.
+//! cap-height away from the rim it sits under. THIS WAS THE PRE-519 STATE:
+//! `SPLIT_GAP_FRAC` (0.4 -> 0.35) only ever moved the seam's own bottom edge
+//! earlier — it could not move the label's ink (cosmic-text centres over the
+//! fixed `lh + header_gap` box regardless of where the seam falls inside it),
+//! so no retuning of that fraction could buy the strip real breathing room.
 //!
-//! `SPLIT_GAP_FRAC` (0.4 → 0.35) buys real clearance: it only moves the seam's
-//! own BOTTOM edge earlier (`BREATHE_FRAC`, the seam's start position and the
-//! query box's own symmetric breathing, is untouched), and the label's ink
-//! position is independent of it (cosmic-text centres over the fixed
-//! `lh + header_gap` box regardless of where the seam falls inside it) — so
-//! `first_top`/`card_h` never move and the row rhythm below the strip is
-//! byte-identical (`split_pane.rs`'s own suite covers that).
+//! **CURRENT MECHANISM (item 519).** Clearance is no longer bought by tuning
+//! the seam's position at all. `render::chrome::docked_facet::floating_strip_band`
+//! relocates the strip's DRAWN/CLICKABLE box to a plain, un-inflated line
+//! optically centred in whatever room is genuinely left past the seam
+//! (`[gap_bottom, first_top]`) — the same relocation `docked_facet_band`
+//! already gave `DockedTab`, generalised to a second composition.
+//! `strip_band()` itself stays untouched (still the box every OTHER consumer
+//! — hit-test byte ranges, `chip_plate_floor.rs`'s own naive-centre
+//! reconstruction — reads), so `SPLIT_GAP_FRAC` still governs only the seam's
+//! OWN drawn thickness, never this law's own floor, and `first_top`/`card_h`
+//! never move (the row rhythm below the strip stays byte-identical,
+//! `split_pane.rs`'s own suite covers that).
 //!
 //! Enrolment is derived from the ROSTER (`render_caps.list_style ==
 //! ListStyle::Pane`), not a named world — most of the roster defaults to it.
 //! A separation floor is satisfiable by deleting its own subject (the
 //! label reads clear of the rule if it never draws at all), so this pairs a
-//! PRESENCE floor (real ink found within the strip's own box) with the
-//! SEPARATION floor (that ink starts strictly, and by a real margin, below the
-//! lower surface's own visible top) — both from rendered pixels, never the
-//! sidecar (the Wagtail tripwire: `selected_index` once read fine while the
-//! row itself was invisible).
+//! PRESENCE floor (real ink found within the strip's own box) with a
+//! SEPARATION floor on BOTH edges — that ink starts strictly, and by a real
+//! `header_gap`-relative margin, below the lower surface's own visible top,
+//! AND ends by the same margin above the candidate band — both from rendered
+//! pixels, never the sidecar (the Wagtail tripwire: `selected_index` once
+//! read fine while the row itself was invisible).
 
 use super::super::*;
 use super::{headless_dqp, pixeldiff, view};

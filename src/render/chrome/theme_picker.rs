@@ -370,9 +370,7 @@ impl TextPipeline {
         // actually draws, so every mark below must read glyphs FROM there
         // too, or a mark computed against the un-relocated position would
         // disagree with where the label it marks actually renders.
-        let dock_seat = self
-            .docked_facet_band(geom, plan)
-            .or_else(|| self.floating_strip_band(geom, plan));
+        let dock_seat = self.relocated_strip_seat(geom, plan);
         self.shape_docked_facet_strip(geom, strip_scale);
         // Record the active-lens mark from the shaped strip glyphs (line 1 of
         // `panel_buffer`, or line 0 of the relocated `docked_facet_buffer`).
@@ -393,8 +391,8 @@ impl TextPipeline {
         // Scan `line_i` for a strip-range's glyph x-span (min_x, max_x) + the shaped
         // baseline (C2 y-owner), `None` if empty.
         let span_of = |buf: &GlyphBuffer,
-                        line_i: usize,
-                        r: &std::ops::Range<usize>|
+                       line_i: usize,
+                       r: &std::ops::Range<usize>|
          -> Option<(f32, f32, f32)> {
             let (a, b) = (r.start.saturating_sub(1), r.end.saturating_sub(1));
             let mut min_x = f32::MAX;
@@ -582,7 +580,8 @@ impl TextPipeline {
             label_ranges
                 .iter()
                 .filter_map(|(r, _active)| {
-                    mark_span(r).map(|(min_x, max_x, _)| pill_px(min_x - chip_hpad, max_x + chip_hpad))
+                    mark_span(r)
+                        .map(|(min_x, max_x, _)| pill_px(min_x - chip_hpad, max_x + chip_hpad))
                 })
                 .collect()
         } else {

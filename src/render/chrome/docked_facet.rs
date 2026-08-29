@@ -69,6 +69,22 @@ impl TextPipeline {
         })
     }
 
+    /// WHICHEVER relocation claimed the strip this frame — `DockedTab` above
+    /// the card, or a `Split` composition past its own seam — the ONE seat
+    /// every consumer of that fact (the mark centre, the shaping gate, the
+    /// carve-and-redirect draw, the hit-test) reads, so a future third
+    /// relocation is picked up everywhere at once rather than a fourth
+    /// hand-assembled `.or_else(...)` chain silently missing one. `None` on
+    /// every composition that leaves `strip_band()` unmoved.
+    pub(in crate::render) fn relocated_strip_seat(
+        &self,
+        geom: &OverlayGeom,
+        plan: &OverlayRowPlan,
+    ) -> Option<crate::render::plan::PlannedHeader> {
+        self.docked_facet_band(geom, plan)
+            .or_else(|| self.floating_strip_band(geom, plan))
+    }
+
     #[cfg(test)]
     pub(in crate::render) fn docked_facet_geometry_probe(
         &self,
@@ -137,9 +153,8 @@ impl TextPipeline {
             return None;
         }
         let plan = self.overlay_row_plan(&geom);
-        let docked = self.docked_facet_band(&geom, &plan);
-        let floating = self.floating_strip_band(&geom, &plan);
-        let strip = docked.or(floating).or_else(|| plan.strip_band())?;
+        let relocated = self.relocated_strip_seat(&geom, &plan);
+        let strip = relocated.or_else(|| plan.strip_band())?;
         if !strip.contains(py) {
             return None;
         }
@@ -156,7 +171,7 @@ impl TextPipeline {
         // (Magpie). Reading `geom.text_left` unconditionally here missed that
         // second seat: a click on a drawn label could resolve to no lens, or
         // the wrong one, on any banded world.
-        let seat = if docked.is_some() || floating.is_some() {
+        let seat = if relocated.is_some() {
             geom.text_left
         } else {
             self.overlay_head_left(&geom, &plan)

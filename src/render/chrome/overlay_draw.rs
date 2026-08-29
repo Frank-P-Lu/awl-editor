@@ -344,9 +344,7 @@ impl TextPipeline {
             });
             placard_in_panel = true;
         }
-        let relocated_seat = self
-            .docked_facet_band(geom, plan)
-            .or_else(|| self.floating_strip_band(geom, plan));
+        let relocated_seat = self.relocated_strip_seat(geom, plan);
         let docked = push_docked_facet_areas(
             &mut areas,
             &self.panel_buffer,
