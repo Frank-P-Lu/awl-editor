@@ -523,6 +523,7 @@ impl TextPipeline {
             gutter_changed: false,
             config_keys: Vec::new(),
             config_linux_keep: Vec::new(),
+            config_keymap_flavor: crate::keymap::KeymapFlavor::default(),
             md_enabled: false,
             wysiwyg_latched: crate::markdown::wysiwyg_on(),
             inline_images_latched: crate::markdown::inline_images_on(),

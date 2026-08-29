@@ -4,6 +4,7 @@ use winit::keyboard::{Key, ModifiersState};
 
 use super::binding::canon_key;
 use super::{Action, Chord, parse_binding};
+use crate::convention::Convention;
 
 pub(super) fn linux_keeps_chord_raw(
     keep: &HashSet<(Key, ModifiersState)>,
@@ -259,3 +260,44 @@ pub(crate) const LINUX_EMACS_META_SEED: &[(&str, Action)] = &[
     ("M-<", Action::BufferStart),
     ("M->", Action::BufferEnd),
 ];
+
+/// THE LABEL-TRUTH ROUND — every SEED TABLE active under `convention`+`flavor`,
+/// in the SAME shape [`super::state::KeymapState::seed_defaults`] loops over for
+/// real dispatch. This is the ONE selection point both the dispatch half (via
+/// [`super::state::KeymapState::seed_defaults`]) and the advertisement half
+/// (every label surface, via [`seeded_chords_for`]) consult — so a seeded layer
+/// added for a future seeded layer (a classic-chords C-x table, say) is picked up by
+/// BOTH from a single edit, appending its table here, rather than the two
+/// staying in sync by hand. Today just [`LINUX_EMACS_META_SEED`]; empty under
+/// `Native` flavor or [`Convention::Mac`], where the whole layer is
+/// structurally inert (Option keeps typing accented characters there).
+pub(crate) fn active_seed_tables(
+    convention: Convention,
+    flavor: KeymapFlavor,
+) -> &'static [&'static [(&'static str, Action)]] {
+    if convention == Convention::Linux && flavor == KeymapFlavor::Emacs {
+        &[LINUX_EMACS_META_SEED]
+    } else {
+        &[]
+    }
+}
+
+/// THE SEEDED-CHORD QUERY every label surface reads instead of re-deriving the
+/// roster: the chord SPECS (verbatim, terse form — `"M-x"`, never a display
+/// glyph) that dispatch `action` under `convention`+`flavor`, straight off
+/// [`active_seed_tables`]. Empty when no seed layer is active, or none of its
+/// entries target this action. At most one entry today (no table's own
+/// actions repeat), but a second table is not assumed to disagree with the
+/// first — order is table-then-entry.
+pub(crate) fn seeded_chords_for(
+    action: &Action,
+    convention: Convention,
+    flavor: KeymapFlavor,
+) -> Vec<&'static str> {
+    active_seed_tables(convention, flavor)
+        .iter()
+        .flat_map(|table| table.iter())
+        .filter(|(_, a)| a == action)
+        .map(|(spec, _)| *spec)
+        .collect()
+}

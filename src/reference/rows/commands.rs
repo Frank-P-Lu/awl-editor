@@ -29,12 +29,14 @@ pub(crate) fn commands() -> Vec<Block> {
                 crate::convention::Convention::Mac,
                 crate::commands::Platform::Native,
                 &[],
+                crate::keymap::KeymapFlavor::Native,
             );
             let linux = crate::commands::join_slots_truthful(
                 c,
                 crate::convention::Convention::Linux,
                 crate::commands::Platform::Native,
                 &keep,
+                crate::keymap::KeymapFlavor::Native,
             );
             t.push(vec![
                 Cell::text(c.name),

@@ -74,6 +74,12 @@ pub struct BuildCtx<'a> {
     /// only (see `commands::join_slots_truthful`'s Tier 4). Empty on Mac and on
     /// every headless capture that doesn't pass `--config`.
     pub config_linux_keep: &'a [String],
+    /// The config `keymap` flavor, beside [`Self::config_linux_keep`] — the
+    /// command palette's chord column falls back to a seeded layer chord
+    /// (`commands::menu_native_label`'s doc) when no ordinary chord survives
+    /// under `keymap = "emacs"`, and needs to know which flavor is active to
+    /// ask `commands::seeded_chords_for` the right question.
+    pub config_keymap_flavor: crate::keymap::KeymapFlavor,
     /// The CURRENT buffer's markdown headings (depth-indented label + line) for
     /// Go-to's HEADINGS lens (the fold that retired the standalone Outline picker).
     /// Caller-gathered (it needs the live buffer text); EMPTY for a non-markdown
@@ -220,7 +226,11 @@ pub fn build(kind: OverlayKind, ctx: &BuildCtx) -> Option<OverlayState> {
         OverlayKind::Command => {
             let mut ov = OverlayState::new_command(
                 crate::commands::visible_names(),
-                crate::commands::visible_effective_bindings(ctx.config_keys, ctx.config_linux_keep),
+                crate::commands::visible_effective_bindings(
+                    ctx.config_keys,
+                    ctx.config_linux_keep,
+                    ctx.config_keymap_flavor,
+                ),
                 // RUNTIME gate: "Finish file" only shows while a daemon `--wait`
                 // client is actively waiting (see `BuildCtx::has_waiter`'s doc).
                 crate::commands::visible_hidden_mask(ctx.row_gates),
@@ -256,7 +266,11 @@ pub fn build(kind: OverlayKind, ctx: &BuildCtx) -> Option<OverlayState> {
         // as the palette, but opened in capture mode (Enter rebinds rather than runs).
         OverlayKind::Keybindings => Some(OverlayState::new_keybindings(
             crate::commands::visible_names(),
-            crate::commands::visible_effective_bindings(ctx.config_keys, ctx.config_linux_keep),
+            crate::commands::visible_effective_bindings(
+                ctx.config_keys,
+                ctx.config_linux_keep,
+                ctx.config_keymap_flavor,
+            ),
         )),
         // Spell: the caller-resolved word target + its corrections. None when the
         // cursor isn't on a flagged word, so the summon no-ops.

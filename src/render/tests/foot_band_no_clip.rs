@@ -162,7 +162,8 @@ fn carded_kinds() -> Vec<OverlayKind> {
 #[cfg(not(target_arch = "wasm32"))]
 fn every_real_tip() -> Vec<String> {
     let names = crate::commands::names();
-    let bindings = crate::commands::effective_bindings(&[], &[]);
+    let bindings =
+        crate::commands::effective_bindings(&[], &[], crate::keymap::KeymapFlavor::Native);
     names
         .iter()
         .zip(bindings.iter())

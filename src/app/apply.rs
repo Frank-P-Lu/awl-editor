@@ -440,6 +440,7 @@ impl App {
         } = CoreBefore::of(self.workspace_state.overlay());
         let config_keys = self.config.keys.clone();
         let config_linux_keep = self.config.effective_linux_keep();
+        let config_keymap_flavor = self.config.keymap_flavor();
         // Gather live picker inputs before the mutable buffer borrow below. File
         // and asset pickers rescan only when summoned, so their transient corpus
         // reflects disk changes without a watcher or per-keystroke I/O.
@@ -466,6 +467,7 @@ impl App {
             goto_times,
             config_keys: &config_keys,
             config_linux_keep: &config_linux_keep,
+            config_keymap_flavor,
             goto_headings,
             goto_line_count,
             goto_folders,

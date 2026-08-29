@@ -64,8 +64,11 @@ fn clicking_the_current_facet_is_a_calm_no_op() {
     // retired its lens strip, so this generic law now rides a surviving faceter.
     let names = crate::commands::names();
     let hidden = vec![false; names.len()];
-    let mut ov =
-        OverlayState::new_command(names, crate::commands::effective_bindings(&[], &[]), hidden);
+    let mut ov = OverlayState::new_command(
+        names,
+        crate::commands::effective_bindings(&[], &[], crate::keymap::KeymapFlavor::Native),
+        hidden,
+    );
     ov.set_facet_lens(2); // switch to Navigate once, a real change
     assert_eq!(ov.active_facet_id(), Some("navigate"));
     let (before_lens, before_selected, before_scroll, before_items) =

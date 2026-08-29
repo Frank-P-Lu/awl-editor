@@ -516,7 +516,12 @@ pub fn resolve(id: &str) -> Option<Action> {
 /// (mirrored onto the render pipeline each `sync_view`, see
 /// `render::viewstate_def::ViewState::config_keys`); a test that wants the
 /// static, config-free default passes `&[]`/`&[]`.
-pub fn item_chord(command: &str, keys: &[(String, Vec<String>)], keep: &[String]) -> String {
+pub fn item_chord(
+    command: &str,
+    keys: &[(String, Vec<String>)],
+    keep: &[String],
+    flavor: crate::keymap::KeymapFlavor,
+) -> String {
     commands::COMMANDS
         .iter()
         .find(|c| c.name == command)
@@ -527,14 +532,20 @@ pub fn item_chord(command: &str, keys: &[(String, Vec<String>)], keep: &[String]
                 keep,
                 crate::convention::Convention::current(),
                 commands::Platform::current(),
+                flavor,
             )
         })
         .unwrap_or_default()
 }
 
-pub fn item_chord_for_id(id: &str, keys: &[(String, Vec<String>)], keep: &[String]) -> String {
+pub fn item_chord_for_id(
+    id: &str,
+    keys: &[(String, Vec<String>)],
+    keep: &[String],
+    flavor: crate::keymap::KeymapFlavor,
+) -> String {
     routed_command_for_id(id)
-        .map(|command| item_chord(command, keys, keep))
+        .map(|command| item_chord(command, keys, keep, flavor))
         .unwrap_or_default()
 }
 
@@ -783,7 +794,8 @@ mod tests {
                         );
                         // The secondary-column chord lookup must never panic (empty is
                         // fine for a palette-only command like About/Quit).
-                        let _ = item_chord_for_id(id, &[], &[]);
+                        let _ =
+                            item_chord_for_id(id, &[], &[], crate::keymap::KeymapFlavor::Native);
                     }
                     RosterItem::Predefined(kind) => {
                         assert!(

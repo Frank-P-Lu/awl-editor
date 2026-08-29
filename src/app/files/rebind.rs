@@ -124,7 +124,11 @@ impl App {
             && ov.kind == crate::overlay::OverlayKind::Keybindings
         {
             ov.capture = None;
-            ov.set_secondaries(crate::commands::effective_bindings(&keys, &keep));
+            ov.set_secondaries(crate::commands::effective_bindings(
+                &keys,
+                &keep,
+                self.config.keymap_flavor(),
+            ));
             ov.notice = notice;
         }
     }

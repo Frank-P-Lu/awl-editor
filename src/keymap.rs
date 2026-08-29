@@ -10,7 +10,7 @@ pub use platform::{KeymapFlavor, linux_emacs_preset_keep};
 pub(crate) use platform::{LINUX_DISPLACED_LETTERS, LINUX_EMACS_META_SEED};
 pub(crate) use platform::{
     linux_builtin_keep, linux_displaces_emacs_default, linux_is_native_clipboard_chord,
-    linux_keeps_chord,
+    linux_keeps_chord, seeded_chords_for,
 };
 
 mod resolve;

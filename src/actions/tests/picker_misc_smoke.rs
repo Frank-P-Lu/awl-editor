@@ -894,6 +894,7 @@ fn every_catalog_command_dispatches_without_panicking() {
         goto_times: vec![],
         config_keys: &[],
         config_linux_keep: &[],
+        config_keymap_flavor: crate::keymap::KeymapFlavor::Native,
         goto_headings: vec![("Heading One".to_string(), 0)],
         goto_line_count: 0,
         goto_folders: vec![("/workspace/notes".to_string(), false)],

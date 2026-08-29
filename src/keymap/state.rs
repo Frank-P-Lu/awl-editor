@@ -185,15 +185,23 @@ impl KeymapState {
             }
         }
 
-        // THE CLASSIC META LAYER — seeded LAST, after the Shift-
-        // convenience duplication above, so a Meta entry never grows its own
-        // unrequested Shift companion the way an ordinary catalog default does.
-        // Every entry fires an EXISTING catalog `Action`; see
-        // `platform::LINUX_EMACS_META_SEED`'s doc for why `Convention::Mac`
-        // never reaches this branch regardless of the gate's value.
+        // THE SEEDED-LAYER ROUND — seeded LAST, after the Shift-convenience
+        // duplication above, so a seeded entry never grows its own unrequested
+        // Shift companion the way an ordinary catalog default does. Every
+        // entry fires an EXISTING catalog `Action`. Reads
+        // `platform::active_seed_tables` — the SAME selection point the
+        // label-truth query (`platform::seeded_chords_for`) consults — so
+        // dispatch and advertisement can never see a different roster; see
+        // that function's doc for why `Convention::Mac` never reaches this
+        // branch regardless of the gate's value.
         if self.convention == Convention::Linux && self.linux_emacs_meta {
-            for (spec, action) in super::platform::LINUX_EMACS_META_SEED {
-                self.insert_default(spec, action.clone(), "linux emacs Meta layer");
+            for table in super::platform::active_seed_tables(
+                self.convention,
+                super::platform::KeymapFlavor::Emacs,
+            ) {
+                for (spec, action) in *table {
+                    self.insert_default(spec, action.clone(), "linux emacs seed layer");
+                }
             }
         }
     }

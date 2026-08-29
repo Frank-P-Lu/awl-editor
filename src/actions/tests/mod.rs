@@ -188,7 +188,11 @@ pub(super) fn drive_eff(journey: &mut crate::overlay::Journey, action: &Action) 
         // through `visible_slug_of`, not a raw catalog index).
         OverlayKind::Keybindings => Some(OverlayState::new_keybindings(
             crate::commands::visible_names(),
-            crate::commands::visible_effective_bindings(&[], &[]),
+            crate::commands::visible_effective_bindings(
+                &[],
+                &[],
+                crate::keymap::KeymapFlavor::Native,
+            ),
         )),
         _ => None,
     };

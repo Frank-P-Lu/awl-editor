@@ -10,6 +10,7 @@ fn empty_build_ctx<'a>(config_keys: &'a [(String, Vec<String>)]) -> BuildCtx<'a>
         goto_times: Vec::new(),
         config_keys,
         config_linux_keep: &[],
+        config_keymap_flavor: crate::keymap::KeymapFlavor::Native,
         goto_headings: Vec::new(),
         goto_line_count: 0,
         goto_folders: Vec::new(),
@@ -120,7 +121,7 @@ fn command_palette_lists_names_with_parallel_bindings() {
 #[test]
 fn command_picker_lands_on_all_then_groups_every_task_category_and_recent() {
     let names = crate::commands::names();
-    let binds = crate::commands::effective_bindings(&[], &[]);
+    let binds = crate::commands::effective_bindings(&[], &[], crate::keymap::KeymapFlavor::Native);
     let hidden = vec![false; names.len()];
     let mut ov = OverlayState::new_command(names, binds, hidden);
     // Lands on the flat All home; the strip is All-first.
@@ -177,7 +178,7 @@ fn command_picker_lands_on_all_then_groups_every_task_category_and_recent() {
 #[test]
 fn command_search_is_global_from_every_category_and_returns_to_that_category() {
     let names = crate::commands::names();
-    let binds = crate::commands::effective_bindings(&[], &[]);
+    let binds = crate::commands::effective_bindings(&[], &[], crate::keymap::KeymapFlavor::Native);
     let hidden = vec![false; names.len()];
     for lens in 0..8 {
         let mut ov = OverlayState::new_command(names.clone(), binds.clone(), hidden.clone());
@@ -216,7 +217,8 @@ fn command_search_is_global_from_every_category_and_returns_to_that_category() {
 #[test]
 fn every_command_union_row_has_exactly_one_non_all_browse_route() {
     let names = crate::commands::visible_names();
-    let binds = crate::commands::visible_effective_bindings(&[], &[]);
+    let binds =
+        crate::commands::visible_effective_bindings(&[], &[], crate::keymap::KeymapFlavor::Native);
     let hidden = vec![false; names.len()];
     let mut ov = OverlayState::new_command(names, binds, hidden);
     let settings = crate::settings::palette_rows();

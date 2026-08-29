@@ -952,7 +952,7 @@ fn command_arrows_cycle_the_lens() {
     let hidden = vec![false; names.len()];
     let mut overlay = crate::overlay::Journey::seeded(Some(OverlayState::new_command(
         names,
-        crate::commands::effective_bindings(&[], &[]),
+        crate::commands::effective_bindings(&[], &[], crate::keymap::KeymapFlavor::Native),
         hidden,
     )));
     let mut accept = None;

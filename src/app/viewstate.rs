@@ -276,6 +276,7 @@ impl App {
             // column the next `sync_view`, not just the palette's.
             config_keys: self.config.keys.clone(),
             config_linux_keep: self.config.effective_linux_keep(),
+            config_keymap_flavor: self.config.keymap_flavor(),
             is_markdown: self.document.buffer().is_markdown(),
             doc_dir: self
                 .document

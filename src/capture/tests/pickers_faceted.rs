@@ -643,8 +643,11 @@ fn command_and_history_pickers_faceted_lens_render_and_report() {
     // category (Save among them).
     let names = crate::commands::names();
     let hidden = vec![false; names.len()];
-    let mut cmd =
-        OverlayState::new_command(names, crate::commands::effective_bindings(&[], &[]), hidden);
+    let mut cmd = OverlayState::new_command(
+        names,
+        crate::commands::effective_bindings(&[], &[], crate::keymap::KeymapFlavor::Native),
+        hidden,
+    );
     cmd.cycle_lens(1);
     assert_eq!(cmd.active_facet_id(), Some("files"));
     let cpng = dir.join("cmd.png");

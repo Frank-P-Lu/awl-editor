@@ -289,7 +289,8 @@ fn command_palette_default_window_shows_the_below_edge_cue() {
     v.overlay_active = true;
     v.overlay_title = "commands".to_string();
     v.overlay_items = crate::commands::names();
-    v.overlay_bindings = crate::commands::effective_bindings(&[], &[]);
+    v.overlay_bindings =
+        crate::commands::effective_bindings(&[], &[], crate::keymap::KeymapFlavor::Native);
     v.overlay_selected = 0;
     v.overlay_window_rows = OverlayKind::Command.window_rows();
     v.overlay_lens = crate::facets::scheme(OverlayKind::Command)

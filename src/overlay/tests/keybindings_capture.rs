@@ -4,7 +4,8 @@ use super::*;
 fn keybindings_capture_key_mode_finishes_instantly() {
     // SUMMON: the rebind menu lists the catalog with its effective chords.
     let names = crate::commands::visible_names();
-    let binds = crate::commands::visible_effective_bindings(&[], &[]);
+    let binds =
+        crate::commands::visible_effective_bindings(&[], &[], crate::keymap::KeymapFlavor::Native);
     let mut ov = OverlayState::new_keybindings(names.clone(), binds);
     assert_eq!(ov.kind.as_str(), "keybindings");
     assert_eq!(ov.item_strings(), names);
@@ -36,7 +37,7 @@ fn keybindings_capture_key_mode_finishes_instantly() {
 fn keybindings_capture_chord_mode_collects_then_finishes() {
     let mut ov = OverlayState::new_keybindings(
         crate::commands::visible_names(),
-        crate::commands::visible_effective_bindings(&[], &[]),
+        crate::commands::visible_effective_bindings(&[], &[], crate::keymap::KeymapFlavor::Native),
     );
     for c in "save".chars() {
         ov.push(c);
@@ -61,7 +62,7 @@ fn keybindings_capture_chord_mode_collects_then_finishes() {
 fn keybindings_confirm_and_reset_helpers() {
     let mut ov = OverlayState::new_keybindings(
         crate::commands::visible_names(),
-        crate::commands::visible_effective_bindings(&[], &[]),
+        crate::commands::visible_effective_bindings(&[], &[], crate::keymap::KeymapFlavor::Native),
     );
     // RESET targets the highlighted command's slug.
     for c in "redo".chars() {

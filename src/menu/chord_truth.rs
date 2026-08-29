@@ -80,6 +80,7 @@ fn menu_chord_column_agrees_with_real_linux_dispatch_under_both_flavors() {
                     &keep,
                     crate::convention::Convention::Linux,
                     commands::Platform::Native,
+                    crate::keymap::KeymapFlavor::Native,
                 );
                 if dispatched == c.action {
                     assert!(
@@ -140,6 +141,7 @@ fn menu_chord_column_reflects_a_keys_override() {
         &[],
         crate::convention::Convention::Linux,
         commands::Platform::Native,
+        crate::keymap::KeymapFlavor::Native,
     );
     assert_eq!(default, "Ctrl+N", "control: the config-free default chord");
 
@@ -150,6 +152,7 @@ fn menu_chord_column_reflects_a_keys_override() {
         &[],
         crate::convention::Convention::Linux,
         commands::Platform::Native,
+        crate::keymap::KeymapFlavor::Native,
     );
     assert_eq!(
         overridden, "Ctrl+Y",

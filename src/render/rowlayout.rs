@@ -376,7 +376,11 @@ mod tests {
             }
             OverlayKind::Command | OverlayKind::Keybindings => {
                 let names = crate::commands::names();
-                let binds = crate::commands::effective_bindings(&[], &[]);
+                let binds = crate::commands::effective_bindings(
+                    &[],
+                    &[],
+                    crate::keymap::KeymapFlavor::Native,
+                );
                 let w = widest(&binds);
                 (names, Some(w))
             }

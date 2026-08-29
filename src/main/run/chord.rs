@@ -201,6 +201,7 @@ impl ReplaySession<'_> {
             goto_times: Vec::new(),
             config_keys: &self.config.keys,
             config_linux_keep: &effective_keep,
+            config_keymap_flavor: self.config.keymap_flavor(),
             goto_headings: inputs.goto_headings,
             goto_line_count: inputs.goto_line_count,
             goto_folders: inputs.goto_folders,

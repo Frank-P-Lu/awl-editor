@@ -89,8 +89,11 @@ fn a_rebuilt_strips_location_is_the_schemes_own_at_every_lens() {
 fn palette_view(lens: usize) -> ViewState {
     let names = crate::commands::names();
     let hidden = vec![false; names.len()];
-    let mut ov =
-        OverlayState::new_command(names, crate::commands::effective_bindings(&[], &[]), hidden);
+    let mut ov = OverlayState::new_command(
+        names,
+        crate::commands::effective_bindings(&[], &[], crate::keymap::KeymapFlavor::Native),
+        hidden,
+    );
     ov.set_facet_lens(lens);
     let mut v = view("hello world\n", 0, 0);
     v.overlay_active = true;
