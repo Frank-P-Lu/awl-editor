@@ -502,20 +502,14 @@ pub fn resolve(id: &str) -> Option<Action> {
 
 /// The EFFECTIVE native-slot chord for a routed command NAME — CONVENTION-
 /// RESOLVED, LABEL-TRUE, AND CONFIG-AWARE (`commands::menu_native_label`, e.g.
-/// `"Cmd-O"` -> `"⌘O"` on Mac / `"Ctrl+O"` on Linux, `""` when the resolved
-/// chord is a browser-reserved accelerator, and `""` when `keep` — the config's
-/// `Config::effective_linux_keep()` — has claimed it for its emacs meaning
-/// instead) for the awl-rendered menu bar's secondary column, or `""` for a
-/// palette-only command with no native chord. Cross-platform (the awl bar
-/// shows on web/Linux — this is the ONE label door that surface reads, so it
-/// can never claim a chord the browser, or this user's `keymap` flavor / `[keys]`
-/// rebind, would not actually dispatch). Reads the SAME catalog
-/// [`commands::COMMANDS`] the palette does, so a menu item's chord can never
-/// drift from the command it fires. `keys`/`keep` are the caller's config —
-/// every real call site threads `Config::keys`/`Config::effective_linux_keep()`
-/// (mirrored onto the render pipeline each `sync_view`, see
-/// `render::viewstate_def::ViewState::config_keys`); a test that wants the
-/// static, config-free default passes `&[]`/`&[]`.
+/// `"Cmd-O"` -> `"⌘O"` on Mac / `"Ctrl+O"` on Linux, `""` when browser-reserved
+/// or when `keep` has claimed the chord for its emacs meaning instead, for the
+/// awl-rendered menu bar's secondary column (or `""` for a palette-only
+/// command). Cross-platform, reading the SAME catalog [`commands::COMMANDS`]
+/// the palette does, so a menu item's chord can never drift from or claim a
+/// chord the resolver would not actually dispatch. `keys`/`keep`/`flavor` are
+/// the caller's config (mirrored onto the render pipeline each `sync_view`);
+/// a test wanting the static default passes `&[]`/`&[]`/`Native`.
 pub fn item_chord(
     command: &str,
     keys: &[(String, Vec<String>)],
