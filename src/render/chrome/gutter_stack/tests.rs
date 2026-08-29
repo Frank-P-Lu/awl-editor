@@ -542,6 +542,43 @@ fn project_heads_only_the_multi_file_hierarchy() {
     }
 }
 
+/// **521: EXACTLY ONE VISIBLE OWNER OF THE PROJECT NAME.** The gutter's own
+/// folder line is the project's one label whenever the stack draws no
+/// heading of its own (a single-file identity, or a resting stack — which
+/// never emits a `Group` row, [`crate::workingset::WorkingSet::stack_rows`]);
+/// it vanishes the moment the stack DOES draw one, because that heading
+/// already states which project this is (515's ink rule keeps its ink even
+/// though it lost its plate) and a second label would repeat it. Swept over
+/// both block shapes and both project-presence states, so the law cannot
+/// pass by only ever exercising the case where the two rules happen to agree.
+#[test]
+fn the_folder_line_and_a_drawn_group_heading_never_both_own_the_project_name() {
+    let heading_shapes: [(&str, Vec<StackRow>); 2] = [
+        ("resting (no heading)", rows(0)),
+        (
+            "expanded (heading drawn)",
+            vec![group_row("notes/", true), row("welcome.md", "", true)],
+        ),
+    ];
+    for (shape, files) in &heading_shapes {
+        for project in [true, false] {
+            let layout = layout_of(files, false, project, 24);
+            let lines = layout.lines();
+            let project_lines = lines
+                .iter()
+                .filter(|(_, k)| matches!(k, gutter::GutterLine::Project))
+                .count();
+            let has_heading = shape.contains("heading drawn");
+            let expected = usize::from(project && !has_heading);
+            assert_eq!(
+                project_lines, expected,
+                "shape={shape} project={project}: expected {expected} folder line(s), \
+                 found {project_lines} in {lines:?}"
+            );
+        }
+    }
+}
+
 /// THE CLOSE ZONE IS ONLY AT THE RIGHT EDGE, AND THE REST OF THE ROW STILL
 /// SWITCHES.
 ///
