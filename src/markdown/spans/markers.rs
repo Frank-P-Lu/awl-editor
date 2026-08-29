@@ -339,7 +339,7 @@ pub(super) fn push_bare_url_spans(
 /// retyped as an en dash. Unlike [`push_bare_url_spans`] this fires regardless
 /// of link nesting: a link's VISIBLE text is ordinary prose (its DESTINATION
 /// never reaches this branch at all, since only `Event::Text` calls this).
-pub(super) fn push_smart_punct_spans(
+pub(in crate::markdown) fn push_smart_punct_spans(
     out: &mut Vec<(Range<usize>, MdKind)>,
     text: &str,
     range: &Range<usize>,

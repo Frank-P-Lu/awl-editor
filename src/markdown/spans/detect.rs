@@ -427,7 +427,7 @@ pub fn smart_punct_ranges(s: &str) -> Vec<(Range<usize>, SmartPunctKind)> {
 /// "bare URL" concept of its own to protect it. Kept separate from the pure
 /// [`smart_punct_ranges`] so the character-run detector stays testable in
 /// total isolation from this URL-awareness.
-pub(super) fn smart_punct_runs(s: &str) -> Vec<(Range<usize>, SmartPunctKind)> {
+pub(in crate::markdown) fn smart_punct_runs(s: &str) -> Vec<(Range<usize>, SmartPunctKind)> {
     let urls = bare_url_ranges(s);
     smart_punct_ranges(s)
         .into_iter()

@@ -193,6 +193,16 @@ See https://example.com/track?utm_source=x for details.
 |---|---|---|---|
 | The domain, followed by a quiet ellipsis when a path or query is hidden, both carrying the same quiet baseline underline as an inline link. A URL with nothing past its domain shows in full, with no ellipsis. | The caret or a selection on the line shows the full address. | — | awl-specific extension |
 
+### Smart dashes and ellipsis
+
+```markdown
+double -- dash, triple --- dash, and an ellipsis...
+```
+
+| awl renders | Caret and selection | Formatting command | Portability |
+|---|---|---|---|
+| An en dash, an em dash, and a horizontal ellipsis. | The caret or a selection on the line shows the literal dashes or dots. | — | Widely used extension |
+
 ## Not supported / deliberately different
 
 ### Setext headings
