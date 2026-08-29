@@ -14,7 +14,7 @@
 //! fixed `lh + header_gap` box regardless of where the seam falls inside it),
 //! so no retuning of that fraction could buy the strip real breathing room.
 //!
-//! **CURRENT MECHANISM (item 519).** Clearance is no longer bought by tuning
+//! **CURRENT MECHANISM.** Clearance is no longer bought by tuning
 //! the seam's position at all. `render::chrome::docked_facet::floating_strip_band`
 //! relocates the strip's DRAWN/CLICKABLE box to a plain, un-inflated line
 //! optically centred in whatever room is genuinely left past the seam
@@ -132,8 +132,8 @@ fn ink_bottom_row(
 /// dpi tiers, both width classes, every lens) put the worst real TOP ratio at
 /// 0.30 (`Mopoke`/`Bilby`/`Currawong`, normal width, dpi 1x, margin 12.7
 /// physical px on a 42px `header_gap` — within a hair of `CARD_PAD`'s own 12
-/// logical px, the query field's own top-inset floor this item's brief asks
-/// the strip to match) and the worst real BOTTOM ratio at 0.2476
+/// logical px, the SAME top-inset floor the query field's own box clears)
+/// and the worst real BOTTOM ratio at 0.2476
 /// (`Gumtree`/`Bombora`, same cell, margin 10.4px on the same 42px
 /// `header_gap` — the descender-bearing bottom edge of a glyph run sits
 /// closer to its own box edge than the ascender-bearing top does, so the two
@@ -142,6 +142,111 @@ fn ink_bottom_row(
 /// pinned to either, so a small future metrics change does not flake a law
 /// that is still measuring real breathing room.
 const STRIP_INSET_FLOOR_FRAC: f32 = 0.20;
+
+/// One cell's worth of the strip's own ink geometry — the rule it must clear,
+/// the candidate band it must clear before, and where its ink actually starts
+/// and ends. Split out of the sweep below purely to keep that function under
+/// its own line budget; it owns no assertion of its own.
+struct StripInkCell {
+    rule_y: f32,
+    scan_bottom: f32,
+    header_gap: f32,
+    ink_top: i64,
+    ink_bottom: i64,
+    pill_backed: bool,
+}
+
+#[allow(clippy::too_many_arguments)]
+fn measure_strip_ink_cell(
+    p: &mut TextPipeline,
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    (w, h): (u32, u32),
+    t: &theme::Theme,
+    v: &ViewState,
+    label_w: &str,
+    dpi: f32,
+    active: usize,
+) -> StripInkCell {
+    p.set_view(v);
+    p.prepare(device, queue, w, h).unwrap();
+
+    let fills = p.overlay_pane_fills_probe();
+    assert_eq!(
+        fills.len(),
+        2,
+        "{} {label_w}@{dpi}x lens={active}: a Pane/Split card must draw two \
+         surfaces to have a rule to clear",
+        t.name
+    );
+    let rule_y = fills[1][1]; // the lower surface's own visible top.
+
+    let geom = p.overlay_geometry(w);
+    let plan = p.overlay_row_plan(&geom);
+    let strip = plan.strip_band().unwrap_or_else(|| {
+        panic!(
+            "{} {label_w}@{dpi}x: a faceted card plans a strip box",
+            t.name
+        )
+    });
+    let scan_bottom = plan.first_top().min(strip.bottom());
+
+    let px = pixeldiff::render_frame(p, device, queue, w, h);
+    let (wi, hi) = (w as i64, h as i64);
+
+    // Sample DENSELY (every physical px, never a handful of spaced columns)
+    // across a wide span from `text_left` — "All" opens every faceted strip
+    // there, but a proportional face's diagonal strokes cross any GIVEN
+    // column for only a row or two before moving to the next, so a sparse
+    // column set can miss real ink for several consecutive rows purely from
+    // undersampling, not its absence. 1px columns (never an averaged block,
+    // which would dilute a thin stroke back toward the ground) over a span
+    // wide enough to span "All" and spill into "Files" — still valid
+    // evidence of the strip's own ink, whichever glyph produced it.
+    let span = (geom.text_w * 0.35).clamp(20.0, 140.0) as i64;
+    let sxs: Vec<i64> = (0..span).map(|i| geom.text_left as i64 + 1 + i).collect();
+    let ground = avg(&px, wi, hi, sxs[0], (rule_y - 3.0).max(0.0) as i64, 3, 2);
+    let ink = t.base_content;
+    let scan = (rule_y.round() as i64, scan_bottom.round() as i64);
+    let name = t.name;
+    let ink_top = ink_top_row(&px, (wi, hi), &sxs, scan, ink, ground).unwrap_or_else(|| {
+        panic!(
+            "{name} {label_w}@{dpi}x lens={active}: PRESENCE floor — no \
+             facet-strip ink found between the rule ({rule_y}) and the \
+             candidate band ({scan_bottom}); a separation floor satisfied \
+             by no label at all is not a floor"
+        )
+    });
+    let ink_bottom = ink_bottom_row(&px, (wi, hi), &sxs, scan, ink, ground).unwrap_or_else(|| {
+        panic!(
+            "{name} {label_w}@{dpi}x lens={active}: PRESENCE floor (bottom) — \
+             no facet-strip ink found between the rule ({rule_y}) and the \
+             candidate band ({scan_bottom})"
+        )
+    });
+
+    // The wide scan span can land on WHICHEVER label is active, and on a
+    // filled-pill facet style (`Band`/`Chips(Hairline|FilledActive)`) the
+    // ACTIVE label's own pill fill is `chip_plate_floor.rs`'s OWN floor,
+    // which deliberately seats the pill flush ON the plate (`>= plate_top -
+    // 0.05`) — a different, already-decided law for a different mark shape.
+    let pill_backed = matches!(
+        t.render_caps.facet_style,
+        theme::FacetStyle::Band
+            | theme::FacetStyle::Chips(
+                theme::ChipVariant::Hairline | theme::ChipVariant::FilledActive
+            )
+    );
+
+    StripInkCell {
+        rule_y,
+        scan_bottom,
+        header_gap: geom.header_gap,
+        ink_top,
+        ink_bottom,
+        pill_backed,
+    }
+}
 
 /// A faceted card carrying the REAL Command-palette scheme (8 lenses: All,
 /// Files, Navigate, Format, View, Tools, Settings, Recent — the brief's own
@@ -221,140 +326,68 @@ fn facet_strip_ink_clears_the_lower_surfaces_rule_with_presence_and_margin() {
                 theme::set_active_by_name(t.name).unwrap();
                 p.sync_theme();
 
-                // The whole facet roster, not only "All" (index 0).
+                // The whole facet roster, not only "All" (index 0). Each
+                // cell's measurement is `measure_strip_ink_cell` (split out
+                // purely to keep THIS function under its own line budget);
+                // the SEPARATION math and the pill-backed top carve-out stay
+                // here, beside the floor they grade against.
                 for active in 0..crate::commands::COMMAND_FACETS.strip.len() {
                     let v = command_view(active);
-                    p.set_view(&v);
-                    p.prepare(&device, &queue, w, h).unwrap();
-
-                    let fills = p.overlay_pane_fills_probe();
-                    assert_eq!(
-                        fills.len(),
-                        2,
-                        "{} {label_w}@{dpi}x lens={active}: a Pane/Split card must draw two \
-                         surfaces to have a rule to clear",
-                        t.name
+                    let cell = measure_strip_ink_cell(
+                        &mut p,
+                        &device,
+                        &queue,
+                        (w, h),
+                        t,
+                        &v,
+                        label_w,
+                        dpi,
+                        active,
                     );
-                    let rule_y = fills[1][1]; // the lower surface's own visible top.
-
-                    let geom = p.overlay_geometry(w);
-                    let plan = p.overlay_row_plan(&geom);
-                    let strip = plan.strip_band().unwrap_or_else(|| {
-                        panic!(
-                            "{} {label_w}@{dpi}x: a faceted card plans a strip box",
-                            t.name
-                        )
-                    });
-                    let scan_bottom = plan.first_top().min(strip.bottom());
-
-                    let px = pixeldiff::render_frame(&mut p, &device, &queue, w, h);
-                    let (wi, hi) = (w as i64, h as i64);
-
-                    // Sample DENSELY (every physical px, never a handful of spaced
-                    // columns) across a wide span from `text_left` — "All" opens
-                    // every faceted strip there, but a proportional face's diagonal
-                    // strokes cross any GIVEN column for only a row or two before
-                    // moving to the next, so a sparse column set can miss real ink
-                    // for several consecutive rows purely from undersampling, not
-                    // its absence. 1px columns (never an averaged block, which
-                    // would dilute a thin stroke back toward the ground) over a
-                    // span wide enough to span "All" and spill into "Files" —
-                    // still valid evidence of the strip's own ink, whichever glyph
-                    // produced it.
-                    let span = (geom.text_w * 0.35).clamp(20.0, 140.0) as i64;
-                    let sxs: Vec<i64> = (0..span).map(|i| geom.text_left as i64 + 1 + i).collect();
-                    let ground = avg(&px, wi, hi, sxs[0], (rule_y - 3.0).max(0.0) as i64, 3, 2);
-                    let ink = t.base_content;
-                    let ink_top = ink_top_row(
-                        &px,
-                        (wi, hi),
-                        &sxs,
-                        (rule_y.round() as i64, scan_bottom.round() as i64),
-                        ink,
-                        ground,
-                    );
-
-                    let name = t.name;
-                    let ink_top = ink_top.unwrap_or_else(|| {
-                        panic!(
-                            "{name} {label_w}@{dpi}x lens={active}: PRESENCE floor — no \
-                             facet-strip ink found between the rule ({rule_y}) and the \
-                             candidate band ({scan_bottom}); a separation floor satisfied \
-                             by no label at all is not a floor"
-                        )
-                    });
 
                     // SEPARATION, with a REAL margin — clearing the same floor
-                    // the card's OTHER bands get (item 519's brief), not merely
-                    // "not touching": at least `STRIP_INSET_FLOOR_FRAC` of
-                    // `header_gap`, the SAME budget the query field's own
-                    // top-inset and the strip's own below-candidate-band air are
-                    // cut from, so the strip's top-inset can no longer read as
-                    // clipped against the lower surface's rim.
+                    // the card's OTHER bands get, not merely "not touching":
+                    // at least `STRIP_INSET_FLOOR_FRAC` of `header_gap`, the
+                    // SAME budget the query field's own top-inset and the
+                    // strip's own below-candidate-band air are cut from.
                     //
-                    // EXCEPT: the wide scan span can land on WHICHEVER label is
-                    // active, and on a filled-pill facet style (`Band`/
-                    // `Chips(Hairline|FilledActive)`) the ACTIVE label's own pill
-                    // fill is `chip_plate_floor.rs`'s OWN floor, which
-                    // deliberately seats the pill flush ON the plate (`>=
-                    // plate_top - 0.05`) — a different, already-decided law for a
-                    // different mark shape. This law is about the LABEL TEXT's
-                    // own clearance; PRESENCE still applies (a vanished label is
-                    // still a bug), only the flush-by-design TOP-SEPARATION claim
-                    // is out of scope for these styles (the BOTTOM side below is
-                    // not part of that flush-by-design carve-out, so it stays
-                    // graded for every style).
-                    let pill_backed = matches!(
-                        t.render_caps.facet_style,
-                        theme::FacetStyle::Band
-                            | theme::FacetStyle::Chips(
-                                theme::ChipVariant::Hairline | theme::ChipVariant::FilledActive
-                            )
-                    );
-                    let floor = geom.header_gap * STRIP_INSET_FLOOR_FRAC;
-                    let margin = ink_top as f32 - rule_y;
-                    if !pill_backed {
+                    // TOP is skipped for a pill-backed style (`Band`/
+                    // `Chips(Hairline|FilledActive)`): the ACTIVE label's own
+                    // pill fill is `chip_plate_floor.rs`'s OWN floor, which
+                    // deliberately seats the pill flush ON the plate — a
+                    // different, already-decided law for a different mark
+                    // shape. PRESENCE still applies (a vanished label is
+                    // still a bug); only the flush-by-design TOP-SEPARATION
+                    // claim is out of scope. The BOTTOM side is not part of
+                    // that flush-by-design carve-out, so it stays graded for
+                    // every style.
+                    let floor = cell.header_gap * STRIP_INSET_FLOOR_FRAC;
+                    let margin = cell.ink_top as f32 - cell.rule_y;
+                    if !cell.pill_backed {
                         assert!(
                             margin >= floor,
                             "{} {label_w}@{dpi}x lens={active}: SEPARATION floor — \
-                             facet-strip ink starts at {ink_top}, only {margin:.1}px below \
-                             the lower surface's rule ({rule_y}), under the {floor:.1}px \
+                             facet-strip ink starts at {}, only {margin:.1}px below \
+                             the lower surface's rule ({}), under the {floor:.1}px \
                              floor ({:.2} of header_gap {:.1}) — reads as clipped against \
                              the rim",
                             t.name,
+                            cell.ink_top,
+                            cell.rule_y,
                             STRIP_INSET_FLOOR_FRAC,
-                            geom.header_gap
+                            cell.header_gap
                         );
                     }
-
-                    // THE BELOW-SIDE PIN: the SAME floor, measured from the
-                    // strip's own last ink row down to the candidate band —
-                    // optical centring (`floating_strip_band`) gives this by
-                    // construction, but this reads it off REAL pixels rather
-                    // than trusting the formula that produced it.
-                    let ink_bottom = ink_bottom_row(
-                        &px,
-                        (wi, hi),
-                        &sxs,
-                        (rule_y.round() as i64, scan_bottom.round() as i64),
-                        ink,
-                        ground,
-                    )
-                    .unwrap_or_else(|| {
-                        panic!(
-                            "{name} {label_w}@{dpi}x lens={active}: PRESENCE floor (bottom) \
-                             — no facet-strip ink found between the rule ({rule_y}) and the \
-                             candidate band ({scan_bottom})"
-                        )
-                    });
-                    let bottom_margin = scan_bottom - (ink_bottom as f32 + 1.0);
+                    let bottom_margin = cell.scan_bottom - (cell.ink_bottom as f32 + 1.0);
                     assert!(
                         bottom_margin >= floor,
                         "{} {label_w}@{dpi}x lens={active}: SEPARATION floor (bottom) — \
-                         facet-strip ink ends at {ink_bottom}, only {bottom_margin:.1}px \
-                         above the candidate band ({scan_bottom}), under the {floor:.1}px \
+                         facet-strip ink ends at {}, only {bottom_margin:.1}px \
+                         above the candidate band ({}), under the {floor:.1}px \
                          floor — the strip crowds the row below it",
-                        t.name
+                        t.name,
+                        cell.ink_bottom,
+                        cell.scan_bottom
                     );
                 }
             }
