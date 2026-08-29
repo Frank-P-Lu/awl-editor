@@ -1170,3 +1170,203 @@ fn link_text_ink_is_content_not_amber_in_every_world() {
     }
     theme::set_active_by_name(prev).unwrap();
 }
+
+/// THE SAME LINK-UNDERLINE GEOMETRY CONTRACT, for the OTHER followable span —
+/// a tamed bare URL (item 511's URL taming removed the scheme costume that
+/// used to self-identify a bare URL as a link; item 523 gives every followable
+/// span the SAME quiet baseline underline). Mirrors
+/// [`link_underline_hugs_the_link_text_and_survives_the_caret`] exactly:
+/// off-caret (tamed — authority + reserved ellipsis slot visible), the
+/// underline is present, flat, and hugs the CURRENTLY VISIBLE run; on-caret
+/// (revealed — the whole raw URL shows), it survives and re-hugs the now-wider
+/// run — no separate persist/drop branch, the SAME `row.xs`-driven collapse
+/// the conceal mechanism already produces.
+#[test]
+fn bare_url_underline_hugs_the_tamed_run_and_survives_the_caret() {
+    let _t = crate::testlock::serial();
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!(
+            "skipping bare_url_underline_hugs_the_tamed_run_and_survives_the_caret: no wgpu adapter"
+        );
+        return;
+    };
+    let text = "A bare url https://example.com/some/long/path here.\n\nfar away\n";
+    // Caret parked on a distant line: the bare URL's scheme+tail conceal.
+    let mut off = view(text, 2, 0);
+    off.is_markdown = true;
+    p.set_view(&off);
+
+    let lines = p.link_underlines();
+    assert_eq!(
+        lines.len(),
+        1,
+        "one tamed bare URL, one underline (present even OFF the caret's line \
+         — content styling, not caret-gated): {lines:?}"
+    );
+    let tamed = lines[0];
+    assert_eq!(tamed.amp, 0.0, "an underline is FLAT");
+    assert!(tamed.thickness > 0.0, "positive stroke");
+    assert!(tamed.w > 0.0, "the tamed run has real, positive width");
+
+    // The authority "example.com" is chars 19..30 on line 0 (after "A bare
+    // url https://"); the underline's left edge hugs its selection rect's
+    // left edge (the scheme collapses to zero width ahead of it, so the two
+    // starts coincide).
+    let sel = p.range_rects((0, 19), (0, 30));
+    assert_eq!(sel.len(), 1, "one selection rect for the authority: {sel:?}");
+    let [rx, ry, rw, rh] = sel[0];
+    assert!(
+        (tamed.x - rx).abs() < 0.6,
+        "underline x hugs the authority's start: {} vs {rx}",
+        tamed.x
+    );
+    // The tamed underline is AT LEAST as wide as the bare authority (it also
+    // covers the reserved ellipsis slot beyond it), never narrower.
+    assert!(
+        tamed.w >= rw - 0.6,
+        "underline width covers at least the authority: {} vs {rw}",
+        tamed.w
+    );
+    let center = tamed.y + tamed.h * 0.5;
+    assert!(
+        center > ry + rh * 0.5 && center < ry + rh,
+        "underline sits in the LOWER half of the glyph cell (near the baseline): \
+         center={center}, cell=[{ry}, {}]",
+        ry + rh
+    );
+
+    // Caret ON the bare URL's line: the scheme/tail reveal, the underline
+    // SURVIVES and re-hugs the now fully-revealed (and therefore WIDER) run.
+    let mut on = view(text, 0, 0);
+    on.is_markdown = true;
+    p.set_view(&on);
+    let on_lines = p.link_underlines();
+    assert_eq!(
+        on_lines.len(),
+        1,
+        "the underline survives the caret landing on the bare URL's line"
+    );
+    assert!(
+        on_lines[0].w > tamed.w,
+        "revealed underline widens to the full raw URL, not stuck at the \
+         tamed width: revealed={} tamed={}",
+        on_lines[0].w,
+        tamed.w
+    );
+
+    // A followable-span-less buffer: zero underline geometry.
+    let mut plain = view("no followable text here at all\n", 0, 0);
+    plain.is_markdown = true;
+    p.set_view(&plain);
+    assert!(
+        p.link_underlines().is_empty(),
+        "no followable span, no underline geometry"
+    );
+}
+
+/// PRESENCE + GEOMETRY, SWEPT WORLDS × 1x/2x, WITH A DIFFERENTIAL CONTROL ARM.
+/// Every world in the roster, at both display tiers: a named link and a tamed
+/// bare URL each produce exactly one underline whose stroke thickness scales
+/// with `Metrics::scale` via the ONE owner (`spans::LINK_UNDERLINE_THICKNESS`,
+/// the `strike_line_band` precedent's `Logical` unit — never a bare device-
+/// pixel constant, the DPI lesson). The DIFFERENTIAL ARM rides in the SAME
+/// sweep: byte-identical plain prose (no followable span at all) produces
+/// ZERO underline geometry at every world/tier — proving the law can't be
+/// satisfied by a treatment that underlines everything.
+#[test]
+fn followable_underline_presence_geometry_and_differential_sweep_worlds_and_dpi() {
+    let _t = crate::testlock::serial();
+    let _world = theme::WorldPin::snapshot();
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!(
+            "skipping followable_underline_presence_geometry_and_differential_sweep_worlds_and_dpi: \
+             no wgpu adapter"
+        );
+        return;
+    };
+    let link_doc = "keep [linked text](https://example.com) end\nplain second line\n";
+    let bare_doc = "A bare url https://example.com/some/long/path here.\n\nfar away\n";
+    let plain_doc = "no followable text here at all, just prose\n";
+
+    for world in theme::THEMES {
+        theme::set_active_by_name(world.name).unwrap();
+        p.sync_theme();
+        for dpi in [1.0f32, 2.0f32] {
+            p.set_dpi(dpi);
+            let scale = p.metrics.scale;
+            let expected_thickness = super::spans::LINK_UNDERLINE_THICKNESS.px(scale);
+
+            let mut lv = view(link_doc, 1, 0);
+            lv.is_markdown = true;
+            p.set_view(&lv);
+            let link_lines = p.link_underlines();
+            assert_eq!(
+                link_lines.len(),
+                1,
+                "{} dpi={dpi}: one named-link underline: {link_lines:?}",
+                world.name
+            );
+            assert!(
+                (link_lines[0].thickness - expected_thickness).abs() < 0.1,
+                "{} dpi={dpi}: link underline stroke tracks Logical*scale: {} vs {expected_thickness}",
+                world.name,
+                link_lines[0].thickness
+            );
+
+            let mut bv = view(bare_doc, 2, 0);
+            bv.is_markdown = true;
+            p.set_view(&bv);
+            let bare_lines = p.link_underlines();
+            assert_eq!(
+                bare_lines.len(),
+                1,
+                "{} dpi={dpi}: one tamed-bare-URL underline: {bare_lines:?}",
+                world.name
+            );
+            assert!(
+                (bare_lines[0].thickness - expected_thickness).abs() < 0.1,
+                "{} dpi={dpi}: bare-URL underline stroke tracks Logical*scale: {} vs {expected_thickness}",
+                world.name,
+                bare_lines[0].thickness
+            );
+
+            // DIFFERENTIAL ARM: byte-identical plain prose, no followable span.
+            let mut pv = view(plain_doc, 0, 0);
+            pv.is_markdown = true;
+            p.set_view(&pv);
+            assert!(
+                p.link_underlines().is_empty(),
+                "{} dpi={dpi}: plain prose must NEVER draw a followable-span \
+                 underline: {:?}",
+                world.name,
+                p.link_underlines()
+            );
+        }
+    }
+}
+
+/// SOLID INK, NEVER A WASH — the decided form (item 523): the followable-span
+/// underline is drawn at a MUTED step of the text's own ink, opaque, never an
+/// alpha-blended treatment (Wagtail's `decorative_wash: Off` bans exactly that
+/// class — `nit_underline_srgba` already learned to zero itself out rather
+/// than draw translucent on Wagtail; the followable underline sidesteps the
+/// whole question by never being translucent ANYWHERE). Swept over the full
+/// world roster: every world's `muted` (the color `link_underline_ink` /
+/// `strike_ink` return) carries full alpha, so the pipeline's single `set_color`
+/// tint is always opaque, on Wagtail included — no per-world exemption needed.
+#[test]
+fn followable_underline_ink_is_solid_never_translucent_in_every_world() {
+    let _g = crate::testlock::serial();
+    let _world = theme::WorldPin::snapshot();
+    for world in theme::THEMES {
+        theme::set_active_by_name(world.name).unwrap();
+        let rgba = super::spans::link_underline_srgba_bytes();
+        assert_eq!(
+            rgba[3], 0xFF,
+            "{}: the followable-span underline's ink must be FULLY OPAQUE \
+             (got alpha {:#04x}) — a wash is banned by DESIGN, not just on \
+             Wagtail",
+            world.name, rgba[3]
+        );
+    }
+}
