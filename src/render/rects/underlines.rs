@@ -43,6 +43,36 @@ impl TextPipeline {
         self.ornament_cache.rule_lines.borrow().contains(&li)
     }
 
+    /// True when `li` sits inside a table block ([`ConcealKind::Table`]) that is
+    /// CURRENTLY x-raying its source to near-zero width. Unlike
+    /// [`Self::nit_hidden_by_rule_conceal`], this is NOT a pure function of the
+    /// reshape: a table's structural membership (which lines belong to which
+    /// table, `ornament_cache.table_blocks`) rides the reshape cache exactly like
+    /// `rule_lines` does, but WHETHER that membership is presently concealed does
+    /// not — `ConcealKind::Table` only conceals while `wysiwyg_on()` holds
+    /// ([`crate::markdown::wysiwyg_reveals`] always answers `false` for a table in
+    /// place; the toggle is the only gate), and that process-global can flip
+    /// WITHOUT a reshape ([`super::WashCache`]'s own doc comment names the same
+    /// hazard for its inline-code pill bucket). Folding "concealed" into a cached
+    /// SET here — the shape [`Self::nit_hidden_by_rule_conceal`] uses — would
+    /// freeze the decision at whatever `wysiwyg_on()` read at the LAST reshape, so
+    /// only the structural line-membership half rides the cache; the toggle
+    /// itself is read fresh on every call, matching every other table-conceal
+    /// consumer in this crate (`ensure_wash_protos`, `prepare_table_grid`,
+    /// `compute_table_layout`, `try_table_pan`).
+    fn nit_hidden_by_table_conceal(&self, li: usize) -> bool {
+        if !self.md_enabled || self.md_spans.is_empty() || !crate::markdown::wysiwyg_on() {
+            return false;
+        }
+        self.ensure_ornament_lists();
+        let line_byte = self.line_doc_byte_start(li);
+        self.ornament_cache
+            .table_blocks
+            .borrow()
+            .iter()
+            .any(|(_, r)| r.start <= line_byte && line_byte < r.end)
+    }
+
     fn ensure_squiggle_protos(&self) {
         let key = (self.row_geom.generation(), self.spell_gen);
         if self.squiggle_cache.version.get() == Some(key) {
@@ -309,7 +339,12 @@ impl TextPipeline {
     /// ornament ([`Self::nit_hidden_by_rule_conceal`]) is excluded too, caret line
     /// excepted (that case is already handled by the check above) — reveal-on-
     /// cursor keeps the nit visible once the raw `---` text itself shows, the same
-    /// membership the ornament draws from.
+    /// membership the ornament draws from. TABLE CONCEAL: a line inside a table
+    /// block that is CURRENTLY x-raying its source to near-zero width
+    /// ([`Self::nit_hidden_by_table_conceal`]) is excluded the same way — but
+    /// unlike the rule case, whether it applies is read fresh from `wysiwyg_on()`
+    /// on every call rather than folded into a cached set, since that toggle can
+    /// flip without a reshape.
     pub(crate) fn nit_underlines(&self) -> Vec<Squiggle> {
         if !crate::nits::nits_on() {
             return Vec::new();
@@ -331,6 +366,9 @@ impl TextPipeline {
             }
             if self.nit_hidden_by_rule_conceal(p.line) {
                 continue; // the whole line conceals to the rule ornament — no source glyphs to tick
+            }
+            if self.nit_hidden_by_table_conceal(p.line) {
+                continue; // WYSIWYG x-rays the row to near-zero width — no glyphs to tick
             }
             let line_top = doc_top + p.line_top;
             if !self.proto_visible(line_top, p.line_height) {
