@@ -861,6 +861,58 @@ fn every_visible_file_rows_group_heading_is_drawn_in_the_same_window() {
     }
 }
 
+/// EVERY DRAWN HEADING NAMES ITS OWN GROUP'S REAL ROOT, real or pinned sticky
+/// alike — the read side of a heading's own close route: a click there
+/// resolves through this method, so a wrong answer would close the wrong
+/// project's files. Swept over every scroll position of a two-root set larger
+/// than the viewport, so a pinned STICKY heading is exercised as often as a
+/// real one, and every non-heading row is checked to name no root at all.
+#[test]
+fn expanded_row_group_root_names_the_drawn_headings_own_root_at_every_scroll_position() {
+    let mut ws = WorkingSet::default();
+    for n in ["a0.md", "a1.md", "a2.md", "a3.md", "a4.md", "a5.md"] {
+        opened(&mut ws, n);
+    }
+    let other = PathBuf::from("/proj/archive");
+    for n in ["b0.md", "b1.md", "b2.md", "b3.md", "b4.md", "b5.md"] {
+        let p = other.join(n);
+        ws.open(BufferKey::path(&p), Some(p), other.clone());
+    }
+    ws.expand();
+    let full_len = 14; // 2 headings + 12 files
+    for target in 0..full_len {
+        ws.scroll_expanded(-1000);
+        ws.scroll_expanded(target as isize);
+        let rows = ws.expanded_rows();
+        for (i, r) in rows.iter().enumerate() {
+            match r.kind {
+                StackRowKind::Group { .. } => {
+                    let got = ws.expanded_row_group_root(i).unwrap_or_else(|| {
+                        panic!("target={target} row={i}: a drawn heading names no root")
+                    });
+                    let want = format!("{}/", crate::project::folder_name(&got));
+                    assert_eq!(
+                        want, r.leaf,
+                        "target={target} row={i}: the resolved root's own folder name \
+                         disagrees with the heading's own drawn label"
+                    );
+                }
+                StackRowKind::File | StackRowKind::Overflow { .. } => {
+                    assert_eq!(
+                        ws.expanded_row_group_root(i),
+                        None,
+                        "target={target} row={i}: a {:?} row must name no group root",
+                        r.kind
+                    );
+                }
+                StackRowKind::More { .. } => {
+                    unreachable!("the expanded panel draws no More row")
+                }
+            }
+        }
+    }
+}
+
 /// **520: THE OVERFLOW CUE'S PRESENCE AND COUNT ARE EXACT AT BOTH EDGES**,
 /// swept over every scroll position across a set larger than the viewport.
 /// `↑ N more` is present exactly when a FILE precedes the window; `↓ N more`

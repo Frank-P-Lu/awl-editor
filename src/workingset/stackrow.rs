@@ -11,15 +11,17 @@
 /// cannot answer one thing to the draw and another to the hit-test.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum StackRowKind {
-    /// A real open file. This is the only row kind that may show the close mark
-    /// or carry the active-file plate.
+    /// A real open file. This is the only row kind that may carry the
+    /// active-file plate; it may also show the close mark, closing itself.
     #[default]
     File,
     /// The collapsed view's single generic overflow affordance — a resting-
     /// stack row, and drawn ONLY there: clicking it EXPANDS the panel
     /// (`app/input/gutter.rs::gutter_stack_click`).
     More { hidden: usize },
-    /// A project heading in the expanded cross-project panel.
+    /// A project heading in the expanded cross-project panel. May also show
+    /// the close mark — its own, closing every file under its root, never a
+    /// switch target of its own.
     Group { active: bool },
     /// The expanded panel's own PASSIVE scroll-position cue — `↑ N
     /// more` (`up: true`) pinned above the window when rows are hidden above

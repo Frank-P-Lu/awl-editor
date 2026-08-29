@@ -85,6 +85,15 @@ impl App {
         working.files().get(at)
     }
 
+    /// THE ROOT A DRAWN GROUP-HEADING ROW NAMES — the close route's own
+    /// resolution for a heading, mirroring [`Self::gutter_stack_row_key`] for
+    /// a file. Only the expanded panel ever draws a `Group` row (the resting
+    /// stack's own `stack_rows` emits `File`/`More` alone), so this is
+    /// structurally `None` outside it — no root check of its own is needed.
+    pub(in crate::app) fn gutter_stack_row_group_root(&self, row: usize) -> Option<PathBuf> {
+        self.document.working_set().expanded_row_group_root(row)
+    }
+
     /// Switching uses the row's key, so this path-only projection remains only
     /// for tests and path assertions.
     #[cfg_attr(not(test), allow(dead_code))]
@@ -162,8 +171,11 @@ impl App {
     ///   handle: pressing the close mark always means close;
     /// * the one `More` row EXPANDS the transient scrollable panel
     ///   ([`crate::workingset::WorkingSet::expand`]), immediately;
-    /// * a `Group` heading is inert (filtered out before this function ever
-    ///   sees it — `render::chrome::gutter_hit::stack_hit_from_plan`);
+    /// * a `Group` heading's SWITCH half is inert (filtered out before this
+    ///   function ever sees it — `render::chrome::gutter_hit::stack_hit_from_plan`),
+    ///   so a press elsewhere on it stays click-away; its own CLOSE zone
+    ///   closes every file under its root, immediately, one refusal at a time
+    ///   ([`App::close_group`]);
     /// * a press that misses the block ENTIRELY while the panel is open is a
     ///   CLICK-AWAY: it collapses the panel and is swallowed, mirroring the
     ///   awl-drawn menu bar's own click-away contract
@@ -209,10 +221,20 @@ impl App {
                 self.request_frame();
             }
             // Filtered out before the hit-test ever answers a row for it
-            // (`stack_hit_from_plan`); kept as named, no-op arms rather than a
-            // wildcard so a future row kind cannot fall silently through here.
-            crate::workingset::StackRowKind::Group { .. }
-            | crate::workingset::StackRowKind::Overflow { .. } => {}
+            // (`stack_hit_from_plan`); a named, no-op arm rather than folded
+            // into the wildcard so a future row kind cannot fall silently
+            // through here.
+            crate::workingset::StackRowKind::Overflow { .. } => {}
+            // The hit-test enrols a `Group` row ONLY for its own close zone
+            // (`stack_hit_from_plan`), so this arm is reached exclusively with
+            // `hit.is_close()` true — closing the whole group is folded
+            // through the same per-file save/conflict gate a File row's own
+            // close zone uses, one refusal at a time.
+            crate::workingset::StackRowKind::Group { .. } => {
+                if let Some(root) = self.gutter_stack_row_group_root(hit.row) {
+                    self.close_group(root);
+                }
+            }
             crate::workingset::StackRowKind::File => {
                 if hit.is_close() {
                     if let Some(key) = self.gutter_stack_row_key(hit.row) {

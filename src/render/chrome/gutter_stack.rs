@@ -114,7 +114,15 @@ pub(super) struct StackLine {
 pub(super) fn fit_rows(rows: &[crate::workingset::StackRow], budget: usize) -> Vec<StackLine> {
     rows.iter()
         .map(|row| {
-            let label_budget = if matches!(row.kind, crate::workingset::StackRowKind::File) {
+            // A project heading's own close mark shuts its whole group, so it
+            // reserves the same lane a file row does; the resting stack's
+            // overflow affordance carries no close action and keeps its whole
+            // budget.
+            let label_budget = if matches!(
+                row.kind,
+                crate::workingset::StackRowKind::File
+                    | crate::workingset::StackRowKind::Group { .. }
+            ) {
                 budget.saturating_sub(CLOSE_MARK_TEXT.chars().count())
             } else {
                 budget
@@ -186,14 +194,18 @@ pub(super) fn stack_spans(
             out.push((format!("{lead}{parent}"), faint));
             out.push((leaf.to_string(), name_ink));
         }
-        if !matches!(line.kind, crate::workingset::StackRowKind::File) {
+        if !matches!(
+            line.kind,
+            crate::workingset::StackRowKind::File | crate::workingset::StackRowKind::Group { .. }
+        ) {
             continue;
         }
         // The mark's text is ALWAYS shaped for a working-set row, even when its
         // alpha is zero. That invisible run reserves the trailing close lane:
         // revealing the × changes only ink, never the label's advances. A
         // single-file identity never enters this function with a row, so it
-        // keeps its original bytes and geometry.
+        // keeps its original bytes and geometry. A heading's own mark closes
+        // its whole group — never a plate, but the same reveal.
         let shown = hover.filter(|hit| hit.row == row).map(|_| {
             if line.active {
                 theme::selected_row_secondary_ink(theme::surface_selected()).to_glyphon()

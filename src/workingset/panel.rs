@@ -417,6 +417,20 @@ impl WorkingSet {
             | DrawnRow::Overflow { .. } => None,
         }
     }
+
+    /// THE ROOT a drawn EXPANDED-PANEL heading row names — a real `Group` row
+    /// or its pinned sticky duplicate, either way the root a close on this row
+    /// closes every file under. `None` for a `File` or `Overflow` row, and for
+    /// the resting stack, which never draws a heading of its own. Owned
+    /// rather than borrowed: [`Self::expanded_window`] builds its window
+    /// fresh on every call, so a reference into it cannot outlive this call.
+    pub fn expanded_row_group_root(&self, row: usize) -> Option<PathBuf> {
+        match self.expanded_window().get(row)? {
+            DrawnRow::Full(_, PanelRow::Group(root, _)) => Some(root.clone()),
+            DrawnRow::Sticky(_, root, _) => Some(root.clone()),
+            DrawnRow::Full(_, PanelRow::File(_)) | DrawnRow::Overflow { .. } => None,
+        }
+    }
 }
 
 /// Whether the window opening at `scroll` needs the pinned sticky heading —

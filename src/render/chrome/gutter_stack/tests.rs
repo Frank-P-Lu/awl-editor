@@ -122,6 +122,22 @@ fn file_rows_reserve_the_close_lane_inside_their_one_line_budget() {
     assert_eq!(fitted[0].text.chars().count(), 8);
 }
 
+/// A GROUP HEADING RESERVES THE SAME CLOSE LANE A FILE ROW DOES — its own
+/// mark closes the whole group, so a long project name must not be allowed to
+/// wrap that run onto a second visual line the way an un-reserved file label
+/// once did.
+#[test]
+fn group_headings_reserve_the_close_lane_inside_their_one_line_budget() {
+    for budget in crate::render::rowlayout::GUTTER_MIN_NAME_CHARS..40 {
+        let fitted = fit_rows(&[group_row("a-long-nested-project-folder/", true)], budget);
+        let occupied = fitted[0].text.chars().count() + super::CLOSE_MARK_TEXT.chars().count();
+        assert!(
+            occupied <= budget,
+            "budget={budget}: heading + stable close lane occupies {occupied} characters"
+        );
+    }
+}
+
 /// THE ACTIVE ROW'S NAME COMES FORWARD and every location stays quieter than the
 /// name it qualifies. Asserted as INK IDENTITY between spans of one frame, never
 /// against an authored constant, and swept over which row is active so the law
@@ -473,6 +489,74 @@ fn hover_close_keeps_label_geometry_fixed_and_enrols_every_truthful_row() {
             "row {row}: one-stage reveal changed inside the zone"
         );
     }
+}
+
+/// A GROUP HEADING'S OWN CLOSE ZONE IS THE ONLY TARGET IT EVER OFFERS —
+/// the switch half stays exactly as inert as it was before this row could
+/// close anything (a press there is click-away, `App::gutter_stack_click`),
+/// while a press on the reserved lane at its right edge enrols for `Close`
+/// and names the SAME row the heading itself drew at. Mirrors the file-row
+/// law above's own zone/switch split, but a heading has only one of the two
+/// live — this is the law that would fail if the switch half were ever
+/// wired up by accident, or if the close half silently stayed inert too.
+#[test]
+fn a_group_headings_switch_half_stays_inert_and_only_its_close_zone_enrols() {
+    let files = vec![group_row("notes/", true), row("welcome.md", "", true)];
+    let fitted = fit_rows(&files, 24);
+    let layout = layout_of(&files, false, true, 24);
+    let plan = crate::render::plan::plan_gutter_stack(
+        300.0,
+        layout.avail,
+        12.0,
+        layout.lines().len(),
+        8.0,
+        0.5,
+    );
+    let (heading_line, heading_row) = layout
+        .lines()
+        .iter()
+        .enumerate()
+        .find_map(|(line, (_, kind))| match kind {
+            gutter::GutterLine::File(row)
+                if matches!(
+                    layout.files[*row].kind,
+                    crate::workingset::StackRowKind::Group { .. }
+                ) =>
+            {
+                Some((line, *row))
+            }
+            _ => None,
+        })
+        .expect("the fixture draws exactly one heading");
+    let band = plan.rows[heading_line];
+    let zone = close_zone(band);
+    let mid_y = band[1] + band[3] * 0.5;
+
+    let switch =
+        super::super::gutter_hit::stack_hit_from_plan(&layout, &plan, zone[0] - 1.0, mid_y);
+    assert_eq!(
+        switch, None,
+        "a heading's switch half must stay inert — it is click-away, not a target"
+    );
+
+    let close = super::super::gutter_hit::stack_hit_from_plan(&layout, &plan, zone[0] + 1.0, mid_y)
+        .expect("a heading's own close zone enrols");
+    assert_eq!(
+        close.row, heading_row,
+        "the close hit must name the heading's own row"
+    );
+    assert!(close.is_close());
+    assert!(matches!(
+        close.kind,
+        crate::workingset::StackRowKind::Group { .. }
+    ));
+    // The reservation this hit-test depends on: the heading's own mark is
+    // shaped (even at zero alpha) so the zone geometry it is tested against
+    // is the one the label was actually fitted around.
+    assert!(
+        fitted[heading_row].text.chars().count() + super::CLOSE_MARK_TEXT.chars().count() <= 24,
+        "the heading's own fit did not reserve its close lane"
+    );
 }
 
 /// THE FOLDER HEADING SITS ABOVE THE IDENTITY LINE IN BOTH SHAPES — one file
