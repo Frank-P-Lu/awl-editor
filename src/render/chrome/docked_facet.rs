@@ -23,6 +23,68 @@ impl TextPipeline {
         })
     }
 
+    /// Seat the shaped facet line PAST a `Split` composition's own visible
+    /// seam, clear of the lower surface's own rim — the same relocation
+    /// [`Self::docked_facet_band`] does for `DockedTab` (above the card
+    /// entirely), for the composition that instead claims part of the
+    /// strip's OWN box from underneath it. `strip_band()`'s box is folded
+    /// with the whole query beat (`header_gap`) so cosmic-text's half-leading
+    /// centres the label ink in it, but a `Split` composition's own seam
+    /// (`OverlayRowPlan::split_bounds`) falls INSIDE that same box — so the
+    /// natural centring places real ink only a few px past the seam's own
+    /// rim, reading as clipped against it. This seat instead optically
+    /// centres a PLAIN (uninflated) line in whatever room is actually left
+    /// past the seam, `[gap_bottom, first_top]` — real, roster-measured
+    /// breathing room on both sides of the ink rather than a symmetric split
+    /// of a box that starts before the plate the reader actually sees.
+    ///
+    /// `None` off [`split_seam_active`]'s own gate (a flat card, a workspace,
+    /// `DockedTab`, `Unified`, or a `Bars`/`Diagonal`/`Ruled` world with no
+    /// plate to seam) — every one of those keeps reading `strip_band()`
+    /// directly, unmoved.
+    pub(in crate::render) fn floating_strip_band(
+        &self,
+        geom: &OverlayGeom,
+        plan: &OverlayRowPlan,
+    ) -> Option<crate::render::plan::PlannedHeader> {
+        if !split_seam_active(geom) {
+            return None;
+        }
+        let strip = plan.strip_band()?;
+        let (_, gap_bottom) = plan.split_bounds()?;
+        let bottom = strip.bottom();
+        let lh = self.overlay_lh().min(strip.height);
+        // Room is whatever is REALLY left between the seam and the candidate
+        // band, never assumed — a starved narrow/short card can leave less
+        // than one plain line here, and `height` shrinks to fit rather than
+        // the seat overshooting `bottom` (which `strip.bottom()` shares with
+        // `plan.first_top()`: sacred, never pushed by this seat).
+        let room = (bottom - gap_bottom).max(0.0);
+        let height = lh.min(room);
+        let top = (gap_bottom + (room - height) * 0.5).min(bottom - height);
+        Some(crate::render::plan::PlannedHeader {
+            line: strip.line,
+            top,
+            height,
+        })
+    }
+
+    /// WHICHEVER relocation claimed the strip this frame — `DockedTab` above
+    /// the card, or a `Split` composition past its own seam — the ONE seat
+    /// every consumer of that fact (the mark centre, the shaping gate, the
+    /// carve-and-redirect draw, the hit-test) reads, so a future third
+    /// relocation is picked up everywhere at once rather than a fourth
+    /// hand-assembled `.or_else(...)` chain silently missing one. `None` on
+    /// every composition that leaves `strip_band()` unmoved.
+    pub(in crate::render) fn relocated_strip_seat(
+        &self,
+        geom: &OverlayGeom,
+        plan: &OverlayRowPlan,
+    ) -> Option<crate::render::plan::PlannedHeader> {
+        self.docked_facet_band(geom, plan)
+            .or_else(|| self.floating_strip_band(geom, plan))
+    }
+
     #[cfg(test)]
     pub(in crate::render) fn docked_facet_geometry_probe(
         &self,
@@ -34,10 +96,11 @@ impl TextPipeline {
     }
 
     pub(super) fn shape_docked_facet_strip(&mut self, geom: &OverlayGeom, scale: f32) {
-        let docked = matches!(
-            crate::render::effective_facet_style(),
-            theme::FacetStyle::DockedTab
-        );
+        // This one buffer serves TWO relocation seats — `DockedTab` (above the
+        // card) and a `Split` composition's own seam (past the lower surface's
+        // rim) — never both on the same world (`floating_strip_band` excludes
+        // `DockedTab` by construction), so one shaped pass covers either.
+        let relocated = facet_strip_is_docked() || split_seam_active(geom);
         let metrics = self.overlay_metrics();
         self.docked_facet_buffer
             .set_metrics(&mut self.font_system, metrics);
@@ -47,7 +110,7 @@ impl TextPipeline {
             .set_wrap(&mut self.font_system, Wrap::None);
         let fs = self.metrics.font_size * crate::render::effective_overlay_scale() * scale;
         let mut spans = Vec::new();
-        if docked {
+        if relocated {
             for (idx, (label, active)) in geom.strip.iter().enumerate() {
                 if idx > 0 {
                     spans.push((
@@ -90,21 +153,25 @@ impl TextPipeline {
             return None;
         }
         let plan = self.overlay_row_plan(&geom);
-        let docked = self.docked_facet_band(&geom, &plan);
-        let strip = docked.or_else(|| plan.strip_band())?;
+        let relocated = self.relocated_strip_seat(&geom, &plan);
+        let strip = relocated.or_else(|| plan.strip_band())?;
         if !strip.contains(py) {
             return None;
         }
-        // THE SAME SEAT THE DRAW PATH USED: a `DockedTab` strip draws in its
-        // own buffer at the card's plain text edge (`push_docked_facet_areas`
-        // always seats it there, off the card entirely), every other facet
-        // style draws the strip INSIDE `panel_buffer`'s head band, seated at
+        // THE SAME SEAT THE DRAW PATH USED: a `DockedTab` strip, and a
+        // `Split` composition's relocated strip, both draw in their own
+        // buffer at the card's plain text edge (`push_docked_facet_areas`
+        // always seats either there, off `panel_buffer`'s own head band —
+        // and neither composition is ever a banded/diagonal cluster,
+        // `split_seam_active` requires `ListBacking::Card`, which
+        // `ListStyle::Diagonal` never is). Every OTHER facet style draws the
+        // strip INSIDE `panel_buffer`'s head band, seated at
         // `overlay_head_left` — the card's text edge on an upright world, but
         // right-aligned to the text column on an ascending diagonal cluster
         // (Magpie). Reading `geom.text_left` unconditionally here missed that
         // second seat: a click on a drawn label could resolve to no lens, or
         // the wrong one, on any banded world.
-        let seat = if docked.is_some() {
+        let seat = if relocated.is_some() {
             geom.text_left
         } else {
             self.overlay_head_left(&geom, &plan)
@@ -143,13 +210,18 @@ impl TextPipeline {
     }
 }
 
+/// Redirect the strip's line OUT of `panel_buffer`'s ordinary stack into a
+/// dedicated, independently-seated buffer, whichever relocation claimed it
+/// (`seat`: `docked_facet_band` above the card, or `floating_strip_band` past
+/// a `Split` composition's own seam) — the panel buffer still draws every
+/// OTHER header/candidate line, carved around the strip's original box so
+/// nothing double-draws.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn push_docked_facet_areas<'a>(
     areas: &mut Vec<TextArea<'a>>,
     panel_buffer: &'a GlyphBuffer,
     docked_facet_buffer: &'a GlyphBuffer,
-    dock: Option<crate::render::plan::PlannedHeader>,
-    tab: Option<[f32; 4]>,
+    seat: Option<crate::render::plan::PlannedHeader>,
     original: Option<crate::render::plan::PlannedHeader>,
     text_left: f32,
     text_top: f32,
@@ -158,7 +230,7 @@ pub(super) fn push_docked_facet_areas<'a>(
     height: u32,
     ink: glyphon::Color,
 ) -> bool {
-    let Some(((dock, _tab), original)) = dock.zip(tab).zip(original) else {
+    let Some((dock, original)) = seat.zip(original) else {
         return false;
     };
     {

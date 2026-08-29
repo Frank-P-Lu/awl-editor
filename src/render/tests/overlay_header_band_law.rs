@@ -210,14 +210,16 @@ fn grade_header_band(
     );
     *fields += 1;
 
-    grade_lens_strip(p, plan, pr, fam, ctx, field, strips);
+    grade_lens_strip(p, plan, geom, pr, fam, ctx, field, strips);
 }
 
 /// The GROUPED family's lens strip: its planned box against the shaped strip
-/// line, and `overlay_lens_at` against that same box's edges.
+/// line, and `overlay_lens_at` against the box it is actually CLICKABLE at.
+#[allow(clippy::too_many_arguments)]
 fn grade_lens_strip(
     p: &TextPipeline,
     plan: &crate::render::plan::OverlayRowPlan,
+    geom: &crate::render::chrome::OverlayGeom,
     pr: &super::overlay_probe::OverlayYProbe,
     fam: Family,
     ctx: &str,
@@ -260,13 +262,24 @@ fn grade_lens_strip(
         field.bottom()
     );
 
+    // THE CLICKABLE BOX: `strip_band()` is the strip's PLAIN planned box, but
+    // `DockedTab` (above the card) or a `Split` composition (past the lower
+    // surface's own rim) relocates the box `overlay_lens_at` actually tests
+    // containment against — `docked_facet_band`/`floating_strip_band`, the
+    // SAME seat the draw path reads (`overlay_draw.rs`). `strip` itself,
+    // unmoved, off either gate.
+    let seat = p
+        .docked_facet_band(geom, plan)
+        .or_else(|| p.floating_strip_band(geom, plan))
+        .unwrap_or(strip);
+
     // INTERACTIVE: find an x the lens hit-test genuinely claims at
-    // the planned strip centre, then prove the SAME x is refused
-    // just outside the planned box in both directions.
+    // the seat's own centre, then prove the SAME x is refused
+    // just outside the seat's box in both directions.
     let mut lens_x = None;
     let mut x = x0;
     while x < x1 {
-        if p.overlay_lens_at(x, strip.center()).is_some() {
+        if p.overlay_lens_at(x, seat.center()).is_some() {
             lens_x = Some(x);
             break;
         }
@@ -275,20 +288,20 @@ fn grade_lens_strip(
     if let Some(lx) = lens_x {
         *strips += 1;
         assert!(
-            p.overlay_lens_at(lx, strip.top + 0.1).is_some(),
+            p.overlay_lens_at(lx, seat.top + 0.1).is_some(),
             "{ctx}: the strip's own top edge must accept a lens click"
         );
         assert!(
-            p.overlay_lens_at(lx, strip.bottom() - 0.1).is_some(),
+            p.overlay_lens_at(lx, seat.bottom() - 0.1).is_some(),
             "{ctx}: just inside the strip's bottom must accept a lens click"
         );
         assert!(
-            p.overlay_lens_at(lx, strip.top - 1.0).is_none(),
-            "{ctx}: above the planned strip box is not the strip"
+            p.overlay_lens_at(lx, seat.top - 1.0).is_none(),
+            "{ctx}: above the strip's own seat is not the strip"
         );
         assert!(
-            p.overlay_lens_at(lx, strip.bottom() + 0.1).is_none(),
-            "{ctx}: below the planned strip box is not the strip"
+            p.overlay_lens_at(lx, seat.bottom() + 0.1).is_none(),
+            "{ctx}: below the strip's own seat is not the strip"
         );
     }
 }

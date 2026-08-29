@@ -361,11 +361,26 @@ impl TextPipeline {
                 elide,
             );
         }
-        // Record the active-lens mark from the shaped strip glyphs (line 1). Line-1
-        // glyphs are byte-indexed WITHIN the strip line's own text — the leading "\n" in
-        // `strip_s` split the lines — so a label's line-relative range is its `strip_s`
-        // range shifted back by that one "\n" byte. The MARK'S SHAPE is the
-        // PER-ITEM LIST SURFACES round's `facet_style`:
+        // RELOCATED SEAT (computed before any mark/glyph reading below, and
+        // before `shape_docked_facet_strip` runs so BOTH read the frame it
+        // produces): `DockedTab` moves the strip above the card, and a
+        // `Split` composition's own seam moves it PAST the lower surface's
+        // rim (`split_seam_active`/`floating_strip_band`) — either way the
+        // relocated buffer, not `panel_buffer`'s own head band, is what
+        // actually draws, so every mark below must read glyphs FROM there
+        // too, or a mark computed against the un-relocated position would
+        // disagree with where the label it marks actually renders.
+        let dock_seat = self.relocated_strip_seat(geom, plan);
+        self.shape_docked_facet_strip(geom, strip_scale);
+        // Record the active-lens mark from the shaped strip glyphs (line 1 of
+        // `panel_buffer`, or line 0 of the relocated `docked_facet_buffer`).
+        // Line-1 glyphs are byte-indexed WITHIN the strip line's own text —
+        // the leading "\n" in `strip_s` split the lines — so a label's
+        // line-relative range is its `strip_s` range shifted back by that one
+        // "\n" byte; `docked_facet_buffer` carries no leading "\n" at all
+        // (`shape_docked_facet_strip`'s own spans), so the SAME shift lands
+        // it on that buffer's line 0 too. The MARK'S SHAPE is the PER-ITEM
+        // LIST SURFACES round's `facet_style`:
         //   - `Text`   (default, byte-identical) — a hairline UNDERLINE under the
         //     active label.
         //   - `Band`   — a rounded value PILL behind the active label (the killed
@@ -373,9 +388,12 @@ impl TextPipeline {
         //     mark draws).
         // The x-spans come from the SAME shaped glyphs the strip hit-test reads, so
         // the skin can never disagree with where a label is clicked.
-        // Scan line 1 for a strip-range's glyph x-span (min_x, max_x) + the shaped
+        // Scan `line_i` for a strip-range's glyph x-span (min_x, max_x) + the shaped
         // baseline (C2 y-owner), `None` if empty.
-        let span_of = |buf: &GlyphBuffer, r: &std::ops::Range<usize>| -> Option<(f32, f32, f32)> {
+        let span_of = |buf: &GlyphBuffer,
+                       line_i: usize,
+                       r: &std::ops::Range<usize>|
+         -> Option<(f32, f32, f32)> {
             let (a, b) = (r.start.saturating_sub(1), r.end.saturating_sub(1));
             let mut min_x = f32::MAX;
             let mut max_x = f32::MIN;
@@ -386,12 +404,13 @@ impl TextPipeline {
             // that box — so `text_top + 2*lh - 3` landed MID-GLYPH (the underline
             // struck through "File" on Tawny/Firetail). `run.line_y` is the real
             // baseline in buffer space (same `geom.text_top + run.line_*` mapping
-            // the primary/secondary columns use); the underline sits a hair BELOW
-            // it for every face. The strip's responsive fold reshapes into the
-            // same `panel_buffer`, so this reads the FINAL (possibly scaled) run.
+            // the primary/secondary columns use, or `dock_seat.top + run.line_y`
+            // for a relocated buffer, whose own `line_top` is always `0.0` — a
+            // single un-stacked line); the underline sits a hair BELOW it for
+            // every face.
             let mut baseline = f32::MIN;
             for run in buf.layout_runs() {
-                if run.line_i != 1 {
+                if run.line_i != line_i {
                     continue;
                 }
                 baseline = baseline.max(run.line_y);
@@ -404,6 +423,21 @@ impl TextPipeline {
             }
             (max_x > min_x && baseline > f32::MIN).then_some((min_x, max_x, baseline))
         };
+        // Whichever buffer actually draws the strip this frame — the ONE
+        // reader every mark below shares, so a relocated label can never be
+        // marked against the position it was relocated FROM.
+        let mark_span = |r: &std::ops::Range<usize>| -> Option<(f32, f32, f32)> {
+            if dock_seat.is_some() {
+                span_of(&self.docked_facet_buffer, 0, r)
+            } else {
+                span_of(&self.panel_buffer, 1, r)
+            }
+        };
+        // The absolute canvas origin `mark_span`'s baseline is relative to:
+        // `panel_buffer`'s own stacked head band (`geom.text_top`) when
+        // nothing relocated the strip, else the relocated seat's own top —
+        // the buffer `push_docked_facet_areas` actually uploads it at.
+        let mark_origin = dock_seat.map_or(geom.text_top, |s| s.top);
         let facet_style = crate::render::effective_facet_style();
         let scale = self.metrics.scale;
         // NO SEAT YET. Every mark rect below is computed in the strip's own
@@ -424,37 +458,20 @@ impl TextPipeline {
         let underline_drop = self.metrics.px(UNDERLINE_BASELINE_DROP);
         let strip_text_lh = self.metrics.line_height * crate::render::effective_overlay_scale();
         let chip_h = (strip_text_lh - 2.0 * self.metrics.px(CHIP_VPAD)).max(1.0);
-        // PLATE FLOOR: `strip.center()` treats the strip's whole
-        // folded header-line box as free room, but a `Split` composition's own
-        // visible seam falls INSIDE that same box — `BREATHE_FRAC` +
-        // `SPLIT_GAP_FRAC` leave the query beat's own plate starting only at
-        // `split_bounds().1`, not the box's geometric top (the fold is what
-        // puts the beat there at all). A pill/tick centred on the box then
-        // draws above the plate it is meant to sit inside: the filled chip's
-        // own plate running flush into the strip band's top. Only
-        // `ListStyle::Pane` ever draws that plate at all — mirroring the one
-        // gate `overlay_prepare_card_backing` itself reads before ever calling
-        // `overlay_pane_fills` — and only `PaneSplit::Split` carves a seam out
-        // of it; every other composition floors at the box's own top, which
-        // leaves `s.center()` untouched: BYTE-IDENTICAL off either gate (every
-        // `Bars`/`Diagonal`/`Ruled` world, and Cassowary's `Unified` Bars).
-        let mark_cy = self
-            .docked_facet_band(geom, plan)
+        // RELOCATED SEAT (`dock_seat`, computed above): `strip_band()` is the
+        // strip's PLAIN folded header-line box, centred by cosmic-text's own
+        // half-leading — free room only when nothing else claims part of it.
+        // Two compositions claim part of it and supply their OWN seat
+        // instead (`DockedTab` above the card, a `Split` composition's own
+        // seam past the lower surface's rim) — every mark here reads
+        // whichever seat is active, so a pill/tick can never draw above a
+        // plate it is meant to sit inside. `dock_seat` is `None` on every
+        // other composition, leaving `s.center()` untouched: BYTE-IDENTICAL
+        // off either gate (every `Bars`/`Diagonal`/`Ruled` world, and
+        // Cassowary's `Unified`).
+        let mark_cy = dock_seat
             .or_else(|| plan.strip_band())
-            .map_or(geom.text_top, |s| {
-                let plate_top = if crate::render::effective_list_style().list_backing(false)
-                    == theme::ListBacking::Card
-                    && matches!(
-                        crate::render::effective_pane_split(),
-                        theme::PaneSplit::Split
-                    ) {
-                    plan.split_bounds()
-                        .map_or(s.top, |(_, gap_bottom)| gap_bottom.max(s.top))
-                } else {
-                    s.top
-                };
-                s.center().max(plate_top + chip_h * 0.5)
-            });
+            .map_or(geom.text_top, |s| s.center());
         let pill_px = |left: f32, right: f32| -> [f32; 4] {
             [
                 left,
@@ -492,17 +509,17 @@ impl TextPipeline {
                 if *active {
                     continue;
                 }
-                if let Some((min_x, max_x, _)) = span_of(&self.panel_buffer, r) {
+                if let Some((min_x, max_x, _)) = mark_span(r) {
                     v.push(pill_px(min_x - chip_hpad, max_x + chip_hpad));
                 }
             }
             v
         };
         self.overlay_theme_underline = active_range.as_ref().and_then(|ar| {
-            let (min_x, max_x, baseline) = span_of(&self.panel_buffer, ar)?;
+            let (min_x, max_x, baseline) = mark_span(ar)?;
             match facet_style {
                 theme::FacetStyle::Text => {
-                    let y = geom.text_top + baseline + underline_drop;
+                    let y = mark_origin + baseline + underline_drop;
                     Some([
                         min_x,
                         y,
@@ -536,7 +553,7 @@ impl TextPipeline {
                         Some(pill_px(min_x - chip_hpad, max_x + chip_hpad))
                     }
                     theme::ChipVariant::Underline => {
-                        let y = geom.text_top + baseline + underline_drop;
+                        let y = mark_origin + baseline + underline_drop;
                         Some([
                             min_x,
                             y,
@@ -552,7 +569,6 @@ impl TextPipeline {
             }
         });
         self.overlay_theme_facet_ghosts = ghosts;
-        self.shape_docked_facet_strip(geom, strip_scale);
         // A tab PILL is a plate, so `Ruled` is deliberately absent — it draws
         // none anywhere. (`Diagonal` is on the yes side here and the no side of
         // `draws_row_plates`: it computes pills nothing consumes.)
@@ -564,7 +580,7 @@ impl TextPipeline {
             label_ranges
                 .iter()
                 .filter_map(|(r, _active)| {
-                    span_of(&self.panel_buffer, r)
+                    mark_span(r)
                         .map(|(min_x, max_x, _)| pill_px(min_x - chip_hpad, max_x + chip_hpad))
                 })
                 .collect()
