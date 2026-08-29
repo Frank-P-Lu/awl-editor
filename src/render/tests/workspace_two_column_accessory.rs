@@ -153,16 +153,15 @@ fn card_in_content(kind: OverlayKind, lens: usize, root: &str) -> OverlayState {
 }
 
 /// The card projected the way `App::sync_view` projects it, through the shared
-/// settings folder plus the four workspace fields that folder does not carry.
+/// settings folder (which now derives `overlay_workspace`/`overlay_detail_focus`
+/// itself) plus the two workspace fields that folder does not carry.
 fn content_view(ov: &OverlayState) -> ViewState {
     let mut v = settings_overlay_view(ov, SETTINGS_VIEW_PARKED_WINDOW_ROWS);
     v.overlay_title = ov.kind.title().to_string();
     v.overlay_lens = ov.lens_strip();
-    v.overlay_workspace = ov.workspace_shape().is_some();
     v.overlay_rows_primary = ov
         .workspace_shape()
         .is_some_and(WorkspaceShape::rows_are_primary);
-    v.overlay_detail_focus = ov.detail_focus;
     v.overlay_hint = ov.foot_hint();
     v
 }

@@ -30,6 +30,17 @@ fn values(zoom: f32) -> crate::settings::SettingsValues {
 /// lens-strip click both call) — built via the same production wiring
 /// `overlay::build`'s Settings arm uses (see `range_rail::settings_state`,
 /// this file's sibling for the un-faceted Zoom-row rail tests).
+///
+/// `detail_focus = true` because landing on a category is only HALF of what a
+/// real `Right` press does: `set_facet_lens` (above) is `rail_move`'s own
+/// mechanism (stepping the RAIL to a category), and entering that category's
+/// ROWS is a second, distinct step — `Journey::toggle_detail`
+/// (`actions/workspace_nav.rs`'s `ForwardChar | Newline | AcceptAlternate`
+/// arm). Left unset, `render/plan/workspace.rs`'s
+/// `content_visible() = wide || content_focused` shows the RAIL instead of
+/// the Editor facet's rows on any canvas too narrow to stage both regions at
+/// once — a fixture gap this file's own rows-hoverability sweep exists to
+/// catch, not the product it names.
 fn editor_overlay() -> OverlayState {
     let vals = values(1.0);
     let mut ov = OverlayState::new(
@@ -48,6 +59,7 @@ fn editor_overlay() -> OverlayState {
         .position(|f| f.id == "editor")
         .expect("Settings has an Editor facet");
     ov.set_facet_lens(idx);
+    ov.detail_focus = true;
     ov
 }
 

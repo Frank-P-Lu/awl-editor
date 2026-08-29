@@ -519,15 +519,22 @@ pub(super) const SETTINGS_VIEW_PARKED_WINDOW_ROWS: usize = 12;
 /// passes [`SETTINGS_VIEW_PARKED_WINDOW_ROWS`]; see that constant's own doc for
 /// why the divergence is deliberate and load-bearing, not an oversight.
 ///
-/// A SECOND, UNDELIBERATE divergence: this function does not set
-/// `overlay_workspace`, so it stays at its base default (`false`) — a state a
-/// real Settings card can never render in production (`sync_view` derives it
-/// as `ov.workspace_shape().is_some()`, and Settings answers `Some` unconditionally,
-/// per `settings_row_reach_law.rs`'s own precedent comment). Most callers
-/// override it explicitly afterward; a caller that does not is silently
-/// testing an unreachable geometry family. Not fixed here — routing this
-/// fixture's own default through the real family turns two existing
-/// `settings_row_reach_law` cases red, a separate, pre-existing excavation.
+/// `overlay_workspace` IS derived the way `sync_view` really does
+/// (`ov.workspace_shape().is_some()`; Settings answers `Some` unconditionally) —
+/// every caller renders through the real `RailOverRows` workspace family
+/// instead of the un-reachable faceted-card geometry this fixture used to
+/// default callers into silently.
+///
+/// `overlay_detail_focus` is likewise derived from `ov.detail_focus`
+/// (`sync_view`'s own `ov.map(|o| o.detail_focus).unwrap_or(false)`) rather
+/// than left at its inert `false` default — load-bearing for the SAME reason
+/// as `overlay_workspace`: `content_visible() = wide || content_focused`
+/// (`render/plan/workspace.rs`), so on any canvas narrow enough to stage the
+/// workspace's two regions, a card built with this flag unset shows the
+/// RAIL, not the rows, however the caller populated `ov`. A caller
+/// representing a real "entered this category's rows" state sets
+/// `ov.detail_focus = true` itself, the same fact a live `→`/`Enter` off the
+/// rail commits via `Journey::toggle_detail`.
 pub(super) fn settings_overlay_view(
     ov: &crate::overlay::OverlayState,
     overlay_window_rows: usize,
@@ -543,6 +550,8 @@ pub(super) fn settings_overlay_view(
     v.overlay_selected = ov.selected;
     v.overlay_scroll = ov.scroll;
     v.overlay_window_rows = overlay_window_rows;
+    v.overlay_workspace = ov.workspace_shape().is_some();
+    v.overlay_detail_focus = ov.detail_focus;
     v
 }
 
