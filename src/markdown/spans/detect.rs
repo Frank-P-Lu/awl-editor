@@ -418,14 +418,31 @@ pub fn smart_punct_ranges(s: &str) -> Vec<(Range<usize>, SmartPunctKind)> {
     out
 }
 
+/// [`smart_punct_ranges`] filtered to drop any run that falls inside a bare
+/// URL's own match ([`bare_url_ranges`]) — THE shared entry point both the
+/// live render ([`super::markers::push_smart_punct_spans`]) and the export
+/// ([`apply_smart_punct`]) call, so a domain's incidental `--`
+/// (`https://example.com/a--b`) is never silently retyped as an en dash in
+/// EITHER path; the two would otherwise diverge, since an export has no
+/// "bare URL" concept of its own to protect it. Kept separate from the pure
+/// [`smart_punct_ranges`] so the character-run detector stays testable in
+/// total isolation from this URL-awareness.
+pub(super) fn smart_punct_runs(s: &str) -> Vec<(Range<usize>, SmartPunctKind)> {
+    let urls = bare_url_ranges(s);
+    smart_punct_ranges(s)
+        .into_iter()
+        .filter(|(r, _)| !urls.iter().any(|u| u.start < r.end && r.start < u.end))
+        .collect()
+}
+
 /// Replace every detected smart-punctuation run in `s` with its mapped
-/// substitute glyph ([`smart_punct_ranges`] + [`SmartPunctKind::glyph`]) — an
+/// substitute glyph ([`smart_punct_runs`] + [`SmartPunctKind::glyph`]) — an
 /// export's own application of the SAME mapping the live WYSIWYG conceal
 /// paints, so a document's exported prose and its on-screen preview can never
 /// disagree on which `--`/`---`/`...` runs convert. A string with no run is
 /// returned unallocated-again (the common case: most prose has none).
 pub fn apply_smart_punct(s: &str) -> String {
-    let runs = smart_punct_ranges(s);
+    let runs = smart_punct_runs(s);
     if runs.is_empty() {
         return s.to_string();
     }

@@ -1,7 +1,7 @@
 //! Per-construct span pushers: the small `spans()` helpers that mark
 //! heading/link/quote/list/task/highlight/inline-code markup.
 
-use super::detect::{bare_url_ranges, bare_url_split, list_item, smart_punct_ranges};
+use super::detect::{bare_url_ranges, bare_url_split, list_item, smart_punct_runs};
 use super::kind::MdKind;
 use crate::markdown::ConcealKind;
 use std::ops::Range;
@@ -332,10 +332,10 @@ pub(super) fn push_bare_url_spans(
 /// smart-punctuation grammar, DISPLAY-ONLY: the buffer's literal bytes never
 /// change, only the caret-off render substitutes the mapped glyph (see
 /// [`crate::markdown::SmartPunctKind::glyph`], the shared owner an export
-/// reads too). Runs living inside a bare URL's own match ([`bare_url_ranges`])
-/// are excluded — that machinery already owns those bytes (scheme/tail
+/// reads too). [`smart_punct_runs`] already excludes any run living inside a
+/// bare URL's own match — that machinery owns those bytes (scheme/tail
 /// concealing to their own ellipsis affordance, the authority riding real
-/// always-visible text), and a domain's incidental `--` must never be silently
+/// always-visible text), so a domain's incidental `--` is never silently
 /// retyped as an en dash. Unlike [`push_bare_url_spans`] this fires regardless
 /// of link nesting: a link's VISIBLE text is ordinary prose (its DESTINATION
 /// never reaches this branch at all, since only `Event::Text` calls this).
@@ -345,12 +345,8 @@ pub(super) fn push_smart_punct_spans(
     range: &Range<usize>,
 ) {
     let s = &text[range.clone()];
-    let urls = bare_url_ranges(s);
     let k = MdKind::ConcealMarkup(ConcealKind::SmartPunct);
-    for (run, _kind) in smart_punct_ranges(s) {
-        if urls.iter().any(|u| u.start < run.end && run.start < u.end) {
-            continue;
-        }
+    for (run, _kind) in smart_punct_runs(s) {
         out.push((range.start + run.start..range.start + run.end, k));
     }
 }

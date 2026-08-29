@@ -25,6 +25,14 @@
 //! `render_export_highlight_agree` law test). FRONTMATTER is excluded up front
 //! (`frontmatter::detect`), matching its exclusion from word-count / spell / render.
 //!
+//! SMART PUNCTUATION (`--`/`---`/`...`) is likewise not a CommonMark construct
+//! the parser resolves on its own: reading the SAME mapping owner the live
+//! WYSIWYG conceal paints ([`crate::markdown::apply_smart_punct`], built on
+//! `SmartPunctKind::glyph`), every prose text run is substituted to its en
+//! dash / em dash / ellipsis BEFORE the highlight scan — never inside an
+//! image's alt or a code block's body (both routed elsewhere in `push_text`
+//! first), matching the renderer's own inline-code/fence exclusion.
+//!
 //! An IMAGE's Obsidian `|WIDTH` / `|WxH` size hint is split off the alt through the
 //! SAME owner the editor's [`parse_image_source`][crate::markdown::parse_image_source]
 //! uses ([`crate::markdown::split_alt_hint`], the STRICT parser): a malformed
@@ -587,8 +595,8 @@ fn push_inline(stack: &mut [Frame], inline: Inline) {
 }
 
 /// A text run: routed to the open image's ALT (with the Obsidian `|WIDTH` hint
-/// split out), to an open code block's body, or split on `==highlight==` pairs
-/// into the nearest inline container.
+/// split out), to an open code block's body, or SMART-PUNCTUATION-substituted
+/// then split on `==highlight==` pairs into the nearest inline container.
 fn push_text(stack: &mut [Frame], text: &str) {
     if let Some(Frame::Image {
         alt, width_hint, ..
@@ -599,6 +607,9 @@ fn push_text(stack: &mut [Frame], text: &str) {
         // editor's `parse_image_source` uses), so a malformed `|300xfoo` / `|300x`
         // yields NO hint in BOTH — the export can never size an image the editor
         // renders natural-width (see the `render_export_alt_hint_agree` law test).
+        // Alt text is never smart-punctuated either, matching the renderer:
+        // an image's whole `![alt](path)` conceals as ONE span, so its inner
+        // `Event::Text` never reaches `markdown::spans`' smart-punct scan at all.
         let (a, hint) = crate::markdown::split_alt_hint(text);
         alt.push_str(&a);
         if hint.is_some() {
@@ -610,7 +621,14 @@ fn push_text(stack: &mut [Frame], text: &str) {
         code.push_str(text);
         return;
     }
-    for inline in split_highlight(text) {
+    // SMART PUNCTUATION: the SAME mapping owner the live WYSIWYG conceal
+    // paints (`crate::markdown::apply_smart_punct`, built on
+    // `SmartPunctKind::glyph`), applied to the prose text BEFORE the
+    // `==highlight==` scan — the two delimiter alphabets (`-`/`.` vs `=`)
+    // never collide, so substitution can run first without disturbing
+    // `equals_runs`' own byte offsets into the (already-converted) string.
+    let converted = crate::markdown::apply_smart_punct(text);
+    for inline in split_highlight(&converted) {
         push_inline(stack, inline);
     }
 }
