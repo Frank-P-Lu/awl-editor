@@ -76,7 +76,7 @@ fn wysiwyg_smart_punct_conceals_off_cursor_and_reveals_byte_identical_on() {
     crate::markdown::set_wysiwyg_on(true);
     let Some(mut p) = headless_pipeline() else {
         eprintln!(
-            "skipping wysiwyg_smart_punct_conceals_off_cursor_and_reveals_byte_identical_on: no wgpu adapter"
+            "skipping wysiwyg_smart_punct_conceals_off_cursor_and_reveals_on: no wgpu adapter"
         );
         return;
     };

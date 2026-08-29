@@ -38,8 +38,9 @@ pub(in crate::render) fn smart_punct_slot(line_height: f32) -> f32 {
 
 /// Force a concealed smart-punctuation span's leading scalar to the reserved
 /// substitute slot ([`smart_punct_slot`]) and zero-width the rest — mirrors
-/// [`super::footnotes::add_footnote_conceal_spans`] / [`super::bare_url::add_bare_url_conceal_spans`]'s
-/// forced-first-scalar shape exactly. Unlike those two this has no
+/// [`super::footnotes::add_footnote_conceal_spans`] /
+/// [`super::bare_url::add_bare_url_conceal_spans`]'s forced-first-scalar
+/// shape exactly. Unlike those two this has no
 /// "not actually mine" fallthrough: every `ConcealKind::SmartPunct` span
 /// always gets this treatment (there is no SCHEME/TAIL-style second case), so
 /// this is called unconditionally rather than returning a dispatch bool.
