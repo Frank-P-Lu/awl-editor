@@ -95,6 +95,7 @@ export_as_word|||
 export_as_html|||
 export_as_pdf|||
 insert_link|Cmd-K|C-k|
+insert_table|||
 save|Cmd-S|C-s|
 review_the_change|||
 save_your_version|||

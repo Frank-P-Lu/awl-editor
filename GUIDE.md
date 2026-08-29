@@ -191,7 +191,6 @@ live catalog by `cargo test` — a renamed or retired command can't
 drift into this page silently.
 
 <!-- GENERATED:keys-reference:BEGIN -->
-
 | Command | macOS | Linux |
 |---|---|---|
 | Command palette… | ⌘P | Ctrl+P |
@@ -261,6 +260,7 @@ drift into this page silently.
 | Export as HTML… |  |  |
 | Export as PDF… |  |  |
 | Insert link… | ⌘K |  |
+| Insert table… |  |  |
 | Save | ⌘S | Ctrl+S |
 | Review the change |  |  |
 | Save your version |  |  |
@@ -292,7 +292,6 @@ drift into this page silently.
 | Delete word backward |  |  |
 | Settings… | ⌘, | Ctrl+, |
 | Keybindings… |  |  |
-
 <!-- GENERATED:keys-reference:END -->
 
 PDF export is available in the native app only; the browser continues to
