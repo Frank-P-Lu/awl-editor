@@ -1172,10 +1172,10 @@ fn link_text_ink_is_content_not_amber_in_every_world() {
 }
 
 /// THE SAME LINK-UNDERLINE GEOMETRY CONTRACT, for the OTHER followable span —
-/// a tamed bare URL (item 511's URL taming removed the scheme costume that
-/// used to self-identify a bare URL as a link; item 523 gives every followable
-/// span the SAME quiet baseline underline). Mirrors
-/// [`link_underline_hugs_the_link_text_and_survives_the_caret`] exactly:
+/// a tamed bare URL, whose scheme costume is concealed off-caret so its own
+/// text alone can no longer self-identify as a link; the SAME quiet baseline
+/// underline every followable span draws is the compensating affordance.
+/// Mirrors [`link_underline_hugs_the_link_text_and_survives_the_caret`] exactly:
 /// off-caret (tamed — authority + reserved ellipsis slot visible), the
 /// underline is present, flat, and hugs the CURRENTLY VISIBLE run; on-caret
 /// (revealed — the whole raw URL shows), it survives and re-hugs the now-wider
@@ -1283,8 +1283,8 @@ fn followable_underline_presence_geometry_and_differential_sweep_worlds_and_dpi(
     let _world = theme::WorldPin::snapshot();
     let Some(mut p) = headless_pipeline() else {
         eprintln!(
-            "skipping followable_underline_presence_geometry_and_differential_sweep_worlds_and_dpi: \
-             no wgpu adapter"
+            "skipping followable_underline_presence_geometry_and_differential_sweep_worlds_\
+             and_dpi: no wgpu adapter"
         );
         return;
     };
@@ -1312,7 +1312,8 @@ fn followable_underline_presence_geometry_and_differential_sweep_worlds_and_dpi(
             );
             assert!(
                 (link_lines[0].thickness - expected_thickness).abs() < 0.1,
-                "{} dpi={dpi}: link underline stroke tracks Logical*scale: {} vs {expected_thickness}",
+                "{} dpi={dpi}: link underline stroke tracks Logical*scale: {} vs \
+                 {expected_thickness}",
                 world.name,
                 link_lines[0].thickness
             );
@@ -1329,7 +1330,8 @@ fn followable_underline_presence_geometry_and_differential_sweep_worlds_and_dpi(
             );
             assert!(
                 (bare_lines[0].thickness - expected_thickness).abs() < 0.1,
-                "{} dpi={dpi}: bare-URL underline stroke tracks Logical*scale: {} vs {expected_thickness}",
+                "{} dpi={dpi}: bare-URL underline stroke tracks Logical*scale: {} vs \
+                 {expected_thickness}",
                 world.name,
                 bare_lines[0].thickness
             );
@@ -1349,8 +1351,8 @@ fn followable_underline_presence_geometry_and_differential_sweep_worlds_and_dpi(
     }
 }
 
-/// SOLID INK, NEVER A WASH — the decided form (item 523): the followable-span
-/// underline is drawn at a MUTED step of the text's own ink, opaque, never an
+/// SOLID INK, NEVER A WASH — the followable-span underline's decided form:
+/// it is drawn at a MUTED step of the text's own ink, opaque, never an
 /// alpha-blended treatment (Wagtail's `decorative_wash: Off` bans exactly that
 /// class — `nit_underline_srgba` already learned to zero itself out rather
 /// than draw translucent on Wagtail; the followable underline sidesteps the
