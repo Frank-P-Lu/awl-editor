@@ -35,6 +35,12 @@ pub(super) struct OrnamentCache {
     /// text-derived membership. Cursor/selection reveal is filtered per frame in
     /// [`TextPipeline::bare_url_marks`], exactly like `footnote_marks`.
     bare_url_tails: std::cell::RefCell<Vec<(usize, std::ops::Range<usize>)>>,
+    /// `(line, source range)` for every smart-punctuation span — the painted
+    /// substitute glyph's text-derived membership. Cursor/selection reveal is
+    /// filtered per frame in [`TextPipeline::smart_punct_marks`], exactly like
+    /// `bare_url_tails`; the WHICH-GLYPH kind is re-derived at read time
+    /// ([`smart_punct_kind_for`]), never cached, mirroring `is_bare_url_tail`.
+    smart_punct_spans: std::cell::RefCell<Vec<(usize, std::ops::Range<usize>)>>,
 }
 
 impl OrnamentCache {
@@ -48,6 +54,7 @@ impl OrnamentCache {
             fence_lang_blocks: std::cell::RefCell::new(Vec::new()),
             footnote_marks: std::cell::RefCell::new(Vec::new()),
             bare_url_tails: std::cell::RefCell::new(Vec::new()),
+            smart_punct_spans: std::cell::RefCell::new(Vec::new()),
         }
     }
 }
@@ -256,6 +263,7 @@ impl TextPipeline {
         let mut fence_langs: Vec<(usize, crate::syntax::Lang)> = Vec::new();
         let mut footnotes = Vec::new();
         let mut bare_url_tails: Vec<(usize, std::ops::Range<usize>)> = Vec::new();
+        let mut smart_punct_spans: Vec<(usize, std::ops::Range<usize>)> = Vec::new();
         let mut start = 0usize;
         for (li, line) in self.buffer.lines.iter().enumerate() {
             let text = line.text();
@@ -281,6 +289,15 @@ impl TextPipeline {
                         && is_bare_url_tail(text, r.start - start)
                     {
                         bare_url_tails.push((li, r.clone()));
+                    }
+                    if *k
+                        == crate::markdown::MdKind::ConcealMarkup(
+                            crate::markdown::ConcealKind::SmartPunct,
+                        )
+                        && r.start >= start
+                        && r.start < end
+                    {
+                        smart_punct_spans.push((li, r.clone()));
                     }
                     let number = match *k {
                         crate::markdown::MdKind::FootnoteReference(number)
@@ -342,6 +359,7 @@ impl TextPipeline {
         *self.ornament_cache.fence_lang_blocks.borrow_mut() = fence_langs;
         *self.ornament_cache.footnote_marks.borrow_mut() = footnotes;
         *self.ornament_cache.bare_url_tails.borrow_mut() = bare_url_tails;
+        *self.ornament_cache.smart_punct_spans.borrow_mut() = smart_punct_spans;
         self.ornament_cache.version.set(Some(self.reshape_count));
     }
 
@@ -660,6 +678,70 @@ impl TextPipeline {
                     doc_top + row.line_top,
                     text_left + x,
                     bare_url_ellipsis_slot(row.line_height),
+                ))
+            })
+            .collect()
+    }
+
+    /// Visible smart-punctuation substitute marks: `(row top, absolute left,
+    /// which glyph, reserved slot width)`. The span's source is collapsed by
+    /// `add_wysiwyg_conceal_spans` (via `add_smart_punct_conceal_spans`); this
+    /// reads its char boundary in the SAME shaped row and re-derives WHICH
+    /// glyph from the same raw bytes ([`smart_punct_kind_for`]), so the
+    /// painted glyph, the reserved zero-width slot, and the concealed source
+    /// can never diverge — the `bare_url_marks`/`footnote_marks` precedent,
+    /// with a per-mark KIND payload instead of a per-mark NUMBER.
+    pub(super) fn smart_punct_marks(&self) -> Vec<(f32, f32, crate::markdown::SmartPunctKind, f32)> {
+        if !self.md_enabled || !crate::markdown::wysiwyg_on() || self.md_spans.is_empty() {
+            return Vec::new();
+        }
+        self.ensure_ornament_lists();
+        let selection_touch = selection_touch_bytes(
+            self.selection,
+            |li| self.line_doc_byte_start(li),
+            |li| {
+                self.buffer
+                    .lines
+                    .get(li)
+                    .map_or(0, |line| line.text().len())
+            },
+        );
+        let visible: Vec<_> = self
+            .ornament_cache
+            .smart_punct_spans
+            .borrow()
+            .iter()
+            .filter(|(line, range)| {
+                *line != self.cursor_line
+                    && !selection_touches(selection_touch.as_ref(), range)
+                    && self.line_ornament_visible(*line)
+            })
+            .cloned()
+            .collect();
+        let lines: std::collections::BTreeSet<_> = visible.iter().map(|(line, _)| *line).collect();
+        let rows = self.visual_rows_for_lines(&lines);
+        let text_left = self.text_left();
+        let doc_top = self.doc_top();
+        visible
+            .into_iter()
+            .filter_map(|(line, range)| {
+                let line_start = self.line_doc_byte_start(line);
+                let byte = range.start.checked_sub(line_start)?;
+                let line_text = self.buffer.lines.get(line)?.text();
+                let local_end = range.end.checked_sub(line_start)?;
+                let kind = smart_punct_kind_for(line_text, byte..local_end)?;
+                let col = line_text[..byte].chars().count();
+                let row = rows
+                    .get(&line)?
+                    .iter()
+                    .find(|row| row.start_col <= col && col <= row.end_col)?;
+                let local = col.saturating_sub(row.start_col);
+                let x = *row.xs.get(local)?;
+                Some((
+                    doc_top + row.line_top,
+                    text_left + x,
+                    kind,
+                    smart_punct_slot(row.line_height),
                 ))
             })
             .collect()

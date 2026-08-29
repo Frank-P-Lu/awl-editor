@@ -5,7 +5,8 @@ use super::detect::{setext_break_range, strike_engaged};
 use super::kind::MdKind;
 use super::markers::{
     push_bare_url_spans, push_delim, push_heading_markers, push_highlight_spans, push_inline_code,
-    push_link_markers, push_list_marker, push_quote_markers, push_task_marker,
+    push_link_markers, push_list_marker, push_quote_markers, push_smart_punct_spans,
+    push_task_marker,
 };
 use crate::markdown::ConcealKind;
 use crate::markdown::inline_images_on;
@@ -311,6 +312,18 @@ pub fn spans(text: &str) -> Vec<(Range<usize>, MdKind)> {
                 // (a URL in a fenced/indented sample is literal code, not prose).
                 if link == 0 && code_block == 0 {
                     push_bare_url_spans(&mut body, text, &range);
+                }
+                // SMART PUNCTUATION: `--`/`---`/`...` typed as prose. Inline
+                // code never reaches here at all (it arrives via `Event::Code`,
+                // below, never `Event::Text`), and `code_block == 0` excludes a
+                // fenced/indented block's body — the same two guards
+                // `push_highlight_spans` already relies on. Unlike bare-URL
+                // detection this fires inside a link's own VISIBLE text too
+                // (`link` is not part of the guard): the link's destination
+                // never arrives as `Event::Text` at all, so there is nothing to
+                // protect there.
+                if code_block == 0 {
+                    push_smart_punct_spans(&mut body, text, &range);
                 }
             }
             Event::Code(_) => push_inline_code(&mut body, text, &range),
