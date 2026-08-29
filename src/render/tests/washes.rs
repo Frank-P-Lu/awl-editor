@@ -1213,7 +1213,11 @@ fn bare_url_underline_hugs_the_tamed_run_and_survives_the_caret() {
     // left edge (the scheme collapses to zero width ahead of it, so the two
     // starts coincide).
     let sel = p.range_rects((0, 19), (0, 30));
-    assert_eq!(sel.len(), 1, "one selection rect for the authority: {sel:?}");
+    assert_eq!(
+        sel.len(),
+        1,
+        "one selection rect for the authority: {sel:?}"
+    );
     let [rx, ry, rw, rh] = sel[0];
     assert!(
         (tamed.x - rx).abs() < 0.6,

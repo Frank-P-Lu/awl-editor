@@ -530,9 +530,7 @@ fn bare_url_text_covers_the_whole_match_and_is_pushed_before_its_conceal_spans()
     let url_end = text.find(" now").unwrap();
 
     assert_eq!(
-        s.iter()
-            .filter(|(_, k)| *k == MdKind::BareUrlText)
-            .count(),
+        s.iter().filter(|(_, k)| *k == MdKind::BareUrlText).count(),
         1,
         "exactly one BareUrlText span per detected URL: {s:?}"
     );
