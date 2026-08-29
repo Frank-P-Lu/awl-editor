@@ -533,8 +533,8 @@ fn file_leaves(rows: &[StackRow]) -> Vec<String> {
         .collect()
 }
 
-/// Is the active FILE (never a Group heading — item 518's pinned sticky
-/// heading for the reader's own project also carries `active: true`, which
+/// Is the active FILE (never a Group heading — the pinned sticky heading
+/// for the reader's own project also carries `active: true`, which
 /// would false-positive a plain `.any(|r| r.active)` check into reading "the
 /// active file is visible" when only its scrolled-off heading is pinned).
 fn active_file_shown(rows: &[StackRow]) -> bool {
@@ -861,6 +861,64 @@ fn every_visible_file_rows_group_heading_is_drawn_in_the_same_window() {
     }
 }
 
+/// **520: THE OVERFLOW CUE'S PRESENCE AND COUNT ARE EXACT AT BOTH EDGES**,
+/// swept over every scroll position across a set larger than the viewport.
+/// `↑ N more` is present exactly when a FILE precedes the window; `↓ N more`
+/// exactly when a FILE remains after it; `N` is always a FILE count (a
+/// project heading is not an item) — asserted as a conservation law: hidden
+/// above + shown + hidden below always equals every open file, at every
+/// scroll position, never just the two edges a hand-picked sweep would check.
+#[test]
+fn overflow_cues_are_present_and_exact_at_every_scroll_position() {
+    let mut ws = WorkingSet::default();
+    ten(&mut ws);
+    ws.expand();
+    for target in 0..=11 {
+        ws.scroll_expanded(-1000);
+        ws.scroll_expanded(target as isize);
+        let rows = ws.expanded_rows();
+        assert!(
+            rows.len() <= panel::EXPANDED_VIEWPORT,
+            "target={target}: drawn {} rows exceeds the viewport",
+            rows.len()
+        );
+        let shown = file_leaves(&rows).len();
+        let top = rows.iter().find_map(|r| match r.kind {
+            StackRowKind::Overflow { up: true, hidden } => Some(hidden),
+            _ => None,
+        });
+        let bottom = rows.iter().find_map(|r| match r.kind {
+            StackRowKind::Overflow { up: false, hidden } => Some(hidden),
+            _ => None,
+        });
+        assert_eq!(
+            top.unwrap_or(0) + shown + bottom.unwrap_or(0),
+            ws.len(),
+            "target={target}: hidden-above ({top:?}) + shown ({shown}) + \
+             hidden-below ({bottom:?}) must equal every open file ({}): {rows:?}",
+            ws.len()
+        );
+        // Presence law, stated the other way: no scroll at 0 ever shows a
+        // top cue (nothing precedes it), and no window that reaches the
+        // group's own last file ever shows a bottom cue.
+        if target == 0 {
+            assert_eq!(top, None, "target=0 must show no `↑ N more` cue");
+        }
+    }
+    // The panel's OWN max scroll (reached via a saturating over-scroll) must
+    // show no bottom cue — the window has reached the tail, matching the
+    // non-vacuity fixture `reveal_and_max_scroll_still_reach_the_groups_own_last_file`
+    // proves f9 is inside.
+    ws.scroll_expanded(1000);
+    let at_max = ws.expanded_rows();
+    assert!(
+        !at_max
+            .iter()
+            .any(|r| matches!(r.kind, StackRowKind::Overflow { up: false, .. })),
+        "the panel's own max scroll must show no `↓ N more` cue: {at_max:?}"
+    );
+}
+
 /// **518: THE SAME LAW, PROVEN AT THE TAIL OF A SINGLE GROUP** — non-vacuity
 /// for the reveal/max-scroll arithmetic rather than the sticky heading
 /// itself: ten files under ONE root, `EXPANDED_VIEWPORT = 8`, so the old
@@ -917,6 +975,12 @@ fn expanded_row_open_file_resolves_the_exact_row_expanded_rows_draws() {
                 assert!(
                     ws.expanded_row_open_file(row).is_none(),
                     "row {row} is a heading and must name no file"
+                );
+            }
+            StackRowKind::Overflow { .. } => {
+                assert!(
+                    ws.expanded_row_open_file(row).is_none(),
+                    "row {row} is a passive overflow cue and must name no file"
                 );
             }
             StackRowKind::More { .. } => unreachable!("the expanded panel draws no More row"),
@@ -1346,27 +1410,42 @@ fn reorder_target_resolves_through_the_sticky_window_not_a_raw_offset() {
     }
     ws.expand();
     ws.scroll_expanded(-1000); // reset to 0 regardless of where the reveal opened
-    ws.scroll_expanded(2); // mid-`notes`: full[2] is a bare File, so row 0
-    // of the drawn window is now the STICKY pinned `notes/` heading, not
-    // `expanded_full[2]` — the exact shift a raw `scroll + row` would miss.
+    ws.scroll_expanded(1); // full[1] (a0) is a bare File, so row 0 of the
+    // drawn window is now the STICKY pinned `notes/` heading, not
+    // `expanded_full[1]` — the exact shift a raw `scroll + row` would miss.
+    // scroll=1 (rather than 2) keeps the `↑ N more` cue OUT of this fixture
+    // (no FILE precedes it, only the heading itself), so the sticky mapping
+    // is exercised in isolation from the top cue.
     let rows = ws.expanded_rows();
     assert_eq!(
         rows.iter().map(|r| r.leaf.clone()).collect::<Vec<_>>(),
         vec![
-            "notes/", "a1.md", "a2.md", "a3.md", "a4.md", "a5.md", "archive/", "b0.md",
+            "notes/",
+            "a0.md",
+            "a1.md",
+            "a2.md",
+            "a3.md",
+            "a4.md",
+            "a5.md",
+            "↓ 6 more",
         ],
-        "precondition: row 0 is the pinned sticky heading, not a1.md"
+        "precondition: row 0 is the pinned sticky heading, row 7 the overflow cue"
     );
 
     let expected_for_notes = [
         0, // row 0: the pinned notes/ heading -> top of its own group
-        1, // row 1: a1 -> its own slot
-        2, // row 2: a2
-        3, // row 3: a3
-        4, // row 4: a4
-        5, // row 5: a5 (last)
-        5, // row 6: archive's heading -> below notes' block -> clamps to bottom
-        5, // row 7: b0 -> same clamp
+        0, // row 1: a0 -> its own slot
+        1, // row 2: a1
+        2, // row 3: a2
+        3, // row 4: a3
+        4, // row 5: a4
+        5, // row 6: a5 (last)
+        // row 7 is the passive `↓ N more` cue — never a real drag target
+        // (the hit-test filters it out before a caller ever sees a row for
+        // it, same as a Group heading), so this is the documented "past the
+        // drawn window" fallback: clamps to the bottom of notes' own group,
+        // same answer a row past the block's end always gets.
+        5,
     ];
     for (row, &want) in expected_for_notes.iter().enumerate() {
         assert_eq!(
@@ -1376,7 +1455,7 @@ fn reorder_target_resolves_through_the_sticky_window_not_a_raw_offset() {
         );
     }
 
-    let expected_for_archive = [0, 0, 0, 0, 0, 0, 0, 0];
+    let expected_for_archive = [0, 0, 0, 0, 0, 0, 0, 5];
     for (row, &want) in expected_for_archive.iter().enumerate() {
         assert_eq!(
             ws.reorder_target(&other, row),

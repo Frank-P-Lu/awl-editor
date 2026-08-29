@@ -15,10 +15,21 @@ pub enum StackRowKind {
     /// or carry the active-file plate.
     #[default]
     File,
-    /// The collapsed view's single generic overflow affordance.
+    /// The collapsed view's single generic overflow affordance — a resting-
+    /// stack row, and drawn ONLY there: clicking it EXPANDS the panel
+    /// (`app/input/gutter.rs::gutter_stack_click`).
     More { hidden: usize },
     /// A project heading in the expanded cross-project panel.
     Group { active: bool },
+    /// The expanded panel's own PASSIVE scroll-position cue — `↑ N
+    /// more` (`up: true`) pinned above the window when rows are hidden above
+    /// it, `↓ N more` below when rows remain below. Deliberately a DIFFERENT
+    /// kind than `More`: that row is an actionable resting-stack EXPAND
+    /// affordance, and reusing it here would make a passive position cue
+    /// clickable through the exact same door — hit-tested and filtered out
+    /// exactly like `Group` (`gutter_hit::stack_hit_from_plan`), never a
+    /// second close/switch target.
+    Overflow { up: bool, hidden: usize },
 }
 
 /// One projected row in the margin stack.

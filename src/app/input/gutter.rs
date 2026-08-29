@@ -209,9 +209,10 @@ impl App {
                 self.request_frame();
             }
             // Filtered out before the hit-test ever answers a row for it
-            // (`stack_hit_from_plan`); kept as a named, no-op arm rather than a
+            // (`stack_hit_from_plan`); kept as named, no-op arms rather than a
             // wildcard so a future row kind cannot fall silently through here.
-            crate::workingset::StackRowKind::Group { .. } => {}
+            crate::workingset::StackRowKind::Group { .. }
+            | crate::workingset::StackRowKind::Overflow { .. } => {}
             crate::workingset::StackRowKind::File => {
                 if hit.is_close() {
                     if let Some(key) = self.gutter_stack_row_key(hit.row) {

@@ -315,8 +315,8 @@ pub(super) fn plate_rects(
             // — fatal in a one-bit world, black on black). Only a File line
             // ever reaches here (the filter above), so the lane is always
             // present.
-            let ink_w = (text.chars().count() + CLOSE_MARK_TEXT.chars().count()) as f32
-                * label_char_w;
+            let ink_w =
+                (text.chars().count() + CLOSE_MARK_TEXT.chars().count()) as f32 * label_char_w;
             Some(plate_rect(rect, ink_w, pad_x))
         })
         .collect()

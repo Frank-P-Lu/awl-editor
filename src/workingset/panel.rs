@@ -45,29 +45,41 @@ pub(super) enum PanelRow {
 /// One row of the panel's DRAWN WINDOW — what [`WorkingSet::expanded_rows`]
 /// turns into a [`StackRow`] and what every drag/reorder resolution maps
 /// back to an [`WorkingSet::expanded_full`] position. Distinct from
-/// [`PanelRow`] (the unwindowed content) because a drawn window can hold a
-/// row `expanded_full` never does: item 518's pinned STICKY heading — a
-/// duplicate of a real heading that has already scrolled off — inserted so
-/// every visible File row's group stays nameable from the window alone.
+/// [`PanelRow`] (the unwindowed content) because a drawn window can hold rows
+/// `expanded_full` never does: a pinned STICKY heading — a duplicate of a
+/// real heading that has already scrolled off, inserted so every visible
+/// File row's group stays nameable from the window alone — and a passive
+/// scroll-position cue.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) enum DrawnRow {
     /// A real `expanded_full` entry, carried alongside its own index there —
     /// the position a drag onto this row resolves to.
     Full(usize, PanelRow),
-    /// item 518: `origin` is the REAL heading's own `expanded_full` index —
-    /// dragging onto the pinned duplicate lands exactly where dragging onto
-    /// that real heading would.
+    /// `origin` is the REAL heading's own `expanded_full` index — dragging
+    /// onto the pinned duplicate lands exactly where dragging onto that real
+    /// heading would.
     Sticky(usize, PathBuf, bool),
+    /// The panel's own passive scroll-position cue — `up: true` at the
+    /// window's own first slot when FILE rows are hidden above it, `up:
+    /// false` at the last slot when files remain below. `hidden` is a FILE
+    /// count ([`window_edge_counts`](crate::render::chrome::window_edge_counts)'s
+    /// own contract), never a display-row count — a project heading is not
+    /// an item. Names no `expanded_full` position: never a drop target.
+    Overflow { up: bool, hidden: usize },
 }
 
 impl DrawnRow {
     /// The [`WorkingSet::expanded_full`] position a drag onto this row
-    /// resolves to. Every drawn row currently has one (a pinned heading
-    /// duplicates a real position, same as any other row) — future rows with
-    /// no position of their own (a passive cue) return `None` here.
+    /// resolves to. `None` for the passive overflow cue, which names no real
+    /// position — [`WorkingSet::reorder_target`]'s caller can never actually
+    /// hand this in: the hit-test every real drag row is resolved through
+    /// already filters the cue out before a caller sees it
+    /// (`gutter_hit::stack_hit_from_plan`), so this is a documented
+    /// impossible case, not a silent wrong answer.
     pub(super) fn full_index(&self) -> Option<usize> {
         match self {
             DrawnRow::Full(i, _) | DrawnRow::Sticky(i, _, _) => Some(*i),
+            DrawnRow::Overflow { .. } => None,
         }
     }
 }
@@ -91,8 +103,8 @@ fn group_stack_row(root: &Path, active: bool, roots: &[&Path]) -> StackRow {
         // the current row" (`StackRow::file_row` sets the same field for a
         // File row) — a heading that only carried the nested copy read as
         // never current to it. `plate_rects` deliberately does NOT read this
-        // field for a Group row (515's one-meaning rule: the plate is the
-        // active file's, never the project's own heading).
+        // field for a Group row: the plate is always the active file's,
+        // never the project's own heading.
         active,
         kind: StackRowKind::Group { active },
     }
@@ -173,7 +185,7 @@ impl WorkingSet {
         let Panel::Expanded { scroll } = self.panel else {
             return;
         };
-        let max = expanded_max_scroll(&self.expanded_full()) as isize;
+        let max = self.expanded_max_scroll(&self.expanded_full()) as isize;
         let next = (scroll as isize + delta).clamp(0, max.max(0)) as usize;
         self.panel = Panel::Expanded { scroll: next };
     }
@@ -206,41 +218,58 @@ impl WorkingSet {
 
     /// The minimal-jump scroll that brings the active row into the DRAWN
     /// window — found directly rather than in closed form, the same reason
-    /// [`expanded_max_scroll`] is: item 518's sticky heading can make the
-    /// window one row narrower than [`EXPANDED_VIEWPORT`] depending on
-    /// `scroll` itself, so "smallest `s` whose own window contains the active
-    /// row" is not `active - (VIEWPORT - 1)` once that varies. `0` when
-    /// nothing is active (there is no row to reveal).
+    /// [`Self::expanded_max_scroll`] is: a pinned sticky heading or an
+    /// overflow cue can make the window narrower than [`EXPANDED_VIEWPORT`]
+    /// depending on `scroll` itself, so "smallest `s` whose own window
+    /// contains the active row" is not a fixed offset once that varies. `0`
+    /// when nothing is active (there is no row to reveal).
     pub(super) fn expanded_reveal_scroll(&self) -> usize {
         let full = self.expanded_full();
         let Some(active) = self.active else {
             return 0;
         };
-        let Some(pos) = full
+        if !full
             .iter()
-            .position(|row| matches!(row, PanelRow::File(at) if *at == active))
-        else {
+            .any(|row| matches!(row, PanelRow::File(at) if *at == active))
+        {
             return 0;
-        };
-        let max_scroll = expanded_max_scroll(&full);
+        }
+        let max_scroll = self.expanded_max_scroll(&full);
         (0..=max_scroll)
             .find(|&s| {
-                let len = expanded_window_len(&full, s);
-                pos >= s && pos < s + len
+                self.expanded_window_at(&full, s).iter().any(
+                    |row| matches!(row, DrawnRow::Full(_, PanelRow::File(at)) if *at == active),
+                )
             })
             .unwrap_or(max_scroll)
     }
 
-    /// THE PANEL'S DRAWN WINDOW — item 518's STICKY HEADING answer: when the
-    /// window's first content row would be a bare File (its own group's
-    /// heading already scrolled off), this pins that heading as the window's
-    /// own first row instead, costing one viewport slot the same as any
-    /// drawn heading, so every visible File row's group stays nameable from
-    /// the drawn window alone. [`Self::expanded_rows`] and
-    /// [`Self::expanded_row_open_file`] both read this ONE list — and so does
-    /// [`WorkingSet::reorder_target`] via [`DrawnRow::full_index`] — so a
-    /// click, a drag and the drawn rows can never disagree about which row is
-    /// which. Empty while the panel is not open.
+    /// THE LARGEST SCROLL WORTH HOLDING. A plain `full.len() - EXPANDED_VIEWPORT`
+    /// bound is correct only for a constant-size window; this panel's own
+    /// windows can show FEWER files than that whenever a sticky heading or an
+    /// overflow cue is pinned, which can strand a group's own last file just
+    /// past the old bound (measured: ten files under one root,
+    /// `EXPANDED_VIEWPORT = 8` — the old bound clamped scroll at 3, and the
+    /// sticky-widened window at scroll 3 showed files 2..8, never reaching
+    /// file 9). Found directly rather than in closed form: the smallest
+    /// scroll whose own window already reaches the end — no `↓ N more` cue —
+    /// since scrolling further reveals nothing new.
+    fn expanded_max_scroll(&self, full: &[PanelRow]) -> usize {
+        if full.len() <= EXPANDED_VIEWPORT {
+            return 0;
+        }
+        (0..full.len())
+            .find(|&s| {
+                !self
+                    .expanded_window_at(full, s)
+                    .iter()
+                    .any(|row| matches!(row, DrawnRow::Overflow { up: false, .. }))
+            })
+            .unwrap_or_else(|| full.len().saturating_sub(1))
+    }
+
+    /// THE PANEL'S DRAWN WINDOW at the CURRENT scroll, clamped to
+    /// [`Self::expanded_max_scroll`]. Empty while the panel is not open.
     pub(super) fn expanded_window(&self) -> Vec<DrawnRow> {
         let Panel::Expanded { scroll } = self.panel else {
             return Vec::new();
@@ -249,10 +278,76 @@ impl WorkingSet {
         if full.is_empty() {
             return Vec::new();
         }
-        let scroll = scroll.min(expanded_max_scroll(&full));
-        let sticky = expanded_sticky_origin(self, &full, scroll);
-        let len = expanded_window_len(&full, scroll);
+        let scroll = scroll.min(self.expanded_max_scroll(&full));
+        self.expanded_window_at(&full, scroll)
+    }
+
+    /// THE PANEL'S DRAWN WINDOW at an ARBITRARY `scroll` — the one builder
+    /// [`Self::expanded_window`] (drawing) and [`Self::expanded_max_scroll`]/
+    /// [`Self::expanded_reveal_scroll`] (searching over candidate scrolls)
+    /// all read, so a window built for a SEARCH candidate and the window
+    /// actually drawn can never disagree about their own shape.
+    ///
+    /// Reserves, in order, the `↑ N more` cue (whenever any FILE precedes
+    /// `scroll`) and the pinned sticky heading (whenever the first content
+    /// row would otherwise be a bare File) — the overflow line ahead of the
+    /// heading, so the two affordances never fight for one slot — then fills
+    /// the rest with content from `full[scroll..]`, reserving one more slot
+    /// at the end for the `↓ N more` cue if any FILE would still be left
+    /// unshown. Every reservation costs a real viewport slot: the drawn total
+    /// never exceeds [`EXPANDED_VIEWPORT`].
+    fn expanded_window_at(&self, full: &[PanelRow], scroll: usize) -> Vec<DrawnRow> {
+        if full.is_empty() {
+            return Vec::new();
+        }
+        let n_items = self.files.len();
+        // The FILE-ordinal position of the window's first shown item — the
+        // `top` [`crate::render::chrome::window_edge_counts`] wants, never a
+        // display-row count: a project heading is not an item.
+        let top_files = full[..scroll]
+            .iter()
+            .filter(|r| matches!(r, PanelRow::File(_)))
+            .count();
+        let sticky = expanded_sticky_origin(self, full, scroll);
+        let reserved_top = usize::from(top_files > 0) + usize::from(sticky.is_some());
+        let content_budget = EXPANDED_VIEWPORT.saturating_sub(reserved_top);
+
+        // How many ROWS of `full[scroll..]` fit in `budget`, and how many of
+        // those rows are FILES — the `visible` item count
+        // [`crate::render::chrome::window_edge_counts`] wants.
+        let content_at = |budget: usize| -> (usize, usize) {
+            let mut rows = 0usize;
+            let mut files = 0usize;
+            for row in &full[scroll..] {
+                if rows >= budget {
+                    break;
+                }
+                rows += 1;
+                if matches!(row, PanelRow::File(_)) {
+                    files += 1;
+                }
+            }
+            (rows, files)
+        };
+        let (mut rows_shown, mut files_shown) = content_at(content_budget);
+        let (top, below) =
+            crate::render::chrome::window_edge_counts(top_files, files_shown, n_items);
+        if below.is_some() {
+            (rows_shown, files_shown) = content_at(content_budget.saturating_sub(1));
+        }
+        // Re-asked after the possible budget cut above: cutting one more
+        // content row can only ever ADD to what is hidden below, never
+        // remove the need for the cue it just made room for.
+        let below = if below.is_some() {
+            crate::render::chrome::window_edge_counts(top_files, files_shown, n_items).1
+        } else {
+            below
+        };
+
         let mut window = Vec::with_capacity(EXPANDED_VIEWPORT);
+        if let Some(hidden) = top {
+            window.push(DrawnRow::Overflow { up: true, hidden });
+        }
         if let Some(origin) = sticky {
             let PanelRow::Group(root, active) = &full[origin] else {
                 unreachable!("expanded_sticky_origin only ever names a Group row");
@@ -260,18 +355,21 @@ impl WorkingSet {
             window.push(DrawnRow::Sticky(origin, root.clone(), *active));
         }
         window.extend(
-            full[scroll..(scroll + len).min(full.len())]
+            full[scroll..(scroll + rows_shown).min(full.len())]
                 .iter()
                 .enumerate()
                 .map(|(i, row)| DrawnRow::Full(scroll + i, row.clone())),
         );
+        if let Some(hidden) = below {
+            window.push(DrawnRow::Overflow { up: false, hidden });
+        }
         window
     }
 
     /// THE EXPANDED PANEL'S DRAWN ROWS, converted from [`Self::expanded_window`]
-    /// — [`group_stack_row`] renders a natural heading and item 518's pinned
-    /// sticky duplicate identically, since both name the same real project.
-    /// Empty while the panel is not open.
+    /// — [`group_stack_row`] renders a natural heading and its pinned sticky
+    /// duplicate identically, since both name the same real project. Empty
+    /// while the panel is not open.
     pub fn expanded_rows(&self) -> Vec<StackRow> {
         let window = self.expanded_window();
         if window.is_empty() {
@@ -293,6 +391,15 @@ impl WorkingSet {
                 }
                 DrawnRow::Sticky(_, root, active) => group_stack_row(root, *active, &roots),
                 DrawnRow::Full(_, PanelRow::File(at)) => self.file_row(*at),
+                DrawnRow::Overflow { up, hidden } => StackRow {
+                    leaf: crate::render::chrome::edge_cue_text(*up, *hidden),
+                    parent: String::new(),
+                    active: false,
+                    kind: StackRowKind::Overflow {
+                        up: *up,
+                        hidden: *hidden,
+                    },
+                },
             })
             .collect()
     }
@@ -305,12 +412,14 @@ impl WorkingSet {
     pub fn expanded_row_open_file(&self, row: usize) -> Option<&OpenFile> {
         match self.expanded_window().get(row)? {
             DrawnRow::Full(_, PanelRow::File(at)) => self.files.get(*at),
-            DrawnRow::Full(_, PanelRow::Group(..)) | DrawnRow::Sticky(..) => None,
+            DrawnRow::Full(_, PanelRow::Group(..))
+            | DrawnRow::Sticky(..)
+            | DrawnRow::Overflow { .. } => None,
         }
     }
 }
 
-/// Whether the window opening at `scroll` needs item 518's pinned heading —
+/// Whether the window opening at `scroll` needs the pinned sticky heading —
 /// true exactly when the first row it would otherwise draw is a bare File,
 /// its own group's heading having already scrolled off above.
 fn expanded_sticky_needed(full: &[PanelRow], scroll: usize) -> bool {
@@ -330,31 +439,7 @@ fn expanded_sticky_origin(ws: &WorkingSet, full: &[PanelRow], scroll: usize) -> 
         return None;
     }
     let root = ws.files[*at].root.clone();
-    full[..scroll].iter().rposition(|r| matches!(r, PanelRow::Group(r2, _) if *r2 == root))
-}
-
-/// How many rows of `full[scroll..]` the drawn window shows — one FEWER than
-/// [`EXPANDED_VIEWPORT`] whenever [`expanded_sticky_needed`] has to pin a
-/// heading ahead of them, so the total drawn (pinned heading + content) never
-/// exceeds the viewport.
-fn expanded_window_len(full: &[PanelRow], scroll: usize) -> usize {
-    EXPANDED_VIEWPORT.saturating_sub(usize::from(expanded_sticky_needed(full, scroll)))
-}
-
-/// THE LARGEST SCROLL WORTH HOLDING. A plain `full.len() - EXPANDED_VIEWPORT`
-/// bound is correct only for a constant-size window; item 518's windows can
-/// show one FEWER file than that whenever a sticky heading is pinned, which
-/// can strand a group's own last file just past the old bound (measured: ten
-/// files under one root, `EXPANDED_VIEWPORT = 8` — the old bound clamped
-/// scroll at 3, and the sticky-widened window at scroll 3 shows files 2..8,
-/// never reaching file 9). Found directly rather than in closed form: the
-/// smallest scroll whose own window already reaches the end of `full`, since
-/// scrolling further reveals nothing new.
-fn expanded_max_scroll(full: &[PanelRow]) -> usize {
-    if full.len() <= EXPANDED_VIEWPORT {
-        return 0;
-    }
-    (0..full.len())
-        .find(|&s| s + expanded_window_len(full, s) >= full.len())
-        .unwrap_or_else(|| full.len().saturating_sub(1))
+    full[..scroll]
+        .iter()
+        .rposition(|r| matches!(r, PanelRow::Group(r2, _) if *r2 == root))
 }

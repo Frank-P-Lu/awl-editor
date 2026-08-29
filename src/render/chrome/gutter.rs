@@ -37,11 +37,11 @@ pub(super) enum GutterLine {
 }
 
 impl GutterLayout {
-    /// **521: ONE VISIBLE OWNER OF THE PROJECT NAME.** `true` once the stack
+    /// **ONE VISIBLE OWNER OF THE PROJECT NAME.** `true` once the stack
     /// itself draws a project heading — that heading, ink-marked when it is
-    /// the current project (515's ink rule, kept even though this item takes
-    /// its plate away), already states "which project" inside the block, so
-    /// the separate folder line above would repeat it. The single-file
+    /// the current project (kept even though it draws no plate of its own),
+    /// already states "which project" inside the block, so the separate
+    /// folder line above would repeat it. The single-file
     /// identity and a resting stack (which never emits a `Group` row at all,
     /// [`crate::workingset::WorkingSet::stack_rows`]) keep this line as their
     /// one project label.
@@ -51,6 +51,18 @@ impl GutterLayout {
                 .files
                 .iter()
                 .any(|f| matches!(f.kind, crate::workingset::StackRowKind::Group { .. }))
+    }
+
+    /// [`Self::project`] when [`Self::project_line_visible`], else empty —
+    /// the one owner both the drawn spans (`prepare_gutter`) and the sidecar
+    /// (`TextPipeline::gutter_report`) read, so neither can independently
+    /// forget to gate on it.
+    fn project_visible_or_empty(&self) -> String {
+        if self.project_line_visible() {
+            self.project.clone()
+        } else {
+            String::new()
+        }
     }
 
     /// The block's lines, TOP to BOTTOM, absent ones omitted. THE one owner of
@@ -240,16 +252,9 @@ impl TextPipeline {
         // neither line can ever word-wrap mid-word.
         let lines = layout.lines().len();
         let name = layout.name.clone();
-        // Empty here whenever the stack's own heading rows already state the
-        // project (521's one-owner rule, `GutterLayout::project_line_visible`)
-        // — the SAME predicate `lines()` just used to size `lines` above, so
-        // the box height and the spans pushed below can never disagree about
-        // whether this line exists.
-        let project = if layout.project_line_visible() {
-            layout.project.clone()
-        } else {
-            String::new()
-        };
+        // Empty when the stack's own heading rows already state the project —
+        // the SAME predicate that just sized `lines` above.
+        let project = layout.project_visible_or_empty();
         // `changed elsewhere` (base content) over the folder heading (muted)
         // over the identity line — a VALUE ladder with the state at the top of
         // it, since that is the one line here that is news. Each lower line
@@ -473,17 +478,16 @@ impl TextPipeline {
     /// line, independently middle-elided (extension preserved) only once the
     /// margin can't hold it whole. `project` is empty both when there is
     /// genuinely no project to show AND when the stack's own heading rows
-    /// already state it (521's one-owner rule,
-    /// [`GutterLayout::project_line_visible`]) — either way the sidecar names
-    /// exactly what the pixels do, never a value the block never drew.
+    /// already state it ([`GutterLayout::project_visible_or_empty`]) — either
+    /// way the sidecar names exactly what the pixels do, never a value the
+    /// block never drew.
     pub fn gutter_report(&self) -> Option<(String, String, bool)> {
         self.gutter_layout().map(|g| {
-            let project = if g.project_line_visible() {
-                g.project.clone()
-            } else {
-                String::new()
-            };
-            (g.name, project, !g.changed.is_empty())
+            (
+                g.name.clone(),
+                g.project_visible_or_empty(),
+                !g.changed.is_empty(),
+            )
         })
     }
 }

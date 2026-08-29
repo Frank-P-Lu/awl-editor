@@ -351,6 +351,13 @@ fn every_expanded_panel_row_resolves_to_the_file_it_names() {
                         "row {row} is a heading and must name no file"
                     );
                 }
+                crate::workingset::StackRowKind::Overflow { .. } => {
+                    assert_eq!(
+                        app.gutter_stack_row_path(row),
+                        None,
+                        "row {row} is a passive overflow cue and must name no file"
+                    );
+                }
                 crate::workingset::StackRowKind::More { .. } => {
                     unreachable!("the expanded panel draws no More row")
                 }

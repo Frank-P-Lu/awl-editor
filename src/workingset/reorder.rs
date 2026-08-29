@@ -78,9 +78,9 @@ impl WorkingSet {
     /// or one of its own files) resolves to the exact group slot drawn there.
     ///
     /// `row` is a DRAWN-window index — [`WorkingSet::expanded_window`]'s own
-    /// space, not a plain offset from `scroll` — because item 518's pinned
-    /// sticky heading can sit ahead of real content and shift that
-    /// correspondence. Resolved through [`super::panel::DrawnRow::full_index`],
+    /// space, not a plain offset from `scroll` — because a pinned sticky
+    /// heading can sit ahead of real content and shift that correspondence.
+    /// Resolved through [`super::panel::DrawnRow::full_index`],
     /// the SAME mapping [`WorkingSet::expanded_rows`] draws from, so a drag
     /// can never target a different `expanded_full` position than the row
     /// the pointer is actually over.

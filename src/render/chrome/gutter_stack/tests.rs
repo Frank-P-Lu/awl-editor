@@ -547,8 +547,8 @@ fn project_heads_only_the_multi_file_hierarchy() {
 /// heading of its own (a single-file identity, or a resting stack — which
 /// never emits a `Group` row, [`crate::workingset::WorkingSet::stack_rows`]);
 /// it vanishes the moment the stack DOES draw one, because that heading
-/// already states which project this is (515's ink rule keeps its ink even
-/// though it lost its plate) and a second label would repeat it. Swept over
+/// already states which project this is (its own ink stays routed even
+/// though it draws no plate) and a second label would repeat it. Swept over
 /// both block shapes and both project-presence states, so the law cannot
 /// pass by only ever exercising the case where the two rules happen to agree.
 #[test]

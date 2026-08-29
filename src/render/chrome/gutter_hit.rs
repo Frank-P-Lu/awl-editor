@@ -54,7 +54,13 @@ pub(super) fn stack_hit_from_plan(
             // expanded, but it names no file and carries no action of its own
             // (the design boundary: mark the active group, never make the
             // heading itself a target) — inert here exactly as it always was.
-            if matches!(kind, crate::workingset::StackRowKind::Group { .. }) {
+            // The overflow scroll-position cue is the same shape: a passive
+            // label, not a target, so it enrols exactly like a heading.
+            if matches!(
+                kind,
+                crate::workingset::StackRowKind::Group { .. }
+                    | crate::workingset::StackRowKind::Overflow { .. }
+            ) {
                 return None;
             }
             (row, kind)

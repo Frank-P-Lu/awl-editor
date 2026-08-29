@@ -917,7 +917,7 @@ pub(super) fn scroll_window(
 /// idiom (`workingset.rs`) rather than duplicating it: that row is a
 /// resting-stack EXPAND affordance and stays exactly as it is; this is a
 /// passive position cue for an already-scrolling window.
-pub(super) fn window_edge_counts(
+pub(crate) fn window_edge_counts(
     top: usize,
     visible: usize,
     n_items: usize,
@@ -932,7 +932,7 @@ pub(super) fn window_edge_counts(
 /// shapers and the working-set expanded panel) so the wording can't drift
 /// between surfaces. `up` picks the arrow; `n` is always the count
 /// [`window_edge_counts`] returned, never re-derived at the draw site.
-pub(super) fn edge_cue_text(up: bool, n: usize) -> String {
+pub(crate) fn edge_cue_text(up: bool, n: usize) -> String {
     let arrow = if up { "↑" } else { "↓" };
     format!("{arrow} {n} more")
 }
