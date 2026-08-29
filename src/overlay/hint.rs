@@ -114,6 +114,10 @@ impl OverlayKind {
             OverlayKind::Rename => vec![enter("rename"), key("esc", "cancel")],
             OverlayKind::InsertLink => vec![enter("insert link"), key("esc", "cancel")],
             OverlayKind::KeepName => vec![enter("keep"), key("esc", "cancel")],
+            // Unreachable in practice: `foot_hint_scoped` returns
+            // `TableDimsEdit::prompt`'s own live readout before this arm is
+            // reached. Kept truthful anyway.
+            OverlayKind::TableDims => vec![enter("insert"), key("esc", "cancel")],
         }
     }
 

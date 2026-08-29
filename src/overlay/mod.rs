@@ -52,6 +52,7 @@ mod rename_edit;
 mod row;
 mod semantic;
 mod state;
+mod table_dims;
 pub(crate) mod workspace;
 
 #[allow(unused_imports)] // HERE_LABEL / here_folder_label: read by the row-label laws
@@ -77,6 +78,7 @@ pub use journey::{
 pub use kind::{AcceptDisposition, OverlayKind};
 pub use link::LinkEditMode;
 pub use rename_edit::RenameEdit;
+pub use table_dims::{DEFAULT_COLS, DEFAULT_ROWS, MAX_COLS, MAX_ROWS, MIN_DIM, TableDimsEdit};
 #[allow(unused_imports)]
 // OverlayRow/RowMeta/RowMetaTag: used by overlay tests and source-audit laws
 pub use row::{OverlayRow, RangeCell, RowMeta, RowMetaTag, add_to_dictionary_label};

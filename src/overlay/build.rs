@@ -327,6 +327,12 @@ pub fn build(kind: OverlayKind, ctx: &BuildCtx) -> Option<OverlayState> {
         // constant — so it ALWAYS summons, exactly like History/Assets.
         OverlayKind::Credits => Some(OverlayState::new_credits()),
         OverlayKind::KeepName | OverlayKind::Context => None,
+        // INSERT-TABLE: the dimension picker is built directly at its
+        // `Action::InsertTable` apply_transition arm
+        // (`table::open_insert_table` -> `OverlayState::new_table_dims`) — it
+        // needs no caller-gathered context at all — so this generic builder
+        // never constructs one. Exhaustiveness arm.
+        OverlayKind::TableDims => None,
     }
 }
 

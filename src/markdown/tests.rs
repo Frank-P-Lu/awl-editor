@@ -848,6 +848,45 @@ fn align_table_uses_display_width_for_cjk() {
 }
 
 #[test]
+fn build_table_emits_a_parseable_already_aligned_gfm_table_at_every_shape() {
+    // Sweep several (rows, cols) pairs, including the modest default and both
+    // 1-wide edges -- a hand-picked single shape would hide an off-by-one that
+    // only shows at a bound.
+    for (rows, cols) in [(3, 2), (1, 1), (1, 4), (5, 1), (8, 8)] {
+        let out = build_table(rows, cols);
+        // IDEMPOTENT under align_table: what we hand back is already the
+        // canonical aligned form, never a second pass away from it.
+        assert_eq!(
+            align_table(&out),
+            out,
+            "build_table({rows}, {cols}) is already aligned: {out:?}"
+        );
+        let lines: Vec<&str> = out.split('\n').collect();
+        assert_eq!(
+            lines.len(),
+            rows + 1,
+            "rows header+body rows plus one separator line: {out:?}"
+        );
+        // Every content row (all but the separator, line 1) parses back to
+        // exactly `cols` blank cells.
+        for (i, line) in lines.iter().enumerate() {
+            if i == 1 {
+                continue;
+            }
+            let cells = split_row_cells(line);
+            assert_eq!(cells.len(), cols, "row {i} has {cols} cells: {out:?}");
+            assert!(
+                cells.iter().all(|c| c.is_empty()),
+                "row {i} cells start blank: {out:?}"
+            );
+        }
+        // The first header cell's content starts right after the constant
+        // offset -- the exact position `InsertTable` lands the caret at.
+        assert_eq!(&lines[0][..FIRST_CELL_OFFSET], "| ");
+    }
+}
+
+#[test]
 fn table_block_lines_finds_the_block_and_needs_a_separator() {
     let text = "intro\n| a | b |\n|---|---|\n| c | d |\n\ntail | pipe";
     let lines: Vec<&str> = text.split('\n').collect();

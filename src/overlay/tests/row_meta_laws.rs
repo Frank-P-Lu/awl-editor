@@ -113,6 +113,10 @@ fn representative_overlay(kind: OverlayKind) -> OverlayState {
             crate::overlay::LinkEditMode::Empty { at: 0 },
         ),
         OverlayKind::KeepName => OverlayState::new_keep_name(),
+        // No candidate row list at all -- the roster subset check below
+        // passes vacuously over its empty `rows`, exactly like every other
+        // `*_edit` minibuffer would if it produced no rows either.
+        OverlayKind::TableDims => OverlayState::new_table_dims(),
         OverlayKind::Context => crate::context_menu::overlay(
             crate::context_menu::rows(
                 crate::context_menu::ContextTarget::Body,

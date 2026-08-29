@@ -173,6 +173,17 @@ pub(super) static COMMANDS: &[Command] = &[
         ),
     },
     Command {
+        name: "Insert table…",
+        action: Action::InsertTable,
+        native: "",
+        emacs: "",
+        native_only: false,
+        web_only: false,
+        description: Some(
+            "Summon the dimension picker: sculpt rows/columns, then insert a fresh GFM table.",
+        ),
+    },
+    Command {
         name: "Save",
         action: Action::Save,
         native: "",

@@ -25,6 +25,7 @@ enum_with_all! {
         KeepName,
         Context,
         ExportDest,
+        TableDims,
     }
 }
 
@@ -66,6 +67,7 @@ impl OverlayKind {
             OverlayKind::KeepName => "keep_version",
             OverlayKind::Context => "context",
             OverlayKind::ExportDest => "export_dest",
+            OverlayKind::TableDims => "table_dims",
         }
     }
 
@@ -98,6 +100,7 @@ impl OverlayKind {
             OverlayKind::Rename => Navigate,
             OverlayKind::InsertLink => Navigate,
             OverlayKind::KeepName => Navigate,
+            OverlayKind::TableDims => Navigate,
         }
     }
 
@@ -128,7 +131,8 @@ impl OverlayKind {
             | OverlayKind::Assets
             | OverlayKind::Rename
             | OverlayKind::InsertLink
-            | OverlayKind::KeepName => &[Plain],
+            | OverlayKind::KeepName
+            | OverlayKind::TableDims => &[Plain],
         }
     }
 
@@ -178,7 +182,8 @@ impl OverlayKind {
             | OverlayKind::InsertLink
             | OverlayKind::KeepName
             | OverlayKind::Context
-            | OverlayKind::ExportDest => false,
+            | OverlayKind::ExportDest
+            | OverlayKind::TableDims => false,
         }
     }
 
@@ -228,7 +233,8 @@ impl OverlayKind {
             | OverlayKind::InsertLink
             | OverlayKind::KeepName
             | OverlayKind::Context
-            | OverlayKind::ExportDest => false,
+            | OverlayKind::ExportDest
+            | OverlayKind::TableDims => false,
         }
     }
 
@@ -296,7 +302,8 @@ impl OverlayKind {
             | OverlayKind::Rename
             | OverlayKind::InsertLink
             | OverlayKind::KeepName
-            | OverlayKind::Context => false,
+            | OverlayKind::Context
+            | OverlayKind::TableDims => false,
         }
     }
 
@@ -363,6 +370,9 @@ impl OverlayKind {
             OverlayKind::InsertLink => "no matches",
             OverlayKind::KeepName => "no matches",
             OverlayKind::Context => "no actions",
+            // Unreachable in practice: the picker carries no candidate row
+            // list at all -- see `TableDimsEdit`'s own doc.
+            OverlayKind::TableDims => "no matches",
         }
     }
 
@@ -400,6 +410,7 @@ impl OverlayKind {
             OverlayKind::InsertLink => "insert link",
             OverlayKind::KeepName => "keep version",
             OverlayKind::Context => "context menu",
+            OverlayKind::TableDims => "insert table",
         }
     }
 
@@ -428,7 +439,8 @@ impl OverlayKind {
             | OverlayKind::Assets
             | OverlayKind::Rename
             | OverlayKind::KeepName
-            | OverlayKind::Context => false,
+            | OverlayKind::Context
+            | OverlayKind::TableDims => false,
         }
     }
 
@@ -439,6 +451,7 @@ impl OverlayKind {
                 | OverlayKind::InsertLink
                 | OverlayKind::KeepName
                 | OverlayKind::Context
+                | OverlayKind::TableDims
         )
     }
 

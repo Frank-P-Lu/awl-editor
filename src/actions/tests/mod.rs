@@ -658,6 +658,7 @@ macro_rules! classify_delete_flinch {
             | Action::ResolveTakeTheirs
             | Action::FollowLink
             | Action::InsertLink
+            | Action::InsertTable
             | Action::InsertFootnote
             | Action::ReportProblem
             | Action::DownloadFile
@@ -883,6 +884,7 @@ macro_rules! assert_action_roster {
             | Action::ResolveTakeTheirs
             | Action::FollowLink
             | Action::InsertLink
+            | Action::InsertTable
             | Action::InsertFootnote
             | Action::ReportProblem
             | Action::DownloadFile
@@ -1014,6 +1016,7 @@ fn command_action_roster() -> Vec<Action> {
         Action::ResolveTakeTheirs,
         Action::FollowLink,
         Action::InsertLink,
+        Action::InsertTable,
         Action::InsertFootnote,
         Action::ReportProblem,
         Action::DownloadFile,
@@ -1109,6 +1112,10 @@ macro_rules! classify_smoke_command {
         // an existing link (see the FollowLink note below), so Cmd-K always opens
         // the minibuffer here — an Opener, like every other summon.
         | Action::InsertLink
+        // INSERT TABLE: markdown-only like InsertLink beside it, and the
+        // smoke fixture is markdown, so the dimension picker always summons
+        // here too.
+        | Action::InsertTable
         // NAMED SAVE POINTS: "Keep version…" summons the naming minibuffer
         // (unconditionally — the store's own gates decide at commit), so it is
         // an Opener now; the deferred Effect::KeepVersion fires at the

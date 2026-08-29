@@ -163,6 +163,46 @@ fn keep_edit_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
     }
     Some(Effect::None)
 }
+/// THE DIMENSION PICKER'S key ownership. Unlike its `*_edit` siblings this
+/// card has no text CARET to move -- `↑`/`↓`/`←`/`→` sculpt the row/column
+/// count directly (`OverlayState::table_dims_row_delta`/`col_delta`) rather
+/// than moving a cursor through a field, and printable input is filtered to
+/// digits/`x`/space by [`OverlayState::table_dims_push`] itself (a numeric
+/// field, not free text). `Enter` builds the table via
+/// [`table::insert_table_at`] and applies it as ONE atomic edit through
+/// `Buffer::apply_format` -- mirroring `link_edit_intercept`'s own direct
+/// buffer mutation, so no new `Effect` variant or replay-classifier arm is
+/// needed for the commit.
+fn table_dims_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
+    ctx.journey.card().unwrap().table_dims.as_ref()?;
+    let overlay = ctx.journey.card_mut().unwrap();
+    match action {
+        Action::InsertChar(c) => overlay.table_dims_push(*c),
+        Action::DeleteBackward => overlay.table_dims_pop(),
+        Action::NextLine => overlay.table_dims_row_delta(1),
+        Action::PreviousLine => overlay.table_dims_row_delta(-1),
+        Action::ForwardChar => overlay.table_dims_col_delta(1),
+        Action::BackwardChar => overlay.table_dims_col_delta(-1),
+        Action::Newline => {
+            let target = overlay.table_dims_target();
+            ctx.journey.dismiss();
+            if let Some((rows, cols)) = target {
+                let text = ctx.buffer.text();
+                let anchor = ctx.buffer.anchor_char();
+                let cursor = ctx.buffer.cursor_char();
+                let result = super::table::insert_table_at(&text, anchor, cursor, rows, cols);
+                ctx.buffer
+                    .apply_format(&result.text, result.anchor, result.cursor);
+            }
+        }
+        Action::Cancel => {
+            ctx.journey.dismiss();
+        }
+        _ => {}
+    }
+    Some(Effect::None)
+}
+
 fn value_edit_intercept(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
     ctx.journey.card().unwrap().value_edit.as_ref()?;
     let overlay = ctx.journey.card_mut().unwrap();
@@ -199,6 +239,9 @@ pub(super) fn overlay_intercept(ctx: &mut ActionCtx, action: &Action) -> Effect 
         return effect;
     }
     if let Some(effect) = keep_edit_intercept(ctx, action) {
+        return effect;
+    }
+    if let Some(effect) = table_dims_intercept(ctx, action) {
         return effect;
     }
     if let Some(effect) = value_edit_intercept(ctx, action) {

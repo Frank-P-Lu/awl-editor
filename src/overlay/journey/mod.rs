@@ -140,7 +140,8 @@ impl OverlayKind {
             | OverlayKind::Rename
             | OverlayKind::InsertLink
             | OverlayKind::KeepName
-            | OverlayKind::Context => false,
+            | OverlayKind::Context
+            | OverlayKind::TableDims => false,
         }
     }
 }
