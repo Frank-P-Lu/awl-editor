@@ -192,8 +192,8 @@ reason = "Word export keeps its package writer and semantic block emitters toget
 
 [[file_size_mark]]
 file = "src/export/model.rs"
-lines = 693
-reason = "The one semantic export model now resolves footnote labels, first-reference numbering, repeated references, definitions, and missing-label fallbacks beside the other Markdown block/inline normalization."
+lines = 701
+reason = "The one semantic export model now resolves footnote labels, first-reference numbering, repeated references, definitions, and missing-label fallbacks beside the other Markdown block/inline normalization. Item 530's smart-punctuation wiring in push_text: apply_smart_punct runs before the highlight scan, sharing the same mapping owner the live WYSIWYG conceal paints."
 
 [[file_size_mark]]
 file = "src/frontmatter.rs"
@@ -239,8 +239,8 @@ reason = "Item 527/528's config_keymap_flavor threads through the headless repla
 
 [[file_size_mark]]
 file = "src/markdown/spans.rs"
-lines = 24
-reason = "The `Tag::Heading` Start arm's else branch now promotes a qualifying SETEXT dash underline to a real `MdKind::Rule` span over exactly its own bytes (inline, no second single-call-site helper — the file was already sitting at its frozen ceiling), `is_thematic_break`'s doc comment is re-authored now that the setext case is no longer a false positive under the decided rule, and several pre-existing doc comments in the same neighborhood are tightened to make room without losing their content — net -2 lines even after the new logic. +2: a `#[cfg(test)]` re-export of `bare_url_ranges`/`bare_url_split` for the bare-URL detector's own unit tests, mirroring `push_highlight_spans`'s existing test-export pattern."
+lines = 25
+reason = "The `Tag::Heading` Start arm's else branch now promotes a qualifying SETEXT dash underline to a real `MdKind::Rule` span over exactly its own bytes (inline, no second single-call-site helper — the file was already sitting at its frozen ceiling), `is_thematic_break`'s doc comment is re-authored now that the setext case is no longer a false positive under the decided rule, and several pre-existing doc comments in the same neighborhood are tightened to make room without losing their content — net -2 lines even after the new logic. +2: a `#[cfg(test)]` re-export of `bare_url_ranges`/`bare_url_split` for the bare-URL detector's own unit tests, mirroring `push_highlight_spans`'s existing test-export pattern. Item 530's re-export of SmartPunctKind/smart_punct_ranges/smart_punct_runs/apply_smart_punct from spans/detect.rs, beside the module's other public re-exports."
 
 [[file_size_mark]]
 file = "src/mas.rs"
@@ -407,8 +407,8 @@ reason = "Overlay composition and ambient resolvers live here because they read 
 
 [[file_size_mark]]
 file = "src/render/rects.rs"
-lines = 1626
-reason = "+4: panel_layout reads shared physical PANEL_PAD and PANEL_MARGIN and clamps the content-sized card to narrow-canvas room, matching panel_shape_text fitted rows. +76: `OrnamentCache::bare_url_tails`'s field, its `ensure_ornament_lists` collection arm, and `bare_url_marks()`, beside the other per-frame ornament collections. +7: `MdKind::BareUrlText` joins `MdKind::LinkText` in the bucket-derivation match that feeds `Bucket::LinkUnderline`, so a tamed bare URL draws the same quiet underline a named link already does, through the one shared band/proto pipeline."
+lines = 1710
+reason = "+4: panel_layout reads shared physical PANEL_PAD and PANEL_MARGIN and clamps the content-sized card to narrow-canvas room, matching panel_shape_text fitted rows. +76: `OrnamentCache::bare_url_tails`'s field, its `ensure_ornament_lists` collection arm, and `bare_url_marks()`, beside the other per-frame ornament collections. +7: `MdKind::BareUrlText` joins `MdKind::LinkText` in the bucket-derivation match that feeds `Bucket::LinkUnderline`, so a tamed bare URL draws the same quiet underline a named link already does, through the one shared band/proto pipeline. Item 530's smart-punct ornament collection (smart_punct_marks) and its OrnamentCache::smart_punct_spans field, beside the other per-frame ornament collections this file already owns."
 
 [[file_size_mark]]
 file = "src/render/rowlayout.rs"
@@ -417,8 +417,8 @@ reason = "+69: `ColumnFlow` — the one signed answer to which way a row's colum
 
 [[file_size_mark]]
 file = "src/render/spans.rs"
-lines = 42
-reason = "A new `line_has_rule_span` helper (matching the existing `line_has_image_span`/`line_has_code_span` family) plus a `confirmed_rule` parameter threaded through `md_line_scale` and its doc comment — the corroborating check that stops a bare-scan false positive (e.g. `---` inside a fenced code block) from growing a row for an ornament that never draws. `line_has_rule_span`'s and `md_line_scale`'s doc comments are re-authored (+4 net) now that a qualifying SETEXT dash underline is no longer an example of the gap — it gets a real Rule span and agrees with the bare scan."
+lines = 43
+reason = "A new `line_has_rule_span` helper (matching the existing `line_has_image_span`/`line_has_code_span` family) plus a `confirmed_rule` parameter threaded through `md_line_scale` and its doc comment — the corroborating check that stops a bare-scan false positive (e.g. `---` inside a fenced code block) from growing a row for an ornament that never draws. `line_has_rule_span`'s and `md_line_scale`'s doc comments are re-authored (+4 net) now that a qualifying SETEXT dash underline is no longer an example of the gap — it gets a real Rule span and agrees with the bare scan. Item 530's re-export of the smart-punct conceal span builder from spans/conceal/smart_punct.rs, beside the module's other conceal re-exports."
 
 [[file_size_mark]]
 file = "src/render/text.rs"
@@ -626,10 +626,17 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
+file = "src/render/rects.rs"
+function = "TextPipeline::ensure_ornament_lists"
+message = "this function has too many lines (106/100)"
+reason = "Item 530's smart-punct ornament collection joins the other per-frame ornament lists this function already builds (bare-URL tails, rule lines, bullet marks) -- one shared collection walk, not a second owner."
+
+[[clippy_exception]]
+lint = "clippy::too_many_lines"
 file = "src/markdown/spans/parse.rs"
 function = "spans"
-message = "this function has too many lines (168/100)"
-reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. The `Tag::Heading` Start arm grew with an `else if` arm that promotes a qualifying SETEXT dash underline to a real `MdKind::Rule` span, inlined here (rather than a second single-call-site helper) to stay under the file's own frozen line ceiling — DECIDED: `---` always draws as the rule, whatever precedes it. +3: the guarded `push_bare_url_spans` call in the `Event::Text` arm."
+message = "this function has too many lines (171/100)"
+reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. The `Tag::Heading` Start arm grew with an `else if` arm that promotes a qualifying SETEXT dash underline to a real `MdKind::Rule` span, inlined here (rather than a second single-call-site helper) to stay under the file's own frozen line ceiling — DECIDED: `---` always draws as the rule, whatever precedes it. +3: the guarded `push_bare_url_spans` call in the `Event::Text` arm. +3: item 530's guarded push_smart_punct_spans call in the Event::Text arm, mirroring push_bare_url_spans's own code_block guard."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
