@@ -88,6 +88,51 @@ fn ink_top_row(
         .map(|i| y0 + i as i64)
 }
 
+/// The mirror of [`ink_top_row`]: the BOTTOM-most row of the strip ink's own
+/// last two-row run in `[y0, y1)` — the same PRESENCE evidence, read from the
+/// other end, so the candidate-band side of the strip's own box can be held
+/// to a separation floor exactly as its rule-side top already is.
+fn ink_bottom_row(
+    px: &[[u8; 4]],
+    (w, h): (i64, i64),
+    sxs: &[i64],
+    (y0, y1): (i64, i64),
+    ink: theme::Srgb,
+    ground: theme::Srgb,
+) -> Option<i64> {
+    let hits: Vec<bool> = (y0..y1)
+        .map(|y| {
+            sxs.iter().any(|&sx| {
+                let c = avg(px, w, h, sx, y, 1, 1);
+                redmean(c, ink) < redmean(c, ground)
+            })
+        })
+        .collect();
+    (0..hits.len().saturating_sub(1))
+        .rev()
+        .find(|&i| hits[i] && hits[i + 1])
+        .map(|i| y0 + i as i64 + 1)
+}
+
+/// THE STRIP'S OWN TOP- AND BOTTOM-INSET FLOOR, as a FRACTION of
+/// `header_gap` — portable across dpi (both already share the same
+/// physical-px space) and across the roster's own fonts/chrome faces (each
+/// world's `header_gap` already carries its own metrics). MEASURED, not
+/// guessed: a full sweep of this law's own axis (every enrolled world, both
+/// dpi tiers, both width classes, every lens) put the worst real TOP ratio at
+/// 0.30 (`Mopoke`/`Bilby`/`Currawong`, normal width, dpi 1x, margin 12.7
+/// physical px on a 42px `header_gap` — within a hair of `CARD_PAD`'s own 12
+/// logical px, the query field's own top-inset floor this item's brief asks
+/// the strip to match) and the worst real BOTTOM ratio at 0.2476
+/// (`Gumtree`/`Bombora`, same cell, margin 10.4px on the same 42px
+/// `header_gap` — the descender-bearing bottom edge of a glyph run sits
+/// closer to its own box edge than the ascender-bearing top does, so the two
+/// sides are not quite symmetric even though `floating_strip_band`'s own box
+/// is). Floored at 0.20, comfortably under BOTH worst cases rather than
+/// pinned to either, so a small future metrics change does not flake a law
+/// that is still measuring real breathing room.
+const STRIP_INSET_FLOOR_FRAC: f32 = 0.20;
+
 /// A faceted card carrying the REAL Command-palette scheme (8 lenses: All,
 /// Files, Navigate, Format, View, Tools, Settings, Recent — the brief's own
 /// roster) with `active` the current lens, and enough candidate rows for a
@@ -229,11 +274,13 @@ fn facet_strip_ink_clears_the_lower_surfaces_rule_with_presence_and_margin() {
                         )
                     });
 
-                    // SEPARATION, with a real margin: strictly below the rule, and
-                    // by more than a stray antialiased fringe pixel. 1 logical px
-                    // scaled by dpi is comfortably under the ~4-8 physical px
-                    // measured at `SPLIT_GAP_FRAC=0.35`, and comfortably over the
-                    // ~0px measured at the historical 0.4.
+                    // SEPARATION, with a REAL margin — clearing the same floor
+                    // the card's OTHER bands get (item 519's brief), not merely
+                    // "not touching": at least `STRIP_INSET_FLOOR_FRAC` of
+                    // `header_gap`, the SAME budget the query field's own
+                    // top-inset and the strip's own below-candidate-band air are
+                    // cut from, so the strip's top-inset can no longer read as
+                    // clipped against the lower surface's rim.
                     //
                     // EXCEPT: the wide scan span can land on WHICHEVER label is
                     // active, and on a filled-pill facet style (`Band`/
@@ -243,8 +290,10 @@ fn facet_strip_ink_clears_the_lower_surfaces_rule_with_presence_and_margin() {
                     // plate_top - 0.05`) — a different, already-decided law for a
                     // different mark shape. This law is about the LABEL TEXT's
                     // own clearance; PRESENCE still applies (a vanished label is
-                    // still a bug), only the flush-by-design SEPARATION claim is
-                    // out of scope for these styles.
+                    // still a bug), only the flush-by-design TOP-SEPARATION claim
+                    // is out of scope for these styles (the BOTTOM side below is
+                    // not part of that flush-by-design carve-out, so it stays
+                    // graded for every style).
                     let pill_backed = matches!(
                         t.render_caps.facet_style,
                         theme::FacetStyle::Band
@@ -252,16 +301,51 @@ fn facet_strip_ink_clears_the_lower_surfaces_rule_with_presence_and_margin() {
                                 theme::ChipVariant::Hairline | theme::ChipVariant::FilledActive
                             )
                     );
+                    let floor = geom.header_gap * STRIP_INSET_FLOOR_FRAC;
                     let margin = ink_top as f32 - rule_y;
                     if !pill_backed {
                         assert!(
-                            margin >= dpi - 0.5,
+                            margin >= floor,
                             "{} {label_w}@{dpi}x lens={active}: SEPARATION floor — \
                              facet-strip ink starts at {ink_top}, only {margin:.1}px below \
-                             the lower surface's rule ({rule_y}) — reads as touching",
-                            t.name
+                             the lower surface's rule ({rule_y}), under the {floor:.1}px \
+                             floor ({:.2} of header_gap {:.1}) — reads as clipped against \
+                             the rim",
+                            t.name,
+                            STRIP_INSET_FLOOR_FRAC,
+                            geom.header_gap
                         );
                     }
+
+                    // THE BELOW-SIDE PIN: the SAME floor, measured from the
+                    // strip's own last ink row down to the candidate band —
+                    // optical centring (`floating_strip_band`) gives this by
+                    // construction, but this reads it off REAL pixels rather
+                    // than trusting the formula that produced it.
+                    let ink_bottom = ink_bottom_row(
+                        &px,
+                        (wi, hi),
+                        &sxs,
+                        (rule_y.round() as i64, scan_bottom.round() as i64),
+                        ink,
+                        ground,
+                    )
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "{name} {label_w}@{dpi}x lens={active}: PRESENCE floor (bottom) \
+                             — no facet-strip ink found between the rule ({rule_y}) and the \
+                             candidate band ({scan_bottom})"
+                        )
+                    });
+                    let bottom_margin = scan_bottom - (ink_bottom as f32 + 1.0);
+                    assert!(
+                        bottom_margin >= floor,
+                        "{} {label_w}@{dpi}x lens={active}: SEPARATION floor (bottom) — \
+                         facet-strip ink ends at {ink_bottom}, only {bottom_margin:.1}px \
+                         above the candidate band ({scan_bottom}), under the {floor:.1}px \
+                         floor — the strip crowds the row below it",
+                        t.name
+                    );
                 }
             }
         }

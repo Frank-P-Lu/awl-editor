@@ -139,3 +139,24 @@ pub(in crate::render) fn facet_strip_is_docked() -> bool {
         theme::FacetStyle::DockedTab
     )
 }
+
+/// Whether a GROUPED card's lens strip sits inside a `Split` composition's
+/// LOWER surface — the one gate every consumer of that fact reads (the mark's
+/// plate floor, the relocated-strip seat, the shaping gate), so a future
+/// composition axis is picked up everywhere at once rather than three
+/// independently-drifting inline copies. `false` for a flat card (`geom.theme`),
+/// a workspace (its own rail is its facet strip, no seam to speak of), a
+/// `DockedTab` world (the strip already lives entirely off the card, above
+/// it — a different relocation with its own seat), and any world whose list
+/// style is not `Card`-backed (`Bars`/`Diagonal`/`Ruled` draw no plate to seam)
+/// or whose pane composition is `Unified` (no seam at all).
+pub(in crate::render) fn split_seam_active(geom: &OverlayGeom) -> bool {
+    geom.theme
+        && !geom.workspace
+        && !facet_strip_is_docked()
+        && crate::render::effective_list_style().list_backing(false) == theme::ListBacking::Card
+        && matches!(
+            crate::render::effective_pane_split(),
+            theme::PaneSplit::Split
+        )
+}

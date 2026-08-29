@@ -344,13 +344,14 @@ impl TextPipeline {
             });
             placard_in_panel = true;
         }
-        let dock = self.docked_facet_band(geom, plan);
+        let relocated_seat = self
+            .docked_facet_band(geom, plan)
+            .or_else(|| self.floating_strip_band(geom, plan));
         let docked = push_docked_facet_areas(
             &mut areas,
             &self.panel_buffer,
             &self.docked_facet_buffer,
-            dock,
-            self.overlay_theme_underline,
+            relocated_seat,
             plan.strip_band(),
             text_left,
             text_top,

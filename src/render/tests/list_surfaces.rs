@@ -2229,12 +2229,22 @@ fn facet_chips_render_a_pill_per_label_and_differ_from_text() {
         "the ghost pills are a hairline STROKE, not a fill (got {ghost_stroke})"
     );
 
-    // PIXEL DELTA: the strip row (display line 1) changes visibly vs Text.
+    // PIXEL DELTA: the strip row changes visibly vs Text. Read the probed
+    // band off the SAME seat the draw path uses — `docked_facet_band`/
+    // `floating_strip_band` relocate it past the card's own top or a
+    // `Split` composition's own seam (its default here, since this world's
+    // `pane_split` is not forced), so a hand-rolled `text_top + lh` band
+    // no longer contains the ink either style draws.
     let rect = p.overlay_card_rect().expect("overlay card rect");
-    let (card_x, card_y, cw) = (rect[0], rect[1], rect[2]);
-    let text_top = card_y + 12.0;
-    let lh = p.overlay_lh();
-    let strip = pixeldiff::Region::new(card_x, text_top + lh, cw, lh);
+    let (card_x, cw) = (rect[0], rect[2]);
+    let geom = p.overlay_geometry(w);
+    let plan = p.overlay_row_plan(&geom);
+    let seat = p
+        .docked_facet_band(&geom, &plan)
+        .or_else(|| p.floating_strip_band(&geom, &plan))
+        .or_else(|| plan.strip_band())
+        .expect("a faceted card plans a strip box");
+    let strip = pixeldiff::Region::new(card_x, seat.top, cw, seat.height);
     pixeldiff::assert_perceptibly_different(
         &text,
         &chips,
