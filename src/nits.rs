@@ -35,8 +35,8 @@
 //! `page`/`focus` globals so the palette command, the config sticky pref, and the
 //! render pipeline all read one place.
 //!
-//! TWO scope refinements live in the RENDERER, not here (this module stays a pure
-//! per-line function of TEXT alone — no cursor, no buffer kind):
+//! THREE scope refinements live in the RENDERER, not here (this module stays a
+//! pure per-line function of TEXT alone — no cursor, no buffer kind):
 //!   * REVEAL-ON-CURSOR — the render pipeline (`render/rects.rs`) suppresses every
 //!     nit on the line the CARET occupies: a line is judged only once you've moved
 //!     off it (the active line is workspace, not manuscript), mirroring the
@@ -46,6 +46,13 @@
 //!     mirroring `spell::misspellings_for`'s scoping exactly: alignment whitespace
 //!     and other code-shaped spacing never nit. A prose/markdown buffer is
 //!     untouched.
+//!   * RULE-LINE CONCEAL — a concealed thematic-break line (`---`/`***`/`___`)
+//!     never nits off the caret: the whole line collapses to the fleuron
+//!     ornament, so a trailing-whitespace nit would otherwise draw a stray tick
+//!     beside it with no source glyphs underneath. The renderer reads the SAME
+//!     cached rule-line membership the ornament itself draws from
+//!     (`render::rects::TextPipeline::nit_hidden_by_rule_conceal`), caret line
+//!     excepted (reveal-on-cursor already shows the raw text and its nit there).
 
 use crate::toggle::Toggle;
 

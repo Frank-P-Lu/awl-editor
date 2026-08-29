@@ -27,6 +27,22 @@ impl TextPipeline {
                 .is_some_and(|it| !it.ordered && end_col <= it.content)
     }
 
+    /// True when `li` is a concealed thematic-break (`---`/`***`/`___`) line —
+    /// membership drawn from the SAME cached set the rule ORNAMENT itself reads
+    /// ([`Self::rule_lines`]'s underlying [`OrnamentCache::rule_lines`]), so a
+    /// nit can never disagree with the ornament about which lines are showing
+    /// raw source vs. the fleuron. Read raw (no on-screen cull, no caret
+    /// exclusion) because the caller already applies both: the caret's own line
+    /// never reaches this check (it `continue`s earlier), and an off-screen
+    /// proto is culled after this by [`Self::proto_visible`].
+    fn nit_hidden_by_rule_conceal(&self, li: usize) -> bool {
+        if !self.md_enabled || self.md_spans.is_empty() {
+            return false;
+        }
+        self.ensure_ornament_lists();
+        self.ornament_cache.rule_lines.borrow().contains(&li)
+    }
+
     fn ensure_squiggle_protos(&self) {
         let key = (self.row_geom.generation(), self.spell_gen);
         if self.squiggle_cache.version.get() == Some(key) {
@@ -289,7 +305,11 @@ impl TextPipeline {
     /// manuscript; mirrors `rule_lines`/`bullet_marks`'s per-line reveal, but for
     /// EVERY nit kind, not just the markdown ornaments). Cursor position folds in
     /// at READ time, not the proto cache key, so a pure cursor move keeps the
-    /// cache warm.
+    /// cache warm. RULE-LINE CONCEAL: a line that conceals to the thematic-break
+    /// ornament ([`Self::nit_hidden_by_rule_conceal`]) is excluded too, caret line
+    /// excepted (that case is already handled by the check above) — reveal-on-
+    /// cursor keeps the nit visible once the raw `---` text itself shows, the same
+    /// membership the ornament draws from.
     pub(crate) fn nit_underlines(&self) -> Vec<Squiggle> {
         if !crate::nits::nits_on() {
             return Vec::new();
@@ -308,6 +328,9 @@ impl TextPipeline {
             }
             if self.nit_hidden_by_bullet_glyph(p.line, p.end_col) {
                 continue; // the marker prefix is masked by the bullet glyph
+            }
+            if self.nit_hidden_by_rule_conceal(p.line) {
+                continue; // the whole line conceals to the rule ornament — no source glyphs to tick
             }
             let line_top = doc_top + p.line_top;
             if !self.proto_visible(line_top, p.line_height) {
