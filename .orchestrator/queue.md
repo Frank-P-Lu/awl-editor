@@ -174,6 +174,27 @@ card's other bands get, swept worlds × compositions × 1x/2x; non-vacuity
 by re-shrinking the pad.
 
 ---
+### 520 — the expanded working-set panel gives no sign of overflow above (user-reported, 2026-08-29)
+
+Screenshot on Potoroo: the expanded panel scrolled to its bottom shows a
+plain first row — nothing says more items exist above the window ("i've
+scrolled down to the bottom... there's no indication that there's more
+items above"). The vocabulary already exists elsewhere: the resting
+stack's own `+ N more…` row (`workingset.rs::stack_rows`) and the Go-to
+card's `↓ N more` line — reuse that convention, don't invent a third
+(same behavior ⇒ same code: one owner for "this list continues" if the
+existing two can be merged). Shape: when `scroll > 0`, the window's first
+slot carries `↑ N more`; when rows remain below, the last slot carries
+`↓ N more` (verify whether the downward case is also missing here or
+already handled). Coordinate with 518 (sticky group heading wants the
+same top slot — decide the stacking: the overflow line and the pinned
+heading must not fight for one row; likely overflow line first, heading
+second, both costing viewport slots). Law: sweep scroll positions over a
+set larger than the viewport and assert the indicator's presence/count at
+both ends, pixel-verified on Potoroo (its stripes are a known pixel-
+oracle trap — sample inside the drawn row band, not the ground).
+
+---
 ## Needs specific hardware
 
 1. **AT-SPI journey** — on a real Linux desktop with Orca, exercise document
