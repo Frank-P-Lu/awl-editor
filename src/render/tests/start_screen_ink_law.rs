@@ -1,12 +1,13 @@
 //! THE START SCREEN'S TWO ACTIONS SHARE ONE INK; ONLY THE CHORD READS QUIET.
 //!
-//! DECIDED (queue item 525): `New document` and `Go to` no longer wear different
-//! inks — the muted verb used to double as the universal disabled costume, so a
-//! reader could not tell "second in order" from "not available". Hierarchy is
-//! order alone now; both verbs read in `theme::base_content()`. Each row still
-//! carries its real chord (`⌘N`/`⌘O`) beside the verb, in `theme::muted()` — the
-//! quiet-chord/full-ink-verb split `shape_overlay_right` already established for
-//! a row's secondary column, reused here rather than invented fresh.
+//! `New document` and `Go to` wear the SAME ink — a muted verb doubles as the
+//! universal disabled costume elsewhere in this codebase, so a reader could not
+//! tell "second in order" from "not available" if one action stayed dimmer.
+//! Hierarchy is order alone; both verbs read in `theme::base_content()`. Each
+//! row still carries its real chord (`⌘N`/`⌘O`) beside the verb, in
+//! `theme::muted()` — the quiet-chord/full-ink-verb split `shape_overlay_right`
+//! already established for a row's secondary column, reused here rather than
+//! invented fresh.
 //!
 //! PRESENCE, not just equality: a law asserting only "both rows match" is
 //! satisfiable by a regression that mutes BOTH rows (or inks both alike) —
