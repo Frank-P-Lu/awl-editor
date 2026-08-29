@@ -235,6 +235,7 @@ mod streaks_card_ink;
 mod symbol_atlas_gallery;
 mod syntax_ligatures;
 mod syntax_roles;
+mod table_dims;
 mod tables;
 /// The document's first-row vertical origin (`TextPipeline::text_origin_top`,
 /// `doc_top`, `hit_test_scroll`), through the live pipeline, at every DPI and
