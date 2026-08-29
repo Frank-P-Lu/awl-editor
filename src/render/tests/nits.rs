@@ -1421,7 +1421,8 @@ fn nit_underlines_suppress_concealed_table_row_trailing_whitespace() {
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!(
-            "skipping nit_underlines_suppress_concealed_table_row_trailing_whitespace: no wgpu adapter"
+            "skipping nit_underlines_suppress_concealed_table_row_trailing_whitespace: \
+             no wgpu adapter"
         );
         return;
     };
@@ -1500,7 +1501,8 @@ fn nit_underlines_table_row_conceal_tracks_wysiwyg_without_a_reshape() {
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!(
-            "skipping nit_underlines_table_row_conceal_tracks_wysiwyg_without_a_reshape: no wgpu adapter"
+            "skipping nit_underlines_table_row_conceal_tracks_wysiwyg_without_a_reshape: \
+             no wgpu adapter"
         );
         return;
     };

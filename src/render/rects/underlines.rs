@@ -368,7 +368,7 @@ impl TextPipeline {
                 continue; // the whole line conceals to the rule ornament — no source glyphs to tick
             }
             if self.nit_hidden_by_table_conceal(p.line) {
-                continue; // the row x-rays to near-zero width while WYSIWYG conceals it — no source glyphs to tick
+                continue; // WYSIWYG x-rays the row to near-zero width — no glyphs to tick
             }
             let line_top = doc_top + p.line_top;
             if !self.proto_visible(line_top, p.line_height) {
