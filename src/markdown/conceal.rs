@@ -135,6 +135,19 @@ enum_with_all! {
         /// flanking spans reveal, so `https://example.com/track?x=1` shows in full
         /// for editing.
         BareUrl,
+        /// A smart-punctuation run typed as prose — `--`, `---`, or `...` —
+        /// LINE-scoped exactly like [`Emphasis`](Self::Emphasis). Unlike every
+        /// other kind this is not markup at all (there is no delimiter/content
+        /// split): the WHOLE literal run is the span, and off-cursor it paints
+        /// a substitute glyph ([`crate::markdown::SmartPunctKind::glyph`]) into
+        /// a reserved slot rather than collapsing to nothing — the bare-URL
+        /// ellipsis's painted-substitute precedent, generalized to three
+        /// possible glyphs instead of one fixed "…". On the caret's own line
+        /// the literal bytes render exactly as plain prose always has (no
+        /// dimming: this is real sentence punctuation, not syntax markup, so
+        /// [`crate::render::spans::md_attrs`] carves it out of the "dim the
+        /// markup" rule every other `ConcealMarkup` kind follows).
+        SmartPunct,
     }
 }
 
@@ -155,6 +168,7 @@ impl ConcealKind {
             ConcealKind::Blockquote => "blockquote",
             ConcealKind::Footnote => "footnote",
             ConcealKind::BareUrl => "bare_url",
+            ConcealKind::SmartPunct => "smart_punct",
         }
     }
 }

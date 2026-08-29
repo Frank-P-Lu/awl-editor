@@ -231,6 +231,16 @@ const CONSTRUCTS: &[Construct] = &[
         tags: &["bare_url_text"],
         conceal: &[C::BareUrl],
     },
+    Construct {
+        name: "Smart dashes and ellipsis",
+        source: "double -- dash, triple --- dash, and an ellipsis...",
+        rendered: "An en dash, an em dash, and a horizontal ellipsis.",
+        reveal: "The caret or a selection on the line shows the literal dashes or dots.",
+        command: "—",
+        portability: Portability::Extension,
+        tags: &[],
+        conceal: &[C::SmartPunct],
+    },
 ];
 
 struct Different {

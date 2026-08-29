@@ -7,9 +7,11 @@ use super::*;
 mod bare_url;
 mod cell;
 mod footnotes;
+mod smart_punct;
 pub(in crate::render) use bare_url::{bare_url_ellipsis_slot, is_bare_url_tail};
 pub(in crate::render) use cell::cell_inline_attrs;
 pub(in crate::render) use footnotes::footnote_number_slot;
+pub(in crate::render) use smart_punct::{smart_punct_kind_for, smart_punct_slot};
 
 pub(in crate::render) const RULE_CONCEAL_COLOR: glyphon::Color = glyphon::Color::rgba(0, 0, 0, 0);
 
@@ -237,7 +239,8 @@ pub(crate) fn wysiwyg_reveals(
         | ConcealKind::Link
         | ConcealKind::Blockquote
         | ConcealKind::Footnote
-        | ConcealKind::BareUrl => !conceal_off_cursor || selected,
+        | ConcealKind::BareUrl
+        | ConcealKind::SmartPunct => !conceal_off_cursor || selected,
     }
 }
 
@@ -466,6 +469,18 @@ pub(in crate::render) fn add_wysiwyg_conceal_spans(
                 line_height,
             )
         {
+            continue;
+        }
+        if ck == ConcealKind::SmartPunct {
+            smart_punct::add_smart_punct_conceal_spans(
+                al,
+                line_text,
+                line_doc_start,
+                lo,
+                hi,
+                &hidden,
+                line_height,
+            );
             continue;
         }
         al.add_span((lo - line_doc_start)..(hi - line_doc_start), &hidden);

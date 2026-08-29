@@ -346,3 +346,113 @@ pub(in crate::markdown) fn bare_url_split(url: &str) -> (Range<usize>, Option<Ra
 pub fn strike_engaged(src: &str) -> bool {
     src.bytes().take_while(|&b| b == b'~').count() == 2
 }
+
+/// Which display glyph a smart-punctuation run maps to — CommonMark's own
+/// smart-punctuation table (`--` en dash, `---` em dash, `...` ellipsis), the
+/// ONE mapping owner both the live WYSIWYG conceal
+/// ([`crate::render::spans::conceal`]'s painted-substitute mechanism) and every
+/// exporter ([`apply_smart_punct`], read by `crate::export::model`) call, so
+/// what the page paints and what an export emits can never disagree.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SmartPunctKind {
+    /// `--` (exactly two dashes).
+    EnDash,
+    /// `---` (exactly three dashes).
+    EmDash,
+    /// `...` (exactly three dots).
+    Ellipsis,
+}
+
+impl SmartPunctKind {
+    /// THE substitute glyph. Both the render's painted ornament and an
+    /// export's literal substitution read this — never hand-rolled a second
+    /// time anywhere else.
+    pub fn glyph(self) -> char {
+        match self {
+            SmartPunctKind::EnDash => '\u{2013}',
+            SmartPunctKind::EmDash => '\u{2014}',
+            SmartPunctKind::Ellipsis => '\u{2026}',
+        }
+    }
+}
+
+/// Byte ranges of every smart-punctuation run in `s`: an EXACTLY-two or
+/// EXACTLY-three dash run (→ en dash / em dash), or an EXACTLY-three dot run
+/// (→ ellipsis) — CommonMark's smart-punctuation grammar, runs of any OTHER
+/// length (a bare `-`, four-or-more dashes — an ASCII divider keeps its
+/// shape, two or four-or-more dots) yielding no candidate anywhere in them.
+/// Unlike [`equals_runs`](super::markers::equals_runs)'s neighbor check, the
+/// isolation falls out for free from consuming the WHOLE contiguous run at
+/// once and never rescanning a byte inside it: a length-4 run is measured
+/// once, found not to be 2 or 3, and skipped whole — no partial match can
+/// ever land at its edge. Pure, O(n), total.
+pub fn smart_punct_ranges(s: &str) -> Vec<(Range<usize>, SmartPunctKind)> {
+    let b = s.as_bytes();
+    let mut out = Vec::new();
+    let mut i = 0usize;
+    while i < b.len() {
+        match b[i] {
+            b'-' => {
+                let start = i;
+                while i < b.len() && b[i] == b'-' {
+                    i += 1;
+                }
+                match i - start {
+                    2 => out.push((start..i, SmartPunctKind::EnDash)),
+                    3 => out.push((start..i, SmartPunctKind::EmDash)),
+                    _ => {}
+                }
+            }
+            b'.' => {
+                let start = i;
+                while i < b.len() && b[i] == b'.' {
+                    i += 1;
+                }
+                if i - start == 3 {
+                    out.push((start..i, SmartPunctKind::Ellipsis));
+                }
+            }
+            _ => i += 1,
+        }
+    }
+    out
+}
+
+/// [`smart_punct_ranges`] filtered to drop any run that falls inside a bare
+/// URL's own match ([`bare_url_ranges`]) — THE shared entry point both the
+/// live render ([`super::markers::push_smart_punct_spans`]) and the export
+/// ([`apply_smart_punct`]) call, so a domain's incidental `--`
+/// (`https://example.com/a--b`) is never silently retyped as an en dash in
+/// EITHER path; the two would otherwise diverge, since an export has no
+/// "bare URL" concept of its own to protect it. Kept separate from the pure
+/// [`smart_punct_ranges`] so the character-run detector stays testable in
+/// total isolation from this URL-awareness.
+pub(in crate::markdown) fn smart_punct_runs(s: &str) -> Vec<(Range<usize>, SmartPunctKind)> {
+    let urls = bare_url_ranges(s);
+    smart_punct_ranges(s)
+        .into_iter()
+        .filter(|(r, _)| !urls.iter().any(|u| u.start < r.end && r.start < u.end))
+        .collect()
+}
+
+/// Replace every detected smart-punctuation run in `s` with its mapped
+/// substitute glyph ([`smart_punct_runs`] + [`SmartPunctKind::glyph`]) — an
+/// export's own application of the SAME mapping the live WYSIWYG conceal
+/// paints, so a document's exported prose and its on-screen preview can never
+/// disagree on which `--`/`---`/`...` runs convert. A string with no run is
+/// returned unallocated-again (the common case: most prose has none).
+pub fn apply_smart_punct(s: &str) -> String {
+    let runs = smart_punct_runs(s);
+    if runs.is_empty() {
+        return s.to_string();
+    }
+    let mut out = String::with_capacity(s.len());
+    let mut cursor = 0usize;
+    for (r, kind) in runs {
+        out.push_str(&s[cursor..r.start]);
+        out.push(kind.glyph());
+        cursor = r.end;
+    }
+    out.push_str(&s[cursor..]);
+    out
+}

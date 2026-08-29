@@ -218,6 +218,10 @@ mod settings_row_reach_law;
 /// wasn't worth adding — naga, not a string scan.
 #[cfg(not(target_arch = "wasm32"))]
 mod shader_const_law;
+/// Smart-punctuation conceal: the painted en-dash/em-dash/ellipsis substitute,
+/// its byte-identical on-caret reveal, the row_geom reshape it forces, and the
+/// reserved slot's fit across the whole world roster.
+mod smart_punct;
 /// The contextual spelling popup's Diagonal-only measured cluster and local frost:
 /// exhaustive style enrolment, full Add row, raking coverage and outside identity.
 mod spell_popup_diagonal;

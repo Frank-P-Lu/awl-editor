@@ -1450,3 +1450,150 @@ fn export_html_alt_hint_gate() {
         "a malformed hint exports at natural width (intrinsic 6): {malformed}"
     );
 }
+
+// --- Render/export smart-punctuation agreement (the ONE mapping owner) -----
+//
+// `--`/`---`/`...` are not CommonMark constructs either: reading the SAME
+// `crate::markdown::SmartPunctKind::glyph` mapping both the live WYSIWYG
+// conceal and `crate::markdown::apply_smart_punct` share, this proves the
+// render's detected byte ranges and the export's actual substituted text can
+// never disagree on which runs convert to which glyph.
+
+/// The substitute GLYPHS the RENDER path would paint, in document order:
+/// every `ConcealMarkup(SmartPunct)` span's own literal bytes, mapped through
+/// the SAME kind the render's painted ornament resolves via a literal match
+/// (`render::spans::conceal::smart_punct_kind_for`).
+fn render_smart_punct_glyphs(md: &str) -> Vec<char> {
+    let mut spans = crate::markdown::spans(md);
+    spans.sort_by_key(|(r, _)| r.start);
+    spans
+        .into_iter()
+        .filter_map(|(r, k)| {
+            if k != crate::markdown::MdKind::ConcealMarkup(crate::markdown::ConcealKind::SmartPunct)
+            {
+                return None;
+            }
+            match &md[r.clone()] {
+                "--" => Some(crate::markdown::SmartPunctKind::EnDash.glyph()),
+                "---" => Some(crate::markdown::SmartPunctKind::EmDash.glyph()),
+                "..." => Some(crate::markdown::SmartPunctKind::Ellipsis.glyph()),
+                other => panic!("unexpected SmartPunct span byte content {other:?}"),
+            }
+        })
+        .collect()
+}
+
+/// The substitute GLYPHS as the EXPORT tree sees them: every en dash / em
+/// dash / ellipsis character appearing in any `Inline::Text` node's content,
+/// walked across the whole block tree in document order.
+fn export_smart_punct_glyphs(md: &str) -> Vec<char> {
+    fn walk_inlines(inlines: &[Inline], out: &mut String) {
+        for i in inlines {
+            match i {
+                Inline::Text(t) => out.push_str(t),
+                Inline::Strong(c)
+                | Inline::Emphasis(c)
+                | Inline::Strikethrough(c)
+                | Inline::Highlight(c)
+                | Inline::Link { children: c, .. } => walk_inlines(c, out),
+                _ => {}
+            }
+        }
+    }
+    fn walk_blocks(blocks: &[Block], out: &mut String) {
+        for b in blocks {
+            match b {
+                Block::Heading { inlines, .. } | Block::Paragraph(inlines) => {
+                    walk_inlines(inlines, out)
+                }
+                Block::BlockQuote(bs) | Block::FootnoteDefinition { blocks: bs, .. } => {
+                    walk_blocks(bs, out)
+                }
+                Block::List(l) => {
+                    for it in &l.items {
+                        walk_blocks(&it.blocks, out)
+                    }
+                }
+                Block::Table(t) => {
+                    for cell in &t.head {
+                        walk_inlines(cell, out)
+                    }
+                    for row in &t.rows {
+                        for cell in row {
+                            walk_inlines(cell, out)
+                        }
+                    }
+                }
+                Block::CodeBlock { .. } | Block::Rule => {}
+            }
+        }
+    }
+    let doc = model::parse(md);
+    let mut out = String::new();
+    walk_blocks(&doc.blocks, &mut out);
+    out.chars()
+        .filter(|c| matches!(c, '\u{2013}' | '\u{2014}' | '\u{2026}'))
+        .collect()
+}
+
+#[test]
+fn render_export_smart_punct_agree() {
+    let en = crate::markdown::SmartPunctKind::EnDash.glyph();
+    let em = crate::markdown::SmartPunctKind::EmDash.glyph();
+    let ell = crate::markdown::SmartPunctKind::Ellipsis.glyph();
+    let cases: &[(&str, &[char])] = &[
+        ("a -- b", &[en]),
+        ("a --- b", &[em]),
+        ("a ---- b", &[]), // four dashes: literal ASCII divider
+        ("wait... really", &[ell]),
+        ("two dots.. stay", &[]),
+        ("four dots.... stay", &[]),
+        ("mix -- and ... together", &[en, ell]),
+        ("run with `--release` here", &[]), // inline code: never converts
+        ("```\nawl --keys\n```", &[]),      // fenced block: never converts
+        ("[a -- b](https://example.com)", &[en]), // a link's visible text
+        ("# Title -- Sub", &[en]),
+        ("> quote -- em", &[en]),
+        ("see https://example.com/a--b for it", &[]), // a bare URL: never converts
+    ];
+    for (md, expected) in cases {
+        let r = render_smart_punct_glyphs(md);
+        let e = export_smart_punct_glyphs(md);
+        assert_eq!(
+            r, e,
+            "render vs export smart-punct glyphs diverge on {md:?}: render={r:?} export={e:?}"
+        );
+        assert_eq!(
+            r, *expected,
+            "smart-punct glyphs unexpected for {md:?}: got {r:?} want {expected:?}"
+        );
+    }
+}
+
+/// LAW (end-to-end through the REAL HTML emitter): the exported bytes
+/// literally carry the substitute glyphs, and a fenced code sample using this
+/// repo's own daily-bread CLI flags (`--keys`, `--release`) exports its
+/// dashes UNCHANGED.
+#[test]
+fn export_html_smart_punct_gate() {
+    let html = to_html(
+        "double -- dash, triple --- dash, an ellipsis...\n",
+        &NoImages,
+    );
+    let doc = MarkupDoc::html(&html);
+    assert!(
+        doc.has_text("double \u{2013} dash, triple \u{2014} dash, an ellipsis\u{2026}"),
+        "the exported paragraph carries the substitute glyphs: {html}"
+    );
+
+    let code = to_html("```\nawl --keys 'C-a' --release\n```\n", &NoImages);
+    let code_doc = MarkupDoc::html(&code);
+    assert!(
+        code_doc.has_text("awl --keys 'C-a' --release"),
+        "a fenced code sample's dashes must export UNCHANGED: {code}"
+    );
+    assert!(
+        !code.contains('\u{2013}') && !code.contains('\u{2014}'),
+        "no substitute glyph may appear anywhere in the code export: {code}"
+    );
+}

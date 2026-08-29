@@ -4,7 +4,9 @@
 //! and MODULE PATH are unchanged (`markdown::tests::foo`) -- only which
 //! file its source lives in moved.
 
-use super::spans::{bare_url_ranges, bare_url_split, push_highlight_spans};
+use super::spans::{
+    bare_url_ranges, bare_url_split, push_highlight_spans, smart_punct_ranges, smart_punct_runs,
+};
 use super::*;
 use std::ops::Range;
 
@@ -602,6 +604,228 @@ fn bare_url_inside_a_fenced_code_block_stays_plain() {
         !s.iter()
             .any(|(_, k)| *k == MdKind::ConcealMarkup(ConcealKind::BareUrl)),
         "a URL inside a fenced code block stays plain code, never BareUrl-concealed: {s:?}"
+    );
+}
+
+#[test]
+fn smart_punct_ranges_matches_exactly_two_and_three_length_dash_runs() {
+    // A bare `-` (length 1): no candidate.
+    assert!(smart_punct_ranges("-").is_empty());
+    // Exactly two: en dash.
+    assert_eq!(
+        smart_punct_ranges("--"),
+        vec![(0..2, SmartPunctKind::EnDash)]
+    );
+    // Exactly three: em dash.
+    assert_eq!(
+        smart_punct_ranges("---"),
+        vec![(0..3, SmartPunctKind::EmDash)]
+    );
+    // Four or more: an ASCII divider, no candidate anywhere in the run —
+    // proving the "isolated" guarantee holds for every length past three, not
+    // just four.
+    for n in 4..=8 {
+        let s = "-".repeat(n);
+        assert!(
+            smart_punct_ranges(&s).is_empty(),
+            "a {n}-dash run must yield no candidate: {s:?}"
+        );
+    }
+}
+
+#[test]
+fn smart_punct_ranges_matches_exactly_three_length_dot_runs_only() {
+    for n in [1, 2, 4, 5] {
+        let s = ".".repeat(n);
+        assert!(
+            smart_punct_ranges(&s).is_empty(),
+            "a {n}-dot run must yield no candidate: {s:?}"
+        );
+    }
+    assert_eq!(
+        smart_punct_ranges("..."),
+        vec![(0..3, SmartPunctKind::Ellipsis)]
+    );
+}
+
+#[test]
+fn smart_punct_ranges_finds_every_run_in_mixed_prose() {
+    let s = "a -- b --- c... d---- e.. f";
+    let runs = smart_punct_ranges(s);
+    let a = s.find("--").unwrap();
+    let b = s.find("---").unwrap();
+    let c = s.find("...").unwrap();
+    assert_eq!(
+        runs,
+        vec![
+            (a..a + 2, SmartPunctKind::EnDash),
+            (b..b + 3, SmartPunctKind::EmDash),
+            (c..c + 3, SmartPunctKind::Ellipsis),
+        ],
+        "the 4-dash and 2-dot runs must contribute nothing: {runs:?}"
+    );
+}
+
+#[test]
+fn smart_punct_runs_excludes_a_bare_urls_own_match() {
+    // NON-VACUITY: the raw detector DOES see the run inside the URL — proving
+    // the exclusion below is a real subtraction, not a coincidence of the
+    // pure scanner missing it.
+    let s = "see https://example.com/a--b for it";
+    let raw = smart_punct_ranges(s);
+    assert!(
+        !raw.is_empty(),
+        "the pure run detector must still see the URL's own '--': {raw:?}"
+    );
+
+    // The SHARED entry point both the render and the export read excludes it.
+    let filtered = smart_punct_runs(s);
+    assert!(
+        filtered.is_empty(),
+        "a bare URL's own '--' must never convert: {filtered:?}"
+    );
+
+    // Prose OUTSIDE the URL on the same line still converts.
+    let s2 = "wait -- see https://example.com/a--b now";
+    let filtered2 = smart_punct_runs(s2);
+    let prose_dash = s2.find("wait --").unwrap() + "wait ".len();
+    assert_eq!(
+        filtered2,
+        vec![(prose_dash..prose_dash + 2, SmartPunctKind::EnDash)],
+        "prose outside the URL converts; the URL's own '--' does not: {filtered2:?}"
+    );
+}
+
+#[test]
+fn smart_punct_conceals_prose_dashes_and_ellipsis() {
+    let smart = MdKind::ConcealMarkup(ConcealKind::SmartPunct);
+    let text = "double -- dash, triple --- dash, and an ellipsis...";
+    let s = spans(text);
+    let en = text.find("--").unwrap();
+    let em = text.find("---").unwrap();
+    let ell = text.find("...").unwrap();
+    assert!(has(&s, en, en + 2, smart), "en dash conceals: {s:?}");
+    assert!(has(&s, em, em + 3, smart), "em dash conceals: {s:?}");
+    assert!(has(&s, ell, ell + 3, smart), "ellipsis conceals: {s:?}");
+}
+
+#[test]
+fn smart_punct_four_or_more_dashes_and_off_length_dots_stay_literal() {
+    let smart = MdKind::ConcealMarkup(ConcealKind::SmartPunct);
+    // Four dashes WITH other content on the line (never a thematic break —
+    // that requires the line to be nothing BUT the run) stay a literal ASCII
+    // divider, exactly like a bare "----" on its own line would.
+    let s = spans("keep ---- literal here");
+    assert!(
+        !s.iter().any(|(_, k)| *k == smart),
+        "a 4-dash run must never convert, even mid-sentence: {s:?}"
+    );
+    // Two dots, and four dots: neither is the exact 3-run ellipsis wants.
+    let s2 = spans("two dots.. stay literal, four dots.... too");
+    assert!(
+        !s2.iter().any(|(_, k)| *k == smart),
+        "2-dot and 4-dot runs must never convert: {s2:?}"
+    );
+}
+
+#[test]
+fn smart_punct_never_fires_inside_an_inline_code_span() {
+    // A `--` inside backticks arrives via `Event::Code`, never `Event::Text` —
+    // this is prose about a CLI flag, the exact case the brief names.
+    let s = spans("run with `--release` here");
+    assert!(
+        !s.iter()
+            .any(|(_, k)| *k == MdKind::ConcealMarkup(ConcealKind::SmartPunct)),
+        "a dash run inside inline code must never convert: {s:?}"
+    );
+}
+
+#[test]
+fn smart_punct_never_fires_inside_a_fenced_code_block() {
+    // Prose about CLI flags is this repo's own daily bread (`--keys`,
+    // `--release`) — a fenced sample using them must render byte-identically.
+    let s = spans("```\nawl --keys 'C-a' --release\n```");
+    assert!(
+        !s.iter()
+            .any(|(_, k)| *k == MdKind::ConcealMarkup(ConcealKind::SmartPunct)),
+        "a dash run inside a fenced code block must never convert: {s:?}"
+    );
+}
+
+#[test]
+fn smart_punct_never_fires_in_frontmatter() {
+    // NON-VACUITY: the raw text (frontmatter included) DOES contain matching
+    // runs — proving the fixture would actually hit the exemption if
+    // frontmatter weren't carved off before pulldown ever sees it.
+    let text = "---\ntitle: A -- B\nsummary: wait...\n---\n\nBody -- text\n";
+    let raw = smart_punct_ranges(text);
+    assert!(
+        raw.len() >= 2,
+        "the raw scanner must see BOTH the frontmatter's and the body's runs: {raw:?}"
+    );
+
+    let s = spans(text);
+    let smart = MdKind::ConcealMarkup(ConcealKind::SmartPunct);
+    let fm_end = text.find("\n\n").unwrap();
+    assert!(
+        !s.iter().any(|(r, k)| *k == smart && r.start < fm_end),
+        "no smart-punct span may fall inside the frontmatter block: {s:?}"
+    );
+    let body_dash = text.rfind("--").unwrap();
+    assert!(
+        has(&s, body_dash, body_dash + 2, smart),
+        "the body's own '--' still converts: {s:?}"
+    );
+}
+
+/// NON-VACUITY + the exact collision the brief names: a bare `---` alone on
+/// its own line is a THEMATIC BREAK (`MdKind::Rule`), a different parse path
+/// entirely — pulldown never emits an `Event::Text` for those bytes at all, so
+/// the inline smart-punct detector structurally never sees them. Proven two
+/// ways: the real span list carries a `Rule` at the break's bytes and NO
+/// `SmartPunct` span anywhere in the document, AND the raw pure detector
+/// (fed the break's bytes directly, bypassing the event stream) DOES classify
+/// them as an em dash — so the absence above is the event-level exclusion at
+/// work, not the detector being unable to see a 3-run.
+#[test]
+fn smart_punct_never_collides_with_a_bare_thematic_break_line() {
+    assert_eq!(
+        smart_punct_ranges("---"),
+        vec![(0..3, SmartPunctKind::EmDash)],
+        "the pure detector CAN see a 3-dash run in isolation"
+    );
+
+    let text = "a\n\n---\n\nb";
+    let s = spans(text);
+    let rule_start = text.find("---").unwrap();
+    assert!(
+        s.iter()
+            .any(|(r, k)| *k == MdKind::Rule && r.start == rule_start),
+        "a bare '---' line is still the rule ornament: {s:?}"
+    );
+    assert!(
+        !s.iter()
+            .any(|(_, k)| *k == MdKind::ConcealMarkup(ConcealKind::SmartPunct)),
+        "the thematic break's own bytes must never ALSO carry a SmartPunct span: {s:?}"
+    );
+}
+
+#[test]
+fn smart_punct_fires_inside_a_links_visible_text() {
+    // Unlike bare-URL detection, smart punct is not gated on `link == 0`: a
+    // link's VISIBLE text is ordinary prose. Its DESTINATION never arrives as
+    // `Event::Text` at all, so there is nothing to protect there.
+    let text = "[a -- b](https://example.com)";
+    let s = spans(text);
+    let dash = text.find("--").unwrap();
+    assert!(
+        has(
+            &s,
+            dash,
+            dash + 2,
+            MdKind::ConcealMarkup(ConcealKind::SmartPunct)
+        ),
+        "a dash inside a link's visible text still converts: {s:?}"
     );
 }
 

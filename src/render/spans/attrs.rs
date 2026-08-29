@@ -31,6 +31,13 @@ pub(in crate::render) fn md_attrs(
     let mut a = base.clone();
     let mut natural: Option<glyphon::Color> = None;
     match kind {
+        // Smart-punctuation markup IS the sentence's own real punctuation, not
+        // a syntax marker — a no-op transform (like `Heading`/`Highlight`)
+        // keeps the caret's-own-line reveal byte-identical to plain prose
+        // (rides whatever ink the surrounding context already set), rather
+        // than falling into the "dim like markup" bucket below. Must come
+        // BEFORE the `ConcealMarkup(_)` catch-all to win the match.
+        MdKind::ConcealMarkup(crate::markdown::ConcealKind::SmartPunct) => {}
         MdKind::Markup
         | MdKind::ConcealMarkup(_)
         | MdKind::ListMarker
