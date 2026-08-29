@@ -1400,3 +1400,156 @@ fn spell_squiggles_structurally_unreachable_on_bare_rule_lines() {
         "sanity: the always-wrong checker must flag an ordinary word"
     );
 }
+
+/// TABLE-ROW CONCEAL (nits, mirrors the rule-line sweep above): a
+/// WYSIWYG-concealed GFM table row's trailing whitespace after the final `|`
+/// never draws its own stray nit tick — the whole row x-rays to near-zero
+/// glyph width while concealed, so `DECOR_MIN_W`'s floor would otherwise force
+/// a tick with no source glyphs under it. Two PRESENCE floors (the raw
+/// table-row detector really flags the row's trailing space, and the parse
+/// really places that row inside a table block) rule out "zero nits" being
+/// satisfied by the fixture failing to parse rather than by the suppression.
+/// An ordinary control line's own trailing-space nit survives untouched in
+/// both caret states, proving the suppression is scoped to table membership,
+/// not a blanket kill. On the CARET's own (table) row the source never
+/// reveals in place (`ConcealKind::Table`'s x-ray model), so the row stays
+/// zero-width there too; its nit still doesn't draw, but attributably to the
+/// pre-existing caret-line exclusion
+/// (`nit_underlines_suppress_the_entire_caret_line_only`), not to this fix.
+#[test]
+fn nit_underlines_suppress_concealed_table_row_trailing_whitespace() {
+    let _g = crate::testlock::serial();
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!(
+            "skipping nit_underlines_suppress_concealed_table_row_trailing_whitespace: no wgpu adapter"
+        );
+        return;
+    };
+    crate::nits::set_nits_on(true);
+    crate::markdown::set_wysiwyg_on(true);
+
+    // PRESENCE FLOOR: the raw table-row detector really flags this exact row's
+    // trailing space.
+    assert!(
+        !crate::nits::line_nits_table_row("| b | ").is_empty(),
+        "sanity — the raw table-row detector must flag this row's trailing whitespace"
+    );
+
+    // line0-2: a one-column GFM table, body row carrying a trailing space after
+    // its closing `|`. A blank line closes the table block (matching the
+    // established table fixture shape in
+    // `nit_underlines_exempt_table_row_column_alignment`) so the following
+    // prose is never swallowed as a lazy continuation of the last row. line4:
+    // caret parks here, off the table AND off the control line. line5: an
+    // ordinary control trailing-space nit.
+    let text = "| A |\n|---|\n| b | \n\nprose\ncontrol \n";
+    let mut v = view(text, 4, 0);
+    v.is_markdown = true;
+    p.set_view(&v);
+
+    // PRESENCE FLOOR: the parse really does place line 2 inside a table block.
+    let line2_byte = p.line_doc_byte_start(2);
+    assert!(
+        p.table_blocks()
+            .iter()
+            .any(|(_, r)| r.start <= line2_byte && line2_byte < r.end),
+        "sanity — the parse must place the trailing-whitespace row inside a table block"
+    );
+
+    // OFF-CARET, WYSIWYG ON: only the control line's own nit survives; the
+    // concealed table row contributes ZERO.
+    let ul = p.nit_underlines();
+    assert_eq!(
+        ul.len(),
+        1,
+        "off-caret, only the control line's trailing-space nit should show; the \
+         concealed table row must contribute none: {ul:?}"
+    );
+
+    // CARET ON THE TABLE ROW itself.
+    let mut v_on = view(text, 2, 0);
+    v_on.is_markdown = true;
+    p.set_view(&v_on);
+    let ul_on = p.nit_underlines();
+    assert_eq!(
+        ul_on.len(),
+        1,
+        "on-caret, the control line's nit still shows; the table row's own nit \
+         still does not draw: {ul_on:?}"
+    );
+
+    crate::nits::set_nits_on(true);
+    crate::markdown::set_wysiwyg_on(true);
+}
+
+/// READ-TIME GATE, NOT A CACHED DECISION: unlike rule-line conceal (a pure
+/// function of the reshape — `add_rule_conceal_span` never checks
+/// `wysiwyg_on()`), a table row's conceal is GATED on the `wysiwyg_on()`
+/// process-global, and that global can flip WITHOUT a reshape (`WashCache`'s
+/// own doc comment names the identical hazard for its inline-code pill
+/// bucket). This test flips the global DIRECTLY — never through `set_view` —
+/// so `reshape_count` never advances and the reshape-keyed structural
+/// table-line membership cache never rebuilds, and shows the suppression
+/// answer still tracks the live toggle. A design that instead baked
+/// "concealed" into a cached SET at reshape time (the shape 526 used for rule
+/// lines, explicitly named unsound for this case) would keep answering with
+/// the STALE, pre-toggle decision here, because nothing would ever invalidate
+/// it.
+#[test]
+fn nit_underlines_table_row_conceal_tracks_wysiwyg_without_a_reshape() {
+    let _g = crate::testlock::serial();
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!(
+            "skipping nit_underlines_table_row_conceal_tracks_wysiwyg_without_a_reshape: no wgpu adapter"
+        );
+        return;
+    };
+    crate::nits::set_nits_on(true);
+    crate::markdown::set_wysiwyg_on(true);
+
+    let text = "| A |\n|---|\n| b | \n\nprose\ncontrol \n";
+    let mut v = view(text, 4, 0);
+    v.is_markdown = true;
+    p.set_view(&v);
+    let reshapes = p.reshape_count;
+
+    // WYSIWYG ON: the table row is concealed, contributes nothing.
+    assert_eq!(
+        p.nit_underlines().len(),
+        1,
+        "wysiwyg on: only the control line's nit shows"
+    );
+
+    // Flip the process-global DIRECTLY — no `set_view`, so nothing reshapes.
+    crate::markdown::set_wysiwyg_on(false);
+    assert_eq!(
+        p.reshape_count, reshapes,
+        "flipping the raw global must not itself reshape"
+    );
+
+    // WYSIWYG OFF, same shaped geometry, no intervening reshape: the table
+    // row's own trailing-space nit is no longer suppressed — the check
+    // tracked the live toggle, not a decision frozen at the last reshape.
+    let ul_off = p.nit_underlines();
+    assert_eq!(
+        ul_off.len(),
+        2,
+        "wysiwyg off: the table row's own trailing-space nit joins the control \
+         line's: {ul_off:?}"
+    );
+
+    // Flip back ON, still with no reshape: suppressed again, live.
+    crate::markdown::set_wysiwyg_on(true);
+    assert_eq!(
+        p.nit_underlines().len(),
+        1,
+        "wysiwyg back on: the table row's nit is suppressed again"
+    );
+    assert_eq!(
+        p.reshape_count, reshapes,
+        "the whole sequence never reshaped"
+    );
+
+    crate::nits::set_nits_on(true);
+    crate::markdown::set_wysiwyg_on(true);
+}
