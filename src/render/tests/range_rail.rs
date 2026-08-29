@@ -59,15 +59,15 @@ fn settings_state_for(id: crate::settings::SettingId, value: f32) -> OverlayStat
 /// both this file and `settings_row_reach_law.rs` now call, so there is one
 /// fixture and one parked note instead of two byte-identical copies of each.
 ///
-/// The shared owner does NOT derive `overlay_workspace` the way `sync_view`
-/// really does (its own doc names this), so every caller of it restores that
-/// one production fact locally — the same one-line pattern
-/// `workspace_two_column_accessory.rs` already uses. Every rail this file
-/// grades is a real card's rail, so this file needs the real family.
+/// The shared owner derives `overlay_workspace`/`overlay_detail_focus` the
+/// way `sync_view` really does now, so this file needs no local restoration
+/// of either — this file's own fixtures never fake entering a category's
+/// rows (`settings_state_for` leaves `detail_focus` at its `false` default),
+/// which is fine here because every rail test below renders at a WIDE
+/// canvas, where `content_visible() = wide || content_focused` shows the
+/// rows regardless.
 fn settings_view(ov: &OverlayState) -> ViewState {
-    let mut v = settings_overlay_view(ov, SETTINGS_VIEW_PARKED_WINDOW_ROWS);
-    v.overlay_workspace = ov.workspace_shape().is_some();
-    v
+    settings_overlay_view(ov, SETTINGS_VIEW_PARKED_WINDOW_ROWS)
 }
 
 /// PURE GEOMETRY (no GPU) — the rail's own arithmetic: the track spans exactly
@@ -700,10 +700,6 @@ fn the_range_thumb_clears_a_perceptual_floor_against_its_own_ground_on_every_wor
     );
 }
 
-/// Above the ΔE ≈ 2.3 just-noticeable difference — the presence floor a
-/// rail-ink search below counts a pixel as "inked" against.
-const RAIL_INK_PRESENCE_MIN: f64 = 3.0;
-
 /// A non-selected rail's OWN pixels are allowed a small drift between two
 /// otherwise-identical frames (dither/antialiasing rounding, never a whole
 /// ink swap). A shared-ink defect is not a small drift: with the selected row
@@ -724,27 +720,48 @@ const RAIL_INK_DRIFT_CEILING: f64 = 6.0;
 /// ground and widens the gap to the constant. Both terms of this ratio are read
 /// from the same frame, so a backend that rounds differently moves them together.
 ///
-/// CALIBRATED, not picked, and the three figures are the calibration: the shipped
-/// thumb reads 0.918 on the tightest world measured (Kite, whose saturated ground
-/// is what broke the previous absolute form); the defect — every rail sharing one
-/// frame-wide ink, which is what this law was written for — reads 0.461 on Tawny;
-/// and 0.75 sits in the gap with room on both sides. A thumb that never took the
-/// flip stays near its own ground, so the defect cannot approach the floor from
-/// below.
-const SELECTED_THUMB_MIN_TRAVEL: f64 = 0.75;
+/// CALIBRATED, not picked. `ground` is read from a REAL render (the SAME
+/// rail's own ink from the frame where nothing selected it, `off.prose` —
+/// never a background/track pixel, see `assert_selected_rail_shows_its_flip`'s
+/// own doc), and `ink` is read from the thumb's own exact drawn rect with no
+/// pixel search — both are now pure interior colour, with no antialiasing or
+/// background contamination for the ratio to absorb. Measured across every
+/// `Pane` world with a real flip (`Tawny`, `Mopoke`, `Currawong`, `Potoroo`,
+/// `Saltpan`, `Quokka`, `Bombora`, `Bowerbird`, `Mulga`, `Brolga`, `Wagtail`,
+/// `Cassowary`): every one reads a clean `1.0000` — the flipped ink and the
+/// theme's `flip` constant coincide exactly once neither term carries stray
+/// pixels. 0.9 leaves generous headroom below that for a backend that rounds
+/// the flip's own antialiasing differently (lavapipe vs. Metal), while
+/// staying far above a thumb that never took the flip at all — which this
+/// law's own mutation proof shows is caught upstream, by
+/// `assert_rail_ink_holds_across_selection`, before this floor is even
+/// reached (a frame-wide shared ink makes the SELECTED rail's own thumb wear
+/// the flip too, so `assert_rail_ink_holds_across_selection` for Zoom/Scroll
+/// fires first).
+const SELECTED_THUMB_MIN_TRAVEL: f64 = 0.9;
 
-/// (run length, ink, ground, band height) — one rail's located thumb.
-type RailProbe = (i32, [u8; 4], [u8; 4], i64);
+/// One rail's own drawn thumb ink, plus what SHARE of the sampled rect voted
+/// for it — a solid fill reads uniform, so a low share means the sample
+/// region was not a clean read of one colour (an edge, an undersized rect),
+/// never a claim about which colour it should be.
+#[derive(Clone, Copy)]
+struct RailProbe {
+    ink: [u8; 4],
+    uniformity: f32,
+}
 
-/// Locate a rail's own thumb: its ink and its ground, read at the ANALYTIC
-/// centre `rail_geom` itself places the thumb at (`x0 + frac*(x1-x0)`, the
-/// same formula `the_thumb_moves_across_the_track_with_the_value_real_pixels`
-/// trusts), never by SEARCHING the whole track for "the tallest run" (a first
-/// draft searched, and was false-positive on Potoroo's `Stripes` background
-/// at the track's far edge — an oracle artefact, not a product one).
-/// Searching a narrow, geometry-derived neighbourhood (mirroring that third
-/// law's own "expected thumb neighbourhood" fix) removes the wandering
-/// entirely.
+/// Read a rail's own drawn thumb ink at the EXACT rect `overlay_rails` (the
+/// same owner the draw path and the pointer hit-test both go through)
+/// computed for it — never by searching pixels for whichever run looks
+/// longest. An earlier version searched a track-wide neighbourhood for the
+/// tallest run of pixels differing from a same-column reference pixel taken
+/// at the row's TOP; on Potoroo's `Stripes` background that reference pixel
+/// is itself Y-dependent, so a column with no thumb at all could still win
+/// the search purely from the stripe pattern crossing it — measured: the
+/// reported "ink" was Potoroo's `faint` token byte for byte, the TRACK's
+/// colour, not the thumb's. Asking the same geometry function the draw path
+/// used needs no background reasoning at all: the rect is either right or
+/// the product is broken, and there is nothing left to search for.
 fn locate_rail_thumb(
     p: &mut TextPipeline,
     device: &wgpu::Device,
@@ -754,41 +771,58 @@ fn locate_rail_thumb(
     w: u32,
     h: u32,
 ) -> RailProbe {
-    let (x0, x1) = p.overlay_range_scale(item).expect("a rail");
-    let mid = (x0 + x1) * 0.5;
-    let ys: Vec<f32> = (0..h)
-        .map(|y| y as f32)
-        .filter(|&y| p.overlay_range_at(mid, y).is_some_and(|(i, _)| i == item))
-        .collect();
-    assert!(!ys.is_empty(), "item {item}: the rail must be present");
-    let (band_top, band_bot) = (ys[0] as i64, ys[ys.len() - 1] as i64);
+    let geom = p.overlay_geometry(w);
+    let plan = p.overlay_row_plan(&geom);
+    let (_, rail) = p
+        .overlay_rails(&geom, &plan)
+        .into_iter()
+        .find(|(i, _)| *i == item)
+        .unwrap_or_else(|| panic!("item {item}: the rail must be present"));
+    let [tx, ty, tw, th] = rail.thumb;
+    let expected_cx = rail.x0 + frac * (rail.x1 - rail.x0);
+    let drawn_cx = tx + tw * 0.5;
+    assert!(
+        (drawn_cx - expected_cx).abs() < tw,
+        "item {item}: the drawn thumb centre {drawn_cx} disagrees with its own \
+         value's fraction {frac} (expected near {expected_cx}) — geometry and \
+         the settings value have drifted apart"
+    );
     let pixels = pixeldiff::render_frame(p, device, queue, w, h);
     let at = |x: i64, y: i64| -> [u8; 4] { pixels[(y as usize) * (w as usize) + x as usize] };
-    let column = |x: i64| -> (i32, f64, [u8; 4]) {
-        let ground = at(x, band_top);
-        let (mut run, mut worst, mut ink) = (0i32, 0.0f64, ground);
-        for y in band_top..=band_bot {
-            let c = at(x, y);
-            let d = pixeldiff::delta_e(c, ground);
-            if d >= RAIL_INK_PRESENCE_MIN {
-                run += 1;
-                if d > worst {
-                    worst = d;
-                    ink = c;
-                }
-            }
+    // Sample strictly INSIDE the rect, inset TWO physical pixels from every
+    // edge to dodge antialiasing, and take the MODE — a solid fill reads
+    // uniform, so a majority vote shrugs off a stray pixel without ever
+    // reading one the thumb doesn't own. One pixel of inset measured
+    // insufficient: `rail_geom` seats the thumb at a continuous, rarely
+    // pixel-aligned `x`/`y` (`cx = x0 + frac * w`), so its edge coverage
+    // spills a SECOND partially-covered pixel past the boundary column on
+    // Metal's own antialiasing, not only the first.
+    let x_lo = ((tx + 2.0).ceil() as i64).clamp(0, w as i64 - 1);
+    let x_hi = ((tx + tw - 2.0).floor() as i64).clamp(0, w as i64 - 1);
+    let y_lo = ((ty + 2.0).ceil() as i64).clamp(0, h as i64 - 1);
+    let y_hi = ((ty + th - 2.0).floor() as i64).clamp(0, h as i64 - 1);
+    assert!(
+        x_lo <= x_hi && y_lo <= y_hi,
+        "item {item}: the thumb rect {:?} is too small to sample after insetting \
+         two physical pixels of antialiasing margin at this DPI",
+        rail.thumb
+    );
+    let mut counts: std::collections::HashMap<[u8; 4], u32> = std::collections::HashMap::new();
+    let mut total = 0u32;
+    for y in y_lo..=y_hi {
+        for x in x_lo..=x_hi {
+            *counts.entry(at(x, y)).or_insert(0) += 1;
+            total += 1;
         }
-        (run, worst, ink)
-    };
-    let expected_x = x0 + frac * (x1 - x0);
-    let lo = x0.ceil().max(expected_x - 10.0) as i64;
-    let hi = x1.floor().min(expected_x + 10.0) as i64;
-    let (best_x, (run, _worst, ink)) = (lo..=hi)
-        .map(|x| (x, column(x)))
-        .max_by_key(|&(_, (run, ..))| run)
-        .expect("the expected thumb neighbourhood spans at least one column");
-    let ground = at(best_x, band_top);
-    (run, ink, ground, band_bot - band_top)
+    }
+    let (&ink, &run) = counts
+        .iter()
+        .max_by_key(|&(_, &n)| n)
+        .expect("the inset region samples at least one pixel");
+    RailProbe {
+        ink,
+        uniformity: run as f32 / total as f32,
+    }
 }
 
 /// The three range rails this law grades in one frame, at the fraction each
@@ -835,17 +869,15 @@ fn assert_rail_ink_holds_across_selection(
     name: &str,
     ink_on: [u8; 4],
     ink_off: [u8; 4],
-    ground_on: [u8; 4],
-    ground_off: [u8; 4],
 ) {
     let drift = pixeldiff::delta_e(ink_on, ink_off);
     assert!(
         drift <= RAIL_INK_DRIFT_CEILING,
         "{world}: the NON-selected {name} rail's thumb changed \
          ({ink_off:?} -> {ink_on:?}, ΔE {drift:.2}) purely because a DIFFERENT, \
-         non-adjacent row (Page width prose) became selected — grounds were \
-         {ground_off:?} -> {ground_on:?}. A shared `set_color` is painting every \
-         rail with whichever ink the selected rail alone earned."
+         non-adjacent row (Page width prose) became selected. A shared \
+         `set_color` is painting every rail with whichever ink the selected \
+         rail alone earned."
     );
 }
 
@@ -876,31 +908,29 @@ fn three_non_adjacent_rail_items(ov0: &OverlayState) -> (usize, usize, usize) {
     (prose_item, zoom_item, scroll_item)
 }
 
-/// Every rail must draw a genuine half-row thumb mark (`THUMB_H_LH` = 0.50 of
-/// a row against the track's `RAIL_H_LH` = 0.09) — never fall back to grading
-/// the hairline track.
+/// Every graded rail's own sample must be a genuinely SOLID read — not a
+/// claim about which colour it should be (a world is free to draw its thumb
+/// in the same colour as its track; `Wagtail`'s `muted`/`faint` coincide), but
+/// a claim about the SAMPLE: `locate_rail_thumb` insets a physical pixel from
+/// every edge of the thumb's own exact rect specifically so this holds by
+/// construction, so a low share here means the rect itself came back too
+/// small to sample (e.g. an extreme DPI/zoom corner), never a wrong pixel.
 fn assert_every_rail_has_a_thumb_mark(world: &str, on: &ThreeRailProbes, off: &ThreeRailProbes) {
-    for (run, band, ctx) in [
+    const MIN_UNIFORMITY: f32 = 0.95;
+    for (probe, ctx) in [
+        (on.prose, format!("{world}: Page width prose (selected)")),
+        (off.zoom, format!("{world}: Zoom (nothing selected)")),
         (
-            on.prose.0,
-            on.prose.3,
-            format!("{world}: Page width prose (selected)"),
-        ),
-        (
-            off.zoom.0,
-            off.zoom.3,
-            format!("{world}: Zoom (nothing selected)"),
-        ),
-        (
-            off.scroll.0,
-            off.scroll.3,
+            off.scroll,
             format!("{world}: Scroll sensitivity (nothing selected)"),
         ),
     ] {
         assert!(
-            (run as i64) * 4 > band,
-            "{ctx}: no half-row thumb mark found — tallest qualifying run is \
-             {run}px of a {band}px band"
+            probe.uniformity >= MIN_UNIFORMITY,
+            "{ctx}: only {:.0}% of the thumb rect's own sampled pixels agreed on \
+             {:?} — the rect was too small or noisy to read as a solid fill",
+            probe.uniformity * 100.0,
+            probe.ink,
         );
     }
 }
@@ -913,15 +943,25 @@ fn assert_every_rail_has_a_thumb_mark(world: &str, on: &ThreeRailProbes, off: &T
 /// from Zoom's and Scroll-sensitivity's (unmoved) thumbs in the SAME frame.
 /// Returns whether `flip` was `Some` (the caller uses this to prove the whole
 /// sweep non-vacuous).
+/// `ground` is `off.prose` — Page-width-prose's OWN thumb ink read from the
+/// frame where nothing selected it, its real rendered unflipped colour, never
+/// a background or track pixel guessed at from the SAME frame the flip is
+/// being graded in. An earlier form read a same-frame pixel above the thumb
+/// as a stand-in for "unflipped"; on a background that varies with Y (Potoroo's
+/// `Stripes`) that stand-in is exactly as unreliable as the ink search this
+/// file's own `locate_rail_thumb` doc names — reading the ACTUAL unflipped
+/// ink from a real render needs no reasoning about the background at all.
 fn assert_selected_rail_shows_its_flip(
     world: &str,
     flip: Option<theme::Srgb>,
     on: &ThreeRailProbes,
+    off: &ThreeRailProbes,
 ) -> bool {
     let Some(want) = flip else { return false };
-    let (prose_run_on, prose_ink_on, prose_ground_on, _) = on.prose;
-    let (_, zoom_ink_on, ..) = on.zoom;
-    let (_, scroll_ink_on, ..) = on.scroll;
+    let prose_ink_on = on.prose.ink;
+    let prose_ground = off.prose.ink;
+    let zoom_ink_on = on.zoom.ink;
+    let scroll_ink_on = on.scroll.ink;
     let want_bytes = want.rgba_bytes();
     // "Reads AS the flip" is a PERCEPTUAL claim, and every ABSOLUTE form of it is a
     // claim about the rasterizer instead. An earlier version compared the thumb to
@@ -935,25 +975,25 @@ fn assert_selected_rail_shows_its_flip(
     //
     // So the claim is a TRAVEL FRACTION: how far the thumb moved from its own
     // unselected ground, as a share of the whole distance to the ink it should be
-    // wearing. Both terms are read from the same frame and move together under any
-    // backend, which is the shape the selected-mark floor already uses. Kite measures
-    // 0.918 of the way; a thumb that never took the flip sits near its ground and
-    // measures near zero.
+    // wearing. Both terms are read from a real render and move together under any
+    // backend, which is the shape the selected-mark floor already uses. A thumb
+    // that never took the flip sits near its ground and measures near zero.
     let to_flip = pixeldiff::delta_e(prose_ink_on, want_bytes);
-    let ground_to_flip = pixeldiff::delta_e(prose_ground_on, want_bytes);
-    let travelled = pixeldiff::delta_e(prose_ink_on, prose_ground_on) / ground_to_flip.max(1e-9);
+    let ground_to_flip = pixeldiff::delta_e(prose_ground, want_bytes);
+    let travelled = pixeldiff::delta_e(prose_ink_on, prose_ground) / ground_to_flip.max(1e-9);
     assert!(
         ground_to_flip > RAIL_INK_DRIFT_CEILING,
-        "{world}: the flip {want_bytes:?} and this rail's own ground {prose_ground_on:?} \
-         are only ΔE {ground_to_flip:.2} apart, so there is no span to travel and the \
-         fraction below would grade noise — this world cannot show a flip at all"
+        "{world}: the flip {want_bytes:?} and this rail's own unflipped ink \
+         {prose_ground:?} are only ΔE {ground_to_flip:.2} apart, so there is no \
+         span to travel and the fraction below would grade noise — this world \
+         cannot show a flip at all"
     );
     assert!(
         travelled >= SELECTED_THUMB_MIN_TRAVEL,
         "{world}: the SELECTED Page-width-prose rail's thumb {prose_ink_on:?} travelled \
-         only {travelled:.3} of the ΔE {ground_to_flip:.2} between its own ground \
-         {prose_ground_on:?} and the flip {want_bytes:?} it should be wearing (floor \
-         {SELECTED_THUMB_MIN_TRAVEL}, run {prose_run_on}px)"
+         only {travelled:.3} of the ΔE {ground_to_flip:.2} between its own unflipped \
+         ink {prose_ground:?} and the flip {want_bytes:?} it should be wearing \
+         (floor {SELECTED_THUMB_MIN_TRAVEL})"
     );
     let to_unflipped = pixeldiff::delta_e(prose_ink_on, zoom_ink_on);
     assert!(
@@ -1015,38 +1055,22 @@ fn assert_selected_rail_shows_its_flip(
 /// (no flip ever applies there) and is required to be non-vacuous on at least
 /// one `Pane` world where the flip is real.
 ///
-/// ⚠️ IGNORED — a pre-existing, unrelated defect this file's own fixture was
-/// masking, not something the positional count cue touched. This file's
-/// `settings_view` restores `overlay_workspace` (see its own doc) because
-/// leaving it unset renders through the FACETED geometry family instead of
-/// the `RailOverRows` workspace family a real Settings card actually uses —
-/// a state the product cannot reach (`settings_row_reach_law.rs`'s own
-/// precedent comment). Restoring it (needed so the cue's own regression test
-/// means anything — the cue reservation this law was actually breaking only
-/// applies to the faceted family) routes this law through the REAL rail
-/// geometry for the first time, and on `world=Potoroo`
-/// `assert_selected_rail_shows_its_flip`'s search-based pixel probe
-/// (`locate_rail_thumb`) then hits exactly the failure mode this file's OWN
-/// doc above already names for the sibling assertion: "that world's
-/// `Stripes` background varies enough down a single row's own height that a
-/// pixel-search oracle can land on background banding rather than the drawn
-/// thumb." The measured "ink" `[117, 93, 81]` is Potoroo's `faint`
-/// byte-for-byte and the measured "ground" `[118, 81, 0]` matches no rail
-/// token at all — both are readings of the striped ground, not the thumb.
-/// `assert_rail_ink_holds_across_selection` was rebuilt differential for
-/// exactly this reason; `assert_selected_rail_shows_its_flip` was not, and
-/// needs the same treatment before this can run un-ignored — which also
-/// parks this law's differential, non-selected-ink coverage (its actual
-/// headline) dark until that lands. Reproduces identically on the commit
-/// before the cue existed once `settings_view` restores the flag, so it is
-/// not a cue regression. A second, wider version of the same fixture gap
-/// (`settings_overlay_view` itself, `render/tests/mod.rs`) reaches two more
-/// tests in `settings_row_reach_law.rs` if corrected there instead of
-/// locally — left unrepaired and reported separately, since fixing it there
-/// is its own excavation.
+/// UN-IGNORED (was parked): restoring `overlay_workspace` — needed so this
+/// law renders the REAL `RailOverRows` family rather than the un-reachable
+/// faceted card, see `settings_view`'s own doc — unmasked a background-pixel
+/// false positive on `world=Potoroo`: `assert_selected_rail_shows_its_flip`
+/// used to read its "ground" from a same-frame pixel above the thumb, and on
+/// Potoroo's `Stripes` background (which varies with Y down a single row)
+/// that pixel is not a reliable stand-in for "unflipped" — measured, the
+/// reported "ink" was Potoroo's `faint` token byte for byte, the TRACK's
+/// colour, not the thumb's. `locate_rail_thumb` now reads the thumb's own
+/// EXACT drawn rect (the same geometry the draw path computed, no pixel
+/// search), and `assert_selected_rail_shows_its_flip`'s "ground" is now
+/// `off.prose` — the SAME rail's real rendered ink from the frame where
+/// nothing selected it, never a background or track pixel. Both changes
+/// needed no reasoning about any world's background at all, which is why
+/// they hold on Potoroo's stripes rather than merely passing there once.
 #[test]
-#[ignore = "pre-existing Potoroo/Stripes oracle false-positive, unmasked by restoring \
-    overlay_workspace -- see the doc comment above"]
 fn a_non_selected_rails_thumb_never_wears_the_selected_rails_ink() {
     let _g = crate::testlock::serial();
     let (w, h) = (1200u32, 800u32);
@@ -1092,23 +1116,21 @@ fn a_non_selected_rails_thumb_never_wears_the_selected_rails_ink() {
 
         // `Zoom` and `Scroll sensitivity` are NEVER the on-band row in this
         // fixture (only `Page width (prose)` ever is).
-        assert_rail_ink_holds_across_selection(
-            world, "Zoom", on.zoom.1, off.zoom.1, on.zoom.2, off.zoom.2,
-        );
+        assert_rail_ink_holds_across_selection(world, "Zoom", on.zoom.ink, off.zoom.ink);
         assert_rail_ink_holds_across_selection(
             world,
             "Scroll sensitivity",
-            on.scroll.1,
-            off.scroll.1,
-            on.scroll.2,
-            off.scroll.2,
+            on.scroll.ink,
+            off.scroll.ink,
         );
 
         // Prove the sweep is non-vacuous: on a world whose flip is real, the
         // SELECTED row's own thumb must itself have moved between the two
         // frames before the checks above mean anything.
-        let moved = pixeldiff::delta_e(on.prose.1, off.prose.1);
-        if moved > RAIL_INK_DRIFT_CEILING && assert_selected_rail_shows_its_flip(world, flip, &on) {
+        let moved = pixeldiff::delta_e(on.prose.ink, off.prose.ink);
+        if moved > RAIL_INK_DRIFT_CEILING
+            && assert_selected_rail_shows_its_flip(world, flip, &on, &off)
+        {
             saw_a_real_flip = true;
         }
     }
