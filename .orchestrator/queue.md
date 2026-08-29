@@ -96,18 +96,27 @@ decided behavior). Internal error strings may stay for logs but never
 reach a notice untranslated; sweep the other `save failed: {e}` notice
 sites for the same leak class.
 
-(b) **Flow, flagged not decided:** should ⌘W on a text-bearing scratch
-instead PROMOTE like ⌘S does and then close (one door, "same behavior ⇒
-same code"), rather than refuse? `verbs.rs`'s own USER-FLIPPABLE note says
-either is one function to swap. Refusal-with-route is the conservative
-default (close never silently manufactures a file from scratch text);
-promote-on-close is more seamless. User taste call — ship (a) either way.
-An EMPTY scratch has nothing to lose and should close without ceremony;
-verify what it does today.
+(b) **Flow, DECIDED (user, 2026-08-29): closing scratch just closes it.**
+Scratch is a PLACE, not a document ("we sorta have an empty screen right?
+so maybe it's okay to close it") — and the mechanism already agrees: the
+autosave engine stashes scratch's full text to the persistent stash
+(`autosave.rs::stash_scratch_now`, idle/blur/quit, with its own history
+ladder) and a bare relaunch restores it (`App::new`), so a close discards
+NOTHING. The refusal existed only because the close gate routed scratch
+through file-save machinery it was never subject to. Fix shape: on close
+of the active scratch, flush the stash first (`stash_scratch_now` is the
+existing owner — the close must not race the idle debounce), then dismiss
+silently; the parked-scratch refusal arm ("open it before closing")
+dismisses the same way. ⚠️ Precondition the lane verifies: an in-session
+door BACK to scratch must exist once it is closed (the relaunch restore is
+not enough — a closed scratch unreachable until restart is a trap); if no
+summon door exists, build the smallest one or the close stays refused with
+(a)'s voice fix. A stash write failure refuses the close in product voice
+(the text's only copy is at stake — same rule as `save_parked`).
 
 Law shape: a `--keys`/`--screenshot-app` journey closing a text-bearing
-scratch asserts the notice names an exit and contains no internal
-register; plus a voice law over the user-facing notice roster (no
+scratch asserts it closes with no notice and the stash holds the text;
+resummon restores it; plus a voice law over user-facing notices (no
 "buffer") at whatever seam the notice strings can be enumerated.
 
 ---
@@ -124,14 +133,38 @@ chrome).
 
 Shape: a catalog Action + palette entry ("Insert table…"), routed like
 every formatting command (keys → Action → apply_transition, drivable by
-`--keys`, visible in the sidecar). Insert a small starter table on its own
-blank lines at the caret — header row, separator, one body row — caret
-landing in the first header cell ready to type. Open UX questions for the
-brief: starter dimensions (fixed 2×2 vs a size prompt — lean fixed +
-grow-by-editing, calmer); whether Tab walks cells inside a table (likely
-its own follow-up item, not this one); popover/context-menu exposure
-(the popover roster is a locked seven — adding there is a separate
-decision, not part of this item).
+`--keys`, visible in the sidecar). DECIDED (user, 2026-08-29): a creation
+dialogue — a small summoned DIMENSION PICKER, keyboard-first with mouse
+support. Form: a drawn mini-grid the arrows sculpt (`↑/↓` rows, `←/→`
+columns) with the chosen `R × C` read out beside it, `↵` inserts, `Esc`
+cancels; typed digits also accepted (a forgiving `3x4` / `3 4` parse);
+the pointer picks by clicking a cell of the same drawn grid — one
+geometry for arrows, readout, and clicks, so drawn and clickable cannot
+disagree (the rowlayout discipline). Modest default (e.g. 3×2) so bare
+`↵` is already useful. Insertion: header row + separator + body rows on
+their own blank lines at the caret, caret landing in the first header
+cell. Follow-ups deliberately OUT of this item: Tab walking cells inside
+a table; popover/context-menu exposure (the popover roster is a locked
+seven — a separate decision).
+
+---
+### 518 — the expanded panel's window can orphan file rows from their group heading (found decoding the user's screenshot, 2026-08-29)
+
+`expanded_rows` (`workingset/panel.rs`) windows `expanded_full` with a
+plain slice, so when the scroll starts mid-group the visible file rows
+carry no group context — the user read three files from a DIFFERENT root
+as belonging to "notes" because that group's own heading was scrolled off
+above the window and the gutter's folder heading ("notes") sat directly
+over them ("so why is there a second notes group? like i assumed
+everything was in notes"). Fix shape: the standard sticky-heading answer —
+when the window's first row is a File, pin its group's heading as the
+window's first drawn row (costing one viewport slot, same as any drawn
+heading), so every visible file row's group is nameable from the drawn
+window alone. Law: sweep scroll positions over a multi-group set and
+assert each visible File row's group heading is drawn in the same window;
+non-vacuity via the pre-fix mid-group scroll. Related conventions: the
+scroll/position-indication work that closed as item 508, and 507/512's
+group-label rules — reuse, don't fork.
 
 ---
 ## Needs specific hardware
