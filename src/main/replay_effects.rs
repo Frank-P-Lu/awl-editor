@@ -101,7 +101,13 @@ impl<'a> ReplaySession<'a> {
             // Replay owns one buffer and no working set, so neither switching
             // away nor removing an entry has anything to act on. Both are
             // classified Unsupported rather than silently doing nothing.
-            actions::BufferEffect::Previous | actions::BufferEffect::CloseActive => {}
+            // OpenScratch joins them for a different reason: reading the
+            // persistent stash is live-App-only by the same determinism law
+            // that keeps a no-file capture stash-free (`App::new`'s own
+            // doc), so replay must not read real scratch state either.
+            actions::BufferEffect::Previous
+            | actions::BufferEffect::CloseActive
+            | actions::BufferEffect::OpenScratch => {}
             actions::BufferEffect::NewDocument => {
                 self.start_fresh_document();
             }

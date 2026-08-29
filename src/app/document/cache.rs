@@ -201,6 +201,38 @@ impl DocumentSession {
         active.extra.scratch_baseline = crate::external::Seen::Absent;
     }
 
+    /// Swap in a RESTORED true scratch buffer — the state-layer half of
+    /// `App::open_scratch`'s "closed this session" arm. Stamps `version`
+    /// already-saved against `baseline` like [`Self::new`] does, and enrols
+    /// the working-set row itself (unlike a still-unnamed fresh document,
+    /// scratch has a stable identity from the moment it exists, and
+    /// `park_active` re-homes an existing row rather than creating one).
+    pub(in crate::app) fn open_scratch(
+        &mut self,
+        buffer: Buffer,
+        baseline: crate::external::Seen,
+        root: PathBuf,
+    ) {
+        self.previous = self
+            .active
+            .as_ref()
+            .and_then(|active| active.buffer.path())
+            .map(Path::to_path_buf);
+        self.park_active();
+        let version = buffer.version();
+        self.active = Some(crate::buffers::Entry {
+            buffer,
+            extra: BufferExtra {
+                caret_synced_version: version,
+                scratch_saved_version: Some(version),
+                scratch_baseline: baseline,
+                ..Default::default()
+            },
+        });
+        self.working
+            .open(crate::buffers::BufferKey::Scratch, None, root);
+    }
+
     pub(in crate::app) fn arm_doc_autosave(&mut self, at: Instant) {
         if let Some(active) = self.active.as_mut() {
             active.extra.doc_autosave_at = Some(at);

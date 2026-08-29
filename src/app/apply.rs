@@ -830,6 +830,7 @@ impl App {
             actions::BufferEffect::Previous => self.last_buffer_toggle(),
             actions::BufferEffect::CloseActive => self.close_active_buffer(),
             actions::BufferEffect::NewDocument => self.new_document(),
+            actions::BufferEffect::OpenScratch => self.open_scratch(),
             actions::BufferEffect::OpenSettings => self.open_settings(),
         }
     }

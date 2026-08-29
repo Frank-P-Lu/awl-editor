@@ -337,6 +337,52 @@ impl App {
         self.finish_buffer_activation(None, false);
     }
 
+    /// Summon the persistent scratch buffer as the active document — the ONE
+    /// in-session door back after `Action::FinishBuffer` / a stack-row close
+    /// discards it (`app/files/close.rs`'s decided fix: closing scratch just
+    /// closes it, because the autosave engine's stash already holds the text
+    /// — but a session that never relaunches needs a way back to that stash
+    /// besides restarting).
+    ///
+    /// Scratch is a SINGLETON identity (`BufferKey::Scratch`): if it is still
+    /// open anywhere this session — active, or merely parked behind another
+    /// document — this is the ordinary reactivation door
+    /// ([`Self::activate_open_buffer`]), never a fresh read that would
+    /// silently discard whatever that live entry holds. Only when scratch
+    /// exists NOWHERE in the working set does this read its stash back, via
+    /// the exact door `App::new`'s own launch-time restore uses.
+    pub(in crate::app) fn open_scratch(&mut self) {
+        let key = crate::buffers::BufferKey::Scratch;
+        if self.document.close_facts(&key).is_some() {
+            self.activate_open_buffer(key);
+            return;
+        }
+        if self.refuse_while_unresolved() {
+            return;
+        }
+        self.flush_note();
+        self.autosave_flush();
+        if self.refuse_while_unresolved() {
+            return;
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        self.streaks_flush_if_document();
+        let (buffer, baseline) = crate::app::startup::scratch_buffer_from_stash();
+        self.document
+            .open_scratch(buffer, baseline, self.project_location.root.clone());
+        self.workspace_state.close_search();
+        self.input.clear_preedit();
+        self.sync_page_measure();
+        #[cfg(not(target_arch = "wasm32"))]
+        self.stats_reset_caret_anchor();
+        #[cfg(not(target_arch = "wasm32"))]
+        self.streaks_reset_baseline();
+        self.clear_notice();
+        self.update_title();
+        self.sync_view(true);
+        self.request_frame();
+    }
+
     pub(in crate::app) fn jump_to_line(&mut self, line: usize) {
         let idx = self.document.buffer().line_col_to_char(line, 0);
         self.document.clear_mark();
