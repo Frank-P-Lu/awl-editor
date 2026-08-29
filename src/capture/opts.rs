@@ -134,6 +134,14 @@ pub struct OverlayInfo {
     /// so the capture path can anchor the contextual float panel AT the word (and the
     /// sidecar can report it). `None` for every other mode.
     pub spell_target: Option<(usize, usize, usize)>,
+    /// INSERT-TABLE dimension picker only: the live sculpted `(rows, cols)`,
+    /// mirroring `spell_target`'s own shape -- gates
+    /// `ViewState::overlay_table_dims`, which the render layer reads to draw
+    /// the grid (`capture::modes::settled_viewstate`). `None` for every
+    /// other mode. Not its own sidecar JSON field: the `R × C` readout is
+    /// already sidecar-visible via `hint` (`OverlayState::foot_hint`), the
+    /// same "zero new sidecar plumbing" precedent Rename's minibuffer sets.
+    pub table_dims: Option<(usize, usize)>,
     /// Context-menu click anchor in physical pixels; `None` for every other card.
     pub context_anchor: Option<(f32, f32)>,
     /// Keybindings rebind menu only: the active CAPTURE sub-state (the command being
