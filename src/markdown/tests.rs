@@ -517,6 +517,53 @@ fn bare_url_tamed_form_covers_the_representative_shapes() {
 }
 
 #[test]
+fn bare_url_text_covers_the_whole_match_and_is_pushed_before_its_conceal_spans() {
+    // MdKind::BareUrlText is the underline enrolment span — it must cover the
+    // WHOLE match (scheme through tail), come FIRST in the vec (so the flanking
+    // ConcealMarkup(BareUrl) spans, pushed after, win their own bytes on
+    // overlap — the `Highlight`-over-context last-wins convention), and there
+    // must be exactly one per detected URL.
+    let bare_url = MdKind::ConcealMarkup(ConcealKind::BareUrl);
+    let text = "see https://example.com/track?x=1&y=2 now";
+    let s = spans(text);
+    let url_start = text.find("https://").unwrap();
+    let url_end = text.find(" now").unwrap();
+
+    assert_eq!(
+        s.iter()
+            .filter(|(_, k)| *k == MdKind::BareUrlText)
+            .count(),
+        1,
+        "exactly one BareUrlText span per detected URL: {s:?}"
+    );
+    assert!(
+        has(&s, url_start, url_end, MdKind::BareUrlText),
+        "BareUrlText spans the WHOLE match, scheme through tail: {s:?}"
+    );
+
+    let bare_url_text_idx = s
+        .iter()
+        .position(|(_, k)| *k == MdKind::BareUrlText)
+        .unwrap();
+    let first_conceal_idx = s.iter().position(|(_, k)| *k == bare_url).unwrap();
+    assert!(
+        bare_url_text_idx < first_conceal_idx,
+        "BareUrlText must be pushed BEFORE its own scheme/tail conceal spans, \
+         or those spans lose the overlap and the URL stops concealing: {s:?}"
+    );
+
+    // A URL with nothing past its authority: still one whole-match span, no tail.
+    let text = "visit https://example.com today";
+    let s = spans(text);
+    let url_start = text.find("https://").unwrap();
+    let url_end = text.find(" today").unwrap();
+    assert!(
+        has(&s, url_start, url_end, MdKind::BareUrlText),
+        "no-tail URL still gets one whole-match BareUrlText span: {s:?}"
+    );
+}
+
+#[test]
 fn bare_url_inside_a_real_link_produces_no_bare_url_conceal_span() {
     // The link's own VISIBLE TEXT is itself a bare URL string — the bare-URL scan
     // must not fire a second time inside it: only the link's `[`/`](url)`
@@ -527,6 +574,11 @@ fn bare_url_inside_a_real_link_produces_no_bare_url_conceal_span() {
             .any(|(_, k)| *k == MdKind::ConcealMarkup(ConcealKind::BareUrl)),
         "a URL that's already a link's visible text must not also get \
          BareUrl-flavoured conceal spans: {s:?}"
+    );
+    assert!(
+        !s.iter().any(|(_, k)| *k == MdKind::BareUrlText),
+        "nor must it double up the underline enrolment — LinkText already \
+         carries the SAME Bucket::LinkUnderline for this exact text: {s:?}"
     );
 }
 

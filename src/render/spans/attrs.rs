@@ -17,8 +17,10 @@ use super::*;
 /// - `Bold`/`Italic`/`BoldItalic` → weight / style; NO color, so they ride the
 ///   buffer's default ink (full when focus off, dim when focus dims the region).
 /// - `Code` → the registered monospace family + a subtle tint toward MUTED ink.
-/// - `LinkText` → the buffer's full CONTENT ink (it lifts off the dim `Markup`
-///   span; DESIGN §3 keeps `primary`/amber for the caret alone).
+/// - `LinkText` / `BareUrlText` → the buffer's full CONTENT ink (they lift off
+///   the dim `Markup`/`ConcealMarkup` span beneath; DESIGN §3 keeps
+///   `primary`/amber for the caret alone). Both also enrol
+///   `render::rects::Bucket::LinkUnderline` — the one followable-span grammar.
 pub(in crate::render) fn md_attrs(
     base: &Attrs<'static>,
     kind: crate::markdown::MdKind,
@@ -100,6 +102,13 @@ pub(in crate::render) fn md_attrs(
             natural = Some(role_style_for(&theme::active(), role).fg.to_glyphon());
         }
         MdKind::LinkText => {
+            natural = Some(th.base_content.to_glyphon());
+        }
+        MdKind::BareUrlText => {
+            // Same lift as `LinkText` (full content ink, off any dimmer context
+            // span like a blockquote) — it matters only for the AUTHORITY bytes,
+            // since the flanking `ConcealMarkup(BareUrl)` scheme/tail spans are
+            // pushed after this one and win their own bytes on overlap.
             natural = Some(th.base_content.to_glyphon());
         }
         MdKind::Highlight => {

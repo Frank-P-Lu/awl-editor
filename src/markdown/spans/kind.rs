@@ -68,8 +68,28 @@ pub enum MdKind {
     Quote,
     /// A list item's leading marker (`-`/`*`/`+`/`1.`) → dim.
     ListMarker,
-    /// A link's visible TEXT → accent color (the brackets + URL are `Markup`).
+    /// A link's visible TEXT → the buffer's full CONTENT ink (the brackets + URL
+    /// are `Markup`) — DESIGN §3 keeps the accent for the caret alone. Also the
+    /// `render::rects::Bucket::LinkUnderline` enrolment: the followable-span
+    /// underline (`render::spans::link_underline_band`) hugs exactly this span's
+    /// visual-row extents, whatever the caret's reveal state.
     LinkText,
+    /// A bare (non-bracketed) URL's WHOLE source range — scheme through tail,
+    /// spanning straight over its unspanned, always-visible authority — pushed
+    /// FIRST by [`crate::markdown::spans::markers::push_bare_url_spans`], before
+    /// its two flanking [`ConcealMarkup`](Self::ConcealMarkup)`(`[`ConcealKind::BareUrl`]`)`
+    /// spans, so those win the scheme/tail bytes on overlap (last-wins, the
+    /// `Highlight`-over-context precedent) while the authority gap between them
+    /// falls through to this span's own no-op transform — i.e. identical to
+    /// having no span there at all. Exists ONLY to enrol the SAME
+    /// `render::rects::Bucket::LinkUnderline` bucket [`LinkText`](Self::LinkText)
+    /// does: one grammar for every followable span, one shared band/pipeline,
+    /// two span sources. Off-caret the underline naturally hugs the tamed
+    /// authority + ellipsis slot (the concealed bytes collapse to near-zero
+    /// width); on-caret it re-hugs the fully revealed URL — no separate
+    /// persist/drop logic needed, the SAME `row.xs`-driven collapse the conceal
+    /// mechanism already provides.
+    BareUrlText,
     /// A task-list checkbox marker (`[ ]` open / `[x]` checked, plus its trailing
     /// space). The bool is the CHECKED state. Rendered distinctly by value: an open
     /// box stays present (full ink), a checked box recedes to the DIM ink — no accent,
@@ -204,6 +224,7 @@ impl MdKind {
             MdKind::Quote => "quote",
             MdKind::ListMarker => "list_marker",
             MdKind::LinkText => "link_text",
+            MdKind::BareUrlText => "bare_url_text",
             MdKind::Task(false) => "task_open",
             MdKind::Task(true) => "task_checked",
             MdKind::TaskDone => "task_done",

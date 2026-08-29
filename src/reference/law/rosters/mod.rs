@@ -255,6 +255,7 @@ fn every_md_kind() -> Vec<crate::markdown::MdKind> {
         MdKind::Quote,
         MdKind::ListMarker,
         MdKind::LinkText,
+        MdKind::BareUrlText,
         MdKind::TaskDone,
         MdKind::Highlight,
         MdKind::Strikethrough,
@@ -303,6 +304,7 @@ fn assert_md_kind_roster_covers(k: &crate::markdown::MdKind) {
         | MdKind::Quote
         | MdKind::ListMarker
         | MdKind::LinkText
+        | MdKind::BareUrlText
         | MdKind::Task(_)
         | MdKind::TaskDone
         | MdKind::Highlight
