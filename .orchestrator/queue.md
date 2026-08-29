@@ -43,53 +43,6 @@ row presentation is also touched by 507/512's folder-identity work — same
 surface, keep the label conventions theirs and the plate rule this item's.
 
 ---
-### 516 — closing the scratch shows a developer-register dead-end notice (user-reported, 2026-08-29)
-
-🟡 IN PROGRESS — claude, branch item-516
-
-⌘W on the active scratch with unsaved text shows `save failed: no file
-bound to this buffer (scratch)`. Mechanism, verified in code: the close
-gate (`app/daemon.rs::try_save_finished_buffer`, reached from
-`files/close.rs`) calls raw `document.save()`, and a true scratch bails in
-`buffer/save.rs` with an anyhow string written for developers — which
-lands VERBATIM in the sticky notice. Two defects in one cell:
-
-(a) **Voice.** "buffer" is not a user word (user: "'buffer' is too
-technical"), and the parenthetical reads as debug output. `close.rs`'s own
-module doc states the principle this violates: "a notice describing a
-state with no exit is a dead end." The PARKED-scratch arm already answers
-in product voice ("scratch has unsaved text — open it before closing");
-the ACTIVE-scratch arm is the gap. DECIDED: the refusal notice names the
-exit in product voice — the route that already exists is ⌘S, which
-promotes scratch into a real note (`verbs.rs::convert_scratch_and_save`,
-decided behavior). Internal error strings may stay for logs but never
-reach a notice untranslated; sweep the other `save failed: {e}` notice
-sites for the same leak class.
-
-(b) **Flow, DECIDED (user, 2026-08-29): closing scratch just closes it.**
-Scratch is a PLACE, not a document ("we sorta have an empty screen right?
-so maybe it's okay to close it") — and the mechanism already agrees: the
-autosave engine stashes scratch's full text to the persistent stash
-(`autosave.rs::stash_scratch_now`, idle/blur/quit, with its own history
-ladder) and a bare relaunch restores it (`App::new`), so a close discards
-NOTHING. The refusal existed only because the close gate routed scratch
-through file-save machinery it was never subject to. Fix shape: on close
-of the active scratch, flush the stash first (`stash_scratch_now` is the
-existing owner — the close must not race the idle debounce), then dismiss
-silently; the parked-scratch refusal arm ("open it before closing")
-dismisses the same way. ⚠️ Precondition the lane verifies: an in-session
-door BACK to scratch must exist once it is closed (the relaunch restore is
-not enough — a closed scratch unreachable until restart is a trap); if no
-summon door exists, build the smallest one or the close stays refused with
-(a)'s voice fix. A stash write failure refuses the close in product voice
-(the text's only copy is at stake — same rule as `save_parked`).
-
-Law shape: a `--keys`/`--screenshot-app` journey closing a text-bearing
-scratch asserts it closes with no notice and the stash holds the text;
-resummon restores it; plus a voice law over user-facing notices (no
-"buffer") at whatever seam the notice strings can be enumerated.
-
----
 ### 517 — Insert table: tables render as grids but nothing creates one (user request, 2026-08-29)
 
 🟡 IN PROGRESS — claude, branch item-517
