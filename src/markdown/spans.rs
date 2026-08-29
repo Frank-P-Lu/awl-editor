@@ -21,5 +21,5 @@ pub(super) use detect::{bare_url_ranges, bare_url_split, smart_punct_ranges, sma
 pub use kind::{BreakKind, MdKind, break_kind};
 pub use markers::equals_runs;
 #[cfg(test)]
-pub(super) use markers::{push_highlight_spans, push_smart_punct_spans};
+pub(super) use markers::push_highlight_spans;
 pub use parse::spans;
