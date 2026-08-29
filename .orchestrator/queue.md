@@ -7,31 +7,6 @@
 ## Ready to build
 
 ---
-### 514 — two defects `range_rail.rs` work surfaced, neither caused by that work (found while building item 508, 2026-08-29)
-
-🟡 IN PROGRESS — claude, branch item-514
-
-(a) `settings_overlay_view` (`src/render/tests/mod.rs`) never sets
-`overlay_workspace`, so any caller that doesn't override it afterward tests
-a state production can't reach (the Settings card renders through the wrong,
-faceted geometry family instead of the real `RailOverRows` workspace
-family). Repro: add `v.overlay_workspace = ov.workspace_shape().is_some();`
-after `v.overlay_lens = ov.lens_strip();`, run
-`settings_row_reach_law::{every_editor_row_is_hoverable_at_its_own_y_center_across_the_world_roster,
-the_zoom_rows_band_and_its_neighbours_never_bleed_into_one_another}` — both
-go red. Fix shape: set `overlay_workspace` correctly in the shared fixture
-(every caller wants the real state; `range_rail.rs` worked around it locally
-rather than fixing the shared one, since that was out of its own scope).
-
-(b) `range_rail::a_non_selected_rails_thumb_never_wears_the_selected_rails_ink`
-is `#[ignore]`d with the full evidence chain in its own doc comment: on
-`world=Potoroo`, `assert_selected_rail_shows_its_flip` hits a documented,
-pre-existing oracle weakness (Potoroo's striped background is a known
-pixel-search false-positive source for a sibling assertion, per that file's
-own history). Judge and repair the oracle, then un-ignore; this parks the
-law's differential non-selected-ink coverage until fixed.
-
----
 ### 515 — one plate, one meaning: the working-set panel plates the current project AND the active file at once (user-confirmed confusing, 2026-08-29)
 
 🟡 IN PROGRESS — claude, branch ws-stack-515-524 (sequenced with 518/520/521/522/524 on one branch, per the coordination note under 522)
