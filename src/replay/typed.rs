@@ -68,6 +68,15 @@ pub(super) fn classify_buffer(effect: &crate::actions::BufferEffect) -> Classifi
                 ),
             },
         ),
+        crate::actions::BufferEffect::OpenScratch => named(
+            "open_scratch",
+            EffectClass::Unsupported {
+                why: concat!(
+                    "reading the persistent scratch stash is live-App-only, ",
+                    "the same determinism law that keeps a no-file capture stash-free"
+                ),
+            },
+        ),
     }
 }
 

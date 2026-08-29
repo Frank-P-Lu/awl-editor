@@ -92,6 +92,13 @@ pub enum BufferEffect {
     /// switching and closing differ in what happens to the buffer left behind.
     CloseActive,
     NewDocument,
+    /// Summon the persistent scratch buffer as the active document — the live
+    /// counterpart of `App::new`'s launch-time stash restore, so scratch is
+    /// reachable again after a close. Never reaches headless replay: the same
+    /// determinism law that keeps a no-file capture stash-free means this is
+    /// live-App only ([`crate::main::replay_effects`] classifies it
+    /// Unsupported, alongside `Previous`/`CloseActive`).
+    OpenScratch,
     OpenSettings,
 }
 

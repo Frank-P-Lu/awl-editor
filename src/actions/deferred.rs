@@ -4,6 +4,7 @@ pub(super) fn apply_deferred_action(ctx: &mut ActionCtx, action: &Action) -> Opt
     let effect = match action {
         Action::LastBuffer => Effect::Buffer(BufferEffect::Previous),
         Action::NewDocument => Effect::Buffer(BufferEffect::NewDocument),
+        Action::OpenScratch => Effect::Buffer(BufferEffect::OpenScratch),
         Action::KeepTutorial => Effect::RunAction(Action::OpenProject),
         Action::MoveFile => {
             let name = ctx

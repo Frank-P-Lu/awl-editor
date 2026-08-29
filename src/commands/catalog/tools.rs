@@ -1,6 +1,7 @@
 //! The catalog's non-editing APP DOORS: the problem report, the web-only
-//! download, and the update check. Peeled off `navigation.rs`'s tail purely to
-//! keep both files under the ~500-line ceiling — `catalog.rs` chains
+//! download, the update check, and the scratch summon door. Peeled off
+//! `navigation.rs`'s tail purely to keep both files under the ~500-line
+//! ceiling — `catalog.rs` chains
 //! `navigation ++ tools ++ editing`, so the corpus index and palette display
 //! order are byte-for-byte what they were when these three sat at the end of
 //! `navigation.rs`.
@@ -57,5 +58,19 @@ pub(super) static COMMANDS: &[Command] = &[
         description: Some(
             "Record a last-checked marker and open the site's version-check page in the browser.",
         ),
+    },
+    // OPEN SCRATCH: the in-session door back to the persistent scratch
+    // surface once it has been closed (Finish file / a stack-row close both
+    // just close it now — the autosave engine's own stash already holds the
+    // text, and this reads it back). No default chord — the palette IS its
+    // entry point, like Report a Problem/About.
+    Command {
+        name: "Open scratch",
+        action: Action::OpenScratch,
+        native: "",
+        emacs: "",
+        native_only: false,
+        web_only: false,
+        description: Some("Summon the persistent scratch surface, restoring it if it was closed."),
     },
 ];

@@ -717,6 +717,7 @@ macro_rules! classify_action_family {
             | Action::OpenCredits => ActionFamily::Overlay,
             Action::LastBuffer
             | Action::NewDocument
+            | Action::OpenScratch
             | Action::KeepTutorial
             | Action::MoveFile
             | Action::OpenRenameNote

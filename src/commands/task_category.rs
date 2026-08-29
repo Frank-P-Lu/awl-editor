@@ -60,6 +60,7 @@ const COMMAND_TASK_CATEGORIES: &[(&str, TaskCategory)] = &[
     ("Use disk version", Files),
     ("Last file", Navigate),
     ("New document", Files),
+    ("Open scratch", Files),
     ("Keep tutorial…", Files),
     ("Move…", Files),
     ("Rename note…", Files),

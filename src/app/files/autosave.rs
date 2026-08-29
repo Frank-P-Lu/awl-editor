@@ -342,10 +342,17 @@ impl App {
     /// the same clobber truth-table (two awl instances sharing one stash), then
     /// grow the stash's own ladder timeline via [`crate::history::record`]. The
     /// restore half lives in `App::new` (a no-argument launch).
-    fn stash_scratch_now(&mut self) {
+    ///
+    /// Returns whether the stash now genuinely holds this buffer's content —
+    /// `false` on a held clobber (another window's copy wins; nothing was
+    /// written) or a write error. The idle/blur/switch/quit engine ignores
+    /// this; the ACTIVE-scratch close arm (`App::try_save_finished_buffer`)
+    /// does not — a close about to discard the in-memory buffer must know the
+    /// stash is not simply an accepted best-effort loss.
+    pub(in crate::app) fn stash_scratch_now(&mut self) -> bool {
         let version = self.document.buffer().version();
         if self.document.scratch_saved_version() == Some(version) {
-            return; // stash already holds this content
+            return true; // stash already holds this content
         }
         let path = crate::fs::scratch_stash_path();
         let (change, seen) = crate::external::look(&path, &self.document.scratch_baseline());
@@ -353,7 +360,7 @@ impl App {
             self.set_sticky_notice(SCRATCH_CHANGED_NOTICE);
             self.document
                 .record_scratch_saved(version, self.document.scratch_baseline());
-            return;
+            return false;
         }
         let _ = seen;
         let text = self.document.buffer().text();
@@ -382,12 +389,14 @@ impl App {
                 self.persistence.record_engine_write(now);
                 // The persistent scratch grows a timeline of its own.
                 crate::history::record(&path, &text, &self.config);
+                true
             }
             Err(e) => {
                 self.set_sticky_notice(format!(
                     "scratch save held: {e} — changes remain in editor"
                 ));
                 eprintln!("scratch stash failed ({}): {e}", path.display());
+                false
             }
         }
     }

@@ -61,6 +61,7 @@ Commands are grouped by the same task categories the palette browses.
 | Copy file path | Copy the current document's absolute file path to the clipboard. | — | — | Native |
 | Finish file | Save the file, notify any daemon `--wait` client, and close it. | `⌘W` | `Ctrl+W` | Native |
 | Download file | Download the buffer's text as a file — the web export, since there is no real disk. | — | — | Browser |
+| Open scratch | Summon the persistent scratch surface, restoring it if it was closed. | — | — | Native, browser |
 | Export as Word… | Export as `.docx`; markdown buffers only, folder chosen on native. | — | — | Native, browser |
 | Export as HTML… | Export as `.html`; markdown buffers only, folder chosen on native. | — | — | Native, browser |
 | Export as PDF… | Choose a folder, then export as `.pdf`; markdown buffers only, native builds only. | — | — | Native |

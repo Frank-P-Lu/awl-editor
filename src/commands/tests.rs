@@ -103,6 +103,7 @@ fn catalog_non_empty_and_named() {
         "Line endings…",
         "Align table",
         "Tag document language",
+        "Open scratch",
         "Report a Problem",
         "Download file",
         "Check for Updates",

@@ -623,37 +623,18 @@ impl App {
         // quit). Path stays None — still a true scratch, still markdown-first.
         // ONLY the live App restores; the headless `load_buffer` never reads the
         // stash, so a default no-file capture stays byte-identical.
-        let stash = crate::fs::scratch_stash_path();
-        let buffer = match &file {
-            Some(p) => Buffer::from_file(p),
-            None => match crate::fs::active().read_to_string(&stash) {
-                Ok(s) if !s.is_empty() => Buffer::from_str(&s),
-                Ok(_) => Buffer::scratch(), // present but empty: nothing to preserve
-                Err(e) if e.kind() == std::io::ErrorKind::NotFound => Buffer::scratch(),
-                Err(_) => {
-                    // PRESERVE-ON-CORRUPT (the scratch stash IS a manuscript):
-                    // the file exists but failed to decode as UTF-8 text — a
-                    // real corruption signal, not a fresh install. Back up
-                    // the raw bytes to a `.corrupt-*` sibling before falling
-                    // back to a blank scratch buffer, so those bytes are
-                    // never silently discarded (and never overwritten away
-                    // by the very next scratch-stash flush).
-                    if let Ok(raw) = crate::fs::active().read(&stash) {
-                        crate::durable::preserve_corrupt(&stash, &raw);
-                    }
-                    Buffer::scratch()
-                }
-            },
+        // PRESERVE-ON-CORRUPT (the scratch stash IS a manuscript): a decode
+        // failure backs the raw bytes up to a `.corrupt-*` sibling before
+        // falling back to a blank scratch, inside the shared restore helper —
+        // see `startup::scratch_buffer_from_stash`'s own doc.
+        let (buffer, scratch_baseline) = match &file {
+            Some(p) => (Buffer::from_file(p), crate::external::Seen::Absent),
+            None => startup::scratch_buffer_from_stash(),
         };
         let disk_baseline = file
             .as_deref()
             .map(crate::external::Seen::at)
             .unwrap_or_default();
-        let scratch_baseline = if file.is_none() {
-            crate::external::Seen::at(&stash)
-        } else {
-            crate::external::Seen::Absent
-        };
         let config = location::ConfigurationRuntime::new(config, cli_workspace, cli_default_folder);
         let project_location = location::ProjectLocation::new(root, &config.location_policy());
         let mut keys_with_web_alt = config.keys.clone();

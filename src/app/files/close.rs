@@ -41,7 +41,7 @@
 //! gates and leaves `DocumentSession::active == None`. That absence is carried
 //! end-to-end; this owner never manufactures an unnamed replacement buffer.
 
-use super::WritePermission;
+use super::{SCRATCH_CHANGED_NOTICE, WritePermission};
 use crate::app::*;
 use std::path::Path;
 
@@ -246,12 +246,12 @@ impl App {
         baseline: crate::external::Seen,
     ) -> bool {
         let Some(path) = path else {
-            // A path-less parked scratch must be activated before its stash
-            // conflict guard can run; its stack row is now a real activation
-            // door, so this refusal tells the reader the available route.
-            self.set_sticky_notice("scratch has unsaved text — open it before closing");
-            self.request_frame();
-            return false;
+            // A path-less parked entry is the true scratch: a PLACE, not a
+            // document. It closes exactly like the active arm — flush the
+            // parked entry's own text to the persistent stash, then let the
+            // caller discard it — rather than refusing and sending the reader
+            // back to reactivate it first.
+            return self.stash_parked_scratch(key);
         };
         // A conflict already latched for this path belongs to a document the
         // user is being asked to resolve. Never write past it.
@@ -284,6 +284,39 @@ impl App {
         // No saved-version bookkeeping: a successful parked save is always
         // followed by discarding the entry, so there is no later reader.
         let _ = seen;
+        true
+    }
+
+    /// The PARKED counterpart of `App::stash_scratch_now`: flush a path-less
+    /// scratch entry that is not the active buffer to the persistent stash
+    /// before the caller discards it. Keyed off the PARKED entry's own text
+    /// and baseline rather than the active buffer's — a stash write failure,
+    /// or another window's copy already sitting in the stash, refuses the
+    /// close for the same reason `save_parked`'s pathed arm does: the entry
+    /// about to be discarded holds the only copy of that text.
+    fn stash_parked_scratch(&mut self, key: &crate::buffers::BufferKey) -> bool {
+        let Some(bytes) = self.document.parked_disk_bytes(key) else {
+            return false;
+        };
+        let baseline = self.document.parked_scratch_baseline(key);
+        let stash = crate::fs::scratch_stash_path();
+        let (change, _seen) = crate::external::look(&stash, &baseline);
+        if change.is_change() {
+            self.set_sticky_notice(SCRATCH_CHANGED_NOTICE);
+            self.request_frame();
+            return false;
+        }
+        if let Some(parent) = stash.parent() {
+            let _ = crate::fs::active().create_dir_all(parent);
+        }
+        if let Err(e) = crate::durable::write(crate::durable::Owner::Scratch, &stash, &bytes) {
+            self.set_sticky_notice(format!("scratch save held: {e} — changes remain in editor"));
+            self.request_frame();
+            return false;
+        }
+        if let Some(text) = self.document.parked_text(key) {
+            crate::history::record(&stash, &text, &self.config);
+        }
         true
     }
 

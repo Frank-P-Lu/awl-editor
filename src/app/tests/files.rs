@@ -1475,6 +1475,190 @@ fn emptied_scratch_clears_the_stale_stash() {
     );
 }
 
+// ── CLOSING SCRATCH: A PLACE, NOT A DOCUMENT ────────────────────────────
+//
+// Closing scratch — active or merely parked — never routes through the
+// file-save machinery `Buffer::save` guards with a developer-register bail
+// ("no file bound to this buffer (scratch)"). It flushes the persistent
+// stash instead (the same door the autosave engine's idle/blur/quit
+// triggers already use) and dismisses silently: a close that discards
+// nothing needs no notice to explain itself. `Action::OpenScratch` is the
+// in-session door back, so a closed scratch is never unreachable short of a
+// relaunch.
+
+#[test]
+fn closing_the_active_scratch_stashes_the_text_and_closes_without_a_notice() {
+    use crate::fs::{FileSystem, InMemoryFs};
+    let mem = InMemoryFs::new();
+    let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+    let mut app = app_on(None, "/proj", Config::empty());
+    for c in "closing scratch".chars() {
+        app.document.insert_char(c);
+    }
+
+    // Drive the real ⌘W / "Finish file" effect sequence, not the owner
+    // methods directly — a law about closing scratch must not pass while
+    // the chord's own wiring points somewhere else.
+    let transition = app.transition_for_test(&crate::keymap::Action::FinishBuffer, false);
+    assert_eq!(
+        &transition.effects()[..3],
+        &[
+            crate::actions::Effect::Persistence(crate::actions::PersistenceEffect::Save(
+                crate::actions::SaveKind::Finish,
+            )),
+            crate::actions::Effect::Daemon(crate::actions::DaemonEffect::NotifyFinished),
+            crate::actions::Effect::Buffer(crate::actions::BufferEffect::CloseActive),
+        ],
+        "Finish file's effects are save, notify, then CLOSE"
+    );
+    app.save_finished_buffer();
+    app.notify_finished_buffer();
+    app.close_active_buffer();
+
+    assert!(
+        !app.frame.notice().active(),
+        "closing scratch just closes it — no dead-end notice"
+    );
+    assert!(
+        !app.document.has_active(),
+        "the only open document closed into the honest zero-document state"
+    );
+    assert_eq!(
+        mem.read_to_string(&crate::fs::scratch_stash_path())
+            .unwrap(),
+        "closing scratch",
+        "the stash holds the text — a close discards nothing"
+    );
+}
+
+#[test]
+fn resummoning_scratch_after_a_close_restores_its_text_from_the_stash() {
+    use crate::fs::InMemoryFs;
+    let mem = InMemoryFs::new();
+    let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+    let mut app = app_on(None, "/proj", Config::empty());
+    for c in "resummon me".chars() {
+        app.document.insert_char(c);
+    }
+    app.save_finished_buffer();
+    app.notify_finished_buffer();
+    app.close_active_buffer();
+    assert!(
+        !app.document.has_active(),
+        "precondition: scratch is closed and nothing is open"
+    );
+
+    // THE IN-SESSION SUMMON DOOR: "Open scratch" is a Deferred action — the
+    // pure core only signals `Effect::Buffer(BufferEffect::OpenScratch)`;
+    // `App::apply_buffer_effect` is what actually performs it live, exactly
+    // like `Action::FinishBuffer` above is driven through its own live
+    // interpreters rather than the pure effect alone.
+    assert_eq!(
+        app.apply_transition_for_test(&crate::keymap::Action::OpenScratch),
+        crate::actions::Effect::Buffer(crate::actions::BufferEffect::OpenScratch),
+        "Open scratch signals the typed buffer effect"
+    );
+    app.open_scratch();
+
+    assert!(app.document.has_active(), "scratch is reachable again");
+    assert_eq!(app.document.buffer().text(), "resummon me");
+    assert!(
+        app.document.buffer().path().is_none(),
+        "still a true scratch, not a promoted note"
+    );
+    assert!(!app.frame.notice().active());
+}
+
+#[test]
+fn closing_a_parked_scratch_row_stashes_it_and_discards_it_without_a_notice() {
+    use crate::fs::{FileSystem, InMemoryFs};
+    let mem = InMemoryFs::new().with_file("/proj/other.md", "other\n");
+    let _g = crate::fs::FsGuard::install(Arc::new(mem.clone()));
+    // Autosave OFF: switching away must not have already stashed the text
+    // through the ordinary engine, or this law would silently exercise the
+    // already-clean path instead of the one it names (mirrors
+    // `close/tests.rs::Session::without_autosave`'s own reasoning).
+    let cfg = Config {
+        autosave: Some(false),
+        ..Config::empty()
+    };
+    let mut app = app_on(None, "/proj", cfg);
+    for c in "parked scratch text".chars() {
+        app.document.insert_char(c);
+    }
+    app.load_path(PathBuf::from("/proj/other.md"));
+    assert!(
+        app.document
+            .close_facts(&crate::buffers::BufferKey::Scratch)
+            .is_some_and(|f| f.unsaved),
+        "precondition: scratch is parked behind other.md, still unsaved"
+    );
+
+    app.close_buffer(crate::buffers::BufferKey::Scratch);
+
+    assert!(
+        !app.frame.notice().active(),
+        "the parked-scratch arm dismisses the same way the active one does"
+    );
+    assert!(
+        app.document
+            .close_facts(&crate::buffers::BufferKey::Scratch)
+            .is_none(),
+        "the entry is gone, not left refused and unreachable"
+    );
+    assert_eq!(
+        mem.read_to_string(&crate::fs::scratch_stash_path())
+            .unwrap(),
+        "parked scratch text"
+    );
+}
+
+// `ScriptedFs` (precise write-fault injection) is a native-only test seam
+// (`src/fs.rs` gates it `cfg(not(target_arch = "wasm32"))`, matching
+// `persistence_faults`'s own module gate) — no wasm equivalent exists.
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn a_scratch_stash_write_failure_refuses_the_close_in_product_voice() {
+    // The defect this guards against is a raw anyhow string ("no file bound
+    // to this buffer (scratch)") reaching the sticky notice verbatim. The
+    // SUCCESS law above proves the ordinary close raises no notice at all;
+    // this proves the one path that DOES raise one — a stash write failure —
+    // never says "buffer" either, and refuses rather than discarding the
+    // only copy of the text.
+    use crate::fs::{InMemoryFs, ScriptedFailure, ScriptedFs, ScriptedOperation};
+    let inner = InMemoryFs::new();
+    let scripted = Arc::new(ScriptedFs::new(
+        inner,
+        ScriptedFailure {
+            operation: ScriptedOperation::Write,
+            ordinal: 1,
+            kind: std::io::ErrorKind::PermissionDenied,
+            reason: "permission denied while writing the scratch stash",
+        },
+    ));
+    let _g = crate::fs::FsGuard::install(scripted);
+    let mut app = app_on(None, "/proj", Config::empty());
+    for c in "must not be lost".chars() {
+        app.document.insert_char(c);
+    }
+
+    app.save_finished_buffer();
+    app.notify_finished_buffer();
+    app.close_active_buffer();
+
+    assert!(
+        app.document.has_active(),
+        "a stash write failure refuses the close — the text's only copy is at stake"
+    );
+    let text = app.frame.notice().text();
+    assert!(text.is_some(), "the refusal is visible, not silent");
+    assert!(
+        !text.unwrap().to_lowercase().contains("buffer"),
+        "internal error strings never reach a notice untranslated: {text:?}"
+    );
+    assert_eq!(app.document.buffer().text(), "must not be lost");
+}
+
 // ── `Buffer::path()` IS THE SOLE, AUTHORITATIVE PATH ───────────────────
 //
 // `App.file` is gone entirely (there is no second field left to disagree

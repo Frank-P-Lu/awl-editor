@@ -207,6 +207,11 @@ pub enum Action {
     OpenFolder,
     LastBuffer,
     NewDocument,
+    /// Summon the persistent scratch surface as the active document — reading
+    /// its stash back exactly like a bare relaunch would, so a closed scratch
+    /// is reachable again without restarting. The one in-session door back
+    /// after `Action::FinishBuffer` / a stack-row close discards it.
+    OpenScratch,
     KeepTutorial,
     MoveFile,
     OpenRenameNote,
