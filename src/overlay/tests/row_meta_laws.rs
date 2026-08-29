@@ -93,7 +93,11 @@ fn representative_overlay(kind: OverlayKind) -> OverlayState {
         }
         OverlayKind::Keybindings => OverlayState::new_keybindings(
             crate::commands::visible_names(),
-            crate::commands::visible_effective_bindings(&[], &[]),
+            crate::commands::visible_effective_bindings(
+                &[],
+                &[],
+                crate::keymap::KeymapFlavor::Native,
+            ),
         ),
         OverlayKind::History => OverlayState::new_history(history_rows(), None, None),
         OverlayKind::Conflict => OverlayState::new_conflict(
@@ -264,7 +268,7 @@ fn goto_heading_rows_keep_their_line_across_refilter() {
 fn command_palette_settings_rows_keep_key_and_value_across_refilter() {
     let mut ov = OverlayState::new_command(
         crate::commands::visible_names(),
-        crate::commands::visible_effective_bindings(&[], &[]),
+        crate::commands::visible_effective_bindings(&[], &[], crate::keymap::KeymapFlavor::Native),
         crate::commands::visible_hidden_mask(Default::default()),
     );
     ov.attach_settings_rows(

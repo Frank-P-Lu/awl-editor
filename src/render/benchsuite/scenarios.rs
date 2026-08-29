@@ -402,6 +402,7 @@ fn palette(cx: &mut Cx) -> Result<CellOut> {
             goto_times: Vec::new(),
             config_keys: &cx.config.keys,
             config_linux_keep: &keep,
+            config_keymap_flavor: cx.config.keymap_flavor(),
             goto_headings: Vec::new(),
             goto_line_count: 0,
             goto_folders: Vec::new(),

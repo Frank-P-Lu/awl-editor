@@ -326,7 +326,7 @@ fn every_settings_toggle_row_signals_its_own_setting_toggle_key() {
 pub(super) fn command_overlay_with_settings() -> OverlayState {
     let mut ov = OverlayState::new_command(
         crate::commands::visible_names(),
-        crate::commands::visible_effective_bindings(&[], &[]),
+        crate::commands::visible_effective_bindings(&[], &[], crate::keymap::KeymapFlavor::Native),
         // No daemon waiter in this fixture: matches the real arm's default
         // (`BuildCtx::has_waiter: false`) for every non-live caller.
         crate::commands::visible_hidden_mask(Default::default()),
@@ -356,7 +356,11 @@ fn command_drive(journey: &mut crate::overlay::Journey, action: &Action) -> Effe
         )),
         OverlayKind::Keybindings => Some(OverlayState::new_keybindings(
             crate::commands::visible_names(),
-            crate::commands::visible_effective_bindings(&[], &[]),
+            crate::commands::visible_effective_bindings(
+                &[],
+                &[],
+                crate::keymap::KeymapFlavor::Native,
+            ),
         )),
         OverlayKind::CjkLang => Some(OverlayState::new_cjk_lang(
             crate::frontmatter::cjk_priority()

@@ -232,7 +232,8 @@ fn web_reserved_native_chord_shows_its_web_alternate_on_the_real_palette_label()
         crate::commands::Platform::Web
     );
     set_web_convention_from_ua("Macintosh");
-    let binds = crate::commands::visible_effective_bindings(&[], &[]);
+    let binds =
+        crate::commands::visible_effective_bindings(&[], &[], crate::keymap::KeymapFlavor::Native);
     let names = crate::commands::visible_names();
     let new_document = names.iter().position(|n| n == "New document").unwrap();
     assert_eq!(
@@ -276,7 +277,8 @@ fn web_alternate_chord_dispatches_through_the_real_keymap_on_wasm() {
 fn linux_displaced_emacs_default_is_hidden_from_the_real_palette_label() {
     use crate::convention::set_web_convention_from_ua;
     set_web_convention_from_ua("X11; Linux x86_64");
-    let binds = crate::commands::visible_effective_bindings(&[], &[]);
+    let binds =
+        crate::commands::visible_effective_bindings(&[], &[], crate::keymap::KeymapFlavor::Native);
     let names = crate::commands::visible_names();
     let search = names.iter().position(|n| n == "Search forward").unwrap();
     assert_eq!(

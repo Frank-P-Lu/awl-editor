@@ -2650,6 +2650,13 @@ pub struct TextPipeline {
     /// (never `linux_keeps_chord`-true) on every non-Linux capture, so this is
     /// inert everywhere the menu bar's own convention isn't `Convention::Linux`.
     config_linux_keep: Vec<String>,
+    /// Mirror of [`ViewState::config_keymap_flavor`] — the config `keymap`
+    /// flavor, beside [`Self::config_linux_keep`] for the same menu-bar reader:
+    /// the drawn menu's chord column needs it to fall back to a seeded layer
+    /// chord (`commands::menu_native_label`'s own doc) when no ordinary native
+    /// chord survives under `keymap = "emacs"`. `Native` by default, which is
+    /// inert (`keymap::seeded_chords_for` returns empty off `KeymapFlavor::Emacs`).
+    config_keymap_flavor: crate::keymap::KeymapFlavor,
     md_enabled: bool,
     /// WYSIWYG / INLINE-IMAGES LATCH: the last-shaped value of the two rendering
     /// process-globals (`markdown::wysiwyg_on()` / `inline_images_on()`), so

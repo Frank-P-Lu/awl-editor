@@ -162,10 +162,14 @@ fn whichkey_absent_by_default_and_shown_lists_continuations() {
         ("switch_theme".to_string(), vec!["C-x t".to_string()]),
         ("new_document".to_string(), vec!["C-x n".to_string()]),
     ];
-    let rows: Vec<(String, String)> = crate::whichkey::continuations_cx(&cfg_keys)
-        .into_iter()
-        .map(|c| (c.key, c.name))
-        .collect();
+    let rows: Vec<(String, String)> = crate::whichkey::continuations_cx(
+        &cfg_keys,
+        crate::convention::Convention::Mac,
+        crate::keymap::KeymapFlavor::Native,
+    )
+    .into_iter()
+    .map(|c| (c.key, c.name))
+    .collect();
     let on_png = dir.join("on.png");
     let opts = CaptureOpts {
         whichkey: Some(rows),

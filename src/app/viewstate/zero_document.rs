@@ -46,6 +46,7 @@ impl App {
             .map(std::string::ToString::to_string);
         view.config_keys = self.config.keys.clone();
         view.config_linux_keep = self.config.effective_linux_keep();
+        view.config_keymap_flavor = self.config.keymap_flavor();
         view.notice = self.frame.notice().owned().unwrap_or_default();
         view.notice_kind = self.frame.notice().kind();
         view.cjk_priority = self.config.cjk_priority_or_default();

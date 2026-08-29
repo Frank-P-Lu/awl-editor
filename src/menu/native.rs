@@ -363,8 +363,14 @@ mod tests {
         use crate::convention::Convention;
         let command = super::super::routed_command_for_id(id)?;
         let c = commands::COMMANDS.iter().find(|c| c.name == command)?;
-        let label =
-            commands::menu_native_label(c, keys, &[], Convention::Mac, commands::Platform::Native);
+        let label = commands::menu_native_label(
+            c,
+            keys,
+            &[],
+            Convention::Mac,
+            commands::Platform::Native,
+            crate::keymap::KeymapFlavor::Native,
+        );
         let accel = accelerator_for_id(id, keys);
         let Some(spec) = commands::native_accelerator_chord(c, keys) else {
             assert!(

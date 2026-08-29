@@ -1,5 +1,5 @@
 use crate::convention::Convention;
-use crate::keymap::Action;
+use crate::keymap::{Action, KeymapFlavor};
 use std::sync::Mutex;
 mod catalog;
 /// The convention/platform chord resolver — one subject, one file.
@@ -213,10 +213,14 @@ pub fn peek_row_for_slug(slug_want: &str) -> Option<crate::peek::PeekRow> {
     })
 }
 
-pub fn effective_bindings(keys: &[(String, Vec<String>)], keep: &[String]) -> Vec<String> {
+pub fn effective_bindings(
+    keys: &[(String, Vec<String>)],
+    keep: &[String],
+    flavor: KeymapFlavor,
+) -> Vec<String> {
     COMMANDS
         .iter()
-        .map(|c| effective_binding_for(c, keys, keep, Platform::current()))
+        .map(|c| effective_binding_for(c, keys, keep, Platform::current(), flavor))
         .collect()
 }
 
@@ -225,6 +229,7 @@ fn effective_binding_for(
     keys: &[(String, Vec<String>)],
     keep: &[String],
     platform: Platform,
+    flavor: KeymapFlavor,
 ) -> String {
     let convention = Convention::current();
     let chords = effective_chords(c, keys);
@@ -250,7 +255,7 @@ fn effective_binding_for(
             .collect::<Vec<_>>()
             .join(" · ")
     } else {
-        join_slots_truthful(c, convention, platform, keep)
+        join_slots_truthful(c, convention, platform, keep, flavor)
     }
 }
 
@@ -280,32 +285,60 @@ fn effective_binding_for(
 ///     reappears; (b) the NATIVE command that used to claim that Linux chord
 ///     must stop advertising it (`native_suppressed` below) — a chord this
 ///     table shows must be the one that actually wins.
+///   - **Tier 5 (the seeded-layer round, `flavor`):** when the static emacs
+///     slot comes up empty (a blank catalog slot, or Tier-3 displaced), a
+///     seeded layer chord targeting `c.action` under `convention`+`flavor`
+///     ([`crate::keymap::seeded_chords_for`]) fills it instead — the ONE query
+///     onto the SAME roster [`crate::keymap::KeymapState::seed_defaults`]
+///     dispatches, so a seed can never be advertised here without also being
+///     live. This is why Command palette shows a bare `"M-x"` under Linux
+///     `keymap = "emacs"` even though its native slot (Cmd-P) is suppressed
+///     there and its catalog emacs slot is deliberately blank (the seed's own
+///     doc) — before this round NO surface showed it at all.
 ///
-/// On `Convention::Mac` + `Platform::Native` (macOS native) NONE of the three
-/// checks can ever fire (`Platform::Web` is false; `convention == Linux` is
-/// false, so both the Tier-3 displacement AND the Tier-4 keep-list are
-/// structurally inert — `keep` is ignored outright on Mac, by construction),
-/// so this is BYTE-IDENTICAL to the old `join_slots(c.native, c.emacs)` there —
-/// the hard law this round must not break (see
-/// `tests::mac_native_label_truth_is_byte_identical_to_join_slots`).
+/// On `Convention::Mac` + `Platform::Native` (macOS native) NONE of the checks
+/// above can ever fire (`Platform::Web` is false; `convention == Linux` is
+/// false, so Tier 3/4/5 are all structurally inert — `keep`/`flavor` are
+/// ignored outright on Mac, by construction), so this is BYTE-IDENTICAL to the
+/// old `join_slots(c.native, c.emacs)` there — the hard law this round must
+/// not break (see `tests::mac_native_label_truth_is_byte_identical_to_join_slots`).
 pub(crate) fn join_slots_truthful(
     c: &Command,
     convention: Convention,
     platform: Platform,
     keep: &[String],
+    flavor: KeymapFlavor,
 ) -> String {
     let native_label = native_label_effective(c, convention, platform, keep);
 
     let emacs_displaced = convention == Convention::Linux
         && crate::keymap::linux_displaces_emacs_default(c.emacs, keep);
-    let emacs_label: &str = if emacs_displaced { "" } else { c.emacs };
+    let emacs_label_raw: &str = if emacs_displaced { "" } else { c.emacs };
+    let emacs_label = if emacs_label_raw.trim().is_empty() {
+        seeded_chord_fallback(c, convention, flavor)
+    } else {
+        emacs_label_raw.to_string()
+    };
 
     match (native_label.is_empty(), emacs_label.trim().is_empty()) {
         (false, false) => format!("{native_label} · {emacs_label}"),
         (false, true) => native_label,
-        (true, false) => emacs_label.to_string(),
+        (true, false) => emacs_label,
         (true, true) => String::new(),
     }
+}
+
+/// THE SEEDED-LAYER LABEL, shared by [`join_slots_truthful`]'s Tier 5 (the
+/// emacs slot's own fallback) and [`menu_native_label`]'s (the native cell's).
+/// The first seeded chord [`crate::keymap::seeded_chords_for`] names for
+/// `c.action` under `convention`+`flavor`, shown VERBATIM (terse form, e.g.
+/// `"M-x"`) — never glyph-converted, matching how an ordinary static emacs
+/// slot is already shown. `""` when no seed targets this action.
+fn seeded_chord_fallback(c: &Command, convention: Convention, flavor: KeymapFlavor) -> String {
+    crate::keymap::seeded_chords_for(&c.action, convention, flavor)
+        .first()
+        .map(|s| (*s).to_string())
+        .unwrap_or_default()
 }
 
 /// THE NATIVE-SLOT SUPPRESSION RULE, factored out of [`join_slots_truthful`] so
@@ -351,12 +384,24 @@ fn native_label_effective(
 /// 1 speaks convention glyphs" rule for an override). A chord this function
 /// suppresses shows an EMPTY cell, matching Insert-link's existing Linux cell —
 /// never a chord the resolver would not actually dispatch.
+///
+/// THE SEEDED-LAYER ROUND (`flavor`): when there is no override AND
+/// [`native_label_effective`] comes up empty (no catalog native slot, or one
+/// suppressed by `keep`), a seeded layer chord targeting `c.action`
+/// ([`seeded_chord_fallback`], the SAME helper [`join_slots_truthful`]'s emacs
+/// slot falls back to) fills this cell instead — "one true shortcut" still
+/// holds when the only chord that actually fires is a seeded one, e.g. Command
+/// palette's `M-x` under Linux `keymap = "emacs"`, where no ordinary native
+/// chord survives at all. Never shown ALONGSIDE a real native label (this is a
+/// fallback, not an addition), so the menu's single chord column never grows a
+/// second entry.
 pub(crate) fn menu_native_label(
     c: &Command,
     keys: &[(String, Vec<String>)],
     keep: &[String],
     convention: Convention,
     platform: Platform,
+    flavor: KeymapFlavor,
 ) -> String {
     if let Some(chords) = override_chords(c, keys) {
         return chords
@@ -367,7 +412,11 @@ pub(crate) fn menu_native_label(
             })
             .unwrap_or_default();
     }
-    native_label_effective(c, convention, platform, keep)
+    let native = native_label_effective(c, convention, platform, keep);
+    if !native.is_empty() {
+        return native;
+    }
+    seeded_chord_fallback(c, convention, flavor)
 }
 
 /// THE GUIDE'S GENERATED KEYS REFERENCE — the drift-proof source for the fenced
@@ -392,14 +441,30 @@ pub(crate) fn menu_native_label(
 /// `cargo test --bin awl guide::tests::print_generated_keys_reference -- --ignored --nocapture`
 #[cfg(test)]
 pub(crate) fn generate_keys_reference_markdown() -> String {
+    generate_keys_reference_markdown_for(KeymapFlavor::Native)
+}
+
+/// [`generate_keys_reference_markdown`]'s own FLAVOR-PARAMETRIC half — the
+/// GUIDE generator's side of the label-truth round, so it reads
+/// [`crate::keymap::seeded_chords_for`] through the exact same
+/// [`join_slots_truthful`] call the palette makes, rather than a second
+/// derivation. The checked-in `GUIDE.md` table stays keyed to
+/// [`KeymapFlavor::Native`] (the DEFAULT install's chords, unaffected by this
+/// split — see the wrapper's own byte-identity law); a `KeymapFlavor::Emacs`
+/// call is exercised only by the label↔dispatch agreement sweep, which needs
+/// to ask this generator the same question every other surface answers.
+#[cfg(test)]
+pub(crate) fn generate_keys_reference_markdown_for(flavor: KeymapFlavor) -> String {
     let mut out = String::new();
     out.push_str("| Command | macOS | Linux |\n");
     out.push_str("|---|---|---|\n");
-    let default_linux_keep = crate::config::Config::empty().effective_linux_keep();
+    let mut cfg = crate::config::Config::empty();
+    cfg.keymap = Some(flavor.config_name().to_string());
+    let linux_keep = cfg.effective_linux_keep();
     for c in COMMANDS.iter() {
-        let mac = join_slots_truthful(c, Convention::Mac, Platform::Native, &[]);
+        let mac = join_slots_truthful(c, Convention::Mac, Platform::Native, &[], flavor);
         let linux =
-            join_slots_truthful(c, Convention::Linux, Platform::Native, &default_linux_keep);
+            join_slots_truthful(c, Convention::Linux, Platform::Native, &linux_keep, flavor);
         out.push_str(&format!("| {} | {mac} | {linux} |\n", c.name));
     }
     out
@@ -544,23 +609,48 @@ pub fn visible_names() -> Vec<String> {
 /// The EFFECTIVE binding labels for [`visible`], parallel to [`visible_names`] — the
 /// platform-filtered sibling of [`effective_bindings`], sharing its per-command body
 /// (`effective_binding_for`) so the two can never compute a binding label differently.
-pub fn visible_effective_bindings(keys: &[(String, Vec<String>)], keep: &[String]) -> Vec<String> {
+pub fn visible_effective_bindings(
+    keys: &[(String, Vec<String>)],
+    keep: &[String],
+    flavor: KeymapFlavor,
+) -> Vec<String> {
     visible()
         .iter()
-        .map(|c| effective_binding_for(c, keys, keep, Platform::current()))
+        .map(|c| effective_binding_for(c, keys, keep, Platform::current(), flavor))
         .collect()
 }
 
 /// The EFFECTIVE chord LISTS for [`visible`], parallel to [`visible_names`] — each
 /// command's active chords (a valid config override, else the static native/emacs
-/// slots), UN-joined and un-glyphified (empty slots dropped), narrowed to the
-/// platform-visible set. This is what which-key (`crate::whichkey::continuations`)
-/// derives its prefix rows from, so a hidden command's chord (if it happened to
-/// start with a prefix) never surfaces as a continuation on web.
-pub fn visible_effective_chord_lists(keys: &[(String, Vec<String>)]) -> Vec<Vec<String>> {
+/// slots, PLUS any seeded layer chord targeting this command's action under
+/// `convention`+`flavor` when the command has no `[keys]` override of its own —
+/// an override always wins over a seed at dispatch, so a seed's continuation
+/// would teach a chord that no longer fires once a user has overridden the
+/// command), UN-joined and un-glyphified (empty slots dropped), narrowed to
+/// the platform-visible set. This is what which-key
+/// (`crate::whichkey::continuations`) derives its prefix rows from, so a
+/// hidden command's chord (if it happened to start with a prefix) never
+/// surfaces as a continuation on web, and a seeded `C-x` continuation (Linux
+/// `keymap = "emacs"`'s classic `C-x C-s`/`C-x C-f`/`C-x k`/`C-x h`) reads
+/// from the SAME roster dispatch consumes rather than a second hand-kept list.
+pub fn visible_effective_chord_lists(
+    keys: &[(String, Vec<String>)],
+    convention: Convention,
+    flavor: KeymapFlavor,
+) -> Vec<Vec<String>> {
     visible()
         .iter()
-        .map(|c| effective_chords(c, keys))
+        .map(|c| {
+            let mut chords = effective_chords(c, keys);
+            if !effective_is_override(c, keys) {
+                chords.extend(
+                    crate::keymap::seeded_chords_for(&c.action, convention, flavor)
+                        .into_iter()
+                        .map(str::to_string),
+                );
+            }
+            chords
+        })
         .collect()
 }
 

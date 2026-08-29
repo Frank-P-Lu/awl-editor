@@ -511,10 +511,14 @@ fn capture_screenshot(
     }
     if crate::whichkey::force_shown() {
         opts.whichkey = Some(
-            crate::whichkey::continuations_cx(&config.keys)
-                .into_iter()
-                .map(|c| (c.key, c.name))
-                .collect(),
+            crate::whichkey::continuations_cx(
+                &config.keys,
+                crate::convention::Convention::current(),
+                config.keymap_flavor(),
+            )
+            .into_iter()
+            .map(|c| (c.key, c.name))
+            .collect(),
         );
     }
     opts.buffers = Some(capture::BuffersInfo {

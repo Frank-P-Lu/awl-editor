@@ -87,7 +87,11 @@ impl DropdownPlan {
     /// `sync_view` — see [`ViewState::config_keys`](crate::render::ViewState::config_keys))
     /// threaded into the chord column so it can never advertise a chord the
     /// resolver would not actually dispatch under this user's `keymap` flavor
-    /// or a `[keys]` rebind.
+    /// or a `[keys]` rebind. `flavor` is the SAME config `keymap` flavor,
+    /// needed for the seeded-layer fallback (`commands::menu_native_label`'s
+    /// own doc) that lets this column show a seeded chord (e.g. Linux
+    /// `keymap = "emacs"`'s `M-x`) when no ordinary chord survives.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         items: &[crate::menu::RosterItem],
         row_h: f32,
@@ -96,6 +100,7 @@ impl DropdownPlan {
         scale: f32,
         keys: &[(String, Vec<String>)],
         keep: &[String],
+        flavor: crate::keymap::KeymapFlavor,
     ) -> Self {
         let mut labels = String::new();
         let mut chords = String::new();
@@ -113,7 +118,7 @@ impl DropdownPlan {
             let chord_start = chords.len();
             match item {
                 crate::menu::RosterItem::Routed { id, label, .. } => {
-                    let chord = crate::menu::item_chord_for_id(id, keys, keep);
+                    let chord = crate::menu::item_chord_for_id(id, keys, keep, flavor);
                     widest_label = widest_label.max(label.chars().count());
                     widest_chord = widest_chord.max(chord.chars().count());
                     labels.push_str(label);

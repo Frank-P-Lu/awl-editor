@@ -450,6 +450,7 @@ impl TextPipeline {
         // field does — no separate invalidation needed.
         self.config_keys.clone_from(&view.config_keys);
         self.config_linux_keep.clone_from(&view.config_linux_keep);
+        self.config_keymap_flavor = view.config_keymap_flavor;
         self.notice = view.notice.clone();
         self.notice_kind = view.notice_kind;
         self.eol = view.eol;

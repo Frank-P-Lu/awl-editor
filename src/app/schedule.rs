@@ -368,10 +368,14 @@ impl App {
     /// over [`whichkey_is_shown`](Self::whichkey_is_shown).)
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn whichkey_continuation_rows(&self) -> Vec<(String, String)> {
-        crate::whichkey::continuations_cx(&self.config.keys)
-            .into_iter()
-            .map(|c| (c.key, c.name))
-            .collect()
+        crate::whichkey::continuations_cx(
+            &self.config.keys,
+            crate::convention::Convention::current(),
+            self.config.keymap_flavor(),
+        )
+        .into_iter()
+        .map(|c| (c.key, c.name))
+        .collect()
     }
 
     /// Inject a clock behind the `Box<dyn Clock>` seam (frame-loop harness + the

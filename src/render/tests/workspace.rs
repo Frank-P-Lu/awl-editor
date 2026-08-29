@@ -434,7 +434,7 @@ fn a_contextual_overlay_never_enters_the_workspace_family() {
         headless_dqp(w as f32, h as f32).expect("workspace laws require a wgpu adapter");
     let ov = OverlayState::new_command(
         crate::commands::visible_names(),
-        crate::commands::visible_effective_bindings(&[], &[]),
+        crate::commands::visible_effective_bindings(&[], &[], crate::keymap::KeymapFlavor::Native),
         crate::commands::visible_hidden_mask(Default::default()),
     );
     let mut v = workspace_view(&ov);

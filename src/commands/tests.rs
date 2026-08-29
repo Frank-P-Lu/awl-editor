@@ -425,17 +425,20 @@ fn effective_bindings_reflect_overrides() {
     // convention actually IS Mac; under Linux they correctly diverge (Ctrl
     // word labels vs. the mac-glyph baseline) BY DESIGN.
     if Convention::current() == Convention::Mac {
-        assert_eq!(effective_bindings(&[], &[]), bindings());
+        assert_eq!(
+            effective_bindings(&[], &[], crate::keymap::KeymapFlavor::Native),
+            bindings()
+        );
     }
     let keys = vec![("switch_theme".to_string(), vec!["C-t".to_string()])];
-    let eff = effective_bindings(&keys, &[]);
+    let eff = effective_bindings(&keys, &[], crate::keymap::KeymapFlavor::Native);
     let i = COMMANDS
         .iter()
         .position(|c| c.name == "Switch theme…")
         .unwrap();
     assert_eq!(eff[i], glyph("C-t"));
     let bad = vec![("switch_theme".to_string(), vec!["C-frobnicate".to_string()])];
-    let eff = effective_bindings(&bad, &[]);
+    let eff = effective_bindings(&bad, &[], crate::keymap::KeymapFlavor::Native);
     assert_eq!(eff[i], label_for("Switch theme…"));
 }
 
@@ -456,14 +459,17 @@ fn effective_bindings_show_both_slots() {
         vec!["Cmd-S".to_string(), "C-x C-s".to_string()],
     )];
     assert_eq!(
-        effective_bindings(&keys, &[])[i],
+        effective_bindings(&keys, &[], crate::keymap::KeymapFlavor::Native)[i],
         format!("{} · C-x C-s", glyph("Cmd-S"))
     );
     let mixed = vec![(
         "save".to_string(),
         vec!["Cmd-S".to_string(), "C-frobnicate".to_string()],
     )];
-    assert_eq!(effective_bindings(&mixed, &[])[i], glyph("Cmd-S"));
+    assert_eq!(
+        effective_bindings(&mixed, &[], crate::keymap::KeymapFlavor::Native)[i],
+        glyph("Cmd-S")
+    );
 }
 
 #[test]
@@ -767,7 +773,7 @@ fn markdown_formatting_commands_are_all_present_named_and_rebindable() {
     assert_eq!(binding_conflict("Cmd-I", "italic", &[]), None);
     assert_eq!(binding_conflict("Cmd-E", "inline_code", &[]), None);
     assert_eq!(binding_conflict("Cmd-S-l", "task_list", &[]), None);
-    let eff = effective_bindings(&[], &[]);
+    let eff = effective_bindings(&[], &[], crate::keymap::KeymapFlavor::Native);
     let bold = COMMANDS.iter().position(|c| c.name == "Bold").unwrap();
     let ital = COMMANDS.iter().position(|c| c.name == "Italic").unwrap();
     let code = COMMANDS
@@ -1100,7 +1106,10 @@ fn motion_commands_are_all_present_named_and_rebindable() {
         .iter()
         .position(|c| c.name == "Forward word")
         .unwrap();
-    assert_eq!(effective_bindings(&keys, &[])[i], glyph("M-f"));
+    assert_eq!(
+        effective_bindings(&keys, &[], crate::keymap::KeymapFlavor::Native)[i],
+        glyph("M-f")
+    );
 }
 
 #[test]
@@ -1146,7 +1155,10 @@ fn word_delete_commands_are_catalog_rows_and_rebindable() {
         .iter()
         .position(|c| c.name == "Delete word forward")
         .unwrap();
-    assert_eq!(effective_bindings(&keys, &[])[i], glyph("M-d"));
+    assert_eq!(
+        effective_bindings(&keys, &[], crate::keymap::KeymapFlavor::Native)[i],
+        glyph("M-d")
+    );
 }
 
 const HIDE_ON_WEB: &[&str] = &[
@@ -1372,7 +1384,7 @@ fn visible_corpus_index_coherence_holds_on_both_platforms() {
 fn visible_names_and_bindings_are_parallel_and_match_visible() {
     let corpus = visible();
     let names = visible_names();
-    let binds = visible_effective_bindings(&[], &[]);
+    let binds = visible_effective_bindings(&[], &[], crate::keymap::KeymapFlavor::Native);
     assert_eq!(names.len(), corpus.len());
     assert_eq!(binds.len(), corpus.len());
     for (i, c) in corpus.iter().enumerate() {
@@ -1594,7 +1606,13 @@ fn visible_recent_indices_drops_hidden_catalog_entries_and_translates_the_rest()
 fn mac_native_label_truth_is_byte_identical_to_join_slots() {
     for c in COMMANDS.iter() {
         assert_eq!(
-            join_slots_truthful(c, Convention::Mac, Platform::Native, &[]),
+            join_slots_truthful(
+                c,
+                Convention::Mac,
+                Platform::Native,
+                &[],
+                crate::keymap::KeymapFlavor::Native
+            ),
             join_slots(c.native, c.emacs),
             "{} diverged from the pre-round Mac-native label",
             c.name
@@ -1627,7 +1645,13 @@ fn web_reserved_native_chord_shows_its_web_alternate() {
                 c.name
             );
             assert_eq!(
-                join_slots_truthful(c, convention, Platform::Web, &[]),
+                join_slots_truthful(
+                    c,
+                    convention,
+                    Platform::Web,
+                    &[],
+                    crate::keymap::KeymapFlavor::Native
+                ),
                 label
             );
             assert_eq!(
@@ -1746,15 +1770,33 @@ fn web_reserved_native_chord_falls_back_to_a_surviving_emacs_slot() {
         description: None,
     };
     assert_eq!(
-        join_slots_truthful(&synthetic, Convention::Mac, Platform::Web, &[]),
+        join_slots_truthful(
+            &synthetic,
+            Convention::Mac,
+            Platform::Web,
+            &[],
+            crate::keymap::KeymapFlavor::Native
+        ),
         "C-k"
     );
     assert_eq!(
-        join_slots_truthful(&synthetic, Convention::Linux, Platform::Web, &[]),
+        join_slots_truthful(
+            &synthetic,
+            Convention::Linux,
+            Platform::Web,
+            &[],
+            crate::keymap::KeymapFlavor::Native
+        ),
         "C-k"
     );
     assert_eq!(
-        join_slots_truthful(&synthetic, Convention::Mac, Platform::Native, &[]),
+        join_slots_truthful(
+            &synthetic,
+            Convention::Mac,
+            Platform::Native,
+            &[],
+            crate::keymap::KeymapFlavor::Native
+        ),
         "⌘N · C-k"
     );
 }
@@ -1781,7 +1823,13 @@ fn linux_displaced_emacs_default_never_shown_on_either_platform() {
         .find(|c| c.name == "Search forward")
         .unwrap();
     for platform in [Platform::Native, Platform::Web] {
-        let label = join_slots_truthful(search, Convention::Linux, platform, &[]);
+        let label = join_slots_truthful(
+            search,
+            Convention::Linux,
+            platform,
+            &[],
+            crate::keymap::KeymapFlavor::Native,
+        );
         assert_eq!(
             label, "Ctrl+F",
             "displaced C-s must not appear (platform {platform:?})"
@@ -1790,7 +1838,13 @@ fn linux_displaced_emacs_default_never_shown_on_either_platform() {
     // Mac convention: the emacs slot is UNCHANGED (Ctrl never reads native
     // there), so the old joined form survives on both platforms.
     assert_eq!(
-        join_slots_truthful(search, Convention::Mac, Platform::Native, &[]),
+        join_slots_truthful(
+            search,
+            Convention::Mac,
+            Platform::Native,
+            &[],
+            crate::keymap::KeymapFlavor::Native
+        ),
         "⌘F · C-s"
     );
 }
@@ -1805,11 +1859,23 @@ fn linux_displaces_a_prefix_sequence_by_its_first_key() {
     assert_eq!(follow.native.trim(), "");
     assert_eq!(follow.emacs, "C-c C-o");
     assert_eq!(
-        join_slots_truthful(follow, Convention::Linux, Platform::Native, &[]),
+        join_slots_truthful(
+            follow,
+            Convention::Linux,
+            Platform::Native,
+            &[],
+            crate::keymap::KeymapFlavor::Native
+        ),
         ""
     );
     assert_eq!(
-        join_slots_truthful(follow, Convention::Mac, Platform::Native, &[]),
+        join_slots_truthful(
+            follow,
+            Convention::Mac,
+            Platform::Native,
+            &[],
+            crate::keymap::KeymapFlavor::Native
+        ),
         "C-c C-o"
     );
 }
@@ -1821,7 +1887,13 @@ fn linux_displaces_a_prefix_sequence_by_its_first_key() {
 fn non_displaced_emacs_default_survives_linux() {
     let undo = COMMANDS.iter().find(|c| c.name == "Undo").unwrap();
     assert_eq!(
-        join_slots_truthful(undo, Convention::Linux, Platform::Native, &[]),
+        join_slots_truthful(
+            undo,
+            Convention::Linux,
+            Platform::Native,
+            &[],
+            crate::keymap::KeymapFlavor::Native
+        ),
         "Ctrl+Z · C-/"
     );
 }
@@ -1872,7 +1944,13 @@ fn label_truth_law_holds_across_the_whole_catalog() {
                 let displaced = convention == Convention::Linux
                     && crate::keymap::linux_displaces_emacs_default(c.emacs, &[]);
                 if displaced {
-                    let label = join_slots_truthful(c, convention, platform, &[]);
+                    let label = join_slots_truthful(
+                        c,
+                        convention,
+                        platform,
+                        &[],
+                        crate::keymap::KeymapFlavor::Native,
+                    );
                     assert!(
                         !label.split(" · ").any(|tok| tok == c.emacs),
                         "{}: displaced emacs default {:?} still shown \
@@ -1902,11 +1980,23 @@ fn linux_keep_emacs_restores_the_emacs_label_and_suppresses_the_native_one() {
         .unwrap();
 
     assert_eq!(
-        join_slots_truthful(forward_char, Convention::Linux, Platform::Native, &[]),
+        join_slots_truthful(
+            forward_char,
+            Convention::Linux,
+            Platform::Native,
+            &[],
+            crate::keymap::KeymapFlavor::Native
+        ),
         ""
     );
     assert_eq!(
-        join_slots_truthful(search, Convention::Linux, Platform::Native, &[]),
+        join_slots_truthful(
+            search,
+            Convention::Linux,
+            Platform::Native,
+            &[],
+            crate::keymap::KeymapFlavor::Native
+        ),
         "Ctrl+F"
     );
 
@@ -1917,21 +2007,57 @@ fn linux_keep_emacs_restores_the_emacs_label_and_suppresses_the_native_one() {
     // Search forward's label goes fully blank — it has NO chord that fires
     // on Linux once C-f is given back to Forward char.
     assert_eq!(
-        join_slots_truthful(forward_char, Convention::Linux, Platform::Native, &keep),
+        join_slots_truthful(
+            forward_char,
+            Convention::Linux,
+            Platform::Native,
+            &keep,
+            crate::keymap::KeymapFlavor::Native
+        ),
         "C-f"
     );
     assert_eq!(
-        join_slots_truthful(search, Convention::Linux, Platform::Native, &keep),
+        join_slots_truthful(
+            search,
+            Convention::Linux,
+            Platform::Native,
+            &keep,
+            crate::keymap::KeymapFlavor::Native
+        ),
         ""
     );
 
     assert_eq!(
-        join_slots_truthful(forward_char, Convention::Mac, Platform::Native, &keep),
-        join_slots_truthful(forward_char, Convention::Mac, Platform::Native, &[]),
+        join_slots_truthful(
+            forward_char,
+            Convention::Mac,
+            Platform::Native,
+            &keep,
+            crate::keymap::KeymapFlavor::Native
+        ),
+        join_slots_truthful(
+            forward_char,
+            Convention::Mac,
+            Platform::Native,
+            &[],
+            crate::keymap::KeymapFlavor::Native
+        ),
     );
     assert_eq!(
-        join_slots_truthful(search, Convention::Mac, Platform::Native, &keep),
-        join_slots_truthful(search, Convention::Mac, Platform::Native, &[]),
+        join_slots_truthful(
+            search,
+            Convention::Mac,
+            Platform::Native,
+            &keep,
+            crate::keymap::KeymapFlavor::Native
+        ),
+        join_slots_truthful(
+            search,
+            Convention::Mac,
+            Platform::Native,
+            &[],
+            crate::keymap::KeymapFlavor::Native
+        ),
     );
 }
 
@@ -1940,12 +2066,24 @@ fn linux_keep_emacs_is_a_per_chord_door_not_a_policy_flip() {
     let keep = vec!["C-f".to_string()];
     let next_line = COMMANDS.iter().find(|c| c.name == "Next line").unwrap();
     assert_eq!(
-        join_slots_truthful(next_line, Convention::Linux, Platform::Native, &keep),
+        join_slots_truthful(
+            next_line,
+            Convention::Linux,
+            Platform::Native,
+            &keep,
+            crate::keymap::KeymapFlavor::Native
+        ),
         ""
     );
     let new_document = COMMANDS.iter().find(|c| c.name == "New document").unwrap();
     assert_eq!(
-        join_slots_truthful(new_document, Convention::Linux, Platform::Native, &keep),
+        join_slots_truthful(
+            new_document,
+            Convention::Linux,
+            Platform::Native,
+            &keep,
+            crate::keymap::KeymapFlavor::Native
+        ),
         "Ctrl+N"
     );
 }
@@ -1963,8 +2101,14 @@ fn effective_bindings_reflects_the_linux_keep_emacs_list() {
         .iter()
         .position(|c| c.name == "Forward char")
         .unwrap();
-    assert_eq!(effective_bindings(&[], &[])[i], "");
-    assert_eq!(effective_bindings(&[], &keep)[i], "C-f");
+    assert_eq!(
+        effective_bindings(&[], &[], crate::keymap::KeymapFlavor::Native)[i],
+        ""
+    );
+    assert_eq!(
+        effective_bindings(&[], &keep, crate::keymap::KeymapFlavor::Native)[i],
+        "C-f"
+    );
 }
 
 #[test]
@@ -1977,8 +2121,20 @@ fn linux_keep_emacs_is_inert_on_mac_for_the_whole_catalog() {
     ];
     for c in COMMANDS.iter() {
         assert_eq!(
-            join_slots_truthful(c, Convention::Mac, Platform::Native, &keep),
-            join_slots_truthful(c, Convention::Mac, Platform::Native, &[]),
+            join_slots_truthful(
+                c,
+                Convention::Mac,
+                Platform::Native,
+                &keep,
+                crate::keymap::KeymapFlavor::Native
+            ),
+            join_slots_truthful(
+                c,
+                Convention::Mac,
+                Platform::Native,
+                &[],
+                crate::keymap::KeymapFlavor::Native
+            ),
             "{}: linux_keep_emacs must be inert on Mac",
             c.name
         );
@@ -2006,15 +2162,33 @@ fn keymap_flavor_emacs_preset_restores_labels_two_sided() {
         .unwrap();
     let save = COMMANDS.iter().find(|c| c.name == "Save").unwrap();
     assert_eq!(
-        join_slots_truthful(forward_char, Convention::Linux, Platform::Native, &preset),
+        join_slots_truthful(
+            forward_char,
+            Convention::Linux,
+            Platform::Native,
+            &preset,
+            crate::keymap::KeymapFlavor::Native
+        ),
         "C-f"
     );
     assert_eq!(
-        join_slots_truthful(search, Convention::Linux, Platform::Native, &preset),
+        join_slots_truthful(
+            search,
+            Convention::Linux,
+            Platform::Native,
+            &preset,
+            crate::keymap::KeymapFlavor::Native
+        ),
         "C-s"
     );
     assert_eq!(
-        join_slots_truthful(save, Convention::Linux, Platform::Native, &preset),
+        join_slots_truthful(
+            save,
+            Convention::Linux,
+            Platform::Native,
+            &preset,
+            crate::keymap::KeymapFlavor::Native
+        ),
         ""
     );
 }
@@ -2024,8 +2198,20 @@ fn keymap_flavor_emacs_preset_is_inert_on_mac_for_the_whole_catalog() {
     let preset = crate::keymap::linux_emacs_preset_keep();
     for c in COMMANDS.iter() {
         assert_eq!(
-            join_slots_truthful(c, Convention::Mac, Platform::Native, &preset),
-            join_slots_truthful(c, Convention::Mac, Platform::Native, &[]),
+            join_slots_truthful(
+                c,
+                Convention::Mac,
+                Platform::Native,
+                &preset,
+                crate::keymap::KeymapFlavor::Native
+            ),
+            join_slots_truthful(
+                c,
+                Convention::Mac,
+                Platform::Native,
+                &[],
+                crate::keymap::KeymapFlavor::Native
+            ),
             "{}: the emacs keymap flavor must be inert on Mac",
             c.name
         );
@@ -2048,13 +2234,15 @@ fn config_effective_linux_keep_feeds_join_slots_truthful_identically_to_the_bare
             forward_char,
             Convention::Linux,
             Platform::Native,
-            &via_config
+            &via_config,
+            crate::keymap::KeymapFlavor::Native
         ),
         join_slots_truthful(
             forward_char,
             Convention::Linux,
             Platform::Native,
-            &bare_preset
+            &bare_preset,
+            crate::keymap::KeymapFlavor::Native
         ),
     );
 }
@@ -2075,12 +2263,24 @@ fn insert_link_has_no_visible_linux_binding_out_of_the_box_mac_shows_cmd_k() {
         cfg.keymap = Some(flavor.to_string());
         let keep = cfg.effective_linux_keep();
         assert_eq!(
-            join_slots_truthful(insert_link, Convention::Linux, Platform::Native, &keep),
+            join_slots_truthful(
+                insert_link,
+                Convention::Linux,
+                Platform::Native,
+                &keep,
+                crate::keymap::KeymapFlavor::Native
+            ),
             "",
             "Insert link must show no Linux chord out of the box under keymap={flavor:?}"
         );
         assert_eq!(
-            join_slots_truthful(insert_link, Convention::Mac, Platform::Native, &keep),
+            join_slots_truthful(
+                insert_link,
+                Convention::Mac,
+                Platform::Native,
+                &keep,
+                crate::keymap::KeymapFlavor::Native
+            ),
             "⌘K",
             "Mac must still show Cmd-K under keymap={flavor:?} (the keep list is Linux-only)"
         );
@@ -2095,11 +2295,297 @@ fn effective_linux_keep_builtin_floor_is_inert_on_mac_for_the_whole_catalog() {
         let keep = cfg.effective_linux_keep();
         for c in COMMANDS.iter() {
             assert_eq!(
-                join_slots_truthful(c, Convention::Mac, Platform::Native, &keep),
-                join_slots_truthful(c, Convention::Mac, Platform::Native, &[]),
+                join_slots_truthful(
+                    c,
+                    Convention::Mac,
+                    Platform::Native,
+                    &keep,
+                    crate::keymap::KeymapFlavor::Native
+                ),
+                join_slots_truthful(
+                    c,
+                    Convention::Mac,
+                    Platform::Native,
+                    &[],
+                    crate::keymap::KeymapFlavor::Native
+                ),
                 "{}: the built-in keep floor must be inert on Mac (keymap={flavor:?})",
                 c.name
             );
+        }
+    }
+}
+
+/// THE LABEL↔DISPATCH AGREEMENT LAW — the codebase's own
+/// label-truth rule ("never a chord the resolver would not actually
+/// dispatch") checked in BOTH directions, swept over every
+/// (`Convention`, `KeymapFlavor`) cell a real install can be in:
+///
+/// (a) every TERSE chord (`"C-a"`, `"M-x"` — never a display glyph like
+///     `"⌘S"`, which does not round-trip through `keyspec::parse_chord`)
+///     either the palette's [`join_slots_truthful`] or the drawn menu's
+///     [`menu_native_label`] advertises for a command resolves, through a
+///     REAL [`crate::keymap::KeymapState`] built for that exact cell, to
+///     that command's own [`Action`] — a two-token prefix segment (`"C-c
+///     C-o"`) is skipped (resolving a prefix sequence needs the two-step
+///     dance `KeymapState::resolve` alone can't take in one call; other laws
+///     already cover that shape), but a NON-VACUITY floor below proves this
+///     still checks a real number of single-token chords.
+/// (b) every seeded chord any table [`crate::keymap::active_seed_tables`]
+///     returns for this cell names is advertised on the palette or the
+///     menu — unless its `Action` has no catalog [`Command`] to attach a
+///     label to at all ([`SEEDED_ACTIONS_WITH_NO_CATALOG_ROW`]), in which
+///     case no label surface here could ever name it regardless of this
+///     round's fix. Reading the table LIST rather than a single named
+///     table means a future seeded layer (a second table appended to
+///     `active_seed_tables`'s returned list) is swept here automatically.
+///
+/// The GUIDE generator ([`generate_keys_reference_markdown_for`]) is not
+/// re-checked separately: it calls [`join_slots_truthful`] with the exact
+/// same arguments this law already drives, so a direct check of that
+/// function already exercises the GUIDE generator's own logic.
+///
+/// NON-VACUITY: before this round's fix, direction (b) failed here on
+/// Command palette's `"M-x"` under `(Linux, Emacs)` — the exact failure this
+/// law is named for; see the mutation-proof note in the queue landing entry
+/// for the frozen panic text. The seed-table sweep also needs at least one
+/// entry that DOES resolve to a real catalog command, so a vacuous "every
+/// entry lacks a row" pass can't slip through:
+#[test]
+fn label_dispatch_agreement_sweeps_convention_and_flavor() {
+    use crate::keymap::{KeymapFlavor, KeymapState, active_seed_tables};
+
+    /// Seeded actions with NO catalog [`Command`] row to attach a label to —
+    /// see `platform::LINUX_EMACS_META_SEED`'s own doc. `PageScrollUp`
+    /// (`M-v`) is reachable only via the static `NamedKey::PageUp` arm and
+    /// this seed; no palette/menu row exists to advertise it on, by
+    /// construction, not by an oversight this law should chase.
+    const SEEDED_ACTIONS_WITH_NO_CATALOG_ROW: &[Action] = &[Action::PageScrollUp];
+
+    let mut checked_chords = 0usize;
+    let mut checked_seed_rows = 0usize;
+
+    for convention in [Convention::Mac, Convention::Linux] {
+        for flavor in [KeymapFlavor::Native, KeymapFlavor::Emacs] {
+            let mut cfg = crate::config::Config::empty();
+            cfg.keymap = Some(flavor.config_name().to_string());
+            let keep = cfg.effective_linux_keep();
+
+            let mut km = KeymapState::new_with_convention(convention);
+            km.apply_linux_keep(&keep);
+            km.set_linux_emacs_meta(
+                convention == Convention::Linux && flavor == KeymapFlavor::Emacs,
+            );
+
+            // Direction (a): every advertised single-token chord resolves to
+            // its own command's action.
+            for c in COMMANDS.iter() {
+                let palette = join_slots_truthful(c, convention, Platform::Native, &keep, flavor);
+                let menu = menu_native_label(c, &[], &keep, convention, Platform::Native, flavor);
+                for label in [&palette, &menu] {
+                    for seg in label.split(" · ") {
+                        let seg = seg.trim();
+                        if seg.is_empty() || seg.contains(' ') {
+                            continue; // empty cell, or a two-token prefix sequence.
+                        }
+                        let Ok((key, mods)) = crate::keyspec::parse_chord(seg) else {
+                            continue; // a display glyph (e.g. "⌘S"), not a terse spec.
+                        };
+                        checked_chords += 1;
+                        assert_eq!(
+                            km.resolve(&key, &mods),
+                            c.action,
+                            "{}: advertised chord {seg:?} does not resolve to its own \
+                             action ({convention:?}/{flavor:?})",
+                            c.name
+                        );
+                    }
+                }
+            }
+
+            // Direction (b): every seeded chord for THIS cell is advertised
+            // somewhere. Off (Linux, Emacs) the table seeds nothing, so the
+            // loop is empty and the check is vacuously satisfied — correctly,
+            // since there is nothing to advertise there.
+            for table in active_seed_tables(convention, flavor) {
+                for (spec, action) in *table {
+                    let Some(c) = COMMANDS.iter().find(|c| &c.action == action) else {
+                        assert!(
+                            SEEDED_ACTIONS_WITH_NO_CATALOG_ROW.contains(action),
+                            "{spec:?} targets {action:?}, which has no catalog Command \
+                             and is not named in SEEDED_ACTIONS_WITH_NO_CATALOG_ROW"
+                        );
+                        continue;
+                    };
+                    checked_seed_rows += 1;
+                    let palette =
+                        join_slots_truthful(c, convention, Platform::Native, &keep, flavor);
+                    let menu =
+                        menu_native_label(c, &[], &keep, convention, Platform::Native, flavor);
+                    let advertised = [&palette, &menu]
+                        .iter()
+                        .any(|label| label.split(" · ").any(|seg| seg.trim() == *spec));
+                    assert!(
+                        advertised,
+                        "seeded chord {spec:?} (action {action:?}) is not advertised on \
+                         the palette or the drawn menu under {convention:?}/{flavor:?}"
+                    );
+                }
+            }
+        }
+    }
+
+    assert!(
+        checked_chords > 50,
+        "direction (a) checked only {checked_chords} chords — the sweep is checking too \
+         little"
+    );
+    assert!(
+        // A literal floor, not derived from the live tables themselves —
+        // comparing the sweep's count against a quantity computed from the
+        // SAME tables would still match after either table was emptied.
+        // Today: 9 catalog-covered Meta entries (10 minus PageScrollUp) + 4
+        // classic C-x entries = 13; this may only rise.
+        checked_seed_rows >= 13,
+        "direction (b) checked only {checked_seed_rows} seeded/catalog-row pairs — \
+         expected at least 13 (9 Meta + 4 classic); the sweep would be vacuous if either \
+         seed table went missing"
+    );
+}
+
+/// HARD LAW (the classic-chords round's "deliberately not scoped" claim, VERIFIED against
+/// real keymap resolution rather than restated): under Linux `keymap =
+/// "emacs"`, Bold's and Inline code's native chords ARE displaced (`b`/`e`
+/// are both in `LINUX_DISPLACED_LETTERS`), so both go palette-only — no
+/// native label, no emacs label (their catalog emacs slots are blank), no
+/// seed. Neither is in this round's reseed list (deliberately: taste-scoped
+/// separately), so both stay blank.
+#[test]
+fn bold_and_inline_code_are_palette_only_on_linux_emacs_flavor() {
+    let mut cfg = crate::config::Config::empty();
+    cfg.keymap = Some("emacs".to_string());
+    let keep = cfg.effective_linux_keep();
+    for name in ["Bold", "Inline code"] {
+        let c = COMMANDS.iter().find(|c| c.name == name).unwrap();
+        let label = join_slots_truthful(
+            c,
+            Convention::Linux,
+            Platform::Native,
+            &keep,
+            crate::keymap::KeymapFlavor::Emacs,
+        );
+        assert_eq!(
+            label, "",
+            "{name}: must be palette-only (no Linux emacs-flavor chord), got {label:?}"
+        );
+    }
+}
+
+/// HARD LAW — the CORRECTION to a false premise: Italic's native letter
+/// (`i`) is NOT in `LINUX_DISPLACED_LETTERS`, so — unlike Bold/Inline code —
+/// its native Ctrl-I chord is NEVER displaced on Linux, under EITHER keymap
+/// flavor. Italic is therefore NOT palette-only on Linux emacs, despite a
+/// brief's claim grouping it with Bold/Inline code; this law pins the real
+/// behavior so that claim can't quietly re-enter as fact. Checked both as a
+/// LABEL (the chord is still advertised) and as DISPATCH (the chord still
+/// resolves to Italic through a real keymap).
+#[test]
+fn italic_survives_linux_emacs_flavor_unlike_bold_and_inline_code() {
+    let mut cfg = crate::config::Config::empty();
+    cfg.keymap = Some("emacs".to_string());
+    let keep = cfg.effective_linux_keep();
+    let italic = COMMANDS.iter().find(|c| c.name == "Italic").unwrap();
+    let label = join_slots_truthful(
+        italic,
+        Convention::Linux,
+        Platform::Native,
+        &keep,
+        crate::keymap::KeymapFlavor::Emacs,
+    );
+    assert_eq!(
+        label, "Ctrl+I",
+        "Italic's native Ctrl-I must survive Linux emacs flavor (not displaced), got {label:?}"
+    );
+
+    let mut km = crate::keymap::KeymapState::new_with_convention(Convention::Linux);
+    km.apply_linux_keep(&keep);
+    km.set_linux_emacs_meta(true);
+    let (key, mods) = crate::keyspec::parse_chord("C-i").unwrap();
+    assert_eq!(
+        km.resolve(&key, &mods),
+        Action::Italic,
+        "Ctrl-I must still dispatch Italic under Linux emacs flavor"
+    );
+}
+
+/// HARD LAW — the whole `C-c` emacs-slot layer (Follow link's `C-c C-o`,
+/// Fold section's `C-c C-f`, Collapse other sections' `C-c C-t`, Insert
+/// Date's `C-c .`) is DEAD on Linux under BOTH keymap flavors, verified
+/// against real dispatch rather than restated: `c` sits in
+/// `NATIVE_CLIPBOARD_LETTERS`, so Ctrl-C resolves straight to Copy on Linux
+/// unconditionally (`linux_emacs_preset_keep`'s own carve-out) — the `C-c`
+/// prefix state is never entered, so no two-key `C-c <key>` sequence can
+/// ever complete. Three of the four (Fold section, Collapse other sections,
+/// Insert Date) also carry a WORKING native Cmd-Shift-<letter> chord, so
+/// their Linux label is NOT blank — it shows that native chord ALONE, never
+/// joined with the dead `C-c ...` segment (verified as a per-segment
+/// exclusion, not a blank-label assertion, which a naive version of this
+/// law got wrong on first write against these three). Only Follow link has
+/// no native slot at all, so its Linux label is genuinely blank — the GUIDE
+/// table's own printed row confirms this split precisely (`Ctrl+Shift+E`
+/// alone for Fold section vs. a blank cell for Follow link).
+#[test]
+fn c_c_emacs_slot_layer_is_dead_on_linux_under_both_flavors() {
+    for flavor_name in ["native", "emacs"] {
+        let mut cfg = crate::config::Config::empty();
+        cfg.keymap = Some(flavor_name.to_string());
+        let keep = cfg.effective_linux_keep();
+        let flavor = crate::keymap::KeymapFlavor::parse(flavor_name).unwrap();
+
+        // The prefix itself never arms.
+        let mut km = crate::keymap::KeymapState::new_with_convention(Convention::Linux);
+        km.apply_linux_keep(&keep);
+        km.set_linux_emacs_meta(flavor == crate::keymap::KeymapFlavor::Emacs);
+        let (key, mods) = crate::keyspec::parse_chord("C-c").unwrap();
+        assert_eq!(
+            km.resolve(&key, &mods),
+            Action::CopyRegion,
+            "Ctrl-C must resolve straight to Copy on Linux ({flavor_name})"
+        );
+        assert!(
+            !km.in_prefix(),
+            "the C-c prefix must never arm on Linux ({flavor_name})"
+        );
+
+        // Every C-c-slotted command's Linux label never carries the dead
+        // C-c segment — Follow link (no native slot) goes fully blank;
+        // the other three keep showing their own working native chord.
+        for name in [
+            "Follow link",
+            "Fold section",
+            "Collapse other sections",
+            "Insert Date",
+        ] {
+            let c = COMMANDS.iter().find(|c| c.name == name).unwrap();
+            assert!(
+                c.emacs.starts_with("C-c "),
+                "{name}: this law assumes a C-c-prefixed emacs slot, catalog has {:?}",
+                c.emacs
+            );
+            let label = join_slots_truthful(c, Convention::Linux, Platform::Native, &keep, flavor);
+            assert!(
+                !label.split(" · ").any(|seg| seg.trim() == c.emacs),
+                "{name}: the dead C-c segment {:?} must never appear in the Linux \
+                 label ({flavor_name}), got {label:?}",
+                c.emacs
+            );
+            if c.native.trim().is_empty() {
+                assert_eq!(
+                    label, "",
+                    "{name}: no native slot and a dead C-c slot must leave the \
+                     Linux label blank ({flavor_name}), got {label:?}"
+                );
+            }
         }
     }
 }

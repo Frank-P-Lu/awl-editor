@@ -42,7 +42,7 @@ fn palette_view(lens: usize) -> ViewState {
     let hidden = vec![false; names.len()];
     let mut ov = crate::overlay::OverlayState::new_command(
         names,
-        crate::commands::effective_bindings(&[], &[]),
+        crate::commands::effective_bindings(&[], &[], crate::keymap::KeymapFlavor::Native),
         hidden,
     );
     ov.set_facet_lens(lens);

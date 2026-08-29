@@ -157,6 +157,14 @@ pub struct ViewState {
     /// list) — the config-free scaffold default, byte-identical to today's
     /// behavior on every convention other than a configured Linux one.
     pub config_linux_keep: Vec<String>,
+    /// The config `keymap` flavor, beside [`Self::config_linux_keep`] for the
+    /// SAME menu-bar/palette readers (`commands::join_slots_truthful`/
+    /// `commands::menu_native_label`) — a seeded layer chord (Linux
+    /// `keymap = "emacs"`'s `M-x`) can only be advertised once the label
+    /// layer knows which flavor is active, not just which chords are kept.
+    /// `Native` on the config-free scaffold default, matching every other
+    /// mirrored config field here.
+    pub config_keymap_flavor: crate::keymap::KeymapFlavor,
     pub is_markdown: bool,
     pub doc_dir: Option<std::path::PathBuf>,
     pub syn_lang: Option<crate::syntax::Lang>,
@@ -328,6 +336,7 @@ impl ViewState {
             gutter_changed: false,
             config_keys: Vec::new(),
             config_linux_keep: Vec::new(),
+            config_keymap_flavor: crate::keymap::KeymapFlavor::default(),
             is_markdown: false,
             doc_dir: None,
             syn_lang: None,
