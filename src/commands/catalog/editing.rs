@@ -2,6 +2,10 @@ use super::Command;
 use crate::keymap::Action;
 mod footnotes;
 use footnotes::INSERT_FOOTNOTE;
+mod table;
+use table::INSERT_TABLE;
+mod link;
+use link::INSERT_LINK;
 pub(super) static COMMANDS: &[Command] = &[
     Command {
         name: "Blockquote",
@@ -161,28 +165,8 @@ pub(super) static COMMANDS: &[Command] = &[
             "Choose a folder, then export as `.pdf`; markdown buffers only, native builds only.",
         ),
     },
-    Command {
-        name: "Insert link…",
-        action: Action::InsertLink,
-        native: "",
-        emacs: "",
-        native_only: false,
-        web_only: false,
-        description: Some(
-            "Summon the URL prompt for a markdown link: wrap, edit, or insert a link at the caret.",
-        ),
-    },
-    Command {
-        name: "Insert table…",
-        action: Action::InsertTable,
-        native: "",
-        emacs: "",
-        native_only: false,
-        web_only: false,
-        description: Some(
-            "Summon the dimension picker: sculpt rows/columns, then insert a fresh GFM table.",
-        ),
-    },
+    INSERT_LINK,
+    INSERT_TABLE,
     Command {
         name: "Save",
         action: Action::Save,
