@@ -126,9 +126,9 @@ keys, so no cabinet remap for them; the user's call is to accept the same
 sign in Nishiki's different hand ("bite the bullet"). **§ U+00A7 takes
 Nishiki's drawing, tentatively accepted** — the user notes it reads like a
 currency sign (euro-adjacent); flag it for one live look in real chrome
-before final. **⌫ U+232B remains the one open semantic mark** — alternate
-pick from the artifact still pending; if none convinces, it stays the
-single welded-in exception in the derived face. **❥ U+2765, ✴ U+2734,
+before final. **⌫ U+232B goes to Nishiki too (user, follow-up)** — so
+ALL 34 marks resolve to Nishiki and the derived face is a pure
+single-source subset with zero welded-in exceptions. **❥ U+2765, ✴ U+2734,
 ❀ U+2740 (and the unmarked ⁂ U+2042, ✽ U+273D) are no longer individual
 verdicts** — they dissolve into the per-world ornament-set design pass
 (item 536): their product role is per-world ornament data, so the real
@@ -326,13 +326,15 @@ dispatched first.
 
 DECIDED direction, user's words paraphrased with their consent to file:
 with the whole cabinet bundled "we can use whatever glyphs we want", so
-run a design pass over the ornament assignments of ALL 19 worlds
-(GUMTREE…KITE — derive the roster from `theme::worlds`, never a
-hand-list). Curate **on the order of ten named ornament SETS** — each a
+run a design pass over the ornament assignments of ALL 20 worlds
+(`theme::worlds::THEMES` is `[Theme; 20]`, Cassowary included — derive
+the roster from THAT array, never a hand-list; a grep over `worlds.rs`
+alone missed Cassowary's own module and produced a wrong count of 19,
+already once). Curate **on the order of ten named ornament SETS** — each a
 full `Ornaments` trio (dash/star/underscore) plus the list-bullet pair —
 drawn from Nishiki's standard AND PUA cabinets (PUA is fine here: ornament
 chrome, never document content), then assign sets to worlds so overlap is
-minimal but sets still repeat (~10 sets over 19 worlds ≈ each set worn by
+minimal but sets still repeat (~10 sets over 20 worlds ≈ each set worn by
 about two worlds). Explicitly NOT per-world bespoke machinery ("we're not
 doing theme-specific stuff just yet"): the mechanism is unchanged —
 `theme::ornament::Ornaments` is per-world const data and stays exactly
