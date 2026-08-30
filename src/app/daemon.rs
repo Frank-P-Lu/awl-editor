@@ -290,6 +290,33 @@ mod tests {
     }
 
     #[test]
+    fn successful_fresh_naming_moves_daemon_waiters_to_the_path_key() {
+        let _guard = crate::testlock::serial();
+        let root = PathBuf::from("/notes");
+        let memory = std::sync::Arc::new(crate::fs::InMemoryFs::new().with_dir(&root));
+        crate::fs::with_fs(memory, || {
+            let mut app = App::new_hermetic(None, root.clone(), Config::empty());
+            app.new_document();
+            app.document.set_text("Waiter manuscript");
+            let old = app.document.active_key().expect("fresh key");
+            let (_mine, theirs) = UnixStream::pair().expect("unix socketpair");
+            app.wait_conns.insert(
+                old.clone(),
+                vec![crate::daemon::Waiter::new(
+                    root.join("waiter-manuscript.md"),
+                    theirs,
+                )],
+            );
+
+            app.manual_save();
+
+            let new = crate::buffers::BufferKey::path(&root.join("waiter-manuscript.md"));
+            assert!(!app.wait_conns.contains_key(&old));
+            assert_eq!(app.wait_conns.get(&new).map(Vec::len), Some(1));
+        });
+    }
+
+    #[test]
     fn daemon_shutdown_drops_every_waiter_and_unlinks_the_socket() {
         // The quit-path teardown: outstanding waiters are dropped (closing
         // their sockets — the client-side "closed counts as done too"

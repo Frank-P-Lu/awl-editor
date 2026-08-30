@@ -9,6 +9,200 @@
 use super::*;
 use std::sync::Arc;
 
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn successful_naming_rekeys_every_app_owner_and_sidecar_consumer() {
+    let _guard = crate::testlock::serial();
+    let root = PathBuf::from("/notes");
+    let mem = Arc::new(crate::fs::InMemoryFs::new().with_dir(&root));
+    crate::fs::with_fs(mem, || {
+        let mut app = App::new_hermetic(None, root.clone(), Config::empty());
+        app.new_document();
+        app.document.set_text("Owner audit");
+        let old = app.document.active_key().expect("fresh key");
+        assert!(matches!(old, crate::buffers::BufferKey::Fresh(_)));
+        assert!(app.persistence.has_note_ledger(&old));
+        assert_eq!(
+            app.capture_opts().buffers.unwrap().active.as_deref(),
+            Some("untitled")
+        );
+
+        app.manual_save();
+
+        let path = root.join("owner-audit.md");
+        let new = crate::buffers::BufferKey::path(&path);
+        assert_eq!(app.document.active_key(), Some(new.clone()));
+        assert_eq!(app.document.working_set().index_of(&old), None);
+        assert!(app.document.working_set().index_of(&new).is_some());
+        assert!(app.document.close_facts(&old).is_none());
+        assert!(app.document.close_facts(&new).is_some());
+        assert!(!app.persistence.has_note_ledger(&old));
+        let restored = app.document.session_buffers();
+        assert_eq!(restored.len(), 1);
+        assert_eq!(restored[0].0, path);
+        assert_eq!(restored[0].1.col, "Owner audit".chars().count());
+        assert_eq!(
+            app.capture_opts().buffers.unwrap().active,
+            Some(path.display().to_string()),
+            "the sidecar fold derives the committed Path key"
+        );
+        let labels: Vec<String> = app
+            .capture_opts()
+            .working_set
+            .iter()
+            .filter(|row| matches!(row.kind, crate::workingset::StackRowKind::File))
+            .map(|row| format!("{}{}", row.parent, row.leaf))
+            .collect();
+        assert_eq!(labels, vec!["scratch", "owner-audit.md"]);
+    });
+}
+
+/// Every first-naming entry point must land on the same transaction and leave
+/// no provisional key behind. The match is deliberately exhaustive: adding a
+/// route to this roster requires choosing how it is driven and verified.
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn every_naming_route_commits_one_path_and_retires_its_provisional_key() {
+    #[derive(Clone, Copy, Debug)]
+    enum NamingRoute {
+        ManualFresh,
+        DebouncedFresh,
+        FinishFresh,
+        ScratchManual,
+        PastePresave,
+    }
+
+    let _guard = crate::testlock::serial();
+    for route in [
+        NamingRoute::ManualFresh,
+        NamingRoute::DebouncedFresh,
+        NamingRoute::FinishFresh,
+        NamingRoute::ScratchManual,
+        NamingRoute::PastePresave,
+    ] {
+        let root = PathBuf::from(format!("/routes/{route:?}"));
+        let mem = Arc::new(crate::fs::InMemoryFs::new().with_dir(&root));
+        crate::fs::with_fs(mem, || {
+            let mut app = App::new_hermetic(None, root.clone(), Config::empty());
+            if !matches!(
+                route,
+                NamingRoute::ScratchManual | NamingRoute::PastePresave
+            ) {
+                app.new_document();
+            }
+            app.document.set_text("Route manuscript");
+            let old = app.document.active_key().expect("provisional key");
+
+            match route {
+                NamingRoute::ManualFresh => app.manual_save(),
+                NamingRoute::DebouncedFresh => app.autosave_note(),
+                NamingRoute::FinishFresh => assert!(app.try_save_finished_buffer()),
+                NamingRoute::ScratchManual => app.manual_save(),
+                NamingRoute::PastePresave => app.ensure_note_named_before_paste(),
+            }
+
+            let new = app.document.active_key().expect("committed key");
+            assert!(
+                matches!(new, crate::buffers::BufferKey::Path(_)),
+                "{route:?}"
+            );
+            assert_ne!(new, old, "{route:?}");
+            assert_eq!(app.document.working_set().index_of(&old), None, "{route:?}");
+            assert!(
+                app.document.working_set().index_of(&new).is_some(),
+                "{route:?}"
+            );
+        });
+    }
+}
+
+#[test]
+fn failed_naming_autosave_preserves_text_and_surfaces_only_the_first_failure() {
+    let _guard = crate::testlock::serial();
+    let mut app = App::new_hermetic(None, PathBuf::from("/notes"), Config::empty());
+    app.new_document();
+    app.document.set_text("irreplaceable autosave draft");
+    let key = app.document.active_key().expect("fresh key");
+    let before = (
+        key.clone(),
+        app.document.buffer().text(),
+        app.document.buffer().version(),
+        app.document.buffer().is_dirty(),
+    );
+    let unwritable: Arc<dyn crate::fs::FileSystem> = Arc::new(crate::fs::UnwritableFs);
+
+    crate::fs::with_fs(unwritable, || app.autosave_note());
+    let first_notice = app.frame.notice().text().unwrap().to_string();
+    assert!(
+        first_notice.starts_with("autosave failed:"),
+        "{first_notice}"
+    );
+    assert!(
+        first_notice.ends_with("changes remain in editor"),
+        "{first_notice}"
+    );
+    assert_eq!(
+        (
+            app.document.active_key().unwrap(),
+            app.document.buffer().text(),
+            app.document.buffer().version(),
+            app.document.buffer().is_dirty(),
+        ),
+        before,
+        "the failed write leaves the active manuscript and identity byte-identical"
+    );
+
+    app.set_sticky_notice("sentinel");
+    let unwritable: Arc<dyn crate::fs::FileSystem> = Arc::new(crate::fs::UnwritableFs);
+    crate::fs::with_fs(unwritable, || app.autosave_note());
+    assert_eq!(
+        app.frame.notice().text(),
+        Some("sentinel"),
+        "a repeated debounce attempt does not replace the UI with spam"
+    );
+}
+
+#[test]
+fn a_legacy_dead_scratch_row_recovers_through_the_persistent_scratch_door() {
+    let _guard = crate::testlock::serial();
+    let root = PathBuf::from("/notes");
+    let memory = Arc::new(crate::fs::InMemoryFs::new().with_dir(&root));
+    crate::fs::with_fs(memory, || {
+        let mut app = App::new_hermetic(None, root.clone(), Config::empty());
+        app.new_document();
+        app.document.set_text("live fresh text");
+        let fresh = app.document.active_key().expect("fresh key");
+
+        assert!(app.document.discard(&crate::buffers::BufferKey::Scratch));
+        app.document
+            .working_set_mut()
+            .open(crate::buffers::BufferKey::Scratch, None, root);
+        assert!(
+            app.document
+                .close_facts(&crate::buffers::BufferKey::Scratch)
+                .is_none()
+        );
+
+        let unwritable: Arc<dyn crate::fs::FileSystem> = Arc::new(crate::fs::UnwritableFs);
+        crate::fs::with_fs(unwritable, || {
+            app.activate_open_buffer(crate::buffers::BufferKey::Scratch)
+        });
+
+        assert_eq!(
+            app.document.active_key(),
+            Some(crate::buffers::BufferKey::Scratch)
+        );
+        assert!(
+            app.document.contains_background(&fresh),
+            "recovering scratch parks rather than replaces the live Fresh text"
+        );
+        assert_eq!(
+            app.document.parked_text(&fresh).as_deref(),
+            Some("live fresh text")
+        );
+    });
+}
+
 /// **AN ARRIVING DOCUMENT BRINGS ITS PROJECT WITH IT.**
 ///
 /// Reproduced on the real binary before it was fixed (`--screenshot-app`,
@@ -250,9 +444,9 @@ fn window_title_names_a_pathed_file_and_the_active_world() {
 }
 
 #[test]
-fn window_title_untitled_note_reads_scratch() {
+fn window_title_untitled_note_reads_untitled() {
     let t = window_title(None, true, "Tawny", false);
-    assert_eq!(t, "awl - scratch [Tawny]");
+    assert_eq!(t, "awl - untitled [Tawny]");
 }
 
 #[test]

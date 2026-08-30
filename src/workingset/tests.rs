@@ -16,6 +16,37 @@ fn drawn(ws: &WorkingSet) -> Vec<String> {
         .collect()
 }
 
+#[test]
+fn provisional_labels_number_only_when_simultaneous_fresh_rows_need_distinguishing() {
+    let mut ws = WorkingSet::default();
+    ws.open(BufferKey::Scratch, None, root());
+    ws.open(BufferKey::Fresh(11), None, root());
+    ws.open(BufferKey::Fresh(12), None, root());
+
+    let labels: Vec<String> = ws.stack_rows(&root()).into_iter().map(|r| r.leaf).collect();
+    assert_eq!(labels, ["scratch", "untitled", "untitled 2"]);
+
+    ws.close_key(&BufferKey::Fresh(11));
+    let labels: Vec<String> = ws.stack_rows(&root()).into_iter().map(|r| r.leaf).collect();
+    assert_eq!(labels, ["scratch", "untitled"]);
+}
+
+#[test]
+fn rekeying_a_fresh_row_preserves_its_slot_and_removes_the_old_key() {
+    let mut ws = WorkingSet::default();
+    ws.open(BufferKey::Fresh(1), None, root());
+    ws.open(BufferKey::Fresh(2), None, root());
+    assert!(ws.set_active(0));
+    let path = root().join("named.md");
+
+    ws.rekey_active(BufferKey::path(&path), Some(path.clone()));
+
+    assert_eq!(ws.index_of(&BufferKey::Fresh(1)), None);
+    assert_eq!(ws.index_of(&BufferKey::path(&path)), Some(0));
+    assert_eq!(ws.index_of(&BufferKey::Fresh(2)), Some(1));
+    assert_eq!(ws.files()[0].leaf(), "named.md");
+}
+
 /// **STABLE OPEN ORDER, swept rather than sampled.** The item's own reason for
 /// the rule is a pointer already reaching for a row, so the failure to guard
 /// against is not "one switch reordered the list" but "SOME switch did".

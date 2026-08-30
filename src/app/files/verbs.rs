@@ -192,16 +192,9 @@ impl App {
                 // never disrupts the save that already succeeded.
                 let _ = crate::fs::active().remove_file(&crate::fs::scratch_stash_path());
                 self.document.clear_scratch_saved();
-                // The note's own debounced autosave now owns this buffer;
-                // mark the version we just wrote as already-saved so the
-                // next idle tick doesn't immediately rewrite it (mirrors
-                // `autosave_note`'s own post-save bookkeeping).
-                self.persistence.record_note_write(
-                    crate::buffers::BufferKey::path(
-                        self.document.buffer().path().expect("named path"),
-                    ),
-                    self.document.buffer().version(),
-                );
+                // The successful naming transition retired the provisional
+                // scratch ledger. A pathed buffer is owned by BufferExtra's
+                // document baseline, never by the fresh-note ledger.
                 self.snapshot_after_save();
                 if let Some(p) = self.document.buffer().path().map(|p| p.to_path_buf()) {
                     self.document.record_document_saved(

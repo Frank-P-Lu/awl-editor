@@ -332,6 +332,14 @@ impl App {
         #[cfg(not(target_arch = "wasm32"))]
         self.streaks_flush();
         if !self.document.activate_key(&key) {
+            // A legacy/corrupt scratch row with no parked entry used to be a
+            // dead end. Retire the ghost row and recover from the persistent
+            // stash through the ordinary scratch-open door. Fresh identities
+            // never share this fallback: each owns distinct user text.
+            if key == crate::buffers::BufferKey::Scratch {
+                self.document.discard(&key);
+                self.open_scratch();
+            }
             return;
         }
         self.finish_buffer_activation(None, false);

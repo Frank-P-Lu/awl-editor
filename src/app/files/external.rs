@@ -229,10 +229,6 @@ impl App {
                     version,
                     crate::external::Seen::after_write(&path, &bytes),
                 );
-                self.persistence.record_note_write(
-                    self.document.active_key().expect("active document key"),
-                    version,
-                );
                 self.persistence.take_unresolved();
                 crate::recovery::clear();
                 self.snapshot_after_save();
@@ -271,10 +267,6 @@ impl App {
         let version = self.document.buffer().version();
         self.document
             .record_document_saved(version, crate::external::Seen::at(&path));
-        self.persistence.record_note_write(
-            self.document.active_key().expect("active document key"),
-            version,
-        );
         self.persistence.take_unresolved();
         crate::recovery::clear();
         self.sync_page_measure();

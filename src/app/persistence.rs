@@ -11,39 +11,17 @@
 //!  - the two save-feedback clocks the Debug panel and the held HUD read,
 //!  - the window title's dirty-state cache.
 //!
-//! ## The invariant that was held by convention
+//! ## Per-identity note ledgers
 //!
-//! "The fresh document is OWED a write iff the version on record differs from
-//! the buffer's current version" was written out by hand three times
-//! (`app/viewstate.rs`'s arming check, `is_document_dirty`'s fresh branch, and
-//! `flush_note`'s skip check), and the paired write "record the version AND
-//! disarm the debounce" was written out three more times
-//! (`autosave_note`+`flush_note`, `convert_scratch_and_save`,
-//! `start_fresh_document`). Six copies of two rules, in four files, over two
-//! fields that only make sense together. [`PersistenceRuntime::note_write_owed`]
-//! and [`PersistenceRuntime::record_note_write`] are now the only spellings.
+//! Every unnamed fresh buffer has a [`crate::buffers::BufferKey::Fresh`] key,
+//! and therefore its own debounce, handled version, and first-failure flag.
+//! Buffer versions restart at zero, so identity is part of this cache key.
 //!
-//! ## The cache-key hazard, stated honestly
-//!
-//! `note_saved_version` is keyed by `buffer.version()` and by nothing else —
-//! CLAUDE.md's cache-key tripwire exactly, and versions restart at 0 on every
-//! open. It is nonetheless SAFE today, and the reason is worth writing down
-//! because it is not obvious: a buffer can only become "unnamed fresh" through
-//! `Buffer::start_fresh_doc` (whose one caller, `start_fresh_document`, calls
-//! [`Self::reset_for_fresh_document`] in the same breath) or through
-//! `Buffer::set_note_dir` (whose one caller, `ensure_note_named_before_paste`,
-//! calls `autosave_note` — hence [`Self::record_note_write`] — immediately).
-//! There is no third door, so a version from document A can never be compared
-//! against document B's counter.
-//!
-//! That is a two-call-site argument, not an invariant, which is why
-//! [`Self::reset_for_fresh_document`] clears the VERSION as well as the timer
-//! and `the_fresh_document_ledger_forgets_the_version_not_just_the_timer`
-//! sweeps it over the version values that collide. A reset that cleared only
-//! the debounce — the obvious careless edit, since `flush_note` legitimately
-//! does exactly that — would silently swallow a new document's first save
-//! whenever its version happened to match the previous one's, which for two
-//! documents both edited once is *the common case*, not an edge case.
+//! A naming attempt records the current version BEFORE the write. On failure,
+//! that exact version is deliberately not retried on every idle tick: the first
+//! failure gets one calm notice, and another edit (a new version) arms one new
+//! attempt. Manual Save remains an immediate explicit retry. On success, the
+//! Fresh ledger is retired in the same re-key transition that installs Path.
 
 use crate::clock::Instant;
 
@@ -125,8 +103,7 @@ impl PersistenceRuntime {
 
     /// Is the fresh document OWED a write at `version`?
     ///
-    /// **The sole spelling** of the
-    /// `note_saved_version != Some(buffer.version())` comparison. The caller
+    /// **The sole spelling** of the per-key handled-version comparison. The caller
     /// still supplies "is this buffer an unnamed fresh document" — that is the
     /// buffer's own fact, not this ledger's.
     pub(in crate::app) fn note_write_owed(
@@ -211,6 +188,11 @@ impl PersistenceRuntime {
 
     pub(in crate::app) fn retire_note_ledger(&mut self, key: &crate::buffers::BufferKey) {
         self.note_ledgers.remove(key);
+    }
+
+    #[cfg(test)]
+    pub(in crate::app) fn has_note_ledger(&self, key: &crate::buffers::BufferKey) -> bool {
+        self.note_ledgers.contains_key(key)
     }
 
     // ─── SAVE-FEEDBACK CLOCKS ────────────────────────────────────────────
@@ -383,6 +365,47 @@ mod tests {
             p.note_write_owed(&key, 3),
             "disarming the timer must never make the content look saved"
         );
+    }
+
+    /// A failed automatic naming attempt handles one VERSION, not the whole
+    /// buffer. This is the anti-churn policy: an idle loop does not hammer an
+    /// unwritable folder or repeat its notice, while the next edit earns one
+    /// new attempt. Manual Save bypasses this owed-write scheduler entirely.
+    #[test]
+    fn a_failed_note_version_waits_for_an_edit_and_reports_once() {
+        let mut p = PersistenceRuntime::default();
+        let key = crate::buffers::BufferKey::Fresh(41);
+        assert!(p.note_write_owed(&key, 7));
+
+        // `autosave_note` records immediately before attempting the write.
+        p.record_note_write(key.clone(), 7);
+        assert!(p.first_note_failure(key.clone()));
+        assert!(
+            !p.first_note_failure(key.clone()),
+            "no debounce notice spam"
+        );
+        assert!(
+            !p.note_write_owed(&key, 7),
+            "the same failed version is not retried by every idle tick"
+        );
+        assert!(
+            p.note_write_owed(&key, 8),
+            "the next edit creates a new version and one new attempt"
+        );
+    }
+
+    #[test]
+    fn successful_rekey_retires_only_the_named_fresh_ledger() {
+        let mut p = PersistenceRuntime::default();
+        let named = crate::buffers::BufferKey::Fresh(1);
+        let other = crate::buffers::BufferKey::Fresh(2);
+        p.record_note_write(named.clone(), 3);
+        p.record_note_write(other.clone(), 3);
+
+        p.retire_note_ledger(&named);
+
+        assert!(!p.has_note_ledger(&named));
+        assert!(p.has_note_ledger(&other));
     }
 
     /// The debounce deadline is the arm instant plus the window, and a

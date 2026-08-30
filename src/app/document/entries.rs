@@ -55,9 +55,9 @@ impl DocumentSession {
     /// which made "is there unsaved text here" an active-buffer-only question by
     /// construction. It is not: a parked buffer holds unsaved text exactly the
     /// same way, and the whole point of a removal owner is that it must not
-    /// discard one. The unnamed-fresh NOTE arm stays on `App` because it needs
-    /// `persistence`, and a note is never parked anyway
-    /// ([`crate::buffers::BufferKey::of`] gives it no identity to park under).
+    /// discard one. Active unnamed-fresh dirty display additionally consults
+    /// `PersistenceRuntime`; a parked Fresh entry is conservatively unsaved
+    /// until a successful naming write gives it a document baseline.
     fn entry_unsaved(entry: &crate::buffers::Entry<BufferExtra>) -> bool {
         let version = entry.buffer.version();
         if entry.buffer.path().is_some() {

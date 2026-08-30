@@ -84,13 +84,14 @@ fn failed_naming_write_leaves_every_identity_field_unchanged() {
 
 #[test]
 fn note_stem_cap_is_byte_aware_and_never_leaves_a_dash() {
-    for line in [
-        &"alpha beta gamma delta ".repeat(20),
-        &"日本語の長い段落".repeat(30),
-        &"a-".repeat(100),
-        "!!!",
-    ] {
-        let stem = note_stem(line);
+    let lines = vec![
+        "alpha beta gamma delta ".repeat(20),
+        "日本語の長い段落".repeat(30),
+        "a-".repeat(100),
+        "!!!".to_string(),
+    ];
+    for line in lines {
+        let stem = note_stem(&line);
         assert!(
             stem.len() <= NOTE_STEM_MAX_BYTES,
             "{stem:?} is {} bytes",
@@ -99,6 +100,47 @@ fn note_stem_cap_is_byte_aware_and_never_leaves_a_dash() {
         assert!(!stem.ends_with('-'), "{stem:?}");
         assert!(stem.is_char_boundary(stem.len()));
     }
+}
+
+#[test]
+fn stem_budget_measures_atomic_collision_and_quarantine_headroom() {
+    const NAME_MAX_FLOOR: usize = 255;
+    const MD_EXTENSION: usize = ".md".len();
+    const MAX_U32_COLLISION: usize = "-4294967295".len();
+    const ATOMIC_DECORATION: usize = ".".len() + ".awl-tmp".len();
+    const QUARANTINE_RESERVE: usize = 64;
+    let worst = NOTE_STEM_MAX_BYTES
+        + MD_EXTENSION
+        + MAX_U32_COLLISION
+        + ATOMIC_DECORATION
+        + QUARANTINE_RESERVE;
+    assert_eq!(worst, 159, "keep the stated budget arithmetic honest");
+    assert_eq!(NAME_MAX_FLOOR - worst, 96, "measured portable headroom");
+}
+
+#[test]
+fn successful_naming_preserves_the_common_save_postconditions() {
+    let _guard = crate::testlock::serial();
+    let notes = note_tmp("naming_postconditions");
+    let mut buf = Buffer::scratch();
+    buf.start_fresh_doc(notes.to_path_buf());
+    buf.set_text("Title\nline two\n");
+    buf.set_eol(Eol::Crlf);
+    let version = buf.version();
+    let disk_bytes = buf.disk_bytes();
+
+    buf.save().unwrap();
+
+    let path = buf.path().expect("successful naming binds a path");
+    assert_eq!(path.parent(), Some(notes.as_ref()));
+    assert_eq!(path.file_name().unwrap(), "title.md");
+    assert_eq!(std::fs::read(path).unwrap(), disk_bytes, "EOL encoding");
+    assert_eq!(buf.text(), "Title\nline two\n", "rope text is unchanged");
+    assert_eq!(buf.version(), version, "save is not an edit");
+    assert!(!buf.is_dirty(), "successful common save marks clean");
+    assert!(!buf.is_unnamed_fresh(), "note marker is retired");
+    assert_eq!(buf.fresh_id(), None, "provisional identity is retired");
+    assert!(matches!(BufferKey::of(&buf), BufferKey::Path(_)));
 }
 
 #[test]

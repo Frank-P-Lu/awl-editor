@@ -396,6 +396,33 @@ fn dirty_final_trash_refusal_preserves_the_only_document() {
 }
 
 #[test]
+fn parked_fresh_close_refuses_instead_of_overwriting_the_scratch_fallback() {
+    let _guard = crate::testlock::serial();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl-close-fresh-refusal-{}", std::process::id())),
+    );
+    let config = Config {
+        session_restore: Some(false),
+        autosave: Some(false),
+        ..Config::empty()
+    };
+    let mut app = App::new(None, dir.to_path_buf(), None, None, config);
+    app.new_document();
+    app.document.set_text("first irreplaceable draft");
+    let first = app.document.active_key().expect("first fresh key");
+    app.new_document();
+    app.document.set_text("second draft");
+
+    assert_eq!(app.close_buffer(first.clone()), CloseOutcome::Refused);
+    assert_eq!(
+        app.document.parked_text(&first).as_deref(),
+        Some("first irreplaceable draft"),
+        "the refused close keeps the only copy under its Fresh key"
+    );
+    assert!(app.document.close_facts(&first).is_some());
+}
+
+#[test]
 fn save_resolve_then_retry_trash_is_lossless_for_external_changes() {
     let _guard = crate::testlock::serial();
     for dirty in [false, true] {

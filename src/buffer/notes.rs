@@ -10,8 +10,10 @@
 
 use std::path::{Path, PathBuf};
 
-/// A calm filename budget with room for `.md`, atomic `.{name}.awl-tmp`,
-/// quarantine (~37 bytes), and ordinary collision suffixes under NAME_MAX=255.
+/// A calm filename budget. With `.md` (3 bytes), the largest `u32` collision
+/// suffix (11), atomic `.<name>.awl-tmp` decoration (9), and a deliberately
+/// reserved 64-byte quarantine decoration, the worst component is 159 bytes —
+/// 96 bytes below the portable 255-byte NAME_MAX floor.
 pub const NOTE_STEM_MAX_BYTES: usize = 72;
 
 /// The first line of `text` with non-whitespace content (trimmed), or `None` when
@@ -22,7 +24,8 @@ pub fn first_nonempty_line(text: &str) -> Option<&str> {
 
 /// The filename STEM a note's first `line` derives to: its [`slug_core`], or the
 /// "scratch" placeholder when the line has no slug-able (alphanumeric) content.
-/// Shared by the FIRST naming save and live-rename so both agree on the name.
+/// Every caller inherits one UTF-8-byte cap. Prefer a complete dash-delimited
+/// word; a single long word falls back to the last valid scalar boundary.
 pub fn note_stem(line: &str) -> String {
     let mut s = slug_core(line);
     if s.len() > NOTE_STEM_MAX_BYTES {

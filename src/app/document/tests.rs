@@ -161,6 +161,151 @@ fn every_buffer_extra_field_round_trips_a_b_a_b_c_a() {
 }
 
 #[test]
+fn simultaneous_fresh_buffers_park_and_reactivate_by_distinct_identity() {
+    let _guard = crate::testlock::serial();
+    let root = PathBuf::from("/notes");
+    let mut session = DocumentSession::new(
+        Buffer::scratch(),
+        crate::external::Seen::Absent,
+        crate::external::Seen::Absent,
+    );
+    session.enrol_active(&root);
+
+    session.start_fresh_document(root.clone());
+    let first = session.active_key().expect("first fresh identity");
+    session.set_text("first manuscript");
+    session.start_fresh_document(root.clone());
+    let second = session.active_key().expect("second fresh identity");
+    session.set_text("second manuscript");
+
+    assert!(matches!(first, crate::buffers::BufferKey::Fresh(_)));
+    assert!(matches!(second, crate::buffers::BufferKey::Fresh(_)));
+    assert_ne!(first, second, "each Cmd-N buffer has its own key");
+    assert!(session.contains_background(&first));
+    assert!(session.activate_key(&first));
+    assert_eq!(session.buffer().text(), "first manuscript");
+    assert!(session.activate_key(&second));
+    assert_eq!(session.buffer().text(), "second manuscript");
+    assert_eq!(
+        session.working_set().len(),
+        3,
+        "scratch plus two fresh rows"
+    );
+}
+
+#[test]
+fn successful_fresh_rekey_leaves_no_behavioral_owner_on_the_old_key() {
+    let _guard = crate::testlock::serial();
+    let root = PathBuf::from("/notes");
+    let memory = Arc::new(crate::fs::InMemoryFs::new().with_dir(&root));
+    crate::fs::with_fs(memory, || {
+        let mut session = DocumentSession::new(
+            Buffer::scratch(),
+            crate::external::Seen::Absent,
+            crate::external::Seen::Absent,
+        );
+        session.enrol_active(&root);
+        session.start_fresh_document(root.clone());
+        session.set_text("Named manuscript");
+        let old = session.active_key().expect("fresh key");
+        assert!(matches!(old, crate::buffers::BufferKey::Fresh(_)));
+        assert!(
+            session.session_buffers().is_empty(),
+            "fresh is not restorable from disk"
+        );
+
+        session.save().unwrap();
+        session.rekey_active_after_naming();
+
+        let path = root.join("named-manuscript.md");
+        let new = crate::buffers::BufferKey::path(&path);
+        assert_eq!(session.active_key(), Some(new.clone()));
+        assert_eq!(session.working_set().index_of(&old), None);
+        assert!(session.working_set().index_of(&new).is_some());
+        assert!(session.close_facts(&old).is_none());
+        assert!(session.close_facts(&new).is_some());
+        assert!(!session.contains_background(&old));
+        let restored = session.session_buffers();
+        assert_eq!(restored.len(), 1);
+        assert_eq!(
+            restored[0].0, path,
+            "session records only the committed path"
+        );
+        assert_eq!(restored[0].1.col, "Named manuscript".chars().count());
+    });
+}
+
+/// The roster of live transitions that replace the active slot. Each must
+/// reversibly park the outgoing manuscript; close has its separate save/refusal
+/// laws. The match is exhaustive so a new route added here cannot inherit a
+/// hand-waved expectation.
+#[test]
+fn every_active_replacement_route_parks_the_outgoing_text_byte_for_byte() {
+    #[derive(Clone, Copy, Debug)]
+    enum ReplacementRoute {
+        OpenPath,
+        NewDocument,
+        ScratchRestore,
+        ActivateExisting,
+    }
+
+    let _guard = crate::testlock::serial();
+    let root = PathBuf::from("/notes");
+    let target = root.join("target.md");
+    let memory = Arc::new(
+        crate::fs::InMemoryFs::new()
+            .with_dir(&root)
+            .with_file(&target, "target\n"),
+    );
+    crate::fs::with_fs(memory, || {
+        for route in [
+            ReplacementRoute::OpenPath,
+            ReplacementRoute::NewDocument,
+            ReplacementRoute::ScratchRestore,
+            ReplacementRoute::ActivateExisting,
+        ] {
+            let mut session = DocumentSession::new(
+                Buffer::scratch(),
+                crate::external::Seen::Absent,
+                crate::external::Seen::Absent,
+            );
+            session.enrol_active(&root);
+            session.start_fresh_document(root.clone());
+            session.set_text("outgoing bytes — 日本語");
+            let outgoing = session.active_key().expect("outgoing key");
+
+            match route {
+                ReplacementRoute::OpenPath => {
+                    session.open_path(&target, crate::external::Seen::Absent, &root);
+                }
+                ReplacementRoute::NewDocument => session.start_fresh_document(root.clone()),
+                ReplacementRoute::ScratchRestore => session.open_scratch(
+                    Buffer::scratch(),
+                    crate::external::Seen::Absent,
+                    root.clone(),
+                ),
+                ReplacementRoute::ActivateExisting => {
+                    session.open_path(&target, crate::external::Seen::Absent, &root);
+                    assert!(session.activate_key(&outgoing));
+                    session.set_text("arriving edit");
+                    assert!(session.activate_key(&crate::buffers::BufferKey::path(&target)));
+                }
+            }
+
+            assert_eq!(
+                session.parked_text(&outgoing).as_deref(),
+                Some(if matches!(route, ReplacementRoute::ActivateExisting) {
+                    "arriving edit"
+                } else {
+                    "outgoing bytes — 日本語"
+                }),
+                "{route:?} must park the only copy before replacement"
+            );
+        }
+    });
+}
+
+#[test]
 fn autosave_poll_waits_then_consumes_the_due_arm_once() {
     let _guard = crate::testlock::serial();
     let armed = Instant::now();

@@ -197,7 +197,7 @@ impl App {
             return false;
         }
         let Some(key) = self.document.active_key() else {
-            return false; // an unnamed fresh note has no identity to close
+            return false;
         };
         let closing_path = self.document.buffer().path().map(|p| p.to_path_buf());
         // The save/conflict gate above is what authorizes releasing the entry.
@@ -275,12 +275,20 @@ impl App {
         baseline: crate::external::Seen,
     ) -> bool {
         let Some(path) = path else {
-            // A path-less parked entry is the true scratch: a PLACE, not a
-            // document. It closes exactly like the active arm — flush the
-            // parked entry's own text to the persistent stash, then let the
-            // caller discard it — rather than refusing and sending the reader
-            // back to reactivate it first.
-            return self.stash_parked_scratch(key);
+            return match key {
+                // Scratch is a PLACE. Its one recoverable replacement is the
+                // persistent stash, so a successful stash authorizes close.
+                crate::buffers::BufferKey::Scratch => self.stash_parked_scratch(key),
+                // A fresh document is a DOCUMENT with a provisional identity.
+                // It has no shared fallback path: treating it as scratch would
+                // overwrite another buffer's stash. Keep the row and text.
+                crate::buffers::BufferKey::Fresh(_) => {
+                    self.set_sticky_notice("untitled couldn't be saved — open it and try Save");
+                    self.request_frame();
+                    false
+                }
+                crate::buffers::BufferKey::Path(_) => false,
+            };
         };
         // A conflict already latched for this path belongs to a document the
         // user is being asked to resolve. Never write past it.
