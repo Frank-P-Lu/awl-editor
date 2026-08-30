@@ -20,6 +20,7 @@ mod export_gate;
 mod folds;
 mod format_editing;
 mod insert_table;
+mod table_edit;
 mod lifecycle;
 mod link_flow;
 mod overlay_drive;

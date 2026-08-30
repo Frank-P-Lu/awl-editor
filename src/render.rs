@@ -1949,6 +1949,7 @@ pub struct TextPipeline {
     fold_chevron_label_masks: Vec<Option<crate::rotated_label::mask::LabelMask>>,
     pub table_renderer: TextRenderer,
     pub table_rule_pipeline: SelectionPipeline,
+    pub table_empty_pipeline: SelectionPipeline,
     pub panel_card: SelectionPipeline,
     pub panel_shadow: SelectionPipeline,
     pub panel_border: SelectionPipeline,

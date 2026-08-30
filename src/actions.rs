@@ -216,13 +216,28 @@ fn apply_buffer_action(ctx: &mut ActionCtx, action: &Action) -> bool {
         Action::BufferStart => ctx.buffer.buffer_start(),
         Action::BufferEnd => ctx.buffer.buffer_end(),
         Action::InsertChar(c) => ctx.buffer.insert_char(*c),
-        Action::Newline | Action::AcceptAlternate => {
+        Action::Newline => {
+            if !table_newline(ctx) && !smart_newline(ctx) {
+                ctx.buffer.insert_newline();
+            }
+        }
+        // Shift-Enter is the deliberate literal line-split escape hatch in a
+        // table; it keeps the ordinary smart-Enter semantics everywhere else.
+        Action::AcceptAlternate => {
             if !smart_newline(ctx) {
                 ctx.buffer.insert_newline();
             }
         }
-        Action::InsertTab => list_tab(ctx),
-        Action::Outdent => list_outdent(ctx),
+        Action::InsertTab => {
+            if !table_tab(ctx, true) {
+                list_tab(ctx)
+            }
+        }
+        Action::Outdent => {
+            if !table_tab(ctx, false) {
+                list_outdent(ctx)
+            }
+        }
         Action::DeleteBackward => ctx.buffer.delete_backward(),
         Action::DeleteWordBackward => ctx.buffer.delete_word_backward(),
         Action::DeleteWordForward => ctx.buffer.delete_word_forward(),

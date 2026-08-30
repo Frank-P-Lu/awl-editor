@@ -138,9 +138,14 @@ impl TextPipeline {
         }
         for c in 0..ncols {
             if maxs[c] <= 0.0 {
-                maxs[c] = 2.0 * pad;
+                // Blank columns need enough display extent for the provisional
+                // empty-cell wash; content columns retain their measured width.
+                let empty_min = (m.font_size * 3.0).max(2.0 * pad);
+                maxs[c] = empty_min;
+                mins[c] = mins[c].max(empty_min);
+            } else {
+                mins[c] = mins[c].max(2.0 * pad);
             }
-            mins[c] = mins[c].max(2.0 * pad);
         }
         let (col_x, col_w) = crate::markdown::table_column_layout(&mins, &maxs, gap, avail);
         let mut row_heights = vec![m.line_height; grid_rows.len()];

@@ -132,34 +132,55 @@ pub(crate) fn parse_col_align(cell: &str) -> ColAlign {
 /// empty cells produced by the leading/trailing outer pipes are dropped, so
 /// `| a | b |` yields `["a", "b"]` and a pipeless line yields the whole line as one
 /// cell.
-pub(crate) fn split_row_cells(line: &str) -> Vec<String> {
+pub(crate) fn table_cell_ranges(line: &str) -> Vec<Range<usize>> {
     let t = line.trim();
-    let mut cells: Vec<String> = Vec::new();
-    let mut cur = String::new();
+    let trim_start = line.len() - line.trim_start().len();
+    let mut delimiters = Vec::new();
     let mut escaped = false;
-    for c in t.chars() {
+    for (i, c) in t.char_indices() {
         if escaped {
-            cur.push(c);
             escaped = false;
         } else if c == '\\' {
-            cur.push(c);
             escaped = true;
         } else if c == '|' {
-            cells.push(cur.trim().to_string());
-            cur.clear();
-        } else {
-            cur.push(c);
+            delimiters.push(i);
         }
     }
-    cells.push(cur.trim().to_string());
-    // Drop the empty cell before the first `|` / after the last `|` (the outer pipes).
-    if t.starts_with('|') && cells.first().is_some_and(|c| c.is_empty()) {
-        cells.remove(0);
+    let mut boundaries = Vec::with_capacity(delimiters.len() + 2);
+    boundaries.push(0);
+    boundaries.extend(delimiters);
+    boundaries.push(t.len());
+    let mut ranges = Vec::new();
+    for pair in boundaries.windows(2) {
+        let start = if pair[0] == 0 && !t.starts_with('|') {
+            0
+        } else {
+            pair[0] + 1
+        };
+        let start = start.min(pair[1]);
+        let end = pair[1];
+        let cell = &t[start..end];
+        let lead = cell.len() - cell.trim_start().len();
+        let tail = cell.trim_end().len();
+        ranges.push(trim_start + start + lead..trim_start + start + tail.max(lead));
     }
-    if t.ends_with('|') && cells.last().is_some_and(|c| c.is_empty()) {
-        cells.pop();
+    // Optional outer pipes are structural cells, never data. Keep the virtual
+    // row edges above so `a | b`, `| a | b`, and `a | b |` all share one parser.
+    if t.starts_with('|') {
+        ranges.remove(0);
     }
-    cells
+    if t.ends_with('|') {
+        ranges.pop();
+    }
+    ranges
+}
+
+pub(crate) fn split_row_cells(line: &str) -> Vec<String> {
+    let ranges = table_cell_ranges(line);
+    if ranges.is_empty() {
+        return vec![line.trim().to_string()];
+    }
+    ranges.into_iter().map(|range| line[range].to_string()).collect()
 }
 
 /// Re-emit one column's SEPARATOR cell (`ColAlign` + target `width`), keeping the
