@@ -561,3 +561,30 @@ fn right_anchored_faceted_hug_width_is_invariant_across_lenses_and_filters() {
     );
     theme::set_active(theme::DEFAULT_THEME);
 }
+
+#[test]
+fn right_anchored_faceted_hug_measurement_memoizes_one_arc_and_metrics() {
+    let _g = crate::testlock::serial();
+    let (w, h) = (1200u32, 800u32);
+    let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
+        eprintln!("skipping right_anchored_faceted_hug_memo: no wgpu adapter");
+        return;
+    };
+    let roster = std::sync::Arc::new(crate::overlay::HugRoster {
+        primary: vec!["archive/very-long-project-folder-name/meeting-notes.md".into()],
+        secondary: vec!["yesterday".into()],
+    });
+    let mut v = right_flat(&["notes.md"], &[]);
+    v.overlay_hug_roster = Some(roster.clone());
+    p.set_view(&v);
+    p.prepare(&device, &queue, w, h).unwrap();
+    let first = p.overlay_hug_measure_count();
+    p.set_view(&v);
+    p.prepare(&device, &queue, w, h).unwrap();
+    assert_eq!(
+        p.overlay_hug_measure_count(),
+        first,
+        "an identical Arc corpus and metrics must reuse the hug measurement"
+    );
+    assert_eq!(first, 1, "the first frame must perform exactly one measurement");
+}

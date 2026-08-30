@@ -26,6 +26,21 @@ pub(in crate::render) enum RosterSlot {
 pub(in crate::render) const ROSTER_SLOTS: usize = 3;
 
 impl TextPipeline {
+    fn hug_roster_key(&self, roster: &std::sync::Arc<crate::overlay::HugRoster>) -> u64 {
+        use std::hash::{Hash, Hasher};
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        (std::sync::Arc::as_ptr(roster) as usize).hash(&mut h);
+        self.metrics.font_size.to_bits().hash(&mut h);
+        self.metrics.line_height.to_bits().hash(&mut h);
+        (theme::active().font.as_ptr() as usize).hash(&mut h);
+        crate::render::code_ligatures_on().hash(&mut h);
+        h.finish()
+    }
+
+    #[cfg(test)]
+    pub(in crate::render) fn overlay_hug_measure_count(&self) -> u64 {
+        self.overlay_hug_measure_count
+    }
     /// THE ONE ROSTER-WIDTH MEASUREMENT: the widest shaped line of `text` at
     /// `metrics`, with no width bound so nothing wraps or elides. Every
     /// "how wide is this whole list" question — the contextual spell popup's
@@ -202,6 +217,14 @@ impl TextPipeline {
         let muted = theme::muted().to_glyphon();
         let geom = self.overlay_geometry(self.window_w as u32);
         self.overlay_remetric();
+        let hug_roster = self.overlay_hug_roster.clone();
+        let hug_key = hug_roster.as_ref().map(|roster| self.hug_roster_key(roster));
+        if let Some(key) = hug_key
+            && let Some((cached, width)) = self.overlay_hug_content_memo
+            && cached == key
+        {
+            return width;
+        }
         // A pure WIDTH measurement: `selected_ink: None` means no row can flip at
         // all, so this pass wants NO visual selection — and must not touch the
         // band's chase state (measuring may never advance an animation).
@@ -211,7 +234,7 @@ impl TextPipeline {
         // pass reuses this scratch buffer. A faceted picker instead carries that
         // chrome in its stable summon corpus, so the active query cannot affect
         // this measurement.
-        let static_corpus = self.overlay_hug_roster.is_some();
+        let static_corpus = hug_roster.is_some();
         if !static_corpus {
             let _ = self.overlay_shape_text(
                 &geom,
@@ -250,8 +273,16 @@ impl TextPipeline {
             0.0
         };
         let content_text = left.max(primary + gap + secondary);
-        content_text
+        let width = content_text
             + 2.0 * self.overlay_text_hpad()
-            + self.diagonal_side_reserve_px(plan.rows().len())
+            + self.diagonal_side_reserve_px(plan.rows().len());
+        if let Some(key) = hug_key {
+            self.overlay_hug_content_memo = Some((key, width));
+            #[cfg(test)]
+            {
+                self.overlay_hug_measure_count += 1;
+            }
+        }
+        width
     }
 }

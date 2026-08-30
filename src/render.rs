@@ -2611,6 +2611,11 @@ pub struct TextPipeline {
     workspace_rail_placement: Option<(f32, f32)>,
     overlay_spell_w: f32,
     overlay_content_w: f32,
+    /// Stable right-anchored faceted-card width, memoized by the immutable
+    /// summon corpus identity and every shaping metric the answer reads.
+    overlay_hug_content_memo: Option<(u64, f32)>,
+    #[cfg(test)]
+    overlay_hug_measure_count: u64,
     /// PROTO-CACHE for the roster-width measurements, one slot per question.
     roster_memo: [Option<(u64, f32)>; chrome::roster::ROSTER_SLOTS],
     caret_preview: Option<CaretMode>,
