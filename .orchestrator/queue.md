@@ -120,6 +120,20 @@ pilcrows/paragraphos/tengwar section marks for §, plus heart/star/
 florette families), rendered and added to the same artifact for the
 user's picks — final remap roster still open, awaiting those picks.
 
+**THIRD PASS — closing decisions (user, 2026-08-30):** **⌘ U+2318 goes to
+Nishiki after all** — the modifier keys must stay recognisable as the Mac
+keys, so no cabinet remap for them; the user's call is to accept the same
+sign in Nishiki's different hand ("bite the bullet"). **§ U+00A7 takes
+Nishiki's drawing, tentatively accepted** — the user notes it reads like a
+currency sign (euro-adjacent); flag it for one live look in real chrome
+before final. **⌫ U+232B remains the one open semantic mark** — alternate
+pick from the artifact still pending; if none convinces, it stays the
+single welded-in exception in the derived face. **❥ U+2765, ✴ U+2734,
+❀ U+2740 (and the unmarked ⁂ U+2042, ✽ U+273D) are no longer individual
+verdicts** — they dissolve into the per-world ornament-set design pass
+(item 536): their product role is per-world ornament data, so the real
+decision is which world draws which set, not one global glyph.
+
 ---
 ### 533 — right-anchored hug width is re-measured per lens/filter view, so Kite's Go-to jumps sideways on every lens switch (user report, 2026-08-30)
 
@@ -283,6 +297,36 @@ enough not to trip the ratchet (two prior merges needed a follow-up
 "tighten comments back under baseline" commit; don't earn a third).
 Cheap enough to piggyback on the next keymap-touching item if one is
 dispatched first.
+
+---
+### 536 — per-world ornament sets from the full Nishiki cabinet (user decision, 2026-08-30; sequenced AFTER 529 bundles the face)
+
+DECIDED direction, user's words paraphrased with their consent to file:
+with the whole cabinet bundled "we can use whatever glyphs we want", so
+run a design pass over the ornament assignments of ALL 19 worlds
+(GUMTREE…KITE — derive the roster from `theme::worlds`, never a
+hand-list). Curate **on the order of ten named ornament SETS** — each a
+full `Ornaments` trio (dash/star/underscore) plus the list-bullet pair —
+drawn from Nishiki's standard AND PUA cabinets (PUA is fine here: ornament
+chrome, never document content), then assign sets to worlds so overlap is
+minimal but sets still repeat (~10 sets over 19 worlds ≈ each set worn by
+about two worlds). Explicitly NOT per-world bespoke machinery ("we're not
+doing theme-specific stuff just yet"): the mechanism is unchanged —
+`theme::ornament::Ornaments` is per-world const data and stays exactly
+that; this pass only re-picks the data with a vastly richer palette.
+Candidate sets that fit worlds' existing temperaments: Genjikō incense
+patterns, the moons (U+F5BC–F5FF neighbourhood), the snake range
+(F58F–F59F), German playing-card suits (Acorn/Bells), lunar/Go/technical
+notation, plus the existing star/floret/geometric vocabulary in Nishiki's
+hand. ❥ ✴ ❀ ⁂ ✽ from the AwlMarks verdicts land here rather than as
+global picks. Delivery mirrors the marks audition: sets rendered through
+the real pipeline at true ornament sizes on each candidate world's real
+ground, published as an Artifact taste sheet for the user's set-to-world
+assignment before any data lands. Laws follow the existing ornament laws:
+legibility at prose size, figure/ground calm, per-world size/contrast
+sweep derived from the world roster (no wildcard), and the subset-face
+glyph-presence law regenerated from the adopted union so a set's glyph
+cannot silently vanish from the derived face.
 
 ---
 ## Needs specific hardware
