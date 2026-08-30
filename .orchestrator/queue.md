@@ -98,6 +98,28 @@ pass, not the final adopted roster, and the review is still open:
 - **U+F007B–U+F00FF and U+F0100–U+F01AB (Plane-15 Assorted):** "so many
   cool things here too!"
 
+**SECOND PASS — the AwlMarks-replacement sub-audit (user verdicts over a
+dedicated before/after artifact, 2026-08-30).** Measured first: Nishiki's
+cmap covers ALL 34 codepoints AwlMarks carries, every pair rendered through
+the real stack (survey generator, family/weight parameterised; resolved
+family verified per cell, 0 blank, 0 foreign), so full replacement is one
+single-source subset — no glyph welding, and the four-source hand-weld
+retires. Production reaches the face through `render::SYMBOL_FAMILY` /
+`theme::ornament::ORNAMENT_MARKS`, so adoption is an asset swap. Mind
+Nishiki's `usWeightClass = 500` in the derived face. User verdicts:
+**26 of 34 marks go to Nishiki outright**; keep-current: U+2318 ⌘,
+U+2765 ❥, U+232B ⌫; unsure: U+00A7 §, U+2734 ✴, U+2740 ❀; unmarked:
+U+2042 ⁂, U+273D ✽. DIRECTION (user): where the standard-codepoint
+drawing is weak, **remap a better mark from elsewhere in the cabinet** in
+the derived subset face (chrome is awl's own; a PUA-sourced drawing behind
+a standard codepoint changes nothing for documents). Nishiki ships no
+GSUB stylistic alternates, so alternates are other codepoints' drawings:
+a name-hunt found candidates for all six weak marks (shield/endless/
+four-petalled knots for ⌘, squared backspace/delete symbols for ⌫,
+pilcrows/paragraphos/tengwar section marks for §, plus heart/star/
+florette families), rendered and added to the same artifact for the
+user's picks — final remap roster still open, awaiting those picks.
+
 ---
 ### 533 — right-anchored hug width is re-measured per lens/filter view, so Kite's Go-to jumps sideways on every lens switch (user report, 2026-08-30)
 
