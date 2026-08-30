@@ -649,6 +649,23 @@ sweep derived from the world roster (no wildcard), and the subset-face
 glyph-presence law regenerated from the adopted union so a set's glyph
 cannot silently vanish from the derived face.
 
+**DESIGN PASS DELIVERED (2026-08-30):** the fitting-room Artifact is
+published and awaits the user's arrangement. Ten sets curated and rendered
+(0 blank, 0 foreign, all resolving to Nishiki-teki): Genjikō (F500/F50C/
+F51B), Lunar (F640/F648/F650), Riverbank — upstream's JUSTIFYING SNAKE
+trunk/head/tail, drawn to JOIN into one creature, a fact a later break
+style could exploit — (F592/F593/F591), Tavern acorns/bells/leaves
+(F5B0/F5B3/F5B1), Arabesque (F814/F818/F827), Stars (2726/2736/2727),
+Florets (273F/2741/2740), Geometrics (2756/25C8/2B25), Fleurons
+(2767/2619/2766), Trigrams (2630/2632/2637). The circle dozen stays
+reserved for the web loader. Every stage is real: ground bands cropped
+from per-world --capture-dpi 2 captures at the rule row's own sidecar
+geometry (a heading-only twin capture supplies the clean band), ink
+sampled from each world's actual rendered ornament, glyphs rendered at
+the world's own scale tier. A proposed assignment ships in the page
+(sets worn by ~2 worlds each); the user reassigns live and copies the
+arrangement out. Data lands only after that arrangement returns.
+
 ---
 ## Needs specific hardware
 
