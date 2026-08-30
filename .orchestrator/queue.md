@@ -303,6 +303,101 @@ Revert cost: one line (the kind gate) plus the doc sentence — say so in
 the commit. Full gate receipt.
 
 ---
+### 537 — a failed scratch→note conversion destroys the scratch identity, silently drops the buffer on the next switch, and leaves a dead "scratch" row (user report, 2026-08-30; "sounds like an architectural code smell — we should fix this")
+
+User symptom (screenshot): the working-set stack shows a "scratch" row
+that does NOTHING when clicked, while the sibling file rows switch
+fine. Every link of the causal chain is verified in code; the entry
+premise (the failed ⌘S from item 534's screenshot happened in the TRUE
+scratch, not a ⌘N note) is the one unverified link — the user has been
+asked, and the lane re-confirms by reproduction either way.
+
+THE CHAIN: (1) ⌘S in the true scratch routes to
+`convert_scratch_and_save` (`app/files/verbs.rs`) →
+`Buffer::save_into_folder` (`buffer/save.rs`), which calls
+`set_note_dir` — flipping `is_unnamed_fresh()` true (it is literally
+`note_dir.is_some()`, `buffer.rs`) — BEFORE attempting the fallible
+save, with no rollback on `Err`. Item 534's uncapped filename made that
+save fail, so the buffer was left mutated: scratch identity destroyed.
+(2) `BufferKey::of` (`buffers.rs`) returns `None` for an unnamed-fresh
+buffer, so `park_active` (`app/document.rs`) CANNOT park it — its else
+arm keeps it active. (3) The next switch (`open_path`) then assigns
+`self.active = Some(new entry)` over it — the buffer and every edit
+since the last scratch stash flush are DROPPED, no gate, no notice.
+(4) The working set's `Scratch` row (enrolled at launch) outlives the
+entry; clicking it → `activate_open_buffer`'s no-path arm →
+`activate_key` → `take_parked(Scratch)` → `None` → silent `false`.
+Dead row. Recovery that still works: the "Open scratch" palette command
+(`close_facts(Scratch)` is `None`, so it falls through to the stash
+restore) — told to the user.
+
+FIX, three layers, ordered:
+- (a) HEAD OF CHAIN — naming becomes TRANSACTIONAL: `save_into_folder`
+  derives the path and attempts the write FIRST, committing
+  `note_dir`/path binding only on success (or rolls back `note_dir` on
+  `Err`). A failed save must leave the buffer byte-identical in
+  identity to before the ⌘S.
+- (b) THE LAW, named: **an active buffer holding user text is never
+  replaced except by park (reversible), a gated close, or an explicit
+  refusal.** Today `park_active`'s unparkable arm + every
+  `self.active = Some(…)` assignment after it violates this silently.
+  Non-vacuity: break `park_active` and watch it go red.
+- (c) DEAD-ROW FALLBACK: `activate_open_buffer`'s no-path arm
+  (`app/files/open.rs`) gets a fallback for `BufferKey::Scratch` —
+  fall through to `open_scratch`'s stash-restore door instead of
+  returning silently. This also covers the LATENT second route into
+  the same state: the registry's clean-LRU eviction (`buffers.rs
+  park`) does not exempt `Scratch`, and an evicted pathed file
+  re-reads from disk while an evicted scratch has no such fallback.
+
+Item 538 proposes retiring the ghost class outright; if that direction
+is taken it subsumes (b)/(c) — land (a) regardless. Repro needs NO
+fault injection: a real tempdir plus a ≥300-char first line reproduces
+the exact failure natively (InMemoryFs cannot — 534 records why).
+Cross-ref 534: its cap removes THIS trigger, but any save error
+(read-only dir, disk full) re-enters the chain, so 537 is not
+subsumed by it. Full gate receipt.
+
+---
+### 538 — unnamed-fresh documents are ghosts: no key, no row, no park — give them first-class identity (user direction, 2026-08-30: "architectural code smell")
+
+The architecture underneath 537's chain, and a second user-reported
+symptom of the same gap (screenshot): **⌘N shows "• scratch" in the
+title, but the working-set stack draws no row for the new document and
+keeps HIGHLIGHTING the previous file as active** — the stack is lying
+about which document the user is looking at. Verified mechanism:
+`start_fresh_document` (`app/document.rs`) enrols no working-set row
+(one-shot naming: no identity until named — a recorded decision,
+`app/document/cache.rs` doc), and nothing clears `working.active`, so
+`file_row`'s `active: self.active == Some(at)` still marks the old
+row. A third confusion in the same family: an unnamed fresh NOTE's
+display name is the string "scratch" (`app/files/mod.rs`), colliding
+with the true scratch's identity in the title bar and stack.
+
+DIRECTION to design and land: an unnamed-fresh document gets a
+first-class `BufferKey` (e.g. a session-unique `Fresh(n)`), so it
+parks, enrols a working-set row, switches, and closes like every other
+buffer; the one-shot naming save then RE-KEYS the entry to its derived
+path (the registry re-key precedent: `park` already replaces same-key
+entries, and history has `rename`). This retires the ghost class:
+537's silent-drop hole and dead-row arm become structurally
+impossible, ⌘N's row appears immediately (labelled distinctly from
+true scratch — "untitled"? the lane proposes, the user picks the
+word), and the stale-active highlight cannot happen because
+activation goes through the same `set_active` door as everything
+else. Sweep the consumers that assume "path-less = scratch":
+`BufferKey::of`, `close_facts`, the stash machinery
+(`scratch_saved_version`), daemon gate (`app/daemon.rs`), session
+restore, and the capture sidecar's buffers block
+(`capture/buffers_sidecar.rs`). The working set already models
+path-less rows (`OpenFile.path: Option`), so the row half is small;
+the registry/naming half is the design work. Laws: every route that
+creates a document — open, ⌘N, scratch restore, daemon — lands
+exactly one working-set row whose active mark agrees with
+`active_key`, swept across the route roster, no wildcard.
+Full gate receipt.
+
+---
 ### 532 — keymap/platform.rs: the seed-table doc comments still describe the Meta-only world
 
 Comment-only truth fix in `src/keymap/platform.rs`, outdated by the
