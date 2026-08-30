@@ -2551,6 +2551,9 @@ pub struct TextPipeline {
     overlay_title: String,
     overlay_row_path_splits: bool,
     overlay_items: Vec<String>,
+    /// The summon-time, unlensed display corpus used only to stabilize a
+    /// right-anchored faceted card's content-hug measurement.
+    overlay_hug_roster: Option<std::sync::Arc<crate::overlay::HugRoster>>,
     overlay_empty: Option<String>,
     overlay_bindings: Vec<String>,
     /// Mirror of [`ViewState::overlay_ranges`]: the per-row RAIL FRACTION
@@ -2608,6 +2611,11 @@ pub struct TextPipeline {
     workspace_rail_placement: Option<(f32, f32)>,
     overlay_spell_w: f32,
     overlay_content_w: f32,
+    /// Stable right-anchored faceted-card width, memoized by the immutable
+    /// summon corpus identity and every shaping metric the answer reads.
+    overlay_hug_content_memo: Option<(u64, f32)>,
+    #[cfg(test)]
+    overlay_hug_measure_count: u64,
     /// PROTO-CACHE for the roster-width measurements, one slot per question.
     roster_memo: [Option<(u64, f32)>; chrome::roster::ROSTER_SLOTS],
     caret_preview: Option<CaretMode>,

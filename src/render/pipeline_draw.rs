@@ -488,6 +488,7 @@ impl TextPipeline {
             overlay_items: Vec::new(),
             overlay_empty: None,
             overlay_bindings: Vec::new(),
+            overlay_hug_roster: None,
             overlay_ranges: Vec::new(),
             overlay_times: Vec::new(),
             overlay_git: Vec::new(),
@@ -512,6 +513,9 @@ impl TextPipeline {
             workspace_rail_placement: None,
             overlay_spell_w: 0.0,
             overlay_content_w: 0.0,
+            overlay_hug_content_memo: None,
+            #[cfg(test)]
+            overlay_hug_measure_count: 0,
             roster_memo: [None; chrome::roster::ROSTER_SLOTS],
             caret_preview: None,
             caret_demo: crate::caret::CaretDemo::new(),

@@ -493,6 +493,10 @@ fn capture_screenshot(
     );
     if let Some((info, preview_text, diff)) = overlay_capture_info(&res.journey, &buffer) {
         opts.overlay = Some(info);
+        opts.overlay_hug_roster = res
+            .journey
+            .card()
+            .and_then(crate::overlay::OverlayState::hug_roster);
         opts.preview_text = preview_text;
         if opts.diff.is_none() {
             opts.diff = diff;

@@ -3,6 +3,20 @@ use super::{
     TableDimsEdit, ValueEdit,
 };
 use crate::textbox::TextBox;
+use std::sync::Arc;
+
+/// Immutable summon-time display material for a faceted picker's stable hug
+/// measurement. An `Arc` is the corpus identity, so ordinary view syncs do not
+/// rebuild or clone a complete corpus.
+#[derive(Debug)]
+pub struct HugRoster {
+    pub primary: Vec<String>,
+    pub secondary: Vec<String>,
+    /// The unlensed candidate span also drives diagonal-card side reserve.
+    /// An empty/filter projection may draw fewer rows, but it must not narrow
+    /// the pinned card.
+    pub candidate_rows: usize,
+}
 
 pub use super::add_to_dictionary_label;
 
@@ -77,6 +91,7 @@ pub struct OverlayState {
     /// survives every descend/ascend via `carry_level_payload_from`. `None`
     /// on every non-`MoveDest` card.
     pub move_filename: Option<String>,
+    pub(super) hug_roster: Option<Arc<HugRoster>>,
 }
 
 impl OverlayState {
@@ -238,8 +253,10 @@ impl OverlayState {
             save_copy_dest: None,
             goto_line_count: 0,
             move_filename: None,
+            hug_roster: None,
         };
         s.refilter();
+        s.refresh_hug_roster();
         s
     }
     /// CARRY the facts a directory LEVEL cannot know onto the next level — the
@@ -266,6 +283,7 @@ impl OverlayState {
         for (row, s) in self.rows.iter_mut().zip(secondaries) {
             row.secondary = s;
         }
+        self.refresh_hug_roster();
     }
 
     pub fn set_range_cells(&mut self, cells: Vec<Option<RangeCell>>) {
@@ -286,6 +304,7 @@ impl OverlayState {
                 time: times.get(i).cloned().unwrap_or_default(),
             };
         }
+        self.refresh_hug_roster();
     }
 
     pub fn new_theme(names: Vec<String>, active_index: usize) -> Self {
@@ -587,6 +606,7 @@ impl OverlayState {
         row.meta = RowMeta::ProjectDoor;
         self.rows.push(row);
         self.refilter();
+        self.refresh_hug_roster();
     }
 
     /// Is the highlighted row the door ([`Self::attach_browse_door`])? The one
@@ -739,6 +759,7 @@ impl OverlayState {
             });
         }
         self.refilter();
+        self.refresh_hug_roster();
     }
 
     /// Fold authored folder destinations into Go-to. `recent_paths` is ordered
@@ -774,6 +795,7 @@ impl OverlayState {
         chooser.meta = RowMeta::FolderChooser;
         self.rows.push(chooser);
         self.refilter();
+        self.refresh_hug_roster();
     }
 
     /// Fold the destination buffer's LINE COUNT into Go-to and append Go to
@@ -800,6 +822,7 @@ impl OverlayState {
             range: None,
         });
         self.refilter();
+        self.refresh_hug_roster();
     }
 
     pub fn attach_settings_rows(
@@ -821,6 +844,7 @@ impl OverlayState {
             });
         }
         self.refilter();
+        self.refresh_hug_roster();
     }
 
     pub fn selected_setting_row(&self) -> Option<crate::settings::SettingRow> {

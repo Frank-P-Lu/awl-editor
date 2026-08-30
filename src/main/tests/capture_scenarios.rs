@@ -2,6 +2,122 @@ use super::super::*;
 use super::keyspec;
 use crate::testscratch::ScratchDir;
 
+/// Both ordinary capture doors must carry the summon-time faceted corpus into
+/// their settled `ViewState`.  The storyboard/live fold has a typed seam;
+/// one-shot `--screenshot --keys` still owns its short replay fold locally.
+/// Drive the real Go-to path through each so deleting either enrolment makes
+/// the wide All corpus disappear when Headings is selected.
+#[test]
+fn faceted_hug_roster_survives_both_one_shot_and_shared_capture_folds() {
+    let _serial = crate::testlock::serial();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl-faceted-hug-fold-{}", std::process::id())),
+    );
+    let root = dir.join("workspace");
+    let long_folder = root.join("archive/very-long-project-folder-name");
+    std::fs::create_dir_all(&long_folder).expect("seeded root");
+    let current = root.join("current.md");
+    std::fs::write(&current, "# Current\n").expect("seed current file");
+    std::fs::write(long_folder.join("old.md"), "# Old\n").expect("seed nested file");
+    let config = Config::empty();
+    let all = "s-p g o Space t o Enter";
+    let headings = "s-p g o Space t o Enter Right Right";
+
+    // The shared storyboard/live fold receives the exact Arc the session owns.
+    let mut buffer = Buffer::from_file(&current);
+    let corpus = crate::index::build_index(&root);
+    let mut keymap =
+        crate::keymap::KeymapState::new_with_convention(crate::convention::Convention::Mac);
+    let mut session = ReplaySession::new(
+        ReplayPolicy::ordinary(),
+        &mut buffer,
+        &corpus,
+        &root,
+        Some(root.as_path()),
+        &config,
+        None,
+        &mut keymap,
+    );
+    for chord in crate::keyspec::parse_chords(headings).expect("headings chords") {
+        session.apply_chord(&chord).expect("shared-fold chord applies");
+    }
+    let summon_roster = session
+        .journey()
+        .card()
+        .and_then(crate::overlay::OverlayState::hug_roster)
+        .expect("real Go-to summon has an unlensed hug corpus");
+    let folded = fold_capture_state(&session, project_info(&root, &None, None, &config));
+    let folded_roster = folded
+        .overlay_hug_roster
+        .as_ref()
+        .expect("shared capture fold preserves the Go-to hug corpus");
+    assert!(std::sync::Arc::ptr_eq(&summon_roster, folded_roster));
+    assert!(
+        folded_roster
+            .primary
+            .iter()
+            .any(|row| row.contains("very-long-project-folder-name")),
+        "shared fold carries the wide All corpus, not the narrow Headings roster"
+    );
+    drop(session);
+
+    if capture::build_oracle(&Buffer::from_file(&current), &CaptureOpts::default()).is_none() {
+        eprintln!("skipping faceted-hug capture fold pixels: no wgpu adapter");
+        return;
+    }
+    let capture = |label: &str, spec: &str| {
+        let out = dir.join(format!("{label}.png"));
+        capture_screenshot(
+            out.clone(),
+            Some(current.clone()),
+            CaptureOpts::default(),
+            keyspec::parse_keys(spec).expect("one-shot chords"),
+            crate::keymap::KeymapState::new_with_convention(crate::convention::Convention::Mac),
+            Some(root.clone()),
+            Some(root.clone()),
+            dir.join("outside-corpus-config"),
+            Config::empty(),
+            true,
+        )
+        .expect("strict one-shot capture succeeds");
+        serde_json::from_str::<serde_json::Value>(
+            &std::fs::read_to_string(out.with_extension("json")).expect("sidecar"),
+        )
+        .expect("sidecar parses")
+    };
+    let band = |sidecar: &serde_json::Value| {
+        let band = &sidecar["overlay"]["window"]["band"];
+        (band["x"].as_f64().expect("band x"), band["w"].as_f64().expect("band w"))
+    };
+    let mirrors: Vec<&str> = crate::theme::THEMES
+        .iter()
+        .filter(|world| world.render_caps.card_anchor.mirrors_growth())
+        .map(|world| world.name)
+        .collect();
+    assert!(
+        !mirrors.is_empty(),
+        "the shipping roster must enroll at least one right-anchored card"
+    );
+    for world in mirrors {
+        let _world = crate::theme::WorldPin::world(world).expect("enrolled world exists");
+        let all_json = capture(&format!("{world}-all"), all);
+        let headings_json = capture(&format!("{world}-headings"), headings);
+        assert_eq!(all_json["overlay"]["lens"], "all", "[{world}] one-shot starts at All");
+        assert_eq!(
+            headings_json["overlay"]["lens"], "headings",
+            "[{world}] one-shot navigation reaches Headings"
+        );
+        let all_band = band(&all_json);
+        let headings_band = band(&headings_json);
+        assert!(
+            (all_band.0 - headings_band.0).abs() <= 0.01
+                && (all_band.1 - headings_band.1).abs() <= 0.01,
+            "[{world}] one-shot fold lost the summon-time hug corpus across All -> Headings: \
+             all={all_band:?}, headings={headings_band:?}"
+        );
+    }
+}
+
 #[test]
 fn palette_language_tag_capture_photographs_the_toast_it_reports() {
     let _fs = crate::testlock::serial();

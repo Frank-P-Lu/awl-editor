@@ -330,6 +330,9 @@ pub struct CaptureOpts {
     /// The summoned overlay state for the sidecar `overlay` block. None ->
     /// overlay inactive.
     pub overlay: Option<OverlayInfo>,
+    /// The immutable summon corpus carried from the shared-core replay into the
+    /// render snapshot. Inert off a faceted picker.
+    pub overlay_hug_roster: Option<std::sync::Arc<crate::overlay::HugRoster>>,
     /// PHYSICAL canvas dimensions for this run (`--capture-size WxH`). `None` =
     /// [`super::CANVAS_WIDTH`]x[`super::CANVAS_HEIGHT`]. Lets a capture render at
     /// the REAL window size, where size-dependent layout bugs (the page

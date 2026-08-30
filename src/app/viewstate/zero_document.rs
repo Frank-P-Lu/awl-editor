@@ -25,6 +25,7 @@ impl App {
             .unwrap_or_default();
         view.overlay_row_path_splits = ov.map(|o| o.kind.row_path_splits()).unwrap_or(false);
         view.overlay_items = ov.map(|o| o.item_strings()).unwrap_or_default();
+        view.overlay_hug_roster = ov.and_then(crate::overlay::OverlayState::hug_roster);
         view.overlay_empty = ov.and_then(|o| o.empty_notice());
         view.overlay_bindings = ov.map(|o| o.item_bindings()).unwrap_or_default();
         view.overlay_ranges = ov.map(|o| o.item_range_fracs()).unwrap_or_default();

@@ -388,6 +388,7 @@ impl TextPipeline {
         self.overlay_title = view.overlay_title.clone();
         self.overlay_row_path_splits = view.overlay_row_path_splits;
         self.overlay_items = view.overlay_items.clone();
+        self.overlay_hug_roster = view.overlay_hug_roster.clone();
         self.overlay_empty = view.overlay_empty.clone();
         self.overlay_bindings = view.overlay_bindings.clone();
         self.overlay_ranges = view.overlay_ranges.clone();
