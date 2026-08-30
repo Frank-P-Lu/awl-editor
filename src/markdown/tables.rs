@@ -132,34 +132,38 @@ pub(crate) fn parse_col_align(cell: &str) -> ColAlign {
 /// empty cells produced by the leading/trailing outer pipes are dropped, so
 /// `| a | b |` yields `["a", "b"]` and a pipeless line yields the whole line as one
 /// cell.
-pub(crate) fn split_row_cells(line: &str) -> Vec<String> {
+pub(crate) fn table_cell_ranges(line: &str) -> Vec<Range<usize>> {
     let t = line.trim();
-    let mut cells: Vec<String> = Vec::new();
-    let mut cur = String::new();
+    let trim_start = line.len() - line.trim_start().len();
+    let mut delimiters = Vec::new();
     let mut escaped = false;
-    for c in t.chars() {
+    for (i, c) in t.char_indices() {
         if escaped {
-            cur.push(c);
             escaped = false;
         } else if c == '\\' {
-            cur.push(c);
             escaped = true;
         } else if c == '|' {
-            cells.push(cur.trim().to_string());
-            cur.clear();
-        } else {
-            cur.push(c);
+            delimiters.push(i);
         }
     }
-    cells.push(cur.trim().to_string());
-    // Drop the empty cell before the first `|` / after the last `|` (the outer pipes).
-    if t.starts_with('|') && cells.first().is_some_and(|c| c.is_empty()) {
-        cells.remove(0);
+    let mut ranges = Vec::new();
+    for pair in delimiters.windows(2) {
+        let start = pair[0] + 1;
+        let end = pair[1];
+        let cell = &t[start..end];
+        let lead = cell.len() - cell.trim_start().len();
+        let tail = cell.trim_end().len();
+        ranges.push(trim_start + start + lead..trim_start + start + tail);
     }
-    if t.ends_with('|') && cells.last().is_some_and(|c| c.is_empty()) {
-        cells.pop();
+    ranges
+}
+
+pub(crate) fn split_row_cells(line: &str) -> Vec<String> {
+    let ranges = table_cell_ranges(line);
+    if ranges.is_empty() {
+        return vec![line.trim().to_string()];
     }
-    cells
+    ranges.into_iter().map(|range| line[range].to_string()).collect()
 }
 
 /// Re-emit one column's SEPARATOR cell (`ColAlign` + target `width`), keeping the

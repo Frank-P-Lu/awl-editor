@@ -12,30 +12,6 @@
 
 use super::*;
 
-/// Content-start character columns for a source table row. Escaped pipes stay
-/// inside their cell; only real delimiters participate in table navigation.
-fn table_cell_starts(line: &str) -> Vec<usize> {
-    let chars: Vec<char> = line.chars().collect();
-    let mut pipes = Vec::new();
-    let mut escaped = false;
-    for (i, c) in chars.iter().copied().enumerate() {
-        if escaped {
-            escaped = false;
-        } else if c == '\\' {
-            escaped = true;
-        } else if c == '|' {
-            pipes.push(i);
-        }
-    }
-    pipes.windows(2).map(|pair| {
-        let mut start = pair[0] + 1;
-        while start < pair[1] && chars[start].is_whitespace() {
-            start += 1;
-        }
-        start
-    }).collect()
-}
-
 fn table_row_source(columns: usize) -> String {
     format!("|{}", " |".repeat(columns.max(1)))
 }
@@ -57,7 +33,10 @@ pub(super) fn table_newline(ctx: &mut ActionCtx) -> bool {
         .map(|row| crate::markdown::split_row_cells(lines[row]).len())
         .max()
         .unwrap_or(1);
-    let at = ctx.buffer.line_col_to_char(line, usize::MAX);
+    // Header + separator are inseparable GFM structure: inserting "below the
+    // header" means the first body row, below its separator.
+    let below = if line == start { start + 1 } else { line };
+    let at = ctx.buffer.line_col_to_char(below, usize::MAX);
     let row = table_row_source(columns);
     ctx.buffer.replace_char_range(at, at, &format!("\n{row}"));
     ctx.buffer.set_cursor(at + 3);
@@ -82,7 +61,8 @@ pub(super) fn table_tab(ctx: &mut ActionCtx, forward: bool) -> bool {
         if row == start + 1 {
             continue;
         }
-        for cell_col in table_cell_starts(lines[row]) {
+        for range in crate::markdown::table_cell_ranges(lines[row]) {
+            let cell_col = lines[row][..range.start].chars().count();
             cells.push((row, cell_col));
         }
     }
@@ -91,8 +71,8 @@ pub(super) fn table_tab(ctx: &mut ActionCtx, forward: bool) -> bool {
     }
     let current = cells
         .iter()
-        .position(|&(row, cell_col)| row == line && col <= cell_col)
-        .or_else(|| cells.iter().rposition(|&(row, _)| row == line))
+        .rposition(|&(row, cell_col)| row == line && cell_col <= col)
+        .or_else(|| cells.iter().position(|&(row, _)| row == line))
         .unwrap_or_else(|| if forward { 0 } else { cells.len() - 1 });
     if forward && current + 1 == cells.len() {
         let columns = cells.iter().filter(|(row, _)| *row == start).count().max(1);

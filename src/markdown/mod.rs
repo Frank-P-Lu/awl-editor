@@ -134,7 +134,7 @@ pub(crate) use tables::ColAlign;
 pub use tables::{FIRST_CELL_OFFSET, align_table, build_table, table_block_lines};
 #[allow(unused_imports)] // table_pan_max: public API surface, no in-crate caller today
 pub(crate) use tables::{
-    parse_col_align, split_row_cells, table_align_offset, table_column_layout, table_pan_bar,
+    parse_col_align, split_row_cells, table_cell_ranges, table_align_offset, table_column_layout, table_pan_bar,
     table_pan_clamp, table_pan_max,
 };
 
