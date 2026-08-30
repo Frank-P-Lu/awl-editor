@@ -146,14 +146,31 @@ pub(crate) fn table_cell_ranges(line: &str) -> Vec<Range<usize>> {
             delimiters.push(i);
         }
     }
+    let mut boundaries = Vec::with_capacity(delimiters.len() + 2);
+    boundaries.push(0);
+    boundaries.extend(delimiters);
+    boundaries.push(t.len());
     let mut ranges = Vec::new();
-    for pair in delimiters.windows(2) {
-        let start = pair[0] + 1;
+    for pair in boundaries.windows(2) {
+        let start = if pair[0] == 0 && !t.starts_with('|') {
+            0
+        } else {
+            pair[0] + 1
+        };
+        let start = start.min(pair[1]);
         let end = pair[1];
         let cell = &t[start..end];
         let lead = cell.len() - cell.trim_start().len();
         let tail = cell.trim_end().len();
         ranges.push(trim_start + start + lead..trim_start + start + tail);
+    }
+    // Optional outer pipes are structural cells, never data. Keep the virtual
+    // row edges above so `a | b`, `| a | b`, and `a | b |` all share one parser.
+    if t.starts_with('|') {
+        ranges.remove(0);
+    }
+    if t.ends_with('|') {
+        ranges.pop();
     }
     ranges
 }

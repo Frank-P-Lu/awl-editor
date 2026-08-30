@@ -1202,6 +1202,26 @@ fn table_conceal_span_covers_the_whole_block() {
 }
 
 #[test]
+fn table_cell_ranges_preserve_optional_outer_pipes_and_backslash_parity() {
+    let cases = [
+        ("a | b", vec!["a", "b"]),
+        ("| a | b", vec!["a", "b"]),
+        ("a | b |", vec!["a", "b"]),
+        ("| a | b |", vec!["a", "b"]),
+        ("| a\\|b | c |", vec!["a\\|b", "c"]),
+        ("| a\\\\ | b |", vec!["a\\\\", "b"]),
+    ];
+    for (source, want) in cases {
+        let got: Vec<_> = table_cell_ranges(source)
+            .into_iter()
+            .map(|range| &source[range])
+            .collect();
+        assert_eq!(got, want, "{source:?}");
+        assert_eq!(split_row_cells(source), want, "split parity for {source:?}");
+    }
+}
+
+#[test]
 fn table_column_layout_fits_keeps_max_content() {
     // Regime 1 (fits): max-content total (200 + 2*10 = 220) < avail => columns
     // keep their max-content widths, left-anchored, gaps applied.
