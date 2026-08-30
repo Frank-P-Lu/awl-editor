@@ -2,6 +2,20 @@ use super::super::*;
 use super::keyspec;
 use crate::testscratch::ScratchDir;
 
+#[test]
+fn both_capture_doors_report_provisional_fresh_identity_as_untitled() {
+    let _serial = crate::testlock::serial();
+    let mut fresh = Buffer::scratch();
+    fresh.start_fresh_doc(std::path::PathBuf::from("/notes"));
+
+    let folded = capture_fold::buffers_info(2, Some(&fresh));
+    assert_eq!(folded.open, 2);
+    assert_eq!(folded.active.as_deref(), Some("untitled"));
+
+    let scratch = capture_fold::buffers_info(1, Some(&Buffer::scratch()));
+    assert_eq!(scratch.active.as_deref(), Some("scratch"));
+}
+
 /// Both ordinary capture doors must carry the summon-time faceted corpus into
 /// their settled `ViewState`.  The storyboard/live fold has a typed seam;
 /// one-shot `--screenshot --keys` still owns its short replay fold locally.
@@ -39,7 +53,9 @@ fn faceted_hug_roster_survives_both_one_shot_and_shared_capture_folds() {
         &mut keymap,
     );
     for chord in crate::keyspec::parse_chords(headings).expect("headings chords") {
-        session.apply_chord(&chord).expect("shared-fold chord applies");
+        session
+            .apply_chord(&chord)
+            .expect("shared-fold chord applies");
     }
     let summon_roster = session
         .journey()
@@ -87,7 +103,10 @@ fn faceted_hug_roster_survives_both_one_shot_and_shared_capture_folds() {
     };
     let band = |sidecar: &serde_json::Value| {
         let band = &sidecar["overlay"]["window"]["band"];
-        (band["x"].as_f64().expect("band x"), band["w"].as_f64().expect("band w"))
+        (
+            band["x"].as_f64().expect("band x"),
+            band["w"].as_f64().expect("band w"),
+        )
     };
     let mirrors: Vec<&str> = crate::theme::THEMES
         .iter()
@@ -102,7 +121,10 @@ fn faceted_hug_roster_survives_both_one_shot_and_shared_capture_folds() {
         let _world = crate::theme::WorldPin::world(world).expect("enrolled world exists");
         let all_json = capture(&format!("{world}-all"), all);
         let headings_json = capture(&format!("{world}-headings"), headings);
-        assert_eq!(all_json["overlay"]["lens"], "all", "[{world}] one-shot starts at All");
+        assert_eq!(
+            all_json["overlay"]["lens"], "all",
+            "[{world}] one-shot starts at All"
+        );
         assert_eq!(
             headings_json["overlay"]["lens"], "headings",
             "[{world}] one-shot navigation reaches Headings"

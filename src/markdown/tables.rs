@@ -180,7 +180,10 @@ pub(crate) fn split_row_cells(line: &str) -> Vec<String> {
     if ranges.is_empty() {
         return vec![line.trim().to_string()];
     }
-    ranges.into_iter().map(|range| line[range].to_string()).collect()
+    ranges
+        .into_iter()
+        .map(|range| line[range].to_string())
+        .collect()
 }
 
 /// Re-emit one column's SEPARATOR cell (`ColAlign` + target `width`), keeping the

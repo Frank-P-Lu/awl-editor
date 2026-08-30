@@ -529,13 +529,7 @@ fn capture_screenshot(
             .collect(),
         );
     }
-    opts.buffers = Some(capture::BuffersInfo {
-        open: res.buffers_open,
-        active: Some(match buffer.path() {
-            Some(p) => p.display().to_string(),
-            None => "scratch".to_string(),
-        }),
-    });
+    opts.buffers = Some(capture_fold::buffers_info(res.buffers_open, Some(&buffer)));
     opts.replay_skips = res.replay_skips;
     capture::capture_with(&out, &buffer, &opts)?;
     println!("wrote {} (+ sidecar .json)", out.display());

@@ -218,7 +218,9 @@ impl TextPipeline {
         let geom = self.overlay_geometry(self.window_w as u32);
         self.overlay_remetric();
         let hug_roster = self.overlay_hug_roster.clone();
-        let hug_key = hug_roster.as_ref().map(|roster| self.hug_roster_key(roster));
+        let hug_key = hug_roster
+            .as_ref()
+            .map(|roster| self.hug_roster_key(roster));
         if let Some(key) = hug_key
             && let Some((cached, width)) = self.overlay_hug_content_memo
             && cached == key
@@ -249,7 +251,12 @@ impl TextPipeline {
             );
         }
         let has_right = if static_corpus {
-            !self.overlay_hug_roster.as_ref().unwrap().secondary.is_empty()
+            !self
+                .overlay_hug_roster
+                .as_ref()
+                .unwrap()
+                .secondary
+                .is_empty()
         } else {
             !self.overlay_right_labels().is_empty()
         };

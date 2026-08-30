@@ -81,9 +81,14 @@ pub(super) fn table_tab(ctx: &mut ActionCtx, forward: bool) -> bool {
             .replace_char_range(at, at, &format!("\n{}", table_row_source(columns)));
         ctx.buffer.set_cursor(at + 3);
     } else {
-        let next = if forward { current + 1 } else { current.saturating_sub(1) };
+        let next = if forward {
+            current + 1
+        } else {
+            current.saturating_sub(1)
+        };
         let (target_line, target_col) = cells[next];
-        ctx.buffer.set_cursor(ctx.buffer.line_col_to_char(target_line, target_col));
+        ctx.buffer
+            .set_cursor(ctx.buffer.line_col_to_char(target_line, target_col));
     }
     true
 }

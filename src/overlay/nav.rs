@@ -490,7 +490,13 @@ impl OverlayState {
             return self
                 .rows
                 .iter()
-                .map(|row| if row.git { "git".to_string() } else { String::new() })
+                .map(|row| {
+                    if row.git {
+                        "git".to_string()
+                    } else {
+                        String::new()
+                    }
+                })
                 .collect();
         }
         Vec::new()

@@ -128,11 +128,18 @@ pub(crate) fn fold_capture_state(
     }
     opts.gutter_changed = subject.changed_elsewhere();
     opts.notice = subject.notice();
-    opts.buffers = Some(capture::BuffersInfo {
-        open: subject.buffers_open(),
-        active: buffer.map(|buffer| crate::buffers::BufferKey::of(buffer).sidecar_label()),
-    });
+    opts.buffers = Some(buffers_info(subject.buffers_open(), buffer));
     opts
+}
+
+/// One identity fold for both ordinary capture doors. `BufferKey::of` is total:
+/// a pathless buffer may be the durable scratch singleton or a provisional
+/// Fresh document, and the sidecar must not collapse those identities.
+pub(super) fn buffers_info(open: usize, buffer: Option<&Buffer>) -> capture::BuffersInfo {
+    capture::BuffersInfo {
+        open,
+        active: buffer.map(|buffer| crate::buffers::BufferKey::of(buffer).sidecar_label()),
+    }
 }
 
 /// Fold ONE still-open overlay into its sidecar [`capture::OverlayInfo`] block

@@ -504,7 +504,9 @@ fn right_anchored_faceted_hug_width_is_invariant_across_lenses_and_filters() {
         vec![("archive/very-long-project-folder-name".to_string(), false)],
         &[],
     );
-    let hug_roster = summon.hug_roster().expect("faceted summon freezes a hug roster");
+    let hug_roster = summon
+        .hug_roster()
+        .expect("faceted summon freezes a hug roster");
     let hug_items = &hug_roster.primary;
     assert!(
         hug_items.iter().any(|s| s == "no headings yet"),
@@ -533,7 +535,9 @@ fn right_anchored_faceted_hug_width_is_invariant_across_lenses_and_filters() {
     assert!(
         std::sync::Arc::ptr_eq(
             &hug_roster,
-            &folders.hug_roster().expect("lens transition keeps the summon corpus"),
+            &folders
+                .hug_roster()
+                .expect("lens transition keeps the summon corpus"),
         ),
         "a lens transition must retain the production summon corpus identity"
     );
@@ -597,5 +601,8 @@ fn right_anchored_faceted_hug_measurement_memoizes_one_arc_and_metrics() {
         first,
         "an identical Arc corpus and metrics must reuse the hug measurement"
     );
-    assert_eq!(first, 1, "the first frame must perform exactly one measurement");
+    assert_eq!(
+        first, 1,
+        "the first frame must perform exactly one measurement"
+    );
 }

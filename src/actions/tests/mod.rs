@@ -20,7 +20,6 @@ mod export_gate;
 mod folds;
 mod format_editing;
 mod insert_table;
-mod table_edit;
 mod lifecycle;
 mod link_flow;
 mod overlay_drive;
@@ -31,6 +30,7 @@ mod recoil_flinch;
 mod reveal_copy_path;
 mod save_feedback;
 mod settings_reach;
+mod table_edit;
 /// The summoned workspace's state, focus and back, in the lifecycle's
 /// own vocabulary. Tier 1, fully capturable (`docs/harness-reach.md`).
 mod workspace;
