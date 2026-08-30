@@ -57,12 +57,12 @@ pub(super) fn table_tab(ctx: &mut ActionCtx, forward: bool) -> bool {
         return false;
     };
     let mut cells = Vec::new();
-    for row in start..end {
+    for (row, line_text) in lines.iter().enumerate().take(end).skip(start) {
         if row == start + 1 {
             continue;
         }
-        for range in crate::markdown::table_cell_ranges(lines[row]) {
-            let cell_col = lines[row][..range.start].chars().count();
+        for range in crate::markdown::table_cell_ranges(line_text) {
+            let cell_col = line_text[..range.start].chars().count();
             cells.push((row, cell_col));
         }
     }
