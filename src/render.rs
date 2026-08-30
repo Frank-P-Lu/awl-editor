@@ -2551,6 +2551,9 @@ pub struct TextPipeline {
     overlay_title: String,
     overlay_row_path_splits: bool,
     overlay_items: Vec<String>,
+    /// The summon-time, unlensed display corpus used only to stabilize a
+    /// right-anchored faceted card's content-hug measurement.
+    overlay_hug_roster: Option<std::sync::Arc<crate::overlay::HugRoster>>,
     overlay_empty: Option<String>,
     overlay_bindings: Vec<String>,
     /// Mirror of [`ViewState::overlay_ranges`]: the per-row RAIL FRACTION

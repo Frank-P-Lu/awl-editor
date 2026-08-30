@@ -81,7 +81,7 @@ pub use rename_edit::RenameEdit;
 #[allow(unused_imports)]
 // OverlayRow/RowMeta/RowMetaTag: used by overlay tests and source-audit laws
 pub use row::{OverlayRow, RangeCell, RowMeta, RowMetaTag, add_to_dictionary_label};
-pub use state::OverlayState;
+pub use state::{HugRoster, OverlayState};
 #[allow(unused_imports)]
 // DEFAULT_COLS/DEFAULT_ROWS/MIN_DIM: read only by test-only journeys
 // (actions::tests::insert_table, main/tests::minibuffers), never by a

@@ -1,8 +1,24 @@
-use super::{OverlayKind, OverlayState, RangeCell, RowMeta};
+use super::{HugRoster, OverlayKind, OverlayState, RangeCell, RowMeta};
 
 pub(super) const HOVER_MOVE_SLOP_PX: f32 = crate::app::DRAG_ARM_SLOP_PX;
 
 impl OverlayState {
+    pub(super) fn refresh_hug_roster(&mut self) {
+        if !self.is_faceting() {
+            self.hug_roster = None;
+            return;
+        }
+        self.hug_roster = Some(std::sync::Arc::new(HugRoster {
+            primary: self.hug_primary_strings(),
+            secondary: self.hug_secondary_strings(),
+        }));
+    }
+
+    /// Immutable summon-time corpus for a faceted picker. A view push clones
+    /// only this `Arc`; mutations refresh it at their own seam.
+    pub fn hug_roster(&self) -> Option<std::sync::Arc<HugRoster>> {
+        self.hug_roster.clone()
+    }
     /// The per-row SECTION labels the grouped card draws as faint headers above
     /// each bucket.
     ///
@@ -419,6 +435,64 @@ impl OverlayState {
             .iter()
             .map(|&i| self.rows[i].secondary.clone())
             .collect()
+    }
+
+    /// The stable content corpus for a faceted picker's right-anchored hug
+    /// measurement. A lens and its fuzzy query are projections of this summon,
+    /// not new content: measuring their transient `items` list would move a
+    /// card's left edge while its right edge remains pinned. Include every row's
+    /// actual display string, the static strip/title chrome, and every message a
+    /// lens can honestly show when it is empty.
+    pub fn hug_primary_strings(&self) -> Vec<String> {
+        let Some(scheme) = self.facet_scheme() else {
+            return Vec::new();
+        };
+        let mut text: Vec<String> = (0..self.rows.len()).map(|i| self.display_of(i)).collect();
+        text.push(self.title());
+        text.extend(scheme.strip.iter().map(|facet| facet.label.to_string()));
+        text.push("no matches".to_string());
+        text.push(self.kind.empty_corpus_message().to_string());
+        text.extend(
+            scheme
+                .strip
+                .iter()
+                .filter_map(|facet| self.kind.empty_lens_message(facet.id))
+                .map(str::to_string),
+        );
+        text
+    }
+
+    /// The stable secondary column paired with [`Self::hug_primary_strings`].
+    /// This follows the renderer's one-column priority exactly: authored labels,
+    /// then Go-to's edit times, then git tags. It is deliberately the whole
+    /// summon corpus rather than the current facet or fuzzy result.
+    pub fn hug_secondary_strings(&self) -> Vec<String> {
+        if !self.is_faceting() {
+            return Vec::new();
+        }
+        let authored: Vec<String> = self.rows.iter().map(|row| row.secondary.clone()).collect();
+        if authored.iter().any(|label| !label.is_empty()) {
+            return authored;
+        }
+        let times: Vec<String> = self
+            .rows
+            .iter()
+            .map(|row| match &row.meta {
+                RowMeta::GotoFile { time } => time.clone(),
+                _ => String::new(),
+            })
+            .collect();
+        if times.iter().any(|label| !label.is_empty()) {
+            return times;
+        }
+        if self.rows.iter().any(|row| row.git) {
+            return self
+                .rows
+                .iter()
+                .map(|row| if row.git { "git".to_string() } else { String::new() })
+                .collect();
+        }
+        Vec::new()
     }
 
     /// The per-row RAIL FRACTION (0..1), in the same row order as

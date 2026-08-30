@@ -1,4 +1,5 @@
 use super::*;
+use std::sync::Arc;
 
 pub struct ViewState {
     /// Whether this frame represents a real active document. `false` is the
@@ -61,8 +62,16 @@ pub struct ViewState {
     pub overlay_title: String,
     pub overlay_row_path_splits: bool,
     pub overlay_items: Vec<String>,
+    /// The faceted picker's UNLENSED, UNFILTERED display corpus, augmented with
+    /// every empty-state and static chrome label. Right-anchored cards measure
+    /// their hug width from this summon-time roster, never the current lens or
+    /// query projection, so their left edge stays put while the right rail holds.
+    pub overlay_hug_roster: Option<Arc<crate::overlay::HugRoster>>,
     pub overlay_empty: Option<String>,
     pub overlay_bindings: Vec<String>,
+    /// The secondary column parallel to [`Self::overlay_hug_items`] where one
+    /// exists. Kept separate because the panel shapes this column in its own
+    /// face and metrics.
     pub overlay_ranges: Vec<Option<f32>>,
     pub overlay_times: Vec<String>,
     pub overlay_git: Vec<String>,
@@ -314,6 +323,7 @@ impl ViewState {
             overlay_title: String::new(),
             overlay_row_path_splits: false,
             overlay_items: Vec::new(),
+            overlay_hug_roster: None,
             overlay_empty: None,
             overlay_bindings: Vec::new(),
             overlay_ranges: Vec::new(),

@@ -163,13 +163,21 @@ impl TextPipeline {
     /// regardless. The 2x margin is what keeps a MEAN-glyph-width estimate from
     /// ever short-circuiting a roster that would genuinely have hugged.
     pub(in crate::render) fn measure_roster_primary_px(&mut self, geom: &OverlayGeom) -> f32 {
-        let Some(widest_chars) = self.overlay_items.iter().map(|s| s.chars().count()).max() else {
+        if let Some(roster) = self.overlay_hug_roster.clone() {
+            return self.measure_roster_primary_strings_px(&roster.primary, geom);
+        }
+        let items = self.overlay_items.clone();
+        self.measure_roster_primary_strings_px(&items, geom)
+    }
+
+    fn measure_roster_primary_strings_px(&mut self, items: &[String], geom: &OverlayGeom) -> f32 {
+        let Some(widest_chars) = items.iter().map(|s| s.chars().count()).max() else {
             return 0.0;
         };
         if widest_chars as f32 * self.overlay_char_width() >= 2.0 * geom.text_w {
             return geom.text_w;
         }
-        let text = self.overlay_items.join("\n");
+        let text = items.join("\n");
         let metrics = self.overlay_metrics();
         self.measure_panel_roster_px(RosterSlot::Candidates, &text, metrics)
     }
@@ -177,17 +185,18 @@ impl TextPipeline {
     /// The widest secondary cell — key chord, time, git tag — in the whole
     /// roster, shaped at the right column's OWN recessive metrics.
     pub(in crate::render) fn measure_roster_secondary_px(&mut self) -> f32 {
+        if let Some(roster) = self.overlay_hug_roster.clone() {
+            return self.measure_bind_roster_px(&roster.secondary);
+        }
         let labels = self.overlay_right_labels().to_vec();
         self.measure_bind_roster_px(&labels)
     }
 
-    /// A right-anchored card's content-hug width, measured over the WHOLE
-    /// candidate roster: a hug width is a property of the picker's CONTENT, and
-    /// the scroll position is not content. Measured from the visible window a
-    /// right-anchored card RESIZED — and, its right edge pinned to the rail,
-    /// therefore TRANSLATED — whenever a wider row scrolled in. Measured the way
-    /// [`Self::measure_workspace_primary_w`] measures its own column: one joined
-    /// pass, so the frame's planning budget stays O(visible).
+    /// A right-anchored card's content-hug width. A flat picker measures its
+    /// whole candidate roster; a faceted picker measures its summon-time,
+    /// unlensed and unfiltered display corpus. Lens and query are projections,
+    /// not content, so they cannot translate the card's pinned-left chrome.
+    /// Both paths use the memoized joined-shaper pass below.
     pub(in crate::render) fn measure_overlay_content_w(&mut self) -> f32 {
         let ink = theme::base_content().to_glyphon();
         let muted = theme::muted().to_glyphon();
@@ -198,26 +207,36 @@ impl TextPipeline {
         // band's chase state (measuring may never advance an animation).
         let vis = VisualSelection::default();
         let plan = self.overlay_row_plan(&geom);
-        // Measured for what the card HOLDS, not what this scroll position fits:
-        // reading the shaper's own yield verdict flipped the hug width whenever
-        // a wide row scrolled through — the same defect one level up.
-        let _ = self.overlay_shape_text(
-            &geom,
-            &plan,
-            OverlaySpanInks {
-                ink,
-                muted,
-                selected: None,
-            },
-            &vis,
-            false,
-        );
-        let has_right = !self.overlay_right_labels().is_empty();
-        // The card's CHROME lines — query, lens strip, footer — are read before
-        // the roster measurement reuses the same buffer.
+        // Flat pickers need their current card chrome shaped before the roster
+        // pass reuses this scratch buffer. A faceted picker instead carries that
+        // chrome in its stable summon corpus, so the active query cannot affect
+        // this measurement.
+        let static_corpus = self.overlay_hug_roster.is_some();
+        if !static_corpus {
+            let _ = self.overlay_shape_text(
+                &geom,
+                &plan,
+                OverlaySpanInks {
+                    ink,
+                    muted,
+                    selected: None,
+                },
+                &vis,
+                false,
+            );
+        }
+        let has_right = if static_corpus {
+            !self.overlay_hug_roster.as_ref().unwrap().secondary.is_empty()
+        } else {
+            !self.overlay_right_labels().is_empty()
+        };
+        // A flat card's live chrome remains part of its content question. The
+        // faceted corpus already contains its static title/strip/empty labels.
         let mut left = 0.0_f32;
-        for run in self.panel_buffer.layout_runs() {
-            left = left.max(run.line_w);
+        if !static_corpus {
+            for run in self.panel_buffer.layout_runs() {
+                left = left.max(run.line_w);
+            }
         }
         let primary = self.measure_roster_primary_px(&geom) + self.overlay_char_width();
         let secondary = if has_right {

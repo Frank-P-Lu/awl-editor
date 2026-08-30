@@ -476,3 +476,88 @@ fn right_anchored_content_driven_by_its_own_widest_primary_is_not_squeezed_by_th
     set_bar_config_test_override(None);
     theme::set_active(theme::DEFAULT_THEME);
 }
+
+/// A faceted right-anchored card measures its SUMMON corpus, not whichever
+/// lens/query projection happens to be on screen. The roster supplies both the
+/// enrolment (authored mirror anchors) and the content witness; no world is
+/// named, so a future right-anchored world cannot dodge this sweep.
+#[test]
+fn right_anchored_faceted_hug_width_is_invariant_across_lenses_and_filters() {
+    let _g = crate::testlock::serial();
+    let (w, h) = (1200u32, 800u32);
+    let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
+        eprintln!("skipping right_anchored_faceted_hug_width: no wgpu adapter");
+        return;
+    };
+
+    let mut summon = crate::overlay::OverlayState::new(
+        crate::overlay::OverlayKind::Goto,
+        vec![
+            "notes.md".to_string(),
+            "archive/very-long-project-folder-name/meeting-notes.md".to_string(),
+        ],
+        Vec::new(),
+        Vec::new(),
+    );
+    summon.attach_headings(Vec::new());
+    summon.attach_folders(
+        vec![("archive/very-long-project-folder-name".to_string(), false)],
+        &[],
+    );
+    let hug_items = summon.hug_primary_strings();
+    let hug_bindings = summon.hug_secondary_strings();
+    assert!(
+        hug_items.iter().any(|s| s == "no headings yet"),
+        "the stable measurement corpus must include every lens's empty-state line: {hug_items:?}"
+    );
+
+    let view_of = |ov: &crate::overlay::OverlayState, align| ViewState {
+        overlay_active: true,
+        overlay_align: Some(align),
+        overlay_query: ov.query.text().to_string(),
+        overlay_items: ov.item_strings(),
+        overlay_hug_roster: Some(std::sync::Arc::new(crate::overlay::HugRoster {
+            primary: hug_items.clone(),
+            secondary: hug_bindings.clone(),
+        })),
+        overlay_empty: ov.empty_notice(),
+        overlay_lens: ov.lens_strip(),
+        overlay_sections: ov.item_sections(),
+        ..view("hello\n", 0, 0)
+    };
+    let mut folders = summon.clone();
+    folders.focus_facet_id("folders");
+    let mut filtered = summon.clone();
+    for c in "zzzz".chars() {
+        filtered.push(c);
+    }
+
+    let mut enrolled = Vec::new();
+    for (index, world) in theme::THEMES.iter().enumerate() {
+        if !world.render_caps.card_anchor.mirrors_growth() {
+            continue;
+        }
+        enrolled.push(world.name);
+        theme::set_active(index);
+        let rect = |p: &mut TextPipeline, v: ViewState| {
+            p.set_view(&v);
+            p.prepare(&device, &queue, w, h).unwrap();
+            p.overlay_card_rect().expect("right-anchored faceted card")
+        };
+        let all = rect(&mut p, view_of(&summon, world.render_caps.card_anchor));
+        let folder = rect(&mut p, view_of(&folders, world.render_caps.card_anchor));
+        let no_matches = rect(&mut p, view_of(&filtered, world.render_caps.card_anchor));
+        for (label, got) in [("folders", folder), ("filtered", no_matches)] {
+            assert!(
+                (got[0] - all[0]).abs() < 0.5 && (got[2] - all[2]).abs() < 0.5,
+                "{} ({label}): left edge/width changed across a lens or filter: all={all:?}, got={got:?}",
+                world.name,
+            );
+        }
+    }
+    assert!(
+        !enrolled.is_empty(),
+        "the roster must contain at least one mirrors-growth card anchor"
+    );
+    theme::set_active(theme::DEFAULT_THEME);
+}
