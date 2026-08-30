@@ -791,6 +791,7 @@ impl OverlayState {
         chooser.meta = RowMeta::FolderChooser;
         self.rows.push(chooser);
         self.refilter();
+        self.refresh_hug_roster();
     }
 
     /// Fold the destination buffer's LINE COUNT into Go-to and append Go to
@@ -817,6 +818,7 @@ impl OverlayState {
             range: None,
         });
         self.refilter();
+        self.refresh_hug_roster();
     }
 
     pub fn attach_settings_rows(
@@ -838,6 +840,7 @@ impl OverlayState {
             });
         }
         self.refilter();
+        self.refresh_hug_roster();
     }
 
     pub fn selected_setting_row(&self) -> Option<crate::settings::SettingRow> {

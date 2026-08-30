@@ -504,11 +504,17 @@ fn right_anchored_faceted_hug_width_is_invariant_across_lenses_and_filters() {
         vec![("archive/very-long-project-folder-name".to_string(), false)],
         &[],
     );
-    let hug_items = summon.hug_primary_strings();
-    let hug_bindings = summon.hug_secondary_strings();
+    let hug_roster = summon.hug_roster().expect("faceted summon freezes a hug roster");
+    let hug_items = &hug_roster.primary;
     assert!(
         hug_items.iter().any(|s| s == "no headings yet"),
         "the stable measurement corpus must include every lens's empty-state line: {hug_items:?}"
+    );
+    assert!(
+        hug_items
+            .iter()
+            .any(|s| s == "archive/very-long-project-folder-name/"),
+        "the production summon corpus must include folders attached after construction: {hug_items:?}"
     );
 
     let view_of = |ov: &crate::overlay::OverlayState, align| ViewState {
@@ -516,10 +522,7 @@ fn right_anchored_faceted_hug_width_is_invariant_across_lenses_and_filters() {
         overlay_align: Some(align),
         overlay_query: ov.query.text().to_string(),
         overlay_items: ov.item_strings(),
-        overlay_hug_roster: Some(std::sync::Arc::new(crate::overlay::HugRoster {
-            primary: hug_items.clone(),
-            secondary: hug_bindings.clone(),
-        })),
+        overlay_hug_roster: Some(hug_roster.clone()),
         overlay_empty: ov.empty_notice(),
         overlay_lens: ov.lens_strip(),
         overlay_sections: ov.item_sections(),
@@ -527,6 +530,13 @@ fn right_anchored_faceted_hug_width_is_invariant_across_lenses_and_filters() {
     };
     let mut folders = summon.clone();
     folders.focus_facet_id("folders");
+    assert!(
+        std::sync::Arc::ptr_eq(
+            &hug_roster,
+            &folders.hug_roster().expect("lens transition keeps the summon corpus"),
+        ),
+        "a lens transition must retain the production summon corpus identity"
+    );
     let mut filtered = summon.clone();
     for c in "zzzz".chars() {
         filtered.push(c);
