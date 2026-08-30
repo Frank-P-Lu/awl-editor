@@ -516,6 +516,8 @@ dispatched first.
 ---
 ### 536 — per-world ornament sets from the full Nishiki cabinet (user decision, 2026-08-30; sequenced AFTER 529 bundles the face)
 
+🟡 IN PROGRESS — design-session Claude (this is the DESIGN PASS only: curate sets, render on real grounds, Artifact fitting-room for the user's set-to-world assignment; no product data lands from this claim)
+
 DECIDED direction, user's words paraphrased with their consent to file:
 with the whole cabinet bundled "we can use whatever glyphs we want", so
 run a design pass over the ornament assignments of ALL 20 worlds
