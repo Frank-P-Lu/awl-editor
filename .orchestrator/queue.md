@@ -449,6 +449,52 @@ standing land-easy-taste policy this can land for judgement once the
 user confirms A. Full gate receipt.
 
 ---
+### 540 — Insert Table dimension picker: the hint clips mid-word ("Esc canc"), and the card's placement/backing needs a judged pass (user report, 2026-08-30; feature itself: "AWESOME!!")
+
+User verdict on item 517's picker: "insert table is AWESOME!!" — the
+feature holds; this is polish on its card. Two defects, one verified
+and one to assess.
+
+VERIFIED — THE HINT CLIPS: `table_dims_overlay_geometry`
+(`render/chrome/table_dims.rs`) sizes the card to the GRID alone
+(`desired_w = grid_w + 2·pad`, ~253 logical) and hands the hint
+`text_w = card_w − 2·pad`, so "8 × 8 table  ↵ insert  Esc cancel"
+runs out of column and clips mid-word to "Esc canc" — a raw clip, not
+an elision. The main card already encodes the lesson this fourth
+geometry arm missed: `measure_overlay_content_w` (`roster.rs`)
+includes the card's CHROME LINES (query/lens/footer) in the content
+measure precisely so no chrome line outruns the card. FIX: the dims
+card's desired width is the max of the grid extent and the hint's
+SHAPED width (plus pads); the grid centres horizontally in whatever
+card results. The narrow-window yield (`hint_yielding_explanation`)
+stays what it is — a genuine-window-constraint fallback, not a patch
+for a self-inflicted width. Law: across zoom/DPI cells, the shaped
+hint width fits inside `text_w` (non-vacuous: revert the max and
+watch the 1× cell go red), plus a pixel assertion that the final
+glyph column of the hint row carries ink inside the card bounds.
+
+TO ASSESS, NOT ASSUME — "sort of overall in a weird position?"
+(user, tentative): the card follows the standard summon placement
+(frozen world `CardAnchor`, `CARD_TOP_DROP`), so on Kite it should
+sit the top-right rail like every picker — but on a
+plateless-backing world (Kite's `Ruled`, and the `Bars`/`Diagonal`
+family) this card draws NO organizing ink at all: no rows for rules
+or bars to structure, so a dense ink grid + one hint line float bare
+over the frosted page. Run the standing vision-smoke: capture the
+picker across the world roster and judge whether the plateless
+members need a guaranteed backing for THIS card (a card whose content
+is a drawn grid arguably always earns a plate/border, the way the
+spell popup always carries its float panel — the "organizing absence"
+of Ruled has nothing to organize here). Separately, put the
+PLACEMENT QUESTION to the user with captures rather than deciding it:
+(a) keep the world-anchor takeover placement (consistent with every
+summon), or (b) anchor at the CARET like the contextual spell popup
+(`CONTEXT_ANCHOR_DROP` precedent) — an insertion picker pointing at
+its insertion point is the Word/Docs-dropdown intuition the user may
+be reaching for. Record their pick on this item before moving the
+card. Full gate receipt.
+
+---
 ### 532 — keymap/platform.rs: the seed-table doc comments still describe the Meta-only world
 
 Comment-only truth fix in `src/keymap/platform.rs`, outdated by the
