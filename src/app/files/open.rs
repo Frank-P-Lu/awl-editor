@@ -119,10 +119,10 @@ impl App {
     }
 
     pub(in crate::app) fn last_buffer_toggle(&mut self) {
-        let Some(prev) = self.document.previous_path() else {
+        let Some(prev) = self.document.previous_key() else {
             return; // nothing opened before; toggle is a quiet no-op
         };
-        self.load_path(prev);
+        self.activate_open_buffer(prev);
     }
 
     /// Swap in the buffer for `path`: remember the file we are LEAVING as
@@ -332,6 +332,14 @@ impl App {
         #[cfg(not(target_arch = "wasm32"))]
         self.streaks_flush();
         if !self.document.activate_key(&key) {
+            // A legacy/corrupt scratch row with no parked entry used to be a
+            // dead end. Retire the ghost row and recover from the persistent
+            // stash through the ordinary scratch-open door. Fresh identities
+            // never share this fallback: each owns distinct user text.
+            if key == crate::buffers::BufferKey::Scratch {
+                self.document.discard(&key);
+                self.open_scratch();
+            }
             return;
         }
         self.finish_buffer_activation(None, false);

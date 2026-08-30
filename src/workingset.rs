@@ -63,11 +63,14 @@ impl OpenFile {
     /// The leaf the row draws in normal ink: the file name, or `"scratch"` for
     /// the path-less surface.
     pub fn leaf(&self) -> String {
-        self.path
-            .as_deref()
-            .and_then(Path::file_name)
-            .map(|n| n.to_string_lossy().into_owned())
-            .unwrap_or_else(|| "scratch".to_string())
+        match (&self.path, &self.key) {
+            (Some(path), _) => path
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_else(|| "scratch".to_string()),
+            (None, BufferKey::Fresh(_)) => "untitled".to_string(),
+            (None, BufferKey::Scratch | BufferKey::Path(_)) => "scratch".to_string(),
+        }
     }
 
     /// The row's QUIETER half: the file's parent, relative to its own root, with
@@ -427,8 +430,25 @@ impl WorkingSet {
     /// [`Self::expanded_rows`] build a `File` row from, so the two views cannot
     /// describe the same open file differently.
     fn file_row(&self, at: usize) -> StackRow {
+        let leaf = match self.files[at].key {
+            BufferKey::Fresh(_) => {
+                let fresh: Vec<usize> = self
+                    .files
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(i, file)| matches!(file.key, BufferKey::Fresh(_)).then_some(i))
+                    .collect();
+                if fresh.len() <= 1 || fresh.first() == Some(&at) {
+                    "untitled".to_string()
+                } else {
+                    let rank = fresh.iter().position(|&i| i == at).unwrap_or(0) + 1;
+                    format!("untitled {rank}")
+                }
+            }
+            _ => self.files[at].leaf(),
+        };
         StackRow {
-            leaf: self.files[at].leaf(),
+            leaf,
             parent: self.files[at].parent_label().unwrap_or_default(),
             active: self.active == Some(at),
             kind: StackRowKind::File,

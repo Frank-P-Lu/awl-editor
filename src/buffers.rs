@@ -11,11 +11,12 @@
 //! keyed by a stable identity so re-opening one finds its live state instead
 //! of re-reading disk.
 //!
-//! V1 SCOPE: the registry is the state model, not chrome (no tab strip / no
-//! session restore / no daemon — see the arc's later items). It is generic
-//! over a small `extra` payload (`T`) so the live App can carry its own
-//! per-buffer bookkeeping (scroll / spell cache / autosave versions — see
-//! `app::files::BufferExtra`) while the headless replay carries none (`()`).
+//! The registry is the state model, not chrome. Working-set rows, session
+//! persistence, and daemon waiters consume the same `BufferKey` but keep their
+//! own policy. The registry is generic over a small `extra` payload (`T`) so
+//! the live App can carry per-buffer bookkeeping (scroll / spell cache /
+//! autosave versions — see `app::files::BufferExtra`) while headless replay
+//! carries none (`()`).
 
 use std::path::{Component, Path, PathBuf};
 
@@ -28,12 +29,12 @@ use crate::buffer::Buffer;
 /// stash it restores from) is keyed by the `Scratch` sentinel — there is only
 /// ever one such identity, mirroring the one persistent scratch stash
 /// (`fs::scratch_stash_path`). A pathless QUICK NOTE that hasn't been named
-/// yet has NO stable identity and is deliberately never registered (see
-/// [`BufferKey::of`]).
+/// yet carries a session-unique `Fresh` identity until its naming save commits.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum BufferKey {
     Path(NormPath),
     Scratch,
+    Fresh(u64),
 }
 
 /// A normalized path (see [`normalize_path`]) — the identity payload of
@@ -76,18 +77,33 @@ impl BufferKey {
         BufferKey::Path(NormPath::of(p))
     }
 
-    /// The registry identity for `buffer`, or `None` for a buffer that has no
-    /// stable identity worth keeping: an unnamed, still-empty QUICK NOTE. By
-    /// the time a note carries real content, the autosave engine
-    /// (`App::flush_note` -> `autosave_note`) has already derived it a path
-    /// from its first line, so in practice this arm is only ever hit on a
-    /// truly empty note — which is fine to drop (nothing would be lost:
-    /// an empty note is never written to disk either).
-    pub fn of(buffer: &Buffer) -> Option<Self> {
+    /// The registry identity for `buffer`. Every live document has one: a
+    /// path, the persistent scratch sentinel, or a session-unique provisional
+    /// identity while a fresh document is waiting for its first successful
+    /// naming save.
+    pub fn of(buffer: &Buffer) -> Self {
         match buffer.path() {
-            Some(p) => Some(BufferKey::path(p)),
-            None if !buffer.is_unnamed_fresh() => Some(BufferKey::Scratch),
-            None => None,
+            Some(p) => BufferKey::path(p),
+            None => buffer
+                .fresh_id()
+                .map(BufferKey::Fresh)
+                .unwrap_or(BufferKey::Scratch),
+        }
+    }
+
+    pub(crate) fn sidecar_label(&self) -> String {
+        match self {
+            BufferKey::Path(path) => path.0.display().to_string(),
+            BufferKey::Scratch => "scratch".to_string(),
+            BufferKey::Fresh(_) => "untitled".to_string(),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn path_buf(&self) -> Option<PathBuf> {
+        match self {
+            BufferKey::Path(path) => Some(path.0.clone()),
+            BufferKey::Scratch | BufferKey::Fresh(_) => None,
         }
     }
 }
@@ -227,29 +243,44 @@ impl<T> BufferRegistry<T> {
         self.entries.iter().any(|(k, _)| k == key)
     }
 
-    /// Park `entry` under `key` at the MRU front, evicting the LRU CLEAN
-    /// backgrounded entry (if any) while doing so would push the total open
-    /// count (this registry + 1 active) past [`MAX_OPEN_BUFFERS`]. Replaces
+    /// Test oracle for route laws that must prove a backgrounded identity is
+    /// still paired with its exact user text, not merely count registry slots.
+    #[cfg(test)]
+    pub(crate) fn text_snapshots(&self) -> Vec<(BufferKey, String)> {
+        self.entries
+            .iter()
+            .map(|(key, entry)| (key.clone(), entry.buffer.text()))
+            .collect()
+    }
+
+    /// Park `entry` under `key` at the MRU front, evicting the LRU clean PATH
+    /// entry (the only kind disk can reconstruct) while doing so would push the
+    /// total open count (this registry + 1 active) past [`MAX_OPEN_BUFFERS`].
+    /// Pathless Scratch/Fresh entries may exceed the soft cap. Replaces
     /// any existing entry under the same key (should not normally happen —
     /// the caller only parks the buffer it is LEAVING).
     pub fn park(&mut self, key: BufferKey, entry: Entry<T>) {
         self.entries.retain(|(k, _)| k != &key);
         self.entries.insert(0, (key, entry));
         while self.entries.len() + 1 > MAX_OPEN_BUFFERS {
-            // Evict the LEAST-recently-used (last in MRU order) CLEAN entry.
-            match self.entries.iter().rposition(|(_, e)| !e.buffer.is_dirty()) {
+            // Only a clean PATH is reversibly evictable: reopening it reloads
+            // disk. Scratch and Fresh have no path to reconstruct from, so
+            // evicting either would leave a dead working row and lose state.
+            match self.entries.iter().rposition(|(key, entry)| {
+                matches!(key, BufferKey::Path(_)) && !entry.buffer.is_dirty()
+            }) {
                 Some(pos) => {
                     self.entries.remove(pos);
                     self.over_cap_warned = false;
                 }
                 None => {
-                    // Every backgrounded buffer is dirty: never discard unsaved
-                    // work — exceed the cap instead (see the module doc). Fire
+                    // No entry is reversibly reloadable: never discard pathless
+                    // state or dirty work — exceed the cap instead. Fire
                     // the notice once per "stuck over cap" spell, not once per
                     // subsequent open (see `over_cap_warned`'s doc).
                     if !self.over_cap_warned {
                         eprintln!(
-                            "awl: buffer registry over cap ({} open, all dirty) — keeping all",
+                            "awl: buffer registry over cap ({} open, no clean reloadable path) — keeping all",
                             self.entries.len() + 1
                         );
                         self.over_cap_warned = true;

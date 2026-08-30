@@ -120,10 +120,9 @@ impl Domain {
             // `WorkspaceState`'s transitions; the precedence ladder that used
             // to be five hand-written conjunctions is `WorkspaceState::layer`.
             Domain::WorkspaceState => (Extraction::Extracted, &[]),
-            // `autosave_dirty_at` / `autosave_saved_version` /
-            // `autosave_last_ok` / `last_saved_ok` / `title_dirty` now live
-            // behind `PersistenceRuntime`'s transitions; the debounce stamp and
-            // the version it wrote are ONE ledger, not two fields.
+            // The former global autosave/version fields now live behind
+            // `PersistenceRuntime`: each Fresh key owns one debounce,
+            // handled-version and failure-notice ledger.
             Domain::PersistenceRuntime => (Extraction::Extracted, &[]),
             // `Config`, its CLI precedence inputs, and the default-folder
             // fallback are one runtime policy, held behind `App::config`.

@@ -67,8 +67,8 @@ use std::path::Path;
 /// [`App::update_title`] and the initial `Window::default_attributes()` in
 /// `resumed()`, which reads this BEFORE a `gpu`/window exists to set a title
 /// on). An UNTITLED quick note (a note buffer with no derived filename yet)
-/// shows the "scratch" placeholder until its first line names it, so a
-/// brand-new C-x n note reads as "scratch" — distinct from the no-path,
+/// shows the "untitled" placeholder until its first line names it, so a
+/// brand-new C-x n note reads as "untitled" — distinct from the no-path,
 /// non-note SCRATCH launch surface's "*scratch*". The active WORLD name is
 /// always the trailing `[…]` suffix — this is also the accessibility win
 /// noted in `ACCESSIBILITY.md`: a screen reader's window list announces the
@@ -90,7 +90,7 @@ pub(in crate::app) fn window_title(
 ) -> String {
     let name = match file {
         Some(p) => p.display().to_string(),
-        None if is_unnamed_fresh => "scratch".to_string(),
+        None if is_unnamed_fresh => "untitled".to_string(),
         None => "*scratch*".to_string(),
     };
     let mark = if dirty { "\u{2022} " } else { "" };

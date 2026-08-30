@@ -3,6 +3,7 @@
 use super::*;
 
 type RaceTarget = Arc<std::sync::Mutex<Option<(std::path::PathBuf, Vec<u8>)>>>;
+type InterleavedBytes = Arc<std::sync::Mutex<Option<Vec<u8>>>>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum ScriptedOperation {
@@ -41,6 +42,7 @@ pub(crate) struct ScriptedFs {
     counts: Arc<std::sync::Mutex<std::collections::BTreeMap<ScriptedOperation, usize>>>,
     trace: Arc<std::sync::Mutex<Vec<String>>>,
     race_target: RaceTarget,
+    interleaved_legacy_tmp: InterleavedBytes,
 }
 
 impl ScriptedFs {
@@ -55,6 +57,7 @@ impl ScriptedFs {
             counts: Arc::new(std::sync::Mutex::new(std::collections::BTreeMap::new())),
             trace: Arc::new(std::sync::Mutex::new(Vec::new())),
             race_target: Arc::new(std::sync::Mutex::new(None)),
+            interleaved_legacy_tmp: Arc::new(std::sync::Mutex::new(None)),
         }
     }
 
@@ -67,6 +70,16 @@ impl ScriptedFs {
         data: &[u8],
     ) -> Self {
         *self.race_target.lock().unwrap() = Some((path.into(), data.to_vec()));
+        self
+    }
+
+    /// Model writer B reaching its temp write after writer A's temp write but
+    /// before A's publication. The injected write targets the retired shared
+    /// `.<destination>.awl-tmp` spelling. A per-attempt temp is unaffected;
+    /// restoring the shared spelling deterministically makes A publish B's
+    /// bytes and turns the two-writer law red.
+    pub(crate) fn interleave_legacy_tmp_write_before_no_replace(self, data: &[u8]) -> Self {
+        *self.interleaved_legacy_tmp.lock().unwrap() = Some(data.to_vec());
         self
     }
 
@@ -131,6 +144,23 @@ impl FileSystem for ScriptedFs {
     fn rename_no_replace(&self, from: &Path, to: &Path) -> io::Result<()> {
         if let Some((path, data)) = self.race_target.lock().unwrap().take() {
             self.inner.write(&path, &data)?;
+        }
+        if let Some(data) = self.interleaved_legacy_tmp.lock().unwrap().take() {
+            let name = to
+                .file_name()
+                .map(|name| name.to_string_lossy().into_owned())
+                .unwrap_or_else(|| "unnamed".to_string());
+            let legacy_name = format!(".{name}.awl-tmp");
+            let legacy_tmp = to
+                .parent()
+                .filter(|parent| !parent.as_os_str().is_empty())
+                .map(|parent| parent.join(&legacy_name))
+                .unwrap_or_else(|| PathBuf::from(&legacy_name));
+            self.inner.write(&legacy_tmp, &data)?;
+            self.trace
+                .lock()
+                .unwrap()
+                .push(format!("interleave-legacy-tmp {}", legacy_tmp.display()));
         }
         self.mutation(
             ScriptedOperation::RenameNoReplace,

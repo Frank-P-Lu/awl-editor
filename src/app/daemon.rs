@@ -37,17 +37,8 @@ impl App {
                 if let Some(w) = waiter
                     && activated
                 {
-                    match crate::buffers::BufferKey::of(self.document.buffer()) {
-                        Some(key) => {
-                            self.wait_conns.entry(key).or_default().push(w);
-                        }
-                        // A real file-path open always yields a stable key
-                        // (`BufferKey::of` only returns `None` for an unnamed,
-                        // still-empty note) — but never strand a waiter on the
-                        // impossible case: notify it immediately instead of
-                        // silently losing it.
-                        None => w.notify_done(),
-                    }
+                    let key = crate::buffers::BufferKey::of(self.document.buffer());
+                    self.wait_conns.entry(key).or_default().push(w);
                 }
             }
         }
@@ -69,6 +60,9 @@ impl App {
     pub(super) fn try_save_finished_buffer(&mut self) -> bool {
         if !self.document.has_active() {
             return false;
+        }
+        if self.document.buffer().is_discardable_empty_fresh() {
+            return true;
         }
         match self.settle_external_change() {
             crate::app::files::WritePermission::Clear => {}
@@ -96,11 +90,13 @@ impl App {
             self.request_frame();
             return false;
         }
+        let naming_key = crate::buffers::BufferKey::of(self.document.buffer());
         if let Err(error) = self.document.save() {
             self.set_sticky_notice(format!("save failed: {error}"));
             self.request_frame();
             return false;
         }
+        self.commit_naming_identity(naming_key);
         self.snapshot_after_save();
         if let Some(p) = self.document.buffer().path().map(|p| p.to_path_buf()) {
             self.document.record_document_saved(
@@ -132,9 +128,7 @@ impl App {
         if self.change_unresolved() || self.document.active_unsaved() {
             return;
         }
-        let Some(key) = crate::buffers::BufferKey::of(self.document.buffer()) else {
-            return;
-        };
+        let key = crate::buffers::BufferKey::of(self.document.buffer());
         self.notify_close_waiters(&key);
     }
 
@@ -296,6 +290,33 @@ mod tests {
                 .contains_key(&crate::buffers::BufferKey::path(&b)),
             "the notified waiter entry is drained"
         );
+    }
+
+    #[test]
+    fn successful_fresh_naming_moves_daemon_waiters_to_the_path_key() {
+        let _guard = crate::testlock::serial();
+        let root = PathBuf::from("/notes");
+        let memory = std::sync::Arc::new(crate::fs::InMemoryFs::new().with_dir(&root));
+        crate::fs::with_fs(memory, || {
+            let mut app = App::new_hermetic(None, root.clone(), Config::empty());
+            app.new_document();
+            app.document.set_text("Waiter manuscript");
+            let old = app.document.active_key().expect("fresh key");
+            let (_mine, theirs) = UnixStream::pair().expect("unix socketpair");
+            app.wait_conns.insert(
+                old.clone(),
+                vec![crate::daemon::Waiter::new(
+                    root.join("waiter-manuscript.md"),
+                    theirs,
+                )],
+            );
+
+            app.manual_save();
+
+            let new = crate::buffers::BufferKey::path(&root.join("waiter-manuscript.md"));
+            assert!(!app.wait_conns.contains_key(&old));
+            assert_eq!(app.wait_conns.get(&new).map(Vec::len), Some(1));
+        });
     }
 
     #[test]

@@ -28,7 +28,8 @@ impl App {
             .start_fresh_document(self.project_location.root.clone());
         self.workspace_state.close_search();
         self.input.clear_preedit();
-        self.persistence.reset_for_fresh_document();
+        self.persistence
+            .reset_for_fresh_document(self.document.active_key().expect("fresh document key"));
         // STICKY PAGE WIDTH: a fresh document is always markdown (PROSE), so this
         // re-applies `page_width_prose` regardless of what the leaving buffer's
         // kind was — mirrors `load_path`'s own resync.

@@ -165,34 +165,49 @@ fn replay_keys_new_note_parks_the_leaving_buffer_instead_of_discarding_it() {
     // must park the leaving buffer through the SAME registry a Goto switch
     // uses, mirroring the live `App::new_document` (Cmd-N). (The note itself types
     // content but is never named in headless replay — no autosave engine
-    // here to derive its filename — so it stays pathless and correctly
-    // has NO stable identity to register; see `BufferKey::of`. Only A's
-    // survival is under test.)
+    // here to derive its filename — so it stays under its provisional Fresh
+    // identity. Both sides of the switch must remain reachable.)
     let _fs = crate::testlock::serial();
     let dir = ScratchDir::new(
         std::env::temp_dir().join(format!("awl-mb-newnote-{}", std::process::id())),
     );
     std::fs::write(dir.join("a.txt"), "alpha\n").unwrap();
-    let mut buffer = Buffer::from_file(&dir.join("a.txt"));
     let corpus = vec!["a.txt".to_string()];
-    let keys = keyspec::parse_keys("X s-n Z s-o a . t x t RET").unwrap();
-    let res = replay_keys(
-        &mut buffer,
-        &keys,
-        &corpus,
-        &dir,
-        None,
-        &Config::empty(),
-        None,
-    );
+    let drive = |spec: &str| {
+        let mut buffer = Buffer::from_file(&dir.join("a.txt"));
+        let keys = keyspec::parse_keys(spec).unwrap();
+        let res = replay_keys(
+            &mut buffer,
+            &keys,
+            &corpus,
+            &dir,
+            None,
+            &Config::empty(),
+            None,
+        );
+        (buffer, res)
+    };
+
+    let (buffer, res) = drive("X s-n Z s-o a . t x t RET");
     assert_eq!(
         buffer.text(),
         "Xalpha\n",
         "A's edit survived being left for a new note, not a fresh disk re-read"
     );
     assert_eq!(
-        res.buffers_open, 1,
-        "A active again; the still-unnamed note was never registered (no stable identity), \
-             not lost from anywhere else A could be found"
+        res.buffers_open, 2,
+        "A active plus the provisional Fresh buffer backgrounded"
+    );
+
+    assert_eq!(
+        res.background_buffers.len(),
+        1,
+        "the one background slot is inspectably reachable"
+    );
+    let (fresh_key, fresh_text) = &res.background_buffers[0];
+    assert!(matches!(fresh_key, crate::buffers::BufferKey::Fresh(_)));
+    assert_eq!(
+        fresh_text, "Z",
+        "the Fresh slot retains its exact user text"
     );
 }

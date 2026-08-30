@@ -8,19 +8,18 @@ impl Buffer {
     }
 
     pub(crate) fn save_owned(&mut self, owner: crate::durable::Owner) -> anyhow::Result<()> {
+        self.save_owned_avoiding(owner, |_| false)
+    }
+
+    pub(crate) fn save_owned_avoiding(
+        &mut self,
+        owner: crate::durable::Owner,
+        reserved: impl FnMut(&Path) -> bool,
+    ) -> anyhow::Result<()> {
         if self.path.is_none()
             && let Some(dir) = self.note_dir.clone()
         {
-            let text = self.rope.to_string();
-            match first_nonempty_line(&text) {
-                Some(line) => {
-                    let stem = note_stem(line);
-                    crate::fs::active().create_dir_all(&dir)?;
-                    self.path = Some(unique_path(&dir, &stem, "md"));
-                    self.note_dir = None;
-                }
-                None => anyhow::bail!("empty note: nothing to save yet"),
-            }
+            return self.save_unbound_into(&dir, owner, reserved);
         }
         match &self.path {
             Some(path) => {
@@ -35,10 +34,38 @@ impl Buffer {
     /// Promote a true scratch buffer into an unnamed fresh document in
     /// `folder`, then reuse the ordinary one-shot naming and save path.
     pub fn save_into_folder(&mut self, folder: &Path) -> anyhow::Result<()> {
-        if !self.is_unnamed_fresh() {
-            let _ = crate::fs::active().create_dir_all(folder);
-            self.set_note_dir(folder.to_path_buf());
+        self.save_into_folder_avoiding(folder, |_| false)
+    }
+
+    pub(crate) fn save_into_folder_avoiding(
+        &mut self,
+        folder: &Path,
+        reserved: impl FnMut(&Path) -> bool,
+    ) -> anyhow::Result<()> {
+        if self.path.is_some() || self.is_unnamed_fresh() {
+            return self.save_owned_avoiding(crate::durable::Owner::ManualSave, reserved);
         }
-        self.save()
+        self.save_unbound_into(folder, crate::durable::Owner::ManualSave, reserved)
+    }
+
+    /// The one transactional naming write. Path, fresh identity, note marker,
+    /// and dirty state commit together only after durable bytes land.
+    fn save_unbound_into(
+        &mut self,
+        folder: &Path,
+        owner: crate::durable::Owner,
+        mut reserved: impl FnMut(&Path) -> bool,
+    ) -> anyhow::Result<()> {
+        let text = self.rope.to_string();
+        let line = first_nonempty_line(&text)
+            .ok_or_else(|| anyhow::anyhow!("empty note: nothing to save yet"))?;
+        let stem = note_stem(line);
+        let bytes = self.disk_bytes();
+        let path = write_new_unique(owner, folder, &stem, "md", &bytes, &mut reserved)?;
+        self.path = Some(path);
+        self.note_dir = None;
+        self.fresh_id = None;
+        self.dirty = false;
+        Ok(())
     }
 }

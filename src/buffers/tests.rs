@@ -119,21 +119,17 @@ fn buffer_key_of_scratch_and_path_and_unnamed_note() {
     // `InMemoryFs`.
     let _tg = crate::testlock::serial();
     let scratch = Buffer::scratch();
-    assert_eq!(BufferKey::of(&scratch), Some(BufferKey::Scratch));
+    assert_eq!(BufferKey::of(&scratch), BufferKey::Scratch);
 
     let file = Buffer::from_file(std::path::Path::new("/does/not/exist/x.rs"));
     assert_eq!(
         BufferKey::of(&file),
-        Some(BufferKey::path(Path::new("/does/not/exist/x.rs")))
+        BufferKey::path(Path::new("/does/not/exist/x.rs"))
     );
 
     let mut note = Buffer::scratch();
-    note.set_note_dir(PathBuf::from("/notes"));
-    assert_eq!(
-        BufferKey::of(&note),
-        None,
-        "an unnamed empty note has no stable identity"
-    );
+    note.start_fresh_doc(PathBuf::from("/notes"));
+    assert!(matches!(BufferKey::of(&note), BufferKey::Fresh(_)));
 }
 
 #[test]

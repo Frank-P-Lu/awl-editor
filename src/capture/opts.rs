@@ -12,8 +12,8 @@ pub(super) mod buffers_sidecar;
 /// MULTI-BUFFER registry snapshot for the sidecar `buffers` block: how many
 /// buffers a `--keys` replay left open (the active one + anything still
 /// backgrounded — see `crate::buffers::BufferRegistry`), and the active
-/// buffer's identity (its path, the literal `"scratch"`, or `None` when the
-/// working set is intentionally empty).
+/// buffer's identity (its path, `"scratch"`, `"untitled"` for a provisional
+/// fresh buffer, or `None` when the working set is intentionally empty).
 #[derive(Clone)]
 pub struct BuffersInfo {
     pub open: usize,

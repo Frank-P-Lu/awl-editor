@@ -10,9 +10,7 @@ use super::*;
 
 impl ReplaySession<'_> {
     fn park_active_buffer(&mut self) {
-        let Some(key) = crate::buffers::BufferKey::of(self.buffer) else {
-            return;
-        };
+        let key = crate::buffers::BufferKey::of(self.buffer);
         let old = std::mem::replace(self.buffer, Buffer::scratch());
         self.registry.park(
             key,
@@ -26,7 +24,7 @@ impl ReplaySession<'_> {
     pub(super) fn switch_to_goto_target(&mut self, value: &str) {
         let path = crate::index::resolve(&self.root, value);
         let new_key = crate::buffers::BufferKey::path(&path);
-        if crate::buffers::BufferKey::of(self.buffer).as_ref() == Some(&new_key) {
+        if crate::buffers::BufferKey::of(self.buffer) == new_key {
             return;
         }
 

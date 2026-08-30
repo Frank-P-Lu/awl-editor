@@ -61,9 +61,9 @@ name); behavior is byte-identical. Submodules are listed under each root below.
   (`WorkspaceState` — the summoned-UI layer LADDER: overlay > workspace > search
   > popover > editor, with private fields and named transitions; the fourth rung
   reads `overlay::Journey`), `persistence`
-  (`PersistenceRuntime` — the app-global save ledger: the fresh-document
-  autosave debounce+version pair, the save-feedback clocks, the title dirty
-  cache), `frame` (`FrameRuntime` — private GPU/surface lifecycle,
+  (`PersistenceRuntime` — the app-global save ledger: one autosave
+  debounce+handled-version+failure record per provisional `BufferKey::Fresh`,
+  the save-feedback clocks, the title dirty cache), `frame` (`FrameRuntime` — private GPU/surface lifecycle,
   conditional presentation clock, injected-clock deadline reduction, notice
   lifetime, and the typed idle-poll boundary), `usage` (`UsageLedger` — the two private
   local-usage records: the lifetime odometer + silent command ledger and the
@@ -120,7 +120,8 @@ name); behavior is byte-identical. Submodules are listed under each root below.
   mark/anchor primitives.
   → `buffer/`: `edit`, `selection`, `motion`, `undo`, `focus`, `notes`, `tests`.
 - `buffers.rs` — the MULTI-BUFFER REGISTRY: `BufferKey` (a buffer's stable
-  identity — a path, or the one `Scratch` sentinel) + `BufferRegistry<T>` (the
+  identity — normalized `Path`, singleton `Scratch`, or session-unique provisional
+  `Fresh`) + `BufferRegistry<T>` (the
   MRU-ordered, capped park/take store for every BACKGROUNDED buffer) +
   `Entry<T>` (a buffer plus its opaque per-buffer payload — the SAME type the
   live App's `DocumentSession` owned slot uses), shared verbatim by the live

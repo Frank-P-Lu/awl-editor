@@ -42,6 +42,9 @@ pub fn write_atomic(path: &Path, data: &[u8]) -> io::Result<()> {
 
 /// The no-clobber sibling of [`write_atomic`]. It retains the temporary-file
 /// durability shape, then atomically publishes only if `path` is still absent.
+/// Each attempt owns a process-and-sequence-qualified temp sibling: two
+/// simultaneous creators can race on the destination, never on the bytes they
+/// are about to publish. A failed publication removes only its own sibling.
 #[cfg(not(target_arch = "wasm32"))]
 pub fn write_atomic_new(path: &Path, data: &[u8]) -> io::Result<()> {
     let fs = active();
@@ -49,7 +52,9 @@ pub fn write_atomic_new(path: &Path, data: &[u8]) -> io::Result<()> {
         .file_name()
         .map(|n| n.to_string_lossy().into_owned())
         .unwrap_or_else(|| "unnamed".to_string());
-    let tmp_name = format!(".{name}.awl-tmp");
+    static NEXT_TEMP: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let sequence = NEXT_TEMP.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let tmp_name = format!(".{name}.awl-tmp-{}-{sequence}", std::process::id());
     let tmp = match path.parent() {
         Some(p) if !p.as_os_str().is_empty() => p.join(tmp_name),
         _ => PathBuf::from(tmp_name),

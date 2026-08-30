@@ -162,9 +162,13 @@ impl App {
 
     fn schedule_autosaves(&mut self, deadlines: &mut crate::frame_clock::Deadlines) {
         let now = self.frame.now();
-        if let Some(deadline) = self.persistence.note_debounce_deadline(AUTOSAVE_DEBOUNCE) {
+        if let Some(key) = self.document.active_key()
+            && let Some(deadline) = self
+                .persistence
+                .note_debounce_deadline(&key, AUTOSAVE_DEBOUNCE)
+        {
             if now >= deadline {
-                self.persistence.disarm_note_debounce();
+                self.persistence.disarm_note_debounce(&key);
                 self.autosave_note();
                 self.request_frame();
             } else {

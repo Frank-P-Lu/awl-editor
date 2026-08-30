@@ -49,7 +49,7 @@ pub(in crate::app) enum OpenPath {
 pub(in crate::app) struct DocumentSession {
     active: Option<crate::buffers::Entry<BufferExtra>>,
     registry: crate::buffers::BufferRegistry<BufferExtra>,
-    previous: Option<PathBuf>,
+    previous: Option<crate::buffers::BufferKey>,
     spell: Option<crate::spell::SpellChecker>,
     /// The VISIBLE order and each open file's own project root
     /// ([`crate::workingset`]). It sits beside `registry` rather than inside it
@@ -134,9 +134,7 @@ impl DocumentSession {
         let Some(active) = self.active.as_ref() else {
             return;
         };
-        let Some(key) = crate::buffers::BufferKey::of(&active.buffer) else {
-            return;
-        };
+        let key = crate::buffers::BufferKey::of(&active.buffer);
         let path = active.buffer.path().map(Path::to_path_buf);
         let root = match path.as_deref() {
             Some(p) => crate::workingset::root_for(p, active_root, None),
@@ -214,10 +212,7 @@ impl DocumentSession {
         let Some(mut outgoing) = self.take_active() else {
             return;
         };
-        let Some(key) = crate::buffers::BufferKey::of(&outgoing.buffer) else {
-            self.active = Some(outgoing);
-            return;
-        };
+        let key = crate::buffers::BufferKey::of(&outgoing.buffer);
         outgoing.buffer.take_list_continuation_generated();
         self.registry.park(key, outgoing);
     }
@@ -241,8 +236,7 @@ impl DocumentSession {
         if self
             .active
             .as_ref()
-            .and_then(|active| active.buffer.path())
-            .map(crate::buffers::BufferKey::path)
+            .map(|active| crate::buffers::BufferKey::of(&active.buffer))
             == Some(key.clone())
         {
             return OpenPath::AlreadyActive;
@@ -261,8 +255,7 @@ impl DocumentSession {
         self.previous = self
             .active
             .as_ref()
-            .and_then(|active| active.buffer.path())
-            .map(Path::to_path_buf);
+            .map(|active| crate::buffers::BufferKey::of(&active.buffer));
         self.park_active();
         if self.activate(&key) {
             return OpenPath::Reactivated;
@@ -332,11 +325,10 @@ impl DocumentSession {
         self.previous = self
             .active
             .as_ref()
-            .and_then(|active| active.buffer.path())
-            .map(Path::to_path_buf);
+            .map(|active| crate::buffers::BufferKey::of(&active.buffer));
         self.park_active();
         let mut buffer = Buffer::scratch();
-        buffer.start_fresh_doc(root);
+        buffer.start_fresh_doc(root.clone());
         let version = buffer.version();
         self.active = Some(crate::buffers::Entry {
             buffer,
@@ -345,9 +337,33 @@ impl DocumentSession {
                 ..Default::default()
             },
         });
+        let key = crate::buffers::BufferKey::of(self.buffer());
+        self.working.open(key, None, root);
     }
 
+    /// Commit the visible identity transition after a fresh document's naming
+    /// write has succeeded. The working-set slot stays in place; only its key
+    /// and now-real path change.
+    pub(in crate::app) fn rekey_active_after_naming(&mut self) {
+        let Some(path) = self
+            .buffer_opt()
+            .and_then(Buffer::path)
+            .map(Path::to_path_buf)
+        else {
+            return;
+        };
+        let key = crate::buffers::BufferKey::path(&path);
+        self.working.rekey_active(key, Some(path));
+    }
+
+    #[cfg(test)]
     pub(in crate::app) fn previous_path(&self) -> Option<PathBuf> {
+        self.previous
+            .as_ref()
+            .and_then(crate::buffers::BufferKey::path_buf)
+    }
+
+    pub(in crate::app) fn previous_key(&self) -> Option<crate::buffers::BufferKey> {
         self.previous.clone()
     }
 
@@ -468,24 +484,49 @@ impl DocumentSession {
             .set_kill(text);
     }
     pub(in crate::app) fn save(&mut self) -> anyhow::Result<()> {
-        self.active.as_mut().expect("active document").buffer.save()
+        self.save_owned(crate::durable::Owner::ManualSave)
     }
 
     pub(in crate::app) fn save_owned(
         &mut self,
         owner: crate::durable::Owner,
     ) -> anyhow::Result<()> {
+        let reserved = self.other_live_path_keys();
         self.active
             .as_mut()
             .expect("active document")
             .buffer
-            .save_owned(owner)
+            .save_owned_avoiding(owner, |candidate| {
+                reserved.contains(&crate::buffers::BufferKey::path(candidate))
+            })
     }
     pub(in crate::app) fn save_into_folder(&mut self, folder: &Path) -> anyhow::Result<()> {
+        let reserved = self.other_live_path_keys();
         self.active
             .as_mut()
             .expect("active document")
             .buffer
-            .save_into_folder(folder)
+            .save_into_folder_avoiding(folder, |candidate| {
+                reserved.contains(&crate::buffers::BufferKey::path(candidate))
+            })
+    }
+
+    /// Snapshot every normalized Path key owned by a buffer OTHER than the
+    /// active one. Naming/move/duplicate allocate against this set and disk
+    /// existence through `buffer::unique_path_avoiding` before writing.
+    fn other_live_path_keys(&self) -> std::collections::HashSet<crate::buffers::BufferKey> {
+        let active = self.active_key();
+        self.working
+            .files()
+            .iter()
+            .filter(|file| Some(&file.key) != active.as_ref())
+            .filter(|file| matches!(file.key, crate::buffers::BufferKey::Path(_)))
+            .map(|file| file.key.clone())
+            .collect()
+    }
+
+    pub(in crate::app) fn path_is_claimed_by_other(&self, candidate: &Path) -> bool {
+        self.other_live_path_keys()
+            .contains(&crate::buffers::BufferKey::path(candidate))
     }
 }

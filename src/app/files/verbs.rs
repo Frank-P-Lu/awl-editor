@@ -38,11 +38,15 @@ impl App {
         if self.document.buffer().path().is_none() && !self.document.buffer().is_unnamed_fresh() {
             self.convert_scratch_and_save();
         } else {
+            let naming_key = crate::buffers::BufferKey::of(self.document.buffer());
             let result = self.document.save();
             let (ok, message) = match result {
                 Ok(()) => (true, "saved".to_string()),
                 Err(error) => (false, format!("save failed: {error}")),
             };
+            if ok {
+                self.commit_naming_identity(naming_key);
+            }
             self.finish_manual_save(ok, message);
         }
         if self.document.buffer().path().is_some_and(|path| {
@@ -174,8 +178,10 @@ impl App {
     /// notice-only ("nothing to save yet — start a note first"), leaving the
     /// scratch buffer untouched. Both are one function to swap here.
     pub(in crate::app) fn convert_scratch_and_save(&mut self) {
+        let naming_key = crate::buffers::BufferKey::of(self.document.buffer());
         match self.document.save_into_folder(&self.project_location.root) {
             Ok(()) => {
+                self.commit_naming_identity(naming_key);
                 // `Buffer::save_into_folder` already stamped the derived path onto
                 // the buffer itself (the sole authoritative path).
                 self.update_title();
@@ -186,12 +192,9 @@ impl App {
                 // never disrupts the save that already succeeded.
                 let _ = crate::fs::active().remove_file(&crate::fs::scratch_stash_path());
                 self.document.clear_scratch_saved();
-                // The note's own debounced autosave now owns this buffer;
-                // mark the version we just wrote as already-saved so the
-                // next idle tick doesn't immediately rewrite it (mirrors
-                // `autosave_note`'s own post-save bookkeeping).
-                self.persistence
-                    .record_note_write(self.document.buffer().version());
+                // The successful naming transition retired the provisional
+                // scratch ledger. A pathed buffer is owned by BufferExtra's
+                // document baseline, never by the fresh-note ledger.
                 self.snapshot_after_save();
                 if let Some(p) = self.document.buffer().path().map(|p| p.to_path_buf()) {
                     self.document.record_document_saved(
@@ -332,7 +335,9 @@ impl App {
             self.project_location.root.join(dest_rel)
         };
         // The actual mkdir + no-clobber + rename lives in `buffer::move_file`.
-        let new_path = match crate::buffer::move_file(&old, &dest_dir) {
+        let new_path = match crate::buffer::move_file_avoiding(&old, &dest_dir, |candidate| {
+            self.document.path_is_claimed_by_other(candidate)
+        }) {
             Ok(p) => p,
             Err(e) => {
                 // A failure gets the SAME calm bottom-center notice a failed save does.
@@ -452,7 +457,7 @@ impl App {
     /// edits are never lost) and gives the copy a genuinely FRESH history timeline
     /// (a brand-new `Buffer::from_file`, a brand-new local-history log — nothing
     /// carries over, since the copy is a new file). The sibling name is chosen by
-    /// the SAME no-clobber dedup [`crate::buffer::unique_path`] uses elsewhere
+    /// the SAME disk-plus-live no-clobber allocator the naming save uses
     /// (`move_current_file`) — `name-2.md`, `name-3.md`, … — never a
     /// space-separated `"name 2.md"`, matching the codebase's own established
     /// convention. A pathless buffer (scratch / an unnamed fresh document) is a calm no-op —
@@ -485,9 +490,15 @@ impl App {
             .extension()
             .map(|s| s.to_string_lossy().to_string())
             .unwrap_or_default();
-        let new_path = crate::buffer::unique_path(&dir, &stem, &ext);
-        match crate::fs::write_atomic(&new_path, &bytes) {
-            Ok(()) => {
+        match crate::buffer::write_new_unique(
+            crate::durable::Owner::ManualSave,
+            &dir,
+            &stem,
+            &ext,
+            &bytes,
+            |candidate| self.document.path_is_claimed_by_other(candidate),
+        ) {
+            Ok(new_path) => {
                 self.load_path(new_path);
                 self.set_toast_notice("duplicated");
             }

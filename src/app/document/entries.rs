@@ -55,10 +55,13 @@ impl DocumentSession {
     /// which made "is there unsaved text here" an active-buffer-only question by
     /// construction. It is not: a parked buffer holds unsaved text exactly the
     /// same way, and the whole point of a removal owner is that it must not
-    /// discard one. The unnamed-fresh NOTE arm stays on `App` because it needs
-    /// `persistence`, and a note is never parked anyway
-    /// ([`crate::buffers::BufferKey::of`] gives it no identity to park under).
+    /// discard one. Active unnamed-fresh dirty display additionally consults
+    /// `PersistenceRuntime`; a parked Fresh entry is conservatively unsaved
+    /// until a successful naming write gives it a document baseline.
     fn entry_unsaved(entry: &crate::buffers::Entry<BufferExtra>) -> bool {
+        if entry.buffer.is_discardable_empty_fresh() {
+            return false;
+        }
         let version = entry.buffer.version();
         if entry.buffer.path().is_some() {
             entry.extra.doc_saved_version != Some(version)
@@ -73,12 +76,12 @@ impl DocumentSession {
         self.active.as_ref().is_some_and(Self::entry_unsaved)
     }
 
-    /// The active buffer's registry identity, or `None` for an unnamed fresh
-    /// note — which has none, and is therefore not a thing that can be closed.
+    /// The active buffer's registry identity, or `None` only when the document
+    /// session itself is empty.
     pub(in crate::app) fn active_key(&self) -> Option<crate::buffers::BufferKey> {
         self.active
             .as_ref()
-            .and_then(|active| crate::buffers::BufferKey::of(&active.buffer))
+            .map(|active| crate::buffers::BufferKey::of(&active.buffer))
     }
 
     /// The facts for `key`, whether it is the active entry or a parked one.
@@ -216,8 +219,7 @@ impl DocumentSession {
         self.previous = self
             .active
             .as_ref()
-            .and_then(|active| active.buffer.path())
-            .map(Path::to_path_buf);
+            .map(|active| crate::buffers::BufferKey::of(&active.buffer));
         let outgoing = self.active_key();
         self.park_active();
         if !self.activate(key) {
@@ -239,12 +241,7 @@ impl DocumentSession {
     /// reader just said they were done with.
     pub(in crate::app) fn forget_previous(&mut self, path: &Path) {
         let gone = crate::buffers::BufferKey::path(path);
-        if self
-            .previous
-            .as_deref()
-            .map(crate::buffers::BufferKey::path)
-            == Some(gone)
-        {
+        if self.previous.as_ref() == Some(&gone) {
             self.previous = None;
         }
     }

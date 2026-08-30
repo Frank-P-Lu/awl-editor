@@ -10,6 +10,14 @@
 
 use std::path::{Path, PathBuf};
 
+/// A calm filename budget. With `.md` (3 bytes), the largest `u32` collision
+/// suffix (11), the longest per-attempt atomic temp decoration (41), and a
+/// deliberately reserved 64-byte quarantine decoration, the worst component
+/// is 191 bytes — 64 bytes below the 255-byte component limit on advertised macOS and
+/// Linux filesystems. Smaller filesystem limits can still reject a name; the
+/// naming transaction leaves buffer identity intact on that ordinary error.
+pub const NOTE_STEM_MAX_BYTES: usize = 72;
+
 /// The first line of `text` with non-whitespace content (trimmed), or `None` when
 /// the text is empty / all blank. This is a quick note's working TITLE.
 pub fn first_nonempty_line(text: &str) -> Option<&str> {
@@ -18,9 +26,22 @@ pub fn first_nonempty_line(text: &str) -> Option<&str> {
 
 /// The filename STEM a note's first `line` derives to: its [`slug_core`], or the
 /// "scratch" placeholder when the line has no slug-able (alphanumeric) content.
-/// Shared by the FIRST naming save and live-rename so both agree on the name.
+/// Every caller inherits one UTF-8-byte cap. Prefer a complete dash-delimited
+/// word; a single long word falls back to the last valid scalar boundary.
 pub fn note_stem(line: &str) -> String {
-    let s = slug_core(line);
+    let mut s = slug_core(line);
+    if s.len() > NOTE_STEM_MAX_BYTES {
+        let mut end = NOTE_STEM_MAX_BYTES;
+        while !s.is_char_boundary(end) {
+            end -= 1;
+        }
+        let prefix = &s[..end];
+        end = prefix.rfind('-').filter(|&at| at > 0).unwrap_or(end);
+        s.truncate(end);
+        while s.ends_with('-') {
+            s.pop();
+        }
+    }
     if s.is_empty() {
         "scratch".to_string()
     } else {
@@ -57,7 +78,18 @@ fn slug_core(line: &str) -> String {
 /// move, not a copy). Returns the new path; an already-in-place move is a no-op
 /// returning `old`. This is the only file-WRITE the move feature performs, scoped
 /// to the current note (the C-x m fence: create + move, nothing else).
+#[cfg(test)]
 pub fn move_file(old: &Path, dest_dir: &Path) -> std::io::Result<PathBuf> {
+    move_file_avoiding(old, dest_dir, |_| false)
+}
+
+/// The live-session move: disk paths and identities already claimed by another
+/// open buffer share the same unavailable predicate.
+pub(crate) fn move_file_avoiding(
+    old: &Path,
+    dest_dir: &Path,
+    mut unavailable: impl FnMut(&Path) -> bool,
+) -> std::io::Result<PathBuf> {
     crate::fs::active().create_dir_all(dest_dir)?;
     let filename = old
         .file_name()
@@ -67,22 +99,30 @@ pub fn move_file(old: &Path, dest_dir: &Path) -> std::io::Result<PathBuf> {
     if natural == old {
         return Ok(old.to_path_buf()); // already there
     }
-    let new_path = if crate::fs::active().exists(&natural) {
-        let p = Path::new(&filename);
-        let stem = p
-            .file_stem()
-            .map(|s| s.to_string_lossy().to_string())
-            .unwrap_or_default();
-        let ext = p
-            .extension()
-            .map(|s| s.to_string_lossy().to_string())
-            .unwrap_or_default();
-        unique_path(dest_dir, &stem, &ext)
-    } else {
-        natural
-    };
-    crate::fs::active().rename(old, &new_path)?;
-    Ok(new_path)
+    let p = Path::new(&filename);
+    let stem = p
+        .file_stem()
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_default();
+    let ext = p
+        .extension()
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_default();
+    #[cfg(not(target_arch = "wasm32"))]
+    loop {
+        let new_path = unique_path_avoiding(dest_dir, &stem, &ext, &mut unavailable);
+        match crate::fs::active().rename_no_replace(old, &new_path) {
+            Ok(()) => return Ok(new_path),
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(error) => return Err(error),
+        }
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        let new_path = unique_path_avoiding(dest_dir, &stem, &ext, &mut unavailable);
+        crate::fs::active().rename(old, &new_path)?;
+        Ok(new_path)
+    }
 }
 
 /// A NON-CLOBBERING path in `dir` for `stem`.`ext` (`ext` empty = no extension):
@@ -90,7 +130,19 @@ pub fn move_file(old: &Path, dest_dir: &Path) -> std::io::Result<PathBuf> {
 /// `<stem>-3.<ext>`, … So a note title collision (or a move into a folder that
 /// already holds a same-named file) appends a short numeric suffix rather than
 /// overwriting.
+#[cfg(test)]
 pub fn unique_path(dir: &Path, stem: &str, ext: &str) -> PathBuf {
+    unique_path_avoiding(dir, stem, ext, |_| false)
+}
+
+/// The one no-clobber allocator. A candidate is unavailable when it exists on
+/// disk OR when `reserved` says a live buffer already owns its normalized key.
+pub(crate) fn unique_path_avoiding(
+    dir: &Path,
+    stem: &str,
+    ext: &str,
+    mut reserved: impl FnMut(&Path) -> bool,
+) -> PathBuf {
     let name = |suffix: Option<u32>| -> String {
         let base = match suffix {
             None => stem.to_string(),
@@ -104,9 +156,38 @@ pub fn unique_path(dir: &Path, stem: &str, ext: &str) -> PathBuf {
     };
     let mut candidate = dir.join(name(None));
     let mut n = 2u32;
-    while crate::fs::active().exists(&candidate) {
+    while crate::fs::active().exists(&candidate) || reserved(&candidate) {
         candidate = dir.join(name(Some(n)));
         n += 1;
     }
     candidate
+}
+
+/// Publish a new file under the shared disk-plus-live allocator. Native uses
+/// create-if-absent publication and retries the suffix if another creator wins
+/// after selection; the browser filesystem has no concurrent native publisher.
+pub(crate) fn write_new_unique(
+    owner: crate::durable::Owner,
+    dir: &Path,
+    stem: &str,
+    ext: &str,
+    data: &[u8],
+    mut unavailable: impl FnMut(&Path) -> bool,
+) -> std::io::Result<PathBuf> {
+    crate::fs::active().create_dir_all(dir)?;
+    #[cfg(not(target_arch = "wasm32"))]
+    loop {
+        let candidate = unique_path_avoiding(dir, stem, ext, &mut unavailable);
+        match crate::durable::write_new(owner, &candidate, data) {
+            Ok(()) => return Ok(candidate),
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(error) => return Err(error),
+        }
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        let candidate = unique_path_avoiding(dir, stem, ext, &mut unavailable);
+        crate::durable::write(owner, &candidate, data)?;
+        Ok(candidate)
+    }
 }
