@@ -16,6 +16,51 @@ fn both_capture_doors_report_provisional_fresh_identity_as_untitled() {
     assert_eq!(scratch.active.as_deref(), Some("scratch"));
 }
 
+fn assert_shared_fold_keeps_faceted_hug_roster(
+    current: &std::path::Path,
+    root: &std::path::Path,
+    config: &Config,
+    headings: &str,
+) {
+    let mut buffer = Buffer::from_file(current);
+    let corpus = crate::index::build_index(root);
+    let mut keymap =
+        crate::keymap::KeymapState::new_with_convention(crate::convention::Convention::Mac);
+    let mut session = ReplaySession::new(
+        ReplayPolicy::ordinary(),
+        &mut buffer,
+        &corpus,
+        root,
+        Some(root),
+        config,
+        None,
+        &mut keymap,
+    );
+    for chord in crate::keyspec::parse_chords(headings).expect("headings chords") {
+        session
+            .apply_chord(&chord)
+            .expect("shared-fold chord applies");
+    }
+    let summon_roster = session
+        .journey()
+        .card()
+        .and_then(crate::overlay::OverlayState::hug_roster)
+        .expect("real Go-to summon has an unlensed hug corpus");
+    let folded = fold_capture_state(&session, project_info(root, &None, None, config));
+    let folded_roster = folded
+        .overlay_hug_roster
+        .as_ref()
+        .expect("shared capture fold preserves the Go-to hug corpus");
+    assert!(std::sync::Arc::ptr_eq(&summon_roster, folded_roster));
+    assert!(
+        folded_roster
+            .primary
+            .iter()
+            .any(|row| row.contains("very-long-project-folder-name")),
+        "shared fold carries the wide All corpus, not the narrow Headings roster"
+    );
+}
+
 /// Both ordinary capture doors must carry the summon-time faceted corpus into
 /// their settled `ViewState`.  The storyboard/live fold has a typed seam;
 /// one-shot `--screenshot --keys` still owns its short replay fold locally.
@@ -37,45 +82,7 @@ fn faceted_hug_roster_survives_both_one_shot_and_shared_capture_folds() {
     let all = "s-p g o Space t o Enter";
     let headings = "s-p g o Space t o Enter Right Right";
 
-    // The shared storyboard/live fold receives the exact Arc the session owns.
-    let mut buffer = Buffer::from_file(&current);
-    let corpus = crate::index::build_index(&root);
-    let mut keymap =
-        crate::keymap::KeymapState::new_with_convention(crate::convention::Convention::Mac);
-    let mut session = ReplaySession::new(
-        ReplayPolicy::ordinary(),
-        &mut buffer,
-        &corpus,
-        &root,
-        Some(root.as_path()),
-        &config,
-        None,
-        &mut keymap,
-    );
-    for chord in crate::keyspec::parse_chords(headings).expect("headings chords") {
-        session
-            .apply_chord(&chord)
-            .expect("shared-fold chord applies");
-    }
-    let summon_roster = session
-        .journey()
-        .card()
-        .and_then(crate::overlay::OverlayState::hug_roster)
-        .expect("real Go-to summon has an unlensed hug corpus");
-    let folded = fold_capture_state(&session, project_info(&root, &None, None, &config));
-    let folded_roster = folded
-        .overlay_hug_roster
-        .as_ref()
-        .expect("shared capture fold preserves the Go-to hug corpus");
-    assert!(std::sync::Arc::ptr_eq(&summon_roster, folded_roster));
-    assert!(
-        folded_roster
-            .primary
-            .iter()
-            .any(|row| row.contains("very-long-project-folder-name")),
-        "shared fold carries the wide All corpus, not the narrow Headings roster"
-    );
-    drop(session);
+    assert_shared_fold_keeps_faceted_hug_roster(&current, &root, &config, headings);
 
     if capture::build_oracle(&Buffer::from_file(&current), &CaptureOpts::default()).is_none() {
         eprintln!("skipping faceted-hug capture fold pixels: no wgpu adapter");

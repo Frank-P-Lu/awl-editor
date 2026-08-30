@@ -8,6 +8,8 @@
 //! (`rename_to_stem`/`stem_matches_slug`) is retired — naming is now one-shot,
 //! at the first material save only (see `Buffer::save`'s doc).
 
+use super::Buffer;
+use ropey::Rope;
 use std::path::{Path, PathBuf};
 
 /// A calm filename budget. With `.md` (3 bytes), the largest `u32` collision
@@ -17,6 +19,57 @@ use std::path::{Path, PathBuf};
 /// Linux filesystems. Smaller filesystem limits can still reject a name; the
 /// naming transaction leaves buffer identity intact on that ordinary error.
 pub const NOTE_STEM_MAX_BYTES: usize = 72;
+
+impl Buffer {
+    pub fn display_name(&self) -> String {
+        if let Some(p) = &self.path {
+            return p
+                .file_name()
+                .map(|s| s.to_string_lossy().to_string())
+                .unwrap_or_else(|| "scratch".to_string());
+        }
+        if self.fresh_id.is_some() {
+            return "untitled".to_string();
+        }
+        let stem = match first_nonempty_line(&self.rope.to_string()) {
+            Some(line) => note_stem(line),
+            None => "scratch".to_string(),
+        };
+        format!("{stem}.md")
+    }
+
+    /// Mark this buffer as a freshly-summoned, UNNAMED document living under
+    /// `dir`: it has no filename yet; the first non-empty line names it ONCE, on
+    /// the first material save ([`Self::save`] then clears this — the
+    /// one-shot naming law: a LATER title edit never re-triggers a rename, since
+    /// [`Self::is_unnamed_fresh`] is false from that first save on).
+    pub fn set_note_dir(&mut self, dir: PathBuf) {
+        self.note_dir = Some(dir);
+    }
+
+    pub fn is_unnamed_fresh(&self) -> bool {
+        self.note_dir.is_some()
+    }
+
+    /// A just-created fresh buffer contains no user work and has no edit/undo
+    /// history to protect. It may close without forcing an impossible naming
+    /// save. Once any edit dirties it, even if the visible text returns empty,
+    /// the normal save/refusal gate owns the close.
+    pub(crate) fn is_discardable_empty_fresh(&self) -> bool {
+        self.is_unnamed_fresh() && !self.dirty && self.rope.len_chars() == 0
+    }
+
+    pub(crate) fn fresh_id(&self) -> Option<u64> {
+        self.fresh_id
+    }
+
+    pub fn start_fresh_doc(&mut self, dir: PathBuf) {
+        static NEXT_FRESH_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+        *self = Self::from_rope(Rope::new(), None);
+        self.note_dir = Some(dir);
+        self.fresh_id = Some(NEXT_FRESH_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed));
+    }
+}
 
 /// The first line of `text` with non-whitespace content (trimmed), or `None` when
 /// the text is empty / all blank. This is a quick note's working TITLE.

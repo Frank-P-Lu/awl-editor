@@ -18,7 +18,9 @@
 //! autosave versions — see `app::files::BufferExtra`) while headless replay
 //! carries none (`()`).
 
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
+
+mod path;
 
 use crate::buffer::Buffer;
 
@@ -136,57 +138,8 @@ pub(crate) fn normalize_path(p: &Path) -> PathBuf {
             .map(|cwd| cwd.join(p))
             .unwrap_or_else(|_| p.to_path_buf())
     };
-    let clean = lexically_collapse(&abs);
-    std::fs::canonicalize(&clean).unwrap_or_else(|_| canonicalize_lenient(&clean))
-}
-
-/// Lexically collapse `.` / `..` components without touching disk (the pure
-/// building block [`normalize_path`] runs BEFORE attempting canonicalize, so
-/// the un-canonicalizable-tail fallback in [`canonicalize_lenient`] never has
-/// to re-strip a stray `..` out of its already-clean tail components).
-fn lexically_collapse(abs: &Path) -> PathBuf {
-    let mut out = PathBuf::new();
-    for comp in abs.components() {
-        match comp {
-            Component::CurDir => {}
-            Component::ParentDir => {
-                out.pop();
-            }
-            other => out.push(other.as_os_str()),
-        }
-    }
-    out
-}
-
-/// Fallback for a path `std::fs::canonicalize` rejected outright (typically:
-/// the path, or some component of it, doesn't exist yet). Walks UP from
-/// `clean` (already lexically collapsed) until an ancestor DOES canonicalize,
-/// then re-joins the remaining tail components onto that resolved ancestor —
-/// so a not-yet-existing file's key still tracks its real (symlink-resolved)
-/// parent directory. A real filesystem's root always exists, so this
-/// terminates; the pathological case where NOT EVEN THE ROOT canonicalizes
-/// (e.g. the cwd itself was unreadable) degrades to the lexically-collapsed
-/// path as-is — the same best-effort fallback `normalize_path` always used,
-/// never a panic.
-fn canonicalize_lenient(clean: &Path) -> PathBuf {
-    let mut tail: Vec<std::ffi::OsString> = Vec::new();
-    let mut ancestor = clean;
-    loop {
-        let Some(parent) = ancestor.parent() else {
-            return clean.to_path_buf();
-        };
-        if let Some(name) = ancestor.file_name() {
-            tail.push(name.to_os_string());
-        }
-        ancestor = parent;
-        if let Ok(canon_ancestor) = std::fs::canonicalize(ancestor) {
-            let mut out = canon_ancestor;
-            for comp in tail.iter().rev() {
-                out.push(comp);
-            }
-            return out;
-        }
-    }
+    let clean = path::lexically_collapse(&abs);
+    std::fs::canonicalize(&clean).unwrap_or_else(|_| path::canonicalize_lenient(&clean))
 }
 
 /// Max simultaneously-open buffers (the active one + everything backgrounded
@@ -280,7 +233,8 @@ impl<T> BufferRegistry<T> {
                     // subsequent open (see `over_cap_warned`'s doc).
                     if !self.over_cap_warned {
                         eprintln!(
-                            "awl: buffer registry over cap ({} open, no clean reloadable path) — keeping all",
+                            "awl: buffer registry over cap ({} open, no clean reloadable path) — \
+                             keeping all",
                             self.entries.len() + 1
                         );
                         self.over_cap_warned = true;

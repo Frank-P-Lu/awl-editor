@@ -516,7 +516,8 @@ fn right_anchored_faceted_hug_width_is_invariant_across_lenses_and_filters() {
         hug_items
             .iter()
             .any(|s| s == "archive/very-long-project-folder-name/"),
-        "the production summon corpus must include folders attached after construction: {hug_items:?}"
+        "the production summon corpus must include folders attached after construction: \
+         {hug_items:?}"
     );
 
     let view_of = |ov: &crate::overlay::OverlayState, align| ViewState {
@@ -564,7 +565,8 @@ fn right_anchored_faceted_hug_width_is_invariant_across_lenses_and_filters() {
         for (label, got) in [("folders", folder), ("filtered", no_matches)] {
             assert!(
                 (got[0] - all[0]).abs() < 0.5 && (got[2] - all[2]).abs() < 0.5,
-                "{} ({label}): left edge/width changed across a lens or filter: all={all:?}, got={got:?}",
+                "{} ({label}): left edge/width changed across a lens or filter: \
+                 all={all:?}, got={got:?}",
                 world.name,
             );
         }

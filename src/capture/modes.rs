@@ -211,7 +211,6 @@ pub(super) fn settled_viewstate(
     // renders the squiggles. Deterministic (fixed text -> fixed spans). If the
     // bundled dictionary fails to parse, report it and render without squiggles.
     let misspelled = super::policy::misspellings(buffer);
-
     // --- Search panel (deterministic headless isearch) -------------------
     // Compute matches against the loaded buffer, pick current = first match at
     // or after the cursor (Forward, deterministic) else the first match, and

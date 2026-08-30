@@ -50,17 +50,14 @@ impl App {
             self.update_title();
         }
         // Schedule live-only debounced autosave; capture/replay never writes.
+        let note_key = self.document.active_key().expect("active document key");
         if self.document.buffer().is_unnamed_fresh()
-            && self.persistence.note_write_owed(
-                &self.document.active_key().expect("active document key"),
-                self.document.buffer().version(),
-            )
+            && self
+                .persistence
+                .note_write_owed(&note_key, self.document.buffer().version())
         {
-            let now = self.frame.now();
-            self.persistence.arm_note_debounce(
-                self.document.active_key().expect("active document key"),
-                now,
-            );
+            self.persistence
+                .arm_note_debounce(note_key, self.frame.now());
         }
         // Arm the DOCUMENT AUTOSAVE idle timer (config-gated, default ON) when a
         // non-note buffer's text changed since its last write — a pathed document

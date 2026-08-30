@@ -1,5 +1,4 @@
 use crate::app::*;
-
 impl App {
     /// Apply the result of a platform file chooser. Kept separate from the
     /// modal panel so Cancel and accepted-path behavior are testable without an

@@ -9,7 +9,8 @@
 
 use super::WritePermission;
 use crate::app::*;
-use std::path::Path;
+
+mod duplicate;
 
 impl App {
     /// Live interpreter for `PersistenceEffect::Save(Manual)`. The shared
@@ -446,66 +447,6 @@ impl App {
         self.update_title();
         self.rescan_file_index();
         self.set_toast_notice(format!("renamed to {trimmed}"));
-        self.request_frame();
-    }
-
-    /// NOTES VERBS round: DUPLICATE the current file — copy the CURRENT buffer
-    /// content (including any unsaved edits — a duplicate captures what you're
-    /// actually looking at, not necessarily what's on disk) to an auto-named
-    /// sibling, then open the copy as the active buffer via the ordinary
-    /// [`Self::load_path`] door — which PARKS the original first (so ITS live
-    /// edits are never lost) and gives the copy a genuinely FRESH history timeline
-    /// (a brand-new `Buffer::from_file`, a brand-new local-history log — nothing
-    /// carries over, since the copy is a new file). The sibling name is chosen by
-    /// the SAME disk-plus-live no-clobber allocator the naming save uses
-    /// (`move_current_file`) — `name-2.md`, `name-3.md`, … — never a
-    /// space-separated `"name 2.md"`, matching the codebase's own established
-    /// convention. A pathless buffer (scratch / an unnamed fresh document) is a calm no-op —
-    /// there is nothing to duplicate yet. Flushes any pending debounced write
-    /// FIRST so the ORIGINAL reliably exists on disk under its own name before the
-    /// dedup scan runs (otherwise a not-yet-flushed `old` would look "free" to
-    /// `unique_path` and the copy could collide with it).
-    pub(in crate::app) fn duplicate_current_file(&mut self) {
-        let Some(old) = self.document.buffer().path().map(|p| p.to_path_buf()) else {
-            return; // scratch: nothing to duplicate
-        };
-        self.flush_note();
-        self.autosave_flush();
-        // DUPLICATE IS AN IDENTITY BOUNDARY TOO, and it is gated BEFORE the copy
-        // is written rather than after. The flushes above are what raise a
-        // conflict, and `load_path` below refuses to leave a conflicted
-        // document — so writing first left a real sibling file on disk, no
-        // switch, and a "duplicated" toast sitting on top of the refusal's own
-        // line, which reads as "it worked" for something that did not.
-        if self.refuse_while_unresolved() {
-            return;
-        }
-        let bytes = self.document.buffer().disk_bytes();
-        let dir = old.parent().map(Path::to_path_buf).unwrap_or_default();
-        let stem = old
-            .file_stem()
-            .map(|s| s.to_string_lossy().to_string())
-            .unwrap_or_default();
-        let ext = old
-            .extension()
-            .map(|s| s.to_string_lossy().to_string())
-            .unwrap_or_default();
-        match crate::buffer::write_new_unique(
-            crate::durable::Owner::ManualSave,
-            &dir,
-            &stem,
-            &ext,
-            &bytes,
-            |candidate| self.document.path_is_claimed_by_other(candidate),
-        ) {
-            Ok(new_path) => {
-                self.load_path(new_path);
-                self.set_toast_notice("duplicated");
-            }
-            Err(e) => {
-                self.set_sticky_notice(format!("duplicate failed: {e}"));
-            }
-        }
         self.request_frame();
     }
 }

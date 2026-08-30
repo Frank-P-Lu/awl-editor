@@ -142,6 +142,16 @@ pub(super) fn buffers_info(open: usize, buffer: Option<&Buffer>) -> capture::Buf
     }
 }
 
+pub(super) fn apply_replay_tail(
+    opts: &mut capture::CaptureOpts,
+    buffers_open: usize,
+    buffer: &Buffer,
+    replay_skips: Vec<crate::replay::SkippedEffect>,
+) {
+    opts.buffers = Some(buffers_info(buffers_open, Some(buffer)));
+    opts.replay_skips = replay_skips;
+}
+
 /// Fold ONE still-open overlay into its sidecar [`capture::OverlayInfo`] block
 /// plus the read-only COMPARISON TEXT (if that overlay shows one — see
 /// [`comparison_preview_for`]). Extracted from [`capture_screenshot`]

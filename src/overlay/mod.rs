@@ -38,6 +38,7 @@
 //!     ASCENDS; Enter on a FILE opens it and closes. Git folders are marked. It
 //!     is still summoned + transient — it vanishes on open/cancel, never a tree.
 
+mod assets;
 mod build;
 mod capture;
 pub(crate) mod comparison;
@@ -49,6 +50,7 @@ mod kind;
 mod link;
 mod nav;
 mod rename_edit;
+mod roster;
 mod row;
 mod semantic;
 mod state;

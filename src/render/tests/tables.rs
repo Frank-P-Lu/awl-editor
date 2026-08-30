@@ -724,7 +724,8 @@ fn empty_table_wash_has_rendered_presence_on_every_world() {
         let delta = pixeldiff::delta_e(wash, ground);
         assert!(
             delta > 0.5,
-            "{}: empty-wash presence delta={delta:.3}, wash={wash:?}, ground={ground:?}, enrolled={enrolled:?}",
+            "{}: empty-wash presence delta={delta:.3}, wash={wash:?}, \
+             ground={ground:?}, enrolled={enrolled:?}",
             world.name
         );
         enrolled.push(world.name);
