@@ -137,6 +137,8 @@ decision is which world draws which set, not one global glyph.
 ---
 ### 533 — right-anchored hug width is re-measured per lens/filter view, so Kite's Go-to jumps sideways on every lens switch (user report, 2026-08-30)
 
+🟡 IN PROGRESS — gpt-5.6-terra medium, branch codex/item-533, worktree .codex/worktrees/item-533
+
 User report with screenshots, mechanism verified in code before filing.
 On Kite, summoning Go-to and stepping lenses (Folders → Headings) slides
 the whole card — lens strip, query, rows, footer — hundreds of px
@@ -200,6 +202,8 @@ Rust-touching, so the item claims a full gate receipt.
 
 ---
 ### 534 — uncapped first-line filename derivation makes a long-first-line note unsaveable: "save failed: File name too long (os error 63)" (user report, 2026-08-30)
+
+🟡 IN PROGRESS — gpt-5.6-sol high, branch codex/item-534-537-538, worktree .codex/worktrees/item-534-537-538 (one owner for the shared save/buffer-identity mechanism across 534, 537, and 538)
 
 User screenshot: a fresh note in the notes folder shows the sticky
 "save failed: File name too long (os error 63)" over prose whose
@@ -305,6 +309,8 @@ the commit. Full gate receipt.
 ---
 ### 537 — a failed scratch→note conversion destroys the scratch identity, silently drops the buffer on the next switch, and leaves a dead "scratch" row (user report, 2026-08-30; "sounds like an architectural code smell — we should fix this")
 
+🟡 IN PROGRESS — gpt-5.6-sol high, branch codex/item-534-537-538, worktree .codex/worktrees/item-534-537-538 (shared owner with 534 and 538)
+
 User symptom (screenshot): the working-set stack shows a "scratch" row
 that does NOTHING when clicked, while the sibling file rows switch
 fine. Every link of the causal chain is verified in code; the entry
@@ -367,6 +373,8 @@ subsumed by it. Full gate receipt.
 
 ---
 ### 538 — unnamed-fresh documents are ghosts: no key, no row, no park — give them first-class identity (user direction, 2026-08-30: "architectural code smell")
+
+🟡 IN PROGRESS — gpt-5.6-sol high, branch codex/item-534-537-538, worktree .codex/worktrees/item-534-537-538 (shared owner with 534 and 537)
 
 The architecture underneath 537's chain, and a second user-reported
 symptom of the same gap (screenshot): **⌘N shows "• scratch" in the
@@ -517,6 +525,8 @@ Full gate receipt.
 ---
 ### 541 — table grid: the header-separator rule draws through a revealed row's source (user report, 2026-08-30)
 
+🟡 IN PROGRESS — gpt-5.6-terra medium, branch codex/item-541-543-tables, worktree .codex/worktrees/item-541-543-tables (same table-editing owner as 542, 543, and the adjacent 532 keymap comment truth fix)
+
 Verified to the line. The per-row reveal contract
 (`render/layers/table_grid.rs`, "grid and source never share a row's
 pixels") is enforced for CELLS — the cell loop skips the revealed
@@ -536,6 +546,8 @@ this can land for judgement. Full gate receipt.
 
 ---
 ### 542 — table EDITING is all raw-source friction: the low-hanging UX basket (user report, 2026-08-30 — "kinda awful to edit")
+
+🟡 IN PROGRESS — gpt-5.6-terra medium, branch codex/item-541-543-tables, worktree .codex/worktrees/item-541-543-tables (first wave only, shared owner with 541, 543, and 532)
 
 **FIRST WAVE DECIDED (user, 2026-08-30): fruits (1) Tab/Shift-Tab
 cell hop and (2) Enter scaffold-row are greenlit — ready to
@@ -589,6 +601,8 @@ receipt per landing wave.
 ---
 ### 543 — an all-empty table renders as almost nothing: empty grid cells need a faint display-only affordance (user report, 2026-08-30)
 
+🟡 IN PROGRESS — gpt-5.6-terra medium, branch codex/item-541-543-tables, worktree .codex/worktrees/item-541-543-tables (shared owner with 541, 542 first wave, and 532)
+
 Verified: `build_table` (`markdown/tables.rs`) emits ALL-EMPTY cells
 (`| |` rows), and the WYSIWYG grid draws only cell TEXT plus the one
 faint separator rule — no cell borders. So the dimension picker's own
@@ -618,6 +632,8 @@ a fresh insert must land on visible cells. Full gate receipt.
 
 ---
 ### 532 — keymap/platform.rs: the seed-table doc comments still describe the Meta-only world
+
+🟡 IN PROGRESS — gpt-5.6-terra medium, branch codex/item-541-543-tables, worktree .codex/worktrees/item-541-543-tables (piggybacked because 542 already touches the keymap path)
 
 Comment-only truth fix in `src/keymap/platform.rs`, outdated by the
 classic-chords round. `active_seed_tables`' doc says "Today just
