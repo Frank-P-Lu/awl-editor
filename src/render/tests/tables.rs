@@ -696,6 +696,35 @@ fn table_grid_reclamps_to_the_column_on_a_real_window_resize() {
 /// cell, a table BODY cell, and an ordinary body-prose line in the SAME
 /// document render with the IDENTICAL dominant ink color on Potoroo.
 #[test]
+fn empty_table_wash_has_rendered_presence_on_every_world() {
+    let _t = crate::testlock::serial();
+    let _world = theme::WorldPin::snapshot();
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else { return; };
+    let (w, h) = (1200u32, 800u32);
+    crate::markdown::set_wysiwyg_on(true);
+    let mut enrolled = Vec::new();
+    for world in theme::THEMES {
+        theme::set_active_by_name(world.name).unwrap();
+        p.sync_theme();
+        let mut v = view("prose\n| | |\n|---|---|\n| | |\n", 0, 0);
+        v.is_markdown = true;
+        p.set_view(&v);
+        p.prepare(&device, &queue, w, h).unwrap();
+        let report = p.tables_report();
+        assert_eq!(report[0].cols, 2, "{}: enrolled table", world.name);
+        let pixels = pixeldiff::render_frame(&mut p, &device, &queue, w, h);
+        let top = p.line_ornament_top(1) + p.metrics.line_height * 0.5;
+        let left = p.text_left();
+        let wash = pixels[top as usize * w as usize + (left + report[0].col_widths[0] * 0.5) as usize];
+        let ground = pixels[top as usize * w as usize + (left + report[0].col_widths.iter().sum::<f32>() + 12.0) as usize];
+        let delta = pixeldiff::delta_e(wash, ground);
+        assert!(delta > 0.5, "{}: empty-wash presence delta={delta:.3}, wash={wash:?}, ground={ground:?}, enrolled={enrolled:?}", world.name);
+        enrolled.push(world.name);
+    }
+    assert_eq!(enrolled.len(), theme::THEMES.len(), "full roster enrolled: {enrolled:?}");
+}
+
+#[test]
 fn potoroo_table_cell_ink_matches_body_prose_at_real_pixels() {
     let _t = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
