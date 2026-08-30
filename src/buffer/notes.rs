@@ -88,7 +88,7 @@ pub fn move_file(old: &Path, dest_dir: &Path) -> std::io::Result<PathBuf> {
 pub(crate) fn move_file_avoiding(
     old: &Path,
     dest_dir: &Path,
-    unavailable: impl FnMut(&Path) -> bool,
+    mut unavailable: impl FnMut(&Path) -> bool,
 ) -> std::io::Result<PathBuf> {
     crate::fs::active().create_dir_all(dest_dir)?;
     let filename = old
@@ -108,9 +108,21 @@ pub(crate) fn move_file_avoiding(
         .extension()
         .map(|s| s.to_string_lossy().to_string())
         .unwrap_or_default();
-    let new_path = unique_path_avoiding(dest_dir, &stem, &ext, unavailable);
-    crate::fs::active().rename(old, &new_path)?;
-    Ok(new_path)
+    #[cfg(not(target_arch = "wasm32"))]
+    loop {
+        let new_path = unique_path_avoiding(dest_dir, &stem, &ext, &mut unavailable);
+        match crate::fs::active().rename_no_replace(old, &new_path) {
+            Ok(()) => return Ok(new_path),
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(error) => return Err(error),
+        }
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        let new_path = unique_path_avoiding(dest_dir, &stem, &ext, &mut unavailable);
+        crate::fs::active().rename(old, &new_path)?;
+        Ok(new_path)
+    }
 }
 
 /// A NON-CLOBBERING path in `dir` for `stem`.`ext` (`ext` empty = no extension):
@@ -149,4 +161,33 @@ pub(crate) fn unique_path_avoiding(
         n += 1;
     }
     candidate
+}
+
+/// Publish a new file under the shared disk-plus-live allocator. Native uses
+/// create-if-absent publication and retries the suffix if another creator wins
+/// after selection; the browser filesystem has no concurrent native publisher.
+pub(crate) fn write_new_unique(
+    owner: crate::durable::Owner,
+    dir: &Path,
+    stem: &str,
+    ext: &str,
+    data: &[u8],
+    mut unavailable: impl FnMut(&Path) -> bool,
+) -> std::io::Result<PathBuf> {
+    crate::fs::active().create_dir_all(dir)?;
+    #[cfg(not(target_arch = "wasm32"))]
+    loop {
+        let candidate = unique_path_avoiding(dir, stem, ext, &mut unavailable);
+        match crate::durable::write_new(owner, &candidate, data) {
+            Ok(()) => return Ok(candidate),
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(error) => return Err(error),
+        }
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        let candidate = unique_path_avoiding(dir, stem, ext, &mut unavailable);
+        crate::durable::write(owner, &candidate, data)?;
+        Ok(candidate)
+    }
 }

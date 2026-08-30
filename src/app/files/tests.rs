@@ -171,6 +171,76 @@ fn move_and_duplicate_share_the_disk_plus_live_path_allocator() {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn move_and_duplicate_retry_without_clobber_when_a_creator_wins_after_selection() {
+    #[derive(Clone, Copy, Debug)]
+    enum CreationRoute {
+        Move,
+        Duplicate,
+    }
+
+    let _guard = crate::testlock::serial();
+    for route in [CreationRoute::Move, CreationRoute::Duplicate] {
+        let root = PathBuf::from(format!("/publish-race/{route:?}"));
+        let old = root.join("source.md");
+        let (racing_path, expected) = match route {
+            CreationRoute::Move => (root.join("dest/source.md"), root.join("dest/source-2.md")),
+            CreationRoute::Duplicate => (root.join("source-2.md"), root.join("source-3.md")),
+        };
+        let scripted = Arc::new(
+            crate::fs::ScriptedFs::new(
+                crate::fs::InMemoryFs::new()
+                    .with_dir(&root)
+                    .with_dir(root.join("dest"))
+                    .with_file(&old, "source bytes"),
+                crate::fs::ScriptedFailure {
+                    operation: crate::fs::ScriptedOperation::Rename,
+                    ordinal: 99,
+                    kind: std::io::ErrorKind::Other,
+                    reason: "unreachable sentinel",
+                },
+            )
+            .race_create_before_no_replace(racing_path.clone(), b"racing creator"),
+        );
+        crate::fs::with_fs(scripted.clone(), || {
+            let mut app = App::new(
+                Some(old.clone()),
+                root.clone(),
+                None,
+                None,
+                Config {
+                    session_restore: Some(false),
+                    autosave: Some(false),
+                    ..Config::empty()
+                },
+            );
+
+            match route {
+                CreationRoute::Move => app.move_current_file("dest"),
+                CreationRoute::Duplicate => app.duplicate_current_file(),
+            }
+
+            assert_eq!(
+                scripted.read_to_string(&racing_path).unwrap(),
+                "racing creator",
+                "{route:?}: the competing creator is never replaced"
+            );
+            assert_eq!(app.document.buffer().path(), Some(expected.as_path()));
+            assert_eq!(scripted.read_to_string(&expected).unwrap(), "source bytes");
+            assert_eq!(
+                scripted
+                    .trace()
+                    .iter()
+                    .filter(|line| line.starts_with("rename-no-replace#"))
+                    .count(),
+                2,
+                "{route:?}: collide once, then publish the deterministic suffix"
+            );
+        });
+    }
+}
+
 /// Every first-naming entry point must land on the same transaction and leave
 /// no provisional key behind. The match is deliberately exhaustive: adding a
 /// route to this roster requires choosing how it is driven and verified.

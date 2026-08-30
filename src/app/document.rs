@@ -529,15 +529,4 @@ impl DocumentSession {
         self.other_live_path_keys()
             .contains(&crate::buffers::BufferKey::path(candidate))
     }
-
-    pub(in crate::app) fn unique_unclaimed_path(
-        &self,
-        dir: &Path,
-        stem: &str,
-        ext: &str,
-    ) -> PathBuf {
-        crate::buffer::unique_path_avoiding(dir, stem, ext, |candidate| {
-            self.path_is_claimed_by_other(candidate)
-        })
-    }
 }

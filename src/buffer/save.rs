@@ -60,25 +60,8 @@ impl Buffer {
         let line = first_nonempty_line(&text)
             .ok_or_else(|| anyhow::anyhow!("empty note: nothing to save yet"))?;
         let stem = note_stem(line);
-        crate::fs::active().create_dir_all(folder)?;
         let bytes = self.disk_bytes();
-        #[cfg(not(target_arch = "wasm32"))]
-        let path = loop {
-            let candidate = unique_path_avoiding(folder, &stem, "md", &mut reserved);
-            match crate::durable::write_new(owner, &candidate, &bytes) {
-                Ok(()) => break candidate,
-                // Another creator won after selection. Re-scan both disk and
-                // live reservations and publish the deterministic next suffix.
-                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
-                Err(error) => return Err(error.into()),
-            }
-        };
-        #[cfg(target_arch = "wasm32")]
-        let path = {
-            let candidate = unique_path_avoiding(folder, &stem, "md", &mut reserved);
-            crate::durable::write(owner, &candidate, &bytes)?;
-            candidate
-        };
+        let path = write_new_unique(owner, folder, &stem, "md", &bytes, &mut reserved)?;
         self.path = Some(path);
         self.note_dir = None;
         self.fresh_id = None;

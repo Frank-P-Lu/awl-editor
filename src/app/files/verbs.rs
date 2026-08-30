@@ -490,9 +490,15 @@ impl App {
             .extension()
             .map(|s| s.to_string_lossy().to_string())
             .unwrap_or_default();
-        let new_path = self.document.unique_unclaimed_path(&dir, &stem, &ext);
-        match crate::fs::write_atomic(&new_path, &bytes) {
-            Ok(()) => {
+        match crate::buffer::write_new_unique(
+            crate::durable::Owner::ManualSave,
+            &dir,
+            &stem,
+            &ext,
+            &bytes,
+            |candidate| self.document.path_is_claimed_by_other(candidate),
+        ) {
+            Ok(new_path) => {
                 self.load_path(new_path);
                 self.set_toast_notice("duplicated");
             }
