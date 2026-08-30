@@ -279,6 +279,11 @@ fn no_bare_durable_write_bypasses_write_atomic_outside_the_accounted_for_sites()
         // The registry's own laws, carved out of `buffers.rs` into a
         // sibling to keep that file under its frozen size baseline. Same
         // single temp-dir fixture seed it always was, one directory down.
+        // The quick-note real-disk collision law seeds an existing
+        // `scratch.md` under its ScratchDir so naming must allocate
+        // `scratch-2.md`. It is a disposable fixture behind the naming
+        // owner; the product write path would erase the adversarial edge.
+        ("buffer/tests/quick_notes.rs", 1),
         ("buffers/tests.rs", 1),
         ("crashlog.rs", 1),
         ("daemon.rs", 1),
@@ -316,10 +321,11 @@ fn no_bare_durable_write_bypasses_write_atomic_outside_the_accounted_for_sites()
         // buys them nothing.
         // `main/tests.rs` split seven ways; same 21 sites, unmoved.
         ("main/tests/buffer_switching.rs", 8),
-        // The seventh site seeds the language-toast screenshot law's
-        // markdown input under its `ScratchDir`; like the other six, it is
-        // disposable harness input rather than a durable user store.
-        ("main/tests/capture_scenarios.rs", 7),
+        // Eight sites seed source/config inputs under ScratchDir, including
+        // the current and nested files for the faceted-hug fold. The ninth
+        // seeds the language-toast screenshot law. All are disposable
+        // harness inputs rather than durable user stores.
+        ("main/tests/capture_scenarios.rs", 9),
         ("main/tests/credits_capture.rs", 1), // disposable ScratchDir fixture
         ("main/tests/headless_safety.rs", 1),
         ("main/tests/launch_context.rs", 2),
