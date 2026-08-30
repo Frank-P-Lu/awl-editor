@@ -77,6 +77,46 @@ size/contrast of each actual use. Because adding a binary permanently grows
 Git history even if reverted, the gallery/taste checkpoint precedes the asset
 commit despite the standing land-easy-taste-changes policy.
 
+**PHASE-1 TASTE REVIEW, first pass (user, live over the gallery, 2026-08-30)**
+— strong-interest signals recorded verbatim for phase 2; this is a first
+pass, not the final adopted roster, and the review is still open:
+
+- **U+F58F–U+F59F (the snake):** "man this snake is cool!"
+- **Playing-card symbols, especially Acorn and Bells** (the German suits):
+  called out by name.
+- **U+F5BC–U+F5FF (Assorted):** the moons here noted with interest.
+- **U+F620–U+F62B (Circle, PUA, 12 marks):** "can we somehow use this as
+  the loading bar on the web???" — record as a NEW candidate application:
+  the web build's load indicator cycling the 12 circle marks (or the moon
+  phases) while the wasm downloads. Two mechanics to settle before adopting:
+  (a) the loader runs BEFORE awl's fonts arrive, so the marks would need a
+  tiny subsetted face (12 glyphs, a few KB) inlined into the loader page —
+  a deliberate, named exception to "glyphs render through awl's pipeline",
+  confined to the shipped loader and bundled offline (zero-network holds);
+  (b) PUA is acceptable here because the loader is awl's own chrome, never
+  document content — the PUA prohibitions above are about user files.
+- **U+F007B–U+F00FF and U+F0100–U+F01AB (Plane-15 Assorted):** "so many
+  cool things here too!"
+
+---
+### 532 — keymap/platform.rs: the seed-table doc comments still describe the Meta-only world
+
+Comment-only truth fix in `src/keymap/platform.rs`, outdated by the
+classic-chords round. `active_seed_tables`' doc says "Today just
+`LINUX_EMACS_META_SEED`" while the body returns both tables, and one
+sentence got garbled in that round's edit ("a seeded layer added for a
+future seeded layer (a classic-chords C-x table, say)…") — rewrite it to
+describe the two-table present plainly. Sweep the neighbouring seed-table
+doc comments in the same file for sibling claims the round outdated (e.g.
+`seeded_chords_for`'s "At most one entry today" — verify against the
+tables before keeping or cutting it). No behaviour change intended; it is
+still a Rust-file edit, so it claims a full gate receipt, and the file
+carries a frozen code-health comment baseline — keep the rewrite tight
+enough not to trip the ratchet (two prior merges needed a follow-up
+"tighten comments back under baseline" commit; don't earn a third).
+Cheap enough to piggyback on the next keymap-touching item if one is
+dispatched first.
+
 ---
 ## Needs specific hardware
 
