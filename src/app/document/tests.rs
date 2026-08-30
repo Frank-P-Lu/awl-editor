@@ -209,6 +209,7 @@ fn successful_fresh_rekey_leaves_no_behavioral_owner_on_the_old_key() {
         session.set_text("Named manuscript");
         let old = session.active_key().expect("fresh key");
         assert!(matches!(old, crate::buffers::BufferKey::Fresh(_)));
+        #[cfg(not(target_arch = "wasm32"))]
         assert!(
             session.session_buffers().is_empty(),
             "fresh is not restorable from disk"
@@ -225,13 +226,16 @@ fn successful_fresh_rekey_leaves_no_behavioral_owner_on_the_old_key() {
         assert!(session.close_facts(&old).is_none());
         assert!(session.close_facts(&new).is_some());
         assert!(!session.contains_background(&old));
-        let restored = session.session_buffers();
-        assert_eq!(restored.len(), 1);
-        assert_eq!(
-            restored[0].0, path,
-            "session records only the committed path"
-        );
-        assert_eq!(restored[0].1.col, "Named manuscript".chars().count());
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let restored = session.session_buffers();
+            assert_eq!(restored.len(), 1);
+            assert_eq!(
+                restored[0].0, path,
+                "session records only the committed path"
+            );
+            assert_eq!(restored[0].1.col, "Named manuscript".chars().count());
+        }
     });
 }
 
