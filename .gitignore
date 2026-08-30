@@ -12,6 +12,7 @@
 # benches/baseline.json; a fresh bench.json is scratch, never committed)
 /bench.json
 .claude/worktrees/
+.codex/worktrees/
 .playwright-mcp/
 
 # site/check.html's data file — generated fresh at each deploy
