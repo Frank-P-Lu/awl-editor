@@ -515,7 +515,14 @@ separator row). One-line-plus-law scale; per the land-easy policy
 this can land for judgement. Full gate receipt.
 
 ---
-### 542 — table EDITING is all raw-source friction: the low-hanging UX basket (user report, 2026-08-30 — "kinda awful to edit"; fruits ranked, awaiting the user's picks)
+### 542 — table EDITING is all raw-source friction: the low-hanging UX basket (user report, 2026-08-30 — "kinda awful to edit")
+
+**FIRST WAVE DECIDED (user, 2026-08-30): fruits (1) Tab/Shift-Tab
+cell hop and (2) Enter scaffold-row are greenlit — ready to
+dispatch.** (3)/(4) stay parked pending their own word; (5) remains
+deferred to its own design session. Land the first wave alongside
+item 543 (empty cells render as nearly nothing), or a Tab-walk
+through a fresh insert hops invisible cells.
 
 The render half of tables is landed (grid, per-row reveal, dimension
 picker — "AWESOME!!"); the EDITING half is still bare raw-source: the
@@ -558,6 +565,36 @@ Every fruit is exhaustively testable at the buffer seam (editing
 edge-cases are the product — spend generously per CLAUDE.md), plus
 `--keys` journey captures for Tab-walks and Enter-rows. Full gate
 receipt per landing wave.
+
+---
+### 543 — an all-empty table renders as almost nothing: empty grid cells need a faint display-only affordance (user report, 2026-08-30)
+
+Verified: `build_table` (`markdown/tables.rs`) emits ALL-EMPTY cells
+(`| |` rows), and the WYSIWYG grid draws only cell TEXT plus the one
+faint separator rule — no cell borders. So the dimension picker's own
+fresh insert (item 517, the best-reviewed feature on this board)
+lands as a single faint horizontal line floating in space: the
+user's "an empty table doesn't really render the | | |". The first
+minute of the flagship flow shows nearly nothing.
+
+FIX, display-only (the file stays plain text; nothing is inserted
+into cells): an EMPTY cell draws a faint placeholder affordance in
+the grid — and the treatment is already designed one module over:
+the dimension picker's empty cells draw `muted()` at low alpha
+(`table_dims.rs`'s own comment records WHY: an opaque `base_200`
+wash vanished bytewise on Wagtail's card, while translucent muted
+over whatever ground is visible on every world by construction).
+Reuse that reasoning for the document grid's empty cells (wash, or a
+short faint underline — lane renders both, user picks from captures).
+A cell that gains content drops its ghost individually; a table with
+every cell filled is byte-identical to today's render. Also give
+empty COLUMNS a minimum layout width (`compute_table_layout`) so an
+8×8 empty table has real extent rather than collapsing to padding.
+Laws: pixel presence of the affordance over every world (the
+vision-smoke question "how many columns does this empty table
+have?"), the filled-table byte-identity, and the per-cell drop as
+content arrives. Sequenced WITH item 542's first wave — Tab-hopping
+a fresh insert must land on visible cells. Full gate receipt.
 
 ---
 ### 532 — keymap/platform.rs: the seed-table doc comments still describe the Meta-only world
