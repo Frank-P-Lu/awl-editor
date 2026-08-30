@@ -45,3 +45,30 @@ fn table_enter_keeps_header_and_separator_adjacent_and_shift_enter_splits() {
     drive(&mut plain, Action::AcceptAlternate);
     assert_eq!(plain.text(), "wo  \nrd", "Shift-Enter remains a literal split");
 }
+
+#[test]
+fn table_dispatch_sweeps_one_column_ragged_unicode_and_selection_contexts() {
+    let mut one = Buffer::from_str("| 東京 |\n|---|\n| x |\n");
+    one.set_cursor(one.line_col_to_char(0, 3));
+    drive(&mut one, Action::InsertTab);
+    assert_eq!(one.cursor_line_col().0, 2, "one-column header wraps to body");
+    drive(&mut one, Action::Outdent);
+    assert_eq!(one.cursor_line_col().0, 0, "Shift-Tab wraps backwards");
+
+    let mut ragged = Buffer::from_str("| a | b |\n|---|---|\n| 終 |\n");
+    ragged.set_cursor(ragged.line_col_to_char(2, 3));
+    drive(&mut ragged, Action::Newline);
+    assert!(ragged.text().contains("| 終 |\n| | |"), "ragged row gets full scaffold width");
+
+    let mut selected = Buffer::from_str("| a |\n|---|\n| b |\n");
+    selected.set_cursor(0);
+    selected.set_mark();
+    selected.set_cursor(selected.line_col_to_char(2, 3));
+    let mut ordinary = Buffer::from_str("| a |\n|---|\n| b |\n");
+    ordinary.set_cursor(0);
+    ordinary.set_mark();
+    ordinary.set_cursor(ordinary.line_col_to_char(2, 3));
+    drive(&mut selected, Action::InsertTab);
+    drive(&mut ordinary, Action::InsertTab);
+    assert_eq!(selected.text(), ordinary.text(), "selection keeps ordinary Tab behavior");
+}

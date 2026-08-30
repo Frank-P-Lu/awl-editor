@@ -53,6 +53,27 @@ fn table_decoration_visible(meta: &TableMeta, xray_lines: &[usize], doc_line: us
     !(meta.revealed && xray_lines.contains(&doc_line))
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn meta(revealed: bool) -> TableMeta {
+        TableMeta { range: (0, 0), ncols: 1, aligns: vec![crate::markdown::ColAlign::None],
+            sep_doc_line: 1, revealed, visible: true, grid_rows: vec![(0, vec![]), (2, vec![])] }
+    }
+
+    #[test]
+    fn revealed_table_row_excludes_every_decoration_kind() {
+        let table = meta(true);
+        for row in [0, 1, 2] {
+            assert!(!table_decoration_visible(&table, &[row], row),
+                "revealed row {row} must reject cells, separator, and pan geometry");
+        }
+        assert!(table_decoration_visible(&table, &[0], 2), "other table rows keep their grid");
+        assert!(table_decoration_visible(&meta(false), &[1], 1), "unrevealed tables retain decorations");
+    }
+}
+
 fn table_content_width(shaped: &TableGridShaped) -> f32 {
     shaped
         .col_x
