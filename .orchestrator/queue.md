@@ -135,125 +135,6 @@ verdicts** — they dissolve into the per-world ornament-set design pass
 decision is which world draws which set, not one global glyph.
 
 ---
-### 533 — right-anchored hug width is re-measured per lens/filter view, so Kite's Go-to jumps sideways on every lens switch (user report, 2026-08-30)
-
-🟡 IN PROGRESS — gpt-5.6-terra medium, branch codex/item-533, worktree .codex/worktrees/item-533
-
-User report with screenshots, mechanism verified in code before filing.
-On Kite, summoning Go-to and stepping lenses (Folders → Headings) slides
-the whole card — lens strip, query, rows, footer — hundreds of px
-sideways. "Very disorienting."
-
-MECHANISM (verified): Kite and Mangrove are the only
-`CardAnchor::TopRight` worlds, the one anchor where `mirrors_growth()`
-is true (`theme/model.rs`). For them `overlay_desired_w`
-(`render/chrome/overlay.rs`) hugs `overlay_content_w`, which
-`set_view` re-measures every frame via `measure_overlay_content_w`
-(`render/chrome/roster.rs`) over the CURRENT `overlay_items` — the
-lens-bucketed, query-filtered list `OverlayState::refilter` hands the
-renderer. Switching lens swaps that roster (long folder paths vs the
-bare "no headings yet" empty state), the hug width changes, and with
-the right edge pinned the LEFT edge — where all the chrome ink lives —
-translates. The same structure means TYPING A FILTER narrows the same
-roster and resizes the card per keystroke on these two worlds (derived
-from `refilter`'s shape; lane confirms live). The command palette runs
-the identical infrastructure and differs only in content variance: its
-lenses share one command corpus, so the widest row barely moves.
-
-`measure_overlay_content_w`'s own doc already names the principle —
-"a hug width is a property of the picker's CONTENT, and the scroll
-position is not content" (that pass fixed the scroll-position flavour
-of this exact defect). Extension this item lands: **the lens and the
-filter are not content either — the SUMMON's corpus is.** Grow-only
-per session is NOT sufficient: `Action::OpenOutline` (`actions.rs`)
-summons Go-to pre-lensed onto Headings, so a session can start narrow
-and would still jump once on the first step to Files/Folders.
-
-FIX SPEC: measure the hug once per summon over the UNLENSED, UNFILTERED
-display roster — Go-to's All home is verified a superset of every lens
-(`index.rs`: files, headings, and authored folders "in one fuzzy-ranked
-list"), so the union is the All view's display strings, plus each lens's
-empty-state line, plus the secondary column labels. Plumb it per the
-`ViewState` convention (inert default in `base()`, `sync_view` fails to
-compile on the new field). Memoize per (corpus identity, metrics) — the
-`roster_memo` pattern in `roster.rs` is the shape; re-measure on
-zoom/DPI/corpus change, never per frame; the 2×-cap short-circuit in
-`measure_roster_primary_px` already bounds cost on huge rosters.
-
-TASTE TRADEOFF, named so the veto is cheap: stability beats tightest
-hug. An OpenOutline summon over a headingless doc gets a card as wide
-as the widest file path where today it hugs one short line. The cheap
-alternative — drop the hug for faceted pickers and always take the cap —
-loses because it rewrites Kite/Mangrove's authored composition in every
-session, not just the mixed-lens ones. Revert cost of the chosen fix:
-one commit.
-
-VERIFY: (a) unit law at the measure seam — fixed corpus, hug width
-invariant across lens index and filter string, enrolment derived from
-the ROSTER by `card_anchor.mirrors_growth()` (never "Kite" by name),
-non-vacuity proven by flipping back to the per-view measure and watching
-it go red; (b) capture pair for the outcome — same seeded `--root` and
-explicit `--config`, `--theme Kite`, two `--keys` runs ending on
-different lenses, card left edge equal by pixel arithmetic
-(`overlay_accept:Goto` is Applied in docs/harness-reach.md; lens
-stepping is core-drivable ←/→). Do not ask for a populated
-switch-project Recent lens (harness-reach names it impossible).
-Rust-touching, so the item claims a full gate receipt.
-
----
-### 534 — uncapped first-line filename derivation makes a long-first-line note unsaveable: "save failed: File name too long (os error 63)" (user report, 2026-08-30)
-
-🟡 IN PROGRESS — gpt-5.6-sol high, branch codex/item-534-537-538, worktree .codex/worktrees/item-534-537-538 (one owner for the shared save/buffer-identity mechanism across 534, 537, and 538)
-
-User screenshot: a fresh note in the notes folder shows the sticky
-"save failed: File name too long (os error 63)" over prose whose
-paragraphs are single logical lines. ENAMETOOLONG mechanism verified by
-arithmetic, not reproduced live: `note_stem` (`buffer/notes.rs`) slugs
-the ENTIRE first non-empty line with no length cap, `Buffer::save_owned`
-(`buffer/save.rs`) binds `<slug>.md`, and macOS NAME_MAX is 255 bytes
-per component. One paragraph visible in the very screenshot (the
-"527 + 528" summary line, 285 chars) slugs to 269 bytes — 272 with
-`.md` — so any note whose first non-empty line is a prose paragraph
-of roughly ≥250 chars can never be saved under its derived name.
-PREMISE CONFIRMED BY THE USER (2026-08-30): "yeah, it was a long
-paragraph" — the document's true first non-empty line, above the
-screenshot's viewport, was a prose paragraph; the fix direction is
-ratified ("your fix makes sense"). The lane still reproduces with a
-real tempdir on the real disk before fixing (`InMemoryFs` enforces no
-NAME_MAX, so the in-memory seam CANNOT witness this failure).
-
-FIX: cap the derived stem in `note_stem` — the ONE owner every caller
-already routes through (first autosave naming, `convert_scratch_and_save`,
-web export via `display_name`) — truncating the slug at a dash/word
-boundary under a taste budget well below the FS limit (something like
-60–80 chars; nobody wants a 250-char filename), byte-aware so a CJK
-first line (3 bytes/char) also lands under budget, never ending in a
-trailing dash. Headroom arithmetic in the brief, not re-derived:
-the atomic-write sibling adds `.{name}.awl-tmp` (10 bytes,
-`fs/paths.rs`), the corrupt quarantine adds ~37, and `unique_path`'s
-collision suffix a few more — all must fit inside NAME_MAX at the cap.
-`unique_path` already disambiguates two notes truncating to the same
-stem. `display_name`/export naming inherit the cap through the same
-owner — no second rule.
-
-SECOND DELIVERABLE, same neighbourhood (bugs cluster): `autosave_note`
-(`app/files/autosave.rs`) swallows the save error silently —
-`if let Ok(()) = … {}` with no else — so an unnamed note whose naming
-save fails just KEEPS NOT SAVING with zero signal until a manual save
-or close-flush finally surfaces the sticky. With the cap the
-too-long class vanishes, but disk-full / read-only-dir failures keep
-the same silent shape. Decide and land a calm surfacing (a sticky on
-the first failure, not a per-debounce nag), or record explicitly why
-autosave failure stays silent.
-
-VERIFY: unit laws at the `note_stem` seam (cap honoured; ASCII + CJK +
-no-alphanumeric sweeps; dash-boundary + no-trailing-dash), plus a
-REAL-DISK tempdir law: a note whose first line is ≥300 chars saves
-successfully and its filename length is under the cap — non-vacuity by
-reverting the cap and watching that law go red with ENAMETOOLONG.
-Rust-touching: full gate receipt.
-
----
 ### 535 — sticky notices abandon the writing-column-top slot for the world's toast axis (user decision, 2026-08-30, reverses a documented composition call)
 
 User, looking at the save-failed sticky squatting top-center over the
@@ -305,112 +186,6 @@ NoticeKind axis, don't imagine it. Update the docs/render.md sentence
 in the same commit so the doc and the code state the same rule.
 Revert cost: one line (the kind gate) plus the doc sentence — say so in
 the commit. Full gate receipt.
-
----
-### 537 — a failed scratch→note conversion destroys the scratch identity, silently drops the buffer on the next switch, and leaves a dead "scratch" row (user report, 2026-08-30; "sounds like an architectural code smell — we should fix this")
-
-🟡 IN PROGRESS — gpt-5.6-sol high, branch codex/item-534-537-538, worktree .codex/worktrees/item-534-537-538 (shared owner with 534 and 538)
-
-User symptom (screenshot): the working-set stack shows a "scratch" row
-that does NOTHING when clicked, while the sibling file rows switch
-fine. Every link of the causal chain is verified in code; the entry
-premise (the failed ⌘S from item 534's screenshot happened in the TRUE
-scratch, not a ⌘N note) is CONFIRMED by the user ("scratch i think",
-2026-08-30) — hedged, so the lane still re-confirms by reproduction.
-Adjacent fact from the same session, orthogonal to the failure but
-owed a verify cell: the user's notes folder ALREADY held a
-`scratch.md` file. That collides with nothing here (the failed name
-was the long slug, and an empty-first-line convert falling back to
-the "scratch" stem goes through `unique_path` → `scratch-2.md`, no
-clobber) — the lane adds the existing-`scratch.md` cell to the
-repro sweep so the no-clobber claim is tested, not asserted.
-
-THE CHAIN: (1) ⌘S in the true scratch routes to
-`convert_scratch_and_save` (`app/files/verbs.rs`) →
-`Buffer::save_into_folder` (`buffer/save.rs`), which calls
-`set_note_dir` — flipping `is_unnamed_fresh()` true (it is literally
-`note_dir.is_some()`, `buffer.rs`) — BEFORE attempting the fallible
-save, with no rollback on `Err`. Item 534's uncapped filename made that
-save fail, so the buffer was left mutated: scratch identity destroyed.
-(2) `BufferKey::of` (`buffers.rs`) returns `None` for an unnamed-fresh
-buffer, so `park_active` (`app/document.rs`) CANNOT park it — its else
-arm keeps it active. (3) The next switch (`open_path`) then assigns
-`self.active = Some(new entry)` over it — the buffer and every edit
-since the last scratch stash flush are DROPPED, no gate, no notice.
-(4) The working set's `Scratch` row (enrolled at launch) outlives the
-entry; clicking it → `activate_open_buffer`'s no-path arm →
-`activate_key` → `take_parked(Scratch)` → `None` → silent `false`.
-Dead row. Recovery that still works: the "Open scratch" palette command
-(`close_facts(Scratch)` is `None`, so it falls through to the stash
-restore) — told to the user.
-
-FIX, three layers, ordered:
-- (a) HEAD OF CHAIN — naming becomes TRANSACTIONAL: `save_into_folder`
-  derives the path and attempts the write FIRST, committing
-  `note_dir`/path binding only on success (or rolls back `note_dir` on
-  `Err`). A failed save must leave the buffer byte-identical in
-  identity to before the ⌘S.
-- (b) THE LAW, named: **an active buffer holding user text is never
-  replaced except by park (reversible), a gated close, or an explicit
-  refusal.** Today `park_active`'s unparkable arm + every
-  `self.active = Some(…)` assignment after it violates this silently.
-  Non-vacuity: break `park_active` and watch it go red.
-- (c) DEAD-ROW FALLBACK: `activate_open_buffer`'s no-path arm
-  (`app/files/open.rs`) gets a fallback for `BufferKey::Scratch` —
-  fall through to `open_scratch`'s stash-restore door instead of
-  returning silently. This also covers the LATENT second route into
-  the same state: the registry's clean-LRU eviction (`buffers.rs
-  park`) does not exempt `Scratch`, and an evicted pathed file
-  re-reads from disk while an evicted scratch has no such fallback.
-
-Item 538 proposes retiring the ghost class outright; if that direction
-is taken it subsumes (b)/(c) — land (a) regardless. Repro needs NO
-fault injection: a real tempdir plus a ≥300-char first line reproduces
-the exact failure natively (InMemoryFs cannot — 534 records why).
-Cross-ref 534: its cap removes THIS trigger, but any save error
-(read-only dir, disk full) re-enters the chain, so 537 is not
-subsumed by it. Full gate receipt.
-
----
-### 538 — unnamed-fresh documents are ghosts: no key, no row, no park — give them first-class identity (user direction, 2026-08-30: "architectural code smell")
-
-🟡 IN PROGRESS — gpt-5.6-sol high, branch codex/item-534-537-538, worktree .codex/worktrees/item-534-537-538 (shared owner with 534 and 537)
-
-The architecture underneath 537's chain, and a second user-reported
-symptom of the same gap (screenshot): **⌘N shows "• scratch" in the
-title, but the working-set stack draws no row for the new document and
-keeps HIGHLIGHTING the previous file as active** — the stack is lying
-about which document the user is looking at. Verified mechanism:
-`start_fresh_document` (`app/document.rs`) enrols no working-set row
-(one-shot naming: no identity until named — a recorded decision,
-`app/document/cache.rs` doc), and nothing clears `working.active`, so
-`file_row`'s `active: self.active == Some(at)` still marks the old
-row. A third confusion in the same family: an unnamed fresh NOTE's
-display name is the string "scratch" (`app/files/mod.rs`), colliding
-with the true scratch's identity in the title bar and stack.
-
-DIRECTION to design and land: an unnamed-fresh document gets a
-first-class `BufferKey` (e.g. a session-unique `Fresh(n)`), so it
-parks, enrols a working-set row, switches, and closes like every other
-buffer; the one-shot naming save then RE-KEYS the entry to its derived
-path (the registry re-key precedent: `park` already replaces same-key
-entries, and history has `rename`). This retires the ghost class:
-537's silent-drop hole and dead-row arm become structurally
-impossible, ⌘N's row appears immediately (labelled distinctly from
-true scratch — "untitled"? the lane proposes, the user picks the
-word), and the stale-active highlight cannot happen because
-activation goes through the same `set_active` door as everything
-else. Sweep the consumers that assume "path-less = scratch":
-`BufferKey::of`, `close_facts`, the stash machinery
-(`scratch_saved_version`), daemon gate (`app/daemon.rs`), session
-restore, and the capture sidecar's buffers block
-(`capture/buffers_sidecar.rs`). The working set already models
-path-less rows (`OpenFile.path: Option`), so the row half is small;
-the registry/naming half is the design work. Laws: every route that
-creates a document — open, ⌘N, scratch restore, daemon — lands
-exactly one working-set row whose active mark agrees with
-`active_key`, swept across the route roster, no wildcard.
-Full gate receipt.
 
 ---
 ### 539 — working-set stack: move the hover-revealed close mark to the LEADING side, so names sit flush against the page edge (user DECISION, 2026-08-30: "we can try x on the left side" — option A greenlit, ready to dispatch)
@@ -523,133 +298,39 @@ remains one word away if consistency-of-summons wins for them.
 Full gate receipt.
 
 ---
-### 541 — table grid: the header-separator rule draws through a revealed row's source (user report, 2026-08-30)
+### 542 — table editing: remaining low-hanging UX basket needs a decision (user report, 2026-08-30 — "kinda awful to edit")
 
-🟡 IN PROGRESS — gpt-5.6-terra medium, branch codex/item-541-543-tables, worktree .codex/worktrees/item-541-543-tables (same table-editing owner as 542, 543, and the adjacent 532 keymap comment truth fix)
-
-Verified to the line. The per-row reveal contract
-(`render/layers/table_grid.rs`, "grid and source never share a row's
-pixels") is enforced for CELLS — the cell loop skips the revealed
-x-ray row (`meta.revealed && xray_lines.contains(&doc_line)`,
-line ~92) — but the ONE faint header-separator rule is pushed
-UNCONDITIONALLY at `sep_doc_line` (lines ~126–137). Put the caret on
-the separator row and its raw `|-|-|-|` source floats over the band
-with the rule drawn straight through it (user screenshot). FIX: the
-rule gets the same guard the cells have — suppressed when the
-revealed row IS the separator's doc line. Sweep the sibling quads
-while there: the pan bar (pushed in the same function) against a
-revealed LAST row, same question. Law at the placement seam: with the
-caret on each row of a table in turn, no rule/pan-bar rect intersects
-the revealed row's band (non-vacuous: revert the guard, red on the
-separator row). One-line-plus-law scale; per the land-easy policy
-this can land for judgement. Full gate receipt.
-
----
-### 542 — table EDITING is all raw-source friction: the low-hanging UX basket (user report, 2026-08-30 — "kinda awful to edit")
-
-🟡 IN PROGRESS — gpt-5.6-terra medium, branch codex/item-541-543-tables, worktree .codex/worktrees/item-541-543-tables (first wave only, shared owner with 541, 543, and 532)
-
-**FIRST WAVE DECIDED (user, 2026-08-30): fruits (1) Tab/Shift-Tab
-cell hop and (2) Enter scaffold-row are greenlit — ready to
-dispatch.** (3)/(4) stay parked pending their own word; (5) remains
-deferred to its own design session. Land the first wave alongside
-item 543 (empty cells render as nearly nothing), or a Tab-walk
-through a fresh insert hops invisible cells.
+The first wave has landed: Tab/Shift-Tab moves between cells and wraps
+across rows, Tab on the final cell appends a scaffold row, and Enter
+inside a table inserts a matching scaffold row. The remaining fruits
+below stay parked pending the user's word; the real-grid editing arc
+remains deferred to its own design session.
 
 The render half of tables is landed (grid, per-row reveal, dimension
-picker — "AWESOME!!"); the EDITING half is still bare raw-source: the
-caret's row drops to `| aa | bb |` and every pipe, pad, and cell hop
-is hand-typed. Tables-as-real-grids is committed direction
+picker — "AWESOME!!"). Editing still reveals the active row's raw
+source, and alignment plus row/column structure still require a command
+or manual edits. Tables-as-real-grids is committed direction
 (CLAUDE.md §Direction), so this friction is on-mission to remove.
 Fruits ranked by leverage over cost — the user picks which to
-greenlight; (1) and (2) are the recommended first wave:
+greenlight:
 
-1. **Tab / Shift-Tab = next / previous cell** while the caret is in a
-   table: jump to the next cell's content start, wrapping across
-   rows; Tab on the LAST cell appends a fresh scaffold row (the
-   Obsidian/Typora convention). Pure caret/edit motion at the buffer
-   seam, drivable by `--keys`, and the existing per-row reveal
-   follows the caret for free. The single biggest ergonomic win.
-   (Check the existing Tab binding's table context carefully — Tab
-   currently indents/inserts; the table context must win only INSIDE
-   a table block, and the law sweeps both contexts.)
-2. **Enter inside a table = insert a scaffold row below** (`| | | |`
-   matching the column count), never a mid-cell line split that
-   breaks the table shape. Escape hatch stays: a literal split is
-   still reachable (Shift-Enter or at-block-edge semantics — lane
-   proposes, user confirms).
-3. **Auto-align on row-leave**: the shipped `align_table` re-pad runs
+1. **Auto-align on row-leave**: the shipped `align_table` re-pad runs
    automatically (debounced, or when the caret leaves the table/row)
    so the source stays Prettier-shaped without summoning the command.
    Mind undo coalescing (the re-pad is its own sealed group) and
    caret preservation across the re-pad.
-4. **Row/column verbs in the palette**: Insert row above/below,
+2. **Row/column verbs in the palette**: Insert row above/below,
    insert column left/right, delete row/column — source splices over
    the existing row/cell parser (`markdown/tables.rs`), gated to
    caret-in-table exactly like `AlignTable`'s availability gate.
-5. NOT this item (the big arc): editing cells IN the grid without
+3. NOT this item (the big arc): editing cells IN the grid without
    dropping to source. That is the "tables as real grids" destination
-   and earns its own design session; nothing in 1–4 pre-empts it, and
-   all four survive it (they are source-level operations the grid
-   editor would also need).
+   and earns its own design session; the remaining source-level
+   operations survive it and would also serve the grid editor.
 
-Every fruit is exhaustively testable at the buffer seam (editing
-edge-cases are the product — spend generously per CLAUDE.md), plus
-`--keys` journey captures for Tab-walks and Enter-rows. Full gate
-receipt per landing wave.
-
----
-### 543 — an all-empty table renders as almost nothing: empty grid cells need a faint display-only affordance (user report, 2026-08-30)
-
-🟡 IN PROGRESS — gpt-5.6-terra medium, branch codex/item-541-543-tables, worktree .codex/worktrees/item-541-543-tables (shared owner with 541, 542 first wave, and 532)
-
-Verified: `build_table` (`markdown/tables.rs`) emits ALL-EMPTY cells
-(`| |` rows), and the WYSIWYG grid draws only cell TEXT plus the one
-faint separator rule — no cell borders. So the dimension picker's own
-fresh insert (item 517, the best-reviewed feature on this board)
-lands as a single faint horizontal line floating in space: the
-user's "an empty table doesn't really render the | | |". The first
-minute of the flagship flow shows nearly nothing.
-
-FIX, display-only (the file stays plain text; nothing is inserted
-into cells): an EMPTY cell draws a faint placeholder affordance in
-the grid — and the treatment is already designed one module over:
-the dimension picker's empty cells draw `muted()` at low alpha
-(`table_dims.rs`'s own comment records WHY: an opaque `base_200`
-wash vanished bytewise on Wagtail's card, while translucent muted
-over whatever ground is visible on every world by construction).
-Reuse that reasoning for the document grid's empty cells (wash, or a
-short faint underline — lane renders both, user picks from captures).
-A cell that gains content drops its ghost individually; a table with
-every cell filled is byte-identical to today's render. Also give
-empty COLUMNS a minimum layout width (`compute_table_layout`) so an
-8×8 empty table has real extent rather than collapsing to padding.
-Laws: pixel presence of the affordance over every world (the
-vision-smoke question "how many columns does this empty table
-have?"), the filled-table byte-identity, and the per-cell drop as
-content arrives. Sequenced WITH item 542's first wave — Tab-hopping
-a fresh insert must land on visible cells. Full gate receipt.
-
----
-### 532 — keymap/platform.rs: the seed-table doc comments still describe the Meta-only world
-
-🟡 IN PROGRESS — gpt-5.6-terra medium, branch codex/item-541-543-tables, worktree .codex/worktrees/item-541-543-tables (piggybacked because 542 already touches the keymap path)
-
-Comment-only truth fix in `src/keymap/platform.rs`, outdated by the
-classic-chords round. `active_seed_tables`' doc says "Today just
-`LINUX_EMACS_META_SEED`" while the body returns both tables, and one
-sentence got garbled in that round's edit ("a seeded layer added for a
-future seeded layer (a classic-chords C-x table, say)…") — rewrite it to
-describe the two-table present plainly. Sweep the neighbouring seed-table
-doc comments in the same file for sibling claims the round outdated (e.g.
-`seeded_chords_for`'s "At most one entry today" — verify against the
-tables before keeping or cutting it). No behaviour change intended; it is
-still a Rust-file edit, so it claims a full gate receipt, and the file
-carries a frozen code-health comment baseline — keep the rewrite tight
-enough not to trip the ratchet (two prior merges needed a follow-up
-"tighten comments back under baseline" commit; don't earn a third).
-Cheap enough to piggyback on the next keymap-touching item if one is
-dispatched first.
+Each remaining fruit is exhaustively testable at the buffer seam, with
+`--keys` journeys for user-visible editing flows. Full gate receipt per
+landing wave.
 
 ---
 ### 536 — per-world ornament sets from the full Nishiki cabinet (user decision, 2026-08-30; sequenced AFTER 529 bundles the face)
