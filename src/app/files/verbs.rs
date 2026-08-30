@@ -335,7 +335,9 @@ impl App {
             self.project_location.root.join(dest_rel)
         };
         // The actual mkdir + no-clobber + rename lives in `buffer::move_file`.
-        let new_path = match crate::buffer::move_file(&old, &dest_dir) {
+        let new_path = match crate::buffer::move_file_avoiding(&old, &dest_dir, |candidate| {
+            self.document.path_is_claimed_by_other(candidate)
+        }) {
             Ok(p) => p,
             Err(e) => {
                 // A failure gets the SAME calm bottom-center notice a failed save does.
@@ -455,7 +457,7 @@ impl App {
     /// edits are never lost) and gives the copy a genuinely FRESH history timeline
     /// (a brand-new `Buffer::from_file`, a brand-new local-history log — nothing
     /// carries over, since the copy is a new file). The sibling name is chosen by
-    /// the SAME no-clobber dedup [`crate::buffer::unique_path`] uses elsewhere
+    /// the SAME disk-plus-live no-clobber allocator the naming save uses
     /// (`move_current_file`) — `name-2.md`, `name-3.md`, … — never a
     /// space-separated `"name 2.md"`, matching the codebase's own established
     /// convention. A pathless buffer (scratch / an unnamed fresh document) is a calm no-op —
@@ -488,7 +490,7 @@ impl App {
             .extension()
             .map(|s| s.to_string_lossy().to_string())
             .unwrap_or_default();
-        let new_path = crate::buffer::unique_path(&dir, &stem, &ext);
+        let new_path = self.document.unique_unclaimed_path(&dir, &stem, &ext);
         match crate::fs::write_atomic(&new_path, &bytes) {
             Ok(()) => {
                 self.load_path(new_path);

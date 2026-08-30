@@ -45,6 +45,9 @@ impl App {
         let Some(buffer) = self.document.buffer_opt() else {
             return false;
         };
+        if buffer.is_discardable_empty_fresh() {
+            return false;
+        }
         if buffer.is_unnamed_fresh() {
             self.persistence.note_write_owed(
                 &self.document.active_key().expect("active document key"),
@@ -196,6 +199,14 @@ impl App {
         match self.document.save_owned(crate::durable::Owner::Autosave) {
             Ok(()) => {
                 self.persistence.clear_note_failure(&naming_key);
+                if self
+                    .frame
+                    .notice()
+                    .text()
+                    .is_some_and(|text| text.starts_with("autosave failed:"))
+                {
+                    self.clear_notice();
+                }
                 self.commit_naming_identity(naming_key.clone());
                 // `Buffer::save` only returns `Ok` here having derived + bound a
                 // path (an empty document, the ONLY other `Ok`-less case, bails
@@ -238,30 +249,24 @@ impl App {
     /// PASTE-IMAGE'S NO-PATH PRE-SAVE (`App::paste_image_reference`, `app/apply.rs`): a
     /// path-less buffer — the bare scratch surface, or an unnamed fresh
     /// document — has no directory to hang an `assets/` folder off of. Give it
-    /// one FIRST by reusing the EXISTING fresh-document auto-name save
-    /// (`Self::autosave_note` → `Buffer::save`'s first-line-derived filename),
-    /// rather than inventing a parallel naming rule. A plain scratch buffer
-    /// (never summoned via Cmd-N — `note_dir` unset) is first PROMOTED into an
-    /// unnamed fresh document rooted at `self.root` (the ACTIVE folder — the
-    /// same home Cmd-N uses), via `Buffer::set_note_dir` (content-preserving —
-    /// unlike `start_fresh_doc`, nothing is reset) — so it now follows the
-    /// one-shot naming model exactly as if Cmd-N had started it. An
-    /// already-in-progress fresh document (`note_dir` already set) is left
-    /// pointed at its own dir. An EMPTY buffer has no first line to derive a name
-    /// from yet — `autosave_note` (via `Buffer::save`) errs quietly and the
-    /// buffer stays path-less; the caller (`paste_image_reference`) falls back to its
-    /// pre-existing absolute data-root location rather than blocking the paste.
+    /// one FIRST through the existing transactional conversion owner. True
+    /// scratch uses `convert_scratch_and_save`, so a failed write leaves it
+    /// Scratch and a successful one retires its stash/baseline. An already
+    /// Fresh buffer uses its normal naming autosave. Empty content remains
+    /// pathless and the paste falls back to its data-root asset location.
     #[cfg(not(target_arch = "wasm32"))]
     pub(in crate::app) fn ensure_note_named_before_paste(&mut self) {
         if !self.document.has_active() {
             return;
         }
-        if !self.document.buffer().is_unnamed_fresh() {
-            let _ = crate::fs::active().create_dir_all(&self.project_location.root);
-            self.document
-                .set_note_dir(self.project_location.root.clone());
+        if self.document.buffer().text().trim().is_empty() {
+            return;
         }
-        self.autosave_note();
+        if self.document.buffer().is_unnamed_fresh() {
+            self.autosave_note();
+        } else {
+            self.convert_scratch_and_save();
+        }
     }
 
     /// SAVE-HOOK for AUTOMATIC LOCAL HISTORY: after a successful save (manual OR

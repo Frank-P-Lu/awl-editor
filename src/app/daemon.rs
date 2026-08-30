@@ -61,6 +61,9 @@ impl App {
         if !self.document.has_active() {
             return false;
         }
+        if self.document.buffer().is_discardable_empty_fresh() {
+            return true;
+        }
         match self.settle_external_change() {
             crate::app::files::WritePermission::Clear => {}
             // The disk won because the buffer was clean. That is a successful

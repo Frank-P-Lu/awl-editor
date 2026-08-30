@@ -243,29 +243,44 @@ impl<T> BufferRegistry<T> {
         self.entries.iter().any(|(k, _)| k == key)
     }
 
-    /// Park `entry` under `key` at the MRU front, evicting the LRU CLEAN
-    /// backgrounded entry (if any) while doing so would push the total open
-    /// count (this registry + 1 active) past [`MAX_OPEN_BUFFERS`]. Replaces
+    /// Test oracle for route laws that must prove a backgrounded identity is
+    /// still paired with its exact user text, not merely count registry slots.
+    #[cfg(test)]
+    pub(crate) fn text_snapshots(&self) -> Vec<(BufferKey, String)> {
+        self.entries
+            .iter()
+            .map(|(key, entry)| (key.clone(), entry.buffer.text()))
+            .collect()
+    }
+
+    /// Park `entry` under `key` at the MRU front, evicting the LRU clean PATH
+    /// entry (the only kind disk can reconstruct) while doing so would push the
+    /// total open count (this registry + 1 active) past [`MAX_OPEN_BUFFERS`].
+    /// Pathless Scratch/Fresh entries may exceed the soft cap. Replaces
     /// any existing entry under the same key (should not normally happen —
     /// the caller only parks the buffer it is LEAVING).
     pub fn park(&mut self, key: BufferKey, entry: Entry<T>) {
         self.entries.retain(|(k, _)| k != &key);
         self.entries.insert(0, (key, entry));
         while self.entries.len() + 1 > MAX_OPEN_BUFFERS {
-            // Evict the LEAST-recently-used (last in MRU order) CLEAN entry.
-            match self.entries.iter().rposition(|(_, e)| !e.buffer.is_dirty()) {
+            // Only a clean PATH is reversibly evictable: reopening it reloads
+            // disk. Scratch and Fresh have no path to reconstruct from, so
+            // evicting either would leave a dead working row and lose state.
+            match self.entries.iter().rposition(|(key, entry)| {
+                matches!(key, BufferKey::Path(_)) && !entry.buffer.is_dirty()
+            }) {
                 Some(pos) => {
                     self.entries.remove(pos);
                     self.over_cap_warned = false;
                 }
                 None => {
-                    // Every backgrounded buffer is dirty: never discard unsaved
-                    // work — exceed the cap instead (see the module doc). Fire
+                    // No entry is reversibly reloadable: never discard pathless
+                    // state or dirty work — exceed the cap instead. Fire
                     // the notice once per "stuck over cap" spell, not once per
                     // subsequent open (see `over_cap_warned`'s doc).
                     if !self.over_cap_warned {
                         eprintln!(
-                            "awl: buffer registry over cap ({} open, all dirty) — keeping all",
+                            "awl: buffer registry over cap ({} open, no clean reloadable path) — keeping all",
                             self.entries.len() + 1
                         );
                         self.over_cap_warned = true;

@@ -13,7 +13,9 @@ use std::path::{Path, PathBuf};
 /// A calm filename budget. With `.md` (3 bytes), the largest `u32` collision
 /// suffix (11), atomic `.<name>.awl-tmp` decoration (9), and a deliberately
 /// reserved 64-byte quarantine decoration, the worst component is 159 bytes —
-/// 96 bytes below the portable 255-byte NAME_MAX floor.
+/// 96 bytes below the 255-byte component limit on awl's advertised macOS and
+/// Linux filesystems. Smaller filesystem limits can still reject a name; the
+/// naming transaction leaves buffer identity intact on that ordinary error.
 pub const NOTE_STEM_MAX_BYTES: usize = 72;
 
 /// The first line of `text` with non-whitespace content (trimmed), or `None` when
@@ -76,7 +78,18 @@ fn slug_core(line: &str) -> String {
 /// move, not a copy). Returns the new path; an already-in-place move is a no-op
 /// returning `old`. This is the only file-WRITE the move feature performs, scoped
 /// to the current note (the C-x m fence: create + move, nothing else).
+#[cfg(test)]
 pub fn move_file(old: &Path, dest_dir: &Path) -> std::io::Result<PathBuf> {
+    move_file_avoiding(old, dest_dir, |_| false)
+}
+
+/// The live-session move: disk paths and identities already claimed by another
+/// open buffer share the same unavailable predicate.
+pub(crate) fn move_file_avoiding(
+    old: &Path,
+    dest_dir: &Path,
+    unavailable: impl FnMut(&Path) -> bool,
+) -> std::io::Result<PathBuf> {
     crate::fs::active().create_dir_all(dest_dir)?;
     let filename = old
         .file_name()
@@ -86,20 +99,16 @@ pub fn move_file(old: &Path, dest_dir: &Path) -> std::io::Result<PathBuf> {
     if natural == old {
         return Ok(old.to_path_buf()); // already there
     }
-    let new_path = if crate::fs::active().exists(&natural) {
-        let p = Path::new(&filename);
-        let stem = p
-            .file_stem()
-            .map(|s| s.to_string_lossy().to_string())
-            .unwrap_or_default();
-        let ext = p
-            .extension()
-            .map(|s| s.to_string_lossy().to_string())
-            .unwrap_or_default();
-        unique_path(dest_dir, &stem, &ext)
-    } else {
-        natural
-    };
+    let p = Path::new(&filename);
+    let stem = p
+        .file_stem()
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_default();
+    let ext = p
+        .extension()
+        .map(|s| s.to_string_lossy().to_string())
+        .unwrap_or_default();
+    let new_path = unique_path_avoiding(dest_dir, &stem, &ext, unavailable);
     crate::fs::active().rename(old, &new_path)?;
     Ok(new_path)
 }
@@ -109,7 +118,19 @@ pub fn move_file(old: &Path, dest_dir: &Path) -> std::io::Result<PathBuf> {
 /// `<stem>-3.<ext>`, … So a note title collision (or a move into a folder that
 /// already holds a same-named file) appends a short numeric suffix rather than
 /// overwriting.
+#[cfg(test)]
 pub fn unique_path(dir: &Path, stem: &str, ext: &str) -> PathBuf {
+    unique_path_avoiding(dir, stem, ext, |_| false)
+}
+
+/// The one no-clobber allocator. A candidate is unavailable when it exists on
+/// disk OR when `reserved` says a live buffer already owns its normalized key.
+pub(crate) fn unique_path_avoiding(
+    dir: &Path,
+    stem: &str,
+    ext: &str,
+    mut reserved: impl FnMut(&Path) -> bool,
+) -> PathBuf {
     let name = |suffix: Option<u32>| -> String {
         let base = match suffix {
             None => stem.to_string(),
@@ -123,7 +144,7 @@ pub fn unique_path(dir: &Path, stem: &str, ext: &str) -> PathBuf {
     };
     let mut candidate = dir.join(name(None));
     let mut n = 2u32;
-    while crate::fs::active().exists(&candidate) {
+    while crate::fs::active().exists(&candidate) || reserved(&candidate) {
         candidate = dir.join(name(Some(n)));
         n += 1;
     }

@@ -459,6 +459,14 @@ impl Buffer {
         self.note_dir.is_some()
     }
 
+    /// A just-created fresh buffer contains no user work and has no edit/undo
+    /// history to protect. It may close without forcing an impossible naming
+    /// save. Once any edit dirties it, even if the visible text returns empty,
+    /// the normal save/refusal gate owns the close.
+    pub(crate) fn is_discardable_empty_fresh(&self) -> bool {
+        self.is_unnamed_fresh() && !self.dirty && self.rope.len_chars() == 0
+    }
+
     pub(crate) fn fresh_id(&self) -> Option<u64> {
         self.fresh_id
     }

@@ -8,10 +8,18 @@ impl Buffer {
     }
 
     pub(crate) fn save_owned(&mut self, owner: crate::durable::Owner) -> anyhow::Result<()> {
+        self.save_owned_avoiding(owner, |_| false)
+    }
+
+    pub(crate) fn save_owned_avoiding(
+        &mut self,
+        owner: crate::durable::Owner,
+        reserved: impl FnMut(&Path) -> bool,
+    ) -> anyhow::Result<()> {
         if self.path.is_none()
             && let Some(dir) = self.note_dir.clone()
         {
-            return self.save_unbound_into(&dir, owner);
+            return self.save_unbound_into(&dir, owner, reserved);
         }
         match &self.path {
             Some(path) => {
@@ -26,10 +34,18 @@ impl Buffer {
     /// Promote a true scratch buffer into an unnamed fresh document in
     /// `folder`, then reuse the ordinary one-shot naming and save path.
     pub fn save_into_folder(&mut self, folder: &Path) -> anyhow::Result<()> {
+        self.save_into_folder_avoiding(folder, |_| false)
+    }
+
+    pub(crate) fn save_into_folder_avoiding(
+        &mut self,
+        folder: &Path,
+        reserved: impl FnMut(&Path) -> bool,
+    ) -> anyhow::Result<()> {
         if self.path.is_some() || self.is_unnamed_fresh() {
-            return self.save();
+            return self.save_owned_avoiding(crate::durable::Owner::ManualSave, reserved);
         }
-        self.save_unbound_into(folder, crate::durable::Owner::ManualSave)
+        self.save_unbound_into(folder, crate::durable::Owner::ManualSave, reserved)
     }
 
     /// The one transactional naming write. Path, fresh identity, note marker,
@@ -38,14 +54,31 @@ impl Buffer {
         &mut self,
         folder: &Path,
         owner: crate::durable::Owner,
+        mut reserved: impl FnMut(&Path) -> bool,
     ) -> anyhow::Result<()> {
         let text = self.rope.to_string();
         let line = first_nonempty_line(&text)
             .ok_or_else(|| anyhow::anyhow!("empty note: nothing to save yet"))?;
         let stem = note_stem(line);
         crate::fs::active().create_dir_all(folder)?;
-        let path = unique_path(folder, &stem, "md");
-        crate::durable::write(owner, &path, &self.disk_bytes())?;
+        let bytes = self.disk_bytes();
+        #[cfg(not(target_arch = "wasm32"))]
+        let path = loop {
+            let candidate = unique_path_avoiding(folder, &stem, "md", &mut reserved);
+            match crate::durable::write_new(owner, &candidate, &bytes) {
+                Ok(()) => break candidate,
+                // Another creator won after selection. Re-scan both disk and
+                // live reservations and publish the deterministic next suffix.
+                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+                Err(error) => return Err(error.into()),
+            }
+        };
+        #[cfg(target_arch = "wasm32")]
+        let path = {
+            let candidate = unique_path_avoiding(folder, &stem, "md", &mut reserved);
+            crate::durable::write(owner, &candidate, &bytes)?;
+            candidate
+        };
         self.path = Some(path);
         self.note_dir = None;
         self.fresh_id = None;

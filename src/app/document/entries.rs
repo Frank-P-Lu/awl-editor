@@ -59,6 +59,9 @@ impl DocumentSession {
     /// `PersistenceRuntime`; a parked Fresh entry is conservatively unsaved
     /// until a successful naming write gives it a document baseline.
     fn entry_unsaved(entry: &crate::buffers::Entry<BufferExtra>) -> bool {
+        if entry.buffer.is_discardable_empty_fresh() {
+            return false;
+        }
         let version = entry.buffer.version();
         if entry.buffer.path().is_some() {
             entry.extra.doc_saved_version != Some(version)

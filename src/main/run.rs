@@ -300,6 +300,8 @@ impl<'a> ReplaySession<'a> {
 
     fn finish(self) -> ReplayResult {
         let buffers_open = self.registry.len() + 1;
+        #[cfg(test)]
+        let background_buffers = self.registry.text_snapshots();
         let zoom_out = if self.zoom != crate::range::ZOOM.default {
             Some(self.zoom)
         } else {
@@ -339,6 +341,8 @@ impl<'a> ReplaySession<'a> {
             accept: self.accept,
             notice: self.notice,
             buffers_open,
+            #[cfg(test)]
+            background_buffers,
             intercepts: self.intercepts,
             replay_skips: self.replay_skips,
             warnings: self.warnings,

@@ -422,6 +422,60 @@ fn parked_fresh_close_refuses_instead_of_overwriting_the_scratch_fallback() {
     assert!(app.document.close_facts(&first).is_some());
 }
 
+/// Cmd-N followed immediately by close is the zero-content cell: there are no
+/// bytes or undo history to save, so forcing first-line naming can only fail.
+/// Command close and both row shapes share the same discardable-fresh fact.
+#[test]
+fn untouched_empty_fresh_closes_through_every_close_door_without_a_save_error() {
+    #[derive(Clone, Copy, Debug)]
+    enum CloseDoor {
+        Command,
+        ActiveRow,
+        ParkedRow,
+    }
+
+    let _guard = crate::testlock::serial();
+    let root = PathBuf::from("/notes");
+    let memory = Arc::new(crate::fs::InMemoryFs::new().with_dir(&root));
+    crate::fs::with_fs(memory, || {
+        for door in [
+            CloseDoor::Command,
+            CloseDoor::ActiveRow,
+            CloseDoor::ParkedRow,
+        ] {
+            let mut app = App::new_hermetic(None, root.clone(), Config::empty());
+            app.new_document();
+            let empty = app.document.active_key().expect("empty Fresh key");
+            let facts = app.document.close_facts(&empty).expect("close facts");
+            assert!(
+                !facts.unsaved,
+                "{door:?}: untouched empty Fresh is discardable"
+            );
+            assert!(!app.is_document_dirty(), "{door:?}: no false dirty dot");
+
+            match door {
+                CloseDoor::Command => drive_finish_file(&mut app),
+                CloseDoor::ActiveRow => {
+                    assert_eq!(app.close_buffer(empty.clone()), CloseOutcome::Closed)
+                }
+                CloseDoor::ParkedRow => {
+                    app.new_document();
+                    assert_eq!(app.close_buffer(empty.clone()), CloseOutcome::Closed);
+                }
+            }
+
+            assert!(app.document.close_facts(&empty).is_none(), "{door:?}");
+            assert!(
+                app.frame
+                    .notice()
+                    .text()
+                    .is_none_or(|text| !text.starts_with("save failed:")),
+                "{door:?}: empty Fresh must not attempt an impossible naming save"
+            );
+        }
+    });
+}
+
 #[test]
 fn save_resolve_then_retry_trash_is_lossless_for_external_changes() {
     let _guard = crate::testlock::serial();

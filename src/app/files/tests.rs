@@ -7,6 +7,7 @@
 //! declares `mod tests;`.
 
 use super::*;
+use crate::fs::FileSystem;
 use std::sync::Arc;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -55,6 +56,119 @@ fn successful_naming_rekeys_every_app_owner_and_sidecar_consumer() {
             .collect();
         assert_eq!(labels, vec!["scratch", "owner-audit.md"]);
     });
+}
+
+#[test]
+fn naming_reserves_a_missing_path_owned_by_an_open_buffer_before_writing() {
+    let _guard = crate::testlock::serial();
+    let root = PathBuf::from("/notes");
+    let claimed_path = root.join("title.md");
+    let memory = Arc::new(crate::fs::InMemoryFs::new().with_dir(&root));
+    crate::fs::with_fs(memory.clone(), || {
+        let config = Config {
+            session_restore: Some(false),
+            ..Config::empty()
+        };
+        let mut app = App::new(Some(claimed_path.clone()), root.clone(), None, None, config);
+        app.document.set_text("older irreplaceable draft");
+        let claimed = app.document.active_key().expect("missing-file key");
+        assert_eq!(claimed, crate::buffers::BufferKey::path(&claimed_path));
+        assert!(!memory.exists(&claimed_path));
+
+        app.new_document();
+        app.document.set_text("Title");
+        app.manual_save();
+
+        let allocated = root.join("title-2.md");
+        assert_eq!(app.document.buffer().path(), Some(allocated.as_path()));
+        assert_eq!(memory.read_to_string(&allocated).unwrap(), "Title");
+        assert!(
+            !memory.exists(&claimed_path),
+            "the new note must not publish at another live buffer's missing path"
+        );
+        let keys: std::collections::HashSet<_> = app
+            .document
+            .working_set()
+            .files()
+            .iter()
+            .map(|file| file.key.clone())
+            .collect();
+        assert_eq!(
+            keys.len(),
+            app.document.working_set().len(),
+            "no duplicate keys"
+        );
+
+        app.activate_open_buffer(claimed.clone());
+        assert_eq!(app.document.active_key(), Some(claimed));
+        assert_eq!(
+            app.document.buffer().text(),
+            "older irreplaceable draft",
+            "the pre-existing missing-file buffer remains reachable byte-for-byte"
+        );
+    });
+}
+
+#[test]
+fn move_and_duplicate_share_the_disk_plus_live_path_allocator() {
+    #[derive(Clone, Copy, Debug)]
+    enum AllocationRoute {
+        Move,
+        Duplicate,
+    }
+
+    let _guard = crate::testlock::serial();
+    for route in [AllocationRoute::Move, AllocationRoute::Duplicate] {
+        let root = PathBuf::from(format!("/allocators/{route:?}"));
+        let old = root.join("source.md");
+        let (claimed_path, expected) = match route {
+            AllocationRoute::Move => (root.join("dest/source.md"), root.join("dest/source-2.md")),
+            AllocationRoute::Duplicate => (root.join("source-2.md"), root.join("source-3.md")),
+        };
+        let memory = Arc::new(
+            crate::fs::InMemoryFs::new()
+                .with_dir(&root)
+                .with_dir(root.join("dest"))
+                .with_file(&old, "source bytes"),
+        );
+        crate::fs::with_fs(memory.clone(), || {
+            let config = Config {
+                session_restore: Some(false),
+                autosave: Some(false),
+                ..Config::empty()
+            };
+            let mut app = App::new(Some(claimed_path.clone()), root.clone(), None, None, config);
+            app.document.set_text("claimed live draft");
+            let claimed = app.document.active_key().expect("claimed key");
+            app.load_path(old.clone());
+
+            match route {
+                AllocationRoute::Move => app.move_current_file("dest"),
+                AllocationRoute::Duplicate => app.duplicate_current_file(),
+            }
+
+            assert_eq!(
+                app.document.buffer().path(),
+                Some(expected.as_path()),
+                "{route:?}"
+            );
+            assert!(
+                memory.exists(&expected),
+                "{route:?}: allocated sibling exists"
+            );
+            assert!(
+                !memory.exists(&claimed_path),
+                "{route:?}: claimed path stays absent"
+            );
+            app.activate_open_buffer(claimed.clone());
+            assert_eq!(app.document.active_key(), Some(claimed), "{route:?}");
+            assert_eq!(
+                app.document.buffer().text(),
+                "claimed live draft",
+                "{route:?}"
+            );
+        });
+    }
 }
 
 /// Every first-naming entry point must land on the same transaction and leave
@@ -159,6 +273,46 @@ fn failed_naming_autosave_preserves_text_and_surfaces_only_the_first_failure() {
         app.frame.notice().text(),
         Some("sentinel"),
         "a repeated debounce attempt does not replace the UI with spam"
+    );
+}
+
+#[test]
+fn successful_naming_retry_retires_the_sticky_failure_notice() {
+    let _guard = crate::testlock::serial();
+    let root = PathBuf::from("/notes");
+    let memory = Arc::new(crate::fs::InMemoryFs::new().with_dir(&root));
+    let mut app = App::new_hermetic(None, root.clone(), Config::empty());
+    app.new_document();
+    app.document.set_text("first title");
+    let fresh = app.document.active_key().expect("fresh key");
+
+    crate::fs::with_fs(Arc::new(crate::fs::UnwritableFs), || app.autosave_note());
+    assert!(
+        app.frame
+            .notice()
+            .text()
+            .is_some_and(|text| text.starts_with("autosave failed:"))
+    );
+    assert!(app.persistence.has_note_ledger(&fresh));
+
+    app.document.set_text("recovered title");
+    crate::fs::with_fs(memory.clone(), || app.autosave_note());
+
+    assert_eq!(
+        app.frame.notice().text(),
+        None,
+        "recovery clears stale failure"
+    );
+    assert_eq!(
+        app.document.buffer().path(),
+        Some(root.join("recovered-title.md").as_path())
+    );
+    assert!(!app.persistence.has_note_ledger(&fresh));
+    assert_eq!(
+        memory
+            .read_to_string(&root.join("recovered-title.md"))
+            .unwrap(),
+        "recovered title"
     );
 }
 
@@ -493,7 +647,7 @@ fn window_title_clean_pathed_file_has_no_marker() {
 #[test]
 fn window_title_dirty_untitled_note_gets_the_marker_too() {
     let t = window_title(None, true, "Tawny", true);
-    assert_eq!(t, "awl - \u{2022} scratch [Tawny]");
+    assert_eq!(t, "awl - \u{2022} untitled [Tawny]");
 }
 
 #[test]
@@ -752,6 +906,102 @@ fn ensure_note_named_before_paste_promotes_a_scratch_buffer_and_saves_under_the_
     });
 }
 
+#[test]
+fn paste_presave_failure_keeps_true_scratch_identity_and_bookkeeping_unchanged() {
+    let _guard = crate::testlock::serial();
+    let root = PathBuf::from("/proj");
+    let mut app = App::new_hermetic(None, root, Config::empty());
+    app.document.set_text("Irreplaceable scratch draft");
+    let before = (
+        app.document.active_key(),
+        app.document.buffer().text(),
+        app.document.buffer().version(),
+        app.document.buffer().is_dirty(),
+        app.document.scratch_saved_version(),
+        app.document.scratch_baseline(),
+    );
+
+    crate::fs::with_fs(Arc::new(crate::fs::UnwritableFs), || {
+        app.ensure_note_named_before_paste()
+    });
+
+    assert_eq!(
+        (
+            app.document.active_key(),
+            app.document.buffer().text(),
+            app.document.buffer().version(),
+            app.document.buffer().is_dirty(),
+            app.document.scratch_saved_version(),
+            app.document.scratch_baseline(),
+        ),
+        before,
+        "paste pre-save failure cannot partially promote Scratch"
+    );
+    assert_eq!(
+        app.document.active_key(),
+        Some(crate::buffers::BufferKey::Scratch)
+    );
+    assert!(!app.document.buffer().is_unnamed_fresh());
+    assert!(app.document.buffer().path().is_none());
+}
+
+#[test]
+fn paste_presave_success_rekeys_and_retires_scratch_stash_and_baseline() {
+    let _guard = crate::testlock::serial();
+    let root = PathBuf::from("/proj");
+    let stash = crate::fs::scratch_stash_path();
+    let memory = Arc::new(
+        crate::fs::InMemoryFs::new()
+            .with_dir(&root)
+            .with_file(&stash, "Restored scratch draft"),
+    );
+    crate::fs::with_fs(memory.clone(), || {
+        let mut app = App::new(
+            None,
+            root.clone(),
+            None,
+            None,
+            Config {
+                session_restore: Some(false),
+                ..Config::empty()
+            },
+        );
+        assert_eq!(
+            app.document.active_key(),
+            Some(crate::buffers::BufferKey::Scratch)
+        );
+        assert_ne!(
+            app.document.scratch_baseline(),
+            crate::external::Seen::Absent
+        );
+
+        app.ensure_note_named_before_paste();
+
+        let named = app.document.active_key().expect("named key");
+        assert!(matches!(named, crate::buffers::BufferKey::Path(_)));
+        assert_eq!(
+            app.document.buffer().path(),
+            Some(root.join("restored-scratch-draft.md").as_path())
+        );
+        assert_eq!(app.document.scratch_saved_version(), None);
+        assert_eq!(
+            app.document.scratch_baseline(),
+            crate::external::Seen::Absent
+        );
+        assert!(
+            !memory.exists(&stash),
+            "successful conversion retires stale stash"
+        );
+        assert!(
+            app.document
+                .working_set()
+                .index_of(&crate::buffers::BufferKey::Scratch)
+                .is_none()
+        );
+        assert!(app.document.working_set().index_of(&named).is_some());
+    });
+}
+
 /// An ALREADY-STARTED fresh document (`note_dir` set, still unnamed) is left
 /// pointed at its own dir — never re-promoted/re-rooted a second time.
 #[test]
@@ -781,12 +1031,9 @@ fn ensure_note_named_before_paste_leaves_an_in_progress_note_dir_alone() {
     });
 }
 
-/// An EMPTY buffer (no first line to derive a name from) fails the save
-/// quietly and stays path-less — the caller (`paste_image_reference`) falls back to
-/// its pre-existing absolute data-root location rather than blocking the
-/// paste. Also proves the promotion side effect (now a fresh document)
-/// survives the failed save, matching what typing-then-pausing would do from
-/// here.
+/// An EMPTY buffer has nothing to name. It stays the same Scratch identity and
+/// the caller falls back to its data-root asset location without manufacturing
+/// an impossible save failure.
 #[test]
 fn ensure_note_named_before_paste_on_an_empty_buffer_stays_path_less() {
     use crate::fs::InMemoryFs;
@@ -811,10 +1058,12 @@ fn ensure_note_named_before_paste_on_an_empty_buffer_stays_path_less() {
             app.document.buffer().path().is_none(),
             "no first line to derive a name from"
         );
-        assert!(
-            app.document.buffer().is_unnamed_fresh(),
-            "promoted regardless — matches typing-then-pausing"
+        assert!(!app.document.buffer().is_unnamed_fresh());
+        assert_eq!(
+            app.document.active_key(),
+            Some(crate::buffers::BufferKey::Scratch)
         );
+        assert!(app.frame.notice().text().is_none());
     });
 }
 

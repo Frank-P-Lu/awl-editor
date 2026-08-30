@@ -622,6 +622,48 @@ fn registry_cap_evicts_the_lru_clean_buffer_not_a_dirty_one() {
 }
 
 #[test]
+fn registry_capacity_never_evicts_clean_fresh_identity_or_leaves_dead_rows() {
+    let _guard = crate::testlock::serial();
+    let root = PathBuf::from("/proj");
+    let memory = Arc::new(crate::fs::InMemoryFs::new().with_dir(&root));
+    crate::fs::with_fs(memory, || {
+        let mut app = App::new_hermetic(None, root, Config::empty());
+        let mut fresh_keys = Vec::new();
+        for _ in 0..(crate::buffers::MAX_OPEN_BUFFERS + 2) {
+            app.new_document();
+            fresh_keys.push(app.document.active_key().expect("Fresh key"));
+        }
+
+        assert!(
+            app.document.open_count() > crate::buffers::MAX_OPEN_BUFFERS,
+            "pathless state exceeds the soft cap instead of being discarded"
+        );
+        assert_eq!(
+            app.document.open_count(),
+            app.document.working_set().len(),
+            "every live identity has exactly one working-set row"
+        );
+        for key in &fresh_keys {
+            assert!(matches!(key, crate::buffers::BufferKey::Fresh(_)));
+            assert!(
+                app.document.close_facts(key).is_some(),
+                "{key:?}: row reaches a live active or parked buffer"
+            );
+            assert!(
+                app.persistence.has_note_ledger(key),
+                "{key:?}: provisional persistence ledger remains owned"
+            );
+        }
+
+        let oldest = fresh_keys[0].clone();
+        app.activate_open_buffer(oldest.clone());
+        assert_eq!(app.document.active_key(), Some(oldest.clone()));
+        assert!(app.document.close_facts(&oldest).is_some());
+        assert_eq!(app.document.open_count(), app.document.working_set().len());
+    });
+}
+
+#[test]
 fn right_click_word_summons_spell_suggestions() {
     // The right-click path = place the cursor at the clicked word (the GPU
     // hit-test, untestable headlessly), then run the EXISTING OpenSpellSuggest

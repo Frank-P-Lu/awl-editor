@@ -12,6 +12,8 @@ pub(crate) struct ReplayResult {
     pub(crate) accept: Option<(crate::overlay::OverlayKind, String)>,
     pub(crate) notice: Option<(String, crate::actions::NoticeKind)>,
     pub(crate) buffers_open: usize,
+    #[cfg(test)]
+    pub(crate) background_buffers: Vec<(crate::buffers::BufferKey, String)>,
     #[allow(dead_code)]
     pub(crate) intercepts: Vec<crate::replay::Intercept>,
     pub(crate) replay_skips: Vec<crate::replay::SkippedEffect>,

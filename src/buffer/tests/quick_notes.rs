@@ -104,7 +104,7 @@ fn note_stem_cap_is_byte_aware_and_never_leaves_a_dash() {
 
 #[test]
 fn stem_budget_measures_atomic_collision_and_quarantine_headroom() {
-    const NAME_MAX_FLOOR: usize = 255;
+    const ADVERTISED_FILESYSTEM_COMPONENT_LIMIT: usize = 255;
     const MD_EXTENSION: usize = ".md".len();
     const MAX_U32_COLLISION: usize = "-4294967295".len();
     const ATOMIC_DECORATION: usize = ".".len() + ".awl-tmp".len();
@@ -115,7 +115,133 @@ fn stem_budget_measures_atomic_collision_and_quarantine_headroom() {
         + ATOMIC_DECORATION
         + QUARANTINE_RESERVE;
     assert_eq!(worst, 159, "keep the stated budget arithmetic honest");
-    assert_eq!(NAME_MAX_FLOOR - worst, 96, "measured portable headroom");
+    assert_eq!(
+        ADVERTISED_FILESYSTEM_COMPONENT_LIMIT - worst,
+        96,
+        "measured headroom on advertised macOS and Linux filesystems"
+    );
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn naming_publication_retries_when_a_competing_creator_wins_after_selection() {
+    use crate::fs::{FileSystem, ScriptedFailure, ScriptedFs, ScriptedOperation};
+    use std::sync::Arc;
+
+    let _guard = crate::testlock::serial();
+    let notes = std::path::PathBuf::from("/notes");
+    let natural = notes.join("title.md");
+    let scripted = Arc::new(
+        ScriptedFs::new(
+            crate::fs::InMemoryFs::new().with_dir(&notes),
+            ScriptedFailure {
+                operation: ScriptedOperation::Rename,
+                ordinal: 99,
+                kind: std::io::ErrorKind::Other,
+                reason: "unreachable sentinel",
+            },
+        )
+        .race_create_before_no_replace(natural.clone(), b"competing bytes"),
+    );
+    crate::fs::with_fs(scripted.clone(), || {
+        let mut buf = Buffer::scratch();
+        buf.set_text("Title");
+
+        buf.save_into_folder(&notes).unwrap();
+
+        assert_eq!(
+            scripted.read_to_string(&natural).unwrap(),
+            "competing bytes",
+            "no-replace publication cannot clobber the race winner"
+        );
+        let retry = notes.join("title-2.md");
+        assert_eq!(buf.path(), Some(retry.as_path()));
+        assert_eq!(scripted.read_to_string(&retry).unwrap(), "Title");
+        assert_eq!(
+            scripted
+                .trace()
+                .iter()
+                .filter(|line| line.starts_with("rename-no-replace#"))
+                .count(),
+            2,
+            "the first publication collided and the deterministic suffix retried"
+        );
+    });
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn every_naming_filesystem_failure_leaves_text_and_identity_byte_identical() {
+    use crate::fs::{FileSystem, ScriptedFailure, ScriptedFs, ScriptedOperation};
+    use std::sync::Arc;
+
+    let _guard = crate::testlock::serial();
+    let notes = std::path::PathBuf::from("/notes");
+    for operation in [
+        ScriptedOperation::CreateDirAll,
+        ScriptedOperation::Write,
+        ScriptedOperation::RenameNoReplace,
+    ] {
+        let scripted = Arc::new(ScriptedFs::new(
+            crate::fs::InMemoryFs::new().with_dir(&notes),
+            ScriptedFailure {
+                operation,
+                ordinal: 1,
+                kind: std::io::ErrorKind::PermissionDenied,
+                reason: "naming failure matrix",
+            },
+        ));
+        crate::fs::with_fs(scripted.clone(), || {
+            let mut buf = Buffer::scratch();
+            buf.start_fresh_doc(notes.clone());
+            buf.set_text("Irreplaceable title\nbody");
+            let before = (
+                buf.path.clone(),
+                buf.note_dir.clone(),
+                buf.fresh_id,
+                BufferKey::of(&buf),
+                buf.is_dirty(),
+                buf.version(),
+                buf.text(),
+            );
+
+            let error = buf.save().expect_err(operation.name());
+
+            assert!(
+                error.to_string().contains("naming failure matrix"),
+                "{}: {error:#}",
+                operation.name()
+            );
+            assert_eq!(
+                (
+                    buf.path.clone(),
+                    buf.note_dir.clone(),
+                    buf.fresh_id,
+                    BufferKey::of(&buf),
+                    buf.is_dirty(),
+                    buf.version(),
+                    buf.text(),
+                ),
+                before,
+                "{}: failed publication changes no buffer fact",
+                operation.name()
+            );
+            assert!(
+                !scripted.exists(&notes.join("irreplaceable-title.md")),
+                "{}: no final file published",
+                operation.name()
+            );
+            assert!(
+                scripted
+                    .trace()
+                    .iter()
+                    .any(|line| line.starts_with(operation.name())),
+                "{}: the named fault was actually reached: {:?}",
+                operation.name(),
+                scripted.trace()
+            );
+        });
+    }
 }
 
 #[test]
