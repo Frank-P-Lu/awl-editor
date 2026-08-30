@@ -120,7 +120,8 @@ name); behavior is byte-identical. Submodules are listed under each root below.
   mark/anchor primitives.
   → `buffer/`: `edit`, `selection`, `motion`, `undo`, `focus`, `notes`, `tests`.
 - `buffers.rs` — the MULTI-BUFFER REGISTRY: `BufferKey` (a buffer's stable
-  identity — a path, or the one `Scratch` sentinel) + `BufferRegistry<T>` (the
+  identity — normalized `Path`, singleton `Scratch`, or session-unique provisional
+  `Fresh`) + `BufferRegistry<T>` (the
   MRU-ordered, capped park/take store for every BACKGROUNDED buffer) +
   `Entry<T>` (a buffer plus its opaque per-buffer payload — the SAME type the
   live App's `DocumentSession` owned slot uses), shared verbatim by the live

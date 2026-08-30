@@ -188,11 +188,11 @@ impl App {
             return;
         }
         let naming_key = self.document.active_key().expect("active document key");
-        self.persistence
-            .record_note_write(naming_key.clone(), self.document.buffer().version());
         if !self.document.buffer().is_unnamed_fresh() {
             return;
         }
+        self.persistence
+            .record_note_write(naming_key.clone(), self.document.buffer().version());
         match self.document.save_owned(crate::durable::Owner::Autosave) {
             Ok(()) => {
                 self.persistence.clear_note_failure(&naming_key);

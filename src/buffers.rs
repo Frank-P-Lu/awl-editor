@@ -11,11 +11,12 @@
 //! keyed by a stable identity so re-opening one finds its live state instead
 //! of re-reading disk.
 //!
-//! V1 SCOPE: the registry is the state model, not chrome (no tab strip / no
-//! session restore / no daemon — see the arc's later items). It is generic
-//! over a small `extra` payload (`T`) so the live App can carry its own
-//! per-buffer bookkeeping (scroll / spell cache / autosave versions — see
-//! `app::files::BufferExtra`) while the headless replay carries none (`()`).
+//! The registry is the state model, not chrome. Working-set rows, session
+//! persistence, and daemon waiters consume the same `BufferKey` but keep their
+//! own policy. The registry is generic over a small `extra` payload (`T`) so
+//! the live App can carry per-buffer bookkeeping (scroll / spell cache /
+//! autosave versions — see `app::files::BufferExtra`) while headless replay
+//! carries none (`()`).
 
 use std::path::{Component, Path, PathBuf};
 
