@@ -162,7 +162,7 @@ pub(crate) fn table_cell_ranges(line: &str) -> Vec<Range<usize>> {
         let cell = &t[start..end];
         let lead = cell.len() - cell.trim_start().len();
         let tail = cell.trim_end().len();
-        ranges.push(trim_start + start + lead..trim_start + start + tail);
+        ranges.push(trim_start + start + lead..trim_start + start + tail.max(lead));
     }
     // Optional outer pipes are structural cells, never data. Keep the virtual
     // row edges above so `a | b`, `| a | b`, and `a | b |` all share one parser.
