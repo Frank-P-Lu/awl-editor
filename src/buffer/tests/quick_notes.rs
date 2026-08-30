@@ -107,17 +107,17 @@ fn stem_budget_measures_atomic_collision_and_quarantine_headroom() {
     const ADVERTISED_FILESYSTEM_COMPONENT_LIMIT: usize = 255;
     const MD_EXTENSION: usize = ".md".len();
     const MAX_U32_COLLISION: usize = "-4294967295".len();
-    const ATOMIC_DECORATION: usize = ".".len() + ".awl-tmp".len();
+    const ATOMIC_DECORATION: usize = ".".len() + ".awl-tmp".len() + "-".len() + 10 + "-".len() + 20;
     const QUARANTINE_RESERVE: usize = 64;
     let worst = NOTE_STEM_MAX_BYTES
         + MD_EXTENSION
         + MAX_U32_COLLISION
         + ATOMIC_DECORATION
         + QUARANTINE_RESERVE;
-    assert_eq!(worst, 159, "keep the stated budget arithmetic honest");
+    assert_eq!(worst, 191, "keep the stated budget arithmetic honest");
     assert_eq!(
         ADVERTISED_FILESYSTEM_COMPONENT_LIMIT - worst,
-        96,
+        64,
         "measured headroom on advertised macOS and Linux filesystems"
     );
 }
@@ -166,7 +166,84 @@ fn naming_publication_retries_when_a_competing_creator_wins_after_selection() {
             2,
             "the first publication collided and the deterministic suffix retried"
         );
+        assert!(
+            scripted
+                .read_dir(&notes)
+                .unwrap()
+                .iter()
+                .all(|entry| !entry.name.contains(".awl-tmp")),
+            "a refused attempt removes its own unique temp sibling"
+        );
     });
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn shared_naming_and_duplicate_owners_never_publish_each_others_temp_bytes() {
+    use crate::fs::{FileSystem, ScriptedFailure, ScriptedFs, ScriptedOperation};
+    use std::sync::Arc;
+
+    #[derive(Clone, Copy, Debug)]
+    enum SharedRoute {
+        Naming,
+        Duplicate,
+    }
+
+    let _guard = crate::testlock::serial();
+    for route in [SharedRoute::Naming, SharedRoute::Duplicate] {
+        let dir = std::path::PathBuf::from(format!("/two-writers/{route:?}"));
+        let (owner, stem, seeded) = match route {
+            SharedRoute::Naming => (crate::durable::Owner::Autosave, "title", None),
+            SharedRoute::Duplicate => (
+                crate::durable::Owner::ManualSave,
+                "source",
+                Some(dir.join("source.md")),
+            ),
+        };
+        let mut memory = crate::fs::InMemoryFs::new().with_dir(&dir);
+        if let Some(path) = seeded {
+            memory = memory.with_file(path, "original source");
+        }
+        let scripted = Arc::new(
+            ScriptedFs::new(
+                memory,
+                ScriptedFailure {
+                    operation: ScriptedOperation::Rename,
+                    ordinal: 99,
+                    kind: std::io::ErrorKind::Other,
+                    reason: "unreachable sentinel",
+                },
+            )
+            .interleave_legacy_tmp_write_before_no_replace(b"writer two"),
+        );
+        crate::fs::with_fs(scripted.clone(), || {
+            let first = write_new_unique(owner, &dir, stem, "md", b"writer one", |_| false)
+                .expect("writer one publishes");
+            let second = write_new_unique(owner, &dir, stem, "md", b"writer two", |_| false)
+                .expect("writer two publishes");
+
+            assert_ne!(first, second, "{route:?}: suffix allocation is unique");
+            assert_eq!(
+                scripted.read_to_string(&first).unwrap(),
+                "writer one",
+                "{route:?}: writer one publishes only its own temp bytes"
+            );
+            assert_eq!(
+                scripted.read_to_string(&second).unwrap(),
+                "writer two",
+                "{route:?}: writer two publishes only its own temp bytes"
+            );
+            assert_eq!(
+                scripted
+                    .trace()
+                    .iter()
+                    .filter(|line| line.starts_with("interleave-legacy-tmp "))
+                    .count(),
+                1,
+                "{route:?}: the dangerous write/write/publish ordering ran"
+            );
+        });
+    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]

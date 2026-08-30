@@ -11,9 +11,9 @@
 use std::path::{Path, PathBuf};
 
 /// A calm filename budget. With `.md` (3 bytes), the largest `u32` collision
-/// suffix (11), atomic `.<name>.awl-tmp` decoration (9), and a deliberately
-/// reserved 64-byte quarantine decoration, the worst component is 159 bytes —
-/// 96 bytes below the 255-byte component limit on awl's advertised macOS and
+/// suffix (11), the longest per-attempt atomic temp decoration (41), and a
+/// deliberately reserved 64-byte quarantine decoration, the worst component
+/// is 191 bytes — 64 bytes below the 255-byte component limit on advertised macOS and
 /// Linux filesystems. Smaller filesystem limits can still reject a name; the
 /// naming transaction leaves buffer identity intact on that ordinary error.
 pub const NOTE_STEM_MAX_BYTES: usize = 72;
