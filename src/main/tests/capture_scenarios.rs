@@ -10,7 +10,6 @@ use crate::testscratch::ScratchDir;
 #[test]
 fn faceted_hug_roster_survives_both_one_shot_and_shared_capture_folds() {
     let _serial = crate::testlock::serial();
-    let _world = crate::theme::WorldPin::world("Kite").expect("Kite exists");
     let dir = ScratchDir::new(
         std::env::temp_dir().join(format!("awl-faceted-hug-fold-{}", std::process::id())),
     );
@@ -86,25 +85,37 @@ fn faceted_hug_roster_survives_both_one_shot_and_shared_capture_folds() {
         )
         .expect("sidecar parses")
     };
-    let all_json = capture("all", all);
-    let headings_json = capture("headings", headings);
-    assert_eq!(all_json["overlay"]["lens"], "all", "one-shot starts at All");
-    assert_eq!(
-        headings_json["overlay"]["lens"], "headings",
-        "one-shot navigation reaches Headings"
-    );
     let band = |sidecar: &serde_json::Value| {
         let band = &sidecar["overlay"]["window"]["band"];
         (band["x"].as_f64().expect("band x"), band["w"].as_f64().expect("band w"))
     };
-    let all_band = band(&all_json);
-    let headings_band = band(&headings_json);
+    let mirrors: Vec<&str> = crate::theme::THEMES
+        .iter()
+        .filter(|world| world.render_caps.card_anchor.mirrors_growth())
+        .map(|world| world.name)
+        .collect();
     assert!(
-        (all_band.0 - headings_band.0).abs() <= 0.01
-            && (all_band.1 - headings_band.1).abs() <= 0.01,
-        "one-shot fold lost the summon-time hug corpus across All -> Headings: \
-         all={all_band:?}, headings={headings_band:?}"
+        !mirrors.is_empty(),
+        "the shipping roster must enroll at least one right-anchored card"
     );
+    for world in mirrors {
+        let _world = crate::theme::WorldPin::world(world).expect("enrolled world exists");
+        let all_json = capture(&format!("{world}-all"), all);
+        let headings_json = capture(&format!("{world}-headings"), headings);
+        assert_eq!(all_json["overlay"]["lens"], "all", "[{world}] one-shot starts at All");
+        assert_eq!(
+            headings_json["overlay"]["lens"], "headings",
+            "[{world}] one-shot navigation reaches Headings"
+        );
+        let all_band = band(&all_json);
+        let headings_band = band(&headings_json);
+        assert!(
+            (all_band.0 - headings_band.0).abs() <= 0.01
+                && (all_band.1 - headings_band.1).abs() <= 0.01,
+            "[{world}] one-shot fold lost the summon-time hug corpus across All -> Headings: \
+             all={all_band:?}, headings={headings_band:?}"
+        );
+    }
 }
 
 #[test]

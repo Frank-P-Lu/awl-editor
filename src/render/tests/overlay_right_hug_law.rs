@@ -583,6 +583,7 @@ fn right_anchored_faceted_hug_measurement_memoizes_one_arc_and_metrics() {
     let roster = std::sync::Arc::new(crate::overlay::HugRoster {
         primary: vec!["archive/very-long-project-folder-name/meeting-notes.md".into()],
         secondary: vec!["yesterday".into()],
+        candidate_rows: 1,
     });
     let mut v = right_flat(&["notes.md"], &[]);
     v.overlay_hug_roster = Some(roster.clone());

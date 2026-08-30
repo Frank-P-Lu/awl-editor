@@ -12,6 +12,10 @@ use std::sync::Arc;
 pub struct HugRoster {
     pub primary: Vec<String>,
     pub secondary: Vec<String>,
+    /// The unlensed candidate span also drives diagonal-card side reserve.
+    /// An empty/filter projection may draw fewer rows, but it must not narrow
+    /// the pinned card.
+    pub candidate_rows: usize,
 }
 
 pub use super::add_to_dictionary_label;

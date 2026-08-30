@@ -11,6 +11,7 @@ impl OverlayState {
         self.hug_roster = Some(std::sync::Arc::new(HugRoster {
             primary: self.hug_primary_strings(),
             secondary: self.hug_secondary_strings(),
+            candidate_rows: self.rows.len(),
         }));
     }
 

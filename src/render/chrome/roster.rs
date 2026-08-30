@@ -273,9 +273,13 @@ impl TextPipeline {
             0.0
         };
         let content_text = left.max(primary + gap + secondary);
+        let reserve_rows = hug_roster
+            .as_ref()
+            .map(|roster| roster.candidate_rows)
+            .unwrap_or_else(|| plan.rows().len());
         let width = content_text
             + 2.0 * self.overlay_text_hpad()
-            + self.diagonal_side_reserve_px(plan.rows().len());
+            + self.diagonal_side_reserve_px(reserve_rows);
         if let Some(key) = hug_key {
             self.overlay_hug_content_memo = Some((key, width));
             #[cfg(test)]
