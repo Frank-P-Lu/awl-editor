@@ -89,6 +89,8 @@ impl TextPipeline {
             TextRenderer::new(&mut atlas, device, wgpu::MultisampleState::default(), None);
         let table_rule_pipeline =
             SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
+        let table_empty_pipeline =
+            SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         let panel_card = SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         let panel_shadow = SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         let panel_border = SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
@@ -283,6 +285,7 @@ impl TextPipeline {
             fold_chevron_label_masks,
             table_renderer,
             table_rule_pipeline,
+            table_empty_pipeline,
             panel_card,
             panel_shadow,
             panel_border,

@@ -12,6 +12,102 @@
 
 use super::*;
 
+/// Content-start character columns for a source table row. Escaped pipes stay
+/// inside their cell; only real delimiters participate in table navigation.
+fn table_cell_starts(line: &str) -> Vec<usize> {
+    let chars: Vec<char> = line.chars().collect();
+    let mut pipes = Vec::new();
+    let mut escaped = false;
+    for (i, c) in chars.iter().copied().enumerate() {
+        if escaped {
+            escaped = false;
+        } else if c == '\\' {
+            escaped = true;
+        } else if c == '|' {
+            pipes.push(i);
+        }
+    }
+    pipes.windows(2).map(|pair| {
+        let mut start = pair[0] + 1;
+        while start < pair[1] && chars[start].is_whitespace() {
+            start += 1;
+        }
+        start
+    }).collect()
+}
+
+fn table_row_source(columns: usize) -> String {
+    format!("|{}", " |".repeat(columns.max(1)))
+}
+
+/// Bare Enter inserts a correctly-columned source row immediately below a real
+/// GFM table row. Shift-Enter deliberately bypasses this owner in `actions.rs`.
+pub(super) fn table_newline(ctx: &mut ActionCtx) -> bool {
+    if !ctx.buffer.is_markdown() || ctx.buffer.has_selection() {
+        return false;
+    }
+    let text = ctx.buffer.text();
+    let lines: Vec<&str> = text.split('\n').collect();
+    let (line, _) = ctx.buffer.cursor_line_col();
+    let Some((start, end)) = crate::markdown::table_block_lines(&lines, line) else {
+        return false;
+    };
+    let columns = (start..end)
+        .filter(|&row| row != start + 1)
+        .map(|row| crate::markdown::split_row_cells(lines[row]).len())
+        .max()
+        .unwrap_or(1);
+    let at = ctx.buffer.line_col_to_char(line, usize::MAX);
+    let row = table_row_source(columns);
+    ctx.buffer.replace_char_range(at, at, &format!("\n{row}"));
+    ctx.buffer.set_cursor(at + 3);
+    true
+}
+
+/// Tab/Shift-Tab walk real table cells in source order. Reaching the forward
+/// end appends one scaffold row; non-table source keeps the established list
+/// indentation behavior.
+pub(super) fn table_tab(ctx: &mut ActionCtx, forward: bool) -> bool {
+    if !ctx.buffer.is_markdown() || ctx.buffer.has_selection() {
+        return false;
+    }
+    let text = ctx.buffer.text();
+    let lines: Vec<&str> = text.split('\n').collect();
+    let (line, col) = ctx.buffer.cursor_line_col();
+    let Some((start, end)) = crate::markdown::table_block_lines(&lines, line) else {
+        return false;
+    };
+    let mut cells = Vec::new();
+    for row in start..end {
+        if row == start + 1 {
+            continue;
+        }
+        for cell_col in table_cell_starts(lines[row]) {
+            cells.push((row, cell_col));
+        }
+    }
+    if cells.is_empty() {
+        return false;
+    }
+    let current = cells
+        .iter()
+        .position(|&(row, cell_col)| row == line && col <= cell_col)
+        .or_else(|| cells.iter().rposition(|&(row, _)| row == line))
+        .unwrap_or_else(|| if forward { 0 } else { cells.len() - 1 });
+    if forward && current + 1 == cells.len() {
+        let columns = cells.iter().filter(|(row, _)| *row == start).count().max(1);
+        let at = ctx.buffer.line_col_to_char(end - 1, usize::MAX);
+        ctx.buffer
+            .replace_char_range(at, at, &format!("\n{}", table_row_source(columns)));
+        ctx.buffer.set_cursor(at + 3);
+    } else {
+        let next = if forward { current + 1 } else { current.saturating_sub(1) };
+        let (target_line, target_col) = cells[next];
+        ctx.buffer.set_cursor(ctx.buffer.line_col_to_char(target_line, target_col));
+    }
+    true
+}
+
 /// MARKDOWN-only smart Enter. Returns `true` when it performed the edit; `false`
 /// tells the caller to do a plain `insert_newline`. Reads only the current line's
 /// text + cursor column and mutates through the buffer's atomic edit seam, so it

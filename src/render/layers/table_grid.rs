@@ -39,10 +39,18 @@ struct TablePlacementContext {
 struct TablePlacement<'a> {
     areas: Vec<TextArea<'a>>,
     rule_rects: Vec<[f32; 4]>,
+    empty_rects: Vec<[f32; 4]>,
     reports: Vec<crate::render::TableReport>,
     pan_writeback: Option<(usize, f32)>,
     #[cfg(test)]
     drawn_lines: Vec<usize>,
+}
+
+/// A revealed source row is an x-ray swap, never a grid overlay.  Every table
+/// decoration routes through this guard so cells, the separator, and the pan
+/// bar cannot occupy the raw-source band.
+fn table_decoration_visible(meta: &TableMeta, xray_lines: &[usize], doc_line: usize) -> bool {
+    !(meta.revealed && xray_lines.contains(&doc_line))
 }
 
 fn table_content_width(shaped: &TableGridShaped) -> f32 {
@@ -89,7 +97,7 @@ fn place_shaped_table<'a>(
 
     for (grid_row, column, buffer, cell_width) in &shaped.cells {
         let doc_line = meta.grid_rows[*grid_row].0;
-        if meta.revealed && xray_lines.contains(&doc_line) {
+        if !table_decoration_visible(meta, xray_lines, doc_line) {
             continue;
         }
         #[cfg(test)]
@@ -122,6 +130,24 @@ fn place_shaped_table<'a>(
             custom_glyphs: &[],
         });
     }
+    // A display-only, low-alpha muted wash gives fresh blank cells a readable
+    // extent. Filled cells never enter this loop, keeping their pixels intact.
+    for (doc_line, cells) in &meta.grid_rows {
+        if !table_decoration_visible(meta, xray_lines, *doc_line) {
+            continue;
+        }
+        for column in 0..meta.ncols {
+            if cells.get(column).is_some_and(|cell| !cell.is_empty()) {
+                continue;
+            }
+            let left = context.text_left + shaped.col_x[column] - pan + context.pad;
+            let width = (shaped.col_w[column] - 2.0 * context.pad).max(0.0);
+            let top = line_top(*doc_line) + context.line_height * 0.28;
+            if width > 0.0 {
+                placed.empty_rects.push([left, top, width, context.line_height * 0.44]);
+            }
+        }
+    }
 
     let separator_top = line_top(meta.sep_doc_line);
     let rule_y = separator_top + (context.line_height - context.rule_thick) * 0.5;
@@ -130,13 +156,14 @@ fn place_shaped_table<'a>(
     } else {
         content_w
     };
-    if rule_width > 0.0 {
+    if rule_width > 0.0 && table_decoration_visible(meta, xray_lines, meta.sep_doc_line) {
         placed
             .rule_rects
             .push([context.text_left, rule_y, rule_width, context.rule_thick]);
     }
     if pan > 0.0
         && let Some((last_doc_line, _)) = meta.grid_rows.last()
+        && table_decoration_visible(meta, xray_lines, *last_doc_line)
     {
         let last_grid_row = shaped.row_heights.len().saturating_sub(1);
         let bottom = line_top(*last_doc_line) + shaped.row_heights[last_grid_row];
@@ -189,6 +216,7 @@ fn place_table_grid<'a>(
     let mut placed = TablePlacement {
         areas: Vec::new(),
         rule_rects: Vec::new(),
+        empty_rects: Vec::new(),
         reports: Vec::with_capacity(metas.len()),
         pan_writeback: None,
         #[cfg(test)]
@@ -440,6 +468,8 @@ impl TextPipeline {
 
         self.table_rule_pipeline
             .prepare(device, queue, width, height, &placed.rule_rects);
+        self.table_empty_pipeline
+            .prepare(device, queue, width, height, &placed.empty_rects);
         self.table_renderer
             .prepare(
                 device,

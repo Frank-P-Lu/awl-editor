@@ -291,9 +291,9 @@ pub(crate) const LINUX_EMACS_CLASSIC_SEED: &[(&str, Action)] = &[
 /// real dispatch. This is the ONE selection point both the dispatch half (via
 /// [`super::state::KeymapState::seed_defaults`]) and the advertisement half
 /// (every label surface, via [`seeded_chords_for`]) consult — so a seeded layer
-/// added for a future seeded layer (a classic-chords C-x table, say) is picked up by
-/// BOTH from a single edit, appending its table here, rather than the two
-/// staying in sync by hand. Today just [`LINUX_EMACS_META_SEED`]; empty under
+/// added table is picked up by BOTH from a single edit, rather than the two
+/// staying in sync by hand. Today this returns [`LINUX_EMACS_META_SEED`] and
+/// [`LINUX_EMACS_CLASSIC_SEED`]; empty under
 /// `Native` flavor or [`Convention::Mac`], where the whole layer is
 /// structurally inert (Option keeps typing accented characters there).
 pub(crate) fn active_seed_tables(
@@ -311,9 +311,8 @@ pub(crate) fn active_seed_tables(
 /// roster: the chord SPECS (verbatim, terse form — `"M-x"`, never a display
 /// glyph) that dispatch `action` under `convention`+`flavor`, straight off
 /// [`active_seed_tables`]. Empty when no seed layer is active, or none of its
-/// entries target this action. At most one entry today (no table's own
-/// actions repeat), but a second table is not assumed to disagree with the
-/// first — order is table-then-entry.
+/// entries target this action. Entries from both active tables are retained in
+/// table-then-entry order; the tables currently target distinct actions.
 pub(crate) fn seeded_chords_for(
     action: &Action,
     convention: Convention,
