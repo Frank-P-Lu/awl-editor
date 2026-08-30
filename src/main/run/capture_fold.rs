@@ -110,6 +110,10 @@ pub(crate) fn fold_capture_state(
         overlay_capture_info_optional(subject.journey(), buffer)
     {
         opts.overlay = Some(info);
+        opts.overlay_hug_roster = subject
+            .journey()
+            .card()
+            .and_then(crate::overlay::OverlayState::hug_roster);
         opts.preview_text = preview_text;
         // DIFF-AS-PREVIEW: mirror the one-shot capture's fold (diff state block
         // + the overlay-owned diff scroll), so a stepped/live frame reports the

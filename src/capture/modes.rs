@@ -343,6 +343,7 @@ pub(super) fn settled_viewstate(
         .as_ref()
         .map(|o| o.items.clone())
         .unwrap_or_default();
+    vstate.overlay_hug_roster = opts.overlay_hug_roster.clone();
     vstate.overlay_empty = opts.overlay.as_ref().and_then(|o| o.empty.clone());
     vstate.overlay_bindings = opts
         .overlay
