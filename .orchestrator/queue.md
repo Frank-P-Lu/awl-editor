@@ -495,6 +495,71 @@ be reaching for. Record their pick on this item before moving the
 card. Full gate receipt.
 
 ---
+### 541 — table grid: the header-separator rule draws through a revealed row's source (user report, 2026-08-30)
+
+Verified to the line. The per-row reveal contract
+(`render/layers/table_grid.rs`, "grid and source never share a row's
+pixels") is enforced for CELLS — the cell loop skips the revealed
+x-ray row (`meta.revealed && xray_lines.contains(&doc_line)`,
+line ~92) — but the ONE faint header-separator rule is pushed
+UNCONDITIONALLY at `sep_doc_line` (lines ~126–137). Put the caret on
+the separator row and its raw `|-|-|-|` source floats over the band
+with the rule drawn straight through it (user screenshot). FIX: the
+rule gets the same guard the cells have — suppressed when the
+revealed row IS the separator's doc line. Sweep the sibling quads
+while there: the pan bar (pushed in the same function) against a
+revealed LAST row, same question. Law at the placement seam: with the
+caret on each row of a table in turn, no rule/pan-bar rect intersects
+the revealed row's band (non-vacuous: revert the guard, red on the
+separator row). One-line-plus-law scale; per the land-easy policy
+this can land for judgement. Full gate receipt.
+
+---
+### 542 — table EDITING is all raw-source friction: the low-hanging UX basket (user report, 2026-08-30 — "kinda awful to edit"; fruits ranked, awaiting the user's picks)
+
+The render half of tables is landed (grid, per-row reveal, dimension
+picker — "AWESOME!!"); the EDITING half is still bare raw-source: the
+caret's row drops to `| aa | bb |` and every pipe, pad, and cell hop
+is hand-typed. Tables-as-real-grids is committed direction
+(CLAUDE.md §Direction), so this friction is on-mission to remove.
+Fruits ranked by leverage over cost — the user picks which to
+greenlight; (1) and (2) are the recommended first wave:
+
+1. **Tab / Shift-Tab = next / previous cell** while the caret is in a
+   table: jump to the next cell's content start, wrapping across
+   rows; Tab on the LAST cell appends a fresh scaffold row (the
+   Obsidian/Typora convention). Pure caret/edit motion at the buffer
+   seam, drivable by `--keys`, and the existing per-row reveal
+   follows the caret for free. The single biggest ergonomic win.
+   (Check the existing Tab binding's table context carefully — Tab
+   currently indents/inserts; the table context must win only INSIDE
+   a table block, and the law sweeps both contexts.)
+2. **Enter inside a table = insert a scaffold row below** (`| | | |`
+   matching the column count), never a mid-cell line split that
+   breaks the table shape. Escape hatch stays: a literal split is
+   still reachable (Shift-Enter or at-block-edge semantics — lane
+   proposes, user confirms).
+3. **Auto-align on row-leave**: the shipped `align_table` re-pad runs
+   automatically (debounced, or when the caret leaves the table/row)
+   so the source stays Prettier-shaped without summoning the command.
+   Mind undo coalescing (the re-pad is its own sealed group) and
+   caret preservation across the re-pad.
+4. **Row/column verbs in the palette**: Insert row above/below,
+   insert column left/right, delete row/column — source splices over
+   the existing row/cell parser (`markdown/tables.rs`), gated to
+   caret-in-table exactly like `AlignTable`'s availability gate.
+5. NOT this item (the big arc): editing cells IN the grid without
+   dropping to source. That is the "tables as real grids" destination
+   and earns its own design session; nothing in 1–4 pre-empts it, and
+   all four survive it (they are source-level operations the grid
+   editor would also need).
+
+Every fruit is exhaustively testable at the buffer seam (editing
+edge-cases are the product — spend generously per CLAUDE.md), plus
+`--keys` journey captures for Tab-walks and Enter-rows. Full gate
+receipt per landing wave.
+
+---
 ### 532 — keymap/platform.rs: the seed-table doc comments still describe the Meta-only world
 
 Comment-only truth fix in `src/keymap/platform.rs`, outdated by the
