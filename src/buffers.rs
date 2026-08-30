@@ -28,12 +28,12 @@ use crate::buffer::Buffer;
 /// stash it restores from) is keyed by the `Scratch` sentinel — there is only
 /// ever one such identity, mirroring the one persistent scratch stash
 /// (`fs::scratch_stash_path`). A pathless QUICK NOTE that hasn't been named
-/// yet has NO stable identity and is deliberately never registered (see
-/// [`BufferKey::of`]).
+/// yet carries a session-unique `Fresh` identity until its naming save commits.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum BufferKey {
     Path(NormPath),
     Scratch,
+    Fresh(u64),
 }
 
 /// A normalized path (see [`normalize_path`]) — the identity payload of
@@ -76,18 +76,33 @@ impl BufferKey {
         BufferKey::Path(NormPath::of(p))
     }
 
-    /// The registry identity for `buffer`, or `None` for a buffer that has no
-    /// stable identity worth keeping: an unnamed, still-empty QUICK NOTE. By
-    /// the time a note carries real content, the autosave engine
-    /// (`App::flush_note` -> `autosave_note`) has already derived it a path
-    /// from its first line, so in practice this arm is only ever hit on a
-    /// truly empty note — which is fine to drop (nothing would be lost:
-    /// an empty note is never written to disk either).
-    pub fn of(buffer: &Buffer) -> Option<Self> {
+    /// The registry identity for `buffer`. Every live document has one: a
+    /// path, the persistent scratch sentinel, or a session-unique provisional
+    /// identity while a fresh document is waiting for its first successful
+    /// naming save.
+    pub fn of(buffer: &Buffer) -> Self {
         match buffer.path() {
-            Some(p) => Some(BufferKey::path(p)),
-            None if !buffer.is_unnamed_fresh() => Some(BufferKey::Scratch),
-            None => None,
+            Some(p) => BufferKey::path(p),
+            None => buffer
+                .fresh_id()
+                .map(BufferKey::Fresh)
+                .unwrap_or(BufferKey::Scratch),
+        }
+    }
+
+    pub(crate) fn sidecar_label(&self) -> String {
+        match self {
+            BufferKey::Path(path) => path.0.display().to_string(),
+            BufferKey::Scratch => "scratch".to_string(),
+            BufferKey::Fresh(_) => "untitled".to_string(),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn path_buf(&self) -> Option<PathBuf> {
+        match self {
+            BufferKey::Path(path) => Some(path.0.clone()),
+            BufferKey::Scratch | BufferKey::Fresh(_) => None,
         }
     }
 }

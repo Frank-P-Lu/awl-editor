@@ -119,10 +119,10 @@ impl App {
     }
 
     pub(in crate::app) fn last_buffer_toggle(&mut self) {
-        let Some(prev) = self.document.previous_path() else {
+        let Some(prev) = self.document.previous_key() else {
             return; // nothing opened before; toggle is a quiet no-op
         };
-        self.load_path(prev);
+        self.activate_open_buffer(prev);
     }
 
     /// Swap in the buffer for `path`: remember the file we are LEAVING as

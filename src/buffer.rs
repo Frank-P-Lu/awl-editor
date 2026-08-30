@@ -227,6 +227,9 @@ pub struct Buffer {
     /// auto-saving the note; the filename then LOCKS (save writes the bound path).
     /// `None` for ordinary files and scratch buffers (which never auto-name).
     note_dir: Option<PathBuf>,
+    /// Session-unique identity of a freshly-summoned, not-yet-named document.
+    /// It survives parking and disappears only after a naming save commits.
+    fresh_id: Option<u64>,
     kill: String,
     last_was_kill: bool,
     dirty: bool,
@@ -301,6 +304,7 @@ impl Buffer {
             path,
             eol: Eol::Lf,
             note_dir: None,
+            fresh_id: None,
             kill: String::new(),
             last_was_kill: false,
             dirty: false,
@@ -380,6 +384,9 @@ impl Buffer {
                 .map(|s| s.to_string_lossy().to_string())
                 .unwrap_or_else(|| "scratch".to_string());
         }
+        if self.fresh_id.is_some() {
+            return "untitled".to_string();
+        }
         let stem = match first_nonempty_line(&self.rope.to_string()) {
             Some(line) => note_stem(line),
             None => "scratch".to_string(),
@@ -452,9 +459,15 @@ impl Buffer {
         self.note_dir.is_some()
     }
 
+    pub(crate) fn fresh_id(&self) -> Option<u64> {
+        self.fresh_id
+    }
+
     pub fn start_fresh_doc(&mut self, dir: PathBuf) {
+        static NEXT_FRESH_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
         *self = Self::from_rope(Rope::new(), None);
         self.note_dir = Some(dir);
+        self.fresh_id = Some(NEXT_FRESH_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed));
     }
 
     pub fn is_dirty(&self) -> bool {

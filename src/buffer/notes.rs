@@ -10,6 +10,10 @@
 
 use std::path::{Path, PathBuf};
 
+/// A calm filename budget with room for `.md`, atomic `.{name}.awl-tmp`,
+/// quarantine (~37 bytes), and ordinary collision suffixes under NAME_MAX=255.
+pub const NOTE_STEM_MAX_BYTES: usize = 72;
+
 /// The first line of `text` with non-whitespace content (trimmed), or `None` when
 /// the text is empty / all blank. This is a quick note's working TITLE.
 pub fn first_nonempty_line(text: &str) -> Option<&str> {
@@ -20,7 +24,19 @@ pub fn first_nonempty_line(text: &str) -> Option<&str> {
 /// "scratch" placeholder when the line has no slug-able (alphanumeric) content.
 /// Shared by the FIRST naming save and live-rename so both agree on the name.
 pub fn note_stem(line: &str) -> String {
-    let s = slug_core(line);
+    let mut s = slug_core(line);
+    if s.len() > NOTE_STEM_MAX_BYTES {
+        let mut end = NOTE_STEM_MAX_BYTES;
+        while !s.is_char_boundary(end) {
+            end -= 1;
+        }
+        let prefix = &s[..end];
+        end = prefix.rfind('-').filter(|&at| at > 0).unwrap_or(end);
+        s.truncate(end);
+        while s.ends_with('-') {
+            s.pop();
+        }
+    }
     if s.is_empty() {
         "scratch".to_string()
     } else {

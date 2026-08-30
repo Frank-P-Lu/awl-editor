@@ -9,6 +9,21 @@ use super::{window_title, window_title_no_document};
 use crate::app::*;
 
 impl App {
+    /// Commit every key-indexed owner after a naming write changes a provisional
+    /// identity into a path. Nothing calls this before the write succeeds.
+    pub(in crate::app) fn commit_naming_identity(&mut self, old: crate::buffers::BufferKey) {
+        let new = crate::buffers::BufferKey::of(self.document.buffer());
+        if old == new {
+            return;
+        }
+        self.document.rekey_active_after_naming();
+        self.persistence.retire_note_ledger(&old);
+        #[cfg(all(not(target_arch = "wasm32"), not(feature = "mas")))]
+        if let Some(waiters) = self.wait_conns.remove(&old) {
+            self.wait_conns.entry(new).or_default().extend(waiters);
+        }
+    }
+
     /// Set the window title from the active file + theme (kept in one place so
     /// open/switch/theme-cycle all agree). Wraps the pure [`window_title`] — the
     /// ONE owner of the actual string, also used by the initial window
@@ -31,7 +46,10 @@ impl App {
             return false;
         };
         if buffer.is_unnamed_fresh() {
-            self.persistence.note_write_owed(buffer.version())
+            self.persistence.note_write_owed(
+                &self.document.active_key().expect("active document key"),
+                buffer.version(),
+            )
         } else {
             // THE ONE UNSAVED RULE (`DocumentSession::entry_unsaved`), which the
             // removal owner asks of parked entries too. Spelled inline here, it
@@ -135,11 +153,13 @@ impl App {
             return;
         }
         if self.document.buffer().is_unnamed_fresh()
-            && self
-                .persistence
-                .note_write_owed(self.document.buffer().version())
+            && self.persistence.note_write_owed(
+                &self.document.active_key().expect("active document key"),
+                self.document.buffer().version(),
+            )
         {
-            self.persistence.disarm_note_debounce();
+            self.persistence
+                .disarm_note_debounce(&self.document.active_key().expect("active document key"));
             self.autosave_note();
         }
     }
@@ -167,38 +187,51 @@ impl App {
         if !self.document.has_active() {
             return;
         }
+        let naming_key = self.document.active_key().expect("active document key");
         self.persistence
-            .record_note_write(self.document.buffer().version());
+            .record_note_write(naming_key.clone(), self.document.buffer().version());
         if !self.document.buffer().is_unnamed_fresh() {
             return;
         }
-        if let Ok(()) = self.document.save_owned(crate::durable::Owner::Autosave) {
-            // `Buffer::save` only returns `Ok` here having derived + bound a
-            // path (an empty document, the ONLY other `Ok`-less case, bails
-            // into the `Err` arm below instead) — so `path()` is always
-            // `Some` on this arm.
-            let p = self.document.buffer().path().map(|p| p.to_path_buf());
-            let version = self.document.buffer().version();
-            let seen = p
-                .as_deref()
-                .map(crate::external::Seen::at)
-                .unwrap_or_default();
-            self.document.record_document_saved(version, seen);
-            // SAVE-FEEDBACK round: no terminal echo — a background
-            // autosave naming a fresh document is silent chatter (the
-            // window title already renders the new name). `Buffer::save`
-            // already stamped the derived path onto the buffer itself
-            // (the sole authoritative path).
-            self.update_title();
-            // Re-scope the go-to index so the new document is jump-able.
-            self.rescan_file_index();
-            // AUTOMATIC LOCAL SNAPSHOT: a loose document just hit the disk, so
-            // capture a history point (git-managed files + history-off are
-            // skipped inside).
-            self.snapshot_after_save();
-            // NOTES VERBS round: the held HUD's SAVED stat.
-            let now = self.frame.now();
-            self.persistence.record_save(now);
+        match self.document.save_owned(crate::durable::Owner::Autosave) {
+            Ok(()) => {
+                self.persistence.clear_note_failure(&naming_key);
+                self.commit_naming_identity(naming_key.clone());
+                // `Buffer::save` only returns `Ok` here having derived + bound a
+                // path (an empty document, the ONLY other `Ok`-less case, bails
+                // into the `Err` arm below instead) — so `path()` is always
+                // `Some` on this arm.
+                let p = self.document.buffer().path().map(|p| p.to_path_buf());
+                let version = self.document.buffer().version();
+                let seen = p
+                    .as_deref()
+                    .map(crate::external::Seen::at)
+                    .unwrap_or_default();
+                self.document.record_document_saved(version, seen);
+                // SAVE-FEEDBACK round: no terminal echo — a background
+                // autosave naming a fresh document is silent chatter (the
+                // window title already renders the new name). `Buffer::save`
+                // already stamped the derived path onto the buffer itself
+                // (the sole authoritative path).
+                self.update_title();
+                // Re-scope the go-to index so the new document is jump-able.
+                self.rescan_file_index();
+                // AUTOMATIC LOCAL SNAPSHOT: a loose document just hit the disk, so
+                // capture a history point (git-managed files + history-off are
+                // skipped inside).
+                self.snapshot_after_save();
+                // NOTES VERBS round: the held HUD's SAVED stat.
+                let now = self.frame.now();
+                self.persistence.record_save(now);
+            }
+            Err(error) => {
+                if self.persistence.first_note_failure(naming_key) {
+                    self.set_sticky_notice(format!(
+                        "autosave failed: {error} — changes remain in editor"
+                    ));
+                    self.request_frame();
+                }
+            }
         }
     }
 

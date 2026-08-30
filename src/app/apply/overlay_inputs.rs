@@ -167,7 +167,7 @@ impl App {
         let has_waiter = self
             .document
             .buffer_opt()
-            .and_then(crate::buffers::BufferKey::of)
+            .map(crate::buffers::BufferKey::of)
             .is_some_and(|key| {
                 self.wait_conns
                     .get(&key)

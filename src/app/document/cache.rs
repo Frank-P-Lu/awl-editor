@@ -216,8 +216,7 @@ impl DocumentSession {
         self.previous = self
             .active
             .as_ref()
-            .and_then(|active| active.buffer.path())
-            .map(Path::to_path_buf);
+            .map(|active| crate::buffers::BufferKey::of(&active.buffer));
         self.park_active();
         let version = buffer.version();
         self.active = Some(crate::buffers::Entry {

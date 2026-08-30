@@ -126,10 +126,7 @@ pub(crate) fn fold_capture_state(
     opts.notice = subject.notice();
     opts.buffers = Some(capture::BuffersInfo {
         open: subject.buffers_open(),
-        active: buffer.map(|buffer| match buffer.path() {
-            Some(p) => p.display().to_string(),
-            None => "scratch".to_string(),
-        }),
+        active: buffer.map(|buffer| crate::buffers::BufferKey::of(buffer).sidecar_label()),
     });
     opts
 }

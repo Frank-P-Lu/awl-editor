@@ -37,17 +37,8 @@ impl App {
                 if let Some(w) = waiter
                     && activated
                 {
-                    match crate::buffers::BufferKey::of(self.document.buffer()) {
-                        Some(key) => {
-                            self.wait_conns.entry(key).or_default().push(w);
-                        }
-                        // A real file-path open always yields a stable key
-                        // (`BufferKey::of` only returns `None` for an unnamed,
-                        // still-empty note) — but never strand a waiter on the
-                        // impossible case: notify it immediately instead of
-                        // silently losing it.
-                        None => w.notify_done(),
-                    }
+                    let key = crate::buffers::BufferKey::of(self.document.buffer());
+                    self.wait_conns.entry(key).or_default().push(w);
                 }
             }
         }
@@ -96,11 +87,13 @@ impl App {
             self.request_frame();
             return false;
         }
+        let naming_key = crate::buffers::BufferKey::of(self.document.buffer());
         if let Err(error) = self.document.save() {
             self.set_sticky_notice(format!("save failed: {error}"));
             self.request_frame();
             return false;
         }
+        self.commit_naming_identity(naming_key);
         self.snapshot_after_save();
         if let Some(p) = self.document.buffer().path().map(|p| p.to_path_buf()) {
             self.document.record_document_saved(
@@ -132,9 +125,7 @@ impl App {
         if self.change_unresolved() || self.document.active_unsaved() {
             return;
         }
-        let Some(key) = crate::buffers::BufferKey::of(self.document.buffer()) else {
-            return;
-        };
+        let key = crate::buffers::BufferKey::of(self.document.buffer());
         self.notify_close_waiters(&key);
     }
 

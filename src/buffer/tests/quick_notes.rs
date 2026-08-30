@@ -1,4 +1,6 @@
 use super::super::*;
+use super::note_tmp;
+use crate::buffers::BufferKey;
 
 // --- QUICK NOTE: title slug, collision suffixing, auto-name on save --------
 
@@ -10,6 +12,93 @@ fn note_stem_titles() {
     // Punctuation-only / empty -> the "scratch" fallback.
     assert_eq!(note_stem("!!!"), "scratch");
     assert_eq!(note_stem(""), "scratch");
+}
+
+#[test]
+fn real_disk_long_first_line_saves_below_name_max() {
+    let _guard = crate::testlock::serial();
+    let notes = note_tmp("long_first_line_real_disk");
+    let mut buf = Buffer::scratch();
+    buf.set_text(&"word ".repeat(70));
+
+    buf.save_into_folder(&notes).unwrap();
+    let name = buf.path().unwrap().file_name().unwrap().to_string_lossy();
+    assert!(name.len() <= NOTE_STEM_MAX_BYTES + 3, "{name}");
+    assert_eq!(
+        std::fs::read_to_string(buf.path().unwrap()).unwrap(),
+        "word ".repeat(70)
+    );
+}
+
+#[test]
+fn real_disk_scratch_fallback_never_clobbers_an_existing_scratch_md() {
+    let _guard = crate::testlock::serial();
+    let notes = note_tmp("scratch_collision_real_disk");
+    std::fs::write(notes.join("scratch.md"), "existing\n").unwrap();
+    let mut buf = Buffer::scratch();
+    buf.set_text("!!!");
+
+    buf.save_into_folder(&notes).unwrap();
+
+    assert_eq!(buf.path().unwrap().file_name().unwrap(), "scratch-2.md");
+    assert_eq!(
+        std::fs::read_to_string(notes.join("scratch.md")).unwrap(),
+        "existing\n"
+    );
+    assert_eq!(std::fs::read_to_string(buf.path().unwrap()).unwrap(), "!!!");
+}
+
+#[test]
+fn failed_naming_write_leaves_every_identity_field_unchanged() {
+    use std::sync::Arc;
+    let notes = std::path::PathBuf::from("/notes");
+    crate::fs::with_fs(Arc::new(crate::fs::UnwritableFs), || {
+        let mut buf = Buffer::scratch();
+        buf.start_fresh_doc(notes.clone());
+        buf.set_text("irreplaceable prose");
+        let before = (
+            buf.path.clone(),
+            buf.note_dir.clone(),
+            buf.fresh_id,
+            BufferKey::of(&buf),
+            buf.is_dirty(),
+            buf.text(),
+        );
+
+        assert!(buf.save().is_err());
+
+        assert_eq!(
+            (
+                buf.path.clone(),
+                buf.note_dir.clone(),
+                buf.fresh_id,
+                BufferKey::of(&buf),
+                buf.is_dirty(),
+                buf.text(),
+            ),
+            before,
+            "a failed naming write cannot partially commit identity or text state"
+        );
+    });
+}
+
+#[test]
+fn note_stem_cap_is_byte_aware_and_never_leaves_a_dash() {
+    for line in [
+        &"alpha beta gamma delta ".repeat(20),
+        &"日本語の長い段落".repeat(30),
+        &"a-".repeat(100),
+        "!!!",
+    ] {
+        let stem = note_stem(line);
+        assert!(
+            stem.len() <= NOTE_STEM_MAX_BYTES,
+            "{stem:?} is {} bytes",
+            stem.len()
+        );
+        assert!(!stem.ends_with('-'), "{stem:?}");
+        assert!(stem.is_char_boundary(stem.len()));
+    }
 }
 
 #[test]

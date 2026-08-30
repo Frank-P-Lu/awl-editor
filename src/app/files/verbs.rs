@@ -38,11 +38,15 @@ impl App {
         if self.document.buffer().path().is_none() && !self.document.buffer().is_unnamed_fresh() {
             self.convert_scratch_and_save();
         } else {
+            let naming_key = crate::buffers::BufferKey::of(self.document.buffer());
             let result = self.document.save();
             let (ok, message) = match result {
                 Ok(()) => (true, "saved".to_string()),
                 Err(error) => (false, format!("save failed: {error}")),
             };
+            if ok {
+                self.commit_naming_identity(naming_key);
+            }
             self.finish_manual_save(ok, message);
         }
         if self.document.buffer().path().is_some_and(|path| {
@@ -174,8 +178,10 @@ impl App {
     /// notice-only ("nothing to save yet — start a note first"), leaving the
     /// scratch buffer untouched. Both are one function to swap here.
     pub(in crate::app) fn convert_scratch_and_save(&mut self) {
+        let naming_key = crate::buffers::BufferKey::of(self.document.buffer());
         match self.document.save_into_folder(&self.project_location.root) {
             Ok(()) => {
+                self.commit_naming_identity(naming_key);
                 // `Buffer::save_into_folder` already stamped the derived path onto
                 // the buffer itself (the sole authoritative path).
                 self.update_title();
@@ -190,8 +196,12 @@ impl App {
                 // mark the version we just wrote as already-saved so the
                 // next idle tick doesn't immediately rewrite it (mirrors
                 // `autosave_note`'s own post-save bookkeeping).
-                self.persistence
-                    .record_note_write(self.document.buffer().version());
+                self.persistence.record_note_write(
+                    crate::buffers::BufferKey::path(
+                        self.document.buffer().path().expect("named path"),
+                    ),
+                    self.document.buffer().version(),
+                );
                 self.snapshot_after_save();
                 if let Some(p) = self.document.buffer().path().map(|p| p.to_path_buf()) {
                     self.document.record_document_saved(
