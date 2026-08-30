@@ -406,7 +406,7 @@ fn parked_fresh_close_refuses_instead_of_overwriting_the_scratch_fallback() {
         autosave: Some(false),
         ..Config::empty()
     };
-    let mut app = App::new(None, dir.to_path_buf(), None, None, config);
+    let mut app = App::new_hermetic(None, dir.to_path_buf(), config);
     app.new_document();
     app.document.set_text("first irreplaceable draft");
     let first = app.document.active_key().expect("first fresh key");
@@ -1014,8 +1014,8 @@ fn closing_a_file_clears_it_as_the_last_file_target() {
     let _guard = crate::testlock::serial();
     let mut s = Session::new("previous-cleared");
     assert_eq!(
-        s.app.document.previous_path(),
-        Some(s.a()),
+        s.app.document.previous_key(),
+        Some(crate::buffers::BufferKey::path(&s.a())),
         "precondition: A is the last-file target"
     );
 

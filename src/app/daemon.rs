@@ -232,8 +232,8 @@ mod tests {
             "B is active"
         );
         assert_eq!(
-            app.document.previous_path(),
-            Some(a.clone()),
+            app.document.previous_key(),
+            Some(crate::buffers::BufferKey::path(&a)),
             "A is the last-buffer target"
         );
 

@@ -146,8 +146,11 @@ fn real_fs_app_new_calls_are_all_accounted_for() {
         // `InMemoryFs` so the recents write stays in the sandbox. Plus one more,
         // same reason: the symlinked-recent-FILE law
         // (`opening_the_same_file_through_a_symlinked_alias_moves_it_to_the_front_
-        // instead_of_duplicating_it`).
-        ("app/files/tests.rs", 20),
+        // instead_of_duplicating_it`). Four naming-allocation laws also need the
+        // caller-owned fake visible during construction: two seed an absent path
+        // already owned by a live buffer, one scripts a competing creator between
+        // selection and publication, and one restores a seeded scratch stash.
+        ("app/files/tests.rs", 24),
         // 9 LIFETIME STATS + USAGE LEDGER + DISCOVERABILITY tests, each inside its own
         // `fs::with_fs(fake, ..)` closure seeded with an `InMemoryFs` — they exist
         // specifically to prove what the tracking hooks / the ledger's
