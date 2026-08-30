@@ -99,6 +99,70 @@ pass, not the final adopted roster, and the review is still open:
   cool things here too!"
 
 ---
+### 533 — right-anchored hug width is re-measured per lens/filter view, so Kite's Go-to jumps sideways on every lens switch (user report, 2026-08-30)
+
+User report with screenshots, mechanism verified in code before filing.
+On Kite, summoning Go-to and stepping lenses (Folders → Headings) slides
+the whole card — lens strip, query, rows, footer — hundreds of px
+sideways. "Very disorienting."
+
+MECHANISM (verified): Kite and Mangrove are the only
+`CardAnchor::TopRight` worlds, the one anchor where `mirrors_growth()`
+is true (`theme/model.rs`). For them `overlay_desired_w`
+(`render/chrome/overlay.rs`) hugs `overlay_content_w`, which
+`set_view` re-measures every frame via `measure_overlay_content_w`
+(`render/chrome/roster.rs`) over the CURRENT `overlay_items` — the
+lens-bucketed, query-filtered list `OverlayState::refilter` hands the
+renderer. Switching lens swaps that roster (long folder paths vs the
+bare "no headings yet" empty state), the hug width changes, and with
+the right edge pinned the LEFT edge — where all the chrome ink lives —
+translates. The same structure means TYPING A FILTER narrows the same
+roster and resizes the card per keystroke on these two worlds (derived
+from `refilter`'s shape; lane confirms live). The command palette runs
+the identical infrastructure and differs only in content variance: its
+lenses share one command corpus, so the widest row barely moves.
+
+`measure_overlay_content_w`'s own doc already names the principle —
+"a hug width is a property of the picker's CONTENT, and the scroll
+position is not content" (that pass fixed the scroll-position flavour
+of this exact defect). Extension this item lands: **the lens and the
+filter are not content either — the SUMMON's corpus is.** Grow-only
+per session is NOT sufficient: `Action::OpenOutline` (`actions.rs`)
+summons Go-to pre-lensed onto Headings, so a session can start narrow
+and would still jump once on the first step to Files/Folders.
+
+FIX SPEC: measure the hug once per summon over the UNLENSED, UNFILTERED
+display roster — Go-to's All home is verified a superset of every lens
+(`index.rs`: files, headings, and authored folders "in one fuzzy-ranked
+list"), so the union is the All view's display strings, plus each lens's
+empty-state line, plus the secondary column labels. Plumb it per the
+`ViewState` convention (inert default in `base()`, `sync_view` fails to
+compile on the new field). Memoize per (corpus identity, metrics) — the
+`roster_memo` pattern in `roster.rs` is the shape; re-measure on
+zoom/DPI/corpus change, never per frame; the 2×-cap short-circuit in
+`measure_roster_primary_px` already bounds cost on huge rosters.
+
+TASTE TRADEOFF, named so the veto is cheap: stability beats tightest
+hug. An OpenOutline summon over a headingless doc gets a card as wide
+as the widest file path where today it hugs one short line. The cheap
+alternative — drop the hug for faceted pickers and always take the cap —
+loses because it rewrites Kite/Mangrove's authored composition in every
+session, not just the mixed-lens ones. Revert cost of the chosen fix:
+one commit.
+
+VERIFY: (a) unit law at the measure seam — fixed corpus, hug width
+invariant across lens index and filter string, enrolment derived from
+the ROSTER by `card_anchor.mirrors_growth()` (never "Kite" by name),
+non-vacuity proven by flipping back to the per-view measure and watching
+it go red; (b) capture pair for the outcome — same seeded `--root` and
+explicit `--config`, `--theme Kite`, two `--keys` runs ending on
+different lenses, card left edge equal by pixel arithmetic
+(`overlay_accept:Goto` is Applied in docs/harness-reach.md; lens
+stepping is core-drivable ←/→). Do not ask for a populated
+switch-project Recent lens (harness-reach names it impossible).
+Rust-touching, so the item claims a full gate receipt.
+
+---
 ### 532 — keymap/platform.rs: the seed-table doc comments still describe the Meta-only world
 
 Comment-only truth fix in `src/keymap/platform.rs`, outdated by the
