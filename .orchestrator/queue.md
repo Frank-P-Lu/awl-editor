@@ -210,13 +210,13 @@ the ENTIRE first non-empty line with no length cap, `Buffer::save_owned`
 per component. One paragraph visible in the very screenshot (the
 "527 + 528" summary line, 285 chars) slugs to 269 bytes — 272 with
 `.md` — so any note whose first non-empty line is a prose paragraph
-of roughly ≥250 chars can never be saved under its derived name. The
-lane's first step is the standing premise check: reproduce with a real
-tempdir on the real disk (`InMemoryFs` enforces no NAME_MAX, so the
-in-memory seam CANNOT witness this failure), and confirm which save
-door raised the visible sticky (manual save / close-flush; the exact
-triggering line sits above the screenshot's viewport, so the repro is
-constructed, not transcribed).
+of roughly ≥250 chars can never be saved under its derived name.
+PREMISE CONFIRMED BY THE USER (2026-08-30): "yeah, it was a long
+paragraph" — the document's true first non-empty line, above the
+screenshot's viewport, was a prose paragraph; the fix direction is
+ratified ("your fix makes sense"). The lane still reproduces with a
+real tempdir on the real disk before fixing (`InMemoryFs` enforces no
+NAME_MAX, so the in-memory seam CANNOT witness this failure).
 
 FIX: cap the derived stem in `note_stem` — the ONE owner every caller
 already routes through (first autosave naming, `convert_scratch_and_save`,
@@ -268,6 +268,29 @@ reversal: stickies route through the SAME authored `toast_anchor` +
 align — one placement owner, the `Sticky` gate in `notice_toast_plan`
 becomes the one-line diff). Sticky keeps its own plate inks
 (`notice_plate_inks` is untouched — lifetime stays expressed by value).
+
+RATIFIED + SHARPENED (user, 2026-08-30): "having two different
+locations … is just overkill and kind of bizarre — we need to clean
+that up in either case." The end state is ONE notice location per
+world. To be precise about the present shape (the user read it as two
+locations authored in the theme): themes author exactly ONE anchor
+today (`toast_anchor`); the sticky's top-center was a hardcoded global
+composition rule outside theme data. This item deletes that second
+rule, so afterwards one authored anchor governs every notice.
+
+The user also raised: should placement even vary per world, or be one
+centralized location/setting? RECOMMENDATION RECORDED, awaiting the
+user's word (default: keep per-world, no setting): per-world placement
+is the product's existing grammar — worlds already relocate the
+placard, the card, and the facet strip as authored composition
+(Kite's TopRight deliberately mirrors Firetail's TopLeft), and a toast
+is glanceable/transient, where within-world coherence matters more
+than cross-world muscle memory. A `[ui]` config override is machinery
+awl doesn't need until a real complaint arrives; if one does, it is a
+small additive follow-up, not a redesign. Should the user instead
+choose one global location, that is theme-data removal (`toast_anchor`
+retires like the theme picker's lens strip did) — a different, bigger
+item; do not start it on this brief.
 
 Watch the axes the old composition was carrying: the narrow-canvas
 BottomCenter fallback and the picker/outline/workspace collision roster
