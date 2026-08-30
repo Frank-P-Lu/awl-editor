@@ -69,9 +69,8 @@ pub struct ViewState {
     pub overlay_hug_roster: Option<Arc<crate::overlay::HugRoster>>,
     pub overlay_empty: Option<String>,
     pub overlay_bindings: Vec<String>,
-    /// The secondary column parallel to [`Self::overlay_hug_items`] where one
-    /// exists. Kept separate because the panel shapes this column in its own
-    /// face and metrics.
+    /// Settings range-rail positions parallel to `overlay_items`; `None` marks
+    /// an ordinary row with no range control.
     pub overlay_ranges: Vec<Option<f32>>,
     pub overlay_times: Vec<String>,
     pub overlay_git: Vec<String>,
