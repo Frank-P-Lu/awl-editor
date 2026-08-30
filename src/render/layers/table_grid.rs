@@ -53,6 +53,10 @@ fn table_decoration_visible(meta: &TableMeta, xray_lines: &[usize], doc_line: us
     !(meta.revealed && xray_lines.contains(&doc_line))
 }
 
+fn empty_cell_affordance(cell: Option<&String>) -> bool {
+    cell.is_none_or(String::is_empty)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -71,6 +75,17 @@ mod tests {
         }
         assert!(table_decoration_visible(&table, &[0], 2), "other table rows keep their grid");
         assert!(table_decoration_visible(&meta(false), &[1], 1), "unrevealed tables retain decorations");
+    }
+
+    #[test]
+    fn empty_cell_affordance_presence_and_filled_identity_law() {
+        let empty = String::new();
+        let filled = String::from("東京");
+        for _world in crate::theme::THEMES {
+            assert!(empty_cell_affordance(Some(&empty)), "empty enrolled");
+            assert!(empty_cell_affordance(None), "ragged empty enrolled");
+            assert!(!empty_cell_affordance(Some(&filled)), "filled stays unchanged");
+        }
     }
 }
 
@@ -158,7 +173,7 @@ fn place_shaped_table<'a>(
             continue;
         }
         for column in 0..meta.ncols {
-            if cells.get(column).is_some_and(|cell| !cell.is_empty()) {
+            if !empty_cell_affordance(cells.get(column)) {
                 continue;
             }
             let left = context.text_left + shaped.col_x[column] - pan + context.pad;
