@@ -309,8 +309,15 @@ User symptom (screenshot): the working-set stack shows a "scratch" row
 that does NOTHING when clicked, while the sibling file rows switch
 fine. Every link of the causal chain is verified in code; the entry
 premise (the failed ⌘S from item 534's screenshot happened in the TRUE
-scratch, not a ⌘N note) is the one unverified link — the user has been
-asked, and the lane re-confirms by reproduction either way.
+scratch, not a ⌘N note) is CONFIRMED by the user ("scratch i think",
+2026-08-30) — hedged, so the lane still re-confirms by reproduction.
+Adjacent fact from the same session, orthogonal to the failure but
+owed a verify cell: the user's notes folder ALREADY held a
+`scratch.md` file. That collides with nothing here (the failed name
+was the long slug, and an empty-first-line convert falling back to
+the "scratch" stem goes through `unique_path` → `scratch-2.md`, no
+clobber) — the lane adds the existing-`scratch.md` cell to the
+repro sweep so the no-clobber claim is tested, not asserted.
 
 THE CHAIN: (1) ⌘S in the true scratch routes to
 `convert_scratch_and_save` (`app/files/verbs.rs`) →
@@ -398,7 +405,7 @@ exactly one working-set row whose active mark agrees with
 Full gate receipt.
 
 ---
-### 539 — working-set stack: move the hover-revealed close mark to the LEADING side, so names sit flush against the page edge (user taste direction, 2026-08-30 — RECOMMENDED option A, awaiting the user's word)
+### 539 — working-set stack: move the hover-revealed close mark to the LEADING side, so names sit flush against the page edge (user DECISION, 2026-08-30: "we can try x on the left side" — option A greenlit, ready to dispatch)
 
 Context: the hover-reveal-with-reserved-lane the user asked for already
 ships (`stack_spans` shapes a trailing `"  ×"` on every row, alpha 0
@@ -492,7 +499,20 @@ summon), or (b) anchor at the CARET like the contextual spell popup
 (`CONTEXT_ANCHOR_DROP` precedent) — an insertion picker pointing at
 its insertion point is the Word/Docs-dropdown intuition the user may
 be reaching for. Record their pick on this item before moving the
-card. Full gate receipt.
+card.
+
+EVIDENCE UPDATE (full-window screenshot, 2026-08-30): the position is
+NOT a bug — the picker sits exactly at Kite's top-right palette rail,
+following the frozen world anchor, while the caret (the insertion
+point) sits mid-page far left. The "weird" is the DISTANCE between
+the tool and its target, compounded by the plateless float. The hint
+clip reproduces in the same shot ("Esc canc…" cut at the card edge).
+RECOMMENDATION recorded, awaiting the user's word: (b) caret-anchored
+— an insertion picker belongs at its insertion point; the spell
+popup's contextual-anchor machinery is the shipped precedent, and its
+clamping (near-edge caret, bottom-of-window) comes with it. (a)
+remains one word away if consistency-of-summons wins for them.
+Full gate receipt.
 
 ---
 ### 541 — table grid: the header-separator rule draws through a revealed row's source (user report, 2026-08-30)
