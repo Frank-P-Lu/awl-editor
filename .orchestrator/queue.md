@@ -185,6 +185,87 @@ switch-project Recent lens (harness-reach names it impossible).
 Rust-touching, so the item claims a full gate receipt.
 
 ---
+### 534 — uncapped first-line filename derivation makes a long-first-line note unsaveable: "save failed: File name too long (os error 63)" (user report, 2026-08-30)
+
+User screenshot: a fresh note in the notes folder shows the sticky
+"save failed: File name too long (os error 63)" over prose whose
+paragraphs are single logical lines. ENAMETOOLONG mechanism verified by
+arithmetic, not reproduced live: `note_stem` (`buffer/notes.rs`) slugs
+the ENTIRE first non-empty line with no length cap, `Buffer::save_owned`
+(`buffer/save.rs`) binds `<slug>.md`, and macOS NAME_MAX is 255 bytes
+per component. One paragraph visible in the very screenshot (the
+"527 + 528" summary line, 285 chars) slugs to 269 bytes — 272 with
+`.md` — so any note whose first non-empty line is a prose paragraph
+of roughly ≥250 chars can never be saved under its derived name. The
+lane's first step is the standing premise check: reproduce with a real
+tempdir on the real disk (`InMemoryFs` enforces no NAME_MAX, so the
+in-memory seam CANNOT witness this failure), and confirm which save
+door raised the visible sticky (manual save / close-flush; the exact
+triggering line sits above the screenshot's viewport, so the repro is
+constructed, not transcribed).
+
+FIX: cap the derived stem in `note_stem` — the ONE owner every caller
+already routes through (first autosave naming, `convert_scratch_and_save`,
+web export via `display_name`) — truncating the slug at a dash/word
+boundary under a taste budget well below the FS limit (something like
+60–80 chars; nobody wants a 250-char filename), byte-aware so a CJK
+first line (3 bytes/char) also lands under budget, never ending in a
+trailing dash. Headroom arithmetic in the brief, not re-derived:
+the atomic-write sibling adds `.{name}.awl-tmp` (10 bytes,
+`fs/paths.rs`), the corrupt quarantine adds ~37, and `unique_path`'s
+collision suffix a few more — all must fit inside NAME_MAX at the cap.
+`unique_path` already disambiguates two notes truncating to the same
+stem. `display_name`/export naming inherit the cap through the same
+owner — no second rule.
+
+SECOND DELIVERABLE, same neighbourhood (bugs cluster): `autosave_note`
+(`app/files/autosave.rs`) swallows the save error silently —
+`if let Ok(()) = … {}` with no else — so an unnamed note whose naming
+save fails just KEEPS NOT SAVING with zero signal until a manual save
+or close-flush finally surfaces the sticky. With the cap the
+too-long class vanishes, but disk-full / read-only-dir failures keep
+the same silent shape. Decide and land a calm surfacing (a sticky on
+the first failure, not a per-debounce nag), or record explicitly why
+autosave failure stays silent.
+
+VERIFY: unit laws at the `note_stem` seam (cap honoured; ASCII + CJK +
+no-alphanumeric sweeps; dash-boundary + no-trailing-dash), plus a
+REAL-DISK tempdir law: a note whose first line is ≥300 chars saves
+successfully and its filename length is under the cap — non-vacuity by
+reverting the cap and watching that law go red with ENAMETOOLONG.
+Rust-touching: full gate receipt.
+
+---
+### 535 — sticky notices abandon the writing-column-top slot for the world's toast axis (user decision, 2026-08-30, reverses a documented composition call)
+
+User, looking at the save-failed sticky squatting top-center over the
+text: "center top is an annoying place for the toast… we should move it
+to somewhere less intrusive." That placement is currently AUTHORED, not
+accidental — docs/render.md: "Sticky notices keep the
+writing-column-top composition; only self-clearing toasts use the world
+axis" — and the mechanism matches: `notice_toast_plan`
+(`render/chrome/readout/toast.rs`) plans ONLY `NoticeKind::Toast`,
+so `prepare_notice` (`render/chrome/readout.rs`) falls back to
+`CornerAnchor::TopCenter` for a sticky. On Kite the transient "saved"
+toast already goes to the authored TopRight while the held "save
+failed" sits dead-center in the reading line. This item RECORDS the
+reversal: stickies route through the SAME authored `toast_anchor` +
+`plan_toast` collision/narrow-fallback planner toasts use (merge, don't
+align — one placement owner, the `Sticky` gate in `notice_toast_plan`
+becomes the one-line diff). Sticky keeps its own plate inks
+(`notice_plate_inks` is untouched — lifetime stays expressed by value).
+
+Watch the axes the old composition was carrying: the narrow-canvas
+BottomCenter fallback and the picker/outline/workspace collision roster
+must hold for stickies too (they come free through `plan_toast`), and
+the 1080-cell + 360-cell placement laws in `render/tests/notice.rs`
+enrol sticky alongside toast rather than staying toast-only — sweep the
+NoticeKind axis, don't imagine it. Update the docs/render.md sentence
+in the same commit so the doc and the code state the same rule.
+Revert cost: one line (the kind gate) plus the doc sentence — say so in
+the commit. Full gate receipt.
+
+---
 ### 532 — keymap/platform.rs: the seed-table doc comments still describe the Meta-only world
 
 Comment-only truth fix in `src/keymap/platform.rs`, outdated by the
