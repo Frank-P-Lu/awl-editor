@@ -398,6 +398,57 @@ exactly one working-set row whose active mark agrees with
 Full gate receipt.
 
 ---
+### 539 — working-set stack: move the hover-revealed close mark to the LEADING side, so names sit flush against the page edge (user taste direction, 2026-08-30 — RECOMMENDED option A, awaiting the user's word)
+
+Context: the hover-reveal-with-reserved-lane the user asked for already
+ships (`stack_spans` shapes a trailing `"  ×"` on every row, alpha 0
+until row-hover — names never move). The residual itch is the
+reservation itself: the uniform trailing lane (`fit_rows`'
+`label_budget = budget − 3`) parks every name ~3 chars short of the
+stack's right edge, so the block never actually hugs the writing
+column it right-aligns toward.
+
+The user proposed two options; A is recommended:
+- **A (recommended): the mark moves to the LEADING side.** Names
+  right-align FLUSH to the stack's edge (reclaiming the lane), and the
+  `×` shapes as a leading span at alpha 0 — in right-aligned layout a
+  leading span grows the line LEFTWARD into the ragged edge's already
+  empty space, so revealing it still changes ink only, and nothing
+  ever moves. Trade named honestly: the mark no longer sits in one
+  vertical column (its x follows each name's leading edge), so
+  serially closing several rows means a small horizontal chase — at a
+  resting stack of ≤4 rows this is negligible, and macOS tab close
+  buttons sit leading-side, so the position reads native.
+- **B (named, not recommended): keep the mark trailing but push it
+  further right**, letting names right-align flush with the mark
+  beyond them. Rejected because that space is the seam awl works to
+  keep calm: the active-row plate ends one pad past the box and the
+  frost halos hug the column the same way (`plate_rect`'s right-edge
+  invariant) — a mark there crowds the page boundary and collides
+  with the plate/frost conventions.
+
+Mechanics for the lane: `fit_rows` stops docking the close lane from
+the label budget but must still keep the LEADING mark from clipping at
+the canvas edge on maximal-width rows (the mark may yield there — it
+is hover ink, not identity). `stack_spans` moves the always-shaped
+mark span from trailing to leading per row (alpha-flip mechanism
+unchanged; More/Overflow rows keep shaping it un-revealable, same as
+today). The close HIT ZONE flips from the right edge to the leading
+edge, derived from the same row plan the draw uses
+(`gutter_hit::stack_hit_from_plan`) so click and ink cannot disagree.
+The single-file identity line rides the same door (`gutter.rs`'s
+row-0 reveal) and gets the same flip. The active-row plate derives
+from shaped `text_w`, which now includes the leading mark — decide
+whether the plate should cover the mark region or only the label, and
+law-test whichever is chosen. Laws: flush-right alignment (every
+name's right edge equals the stack edge, swept across row counts and
+name widths), reveal-changes-ink-only (geometry byte-identical
+hover vs not), and the hit-zone/ink agreement law. Cheap to revert
+(one commit, the trailing layout is `git log`'s to restore); per the
+standing land-easy-taste policy this can land for judgement once the
+user confirms A. Full gate receipt.
+
+---
 ### 532 — keymap/platform.rs: the seed-table doc comments still describe the Meta-only world
 
 Comment-only truth fix in `src/keymap/platform.rs`, outdated by the
