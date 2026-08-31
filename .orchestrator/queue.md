@@ -254,6 +254,51 @@ frosted under the card" on a bare world; the existing frost laws sweep
 the new enrolment. Full gate receipt.
 
 ---
+### 544 — footprint frost's box far exceeds the drawn card on upright plate-hugging compositions (user report, 2026-09-01 — "this bounding box is way too big"; reproduced headlessly)
+
+Two user screenshots, both Firetail: the theme picker with a
+band-shaped blur patch hanging well to the right of its narrow row
+plates, blurring document mid-glyph nowhere near the card; and the
+pointer-anchored two-row menu ("Go to folders… / Open file…") with a
+frosted rectangle several times the menu's size, offset up-and-right
+of it. The user's word: the blur "looks weird" and the box is "way
+too big."
+
+**Reproduced deterministically, so no live hunt is needed:**
+`--theme Firetail --keys "Cmd-T"` over a ten-line prose file. Measured
+on that capture (1200×800, dpi 1): the sidecar's `overlay.window.band`
+is x 127.5, w 545, and the frosted region matches THAT band (right
+edge ≈672+feather), while the drawn surfaces — label-hugging plates —
+span only ≈133..286 plus the foot-hint card ≈133..530. The frost also
+reaches the query head's row near the canvas top, far above the first
+row plate. Wagtail is fine for the 1-bit reason (`Backdrop::Flat`
+forgoes frost entirely); a Firetail-class world is the exhibit.
+
+**Where to look, held as pointers rather than a verdict:** the
+narrowing machinery exists and is documented as exactly this fix —
+`blur/narrow.rs` (`footprint_narrow`, X-only, plus the diagonal-only
+bottom trim) fed by `chrome/overlay_ink.rs::overlay_drawn_surfaces`,
+composed in `pipeline_prepare.rs::footprint_drawn_box`. It
+demonstrably does not bite on Firetail's upright `ListStyle::Bars`
+composition. Note two of its own confessions: the seat-top step's
+comment says the prior frost item's "own audition never reached an
+upright world", and term (4) of `overlay_drawn_surfaces` pushes a
+FULL-BAND surface whenever `overlay_rule_spans` answers — either the
+narrowing never runs for this composition, a band-wide term defeats
+it, or the box it starts from is not the one measured here. The lane
+establishes which with the same two-frame diff used to file this.
+
+The fix must sweep the axis the original work didn't: every
+composition in the roster (Pane/Card, Bars, Ruled, Diagonal, plates
+that hug vs fill), derived from the theme roster rather than named
+worlds, asserting per world that the frosted region's bounding box
+stays within the DRAWN card's box plus feather — with the presence
+floor the frost laws already know (a frost that vanishes entirely
+also satisfies a too-big bound). The pointer-anchored menu is a
+second geometry family and gets its own probe cell. Full gate
+receipt.
+
+---
 ### 536 — per-world ornament sets from the full Nishiki cabinet (user decision, 2026-08-30; sequenced AFTER 529 bundles the face)
 
 ✅ DESIGN PASS COMPLETE (user approved the arrangement, 2026-09-01: "they look good! lets queue this!") — build phase UNCLAIMED, sequenced after 529 bundles the face. The FINAL block at the end of this item is the decided roster; the v-notes above it are the fitting history.
