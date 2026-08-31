@@ -385,6 +385,7 @@ impl TextPipeline {
             self.overlay_band_pending_at = None;
         }
         self.overlay_crisp = view.overlay_crisp;
+        self.overlay_local_insertion = view.overlay_local_insertion;
         self.overlay_query = view.overlay_query.clone();
         self.overlay_query_caret = view.overlay_query_caret;
         self.overlay_query_selection = view.overlay_query_selection;

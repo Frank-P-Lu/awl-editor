@@ -483,6 +483,7 @@ impl TextPipeline {
             overlay_active: false,
             overlay_align: None,
             overlay_crisp: false,
+            overlay_local_insertion: false,
             overlay_query: String::new(),
             overlay_query_caret: usize::MAX,
             overlay_query_selection: None,

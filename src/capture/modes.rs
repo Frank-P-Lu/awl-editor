@@ -307,6 +307,11 @@ pub(super) fn settled_viewstate(
         .as_ref()
         .and_then(|o| crate::overlay::OverlayKind::from_mode(o.mode))
         .is_some_and(|kind| kind.keeps_backdrop_crisp());
+    vstate.overlay_local_insertion = opts
+        .overlay
+        .as_ref()
+        .and_then(|o| crate::overlay::OverlayKind::from_mode(o.mode))
+        .is_some_and(|kind| kind.is_local_insertion_card());
     vstate.overlay_query = opts
         .overlay
         .as_ref()

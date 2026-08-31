@@ -16,6 +16,7 @@ impl App {
         view.overlay_active = ov.is_some();
         view.overlay_align = ov.map(|o| o.align);
         view.overlay_crisp = ov.is_some_and(|o| o.kind.keeps_backdrop_crisp());
+        view.overlay_local_insertion = ov.is_some_and(|o| o.kind.is_local_insertion_card());
         view.overlay_query = ov.map(|o| o.query.text().to_string()).unwrap_or_default();
         view.overlay_query_caret = ov.map(|o| o.query.caret()).unwrap_or(0);
         view.overlay_query_selection = ov.and_then(|o| o.query.selection_range());

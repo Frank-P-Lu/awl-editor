@@ -193,6 +193,7 @@ impl App {
             // `OverlayKind::keeps_backdrop_crisp`'s question — shared with the
             // capture door so a headless frame cannot disagree with this one.
             overlay_crisp: ov.is_some_and(|o| o.kind.keeps_backdrop_crisp()),
+            overlay_local_insertion: ov.is_some_and(|o| o.kind.is_local_insertion_card()),
             overlay_query: ov.map(|o| o.query.text().to_string()).unwrap_or_default(),
             overlay_query_caret: ov.map(|o| o.query.caret()).unwrap_or(0),
             overlay_query_selection: ov.and_then(|o| o.query.selection_range()),

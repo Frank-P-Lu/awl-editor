@@ -51,6 +51,9 @@ pub struct ViewState {
     pub overlay_active: bool,
     pub overlay_align: Option<theme::CardAnchor>,
     pub overlay_crisp: bool,
+    /// The overlay is a small caret-anchored insertion choice, not a takeover
+    /// of the room. Owned by `OverlayKind::is_local_insertion_card`.
+    pub overlay_local_insertion: bool,
     pub overlay_query: String,
     pub overlay_query_caret: usize,
     /// The active selection in `overlay_query`, as CHAR indices `(start, end)`
@@ -316,6 +319,7 @@ impl ViewState {
             overlay_active: false,
             overlay_align: None,
             overlay_crisp: false,
+            overlay_local_insertion: false,
             overlay_query: String::new(),
             overlay_query_caret: usize::MAX,
             overlay_query_selection: None,
