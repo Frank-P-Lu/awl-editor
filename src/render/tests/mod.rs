@@ -115,6 +115,7 @@ mod frost_diagonal_seat;
 mod frost_feather;
 mod frost_footprint;
 mod frost_parallelogram;
+mod frost_upright;
 /// THE FROST'S WIDTH — the drawn surfaces bound it from the tight side, and the
 /// enumeration's completeness is measured off a frost-suppressed frame.
 mod frost_width;

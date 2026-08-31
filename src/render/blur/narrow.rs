@@ -27,6 +27,8 @@
 //! Only the HORIZONTAL faces move in [`footprint_narrow`] itself, the card's height
 //! unchanged — a caller may safely ask it of a card FAR taller than any surface (a way to
 //! read the X-only span in isolation) without a bottom face sliding in to meet it.
+//! [`footprint_narrow_upright`] is the rectangular all-four-faces counterpart for a
+//! content-hugging plate composition.
 //! [`footprint_narrow_bottom`] is the bottom-only counterpart, its own separate step so
 //! the two narrowings can compose without either changing the other's contract.
 
@@ -88,6 +90,45 @@ pub(crate) fn footprint_narrow(card: [f32; 4], shear: f32, surfaces: &[[f32; 4]]
         return card;
     }
     [x0, y, x1 - x0, h]
+}
+
+/// THE CARD'S BOX, NARROWED IN BOTH AXES to the upright surfaces it backs.
+///
+/// This is the rectangular counterpart to [`footprint_narrow`], used only by an
+/// upright composition whose own plates hug their content. It never grows the card,
+/// returns the card unchanged when the census is empty, and refuses non-finite input.
+/// The pointer continues to read the original card; this is only the frost's box.
+pub(crate) fn footprint_narrow_upright(card: [f32; 4], surfaces: &[[f32; 4]]) -> [f32; 4] {
+    let [x, y, w, h] = card;
+    if !card.iter().all(|v| v.is_finite()) || w <= 0.0 || h <= 0.0 {
+        return card;
+    }
+    let (mut left, mut top, mut right, mut bottom) = (
+        f32::INFINITY,
+        f32::INFINITY,
+        f32::NEG_INFINITY,
+        f32::NEG_INFINITY,
+    );
+    for &[l, t, r, b] in surfaces {
+        if !(l.is_finite() && t.is_finite() && r.is_finite() && b.is_finite()) {
+            continue;
+        }
+        left = left.min(l);
+        top = top.min(t);
+        right = right.max(r);
+        bottom = bottom.max(b);
+    }
+    if !(right > left && bottom > top) {
+        return card;
+    }
+    let x0 = left.max(x);
+    let y0 = top.max(y);
+    let x1 = right.min(x + w);
+    let y1 = bottom.min(y + h);
+    if x1 <= x0 || y1 <= y0 {
+        return card;
+    }
+    [x0, y0, x1 - x0, y1 - y0]
 }
 
 /// THE CARD'S BOX, NARROWED AT THE BOTTOM to the deepest of `surfaces` — the card's own
@@ -285,6 +326,26 @@ mod tests {
             nw < card[2] * 0.3,
             "one 110-wide surface in a 520-wide card narrowed to {nw}"
         );
+    }
+
+    /// THE UPRIGHT COUNTERPART MOVES ALL FOUR FACES, but only inward and exactly to
+    /// the finite surface union. Empty/invalid evidence keeps the starting card: failure
+    /// to census is never permission to erase the frost.
+    #[test]
+    fn the_upright_narrowing_is_the_clamped_surface_union() {
+        let _g = crate::testlock::serial();
+        let card = [100.0f32, 50.0, 500.0, 400.0];
+        let surfaces = [
+            [120.0f32, 80.0, 220.0, 110.0],
+            [140.0, 300.0, 480.0, 420.0],
+            [-100.0, 100.0, 110.0, 200.0],
+        ];
+        assert_eq!(
+            footprint_narrow_upright(card, &surfaces),
+            [100.0, 80.0, 380.0, 340.0]
+        );
+        assert_eq!(footprint_narrow_upright(card, &[]), card);
+        assert_eq!(footprint_narrow_upright(card, &[[f32::NAN; 4]]), card);
     }
 
     /// THE BOTTOM FACE NARROWS TO THE DEEPEST SURFACE, and the X face it moves the pivot

@@ -14,7 +14,7 @@ pub(super) struct OverlaySelectionRects {
 
 pub(super) struct OverlayBarLayout {
     radius: f32,
-    grow_px: f32,
+    pub(super) grow_px: f32,
     extent: theme::BarExtent,
     coverage: theme::BarCoverage,
     bar_height: f32,
@@ -64,7 +64,7 @@ impl OverlayBarLayout {
     ///
     /// The fallback top (an unselected plate) is the PLANNED row's own
     /// slot, read off the plan the bar under it was placed from.
-    fn append_chord_plates(
+    pub(super) fn append_chord_plates(
         &self,
         geom: &OverlayGeom,
         plan: &OverlayRowPlan,
@@ -395,7 +395,7 @@ impl TextPipeline {
         (rects, footer_plate)
     }
 
-    fn overlay_bar_plate(
+    pub(super) fn overlay_bar_plate(
         &self,
         geom: &OverlayGeom,
         layout: &OverlayBarLayout,

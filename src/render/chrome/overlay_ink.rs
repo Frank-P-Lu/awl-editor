@@ -35,6 +35,9 @@
 //! EMITTER itself now loops over, so the band a frost measures and the band glyphon was
 //! handed are one object.
 
+#[path = "overlay_bar_footprint.rs"]
+mod bar_footprint;
+
 use super::*;
 
 /// ONE CLIP BAND OF THE PANEL BUFFER — where the shared `panel_buffer` is seated for the
@@ -291,33 +294,21 @@ impl TextPipeline {
         }
         // (7) THE FACETED STRIP'S ACTIVE-LENS MARK, as the shaper recorded it.
         out.extend(self.overlay_theme_underline.map(ltrb));
-        // (8) THE BARS FAMILY'S OWN ROW BAND, PLUS THE FOOTER PLATE. `footprint_narrow`
-        // only ever moves the X faces (Y and height stay the card's own), so what a row
-        // PLATE contributes is its horizontal reach — and `BarConfig::SHIPPED` hugs each
-        // plate to its own label, which for a short row sits well inside the band `Bars`
-        // reserves for the whole row. A per-row hug list therefore still narrows the box
-        // to the WIDEST hugged label rather than the row's own clickable width, leaving
-        // every row's own margin (and every inter-row gap) card interior with no plate
-        // and no frost. The rule owner beside this (case 4, `Ruled`) already contributes
-        // its full band width rather than its ink's; this is the same move for `Bars` —
-        // the composition's row INTERACTION width, not what any one row happened to draw.
+        // (8) THE BARS FAMILY'S ACTUAL PLATE ENVELOPE. A hugged plate and its row's
+        // interaction band are deliberately different geometry: the latter stays wide
+        // for the pointer, while the former is the only surface the frost backs. The
+        // selection-independent envelope comes from the same plate owner as the draw
+        // path, including the selected ledge, accessory plates and footer.
         if matches!(
             crate::render::effective_list_style(),
             theme::ListStyle::Bars
         ) {
-            if let (Some(first), Some(last)) = (plan.rows().first(), plan.rows().last()) {
-                out.push([
-                    geom.band_x(),
-                    first.top,
-                    geom.band_x() + geom.band_w(),
-                    last.bottom(),
-                ]);
-            }
             let cfg = crate::render::effective_bar_config();
-            let layout = self.overlay_bar_layout(geom, plan, cfg);
-            let (_, footer) =
-                self.overlay_unselected_bar_rects(geom, plan, &layout, &VisualSelection::default());
-            out.extend(footer);
+            out.extend(
+                self.overlay_bar_footprint_rects(geom, plan, cfg)
+                    .into_iter()
+                    .map(ltrb),
+            );
         }
         out.retain(|b| b[0].is_finite() && b[1].is_finite() && b[2] > b[0] && b[3] > b[1]);
         out
