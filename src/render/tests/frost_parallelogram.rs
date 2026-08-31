@@ -33,12 +33,12 @@
 //!   list: an upright surface nobody remembered fails here by existing. This is the
 //!   narrowed descendant of the retired union, and narrowing it is not deleting it.
 //!
-//! Swept over the enrolled roster — derived from `blur::footprint_frost_applies`, so
-//! Paperbark (shear 0, whose parallelogram IS its rectangle) is in it and a world that
-//! changes list style changes what this sweeps — at 1× and 2×, and over BOTH menu-bar
-//! states, because the bar's reserve comes off the card's height budget and therefore off
-//! the rake the rail resolves, and its default is platform-forked so an unforced run only
-//! ever sees the host's own branch.
+//! Swept over the enrolled roster — derived from `blur::footprint_frost_applies`, so its
+//! leaning, upright-full-band, and upright-hugging members follow their composition data
+//! rather than named worlds — at 1× and 2×, and over BOTH menu-bar states, because the
+//! bar's reserve comes off the card's height budget and therefore off the rake the rail
+//! resolves, and its default is platform-forked so an unforced run only ever sees the
+//! host's own branch.
 //!
 //! ⚠️ The bar's arm is taken from the AMBIENT value and its negation, never from `cfg!`:
 //! inside a test `cfg!(target_os = …)` reflects the host that COMPILED it rather than the
@@ -230,6 +230,53 @@ fn card_corner_coverage(f: &Frame, dpi: f32) -> Vec<(&'static str, f32)> {
     .collect()
 }
 
+#[derive(Default)]
+struct CompositionEnrollment {
+    leaning: Vec<String>,
+    upright_full: Vec<String>,
+    upright_hugged: Vec<String>,
+}
+
+impl CompositionEnrollment {
+    fn record_upright(
+        &mut self,
+        shear: f32,
+        hugs: bool,
+        label: &str,
+        corners: &[(&'static str, f32)],
+    ) -> bool {
+        if shear != 0.0 {
+            return false;
+        }
+        if hugs {
+            self.upright_hugged.push(label.to_string());
+        } else {
+            self.upright_full.push(label.to_string());
+            let short: Vec<_> = corners.iter().filter(|(_, mask)| *mask < 1.0).collect();
+            assert!(
+                short.is_empty(),
+                "{label}: this roster-derived upright FULL-BAND composition owns the card's \
+                 rectangle, yet {short:?} came back short of fully frosted"
+            );
+        }
+        true
+    }
+
+    fn assert_complete(&self) {
+        assert!(
+            !self.leaning.is_empty()
+                && !self.upright_full.is_empty()
+                && !self.upright_hugged.is_empty(),
+            "the roster must contain LEANING, UPRIGHT FULL-BAND, and UPRIGHT HUGGING \
+             enrolled compositions, or one of this law's composition-derived arms never \
+             ran: leaning {:?}, upright-full {:?}, upright-hugged {:?}",
+            self.leaning,
+            self.upright_full,
+            self.upright_hugged
+        );
+    }
+}
+
 /// THE HEADLINE LAW: THE CARD BOX'S TWO OFF-RAKE CORNERS ARE NOT FROSTED, AND THE
 /// DOCUMENT SHOWING THROUGH THEM IS SHARP.
 ///
@@ -239,9 +286,10 @@ fn card_corner_coverage(f: &Frame, dpi: f32) -> Vec<(&'static str, f32)> {
 /// rather than passing green.
 ///
 /// WHICH corners is derived, never named: each one's coverage is read off the shipping
-/// policy's own mirror. On an upright composition (`shear == 0`, whose parallelogram IS its
-/// rectangle, and whose box is its card's) every corner is fully frosted, which is why that
-/// arm is required to leave NOTHING short and is named on failure.
+/// policy's own mirror. An upright FULL-BAND composition (`shear == 0`, whose footprint
+/// box is its card's) frosts every corner. An upright HUGGING composition also has zero
+/// shear, but its footprint rectangle belongs to its drawn plates rather than to the wider
+/// interaction card; the upright law grades that separate silhouette and its presence.
 ///
 /// ⚠️ **THE COUNT IS AN UPPER BOUND ON THE *FULLY FROSTED* CORNERS, NOT AN EXACT COUNT OF
 /// THE SHORT ONES**, and the difference is the frost's WIDTH. This law once required exactly
@@ -281,8 +329,7 @@ fn card_corner_coverage(f: &Frame, dpi: f32) -> Vec<(&'static str, f32)> {
 fn the_card_boxs_two_off_rake_corners_are_unfrosted_and_the_document_there_is_sharp() {
     let _g = crate::testlock::serial();
     let entry = crate::theme::active_index();
-    let mut leaning: Vec<String> = Vec::new();
-    let mut upright: Vec<String> = Vec::new();
+    let mut enrolled = CompositionEnrollment::default();
     let mut fewest_surfaces = usize::MAX;
     let ambient_bar = crate::menubar::menu_bar_on();
     for world in enrolled_worlds() {
@@ -295,6 +342,8 @@ fn the_card_boxs_two_off_rake_corners_are_unfrosted_and_the_document_there_is_sh
                 };
                 crate::theme::set_active_by_name(world).unwrap();
                 crate::menubar::set_menu_bar_on(bar);
+                let upright_hugs = crate::render::effective_list_style().draws_row_plates()
+                    && crate::render::effective_bar_config().extent.hugs();
                 p.set_dpi(dpi);
                 let f = capture(&device, &queue, &mut p, w, h, dpi);
                 let label = format!("{world} @ {dpi}x ({w}x{h}) bar {bar}");
@@ -309,24 +358,17 @@ fn the_card_boxs_two_off_rake_corners_are_unfrosted_and_the_document_there_is_sh
                 // asked of the CARD: a union CONTAINS the card's box, so all four of its
                 // corners are fully frosted, always. A parallelogram leaves two behind.
                 let corners = card_corner_coverage(&f, dpi);
-                let short: Vec<_> = corners.iter().filter(|(_, m)| *m < 1.0).collect();
-                let full = corners.len() - short.len();
 
                 // Stated BEFORE the shear branch on purpose, so the upright `Ruled` member is
                 // graded too — it is the one composition that draws at the card's full band,
                 // and therefore the only one whose surfaces a narrowing can strand.
                 fewest_surfaces =
                     fewest_surfaces.min(every_declared_surface_is_frosted(&f, dpi, &label));
-                if f.shear == 0.0 {
-                    upright.push(label.clone());
-                    assert!(
-                        short.is_empty(),
-                        "{label}: shear is 0, so the parallelogram IS the card's rectangle, \
-                         yet {short:?} came back short of fully frosted"
-                    );
+                if enrolled.record_upright(f.shear, upright_hugs, &label, &corners) {
                     continue;
                 }
-                leaning.push(label.clone());
+                enrolled.leaning.push(label.clone());
+                let full = corners.iter().filter(|(_, mask)| *mask == 1.0).count();
                 assert!(
                     full <= 2,
                     "{label}: {full} of the CARD's own four corners are FULLY frosted (shear \
@@ -396,11 +438,7 @@ fn the_card_boxs_two_off_rake_corners_are_unfrosted_and_the_document_there_is_sh
         }
     }
     crate::menubar::set_menu_bar_on(ambient_bar);
-    assert!(
-        !leaning.is_empty() && !upright.is_empty(),
-        "the roster must contain a LEANING enrolled world and an UPRIGHT one, or one of \
-         this law's two arms never ran: leaning {leaning:?}, upright {upright:?}"
-    );
+    enrolled.assert_complete();
     eprintln!("ROSTER FEWEST declared drawn surfaces in one cell: {fewest_surfaces}");
     // THE ROSTER-SCOPE PRESENCE FLOOR, not a per-cell one: three is what a composition
     // organised by ABSENCE declares — its one shaped column, its query caret, and the rule
