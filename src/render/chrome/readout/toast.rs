@@ -52,7 +52,7 @@ impl TextPipeline {
         height: u32,
         padding: [f32; 2],
     ) -> Option<crate::render::plan::ToastPlan> {
-        if self.notice_kind != crate::actions::NoticeKind::Toast || text.is_empty() {
+        if text.is_empty() {
             return None;
         }
         self.notice_buffer.set_metrics(&mut self.font_system, gm);

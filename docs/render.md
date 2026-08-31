@@ -18,13 +18,18 @@
   workspace chrome takes the authored slot.
 - A narrow canvas tries `BottomCenter` first once the two lateral slots no
   longer remain distinct around the measured plate. Elision still uses the
-  notice buffer's real shaped width before placement. Sticky notices keep the
-  writing-column-top composition; only self-clearing toasts use the world axis.
+  notice buffer's real shaped width before placement. A HELD `Sticky` notice
+  and a self-clearing `Toast` share the one authored `toast_anchor` and the
+  same `plan_toast` collision/narrow-fallback planner — placement is a
+  per-world axis, not a per-lifetime one; the two kinds differ only in plate
+  ink (`notice_plate_inks`), never in where they sit.
 - Laws cross 20 worlds × 3 anchors × document/picker/workspace ×
-  narrow/ordinary/wide × 1×/2× (1080 pure geometry cells), then run the 360
-  production assigned-anchor cells against real outline/overlay/workspace
-  plans. Five pixel-differential gallery cells prove the plated line is
-  present, including Wagtail.
+  narrow/ordinary/wide × 1×/2× (1080 pure geometry cells, kind-agnostic —
+  `plan_toast` itself never reads a `NoticeKind`), then run the 720 production
+  assigned-anchor cells (both notice kinds × outline/overlay/workspace × the
+  same geometry sweep) against real outline/overlay/workspace plans. Five
+  pixel-differential gallery cells prove the plated line is present, including
+  Wagtail.
 
 ## The caret's cell geometry (`render/caret.rs`)
 
