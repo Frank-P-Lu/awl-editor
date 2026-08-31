@@ -140,6 +140,27 @@ and Junicode-Ornaments.ttf is likely removable (lane greps consumers).
 The § live-look in real chrome stays the user's one checkpoint after
 the subset lands; the 12-circle web-loader face remains separate.
 
+**ROSTER WORKFLOW (user requirement, 2026-09-01: "we want to make it
+easy to add/remove new symbols in the future").** Confirmed with the
+user: the upstream face is NOT bundled, ever — and the add/remove path
+is a first-class deliverable of the build, not an afterthought:
+(a) ONE tracked roster file (beside the font asset) lists every adopted
+glyph — codepoint, name, role, source range — and editing THAT file is
+the entire act of adopting or retiring a symbol; (b) ONE script
+regenerates `AwlMarks.ttf` from the roster + the upstream TTF (passed
+by path, never fetched — zero-network; its sha256 verified against the
+ledger's recorded value before subsetting), normalising weight to 400
+and writing the family name + OFL metadata; (c) the glyph-presence law
+derives its enrolment FROM the roster file, never a hand list, so a new
+line is law-covered the moment it lands; (d) a drift law pins the
+bundled face's cmap EXACTLY equal to the roster — a glyph in the face
+but not the roster is as red as the reverse; (e) consumers (ornament
+tables, chrome constants, the footnote ladder) reference glyphs the
+roster can see, so a removal fails loudly at test time rather than
+rendering tofu at runtime. Acceptance: adding one symbol = one roster
+line + one script run + one small commit, with every law green and no
+other file touched by hand.
+
 **JAPANESE-TEXT QUESTION (user ask, measured + auditioned, 2026-09-01):**
 "should we use nishiki for one of the japanese fonts?" Audited rather
 than assumed — the first time the face's LETTERS went through the
