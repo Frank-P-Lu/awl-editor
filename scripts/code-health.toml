@@ -49,8 +49,8 @@
 
 [[file_size_mark]]
 file = "src/actions.rs"
-lines = 709
-reason = "Reveal in File Manager / Copy File Path: the `CopyFilePath` dispatch arm in `apply_transition`, plus both actions' membership in the exhaustive `ActionFamily` classifier (`CopyFilePath` as Buffer, `RevealInFileManager` as Deferred) (+3). +1: Save a Copy enters the one exhaustive transition dispatcher beside the other file actions. +1: `Action::OpenScratch` joins the exhaustive `ActionFamily::Deferred` classifier, mirroring `Action::NewDocument`. Insert Table's InsertTable action joins the exhaustive dispatch and ActionFamily classification this file already owns for every formatting command."
+lines = 748
+reason = "Reveal in File Manager / Copy File Path: the `CopyFilePath` dispatch arm in `apply_transition`, plus both actions' membership in the exhaustive `ActionFamily` classifier (`CopyFilePath` as Buffer, `RevealInFileManager` as Deferred) (+3). +1: Save a Copy enters the one exhaustive transition dispatcher beside the other file actions. +1: `Action::OpenScratch` joins the exhaustive `ActionFamily::Deferred` classifier, mirroring `Action::NewDocument`. Insert Table's InsertTable action joins the exhaustive dispatch and ActionFamily classification this file already owns for every formatting command. +39 (709->748): item 542's auto-align-on-row-leave trigger — `ActionSnapshot` gains `row_before` (the cheap rope line lookup `capture` already owns the seam for) and `finish_action` gains the row-leave hook, dispatched through the one exhaustive post-transition seam every action already passes through."
 
 [[file_size_mark]]
 file = "src/actions/format.rs"
