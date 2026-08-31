@@ -164,8 +164,12 @@ impl TextPipeline {
     /// the draw path uses. The workspace footer-yield pass asks this repeatedly
     /// while dropping leading, lower-priority navigation cells on a narrow
     /// staged card; the primary-column measurement asks it once for the full
-    /// sentence.
-    pub(super) fn measure_workspace_hint_text_px(&mut self, hint: &str) -> f32 {
+    /// sentence. `pub(in crate::render)`, not `pub(super)`: the table-dims
+    /// card's own width fix (`chrome::table_dims`) reuses this exact shaping —
+    /// same faces, same symbol split — from `pipeline_geometry`, outside
+    /// `chrome`, rather than growing a second "shape a hint, get its real px
+    /// width" owner.
+    pub(in crate::render) fn measure_workspace_hint_text_px(&mut self, hint: &str) -> f32 {
         self.overlay_remetric();
         let name_fs = self.overlay_metrics().font_size;
         let metrics = GlyphMetrics::new(

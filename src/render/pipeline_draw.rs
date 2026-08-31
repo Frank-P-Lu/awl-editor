@@ -515,6 +515,7 @@ impl TextPipeline {
             workspace_rail_rows: Vec::new(),
             workspace_rail_placement: None,
             overlay_spell_w: 0.0,
+            overlay_table_dims_hint_w: 0.0,
             overlay_content_w: 0.0,
             overlay_hug_content_memo: None,
             #[cfg(test)]
