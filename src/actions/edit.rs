@@ -173,8 +173,8 @@ pub(super) fn smart_newline(ctx: &mut ActionCtx) -> bool {
 /// when the caret is not in a table, when the buffer isn't markdown, or when the
 /// table is ALREADY aligned (no edit → the undo history stays meaningful). Reads +
 /// mutates only through the buffer's public seam, so `--keys` drives it identically
-/// live and in replay. See `markdown/` for the pure alignment contract + the
-/// deferred auto-align-on-type follow-up.
+/// live and in replay. The manual palette command; [`auto_align_table_on_row_leave`]
+/// is the same re-pad fired automatically.
 pub(super) fn align_table_at_cursor(ctx: &mut ActionCtx) {
     if !ctx.buffer.is_markdown() {
         return;
@@ -196,6 +196,96 @@ pub(super) fn align_table_at_cursor(ctx: &mut ActionCtx) {
     let end_char = ctx.buffer.line_col_to_char(end - 1, usize::MAX);
     ctx.buffer
         .replace_char_range(start_char, end_char, &aligned);
+}
+
+/// AUTO-ALIGN ON ROW-LEAVE: the [`align_table_at_cursor`] re-pad, fired
+/// automatically the moment the caret leaves the table ROW it was editing (see
+/// `actions.rs::finish_action`, the ONE seam every dispatched action passes
+/// through — this IS the whole trigger; no new caret-tracking state lives on
+/// `Buffer`). ROW-leave rather than TABLE-leave: a table can carry many rows,
+/// and finishing one row is the natural moment ITS drifted padding should snap
+/// back — waiting for the caret to clear the WHOLE table would leave every row
+/// already finished sitting misaligned while later rows are still being typed,
+/// which is exactly the "doesn't self-heal" complaint this exists to fix.
+///
+/// Idempotent (a calm no-op when `row_before` wasn't in a table, or the table's
+/// already aligned) and ALWAYS its own sealed undo group: `replace_char_range`'s
+/// edit is a REPLACE (both `removed` and `inserted` non-empty), which the undo
+/// engine's `record_edit` never coalesces (`is_replace` short-circuits
+/// `can_coalesce`) regardless of what ran immediately before it — so one Cmd-Z
+/// right after an auto-align undoes exactly the re-pad, revealing the user's
+/// last raw (typed, misaligned) edit rather than merging with or eating it.
+///
+/// `row_before` is the LOGICAL LINE the caret sat on immediately before the
+/// action that just finished (captured pre-dispatch, in `ActionSnapshot`); the
+/// block is re-derived fresh against the CURRENT (post-action) text rather than
+/// trusted from before, so a same-action structural edit (Enter splitting the
+/// row, a merge-up backspace) is still read correctly — a `row_before` the
+/// action deleted outright, or that no longer looks like a table row, is a calm
+/// no-op via `table_block_lines` returning `None`.
+///
+/// CARET PRESERVATION: column re-padding shifts char offsets across the whole
+/// row, so a raw pre-edit char offset would land on padding whitespace or a
+/// different cell after the replace. If the CURRENT caret sits inside the same
+/// table block being rewritten (it may have moved to a different row of the
+/// SAME table, not only out of it), its position is captured as a LOGICAL cell
+/// + intra-cell offset ([`crate::markdown::locate_table_caret`]) before the
+/// replace, then re-resolved on the realigned row
+/// ([`crate::markdown::table_caret_col`]) after — landing on the same cell/
+/// content offset rather than a byte count that now means something else. A
+/// caret that already sits outside the block (it left the table, not only the
+/// row) is shifted by the block's char-length delta when it sits AFTER the
+/// table, or left untouched when it sits before — a replace strictly ahead of
+/// it can never move it.
+pub(super) fn auto_align_table_on_row_leave(ctx: &mut ActionCtx, row_before: usize) {
+    if !ctx.buffer.is_markdown() {
+        return;
+    }
+    let text = ctx.buffer.text();
+    let lines: Vec<&str> = text.split('\n').collect();
+    if row_before >= lines.len() {
+        return; // the row the caret left no longer exists post-action
+    }
+    let Some((start, end)) = crate::markdown::table_block_lines(&lines, row_before) else {
+        return; // row_before wasn't in a table (or no longer looks like one)
+    };
+    let block = lines[start..end].join("\n");
+    let aligned = crate::markdown::align_table(&block);
+    if aligned == block {
+        return; // already aligned — skip the edit so undo stays meaningful
+    }
+
+    // Capture the CURRENT caret's logical position before the replace shifts
+    // every char offset from `start_char` onward.
+    let cur = ctx.buffer.cursor_char();
+    let (cur_line, cur_col) = ctx.buffer.cursor_line_col();
+    let caret_cell = (cur_line >= start && cur_line < end).then(|| {
+        (
+            cur_line - start,
+            crate::markdown::locate_table_caret(lines[cur_line], cur_col),
+        )
+    });
+
+    let start_char = ctx.buffer.line_col_to_char(start, 0);
+    let end_char = ctx.buffer.line_col_to_char(end - 1, usize::MAX);
+    let old_len = end_char - start_char;
+    ctx.buffer
+        .replace_char_range(start_char, end_char, &aligned);
+    let new_len = aligned.chars().count();
+
+    let new_cursor = match caret_cell {
+        Some((row_in_block, pos)) => {
+            let new_row = aligned.split('\n').nth(row_in_block).unwrap_or("");
+            let new_col = crate::markdown::table_caret_col(new_row, pos);
+            ctx.buffer.line_col_to_char(start + row_in_block, new_col)
+        }
+        // Caret already sat outside the block: a replace strictly ahead of it
+        // (it sat before the table) can't move it; one strictly behind it (it
+        // sat after) shifts it by exactly the block's char-length delta.
+        None if cur >= end_char => (cur as i64 + (new_len as i64 - old_len as i64)) as usize,
+        None => cur,
+    };
+    ctx.buffer.set_cursor(new_cursor);
 }
 
 /// TAG DOCUMENT LANGUAGE — the ONE door that writes a `lang:` frontmatter tag

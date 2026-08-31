@@ -461,6 +461,80 @@ fn looks_like_table_row(line: &str) -> bool {
     !t.is_empty() && t.contains('|')
 }
 
+/// Where a caret sits within one table ROW, independent of exact byte/char
+/// offsets: which 0-based CELL its column falls in, and how many CHARS from
+/// the start of that cell's TRIMMED content. [`align_table`] only ever
+/// rewrites a row's surrounding padding, never a cell's own content, so this
+/// position is exactly the invariant that survives a re-pad — see
+/// [`table_caret_col`], its inverse, which is how the auto-align caller
+/// (`actions::edit::auto_align_table_on_row_leave`) keeps the caret on the
+/// same logical cell/offset across the replace.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) struct TableCaretCell {
+    pub cell: usize,
+    pub offset: usize,
+}
+
+/// Locate a CHAR column `col` on table row `line` as a [`TableCaretCell`]. A
+/// column resting inside a cell's own trimmed content reports that exact
+/// offset; one resting on the delimiting `|` or its surrounding padding
+/// clamps to the NEAREST cell edge (the end of the cell before it, or the
+/// start of the cell after) rather than reporting a position outside any
+/// cell — so every column has an answer, even mid-realign. A pipeless `line`
+/// is treated as one whole cell.
+pub(crate) fn locate_table_caret(line: &str, col: usize) -> TableCaretCell {
+    let ranges = table_cell_ranges(line);
+    if ranges.is_empty() {
+        return TableCaretCell { cell: 0, offset: col };
+    }
+    let byte_col = char_col_to_byte(line, col);
+    let last = ranges.len() - 1;
+    for (i, r) in ranges.iter().enumerate() {
+        if byte_col <= r.end || i == last {
+            let clamped = byte_col.clamp(r.start, r.end);
+            let offset = byte_to_char_col(line, clamped) - byte_to_char_col(line, r.start);
+            return TableCaretCell { cell: i, offset };
+        }
+    }
+    unreachable!("the `i == last` arm above always matches by the final iteration");
+}
+
+/// The inverse of [`locate_table_caret`]: the CHAR column on `line` (typically
+/// a freshly REALIGNED row) for a logical [`TableCaretCell`] position — the
+/// start of that cell's trimmed content plus `offset` chars, clamped to the
+/// cell's length (unchanged by alignment, since it never edits content — the
+/// clamp only guards a ragged row whose cell genuinely got shorter/longer
+/// content some other way). A `cell` past `line`'s own column count clamps to
+/// the last cell — alignment can only ever GAIN trailing cells (ragged-row
+/// padding), never lose one a caret was already inside.
+pub(crate) fn table_caret_col(line: &str, pos: TableCaretCell) -> usize {
+    let ranges = table_cell_ranges(line);
+    if ranges.is_empty() {
+        return pos.offset;
+    }
+    let r = &ranges[pos.cell.min(ranges.len() - 1)];
+    let start_col = byte_to_char_col(line, r.start);
+    let cell_len = byte_to_char_col(line, r.end) - start_col;
+    start_col + pos.offset.min(cell_len)
+}
+
+/// Byte offset of CHAR column `col` on `line`, clamped to `line`'s length.
+fn char_col_to_byte(line: &str, col: usize) -> usize {
+    line.char_indices()
+        .nth(col)
+        .map(|(b, _)| b)
+        .unwrap_or(line.len())
+}
+
+/// CHAR column of byte offset `byte` on `line` — the inverse of
+/// [`char_col_to_byte`], for a `byte` that always lands on a char boundary
+/// (every offset this pair feeds it comes from [`table_cell_ranges`], which
+/// derives its own boundaries from `char_indices`/`trim_start`/`trim_end` and
+/// so never splits a multi-byte scalar).
+fn byte_to_char_col(line: &str, byte: usize) -> usize {
+    line[..byte].chars().count()
+}
+
 /// The `[start, end)` LINE range of the GFM table containing `cursor_line`, or
 /// `None` if the caret is not inside one. A table is the MAXIMAL run of consecutive
 /// [`looks_like_table_row`] lines around the caret that ALSO contains a
