@@ -485,7 +485,10 @@ pub(crate) struct TableCaretCell {
 pub(crate) fn locate_table_caret(line: &str, col: usize) -> TableCaretCell {
     let ranges = table_cell_ranges(line);
     if ranges.is_empty() {
-        return TableCaretCell { cell: 0, offset: col };
+        return TableCaretCell {
+            cell: 0,
+            offset: col,
+        };
     }
     let byte_col = char_col_to_byte(line, col);
     let last = ranges.len() - 1;

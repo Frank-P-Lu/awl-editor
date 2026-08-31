@@ -102,14 +102,17 @@ fn auto_align_fires_on_row_leave_but_not_while_still_editing_the_row() {
     // table snaps to Prettier alignment, computed fresh over the CURRENT (typed)
     // content -- reusing the exact same `align_table` the manual command uses.
     drive_act(&mut buffer, &Action::NextLine);
-    let expected =
-        crate::markdown::align_table("|Name|V|\n|---|---|\n|abc|100|\n|b|2|");
+    let expected = crate::markdown::align_table("|Name|V|\n|---|---|\n|abc|100|\n|b|2|");
     assert_eq!(
         buffer.text(),
         format!("{expected}\n"),
         "leaving the row snapped the whole table into Prettier alignment"
     );
-    assert_ne!(buffer.text(), misaligned_full, "the row-leave actually edited the source");
+    assert_ne!(
+        buffer.text(),
+        misaligned_full,
+        "the row-leave actually edited the source"
+    );
 }
 
 #[test]
@@ -122,7 +125,11 @@ fn auto_align_undoes_as_its_own_step_revealing_the_raw_typed_edit() {
     let original_full = "|Name|V|\n|---|---|\n|a|100|\n|b|2|\n".to_string();
 
     drive_act(&mut buffer, &Action::NextLine); // triggers the auto-align
-    assert_ne!(buffer.text(), misaligned_full, "the align actually changed the source");
+    assert_ne!(
+        buffer.text(),
+        misaligned_full,
+        "the align actually changed the source"
+    );
 
     // ONE undo reveals the user's last raw edit -- the auto-align is its own
     // sealed group, never merged with (and never discarding) the "bc" typing
@@ -172,7 +179,10 @@ fn caret_lands_on_the_same_logical_cell_after_auto_align_not_a_raw_offset() {
     drive_act(&mut buffer, &Action::NextLine);
 
     let (row, col) = buffer.cursor_line_col();
-    assert_eq!(row, 3, "the caret is still on row 3 after the align rewrote it");
+    assert_eq!(
+        row, 3,
+        "the caret is still on row 3 after the align rewrote it"
+    );
     let realigned_row3 = buffer.line_text(3);
     assert_ne!(realigned_row3, pre_row3, "row 3 actually got re-padded");
     let actual_pos = crate::markdown::locate_table_caret(&realigned_row3, col);
