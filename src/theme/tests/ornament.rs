@@ -12,7 +12,7 @@ fn every_world_ornament_face_is_a_registered_ornament_face() {
     assert_eq!(
         ORNAMENT_MARKS,
         crate::render::SYMBOL_FAMILY,
-        "the geometric worlds' ornament face IS the merged marks face"
+        "the geometric worlds' ornament face IS the derived marks face"
     );
     for t in THEMES.iter() {
         assert!(

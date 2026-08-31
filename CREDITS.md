@@ -23,7 +23,7 @@ All SIL Open Font License 1.1. Full per-face table, subsetting notes, and licens
 | Sour Gummy | The Sour Gummy Project Authors | SIL OFL 1.1 | github.com/eifetx/Sour-Gummy-Fonts, Google Fonts |
 | Zilla Slab | The Mozilla Foundation | SIL OFL 1.1 | github.com/typotheque/zilla-slab |
 | Junicode | Peter S. Baker | SIL OFL 1.1 | github.com/psb1558/Junicode-font |
-| Awl Marks² | EB Garamond / Noto Sans Symbols 2 / Iosevka / Junicode Project Authors | SIL OFL 1.1 (composed) | see `assets/fonts/LICENSES.md` |
+| Awl Marks² | Umihotaru | SIL OFL 1.1 (derived subset) | Nishiki-teki 4.0.5; see `assets/fonts/LICENSES.md` |
 | Noto Serif JP / Noto Sans JP | Adobe | SIL OFL 1.1 | github.com/notofonts, Google Fonts |
 | Noto Serif SC / Noto Sans SC | Adobe | SIL OFL 1.1 | github.com/notofonts, Google Fonts |
 | Noto Sans KR | Adobe | SIL OFL 1.1 | github.com/notofonts, Google Fonts |
@@ -35,7 +35,7 @@ All SIL Open Font License 1.1. Full per-face table, subsetting notes, and licens
 
 ¹ `iAWriterQuattroS-Regular.ttf`'s embedded name table carries no license-description or license-URL field — only a bare copyright string. OFL 1.1 status is asserted by the upstream project (github.com/iaolo/iA-Fonts, `LICENSE.md`), not by the embedded font data itself.
 
-² Awl Marks is awl's own composite symbol/ornament face: decomposed glyph outlines merged from four separately-licensed OFL sources. See `assets/fonts/LICENSES.md` for the per-glyph breakdown.
+² Awl Marks is awl's roster-driven symbol/ornament subset derived offline from Nishiki-teki. The upstream face is not bundled. See `assets/fonts/LICENSES.md` for the exact source hash, roster, and regeneration contract.
 
 KingHwa OldSong and GenSenRounded were evaluated as CJK candidates and not bundled — the former's stated terms forbid subsetting, the latter ships no Simplified-Chinese variant. Neither is a license violation of what's bundled; recorded for completeness.
 

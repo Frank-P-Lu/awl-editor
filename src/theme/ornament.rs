@@ -45,7 +45,7 @@ impl Ornaments {
 
 /// The shared DEFAULT ornament set: `---` → ❧ fleuron, `***` → ⁂ asterism (three
 /// stars for three asterisks), `___` → ❦ floral heart. All three are bundled in
-/// the merged `AwlMarks.ttf` (the [`ORNAMENT_MARKS`] face), so they render in
+/// the derived `AwlMarks.ttf` (the [`ORNAMENT_MARKS`] face), so they render in
 /// every world that keeps that face.
 pub const ORNAMENTS_DEFAULT: Ornaments = Ornaments {
     dash: '❧',
@@ -56,7 +56,7 @@ pub const ORNAMENTS_DEFAULT: Ornaments = Ornaments {
 // --- The per-world ORNAMENT FACE (the fleuron / About end-mark face) ----------
 //
 // ONLY the section-break/About ornament changes face per world. Keycaps (⌘⌥⇧)
-// and the plain typographic marks (§ † ‡ • ◦ ▪ …) stay on the merged marks face
+// and the plain typographic marks (§ † ‡ • ◦ ▪ …) stay on the derived marks face
 // (`render::SYMBOL_FAMILY`) whatever a world's ornament face is.
 //
 // Three faces, all bundled and OFL, one per flavour register — and each one's
@@ -75,9 +75,8 @@ pub const ORNAMENT_GARAMOND: &str = "EB Garamond";
 /// deep pool of PUA botanical/damask/tile clusters, but NOT ❡/❥.
 pub const ORNAMENT_JUNICODE: &str = "Junicode";
 
-/// The merged marks face (== `render::SYMBOL_FAMILY`, `AwlMarks.ttf`) — the
-/// geometric/technical worlds' ornament face. There is no standalone "Noto Sans
-/// Symbols 2" registered face; its geometric marks live in this merged one.
+/// The Nishiki-derived marks face (== `render::SYMBOL_FAMILY`, `AwlMarks.ttf`) —
+/// the geometric/technical worlds' ornament face.
 /// Covers the default ornaments (❧ ❦ ☙ ❡ ❥ ⁂) plus the star/floret/geometric
 /// pool (✦ ✧ ✴ ✶ ✷ ✽ ✿ ❀ ❁ ❂ ❖ ◆ ◈ ⬥ ⭑).
 ///
