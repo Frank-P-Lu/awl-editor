@@ -144,6 +144,8 @@ impl TextPipeline {
         // no stale ghost-pill quads into the next frame.
         self.overlay_facet_ghost
             .prepare(device, queue, width, height, &[]);
+        self.overlay_facet_material
+            .prepare(device, queue, width, height, &[]);
         // The stipple placard: parked (zero instances) — the frame after a
         // stipple-world overlay closes carries zero stale wordmark pixels.
         self.placard_stipple

@@ -6,14 +6,15 @@
 //! the split lower surface); DockedTab deliberately moves its strip above the
 //! pane and earns its own seam law here.
 //!
-//! Two floors, read from real pixels rather than the sidecar (a rect can be
+//! Three floors, read from real pixels rather than the sidecar (a rect can be
 //! reported correctly while nothing paints it — CAPTURE.md's own Wagtail
 //! tripwire): on the ACTIVE facet's own column, at the row where the card's
 //! border ring lives, no border-colored pixel survives (the MOUTH) and the
 //! column really is painted the card's own ground (a PRESENCE floor a
-//! deleted/blank tab could not also satisfy). On every OTHER column of that
-//! same row — inactive facets, the gaps between them — the border reads
-//! intact.
+//! deleted/blank tab could not also satisfy). The tab's quiet left inset also
+//! carries the pane's scanline variation rather than a flat block. On every
+//! OTHER column of that same row — inactive facets, the gaps between them —
+//! the border reads intact.
 //!
 //! Enrolment is derived from the roster (`render_caps.facet_style ==
 //! FacetStyle::DockedTab`), never a named world, and the sweep covers every
@@ -122,6 +123,33 @@ fn assert_seam(cell: &SeamCell, card: [f32; 4], underline: [f32; 4], pixels: &[[
         tab_x1 - tab_x0
     );
 
+    // MATERIAL CONTINUITY: sample the tab's left padding, before its label
+    // begins, and require real vertical raster variation. The previous flat
+    // fill produced one repeated RGB value across this whole interior while
+    // the pane immediately below carried the scanline field. Keep clear of
+    // the outline's AA and the mouth overlap so neither can satisfy the law.
+    let inset_x = (tab_x0 + (3.0 * dpi).round() as i64).min(tab_x1 - 2);
+    let tab_y0 = (underline[1] + 4.0 * dpi).round() as i64;
+    let tab_y1 = (card[1] - 3.0 * dpi).round() as i64;
+    assert!(
+        tab_y1 > tab_y0 + 2,
+        "{world}@{dpi}x: active facet {active} leaves no quiet tab interior to grade"
+    );
+    let inset: Vec<[u8; 4]> = (tab_y0..tab_y1).map(|y| px(inset_x, y)).collect();
+    let spread = (0..3)
+        .map(|channel| {
+            let lo = inset.iter().map(|p| p[channel]).min().unwrap();
+            let hi = inset.iter().map(|p| p[channel]).max().unwrap();
+            hi - lo
+        })
+        .max()
+        .unwrap();
+    assert!(
+        spread >= 2,
+        "{world}@{dpi}x: active facet {active} is a flat butted block — its quiet \
+         inset at x {inset_x} has only {spread} levels of scanline variation"
+    );
+
     // INTACT ELSEWHERE: outside the active facet's own column but still
     // inside the card, the ordinary border ring still draws — inactive
     // facets and the gaps between tabs are untouched.
@@ -186,6 +214,18 @@ fn the_active_facets_plate_joins_the_card_ground_with_no_border_in_its_mouth() {
                 let underline = p.overlay_theme_underline.unwrap_or_else(|| {
                     panic!("{}: active facet {active} draws no tab plate", world.name)
                 });
+                assert_eq!(
+                    p.overlay_facet_material.instance_count(),
+                    1,
+                    "{}: the docked active tab must continue the pane material",
+                    world.name
+                );
+                assert_eq!(
+                    p.overlay_facet_material.scanlines(),
+                    p.panel_material.scanlines(),
+                    "{}: tab and pane must share one authored raster",
+                    world.name
+                );
 
                 let pixels = pixeldiff::render_frame(&mut p, &device, &queue, w, h);
                 let cell = SeamCell {

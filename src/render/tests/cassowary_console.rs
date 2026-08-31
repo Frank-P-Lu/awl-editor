@@ -196,7 +196,7 @@ fn docked_facet_draw_hit_and_pane_edge_are_one_geometry_across_canvas_and_dpi() 
             // five hit spans while clipping the original strip wholesale, so
             // geometry-only assertions stayed green as four labels vanished.
             let pixels = super::pixeldiff::render_frame(&mut p, &device, &queue, w, h);
-            let ink = theme::muted().rgba_bytes();
+            let ink = theme::faint().rgba_bytes();
             for idx in (0..p.overlay_lens.len()).filter(|idx| *idx != 1) {
                 let label = &console_view(1).overlay_lens[idx].0;
                 let mut hits = 0usize;
@@ -298,7 +298,7 @@ fn typed_filter_keeps_every_active_tab_complete_and_commands_placard_visible() {
             let expected = if idx == active {
                 theme::base_content().rgba_bytes()
             } else {
-                theme::muted().rgba_bytes()
+                theme::faint().rgba_bytes()
             };
             assert!(
                 core_ink_pixels(
@@ -347,6 +347,11 @@ fn docked_facet_is_reusable_data_not_a_cassowary_identity_branch() {
     assert_eq!(
         p.overlay_lens_at(tab[0] + tab[2] * 0.5, tab[1] + tab[3] * 0.5),
         Some(2)
+    );
+    assert_eq!(
+        p.overlay_facet_material.instance_count(),
+        0,
+        "DockedTab alone does not invent a material on a Flat world"
     );
     set_facet_style_test_override(None);
     set_list_style_test_override(None);
@@ -447,6 +452,11 @@ fn scanline_material_is_reusable_static_data_with_one_absolute_phase() {
     p.prepare(&device, &queue, 1200, 800).unwrap();
     assert_eq!(p.panel_material.instance_count(), 1);
     assert_eq!(p.placard_material.instance_count(), 1);
+    assert_eq!(
+        p.overlay_facet_material.instance_count(),
+        0,
+        "scanlines do not invent a tab on a non-DockedTab world"
+    );
     assert_eq!(p.panel_material.scanlines(), Some((0.2, 5.0, 1.25)));
     assert_eq!(p.placard_material.scanlines(), p.panel_material.scanlines());
     for frame in 0..3 {

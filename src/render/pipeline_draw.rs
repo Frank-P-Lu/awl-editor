@@ -95,6 +95,8 @@ impl TextPipeline {
         let panel_shadow = SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         let panel_border = SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         let panel_material = SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
+        let overlay_facet_material =
+            SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         let blur = blur::BlurBackdrop::new(device, format);
         // Second text renderer for the panel string, sharing the atlas + viewport.
         let panel_renderer =
@@ -290,6 +292,7 @@ impl TextPipeline {
             panel_shadow,
             panel_border,
             panel_material,
+            overlay_facet_material,
             blur,
             blur_recompute: false,
             blur_sig: None,
