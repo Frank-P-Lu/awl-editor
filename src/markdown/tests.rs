@@ -1222,6 +1222,20 @@ fn table_cell_ranges_preserve_optional_outer_pipes_and_backslash_parity() {
 }
 
 #[test]
+fn blank_table_cell_range_stays_at_its_opening_edge() {
+    let source = "| filled |     |";
+    let ranges = table_cell_ranges(source);
+    assert_eq!(ranges.len(), 2);
+    assert_eq!(&source[ranges[0].clone()], "filled");
+    assert_eq!(
+        ranges[1],
+        10..10,
+        "blank content starts immediately after its opening pipe"
+    );
+    assert_eq!(split_row_cells(source), vec!["filled", ""]);
+}
+
+#[test]
 fn table_column_layout_fits_keeps_max_content() {
     // Regime 1 (fits): max-content total (200 + 2*10 = 220) < avail => columns
     // keep their max-content widths, left-anchored, gaps applied.

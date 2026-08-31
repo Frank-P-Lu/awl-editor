@@ -43,11 +43,14 @@ pub(super) fn table_newline(ctx: &mut ActionCtx) -> bool {
     true
 }
 
-/// Tab/Shift-Tab walk real table cells in source order. Reaching the forward
-/// end appends one scaffold row; non-table source keeps the established list
-/// indentation behavior.
+/// Tab/Shift-Tab walk real table cells in source order and select the target's
+/// trimmed content, so typing replaces that cell like a spreadsheet. An empty
+/// cell is a bare caret at its raw content start (immediately after the opening
+/// pipe), because there is no content to select. Reaching the forward end appends
+/// one scaffold row; non-table source and arbitrary selections keep the
+/// established list-indentation behavior.
 pub(super) fn table_tab(ctx: &mut ActionCtx, forward: bool) -> bool {
-    if !ctx.buffer.is_markdown() || ctx.buffer.has_selection() {
+    if !ctx.buffer.is_markdown() {
         return false;
     }
     let text = ctx.buffer.text();
@@ -62,33 +65,53 @@ pub(super) fn table_tab(ctx: &mut ActionCtx, forward: bool) -> bool {
             continue;
         }
         for range in crate::markdown::table_cell_ranges(line_text) {
-            let cell_col = line_text[..range.start].chars().count();
-            cells.push((row, cell_col));
+            let start_col = line_text[..range.start].chars().count();
+            let end_col = line_text[..range.end].chars().count();
+            let start_char = ctx.buffer.line_col_to_char(row, start_col);
+            let end_char = ctx.buffer.line_col_to_char(row, end_col);
+            cells.push((row, start_col, start_char, end_char));
         }
     }
     if cells.is_empty() {
         return false;
     }
-    let current = cells
-        .iter()
-        .rposition(|&(row, cell_col)| row == line && cell_col <= col)
-        .or_else(|| cells.iter().position(|&(row, _)| row == line))
-        .unwrap_or_else(|| if forward { 0 } else { cells.len() - 1 });
+    let current = if let Some(selection) = ctx.buffer.selection_range() {
+        let Some(i) = cells
+            .iter()
+            .position(|&(_, _, start_char, end_char)| selection == (start_char, end_char))
+        else {
+            // Only the exact cell selection produced by an earlier Tab stays in
+            // table navigation. A user-authored/arbitrary region retains ordinary
+            // Tab's established replace/indent behavior.
+            return false;
+        };
+        i
+    } else {
+        cells
+            .iter()
+            .rposition(|&(row, start_col, _, _)| row == line && start_col <= col)
+            .or_else(|| cells.iter().position(|&(row, _, _, _)| row == line))
+            .unwrap_or_else(|| if forward { 0 } else { cells.len() - 1 })
+    };
     if forward && current + 1 == cells.len() {
-        let columns = cells.iter().filter(|(row, _)| *row == start).count().max(1);
+        let columns = cells
+            .iter()
+            .filter(|(row, _, _, _)| *row == start)
+            .count()
+            .max(1);
         let at = ctx.buffer.line_col_to_char(end - 1, usize::MAX);
         ctx.buffer
             .replace_char_range(at, at, &format!("\n{}", table_row_source(columns)));
-        ctx.buffer.set_cursor(at + 3);
+        ctx.buffer.clear_mark();
+        ctx.buffer.set_cursor(ctx.buffer.line_col_to_char(end, 1));
     } else {
         let next = if forward {
             current + 1
         } else {
             current.saturating_sub(1)
         };
-        let (target_line, target_col) = cells[next];
-        ctx.buffer
-            .set_cursor(ctx.buffer.line_col_to_char(target_line, target_col));
+        let (_, _, start_char, end_char) = cells[next];
+        ctx.buffer.select_range(start_char, end_char);
     }
     true
 }
