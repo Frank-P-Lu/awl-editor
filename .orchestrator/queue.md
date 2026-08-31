@@ -225,6 +225,8 @@ operations survive it and would also serve the grid editor.
 ---
 ### 543 — TableDims picker: frost only the card's footprint, never the whole page (user decision, 2026-09-01)
 
+🟡 IN PROGRESS — root, branch codex/item-543-tabledims-frost
+
 The user likes the picker; the frost extent is the complaint, in their
 words: when the picker is active "there shouldn't be any blur — or
 rather there should only be blur underneath the picker." Today the
