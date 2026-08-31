@@ -352,6 +352,20 @@ asterism, Brolga dovecote, Wagtail songbook (a songbird's world),
 Firetail stars, Paperbark fleurons, Kite solar, Cassowary splatter.
 Awaiting the user's confirmation or edits via the page's copy-out.
 
+**FITTING ROOM v7 — the typographic-heritage shelf (2026-09-01).** User:
+"we should celebrate typography where we can" — four heritage sets added,
+all pipeline-rendered and verified (12 cells × 3 tiers, 0 blank/foreign):
+REFERENCE MARKS (†/‡/※ — the Western footnote ladder plus Japan's
+komejirushi, honouring the font's own tradition), RUBRICATION (¶/⁋/§ —
+the pilcrow was in Nishiki's cmap though outside the census's rendered
+set), SCRIPTORIUM (coronis + two paragraphoi — shelved with an honest
+blurb: the most ancient section-dividers are mostly plain strokes and
+fail the user's three-drawings rule), CURIOSITIES (‽/⁊/dotted obelos).
+Separately the user flagged HARBOUR as internally incoherent (anchor and
+sailboat are illustrations, the helm a diagram — three registers) — 
+benched; Mangrove re-proposed to SPIRALS (tidal eddies, a loved set).
+38 sets on the shelf. Arrangement still pending the user's copy-out.
+
 ---
 ## Needs specific hardware
 
