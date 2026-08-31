@@ -60,12 +60,11 @@ fn grade_hugged_card(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
     p: &mut TextPipeline,
-    w: u32,
-    h: u32,
-    dpi: f32,
+    geometry: (u32, u32, f32),
     view: ViewState,
     label: &str,
 ) -> ([f32; 4], [f32; 4], u64) {
+    let (w, h, dpi) = geometry;
     p.set_view(&view);
     let frosted = render_frame(device, queue, p, w, h);
     let rect = footprint_rect(p.frost_mode().expect("the Bars footprint"), label);
@@ -222,7 +221,7 @@ fn upright_plate_hugging_frost_tracks_drawn_surfaces_in_both_geometry_families()
                 ] {
                     let label = format!("{world}/{family} @ {dpi}x bar {bar}");
                     let (frost, drawn, presence) =
-                        grade_hugged_card(&device, &queue, &mut p, w, h, dpi, view, &label);
+                        grade_hugged_card(&device, &queue, &mut p, (w, h, dpi), view, &label);
                     let excess = ((frost[2] - drawn[2]) / dpi, (frost[3] - drawn[3]) / dpi);
                     if excess.0.max(excess.1) > worst.0.max(worst.1) {
                         worst = (excess.0, excess.1, label.clone());
