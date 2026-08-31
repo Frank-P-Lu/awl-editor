@@ -390,7 +390,9 @@ fn every_rule_ornament_shapes_as_one_fitted_nishiki_run_at_both_dpis() {
                     world.name
                 );
                 assert!(
-                    faces.iter().all(|(family, weight)| family == theme::ORNAMENT_NISHIKI && *weight == 400),
+                    faces.iter().all(|(family, weight)| {
+                        family == theme::ORNAMENT_NISHIKI && *weight == 400
+                    }),
                     "{} {text:?} escaped the bundled Nishiki-derived face: {faces:?}",
                     world.name
                 );

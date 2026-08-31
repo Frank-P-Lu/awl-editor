@@ -212,7 +212,8 @@ fn every_world_has_a_bullet_pair() {
             .filter(|t| t.bullets.0 == '☞' || t.bullets.1 == '☞' || t.bullets.2 == '☞')
             .count()
             == 1,
-        "exactly one world uses the manicule bullet, at exactly one level (a hand everywhere is loud)"
+        "exactly one world uses the manicule bullet, at exactly one level \
+         (a hand everywhere is loud)"
     );
 }
 

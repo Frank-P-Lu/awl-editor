@@ -93,7 +93,8 @@ fn ornament_glyphs_resolve_in_each_worlds_assigned_face() {
             for ch in run.chars() {
                 assert!(
                     charmap.map(ch) != 0,
-                    "{}: {} component {:?} (U+{:04X}) is NOT in its ornament face {:?} — renders as tofu",
+                    "{}: {} component {:?} (U+{:04X}) is NOT in its ornament face {:?} — \
+                     renders as tofu",
                     t.name,
                     label,
                     ch,
