@@ -352,8 +352,16 @@ plain prose) and off-caret (substitute at the substitute's own
 advance), short line and wrapped line, and asserts the off-caret
 row's total advance shift is within one glyph of
 (substitute − literal). The law must go red on today's tree before
-the fix lands. Check the em/en-dash arms for BOTH defects — a
-shared slot-reservation path likely breaks all three. Full gate
+the fix lands. The dash arm is CONFIRMED broken the same way, not
+just likely (user screenshot, 2026-09-01: "the gap is kinda long?
+like after the em dash", source line verbatim
+`A long sentence--- after all, we all need one.` — the `---` run
+renders `—` plus roughly two spare characters of slot, in the same
+dim ink; i.e. the slot keeps the LITERAL's 3-char advance where the
+substitute is 1). Use that line as a law fixture. Note the measured
+`...` hole was ~7 chars against a 3-char literal, so the two arms
+may overshoot by different arithmetic — measure each, don't assume
+one constant. All three runs share the fix and the law. Full gate
 receipt.
 
 ---
