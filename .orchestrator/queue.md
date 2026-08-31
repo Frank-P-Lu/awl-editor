@@ -386,7 +386,34 @@ one constant. All three runs share the fix and the law. Full gate
 receipt.
 
 ---
-### 536 — per-world ornament sets from the full Nishiki cabinet (user decision, 2026-08-30; sequenced AFTER 529 bundles the face)
+### 546 — Cassowary's docked palette tabs: a design pass on the DockedTab facet (user taste report, 2026-09-01 — "the tabs for cassowary don't look super convincing lol")
+
+The palette's category strip on Cassowary. The mechanism is
+`FacetStyle::DockedTab` (`theme/model.rs`), whose own contract is
+"the active label is a tab JOINED to the card's top border; inactive
+labels remain unplated text" — and the join is exactly what the
+rendered frame fails to sell: the active label sits as a solid
+filled block butted against the card's UNBROKEN top border, so
+nothing visually connects tab to card, and the inactive labels read
+as a loose menu-bar of bold words rather than the same strip's
+other tabs.
+
+A taste pass, not a bug: the composition lives in the Cassowary
+console chrome (`render/tests/cassowary_console.rs` and
+`docked_facet_gap_law.rs` pin today's geometry; docs/render.md's
+RotatedRail note records that the docked active tab owns the
+category label). Directions to audition — rendered through real
+captures, judged against the CRT-console character, never an HTML
+mock: (a) make the join REAL: break the card's top border under the
+active tab so tab and card share one continuous outline (the folder-
+tab idiom the name promises); (b) consider an OUTLINED tab over a
+filled block, matching the card's own hairline-and-fill grammar;
+(c) recede the inactive labels a value so the active one carries the
+strip. Per the land-easy-taste policy, land the best candidate on
+main for the user's judgement and say what reverting costs; existing
+docked-facet laws move WITH the design, updated in the same commit.
+Scope: Cassowary's DockedTab only — the other facet styles (Text,
+Band, Chips) have no report against them.
 
 ✅ DESIGN PASS COMPLETE (user approved the arrangement, 2026-09-01: "they look good! lets queue this!") — build phase UNCLAIMED, sequenced after 529 bundles the face. The FINAL block at the end of this item is the decided roster; the v-notes above it are the fitting history.
 
