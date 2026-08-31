@@ -7,12 +7,160 @@
 use super::pixeldiff::{delta_e, render_frame};
 use super::{headless_dqp, view};
 
+struct FrostRestore;
+
+impl Drop for FrostRestore {
+    fn drop(&mut self) {
+        crate::render::blur::set_frost_suppressed(false);
+    }
+}
+
 fn dims_view(text: &str, rows: usize, cols: usize) -> crate::render::ViewState {
     let mut v = view(text, 0, 0);
     v.overlay_active = true;
     v.overlay_table_dims = Some((rows, cols));
     v.overlay_hint = format!("{rows} × {cols} table   ↵ insert   Esc cancel");
     v
+}
+
+/// THE ROUTING LAW: the dimensions grid declines the room-sized takeover for
+/// its own typed reason, then follows the composition roster to either a local
+/// footprint (bare rows) or no frost (self-backed rows). The identical frame
+/// with that one reason removed remains a full takeover, proving the law did
+/// not merely delete frost. The flat 1-bit arm remains unfrosted both ways.
+#[test]
+fn table_dims_routes_to_local_frost_without_claiming_the_crisp_preview_exemption() {
+    let _g = crate::testlock::serial();
+    let entry = crate::theme::active_index();
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
+        eprintln!("skipping TableDims frost routing: no wgpu adapter");
+        return;
+    };
+    let mut footprinted = Vec::new();
+    let mut unfrosted = Vec::new();
+    let mut full = Vec::new();
+    for theme in crate::theme::THEMES {
+        crate::theme::set_active_by_name(theme.name).unwrap();
+        let local = dims_view("dense words cross behind the insertion grid\n", 3, 2);
+        assert!(
+            !local.overlay_crisp,
+            "TableDims must not impersonate a preview"
+        );
+        p.set_view(&local);
+        p.prepare(&device, &queue, 1200, 800).unwrap();
+        let local_frost = p.frost_mode();
+        assert!(
+            !p.dims_doc(),
+            "{}: a local card dimmed the document",
+            theme.name
+        );
+
+        let flat = theme.render_caps.backdrop == crate::theme::Backdrop::Flat;
+        let bare = crate::render::blur::footprint_frost_applies(theme.render_caps.list_style);
+        match (flat, bare, local_frost) {
+            (true, _, None) | (false, false, None) => unfrosted.push(theme.name),
+            (false, true, Some(crate::render::blur::Frost::Footprint(foot))) => {
+                assert!(foot.rect[2] > 0.0 && foot.rect[3] > 0.0);
+                footprinted.push(theme.name);
+            }
+            _ => panic!(
+                "{}: local TableDims routing disagrees with roster: \
+                 flat={flat}, bare={bare}, frost={local_frost:?}",
+                theme.name
+            ),
+        }
+
+        let mut control = local;
+        control.overlay_table_dims = None;
+        control.overlay_items = vec!["3 × 2 table".to_string()];
+        p.set_view(&control);
+        p.prepare(&device, &queue, 1200, 800).unwrap();
+        if flat {
+            assert_eq!(p.frost_mode(), None, "{}: flat stays flat", theme.name);
+        } else {
+            assert_eq!(p.frost_mode(), Some(crate::render::blur::Frost::Full));
+            assert!(p.dims_doc(), "{}: takeover control must dim", theme.name);
+            full.push(theme.name);
+        }
+    }
+    crate::theme::set_active(entry);
+    assert!(
+        !footprinted.is_empty(),
+        "no bare composition reached a footprint"
+    );
+    assert!(
+        !unfrosted.is_empty(),
+        "no backed/flat composition reached no frost"
+    );
+    assert!(!full.is_empty(), "the full-takeover control arm never ran");
+}
+
+/// PIXEL LAW: on a roster-derived bare composition, frost visibly changes the
+/// pixels under the dimensions card and changes exactly zero pixels where the
+/// shipping footprint mask is zero. The first clause prevents a page-crispness
+/// law from passing by deleting frost; the second proves the surrounding page
+/// remains byte-identical rather than merely looking similar.
+#[test]
+fn table_dims_frost_is_present_under_the_card_and_absent_outside_its_skirt() {
+    let _g = crate::testlock::serial();
+    let Some(theme) = crate::theme::THEMES.iter().find(|theme| {
+        theme.render_caps.backdrop != crate::theme::Backdrop::Flat
+            && crate::render::blur::footprint_frost_applies(theme.render_caps.list_style)
+    }) else {
+        panic!("the roster has no bare non-flat composition for TableDims frost");
+    };
+    let Some(_pin) = crate::theme::WorldPin::world(theme.name) else {
+        panic!("{} disappeared from the world roster", theme.name);
+    };
+    let (w, h, dpi) = (1200u32, 800u32, 1.0f32);
+    let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
+        eprintln!("skipping TableDims frost pixels: no wgpu adapter");
+        return;
+    };
+    let text = "Dense document edges continue directly behind the table grid.\n\
+                A second line makes the local Gaussian visibly measurable.\n\
+                The surrounding page must remain byte-for-byte crisp.\n";
+    let local = dims_view(text, 3, 2);
+    p.set_view(&local);
+    p.prepare(&device, &queue, w, h).unwrap();
+    let frost = p.frost_mode().expect("bare TableDims gets local frost");
+    assert!(matches!(frost, crate::render::blur::Frost::Footprint(_)));
+    let frosted = render_frame(&mut p, &device, &queue, w, h);
+
+    let _restore = FrostRestore;
+    crate::render::blur::set_frost_suppressed(true);
+    p.set_view(&local);
+    p.prepare(&device, &queue, w, h).unwrap();
+    let crisp = render_frame(&mut p, &device, &queue, w, h);
+    crate::render::blur::set_frost_suppressed(false);
+
+    let mut inside_changed = 0usize;
+    let mut outside_changed = 0usize;
+    for y in 0..h {
+        for x in 0..w {
+            let i = (y * w + x) as usize;
+            if frosted[i] == crisp[i] {
+                continue;
+            }
+            if crate::render::blur::footprint_mask_for(frost, dpi, x as f32 + 0.5, y as f32 + 0.5)
+                > 0.0
+            {
+                inside_changed += 1;
+            } else {
+                outside_changed += 1;
+            }
+        }
+    }
+    assert!(
+        inside_changed > 100,
+        "{}: local frost has no visible pixel subject ({inside_changed} changed)",
+        theme.name
+    );
+    assert_eq!(
+        outside_changed, 0,
+        "{}: frost changed pixels beyond its feathered card footprint",
+        theme.name
+    );
 }
 
 /// EVERY CELL, at EVERY swept window size, hit-tests its own painted rect's

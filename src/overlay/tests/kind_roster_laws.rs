@@ -374,6 +374,21 @@ fn crisp_backdrop_is_exactly_the_live_document_audition() {
     }
 }
 
+/// A local insertion exemption is a different reason from a live-document
+/// audition. The whole roster is enrolled, and the exact set is deliberately
+/// one member so a future picker must earn this composition explicitly.
+#[test]
+fn table_dims_is_the_only_local_insertion_card_and_is_not_crisp() {
+    let local: Vec<OverlayKind> = OverlayKind::ALL
+        .iter()
+        .copied()
+        .filter(|kind| kind.is_local_insertion_card())
+        .collect();
+    assert_eq!(local, vec![OverlayKind::TableDims]);
+    assert!(!OverlayKind::TableDims.keeps_backdrop_crisp());
+    assert!(!OverlayKind::TableDims.previews_live_document());
+}
+
 /// **THE AUDITION PREDICATE IS GRADED AGAINST THE AUDITION ITSELF**, not against
 /// the crisp-backdrop list next to it. Two hand-written membership lists asserted
 /// equal is a real drift guard and still not a law about the product: both could

@@ -47,6 +47,7 @@ mod filter;
 mod hint;
 mod journey;
 mod kind;
+mod kind_composition;
 mod link;
 mod nav;
 mod rename_edit;

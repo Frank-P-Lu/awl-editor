@@ -183,6 +183,9 @@ impl OverlayState {
     /// The commit target: `Some((rows, cols))` while a table-dims edit is
     /// active, `None` otherwise.
     pub fn table_dims_target(&self) -> Option<(usize, usize)> {
+        if !self.kind.is_local_insertion_card() {
+            return None;
+        }
         self.table_dims.as_ref().map(|td| (td.rows, td.cols))
     }
 }
@@ -200,6 +203,18 @@ mod tests {
             0,
             "no candidate row list -- this card is not a list"
         );
+    }
+
+    #[test]
+    fn typed_kind_owns_whether_table_dimensions_reach_the_renderer() {
+        let mut ov = OverlayState::new_table_dims();
+        assert_eq!(ov.table_dims_target(), Some((DEFAULT_ROWS, DEFAULT_COLS)));
+
+        // Preserve the edit state but change the overlay identity. A stale
+        // table-dimensions payload must not project the local-card reason into
+        // an unrelated overlay's ViewState.
+        ov.kind = OverlayKind::Command;
+        assert_eq!(ov.table_dims_target(), None);
     }
 
     #[test]
