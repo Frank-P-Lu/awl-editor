@@ -226,9 +226,10 @@ impl TextPipeline {
         {
             return self.overlay_card_rect().map(|rect| {
                 let shear = self.footprint_shear();
-                // NARROWED to the surfaces the card actually drew (the X faces, always;
-                // the bottom too on a diagonal composition — see `footprint_drawn_box`'s
-                // own doc), THEN widened for the upright chrome the rake cannot carry.
+                // NARROWED to the surfaces the card actually drew (both axes for an
+                // upright plate-hugging composition; X plus the bottom for Diagonal;
+                // see `footprint_drawn_box`), THEN widened for upright chrome the rake
+                // cannot carry.
                 // Every step reads the shape's own un-sheared frame, and each one that
                 // moves the pivot compensates the faces the LAST step left in canvas
                 // position.
@@ -238,9 +239,8 @@ impl TextPipeline {
                 // edge sits wholly on one side of the face rather than split mid-glyph —
                 // a diagonal composition's own defect (the raking spine is what carries a
                 // card deep enough into the page for its top edge to land inside a title's
-                // own row) and this item's own audition never reached an upright world, so
-                // it stays out of scope here: an upright card's top edge is its own
-                // placement, untouched.
+                // own row). Upright plate-hugging compositions may independently shrink
+                // their box to their surfaces, but they do not use this canvas seat.
                 let foot_rect = if super::chrome::diagonal::active(self).is_some() {
                     blur::footprint_seat_top(foot_rect, shear)
                 } else {
@@ -255,8 +255,7 @@ impl TextPipeline {
         None
     }
 
-    /// THE CARD'S BOX NARROWED TO WHAT THE FRAME DREW INSIDE IT — both the X faces and
-    /// the bottom.
+    /// THE CARD'S BOX NARROWED TO WHAT THE FRAME DREW INSIDE IT.
     ///
     /// `overlay_card_rect` is a PLACEMENT policy — a fixed desired width clamped to the
     /// window — and on a composition that draws no panel under the card and no plate under
@@ -280,12 +279,18 @@ impl TextPipeline {
         let geom = self.overlay_geometry(self.window_w as u32);
         let plan = self.overlay_row_plan(&geom);
         let surfaces = self.overlay_drawn_surfaces(&geom, &plan);
+        let style = crate::render::effective_list_style();
+        // Upright, content-hugging PLATES own surfaces in both axes. Their card is a
+        // generous placement and pointer box, so keeping either its full width or its
+        // reserved head/foot air frosts room the composition did not draw. Derive this
+        // arm from the composition and its authored extent — never from a world name.
+        if style.draws_row_plates() && crate::render::effective_bar_config().extent.hugs() {
+            return blur::footprint_narrow_upright(card, &surfaces);
+        }
         let x_narrowed = blur::footprint_narrow(card, shear, &surfaces);
-        // The BOTTOM narrows only on a diagonal composition — the one whose row band
-        // and foot chrome rake past the card's own reserved bottom pad, leaving air an
-        // upright composition's rows do not: an upright card's own coverage law (all
-        // four corners frosted when `shear == 0`) has no rake to earn the trim back
-        // with, so it keeps its box exactly as it always has.
+        // On the REMAINING composition arms, the bottom narrows only for Diagonal —
+        // its row band and foot chrome rake past reserved bottom air. FullWidth upright
+        // plates and Ruled keep their established vertical box.
         if super::chrome::diagonal::active(self).is_some() {
             blur::footprint_narrow_bottom(x_narrowed, shear, &surfaces)
         } else {
