@@ -101,15 +101,17 @@ fn a_seeded_data_root_starts_a_live_app_capture_already_conflicted() {
             doc.to_str().unwrap(),
             "--seed-data",
             seed.to_str().unwrap(),
-            // The default page measure happens to place the bottom-left
-            // GUTTER's own margin exactly on the identity line's presence
-            // floor once its close-lane reservation is subtracted — a real,
-            // separately law-tested boundary
+            // Pinned narrower than the default page measure so the
+            // bottom-left GUTTER this test grades is actually drawn rather
+            // than hidden behind its presence floor
             // (`render::tests::column_left_dpi::
-            // the_identity_lines_close_lane_reservation_never_leaves_an_extensionless_name`),
-            // not a fixed hidden/shown split. Pinned narrower so the gutter
-            // this test grades is actually drawn, still eliding "draft.md"
-            // to "dr….md" as asserted below.
+            // the_identity_lines_close_lane_reservation_never_leaves_an_extensionless_name`
+            // sweeps that floor generically). Item 539 dropped the identity
+            // line's own close-lane budget reservation when it moved the
+            // hover-revealed close mark to the leading edge, reclaiming the
+            // 3 chars that used to be docked from the name's fit — so
+            // "draft.md" (8 chars) now draws in full at this width instead
+            // of eliding to "dr….md" as it once did.
             "--measure",
             "65",
         ],
@@ -129,8 +131,8 @@ fn a_seeded_data_root_starts_a_live_app_capture_already_conflicted() {
     );
     assert_eq!(
         json["gutter"]["name"].as_str(),
-        Some("dr….md"),
-        "the affordance really is beside this document's elided filename at the default zoom"
+        Some("draft.md"),
+        "the affordance really is beside this document's own name at the default zoom"
     );
 
     // ── WITHOUT the slot: byte-identical command, and the conflict is
