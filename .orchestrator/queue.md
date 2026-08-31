@@ -225,7 +225,11 @@ operations survive it and would also serve the grid editor.
 ---
 ### 543 — TableDims picker: frost only the card's footprint, never the whole page (user decision, 2026-09-01)
 
-🟡 IN PROGRESS — root, branch codex/item-543-tabledims-frost
+✅ COMPLETE — landed on main as merge `2d7b8090`; independent production
+audit accepted with no findings. TableDims now takes footprint frost through
+its own honest small insertion-card enrolment while the crisp/live-preview law
+stays unchanged. Exact-main receipt: health pass, both conventions, forced
+menu-bar arm, 4,686 unit tests, 16 integration targets; web 16/16.
 
 The user likes the picker; the frost extent is the complaint, in their
 words: when the picker is active "there shouldn't be any blur — or
