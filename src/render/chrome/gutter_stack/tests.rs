@@ -473,22 +473,12 @@ fn hover_close_keeps_label_geometry_fixed_and_enrols_every_truthful_row() {
             as f32
             * label_char_w;
         let zone = close_zone(band, text_w);
-        let switch = super::super::gutter_hit::stack_hit_from_plan(
-            &layout,
-            &plan,
-            label_char_w,
-            zone[0] - 1.0,
-            band[1] + band[3] * 0.5,
-        )
-        .expect("row-hover point enrols");
-        let close = super::super::gutter_hit::stack_hit_from_plan(
-            &layout,
-            &plan,
-            label_char_w,
-            zone[0] + 1.0,
-            band[1] + band[3] * 0.5,
-        )
-        .expect("close-zone point enrols");
+        let y = band[1] + band[3] * 0.5;
+        let hit_at = |px: f32| {
+            super::super::gutter_hit::stack_hit_from_plan(&layout, &plan, label_char_w, px, y)
+        };
+        let switch = hit_at(zone[0] - 1.0).expect("row-hover point enrols");
+        let close = hit_at(zone[0] + 1.0).expect("close-zone point enrols");
         assert_eq!(switch.row, row);
         assert!(!switch.is_close());
         assert_eq!(close.row, row);

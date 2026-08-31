@@ -284,12 +284,8 @@ impl TextPipeline {
         }
         // The mark's text is shaped FIRST (a LEADING span), even for the
         // single-file identity: it rides the SAME close-mark door a
-        // working-set row does, revealing under the same hover hit this line
-        // enrols in through `GutterLine::Name`
-        // (`gutter_hit::stack_hit_from_plan`) — one mechanism, not a
-        // single-file copy of it — and a right-aligned line grows leftward
-        // into the ragged margin a shorter name already leaves empty, so the
-        // reveal changes ink only.
+        // working-set row does (`GutterLine::Name` in `gutter_hit::
+        // stack_hit_from_plan`), one mechanism rather than a single-file copy.
         let revealed_ink = base.clone().color(muted);
         let hidden_ink = base.clone().color(glyphon::Color::rgba(0, 0, 0, 0));
         if stack_ink.is_empty() {
@@ -305,17 +301,14 @@ impl TextPipeline {
             }
         }
         // The box is WIDER than `avail` by the leading mark's own reserved
-        // width, and the render origin below shifts left by that same
-        // amount — so a line's right-aligned content still lands its own
-        // right edge at `avail` exactly whenever it fits the box (cosmic-text
-        // clamps its own align offset at zero rather than overflowing
-        // negative — a narrower box here would shove the WHOLE line, name
-        // included, past `avail` on any row spending its full budget, not
-        // just the mark). Only on a maximal-width name does content
-        // overrun this widened box too; `Wrap::None` keeps that overrun from
-        // reflowing onto a second visual line, so the excess — the mark's
-        // own leading pixels — clips at the canvas edge (physical x=0)
-        // instead, which is the one thing here allowed to clip.
+        // width (render origin shifted left by the same amount below), so a
+        // right-aligned line's content still lands its own right edge at
+        // `avail` exactly (cosmic-text clamps its align offset at zero
+        // rather than overflowing negative — a narrower box would shove the
+        // WHOLE line past `avail` on any row spending its full budget).
+        // `Wrap::None` keeps a maximal name's own overrun of even this
+        // widened box from reflowing onto a second visual line — the excess
+        // (the mark's own leading pixels) clips at the canvas edge instead.
         let mark_w = gutter_stack::CLOSE_MARK_TEXT.chars().count() as f32 * label_char_w;
         self.gutter_buffer
             .set_wrap(&mut self.font_system, glyphon::cosmic_text::Wrap::None);
@@ -377,10 +370,8 @@ impl TextPipeline {
             .prepare(device, queue, width, height, &indicator);
         let area = TextArea {
             buffer: &self.gutter_buffer,
-            // Shifted left by the same reserved width the box was widened
-            // by, so the box's own right edge — where content lands when it
-            // fits — maps back to physical `avail`, the gap shy of the
-            // writing column every OTHER chrome surface hugs the same way.
+            // Shifted left by the box's own widened amount, so its right
+            // edge — where content lands when it fits — maps back to `avail`.
             left: -mark_w,
             top: stack.top,
             scale: 1.0,
