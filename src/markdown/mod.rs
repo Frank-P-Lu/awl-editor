@@ -109,6 +109,7 @@ mod footnotes;
 mod headings;
 mod refs;
 mod spans;
+mod table_caret;
 mod tables;
 
 pub use conceal::ConcealKind;
@@ -130,12 +131,13 @@ pub use spans::{
     break_kind, equals_runs, fence_line_lang, frontmatter_end, is_fence_line, is_thematic_break,
     list_item, reading_time_min, spans, strike_engaged, word_count,
 };
+pub(crate) use table_caret::{locate_table_caret, table_caret_col};
 pub(crate) use tables::ColAlign;
 pub use tables::{FIRST_CELL_OFFSET, align_table, build_table, table_block_lines};
 #[allow(unused_imports)] // table_pan_max: public API surface, no in-crate caller today
 pub(crate) use tables::{
-    locate_table_caret, parse_col_align, split_row_cells, table_align_offset, table_caret_col,
-    table_cell_ranges, table_column_layout, table_pan_bar, table_pan_clamp, table_pan_max,
+    parse_col_align, split_row_cells, table_align_offset, table_cell_ranges, table_column_layout,
+    table_pan_bar, table_pan_clamp, table_pan_max,
 };
 
 #[cfg(test)]

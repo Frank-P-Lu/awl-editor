@@ -228,9 +228,9 @@ pub(super) fn align_table_at_cursor(ctx: &mut ActionCtx) {
 /// row, so a raw pre-edit char offset would land on padding whitespace or a
 /// different cell after the replace. If the CURRENT caret sits inside the same
 /// table block being rewritten (it may have moved to a different row of the
-/// SAME table, not only out of it), its position is captured as a LOGICAL cell
-/// + intra-cell offset ([`crate::markdown::locate_table_caret`]) before the
-/// replace, then re-resolved on the realigned row
+/// SAME table, not only out of it), its position is captured as a LOGICAL
+/// (cell, intra-cell offset) pair ([`crate::markdown::locate_table_caret`])
+/// before the replace, then re-resolved on the realigned row
 /// ([`crate::markdown::table_caret_col`]) after — landing on the same cell/
 /// content offset rather than a byte count that now means something else. A
 /// caret that already sits outside the block (it left the table, not only the
