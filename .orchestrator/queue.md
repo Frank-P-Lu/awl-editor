@@ -440,6 +440,19 @@ from the browsed blocks; Mopoke wears it. NEW twelfth set SPLATTER
 world. Genjikō's 1 2 3 4 5 (U+F501) confirmed present since v2 — the
 user was on a cached v1. Twelve sets, arrangement still pending.
 
+**FITTING ROOM v4 (2026-08-31):** user: one snake only. Riverbank is now
+a bestiary at three speeds — `---` the long joined snake (SNAKE4), `***`
+a butterfly (U+1F98B), `___` a snail (U+1F40C). Arabesque takes the
+user's one-joined-plus-two shape: the joined white swag (F814+F815+F816)
+for `---`, a white scroll (U+F81C) and black wave (U+F827) for the
+others — the old F818 slot was WAVE-1 mirrored, user caught it.
+Manicules swapped out on request; replacement is TALLY (U+F59B/F59D/
+F59A, Japanese box-tally strokes — a break that counts sections, the
+non-visual reason the trigrams lacked), proposed for Wagtail/Currawong.
+Moonfaces confirmed great by the user. Caslon foundry ornaments
+(FEFD6/FEFD8/FEFD9 chain/cartouche/rosette) rendered and RESERVED —
+lovely but ornate for the stark worlds. Twelve sets, arrangement pending.
+
 ---
 ## Needs specific hardware
 
