@@ -6,6 +6,8 @@
 use super::super::*;
 use super::{headless_dqp, headless_pipeline, view};
 
+mod pixels;
+
 /// `wysiwyg_reveals` treats `SmartPunct` as LINE-scoped, exactly like
 /// `Emphasis`/`Highlight`: it reveals only when the caret sits on its own
 /// line (or a touching selection), never on a different line.
@@ -234,6 +236,125 @@ fn smart_punct_marks_resolve_each_kind_to_its_own_glyph() {
     );
 
     crate::markdown::set_wysiwyg_on(true);
+}
+
+/// END-TO-END selection reveal: touching a smart-punctuation source range
+/// restores every literal byte AND suppresses the separately-painted
+/// substitute. The disjoint state on either side proves both subjects were
+/// enrolled; a test that only inspected concealment could leave the ornament
+/// painted over the revealed literal, while a mark-count-only test could leave
+/// the literal collapsed underneath an absent ornament.
+#[test]
+fn smart_punct_selection_touch_suppresses_conceal_and_ornament_for_full_roster() {
+    let _w = crate::testlock::serial();
+    crate::markdown::set_wysiwyg_on(true);
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!(
+            "skipping smart_punct_selection_touch_suppresses_conceal_and_ornament_for_full_roster: \
+             no wgpu adapter"
+        );
+        return;
+    };
+    let text = "range -- pause --- wait... now\nplain\npark\n";
+    let offsets: Vec<_> = crate::markdown::SmartPunctKind::ALL
+        .into_iter()
+        .map(|kind| (kind, text.find(kind.literal()).unwrap()))
+        .collect();
+
+    let mut disjoint = view(text, 2, 0);
+    disjoint.is_markdown = true;
+    disjoint.selection = Some(((1, 0), (1, 1)));
+    p.set_view(&disjoint);
+    let disjoint_marks: Vec<_> = p
+        .smart_punct_marks()
+        .into_iter()
+        .map(|(_, _, kind, _)| kind)
+        .collect();
+    assert_eq!(
+        disjoint_marks,
+        crate::markdown::SmartPunctKind::ALL,
+        "disjoint selection must enroll one painted substitute per roster member"
+    );
+    for (kind, byte) in &offsets {
+        assert!(
+            p.concealed_at(0, *byte),
+            "{kind:?}: disjoint selection must leave the source literal concealed"
+        );
+    }
+
+    let mut touching = view(text, 2, 0);
+    touching.is_markdown = true;
+    touching.selection = Some(((0, 0), (0, 1)));
+    p.set_view(&touching);
+    for (kind, byte) in &offsets {
+        assert!(
+            !p.concealed_at(0, *byte),
+            "{kind:?}: a selection touching the line must reveal the literal"
+        );
+    }
+    assert!(
+        p.smart_punct_marks().is_empty(),
+        "a selection touching the line must suppress every substitute ornament"
+    );
+
+    p.set_view(&disjoint);
+    assert_eq!(
+        p.smart_punct_marks().len(),
+        crate::markdown::SmartPunctKind::ALL.len(),
+        "clearing the touching selection must restore every ornament"
+    );
+}
+
+/// END-TO-END table exception: ordinary prose conceals the three ASCII runs
+/// and paints substitutes, but the real grid-cell buffers intentionally keep
+/// the raw literals in body ink because the table painter has no per-cell
+/// smart-punctuation ornament layer. This reads the shaped buffer that
+/// `prepare_table_grid` submits to the renderer, not a parser-only attrs list.
+#[test]
+fn table_cell_smart_punct_stays_literal_visible_without_an_ornament_layer() {
+    let _w = crate::testlock::serial();
+    let _world = theme::WorldPin::snapshot();
+    crate::markdown::set_wysiwyg_on(true);
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
+        eprintln!(
+            "skipping table_cell_smart_punct_stays_literal_visible_without_an_ornament_layer: \
+             no wgpu adapter"
+        );
+        return;
+    };
+    let cell = "range -- pause --- wait... now";
+    let text = format!("| Mark |\n| --- |\n| {cell} |\n\npark\n");
+    let mut v = view(&text, 4, 0);
+    v.is_markdown = true;
+    p.set_view(&v);
+    p.prepare(&device, &queue, 1200, 800).unwrap();
+
+    assert!(
+        p.table_cell_lines_drawn().contains(&2),
+        "the body row must be submitted as real grid-cell text"
+    );
+    let cache = p.table_grid_cache.entries.borrow();
+    let (_, grid) = cache.first().expect("one shaped table grid");
+    let (_, _, body, _) = grid
+        .cells
+        .iter()
+        .find(|(_, _, buffer, _)| buffer.lines.first().is_some_and(|line| line.text() == cell))
+        .expect("body cell carrying the smart-punctuation roster is shaped");
+    let line = &body.lines[0];
+    let expected_ink = theme::base_content().to_glyphon();
+    for kind in crate::markdown::SmartPunctKind::ALL {
+        let byte = cell.find(kind.literal()).unwrap();
+        let attrs = line.attrs_list().get_span(byte);
+        assert_eq!(
+            attrs.color_opt,
+            Some(expected_ink),
+            "{kind:?}: table-cell literal keeps body-content ink (never transparent conceal)"
+        );
+        assert!(
+            attrs.metrics_opt.is_none(),
+            "{kind:?}: table-cell literal keeps full body metrics (never collapsed conceal)"
+        );
+    }
 }
 
 fn smart_punct_row_widths(p: &TextPipeline, line: usize) -> Vec<f32> {
