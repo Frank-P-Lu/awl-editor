@@ -9,7 +9,7 @@
 ---
 ### 529 — Nishiki-teki: audition a Japanese symbol cabinet, then give each adopted mark one honest purpose (user decision, 2026-08-29)
 
-🟡 IN PROGRESS — gpt-5.6-sol high, branch codex/item-529-phase2 (phase 2: derived-face roster workflow, asset swap, and the decided single-source adoption; phase-1 taste gates are closed; the old item-529 worktree is read-only evidence because its temporary gallery commits diverged before the later decisions)
+✅ COMPLETE — merged as `d8bb4b81`; ambient menu-bar restoration repaired in `1680c7f4`. Independent production audit accepted the derived-face roster and visual outcome; exact-main receipt: health pass, both conventions, forced menu-bar arm, 4,682 unit tests, 16 integration targets; web 16/16.
 
 "It's beautiful"; DECIDED: **Nishiki-teki is the first symbol face awl
 should pursue. Character comes before byte count.** This is not a request
@@ -419,7 +419,7 @@ Band, Chips) have no report against them.
 ---
 ### 536 — per-world ornament sets from the full Nishiki cabinet (user decision, 2026-08-30; sequenced AFTER 529 bundles the face)
 
-✅ DESIGN PASS COMPLETE (user approved the arrangement, 2026-09-01: "they look good! lets queue this!") — build phase UNCLAIMED, sequenced after 529 bundles the face. The FINAL block at the end of this item is the decided roster; the v-notes above it are the fitting history.
+🟡 IN PROGRESS — gpt-5.6-sol high, branch codex/item-536-ornament-sets. The user-approved FINAL block is authoritative; implementation begins from the now-landed 529 face.
 
 DECIDED direction, user's words paraphrased with their consent to file:
 with the whole cabinet bundled "we can use whatever glyphs we want", so
@@ -626,6 +626,8 @@ fitting-room artifact is the visual reference for all of this.
 ---
 ### 537 — footnote markers may wear the traditional reference ladder (user decision, 2026-09-01; sequenced AFTER 529 bundles the face)
 
+🔴 BLOCKED — needs the user's product decisions on per-document versus recycled scope and whether definition-list markers follow the display option. U+2016 coverage remains an engineering verification, not a user decision.
+
 DECIDED direction, from the user's own connection during 536's heritage
 round: "the daggers were used for footnotes — we still have a chance to
 use them, cuz we support footnotes." awl's footnote references already
@@ -654,6 +656,8 @@ doubling; option off ⇒ byte-identical render to today.
 ---
 ## Needs specific hardware
 
+🔴 BLOCKED — these journeys require physical environments unavailable to the current orchestration host.
+
 1. **AT-SPI journey** — on a real Linux desktop with Orca, exercise document
    reading, caret/selection, overlays, and an editing burst.
 2. **Linux drawn-menu Export click** — with a real window/compositor, confirm
@@ -662,6 +666,8 @@ doubling; option off ⇒ byte-identical render to today.
    on a real desktop; check launcher name/icon and the AppImage FUSE fallback.
 
 ## Needs release authority
+
+🔴 BLOCKED — release work requires the user's explicit release word and Apple signing secrets.
 
 1. **macOS release signing** — supply the Apple secrets required by
    `RELEASING.md` §1 before the macOS release arm can run.
