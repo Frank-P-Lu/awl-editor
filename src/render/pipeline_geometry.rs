@@ -416,6 +416,19 @@ impl TextPipeline {
         } else {
             0.0
         };
+        // The INSERT-TABLE card's hint line ("N × M table   ↵ insert   Esc
+        // cancel") is measured NOW, with the same `&mut FontSystem` window the
+        // spell measurement above uses, so `table_dims_overlay_geometry` can
+        // stay `&self` — the hit-test path (`table_dims_cell_at`) calls it too,
+        // with no mutable shaper in hand. Shaped through the exact face/metrics
+        // split the draw path (`push_overlay_hint_spans`) uses, so the width
+        // this grows the card to is the width the hint is actually drawn at.
+        self.overlay_table_dims_hint_w = if self.overlay_table_dims.is_some() {
+            let hint = self.overlay_hint.clone();
+            self.measure_workspace_hint_text_px(&hint)
+        } else {
+            0.0
+        };
         // A RIGHT-ANCHORED takeover card shrinks to hug its content, so
         // measure the widest visible primary (+ optional secondary column, query
         // line, lens strip and footer) NOW, with a `&mut FontSystem` in hand. Gated

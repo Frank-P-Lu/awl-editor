@@ -2611,6 +2611,11 @@ pub struct TextPipeline {
     /// rail is drawn this frame.
     workspace_rail_placement: Option<(f32, f32)>,
     overlay_spell_w: f32,
+    /// The INSERT-TABLE hint line's own SHAPED width, measured at `set_view`
+    /// like `overlay_spell_w` — `table_dims_overlay_geometry` reads it as a
+    /// plain field so it can stay `&self` (the hit-test path calls it too, with
+    /// no `&mut FontSystem` in hand). `0.0` off the table-dims card.
+    overlay_table_dims_hint_w: f32,
     overlay_content_w: f32,
     /// Stable right-anchored faceted-card width, memoized by the immutable
     /// summon corpus identity and every shaping metric the answer reads.

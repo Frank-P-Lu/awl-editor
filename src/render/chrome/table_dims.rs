@@ -62,7 +62,15 @@ impl TextPipeline {
         let pad = m.px(CARD_PAD);
         let cell = m.px(CELL);
         let gap = m.px(CELL_GAP);
-        let grid_left = geom.card_x + pad;
+        let (grid_w, _grid_h) = self.table_dims_grid_extent();
+        // CENTERED horizontally in the card, not pinned to `card_x + pad`: the
+        // card can be WIDER than `grid_w + 2*pad` when the hint's own shaped
+        // width is what set `desired_w` (`table_dims_overlay_geometry`) —
+        // splitting the leftover evenly keeps the grid in the middle of its
+        // card instead of jammed left with all the slack on the right. Equals
+        // the old bare `pad` exactly when the card is sized to the grid alone
+        // (the ordinary case), so this is additive, not a repositioning.
+        let grid_left = geom.card_x + ((geom.card_w - grid_w) * 0.5).max(0.0);
         let grid_top = geom.card_y + pad;
         let x = grid_left + col as f32 * (cell + gap);
         let y = grid_top + row as f32 * (cell + gap);
@@ -85,6 +93,21 @@ impl TextPipeline {
     /// height as a local `header_gap`-shaped quantity purely for the additive
     /// formula [`Self::overlay_card_h`] already is — that arithmetic doesn't
     /// care how the flow renders, only that it sums to the right total.
+    ///
+    /// WIDTH: `desired_w` is the max of the drawn grid and the hint's own
+    /// SHAPED width (`overlay_table_dims_hint_w`, measured at `set_view`),
+    /// not the grid alone — a card sized to the grid let the hint line
+    /// outrun `text_w` and clip mid-word. `table_dims_cell_rect` centers the
+    /// grid in whatever width results.
+    ///
+    /// PLACEMENT: CARET-anchored, not the standard summon rail every other
+    /// picker uses (`overlay_card_box`'s `CardAnchor` resolution still sizes
+    /// the width, but its `x` is discarded here) — the table lands at the
+    /// caret, which can be far from a fixed top corner, using the same
+    /// near-edge/bottom-of-window clamp [`Self::spell_overlay_geometry`]
+    /// already gets from [`crate::render::plan::plan_spell_anchor`], fed the
+    /// caret's own screen rect ([`Self::caret_pixel_rect`]) in place of a
+    /// misspelled word's.
     pub(in crate::render) fn table_dims_overlay_geometry(&self, width: u32) -> OverlayGeom {
         let m = self.metrics;
         let pad = m.px(CARD_PAD);
@@ -93,10 +116,17 @@ impl TextPipeline {
         let grid_hint_gap = m.px(GRID_HINT_GAP);
         let hint_rows = 1;
 
-        let desired_w = grid_w + 2.0 * pad;
-        let (card_x, card_w) = self.overlay_card_box(width, desired_w);
-        let card_y = margin + m.px(CARD_TOP_DROP) + self.menubar_reserve();
+        let desired_w = grid_w.max(self.overlay_table_dims_hint_w) + 2.0 * pad;
+        let (_rail_x, card_w) = self.overlay_card_box(width, desired_w);
         let card_h = self.overlay_card_h(hint_rows, grid_h + grid_hint_gap, hint_rows, 0, pad);
+        let (caret_x, caret_y, caret_w, caret_h) = self.caret_pixel_rect();
+        let [card_x, card_y] = crate::render::plan::plan_spell_anchor(
+            [width as f32, self.window_h],
+            [caret_x, caret_y, caret_w, caret_h],
+            [card_w, card_h],
+            margin,
+            m.px(SPELL_WORD_GAP),
+        );
         let card_y = card_y + self.overlay_entrance_offset();
         let text_left = card_x + pad;
         let text_top = card_y + pad + grid_h + grid_hint_gap;
