@@ -236,7 +236,7 @@ the new enrolment. Full gate receipt.
 ---
 ### 536 — per-world ornament sets from the full Nishiki cabinet (user decision, 2026-08-30; sequenced AFTER 529 bundles the face)
 
-🟡 IN PROGRESS — design-session Claude (this is the DESIGN PASS only: curate sets, render on real grounds, Artifact fitting-room for the user's set-to-world assignment; no product data lands from this claim)
+✅ DESIGN PASS COMPLETE (user approved the arrangement, 2026-09-01: "they look good! lets queue this!") — build phase UNCLAIMED, sequenced after 529 bundles the face. The FINAL block at the end of this item is the decided roster; the v-notes above it are the fitting history.
 
 DECIDED direction, user's words paraphrased with their consent to file:
 with the whole cabinet bundled "we can use whatever glyphs we want", so
@@ -397,6 +397,48 @@ again — correctly) rebuilt as three IDEAS of a spiral: round U+FF041,
 angular U+FF053 (square coil), conical U+FF052. Candidates auditioned
 and rejected: loose spiral (too close to round), cyclone (too busy),
 curly loops (read as owl eyes). Mangrove wears the corrected set.
+
+**FINAL — THE DECIDED ARRANGEMENT (user approved, 2026-09-01).** Trio
+order is (dash `---`, star `***`, underscore `___`). Composed runs are
+'+'-joined codepoints shaped as ONE text run — so `Ornaments` fields
+MUST widen from `char` to a string; that model change is now required,
+not optional. All glyphs are Nishiki-teki, requested at weight 500.
+
+| world | set | dash / star / underscore |
+|---|---|---|
+| Gumtree | Riverbank | F591+F592+F592+F593 (long snake) / 1F41F fish / 1F40C snail |
+| Potoroo | Undergrowth | 1F344 mushroom / 1F340 four-leaf clover / 2618 shamrock |
+| Bilby | Hanami | 1F338 cherry blossom / 1F33C blossom / 1F337 tulip |
+| Saltpan | Scriptorium | 2E0E coronis / 2E16 dotted diple / 2E14 downwards ancora |
+| Quokka | Tavern | F5B0 acorns / F5B3 bells / F5B1 leaves |
+| Bombora | Arabesque | F814+F815 white pair / F827+F828 black pair / F81C white scroll |
+| Mulga | Genjikō | F501 (1 2 3 4 5) / F500 / F51B |
+| Tawny | Autumn | 1F341 maple / 1F343 fluttering / 1F342 fallen |
+| Mopoke | Moonfaces | 1F31D full / 1F31B first-quarter / 1F31A new |
+| Bowerbird | Wish | 1F320 shooting star / 1F31F glowing star / 2728 sparkles |
+| Currawong | Gambit | 2658 knight / 2655 queen / 2659 pawn |
+| Mangrove | Spirals | FF041 round / FF053 angular / FF052 conical |
+| Galah | Cardtable | 2660 spade / 2665 heart / 2663 club |
+| Magpie | Asterism | 2042 asterism / 2051 two vertical / 2731 heavy asterisk |
+| Brolga | Dovecote | FEFE1 dove right / FEFE3 olive-branch dove / FEFE2 dove left |
+| Wagtail | Songbook | 2669 quarter / 266A eighth / 266C beamed sixteenths |
+| Firetail | Stars | 2726 black four-point / 2736 six-point / 2727 white four-point |
+| Paperbark | Fleurons | 2767 / 2619 / 2766 |
+| Kite | Solar | 2600 black sun / 263C white sun / 1F31E sun with face |
+| Cassowary | Splatter | FF04E splash / FF04F black splash / FF04D centerless splash |
+
+Adopted glyph union for the derived subset face: 64 codepoints (the
+table's singles plus composed components F591/F592/F593, F814/F815,
+F827/F828) — enrol every one in the glyph-presence law. Build notes for
+the lane: (a) `ornament_scale` tiers stay per-world as today; (b) each
+world's `ornament_face` moves to the Nishiki register — a FOURTH
+`OrnamentRegister` variant, which by design breaks `fold_mark_for`'s
+exhaustive match until the lane consciously picks the Nishiki fold
+mark; (c) LIST-BULLET pairs were NOT covered by this pass — a small
+follow-up taste round derives each world's bullet pair from its worn
+set; (d) the 18 unworn shelf sets and the benched sets land in the
+recorded reserve roster with the reasons already noted above; (e) the
+fitting-room artifact is the visual reference for all of this.
 
 ---
 ### 537 — footnote markers may wear the traditional reference ladder (user decision, 2026-09-01; sequenced AFTER 529 bundles the face)
