@@ -424,6 +424,22 @@ largely museum under the standing clause (religious signs, brands,
 pictographs), a few ornament-viable bursts/spirals left in reserve.
 Arrangement still pending the user's copy-out.
 
+**FITTING ROOM v3 (user push-back round, 2026-08-31):** three user calls,
+all in. (a) Snake parts retired — "if you have the full snake why would
+you have part of the snake?" — Riverbank is now THREE LENGTHS of one
+whole creature: `___` hatchling (tail+head, joins seamlessly with no
+trunk), `---` snake, `***` grand snake. (b) Trigrams cut on principle,
+not visuals: the user asked for a compelling non-visual reason, and the
+honest answer is 529's own museum clause (divinatory signs as generic
+UI) argues against them — replaced by MANICULES (U+261E/261D/261C), the
+printer's own five-century margin mark, proposed for Wagtail/Currawong.
+(c) Lunar replaced by MOONFACES (U+1F31D/1F31B/1F31A, the moon with a
+face) per "we can replace the lunar one" + the ask for something playful
+from the browsed blocks; Mopoke wears it. NEW twelfth set SPLATTER
+(U+FF04E/FF04F/FF04D — ink splashes), proposed for Cassowary's metaball
+world. Genjikō's 1 2 3 4 5 (U+F501) confirmed present since v2 — the
+user was on a cached v1. Twelve sets, arrangement still pending.
+
 ---
 ## Needs specific hardware
 
