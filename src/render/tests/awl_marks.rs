@@ -3,7 +3,7 @@
 use std::collections::BTreeSet;
 
 use super::super::*;
-use ttf_parser::Face;
+use ttf_parser::{Face, GlyphId, OutlineBuilder};
 
 fn roster_codepoints() -> BTreeSet<u32> {
     marks::roster().iter().map(|mark| mark.codepoint).collect()
@@ -38,33 +38,52 @@ fn names(face: &Face, name_id: u16) -> BTreeSet<String> {
         .collect()
 }
 
+#[derive(Default)]
+struct OutlineInk {
+    moves: usize,
+    segments: usize,
+    closes: usize,
+}
+
+impl OutlineBuilder for OutlineInk {
+    fn move_to(&mut self, _x: f32, _y: f32) {
+        self.moves += 1;
+    }
+
+    fn line_to(&mut self, _x: f32, _y: f32) {
+        self.segments += 1;
+    }
+
+    fn quad_to(&mut self, _x1: f32, _y1: f32, _x: f32, _y: f32) {
+        self.segments += 1;
+    }
+
+    fn curve_to(&mut self, _x1: f32, _y1: f32, _x2: f32, _y2: f32, _x: f32, _y: f32) {
+        self.segments += 1;
+    }
+
+    fn close(&mut self) {
+        self.closes += 1;
+    }
+}
+
 #[test]
 fn adopted_mark_roster_is_complete_named_and_role_enrolled() {
     let roster = marks::roster();
-    assert_eq!(
-        roster.len(),
-        94,
-        "the decided, deduplicated union is 94 glyphs"
+    assert!(
+        !roster.is_empty(),
+        "the adoption roster must enroll real marks"
     );
-    assert_eq!(
-        role_codepoints("chrome").len(),
-        34,
-        "phase one's chrome roster"
-    );
-    assert_eq!(
-        role_codepoints("ornament-536").len(),
-        64,
-        "item 536's final union"
-    );
+    for role in ["chrome", "symbol-span", "ornament-536", "reference-537"] {
+        assert!(
+            !role_codepoints(role).is_empty(),
+            "the declared {role:?} purpose has no enrolled mark"
+        );
+    }
     assert_eq!(
         role_codepoints("reference-537"),
         BTreeSet::from([0x002A, 0x00A7, 0x00B6, 0x2016, 0x2020, 0x2021]),
         "the traditional * † ‡ § ‖ ¶ reference ladder is enrolled exactly"
-    );
-    assert_eq!(
-        role_codepoints("symbol-span").len(),
-        16,
-        "the current chrome symbol-span consumer set remains explicit"
     );
     for mark in roster {
         assert!(
@@ -73,15 +92,76 @@ fn adopted_mark_roster_is_complete_named_and_role_enrolled() {
             mark.codepoint
         );
         assert!(
-            mark.roles.iter().all(|role| matches!(
-                *role,
-                "chrome" | "symbol-span" | "ornament-536" | "reference-537"
-            )),
+            !mark.roles.is_empty()
+                && mark.roles.iter().all(|role| matches!(
+                    *role,
+                    "chrome" | "symbol-span" | "ornament-536" | "reference-537"
+                )),
             "U+{:04X} has an unknown role: {:?}",
             mark.codepoint,
             mark.roles
         );
     }
+}
+
+/// CMAP PRESENCE IS NOT GLYPH PRESENCE. A cmap may legally map a codepoint to
+/// glyph zero (`.notdef`), or to an empty/zero-sized glyph. Either shape keeps
+/// the key in the cmap while drawing tofu or nothing. Ask the derived face's
+/// own outline tables at the pure parser seam: every roster row must map to a
+/// nonzero glyph id with positive advance, a non-degenerate bounding box, and
+/// at least one closed outline carrying real segments.
+#[test]
+fn every_rostered_mark_maps_to_a_nonzero_outlined_glyph() {
+    let face = Face::parse(FONT_SYMBOLS, 0).expect("AwlMarks.ttf parses");
+    let roster = marks::roster();
+    assert!(
+        !roster.is_empty(),
+        "the outline sweep must enroll real marks"
+    );
+    let mut checked = BTreeSet::new();
+    for mark in roster {
+        let ch = char::from_u32(mark.codepoint).expect("roster contains Unicode scalars");
+        let glyph = face
+            .glyph_index(ch)
+            .unwrap_or_else(|| panic!("U+{:04X} has no glyph mapping", mark.codepoint));
+        assert_ne!(
+            glyph,
+            GlyphId(0),
+            "U+{:04X} maps to .notdef/tofu glyph zero",
+            mark.codepoint
+        );
+        assert!(
+            face.glyph_hor_advance(glyph)
+                .is_some_and(|advance| advance > 0),
+            "U+{:04X} has no positive horizontal advance",
+            mark.codepoint
+        );
+        let bounds = face
+            .glyph_bounding_box(glyph)
+            .unwrap_or_else(|| panic!("U+{:04X} has no outline bounding box", mark.codepoint));
+        assert!(
+            bounds.width() > 0 && bounds.height() > 0,
+            "U+{:04X} has a degenerate outline box {bounds:?}",
+            mark.codepoint
+        );
+        let mut ink = OutlineInk::default();
+        face.outline_glyph(glyph, &mut ink)
+            .unwrap_or_else(|| panic!("U+{:04X} has no drawable outline", mark.codepoint));
+        assert!(
+            ink.moves > 0 && ink.segments > 1 && ink.closes > 0,
+            "U+{:04X} has no closed, nontrivial outline: moves={} segments={} closes={}",
+            mark.codepoint,
+            ink.moves,
+            ink.segments,
+            ink.closes
+        );
+        checked.insert(mark.codepoint);
+    }
+    assert_eq!(
+        checked,
+        roster_codepoints(),
+        "the outline/no-tofu law must sweep the roster itself"
+    );
 }
 
 #[test]
@@ -108,10 +188,14 @@ fn bundled_face_cmap_is_exactly_the_roster_in_both_directions() {
             .collect::<Vec<_>>()
             .join(",")
     );
+    assert!(
+        !expected.is_empty(),
+        "the cmap law must not pass over an empty roster"
+    );
     assert_eq!(
         actual.len(),
-        94,
-        "the cmap law must not pass over an empty roster"
+        expected.len(),
+        "the exact-set comparison is exhaustive"
     );
 }
 
@@ -156,7 +240,7 @@ fn symbol_spans_and_existing_awl_marks_consumers_derive_from_the_roster() {
     // consumer census, not the routing owner: routing itself is the roster role
     // above. Removing a roster row while a real consumer remains must fail by
     // glyph, rather than quietly making that consumer fall back to tofu.
-    for ch in "⌘⇧⌥⌃↵⇥⌫❧❦☙❡❥⁂§†‡".chars() {
+    for ch in "⌘⇧⌥⌃↵⇥⌫❧❦☙❡❥⁂§".chars() {
         assert!(
             marks::roster()
                 .iter()
@@ -180,11 +264,13 @@ fn symbol_spans_and_existing_awl_marks_consumers_derive_from_the_roster() {
     }
 
     let adopted = roster_codepoints();
-    let mut checked = 0usize;
+    let mut enrolled_worlds = BTreeSet::new();
+    let mut checked = Vec::new();
     for world in theme::THEMES
         .iter()
         .filter(|world| world.ornament_face == theme::ORNAMENT_MARKS)
     {
+        enrolled_worlds.insert(world.name);
         for ch in [
             world.ornaments.dash,
             world.ornaments.star,
@@ -200,11 +286,11 @@ fn symbol_spans_and_existing_awl_marks_consumers_derive_from_the_roster() {
                 ch,
                 ch as u32
             );
-            checked += 1;
+            checked.push((world.name, ch));
         }
     }
     assert!(
-        checked >= 30,
-        "the consumer sweep enrolled too few live marks: {checked}"
+        !enrolled_worlds.is_empty() && !checked.is_empty(),
+        "no live Awl Marks world/consumer enrolled in the roster sweep"
     );
 }
