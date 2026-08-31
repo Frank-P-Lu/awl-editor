@@ -79,6 +79,121 @@ fn align_table_aligns_under_caret_is_undoable_and_no_ops_outside() {
 }
 
 #[test]
+fn auto_align_fires_on_row_leave_but_not_while_still_editing_the_row() {
+    // Type raw, misaligned source into a cell -- the table stays visibly ragged
+    // (no realign) as long as the caret hasn't left the row it's typing in.
+    let mut buffer = md("|Name|V|\n|---|---|\n|a|100|\n|b|2|\n", 0);
+    buffer.set_cursor(buffer.line_col_to_char(2, 2)); // right after "a" on row 2
+    drive_act(&mut buffer, &Action::InsertChar('b'));
+    assert_eq!(
+        buffer.line_text(2),
+        "|ab|100|",
+        "no realign mid-row, even though the table is now visibly ragged"
+    );
+    drive_act(&mut buffer, &Action::InsertChar('c'));
+    assert_eq!(
+        buffer.line_text(2),
+        "|abc|100|",
+        "a second keystroke on the SAME row still doesn't trigger it"
+    );
+    let misaligned_full = buffer.text();
+
+    // Leaving the row (Down arrow, Action::NextLine) is the trigger: the whole
+    // table snaps to Prettier alignment, computed fresh over the CURRENT (typed)
+    // content -- reusing the exact same `align_table` the manual command uses.
+    drive_act(&mut buffer, &Action::NextLine);
+    let expected = crate::markdown::align_table("|Name|V|\n|---|---|\n|abc|100|\n|b|2|");
+    assert_eq!(
+        buffer.text(),
+        format!("{expected}\n"),
+        "leaving the row snapped the whole table into Prettier alignment"
+    );
+    assert_ne!(
+        buffer.text(),
+        misaligned_full,
+        "the row-leave actually edited the source"
+    );
+}
+
+#[test]
+fn auto_align_undoes_as_its_own_step_revealing_the_raw_typed_edit() {
+    let mut buffer = md("|Name|V|\n|---|---|\n|a|100|\n|b|2|\n", 0);
+    buffer.set_cursor(buffer.line_col_to_char(2, 2));
+    drive_act(&mut buffer, &Action::InsertChar('b'));
+    drive_act(&mut buffer, &Action::InsertChar('c'));
+    let misaligned_full = buffer.text();
+    let original_full = "|Name|V|\n|---|---|\n|a|100|\n|b|2|\n".to_string();
+
+    drive_act(&mut buffer, &Action::NextLine); // triggers the auto-align
+    assert_ne!(
+        buffer.text(),
+        misaligned_full,
+        "the align actually changed the source"
+    );
+
+    // ONE undo reveals the user's last raw edit -- the auto-align is its own
+    // sealed group, never merged with (and never discarding) the "bc" typing
+    // that preceded it.
+    buffer.undo();
+    assert_eq!(
+        buffer.text(),
+        misaligned_full,
+        "one undo restores the pre-align, still-typed (misaligned) content"
+    );
+
+    // A second undo removes the coalesced "bc" typing itself, back to the
+    // untouched original -- confirming the align's group was truly separate
+    // rather than having silently swallowed part of the typing on the way in.
+    buffer.undo();
+    assert_eq!(
+        buffer.text(),
+        original_full,
+        "a second undo removes the typing, unaffected by the align that followed it"
+    );
+}
+
+#[test]
+fn caret_lands_on_the_same_logical_cell_after_auto_align_not_a_raw_offset() {
+    // Widen row 2's first cell (typed raw, misaligned) so realigning grows
+    // column 0's width -- everything to its right on every row shifts, which is
+    // exactly what turns a raw column index into the wrong cell.
+    let src = "|N|V|\n|---|---|\n|a|100|\n|bbb|2|\n";
+    let mut buffer = md(src, 0);
+    buffer.set_cursor(buffer.line_col_to_char(2, 2)); // right after "a"
+    for c in "ZZZZ".chars() {
+        drive_act(&mut buffer, &Action::InsertChar(c));
+    }
+    assert_eq!(buffer.line_text(2), "|aZZZZ|100|");
+    let pre_align_col = buffer.cursor_line_col().1;
+
+    // What Down's own column-clamp (`min(goal, target_len)`, `buffer/motion.rs`'s
+    // `vertical`) lands on over row 3's PRE-align text -- computed independently
+    // of the production caret-preservation code under test, so the comparison
+    // below isn't just restating it.
+    let pre_row3 = "|bbb|2|";
+    let expected_pre_col = pre_align_col.min(pre_row3.chars().count());
+    let expected_pos = crate::markdown::locate_table_caret(pre_row3, expected_pre_col);
+
+    // Leaving the row triggers the auto-align; Down's own landing decided which
+    // cell the caret was over the instant before the re-pad ran.
+    drive_act(&mut buffer, &Action::NextLine);
+
+    let (row, col) = buffer.cursor_line_col();
+    assert_eq!(
+        row, 3,
+        "the caret is still on row 3 after the align rewrote it"
+    );
+    let realigned_row3 = buffer.line_text(3);
+    assert_ne!(realigned_row3, pre_row3, "row 3 actually got re-padded");
+    let actual_pos = crate::markdown::locate_table_caret(&realigned_row3, col);
+    assert_eq!(
+        actual_pos, expected_pos,
+        "the caret preserved its logical cell + offset across the re-pad, not a \
+         raw column that now points at padding or a different cell"
+    );
+}
+
+#[test]
 fn tag_document_language_is_one_undoable_edit_and_never_writes_a_second_block() {
     // The EXPLICIT door that replaced the open-time auto-stamp. It routes
     // through the same `apply_transition` seam a palette accept rides, so

@@ -326,6 +326,11 @@ struct ActionSnapshot {
     could_undo: bool,
     could_redo: bool,
     had_selection_before: bool,
+    /// The caret's LOGICAL LINE before this action dispatches — cheap (a rope
+    /// line lookup, not a document scan), unlike the table-block detection
+    /// itself, which `finish_action` only pays for once this differs from the
+    /// post-dispatch line (see its own doc for why that gate matters).
+    row_before: usize,
 }
 
 impl ActionSnapshot {
@@ -336,6 +341,7 @@ impl ActionSnapshot {
             could_undo: ctx.buffer.can_undo(),
             could_redo: ctx.buffer.can_redo(),
             had_selection_before: ctx.buffer.has_selection(),
+            row_before: ctx.buffer.cursor_line_col().0,
         }
     }
 }
@@ -353,6 +359,39 @@ fn finish_action(
         *ctx.shift_selecting = false;
     }
     ctx.buffer.reveal_placement();
+    // AUTO-ALIGN ON ROW-LEAVE: the caret's logical line just changed from
+    // `row_before` — cheap to notice on every action, unlike the table-block
+    // detection `auto_align_table_on_row_leave` itself does, which this gate
+    // is what keeps off the O(document) common case of "still on the same
+    // line" (the overwhelming majority of keystrokes). Skipped for Undo/Redo
+    // (an auto-edit firing right after either would clear the redo stack and
+    // silently rewrite what the user just time-traveled to), for `AlignTable`
+    // itself (already this exact re-pad, manually, and already idempotent
+    // otherwise), and for the table's OWN structural row actions — Enter/
+    // Shift-Enter and Tab/Shift-Tab (`table_newline`/`table_tab`) — which
+    // already emit a correctly-columned scaffold row through their own
+    // dedicated logic and carry their own atomic-undo contract (e.g. Tab
+    // appending a fresh row is ONE undo step); re-aligning immediately after
+    // would edit their freshly-scaffolded row a second time as a SEPARATE
+    // undo step, splitting what the user experiences as one keystroke into
+    // two undos. A row genuinely left via caret motion (arrows, Goto, mouse)
+    // is unaffected: none of those are edit actions, so none are excluded
+    // here. See `edit::auto_align_table_on_row_leave`'s own doc for the
+    // trigger's full design and the undo/caret guarantees.
+    if snapshot.row_before != ctx.buffer.cursor_line_col().0
+        && !matches!(
+            action,
+            Action::Undo
+                | Action::Redo
+                | Action::AlignTable
+                | Action::Newline
+                | Action::AcceptAlternate
+                | Action::InsertTab
+                | Action::Outdent
+        )
+    {
+        auto_align_table_on_row_leave(ctx, snapshot.row_before);
+    }
     if effect == Effect::None
         && let Some(dir) = recoil_for(
             action,
