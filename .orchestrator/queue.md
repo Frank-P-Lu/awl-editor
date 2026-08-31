@@ -272,6 +272,26 @@ page's masks were deduplicated into shared CSS classes, so the tripled
 shelf SHRANK the artifact (3.9→2.0 MB). Cabinet gaps recorded: no frog,
 no turtle anywhere in the face. Arrangement still pending.
 
+**FITTING ROOM v6 — story-led proposal from the user's full shelf review
+(2026-09-01).** The user graded all 34 sets. Loved: moonfaces, riverbank,
+splatter, wish, spirals, undergrowth, solar, songbook, dovecote; nice:
+tavern, arabesque, florets, cardtable, gambit, autumn, hanami, palms;
+fine-not-exceptional: stars, geometrics, fleurons, harbour; benched:
+lunar (again), genjiko2/keizuko (redundant with genjikō), acorns and
+snow — with a stated CURATION PRINCIPLE worth keeping: a trio should be
+three drawings, not one drawing rotated three ways. Tally benched as
+culturally alien to Western eyes despite its counting rationale.
+ASTERISM promoted on the user's type-history argument (awl celebrates
+fonts; ⁂ is print's own centuries-old section-break mark — the one set
+whose job description matches the slot). New proposal pairs worlds with
+sets by STORY, near-unique (only arabesque worn twice): Gumtree
+riverbank, Potoroo undergrowth, Bilby hanami, Saltpan+Bombora arabesque,
+Quokka tavern, Mulga genjikō, Tawny autumn, Mopoke moonfaces, Bowerbird
+wish, Currawong gambit, Mangrove harbour, Galah cardtable, Magpie
+asterism, Brolga dovecote, Wagtail songbook (a songbird's world),
+Firetail stars, Paperbark fleurons, Kite solar, Cassowary splatter.
+Awaiting the user's confirmation or edits via the page's copy-out.
+
 ---
 ## Needs specific hardware
 
