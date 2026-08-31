@@ -395,7 +395,12 @@ receipt.
 ---
 ### 546 — Cassowary's docked palette tabs: a design pass on the DockedTab facet (user taste report, 2026-09-01 — "the tabs for cassowary don't look super convincing lol")
 
-🟡 IN PROGRESS — gpt-5.6-sol high, branch codex/item-546-cassowary-tabs
+✅ COMPLETE — landed on main as merge `ce74b6de`; independent production
+audit accepted with no findings. Cassowary's active facet is now an outlined
+docked tab whose open mouth joins the console card, while inactive labels
+recede. The merge-train conflict was resolved without raising structural or
+Clippy ceilings. Exact-main receipt: health pass, both conventions, forced
+menu-bar arm, 4,690 unit tests, 16 integration targets; web 16/16.
 
 The palette's category strip on Cassowary. The mechanism is
 `FacetStyle::DockedTab` (`theme/model.rs`), whose own contract is
