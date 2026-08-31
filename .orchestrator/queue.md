@@ -386,6 +386,12 @@ diple U+2E16 (Aristarchus's mark), downwards ancora U+2E14 — three
 distinct drawings, rendered and verified. The daggers conversation also
 produced item 537 (footnote reference ladder).
 
+**v9:** user chose to WEAR one heritage set — Saltpan takes SCRIPTORIUM
+(the parchment world in Alexandria's own margin marks), which also
+retires the proposal's last doubled set: all twenty worlds now dress
+uniquely. Curiosities stays shelved (Currawong noted as its natural
+wearer if ever wanted). Arrangement pending the user's copy-out.
+
 ---
 ### 537 — footnote markers may wear the traditional reference ladder (user decision, 2026-09-01; sequenced AFTER 529 bundles the face)
 
