@@ -135,225 +135,29 @@ verdicts** — they dissolve into the per-world ornament-set design pass
 decision is which world draws which set, not one global glyph.
 
 ---
-### 535 — sticky notices abandon the writing-column-top slot for the world's toast axis (user decision, 2026-08-30, reverses a documented composition call)
+### 542 — table editing: row/column palette verbs (user report, 2026-08-30 — "kinda awful to edit"; fruit 1 landed, this is fruit 2)
 
-🟡 IN PROGRESS — claude, branch item-535
+Two waves have landed: Tab/Shift-Tab moves between cells and wraps
+across rows, Tab on the final cell appends a scaffold row, Enter
+inside a table inserts a matching scaffold row, and (2026-08-31)
+`align_table`'s re-pad now fires automatically on row-leave instead
+of requiring the command by hand — undo-isolated (always its own
+sealed group) and caret-preserving (a logical cell+offset pair,
+`markdown/table_caret.rs`, invariant under the padding-only rewrite).
 
-**DECIDED (user, 2026-08-31): placement stays per-world** — no `[ui]`
-setting. Build the one-anchor reversal as scoped below.
+**Remaining fruit, not yet greenlit — needs the user's word:**
+Row/column verbs in the palette: Insert row above/below, insert
+column left/right, delete row/column — source splices over the
+existing row/cell parser (`markdown/tables.rs`), gated to
+caret-in-table exactly like `AlignTable`'s availability gate.
 
-User, looking at the save-failed sticky squatting top-center over the
-text: "center top is an annoying place for the toast… we should move it
-to somewhere less intrusive." That placement is currently AUTHORED, not
-accidental — docs/render.md: "Sticky notices keep the
-writing-column-top composition; only self-clearing toasts use the world
-axis" — and the mechanism matches: `notice_toast_plan`
-(`render/chrome/readout/toast.rs`) plans ONLY `NoticeKind::Toast`,
-so `prepare_notice` (`render/chrome/readout.rs`) falls back to
-`CornerAnchor::TopCenter` for a sticky. On Kite the transient "saved"
-toast already goes to the authored TopRight while the held "save
-failed" sits dead-center in the reading line. This item RECORDS the
-reversal: stickies route through the SAME authored `toast_anchor` +
-`plan_toast` collision/narrow-fallback planner toasts use (merge, don't
-align — one placement owner, the `Sticky` gate in `notice_toast_plan`
-becomes the one-line diff). Sticky keeps its own plate inks
-(`notice_plate_inks` is untouched — lifetime stays expressed by value).
+NOT this item (the big arc): editing cells IN the grid without
+dropping to source. That is the "tables as real grids" destination
+and earns its own design session; the remaining source-level
+operations survive it and would also serve the grid editor.
 
-RATIFIED + SHARPENED (user, 2026-08-30): "having two different
-locations … is just overkill and kind of bizarre — we need to clean
-that up in either case." The end state is ONE notice location per
-world. To be precise about the present shape (the user read it as two
-locations authored in the theme): themes author exactly ONE anchor
-today (`toast_anchor`); the sticky's top-center was a hardcoded global
-composition rule outside theme data. This item deletes that second
-rule, so afterwards one authored anchor governs every notice.
-
-The user also raised: should placement even vary per world, or be one
-centralized location/setting? RECOMMENDATION RECORDED, awaiting the
-user's word (default: keep per-world, no setting): per-world placement
-is the product's existing grammar — worlds already relocate the
-placard, the card, and the facet strip as authored composition
-(Kite's TopRight deliberately mirrors Firetail's TopLeft), and a toast
-is glanceable/transient, where within-world coherence matters more
-than cross-world muscle memory. A `[ui]` config override is machinery
-awl doesn't need until a real complaint arrives; if one does, it is a
-small additive follow-up, not a redesign. Should the user instead
-choose one global location, that is theme-data removal (`toast_anchor`
-retires like the theme picker's lens strip did) — a different, bigger
-item; do not start it on this brief.
-
-Watch the axes the old composition was carrying: the narrow-canvas
-BottomCenter fallback and the picker/outline/workspace collision roster
-must hold for stickies too (they come free through `plan_toast`), and
-the 1080-cell + 360-cell placement laws in `render/tests/notice.rs`
-enrol sticky alongside toast rather than staying toast-only — sweep the
-NoticeKind axis, don't imagine it. Update the docs/render.md sentence
-in the same commit so the doc and the code state the same rule.
-Revert cost: one line (the kind gate) plus the doc sentence — say so in
-the commit. Full gate receipt.
-
----
-### 539 — working-set stack: move the hover-revealed close mark to the LEADING side, so names sit flush against the page edge (user DECISION, 2026-08-30: "we can try x on the left side" — option A greenlit, ready to dispatch)
-
-🟡 IN PROGRESS — claude, branch item-539
-
-Context: the hover-reveal-with-reserved-lane the user asked for already
-ships (`stack_spans` shapes a trailing `"  ×"` on every row, alpha 0
-until row-hover — names never move). The residual itch is the
-reservation itself: the uniform trailing lane (`fit_rows`'
-`label_budget = budget − 3`) parks every name ~3 chars short of the
-stack's right edge, so the block never actually hugs the writing
-column it right-aligns toward.
-
-The user proposed two options; A is recommended:
-- **A (recommended): the mark moves to the LEADING side.** Names
-  right-align FLUSH to the stack's edge (reclaiming the lane), and the
-  `×` shapes as a leading span at alpha 0 — in right-aligned layout a
-  leading span grows the line LEFTWARD into the ragged edge's already
-  empty space, so revealing it still changes ink only, and nothing
-  ever moves. Trade named honestly: the mark no longer sits in one
-  vertical column (its x follows each name's leading edge), so
-  serially closing several rows means a small horizontal chase — at a
-  resting stack of ≤4 rows this is negligible, and macOS tab close
-  buttons sit leading-side, so the position reads native.
-- **B (named, not recommended): keep the mark trailing but push it
-  further right**, letting names right-align flush with the mark
-  beyond them. Rejected because that space is the seam awl works to
-  keep calm: the active-row plate ends one pad past the box and the
-  frost halos hug the column the same way (`plate_rect`'s right-edge
-  invariant) — a mark there crowds the page boundary and collides
-  with the plate/frost conventions.
-
-Mechanics for the lane: `fit_rows` stops docking the close lane from
-the label budget but must still keep the LEADING mark from clipping at
-the canvas edge on maximal-width rows (the mark may yield there — it
-is hover ink, not identity). `stack_spans` moves the always-shaped
-mark span from trailing to leading per row (alpha-flip mechanism
-unchanged; More/Overflow rows keep shaping it un-revealable, same as
-today). The close HIT ZONE flips from the right edge to the leading
-edge, derived from the same row plan the draw uses
-(`gutter_hit::stack_hit_from_plan`) so click and ink cannot disagree.
-The single-file identity line rides the same door (`gutter.rs`'s
-row-0 reveal) and gets the same flip. The active-row plate derives
-from shaped `text_w`, which now includes the leading mark — decide
-whether the plate should cover the mark region or only the label, and
-law-test whichever is chosen. Laws: flush-right alignment (every
-name's right edge equals the stack edge, swept across row counts and
-name widths), reveal-changes-ink-only (geometry byte-identical
-hover vs not), and the hit-zone/ink agreement law. Cheap to revert
-(one commit, the trailing layout is `git log`'s to restore); per the
-standing land-easy-taste policy this can land for judgement once the
-user confirms A. Full gate receipt.
-
----
-### 540 — Insert Table dimension picker: the hint clips mid-word ("Esc canc"), and the card's placement/backing needs a judged pass (user report, 2026-08-30; feature itself: "AWESOME!!")
-
-🟡 IN PROGRESS — claude, branch item-540
-
-**DECIDED (user, 2026-08-31): option (b) — caret-anchored placement**,
-using the spell popup's `CONTEXT_ANCHOR_DROP` contextual-anchor
-machinery (near-edge caret / bottom-of-window clamping included). Build
-this alongside the hint-clip fix below.
-
-User verdict on item 517's picker: "insert table is AWESOME!!" — the
-feature holds; this is polish on its card. Two defects, one verified
-and one to assess.
-
-VERIFIED — THE HINT CLIPS: `table_dims_overlay_geometry`
-(`render/chrome/table_dims.rs`) sizes the card to the GRID alone
-(`desired_w = grid_w + 2·pad`, ~253 logical) and hands the hint
-`text_w = card_w − 2·pad`, so "8 × 8 table  ↵ insert  Esc cancel"
-runs out of column and clips mid-word to "Esc canc" — a raw clip, not
-an elision. The main card already encodes the lesson this fourth
-geometry arm missed: `measure_overlay_content_w` (`roster.rs`)
-includes the card's CHROME LINES (query/lens/footer) in the content
-measure precisely so no chrome line outruns the card. FIX: the dims
-card's desired width is the max of the grid extent and the hint's
-SHAPED width (plus pads); the grid centres horizontally in whatever
-card results. The narrow-window yield (`hint_yielding_explanation`)
-stays what it is — a genuine-window-constraint fallback, not a patch
-for a self-inflicted width. Law: across zoom/DPI cells, the shaped
-hint width fits inside `text_w` (non-vacuous: revert the max and
-watch the 1× cell go red), plus a pixel assertion that the final
-glyph column of the hint row carries ink inside the card bounds.
-
-TO ASSESS, NOT ASSUME — "sort of overall in a weird position?"
-(user, tentative): the card follows the standard summon placement
-(frozen world `CardAnchor`, `CARD_TOP_DROP`), so on Kite it should
-sit the top-right rail like every picker — but on a
-plateless-backing world (Kite's `Ruled`, and the `Bars`/`Diagonal`
-family) this card draws NO organizing ink at all: no rows for rules
-or bars to structure, so a dense ink grid + one hint line float bare
-over the frosted page. Run the standing vision-smoke: capture the
-picker across the world roster and judge whether the plateless
-members need a guaranteed backing for THIS card (a card whose content
-is a drawn grid arguably always earns a plate/border, the way the
-spell popup always carries its float panel — the "organizing absence"
-of Ruled has nothing to organize here). Separately, put the
-PLACEMENT QUESTION to the user with captures rather than deciding it:
-(a) keep the world-anchor takeover placement (consistent with every
-summon), or (b) anchor at the CARET like the contextual spell popup
-(`CONTEXT_ANCHOR_DROP` precedent) — an insertion picker pointing at
-its insertion point is the Word/Docs-dropdown intuition the user may
-be reaching for. Record their pick on this item before moving the
-card.
-
-EVIDENCE UPDATE (full-window screenshot, 2026-08-30): the position is
-NOT a bug — the picker sits exactly at Kite's top-right palette rail,
-following the frozen world anchor, while the caret (the insertion
-point) sits mid-page far left. The "weird" is the DISTANCE between
-the tool and its target, compounded by the plateless float. The hint
-clip reproduces in the same shot ("Esc canc…" cut at the card edge).
-RECOMMENDATION recorded, awaiting the user's word: (b) caret-anchored
-— an insertion picker belongs at its insertion point; the spell
-popup's contextual-anchor machinery is the shipped precedent, and its
-clamping (near-edge caret, bottom-of-window) comes with it. (a)
-remains one word away if consistency-of-summons wins for them.
-Full gate receipt.
-
----
-### 542 — table editing: remaining low-hanging UX basket needs a decision (user report, 2026-08-30 — "kinda awful to edit")
-
-🟡 IN PROGRESS — claude, branch item-542 (scope: fruit 1 only —
-auto-align on row-leave, the higher-leverage-over-cost pick; the user
-took the orchestrator's recommendation, 2026-08-31)
-
-**DECIDED (user, 2026-08-31): build fruit 1 (auto-align on row-leave)
-now.** Fruit 2 (row/column palette verbs) stays parked below,
-unclaimed, for a follow-up round — it is a separable feature, not a
-dependency of fruit 1.
-
-The first wave has landed: Tab/Shift-Tab moves between cells and wraps
-across rows, Tab on the final cell appends a scaffold row, and Enter
-inside a table inserts a matching scaffold row. The remaining fruits
-below stay parked pending the user's word; the real-grid editing arc
-remains deferred to its own design session.
-
-The render half of tables is landed (grid, per-row reveal, dimension
-picker — "AWESOME!!"). Editing still reveals the active row's raw
-source, and alignment plus row/column structure still require a command
-or manual edits. Tables-as-real-grids is committed direction
-(CLAUDE.md §Direction), so this friction is on-mission to remove.
-Fruits ranked by leverage over cost — the user picks which to
-greenlight:
-
-1. **Auto-align on row-leave**: the shipped `align_table` re-pad runs
-   automatically (debounced, or when the caret leaves the table/row)
-   so the source stays Prettier-shaped without summoning the command.
-   Mind undo coalescing (the re-pad is its own sealed group) and
-   caret preservation across the re-pad.
-2. **Row/column verbs in the palette**: Insert row above/below,
-   insert column left/right, delete row/column — source splices over
-   the existing row/cell parser (`markdown/tables.rs`), gated to
-   caret-in-table exactly like `AlignTable`'s availability gate.
-3. NOT this item (the big arc): editing cells IN the grid without
-   dropping to source. That is the "tables as real grids" destination
-   and earns its own design session; the remaining source-level
-   operations survive it and would also serve the grid editor.
-
-Each remaining fruit is exhaustively testable at the buffer seam, with
-`--keys` journeys for user-visible editing flows. Full gate receipt per
-landing wave.
+Exhaustively testable at the buffer seam, with `--keys` journeys for
+user-visible editing flows. Full gate receipt on landing.
 
 ---
 ### 536 — per-world ornament sets from the full Nishiki cabinet (user decision, 2026-08-30; sequenced AFTER 529 bundles the face)
