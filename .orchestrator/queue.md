@@ -380,6 +380,40 @@ sailboat are illustrations, the helm a diagram — three registers) —
 benched; Mangrove re-proposed to SPIRALS (tidal eddies, a loved set).
 38 sets on the shelf. Arrangement still pending the user's copy-out.
 
+**v8:** Scriptorium's twin plain-line paragraphoi (user: "too similar")
+replaced by Alexandria's actual margin kit — coronis U+2E0E, dotted
+diple U+2E16 (Aristarchus's mark), downwards ancora U+2E14 — three
+distinct drawings, rendered and verified. The daggers conversation also
+produced item 537 (footnote reference ladder).
+
+---
+### 537 — footnote markers may wear the traditional reference ladder (user decision, 2026-09-01; sequenced AFTER 529 bundles the face)
+
+DECIDED direction, from the user's own connection during 536's heritage
+round: "the daggers were used for footnotes — we still have a chance to
+use them, cuz we support footnotes." awl's footnote references already
+paint their DISPLAY NUMBER as a painted ornament slot
+(`footnote_number_slot` / the `FootnoteNumbers` ornament family,
+docs/markdown.md — the same painted-substitute shape the bare-URL
+ellipsis reuses), and display numbers already follow first-reference
+order. This item adds a display OPTION (config + Settings row, default
+staying numeric) that paints the TRADITIONAL REFERENCE LADDER instead:
+* † ‡ § ‖ ¶, in that canonical order, doubling when exhausted (** ††
+‡‡ …) per print tradition. Display-only, exactly like smart punctuation:
+the file keeps `[^label]`; export unchanged (numeric) unless a later
+item decides otherwise. The glyphs come from the symbol face — with
+Nishiki adopted (529), † ‡ § ¶ are the celebrated cabinet's own
+drawings, so the heritage is in SERVICE, not decoration: the daggers do
+the same job they have done since the hand-press. Open sub-decisions
+for the lane to put to the user before landing: (a) ladder scope —
+per-document order (matching today's numbering) is the working
+hypothesis; per-page recycling is print tradition but awl has no
+pages; (b) whether the footnote DEFINITION list's markers follow the
+same option; (c) ‖ DOUBLE VERTICAL LINE (U+2016) coverage in the
+adopted subset must be verified and enrolled in the glyph-presence law.
+Laws: ladder order pinned against the historical sequence; overflow
+doubling; option off ⇒ byte-identical render to today.
+
 ---
 ## Needs specific hardware
 
