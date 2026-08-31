@@ -297,14 +297,14 @@ lines = 559
 
 [[file_size_mark]]
 file = "src/render.rs"
-lines = 2877
+lines = 2880
 # 2876 -> 2881: item 540's table-dims picker gained a caret-anchor field
 # (overlay_table_dims_hint_w, the shaped hint width measured once per
 # set_view so the geometry function can size the card without a
 # FontSystem in hand).
 # 2867 -> 2876: the declared GPU-state floor now owns the empty-cell wash
 # pipeline and the immutable faceted-hug roster/memo state.
-reason = "The footer plate uses the notice channel's one-pixel rim so it remains visible. `Millis` and `progress_per` keep durations out of pixel multiplication by type, while declaration docs name the entitled scale factor for page/caret pads, page-frame strokes, and spell gaps. `HudDefaults`, `WhichKeyDefaults`, and `DebugDefaults` give inert field groups exhaustive defaults beside their sole `TextPipeline` owner. Shape reach rejects unshaped-line sentinels, and `Metrics` carries `dpi` beside zoom scale so a logical floor does not vary by display density. `CARET_INK_PAD_W` gained a doc comment naming its rationale and the near-zero vertical headroom finding that kept the tuning to width alone. +7: the working-set stack plate's own row-height and inset constants, named beside the other margin-row geometry this file already owns. +10: the menu chord column's config-aware label plumbing (ViewState mirrors of config_keys/config_linux_keep). +4: inert hover defaults and mirrored row state keep the production close affordance explicit in the exhaustive pipeline state. +1: the shared overlay-material module is declared beside the other data-driven chrome owners. +14: the streaks card's drawn rect and text origin join the other per-frame HUD state, named beside `HudDefaults`. +30: the format popover's hover-ring pipeline field and the inline-image resize-handle's hover-grip pipeline field, declared beside their sibling `TextPipeline` fields with doc comments naming what each draws and why — a hairline stroke and a small filled mark that can never disagree with the hit-test each mirrors. +11: the row-drag insertion hairline's own field pair (the drop-slot index and its drawn plate), mirroring gutter_stack_hover's own pointer-only, ViewState-free shape. +11: the fold-chevron mark grew from a two-quad pair to a per-mark rotated-glyph pipeline (RotatedLabelPipeline slots + a content-addressed mask cache), replacing the retired quad geometry. +13: the Rename minibuffer's seeded-stem selection wash -- its own `SelectionPipeline` field (`panel_query_selection`) and the `overlay_query_selection` range it reads, doc-commented beside the other per-frame query state. Insert Table's table_dims_cells SelectionPipeline field joins the other per-frame overlay pipelines this file already owns. Item 527/528's config_keymap_flavor field joins the other per-frame config mirrors this file already owns."
+reason = "The footer plate uses the notice channel's one-pixel rim so it remains visible. `Millis` and `progress_per` keep durations out of pixel multiplication by type, while declaration docs name the entitled scale factor for page/caret pads, page-frame strokes, and spell gaps. `HudDefaults`, `WhichKeyDefaults`, and `DebugDefaults` give inert field groups exhaustive defaults beside their sole `TextPipeline` owner. Shape reach rejects unshaped-line sentinels, and `Metrics` carries `dpi` beside zoom scale so a logical floor does not vary by display density. `CARET_INK_PAD_W` gained a doc comment naming its rationale and the near-zero vertical headroom finding that kept the tuning to width alone. +7: the working-set stack plate's own row-height and inset constants, named beside the other margin-row geometry this file already owns. +10: the menu chord column's config-aware label plumbing (ViewState mirrors of config_keys/config_linux_keep). +4: inert hover defaults and mirrored row state keep the production close affordance explicit in the exhaustive pipeline state. +1: the shared overlay-material module is declared beside the other data-driven chrome owners. +14: the streaks card's drawn rect and text origin join the other per-frame HUD state, named beside `HudDefaults`. +30: the format popover's hover-ring pipeline field and the inline-image resize-handle's hover-grip pipeline field, declared beside their sibling `TextPipeline` fields with doc comments naming what each draws and why — a hairline stroke and a small filled mark that can never disagree with the hit-test each mirrors. +11: the row-drag insertion hairline's own field pair (the drop-slot index and its drawn plate), mirroring gutter_stack_hover's own pointer-only, ViewState-free shape. +11: the fold-chevron mark grew from a two-quad pair to a per-mark rotated-glyph pipeline (RotatedLabelPipeline slots + a content-addressed mask cache), replacing the retired quad geometry. +13: the Rename minibuffer's seeded-stem selection wash -- its own `SelectionPipeline` field (`panel_query_selection`) and the `overlay_query_selection` range it reads, doc-commented beside the other per-frame query state. Insert Table's table_dims_cells SelectionPipeline field joins the other per-frame overlay pipelines this file already owns. Item 527/528's config_keymap_flavor field joins the other per-frame config mirrors this file already owns. +3: `ORNAMENT_WEIGHT` is the one shared authored 500 request used by section-break and About ornament shapers."
 
 [[file_size_mark]]
 file = "src/render/benchsuite/corpus.rs"
@@ -515,13 +515,13 @@ reason = "The footer plate earns the notice channel's own one-pixel rim, which i
 
 [[file_size_mark]]
 file = "src/theme/model.rs"
-lines = 775
-reason = "The exhaustive theme model authors rotated-location treatment and toast anchor as data; shared renderers own both geometries without world-specific branches. +9: CardShape::Chamfered splits cut_px into a top_cut_px/bottom_cut_px pair, so a world can cut only the free edge and keep a docked seam square. +18: `LocationStyle::needs_plan_row` is the one exhaustive answer to whether the row planner reserves a display line for a world's location cue -- `RotatedRail` composes off-card against the room's own wordmark margin and needs no row, `Raked` still anchors its rotated run to that row's own geometry and does, so a future style is a conscious decision here rather than a silently vacated or silently extra row. +13: `Theme::fold_mark()` derives the fold-chevron glyph from `ornament_face` via `theme::ornament::fold_mark_for` — no per-world literal, a new world inherits from its existing ornament classification alone."
+lines = 778
+reason = "The exhaustive theme model authors rotated-location treatment and toast anchor as data; shared renderers own both geometries without world-specific branches. +9: CardShape::Chamfered splits cut_px into a top_cut_px/bottom_cut_px pair, so a world can cut only the free edge and keep a docked seam square. +18: `LocationStyle::needs_plan_row` is the one exhaustive answer to whether the row planner reserves a display line for a world's location cue -- `RotatedRail` composes off-card against the room's own wordmark margin and needs no row, `Raked` still anchors its rotated run to that row's own geometry and does, so a future style is a conscious decision here rather than a silently vacated or silently extra row. +13: `Theme::fold_mark()` derives the fold-chevron glyph from `ornament_face` via `theme::ornament::fold_mark_for` — no per-world literal, a new world inherits from its existing ornament classification alone. +3: `bullet_face` preserves each world's approved list bullets while the Nishiki section-break cabinet changes independently."
 
 [[file_size_mark]]
 file = "src/theme/worlds.rs"
-lines = 1161
-reason = "Every world explicitly authors its toast anchor, while Cassowary and Magpie author their shared rotated-location treatments in the same roster. Kite authors the ruled list style (one line). +3: Cassowary and Quokka each author their own top_cut_px/bottom_cut_px pair instead of one shared cut_px."
+lines = 1179
+reason = "Every world explicitly authors its toast anchor, while Cassowary and Magpie author their shared rotated-location treatments in the same roster. Kite authors the ruled list style (one line). +3: Cassowary and Quokka each author their own top_cut_px/bottom_cut_px pair instead of one shared cut_px. +18: the in-file worlds explicitly retain their existing list-bullet face while section-break ornaments move to Nishiki."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -1006,13 +1006,6 @@ reason = "Existing end-to-end test scenario; split only with a coherent setup/as
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
-file = "src/render/tests/markdown.rs"
-function = "mulga_star_conceals_to_the_literal_asterism"
-message = "this function has too many lines (132/100)"
-reason = "Existing end-to-end test scenario; split only with a coherent setup/assertion seam. Shifted by the `testlock::serial()` guard that every test reaching the shared wgpu device now takes; the line count moves by one and the body is otherwise unchanged."
-
-[[clippy_exception]]
-lint = "clippy::too_many_lines"
 file = "src/render/tests/one_bit.rs"
 function = "wagtail_living_band_ink_rides_the_band_on_the_faceted_palette"
 message = "this function has too many lines (109/100)"
@@ -1268,13 +1261,6 @@ target = "src/theme/tests/heatmap.rs"
 kind = "architectural"
 line = 100
 text = "                \"{}: heatmap level {i} (sat {:.2}) manufactures chroma beyond the ink ladder (max {:.2})\","
-reason = "This already-long line lives in a per-subject test file. A one-file-to-many split has no prior per-path baseline for `git diff -M` to compare, so the 100-column ratchet cannot grandfather it; the line itself is unchanged."
-
-[[structural_exception]]
-target = "src/theme/tests/ornament.rs"
-kind = "architectural"
-line = 213
-text = "        \"exactly one world uses the manicule bullet, at exactly one level (a hand everywhere is loud)\""
 reason = "This already-long line lives in a per-subject test file. A one-file-to-many split has no prior per-path baseline for `git diff -M` to compare, so the 100-column ratchet cannot grandfather it; the line itself is unchanged."
 
 [[structural_exception]]
