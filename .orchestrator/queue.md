@@ -315,6 +315,45 @@ second geometry family and gets its own probe cell. Full gate
 receipt.
 
 ---
+### 545 — smart-punct conceal reserves a giant slot: off-caret `...` leaves an ~7-char hole in the line (user report, 2026-09-01 — "moving down!!! there's that giant space being created?"; reproduced headlessly)
+
+Caret leaves a line containing a literal `...` and the concealed
+render opens a huge blank run where the dots were; the caret coming
+back reveals the raw line and the hole vanishes — so ordinary
+Down-arrow motion visibly reflows the paragraph the user just left.
+The user then spotted the trigger themselves: "oh wait it comes from
+a ... misrendering i think." Correct.
+
+**Reproduced with a one-line fixture, no wrap involved:**
+`short line but also... there is more`, caret moved off the line
+(`--keys "Down Down"`, Firetail, dpi 1). Renders as
+`also…⟨~7-char gap⟩there is more`. Two visible defects in one
+mechanism, `ConcealKind::SmartPunct`'s painted-substitute slot
+(`markdown/conceal.rs`; render side `render/spans/conceal.rs`, the
+`SmartPunct` arm near line 474):
+
+- **The reserved slot's advance is far wider than the substitute
+  glyph** — the span neither collapses to the `…` glyph's own width
+  nor keeps the literal's 3-char width; the hole reads as ~7 chars.
+  On wrapped lines (the user's screenshots) the oversized slot also
+  moves the wrap points, which is why leaving the line visibly
+  reflows it.
+- **The substitute paints small** — the `…` renders well below body
+  size, though the kind's own doc says this is real sentence
+  punctuation carved out of the dim-markup rule; it should read at
+  full content size and ink.
+
+The lane sweeps the WHOLE `SmartPunctKind` roster, not the reported
+case: `--`, `---`, and `...` each probed on-caret (literal bytes,
+plain prose) and off-caret (substitute at the substitute's own
+advance), short line and wrapped line, and asserts the off-caret
+row's total advance shift is within one glyph of
+(substitute − literal). The law must go red on today's tree before
+the fix lands. Check the em/en-dash arms for BOTH defects — a
+shared slot-reservation path likely breaks all three. Full gate
+receipt.
+
+---
 ### 536 — per-world ornament sets from the full Nishiki cabinet (user decision, 2026-08-30; sequenced AFTER 529 bundles the face)
 
 ✅ DESIGN PASS COMPLETE (user approved the arrangement, 2026-09-01: "they look good! lets queue this!") — build phase UNCLAIMED, sequenced after 529 bundles the face. The FINAL block at the end of this item is the decided roster; the v-notes above it are the fitting history.
