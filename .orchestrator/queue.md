@@ -194,15 +194,22 @@ decision is which world draws which set, not one global glyph.
 ---
 ### 542 — table editing: row/column palette verbs (user report, 2026-08-30 — "kinda awful to edit"; fruit 1 landed, this is fruit 2)
 
-🟡 IN PROGRESS — root, branch codex/item-542-tab (greenlit Tab-selection remedy only; row/column palette verbs remain ungreenlit)
+🔴 BLOCKED — the remaining row/column palette verbs need the user's greenlight
 
-Two waves have landed: Tab/Shift-Tab moves between cells and wraps
+Three waves have landed: Tab/Shift-Tab moves between cells and wraps
 across rows, Tab on the final cell appends a scaffold row, Enter
 inside a table inserts a matching scaffold row, and (2026-08-31)
 `align_table`'s re-pad now fires automatically on row-leave instead
 of requiring the command by hand — undo-isolated (always its own
 sealed group) and caret-preserving (a logical cell+offset pair,
 `markdown/table_caret.rs`, invariant under the padding-only rewrite).
+The greenlit 2026-09-01 remedy is landed too: Tab/Shift-Tab selects
+the next non-empty cell's trimmed contents so typing replaces it,
+while an empty/scaffold cell receives a bare caret immediately after
+its opening pipe. First/last cells, append-row, reverse motion,
+selection replacement, and a real `--keys` sidecar journey are
+covered; code-health, wasm smoke, and the full native suite are green
+on the merged candidate.
 
 **Remaining fruit, not yet greenlit — needs the user's word:**
 Row/column verbs in the palette: Insert row above/below, insert
@@ -210,33 +217,10 @@ column left/right, delete row/column — source splices over the
 existing row/cell parser (`markdown/tables.rs`), gated to
 caret-in-table exactly like `AlignTable`'s availability gate.
 
-**GREENLIT (user, 2026-09-01): Tab selects the target cell.** The
-report: "when you press tab, it kinda goes to the next |? it's kind
-of a weird experience." Mechanism: `table_tab` lands the caret at the
-cell's TRIMMED content start (`table_cell_ranges`), and an EMPTY
-cell's trimmed range is zero-width at the end of its padding — flush
-against the CLOSING pipe. So tabbing into any empty/scaffold cell
-parks the caret on a `|`, and because the caret never leaves the row
-while tabbing, row-leave auto-align never fires and the raw row stays
-ragged, amplifying the feel. The chosen remedy is the spreadsheet/
-Obsidian gesture: Tab/Shift-Tab SELECT the target cell's whole
-trimmed content so typing replaces it; an empty cell gets a bare
-caret at its content position (just inside the opening `| `, never
-against the closing pipe). Confined to `table_tab`. Also consider
-re-padding on cell-leave, not just row-leave, via the same
-caret-preserving `table_caret` machinery — land it if it holds up,
-it shares the fix's tests. Exhaustively testable at the buffer seam
-(empty cell, padded cell, first/last cell, the append-row arm,
-Shift-Tab symmetry), plus a `--keys` journey showing the selection
-in the sidecar.
-
 NOT this item (the big arc): editing cells IN the grid without
 dropping to source. That is the "tables as real grids" destination
 and earns its own design session; the remaining source-level
 operations survive it and would also serve the grid editor.
-
-Exhaustively testable at the buffer seam, with `--keys` journeys for
-user-visible editing flows. Full gate receipt on landing.
 
 ---
 ### 543 — TableDims picker: frost only the card's footprint, never the whole page (user decision, 2026-09-01)
