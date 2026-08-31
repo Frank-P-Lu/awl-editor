@@ -392,6 +392,12 @@ retires the proposal's last doubled set: all twenty worlds now dress
 uniquely. Curiosities stays shelved (Currawong noted as its natural
 wearer if ever wanted). Arrangement pending the user's copy-out.
 
+**v10:** Spirals' mirrored left/right pair (user's rotation objection
+again — correctly) rebuilt as three IDEAS of a spiral: round U+FF041,
+angular U+FF053 (square coil), conical U+FF052. Candidates auditioned
+and rejected: loose spiral (too close to round), cyclone (too busy),
+curly loops (read as owl eyes). Mangrove wears the corrected set.
+
 ---
 ### 537 — footnote markers may wear the traditional reference ladder (user decision, 2026-09-01; sequenced AFTER 529 bundles the face)
 
