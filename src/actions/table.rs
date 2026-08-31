@@ -1,6 +1,6 @@
-//! `Action::InsertTable` — opening the dimension picker and, on its commit,
-//! building the fresh GFM table text. Mirrors `actions/link.rs`'s shape (a
-//! pure transform producing a [`format::FormatResult`], applied as ONE atomic
+//! GFM table actions: opening and committing the dimension picker, plus the
+//! Enter and Tab source-editing gestures. Insert mirrors `actions/link.rs`'s
+//! shape (a pure transform producing a [`format::FormatResult`], applied as ONE atomic
 //! edit via `Buffer::apply_format`) for the same "same behavior, same code"
 //! reason: an insert-table commit is "replace nothing with a new block, then
 //! land the cursor sensibly", exactly like Insert-link and Insert-footnote.
@@ -8,6 +8,109 @@
 use super::format::FormatResult;
 use super::*;
 use crate::overlay::OverlayState;
+
+fn table_row_source(columns: usize) -> String {
+    format!("|{}", " |".repeat(columns.max(1)))
+}
+
+/// Bare Enter inserts a correctly-columned source row immediately below a real
+/// GFM table row. Shift-Enter deliberately bypasses this owner in `actions.rs`.
+pub(super) fn table_newline(ctx: &mut ActionCtx) -> bool {
+    if !ctx.buffer.is_markdown() || ctx.buffer.has_selection() {
+        return false;
+    }
+    let text = ctx.buffer.text();
+    let lines: Vec<&str> = text.split('\n').collect();
+    let (line, _) = ctx.buffer.cursor_line_col();
+    let Some((start, end)) = crate::markdown::table_block_lines(&lines, line) else {
+        return false;
+    };
+    let columns = (start..end)
+        .filter(|&row| row != start + 1)
+        .map(|row| crate::markdown::split_row_cells(lines[row]).len())
+        .max()
+        .unwrap_or(1);
+    // Header + separator are inseparable GFM structure: inserting "below the
+    // header" means the first body row, below its separator.
+    let below = if line == start { start + 1 } else { line };
+    let at = ctx.buffer.line_col_to_char(below, usize::MAX);
+    let row = table_row_source(columns);
+    ctx.buffer.replace_char_range(at, at, &format!("\n{row}"));
+    ctx.buffer.set_cursor(at + 3);
+    true
+}
+
+/// Tab/Shift-Tab walk real table cells in source order and select the target's
+/// trimmed content, so typing replaces that cell like a spreadsheet. An empty
+/// cell is a bare caret at its raw content start (immediately after the opening
+/// pipe), because there is no content to select. Reaching the forward end appends
+/// one scaffold row; non-table source and arbitrary selections keep the
+/// established list-indentation behavior.
+pub(super) fn table_tab(ctx: &mut ActionCtx, forward: bool) -> bool {
+    if !ctx.buffer.is_markdown() {
+        return false;
+    }
+    let text = ctx.buffer.text();
+    let lines: Vec<&str> = text.split('\n').collect();
+    let (line, col) = ctx.buffer.cursor_line_col();
+    let Some((start, end)) = crate::markdown::table_block_lines(&lines, line) else {
+        return false;
+    };
+    let mut cells = Vec::new();
+    for (row, line_text) in lines.iter().enumerate().take(end).skip(start) {
+        if row == start + 1 {
+            continue;
+        }
+        for range in crate::markdown::table_cell_ranges(line_text) {
+            let start_col = line_text[..range.start].chars().count();
+            let end_col = line_text[..range.end].chars().count();
+            let start_char = ctx.buffer.line_col_to_char(row, start_col);
+            let end_char = ctx.buffer.line_col_to_char(row, end_col);
+            cells.push((row, start_col, start_char, end_char));
+        }
+    }
+    if cells.is_empty() {
+        return false;
+    }
+    let current = if let Some(selection) = ctx.buffer.selection_range() {
+        let Some(i) = cells
+            .iter()
+            .position(|&(_, _, start_char, end_char)| selection == (start_char, end_char))
+        else {
+            // Only an exact cell selection stays in table navigation. Arbitrary
+            // regions retain ordinary Tab's established replace/indent behavior.
+            return false;
+        };
+        i
+    } else {
+        cells
+            .iter()
+            .rposition(|&(row, start_col, _, _)| row == line && start_col <= col)
+            .or_else(|| cells.iter().position(|&(row, _, _, _)| row == line))
+            .unwrap_or_else(|| if forward { 0 } else { cells.len() - 1 })
+    };
+    if forward && current + 1 == cells.len() {
+        let columns = cells
+            .iter()
+            .filter(|(row, _, _, _)| *row == start)
+            .count()
+            .max(1);
+        let at = ctx.buffer.line_col_to_char(end - 1, usize::MAX);
+        ctx.buffer
+            .replace_char_range(at, at, &format!("\n{}", table_row_source(columns)));
+        ctx.buffer.clear_mark();
+        ctx.buffer.set_cursor(ctx.buffer.line_col_to_char(end, 1));
+    } else {
+        let next = if forward {
+            current + 1
+        } else {
+            current.saturating_sub(1)
+        };
+        let (_, _, start_char, end_char) = cells[next];
+        ctx.buffer.select_range(start_char, end_char);
+    }
+    true
+}
 
 /// Summon the DIMENSION PICKER over the editor. Markdown-only, like every
 /// other formatting command (Insert-link, Insert-footnote, Align table) — a
