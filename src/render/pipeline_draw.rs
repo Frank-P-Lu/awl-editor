@@ -33,10 +33,8 @@ impl TextPipeline {
         let stars_pipeline = SelectionPipeline::new(device, &sel_shader, format, [0, 0, 0, 0]);
         // Syntax-wash quads are parked when their role/world has no wash.
         let wash_comment_pipeline = overlay_quad(PLACEHOLDER_RGBA);
-        let wash_string_pipeline =
-            SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
-        let mut wash_highlight_pipeline =
-            SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
+        let wash_string_pipeline = overlay_quad(PLACEHOLDER_RGBA);
+        let mut wash_highlight_pipeline = overlay_quad(PLACEHOLDER_RGBA);
         wash_highlight_pipeline.set_dither(wagtail_dither_density());
         wash_highlight_pipeline.set_dither_cell(wagtail_stipple_cell_px(1.0));
         let fence_panel_pipeline =
@@ -94,6 +92,7 @@ impl TextPipeline {
         let panel_shadow = SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         let panel_border = SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         let panel_material = SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
+        let overlay_facet_material = overlay_quad(PLACEHOLDER_RGBA);
         let blur = blur::BlurBackdrop::new(device, format);
         // Second text renderer for the panel string, sharing the atlas + viewport.
         let panel_renderer =
@@ -287,6 +286,7 @@ impl TextPipeline {
             panel_shadow,
             panel_border,
             panel_material,
+            overlay_facet_material,
             blur,
             blur_recompute: false,
             blur_sig: None,

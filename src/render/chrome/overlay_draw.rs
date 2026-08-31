@@ -140,10 +140,10 @@ impl TextPipeline {
         // the card, so the frame after a workspace closes carries neither.
         self.workspace_rail_placement = None;
         self.workspace_rail_rows.clear();
-        // V6 P5: the Chips ghost pills park empty too, so a closed picker carries
-        // no stale ghost-pill quads into the next frame.
-        self.overlay_facet_ghost
-            .prepare(device, queue, width, height, &[]);
+        // Both the active DockedTab layers and inactive Chip facets park with
+        // the card, so a closed picker carries no stale outline or material
+        // quads into the next frame.
+        self.park_overlay_facets(device, queue, width, height);
         // The stipple placard: parked (zero instances) — the frame after a
         // stipple-world overlay closes carries zero stale wordmark pixels.
         self.placard_stipple

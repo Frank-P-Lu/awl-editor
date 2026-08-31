@@ -295,6 +295,7 @@ impl TextPipeline {
         self.table_dims_cells.draw(pass);
         self.overlay_facet_ghost.draw(pass);
         self.overlay_lens_underline.draw(pass);
+        self.overlay_facet_material.draw(pass);
         self.panel_caret.draw(pass);
         if !bars {
             self.placard_stipple.draw(pass);

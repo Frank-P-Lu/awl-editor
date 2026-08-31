@@ -1950,6 +1950,10 @@ pub struct TextPipeline {
     pub panel_shadow: SelectionPipeline,
     pub panel_border: SelectionPipeline,
     pub panel_material: SelectionPipeline,
+    /// Transparent pane material continued through a `DockedTab` active facet.
+    /// Empty for every other facet style and every flat-material world.
+    /// Parked with the other facet layers when the overlay closes.
+    pub overlay_facet_material: SelectionPipeline,
     pub blur: blur::BlurBackdrop,
     blur_recompute: bool,
     /// The signature the cached blur was built for (`None` = no cache). Compared in
@@ -2304,12 +2308,8 @@ pub struct TextPipeline {
     pub overlay_spine: SelectionPipeline,
     pub overlay_spine_selected: SelectionPipeline,
     pub overlay_lens_underline: SelectionPipeline,
-    /// V6 P5 round — the faceted strip's INACTIVE ghost pills under
-    /// [`theme::FacetStyle::Chips`]: one hairline STROKE pill per non-active
-    /// facet label (the active label rides `overlay_lens_underline` as a FILLED
-    /// pill). Drawn via the selection pipeline's `stroke` uniform in the same
-    /// under-the-text z-slot; parked empty for `Text`/`Band` and every non-theme
-    /// card, so those render byte-identically.
+    /// Facet outlines: inactive `Chips` skins or the active `DockedTab` rim.
+    /// Empty for `Text`/`Band` and every non-faceted card.
     pub overlay_facet_ghost: SelectionPipeline,
     pub overlay_cross: SelectionPipeline,
     pub overlay_range_track: SelectionPipeline,

@@ -23,6 +23,8 @@ impl TextPipeline {
         else {
             self.panel_material
                 .prepare(device, queue, width, height, &[]);
+            self.overlay_facet_material
+                .prepare(device, queue, width, height, &[]);
             self.placard_material
                 .prepare(device, queue, width, height, &[]);
             return;
@@ -40,6 +42,24 @@ impl TextPipeline {
             .set_scanlines(strength, pitch, line, ink);
         self.panel_material
             .prepare(device, queue, width, height, &[card]);
+
+        // A DockedTab is part of the pane's outline, so it must carry the
+        // pane's material too. The active fill itself stays the card surface;
+        // this second, transparent scanline pass continues the same absolute
+        // canvas-y phase through the true tab bounds. The seam-overlap fill is
+        // deliberately excluded: doubling a transparent material over the
+        // card at the mouth would darken the join it is meant to erase.
+        let tab = matches!(
+            crate::render::effective_facet_style(),
+            theme::FacetStyle::DockedTab
+        )
+        .then(|| self.overlay_theme_facet_ghosts.first().copied())
+        .flatten();
+        self.overlay_facet_material.set_chamfer(0.0, 0.0);
+        self.overlay_facet_material
+            .set_scanlines(strength, pitch, line, ink);
+        self.overlay_facet_material
+            .prepare(device, queue, width, height, tab.as_slice());
 
         // The placard resolves its OWN corner shape through the same owner,
         // against its OWN rect — never a per-layer opinion independent of the
