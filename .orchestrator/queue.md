@@ -120,6 +120,26 @@ pilcrows/paragraphos/tengwar section marks for §, plus heart/star/
 florette families), rendered and added to the same artifact for the
 user's picks — final remap roster still open, awaiting those picks.
 
+**BUNDLING STRATEGY (decided with the user, 2026-09-01):** the 12.3 MB
+upstream face is NEVER bundled; the ONE derived subset face IS the
+adoption mechanism. Union roster = the 34 chrome marks + 536's final
+64-glyph ornament table + 537's reference ladder (⁎ † ‡ § ‖ ¶ — U+2016
+verified in cmap) ≈ ~90 unique codepoints, tens of KB. The roster is a
+checked-in file; a script regenerates the face from the upstream TTF
+(recorded by sha in the ledger, kept out of git); later adoptions (525
+start dress) are one-line roster additions. The derived face KEEPS the
+family name "Awl Marks" — SYMBOL_FAMILY/ORNAMENT_MARKS untouched, pure
+asset swap; OFL-clean (only "Nishiki-teki" is off-limits as a name) —
+and NORMALISES OS/2 weight to 400 inside the face, killing the
+weight-500 trap at the source instead of compensating per call site.
+Document fallback: decided NO on the lane's own measurement (621
+Japanese-relevant additions, all rare variants); revisit only on a real
+tofu report. Once all twenty worlds wear Nishiki, the Garamond and
+Junicode ornament REGISTERS are dead machinery — 536's build cuts them,
+and Junicode-Ornaments.ttf is likely removable (lane greps consumers).
+The § live-look in real chrome stays the user's one checkpoint after
+the subset lands; the 12-circle web-loader face remains separate.
+
 **THIRD PASS — closing decisions (user, 2026-08-30):** **⌘ U+2318 goes to
 Nishiki after all** — the modifier keys must stay recognisable as the Mac
 keys, so no cabinet remap for them; the user's call is to accept the same
