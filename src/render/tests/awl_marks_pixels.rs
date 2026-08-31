@@ -233,6 +233,7 @@ fn every_symbol_span_is_legible_at_document_and_chrome_sizes() {
         return;
     };
     crate::page::set_page_on(true);
+    let ambient_menu_bar = crate::menubar::menu_bar_on();
     crate::menubar::set_menu_bar_on(false);
     let mut graded = Vec::new();
     let dpis = [1.0_f32, 2.0];
@@ -324,6 +325,7 @@ fn every_symbol_span_is_legible_at_document_and_chrome_sizes() {
     );
     theme::set_active(theme::DEFAULT_THEME);
     p.set_dpi(1.0);
+    crate::menubar::set_menu_bar_on(ambient_menu_bar);
 }
 
 fn ornament_fixture() -> ViewState {
