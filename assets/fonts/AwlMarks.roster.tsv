@@ -1,0 +1,100 @@
+# The one adoption roster for the derived AwlMarks.ttf face. Edit this file,
+# then run scripts/regenerate-awl-marks.py with the upstream Nishiki-teki TTF.
+# upstream_sha256=ca8782436f7dd82fc9fd93d28c9ec38c0c4ac0044f601a51451f0d648ac52809
+# upstream_version=4.0.5
+# derived_family=Awl Marks
+codepoint	name	roles	source_range
+U+002A	ASTERISK	reference-537	Basic Latin U+0000-U+007F
+U+00A7	SECTION SIGN	chrome,symbol-span,reference-537	Latin-1 Supplement U+0080-U+00FF
+U+00B6	PILCROW SIGN	reference-537	Latin-1 Supplement U+0080-U+00FF
+U+2016	DOUBLE VERTICAL LINE	reference-537	General Punctuation U+2000-U+206F
+U+2020	DAGGER	chrome,symbol-span,reference-537	General Punctuation U+2000-U+206F
+U+2021	DOUBLE DAGGER	chrome,symbol-span,reference-537	General Punctuation U+2000-U+206F
+U+2022	BULLET	chrome	General Punctuation U+2000-U+206F
+U+2042	ASTERISM	chrome,symbol-span,ornament-536	General Punctuation U+2000-U+206F
+U+2051	TWO ASTERISKS ALIGNED VERTICALLY	ornament-536	General Punctuation U+2000-U+206F
+U+21B5	DOWNWARDS ARROW WITH CORNER LEFTWARDS	chrome,symbol-span	Arrows U+2190-U+21FF
+U+21E5	RIGHTWARDS ARROW TO BAR	chrome,symbol-span	Arrows U+2190-U+21FF
+U+21E7	UPWARDS WHITE ARROW	chrome,symbol-span	Arrows U+2190-U+21FF
+U+2303	UP ARROWHEAD	chrome,symbol-span	Miscellaneous Technical U+2300-U+23FF
+U+2318	PLACE OF INTEREST SIGN	chrome,symbol-span	Miscellaneous Technical U+2300-U+23FF
+U+2325	OPTION KEY	chrome,symbol-span	Miscellaneous Technical U+2300-U+23FF
+U+232B	ERASE TO THE LEFT	chrome,symbol-span	Miscellaneous Technical U+2300-U+23FF
+U+25AA	BLACK SMALL SQUARE	chrome	Geometric Shapes U+25A0-U+25FF
+U+25C6	BLACK DIAMOND	chrome	Geometric Shapes U+25A0-U+25FF
+U+25C8	WHITE DIAMOND CONTAINING BLACK SMALL DIAMOND	chrome	Geometric Shapes U+25A0-U+25FF
+U+25E6	WHITE BULLET	chrome	Geometric Shapes U+25A0-U+25FF
+U+2600	BLACK SUN WITH RAYS	ornament-536	Miscellaneous Symbols U+2600-U+26FF
+U+2618	SHAMROCK	ornament-536	Miscellaneous Symbols U+2600-U+26FF
+U+2619	REVERSED ROTATED FLORAL HEART BULLET	chrome,symbol-span,ornament-536	Miscellaneous Symbols U+2600-U+26FF
+U+263C	WHITE SUN WITH RAYS	ornament-536	Miscellaneous Symbols U+2600-U+26FF
+U+2655	WHITE CHESS QUEEN	ornament-536	Miscellaneous Symbols U+2600-U+26FF
+U+2658	WHITE CHESS KNIGHT	ornament-536	Miscellaneous Symbols U+2600-U+26FF
+U+2659	WHITE CHESS PAWN	ornament-536	Miscellaneous Symbols U+2600-U+26FF
+U+2660	BLACK SPADE SUIT	ornament-536	Miscellaneous Symbols U+2600-U+26FF
+U+2663	BLACK CLUB SUIT	ornament-536	Miscellaneous Symbols U+2600-U+26FF
+U+2665	BLACK HEART SUIT	ornament-536	Miscellaneous Symbols U+2600-U+26FF
+U+2669	QUARTER NOTE	ornament-536	Miscellaneous Symbols U+2600-U+26FF
+U+266A	EIGHTH NOTE	ornament-536	Miscellaneous Symbols U+2600-U+26FF
+U+266C	BEAMED SIXTEENTH NOTES	ornament-536	Miscellaneous Symbols U+2600-U+26FF
+U+2726	BLACK FOUR POINTED STAR	chrome,ornament-536	Dingbats U+2700-U+27BF
+U+2727	WHITE FOUR POINTED STAR	chrome,ornament-536	Dingbats U+2700-U+27BF
+U+2728	SPARKLES	ornament-536	Dingbats U+2700-U+27BF
+U+2731	HEAVY ASTERISK	ornament-536	Dingbats U+2700-U+27BF
+U+2734	EIGHT POINTED BLACK STAR	chrome	Dingbats U+2700-U+27BF
+U+2736	SIX POINTED BLACK STAR	chrome,ornament-536	Dingbats U+2700-U+27BF
+U+2737	EIGHT POINTED RECTILINEAR BLACK STAR	chrome	Dingbats U+2700-U+27BF
+U+273D	HEAVY TEARDROP-SPOKED ASTERISK	chrome	Dingbats U+2700-U+27BF
+U+273F	BLACK FLORETTE	chrome	Dingbats U+2700-U+27BF
+U+2740	WHITE FLORETTE	chrome	Dingbats U+2700-U+27BF
+U+2741	EIGHT PETALLED OUTLINED BLACK FLORETTE	chrome	Dingbats U+2700-U+27BF
+U+2742	CIRCLED OPEN CENTRE EIGHT POINTED STAR	chrome	Dingbats U+2700-U+27BF
+U+2756	BLACK DIAMOND MINUS WHITE X	chrome	Dingbats U+2700-U+27BF
+U+2761	CURVED STEM PARAGRAPH SIGN ORNAMENT	chrome,symbol-span	Dingbats U+2700-U+27BF
+U+2765	ROTATED HEAVY BLACK HEART BULLET	chrome,symbol-span	Dingbats U+2700-U+27BF
+U+2766	FLORAL HEART	chrome,symbol-span,ornament-536	Dingbats U+2700-U+27BF
+U+2767	ROTATED FLORAL HEART BULLET	chrome,symbol-span,ornament-536	Dingbats U+2700-U+27BF
+U+2B25	BLACK MEDIUM DIAMOND	chrome	Miscellaneous Symbols and Arrows U+2B00-U+2BFF
+U+2B51	BLACK SMALL STAR	chrome	Miscellaneous Symbols and Arrows U+2B00-U+2BFF
+U+2E0E	EDITORIAL CORONIS	ornament-536	Supplemental Punctuation U+2E00-U+2E7F
+U+2E14	DOWNWARDS ANCORA	ornament-536	Supplemental Punctuation U+2E00-U+2E7F
+U+2E16	DOTTED RIGHT-POINTING ANGLE	ornament-536	Supplemental Punctuation U+2E00-U+2E7F
+U+F500	Genjiko pattern	ornament-536	Nishiki BMP Private Use cabinet U+E000-U+F8FF
+U+F501	Genjiko patterns 1 2 3 4 5	ornament-536	Nishiki BMP Private Use cabinet U+E000-U+F8FF
+U+F51B	Genjiko pattern	ornament-536	Nishiki BMP Private Use cabinet U+E000-U+F8FF
+U+F591	SNAKE-4 tail	ornament-536	Nishiki BMP Private Use cabinet U+E000-U+F8FF
+U+F592	SNAKE-4 trunk	ornament-536	Nishiki BMP Private Use cabinet U+E000-U+F8FF
+U+F593	SNAKE-4 head	ornament-536	Nishiki BMP Private Use cabinet U+E000-U+F8FF
+U+F5B0	German card-suit acorns	ornament-536	Nishiki BMP Private Use cabinet U+E000-U+F8FF
+U+F5B1	German card-suit leaves	ornament-536	Nishiki BMP Private Use cabinet U+E000-U+F8FF
+U+F5B3	German card-suit bells	ornament-536	Nishiki BMP Private Use cabinet U+E000-U+F8FF
+U+F814	Arabesque white wave 1	ornament-536	Nishiki BMP Private Use cabinet U+E000-U+F8FF
+U+F815	Arabesque white wave 2	ornament-536	Nishiki BMP Private Use cabinet U+E000-U+F8FF
+U+F81C	Arabesque white scroll	ornament-536	Nishiki BMP Private Use cabinet U+E000-U+F8FF
+U+F827	Arabesque black wave 1	ornament-536	Nishiki BMP Private Use cabinet U+E000-U+F8FF
+U+F828	Arabesque black wave 2	ornament-536	Nishiki BMP Private Use cabinet U+E000-U+F8FF
+U+1F31A	NEW MOON WITH FACE	ornament-536	Miscellaneous Symbols and Pictographs U+1F300-U+1F5FF
+U+1F31B	FIRST QUARTER MOON WITH FACE	ornament-536	Miscellaneous Symbols and Pictographs U+1F300-U+1F5FF
+U+1F31D	FULL MOON WITH FACE	ornament-536	Miscellaneous Symbols and Pictographs U+1F300-U+1F5FF
+U+1F31E	SUN WITH FACE	ornament-536	Miscellaneous Symbols and Pictographs U+1F300-U+1F5FF
+U+1F31F	GLOWING STAR	ornament-536	Miscellaneous Symbols and Pictographs U+1F300-U+1F5FF
+U+1F320	SHOOTING STAR	ornament-536	Miscellaneous Symbols and Pictographs U+1F300-U+1F5FF
+U+1F337	TULIP	ornament-536	Miscellaneous Symbols and Pictographs U+1F300-U+1F5FF
+U+1F338	CHERRY BLOSSOM	ornament-536	Miscellaneous Symbols and Pictographs U+1F300-U+1F5FF
+U+1F33C	BLOSSOM	ornament-536	Miscellaneous Symbols and Pictographs U+1F300-U+1F5FF
+U+1F340	FOUR LEAF CLOVER	ornament-536	Miscellaneous Symbols and Pictographs U+1F300-U+1F5FF
+U+1F341	MAPLE LEAF	ornament-536	Miscellaneous Symbols and Pictographs U+1F300-U+1F5FF
+U+1F342	FALLEN LEAF	ornament-536	Miscellaneous Symbols and Pictographs U+1F300-U+1F5FF
+U+1F343	LEAF FLUTTERING IN WIND	ornament-536	Miscellaneous Symbols and Pictographs U+1F300-U+1F5FF
+U+1F344	MUSHROOM	ornament-536	Miscellaneous Symbols and Pictographs U+1F300-U+1F5FF
+U+1F40C	SNAIL	ornament-536	Miscellaneous Symbols and Pictographs U+1F300-U+1F5FF
+U+1F41F	FISH	ornament-536	Miscellaneous Symbols and Pictographs U+1F300-U+1F5FF
+U+FEFE1	Dove facing right	ornament-536	Nishiki Plane 15 Private Use cabinet U+F0000-U+FFFFD
+U+FEFE2	Dove facing left	ornament-536	Nishiki Plane 15 Private Use cabinet U+F0000-U+FFFFD
+U+FEFE3	Dove with olive branch	ornament-536	Nishiki Plane 15 Private Use cabinet U+F0000-U+FFFFD
+U+FF041	Round spiral	ornament-536	Nishiki Plane 15 Private Use cabinet U+F0000-U+FFFFD
+U+FF04D	Centerless ink splash	ornament-536	Nishiki Plane 15 Private Use cabinet U+F0000-U+FFFFD
+U+FF04E	Ink splash	ornament-536	Nishiki Plane 15 Private Use cabinet U+F0000-U+FFFFD
+U+FF04F	Black ink splash	ornament-536	Nishiki Plane 15 Private Use cabinet U+F0000-U+FFFFD
+U+FF052	Conical spiral	ornament-536	Nishiki Plane 15 Private Use cabinet U+F0000-U+FFFFD
+U+FF053	Angular spiral	ornament-536	Nishiki Plane 15 Private Use cabinet U+F0000-U+FFFFD

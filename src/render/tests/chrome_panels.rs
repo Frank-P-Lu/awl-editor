@@ -1721,8 +1721,8 @@ fn bundled_back_glyph_id() -> u32 {
         .advance_width(gid)
         .expect("U+232B has a horizontal advance");
     assert_eq!(
-        advance, 1197.0,
-        "AwlMarks pins U+232B's source advance in font units"
+        advance, 1024.0,
+        "AwlMarks pins Nishiki's U+232B advance in font units"
     );
     gid.to_u32()
 }

@@ -89,9 +89,9 @@ fn block_for(cp: u32) -> Option<&'static str> {
         .map(|(_, _, name)| *name)
 }
 
-/// `AwlMarks.ttf` is awl's OWN composed symbol face — every codepoint it maps
-/// is already, by construction, a symbol/ornament/keycap glyph, so its scope
-/// is its full cmap rather than the block filter above.
+/// `AwlMarks.ttf` is awl's roster-derived symbol face — every codepoint it maps
+/// is adopted explicitly, so its scope is its full cmap rather than the block
+/// filter above.
 fn is_exempt_face(filename: &str) -> bool {
     filename == "AwlMarks.ttf"
 }

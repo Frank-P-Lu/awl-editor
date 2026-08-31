@@ -94,33 +94,14 @@ pub(crate) fn add_script_spans(
     }
 }
 
-/// True for the SYMBOL / ORNAMENT codepoints the bundled mono + proportional
-/// display faces lack — the macOS modifier glyphs (⌘ ⇧ ⌥ ⌃), the key-hint keycaps
-/// (↵ Return, ⇥ Tab, ⌫ Backspace), the fine-press ornaments / fleurons (❧ ❦ ☙ ❡ ❥), the
-/// asterism (⁂), and the reference marks (§ † ‡). These render as TOFU under the
-/// global fallback (IBM Plex Mono Light), so the renderer overlays the bundled
-/// [`SYMBOL_FAMILY`] face on their runs (see [`add_symbol_spans`]). Exactly the
-/// glyph set bundled in `AwlMarks.ttf`; keep the two in sync.
+/// True for the SYMBOL / ORNAMENT codepoints that chrome routes explicitly
+/// through the bundled [`SYMBOL_FAMILY`] face. Enrolment comes from the
+/// `symbol-span` role in `AwlMarks.roster.tsv`, so adopting or retiring a mark
+/// has one owner rather than a parallel match arm here. PUA ornament-only marks
+/// deliberately carry no such role: they remain explicit awl chrome, never an
+/// ambient document fallback.
 pub(crate) fn is_symbol(c: char) -> bool {
-    matches!(
-        c as u32,
-        0x2318   // ⌘ Command
-        | 0x21E7 // ⇧ Shift
-        | 0x2325 // ⌥ Option
-        | 0x2303 // ⌃ Control
-        | 0x21B5 // ↵ Downwards arrow with corner leftwards (Return / Enter)
-        | 0x21E5 // ⇥ Rightwards arrow to bar (Tab)
-        | 0x232B // ⌫ Erase to the left (Backspace)
-        | 0x2767 // ❧ Rotated floral heart (fleuron — the hr ornament)
-        | 0x2766 // ❦ Floral heart (the `___` break ornament)
-        | 0x2619 // ☙ Reversed rotated floral heart (fleuron variant)
-        | 0x2761 // ❡ Curved stem paragraph sign ornament
-        | 0x2765 // ❥ Rotated heavy black heart bullet (fleuron variant)
-        | 0x2042 // ⁂ Asterism
-        | 0x00A7 // § Section sign
-        | 0x2020 // † Dagger
-        | 0x2021 // ‡ Double dagger
-    )
+    super::super::marks::has_role(c, "symbol-span")
 }
 
 pub(crate) fn symbol_runs(text: &str) -> Vec<std::ops::Range<usize>> {
