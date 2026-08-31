@@ -297,7 +297,11 @@ lines = 559
 
 [[file_size_mark]]
 file = "src/render.rs"
-lines = 2876
+lines = 2881
+# 2876 -> 2881: item 540's table-dims picker gained a caret-anchor field
+# (overlay_table_dims_hint_w, the shaped hint width measured once per
+# set_view so the geometry function can size the card without a
+# FontSystem in hand).
 # 2867 -> 2876: the declared GPU-state floor now owns the empty-cell wash
 # pipeline and the immutable faceted-hug roster/memo state.
 reason = "The footer plate uses the notice channel's one-pixel rim so it remains visible. `Millis` and `progress_per` keep durations out of pixel multiplication by type, while declaration docs name the entitled scale factor for page/caret pads, page-frame strokes, and spell gaps. `HudDefaults`, `WhichKeyDefaults`, and `DebugDefaults` give inert field groups exhaustive defaults beside their sole `TextPipeline` owner. Shape reach rejects unshaped-line sentinels, and `Metrics` carries `dpi` beside zoom scale so a logical floor does not vary by display density. `CARET_INK_PAD_W` gained a doc comment naming its rationale and the near-zero vertical headroom finding that kept the tuning to width alone. +7: the working-set stack plate's own row-height and inset constants, named beside the other margin-row geometry this file already owns. +10: the menu chord column's config-aware label plumbing (ViewState mirrors of config_keys/config_linux_keep). +4: inert hover defaults and mirrored row state keep the production close affordance explicit in the exhaustive pipeline state. +1: the shared overlay-material module is declared beside the other data-driven chrome owners. +14: the streaks card's drawn rect and text origin join the other per-frame HUD state, named beside `HudDefaults`. +30: the format popover's hover-ring pipeline field and the inline-image resize-handle's hover-grip pipeline field, declared beside their sibling `TextPipeline` fields with doc comments naming what each draws and why — a hairline stroke and a small filled mark that can never disagree with the hit-test each mirrors. +11: the row-drag insertion hairline's own field pair (the drop-slot index and its drawn plate), mirroring gutter_stack_hover's own pointer-only, ViewState-free shape. +11: the fold-chevron mark grew from a two-quad pair to a per-mark rotated-glyph pipeline (RotatedLabelPipeline slots + a content-addressed mask cache), replacing the retired quad geometry. +13: the Rename minibuffer's seeded-stem selection wash -- its own `SelectionPipeline` field (`panel_query_selection`) and the `overlay_query_selection` range it reads, doc-commented beside the other per-frame query state. Insert Table's table_dims_cells SelectionPipeline field joins the other per-frame overlay pipelines this file already owns. Item 527/528's config_keymap_flavor field joins the other per-frame config mirrors this file already owns."
@@ -396,14 +400,20 @@ lines = 568
 
 [[file_size_mark]]
 file = "src/render/pipeline_draw.rs"
-lines = 553
+lines = 554
+# 553 -> 554: item 540's table-dims card gained one field init
+# (overlay_table_dims_hint_w) in the exhaustive TextPipeline::new literal.
 # 546 -> 553: the exhaustive initializer constructs the empty-cell wash
 # pipeline and seeds the faceted-hug roster/memo fields inertly.
 reason = "The footer plate earns the notice channel's own one-pixel rim, which is what lifts it from delta-E 1.91 to 54 on Cassowary -- a plate nobody can see is not a plate. +5: the rim's construction and its draw slot immediately before `overlay_bars`, matching the order `notice_rim`/`notice_plate` already keep. +1: the `shape_tail_owed` field initialiser in TextPipeline::new's literal, its sole construction site — the flag that records a presented frame still owes its tail. +7: the working-set stack plate's draw call, slotted beside the other gutter-row draws it shares a pipeline with. +2: threads config_keys/config_linux_keep into the menu dropdown plan's construction. +1: initializes the inert hovered-row field beside the working-set stack's other exhaustive state. +1: initializes the dedicated docked-facet strip buffer beside the overlay text buffers it replaces. +2: initializes the streaks card's rect/text-origin fields to `None` beside the other per-frame HUD state. +13: the format popover's hover-ring pipeline and the inline-image resize-handle's hover-grip pipeline, initialized beside their sibling `SelectionPipeline` construction sites. +6: the row-drag insertion hairline's own seeded pipeline, beside gutter_stack_plate's construction. +3: seeds the per-mark fold-chevron rotated-label pipeline slots beside the other per-mark construction sites. +4: `panel_query_selection`'s construction and its `overlay_query_selection: None` initializer, beside the other per-frame query-caret state. Insert Table's table_dims_cells construction joins the other per-frame SelectionPipeline construction sites. Item 527/528's config_keymap_flavor construction joins the other per-frame config field initializers."
 
 [[file_size_mark]]
 file = "src/render/pipeline_geometry.rs"
-lines = 548
+lines = 561
+# 548 -> 561: item 540's table-dims picker measures its hint text's shaped
+# width once per set_view (overlay_table_dims_hint_w), mirroring how
+# overlay_spell_w is already measured there, so the card-width geometry
+# function can size itself without a FontSystem in hand.
 # 544 -> 548: the exhaustive theme/view sync colors the empty-cell wash and
 # mirrors the immutable faceted-hug roster beside the visible overlay rows.
 reason = "`set_view` is the sole ViewState-to-pipeline mirror: it measures workspace rails, mirrors row ownership, invalidates view-derived diagonal geometry, and publishes every projection. It carries fold-chevron retinting, fold headings/tails, secondary location, comparison/source mirrors, selection-ui overlay rows, photographable/findable notices, and world-authored diagonal-mark weight. +1: mirrors the working-set stack's row count alongside the other row-ownership mirrors. +6: mirrors config_keys/config_linux_keep onto TextPipeline alongside every other synced field, the plumbing the menu chord column's config-awareness rides. +14: the format popover's hover ring and the inline-image resize-handle's hover grip both take the same `muted` ink the Chips ghost pills and fold chevron already use, synced beside the pipeline's other per-theme colors. +1: retints the fold-chevron mark's mask-based pipelines instead of the retired quad ink field. +3: colors `panel_query_selection` via `theme::selection_document()` and mirrors `overlay_query_selection` from the view, beside the pipeline's other per-frame syncs. Insert Table's table_dims_cells is colored via the same theme sync every other per-frame pipeline field already rides. Item 527/528's config_keymap_flavor mirrors into the pipeline beside config_linux_keep, the plumbing the menu chord column's config-awareness already rides."
@@ -783,8 +793,8 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 lint = "clippy::too_many_lines"
 file = "src/render/pipeline_draw.rs"
 function = "TextPipeline::new"
-message = "this function has too many lines (492/100)"
-reason = "The one exhaustive TextPipeline initializer keeps adjacent GPU state transitions together. Four added lines initialize arbitrary two-colour ground/ink endpoints for independent selection and caret pipelines; their shared baked construction lives in SelectionPipeline::new_two_colour. Five added lines initialize the living band's input epoch beside its existing selection-motion state. +2: initializes the streaks card's rect/text-origin fields to `None`, beside the other per-frame HUD state. +8: the format popover's hover-ring pipeline and the inline-image resize-handle's hover-grip pipeline, initialized beside their sibling SelectionPipeline construction sites. +4: the row-drag insertion hairline's own seeded pipeline, beside gutter_stack_plate's construction. +3: seeds the per-mark fold-chevron rotated-label pipeline slots beside the other per-mark construction sites. +4: `panel_query_selection`'s construction and its `overlay_query_selection: None` initializer, beside the other per-frame query-caret state."
+message = "this function has too many lines (493/100)"
+reason = "The one exhaustive TextPipeline initializer keeps adjacent GPU state transitions together. Four added lines initialize arbitrary two-colour ground/ink endpoints for independent selection and caret pipelines; their shared baked construction lives in SelectionPipeline::new_two_colour. Five added lines initialize the living band's input epoch beside its existing selection-motion state. +2: initializes the streaks card's rect/text-origin fields to `None`, beside the other per-frame HUD state. +8: the format popover's hover-ring pipeline and the inline-image resize-handle's hover-grip pipeline, initialized beside their sibling SelectionPipeline construction sites. +4: the row-drag insertion hairline's own seeded pipeline, beside gutter_stack_plate's construction. +3: seeds the per-mark fold-chevron rotated-label pipeline slots beside the other per-mark construction sites. +4: `panel_query_selection`'s construction and its `overlay_query_selection: None` initializer, beside the other per-frame query-caret state. +1 (492->493): item 540's table-dims card gains one exhaustive field init, overlay_table_dims_hint_w, beside the other per-frame overlay measurements this initializer already owns."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
@@ -1335,6 +1345,13 @@ file = "src/render/pipeline_geometry.rs"
 function = "TextPipeline::sync_theme_colors"
 message = "this function has too many lines (105/100)"
 reason = "The one exhaustive per-theme color sync keeps every pipeline's recolor beside its siblings so a new theme constant cannot be wired to only some of them. +2: colors `panel_query_selection` via `theme::selection_document()` and mirrors `overlay_query_selection` from the view."
+
+[[clippy_exception]]
+lint = "clippy::too_many_lines"
+file = "src/render/pipeline_geometry.rs"
+function = "TextPipeline::sync_view_fields"
+message = "this function has too many lines (103/100)"
+reason = "The one ViewState-to-pipeline mirror (see the file_size_mark reason above for the full roster it already carries): item 540's table-dims picker adds a single measurement, overlay_table_dims_hint_w, via measure_workspace_hint_text_px -- the same shaper the spell popup's own overlay_spell_w measurement already uses at this seam -- so the card-width geometry function can size itself without a FontSystem in hand. First diagnostic to cross the 100-line clippy floor at this seam (103/100); the mirror stays one function so a new theme/view field is never wired to only some pipelines."
 
 [[clippy_exception]]
 lint = "clippy::too_many_lines"
