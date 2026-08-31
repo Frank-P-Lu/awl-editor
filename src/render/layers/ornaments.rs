@@ -9,14 +9,16 @@ use super::*;
 
 mod bare_url;
 mod footnotes;
+#[cfg(test)]
+mod probe;
 mod smart_punct;
 use bare_url::BareUrlEllipses;
 use footnotes::FootnoteNumbers;
 use smart_punct::SmartPunctGlyphs;
 
 struct RuleOrnaments {
-    marks: Vec<(f32, char)>,
-    glyphs: Vec<(char, GlyphBuffer)>,
+    marks: Vec<(f32, &'static str)>,
+    glyphs: Vec<(&'static str, GlyphBuffer)>,
 }
 
 impl RuleOrnaments {
@@ -33,30 +35,31 @@ impl RuleOrnaments {
         };
         let attrs = Attrs::new()
             .family(Family::Name(theme::active().ornament_face))
+            .weight(ORNAMENT_WEIGHT)
             .color(muted);
         let scale = theme::active().ornament_scale;
         let line_h = metrics.line_height * scale;
         let glyph_metrics = GlyphMetrics::new(metrics.font_size * scale, line_h);
         let mut distinct = Vec::new();
-        for (_, ch) in &marks {
-            if !distinct.contains(ch) {
-                distinct.push(*ch);
+        for (_, run) in &marks {
+            if !distinct.contains(run) {
+                distinct.push(*run);
             }
         }
         let glyphs = distinct
             .into_iter()
-            .map(|ch| {
+            .map(|run| {
                 let mut buffer = GlyphBuffer::new(&mut pipeline.font_system, glyph_metrics);
                 buffer.set_size(&mut pipeline.font_system, Some(col_w), Some(line_h));
                 buffer.set_text(
                     &mut pipeline.font_system,
-                    &ch.to_string(),
+                    run,
                     &attrs,
                     Shaping::Advanced,
                     Some(glyphon::cosmic_text::Align::Center),
                 );
                 buffer.shape_until_scroll(&mut pipeline.font_system, false);
-                (ch, buffer)
+                (run, buffer)
             })
             .collect();
         Self { marks, glyphs }
@@ -69,12 +72,12 @@ impl RuleOrnaments {
         bounds: TextBounds,
         muted: glyphon::Color,
     ) {
-        for (top, ch) in &self.marks {
+        for (top, run) in &self.marks {
             let buffer = &self
                 .glyphs
                 .iter()
-                .find(|(candidate, _)| candidate == ch)
-                .expect("rule char was deduped in")
+                .find(|(candidate, _)| candidate == run)
+                .expect("rule run was deduped in")
                 .1;
             areas.push(TextArea {
                 buffer,
@@ -102,7 +105,7 @@ impl BulletOrnaments {
             Vec::new()
         };
         let attrs = Attrs::new()
-            .family(Family::Name(theme::active().ornament_face))
+            .family(Family::Name(theme::active().bullet_face))
             .color(muted);
         let glyph_metrics = GlyphMetrics::new(
             metrics.font_size * theme::active().bullet_scale,

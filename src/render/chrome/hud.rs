@@ -235,7 +235,7 @@ impl TextPipeline {
                         .color(content)
                         .metrics(body_metrics)
                         .family(Family::Name(theme::active().ornament_face))
-                        .weight(glyphon::Weight::NORMAL),
+                        .weight(ORNAMENT_WEIGHT),
                     _ => base.clone().color(content).metrics(body_metrics),
                 };
                 (s.as_str(), attrs)

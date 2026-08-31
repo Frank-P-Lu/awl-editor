@@ -329,7 +329,7 @@ fn the_roster_claim_grammar_tells_a_roster_size_from_a_subset() {
         "/// a `**bold**` span in the five mono-display worlds (Tawny = Plex",
         "// The five worlds whose ground-preserving clones land past a window",
         "//! the wider doc web states 18 upright worlds and 11 proportional worlds",
-        "/// `ornament_face` only ever holds one of the three registered faces",
+        "/// `bullet_face` only ever holds one of the three registered faces",
         "// Measured across the sweep: Quokka 0.21% (3 of 1424) per world",
         "/// every one of the twelve cells (worlds x pitches) measured 0.00",
     ] {

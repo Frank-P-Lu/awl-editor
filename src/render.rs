@@ -450,6 +450,11 @@ pub const FONT_DATA_PITCH: facepitch::Pitch = facepitch::Pitch::Mono;
 /// never ambient document fallback.
 pub static FONT_SYMBOLS: &[u8] = include_bytes!("../assets/fonts/AwlMarks.ttf");
 
+/// The authored request for Nishiki-derived ornament runs. The subset face is
+/// normalized to one bundled 400 face, but shaping asks for Nishiki's native
+/// medium register and lets the family-local nearest-weight selection resolve it.
+pub const ORNAMENT_WEIGHT: glyphon::Weight = glyphon::Weight::MEDIUM;
+
 /// The private family name [`FONT_SYMBOLS`] registers under (its `name` table
 /// family ID, verified through fontdb). Named only via `AttrsList` family spans —
 /// never as a `Theme::font` — so it overlays symbol glyphs without becoming any
@@ -609,19 +614,17 @@ pub static FONT_THEME_BOLD_FACES: &[&[u8]] = &[
     include_bytes!("../assets/fonts/Iosevka-Bold.ttf"),
 ];
 
-/// BUNDLED ORNAMENT faces — tiny ornament-only subsets registered under their
-/// authentic family names for honest attribution. Assigned per world via
-/// [`crate::theme::Theme::ornament_face`] and named only through the per-run
-/// `AttrsList` family span on the section-break fleuron / About end-mark (never a
-/// `Theme::font`), so no world's display shaping is touched.
+/// BUNDLED LEGACY BULLET face — a tiny ornament-only subset registered under its
+/// authentic family name for honest attribution. Section breaks and the About
+/// end-mark now use the Nishiki-derived `Awl Marks`; Junicode remains registered
+/// only while the separate list-bullet fitting round is pending.
 ///  - Junicode ornaments (fleurons ☙ ❦ ❧, asterisms ⁂ ⁑, + Caslon PUA fleuron
 ///    clusters). SIL OFL, github.com/psb1558/Junicode-font. The antique/slab
-///    worlds' ornament face ([`crate::theme::ORNAMENT_JUNICODE`]).
+///    worlds' transitional bullet face ([`crate::theme::ORNAMENT_JUNICODE`]).
 ///
-/// The other two ornament faces are registered ELSEWHERE, not here: EB Garamond
-/// ([`crate::theme::ORNAMENT_GARAMOND`], the literary worlds' fleurons) is already
-/// a display face in `FONT_THEME_FACES` (Bombora's), and the geometric worlds'
-/// [`crate::theme::ORNAMENT_MARKS`] IS the derived `SYMBOL_FAMILY` face. (The dud
+/// The other two bullet faces are registered ELSEWHERE, not here: EB Garamond
+/// is already a display face in `FONT_THEME_FACES`, and [`crate::theme::ORNAMENT_MARKS`]
+/// IS the derived `SYMBOL_FAMILY` face. (The dud
 /// `Vollkorn-Ornaments.ttf` — it ships NO classic fleurons, only ¶ ‸ ‽ … — was
 /// dropped: no world could use it for a section break.)
 pub static FONT_ORNAMENT_FACES: &[&[u8]] =

@@ -444,7 +444,7 @@ impl TextPipeline {
         matches!(line.attrs_list().get_span(0).color_opt, Some(c) if c.a() == 0)
     }
 
-    pub(super) fn rule_marks(&self) -> Vec<(f32, char)> {
+    pub(super) fn rule_marks(&self) -> Vec<(f32, &'static str)> {
         let lines = self.rule_lines();
         if lines.is_empty() {
             return Vec::new();

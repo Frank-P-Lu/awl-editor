@@ -264,33 +264,62 @@ fn symbol_spans_and_existing_awl_marks_consumers_derive_from_the_roster() {
     }
 
     let adopted = roster_codepoints();
+    let ornament_role = role_codepoints("ornament-536");
     let mut enrolled_worlds = BTreeSet::new();
-    let mut checked = Vec::new();
+    let mut consumed_ornaments = BTreeSet::new();
     for world in theme::THEMES
         .iter()
-        .filter(|world| world.ornament_face == theme::ORNAMENT_MARKS)
+        .filter(|world| world.ornament_face == theme::ORNAMENT_NISHIKI)
     {
         enrolled_worlds.insert(world.name);
-        for ch in [
+        for run in [
             world.ornaments.dash,
             world.ornaments.star,
             world.ornaments.underscore,
-            world.bullets.0,
-            world.bullets.1,
-            world.bullets.2,
         ] {
-            assert!(
-                adopted.contains(&(ch as u32)),
-                "{} consumes {:?} (U+{:04X}) from Awl Marks but the roster cannot see it",
-                world.name,
-                ch,
-                ch as u32
-            );
-            checked.push((world.name, ch));
+            for ch in run.chars() {
+                assert!(
+                    adopted.contains(&(ch as u32)),
+                    "{} consumes {:?} (U+{:04X}) from Awl Marks but the roster cannot see it",
+                    world.name,
+                    ch,
+                    ch as u32
+                );
+                consumed_ornaments.insert(ch as u32);
+            }
         }
     }
+    assert_eq!(
+        ornament_role.len(),
+        64,
+        "the approved ornament role is exactly the 64-codepoint union"
+    );
+    assert_eq!(
+        consumed_ornaments, ornament_role,
+        "the world roster and ornament-536 role must be exact subsets in both directions"
+    );
     assert!(
-        !enrolled_worlds.is_empty() && !checked.is_empty(),
+        enrolled_worlds.len() == theme::THEMES.len() && !consumed_ornaments.is_empty(),
         "no live Awl Marks world/consumer enrolled in the roster sweep"
+    );
+}
+
+#[test]
+fn ornament_weight_request_is_shared_by_rule_and_about_consumers() {
+    assert_eq!(
+        ORNAMENT_WEIGHT.0, 500,
+        "the authored ornament request is medium/500"
+    );
+    let rules = include_str!("../layers/ornaments.rs");
+    let about = include_str!("../chrome/hud.rs");
+    assert_eq!(
+        rules.matches(".weight(ORNAMENT_WEIGHT)").count(),
+        1,
+        "the rule-run shaper must request the shared ornament weight exactly once"
+    );
+    assert_eq!(
+        about.matches(".weight(ORNAMENT_WEIGHT)").count(),
+        1,
+        "the About end-mark shaper must request the shared ornament weight exactly once"
     );
 }

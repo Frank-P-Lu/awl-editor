@@ -19,26 +19,26 @@ is). Cohesion is "does this all agree with one line of prose," nothing fancier.
 
 | World          | Ground                      | Margin background | Display             | Mono            | Ornament (`---`/`***`/`___`)                  | Time  | Register | Voice     | Temp    |
 | -------------- | --------------------------- | ----------------- | ------------------- | --------------- | --------------------------------------------- | ----- | -------- | --------- | ------- |
-| **Gumtree**    | pale eucalyptus-green       | Zigzag             | Literata            | Monaspace Xenon | Junicode · botanical sprig / spray / fleur    | Day   | —        | Literary  | Cool    |
-| **Bilby**      | palest rose-gold dawn       | Gradient | Newsreader          | Monaspace Xenon | EB Garamond · ❧ ☙ ❦                           | Dawn  | Refined  | —         | —       |
-| **Magpie**     | paper-white, high-contrast  | Pinstripe         | Bitter              | Monaspace Xenon | Junicode · quatrefoil / lattice / damask-tile | Day   | —        | Literary  | Neutral |
-| **Saltpan**    | warm ecru salt-flat         | Pinstripe         | Fraunces            | Monaspace Xenon | Junicode · running-vine / vine-scroll ×2      | Dawn  | Refined  | —         | —       |
-| **Quokka**     | warm peach reef             | Zigzag             | Sour Gummy          | IBM Plex Mono   | Awl Marks · ✿ ❀ ✽                             | Dawn  | Everyday | Modern    | Warm    |
-| **Galah**      | dusty-pink                  | Gradient          | Figtree             | IBM Plex Mono   | Awl Marks · ❁ ❂ ✿                             | Dawn  | —        | Modern    | Warm    |
-| **Potoroo**    | dark burnt-orange           | Stripes           | Monaspace Xenon     | Monaspace Xenon | Awl Marks · ✶ ✦ ◆                             | Dusk  | Humble   | Technical | Warm    |
-| **Mopoke**     | warm charcoal               | Dots              | Bitter              | IBM Plex Mono   | Junicode · damask / candelabra / damask-tile  | Dusk  | Humble   | —         | —       |
-| **Bombora**    | dark violet                 | Waves             | EB Garamond         | Monaspace Xenon | EB Garamond · ☙ ❧ ❦                           | Night | Refined  | Literary  | —       |
-| **Mulga**      | blackish-olive              | Pinstripe         | Zilla Slab          | Monaspace Xenon | Junicode · ⁑ ⁂ ❦                              | —     | Everyday | —         | —       |
-| **Bowerbird**  | midnight-navy               | Dots              | IBM Plex Sans       | JetBrains Mono  | Awl Marks · ❂ ✴ ◈                             | Night | Everyday | Modern    | Cool    |
-| **Brolga**     | pale sky-blue               | Gradient          | IBM Plex Sans       | IBM Plex Mono   | Awl Marks · ✧ ✴ ⬥                             | Day   | —        | —         | Cool    |
-| **Mangrove**   | dark tidal-teal             | Lava · dithered   | JetBrains Mono      | JetBrains Mono  | Awl Marks · ❖ ◈ ⬥                             | —     | —        | Technical | Cool    |
-| **Tawny**      | warm-grey                   | Dots              | IBM Plex Mono       | IBM Plex Mono   | Awl Marks · ✦ ✷ ◈                             | —     | Humble   | —         | Neutral |
-| **Currawong**  | near-pure-black OLED        | Gradient + stars  | Iosevka             | Iosevka         | Awl Marks · ✷ ✴ ⬥                             | Night | —        | Technical | Neutral |
-| **Wagtail**    | near-black, zero-saturation | Gradient          | JetBrains Mono      | JetBrains Mono  | Awl Marks · ✧ ⭑ ❡                             | Dusk  | —        | —         | —       |
-| **Firetail**   | deep oxblood-charcoal       | Lava · smooth     | Monaspace Xenon     | Monaspace Xenon | Awl Marks · ✷ ✶ ✦                             | —     | —        | —         | Warm    |
-| **Cassowary**  | near-black glass            | Pinstripe         | Iosevka             | Iosevka         | Awl Marks · ◆ ✴ ◈                             | Night | —        | Technical | —       |
-| **Paperbark**  | palest cream, honey layers  | Deckle · strata   | EB Garamond         | Monaspace Xenon | EB Garamond · ❦ ❧ ☙                           | Day   | Refined  | Literary  | —       |
-| **Kite**       | near-white pale lavender    | Warped grid       | Fira Sans           | JetBrains Mono  | Awl Marks · ⬥ ✶ ◆                             | —     | —        | Modern    | —       |
+| **Gumtree**    | pale eucalyptus-green       | Zigzag             | Literata            | Monaspace Xenon | Riverbank · long snake / fish / snail          | Day   | —        | Literary  | Cool    |
+| **Bilby**      | palest rose-gold dawn       | Gradient           | Newsreader          | Monaspace Xenon | Hanami · cherry blossom / blossom / tulip      | Dawn  | Refined  | —         | —       |
+| **Magpie**     | paper-white, high-contrast  | Pinstripe          | Bitter              | Monaspace Xenon | Asterism · ⁂ ⁑ ✱                               | Day   | —        | Literary  | Neutral |
+| **Saltpan**    | warm ecru salt-flat         | Pinstripe          | Fraunces            | Monaspace Xenon | Scriptorium · coronis / dotted diple / ancora  | Dawn  | Refined  | —         | —       |
+| **Quokka**     | warm peach reef             | Zigzag             | Sour Gummy          | IBM Plex Mono   | Tavern · acorns / bells / leaves               | Dawn  | Everyday | Modern    | Warm    |
+| **Galah**      | dusty-pink                  | Gradient           | Figtree             | IBM Plex Mono   | Cardtable · ♠ ♥ ♣                              | Dawn  | —        | Modern    | Warm    |
+| **Potoroo**    | dark burnt-orange           | Stripes            | Monaspace Xenon     | Monaspace Xenon | Undergrowth · mushroom / clover / shamrock     | Dusk  | Humble   | Technical | Warm    |
+| **Mopoke**     | warm charcoal               | Dots               | Bitter              | IBM Plex Mono   | Moonfaces · full / first-quarter / new         | Dusk  | Humble   | —         | —       |
+| **Bombora**    | dark violet                 | Waves              | EB Garamond         | Monaspace Xenon | Arabesque · joined white / joined black / scroll | Night | Refined  | Literary  | —       |
+| **Mulga**      | blackish-olive              | Pinstripe          | Zilla Slab          | Monaspace Xenon | Genjikō · 1–5 / pattern / pattern              | —     | Everyday | —         | —       |
+| **Bowerbird**  | midnight-navy               | Dots               | IBM Plex Sans       | JetBrains Mono  | Wish · shooting / glowing / sparkles           | Night | Everyday | Modern    | Cool    |
+| **Brolga**     | pale sky-blue               | Gradient           | IBM Plex Sans       | IBM Plex Mono   | Dovecote · right / olive-branch / left dove    | Day   | —        | —         | Cool    |
+| **Mangrove**   | dark tidal-teal             | Lava · dithered    | JetBrains Mono      | JetBrains Mono  | Spirals · round / angular / conical             | —     | —        | Technical | Cool    |
+| **Tawny**      | warm-grey                   | Dots               | IBM Plex Mono       | IBM Plex Mono   | Autumn · maple / fluttering / fallen leaf      | —     | Humble   | —         | Neutral |
+| **Currawong**  | near-pure-black OLED        | Gradient + stars   | Iosevka             | Iosevka         | Gambit · ♘ ♕ ♙                                 | Night | —        | Technical | Neutral |
+| **Wagtail**    | near-black, zero-saturation | Gradient           | JetBrains Mono      | JetBrains Mono  | Songbook · ♩ ♪ ♬                               | Dusk  | —        | —         | —       |
+| **Firetail**   | deep oxblood-charcoal       | Lava · smooth      | Monaspace Xenon     | Monaspace Xenon | Stars · ✦ ✶ ✧                                  | —     | —        | —         | Warm    |
+| **Cassowary**  | near-black glass            | Pinstripe          | Iosevka             | Iosevka         | Splatter · splash / black / centerless         | Night | —        | Technical | —       |
+| **Paperbark**  | palest cream, honey layers  | Deckle · strata    | EB Garamond         | Monaspace Xenon | Fleurons · ❧ ☙ ❦                               | Day   | Refined  | Literary  | —       |
+| **Kite**       | near-white pale lavender    | Warped grid        | Fira Sans           | JetBrains Mono  | Solar · ☀ ☼ 🌞                                 | —     | —        | Modern    | —       |
 
 *(20 worlds — the authored target. The names are Australian fauna, flora, and landscape — flavour, not taxonomy. Wagtail and Firetail are statement-world mirrors; Brolga is the cool light pole; Cassowary is the dark-technical statement, a NERV terminal; Paperbark is the material world, the only one whose ground is a handmade sheet; Kite closes the roster as Firetail's light counterpart, the only world whose ground is travelling — see below.)*
 
@@ -85,18 +85,11 @@ was retired outright once its last world moved off it.
 
 ## Each world
 
-> **Ornament faces are assigned, and each world now carries THREE DISTINCT in-character
-> symbols** (the design-table re-pick). Each world draws its markdown section break
-> (`---`/`***`/`___`) — and its About-card end-mark, which is the flagship `---` dash —
-> in its OWN ornament face, with a distinct glyph per syntax so the mark tracks what the
-> author typed. Three faces: **EB Garamond** (its only three Renaissance fleurons
-> ❧ ☙ ❦, permuted — the true literary serifs Bilby & Bombora), **Junicode** (antique
-> Caslon flowers: botanical sprays, running vines, quatrefoil/damask tiles, plus the
-> ⁂/⁑ asterisms — the antique/slab worlds AND the warm/pale serifs Gumtree & Saltpan
-> whose display face carries no fleurons of its own), and the merged **Awl Marks** face
-> (its expanded star/floret/geometric pool — ✦ ✿ ❁ ❂ ❖ ◈ ⬥ … — the modern/technical
-> worlds). Keycaps (⌘⌥⇧) and plain marks (§ † ‡) always stay on Awl Marks. Note EB
-> Garamond ships no ⁂ and only three fleurons, so its worlds' trio is exactly {❧, ☙, ❦}.
+> **Every world carries one distinct, story-led trio from the Nishiki cabinet.**
+> The three slots follow markdown syntax order (`---` / `***` / `___`); the dash
+> also closes the About card. A joined snake or arabesque pair is shaped as one
+> run. All marks come from the roster-derived **Awl Marks** subset, requested at
+> weight 500. List bullets keep their existing pairs pending their own fitting round.
 
 ### Gumtree
 **A pale eucalyptus-green reading room, calm and cool in clear daylight.**
@@ -275,10 +268,10 @@ Regular) on every face; and headings deliberately use size, not weight.
 - **LXGW WenKai** — a calligraphic Klee-style Chinese face: tapered brush strokes with real character.
 
 ### Symbols
-- **Awl Marks** — awl's own keycap + mark + fleuron set (keycaps ⌘⌥⇧, daggers †‡, fleurons ❧❦☙❡❥, the ⁂ asterism) PLUS an expanded star/floret/geometric ornament pool (✦ ✧ ✴ ✶ ✷ ✽ ✿ ❀ ❁ ❂ ❖ ◆ ◈ ⬥ ⭑, decomposed from Noto Sans Symbols 2). *Rebuilt from clean OFL sources — EB Garamond (fleurons ❧❦☙), Noto Sans Symbols 2 (geometric ❡❥ + marks + the new pool), Junicode (⁂), Iosevka; see LICENSES.md.* Carries every keycap + plain mark for all worlds, and is itself the **geometric** worlds' ornament face.
+- **Awl Marks** — awl's private, roster-derived subset of Nishiki-teki. It carries the chrome marks, the exact 64-codepoint world-ornament union, and the reserved reference ladder without exposing the upstream face as document fallback. See `assets/fonts/AwlMarks.roster.tsv` and `assets/fonts/LICENSES.md`.
 
-### Ornament faces
-Each world carries a trio of **THREE DISTINCT** section-break symbols (dash `---` / star `***` / underscore `___`), all present in its face — the dash is the flagship (also the About end-mark).
-- **EB Garamond** — its only three Renaissance fleurons ❧ ☙ ❦ (no ⁂), permuted three ways, for the TRUE literary serifs Bilby, Bombora & Paperbark.
-- **Junicode** — antique Caslon flowers (botanical sprays E67D/E270/E68A, running vines F01B/F01D/F01E, quatrefoil/lattice/damask tiles EF90/EF98/EF9A + E670/F011/F014) plus the ⁂/⁑ asterisms, for the antique/slab worlds (Magpie, Mopoke, Mulga) AND the warm/pale serifs (Gumtree, Saltpan) whose display face has no fleurons of its own.
-- **Awl Marks** — the merged marks face itself, drawing its per-world trios from the expanded star/floret/geometric pool, for the modern/technical/geometric worlds (Quokka ✿❀✽, Galah ❁❂✿, Potoroo ✶✦◆, Bowerbird ❂✴◈, Mangrove ❖◈⬥, Tawny ✦✷◈, Currawong ✷✴⬥, Wagtail ✧⭑❡, Firetail ✷✶✦, Brolga ✧✴⬥, Kite ⬥✶◆).
+### Ornament face
+Every section-break trio uses **Awl Marks**, the Nishiki-derived subset. The
+world table above is the assignment roster. EB Garamond and Junicode remain
+temporarily registered only for existing list bullets; the bullet-pair fitting
+round will decide those replacements rather than inferring them here.

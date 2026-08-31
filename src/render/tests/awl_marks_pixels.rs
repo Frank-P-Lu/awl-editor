@@ -1,8 +1,9 @@
 //! Real-pixel laws for every production door the Nishiki-derived Awl Marks
-//! face currently reaches. Enrolment comes from the roster (`symbol-span`) or
-//! the live theme data (`ornament_face == Awl Marks`), never a copied glyph or
-//! world list. Every contrast/size assertion carries a presence companion: a
-//! deleted renderer cannot pass by leaving an immaculate background behind.
+//! face currently reaches, plus the retained list-bullet treatment that shares
+//! the rule renderer. Enrolment comes from the roster (`symbol-span`) or live
+//! theme data, never a copied glyph or world list. Every contrast/size assertion
+//! carries a presence companion: a deleted renderer cannot pass by leaving an
+//! immaculate background behind.
 
 use super::super::*;
 use super::{headless_dqp, pixeldiff, view};
@@ -335,27 +336,119 @@ fn ornament_fixture() -> ViewState {
     v
 }
 
+#[test]
+fn every_rule_ornament_shapes_as_one_fitted_nishiki_run_at_both_dpis() {
+    let _guard = crate::testlock::serial();
+    assert_eq!(
+        ORNAMENT_WEIGHT.0, 500,
+        "ornaments request Nishiki at weight 500"
+    );
+    let Some((_, _, mut p)) = headless_dqp(W as f32, H as f32) else {
+        eprintln!("skipping ornament run geometry law: no wgpu adapter");
+        return;
+    };
+    let mut widths = std::collections::BTreeMap::new();
+    let mut composed = 0usize;
+    for dpi in [1.0_f32, 2.0] {
+        p.set_dpi(dpi);
+        for (world_index, world) in theme::THEMES.iter().enumerate() {
+            theme::set_active(world_index);
+            p.sync_theme();
+            p.set_view(&ornament_fixture());
+            let probes = p.rule_run_shape_probe();
+            assert_eq!(
+                probes.len(),
+                3,
+                "{} shapes one run per rule syntax",
+                world.name
+            );
+            for probe in probes {
+                let text = probe.text;
+                let layout_runs = probe.layout_runs;
+                let glyphs = probe.glyphs;
+                let width = probe.width;
+                let faces = probe.faces;
+                let components = text.chars().count();
+                assert_eq!(
+                    layout_runs, 1,
+                    "{} {text:?} split into layout runs",
+                    world.name
+                );
+                if components == 1 {
+                    assert_eq!(glyphs, 1, "{} {text:?} did not shape one glyph", world.name);
+                } else {
+                    assert!(
+                        (2..=components).contains(&glyphs),
+                        "{} {text:?} produced an empty/foreign composed shape: \
+                         components={components} glyphs={glyphs}",
+                        world.name
+                    );
+                }
+                assert!(
+                    width.is_finite() && width > 0.0 && width <= p.text_wrap_width(),
+                    "{} {text:?} has unfitted width {width}",
+                    world.name
+                );
+                assert!(
+                    faces.iter().all(|(family, weight)| {
+                        family == theme::ORNAMENT_NISHIKI && *weight == 400
+                    }),
+                    "{} {text:?} escaped the bundled Nishiki-derived face: {faces:?}",
+                    world.name
+                );
+                if components > 1 {
+                    composed += 1;
+                }
+                let key = (world.name, text);
+                if let Some(one_x) = widths.insert(key.clone(), width) {
+                    let ratio = width / one_x;
+                    assert!(
+                        (1.98..=2.02).contains(&ratio),
+                        "{} {:?} width must scale with dpi: 1x={one_x} 2x={width} ratio={ratio}",
+                        key.0,
+                        key.1
+                    );
+                }
+            }
+        }
+    }
+    assert_eq!(
+        composed, 6,
+        "three approved composed runs must be exercised at each of two DPIs"
+    );
+    theme::set_active(theme::DEFAULT_THEME);
+    p.set_dpi(1.0);
+}
+
+fn run_codepoints(run: &str) -> String {
+    run.chars()
+        .map(|ch| format!("U+{:04X}", ch as u32))
+        .collect::<Vec<_>>()
+        .join("+")
+}
+
 /// Rule ornaments and list bullets are separate render sizes and positions.
 /// The world roster itself decides enrolment; the frame is then redrawn with
 /// only the ornament renderer emptied, making each diff the actual glyph ink.
 #[test]
-fn every_live_awl_marks_rule_and_bullet_is_legible_at_its_real_size() {
+fn every_rule_ornament_and_existing_bullet_is_legible_at_its_real_size() {
     let _guard = crate::testlock::serial();
     let worlds: Vec<_> = theme::THEMES
         .iter()
         .enumerate()
-        .filter(|(_, world)| world.ornament_face == theme::ORNAMENT_MARKS)
+        .filter(|(_, world)| world.ornament_face == theme::ORNAMENT_NISHIKI)
         .collect();
     assert!(
         !worlds.is_empty(),
         "no world currently consumes Awl Marks ornaments"
     );
     let Some((device, queue, mut p)) = headless_dqp(W as f32, H as f32) else {
-        eprintln!("skipping Awl Marks ornament pixel law: no wgpu adapter");
+        eprintln!("skipping rule ornament and bullet pixel law: no wgpu adapter");
         return;
     };
     crate::page::set_page_on(true);
-    let mut graded = Vec::new();
+    let mut graded_rules = 0usize;
+    let mut graded_bullets = 0usize;
     let mut expected_uses = 0;
     for dpi in [1.0_f32, 2.0] {
         p.set_dpi(dpi);
@@ -397,12 +490,12 @@ fn every_live_awl_marks_rule_and_bullet_is_legible_at_its_real_size() {
                     p.metrics.line_height * world.ornament_scale,
                 ];
                 assert_legible(
-                    &format!("{} rule U+{:04X}", world.name, ch as u32),
+                    &format!("{} rule {}", world.name, run_codepoints(ch)),
                     dpi,
                     QUIET_CONTRAST_FLOOR,
                     diff_stats(&with, &without, rect),
                 );
-                graded.push((world.name, dpi.to_bits(), "rule", ch));
+                graded_rules += 1;
             }
             for (top, left, ch) in bullets {
                 let rect = [left, top, p.metrics.char_width * 2.0, p.metrics.line_height];
@@ -412,12 +505,12 @@ fn every_live_awl_marks_rule_and_bullet_is_legible_at_its_real_size() {
                     QUIET_CONTRAST_FLOOR,
                     diff_stats(&with, &without, rect),
                 );
-                graded.push((world.name, dpi.to_bits(), "bullet", ch));
+                graded_bullets += 1;
             }
         }
     }
     assert_eq!(
-        graded.len(),
+        graded_rules + graded_bullets,
         expected_uses,
         "every theme-derived rule and bullet consumer must be graded"
     );
@@ -434,7 +527,7 @@ fn every_live_awl_marks_about_end_mark_is_present_sized_and_legible() {
     let worlds: Vec<_> = theme::THEMES
         .iter()
         .enumerate()
-        .filter(|(_, world)| world.ornament_face == theme::ORNAMENT_MARKS)
+        .filter(|(_, world)| world.ornament_face == theme::ORNAMENT_NISHIKI)
         .collect();
     assert!(
         !worlds.is_empty(),
@@ -463,7 +556,11 @@ fn every_live_awl_marks_about_end_mark_is_present_sized_and_legible() {
             );
             let frame = pixeldiff::render_frame(&mut p, &device, &queue, W, H);
             assert_legible(
-                &format!("{} About U+{:04X}", world.name, world.ornaments.dash as u32),
+                &format!(
+                    "{} About {}",
+                    world.name,
+                    run_codepoints(world.ornaments.dash)
+                ),
                 dpi,
                 BODY_CONTRAST_FLOOR,
                 against_local_ground(&frame, rect),

@@ -82,23 +82,26 @@ fn ornament_glyphs_resolve_in_each_worlds_assigned_face() {
             });
         let font = p
             .font_system
-            .get_font(id, glyphon::cosmic_text::fontdb::Weight::NORMAL)
+            .get_font(id, glyphon::cosmic_text::fontdb::Weight::MEDIUM)
             .unwrap_or_else(|| panic!("{}: ornament face {:?} loads", t.name, t.ornament_face));
         let charmap = font.as_swash().charmap();
-        for (label, ch) in [
+        for (label, run) in [
             ("dash `---`", t.ornaments.dash),
             ("star `***`", t.ornaments.star),
             ("underscore `___`", t.ornaments.underscore),
         ] {
-            assert!(
-                charmap.map(ch) != 0,
-                "{}: {} glyph {:?} (U+{:04X}) is NOT in its ornament face {:?} — renders as tofu",
-                t.name,
-                label,
-                ch,
-                ch as u32,
-                t.ornament_face
-            );
+            for ch in run.chars() {
+                assert!(
+                    charmap.map(ch) != 0,
+                    "{}: {} component {:?} (U+{:04X}) is NOT in its ornament face {:?} — \
+                     renders as tofu",
+                    t.name,
+                    label,
+                    ch,
+                    ch as u32,
+                    t.ornament_face
+                );
+            }
         }
     }
 }

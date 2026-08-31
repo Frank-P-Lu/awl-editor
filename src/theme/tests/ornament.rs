@@ -1,9 +1,9 @@
 use super::super::*;
 
-/// Every world's [`Theme::ornament_face`] is exactly one of the THREE bundled
-/// ornament faces — no world ships an unregistered / typo'd family that would
-/// tofu the section-break fleuron. (The font-DB half — that each face actually
-/// COVERS its world's glyphs — is `render::tests::cjk::
+/// Every world's [`Theme::ornament_face`] is the one Nishiki-derived cabinet.
+/// List bullets deliberately retain their existing registered face until their
+/// own fitting round. (The font-DB half — that each face actually COVERS its
+/// glyphs — is `render::tests::cjk::
 /// ornament_glyphs_resolve_in_each_worlds_assigned_face`, which needs a built
 /// `FontSystem`.) Also pins `ORNAMENT_MARKS == render::SYMBOL_FAMILY`, the one
 /// coupling `theme.rs` states as data rather than importing.
@@ -12,17 +12,22 @@ fn every_world_ornament_face_is_a_registered_ornament_face() {
     assert_eq!(
         ORNAMENT_MARKS,
         crate::render::SYMBOL_FAMILY,
-        "the geometric worlds' ornament face IS the derived marks face"
+        "the Nishiki ornament face IS the derived marks face"
     );
     for t in THEMES.iter() {
+        assert_eq!(
+            t.ornament_face, ORNAMENT_NISHIKI,
+            "{} must wear the Nishiki ornament register",
+            t.name
+        );
         assert!(
             matches!(
-                t.ornament_face,
+                t.bullet_face,
                 ORNAMENT_GARAMOND | ORNAMENT_JUNICODE | ORNAMENT_MARKS
             ),
-            "{} has an unrecognized ornament_face {:?}",
+            "{} has an unrecognized transitional bullet_face {:?}",
             t.name,
-            t.ornament_face
+            t.bullet_face
         );
         // The design-table contract: THREE DISTINCT symbols per world (dash /
         // star / underscore), so a break's ornament tracks the syntax the author
@@ -45,7 +50,8 @@ fn every_world_ornament_face_is_a_registered_ornament_face() {
 /// exactly one of the three named tier constants — a world can't silently drift to
 /// a bare literal that neither reader (`md_line_scale` / `prepare_ornaments`) would
 /// then keep in lockstep. Also pins the three tier VALUES (the taste defaults) and
-/// a sample world per tier, keyed to the ornament's CHARACTER.
+/// a sample world per tier. The assignments stay as the pre-cabinet per-world
+/// sizing decisions; changing the glyph set does not flatten their scale.
 #[test]
 fn every_world_has_an_ornament_scale() {
     // The three tiers are the settled taste defaults.
@@ -74,16 +80,12 @@ fn every_world_has_an_ornament_scale() {
     // One sample per tier (the spec's pinned assignments).
     let by = |name: &str| set_active_by_name(name).unwrap().ornament_scale;
     let _t = crate::testlock::serial();
-    assert_eq!(by("Mopoke"), 2.2, "Mopoke (Junicode flowers) is ornate 2.2");
-    assert_eq!(
-        by("Bombora"),
-        1.8,
-        "Bombora (Garamond fleurons) is fleuron 1.8"
-    );
+    assert_eq!(by("Mopoke"), 2.2, "Mopoke keeps its ornate 2.2 tier");
+    assert_eq!(by("Bombora"), 1.8, "Bombora keeps its fleuron 1.8 tier");
     assert_eq!(
         by("Currawong"),
         1.5,
-        "Currawong (geometric marks) is geometric 1.5"
+        "Currawong keeps its geometric 1.5 tier"
     );
     set_active(DEFAULT_THEME);
 }
@@ -136,7 +138,7 @@ fn assert_bullet_pair_law(t: &Theme) {
     // The two off-tier exceptions are excluded from this lockstep check (their
     // whole POINT is a bullet_scale that differs from the shared ORNAMENT tier
     // while keeping a characterful, non-plain pair).
-    let geometric = t.ornament_face == ORNAMENT_MARKS;
+    let geometric = t.bullet_face == ORNAMENT_MARKS;
     if off_tier_exception.is_none() {
         assert_eq!(
             t.bullets == BULLETS_PLAIN,
@@ -164,7 +166,7 @@ fn assert_bullet_pair_law(t: &Theme) {
 /// [`Theme::bullets`] triple (the per-level rotation) whose three levels
 /// are PAIRWISE DISTINCT, and a [`Theme::bullet_scale`] that is exactly one of
 /// the two named tier constants (no stray literal). The font-DB half — that
-/// each glyph actually resolves in the world's [`Theme::ornament_face`] — is
+/// each glyph actually resolves in the world's [`Theme::bullet_face`] — is
 /// `render::tests::markdown::bullet_glyphs_resolve_in_each_worlds_assigned_face`.
 /// Also pins the geometric worlds to the plain byte-identical
 /// [`BULLETS_PLAIN`]/[`BULLET_SCALE_PLAIN`] (restraint) and the manicule
@@ -210,7 +212,8 @@ fn every_world_has_a_bullet_pair() {
             .filter(|t| t.bullets.0 == '☞' || t.bullets.1 == '☞' || t.bullets.2 == '☞')
             .count()
             == 1,
-        "exactly one world uses the manicule bullet, at exactly one level (a hand everywhere is loud)"
+        "exactly one world uses the manicule bullet, at exactly one level \
+         (a hand everywhere is loud)"
     );
 }
 
@@ -218,9 +221,9 @@ fn every_world_has_a_bullet_pair() {
 /// (`Theme::fold_mark`) is DERIVED from its `ornament_face`, never a
 /// per-world literal — proved by construction rather than by inspection:
 /// [`OrnamentRegister::ALL`] is the exhaustive roster `fold_mark_for` matches
-/// with no wildcard arm (a fourth register fails to compile there until it is
+/// with no wildcard arm (a new register fails to compile there until it is
 /// given a mark), so this test only has to prove EVERY world's own
-/// `ornament_face` actually resolves to one of the three (no silent
+/// `ornament_face` actually resolves to a register (no silent
 /// fallthrough), and that the resolved mark for a given register is the SAME
 /// mark regardless of which world asked — the only way `fold_mark` could stay
 /// per-world data by accident (two Junicode-register worlds getting two
@@ -256,6 +259,15 @@ fn every_world_has_a_fold_mark_derived_from_its_ornament_register() {
         },
         "Marks register: Iosevka's disclosure triangle"
     );
+    assert_eq!(
+        fold_mark_for(OrnamentRegister::Nishiki),
+        FoldMark {
+            ch: '\u{25B8}',
+            face: "Iosevka",
+            size_frac: 1.0,
+        },
+        "Nishiki register consciously keeps Iosevka's disclosure triangle"
+    );
 
     // Every register in the roster gets a mark with REAL ink dimensions (a
     // sentinel default/zero spec would pass every other assertion here).
@@ -281,22 +293,29 @@ fn every_world_has_a_fold_mark_derived_from_its_ornament_register() {
         );
     }
 
-    // Non-vacuous grouping check: the three registers are represented (every
-    // world lands in one of them), and worlds sharing a register share a
-    // mark while worlds in different registers draw different marks — the
-    // property a hand-per-world list could violate silently.
+    // All live worlds now share the Nishiki register and therefore one mark.
     for a in THEMES.iter() {
         for b in THEMES.iter() {
-            let same_register =
-                ornament_register(a.ornament_face) == ornament_register(b.ornament_face);
-            assert_eq!(
-                a.fold_mark() == b.fold_mark(),
-                same_register,
-                "{} vs {}: fold marks must agree iff their ornament registers agree",
-                a.name,
-                b.name
-            );
+            assert_eq!(a.fold_mark(), b.fold_mark(), "{} vs {}", a.name, b.name);
         }
+    }
+}
+
+#[test]
+fn reserve_ornament_shelf_is_complete_named_and_reasoned() {
+    assert_eq!(
+        RESERVE_ORNAMENT_SETS.len(),
+        18,
+        "twenty worn sets leave eighteen reserves"
+    );
+    let mut names = std::collections::BTreeSet::new();
+    for set in RESERVE_ORNAMENT_SETS {
+        assert!(names.insert(set.name), "duplicate reserve set {}", set.name);
+        assert!(
+            !set.reason.trim().is_empty(),
+            "{} has no reserve reason",
+            set.name
+        );
     }
 }
 
