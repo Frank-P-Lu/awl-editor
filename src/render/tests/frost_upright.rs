@@ -54,40 +54,26 @@ fn footprint_rect(frost: crate::render::blur::Frost, label: &str) -> [f32; 4] {
     }
 }
 
-/// Grade one real card against the row emitter, independent of the frost's surface
-/// census. Pixels independently prove containment and non-vanishing blur.
-fn grade_hugged_card(
+struct CardPixels {
+    open: Vec<[u8; 4]>,
+    ink: Vec<bool>,
+    bounds: [f32; 4],
+}
+
+/// Frost-free open/closed pair whose residue is the card's own visible drawing.
+fn suppressed_card_pixels(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
     p: &mut TextPipeline,
-    geometry: (u32, u32, f32),
+    size: (u32, u32),
     view: ViewState,
     label: &str,
-) -> ([f32; 4], [f32; 4], u64) {
-    let (w, h, dpi) = geometry;
-    p.set_view(&view);
-    let frosted = render_frame(device, queue, p, w, h);
-    let rect = footprint_rect(p.frost_mode().expect("the Bars footprint"), label);
-    let card = p.overlay_card_rect().expect("the open overlay card");
-    let plates = p.overlay_row_surfaces_probe();
-    assert!(!plates.is_empty(), "{label}: no Bars plate was emitted");
-    let (mut sl, mut st, mut sr, mut sb) = (
-        f32::INFINITY,
-        f32::INFINITY,
-        f32::NEG_INFINITY,
-        f32::NEG_INFINITY,
-    );
-    for [x, y, width, height] in plates {
-        sl = sl.min(x);
-        st = st.min(y);
-        sr = sr.max(x + width);
-        sb = sb.max(y + height);
-    }
-    let surface = [sl, st, sr - sl, sb - st];
-
+) -> CardPixels {
+    let (w, h) = size;
     crate::render::blur::set_frost_suppressed(true);
     p.set_view(&view);
     let open = render_frame(device, queue, p, w, h);
+    let card = p.overlay_card_rect().expect("the open overlay card");
     let placard =
         p.overlay_shape_placard(&p.overlay_geometry(w))
             .unwrap_or((f32::NAN, f32::NAN, 0.0, 0.0));
@@ -107,14 +93,13 @@ fn grade_hugged_card(
                 continue;
             }
             let (fx, fy) = (x as f32, y as f32);
-            if fx < card[0] || fx > card[0] + card[2] || fy < card[1] || fy > card[1] + card[3] {
-                continue;
-            }
-            if fx >= placard.0
+            let outside_card =
+                fx < card[0] || fx > card[0] + card[2] || fy < card[1] || fy > card[1] + card[3];
+            let inside_placard = fx >= placard.0
                 && fx <= placard.0 + placard.2
                 && fy >= placard.1
-                && fy <= placard.1 + placard.3
-            {
+                && fy <= placard.1 + placard.3;
+            if outside_card || inside_placard {
                 continue;
             }
             ink[i] = true;
@@ -129,18 +114,57 @@ fn grade_hugged_card(
         ink_count > 2_000 && right > left && bottom > top,
         "{label}: only {ink_count} card-ink pixels — the bounds are vacuous"
     );
-    let pixel = [
-        left as f32,
-        top as f32,
-        (right - left + 1) as f32,
-        (bottom - top + 1) as f32,
-    ];
+    CardPixels {
+        open,
+        ink,
+        bounds: [
+            left as f32,
+            top as f32,
+            (right - left + 1) as f32,
+            (bottom - top + 1) as f32,
+        ],
+    }
+}
+
+/// Grade one real card against the row emitter, independent of the frost's surface
+/// census. Pixels independently prove containment and non-vanishing blur.
+fn grade_hugged_card(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    p: &mut TextPipeline,
+    geometry: (u32, u32, f32),
+    view: ViewState,
+    label: &str,
+) -> ([f32; 4], [f32; 4], u64) {
+    let (w, h, dpi) = geometry;
+    p.set_view(&view);
+    let frosted = render_frame(device, queue, p, w, h);
+    let rect = footprint_rect(p.frost_mode().expect("the Bars footprint"), label);
+    let plates = p.overlay_row_surfaces_probe();
+    assert!(!plates.is_empty(), "{label}: no Bars plate was emitted");
+    let (mut sl, mut st, mut sr, mut sb) = (
+        f32::INFINITY,
+        f32::INFINITY,
+        f32::NEG_INFINITY,
+        f32::NEG_INFINITY,
+    );
+    for [x, y, width, height] in plates {
+        sl = sl.min(x);
+        st = st.min(y);
+        sr = sr.max(x + width);
+        sb = sb.max(y + height);
+    }
+    let surface = [sl, st, sr - sl, sb - st];
+    let pixels = suppressed_card_pixels(device, queue, p, (w, h), view, label);
+    let pixel = pixels.bounds;
 
     let mut presence = 0u64;
     for y in rect[1].floor().max(0.0) as i64..(rect[1] + rect[3]).ceil().min(h as f32) as i64 {
         for x in rect[0].floor().max(0.0) as i64..(rect[0] + rect[2]).ceil().min(w as f32) as i64 {
             let i = (y * w as i64 + x) as usize;
-            if !ink[i] && (luma(frosted[i]) - luma(open[i])).abs() >= FROST_PRESENCE_DELTA {
+            if !pixels.ink[i]
+                && (luma(frosted[i]) - luma(pixels.open[i])).abs() >= FROST_PRESENCE_DELTA
+            {
                 presence += 1;
             }
         }

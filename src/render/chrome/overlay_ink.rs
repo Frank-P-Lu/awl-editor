@@ -35,6 +35,9 @@
 //! EMITTER itself now loops over, so the band a frost measures and the band glyphon was
 //! handed are one object.
 
+#[path = "overlay_bar_footprint.rs"]
+mod bar_footprint;
+
 use super::*;
 
 /// ONE CLIP BAND OF THE PANEL BUFFER — where the shared `panel_buffer` is seated for the

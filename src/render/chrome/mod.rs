@@ -398,7 +398,6 @@ mod workspace_column;
 // including the one composition question a rail has, because a rail is a list.
 mod workspace_rail;
 // Card draw/upload/composite; `overlay` owns its geometry and hit-test.
-mod overlay_bar_footprint;
 mod overlay_draw;
 mod overlay_ink;
 mod overlay_material;
