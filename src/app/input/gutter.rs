@@ -166,7 +166,7 @@ impl App {
     ///   the spot — the deferral [`RowDrag`]'s own doc explains. Release
     ///   ([`Self::end_row_drag`]) either replays the switch (never armed) or
     ///   performs the reorder (armed past the drag slop);
-    /// * a FILE row's right-edge CLOSE zone routes to [`App::close_buffer`]
+    /// * a FILE row's own CLOSE zone routes to [`App::close_buffer`]
     ///   IMMEDIATELY, on press — the one removal owner, and never a drag
     ///   handle: pressing the close mark always means close;
     /// * the one `More` row EXPANDS the transient scrollable panel

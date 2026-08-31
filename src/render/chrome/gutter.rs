@@ -156,27 +156,23 @@ impl TextPipeline {
         } else {
             0
         };
-        // The identity line's own budget must still clear the presence floor
-        // AFTER its close-lane reservation, not before — reserving room for a
-        // mark that then leaves too little to keep the name's extension
-        // legible ("i…d" instead of "in….md") is worse than not drawing the
-        // gutter at all ("better absent than confetti", this fn's own doc).
-        let close_len = gutter_stack::CLOSE_MARK_TEXT.chars().count();
-        if avail_chars.saturating_sub(close_len) < rowlayout::GUTTER_MIN_NAME_CHARS {
+        // The identity line's own budget must clear the presence floor on
+        // its own — the close mark is a LEADING span shaped on top of
+        // whatever `name` fits to (`gutter_stack::fit_rows`' own doc), never
+        // docked out of this budget, so no reservation belongs in this gate
+        // either ("better absent than confetti", this fn's own doc).
+        if avail_chars < rowlayout::GUTTER_MIN_NAME_CHARS {
             return None;
         }
         let plan = rowlayout::gutter_plan(avail_chars)?;
-        // Reserves the SAME trailing close lane a working-set file row does
-        // (`gutter_stack::fit_rows`) — the single-file identity carries the
-        // same close mark, so it needs the same room held for it before
-        // fitting, not after, or a long name would consume the budget the mark
-        // needs and wrap onto a second visual line the way an unreserved stack
-        // row once did.
-        let name = rowlayout::fit_primary(
-            &self.gutter_name,
-            plan.name_budget
-                .saturating_sub(gutter_stack::CLOSE_MARK_TEXT.chars().count()),
-        );
+        // The FULL per-line budget, spent entirely on the name — the single-
+        // file identity carries the same close mark a working-set file row
+        // does, and the same leading-span mechanism (`gutter_stack::
+        // fit_rows`' own doc): the mark is shaped separately in
+        // `prepare_gutter`, growing the shaped line into the ragged margin a
+        // shorter name already leaves empty, never a lane held out of this
+        // budget.
+        let name = rowlayout::fit_primary(&self.gutter_name, plan.name_budget);
         let project = if plan.show_project && !self.gutter_project.is_empty() {
             rowlayout::fit_primary(&self.gutter_project, plan.project_budget)
         } else {
@@ -224,6 +220,7 @@ impl TextPipeline {
         }
         let m = self.metrics;
         let label = crate::markdown::type_scale::LABEL;
+        let label_char_w = m.char_width * label;
         let muted = theme::muted().to_glyphon();
         // Scale font size and line height together so the standalone rows nest tightly.
         self.gutter_buffer.set_metrics(
@@ -285,31 +282,46 @@ impl TextPipeline {
             spans.push((project.as_str(), base.clone().color(muted)));
             spans.push(("\n", base.clone().color(muted)));
         }
+        // The mark's text is shaped FIRST (a LEADING span), even for the
+        // single-file identity: it rides the SAME close-mark door a
+        // working-set row does, revealing under the same hover hit this line
+        // enrols in through `GutterLine::Name`
+        // (`gutter_hit::stack_hit_from_plan`) — one mechanism, not a
+        // single-file copy of it — and a right-aligned line grows leftward
+        // into the ragged margin a shorter name already leaves empty, so the
+        // reveal changes ink only.
+        let revealed_ink = base.clone().color(muted);
+        let hidden_ink = base.clone().color(glyphon::Color::rgba(0, 0, 0, 0));
         if stack_ink.is_empty() {
-            // The single-file identity rides the SAME close-mark door a
-            // working-set row does: `gutter_layout` already left room for the
-            // mark in `name`'s own budget, and the mark reveals under the same
-            // hover hit this line now enrols in through `GutterLine::Name`
-            // (`gutter_hit::stack_hit_from_plan`) — one mechanism, not a
-            // single-file copy of it.
-            spans.push((name.as_str(), base.clone().color(muted)));
             let revealed = self.gutter_stack_hover.is_some_and(|hit| hit.row == 0);
             spans.push((
                 gutter_stack::CLOSE_MARK_TEXT,
-                base.clone().color(if revealed {
-                    muted
-                } else {
-                    glyphon::Color::rgba(0, 0, 0, 0)
-                }),
+                if revealed { revealed_ink } else { hidden_ink },
             ));
+            spans.push((name.as_str(), base.clone().color(muted)));
         } else {
             for (text, ink) in &stack_ink {
                 spans.push((text.as_str(), base.clone().color(*ink)));
             }
         }
+        // The box is WIDER than `avail` by the leading mark's own reserved
+        // width, and the render origin below shifts left by that same
+        // amount — so a line's right-aligned content still lands its own
+        // right edge at `avail` exactly whenever it fits the box (cosmic-text
+        // clamps its own align offset at zero rather than overflowing
+        // negative — a narrower box here would shove the WHOLE line, name
+        // included, past `avail` on any row spending its full budget, not
+        // just the mark). Only on a maximal-width name does content
+        // overrun this widened box too; `Wrap::None` keeps that overrun from
+        // reflowing onto a second visual line, so the excess — the mark's
+        // own leading pixels — clips at the canvas edge (physical x=0)
+        // instead, which is the one thing here allowed to clip.
+        let mark_w = gutter_stack::CLOSE_MARK_TEXT.chars().count() as f32 * label_char_w;
+        self.gutter_buffer
+            .set_wrap(&mut self.font_system, glyphon::cosmic_text::Wrap::None);
         self.gutter_buffer.set_size(
             &mut self.font_system,
-            Some(layout.avail),
+            Some(layout.avail + mark_w),
             Some(m.line_height * label * lines as f32 + 1.0),
         );
         let default_attrs = base.clone().color(muted);
@@ -325,9 +337,7 @@ impl TextPipeline {
         // BOTTOM-anchored in the left margin: the stacked block's BOTTOM edge sits
         // [`super::readout::CANVAS_INSET`] up from the canvas bottom — the SAME
         // named inset the corner readouts use, not a second reading of the same
-        // 8px — so `top` is the canvas bottom minus the block's own height. Left
-        // 0 with the buffer width == `avail` keeps the right edge a gap shy of the column
-        // (horizontal placement unchanged; only the vertical anchor moved top → bottom).
+        // 8px — so `top` is the canvas bottom minus the block's own height.
         let stack = crate::render::plan::plan_gutter_stack(
             height as f32,
             layout.avail,
@@ -367,7 +377,11 @@ impl TextPipeline {
             .prepare(device, queue, width, height, &indicator);
         let area = TextArea {
             buffer: &self.gutter_buffer,
-            left: 0.0,
+            // Shifted left by the same reserved width the box was widened
+            // by, so the box's own right edge — where content lands when it
+            // fits — maps back to physical `avail`, the gap shy of the
+            // writing column every OTHER chrome surface hugs the same way.
+            left: -mark_w,
             top: stack.top,
             scale: 1.0,
             bounds,

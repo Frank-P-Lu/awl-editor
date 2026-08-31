@@ -33,58 +33,71 @@ pub(super) const PLATE_HEIGHT_ROWS: Rows = Rows(0.86);
 /// object in the margin as it does in a picker.
 pub(super) const PLATE_CORNER_PX: Physical = Physical(2.5);
 
-/// THE CLOSE ZONE'S WIDTH, in LABEL rows — a square target at the row's right
-/// edge, so the thing the pointer aims at is the size of the line it belongs to
-/// rather than a width invented for it.
+/// THE CLOSE ZONE'S WIDTH, in LABEL rows — a square target sized to the row
+/// it belongs to, so the thing the pointer aims at is the size of the line it
+/// belongs to rather than a width invented for it.
 ///
-/// The RIGHT edge is where it has to be. Every row's ink is right-aligned
-/// against the writing column, so the right edge is the one x every row of the
-/// stack shares no matter how long its name is; a left-edge target would sit in
-/// empty margin on a short name and over the text on a long one.
+/// Anchored on the row's own shaped INK, never a fixed x: the mark is a
+/// LEADING span in a right-aligned line, so it sits wherever that row's own
+/// name happens to end on the left — a short name leaves a wide ragged
+/// margin the ink never reaches, a long one pushes the mark close to the
+/// stack's own leading edge. [`close_zone`] derives that anchor exactly the
+/// way [`plate_rect`] already derives the plate's own edge — from the row's
+/// shaped width, never a position invented independently of it — so a name's
+/// length can never make the click target and the drawn ink disagree.
 pub(super) const CLOSE_ZONE_ROWS: Rows = Rows(1.0);
 
-/// The pre-shaped close lane. EVERY row of the stack reserves this exact run
-/// before fitting, even a `More`/`Overflow` row that can never reveal it and
-/// even while it is transparent; otherwise a full-budget nested label wraps
-/// the mark onto a second visual line and shifts every later glyph away from
-/// the planner row (including the active plate) — and an un-reserved row
-/// kind would dent the stack's own right edge wherever it sat. `pub(super)`
-/// because the single-file identity line ([`super::gutter`]) reserves and
-/// draws the exact same lane through the exact same text, rather than a
-/// second close mark of its own.
-pub(super) const CLOSE_MARK_TEXT: &str = "  ×";
+/// The pre-shaped close lane. EVERY row of the stack shapes this exact run
+/// before anything else on the line, even a `More`/`Overflow` row that can
+/// never reveal it and even while it is transparent: a LEADING span in a
+/// right-aligned line grows the row's own shaped width into the ragged
+/// margin a shorter-than-budget name already leaves empty, so revealing it
+/// changes ink only — it never asks the label for room, unlike the trailing
+/// shape this superseded. `pub(super)` because the single-file identity line
+/// ([`super::gutter`]) shapes and draws the exact same lane through the
+/// exact same text, rather than a second close mark of its own.
+pub(super) const CLOSE_MARK_TEXT: &str = "×  ";
 
 /// WHAT A POINTER AT `px` OVER A ROW IS AIMING AT.
 ///
-/// The row is ONE band with two meanings, not two controls: the close zone is a
-/// square at the right edge and everything left of it — the whole rest of the
-/// band, which is most of it — stays the switch target. The asymmetry is the
-/// design decision. Switching is the frequent, forgiving act and gets the large
-/// area; closing is rare and destructive and gets a small, deliberate one.
+/// The row is ONE band with two meanings, not two controls: the close zone
+/// hugs the LEADING edge of the row's own shaped ink and everything after it
+/// — the whole rest of the band, which is most of it — stays the switch
+/// target. The asymmetry is the design decision. Switching is the frequent,
+/// forgiving act and gets the large area; closing is rare and destructive and
+/// gets a small, deliberate one.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum RowIntent {
     Switch,
     Close,
 }
 
-/// The close zone `[x, y, w, h]` inside a row's own planner band, clamped to the
-/// band when the margin is narrower than one square.
+/// The close zone `[x, y, w, h]` inside a row's own planner band, anchored on
+/// the row's own shaped ink width `text_w` — chars × the LABEL char width,
+/// counting the leading mark's own three characters, the SAME quantity
+/// [`plate_rect`]'s own caller measures a plate from — rather than a fixed x.
+/// A right-aligned row's ink starts wherever its own name happens to end on
+/// the left, so a target pinned to the band's own edge instead would sit in
+/// empty margin on a short name and inside the label on a long one —
+/// [`plate_rect`]'s own rationale, mirrored here for the pointer rather than
+/// the fill.
 ///
-/// Derived from the row rect rather than re-measured, for the same reason
-/// [`plate_rect`] is: a target that computed its own geometry could drift from
-/// the row it belongs to, and a close target that has drifted closes the wrong
-/// file.
-pub(super) fn close_zone(row_rect: [f32; 4]) -> [f32; 4] {
+/// Clamped to the band on both sides: a maximal-width name can push
+/// `text_w` past the band's own width (the mark yields off the canvas edge
+/// there, `fit_rows`' own doc), and the zone still lands on the row's
+/// leading edge rather than escaping the band to the left.
+pub(super) fn close_zone(row_rect: [f32; 4], text_w: f32) -> [f32; 4] {
     let [x, y, w, h] = row_rect;
-    let zone = (h * CLOSE_ZONE_ROWS.0).min(w.max(0.0));
-    [x + w - zone, y, zone, h]
+    let ink_left = (x + w - text_w).max(x);
+    let zone = (h * CLOSE_ZONE_ROWS.0).min((x + w - ink_left).max(0.0));
+    [ink_left, y, zone, h]
 }
 
 /// Classify a pointer x against a row's band. The one owner both the hit-test
 /// and any future drawn affordance read, so what the pointer accepts and what
 /// the reader is shown cannot disagree.
-pub(super) fn row_intent(row_rect: [f32; 4], px: f32) -> RowIntent {
-    let [zx, _, zw, _] = close_zone(row_rect);
+pub(super) fn row_intent(row_rect: [f32; 4], text_w: f32, px: f32) -> RowIntent {
+    let [zx, _, zw, _] = close_zone(row_rect, text_w);
     if px >= zx && px <= zx + zw {
         RowIntent::Close
     } else {
@@ -113,18 +126,19 @@ pub(super) struct StackLine {
 /// the same one elision door every other margin label uses, and the parent is
 /// offered what is left through [`crate::workingset::fit_parent`], which returns
 /// nothing rather than a misleading fragment.
+///
+/// `budget` is the row's FULL per-line budget, spent entirely on the label —
+/// the close mark is a LEADING span shaped separately, on top of whatever
+/// this returns (`stack_spans`' own doc), never docked out of it. A name
+/// long enough to spend the whole budget now right-aligns flush to the
+/// stack's own edge; the mark grows the shaped line into the ragged margin a
+/// shorter name already leaves empty instead of a lane held out of every
+/// row's own width.
 pub(super) fn fit_rows(rows: &[crate::workingset::StackRow], budget: usize) -> Vec<StackLine> {
     rows.iter()
         .map(|row| {
-            // UNIFORM ACROSS EVERY ROW KIND — a `More`/`Overflow` row can
-            // never reveal the mark (`stack_hit_from_plan` never enrols
-            // either as a target, so `stack_spans` never lights their run),
-            // but it still reserves the same trailing lane every other row
-            // does: the stack's own right edge is one x for every row, never
-            // one that dents wherever a mark happens to be revealable.
-            let label_budget = budget.saturating_sub(CLOSE_MARK_TEXT.chars().count());
-            let leaf = rowlayout::fit_primary(&row.leaf, label_budget);
-            let left = label_budget.saturating_sub(leaf.chars().count());
+            let leaf = rowlayout::fit_primary(&row.leaf, budget);
+            let left = budget.saturating_sub(leaf.chars().count());
             let parent = if row.parent.is_empty() {
                 String::new()
             } else {
@@ -183,23 +197,18 @@ pub(super) fn stack_spans(
     for (row, line) in lines.iter().enumerate() {
         let lead = if row == 0 { "" } else { "\n" };
         let name_ink = if line.active { active_ink } else { faint };
-        let (parent, leaf) = line.text.split_at(line.parent_byte);
-        if parent.is_empty() {
-            out.push((format!("{lead}{leaf}"), name_ink));
-        } else {
-            out.push((format!("{lead}{parent}"), faint));
-            out.push((leaf.to_string(), name_ink));
-        }
-        // The mark's text is ALWAYS shaped for EVERY row kind, even when its
-        // alpha is zero — the trailing close lane is reserved uniformly
-        // (`fit_rows`), so the shaped run must be too, or the reservation and
-        // the ink it is reserved for would drift apart. Revealing the × only
-        // ever changes ink, never the label's advances. A single-file
-        // identity never enters this function with a row, so it keeps its
-        // original bytes and geometry. `hover` can only ever name a `File` or
-        // `Group` row (`stack_hit_from_plan`'s own enrolment), so a `More` or
-        // `Overflow` row's mark is shaped but permanently transparent — it
-        // reserves the lane without ever being able to reveal it.
+        // The mark's text is ALWAYS shaped FIRST for EVERY row kind, even
+        // when its alpha is zero: a LEADING span in a right-aligned line
+        // grows the row's shaped width into the ragged margin a
+        // shorter-than-budget name already leaves empty, so revealing it
+        // only ever changes ink, never the label's own advances — and it
+        // carries the row-separating newline, since it is now the first
+        // span every row pushes rather than whichever of parent/leaf
+        // happened to be first under the old trailing order. `hover` can
+        // only ever name a `File` or `Group` row (`stack_hit_from_plan`'s
+        // own enrolment), so a `More`/`Overflow` row's mark is shaped but
+        // permanently transparent — it grows the ragged margin without ever
+        // being able to reveal.
         let shown = hover.filter(|hit| hit.row == row).map(|_| {
             if line.active {
                 theme::selected_row_secondary_ink(theme::surface_selected()).to_glyphon()
@@ -208,9 +217,14 @@ pub(super) fn stack_spans(
             }
         });
         out.push((
-            CLOSE_MARK_TEXT.to_string(),
+            format!("{lead}{CLOSE_MARK_TEXT}"),
             shown.unwrap_or_else(|| glyphon::Color::rgba(0, 0, 0, 0)),
         ));
+        let (parent, leaf) = line.text.split_at(line.parent_byte);
+        if !parent.is_empty() {
+            out.push((parent.to_string(), faint));
+        }
+        out.push((leaf.to_string(), name_ink));
     }
     out
 }
@@ -314,13 +328,14 @@ pub(super) fn plate_rects(
                 return None;
             }
             let rect = *plan.rows.get(row)?;
-            // The shaped line ends with the always-present close run: even
-            // while transparent it participates in right alignment, shifting
-            // the visible label left by its width, so the plate's measured
-            // run includes it (the ink must never start outside its own fill
-            // — fatal in a one-bit world, black on black). Only a File line
-            // ever reaches here (the filter above), so the lane is always
-            // present.
+            // The shaped line BEGINS with the always-present close run: even
+            // while transparent it participates in right alignment, growing
+            // the row's own shaped width leftward, so the plate's measured
+            // run includes it (a revealed × must never draw routed ink
+            // outside its own fill — fatal in a one-bit world, black on
+            // black, the same tripwire this file already names for the
+            // label itself). Only a File line ever reaches here (the filter
+            // above), so the lane is always present.
             let ink_w =
                 (text.chars().count() + CLOSE_MARK_TEXT.chars().count()) as f32 * label_char_w;
             Some(plate_rect(rect, ink_w, pad_x))

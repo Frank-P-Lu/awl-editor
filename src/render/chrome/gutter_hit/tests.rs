@@ -29,7 +29,7 @@ fn one_file_layout(avail: f32, project: bool, changed: bool) -> GutterLayout {
 /// ROW WOULD.**
 ///
 /// Swept over the margin widths a real window produces, mirroring
-/// `gutter_stack::tests::only_the_rows_right_edge_closes_and_the_rest_of_it_switches`'s
+/// `gutter_stack::tests::close_zone_hugs_the_rows_own_leading_ink_edge_and_the_rest_switches`'s
 /// own sweep — the geometry underneath is the SAME function
 /// ([`gutter_stack::row_intent`]), so a width-dependent bug in one is a
 /// width-dependent bug in the other, and this proves the single-file margin
@@ -41,6 +41,12 @@ fn one_file_layout(avail: f32, project: bool, changed: bool) -> GutterLayout {
 /// the one with a conflict raised.
 #[test]
 fn the_lone_identity_row_resolves_the_same_close_zone_a_stack_row_would() {
+    // Small enough that the fixture's own fixed "opening.md" name (never
+    // re-fit to `avail` here, unlike production's `gutter_layout`) keeps a
+    // positive ink leading edge even at the narrowest `avail` this sweeps —
+    // only internal consistency with `close_zone`'s own call below matters,
+    // not a realistic pixel width.
+    let label_char_w = 1.0;
     for avail in [14.0_f32, 20.0, 48.0, 96.0, 120.0, 300.0] {
         for changed in [false, true] {
             let layout = one_file_layout(avail, true, changed);
@@ -58,13 +64,27 @@ fn the_lone_identity_row_resolves_the_same_close_zone_a_stack_row_would() {
                 .position(|(_, k)| matches!(k, GutterLine::Name))
                 .expect("the one-file block always draws a Name line");
             let band = plan.rows[row_line];
-            let zone = gutter_stack::close_zone(band);
+            let text_w = (layout.name.chars().count()
+                + gutter_stack::CLOSE_MARK_TEXT.chars().count()) as f32
+                * label_char_w;
+            let zone = gutter_stack::close_zone(band, text_w);
             let label = format!("avail={avail} changed={changed}");
-            let switch =
-                stack_hit_from_plan(&layout, &plan, zone[0] - 1.0, band[1] + band[3] * 0.5)
-                    .unwrap_or_else(|| panic!("{label}: switch point does not enrol"));
-            let close = stack_hit_from_plan(&layout, &plan, zone[0] + 1.0, band[1] + band[3] * 0.5)
-                .unwrap_or_else(|| panic!("{label}: close point does not enrol"));
+            let switch = stack_hit_from_plan(
+                &layout,
+                &plan,
+                label_char_w,
+                zone[0] - 1.0,
+                band[1] + band[3] * 0.5,
+            )
+            .unwrap_or_else(|| panic!("{label}: switch point does not enrol"));
+            let close = stack_hit_from_plan(
+                &layout,
+                &plan,
+                label_char_w,
+                zone[0] + 1.0,
+                band[1] + band[3] * 0.5,
+            )
+            .unwrap_or_else(|| panic!("{label}: close point does not enrol"));
             assert_eq!(switch.row, 0, "{label}: the lone open file is always row 0");
             assert!(
                 !switch.is_close(),
@@ -106,6 +126,7 @@ fn only_the_identity_line_enrols_the_lone_margin_in_row_click_geometry() {
         stack_hit_from_plan(
             &layout,
             &plan,
+            6.0,
             band[0] + band[2] - 1.0,
             band[1] + band[3] * 0.5
         )
