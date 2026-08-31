@@ -453,6 +453,21 @@ Moonfaces confirmed great by the user. Caslon foundry ornaments
 (FEFD6/FEFD8/FEFD9 chain/cartouche/rosette) rendered and RESERVED —
 lovely but ornate for the stark worlds. Twelve sets, arrangement pending.
 
+**FITTING ROOM v5 — the expansion shelf (2026-08-31):** user asked for
+~20 more sets to browse. Riverbank's butterfly (user: doesn't fit)
+became a FISH (U+1F41F) — snake/fish/snail, all river creatures.
+Arabesque's joined runs tightened to the user's exact pairs: F814+F815
+white for `---`, F827+F828 black for `***`, scroll U+F81C for `___`.
+Twenty-two extra sets added to the shelf, every glyph pipeline-rendered
+and family-verified (60 cells × 3 tiers, 0 blank, 0 foreign): Lunar,
+Manicules and Caslon return as options; new: Genjikō II, Keizuko, Palms,
+Acorns, Hearts, Snow, Wish, Spirals, Cardtable, Gambit, Songbook,
+Tallybars, Heraldry, Autumn, Hanami, Undergrowth, Solar, Harbour,
+Asterism. 34 sets total; proposal unchanged (extras sit unworn). The
+page's masks were deduplicated into shared CSS classes, so the tripled
+shelf SHRANK the artifact (3.9→2.0 MB). Cabinet gaps recorded: no frog,
+no turtle anywhere in the face. Arrangement still pending.
+
 ---
 ## Needs specific hardware
 
