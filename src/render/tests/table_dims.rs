@@ -18,7 +18,6 @@ impl Drop for FrostRestore {
 fn dims_view(text: &str, rows: usize, cols: usize) -> crate::render::ViewState {
     let mut v = view(text, 0, 0);
     v.overlay_active = true;
-    v.overlay_local_insertion = true;
     v.overlay_table_dims = Some((rows, cols));
     v.overlay_hint = format!("{rows} × {cols} table   ↵ insert   Esc cancel");
     v
@@ -71,7 +70,8 @@ fn table_dims_routes_to_local_frost_without_claiming_the_crisp_preview_exemption
         }
 
         let mut control = local;
-        control.overlay_local_insertion = false;
+        control.overlay_table_dims = None;
+        control.overlay_items = vec!["3 × 2 table".to_string()];
         p.set_view(&control);
         p.prepare(&device, &queue, 1200, 800).unwrap();
         if flat {

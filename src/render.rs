@@ -2546,7 +2546,6 @@ pub struct TextPipeline {
     overlay_active: bool,
     overlay_align: Option<theme::CardAnchor>,
     overlay_crisp: bool,
-    overlay_local_insertion: bool,
     overlay_query: String,
     overlay_query_caret: usize,
     overlay_query_selection: Option<(usize, usize)>,
