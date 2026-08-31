@@ -9,7 +9,7 @@
 ---
 ### 529 — Nishiki-teki: audition a Japanese symbol cabinet, then give each adopted mark one honest purpose (user decision, 2026-08-29)
 
-🟡 IN PROGRESS — gpt-5.6-sol high, branch item-529 (phase 2: derived-face roster workflow, asset swap, and the decided single-source adoption; phase-1 taste gates are closed)
+🟡 IN PROGRESS — gpt-5.6-sol high, branch codex/item-529-phase2 (phase 2: derived-face roster workflow, asset swap, and the decided single-source adoption; phase-1 taste gates are closed; the old item-529 worktree is read-only evidence because its temporary gallery commits diverged before the later decisions)
 
 "It's beautiful"; DECIDED: **Nishiki-teki is the first symbol face awl
 should pursue. Character comes before byte count.** This is not a request
