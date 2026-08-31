@@ -64,7 +64,8 @@ fn table_dims_routes_to_local_frost_without_claiming_the_crisp_preview_exemption
                 footprinted.push(theme.name);
             }
             _ => panic!(
-                "{}: local TableDims routing disagrees with roster: flat={flat}, bare={bare}, frost={local_frost:?}",
+                "{}: local TableDims routing disagrees with roster: \
+                 flat={flat}, bare={bare}, frost={local_frost:?}",
                 theme.name
             ),
         }
