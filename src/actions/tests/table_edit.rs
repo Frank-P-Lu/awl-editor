@@ -30,14 +30,16 @@ fn table_tab_walks_containing_cell_then_appends_and_undoes_as_one_edit() {
     b.set_cursor(b.line_col_to_char(0, 3));
     drive(&mut b, Action::InsertTab);
     assert_eq!(
-        b.cursor_line_col(),
-        (0, 6),
-        "inside the first cell advances once"
+        b.selected_text().as_deref(),
+        Some("b\\|c"),
+        "inside the first cell selects the next cell once"
     );
     drive(&mut b, Action::InsertTab);
     assert_eq!(b.cursor_line_col().0, 2, "escaped pipe remains in its cell");
+    b.clear_mark();
     b.set_cursor(b.line_col_to_char(2, 3));
     drive(&mut b, Action::InsertTab);
+    b.clear_mark();
     b.set_cursor(b.line_col_to_char(2, 7));
     drive(&mut b, Action::InsertTab);
     assert!(
@@ -48,6 +50,83 @@ fn table_tab_walks_containing_cell_then_appends_and_undoes_as_one_edit() {
     assert!(
         !b.text().contains("\n| | |\n|"),
         "append is one undoable edit"
+    );
+}
+
+#[test]
+fn table_tab_selects_content_and_empty_cells_land_after_the_opening_pipe() {
+    let mut filled = Buffer::from_str("| one | two |\n|---|---|\n| a | b |\n");
+    filled.set_cursor(filled.line_col_to_char(0, 3));
+    drive(&mut filled, Action::InsertTab);
+    assert_eq!(
+        filled.selected_text().as_deref(),
+        Some("two"),
+        "Tab selects the target cell's trimmed content"
+    );
+    drive(&mut filled, Action::InsertChar('X'));
+    assert_eq!(
+        filled.line_text(0),
+        "| one | X |",
+        "typing replaces the selected cell instead of its pipes or padding"
+    );
+
+    let mut empty = Buffer::from_str("| filled |     |\n|---|---|\n| a | b |\n");
+    empty.set_cursor(empty.line_col_to_char(0, 3));
+    drive(&mut empty, Action::InsertTab);
+    assert_eq!(
+        empty.cursor_line_col(),
+        (0, 10),
+        "an empty target lands immediately after its opening pipe"
+    );
+    assert_eq!(
+        empty.selection_range(),
+        None,
+        "an empty cell is a bare caret"
+    );
+    drive(&mut empty, Action::InsertChar('X'));
+    assert_eq!(
+        empty.line_text(0),
+        "| filled |X     |",
+        "typing starts inside the cell, never against its closing pipe"
+    );
+}
+
+#[test]
+fn table_tab_selection_walks_symmetrically_and_append_starts_inside_the_new_cell() {
+    let mut b = Buffer::from_str("| first | last |\n|---|---|\n| a | b |\n");
+    b.set_cursor(b.line_col_to_char(0, 3));
+    drive(&mut b, Action::InsertTab);
+    assert_eq!(b.selected_text().as_deref(), Some("last"));
+    drive(&mut b, Action::Outdent);
+    assert_eq!(
+        b.selected_text().as_deref(),
+        Some("first"),
+        "Shift-Tab walks back from the selection Tab created"
+    );
+    drive(&mut b, Action::Outdent);
+    assert_eq!(
+        b.selected_text().as_deref(),
+        Some("first"),
+        "Shift-Tab on the first cell stays at the first cell"
+    );
+
+    b.clear_mark();
+    b.set_cursor(b.line_col_to_char(2, 7));
+    drive(&mut b, Action::InsertTab);
+    assert_eq!(
+        b.cursor_line_col(),
+        (3, 1),
+        "the appended row starts just inside its first opening pipe"
+    );
+    assert_eq!(
+        b.selection_range(),
+        None,
+        "the appended empty cell is a caret"
+    );
+    drive(&mut b, Action::InsertChar('X'));
+    assert!(
+        b.text().contains("\n|X | |"),
+        "typing fills the scaffold cell without replacing a pipe"
     );
 }
 

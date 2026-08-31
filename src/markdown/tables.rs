@@ -131,7 +131,10 @@ pub(crate) fn parse_col_align(cell: &str) -> ColAlign {
 /// escape (an escaped pipe is part of the cell, never a delimiter). The structural
 /// empty cells produced by the leading/trailing outer pipes are dropped, so
 /// `| a | b |` yields `["a", "b"]` and a pipeless line yields the whole line as one
-/// cell.
+/// cell. An all-whitespace cell has no trimmed glyph to locate; its zero-width
+/// range sits at the RAW cell start, immediately after the opening delimiter,
+/// rather than at the far edge of its padding beside the closing pipe. That is
+/// the one honest insertion position for table-cell navigation.
 pub(crate) fn table_cell_ranges(line: &str) -> Vec<Range<usize>> {
     let t = line.trim();
     let trim_start = line.len() - line.trim_start().len();
@@ -162,7 +165,12 @@ pub(crate) fn table_cell_ranges(line: &str) -> Vec<Range<usize>> {
         let cell = &t[start..end];
         let lead = cell.len() - cell.trim_start().len();
         let tail = cell.trim_end().len();
-        ranges.push(trim_start + start + lead..trim_start + start + tail.max(lead));
+        if tail == 0 {
+            let at = trim_start + start;
+            ranges.push(at..at);
+        } else {
+            ranges.push(trim_start + start + lead..trim_start + start + tail);
+        }
     }
     // Optional outer pipes are structural cells, never data. Keep the virtual
     // row edges above so `a | b`, `| a | b`, and `a | b |` all share one parser.
