@@ -1,7 +1,7 @@
 //! Smart-punctuation display-only conceal: the painted en-dash/em-dash/
 //! ellipsis substitute, the byte-identical on-caret reveal (real prose, not
 //! syntax markup — must never dim like `Markup`), the row_geom reshape a
-//! reveal toggle forces, and the reserved slot's fit across every world.
+//! reveal toggle forces, and measured-advance agreement across every world.
 
 use super::super::*;
 use super::{headless_dqp, headless_pipeline, view};
@@ -160,20 +160,20 @@ fn wysiwyg_smart_punct_reveal_invalidates_row_geom() {
     crate::markdown::set_wysiwyg_on(true);
 }
 
-/// The reserved substitute-glyph slot (`smart_punct_slot`) is a FIXED,
-/// `line_height`-only formula shared by all three kinds — it has to cover the
-/// widest real shaped glyph (the ellipsis) in EVERY world's own display face,
-/// not just whichever world a hand-picked example happens to hit.
+/// Each substitute-glyph slot is that KIND's own real shaped body-text advance
+/// in EVERY world's display face, not a fixed widest-glyph placeholder.
 /// `SmartPunctGlyphs::append_areas` carries a `debug_assert!` for exactly
 /// this; NO-WILDCARD over `theme::THEMES` through the real GPU prepare pass
 /// is what actually exercises it (the `bare_url_ellipsis_slot_fits_the_real_glyph_in_every_world`
 /// precedent this mirrors).
 #[test]
-fn smart_punct_slot_fits_the_real_glyph_in_every_world() {
+fn smart_punct_advance_matches_the_real_glyph_in_every_world() {
     let _t = crate::testlock::serial();
     crate::markdown::set_wysiwyg_on(true);
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
-        eprintln!("skipping smart_punct_slot_fits_the_real_glyph_in_every_world: no wgpu adapter");
+        eprintln!(
+            "skipping smart_punct_advance_matches_the_real_glyph_in_every_world: no wgpu adapter"
+        );
         return;
     };
     let w = 1200u32;
@@ -233,5 +233,126 @@ fn smart_punct_marks_resolve_each_kind_to_its_own_glyph() {
         "each run resolves to its own distinct kind, in document order: {kinds:?}"
     );
 
+    crate::markdown::set_wysiwyg_on(true);
+}
+
+fn smart_punct_row_widths(p: &TextPipeline, line: usize) -> Vec<f32> {
+    p.visual_rows(line)
+        .into_iter()
+        .map(|row| row.xs.last().copied().unwrap_or(0.0) - row.xs.first().copied().unwrap_or(0.0))
+        .collect()
+}
+
+fn smart_punct_fixture(kind: crate::markdown::SmartPunctKind, wrapped: bool) -> String {
+    use crate::markdown::SmartPunctKind;
+    let short = match kind {
+        SmartPunctKind::EnDash => "A range -- after all, every span needs one.",
+        SmartPunctKind::EmDash => "A long sentence--- after all, we all need one.",
+        SmartPunctKind::Ellipsis => "short line but also... there is more",
+    };
+    if wrapped {
+        format!(
+            "{short} This deliberately extended tail crosses the narrow measure \
+             and audits the wrap point."
+        )
+    } else {
+        short.to_string()
+    }
+}
+
+/// HEADLINE LAW — the off-caret line occupies the SUBSTITUTE'S own shaped
+/// advance, not a fixed placeholder and not the source literal's advance.
+///
+/// Every roster member is measured at the real shaped-row seam in both a
+/// short and a wrapping line. The short row makes the arithmetic explicit:
+/// `(off - raw) == (substitute - raw)`. The wrapped row additionally requires
+/// the off-caret source to reproduce the substitute control's row count and
+/// per-row widths, while the on-caret source remains the literal raw layout.
+/// The fixture match has no wildcard, so a new `SmartPunctKind` cannot silently
+/// escape enrolment.
+#[test]
+fn smart_punct_off_caret_uses_each_substitutes_own_shaped_advance_no_wildcard() {
+    let _w = crate::testlock::serial();
+    crate::markdown::set_wysiwyg_on(true);
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!(
+            "skipping smart_punct_off_caret_uses_each_substitutes_own_shaped_advance_\
+             no_wildcard: no wgpu adapter"
+        );
+        return;
+    };
+    let was_page_on = crate::page::page_on();
+    let was_measure = crate::page::measure();
+    crate::page::set_page_on(true);
+
+    let mut graded = 0usize;
+    for kind in crate::markdown::SmartPunctKind::ALL {
+        for wrapped in [false, true] {
+            crate::page::set_measure(if wrapped { 28 } else { 100 });
+            p.set_size(1200.0, 800.0);
+            let source = smart_punct_fixture(kind, wrapped);
+            let substitute = source.replacen(kind.literal(), &kind.glyph().to_string(), 1);
+            let source_doc = format!("{source}\npark\n");
+            let substitute_doc = format!("{substitute}\npark\n");
+
+            let mut raw_view = view(&source_doc, 0, 0);
+            raw_view.is_markdown = true;
+            p.set_view(&raw_view);
+            let raw = smart_punct_row_widths(&p, 0);
+
+            let mut off_view = view(&source_doc, 1, 0);
+            off_view.is_markdown = true;
+            p.set_view(&off_view);
+            let off = smart_punct_row_widths(&p, 0);
+
+            let mut substitute_view = view(&substitute_doc, 1, 0);
+            substitute_view.is_markdown = true;
+            p.set_view(&substitute_view);
+            let shaped_substitute = smart_punct_row_widths(&p, 0);
+
+            let raw_total: f32 = raw.iter().sum();
+            let off_total: f32 = off.iter().sum();
+            let substitute_total: f32 = shaped_substitute.iter().sum();
+            let observed_shift = off_total - raw_total;
+            let expected_shift = substitute_total - raw_total;
+            assert!(
+                (observed_shift - expected_shift).abs() <= 0.51,
+                "{kind:?} wrapped={wrapped}: off-caret total advance shift must equal \
+                 substitute-minus-literal at the real shaped seam; raw={raw_total:.3} \
+                 off={off_total:.3} substitute={substitute_total:.3} \
+                 observed_shift={observed_shift:.3} expected_shift={expected_shift:.3}; \
+                 rows raw={raw:?} off={off:?} substitute={shaped_substitute:?}"
+            );
+            if wrapped {
+                assert!(
+                    raw.len() >= 2,
+                    "{kind:?}: wrapped fixture did not wrap: {raw:?}"
+                );
+                assert_eq!(
+                    off.len(),
+                    shaped_substitute.len(),
+                    "{kind:?}: off-caret and substitute control must wrap to the same row count"
+                );
+                for (row, (actual, expected)) in
+                    off.iter().zip(shaped_substitute.iter()).enumerate()
+                {
+                    assert!(
+                        (actual - expected).abs() <= 0.51,
+                        "{kind:?} wrapped row {row}: off={actual:.3} substitute={expected:.3}"
+                    );
+                }
+            } else {
+                assert_eq!(
+                    raw.len(),
+                    1,
+                    "{kind:?}: short fixture unexpectedly wrapped: {raw:?}"
+                );
+            }
+            graded += 1;
+        }
+    }
+    assert_eq!(graded, crate::markdown::SmartPunctKind::ALL.len() * 2);
+    crate::page::set_measure(was_measure);
+    crate::page::set_page_on(was_page_on);
     crate::markdown::set_wysiwyg_on(true);
 }

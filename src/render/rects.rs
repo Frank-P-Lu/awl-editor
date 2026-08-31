@@ -743,7 +743,7 @@ impl TextPipeline {
                     doc_top + row.line_top,
                     text_left + x,
                     kind,
-                    smart_punct_slot(row.line_height),
+                    self.smart_punct_advances.advance(kind),
                 ))
             })
             .collect()

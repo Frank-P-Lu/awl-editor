@@ -11,7 +11,9 @@ mod smart_punct;
 pub(in crate::render) use bare_url::{bare_url_ellipsis_slot, is_bare_url_tail};
 pub(in crate::render) use cell::cell_inline_attrs;
 pub(in crate::render) use footnotes::footnote_number_slot;
-pub(in crate::render) use smart_punct::{smart_punct_kind_for, smart_punct_slot};
+pub(in crate::render) use smart_punct::{
+    SmartPunctAdvances, shape_smart_punct_glyph, smart_punct_kind_for,
+};
 
 pub(in crate::render) const RULE_CONCEAL_COLOR: glyphon::Color = glyphon::Color::rgba(0, 0, 0, 0);
 
@@ -378,6 +380,7 @@ pub(in crate::render) fn add_wysiwyg_conceal_spans(
     line_height: f32,
     image_force: Option<(f32, f32)>,
     selection_touch: Option<&std::ops::Range<usize>>,
+    smart_punct_advances: Option<SmartPunctAdvances>,
 ) {
     if !crate::markdown::wysiwyg_on() {
         return;
@@ -472,15 +475,20 @@ pub(in crate::render) fn add_wysiwyg_conceal_spans(
             continue;
         }
         if ck == ConcealKind::SmartPunct {
-            smart_punct::add_smart_punct_conceal_spans(
-                al,
-                line_text,
-                line_doc_start,
-                lo,
-                hi,
-                &hidden,
-                line_height,
-            );
+            if let Some(advances) = smart_punct_advances {
+                smart_punct::add_smart_punct_conceal_spans(
+                    al,
+                    line_text,
+                    line_doc_start,
+                    lo,
+                    hi,
+                    &hidden,
+                    advances,
+                );
+            }
+            // A table-grid cell has no smart-punctuation ornament layer and
+            // passes `None`; leave its literal visible rather than conceal ink
+            // that renderer has no substitute to paint.
             continue;
         }
         al.add_span((lo - line_doc_start)..(hi - line_doc_start), &hidden);

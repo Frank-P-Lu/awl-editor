@@ -400,7 +400,7 @@ lines = 568
 
 [[file_size_mark]]
 file = "src/render/pipeline_draw.rs"
-lines = 554
+lines = 552
 # 553 -> 554: item 540's table-dims card gained one field init
 # (overlay_table_dims_hint_w) in the exhaustive TextPipeline::new literal.
 # 546 -> 553: the exhaustive initializer constructs the empty-cell wash
@@ -409,7 +409,7 @@ reason = "The footer plate earns the notice channel's own one-pixel rim, which i
 
 [[file_size_mark]]
 file = "src/render/pipeline_geometry.rs"
-lines = 561
+lines = 560
 # 548 -> 561: item 540's table-dims picker measures its hint text's shaped
 # width once per set_view (overlay_table_dims_hint_w), mirroring how
 # overlay_spell_w is already measured there, so the card-width geometry
@@ -440,7 +440,7 @@ reason = "A new `line_has_rule_span` helper (matching the existing `line_has_ima
 
 [[file_size_mark]]
 file = "src/render/text.rs"
-lines = 1435
+lines = 1429
 reason = "The text shaping and incremental-restyle hub remains an explicit renderer exception; image span discovery and cursor-only image forcing live in focused submodules rather than raising this ceiling. +42: the resize handle under the live pointer is mirrored into render state by re-deriving its rect fresh from `image_hit_rects()` each frame — never a stashed pixel rect, so it cannot go stale across a document edit — through the SAME `image_handle_at` hit-test the cursor-icon path already reads, so the drawn grip can never disagree with a clickable target."
 
 [[file_size_mark]]

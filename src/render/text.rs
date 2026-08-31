@@ -753,12 +753,9 @@ impl TextPipeline {
         let fonts = self.cache_script_fonts();
         self.doc_lang = crate::card::figures::frontmatter_lang(text);
         let (md_spans, syn_spans) = self.parse_doc_spans(text);
-        // Split into lines WITHOUT the line terminators (cosmic-text stores the
-        // ending separately). `str::lines()` drops a single trailing newline, which
-        // matches cosmic-text's "trailing empty line" handling: we re-add an empty
-        // final line below so an end-of-buffer caret has a line to sit on. Computed
-        // BEFORE `compute_image_layout` below (reordered this round) so its
-        // selection-touch extent can feed the image reveal decision.
+        // Split without line terminators; cosmic-text stores endings separately.
+        // Re-add the trailing empty line that `str::lines()` drops so an EOF caret
+        // has a row. Compute this before image layout so selection-touch can feed it.
         let new_lines: Vec<&str> = text.split('\n').collect();
         let mut line_starts: Vec<usize> = Vec::with_capacity(new_lines.len());
         let mut acc = 0usize;
@@ -800,8 +797,7 @@ impl TextPipeline {
         // [`scaled_base_attrs`]; every span on that line is built from the scaled
         // base so the glyphs grow with the row. Non-heading lines get scale 1.0,
         // i.e. the byte-identical plain base.
-        let base_fs = self.metrics.font_size;
-        let base_lh = self.metrics.line_height;
+        let (base_fs, base_lh) = (self.metrics.font_size, self.metrics.line_height);
         let md = self.md_enabled;
         let doc_lang = self.doc_lang;
         let cjk_priority = &self.cjk_priority;
@@ -817,6 +813,7 @@ impl TextPipeline {
             fonts: &fonts,
             cursor_byte,
             selection_touch: selection_touch.as_ref(),
+            smart_punct_advances: self.smart_punct_advances,
         };
         let line_attrs = |lt: &str, start: usize, li: usize| {
             build_line_attrs(
@@ -935,12 +932,12 @@ impl TextPipeline {
     /// gate this on "a markdown buffer that actually has a heading" so the common
     /// case never pays for it.
     pub(super) fn restyle_all_lines(&mut self) {
+        self.refresh_smart_punct_advances();
         let attrs = self.doc_attrs();
         let fonts = self.cache_script_fonts();
         let doc_lang = self.doc_lang;
         let cjk_priority = self.cjk_priority.clone();
-        let base_fs = self.metrics.font_size;
-        let base_lh = self.metrics.line_height;
+        let (base_fs, base_lh) = (self.metrics.font_size, self.metrics.line_height);
         let md = self.md_enabled;
         let md_spans = std::mem::take(&mut self.md_spans);
         let syn_spans = std::mem::take(&mut self.syn_spans);
@@ -974,6 +971,7 @@ impl TextPipeline {
             fonts: &fonts,
             cursor_byte,
             selection_touch: selection_touch.as_ref(),
+            smart_punct_advances: self.smart_punct_advances,
         };
         let mut start = 0usize;
         for li in 0..self.buffer.lines.len() {
@@ -1023,14 +1021,10 @@ impl TextPipeline {
             self.last_conceal_selection = self.selection;
             return;
         }
-        // GATE: conceal toggles on caret-line or selection changes, so a pure
-        // scroll / same-line-same-selection move / idle redraw would re-lay the SAME
-        // attrs and no-op. Skip the O(lines × md_spans) rescan in that case. `force`
-        // (a reshape / text edit / restyle) always runs it: reshaping drops attrs.
-        // TRIPWIRE: comparing the WHOLE selection (not just its
-        // touched-line extent) means a selection that starts/ends/clears without
-        // changing which LINES it touches still re-runs the (idempotent) rescan below
-        // — a harmless no-op, never a missed reveal/conceal transition.
+        // GATE: caret-line or selection changes can toggle conceal; pure scroll and
+        // idle redraw cannot. `force` covers reshapes, which drop attrs. Comparing
+        // the WHOLE selection makes same-line start/end/clear changes re-run the
+        // idempotent rescan rather than risk a missed reveal transition.
         if !force
             && self.last_conceal_cursor_line == Some(self.cursor_line)
             && self.last_conceal_selection == self.selection
@@ -1056,8 +1050,7 @@ impl TextPipeline {
         let fonts = self.cache_script_fonts();
         let doc_lang = self.doc_lang;
         let cjk_priority = self.cjk_priority.clone();
-        let base_fs = self.metrics.font_size;
-        let base_lh = self.metrics.line_height;
+        let (base_fs, base_lh) = (self.metrics.font_size, self.metrics.line_height);
         let md = self.md_enabled;
         let md_spans = std::mem::take(&mut self.md_spans);
         let syn_spans = std::mem::take(&mut self.syn_spans);
@@ -1077,6 +1070,7 @@ impl TextPipeline {
             fonts: &fonts,
             cursor_byte,
             selection_touch: selection_touch.as_ref(),
+            smart_punct_advances: self.smart_punct_advances,
         };
         let mut changed = false;
         let mut start = 0usize;

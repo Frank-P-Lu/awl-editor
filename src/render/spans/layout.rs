@@ -99,6 +99,7 @@ pub(in crate::render) struct LineAttrsCtx<'a> {
     pub(in crate::render) fonts: &'a super::text::ScriptFonts,
     pub(in crate::render) cursor_byte: usize,
     pub(in crate::render) selection_touch: Option<&'a std::ops::Range<usize>>,
+    pub(in crate::render) smart_punct_advances: SmartPunctAdvances,
 }
 
 /// Assemble ONE buffer line's complete `AttrsList` from the base doc attrs plus
@@ -234,6 +235,7 @@ pub(in crate::render) fn build_line_attrs(
         row_lh,
         image_force,
         ctx.selection_touch,
+        Some(ctx.smart_punct_advances),
     );
     add_list_indent_span(&mut al, line_text, &lb, ctx.base_font_size, row_lh);
     al

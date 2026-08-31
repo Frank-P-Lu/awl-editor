@@ -201,14 +201,13 @@ impl TextPipeline {
         // labels and controls. A new view invalidates that measurement before
         // the next overlay preparation can publish a replacement.
         self.diagonal_cluster = None;
-        // Apply zoom first: if it changed, reset the glyphon buffer metrics and
-        // re-shape so glyph layout matches the zoomed caret + selection rects. The
-        // metrics fold in the display DPI (`self.dpi`, set by `set_dpi`) on top of
-        // the user zoom, so the live page scales correctly on a HiDPI screen.
+        // Apply zoom first so glyph layout matches the caret and selection. Metrics
+        // fold display DPI (`self.dpi`) over user zoom for a correct HiDPI page.
         let new_metrics = Metrics::with_dpi(view.zoom, self.dpi);
         let zoom_changed = (new_metrics.font_size - self.metrics.font_size).abs() > f32::EPSILON;
         self.metrics = new_metrics;
         if zoom_changed {
+            self.refresh_smart_punct_advances();
             self.buffer
                 .set_metrics(&mut self.font_system, self.metrics.glyph_metrics());
             // The shaping height budget is in (zoomed) pixels, so a zoom change
