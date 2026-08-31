@@ -137,6 +137,11 @@ decision is which world draws which set, not one global glyph.
 ---
 ### 535 — sticky notices abandon the writing-column-top slot for the world's toast axis (user decision, 2026-08-30, reverses a documented composition call)
 
+🟡 IN PROGRESS — claude, branch item-535
+
+**DECIDED (user, 2026-08-31): placement stays per-world** — no `[ui]`
+setting. Build the one-anchor reversal as scoped below.
+
 User, looking at the save-failed sticky squatting top-center over the
 text: "center top is an annoying place for the toast… we should move it
 to somewhere less intrusive." That placement is currently AUTHORED, not
@@ -190,6 +195,8 @@ the commit. Full gate receipt.
 ---
 ### 539 — working-set stack: move the hover-revealed close mark to the LEADING side, so names sit flush against the page edge (user DECISION, 2026-08-30: "we can try x on the left side" — option A greenlit, ready to dispatch)
 
+🟡 IN PROGRESS — claude, branch item-539
+
 Context: the hover-reveal-with-reserved-lane the user asked for already
 ships (`stack_spans` shapes a trailing `"  ×"` on every row, alpha 0
 until row-hover — names never move). The residual itch is the
@@ -240,6 +247,13 @@ user confirms A. Full gate receipt.
 
 ---
 ### 540 — Insert Table dimension picker: the hint clips mid-word ("Esc canc"), and the card's placement/backing needs a judged pass (user report, 2026-08-30; feature itself: "AWESOME!!")
+
+🟡 IN PROGRESS — claude, branch item-540
+
+**DECIDED (user, 2026-08-31): option (b) — caret-anchored placement**,
+using the spell popup's `CONTEXT_ANCHOR_DROP` contextual-anchor
+machinery (near-edge caret / bottom-of-window clamping included). Build
+this alongside the hint-clip fix below.
 
 User verdict on item 517's picker: "insert table is AWESOME!!" — the
 feature holds; this is polish on its card. Two defects, one verified
@@ -299,6 +313,15 @@ Full gate receipt.
 
 ---
 ### 542 — table editing: remaining low-hanging UX basket needs a decision (user report, 2026-08-30 — "kinda awful to edit")
+
+🟡 IN PROGRESS — claude, branch item-542 (scope: fruit 1 only —
+auto-align on row-leave, the higher-leverage-over-cost pick; the user
+took the orchestrator's recommendation, 2026-08-31)
+
+**DECIDED (user, 2026-08-31): build fruit 1 (auto-align on row-leave)
+now.** Fruit 2 (row/column palette verbs) stays parked below,
+unclaimed, for a follow-up round — it is a separable feature, not a
+dependency of fruit 1.
 
 The first wave has landed: Tab/Shift-Tab moves between cells and wraps
 across rows, Tab on the final cell appends a scaffold row, and Enter
