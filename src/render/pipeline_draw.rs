@@ -27,15 +27,14 @@ impl TextPipeline {
         let background_pipeline = BackgroundPipeline::new(device, format, background_desc());
         let lava_pipeline = crate::lava::LavaPipeline::new(device, format);
         let sel_shader = crate::selection::selection_shader(device);
+        let overlay_quad = |color| SelectionPipeline::new(device, &sel_shader, format, color);
         let mut page_frame_pipeline =
             SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         page_frame_pipeline.set_dither(1.0);
         let stars_pipeline = SelectionPipeline::new(device, &sel_shader, format, [0, 0, 0, 0]);
         // Syntax-wash quads are parked when their role/world has no wash.
-        let wash_comment_pipeline =
-            SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
-        let wash_string_pipeline =
-            SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
+        let wash_comment_pipeline = overlay_quad(PLACEHOLDER_RGBA);
+        let wash_string_pipeline = overlay_quad(PLACEHOLDER_RGBA);
         let mut wash_highlight_pipeline =
             SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         wash_highlight_pipeline.set_dither(wagtail_dither_density());
@@ -95,8 +94,7 @@ impl TextPipeline {
         let panel_shadow = SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         let panel_border = SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         let panel_material = SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
-        let overlay_facet_material =
-            SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
+        let overlay_facet_material = overlay_quad(PLACEHOLDER_RGBA);
         let blur = blur::BlurBackdrop::new(device, format);
         // Second text renderer for the panel string, sharing the atlas + viewport.
         let panel_renderer =
@@ -121,7 +119,6 @@ impl TextPipeline {
         // selection, its OWN token (`selection_ui`, a value step off the surface
         // ramp; amber stays the caret's alone), re-set from that same owner
         // every `overlay_prepare_selection`.
-        let overlay_quad = |color| SelectionPipeline::new(device, &sel_shader, format, color);
         let overlay_rows = overlay_quad(PLACEHOLDER_RGBA);
         let overlay_bars = overlay_quad(PLACEHOLDER_RGBA);
         // Seeded with `muted`; `overlay_prepare_selection` re-resolves the ink

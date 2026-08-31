@@ -1956,6 +1956,7 @@ pub struct TextPipeline {
     pub panel_material: SelectionPipeline,
     /// Transparent pane material continued through a `DockedTab` active facet.
     /// Empty for every other facet style and every flat-material world.
+    /// Parked with the other facet layers when the overlay closes.
     pub overlay_facet_material: SelectionPipeline,
     pub blur: blur::BlurBackdrop,
     blur_recompute: bool,

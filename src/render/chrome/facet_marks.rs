@@ -2,6 +2,19 @@ use super::overlay_rows::{CHIP_UNDERLINE_CORNER, FACET_CHIP_RADIUS};
 use super::*;
 
 impl TextPipeline {
+    pub(super) fn park_overlay_facets(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        width: u32,
+        height: u32,
+    ) {
+        self.overlay_facet_ghost
+            .prepare(device, queue, width, height, &[]);
+        self.overlay_facet_material
+            .prepare(device, queue, width, height, &[]);
+    }
+
     pub(super) fn overlay_prepare_facet_marks(
         &mut self,
         device: &wgpu::Device,
