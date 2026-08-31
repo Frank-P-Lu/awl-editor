@@ -151,6 +151,21 @@ column left/right, delete row/column — source splices over the
 existing row/cell parser (`markdown/tables.rs`), gated to
 caret-in-table exactly like `AlignTable`'s availability gate.
 
+**User report (2026-09-01), diagnosed, remedy awaiting the user's
+pick:** "when you press tab, it kinda goes to the next |? it's kind
+of a weird experience." Mechanism: `table_tab` lands the caret at the
+cell's TRIMMED content start (`table_cell_ranges`), and an EMPTY
+cell's trimmed range is zero-width at the end of its padding — flush
+against the CLOSING pipe. So tabbing into any empty/scaffold cell
+parks the caret on a `|`, and because the caret never leaves the row
+while tabbing, row-leave auto-align never fires and the raw row stays
+ragged, amplifying the feel. Candidate remedies (either or both):
+(a) empty cells land the caret just inside the opening `| ` instead;
+(b) Tab SELECTS the target cell's content (the spreadsheet/Obsidian
+gesture — typing replaces, caret lands at content start when empty),
+which subsumes (a); plus optionally re-pad on cell-leave, not just
+row-leave, using the same caret-preserving `table_caret` machinery.
+
 NOT this item (the big arc): editing cells IN the grid without
 dropping to source. That is the "tables as real grids" destination
 and earns its own design session; the remaining source-level
@@ -199,20 +214,14 @@ by design (the card is the subject there). The lane audits the
 full-frost roster and REPORTS which members are small-card takeovers
 like TableDims; it flips only TableDims without a further user call.
 
-**Second question, a hypothesis to reproduce before believing (the
-user's live screenshot, 2026-09-01):** with the picker active over a
-frosted page, the caret's own table row — raw pipes, its thematic-break
-neighbor, and the red caret — rendered fully CRISP on top of the frost.
-Headless replay of the same state (both the shared-core driver and
-`--screenshot-app`) frosts everything and draws only the red caret mark
-crisp over the blur. So (a) hunt the live-only classes for the
-crisp-caret-row frame (stale frost signature across an edit,
-redraw-scheduling, a draw pass that lands after the composite live but
-not headlessly), and (b) decide on purpose whether the caret should
-draw over the frost at all while a modal card is up — today it does, on
-every path, and nobody has ever chosen that. If the premise won't
-reproduce live either, close that half as "premise not reproduced," not
-fixed.
+**Settled by the user (2026-09-01): the caret drawing over the frost is
+fine** — "it's just like you shouldn't frost the whole page, it should
+just frost the picker bit." So no taste question remains here; the item
+is purely the frost-extent enrolment. (For the record: the user's live
+screenshot showed the caret's whole table row crisp over the frost,
+which headless replay of the same state — both drivers — does not
+produce; the user approves the live feel, so no work is owed on it
+unless the lane trips over a stale-frost class while in there.)
 
 Verify: footprint-vs-full is unit-testable at `frost_mode`'s seam;
 pixel arithmetic over captures for "page crisp outside the skirt,
