@@ -297,7 +297,7 @@ lines = 559
 
 [[file_size_mark]]
 file = "src/render.rs"
-lines = 2881
+lines = 2877
 # 2876 -> 2881: item 540's table-dims picker gained a caret-anchor field
 # (overlay_table_dims_hint_w, the shaped hint width measured once per
 # set_view so the geometry function can size the card without a

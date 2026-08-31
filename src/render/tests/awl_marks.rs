@@ -93,7 +93,10 @@ fn bundled_face_cmap_is_exactly_the_roster_in_both_directions() {
     let missing_from_face: Vec<_> = expected.difference(&actual).copied().collect();
     assert!(
         unrostered.is_empty() && missing_from_face.is_empty(),
-        "AwlMarks.ttf cmap drift: unrostered={} missing_from_face={} — regenerate after every roster edit",
+        concat!(
+            "AwlMarks.ttf cmap drift: unrostered={} missing_from_face={} — ",
+            "regenerate after every roster edit"
+        ),
         unrostered
             .iter()
             .map(|cp| format!("U+{cp:04X}"))
