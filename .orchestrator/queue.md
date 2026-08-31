@@ -281,7 +281,14 @@ the new enrolment. Full gate receipt.
 ---
 ### 544 — footprint frost's box far exceeds the drawn card on upright plate-hugging compositions (user report, 2026-09-01 — "this bounding box is way too big"; reproduced headlessly)
 
-🟡 IN PROGRESS — gpt-5.6-sol high, branch codex/item-544-frost-box
+✅ COMPLETE — landed on main as merge `c61b73a4`; production audit accepted
+with no findings. The roster-derived Bars plate envelope now bounds upright
+footprint frost for picker and pointer-menu geometries without changing hit
+geometry. Exact combined-candidate gates are green: code health, 16 wasm smoke
+tests, and full native receipt
+`commit=c61b73a45b9d6e63d0acb1ffc19a29bd6d756819 health=pass:242s conventions=mac,linux scope=all-targets menubar=full:on unit_tests=4674 unit_shards=6 integration_targets=16`.
+Subjective live softness remains a human taste check, not an engineering
+blocker.
 
 Two user screenshots, both Firetail: the theme picker with a
 band-shaped blur patch hanging well to the right of its narrow row
@@ -379,6 +386,8 @@ receipt.
 
 ---
 ### 546 — Cassowary's docked palette tabs: a design pass on the DockedTab facet (user taste report, 2026-09-01 — "the tabs for cassowary don't look super convincing lol")
+
+🟡 IN PROGRESS — gpt-5.6-sol high, branch codex/item-546-cassowary-tabs
 
 The palette's category strip on Cassowary. The mechanism is
 `FacetStyle::DockedTab` (`theme/model.rs`), whose own contract is
