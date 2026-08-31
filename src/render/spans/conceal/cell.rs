@@ -42,6 +42,7 @@ pub(in crate::render) fn cell_inline_attrs(
         line_height,
         None,
         None,
+        None,
     );
     al
 }

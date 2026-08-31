@@ -364,6 +364,19 @@ pub enum SmartPunctKind {
 }
 
 impl SmartPunctKind {
+    /// The closed display-substitution roster. Render laws iterate this rather
+    /// than maintaining a second hand-picked list.
+    pub const ALL: [Self; 3] = [Self::EnDash, Self::EmDash, Self::Ellipsis];
+
+    /// The exact source run this kind replaces in the display-only preview.
+    pub fn literal(self) -> &'static str {
+        match self {
+            SmartPunctKind::EnDash => "--",
+            SmartPunctKind::EmDash => "---",
+            SmartPunctKind::Ellipsis => "...",
+        }
+    }
+
     /// THE substitute glyph. Both the render's painted ornament and an
     /// export's literal substitution read this — never hand-rolled a second
     /// time anywhere else.

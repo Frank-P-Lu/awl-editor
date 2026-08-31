@@ -5,6 +5,157 @@
 
 use super::*;
 
+/// The three substitute glyphs' real body-text advances in the document face.
+/// Shaped once per face/metric change and threaded into the line-attrs recipe,
+/// so layout and the separately-painted glyph read one measurement owner.
+#[derive(Clone, Copy, Debug)]
+pub(in crate::render) struct SmartPunctAdvances {
+    advances: [f32; 3],
+    forcing_spacing: [f32; 3],
+}
+
+impl SmartPunctAdvances {
+    pub(in crate::render) fn shape(
+        font_system: &mut FontSystem,
+        metrics: Metrics,
+        family: &'static str,
+    ) -> Self {
+        let mut advances = [0.0; 3];
+        let mut forcing_spacing = [0.0; 3];
+        for kind in crate::markdown::SmartPunctKind::ALL {
+            let (_, width) = shape_smart_punct_glyph(
+                font_system,
+                metrics,
+                family,
+                kind,
+                theme::base_content().to_glyphon(),
+            );
+            let index = kind_index(kind);
+            advances[index] = width;
+            forcing_spacing[index] =
+                calibrate_forcing_spacing(font_system, metrics, family, kind, width);
+        }
+        Self {
+            advances,
+            forcing_spacing,
+        }
+    }
+
+    pub(in crate::render) fn advance(self, kind: crate::markdown::SmartPunctKind) -> f32 {
+        self.advances[kind_index(kind)]
+    }
+
+    fn forcing_spacing(self, kind: crate::markdown::SmartPunctKind) -> f32 {
+        self.forcing_spacing[kind_index(kind)]
+    }
+}
+
+impl TextPipeline {
+    pub(in crate::render) fn refresh_smart_punct_advances(&mut self) {
+        self.smart_punct_advances =
+            SmartPunctAdvances::shape(&mut self.font_system, self.metrics, self.shaped_font);
+    }
+}
+
+fn kind_index(kind: crate::markdown::SmartPunctKind) -> usize {
+    use crate::markdown::SmartPunctKind;
+    match kind {
+        SmartPunctKind::EnDash => 0,
+        SmartPunctKind::EmDash => 1,
+        SmartPunctKind::Ellipsis => 2,
+    }
+}
+
+/// Measure the conceal path at two letter-spacing values and solve its affine
+/// response for the substitute's shaped advance. Cosmic treats the dot triplet
+/// as one cluster but the dash runs as independent clusters, so the active
+/// shaper — not a shared guessed divisor — owns each arm's arithmetic.
+fn calibrate_forcing_spacing(
+    font_system: &mut FontSystem,
+    metrics: Metrics,
+    family: &'static str,
+    kind: crate::markdown::SmartPunctKind,
+    target: f32,
+) -> f32 {
+    let probe_spacing = 1.0 / CONCEAL_ZERO_WIDTH_FONT_SIZE;
+    let zero = concealed_literal_width(font_system, metrics, family, kind, 0.0);
+    let probe = concealed_literal_width(font_system, metrics, family, kind, probe_spacing);
+    let response = probe - zero;
+    debug_assert!(
+        response > 0.001,
+        "smart-punct forcing probe had no response"
+    );
+    (target - zero).max(0.0) / response * probe_spacing
+}
+
+fn concealed_literal_width(
+    font_system: &mut FontSystem,
+    metrics: Metrics,
+    family: &'static str,
+    kind: crate::markdown::SmartPunctKind,
+    letter_spacing: f32,
+) -> f32 {
+    let hidden = Attrs::new()
+        .family(Family::Name(family))
+        .color(RULE_CONCEAL_COLOR)
+        .metrics(GlyphMetrics::new(
+            CONCEAL_ZERO_WIDTH_FONT_SIZE,
+            metrics.line_height,
+        ));
+    let forcing = hidden.clone().letter_spacing(letter_spacing);
+    let mut attrs = glyphon::cosmic_text::AttrsList::new(&hidden);
+    attrs.add_span(0..1, &forcing);
+    let mut buffer = GlyphBuffer::new_empty(GlyphMetrics::new(
+        CONCEAL_ZERO_WIDTH_FONT_SIZE,
+        metrics.line_height,
+    ));
+    buffer.lines.push(glyphon::cosmic_text::BufferLine::new(
+        kind.literal(),
+        glyphon::cosmic_text::LineEnding::None,
+        attrs,
+        Shaping::Advanced,
+    ));
+    buffer.shape_until_scroll(font_system, false);
+    buffer
+        .layout_runs()
+        .map(|run| run.line_w)
+        .fold(0.0f32, f32::max)
+}
+
+/// Shape one substitute exactly as it will be painted: the document's settled
+/// face, full body metrics, and the caller's ink. Width is independent of ink,
+/// but keeping both layout measurement and ornament construction on this door
+/// prevents a later size/family tweak from splitting them again.
+pub(in crate::render) fn shape_smart_punct_glyph(
+    font_system: &mut FontSystem,
+    metrics: Metrics,
+    family: &'static str,
+    kind: crate::markdown::SmartPunctKind,
+    color: glyphon::Color,
+) -> (GlyphBuffer, f32) {
+    let glyph_metrics = GlyphMetrics::new(metrics.font_size, metrics.line_height);
+    let attrs = Attrs::new().family(Family::Name(family)).color(color);
+    let mut buffer = GlyphBuffer::new(font_system, glyph_metrics);
+    buffer.set_size(
+        font_system,
+        Some(metrics.line_height * 2.0),
+        Some(metrics.line_height),
+    );
+    buffer.set_text(
+        font_system,
+        &kind.glyph().to_string(),
+        &attrs,
+        Shaping::Advanced,
+        None,
+    );
+    buffer.shape_until_scroll(font_system, false);
+    let width = buffer
+        .layout_runs()
+        .map(|run| run.line_w)
+        .fold(0.0f32, f32::max);
+    (buffer, width)
+}
+
 /// Which display glyph a concealed smart-punctuation span's own literal bytes
 /// map to — re-derived from the raw source rather than carried on the span
 /// itself (the `is_bare_url_tail` / `fence_line_lang` "render re-derives from
@@ -26,18 +177,8 @@ pub(in crate::render) fn smart_punct_kind_for(
     }
 }
 
-/// Width reserved for the single painted smart-punctuation substitute glyph
-/// (en dash, em dash, or ellipsis) that replaces a concealed run — the exact
-/// `bare_url_ellipsis_slot` shape and value, generous enough for the widest of
-/// the three (the ellipsis) so one constant covers all three kinds without a
-/// per-kind branch, exactly like the bare-URL tail's ONE reserved slot covers
-/// every URL's own "…" regardless of its actual path length.
-pub(in crate::render) fn smart_punct_slot(line_height: f32) -> f32 {
-    line_height * 0.9
-}
-
 /// Force a concealed smart-punctuation span's leading scalar to the reserved
-/// substitute slot ([`smart_punct_slot`]) and zero-width the rest — mirrors
+/// substitute advance and zero-width the rest — mirrors
 /// [`super::footnotes::add_footnote_conceal_spans`] /
 /// [`super::bare_url::add_bare_url_conceal_spans`]'s forced-first-scalar
 /// shape exactly. Unlike those two this has no
@@ -51,18 +192,21 @@ pub(super) fn add_smart_punct_conceal_spans(
     lo: usize,
     hi: usize,
     hidden: &Attrs<'static>,
-    line_height: f32,
+    advances: SmartPunctAdvances,
 ) {
+    let local_range = (lo - line_doc_start)..(hi - line_doc_start);
+    let Some(kind) = smart_punct_kind_for(line_text, local_range) else {
+        return;
+    };
     let first_len = line_text[(lo - line_doc_start)..]
         .chars()
         .next()
         .map_or(0, char::len_utf8);
     let first_end = (lo + first_len).min(hi);
     if first_end > lo {
-        let slot = smart_punct_slot(line_height);
         let forcing = hidden
             .clone()
-            .letter_spacing(slot / CONCEAL_ZERO_WIDTH_FONT_SIZE);
+            .letter_spacing(advances.forcing_spacing(kind));
         al.add_span(
             (lo - line_doc_start)..(first_end - line_doc_start),
             &forcing,

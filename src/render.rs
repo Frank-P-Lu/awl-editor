@@ -2020,13 +2020,13 @@ pub struct TextPipeline {
     pub caret: CaretAnim,
     cursor_line: usize,
     cursor_col: usize,
-    /// The caret's wrap AFFINITY latched from the last `set_view` — the caret's own
-    /// row/x placement reads it (via the `_aff` geometry seams) to disambiguate a
-    /// shared soft-wrap boundary (see [`crate::caret::Affinity`]). `Downstream` for
-    /// any caret not parked at a visual-row end, so ordinary placement is unchanged.
+    /// The caret's wrap AFFINITY latched from `set_view`; `_aff` geometry uses it
+    /// to disambiguate a shared soft-wrap boundary ([`crate::caret::Affinity`]).
+    /// `Downstream` elsewhere keeps ordinary placement unchanged.
     caret_affinity: crate::caret::Affinity,
     scroll: ScrollPos,
     metrics: Metrics,
+    smart_punct_advances: SmartPunctAdvances,
     /// The swap-chain/capture target format, from construction — kept so a
     /// pipeline grown LAZILY after `new()` (`fold_chevron_labels`) can build
     /// with the same format every other pipeline here was built with.

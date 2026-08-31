@@ -27,13 +27,12 @@ impl TextPipeline {
         let background_pipeline = BackgroundPipeline::new(device, format, background_desc());
         let lava_pipeline = crate::lava::LavaPipeline::new(device, format);
         let sel_shader = crate::selection::selection_shader(device);
-        let mut page_frame_pipeline =
-            SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
+        let overlay_quad = |color| SelectionPipeline::new(device, &sel_shader, format, color);
+        let mut page_frame_pipeline = overlay_quad(PLACEHOLDER_RGBA);
         page_frame_pipeline.set_dither(1.0);
         let stars_pipeline = SelectionPipeline::new(device, &sel_shader, format, [0, 0, 0, 0]);
         // Syntax-wash quads are parked when their role/world has no wash.
-        let wash_comment_pipeline =
-            SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
+        let wash_comment_pipeline = overlay_quad(PLACEHOLDER_RGBA);
         let wash_string_pipeline =
             SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         let mut wash_highlight_pipeline =
@@ -119,7 +118,6 @@ impl TextPipeline {
         // selection, its OWN token (`selection_ui`, a value step off the surface
         // ramp; amber stays the caret's alone), re-set from that same owner
         // every `overlay_prepare_selection`.
-        let overlay_quad = |color| SelectionPipeline::new(device, &sel_shader, format, color);
         let overlay_rows = overlay_quad(PLACEHOLDER_RGBA);
         let overlay_bars = overlay_quad(PLACEHOLDER_RGBA);
         // Seeded with `muted`; `overlay_prepare_selection` re-resolves the ink
@@ -232,9 +230,7 @@ impl TextPipeline {
         popover_hl_wash.set_dither(wagtail_dither_density());
         popover_hl_wash.set_dither_cell(wagtail_stipple_cell_px(1.0));
         let popover_strike = SpellUnderlinePipeline::new(device, format, PLACEHOLDER_RGBA);
-        // FORMAT POPOVER hover ring — a hairline stroke pipeline,
-        // never a fill; stroke width is set once in `sync_theme_colors`
-        // (this pipeline never switches mode, unlike `overlay_facet_ghost`).
+        // FORMAT POPOVER hairline; `sync_theme_colors` owns its fixed width.
         let popover_hover_ring =
             SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         let popover_renderer =
@@ -244,6 +240,7 @@ impl TextPipeline {
         let nit_pipeline = SpellUnderlinePipeline::new(device, format, PLACEHOLDER_RGBA);
         let strike_pipeline = SpellUnderlinePipeline::new(device, format, PLACEHOLDER_RGBA);
         let link_underline_pipeline = SpellUnderlinePipeline::new(device, format, PLACEHOLDER_RGBA);
+        let punct = SmartPunctAdvances::shape(&mut font_system, metrics, theme::active().font);
         let mut me = Self {
             font_system,
             swash_cache: SwashCache::new(),
@@ -319,6 +316,7 @@ impl TextPipeline {
             caret_affinity: crate::caret::Affinity::Downstream,
             scroll: ScrollPos::default(),
             metrics,
+            smart_punct_advances: punct,
             format,
             dpi: 1.0,
             window_w: crate::capture::CANVAS_WIDTH as f32,
