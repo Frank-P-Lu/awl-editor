@@ -412,8 +412,8 @@ impl TextPipeline {
             anchor,
             None,
             "notice",
-            // Sticky notices retain the writing-column top; toast absolute
-            // placement has already folded in the menu-bar reserve.
+            // Both kinds route through the one authored toast-anchor plan
+            // (menu-bar reserve folded in); an empty notice falls back here.
             if toast_plan.is_some() {
                 0.0
             } else {

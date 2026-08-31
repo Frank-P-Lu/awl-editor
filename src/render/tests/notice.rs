@@ -55,15 +55,15 @@ enum ToastSurface {
     Workspace,
 }
 
-fn toast_surface_view(surface: ToastSurface, notice: bool) -> ViewState {
+fn toast_surface_view(surface: ToastSurface, notice: Option<NoticeKind>) -> ViewState {
     let mut document = crowded_doc();
     if matches!(surface, ToastSurface::Document) {
         document.replace_range(.."Opening line".len(), "# Opening line");
     }
     let mut v = super::view(&document, 0, 0);
-    if notice {
+    if let Some(kind) = notice {
         v.notice = "saved".into();
-        v.notice_kind = NoticeKind::Toast;
+        v.notice_kind = kind;
     }
     match surface {
         ToastSurface::Document => {}
@@ -102,9 +102,12 @@ fn rectangles_clear(a: [f32; 4], b: [f32; 4], gap: f32) -> bool {
 
 /// The production pipeline's full assigned roster: every world, its authored
 /// anchor, all three surface families, narrow/ordinary/wide logical canvases,
-/// and both densities. The pure planner law crosses each world with every
-/// possible anchor; this law proves real overlay/workspace geometry is what the
-/// collision owner receives.
+/// both densities, and BOTH notice kinds — a HELD `Sticky` and a self-clearing
+/// `Toast` share the one authored anchor and the one collision planner, so
+/// this law sweeps `NoticeKind` rather than assuming only `Toast` reaches it.
+/// The pure planner law crosses each world with every possible anchor; this
+/// law proves real overlay/workspace geometry is what the collision owner
+/// receives.
 #[test]
 fn every_worlds_toast_is_in_canvas_and_clear_across_the_full_surface_roster() {
     let _g = crate::testlock::serial();
@@ -120,68 +123,71 @@ fn every_worlds_toast_is_in_canvas_and_clear_across_the_full_surface_roster() {
         let Some((device, queue, mut p)) = super::headless_dqp(1200.0, 800.0) else {
             break;
         };
-        for surface in [
-            ToastSurface::Document,
-            ToastSurface::Picker,
-            ToastSurface::Workspace,
-        ] {
-            for (logical_w, logical_h) in [(480u32, 360u32), (1200, 800), (1800, 1000)] {
-                for dpi in [1.0f32, 2.0] {
-                    let (w, h) = (
-                        (logical_w as f32 * dpi) as u32,
-                        (logical_h as f32 * dpi) as u32,
-                    );
-                    p.set_dpi(dpi);
-                    p.set_size(w as f32, h as f32);
-                    p.set_view(&toast_surface_view(surface, true));
-                    p.prepare(&device, &queue, w, h)
-                        .expect("toast frame prepares");
-                    let (plate, resolved) = p
-                        .notice_geometry_probe(w, h)
-                        .expect("a toast must commit plate geometry");
-                    let safe = p.metrics.px(crate::render::chrome::TOAST_SAFE_INSET);
-                    let gap = p.metrics.px(crate::render::chrome::TOAST_COLLISION_GAP);
-                    let label = format!(
-                        "{} / {:?}->{resolved:?} / {surface:?} / {logical_w}x{logical_h} / {dpi}x",
-                        world.name, world.toast_anchor
-                    );
-                    assert!(
-                        plate[0] >= safe - 0.01 && plate[1] >= safe - 0.01,
-                        "{label}: {:?} crossed the safe inset {safe}",
-                        plate
-                    );
-                    assert!(
-                        plate[0] + plate[2] <= w as f32 - safe + 0.01
-                            && plate[1] + plate[3] <= h as f32 - safe + 0.01,
-                        "{label}: {:?} left {w}x{h}",
-                        plate
-                    );
-                    let obstacles = p.notice_active_chrome_probe(w, h);
-                    assert!(
-                        obstacles
-                            .iter()
-                            .all(|&obstacle| rectangles_clear(plate, obstacle, gap)),
-                        "{label}: {:?} collided with {:?}",
-                        plate,
-                        obstacles
-                    );
-                    assert!(
-                        plate[2] >= 1.0 && plate[3] >= 1.0,
-                        "{label}: presence is vacuous: {plate:?}"
-                    );
-                    fallbacks += usize::from(resolved != world.toast_anchor);
-                    cells += 1;
+        for kind in [NoticeKind::Toast, NoticeKind::Sticky] {
+            for surface in [
+                ToastSurface::Document,
+                ToastSurface::Picker,
+                ToastSurface::Workspace,
+            ] {
+                for (logical_w, logical_h) in [(480u32, 360u32), (1200, 800), (1800, 1000)] {
+                    for dpi in [1.0f32, 2.0] {
+                        let (w, h) = (
+                            (logical_w as f32 * dpi) as u32,
+                            (logical_h as f32 * dpi) as u32,
+                        );
+                        p.set_dpi(dpi);
+                        p.set_size(w as f32, h as f32);
+                        p.set_view(&toast_surface_view(surface, Some(kind)));
+                        p.prepare(&device, &queue, w, h)
+                            .expect("notice frame prepares");
+                        let (plate, resolved) = p
+                            .notice_geometry_probe(w, h)
+                            .expect("a notice must commit plate geometry");
+                        let safe = p.metrics.px(crate::render::chrome::TOAST_SAFE_INSET);
+                        let gap = p.metrics.px(crate::render::chrome::TOAST_COLLISION_GAP);
+                        let label = format!(
+                            "{} / {kind:?} / {:?}->{resolved:?} / {surface:?} / \
+                             {logical_w}x{logical_h} / {dpi}x",
+                            world.name, world.toast_anchor
+                        );
+                        assert!(
+                            plate[0] >= safe - 0.01 && plate[1] >= safe - 0.01,
+                            "{label}: {:?} crossed the safe inset {safe}",
+                            plate
+                        );
+                        assert!(
+                            plate[0] + plate[2] <= w as f32 - safe + 0.01
+                                && plate[1] + plate[3] <= h as f32 - safe + 0.01,
+                            "{label}: {:?} left {w}x{h}",
+                            plate
+                        );
+                        let obstacles = p.notice_active_chrome_probe(w, h);
+                        assert!(
+                            obstacles
+                                .iter()
+                                .all(|&obstacle| rectangles_clear(plate, obstacle, gap)),
+                            "{label}: {:?} collided with {:?}",
+                            plate,
+                            obstacles
+                        );
+                        assert!(
+                            plate[2] >= 1.0 && plate[3] >= 1.0,
+                            "{label}: presence is vacuous: {plate:?}"
+                        );
+                        fallbacks += usize::from(resolved != world.toast_anchor);
+                        cells += 1;
+                    }
                 }
             }
         }
     }
     theme::set_active(entry);
-    assert_eq!(cells, 20 * 3 * 3 * 2);
+    assert_eq!(cells, 20 * 2 * 3 * 3 * 2);
     assert!(
         fallbacks > 0,
         "NON-VACUITY: no real surface forced fallback"
     );
-    eprintln!("toast surface roster: cells={cells} fallbacks={fallbacks}");
+    eprintln!("notice surface roster: cells={cells} fallbacks={fallbacks}");
 }
 
 /// Five affordance-locating gallery cells. The oracle asks only whether the
@@ -211,11 +217,11 @@ fn five_world_surface_gallery_draws_a_visible_toast_plate() {
         };
         p.set_dpi(dpi);
         p.set_size(w as f32, h as f32);
-        p.set_view(&toast_surface_view(surface, false));
+        p.set_view(&toast_surface_view(surface, None));
         p.prepare(&device, &queue, w, h)
             .expect("plain frame prepares");
         let plain = render_frame(&mut p, &device, &queue, w, h);
-        p.set_view(&toast_surface_view(surface, true));
+        p.set_view(&toast_surface_view(surface, Some(NoticeKind::Toast)));
         p.prepare(&device, &queue, w, h)
             .expect("toast frame prepares");
         let (plate, _) = p.notice_geometry_probe(w, h).expect("toast geometry");
@@ -387,13 +393,16 @@ const INK_ON_PLATE_MIN: f64 = 4.5;
 pub(super) const PLATE_PRESENCE_MIN: f64 = 15.0;
 const KIND_DISTINCTION_MIN: f64 = 4.0;
 
-/// THE HELD-NOTICE PLACEMENT LAW. Sticky notices keep the shared TOP band of the
-/// canvas, centred on the writing column. Short-lived toasts deliberately take
-/// the authored world axis asserted above; a held refusal remains predictable.
-/// Swept over the whole world roster, because the writing column's own
-/// left/width is world-dependent.
+/// THE HELD-NOTICE PLACEMENT LAW. A HELD `Sticky` notice and a self-clearing
+/// `Toast` share the SAME authored `toast_anchor` and the SAME `plan_toast`
+/// collision planner (decided: two different locations for the two lifetimes
+/// was "overkill and kind of bizarre") — so, given identical text and
+/// geometry, the two kinds must resolve to the IDENTICAL plate, not merely to
+/// two independently-legible ones (the floors law below already covers that
+/// weaker claim). Swept over the whole world roster, because `toast_anchor`
+/// is a per-world axis.
 #[test]
-fn a_held_notice_draws_at_the_top_of_the_writing_column_never_the_bottom() {
+fn a_held_notice_resolves_the_same_placement_as_a_toast_with_the_same_text() {
     let _g = crate::testlock::serial();
     if !crate::test_gpu::adapter_present() {
         eprintln!("skipping notice placement law: no wgpu adapter");
@@ -403,61 +412,45 @@ fn a_held_notice_draws_at_the_top_of_the_writing_column_never_the_bottom() {
     // The sweep swaps the process-wide world; put it back before the standing
     // guard's own leak check runs, or a green law fails on its own housekeeping.
     let entry_world = theme::active_index();
-    for theme in theme::THEMES.iter() {
-        let plain = render(theme.name, None, "plain");
-        let shot = render(
-            theme.name,
-            Some(("changed elsewhere", NoticeKind::Sticky)),
-            "sticky",
+    for world in theme::THEMES.iter() {
+        theme::set_active_by_name(world.name);
+        let Some((device, queue, mut p)) = super::headless_dqp(w as f32, h as f32) else {
+            break;
+        };
+        let mut plans = Vec::new();
+        for kind in [NoticeKind::Toast, NoticeKind::Sticky] {
+            let mut v = super::view(&crowded_doc(), 0, 0);
+            v.notice = "changed elsewhere".into();
+            v.notice_kind = kind;
+            p.set_view(&v);
+            p.prepare(&device, &queue, w, h)
+                .expect("notice frame prepares");
+            let (plate, resolved) = p
+                .notice_geometry_probe(w, h)
+                .expect("a notice must commit plate geometry");
+            plans.push((plate, resolved));
+        }
+        let ((toast_plate, toast_resolved), (sticky_plate, sticky_resolved)) = (plans[0], plans[1]);
+        assert_eq!(
+            toast_resolved, sticky_resolved,
+            "{}: a Toast resolved {toast_resolved:?} but a Sticky carrying the \
+             same text resolved {sticky_resolved:?} — placement is a per-world \
+             axis, not a per-lifetime one",
+            world.name
         );
-        let px = changed(&shot, &plain);
-        assert!(
-            !px.is_empty(),
-            "{}: a capture carrying a notice must not be byte-identical to one \
-             without — that identity was the whole of item 296",
-            theme.name
-        );
-        let top = px.iter().map(|&(_, y)| y).min().expect("pixels");
-        let bottom = px.iter().map(|&(_, y)| y).max().expect("pixels");
-        assert!(
-            bottom < h / 4,
-            "{}: the notice must live in the canvas's top quarter; it drew \
-             y={top}..{bottom} of {h}",
-            theme.name
-        );
-        // Centred on the COLUMN, not on the canvas — the two coincide only when
-        // the frame is symmetric, so asserting the column is the stricter claim.
-        let (col_left, col_width) = column_of(theme.name);
-        let mid = (px.iter().map(|&(x, _)| x as f32).sum::<f32>()) / px.len() as f32;
-        let col_mid = col_left + col_width * 0.5;
-        assert!(
-            (mid - col_mid).abs() <= 8.0,
-            "{}: the notice's ink centroid ({mid:.1}) must sit on the writing \
-             column's centre ({col_mid:.1}), not the canvas's",
-            theme.name
+        assert_eq!(
+            toast_plate, sticky_plate,
+            "{}: Toast plate {toast_plate:?} and Sticky plate {sticky_plate:?} \
+             differ despite sharing one placement owner",
+            world.name
         );
         assert!(
-            px.iter().all(|&(x, _)| x > 0 && x < w - 1),
-            "{}: the notice never reaches a canvas edge",
-            theme.name
+            toast_plate[2] >= 1.0 && toast_plate[3] >= 1.0,
+            "{}: presence is vacuous: {toast_plate:?}",
+            world.name
         );
     }
     theme::set_active(entry_world);
-}
-
-/// The active world's writing-column geometry, from the pipeline's own accessors
-/// — never re-derived here, so a column-placement change re-aims this law instead
-/// of silently invalidating it.
-fn column_of(world: &str) -> (f32, f32) {
-    let _g = crate::testlock::serial();
-    crate::theme::set_active_by_name(world);
-    let Some(mut p) = super::headless_pipeline() else {
-        return (0.0, 0.0);
-    };
-    let (w, h) = CANVAS;
-    p.set_size(w as f32, h as f32);
-    p.set_view(&super::view(&crowded_doc(), 0, 0));
-    (p.column_left(), p.column_width())
 }
 
 /// THE THREE FLOORS, over every world. See this module's own doc for why one
