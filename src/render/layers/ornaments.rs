@@ -91,10 +91,17 @@ impl RuleOrnaments {
 }
 
 #[cfg(test)]
+pub(crate) struct RuleRunShapeProbe {
+    pub text: String,
+    pub layout_runs: usize,
+    pub glyphs: usize,
+    pub width: f32,
+    pub faces: Vec<(String, u16)>,
+}
+
+#[cfg(test)]
 impl TextPipeline {
-    pub(crate) fn rule_run_shape_probe(
-        &mut self,
-    ) -> Vec<(String, usize, usize, f32, Vec<(String, u16)>)> {
+    pub(crate) fn rule_run_shape_probe(&mut self) -> Vec<RuleRunShapeProbe> {
         let rules = RuleOrnaments::shape(
             self,
             self.metrics,
@@ -120,7 +127,13 @@ impl TextPipeline {
                         (face.families[0].0.clone(), face.weight.0)
                     })
                     .collect();
-                ((*text).to_string(), runs.len(), glyph_count, width, faces)
+                RuleRunShapeProbe {
+                    text: (*text).to_string(),
+                    layout_runs: runs.len(),
+                    glyphs: glyph_count,
+                    width,
+                    faces,
+                }
             })
             .collect()
     }

@@ -362,7 +362,12 @@ fn every_rule_ornament_shapes_as_one_fitted_nishiki_run_at_both_dpis() {
                 "{} shapes one run per rule syntax",
                 world.name
             );
-            for (text, layout_runs, glyphs, width, faces) in probes {
+            for probe in probes {
+                let text = probe.text;
+                let layout_runs = probe.layout_runs;
+                let glyphs = probe.glyphs;
+                let width = probe.width;
+                let faces = probe.faces;
                 let components = text.chars().count();
                 assert_eq!(
                     layout_runs, 1,
