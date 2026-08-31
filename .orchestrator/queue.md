@@ -140,6 +140,22 @@ and Junicode-Ornaments.ttf is likely removable (lane greps consumers).
 The § live-look in real chrome stays the user's one checkpoint after
 the subset lands; the 12-circle web-loader face remains separate.
 
+**JAPANESE-TEXT QUESTION (user ask, measured + auditioned, 2026-09-01):**
+"should we use nishiki for one of the japanese fonts?" Audited rather
+than assumed — the first time the face's LETTERS went through the
+pipeline (the census had excluded letter scripts): complete kana
+(86/86 hiragana, 90/90 katakana, 0 blank, all resolving to Nishiki-teki)
+plus four running sentences beside all three bundled Japanese faces
+(Klee One / Noto Sans JP / Noto Serif JP), published as a dedicated Kana
+Audition artifact. Finding: the hand is a chunky rounded DISPLAY voice —
+poster, not page. DECLINED for the prose/never-tofu ladder on four
+grounds: display register; single weight 500 (no bold companion);
+partial kanji (6,083 of the unified block); and the measured gap it
+would close is 621 rare variants the ladder already declines by policy.
+RESERVED as a candidate DISPLAY voice (start-screen dress for a
+JP-flavoured world, theme-preview line, headings-as-dress) — one honest
+purpose, never ambient — pending the user's read of the audition.
+
 **THIRD PASS — closing decisions (user, 2026-08-30):** **⌘ U+2318 goes to
 Nishiki after all** — the modifier keys must stay recognisable as the Mac
 keys, so no cabinet remap for them; the user's call is to accept the same
