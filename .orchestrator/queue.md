@@ -644,6 +644,36 @@ recorded reserve roster with the reasons already noted above; (e) the
 fitting-room artifact is the visual reference for all of this.
 
 ---
+### 547 — CI RED: smart-punctuation full-body pixel law rejects Tawny ellipsis on Linux lavapipe
+
+🟡 IN PROGRESS — claimed for `gpt-5.6-sol` high on
+`codex/item-547-lavapipe-smart-punct-law`.
+
+Remote arbiter run
+https://github.com/Frank-P-Lu/awl-editor/actions/runs/33443457917 is RED.
+First observed bad main is `8545d9b0`; the failing law entered through item
+545's merge `16508bf0`. Linux's full native suite fails in both keymap
+conventions at exactly
+`render::tests::smart_punct::pixels::smart_punct_ornament_is_full_body_glyph_in_content_ink_every_world`.
+The only failing cell is Tawny × Ellipsis: source and rendered Unicode control
+have the same 10 px width and the same body ink, but the source's body-colour
+bounding box is 3 px tall while the control's is 1 px tall, exceeding a 1 px
+height tolerance. Web and both gating macOS lanes are green; the tolerated
+hosted-Metal render lane and AT-SPI lane remain separate known axes.
+
+Treat the defect report as a hypothesis. First determine whether lavapipe has
+exposed a real product geometry/ink defect or whether a one-raster-row Unicode
+control makes bounding-box height an invalid backend oracle. Do not repair this
+by tuning an absolute backend tolerance. If the product is sound, replace only
+the false measurement with a same-frame relative outcome that still proves
+full-size punctuation, body ink and non-vacuous presence over every world ×
+`SmartPunctKind`; mutation-prove deletion, undersizing/width loss and wrong-ink
+failures one at a time. Preserve the exact reported failure as diagnostic
+evidence. Verify targeted laws in both keymap conventions, then the full native
+gate and web suite; a production-tier independent audit reviews the premise,
+enrolment and mutations. Remote Linux is the final lavapipe oracle.
+
+---
 ### 537 — footnote markers may wear the traditional reference ladder (user decision, 2026-09-01; sequenced AFTER 529 bundles the face)
 
 🔴 BLOCKED — needs the user's product decisions on per-document versus recycled scope and whether definition-list markers follow the display option. U+2016 coverage remains an engineering verification, not a user decision.
