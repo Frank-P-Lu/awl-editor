@@ -406,6 +406,24 @@ the world's own scale tier. A proposed assignment ships in the page
 (sets worn by ~2 worlds each); the user reassigns live and copies the
 arrangement out. Data lands only after that arrangement returns.
 
+**FITTING ROOM v2 (user feedback round, 2026-08-31):** the snake JOINS —
+tail+trunk+head shaped as one run through the real pipeline compose into
+a single continuous creature with no seam, and the trunk repeats for
+length; the arabesque wave segments join into swags the same way.
+Riverbank's proposal is now: `---` the whole joined snake, `***` the head
+alone, `___` the tail. SHIPPING a joined break means `Ornaments` fields
+widen from `char` to a string — a small, conscious model change the lane
+must own, not assume. Genjikō opens on the user-requested 1 2 3 4 5
+ground pattern (U+F501). Bombora re-proposed to Arabesque (user: moons/
+circles don't fit; waves suit the reef world), Bilby to Fleurons. NEW
+eleventh set from the user-flagged U+FEFD3 block: Dovecote (right dove
+FEFE1 / olive-branch dove FEFE3 / left dove FEFE2), proposed for Brolga.
+Same block also holds acorn fleurons, compass manicules, and palm
+branches — recorded as reserve. U+FF000–FF0B7 browsed with the user:
+largely museum under the standing clause (religious signs, brands,
+pictographs), a few ornament-viable bursts/spirals left in reserve.
+Arrangement still pending the user's copy-out.
+
 ---
 ## Needs specific hardware
 
