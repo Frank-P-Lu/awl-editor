@@ -160,6 +160,66 @@ Exhaustively testable at the buffer seam, with `--keys` journeys for
 user-visible editing flows. Full gate receipt on landing.
 
 ---
+### 543 — TableDims picker: frost only the card's footprint, never the whole page (user decision, 2026-09-01)
+
+The user likes the picker; the frost extent is the complaint, in their
+words: when the picker is active "there shouldn't be any blur — or
+rather there should only be blur underneath the picker." Today the
+dimension picker takes `blur::Frost::Full` and defocuses the entire
+document for a card the size of a postage stamp.
+
+**The mechanism already exists — this is an enrolment decision, not new
+plumbing.** The footprint arm (`blur::Frost::Footprint`: mask in the
+composite's alpha, feathered skirt, optional shear) already serves the
+theme picker, the caret picker, the pointer-anchored context menu, and
+the Diagonal spell popup. The one owner of the decision is
+`TextPipeline::frost_mode` via `overlay_declines_takeover`, and the
+constraint the lane must respect: the crisp set is
+`OverlayKind::keeps_backdrop_crisp`, LAW-PINNED EQUAL to
+`previews_live_document` over `OverlayKind::ALL`. TableDims does NOT
+preview the live document, so do not buy the exemption by lying in that
+predicate — give it its own honest reason to decline the takeover (the
+same shape as the contextual menu's: a small caret-anchored insertion
+card is not a takeover; the insertion point it serves is on the page it
+would otherwise blur) as a new door beside `overlay_crisp` and the
+contextual arm — the equality law stays untouched, and the new reason
+gets its own roster law naming which kinds it enrols.
+On plated compositions `footprint_frost_applies` already answers "no
+frost at all," which is right — TableDims draws its own plate there
+(verified by capture on the default world); the bare-composition arm
+gets the footprint. `--keys "Cmd-P i n s e r t Space t a b Enter"`
+reaches the open picker headlessly (sidecar `overlay.mode:
+"table_dims"`), both drivers.
+
+**Scope fence:** the user generalized — "we use blur in this way in a
+lot of places, the theme picker comes to mind" — but the theme and
+caret pickers ALREADY footprint, and the genuinely modal takeovers
+(palette, go-to, outline, keybindings, spell list) keep `Frost::Full`
+by design (the card is the subject there). The lane audits the
+full-frost roster and REPORTS which members are small-card takeovers
+like TableDims; it flips only TableDims without a further user call.
+
+**Second question, a hypothesis to reproduce before believing (the
+user's live screenshot, 2026-09-01):** with the picker active over a
+frosted page, the caret's own table row — raw pipes, its thematic-break
+neighbor, and the red caret — rendered fully CRISP on top of the frost.
+Headless replay of the same state (both the shared-core driver and
+`--screenshot-app`) frosts everything and draws only the red caret mark
+crisp over the blur. So (a) hunt the live-only classes for the
+crisp-caret-row frame (stale frost signature across an edit,
+redraw-scheduling, a draw pass that lands after the composite live but
+not headlessly), and (b) decide on purpose whether the caret should
+draw over the frost at all while a modal card is up — today it does, on
+every path, and nobody has ever chosen that. If the premise won't
+reproduce live either, close that half as "premise not reproduced," not
+fixed.
+
+Verify: footprint-vs-full is unit-testable at `frost_mode`'s seam;
+pixel arithmetic over captures for "page crisp outside the skirt,
+frosted under the card" on a bare world; the existing frost laws sweep
+the new enrolment. Full gate receipt.
+
+---
 ### 536 — per-world ornament sets from the full Nishiki cabinet (user decision, 2026-08-30; sequenced AFTER 529 bundles the face)
 
 🟡 IN PROGRESS — design-session Claude (this is the DESIGN PASS only: curate sets, render on real grounds, Artifact fitting-room for the user's set-to-world assignment; no product data lands from this claim)
