@@ -338,10 +338,13 @@ mechanism, `ConcealKind::SmartPunct`'s painted-substitute slot
   On wrapped lines (the user's screenshots) the oversized slot also
   moves the wrap points, which is why leaving the line visibly
   reflows it.
-- **The substitute paints small** — the `…` renders well below body
-  size, though the kind's own doc says this is real sentence
-  punctuation carved out of the dim-markup rule; it should read at
-  full content size and ink.
+- **The substitute paints small and grey** — the `…` renders well
+  below body size and in dim ink. USER CALL (2026-09-01): "should we
+  render it the same colour as the text? ... in grey is a bit
+  distracting" — so the substitute renders at full content size and
+  the text's own colour, which is also what the kind's own doc
+  already promises (real sentence punctuation, carved out of the
+  dim-markup rule).
 
 The lane sweeps the WHOLE `SmartPunctKind` roster, not the reported
 case: `--`, `---`, and `...` each probed on-caret (literal bytes,
