@@ -151,20 +151,25 @@ column left/right, delete row/column — source splices over the
 existing row/cell parser (`markdown/tables.rs`), gated to
 caret-in-table exactly like `AlignTable`'s availability gate.
 
-**User report (2026-09-01), diagnosed, remedy awaiting the user's
-pick:** "when you press tab, it kinda goes to the next |? it's kind
+**GREENLIT (user, 2026-09-01): Tab selects the target cell.** The
+report: "when you press tab, it kinda goes to the next |? it's kind
 of a weird experience." Mechanism: `table_tab` lands the caret at the
 cell's TRIMMED content start (`table_cell_ranges`), and an EMPTY
 cell's trimmed range is zero-width at the end of its padding — flush
 against the CLOSING pipe. So tabbing into any empty/scaffold cell
 parks the caret on a `|`, and because the caret never leaves the row
 while tabbing, row-leave auto-align never fires and the raw row stays
-ragged, amplifying the feel. Candidate remedies (either or both):
-(a) empty cells land the caret just inside the opening `| ` instead;
-(b) Tab SELECTS the target cell's content (the spreadsheet/Obsidian
-gesture — typing replaces, caret lands at content start when empty),
-which subsumes (a); plus optionally re-pad on cell-leave, not just
-row-leave, using the same caret-preserving `table_caret` machinery.
+ragged, amplifying the feel. The chosen remedy is the spreadsheet/
+Obsidian gesture: Tab/Shift-Tab SELECT the target cell's whole
+trimmed content so typing replaces it; an empty cell gets a bare
+caret at its content position (just inside the opening `| `, never
+against the closing pipe). Confined to `table_tab`. Also consider
+re-padding on cell-leave, not just row-leave, via the same
+caret-preserving `table_caret` machinery — land it if it holds up,
+it shares the fix's tests. Exhaustively testable at the buffer seam
+(empty cell, padded cell, first/last cell, the append-row arm,
+Shift-Tab symmetry), plus a `--keys` journey showing the selection
+in the sidecar.
 
 NOT this item (the big arc): editing cells IN the grid without
 dropping to source. That is the "tables as real grids" destination
