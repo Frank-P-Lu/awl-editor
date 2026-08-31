@@ -432,7 +432,14 @@ Band, Chips) have no report against them.
 ---
 ### 536 — per-world ornament sets from the full Nishiki cabinet (user decision, 2026-08-30; sequenced AFTER 529 bundles the face)
 
-🟡 IN PROGRESS — gpt-5.6-sol high, branch codex/item-536-ornament-sets. The user-approved FINAL block is authoritative; implementation begins from the now-landed 529 face.
+✅ COMPLETE — landed on main as merge `ccc541a3`; independent production
+audit accepted after five host-GPU vision-smoke captures and a conclusive
+wrong-codepoint mutation of the derived-union law. All 20 worlds now wear
+their approved Nishiki ornament trios at weight 500; composed runs, exact
+64-codepoint enrolment, retained bullet pairs, fold choice, and the 18-set
+reserve roster are law-pinned. Exact-main receipt: health pass, both
+conventions, forced menu-bar arm, 4,693 unit tests, 16 integration targets;
+web 16/16.
 
 DECIDED direction, user's words paraphrased with their consent to file:
 with the whole cabinet bundled "we can use whatever glyphs we want", so
