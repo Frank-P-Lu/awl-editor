@@ -9,7 +9,7 @@
 ---
 ### 529 — Nishiki-teki: audition a Japanese symbol cabinet, then give each adopted mark one honest purpose (user decision, 2026-08-29)
 
-🟡 IN PROGRESS — claude, branch item-529 (phase 1 only: audit + gallery + Artifact publish, then STOP for the user's taste review before any asset lands)
+🟡 IN PROGRESS — gpt-5.6-sol high, branch item-529 (phase 2: derived-face roster workflow, asset swap, and the decided single-source adoption; phase-1 taste gates are closed)
 
 "It's beautiful"; DECIDED: **Nishiki-teki is the first symbol face awl
 should pursue. Character comes before byte count.** This is not a request
@@ -194,6 +194,8 @@ decision is which world draws which set, not one global glyph.
 ---
 ### 542 — table editing: row/column palette verbs (user report, 2026-08-30 — "kinda awful to edit"; fruit 1 landed, this is fruit 2)
 
+🟡 IN PROGRESS — root, branch codex/item-542-tab (greenlit Tab-selection remedy only; row/column palette verbs remain ungreenlit)
+
 Two waves have landed: Tab/Shift-Tab moves between cells and wraps
 across rows, Tab on the final cell appends a scaffold row, Enter
 inside a table inserts a matching scaffold row, and (2026-08-31)
@@ -293,6 +295,8 @@ the new enrolment. Full gate receipt.
 ---
 ### 544 — footprint frost's box far exceeds the drawn card on upright plate-hugging compositions (user report, 2026-09-01 — "this bounding box is way too big"; reproduced headlessly)
 
+🟡 IN PROGRESS — gpt-5.6-sol high, branch codex/item-544-frost-box
+
 Two user screenshots, both Firetail: the theme picker with a
 band-shaped blur patch hanging well to the right of its narrow row
 plates, blurring document mid-glyph nowhere near the card; and the
@@ -337,6 +341,8 @@ receipt.
 
 ---
 ### 545 — smart-punct conceal reserves a giant slot: off-caret `...` leaves an ~7-char hole in the line (user report, 2026-09-01 — "moving down!!! there's that giant space being created?"; reproduced headlessly)
+
+🟡 IN PROGRESS — gpt-5.6-sol high, branch codex/item-545-smart-punct
 
 Caret leaves a line containing a literal `...` and the concealed
 render opens a huge blank run where the dots were; the caret coming
@@ -414,6 +420,9 @@ main for the user's judgement and say what reverting costs; existing
 docked-facet laws move WITH the design, updated in the same commit.
 Scope: Cassowary's DockedTab only — the other facet styles (Text,
 Band, Chips) have no report against them.
+
+---
+### 536 — per-world ornament sets from the full Nishiki cabinet (user decision, 2026-08-30; sequenced AFTER 529 bundles the face)
 
 ✅ DESIGN PASS COMPLETE (user approved the arrangement, 2026-09-01: "they look good! lets queue this!") — build phase UNCLAIMED, sequenced after 529 bundles the face. The FINAL block at the end of this item is the decided roster; the v-notes above it are the fitting history.
 
