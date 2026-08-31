@@ -89,73 +89,19 @@ fn fit_rows_spend_the_budget_on_the_leaf_before_the_location() {
     assert_eq!(&mid[0].text[..mid[0].parent_byte], "research/…/");
 }
 
-/// A long nested label used to consume the whole character budget before the
-/// always-shaped close run was appended. Cosmic text then wrapped that run onto
-/// a new visual row, shifting every following glyph while the device-free row
-/// planner (and its active plate) correctly stayed put.
+/// **LAW 1 (data-level pin): `fit_rows` RECLAIMS THE FULL BUDGET FOR THE
+/// LABEL.** Before option A the trailing close lane was docked out of every
+/// row's budget (`budget - CLOSE_MARK_TEXT.chars().count()`), so even a name
+/// long enough to want the whole line was capped three characters short of
+/// it — the bug this item exists to close ("every name sits ~3 chars short
+/// of the stack's right edge"). The mark is now a LEADING span shaped on top
+/// of whatever `fit_rows` returns (`stack_spans`), so a sufficiently long
+/// candidate must be able to spend the ENTIRE budget on the label alone.
+/// Swept across the whole budget range and the `StackRowKind` roster, so no
+/// kind can silently keep the old docked ceiling.
 #[test]
-fn file_rows_reserve_the_close_lane_inside_their_one_line_budget() {
-    for budget in crate::render::rowlayout::GUTTER_MIN_NAME_CHARS..40 {
-        let fitted = fit_rows(
-            &[row(
-                "field-notes-with-a-long-name.md",
-                "journal/research/",
-                false,
-            )],
-            budget,
-        );
-        let occupied = fitted[0].text.chars().count() + super::CLOSE_MARK_TEXT.chars().count();
-        assert!(
-            occupied <= budget,
-            "budget={budget}: label + stable close lane occupies {occupied} characters"
-        );
-    }
-
-    // The `More` row can never reveal the mark (`stack_hit_from_plan` filters
-    // it out of the hit-test the same way it filters `Overflow`), but it
-    // still reserves the SAME lane every other row does — a uniform right
-    // edge, not one that only dents where the mark happens to be revealable.
-    let more = crate::workingset::StackRow {
-        leaf: "+ 12 more…".to_string(),
-        kind: crate::workingset::StackRowKind::More { hidden: 12 },
-        ..crate::workingset::StackRow::default()
-    };
-    let fitted = fit_rows(&[more], 8);
-    assert_eq!(
-        fitted[0].text.chars().count(),
-        8 - super::CLOSE_MARK_TEXT.chars().count(),
-        "a More row must reserve the same close lane a File row does"
-    );
-}
-
-/// A GROUP HEADING RESERVES THE SAME CLOSE LANE A FILE ROW DOES — its own
-/// mark closes the whole group, so a long project name must not be allowed to
-/// wrap that run onto a second visual line the way an un-reserved file label
-/// once did.
-#[test]
-fn group_headings_reserve_the_close_lane_inside_their_one_line_budget() {
-    for budget in crate::render::rowlayout::GUTTER_MIN_NAME_CHARS..40 {
-        let fitted = fit_rows(&[group_row("a-long-nested-project-folder/", true)], budget);
-        let occupied = fitted[0].text.chars().count() + super::CLOSE_MARK_TEXT.chars().count();
-        assert!(
-            occupied <= budget,
-            "budget={budget}: heading + stable close lane occupies {occupied} characters"
-        );
-    }
-}
-
-/// **THE CLOSE LANE IS RESERVED IDENTICALLY ACROSS EVERY ROW KIND** — not
-/// sampled per kind (a `File` law and a `Group` law and a `More` law that
-/// each happen to pass on their own can still each reserve a DIFFERENT
-/// amount), but proved as one shared budget: the SAME leaf text, fit at the
-/// SAME overall budget, occupies the exact same width no matter which kind
-/// carries it. Swept over the whole `StackRowKind` roster and the budget
-/// range, so a kind added later that forgets the reservation — or a kind
-/// that reserves a different amount — fails this law rather than silently
-/// denting the stack's own right edge wherever that kind happens to sit.
-#[test]
-fn the_close_lane_is_reserved_identically_across_every_row_kind() {
-    let leaf = "a-name-long-enough-to-fill-most-of-the-budget.md";
+fn fit_rows_reclaims_the_full_budget_for_the_label() {
+    let long_leaf = "a-name-long-enough-to-fill-every-budget-this-law-tries.md";
     let kinds = [
         crate::workingset::StackRowKind::File,
         crate::workingset::StackRowKind::More { hidden: 3 },
@@ -166,27 +112,70 @@ fn the_close_lane_is_reserved_identically_across_every_row_kind() {
         },
     ];
     for budget in crate::render::rowlayout::GUTTER_MIN_NAME_CHARS..40 {
-        let widths: Vec<(crate::workingset::StackRowKind, usize)> = kinds
-            .iter()
-            .map(|&kind| {
-                let row = crate::workingset::StackRow {
-                    leaf: leaf.to_string(),
-                    kind,
-                    ..crate::workingset::StackRow::default()
-                };
-                let fitted = fit_rows(std::slice::from_ref(&row), budget);
-                (kind, fitted[0].text.chars().count())
-            })
-            .collect();
-        let want = widths[0].1;
-        for (kind, got) in &widths {
+        for &kind in &kinds {
+            let row = crate::workingset::StackRow {
+                leaf: long_leaf.to_string(),
+                kind,
+                ..crate::workingset::StackRow::default()
+            };
+            let fitted = fit_rows(std::slice::from_ref(&row), budget);
             assert_eq!(
-                *got, want,
-                "budget={budget}: {kind:?} occupies {got} chars, {:?} occupies {want} — \
-                 the close lane is not reserved uniformly",
-                widths[0].0
+                fitted[0].text.chars().count(),
+                budget,
+                "budget={budget} kind={kind:?}: the label stopped {} chars short of the \
+                 full budget — a close lane is still being docked from it",
+                budget - fitted[0].text.chars().count()
             );
         }
+    }
+}
+
+/// **EVERY ROW KIND SHAPES THE SAME LEADING MARK, UNIFORMLY** — not sampled
+/// per kind, but proved as one shared shape: whatever `stack_spans` draws for
+/// a row, the very first characters of that row's own shaped line (after its
+/// row-separating newline, on every row but the first) are the close mark's
+/// text, for every member of `StackRowKind`. A `More`/`Overflow` row can
+/// never reveal it (`stack_hit_from_plan`'s own enrolment keeps `hover` from
+/// ever naming one), but it still shapes the identical leading run every
+/// other kind does — a uniform ragged-edge growth, never one that only grows
+/// where the mark happens to be revealable.
+#[test]
+fn every_row_kind_shapes_the_same_leading_mark_uniformly() {
+    let kinds = [
+        crate::workingset::StackRowKind::File,
+        crate::workingset::StackRowKind::More { hidden: 3 },
+        crate::workingset::StackRowKind::Group { active: false },
+        crate::workingset::StackRowKind::Overflow {
+            up: true,
+            hidden: 3,
+        },
+    ];
+    for (at, &kind) in kinds.iter().enumerate() {
+        let mut rows = vec![row("opening.md", "", true)];
+        rows.push(crate::workingset::StackRow {
+            leaf: "second.md".to_string(),
+            kind,
+            ..crate::workingset::StackRow::default()
+        });
+        let fitted = fit_rows(&rows, 24);
+        let spans = stack_spans(&fitted, None);
+        // Row 0's own first span carries no leading "\n" (`stack_spans`'
+        // own doc); row `at`'s (index 1 here) does.
+        let first_span = &spans[0].0;
+        assert!(
+            first_span.starts_with(super::CLOSE_MARK_TEXT),
+            "row 0: shaped line {first_span:?} does not lead with the close mark"
+        );
+        let second_span = spans
+            .iter()
+            .find(|(text, _)| text.starts_with('\n'))
+            .unwrap_or_else(|| panic!("kind={kind:?}: no second row was shaped at all"));
+        assert_eq!(
+            &second_span.0[1..1 + super::CLOSE_MARK_TEXT.len()],
+            super::CLOSE_MARK_TEXT,
+            "kind={kind:?} (roster index {at}): the row's own shaped line does not lead \
+             with the close mark right after its row-separating newline"
+        );
     }
 }
 
@@ -439,13 +428,24 @@ fn an_active_group_heading_wears_the_same_routed_ink_as_an_active_file() {
 }
 
 /// The production close mark is a one-stage color-only reveal over one
-/// already-shaped trailing run, enrolled from the same row/zone geometry the
+/// already-shaped LEADING run, enrolled from the same row/zone geometry the
 /// click consumes. The active document participates: "hovered" names the row
 /// under the pointer, independently of which document is selected.
+///
+/// This is also LAW 2 (reveal changes ink only) at the pure-data seam: the
+/// whole shaped label text is byte-identical across resting/row-hover/
+/// zone-hover, so a hover can only ever be a per-row color flip on the mark's
+/// own run, never a reflow of anything else on the line.
 #[test]
 fn hover_close_keeps_label_geometry_fixed_and_enrols_every_truthful_row() {
     let _g = crate::testlock::serial();
     crate::theme::set_active_by_name("Saltpan").expect("Saltpan is in the world roster");
+    // Small enough that even the fixture's longest row (the nested
+    // "journal/field-notes.md" parent+leaf, plus the mark's own three
+    // characters) keeps its ink leading edge inside the 120px band —
+    // `avail`/`budget` here were picked independently of any real char
+    // width, so this only has to stay consistent with itself.
+    let label_char_w = 4.0;
     let fitted = fit_rows(&rows(0), 24);
     let layout = layout_of(&rows(0), true, true, 24);
     let plan = crate::render::plan::plan_gutter_stack(
@@ -469,21 +469,16 @@ fn hover_close_keeps_label_geometry_fixed_and_enrols_every_truthful_row() {
 
     for (line, row) in file_lines {
         let band = plan.rows[line];
-        let zone = close_zone(band);
-        let switch = super::super::gutter_hit::stack_hit_from_plan(
-            &layout,
-            &plan,
-            zone[0] - 1.0,
-            band[1] + band[3] * 0.5,
-        )
-        .expect("row-hover point enrols");
-        let close = super::super::gutter_hit::stack_hit_from_plan(
-            &layout,
-            &plan,
-            zone[0] + 1.0,
-            band[1] + band[3] * 0.5,
-        )
-        .expect("close-zone point enrols");
+        let text_w = (fitted[row].text.chars().count() + super::CLOSE_MARK_TEXT.chars().count())
+            as f32
+            * label_char_w;
+        let zone = close_zone(band, text_w);
+        let y = band[1] + band[3] * 0.5;
+        let hit_at = |px: f32| {
+            super::super::gutter_hit::stack_hit_from_plan(&layout, &plan, label_char_w, px, y)
+        };
+        let switch = hit_at(zone[0] - 1.0).expect("row-hover point enrols");
+        let close = hit_at(zone[0] + 1.0).expect("close-zone point enrols");
         assert_eq!(switch.row, row);
         assert!(!switch.is_close());
         assert_eq!(close.row, row);
@@ -546,13 +541,14 @@ fn hover_close_keeps_label_geometry_fixed_and_enrols_every_truthful_row() {
 /// A GROUP HEADING'S OWN CLOSE ZONE IS THE ONLY TARGET IT EVER OFFERS —
 /// the switch half stays exactly as inert as it was before this row could
 /// close anything (a press there is click-away, `App::gutter_stack_click`),
-/// while a press on the reserved lane at its right edge enrols for `Close`
-/// and names the SAME row the heading itself drew at. Mirrors the file-row
-/// law above's own zone/switch split, but a heading has only one of the two
-/// live — this is the law that would fail if the switch half were ever
-/// wired up by accident, or if the close half silently stayed inert too.
+/// while a press on its own leading-ink lane enrols for `Close` and names the
+/// SAME row the heading itself drew at. Mirrors the file-row law above's own
+/// zone/switch split, but a heading has only one of the two live — this is
+/// the law that would fail if the switch half were ever wired up by
+/// accident, or if the close half silently stayed inert too.
 #[test]
 fn a_group_headings_switch_half_stays_inert_and_only_its_close_zone_enrols() {
+    let label_char_w = 6.0;
     let files = vec![group_row("notes/", true), row("welcome.md", "", true)];
     let fitted = fit_rows(&files, 24);
     let layout = layout_of(&files, false, true, 24);
@@ -581,18 +577,32 @@ fn a_group_headings_switch_half_stays_inert_and_only_its_close_zone_enrols() {
         })
         .expect("the fixture draws exactly one heading");
     let band = plan.rows[heading_line];
-    let zone = close_zone(band);
+    let text_w = (fitted[heading_row].text.chars().count() + super::CLOSE_MARK_TEXT.chars().count())
+        as f32
+        * label_char_w;
+    let zone = close_zone(band, text_w);
     let mid_y = band[1] + band[3] * 0.5;
 
-    let switch =
-        super::super::gutter_hit::stack_hit_from_plan(&layout, &plan, zone[0] - 1.0, mid_y);
+    let switch = super::super::gutter_hit::stack_hit_from_plan(
+        &layout,
+        &plan,
+        label_char_w,
+        zone[0] - 1.0,
+        mid_y,
+    );
     assert_eq!(
         switch, None,
         "a heading's switch half must stay inert — it is click-away, not a target"
     );
 
-    let close = super::super::gutter_hit::stack_hit_from_plan(&layout, &plan, zone[0] + 1.0, mid_y)
-        .expect("a heading's own close zone enrols");
+    let close = super::super::gutter_hit::stack_hit_from_plan(
+        &layout,
+        &plan,
+        label_char_w,
+        zone[0] + 1.0,
+        mid_y,
+    )
+    .expect("a heading's own close zone enrols");
     assert_eq!(
         close.row, heading_row,
         "the close hit must name the heading's own row"
@@ -602,13 +612,6 @@ fn a_group_headings_switch_half_stays_inert_and_only_its_close_zone_enrols() {
         close.kind,
         crate::workingset::StackRowKind::Group { .. }
     ));
-    // The reservation this hit-test depends on: the heading's own mark is
-    // shaped (even at zero alpha) so the zone geometry it is tested against
-    // is the one the label was actually fitted around.
-    assert!(
-        fitted[heading_row].text.chars().count() + super::CLOSE_MARK_TEXT.chars().count() <= 24,
-        "the heading's own fit did not reserve its close lane"
-    );
 }
 
 /// THE FOLDER HEADING SITS ABOVE THE IDENTITY LINE IN BOTH SHAPES — one file
@@ -718,83 +721,115 @@ fn the_folder_line_and_a_drawn_group_heading_never_both_own_the_project_name() {
 /// THE CLOSE ZONE IS ONLY AT THE RIGHT EDGE, AND THE REST OF THE ROW STILL
 /// SWITCHES.
 ///
-/// Swept over the margin widths a real window produces, because the two halves
-/// fail at opposite ends: a zone measured as a FRACTION of the row would eat
-/// half a narrow margin, and a zone pinned to an absolute px would vanish under
-/// a wide one. Each width is probed on BOTH SIDES of its own boundary — the
-/// boundary is derived from `close_zone`, so a law that moved with a broken
-/// implementation is not what is being asserted; the invariants below are.
+/// **LAW 3 (hit-zone/ink agreement), at the pure-geometry seam.** Swept over
+/// the margin widths a real window produces AND, on each, a RANGE of ink
+/// widths from an empty name up to one that fills the whole row (the axis
+/// the trailing design never had to sweep, since its own edge never moved):
+/// a right-aligned row's ink leading edge moves with the name's own length,
+/// so `close_zone` has to track it rather than a fixed x, and a law that
+/// only ever probed one width could pass while the anchor silently drifted
+/// from the ink at every OTHER width. Each width is probed on BOTH SIDES of
+/// its own boundary — the boundary is derived from `close_zone`, so a law
+/// that moved with a broken implementation is not what is being asserted;
+/// the invariants below are.
 ///
 /// The invariants, in the order they can fail:
-///   * the zone hugs the row's RIGHT edge exactly (that is the whole design —
-///     it is the one x every right-aligned row shares);
-///   * it never grows past the row (a full-row close target is a trap);
-///   * it leaves the MAJORITY of the row switching, at every width above the
-///     degenerate one — the asymmetry the design asks for;
-///   * a point one pixel left of the boundary switches, and a point one pixel
-///     right of it closes.
+///   * the zone hugs the row's own ink LEADING edge exactly — `avail -
+///     text_w`, never a fixed x (that is the whole design: it is the mark's
+///     own position, and the mark's position moves with the name);
+///   * it never escapes the row (a target outside the band is unreachable);
+///   * wherever the ink's leading edge leaves at least one full row-height
+///     square before the row's own right edge, the zone IS that full square
+///     — never shrunk just because a name happens to be short;
+///   * a point one pixel left of the boundary switches, and a point one
+///     pixel right of it closes;
+///   * the row's own extreme right — where the NAME's ink actually sits —
+///     switches, the mirror image of the trailing design's own right-edge
+///     close (this is the assertion that would have caught landing the
+///     mirror backwards: it is INVERTED from what the trailing law asserted
+///     at the same point).
 #[test]
-fn only_the_rows_right_edge_closes_and_the_rest_of_it_switches() {
+fn close_zone_hugs_the_rows_own_leading_ink_edge_and_the_rest_switches() {
     let row_h = 12.0;
     // From a margin barely wider than the close square itself out to a wide one.
     for avail in [14.0_f32, 20.0, 48.0, 96.0, 120.0, 300.0] {
         for row_top in [0.0_f32, 37.5, 288.0] {
             let band = [0.0, row_top, avail, row_h];
-            let zone = close_zone(band);
-            let label = format!("avail={avail} top={row_top}");
+            // A RANGE of name widths: empty, shorter than the zone itself,
+            // exactly one zone, half the row, and maximal (fills the row
+            // entirely — the case a fixed-x zone could never have modeled).
+            for text_w in [0.0_f32, row_h * 0.5, row_h, avail * 0.5, avail] {
+                let zone = close_zone(band, text_w);
+                let ink_left = (avail - text_w).max(0.0);
+                let label = format!("avail={avail} top={row_top} text_w={text_w}");
 
-            assert!(
-                (zone[0] + zone[2] - (band[0] + band[2])).abs() < 0.001,
-                "{label}: close zone {zone:?} does not end at the row's right edge {band:?}"
-            );
-            assert!(
-                zone[2] <= band[2] + 0.001 && zone[2] > 0.0,
-                "{label}: close zone width {} is not inside the row's {}",
-                zone[2],
-                band[2]
-            );
-            assert!(
-                (zone[1] - band[1]).abs() < 0.001 && (zone[3] - band[3]).abs() < 0.001,
-                "{label}: close zone {zone:?} does not share the row's own band vertically"
-            );
-
-            // PRESENCE, so this cannot pass by shrinking the zone to nothing:
-            // the target is a full row square wherever the margin can hold one.
-            if avail >= row_h {
                 assert!(
-                    (zone[2] - row_h).abs() < 0.001,
-                    "{label}: close zone width {} is not the row square it claims to be",
+                    (zone[0] - ink_left).abs() < 0.001,
+                    "{label}: close zone {zone:?} does not hug the row's own ink leading \
+                     edge {ink_left}"
+                );
+                assert!(
+                    zone[0] + zone[2] <= band[0] + band[2] + 0.001,
+                    "{label}: close zone {zone:?} escapes the row's own band {band:?}"
+                );
+                assert!(
+                    zone[2] >= 0.0,
+                    "{label}: close zone width {} went negative",
                     zone[2]
                 );
                 assert!(
-                    zone[0] > band[0],
-                    "{label}: close zone {zone:?} swallowed the whole row"
+                    (zone[1] - band[1]).abs() < 0.001 && (zone[3] - band[3]).abs() < 0.001,
+                    "{label}: close zone {zone:?} does not share the row's own band vertically"
                 );
-            }
 
-            // Both sides of the boundary, one pixel apart.
-            assert_eq!(
-                row_intent(band, zone[0] - 1.0),
-                RowIntent::Switch,
-                "{label}: a pixel left of the close zone must still switch"
-            );
-            assert_eq!(
-                row_intent(band, zone[0] + 1.0),
-                RowIntent::Close,
-                "{label}: a pixel inside the close zone must close"
-            );
-            // And the far left of the row — the empty margin a short name leaves
-            // — is switching territory, not a dead patch.
-            assert_eq!(
-                row_intent(band, band[0] + 0.5),
-                RowIntent::Switch,
-                "{label}: the row's left end must switch"
-            );
-            assert_eq!(
-                row_intent(band, band[0] + band[2] - 0.5),
-                RowIntent::Close,
-                "{label}: the row's extreme right must close"
-            );
+                // PRESENCE, so this cannot pass by shrinking the zone to
+                // nothing: the target is a full row square wherever there is
+                // room for one between the ink's leading edge and the row's
+                // own right edge.
+                if avail - ink_left >= row_h {
+                    assert!(
+                        (zone[2] - row_h).abs() < 0.001,
+                        "{label}: close zone width {} is not the row square it claims to be",
+                        zone[2]
+                    );
+                }
+
+                if zone[2] > 0.0 {
+                    // Both sides of the boundary, one pixel apart.
+                    assert_eq!(
+                        row_intent(band, text_w, zone[0] - 1.0),
+                        RowIntent::Switch,
+                        "{label}: a pixel left of the close zone must still switch"
+                    );
+                    assert_eq!(
+                        row_intent(band, text_w, zone[0] + 1.0),
+                        RowIntent::Close,
+                        "{label}: a pixel inside the close zone must close"
+                    );
+                }
+                // The row's own extreme right is where the NAME's ink sits —
+                // switching territory now, the mirror of the trailing
+                // design's own right-edge close.
+                if zone[0] + zone[2] < band[0] + band[2] - 0.5 {
+                    assert_eq!(
+                        row_intent(band, text_w, band[0] + band[2] - 0.5),
+                        RowIntent::Switch,
+                        "{label}: the row's extreme right (the name's own ink) must switch"
+                    );
+                }
+                // A MAXIMAL name (fills the whole row) pushes the mark's own
+                // leading edge all the way to the row's own leading edge —
+                // the far left of the band now closes, the mirror image of
+                // the trailing design's far-right close.
+                if text_w >= avail - 0.001 && avail >= row_h {
+                    assert_eq!(
+                        row_intent(band, text_w, band[0] + 0.5),
+                        RowIntent::Close,
+                        "{label}: a maximal-width name's own mark sits at the row's \
+                         leading edge — the far left must close"
+                    );
+                }
+            }
         }
     }
 }

@@ -400,8 +400,36 @@ fn find_row_right_edge(p: &TextPipeline, upper: f32, y: f32, h: u32) -> f32 {
     x
 }
 
-/// **THE SINGLE-FILE ROW'S × MARK ACTUALLY REPAINTS ON HOVER — REAL PIXELS,
-/// NOT JUST A HIT-TEST ANSWER.**
+/// Scan LEFTWARD from `right_edge` for the row's own close zone through the
+/// EXACT production hit-test, never a hand-derived offset: the mark now sits
+/// wherever the row's own ink leaves it (`close_zone`'s own doc), so a fixed
+/// offset from `right_edge` would drift from the truth on every name length
+/// but one. Returns `(lo, hi)`, the zone's own x-range, or `None` if no
+/// close point was ever found scanning down to the row's own left edge.
+fn find_close_zone(p: &TextPipeline, right_edge: f32, y: f32, h: u32) -> Option<(f32, f32)> {
+    let mut x = right_edge;
+    while x > 0.0
+        && !p
+            .gutter_stack_hit(x, y, h)
+            .is_some_and(|hit| hit.is_close())
+    {
+        x -= 1.0;
+    }
+    if x <= 0.0 {
+        return None;
+    }
+    let hi = x;
+    while x > 0.0
+        && p.gutter_stack_hit(x, y, h)
+            .is_some_and(|hit| hit.is_close())
+    {
+        x -= 1.0;
+    }
+    Some((x + 1.0, hi))
+}
+
+/// **THE SINGLE-FILE ROW'S × MARK ACTUALLY REPAINTS ON HOVER, AT ITS OWN
+/// LEADING EDGE — REAL PIXELS, NOT JUST A HIT-TEST ANSWER.**
 ///
 /// Wagtail's own tripwire (CLAUDE.md) is exactly the failure mode this closes:
 /// a sidecar/geometry law can report `selected_index` (here, a hit resolving
@@ -411,12 +439,148 @@ fn find_row_right_edge(p: &TextPipeline, upper: f32, y: f32, h: u32) -> f32 {
 /// `render_frame`/`dist` doors the active-row law above uses — and that the
 /// label's own ink stays untouched (the stack's own hover law: a reveal
 /// changes ink only, never advances the shaped label).
+///
+/// **LAW 2 (reveal changes ink only) and LAW 3 (hit-zone/ink agreement), at
+/// real pixels.** Swept over TWO name lengths — short and near the margin's
+/// own budget — because the leading mark's own position MOVES with the
+/// name (unlike the trailing design's fixed right edge), so a law that only
+/// ever probed one length could pass while the zone silently drifted from
+/// the ink at every other one.
 #[test]
 fn the_lone_row_close_mark_reveals_on_real_pixels_only_over_the_hovered_zone() {
     let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(W as f32, H as f32) else {
         eprintln!(
             "skipping the_lone_row_close_mark_reveals_on_real_pixels_only_over_the_hovered_zone: \
+             no wgpu adapter"
+        );
+        return;
+    };
+    crate::page::set_page_on(true);
+    p.set_dpi(1.0);
+    let _pin = theme::WorldPin::snapshot();
+    theme::set_active_by_name("Saltpan").expect("Saltpan is in the world roster");
+
+    for name in [
+        "opening.md",
+        "a-name-long-enough-to-spend-most-of-the-marginss-budget.md",
+    ] {
+        let mut v = view(
+            "# A document\n\nSome prose to give the page a body.\n",
+            0,
+            0,
+        );
+        v.zoom = 1.0;
+        v.gutter_project = "notes".to_string();
+        v.gutter_name = name.to_string();
+        p.set_view(&v);
+
+        let bands = row_bands(&p.gutter_frost_seeds(H));
+        assert_eq!(
+            bands.len(),
+            2,
+            "name={name:?}: N=1 must draw the folder heading over the identity line"
+        );
+        let identity = bands[1];
+        let row_h = identity[3];
+        let y = identity[1] + row_h * 0.5;
+        let right_edge = find_row_right_edge(&p, W as f32 - 1.0, y, H);
+        assert!(
+            right_edge > row_h,
+            "name={name:?}: could not locate the identity row's own right edge via \
+             hit-test (got {right_edge})"
+        );
+        let (zone_lo, zone_hi) = find_close_zone(&p, right_edge, y, H).unwrap_or_else(|| {
+            panic!("name={name:?}: no close point found scanning the whole row")
+        });
+        let close_x = (zone_lo + zone_hi) * 0.5;
+        // Switch territory now sits BETWEEN the zone and the row's own right
+        // edge — the name's own ink — the inverse of the trailing design's
+        // own switch/close split.
+        let switch_x = (zone_hi + right_edge) * 0.5;
+
+        let switch_hit = p
+            .gutter_stack_hit(switch_x, y, H)
+            .unwrap_or_else(|| panic!("name={name:?}: the switch probe must enrol"));
+        assert!(
+            !switch_hit.is_close(),
+            "name={name:?}: fixture bug: the switch probe landed inside the close zone"
+        );
+
+        p.clear_gutter_stack_hover();
+        let resting = render_frame(&device, &queue, &mut p);
+        let changed = p.resolve_gutter_stack_hover(close_x, y, H);
+        assert!(
+            changed,
+            "name={name:?}: hovering the close zone must change the hover state"
+        );
+        let hovered = render_frame(&device, &queue, &mut p);
+
+        // The mark's own lane, padded either side of the hit-tested zone: a
+        // char-count estimate (`stack_hit_from_plan`'s own doc) and the real
+        // shaped glyph agree closely but not to the pixel on a proportional
+        // face, so the pad clears that estimate/shaping slop and any
+        // antialiasing at the mark's own edges — a few px, not the tens of
+        // px a genuinely wrong lane would show.
+        const MARK_PAD_PX: f32 = 6.0;
+        let mark_x0 = (zone_lo - MARK_PAD_PX).max(0.0) as u32;
+        let mark_x1 = ((zone_hi + MARK_PAD_PX) as u32).min(W);
+        let y0 = identity[1].max(0.0) as u32;
+        let y1 = ((identity[1] + row_h) as u32).min(H);
+        let mut mark_diff = 0u32;
+        for yy in y0..y1 {
+            for xx in mark_x0..mark_x1 {
+                let idx = (yy * W + xx) as usize;
+                if dist(resting[idx], hovered[idx]) > 4.0 {
+                    mark_diff += 1;
+                }
+            }
+        }
+        assert!(
+            mark_diff > 0,
+            "name={name:?}: hovering the close zone painted no pixels in the mark's own \
+             lane — the × never revealed"
+        );
+
+        // Everything ELSE on the row — the ragged margin left of the mark
+        // AND the name's own ink right of it — stays byte-identical: the
+        // reveal is a color-only change over the mark's own already-shaped
+        // run, never a reflow of anything else on the line.
+        let mut label_diff = 0u32;
+        for yy in y0..y1 {
+            for xx in (0..mark_x0).chain(mark_x1..W) {
+                let idx = (yy * W + xx) as usize;
+                if dist(resting[idx], hovered[idx]) > 4.0 {
+                    label_diff += 1;
+                }
+            }
+        }
+        assert_eq!(
+            label_diff, 0,
+            "name={name:?}: hovering the close zone repainted {label_diff} pixels outside \
+             the mark's own lane"
+        );
+    }
+}
+
+/// **LAW 1 (flush-right alignment), at real pixels, on a MAXIMAL-width
+/// name** — the align-clamp risk `prepare_gutter`'s own box-widen/shift
+/// comment names: cosmic-text clamps its own right-align offset at zero
+/// rather than overflowing negative, so a name spending its entire budget is
+/// the ONE case that would have shown the whole line shoved right of `avail`
+/// had the box not been widened by the leading mark's own reserved width.
+/// Proved as a RATIO the way this whole file's own header promises: the
+/// distance from the row's own rightmost ink pixel to the hit-tested right
+/// edge, against the row's own height — a name whose ink stops one whole
+/// mark-width short of the edge (the bug this item exists to close) fails
+/// this floor on every DPI/backend the same way, while sub-pixel font
+/// metrics never approach it.
+#[test]
+fn a_maximal_width_names_own_ink_reaches_the_stacks_flush_right_edge() {
+    let _g = crate::testlock::serial();
+    let Some((device, queue, mut p)) = headless_dqp(W as f32, H as f32) else {
+        eprintln!(
+            "skipping a_maximal_width_names_own_ink_reaches_the_stacks_flush_right_edge: \
              no wgpu adapter"
         );
         return;
@@ -433,7 +597,11 @@ fn the_lone_row_close_mark_reveals_on_real_pixels_only_over_the_hovered_zone() {
     );
     v.zoom = 1.0;
     v.gutter_project = "notes".to_string();
-    v.gutter_name = "opening.md".to_string();
+    // Long enough to spend the identity line's entire budget on the label
+    // alone (`rowlayout::GUTTER_MIN_NAME_CHARS`-and-up margins all elide
+    // something this long) — the maximal-width case.
+    v.gutter_name =
+        "a-genuinely-very-long-filename-that-must-spend-the-entire-margin-budget.md".to_string();
     p.set_view(&v);
 
     let bands = row_bands(&p.gutter_frost_seeds(H));
@@ -450,69 +618,44 @@ fn the_lone_row_close_mark_reveals_on_real_pixels_only_over_the_hovered_zone() {
         right_edge > row_h,
         "could not locate the identity row's own right edge via hit-test (got {right_edge})"
     );
-    let close_x = right_edge - 0.5;
-    let switch_x = (right_edge * 0.3).max(2.0);
 
-    let switch_hit = p
-        .gutter_stack_hit(switch_x, y, H)
-        .expect("the switch probe must enrol");
-    let close_hit = p
-        .gutter_stack_hit(close_x, y, H)
-        .expect("the close probe must enrol");
-    assert!(
-        !switch_hit.is_close(),
-        "fixture bug: the switch probe landed inside the close zone"
-    );
-    assert!(
-        close_hit.is_close(),
-        "fixture bug: the close probe missed the close zone"
-    );
-
-    p.clear_gutter_stack_hover();
-    let resting = render_frame(&device, &queue, &mut p);
-    let changed = p.resolve_gutter_stack_hover(close_x, y, H);
-    assert!(
-        changed,
-        "hovering the close zone must change the hover state"
-    );
-    let hovered = render_frame(&device, &queue, &mut p);
-
-    // The mark's own lane: `row_h` wide, hugging the row's right edge — the
-    // exact close-zone geometry `gutter_stack::CLOSE_ZONE_ROWS` reserves.
-    let mark_x0 = (right_edge - row_h).max(0.0) as u32;
-    let mark_x1 = (right_edge as u32).min(W);
+    let pixels = render_frame(&device, &queue, &mut p);
     let y0 = identity[1].max(0.0) as u32;
     let y1 = ((identity[1] + row_h) as u32).min(H);
-    let mut mark_diff = 0u32;
-    for yy in y0..y1 {
-        for xx in mark_x0..mark_x1 {
-            let idx = (yy * W + xx) as usize;
-            if dist(resting[idx], hovered[idx]) > 4.0 {
-                mark_diff += 1;
-            }
+    // Background reference sampled PER COLUMN, from the canvas's own bottom
+    // padding below the block (`CANVAS_INSET`'s own blank strip) — the SAME
+    // x as the column under test, a DIFFERENT y outside any row. A single
+    // corner sample crosses the gutter's own lava-carve boundary at `avail`
+    // (`gutter_carve_rect`'s `[0, avail]` span), which reads as ink on its
+    // own and made an earlier cut of this law pass under every mutation
+    // tried against it; same-x/different-y stays inside the SAME carved (or
+    // uncarved) ground the row itself sits on.
+    let bg_y = H.saturating_sub(2);
+    let scan_hi = (right_edge as u32).min(W - 1);
+    let scan_lo = scan_hi.saturating_sub(row_h as u32 * 3);
+    let mut ink_edge = None;
+    for x in (scan_lo..=scan_hi).rev() {
+        let bg = pixels[(bg_y * W + x) as usize];
+        let hit = (y0..y1).any(|yy| dist(pixels[(yy * W + x) as usize], bg) > 12.0);
+        if hit {
+            ink_edge = Some(x as f32);
+            break;
         }
     }
+    let ink_edge =
+        ink_edge.unwrap_or_else(|| panic!("no ink found scanning back from the right edge at all"));
+    let gap = right_edge - ink_edge;
+    // A tight floor, well under a mark-width's worth of pixels (the
+    // trailing design's own bug: a gap of roughly `CLOSE_MARK_TEXT`'s own
+    // shaped width, tens of px at LABEL scale) — wide enough only to clear
+    // real font antialiasing/hinting slop at the exact edge column, a few px
+    // at most.
+    const FLUSH_TOLERANCE_PX: f32 = 8.0;
     assert!(
-        mark_diff > 0,
-        "hovering the close zone painted no pixels in the mark's own lane — the × never revealed"
-    );
-
-    // The label's own ink, well clear of the mark's lane, stays byte-identical:
-    // the reveal is a color-only change over an already-shaped run, never a
-    // reflow of the filename.
-    let label_x1 = mark_x0.saturating_sub(2);
-    let mut label_diff = 0u32;
-    for yy in y0..y1 {
-        for xx in 0..label_x1 {
-            let idx = (yy * W + xx) as usize;
-            if dist(resting[idx], hovered[idx]) > 4.0 {
-                label_diff += 1;
-            }
-        }
-    }
-    assert_eq!(
-        label_diff, 0,
-        "hovering the close zone repainted {label_diff} pixels of the label's own ink"
+        gap < FLUSH_TOLERANCE_PX,
+        "the maximal name's own rightmost ink ({ink_edge}) sits {gap}px short of the row's \
+         flush-right edge ({right_edge}, row height {row_h}) — the trailing mark's own \
+         reserved width is leaking back into the visible label"
     );
 }
 

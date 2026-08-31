@@ -40,41 +40,57 @@ pub struct GutterStackHit {
 
 /// Resolve a pointer against an already-planned block. Kept pure so the live
 /// hover/click enrolment can be swept without constructing a GPU pipeline; the
-/// production method below supplies the exact layout/plan it draws.
+/// production method below supplies the exact layout/plan/char-width it draws.
+///
+/// `label_char_w` is the LABEL-scale advance the close zone's ink-width
+/// estimate is built from — the SAME quantity [`gutter_stack::plate_rects`]
+/// already multiplies a row's char count by, so a target derived here can
+/// never disagree with the fill drawn from that other door.
 pub(super) fn stack_hit_from_plan(
     layout: &GutterLayout,
     plan: &crate::render::plan::GutterStackPlan,
+    label_char_w: f32,
     px: f32,
     py: f32,
 ) -> Option<GutterStackHit> {
     let line = plan.hit_row(px, py)?;
     let band = *plan.rows.get(line)?;
-    let intent = gutter_stack::row_intent(band, px);
-    let (row, kind) = match layout.lines().get(line)?.1 {
+    let mark_chars = gutter_stack::CLOSE_MARK_TEXT.chars().count();
+    // Resolve WHICH row/kind this line is, and how many characters of ink it
+    // shapes, BEFORE classifying the pointer: the close zone now anchors on
+    // that row's own ink width (`row_intent`'s own doc), so the row has to be
+    // known first rather than intent computed off the band alone.
+    let (row, kind, chars) = match layout.lines().get(line)?.1 {
         GutterLine::File(row) => {
-            let kind = layout.files.get(row)?.kind;
-            match kind {
-                // A project HEADING carries no switch target of its own (the
-                // design boundary: mark the active group, never make the
-                // heading itself a target) — a press elsewhere on it stays
-                // click-away, exactly as it always was. Its own close zone is
-                // the one exception: closing a heading closes its whole group,
-                // so it enrols for that intent alone.
-                crate::workingset::StackRowKind::Group { .. } if intent == RowIntent::Close => {}
-                crate::workingset::StackRowKind::Group { .. } => return None,
-                // A passive scroll-position cue is inert in both halves.
-                crate::workingset::StackRowKind::Overflow { .. } => return None,
-                _ => {}
-            }
-            (row, kind)
+            let file = layout.files.get(row)?;
+            (row, file.kind, file.text.chars().count())
         }
         // The single-file identity names the same lone slot `group(root)`
         // would draw as row 0 of a stack, whether or not the margin was ever
         // wide enough to draw one — so it enrols in the SAME close/switch
         // geometry a working-set row does rather than staying an inert label.
-        GutterLine::Name => (0, crate::workingset::StackRowKind::File),
+        GutterLine::Name => (
+            0,
+            crate::workingset::StackRowKind::File,
+            layout.name.chars().count(),
+        ),
         GutterLine::Project | GutterLine::Changed => return None,
     };
+    let text_w = (chars + mark_chars) as f32 * label_char_w;
+    let intent = gutter_stack::row_intent(band, text_w, px);
+    match kind {
+        // A project HEADING carries no switch target of its own (the
+        // design boundary: mark the active group, never make the
+        // heading itself a target) — a press elsewhere on it stays
+        // click-away, exactly as it always was. Its own close zone is
+        // the one exception: closing a heading closes its whole group,
+        // so it enrols for that intent alone.
+        crate::workingset::StackRowKind::Group { .. } if intent == RowIntent::Close => {}
+        crate::workingset::StackRowKind::Group { .. } => return None,
+        // A passive scroll-position cue is inert in both halves.
+        crate::workingset::StackRowKind::Overflow { .. } => return None,
+        _ => {}
+    }
     Some(GutterStackHit { row, kind, intent })
 }
 
@@ -91,12 +107,13 @@ impl GutterStackHit {
 
 impl TextPipeline {
     /// The block's planner rows for this frame, off the SAME layout the glyphs
-    /// are laid from. Both routes below read it, so neither hit-tests against
-    /// geometry the other does not.
+    /// are laid from, plus the LABEL-scale char width the close zone's ink
+    /// estimate needs (`stack_hit_from_plan`'s own doc). Both routes below
+    /// read it, so neither hit-tests against geometry the other does not.
     fn gutter_hit_plan(
         &self,
         height: u32,
-    ) -> Option<(GutterLayout, crate::render::plan::GutterStackPlan)> {
+    ) -> Option<(GutterLayout, crate::render::plan::GutterStackPlan, f32)> {
         let layout = self.gutter_layout()?;
         let plan = crate::render::plan::plan_gutter_stack(
             height as f32,
@@ -106,7 +123,8 @@ impl TextPipeline {
             self.metrics.px_physical(super::readout::CANVAS_INSET),
             super::gutter::GUTTER_CARVE_BREATH.0,
         );
-        Some((layout, plan))
+        let label_char_w = self.metrics.char_width * crate::markdown::type_scale::LABEL;
+        Some((layout, plan, label_char_w))
     }
 
     /// THE MARGIN STACK'S OWN BOUNDING BAND `[left, top, right, bottom]` — the
@@ -125,7 +143,7 @@ impl TextPipeline {
         py: f32,
         height: u32,
     ) -> Option<crate::context_menu::ContextTarget> {
-        let (layout, plan) = self.gutter_hit_plan(height)?;
+        let (layout, plan, _) = self.gutter_hit_plan(height)?;
         // Hit-test against the SAME ordered line list the block is drawn from, so
         // an added line can never shift a target silently: the affordance itself
         // is a LABEL, not a target — it names a state, and the two things you can
@@ -164,8 +182,8 @@ impl TextPipeline {
     /// the mark is drawn. Switching a single-file row is a no-op past the
     /// resolve (there is nowhere else to switch to), never a second code path.
     pub fn gutter_stack_hit(&self, px: f32, py: f32, height: u32) -> Option<GutterStackHit> {
-        let (layout, plan) = self.gutter_hit_plan(height)?;
-        stack_hit_from_plan(&layout, &plan, px, py)
+        let (layout, plan, label_char_w) = self.gutter_hit_plan(height)?;
+        stack_hit_from_plan(&layout, &plan, label_char_w, px, py)
     }
 
     /// Mirror the working-set row under the LIVE pointer into render state.
