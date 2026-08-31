@@ -1,6 +1,6 @@
 //! src/theme/ornament.rs — the per-world SECTION-BREAK ornament trio + the
 //! per-world LIST-BULLET pair (the ornament trio, one level down): the shared
-//! [`Ornaments`] type, the three ornament FACE constants, the three ornament
+//! [`Ornaments`] type, the ornament FACE constants, the three ornament
 //! SCALE tiers, and the two bullet-scale tiers. See [`crate::theme::worlds`]
 //! for how each world picks from this data.
 
@@ -9,23 +9,23 @@
 /// The PER-SYNTAX thematic-break ornament set — one glyph for each of markdown's
 /// three `<hr>` spellings, so a break's ORNAMENT tracks what the author typed:
 /// `---` (dash), `***` (star), `___` (underscore). Each renders CENTERED in the
-/// writing column from the bundled `SYMBOL_FAMILY` face (see
-/// [`crate::render::spans::is_symbol`]), and is REVEALED back to its raw characters
-/// when the caret lands on the line (reveal-on-cursor). The three defaults live in
-/// [`ORNAMENTS_DEFAULT`]; a world may override for its own face's flavour.
+/// writing column from the world's ornament face and is REVEALED back to its raw
+/// characters when the caret lands on the line (reveal-on-cursor). A field is a
+/// whole shaped run rather than one scalar: the Nishiki cabinet includes joining
+/// pieces whose intended drawing only exists when they are shaped together.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct Ornaments {
     /// The mark for a `---` dash rule.
-    pub dash: char,
+    pub dash: &'static str,
     /// The mark for a `***` star rule.
-    pub star: char,
+    pub star: &'static str,
     /// The mark for a `___` underscore rule.
-    pub underscore: char,
+    pub underscore: &'static str,
 }
 
 impl Ornaments {
     /// The trio in break-syntax order — `---` / `***` / `___`.
-    pub const fn of(dash: char, star: char, underscore: char) -> Ornaments {
+    pub const fn of(dash: &'static str, star: &'static str, underscore: &'static str) -> Ornaments {
         Ornaments {
             dash,
             star,
@@ -34,7 +34,7 @@ impl Ornaments {
     }
 
     /// The ornament this world draws for a given break syntax.
-    pub const fn pick(&self, kind: crate::markdown::BreakKind) -> char {
+    pub const fn pick(&self, kind: crate::markdown::BreakKind) -> &'static str {
         match kind {
             crate::markdown::BreakKind::Dash => self.dash,
             crate::markdown::BreakKind::Star => self.star,
@@ -48,21 +48,21 @@ impl Ornaments {
 /// the derived `AwlMarks.ttf` (the [`ORNAMENT_MARKS`] face), so they render in
 /// every world that keeps that face.
 pub const ORNAMENTS_DEFAULT: Ornaments = Ornaments {
-    dash: '❧',
-    star: '⁂',
-    underscore: '❦',
+    dash: "❧",
+    star: "⁂",
+    underscore: "❦",
 };
 
-// --- The per-world ORNAMENT FACE (the fleuron / About end-mark face) ----------
+// --- The section-break ORNAMENT FACE (and About end-mark face) ----------------
 //
-// ONLY the section-break/About ornament changes face per world. Keycaps (⌘⌥⇧)
-// and the plain typographic marks (§ † ‡ • ◦ ▪ …) stay on the derived marks face
-// (`render::SYMBOL_FAMILY`) whatever a world's ornament face is.
+// The section-break/About ornament cabinet is Nishiki-derived in every live
+// world. Keycaps (⌘⌥⇧) and the plain typographic marks (§ † ‡ …) stay on the
+// derived marks face (`render::SYMBOL_FAMILY`). List bullets deliberately retain
+// their previous per-world face until their own fitting-room decision is made.
 //
-// Three faces, all bundled and OFL, one per flavour register — and each one's
-// GLYPH COVERAGE is the constraint that decides which trios a world may pick,
-// so it is stated on the constant itself. Which world takes which face is
-// `theme::worlds` data, not restated here.
+// The legacy faces remain bundled and registered because the bullet transition
+// still uses them. Section-break glyph coverage is derived from the live Nishiki
+// assignments and pinned against the font manifest by render laws.
 
 /// The EB Garamond ornament face — Renaissance fleurons for the literary serif
 /// worlds, registered from `EBGaramond-Regular.ttf`. Covers ❧ ❦ ☙ and NOTHING
@@ -75,8 +75,7 @@ pub const ORNAMENT_GARAMOND: &str = "EB Garamond";
 /// deep pool of PUA botanical/damask/tile clusters, but NOT ❡/❥.
 pub const ORNAMENT_JUNICODE: &str = "Junicode";
 
-/// The Nishiki-derived marks face (== `render::SYMBOL_FAMILY`, `AwlMarks.ttf`) —
-/// the geometric/technical worlds' ornament face.
+/// The Nishiki-derived marks face (== `render::SYMBOL_FAMILY`, `AwlMarks.ttf`).
 /// Covers the default ornaments (❧ ❦ ☙ ❡ ❥ ⁂) plus the star/floret/geometric
 /// pool (✦ ✧ ✴ ✶ ✷ ✽ ✿ ❀ ❁ ❂ ❖ ◆ ◈ ⬥ ⭑).
 ///
@@ -84,6 +83,11 @@ pub const ORNAMENT_JUNICODE: &str = "Junicode";
 /// dependency in the `const` world literals; `theme::tests::ornament` pins the
 /// two spellings equal.
 pub const ORNAMENT_MARKS: &str = "Awl Marks";
+
+/// The Nishiki-derived cabinet used by every section break. The family name
+/// intentionally stays private (`Awl Marks`); Nishiki-teki is the source and
+/// register identity, not a shipped family name.
+pub const ORNAMENT_NISHIKI: &str = ORNAMENT_MARKS;
 
 // --- The per-world FOLD-MARK glyph (a THIRD thing this same register drives) --
 //
@@ -93,7 +97,7 @@ pub const ORNAMENT_MARKS: &str = "Awl Marks";
 // `ornament_face`, with no second field to remember.
 
 enum_with_all! {
-    /// The three ornament-face FLAVOUR TIERS every world's `ornament_face`
+    /// The ornament-face FLAVOUR TIERS a world's `ornament_face`
     /// resolves to — see [`ornament_register`]. Exhaustively matched by
     /// [`fold_mark_for`], so a fourth tier (a new ornament face constant) is a
     /// compile error here until it is given a fold mark, not a silent
@@ -104,9 +108,11 @@ enum_with_all! {
         Garamond,
         /// The antique/expressive worlds — [`ORNAMENT_JUNICODE`]'s register.
         Junicode,
-        /// The modern/technical/geometric worlds — [`ORNAMENT_MARKS`]'s
-        /// register.
+        /// The retired geometric grouping, retained in the exhaustive fold
+        /// vocabulary while live worlds use [`Nishiki`](Self::Nishiki).
         Marks,
+        /// The Nishiki-teki-derived cabinet in [`ORNAMENT_NISHIKI`].
+        Nishiki,
     }
 }
 
@@ -121,12 +127,11 @@ pub fn ornament_register(face: &'static str) -> OrnamentRegister {
         OrnamentRegister::Garamond
     } else if face == ORNAMENT_JUNICODE {
         OrnamentRegister::Junicode
-    } else if face == ORNAMENT_MARKS {
-        OrnamentRegister::Marks
+    } else if face == ORNAMENT_NISHIKI {
+        OrnamentRegister::Nishiki
     } else {
         panic!(
-            "ornament_register: {face:?} is not one of the three registered ornament \
-             faces (ORNAMENT_GARAMOND/ORNAMENT_JUNICODE/ORNAMENT_MARKS) — a world's \
+            "ornament_register: {face:?} is not a registered ornament face — a world's \
              ornament_face must resolve to a real register so its fold mark is never \
              silently unset"
         );
@@ -177,15 +182,108 @@ pub fn fold_mark_for(register: OrnamentRegister) -> FoldMark {
             face: "Iosevka",
             size_frac: 1.0,
         },
+        // The derived cabinet keeps the same quiet disclosure triangle the
+        // geometric register established. Nishiki supplies the section-break
+        // drawing; the fold mark remains Iosevka's purpose-built UI triangle.
+        OrnamentRegister::Nishiki => FoldMark {
+            ch: '\u{25B8}',
+            face: "Iosevka",
+            size_frac: 1.0,
+        },
     }
 }
+
+/// One set retained from the fitting room but not assigned to a shipping world.
+/// The glyph details remain in the fitting-room artifact; this roster records
+/// the durable product decision that keeps a set available (or benched) and why.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ReserveOrnamentSet {
+    pub name: &'static str,
+    pub reason: &'static str,
+}
+
+/// The complete unworn shelf after the twenty unique world assignments.
+pub const RESERVE_ORNAMENT_SETS: &[ReserveOrnamentSet] = &[
+    ReserveOrnamentSet {
+        name: "Lunar",
+        reason: "benched: moon circles did not fit; Moonfaces is the playful replacement",
+    },
+    ReserveOrnamentSet {
+        name: "Florets",
+        reason: "liked, but no world story beat the twenty selected sets",
+    },
+    ReserveOrnamentSet {
+        name: "Geometrics",
+        reason: "fine but not exceptional beside the selected cabinet",
+    },
+    ReserveOrnamentSet {
+        name: "Tally",
+        reason: "benched: its counting rationale reads as culturally alien to Western eyes",
+    },
+    ReserveOrnamentSet {
+        name: "Manicules",
+        reason: "swapped out during fitting; retained as printerly margin-mark reserve",
+    },
+    ReserveOrnamentSet {
+        name: "Caslon",
+        reason: "lovely chain, cartouche, and rosette; too ornate for the stark worlds",
+    },
+    ReserveOrnamentSet {
+        name: "Genjiko II",
+        reason: "benched as redundant with the selected Genjiko set",
+    },
+    ReserveOrnamentSet {
+        name: "Keizuko",
+        reason: "benched as redundant with the selected Genjiko set",
+    },
+    ReserveOrnamentSet {
+        name: "Palms",
+        reason: "liked, but no world story beat the twenty selected sets",
+    },
+    ReserveOrnamentSet {
+        name: "Acorns",
+        reason: "benched by the three-distinct-drawings rule",
+    },
+    ReserveOrnamentSet {
+        name: "Hearts",
+        reason: "unworn after the story-led assignment",
+    },
+    ReserveOrnamentSet {
+        name: "Snow",
+        reason: "benched by the three-distinct-drawings rule",
+    },
+    ReserveOrnamentSet {
+        name: "Tallybars",
+        reason: "unworn after the story-led assignment",
+    },
+    ReserveOrnamentSet {
+        name: "Heraldry",
+        reason: "unworn after the story-led assignment",
+    },
+    ReserveOrnamentSet {
+        name: "Harbour",
+        reason: "benched: anchor, sailboat, and helm mix illustration and diagram registers",
+    },
+    ReserveOrnamentSet {
+        name: "Reference Marks",
+        reason: "reserved for the traditional footnote-reference ladder",
+    },
+    ReserveOrnamentSet {
+        name: "Rubrication",
+        reason: "typographic heritage reserve; no world assignment won",
+    },
+    ReserveOrnamentSet {
+        name: "Curiosities",
+        reason: "shelved; Currawong is its natural wearer if revisited",
+    },
+];
 
 // --- The per-world ORNAMENT SCALE (how big the section-break fleuron reads) ----
 //
 // A thematic-break line grows its whole ROW by
 // [`crate::theme::Theme::ornament_scale`], in three tiers keyed to the ornament's
-// CHARACTER rather than to the world — detailed flowers reward size, clean
-// geometric marks do not.
+// existing per-world tuning. The cabinet repick deliberately keeps these dials:
+// the new glyph identity does not flatten the row rhythm chosen for each world.
 //
 // The field is read by BOTH `render::spans::md_line_scale` (the break ROW height)
 // and `render::layers::prepare_ornaments` (the glyph LINE-BOX). Both must read
@@ -208,8 +306,9 @@ pub const ORNAMENT_SCALE_GEOMETRIC: f32 = 1.5;
 //
 // The unordered-list bullet ([`crate::theme::Theme::bullets`], drawn over a
 // concealed `-`/`*`/`+` the caret is off) is PER-WORLD DATA drawn in the world's
-// own [`crate::theme::Theme::ornament_face`] — the same face discipline as the
-// section-break trio, so a bullet can only use glyphs that face actually ships.
+// own [`crate::theme::Theme::bullet_face`]. That transitional face preserves
+// the already-approved pairs until their separate fitting round; a bullet can
+// only use glyphs that face actually ships.
 // `render::tests::markdown::bullet_glyphs_resolve_in_each_worlds_assigned_face`
 // holds every pick to that.
 //

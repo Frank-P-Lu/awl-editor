@@ -225,7 +225,7 @@ fn thematic_break_ornament_tracks_the_syntax_per_line() {
     let mut off = view(text, 0, 0);
     off.is_markdown = true;
     p.set_view(&off);
-    let marks: Vec<char> = p.rule_marks().into_iter().map(|(_, c)| c).collect();
+    let marks: Vec<&str> = p.rule_marks().into_iter().map(|(_, run)| run).collect();
     assert_eq!(
         marks,
         vec![dash, star, under],
@@ -238,7 +238,7 @@ fn thematic_break_ornament_tracks_the_syntax_per_line() {
     let mut on_star = view(text, 4, 0);
     on_star.is_markdown = true;
     p.set_view(&on_star);
-    let revealed: Vec<char> = p.rule_marks().into_iter().map(|(_, c)| c).collect();
+    let revealed: Vec<&str> = p.rule_marks().into_iter().map(|(_, run)| run).collect();
     assert_eq!(
         revealed,
         vec![dash, under],
@@ -246,192 +246,60 @@ fn thematic_break_ornament_tracks_the_syntax_per_line() {
     );
 }
 
-/// Mulga's `***` conceals to the LITERAL asterism ⁂ (three
-/// stars for three typed stars, the natural match `Ornaments::star`'s own doc
-/// names), `---` takes the companion two-star asterism ⁑, and the About card's
-/// closing end-mark (which draws `Theme::ornaments.dash` verbatim — see
-/// `about.rs`'s module doc + `render::chrome::hud`'s About-card push) rides
-/// along for free since it is the SAME field, never a second literal. Swapped
-/// from the pre-item-88 pick of `{dash: ⁂, star: ⁑}`, which had the trio
-/// backwards (the star rule drawing the FLEURON's companion, not the asterism).
-///
-/// NON-VACUOUS: reverting `worlds::MULGA`'s `ornaments` field to its pre-fix
-/// `{dash: '⁂', star: '⁑', underscore: '❦'}` fails this test at the exact-trio
-/// assertion below (`⁑,⁂,❦` vs. the reverted `⁂,⁑,❦`) — proven by hand before
-/// this test was added: the assertion trips on the swapped pair, not on some
-/// unrelated invariant.
 #[test]
-fn mulga_star_conceals_to_the_literal_asterism() {
-    // WRITES the process-global active theme (the pin below); hold the theme
-    // lock so it can't yank the world out from under a concurrent theme test.
+fn every_approved_ornament_trio_reaches_the_real_rule_pipeline() {
     let _t = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
-        eprintln!("skipping mulga_star_conceals_to_the_literal_asterism: no wgpu adapter");
+        eprintln!("skipping approved ornament pipeline law: no wgpu adapter");
         return;
     };
-    theme::set_active_by_name("Mulga").unwrap();
-    let orn = theme::active().ornaments;
-
-    // THE EXACT SWAP: `***` (star) → ⁂, `---`
-    // (dash) → ⁑, `___` (underscore) unchanged at ❦.
-    assert_eq!(
-        (orn.dash, orn.star, orn.underscore),
-        ('\u{2051}', '\u{2042}', '\u{2766}'),
-        "Mulga's trio must be dash=⁑ (U+2051) / star=⁂ (U+2042, the literal three-star \
-         asterism) / underscore=❦ (U+2766) post-item-88, got {orn:?}"
-    );
-    // THREE-SYMBOL DISTINCTNESS (the design-table contract this swap must not
-    // break): a shared glyph would make reveal-on-cursor unable to tell which
-    // break line dropped its mark.
-    assert!(
-        orn.dash != orn.star && orn.star != orn.underscore && orn.dash != orn.underscore,
-        "Mulga's ornament trio must stay three distinct glyphs: {orn:?}"
-    );
-
-    // THE ABOUT-CARD DASH-ORNAMENT LAW: the card's closing end-mark
-    // (`render::chrome::hud`'s About push, `world.ornaments.dash.to_string()`)
-    // is the SAME field a `---` rule renders — so it has parity with `---` by
-    // construction, never a second literal to drift. Assert the field itself
-    // reads the swapped ⁑, which is the whole law.
-    assert_eq!(
-        orn.dash, '\u{2051}',
-        "the About card's closing end-mark reads `ornaments.dash`, so it inherits \
-         `---`'s ⁑ automatically — parity by construction, not a separate pick"
-    );
-
-    // THE RAW-ON-CARET / CONCEALED-OFF-CARET TRIPLET, in a REAL rendered
-    // Mulga frame: three break syntaxes, each alone on its own line
-    // (blank-separated) — line 2 = `---`, line 4 = `***`, line 6 = `___`.
     let text = "intro\n\n---\n\n***\n\n___\n\nmore\n";
-
-    // CARET OFF every break (line 0): all three ornaments draw, each the glyph
-    // its OWN syntax picked, in document order — `---` → ⁑, `***` → ⁂,
-    // `___` → ❦ — and the raw characters underneath are concealed.
-    let mut off = view(text, 0, 0);
-    off.is_markdown = true;
-    p.set_view(&off);
-    let marks: Vec<char> = p.rule_marks().into_iter().map(|(_, c)| c).collect();
-    assert_eq!(
-        marks,
-        vec!['\u{2051}', '\u{2042}', '\u{2766}'],
-        "off-caret, Mulga's --- / *** / ___ must draw ⁑ / ⁂ / ❦ in document order: {marks:?}"
-    );
-    for li in [2usize, 4, 6] {
-        assert!(
-            p.rule_line_concealed(li),
-            "caret off every break => line {li}'s raw characters stay concealed"
-        );
-    }
-
-    // CARET ON the `***` line (4): its raw stars REVEAL (visible, editable)
-    // and the ⁂ ornament yields; `---` and `___` keep drawing ⁑ / ❦.
-    let mut on_star = view(text, 4, 0);
-    on_star.is_markdown = true;
-    p.set_view(&on_star);
-    let revealed: Vec<char> = p.rule_marks().into_iter().map(|(_, c)| c).collect();
-    assert_eq!(
-        revealed,
-        vec!['\u{2051}', '\u{2766}'],
-        "caret on *** suppresses only ⁂; --- (⁑) and ___ (❦) remain: {revealed:?}"
-    );
-    assert!(
-        !p.rule_line_concealed(4),
-        "caret on the *** line => its raw stars reveal"
-    );
-    assert!(
-        p.rule_line_concealed(2) && p.rule_line_concealed(6),
-        "the other two breaks stay concealed while the caret is on the *** line"
-    );
-
-    // CARET ON the `---` line (2): its raw dashes reveal and the ⁑ ornament
-    // yields; `***` and `___` keep drawing ⁂ / ❦ — the mirror case, proving
-    // the swap holds in both directions, not just the star's.
-    let mut on_dash = view(text, 2, 0);
-    on_dash.is_markdown = true;
-    p.set_view(&on_dash);
-    let revealed_dash: Vec<char> = p.rule_marks().into_iter().map(|(_, c)| c).collect();
-    assert_eq!(
-        revealed_dash,
-        vec!['\u{2042}', '\u{2766}'],
-        "caret on --- suppresses only ⁑; *** (⁂) and ___ (❦) remain: {revealed_dash:?}"
-    );
-    assert!(
-        !p.rule_line_concealed(2),
-        "caret on the --- line => its raw dashes reveal"
-    );
-
-    // NEVER-TOFU: all three of Mulga's glyphs resolve to a REAL glyph in its
-    // assigned ornament face (`Theme::ornament_face` == Junicode, which ships
-    // both asterisms — see `theme::ornament::ORNAMENT_JUNICODE`'s own doc).
-    let id = p
-        .font_system
-        .db()
-        .faces()
-        .find(|f| {
-            f.families
-                .iter()
-                .any(|(n, _)| n == theme::active().ornament_face)
-        })
-        .map(|f| f.id)
-        .expect("Mulga's ornament face (Junicode) is registered");
-    let font = p
-        .font_system
-        .get_font(id, glyphon::cosmic_text::fontdb::Weight::NORMAL)
-        .expect("Mulga's ornament face (Junicode) loads");
-    let charmap = font.as_swash().charmap();
-    for (label, ch) in [
-        ("dash ⁑", orn.dash),
-        ("star ⁂", orn.star),
-        ("underscore ❦", orn.underscore),
-    ] {
-        assert!(
-            charmap.map(ch) != 0,
-            "Mulga: {label} (U+{:04X}) is NOT in Junicode — renders as tofu",
-            ch as u32
-        );
-    }
-
-    // EXHAUSTIVE NON-MULGA IDENTITY: every other world's ornament trio is
-    // untouched — this swap reaches Mulga's `const` alone. A no-wildcard match
-    // over the full roster: a future world added to
-    // `theme::THEMES` without a line here panics loudly instead of silently
-    // passing.
-    for t in theme::THEMES.iter() {
-        let got = (t.ornaments.dash, t.ornaments.star, t.ornaments.underscore);
-        let want = match t.name {
-            "Mulga" => ('\u{2051}', '\u{2042}', '\u{2766}'), // ⁑ ⁂ ❦ — item 88's swap
-            "Tawny" => ('✦', '✷', '◈'),
-            "Mopoke" => ('\u{E670}', '\u{F011}', '\u{F014}'),
-            "Currawong" => ('✷', '✴', '⬥'),
-            "Potoroo" => ('✶', '✦', '◆'),
-            "Gumtree" => ('\u{E67D}', '\u{E270}', '\u{E68A}'),
-            "Bilby" => ('❧', '☙', '❦'),
-            "Saltpan" => ('\u{F01B}', '\u{F01D}', '\u{F01E}'),
-            "Quokka" => ('✿', '❀', '✽'),
-            "Bombora" => ('☙', '❧', '❦'),
-            "Bowerbird" => ('❂', '✴', '◈'),
-            "Mangrove" => ('❖', '◈', '⬥'),
-            "Galah" => ('❁', '❂', '✿'),
-            "Magpie" => ('\u{EF90}', '\u{EF98}', '\u{EF9A}'),
-            "Brolga" => ('✧', '✴', '⬥'),
-            "Wagtail" => ('✧', '⭑', '❡'),
-            "Firetail" => ('✷', '✶', '✦'),
-            "Cassowary" => ('◆', '✴', '◈'),
-            "Paperbark" => ('❦', '❧', '☙'), // item 158 — the third Garamond rotation
-            "Kite" => ('\u{2B25}', '\u{2736}', '\u{25C6}'), // item 132 — geometric marks
-            other => panic!(
-                "unenrolled world {other:?} in theme::THEMES — add its expected ornament \
-                 trio to this exhaustive law before it can ship"
-            ),
+    for (world_index, world) in theme::THEMES.iter().enumerate() {
+        let want = match world.name {
+            "Gumtree" => theme::Ornaments::of("\u{F591}\u{F592}\u{F592}\u{F593}", "🐟", "🐌"),
+            "Potoroo" => theme::Ornaments::of("🍄", "🍀", "☘"),
+            "Bilby" => theme::Ornaments::of("🌸", "🌼", "🌷"),
+            "Saltpan" => theme::Ornaments::of("⸎", "⸖", "⸔"),
+            "Quokka" => theme::Ornaments::of("\u{F5B0}", "\u{F5B3}", "\u{F5B1}"),
+            "Bombora" => theme::Ornaments::of("\u{F814}\u{F815}", "\u{F827}\u{F828}", "\u{F81C}"),
+            "Mulga" => theme::Ornaments::of("\u{F501}", "\u{F500}", "\u{F51B}"),
+            "Tawny" => theme::Ornaments::of("🍁", "🍃", "🍂"),
+            "Mopoke" => theme::Ornaments::of("🌝", "🌛", "🌚"),
+            "Bowerbird" => theme::Ornaments::of("🌠", "🌟", "✨"),
+            "Currawong" => theme::Ornaments::of("♘", "♕", "♙"),
+            "Mangrove" => theme::Ornaments::of("\u{FF041}", "\u{FF053}", "\u{FF052}"),
+            "Galah" => theme::Ornaments::of("♠", "♥", "♣"),
+            "Magpie" => theme::Ornaments::of("⁂", "⁑", "✱"),
+            "Brolga" => theme::Ornaments::of("\u{FEFE1}", "\u{FEFE3}", "\u{FEFE2}"),
+            "Wagtail" => theme::Ornaments::of("♩", "♪", "♬"),
+            "Firetail" => theme::Ornaments::of("✦", "✶", "✧"),
+            "Paperbark" => theme::Ornaments::of("❧", "☙", "❦"),
+            "Kite" => theme::Ornaments::of("☀", "☼", "🌞"),
+            "Cassowary" => theme::Ornaments::of("\u{FF04E}", "\u{FF04F}", "\u{FF04D}"),
+            other => panic!("unenrolled world {other:?} in the approved ornament roster"),
         };
         assert_eq!(
-            got, want,
-            "{}: ornament trio must be unchanged (Mulga alone changed): \
-             got {got:?}, want {want:?}",
-            t.name
+            world.ornaments, want,
+            "{} approved trio drifted",
+            world.name
+        );
+        theme::set_active(world_index);
+        let mut off = view(text, 0, 0);
+        off.is_markdown = true;
+        p.set_view(&off);
+        let marks: Vec<_> = p.rule_marks().into_iter().map(|(_, run)| run).collect();
+        assert_eq!(marks, vec![want.dash, want.star, want.underscore]);
+        assert_eq!(
+            [
+                p.buffer.lines[2].text(),
+                p.buffer.lines[4].text(),
+                p.buffer.lines[6].text(),
+            ],
+            ["---", "***", "___"],
+            "{}: the rich ornament render must not replace document bytes",
+            world.name
         );
     }
-
     theme::set_active(theme::DEFAULT_THEME);
     p.sync_theme();
 }
@@ -573,7 +441,7 @@ fn bullet_glyphs_swap_per_world() {
 
 /// NEVER-TOFU (per-world LIST BULLETS): all three glyphs of every world's
 /// [`theme::Theme::bullets`] triple resolve to a REAL glyph in that world's
-/// [`theme::Theme::ornament_face`] — the font-DB half of the structural
+/// [`theme::Theme::bullet_face`] — the font-DB half of the structural
 /// `theme::tests::every_world_has_a_bullet_pair` law, mirroring
 /// `ornament_glyphs_resolve_in_each_worlds_assigned_face` for the section trio.
 /// This is what proves the manicule ☞ actually lives in EB Garamond and every
@@ -591,18 +459,13 @@ fn bullet_glyphs_resolve_in_each_worlds_assigned_face() {
             .font_system
             .db()
             .faces()
-            .find(|f| f.families.iter().any(|(n, _)| n == t.ornament_face))
+            .find(|f| f.families.iter().any(|(n, _)| n == t.bullet_face))
             .map(|f| f.id)
-            .unwrap_or_else(|| {
-                panic!(
-                    "{}: ornament face {:?} is registered",
-                    t.name, t.ornament_face
-                )
-            });
+            .unwrap_or_else(|| panic!("{}: bullet face {:?} is registered", t.name, t.bullet_face));
         let font = p
             .font_system
             .get_font(id, glyphon::cosmic_text::fontdb::Weight::NORMAL)
-            .unwrap_or_else(|| panic!("{}: ornament face {:?} loads", t.name, t.ornament_face));
+            .unwrap_or_else(|| panic!("{}: bullet face {:?} loads", t.name, t.bullet_face));
         let charmap = font.as_swash().charmap();
         for (level, ch) in [
             ("level-1", t.bullets.0),
@@ -611,12 +474,12 @@ fn bullet_glyphs_resolve_in_each_worlds_assigned_face() {
         ] {
             assert!(
                 charmap.map(ch) != 0,
-                "{}: {} bullet {:?} (U+{:04X}) is NOT in its ornament face {:?} — tofu",
+                "{}: {} bullet {:?} (U+{:04X}) is NOT in its bullet face {:?} — tofu",
                 t.name,
                 level,
                 ch,
                 ch as u32,
-                t.ornament_face
+                t.bullet_face
             );
         }
     }

@@ -1932,9 +1932,9 @@ fn break_kind_tracks_the_syntax_and_maps_to_default_ornaments() {
     assert_eq!(break_kind("_____"), BreakKind::Underscore);
     // …and each default-world ornament is the expressive glyph for that syntax:
     // `---` → ❧ fleuron, `***` → ⁂ asterism (three stars), `___` → ❦ floral heart.
-    assert_eq!(ORNAMENTS_DEFAULT.pick(BreakKind::Dash), '❧');
-    assert_eq!(ORNAMENTS_DEFAULT.pick(BreakKind::Star), '⁂');
-    assert_eq!(ORNAMENTS_DEFAULT.pick(BreakKind::Underscore), '❦');
+    assert_eq!(ORNAMENTS_DEFAULT.pick(BreakKind::Dash), "❧");
+    assert_eq!(ORNAMENTS_DEFAULT.pick(BreakKind::Star), "⁂");
+    assert_eq!(ORNAMENTS_DEFAULT.pick(BreakKind::Underscore), "❦");
 }
 
 /// THE FENCE-LANGUAGE-LABEL gate: [`fence_line_lang`] recognizes a fenced

@@ -15,8 +15,8 @@ use footnotes::FootnoteNumbers;
 use smart_punct::SmartPunctGlyphs;
 
 struct RuleOrnaments {
-    marks: Vec<(f32, char)>,
-    glyphs: Vec<(char, GlyphBuffer)>,
+    marks: Vec<(f32, &'static str)>,
+    glyphs: Vec<(&'static str, GlyphBuffer)>,
 }
 
 impl RuleOrnaments {
@@ -33,30 +33,31 @@ impl RuleOrnaments {
         };
         let attrs = Attrs::new()
             .family(Family::Name(theme::active().ornament_face))
+            .weight(ORNAMENT_WEIGHT)
             .color(muted);
         let scale = theme::active().ornament_scale;
         let line_h = metrics.line_height * scale;
         let glyph_metrics = GlyphMetrics::new(metrics.font_size * scale, line_h);
         let mut distinct = Vec::new();
-        for (_, ch) in &marks {
-            if !distinct.contains(ch) {
-                distinct.push(*ch);
+        for (_, run) in &marks {
+            if !distinct.contains(run) {
+                distinct.push(*run);
             }
         }
         let glyphs = distinct
             .into_iter()
-            .map(|ch| {
+            .map(|run| {
                 let mut buffer = GlyphBuffer::new(&mut pipeline.font_system, glyph_metrics);
                 buffer.set_size(&mut pipeline.font_system, Some(col_w), Some(line_h));
                 buffer.set_text(
                     &mut pipeline.font_system,
-                    &ch.to_string(),
+                    run,
                     &attrs,
                     Shaping::Advanced,
                     Some(glyphon::cosmic_text::Align::Center),
                 );
                 buffer.shape_until_scroll(&mut pipeline.font_system, false);
-                (ch, buffer)
+                (run, buffer)
             })
             .collect();
         Self { marks, glyphs }
@@ -69,12 +70,12 @@ impl RuleOrnaments {
         bounds: TextBounds,
         muted: glyphon::Color,
     ) {
-        for (top, ch) in &self.marks {
+        for (top, run) in &self.marks {
             let buffer = &self
                 .glyphs
                 .iter()
-                .find(|(candidate, _)| candidate == ch)
-                .expect("rule char was deduped in")
+                .find(|(candidate, _)| candidate == run)
+                .expect("rule run was deduped in")
                 .1;
             areas.push(TextArea {
                 buffer,
@@ -86,6 +87,42 @@ impl RuleOrnaments {
                 custom_glyphs: &[],
             });
         }
+    }
+}
+
+#[cfg(test)]
+impl TextPipeline {
+    pub(crate) fn rule_run_shape_probe(
+        &mut self,
+    ) -> Vec<(String, usize, usize, f32, Vec<(String, u16)>)> {
+        let rules = RuleOrnaments::shape(
+            self,
+            self.metrics,
+            theme::muted().to_glyphon(),
+            self.text_wrap_width().max(1.0),
+        );
+        rules
+            .glyphs
+            .iter()
+            .map(|(text, buffer)| {
+                let runs: Vec<_> = buffer.layout_runs().collect();
+                let glyph_count = runs.iter().map(|run| run.glyphs.len()).sum();
+                let width = runs.iter().map(|run| run.line_w).fold(0.0_f32, f32::max);
+                let faces = runs
+                    .iter()
+                    .flat_map(|run| run.glyphs.iter())
+                    .map(|glyph| {
+                        let face = self
+                            .font_system
+                            .db()
+                            .face(glyph.font_id)
+                            .expect("shaped ornament face remains registered");
+                        (face.families[0].0.clone(), face.weight.0)
+                    })
+                    .collect();
+                ((*text).to_string(), runs.len(), glyph_count, width, faces)
+            })
+            .collect()
     }
 }
 
@@ -102,7 +139,7 @@ impl BulletOrnaments {
             Vec::new()
         };
         let attrs = Attrs::new()
-            .family(Family::Name(theme::active().ornament_face))
+            .family(Family::Name(theme::active().bullet_face))
             .color(muted);
         let glyph_metrics = GlyphMetrics::new(
             metrics.font_size * theme::active().bullet_scale,
