@@ -339,7 +339,11 @@ receipt.
 ---
 ### 545 — smart-punct conceal reserves a giant slot: off-caret `...` leaves an ~7-char hole in the line (user report, 2026-09-01 — "moving down!!! there's that giant space being created?"; reproduced headlessly)
 
-🟡 IN PROGRESS — gpt-5.6-sol high, branch codex/item-545-smart-punct
+✅ COMPLETE — landed on main as merge `16508bf0`; independent production
+audit accepted after deletion and width mutations proved the law non-vacuous.
+All smart-punctuation substitutes now shape at their own advance, full content
+size, and prose colour. Exact-main receipt: health pass, both conventions,
+forced menu-bar arm, 4,690 unit tests, 16 integration targets; web 16/16.
 
 Caret leaves a line containing a literal `...` and the concealed
 render opens a huge blank run where the dots were; the caret coming
