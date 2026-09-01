@@ -1000,7 +1000,7 @@ cost per the standing policy. The Emacs slot has no exact classic
 Verify: unit tests at the edit seam plus a `--keys` sidecar journey.
 
 ---
-### 553 — single open file draws no active plate in the working-set gutter (user report, 2026-09-01 — "when you first open a file, it doesn't seem to be selected?"; behavior confirmed in every capture's own gutter)
+### 558 — single open file draws no active plate in the working-set gutter (user report, 2026-09-01 — "when you first open a file, it doesn't seem to be selected?"; behavior confirmed in every capture's own gutter)
 
 With exactly one file open, the identity line shows the bare name — no
 active-row plate — and the user reads that as "not selected." Two-file
@@ -1022,7 +1022,7 @@ open"; their screenshot is the single-file case — the multi-file
 fresh-open cell is unverified). Law once decided: sweep both cells.
 
 ---
-### 554 — close mark wants real hover feedback, and the row wants a pointer cursor decision (user report, 2026-09-01 — "when your mouse is over the X button it should be highlighted or something… the whole thing is a pointer right… how do tabs do this?")
+### 559 — close mark wants real hover feedback, and the row wants a pointer cursor decision (user report, 2026-09-01 — "when your mouse is over the X button it should be highlighted or something… the whole thing is a pointer right… how do tabs do this?")
 
 Today's affordance ladder (`render/chrome/gutter_stack.rs`, the reveal
 logic): the × is invisible until the pointer is over its ROW, then drawn
@@ -1045,7 +1045,7 @@ the hover look itself is the user's live check. Coordinate with 550 (the
 lane trims the same geometry) — one lane may take both.
 
 ---
-### 555 — theme picker rhythm: dead rows between the query head and the first row, and a top-heavy oversized hint card (user taste report, 2026-09-01 — "from where the caret is until the first item there's a lot of spacing… kind of weird; the bottom instruction box has too much padding vertically")
+### 560 — theme picker rhythm: dead rows between the query head and the first row, and a top-heavy oversized hint card (user taste report, 2026-09-01 — "from where the caret is until the first item there's a lot of spacing… kind of weird; the bottom instruction box has too much padding vertically")
 
 Measured on the user's 2× screenshot (unclamped list, all 20 worlds
 fit): the query head's caret dot ends at y≈106 and the first row's ink
@@ -1070,7 +1070,7 @@ layering question belong to the 543/544 street — check with the user
 before opening that follow-up.
 
 ---
-### 556 — world ornaments render at inconsistent sizes across worlds; scale the small sets up to the big ones (user decision, 2026-09-01 — "for some worlds it's a bit small… bigger is actually better here; make sure the smaller ones are scaled up to match the bigger ones")
+### 561 — world ornaments render at inconsistent sizes across worlds; scale the small sets up to the big ones (user decision, 2026-09-01 — "for some worlds it's a bit small… bigger is actually better here; make sure the smaller ones are scaled up to match the bigger ones")
 
 Two user screenshots of the SAME document in two worlds: a chess-piece
 ornament set (dark world) drawing noticeably smaller, relative to the
@@ -1092,7 +1092,7 @@ solid bars), so the law measures INK EXTENT, not font size requested.
 Final size is the user's live sign-off.
 
 ---
-### 557 — Insert Table dims grid: hover should live-resize the selection, and the pointer question again (user decision, 2026-09-01 — "it's not really mouse friendly… as you hover over it it should resize along to where your cursor is… cursor should be pointer I think"; animation explicitly deferred: "maybe a bit too much for now")
+### 562 — Insert Table dims grid: hover should live-resize the selection, and the pointer question again (user decision, 2026-09-01 — "it's not really mouse friendly… as you hover over it it should resize along to where your cursor is… cursor should be pointer I think"; animation explicitly deferred: "maybe a bit too much for now")
 
 Verified in the tree: the dims grid answers CLICKS only —
 `app/input/mouse.rs` maps a press through `table_dims_cell_at` to
@@ -1102,7 +1102,7 @@ cell (r, c) previews r×c live — the standard Notion/Word grid gesture —
 with the keyboard path (arrows already work) staying authoritative and
 the two never fighting (hover updates the same one selection state the
 arrows move; no second shadow state). Also set the pointer cursor over
-the grid (`cursor_shape.rs` is the owner; note 554 records the user's
+the grid (`cursor_shape.rs` is the owner; note 559 records the user's
 own observation that tabs DON'T hand-cursor — the two items should land
 one consistent cursor policy for clickable chrome, so coordinate).
 Animation is DEFERRED by the user's own words — do not add it. Verify:
@@ -1112,6 +1112,33 @@ territory (hover at cell ⇒ selection equals cell, swept over the grid's
 corners and the card's padding edges where off-by-one lives); the live
 feel is the user's check. The card itself is 543/544 frost territory —
 this item does not touch the frost.
+
+---
+### 563 — Clean unused assets: preview the highlighted orphan (user decision, 2026-09-01)
+
+The user's words: the cleaner is "kinda… not that intuitive, since you
+don't actually see what images they are… we should probably add a
+preview." True by construction: the `OverlayKind::Assets` picker's rows
+carry name, parent folder, and byte size only (`assets.rs::Orphan`), and
+with paste-image naming everything `pasted-N.png`, the user chooses what
+to trash from an opaque ordinal. Trash-not-rm is the safety net, but the
+choice itself should be informed. Add a preview of the highlighted row's
+image beside the list: selection moves, preview follows. Constraints:
+reuse the ONE image decode/texture path inline images use
+(`render/image_cache.rs`) — never a second decoder; fit the image to its
+box the way inline images fit the column; picker rows stay
+rowlayout-owned, and the preview is a second coordinated region of the
+same summoned task (PHILOSOPHY §1's regions), sized so the list remains
+the primary surface. An orphan that fails to decode is the MOST
+important one to see honestly: draw an explicit can't-decode state
+(name, size, a plain statement) — never a blank that reads as a bug;
+such files are still trashable and arguably the first to go. Cost:
+decode on selection only (debounce like the theme preview if needed),
+never the whole roster eagerly. Verify: read docs/harness-reach.md
+first; then seed distinct solid-color orphans, drive selection with
+`--keys`, and assert by pixel arithmetic that the preview region wears
+the selected orphan's color and follows a selection move; the
+can't-decode state gets its own capture law.
 
 ---
 ### 537 — footnote markers may wear the traditional reference ladder (user decision, 2026-09-01; sequenced AFTER 529 bundles the face)
