@@ -1536,6 +1536,51 @@ impl TextPipeline {
         let text_left = self.text_left();
         let mut rects = Vec::new();
         for line in l0..=l1 {
+            // A GFM table row the selection touches has its source CONCEALED to
+            // zero-width (`ensure_wash_protos`'s table carve-out documents the same
+            // collapse for the wash buckets) while `prepare_table_xray` floats that
+            // row's raw source, at its REAL shaped advances, over the still-drawn
+            // grid cells (`XrayRow`). Reading `rows_by_line` here would measure the
+            // concealed geometry and paint the reported hairline sliver at the left
+            // margin instead of a band under the revealed ink — so a row present in
+            // `self.xray` is rebuilt from `glyph_xs` (the same source the drawn
+            // float uses) instead of falling into the generic row-based path below.
+            // `row_band_for`'s height/top still come from the row's own (possibly
+            // tall, wrapped-grid-cell) reserved box exactly as the generic path
+            // uses, so only the horizontal extent changes.
+            if let Some(xray) = self.xray.iter().find(|x| x.line == line) {
+                if !self.proto_visible(xray.top, xray.height) {
+                    continue; // off-screen row: the quad would rasterize nothing
+                }
+                let line_char_count = xray.glyph_xs.len().saturating_sub(1);
+                let sel_start = if line == l0 { c0 } else { 0 }.min(line_char_count);
+                let (sel_end, extends_to_eol) = if line == l1 {
+                    (c1.min(line_char_count), false)
+                } else {
+                    (line_char_count, true)
+                };
+                if sel_end < sel_start {
+                    continue;
+                }
+                let a = sel_start.min(line_char_count);
+                let b = sel_end.min(line_char_count);
+                // The x-ray row never wraps (`Wrap::None` in `prepare_table_xray`),
+                // so it is always its own "last row" — the trailing-selection eol
+                // pad applies whenever the span reaches the source line's end.
+                let pad = if extends_to_eol && b >= line_char_count {
+                    eol_pad
+                } else {
+                    0.0
+                };
+                let (x, w) = xray_x_span(xray, text_left, a, b, 0.0);
+                let w = w + pad;
+                if w <= 0.0 {
+                    continue;
+                }
+                let (y, row_caret_h) = self.row_band_for(line, xray.height, xray.top);
+                rects.push([x, y, w, row_caret_h]);
+                continue;
+            }
             let Some(rows) = rows_by_line.get(&line) else {
                 continue; // culled: off-screen line
             };
