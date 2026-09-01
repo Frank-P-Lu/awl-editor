@@ -1105,7 +1105,16 @@ arrows move; no second shadow state). Also set the pointer cursor over
 the grid (`cursor_shape.rs` is the owner; note 559 records the user's
 own observation that tabs DON'T hand-cursor — the two items should land
 one consistent cursor policy for clickable chrome, so coordinate).
-Animation is DEFERRED by the user's own words — do not add it. Verify:
+Animation: initially deferred, REOPENED by the user next day ("how hard
+is the animation? we sorta have small animations in a lot of places
+right?" — correct: seven animators are enrolled in `frame_clock.rs`'s
+activity roster, and the overlay selection band already slides on
+`ease::out_back`). Assessment on the board: cheap — one new `Activity`
+variant (the roster macro forces the Reduce-Motion and pause policies at
+compile time) easing the lit region toward the hovered cell. The lane
+auditions it behind the hover work and the user signs off live; Reduce
+Motion settles instantly and headless capture records the settled state,
+per the standing determinism rule. Verify:
 hover is pointer state outside `--keys` reach; the hit-mapping
 (`table_dims_cell_at`) and the selection-update seam are unit-law
 territory (hover at cell ⇒ selection equals cell, swept over the grid's
