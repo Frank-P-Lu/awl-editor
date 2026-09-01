@@ -753,6 +753,49 @@ colour seeded at construction for the same live-switch miss; tables are
 unlikely to be the only tenant.
 
 ---
+### 549 — stale empty-cell plates survive a buffer swap: the no-tables early return never clears `table_empty_pipeline` (user report, 2026-09-01 — "switching tabs leaves the table in place?"; mechanism identified by reading, exact residue shape matches)
+
+Report: after switching from a buffer containing a table with empty cells
+to a different buffer with no tables, the empty-cell plates keep drawing at
+their old screen positions over the new document's text. The residue is
+plates ONLY — no stale cell text, no stale header rule — and that shape is
+exactly what the code predicts: `prepare_table_grid`'s no-tables early
+return (`render/layers/table_grid.rs`, the `blocks.is_empty()` arm)
+re-prepares `table_rule_pipeline` and the glyphon table renderer with empty
+slices but returns WITHOUT touching `table_empty_pipeline`, whose previous
+instances keep drawing every frame (`render/pipeline_layers.rs` draws it
+unconditionally). Treat that as a strong hypothesis with the usual
+verification duty, but the asymmetry is right there in the arm.
+
+Replay note, so no lane burns a round the way this grounding nearly did: a
+`--screenshot-app` journey (table buffer → New document via palette, also
+a Last-file round trip) captures CLEAN, structurally — per
+`main/run/live_app.rs`'s own module doc the App renders nothing during
+chord replay; one final frame goes through the harness's own offscreen
+pipeline (`capture::capture_with`), so the table buffer's plates are never
+written into any pipeline for the swap to leave behind. This is the harness-reach lesson
+("a capture witnesses the state a pipeline was BUILT with") wearing a new
+face: the residue needs a frame HISTORY. The purest seam is a unit law on
+one `TextPipeline`: prepare a table-bearing document (assert plate
+instances present — the presence half), then re-prepare with a plain
+document and assert the empty-plate instance count is zero; mutation-prove
+by deleting the fix. Sweep the OTHER doors into the same early return —
+the arm also fires when WYSIWYG or markdown is toggled OFF, so a toggle
+over a table document must shed its plates the same way — and audit the
+table-owned pipelines as one roster (rules+pan bar, x-ray, empty plates,
+cell text) so every member is cleared on every door, not just the two the
+early return already covers. Item 548's neighborhood audit (pipeline
+colours seeded at construction) and this item (pipeline instances not
+cleared on empty prepare) are two tenants of the same street: table
+layers sitting outside an invalidation path the rest of the render walks.
+A Goto-corpus aside from the grounding, for whoever owns the harness next:
+a headless `--screenshot-app` with `--root` seeded showed only the open
+file in the Goto Files lens (`b.md` sibling never listed, "no matches" on
+query `b`), which smells like the file index racing the single-frame
+capture — worth a look before anyone writes a Verify clause that drives a
+swap through Goto.
+
+---
 ### 537 — footnote markers may wear the traditional reference ladder (user decision, 2026-09-01; sequenced AFTER 529 bundles the face)
 
 🔴 BLOCKED — needs the user's product decisions on per-document versus recycled scope and whether definition-list markers follow the display option. U+2016 coverage remains an engineering verification, not a user decision.
