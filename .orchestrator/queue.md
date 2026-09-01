@@ -1094,6 +1094,8 @@ lane trims the same geometry) — one lane may take both.
 ---
 ### 560 — theme picker rhythm: dead rows between the query head and the first row, and a top-heavy oversized hint card (user taste report, 2026-09-01 — "from where the caret is until the first item there's a lot of spacing… kind of weird; the bottom instruction box has too much padding vertically")
 
+🟡 IN PROGRESS — claude, branch item-560
+
 Measured on the user's 2× screenshot (unclamped list, all 20 worlds
 fit): the query head's caret dot ends at y≈106 and the first row's ink
 starts at y≈240 — ≈135px of nothing, about TWO full row pitches (row
@@ -1174,6 +1176,8 @@ this item does not touch the frost.
 
 ---
 ### 563 — Clean unused assets: preview the highlighted orphan (user decision, 2026-09-01)
+
+🟡 IN PROGRESS — claude, branch item-563
 
 The user's words: the cleaner is "kinda… not that intuitive, since you
 don't actually see what images they are… we should probably add a
