@@ -124,6 +124,8 @@ Commands are grouped by the same task categories the palette browses.
 | Cut | Cut the selection into the kill buffer and remove it from the buffer. | `⌘X · C-w` | `Ctrl+X` | Native, browser |
 | Paste | Insert the OS clipboard's content — an image reference if it holds one, else text. | `⌘V · C-y` | `Ctrl+V · C-y` | Native, browser |
 | Select all | Select the entire buffer. | `⌘A` | `Ctrl+A` | Native, browser |
+| Move line up | Swap the caret line — or every line a selection touches — with the line above. | `⌥Up` | `Alt+Up` | Native, browser |
+| Move line down | Swap the caret line — or every line a selection touches — with the line below. | `⌥Down` | `Alt+Down` | Native, browser |
 
 ### View
 

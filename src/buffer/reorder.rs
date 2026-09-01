@@ -179,7 +179,11 @@ mod tests {
         // is 3 lines, not 2). The TRUE last line here is that trailing empty
         // one, reachable exactly like Cmd-Down/buffer_end would land on it.
         let mut b = Buffer::from_str("one\ntwo\n");
-        assert_eq!(b.line_count(), 3, "the trailing newline is its own last line");
+        assert_eq!(
+            b.line_count(),
+            3,
+            "the trailing newline is its own last line"
+        );
         b.set_cursor(b.line_col_to_char(2, 0)); // caret on the trailing blank line
         let before = b.text();
         b.move_line_down();
@@ -198,7 +202,11 @@ mod tests {
         b.set_cursor(b.line_col_to_char(1, 1)); // caret on "two", NOT the last line
         b.move_line_down();
         assert_eq!(b.text(), "one\n\ntwo");
-        assert_eq!(b.cursor_line_col(), (2, 1), "caret rides \"two\" to its new line");
+        assert_eq!(
+            b.cursor_line_col(),
+            (2, 1),
+            "caret rides \"two\" to its new line"
+        );
     }
 
     #[test]
@@ -221,7 +229,11 @@ mod tests {
         let mut b = Buffer::from_str("one\ntwo");
         b.set_cursor(b.line_col_to_char(1, 1));
         b.move_line_up();
-        assert_eq!(b.text(), "two\none", "no trailing newline after the move either");
+        assert_eq!(
+            b.text(),
+            "two\none",
+            "no trailing newline after the move either"
+        );
         assert_eq!(b.cursor_line_col(), (0, 1));
     }
 
@@ -299,7 +311,11 @@ mod tests {
         b.undo();
         assert_eq!(b.text(), "one\nthree\ntwo\n", "one undo reverts one move");
         b.undo();
-        assert_eq!(b.text(), "one\ntwo\nthree\n", "the other undo reverts the other");
+        assert_eq!(
+            b.text(),
+            "one\ntwo\nthree\n",
+            "the other undo reverts the other"
+        );
     }
 
     #[test]
@@ -357,6 +373,10 @@ mod tests {
         let mut b = Buffer::from_str("same\nsame\nother\n");
         b.set_cursor(b.line_col_to_char(0, 2));
         b.move_line_down();
-        assert_eq!(b.cursor_line_col(), (1, 2), "caret followed its own line down");
+        assert_eq!(
+            b.cursor_line_col(),
+            (1, 2),
+            "caret followed its own line down"
+        );
     }
 }

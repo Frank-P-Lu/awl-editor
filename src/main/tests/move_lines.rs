@@ -57,6 +57,10 @@ fn keys_option_up_at_the_first_line_is_a_calm_no_op() {
     let keys = keyspec::parse_keys("Option-Up").unwrap();
     let root = PathBuf::from("/tmp");
     replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
-    assert_eq!(buffer.text(), "alpha\nbeta\n", "nothing above the first line");
+    assert_eq!(
+        buffer.text(),
+        "alpha\nbeta\n",
+        "nothing above the first line"
+    );
     assert!(!buffer.can_undo(), "a no-op records nothing to undo");
 }
