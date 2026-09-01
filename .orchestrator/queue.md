@@ -849,6 +849,8 @@ width is the capturable half and the hover feel is the user's live check.
 ---
 ### 551 — selecting across a table paints margin slivers, not a band: the selection wash collapses against the concealed source (user report, 2026-09-01 — "the table doesn't really… select properly?"; reproduced headlessly, first try)
 
+🟡 IN PROGRESS — claude, branch item-551
+
 Report: extend a selection through a GFM table and the selected rows show
 no selection band — just a thin vertical sliver at each row's left margin —
 while the rows themselves reveal their raw aligned source, drawn with no
@@ -1033,6 +1035,8 @@ Verify: unit tests at the edit seam plus a `--keys` sidecar journey.
 
 ---
 ### 558 — single open file draws no active plate in the working-set gutter (user report, 2026-09-01 — "when you first open a file, it doesn't seem to be selected?"; behavior confirmed in every capture's own gutter)
+
+🟡 IN PROGRESS — claude, branch item-558
 
 With exactly one file open, the identity line shows the bare name — no
 active-row plate — and the user reads that as "not selected." Two-file
