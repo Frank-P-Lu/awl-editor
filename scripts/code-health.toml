@@ -49,8 +49,8 @@
 
 [[file_size_mark]]
 file = "src/actions.rs"
-lines = 748
-reason = "Reveal in File Manager / Copy File Path: the `CopyFilePath` dispatch arm in `apply_transition`, plus both actions' membership in the exhaustive `ActionFamily` classifier (`CopyFilePath` as Buffer, `RevealInFileManager` as Deferred) (+3). +1: Save a Copy enters the one exhaustive transition dispatcher beside the other file actions. +1: `Action::OpenScratch` joins the exhaustive `ActionFamily::Deferred` classifier, mirroring `Action::NewDocument`. Insert Table's InsertTable action joins the exhaustive dispatch and ActionFamily classification this file already owns for every formatting command. +39 (709->748): item 542's auto-align-on-row-leave trigger — `ActionSnapshot` gains `row_before` (the cheap rope line lookup `capture` already owns the seam for) and `finish_action` gains the row-leave hook, dispatched through the one exhaustive post-transition seam every action already passes through."
+lines = 752
+reason = "Reveal in File Manager / Copy File Path: the `CopyFilePath` dispatch arm in `apply_transition`, plus both actions' membership in the exhaustive `ActionFamily` classifier (`CopyFilePath` as Buffer, `RevealInFileManager` as Deferred) (+3). +1: Save a Copy enters the one exhaustive transition dispatcher beside the other file actions. +1: `Action::OpenScratch` joins the exhaustive `ActionFamily::Deferred` classifier, mirroring `Action::NewDocument`. Insert Table's InsertTable action joins the exhaustive dispatch and ActionFamily classification this file already owns for every formatting command. +39 (709->748): item 542's auto-align-on-row-leave trigger — `ActionSnapshot` gains `row_before` (the cheap rope line lookup `capture` already owns the seam for) and `finish_action` gains the row-leave hook, dispatched through the one exhaustive post-transition seam every action already passes through. +4: the four sentence-motion Action arms in apply_transition (ForwardSentence/BackwardSentence/DeleteSentenceForward/DeleteSentenceBackward), dispatched through the one exhaustive transition seam every action already passes through."
 
 [[file_size_mark]]
 file = "src/actions/format.rs"
@@ -119,8 +119,8 @@ reason = "The grouped per-frame AmbientUpload keeps the prepare call below the a
 
 [[file_size_mark]]
 file = "src/buffer.rs"
-lines = 755
-reason = "DOWN 67: save, save_owned, and save_into_folder moved to buffer/save.rs beside persistence ownership; Buffer keeps the data/editing core. +1: the URL plausibility owner is enrolled as a private buffer submodule."
+lines = 758
+reason = "DOWN 67: save, save_owned, and save_into_folder moved to buffer/save.rs beside persistence ownership; Buffer keeps the data/editing core. +1: the URL plausibility owner is enrolled as a private buffer submodule. +3: declares the sentence submodule and re-exports its boundary functions, beside the buffer's other private submodule owners."
 
 [[file_size_mark]]
 file = "src/buffer/edit.rs"

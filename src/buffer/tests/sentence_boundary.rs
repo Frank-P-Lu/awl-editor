@@ -42,7 +42,10 @@ fn assert_backward(text: &str, cases: &[(usize, usize)]) {
 fn ordinary_terminators_period_bang_question() {
     // "Wait, really? Yes! Okay." — three sentences, three terminator kinds.
     let text = "Wait, really? Yes! Okay.";
-    assert_forward(text, &[(0, 14), (13, 14), (14, 19), (18, 19), (19, 24), (24, 24)]);
+    assert_forward(
+        text,
+        &[(0, 14), (13, 14), (14, 19), (18, 19), (19, 24), (24, 24)],
+    );
     assert_backward(text, &[(24, 19), (19, 14), (14, 0), (0, 0)]);
 }
 

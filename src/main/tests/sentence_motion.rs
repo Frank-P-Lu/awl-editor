@@ -95,7 +95,8 @@ fn shift_m_e_is_the_seeded_layers_own_documented_gap_not_a_regression() {
     assert_ne!(
         buffer.cursor_line_col(),
         (0, 13),
-        "S-M-e does not resolve to ForwardSentence — no seeded chord carries an auto Shift companion"
+        "S-M-e does not resolve to ForwardSentence — no seeded chord carries an auto \
+         Shift companion"
     );
     assert_eq!(
         res.selection, None,

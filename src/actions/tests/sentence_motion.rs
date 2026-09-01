@@ -24,7 +24,11 @@ fn shift_sentence_motion_sets_mark_extends_then_unshifted_motion_collapses() {
     );
     assert!(sel, "the transient shift flag arms");
     drive_shift(&mut b, &mut sel, &Action::ForwardSentence, true);
-    assert_eq!(b.anchor_char(), Some(0), "the anchor never moves during the run");
+    assert_eq!(
+        b.anchor_char(),
+        Some(0),
+        "the anchor never moves during the run"
+    );
     assert_eq!(
         b.selection_range(),
         Some((0, 25)),
