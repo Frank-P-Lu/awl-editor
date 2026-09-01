@@ -646,9 +646,15 @@ fitting-room artifact is the visual reference for all of this.
 ---
 ### 547 — CI RED: smart-punctuation full-body pixel law rejects Tawny ellipsis on Linux lavapipe
 
-🟡 IN PROGRESS — reopened after the final hosted-Linux oracle rejected the
-first repair. Claimed for `gpt-5.6-sol` high on
-`codex/item-547-lavapipe-smart-punct-law`.
+🟡 IN PROGRESS — second repair merged as `c403e4bc`; exact-main native receipt
+`6501c7f4` and web smoke are green, and an independent `gpt-5.6-terra` medium
+audit accepted the premise, enrolment, captures, and mutations. Awaiting the
+hosted-Linux lavapipe oracle before closure.
+
+The real defect was document-face shaping, not a backend tolerance: Tawny's
+IBM Plex Mono ships at weight 300, and the old default-400 smart-punctuation
+path fell through to a proportional face. `84152118` routes both reserved
+advance and painted glyph through one document-family/weight/features owner.
 
 The first repair landed on main as merge `1f07416f`; an independent
 `gpt-5.6-terra` medium audit accepted its enrolment and mutations, and exact-main
@@ -689,6 +695,9 @@ enrolment and mutations. Remote Linux is the final lavapipe oracle.
 
 ---
 ### 548 — table text wears the PREVIOUS world's ink after a live theme switch (user report, 2026-09-01 — "tables are off on this theme"; ink identified by pixel arithmetic, mechanism still a hypothesis)
+
+🟡 IN PROGRESS — claimed for `gpt-5.6-sol` high on
+`codex/item-548-live-table-retint`.
 
 Report: on a live Mangrove window the user's tables render near-invisible
 while the surrounding prose is correct. Measured over the report's screenshot:
