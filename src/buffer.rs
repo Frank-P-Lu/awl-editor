@@ -742,6 +742,12 @@ mod undo;
 
 mod edit;
 
+/// MOVE LINE UP/DOWN (⌥↑/⌥↓): swap the caret's logical line, or every line an
+/// active selection touches (moved as one block), with its immediate
+/// neighbor. Inherent methods on [`Buffer`], carved out here since
+/// `buffer/edit.rs` sits at its own tracked size ceiling.
+mod reorder;
+
 mod url;
 pub use url::is_url;
 

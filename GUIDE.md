@@ -302,6 +302,8 @@ drift into this page silently.
 | Backward char | C-b |  |
 | Next line | C-n |  |
 | Previous line | C-p |  |
+| Move line up | ⌥Up | Alt+Up |
+| Move line down | ⌥Down | Alt+Down |
 | Delete word forward |  |  |
 | Delete word backward |  |  |
 | Settings… | ⌘, | Ctrl+, |

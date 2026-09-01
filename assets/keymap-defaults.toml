@@ -140,6 +140,14 @@ forward_char = ["", "C-f"]
 backward_char = ["", "C-b"]
 next_line = ["", "C-n"]
 previous_line = ["", "C-p"]
+# Move line up/down: ⌥↑/⌥↓ are free (no default reaches ArrowUp/ArrowDown with
+# Alt held) and are the cross-editor convention; macOS text fields use them for
+# paragraph motion, which awl does not implement, so taking them is a
+# deliberate taste call. No exact Emacs classic exists (transpose-lines
+# differs), so the emacs slot stays empty rather than seeding a chord nobody
+# asked for.
+move_line_up = ["Option-Up", ""]
+move_line_down = ["Option-Down", ""]
 # Word-delete: both slots empty by default (the surviving ⌥⌫ / ⌥Delete defaults
 # fire from keymap.rs's static NamedKey arms, not a catalog chord — mirrors the
 # char/line motions above). Rebindable via [keys] delete_word_forward = "M-d".

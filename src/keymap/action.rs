@@ -20,6 +20,29 @@ pub enum Action {
     AcceptAlternate,
     InsertTab,
     Outdent,
+    /// ⌥↑ (Option-Up): swap the caret's LOGICAL line — or every line an active
+    /// selection touches, moved as one block — with the line immediately
+    /// above, caret and selection riding the moved text (columns preserved).
+    /// A LOGICAL-line move: wrapped visual rows never reorder independently,
+    /// since the buffer has no notion of a visual row at all. Applied as ONE
+    /// atomic replace (never coalesces — see `Buffer::apply_edit`'s
+    /// `record_edit`), so a single undo restores the pre-move order even
+    /// right after a run of typing, while two separate moves stay two undo
+    /// steps. A calm no-op at the first line (nothing above to swap with; no
+    /// version bump, nothing to undo). Inside a table this is a plain source
+    /// edit — the landed row-leave re-pad
+    /// (`crate::actions::auto_align_table_on_row_leave`) re-aligns the grid
+    /// afterward exactly like any other row-changing action, with no
+    /// special-casing here. A numbered list's literal ordinals move WITH
+    /// their lines and are not renumbered by this action (mirroring
+    /// Tab/Shift-Tab's own no-renumber precedent); re-invoking "Numbered
+    /// list" resequences them, same as it does for any other reordering.
+    /// See `Buffer::move_line_up`.
+    MoveLineUp,
+    /// The downward mirror of [`Action::MoveLineUp`]: swaps with the line
+    /// immediately below; a calm no-op at the last line. See
+    /// `Buffer::move_line_down`.
+    MoveLineDown,
     DeleteBackward,
     DeleteWordBackward,
     DeleteWordForward,
@@ -329,6 +352,8 @@ impl Action {
                 | Action::AcceptAlternate
                 | Action::InsertTab
                 | Action::Outdent
+                | Action::MoveLineUp
+                | Action::MoveLineDown
                 | Action::DeleteBackward
                 | Action::DeleteWordBackward
                 | Action::DeleteWordForward

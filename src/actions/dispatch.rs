@@ -32,6 +32,8 @@ macro_rules! classify_action_family {
             | Action::AcceptAlternate
             | Action::InsertTab
             | Action::Outdent
+            | Action::MoveLineUp
+            | Action::MoveLineDown
             | Action::DeleteBackward
             | Action::DeleteWordBackward
             | Action::DeleteWordForward
