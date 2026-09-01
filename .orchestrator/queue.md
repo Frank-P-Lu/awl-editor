@@ -1036,7 +1036,33 @@ Verify: unit tests at the edit seam plus a `--keys` sidecar journey.
 ---
 ### 558 — single open file draws no active plate in the working-set gutter (user report, 2026-09-01 — "when you first open a file, it doesn't seem to be selected?"; behavior confirmed in every capture's own gutter)
 
-🟡 IN PROGRESS — claude, branch item-558
+🔵 INVESTIGATED, taste call OWED — merged `53c7b023`. Git history (items
+444/469/515) confirms the unplated single-file identity line is
+DELIBERATE — item 444's own commit: "THE ONE-FILE CONTRACT IS
+STRUCTURAL, NOT A RESEMBLANCE... the plate pipeline is handed no rects,
+not a stack of one that happens to agree"; item 469 chose `muted` ink
+specifically because "a plate-less lone heading has nothing left to
+differentiate against"; item 515 weighed and kept it plate-less. Still
+production-tested today (`a_single_file_block_plates_nothing`). Per the
+item's own framing: deliberate AND it has failed its reader once — a
+taste call, not a bug, so no default behavior changed. Both candidates
+captured headlessly for comparison: unplated (current, RGB ≈29-30,40-
+41,21-22 at the identity row) vs a temporary plated patch (RGB ≈126,
+140,103, matching the multi-file active-row treatment) — captures are
+local-only (`/tmp/gutter-plate-compare/`, not committed); the lane
+describes the pixel diff precisely in its report for the orchestrator
+to relay. **Q: plate the single-file identity line to match multi-file
+active rows, or keep it bare (the documented "calm when nothing to
+distinguish" reasoning)?**
+
+Separately verified (not a taste call): a freshly opened file among
+several already-open files IS plated immediately — no bug, traced to
+`WorkingSet::open` setting `active` unconditionally and `stack_rows`
+re-deriving fresh on every call, no cache/debounce. Landed as a
+mutation-proven law (`workingset::tests::a_freshly_opened_file_among_
+several_is_active_immediately`). Exact-main receipt: health pass:266s,
+both conventions, menubar=full:on, 4729 unit tests, 17 integration
+targets.
 
 With exactly one file open, the identity line shows the bare name — no
 active-row plate — and the user reads that as "not selected." Two-file
