@@ -2642,13 +2642,10 @@ pub struct TextPipeline {
     /// at all unless the stack is drawn, so a single-file frame issues no extra
     /// draw (`SelectionPipeline::draw` returns early at zero instances).
     gutter_stack_plate: crate::selection::SelectionPipeline,
-    /// **559:** the soft square behind the × under the LIVE pointer, drawn
-    /// only while the pointer sits inside a row's own close ZONE — the same
-    /// rect [`chrome::gutter_stack::close_hover_plate_rect`] hands the
-    /// hit-test, so the highlight can never promise a click the hit-test
-    /// would refuse. Holds no instances outside that one hover state
-    /// (resting, or hovering the row's switch half, prepares it empty), so
-    /// an ordinary frame issues no extra draw here either.
+    /// The soft square behind the × under the live pointer, drawn only
+    /// inside a row's close ZONE — the same rect
+    /// [`chrome::gutter_stack::close_hover_plate_rect`] hands the hit-test.
+    /// Empty outside that one hover state, so an ordinary frame draws none.
     gutter_close_hover_plate: crate::selection::SelectionPipeline,
     /// A live row-DRAG's own drop-slot indicator: the drawn row index to
     /// insert BEFORE (`gutter_files.len()` means "at the very end"). `None`

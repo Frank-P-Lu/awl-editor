@@ -421,6 +421,41 @@ pub(super) fn close_hover_plate_rect(
         })
 }
 
+impl TextPipeline {
+    /// **559:** set + upload the close-zone hover plate, off the exact rect
+    /// [`close_hover_plate_rect`] hands the hit-test. Lives here (not inline
+    /// in `gutter.rs::prepare_gutter`, the shared block owner) so a new draw
+    /// does not grow that function past its own ceiling; recomputes
+    /// `label_char_w`/the corner radius itself, matching how
+    /// `gutter_hit::gutter_hit_plan` already re-derives the same quantity
+    /// from `self.metrics` rather than threading it through every caller.
+    pub(super) fn prepare_close_hover_plate(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &wgpu::Queue,
+        width: u32,
+        height: u32,
+        layout: &GutterLayout,
+        plan: &crate::render::plan::GutterStackPlan,
+    ) {
+        let label_char_w = self.metrics.char_width * crate::markdown::type_scale::LABEL;
+        let rect = close_hover_plate_rect(layout, plan, label_char_w, self.gutter_stack_hover);
+        let fill = theme::surface_selected();
+        self.gutter_close_hover_plate.set_color(
+            theme::Srgb::rgba(fill.r, fill.g, fill.b, CLOSE_HOVER_PLATE_ALPHA).rgba_bytes(),
+        );
+        self.gutter_close_hover_plate
+            .set_corner(self.metrics.px_physical(PLATE_CORNER_PX));
+        self.gutter_close_hover_plate.prepare(
+            device,
+            queue,
+            width,
+            height,
+            &rect.into_iter().collect::<Vec<_>>(),
+        );
+    }
+}
+
 /// The active-row plate rects AND the row-drag insertion-hairline rect (at
 /// most one each), both derived from the SAME planner rows — so a drag
 /// indicator can never draw off a row the plate math disagrees about.

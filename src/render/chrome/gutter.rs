@@ -370,37 +370,7 @@ impl TextPipeline {
         self.gutter_drag_indicator_plate.set_corner(0.0);
         self.gutter_drag_indicator_plate
             .prepare(device, queue, width, height, &indicator);
-        // **559:** the close-zone hover plate — a quiet square behind the ×
-        // under the live pointer, drawn from the EXACT rect the hit-test
-        // itself owns (`close_hover_plate_rect`), never a second measurement
-        // of it. `None` off every state but "pointer inside a close zone",
-        // which an empty `prepare` turns into zero drawn instances — every
-        // headless capture and every ordinary live frame alike.
-        let close_hover = gutter_stack::close_hover_plate_rect(
-            &layout,
-            &stack,
-            label_char_w,
-            self.gutter_stack_hover,
-        );
-        let hover_fill = theme::surface_selected();
-        self.gutter_close_hover_plate.set_color(
-            theme::Srgb::rgba(
-                hover_fill.r,
-                hover_fill.g,
-                hover_fill.b,
-                gutter_stack::CLOSE_HOVER_PLATE_ALPHA,
-            )
-            .rgba_bytes(),
-        );
-        self.gutter_close_hover_plate
-            .set_corner(m.px_physical(gutter_stack::PLATE_CORNER_PX));
-        self.gutter_close_hover_plate.prepare(
-            device,
-            queue,
-            width,
-            height,
-            &close_hover.into_iter().collect::<Vec<_>>(),
-        );
+        self.prepare_close_hover_plate(device, queue, width, height, &layout, &stack);
         let area = TextArea {
             buffer: &self.gutter_buffer,
             // Shifted left by the box's own widened amount, so its right
