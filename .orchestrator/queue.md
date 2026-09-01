@@ -646,8 +646,15 @@ fitting-room artifact is the visual reference for all of this.
 ---
 ### 547 — CI RED: smart-punctuation full-body pixel law rejects Tawny ellipsis on Linux lavapipe
 
-🟡 IN PROGRESS — claimed for `gpt-5.6-sol` high on
-`codex/item-547-lavapipe-smart-punct-law`.
+✅ COMPLETE — premise false, oracle repaired. Landed on main as merge
+`1f07416f`; an independent `gpt-5.6-terra` medium audit accepted the law after
+deletion, half-scale and wrong-ink mutations each made it fail. The repaired
+one-frame relative oracle keeps full-world × punctuation-kind enrolment while
+measuring presence, horizontal extent, suffix displacement and body-ink travel;
+backend-sensitive exact vertical raster height remains diagnostic only.
+Exact-main receipt: health pass, both conventions, forced menu-bar arm, 4,693
+unit tests, 16 integration targets; web 16/16. Hosted Linux lavapipe remains the
+final remote confirmation.
 
 Remote arbiter run
 https://github.com/Frank-P-Lu/awl-editor/actions/runs/33443457917 is RED.
