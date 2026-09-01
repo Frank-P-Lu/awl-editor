@@ -494,10 +494,17 @@ pub(super) fn visual_row_from_run(
 /// stamped with that SAME span:
 ///   * `M < N` — a TRUE ligature (`fi`/`fl`, or `->` on a `calt` mono) collapses
 ///     several source chars into ONE glyph carrying the whole span.
-///   * `M = N` — Monaspace Xenon's AAT/`morx` "texture-healing" ligatures
-///     (`=> != -> >= <= == ::`) emit one glyph PER source char but stamp EVERY
-///     one with the SAME (start,end) span (unsuppressable by OpenType features).
-///     Either way the fix is one rule: gather the whole GROUP of consecutive glyphs
+///   * `M = N` — a shaper that emits one glyph PER source char but stamps
+///     EVERY one with the SAME (start,end) span (a shared cluster, not a true
+///     merge). This mechanism is general and stays in place even though its
+///     original motivating case — Monaspace Xenon's `=> != -> >= <= == ::`
+///     "texture-healing" — turned out to be plain OpenType GSUB (a `rlig`
+///     chain reaching a real `M<N` `LigatureSubst`, not AAT/`morx`: the
+///     bundled TTF carries no `morx` table at all) and IS suppressible via
+///     font features; [`super::text::font_features`]'s doc has the GSUB walk
+///     and now disables `rlig` for that face, so Monaspace's own operator
+///     content no longer exercises this branch. Either way the fix is one
+///     rule: gather the whole GROUP of consecutive glyphs
 ///     that share a span, take its COMBINED advance `A = (max right x) − (min left
 /// x)` across all `M` glyphs, and distribute the `(end − start)` source chars
 ///     EVENLY over it — char `i` sits at `group_left + (i − start) · A / (end −

@@ -1370,6 +1370,44 @@ impl TextPipeline {
 /// (prose is unaffected — it never rode the toggle). For Monaspace / IBM Plex the
 /// toggle is a no-op (they are ligature-free either way); it meaningfully flips
 /// only the pitch-safe monos' `calt`.
+///
+/// **MONASPACE XENON'S OWN `rlig` CHAIN — a door none of the above closes.**
+/// A GSUB walk of the bundled `MonaspaceXenon-Regular.ttf` (`fonttools`, not
+/// this doc's prior say-so — see the correction below) shows its programming-
+/// ligature set (`~~`, `<~`, `~>`, `!~`, `-~`, `=~`, `->`, `=>`, `!=`, `==`,
+/// `>=`, `<=`, and ~40 more, all true `LigatureSubst` merges of 2-4 source
+/// glyphs into ONE) is reachable from TWO independent doors: `dlig`
+/// (Discretionary Ligatures, feature index 4 — already disabled above,
+/// unconditionally) AND a `ChainContextSubst` owned by **`rlig` — Required
+/// Ligatures** (feature index 25 in Regular), which the OpenType spec has
+/// shapers apply UNCONDITIONALLY per script and which nothing in this file
+/// touched. `rlig` sits in the font's own DFLT/latn/cyrl default-feature list,
+/// so it fires with no feature request at all — in EVERY branch above,
+/// PROSE included, since the prose branch never disables `calt`'s neighbours,
+/// only `calt` itself. This is the reported bug: a raw-reveal `~~struck~~`
+/// line (prose, Monaspace as the world's display face — Firetail/Potoroo) and
+/// a code line with `~~` both fuse two typed tildes into one glyph.
+/// Monaspace Xenon Bold carries no `rlig` at all — its much smaller lookalike
+/// set (`...`/`;;;`/`;;`/`!!`/`!=`/`///`/`//`/`||`, no tildes) rides `liga`
+/// (Standard Ligatures) instead, already gated correctly by the existing
+/// `STANDARD_LIGATURES` enable/disable above (off for code, on for prose by
+/// the same fi/fl-uncontroversial call this file already makes). So the fix
+/// scopes to the one door actually left open: `rlig`, on the one face that
+/// registers it. `rlig` is a real requirement for other scripts through
+/// fallback faces (e.g. Arabic), so this is a PER-FACE disable, not a global
+/// one — see the `face == "Monaspace Xenon"` guard below.
+///
+/// **Correction to this module's prior "AAT/`morx`" framing** (also in
+/// `geometry.rs`'s `assemble_glyph_xs` doc and `tests/syntax_ligatures.rs`):
+/// `MonaspaceXenon-Regular.ttf` carries no `morx` table at all (`fonttools`
+/// dump: `GSUB` present, no AAT tables), so its ligatures cannot be AAT-driven
+/// — AAT ligation requires one. The "`rclt` isn't even in harfrust's AAT
+/// feature-mapping table" claim was similarly never checked against the font:
+/// the font itself has no `rclt` feature record either (only `calt`, `ccmp`,
+/// `dlig`, `rlig` and a handful of stylistic ones), so disabling `rclt` was
+/// always a no-op, not a suppression that failed. The mechanism is ordinary
+/// OpenType GSUB (`rlig`'s chain context → a shared `LigatureSubst` lookup),
+/// and it IS suppressible via font features — disabling the right tag.
 pub(super) fn font_features(
     is_code: bool,
     face: &str,
@@ -1378,6 +1416,13 @@ pub(super) fn font_features(
     use glyphon::cosmic_text::{FeatureTag, FontFeatures};
     let mut ff = FontFeatures::new();
     ff.disable(FeatureTag::DISCRETIONARY_LIGATURES);
+    if face == "Monaspace Xenon" {
+        // The one door `dlig`/`calt`/`rclt`/`ccmp` never closed — see the module
+        // doc's `rlig` bullet. Applies in BOTH branches below (prose's raw
+        // `~~struck~~` reveal and the code arm's unsafe-mono set), since `rlig`
+        // is a script-default feature this function otherwise never touches.
+        ff.disable(FeatureTag::new(b"rlig"));
+    }
     if !is_code {
         // PROSE: standard + contextual ligatures ON (fi/fl collision-fixers).
         // `calt` OFF unconditionally — see the module doc's PROSE bullet: a
@@ -1398,9 +1443,13 @@ pub(super) fn font_features(
         ff.enable(FeatureTag::CONTEXTUAL_ALTERNATES);
     } else {
         // UNSAFE / inert / unknown mono, OR the toggle is OFF → LIGATURE-FREE.
-        // `calt` off (no contextual substitution); `rclt` + `ccmp` off to stop
-        // Monaspace's texture-healing cluster merge (the per-mono probe's fix),
-        // which is what would otherwise break `line_glyph_xs` on a `-> => ::` line.
+        // `calt` off (no contextual substitution). `rclt` is disabled too, though
+        // a GSUB walk shows Monaspace Xenon never registers that feature at all
+        // (this disable is a harmless no-op there and a real one for any future
+        // mono that does); `ccmp` is likewise disabled but only ever touches
+        // combining-mark composition on this font, not the operator/tilde
+        // ligature set — the actual door that set rides is `rlig`, closed above
+        // (per-face, before this branch) for Monaspace Xenon specifically.
         ff.disable(FeatureTag::CONTEXTUAL_ALTERNATES);
         ff.disable(FeatureTag::new(b"rclt"));
         ff.disable(FeatureTag::new(b"ccmp"));
@@ -1414,9 +1463,13 @@ pub(super) fn font_features(
 /// (their ligatures ride `calt`: 1 glyph per source char, per-char clusters,
 /// maxdev 0.0) are listed. Every OTHER mono is treated as UNSAFE and rendered
 /// ligature-free, so the uniform grid can never silently break:
-///   * **Monaspace Xenon** — its texture-healing ligatures ride `rclt` + `ccmp`
-///     and MERGE glyph clusters → non-uniform `line_glyph_xs` (there is no clean
-///     per-char option for it via font features).
+///   * **Monaspace Xenon** — a GSUB walk of the bundled TTF (`fonttools`, not
+///     assumed) shows its programming-ligature set is a true `LigatureSubst`
+///     merge (fewer glyphs than source chars), reachable via `dlig` and via a
+///     `rlig`-owned chain context ([`font_features`]'s doc has the walk); it
+///     MERGES glyph clusters → non-uniform `line_glyph_xs` unless every one of
+///     `calt`/`dlig`/`rlig` is off (there is no clean per-char option for it
+///     via font features once all three are accounted for).
 ///   * **IBM Plex Mono** — ships no programming ligatures at all, so ligature-free
 ///     is a no-op (nothing to enable).
 ///   * any **future / unknown** mono — conservative default until measured.
