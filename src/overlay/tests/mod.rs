@@ -30,6 +30,7 @@ fn orphan(rel: &str, size: u64) -> crate::assets::Orphan {
         name,
         parent,
         size: Some(size),
+        abs: std::path::PathBuf::from("/proj").join(rel),
     }
 }
 

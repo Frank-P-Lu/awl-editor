@@ -80,6 +80,15 @@ pub enum RowMeta {
     /// (`OverlayState::move_dest_new_folder_target`). Accepting it creates the
     /// named folder and moves into it in one stroke.
     NewFolder,
+    /// An ASSET CLEANER row's own orphan image, resolved to its ABSOLUTE path
+    /// (`root.join(rel)`, the same join the trash door performs) at scan time.
+    /// The one fact the render layer's live PREVIEW panel needs
+    /// (`OverlayState::selected_asset_path`) — carried on the row rather than
+    /// threaded back through `root`, which nothing downstream of the scan
+    /// otherwise carries.
+    Asset {
+        abs: std::path::PathBuf,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -98,6 +107,7 @@ pub enum RowMetaTag {
     ProjectDoor,
     MoveHere,
     NewFolder,
+    Asset,
 }
 
 impl RowMeta {
@@ -117,6 +127,7 @@ impl RowMeta {
             RowMeta::ProjectDoor => RowMetaTag::ProjectDoor,
             RowMeta::MoveHere => RowMetaTag::MoveHere,
             RowMeta::NewFolder => RowMetaTag::NewFolder,
+            RowMeta::Asset { .. } => RowMetaTag::Asset,
         }
     }
 
@@ -140,7 +151,8 @@ impl RowMeta {
             | RowMeta::CommandSetting { .. }
             | RowMeta::CommandHidden
             | RowMeta::History { .. }
-            | RowMeta::MoveHere => false,
+            | RowMeta::MoveHere
+            | RowMeta::Asset { .. } => false,
         }
     }
 }

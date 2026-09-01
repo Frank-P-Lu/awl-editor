@@ -59,6 +59,12 @@ pub struct Orphan {
     pub parent: String,
     /// Byte length, or `None` when unavailable.
     pub size: Option<u64>,
+    /// `root.join(rel)` — the SAME join the App's own trash door performs
+    /// (`App::trash_asset`), resolved once here so the picker's live PREVIEW
+    /// (the row's image, beside the list) never needs `root` threaded back
+    /// through the render layer: it rides on the row's own
+    /// [`crate::overlay::RowMeta::Asset`].
+    pub abs: std::path::PathBuf,
 }
 
 /// A compact human byte size: `"0 B"`, `"742 B"`, `"12.3 KB"`, `"4.1 MB"`, `"1.0 GB"`.
@@ -218,6 +224,7 @@ pub fn scan(root: &Path, corpus: &[String]) -> Vec<Orphan> {
             name,
             parent,
             size,
+            abs: root.join(rel),
         });
     }
     orphans.sort_by(|a, b| a.rel.cmp(&b.rel));
@@ -371,6 +378,11 @@ mod tests {
         assert_eq!(orphans[0].name, "orphan.png");
         assert_eq!(orphans[0].parent, "assets");
         assert_eq!(orphans[0].size, Some("PNGDATA-longer".len() as u64));
+        assert_eq!(
+            orphans[0].abs,
+            root.join("assets/orphan.png"),
+            "abs is root.join(rel), the same join the trash door performs"
+        );
     }
 
     #[test]
@@ -435,6 +447,7 @@ mod tests {
             name: "x.png".into(),
             parent: "notes/assets".into(),
             size: Some(12_600),
+            abs: PathBuf::from("/proj/notes/assets/x.png"),
         };
         assert_eq!(secondary_label(&o), "12.3 KB · notes/assets");
         let top = Orphan {
@@ -442,6 +455,7 @@ mod tests {
             name: "x.png".into(),
             parent: String::new(),
             size: Some(5),
+            abs: PathBuf::from("/proj/x.png"),
         };
         assert_eq!(secondary_label(&top), "5 B");
     }

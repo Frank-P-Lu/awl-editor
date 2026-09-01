@@ -128,11 +128,11 @@ impl OverlayKind {
             | OverlayKind::ExportDest
             | OverlayKind::Keybindings
             | OverlayKind::Settings
-            | OverlayKind::Assets
             | OverlayKind::Rename
             | OverlayKind::InsertLink
             | OverlayKind::KeepName
             | OverlayKind::TableDims => &[Plain],
+            OverlayKind::Assets => &[Asset],
         }
     }
 

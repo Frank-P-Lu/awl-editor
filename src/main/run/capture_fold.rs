@@ -217,6 +217,7 @@ fn overlay_capture_info_optional(
         spell_target: ov.spell_target,
         table_dims: ov.table_dims_target(),
         context_anchor: ov.context_anchor,
+        asset_preview: ov.selected_asset_path().map(std::path::Path::to_path_buf),
         preview_id: preview.map(|(id, _, _)| id),
         preview_view: request.as_ref().map(|r| r.view.tag()),
         workspace: ov.workspace_shape().is_some(),

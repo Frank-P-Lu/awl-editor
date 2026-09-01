@@ -80,6 +80,11 @@ impl TextPipeline {
         self.prepare_overlay_material(device, queue, width, height, &geom, placard_geometry);
         self.overlay_place_caret(device, queue, width, height, &geom, &plan);
         self.prepare_table_dims_grid(device, queue, width, height);
+        // THE ASSET CLEANER's live preview panel, drawn AFTER the card above
+        // (painter's order: on top of it, coordinated beside it — never hidden
+        // behind the card it accompanies). A no-op park whenever
+        // `overlay_asset_preview` is empty (every kind but Assets).
+        self.prepare_asset_preview(device, queue, width, height)?;
         Ok(())
     }
 
@@ -209,6 +214,9 @@ impl TextPipeline {
                 &mut self.swash_cache,
             )
             .map_err(|e| anyhow::anyhow!("glyphon overlay park failed: {e:?}"))?;
+        // The Asset Cleaner's preview panel parks too, so the frame after that
+        // picker closes carries no stale thumbnail (`asset_preview.rs`'s own doc).
+        self.park_asset_preview(device, queue, width, height)?;
         Ok(())
     }
 

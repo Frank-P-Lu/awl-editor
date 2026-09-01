@@ -1023,6 +1023,16 @@ impl TextPipeline {
             let resolved = self.resolve_image_path(&im.path);
             keep.insert(ImageCache::canonical_key(&resolved));
         }
+        // THE ASSET CLEANER's live PREVIEW rides this SAME cache (never a
+        // second decoder) — but its subject is, by definition, an ORPHAN no
+        // document references, so it is NEVER in `report` above. Without this
+        // line the retain pass below would evict it every single frame right
+        // after `prepare_asset_preview` (later this frame) decoded it,
+        // forcing a fresh decode on EVERY frame the preview is open rather
+        // than once per selection — see `render/chrome/asset_preview.rs`.
+        if let Some(path) = &self.overlay_asset_preview {
+            keep.insert(ImageCache::canonical_key(path));
+        }
         self.image_cache.retain_paths(&keep);
 
         let max_dim = device.limits().max_texture_dimension_2d;

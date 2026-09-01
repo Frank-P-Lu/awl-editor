@@ -2235,6 +2235,20 @@ pub struct TextPipeline {
     /// to the open doc's images each reshape ([`image_cache::ImageCache::retain_paths`]).
     #[cfg(not(target_arch = "wasm32"))]
     image_cache: image_cache::ImageCache,
+    /// THE ASSET CLEANER's live PREVIEW PANEL (`render/chrome/asset_preview.rs`)
+    /// — a second coordinated region beside the picker's row list, gated on
+    /// [`Self::overlay_asset_preview`]. Three DEDICATED pipelines (never the
+    /// shared float-panel trio `float_shadow`/`float_border`/`float_card`,
+    /// which the search panel / caret-preview claim in the SAME frame the
+    /// Assets picker can be open in): the panel's own flat background quad,
+    /// the thumbnail (reusing the ONE inline-image decode/texture path,
+    /// [`image_cache`](crate::render::image_cache) — never a second decoder),
+    /// and the can't-decode statement's own text buffers. Empty (nothing
+    /// drawn) whenever the feature is off / no overlay / on wasm, so a
+    /// default capture is byte-identical.
+    pub(in crate::render) asset_preview_panel: SelectionPipeline,
+    pub(in crate::render) asset_preview_image: crate::image_pipeline::ImageQuadPipeline,
+    pub(in crate::render) asset_preview_text_renderer: TextRenderer,
     /// CACHED SPELL-SQUIGGLE PROTOS — the scroll-independent geometry of every
     /// misspelling's underline band, keyed on (row-geometry generation, spell list
     /// generation) so the per-frame squiggle pass is O(misspellings) arithmetic
@@ -2580,6 +2594,11 @@ pub struct TextPipeline {
     /// `overlay_spell` gates the contextual spell popup's.
     overlay_table_dims: Option<(usize, usize)>,
     overlay_context_anchor: Option<(f32, f32)>,
+    /// Mirror of [`ViewState::overlay_asset_preview`] — gates the Asset
+    /// Cleaner's live preview panel (`render/chrome/asset_preview.rs`), the
+    /// picker's second coordinated region, exactly like `overlay_spell`
+    /// gates the contextual spell popup's own geometry.
+    overlay_asset_preview: Option<std::path::PathBuf>,
     overlay_detail_focus: bool,
     /// Whether the summoned card is drawn as a workspace (mirror of
     /// [`ViewState::overlay_workspace`]). The one input that routes

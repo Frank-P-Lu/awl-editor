@@ -216,6 +216,7 @@ fn blank_overlay() -> OverlayInfo {
         spell_target: None,
         table_dims: None,
         context_anchor: None,
+        asset_preview: None,
         capture: None,
         notice: String::new(),
         lens: None,

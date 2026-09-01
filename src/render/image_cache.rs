@@ -30,9 +30,10 @@ pub(crate) enum ImageState {
         texture: wgpu::Texture,
         view: wgpu::TextureView,
         /// The image's INTRINSIC (pre-downscale) pixel dimensions. Read by the
-        /// decode test (asserting a bundled fixture's real size) + kept for future
-        /// draw-side use (e.g. a natural-size cap); not read on the draw path today.
-        #[allow(dead_code)]
+        /// decode test (asserting a bundled fixture's real size) and by
+        /// [`ImageCache::intrinsic`] — the aspect ratio a caller that bounds
+        /// BOTH axes (unlike the inline-image path, width-only) needs to
+        /// contain-fit the texture inside its own box.
         intrinsic: (u32, u32),
     },
     /// The file was absent / unreadable / not a decodable image.
@@ -172,6 +173,35 @@ impl ImageCache {
             _ => None,
         }
     }
+
+    /// The decoded image's INTRINSIC (pre-downscale) pixel dimensions for
+    /// `key` (a [`Self::canonical_key`]), when the entry is present and
+    /// [`ImageState::Ready`] — `None` for an absent or [`ImageState::Missing`]
+    /// entry. The aspect ratio a caller CONTAIN-fitting the texture into a box
+    /// that bounds both axes needs ([`contain_fit`]); the inline-image draw
+    /// path never calls this because it fits width alone and lets the row grow.
+    pub(crate) fn intrinsic(&self, key: &Path) -> Option<(u32, u32)> {
+        match self.map.get(key) {
+            Some(Entry {
+                state: ImageState::Ready { intrinsic, .. },
+                ..
+            }) => Some(*intrinsic),
+            _ => None,
+        }
+    }
+}
+
+/// The PURE contain-fit decision: `intrinsic` scaled down (NEVER up) to fit
+/// BOTH `box_w` and `box_h`, aspect preserved, 1px floor on each axis. The
+/// box-bounded twin of [`upload_size`] (which fits WIDTH alone) — a caller
+/// with a fixed box on both axes (the Asset Cleaner's preview panel; an
+/// inline image instead grows its own row to the image's height) computes
+/// its DESTINATION rect through this, independent of whatever resolution the
+/// texture itself was decoded at.
+pub(crate) fn contain_fit(intrinsic: (u32, u32), box_w: f32, box_h: f32) -> (f32, f32) {
+    let (iw, ih) = (intrinsic.0.max(1) as f32, intrinsic.1.max(1) as f32);
+    let scale = (box_w.max(0.0) / iw).min(box_h.max(0.0) / ih).min(1.0);
+    ((iw * scale).max(1.0), (ih * scale).max(1.0))
 }
 
 /// Decode `resolved` to `Rgba8UnormSrgb`, downscaled to `display_w` (clamped to
@@ -274,6 +304,26 @@ mod tests {
         assert!((w as f32 / h as f32 - 2.0).abs() < 0.05, "aspect ~2:1 kept");
         // Never zero.
         assert_eq!(upload_size((1, 1), 0.0, 16384), (1, 1));
+    }
+
+    /// The pure contain-fit math: scaled down to fit BOTH axes, aspect
+    /// preserved, never upscaled, never zero.
+    #[test]
+    fn contain_fit_bounds_both_axes_preserves_aspect_and_never_upscales() {
+        // A wide image in a taller-than-wide box: HEIGHT is the binding axis.
+        let (w, h) = contain_fit((400, 100), 300.0, 50.0);
+        assert!((h - 50.0).abs() < 0.01, "height binds: {w}x{h}");
+        assert!((w - 200.0).abs() < 0.5, "aspect kept (4:1): {w}x{h}");
+        // A tall image in a wider-than-tall box: WIDTH is the binding axis.
+        let (w2, h2) = contain_fit((100, 400), 50.0, 300.0);
+        assert!((w2 - 50.0).abs() < 0.01, "width binds: {w2}x{h2}");
+        assert!((h2 - 200.0).abs() < 0.5, "aspect kept (1:4): {w2}x{h2}");
+        // Never upscale: a small source inside a big box stays its own size.
+        let (w3, h3) = contain_fit((40, 20), 300.0, 300.0);
+        assert_eq!((w3, h3), (40.0, 20.0), "smaller than the box: unchanged");
+        // Never zero, even from a degenerate box.
+        let (w4, h4) = contain_fit((100, 50), 0.0, 0.0);
+        assert!(w4 >= 1.0 && h4 >= 1.0, "floors at 1px: {w4}x{h4}");
     }
 
     /// A missing / unreadable file decodes to the Missing state (the calm

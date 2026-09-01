@@ -147,6 +147,7 @@ fn asset_cleaner_enter_arms_trash_and_keeps_the_picker_open() {
             .map(|(d, _)| d.to_string())
             .unwrap_or_default(),
         size: Some(10),
+        abs: std::path::PathBuf::from("/proj").join(rel),
     };
     let mut overlay = crate::overlay::Journey::seeded(Some(OverlayState::new_assets(vec![
         mk("assets/orphan-a.png"),
