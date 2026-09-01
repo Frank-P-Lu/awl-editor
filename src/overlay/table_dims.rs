@@ -12,7 +12,7 @@
 //! (`render::viewstate_def`) exactly like the SPELL popup's own dedicated
 //! arm keys off `overlay_spell`.
 
-use super::{OverlayKind, OverlayState};
+use super::{OverlayKind, OverlayState, nav};
 
 /// The smallest table worth inserting.
 pub const MIN_DIM: usize = 1;
@@ -171,6 +171,13 @@ impl OverlayState {
     /// own accept/commit gesture, `↵`, stays the one insertion door). Clamped
     /// defensively even though every caller already bounds `row`/`col` to
     /// the drawn grid. A no-op with no table-dims edit active.
+    ///
+    /// This is ALSO the hover-preview's own write path
+    /// ([`Self::table_dims_hover_at`]): a click commits (the mouse layer
+    /// follows this call with `Action::Newline`) and a hover merely previews
+    /// (the mouse layer does not), but both reach `rows`/`cols` through this
+    /// one function -- there is no second, hover-only copy of this state to
+    /// disagree with a keyboard sculpt or a click.
     pub fn table_dims_pick(&mut self, row: usize, col: usize) {
         let Some(td) = self.table_dims.as_mut() else {
             return;
@@ -178,6 +185,49 @@ impl OverlayState {
         td.rows = (row + 1).clamp(MIN_DIM, MAX_ROWS);
         td.cols = (col + 1).clamp(MIN_DIM, MAX_COLS);
         td.typed.clear();
+    }
+
+    /// THE DIMENSION PICKER'S OWN REAL-MOTION GATE — [`Self::table_dims_pick`]'s
+    /// hover-preview door, sharing [`Self::last_hover_px`]/
+    /// [`nav::HOVER_MOVE_SLOP_PX`] with the candidate-row list's own
+    /// [`Self::hover_at`] rather than growing a second anchor: the two gates
+    /// are mutually exclusive by `kind` (a `TableDims` card carries no
+    /// candidate rows, an ordinary picker carries no table-dims edit), so one
+    /// field safely serves both.
+    ///
+    /// Without this gate, a platform-synthesized duplicate `CursorMoved` at
+    /// an UNMOVED pixel -- fired right after an arrow-key/typed-digit sculpt
+    /// re-anchors the baseline via [`Self::arm_hover_baseline`] (called
+    /// generically after every keyboard action on any open overlay, this
+    /// card included) -- would re-hit-test the stationary pointer and
+    /// silently REVERT the keyboard's own change back to whatever cell rests
+    /// under it: the exact "hover steals a keyboard selection" hazard
+    /// `hover_at` exists to close for the row list, now for a grid instead.
+    /// `hit` is the cell the CALLER already resolved under `(px, py)` (a
+    /// plain injected value, not a pipeline call -- keeps this
+    /// pure/unit-testable, mirroring `hover_at`'s own shape).
+    ///
+    /// Returns whether the hover actually changed the previewed dims, so the
+    /// caller knows whether a redraw is owed.
+    pub fn table_dims_hover_at(&mut self, px: f32, py: f32, hit: Option<(usize, usize)>) -> bool {
+        let moved = match self.last_hover_px {
+            None => true,
+            Some((lx, ly)) => {
+                let dx = px - lx;
+                let dy = py - ly;
+                dx * dx + dy * dy > nav::HOVER_MOVE_SLOP_PX * nav::HOVER_MOVE_SLOP_PX
+            }
+        };
+        if !moved {
+            return false;
+        }
+        self.last_hover_px = Some((px, py));
+        let Some((row, col)) = hit else {
+            return false;
+        };
+        let before = self.table_dims_target();
+        self.table_dims_pick(row, col);
+        before != self.table_dims_target()
     }
 
     /// The commit target: `Some((rows, cols))` while a table-dims edit is
@@ -323,5 +373,102 @@ mod tests {
             ov.table_dims_push(c);
         }
         assert_eq!(ov.table_dims_target(), Some((DEFAULT_ROWS, DEFAULT_COLS)));
+    }
+
+    /// THE HOVER-PREVIEW's own hit-mapping/selection-update seam, swept over
+    /// the grid's four CORNERS -- exactly where an off-by-one in a
+    /// 0-based-cell-to-1-based-dims mapping hides.
+    #[test]
+    fn hover_at_a_cell_sets_selection_to_that_cell_swept_over_every_grid_corner() {
+        for (row, col) in [
+            (0, 0),
+            (0, MAX_COLS - 1),
+            (MAX_ROWS - 1, 0),
+            (MAX_ROWS - 1, MAX_COLS - 1),
+        ] {
+            let mut ov = OverlayState::new_table_dims();
+            assert!(
+                ov.table_dims_hover_at(10.0, 10.0, Some((row, col))),
+                "the first hover at a fresh position always re-hit-tests: cell ({row},{col})"
+            );
+            assert_eq!(
+                ov.table_dims_target(),
+                Some((row + 1, col + 1)),
+                "hovering cell ({row},{col}) must select it 1-based, mirroring a click"
+            );
+        }
+    }
+
+    /// HOVER AND A CLICK CAN NEVER DISAGREE: both reach `rows`/`cols` through
+    /// the exact same `table_dims_pick` write (see its own doc) -- there is
+    /// no second, hover-only selection state for the two to drift out of
+    /// sync with.
+    #[test]
+    fn hover_and_a_click_reach_the_identical_selection_state() {
+        let (row, col) = (MAX_ROWS - 1, MAX_COLS - 1);
+        let mut hovered = OverlayState::new_table_dims();
+        hovered.table_dims_hover_at(1.0, 1.0, Some((row, col)));
+        let mut clicked = OverlayState::new_table_dims();
+        clicked.table_dims_pick(row, col);
+        assert_eq!(hovered.table_dims_target(), clicked.table_dims_target());
+    }
+
+    #[test]
+    fn hover_off_every_cell_leaves_the_prior_selection_untouched() {
+        let mut ov = OverlayState::new_table_dims();
+        ov.table_dims_pick(2, 3);
+        assert!(!ov.table_dims_hover_at(500.0, 500.0, None));
+        assert_eq!(ov.table_dims_target(), Some((3, 4)));
+    }
+
+    /// THE REAL-MOTION GATE LAW, for the grid instead of the row list: a
+    /// platform-synthesized duplicate `CursorMoved` at an UNMOVED pixel,
+    /// arriving right after `arm_hover_baseline` re-anchors from a keyboard
+    /// sculpt, must NOT revert the keyboard's own change -- "the keyboard
+    /// path stays authoritative, the two never fighting" is this law.
+    /// NON-VACUOUS: proves the hazard is real first (an UNGATED
+    /// `table_dims_pick` at the same stale pixel really would clobber the
+    /// keyboard's selection), the same shape
+    /// `hover_at_gates_on_real_pointer_motion_not_a_relayout_hit_test_change`
+    /// (`overlay/tests/hover_keyboard_nav.rs`) uses for the row list.
+    #[test]
+    fn a_stationary_duplicate_cursor_moved_never_reverts_a_keyboard_sculpt() {
+        let mut ov = OverlayState::new_table_dims();
+        // The user sculpts to (DEFAULT+3, DEFAULT+4) with the keyboard while
+        // the pointer rests at a stale pixel that a hit-test resolves to a
+        // DIFFERENT cell, (2, 2). `App::apply` re-anchors the hover baseline
+        // to the pointer's CURRENT position after every keyboard action.
+        ov.table_dims_row_delta(3);
+        ov.table_dims_col_delta(4);
+        let sculpted = ov.table_dims_target();
+        assert_eq!(sculpted, Some((DEFAULT_ROWS + 3, DEFAULT_COLS + 4)));
+        ov.arm_hover_baseline(50.0, 50.0);
+
+        // PROVE THE HAZARD IS REAL: an UNGATED write at the same stale pixel
+        // really would clobber the keyboard's own selection.
+        let mut naive = ov.clone();
+        naive.table_dims_pick(2, 2);
+        assert_ne!(
+            naive.table_dims_target(),
+            sculpted,
+            "an ungated re-hit-test really would flip the selection -- the hazard is real"
+        );
+
+        // THE ACTUAL LAW: the SAME stationary pixel, through the gated
+        // `table_dims_hover_at`, must not move the selection.
+        assert!(
+            !ov.table_dims_hover_at(50.0, 50.0, Some((2, 2))),
+            "a redraw-duplicate CursorMoved at an unmoved pixel must not report a hover move"
+        );
+        assert_eq!(
+            ov.table_dims_target(),
+            sculpted,
+            "the keyboard sculpt must survive a stationary duplicate CursorMoved"
+        );
+
+        // Real travel PAST the slop DOES take over, landing on whatever cell
+        // is now under the pointer.
+        assert!(ov.table_dims_hover_at(50.0 + 20.0, 50.0, Some((2, 2))));
+        assert_eq!(ov.table_dims_target(), Some((3, 3)));
     }
 }

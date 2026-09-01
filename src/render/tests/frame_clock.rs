@@ -28,7 +28,8 @@ fn one_wall_time_drives_every_real_owner_at_60hz_120hz_coarse_and_dropped_cadenc
             Activity::CaretMotion
             | Activity::OverlayBand
             | Activity::FoldChevrons
-            | Activity::TravellingGround => Duration::from_millis(60),
+            | Activity::TravellingGround
+            | Activity::TableDimsHover => Duration::from_millis(60),
         };
         let sixty_steps = ((total.as_secs_f64() * 60.0).ceil() as u32).max(1);
         let one_twenty_steps = ((total.as_secs_f64() * 120.0).ceil() as u32).max(1);
@@ -107,7 +108,8 @@ fn newly_armed_bounded_owner_starts_at_zero_delta_after_a_long_idle() {
             | Activity::CopyPulse
             | Activity::OverlayEntrance
             | Activity::OverlayBand
-            | Activity::FoldChevrons => true,
+            | Activity::FoldChevrons
+            | Activity::TableDimsHover => true,
             Activity::TravellingGround => false,
         };
         if !bounded {

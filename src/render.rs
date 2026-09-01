@@ -2593,6 +2593,23 @@ pub struct TextPipeline {
     /// picker's dedicated geometry arm + quad-grid draw, exactly like
     /// `overlay_spell` gates the contextual spell popup's.
     overlay_table_dims: Option<(usize, usize)>,
+    /// THE HOVER-PREVIEW EASE for the dimension picker's lit region: the
+    /// fractional `(rows, cols)` point the grid is CURRENTLY drawn at,
+    /// chasing `overlay_table_dims` (set alike by keyboard sculpt and
+    /// pointer hover -- one selection state, so this animator never has two
+    /// targets to disagree between). `_from` is the pose the ease started
+    /// from, `_t` its progress (`1.0` = settled), `_last` the last INTEGER
+    /// target seen so a real retarget (a genuinely new cell) can be told
+    /// apart from an unrelated `set_view`. Mirrors `overlay_band_from`/
+    /// `overlay_band_t`'s simpler non-epoch shape, not the living-band's
+    /// clock-epoch machinery -- this animator has no auto-repeat-outrunning
+    /// hazard to arbitrate, only a chase. See
+    /// [`Self::table_dims_hover_drawn`] for the juice_live/Reduce-Motion
+    /// settle gate that keeps every headless capture byte-identical to the
+    /// target verbatim.
+    table_dims_hover_from: (f32, f32),
+    table_dims_hover_t: f32,
+    table_dims_hover_last: Option<(usize, usize)>,
     overlay_context_anchor: Option<(f32, f32)>,
     /// Mirror of [`ViewState::overlay_asset_preview`] — gates the Asset
     /// Cleaner's live preview panel (`render/chrome/asset_preview.rs`), the
