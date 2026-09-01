@@ -755,6 +755,8 @@ unlikely to be the only tenant.
 ---
 ### 549 — stale empty-cell plates survive a buffer swap: the no-tables early return never clears `table_empty_pipeline` (user report, 2026-09-01 — "switching tabs leaves the table in place?"; mechanism identified by reading, exact residue shape matches)
 
+🟡 IN PROGRESS — claude, branch item-549
+
 Report: after switching from a buffer containing a table with empty cells
 to a different buffer with no tables, the empty-cell plates keep drawing at
 their old screen positions over the new document's text. The residue is
@@ -797,6 +799,8 @@ swap through Goto.
 
 ---
 ### 550 — working-set close lane: the active plate overhangs its label by one character too many (user taste report, 2026-09-01 — "the highlight bar is SLIGHTLY too long, on the left side… i think the x button should fit when you hover over it, but it's just a tad too long"; geometry measured, mechanism identified)
+
+🟡 IN PROGRESS — claude, branch item-550-559 (paired with 559, same geometry owner)
 
 Report: the active row's plate in the working-set stack extends left of the
 label's first glyph by a gap the user reads (correctly) as the reserve for
@@ -869,6 +873,8 @@ table surfaces sitting outside an invariant the rest of the renderer walks
 
 ---
 ### 552 — `~~` fuses into one wide tilde in prose: Monaspace ships its tilde ligatures behind `rlig`, which awl never disables (user report, 2026-09-01 — "why does ~~ turn into a big tilda? doesn't this break our rule?"; yes — mechanism verified in the font's own GSUB)
+
+🟡 IN PROGRESS — claude, branch item-552
 
 Report: typing `~~` in a Monaspace world renders ONE wide swung tilde
 where two characters sit in the file (reproduced headlessly, Firetail,
@@ -1023,6 +1029,8 @@ fresh-open cell is unverified). Law once decided: sweep both cells.
 
 ---
 ### 559 — close mark wants real hover feedback, and the row wants a pointer cursor decision (user report, 2026-09-01 — "when your mouse is over the X button it should be highlighted or something… the whole thing is a pointer right… how do tabs do this?")
+
+🟡 IN PROGRESS — claude, branch item-550-559 (paired with 550, same geometry owner)
 
 Today's affordance ladder (`render/chrome/gutter_stack.rs`, the reveal
 logic): the × is invisible until the pointer is over its ROW, then drawn
@@ -1249,6 +1257,8 @@ path authoring, a new blur compositor, or changing any other world's ground.
 
 ---
 ### 565 — pasted images take the document's name as their stem (user decision, 2026-09-02 — "better default image names is good")
+
+🟡 IN PROGRESS — claude, branch item-565
 
 Today every pasted image is `pasted-N.png` (`paste_image.rs`,
 `PASTED_STEM`), so an assets folder full of them is opaque in the
