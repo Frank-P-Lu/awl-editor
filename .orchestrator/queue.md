@@ -1146,6 +1146,8 @@ before opening that follow-up.
 ---
 ### 561 — world ornaments render at inconsistent sizes across worlds; scale the small sets up to the big ones (user decision, 2026-09-01 — "for some worlds it's a bit small… bigger is actually better here; make sure the smaller ones are scaled up to match the bigger ones")
 
+🟡 IN PROGRESS — claude, branch item-561
+
 Two user screenshots of the SAME document in two worlds: a chess-piece
 ornament set (dark world) drawing noticeably smaller, relative to the
 body text beside it, than a bar-glyph set (dark-green world) — rough
@@ -1167,6 +1169,8 @@ Final size is the user's live sign-off.
 
 ---
 ### 562 — Insert Table dims grid: hover should live-resize the selection, and the pointer question again (user decision, 2026-09-01 — "it's not really mouse friendly… as you hover over it it should resize along to where your cursor is… cursor should be pointer I think"; animation explicitly deferred: "maybe a bit too much for now")
+
+🟡 IN PROGRESS — claude, branch item-562
 
 Verified in the tree: the dims grid answers CLICKS only —
 `app/input/mouse.rs` maps a press through `table_dims_cell_at` to
