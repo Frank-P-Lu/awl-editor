@@ -429,17 +429,21 @@ impl TextPipeline {
     /// `label_char_w`/the corner radius itself, matching how
     /// `gutter_hit::gutter_hit_plan` already re-derives the same quantity
     /// from `self.metrics` rather than threading it through every caller.
+    /// `ctx` is `None` for the block-hidden path — folding that clear in
+    /// here too (rather than a bare empty `prepare` at the call site) is
+    /// what keeps `prepare_gutter` itself down to one line per plate.
     pub(super) fn prepare_close_hover_plate(
         &mut self,
         device: &wgpu::Device,
         queue: &wgpu::Queue,
         width: u32,
         height: u32,
-        layout: &GutterLayout,
-        plan: &crate::render::plan::GutterStackPlan,
+        ctx: Option<(&GutterLayout, &crate::render::plan::GutterStackPlan)>,
     ) {
         let label_char_w = self.metrics.char_width * crate::markdown::type_scale::LABEL;
-        let rect = close_hover_plate_rect(layout, plan, label_char_w, self.gutter_stack_hover);
+        let hover = self.gutter_stack_hover;
+        let rect = ctx
+            .and_then(|(layout, plan)| close_hover_plate_rect(layout, plan, label_char_w, hover));
         let fill = theme::surface_selected();
         self.gutter_close_hover_plate.set_color(
             theme::Srgb::rgba(fill.r, fill.g, fill.b, CLOSE_HOVER_PLATE_ALPHA).rgba_bytes(),

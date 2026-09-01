@@ -239,8 +239,7 @@ impl TextPipeline {
             // Drop any previous plate so a hidden gutter leaves no floating band.
             self.gutter_stack_plate
                 .prepare(device, queue, width, height, &[]);
-            self.gutter_close_hover_plate
-                .prepare(device, queue, width, height, &[]);
+            self.prepare_close_hover_plate(device, queue, width, height, None);
             self.gutter_drag_indicator_plate
                 .prepare(device, queue, width, height, &[]);
             return self.park_gutter_offscreen(device, queue, bounds, muted);
@@ -370,7 +369,7 @@ impl TextPipeline {
         self.gutter_drag_indicator_plate.set_corner(0.0);
         self.gutter_drag_indicator_plate
             .prepare(device, queue, width, height, &indicator);
-        self.prepare_close_hover_plate(device, queue, width, height, &layout, &stack);
+        self.prepare_close_hover_plate(device, queue, width, height, Some((&layout, &stack)));
         let area = TextArea {
             buffer: &self.gutter_buffer,
             // Shifted left by the box's own widened amount, so its right
