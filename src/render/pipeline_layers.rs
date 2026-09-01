@@ -222,6 +222,10 @@ impl TextPipeline {
         // instances whenever the stack is absent, which is every single-file
         // frame.
         self.gutter_stack_plate.draw(pass);
+        // The close-zone hover plate sits UNDER the gutter's glyphs too, for
+        // the same reason: the × must read on top of its own highlight. Zero
+        // instances outside the one live-pointer-inside-the-zone state.
+        self.gutter_close_hover_plate.draw(pass);
         self.gutter_renderer
             .render(&self.atlas, &self.viewport, pass)
             .map_err(|e| anyhow::anyhow!("glyphon gutter render failed: {e:?}"))?;

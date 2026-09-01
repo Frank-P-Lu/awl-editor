@@ -77,7 +77,8 @@ pub(super) fn stack_hit_from_plan(
         GutterLine::Project | GutterLine::Changed => return None,
     };
     let text_w = (chars + mark_chars) as f32 * label_char_w;
-    let intent = gutter_stack::row_intent(band, text_w, px);
+    let mark_w = mark_chars as f32 * label_char_w;
+    let intent = gutter_stack::row_intent(band, text_w, mark_w, px);
     match kind {
         // A project HEADING carries no switch target of its own (the
         // design boundary: mark the active group, never make the

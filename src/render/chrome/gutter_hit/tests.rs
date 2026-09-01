@@ -64,10 +64,10 @@ fn the_lone_identity_row_resolves_the_same_close_zone_a_stack_row_would() {
                 .position(|(_, k)| matches!(k, GutterLine::Name))
                 .expect("the one-file block always draws a Name line");
             let band = plan.rows[row_line];
-            let text_w = (layout.name.chars().count()
-                + gutter_stack::CLOSE_MARK_TEXT.chars().count()) as f32
-                * label_char_w;
-            let zone = gutter_stack::close_zone(band, text_w);
+            let mark_chars = gutter_stack::CLOSE_MARK_TEXT.chars().count();
+            let text_w = (layout.name.chars().count() + mark_chars) as f32 * label_char_w;
+            let mark_w = mark_chars as f32 * label_char_w;
+            let zone = gutter_stack::close_zone(band, text_w, mark_w);
             let label = format!("avail={avail} changed={changed}");
             let switch = stack_hit_from_plan(
                 &layout,

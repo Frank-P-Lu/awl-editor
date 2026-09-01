@@ -161,6 +161,11 @@ impl TextPipeline {
         // frame, so this seed only has to be a valid colour.
         let gutter_stack_plate =
             SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
+        // The close-zone hover plate. Seeded like the others; `prepare_gutter`
+        // re-resolves its rect (and whether it draws at all) from the live
+        // pointer hover on every frame.
+        let gutter_close_hover_plate =
+            SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         // The row-drag insertion hairline. Seeded like the others; the live
         // drag re-resolves its own colour + rect on every armed move.
         let gutter_drag_indicator_plate =
@@ -405,6 +410,7 @@ impl TextPipeline {
             gutter_files: Vec::new(),
             gutter_stack_hover: None,
             gutter_stack_plate,
+            gutter_close_hover_plate,
             gutter_drag_indicator: None,
             gutter_drag_indicator_plate,
             page_drag_renderer,

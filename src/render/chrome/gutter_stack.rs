@@ -33,9 +33,24 @@ pub(super) const PLATE_HEIGHT_ROWS: Rows = Rows(0.86);
 /// object in the margin as it does in a picker.
 pub(super) const PLATE_CORNER_PX: Physical = Physical(2.5);
 
-/// THE CLOSE ZONE'S WIDTH, in LABEL rows — a square target sized to the row
-/// it belongs to, so the thing the pointer aims at is the size of the line it
-/// belongs to rather than a width invented for it.
+/// **559:** the close-zone hover plate's own alpha, over the SAME
+/// [`theme::surface_selected`] fill the active-row plate uses — a fraction of
+/// it, not a second color, so the hover square reads as a quieter member of
+/// the same family rather than a competing accent (DESIGN's "one accent"
+/// still names the caret alone). Distinct from the active-row plate's own
+/// opaque fill so a reader never mistakes "the pointer is here" for "this is
+/// the open file".
+pub(super) const CLOSE_HOVER_PLATE_ALPHA: u8 = 0x80;
+
+/// THE CLOSE ZONE'S own UPPER BOUND, in LABEL rows — a square target sized to
+/// the row it belongs to, so the thing the pointer aims at is the size of the
+/// line it belongs to rather than a width invented for it. An UPPER bound,
+/// not the zone's literal width: [`close_zone`] also holds the zone to the
+/// mark's OWN drawn lane (`mark_w`), so a face whose row height reaches
+/// further than two characters of its own real pitch never draws (or
+/// accepts clicks over) a square wider than the × it marks — the 559 hover
+/// plate reuses this exact rect, and a zone wider than the mark's own lane
+/// would be a highlight sitting under the label's first letter.
 ///
 /// Anchored on the row's own shaped INK, never a fixed x: the mark is a
 /// LEADING span in a right-aligned line, so it sits wherever that row's own
@@ -56,7 +71,15 @@ pub(super) const CLOSE_ZONE_ROWS: Rows = Rows(1.0);
 /// shape this superseded. `pub(super)` because the single-file identity line
 /// ([`super::gutter`]) shapes and draws the exact same lane through the
 /// exact same text, rather than a second close mark of its own.
-pub(super) const CLOSE_MARK_TEXT: &str = "×  ";
+///
+/// ONE space, not two: the reveal shows exactly `×` followed by a single
+/// breath before the label, so the resting (unrevealed but still-reserved)
+/// overhang left of a right-aligned name is no wider than the glyph the
+/// hover state actually draws there. A second space was pure reserve for a
+/// mark that only ever occupies one — the user's own measurement against a
+/// sibling row's char width (~3.17 char-widths of left overhang against
+/// well under one on the right) named it directly.
+pub(super) const CLOSE_MARK_TEXT: &str = "× ";
 
 /// WHAT A POINTER AT `px` OVER A ROW IS AIMING AT.
 ///
@@ -74,7 +97,7 @@ pub enum RowIntent {
 
 /// The close zone `[x, y, w, h]` inside a row's own planner band, anchored on
 /// the row's own shaped ink width `text_w` — chars × the LABEL char width,
-/// counting the leading mark's own three characters, the SAME quantity
+/// counting the leading mark's own characters, the SAME quantity
 /// [`plate_rect`]'s own caller measures a plate from — rather than a fixed x.
 /// A right-aligned row's ink starts wherever its own name happens to end on
 /// the left, so a target pinned to the band's own edge instead would sit in
@@ -82,22 +105,33 @@ pub enum RowIntent {
 /// [`plate_rect`]'s own rationale, mirrored here for the pointer rather than
 /// the fill.
 ///
+/// `mark_w` is the mark's OWN drawn lane width (`CLOSE_MARK_TEXT.chars().count()
+/// as f32 * label_char_w`, the caller's exact quantity), and it caps the zone
+/// alongside the row-height square [`CLOSE_ZONE_ROWS`] names: without this
+/// second bound, a mono face whose row height reaches further than the
+/// mark's own two characters (a narrow-aspect face — [`CLOSE_ZONE_ROWS`]'s
+/// own doc) would offer a full row-height square that reaches past the ×
+/// into the label's own first glyph. The 559 hover plate draws exactly this
+/// rect, so a zone wider than the mark's lane would be a highlight sitting
+/// under text that is not the mark.
+///
 /// Clamped to the band on both sides: a maximal-width name can push
 /// `text_w` past the band's own width (the mark yields off the canvas edge
 /// there, `fit_rows`' own doc), and the zone still lands on the row's
 /// leading edge rather than escaping the band to the left.
-pub(super) fn close_zone(row_rect: [f32; 4], text_w: f32) -> [f32; 4] {
+pub(super) fn close_zone(row_rect: [f32; 4], text_w: f32, mark_w: f32) -> [f32; 4] {
     let [x, y, w, h] = row_rect;
     let ink_left = (x + w - text_w).max(x);
-    let zone = (h * CLOSE_ZONE_ROWS.0).min((x + w - ink_left).max(0.0));
+    let available = (x + w - ink_left).max(0.0);
+    let zone = (h * CLOSE_ZONE_ROWS.0).min(mark_w.max(0.0)).min(available);
     [ink_left, y, zone, h]
 }
 
 /// Classify a pointer x against a row's band. The one owner both the hit-test
 /// and any future drawn affordance read, so what the pointer accepts and what
 /// the reader is shown cannot disagree.
-pub(super) fn row_intent(row_rect: [f32; 4], text_w: f32, px: f32) -> RowIntent {
-    let [zx, _, zw, _] = close_zone(row_rect, text_w);
+pub(super) fn row_intent(row_rect: [f32; 4], text_w: f32, mark_w: f32, px: f32) -> RowIntent {
+    let [zx, _, zw, _] = close_zone(row_rect, text_w, mark_w);
     if px >= zx && px <= zx + zw {
         RowIntent::Close
     } else {
@@ -341,6 +375,46 @@ pub(super) fn plate_rects(
             Some(plate_rect(rect, ink_w, pad_x))
         })
         .collect()
+}
+
+/// **559: THE CLOSE-ZONE HOVER PLATE** — a soft square behind the × under the
+/// LIVE pointer, drawn ONLY while the pointer sits inside that row's own
+/// close zone ([`RowIntent::Close`]). Exactly [`close_zone`]'s own rect: the
+/// zone the hit-test accepts and the plate the reader sees are the SAME
+/// geometry (this function's whole reason to exist, over hand-placing a
+/// second square), so a click can never land somewhere the highlight did not
+/// promise — the "drawn-vs-accepted drift" `close_zone`'s own doc names.
+///
+/// Unlike [`plate_rects`], this is not limited to the ACTIVE row: any row's
+/// (or the single-file identity's) close zone earns the hover plate, since
+/// the affordance answers "what will clicking here do", not "which file is
+/// open" — the active-row question [`plate_rects`] alone answers. `None`
+/// off every other state: resting, hovering the row's SWITCH half, or no
+/// stack/identity drawn at all.
+pub(super) fn close_hover_plate_rect(
+    layout: &GutterLayout,
+    plan: &crate::render::plan::GutterStackPlan,
+    label_char_w: f32,
+    hover: Option<super::gutter_hit::GutterStackHit>,
+) -> Option<[f32; 4]> {
+    let hit = hover.filter(|h| h.is_close())?;
+    let mark_chars = CLOSE_MARK_TEXT.chars().count();
+    layout.lines().into_iter().enumerate().find_map(|(line, (text, kind))| {
+        let row = match kind {
+            gutter::GutterLine::File(at) => at,
+            // The single-file identity draws the same lone slot `hit.row ==
+            // 0` names (`gutter_hit::stack_hit_from_plan`'s own doc).
+            gutter::GutterLine::Name => 0,
+            gutter::GutterLine::Project | gutter::GutterLine::Changed => return None,
+        };
+        if row != hit.row {
+            return None;
+        }
+        let rect = *plan.rows.get(line)?;
+        let ink_w = (text.chars().count() + mark_chars) as f32 * label_char_w;
+        let mark_w = mark_chars as f32 * label_char_w;
+        Some(close_zone(rect, ink_w, mark_w))
+    })
 }
 
 /// The active-row plate rects AND the row-drag insertion-hairline rect (at

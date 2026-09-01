@@ -472,7 +472,8 @@ fn hover_close_keeps_label_geometry_fixed_and_enrols_every_truthful_row() {
         let text_w = (fitted[row].text.chars().count() + super::CLOSE_MARK_TEXT.chars().count())
             as f32
             * label_char_w;
-        let zone = close_zone(band, text_w);
+        let mark_w = super::CLOSE_MARK_TEXT.chars().count() as f32 * label_char_w;
+        let zone = close_zone(band, text_w, mark_w);
         let y = band[1] + band[3] * 0.5;
         let hit_at = |px: f32| {
             super::super::gutter_hit::stack_hit_from_plan(&layout, &plan, label_char_w, px, y)
@@ -580,7 +581,8 @@ fn a_group_headings_switch_half_stays_inert_and_only_its_close_zone_enrols() {
     let text_w = (fitted[heading_row].text.chars().count() + super::CLOSE_MARK_TEXT.chars().count())
         as f32
         * label_char_w;
-    let zone = close_zone(band, text_w);
+    let mark_w = super::CLOSE_MARK_TEXT.chars().count() as f32 * label_char_w;
+    let zone = close_zone(band, text_w, mark_w);
     let mid_y = band[1] + band[3] * 0.5;
 
     let switch = super::super::gutter_hit::stack_hit_from_plan(
@@ -722,25 +724,31 @@ fn the_folder_line_and_a_drawn_group_heading_never_both_own_the_project_name() {
 /// SWITCHES.
 ///
 /// **LAW 3 (hit-zone/ink agreement), at the pure-geometry seam.** Swept over
-/// the margin widths a real window produces AND, on each, a RANGE of ink
-/// widths from an empty name up to one that fills the whole row (the axis
-/// the trailing design never had to sweep, since its own edge never moved):
-/// a right-aligned row's ink leading edge moves with the name's own length,
-/// so `close_zone` has to track it rather than a fixed x, and a law that
-/// only ever probed one width could pass while the anchor silently drifted
-/// from the ink at every OTHER width. Each width is probed on BOTH SIDES of
-/// its own boundary — the boundary is derived from `close_zone`, so a law
-/// that moved with a broken implementation is not what is being asserted;
-/// the invariants below are.
+/// the margin widths a real window produces, a RANGE of ink widths from an
+/// empty name up to one that fills the whole row (the axis the trailing
+/// design never had to sweep, since its own edge never moved), AND a RANGE
+/// of `mark_w` values standing in for the roster of real per-face mark
+/// widths (`CLOSE_ZONE_ROWS`'s own doc: a narrow-aspect face's 2-char lane
+/// can sit under a full row-height square, a wide-aspect face's over it): a
+/// right-aligned row's ink leading edge moves with the name's own length, so
+/// `close_zone` has to track it rather than a fixed x, and a law that only
+/// ever probed one width (of either axis) could pass while the anchor or
+/// the cap silently drifted at every OTHER value. Each width is probed on
+/// BOTH SIDES of its own boundary — the boundary is derived from
+/// `close_zone`, so a law that moved with a broken implementation is not
+/// what is being asserted; the invariants below are.
 ///
 /// The invariants, in the order they can fail:
 ///   * the zone hugs the row's own ink LEADING edge exactly — `avail -
 ///     text_w`, never a fixed x (that is the whole design: it is the mark's
 ///     own position, and the mark's position moves with the name);
 ///   * it never escapes the row (a target outside the band is unreachable);
-///   * wherever the ink's leading edge leaves at least one full row-height
-///     square before the row's own right edge, the zone IS that full square
-///     — never shrunk just because a name happens to be short;
+///   * wherever the ink's leading edge leaves room for both a full
+///     row-height square AND the mark's own full lane before the row's own
+///     right edge, the zone is `min(row_h, mark_w)` — the SMALLER of the
+///     two, never shrunk further just because a name happens to be short,
+///     and never wider than the mark's own drawn lane either (559's own
+///     reason: a wider zone would highlight text that is not the ×);
 ///   * a point one pixel left of the boundary switches, and a point one
 ///     pixel right of it closes;
 ///   * the row's own extreme right — where the NAME's ink actually sits —
@@ -751,83 +759,108 @@ fn the_folder_line_and_a_drawn_group_heading_never_both_own_the_project_name() {
 #[test]
 fn close_zone_hugs_the_rows_own_leading_ink_edge_and_the_rest_switches() {
     let row_h = 12.0;
-    // From a margin barely wider than the close square itself out to a wide one.
-    for avail in [14.0_f32, 20.0, 48.0, 96.0, 120.0, 300.0] {
-        for row_top in [0.0_f32, 37.5, 288.0] {
-            let band = [0.0, row_top, avail, row_h];
-            // A RANGE of name widths: empty, shorter than the zone itself,
-            // exactly one zone, half the row, and maximal (fills the row
-            // entirely — the case a fixed-x zone could never have modeled).
-            for text_w in [0.0_f32, row_h * 0.5, row_h, avail * 0.5, avail] {
-                let zone = close_zone(band, text_w);
-                let ink_left = (avail - text_w).max(0.0);
-                let label = format!("avail={avail} top={row_top} text_w={text_w}");
+    // Narrower than the row square, exactly matched, and wider than it — the
+    // three shapes the measured mono roster's real pitch produces relative
+    // to `CLOSE_ZONE_ROWS`.
+    for mark_w in [row_h * 0.5, row_h, row_h * 2.0] {
+        // From a margin barely wider than the close square itself out to a wide one.
+        for avail in [14.0_f32, 20.0, 48.0, 96.0, 120.0, 300.0] {
+            for row_top in [0.0_f32, 37.5, 288.0] {
+                let band = [0.0, row_top, avail, row_h];
+                // A RANGE of name widths: empty, shorter than the zone itself,
+                // exactly one zone, half the row, and maximal (fills the row
+                // entirely — the case a fixed-x zone could never have modeled).
+                // Never narrower than `mark_w` — a real caller's `text_w` always
+                // includes the mark's own chars, so it can never be smaller
+                // than the mark's own lane.
+                for text_w in [mark_w, row_h.max(mark_w), avail * 0.5, avail] {
+                    if text_w > avail {
+                        continue;
+                    }
+                    let zone = close_zone(band, text_w, mark_w);
+                    let ink_left = (avail - text_w).max(0.0);
+                    let label =
+                        format!("avail={avail} top={row_top} text_w={text_w} mark_w={mark_w}");
 
-                assert!(
-                    (zone[0] - ink_left).abs() < 0.001,
-                    "{label}: close zone {zone:?} does not hug the row's own ink leading \
-                     edge {ink_left}"
-                );
-                assert!(
-                    zone[0] + zone[2] <= band[0] + band[2] + 0.001,
-                    "{label}: close zone {zone:?} escapes the row's own band {band:?}"
-                );
-                assert!(
-                    zone[2] >= 0.0,
-                    "{label}: close zone width {} went negative",
-                    zone[2]
-                );
-                assert!(
-                    (zone[1] - band[1]).abs() < 0.001 && (zone[3] - band[3]).abs() < 0.001,
-                    "{label}: close zone {zone:?} does not share the row's own band vertically"
-                );
-
-                // PRESENCE, so this cannot pass by shrinking the zone to
-                // nothing: the target is a full row square wherever there is
-                // room for one between the ink's leading edge and the row's
-                // own right edge.
-                if avail - ink_left >= row_h {
                     assert!(
-                        (zone[2] - row_h).abs() < 0.001,
-                        "{label}: close zone width {} is not the row square it claims to be",
+                        (zone[0] - ink_left).abs() < 0.001,
+                        "{label}: close zone {zone:?} does not hug the row's own ink leading \
+                         edge {ink_left}"
+                    );
+                    assert!(
+                        zone[0] + zone[2] <= band[0] + band[2] + 0.001,
+                        "{label}: close zone {zone:?} escapes the row's own band {band:?}"
+                    );
+                    assert!(
+                        zone[2] >= 0.0,
+                        "{label}: close zone width {} went negative",
                         zone[2]
                     );
-                }
+                    assert!(
+                        (zone[1] - band[1]).abs() < 0.001 && (zone[3] - band[3]).abs() < 0.001,
+                        "{label}: close zone {zone:?} does not share the row's own band \
+                         vertically"
+                    );
+                    // NEVER WIDER THAN THE MARK'S OWN LANE — 559's own
+                    // containment concern: a zone (and the hover plate drawn
+                    // from it) reaching past the mark's own drawn characters
+                    // would highlight/accept clicks over the label's ink.
+                    assert!(
+                        zone[2] <= mark_w + 0.001,
+                        "{label}: close zone width {} reaches past the mark's own lane {mark_w}",
+                        zone[2]
+                    );
 
-                if zone[2] > 0.0 {
-                    // Both sides of the boundary, one pixel apart.
-                    assert_eq!(
-                        row_intent(band, text_w, zone[0] - 1.0),
-                        RowIntent::Switch,
-                        "{label}: a pixel left of the close zone must still switch"
-                    );
-                    assert_eq!(
-                        row_intent(band, text_w, zone[0] + 1.0),
-                        RowIntent::Close,
-                        "{label}: a pixel inside the close zone must close"
-                    );
-                }
-                // The row's own extreme right is where the NAME's ink sits —
-                // switching territory now, the mirror of the trailing
-                // design's own right-edge close.
-                if zone[0] + zone[2] < band[0] + band[2] - 0.5 {
-                    assert_eq!(
-                        row_intent(band, text_w, band[0] + band[2] - 0.5),
-                        RowIntent::Switch,
-                        "{label}: the row's extreme right (the name's own ink) must switch"
-                    );
-                }
-                // A MAXIMAL name (fills the whole row) pushes the mark's own
-                // leading edge all the way to the row's own leading edge —
-                // the far left of the band now closes, the mirror image of
-                // the trailing design's far-right close.
-                if text_w >= avail - 0.001 && avail >= row_h {
-                    assert_eq!(
-                        row_intent(band, text_w, band[0] + 0.5),
-                        RowIntent::Close,
-                        "{label}: a maximal-width name's own mark sits at the row's \
-                         leading edge — the far left must close"
-                    );
+                    // PRESENCE, so this cannot pass by shrinking the zone to
+                    // nothing: the target is the smaller of a full row square
+                    // and the mark's own lane, wherever there is room for
+                    // both between the ink's leading edge and the row's own
+                    // right edge.
+                    let want = row_h.min(mark_w);
+                    if avail - ink_left >= want {
+                        assert!(
+                            (zone[2] - want).abs() < 0.001,
+                            "{label}: close zone width {} is not min(row_h, mark_w)={want}",
+                            zone[2]
+                        );
+                    }
+
+                    if zone[2] > 0.0 {
+                        // Both sides of the boundary, one pixel apart.
+                        assert_eq!(
+                            row_intent(band, text_w, mark_w, zone[0] - 1.0),
+                            RowIntent::Switch,
+                            "{label}: a pixel left of the close zone must still switch"
+                        );
+                        assert_eq!(
+                            row_intent(band, text_w, mark_w, zone[0] + 1.0),
+                            RowIntent::Close,
+                            "{label}: a pixel inside the close zone must close"
+                        );
+                    }
+                    // The row's own extreme right is where the NAME's ink sits —
+                    // switching territory now, the mirror of the trailing
+                    // design's own right-edge close.
+                    if zone[0] + zone[2] < band[0] + band[2] - 0.5 {
+                        assert_eq!(
+                            row_intent(band, text_w, mark_w, band[0] + band[2] - 0.5),
+                            RowIntent::Switch,
+                            "{label}: the row's extreme right (the name's own ink) must switch"
+                        );
+                    }
+                    // A MAXIMAL name (fills the whole row) pushes the mark's
+                    // own leading edge all the way to the row's own leading
+                    // edge — the far left of the band now closes, the mirror
+                    // image of the trailing design's far-right close, as long
+                    // as the mark's own lane reaches that far too.
+                    if text_w >= avail - 0.001 && avail >= mark_w {
+                        assert_eq!(
+                            row_intent(band, text_w, mark_w, band[0] + 0.5),
+                            RowIntent::Close,
+                            "{label}: a maximal-width name's own mark sits at the row's \
+                             leading edge — the far left must close"
+                        );
+                    }
                 }
             }
         }
@@ -900,4 +933,97 @@ fn drag_indicator_is_absent_off_a_working_set() {
         0.5,
     );
     assert_eq!(drag_indicator_rect(&layout, &plan, 0, 2.0), None);
+}
+
+/// **550: THE REVEALED × KEEPS A REAL BREATH BEFORE THE LABEL, AND ITS OWN
+/// CLICK ZONE NEVER REACHES PAST THE MARK'S OWN LANE — MEASURED FROM EVERY
+/// BUNDLED MONO FACE'S OWN FILE, NEVER A HARDCODED ASPECT TABLE.**
+///
+/// The roster is DERIVED, not named: every face
+/// [`crate::render::bundled_display_faces`] ships that
+/// [`crate::render::facepitch::mono_pitch_em`] measures as genuinely
+/// fixed-pitch (`facepitch.rs`'s own "ask the font, not the docs" mechanism —
+/// the same one the caret's mono/proportional split rides) enrols, so a newly
+/// bundled mono face is swept the moment it ships, with nothing to remember.
+/// `char_w` per face is that measurement times the LABEL-scale font size —
+/// the SAME quantity `panel_attrs`'s shaping and `prepare_gutter`'s
+/// `label_char_w` both mean to approximate, but measured off the real glyph
+/// table instead of the one nominal `Metrics::char_width` constant every
+/// world shares regardless of its own display face. (A genuinely mono face's
+/// OWN advance is the same for every glyph by construction — the definition
+/// [`facepitch::measure_pitch`] checks — so this is also `×`'s own advance,
+/// not merely a representative probe glyph's.)
+///
+/// TWO invariants, swept over that roster and (for the second) over the
+/// gutter's own ink-width range from the empty-name floor up past a row's own
+/// height — the axis CLOSE_ZONE_ROWS's own doc names ("a narrow-aspect mono
+/// is where a 2-char lane would first lose the square"):
+///
+/// * **PRESENCE FLOOR — the reveal keeps a real breath, not just a nonzero
+///   one.** `CLOSE_MARK_TEXT`'s own doc promises "`×` followed by a single
+///   breath before the label"; asserted here as at least half a character's
+///   width of gap between the × glyph's own ink and the mark lane's trailing
+///   edge, on every face. **This is the law CLAUDE.md's mutation-proof
+///   convention wants**: shrinking [`CLOSE_MARK_TEXT`] to `"×"` alone (no
+///   trailing space) leaves ZERO breath on every face — the exact regression
+///   the two-space predecessor over-corrected and this item's one-space fix
+///   targets — and this floor catches it on the first face it checks,
+///   independent of window width or any particular name.
+/// * **ZONE ⊆ LANE — the close zone this face's row draws never reaches
+///   past the mark's own two-character lane.** [`close_zone`]'s own upper
+///   bound is `min(row_h, mark_w, available_ink)`; asserted directly here
+///   with each face's REAL `mark_w`, which is where the roster sweep earns
+///   its keep — Iosevka's measured pitch (the narrowest bundled mono face)
+///   is the one where `2 × char_w` first sits BELOW `row_h`, so its own zone
+///   is capped by the lane rather than the row square, a case a single
+///   wide-aspect face's screenhot could never surface.
+#[test]
+fn close_mark_keeps_a_real_breath_and_its_zone_never_escapes_the_lane_across_every_mono_face() {
+    let m = crate::render::Metrics::new(1.0);
+    let label = crate::markdown::type_scale::LABEL;
+    let font_size_px = m.font_size * label;
+    let row_h = m.line_height * label;
+    let mark_chars = super::CLOSE_MARK_TEXT.chars().count();
+
+    let mut found = Vec::new();
+    for (bytes, _declared) in crate::render::bundled_display_faces() {
+        let Some(pitch_em) = crate::render::facepitch::mono_pitch_em(bytes) else {
+            continue; // not a genuinely fixed-pitch bundled face — nothing to sweep
+        };
+        let family = crate::render::facepitch::registered_family(bytes)
+            .unwrap_or_else(|| "<unregistered>".to_string());
+        found.push(family.clone());
+
+        let char_w = pitch_em * font_size_px;
+        let mark_w = mark_chars as f32 * char_w;
+        let glyph_w = char_w; // × occupies exactly one cell on a true mono face
+
+        let breath = mark_w - glyph_w;
+        assert!(
+            breath >= 0.5 * char_w - 0.001,
+            "{family}: the revealed × keeps only {breath}px of breath before the label \
+             (needs >= {}px, half a char at this face's own {char_w}px pitch) — \
+             CLOSE_MARK_TEXT's own reserve no longer covers a real one-space breath",
+            0.5 * char_w
+        );
+
+        for chars in [0usize, rowlayout::GUTTER_MIN_NAME_CHARS, 12, 40] {
+            let text_w = (chars + mark_chars) as f32 * char_w;
+            let band = [0.0, 0.0, text_w.max(row_h) + 40.0, row_h];
+            let zone = close_zone(band, text_w, mark_w);
+            assert!(
+                zone[2] <= mark_w + 0.001,
+                "{family}: chars={chars}: close zone width {} reaches past the mark's own \
+                 {mark_chars}-char lane ({mark_w}px at this face's {char_w}px pitch) — a hover \
+                 plate drawn from this rect would highlight the label's own first glyph",
+                zone[2]
+            );
+        }
+    }
+    assert!(
+        found.len() >= 3,
+        "the bundled-display-face roster derivation found only {} genuinely mono face(s) \
+         ({found:?}) — too few to call this a roster sweep",
+        found.len()
+    );
 }
