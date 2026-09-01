@@ -214,5 +214,10 @@ pub fn cursor_icon_change(prev: CursorIcon, next: CursorIcon, hidden: bool) -> O
 }
 
 #[cfg(test)]
-#[path = "cursor_shape_tests.rs"]
-mod tests;
+mod tests {
+    use super::*;
+    include!("cursor_shape/tests/helpers.rs");
+
+    mod basic;
+    mod priority;
+}

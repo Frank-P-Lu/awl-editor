@@ -171,8 +171,8 @@ lines = 546
 
 [[file_size_mark]]
 file = "src/cursor_shape.rs"
-lines = 218
-reason = "The item-562 merge (over_table_dims_cell) pushed this file to 1305 lines, past its own frozen baseline (1208) -- a hard ceiling no reason can waive. mod tests (1082 of those lines) carved into cursor_shape_tests.rs, matching the apply.rs/apply_tests.rs precedent; production code alone (this file) is now 218 lines, well under both the 500 limit and the baseline."
+lines = 223
+reason = "The item-562 merge (over_table_dims_cell) pushed this file to 1305 lines, past its own frozen baseline (1208) -- a hard ceiling no reason can waive. mod tests carved out; the split test file itself then tripped the flat 500-line ceiling with zero baseline grace (it never existed at freeze), so it further split into src/cursor_shape/tests/{helpers,basic,priority}.rs (each under 500 on its own), included/declared from one mod tests block here. Production code alone (this file) is now 223 lines, well under both the 500 limit and the baseline."
 
 [[file_size_mark]]
 file = "src/daemon.rs"

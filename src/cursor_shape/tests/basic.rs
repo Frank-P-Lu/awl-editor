@@ -1,0 +1,418 @@
+use super::*;
+
+#[test]
+fn nothing_hovered_is_the_plain_arrow() {
+    assert_eq!(
+        cursor_icon_for(ctx(false, false, false, false)),
+        CursorIcon::Default
+    );
+}
+
+#[test]
+fn plain_document_text_is_the_i_beam() {
+    assert_eq!(
+        cursor_icon_for(ctx(false, false, false, true)),
+        CursorIcon::Text
+    );
+}
+
+#[test]
+fn hovering_the_page_edge_is_col_resize() {
+    assert_eq!(
+        cursor_icon_for(ctx(false, false, true, false)),
+        CursorIcon::ColResize
+    );
+}
+
+#[test]
+fn overlay_open_alone_is_the_plain_arrow() {
+    assert_eq!(
+        cursor_icon_for(ctx(false, true, false, false)),
+        CursorIcon::Default
+    );
+}
+
+#[test]
+fn dragging_the_edge_alone_is_col_resize() {
+    assert_eq!(
+        cursor_icon_for(ctx(true, false, false, false)),
+        CursorIcon::ColResize
+    );
+}
+
+#[test]
+fn dragging_text_alone_is_the_i_beam() {
+    let mut c = ctx(false, false, false, false);
+    c.dragging_text = true;
+    assert_eq!(cursor_icon_for(c), CursorIcon::Text);
+}
+
+#[test]
+fn dragging_text_beats_wandering_off_the_writing_column() {
+    // THE BUG THIS CLOSED: `over_text` alone is a pure x/y hit-test, so a
+    // drag that strays outside the column (past the last line, into a
+    // margin/outline row) used to fall through to whatever that spot
+    // shows at rest — here, the outline's pointing hand. An active text
+    // drag must win regardless.
+    let mut c = ctx(false, false, false, false);
+    c.dragging_text = true;
+    c.over_outline_row = true;
+    assert_eq!(cursor_icon_for(c), CursorIcon::Text);
+}
+
+#[test]
+fn an_active_edge_drag_still_beats_dragging_text() {
+    let mut c = ctx(true, false, false, false);
+    c.dragging_text = true;
+    assert_eq!(cursor_icon_for(c), CursorIcon::ColResize);
+}
+
+#[test]
+fn an_active_image_drag_still_beats_dragging_text() {
+    let mut c = ctx(false, false, false, false);
+    c.dragging_text = true;
+    c.image_drag = Some(ImageHandle::Left);
+    assert_eq!(cursor_icon_for(c), CursorIcon::ColResize);
+}
+
+#[test]
+fn dragging_text_beats_the_popover_hand_and_every_lower_tier() {
+    let mut c = ctx(false, false, false, false);
+    c.dragging_text = true;
+    c.over_popover_button = true;
+    assert_eq!(cursor_icon_for(c), CursorIcon::Text);
+}
+
+#[test]
+fn edge_hover_beats_text() {
+    assert_eq!(
+        cursor_icon_for(ctx(false, false, true, true)),
+        CursorIcon::ColResize
+    );
+}
+
+#[test]
+fn overlay_open_beats_text() {
+    // The scrim covers the document -- a spot that would otherwise be
+    // plain document text still reads as the plain arrow, never the I-beam.
+    assert_eq!(
+        cursor_icon_for(ctx(false, true, false, true)),
+        CursorIcon::Default
+    );
+}
+
+#[test]
+fn dragging_edge_beats_text() {
+    assert_eq!(
+        cursor_icon_for(ctx(true, false, false, true)),
+        CursorIcon::ColResize
+    );
+}
+
+#[test]
+fn overlay_open_beats_edge_hover() {
+    // The scrim covers the page edge too -- a would-be edge hover behind
+    // an open overlay never shows the resize glyph.
+    assert_eq!(
+        cursor_icon_for(ctx(false, true, true, false)),
+        CursorIcon::Default
+    );
+}
+
+#[test]
+fn dragging_edge_beats_overlay_open() {
+    // An ACTIVE drag (button down, mid-gesture) always wins -- it is never
+    // masked by a summoned overlay appearing mid-drag.
+    assert_eq!(
+        cursor_icon_for(ctx(true, true, false, false)),
+        CursorIcon::ColResize
+    );
+}
+
+#[test]
+fn overlay_open_beats_edge_hover_and_text_together() {
+    assert_eq!(
+        cursor_icon_for(ctx(false, true, true, true)),
+        CursorIcon::Default
+    );
+}
+
+#[test]
+fn dragging_edge_beats_overlay_open_and_text_together() {
+    assert_eq!(
+        cursor_icon_for(ctx(true, true, false, true)),
+        CursorIcon::ColResize
+    );
+}
+
+#[test]
+fn dragging_edge_beats_every_other_flag_at_once() {
+    assert_eq!(
+        cursor_icon_for(ctx(true, true, true, true)),
+        CursorIcon::ColResize
+    );
+}
+
+#[test]
+fn any_clickable_overlay_row_is_the_pointing_hand() {
+    assert_eq!(
+        cursor_icon_for(ctx_row(false, false, false)),
+        CursorIcon::Pointer
+    );
+}
+
+#[test]
+fn a_non_row_overlay_region_is_the_arrow_never_the_hand() {
+    assert_eq!(
+        cursor_icon_for(ctx(false, true, false, false)),
+        CursorIcon::Default
+    );
+}
+
+#[test]
+fn clickable_row_beats_the_generic_overlay_arrow() {
+    assert_eq!(
+        cursor_icon_for(ctx_row(false, false, false)),
+        CursorIcon::Pointer
+    );
+}
+
+#[test]
+fn clickable_row_beats_a_would_be_edge_or_text_beneath_it() {
+    // The scrim covers the document, so edge/text beneath a row never
+    // surface -- the hand still wins with those flags also set.
+    assert_eq!(
+        cursor_icon_for(ctx_row(false, true, true)),
+        CursorIcon::Pointer
+    );
+}
+
+#[test]
+fn an_active_edge_drag_still_beats_the_clickable_row_hand() {
+    assert_eq!(
+        cursor_icon_for(ctx_row(true, false, false)),
+        CursorIcon::ColResize
+    );
+}
+
+#[test]
+fn dragging_edge_beats_the_row_hand_with_every_flag_at_once() {
+    assert_eq!(
+        cursor_icon_for(ctx_row(true, true, true)),
+        CursorIcon::ColResize
+    );
+}
+
+#[test]
+fn a_clickable_lens_facet_is_the_pointing_hand() {
+    assert_eq!(
+        cursor_icon_for(ctx_lens(false, false, false)),
+        CursorIcon::Pointer
+    );
+}
+
+#[test]
+fn clickable_lens_beats_the_generic_overlay_arrow() {
+    assert_eq!(
+        cursor_icon_for(ctx_lens(false, false, false)),
+        CursorIcon::Pointer
+    );
+}
+
+#[test]
+fn clickable_lens_beats_a_would_be_edge_or_text_beneath_it() {
+    // The scrim covers the document, so edge/text beneath the strip never
+    // surface -- the hand still wins with those flags also set.
+    assert_eq!(
+        cursor_icon_for(ctx_lens(false, true, true)),
+        CursorIcon::Pointer
+    );
+}
+
+#[test]
+fn an_active_edge_drag_still_beats_the_lens_hand() {
+    assert_eq!(
+        cursor_icon_for(ctx_lens(true, false, false)),
+        CursorIcon::ColResize
+    );
+}
+
+#[test]
+fn dragging_edge_beats_the_lens_hand_with_every_flag_at_once() {
+    assert_eq!(
+        cursor_icon_for(ctx_lens(true, true, true)),
+        CursorIcon::ColResize
+    );
+}
+
+#[test]
+fn the_row_hand_and_the_lens_hand_both_resolve_to_the_pointer_if_ever_set_together() {
+    // The strip and the rows sit on different lines and never geometrically
+    // overlap, but the priority is stated regardless: either flag alone (or
+    // both) resolves to the hand -- neither out-ranks the other.
+    let both = CursorContext {
+        dragging_edge: false,
+        dragging_text: false,
+        overlay_open: true,
+        over_edge: false,
+        over_text: false,
+        over_clickable_overlay_row: true,
+        over_clickable_lens: true,
+        over_table_dims_cell: false,
+        over_query_input: false,
+        over_outline_row: false,
+        over_stack_row: false,
+        over_menu_hand: false,
+        over_menu_bar: false,
+        over_case_toggle: false,
+        over_panel_field: false,
+        over_panel: false,
+        image_drag: None,
+        image_hover: None,
+        over_popover_button: false,
+        over_fold_chevron: false,
+    };
+    assert_eq!(cursor_icon_for(both), CursorIcon::Pointer);
+}
+
+#[test]
+fn a_table_dims_grid_cell_is_the_pointing_hand() {
+    assert_eq!(
+        cursor_icon_for(ctx_table_dims_cell(false, false, false)),
+        CursorIcon::Pointer
+    );
+}
+
+#[test]
+fn a_table_dims_cell_beats_the_generic_overlay_arrow() {
+    // THE BUG THIS CLOSES: before the grid earned its own priority arm, a
+    // hovered cell fell through to the generic `overlay_open` -> arrow
+    // rule, reading a clickable cell as inert card chrome.
+    assert_eq!(
+        cursor_icon_for(ctx(false, true, false, false)),
+        CursorIcon::Default,
+        "sanity: overlay_open alone (no table-dims flag) is still the arrow"
+    );
+    assert_eq!(
+        cursor_icon_for(ctx_table_dims_cell(false, false, false)),
+        CursorIcon::Pointer
+    );
+}
+
+#[test]
+fn a_table_dims_cell_beats_a_would_be_edge_or_text_beneath_it() {
+    // The scrim covers the document, so edge/text beneath the card never
+    // surface -- the hand still wins with those flags also set.
+    assert_eq!(
+        cursor_icon_for(ctx_table_dims_cell(false, true, true)),
+        CursorIcon::Pointer
+    );
+}
+
+#[test]
+fn an_active_edge_drag_still_beats_the_table_dims_cell_hand() {
+    assert_eq!(
+        cursor_icon_for(ctx_table_dims_cell(true, false, false)),
+        CursorIcon::ColResize
+    );
+}
+
+#[test]
+fn dragging_edge_beats_the_table_dims_cell_hand_with_every_flag_at_once() {
+    assert_eq!(
+        cursor_icon_for(ctx_table_dims_cell(true, true, true)),
+        CursorIcon::ColResize
+    );
+}
+
+#[test]
+fn the_overlay_query_input_line_is_the_i_beam() {
+    assert_eq!(
+        cursor_icon_for(ctx_query(false, false, false)),
+        CursorIcon::Text
+    );
+}
+
+#[test]
+fn query_input_beats_the_generic_overlay_arrow() {
+    assert_eq!(
+        cursor_icon_for(ctx_query(false, false, false)),
+        CursorIcon::Text
+    );
+}
+
+#[test]
+fn a_clickable_row_outranks_the_query_input_field() {
+    // A row and the query line never geometrically overlap, but the priority
+    // is stated regardless: a row (were both set) resolves to the hand.
+    let both = CursorContext {
+        dragging_edge: false,
+        dragging_text: false,
+        overlay_open: true,
+        over_edge: false,
+        over_text: false,
+        over_clickable_overlay_row: true,
+        over_clickable_lens: false,
+        over_table_dims_cell: false,
+        over_query_input: true,
+        over_outline_row: false,
+        over_stack_row: false,
+        over_menu_hand: false,
+        over_menu_bar: false,
+        over_case_toggle: false,
+        over_panel_field: false,
+        over_panel: false,
+        image_drag: None,
+        image_hover: None,
+        over_popover_button: false,
+        over_fold_chevron: false,
+    };
+    assert_eq!(cursor_icon_for(both), CursorIcon::Pointer);
+}
+
+#[test]
+fn a_margin_outline_row_is_the_pointing_hand() {
+    assert_eq!(
+        cursor_icon_for(ctx_outline(false, false, false)),
+        CursorIcon::Pointer
+    );
+}
+
+#[test]
+fn a_margin_outline_row_beats_the_plain_text_beneath_it() {
+    assert_eq!(
+        cursor_icon_for(ctx_outline(false, false, true)),
+        CursorIcon::Pointer
+    );
+}
+
+#[test]
+fn a_working_set_stack_row_is_the_pointing_hand() {
+    // THE BUG THIS CLOSES: a stack row is click-to-switch (and its close
+    // zone click-to-close), same as an outline row, but a hover over it used
+    // to fall all the way through to the plain arrow — a clickable row read
+    // as inert margin. `over_stack_row` must earn the hand exactly like
+    // `over_outline_row` does.
+    assert_eq!(
+        cursor_icon_for(ctx_stack_row(false, false, false)),
+        CursorIcon::Pointer
+    );
+}
+
+#[test]
+fn a_working_set_stack_row_beats_the_plain_text_beneath_it() {
+    assert_eq!(
+        cursor_icon_for(ctx_stack_row(false, false, true)),
+        CursorIcon::Pointer
+    );
+}
+
+#[test]
+fn a_format_popover_button_is_the_pointing_hand() {
+    // Hovering a popover button reads as a clickable affordance — the pointing
+    // hand, exactly like a picker row (the popover never coexists with an
+    // overlay, so it just needs to earn the hand).
+    let mut c = ctx(false, false, false, false);
+    c.over_popover_button = true;
+    assert_eq!(cursor_icon_for(c), CursorIcon::Pointer);
+}
