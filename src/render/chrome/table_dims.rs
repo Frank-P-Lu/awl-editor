@@ -208,8 +208,10 @@ impl TextPipeline {
                     let e = crate::ease::out_back(self.table_dims_hover_t);
                     let last_f = (last.0 as f32, last.1 as f32);
                     (
-                        self.table_dims_hover_from.0 + (last_f.0 - self.table_dims_hover_from.0) * e,
-                        self.table_dims_hover_from.1 + (last_f.1 - self.table_dims_hover_from.1) * e,
+                        self.table_dims_hover_from.0
+                            + (last_f.0 - self.table_dims_hover_from.0) * e,
+                        self.table_dims_hover_from.1
+                            + (last_f.1 - self.table_dims_hover_from.1) * e,
                     )
                 } else {
                     (last.0 as f32, last.1 as f32)

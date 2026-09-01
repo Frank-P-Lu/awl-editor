@@ -12,7 +12,7 @@
 //! (`render::viewstate_def`) exactly like the SPELL popup's own dedicated
 //! arm keys off `overlay_spell`.
 
-use super::{nav, OverlayKind, OverlayState};
+use super::{OverlayKind, OverlayState, nav};
 
 /// The smallest table worth inserting.
 pub const MIN_DIM: usize = 1;

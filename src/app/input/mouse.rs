@@ -808,7 +808,8 @@ impl App {
         // hit-test the click path and the hover-preview path both already
         // use, so the cursor can never disagree with what a click there
         // would do.
-        let over_table_dims_cell = overlay_open && gpu.pipeline.table_dims_cell_at(px, py).is_some();
+        let over_table_dims_cell =
+            overlay_open && gpu.pipeline.table_dims_cell_at(px, py).is_some();
         let over_query_input = overlay_open && gpu.pipeline.over_overlay_query(px, py);
         // A clickable MARGIN-OUTLINE row reads as click-to-jump (the pointing hand),
         // reusing the outline's OWN row geometry (`outline_hit_line`, which folds in
