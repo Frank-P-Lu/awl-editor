@@ -868,6 +868,43 @@ table surfaces sitting outside an invariant the rest of the renderer walks
 (there, invalidation; here, the reveal/wash contract).
 
 ---
+### 552 — `~~` fuses into one wide tilde in prose: Monaspace ships its tilde ligatures behind `rlig`, which awl never disables (user report, 2026-09-01 — "why does ~~ turn into a big tilda? doesn't this break our rule?"; yes — mechanism verified in the font's own GSUB)
+
+Report: typing `~~` in a Monaspace world renders ONE wide swung tilde
+where two characters sit in the file (reproduced headlessly, Firetail,
+`alpha ~~ beta` and an unpaired `~~word`; a single `~` stays small). The
+user is right that this breaks the stated rule: `render/text.rs
+font_features` promises prose "standard + contextual ligatures ON
+(fi/fl)…`calt` OFF unconditionally", and its own doc claims Monaspace is
+"ligature-free either way". Both clauses miss the door the font actually
+uses: read from `assets/fonts/MonaspaceXenon-Regular.ttf`'s GSUB, the
+tilde family (`~~`, `<~`, `~>`, `!~`, `-~`, `=~`, `<~>`, `~~>`, `<~~`) is
+registered under `dlig` (disabled, good) AND reachable again through a
+chain-context lookup owned by **`rlig` — Required Ligatures** — a feature
+shapers apply unconditionally (it exists for scripts whose ligation is
+mandatory) and that no feature set in the tree touches (`rlig` appears
+nowhere in src). So the prose set's fi/fl-only contract is satisfied at
+`calt`/`dlig` and lost at `rlig`.
+
+Scope is wider than prose: Monaspace Xenon is the DISPLAY face of Potoroo
+and Firetail (whole documents) and the MONO of many worlds (inline code
+and code blocks), and the CODE arm for unsafe monos disables
+`calt`/`rclt`/`ccmp` but not `rlig` — so the fusion fires in code too,
+where two source chars sharing one glyph is exactly the non-uniform
+`line_glyph_xs` break the pitch probe exists to prevent. The lane should
+(a) enumerate what else rides that `rlig` chain in both Monaspace weights
+(the GSUB walk that found this filtered to tilde-composed ligatures only),
+(b) decide the disable's scope — per-face rather than blanket, since
+`rlig` is genuinely required for e.g. Arabic through fallback faces and a
+global off is a different bug, and (c) re-derive the "ligature-free either
+way" claim from the font rather than re-asserting it. Laws: prose `~~`
+shapes as two glyphs with two advances on every Monaspace world (sweep the
+roster, not a named world); the code-buffer caret grid law extended by a
+`~~`-bearing line; strikethrough's own raw reveal (`~~struck~~` on the
+caret line) shows four distinct tildes. Mutation-prove by re-enabling.
+Headlessly verifiable end to end — the repro capture above is the seed.
+
+---
 ### 537 — footnote markers may wear the traditional reference ladder (user decision, 2026-09-01; sequenced AFTER 529 bundles the face)
 
 🔴 BLOCKED — needs the user's product decisions on per-document versus recycled scope and whether definition-list markers follow the display option. U+2016 coverage remains an engineering verification, not a user decision.
