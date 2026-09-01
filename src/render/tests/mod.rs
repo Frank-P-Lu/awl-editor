@@ -160,6 +160,7 @@ mod notice;
 mod one_bit;
 mod oracle;
 mod organic_ground;
+mod ornament_scale;
 mod outline;
 mod overlay_align_law;
 mod overlay_header_band_law;
