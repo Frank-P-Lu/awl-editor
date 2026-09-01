@@ -1094,7 +1094,32 @@ lane trims the same geometry) — one lane may take both.
 ---
 ### 560 — theme picker rhythm: dead rows between the query head and the first row, and a top-heavy oversized hint card (user taste report, 2026-09-01 — "from where the caret is until the first item there's a lot of spacing… kind of weird; the bottom instruction box has too much padding vertically")
 
-🟡 IN PROGRESS — claude, branch item-560
+🔵 PREMISE FALSE, ORACLE REPAIRED, two taste calls OWED — merged `507dd3b9`
++ `ffc17a9c`. The reported "reserved marker row that stays reserved when
+unclamped" does not exist: `resolve_window_and_cue`'s `visible0 >=
+n_items` early return already reserves zero rows whenever the corpus
+fits (verified by pixel arithmetic + code reading, mutation-proven —
+`render::chrome::overlay_clamp::tests::reservation_never_fires_when_the_
+corpus_fits_at_or_under_the_cap`). The measured head gap is entirely
+`OVERLAY_QUERY_BEAT`, a shared query-divider constant used by every
+flat/grouped picker (not theme-picker-specific), widened TWICE before on
+live user feedback that a tighter value read as "too tight"/"flush"
+(0.72→1.0→1.3→1.55, `c4efad15`/`1653adf9`) and protected by a standing
+law (`gap > lh`). The offered "one row leading" direction is numerically
+the 1.0 value already tried and rejected. Similarly `OVERLAY_HINT_GAP_ROW`
+(bottom hint card padding) is guarded by a pixel law naming its own
+intent ("add clear air above, trim the chin, reject the old dials").
+Both constants are one line each in `src/render/chrome/overlay_policy.rs`,
+left untouched pending your call:
+
+**Q1 (head gap):** keep `OVERLAY_QUERY_BEAT` at `1.55` (current, 84px @2x)
+or narrow toward `1.15`–`1.25` (the band that tightens without
+re-entering the rejected `1.0`/"flush" territory the standing law
+blocks)?
+**Q2 (hint card):** keep `OVERLAY_HINT_GAP_ROW` at `0.65` (current) or
+accept a version closer to "vertically centered, symmetric padding"
+(the item's original ask), which the existing pixel law's own stated
+intent argues against?
 
 Measured on the user's 2× screenshot (unclamped list, all 20 worlds
 fit): the query head's caret dot ends at y≈106 and the first row's ink
