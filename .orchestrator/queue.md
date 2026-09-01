@@ -1009,7 +1009,40 @@ docs/harness-reach.md.
 ---
 ### 555 — sentence motion: forward/back, select, and delete by sentence (user decision, 2026-09-01)
 
-🟡 IN PROGRESS — claude, branch item-555
+✅ COMPLETE — merged as `35451ad4`, follow-ups `8b86e7d1`/`81201379`.
+`Buffer::{forward_sentence, backward_sentence, delete_sentence_forward,
+delete_sentence_backward}`, mirroring the existing word-motion/
+word-delete pattern. Boundary rule is UAX #29 via
+`unicode-segmentation`'s `split_sentence_bound_indices` (windowed like
+the grapheme-cluster boundary functions), not a hand-rolled terminator
+heuristic. Shift-extension needed no new code — `is_motion()`
+enrollment alone. Bindings: M-a/M-e/M-k on the Linux emacs Meta-seed
+layer; native slots ship empty with palette entries, one `[keys]` line
+from a chord.
+
+Two honest, documented (not silently patched) gaps found by direct
+measurement: bare UAX #29 has no abbreviation dictionary, so "Dr.
+Smith" breaks right after "Dr." where "e.g. the" correctly stays glued
+(SB8) — pinned as a named test contrasting both cases. And `S-M-e`
+does not resolve through the chord path today (the Linux Meta-seed
+table is populated after the auto-Shift-companion pass), identical to
+`S-M-f` (word motion) — pinned as a named test, not a regression.
+
+Mutation-proven (off-by-one on the terminator threshold went red);
+`--keys` sidecar journey drives M-e/M-a/M-k/C-y through a real
+`Convention::Linux` + emacs `KeymapState` end to end. Orchestrator
+follow-up: `editing.rs` and `buffer/edit.rs` both hit hard,
+un-raisable ceilings (a brand-new submodule file has no baseline
+grace; `edit.rs`'s own frozen baseline was lower than its new size) —
+carved a `commands/catalog/editing/sentence.rs` submodule and moved
+the two delete methods to `buffer/motion.rs` alongside their sibling
+motion methods. Separately, four new commands needed enrolling in five
+generated/hand-curated rosters a filtered test run can't see (task
+category, the `PALETTE_ONLY` exemption, the curated navigation set,
+the frozen chord snapshot, GUIDE.md's generated table) — all fixed,
+90 tests green. Exact-main receipt: health pass:241s, both
+conventions, menubar=full:on, 4777 unit tests, 17 integration targets;
+web smoke OK.
 
 awl is prose-first but its motion grammar stops at words — no sentence
 verb exists anywhere in the tree. Add sentence forward/backward motion,
@@ -1034,7 +1067,35 @@ journey.
 ---
 ### 556 — move line/selection up and down (user decision, 2026-09-01)
 
-🟡 IN PROGRESS — claude, branch item-556
+✅ COMPLETE — merged as `edb60084`, follow-ups `e450414b`/`52be017f`.
+One `Action` moves the caret's logical line — or every line a
+selection touches, as one block — past its neighbor; caret/selection
+ride the move. The whole move is one `apply_edit` replace call, which
+never coalesces, so it's automatically one sealed undo group.
+Mutation-proven: splitting the single `apply_edit` into delete+insert
+breaks the one-step-undo law immediately (panic pasted in the lane's
+own report). Option-Up/Down verified genuinely free in the keymap
+defaults before being taken (checked the resolver's dispatch
+precedence directly, not trusted from the item text) — a deliberate
+taste call per the land-easy policy; revert cost is three commits,
+nothing else depends on the new `Action` variants. Emacs slot ships
+empty (no exact classic; `transpose-lines` differs).
+
+Verified rather than reimplemented: the existing row-leave re-pad
+(item 542) and the existing numbered-list toggle both already handle
+a moved table row and a moved numbered-list line with no new code —
+the item's own "auto-renumber" premise was checked and found false,
+documented honestly rather than assumed. Edge sweep: first/last-line
+no-op, the ropey trailing-newline phantom-line case, block moves at
+buffer ends, sticky goal column, a single 400-char logical line.
+`--keys` sidecar journeys cover single-line and block-selection moves.
+Orchestrator follow-up: same `editing.rs` ceiling collision as 555
+(both items added a submodule + call sites) — resolved the merge
+conflict, reapplied the fully-qualified-reference fix, and trimmed two
+borderline-101-column descriptions (Bold/Italic) to clear it; the
+generated REFERENCE.md/site/reference.html needed a regen after that
+trim. Exact-main receipt: health pass:241s, both conventions,
+menubar=full:on, 4777 unit tests, 17 integration targets; web smoke OK.
 
 No such action exists. The prose meaning is "reorder list items and
 paragraphs": one command swaps the caret's logical line — or every line
