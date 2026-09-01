@@ -58,8 +58,10 @@ const MEASURE: usize = 70;
 /// blank rows (512px at the default 32px line height) clears every roster
 /// scale's tallest measured row (the widest observed, Gumtree's snake run,
 /// row-boxes at ~150px).
-const DOC_WITH_RULE: &str = "# Ornament Measurement\n\nabcdefghijklmnopqrstuvwxyz\n\n---\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nBody text after the break, for reference.\n";
-const DOC_BLANK: &str = "# Ornament Measurement\n\nabcdefghijklmnopqrstuvwxyz\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nBody text after the break, for reference.\n";
+const DOC_WITH_RULE: &str = "# Ornament Measurement\n\nabcdefghijklmnopqrstuvwxyz\n\n---\n\n\n\n\n\
+                              \n\n\n\n\n\n\n\n\n\n\n\nBody text after the break, for reference.\n";
+const DOC_BLANK: &str = "# Ornament Measurement\n\nabcdefghijklmnopqrstuvwxyz\n\n\n\n\n\n\
+                          \n\n\n\n\n\n\n\n\n\n\n\nBody text after the break, for reference.\n";
 
 const REF_ROW: &str = "abcdefghijklmnopqrstuvwxyz";
 const RULE_ROW: &str = "---";

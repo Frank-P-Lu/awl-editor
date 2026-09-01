@@ -520,7 +520,7 @@ reason = "The exhaustive theme model authors rotated-location treatment and toas
 
 [[file_size_mark]]
 file = "src/theme/worlds.rs"
-lines = 1179
+lines = 1178
 reason = "Every world explicitly authors its toast anchor, while Cassowary and Magpie author their shared rotated-location treatments in the same roster. Kite authors the ruled list style (one line). +3: Cassowary and Quokka each author their own top_cut_px/bottom_cut_px pair instead of one shared cut_px. +18: the in-file worlds explicitly retain their existing list-bullet face while section-break ornaments move to Nishiki."
 
 [[clippy_exception]]

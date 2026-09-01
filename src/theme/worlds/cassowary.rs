@@ -32,7 +32,7 @@ pub const CASSOWARY: Theme = Theme {
     ornaments: Ornaments::of("󿁎", "󿁏", "󿁍"),
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_MARKS,
-    ornament_scale: 2.162, // roster ink-height equalization: was the shared ORNAMENT_SCALE_GEOMETRIC tier (1.5); this glyph's own ink-to-em ratio needs this much MORE to match the roster's tallest normalized ornament (see theme::tests::ornament)
+    ornament_scale: 2.162, // equalized upward from tier 1.5 (theme::tests::ornament)
     bullets: BULLETS_PLAIN,
     bullet_scale: BULLET_SCALE_PLAIN,
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,

@@ -58,7 +58,7 @@ pub const GUMTREE: Theme = Theme {
     ornaments: Ornaments::of("\u{F591}\u{F592}\u{F592}\u{F593}", "🐟", "🐌"),
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_JUNICODE,
-    ornament_scale: 4.648, // roster ink-height equalization: was the shared ORNAMENT_SCALE_ORNATE tier (2.2); this glyph's own ink-to-em ratio needs this much MORE to match the roster's tallest normalized ornament (see theme::tests::ornament)
+    ornament_scale: 4.648, // equalized upward from tier 2.2 (theme::tests::ornament)
     bullets: ('❧', '☙', '❦'),
     bullet_scale: BULLET_SCALE_ORNAMENT,
     list_indent_scale: LIST_INDENT_SCALE_WIDE,
@@ -106,7 +106,7 @@ pub const POTOROO: Theme = Theme {
     ornaments: Ornaments::of("🍄", "🍀", "☘"),
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_MARKS,
-    ornament_scale: 3.016, // roster ink-height equalization: was the shared ORNAMENT_SCALE_GEOMETRIC tier (1.5); this glyph's own ink-to-em ratio needs this much MORE to match the roster's tallest normalized ornament (see theme::tests::ornament)
+    ornament_scale: 3.016, // equalized upward from tier 1.5 (theme::tests::ornament)
     bullets: BULLETS_PLAIN,
     bullet_scale: BULLET_SCALE_PLAIN,
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
@@ -153,7 +153,7 @@ pub const BILBY: Theme = Theme {
     ornaments: Ornaments::of("🌸", "🌼", "🌷"),
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_GARAMOND,
-    ornament_scale: 2.515, // roster ink-height equalization: was the shared ORNAMENT_SCALE_FLEURON tier (1.8); this glyph's own ink-to-em ratio needs this much MORE to match the roster's tallest normalized ornament (see theme::tests::ornament)
+    ornament_scale: 2.515, // equalized upward from tier 1.8 (theme::tests::ornament)
     bullets: ('❧', '❦', '☙'),
     bullet_scale: BULLET_SCALE_ORNAMENT,
     list_indent_scale: LIST_INDENT_SCALE_WIDE,
@@ -255,7 +255,7 @@ pub const QUOKKA: Theme = Theme {
     ornaments: Ornaments::of("\u{F5B0}", "\u{F5B3}", "\u{F5B1}"),
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_MARKS,
-    ornament_scale: 2.542, // roster ink-height equalization: was the shared ORNAMENT_SCALE_GEOMETRIC tier (1.5); this glyph's own ink-to-em ratio needs this much MORE to match the roster's tallest normalized ornament (see theme::tests::ornament)
+    ornament_scale: 2.542, // equalized upward from tier 1.5 (theme::tests::ornament)
     bullets: BULLETS_PLAIN,
     bullet_scale: BULLET_SCALE_PLAIN,
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
@@ -313,7 +313,7 @@ pub const BOMBORA: Theme = Theme {
     ornaments: Ornaments::of("\u{F814}\u{F815}", "\u{F827}\u{F828}", "\u{F81C}"),
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_GARAMOND,
-    ornament_scale: 1.897, // roster ink-height equalization: was the shared ORNAMENT_SCALE_FLEURON tier (1.8); this glyph's own ink-to-em ratio needs this much MORE to match the roster's tallest normalized ornament (see theme::tests::ornament)
+    ornament_scale: 1.897, // equalized upward from tier 1.8 (theme::tests::ornament)
     bullets: ('☞', '❧', '❦'),
     bullet_scale: BULLET_SCALE_GARAMOND,
     list_indent_scale: LIST_INDENT_SCALE_WIDE,
@@ -359,7 +359,7 @@ pub const MULGA: Theme = Theme {
     ornaments: Ornaments::of("\u{F501}", "\u{F500}", "\u{F51B}"),
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_JUNICODE,
-    ornament_scale: 2.557, // roster ink-height equalization: was the shared ORNAMENT_SCALE_ORNATE tier (2.2); this glyph's own ink-to-em ratio needs this much MORE to match the roster's tallest normalized ornament (see theme::tests::ornament)
+    ornament_scale: 2.557, // equalized upward from tier 2.2 (theme::tests::ornament)
     bullets: ('☙', '❦', '❧'),
     bullet_scale: BULLET_SCALE_ORNAMENT,
     list_indent_scale: LIST_INDENT_SCALE_WIDE,
@@ -406,7 +406,7 @@ pub const TAWNY: Theme = Theme {
     ornaments: Ornaments::of("🍁", "🍃", "🍂"),
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_MARKS,
-    ornament_scale: 2.83, // roster ink-height equalization: was the shared ORNAMENT_SCALE_GEOMETRIC tier (1.5); this glyph's own ink-to-em ratio needs this much MORE to match the roster's tallest normalized ornament (see theme::tests::ornament)
+    ornament_scale: 2.83, // equalized upward from tier 1.5 (theme::tests::ornament)
     bullets: BULLETS_PLAIN,
     bullet_scale: BULLET_SCALE_PLAIN,
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
@@ -453,7 +453,7 @@ pub const MOPOKE: Theme = Theme {
     ornaments: Ornaments::of("🌝", "🌛", "🌚"),
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_JUNICODE,
-    ornament_scale: 2.328, // roster ink-height equalization: was the shared ORNAMENT_SCALE_ORNATE tier (2.2); this glyph's own ink-to-em ratio needs this much MORE to match the roster's tallest normalized ornament (see theme::tests::ornament)
+    ornament_scale: 2.328, // equalized upward from tier 2.2 (theme::tests::ornament)
     bullets: ('\u{E670}', '\u{EF92}', '\u{E67D}'),
     bullet_scale: BULLET_SCALE_ORNAMENT,
     list_indent_scale: LIST_INDENT_SCALE_WIDE,
@@ -502,7 +502,7 @@ pub const BOWERBIRD: Theme = Theme {
     ornaments: Ornaments::of("🌠", "🌟", "✨"),
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_MARKS,
-    ornament_scale: 2.181, // roster ink-height equalization: was the shared ORNAMENT_SCALE_GEOMETRIC tier (1.5); this glyph's own ink-to-em ratio needs this much MORE to match the roster's tallest normalized ornament (see theme::tests::ornament)
+    ornament_scale: 2.181, // equalized upward from tier 1.5 (theme::tests::ornament)
     bullets: BULLETS_PLAIN,
     bullet_scale: BULLET_SCALE_PLAIN,
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
@@ -547,7 +547,7 @@ pub const CURRAWONG: Theme = Theme {
     ornaments: Ornaments::of("♘", "♕", "♙"),
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_MARKS,
-    ornament_scale: 2.359, // roster ink-height equalization: was the shared ORNAMENT_SCALE_GEOMETRIC tier (1.5); this glyph's own ink-to-em ratio needs this much MORE to match the roster's tallest normalized ornament (see theme::tests::ornament)
+    ornament_scale: 2.359, // equalized upward from tier 1.5 (theme::tests::ornament)
     bullets: BULLETS_PLAIN,
     bullet_scale: BULLET_SCALE_PLAIN,
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
@@ -605,7 +605,7 @@ pub const MANGROVE: Theme = Theme {
     ornaments: Ornaments::of("󿁁", "󿁓", "󿁒"),
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_MARKS,
-    ornament_scale: 2.669, // roster ink-height equalization: was the shared ORNAMENT_SCALE_GEOMETRIC tier (1.5); this glyph's own ink-to-em ratio needs this much MORE to match the roster's tallest normalized ornament (see theme::tests::ornament)
+    ornament_scale: 2.669, // equalized upward from tier 1.5 (theme::tests::ornament)
     bullets: BULLETS_PLAIN,
     bullet_scale: BULLET_SCALE_PLAIN,
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
@@ -670,7 +670,7 @@ pub const GALAH: Theme = Theme {
     ornaments: Ornaments::of("♠", "♥", "♣"),
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_MARKS,
-    ornament_scale: 2.721, // roster ink-height equalization: was the shared ORNAMENT_SCALE_GEOMETRIC tier (1.5); this glyph's own ink-to-em ratio needs this much MORE to match the roster's tallest normalized ornament (see theme::tests::ornament)
+    ornament_scale: 2.721, // equalized upward from tier 1.5 (theme::tests::ornament)
     bullets: BULLETS_PLAIN,
     bullet_scale: BULLET_SCALE_PLAIN,
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
@@ -729,7 +729,7 @@ pub const MAGPIE: Theme = Theme {
     ornaments: Ornaments::of("⁂", "⁑", "✱"),
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_JUNICODE,
-    ornament_scale: 2.751, // roster ink-height equalization: was the shared ORNAMENT_SCALE_ORNATE tier (2.2); this glyph's own ink-to-em ratio needs this much MORE to match the roster's tallest normalized ornament (see theme::tests::ornament)
+    ornament_scale: 2.751, // equalized upward from tier 2.2 (theme::tests::ornament)
     bullets: ('❦', '☙', '❧'),
     bullet_scale: BULLET_SCALE_ORNAMENT,
     list_indent_scale: LIST_INDENT_SCALE_WIDE,
@@ -792,7 +792,7 @@ pub const BROLGA: Theme = Theme {
     ornaments: Ornaments::of("󾿡", "󾿣", "󾿢"),
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_MARKS,
-    ornament_scale: 2.907, // roster ink-height equalization: was the shared ORNAMENT_SCALE_GEOMETRIC tier (1.5); this glyph's own ink-to-em ratio needs this much MORE to match the roster's tallest normalized ornament (see theme::tests::ornament)
+    ornament_scale: 2.907, // equalized upward from tier 1.5 (theme::tests::ornament)
     bullets: BULLETS_PLAIN,
     bullet_scale: BULLET_SCALE_PLAIN,
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
@@ -840,7 +840,7 @@ pub const WAGTAIL: Theme = Theme {
     ornaments: Ornaments::of("♩", "♪", "♬"),
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_MARKS,
-    ornament_scale: 3.221, // roster ink-height equalization: was the shared ORNAMENT_SCALE_GEOMETRIC tier (1.5); this glyph's own ink-to-em ratio needs this much MORE to match the roster's tallest normalized ornament (see theme::tests::ornament)
+    ornament_scale: 3.221, // equalized upward from tier 1.5 (theme::tests::ornament)
     bullets: BULLETS_PLAIN,
     bullet_scale: BULLET_SCALE_PLAIN,
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
@@ -931,7 +931,7 @@ pub const FIRETAIL: Theme = Theme {
     ornaments: Ornaments::of("✦", "✶", "✧"),
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_MARKS,
-    ornament_scale: 3.217, // roster ink-height equalization: was the shared ORNAMENT_SCALE_GEOMETRIC tier (1.5); this glyph's own ink-to-em ratio needs this much MORE to match the roster's tallest normalized ornament (see theme::tests::ornament)
+    ornament_scale: 3.217, // equalized upward from tier 1.5 (theme::tests::ornament)
     bullets: BULLETS_PLAIN,
     bullet_scale: BULLET_SCALE_PLAIN,
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
@@ -1001,7 +1001,7 @@ pub const PAPERBARK: Theme = Theme {
     ornaments: Ornaments::of("❧", "☙", "❦"),
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_GARAMOND,
-    ornament_scale: 2.719, // roster ink-height equalization: was the shared ORNAMENT_SCALE_FLEURON tier (1.8); this glyph's own ink-to-em ratio needs this much MORE to match the roster's tallest normalized ornament (see theme::tests::ornament)
+    ornament_scale: 2.719, // equalized upward from tier 1.8 (theme::tests::ornament)
     bullets: ('☙', '❦', '❧'),
     bullet_scale: BULLET_SCALE_GARAMOND,
     list_indent_scale: LIST_INDENT_SCALE_WIDE,
@@ -1116,7 +1116,7 @@ pub const KITE: Theme = Theme {
     ornaments: Ornaments::of("☀", "☼", "🌞"),
     ornament_face: ORNAMENT_NISHIKI,
     bullet_face: ORNAMENT_MARKS,
-    ornament_scale: 2.544, // roster ink-height equalization: was the shared ORNAMENT_SCALE_GEOMETRIC tier (1.5); this glyph's own ink-to-em ratio needs this much MORE to match the roster's tallest normalized ornament (see theme::tests::ornament)
+    ornament_scale: 2.544, // equalized upward from tier 1.5 (theme::tests::ornament)
     bullets: BULLETS_PLAIN,
     bullet_scale: BULLET_SCALE_PLAIN,
     list_indent_scale: LIST_INDENT_SCALE_PLAIN,
