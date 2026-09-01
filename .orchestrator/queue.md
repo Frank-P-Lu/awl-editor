@@ -796,6 +796,40 @@ capture — worth a look before anyone writes a Verify clause that drives a
 swap through Goto.
 
 ---
+### 550 — working-set close lane: the active plate overhangs its label by one character too many (user taste report, 2026-09-01 — "the highlight bar is SLIGHTLY too long, on the left side… i think the x button should fit when you hover over it, but it's just a tad too long"; geometry measured, mechanism identified)
+
+Report: the active row's plate in the working-set stack extends left of the
+label's first glyph by a gap the user reads (correctly) as the reserve for
+the hover-revealed close mark — and finds a touch too long. Measured on the
+user's 2× screenshot in the label's own character units (char width taken
+from the sibling row's 17-char name, label width cross-checks to within
+1px): the left overhang is **3.17 chars**; the right overhang is under one.
+That 3 + pad is exactly what the code draws: `render/chrome/gutter_stack.rs`
+shapes `CLOSE_MARK_TEXT = "×  "` — × plus TWO spaces — as the always-present
+leading run on every row, `plate_rects` measures the plate's ink as label +
+those 3 chars, and `plate_rect` adds `pad_x`. On hover the × occupies the
+first char and one space separates it from the label; the second space is
+the surplus the user is seeing.
+
+Direction (the taste verdict is already given): trim the lane by one space
+so the revealed × just fits — likely `CLOSE_MARK_TEXT = "× "` — keeping the
+file's own invariants intact. Two couplings the lane must hold: (a) the
+single-file identity line (`super::gutter`) shapes the SAME lane through the
+same const — both surfaces move together or neither; (b) `close_zone` is an
+h×h square anchored at the ink's leading edge, and the file's own tripwire
+("a revealed × must never draw routed ink outside its own fill") wants a law,
+not a spot check: assert × ink ⊆ plate fill AND click zone ⊆ plate fill,
+swept across the per-world mono FACE roster rather than one face — the
+zone's width is the row height while the lane's is char-width-times-two, so
+a narrow-aspect mono is where a 2-char lane would first lose the square
+(the axis the measured screenshot, one face at one size, cannot cover).
+Mutation-prove by shrinking the lane to "×" alone and watching the
+containment law go red. Plate/zone geometry is pure functions — unit seam;
+the hover reveal itself is pointer state no `--keys` capture drives
+(docs/harness-reach.md before promising otherwise), so the resting plate
+width is the capturable half and the hover feel is the user's live check.
+
+---
 ### 537 — footnote markers may wear the traditional reference ladder (user decision, 2026-09-01; sequenced AFTER 529 bundles the face)
 
 🔴 BLOCKED — needs the user's product decisions on per-document versus recycled scope and whether definition-list markers follow the display option. U+2016 coverage remains an engineering verification, not a user decision.
