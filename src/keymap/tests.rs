@@ -126,6 +126,8 @@ forward_char|||C-f
 backward_char|||C-b
 next_line|||C-n
 previous_line|||C-p
+move_line_up|Option-Up|M-Up|
+move_line_down|Option-Down|M-Down|
 delete_word_forward|||
 delete_word_backward|||
 delete_sentence_forward|||

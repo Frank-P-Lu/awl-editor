@@ -22,6 +22,7 @@ mod format_editing;
 mod insert_table;
 mod lifecycle;
 mod link_flow;
+mod move_lines;
 mod overlay_drive;
 mod overlay_query_motion;
 mod picker_misc_smoke;
@@ -704,6 +705,8 @@ macro_rules! classify_delete_flinch {
             | Action::RevealInFileManager
             | Action::CopyFilePath
             | Action::TrashFile
+            | Action::MoveLineUp
+            | Action::MoveLineDown
             | Action::Ignore => None,
         }
     };
@@ -828,6 +831,8 @@ macro_rules! assert_action_roster {
             | Action::AcceptAlternate
             | Action::InsertTab
             | Action::Outdent
+            | Action::MoveLineUp
+            | Action::MoveLineDown
             | Action::DeleteBackward
             | Action::DeleteWordBackward
             | Action::DeleteWordForward
@@ -1257,6 +1262,10 @@ macro_rules! classify_smoke_command {
         | Action::DeleteWordForward
         | Action::DeleteSentenceForward
         | Action::DeleteSentenceBackward
+        // MOVE LINE UP/DOWN: a real catalog command that mutates the buffer
+        // in place, same shape as the formatting toggles above.
+        | Action::MoveLineUp
+        | Action::MoveLineDown
         // The smoke fixture (`rich_markdown_buffer`) is a NO-PATH buffer, so
         // `Action::OpenRenameNote`'s pure-buffer-state gate declines to open —
         // an in-place no-op under this harness, not an Opener.

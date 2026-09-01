@@ -110,6 +110,11 @@ pub(super) fn recoil_for(
         // Vertical motion into the top/bottom wall -> bump away from it.
         Action::NextLine if cursor_stuck => Some(Up),
         Action::PreviousLine if cursor_stuck => Some(Down),
+        // Move-line into the top/bottom wall (nothing to swap with) -> no edit
+        // ran (content_stuck), same "bump away from it" convention as the
+        // plain vertical motions above.
+        Action::MoveLineUp if content_stuck => Some(Up),
+        Action::MoveLineDown if content_stuck => Some(Down),
         // Buffer ends (M-> / M-<) already at the end -> bump back toward the middle.
         Action::BufferEnd if cursor_stuck => Some(Up),
         Action::BufferStart if cursor_stuck => Some(Down),

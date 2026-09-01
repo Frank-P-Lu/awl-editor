@@ -129,6 +129,8 @@ const COMMAND_TASK_CATEGORIES: &[(&str, TaskCategory)] = &[
     ("Cut", Format),
     ("Paste", Format),
     ("Select all", Format),
+    ("Move line up", Format),
+    ("Move line down", Format),
     ("Zoom in", View),
     ("Zoom out", View),
     ("Reset zoom", View),

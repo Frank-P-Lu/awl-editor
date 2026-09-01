@@ -242,6 +242,8 @@ fn apply_buffer_action(ctx: &mut ActionCtx, action: &Action) -> bool {
                 list_outdent(ctx)
             }
         }
+        Action::MoveLineUp => ctx.buffer.move_line_up(),
+        Action::MoveLineDown => ctx.buffer.move_line_down(),
         Action::DeleteBackward => ctx.buffer.delete_backward(),
         Action::DeleteWordBackward => ctx.buffer.delete_word_backward(),
         Action::DeleteWordForward => ctx.buffer.delete_word_forward(),

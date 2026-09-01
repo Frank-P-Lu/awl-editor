@@ -26,6 +26,7 @@ mod history;
 mod insert_link;
 mod launch_context;
 mod minibuffers;
+mod move_lines;
 mod page_geometry;
 mod page_measure;
 mod palette;

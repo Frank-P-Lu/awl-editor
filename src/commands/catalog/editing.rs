@@ -7,6 +7,8 @@ use table::INSERT_TABLE;
 mod link;
 use link::INSERT_LINK;
 mod sentence;
+mod move_lines;
+use move_lines::{MOVE_LINE_DOWN, MOVE_LINE_UP};
 pub(super) static COMMANDS: &[Command] = &[
     Command {
         name: "Blockquote",
@@ -446,6 +448,8 @@ pub(super) static COMMANDS: &[Command] = &[
             "Move the caret up one visual line, following soft wraps and a sticky goal column.",
         ),
     },
+    MOVE_LINE_UP,
+    MOVE_LINE_DOWN,
     // WORD-DELETE, the mutating siblings of the word MOTIONS above — catalog rows
     // so `[keys]` can reach them (`delete_word_forward = "M-d"` reclaims the
     // classic emacs kill-word; `delete_word_backward = "M-Backspace"`). Both slots
