@@ -1226,28 +1226,50 @@ shader reads have one typed owner. Keep per-frame CPU work O(1), shader work
 bounded per fragment with no data-dependent iteration, and the web/WebGL2 path
 honest.
 
-Motion policy stays shared: Ambient motion off, Reduce Motion, lost focus,
-pause, and ordinary headless capture all freeze at one documented pose;
+Motion policy stays shared. Lost focus and pause freeze the current state, and
 delayed wakes advance one bounded step rather than catching up. Forward drift
 defaults to the approved `0.05` feel and the whole-section roll is slower than
 the study's earlier cut (the approved study's default full roll was about four
 minutes at twist 0.72). The user owns final live judgement of drift, contortion,
 and long-session comfort.
 
+**Motion-safe authored pose (user decision, 2026-09-02).** Reduce Motion and
+Ambient motion off do NOT merely stop on an arbitrary frame. They resolve the
+same tunnel renderer and authored profile to one deliberately calm,
+deterministic pose: vanishing point locked at top-right, fixed forward phase,
+fixed section roll, no target sequence, no longitudinal breathe, and no other
+time-derived movement. Preserve the folded/twisted 3-D surface as static
+geometry; motion safety must not flatten Kite into a different identity. If a
+live accessibility review finds that the frozen convergence still suggests
+movement or shimmers, first soften lattice contrast and convergence through
+motion-policy data on this same profile. A plain static grid is the last-resort
+fallback only after that review demonstrates it is needed — not a second
+background, asset, shader path, or independently maintained Kite design.
+Ordinary headless capture uses this documented calm pose unless an explicit
+deterministic motion seam asks for another state.
+
 **Verification.** Read `docs/harness-reach.md` before promising captures. Add
 pure laws for the four-target state machine (complete target roster, no
 immediate repeat, exact 15-second dwell, exact 12-second transit, endpoint
 velocity/easing, fixed-seed determinism); wrap/continuity laws for forward
 travel, fold, roll, and target transitions; and the existing bounded-wake /
-freeze policy sweep. Extend `AWL_WARP_PHASE` (or replace it with one equally
-explicit deterministic seam) so captures can name every corner, a midpoint
-transition, the wrap, and the reduced-motion pose. The sidecar must report the
 resolved vanishing point, hold/transit state, and forward phase — state oracle;
+freeze policy sweep. Add a law that Reduce Motion and Ambient motion off reach
+the authored calm pose from EVERY dwell/transit state rather than freezing the
+incoming frame, while lost-focus pause preserves that incoming state. Extend
+`AWL_WARP_PHASE` (or replace it with one equally explicit deterministic seam)
+so captures can name every corner, a midpoint transition, the wrap, and the
+motion-safe pose. The sidecar must report the resolved vanishing point,
+hold/transit state, forward phase, and whether the calm policy is resolved —
+state oracle;
 PNG arithmetic owns appearance: one continuous tube across both flanks and
 under-page scaffold, page contrast still clearing the existing 4.5:1 floor,
 no compact bright core/orb, no moiré, and meaningful ink in both wide and
-narrow margins at 1x/2x. Run a five-shot vision smoke asking where the
-vanishing point is and whether the page remains the obvious writing surface.
+narrow margins at 1x/2x. The motion-safe capture gets presence/continuity
+checks proving the tunnel remains recognizably folded while its pixels stay
+byte-identical across different synthetic times. Run a five-shot vision smoke
+asking where the vanishing point is and whether the page remains the obvious
+writing surface.
 Record a before/after `--bench-frame` and make its witness prove the travelling
 ground actually rendered. Native gate + web smoke; live human sign-off remains
 owed for the several-minute feel.
