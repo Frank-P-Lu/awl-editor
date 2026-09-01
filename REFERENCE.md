@@ -85,6 +85,8 @@ Commands are grouped by the same task categories the palette browses.
 | Find and replace… | Open the search panel with its replace row revealed. | `⌘R` | `Ctrl+R` | Native, browser |
 | Forward word | Move the caret forward one word. | `⌥Right` | `Alt+Right` | Native, browser |
 | Backward word | Move the caret backward one word. | `⌥Left` | `Alt+Left` | Native, browser |
+| Sentence forward | Move the caret to the start of the following sentence. | — | — | Native, browser |
+| Sentence backward | Move the caret to the current sentence's start, or the previous one if already there. | — | — | Native, browser |
 | Line start | Move the caret to the start of the visual line (logical without an oracle). | `⌘Left · C-a` | `Home` | Native, browser |
 | Line end | Move the caret to the end of the visual line (logical line without a layout oracle). | `⌘Right · C-e` | `End` | Native, browser |
 | Document start | Move the caret to the start of the document. | `⌘Up` | `Ctrl+Home` | Native, browser |
@@ -95,6 +97,8 @@ Commands are grouped by the same task categories the palette browses.
 | Previous line | Move the caret up one visual line, following soft wraps and a sticky goal column. | `C-p` | — | Native, browser |
 | Delete word forward | Delete the word or punctuation run after the caret; a selection deletes instead. | — | — | Native, browser |
 | Delete word backward | Delete the word or punctuation run before the caret; a selection deletes instead. | — | — | Native, browser |
+| Delete sentence forward | Delete to the start of the following sentence; a selection deletes instead. | — | — | Native, browser |
+| Delete sentence backward | Delete to the start of the current sentence; a selection deletes instead. | — | — | Native, browser |
 
 ### Format
 
@@ -110,8 +114,8 @@ Commands are grouped by the same task categories the palette browses.
 | Heading | Toggle a level-1 `# ` heading marker on the caret line. | — | — | Native, browser |
 | Cycle heading | Cycle the caret line's heading level 1 → 2 → 3 → plain text. | — | — | Native, browser |
 | Code block | Wrap the caret line or selection in a fenced code block, unwrapping if fenced. | — | — | Native, browser |
-| Bold | Toggle `**bold**` markup around the selection or the word at the caret. | `⌘B` | `Ctrl+B` | Native, browser |
-| Italic | Toggle `*italic*` markup around the selection or the word at the caret. | `⌘I` | `Ctrl+I` | Native, browser |
+| Bold | Toggle `**bold**` on the selection or word at the caret. | `⌘B` | `Ctrl+B` | Native, browser |
+| Italic | Toggle `*italic*` on the selection or word at the caret. | `⌘I` | `Ctrl+I` | Native, browser |
 | Inline code | Toggle `` `inline code` `` markup around the selection or the word at the caret. | `⌘E` | `Ctrl+E` | Native, browser |
 | Highlight | Toggle `==highlight==` markup around the selection or the word at the caret. | — | — | Native, browser |
 | Strikethrough | Toggle `~~strikethrough~~` markup around the selection or the word at the caret. | — | — | Native, browser |
