@@ -46,15 +46,31 @@ fn every_world_ornament_face_is_a_registered_ornament_face() {
     }
 }
 
-/// NEVER-DRIFT law: every world ships an [`Theme::ornament_scale`], and it is
-/// exactly one of the three named tier constants — a world can't silently drift to
-/// a bare literal that neither reader (`md_line_scale` / `prepare_ornaments`) would
-/// then keep in lockstep. Also pins the three tier VALUES (the taste defaults) and
-/// a sample world per tier. The assignments stay as the pre-cabinet per-world
-/// sizing decisions; changing the glyph set does not flatten their scale.
+/// NEVER-DRIFT law: every world ships a finite, positive [`Theme::ornament_scale`]
+/// that never regresses below the smallest of the three historical tiers. Also
+/// pins the three tier VALUES (still real: they are the historical taste
+/// defaults, and [`crate::theme::worlds::SALTPAN`] — the roster's own
+/// equalization TARGET — still wears [`ORNAMENT_SCALE_ORNATE`] literally,
+/// untouched).
+///
+/// A shared numeric tier is blind to the axis a glyph's own SHAPE hides: two
+/// worlds on the SAME tier can carry very different ink-to-em ratios (a chess
+/// knight and a run of solid bars fill their em-box differently), so this
+/// field moved from "exactly one of three named tier constants" to a per-world
+/// literal EQUALIZED against the roster's own live ink-height target — a per-
+/// world literal is no longer drift here, it is the mechanism. The real
+/// equalization claim — every world's rendered ornament INK lands within a
+/// roster-derived tolerance band, measured by real differential pixel
+/// arithmetic — is `render::tests::ornament_scale`'s job, which is a strictly
+/// stronger and pixel-grounded oracle than a second copy of specific floats
+/// could ever be; pinning fresh literals here would only go stale the next
+/// time a live taste pass retunes one world.
 #[test]
 fn every_world_has_an_ornament_scale() {
-    // The three tiers are the settled taste defaults.
+    // The three tiers are the settled historical taste defaults, still real:
+    // the roster target (Saltpan) wears ORNATE literally, and every OTHER
+    // world's new per-world literal is measured against these as its own
+    // starting floor below.
     assert_eq!(ORNAMENT_SCALE_ORNATE, 2.2, "ornate tier is 2.2");
     assert_eq!(ORNAMENT_SCALE_FLEURON, 1.8, "fleuron tier is 1.8");
     assert_eq!(ORNAMENT_SCALE_GEOMETRIC, 1.5, "geometric tier is 1.5");
@@ -64,28 +80,38 @@ fn every_world_has_an_ornament_scale() {
         "the tiers descend ornate > fleuron > geometric"
     );
 
-    // Every world's scale IS one of the three tiers — no stray literal.
+    // Every world's scale is finite, positive, and never below the SMALLEST
+    // historical tier — "equalize upward" means no world may end up smaller
+    // than where the whole historical tier ladder started.
     for t in THEMES.iter() {
         assert!(
-            matches!(
-                t.ornament_scale,
-                ORNAMENT_SCALE_ORNATE | ORNAMENT_SCALE_FLEURON | ORNAMENT_SCALE_GEOMETRIC
-            ),
-            "{} has an off-tier ornament_scale {}",
+            t.ornament_scale.is_finite() && t.ornament_scale >= ORNAMENT_SCALE_GEOMETRIC,
+            "{} has an ornament_scale {} below the geometric floor {} — equalizing \
+             upward must never shrink a world",
             t.name,
-            t.ornament_scale
+            t.ornament_scale,
+            ORNAMENT_SCALE_GEOMETRIC
         );
     }
 
-    // One sample per tier (the spec's pinned assignments).
+    // The roster TARGET is untouched (multiplier 1.000 — it IS the ceiling
+    // the rest of the roster was raised to meet), and two worlds the item
+    // names directly (the user's own chess-vs-bars comparison) both actually
+    // grew past their old shared tier rather than staying pinned to it.
     let by = |name: &str| set_active_by_name(name).unwrap().ornament_scale;
     let _t = crate::testlock::serial();
-    assert_eq!(by("Mopoke"), 2.2, "Mopoke keeps its ornate 2.2 tier");
-    assert_eq!(by("Bombora"), 1.8, "Bombora keeps its fleuron 1.8 tier");
     assert_eq!(
-        by("Currawong"),
-        1.5,
-        "Currawong keeps its geometric 1.5 tier"
+        by("Saltpan"),
+        ORNAMENT_SCALE_ORNATE,
+        "Saltpan is the roster's own equalization target and stays on the shared tier"
+    );
+    assert!(
+        by("Currawong") > ORNAMENT_SCALE_GEOMETRIC,
+        "Currawong (the user's chess-piece set) must have grown past its old geometric tier"
+    );
+    assert!(
+        by("Mulga") > ORNAMENT_SCALE_ORNATE,
+        "Mulga (the user's bar-glyph set) must have grown past its old ornate tier"
     );
     set_active(DEFAULT_THEME);
 }
