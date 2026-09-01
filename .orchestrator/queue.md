@@ -830,6 +830,44 @@ the hover reveal itself is pointer state no `--keys` capture drives
 width is the capturable half and the hover feel is the user's live check.
 
 ---
+### 551 — selecting across a table paints margin slivers, not a band: the selection wash collapses against the concealed source (user report, 2026-09-01 — "the table doesn't really… select properly?"; reproduced headlessly, first try)
+
+Report: extend a selection through a GFM table and the selected rows show
+no selection band — just a thin vertical sliver at each row's left margin —
+while the rows themselves reveal their raw aligned source, drawn with no
+wash behind it. Reproduced deterministically at dpi 1, Firetail, over a
+prose/table/prose file: `--keys "Down Down S-Down S-Down S-Down"` lands
+`selection` at line 3 col 2 → line 5 col 2 in the sidecar, and the PNG
+shows per-row band slivers 5–8px wide hugging the left margin while the
+revealed row ink spans ~380px beside them. That is the user's screenshot
+exactly (their formatting popover was up, so the app agreed a selection
+existed — only the paint is missing).
+
+The mechanism is half-named in the tree already: `render/rects.rs` (the
+wash builder, "A GFM table renders as a drawn GRID…") documents that a span
+inside the concealed-to-zero-width table source "would collapse to a thin,
+full-row-height sliver at the left margin" and CARVES OUT inline-code and
+highlight washes for exactly that reason. The selection band looks like the
+member of that family that never got a treatment — it still measures the
+concealed advances, while the selection-touched rows are simultaneously
+REVEALED and drawn from the table path's aligned layout, so the band's
+geometry and the visible ink disagree. Note the carve-out precedent is
+skip-the-wash; a selection cannot be skipped — it has to be REBUILT against
+the revealed run's real advances (or the grid's cell geometry, if the lane
+and user land on cell-wise selection paint), so this is a design choice to
+put to the user with a capture, not silently. Sweep the axis: endpoints
+inside cells, spans covering header and divider rows, partial first/last
+lines, WYSIWYG toggled off (raw mode should already band normally — assert
+it as the control cell), and the wrapped tall-row case the wash comment
+says made the sliver visible. Law with the presence floor: per selected
+table row, band width ≥ the selected revealed ink's width, never the
+sliver; prove non-vacuity by reverting. Fully headless — the repro line
+above is the Verify seed; run one second world alongside Firetail so the
+enrolment isn't a single palette's property. Same street as 548/549/550:
+table surfaces sitting outside an invariant the rest of the renderer walks
+(there, invalidation; here, the reveal/wash contract).
+
+---
 ### 537 — footnote markers may wear the traditional reference ladder (user decision, 2026-09-01; sequenced AFTER 529 bundles the face)
 
 🔴 BLOCKED — needs the user's product decisions on per-document versus recycled scope and whether definition-list markers follow the display option. U+2016 coverage remains an engineering verification, not a user decision.
