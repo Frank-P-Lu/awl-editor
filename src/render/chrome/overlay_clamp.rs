@@ -221,7 +221,66 @@ pub(super) fn window_plan(full: &[PlanLine], lo: usize, hi: usize) -> Vec<PlanLi
 
 #[cfg(test)]
 mod tests {
-    use super::{PlanLine, window_plan};
+    use super::{PlanLine, resolve_window_and_cue, window_plan};
+
+    /// **THE RESERVATION'S OWN BOUNDARY, item 560.** A user report described a
+    /// gap at the head of an UNCLAMPED theme-picker list (all 20 worlds shown)
+    /// shaped like "a reserved marker row that stays reserved even when
+    /// nothing is clamped." The hypothesis was FALSE for shipped code — see
+    /// this item's landing note — but proving that took a fixture the
+    /// existing `render/tests/edge_count_cue_law.rs` roster sweep does not
+    /// carry: its own tall-fits cell caps every kind's corpus at
+    /// `window_rows().clamp(1, 3)`, so for the theme picker
+    /// (`window_rows() == 20`) it exercises `n_items = 3` — miles from the
+    /// cap, where two reserved-but-unneeded rows have so much slack neither
+    /// edge ever clips and its own assertion (`(above, below) == (None,
+    /// None)`) stays green whether or not `reserved` itself is nonzero. It
+    /// checks the cue's TEXT, never the RESERVATION.
+    ///
+    /// This law reads `reserved` directly — the one field the other law
+    /// never inspects — swept across the exact boundary a small fixture
+    /// cannot reach: `n_items` from just under to just over each `cap`,
+    /// including `n_items == cap` (the theme picker's own shipped shape,
+    /// `n_items == window_rows()`).
+    ///
+    /// MUTATION-PROVEN: deleting `resolve_window_and_cue`'s `visible0 >=
+    /// n_items` early return (so every call falls through to the
+    /// `resolve(2)` branch and unconditionally reserves) failed this law
+    /// immediately at `cap=1, n_items=1` — see this item's landing note for
+    /// the panic text — while `edge_count_cue_law.rs`'s own tall-fits cells
+    /// stayed green throughout, because their `n_items=3` fixture never
+    /// reaches a cap tight enough for the always-on reservation to displace a
+    /// real item or fail its `(None, None)` check.
+    #[test]
+    fn reservation_never_fires_when_the_corpus_fits_at_or_under_the_cap() {
+        for cap0 in [1usize, 2, 3, 5, 8, 20, 41] {
+            for n_items in cap0.saturating_sub(2)..=(cap0 + 2) {
+                let resolve = |extra: usize| {
+                    let item_cap = cap0.saturating_sub(extra).max(1);
+                    (0, n_items.min(item_cap))
+                };
+                let (top, visible, above, below, reserved) =
+                    resolve_window_and_cue(n_items, resolve);
+                if n_items <= cap0 {
+                    assert_eq!(
+                        reserved, 0,
+                        "cap0={cap0} n_items={n_items}: the corpus fits without any \
+                         help from the reservation, so no row may be reserved for it \
+                         (got top={top} visible={visible} above={above:?} below={below:?})"
+                    );
+                    assert_eq!(
+                        (above, below),
+                        (None, None),
+                        "cap0={cap0} n_items={n_items}: a corpus that fits shows no edge cue"
+                    );
+                    assert_eq!(
+                        visible, n_items,
+                        "cap0={cap0} n_items={n_items}: a corpus that fits shows every item"
+                    );
+                }
+            }
+        }
+    }
 
     fn sample_plan() -> Vec<PlanLine> {
         vec![
