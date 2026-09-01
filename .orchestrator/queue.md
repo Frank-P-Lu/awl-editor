@@ -1111,10 +1111,13 @@ right?" — correct: seven animators are enrolled in `frame_clock.rs`'s
 activity roster, and the overlay selection band already slides on
 `ease::out_back`). Assessment on the board: cheap — one new `Activity`
 variant (the roster macro forces the Reduce-Motion and pause policies at
-compile time) easing the lit region toward the hovered cell. The lane
-auditions it behind the hover work and the user signs off live; Reduce
-Motion settles instantly and headless capture records the settled state,
-per the standing determinism rule. Verify:
+compile time) easing the lit region toward the hovered cell. DECIDED
+(user, 2026-09-02): IN SCOPE — "we'll just add it, if i don't like it
+i'll adjust later." Ship the ease with the hover work as the default
+behavior, no gating audition; the user tunes or pulls it live afterwards,
+so the duration/curve constants should sit somewhere one lane-visit can
+adjust. Reduce Motion settles instantly and headless capture records the
+settled state, per the standing determinism rule. Verify:
 hover is pointer state outside `--keys` reach; the hit-mapping
 (`table_dims_cell_at`) and the selection-update seam are unit-law
 territory (hover at cell ⇒ selection equals cell, swept over the grid's
