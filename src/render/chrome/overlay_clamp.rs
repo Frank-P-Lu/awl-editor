@@ -224,7 +224,8 @@ mod tests {
     use super::{PlanLine, resolve_window_and_cue, window_plan};
 
     /// **THE RESERVATION'S OWN BOUNDARY.** A reported gap at the head of an
-    /// UNCLAMPED theme-picker list (all 20 worlds shown) was hypothesized as
+    /// UNCLAMPED theme-picker list (every world in the roster shown at once)
+    /// was hypothesized as
     /// "a reserved marker row that stays reserved even when nothing is
     /// clamped." That hypothesis is FALSE for shipped code — the head gap is
     /// entirely `OVERLAY_QUERY_BEAT`'s deliberate query divider, not a stray
