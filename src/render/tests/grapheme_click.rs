@@ -236,10 +236,83 @@ fn dragging_the_pointer_rightward_never_moves_the_caret_left() {
     p.sync_theme();
 }
 
+/// Shapes `text` as either prose (`code_lang: None`) or a syntax-highlighted
+/// code line (`code_lang: Some(lang)`) on the active world, then sweeps
+/// hit-test-vs-caret-row agreement across its full width. Returns whether the
+/// shaped line contains a merged glyph span (`end - start > 1`, or more than
+/// one glyph sharing the same span) and how many x positions were probed —
+/// the shared body every corpus entry in
+/// [`a_ligature_click_resolves_to_the_column_the_caret_draws`] runs.
+fn probe_click_vs_caret_agreement(
+    p: &mut TextPipeline,
+    world: &str,
+    label: &str,
+    text: &str,
+    code_lang: Option<crate::syntax::Lang>,
+) -> (bool, usize) {
+    let mut view_state = view(&format!("{text}\n"), 1, 0);
+    view_state.syn_lang = code_lang;
+    p.set_view(&view_state);
+    let row = p.visual_rows(0).remove(0);
+    let shared_span = p.buffer.layout_runs().any(|run| {
+        run.line_i == 0
+            && run.glyphs.iter().any(|g| {
+                g.end.saturating_sub(g.start) > 1
+                    || g.start == 0
+                        && g.end == text.len()
+                        && run
+                            .glyphs
+                            .iter()
+                            .filter(|h| h.start == g.start && h.end == g.end)
+                            .count()
+                            > 1
+            })
+    });
+    let py = p.doc_top() + p.metrics.line_height * 0.5;
+    let left = p.text_left();
+    reset_glyph_x_assembly_count();
+    rowgeom::reset_in_place_row_borrow_count();
+    for i in 0..600 {
+        let x = i as f32 * 0.5;
+        let (_line, got) = p.hit_test_scroll(left + x, py, ScrollPos::default());
+        let want = TextPipeline::col_in_row(&row, x);
+        assert_eq!(
+            got, want,
+            "{world}/{label}: click at x=+{x:.1} resolved to column {got}, but the \
+             caret row draws column {want} at that x (xs {:?})",
+            row.xs
+        );
+    }
+    assert_eq!(
+        glyph_x_assembly_count(),
+        0,
+        "{world}/{label}: pointer hit testing rebuilt glyph xs after the row was assembled"
+    );
+    assert_eq!(
+        rowgeom::in_place_row_borrow_count(),
+        600,
+        "{world}/{label}: every pointer probe must borrow the cached row in place"
+    );
+    (shared_span, 600)
+}
+
 /// THE GEOMETRY-OWNER LAW: the real pointer resolver and the row that draws the
 /// caret must name the SAME column at every x. This specifically reaches both
-/// Monaspace's shared-span operators and proportional faces, so it cannot pass
-/// by accidentally checking a fixed-pitch grid alone.
+/// a genuine shared-span merged glyph and proportional faces, so it cannot
+/// pass by accidentally checking a fixed-pitch grid alone.
+///
+/// The merged-span witness is no longer mono-gated. It used to require a
+/// MONO face to shape a shared span — satisfied only by Monaspace Xenon's
+/// `rlig` fusion bug, since fixed (`font_features` disables `rlig` for that
+/// face; `calt` stays off unconditionally in prose for every other mono, and
+/// none of the four bundled monos register a `liga` feature at all — checked
+/// directly against their GSUB tables). No mono face can shape a merged span
+/// in prose any more, so a mono-gated witness is now permanently
+/// unsatisfiable, not vacuous by accident. The mechanism this law actually
+/// guards — hit-test agreeing with the caret row across an N-to-1 glyph
+/// cluster — still has a live witness: `fi` is a real `liga` ligature on
+/// nearly every bundled PROPORTIONAL display face (also checked against their
+/// GSUB tables), so the witness counts a shared span on ANY world.
 #[test]
 fn a_ligature_click_resolves_to_the_column_the_caret_draws() {
     let _t = crate::testlock::serial();
@@ -248,7 +321,7 @@ fn a_ligature_click_resolves_to_the_column_the_caret_draws() {
         return;
     };
     let mut proportional = 0;
-    let mut monaspace_shared_spans = 0;
+    let mut shared_span_witness = 0;
     let mut probes = 0;
     for (world, mono) in worlds() {
         theme::set_active_by_name(world);
@@ -257,57 +330,18 @@ fn a_ligature_click_resolves_to_the_column_the_caret_draws() {
             proportional += 1;
         }
         for (label, text) in LIGATURE_CORPUS {
-            p.set_view(&view(&format!("{text}\n"), 1, 0));
-            let row = p.visual_rows(0).remove(0);
-            if mono
-                && p.buffer.layout_runs().any(|run| {
-                    run.line_i == 0
-                        && run.glyphs.iter().any(|g| {
-                            g.end.saturating_sub(g.start) > 1
-                                || g.start == 0
-                                    && g.end == text.len()
-                                    && run
-                                        .glyphs
-                                        .iter()
-                                        .filter(|h| h.start == g.start && h.end == g.end)
-                                        .count()
-                                        > 1
-                        })
-                })
-            {
-                monaspace_shared_spans += 1;
+            let (shared, n) = probe_click_vs_caret_agreement(&mut p, world, label, text, None);
+            if shared {
+                shared_span_witness += 1;
             }
-            let py = p.doc_top() + p.metrics.line_height * 0.5;
-            let left = p.text_left();
-            reset_glyph_x_assembly_count();
-            rowgeom::reset_in_place_row_borrow_count();
-            for i in 0..600 {
-                let x = i as f32 * 0.5;
-                let (_line, got) = p.hit_test_scroll(left + x, py, ScrollPos::default());
-                let want = TextPipeline::col_in_row(&row, x);
-                assert_eq!(
-                    got, want,
-                    "{world}/{label}: click at x=+{x:.1} resolved to column {got}, but the \
-                     caret row draws column {want} at that x (xs {:?})",
-                    row.xs
-                );
-                probes += 1;
-            }
-            assert_eq!(
-                glyph_x_assembly_count(),
-                0,
-                "{world}/{label}: pointer hit testing rebuilt glyph xs after the row was assembled"
-            );
-            assert_eq!(
-                rowgeom::in_place_row_borrow_count(),
-                600,
-                "{world}/{label}: every pointer probe must borrow the cached row in place"
-            );
+            probes += n;
         }
     }
+
     assert!(
-        monaspace_shared_spans > 0,
-        "the Monaspace witness must actually shape a shared glyph span: {monaspace_shared_spans}"
+        shared_span_witness > 0,
+        "the geometry-owner law must actually exercise a shared glyph span somewhere in the \
+         roster: {shared_span_witness}"
     );
     assert!(
         proportional >= 8,
