@@ -241,25 +241,27 @@ fn md_line_scale_grows_thematic_break_rows_to_the_active_worlds_ornament_scale()
     // reads `theme::active().ornament_scale`, so hold the theme lock while flipping.
     let _t = crate::testlock::serial();
 
-    // A GEOMETRIC world (Currawong → 1.5): every break syntax grows to ITS scale,
-    // GIVEN a confirmed real Rule (the ground-truth gate `md_line_scale` requires
-    // on top of the raw single-line scan — see its doc comment).
+    // A world with its own measured ornament scale (Currawong): every break
+    // syntax grows to ITS scale, GIVEN a confirmed real Rule (the ground-truth
+    // gate `md_line_scale` requires on top of the raw single-line scan — see
+    // its doc comment). Each world now carries its own measured ink-height-
+    // equalized value rather than a shared tier constant, so the sanity pin
+    // here is just
+    // that `md_line_scale` reads back exactly the active world's own value.
     crate::theme::set_active_by_name("Currawong").unwrap();
     let geo = crate::theme::active().ornament_scale;
-    assert_eq!(geo, crate::theme::ORNAMENT_SCALE_GEOMETRIC);
     assert_eq!(md_line_scale("---", true, true), geo);
     assert_eq!(md_line_scale("***", true, true), geo);
     assert_eq!(md_line_scale("___", true, true), geo);
     assert_eq!(md_line_scale("- - -", true, true), geo);
 
-    // An ORNATE world (Mopoke → 2.2): the SAME break lines now grow to the LARGER
-    // scale — proof the row height is per-world, not a fixed rung.
+    // A DIFFERENT world (Mopoke): the SAME break lines grow to ITS OWN
+    // measured scale — proof the row height is per-world, not a fixed rung.
     crate::theme::set_active_by_name("Mopoke").unwrap();
     let ornate = crate::theme::active().ornament_scale;
-    assert_eq!(ornate, crate::theme::ORNAMENT_SCALE_ORNATE);
-    assert!(
-        ornate > geo,
-        "the ornate world grows the break row more than a geometric one"
+    assert_ne!(
+        ornate, geo,
+        "two different worlds must carry two different measured scales"
     );
     assert_eq!(md_line_scale("---", true, true), ornate);
     assert_eq!(md_line_scale("***", true, true), ornate);
@@ -511,36 +513,39 @@ fn thematic_break_row_grows_by_the_active_worlds_ornament_scale_and_refits_on_th
     let mut md = view(text, 2, 0); // caret on the body line (logical line 2), NOT the break
     md.is_markdown = true;
 
-    // GEOMETRIC world (Currawong → 1.5): the break row grows to ~1.5x a body row.
+    // Currawong: the break row grows to ~ITS OWN measured ornament scale (item
+    // 561 equalized ink height per-world; each world now carries its own
+    // measured value rather than a shared tier constant).
     crate::theme::set_active_by_name("Currawong").unwrap();
+    let currawong_scale = crate::theme::active().ornament_scale;
     p.set_view(&md);
     let body = p.row_height_px(2);
     assert!(body > 0.0);
     let geo_break = p.row_height_px(0);
     let geo_ratio = geo_break / body;
     assert!(
-        (geo_ratio - crate::theme::ORNAMENT_SCALE_GEOMETRIC).abs() < 0.05,
-        "Currawong break row should be ~{}x a body row, got {geo_ratio}",
-        crate::theme::ORNAMENT_SCALE_GEOMETRIC
+        (geo_ratio - currawong_scale).abs() < 0.05,
+        "Currawong break row should be ~{currawong_scale}x a body row, got {geo_ratio}"
     );
 
-    // Switch to an ORNATE world (Mopoke → 2.2) and RESHAPE via the same theme-font
-    // seam a live theme switch rides: the break row must RE-FIT to the larger scale
-    // (proof the row-height ↔ glyph-box coupling is per-world, picked up on switch).
+    // Switch to a DIFFERENT world (Mopoke) and RESHAPE via the same theme-font
+    // seam a live theme switch rides: the break row must RE-FIT to Mopoke's OWN
+    // measured scale (proof the row-height ↔ glyph-box coupling is per-world,
+    // picked up on switch — not that one named world is taller than another).
     crate::theme::set_active_by_name("Mopoke").unwrap();
+    let mopoke_scale = crate::theme::active().ornament_scale;
     p.sync_theme_font(crate::render::ShapeReach::Whole);
     let body2 = p.row_height_px(2);
     let ornate_break = p.row_height_px(0);
     let ornate_ratio = ornate_break / body2;
     assert!(
-        (ornate_ratio - crate::theme::ORNAMENT_SCALE_ORNATE).abs() < 0.05,
-        "Mopoke break row should be ~{}x a body row, got {ornate_ratio}",
-        crate::theme::ORNAMENT_SCALE_ORNATE
+        (ornate_ratio - mopoke_scale).abs() < 0.05,
+        "Mopoke break row should be ~{mopoke_scale}x a body row, got {ornate_ratio}"
     );
     assert!(
-        ornate_break > geo_break + 0.5,
-        "the ornate world must grow the break row taller than the geometric one \
-         ({ornate_break} vs {geo_break})"
+        (ornate_break - geo_break).abs() > 0.5,
+        "two different worlds' measured scales must produce two different \
+         break-row heights ({ornate_break} vs {geo_break})"
     );
 
     crate::theme::set_active(crate::theme::DEFAULT_THEME);

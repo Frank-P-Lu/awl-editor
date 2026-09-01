@@ -10,7 +10,7 @@ use super::{headless_dqp, pixeldiff, view};
 use crate::overlay::OverlayKind;
 
 const W: u32 = 1200;
-const H: u32 = 1000;
+const H: u32 = 1600;
 const BODY_CONTRAST_FLOOR: f32 = 2.4;
 const QUIET_CONTRAST_FLOOR: f32 = 2.5;
 const PRESENCE_CONTRAST_FLOOR: f32 = 1.5;
