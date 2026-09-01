@@ -755,7 +755,14 @@ unlikely to be the only tenant.
 ---
 ### 549 — stale empty-cell plates survive a buffer swap: the no-tables early return never clears `table_empty_pipeline` (user report, 2026-09-01 — "switching tabs leaves the table in place?"; mechanism identified by reading, exact residue shape matches)
 
-🟡 IN PROGRESS — claude, branch item-549
+✅ COMPLETE — merged as `6c0c047e`. `prepare_table_grid`'s no-tables early
+return now clears `table_empty_pipeline` alongside its two siblings on all
+three doors (buffer swap, WYSIWYG off, markdown off). Mutation-proven law
+in `render::tests::tables`. Exact-main receipt: health pass:255s, both
+conventions, menubar=full:on, 4711 unit tests, 16 integration targets;
+web smoke OK. Report-only follow-up filed on the board separately:
+`table_pan` is also not cleared on the same early return (state, not a
+drawing residue) — not fixed here, flagged for a future item.
 
 Report: after switching from a buffer containing a table with empty cells
 to a different buffer with no tables, the empty-cell plates keep drawing at
@@ -800,7 +807,13 @@ swap through Goto.
 ---
 ### 550 — working-set close lane: the active plate overhangs its label by one character too many (user taste report, 2026-09-01 — "the highlight bar is SLIGHTLY too long, on the left side… i think the x button should fit when you hover over it, but it's just a tad too long"; geometry measured, mechanism identified)
 
-🟡 IN PROGRESS — claude, branch item-550-559 (paired with 559, same geometry owner)
+✅ COMPLETE — merged with 559 as `347eba64`. `CLOSE_MARK_TEXT` trimmed
+`"×  "` → `"× "`; `close_zone`/`row_intent` now also bound by the mark's
+own drawn lane width, not just row height. Roster-derived containment law
+over `bundled_display_faces()`, mutation-proven (reverting to the bare
+`"×"` lane goes red with the exact breath-px panic text). Exact-main
+receipt: health pass:255s, both conventions, menubar=full:on, 4711 unit
+tests, 16 integration targets; web smoke OK.
 
 Report: the active row's plate in the working-set stack extends left of the
 label's first glyph by a gap the user reads (correctly) as the reserve for
@@ -874,7 +887,20 @@ table surfaces sitting outside an invariant the rest of the renderer walks
 ---
 ### 552 — `~~` fuses into one wide tilde in prose: Monaspace ships its tilde ligatures behind `rlig`, which awl never disables (user report, 2026-09-01 — "why does ~~ turn into a big tilda? doesn't this break our rule?"; yes — mechanism verified in the font's own GSUB)
 
-🟡 IN PROGRESS — claude, branch item-552
+✅ COMPLETE — merged as `c7428e11`. `font_features` disables `rlig`
+per-face for Monaspace Xenon only, confirmed by a direct GSUB walk (the
+font has no `morx` table; a prior "AAT, unsuppressable" doc claim was
+false and is corrected in three places). Three roster-derived laws
+(prose/code/strikethrough-reveal), mutation-proven. Orchestrator follow-up:
+raised the two size marks this tripped and rewrote seven doc comments that
+had cited the queue item number, per CLAUDE.md's no-citation convention
+(`a759cf74`); also repaired a pre-existing `grapheme_click` law whose
+"shared glyph span" witness depended entirely on Monaspace's now-fixed
+`rlig` bug — verified via GSUB that no bundled mono face can produce a
+merged span any more, and retargeted the witness to the real `fi` liga
+that most proportional display faces still carry (`f0f88b71`). Exact-main
+receipt: health pass:255s, both conventions, menubar=full:on, 4711 unit
+tests, 16 integration targets; web smoke OK.
 
 Report: typing `~~` in a Monaspace world renders ONE wide swung tilde
 where two characters sit in the file (reproduced headlessly, Firetail,
@@ -1030,7 +1056,20 @@ fresh-open cell is unverified). Law once decided: sweep both cells.
 ---
 ### 559 — close mark wants real hover feedback, and the row wants a pointer cursor decision (user report, 2026-09-01 — "when your mouse is over the X button it should be highlighted or something… the whole thing is a pointer right… how do tabs do this?")
 
-🟡 IN PROGRESS — claude, branch item-550-559 (paired with 550, same geometry owner)
+✅ COMPLETE — merged with 550 as `347eba64`. `close_hover_plate_rect`
+draws the same rect the hit-test accepts, as a new `gutter_close_hover_plate`
+pipeline under the gutter's glyphs. Cursor left unchanged: `cursor_shape.rs`
+already maps the whole stack row to `CursorIcon::Pointer` (pre-existing,
+pinned by tests) — this CONTRADICTS the tabs convention the user's own
+report cites (arrow + hover, no hand), so it is not silently flipped here;
+🔵 OWED to the user — keep the existing hand cursor, or switch the whole
+row to arrow-plus-hover-only to match the cited convention? Hover itself
+is pointer-only and undrivable by `--keys`/`--screenshot-app`
+(docs/harness-reach.md) — the resting-plate geometry is capture-verified
+(a real two-file working set, plate left edge shift measured pixel-exact
+to the 550 trim); the hover feel and the cursor question are the user's
+live check. Exact-main receipt: health pass:255s, both conventions,
+menubar=full:on, 4711 unit tests, 16 integration targets; web smoke OK.
 
 Today's affordance ladder (`render/chrome/gutter_stack.rs`, the reveal
 logic): the × is invisible until the pointer is over its ROW, then drawn
@@ -1280,7 +1319,18 @@ path authoring, a new blur compositor, or changing any other world's ground.
 ---
 ### 565 — pasted images take the document's name as their stem (user decision, 2026-09-02 — "better default image names is good")
 
-🟡 IN PROGRESS — claude, branch item-565
+✅ COMPLETE — merged as `e051b900`, follow-up split `b3c39d8f`.
+`next_pasted_name` now takes a sanitized document-derived stem
+(`trip-notes.md` → `trip-notes-1.png`); truly-empty-buffer case keeps
+`pasted-`. Sanitization rule: separators/whitespace/parens → `-`
+(collapsed, never dropped), dots kept internally, non-ASCII kept
+un-transliterated, capped at 80 scalars on a char boundary. No migration;
+old and new stems probe independently. 21 tests, mutation-proven.
+`paste_image.rs` hit the 500-line hard ceiling after the test additions —
+carved `mod tests` into `paste_image_tests.rs` (matching the
+`apply.rs`/`apply_tests.rs` precedent). Exact-main receipt: health
+pass:295s, both conventions, menubar=full:on, 4706 unit tests, 16
+integration targets.
 
 Today every pasted image is `pasted-N.png` (`paste_image.rs`,
 `PASTED_STEM`), so an assets folder full of them is opaque in the
