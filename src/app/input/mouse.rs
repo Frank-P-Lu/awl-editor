@@ -239,6 +239,36 @@ impl App {
 
     pub(in crate::app) fn overlay_hover(&mut self) {
         let (px, py) = self.input.pointer.cursor_px;
+        let Some(gpu) = self.frame.gpu() else { return };
+
+        // THE DIMENSION PICKER'S OWN HOVER PREVIEW: reuses `table_dims_cell_at`
+        // (the SAME hit-test `overlay_click`'s pointer-pick commits with) and
+        // `OverlayState::table_dims_hover_at`'s own real-motion gate — sharing
+        // `hover_at`'s anchor rather than a second one, so a redraw-duplicate
+        // `CursorMoved` can never steal a keyboard sculpt (see that method's
+        // own doc). Hovering the grid previews EXACTLY the state a click would
+        // commit: `table_dims_pick` is the ONE write both reach, so there is no
+        // second, hover-only selection to disagree with the keyboard's. Checked
+        // before the candidate-row path below since this card carries no rows
+        // for `resolve_overlay_hover` to find (mirrors `overlay_click`'s own
+        // early table-dims check).
+        if self
+            .workspace_state
+            .overlay()
+            .is_some_and(|ov| ov.table_dims.is_some())
+        {
+            let hit = gpu.pipeline.table_dims_cell_at(px, py);
+            let Some(ov) = self.workspace_state.overlay_mut() else {
+                return;
+            };
+            if !ov.table_dims_hover_at(px, py, hit) {
+                return;
+            }
+            self.sync_view(false);
+            self.request_frame();
+            return;
+        }
+
         // `TextPipeline::resolve_overlay_hover` hit-tests THEN runs
         // `OverlayState::hover_at`'s REAL-MOTION + MOVEMENT-SLOP GATE: it
         // re-hit-tests + re-highlights ONLY when `(px, py)` travelled PAST the
@@ -252,7 +282,6 @@ impl App {
         // itself still owns the visible-band + no-op checks; `hover_at` never
         // moves the scroll window either, so hovering the top/bottom edge can't
         // auto-scroll the list.
-        let Some(gpu) = self.frame.gpu() else { return };
         let kind = match self.workspace_state.overlay_mut() {
             Some(ov) => {
                 if !gpu.pipeline.resolve_overlay_hover(ov, px, py) {
@@ -773,6 +802,13 @@ impl App {
         let over_clickable_lens = overlay_open
             && (gpu.pipeline.overlay_lens_at(px, py).is_some()
                 || gpu.pipeline.workspace_rail_at(px, py).is_some());
+        // The INSERT-TABLE dimension picker's own grid: hovering a cell is a
+        // click-to-pick affordance, the same pointing-hand signal as an
+        // ordinary overlay row — reuses the SAME `table_dims_cell_at`
+        // hit-test the click path and the hover-preview path both already
+        // use, so the cursor can never disagree with what a click there
+        // would do.
+        let over_table_dims_cell = overlay_open && gpu.pipeline.table_dims_cell_at(px, py).is_some();
         let over_query_input = overlay_open && gpu.pipeline.over_overlay_query(px, py);
         // A clickable MARGIN-OUTLINE row reads as click-to-jump (the pointing hand),
         // reusing the outline's OWN row geometry (`outline_hit_line`, which folds in
@@ -847,6 +883,7 @@ impl App {
             over_text: self.document.has_active() && gpu.pipeline.over_writing_column(px),
             over_clickable_overlay_row,
             over_clickable_lens,
+            over_table_dims_cell,
             over_query_input,
             over_outline_row: over_outline_row || over_modified_link,
             over_stack_row,

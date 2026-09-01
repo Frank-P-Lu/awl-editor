@@ -28,6 +28,9 @@ impl crate::frame_clock::Activity {
                     pipeline.advance_warp(crate::lava::ambient_tick_dt(dt));
                 }
             }
+            Self::TableDimsHover => {
+                pipeline.step_table_dims_hover(dt);
+            }
         }
     }
 
@@ -42,6 +45,12 @@ impl crate::frame_clock::Activity {
             }
             Self::FoldChevrons => pipeline.fold_chevrons_active(),
             Self::TravellingGround => travelling_ground,
+            Self::TableDimsHover => {
+                !crate::motion::reduced()
+                    && pipeline.juice_live
+                    && pipeline.overlay_table_dims.is_some()
+                    && pipeline.table_dims_hover_t < 1.0
+            }
         }
     }
 }
@@ -131,6 +140,13 @@ impl TextPipeline {
                 self.fold_chevron_turn.insert(line, 0.0);
             }
             Activity::TravellingGround => {}
+            Activity::TableDimsHover => {
+                self.arm_live_juice();
+                self.overlay_table_dims = Some((3, 2));
+                self.table_dims_hover_last = Some((3, 2));
+                self.table_dims_hover_from = (1.0, 1.0);
+                self.table_dims_hover_t = 0.0;
+            }
         }
         true
     }
@@ -154,6 +170,7 @@ impl TextPipeline {
                 .copied()
                 .unwrap_or(1.0),
             Activity::TravellingGround => self.warp_phase,
+            Activity::TableDimsHover => self.table_dims_hover_t,
         }
     }
 
@@ -173,7 +190,8 @@ impl TextPipeline {
             | Activity::CopyPulse
             | Activity::OverlayEntrance
             | Activity::OverlayBand
-            | Activity::FoldChevrons => {
+            | Activity::FoldChevrons
+            | Activity::TableDimsHover => {
                 let mut active = self.active_activities(false);
                 for _ in 0..1200 {
                     active = self.advance_owners(1.0 / 120.0, false);

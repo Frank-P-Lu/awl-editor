@@ -69,6 +69,7 @@ activity_roster! {
     OverlayBand => "overlay-band",
     FoldChevrons => "fold-chevrons",
     TravellingGround => "travelling-ground",
+    TableDimsHover => "table-dims-hover",
 }
 
 /// A compact, copyable set of the activities still visible after prepare.
@@ -268,6 +269,11 @@ mod tests {
                     activity.pause_behavior(),
                 ),
                 Activity::TravellingGround => (
+                    activity.name(),
+                    activity.reduced_motion(),
+                    activity.pause_behavior(),
+                ),
+                Activity::TableDimsHover => (
                     activity.name(),
                     activity.reduced_motion(),
                     activity.pause_behavior(),

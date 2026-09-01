@@ -14,6 +14,13 @@ pub struct CursorContext {
     pub over_text: bool,
     pub over_clickable_overlay_row: bool,
     pub over_clickable_lens: bool,
+    /// The pointer is over a CELL of the summoned INSERT-TABLE dimension
+    /// picker's drawn grid — a click-to-pick affordance, the same signal
+    /// class as a clickable overlay row. Computed from the grid's OWN
+    /// hit-test (`TextPipeline::table_dims_cell_at`), the identical one the
+    /// click path and the hover-preview path both read, so a hovered cell
+    /// can never disagree with a clickable one.
+    pub over_table_dims_cell: bool,
     pub over_query_input: bool,
     pub over_outline_row: bool,
     /// The pointer is over a WORKING-SET STACK ROW in the bottom-left margin
@@ -102,11 +109,12 @@ pub fn image_handle_icon(handle: ImageHandle) -> CursorIcon {
 ///    the other hands (the menu + a summoned overlay are mutually exclusive, so the
 ///    relative order among the hands never matters, only that a clickable menu
 ///    surface earns the hand);
-///    3b. hovering ANY clickable overlay ROW *or* a clickable LENS-STRIP facet gets
-///    the pointing HAND — the clickable-affordance signal, sitting ABOVE the
-///    generic overlay→arrow rule (but still under an in-progress resize drag);
-///    the two never geometrically overlap (the strip sits on its own line above
-///    the rows), so which one is set never matters, only that either is;
+///    3b. hovering ANY clickable overlay ROW, a clickable LENS-STRIP facet, *or*
+///    a CELL of the INSERT-TABLE dimension picker's grid gets the pointing HAND —
+///    the clickable-affordance signal, sitting ABOVE the generic overlay→arrow
+///    rule (but still under an in-progress resize drag); the three never
+///    geometrically overlap (a TableDims card carries no rows/strip, and vice
+///    versa), so which one is set never matters, only that any is;
 /// 4. hovering the overlay's editable QUERY-INPUT line gets the I-beam — it is
 ///    a text field, ranked above the generic overlay→arrow but below a row;
 /// 5. any other part of a summoned overlay wins next — its scrim visually
@@ -153,7 +161,11 @@ pub fn cursor_icon_for(ctx: CursorContext) -> CursorIcon {
         // ranked with the other hands (it never coexists with an overlay/menu, so
         // the relative order among the hands never matters, only that it earns one).
         CursorIcon::Pointer
-    } else if ctx.over_menu_hand || ctx.over_clickable_overlay_row || ctx.over_clickable_lens {
+    } else if ctx.over_menu_hand
+        || ctx.over_clickable_overlay_row
+        || ctx.over_clickable_lens
+        || ctx.over_table_dims_cell
+    {
         CursorIcon::Pointer
     } else if ctx.over_query_input {
         CursorIcon::Text
@@ -219,6 +231,7 @@ mod tests {
             over_text,
             over_clickable_overlay_row: false,
             over_clickable_lens: false,
+            over_table_dims_cell: false,
             over_query_input: false,
             over_outline_row: false,
             over_stack_row: false,
@@ -248,6 +261,7 @@ mod tests {
             over_text,
             over_clickable_overlay_row: false,
             over_clickable_lens: false,
+            over_table_dims_cell: false,
             over_query_input: false,
             over_outline_row: false,
             over_stack_row: false,
@@ -277,6 +291,7 @@ mod tests {
             over_text,
             over_clickable_overlay_row: false,
             over_clickable_lens: false,
+            over_table_dims_cell: false,
             over_query_input: false,
             over_outline_row: false,
             over_stack_row: false,
@@ -303,6 +318,7 @@ mod tests {
             over_text,
             over_clickable_overlay_row: false,
             over_clickable_lens: false,
+            over_table_dims_cell: false,
             over_query_input: false,
             over_outline_row: true,
             over_stack_row: false,
@@ -330,6 +346,7 @@ mod tests {
             over_text,
             over_clickable_overlay_row: false,
             over_clickable_lens: false,
+            over_table_dims_cell: false,
             over_query_input: false,
             over_outline_row: false,
             over_stack_row: true,
@@ -354,6 +371,7 @@ mod tests {
             over_text,
             over_clickable_overlay_row: true,
             over_clickable_lens: false,
+            over_table_dims_cell: false,
             over_query_input: false,
             over_outline_row: false,
             over_stack_row: false,
@@ -378,6 +396,34 @@ mod tests {
             over_text,
             over_clickable_overlay_row: false,
             over_clickable_lens: true,
+            over_table_dims_cell: false,
+            over_query_input: false,
+            over_outline_row: false,
+            over_stack_row: false,
+            over_menu_hand: false,
+            over_menu_bar: false,
+            over_case_toggle: false,
+            over_panel_field: false,
+            over_panel: false,
+            image_drag: None,
+            image_hover: None,
+            over_popover_button: false,
+            over_fold_chevron: false,
+        }
+    }
+
+    /// A context with the table-dims-cell flag set (no lens/row — a TableDims
+    /// card carries neither).
+    fn ctx_table_dims_cell(dragging_edge: bool, over_edge: bool, over_text: bool) -> CursorContext {
+        CursorContext {
+            dragging_edge,
+            dragging_text: false,
+            overlay_open: true,
+            over_edge,
+            over_text,
+            over_clickable_overlay_row: false,
+            over_clickable_lens: false,
+            over_table_dims_cell: true,
             over_query_input: false,
             over_outline_row: false,
             over_stack_row: false,
@@ -402,6 +448,7 @@ mod tests {
             over_text,
             over_clickable_overlay_row: false,
             over_clickable_lens: false,
+            over_table_dims_cell: false,
             over_query_input: true,
             over_outline_row: false,
             over_stack_row: false,
@@ -675,6 +722,7 @@ mod tests {
             over_text: false,
             over_clickable_overlay_row: true,
             over_clickable_lens: true,
+            over_table_dims_cell: false,
             over_query_input: false,
             over_outline_row: false,
             over_stack_row: false,
@@ -689,6 +737,58 @@ mod tests {
             over_fold_chevron: false,
         };
         assert_eq!(cursor_icon_for(both), CursorIcon::Pointer);
+    }
+
+    // --- the INSERT-TABLE dimension picker's own grid: a cell = the pointing hand ---
+
+    #[test]
+    fn a_table_dims_grid_cell_is_the_pointing_hand() {
+        assert_eq!(
+            cursor_icon_for(ctx_table_dims_cell(false, false, false)),
+            CursorIcon::Pointer
+        );
+    }
+
+    #[test]
+    fn a_table_dims_cell_beats_the_generic_overlay_arrow() {
+        // THE BUG THIS CLOSES: before the grid earned its own priority arm, a
+        // hovered cell fell through to the generic `overlay_open` -> arrow rule
+        // (item 5), reading a clickable cell as inert card chrome.
+        assert_eq!(
+            cursor_icon_for(ctx(false, true, false, false)),
+            CursorIcon::Default,
+            "sanity: overlay_open alone (no table-dims flag) is still the arrow"
+        );
+        assert_eq!(
+            cursor_icon_for(ctx_table_dims_cell(false, false, false)),
+            CursorIcon::Pointer
+        );
+    }
+
+    #[test]
+    fn a_table_dims_cell_beats_a_would_be_edge_or_text_beneath_it() {
+        // The scrim covers the document, so edge/text beneath the card never
+        // surface -- the hand still wins with those flags also set.
+        assert_eq!(
+            cursor_icon_for(ctx_table_dims_cell(false, true, true)),
+            CursorIcon::Pointer
+        );
+    }
+
+    #[test]
+    fn an_active_edge_drag_still_beats_the_table_dims_cell_hand() {
+        assert_eq!(
+            cursor_icon_for(ctx_table_dims_cell(true, false, false)),
+            CursorIcon::ColResize
+        );
+    }
+
+    #[test]
+    fn dragging_edge_beats_the_table_dims_cell_hand_with_every_flag_at_once() {
+        assert_eq!(
+            cursor_icon_for(ctx_table_dims_cell(true, true, true)),
+            CursorIcon::ColResize
+        );
     }
 
     #[test]
@@ -719,6 +819,7 @@ mod tests {
             over_text: false,
             over_clickable_overlay_row: true,
             over_clickable_lens: false,
+            over_table_dims_cell: false,
             over_query_input: true,
             over_outline_row: false,
             over_stack_row: false,
@@ -793,6 +894,7 @@ mod tests {
             over_text,
             over_clickable_overlay_row: false,
             over_clickable_lens: false,
+            over_table_dims_cell: false,
             over_query_input: false,
             over_outline_row: false,
             over_stack_row: false,
@@ -817,6 +919,7 @@ mod tests {
             over_text,
             over_clickable_overlay_row: false,
             over_clickable_lens: false,
+            over_table_dims_cell: false,
             over_query_input: false,
             over_outline_row: false,
             over_stack_row: false,
@@ -873,6 +976,7 @@ mod tests {
             over_text,
             over_clickable_overlay_row: false,
             over_clickable_lens: false,
+            over_table_dims_cell: false,
             over_query_input: false,
             over_outline_row: false,
             over_stack_row: false,
@@ -998,6 +1102,7 @@ mod tests {
             over_text,
             over_clickable_overlay_row: false,
             over_clickable_lens: false,
+            over_table_dims_cell: false,
             over_query_input: false,
             over_outline_row: false,
             over_stack_row: false,

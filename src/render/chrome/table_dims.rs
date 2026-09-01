@@ -25,6 +25,15 @@ const CELL_GAP: Logical = Logical(3.0);
 /// the right one to repurpose).
 const GRID_HINT_GAP: Logical = Logical(10.0);
 
+/// THE HOVER-PREVIEW EASE's own duration — the one lane-visit knob for this
+/// animator's feel, named beside the grid's other tunables rather than
+/// scattered into the stepping/draw functions below. Distinct from
+/// `OVERLAY_BAND_SLIDE_MS`: a different gesture (a 2-D lit-region chase, not
+/// a 1-D row slide) earns its own dial rather than borrowing one tuned for
+/// something else. The curve itself is [`crate::ease::out_back`] — the same
+/// gentle-overshoot ease the overlay selection band already rides.
+const TABLE_DIMS_HOVER_EASE_MS: Millis = Millis(140.0);
+
 impl TextPipeline {
     /// The drawn grid's own `(width, height)` in device px, independent of
     /// any [`OverlayGeom`] — needed BEFORE one exists, to size the card.
@@ -154,11 +163,85 @@ impl TextPipeline {
         }
     }
 
+    /// Tick the hover-preview ease by `dt` seconds — the
+    /// [`crate::frame_clock::Activity::TableDimsHover`] owner. Mirrors
+    /// [`Self::step_overlay_band`]'s shape exactly (a bare `progress_per`
+    /// advance, no epoch machinery): Reduce Motion snaps `t` to `1.0`
+    /// (settled) and reports no further activity, matching every other
+    /// bounded animator's accessibility contract.
+    pub(in crate::render) fn step_table_dims_hover(&mut self, dt: f32) -> bool {
+        if crate::motion::reduced() {
+            self.table_dims_hover_t = 1.0;
+            return false;
+        }
+        if self.table_dims_hover_t < 1.0 {
+            self.table_dims_hover_t =
+                (self.table_dims_hover_t + TABLE_DIMS_HOVER_EASE_MS.progress_per(dt)).min(1.0);
+        }
+        self.table_dims_hover_t < 1.0
+    }
+
+    /// THE DRAW-TIME SETTLE GATE, read fresh every `prepare` — mirrors
+    /// [`Self::overlay_band_drawn`]'s own shape: checked BEFORE touching any
+    /// ease state, so every headless capture / bench / unarmed test pipeline
+    /// (`juice_live` false by construction outside the live App) returns
+    /// `target` VERBATIM and never enters the chase below. This is the actual
+    /// determinism guarantee — not merely that the stepper is gated — the
+    /// same discipline `overlay_band_drawn`'s own doc names.
+    ///
+    /// When live and not reduced: retargets the chase continuously from
+    /// wherever the lit region is ACTUALLY drawn right now (never the stale
+    /// previous target), so a rapid re-hover/re-sculpt chains smoothly
+    /// instead of restarting from a wrong pose — the same reasoning
+    /// `retarget_band`'s own doc gives, in two dimensions instead of one.
+    fn table_dims_hover_drawn(&mut self, target: (usize, usize)) -> (f32, f32) {
+        let target_f = (target.0 as f32, target.1 as f32);
+        if !self.juice_live || crate::motion::reduced() {
+            self.table_dims_hover_from = target_f;
+            self.table_dims_hover_last = Some(target);
+            self.table_dims_hover_t = 1.0;
+            return target_f;
+        }
+        match self.table_dims_hover_last {
+            Some(last) if last != target => {
+                let cur = if self.table_dims_hover_t < 1.0 {
+                    let e = crate::ease::out_back(self.table_dims_hover_t);
+                    let last_f = (last.0 as f32, last.1 as f32);
+                    (
+                        self.table_dims_hover_from.0 + (last_f.0 - self.table_dims_hover_from.0) * e,
+                        self.table_dims_hover_from.1 + (last_f.1 - self.table_dims_hover_from.1) * e,
+                    )
+                } else {
+                    (last.0 as f32, last.1 as f32)
+                };
+                self.table_dims_hover_from = cur;
+                self.table_dims_hover_last = Some(target);
+                self.table_dims_hover_t = 0.0;
+            }
+            None => {
+                self.table_dims_hover_from = target_f;
+                self.table_dims_hover_last = Some(target);
+                self.table_dims_hover_t = 1.0;
+            }
+            _ => {}
+        }
+        if self.table_dims_hover_t >= 1.0 {
+            return target_f;
+        }
+        let e = crate::ease::out_back(self.table_dims_hover_t);
+        (
+            self.table_dims_hover_from.0 + (target_f.0 - self.table_dims_hover_from.0) * e,
+            self.table_dims_hover_from.1 + (target_f.1 - self.table_dims_hover_from.1) * e,
+        )
+    }
+
     /// Build the grid's quads (filled ink for every cell inside the live
-    /// `rows × cols`, a faint wash for the rest) and upload them — a no-op
-    /// clear when the picker is not open, so a stray call after close still
-    /// leaves nothing drawn (`park_overlay` also parks this pipeline
-    /// directly, belt-and-braces, per its own doc).
+    /// `rows × cols`, a faint wash for the rest, EASED at the boundary while
+    /// the hover-preview animator is in flight — see
+    /// [`Self::table_dims_hover_drawn`]) and upload them — a no-op clear when
+    /// the picker is not open, so a stray call after close still leaves
+    /// nothing drawn (`park_overlay` also parks this pipeline directly,
+    /// belt-and-braces, per its own doc).
     pub(in crate::render) fn prepare_table_dims_grid(
         &mut self,
         device: &wgpu::Device,
@@ -167,10 +250,17 @@ impl TextPipeline {
         height: u32,
     ) {
         let Some((rows, cols)) = self.overlay_table_dims else {
+            // A closed picker leaves no in-flight chase for the NEXT summon
+            // to (visibly) continue from -- the same "stale state can't
+            // survive a close" discipline `table_dims_cell_at`'s own closed-
+            // picker law already holds the hit-test to.
+            self.table_dims_hover_last = None;
+            self.table_dims_hover_t = 1.0;
             self.table_dims_cells
                 .prepare(device, queue, width, height, &[]);
             return;
         };
+        let (rows_f, cols_f) = self.table_dims_hover_drawn((rows, cols));
         let geom = self.table_dims_overlay_geometry(width);
         let filled = theme::base_content().rgba_bytes();
         // A TRANSLUCENT version of the secondary-text ink, not a solid
@@ -188,11 +278,17 @@ impl TextPipeline {
         for row in 0..crate::overlay::MAX_ROWS {
             for col in 0..crate::overlay::MAX_COLS {
                 let rect = self.table_dims_cell_rect(&geom, row, col);
-                let color = if row < rows && col < cols {
-                    filled
-                } else {
-                    empty
-                };
+                // A fuzzy generalization of the settled `row < rows && col <
+                // cols` boolean: each factor is how much of THIS cell's own
+                // index the eased `(rows_f, cols_f)` boundary currently
+                // covers, and their PRODUCT is the fuzzy AND -- at the
+                // settled pose (`rows_f`/`cols_f` integers) every factor is
+                // exactly `0.0` or `1.0`, so `coverage` collapses back to the
+                // original boolean bytewise (proven by every pre-existing
+                // pixel law below, none of which arm `juice_live`).
+                let coverage =
+                    (rows_f - row as f32).clamp(0.0, 1.0) * (cols_f - col as f32).clamp(0.0, 1.0);
+                let color = blend_cell_color(empty, filled, coverage);
                 quads.push((rect, color));
             }
         }
@@ -218,4 +314,18 @@ impl TextPipeline {
         }
         None
     }
+}
+
+/// Per-channel byte lerp from `empty` toward `filled` by `coverage`
+/// (clamped `[0, 1]`) — a settled `0.0`/`1.0` coverage round-trips to
+/// `empty`/`filled` EXACTLY (integer endpoints of a lerp are the endpoints),
+/// so this is a superset of the pre-animation two-color paint, never a
+/// second source of those colors.
+fn blend_cell_color(empty: [u8; 4], filled: [u8; 4], coverage: f32) -> [u8; 4] {
+    let t = coverage.clamp(0.0, 1.0);
+    std::array::from_fn(|i| {
+        let a = empty[i] as f32;
+        let b = filled[i] as f32;
+        (a + (b - a) * t).round() as u8
+    })
 }

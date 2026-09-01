@@ -725,3 +725,121 @@ fn the_grid_clears_the_jnd_on_every_backing_style_with_no_added_plate() {
         "the roster must include at least one Card-backed world too"
     );
 }
+
+/// OFF-BY-ONE LAW at the grid's four CORNERS: each corner cell's own
+/// half-open rect `[x, y, w, h)` hit-tests its INCLUSIVE top-left corner to
+/// itself, still hits itself just inside its own EXCLUSIVE bottom-right
+/// corner, and does NOT still read as itself exactly ON that exclusive
+/// corner (`table_dims_cell_at`'s `px < x + w` / `py < y + h` boundary). The
+/// first row/col abuts the card's own padding, the last abuts nothing but
+/// the drawn grid's own edge — the two places an index off-by-one hides.
+#[test]
+fn grid_corners_hit_test_their_own_half_open_rect_and_miss_just_past_every_edge() {
+    let _g = crate::testlock::serial();
+    let (w, h) = (1200.0f32, 800.0f32);
+    let Some((device, queue, mut p)) = headless_dqp(w, h) else {
+        eprintln!("skipping corner off-by-one law: no wgpu adapter");
+        return;
+    };
+    p.set_view(&dims_view("hello\n", 3, 2));
+    p.prepare(&device, &queue, w as u32, h as u32).unwrap();
+    let geom = p.overlay_geometry(w as u32);
+    let corners = [
+        (0, 0),
+        (0, crate::overlay::MAX_COLS - 1),
+        (crate::overlay::MAX_ROWS - 1, 0),
+        (crate::overlay::MAX_ROWS - 1, crate::overlay::MAX_COLS - 1),
+    ];
+    let mut checked = 0;
+    for (row, col) in corners {
+        let [x, y, cw, ch] = p.table_dims_cell_rect(&geom, row, col);
+        assert_eq!(
+            p.table_dims_cell_at(x, y),
+            Some((row, col)),
+            "({row},{col}): the rect's own inclusive top-left corner must hit-test to itself"
+        );
+        assert_eq!(
+            p.table_dims_cell_at(x + cw - 0.5, y + ch - 0.5),
+            Some((row, col)),
+            "({row},{col}): just inside its own bottom-right corner must still hit-test to itself"
+        );
+        assert_ne!(
+            p.table_dims_cell_at(x + cw, y + ch),
+            Some((row, col)),
+            "({row},{col}): its own EXCLUSIVE bottom-right corner must not still read as this cell"
+        );
+        checked += 1;
+    }
+    assert_eq!(checked, 4, "the sweep must reach all four grid corners");
+}
+
+/// DETERMINISM LAW: a headless (unarmed) pipeline never enters the
+/// hover-preview ease -- a `prepare` renders the LIVE target EXACTLY, even
+/// immediately after the biggest single-frame retarget the grid can show
+/// (opening at the floor, then jumping straight to the ceiling). This is
+/// "headless capture records the settled state" from the rendered PIXELS'
+/// own perspective, not merely from reading the `juice_live` flag.
+/// NON-VACUOUS: arming the LIVE path (`arm_live_juice`, the same door the
+/// live App's own GPU init calls) at the IDENTICAL geometry produces a
+/// visibly DIFFERENT (still in-flight, not yet settled) cell -- proving this
+/// check can actually see the hazard it is named for, rather than passing
+/// because the two states always render alike.
+#[test]
+fn a_headless_pipeline_renders_the_live_target_settled_across_a_rapid_retarget() {
+    let _g = crate::testlock::serial();
+    let (w, h) = (1200u32, 800u32);
+    let last = (crate::overlay::MAX_ROWS - 1, crate::overlay::MAX_COLS - 1);
+
+    let settled = {
+        let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
+            eprintln!("skipping settle-across-retarget law: no wgpu adapter");
+            return;
+        };
+        p.set_view(&dims_view("hello\n", 1, 1));
+        p.prepare(&device, &queue, w, h).unwrap();
+        p.set_view(&dims_view(
+            "hello\n",
+            crate::overlay::MAX_ROWS,
+            crate::overlay::MAX_COLS,
+        ));
+        p.prepare(&device, &queue, w, h).unwrap();
+        let geom = p.overlay_geometry(w);
+        let pixels = render_frame(&mut p, &device, &queue, w, h);
+        let [fx, fy, fw, fh] = p.table_dims_cell_rect(&geom, last.0, last.1);
+        pixels[((fy + fh * 0.5) as usize) * w as usize + (fx + fw * 0.5) as usize]
+    };
+    let filled = crate::theme::base_content().rgba_bytes();
+    const JND: f64 = 2.3;
+    assert!(
+        delta_e(settled, filled) <= JND,
+        "a headless (unarmed) pipeline must render the retargeted grid FULLY \
+         settled -- the last cell ({settled:?}) must read as plain filled ink \
+         ({filled:?}), not an in-flight blend"
+    );
+
+    let live = {
+        let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
+            eprintln!("skipping settle-across-retarget law's live half: no wgpu adapter");
+            return;
+        };
+        p.arm_live_juice();
+        p.set_view(&dims_view("hello\n", 1, 1));
+        p.prepare(&device, &queue, w, h).unwrap();
+        p.set_view(&dims_view(
+            "hello\n",
+            crate::overlay::MAX_ROWS,
+            crate::overlay::MAX_COLS,
+        ));
+        p.prepare(&device, &queue, w, h).unwrap();
+        let geom = p.overlay_geometry(w);
+        let pixels = render_frame(&mut p, &device, &queue, w, h);
+        let [fx, fy, fw, fh] = p.table_dims_cell_rect(&geom, last.0, last.1);
+        pixels[((fy + fh * 0.5) as usize) * w as usize + (fx + fw * 0.5) as usize]
+    };
+    assert!(
+        delta_e(live, filled) > JND,
+        "arming the live ease at the identical geometry ({live:?} vs filled \
+         {filled:?}) must NOT already read as settled -- this is the \
+         non-vacuous half proving the law above can see the hazard it guards"
+    );
+}
