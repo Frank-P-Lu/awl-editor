@@ -799,3 +799,100 @@ fn potoroo_table_cell_ink_matches_body_prose_at_real_pixels() {
     theme::set_active(theme::DEFAULT_THEME);
     p.sync_theme();
 }
+
+/// BUG FIX (residue after a buffer swap): the empty-cell affordance plates
+/// (`table_empty_pipeline`) are a SEPARATE GPU instance buffer from the
+/// rule/pan-bar rects and the glyphon cell text, drawn UNCONDITIONALLY every
+/// frame (`draw_document_content`). `prepare_table_grid`'s no-tables early
+/// return (fired for a plain document, and identically for WYSIWYG or
+/// markdown toggled off over a table document) must re-prepare it with an
+/// empty slice just like its two siblings, or the previous frame's plate
+/// instances keep drawing at their old screen positions over whatever
+/// document follows. This is the presence/absence pair: first prove the
+/// plates are really there for a table with empty cells (so the second half
+/// isn't vacuous), then drive each of the three doors into the same early
+/// return and prove the plate count drops to zero every time.
+#[test]
+fn empty_cell_plates_are_cleared_on_every_door_into_the_no_tables_return() {
+    let _t = crate::testlock::serial();
+    let _page = crate::page::PagePin::snapshot();
+    let _g = crate::testlock::serial();
+    let _w = crate::testlock::serial();
+    crate::markdown::set_wysiwyg_on(true);
+    crate::page::set_page_on(true);
+    let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
+        eprintln!(
+            "skipping empty_cell_plates_are_cleared_on_every_door_into_the_no_tables_return: \
+             no wgpu adapter"
+        );
+        return;
+    };
+    let (w, h) = (1200u32, 800u32);
+
+    // A table with empty cells, caret parked OFF it (ordinary drawn grid, not
+    // the x-ray) so the affordance plates actually upload.
+    let table_text = "prose\n| | |\n|---|---|\n| | |\n";
+    let mut with_table = view(table_text, 0, 0);
+    with_table.is_markdown = true;
+
+    let plain_text = "just plain prose, no tables at all\n";
+
+    // PRESENCE half: a table with empty cells really does upload plates.
+    p.set_view(&with_table);
+    p.prepare(&device, &queue, w, h).unwrap();
+    assert!(
+        p.table_empty_pipeline.instance_count() > 0,
+        "sanity: an empty-celled table uploads empty-plate instances"
+    );
+
+    // DOOR 1: swap to a plain buffer with no tables at all.
+    let mut plain = view(plain_text, 0, 0);
+    plain.is_markdown = true;
+    p.set_view(&plain);
+    p.prepare(&device, &queue, w, h).unwrap();
+    assert_eq!(
+        p.table_empty_pipeline.instance_count(),
+        0,
+        "swapping to a table-less buffer must shed the previous frame's empty plates"
+    );
+
+    // Re-arm presence before each of the other two doors.
+    p.set_view(&with_table);
+    p.prepare(&device, &queue, w, h).unwrap();
+    assert!(
+        p.table_empty_pipeline.instance_count() > 0,
+        "re-armed presence before the WYSIWYG-off door"
+    );
+
+    // DOOR 2: WYSIWYG toggled off over the SAME table document.
+    crate::markdown::set_wysiwyg_on(false);
+    p.set_view(&with_table);
+    p.prepare(&device, &queue, w, h).unwrap();
+    assert_eq!(
+        p.table_empty_pipeline.instance_count(),
+        0,
+        "toggling WYSIWYG off over the same table document must shed its empty plates"
+    );
+    crate::markdown::set_wysiwyg_on(true);
+
+    // Re-arm presence before the markdown-off door.
+    p.set_view(&with_table);
+    p.prepare(&device, &queue, w, h).unwrap();
+    assert!(
+        p.table_empty_pipeline.instance_count() > 0,
+        "re-armed presence before the markdown-off door"
+    );
+
+    // DOOR 3: markdown toggled off over the SAME table document.
+    let mut md_off = view(table_text, 0, 0);
+    md_off.is_markdown = false;
+    p.set_view(&md_off);
+    p.prepare(&device, &queue, w, h).unwrap();
+    assert_eq!(
+        p.table_empty_pipeline.instance_count(),
+        0,
+        "toggling markdown off over the same table document must shed its empty plates"
+    );
+
+    crate::markdown::set_wysiwyg_on(true);
+}

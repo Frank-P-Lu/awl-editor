@@ -403,6 +403,15 @@ impl TextPipeline {
         if blocks.is_empty() {
             self.table_rule_pipeline
                 .prepare(device, queue, width, height, &[]);
+            // The empty-cell affordance plates are a SEPARATE pipeline from the
+            // rule/pan-bar rects above and the glyphon table text below — an
+            // instance buffer of its own, drawn unconditionally every frame
+            // (`draw_document_content`). Without this re-prepare, a table with
+            // empty cells leaves stale plates that keep drawing at their old
+            // screen position over whatever document follows (no tables, WYSIWYG
+            // off, or markdown off all fall through this same early return).
+            self.table_empty_pipeline
+                .prepare(device, queue, width, height, &[]);
             self.table_renderer
                 .prepare(
                     device,
