@@ -307,8 +307,8 @@ fn smart_punct_selection_touch_suppresses_conceal_and_ornament_for_full_roster()
 
 /// END-TO-END table exception: ordinary prose conceals the three ASCII runs
 /// and paints substitutes, but the real grid-cell buffers intentionally keep
-/// the raw literals in body ink because the table painter has no per-cell
-/// smart-punctuation ornament layer. This reads the shaped buffer that
+/// the raw literals in the table area's live default ink because the table
+/// painter has no per-cell smart-punctuation ornament layer. This reads the shaped buffer that
 /// `prepare_table_grid` submits to the renderer, not a parser-only attrs list.
 #[test]
 fn table_cell_smart_punct_stays_literal_visible_without_an_ornament_layer() {
@@ -341,14 +341,12 @@ fn table_cell_smart_punct_stays_literal_visible_without_an_ornament_layer() {
         .find(|(_, _, buffer, _)| buffer.lines.first().is_some_and(|line| line.text() == cell))
         .expect("body cell carrying the smart-punctuation roster is shaped");
     let line = &body.lines[0];
-    let expected_ink = theme::base_content().to_glyphon();
     for kind in crate::markdown::SmartPunctKind::ALL {
         let byte = cell.find(kind.literal()).unwrap();
         let attrs = line.attrs_list().get_span(byte);
         assert_eq!(
-            attrs.color_opt,
-            Some(expected_ink),
-            "{kind:?}: table-cell literal keeps body-content ink (never transparent conceal)"
+            attrs.color_opt, None,
+            "{kind:?}: table-cell literal inherits live default ink (never a stale authored tint)"
         );
         assert!(
             attrs.metrics_opt.is_none(),
