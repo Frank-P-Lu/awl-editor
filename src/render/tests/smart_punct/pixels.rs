@@ -5,7 +5,7 @@ use super::super::{headless_dqp, pixeldiff, view};
 
 const W: u32 = 1200;
 const H: u32 = 320;
-// The shipped roster reads 1.000..=1.286 on Metal. The band is deliberately
+// The shipped roster reads 1.000..=1.100 on Metal. The band is deliberately
 // broad around the Unicode control; its lower edge separates the 0.5-scale
 // regression, while its upper edge admits raster-phase growth without making
 // a doubled ornament acceptable.

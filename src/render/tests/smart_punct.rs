@@ -357,123 +357,72 @@ fn table_cell_smart_punct_stays_literal_visible_without_an_ornament_layer() {
     }
 }
 
-fn smart_punct_row_widths(p: &TextPipeline, line: usize) -> Vec<f32> {
-    p.visual_rows(line)
-        .into_iter()
-        .map(|row| row.xs.last().copied().unwrap_or(0.0) - row.xs.first().copied().unwrap_or(0.0))
-        .collect()
+fn smart_punct_body_advance(p: &mut TextPipeline, kind: crate::markdown::SmartPunctKind) -> f32 {
+    let glyph_metrics = GlyphMetrics::new(p.metrics.font_size, p.metrics.line_height);
+    let attrs = p.doc_attrs();
+    let mut buffer = GlyphBuffer::new(&mut p.font_system, glyph_metrics);
+    buffer.set_size(
+        &mut p.font_system,
+        Some(p.metrics.line_height * 2.0),
+        Some(p.metrics.line_height),
+    );
+    buffer.set_text(
+        &mut p.font_system,
+        &kind.glyph().to_string(),
+        &attrs,
+        Shaping::Advanced,
+        None,
+    );
+    buffer.shape_until_scroll(&mut p.font_system, false);
+    buffer
+        .layout_runs()
+        .map(|run| run.line_w)
+        .fold(0.0f32, f32::max)
 }
 
-fn smart_punct_fixture(kind: crate::markdown::SmartPunctKind, wrapped: bool) -> String {
-    use crate::markdown::SmartPunctKind;
-    let short = match kind {
-        SmartPunctKind::EnDash => "A range -- after all, every span needs one.",
-        SmartPunctKind::EmDash => "A long sentence--- after all, we all need one.",
-        SmartPunctKind::Ellipsis => "short line but also... there is more",
-    };
-    if wrapped {
-        format!(
-            "{short} This deliberately extended tail crosses the narrow measure \
-             and audits the wrap point."
-        )
-    } else {
-        short.to_string()
-    }
-}
-
-/// HEADLINE LAW — the off-caret line occupies the SUBSTITUTE'S own shaped
-/// advance, not a fixed placeholder and not the source literal's advance.
+/// HEADLINE LAW — every smart-punctuation reserve uses the active world's
+/// BODY shaping: family, effective weight, features, and full body metrics.
 ///
-/// Every roster member is measured at the real shaped-row seam in both a
-/// short and a wrapping line. The short row makes the arithmetic explicit:
-/// `(off - raw) == (substitute - raw)`. The wrapped row additionally requires
-/// the off-caret source to reproduce the substitute control's row count and
-/// per-row widths, while the on-caret source remains the literal raw layout.
-/// The fixture match has no wildcard, so a new `SmartPunctKind` cannot silently
-/// escape enrolment.
+/// The ornament is an isolated run, so its independent control is the same
+/// glyph shaped in isolation through `doc_attrs`; an inline Unicode control
+/// would add contextual shaping that the ornament does not own. The roster
+/// loop has no wildcard, so a new `SmartPunctKind` cannot silently escape.
 #[test]
-fn smart_punct_off_caret_uses_each_substitutes_own_shaped_advance_no_wildcard() {
+fn smart_punct_advances_use_each_worlds_body_shaping_no_wildcard() {
     let _w = crate::testlock::serial();
+    let _world = theme::WorldPin::snapshot();
     crate::markdown::set_wysiwyg_on(true);
     let Some(mut p) = headless_pipeline() else {
         eprintln!(
-            "skipping smart_punct_off_caret_uses_each_substitutes_own_shaped_advance_\
+            "skipping smart_punct_advances_use_each_worlds_body_shaping_\
              no_wildcard: no wgpu adapter"
         );
         return;
     };
-    let was_page_on = crate::page::page_on();
-    let was_measure = crate::page::measure();
-    crate::page::set_page_on(true);
 
     let mut graded = 0usize;
-    for kind in crate::markdown::SmartPunctKind::ALL {
-        for wrapped in [false, true] {
-            crate::page::set_measure(if wrapped { 28 } else { 100 });
-            p.set_size(1200.0, 800.0);
-            let source = smart_punct_fixture(kind, wrapped);
-            let substitute = source.replacen(kind.literal(), &kind.glyph().to_string(), 1);
-            let source_doc = format!("{source}\npark\n");
-            let substitute_doc = format!("{substitute}\npark\n");
-
-            let mut raw_view = view(&source_doc, 0, 0);
-            raw_view.is_markdown = true;
-            p.set_view(&raw_view);
-            let raw = smart_punct_row_widths(&p, 0);
-
-            let mut off_view = view(&source_doc, 1, 0);
-            off_view.is_markdown = true;
-            p.set_view(&off_view);
-            let off = smart_punct_row_widths(&p, 0);
-
-            let mut substitute_view = view(&substitute_doc, 1, 0);
-            substitute_view.is_markdown = true;
-            p.set_view(&substitute_view);
-            let shaped_substitute = smart_punct_row_widths(&p, 0);
-
-            let raw_total: f32 = raw.iter().sum();
-            let off_total: f32 = off.iter().sum();
-            let substitute_total: f32 = shaped_substitute.iter().sum();
-            let observed_shift = off_total - raw_total;
-            let expected_shift = substitute_total - raw_total;
-            assert!(
-                (observed_shift - expected_shift).abs() <= 0.51,
-                "{kind:?} wrapped={wrapped}: off-caret total advance shift must equal \
-                 substitute-minus-literal at the real shaped seam; raw={raw_total:.3} \
-                 off={off_total:.3} substitute={substitute_total:.3} \
-                 observed_shift={observed_shift:.3} expected_shift={expected_shift:.3}; \
-                 rows raw={raw:?} off={off:?} substitute={shaped_substitute:?}"
-            );
-            if wrapped {
-                assert!(
-                    raw.len() >= 2,
-                    "{kind:?}: wrapped fixture did not wrap: {raw:?}"
-                );
-                assert_eq!(
-                    off.len(),
-                    shaped_substitute.len(),
-                    "{kind:?}: off-caret and substitute control must wrap to the same row count"
-                );
-                for (row, (actual, expected)) in
-                    off.iter().zip(shaped_substitute.iter()).enumerate()
-                {
-                    assert!(
-                        (actual - expected).abs() <= 0.51,
-                        "{kind:?} wrapped row {row}: off={actual:.3} substitute={expected:.3}"
-                    );
-                }
-            } else {
-                assert_eq!(
-                    raw.len(),
-                    1,
-                    "{kind:?}: short fixture unexpectedly wrapped: {raw:?}"
-                );
+    for world in theme::THEMES {
+        theme::set_active_by_name(world.name).unwrap();
+        p.sync_theme();
+        for kind in crate::markdown::SmartPunctKind::ALL {
+            use crate::markdown::SmartPunctKind;
+            match kind {
+                SmartPunctKind::EnDash | SmartPunctKind::EmDash | SmartPunctKind::Ellipsis => {}
             }
+            let reserve = p.smart_punct_advances.advance(kind);
+            let body = smart_punct_body_advance(&mut p, kind);
+            assert_eq!(
+                reserve, body,
+                "{} {kind:?}: smart-punctuation reserve must use the world's exact body \
+                 shaping; reserve={reserve:.6} body={body:.6}",
+                world.name,
+            );
             graded += 1;
         }
     }
-    assert_eq!(graded, crate::markdown::SmartPunctKind::ALL.len() * 2);
-    crate::page::set_measure(was_measure);
-    crate::page::set_page_on(was_page_on);
+    assert_eq!(
+        graded,
+        theme::THEMES.len() * crate::markdown::SmartPunctKind::ALL.len()
+    );
     crate::markdown::set_wysiwyg_on(true);
 }

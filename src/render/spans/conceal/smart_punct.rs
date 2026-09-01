@@ -66,6 +66,14 @@ fn kind_index(kind: crate::markdown::SmartPunctKind) -> usize {
     }
 }
 
+fn smart_punct_attrs(family: &'static str, color: glyphon::Color) -> Attrs<'static> {
+    Attrs::new()
+        .family(Family::Name(family))
+        .weight(mono_safe_weight(family))
+        .font_features(text::font_features(false, family, code_ligatures_on()))
+        .color(color)
+}
+
 /// Measure the conceal path at two letter-spacing values and solve its affine
 /// response for the substitute's shaped advance. Cosmic treats the dot triplet
 /// as one cluster but the dash runs as independent clusters, so the active
@@ -95,13 +103,10 @@ fn concealed_literal_width(
     kind: crate::markdown::SmartPunctKind,
     letter_spacing: f32,
 ) -> f32 {
-    let hidden = Attrs::new()
-        .family(Family::Name(family))
-        .color(RULE_CONCEAL_COLOR)
-        .metrics(GlyphMetrics::new(
-            CONCEAL_ZERO_WIDTH_FONT_SIZE,
-            metrics.line_height,
-        ));
+    let hidden = smart_punct_attrs(family, RULE_CONCEAL_COLOR).metrics(GlyphMetrics::new(
+        CONCEAL_ZERO_WIDTH_FONT_SIZE,
+        metrics.line_height,
+    ));
     let forcing = hidden.clone().letter_spacing(letter_spacing);
     let mut attrs = glyphon::cosmic_text::AttrsList::new(&hidden);
     attrs.add_span(0..1, &forcing);
@@ -134,7 +139,7 @@ pub(in crate::render) fn shape_smart_punct_glyph(
     color: glyphon::Color,
 ) -> (GlyphBuffer, f32) {
     let glyph_metrics = GlyphMetrics::new(metrics.font_size, metrics.line_height);
-    let attrs = Attrs::new().family(Family::Name(family)).color(color);
+    let attrs = smart_punct_attrs(family, color);
     let mut buffer = GlyphBuffer::new(font_system, glyph_metrics);
     buffer.set_size(
         font_system,
