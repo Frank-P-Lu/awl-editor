@@ -399,22 +399,26 @@ pub(super) fn close_hover_plate_rect(
 ) -> Option<[f32; 4]> {
     let hit = hover.filter(|h| h.is_close())?;
     let mark_chars = CLOSE_MARK_TEXT.chars().count();
-    layout.lines().into_iter().enumerate().find_map(|(line, (text, kind))| {
-        let row = match kind {
-            gutter::GutterLine::File(at) => at,
-            // The single-file identity draws the same lone slot `hit.row ==
-            // 0` names (`gutter_hit::stack_hit_from_plan`'s own doc).
-            gutter::GutterLine::Name => 0,
-            gutter::GutterLine::Project | gutter::GutterLine::Changed => return None,
-        };
-        if row != hit.row {
-            return None;
-        }
-        let rect = *plan.rows.get(line)?;
-        let ink_w = (text.chars().count() + mark_chars) as f32 * label_char_w;
-        let mark_w = mark_chars as f32 * label_char_w;
-        Some(close_zone(rect, ink_w, mark_w))
-    })
+    layout
+        .lines()
+        .into_iter()
+        .enumerate()
+        .find_map(|(line, (text, kind))| {
+            let row = match kind {
+                gutter::GutterLine::File(at) => at,
+                // The single-file identity draws the same lone slot `hit.row ==
+                // 0` names (`gutter_hit::stack_hit_from_plan`'s own doc).
+                gutter::GutterLine::Name => 0,
+                gutter::GutterLine::Project | gutter::GutterLine::Changed => return None,
+            };
+            if row != hit.row {
+                return None;
+            }
+            let rect = *plan.rows.get(line)?;
+            let ink_w = (text.chars().count() + mark_chars) as f32 * label_char_w;
+            let mark_w = mark_chars as f32 * label_char_w;
+            Some(close_zone(rect, ink_w, mark_w))
+        })
 }
 
 /// The active-row plate rects AND the row-drag insertion-hairline rect (at
