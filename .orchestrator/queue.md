@@ -961,6 +961,8 @@ Headlessly verifiable end to end — the repro capture above is the seed.
 ---
 ### 553 — search across the folder: full-text search as a summoned surface (user decision, 2026-09-01)
 
+🟡 IN PROGRESS — claude, branch item-553
+
 DECIDED from the feature-gap review. PHILOSOPHY §1 promises "the simple
 file operations, navigation, search, and version history needed to
 sustain writing," and search currently stops at the buffer: ⌘F/⌘R are
@@ -984,6 +986,8 @@ this item: regex UI, saved searches, replace-across-files.
 
 ---
 ### 554 — drag-and-drop onto the window: a text file opens, an image lands in the document (user decision, 2026-09-01)
+
+🟡 IN PROGRESS — claude, branch item-554
 
 winit's `DroppedFile` event is unhandled today — dropping anything on
 the window does nothing. DECIDED semantics, in the user's words: a
