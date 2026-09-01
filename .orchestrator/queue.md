@@ -688,6 +688,59 @@ gate and web suite; a production-tier independent audit reviews the premise,
 enrolment and mutations. Remote Linux is the final lavapipe oracle.
 
 ---
+### 548 — table text wears the PREVIOUS world's ink after a live theme switch (user report, 2026-09-01 — "tables are off on this theme"; ink identified by pixel arithmetic, mechanism still a hypothesis)
+
+Report: on a live Mangrove window the user's tables render near-invisible
+while the surrounding prose is correct. Measured over the report's screenshot:
+prose ink ≈ (219,233,228) — Mangrove `base_content` #D9E6E1 — but table cell
+text paints at ≈ (16,18,22), which is **Magpie's** `base_content` #111317
+within compression noise: a light world's near-black ink, DARKER than
+Mangrove's page ground (17,38,35), roughly 1.1:1. Table glyphs are wearing
+another world's content ink while prose wears the right one. This is not a
+Mangrove palette defect: static headless captures of plain and rich GFM
+tables in Mangrove at `--capture-dpi` 1 and 2 paint cell text in full
+content ink.
+
+That static cleanliness is expected, and docs/harness-reach.md names the
+class exactly: a capture witnesses the state a pipeline was BUILT with,
+never the state it was later RE-SEEDED with — the live `sync_theme_colors`
+path from `app/apply.rs` is structurally unreachable by ordinary capture,
+and a defect there "reaches only a user who changes worlds while the app is
+running." Working hypothesis, to be verified before repair: the table-grid
+text path (`prepare_table_grid` / `render/layers/table_grid.rs`, or
+whatever actually owns table glyph tinting) is missed by the live re-tint,
+or its cached rows are not invalidated on world change, so table text keeps
+the prior (or a previewed) world's ink until some later reshape. The ink
+identification stands regardless of which mechanism it turns out to be.
+
+Grounding also settled most of a second visual in the report: the solid
+block cells match the deliberate EMPTY-CELL plate rendering
+(`table_empty_pipeline`, `theme::muted()` at alpha 30), reproduced in a
+fully static capture over cells with no content — likely not part of this
+defect, though whether the user's cells were in fact empty is unconfirmed,
+and the measured block colour sits a little above both a fresh-Mangrove and
+a stale-Magpie blend estimate. Audit their re-seed too:
+`render/pipeline_geometry.rs` seeds that colour, and the lane determines
+whether it runs on a live switch or only at construction — likewise every
+other table-owned colour (x-ray, header rule, borders).
+
+Repro and laws: `--screenshot-app` reaches this transition (theme accept is
+tier 1, `overlay_accept:Theme` = Applied): start `--theme Magpie` on a
+table document, drive the real theme picker to accept Mangrove, then assert
+by PNG arithmetic that table cell ink equals the NEW world's content ink —
+a contrast floor against the page ground paired with a presence floor, so
+the law cannot be satisfied by deleting its subject. Add the
+pipeline-reading law harness-reach.md prescribes for this axis: after a
+live `sync_theme_colors`, table pipeline colours match the new world,
+swept across the roster rather than one hand-picked pair, with a
+non-vacuity guard that the values being distinguished actually differ
+somewhere in the roster. Mutation-prove by restoring construction-only
+seeding on the table path and watching both laws go red. Standing policy —
+a user-reported bug gets its neighborhood audited: census every pipeline
+colour seeded at construction for the same live-switch miss; tables are
+unlikely to be the only tenant.
+
+---
 ### 537 — footnote markers may wear the traditional reference ladder (user decision, 2026-09-01; sequenced AFTER 529 bundles the face)
 
 🔴 BLOCKED — needs the user's product decisions on per-document versus recycled scope and whether definition-list markers follow the display option. U+2016 coverage remains an engineering verification, not a user decision.
