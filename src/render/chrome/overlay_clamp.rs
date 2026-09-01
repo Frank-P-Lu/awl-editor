@@ -223,12 +223,13 @@ pub(super) fn window_plan(full: &[PlanLine], lo: usize, hi: usize) -> Vec<PlanLi
 mod tests {
     use super::{PlanLine, resolve_window_and_cue, window_plan};
 
-    /// **THE RESERVATION'S OWN BOUNDARY, item 560.** A user report described a
-    /// gap at the head of an UNCLAMPED theme-picker list (all 20 worlds shown)
-    /// shaped like "a reserved marker row that stays reserved even when
-    /// nothing is clamped." The hypothesis was FALSE for shipped code — see
-    /// this item's landing note — but proving that took a fixture the
-    /// existing `render/tests/edge_count_cue_law.rs` roster sweep does not
+    /// **THE RESERVATION'S OWN BOUNDARY.** A reported gap at the head of an
+    /// UNCLAMPED theme-picker list (all 20 worlds shown) was hypothesized as
+    /// "a reserved marker row that stays reserved even when nothing is
+    /// clamped." That hypothesis is FALSE for shipped code — the head gap is
+    /// entirely `OVERLAY_QUERY_BEAT`'s deliberate query divider, not a stray
+    /// reservation — but proving that took a fixture the existing
+    /// `render/tests/edge_count_cue_law.rs` roster sweep does not
     /// carry: its own tall-fits cell caps every kind's corpus at
     /// `window_rows().clamp(1, 3)`, so for the theme picker
     /// (`window_rows() == 20`) it exercises `n_items = 3` — miles from the
@@ -246,9 +247,9 @@ mod tests {
     /// MUTATION-PROVEN: deleting `resolve_window_and_cue`'s `visible0 >=
     /// n_items` early return (so every call falls through to the
     /// `resolve(2)` branch and unconditionally reserves) failed this law
-    /// immediately at `cap=1, n_items=1` — see this item's landing note for
-    /// the panic text — while `edge_count_cue_law.rs`'s own tall-fits cells
-    /// stayed green throughout, because their `n_items=3` fixture never
+    /// immediately at `cap=1, n_items=1` — while `edge_count_cue_law.rs`'s
+    /// own tall-fits cells stayed green throughout, because their
+    /// `n_items=3` fixture never
     /// reaches a cap tight enough for the always-on reservation to displace a
     /// real item or fail its `(None, None)` check.
     #[test]
