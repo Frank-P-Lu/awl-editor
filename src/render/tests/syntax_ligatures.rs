@@ -289,16 +289,17 @@ fn xs_uniform(xs: &[f32]) -> bool {
 /// THE CODE-LIGATURE PITCH GUARD (the critical regression the three-way split
 /// must not break, and the exact gap the probe flagged): with the code-ligature
 /// features applied, every FONT-FEATURE-CONTROLLABLE mono (JetBrains Mono,
-/// Iosevka, IBM Plex Mono, and — since item 552's `rlig` disable — Monaspace
-/// Xenon) STILL shapes real programming-ligature content (`-> => != >= <= ==
+/// Iosevka, IBM Plex Mono, and — since `font_features` disables Monaspace's
+/// `rlig` chain — Monaspace Xenon) STILL shapes real programming-ligature
+/// content (`-> => != >= <= ==
 /// :: |>`) at STRICT uniform pitch — the per-char `line_glyph_xs` stay evenly
 /// spaced, so caret/hit-test/selection column math is honest. `font_features`
 /// keeps this uniform (calt for JBM/Iosevka's GSUB programming ligatures, 1
 /// glyph per source char; ligature-free for the inert IBM Plex Mono and, now,
 /// for Monaspace Xenon too).
 ///
-/// Monaspace Xenon was EXCLUDED here before item 552 on the belief that its
-/// operator ligatures were AAT-driven and unsuppressable; a GSUB walk of the
+/// Monaspace Xenon was EXCLUDED here on the belief that its operator
+/// ligatures were AAT-driven and unsuppressable; a GSUB walk of the
 /// bundled TTF found no `morx` table and a `rlig`-owned `LigatureSubst` chain
 /// instead (same mechanism as the tilde-fusion bug, same lookup table — see
 /// [`super::text::font_features`]'s doc), and disabling `rlig` for this face
@@ -358,17 +359,18 @@ fn code_ligature_content_stays_uniform_pitch_on_feature_controllable_monos() {
 
 /// THE MONASPACE CLUSTER-FIX REGRESSION GUARD (flipped from the old
 /// characterization test — see its history below). Monaspace Xenon's
-/// programming ligatures (`-> => != :: …`) were, before item 552, reached
-/// through a `rlig`-owned `LigatureSubst` chain (plain OpenType GSUB — the
+/// programming ligatures (`-> => != :: …`) were reached, before the `rlig`
+/// disable, through a `rlig`-owned `LigatureSubst` chain (plain OpenType GSUB — the
 /// font carries no `morx` table, so the PRIOR framing here as "AAT-driven,
 /// unsuppressable via OpenType feature tags" was never checked against the
 /// font and was wrong) that `font_features` never disabled, so a TRUE
 /// ligature merge fired even though `calt`/`rclt`/`ccmp` were off, and
 /// `assemble_glyph_xs` compensated by grouping the glyphs sharing a span and
-/// spreading the source chars EVENLY over the group's combined advance. Item
-/// 552 closes the `rlig` door directly, so the merge no longer happens at all
-/// on this face — this test still passes, now because there is genuinely one
-/// glyph per source char rather than because the spread compensates for
+/// spreading the source chars EVENLY over the group's combined advance.
+/// `font_features` now closes the `rlig` door directly, so the merge no
+/// longer happens at all on this face — this test still passes, now
+/// because there is genuinely one glyph per source char rather than
+/// because the spread compensates for
 /// fewer. `assemble_glyph_xs`'s M=N branch remains in place as a general
 /// mechanism (`geometry.rs`'s doc), just no longer exercised by Monaspace's
 /// own operator content. Shapes BOTH the mixed letters-and-operators content
@@ -378,7 +380,7 @@ fn code_ligature_content_stays_uniform_pitch_on_feature_controllable_monos() {
 /// (History: this test used to assert the OPPOSITE — that Monaspace stayed
 /// non-uniform, a documented AAT limitation — with a note that its assertion
 /// should flip the day the `assemble_glyph_xs` cluster fix landed. It has;
-/// item 552 later found the "AAT" framing itself was never verified.)
+/// the "AAT" framing itself was later found to have never been verified.)
 #[test]
 fn monaspace_ligatures_shape_uniform_pitch_after_the_cluster_fix() {
     let _t = crate::testlock::serial();
@@ -508,7 +510,7 @@ fn caret_and_hit_test_are_per_char_inside_a_programming_ligature_cluster() {
 }
 
 /// Byte offsets of every ASCII `~` in `text` — the three `rlig`-fusion laws
-/// below (item 552) use these to locate the glyph that must exist at each one.
+/// below use these to locate the glyph that must exist at each one.
 fn tilde_byte_offsets(text: &str) -> Vec<usize> {
     text.char_indices()
         .filter(|(_, c)| *c == '~')
@@ -545,7 +547,7 @@ fn glyph_span_at(p: &TextPipeline, line: usize, byte: usize) -> (usize, usize) {
     }
 }
 
-/// THE REPORTED `~~` FUSION (item 552): a GSUB walk of the bundled
+/// THE REPORTED `~~` FUSION: a GSUB walk of the bundled
 /// `MonaspaceXenon-Regular.ttf` (`fonttools`, not assumed) found its
 /// programming-ligature set — the tilde family (`~~`, `<~`, `~>`, `!~`, …)
 /// among ~50 true `LigatureSubst` merges — reachable from a chain context
@@ -561,7 +563,8 @@ fn prose_tilde_pair_shapes_as_two_glyphs_on_every_monaspace_display_world() {
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!(
-            "skipping prose_tilde_pair_shapes_as_two_glyphs_on_every_monaspace_display_world: no wgpu adapter"
+            "skipping prose_tilde_pair_shapes_as_two_glyphs_on_every_monaspace_display_world: \
+             no wgpu adapter"
         );
         return;
     };
@@ -618,7 +621,8 @@ fn code_tilde_pair_stays_two_glyphs_on_every_monaspace_mono_world() {
     let _g = crate::testlock::serial();
     let Some(mut p) = headless_pipeline() else {
         eprintln!(
-            "skipping code_tilde_pair_stays_two_glyphs_on_every_monaspace_mono_world: no wgpu adapter"
+            "skipping code_tilde_pair_stays_two_glyphs_on_every_monaspace_mono_world: \
+             no wgpu adapter"
         );
         return;
     };
@@ -672,7 +676,7 @@ fn code_tilde_pair_stays_two_glyphs_on_every_monaspace_mono_world() {
     p.sync_theme();
 }
 
-/// STRIKETHROUGH'S OWN RAW REVEAL, FOUR DISTINCT TILDES (item 552). With the
+/// STRIKETHROUGH'S OWN RAW REVEAL, FOUR DISTINCT TILDES. With the
 /// caret on `~~struck~~`'s own line, WYSIWYG reveals the raw markdown — the
 /// same PROSE shaping path the `~~` fusion bug rides, and the one place the
 /// raw marker text is guaranteed on screen for a user to see it. Before the
