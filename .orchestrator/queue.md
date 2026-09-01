@@ -905,6 +905,101 @@ caret line) shows four distinct tildes. Mutation-prove by re-enabling.
 Headlessly verifiable end to end — the repro capture above is the seed.
 
 ---
+### 553 — search across the folder: full-text search as a summoned surface (user decision, 2026-09-01)
+
+DECIDED from the feature-gap review. PHILOSOPHY §1 promises "the simple
+file operations, navigation, search, and version history needed to
+sustain writing," and search currently stops at the buffer: ⌘F/⌘R are
+in-document, and Go to… matches names/headings/recents, never content —
+"where did I write about X" has no answer inside awl. Build full-text
+search over the active folder: type a query, see matching lines grouped
+by file with the match highlighted, Enter opens that file at the match
+through the same door any open uses. Constraints: a summoned surface on
+the existing picker conventions (`render/rowlayout`, docs/render.md),
+keyboard-first, palette entry "Search in folder…"; no default chord is
+decided here — ⌘⇧F is `search_backward`, so any binding is a separate
+taste call and palette-only is acceptable to ship. Reuse `src/index.rs`'s
+folder enumeration (same gitignore conventions); scanning is O(folder)
+and stays off the frame path — work happens on summon/keystroke against
+a bounded budget, never per-frame. Zero network. Native first; web where
+the platform permits. Verify: unit tests over the matcher/grouping seam
+(case folding and Unicode decisions recorded in the tests), and a
+`--keys` sidecar journey — summon, type, Enter, sidecar shows the landed
+file and caret; read docs/harness-reach.md before promising more. NOT
+this item: regex UI, saved searches, replace-across-files.
+
+---
+### 554 — drag-and-drop onto the window: a text file opens, an image lands in the document (user decision, 2026-09-01)
+
+winit's `DroppedFile` event is unhandled today — dropping anything on
+the window does nothing. DECIDED semantics, in the user's words: a
+markdown/text file is the "same thing as open file, with the file" —
+route the dropped path through the exact door `Open file…` uses, so
+working-set, recents, and session semantics come free (same behavior ⇒
+same code, one owner). A dropped image "should put the image in the
+file": reuse the paste-image pipeline — the image is copied into
+`assets/` beside the document and a reference inserted at the caret as
+one undoable edit (docs/markdown.md). The classify-and-route step is
+the only new code; the image arm calls the same owner paste-image
+uses, never a second implementation. Sub-decisions the lane settles
+with recorded defaults: multiple files dropped (working hypothesis:
+text files open into the working set in drop order; images insert
+sequentially); an image dropped on the scratch/no-path buffer follows
+whatever rule paste-image already has there. Native-only where
+paste-image is native-only; web drag-drop is out of scope. Verify: the
+OS gesture never flows through `--keys` — unit-test the
+classification/routing seam directly (path in, decision out), and flag
+the physical drop itself for live human confirmation per
+docs/harness-reach.md.
+
+---
+### 555 — sentence motion: forward/back, select, and delete by sentence (user decision, 2026-09-01)
+
+awl is prose-first but its motion grammar stops at words — no sentence
+verb exists anywhere in the tree. Add sentence forward/backward motion,
+shift-extension (enrolled in `is_motion` so selection extension arrives
+by the existing rule, and the documented non-movers test is updated
+deliberately), and delete to sentence end/start. The boundary rule is
+the product here — editing edge-cases get generous spend: prefer UAX #29
+sentence segmentation (the `unicode-segmentation` crate already in the
+grapheme path carries it) over a hand-rolled terminator heuristic, since
+abbreviations ("e.g.", "Dr.") are exactly the axis a hand rule misses;
+whatever rule ships, record it and sweep it in tests. Bindings: the
+Emacs slots take the classic M-a / M-e / M-k — noting the Meta layer
+seeds Linux-only under the `emacs` flavor and is inert on Mac
+(docs/config.md); there is no macOS-native convention, so the native
+slots may ship empty with palette entries ("Sentence forward" etc.),
+one `[keys]` line away for anyone who wants chords. Verify: exhaustive
+unit tests at the motion seam — terminators, closing quotes and parens
+after the period, ellipsis including the smart-punct `...` run, CJK 。,
+buffer ends, a sentence spanning soft wraps — plus a `--keys` sidecar
+journey.
+
+---
+### 556 — move line/selection up and down (user decision, 2026-09-01)
+
+No such action exists. The prose meaning is "reorder list items and
+paragraphs": one command swaps the caret's logical line — or every line
+a selection touches, moved as one block — with its neighbor, caret and
+selection riding the moved text, the whole move one sealed undo group
+(mutation-prove: two moves undo as two steps, a block move as one).
+Edges to sweep: first/last line (no-op, recorded), the final line
+without a trailing `\n`, a block move against buffer ends, sticky goal
+column unaffected, and wrapped text — this is a LOGICAL-line move,
+visual rows never reorder independently. Inside a table a line swap is
+a source edit like any other; row-leave re-pad (the landed 542
+mechanism) owns re-alignment — add one test proving a moved table row
+re-pads rather than corrupting the grid. Numbered lists: the existing
+renumbering rule owns fixing ordinals; prove it fires by test rather
+than re-implementing. Bindings: ⌥↑ / ⌥↓ are free in the defaults
+(checked 2026-09-01) and are the cross-editor convention; macOS text
+fields use them for paragraph motion, which awl does not implement, so
+taking them is a deliberate taste call — land it and name the revert
+cost per the standing policy. The Emacs slot has no exact classic
+(transpose-lines differs); seed the same chords or leave empty.
+Verify: unit tests at the edit seam plus a `--keys` sidecar journey.
+
+---
 ### 537 — footnote markers may wear the traditional reference ladder (user decision, 2026-09-01; sequenced AFTER 529 bundles the face)
 
 🔴 BLOCKED — needs the user's product decisions on per-document versus recycled scope and whether definition-list markers follow the display option. U+2016 coverage remains an engineering verification, not a user decision.
