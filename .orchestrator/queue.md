@@ -646,15 +646,22 @@ fitting-room artifact is the visual reference for all of this.
 ---
 ### 547 — CI RED: smart-punctuation full-body pixel law rejects Tawny ellipsis on Linux lavapipe
 
-✅ COMPLETE — premise false, oracle repaired. Landed on main as merge
-`1f07416f`; an independent `gpt-5.6-terra` medium audit accepted the law after
-deletion, half-scale and wrong-ink mutations each made it fail. The repaired
-one-frame relative oracle keeps full-world × punctuation-kind enrolment while
-measuring presence, horizontal extent, suffix displacement and body-ink travel;
-backend-sensitive exact vertical raster height remains diagnostic only.
-Exact-main receipt: health pass, both conventions, forced menu-bar arm, 4,693
-unit tests, 16 integration targets; web 16/16. Hosted Linux lavapipe remains the
-final remote confirmation.
+🟡 IN PROGRESS — reopened after the final hosted-Linux oracle rejected the
+first repair. Claimed for `gpt-5.6-sol` high on
+`codex/item-547-lavapipe-smart-punct-law`.
+
+The first repair landed on main as merge `1f07416f`; an independent
+`gpt-5.6-terra` medium audit accepted its enrolment and mutations, and exact-main
+native plus web gates were green locally. Hosted run
+https://github.com/Frank-P-Lu/awl-editor/actions/runs/33453602151 then exposed a
+different Tawny × EmDash result in both conventions: ornament ink is 20 px wide
+versus a 14 px Unicode control (ratio 1.429), and the identical suffix begins 9
+px farther right. Treat this new report as a product-defect hypothesis: determine
+whether the ornament face is genuinely over-advancing or the control comparison
+still collapses unlike shaping paths. Do not widen either absolute tolerance or
+ratio band. Repair the product if the suffix displacement is real; otherwise
+replace the faulty comparison with a same-frame outcome that still mutation-proves
+deletion, undersizing, wrong ink and over-advance. Hosted lavapipe must turn green.
 
 Remote arbiter run
 https://github.com/Frank-P-Lu/awl-editor/actions/runs/33443457917 is RED.
