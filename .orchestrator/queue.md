@@ -1153,6 +1153,128 @@ the selected orphan's color and follows a selection move; the
 can't-decode state gets its own capture law.
 
 ---
+### 564 — Kite's living warped-grid tunnel: one reusable contorted tube, roaming between four room-owned vanishing points (user decision, 2026-09-02 — interactive design study approved)
+
+The premise is verified in the tree before this brief asks for a rewrite:
+Kite is already the sole wearer of `Background::WarpedGrid`; its existing
+ground is an analytic per-fragment tunnel in `shaders/background.wgsl`, with
+live travel owned by `src/warpgrid.rs`. Today that tunnel is deliberately
+straight (`w = q`), circular, fixed to the room centre, and advances through a
+406-second linear ring loop. This item REPLACES that visual answer; it does not
+add a parallel background or a Kite-named render path.
+
+**Approved visual target.** Kite remains a LIGHT world: mineral near-white /
+pale-lavender room and page, graphite-violet prose, vermilion caret as the sole
+accent. Its margins become one continuous, gently folded wireframe tube whose
+near field fills the room around the central writing page. The page remains
+flat, still, opaque enough for prose, and authoritative; the sparse major
+scaffold may continue beneath it at the existing legibility veil so a curve
+leaving one flank can be traced into the other. There is ONE camera and ONE
+tube, never one tunnel per margin.
+
+The user-approved study's normalized settings are the durable reference for
+the first authored profile: **fold 0.34, twist 0.72, forward drift 0.05, ribs
+58**. These are theme-authored design numbers, NOT new Settings rows or public
+configuration. Preserve their visual meaning rather than blindly treating the
+prototype's units as the shader's current `spacing_px`/`density` units. The
+study's wall used a positive-radius harmonic section of this shape (included
+here so the build lane needs no private path or web prototype):
+
+`turn = theta + z*twist`
+
+`radius = max(0.46, 1 + fold*(0.46*cos(3*turn) + 0.18*sin(5*turn - 0.35*z))) * pulse`
+
+where `pulse` is a very small slow longitudinal breathe. The exact projection
+may be re-derived for awl's closed-form ray cast, but three properties are not
+negotiable: radius never closes the passage; the folds read as the wall's
+surface rather than a 2-D wavy overlay; and changing the page width only crops
+or reveals the one room field — it never rescales or repositions it.
+
+**Roaming vanishing point.** Four room-owned targets, expressed as viewport
+fractions and independent of page geometry: top-left `(0.20, 0.24)`, top-right
+`(0.80, 0.24)`, bottom-left `(0.20, 0.76)`, bottom-right `(0.80, 0.76)`. Start
+at top-right. Hold each target for **15 seconds**, then choose another target
+pseudo-randomly with no immediate repeat and drift to it over **12 seconds**
+(the approved study used 9 seconds; the user explicitly asked for longer so
+the move reads as the tunnel CONTORTING, not a camera sliding). Use a smooth
+zero-velocity-at-both-ends curve such as smootherstep. The depth field bends
+toward the moving target progressively, so the near tunnel does not translate
+as a rigid plate. A deterministic/seedable sequence owner supplies captures
+and tests; live may pick a fresh seed on world activation, but no random source
+is read in the fragment shader and no headless frame depends on ambient entropy.
+
+**No orb.** The convergence is communicated by the lattice itself. Remove any
+bright circular core, dot, crosshair, or discrete marker. At most, draw a small
+broad low-alpha violet defocus/haze at the far end — preferably an analytic
+falloff already inside the ground shader, not a new full-frame blur pass. It
+must read as atmospheric softness, not a UI object and not a second accent.
+
+**Reusable mechanism, not Kite machinery.** Extend the WarpedGrid/tunnel data
+model and its one motion owner so another future world can author the same
+fold/twist/path vocabulary by data. No `theme.name == "Kite"`, no second frame
+clock, no world-specific pipeline, and no public theme format. Mutation-only
+arms may remain mutation arms, but the shipping profile and every scalar the
+shader reads have one typed owner. Keep per-frame CPU work O(1), shader work
+bounded per fragment with no data-dependent iteration, and the web/WebGL2 path
+honest.
+
+Motion policy stays shared: Ambient motion off, Reduce Motion, lost focus,
+pause, and ordinary headless capture all freeze at one documented pose;
+delayed wakes advance one bounded step rather than catching up. Forward drift
+defaults to the approved `0.05` feel and the whole-section roll is slower than
+the study's earlier cut (the approved study's default full roll was about four
+minutes at twist 0.72). The user owns final live judgement of drift, contortion,
+and long-session comfort.
+
+**Verification.** Read `docs/harness-reach.md` before promising captures. Add
+pure laws for the four-target state machine (complete target roster, no
+immediate repeat, exact 15-second dwell, exact 12-second transit, endpoint
+velocity/easing, fixed-seed determinism); wrap/continuity laws for forward
+travel, fold, roll, and target transitions; and the existing bounded-wake /
+freeze policy sweep. Extend `AWL_WARP_PHASE` (or replace it with one equally
+explicit deterministic seam) so captures can name every corner, a midpoint
+transition, the wrap, and the reduced-motion pose. The sidecar must report the
+resolved vanishing point, hold/transit state, and forward phase — state oracle;
+PNG arithmetic owns appearance: one continuous tube across both flanks and
+under-page scaffold, page contrast still clearing the existing 4.5:1 floor,
+no compact bright core/orb, no moiré, and meaningful ink in both wide and
+narrow margins at 1x/2x. Run a five-shot vision smoke asking where the
+vanishing point is and whether the page remains the obvious writing surface.
+Record a before/after `--bench-frame` and make its witness prove the travelling
+ground actually rendered. Native gate + web smoke; live human sign-off remains
+owed for the several-minute feel.
+
+NOT this item: a dark Kite variant, a user-facing tunnel editor, general camera
+path authoring, a new blur compositor, or changing any other world's ground.
+
+---
+### 565 — pasted images take the document's name as their stem (user decision, 2026-09-02 — "better default image names is good")
+
+Today every pasted image is `pasted-N.png` (`paste_image.rs`,
+`PASTED_STEM`), so an assets folder full of them is opaque in the
+Finder and the Clean-unused picker alike — the user can't be bothered
+renaming (their words), so the fix is the zero-interaction one: derive
+the stem from the DOCUMENT instead — `trip-notes-1.png` beside
+`trip-notes.md`. Constraints: `next_pasted_name` stays a pure function,
+now of (doc stem, directory listing) — no clock, no randomness, same
+gaps-filled probing per stem, so the capture path stays byte-identical.
+The stem is sanitized by a recorded rule: the markdown reference must
+survive as a working inline link and the name as a portable filename —
+decide and TEST what happens to spaces, path separators, dots, CJK, and
+absurdly long names (cap the stem; keep non-ASCII rather than
+transliterating unless a real breakage says otherwise — record the
+choice either way). The no-path buffer already auto-names itself before
+paste (`ensure_note_named_before_paste`), so a stem exists; the one
+truly-empty-buffer fallback keeps `pasted-` as today. Existing assets
+keep their names — no migration, no rename of anything on disk; two
+stems probe independently in the same folder. Verify: unit tests at the
+pure seam sweeping the sanitization axis plus collision/gap cases
+against a seeded listing; the live clipboard glue is unchanged and
+stays flagged live-only. NOT this item: a Rename-image command
+(deliberately skipped for now — a verb the user says they wouldn't
+invoke) and any alt-text machinery.
+
+---
 ### 537 — footnote markers may wear the traditional reference ladder (user decision, 2026-09-01; sequenced AFTER 529 bundles the face)
 
 🔴 BLOCKED — needs the user's product decisions on per-document versus recycled scope and whether definition-list markers follow the display option. U+2016 coverage remains an engineering verification, not a user decision.
