@@ -1009,6 +1009,8 @@ docs/harness-reach.md.
 ---
 ### 555 — sentence motion: forward/back, select, and delete by sentence (user decision, 2026-09-01)
 
+🟡 IN PROGRESS — claude, branch item-555
+
 awl is prose-first but its motion grammar stops at words — no sentence
 verb exists anywhere in the tree. Add sentence forward/backward motion,
 shift-extension (enrolled in `is_motion` so selection extension arrives
@@ -1031,6 +1033,8 @@ journey.
 
 ---
 ### 556 — move line/selection up and down (user decision, 2026-09-01)
+
+🟡 IN PROGRESS — claude, branch item-556
 
 No such action exists. The prose meaning is "reorder list items and
 paragraphs": one command swaps the caret's logical line — or every line
