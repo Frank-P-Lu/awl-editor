@@ -1202,7 +1202,25 @@ this item does not touch the frost.
 ---
 ### 563 — Clean unused assets: preview the highlighted orphan (user decision, 2026-09-01)
 
-🟡 IN PROGRESS — claude, branch item-563
+✅ COMPLETE — merged as `bea0ecf8`, follow-ups `bd4e62b4` (size marks) and
+`938fcc8a` (a real gate-caught bug — see below). The Asset Cleaner now
+shows a live preview beside the list: reuses `render/image_cache.rs`'s
+one decoder, contain-fits, honest can't-decode panel (name/size/plain
+statement, never a blank). Real bug caught before shipping:
+`prepare_images`'s per-frame decode-cache pruning evicted the preview's
+own path every frame (an orphan is referenced by no document), redecoding
+on every frame rather than once per selection — fixed with one line,
+mutation-proven. A second bug surfaced only under the full gate's Linux
+keymap convention: the new pixel-integration test's `s-p` (Super-P)
+palette chord is Mac-authored, and without an explicit pin
+`native-gate.sh`'s `AWL_CONVENTION_FORCE=linux` sweep leaked into the
+spawned child, flipping Cmd-slot bindings to require Control instead —
+fixed by pinning `AWL_CONVENTION_FORCE=mac` on the spawn, the same
+pattern `tests/hermetic_canary.rs`/`tests/seed_data_slot.rs` already use.
+Two mutation-proven unit laws plus a pixel-arithmetic integration suite
+(three solid-color fixtures + one can't-decode orphan, first/middle/last
+selection swept). Exact-main receipt: health pass:245s, both conventions,
+menubar=full:on, 4716 unit tests, 17 integration targets; web smoke OK.
 
 The user's words: the cleaner is "kinda… not that intuitive, since you
 don't actually see what images they are… we should probably add a
