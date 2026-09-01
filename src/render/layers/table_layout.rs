@@ -53,6 +53,29 @@ impl TableGridCache {
 }
 
 impl TextPipeline {
+    /// Table cells live in a separate shaped cache, including theme-authored
+    /// inline markdown attrs. Refresh it in the same transaction that re-styles
+    /// prose, merging only table-owned row heights so image reservations hold.
+    pub(in crate::render) fn refresh_table_cache_for_restyle(&mut self) {
+        let Some(text) = self.shaped_key.clone() else {
+            return;
+        };
+        let table_blocks = self.table_blocks();
+        let spans = self.md_spans.clone();
+        let table_heights = self.compute_table_layout(&text, &spans);
+        let mut start = 0usize;
+        for (li, line) in text.split('\n').enumerate() {
+            if table_blocks
+                .iter()
+                .any(|(_, range)| range.start <= start && start < range.end)
+                && let Some(slot) = self.image_heights.get_mut(li)
+            {
+                *slot = table_heights.get(li).copied().flatten();
+            }
+            start += line.len() + 1;
+        }
+    }
+
     /// Shape ONE table's cells as inline markdown, size its columns to fit `avail`,
     /// and — WRAP-NOT-CLIP — reshape each cell at its FINAL column width so an
     /// over-wide table wraps within its columns instead of hard-clipping. Returns
@@ -75,8 +98,14 @@ impl TextPipeline {
         pad: f32,
     ) -> TableGridShaped {
         let m = self.metrics;
-        let content = theme::base_content().to_glyphon();
-        let cell_attrs = self.doc_attrs().color(content);
+        // Keep ordinary cell text on glyphon's `TextArea::default_color`, the
+        // same live per-frame ink ordinary prose uses. A baked `base_content`
+        // makes the cached cell buffer retain the source world's ink across a
+        // live theme switch even though `prepare_table_grid` supplies the new
+        // world's default color. Inline markdown spans may still carry their
+        // own authored colors; `restyle_all_lines` refreshes this cache along
+        // with those spans whenever the active world changes.
+        let cell_attrs = self.doc_attrs();
         let body_metrics = GlyphMetrics::new(m.font_size, m.line_height);
         // PASS 1 — shape each non-empty cell to measure BOTH its MAX-content width
         // (the whole cell on one line, at the full writing column) and its

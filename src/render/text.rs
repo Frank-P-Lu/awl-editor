@@ -923,7 +923,6 @@ impl TextPipeline {
         }
         self.buffer.set_redraw(true);
     }
-
     /// Rebuild EVERY line's `AttrsList` (markdown + CJK spans) at the CURRENT
     /// metrics, then re-shape. Heading lines carry ABSOLUTE per-span `metrics` (a
     /// fixed pixel size), and the incremental text path only rebuilds lines whose
@@ -933,6 +932,7 @@ impl TextPipeline {
     /// case never pays for it.
     pub(super) fn restyle_all_lines(&mut self) {
         self.refresh_smart_punct_advances();
+        self.refresh_table_cache_for_restyle();
         let attrs = self.doc_attrs();
         let fonts = self.cache_script_fonts();
         let doc_lang = self.doc_lang;

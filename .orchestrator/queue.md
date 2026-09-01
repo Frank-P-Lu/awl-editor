@@ -646,10 +646,10 @@ fitting-room artifact is the visual reference for all of this.
 ---
 ### 547 — CI RED: smart-punctuation full-body pixel law rejects Tawny ellipsis on Linux lavapipe
 
-🟡 IN PROGRESS — second repair merged as `c403e4bc`; exact-main native receipt
-`6501c7f4` and web smoke are green, and an independent `gpt-5.6-terra` medium
-audit accepted the premise, enrolment, captures, and mutations. Awaiting the
-hosted-Linux lavapipe oracle before closure.
+🟢 COMPLETE — second repair merged as `c403e4bc`; exact-main native receipt
+`6501c7f4`, web smoke, and independent `gpt-5.6-terra` medium audit are green.
+Hosted arbiter https://github.com/Frank-P-Lu/awl-editor/actions/runs/33461126973
+then passed all four gating jobs, including Linux/lavapipe in both conventions.
 
 The real defect was document-face shaping, not a backend tolerance: Tawny's
 IBM Plex Mono ships at weight 300, and the old default-400 smart-punctuation
@@ -696,8 +696,11 @@ enrolment and mutations. Remote Linux is the final lavapipe oracle.
 ---
 ### 548 — table text wears the PREVIOUS world's ink after a live theme switch (user report, 2026-09-01 — "tables are off on this theme"; ink identified by pixel arithmetic, mechanism still a hypothesis)
 
-🟡 IN PROGRESS — claimed for `gpt-5.6-sol` high on
-`codex/item-548-live-table-retint`.
+🟢 COMPLETE — `6a1d23c9` moved ordinary cells to live default ink and refreshes
+inline cell attrs with the table cache; `fbcef6ac` aligned the inherited-ink law.
+Independent `gpt-5.6-terra` medium audits accepted the exact candidate after
+both mutations, the 20-world census, and five-shot vision smoke; native and web
+gates are green on `fbcef6ac`.
 
 Report: on a live Mangrove window the user's tables render near-invisible
 while the surrounding prose is correct. Measured over the report's screenshot:

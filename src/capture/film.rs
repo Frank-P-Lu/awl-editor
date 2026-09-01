@@ -85,6 +85,16 @@ impl FilmRenderer {
         })
     }
 
+    /// Re-seed the persistent offscreen pipeline after the active world changes.
+    /// Storyboard callers normally change worlds through their own step driver;
+    /// the live-App transition law uses this seam to keep the SAME constructed
+    /// pipeline across the real App's picker acceptance, exactly as a windowed
+    /// `Gpu` does before presenting the next frame.
+    #[cfg(test)]
+    pub(crate) fn sync_theme(&mut self) {
+        self.pipeline.sync_theme();
+    }
+
     /// Render ONE storyboard step: fold `buffer` + `opts` into the settled view
     /// (the shared single-frame owner), then advance the virtual clock `ticks`
     /// fixed frame-steps, writing one film frame each. When `step_png` is given,
