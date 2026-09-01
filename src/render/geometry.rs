@@ -439,6 +439,28 @@ pub(super) fn row_x_span(
     (x, w)
 }
 
+/// [`row_x_span`]'s counterpart for a floated table X-RAY row: the same `[s, e)`
+/// char-column span, but read from the revealed row's OWN `glyph_xs` (the raw
+/// source's real shaped advances) rather than the concealed doc row's collapsed
+/// `xs` — and offset by the float's `pan` exactly like [`xray_col_x`], so a
+/// selection quad lands under the same glyphs the x-ray float draws. Without
+/// this redirect a selection touching a concealed table row measures the
+/// zero-width concealed advances and paints a hairline sliver at the margin
+/// instead of a band under the revealed ink.
+pub(super) fn xray_x_span(
+    xray: &crate::render::XrayRow,
+    text_left: f32,
+    s: usize,
+    e: usize,
+    min_w: f32,
+) -> (f32, f32) {
+    let xs_s = xray.glyph_xs.get(s).copied().unwrap_or(0.0) - xray.pan;
+    let xs_e = xray.glyph_xs.get(e).copied().unwrap_or(xs_s + xray.pan) - xray.pan;
+    let x = text_left + xs_s;
+    let w = (xs_e - xs_s).max(min_w);
+    (x, w)
+}
+
 /// Assemble ONE [`VisualRow`] from a shaped layout `run` of the logical line whose
 /// text is `line_text` — the per-run body shared VERBATIM by
 /// [`TextPipeline::visual_rows`] and [`TextPipeline::visual_rows_for_lines`], so
