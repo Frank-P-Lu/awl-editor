@@ -23,7 +23,8 @@ fn asset_preview_decodes_once_per_selection_never_once_per_frame() {
     let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!(
-            "skipping asset_preview_decodes_once_per_selection_never_once_per_frame: no wgpu adapter"
+            "skipping asset_preview_decodes_once_per_selection_never_once_per_frame: \
+             no wgpu adapter"
         );
         return;
     };
@@ -97,7 +98,8 @@ fn asset_preview_yields_entirely_on_a_narrow_canvas_leaving_the_card_untouched()
     let _g = crate::testlock::serial();
     let Some(mut p) = super::headless_pipeline() else {
         eprintln!(
-            "skipping asset_preview_yields_entirely_on_a_narrow_canvas_leaving_the_card_untouched: no wgpu adapter"
+            "skipping asset_preview_yields_entirely_on_a_narrow_canvas_leaving_the_card_untouched: \
+             no wgpu adapter"
         );
         return;
     };

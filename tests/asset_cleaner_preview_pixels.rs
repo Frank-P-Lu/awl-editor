@@ -164,7 +164,8 @@ fn preview_wears_the_selected_orphans_colour_first_middle_last() {
         let out = dir.join(format!("row{row}.png"));
         let Some((png, sidecar)) = capture(&dir, &doc, &out, row) else {
             eprintln!(
-                "skipping preview_wears_the_selected_orphans_colour_first_middle_last: no wgpu adapter"
+                "skipping preview_wears_the_selected_orphans_colour_first_middle_last: \
+                 no wgpu adapter"
             );
             return;
         };

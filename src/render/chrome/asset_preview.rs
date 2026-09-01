@@ -71,9 +71,9 @@ impl TextPipeline {
     /// genuine room for it beside the card ([`ASSET_PREVIEW_MIN_W`]).
     ///
     /// Recomputes [`Self::overlay_geometry`] — cheap, since the ROW PLAN
-    /// (item 217's budgeted per-frame quantity, `OverlayRowPlan`) is a
-    /// SEPARATE build this never touches, the identical precedent
-    /// `table_dims_cell_at`'s own hit-test recomputation already sets.
+    /// (the budgeted per-frame `OverlayRowPlan`) is a SEPARATE build this
+    /// never touches, the identical precedent `table_dims_cell_at`'s own
+    /// hit-test recomputation already sets.
     pub(in crate::render) fn asset_preview_rect(&self, width: u32) -> Option<[f32; 4]> {
         self.overlay_asset_preview.as_ref()?;
         let geom = self.overlay_geometry(width);
