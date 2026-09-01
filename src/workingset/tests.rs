@@ -272,6 +272,53 @@ fn rekey_active_is_a_no_op_with_nothing_active() {
     assert!(ws.is_empty(), "nothing was opened, nothing to rekey");
 }
 
+/// **A FRESHLY OPENED FILE, AMONG SEVERAL ALREADY OPEN, IS ACTIVE IN THE VERY
+/// SAME [`WorkingSet::stack_rows`] CALL THAT FIRST DRAWS IT** — no separate
+/// activation step and no frame of delay, because [`WorkingSet::open`] sets
+/// `self.active` unconditionally before returning and `stack_rows` re-derives
+/// every row's `active` flag from that field fresh on each call (no cache to
+/// go stale). The margin's plate is a pure function of that flag
+/// (`render::chrome::gutter_stack::plate_rects`' own `file.active` filter,
+/// already swept for every slot by that module's own tests), so this is the
+/// one link in the chain those geometry laws don't cover: whether OPENING
+/// actually flips the flag before the first row is ever drawn.
+///
+/// Swept over which slot is fresh — the file that already existed (b.md,
+/// re-activated rather than newly pushed) and the file that didn't (c.md,
+/// pushed as a new row) — because an implementation that special-cased
+/// "already open" from "brand new" could pass one shape and fail the other.
+#[test]
+fn a_freshly_opened_file_among_several_is_active_immediately() {
+    let mut ws = WorkingSet::default();
+    opened(&mut ws, "a.md");
+    opened(&mut ws, "b.md");
+    // Two files open, b.md active. Re-opening a.md (already in the set) must
+    // flip it active in this same call, no intermediate state where neither
+    // row (or the old active row) is marked.
+    opened(&mut ws, "a.md");
+    assert_eq!(
+        ws.stack_rows(&root())
+            .iter()
+            .map(|r| r.active)
+            .collect::<Vec<_>>(),
+        vec![true, false],
+        "re-opening an already-open file activates it in the same read"
+    );
+
+    // A genuinely NEW file, opened while two others are already in the set —
+    // the exact "first open" shape the user's own report never covered
+    // (their screenshot was the single-file case only).
+    opened(&mut ws, "c.md");
+    assert_eq!(
+        ws.stack_rows(&root())
+            .iter()
+            .map(|r| r.active)
+            .collect::<Vec<_>>(),
+        vec![false, false, true],
+        "a brand-new row is active the instant it is first drawn, not one frame later"
+    );
+}
+
 /// **Closing an INACTIVE row closes that named buffer without activating it.**
 /// The pointer route the design decision spells out, and the one an
 /// implementation that routes every close through "activate, then close the
