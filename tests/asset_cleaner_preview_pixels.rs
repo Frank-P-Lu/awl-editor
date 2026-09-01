@@ -97,6 +97,13 @@ fn capture(
         keys.push_str(" Down");
     }
     let output = common::awl(dir)
+        // The chord literal above is Mac-authored (`s-p` == Super-P for the
+        // command palette); pin the child to that convention so the gate's
+        // own `AWL_CONVENTION_FORCE=linux` sweep for the OUTER test process
+        // does not leak in and flip Cmd-slot bindings to require Control
+        // instead (`tests/hermetic_canary.rs`/`tests/seed_data_slot.rs` pin
+        // the same way for the same reason).
+        .env("AWL_CONVENTION_FORCE", "mac")
         .arg("--screenshot")
         .arg(out)
         .arg(doc)
