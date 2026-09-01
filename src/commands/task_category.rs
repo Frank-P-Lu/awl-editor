@@ -134,6 +134,8 @@ const COMMAND_TASK_CATEGORIES: &[(&str, TaskCategory)] = &[
     ("Reset zoom", View),
     ("Forward word", Navigate),
     ("Backward word", Navigate),
+    ("Sentence forward", Navigate),
+    ("Sentence backward", Navigate),
     ("Line start", Navigate),
     ("Line end", Navigate),
     ("Document start", Navigate),
@@ -144,6 +146,8 @@ const COMMAND_TASK_CATEGORIES: &[(&str, TaskCategory)] = &[
     ("Previous line", Navigate),
     ("Delete word forward", Navigate),
     ("Delete word backward", Navigate),
+    ("Delete sentence forward", Navigate),
+    ("Delete sentence backward", Navigate),
     ("Settings…", Settings),
     ("Keybindings…", Settings),
 ];

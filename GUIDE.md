@@ -294,6 +294,8 @@ drift into this page silently.
 | Reset zoom | ⌘0 | Ctrl+0 |
 | Forward word | ⌥Right | Alt+Right |
 | Backward word | ⌥Left | Alt+Left |
+| Sentence forward |  |  |
+| Sentence backward |  |  |
 | Line start | ⌘Left · C-a | Home |
 | Line end | ⌘Right · C-e | End |
 | Document start | ⌘Up | Ctrl+Home |
@@ -304,6 +306,8 @@ drift into this page silently.
 | Previous line | C-p |  |
 | Delete word forward |  |  |
 | Delete word backward |  |  |
+| Delete sentence forward |  |  |
+| Delete sentence backward |  |  |
 | Settings… | ⌘, | Ctrl+, |
 | Keybindings… |  |  |
 <!-- GENERATED:keys-reference:END -->

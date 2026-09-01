@@ -23,7 +23,7 @@ pub(super) const SENTENCE_BACKWARD: Command = Command {
     native_only: false,
     web_only: false,
     description: Some(
-        "Move the caret to the start of the current sentence, or the previous one if already there.",
+        "Move the caret to the current sentence's start, or the previous one if already there.",
     ),
 };
 

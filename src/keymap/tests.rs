@@ -116,6 +116,8 @@ zoom_out|Cmd--|C--|
 reset_zoom|Cmd-0|C-0|
 forward_word|M-Right|M-Right|
 backward_word|M-Left|M-Left|
+sentence_forward|||
+sentence_backward|||
 line_start|Cmd-Left|Home|C-a
 line_end|Cmd-Right|End|C-e
 document_start|Cmd-Up|C-Home|
@@ -126,6 +128,8 @@ next_line|||C-n
 previous_line|||C-p
 delete_word_forward|||
 delete_word_backward|||
+delete_sentence_forward|||
+delete_sentence_backward|||
 settings|Cmd-,|C-,|
 keybindings|||
 ";
