@@ -1000,6 +1000,120 @@ cost per the standing policy. The Emacs slot has no exact classic
 Verify: unit tests at the edit seam plus a `--keys` sidecar journey.
 
 ---
+### 553 — single open file draws no active plate in the working-set gutter (user report, 2026-09-01 — "when you first open a file, it doesn't seem to be selected?"; behavior confirmed in every capture's own gutter)
+
+With exactly one file open, the identity line shows the bare name — no
+active-row plate — and the user reads that as "not selected." Two-file
+state plates the active row (their own earlier screenshot). Confirmed as
+current behavior incidentally in every capture this session (the
+bottom-left gutter of each PNG shows the lone open file unplated).
+Mechanism neighborhood: the single-file identity line is a separate door
+from the stack (`render/chrome/gutter.rs` — "the identity line is EITHER
+the lone filename or the working set's rows"; it already shares the
+close-mark lane via one mechanism), and `gutter_stack::plate_rects` only
+plates `file.active` STACK rows. Whether the unplated single file is a
+deliberate calm-when-nothing-to-distinguish choice or an omission is for
+the lane to establish from the tree and `git log` — and if deliberate, it
+has failed its reader once, which is data: bring the finding plus a capture
+of each candidate (plated vs not) back to the user for the taste call
+rather than landing either silently. Also establish whether a freshly
+OPENED file among several is plated immediately (the user said "first
+open"; their screenshot is the single-file case — the multi-file
+fresh-open cell is unverified). Law once decided: sweep both cells.
+
+---
+### 554 — close mark wants real hover feedback, and the row wants a pointer cursor decision (user report, 2026-09-01 — "when your mouse is over the X button it should be highlighted or something… the whole thing is a pointer right… how do tabs do this?")
+
+Today's affordance ladder (`render/chrome/gutter_stack.rs`, the reveal
+logic): the × is invisible until the pointer is over its ROW, then drawn
+`muted`, and brightens to the selected-row secondary ink only when the
+pointer is inside the close ZONE itself. The user's report says that
+ladder's top rung is too quiet — asks for a visible highlight on the ×
+under the pointer (a plate/ring behind the glyph, not just an ink shift),
+and raises the CURSOR question: the whole row is clickable (switch) plus
+the destructive close zone, and nothing changes the pointer shape
+(`cursor_shape.rs` is the owner to check — what does the gutter request
+today?). Their own answer to "how do tabs do this": browser/editor tabs
+show a hover plate on the × and do NOT use the hand cursor — arrow plus
+hover-state is the convention. Lane: audition a close-zone hover plate
+(zone rect already exists — `close_zone` — so the plate is the same rect
+the hit-test owns, keeping drawn-vs-accepted from drifting), keep the
+arrow cursor unless the user asks otherwise, and bring a capture pair to
+the user. Hover is pointer state no `--keys` capture drives; the plate
+geometry laws sit at the unit seam (zone ⊆ plate fill, 550's family), and
+the hover look itself is the user's live check. Coordinate with 550 (the
+lane trims the same geometry) — one lane may take both.
+
+---
+### 555 — theme picker rhythm: dead rows between the query head and the first row, and a top-heavy oversized hint card (user taste report, 2026-09-01 — "from where the caret is until the first item there's a lot of spacing… kind of weird; the bottom instruction box has too much padding vertically")
+
+Measured on the user's 2× screenshot (unclamped list, all 20 worlds
+fit): the query head's caret dot ends at y≈106 and the first row's ink
+starts at y≈240 — ≈135px of nothing, about TWO full row pitches (row
+pitch ≈62px). The hint card at bottom is ≈107px inside its borders for
+one ≈24px text line — 51px pad above the text, 30px below: oversized and
+top-heavy, and the asymmetry reads as a mistake rather than a choice. In
+the 1200×800 captures the same gap holds the "↑ N more" clamp marker, so
+a starting hypothesis for the lane: the head gap is a reserved marker row
+(plus its leading) that stays reserved even when nothing is clamped, and
+the fix is collapsing it in the unclamped state — but derive the actual
+owner from `render/rowlayout` / the overlay geometry rather than trusting
+this reading. Direction offered to the user (they asked for a better
+idea): head-to-list gap of one row leading when unclamped, marker row
+materializing only when it has something to say; hint text vertically
+centered in a card one row tall plus symmetric padding, matching the
+picker rows' own rhythm. Geometry is fully headless-verifiable (this
+item's numbers came from pixel arithmetic); the final feel is the user's
+live sign-off. Blur/frost complaints from the same session are NOT this
+item: the bounding-box-over-L-shape frost and the squiggle-over-frost
+layering question belong to the 543/544 street — check with the user
+before opening that follow-up.
+
+---
+### 556 — world ornaments render at inconsistent sizes across worlds; scale the small sets up to the big ones (user decision, 2026-09-01 — "for some worlds it's a bit small… bigger is actually better here; make sure the smaller ones are scaled up to match the bigger ones")
+
+Two user screenshots of the SAME document in two worlds: a chess-piece
+ornament set (dark world) drawing noticeably smaller, relative to the
+body text beside it, than a bar-glyph set (dark-green world) — rough
+normalization against each shot's own char width puts the chess set at
+~2.6–2.9 char widths tall against the bars' ~3.6 (approximate: measured
+from screenshots at unknown zooms, normalized by their own text; the lane
+re-measures headlessly). The user's direction is explicit and is the
+item: EQUALIZE UPWARD — the bigger rendering is the target, the smaller
+sets scale up to match it. Owner: the per-world ornament cabinet (529/536
+neighborhood). Law shape: capture one fixed document across the FULL
+world roster, measure each world's ornament ink height normalized to that
+world's own body char width by pixel arithmetic, and pin the spread —
+every world within a tolerance band of the roster target, derived from
+the roster rather than a named pair, naming the offender in the failure
+message. Watch the axis the glyphs hide: different sets have different
+intrinsic ink-to-em ratios (a chess knight fills its box differently than
+solid bars), so the law measures INK EXTENT, not font size requested.
+Final size is the user's live sign-off.
+
+---
+### 557 — Insert Table dims grid: hover should live-resize the selection, and the pointer question again (user decision, 2026-09-01 — "it's not really mouse friendly… as you hover over it it should resize along to where your cursor is… cursor should be pointer I think"; animation explicitly deferred: "maybe a bit too much for now")
+
+Verified in the tree: the dims grid answers CLICKS only —
+`app/input/mouse.rs` maps a press through `table_dims_cell_at` to
+`table_dims_pick`, and no pointer-Moved path touches the dims selection;
+hovering the grid changes nothing until you click. The ask: pointer over
+cell (r, c) previews r×c live — the standard Notion/Word grid gesture —
+with the keyboard path (arrows already work) staying authoritative and
+the two never fighting (hover updates the same one selection state the
+arrows move; no second shadow state). Also set the pointer cursor over
+the grid (`cursor_shape.rs` is the owner; note 554 records the user's
+own observation that tabs DON'T hand-cursor — the two items should land
+one consistent cursor policy for clickable chrome, so coordinate).
+Animation is DEFERRED by the user's own words — do not add it. Verify:
+hover is pointer state outside `--keys` reach; the hit-mapping
+(`table_dims_cell_at`) and the selection-update seam are unit-law
+territory (hover at cell ⇒ selection equals cell, swept over the grid's
+corners and the card's padding edges where off-by-one lives); the live
+feel is the user's check. The card itself is 543/544 frost territory —
+this item does not touch the frost.
+
+---
 ### 537 — footnote markers may wear the traditional reference ladder (user decision, 2026-09-01; sequenced AFTER 529 bundles the face)
 
 🔴 BLOCKED — needs the user's product decisions on per-document versus recycled scope and whether definition-list markers follow the display option. U+2016 coverage remains an engineering verification, not a user decision.
