@@ -97,4 +97,27 @@ impl Buffer {
         self.goal_col = None;
         self.cursor = super::word_backward_boundary(self.cursor, |i| self.rope.char(i));
     }
+
+    /// M-e: to the start of the following sentence — see
+    /// [`crate::buffer::sentence`]'s module doc for the UAX #29 rule and why
+    /// that lands past a terminator's own trailing whitespace.
+    pub fn forward_sentence(&mut self) {
+        self.clear_kill_flag();
+        self.goal_col = None;
+        self.cursor = super::sentence_forward_boundary(self.cursor, self.rope.len_chars(), |i| {
+            self.rope.char(i)
+        });
+    }
+
+    /// M-a: to the start of the current sentence, or the previous one if the
+    /// cursor already sits at a sentence start — the exact mirror of
+    /// [`Self::forward_sentence`].
+    pub fn backward_sentence(&mut self) {
+        self.clear_kill_flag();
+        self.goal_col = None;
+        self.cursor =
+            super::sentence_backward_boundary(self.cursor, self.rope.len_chars(), |i| {
+                self.rope.char(i)
+            });
+    }
 }

@@ -34,6 +34,7 @@ mod project_switching;
 mod replay_ownership;
 mod replay_warnings;
 mod search;
+mod sentence_motion;
 mod settings_persist;
 mod shift_select;
 mod visual_motion;
