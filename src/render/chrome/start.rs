@@ -31,6 +31,8 @@ impl TextPipeline {
     ) -> anyhow::Result<()> {
         self.gutter_stack_plate
             .prepare(device, queue, width, height, &[]);
+        self.gutter_close_hover_plate
+            .prepare(device, queue, width, height, &[]);
         let label = crate::markdown::type_scale::LABEL;
         let row_h = self.metrics.line_height * label;
         self.gutter_buffer.set_metrics(
