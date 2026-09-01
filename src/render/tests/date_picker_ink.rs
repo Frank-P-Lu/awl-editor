@@ -140,6 +140,7 @@ fn capture_date_picker(
         spell_target: None,
         table_dims: None,
         context_anchor: None,
+        asset_preview: None,
         capture: None,
         notice: String::new(),
         lens: None,

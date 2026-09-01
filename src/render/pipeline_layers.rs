@@ -297,6 +297,17 @@ impl TextPipeline {
         self.overlay_range_track.draw(pass);
         self.overlay_range_thumb.draw(pass);
         self.table_dims_cells.draw(pass);
+        // THE ASSET CLEANER's preview panel: a SECOND coordinated region beside
+        // the card above, drawn AFTER its row quads so it is never hidden
+        // behind them — a dedicated trio (background, thumbnail, can't-decode
+        // statement), never the shared float-panel quads. Zero instances /
+        // empty text whenever `overlay_asset_preview` is empty, so every other
+        // picker's frame is byte-identical.
+        self.asset_preview_panel.draw(pass);
+        self.asset_preview_image.draw(pass);
+        self.asset_preview_text_renderer
+            .render(&self.atlas, &self.viewport, pass)
+            .map_err(|e| anyhow::anyhow!("glyphon asset preview render failed: {e:?}"))?;
         self.overlay_facet_ghost.draw(pass);
         self.overlay_lens_underline.draw(pass);
         self.overlay_facet_material.draw(pass);

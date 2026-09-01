@@ -292,6 +292,9 @@ impl App {
                 .and_then(|o| o.spell_target),
             overlay_table_dims: ov.and_then(|o| o.table_dims_target()),
             overlay_context_anchor: ov.and_then(|o| o.context_anchor),
+            overlay_asset_preview: ov
+                .and_then(|o| o.selected_asset_path())
+                .map(std::path::Path::to_path_buf),
             notice: self.frame.notice().owned().unwrap_or_default(),
             // The KIND rides with the text from the one snapshot, so the render
             // layer never has to guess a notice's lifetime from its sentence.

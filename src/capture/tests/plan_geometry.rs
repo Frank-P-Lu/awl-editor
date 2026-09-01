@@ -70,6 +70,7 @@ pub(super) fn flat_picker_opts(ov: &OverlayState, canvas: (u32, u32), dpi: f32) 
         spell_target: None,
         table_dims: None,
         context_anchor: None,
+        asset_preview: None,
         capture: None,
         notice: String::new(),
         lens: ov.active_facet_id(),

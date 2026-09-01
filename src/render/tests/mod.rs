@@ -20,6 +20,8 @@ use super::*;
 mod alloc_bound_law;
 mod ambient_wrap_law;
 #[cfg(not(target_arch = "wasm32"))]
+mod asset_preview;
+#[cfg(not(target_arch = "wasm32"))]
 mod awl_marks;
 mod awl_marks_pixels;
 mod band_input_epoch;

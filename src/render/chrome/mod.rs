@@ -412,6 +412,7 @@ mod overlay_selection_probe;
 mod overlay_shape;
 mod placard_placement;
 use placard_placement::{apply_placard_placement, placard_origin};
+mod asset_preview;
 mod overlay_timeline;
 pub(in crate::render) mod roster;
 mod rotated_location;

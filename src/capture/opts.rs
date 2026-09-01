@@ -144,6 +144,14 @@ pub struct OverlayInfo {
     pub table_dims: Option<(usize, usize)>,
     /// Context-menu click anchor in physical pixels; `None` for every other card.
     pub context_anchor: Option<(f32, f32)>,
+    /// The ASSET CLEANER's highlighted row's own image, as an absolute path —
+    /// mirrors `ViewState::overlay_asset_preview`, the render layer's gate
+    /// for the picker's live preview panel. `None` for every other mode. Not
+    /// its own sidecar JSON field (same "zero new sidecar plumbing"
+    /// precedent as `table_dims` above): the selected row's name is already
+    /// sidecar-visible via `items[selected_index]`, and the preview is an
+    /// appearance claim (Wagtail tripwire) verified over the PNG's pixels.
+    pub asset_preview: Option<std::path::PathBuf>,
     /// Keybindings rebind menu only: the active CAPTURE sub-state (the command being
     /// rebound, the phase, the KEY/CHORD mode, and the combos captured so far), or
     /// `None` while browsing the list / for every other mode. Emitted as the sidecar

@@ -48,6 +48,15 @@ impl TextPipeline {
             SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
         let image_placeholder_renderer =
             TextRenderer::new(&mut atlas, device, wgpu::MultisampleState::default(), None);
+        // THE ASSET CLEANER's live preview panel — a DEDICATED trio (never the
+        // shared float-panel trio below, which the search panel / caret-preview
+        // claim in the same frame this picker can be open in). See the field's
+        // own doc on `TextPipeline`.
+        let asset_preview_panel =
+            SelectionPipeline::new(device, &sel_shader, format, PLACEHOLDER_RGBA);
+        let asset_preview_image = crate::image_pipeline::ImageQuadPipeline::new(device, format);
+        let asset_preview_text_renderer =
+            TextRenderer::new(&mut atlas, device, wgpu::MultisampleState::default(), None);
         // INLINE-IMAGE resize-handle hover grip — a small filled
         // mark, never drawn until a hover resolves a handle.
         let image_handle_mark =
@@ -359,6 +368,9 @@ impl TextPipeline {
             image_hover: None,
             #[cfg(not(target_arch = "wasm32"))]
             image_cache: image_cache::ImageCache::default(),
+            asset_preview_panel,
+            asset_preview_image,
+            asset_preview_text_renderer,
             squiggle_cache: rects::UnderlineCache::new(),
             nit_cache: rects::UnderlineCache::new(),
             wash_cache: rects::WashCache::new(),
@@ -506,6 +518,7 @@ impl TextPipeline {
             overlay_spell: None,
             overlay_table_dims: None,
             overlay_context_anchor: None,
+            overlay_asset_preview: None,
             overlay_detail_focus: false,
             overlay_workspace: false,
             overlay_rows_primary: false,

@@ -1,6 +1,6 @@
 //! Asset-cleaner overlay construction and row retirement.
 
-use super::{OverlayKind, OverlayState};
+use super::{OverlayKind, OverlayState, RowMeta};
 
 impl OverlayState {
     pub fn new_assets(orphans: Vec<crate::assets::Orphan>) -> Self {
@@ -21,6 +21,14 @@ impl OverlayState {
             None,
         );
         state.set_secondaries(secondary);
+        // Carry each row's own resolved absolute path — the live PREVIEW
+        // panel's one input (`OverlayState::selected_asset_path`), never
+        // re-derived from `root` downstream (nothing past the scan carries it).
+        for (row, orphan) in state.rows.iter_mut().zip(&orphans) {
+            row.meta = RowMeta::Asset {
+                abs: orphan.abs.clone(),
+            };
+        }
         state
     }
 

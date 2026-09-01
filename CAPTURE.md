@@ -700,7 +700,7 @@ would otherwise assert a MECHANISM (an instance count, a dither flag, a
 computed color) and stop there — the mechanism proves the renderer INTENDED
 to draw something; the pixel diff proves it actually did.
 
-## The sidecar JSON — schema `awl-capture/210` (`/211` timeline, `/212` held)
+## The sidecar JSON — schema `awl-capture/211` (`/212` timeline, `/213` held)
 
 Field order is stable; consumers may parse positionally or by key.
 
@@ -1249,6 +1249,20 @@ against `lines`. Derived at the one windowing owner (`scroll_window`'s own
 `(top, visible)` pair, read through `window_edge_counts`,
 `render/chrome/mod.rs`) shared by every candidate window — flat, grouped, and
 the summoned workspace — so a picker that never clips reports both `null`.
+
+Schema `/211` adds **`overlay.asset_preview`**: the Asset Cleaner's live
+preview panel's own PLANNED rect `{ x, y, w, h }`, beside the picker's card at
+the same `card_y`/`card_h` — or `null` off that picker, or on a canvas with no
+genuine room for it beside the card. Read straight off the SAME
+`TextPipeline::asset_preview_rect` the panel's background, thumbnail and
+can't-decode text all draw from, so a Verify clause can sample the panel's
+pixels at an exact coordinate instead of estimating its bounds from private
+layout constants. Which orphan is selected is already sidecar-visible via
+`overlay.items[overlay.selected_index]` / `overlay.bindings[overlay.
+selected_index]` (name / size), so the CONTENT of the panel — does it show
+that orphan's own image, does a can't-decode file show its honest statement —
+stays an appearance claim over the PNG's pixels (CLAUDE.md's Wagtail
+tripwire), never the sidecar's to answer.
 
 Schema `/207` adds top-level **`document`**: `{ active, start_actions }`.
 Ordinary frames report `active: true` and no start actions. After a tier-2

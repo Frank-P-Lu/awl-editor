@@ -49,9 +49,15 @@ pub const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 ///          plus which geometry family drew the frame (a grouped card's
 ///          `lines` bills section headers, not items, so that inference was
 ///          wrong for exactly the picker this bump was written for).
+/// `/211` — `overlay.asset_preview`: the Asset Cleaner's live preview
+///          panel's own PLANNED rect (`{x,y,w,h}`), or `null` off that
+///          picker / when the canvas has no room for it. Without this a
+///          Verify clause asking "does the preview follow the selected
+///          orphan's colour" had to guess the panel's pixel bounds from
+///          scattered private layout constants instead of reading them.
 /// History lives in Git. Bump this row with the const. Plain single-frame
 /// schema owns this number; timeline and held take the next two versions.
-pub const SCHEMA_VERSION: u32 = 210;
+pub const SCHEMA_VERSION: u32 = 211;
 pub fn schema_plain() -> String {
     format!("awl-capture/{SCHEMA_VERSION}")
 }

@@ -284,6 +284,20 @@ impl OverlayState {
         self.items.get(self.selected).copied()
     }
 
+    /// The ASSET CLEANER's live PREVIEW input: the highlighted row's own
+    /// resolved absolute path, `Some` only on an [`OverlayKind::Assets`] row
+    /// (every other kind's rows carry a different `RowMeta`, so this is
+    /// naturally `None` off that kind without a redundant `self.kind` check).
+    /// The render layer's one door into "which orphan is selected right now" —
+    /// see `render/chrome/asset_preview.rs`.
+    pub fn selected_asset_path(&self) -> Option<&std::path::Path> {
+        let ci = self.selected_corpus_index()?;
+        match &self.rows.get(ci)?.meta {
+            RowMeta::Asset { abs } => Some(abs.as_path()),
+            _ => None,
+        }
+    }
+
     pub fn selected_line(&self) -> Option<usize> {
         let i = self.selected_corpus_index()?;
         match self.rows.get(i)?.meta {

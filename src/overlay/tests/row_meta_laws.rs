@@ -215,6 +215,13 @@ fn row_meta_tag_maps_every_variant_correctly() {
     assert_eq!(RowMeta::ProjectDoor.tag(), RowMetaTag::ProjectDoor);
     assert_eq!(RowMeta::MoveHere.tag(), RowMetaTag::MoveHere);
     assert_eq!(RowMeta::NewFolder.tag(), RowMetaTag::NewFolder);
+    assert_eq!(
+        RowMeta::Asset {
+            abs: std::path::PathBuf::from("/proj/assets/x.png")
+        }
+        .tag(),
+        RowMetaTag::Asset
+    );
 }
 
 /// PRESERVATION LAW — Go-to HEADING rows keep their `line` across a

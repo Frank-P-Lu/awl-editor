@@ -184,6 +184,17 @@ pub struct ViewState {
     /// an `Option` the render layer reads, never a kind string.
     pub overlay_table_dims: Option<(usize, usize)>,
     pub overlay_context_anchor: Option<(f32, f32)>,
+    /// THE ASSET CLEANER's live PREVIEW input: the highlighted row's own
+    /// image, as an absolute path, `Some` only on an
+    /// [`crate::overlay::OverlayKind::Assets`] row
+    /// ([`crate::overlay::OverlayState::selected_asset_path`] is the one
+    /// owner — gated by the row's own `RowMeta::Asset`, never a kind check
+    /// here). Gates the picker's second coordinated region (PHILOSOPHY §1):
+    /// a preview panel beside the row list, decoded through the SAME
+    /// inline-image cache — never a second decoder — the way
+    /// [`Self::overlay_spell`]/[`Self::overlay_table_dims`] each gate their
+    /// own dedicated geometry.
+    pub overlay_asset_preview: Option<std::path::PathBuf>,
     /// THE CALM NOTICE's text this frame, empty when there is none.
     pub notice: String,
     /// THAT notice's KIND. A sticky notice does not expire, so it is the one the
@@ -352,6 +363,7 @@ impl ViewState {
             overlay_spell: None,
             overlay_table_dims: None,
             overlay_context_anchor: None,
+            overlay_asset_preview: None,
             notice: String::new(),
             notice_kind: crate::actions::NoticeKind::default(),
             cjk_priority: crate::frontmatter::DEFAULT_CJK_PRIORITY.to_vec(),

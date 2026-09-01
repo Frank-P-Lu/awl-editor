@@ -242,6 +242,10 @@ pub(super) fn project_json(opts: &CaptureOpts) -> String {
 /// (`super::plan_sidecar`) because it reads the pipeline, not the fold's input.
 fn overlay_json(opts: &CaptureOpts, pipeline: &TextPipeline) -> String {
     let window = super::plan_sidecar::window_json(pipeline);
+    let asset_preview = match pipeline.asset_preview_report() {
+        Some([x, y, w, h]) => format!("{{ \"x\": {x}, \"y\": {y}, \"w\": {w}, \"h\": {h} }}"),
+        None => "null".to_string(),
+    };
     match &opts.overlay {
         Some(o) => {
             let items = o
@@ -339,6 +343,7 @@ fn overlay_json(opts: &CaptureOpts, pipeline: &TextPipeline) -> String {
                     "\"preview_id\": {}, \"preview_view\": {}, ",
                     "\"detail_focus\": {}, \"diff_scroll\": {}, ",
                     "\"show_hidden\": {}, \"capture\": {}, \"empty\": {}, \"window\": {}, ",
+                    "\"asset_preview\": {}, ",
                     "\"items\": [{}], \"bindings\": [{}], \"ranges\": [{}], ",
                     "\"git\": [{}] }}",
                 ),
@@ -366,26 +371,29 @@ fn overlay_json(opts: &CaptureOpts, pipeline: &TextPipeline) -> String {
                 capture,
                 empty,
                 window,
+                asset_preview,
                 items,
                 bindings,
                 ranges,
                 git
             )
         }
-        None => concat!(
-            "{ \"active\": false, \"mode\": null, \"title\": null, \"query\": \"\", ",
-            "\"query_caret\": 0, ",
-            "\"selected_index\": null, \"browse_dir\": null, \"return_to\": null, ",
-            "\"spell_target\": null, \"context_anchor\": null, \"hint\": null, ",
-            "\"notice\": \"\", ",
-            "\"lens\": null, \"workspace\": false, \"lens_strip\": [], ",
-            "\"sections\": [], \"preview_id\": null, \"preview_view\": null, ",
-            "\"detail_focus\": false, ",
-            "\"diff_scroll\": 0, \"show_hidden\": false, \"capture\": null, ",
-            "\"empty\": null, \"window\": null, \"items\": [], \"bindings\": [], ",
-            "\"ranges\": [], \"git\": [] }",
-        )
-        .to_string(),
+        None => format!(
+            concat!(
+                "{{ \"active\": false, \"mode\": null, \"title\": null, \"query\": \"\", ",
+                "\"query_caret\": 0, ",
+                "\"selected_index\": null, \"browse_dir\": null, \"return_to\": null, ",
+                "\"spell_target\": null, \"context_anchor\": null, \"hint\": null, ",
+                "\"notice\": \"\", ",
+                "\"lens\": null, \"workspace\": false, \"lens_strip\": [], ",
+                "\"sections\": [], \"preview_id\": null, \"preview_view\": null, ",
+                "\"detail_focus\": false, ",
+                "\"diff_scroll\": 0, \"show_hidden\": false, \"capture\": null, ",
+                "\"empty\": null, \"window\": null, \"asset_preview\": {}, \"items\": [], ",
+                "\"bindings\": [], \"ranges\": [], \"git\": [] }}",
+            ),
+            asset_preview
+        ),
     }
 }
 

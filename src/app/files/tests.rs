@@ -839,6 +839,7 @@ fn trash_asset_moves_the_file_and_removes_the_row_via_the_fake_seam() {
             .map(|(d, _)| d.to_string())
             .unwrap_or_default(),
         size: Some(42),
+        abs: PathBuf::from("/proj").join(rel),
     };
     app.workspace_state
         .install_overlay_for_test(crate::overlay::OverlayState::new_assets(vec![
@@ -888,6 +889,7 @@ fn trash_asset_failure_keeps_the_row_and_notes_the_error() {
                 name: "x.png".into(),
                 parent: "assets".into(),
                 size: Some(1),
+                abs: PathBuf::from("/proj/assets/x.png"),
             },
         ]));
     crate::assets::with_trash(Arc::new(FailTrash), || {
