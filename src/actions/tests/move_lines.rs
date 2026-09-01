@@ -12,8 +12,8 @@ use super::{drive_act, md};
 #[test]
 fn moving_a_table_row_triggers_the_existing_row_leave_repad() {
     // The table starts RAGGED (unaligned) -- moving a row is a plain source
-    // edit like any other, so the landed row-leave re-pad (item 542's
-    // `auto_align_table_on_row_leave`) should snap the WHOLE table into
+    // edit like any other, so the landed row-leave re-pad
+    // (`auto_align_table_on_row_leave`) should snap the WHOLE table into
     // Prettier alignment as a side effect of the caret leaving its row,
     // proving the EXISTING mechanism fires for a move rather than this
     // action needing its own re-pad logic.
