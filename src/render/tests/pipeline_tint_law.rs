@@ -28,6 +28,66 @@ fn every_sync_owned_pipeline_is_tinted_the_same_after_construction_and_a_live_sy
     theme::set_active(theme::DEFAULT_THEME);
 }
 
+/// LIVE SWITCH, not construction: one pipeline is born under Magpie and then
+/// re-seeded in place through every destination world. The table rule and empty
+/// cell plate are both persistent GPU colors, so each must equal its destination
+/// token immediately after `sync_theme_colors`. The explicit changed-pair floors
+/// prevent a coincidentally equal roster from making either arm vacuous.
+#[test]
+fn live_sync_theme_colors_retints_every_table_pipeline_across_all_worlds() {
+    let _g = crate::testlock::serial();
+    let _world = theme::WorldPin::snapshot();
+    theme::set_active_by_name("Magpie").unwrap();
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!("skipping live table pipeline tint law: no wgpu adapter");
+        return;
+    };
+
+    let source_rule = p.table_rule_pipeline.test_color().to_vec();
+    let source_empty = p.table_empty_pipeline.test_color().to_vec();
+    let mut rule_changed = 0usize;
+    let mut empty_changed = 0usize;
+    let mut checked = Vec::new();
+    for world in theme::THEMES {
+        theme::set_active_by_name(world.name).unwrap();
+        p.sync_theme_colors();
+
+        let expected_rule =
+            crate::selection::srgba_u8_to_linear(theme::muted().rgba_bytes()).to_vec();
+        let mut empty = theme::muted().rgba_bytes();
+        empty[3] = 30;
+        let expected_empty = crate::selection::srgba_u8_to_linear(empty).to_vec();
+        let actual_rule = p.table_rule_pipeline.test_color().to_vec();
+        let actual_empty = p.table_empty_pipeline.test_color().to_vec();
+        assert_eq!(
+            actual_rule, expected_rule,
+            "{}: live table rule retained a construction-time tint",
+            world.name
+        );
+        assert_eq!(
+            actual_empty, expected_empty,
+            "{}: live empty-cell plate retained a construction-time tint",
+            world.name
+        );
+        rule_changed += usize::from(actual_rule != source_rule);
+        empty_changed += usize::from(actual_empty != source_empty);
+        checked.push(world.name);
+    }
+    assert_eq!(
+        checked.len(),
+        theme::THEMES.len(),
+        "full roster: {checked:?}"
+    );
+    assert!(
+        rule_changed > 0,
+        "non-vacuity: no destination table-rule tint differed from Magpie"
+    );
+    assert!(
+        empty_changed > 0,
+        "non-vacuity: no destination empty-cell tint differed from Magpie"
+    );
+}
+
 /// Exactly the fields `sync_theme_colors` writes. Per-frame owners such as the
 /// footer rim and selected spine are deliberately absent — as is
 /// `fold_chevron_labels` (a `Vec`, not a `SelectionPipeline`, so it carries no
@@ -86,8 +146,16 @@ fn sync_owned_surface_tints(p: &TextPipeline) -> Vec<(&'static str, Vec<f32>)> {
             p.image_scrim_pipeline.test_color().to_vec(),
         ),
         (
+            "image_handle_mark",
+            p.image_handle_mark.test_color().to_vec(),
+        ),
+        (
             "table_rule_pipeline",
             p.table_rule_pipeline.test_color().to_vec(),
+        ),
+        (
+            "table_empty_pipeline",
+            p.table_empty_pipeline.test_color().to_vec(),
         ),
         ("panel_card", p.panel_card.test_color().to_vec()),
         ("panel_shadow", p.panel_shadow.test_color().to_vec()),
@@ -101,6 +169,10 @@ fn sync_owned_surface_tints(p: &TextPipeline) -> Vec<(&'static str, Vec<f32>)> {
         ("popover_wash", p.popover_wash.test_color().to_vec()),
         ("popover_hl_wash", p.popover_hl_wash.test_color().to_vec()),
         ("popover_strike", p.popover_strike.test_color().to_vec()),
+        (
+            "popover_hover_ring",
+            p.popover_hover_ring.test_color().to_vec(),
+        ),
         ("menubar_bg", p.menubar_bg.test_color().to_vec()),
         ("menubar_hi", p.menubar_hi.test_color().to_vec()),
         ("menu_drop_shadow", p.menu_drop_shadow.test_color().to_vec()),
@@ -108,6 +180,10 @@ fn sync_owned_surface_tints(p: &TextPipeline) -> Vec<(&'static str, Vec<f32>)> {
         ("menu_drop_card", p.menu_drop_card.test_color().to_vec()),
         ("menu_drop_sep", p.menu_drop_sep.test_color().to_vec()),
         ("panel_caret", p.panel_caret.test_color().to_vec()),
+        (
+            "panel_query_selection",
+            p.panel_query_selection.test_color().to_vec(),
+        ),
         (
             "caret_preview_pipeline",
             p.caret_preview_pipeline.test_color().to_vec(),

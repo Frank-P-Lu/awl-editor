@@ -38,6 +38,13 @@ fn finish_file_chord() -> &'static str {
     }
 }
 
+fn open_theme_chord() -> &'static str {
+    match crate::convention::Convention::current() {
+        crate::convention::Convention::Mac => "s-t",
+        crate::convention::Convention::Linux => "C-t",
+    }
+}
+
 /// The real chords a user walks in with: summon the workspace, `Tab` from
 /// the navigation rail into the content pane, one `Down` per row of the
 /// corpus, then `Enter` on the row. The row INDEX is derived from
@@ -110,6 +117,220 @@ fn in_sandbox<T>(body: impl FnOnce() -> T) -> T {
 fn sidecar(png: &std::path::Path) -> serde_json::Value {
     let text = std::fs::read_to_string(png.with_extension("json")).expect("a sidecar");
     serde_json::from_str(&text).expect("valid sidecar JSON")
+}
+
+fn image_pixels(png: &std::path::Path) -> (u32, u32, Vec<[u8; 4]>) {
+    let image = image::open(png).expect("capture PNG opens").into_rgba8();
+    let (w, h) = image.dimensions();
+    let pixels = image.pixels().map(|p| [p[0], p[1], p[2], p[3]]).collect();
+    (w, h, pixels)
+}
+
+fn color_distance(a: [u8; 4], b: [u8; 4]) -> f64 {
+    let sq = |x: u8, y: u8| f64::from(x.abs_diff(y)).powi(2);
+    (sq(a[0], b[0]) + sq(a[1], b[1]) + sq(a[2], b[2])).sqrt()
+}
+
+fn dominant_ink(
+    pixels: &[[u8; 4]],
+    width: u32,
+    height: u32,
+    rect: (i64, i64, i64, i64),
+    ground: [u8; 4],
+) -> Option<([u8; 4], usize)> {
+    use std::collections::HashMap;
+    let (x, y, w, h) = rect;
+    let mut counts: HashMap<[u8; 4], usize> = HashMap::new();
+    for py in y.max(0)..(y + h).min(height as i64) {
+        for px in x.max(0)..(x + w).min(width as i64) {
+            let p = pixels[(py * width as i64 + px) as usize];
+            if color_distance(p, ground) >= 18.0 {
+                *counts.entry(p).or_default() += 1;
+            }
+        }
+    }
+    counts.into_iter().max_by_key(|(_, n)| *n)
+}
+
+fn count_near_color(
+    pixels: &[[u8; 4]],
+    width: u32,
+    height: u32,
+    rect: (i64, i64, i64, i64),
+    target: [u8; 4],
+    tolerance: f64,
+) -> usize {
+    let (x, y, w, h) = rect;
+    let mut count = 0usize;
+    for py in y.max(0)..(y + h).min(height as i64) {
+        for px in x.max(0)..(x + w).min(width as i64) {
+            let p = pixels[(py * width as i64 + px) as usize];
+            count += usize::from(color_distance(p, target) <= tolerance);
+        }
+    }
+    count
+}
+
+fn inline_code_ink() -> [u8; 4] {
+    let th = crate::theme::active();
+    let mix = |a: u8, b: u8| (a as f32 + (b as f32 - a as f32) * 0.28).round() as u8;
+    [
+        mix(th.base_content.r, th.muted.r),
+        mix(th.base_content.g, th.muted.g),
+        mix(th.base_content.b, th.muted.b),
+        255,
+    ]
+}
+
+fn assert_mangrove_table_ink(after_png: &std::path::Path) {
+    let side = sidecar(after_png);
+    assert_eq!(side["driver"].as_str(), Some("live-app"));
+    assert_eq!(side["theme"]["name"].as_str(), Some("Mangrove"));
+    assert_eq!(side["tables"].as_array().map(Vec::len), Some(1));
+    let (width, height, pixels) = image_pixels(after_png);
+    let left = side["text_origin"]["left"].as_f64().unwrap() as i64;
+    let top = side["text_origin"]["top"].as_f64().unwrap() as i64;
+    let line_h = side["font"]["line_height"].as_f64().unwrap() as i64;
+    let page_x = side["page"]["column"]["left"].as_f64().unwrap() as i64;
+    let page_w = side["page"]["column"]["width"].as_f64().unwrap() as i64;
+    let ground = pixels[((height as i64 - 24) * width as i64 + page_x + page_w / 2) as usize];
+    let prose = dominant_ink(&pixels, width, height, (left, top, 320, line_h), ground)
+        .expect("presence floor: prose reference paints ink");
+    let table = dominant_ink(
+        &pixels,
+        width,
+        height,
+        (left, top + 3 * line_h, 260, line_h),
+        ground,
+    )
+    .expect("presence floor: table header paints ink");
+    let expected_code = inline_code_ink();
+    let prose_code_presence = count_near_color(
+        &pixels,
+        width,
+        height,
+        (left, top + line_h, 260, line_h),
+        expected_code,
+        8.0,
+    );
+    let table_code_presence = count_near_color(
+        &pixels,
+        width,
+        height,
+        (left, top + 5 * line_h, 260, line_h),
+        expected_code,
+        8.0,
+    );
+    assert!(
+        prose.1 >= 8 && table.1 >= 8 && prose_code_presence >= 8,
+        "subject-presence floors: prose={prose:?} table={table:?} \
+         expected_code={expected_code:?} prose_code={prose_code_presence} \
+         table_code={table_code_presence}"
+    );
+    let contrast = color_distance(table.0, ground);
+    assert!(
+        contrast >= 80.0,
+        "table contrast floor: ink={:?} ground={ground:?} distance={contrast:.2}",
+        table.0
+    );
+    let agreement = color_distance(table.0, prose.0);
+    assert!(
+        agreement <= 8.0,
+        "Mangrove accept frame retained construction-time Magpie table ink: \
+         table={:?} prose={:?} ground={ground:?} agreement={agreement:.2} \
+         presence(table={}, prose={}) contrast={contrast:.2}",
+        table.0,
+        prose.0,
+        table.1,
+        prose.1,
+    );
+    assert!(
+        table_code_presence >= 80,
+        "Mangrove accept frame retained construction-time inline-code table ink: \
+         expected={expected_code:?} ground={ground:?} \
+         presence(table={table_code_presence}, prose={prose_code_presence})"
+    );
+    eprintln!(
+        "live-table-retint arithmetic: table={:?} prose={:?} ground={ground:?} \
+         agreement={agreement:.2} contrast={contrast:.2} presence(table={}, prose={}) \
+         code={expected_code:?} code_presence(table={table_code_presence}, \
+         prose={prose_code_presence}) artifact={}",
+        table.0,
+        prose.0,
+        table.1,
+        prose.1,
+        after_png.display(),
+    );
+}
+
+/// Tier-2 transition law: one persistent offscreen pipeline is first rendered
+/// under Magpie, then a real headless `App` accepts Mangrove through the theme
+/// picker, and the SAME pipeline renders the next frame after its production
+/// theme-sync seam. The table ink is graded relative to prose and page pixels
+/// from that one destination frame. Both regions carry subject-presence floors,
+/// and table-vs-page carries a contrast floor, so deleting/fading either subject
+/// cannot satisfy the equality claim.
+#[test]
+fn live_app_magpie_to_mangrove_retints_table_glyph_ink_in_the_accept_frame() {
+    let _g = crate::testlock::serial();
+    let _world = crate::theme::WorldPin::snapshot();
+    let doc = "/ws/proj/table.md";
+    let mem = Arc::new(
+        crate::fs::InMemoryFs::new()
+            .with_dir("/cfg")
+            .with_dir("/ws")
+            .with_dir("/ws/proj")
+            .with_file(
+                doc,
+                concat!(
+                    "Prose reference ink\n`Code prose reference`\n\n",
+                    "| Table reference | Role |\n| --- | --- |\n",
+                    "| `Code table ink` | Reader |\n",
+                ),
+            ),
+    );
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl-live-table-retint-{}", std::process::id())),
+    );
+    crate::fs::with_fs(mem, || {
+        let config = Config {
+            theme: Some("Magpie".to_string()),
+            path: PathBuf::from(CFG),
+            ..Config::empty()
+        };
+        let mut app = App::new_headless_capture(
+            Some(PathBuf::from(doc)),
+            PathBuf::from("/ws/proj"),
+            None,
+            config,
+        );
+        crate::theme::set_active_by_name("Magpie").unwrap();
+        assert_eq!(crate::theme::active().name, "Magpie", "source world");
+
+        let mut film = crate::capture::FilmRenderer::new(&dir)
+            .expect("the live-App transition law needs a GPU adapter");
+        let before_png = dir.join("magpie.png");
+        let before_opts = app.capture_opts();
+        let before_buffer = crate::run::CaptureSubject::buffer(&app).expect("active table doc");
+        film.render_step(before_buffer, &before_opts, 1, Some(&before_png))
+            .expect("Magpie seed frame");
+
+        let keys = crate::keyspec::parse_chords(&format!("{} Up Up Enter", open_theme_chord()))
+            .expect("theme picker walk parses");
+        app.press_chords_headless(&keys);
+        assert_eq!(
+            crate::theme::active().name,
+            "Mangrove",
+            "the real theme picker must accept Mangrove from Magpie"
+        );
+        film.sync_theme();
+        let after_png = dir.join("mangrove.png");
+        let after_opts = app.capture_opts();
+        let after_buffer = crate::run::CaptureSubject::buffer(&app).expect("active table doc");
+        film.render_step(after_buffer, &after_opts, 1, Some(&after_png))
+            .expect("Mangrove accept frame");
+        assert_mangrove_table_ink(&after_png);
+    });
 }
 
 /// The selected row's VALUE cell, straight out of the sidecar's parallel
