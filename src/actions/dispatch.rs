@@ -25,6 +25,8 @@ macro_rules! classify_action_family {
             | Action::LineEnd
             | Action::ForwardWord
             | Action::BackwardWord
+            | Action::ForwardSentence
+            | Action::BackwardSentence
             | Action::BufferStart
             | Action::BufferEnd
             | Action::InsertChar(_)
@@ -35,6 +37,8 @@ macro_rules! classify_action_family {
             | Action::DeleteBackward
             | Action::DeleteWordBackward
             | Action::DeleteWordForward
+            | Action::DeleteSentenceForward
+            | Action::DeleteSentenceBackward
             | Action::DeleteToLineStart
             | Action::DeleteForward
             | Action::KillLine

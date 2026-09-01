@@ -734,6 +734,9 @@ mod selection;
 
 mod motion;
 
+mod sentence;
+pub(crate) use sentence::{sentence_backward_boundary, sentence_forward_boundary};
+
 /// UNDO / REDO ENGINE — the `apply_edit` mutation choke point + the op-based
 /// history (coalescing) + undo / redo / seal. Inherent methods on [`Buffer`],
 /// carved out verbatim; `apply_edit` is `pub(super)` for the edit / selection

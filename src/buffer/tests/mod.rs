@@ -32,6 +32,7 @@ mod mark_selection;
 mod paste_and_bounds;
 mod quick_notes;
 mod script_roundtrip;
+mod sentence_boundary;
 mod syntax_lang;
 mod undo_redo;
 mod word_delete_boundary;

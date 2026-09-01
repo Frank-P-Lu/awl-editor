@@ -29,6 +29,7 @@ mod pickers_nav;
 mod recoil_flinch;
 mod reveal_copy_path;
 mod save_feedback;
+mod sentence_motion;
 mod settings_reach;
 mod table_edit;
 /// The summoned workspace's state, focus and back, in the lifecycle's
@@ -578,10 +579,13 @@ pub(super) fn drive_effect(text: &str, cursor: usize, action: &Action) -> Effect
 macro_rules! classify_delete_flinch {
     ($action:expr) => {
         match $action {
-            Action::DeleteBackward | Action::DeleteWordBackward | Action::DeleteToLineStart => {
-                Some(("hi", 1, 0, Right))
+            Action::DeleteBackward
+            | Action::DeleteWordBackward
+            | Action::DeleteSentenceBackward
+            | Action::DeleteToLineStart => Some(("hi", 1, 0, Right)),
+            Action::DeleteForward | Action::DeleteWordForward | Action::DeleteSentenceForward => {
+                Some(("hi", 0, 2, Left))
             }
-            Action::DeleteForward | Action::DeleteWordForward => Some(("hi", 0, 2, Left)),
             Action::ForwardChar
             | Action::KeepTutorial
             | Action::BackwardChar
@@ -591,6 +595,8 @@ macro_rules! classify_delete_flinch {
             | Action::LineEnd
             | Action::ForwardWord
             | Action::BackwardWord
+            | Action::ForwardSentence
+            | Action::BackwardSentence
             | Action::BufferStart
             | Action::BufferEnd
             | Action::InsertChar(_)
@@ -752,6 +758,8 @@ pub(super) fn motion_boundary_fixture(
         Action::BackwardChar => (TXT, 0, Right),
         Action::ForwardWord => (TXT, 5, Left),
         Action::BackwardWord => (TXT, 0, Right),
+        Action::ForwardSentence => (TXT, 5, Left),
+        Action::BackwardSentence => (TXT, 0, Right),
         Action::NextLine => (TXT, 5, Up),
         Action::PreviousLine => (TXT, 0, Down),
         Action::LineStart => (TXT, 0, Right),
@@ -811,6 +819,8 @@ macro_rules! assert_action_roster {
             | Action::LineEnd
             | Action::ForwardWord
             | Action::BackwardWord
+            | Action::ForwardSentence
+            | Action::BackwardSentence
             | Action::BufferStart
             | Action::BufferEnd
             | Action::InsertChar(_)
@@ -821,6 +831,8 @@ macro_rules! assert_action_roster {
             | Action::DeleteBackward
             | Action::DeleteWordBackward
             | Action::DeleteWordForward
+            | Action::DeleteSentenceForward
+            | Action::DeleteSentenceBackward
             | Action::DeleteToLineStart
             | Action::DeleteForward
             | Action::KillLine
@@ -1195,6 +1207,8 @@ macro_rules! classify_smoke_command {
         // caret in place.
         | Action::ForwardWord
         | Action::BackwardWord
+        | Action::ForwardSentence
+        | Action::BackwardSentence
         | Action::LineStart
         | Action::LineEnd
         | Action::BufferStart
@@ -1241,6 +1255,8 @@ macro_rules! classify_smoke_command {
         // / DeleteForward stay uncataloged in the NotCatalog group below.)
         | Action::DeleteWordBackward
         | Action::DeleteWordForward
+        | Action::DeleteSentenceForward
+        | Action::DeleteSentenceBackward
         // The smoke fixture (`rich_markdown_buffer`) is a NO-PATH buffer, so
         // `Action::OpenRenameNote`'s pure-buffer-state gate declines to open —
         // an in-place no-op under this harness, not an Opener.

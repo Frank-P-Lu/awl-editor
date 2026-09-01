@@ -8,6 +8,12 @@ pub enum Action {
     LineEnd,
     ForwardWord,
     BackwardWord,
+    /// M-e (Linux `emacs` flavor Meta seed; no default on Mac/native — see
+    /// docs/config.md): to the start of the following sentence, UAX #29
+    /// segmentation. See `buffer::sentence`'s module doc for the rule.
+    ForwardSentence,
+    /// M-a, the mirror of [`Action::ForwardSentence`].
+    BackwardSentence,
     BufferStart,
     BufferEnd,
     InsertChar(char),
@@ -23,6 +29,12 @@ pub enum Action {
     DeleteBackward,
     DeleteWordBackward,
     DeleteWordForward,
+    /// M-k (Linux `emacs` flavor Meta seed): kill to the start of the
+    /// following sentence — see `buffer::sentence`'s module doc.
+    DeleteSentenceForward,
+    /// The mirror of [`Action::DeleteSentenceForward`]; no default chord
+    /// (palette + `[keys]`, the word-delete precedent).
+    DeleteSentenceBackward,
     DeleteToLineStart,
     DeleteForward,
     KillLine,
@@ -315,6 +327,8 @@ impl Action {
                 | Action::LineEnd
                 | Action::ForwardWord
                 | Action::BackwardWord
+                | Action::ForwardSentence
+                | Action::BackwardSentence
                 | Action::BufferStart
                 | Action::BufferEnd
         )
@@ -332,6 +346,8 @@ impl Action {
                 | Action::DeleteBackward
                 | Action::DeleteWordBackward
                 | Action::DeleteWordForward
+                | Action::DeleteSentenceForward
+                | Action::DeleteSentenceBackward
                 | Action::DeleteToLineStart
                 | Action::DeleteForward
                 | Action::KillLine

@@ -132,6 +132,13 @@ zoom_out = ["Cmd--", ""]
 reset_zoom = ["Cmd-0", ""]
 forward_word = ["M-Right", ""]
 backward_word = ["M-Left", ""]
+# Sentence motion: both slots empty by default — there is no macOS-native
+# sentence-motion convention to double (unlike word motion's ⌥←/⌥→). Linux's
+# `keymap = "emacs"` flavor still reaches these via the classic M-e/M-a Meta
+# seed (keymap::platform::LINUX_EMACS_META_SEED), and `[keys]
+# sentence_forward = "..."` reaches them everywhere else.
+sentence_forward = ["", ""]
+sentence_backward = ["", ""]
 line_start = ["Cmd-Left", "C-a"]
 line_end = ["Cmd-Right", "C-e"]
 document_start = ["Cmd-Up", ""]
@@ -145,5 +152,10 @@ previous_line = ["", "C-p"]
 # char/line motions above). Rebindable via [keys] delete_word_forward = "M-d".
 delete_word_forward = ["", ""]
 delete_word_backward = ["", ""]
+# Sentence delete: forward reclaims the classic emacs kill-sentence chord on
+# Linux (`delete_sentence_forward = "M-k"`, seeded by default there); backward
+# has no classic binding and ships silent, mirroring the word-delete pair.
+delete_sentence_forward = ["", ""]
+delete_sentence_backward = ["", ""]
 settings = ["Cmd-,", ""]
 keybindings = ["", ""]

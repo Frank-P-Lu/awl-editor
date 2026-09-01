@@ -256,6 +256,15 @@ pub(crate) const LINUX_EMACS_META_SEED: &[(&str, Action)] = &[
     ("M-b", Action::BackwardWord),
     ("M-d", Action::DeleteWordForward),
     ("M-Backspace", Action::DeleteWordBackward),
+    // THE SENTENCE-MOTION ROUND — the classic emacs `M-a`/`M-e`/`M-k` slots
+    // (forward/backward-sentence, kill-sentence), the same shape as the
+    // word-motion trio just above: an EXISTING catalog `Action`, seeded here
+    // rather than a native/emacs two-slot default (there is no macOS-native
+    // sentence-motion convention to double). See `buffer::sentence`'s module
+    // doc for the boundary rule these fire.
+    ("M-a", Action::BackwardSentence),
+    ("M-e", Action::ForwardSentence),
+    ("M-k", Action::DeleteSentenceForward),
     ("M-v", Action::PageScrollUp),
     ("M-<", Action::BufferStart),
     ("M->", Action::BufferEnd),
