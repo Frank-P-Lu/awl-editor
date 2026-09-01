@@ -289,21 +289,28 @@ fn xs_uniform(xs: &[f32]) -> bool {
 /// THE CODE-LIGATURE PITCH GUARD (the critical regression the three-way split
 /// must not break, and the exact gap the probe flagged): with the code-ligature
 /// features applied, every FONT-FEATURE-CONTROLLABLE mono (JetBrains Mono,
-/// Iosevka, IBM Plex Mono) STILL shapes real programming-ligature content
-/// (`-> => != >= <= == :: |>`) at STRICT uniform pitch — the per-char
-/// `line_glyph_xs` stay evenly spaced, so caret/hit-test/selection column math
-/// is honest. `font_features` keeps this uniform (calt for JBM/Iosevka's
-/// GSUB programming ligatures, 1 glyph per source char; ligature-free for the
-/// inert IBM Plex Mono).
+/// Iosevka, IBM Plex Mono, and — since item 552's `rlig` disable — Monaspace
+/// Xenon) STILL shapes real programming-ligature content (`-> => != >= <= ==
+/// :: |>`) at STRICT uniform pitch — the per-char `line_glyph_xs` stay evenly
+/// spaced, so caret/hit-test/selection column math is honest. `font_features`
+/// keeps this uniform (calt for JBM/Iosevka's GSUB programming ligatures, 1
+/// glyph per source char; ligature-free for the inert IBM Plex Mono and, now,
+/// for Monaspace Xenon too).
 ///
-/// Monaspace Xenon is EXCLUDED here and covered by the characterization test
-/// below: its ligatures are AAT/`morx`-driven and CANNOT be suppressed via
-/// OpenType feature tags in this shaper (cosmic-text 0.18.2 / harfrust 0.5.2 —
-/// `rclt` isn't even in harfrust's AAT feature-mapping table), so it remains
-/// non-uniform on operator sequences. The pre-existing `mono_world_shapes_
-/// uniform_pitch` only shaped `iiii`/`mmmm` (no ligature triggers), so it
-/// MISSED this entirely — this pair of tests pins both the fixed monos and the
-/// known-unfixed one.
+/// Monaspace Xenon was EXCLUDED here before item 552 on the belief that its
+/// operator ligatures were AAT-driven and unsuppressable; a GSUB walk of the
+/// bundled TTF found no `morx` table and a `rlig`-owned `LigatureSubst` chain
+/// instead (same mechanism as the tilde-fusion bug, same lookup table — see
+/// [`super::text::font_features`]'s doc), and disabling `rlig` for this face
+/// empirically stops ALL of it: every byte in `LIG_CONTENT` now shapes as its
+/// own 1-byte glyph span on Potoroo (verified directly against the raw glyph
+/// table, not just pitch, while diagnosing this item). It is included in the
+/// sweep below like any other feature-controllable mono. The uniform-pitch
+/// check alone is NOT what proves the fusion is gone, though — `assemble_
+/// glyph_xs` (below) makes even a merged cluster read as uniform pitch by
+/// spreading it evenly; the strict per-byte glyph-span laws in this file
+/// (`code_tilde_pair_stays_two_glyphs_on_every_monaspace_mono_world` etc.)
+/// are the ones that actually discriminate merged from separate.
 #[test]
 fn code_ligature_content_stays_uniform_pitch_on_feature_controllable_monos() {
     let _t = crate::testlock::serial();
@@ -316,10 +323,6 @@ fn code_ligature_content_stays_uniform_pitch_on_feature_controllable_monos() {
     };
     let mut covered = std::collections::HashSet::new();
     for t in theme::THEMES.iter() {
-        // Monaspace's AAT ligatures resist OT-feature suppression (see below).
-        if t.mono == "Monaspace Xenon" {
-            continue;
-        }
         theme::set_active_by_name(t.name).unwrap();
         p.sync_theme();
         let mut code = view(LIG_CONTENT, 0, 0);
@@ -336,9 +339,14 @@ fn code_ligature_content_stays_uniform_pitch_on_feature_controllable_monos() {
         );
         covered.insert(t.mono);
     }
-    // Sanity: the three controllable monos were actually exercised (a mis-rename
+    // Sanity: the four controllable monos were actually exercised (a mis-rename
     // of a mono face would otherwise silently shrink this guard to nothing).
-    for m in ["JetBrains Mono", "Iosevka", "IBM Plex Mono"] {
+    for m in [
+        "JetBrains Mono",
+        "Iosevka",
+        "IBM Plex Mono",
+        "Monaspace Xenon",
+    ] {
         assert!(
             covered.contains(m),
             "expected a world with mono {m} to be tested"
@@ -350,22 +358,27 @@ fn code_ligature_content_stays_uniform_pitch_on_feature_controllable_monos() {
 
 /// THE MONASPACE CLUSTER-FIX REGRESSION GUARD (flipped from the old
 /// characterization test — see its history below). Monaspace Xenon's
-/// programming ligatures are AAT/`morx`-driven "texture-healing": `-> => !=
-/// :: …` shape to one glyph PER source char but all carry the SAME cluster
-/// span, and they CANNOT be suppressed via OpenType feature tags in this
-/// shaper (cosmic-text 0.18.2 / harfrust 0.5.2 — `rclt` isn't even in
-/// harfrust's AAT feature table). The font-feature path could never make
-/// these uniform; the DEEPER fix did — `assemble_glyph_xs` now groups the
-/// glyphs sharing a span and spreads the source chars EVENLY over the
-/// group's combined advance, so the per-char `line_glyph_xs` are uniform
-/// again and the caret / selection / hit-test column math on a Monaspace
-/// code line is honest. Shapes BOTH the mixed letters-and-operators content
+/// programming ligatures (`-> => != :: …`) were, before item 552, reached
+/// through a `rlig`-owned `LigatureSubst` chain (plain OpenType GSUB — the
+/// font carries no `morx` table, so the PRIOR framing here as "AAT-driven,
+/// unsuppressable via OpenType feature tags" was never checked against the
+/// font and was wrong) that `font_features` never disabled, so a TRUE
+/// ligature merge fired even though `calt`/`rclt`/`ccmp` were off, and
+/// `assemble_glyph_xs` compensated by grouping the glyphs sharing a span and
+/// spreading the source chars EVENLY over the group's combined advance. Item
+/// 552 closes the `rlig` door directly, so the merge no longer happens at all
+/// on this face — this test still passes, now because there is genuinely one
+/// glyph per source char rather than because the spread compensates for
+/// fewer. `assemble_glyph_xs`'s M=N branch remains in place as a general
+/// mechanism (`geometry.rs`'s doc), just no longer exercised by Monaspace's
+/// own operator content. Shapes BOTH the mixed letters-and-operators content
 /// the round named AND the pure-operator `LIG_CONTENT` the guard above uses,
 /// asserting strict uniform pitch (maxdev < 0.5px) on each.
 ///
 /// (History: this test used to assert the OPPOSITE — that Monaspace stayed
 /// non-uniform, a documented AAT limitation — with a note that its assertion
-/// should flip the day the `assemble_glyph_xs` cluster fix landed. It has.)
+/// should flip the day the `assemble_glyph_xs` cluster fix landed. It has;
+/// item 552 later found the "AAT" framing itself was never verified.)
 #[test]
 fn monaspace_ligatures_shape_uniform_pitch_after_the_cluster_fix() {
     let _t = crate::testlock::serial();
@@ -492,4 +505,226 @@ fn caret_and_hit_test_are_per_char_inside_a_programming_ligature_cluster() {
     theme::set_active(theme::DEFAULT_THEME);
     p.sync_theme();
     crate::render::set_code_ligatures_on(saved_lig);
+}
+
+/// Byte offsets of every ASCII `~` in `text` — the three `rlig`-fusion laws
+/// below (item 552) use these to locate the glyph that must exist at each one.
+fn tilde_byte_offsets(text: &str) -> Vec<usize> {
+    text.char_indices()
+        .filter(|(_, c)| *c == '~')
+        .map(|(b, _)| b)
+        .collect()
+}
+
+/// The shaped glyph's `(start, end)` cluster span whose `start` equals `byte`
+/// on `line`, panicking with the full glyph table if none does — which is
+/// EXACTLY what a ligature fusion produces: the fused byte's own glyph start
+/// disappears, absorbed into the preceding glyph's span. This is the
+/// non-vacuous half of the `~~`-fusion laws: `assemble_glyph_xs` guarantees
+/// `char_count + 1` evenly-spread `line_glyph_xs` boundaries EVEN WHEN two
+/// source chars share one merged glyph (see `monaspace_ligatures_shape_
+/// uniform_pitch_after_the_cluster_fix`'s doc), so a uniform-pitch check alone
+/// cannot tell two glyphs from one spread across two columns. Reading the raw
+/// glyph table's own byte spans can.
+fn glyph_span_at(p: &TextPipeline, line: usize, byte: usize) -> (usize, usize) {
+    let run = p
+        .buffer
+        .layout_runs()
+        .find(|r| r.line_i == line)
+        .unwrap_or_else(|| panic!("line {line} has no layout run"));
+    match run.glyphs.iter().find(|g| g.start == byte) {
+        Some(g) => (g.start, g.end),
+        None => panic!(
+            "no glyph starts at byte {byte} on line {line} — fused into a preceding \
+             glyph; glyphs (start,end)={:?}",
+            run.glyphs
+                .iter()
+                .map(|g| (g.start, g.end))
+                .collect::<Vec<_>>()
+        ),
+    }
+}
+
+/// THE REPORTED `~~` FUSION (item 552): a GSUB walk of the bundled
+/// `MonaspaceXenon-Regular.ttf` (`fonttools`, not assumed) found its
+/// programming-ligature set — the tilde family (`~~`, `<~`, `~>`, `!~`, …)
+/// among ~50 true `LigatureSubst` merges — reachable from a chain context
+/// owned by `rlig` (Required Ligatures), a script-default feature nothing in
+/// `font_features` touched; it fired even with `calt`/`dlig` off. On PROSE
+/// (the buffer type the raw markdown reveal uses) this fires on every world
+/// whose DISPLAY face is Monaspace Xenon. Sweeps the roster derived from
+/// `theme::THEMES` rather than a named world, so a future reassignment can't
+/// silently empty this law.
+#[test]
+fn prose_tilde_pair_shapes_as_two_glyphs_on_every_monaspace_display_world() {
+    let _t = crate::testlock::serial();
+    let _g = crate::testlock::serial();
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!(
+            "skipping prose_tilde_pair_shapes_as_two_glyphs_on_every_monaspace_display_world: no wgpu adapter"
+        );
+        return;
+    };
+    let roster: Vec<&'static str> = theme::THEMES
+        .iter()
+        .filter(|t| t.font == "Monaspace Xenon")
+        .map(|t| t.name)
+        .collect();
+    assert!(
+        !roster.is_empty(),
+        "expected at least one world whose display face is Monaspace Xenon \
+         (Potoroo/Firetail) — a reassignment emptied this law's roster"
+    );
+    let text = "alpha ~~ beta";
+    let tildes = tilde_byte_offsets(text);
+    assert_eq!(
+        tildes,
+        vec![6, 7],
+        "sanity: two adjacent tildes at bytes 6,7"
+    );
+    for name in &roster {
+        theme::set_active_by_name(name).unwrap();
+        assert_eq!(theme::active().font, "Monaspace Xenon");
+        p.sync_theme();
+        p.set_view(&view(text, 0, 0));
+        for &b in &tildes {
+            let (s, e) = glyph_span_at(&p, 0, b);
+            assert_eq!(
+                e - s,
+                1,
+                "{name}: tilde at byte {b} must be its own 1-byte glyph, got span \
+                 {s}..{e} (fused into one wide swung tilde)"
+            );
+        }
+    }
+    theme::set_active(theme::DEFAULT_THEME);
+    p.sync_theme();
+}
+
+/// THE CODE-BUFFER CARET GRID LAW, EXTENDED WITH A `~~`-BEARING LINE (item
+/// 552). Before the `rlig` fix, Monaspace's CODE arm disabled
+/// `calt`/`rclt`/`ccmp` but never `rlig`, so `->`/`!=`/`~~`/etc merged and
+/// were only made to LOOK uniform by `assemble_glyph_xs` spreading the merged
+/// cluster's advance evenly across its source chars — a COMPENSATION, not an
+/// absence of merging, and uniform pitch alone cannot discriminate `~~`
+/// shaping as one glyph from two (both land on the same evenly-spread grid).
+/// This law adds the check the compensation can hide: every source byte gets
+/// its OWN shaped glyph, so a caret between the two tildes lands on a real
+/// glyph boundary rather than the midpoint of one merged glyph's advance.
+/// Sweeps every world whose CODE mono is Monaspace Xenon.
+#[test]
+fn code_tilde_pair_stays_two_glyphs_on_every_monaspace_mono_world() {
+    let _t = crate::testlock::serial();
+    let _g = crate::testlock::serial();
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!(
+            "skipping code_tilde_pair_stays_two_glyphs_on_every_monaspace_mono_world: no wgpu adapter"
+        );
+        return;
+    };
+    let roster: Vec<&'static str> = theme::THEMES
+        .iter()
+        .filter(|t| t.mono == "Monaspace Xenon")
+        .map(|t| t.name)
+        .collect();
+    assert!(
+        !roster.is_empty(),
+        "expected at least one world whose code mono is Monaspace Xenon"
+    );
+    let text = "a ~~word b !~word";
+    let tildes = tilde_byte_offsets(text);
+    assert!(
+        tildes.len() >= 3,
+        "sanity: fixture needs several tildes (got {tildes:?})"
+    );
+    for name in &roster {
+        theme::set_active_by_name(name).unwrap();
+        assert_eq!(theme::active().mono, "Monaspace Xenon");
+        p.sync_theme();
+        let mut code = view(text, 0, 0);
+        code.syn_lang = Some(crate::syntax::Lang::Rust);
+        p.set_view(&code);
+        // Per-char caret grid: one x-boundary per char, uniform pitch (the
+        // pre-existing guarantee `assemble_glyph_xs` gives regardless of fusion).
+        let xs = p.line_glyph_xs(0);
+        let n = text.chars().count();
+        assert_eq!(
+            xs.len(),
+            n + 1,
+            "{name}: one x-boundary per char — xs={xs:?}"
+        );
+        assert!(
+            xs_uniform(&xs),
+            "{name}: `{text}` must keep uniform pitch — xs={xs:?}"
+        );
+        // The stronger, non-compensable check: every tilde is its OWN glyph.
+        for &b in &tildes {
+            let (s, e) = glyph_span_at(&p, 0, b);
+            assert_eq!(
+                e - s,
+                1,
+                "{name}: code tilde at byte {b} must be its own 1-byte glyph, got \
+                 span {s}..{e} (fused)"
+            );
+        }
+    }
+    theme::set_active(theme::DEFAULT_THEME);
+    p.sync_theme();
+}
+
+/// STRIKETHROUGH'S OWN RAW REVEAL, FOUR DISTINCT TILDES (item 552). With the
+/// caret on `~~struck~~`'s own line, WYSIWYG reveals the raw markdown — the
+/// same PROSE shaping path the `~~` fusion bug rides, and the one place the
+/// raw marker text is guaranteed on screen for a user to see it. Before the
+/// `rlig` fix, EACH of the delimiter's two-tilde pairs would fuse into one
+/// glyph on a Monaspace-display world, so the reveal itself misrepresented
+/// its own raw text. Sweeps the display-face roster (Potoroo/Firetail).
+#[test]
+fn strikethrough_raw_reveal_shows_four_distinct_tildes() {
+    let _t = crate::testlock::serial();
+    let _w = crate::testlock::serial();
+    crate::markdown::set_wysiwyg_on(true);
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!("skipping strikethrough_raw_reveal_shows_four_distinct_tildes: no wgpu adapter");
+        return;
+    };
+    let roster: Vec<&'static str> = theme::THEMES
+        .iter()
+        .filter(|t| t.font == "Monaspace Xenon")
+        .map(|t| t.name)
+        .collect();
+    assert!(!roster.is_empty(), "expected a Monaspace-display world");
+    let text = "para\n~~struck~~\n";
+    // `LayoutGlyph::start` is LINE-relative, so the tilde bytes are computed
+    // against line 1's own text, not the whole buffer.
+    let line1 = "~~struck~~";
+    let tildes = tilde_byte_offsets(line1);
+    assert_eq!(
+        tildes,
+        vec![0, 1, 8, 9],
+        "sanity: two tilde pairs bracket `struck`"
+    );
+    for name in &roster {
+        theme::set_active_by_name(name).unwrap();
+        assert_eq!(theme::active().font, "Monaspace Xenon");
+        p.sync_theme();
+        // Caret on line 1 (the struck line) reveals its own raw markdown.
+        p.set_view(&view_md(text, 1, 0));
+        assert!(
+            !p.concealed_at(1, 0),
+            "{name}: caret on the struck line must reveal its raw '~~'"
+        );
+        for &b in &tildes {
+            let (s, e) = glyph_span_at(&p, 1, b);
+            assert_eq!(
+                e - s,
+                1,
+                "{name}: revealed tilde at byte {b} on the struck line must be its \
+                 own 1-byte glyph, got span {s}..{e} (fused) — the reveal must show \
+                 FOUR distinct tildes, not two wide ones"
+            );
+        }
+    }
+    theme::set_active(theme::DEFAULT_THEME);
+    p.sync_theme();
 }
