@@ -849,7 +849,27 @@ width is the capturable half and the hover feel is the user's live check.
 ---
 ### 551 — selecting across a table paints margin slivers, not a band: the selection wash collapses against the concealed source (user report, 2026-09-01 — "the table doesn't really… select properly?"; reproduced headlessly, first try)
 
-🟡 IN PROGRESS — claude, branch item-551
+✅ COMPLETE — merged as `f740749c`, follow-up `db90497e`. The band
+collapsed because `range_rects` read the concealed doc row's near-zero
+geometry while a selection-touched row is simultaneously revealed and
+floated at its real x-ray advances. New `xray_x_span` (mirrors
+`row_x_span`, reads `XrayRow::glyph_xs`); `range_rects` redirects onto
+it when the selected line is x-rayed. Whole-row-band rebuild, matching
+the existing inline-code/highlight wash carve-out's precedent (not
+cell-wise paint — a bigger IDE-like affordance this repo's table model
+doesn't otherwise carry) — captures for confirmation, not decided
+silently: `/tmp/awl551/fixed_crop.png` (Firetail) and
+`/tmp/awl551/wagtail_crop.png` (Wagtail), both local-only. 5 laws
+(endpoints-in-cell, header/divider partial spans, wrapped tall row,
+WYSIWYG-off control asserted already-correct), mutation-proven —
+reverting reproduces the exact reported 7.2–7.3px sliver against
+42–154px of real ink. Exact-main receipt: health pass:254s, both
+conventions, menubar=full:on, 4734 unit tests, 17 integration targets;
+web smoke OK.
+
+🔵 If the whole-row band isn't what you want (a spreadsheet-style
+cell-wise selection instead), say so — the alternative wasn't built,
+only flagged.
 
 Report: extend a selection through a GFM table and the selected rows show
 no selection band — just a thin vertical sliver at each row's left margin —
