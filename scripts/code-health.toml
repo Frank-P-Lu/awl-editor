@@ -386,8 +386,8 @@ reason = "`--bench-theme-burst` uses shared `assert_reshape_witness` checks: eve
 
 [[file_size_mark]]
 file = "src/render/geometry.rs"
-lines = 1298
-reason = "+29: `image_handle_mark_rect`, a pure function centering the drawn resize-handle grip exactly on the point the image resize hit-test itself arms — one owner for both, so the visible grip and the clickable zone can never drift apart. +7: corrected `assemble_glyph_xs`'s doc, which wrongly claimed Monaspace's tilde ligatures were AAT/`morx`-driven and unsuppressable; the font has no `morx` table at all (item 552)."
+lines = 1320
+reason = "+29: `image_handle_mark_rect`, a pure function centering the drawn resize-handle grip exactly on the point the image resize hit-test itself arms — one owner for both, so the visible grip and the clickable zone can never drift apart. +7: corrected `assemble_glyph_xs`'s doc, which wrongly claimed Monaspace's tilde ligatures were AAT/`morx`-driven and unsuppressable; the font has no `morx` table at all (item 552). +22: `xray_x_span`, `row_x_span`'s counterpart reading a table x-ray row's real `glyph_xs` instead of the concealed doc row, so a selection-touched row's band can be rebuilt against what is actually on screen."
 
 [[file_size_mark]]
 file = "src/render/layers.rs"
@@ -425,8 +425,8 @@ reason = "Overlay composition and ambient resolvers live here because they read 
 
 [[file_size_mark]]
 file = "src/render/rects.rs"
-lines = 1710
-reason = "+4: panel_layout reads shared physical PANEL_PAD and PANEL_MARGIN and clamps the content-sized card to narrow-canvas room, matching panel_shape_text fitted rows. +76: `OrnamentCache::bare_url_tails`'s field, its `ensure_ornament_lists` collection arm, and `bare_url_marks()`, beside the other per-frame ornament collections. +7: `MdKind::BareUrlText` joins `MdKind::LinkText` in the bucket-derivation match that feeds `Bucket::LinkUnderline`, so a tamed bare URL draws the same quiet underline a named link already does, through the one shared band/proto pipeline. Item 530's smart-punct ornament collection (smart_punct_marks) and its OrnamentCache::smart_punct_spans field, beside the other per-frame ornament collections this file already owns."
+lines = 1755
+reason = "+4: panel_layout reads shared physical PANEL_PAD and PANEL_MARGIN and clamps the content-sized card to narrow-canvas room, matching panel_shape_text fitted rows. +76: `OrnamentCache::bare_url_tails`'s field, its `ensure_ornament_lists` collection arm, and `bare_url_marks()`, beside the other per-frame ornament collections. +7: `MdKind::BareUrlText` joins `MdKind::LinkText` in the bucket-derivation match that feeds `Bucket::LinkUnderline`, so a tamed bare URL draws the same quiet underline a named link already does, through the one shared band/proto pipeline. Item 530's smart-punct ornament collection (smart_punct_marks) and its OrnamentCache::smart_punct_spans field, beside the other per-frame ornament collections this file already owns. +45: the table x-ray selection-band branch in `range_rects`, rebuilding the selection quad against the revealed row's real advances instead of the concealed geometry that collapsed it to a sliver."
 
 [[file_size_mark]]
 file = "src/render/rowlayout.rs"
