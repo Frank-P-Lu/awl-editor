@@ -1146,7 +1146,28 @@ before opening that follow-up.
 ---
 ### 561 — world ornaments render at inconsistent sizes across worlds; scale the small sets up to the big ones (user decision, 2026-09-01 — "for some worlds it's a bit small… bigger is actually better here; make sure the smaller ones are scaled up to match the bigger ones")
 
-🟡 IN PROGRESS — claude, branch item-561
+✅ COMPLETE — merged as `5f90cb6d`, follow-ups `1b22a1c1`/`fd2f5894`.
+Real differential-capture measurement first (not the screenshot estimate):
+pre-fix spread 2.014 (Wagtail) to 4.324 (Saltpan); the user's two named
+worlds matched their rough estimate almost exactly (Currawong 2.750,
+Mulga 3.721). Every world's `ornament_scale` moved from a shared
+tier constant to a measured literal, equalized upward to the roster
+max — no world shrunk. Post-fix spread 4.093–4.417 (~7.3%). Roster-
+derived law with a 15%-of-target tolerance band, mutation-proven.
+Orchestrator follow-up: raised two pre-existing markdown_headings tests
+that hardcoded the retired shared-tier constants against named worlds
+(now read each world's own live value), and widened awl_marks_pixels'
+fixture canvas (Gumtree's rule rows, now up to 4.648x line-height, had
+pushed the trailing bullet list off the bottom of the rendered frame).
+Exact-main receipt: health pass:245s, both conventions, menubar=full:on,
+4728 unit tests, 17 integration targets; web smoke OK.
+
+🔵 OWED — live look: Gumtree's dash is a 4-glyph snake run, so
+equalizing its height also grew its width (~119px → ~252px against a
+1008px column); reads proportionate in capture, not confirmed live.
+Also unmeasured: star/underscore share one `ornament_scale` dial with
+dash, so they grew proportionally but weren't independently verified
+against their own ink-to-em ratios — a candidate follow-up.
 
 Two user screenshots of the SAME document in two worlds: a chess-piece
 ornament set (dark world) drawing noticeably smaller, relative to the
@@ -1170,7 +1191,23 @@ Final size is the user's live sign-off.
 ---
 ### 562 — Insert Table dims grid: hover should live-resize the selection, and the pointer question again (user decision, 2026-09-01 — "it's not really mouse friendly… as you hover over it it should resize along to where your cursor is… cursor should be pointer I think"; animation explicitly deferred: "maybe a bit too much for now")
 
-🟡 IN PROGRESS — claude, branch item-562
+✅ COMPLETE — merged as `8ba19fe2`, follow-ups `e026a853`/`7c995d7e`.
+Pointer hover routes through the same `table_dims_pick` write the
+keyboard arrows and a click already use — no second shadow state, armed
+against a stationary duplicate `CursorMoved` reverting a keyboard
+sculpt. Hand cursor over the grid. New
+`frame_clock::Activity::TableDimsHover` eases the lit region toward the
+hovered cell (140ms, one named const), gated on Reduce-Motion/juice_live
+before touching ease state; a headless pipeline renders fully settled.
+Mutation-proven hover-to-selection wiring; corner-sweep and off-by-one
+boundary laws. 543/544 frost and 559's gutter cursor question both left
+untouched, as scoped. Orchestrator follow-up: `cursor_shape.rs` hit its
+own hard ceiling (past its frozen baseline) after the new priority arm,
+then the split-out test file ALSO hit the flat 500-line ceiling as a
+brand-new file with zero baseline grace — both carved further into
+`src/cursor_shape/tests/{helpers,basic,priority}.rs`. Exact-main
+receipt: health pass:245s, both conventions, menubar=full:on, 4728 unit
+tests, 17 integration targets; web smoke OK.
 
 Verified in the tree: the dims grid answers CLICKS only —
 `app/input/mouse.rs` maps a press through `table_dims_cell_at` to
