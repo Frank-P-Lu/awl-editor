@@ -822,7 +822,8 @@ fn empty_cell_plates_are_cleared_on_every_door_into_the_no_tables_return() {
     crate::page::set_page_on(true);
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!(
-            "skipping empty_cell_plates_are_cleared_on_every_door_into_the_no_tables_return: no wgpu adapter"
+            "skipping empty_cell_plates_are_cleared_on_every_door_into_the_no_tables_return: \
+             no wgpu adapter"
         );
         return;
     };
