@@ -48,9 +48,10 @@ pub enum DropRoute {
 /// CONTENT if it isn't text, so a renamed image with a stripped extension is
 /// never misrouted into the document as a broken reference.
 pub fn classify_drop(path: &Path) -> DropRoute {
-    let is_image = path.extension().and_then(|e| e.to_str()).is_some_and(|ext| {
-        crate::assets::IMAGE_EXTS.contains(&ext.to_ascii_lowercase().as_str())
-    });
+    let is_image = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|ext| crate::assets::IMAGE_EXTS.contains(&ext.to_ascii_lowercase().as_str()));
     if is_image {
         DropRoute::Image
     } else {

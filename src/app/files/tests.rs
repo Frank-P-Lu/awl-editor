@@ -2188,8 +2188,14 @@ fn dropping_several_images_inserts_their_references_sequentially() {
         app.on_dropped_file(&exit, PathBuf::from("/tmp/one.png"));
         app.on_dropped_file(&exit, PathBuf::from("/tmp/two.png"));
 
-        assert_eq!(mem.read(Path::new("/ws/assets/notes-1.png")).unwrap(), b"one");
-        assert_eq!(mem.read(Path::new("/ws/assets/notes-2.png")).unwrap(), b"two");
+        assert_eq!(
+            mem.read(Path::new("/ws/assets/notes-1.png")).unwrap(),
+            b"one"
+        );
+        assert_eq!(
+            mem.read(Path::new("/ws/assets/notes-2.png")).unwrap(),
+            b"two"
+        );
         let text = app.document.buffer().text().to_string();
         let first = text.find("assets/notes-1.png").expect("first ref present");
         let second = text.find("assets/notes-2.png").expect("second ref present");

@@ -45,7 +45,10 @@ fn next_named_asset_probes_deterministically_at_the_clipboard_paste_extension() 
 #[test]
 fn next_named_asset_uses_the_given_stem() {
     // A doc-derived stem probes its OWN `<stem>-N.png` sequence.
-    assert_eq!(next_named_asset("trip-notes", "png", &[]), "trip-notes-1.png");
+    assert_eq!(
+        next_named_asset("trip-notes", "png", &[]),
+        "trip-notes-1.png"
+    );
     assert_eq!(
         next_named_asset("trip-notes", "png", &["trip-notes-1.png".to_string()]),
         "trip-notes-2.png"
@@ -345,12 +348,18 @@ fn insert_text_puts_the_ref_on_its_own_line() {
 
 #[test]
 fn next_named_asset_probes_extensions_independently_under_the_same_stem() {
-    assert_eq!(next_named_asset("trip-notes", "jpg", &[]), "trip-notes-1.jpg");
+    assert_eq!(
+        next_named_asset("trip-notes", "jpg", &[]),
+        "trip-notes-1.jpg"
+    );
     assert_eq!(
         next_named_asset(
             "trip-notes",
             "jpg",
-            &["trip-notes-1.jpg".to_string(), "trip-notes-1.png".to_string()]
+            &[
+                "trip-notes-1.jpg".to_string(),
+                "trip-notes-1.png".to_string()
+            ]
         ),
         "trip-notes-2.jpg",
         "a same-stem different-extension file does not block this extension's own run"

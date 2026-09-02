@@ -41,5 +41,8 @@ fn classify_drop_falls_back_to_open_for_a_stripped_or_unfamiliar_extension() {
     // fall to Open, where `openable::classify` decides by CONTENT rather than
     // this module guessing from a bare name.
     assert_eq!(classify_drop(Path::new("/tmp/IMG_1234")), DropRoute::Open);
-    assert_eq!(classify_drop(Path::new("/tmp/archive.zip")), DropRoute::Open);
+    assert_eq!(
+        classify_drop(Path::new("/tmp/archive.zip")),
+        DropRoute::Open
+    );
 }
