@@ -98,6 +98,7 @@ impl TextPipeline {
     ) {
         // Punch a page-column hole; page-off passes the full width, hiding the margins.
         let (bg_left, bg_w) = self.background_bounds(width);
+        self.resolve_warp_render();
         let drift = if self.effective_background().is_waves() {
             crate::background::waves_drift_radians(self.waves_render_phase())
         } else {
@@ -119,6 +120,7 @@ impl TextPipeline {
             crate::background::AmbientUpload {
                 drift,
                 warp_travel: self.warp_travel(),
+                warp_axis: self.warp_axis_frac(),
                 organic_phase,
             },
             self.dpi,

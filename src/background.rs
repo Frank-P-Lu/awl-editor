@@ -1,6 +1,6 @@
 mod params;
 mod waves;
-use params::ground_params;
+use params::{ground_params, warp_shape_params};
 pub(crate) use waves::{env_phase, waves_drift_radians};
 
 /// Uniform globals. MUST match `Globals` in `shaders/background.wgsl`.
@@ -30,6 +30,19 @@ struct Globals {
     /// std140 tail padding: a uniform struct is rounded up to a multiple of its
     /// 16-byte alignment, and wgpu validates the binding against that size.
     _pad: f32,
+    // --- APPENDED, at the struct's own 16-byte-aligned tail (offset 112) ---
+    // Everything above this line is BYTE-IDENTICAL to before this item, so no
+    // existing upload site needed to move; these two vec4s are pure addition.
+    /// Warped-grid's authored shape: fold, twist, quantized ribs, unused. A
+    /// DEDICATED slot rather than a `params` one — `params` already uses all
+    /// four for other grounds, and Zigzag's own history is the tripwire for
+    /// why packing a fourth control into a shared slot corrupts a different
+    /// ground's parameter.
+    warp_shape: [f32; 4],
+    /// The roaming vanishing point's resolved axis, as a viewport fraction
+    /// (`x`, `y`); `z`/`w` unused (kept `vec4` for std140 alignment margin,
+    /// matching `warp_shape` and every other vec4 in this struct).
+    warp_axis: [f32; 4],
 }
 
 /// A flat, host-side descriptor of a world's [`crate::theme::Background`] — the
@@ -54,6 +67,14 @@ pub struct BgDesc {
     /// WARPED GRID's tunnel-placement scalar; INERT `0.0` off that ground
     /// (`Background::tunnel_mode`), so no other world's upload changes shape.
     pub tunnel: f32,
+    /// WARPED GRID's authored fold amplitude and twist/roll rate; INERT
+    /// `0.0` off that ground (`Background::warp_shape`).
+    pub warp_fold: f32,
+    pub warp_twist: f32,
+    /// WARPED GRID's rib count, already quantized to a shader-safe multiple
+    /// of the major-line hierarchy (`crate::warpgrid::ribs_seam_safe`) — the
+    /// shader never quantizes on its own. INERT `0.0` off that ground.
+    pub warp_ribs: f32,
 }
 
 /// The PER-FRAME ambient scalars the background pass carries — everything about
@@ -67,6 +88,9 @@ pub struct AmbientUpload {
     pub drift: f32,
     /// WARPED GRID's forward travel in minor cells.
     pub warp_travel: f32,
+    /// WARPED GRID's resolved roaming vanishing-point axis, as a viewport
+    /// fraction. `(0.0, 0.0)` for every other ground.
+    pub warp_axis: (f32, f32),
     /// ORGANIC's companion breathe phase, in CYCLES (raw shared-clock phase).
     pub organic_phase: f32,
 }
@@ -83,6 +107,7 @@ pub struct BackgroundPipeline {
     shader: u32,
     pat: [f32; 4],
     params: [f32; 4],
+    warp_shape: [f32; 4],
 }
 
 /// Max coverage the margin pattern's marks reach (the shader multiplies the
@@ -184,6 +209,7 @@ impl BackgroundPipeline {
             shader: desc.shader,
             pat: pattern_tint(desc.tint),
             params: ground_params(&desc),
+            warp_shape: warp_shape_params(&desc),
         }
     }
 
@@ -194,6 +220,7 @@ impl BackgroundPipeline {
         self.shader = desc.shader;
         self.pat = pattern_tint(desc.tint);
         self.params = ground_params(&desc);
+        self.warp_shape = warp_shape_params(&desc);
     }
 
     /// `scale` is the display's device ratio — PHYSICAL pixels per
@@ -227,6 +254,8 @@ impl BackgroundPipeline {
             scale,
             organic_phase: ambient.organic_phase,
             _pad: 0.0,
+            warp_shape: self.warp_shape,
+            warp_axis: [ambient.warp_axis.0, ambient.warp_axis.1, 0.0, 0.0],
         };
         queue.write_buffer(&self.globals_buf, 0, bytemuck_lite::bytes_of(&globals));
     }

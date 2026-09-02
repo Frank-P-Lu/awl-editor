@@ -1818,6 +1818,19 @@ pub struct TextPipeline {
     lava_phase: f32,
     /// WARPED-GRID travel phase in seconds.
     warp_phase: f32,
+    /// The roaming vanishing point's O(1)-per-frame incremental cursor
+    /// (`crate::warpgrid::RoamCursor`) — advanced only as far as `warp_phase`
+    /// itself has, never re-walked from scratch.
+    warp_roam: crate::warpgrid::RoamCursor,
+    /// The deterministic seed feeding the roaming vanishing point's pseudo-
+    /// random target sequence. Every headless entry point leaves this at
+    /// `crate::warpgrid::DEFAULT_SEED`; the live App may call
+    /// `set_warp_seed` with a fresh one on world activation.
+    warp_seed: u64,
+    /// This frame's resolved warped-grid render, cached by
+    /// `resolve_warp_render` (called from `prepare_background_layer`) so the
+    /// sidecar and `warp_travel`/`warp_axis_frac` stay cheap `&self` reads.
+    warp_last: crate::warpgrid::WarpRender,
     lava_field_viewport: [f32; 2],
     /// THE ORGANIC FROST SEED FIELD (proto-cache): the visible margin glyphs' halo
     /// seeds `[x0, x1, yc, r]` (the outline entries + the gutter), summed by the
@@ -2805,6 +2818,15 @@ fn background_desc() -> BgDesc {
         banded: bg.zigzag_banded(),
         profile: bg.profile_mode(),
         tunnel: bg.tunnel_mode(),
+        warp_fold: bg.warp_shape().0,
+        warp_twist: bg.warp_shape().1,
+        // INERT 0.0 off `WarpedGrid` (the quantizer's own floor is 5.0, so
+        // it cannot express "no tunnel" on its own).
+        warp_ribs: if bg.is_warped_grid() {
+            crate::warpgrid::ribs_seam_safe(bg.warp_shape().2)
+        } else {
+            0.0
+        },
     }
 }
 /// The visual-line motion LAYOUT ORACLE, implemented on the GPU pipeline because

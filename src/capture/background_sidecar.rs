@@ -11,13 +11,13 @@ use super::sidecar::json_string;
 pub(super) fn background_json(
     bg: crate::theme::Background,
     lava_phase: f32,
-    warp_travel: f32,
+    warp: crate::warpgrid::WarpRender,
 ) -> String {
     use crate::theme::Background;
     match bg {
         Background::Gradient { .. } | Background::Dots { .. }
         | Background::Pinstripe { .. } | Background::Stripes { .. } => simple_background_json(bg),
-        _ => rich_background_json(bg, lava_phase, warp_travel),
+        _ => rich_background_json(bg, lava_phase, warp),
     }
 }
 #[rustfmt::skip]
@@ -48,7 +48,7 @@ fn simple_background_json(bg: crate::theme::Background) -> String {
 fn rich_background_json(
     bg: crate::theme::Background,
     lava_phase: f32,
-    warp_travel: f32,
+    warp: crate::warpgrid::WarpRender,
 ) -> String {
     use crate::theme::Background;
     let hex = |c: crate::theme::Srgb| json_string(&c.hex());
@@ -118,13 +118,20 @@ fn rich_background_json(
             hex(ground), hex(layer), hex(deckle), weave.as_str(),
             period_px, wander_px, density
         ), Background::WarpedGrid {
-            ground, minor, major, tunnel, spacing_px, density
+            ground, minor, major, tunnel, spacing_px, density, fold, twist, forward_drift, ribs
         } => format!(
             concat!("{{\"kind\":\"warped-grid\",\"ground\":{},\"minor\":{},",
                 "\"major\":{},\"tunnel\":\"{}\",\"spacing_px\":{},",
-                "\"density\":{},\"forward_cells\":{}}}"),
+                "\"density\":{},\"fold\":{},\"twist\":{},\"forward_drift\":{},",
+                "\"ribs\":{},\"forward_cells\":{},",
+                "\"vanishing_point\":{{\"x\":{},\"y\":{}}},",
+                "\"holding\":{},\"from\":\"{}\",\"to\":\"{}\",\"transit_t\":{},",
+                "\"calm\":{}}}"),
             hex(ground), hex(minor), hex(major), tunnel.as_str(), spacing_px,
-            density, warp_travel
+            density, fold, twist, forward_drift, ribs, warp.travel_cells,
+            warp.axis_frac.0, warp.axis_frac.1,
+            warp.holding, warp.from.as_str(), warp.to.as_str(), warp.transit_t,
+            warp.calm
         ), _ => unreachable!("rich background helper received a simple ground"),
     }
 }
@@ -132,19 +139,55 @@ fn rich_background_json(
 #[cfg(test)]
 mod tests {
     use super::background_json;
+    use crate::warpgrid::{VpCorner, WarpRender};
+
+    fn holding_at(corner: VpCorner, travel: f32) -> WarpRender {
+        WarpRender {
+            axis_frac: corner.frac(),
+            travel_cells: travel,
+            holding: true,
+            from: corner,
+            to: corner,
+            transit_t: 0.0,
+            calm: false,
+        }
+    }
 
     #[test]
-    fn kite_sidecar_reports_fixed_framing_and_forward_travel_only() {
-        let json = background_json(crate::theme::KITE.background, 9.0, 12.5);
+    fn kite_sidecar_reports_the_resolved_pose_and_forward_travel() {
+        let json = background_json(crate::theme::KITE.background, 9.0, holding_at(VpCorner::TopRight, 12.5));
         for field in [
             "\"kind\":\"warped-grid\"",
             "\"tunnel\":\"fixed\"",
             "\"forward_cells\":12.5",
+            "\"vanishing_point\":{\"x\":0.8,\"y\":0.24}",
+            "\"holding\":true",
+            "\"from\":\"top-right\"",
+            "\"to\":\"top-right\"",
+            "\"calm\":false",
+            "\"fold\":0.34",
+            "\"twist\":0.72",
+            "\"ribs\":58",
         ] {
             assert!(json.contains(field), "missing {field}: {json}");
         }
         for retired in ["curvature", "yaw", "pitch"] {
             assert!(!json.contains(retired), "retired field {retired}: {json}");
         }
+    }
+
+    #[test]
+    fn calm_pose_reports_calm_true() {
+        let calm = WarpRender {
+            axis_frac: VpCorner::TopRight.frac(),
+            travel_cells: 0.0,
+            holding: true,
+            from: VpCorner::TopRight,
+            to: VpCorner::TopRight,
+            transit_t: 0.0,
+            calm: true,
+        };
+        let json = background_json(crate::theme::KITE.background, 0.0, calm);
+        assert!(json.contains("\"calm\":true"), "{json}");
     }
 }

@@ -345,18 +345,54 @@ impl TextPipeline {
         crate::lava::lava_phase_for(self.lava_phase, crate::motion::reduced(), env)
     }
 
-    /// THE WARPED GRID's effective travel phase, in seconds.
-    pub fn warp_render_phase(&self) -> f32 {
-        let env = crate::warpgrid::env_phase();
-        crate::warpgrid::phase_for(self.warp_phase, crate::motion::reduced(), env)
+    /// Resolve THIS frame's warped-grid render (roaming vanishing point +
+    /// forward travel + motion-safe pose) and cache it in `self.warp_last`
+    /// for the sidecar/read-only accessors below — the ONE place per frame
+    /// the roam sequence, the env capture seam, and the calm-policy OR are
+    /// consulted, so `warp_travel`/`warp_axis_frac`/etc. below can stay
+    /// cheap `&self` reads instead of each re-deriving the same state.
+    /// Inert (axis at the room's own centre-ish rest, zero travel) for
+    /// every non-`WarpedGrid` world — called every frame regardless of
+    /// ground, so no other world's upload changes shape.
+    pub(crate) fn resolve_warp_render(&mut self) {
+        self.warp_last = match crate::warpgrid::WarpProfile::from_background(
+            &self.effective_background(),
+        ) {
+            Some(profile) => crate::warpgrid::resolved_render(
+                &mut self.warp_roam,
+                &profile,
+                self.warp_phase,
+                self.warp_seed,
+                crate::warpgrid::calm_requested(),
+            ),
+            None => crate::warpgrid::WarpRender::inert(),
+        };
     }
 
-    /// Forward distance in minor cells; zero for every other ground.
+    /// Forward distance in minor cells; zero for every other ground. Reads
+    /// the frame's cached resolution — call [`Self::resolve_warp_render`]
+    /// first (`prepare_background_layer` always does).
     pub fn warp_travel(&self) -> f32 {
-        if !self.effective_background().is_warped_grid() {
-            return 0.0;
-        }
-        crate::warpgrid::forward_cells(self.warp_render_phase())
+        self.warp_last.travel_cells
+    }
+
+    /// The resolved vanishing-point axis, as a VIEWPORT FRACTION — `(0,0)`
+    /// for every non-`WarpedGrid` world.
+    pub fn warp_axis_frac(&self) -> (f32, f32) {
+        self.warp_last.axis_frac
+    }
+
+    /// The full resolved warped-grid render for this frame — the sidecar's
+    /// one source for the vanishing point, hold/transit state, and whether
+    /// the calm policy actually resolved.
+    pub fn warp_render(&self) -> crate::warpgrid::WarpRender {
+        self.warp_last
+    }
+
+    /// The live App picks a fresh seed on world activation; every headless
+    /// entry point leaves this at [`crate::warpgrid::DEFAULT_SEED`].
+    pub fn set_warp_seed(&mut self, seed: u64) {
+        self.warp_seed = seed;
     }
 
     /// THE TWO AMBIENT ADVANCE DOORS. The
@@ -389,10 +425,14 @@ impl TextPipeline {
     /// Pin the lava lamp's phase to the FROZEN composition — the live App calls
     /// this when the lamp must be static (Reduce Motion, or `ambient_motion` off),
     /// so resuming from a hard-frozen state restarts from the settled frame rather
-    /// than a stale mid-bob.
+    /// than a stale mid-bob. The warped grid does NOT reset its stored phase here:
+    /// its calm pose is a RENDER-TIME resolution (`resolve_warp_render`,
+    /// `crate::warpgrid::calm_requested`) that overrides the resolved pose
+    /// regardless of the stored phase, so the roam sequence simply resumes
+    /// from wherever it was once calm lifts, exactly like a lost-focus pause
+    /// preserves state instead of snapping to a canonical frame.
     pub fn freeze_lava(&mut self) {
         self.lava_phase = crate::lava::LAVA_FROZEN_PHASE;
-        self.warp_phase = crate::warpgrid::FROZEN_PHASE;
     }
 
     /// COPY PULSE: kick the selection quad's brighten/decay AND the caret's own
