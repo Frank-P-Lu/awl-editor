@@ -1,5 +1,6 @@
 use super::Command;
 use crate::keymap::Action;
+mod search_folder;
 
 pub(super) static COMMANDS: &[Command] = &[
     // COMMAND PALETTE: the catalog's own front door, now catalogued rather than
@@ -86,17 +87,7 @@ pub(super) static COMMANDS: &[Command] = &[
             "Summon the list of orphaned image files under the project, for moving to the trash.",
         ),
     },
-    Command {
-        name: "Search in folder…",
-        action: Action::OpenSearchFolder,
-        native: "",
-        emacs: "",
-        native_only: false,
-        web_only: false,
-        description: Some(
-            "Full-text search over every file in the active folder — matching lines grouped by file.",
-        ),
-    },
+    search_folder::SEARCH_FOLDER,
     Command {
         name: "Keep version…",
         action: Action::KeepVersion,

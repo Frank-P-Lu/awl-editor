@@ -52,3 +52,38 @@ impl App {
         self.request_frame();
     }
 }
+
+impl App {
+    /// SEARCH-IN-FOLDER's own door: open `rel` (root-relative, `open_rel`'s
+    /// own resolve) AND land the caret at `line`/`col` -- but ONLY if the open
+    /// actually succeeds (unlike `open_rel`, which discards `load_path`'s
+    /// bool; a refused open here -- classified unsupported, deleted since the
+    /// search ran -- must never jump the caret inside whatever buffer was
+    /// already active).
+    pub(in crate::app) fn open_path_at_line(&mut self, rel: &str, line: usize, col: usize) {
+        let path = crate::index::resolve(&self.project_location.root, rel);
+        if self.load_path(path) {
+            self.jump_to_line_col(line, col);
+        }
+    }
+
+    pub(in crate::app) fn jump_to_line(&mut self, line: usize) {
+        self.jump_to_line_col(line, 0);
+    }
+
+    /// `jump_to_line`'s own column-aware generalization -- search-in-folder's
+    /// door lands the caret exactly on the match, not just the line start.
+    pub(in crate::app) fn jump_to_line_col(&mut self, line: usize, col: usize) {
+        let idx = self.document.buffer().line_col_to_char(line, col);
+        self.document.clear_mark();
+        self.document.set_cursor(idx);
+        // REVEALED PLACEMENT (folds): a heading Go-to / margin-outline jump may target
+        // a line hidden inside a collapsed section — route through the ONE placement
+        // owner so the landing line is revealed, never left inside a fold. A cheap
+        // no-op unless a section is folded.
+        self.document.reveal_placement();
+        self.document.set_shift_selecting(false);
+        self.sync_view(true);
+        self.request_frame();
+    }
+}

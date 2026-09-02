@@ -64,7 +64,8 @@ fn summon_type_enter_lands_the_caret_on_the_match_in_the_matched_file() {
     let _g = crate::testlock::serial();
     if !adapter_available() {
         eprintln!(
-            "skipping summon_type_enter_lands_the_caret_on_the_match_in_the_matched_file: no wgpu adapter"
+            "skipping summon_type_enter_lands_the_caret_on_the_match_in_the_matched_file: \
+             no wgpu adapter"
         );
         return;
     }
