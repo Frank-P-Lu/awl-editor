@@ -8,16 +8,16 @@ fn classify_drop_routes_every_roster_extension_to_image() {
     // Sweep the SAME roster the asset-cleaner scan uses — not a hand-picked
     // subset — so a future addition to `IMAGE_EXTS` is covered here for free.
     for ext in crate::assets::IMAGE_EXTS {
-        let path = Path::new(&format!("/tmp/photo.{ext}"));
+        let lower = format!("/tmp/photo.{ext}");
         assert_eq!(
-            classify_drop(path),
+            classify_drop(Path::new(&lower)),
             DropRoute::Image,
             "extension {ext:?} should route to the image door"
         );
         // Case-insensitivity: the OS/Finder can hand back any casing.
-        let upper = Path::new(&format!("/tmp/photo.{}", ext.to_ascii_uppercase()));
+        let upper = format!("/tmp/photo.{}", ext.to_ascii_uppercase());
         assert_eq!(
-            classify_drop(upper),
+            classify_drop(Path::new(&upper)),
             DropRoute::Image,
             "uppercased extension {ext:?} should still route to the image door"
         );

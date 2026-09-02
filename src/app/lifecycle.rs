@@ -306,6 +306,19 @@ impl ApplicationHandler<AwlEvent> for App {
             WindowEvent::Ime(ime) => self.on_ime(ime),
             WindowEvent::KeyboardInput { event, .. } => self.on_keyboard_input(event_loop, event),
             WindowEvent::RedrawRequested => self.on_redraw_requested(event_loop),
+            // DRAG-AND-DROP (native only — winit's web backend never
+            // constructs any of these three, see `crate::drop`'s module
+            // doc). `event_loop` doubles as `&dyn schedule::Exit`, the same
+            // coercion every other input handler below this match already
+            // relies on. `HoveredFile`/`HoveredFileCancelled` are explicit
+            // no-ops rather than falling through the wildcard: awl draws no
+            // drop-target hover affordance, so there is no state to keep in
+            // sync, and naming them here records that as a decision rather
+            // than an oversight.
+            #[cfg(not(target_arch = "wasm32"))]
+            WindowEvent::DroppedFile(path) => self.on_dropped_file(event_loop, path),
+            #[cfg(not(target_arch = "wasm32"))]
+            WindowEvent::HoveredFile(_) | WindowEvent::HoveredFileCancelled => {}
             _ => {}
         }
     }

@@ -5,16 +5,19 @@
 //! filename, the RGBA→PNG encode, and the save-location resolution live here so
 //! they are testable without a real clipboard or disk; the LIVE glue reads
 //! arboard and persists through [`persist_png`]; the returned reference
-//! re-enters the shared action core as a continuation.
+//! re-enters the shared action core as a continuation. A dropped image file
+//! (`crate::drop`, `app/files/drop.rs`) reuses the SAME naming/dir/write
+//! owner via [`persist_bytes`], copying the file's own bytes verbatim under
+//! its own extension rather than the clipboard path's forced `"png"`.
 //!
 //! NAMING: the filename stem comes from the DOCUMENT, not a counter — a paste
 //! into `trip-notes.md` writes `trip-notes-1.png`, so an assets folder full of
 //! pasted images reads like the notes they illustrate instead of an opaque run
 //! of `pasted-N.png`. [`paste_stem`] derives the stem (sanitized via
-//! [`sanitize_stem`]) and [`next_pasted_name`] probes for the first free `N`
+//! [`sanitize_stem`]) and [`next_named_asset`] probes for the first free `N`
 //! under it — unrelated stems (an old `pasted-` run alongside a new
 //! `trip-notes-` one) probe independently in the same directory, since each
-//! only ever matches its OWN prefix.
+//! only ever matches its OWN stem+extension prefix.
 //!
 //! DETERMINISM: nothing here reads a clock or randomness — the unique filename
 //! is derived by PROBING the assets dir (`<stem>-1.png`, `<stem>-2.png`, …), a
@@ -128,10 +131,10 @@ pub fn paste_stem(doc_path: Option<&Path>) -> String {
 /// "pasted-1.png"`). Different stems (or different extensions under the SAME
 /// stem — a dropped `trip-notes.jpg` beside a pasted `trip-notes.png`) probe
 /// INDEPENDENTLY against the same listing, since a candidate only ever
-/// matches its own stem+ext exact prefix. The one owner both
-/// [`next_pasted_name`] (clipboard paste, always `"png"`) and a dropped
-/// image's own extension-preserving copy route through — never two naming
-/// implementations.
+/// matches its own stem+ext exact prefix. The one owner both the
+/// clipboard-paste door (always `"png"`, via [`persist_png`]) and a dropped
+/// image's own extension-preserving copy (via [`persist_bytes`]) route
+/// through — never two naming implementations.
 pub fn next_named_asset(stem: &str, ext: &str, existing: &[String]) -> String {
     let mut n: usize = 1;
     loop {
@@ -141,12 +144,6 @@ pub fn next_named_asset(stem: &str, ext: &str, existing: &[String]) -> String {
         }
         n += 1;
     }
-}
-
-/// [`next_named_asset`] pinned to `"png"` — the clipboard-paste naming shape
-/// every existing call site and test already expects.
-pub fn next_pasted_name(stem: &str, existing: &[String]) -> String {
-    next_named_asset(stem, "png", existing)
 }
 
 /// Encode raw RGBA8 pixels (row-major, 4 bytes/pixel, the shape arboard's
