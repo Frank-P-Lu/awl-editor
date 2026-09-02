@@ -961,7 +961,49 @@ Headlessly verifiable end to end — the repro capture above is the seed.
 ---
 ### 553 — search across the folder: full-text search as a summoned surface (user decision, 2026-09-01)
 
-🟡 IN PROGRESS — claude, branch item-553
+✅ COMPLETE — merged as `277c3717`, follow-ups `e076ddd8`/`104fb174`.
+New `OverlayKind::SearchFolder`, palette-only ("Search in folder…", no
+default chord — Cmd-Shift-F is `search_backward`). Every exhaustive
+per-kind match site got a conscious arm; opening a match reuses the
+exact door every other picker uses. One genuine gap in the effect
+vocabulary — nothing combined "open a possibly-different file" with
+"jump to an exact position" — filled with `Effect::OpenPathAtLine` on
+both the live App and headless replay.
+
+Matching reuses Cmd-F's existing in-buffer matcher (Unicode-aware
+casefold), not a second one. Scan is bounded and off the frame path:
+corpus loaded once at summon (300 files / 20MB / 1MB-per-file),
+re-matched against the in-memory corpus on every keystroke (200 hits
+/ 20 per file / 80-char snippet), never touching disk again.
+Highlighting reuses the existing figure/ground row-split machinery.
+Ships on native AND web (unlike Assets, native-only) since its
+file-reading seam is already cross-platform.
+
+15 unit tests at the matcher/grouping/budget seam plus a `--keys`
+sidecar journey proving both halves of `OpenPathAtLine` (buffer switch
+AND exact cursor position). A broad unfiltered sweep surfaced ten real
+roster-completeness gaps (keymap-defaults, generated docs, palette
+exemptions, three `OverlayKind::ALL` sweeps) — all fixed. Orchestrator
+follow-up: two files crossed hard, un-raisable 500-line ceilings
+(`open.rs`'s baseline was 432, well under; `navigation.rs` never
+existed at freeze) — `open_path_at_line`/`jump_to_line`/
+`jump_to_line_col` moved to `document.rs`; the new catalog entry moved
+to a submodule. Raised 13 size marks + 10 clippy exceptions the
+exhaustive-roster enrollment tripped. Separately found two more real
+roster gaps the merge candidate exposed: `open_path_at_line` was
+missing from `replay::tests`'s hand-kept Applied-bucket roster, and
+the sidecar journey's two real-disk fixture writes were missing from
+`durable::tests`' accounted-for-sites table.
+
+🔵 Flagged, not hidden: the highlight's real-pixel legibility is
+live-only/unverified; grouping doesn't use the lens-strip header
+mechanism (a deliberate scope call — the full facet/tab-strip UI felt
+out of proportion to this item); a CRLF source file's matched line
+keeps a cosmetic trailing `\r`; the corpus is summon-time-only, same
+as Assets/Goto (a file edited on disk while the picker stays open
+won't be re-read until next summon). Exact-main receipt: health
+pass:240s, both conventions, menubar=full:on, 4803 unit tests, 17
+integration targets; web smoke OK.
 
 DECIDED from the feature-gap review. PHILOSOPHY §1 promises "the simple
 file operations, navigation, search, and version history needed to
