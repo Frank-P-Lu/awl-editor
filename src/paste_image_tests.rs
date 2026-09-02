@@ -337,3 +337,56 @@ fn insert_text_puts_the_ref_on_its_own_line() {
         "\n![](assets/pasted-1.png)\n"
     );
 }
+
+// ── extension-preserving naming (dropped images reuse this owner too) ─────
+
+#[test]
+fn next_named_asset_uses_the_given_extension_and_next_pasted_name_still_pins_png() {
+    assert_eq!(next_named_asset("trip-notes", "jpg", &[]), "trip-notes-1.jpg");
+    assert_eq!(
+        next_named_asset(
+            "trip-notes",
+            "jpg",
+            &["trip-notes-1.jpg".to_string(), "trip-notes-1.png".to_string()]
+        ),
+        "trip-notes-2.jpg",
+        "a same-stem different-extension file does not block this extension's own run"
+    );
+    // `next_pasted_name` is unchanged behavior — the pinned-"png" instance of
+    // the same owner, not a second implementation.
+    assert_eq!(next_pasted_name("trip-notes", &[]), "trip-notes-1.png");
+}
+
+#[test]
+fn persist_bytes_preserves_the_dropped_extension_and_probes_independently_of_a_png_run() {
+    use crate::fs::FileSystem;
+    use std::sync::Arc;
+
+    let _guard = crate::testlock::serial();
+    let mem = crate::fs::InMemoryFs::new().with_dir("/notes/assets");
+    mem.write(Path::new("/notes/assets/trip-notes-1.png"), b"pasted")
+        .unwrap();
+    crate::fs::with_fs(Arc::new(mem.clone()), || {
+        let reference = persist_bytes(
+            Some(Path::new("/notes/trip-notes.md")),
+            Path::new("/data"),
+            b"jpeg-bytes",
+            "jpg",
+        );
+        // Same stem as the existing pasted PNG, but its own `.jpg` run — the
+        // existing `-1.png` never blocks `-1.jpg`.
+        assert_eq!(reference.as_deref(), Some("assets/trip-notes-1.jpg"));
+        assert_eq!(
+            mem.read(Path::new("/notes/assets/trip-notes-1.jpg"))
+                .unwrap(),
+            b"jpeg-bytes",
+            "the dropped file's own bytes are copied verbatim, never re-encoded"
+        );
+        assert_eq!(
+            mem.read(Path::new("/notes/assets/trip-notes-1.png"))
+                .unwrap(),
+            b"pasted",
+            "the pre-existing pasted-N.png is untouched"
+        );
+    });
+}
