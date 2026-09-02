@@ -987,7 +987,31 @@ this item: regex UI, saved searches, replace-across-files.
 ---
 ### 554 — drag-and-drop onto the window: a text file opens, an image lands in the document (user decision, 2026-09-01)
 
-🟡 IN PROGRESS — claude, branch item-554
+✅ COMPLETE — merged as `10642447`, follow-up `e1fa87c3`. `winit`'s
+`DroppedFile` routes through the two existing doors, no second
+implementation: `App::load_path` for text/markdown (the same door
+every picker selection, C-x b, and the daemon share), and the
+paste-image pipeline for images (`App::insert_dropped_image` mirrors
+`App::paste_image_reference` exactly — same no-path-buffer rule, same
+one-undoable-edit continuation). `paste_image.rs`'s naming/persist
+owner generalized (`next_pasted_name`/`persist_png` →
+`next_named_asset`/`persist_bytes` with an extension parameter); old
+names now delegate, clipboard-paste behavior byte-for-byte unchanged.
+The only new code is `classify_drop`, a pure path-in/decision-out
+function reusing the existing `assets::IMAGE_EXTS` roster; everything
+else falls to Open, where `openable::classify` already decides
+text-vs-binary by content. Multiple files: one `DroppedFile` event per
+file in drop order, so in-order handling falls out for free — no
+batching logic needed. Native-only, mirroring paste-image's own gate.
+
+Mutation-proven at both the pure classifier and the App-side routing.
+The physical OS drag gesture itself is tier-3 (no `--keys` vocabulary
+exists for it) and is explicitly flagged for live human confirmation,
+not claimed verified — someone needs to physically drag a `.md` and an
+image file onto a running `scripts/dev-app.sh` window and confirm both
+the open and the image-insert feel right, multi-file drop order
+included. Exact-main receipt: health pass:254s, both conventions,
+menubar=full:on, 4787 unit tests, 17 integration targets; web smoke OK.
 
 winit's `DroppedFile` event is unhandled today — dropping anything on
 the window does nothing. DECIDED semantics, in the user's words: a
