@@ -380,8 +380,30 @@ fn hover_movement_slop_gate_holds_across_every_overlay_kind_no_wildcard() {
             | OverlayKind::SearchFolder => {}
         }
         let ctx = format!("kind={kind:?}");
-        let corpus: Vec<String> = (0..30).map(|i| format!("row{i}")).collect();
-        let mut ov = OverlayState::new(kind, corpus, vec![], vec![]);
+        // SEARCH-IN-FOLDER's rows are QUERY-DERIVED (`refilter`'s own
+        // `SearchFolder` branch discards a generic `OverlayState::new`
+        // corpus and rebuilds from scratch), so it needs its own 30-hit
+        // fixture rather than the generic 30-row corpus below.
+        let mut ov = if kind == OverlayKind::SearchFolder {
+            // Split across two files (15 hits each) rather than one -- a
+            // single file's hits are capped at `SearchBudget::default()`'s
+            // `max_hits_per_file` (20), which a 30-in-one-file fixture would
+            // silently clip to 20 rows and starve this sweep's `move_sel(23)`
+            // expectation below.
+            let a: String = (0..15).map(|i| format!("needle a-row{i}\n")).collect();
+            let b: String = (0..15).map(|i| format!("needle b-row{i}\n")).collect();
+            let mut ov = OverlayState::new_search_folder(
+                std::path::PathBuf::from("/proj"),
+                vec![("a.md".to_string(), a), ("b.md".to_string(), b)],
+            );
+            for c in "needle".chars() {
+                ov.push(c);
+            }
+            ov
+        } else {
+            let corpus: Vec<String> = (0..30).map(|i| format!("row{i}")).collect();
+            OverlayState::new(kind, corpus, vec![], vec![])
+        };
 
         // A real, earlier hover establishes the anchor on row 2 (inside the
         // fresh window, so the hover genuinely lands).

@@ -1966,12 +1966,29 @@ fn overlay_home_end_jump_to_first_and_last_for_every_kind() {
             (Action::LineEnd, Action::LineStart), // End / Home, C-e / C-a, Cmd-→/←
             (Action::BufferEnd, Action::BufferStart), // Cmd-↓/↑, Ctrl-End/Home
         ] {
-            let mut overlay = crate::overlay::Journey::seeded(Some(OverlayState::new(
-                k,
-                corpus(),
-                vec![],
-                vec![],
-            )));
+            // SEARCH-IN-FOLDER's rows are QUERY-DERIVED (`refilter`'s own
+            // `SearchFolder` branch discards whatever corpus a generic
+            // `OverlayState::new` was handed and rebuilds from scratch), so
+            // the generic constructor below would always summon it EMPTY.
+            // Build it the same way the product does: a real corpus + a
+            // typed query producing the same four-row count `corpus()`
+            // gives every other kind, so this law's own `last`/`selected`
+            // arithmetic stays uniform across the whole sweep.
+            let mut overlay = crate::overlay::Journey::seeded(Some(if k == OverlayKind::SearchFolder {
+                let mut ov = OverlayState::new_search_folder(
+                    std::path::PathBuf::from("/proj"),
+                    vec![(
+                        "a.md".to_string(),
+                        "needle one\nneedle two\nneedle three\nneedle four".to_string(),
+                    )],
+                );
+                for c in "needle".chars() {
+                    ov.push(c);
+                }
+                ov
+            } else {
+                OverlayState::new(k, corpus(), vec![], vec![])
+            }));
             let last = overlay.card().unwrap().item_strings().len() - 1;
             assert!(last >= 1, "{k:?}: sweep corpus lists multiple rows");
             let mut accept = None;

@@ -56,6 +56,11 @@ fn roster() -> Vec<Effect> {
         Effect::RunAction(Action::Save),
         Effect::OverlayAccept(OverlayKind::Goto, "a.md".into()),
         Effect::JumpToLine(3),
+        Effect::OpenPathAtLine {
+            path: "a.md".into(),
+            line: 3,
+            col: 5,
+        },
         Effect::RebindCommit {
             slug: "save".into(),
             binding: "C-t".into(),
