@@ -51,7 +51,10 @@ impl TextPipeline {
             // out-of-bounds range degrades to the ordinary unsplit row rather
             // than panicking on a non-char-boundary slice.
             let highlight = highlights.get(row).copied().flatten().filter(|&(s, e)| {
-                s <= e && e <= content.len() && content.is_char_boundary(s) && content.is_char_boundary(e)
+                s <= e
+                    && e <= content.len()
+                    && content.is_char_boundary(s)
+                    && content.is_char_boundary(e)
             });
             if let Some((s, e)) = highlight {
                 if s > 0 {

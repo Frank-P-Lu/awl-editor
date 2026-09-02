@@ -63,12 +63,15 @@ fn open_search_in_folder(session: &mut crate::run::ReplaySession) {
 fn summon_type_enter_lands_the_caret_on_the_match_in_the_matched_file() {
     let _g = crate::testlock::serial();
     if !adapter_available() {
-        eprintln!("skipping summon_type_enter_lands_the_caret_on_the_match_in_the_matched_file: no wgpu adapter");
+        eprintln!(
+            "skipping summon_type_enter_lands_the_caret_on_the_match_in_the_matched_file: no wgpu adapter"
+        );
         return;
     }
-    let dir = ScratchDir::new(
-        std::env::temp_dir().join(format!("awl_search_in_folder_journey_{}", std::process::id())),
-    );
+    let dir = ScratchDir::new(std::env::temp_dir().join(format!(
+        "awl_search_in_folder_journey_{}",
+        std::process::id()
+    )));
     std::fs::create_dir_all(dir.join("notes")).expect("notes dir");
     let todo_text = "line one\nremember the todo item\nline three\n";
     std::fs::write(dir.join("notes/todo.md"), todo_text).expect("write todo.md");
@@ -80,7 +83,8 @@ fn summon_type_enter_lands_the_caret_on_the_match_in_the_matched_file() {
     let corpus: Vec<String> = vec!["notes/todo.md".to_string(), "notes/other.md".to_string()];
     let root = dir.to_path_buf();
     let config = Config::empty();
-    let mut km = crate::keymap::KeymapState::new_with_convention(crate::convention::Convention::Mac);
+    let mut km =
+        crate::keymap::KeymapState::new_with_convention(crate::convention::Convention::Mac);
     let mut session = crate::run::ReplaySession::new(
         crate::run::ReplayPolicy::ordinary(),
         &mut buffer,
@@ -131,6 +135,14 @@ fn summon_type_enter_lands_the_caret_on_the_match_in_the_matched_file() {
     );
     let expected_line = 1u64; // 0-based: "remember the todo item"
     let expected_col = "remember the ".chars().count() as u64; // the match's own char column
-    assert_eq!(json["cursor"]["line"].as_u64(), Some(expected_line), "landed line: {json}");
-    assert_eq!(json["cursor"]["col"].as_u64(), Some(expected_col), "landed col (on the match, not line start): {json}");
+    assert_eq!(
+        json["cursor"]["line"].as_u64(),
+        Some(expected_line),
+        "landed line: {json}"
+    );
+    assert_eq!(
+        json["cursor"]["col"].as_u64(),
+        Some(expected_col),
+        "landed col (on the match, not line start): {json}"
+    );
 }

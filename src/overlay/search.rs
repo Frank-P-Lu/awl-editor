@@ -8,7 +8,11 @@ use crate::search_folder::{self, SearchBudget};
 
 impl OverlayState {
     pub(super) fn rebuild_search_rows(&mut self) {
-        let hits = search_folder::search(&self.search_corpus, self.query.text(), &SearchBudget::default());
+        let hits = search_folder::search(
+            &self.search_corpus,
+            self.query.text(),
+            &SearchBudget::default(),
+        );
         self.rows = hits
             .into_iter()
             .map(|hit| OverlayRow {

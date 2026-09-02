@@ -1974,21 +1974,22 @@ fn overlay_home_end_jump_to_first_and_last_for_every_kind() {
             // typed query producing the same four-row count `corpus()`
             // gives every other kind, so this law's own `last`/`selected`
             // arithmetic stays uniform across the whole sweep.
-            let mut overlay = crate::overlay::Journey::seeded(Some(if k == OverlayKind::SearchFolder {
-                let mut ov = OverlayState::new_search_folder(
-                    std::path::PathBuf::from("/proj"),
-                    vec![(
-                        "a.md".to_string(),
-                        "needle one\nneedle two\nneedle three\nneedle four".to_string(),
-                    )],
-                );
-                for c in "needle".chars() {
-                    ov.push(c);
-                }
-                ov
-            } else {
-                OverlayState::new(k, corpus(), vec![], vec![])
-            }));
+            let mut overlay =
+                crate::overlay::Journey::seeded(Some(if k == OverlayKind::SearchFolder {
+                    let mut ov = OverlayState::new_search_folder(
+                        std::path::PathBuf::from("/proj"),
+                        vec![(
+                            "a.md".to_string(),
+                            "needle one\nneedle two\nneedle three\nneedle four".to_string(),
+                        )],
+                    );
+                    for c in "needle".chars() {
+                        ov.push(c);
+                    }
+                    ov
+                } else {
+                    OverlayState::new(k, corpus(), vec![], vec![])
+                }));
             let last = overlay.card().unwrap().item_strings().len() - 1;
             assert!(last >= 1, "{k:?}: sweep corpus lists multiple rows");
             let mut accept = None;

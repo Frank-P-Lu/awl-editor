@@ -31,7 +31,6 @@ mod panels;
 mod pickers_faceted;
 mod plan_accessory;
 mod plan_geometry;
-mod search_in_folder_journey;
 /// The home-path redaction's laws. The WIRED half drives the real screenshot
 /// door (`crate::run::capture_screenshot`), which is native-only, so the module
 /// is too.
@@ -39,6 +38,7 @@ mod search_in_folder_journey;
 mod redact_law;
 mod schema_chrome;
 mod schema_ledger;
+mod search_in_folder_journey;
 mod selection_hud;
 mod serialization_law;
 mod working_set_sidecar;

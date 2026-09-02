@@ -142,7 +142,10 @@ fn representative_overlay(kind: OverlayKind) -> OverlayState {
         OverlayKind::SearchFolder => {
             let mut ov = OverlayState::new_search_folder(
                 std::path::PathBuf::from("/proj"),
-                vec![("notes/todo.md".to_string(), "remember the todo item".to_string())],
+                vec![(
+                    "notes/todo.md".to_string(),
+                    "remember the todo item".to_string(),
+                )],
             );
             ov.push('t');
             ov

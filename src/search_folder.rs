@@ -166,12 +166,20 @@ pub fn search(corpus: &[(String, String)], query: &str, budget: &SearchBudget) -
 /// A match wider than `max_chars` itself is shown whole, unwindowed (the
 /// budget bounds ROWS and FILES; it never truncates the very text the row
 /// exists to show).
-fn build_snippet(line: &str, char_start: usize, char_end: usize, max_chars: usize) -> (String, usize, usize) {
+fn build_snippet(
+    line: &str,
+    char_start: usize,
+    char_end: usize,
+    max_chars: usize,
+) -> (String, usize, usize) {
     let chars: Vec<char> = line.chars().collect();
     let match_len = char_end.saturating_sub(char_start);
     if chars.len() <= max_chars || match_len >= max_chars {
         let hl_start = chars[..char_start].iter().collect::<String>().len();
-        let hl_end = chars[..char_end.min(chars.len())].iter().collect::<String>().len();
+        let hl_end = chars[..char_end.min(chars.len())]
+            .iter()
+            .collect::<String>()
+            .len();
         return (line.to_string(), hl_start, hl_end);
     }
     let context = max_chars - match_len;
@@ -194,7 +202,11 @@ fn build_snippet(line: &str, char_start: usize, char_end: usize, max_chars: usiz
     if lead_ellipsis {
         snippet.push('\u{2026}');
     }
-    let hl_start = snippet.len() + chars[win_start..char_start].iter().collect::<String>().len();
+    let hl_start = snippet.len()
+        + chars[win_start..char_start]
+            .iter()
+            .collect::<String>()
+            .len();
     let hl_end = snippet.len()
         + chars[win_start..char_end.min(chars.len())]
             .iter()
