@@ -285,6 +285,12 @@ fn no_bare_durable_write_bypasses_write_atomic_outside_the_accounted_for_sites()
         // owner; the product write path would erase the adversarial edge.
         ("buffer/tests/quick_notes.rs", 1),
         ("buffers/tests.rs", 1),
+        // The search-in-folder journey drives a real --keys replay that
+        // opens a DIFFERENT file mid-journey (open_path_at_line), so its
+        // fixture files must exist on real disk for that open to find —
+        // an InMemoryFs seam is not what the replay's own file-open path
+        // reads. Two files, seeded once before the journey starts.
+        ("capture/tests/search_in_folder_journey.rs", 2),
         ("crashlog.rs", 1),
         ("daemon.rs", 1),
         ("durable.rs", 1),

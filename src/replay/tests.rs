@@ -120,6 +120,7 @@ fn every_effect_lands_in_its_documented_bucket() {
         "run_action",
         "overlay_accept",
         "jump_to_line",
+        "open_path_at_line",
         "persist_caret_mode",
         "persist_page_mode",
         "persist_page_width",
