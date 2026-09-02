@@ -1475,6 +1475,8 @@ can't-decode state gets its own capture law.
 ---
 ### 564 — Kite's living warped-grid tunnel: one reusable contorted tube, roaming between four room-owned vanishing points (user decision, 2026-09-02 — interactive design study approved)
 
+🟡 IN PROGRESS — claude, branch item-564
+
 The premise is verified in the tree before this brief asks for a rewrite:
 Kite is already the sole wearer of `Background::WarpedGrid`; its existing
 ground is an analytic per-fragment tunnel in `shaders/background.wgsl`, with
