@@ -13,7 +13,7 @@
 mod roam;
 mod seam;
 
-pub use roam::{RoamCursor, VpCorner, WarpPose};
+pub use roam::{DWELL_SECONDS, RoamCursor, TRANSIT_SECONDS, VpCorner, WarpPose};
 pub use seam::WarpSeam;
 
 /// Every fifth line is the shader's own major/minor hierarchy boundary

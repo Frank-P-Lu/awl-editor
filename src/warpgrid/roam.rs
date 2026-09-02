@@ -11,7 +11,7 @@
 
 /// One of the four room-owned vanishing-point targets, as a VIEWPORT
 /// fraction — independent of page geometry, per the brief.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum VpCorner {
     TopLeft,
     TopRight,
@@ -412,7 +412,7 @@ mod tests {
     /// it exists so the report can show the exact panic text a real break
     /// produces; see the module's own build report.
     #[cfg(test)]
-    fn broken_next_corner_allows_repeats(current: VpCorner, seed: u64, segment: u64) -> VpCorner {
+    fn broken_next_corner_allows_repeats(_current: VpCorner, seed: u64, segment: u64) -> VpCorner {
         let mixed = splitmix64(seed ^ splitmix64(segment));
         VpCorner::ALL[(mixed % 4) as usize]
     }

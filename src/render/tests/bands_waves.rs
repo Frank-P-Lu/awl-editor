@@ -62,6 +62,13 @@ pub(super) fn bg_desc_for(bg: theme::Background) -> BgDesc {
         banded: bg.zigzag_banded(),
         profile: bg.profile_mode(),
         tunnel: bg.tunnel_mode(),
+        warp_fold: bg.warp_shape().0,
+        warp_twist: bg.warp_shape().1,
+        warp_ribs: if bg.is_warped_grid() {
+            crate::warpgrid::ribs_seam_safe(bg.warp_shape().2)
+        } else {
+            0.0
+        },
     }
 }
 

@@ -1094,6 +1094,10 @@ fn with_half_density(bg: Background) -> Background {
             tunnel,
             spacing_px,
             density,
+            fold,
+            twist,
+            forward_drift,
+            ribs,
         } => Background::WarpedGrid {
             ground,
             minor,
@@ -1101,6 +1105,10 @@ fn with_half_density(bg: Background) -> Background {
             tunnel,
             spacing_px,
             density: density * 0.5,
+            fold,
+            twist,
+            forward_drift,
+            ribs,
         },
     }
 }

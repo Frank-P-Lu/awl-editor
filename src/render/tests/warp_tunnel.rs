@@ -94,7 +94,14 @@ fn page_owned_framing_mutations_break_the_width_invariant() {
 }
 
 fn travel_phase(cells: f32) -> f32 {
-    cells / warpgrid::FORWARD_CELLS_PER_LOOP * warpgrid::LOOP_SECONDS
+    cells / warpgrid::forward_speed_cells_per_sec(kite_forward_drift())
+}
+
+fn kite_forward_drift() -> f32 {
+    match kite() {
+        theme::Background::WarpedGrid { forward_drift, .. } => forward_drift,
+        _ => unreachable!(),
+    }
 }
 
 fn strongest_major_ring_in(frame: &[i32], radii: std::ops::Range<i32>) -> f32 {

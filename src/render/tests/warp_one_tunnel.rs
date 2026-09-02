@@ -29,6 +29,13 @@ use super::warped_grid::{COL_LEFT, COL_W, H, INK_FLOOR, W, field, kite};
 use crate::theme;
 use crate::warpgrid;
 
+fn kite_forward_drift() -> f32 {
+    match kite() {
+        theme::Background::WarpedGrid { forward_drift, .. } => forward_drift,
+        _ => unreachable!(),
+    }
+}
+
 /// Sub-pixel ink, bilinear. A ring is a two-pixel line, so a law that compared
 /// nearest-pixel samples at two angles would be grading rounding, not geometry.
 fn ink_at(f: &[i32], w: u32, h: u32, x: f32, y: f32) -> f32 {
@@ -390,6 +397,10 @@ fn field_at_dpi(
             major,
             tunnel,
             spacing_px,
+            fold,
+            twist,
+            forward_drift,
+            ribs,
             ..
         } => theme::Background::WarpedGrid {
             ground,
@@ -398,6 +409,10 @@ fn field_at_dpi(
             tunnel,
             spacing_px,
             density: 0.0,
+            fold,
+            twist,
+            forward_drift,
+            ribs,
         },
         other => other,
     };
@@ -439,7 +454,8 @@ fn raw(
         col_left,
         col_w,
         crate::background::AmbientUpload {
-            warp_travel: warpgrid::forward_cells(phase),
+            warp_travel: warpgrid::forward_cells(phase, kite_forward_drift()),
+            warp_axis: super::warped_grid::AXIS_ROOM,
             ..Default::default()
         },
         dpi,
@@ -527,7 +543,7 @@ fn the_under_page_crossing_clears_the_body_ink_legibility_floor() {
 
     let mut worst = (f64::INFINITY, 0u32, 0u32, String::new());
     for (col_left, col_w) in [(COL_LEFT, COL_W), (200.0, 1100.0), (420.0, 900.0)] {
-        for phase in [warpgrid::FROZEN_PHASE, warpgrid::LOOP_SECONDS * 0.41] {
+        for phase in [warpgrid::FROZEN_PHASE, 166.5] {
             let px = raw(
                 &device,
                 &queue,
