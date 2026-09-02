@@ -2053,3 +2053,174 @@ fn switch_project_driven_by_real_chords_through_apply_repoints_the_workspace() {
         );
     });
 }
+
+// ── drag-and-drop wiring (`App::on_dropped_file`, `app/files/drop.rs`) ────
+// The OS drop gesture itself is live-only (harness-reach.md's tier 3 —
+// nothing constructs a real `DroppedFile` event headlessly); these drive
+// `on_dropped_file` DIRECTLY, exactly as `apply_file_choice`/`paste()` above
+// drive their own live-glue functions, to prove the wiring behind the
+// gesture — not the gesture — end to end against a real hermetic `App`.
+
+#[test]
+fn dropping_a_markdown_file_opens_it_through_the_exact_open_file_door() {
+    let _guard = crate::testlock::serial();
+    let mem = Arc::new(
+        crate::fs::InMemoryFs::new()
+            .with_dir("/ws")
+            .with_file("/ws/notes.md", "hello\n"),
+    );
+    crate::fs::with_fs(mem, || {
+        let mut app = App::new_hermetic(None, PathBuf::from("/ws"), Config::empty());
+        let exit = crate::app::schedule::RecordingExit::new();
+        app.on_dropped_file(&exit, PathBuf::from("/ws/notes.md"));
+        assert_eq!(
+            app.document.buffer().path(),
+            Some(Path::new("/ws/notes.md")),
+            "a dropped text file lands through the SAME door a picker Enter uses"
+        );
+        assert_eq!(app.document.buffer().text(), "hello\n");
+    });
+}
+
+#[test]
+fn dropping_several_markdown_files_opens_them_into_the_working_set_in_drop_order() {
+    let _guard = crate::testlock::serial();
+    let mem = Arc::new(
+        crate::fs::InMemoryFs::new()
+            .with_dir("/ws")
+            .with_file("/ws/a.md", "a\n")
+            .with_file("/ws/b.md", "b\n")
+            .with_file("/ws/c.md", "c\n"),
+    );
+    crate::fs::with_fs(mem, || {
+        let mut app = App::new_hermetic(None, PathBuf::from("/ws"), Config::empty());
+        let exit = crate::app::schedule::RecordingExit::new();
+        // winit emits one `DroppedFile` event per file, in drop order — one
+        // call per event is what gives the working set its own order.
+        for name in ["a.md", "b.md", "c.md"] {
+            app.on_dropped_file(&exit, PathBuf::from(format!("/ws/{name}")));
+        }
+        assert_eq!(
+            app.document.buffer().path(),
+            Some(Path::new("/ws/c.md")),
+            "the LAST dropped file is the one left active"
+        );
+        let opened: Vec<String> = app
+            .document
+            .working_set()
+            .files()
+            .iter()
+            .filter_map(|f| f.path.as_deref())
+            .map(|p| p.file_name().unwrap().to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(
+            opened,
+            vec!["a.md", "b.md", "c.md"],
+            "the working set carries all three, in the order they were dropped"
+        );
+    });
+}
+
+#[test]
+fn dropping_an_image_copies_its_own_bytes_into_assets_and_inserts_one_undoable_reference() {
+    let _guard = crate::testlock::serial();
+    let mem = Arc::new(
+        crate::fs::InMemoryFs::new()
+            .with_dir("/ws")
+            .with_file("/ws/trip-notes.md", "hello\n"),
+    );
+    mem.write(Path::new("/tmp/photo.jpg"), b"raw-jpeg-bytes")
+        .unwrap();
+    crate::fs::with_fs(mem.clone(), || {
+        let mut app = App::new_hermetic(
+            Some(PathBuf::from("/ws/trip-notes.md")),
+            PathBuf::from("/ws"),
+            Config::empty(),
+        );
+        let before = app.document.buffer().text().to_string();
+        let exit = crate::app::schedule::RecordingExit::new();
+
+        app.on_dropped_file(&exit, PathBuf::from("/tmp/photo.jpg"));
+
+        // Copied VERBATIM (never decoded/re-encoded) under its own extension,
+        // through the same naming owner the clipboard door uses.
+        assert_eq!(
+            mem.read(Path::new("/ws/assets/trip-notes-1.jpg")).unwrap(),
+            b"raw-jpeg-bytes"
+        );
+        let after = app.document.buffer().text().to_string();
+        assert!(
+            after.contains("assets/trip-notes-1.jpg"),
+            "a reference was inserted at the caret: {after:?}"
+        );
+        // ONE undoable edit.
+        app.apply(
+            crate::keymap::Action::Undo,
+            false,
+            &exit,
+            crate::stats::Door::Chord,
+        );
+        assert_eq!(
+            app.document.buffer().text(),
+            before,
+            "undo removes exactly the inserted reference"
+        );
+    });
+}
+
+#[test]
+fn dropping_several_images_inserts_their_references_sequentially() {
+    let _guard = crate::testlock::serial();
+    let mem = Arc::new(
+        crate::fs::InMemoryFs::new()
+            .with_dir("/ws")
+            .with_file("/ws/notes.md", ""),
+    );
+    mem.write(Path::new("/tmp/one.png"), b"one").unwrap();
+    mem.write(Path::new("/tmp/two.png"), b"two").unwrap();
+    crate::fs::with_fs(mem.clone(), || {
+        let mut app = App::new_hermetic(
+            Some(PathBuf::from("/ws/notes.md")),
+            PathBuf::from("/ws"),
+            Config::empty(),
+        );
+        let exit = crate::app::schedule::RecordingExit::new();
+        app.on_dropped_file(&exit, PathBuf::from("/tmp/one.png"));
+        app.on_dropped_file(&exit, PathBuf::from("/tmp/two.png"));
+
+        assert_eq!(mem.read(Path::new("/ws/assets/notes-1.png")).unwrap(), b"one");
+        assert_eq!(mem.read(Path::new("/ws/assets/notes-2.png")).unwrap(), b"two");
+        let text = app.document.buffer().text().to_string();
+        let first = text.find("assets/notes-1.png").expect("first ref present");
+        let second = text.find("assets/notes-2.png").expect("second ref present");
+        assert!(
+            first < second,
+            "the two references land in drop order, not reversed: {text:?}"
+        );
+    });
+}
+
+#[test]
+fn dropping_an_image_with_no_active_document_is_inert() {
+    let _guard = crate::testlock::serial();
+    let mem = Arc::new(crate::fs::InMemoryFs::new().with_dir("/ws"));
+    mem.write(Path::new("/tmp/photo.png"), b"bytes").unwrap();
+    crate::fs::with_fs(mem.clone(), || {
+        let mut app = App::new_hermetic(None, PathBuf::from("/ws"), Config::empty());
+        let key = app
+            .document
+            .active_key()
+            .expect("a fresh launch starts on the scratch buffer");
+        let _ = app.close_buffer(key);
+        assert!(
+            !app.document.has_active(),
+            "premise: zero-document state, mirroring the closed-last-file surface"
+        );
+
+        let exit = crate::app::schedule::RecordingExit::new();
+        // Must not panic (`Buffer`'s active-only accessor panics with no
+        // active slot) — there is nothing to insert an image reference into.
+        app.on_dropped_file(&exit, PathBuf::from("/tmp/photo.png"));
+        assert!(!app.document.has_active());
+    });
+}

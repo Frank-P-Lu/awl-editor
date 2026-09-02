@@ -1,18 +1,19 @@
 use super::*;
 
 #[test]
-fn next_pasted_name_probes_deterministically() {
+fn next_named_asset_probes_deterministically_at_the_clipboard_paste_extension() {
     // Empty dir → the first name.
-    assert_eq!(next_pasted_name("pasted", &[]), "pasted-1.png");
+    assert_eq!(next_named_asset("pasted", "png", &[]), "pasted-1.png");
     // One taken → the next.
     assert_eq!(
-        next_pasted_name("pasted", &["pasted-1.png".to_string()]),
+        next_named_asset("pasted", "png", &["pasted-1.png".to_string()]),
         "pasted-2.png"
     );
     // A run taken → the first free above it.
     assert_eq!(
-        next_pasted_name(
+        next_named_asset(
             "pasted",
+            "png",
             &[
                 "pasted-1.png".to_string(),
                 "pasted-2.png".to_string(),
@@ -23,16 +24,18 @@ fn next_pasted_name_probes_deterministically() {
     );
     // A GAP is filled, not skipped (probes from 1 up).
     assert_eq!(
-        next_pasted_name(
+        next_named_asset(
             "pasted",
+            "png",
             &["pasted-2.png".to_string(), "pasted-3.png".to_string()]
         ),
         "pasted-1.png"
     );
     // Unrelated files are ignored.
     assert_eq!(
-        next_pasted_name(
+        next_named_asset(
             "pasted",
+            "png",
             &["notes.md".to_string(), "pasted-1.png".to_string()]
         ),
         "pasted-2.png"
@@ -40,17 +43,17 @@ fn next_pasted_name_probes_deterministically() {
 }
 
 #[test]
-fn next_pasted_name_uses_the_given_stem() {
+fn next_named_asset_uses_the_given_stem() {
     // A doc-derived stem probes its OWN `<stem>-N.png` sequence.
-    assert_eq!(next_pasted_name("trip-notes", &[]), "trip-notes-1.png");
+    assert_eq!(next_named_asset("trip-notes", "png", &[]), "trip-notes-1.png");
     assert_eq!(
-        next_pasted_name("trip-notes", &["trip-notes-1.png".to_string()]),
+        next_named_asset("trip-notes", "png", &["trip-notes-1.png".to_string()]),
         "trip-notes-2.png"
     );
 }
 
 #[test]
-fn next_pasted_name_probes_two_stems_independently_in_the_same_listing() {
+fn next_named_asset_probes_two_stems_independently_in_the_same_listing() {
     // The OLD `pasted-` run and a NEW doc-derived `trip-notes-` run share
     // one directory listing but never collide: each stem only matches
     // candidates carrying its own exact prefix.
@@ -59,9 +62,9 @@ fn next_pasted_name_probes_two_stems_independently_in_the_same_listing() {
         "pasted-2.png".to_string(),
         "trip-notes-1.png".to_string(),
     ];
-    assert_eq!(next_pasted_name("pasted", &existing), "pasted-3.png");
+    assert_eq!(next_named_asset("pasted", "png", &existing), "pasted-3.png");
     assert_eq!(
-        next_pasted_name("trip-notes", &existing),
+        next_named_asset("trip-notes", "png", &existing),
         "trip-notes-2.png"
     );
 }
@@ -336,4 +339,54 @@ fn insert_text_puts_the_ref_on_its_own_line() {
         crate::actions::image_reference_text(false, "assets/pasted-1.png"),
         "\n![](assets/pasted-1.png)\n"
     );
+}
+
+// ── extension-preserving naming (dropped images reuse this owner too) ─────
+
+#[test]
+fn next_named_asset_probes_extensions_independently_under_the_same_stem() {
+    assert_eq!(next_named_asset("trip-notes", "jpg", &[]), "trip-notes-1.jpg");
+    assert_eq!(
+        next_named_asset(
+            "trip-notes",
+            "jpg",
+            &["trip-notes-1.jpg".to_string(), "trip-notes-1.png".to_string()]
+        ),
+        "trip-notes-2.jpg",
+        "a same-stem different-extension file does not block this extension's own run"
+    );
+}
+
+#[test]
+fn persist_bytes_preserves_the_dropped_extension_and_probes_independently_of_a_png_run() {
+    use crate::fs::FileSystem;
+    use std::sync::Arc;
+
+    let _guard = crate::testlock::serial();
+    let mem = crate::fs::InMemoryFs::new().with_dir("/notes/assets");
+    mem.write(Path::new("/notes/assets/trip-notes-1.png"), b"pasted")
+        .unwrap();
+    crate::fs::with_fs(Arc::new(mem.clone()), || {
+        let reference = persist_bytes(
+            Some(Path::new("/notes/trip-notes.md")),
+            Path::new("/data"),
+            b"jpeg-bytes",
+            "jpg",
+        );
+        // Same stem as the existing pasted PNG, but its own `.jpg` run — the
+        // existing `-1.png` never blocks `-1.jpg`.
+        assert_eq!(reference.as_deref(), Some("assets/trip-notes-1.jpg"));
+        assert_eq!(
+            mem.read(Path::new("/notes/assets/trip-notes-1.jpg"))
+                .unwrap(),
+            b"jpeg-bytes",
+            "the dropped file's own bytes are copied verbatim, never re-encoded"
+        );
+        assert_eq!(
+            mem.read(Path::new("/notes/assets/trip-notes-1.png"))
+                .unwrap(),
+            b"pasted",
+            "the pre-existing pasted-N.png is untouched"
+        );
+    });
 }

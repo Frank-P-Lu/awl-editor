@@ -5,16 +5,19 @@
 //! filename, the RGBA→PNG encode, and the save-location resolution live here so
 //! they are testable without a real clipboard or disk; the LIVE glue reads
 //! arboard and persists through [`persist_png`]; the returned reference
-//! re-enters the shared action core as a continuation.
+//! re-enters the shared action core as a continuation. A dropped image file
+//! (`crate::drop`, `app/files/drop.rs`) reuses the SAME naming/dir/write
+//! owner via [`persist_bytes`], copying the file's own bytes verbatim under
+//! its own extension rather than the clipboard path's forced `"png"`.
 //!
 //! NAMING: the filename stem comes from the DOCUMENT, not a counter — a paste
 //! into `trip-notes.md` writes `trip-notes-1.png`, so an assets folder full of
 //! pasted images reads like the notes they illustrate instead of an opaque run
 //! of `pasted-N.png`. [`paste_stem`] derives the stem (sanitized via
-//! [`sanitize_stem`]) and [`next_pasted_name`] probes for the first free `N`
+//! [`sanitize_stem`]) and [`next_named_asset`] probes for the first free `N`
 //! under it — unrelated stems (an old `pasted-` run alongside a new
 //! `trip-notes-` one) probe independently in the same directory, since each
-//! only ever matches its OWN prefix.
+//! only ever matches its OWN stem+extension prefix.
 //!
 //! DETERMINISM: nothing here reads a clock or randomness — the unique filename
 //! is derived by PROBING the assets dir (`<stem>-1.png`, `<stem>-2.png`, …), a
@@ -119,19 +122,23 @@ pub fn paste_stem(doc_path: Option<&Path>) -> String {
     }
 }
 
-/// The next free `<stem>-<N>.png` name given the leaf names ALREADY in the
-/// assets directory — the smallest `N >= 1` whose `<stem>-N.png` is not
-/// present. Pure over (stem, listing) — no clock / no random — so the same
-/// inputs always yield the same name: `("pasted", ["pasted-1.png"]) →
-/// "pasted-2.png"`, `("pasted", []) → "pasted-1.png"`, gaps are filled
-/// (`("pasted", ["pasted-2.png"]) → "pasted-1.png"`). Different stems probe
-/// INDEPENDENTLY against the same listing — `"pasted-2.png"` never blocks
-/// `"trip-notes-1.png"` — since a candidate only ever matches its own stem's
-/// exact prefix.
-pub fn next_pasted_name(stem: &str, existing: &[String]) -> String {
+/// The next free `<stem>-<N>.<ext>` name given the leaf names ALREADY in the
+/// assets directory — the smallest `N >= 1` whose `<stem>-N.<ext>` is not
+/// present. Pure over (stem, ext, listing) — no clock / no random — so the
+/// same inputs always yield the same name: `("pasted", "png",
+/// ["pasted-1.png"]) → "pasted-2.png"`, `("pasted", "png", []) →
+/// "pasted-1.png"`, gaps are filled (`("pasted", "png", ["pasted-2.png"]) →
+/// "pasted-1.png"`). Different stems (or different extensions under the SAME
+/// stem — a dropped `trip-notes.jpg` beside a pasted `trip-notes.png`) probe
+/// INDEPENDENTLY against the same listing, since a candidate only ever
+/// matches its own stem+ext exact prefix. The one owner both the
+/// clipboard-paste door (always `"png"`, via [`persist_png`]) and a dropped
+/// image's own extension-preserving copy (via [`persist_bytes`]) route
+/// through — never two naming implementations.
+pub fn next_named_asset(stem: &str, ext: &str, existing: &[String]) -> String {
     let mut n: usize = 1;
     loop {
-        let candidate = format!("{stem}-{n}.png");
+        let candidate = format!("{stem}-{n}.{ext}");
         if !existing.iter().any(|name| name == &candidate) {
             return candidate;
         }
@@ -190,9 +197,19 @@ pub fn image_ref(doc_path: Option<&Path>, data_root: &Path, filename: &str) -> S
     }
 }
 
-/// Persist an already-encoded clipboard image and return the reference that a
-/// shared core continuation should insert. No buffer mutation happens here.
-pub fn persist_png(doc_path: Option<&Path>, data_root: &Path, png: &[u8]) -> Option<String> {
+/// Persist `bytes` under assets/ with the next free `<stem>-<N>.<ext>` name
+/// and return the reference a shared-core continuation should insert. No
+/// buffer mutation happens here. The ONE owner both [`persist_png`]
+/// (clipboard paste, RGBA already PNG-encoded) and a dropped image's own
+/// copy (raw file bytes, whatever the source format) route through — the
+/// naming/dir/write sequence is identical either way, only the bytes and the
+/// extension differ.
+pub fn persist_bytes(
+    doc_path: Option<&Path>,
+    data_root: &Path,
+    bytes: &[u8],
+    ext: &str,
+) -> Option<String> {
     let fs = crate::fs::active();
     let dir = assets_dir(doc_path, data_root);
     fs.create_dir_all(&dir).ok()?;
@@ -201,9 +218,17 @@ pub fn persist_png(doc_path: Option<&Path>, data_root: &Path, png: &[u8]) -> Opt
         .map(|entries| entries.into_iter().map(|entry| entry.name).collect())
         .unwrap_or_default();
     let stem = paste_stem(doc_path);
-    let filename = next_pasted_name(&stem, &existing);
-    crate::fs::write_atomic(&dir.join(&filename), png).ok()?;
+    let filename = next_named_asset(&stem, ext, &existing);
+    crate::fs::write_atomic(&dir.join(&filename), bytes).ok()?;
     Some(image_ref(doc_path, data_root, &filename))
+}
+
+/// Persist an already-encoded clipboard image and return the reference that a
+/// shared core continuation should insert. [`persist_bytes`] pinned to
+/// `"png"` — the clipboard-paste shape every existing call site and test
+/// already expects.
+pub fn persist_png(doc_path: Option<&Path>, data_root: &Path, png: &[u8]) -> Option<String> {
+    persist_bytes(doc_path, data_root, png, "png")
 }
 
 #[cfg(test)]

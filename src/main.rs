@@ -70,6 +70,11 @@ mod dateformat;
 mod debug;
 mod doc_counts_law;
 mod docs_catalog_law;
+// DRAG-AND-DROP CLASSIFICATION (winit `DroppedFile` → open-file door vs
+// paste-image door). Native-only, mirroring `paste_image` below — the web
+// backend never emits `DroppedFile`.
+#[cfg(not(target_arch = "wasm32"))]
+mod drop;
 mod durable;
 mod ease;
 mod embedded_docs;

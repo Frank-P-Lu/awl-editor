@@ -16,6 +16,8 @@
 //!    the recent MRUs, and the fold-reveal jump.
 //!  - [`document`] — the fresh-document buffer swap; the retired two-desk
 //!    "Notes" flip used to live here.
+//!  - `drop` (native only) — winit's `DroppedFile`: classify-and-route into
+//!    `open`'s file door or the paste-image pipeline.
 //!  - [`autosave`] — the document autosave engine, the fresh document's own
 //!    debounced ONE-SHOT auto-name save, save-feedback dirty/title/HUD sync.
 //!  - [`verbs`] — rename/move/duplicate/convert-scratch/manual-save-finish/
@@ -38,6 +40,8 @@ mod autosave;
 mod close;
 mod dictionary;
 mod document;
+#[cfg(not(target_arch = "wasm32"))]
+mod drop;
 mod export;
 mod external;
 mod open;
