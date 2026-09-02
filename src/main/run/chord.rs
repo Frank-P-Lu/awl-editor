@@ -23,6 +23,7 @@ struct ReplayActionInputs {
     goto_folders: Vec<(String, bool)>,
     goto_recent_folders: Vec<String>,
     settings_values: crate::settings::SettingsValues,
+    search_corpus: Vec<(String, String)>,
 }
 
 impl ReplaySession<'_> {
@@ -160,6 +161,23 @@ impl ReplaySession<'_> {
         } else {
             (Vec::new(), Vec::new())
         };
+        // SEARCH IN FOLDER's headless twin of the live gather above: same
+        // budget, same `crate::fs` seam, so a `--keys` capture sees the real
+        // corpus a live summon would.
+        let search_corpus = if matches!(action, Action::OpenSearchFolder) {
+            let root = self.root.clone();
+            crate::search_folder::load_corpus(
+                &self.corpus,
+                &crate::search_folder::SearchBudget::default(),
+                |rel| {
+                    crate::fs::active()
+                        .read_to_string(&crate::index::resolve(&root, rel))
+                        .ok()
+                },
+            )
+        } else {
+            Vec::new()
+        };
         ReplayActionInputs {
             goto_headings,
             goto_line_count,
@@ -174,6 +192,7 @@ impl ReplaySession<'_> {
                 self.zoom,
                 crate::dateformat::CAPTURE_PLACEHOLDER_YMD,
             ),
+            search_corpus,
         }
     }
 
@@ -214,6 +233,8 @@ impl ReplaySession<'_> {
             assets: inputs.assets,
             // Headless replay is daemon-free, so Finish file stays hidden.
             row_gates: Default::default(),
+            search_root: self.root.clone(),
+            search_corpus: inputs.search_corpus,
         };
         let mut make_overlay =
             |kind: crate::overlay::OverlayKind| crate::overlay::build(kind, &build_ctx);

@@ -665,6 +665,7 @@ macro_rules! classify_delete_flinch {
             | Action::OpenHistory
             | Action::CompareVersion
             | Action::OpenAssetClean
+            | Action::OpenSearchFolder
             | Action::KeepVersion
             | Action::FinishBuffer
             | Action::ReviewChange
@@ -902,6 +903,7 @@ macro_rules! assert_action_roster {
             | Action::OpenHistory
             | Action::CompareVersion
             | Action::OpenAssetClean
+            | Action::OpenSearchFolder
             | Action::KeepVersion
             | Action::FinishBuffer
             | Action::ReviewChange
@@ -1130,6 +1132,9 @@ macro_rules! classify_smoke_command {
         | Action::OpenSettingsMenu
         | Action::OpenKeybindings
         | Action::OpenAssetClean
+        // SEARCH IN FOLDER: summons `OverlayKind::SearchFolder` directly,
+        // same shape as Asset Clean beside it.
+        | Action::OpenSearchFolder
         // COMMAND PALETTE: a real catalog command, dispatched identically to
         // Open keybindings above — `ctx.journey.enter((ctx.make_overlay)
         // (OverlayKind::Command))` — so it is an Opener too.

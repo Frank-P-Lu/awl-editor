@@ -134,6 +134,10 @@ pub fn classify_for(effect: &Effect, filesystem: FilesystemCapability) -> Classi
         Effect::RunAction(_) => c("run_action", applied),
         Effect::OverlayAccept(kind, _) => c("overlay_accept", accept_class(*kind)),
         Effect::JumpToLine(_) => c("jump_to_line", applied),
+        // Applied for real: `interpret_effect` drives the same headless
+        // buffer-switch door Goto's own accept uses (`switch_to_goto_target`)
+        // then sets the cursor, exactly mirroring live's `open_path_at_line`.
+        Effect::OpenPathAtLine { .. } => c("open_path_at_line", applied),
         Effect::Persistence(persistence) => classify_persistence(persistence, filesystem),
         Effect::Clipboard(clipboard) => classify_clipboard(clipboard),
         Effect::Daemon(crate::actions::DaemonEffect::NotifyFinished) => {
@@ -324,6 +328,13 @@ fn accept_class(kind: OverlayKind) -> EffectClass {
         OverlayKind::Keymap => EffectClass::Unsupported {
             why: "the live keymap reload is live-App-only; a later chord in the same \
                   replay would keep resolving against the OLD flavor",
+        },
+        // SEARCH-IN-FOLDER rides its own `Effect::OpenPathAtLine` (Applied —
+        // see its own arm in `classify_for`) rather than a generic accept,
+        // exactly like Browse rides Goto's above: belt-and-braces so a NEW
+        // emission under this kind aborts loudly rather than silently passing.
+        OverlayKind::SearchFolder => EffectClass::Unsupported {
+            why: "this picker must be enrolled here before emitting an accept effect",
         },
     }
 }

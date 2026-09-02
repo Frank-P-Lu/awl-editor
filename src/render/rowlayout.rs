@@ -425,6 +425,15 @@ mod tests {
             // The dimension picker draws a grid, never a candidate row list --
             // no primary text and no secondary column for this law to sweep.
             OverlayKind::TableDims => (Vec::new(), None),
+            OverlayKind::SearchFolder => (
+                vec![
+                    "the quick brown fox jumps over the lazy dog".into(),
+                    "a rather long line of matching prose that needs eliding down \
+                     to a narrower card width for this law to sweep"
+                        .into(),
+                ],
+                Some("notes/very/deeply/nested/path/to/file.md:1234".chars().count()),
+            ),
         }
     }
 

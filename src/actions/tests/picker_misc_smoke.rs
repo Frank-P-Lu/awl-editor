@@ -910,6 +910,8 @@ fn every_catalog_command_dispatches_without_panicking() {
         settings_values: crate::settings::SettingsValues::default(),
         assets: vec![],
         row_gates: Default::default(),
+        search_root: std::path::PathBuf::from("/workspace"),
+        search_corpus: vec![("README.md".to_string(), "hello world".to_string())],
     };
 
     for c in crate::commands::COMMANDS.iter() {

@@ -226,6 +226,7 @@ impl OverlayState {
             | OverlayKind::MoveDest
             | OverlayKind::ExportDest
             | OverlayKind::Command
+            | OverlayKind::SearchFolder
             | OverlayKind::Spell
             | OverlayKind::Keybindings
             | OverlayKind::Assets

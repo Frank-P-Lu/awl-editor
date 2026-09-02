@@ -22,6 +22,8 @@ fn empty_build_ctx<'a>(config_keys: &'a [(String, Vec<String>)]) -> BuildCtx<'a>
         settings_values: Default::default(),
         assets: Vec::new(),
         row_gates: Default::default(),
+        search_root: std::path::PathBuf::new(),
+        search_corpus: Vec::new(),
     }
 }
 

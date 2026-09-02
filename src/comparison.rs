@@ -77,7 +77,8 @@ pub fn prose_for(
         | OverlayKind::InsertLink
         | OverlayKind::KeepName
         | OverlayKind::Context
-        | OverlayKind::TableDims => None,
+        | OverlayKind::TableDims
+        | OverlayKind::SearchFolder => None,
     }
 }
 

@@ -36,6 +36,7 @@ spell_suggestions|Cmd-;|C-;|
 version_history|Cmd-S-h|C-S-h|
 compare_with_version|||
 clean_unused_assets|||
+search_in_folder|||
 keep_version|||
 last_file|C-Tab|C-Tab|
 new_document|Cmd-N|C-n|

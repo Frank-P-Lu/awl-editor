@@ -123,6 +123,7 @@ macro_rules! classify_action_family {
             | Action::OpenSpellSuggest
             | Action::OpenHistory
             | Action::OpenAssetClean
+            | Action::OpenSearchFolder
             | Action::KeepVersion
             | Action::CompareVersion
             | Action::OpenCredits => ActionFamily::Overlay,

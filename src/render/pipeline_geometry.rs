@@ -394,6 +394,7 @@ impl TextPipeline {
         self.overlay_empty = view.overlay_empty.clone();
         self.overlay_bindings = view.overlay_bindings.clone();
         self.overlay_ranges = view.overlay_ranges.clone();
+        self.overlay_match_highlights = view.overlay_match_highlights.clone();
         self.overlay_times = view.overlay_times.clone();
         self.overlay_git = view.overlay_git.clone();
         self.overlay_selected = view.overlay_selected;

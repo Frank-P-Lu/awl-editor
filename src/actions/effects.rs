@@ -207,6 +207,17 @@ pub enum Effect {
     RunAction(Action),
     OverlayAccept(crate::overlay::OverlayKind, String),
     JumpToLine(usize),
+    /// SEARCH-IN-FOLDER's own accept: open the file at `path` (root-relative,
+    /// the same door `Effect::OverlayAccept(Goto, path)`'s `open_rel` opens
+    /// through) AND land the caret at `line`/`col` (CHAR-indexed, zero-based —
+    /// `line_col_to_char`'s own unit) in one effect, since Go-to's own
+    /// heading/line jumps never need to combine "open a possibly different
+    /// file" with "move the caret" the way a folder-wide search result does.
+    OpenPathAtLine {
+        path: String,
+        line: usize,
+        col: usize,
+    },
     AddToDictionary(String),
     RebindCommit {
         slug: String,

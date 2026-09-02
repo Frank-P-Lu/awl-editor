@@ -89,6 +89,20 @@ pub enum RowMeta {
     Asset {
         abs: std::path::PathBuf,
     },
+    /// A "Search in folder…" result: one matching LINE inside `path`, its
+    /// CHAR column (for landing the caret through `Effect::OpenPathAtLine`,
+    /// the same door `GotoHeading`/`GotoLine` land theirs through, just
+    /// carrying a path too) and the BYTE range `(hl_start, hl_end)` of the
+    /// match within `OverlayRow::accept`'s own snippet text -- the
+    /// figure/ground split point `render/chrome/overlay_shape` draws the
+    /// match in content ink, everything before it muted.
+    SearchHit {
+        path: String,
+        line: usize,
+        col: usize,
+        hl_start: usize,
+        hl_end: usize,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -108,6 +122,7 @@ pub enum RowMetaTag {
     MoveHere,
     NewFolder,
     Asset,
+    SearchHit,
 }
 
 impl RowMeta {
@@ -128,6 +143,7 @@ impl RowMeta {
             RowMeta::MoveHere => RowMetaTag::MoveHere,
             RowMeta::NewFolder => RowMetaTag::NewFolder,
             RowMeta::Asset { .. } => RowMetaTag::Asset,
+            RowMeta::SearchHit { .. } => RowMetaTag::SearchHit,
         }
     }
 
@@ -152,7 +168,8 @@ impl RowMeta {
             | RowMeta::CommandHidden
             | RowMeta::History { .. }
             | RowMeta::MoveHere
-            | RowMeta::Asset { .. } => false,
+            | RowMeta::Asset { .. }
+            | RowMeta::SearchHit { .. } => false,
         }
     }
 }

@@ -141,7 +141,8 @@ impl OverlayKind {
             | OverlayKind::InsertLink
             | OverlayKind::KeepName
             | OverlayKind::Context
-            | OverlayKind::TableDims => false,
+            | OverlayKind::TableDims
+            | OverlayKind::SearchFolder => false,
         }
     }
 }

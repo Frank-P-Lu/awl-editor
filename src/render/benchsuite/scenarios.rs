@@ -419,6 +419,8 @@ fn palette(cx: &mut Cx) -> Result<CellOut> {
             ),
             assets: Vec::new(),
             row_gates: Default::default(),
+            search_root: std::path::PathBuf::new(),
+            search_corpus: Vec::new(),
         };
         let t0 = Instant::now();
         let ov = crate::overlay::build(crate::overlay::OverlayKind::Command, &build_ctx)

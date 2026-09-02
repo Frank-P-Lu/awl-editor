@@ -457,6 +457,8 @@ impl App {
             history_entries,
             assets,
             row_gates,
+            search_root,
+            search_corpus,
         } = self.gather_overlay_inputs(action);
         let (goto_folders, goto_recent_folders) = self.gather_goto_folders(action);
         let location = &self.project_location;
@@ -484,6 +486,8 @@ impl App {
             ),
             assets,
             row_gates,
+            search_root,
+            search_corpus,
         };
         let mut make_overlay =
             |kind: crate::overlay::OverlayKind| crate::overlay::build(kind, &build_ctx);
@@ -558,6 +562,9 @@ impl App {
     pub(in crate::app) fn apply_live_effect(&mut self, effect: actions::Effect) {
         match effect {
             actions::Effect::JumpToLine(line) => self.jump_to_line(line),
+            actions::Effect::OpenPathAtLine { path, line, col } => {
+                self.open_path_at_line(&path, line, col)
+            }
             actions::Effect::AddToDictionary(word) => self.add_to_dictionary(&word),
             actions::Effect::RebindCommit {
                 slug,
@@ -679,9 +686,13 @@ impl App {
             // directly on commit (`actions::overlay_nav::table_dims_intercept`)
             // rather than emitting a generic accept -- nothing arrives here
             // under this kind.
+            // SEARCH-IN-FOLDER's accept rides its own combined
+            // `Effect::OpenPathAtLine` (open the matched file AND land the
+            // caret in one effect) rather than a generic `OverlayAccept` --
+            // nothing arrives here under this kind either.
             Theme | Browse | ProjectBrowse | ExportDest | Command | Spell | Keybindings
             | Settings | Assets | Rename | InsertLink | KeepName | Context | Conflict | Credits
-            | TableDims => {}
+            | TableDims | SearchFolder => {}
         }
     }
 

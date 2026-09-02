@@ -33,7 +33,8 @@ impl OverlayKind {
             | OverlayKind::InsertLink
             | OverlayKind::KeepName
             | OverlayKind::Context
-            | OverlayKind::ExportDest => false,
+            | OverlayKind::ExportDest
+            | OverlayKind::SearchFolder => false,
         }
     }
 }

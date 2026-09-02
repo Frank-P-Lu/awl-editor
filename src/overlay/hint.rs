@@ -118,6 +118,9 @@ impl OverlayKind {
             // `TableDimsEdit::prompt`'s own live readout before this arm is
             // reached. Kept truthful anyway.
             OverlayKind::TableDims => vec![enter("insert"), key("esc", "cancel")],
+            OverlayKind::SearchFolder => {
+                vec![enter("open"), key("esc", "close")]
+            }
         }
     }
 

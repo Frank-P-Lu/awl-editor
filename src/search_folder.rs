@@ -20,8 +20,6 @@
 //! [`tests::case_insensitive_unicode_query_matches_via_the_shared_matcher`]
 //! records the decision.
 
-use std::path::Path;
-
 /// One matching LINE inside one file: enough to land the caret
 /// ([`Self::line`]/[`Self::col`], CHAR-indexed exactly like
 /// [`crate::search::Match`]) and enough to draw the row (a bounded
@@ -207,13 +205,6 @@ fn build_snippet(line: &str, char_start: usize, char_end: usize, max_chars: usiz
         snippet.push('\u{2026}');
     }
     (snippet, hl_start, hl_end)
-}
-
-/// The corpus-relative path a [`Hit`] lands at through, resolved against
-/// `root` — the same join [`crate::index::resolve`] performs, named here so
-/// the accept door and any test can spell it identically.
-pub fn resolve(root: &Path, hit: &Hit) -> std::path::PathBuf {
-    crate::index::resolve(root, &hit.path)
 }
 
 #[cfg(test)]
