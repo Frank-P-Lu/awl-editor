@@ -53,6 +53,7 @@ mod nav;
 mod rename_edit;
 mod roster;
 mod row;
+mod search;
 mod semantic;
 mod state;
 mod table_dims;

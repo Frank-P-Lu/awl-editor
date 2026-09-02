@@ -10,6 +10,8 @@ pub(super) struct OverlayInputs {
     pub(super) history_entries: Vec<crate::history::TimelineRow>,
     pub(super) assets: Vec<crate::assets::Orphan>,
     pub(super) row_gates: crate::commands::RowGates,
+    pub(super) search_root: std::path::PathBuf,
+    pub(super) search_corpus: Vec<(String, String)>,
 }
 
 pub(super) struct GotoInputs {
@@ -45,7 +47,10 @@ fn root_relative(path: &std::path::Path, root: &std::path::Path) -> Option<Strin
 
 impl App {
     pub(super) fn gather_goto_inputs(&mut self, action: &Action) -> GotoInputs {
-        if matches!(action, Action::OpenGoto | Action::OpenAssetClean) {
+        if matches!(
+            action,
+            Action::OpenGoto | Action::OpenAssetClean | Action::OpenSearchFolder
+        ) {
             self.rescan_file_index();
         }
         let location = &self.project_location;
@@ -175,6 +180,28 @@ impl App {
             });
         #[cfg(any(target_arch = "wasm32", feature = "mas"))]
         let has_waiter = false;
+        // SEARCH IN FOLDER: read every candidate file's content, bounded, ONLY
+        // when the search binding fired -- reading a whole project's text is
+        // pure waste otherwise. `file_index` is already fresh (the rescan
+        // above, shared with Goto/Assets); `refilter` re-matches this same
+        // loaded corpus against the query on every keystroke, never re-reading
+        // disk (`crate::search_folder`'s own module doc).
+        let (search_root, search_corpus) = if matches!(action, Action::OpenSearchFolder) {
+            let root = self.project_location.root.clone();
+            let files = self.project_location.file_index.clone();
+            let corpus = crate::search_folder::load_corpus(
+                &files,
+                &crate::search_folder::SearchBudget::default(),
+                |rel| {
+                    crate::fs::active()
+                        .read_to_string(&crate::index::resolve(&root, rel))
+                        .ok()
+                },
+            );
+            (root, corpus)
+        } else {
+            (std::path::PathBuf::new(), Vec::new())
+        };
         OverlayInputs {
             spell_target,
             history_entries,
@@ -187,6 +214,8 @@ impl App {
                     .buffer_opt()
                     .is_some_and(|buffer| buffer.path().is_some()),
             },
+            search_root,
+            search_corpus,
         }
     }
 

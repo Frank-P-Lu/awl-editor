@@ -691,6 +691,24 @@ fn accept_value_overlay(ctx: &mut ActionCtx) -> Effect {
         dispose_after_accept(ctx);
         return Effect::Surface(crate::actions::SurfaceEffect::OpenFolderChooser);
     }
+    if ov.kind == crate::overlay::OverlayKind::SearchFolder {
+        let eff = ov
+            .selected_corpus_index()
+            .and_then(|i| ov.rows.get(i))
+            .and_then(|row| match &row.meta {
+                crate::overlay::RowMeta::SearchHit {
+                    path, line, col, ..
+                } => Some(Effect::OpenPathAtLine {
+                    path: path.clone(),
+                    line: *line,
+                    col: *col,
+                }),
+                _ => None,
+            })
+            .unwrap_or(Effect::None);
+        dispose_after_accept(ctx);
+        return eff;
+    }
     if ov.kind == crate::overlay::OverlayKind::Assets {
         // The App removes an asset row only after the requested trash succeeds.
         return match ov.selected_value() {

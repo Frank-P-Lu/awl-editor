@@ -5,6 +5,15 @@ use crate::fuzzy::{self, Tier};
 
 impl OverlayState {
     pub fn refilter(&mut self) {
+        // SEARCH-IN-FOLDER's corpus is not a fixed row list to rank/filter —
+        // a typed query re-MATCHES the already-loaded corpus from scratch
+        // (`rebuild_search_rows`, `search_folder.rs`), so it takes over here
+        // rather than falling into the generic fuzzy-rank/facet pipeline
+        // below, which assumes `self.rows` is the STABLE full corpus.
+        if self.kind == OverlayKind::SearchFolder {
+            self.rebuild_search_rows();
+            return;
+        }
         self.sync_goto_line_row();
         self.sync_move_new_folder_row();
         let accepts = self.accepts();

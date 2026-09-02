@@ -289,6 +289,16 @@ pub enum Action {
     /// rebindable via `[keys] clean_unused_assets`. See `overlay/`
     /// (`OverlayKind::Assets`) + `assets.rs`.
     OpenAssetClean,
+    /// Search in folder… (summon by name, Cmd-P): open the FULL-TEXT SEARCH
+    /// picker over the active folder — type a query, see matching lines
+    /// grouped by file (`OverlayKind::SearchFolder`), Enter opens that file at
+    /// the match through the same combined door every other "open" effect
+    /// resolves through (`Effect::OpenPathAtLine`). Complements Cmd-F/Cmd-R
+    /// (in-buffer only) and Go to… (names/headings, never content). No
+    /// default chord — ⌘⇧F is already `search_backward` — rebindable via
+    /// `[keys] search_in_folder`. See `overlay/` (`OverlayKind::SearchFolder`)
+    /// + `search_folder.rs`.
+    OpenSearchFolder,
     KeepVersion,
     /// READ the unresolved external change: summon the conflict workspace, whose
     /// three read-only views — Differences, Your version, Version on disk — show

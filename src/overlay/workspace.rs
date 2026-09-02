@@ -214,7 +214,8 @@ impl OverlayKind {
             | OverlayKind::InsertLink
             | OverlayKind::KeepName
             | OverlayKind::Context
-            | OverlayKind::TableDims => None,
+            | OverlayKind::TableDims
+            | OverlayKind::SearchFolder => None,
         }
     }
 
@@ -297,7 +298,8 @@ impl OverlayKind {
             | OverlayKind::InsertLink
             | OverlayKind::KeepName
             | OverlayKind::Context
-            | OverlayKind::TableDims => Vec::new(),
+            | OverlayKind::TableDims
+            | OverlayKind::SearchFolder => Vec::new(),
         }
     }
     /// THE DETAIL STAGE'S OWN LINE — what the footer teaches while a summoned
@@ -356,7 +358,8 @@ impl OverlayKind {
             | OverlayKind::InsertLink
             | OverlayKind::KeepName
             | OverlayKind::Context
-            | OverlayKind::TableDims => self.hint_actions(),
+            | OverlayKind::TableDims
+            | OverlayKind::SearchFolder => self.hint_actions(),
         }
     }
 }

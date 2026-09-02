@@ -394,6 +394,7 @@ deadline without a surface).
 | `notice_toast` | Applied |
 | `open_file_chooser` | Unsupported |
 | `open_folder_chooser` | Unsupported |
+| `open_path_at_line` | Applied |
 | `open_settings` | Applied |
 | `overlay_accept:Assets` | Unsupported |
 | `overlay_accept:Browse` | Unsupported |
@@ -416,6 +417,7 @@ deadline without a surface).
 | `overlay_accept:Project` | Applied |
 | `overlay_accept:ProjectBrowse` | Unsupported |
 | `overlay_accept:Rename` | Unsupported |
+| `overlay_accept:SearchFolder` | Unsupported |
 | `overlay_accept:Settings` | Unsupported |
 | `overlay_accept:Spell` | Unsupported |
 | `overlay_accept:TableDims` | Unsupported |

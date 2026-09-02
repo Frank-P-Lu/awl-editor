@@ -66,7 +66,8 @@ fn surface_contract(kind: crate::overlay::OverlayKind) -> SurfaceContract {
         | K::Conflict
         | K::Credits
         | K::Context
-        | K::TableDims => SurfaceContract::Flat,
+        | K::TableDims
+        | K::SearchFolder => SurfaceContract::Flat,
     }
 }
 

@@ -112,6 +112,7 @@ fn catalog_non_empty_and_named() {
         "Keep tutorial…",
         "Keep version…",
         "Clean unused assets…",
+        "Search in folder…",
         "Compare with version…",
         "Open file…",
         "Open folder…",

@@ -204,6 +204,7 @@ impl<'a> ReplaySession<'a> {
             | actions::Effect::RunAction(_)
             | actions::Effect::OverlayAccept(_, _)
             | actions::Effect::JumpToLine(_)
+            | actions::Effect::OpenPathAtLine { .. }
             | actions::Effect::AddToDictionary(_)
             | actions::Effect::RebindCommit { .. }
             | actions::Effect::RebindReset { .. }

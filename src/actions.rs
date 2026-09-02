@@ -619,6 +619,17 @@ fn apply_overlay_open_action(ctx: &mut ActionCtx, action: &Action) -> bool {
         Action::OpenAssetClean => {
             ctx.journey.enter((ctx.make_overlay)(OverlayKind::Assets));
         }
+        // Cmd-P → "Search in folder…": summon the FULL-TEXT SEARCH picker over
+        // the active folder. The caller's `make_overlay` builds it from the
+        // already-loaded corpus (`BuildCtx::search_corpus`); an empty query is
+        // the summon state (the calm "no matches" row), so this is never a
+        // silent no-op. Enter then opens the highlighted match's file at its
+        // line/col through `Effect::OpenPathAtLine`
+        // (`actions::overlay_nav::accept_value_overlay`).
+        Action::OpenSearchFolder => {
+            ctx.journey
+                .enter((ctx.make_overlay)(OverlayKind::SearchFolder));
+        }
         // Cmd-P → "Credits": summon the read-only CREDITS VIEWER — a summoned
         // workspace, never a buffer swap, so the active document's path and
         // version are untouched by opening, scrolling or dismissing it

@@ -26,6 +26,7 @@ enum_with_all! {
         Context,
         ExportDest,
         TableDims,
+        SearchFolder,
     }
 }
 
@@ -68,6 +69,7 @@ impl OverlayKind {
             OverlayKind::Context => "context",
             OverlayKind::ExportDest => "export_dest",
             OverlayKind::TableDims => "table_dims",
+            OverlayKind::SearchFolder => "search_folder",
         }
     }
 
@@ -83,7 +85,8 @@ impl OverlayKind {
             | OverlayKind::Spell
             | OverlayKind::History
             | OverlayKind::Command
-            | OverlayKind::Context => Navigate,
+            | OverlayKind::Context
+            | OverlayKind::SearchFolder => Navigate,
             OverlayKind::Theme
             | OverlayKind::Caret
             | OverlayKind::Dictionary
@@ -133,6 +136,7 @@ impl OverlayKind {
             | OverlayKind::KeepName
             | OverlayKind::TableDims => &[Plain],
             OverlayKind::Assets => &[Asset],
+            OverlayKind::SearchFolder => &[SearchHit],
         }
     }
 
@@ -183,7 +187,8 @@ impl OverlayKind {
             | OverlayKind::KeepName
             | OverlayKind::Context
             | OverlayKind::ExportDest
-            | OverlayKind::TableDims => false,
+            | OverlayKind::TableDims
+            | OverlayKind::SearchFolder => false,
         }
     }
 
@@ -234,7 +239,8 @@ impl OverlayKind {
             | OverlayKind::KeepName
             | OverlayKind::Context
             | OverlayKind::ExportDest
-            | OverlayKind::TableDims => false,
+            | OverlayKind::TableDims
+            | OverlayKind::SearchFolder => false,
         }
     }
 
@@ -303,7 +309,8 @@ impl OverlayKind {
             | OverlayKind::InsertLink
             | OverlayKind::KeepName
             | OverlayKind::Context
-            | OverlayKind::TableDims => false,
+            | OverlayKind::TableDims
+            | OverlayKind::SearchFolder => false,
         }
     }
 
@@ -373,6 +380,10 @@ impl OverlayKind {
             // Unreachable in practice: the picker carries no candidate row
             // list at all -- see `TableDimsEdit`'s own doc.
             OverlayKind::TableDims => "no matches",
+            // Reads the same at rest (nothing typed yet) and after a query
+            // that finds nothing -- both are "no matches", the same message
+            // every other query-driven picker in this list gives.
+            OverlayKind::SearchFolder => "no matches",
         }
     }
 
@@ -411,6 +422,7 @@ impl OverlayKind {
             OverlayKind::KeepName => "keep version",
             OverlayKind::Context => "context menu",
             OverlayKind::TableDims => "insert table",
+            OverlayKind::SearchFolder => "search in folder",
         }
     }
 
@@ -440,7 +452,15 @@ impl OverlayKind {
             | OverlayKind::Rename
             | OverlayKind::KeepName
             | OverlayKind::Context
-            | OverlayKind::TableDims => false,
+            | OverlayKind::TableDims
+            // The match highlight rides its own dedicated per-row byte-range
+            // field (`RowMeta::SearchHit`'s `hl_start`/`hl_end`, threaded
+            // through `ViewState::overlay_match_highlights`), never this
+            // path-split figure/ground mechanism -- a snippet's split point
+            // is a match position, not a directory boundary, and free-form
+            // prose may itself contain a `/` that this mechanism's generic
+            // fallback would misread as one.
+            | OverlayKind::SearchFolder => false,
         }
     }
 

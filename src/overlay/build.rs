@@ -213,6 +213,13 @@ pub fn build(kind: OverlayKind, ctx: &BuildCtx) -> Option<OverlayState> {
         // Asset cleaner: the caller-scanned orphan list. ALWAYS summons (like
         // History): an empty list becomes the calm "no unused assets" row.
         OverlayKind::Assets => Some(OverlayState::new_assets(ctx.assets.clone())),
+        // Search in folder: the caller-loaded, budget-bounded corpus. ALWAYS
+        // summons; an empty query (the summon state) shows the calm "no
+        // matches" row until something is typed.
+        OverlayKind::SearchFolder => Some(OverlayState::new_search_folder(
+            ctx.search_root.clone(),
+            ctx.search_corpus.clone(),
+        )),
         // Navigable explorers open via `browse_level` (they need a dir level).
         OverlayKind::Browse
         | OverlayKind::MoveDest

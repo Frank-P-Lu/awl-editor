@@ -77,6 +77,7 @@ Commands are grouped by the same task categories the palette browses.
 |---|---|---|---|---|
 | Command palette… | Summon the command palette, searchable across every catalog command. | `⌘P` | `Ctrl+P` | Native, browser |
 | Go to… | Find files, headings, folders, and recent destinations. | `⌘O` | `Ctrl+O` | Native, browser |
+| Search in folder… | Full-text search over every file in the active folder — matching lines grouped by file. | — | — | Native, browser |
 | Last file | Switch to the previously open file; a no-op with nothing to switch back to. | `⌃Tab` | `Ctrl+Tab` | Native, browser |
 | Follow link | Open the caret's markdown link, or jump from a footnote reference to its definition. | `C-c C-o` | — | Native, browser |
 | Copy link destination | Copy the URL of the markdown link under the caret to the kill buffer. | — | — | Native, browser |

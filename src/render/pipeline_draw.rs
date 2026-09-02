@@ -506,6 +506,7 @@ impl TextPipeline {
             overlay_bindings: Vec::new(),
             overlay_hug_roster: None,
             overlay_ranges: Vec::new(),
+            overlay_match_highlights: Vec::new(),
             overlay_times: Vec::new(),
             overlay_git: Vec::new(),
             overlay_selected: 0,

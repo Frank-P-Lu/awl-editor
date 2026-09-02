@@ -2576,6 +2576,10 @@ pub struct TextPipeline {
     /// (`chrome::TextPipeline::overlay_rails`), which both the draw path and the
     /// pointer hit-test go through.
     overlay_ranges: Vec<Option<f32>>,
+    /// Mirror of [`ViewState::overlay_match_highlights`]: "Search in
+    /// folder…"'s per-row match byte range, EMPTY for every other kind. Read
+    /// by `push_overlay_name_rows`, the row-primary shaping owner.
+    overlay_match_highlights: Vec<Option<(usize, usize)>>,
     overlay_times: Vec<String>,
     overlay_git: Vec<String>,
     overlay_selected: usize,

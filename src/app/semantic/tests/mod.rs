@@ -34,6 +34,25 @@ fn calm_globals_guarded() -> crate::testlock::misc::TogglesRestore {
 }
 
 fn seeded_overlay(kind: OverlayKind) -> OverlayState {
+    // SEARCH-IN-FOLDER's rows are QUERY-DERIVED (`refilter`'s own
+    // `SearchFolder` branch discards whatever corpus a generic
+    // `OverlayState::new` was handed and rebuilds from scratch), so the
+    // generic constructor below would always summon it EMPTY -- seed it the
+    // way the product does: a real corpus + a typed query producing the
+    // same three-row count every other kind gets here.
+    if kind == OverlayKind::SearchFolder {
+        let mut ov = OverlayState::new_search_folder(
+            std::path::PathBuf::from("/proj"),
+            vec![(
+                "a.md".to_string(),
+                "needle one\nneedle two\nneedle three".to_string(),
+            )],
+        );
+        for c in "needle".chars() {
+            ov.push(c);
+        }
+        return ov;
+    }
     let corpus = vec!["alpha".to_string(), "beta".to_string(), "gamma".to_string()];
     let mut overlay = OverlayState::new(kind, corpus.clone(), Vec::new(), Vec::new());
     if kind == OverlayKind::Context {

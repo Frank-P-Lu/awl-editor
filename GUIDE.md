@@ -214,6 +214,7 @@ drift into this page silently.
 | Version history… | ⌘⇧H | Ctrl+Shift+H |
 | Compare with version… |  |  |
 | Clean unused assets… |  |  |
+| Search in folder… |  |  |
 | Keep version… |  |  |
 | Last file | ⌃Tab | Ctrl+Tab |
 | New document | ⌘N | Ctrl+N |

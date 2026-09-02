@@ -72,6 +72,11 @@ pub struct ViewState {
     /// Settings range-rail positions parallel to `overlay_items`; `None` marks
     /// an ordinary row with no range control.
     pub overlay_ranges: Vec<Option<f32>>,
+    /// "Search in folder…"'s per-row MATCH-HIGHLIGHT byte range, parallel to
+    /// `overlay_items`: `Some((start, end))` for a hit row (the query match's
+    /// own byte span within that row's primary text), `None`/EMPTY elsewhere —
+    /// `OverlayState::item_match_highlights`'s own doc.
+    pub overlay_match_highlights: Vec<Option<(usize, usize)>>,
     pub overlay_times: Vec<String>,
     pub overlay_git: Vec<String>,
     pub overlay_selected: usize,
@@ -337,6 +342,7 @@ impl ViewState {
             overlay_empty: None,
             overlay_bindings: Vec::new(),
             overlay_ranges: Vec::new(),
+            overlay_match_highlights: Vec::new(),
             overlay_times: Vec::new(),
             overlay_git: Vec::new(),
             overlay_selected: 0,

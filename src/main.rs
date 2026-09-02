@@ -185,6 +185,7 @@ mod save_model_law;
 mod scenario;
 mod script;
 mod search;
+mod search_folder;
 mod selection;
 mod semantic;
 #[cfg(not(target_arch = "wasm32"))]

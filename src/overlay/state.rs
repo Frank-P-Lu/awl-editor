@@ -91,6 +91,15 @@ pub struct OverlayState {
     /// survives every descend/ascend via `carry_level_payload_from`. `None`
     /// on every non-`MoveDest` card.
     pub move_filename: Option<String>,
+    /// "Search in folder…"'s root + its already-loaded, budget-bounded
+    /// corpus (`(root-relative path, content)` pairs, read once at summon —
+    /// [`Self::new_search_folder`]). `refilter`'s [`OverlayKind::SearchFolder`]
+    /// branch re-matches this same in-memory corpus against the typed query
+    /// on every keystroke, never re-touching disk — the FS read happens
+    /// exactly once, at summon, matching every other picker's "the caller
+    /// gathers, the card just holds" shape. `None`/empty on every other kind.
+    pub search_root: Option<std::path::PathBuf>,
+    pub search_corpus: Vec<(String, String)>,
     pub(super) hug_roster: Option<Arc<HugRoster>>,
 }
 
@@ -253,12 +262,36 @@ impl OverlayState {
             save_copy_dest: None,
             goto_line_count: 0,
             move_filename: None,
+            search_root: None,
+            search_corpus: Vec::new(),
             hug_roster: None,
         };
         s.refilter();
         s.refresh_hug_roster();
         s
     }
+
+    /// Build "Search in folder…" from the caller-loaded, budget-bounded
+    /// corpus (`crate::search_folder::load_corpus`, called once by the
+    /// gatherer — [`crate::overlay::BuildCtx::search_corpus`]). Opens with an
+    /// empty query and therefore zero rows (the calm "no matches" row) —
+    /// `refilter`'s `SearchFolder` branch fills the list in as soon as
+    /// something is typed, matching every other query-driven picker's shape.
+    pub fn new_search_folder(root: std::path::PathBuf, corpus: Vec<(String, String)>) -> Self {
+        let mut s = Self::new_marked(
+            OverlayKind::SearchFolder,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            None,
+        );
+        s.search_root = Some(root);
+        s.search_corpus = corpus;
+        s
+    }
+
     /// CARRY the facts a directory LEVEL cannot know onto the next level — the
     /// one owner of the [`super::Journey::relevel`] hand-off (see its doc).
     /// Today that is exactly [`Self::export_format`]: the level supplier reads a

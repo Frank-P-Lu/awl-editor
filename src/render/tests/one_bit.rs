@@ -765,7 +765,8 @@ fn every_overlay_kind_is_classified_and_the_two_families_render_as_declared() {
             | OverlayKind::Credits
             | OverlayKind::KeepName
             | OverlayKind::Context
-            | OverlayKind::TableDims => CardFamily::CenteredPanel,
+            | OverlayKind::TableDims
+            | OverlayKind::SearchFolder => CardFamily::CenteredPanel,
         };
         match family {
             CardFamily::FloatAnchored => spell_count += 1,

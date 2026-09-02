@@ -29,6 +29,7 @@ impl App {
         view.overlay_empty = ov.and_then(|o| o.empty_notice());
         view.overlay_bindings = ov.map(|o| o.item_bindings()).unwrap_or_default();
         view.overlay_ranges = ov.map(|o| o.item_range_fracs()).unwrap_or_default();
+        view.overlay_match_highlights = ov.map(|o| o.item_match_highlights()).unwrap_or_default();
         view.overlay_times = ov.map(|o| o.item_times()).unwrap_or_default();
         view.overlay_git = ov.map(|o| o.item_git_tags()).unwrap_or_default();
         view.overlay_selected = ov.map(|o| o.selected).unwrap_or(0);

@@ -96,4 +96,16 @@ pub struct BuildCtx<'a> {
     /// so a default palette build hides the row deterministically everywhere but
     /// a real `EDITOR=awl --wait` round-trip.
     pub row_gates: crate::commands::RowGates,
+    /// "Search in folder…"'s root + its already-loaded, budget-bounded corpus
+    /// (`crate::search_folder::load_corpus` over `crate::index::build_index`'s
+    /// own gitignore-aware roster) — filled by the caller ONLY when the search
+    /// binding fired (reading every file's content is pure waste otherwise),
+    /// EMPTY for every other summon. The live App AND the headless replay both
+    /// fill it from the same load over the [`crate::fs`] seam, so a `--keys`
+    /// capture sees the real corpus. The picker itself re-matches this same
+    /// in-memory corpus against the typed query on every keystroke
+    /// (`OverlayState::refilter`'s `SearchFolder` branch); this is gathered
+    /// once, at summon, never on a keystroke.
+    pub search_root: std::path::PathBuf,
+    pub search_corpus: Vec<(String, String)>,
 }

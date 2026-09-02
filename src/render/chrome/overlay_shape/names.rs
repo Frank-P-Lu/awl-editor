@@ -10,6 +10,7 @@ impl TextPipeline {
         inks: OverlaySpanInks,
         vis: &VisualSelection,
     ) {
+        let highlights = &self.overlay_match_highlights;
         let OverlaySpanInks {
             ink,
             muted,
@@ -39,15 +40,41 @@ impl TextPipeline {
                 _ if spell_action => (muted, muted),
                 _ => (ink, muted),
             };
-            let split = if content.ends_with('/') || !self.overlay_row_path_splits {
-                0
+            // SEARCH-IN-FOLDER's own split: the query MATCH reads in content
+            // ink, everything before AND after it muted -- figure/ground-by-
+            // value applied to a matched substring rather than a directory
+            // prefix, DESIGN.md's one existing row-split idiom reused for a
+            // different split point (never `row_split`'s `/`-based one, which
+            // free-form matched prose could false-trigger on). Defensively
+            // re-validated against THIS row's own fitted text -- elision can
+            // shrink `content` after the range was computed -- so a stale or
+            // out-of-bounds range degrades to the ordinary unsplit row rather
+            // than panicking on a non-char-boundary slice.
+            let highlight = highlights.get(row).copied().flatten().filter(|&(s, e)| {
+                s <= e
+                    && e <= content.len()
+                    && content.is_char_boundary(s)
+                    && content.is_char_boundary(e)
+            });
+            if let Some((s, e)) = highlight {
+                if s > 0 {
+                    spans.push((&content[..s], row_attrs(directory_color)));
+                }
+                spans.push((&content[s..e], row_attrs(name_color)));
+                if e < content.len() {
+                    spans.push((&content[e..], row_attrs(directory_color)));
+                }
             } else {
-                crate::overlay::row_split(content)
-            };
-            if split > 0 {
-                spans.push((&content[..split], row_attrs(directory_color)));
+                let split = if content.ends_with('/') || !self.overlay_row_path_splits {
+                    0
+                } else {
+                    crate::overlay::row_split(content)
+                };
+                if split > 0 {
+                    spans.push((&content[..split], row_attrs(directory_color)));
+                }
+                spans.push((&content[split..], row_attrs(name_color)));
             }
-            spans.push((&content[split..], row_attrs(name_color)));
             if let Some(cell) = trailing.get(row).filter(|cell| !cell.is_empty()) {
                 push_symbol_split(spans, cell, || mk(muted), || sym(muted));
             }

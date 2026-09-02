@@ -56,6 +56,16 @@ impl<'a> ReplaySession<'a> {
                 self.buffer.set_cursor(idx);
                 self.buffer.reveal_placement();
             }
+            // SEARCH-IN-FOLDER's combined accept: open the matched file
+            // through the SAME headless door `OverlayAccept(Goto, ..)` uses
+            // above (`switch_to_goto_target`), then land the caret at the
+            // match's own line/col rather than the line start.
+            actions::Effect::OpenPathAtLine { path, line, col } => {
+                self.switch_to_goto_target(&path);
+                let idx = self.buffer.line_col_to_char(line, col);
+                self.buffer.set_cursor(idx);
+                self.buffer.reveal_placement();
+            }
             actions::Effect::RunAction(action) => {
                 *pending_return_to = Some(crate::overlay::OverlayKind::Command);
                 work.descend(action);

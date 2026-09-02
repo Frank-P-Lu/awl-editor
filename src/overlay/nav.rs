@@ -450,6 +450,32 @@ impl OverlayState {
             .collect()
     }
 
+    /// The per-row MATCH-HIGHLIGHT byte range, in the same row order as
+    /// [`item_strings`]: `Some((start, end))` for a "Search in folder…" hit
+    /// row (the byte range of the query match within that row's OWN primary
+    /// text), `None` for every ordinary row. EMPTY when NO visible row is a
+    /// search hit — mirroring [`Self::item_range_fracs`]'s own "byte-identical
+    /// elsewhere" shape — so every other picker feeds the renderer nothing at
+    /// all.
+    pub fn item_match_highlights(&self) -> Vec<Option<(usize, usize)>> {
+        if !self
+            .items
+            .iter()
+            .any(|&i| matches!(self.rows[i].meta, RowMeta::SearchHit { .. }))
+        {
+            return Vec::new();
+        }
+        self.items
+            .iter()
+            .map(|&i| match self.rows[i].meta {
+                RowMeta::SearchHit {
+                    hl_start, hl_end, ..
+                } => Some((hl_start, hl_end)),
+                _ => None,
+            })
+            .collect()
+    }
+
     pub fn range_of_item(&self, i: usize) -> Option<RangeCell> {
         self.rows.get(*self.items.get(i)?)?.range
     }

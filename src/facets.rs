@@ -222,7 +222,11 @@ pub fn scheme(kind: OverlayKind) -> Option<&'static FacetScheme> {
         | OverlayKind::Context
         // The DIMENSION PICKER draws a grid, not a row list — no lens strip,
         // nothing to facet.
-        | OverlayKind::TableDims => None,
+        | OverlayKind::TableDims
+        // The SEARCH-IN-FOLDER picker is one flat, query-driven result list —
+        // no lens strip; its rows read as grouped by file through the
+        // secondary column alone (`OverlayState::rebuild_search_rows`).
+        | OverlayKind::SearchFolder => None,
         // v1 note: the Settings menu FACETS (see the arm above); no None case here.
     }
 }
