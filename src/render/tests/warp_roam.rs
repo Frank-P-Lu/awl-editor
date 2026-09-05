@@ -534,3 +534,104 @@ fn mutation_proof_a_wrong_axis_fails_the_level_set_check() {
     );
 }
 
+/// THE MOTION-SAFE POSE STILL READS AS A GENUINE FOLDED TUBE, not a flattened
+/// stand-in: `warpgrid::WarpPose::calm()` locks the axis at `VpCorner::TopRight`
+/// with zero travel — this renders EXACTLY that configuration (independent of
+/// the `resolved_render` plumbing `warped_grid.rs`'s own
+/// `every_calm_path_renders_the_one_composed_still` already proves is
+/// byte-deterministic) and checks presence (real ink, not a blank margin) and
+/// shape (the fold still makes the ring radius vary with angle, the same
+/// differential proof `fold_amplitude_makes_the_ring_radius_a_function_of_angle`
+/// uses) directly on it. A degraded fallback that flattened Kite to a plain
+/// grid to satisfy motion safety would still pass every OTHER law in this
+/// file — including `every_calm_path_renders_the_one_composed_still`, which
+/// only checks self-consistency — and would only fail here.
+#[test]
+fn the_motion_safe_pose_is_a_real_folded_tube_not_a_flattened_stand_in() {
+    let _g = crate::testlock::serial();
+    let Some((device, queue)) = headless_dq() else {
+        return;
+    };
+    let calm_axis_frac = warpgrid::WarpPose::calm().axis_frac;
+    assert_eq!(calm_axis_frac, warpgrid::VpCorner::TopRight.frac());
+
+    // PRESENCE: a real field, not a blank margin, at the exact motion-safe
+    // configuration (axis at rest, zero travel).
+    let f = roam_field(&device, &queue, kite(), 0.0, calm_axis_frac);
+    let inked = f.iter().filter(|v| **v > INK_FLOOR).count();
+    assert!(
+        inked > 10_000,
+        "the motion-safe pose must render a real field, not a blank margin ({inked} inked pixels)"
+    );
+
+    // SHAPE: the fold still reads as the wall's surface at this exact pose —
+    // same tracking technique as `fold_amplitude_makes_the_ring_radius_a_function_of_angle`,
+    // just at the calm axis/travel instead of a roamed corner.
+    let axis = (calm_axis_frac.0 * W as f32, calm_axis_frac.1 * H as f32);
+    let rpo = rpo_for(kite());
+    let search_lo = radius_for_depth0(FOLD_TAPER_LO, rpo);
+    let search_hi = radius_for_depth0(-FOLD_TAPER_LO, rpo);
+    const STEPS: u32 = 192;
+    const WINDOW_PX: f32 = 6.0;
+    let track = |bg: theme::Background| -> Vec<f32> {
+        let f = roam_field(&device, &queue, bg, 0.0, calm_axis_frac);
+        let peak_in = |theta: f32, r_lo: f32, r_hi: f32| -> Option<f32> {
+            let mut best = (f32::MIN, 0.0f32);
+            let mut r = r_lo;
+            while r < r_hi {
+                let x = axis.0 + r * theta.cos();
+                let y = axis.1 + r * theta.sin();
+                let v = ink_at(&f, W, H, x, y);
+                if !v.is_nan() && v > best.0 {
+                    best = (v, r);
+                }
+                r += 0.5;
+            }
+            (best.0 > INK_FLOOR as f32).then_some(best.1)
+        };
+        // Start pointing back toward the canvas interior (PI), not 0: unlike
+        // `fold_amplitude_makes_the_ring_radius_a_function_of_angle`'s
+        // TopLeft axis (where theta=0 heads toward the page), the calm
+        // pose's axis sits just inside the RIGHT margin, so theta=0 exits
+        // the canvas immediately and finds nothing to track. And SUBTRACT
+        // the sweep (rather than add, as the TopLeft law does from its own
+        // theta=0) so the first steps head toward the room's spacious lower
+        // half rather than its cramped upper edge: TopRight's axis sits the
+        // SAME 240px from the top as TopLeft's does, but `sin(pi + eps) < 0`
+        // while `sin(eps) > 0`, so mirroring the increment's SIGN — not just
+        // offsetting its start — is what keeps the two laws' sweeps
+        // direction-equivalent relative to their own geometry.
+        let mut current = match peak_in(std::f32::consts::PI, search_lo, search_hi) {
+            Some(r) => r,
+            None => return Vec::new(),
+        };
+        let mut radii = vec![current];
+        for i in 1..STEPS {
+            let theta = std::f32::consts::PI - std::f32::consts::TAU * i as f32 / STEPS as f32;
+            match peak_in(theta, current - WINDOW_PX, current + WINDOW_PX) {
+                Some(r) => {
+                    radii.push(r);
+                    current = r;
+                }
+                None => return radii,
+            }
+        }
+        radii
+    };
+    let spread = |radii: &[f32]| -> f32 {
+        if radii.len() < (STEPS / 4) as usize {
+            return 0.0;
+        }
+        let mean = radii.iter().sum::<f32>() / radii.len() as f32;
+        (radii.iter().map(|r| (r - mean).powi(2)).sum::<f32>() / radii.len() as f32).sqrt()
+    };
+    let circular = spread(&track(with_fold(kite(), 0.0)));
+    let folded = spread(&track(kite()));
+    assert!(
+        folded > circular + 3.0,
+        "the motion-safe pose's own ring radius must still vary with angle (folded stdev \
+         {folded:.2}px vs circular {circular:.2}px) — otherwise the calm pose reads as a flat \
+         overlay, not the same folded tube"
+    );
+}
+

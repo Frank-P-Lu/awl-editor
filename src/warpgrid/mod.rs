@@ -314,6 +314,33 @@ mod tests {
     }
 
     #[test]
+    fn should_travel_gates_on_the_active_world_and_every_pause_axis() {
+        // `should_travel` is the ONE place a global (`theme::active()`) feeds
+        // the otherwise-pure `lava::lava_should_tick` gate; this proves that
+        // wiring specifically — a non-WarpedGrid world never travels
+        // regardless of every other flag being wide open, and Kite travels
+        // under exactly the same composition `lava_should_tick` is already
+        // tested against (`active && ambient_on && !reduced && focused &&
+        // !paused`).
+        let _g = crate::testlock::serial();
+        {
+            let _pin = crate::theme::WorldPin::world("Gumtree").expect("Gumtree ships");
+            assert!(
+                !should_travel(true, false, true, false),
+                "a non-WarpedGrid world must never travel, however open every other gate is"
+            );
+        }
+        {
+            let _pin = crate::theme::WorldPin::world("Kite").expect("Kite ships");
+            assert!(should_travel(true, false, true, false), "every gate open must travel");
+            assert!(!should_travel(false, false, true, false), "ambient off must not travel");
+            assert!(!should_travel(true, true, true, false), "reduced motion must not travel");
+            assert!(!should_travel(true, false, false, false), "unfocused must not travel");
+            assert!(!should_travel(true, false, true, true), "paused must not travel");
+        }
+    }
+
+    #[test]
     fn calm_trigger_is_the_or_of_both_axes() {
         // Isolated from the process global: exercise the pure composition
         // via direct calls rather than mutating shared state in this test.
@@ -346,5 +373,49 @@ mod tests {
         assert!(!live.calm);
         assert!(!live.holding);
         assert!(live.transit_t > 0.0 && live.transit_t < 1.0);
+    }
+
+    /// THE CALM POSE IS REACHED FROM EVERY DWELL/TRANSIT STATE, not merely
+    /// one hand-picked mid-transit phase: a law that only proved this at a
+    /// single stored phase could not tell "resolves the authored calm pose"
+    /// from "coincidentally matches the pose this one phase would produce
+    /// anyway". Swept across many seeds and many points spanning full dwells
+    /// (early/mid/late) and full transits (just-started/mid/just-ending) —
+    /// every one of them must resolve to the SAME single frozen corner, not
+    /// merely "some" corner, which is what "freezing the incoming frame"
+    /// would produce instead.
+    #[test]
+    fn calm_reaches_the_authored_pose_from_every_dwell_and_transit_state() {
+        let profile = WarpProfile {
+            fold: 0.34,
+            twist: 0.72,
+            forward_drift: 0.05,
+            ribs: 58.0,
+        };
+        let fractions = [0.0, 0.1, 0.4, 0.5, 0.6, 0.9, 0.999];
+        for seed in [0u64, 1, 42, 0xDEAD_BEEF] {
+            for segment in 0..6u64 {
+                let segment_start = segment as f32 * roam::SEGMENT_SECONDS;
+                for f in fractions {
+                    // Both halves of the segment: dwell (f * DWELL) and
+                    // transit (DWELL + f * TRANSIT).
+                    for phase in [
+                        segment_start + f * roam::DWELL_SECONDS,
+                        segment_start + roam::DWELL_SECONDS + f * roam::TRANSIT_SECONDS,
+                    ] {
+                        let mut cursor = RoamCursor::start();
+                        let calm = resolved_render(&mut cursor, &profile, phase, seed, true);
+                        assert!(calm.calm, "seed {seed} phase {phase}: calm flag not set");
+                        assert!(calm.holding, "seed {seed} phase {phase}: calm pose is not a hold");
+                        assert_eq!(
+                            calm.axis_frac,
+                            VpCorner::TopRight.frac(),
+                            "seed {seed} phase {phase}: calm pose is not the authored top-right lock"
+                        );
+                        assert_eq!(calm.travel_cells, 0.0, "seed {seed} phase {phase}: calm pose still travels");
+                    }
+                }
+            }
+        }
     }
 }
