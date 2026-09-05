@@ -601,6 +601,14 @@ impl App {
         // ONLY place in the whole codebase that may consult OS/browser motion
         // detection — never a headless capture path.
         crate::motion::apply_at_startup(&config);
+        // WARP-GRID AMBIENT MOTION: unlike Reduce Motion above, this reads no
+        // OS/browser accessibility API — it is a pure function of `config`,
+        // so applying it here is fully deterministic and safe for a headless
+        // `App` too (`--screenshot-app` constructs a real `App` through this
+        // same seam). Kite's roaming tunnel gates its own `should_travel` on
+        // this toggle; without this call it would silently ignore the
+        // `ambient_motion` config key entirely.
+        crate::warpgrid::set_ambient_motion_on(config.ambient_motion_on());
         // THE ONE CAPABILITY OWNER: an explicit CLI/OS-open LAUNCH
         // argument that isn't openable text is refused HERE, before it can
         // ever reach `Buffer::from_file` — the SAME door `App::load_path`

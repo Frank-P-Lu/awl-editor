@@ -1,5 +1,5 @@
-//! THE ROAMING VANISHING POINT — real-pixel laws for item 564's rewrite of
-//! Kite's warped grid: one axis under every roam state (including mid-
+//! THE ROAMING VANISHING POINT — real-pixel laws for Kite's warped grid:
+//! one axis under every roam state (including mid-
 //! transit), the fold reading as the wall's own surface rather than a flat
 //! overlay, no bright orb at the convergence, and the motion-safe pose
 //! staying recognizably the same folded tube while its pixels stay frozen.
@@ -36,7 +36,11 @@ fn ink_at(f: &[i32], w: u32, h: u32, x: f32, y: f32) -> f32 {
 fn diff_field(a: &[[u8; 4]], b: &[[u8; 4]]) -> Vec<i32> {
     a.iter()
         .zip(b.iter())
-        .map(|(p, q)| (0..3).map(|k| (p[k] as i32 - q[k] as i32).abs()).sum::<i32>())
+        .map(|(p, q)| {
+            (0..3)
+                .map(|k| (p[k] as i32 - q[k] as i32).abs())
+                .sum::<i32>()
+        })
         .collect()
 }
 
@@ -80,7 +84,17 @@ fn roam_field(
     travel: f32,
     axis: (f32, f32),
 ) -> Vec<i32> {
-    let a = render_travel_axis(device, queue, bg_desc_for(bg), W, H, COL_LEFT, COL_W, travel, axis);
+    let a = render_travel_axis(
+        device,
+        queue,
+        bg_desc_for(bg),
+        W,
+        H,
+        COL_LEFT,
+        COL_W,
+        travel,
+        axis,
+    );
     let b = render_travel_axis(
         device,
         queue,
@@ -183,7 +197,11 @@ fn avg_ink_at_radius(f: &[i32], axis: (f32, f32), r: f32, want_left: bool) -> Op
         let theta = std::f32::consts::TAU * i as f32 / 720.0;
         let x = axis.0 + r * theta.cos();
         let y = axis.1 + r * theta.sin();
-        let on_side = if want_left { x < COL_LEFT } else { x > COL_LEFT + COL_W };
+        let on_side = if want_left {
+            x < COL_LEFT
+        } else {
+            x > COL_LEFT + COL_W
+        };
         if !on_side {
             continue;
         }
@@ -255,7 +273,8 @@ fn ring_hit_rate(
             checked += 1;
             if std::env::var("AWL_DEBUG_RING_HIT").is_ok() {
                 eprintln!(
-                    "n={n} r_ring={r_ring:.1} ring_v={ring_v:.2} r_trough={r_trough:.1} trough_v={trough_v:.2}"
+                    "n={n} r_ring={r_ring:.1} ring_v={ring_v:.2} \
+                     r_trough={r_trough:.1} trough_v={trough_v:.2}"
                 );
             }
             if ring_v > INK_FLOOR as f32 && ring_v > trough_v * 1.5 {
@@ -293,7 +312,8 @@ fn one_axis_holds_under_every_roam_state_including_mid_transit() {
         let f = roam_field(&device, &queue, bg, 0.0, axis_frac);
         let axis = (axis_frac.0 * W as f32, axis_frac.1 * H as f32);
         for (side, want_left) in [("left", true), ("right", false)] {
-            let (checked, confirmed) = ring_hit_rate(&f, axis, rpo, min_gradeable_radius(rpo), max_r, want_left);
+            let (checked, confirmed) =
+                ring_hit_rate(&f, axis, rpo, min_gradeable_radius(rpo), max_r, want_left);
             assert!(
                 checked >= 3,
                 "{name} {side}: too few of the closed form's own predicted ring/trough pairs \
@@ -515,7 +535,8 @@ fn mutation_proof_a_wrong_axis_fails_the_level_set_check() {
     let true_axis_frac = warpgrid::VpCorner::TopLeft.frac();
     let f = roam_field(&device, &queue, bg, 0.0, true_axis_frac);
     let true_axis = (true_axis_frac.0 * W as f32, true_axis_frac.1 * H as f32);
-    let (checked, confirmed) = ring_hit_rate(&f, true_axis, rpo, min_gradeable_radius(rpo), max_r, true);
+    let (checked, confirmed) =
+        ring_hit_rate(&f, true_axis, rpo, min_gradeable_radius(rpo), max_r, true);
     eprintln!("correct left flank: {confirmed}/{checked} predicted rings confirmed");
     assert!(
         checked >= 3 && confirmed * 10 >= checked * 7,
@@ -524,7 +545,8 @@ fn mutation_proof_a_wrong_axis_fails_the_level_set_check() {
     );
     let wrong_axis_frac = warpgrid::VpCorner::TopRight.frac();
     let wrong_axis = (wrong_axis_frac.0 * W as f32, wrong_axis_frac.1 * H as f32);
-    let (w_checked, w_confirmed) = ring_hit_rate(&f, wrong_axis, rpo, min_gradeable_radius(rpo), max_r, true);
+    let (w_checked, w_confirmed) =
+        ring_hit_rate(&f, wrong_axis, rpo, min_gradeable_radius(rpo), max_r, true);
     eprintln!("wrong left flank:   {w_confirmed}/{w_checked} predicted rings confirmed");
     assert!(
         w_checked < 3 || w_confirmed * 10 < w_checked * 7,
@@ -634,4 +656,3 @@ fn the_motion_safe_pose_is_a_real_folded_tube_not_a_flattened_stand_in() {
          overlay, not the same folded tube"
     );
 }
-

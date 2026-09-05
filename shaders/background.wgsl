@@ -103,8 +103,9 @@ struct Globals {
     // size (it does, by name, the moment this drifts).
     pad0: f32,
     // --- APPENDED at the struct's own 16-byte-aligned tail (offset 112) ---
-    // Everything ABOVE this line is byte-identical to before item 564; the
-    // two vec4s below are pure addition, so no existing upload site moved.
+    // Everything above this line is byte-identical to the struct's pre-warp
+    // layout; the two vec4s below are pure addition, so no existing upload
+    // site moved.
     //
     // WARPED GRID's authored shape: x=fold, y=twist, z=ribs (already
     // quantized to a shader-safe multiple of WARP_MAJOR_EVERY on the host —

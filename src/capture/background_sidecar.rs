@@ -155,7 +155,11 @@ mod tests {
 
     #[test]
     fn kite_sidecar_reports_the_resolved_pose_and_forward_travel() {
-        let json = background_json(crate::theme::KITE.background, 9.0, holding_at(VpCorner::TopRight, 12.5));
+        let json = background_json(
+            crate::theme::KITE.background,
+            9.0,
+            holding_at(VpCorner::TopRight, 12.5),
+        );
         for field in [
             "\"kind\":\"warped-grid\"",
             "\"tunnel\":\"fixed\"",

@@ -112,6 +112,16 @@ impl App {
         let input_at = crate::debug::debug_on().then(|| self.frame.now());
         if let Some(gpu) = self.frame.gpu_mut() {
             gpu.pipeline.sync_theme_colors();
+            // WARP-GRID ROAM SEED: a fresh seed on every world activation (this
+            // live-only commit path — never headless replay, which leaves the
+            // pipeline at `warpgrid::DEFAULT_SEED` for determinism). Harmless
+            // when the newly-active world isn't a WarpedGrid world at all; the
+            // seed only matters once one is.
+            let nanos = crate::clock::system_now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos() as u64)
+                .unwrap_or(0);
+            gpu.pipeline.set_warp_seed(nanos);
         }
         self.sync_theme_font_measured(input_at, crate::render::ShapeReach::Whole);
         // Commit keeps the previewed world, so the Whole sync above is a no-op and

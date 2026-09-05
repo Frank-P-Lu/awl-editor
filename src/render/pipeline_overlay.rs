@@ -355,18 +355,17 @@ impl TextPipeline {
     /// every non-`WarpedGrid` world — called every frame regardless of
     /// ground, so no other world's upload changes shape.
     pub(crate) fn resolve_warp_render(&mut self) {
-        self.warp_last = match crate::warpgrid::WarpProfile::from_background(
-            &self.effective_background(),
-        ) {
-            Some(profile) => crate::warpgrid::resolved_render(
-                &mut self.warp_roam,
-                &profile,
-                self.warp_phase,
-                self.warp_seed,
-                crate::warpgrid::calm_requested(),
-            ),
-            None => crate::warpgrid::WarpRender::inert(),
-        };
+        self.warp_last =
+            match crate::warpgrid::WarpProfile::from_background(&self.effective_background()) {
+                Some(profile) => crate::warpgrid::resolved_render(
+                    &mut self.warp_roam,
+                    &profile,
+                    self.warp_phase,
+                    self.warp_seed,
+                    crate::warpgrid::calm_requested(),
+                ),
+                None => crate::warpgrid::WarpRender::inert(),
+            };
     }
 
     /// Forward distance in minor cells; zero for every other ground. Reads

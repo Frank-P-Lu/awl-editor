@@ -172,7 +172,17 @@ fn render_travel(
     col_w: f32,
     warp_travel: f32,
 ) -> Vec<[u8; 4]> {
-    render_travel_axis(device, queue, desc, w, h, col_left, col_w, warp_travel, AXIS_ROOM)
+    render_travel_axis(
+        device,
+        queue,
+        desc,
+        w,
+        h,
+        col_left,
+        col_w,
+        warp_travel,
+        AXIS_ROOM,
+    )
 }
 
 /// [`render_travel`], with an explicit roaming-axis fraction instead of the
@@ -557,13 +567,7 @@ fn sampled_phases() -> [f32; 5] {
     // Forward travel no longer wraps at a fixed loop length (the roaming
     // vanishing point retired it — see `warpgrid::forward_cells`'s own
     // doc), so these are just a spread of real elapsed seconds.
-    [
-        warpgrid::FROZEN_PHASE,
-        69.0,
-        134.0,
-        235.5,
-        329.0,
-    ]
+    [warpgrid::FROZEN_PHASE, 69.0, 134.0, 235.5, 329.0]
 }
 
 /// BOTH MARGINS carry a real field at every swept geometry — the composition is
@@ -1053,8 +1057,26 @@ fn a_hierarchy_repeat_of_forward_travel_is_byte_identical_at_real_pixels() {
     // shifted ring).
     let wrap = warpgrid::wrap_seconds(circular.forward_drift());
     let wrap_delta = worst(
-        &render(&device, &queue, bg_desc_for(circular), W, H, COL_LEFT, COL_W, 0.0),
-        &render(&device, &queue, bg_desc_for(circular), W, H, COL_LEFT, COL_W, wrap),
+        &render(
+            &device,
+            &queue,
+            bg_desc_for(circular),
+            W,
+            H,
+            COL_LEFT,
+            COL_W,
+            0.0,
+        ),
+        &render(
+            &device,
+            &queue,
+            bg_desc_for(circular),
+            W,
+            H,
+            COL_LEFT,
+            COL_W,
+            wrap,
+        ),
     );
     assert!(
         wrap_delta <= 3,
@@ -1062,7 +1084,16 @@ fn a_hierarchy_repeat_of_forward_travel_is_byte_identical_at_real_pixels() {
          {wrap_delta}, which is a moved line, not rounding"
     );
     assert_ne!(
-        render(&device, &queue, bg_desc_for(circular), W, H, COL_LEFT, COL_W, wrap * 0.37),
+        render(
+            &device,
+            &queue,
+            bg_desc_for(circular),
+            W,
+            H,
+            COL_LEFT,
+            COL_W,
+            wrap * 0.37
+        ),
         start,
         "the travel clock must actually move the field"
     );
@@ -1154,7 +1185,12 @@ fn every_calm_path_renders_the_one_composed_still() {
     let still = render_pose(&resolve(0.0, warpgrid::DEFAULT_SEED));
     // Every stored phase and every seed, calm ALWAYS TRUE: the same composed
     // still — the accessibility promise and byte-determinism are one fact.
-    for stored in [0.0f32, 91.3, 500.7, warpgrid::wrap_seconds(profile.forward_drift) * 3.2] {
+    for stored in [
+        0.0f32,
+        91.3,
+        500.7,
+        warpgrid::wrap_seconds(profile.forward_drift) * 3.2,
+    ] {
         for seed in [0u64, 7, 0xDEAD_BEEF] {
             let r = resolve(stored, seed);
             assert!(r.calm, "resolved_render must report calm:true when asked");
@@ -1169,7 +1205,7 @@ fn every_calm_path_renders_the_one_composed_still() {
     // The SAME stored phase, calm OFF: must NOT match the still (mid-transit
     // stays mid-transit) — the discriminator that proves calm is a genuine
     // resolution switch, not a stored-phase coincidence.
-    let mid_transit = warpgrid::DWELL_SECONDS + warpgrid::TRANSIT_SECONDS * 0.5;
+    let mid_transit = warpgrid::roam::DWELL_SECONDS + warpgrid::roam::TRANSIT_SECONDS * 0.5;
     let live = {
         let mut cursor = warpgrid::RoamCursor::start();
         warpgrid::resolved_render(&mut cursor, &profile, mid_transit, 7, false)
@@ -1268,4 +1304,3 @@ fn the_warped_grid_wgsl_holds_its_repairs_and_names_no_world() {
         );
     }
 }
-

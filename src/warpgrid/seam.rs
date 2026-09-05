@@ -82,7 +82,10 @@ mod tests {
 
     #[test]
     fn case_and_whitespace_insensitive() {
-        assert_eq!(parse("  Top-Right  "), Some(WarpSeam::Corner(VpCorner::TopRight)));
+        assert_eq!(
+            parse("  Top-Right  "),
+            Some(WarpSeam::Corner(VpCorner::TopRight))
+        );
         assert_eq!(parse("CALM"), Some(WarpSeam::Calm));
     }
 

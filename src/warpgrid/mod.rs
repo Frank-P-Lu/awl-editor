@@ -10,10 +10,10 @@
 //! world adopts this vocabulary by filling in [`WarpProfile`], the same way
 //! `theme::Tunnel`/`theme::Weave` are adopted by naming a dial value.
 
-mod roam;
+pub(crate) mod roam;
 mod seam;
 
-pub use roam::{DWELL_SECONDS, RoamCursor, TRANSIT_SECONDS, VpCorner, WarpPose};
+pub use roam::{RoamCursor, VpCorner, WarpPose};
 pub use seam::WarpSeam;
 
 /// Every fifth line is the shader's own major/minor hierarchy boundary
@@ -138,8 +138,9 @@ pub fn advance_phase(phase_seconds: f32, dt: f32) -> f32 {
 // through render args" is `motion.rs`'s own stated reason for existing in
 // that shape, and it applies here unchanged. Storage goes through the shared
 // `Toggle` mechanism every other sticky flag in the codebase uses, rather
-// than a hand-rolled `AtomicBool` (`toggle::tests::every_sticky_atomic_bool_routes_through_toggle_or_is_named_here`
-// is the law that catches a reimplemented one).
+// than a hand-rolled `AtomicBool` (`toggle::tests::
+// every_sticky_atomic_bool_routes_through_toggle_or_is_named_here` is the
+// law that catches a reimplemented one).
 use crate::toggle::Toggle;
 
 static AMBIENT_MOTION_ON: Toggle = Toggle::new(true);
@@ -156,12 +157,19 @@ pub fn set_ambient_motion_on(on: bool) {
     AMBIENT_MOTION_ON.set(on);
 }
 
+/// THE CALM TRIGGER's pure composition, isolated from the process globals so
+/// it is directly unit-testable with explicit inputs rather than mutating
+/// shared state: Reduce Motion OR ambient motion off.
+fn calm_trigger(reduced: bool, ambient_on: bool) -> bool {
+    reduced || !ambient_on
+}
+
 /// THE CALM TRIGGER: Reduce Motion OR ambient motion off. Both resolve the
 /// SAME authored profile to the SAME deterministic pose (see
 /// `roam::WarpPose::calm`) — this is the one owner of that OR so the two
 /// axes can never drift into two different "calm"s.
 pub fn calm_requested() -> bool {
-    crate::motion::reduced() || !ambient_motion_on()
+    calm_trigger(crate::motion::reduced(), ambient_motion_on())
 }
 
 /// The full render-facing resolution: axis fraction, forward travel, and the
@@ -217,7 +225,11 @@ pub fn resolved_render(
         Some(WarpSeam::Transit) => (WarpPose::synthetic_transit(), 0.0, false),
         Some(WarpSeam::Wrap) => {
             let s = wrap_seconds(profile.forward_drift);
-            (roam::resolve_pose(seed, s), forward_cells(s, profile.forward_drift), false)
+            (
+                roam::resolve_pose(seed, s),
+                forward_cells(s, profile.forward_drift),
+                false,
+            )
         }
         Some(WarpSeam::Seconds(s)) => (
             roam::resolve_pose(seed, s),
@@ -248,7 +260,14 @@ mod tests {
 
     #[test]
     fn ribs_seam_safety_quantizes_to_a_multiple_of_five() {
-        for (input, want) in [(58.0, 60.0), (60.0, 60.0), (1.0, 5.0), (0.0, 5.0), (7.0, 5.0), (8.0, 10.0)] {
+        for (input, want) in [
+            (58.0, 60.0),
+            (60.0, 60.0),
+            (1.0, 5.0),
+            (0.0, 5.0),
+            (7.0, 5.0),
+            (8.0, 10.0),
+        ] {
             let got = ribs_seam_safe(input);
             assert_eq!(got, want, "ribs_seam_safe({input}) = {got}, want {want}");
             assert_eq!(got % MAJOR_EVERY, 0.0);
@@ -335,20 +354,44 @@ mod tests {
         }
         {
             let _pin = crate::theme::WorldPin::world("Kite").expect("Kite ships");
-            assert!(should_travel(true, false, true, false), "every gate open must travel");
-            assert!(!should_travel(false, false, true, false), "ambient off must not travel");
-            assert!(!should_travel(true, true, true, false), "reduced motion must not travel");
-            assert!(!should_travel(true, false, false, false), "unfocused must not travel");
-            assert!(!should_travel(true, false, true, true), "paused must not travel");
+            assert!(
+                should_travel(true, false, true, false),
+                "every gate open must travel"
+            );
+            assert!(
+                !should_travel(false, false, true, false),
+                "ambient off must not travel"
+            );
+            assert!(
+                !should_travel(true, true, true, false),
+                "reduced motion must not travel"
+            );
+            assert!(
+                !should_travel(true, false, false, false),
+                "unfocused must not travel"
+            );
+            assert!(
+                !should_travel(true, false, true, true),
+                "paused must not travel"
+            );
         }
     }
 
     #[test]
     fn calm_trigger_is_the_or_of_both_axes() {
         // Isolated from the process global: exercise the pure composition
-        // via direct calls rather than mutating shared state in this test.
-        assert!(!(false || !true)); // ambient on, not reduced -> not calm
-        assert!(false || !false); // ambient off -> calm
+        // directly, over the full truth table, rather than mutating shared
+        // state in this test.
+        assert!(
+            !calm_trigger(false, true),
+            "ambient on, not reduced -> not calm"
+        );
+        assert!(calm_trigger(false, false), "ambient off -> calm");
+        assert!(
+            calm_trigger(true, true),
+            "reduced -> calm even with ambient on"
+        );
+        assert!(calm_trigger(true, false), "both axes calm -> still calm");
     }
 
     #[test]
@@ -409,13 +452,20 @@ mod tests {
                         let mut cursor = RoamCursor::start();
                         let calm = resolved_render(&mut cursor, &profile, phase, seed, true);
                         assert!(calm.calm, "seed {seed} phase {phase}: calm flag not set");
-                        assert!(calm.holding, "seed {seed} phase {phase}: calm pose is not a hold");
+                        assert!(
+                            calm.holding,
+                            "seed {seed} phase {phase}: calm pose is not a hold"
+                        );
                         assert_eq!(
                             calm.axis_frac,
                             VpCorner::TopRight.frac(),
-                            "seed {seed} phase {phase}: calm pose is not the authored top-right lock"
+                            "seed {seed} phase {phase}: calm pose is not the authored \
+                             top-right lock"
                         );
-                        assert_eq!(calm.travel_cells, 0.0, "seed {seed} phase {phase}: calm pose still travels");
+                        assert_eq!(
+                            calm.travel_cells, 0.0,
+                            "seed {seed} phase {phase}: calm pose still travels"
+                        );
                     }
                 }
             }

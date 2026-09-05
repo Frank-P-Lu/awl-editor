@@ -344,7 +344,10 @@ mod tests {
         }
         assert_eq!(smootherstep(0.0), 0.0);
         assert_eq!(smootherstep(1.0), 1.0);
-        assert!((smootherstep(0.5) - 0.5).abs() < 1e-6, "not point-symmetric");
+        assert!(
+            (smootherstep(0.5) - 0.5).abs() < 1e-6,
+            "not point-symmetric"
+        );
     }
 
     #[test]
