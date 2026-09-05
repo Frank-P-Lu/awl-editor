@@ -136,21 +136,24 @@ pub fn advance_phase(phase_seconds: f32, dt: f32) -> f32 {
 // solves the identical problem with a sticky process-global resolved once at
 // live startup and read directly at the animation seam — "no threading
 // through render args" is `motion.rs`'s own stated reason for existing in
-// that shape, and it applies here unchanged.
-use std::sync::atomic::{AtomicBool, Ordering};
+// that shape, and it applies here unchanged. Storage goes through the shared
+// `Toggle` mechanism every other sticky flag in the codebase uses, rather
+// than a hand-rolled `AtomicBool` (`toggle::tests::every_sticky_atomic_bool_routes_through_toggle_or_is_named_here`
+// is the law that catches a reimplemented one).
+use crate::toggle::Toggle;
 
-static AMBIENT_MOTION_ON: AtomicBool = AtomicBool::new(true);
+static AMBIENT_MOTION_ON: Toggle = Toggle::new(true);
 
 /// Mirrors `Config::ambient_motion_on()`'s own default (absent = on). Only
 /// the live App ever calls the setter (on startup and on every config
 /// apply); no headless entry point does, so every capture sees the default
 /// `true` unless the deterministic seam overrides the resolved pose outright.
 pub fn ambient_motion_on() -> bool {
-    AMBIENT_MOTION_ON.load(Ordering::Relaxed)
+    AMBIENT_MOTION_ON.on()
 }
 
 pub fn set_ambient_motion_on(on: bool) {
-    AMBIENT_MOTION_ON.store(on, Ordering::Relaxed);
+    AMBIENT_MOTION_ON.set(on);
 }
 
 /// THE CALM TRIGGER: Reduce Motion OR ambient motion off. Both resolve the
