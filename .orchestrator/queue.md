@@ -1475,7 +1475,36 @@ can't-decode state gets its own capture law.
 ---
 ### 564 — Kite's living warped-grid tunnel: one reusable contorted tube, roaming between four room-owned vanishing points (user decision, 2026-09-02 — interactive design study approved)
 
-🟡 IN PROGRESS — claude, branch item-564
+✅ COMPLETE — merged as `c3c3032e`, cleanup `002f09fe`; pushed to origin.
+`shaders/background.wgsl` gained the fold/twist/roaming-axis/ribs/haze
+math; `src/warpgrid.rs` split into `src/warpgrid/{mod,roam,seam}.rs`
+(the roaming vanishing-point state machine and the `AWL_WARP_PHASE`
+deterministic capture seam). The shipped Kite profile (fold 0.34, twist
+0.72, forward drift 0.05, ribs 58 → seam-safe 60) roams the four
+room-owned corners on a 15s hold / 12s smootherstep transit, seeded
+deterministically for every headless path (`warpgrid::DEFAULT_SEED`)
+and freshly on every live world activation (`retint_theme_now`, via
+`crate::clock::system_now()`). Ambient-motion-off routes through the
+shared `Toggle` and gates the same calm pose Reduce Motion already
+forces. The cleanup pass fixed two real production gaps the merge left
+as dead code (`set_ambient_motion_on` was never called — wired into
+`App::new` startup; `set_warp_seed` was never called — wired into
+`retint_theme_now`) and one vacuous test (`calm_trigger_is_the_or_of_both_axes`
+was asserting on literal booleans, not real code — extracted a pure
+`calm_trigger` and rewrote it as a truth table). Full receipt:
+`native-gate-receipt commit=002f09fe... health=pass:240s
+conventions=mac,linux scope=all-targets menubar=full:on
+unit_tests=4831 unit_shards=6 integration_targets=17`; web-smoke OK;
+CI baseline on main was green pre-push.
+
+🔵 OWED — live human sign-off for the several-minute drift/contortion
+feel (the harness verifies single-frame trajectories and the
+motion-safe still, not real wall-clock feel over minutes). Also owed:
+at the default 1200×800 capture geometry the roaming vanishing point
+can land closer to the page edge than at the 1600×1000 geometry the
+pixel laws sweep — worth a live look at whether the convergence ever
+reads as landing inside the page itself at common window sizes,
+rather than staying a margin phenomenon.
 
 The premise is verified in the tree before this brief asks for a rewrite:
 Kite is already the sole wearer of `Background::WarpedGrid`; its existing
