@@ -1103,6 +1103,11 @@ pub const KITE: Theme = Theme {
         tunnel: Tunnel::Fixed,
         spacing_px: 30.0,
         density: 0.62,
+        // The user-approved study's normalized settings, carried verbatim.
+        fold: 0.34,
+        twist: 0.72,
+        forward_drift: 0.05,
+        ribs: 58.0,
     },
     font: "Fira Sans",
     mono: "JetBrains Mono",

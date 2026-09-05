@@ -25,9 +25,28 @@
 //! state oracle and cannot see any of it.
 
 use super::bands_waves::{bg_desc_for, headless_dq};
-use super::warped_grid::{COL_LEFT, COL_W, H, INK_FLOOR, W, field, kite};
+use super::warped_grid::{COL_LEFT, COL_W, H, INK_FLOOR, W, field, kite, with_fold};
 use crate::theme;
 use crate::warpgrid;
+
+fn kite_forward_drift() -> f32 {
+    match kite() {
+        theme::Background::WarpedGrid { forward_drift, .. } => forward_drift,
+        _ => unreachable!(),
+    }
+}
+
+/// The projection's own circular-symmetry claims (one axis, radius-alone,
+/// scale-invariant ring ladder, travel recession) are properties of the
+/// AXIS/RING machinery, not of the fold — proven at `fold: 0.0` (a perfect
+/// circle) so a genuine, INTENDED angular perturbation from the shipped
+/// fold amplitude can never be mistaken for a placement regression. The
+/// fold's own angular claim ("the wall's radius is a function of angle")
+/// is the DIRECT OPPOSITE of what this file tests, and lives in
+/// `warp_roam.rs` instead.
+fn circular_kite() -> theme::Background {
+    with_fold(kite(), 0.0)
+}
 
 /// Sub-pixel ink, bilinear. A ring is a two-pixel line, so a law that compared
 /// nearest-pixel samples at two angles would be grading rounding, not geometry.
@@ -118,7 +137,7 @@ fn the_field_under_the_page_is_a_function_of_radius_alone() {
         let f = field(
             &device,
             &queue,
-            kite(),
+            circular_kite(),
             W,
             H,
             col_left,
@@ -219,7 +238,7 @@ fn every_direction_finds_its_arc_where_one_tunnel_predicts_it() {
         let f = field(
             &device,
             &queue,
-            kite(),
+            circular_kite(),
             W,
             H,
             col_left,
@@ -327,7 +346,7 @@ fn the_ring_ladder_is_the_same_in_logical_units_at_both_scale_factors() {
         let f = field_at_dpi(
             &device,
             &queue,
-            kite(),
+            circular_kite(),
             w,
             h,
             COL_LEFT * s,
@@ -390,6 +409,10 @@ fn field_at_dpi(
             major,
             tunnel,
             spacing_px,
+            fold,
+            twist,
+            forward_drift,
+            ribs,
             ..
         } => theme::Background::WarpedGrid {
             ground,
@@ -398,6 +421,10 @@ fn field_at_dpi(
             tunnel,
             spacing_px,
             density: 0.0,
+            fold,
+            twist,
+            forward_drift,
+            ribs,
         },
         other => other,
     };
@@ -439,7 +466,8 @@ fn raw(
         col_left,
         col_w,
         crate::background::AmbientUpload {
-            warp_travel: warpgrid::forward_cells(phase),
+            warp_travel: warpgrid::forward_cells(phase, kite_forward_drift()),
+            warp_axis: super::warped_grid::AXIS_ROOM,
             ..Default::default()
         },
         dpi,
@@ -527,7 +555,7 @@ fn the_under_page_crossing_clears_the_body_ink_legibility_floor() {
 
     let mut worst = (f64::INFINITY, 0u32, 0u32, String::new());
     for (col_left, col_w) in [(COL_LEFT, COL_W), (200.0, 1100.0), (420.0, 900.0)] {
-        for phase in [warpgrid::FROZEN_PHASE, warpgrid::LOOP_SECONDS * 0.41] {
+        for phase in [warpgrid::FROZEN_PHASE, 166.5] {
             let px = raw(
                 &device,
                 &queue,

@@ -275,6 +275,7 @@ mod theme_preview_shape_law;
 mod timeline_workspace;
 mod visual_selection_law;
 mod warp_one_tunnel;
+mod warp_roam;
 mod warp_tunnel;
 mod warped_grid;
 mod washes;

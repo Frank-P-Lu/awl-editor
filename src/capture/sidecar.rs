@@ -427,7 +427,7 @@ fn page_json(pipeline: &TextPipeline) -> String {
         super::background_sidecar::background_json(
             pipeline.effective_background(),
             pipeline.lava_render_phase(),
-            pipeline.warp_travel(),
+            pipeline.warp_render(),
         ),
         ambient_json(pipeline),
     )

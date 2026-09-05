@@ -90,6 +90,7 @@ pub(crate) struct MiscPins {
     spell_variant: crate::spell::DictVariant,
     date_format: crate::dateformat::DateFormat,
     scroll_sensitivity: f32,
+    ambient_motion_on: bool,
 }
 
 /// Read every field above, for the guard's entry snapshot.
@@ -118,6 +119,7 @@ pub(crate) fn pins() -> MiscPins {
         spell_variant: crate::spell::active_variant(),
         date_format: crate::dateformat::active_format(),
         scroll_sensitivity: crate::settings::scroll_sensitivity(),
+        ambient_motion_on: crate::warpgrid::ambient_motion_on(),
     }
 }
 
@@ -153,6 +155,7 @@ pub(crate) fn restore(p: &MiscPins) {
     crate::spell::set_active_variant(p.spell_variant);
     crate::dateformat::set_active_format(p.date_format);
     crate::settings::set_scroll_sensitivity(p.scroll_sensitivity);
+    crate::warpgrid::set_ambient_motion_on(p.ambient_motion_on);
 }
 
 /// Name every field whose value differs, `before -> after`. Both sides are
@@ -184,6 +187,7 @@ pub(crate) fn leaked(before: &MiscPins, after: &MiscPins) -> Vec<String> {
         spell_variant: b_spell_variant,
         date_format: b_date_format,
         scroll_sensitivity: b_scroll_sensitivity,
+        ambient_motion_on: b_ambient_motion_on,
     } = before;
     let MiscPins {
         debug: a_debug,
@@ -208,6 +212,7 @@ pub(crate) fn leaked(before: &MiscPins, after: &MiscPins) -> Vec<String> {
         spell_variant: a_spell_variant,
         date_format: a_date_format,
         scroll_sensitivity: a_scroll_sensitivity,
+        ambient_motion_on: a_ambient_motion_on,
     } = after;
 
     let mut out = Vec::new();
@@ -255,6 +260,11 @@ pub(crate) fn leaked(before: &MiscPins, after: &MiscPins) -> Vec<String> {
         "scroll_sensitivity",
         b_scroll_sensitivity,
         a_scroll_sensitivity
+    );
+    field!(
+        "ambient_motion_on",
+        b_ambient_motion_on,
+        a_ambient_motion_on
     );
     out
 }

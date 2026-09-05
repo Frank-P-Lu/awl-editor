@@ -136,12 +136,13 @@ fn every_toggle_and_card_flag_site_is_covered_by_serial_guard_or_named_here() {
         .iter()
         .filter(|f| !covered_by_name.contains(&f.as_str()))
         .collect();
-    // The twelve `MiscPins` toggle fields: debug, outline, menu_bar,
+    // The thirteen `MiscPins` toggle fields: debug, outline, menu_bar,
     // typewriter, nits, popover, file_visibility_all, reduced_motion,
-    // code_ligatures, wysiwyg, inline_images, whichkey_force_shown.
+    // code_ligatures, wysiwyg, inline_images, whichkey_force_shown,
+    // ambient_motion_on.
     assert_eq!(
         uncovered_toggles.len(),
-        12,
+        13,
         "a `Toggle::new(` site appeared or vanished outside page.rs/spell.rs: {:?}. \
          Add (or remove) the matching field in testlock::misc::MiscPins — pins/restore/leaked \
          all need it — and update this count, or add the file to ALREADY_COVERED_ELSEWHERE \
@@ -275,6 +276,7 @@ fn every_misc_field_is_restored_not_just_the_one_that_bit_us() {
             _ => crate::dateformat::DateFormat::Iso,
         });
         crate::settings::set_scroll_sensitivity(before.scroll_sensitivity + 0.3);
+        crate::warpgrid::set_ambient_motion_on(!before.ambient_motion_on);
         panic!("a fixture that flipped every misc global and died");
     });
     assert!(died.is_err());

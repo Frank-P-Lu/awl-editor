@@ -1,5 +1,16 @@
 use super::BgDesc;
 
+/// Warped grid's own dedicated shape slot (fold, twist, quantized ribs,
+/// unused) — `[0.0;4]` for every other ground, so no other world's upload
+/// changes shape.
+pub(super) fn warp_shape_params(desc: &BgDesc) -> [f32; 4] {
+    if desc.shader == 10 {
+        [desc.warp_fold, desc.warp_twist, desc.warp_ribs, 0.0]
+    } else {
+        [0.0; 4]
+    }
+}
+
 /// Pack the mutually exclusive per-ground controls into the shared param slots.
 pub(super) fn ground_params(desc: &BgDesc) -> [f32; 4] {
     match desc.shader {

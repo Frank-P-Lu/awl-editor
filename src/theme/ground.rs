@@ -113,7 +113,25 @@ pub enum Background {
     Deckle { ground: Srgb, layer: Srgb, deckle: Srgb, weave: Weave,
         period_px: f32, wander_px: f32, density: f32 },
     WarpedGrid { ground: Srgb, minor: Srgb, major: Srgb, tunnel: Tunnel,
-        spacing_px: f32, density: f32 },
+        spacing_px: f32, density: f32,
+        /// Angular radius-modulation amplitude — the tube's own fold. `0.0`
+        /// is a perfect circle; the shipped Kite profile authors `0.34`. See
+        /// `shaders/background.wgsl::warped_grid_rgba`'s `radius_norm`.
+        fold: f32,
+        /// How fast the fold pattern rolls with depth (`turn = theta +
+        /// depth*twist`), which is also what makes the whole cross-section
+        /// slowly rotate as the camera travels forward.
+        twist: f32,
+        /// Forward-travel speed, in the SAME normalized units the study's
+        /// reference authored (not px/sec or cells/sec directly — see
+        /// `warpgrid::forward_speed_cells_per_sec`, the one owner that turns
+        /// this into the shader's `warp_travel` cells).
+        forward_drift: f32,
+        /// Longitudinal wireframe line count around the FULL turn — the
+        /// tube's visible ribs. Quantized to a multiple of the shader's
+        /// major-line hierarchy before upload; see
+        /// `warpgrid::ribs_seam_safe`.
+        ribs: f32 },
 }
 
 /// WARPED GRID's framing profile. `Fixed` is the shipped room-owned projection;
@@ -353,6 +371,25 @@ impl Background {
     }
     pub fn is_warped_grid(&self) -> bool {
         matches!(self, Background::WarpedGrid { .. })
+    }
+    /// The tube's authored radius-fold amplitude, angular roll rate, and
+    /// (unquantized) rib count — `0.0` for every ground that has no tunnel,
+    /// so no other world's upload changes shape. Ribs is quantized to a
+    /// shader-safe multiple by `warpgrid::ribs_seam_safe`, not here — this
+    /// stays the raw authored number so a law can compare against it.
+    pub fn warp_shape(&self) -> (f32, f32, f32) {
+        match self {
+            Background::WarpedGrid {
+                fold, twist, ribs, ..
+            } => (*fold, *twist, *ribs),
+            _ => (0.0, 0.0, 0.0),
+        }
+    }
+    pub fn forward_drift(&self) -> f32 {
+        match self {
+            Background::WarpedGrid { forward_drift, .. } => *forward_drift,
+            _ => 0.0,
+        }
     }
     #[cfg(test)]
     pub fn zigzag_stroke_px(&self) -> f32 {
