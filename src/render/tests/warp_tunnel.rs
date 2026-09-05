@@ -1,7 +1,7 @@
 //! Fixed-framing and forward-travel laws for Kite's warped grid.
 
 use super::bands_waves::headless_dq;
-use super::warped_grid::{H, INK_FLOOR, W, field, kite, with_tunnel};
+use super::warped_grid::{H, INK_FLOOR, W, field, kite, with_fold, with_tunnel};
 use crate::{theme, warpgrid};
 
 const OUTER_BAND: u32 = 180;
@@ -156,7 +156,8 @@ fn forward_travel_grows_the_projected_rings_at_the_authored_rate() {
     let Some((device, queue)) = headless_dq() else {
         return;
     };
-    let radii = ring_ladder(&device, &queue, kite());
+    // `fold: 0.0` — see `warp_one_tunnel.rs::circular_kite`'s doc.
+    let radii = ring_ladder(&device, &queue, with_fold(kite(), 0.0));
     assert!(radii.windows(2).all(|w| w[1] > w[0]), "{radii:?}");
 
     let spacing = match kite() {
@@ -179,10 +180,13 @@ fn reversed_travel_mutation_recedes() {
     let Some((device, queue)) = headless_dq() else {
         return;
     };
+    // `fold: 0.0`: this is a claim about the AXIS/TRAVEL-SIGN machinery
+    // (radial recession), not about the fold's own angular shape — see
+    // `warp_one_tunnel.rs::circular_kite`'s own doc for why the split.
     let radii = ring_ladder(
         &device,
         &queue,
-        with_tunnel(kite(), theme::Tunnel::Reversed),
+        with_fold(with_tunnel(kite(), theme::Tunnel::Reversed), 0.0),
     );
     assert!(radii.windows(2).all(|w| w[1] < w[0]), "{radii:?}");
 }

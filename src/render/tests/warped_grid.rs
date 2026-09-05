@@ -972,17 +972,27 @@ fn the_field_stays_inside_the_grounds_value_band_and_the_ink_clears_it() {
 /// modulus — `warpgrid::wrap_seconds` is the phase that produces exactly
 /// that travel for a given profile, and is what a capture names via
 /// `AWL_WARP_PHASE=wrap`.
+///
+/// `fold: 0.0` for the EXACT-repeat half of this claim — see
+/// `warp_one_tunnel.rs::circular_kite`'s doc for why: the fold's own
+/// `turn = theta + depth*twist` does not return to itself after any small
+/// integer number of cells (`2*PI/twist` cells for Kite's `twist: 0.72` is
+/// irrational-ish against `MAJOR_EVERY`), so exact repetition is a claim
+/// about the RING/RAIL machinery alone. The REAL, folded profile gets its
+/// own, weaker claim below: CONTINUITY across the same boundary (no visible
+/// jump), which is the property that actually matters for a viewer.
 #[test]
 fn a_hierarchy_repeat_of_forward_travel_is_byte_identical_at_real_pixels() {
     let _g = crate::testlock::serial();
     let Some((device, queue)) = headless_dq() else {
         return;
     };
+    let circular = with_fold(kite(), 0.0);
     let at = |forward: f32| {
         render_travel(
             &device,
             &queue,
-            bg_desc_for(kite()),
+            bg_desc_for(circular),
             W,
             H,
             COL_LEFT,
@@ -1033,17 +1043,80 @@ fn a_hierarchy_repeat_of_forward_travel_is_byte_identical_at_real_pixels() {
     );
     // And the phase-level resolution agrees, which is what the App actually
     // drives: `wrap_seconds` is defined to be exactly the phase that produces
-    // `MAJOR_EVERY` cells of travel for this profile.
-    let wrap = warpgrid::wrap_seconds(kite().forward_drift());
-    assert_eq!(
-        render(&device, &queue, bg_desc_for(kite()), W, H, COL_LEFT, COL_W, 0.0),
-        render(&device, &queue, bg_desc_for(kite()), W, H, COL_LEFT, COL_W, wrap),
-        "AWL_WARP_PHASE=wrap must reproduce the hierarchy exactly"
+    // `MAJOR_EVERY` cells of travel for this profile. A BOUND, not byte
+    // equality — same reasoning as `loop_delta` above: `wrap_seconds` reaches
+    // its target cell count through a seconds -> speed -> cells round trip
+    // rather than the raw cell count `at(MAJOR_EVERY)` uses directly, and
+    // that indirection can land the antialiased edge of a line one 8-bit
+    // step away without moving the lattice (measured: 70 of 1.6M pixels
+    // differ, every one by exactly 1 level — ordinary AA rounding, not a
+    // shifted ring).
+    let wrap = warpgrid::wrap_seconds(circular.forward_drift());
+    let wrap_delta = worst(
+        &render(&device, &queue, bg_desc_for(circular), W, H, COL_LEFT, COL_W, 0.0),
+        &render(&device, &queue, bg_desc_for(circular), W, H, COL_LEFT, COL_W, wrap),
+    );
+    assert!(
+        wrap_delta <= 3,
+        "AWL_WARP_PHASE=wrap must reproduce the hierarchy at fold: 0.0 — worst channel delta \
+         {wrap_delta}, which is a moved line, not rounding"
     );
     assert_ne!(
-        render(&device, &queue, bg_desc_for(kite()), W, H, COL_LEFT, COL_W, wrap * 0.37),
+        render(&device, &queue, bg_desc_for(circular), W, H, COL_LEFT, COL_W, wrap * 0.37),
         start,
         "the travel clock must actually move the field"
+    );
+
+    // THE REAL, FOLDED PROFILE: not exact repetition, but CONTINUITY — the
+    // field just before and just after the same boundary must change by
+    // materially the SAME amount a tiny travel step changes it ANYWHERE ELSE,
+    // not by an absolute pixel bound. Kite's own lattice is dense (60 rings),
+    // so EVERY tiny continuous travel step moves dozens of antialiased edges
+    // at once and a worst-single-pixel delta saturates almost immediately —
+    // measured directly: an arbitrary travel point far from any boundary
+    // produces a worst-channel delta of 62 for the SAME +/-0.02-cell window,
+    // materially the same magnitude the boundary itself produces, so an
+    // absolute "<= 8" floor was never satisfiable for this ground and would
+    // have flagged ordinary continuous motion as a jump. What IS diagnostic
+    // of a genuine jump is the boundary costing MUCH more than an arbitrary
+    // point does for the identical tiny step; this compares the two directly
+    // rather than trusting one hand-picked absolute number.
+    let wrap_folded = warpgrid::wrap_seconds(kite().forward_drift());
+    let wrap_cells = warpgrid::forward_cells(wrap_folded, kite().forward_drift());
+    let step_delta = |cells: f32| -> i32 {
+        let before = render_travel(
+            &device,
+            &queue,
+            bg_desc_for(kite()),
+            W,
+            H,
+            COL_LEFT,
+            COL_W,
+            cells - 0.02,
+        );
+        let after = render_travel(
+            &device,
+            &queue,
+            bg_desc_for(kite()),
+            W,
+            H,
+            COL_LEFT,
+            COL_W,
+            cells + 0.02,
+        );
+        worst(&before, &after)
+    };
+    let continuity_delta = step_delta(wrap_cells);
+    // Two arbitrary reference points, well clear of the wrap cell count
+    // (5.0) and of each other, so the reference is a property of ordinary
+    // continuous motion rather than of one coincidentally-picked point.
+    let reference = step_delta(wrap_cells + 1.37).max(step_delta(wrap_cells + 2.81));
+    assert!(
+        (continuity_delta as f32) <= reference as f32 * 1.5 + 5.0,
+        "the folded field costs {continuity_delta} at the hierarchy-repeat boundary but only \
+         {reference} at an arbitrary travel point for the identical tiny step — a fold that \
+         jumps there would cost far more than ordinary continuous motion elsewhere, not read \
+         as a stutter rather than a roll"
     );
 }
 
@@ -1195,3 +1268,4 @@ fn the_warped_grid_wgsl_holds_its_repairs_and_names_no_world() {
         );
     }
 }
+
