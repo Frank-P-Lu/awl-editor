@@ -202,12 +202,20 @@ Rust doc comment moved).
 
 ### 568 — spell suggestions never offer the user's own dictionary words (user report, 2026-09-06 — "add to dictionary, but this new word doesn't really show up in the autocomplete?" — the ⌘-; spell picker is meant; explicitly NOT a completion feature: "we don't need autocomplete")
 
-🟡 CLAIMED 2026-09-07 — lane `item-568-569`, worktree
-`.codex/worktrees/item-543-tabledims-frost`. **The board was stale and the tree is ahead of it:**
-the suggest-side merge is committed as `969a1f88` and the branch is rebased onto current main
-(`4a0aeeee`), clean. The lane's charge is verification, not construction — establish whether the
-committed work actually satisfies this item's Build and Laws clauses, mutation-prove the headline
-law, and produce a full native receipt. UNGATED until it reports.
+🟢 VERIFIED AND GATED, MERGE PENDING — lane `item-568-569`, worktree
+`.codex/worktrees/item-543-tabledims-frost`, tip `5795ebeb`. **The board was stale and the tree
+was right:** fully implemented as `969a1f88`, every Build and Laws clause satisfied.
+
+The premise survives and is one-sided, which is why the bug was invisible: `check` consults
+`user_words` (spell.rs:271) while pre-commit `suggest` was `self.dict.suggest(word, &mut out)`
+alone, and nothing ever inserts a user word into `self.dict`. New `spell/personal.rs` runs a
+bounded Levenshtein scan over `user_words`, recases to the typed shape, and `merge_ahead`
+places personal hits AHEAD of bundled ones — load-bearing, because the Spell card truncates
+after assembly. 12 laws, enrolled from `DictVariant::ALL` rather than a named member.
+
+Mutation-proven by the lane, red observed each time: reinstating the bundled-only `suggest`
+reddens **9 of 12**; ranking personal behind bundled reddens the ranking law and the
+post-truncation law.
 
 The personal dictionary is check-only. `SpellChecker::check` consults
 `user_words` (src/spell.rs:261), but `suggest`/`suggest_at`
@@ -238,12 +246,25 @@ reach the merged list (one owner, no second suggest path).
 
 ### 569 — personal dictionary picker: list the words, remove per row (user decision, 2026-09-06 — "richer listing words… something very simple")
 
-🟡 CLAIMED 2026-09-07 with 568 — same lane and worktree. **This half is NOT unstarted:** the picker
-is committed as `5eb70b93` ('list the words, forget per row'), with `9ce4ae07` reconciling the
-`actions.rs` health mark after the rebase. Same charge as 568 — verify against the clauses below,
-mutation-prove the row-retirement and file-preservation laws, and prove the capture clause was
-honoured (explicit `--config` and `--root`, never the ambient ones: overlay rows photograph real
-directory content and this repo is public). UNGATED until it reports.
+🟢 VERIFIED AND GATED, MERGE PENDING — same lane, worktree and tip as 568. **This half was not
+unstarted either:** committed as `5eb70b93`, every clause satisfied. `OverlayKind::UserWords` on
+the Asset Cleaner's grammar, `Effect::ForgetUserWord`, a file rewrite preserving `#` comments,
+blank lines and order, and the two per-row destructive accepts merged into ONE owner
+(`row_retiring_accept`) rather than two adjacent early-returns saying the same thing. Docs in
+GUIDE/REFERENCE/CAPTURE/harness-reach.
+
+Mutation-proven, red observed: a rewrite that drops comments/blanks reddens three laws; skipping
+the in-memory removal reddens two; a `remove_user_word_row` that reports success without removing
+reddens the row-retirement law.
+
+**Capture clause honoured, checked independently.** No PNG or JSON is committed and no `/Users/`
+appears anywhere in the branch diff. The lane reproduced the capture itself against an explicit
+`--config` and a seeded `--root`, writing outside the tree: `driver: "live-app"`, `mode:
+"user_words"`, `replay_skips: []`, rows gathered from the live checker. Row legibility asserted by
+its own pixel arithmetic — ink 162 against a uniform ground of 191.7. The lane reports its figures
+differ from the commit message's because it ran a different world, and confirms only "real ink",
+not the commit's specific numbers. That is the right way round: a figure owed to a human is read
+out of the product, never out of the report that landed it.
 
 `~/.config/awl/dictionary.txt` is user-facing and completely undocumented —
 no UI shows its contents and no doc says it exists; removal is hand-edit
@@ -1003,11 +1024,62 @@ consumer, no `scripts/__pycache__` exists; prove it non-vacuous by removing a gu
 watching the directory come back. Rider: correct rider (a)'s comment where it states the
 motive, so the next reader is not taught the wrong mechanism.
 
+### 595 — an `overlay_hover_stability_law` failure appeared on one gate arm, once, and could not be reproduced (found by 568/569's lane, 2026-09-07)
+
+⬜ READY — small, but it is in the class this repo has been bitten by repeatedly.
+
+`render::tests::overlay_hover_stability_law::a_deliberate_world_crossing_can_move_a_stationary_
+pixels_hit_test_row` went red on the `linux` arm ONLY during one gate run, was **absent from
+that arm's own `failures:` list**, was green on `mac` and `menubar-full` in the same run, and
+was green on all three arms in the next. The lane could not reproduce it targeted and
+recorded it as unexplained rather than asserting it benign, which is the right call.
+
+Why it is worth a look rather than a shrug: it is a `render::` law reaching the shared test
+GPU, which is exactly the order-sensitive class CLAUDE.md names. One device is one object
+population and one set of wgpu-hal counters, and a test that merely borrows a handle mutates
+them; the documented signature of an unguarded reach is a law that **passes alone, passes
+unfiltered, and fails only under a filter** — never failing CI and always failing a developer.
+Its disappearance from the arm's own failures list is itself a finding: a red that the
+receipt's own summary did not carry.
+
+Build: establish whether this law (and its neighbours in that file) take
+`crate::testlock::serial()` and hold it for the LIFETIME OF THE RESOURCES rather than the
+call — a `TextPipeline` dropped at the closing brace still moves the counters, so a lock a
+helper takes and returns discharges nothing. Then either fix the enrolment or explain the
+one-off. Laws: whatever is found, prove it by making the failure deterministic before
+declaring it fixed.
+
+---
+
+### 596 — two small truths about the personal dictionary that its own docs get wrong (found by 568/569's lane, 2026-09-07)
+
+⬜ READY — trivial, filed so they are not lost between a merge and a board compression.
+
+(a) `REFERENCE.md` says the dictionary file "is read at startup only". It is also re-read when
+the dictionary variant switches (`set_dictionary` → `load_user_dictionary`). A generated
+reference stating a wrong answer with a roster behind it is the documented hazard — the fix is
+the sentence, and the check is asking the property on both sides of the condition.
+
+(b) `remove_word_from_dictionary_file` joins with `\n`, so a CRLF-edited word list is converted
+to LF by a removal. Unreachable on awl's shipped platforms and therefore not urgent, but it
+contradicts the file-preservation promise the same function otherwise keeps, and the rope's
+whole CRLF discipline is "load normalizes, save restores".
+
 ## Owed to the user — landed work awaiting a live eye
 
 These items have MERGED and left the build queue. Each one still owes the user an answer or
 a live look, which landing does not discharge. Full context is in
 `git log -p -- .orchestrator/queue.md`.
+
+**568 — personal spell suggestions (gated on `item-568-569`, merge pending).** Two decisions in
+`src/spell/personal.rs` are the user's to confirm, quoted from the source rather than from a
+commit message: `pub(super) const MAX_DISTANCE: usize = 2;` and the ranking rule that "a
+personal near-miss is the user's OWN vocabulary, added deliberately, so it must never lose a
+slot to a bundled guess". **The risk worth naming:** the fix offers a personal word only when
+the typed word is already flagged misspelled AND within 2 edits. If what the user actually did
+was type a PREFIX — `Zorb` for `Zorbling`, four edits away — this does not reach it, and the
+standing "we don't need autocomplete" decision makes that deliberate. Worth asking before 568
+is called closed.
 
 **551 — table selection band (merged `f740749c`, follow-up `db90497e`).** The band now paints
 whole rows. If a spreadsheet-style cell-wise selection is what you actually wanted, say so —
