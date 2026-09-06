@@ -3,7 +3,10 @@
 use super::*;
 
 mod footnotes;
+mod inline;
 pub(super) use footnotes::apply_insert_footnote;
+pub(super) use inline::apply_inline_format;
+pub(crate) use inline::{InlineKind, inline_active};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct FormatResult {
@@ -22,27 +25,6 @@ pub(super) enum BlockKind {
     CodeBlock,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum InlineKind {
-    Bold,
-    Italic,
-    InlineCode,
-    Highlight,
-    Strikethrough,
-}
-
-impl InlineKind {
-    fn delim(self) -> &'static str {
-        match self {
-            InlineKind::Bold => "**",
-            InlineKind::Italic => "*",
-            InlineKind::InlineCode => "`",
-            InlineKind::Highlight => "==",
-            InlineKind::Strikethrough => "~~",
-        }
-    }
-}
-
 /// Run a BLOCK toggle over the caret line / selection and apply it as one undoable
 /// edit. A markdown-only command (a `.rs`/`.txt` buffer is left untouched — block
 /// markup would corrupt code), and a calm no-op when the transform changes nothing.
@@ -54,17 +36,6 @@ pub(super) fn apply_block_format(ctx: &mut ActionCtx, kind: BlockKind) {
     let anchor = ctx.buffer.anchor_char();
     let cursor = ctx.buffer.cursor_char();
     let r = block_toggle(kind, &text, anchor, cursor);
-    ctx.buffer.apply_format(&r.text, r.anchor, r.cursor);
-}
-
-pub(super) fn apply_inline_format(ctx: &mut ActionCtx, kind: InlineKind) {
-    if !ctx.buffer.is_markdown() {
-        return;
-    }
-    let text = ctx.buffer.text();
-    let anchor = ctx.buffer.anchor_char();
-    let cursor = ctx.buffer.cursor_char();
-    let r = inline_toggle(kind, &text, anchor, cursor);
     ctx.buffer.apply_format(&r.text, r.anchor, r.cursor);
 }
 
@@ -389,200 +360,6 @@ fn heading_cycle(text: &str, anchor: Option<usize>, cursor: usize) -> FormatResu
         text: new_text,
         anchor,
         cursor,
-    }
-}
-
-fn is_word_char(c: char) -> bool {
-    c.is_alphanumeric() || c == '_'
-}
-
-/// The char span an inline toggle acts on: the selection, or the word under the
-/// caret, or (with neither) a bare caret (`want_caret`). Shared by [`inline_toggle`]
-/// and the popover's [`inline_active`] so the two can never disagree on WHICH span
-/// a button reads.
-fn inline_span(chars: &[char], anchor: Option<usize>, cursor: usize) -> (usize, usize, bool) {
-    let (s, e, has_sel) = sel_range(anchor, cursor);
-    if has_sel {
-        return (s, e, false);
-    }
-    let mut a = cursor;
-    while a > 0 && is_word_char(chars[a - 1]) {
-        a -= 1;
-    }
-    let mut b = cursor;
-    while b < chars.len() && is_word_char(chars[b]) {
-        b += 1;
-    }
-    if b > a {
-        (a, b, false)
-    } else {
-        (cursor, cursor, true) // no word → empty-delimiter insert
-    }
-}
-
-/// WHERE `kind`'s delimiters sit relative to span `[ws, we)`, when it is already
-/// wrapped — the ONE definition of "already formatted" shared by the toggle (it
-/// STRIPs) and the popover's lit oracle ([`inline_active`], it LIGHTS), so they
-/// can never disagree.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum InlineWrap {
-    Surrounding,
-    Enclosing,
-}
-
-fn inline_wrap(
-    kind: InlineKind,
-    chars: &[char],
-    text: &str,
-    ws: usize,
-    we: usize,
-) -> Option<InlineWrap> {
-    let d: Vec<char> = kind.delim().chars().collect();
-    let dl = d.len();
-    let eq = |from: usize| from + dl <= chars.len() && chars[from..from + dl] == d[..];
-    let (plan, content_empty) = if ws >= dl && we + dl <= chars.len() && eq(ws - dl) && eq(we) {
-        (InlineWrap::Surrounding, ws == we)
-    } else if we - ws >= 2 * dl && eq(ws) && eq(we - dl) {
-        (InlineWrap::Enclosing, we - ws == 2 * dl)
-    } else {
-        return None;
-    };
-    if content_empty || content_is_kind(kind, text, ws, we) {
-        Some(plan)
-    } else {
-        None
-    }
-}
-
-fn content_is_kind(kind: InlineKind, text: &str, ws: usize, we: usize) -> bool {
-    let mid_char = ws + (we - ws) / 2;
-    let mid_byte = char_to_byte(text, mid_char);
-    let spans = crate::markdown::spans(text);
-    if spans
-        .iter()
-        .any(|(r, k)| r.contains(&mid_byte) && kind_matches_span(kind, *k))
-    {
-        return true;
-    }
-    // FALLBACK, InlineCode + a newline in the span only: a genuine CommonMark
-    // code SPAN cannot cross a paragraph/block boundary (a blank line, or a
-    // line a list/heading marker turns into its own block), so the real parser
-    // never confirms one whose wrapped content crosses that boundary — even
-    // though the backticks this command inserted are still sitting right
-    // there. Backtick has no sibling delimiter to disambiguate against (unlike
-    // `*` vs `**`), so recognizing the strip doesn't need positive
-    // confirmation here; it only needs to rule out the one real false
-    // positive, a literal backtick that is source text INSIDE an actual
-    // fenced/indented code block, where the toggle must never mistake code-
-    // body characters for its own markup. Gated on a literal `\n` in the span
-    // so a same-line flanked pair (`` `a` or `b` ``, selecting " or ") still
-    // requires the positive match above and is never merged.
-    kind == InlineKind::InlineCode
-        && text[char_to_byte(text, ws)..char_to_byte(text, we)].contains('\n')
-        && !spans.iter().any(|(r, k)| {
-            r.contains(&mid_byte) && matches!(k, crate::markdown::MdKind::Code { inline: false })
-        })
-}
-
-fn kind_matches_span(kind: InlineKind, k: crate::markdown::MdKind) -> bool {
-    use crate::markdown::MdKind;
-    match kind {
-        InlineKind::Bold => matches!(k, MdKind::Bold | MdKind::BoldItalic),
-        InlineKind::Italic => matches!(k, MdKind::Italic | MdKind::BoldItalic),
-        InlineKind::InlineCode => matches!(k, MdKind::Code { inline: true }),
-        InlineKind::Highlight => matches!(k, MdKind::Highlight),
-        InlineKind::Strikethrough => matches!(k, MdKind::Strikethrough),
-    }
-}
-
-fn char_to_byte(text: &str, char_idx: usize) -> usize {
-    text.char_indices()
-        .nth(char_idx)
-        .map(|(b, _)| b)
-        .unwrap_or(text.len())
-}
-
-pub(crate) fn inline_active(
-    kind: InlineKind,
-    text: &str,
-    anchor: Option<usize>,
-    cursor: usize,
-) -> bool {
-    let chars: Vec<char> = text.chars().collect();
-    let (ws, we, _) = inline_span(&chars, anchor, cursor);
-    inline_wrap(kind, &chars, text, ws, we).is_some()
-}
-
-fn inline_toggle(
-    kind: InlineKind,
-    text: &str,
-    anchor: Option<usize>,
-    cursor: usize,
-) -> FormatResult {
-    let chars: Vec<char> = text.chars().collect();
-    let d: Vec<char> = kind.delim().chars().collect();
-    let dl = d.len();
-
-    let (ws, we, want_caret) = inline_span(&chars, anchor, cursor);
-
-    // STRIP — the span is already wrapped by `kind`. WHERE the delimiters sit comes
-    // from the ONE shared owner [`inline_wrap`] (the same the popover lights from),
-    // so the toggle can never strip a `*` that is really half of a `**` bold fence:
-    // pressing I inside `**bold**` falls through to WRAP → `***bold***`, never a
-    // silent bold→italic degrade.
-    match inline_wrap(kind, &chars, text, ws, we) {
-        Some(InlineWrap::Surrounding) => {
-            let mut out: Vec<char> = Vec::with_capacity(chars.len() - 2 * dl);
-            out.extend_from_slice(&chars[..ws - dl]);
-            out.extend_from_slice(&chars[ws..we]);
-            out.extend_from_slice(&chars[we + dl..]);
-            let (a, c) = (ws - dl, we - dl);
-            return finish_inline(out, ws == we, a, c);
-        }
-        Some(InlineWrap::Enclosing) => {
-            let mut out: Vec<char> = Vec::with_capacity(chars.len() - 2 * dl);
-            out.extend_from_slice(&chars[..ws]);
-            out.extend_from_slice(&chars[ws + dl..we - dl]);
-            out.extend_from_slice(&chars[we..]);
-            let (a, c) = (ws, we - 2 * dl);
-            return finish_inline(out, false, a, c);
-        }
-        None => {}
-    }
-
-    let mut out: Vec<char> = Vec::with_capacity(chars.len() + 2 * dl);
-    out.extend_from_slice(&chars[..ws]);
-    out.extend_from_slice(&d);
-    out.extend_from_slice(&chars[ws..we]);
-    out.extend_from_slice(&d);
-    out.extend_from_slice(&chars[we..]);
-    if want_caret {
-        let c = ws + dl;
-        FormatResult {
-            text: out.into_iter().collect(),
-            anchor: None,
-            cursor: c,
-        }
-    } else {
-        let (a, c) = (ws + dl, we + dl);
-        finish_inline(out, false, a, c)
-    }
-}
-
-fn finish_inline(out: Vec<char>, empty: bool, a: usize, c: usize) -> FormatResult {
-    let text: String = out.into_iter().collect();
-    if empty || a == c {
-        FormatResult {
-            text,
-            anchor: None,
-            cursor: c,
-        }
-    } else {
-        FormatResult {
-            text,
-            anchor: Some(a),
-            cursor: c,
-        }
     }
 }
 
