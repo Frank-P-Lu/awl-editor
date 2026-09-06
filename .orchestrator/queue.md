@@ -821,6 +821,29 @@ that entire streak, so a software adapter is not a stand-in for that axis.
 confirmation explicitly NOT obtained, because the display was locked; they are in the owed
 section, not silently absorbed into these receipts.
 
+## The new gate arms have now run somewhere other than here
+
+CLAUDE.md's standing question of any green check is not only "does this law sweep the right
+axis" but **"has this check ever run anywhere but here"** — the other DPI, the other backend,
+the other entry point, the other filter. For 593/594/578's three new `code-health.sh` arms
+that question is now answered rather than assumed.
+
+CI run 34056753311 on `135f9a5c` passed all four gating jobs, and its **Linux** job ran the new
+arms twice — once as the standalone health step, once inside the native full suite:
+
+```
+code-health: self-test clean
+test-sweep: SKIPPED law 4 (cargo-sweep not installed on this host).
+test-sweep: sweep.sh deletes only inside its caller's worktree
+test-pycache-guards: 3 by-path loaders leave no scripts/__pycache__
+```
+
+Two things worth keeping. Laws 1–3 and the self-test really do run on a second platform, so
+they are not dev-host-only. And **law 4 announced its own absence instead of passing
+silently** — its lane predicted exactly this (CI installs no cargo-sweep) and designed the skip
+to be loud and self-describing. A law that skips quietly reads identical to a law that passed,
+and this board has been bitten by that shape more than once.
+
 ## Scripts-only merges claim no receipt — and this one says so
 
 `e4d2cf71` (593 + 594 + 578) changed eight files: seven under `scripts/` and
