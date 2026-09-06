@@ -366,10 +366,11 @@ impl WorkingSet {
     /// That emptiness is the whole one-file contract, and it lives HERE so it
     /// lives exactly once. The bottom identity widens into a stack only when
     /// there is a working set to show; with a single file open the renderer is
-    /// handed nothing, takes the same path it took before this surface existed,
-    /// and draws the same bytes. A second `len() <= 1` guard further down would
-    /// be a second place for that rule to be true, and the day they disagree the
-    /// margin grows a row for a set of one.
+    /// handed nothing and draws its own lone identity line instead — which
+    /// still wears the active file's plate and ink, off the same two owners a
+    /// stack row reads (`render::chrome::gutter_stack`). A second `len() <= 1`
+    /// guard further down would be a second place for this rule to be true, and
+    /// the day they disagree the margin grows a row for a set of one.
     ///
     /// The count that GATES the stack is the ACTIVE ROOT'S GROUP, never
     /// [`Self::len`]: a file parked under another project must not summon a

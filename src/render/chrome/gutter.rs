@@ -283,19 +283,19 @@ impl TextPipeline {
             spans.push((project.as_str(), base.clone().color(muted)));
             spans.push(("\n", base.clone().color(muted)));
         }
-        // The mark's text is shaped FIRST (a LEADING span), even for the
-        // single-file identity: it rides the SAME close-mark door a
-        // working-set row does (`GutterLine::Name` in `gutter_hit::
-        // stack_hit_from_plan`), one mechanism rather than a single-file copy.
-        let revealed_ink = base.clone().color(muted);
-        let hidden_ink = base.clone().color(glyphon::Color::rgba(0, 0, 0, 0));
+        // The mark's text is shaped FIRST (a LEADING span), even for the single-file
+        // identity: it rides the SAME close-mark door a working-set row does
+        // (`GutterLine::Name` in `gutter_hit::stack_hit_from_plan`), one mechanism
+        // rather than a single-file copy. And the identity line draws ON
+        // `plate_rects`' own fill, so its name and its revealed mark wear the ink an
+        // active stack row wears, off the one owner `gutter_stack::active_row_ink`.
+        let active_ink = gutter_stack::active_row_ink();
+        let hidden_ink = glyphon::Color::rgba(0, 0, 0, 0);
         if stack_ink.is_empty() {
             let revealed = self.gutter_stack_hover.is_some_and(|hit| hit.row == 0);
-            spans.push((
-                gutter_stack::CLOSE_MARK_TEXT,
-                if revealed { revealed_ink } else { hidden_ink },
-            ));
-            spans.push((name.as_str(), base.clone().color(muted)));
+            let mark = if revealed { active_ink } else { hidden_ink };
+            spans.push((gutter_stack::CLOSE_MARK_TEXT, base.clone().color(mark)));
+            spans.push((name.as_str(), base.clone().color(active_ink)));
         } else {
             for (text, ink) in &stack_ink {
                 spans.push((text.as_str(), base.clone().color(*ink)));
@@ -340,16 +340,15 @@ impl TextPipeline {
             m.px_physical(super::readout::CANVAS_INSET),
             GUTTER_CARVE_BREATH.0,
         );
-        // THE ACTIVE ROW'S PLATE and THE ROW-DRAG'S OWN INSERTION HAIRLINE,
+        // THE ACTIVE FILE'S PLATE and THE ROW-DRAG'S OWN INSERTION HAIRLINE,
         // off the SAME planner rows the glyphs sit on — a drag indicator can
         // never draw off a row the plate math disagrees about
-        // (`gutter_stack::plates_and_drag_indicator`). Both come back empty
-        // whenever there is no stack / no live drag, and an empty `prepare`
-        // leaves its pipeline with zero instances — so a single-file, non-
-        // dragging frame issues no extra draw and stays byte-identical to a
-        // pre-stack one. The indicator's ink is `muted`, not the caret's
-        // accent — DESIGN.md's "one accent" law reserves that for the caret
-        // alone.
+        // (`gutter_stack::plates_and_drag_indicator`). The plate is present on
+        // every drawn block, since every drawn block names an active file (a lone
+        // identity line or a stack row); only the INDICATOR comes back empty off a
+        // live drag, and an empty `prepare` leaves its pipeline with zero
+        // instances. The indicator's ink is `muted`, not the caret's accent —
+        // DESIGN.md's "one accent" law reserves that for the caret alone.
         let (plates, indicator) = gutter_stack::plates_and_drag_indicator(
             &layout,
             &stack,
@@ -440,10 +439,11 @@ impl TextPipeline {
         )
     }
 
-    /// THE ACTIVE STACK ROW'S PLATE RECT `[x, y, w, h]`, off the EXACT SAME
+    /// THE ACTIVE FILE'S PLATE RECT `[x, y, w, h]`, off the EXACT SAME
     /// layout + planner rows [`Self::prepare_gutter`] draws
-    /// `gutter_stack_plate` from — `None` when nothing is plated (a
-    /// single-file margin, or the gutter itself hidden/off).
+    /// `gutter_stack_plate` from — the lone identity line's as readily as a stack
+    /// row's ([`gutter_stack::plate_rects`] answers for both). `None` only when the
+    /// gutter itself is hidden/off, with nothing drawn to plate.
     ///
     /// Exists for real-pixel laws that need to sample INSIDE the plate without
     /// re-deriving its padding arithmetic by hand (`render/tests/one_bit.rs`'s

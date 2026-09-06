@@ -1,6 +1,30 @@
 use super::*;
 use crate::workingset::StackRow;
 
+/// WCAG relative luminance / contrast ratio — a SCRATCH measurement for the
+/// plated-ink presence floor below, spelled here rather than reached for in
+/// `theme::derive` (where it is private, and deliberately so: the shipped
+/// rule is [`theme::selected_row_secondary_ink`] itself, and a law that
+/// borrowed the very helper that function makes its decision with could only
+/// ever restate it).
+fn rel_luminance(c: theme::Srgb) -> f32 {
+    let lin = |v: u8| {
+        let s = v as f32 / 255.0;
+        if s <= 0.04045 {
+            s / 12.92
+        } else {
+            ((s + 0.055) / 1.055).powf(2.4)
+        }
+    };
+    0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b)
+}
+
+fn contrast_ratio(a: theme::Srgb, b: theme::Srgb) -> f32 {
+    let (ya, yb) = (rel_luminance(a), rel_luminance(b));
+    let (hi, lo) = if ya > yb { (ya, yb) } else { (yb, ya) };
+    (hi + 0.05) / (lo + 0.05)
+}
+
 fn row(leaf: &str, parent: &str, active: bool) -> StackRow {
     StackRow {
         leaf: leaf.to_string(),
@@ -299,36 +323,231 @@ fn a_plate_marks_the_active_row_in_every_block_shape() {
     }
 }
 
-/// A BLOCK WITH NO WORKING SET HAS NO PLATE — the single-file margin's whole
-/// contract, asserted at the geometry seam rather than trusted from the model.
+/// **A BLOCK WITH NO WORKING SET PLATES ITS IDENTITY LINE — the active file
+/// is ALWAYS plated, and the geometry is the SAME `plate_rects` answer a
+/// multi-file active row gets.**
+///
+/// SUPERSEDES `a_single_file_block_plates_nothing`, which asserted the
+/// opposite by name and was correct against a recorded decision the user has
+/// since overridden ("sure plate it. this means more consistent right?"): a
+/// lone open file read as "not selected" because the one mark that says
+/// "this is the file you are editing" was the one thing the block withheld
+/// exactly when there was nothing else to compare against.
+///
+/// It is not enough that SOME rect appears — the old law's real content was
+/// that the block's shape and the plate's shape agree, so this asserts the
+/// identity line's plate is byte-for-byte the rect the SAME line would get
+/// as a stack row: same band, same ink measurement, same pad. Anything else
+/// would be a lookalike rect drawn beside the mechanism rather than by it.
 #[test]
-fn a_single_file_block_plates_nothing() {
-    let layout = layout_of(&[], false, true, 24);
-    let plan = crate::render::plan::plan_gutter_stack(
-        300.0,
-        layout.avail,
-        12.0,
-        layout.lines().len(),
-        8.0,
-        0.5,
-    );
-    assert!(plate_rects(&layout, &plan, 6.0, 2.0).is_empty());
-    assert_eq!(
-        stack_spans(&layout.files, None).len(),
-        0,
-        "an empty stack must not grow a reserved close lane"
-    );
-    // And the block is exactly the two lines it has always been, in the same
-    // top-to-bottom order the stack shape uses (`project_heads_only_the_
-    // multi_file_hierarchy` pins the shared ordering; this law's own subject
-    // is that a single file still plates nothing).
-    assert_eq!(
-        layout
-            .lines()
+fn a_single_file_block_plates_its_own_identity_line() {
+    // Swept over the block shapes the affordance and the project line make,
+    // because the identity line's own row INDEX moves with them — the same
+    // axis `a_plate_marks_the_active_row_in_every_block_shape` sweeps, and
+    // the reason a plate is derived from `lines()` rather than from a count.
+    for changed in [false, true] {
+        for project in [false, true] {
+            let layout = layout_of(&[], changed, project, 24);
+            let lines = layout.lines();
+            let plan = crate::render::plan::plan_gutter_stack(
+                300.0,
+                layout.avail,
+                12.0,
+                lines.len(),
+                8.0,
+                0.5,
+            );
+            let shape = format!("changed={changed} project={project}");
+            let plates = plate_rects(&layout, &plan, 6.0, 2.0);
+            assert_eq!(
+                plates.len(),
+                1,
+                "{shape}: the lone open file is the active file and must be plated"
+            );
+            let at = lines
+                .iter()
+                .position(|(_, kind)| matches!(kind, gutter::GutterLine::Name))
+                .unwrap_or_else(|| panic!("{shape}: no identity line in the block"));
+            let band = plan.rows[at];
+            let plate = plates[0];
+            assert!(
+                plate[1] >= band[1] && plate[1] + plate[3] <= band[1] + band[3],
+                "{shape}: plate {plate:?} escapes the identity line's own band {band:?}"
+            );
+            // THE SAME MECHANISM, NOT A RESEMBLANCE: the rect a stack row of
+            // the identical text would be handed, computed by the same
+            // production function through the File arm, must equal this one
+            // exactly. A second code path that merely looked right would
+            // drift here on the first change to `plate_rect`'s padding.
+            let as_row = layout_of(&[row(&layout.name, "", true)], changed, project, 24);
+            let row_lines = as_row.lines();
+            let row_plan = crate::render::plan::plan_gutter_stack(
+                300.0,
+                as_row.avail,
+                12.0,
+                row_lines.len(),
+                8.0,
+                0.5,
+            );
+            let row_plates = plate_rects(&as_row, &row_plan, 6.0, 2.0);
+            assert_eq!(
+                row_plates.len(),
+                1,
+                "{shape}: the one-row stack fixture must plate exactly once"
+            );
+            assert_eq!(
+                plate, row_plates[0],
+                "{shape}: the identity line's plate {plate:?} is not the rect the same \
+                 name gets as a stack row {:?} — two plate mechanisms, not one",
+                row_plates[0]
+            );
+            // The block is still exactly the lines it has always been, in the
+            // same top-to-bottom order the stack shape uses: this item
+            // changed what the identity line WEARS, never where it sits.
+            let mut expect = Vec::new();
+            if changed {
+                expect.push(gutter::GutterLine::Changed);
+            }
+            if project {
+                expect.push(gutter::GutterLine::Project);
+            }
+            expect.push(gutter::GutterLine::Name);
+            assert_eq!(
+                lines.iter().map(|(_, kind)| *kind).collect::<Vec<_>>(),
+                expect,
+                "{shape}: the block's own line order moved"
+            );
+            assert_eq!(
+                stack_spans(&layout.files, None).len(),
+                0,
+                "{shape}: an empty stack must not grow a reserved close lane"
+            );
+        }
+    }
+}
+
+/// **NO LINE BUT AN ACTIVE FILE EVER PLATES — enrolled over the whole
+/// [`gutter::GutterLine`] roster, so the identity line's new fill cannot
+/// spread to the block's other lines.**
+///
+/// The companion to the law above: plating the identity line means the
+/// `Name` arm of `plate_rects`' own match now returns a rect, and the arms
+/// either side of it (`Project`, `Changed`) must still return nothing. The
+/// match carries no wildcard, so a future line kind fails to compile rather
+/// than inheriting an answer; this asserts the answer the existing kinds
+/// get, at a block shape that draws every one of them at once.
+#[test]
+fn only_the_active_file_line_plates_across_the_whole_line_roster() {
+    let files = vec![row("opening.md", "", false), row("ledger.md", "", true)];
+    let layout = layout_of(&files, true, true, 24);
+    let lines = layout.lines();
+    let plan =
+        crate::render::plan::plan_gutter_stack(300.0, layout.avail, 12.0, lines.len(), 8.0, 0.5);
+    // The fixture really does draw every non-File line kind, or the sweep
+    // below proves nothing about them.
+    for kind in [gutter::GutterLine::Changed, gutter::GutterLine::Project] {
+        assert!(
+            lines.iter().any(|(_, k)| *k == kind),
+            "the fixture never drew {kind:?} — this law would sweep past it"
+        );
+    }
+    let plates = plate_rects(&layout, &plan, 6.0, 2.0);
+    assert_eq!(plates.len(), 1, "exactly one plate: {plates:?}");
+    let plated_band = plates[0];
+    for (at, (_, kind)) in lines.iter().enumerate() {
+        let band = plan.rows[at];
+        let covered =
+            plated_band[1] < band[1] + band[3] && plated_band[1] + plated_band[3] > band[1];
+        let should = matches!(kind, gutter::GutterLine::File(i) if layout.files[*i].active);
+        assert_eq!(
+            covered,
+            should,
+            "line {at} ({kind:?}) is {}plated and should {}be",
+            if covered { "" } else { "not " },
+            if should { "" } else { "not " }
+        );
+    }
+}
+
+/// **THE LONE IDENTITY LINE'S NAME WEARS THE PLATED-ROW INK, NOT THE
+/// MARGIN'S PLAIN `muted` — one owner, swept over the whole world roster.**
+///
+/// The ink `muted` was chosen for this line *because* it had no plate to
+/// differentiate against; with a fill behind it that reasoning no longer
+/// holds on its own, and the value must come from the same
+/// [`theme::selected_row_secondary_ink`] routing a plated stack row's does.
+/// In many worlds that routing returns `muted` unchanged (the ink survives
+/// its own justification) — which is exactly why this is asserted as
+/// ROUTING rather than as a value: a world where `muted` collapses into
+/// `surface_selected` must get the pole instead, and a hardcoded `muted`
+/// would be green everywhere else and invisible exactly there.
+///
+/// Enrolment is the roster itself (`theme::THEMES`), and the sweep asserts
+/// the identity line's ink EQUALS an active stack row's in every world —
+/// the two shapes cannot drift.
+///
+/// ⚠️ THIS LAW OWNS THE OWNER, NOT THE WIRING. It proves
+/// [`active_row_ink`] answers the same thing for both shapes; it cannot see
+/// whether `prepare_gutter` actually SPENDS that answer on the identity
+/// line, because that seam needs a device. The pixel law
+/// (`render/tests/gutter_stack_pixels.rs`'s
+/// `the_active_file_is_plated_alone_and_among_several_on_every_world`) is
+/// what goes red when the identity line's span is handed plain `muted`
+/// again — verified by mutation, not assumed.
+#[test]
+fn the_identity_lines_ink_is_the_same_routed_ink_an_active_stack_row_wears() {
+    let _g = crate::testlock::serial();
+    let _pin = theme::WorldPin::snapshot();
+    let mut judged = Vec::new();
+    let mut routed_away = Vec::new();
+    for (index, world) in theme::THEMES.iter().enumerate() {
+        theme::set_active(index);
+        let name = world.name;
+        let identity = active_row_ink();
+        let stack = stack_spans(&fit_rows(&[row("opening.md", "", true)], 24), None);
+        let row_ink = stack
             .iter()
-            .map(|(_, kind)| *kind)
-            .collect::<Vec<_>>(),
-        vec![gutter::GutterLine::Project, gutter::GutterLine::Name]
+            .find(|(text, _)| text.contains("opening.md"))
+            .expect("the active row draws its own name span")
+            .1;
+        assert_eq!(
+            identity.0, row_ink.0,
+            "{name}: the identity line's ink and an active stack row's disagree — \
+             two ink owners, not one"
+        );
+        // PRESENCE, not just agreement: an ink equal to its own plate would
+        // satisfy the equality above while rendering nothing. The routed ink
+        // must genuinely separate from the fill it sits on — measured as a
+        // WCAG ratio here, and again on real pixels by
+        // `render/tests/gutter_stack_pixels.rs`'s lone-file law.
+        let fill = theme::surface_selected();
+        let ink = theme::selected_row_secondary_ink(fill);
+        let cr = contrast_ratio(fill, ink);
+        assert!(
+            cr >= 1.6,
+            "{name}: the plated ink {ink:?} reads at {cr:.2} against its own plate \
+             {fill:?} — the identity line's name would vanish into the fill this item \
+             just put behind it"
+        );
+        if ink != theme::muted() {
+            routed_away.push(name);
+        }
+        judged.push(name);
+    }
+    assert_eq!(
+        judged.len(),
+        theme::THEMES.len(),
+        "only {} of {} worlds were judged: {judged:?}",
+        judged.len(),
+        theme::THEMES.len()
+    );
+    // NON-VACUITY OF THE ROUTING ITSELF: at least one world must actually
+    // take the fallback, or this law would pass identically against a
+    // hardcoded `muted` and prove nothing about the mechanism it names.
+    assert!(
+        !routed_away.is_empty(),
+        "no world in the roster routes the plated ink away from `muted` — the routing \
+         is untested and a hardcoded `muted` would pass this law"
     );
 }
 

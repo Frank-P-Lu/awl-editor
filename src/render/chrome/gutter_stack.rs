@@ -1,6 +1,5 @@
 //! THE MARGIN WORKING SET'S ROWS — how a list of open files becomes the text,
-//! the ink and the one soft plate the bottom identity draws when more than one
-//! file is open under the active project root.
+//! the ink and the one soft plate the bottom identity draws.
 //!
 //! It lives beside [`super::gutter`] rather than inside it because the two own
 //! different questions. `gutter` owns the BLOCK: which lines exist, where the
@@ -10,9 +9,13 @@
 //!
 //! Nothing here decides WHETHER a stack is drawn — that is
 //! [`crate::workingset::WorkingSet::stack_rows`]'s single answer, delivered as
-//! an empty list. Every function here is a no-op on an empty list, which is what
-//! keeps the single-file margin on exactly the path it had before this surface
-//! existed.
+//! an empty list, and [`fit_rows`]/[`stack_spans`] are no-ops on it.
+//!
+//! **THE ACTIVE FILE IS ALWAYS PLATED, INCLUDING WHEN IT IS THE ONLY ONE.** The
+//! lone identity line has no working-set row behind it and still takes its fill
+//! from [`plate_rects`] and its ink from [`active_row_ink`] — the same two owners
+//! a multi-file active row reads, so the mark for "this is the file you are
+//! editing" does not change shape at N=1.
 
 use super::*;
 
@@ -188,36 +191,35 @@ pub(super) fn fit_rows(rows: &[crate::workingset::StackRow], budget: usize) -> V
         .collect()
 }
 
+/// **THE INK A PLATED NAME WEARS — ONE OWNER FOR EVERY SHAPE OF IT**, read by a
+/// working-set active row ([`stack_spans`]) and by the lone identity line
+/// (`gutter::prepare_gutter`) alike, so neither can hold [`plate_rects`]' fill
+/// without the ink that keeps it readable.
+///
+/// `muted` routed through [`theme::selected_row_secondary_ink`] against that
+/// fill: the routing is the identity function wherever `muted` already contrasts
+/// with [`theme::surface_selected`], and substitutes a page pole only where it
+/// would vanish into its own plate — which over the roster is the majority of
+/// worlds, so the ladder's plain `muted` is never the answer here on its own.
+pub(super) fn active_row_ink() -> glyphon::Color {
+    theme::selected_row_secondary_ink(theme::surface_selected()).to_glyphon()
+}
+
 /// The stack's rich-text spans in draw order, each carrying the ink it wears.
 ///
-/// ONE AXIS OF VALUE: the ACTIVE row's name comes forward, whether that row
-/// is a file or a project heading — [`plate_rects`] plates a heading exactly
-/// when it is the reader's current project, the same `active` field a File
-/// row's own plate reads — and every other row's name is `faint`. A row's
-/// LOCATION is `faint` throughout, quieter than the name it qualifies on the
-/// row that matters.
-///
-/// An active row's name is drawn ON [`plate_rect`]'s own fill
-/// (`theme::surface_selected()`), not on the bare margin — so the ladder's
-/// plain `muted` default is never the answer here, active row or heading
-/// alike. It is routed through [`theme::selected_row_secondary_ink`], the
-/// SAME ink-legibility mechanism the picker row's own secondary ink and the
-/// toast rim already use (`render/chrome/overlay_rows.rs`,
-/// `overlay_visual_sel.rs`): the function keeps `muted` wherever it already
-/// contrasts against the plate (every ordinary world) and falls back to
-/// whichever of the page's two poles reads better only where it does not —
-/// which is Wagtail, where the plate fills at page-inverse (`base_content`)
-/// and `muted` is the SAME page-inverse value, so unrouted ink vanishes into
-/// its own plate (the sidecar-vs-pixels tripwire: `selected_index` reads
-/// correctly while the row renders unreadable).
+/// ONE AXIS OF VALUE: the ACTIVE row's name comes forward, whether that row is a
+/// file or the current project's heading, and every other row's name is `faint`.
+/// A row's LOCATION is `faint` throughout, quieter than the name it qualifies on
+/// the row that matters. That forward name is [`active_row_ink`]'s — a heading's
+/// too, though only a File row ever draws the fill ([`plate_rects`]) — and its
+/// whole legibility rationale lives on that owner rather than a second time here.
 ///
 /// Rows are joined by carrying a leading newline on the first span of every row
 /// after the first, so an absent location cannot swallow a line break.
 ///
-/// Bails before touching the theme at all when `lines` is empty — the
-/// single-file margin's own no-op path, and it keeps that path from becoming
-/// an unguarded reader of the process-global active world (`crate::testlock`)
-/// for a frame that will never draw a plate to begin with.
+/// Bails before touching the theme at all when `lines` is empty — the single-file
+/// margin's own no-op path, which keeps it from becoming an unguarded reader of
+/// the process-global active world (`crate::testlock`) for a frame with no stack.
 pub(super) fn stack_spans(
     lines: &[StackLine],
     hover: Option<super::gutter_hit::GutterStackHit>,
@@ -225,7 +227,7 @@ pub(super) fn stack_spans(
     if lines.is_empty() {
         return Vec::new();
     }
-    let active_ink = theme::selected_row_secondary_ink(theme::surface_selected()).to_glyphon();
+    let active_ink = active_row_ink();
     let faint = theme::faint().to_glyphon();
     let mut out = Vec::with_capacity(lines.len() * 2);
     for (row, line) in lines.iter().enumerate() {
@@ -245,7 +247,7 @@ pub(super) fn stack_spans(
         // being able to reveal.
         let shown = hover.filter(|hit| hit.row == row).map(|_| {
             if line.active {
-                theme::selected_row_secondary_ink(theme::surface_selected()).to_glyphon()
+                active_row_ink()
             } else {
                 theme::muted().to_glyphon()
             }
@@ -322,27 +324,32 @@ pub(super) fn drag_indicator_rect(
     Some([x, y + h - thickness_px * 0.5, w, thickness_px])
 }
 
-/// **515: THE PLATE MEANS THE ACTIVE FILE, AND NOTHING ELSE.** At most ONE
-/// plate per frame, across the resting stack and the expanded panel alike —
-/// never a Group heading, even the current project's own, and never the
-/// single-file identity line's projection.
+/// **THE PLATE MEANS THE ACTIVE FILE, AND EVERY SHAPE OF "THE ACTIVE FILE" EARNS
+/// IT.** At most ONE plate per frame, across the lone identity line, the resting
+/// stack and the expanded panel alike — never a Group heading, even the current
+/// project's own.
 ///
-/// A heading that IS the current project keeps its distinct ink
-/// ([`stack_spans`] still routes it through
-/// [`theme::selected_row_secondary_ink`]) but draws no fill: the project
-/// identity is stated once, by the gutter's own folder heading above the
-/// block (or, once the panel draws headings itself, by that ink-marked
-/// heading) — plating it too would state "you are in this project" a second
-/// time in the same column the active file's own plate already occupies,
-/// which is the exact double-selection a screenshot once caught (two purple
-/// plates answering two different questions, "which file" and "which
-/// project", read together as two selections).
+/// [`gutter::GutterLine::Name`] IS the active file: [`GutterLayout::lines`] draws
+/// it only when the working set has no rows to widen into, so the one file open is
+/// by construction the one being edited. It is plated HERE rather than by a second
+/// rect placed beside it — one owner of "which line is filled" — and the match
+/// below carries no wildcard arm, so a new line kind fails to compile instead of
+/// silently inheriting either answer.
 ///
-/// Read off the SAME [`GutterLayout::lines`] list the glyphs are laid from and
-/// the SAME planner rows they sit on, so a plate cannot mark a different line
-/// than the one the reader is editing. Adding a line to the block (an affordance
-/// appearing, the project line vanishing) moves the glyphs and the plate through
-/// one shared index rather than two agreeing counts.
+/// A heading that IS the current project keeps its distinct ink ([`stack_spans`]
+/// still routes it through [`theme::selected_row_secondary_ink`]) but draws no
+/// fill: the project identity is stated once, by the gutter's own folder heading
+/// above the block (or, once the panel draws headings itself, by that ink-marked
+/// heading) — plating it too would state "you are in this project" a second time
+/// in the same column the active file's own plate already occupies, the exact
+/// double-selection a screenshot once caught (two purple plates answering two
+/// different questions, "which file" and "which project", read as two selections).
+///
+/// Read off the SAME [`GutterLayout::lines`] list the glyphs are laid from and the
+/// SAME planner rows they sit on, so a plate cannot mark a different line than the
+/// one the reader is editing. Adding a line to the block (an affordance appearing,
+/// the project line vanishing) moves the glyphs and the plate through one shared
+/// index rather than two agreeing counts.
 pub(super) fn plate_rects(
     layout: &GutterLayout,
     plan: &crate::render::plan::GutterStackPlan,
@@ -354,22 +361,27 @@ pub(super) fn plate_rects(
         .into_iter()
         .enumerate()
         .filter_map(|(row, (text, kind))| {
-            let gutter::GutterLine::File(at) = kind else {
-                return None;
-            };
-            let file = layout.files.get(at)?;
-            if !file.active || !matches!(file.kind, crate::workingset::StackRowKind::File) {
-                return None;
+            match kind {
+                // The lone identity line — the one open file, hence the active
+                // one. There is no `files` entry to consult and none is invented.
+                gutter::GutterLine::Name => {}
+                gutter::GutterLine::File(at) => {
+                    let file = layout.files.get(at)?;
+                    if !file.active || !matches!(file.kind, crate::workingset::StackRowKind::File) {
+                        return None;
+                    }
+                }
+                gutter::GutterLine::Project | gutter::GutterLine::Changed => return None,
             }
             let rect = *plan.rows.get(row)?;
-            // The shaped line BEGINS with the always-present close run: even
-            // while transparent it participates in right alignment, growing
-            // the row's own shaped width leftward, so the plate's measured
-            // run includes it (a revealed × must never draw routed ink
-            // outside its own fill — fatal in a one-bit world, black on
-            // black, the same tripwire this file already names for the
-            // label itself). Only a File line ever reaches here (the filter
-            // above), so the lane is always present.
+            // The shaped line BEGINS with the always-present close run: even while
+            // transparent it participates in right alignment, growing the row's own
+            // shaped width leftward, so the plate's measured run includes it (a
+            // revealed × must never draw routed ink outside its own fill — fatal in
+            // a one-bit world, black on black, the same tripwire this file already
+            // names for the label itself). Both plated shapes shape that lane, the
+            // identity line through `gutter::prepare_gutter` and a stack row through
+            // `stack_spans`, so it is always present here.
             let ink_w =
                 (text.chars().count() + CLOSE_MARK_TEXT.chars().count()) as f32 * label_char_w;
             Some(plate_rect(rect, ink_w, pad_x))
