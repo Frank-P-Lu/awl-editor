@@ -1797,6 +1797,91 @@ tracked hits; `scripts/code-health.sh` passes; full native-gate receipt (a
 Rust doc comment moved).
 
 ---
+### 568 — spell suggestions never offer the user's own dictionary words (user report, 2026-09-06 — "add to dictionary, but this new word doesn't really show up in the autocomplete?" — the ⌘-; spell picker is meant; explicitly NOT a completion feature: "we don't need autocomplete")
+
+The personal dictionary is check-only. `SpellChecker::check` consults
+`user_words` (src/spell.rs:261), but `suggest`/`suggest_at`
+(src/spell.rs:364) consult `self.dict` — the bundled Hunspell dictionary —
+alone, so a typo one letter off a word the user added is never offered that
+word as a correction. The add path, storage
+(`~/.config/awl/dictionary.txt`, one word per line, loaded lowercased via
+`set_user_words`) and cache invalidation are all sound; only the suggest
+side is blind.
+
+Build: merge near-miss matches from `user_words` into the suggestion list.
+The set is small (a personal dictionary), so a simple bounded edit-distance
+scan over it is enough — no need to teach spellbook anything. Decisions the
+worker owns: ranking (a personal word at comparable distance should not
+lose to a dict word — it is the user's own vocabulary) and case shape
+(stored words are lowercase; follow the typed word's capitalization the way
+Hunspell suggestions do). Note the picker truncates to
+`OverlayKind::MAX_SUGGESTIONS` after assembly (overlay/state.rs:892) — merge
+before the cut.
+
+Laws: add a word, misspell it nearby ⇒ the added word appears in
+suggestions (through the real `suggest` path, not a fixture predicate); a
+distant added word does not appear; capitalized typo ⇒ capitalized
+suggestion; both the chord picker and the palette "Spell suggestions…" row
+reach the merged list (one owner, no second suggest path).
+
+---
+### 569 — personal dictionary picker: list the words, remove per row (user decision, 2026-09-06 — "richer listing words… something very simple")
+
+`~/.config/awl/dictionary.txt` is user-facing and completely undocumented —
+no UI shows its contents and no doc says it exists; removal is hand-edit
+only (src/app/files/dictionary.rs:90, deliberate v1). Build a summoned
+picker, very simple: a palette row (working name "Personal dictionary…")
+listing the loaded words, with accept-on-row REMOVING that word — the
+"Clean unused assets…" picker is the exact structural precedent
+(overlay/assets.rs: rows from a summon-time scan, per-row destructive
+accept that keeps the picker open via `remove_asset_row`, effect applied in
+app/apply.rs). Removal rewrites the file preserving what the append path
+already preserves — hand-edited comments, blank lines, order — minus the
+removed line, through `fs::write_atomic`, then invalidates spell caches and
+respells (same tail as `add_to_dictionary`).
+
+Empty state says where words come from ("Add '…' to dictionary" in the
+spell picker). Enrolment: `OverlayKind` roster, the closed
+`COMMAND_TASK_CATEGORIES` table and the commands catalog (the coverage law
+holds the row red until classified). Rider: document the file and the
+picker in GUIDE/REFERENCE (regen-reference.sh if the roster feeds it).
+
+Laws: picker lists exactly the loaded words; removing one respells the
+buffer (a squiggle returns); the file keeps its hand-edited comments across
+a removal; capture the picker via `--screenshot-app` against an explicit
+`--config` (never the ambient one — overlay rows photograph real content).
+
+---
+### 570 — blockquote pull-quote: the 66 gets its 99 (user report, 2026-09-06 — "the 66s must be followed with 99s… it kinda bothers me"; the blockquote ornament, not smart quotes)
+
+The hanging pull-quote mark draws only the OPENING `“` — `QUOTE_MARK_GLYPH`
+(src/render/layers.rs:64), shaped once in the world's display serif and hung
+at `pull_quote_left` on each blockquote block's first line
+(`TextPipeline::quote_marks`, ornaments.rs `QuoteOrnaments`). There is no
+closing counterpart, so every quote in every world reads permanently
+unclosed. Build the `”` (U+201D): same scale, same `theme::faint()` value,
+same display-serif shaping, hung at each block's LAST line. Placement is
+the one open design question the worker resolves and flags for live taste
+confirmation: the typographically honest spot is trailing — mirrored into
+the right margin at the block's end (or hanging after the last line's
+text) — pick by capture comparison across a few worlds, not by argument.
+
+Grounding: the quote-orientation law (render/tests/quote_orientation.rs)
+already pins all four curly codepoints heavy-bottom in every display face,
+so no new font risk; the never-tofu law covers the glyph. Multi-block
+documents get one pair per block (quote_marks already walks blocks).
+
+NOT in scope, recorded so nobody conflates: straight→curly smart-quote
+substitution (typing or render) stays declined per the standing user
+decision — this item closes the ornament's pair, it does not educate quotes.
+
+Laws: every world's blockquote capture shows BOTH marks by pixel presence
+(a presence floor, not just a contrast ratio — the mark must exist to
+pass); open and close share value/scale by arithmetic; a one-line
+blockquote still shows a legible pair (the degenerate case where first
+line == last line); no mark on non-blockquote lines.
+
+---
 ## Needs specific hardware
 
 🔴 BLOCKED — these journeys require physical environments unavailable to the current orchestration host.
