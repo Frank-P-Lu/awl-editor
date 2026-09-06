@@ -300,6 +300,7 @@ impl<'a> ReplaySession<'a> {
 
     fn finish(self) -> ReplayResult {
         let buffers_open = self.registry.len() + 1;
+        let wants_rail = self.registry.backgrounded_wants_rail();
         let zoom_out = if self.zoom != crate::range::ZOOM.default {
             Some(self.zoom)
         } else {
@@ -339,6 +340,7 @@ impl<'a> ReplaySession<'a> {
             accept: self.accept,
             notice: self.notice,
             buffers_open,
+            wants_rail,
             #[cfg(test)]
             background_buffers: self.registry.text_snapshots(),
             intercepts: self.intercepts,
@@ -376,6 +378,13 @@ impl<'a> ReplaySession<'a> {
 
     pub(crate) fn buffers_open(&self) -> usize {
         self.registry.len() + 1
+    }
+
+    /// Does any BACKGROUNDED buffer want the margin outline's rail? The same
+    /// fact the live `App` reports, off the same shared registry type. Read by
+    /// the sidecar fold through `CaptureSubject`.
+    pub(crate) fn set_wants_outline_rail(&self) -> bool {
+        self.registry.backgrounded_wants_rail()
     }
 
     /// The calm notice this replay is showing, with its kind. Read by the sidecar
@@ -527,6 +536,7 @@ fn capture_screenshot(
             .collect(),
         );
     }
+    opts.set_wants_outline_rail = res.wants_rail;
     capture_fold::apply_replay_tail(&mut opts, res.buffers_open, &buffer, res.replay_skips);
     capture::capture_with(&out, &buffer, &opts)?;
     println!("wrote {} (+ sidecar .json)", out.display());

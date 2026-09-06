@@ -1199,3 +1199,280 @@ fn sharp_diff_box(before: &image::RgbaImage, after: &image::RgbaImage) -> (usize
     }
     (differing, sharp, [min_x, min_y, max_x, max_y])
 }
+
+/// The Go-to picker's own chord, per running convention — `native-gate.sh`
+/// runs the suite once per convention and each pass drives its real binding.
+fn goto_chord() -> &'static str {
+    match crate::convention::Convention::current() {
+        crate::convention::Convention::Mac => "s-o",
+        crate::convention::Convention::Linux => "C-o",
+    }
+}
+
+/// The two-file sandbox the rail-reservation laws below drive: one markdown
+/// document WITH a heading and one without, in the same project.
+fn rail_sandbox() -> std::sync::Arc<crate::fs::InMemoryFs> {
+    Arc::new(
+        crate::fs::InMemoryFs::new()
+            .with_dir("/cfg")
+            .with_dir("/ws")
+            .with_dir("/ws/proj")
+            .with_file(
+                std::path::Path::new("/ws/proj/headed.md"),
+                "# Title\n\nprose under it\n",
+            )
+            .with_file(
+                std::path::Path::new("/ws/proj/plain.md"),
+                "just prose, no heading anywhere\n\nanother paragraph\n",
+            ),
+    )
+}
+
+/// Drive one live-`App` capture at `canvas`, opening `file` and pressing
+/// `spec`, and report the sidecar's own writing-column left edge.
+fn column_left_after(out: &std::path::Path, file: &str, spec: &str, canvas: (u32, u32)) -> f64 {
+    capture_live_app(
+        out.to_path_buf(),
+        LiveAppSpec {
+            file: Some(std::path::PathBuf::from(file)),
+            keys: crate::keyspec::parse_chords(spec).expect("the chord spec parses"),
+            root: Some(proj()),
+            workspace: None,
+            config: cfg(),
+            canvas: Some(canvas),
+            dpi: None,
+        },
+    )
+    .expect("the live-App capture needs a GPU adapter");
+    sidecar(out)["page"]["column"]["left"]
+        .as_f64()
+        .expect("a page block with a column")
+}
+
+/// **SWITCHING FILES MUST NOT MOVE THE PAGE — THROUGH A REAL BUFFER SWITCH, IN
+/// BOTH ORDERS, ACROSS THE WINDOW-WIDTH AXIS.**
+///
+/// The adaptive column shifts right to seat the margin outline's rail. Gated on
+/// the CURRENT buffer's headings, a headed file and a heading-free one sat in
+/// different regimes, so a Go-to between them slid the whole page — column,
+/// gutter, margins — sideways by the rail's whole appetite. The user's report
+/// was "switching between files actually causes the side bar to resize… it
+/// shouldn't jump all over the place".
+///
+/// This is the transition an ordinary capture cannot reach: tier 1 skips the
+/// live effects a real switch performs (`docs/harness-reach.md`), so the law
+/// drives `--screenshot-app` — a real `App`, real chords through the real
+/// keymap, the picker actually opening the second file — and reads the column
+/// off the same sidecar every other capture law reads.
+///
+/// **Both orders**, because the two are different code paths through the
+/// registry (park-then-open vs. open-then-park) and a fix that held for one
+/// only would read as green from either side alone.
+///
+/// **Swept across the width axis, with the enrolment derived rather than
+/// picked:** the jump exists only under width PRESSURE. Above it the placement
+/// policy is a byte-identical passthrough and every cell agrees for reasons
+/// that have nothing to do with this fix, so a law run at one wide window would
+/// sweep nothing. Each width is classified by its own two single-buffer
+/// captures, and both classes must be non-empty — the failure message names the
+/// widths that enrolled in each.
+#[test]
+fn switching_buffers_never_moves_the_writing_column_in_either_order() {
+    let _g = crate::testlock::serial();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl-live-app-rail-{}", std::process::id())),
+    );
+    let to_plain = format!("{} p l a i n . m d RET", goto_chord());
+    let to_headed = format!("{} h e a d e d . m d RET", goto_chord());
+
+    let mut pressure: Vec<u32> = Vec::new();
+    let mut passthrough: Vec<u32> = Vec::new();
+    let widths: [u32; 6] = [800, 1000, 1200, 1400, 1700, 2000];
+    crate::fs::with_fs(rail_sandbox(), || {
+        for w in widths {
+            let canvas = (w, 800);
+            let at = |name: &str| dir.join(format!("{name}-{w}.png"));
+            // The two SINGLE-buffer sessions: what the reader saw on either
+            // side of the switch under the old, document-keyed reservation.
+            let headed_alone =
+                column_left_after(&at("headed-alone"), "/ws/proj/headed.md", "", canvas);
+            let plain_alone =
+                column_left_after(&at("plain-alone"), "/ws/proj/plain.md", "", canvas);
+            // The same two documents, both open, reached by a real Go-to.
+            let headed_then_plain = column_left_after(
+                &at("headed-then-plain"),
+                "/ws/proj/headed.md",
+                &to_plain,
+                canvas,
+            );
+            let plain_then_headed = column_left_after(
+                &at("plain-then-headed"),
+                "/ws/proj/plain.md",
+                &to_headed,
+                canvas,
+            );
+
+            assert_eq!(
+                headed_then_plain, headed_alone,
+                "at {w}px: opening the heading-free file from the headed one \
+                 moved the writing column ({headed_alone} -> \
+                 {headed_then_plain}). The headed file is still open, so the \
+                 room still owes the outline its rail; the heading-free buffer \
+                 simply draws nothing in it."
+            );
+            assert_eq!(
+                plain_then_headed, headed_alone,
+                "at {w}px: the reverse order landed on a different column \
+                 ({plain_then_headed}) than the same two open files reached \
+                 the other way ({headed_alone}) — the reservation must not \
+                 depend on which file the reader arrived at"
+            );
+
+            if headed_alone == plain_alone {
+                passthrough.push(w);
+            } else {
+                pressure.push(w);
+            }
+        }
+    });
+
+    assert!(
+        !pressure.is_empty(),
+        "no swept width put the column under rail pressure, so every equality \
+         above was trivially true and this law witnessed nothing. Swept \
+         {widths:?}; all classified passthrough: {passthrough:?}"
+    );
+    assert!(
+        !passthrough.is_empty(),
+        "no swept width landed in the passthrough regime, so the wide window — \
+         where the reservation must remain a no-op — went untested. Pressure \
+         widths: {pressure:?}"
+    );
+}
+
+/// **CLOSING THE LAST HEADED BUFFER RELEASES THE RESERVATION.** The column is
+/// the room's, and closing a file changes the room — one of the moments it is
+/// ALLOWED to move, and the one that proves the reservation is not simply
+/// latched on forever once anything claims it.
+///
+/// Driven at tier 2 because `finish_buffer` is Unsupported in an ordinary
+/// replay (`docs/harness-reach.md`'s effect table): only a live `App` actually
+/// closes the file and activates its successor.
+///
+/// The single-buffer reference is captured in the SAME sandbox at the same
+/// canvas, so the assertion is "back to where a heading-free session sits",
+/// not "some number went down".
+#[test]
+fn closing_the_last_headed_buffer_releases_the_rail_reservation() {
+    let _g = crate::testlock::serial();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl-live-app-rail-close-{}", std::process::id())),
+    );
+    let canvas = (1200, 800);
+    let open_headed = format!("{} h e a d e d . m d RET", goto_chord());
+    let then_close = format!("{open_headed} {}", finish_file_chord());
+
+    let (plain_alone, both_open, after_close, closed_json) =
+        crate::fs::with_fs(rail_sandbox(), || {
+            let plain_alone = column_left_after(
+                &dir.join("plain-alone.png"),
+                "/ws/proj/plain.md",
+                "",
+                canvas,
+            );
+            let both_open = column_left_after(
+                &dir.join("both-open.png"),
+                "/ws/proj/plain.md",
+                &open_headed,
+                canvas,
+            );
+            let closed = dir.join("after-close.png");
+            let after_close = column_left_after(&closed, "/ws/proj/plain.md", &then_close, canvas);
+            (plain_alone, both_open, after_close, sidecar(&closed))
+        });
+
+    assert_ne!(
+        both_open, plain_alone,
+        "the fixture must actually be under rail pressure at this canvas, or \
+         the release below is unobservable: opening the headed file left the \
+         column at {both_open}, the same place a heading-free session sits"
+    );
+    assert_eq!(
+        closed_json["buffers"]["open"].as_u64(),
+        Some(1),
+        "the close really happened — one buffer left open"
+    );
+    assert_eq!(
+        after_close, plain_alone,
+        "closing the last headed buffer must give the margin back: the column \
+         returned to {after_close}, not the heading-free session's \
+         {plain_alone}"
+    );
+}
+
+/// **THE RESERVATION FOLLOWS HEADINGS APPEARING AND DISAPPEARING THROUGH
+/// EDITING, WITH NO BUFFER SWITCH AT ALL.** The set-level half is a fact about
+/// the buffers BEHIND the reader; the active buffer's own half must stay live,
+/// re-derived from the shaped headings every sync rather than latched at open
+/// time. Typing `# ` claims the rail; deleting it back out releases it.
+///
+/// Asserted through the live door — the same one the switch laws use — so the
+/// claim covers a real editor performing real edits, and both directions are
+/// present: a one-way law is satisfied by a reservation that latches on.
+#[test]
+fn editing_a_heading_in_and_out_claims_and_releases_the_rail_without_a_switch() {
+    let _g = crate::testlock::serial();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl-live-app-rail-edit-{}", std::process::id())),
+    );
+    let canvas = (1200, 800);
+
+    let (plain_alone, headed_alone, typed_in, edited_out) =
+        crate::fs::with_fs(rail_sandbox(), || {
+            let plain_alone = column_left_after(
+                &dir.join("plain-alone.png"),
+                "/ws/proj/plain.md",
+                "",
+                canvas,
+            );
+            let headed_alone = column_left_after(
+                &dir.join("headed-alone.png"),
+                "/ws/proj/headed.md",
+                "",
+                canvas,
+            );
+            // Type a heading at the top of the heading-free document.
+            let typed_in = column_left_after(
+                &dir.join("typed-in.png"),
+                "/ws/proj/plain.md",
+                "# Space T Enter Enter",
+                canvas,
+            );
+            // Delete the `# ` marker off the headed document's ONLY heading:
+            // the title text survives as plain prose, so this is the heading
+            // leaving, not the line leaving.
+            let edited_out = column_left_after(
+                &dir.join("edited-out.png"),
+                "/ws/proj/headed.md",
+                "Right Right Backspace Backspace",
+                canvas,
+            );
+            (plain_alone, headed_alone, typed_in, edited_out)
+        });
+
+    assert_ne!(
+        headed_alone, plain_alone,
+        "the fixture must be under rail pressure at this canvas for either \
+         direction below to be observable"
+    );
+    assert_eq!(
+        typed_in, headed_alone,
+        "typing a heading into the only open buffer claims the rail: the \
+         column should have moved to {headed_alone}, not stayed at {typed_in}"
+    );
+    assert_eq!(
+        edited_out, plain_alone,
+        "deleting the only heading's `# ` marker releases the rail: the column \
+         should have returned to {plain_alone}, not stayed at {edited_out}"
+    );
+}

@@ -186,6 +186,14 @@ impl DocumentSession {
             .is_some_and(|buffer| buffer.path().is_none())
     }
 
+    /// **DOES ANY BUFFER BEHIND THE ACTIVE ONE WANT THE MARGIN OUTLINE'S
+    /// RAIL?** Handed to the renderer each `sync_view`
+    /// (`ViewState::set_wants_outline_rail`) so the adaptive column belongs to
+    /// the room, not to whichever file is on screen.
+    pub(in crate::app) fn parked_wants_rail(&self) -> bool {
+        self.registry.backgrounded_wants_rail()
+    }
+
     pub(in crate::app) fn active_is_markdown(&self) -> bool {
         self.buffer_opt().is_some_and(Buffer::is_markdown)
     }

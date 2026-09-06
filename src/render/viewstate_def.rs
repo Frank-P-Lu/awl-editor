@@ -190,6 +190,12 @@ pub struct ViewState {
     /// mirrored config field here.
     pub config_keymap_flavor: crate::keymap::KeymapFlavor,
     pub is_markdown: bool,
+    /// **THE WORKING SET'S HALF OF THE MARGIN OUTLINE'S RAIL RESERVATION:** does
+    /// any open buffer OTHER than this one want a rail? Mirrored onto
+    /// `TextPipeline::set_wants_outline_rail`, whose doc carries the mechanism.
+    /// `false` on the scaffold default — a session with nothing else open
+    /// reserves exactly what it did before this field existed.
+    pub set_wants_outline_rail: bool,
     pub doc_dir: Option<std::path::PathBuf>,
     pub syn_lang: Option<crate::syntax::Lang>,
     pub overlay_spell: Option<(usize, usize, usize)>,
@@ -376,6 +382,7 @@ impl ViewState {
             config_linux_keep: Vec::new(),
             config_keymap_flavor: crate::keymap::KeymapFlavor::default(),
             is_markdown: false,
+            set_wants_outline_rail: false,
             doc_dir: None,
             syn_lang: None,
             overlay_spell: None,

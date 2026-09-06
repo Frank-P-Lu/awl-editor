@@ -74,6 +74,14 @@ pub(crate) trait CaptureSubject {
     /// frame state, an ordinary replay off the notice its own effect interpreter
     /// latched. `None` when nothing is showing.
     fn notice(&self) -> Option<(String, crate::actions::NoticeKind)>;
+    /// **DOES ANY BUFFER BEHIND THE ACTIVE ONE WANT THE MARGIN OUTLINE'S
+    /// RAIL?** The eighth fact, and the first one about the buffers a frame is
+    /// NOT rendering: the adaptive column reserves the rail's room for the
+    /// WORKING SET, so a capture that asked only the photographed buffer would
+    /// place the writing column where the reader would never see it. Both
+    /// drivers keep a `crate::buffers::BufferRegistry` and answer off its own
+    /// per-slot stamps, so the two cannot drift.
+    fn set_wants_outline_rail(&self) -> bool;
 }
 
 /// THE ONE PER-FRAME FOLD: a driven editor's CURRENT state plus its already-built
@@ -129,6 +137,7 @@ pub(crate) fn fold_capture_state(
     opts.gutter_changed = subject.changed_elsewhere();
     opts.notice = subject.notice();
     opts.buffers = Some(buffers_info(subject.buffers_open(), buffer));
+    opts.set_wants_outline_rail = subject.set_wants_outline_rail();
     opts
 }
 
@@ -142,6 +151,15 @@ pub(super) fn buffers_info(open: usize, buffer: Option<&Buffer>) -> capture::Buf
     }
 }
 
+/// The one-shot `--keys` door's own opts tail. That door does NOT go through
+/// [`fold_capture_state`], so the working set's rail claim
+/// (`ReplayResult::wants_rail`) has to reach the opts on this path too — it is
+/// assigned at the call site rather than taken as a sixth parameter here, which
+/// rustfmt would wrap into six lines of a function already at its length mark.
+/// Without it a replay that opened a second file would place the writing column
+/// by the photographed buffer alone while a `--screenshot-app` run of the same
+/// journey placed it by the room; both doors are held to one answer by
+/// `run::tests::capture_scenarios::both_capture_doors_hold_the_outline_rail_for_the_working_set`.
 pub(super) fn apply_replay_tail(
     opts: &mut capture::CaptureOpts,
     buffers_open: usize,
@@ -277,6 +295,13 @@ impl CaptureSubject for super::ReplaySession<'_> {
     /// `App` (`App::set_toast_notice` arms no deadline without a surface).
     fn notice(&self) -> Option<(String, crate::actions::NoticeKind)> {
         super::ReplaySession::notice(self)
+    }
+    /// A replay keeps the SAME `crate::buffers::BufferRegistry` the live App
+    /// does, so it answers this off the same per-slot stamps — a `--keys`
+    /// capture that opened a second file places its column exactly where the
+    /// running editor would.
+    fn set_wants_outline_rail(&self) -> bool {
+        super::ReplaySession::set_wants_outline_rail(self)
     }
 }
 

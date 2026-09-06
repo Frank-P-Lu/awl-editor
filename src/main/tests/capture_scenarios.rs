@@ -521,3 +521,112 @@ fn folder_capture(
     .unwrap_or_else(|e| panic!("[{convention:?}] capture of {spec:?}: {e}"));
     serde_json::from_str(&std::fs::read_to_string(out.with_extension("json")).unwrap()).unwrap()
 }
+
+/// **THE TWO CAPTURE DOORS PLACE THE WRITING COLUMN IDENTICALLY FOR THE SAME
+/// TWO-BUFFER JOURNEY.**
+///
+/// The rail reservation is a fact about the working SET, and both capture
+/// drivers keep the same `crate::buffers::BufferRegistry` — so the shared-core
+/// `--keys` replay and the live-`App` `--screenshot-app` run must answer it the
+/// same way. They build their `CaptureOpts` by different routes (the live door
+/// through `fold_capture_state`, the one-shot replay door through
+/// `apply_replay_tail`), which is exactly how one of them came to carry the
+/// working set's claim while the other silently dropped it: the same journey
+/// reported a column 80px apart at the two doors, and every capture law written
+/// against the wrong door would have agreed with itself forever.
+///
+/// The third value is the non-vacuity companion: both doors must agree on the
+/// RESERVED column, not merely with each other on the unreserved one.
+// The live-`App` capture door is native-only (`run::live_app` is gated on
+// `not(wasm32)`), so the CROSS-DOOR half of this law can only exist there.
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn both_capture_doors_hold_the_outline_rail_for_the_working_set() {
+    let _serial = crate::testlock::serial();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl-rail-doors-{}", std::process::id())),
+    );
+    let headed = dir.join("headed.md");
+    let plain = dir.join("plain.md");
+    std::fs::write(&headed, "# Title\n\nprose under it\n").unwrap();
+    std::fs::write(&plain, "just prose, no heading anywhere\n").unwrap();
+    if crate::capture::build_oracle(&Buffer::from_file(&headed), &CaptureOpts::default()).is_none()
+    {
+        eprintln!("skipping both_capture_doors_hold_the_outline_rail: no wgpu adapter");
+        return;
+    }
+    let convention = crate::convention::Convention::current();
+    let goto = match convention {
+        crate::convention::Convention::Mac => "s-o",
+        crate::convention::Convention::Linux => "C-o",
+    };
+    let spec = format!("{goto} p l a i n . m d RET");
+    let column = |png: &std::path::Path| -> f64 {
+        let text = std::fs::read_to_string(png.with_extension("json")).unwrap();
+        let v: serde_json::Value = serde_json::from_str(&text).unwrap();
+        v["page"]["column"]["left"].as_f64().expect("a page column")
+    };
+
+    // Door 1 — the shared-core `--keys` replay.
+    let replay_png = dir.join("replay.png");
+    capture_screenshot(
+        replay_png.clone(),
+        Some(headed.clone()),
+        CaptureOpts::default(),
+        keyspec::parse_keys(&spec).unwrap(),
+        crate::keymap::KeymapState::new_with_convention(convention),
+        Some(dir.to_path_buf()),
+        None,
+        dir.join("notes"),
+        Config::empty(),
+        false,
+    )
+    .expect("the replay capture succeeds");
+
+    // Door 2 — a real headless `App`, same journey, same fixtures.
+    let live_png = dir.join("live.png");
+    crate::run::live_app::capture_live_app(
+        live_png.clone(),
+        crate::args::LiveAppSpec {
+            file: Some(headed.clone()),
+            keys: crate::keyspec::parse_chords(&spec).unwrap(),
+            root: Some(dir.to_path_buf()),
+            workspace: None,
+            config: Config::empty(),
+            canvas: None,
+            dpi: None,
+        },
+    )
+    .expect("the live-App capture succeeds");
+
+    // The reference: the headed file ALONE, which is the column the room owes
+    // the outline once anything in the set claims a rail.
+    let alone_png = dir.join("alone.png");
+    capture_screenshot(
+        alone_png.clone(),
+        Some(headed),
+        CaptureOpts::default(),
+        Vec::new(),
+        crate::keymap::KeymapState::new_with_convention(convention),
+        Some(dir.to_path_buf()),
+        None,
+        dir.join("notes"),
+        Config::empty(),
+        false,
+    )
+    .expect("the reference capture succeeds");
+
+    let (replay, live, alone) = (column(&replay_png), column(&live_png), column(&alone_png));
+    assert_eq!(
+        replay, live,
+        "the same two-buffer journey placed the writing column at {replay} \
+         through the `--keys` replay door and {live} through the live-App one \
+         — the working set's rail claim reached only one of them"
+    );
+    assert_eq!(
+        replay, alone,
+        "both doors agreed, but on the WRONG column: with a headed file still \
+         open the room owes the outline its rail ({alone}), not the \
+         heading-free regime's {replay}"
+    );
+}

@@ -2744,6 +2744,13 @@ pub struct TextPipeline {
     inline_images_latched: bool,
     md_spans: Vec<(std::ops::Range<usize>, crate::markdown::MdKind)>,
     outline_headings: Vec<crate::markdown::Heading>,
+    /// **THE WORKING SET'S HALF OF THE RAIL RESERVATION:** does any open buffer
+    /// OTHER than the one being shaped want the margin outline's rail
+    /// (`crate::buffers::BufferRegistry::backgrounded_wants_rail`)? Read only by
+    /// [`Self::outline_wants_rail`], whose doc carries the mechanism. `false` on
+    /// every pipeline with no working set behind it, which is what keeps a
+    /// single-buffer session byte-identical.
+    set_wants_outline_rail: bool,
     last_outline_current: Option<usize>,
     syn_lang: Option<crate::syntax::Lang>,
     syn_spans: Vec<(std::ops::Range<usize>, crate::syntax::SynKind)>,

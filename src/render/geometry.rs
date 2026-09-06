@@ -694,11 +694,31 @@ impl TextPipeline {
         }
     }
 
+    /// Does the document ON SCREEN have outline rows to draw? Asked of the
+    /// shaped buffer through the one owner ([`crate::outline::document_wants_rail`])
+    /// — the DRAW gate (`chrome::outline::outline_layout`) makes the very same
+    /// call, so a rail reserved for the room can never make an empty outline draw.
+    pub(in crate::render) fn active_wants_rail(&self) -> bool {
+        crate::outline::document_wants_rail(self.md_enabled, !self.outline_headings.is_empty())
+    }
+
+    /// **THE RAIL RESERVATION — THE ONE OWNER, AND IT KEYS ON THE WORKING SET.**
+    /// Whether the adaptive column ([`column::adaptive_column_left`]) holds margin
+    /// room for the outline's rail: two room-level facts (the feature is on, page
+    /// mode is on) and one SET-level one — any open buffer would draw rows, the
+    /// active document itself or one parked behind it
+    /// ([`Self::set_wants_outline_rail`]).
+    ///
+    /// The set half is what makes the column a property of the ROOM rather than
+    /// of whichever file is on screen: reserved per buffer, merely SWITCHING
+    /// files slid the whole page sideways by the rail's appetite. A buffer with
+    /// no headings simply draws nothing in the room the set reserved, and the
+    /// NO-PAYOFF guard is untouched — a session with no claimant reserves none.
+    /// Mechanism and laws: docs/render.md, "the rail reservation".
     pub(in crate::render) fn outline_wants_rail(&self) -> bool {
         crate::outline::outline_on()
             && crate::page::page_on()
-            && self.md_enabled
-            && !self.outline_headings.is_empty()
+            && (self.active_wants_rail() || self.set_wants_outline_rail)
     }
 
     /// INLINE-IMAGE DRAG-RESIZE (v2) — the DISPLAY WIDTH (px) an image gets from

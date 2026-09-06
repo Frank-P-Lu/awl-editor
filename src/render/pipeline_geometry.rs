@@ -249,6 +249,11 @@ impl TextPipeline {
         self.sync_view_fields(view);
         let md_changed = self.md_enabled != view.is_markdown;
         self.md_enabled = view.is_markdown;
+        // THE WORKING SET'S RAIL CLAIM, read fresh every sync rather than
+        // latched: a buffer opening, closing or being activated changes it
+        // without touching this document's text, so there is no edit to hang an
+        // invalidation on — and nothing to go stale.
+        self.set_wants_outline_rail = view.set_wants_outline_rail;
         let syn_changed = self.syn_lang != view.syn_lang;
         self.syn_lang = view.syn_lang;
         let wysiwyg_changed = self.wysiwyg_latched != crate::markdown::wysiwyg_on();

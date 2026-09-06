@@ -286,6 +286,8 @@ impl App {
             config_linux_keep: self.config.effective_linux_keep(),
             config_keymap_flavor: self.config.keymap_flavor(),
             is_markdown: self.document.buffer().is_markdown(),
+            // Asked of the working set, not the document on screen.
+            set_wants_outline_rail: self.document.parked_wants_rail(),
             doc_dir: self
                 .document
                 .buffer()

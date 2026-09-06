@@ -439,6 +439,12 @@ impl TextPipeline {
         self.cursor_col.hash(&mut h);
         self.metrics.zoom.to_bits().hash(&mut h);
         self.md_enabled.hash(&mut h);
+        // THE RAIL RESERVATION moves the page COLUMN, and it can flip with no
+        // reshape and no re-wrap behind it: the outline toggling off, or a
+        // headed buffer being closed from the working set while the reader's own
+        // document never changes. Same class as `page_on`/`measure` above — the
+        // frost would otherwise pass stale over the old column.
+        self.outline_wants_rail().hash(&mut h);
         self.lava_render_phase().to_bits().hash(&mut h);
         // WHAT the offscreen capture contains, not merely how it looks: while
         // the document is relocated into a workspace's comparison region the

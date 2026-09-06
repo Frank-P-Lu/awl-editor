@@ -160,11 +160,30 @@ pub struct Entry<T> {
     pub extra: T,
 }
 
+/// One parked slot: its identity, its [`Entry`], and the RAIL-APPETITE STAMP
+/// this registry takes of the buffer at PARK time.
+///
+/// The stamp is a cache whose key discipline is STRUCTURAL rather than a
+/// version: a backgrounded buffer is immutable here ([`BufferRegistry::get`]
+/// hands out `&Entry`, [`BufferRegistry::take`] REMOVES the slot to hand it
+/// back), so the one transition that can change the text also ends the slot.
+/// Nothing keys on `buffer.version()`, which restarts at 0 per open.
+struct Parked<T> {
+    key: BufferKey,
+    entry: Entry<T>,
+    /// Would this buffer give the margin outline rows to draw
+    /// ([`crate::outline::document_wants_rail`])? Folded by
+    /// [`BufferRegistry::backgrounded_wants_rail`].
+    wants_rail: bool,
+}
+
 /// MRU-ordered registry of backgrounded buffers (index 0 = most recently
 /// backgrounded = the eviction LAST-resort), keyed by [`BufferKey`]. Generic
 /// over the caller's per-buffer payload `T`.
 pub struct BufferRegistry<T> {
-    entries: Vec<(BufferKey, Entry<T>)>,
+    /// The parked entries, each carrying the RAIL-APPETITE STAMP taken as it
+    /// was parked (see [`Self::park`]).
+    entries: Vec<Parked<T>>,
     /// Latches once the over-cap-all-dirty notice (see `park`) has fired, so a
     /// user who keeps opening dirty files past the cap gets ONE calm stderr
     /// line instead of a re-print on every subsequent open (code review nit:
@@ -189,11 +208,21 @@ impl<T> BufferRegistry<T> {
         self.entries.len()
     }
 
+    /// **DOES ANY BACKGROUNDED BUFFER WANT THE MARGIN OUTLINE'S RAIL?** The
+    /// working set's half of the rail reservation, folded over the stamps
+    /// [`Self::park`] took — a handful of bools (capped at
+    /// [`MAX_OPEN_BUFFERS`]), never a rescan of the open documents. The ACTIVE
+    /// buffer is absent by construction; the owner that combines the two halves
+    /// is `render::geometry::TextPipeline::outline_wants_rail`.
+    pub fn backgrounded_wants_rail(&self) -> bool {
+        self.entries.iter().any(|slot| slot.wants_rail)
+    }
+
     /// True when `key` names a currently-backgrounded buffer — a test-only
     /// companion of `park`/`take` (the live code never queries membership).
     #[cfg(test)]
     pub(crate) fn contains(&self, key: &BufferKey) -> bool {
-        self.entries.iter().any(|(k, _)| k == key)
+        self.entries.iter().any(|slot| slot.key == *key)
     }
 
     /// Test oracle for route laws that must prove a backgrounded identity is
@@ -202,7 +231,7 @@ impl<T> BufferRegistry<T> {
     pub(crate) fn text_snapshots(&self) -> Vec<(BufferKey, String)> {
         self.entries
             .iter()
-            .map(|(key, entry)| (key.clone(), entry.buffer.text()))
+            .map(|slot| (slot.key.clone(), slot.entry.buffer.text()))
             .collect()
     }
 
@@ -213,14 +242,30 @@ impl<T> BufferRegistry<T> {
     /// any existing entry under the same key (should not normally happen —
     /// the caller only parks the buffer it is LEAVING).
     pub fn park(&mut self, key: BufferKey, entry: Entry<T>) {
-        self.entries.retain(|(k, _)| k != &key);
-        self.entries.insert(0, (key, entry));
+        // THE RAIL-APPETITE STAMP, taken here and nowhere else. Asking it per
+        // frame would rescan every open buffer (O(doc) work in an O(visible)
+        // budget); asking it HERE is one parse per park, on the transition that
+        // already reshapes the incoming document, and the answer stays true for
+        // as long as the slot exists (see [`Parked`]).
+        let wants_rail = crate::outline::document_wants_rail(
+            entry.buffer.is_markdown(),
+            !crate::markdown::headings(&entry.buffer.text()).is_empty(),
+        );
+        self.entries.retain(|slot| slot.key != key);
+        self.entries.insert(
+            0,
+            Parked {
+                key,
+                entry,
+                wants_rail,
+            },
+        );
         while self.entries.len() + 1 > MAX_OPEN_BUFFERS {
             // Only a clean PATH is reversibly evictable: reopening it reloads
             // disk. Scratch and Fresh have no path to reconstruct from, so
             // evicting either would leave a dead working row and lose state.
-            match self.entries.iter().rposition(|(key, entry)| {
-                matches!(key, BufferKey::Path(_)) && !entry.buffer.is_dirty()
+            match self.entries.iter().rposition(|slot| {
+                matches!(slot.key, BufferKey::Path(_)) && !slot.entry.buffer.is_dirty()
             }) {
                 Some(pos) => {
                     self.entries.remove(pos);
@@ -251,7 +296,10 @@ impl<T> BufferRegistry<T> {
     /// it at all. Reading is not using: a close that inspects an entry and then
     /// refuses must leave it exactly where it was in the eviction order.
     pub fn get(&self, key: &BufferKey) -> Option<&Entry<T>> {
-        self.entries.iter().find(|(k, _)| k == key).map(|(_, e)| e)
+        self.entries
+            .iter()
+            .find(|slot| slot.key == *key)
+            .map(|slot| &slot.entry)
     }
 
     /// **DISCARD** `key`'s entry for good, reporting whether one was there.
@@ -270,15 +318,15 @@ impl<T> BufferRegistry<T> {
     /// by its caller's own save-and-conflict gate.
     pub fn remove(&mut self, key: &BufferKey) -> bool {
         let before = self.entries.len();
-        self.entries.retain(|(k, _)| k != key);
+        self.entries.retain(|slot| slot.key != *key);
         self.entries.len() != before
     }
 
     /// Remove and return the entry for `key` (a buffer being brought back to
     /// the foreground), or `None` if it isn't backgrounded (first time open).
     pub fn take(&mut self, key: &BufferKey) -> Option<Entry<T>> {
-        let pos = self.entries.iter().position(|(k, _)| k == key)?;
-        Some(self.entries.remove(pos).1)
+        let pos = self.entries.iter().position(|slot| slot.key == *key)?;
+        Some(self.entries.remove(pos).entry)
     }
 }
 

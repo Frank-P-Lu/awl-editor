@@ -430,18 +430,36 @@ pub struct CaptureOpts {
     /// the shared-core path keeps no per-file root memory, so it cannot diverge
     /// from the ambient project and has nothing truer to report.
     pub gutter_project_root: Option<std::path::PathBuf>,
+    /// **THE WORKING SET'S RAIL RESERVATION** — does any open buffer OTHER than
+    /// the one being photographed want the margin outline's rail
+    /// (`crate::buffers::BufferRegistry::backgrounded_wants_rail`)? Mirrored onto
+    /// `ViewState::set_wants_outline_rail` by [`Self::fold_gutter`].
+    ///
+    /// It travels on the opts for the same reason `working_set` does: the
+    /// backgrounded buffers are owned by the driver (a live `App` or a
+    /// `--keys` replay) and this door renders from ONE buffer. Without the
+    /// slot, a capture of a two-file session would place the writing column by
+    /// the file on screen alone — the exact defect the reservation exists to
+    /// remove, invisible at every capture door.
+    ///
+    /// `false` on every single-buffer capture, which is what keeps the gallery
+    /// byte-identical.
+    pub set_wants_outline_rail: bool,
 }
 
 impl CaptureOpts {
-    /// Fold the GUTTER's three live-App-only facts into the capture's view
-    /// state: the persistent `changed elsewhere` affordance, the working set
-    /// the bottom identity widens into, and the identity's own folder LABEL —
-    /// the active file's own remembered root, never the ambient project
-    /// `base_viewstate` filled in from `self.project`.
+    /// Fold the driver's WORKING-SET facts into the capture's view state: the
+    /// persistent `changed elsewhere` affordance, the working set the bottom
+    /// identity widens into, the identity's own folder LABEL — the active file's
+    /// own remembered root, never the ambient project `base_viewstate` filled in
+    /// from `self.project` — and the outline rail's set-level reservation, which
+    /// places the writing COLUMN rather than anything in the margin.
     ///
-    /// One door for all three because they are one surface sharing one failure
-    /// mode: a fact the live editor holds and the capture path silently drops.
+    /// One door for all of them because they are one failure mode: a fact the
+    /// driving editor holds about the buffers BEHIND the one being rendered,
+    /// which this path would otherwise silently drop.
     pub(super) fn fold_gutter(&self, view: &mut crate::render::ViewState) {
+        view.set_wants_outline_rail = self.set_wants_outline_rail;
         view.document_active = !self.document_absent;
         if self.document_absent {
             view.gutter_name.clear();
