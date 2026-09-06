@@ -14,11 +14,47 @@ jobs:
   linux:
     name: linux (build + test)
     runs-on: ubuntu-latest
-    # The native gate is intentionally exhaustive and currently takes about
-    # 35 minutes on a cold hosted runner. Keep enough variance headroom while
-    # retaining a finite ceiling for genuine hangs.
-    timeout-minutes: 50
+    # ‼ THIS CEILING COVERS A COLD CACHE. THE NUMBER IT REPLACED DID NOT, AND
+    # THE COMMENT THAT SET IT SAID SO IN WORDS THE MEASUREMENT CONTRADICTS. The
+    # old text here read "about 35 minutes on a cold hosted runner"; every job
+    # in that baseline had in fact restored `Swatinem/rust-cache` with
+    # `full match: true`, so `Install sccache` cost 0s and `cargo build` 14s.
+    # 35-37 minutes is this job's WARM cost, and the ceiling derived from it had
+    # never once seen a cold run.
+    #
+    # rust-cache mixes the exact rustc version and commit into its key and
+    # `dtolnay/rust-toolchain@stable` follows stable, so EVERY toolchain release
+    # invalidates this job's cache. The run that first exceeded the old ceiling
+    # was the first on a new stable after a baseline of four on the previous
+    # one, and its restore step says `No cache found.` Measured on that run,
+    # step by step: sccache from source 4m25s (warm 0s), code health 6m07s
+    # (3m59s), the dependency-policy install 1m52s, `cargo build` 5m13s (14s) —
+    # 18m59s to reach the suite against 5m01s warm — and inside the gate its own
+    # phase clock puts `compile-finished` 274s later than warm. Projected cold
+    # total 54m18s. Per-TEST cost was not the difference: unit shards whose test
+    # count was unchanged still ran 4.7-10.4% slower under the cold compile's
+    # load, and the one shard that grew ran 8.7% slower — inside that band.
+    #
+    # 75 leaves roughly 38% headroom over that measured cold run. It is a
+    # BACKSTOP, not the hang bound: the first step arms the gate's own budget
+    # below it, so a genuine hang ends as a readable failure, not a cancellation.
+    timeout-minutes: 75
     steps:
+      # THE RUNNER DEATH CLOCK. First step, so the epoch is the job's own start
+      # rather than whatever point the suite happens to begin at — which is why
+      # `native-gate.sh` takes an ABSOLUTE deadline as well as a duration (its
+      # own comment: the duration form starts when the script starts, a
+      # different point on the clock that actually kills the job).
+      #
+      # An exhausted budget makes the gate name its phase, dump its process
+      # groups and exit non-zero — an ordinary FAILURE, which is verification.
+      # `timeout-minutes` instead CANCELS, which is no verification at all, and
+      # a cancelled job additionally skips every post step: the expensive cold
+      # `target/` it just built is never saved, so the next run is cold too.
+      # That trap is self-perpetuating, and is how one timeout becomes a streak.
+      - name: Runner death clock
+        run: echo "AWL_NATIVE_GATE_DEADLINE_EPOCH=$(( $(date +%s) + 4200 ))" >> "$GITHUB_ENV"
+
       - uses: actions/checkout@v7
         with:
           # code-health's checked-in debt baseline is a real commit, not a
@@ -64,7 +100,16 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
+      # `cache-on-failure`, for the same reason the mac wedge job carries it:
+      # rust-cache saves only on success by default, so a red run discards the
+      # `target/` it just built. That costs most on the run that built it COLD,
+      # which is also the run most likely to be red for a timing reason.
+      # (It does not cover a CANCELLED job — post steps do not run at all
+      # there — which is why the death clock above turns an over-run into a
+      # failure instead.)
       - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
 
       # sccache installs AFTER the cache restore: install-sccache.sh
       # short-circuits when the pinned version is already on PATH, but nothing

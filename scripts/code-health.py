@@ -966,6 +966,18 @@ def native_gate_audit(script: str, ci: str) -> list[str]:
         body = ci[start:end]
         if "run: scripts/native-gate.sh" not in body:
             failures.append(f"native-gate-audit: CI {job} job must call scripts/native-gate.sh")
+        # The gate's budget is INERT unless the caller arms it, and the job that
+        # forgets to is bounded only by `timeout-minutes`. That bound CANCELS
+        # rather than fails, and a cancelled job is no verification at all —
+        # it also skips every post step, so the `target/` cache it built is
+        # discarded and the next run starts cold too. Measured, not reasoned:
+        # this job ran its ceiling out with `budget_seconds=none
+        # budget_source=none` on its own `native-gate-env` line.
+        if "AWL_NATIVE_GATE_DEADLINE_EPOCH=" not in body:
+            failures.append(
+                f"native-gate-audit: CI {job} job must arm the gate's own budget with an absolute "
+                "deadline; `timeout-minutes` alone cancels the job, which verifies nothing"
+            )
     return failures
 
 
@@ -1707,6 +1719,8 @@ def self_test() -> int:
             globals()["ROOT"] = root
     script = '''if (( $# != 0 )); then
 canary_command=(cargo test --test native_gate_canary)
+git status --short
+gate_health_command=("$gate_root/scripts/code-health.sh")
 start_commit="$(git rev-parse HEAD)"
 export RUST_TEST_THREADS
 printf 'native-gate-env cpus=%s\\n' "$gate_cpus"
@@ -1725,6 +1739,8 @@ gate_launch budget_pid untracked gate_sleep_then "$gate_budget_seconds" gate_bud
 "${canary_command[@]}"
 gate_launch mac_pid tracked gate_run_convention mac gate_run_native_suite mac
 gate_launch linux_pid tracked gate_run_convention linux gate_run_native_suite linux
+gate_launch menubar_full_pid tracked gate_run_convention menubar-full gate_run_menubar_suite "$gate_menubar_forced"
+printf 'native-gate-menubar mode=full-suite host=%s ambient=%s forced=%s scope=%s\\n' "$gate_menubar_uname" "$gate_menubar_ambient" "$gate_menubar_forced" "binary-unit-tests-all-shards"
 set +e
 wait "$mac_pid"
 mac_status=$?
@@ -1737,11 +1753,15 @@ fi
 if (( mac_status != 0 || linux_status != 0 )); then
   exit 1
 fi
+if (( menubar_full_status != 0 )); then
+  exit 1
+fi
 end_commit="$(git rev-parse HEAD)"
-printf 'native-gate-receipt commit=%s conventions=mac,linux scope=all-targets unit_tests=%s unit_shards=%s integration_targets=%s\\n' "$end_commit"
+printf 'native-gate-receipt commit=%s health=%s conventions=mac,linux scope=all-targets menubar=%s unit_tests=%s unit_shards=%s integration_targets=%s\\n' "$end_commit"
 '''
     ci = '''  linux:
     steps:
+      - run: echo "AWL_NATIVE_GATE_DEADLINE_EPOCH=$(( $(date +%s) + 4200 ))" >> "$GITHUB_ENV"
       - run: scripts/native-gate.sh
 '''
     if native_gate_audit(script, ci):
@@ -1765,6 +1785,21 @@ printf 'native-gate-receipt commit=%s conventions=mac,linux scope=all-targets un
                             "gate must await the Linux convention"),
         "CI bypass": (script, ci.replace("scripts/native-gate.sh", "cargo test"),
                       "CI linux job must call scripts/native-gate.sh"),
+        # The shape that let this job run its ceiling out unread. Mutated twice
+        # — deleted, and demoted to a comment — because the workflow half of
+        # this audit was vacuous on exactly that second shape once already.
+        "linux job leaves the gate's budget unarmed": (
+            script,
+            ci.replace(
+                '      - run: echo "AWL_NATIVE_GATE_DEADLINE_EPOCH=$(( $(date +%s) + 4200 ))" >> "$GITHUB_ENV"\n',
+                ""),
+            "must arm the gate's own budget with an absolute deadline"),
+        "budget arming demoted to a comment": (
+            script,
+            ci.replace(
+                '      - run: echo "AWL_NATIVE_GATE_DEADLINE_EPOCH=',
+                '      # - run: echo "AWL_NATIVE_GATE_DEADLINE_EPOCH='),
+            "must arm the gate's own budget with an absolute deadline"),
         "unbounded test threads": (script.replace("export RUST_TEST_THREADS\n", ""), ci,
                                    "must bound per-convention test-thread concurrency"),
         "silent machine": (script.replace("""printf 'native-gate-env cpus=%s\\n' "$gate_cpus"\n""", ""), ci,
