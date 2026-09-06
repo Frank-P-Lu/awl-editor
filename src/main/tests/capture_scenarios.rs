@@ -537,6 +537,9 @@ fn folder_capture(
 ///
 /// The third value is the non-vacuity companion: both doors must agree on the
 /// RESERVED column, not merely with each other on the unreserved one.
+// The live-`App` capture door is native-only (`run::live_app` is gated on
+// `not(wasm32)`), so the CROSS-DOOR half of this law can only exist there.
+#[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn both_capture_doors_hold_the_outline_rail_for_the_working_set() {
     let _serial = crate::testlock::serial();
