@@ -10,7 +10,7 @@
 
 ### 558 — single open file draws no active plate in the working-set gutter (user report, 2026-09-01 — "when you first open a file, it doesn't seem to be selected?"; behavior confirmed in every capture's own gutter)
 
-⬜ DECIDED, READY — **plate it** (user, 2026-09-06, from the lane's side-by-side
+🟡 CLAIMED 2026-09-07 — lane `item-558`, worktree `.claude/worktrees/item-558`. **DECIDED — plate it** (user, 2026-09-06, from the lane's side-by-side
 captures: "sure plate it. this means more consistent right?"). The rule becomes
 "the active file is ALWAYS plated" — no lone-file exception. Build: route the
 single-file identity line through the same plate mechanism as multi-file active
@@ -106,6 +106,24 @@ doubling; option off ⇒ byte-identical render to today.
 
 ### 570 — blockquote pull-quote: the 66 gets its 99 (user report, 2026-09-06 — "the 66s must be followed with 99s… it kinda bothers me"; the blockquote ornament, not smart quotes)
 
+🟡 CLAIMED 2026-09-07, RESUMED — lane `item-570`, worktree `.claude/worktrees/item-570`. The
+first lane was cut off by a usage limit at the exact moment it began mutation proofs, leaving
+its whole round as **staged, uncommitted changes with no commits on the branch**: 9 files,
+~732 insertions including a new `render/tests/pull_quote_pair.rs`. So the implementation
+exists and **nothing about it is proven** — no mutation, no gate, no receipt, and no report.
+
+Its design, read out of the file it left rather than out of a claim about it: the closing mark
+hangs in the writing column's RIGHT text-pad gutter (`geometry::pull_quote_right`) on the
+block's LAST visual row, same display face, same layer scale, same `theme::faint` value as the
+opening mark. Its law builds a DIFFERENTIAL pair per world — the document against itself with
+the blockquote lines blanked, line count and row tops preserved — so the page ground and
+whatever per-world pattern bleeds under the column cancel, which a same-image threshold cannot
+do. It pairs presence with contrast for the reason the item demands.
+
+The resuming lane is told to commit first so a second interruption cannot lose it, then to
+verify that work rather than inherit it — the placement in that file's header is a claim, not
+a finding.
+
 The hanging pull-quote mark draws only the OPENING `“` — `QUOTE_MARK_GLYPH`
 (src/render/layers.rs:64), shaped once in the world's display serif and hung
 at `pull_quote_left` on each blockquote block's first line
@@ -172,6 +190,12 @@ scoped item when not.
 ---
 
 ### 576 — follow a link: right-click shows "go to", modifier-click opens (user decision, 2026-09-06 — "right click on a link should show 'go to'; and i guess command click should open it too? (what should it be on linux…??? like for each keymap?)")
+
+🟡 CLAIMED 2026-09-07 — lane `item-576`, worktree `.claude/worktrees/item-576`. The lane is told
+to VERIFY this item's own load-bearing premise before relying on it: the recommendation rests
+on mouse chords not flowing through `Config::effective_linux_keep`, which governs key chords.
+If that is false the Linux recommendation changes, and the user's own question — "what should
+it be on linux…??? like for each keymap?" — is owed an answer in the form they asked it.
 
 The followable-span grammar already marks every followable span with one
 underline (named links and tamed bare URLs, one owner) — but nothing
