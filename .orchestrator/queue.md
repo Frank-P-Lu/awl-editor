@@ -1925,6 +1925,41 @@ second world beside Saltpan so the scale is read from the roster, not
 pinned.
 
 ---
+### 572 — class audit: decorative geometry vs the caret — every row or advance inflated for an ornament, probed against what caret/selection/highlight inherit (user decision, 2026-09-06 — "we should fix this class of bugs yeah?? like ornament + cursor")
+
+Item 571 (rule row's ornament room swallowing the block caret) is one
+member of a class, and 545 (smart-punct conceal's giant reserved slot) is
+another — per standing policy, the neighborhood gets audited because bugs
+cluster. The class: any mechanism that grows a ROW's height or a run's
+ADVANCES for a decorative replacement, cross-examined against every
+caret-adjacent treatment drawn from that geometry (block caret, beam
+caret, selection band, spell/nit underlines, link underline, find-match
+wash).
+
+Enumerate the inflation sites from the code rather than from this list —
+known members to seed the sweep, not bound it: the thematic-break
+`ornament_scale` row (571 fixes the reveal; the audit checks selection
+bands and underlines on it too), the heading ladder's DECOUPLED row growth
+(row grows "beyond what its font size alone needs" — does the block caret
+span the decoupled extra, or the em box? a big caret on big text is
+coherent, a caret taller than the heading's own glyphs is not), inline
+image rows (absolute line-height, same decoupling shape), the smart-punct
+reserved slot (545 — what does a selection or block caret over the slot
+look like before/after that fix), zero-width concealed spans (caret x and
+selection band at a collapsed span's boundary), and table x-ray rows.
+
+Probe form per policy: state (caret-on / selection-touch / off) × surface
+(each caret/highlight treatment) × world (sampled across the roster,
+including one dark world and one with a large equalized `ornament_scale`,
+e.g. the 4.6× member), asserting per cell with sidecar geometry AND pixel
+arithmetic — a highlight's drawn box against the row's glyph ink box, not
+just against row metrics (the sidecar is a state oracle, not an appearance
+oracle). Production audit tier. An audit that finds something ends by
+writing the missing law; the deliverable is the cell table plus laws, with
+each defect it finds either fixed in-item when small or queued as its own
+scoped item when not.
+
+---
 ## Needs specific hardware
 
 🔴 BLOCKED — these journeys require physical environments unavailable to the current orchestration host.
