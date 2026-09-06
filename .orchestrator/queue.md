@@ -511,7 +511,38 @@ the repaired oracle rather than claiming a product fix.
 
 ### 585 — ⌘A in Find selects the underlying document instead of the query (live bug hunt, 2026-09-06)
 
-⬜ READY — user requested queueing; not dispatched.
+🟢 MERGED as `92b1b13a`, EXACT-MAIN RECEIPT OWED — lane `item-585`, tip `acff9bba`. Premise
+reproduced at the shared-core seam on a recorded build (`awl 0.12.0` at `8c513232`, rustc
+1.98.0, macOS 26.6.2): a 17-character document came back `selection_range = Some((0, 17))`
+while the query stayed `"beta"`.
+
+**The report was one keystroke; the defect is a routing class.** The find/replace panel's KEY
+door consumes every key and both key drivers gate on it, so `apply_transition` was DOCUMENTED
+as unreachable while the panel is up. That is a claim about KEYS. AppKit answers a menu item's
+key equivalent in `performKeyEquivalent:` BEFORE the key window sees the event, so on macOS ⌘A
+never becomes a winit key at all — it fires Edit ▸ Select all, which `handle_menu_event`
+routes into `App::apply` as an `Action`. The menu/context-menu CLICK and a palette row's
+`Effect::RunAction` arrive the same way. The summoned CARD always had an action-level gate;
+the summoned PANEL had none.
+
+**Both axes of the law are DERIVED, which is what the item asked for and the part most easily
+under-done:** surfaces from `TextField::ALL`, verbs from the Edit menu's own shipped rows
+resolved through the catalog — exactly the set macOS installs real key equivalents for. An
+eighth field fails to COMPILE until someone says how it is summoned; a seventh Edit row enrols
+on its own. A second law cross-checks the roster against the `EDIT_ITEMS` table it is built
+from, so a filter that silently stopped matching is caught rather than quietly shrinking the
+sweep — two independent paths to the same answer.
+
+It carries the **presence companion**, the half this repo has repeatedly watched laws die
+without: "the document did not change" is satisfied by a door that stopped working, by a
+fixture whose buffer was never active, and by a roster that enrolled nobody. So both rosters
+must be non-empty and are named in every failure message, the same verbs are driven with
+NOTHING summoned and required to REACH the document, and each surface must still be standing
+with its field text intact after the refusal.
+
+**No capture door can drive this** — `--keys` and `--screenshot-app` both enter through the
+key drivers the panel's guard already stops, so it is structurally unreachable from every
+chord-replay door. The unit seam is the purest reachable one, per `docs/harness-reach.md`.
 
 **Observed / reproduce.** Open Find with a nonempty query, focus its field,
 press ⌘A, then type replacement text. With query `beta`, typing `alpha`
@@ -838,6 +869,10 @@ writes successful-looking probe lines while presenting zero frames. Still owed t
 capture), and 584's VoiceOver listening test. Stated plainly because the ceiling matters:
 584's laws prove what awl PUBLISHED to the AccessKit adapter at the one door every update goes
 through. They cannot prove the OS received it, or that VoiceOver announces it.
+
+**585 — Find's edit verbs (merged `92b1b13a`). LIVE CONFIRMATION NOT OBTAINED.** The display
+was locked (`CGSSessionScreenIsLocked = true`), so the visible ⌘A-then-typing journey the item
+asks for was not run and no live evidence is claimed. Owed to a human.
 
 **551 — table selection band (merged `f740749c`, follow-up `db90497e`).** The band now paints
 whole rows. If a spreadsheet-style cell-wise selection is what you actually wanted, say so —
