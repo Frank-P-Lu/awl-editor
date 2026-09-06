@@ -785,10 +785,17 @@ journey after the repair.
 
 ### 586 — Bold wraps trailing whitespace and produces literal Markdown (live bug hunt, 2026-09-06)
 
-🟡 CLAIMED 2026-09-07 — lane `item-586-587`, worktree `.claude/worktrees/item-586-587`,
-branched off `3cf7061b`. Bundled with 587 by that item's own instruction: they are one seam,
-and splitting them across two lanes buys a handoff bug rather than parallelism. The lane
-reproduces before implementing.
+🟢 MERGED with 587 as `bf0dd7e6`, EXACT-MAIN RECEIPT OWED — lane `item-586-587`, tip
+`c81de2d8`, receipt green on base `3cf7061b`. Two-parent merge verified; candidate compiles
+clean.
+
+**Premise held, measured against the real parser before any edit:** the selection produced
+`**hello world **`, and `md_spans == []` — no bold anywhere, four literal asterisks. The
+mechanism is that CommonMark emphasis is a FLANKING grammar: a closing run with whitespace on
+its inner side is not a close. `InlineKind::delim() -> &'static str` — one fixed delimiter
+string per kind — was the whole model, and the five kinds do not share one grammar. Edge
+whitespace now stays outside the delimiters, in the document, where the user put it; a
+whitespace-only selection is a calm no-op.
 
 **Observed / reproduce.** Paste a document with a body line `hello world `
 (one trailing space). Select that line's contents using line-start then
@@ -814,9 +821,27 @@ preview; apply standing pixel/vision checks if the implementation touches render
 
 ### 587 — Inline Code fails to protect backticks inside the selection (live bug hunt, 2026-09-06)
 
-🟡 CLAIMED 2026-09-07 with 586 — same lane, worktree and branch (`item-586-587`), which is
-what this item's own coordination clause asks for: shared formatter edits integrate serially
-under one owner.
+🟢 MERGED with 586 as `bf0dd7e6`, EXACT-MAIN RECEIPT OWED — same lane and tip.
+
+**Premise held:** the reported selection produced two `Code{inline:true}` spans, `"a "` and
+`" b"`, with `tick` outside both — the user's "two separate code fragments" exactly. A code
+span's fence is a RUN that closes on the first run of its own length, so a single backtick
+around a payload containing a run of 1 closes early. The fence is now the shortest run absent
+from the payload, plus one space per side when the payload's own edge is a backtick; the
+recognizer matches exactly the shape the emitter writes, so a toggle strips whatever fence it
+wrote.
+
+**A third defect neither item named, found in the neighbourhood** — which is why the standing
+policy audits a bug's neighbourhood: `content_is_kind` sampled the payload's MIDPOINT, which
+lands inside a nested construct. Bolding a line holding a code span and pressing the chord
+again sampled the CODE span, read "not bold", and wrapped a second time.
+
+One owner: `InlineKind::grammar()` returns `Prose` or `CodeSpan`, and both doors — dispatch's
+`apply_inline_format` and the popover's `inline_active` — resolve through one `payload_span`,
+with the bypass module-private. Six laws, every one asking the real parser rather than
+counting markers, each mutation-proven with the mutation asserted to apply, to build AND to
+run. Off-caret live preview confirmed by capture against an explicit `--config`/`--root`:
+the fixed code line paints ONE pill where the broken one paints two with `tick` in the gap.
 
 **Observed / reproduce.** Paste a body line containing a space-separated `a`,
 the literal source `` `tick` ``, and `b` (whole line: ``a `tick` b``). Select
@@ -1084,6 +1109,19 @@ was type a PREFIX — `Zorb` for `Zorbling`, four edits away — this does not r
 standing "we don't need autocomplete" decision makes that deliberate. Worth asking before 568
 is called closed.
 
+**586/587 — inline formatting (merged `bf0dd7e6`).** Two calls the lane made and flagged
+rather than buried, both read out of the tree:
+
+- **A taste call, landed, one line to revert** per this board's standing preference.
+  `==highlight==` has no flanking rule of its own — measured, `==hello world ==` really does
+  highlight — so trimming its edge whitespace is taste, not grammar. It is currently
+  `InlineKind::Highlight => Grammar::Prose("==")` in `src/actions/format/inline.rs`; giving it
+  its own grammar arm restores the old behaviour. Reverting is one line.
+- **Code spans do not pad edge spaces**, though CommonMark strips a symmetric pair. awl styles
+  the SOURCE bytes, so padding would show you `"  x  "` for a selected `" x "`. The cost is
+  that a foreign renderer reads `` ` x ` `` as `x`. The backtick case IS padded, because there
+  the alternative is no span at all.
+
 **551 — table selection band (merged `f740749c`, follow-up `db90497e`).** The band now paints
 whole rows. If a spreadsheet-style cell-wise selection is what you actually wanted, say so —
 that alternative was flagged, never built.
@@ -1114,6 +1152,28 @@ land closer to the page edge than at the 1600×1000 geometry the pixel laws swee
 worth a live look at whether the convergence ever reads as landing inside the page itself at
 common window sizes rather than staying a margin phenomenon. Item 582 (open, above) revises
 this ground's geometry and inherits the same sign-off.
+
+### 597 — three inline-formatting cases that predate 586/587 and have no valid output today (found by that lane, 2026-09-07)
+
+⬜ READY — small, and filed so they are not rediscovered as regressions of the fix that found
+them. All three PRE-DATE 586/587 and none was introduced by it.
+
+(a) A document backtick immediately OUTSIDE the selection — `` x`y ``, select `y` — has no
+valid output without editing text the user did not select. The honest answers are a refusal
+or a widened edit, and which one is a product decision, not an implementation detail.
+
+(b) `` **`y`** `` — a payload that is entirely a code span — cannot be recognised by any span
+oracle, because awl emits no prose span when no `Event::Text` survives inside. So the toggle
+cannot tell "already bold" from "not bold" here. The fix is a different oracle, not a
+different threshold.
+
+(c) `==` cannot contain a backtick at all: `push_highlight_spans` sees one text event.
+
+Build: decide (a) deliberately — refuse or widen — and give (b) an oracle that does not depend
+on a surviving text event. Laws: each case asserted through the real parser, and each proven
+non-vacuous by restoring today's behaviour and watching it go red.
+
+---
 
 ## Not gated — read this before pushing anything
 
