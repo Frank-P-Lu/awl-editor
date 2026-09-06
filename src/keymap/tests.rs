@@ -98,6 +98,12 @@ export_as_html|||
 export_as_pdf|||
 insert_link|Cmd-K|C-k|
 insert_table|||
+insert_row_above|||
+insert_row_below|||
+insert_column_left|||
+insert_column_right|||
+delete_row|||
+delete_column|||
 save|Cmd-S|C-s|
 review_the_change|||
 save_your_version|||

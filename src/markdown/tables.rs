@@ -64,7 +64,7 @@ pub(super) fn push_table_markup(
 /// of pipes / dashes / colons / spaces / tabs that contains at least one `-` (the
 /// delimiter run under the header). pulldown consumes this row without an event, so
 /// [`push_table_markup`] recognizes it by shape to dim it whole.
-fn is_separator_row(s: &str) -> bool {
+pub(crate) fn is_separator_row(s: &str) -> bool {
     let t = s.trim();
     !t.is_empty() && t.contains('-') && t.chars().all(|c| matches!(c, '|' | '-' | ':' | ' ' | '\t'))
 }

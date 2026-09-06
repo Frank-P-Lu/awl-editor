@@ -110,6 +110,7 @@ mod headings;
 mod refs;
 mod spans;
 mod table_caret;
+mod table_edit;
 mod tables;
 
 pub use conceal::ConcealKind;
@@ -132,6 +133,7 @@ pub use spans::{
     list_item, reading_time_min, spans, strike_engaged, word_count,
 };
 pub(crate) use table_caret::{locate_table_caret, table_caret_col};
+pub(crate) use table_edit::{TableRefusal, TableVerb, table_splice};
 pub(crate) use tables::ColAlign;
 pub use tables::{FIRST_CELL_OFFSET, align_table, build_table, table_block_lines};
 #[allow(unused_imports)] // table_pan_max: public API surface, no in-crate caller today

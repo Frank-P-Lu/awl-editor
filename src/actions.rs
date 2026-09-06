@@ -373,7 +373,9 @@ fn finish_action(
     // (an auto-edit firing right after either would clear the redo stack and
     // silently rewrite what the user just time-traveled to), for `AlignTable`
     // itself (already this exact re-pad, manually, and already idempotent
-    // otherwise), and for the table's OWN structural row actions — Enter/
+    // otherwise) and the six structural row/column verbs (each already
+    // re-emits its whole block through that same padder, as one sealed undo
+    // group), and for the table's OWN structural row actions — Enter/
     // Shift-Enter and Tab/Shift-Tab (`table_newline`/`table_tab`) — which
     // already emit a correctly-columned scaffold row through their own
     // dedicated logic and carry their own atomic-undo contract (e.g. Tab
@@ -390,6 +392,12 @@ fn finish_action(
             Action::Undo
                 | Action::Redo
                 | Action::AlignTable
+                | Action::TableInsertRowAbove
+                | Action::TableInsertRowBelow
+                | Action::TableInsertColumnLeft
+                | Action::TableInsertColumnRight
+                | Action::TableDeleteRow
+                | Action::TableDeleteColumn
                 | Action::Newline
                 | Action::AcceptAlternate
                 | Action::InsertTab
