@@ -150,7 +150,14 @@ fn real_fs_app_new_calls_are_all_accounted_for() {
         // caller-owned fake visible during construction: two seed an absent path
         // already owned by a live buffer, one scripts a competing creator between
         // selection and publication, and one restores a seeded scratch stash.
-        ("app/files/tests.rs", 24),
+        // Plus one: the PERSONAL DICTIONARY picker's fixture
+        // (`app_with_dictionary_file`) writes `dictionary.txt` into the
+        // caller-owned fake BEFORE construction, precisely so `App::new`'s
+        // startup `load_user_dictionary` reads it — and its laws then INSPECT
+        // that same file after a forget, to prove the rewrite kept the
+        // hand-edited comments. `new_hermetic`'s private internal fs hides both
+        // halves of that, so the fake has to stay the caller's.
+        ("app/files/tests.rs", 25),
         // 9 LIFETIME STATS + USAGE LEDGER + DISCOVERABILITY tests, each inside its own
         // `fs::with_fs(fake, ..)` closure seeded with an `InMemoryFs` — they exist
         // specifically to prove what the tracking hooks / the ledger's

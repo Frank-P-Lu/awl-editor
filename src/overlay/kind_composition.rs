@@ -29,6 +29,7 @@ impl OverlayKind {
             | OverlayKind::Credits
             | OverlayKind::Settings
             | OverlayKind::Assets
+            | OverlayKind::UserWords
             | OverlayKind::Rename
             | OverlayKind::InsertLink
             | OverlayKind::KeepName

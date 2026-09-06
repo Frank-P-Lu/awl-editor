@@ -1350,6 +1350,159 @@ fn startup_loads_the_personal_dictionary_so_an_added_word_never_squiggles_across
     });
 }
 
+// ── PERSONAL DICTIONARY PICKER: list the words, forget one per row ────────
+// The word list is the one user-facing thing the product never showed. These
+// laws drive the App's real forget wiring under the in-memory filesystem: the
+// live checker, the file, the respell, and the still-open card.
+
+/// A helper that seeds an App whose config lives at `/cfg/config.toml` with the
+/// given `dictionary.txt` bytes already on disk, so startup folds them in.
+#[cfg(test)]
+fn app_with_dictionary_file(bytes: &[u8]) -> App {
+    crate::fs::write_atomic(Path::new("/cfg/dictionary.txt"), bytes).unwrap();
+    let mut config = Config::empty();
+    config.path = PathBuf::from("/cfg/config.toml");
+    App::new(None, PathBuf::from("/w/proj"), None, None, config)
+}
+
+#[cfg(test)]
+fn dictionary_fs() -> Arc<crate::fs::InMemoryFs> {
+    Arc::new(
+        crate::fs::InMemoryFs::new()
+            .with_dir("/w/proj")
+            .with_dir("/cfg"),
+    )
+}
+
+/// THE PICKER LISTS EXACTLY THE LOADED WORDS — not a fixture list, and not the
+/// file's raw lines: the rows come from the live checker through the same
+/// gather the summon uses, so a hand-edited file's comments, blanks and casing
+/// are already normalised away by the time a row exists.
+#[test]
+fn the_personal_dictionary_picker_lists_exactly_the_loaded_words() {
+    let _sp = crate::testlock::serial();
+    crate::fs::with_fs(dictionary_fs(), || {
+        let app = app_with_dictionary_file(b"# my words\n\nZorbling\nwrold\n  quokka  \n");
+        let ov = crate::overlay::OverlayState::new_user_words(app.document.user_words_sorted());
+        assert_eq!(
+            ov.item_strings(),
+            vec!["quokka", "wrold", "zorbling"],
+            "every stored word, alphabetical, normalised — and nothing else"
+        );
+        assert_eq!(ov.kind, crate::overlay::OverlayKind::UserWords);
+    });
+}
+
+/// FORGETTING A WORD RESPELLS THE BUFFER — the squiggle comes back. The
+/// presence companion is the OTHER word, which must keep its silence in the
+/// same App: without it, "the squiggle returned" is satisfied by a forget that
+/// wiped the whole personal dictionary.
+#[test]
+fn forgetting_a_word_brings_its_squiggle_back_and_leaves_the_others_silent() {
+    let _sp = crate::testlock::serial();
+    crate::fs::with_fs(dictionary_fs(), || {
+        let mut app = app_with_dictionary_file(b"wrold\nzorbling\n");
+        assert!(app.document.spell_check("wrold").unwrap());
+        assert!(app.document.spell_check("zorbling").unwrap());
+
+        app.forget_user_word("wrold");
+
+        assert!(
+            !app.document.spell_check("wrold").unwrap(),
+            "the forgotten word squiggles again"
+        );
+        assert!(
+            app.document.spell_check("zorbling").unwrap(),
+            "presence companion: the word that was NOT forgotten is still silent"
+        );
+    });
+}
+
+/// THE FILE KEEPS ITS HAND-EDITED SHAPE ACROSS A REMOVAL. The word list is a
+/// plain text file a person is invited to edit; a rewrite that reformatted it
+/// would silently destroy their comments and ordering. Only the matching line
+/// goes.
+#[test]
+fn forgetting_a_word_preserves_the_files_comments_blanks_and_order() {
+    let _sp = crate::testlock::serial();
+    crate::fs::with_fs(dictionary_fs(), || {
+        let original = "# names\nzorbling\n\n# places\nwrold\nquokka\n";
+        let mut app = app_with_dictionary_file(original.as_bytes());
+        app.forget_user_word("wrold");
+        let after = crate::fs::active()
+            .read_to_string(Path::new("/cfg/dictionary.txt"))
+            .expect("the file survives the rewrite");
+        assert_eq!(
+            after, "# names\nzorbling\n\n# places\nquokka\n",
+            "only the forgotten line goes — comments, the blank line, and the \
+             order of the rest are byte-identical"
+        );
+    });
+}
+
+/// A word the user never added is a calm no-op on disk: the file's bytes are
+/// untouched rather than rewritten into some normalised form.
+#[test]
+fn forgetting_an_unknown_word_leaves_the_file_byte_identical() {
+    let _sp = crate::testlock::serial();
+    crate::fs::with_fs(dictionary_fs(), || {
+        let original = "# names\nzorbling\n\nquokka\n";
+        let mut app = app_with_dictionary_file(original.as_bytes());
+        app.forget_user_word("nothing-like-this");
+        assert_eq!(
+            crate::fs::active()
+                .read_to_string(Path::new("/cfg/dictionary.txt"))
+                .unwrap(),
+            original
+        );
+    });
+}
+
+/// THE ROW LEAVES THE STILL-OPEN CARD — the Asset Cleaner's grammar, and the
+/// reason the accept is `StayOpen`: forgetting three words is three keystrokes
+/// in one card, not three summons.
+#[test]
+fn forgetting_a_word_retires_its_row_and_keeps_the_picker_open() {
+    let _sp = crate::testlock::serial();
+    crate::fs::with_fs(dictionary_fs(), || {
+        let mut app = app_with_dictionary_file(b"quokka\nwrold\nzorbling\n");
+        app.workspace_state
+            .install_overlay_for_test(crate::overlay::OverlayState::new_user_words(
+                app.document.user_words_sorted(),
+            ));
+        app.forget_user_word("wrold");
+        let ov = app
+            .workspace_state
+            .overlay()
+            .expect("the picker stays open after a forget");
+        assert_eq!(ov.item_strings(), vec!["quokka", "zorbling"]);
+        assert!(ov.notice.is_empty(), "a clean forget shows no notice");
+    });
+}
+
+/// CASE FOLLOWS THE STORAGE RULE ON THE WAY OUT TOO. A hand-edited file may
+/// hold `Zorbling`; the checker stores `zorbling`; a forget must reach BOTH,
+/// or the word comes back at the next launch having only appeared to go.
+#[test]
+fn forgetting_a_word_reaches_a_differently_cased_line_in_the_file() {
+    let _sp = crate::testlock::serial();
+    crate::fs::with_fs(dictionary_fs(), || {
+        let mut app = app_with_dictionary_file(b"# hand-edited\nZorbling\nquokka\n");
+        app.forget_user_word("zorbling");
+        assert_eq!(
+            crate::fs::active()
+                .read_to_string(Path::new("/cfg/dictionary.txt"))
+                .unwrap(),
+            "# hand-edited\nquokka\n",
+            "the differently-cased line is the one that goes"
+        );
+        assert!(
+            !app.document.spell_check("zorbling").unwrap(),
+            "and it is gone from the live checker, so a restart cannot resurrect it"
+        );
+    });
+}
+
 #[test]
 fn switch_project_pushes_and_persists_the_recent_root() {
     let fake = Arc::new(

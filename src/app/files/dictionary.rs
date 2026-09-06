@@ -138,4 +138,71 @@ impl App {
         out.push('\n');
         crate::fs::write_atomic(path, out.as_bytes())
     }
+
+    /// "Personal dictionary…" accept: FORGET `word` — the exact inverse of
+    /// [`Self::add_to_dictionary`], and its mirror step for step. Drop it from
+    /// the live checker AND from the on-disk word list, then rescan so the
+    /// squiggle comes BACK this frame; only once the word is really gone does
+    /// the row leave the still-open picker
+    /// (`OverlayState::remove_user_word_row`), the same stay-open grammar the
+    /// Asset Cleaner uses. A failed disk write leaves the row and shows a calm
+    /// dim notice, so the list never claims something the file does not.
+    /// ZERO-NETWORK: a plain atomic write through the [`crate::fs`] seam.
+    pub(in crate::app) fn forget_user_word(&mut self, word: &str) {
+        let word = word.trim();
+        if word.is_empty() {
+            return;
+        }
+        let removed = self.document.remove_user_word(word);
+        let mut failure = None;
+        if let Some(path) = self.user_dictionary_path()
+            && let Err(e) = Self::remove_word_from_dictionary_file(&path, word)
+        {
+            failure = Some(format!("couldn't update the dictionary file: {e}"));
+            eprintln!("could not forget '{word}' from {}: {e}", path.display());
+        }
+        self.document.invalidate_spell_cache();
+        self.run_spellcheck_now();
+        if let Some(ov) = self.workspace_state.overlay_mut() {
+            match failure {
+                Some(msg) => ov.notice = msg,
+                None => {
+                    if removed {
+                        ov.remove_user_word_row(word);
+                    }
+                    ov.notice.clear();
+                }
+            }
+        }
+    }
+
+    /// Rewrite the personal dictionary FILE without `word`, preserving
+    /// everything the append path preserves — hand-edited `#` comments, blank
+    /// lines, and the order of every other word — because this file is a plain
+    /// text list a person is invited to edit. Only the matching word LINES go;
+    /// the match is case-insensitive on the trimmed line, exactly the
+    /// comparison the append path uses to decide a word is already present.
+    /// An absent file, or a word not in it, is a silent success: the in-memory
+    /// removal already happened and there is nothing on disk to undo.
+    /// Associated fn (no `self`) so it stays a pure path→disk unit, testable
+    /// under the `InMemoryFs`.
+    fn remove_word_from_dictionary_file(path: &std::path::Path, word: &str) -> std::io::Result<()> {
+        let fs = crate::fs::active();
+        let Ok(existing) = fs.read_to_string(path) else {
+            return Ok(()); // nothing on disk yet — the in-memory drop is the whole edit
+        };
+        let trailing_newline = existing.ends_with('\n');
+        let kept: Vec<&str> = existing
+            .lines()
+            .filter(|line| !line.trim().eq_ignore_ascii_case(word))
+            .collect();
+        if kept.len() == existing.lines().count() {
+            return Ok(()); // the word was never a line here — leave the bytes alone
+        }
+        let mut out = kept.join("\n");
+        if trailing_newline && !out.is_empty() {
+            out.push('\n');
+        }
+        crate::fs::write_atomic(path, out.as_bytes())
+    }
 }

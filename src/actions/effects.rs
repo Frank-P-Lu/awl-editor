@@ -262,6 +262,13 @@ pub enum Effect {
     TrashAsset {
         rel: String,
     },
+    /// FORGET one word from the personal dictionary: drop it from the live
+    /// checker and from the on-disk word list, then respell. Carried out of the
+    /// pure core so replay can observe the same requested handoff without
+    /// touching its fixture filesystem.
+    ForgetUserWord {
+        word: String,
+    },
     /// Move this named document to the OS Trash. The path is carried out of
     /// the pure core so replay can observe the same requested handoff without
     /// ever modifying its fixture filesystem.

@@ -86,6 +86,13 @@ pub struct BuildCtx<'a> {
     /// App AND the headless replay both fill it from the same scan over the
     /// [`crate::fs`] seam, so a `--keys` capture sees the real orphan list.
     pub assets: Vec<crate::assets::Orphan>,
+    /// The PERSONAL DICTIONARY's words, alphabetical
+    /// ([`crate::spell::SpellChecker::user_words_sorted`]) — filled by the
+    /// caller ONLY when the "Personal dictionary" binding fired, EMPTY for
+    /// every other summon, exactly like `assets` above. Both the live App and
+    /// the headless replay fill it from the same live checker, so a `--keys`
+    /// capture sees the real word list.
+    pub user_words: Vec<String>,
     /// Is a daemon `--wait` client actively waiting on the CURRENT buffer right
     /// now (`crate::daemon`'s module doc, `App::wait_conns`)? The ONE live fact
     /// behind the Command palette's "Finish file" row visibility

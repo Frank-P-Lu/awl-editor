@@ -175,6 +175,44 @@ fn asset_cleaner_enter_arms_trash_and_keeps_the_picker_open() {
 }
 
 #[test]
+fn personal_dictionary_enter_arms_a_forget_and_keeps_the_card_open() {
+    // The Asset Cleaner's grammar, on the word list: `↵` arms the destructive
+    // effect for the HIGHLIGHTED row and the core neither closes the card nor
+    // touches the list — the App removes the row only once the word is really
+    // gone (a headless replay classifies the forget Unsupported and no-ops it).
+    let mut overlay = crate::overlay::Journey::seeded(Some(OverlayState::new_user_words(vec![
+        "quokka".into(),
+        "zorbling".into(),
+    ])));
+    let eff = drive_eff(&mut overlay, &Action::Newline);
+    assert_eq!(
+        eff,
+        Effect::ForgetUserWord {
+            word: "quokka".to_string()
+        }
+    );
+    assert!(
+        overlay.card().is_some(),
+        "the personal dictionary stays open after Enter"
+    );
+    assert_eq!(
+        overlay.card().unwrap().items.len(),
+        2,
+        "the core leaves the list whole"
+    );
+}
+
+#[test]
+fn personal_dictionary_enter_on_empty_state_is_a_calm_no_op() {
+    let mut overlay = crate::overlay::Journey::seeded(Some(OverlayState::new_user_words(vec![])));
+    assert_eq!(drive_eff(&mut overlay, &Action::Newline), Effect::None);
+    assert!(
+        overlay.card().is_some(),
+        "an empty word list still shows its calm row"
+    );
+}
+
+#[test]
 fn asset_cleaner_enter_on_empty_state_is_a_calm_no_op() {
     let mut overlay = crate::overlay::Journey::seeded(Some(OverlayState::new_assets(vec![])));
     // Empty list → nothing selected → Enter is Effect::None, picker stays open.

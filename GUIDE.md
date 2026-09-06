@@ -214,6 +214,7 @@ drift into this page silently.
 | Version history… | ⌘⇧H | Ctrl+Shift+H |
 | Compare with version… |  |  |
 | Clean unused assets… |  |  |
+| Personal dictionary… |  |  |
 | Search in folder… |  |  |
 | Keep version… |  |  |
 | Last file | ⌃Tab | Ctrl+Tab |
@@ -379,6 +380,22 @@ An absent config is just today's defaults. Once you touch it, it
 remembers: theme, zoom, page widths, caret style, dictionary, and a
 dozen other toggles persist across launches the moment you change them
 live, and every key is hand-editable too.
+
+### Your own words
+
+"Add '…' to dictionary" — the last row of the spell card ({{key:spell_suggestions}},
+or a right-click on a squiggled word) — teaches awl a word. It stops
+squiggling everywhere, at once and across restarts, and awl offers it back
+as a correction when you nearly type it.
+
+The words live in `dictionary.txt` beside `config.toml`, one per line. It
+is a plain text file: edit it by hand, comment a line with `#`, group them
+however you like. Blank lines and comments are kept.
+
+{{cmd:personal_dictionary}} lists what you have added. `↵` on a row forgets
+that word — it leaves the file and the squiggle comes back — and the card
+stays open, so clearing several is several keystrokes rather than several
+summons. The list is global, not per project.
 
 ## Awl in the browser
 

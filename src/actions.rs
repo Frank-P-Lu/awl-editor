@@ -627,6 +627,16 @@ fn apply_overlay_open_action(ctx: &mut ActionCtx, action: &Action) -> bool {
         Action::OpenAssetClean => {
             ctx.journey.enter((ctx.make_overlay)(OverlayKind::Assets));
         }
+        // Cmd-P → "Personal dictionary…": summon the picker over the words the
+        // user has added to spell-check. The caller's `make_overlay` builds it
+        // from the gathered word list (`BuildCtx::user_words`); an empty list
+        // still opens (the calm row naming where words come from), so this is
+        // never a silent no-op. Enter then requests the highlighted word be
+        // forgotten (`Effect::ForgetUserWord`), keeping the picker open.
+        Action::OpenUserWords => {
+            ctx.journey
+                .enter((ctx.make_overlay)(OverlayKind::UserWords));
+        }
         // Cmd-P → "Search in folder…": summon the FULL-TEXT SEARCH picker over
         // the active folder. The caller's `make_overlay` builds it from the
         // already-loaded corpus (`BuildCtx::search_corpus`); an empty query is

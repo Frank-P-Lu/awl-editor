@@ -5,6 +5,8 @@ const DIC_GB: &str = include_str!("../assets/dict/en_GB.dic");
 const AFF_AU: &str = include_str!("../assets/dict/en_AU.aff");
 const DIC_AU: &str = include_str!("../assets/dict/en_AU.dic");
 
+mod personal;
+
 enum_with_all! {
     /// Active bundled Hunspell variant, shared by live mode and capture.
     #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -298,6 +300,24 @@ impl SpellChecker {
         self.user_words.len()
     }
 
+    /// The personal dictionary's words, alphabetically — the ONE reader the
+    /// "Personal dictionary…" picker builds its rows from
+    /// (`OverlayState::new_user_words`). Sorted here rather than at the call
+    /// site so a picker rebuilt after any add or forget reads the same order
+    /// without ordering logic of its own.
+    pub fn user_words_sorted(&self) -> Vec<String> {
+        let mut words: Vec<String> = self.user_words.iter().cloned().collect();
+        words.sort();
+        words
+    }
+
+    /// Drop `word` from the in-memory personal set, normalized exactly the way
+    /// [`Self::add_user_word`] normalizes on the way in, so a hand-edited file's
+    /// stray casing or whitespace still matches. `true` when something left.
+    pub fn remove_user_word(&mut self, word: &str) -> bool {
+        self.user_words.remove(&word.trim().to_lowercase())
+    }
+
     pub fn misspellings(&self, text: &str) -> Vec<Misspelling> {
         misspelled_spans(text, |w| self.check(w))
     }
@@ -361,10 +381,20 @@ impl SpellChecker {
         }
     }
 
+    /// Bundled-dictionary suggestions with the personal dictionary's own
+    /// near-miss words merged in FRONT — the one owner of "what corrections
+    /// does awl offer for this word", read by the Cmd-`;` chord, the
+    /// right-click summon and the "Spell suggestions…" palette row alike.
+    ///
+    /// The personal list used to be check-only: it silenced a squiggle but was
+    /// never consulted when a correction was asked for, so a typo one letter
+    /// off a word the user had added on purpose could not be corrected back to
+    /// it. `spell::personal` owns the near-miss scan and the precedence rule;
+    /// nothing here teaches `spellbook` anything new.
     pub fn suggest(&self, word: &str) -> Vec<String> {
-        let mut out = Vec::new();
-        self.dict.suggest(word, &mut out);
-        out
+        let mut bundled = Vec::new();
+        self.dict.suggest(word, &mut bundled);
+        personal::merge_ahead(personal::near_misses(&self.user_words, word), bundled)
     }
 
     pub fn suggest_at(

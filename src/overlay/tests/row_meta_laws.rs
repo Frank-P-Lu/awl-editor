@@ -111,6 +111,7 @@ fn representative_overlay(kind: OverlayKind) -> OverlayState {
             ov
         }
         OverlayKind::Assets => OverlayState::new_assets(vec![orphan("assets/a.png", 1)]),
+        OverlayKind::UserWords => OverlayState::new_user_words(vec!["zorbling".into()]),
         OverlayKind::Rename => OverlayState::new_rename("old.md".to_string()),
         OverlayKind::InsertLink => OverlayState::new_link_edit(
             String::new(),

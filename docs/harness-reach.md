@@ -276,6 +276,32 @@ with the MRU injected (`overlay::tests::project`, `actions::tests::pickers_nav`)
 artifact can exist.** What a capture can witness is the lens with nothing in it —
 the strip, the landing on All, the empty-state copy.
 
+### The personal dictionary's rows are EMPTY at the tier-1 door
+
+`ReplaySession` builds its own `SpellChecker` (`run.rs`), and that constructor's
+own doc says the personal dictionary starts EMPTY and the caller loads it via
+`set_user_words` — a call **only the live `App` makes**
+(`App::load_user_dictionary`). So the "Personal dictionary…" picker's
+summon-time gather in `main/run/chord.rs` questions a checker that has never
+been told a word, and a plain `--keys` capture photographs an empty list no matter
+what `dictionary.txt` holds. The picker's own SUMMON is real at tier 1 — the
+palette row resolves and the card opens; only its ROWS cannot exist there.
+
+Unlike the switch-project Recent lens above, **`--screenshot-app` DOES widen
+this**: a live `App` loads the file at startup and every add/forget keeps the
+two in step, so the tier-2 door photographs real rows.
+
+**A Verify clause must not ask for a tier-1 capture of a POPULATED personal
+dictionary: no such artifact can exist.** Ask for `--screenshot-app`, and ask
+for it against an explicit `--config` and `--root` — these rows are the
+operator's own added words, and this repo is public.
+
+Leaving the tier-1 gather empty is a decision rather than an oversight, for the
+same determinism-and-privacy reason the Recent lens is gated: a replay that read
+the ambient `dictionary.txt` would put whoever ran it into the capture.
+`capture::tests::personal_dictionary_journey` holds the ceiling where it is, and
+goes red the day someone moves it.
+
 ### The `cjk_priority` Han tiebreak is tier 3 for the RENDER, tier 2 for the READOUT
 
 Measured, not inferred. The config key reaches the App: a `--semantic-json
@@ -402,6 +428,7 @@ deadline without a surface).
 | `finish_save` | Unsupported |
 | `flush_writing_streaks` | Applied |
 | `follow_link` | Intercepted |
+| `forget_user_word` | Unsupported |
 | `gulp` | Applied |
 | `insert_date` | Applied |
 | `jump_to_line` | Applied |
@@ -443,6 +470,7 @@ deadline without a surface).
 | `overlay_accept:Spell` | Unsupported |
 | `overlay_accept:TableDims` | Unsupported |
 | `overlay_accept:Theme` | Applied |
+| `overlay_accept:UserWords` | Unsupported |
 | `persist_caret_mode` | Applied |
 | `persist_menu_bar` | Applied |
 | `persist_outline` | Applied |

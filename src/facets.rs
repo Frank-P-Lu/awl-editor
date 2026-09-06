@@ -206,8 +206,10 @@ pub fn scheme(kind: OverlayKind) -> Option<&'static FacetScheme> {
         | OverlayKind::ProjectBrowse
         | OverlayKind::Spell
         | OverlayKind::Keybindings
-        // The asset cleaner is a flat list — no lens strip.
+        // The asset cleaner and the personal dictionary are flat lists — no
+        // lens strip.
         | OverlayKind::Assets
+        | OverlayKind::UserWords
         // The RENAME minibuffer is a single editable row — no lens strip, nothing
         // to facet. LINKS V2's InsertLink minibuffer is the same shape, and so is
         // the NAMED-SAVE-POINT Keep-version minibuffer.

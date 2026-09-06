@@ -2225,6 +2225,7 @@ fn footer_contract(kind: crate::overlay::OverlayKind) -> FooterContract {
         | K::History
         | K::Settings
         | K::Assets
+        | K::UserWords
         | K::Rename
         | K::InsertLink
         | K::KeepName
@@ -2567,6 +2568,7 @@ fn card_pad_for(kind: crate::overlay::OverlayKind) -> f32 {
         | K::History
         | K::Settings
         | K::Assets
+        | K::UserWords
         | K::Rename
         | K::InsertLink
         | K::KeepName

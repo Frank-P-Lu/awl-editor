@@ -137,6 +137,7 @@ impl OverlayKind {
             | OverlayKind::Spell
             | OverlayKind::Keybindings
             | OverlayKind::Assets
+            | OverlayKind::UserWords
             | OverlayKind::Rename
             | OverlayKind::InsertLink
             | OverlayKind::KeepName

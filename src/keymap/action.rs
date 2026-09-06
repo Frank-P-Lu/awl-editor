@@ -317,6 +317,16 @@ pub enum Action {
     /// rebindable via `[keys] clean_unused_assets`. See `overlay/`
     /// (`OverlayKind::Assets`) + `assets.rs`.
     OpenAssetClean,
+    /// Personal dictionary… (summon by name, Cmd-P): open the picker listing
+    /// the words the user has ADDED to spell-check via "Add '…' to dictionary"
+    /// — the on-disk `dictionary.txt` beside `config.toml`, which nothing else
+    /// in the product shows. Enter on a row FORGETS that word: it leaves the
+    /// live checker and the file, the buffer respells so its squiggle returns,
+    /// and the row leaves the list while the picker stays open (the same
+    /// destructive stay-open grammar as the Asset Cleaner). No default chord (a
+    /// palette command), rebindable via `[keys] personal_dictionary`. See
+    /// `overlay/` (`OverlayKind::UserWords`) + `app/files/dictionary.rs`.
+    OpenUserWords,
     /// Search in folder… (summon by name, Cmd-P): open the FULL-TEXT SEARCH
     /// picker over the active folder — type a query, see matching lines
     /// grouped by file (`OverlayKind::SearchFolder`), Enter opens that file at

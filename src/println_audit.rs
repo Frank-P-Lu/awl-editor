@@ -44,14 +44,15 @@ const EXPECTED: &[(&str, usize)] = &[
     // submodule now owns each verb: config open + the recent MRUs in
     // `open.rs`; sticky-pref + page-width-reset in `settings.rs`; the
     // rebind-menu writes in `rebind.rs`; the autosave/scratch-stash engine
-    // in `autosave.rs`; the dictionary switch + personal-dictionary append
-    // in `dictionary.rs`. Credits opens as a summoned read-only viewer,
+    // in `autosave.rs`; the dictionary switch + the
+    // personal-dictionary append and its mirror-image forget in
+    // `dictionary.rs`. Credits opens as a summoned read-only viewer,
     // never a buffer, so it reaches no write path and adds no line here.
     ("app/files/open.rs", 3),
     ("app/files/settings.rs", 2),
     ("app/files/rebind.rs", 2),
     ("app/files/autosave.rs", 2),
-    ("app/files/dictionary.rs", 2),
+    ("app/files/dictionary.rs", 3),
     // Switching the session's spell checker is owned with that checker; its
     // rare load failure remains the same best-effort diagnostic class.
     ("app/document/cache.rs", 1),
