@@ -106,10 +106,14 @@ doubling; option off ⇒ byte-identical render to today.
 
 ### 567 — scripts/ cruft sweep: delete six concluded-investigation scripts and five unwired shell laws (user decision, 2026-09-06 — "unused stuff is kinda cruft right… i think i lean delete too")
 
-🟠 PAUSED, PARTIAL — the user cut the wave to two active agents 2026-09-06. The sweep IS
-committed as `8a2b5d48` on branch `item-567` (worktree `.codex/worktrees/item-544-frost-box`)
-but is UNGATED: no reference-check report, no receipt. Resume by verifying the eleven
-deletions against the tree before trusting the commit.
+🟡 CLAIMED 2026-09-07 — lane `item-567`, worktree `.codex/worktrees/item-544-frost-box`.
+The sweep IS committed as `8a2b5d48` but is UNGATED: no reference-check report, no receipt.
+The lane's charge is verification before trust — and specifically, **re-measuring this item's
+own premise rather than inheriting it.** The claim that eleven files have zero references is
+orchestrator-authored, and this board has twice dispatched a lane on an orchestrator
+measurement that dissolved on first contact (once because BSD `strings` has no `-e`, so a
+UTF-16 pass measured nothing and the empty output was read as absence). The lane sweeps the
+tracked tree itself, with a tool it has confirmed searches what it thinks it searches.
 
 A full audit of `scripts/` (78 tracked files) found the tree largely
 load-bearing — CI-invoked, gate-invoked, or documented entry points — with
@@ -276,7 +280,14 @@ line == last line); no mark on non-blockquote lines.
 🟢 MERGED, EXACT-MAIN RECEIPT OWED — landed on main as merge `a7846f7a` (`6b1a98a4` + fmt
 `0d765228`). The receipt quoted below is the merge-train candidate's, taken at `ceb5c252`;
 main has since taken 574, 575, 542 and 560's hint card, so no receipt describes the tree as
-it now stands. The orchestrator is taking that exact-main receipt at `HEAD`.
+it now stands. **First attempt 2026-09-07 produced NO RECEIPT and is void on two independent grounds, neither
+of them a defect in the tree:** HEAD moved under the run (`3cf7061b` → `fdf7139d`, a
+concurrent board-only commit), and the host was at load 43 on ten cores with three lane
+builds live, so `code-health.sh`'s `cpu-spin` probe — which asserts that a deliberately
+spinning fixture peaks a tracked core — could not see its own spinner. That is this repo's
+standing hazard in its purest form: the law was fine and the CONFIGURATION it ran under was
+the untested hypothesis. The receipt is re-taken on a quiet host once the lanes are off it,
+and until then no one may describe main as gated.
 `build_line_attrs` hoists the reveal predicate above the ornament-scale decision, so a
 revealed rule line drops the ornament's room entirely: raw markers at body size, body-height
 row, body-size caret. Four laws (2 sidecar geometry, 2 real-pixel), each single-mutation
@@ -723,7 +734,10 @@ journey after the repair.
 
 ### 586 — Bold wraps trailing whitespace and produces literal Markdown (live bug hunt, 2026-09-06)
 
-⬜ READY — user requested queueing; not dispatched.
+🟡 CLAIMED 2026-09-07 — lane `item-586-587`, worktree `.claude/worktrees/item-586-587`,
+branched off `3cf7061b`. Bundled with 587 by that item's own instruction: they are one seam,
+and splitting them across two lanes buys a handoff bug rather than parallelism. The lane
+reproduces before implementing.
 
 **Observed / reproduce.** Paste a document with a body line `hello world `
 (one trailing space). Select that line's contents using line-start then
@@ -749,8 +763,9 @@ preview; apply standing pixel/vision checks if the implementation touches render
 
 ### 587 — Inline Code fails to protect backticks inside the selection (live bug hunt, 2026-09-06)
 
-⬜ READY — user requested queueing; not dispatched. Coordinate shared formatter
-edits with 586; integrate overlapping changes serially.
+🟡 CLAIMED 2026-09-07 with 586 — same lane, worktree and branch (`item-586-587`), which is
+what this item's own coordination clause asks for: shared formatter edits integrate serially
+under one owner.
 
 **Observed / reproduce.** Paste a body line containing a space-separated `a`,
 the literal source `` `tick` ``, and `b` (whole line: ``a `tick` b``). Select
