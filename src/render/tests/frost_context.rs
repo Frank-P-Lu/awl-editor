@@ -653,11 +653,18 @@ fn context_menu_card_hugs_its_rows_with_no_hint_reserved() {
                 let lh = p.overlay_lh();
                 let shrink = hinted_card[3] - real_card[3];
                 let ctx = format!("{world}/{target:?} dpi={dpi}");
+                // The floor is a FULL ROW rather than a fraction tuned to
+                // today's dials: the footer's two rows are both deliberately
+                // COMPACT (`OVERLAY_HINT_ROW` and `OVERLAY_HINT_GAP_ROW`),
+                // and together they clear a row with room to spare at every
+                // shipped ratio — so a floor here catches the residual band
+                // this law names without re-pinning itself to whatever the
+                // separator's own magnitude happens to be.
                 assert!(
-                    shrink > lh * 1.2,
-                    "{ctx}: dropping the footer must shrink the card by close to two row \
-                     pitches ({lh:.1}px each), got {shrink:.1}px — a residual blank band \
-                     would show up here as a near-zero shrink"
+                    shrink > lh,
+                    "{ctx}: dropping the footer must shrink the card by more than a row \
+                     pitch ({lh:.1}px), got {shrink:.1}px — a residual blank band would \
+                     show up here as a near-zero shrink"
                 );
                 assert!(
                     shrink < lh * 3.0,

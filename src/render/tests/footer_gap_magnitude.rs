@@ -4,18 +4,22 @@
 //!
 //! Two separate claims, because they have two separate subjects:
 //!
-//! * **Law A** — `OVERLAY_HINT_GAP_ROW` widened the blank row ahead of the
-//!   foot hint, but the row's own PLATE still starts flush at
+//! * **Law A** — the blank separator ahead of the foot hint is REAL but stays
+//!   under half a row. The row's own PLATE starts flush at
 //!   `OverlayRowPlan::footer_top()` by design (`footer_plate_rect`'s doc: the
 //!   footer reads as one composed unit with the last row, never a raw gap
-//!   floating over a pinned chin). So "the hint sits flush under the last
-//!   row" was never about the plate's own top edge — it is about how little
-//!   room the hint's own TEXT got before it, inside that plate. This law
-//!   reads the drawn gap (`overlay_hint_gap_probe`, the same oracle
-//!   `hint_gap.rs` already grades for mere presence) against a floor set
-//!   ABOVE what the retired dial could ever produce, so a revert of the
-//!   magnitude bump is caught here even on a world/shape pair where the
-//!   presence-only law next door stays green regardless.
+//!   floating over a pinned chin), so this is not about the plate's own top
+//!   edge — it is about how much room the hint's own TEXT gets before it,
+//!   inside that plate. The separator has a floor because it once did not
+//!   exist at all (`hint_gap.rs`'s defect: the hint sat flush against the last
+//!   candidate) and a CEILING because the chin below the hint is not a dial —
+//!   it is the card's own bottom inset — so a separator sized past it seats
+//!   the hint on the band's floor instead of its centre
+//!   (`OVERLAY_HINT_GAP_ROW`'s own doc, and `overlay_rhythm.rs`'s
+//!   instruction-band law, which grades the resulting balance in real
+//!   pixels). This law reads the drawn gap (`overlay_hint_gap_probe`, the same
+//!   oracle `hint_gap.rs` already grades for mere presence) against BOTH
+//!   bounds, over a roster and a shape axis that law does not sweep.
 //! * **Law B** — the picker's own title, shaped as a canvas-anchored
 //!   wordmark (`TitleStyle::Placard`), draws SHARP and UNMASKED behind the
 //!   card on every world that authors it — never frosted, unlike the
@@ -131,18 +135,17 @@ fn box_residue(
 }
 
 /// LAW A. Swept over the bare-plate roster (derived), both DPIs, and a few
-/// vs. many candidate shape — the axis the item names explicitly, since a
-/// window-clamped tall list absorbs overhead by dropping a row rather than
-/// by shrinking the gap row's own compact height (`overlay_height_clamp_law`'s
-/// own documented absorption shape), which is exactly the case where a
-/// magnitude regression could hide.
+/// vs. many candidate shape — a window-clamped tall list absorbs overhead by
+/// dropping a row rather than by shrinking the gap row's own compact height
+/// (`overlay_height_clamp_law`'s own documented absorption shape), which is
+/// exactly the case where a separator regression could hide.
 #[test]
-fn the_footer_gap_clears_the_retired_dials_own_ceiling_on_every_bare_plate_world() {
+fn the_footer_separator_is_real_but_stays_under_half_a_row_on_every_bare_plate_world() {
     let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(1200.0, 800.0) else {
         eprintln!(
             "skipping \
-             the_footer_gap_clears_the_retired_dials_own_ceiling_on_every_bare_plate_world: \
+             the_footer_separator_is_real_but_stays_under_half_a_row_on_every_bare_plate_world: \
              no wgpu adapter"
         );
         return;
@@ -184,17 +187,25 @@ fn the_footer_gap_clears_the_retired_dials_own_ceiling_on_every_bare_plate_world
                     "{ctx}: the content band's own bottom reads as collapsed"
                 );
                 let gap = hint_top - content_bottom;
-                // THE FLOOR — strictly above what the RETIRED 0.45-row dial
-                // could ever have produced at this world/DPI/shape's own line
-                // height, so reverting the magnitude bump alone (leaving
-                // every other mechanism untouched) turns this red even
-                // though `hint_gap.rs`'s mere-presence law stays green.
-                let retired_ceiling = (lh * 0.45).round();
+                // THE FLOOR — a real, deliberate pause, never the ordinary
+                // line spacing the pre-fix shape left behind.
+                let floor = (lh * 0.20).round();
                 assert!(
-                    gap > retired_ceiling,
-                    "{ctx}: the footer gap ({gap}px) does not clear the retired dial's own \
-                     ceiling ({retired_ceiling}px at {lh}px line height) — the widened \
-                     separator did not actually widen anything here"
+                    gap > floor,
+                    "{ctx}: the footer separator ({gap}px) is under its floor ({floor}px at \
+                     {lh}px line height) — the blank row ahead of the hint has collapsed \
+                     back toward the flush shape it was added to fix"
+                );
+                // THE CEILING — the chin below the hint is the card's own
+                // bottom inset, not a dial that can be raised to match; a
+                // separator past half a row therefore cannot be balanced and
+                // pushes the hint's ink onto the band's floor.
+                let ceiling = (lh * 0.45).round();
+                assert!(
+                    gap <= ceiling,
+                    "{ctx}: the footer separator ({gap}px) is past its ceiling ({ceiling}px at \
+                     {lh}px line height) — the instruction band is top-heavy, its hint seated \
+                     below its own centre"
                 );
                 graded += 1;
                 match shape {

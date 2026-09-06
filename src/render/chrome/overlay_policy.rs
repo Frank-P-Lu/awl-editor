@@ -26,7 +26,21 @@ pub(in crate::render) const OVERLAY_QUERY_BEAT: Rows = Rows(1.55);
 /// `OVERLAY_QUERY_BEAT`.
 pub(in crate::render) const OVERLAY_QUERY_BEAT_UNIFIED_PANE: Rows = Rows(1.0);
 pub(in crate::render) const OVERLAY_HINT_ROW: Rows = Rows(0.70);
-pub(in crate::render) const OVERLAY_HINT_GAP_ROW: Rows = Rows(0.65);
+/// THE FOOT HINT'S OWN SEPARATOR, and half of the instruction band's balance.
+/// The band the eye reads as "the instruction box" runs from
+/// `OverlayRowPlan::footer_top` to the card's own bottom edge, and it is made
+/// of exactly three parts: this separator, the hint's own (compact
+/// [`OVERLAY_HINT_ROW`]) line, and the chin below it — which is not a dial at
+/// all but the card's own bottom inset ([`CARD_PAD`] plus the retained
+/// [`OVERLAY_FOOTER_PAD`]). A separator sized well above that chin seats the
+/// hint's ink on the band's floor instead of its centre, and the band grows
+/// past a row and a half; the asymmetry reads as a mistake rather than as a
+/// considered pause. Held here at roughly a third of a row, which is where the
+/// hint's INK — not its line box, whose slack sits below the glyphs on nearly
+/// every shipped face — comes out centred in the band across the whole world
+/// roster, both DPIs, flat and grouped cards alike.
+/// LIVE-ONLY taste: the final balance is the user's eye, not the harness's.
+pub(in crate::render) const OVERLAY_HINT_GAP_ROW: Rows = Rows(0.35);
 pub(super) const OVERLAY_FOOTER_PAD: Logical = Logical(2.0);
 pub(super) const CARD_PAD: Logical = Logical(12.0);
 pub(super) const CARD_MARGIN: Logical = Logical(12.0);
