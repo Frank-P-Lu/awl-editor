@@ -229,25 +229,6 @@ workflow still installs the same pinned version by the same identity check.
 
 ---
 
-### 578 — `code-health.py --self-test` was reported failing on main; it is NOT (premise half-false, corrected 2026-09-07)
-
-🟡 CLAIMED 2026-09-07 with 593/594 — lane `item-593`. **Half this item's premise is false, and
-the false half was the headline.** The self-test is not failing: `code-health: self-test
-clean`, exit 0. Item 566's lane had already repaired the fixture, and THIS ITEM'S OWN BODY
-said so — the brief that dispatched it read the title and not the text. Recorded here rather
-than quietly dropped, because "premise false, oracle repaired" and "fixed" read identically on
-a board six weeks later and only one of them means the product changed.
-
-What survived is the part that was always the real content: **nothing runs it.** So the lane
-measured the cost (0.77 / 0.75 / 0.76 s) and wired it into `scripts/code-health.sh` — the
-thing gates actually call — rather than into `code-health.py`, which is precisely the
-confusion this repo has been bitten by before (the .py carries the structural ratchets but not
-the clippy arms; two lanes once reported clean while main was red on six errors only the .sh
-can see). It runs BEFORE the ratchets it guards. Note `--clippy-only`, which CI's mac job
-uses, returns early and never reaches it; CI's linux job runs the full script, so the new arms
-do run on Linux.
----
-
 ### 579 — awl renders ~9 fps on a pure software rasterizer, every world (measured by 566, 2026-09-06; predates 564)
 
 Measured on the full roster at 2910x1720 @2x, `--release`, median `queue.submit +
@@ -557,89 +538,6 @@ theme-specific composition remains a live taste review.
 
 ---
 
-### 593 — `sweep.sh 1` prunes every worktree's `target/`, including the ones being built in (found by 567's lane, 2026-09-07; measured, not inferred)
-
-⬜ READY — high priority: this defect corrupts concurrent lanes, which is the exact
-configuration the orchestration layer is built to run.
-
-`scripts/sweep.sh` is the disk preflight's sole deletion owner and
-`.orchestrator/worker-build.sh` fires the preflight on EVERY lane command. The sweep
-traverses and prunes every worktree's `target/` — not only the caller's — so a lane that
-merely starts a build deletes fingerprint files out from under a sibling lane's live
-compile. The victim dies on `failed to write …/.fingerprint/<crate>/invoked.timestamp`
-(ENOENT), which reads as a broken build rather than as another process's deletion.
-
-**Measured, not argued.** 567's lane instrumented one attempt with a `ps` sampler: a
-`sweep.sh 1` launched from `.claude/worktrees/item-586-587` ran 00:51:33–00:52:03 while the
-lane's own build compiled, and that build died on `harfrust-…/invoked.timestamp` immediately
-after. The cost that round was six runs — the native gate went green on attempt 2 and
-web-smoke on attempt 7.
-
-The trigger is a low-disk condition, so the failure is bursty and looks flaky: while free
-space sits under the preflight's floor, every lane command fires a sweep, so an active wave
-has its lanes reliably corrupting each other. One honest early refusal was also observed:
-`disk-preflight: insufficient space after sweep-1d; free_bytes=25336659968
-minimum_bytes=25769803776`.
-
-⚠️ **One reported escalation of this item is FALSE and is recorded here so it is not inherited.**
-585's lane reported that "an external sweep removed my worktree mid-run — its registration AND
-tracked files including `Cargo.toml`", and attributed it to this item. It was not `sweep.sh`.
-It was the ORCHESTRATOR running `git worktree remove` on that lane's worktree while the lane
-was still alive and gating, having concluded from `reap-orphaned-gates.sh` that the tree was
-finished because its branch had merged. `sweep.sh` prunes `target/`; it does not remove
-registrations or tracked files. **So the real hazard here is a second one, and it belongs to
-the orchestration layer rather than to the script:** a merged branch does NOT mean the lane
-that produced it has stopped, and `reap-orphaned-gates.sh`'s own criterion ("branch is already
-merged") answers a question about the BRANCH, not about the agent. Retiring the processes was
-right; removing the tree was not, and it destroyed a live run. Whatever fix 593 lands should
-not absorb this, and the merge train wants a rule of its own: reap the gate, leave the tree.
-
-Observed twice on 2026-09-07 alongside this: a lane whose branch had ALREADY MERGED still had
-a detached gate running in its worktree, competing for the same ten cores and driving the host
-to load 43 and later 58. `reap-orphaned-gates.sh` identifies exactly that state — by the
-branch being merged, not by anyone's judgement — and retired 12 gates and 102 processes in one
-pass. That script is deliberately not wired into any automatic teardown, which is right, but
-nothing prompts anyone to RUN it either; the merge train is the natural place, since it is the
-step that makes a lane's gate orphaned in the first place.
-
-Mitigated but NOT fixed 2026-09-07: the orchestrator reclaimed the stale `target/` trees of
-every worktree with no live build (26 GB free → 131 GB), which stops the trigger firing
-today. That is headroom, not a repair — the next wave that fills the disk reproduces it.
-
-Build: the sweep must never delete inside a worktree other than its caller's, or must take a
-lock every builder respects. Prefer the narrow fix. Laws: a sweep launched from worktree A
-leaves worktree B's `target/` untouched; the law fails when the traversal is widened back to
-all worktrees. Note the deleted `test-sweep.sh` was one of 567's eleven unwired laws — this
-subject has just earned a law again, so per that item's own recorded decision it gets wired
-into `code-health.sh` at birth rather than left to rot.
-
----
-
-### 594 — the recurring `scripts/__pycache__/` has two unguarded creators, and the guard that was supposed to stop it cannot (found by 567's lane, 2026-09-07; premise of 567's rider (a) falsified)
-
-⬜ READY — small, and it closes a false premise rather than leaving it in the tree.
-
-Item 567's hygiene rider (a) added `PYTHONDONTWRITEBYTECODE=1` to `code-health.sh`'s
-`python3 scripts/code-health.py` invocation to kill the recurring `scripts/__pycache__/`.
-The flag is harmless and worth keeping as parity, but **its stated motive is false and the
-directory will keep coming back:** `code-health.py` runs as `__main__` and imports no local
-module, so CPython can never write a `.pyc` for it. Confirmed empirically — a full
-`code-health.sh` run produced no `scripts/__pycache__`.
-
-The real creators are the `importlib.util.spec_from_file_location` loaders at
-`scripts/test-native-test-shards.py:14`, `scripts/ground-contrast-measure.py:91`,
-`scripts/ambient-motion-measure.py:35`, and `scripts/test-native-gate.sh:60`.
-`test-native-gate.sh` already guards its two (lines 6 and 55). The two `*-measure.py`
-scripts are unguarded, and both are on 567's explicit keep-list — invoked from
-`render/tests/deckle_ground.rs` and the `capture-*.sh` pair.
-
-Build: guard the two unguarded loaders at their own call sites. Law: after a run of each
-consumer, no `scripts/__pycache__` exists; prove it non-vacuous by removing a guard and
-watching the directory come back. Rider: correct rider (a)'s comment where it states the
-motive, so the next reader is not taught the wrong mechanism.
-
----
-
 ### 595 — an `overlay_hover_stability_law` failure appeared on one gate arm, once, and could not be reproduced (found by 568/569's lane, 2026-09-07)
 
 ⬜ READY — small, but it is in the class this repo has been bitten by repeatedly.
@@ -711,6 +609,8 @@ Build: decide (a) deliberately — refuse or widen — and give (b) an oracle th
 on a surviving text event. Laws: each case asserted through the real parser, and each proven
 non-vacuous by restoring today's behaviour and watching it go red.
 
+---
+
 ### 598 — a summoned surface now swallows ⌘Q and ⌘S, and the picker card always did (found by 585's lane, 2026-09-07)
 
 ⬜ READY — small, but it is a question about intent rather than a bug with an obvious answer.
@@ -751,6 +651,41 @@ in two shapes.
 Laws: whatever is decided, the enrolment comes from the door roster rather than a hand-list,
 and the law names what enrolled — 585's own sweep found only 2 of 7 surfaces ever leaked, so
 a law that assumes uniform behaviour across surfaces would be wrong in both directions.
+
+### 600 — 593's narrowing has two sharp edges left, both named by the lane that made them (2026-09-07)
+
+⬜ READY — small, and both are consequences of a fix that was correct.
+
+(a) **`--all-worktrees` is a loaded gun with a safety.** The fleet-wide sweep survives behind
+an explicit flag because the maintenance use is real, and a law now stops any tracked script
+or workflow from passing it. Nothing stops a human or an agent typing it during a wave.
+Deleting the mode outright is a one-line follow-up; the trade is losing a convenience that
+reclaimed 26 GB → 131 GB this session against keeping an edge that can corrupt four lanes.
+Decide it deliberately rather than leaving it as an accident of sequencing.
+
+(b) **The disk preflight's floors were tuned for the OLD reach.** `HEALTHY_BYTES` 32 GiB and
+`MINIMUM_BYTES` 24 GiB assumed a sweep that could reclaim across the whole fleet; one
+worktree's stale artifacts often will not clear that gap. So `insufficient space after
+sweep-1d` will fire more often. That is the honest failure the design already prefers over a
+corrupted sibling build — but the numbers were never measured under four-lane pressure, and
+now they need to be.
+
+---
+
+### 601 — `code-health.sh` reaps its own caller's process group, and the workaround is prose every lane must remember (found by 593's lane, 2026-09-07)
+
+⬜ READY — a real fix waiting inside a probe that already exists.
+
+`code-health.sh` group-kills in a way that reaps the process group of whatever launched it.
+The `set -m` + subshell workaround is documented in `.orchestrator/README.md` and lanes do use
+it — but a documented workaround is a rule every lane has to remember, and **forgetting it
+presents as a SILENT LANE rather than as an error**, which is the worst failure shape
+available: nothing to read, nothing to grep, and no signal that the round even ended.
+
+The fix belongs where the behaviour is already understood — `test-native-gate.sh`'s group-kill
+probe knows how to retire descendants without reaching its own caller. Laws: a
+`code-health.sh` launched from a shell leaves that shell's siblings alive, proven by planting
+one and requiring it to survive; and the law must fail if the group kill is widened back.
 
 ## Owed to the user — landed work awaiting a live eye
 
