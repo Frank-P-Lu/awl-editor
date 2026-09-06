@@ -2113,6 +2113,23 @@ carries 571/573, 566 and the mark raise). Its interrupted work is WIP `8901084c`
 `src/app/input/text_door.rs`, UNGATED and UNVERIFIED — the lane was told to read its own diff
 before building on it, since it never reported a premise check.
 
+**Lane report, 2026-09-06 (premise repaired; defect WORSE than briefed).** The brief's
+Verify clause "typing leaves the credits bytes identical" was unfalsifiable — the credits
+text is a static string and Credits is a VIEW SUBSTITUTION, never a buffer — so the
+paragraph below ("opens the bundled document as the ACTIVE buffer") is the superseded
+mechanism reading. What the IME door actually reached was the USER'S OWN OPEN DOCUMENT,
+invisible behind the transcript: typing while viewing Credits silently edited it. The lane
+also found three doors this board never listed — assistive `ReplaceSelectedText` and
+`SetValue`, plus a rail-query leak where typing on Credits filtered the hidden document's
+only row and reported "no matches" about a file the user couldn't see. The keymap door it
+MEASURED as already shut rather than trusting the brief. Fix shape: every door hits one
+wall; both owners derived from the read-only-prose roster, not named; and the wall was
+deliberately NOT widened to "any overlay" — that boundary is pinned by its own law, so
+widening it later is a decision, not a drift. When this merges it closes as "premise
+repaired, worse defect fixed" — not as "fixed as briefed." Still owed: final sha + full
+receipt. Follow-ups queued as 577 (insertion-door census law) and 578 (substitution-leak
+audit).
+
 Confirmed in pixels and mechanism. Credits opens the bundled document as
 the ACTIVE buffer relocated into its workspace viewport, so the caret
 layer draws normally — a block caret parked inside the credits body
@@ -2254,6 +2271,49 @@ above is from one arm64 container with Mesa 22.3.6, not from CI's x86_64 lavapip
 claim about "software rendering performance" needs its configuration stated, per the
 standing rule that a check runs in one configuration and that configuration is itself an
 untested hypothesis.
+
+### 577 — insertion-door census: every path that can mutate the focused buffer is enrolled at one seam (follow-up to 575's lane report, 2026-09-06)
+
+⬜ READY (blocked on 575 merging — builds on its wall and `text_door.rs`)
+
+Evidence: 575's lane found TWO insertion doors nobody had listed (assistive
+`ReplaceSelectedText` and `SetValue`) beside the briefed one (`Ime::Commit`). The class
+grows every time a new input capability lands (menu Edit actions, Linux middle-click paste,
+future dictation, daemon/EDITOR writes, drag-drop text if ever), and today a new door
+ships OPEN by default: nothing forces it through 575's wall, so the next one repeats this
+bug on whatever modal surface exists then.
+
+Build: enumerate every code path that inserts or replaces text in the focused buffer from
+an input surface, and route each through the one wall 575 built (or record it as a NAMED
+exemption with a reason — e.g. the capture harness's own replay). Then the census law, per
+"same behavior ⇒ same code": a wildcard-free match over the door roster at the seam, so a
+NEW door fails to enrol until it declares wall-routed or exempt. The law must fail on the
+bug it names: prove non-vacuity by re-opening one existing door (locally, uncommitted) and
+watching it go red. Pure unit seam — no capture needed; harness-reach is not in play.
+
+Worker: engineering tier. Worktree per protocol; claim before code.
+
+### 578 — substitution-leak audit: what else reports about the hidden document while History/Conflict/Credits is up? (follow-up to 575's lane report, 2026-09-06)
+
+⬜ READY (after 575 merges; audit-tier per standing policy)
+
+Evidence: 575's rail-query leak — typing on Credits filtered the HIDDEN document's rows
+and reported "no matches" about a file the user couldn't see. Bugs cluster: the leak class
+is "a query/filter/status surface answering about the underlying buffer while a
+`TimelineOverComparison` substitution is showing something else." The rail is fixed; its
+siblings are unaudited.
+
+Probe form (state × surface × world, per the spot-check policy): the three roster overlays
+(History, Conflict, Credits — derive the set from `shows_read_only_prose`, never name it)
+× every query/status surface that reads the focused buffer — find & replace, spell
+navigation/suggestions, outline/jump surfaces, palette state lines, the debug HUD's
+buffer readouts — sampled across ≥2 worlds. Assert per cell with sidecar/pixel arithmetic
+via `--screenshot-app` (check docs/harness-reach.md per effect before promising a capture;
+flag any live-only cell for human confirmation instead of claiming it). An audit that
+finds something ends by writing the missing law; if the audit finds nothing, it still ends
+by writing the law that pins the clean state, enrolment derived from the roster.
+
+Worker: audit tier — Sonnet medium on Claude or `gpt-5.6-terra` medium on OpenAI.
 
 ## Needs specific hardware
 
