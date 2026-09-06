@@ -163,18 +163,16 @@ pub struct Entry<T> {
 /// One parked slot: its identity, its [`Entry`], and the RAIL-APPETITE STAMP
 /// this registry takes of the buffer at PARK time.
 ///
-/// The stamp is a cache, and the cache-key discipline is satisfied
-/// STRUCTURALLY rather than by a version key: a backgrounded buffer is
-/// immutable here — [`BufferRegistry::get`] hands out `&Entry` and
-/// [`BufferRegistry::take`] REMOVES the slot to hand it back mutable — so the
-/// text the stamp was taken over is the text the slot still holds, and the one
-/// transition that can change it (activation) also ends the slot. Nothing keys
-/// on `buffer.version()`, which restarts at 0 per open.
+/// The stamp is a cache whose key discipline is STRUCTURAL rather than a
+/// version: a backgrounded buffer is immutable here ([`BufferRegistry::get`]
+/// hands out `&Entry`, [`BufferRegistry::take`] REMOVES the slot to hand it
+/// back), so the one transition that can change the text also ends the slot.
+/// Nothing keys on `buffer.version()`, which restarts at 0 per open.
 struct Parked<T> {
     key: BufferKey,
     entry: Entry<T>,
     /// Would this buffer give the margin outline rows to draw
-    /// ([`crate::outline::document_wants_rail`])? Read in aggregate by
+    /// ([`crate::outline::document_wants_rail`])? Folded by
     /// [`BufferRegistry::backgrounded_wants_rail`].
     wants_rail: bool,
 }
@@ -212,12 +210,10 @@ impl<T> BufferRegistry<T> {
 
     /// **DOES ANY BACKGROUNDED BUFFER WANT THE MARGIN OUTLINE'S RAIL?** The
     /// working set's half of the rail reservation, folded over the stamps
-    /// [`Self::park`] took — a handful of bools (the registry is capped at
-    /// [`MAX_OPEN_BUFFERS`]), never a rescan of the open documents.
-    ///
-    /// The ACTIVE buffer is deliberately absent: it is never held here, and the
-    /// renderer already knows its own headings. The one owner that combines the
-    /// two halves is `render::geometry::TextPipeline::outline_wants_rail`.
+    /// [`Self::park`] took — a handful of bools (capped at
+    /// [`MAX_OPEN_BUFFERS`]), never a rescan of the open documents. The ACTIVE
+    /// buffer is absent by construction; the owner that combines the two halves
+    /// is `render::geometry::TextPipeline::outline_wants_rail`.
     pub fn backgrounded_wants_rail(&self) -> bool {
         self.entries.iter().any(|slot| slot.wants_rail)
     }
@@ -246,15 +242,11 @@ impl<T> BufferRegistry<T> {
     /// any existing entry under the same key (should not normally happen —
     /// the caller only parks the buffer it is LEAVING).
     pub fn park(&mut self, key: BufferKey, entry: Entry<T>) {
-        // THE RAIL-APPETITE STAMP, taken here and nowhere else. The margin
-        // outline's rail reservation is a fact about the WORKING SET, so the
-        // renderer has to know whether any buffer OTHER than the one on screen
-        // would draw outline rows — a question about documents it is not
-        // shaping. Asking it per frame would be a rescan of every open buffer
-        // (O(doc) work in an O(visible) budget); asking it HERE is one parse per
-        // park, on the same transition that already reshapes the incoming
-        // document, and the answer stays true for as long as the slot exists
-        // (see [`Parked`]).
+        // THE RAIL-APPETITE STAMP, taken here and nowhere else. Asking it per
+        // frame would rescan every open buffer (O(doc) work in an O(visible)
+        // budget); asking it HERE is one parse per park, on the transition that
+        // already reshapes the incoming document, and the answer stays true for
+        // as long as the slot exists (see [`Parked`]).
         let wants_rail = crate::outline::document_wants_rail(
             entry.buffer.is_markdown(),
             !crate::markdown::headings(&entry.buffer.text()).is_empty(),

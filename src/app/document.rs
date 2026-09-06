@@ -187,11 +187,9 @@ impl DocumentSession {
     }
 
     /// **DOES ANY BUFFER BEHIND THE ACTIVE ONE WANT THE MARGIN OUTLINE'S
-    /// RAIL?** The working set's half of the rail reservation, handed to the
-    /// renderer each `sync_view` (`ViewState::set_wants_outline_rail`) so the
-    /// adaptive column can belong to the room instead of to whichever file is
-    /// on screen. Folded over the registry's own per-slot stamps — the active
-    /// buffer is not one of them, and the renderer already knows its headings.
+    /// RAIL?** Handed to the renderer each `sync_view`
+    /// (`ViewState::set_wants_outline_rail`) so the adaptive column belongs to
+    /// the room, not to whichever file is on screen.
     pub(in crate::app) fn parked_wants_rail(&self) -> bool {
         self.registry.backgrounded_wants_rail()
     }
