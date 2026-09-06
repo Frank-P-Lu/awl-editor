@@ -790,6 +790,117 @@ union from the roster, not a named member); no world keeps a bullet from the ret
 vocabulary; the pair stays legible at prose size in both grounds. The visual outcome is a
 taste call owed to the user — deliver a gallery capture across the roster, not an argument.
 
+### 589 — Commands and shared transient chrome: clearer controls within each world's composition (user decision, 2026-09-07)
+
+⬜ READY — queue only; not dispatched. Shared design foundation for 590–592;
+integrate overlapping renderer work serially.
+
+**Decision.** Improve Commands' query/result hierarchy and spacing while keeping
+the document readable outside the summoned surface. Integrate its title with
+its controls rather than letting a remote oversized label dominate the task.
+Preserve categories, bindings, keyboard selection and each world's authored
+placement; the generated upper-right mockup is not a universal anchor.
+
+**Shared scope.** Consistency is WITHIN each world, not one skin across worlds.
+Find, Link and Commands share that world's surface colours, border weight,
+corner rules, field grammar and spacing. Nested controls derive compatible
+corners; do not invent feature-specific radii. Preserve Pane, Bars, Diagonal
+and Ruled compositions: no compulsory rounded enclosing panel for plate/rule
+worlds. Carry relevant improvements through sibling pickers/prompts via shared
+owners. The user's preferred Find/Replace chrome is preserved in
+`references/find-replace-chrome.png` beside this board; it guides bordered
+surfaces, not every world's visual identity.
+
+**Separation / verify.** Brief choices should retain readable surrounding prose.
+Use the world's backing, retaining local frost where needed; this is NOT a
+global blur-off instruction. Unbacked text must not overlap document ink.
+Read DESIGN.md, docs/render.md and docs/harness-reach.md. Audit the actual
+surface × composition × placement roster, narrow/wide and DPI 1/2; assert
+geometry/state and pixel legibility, add mutation-proven laws and the standing
+five-shot vision smoke. Keep anchor stability and keyboard behavior intact.
+
+### 590 — Insert Link: a clear URL field with keyboard-first commit (user decision, 2026-09-07)
+
+⬜ READY — queue only; coordinate shared chrome with 589.
+
+**Decision.** Replace the empty imitation list in Insert Link with an obvious
+destination field: readable `Link destination` label, `Paste or type a URL`
+placeholder, immediate typing, Enter to commit and Esc to cancel. Keep a quiet
+clickable commit affordance carrying its resolved binding. Preserve existing
+URL prefill, selected-text wrapping, editing an existing link and undo behavior.
+
+**Composition.** Keep the existing world/context placement policy, including
+clamping on small windows; the generated below-paragraph location is illustrative,
+not a new hardcoded rule. The user likes the relationship between Find and Link
+chrome, with consistent borders/corners inside a world. Apply 589's world-specific
+surface grammar and backing policy rather than shipping one generic rounded
+dialog. Keep surrounding prose readable; no full-viewport blur merely to enter
+a destination. Retain appropriate local separation where a world's composition
+otherwise interleaves text with the document.
+
+**Verify.** Read docs/markdown.md, docs/render.md and docs/harness-reach.md.
+Test empty/prefilled/existing-link/selected-text paths, keyboard and pointer
+commit/cancel, focus and document restoration. Native keyboard labels come
+from the real keymap. Sweep composition families, anchors, narrow widths and
+DPI 1/2; pixel-check label/field clarity and no clipping. Add the missing laws,
+mutation-prove them, and include the standing vision smoke. Report final feel
+as requiring the user's live eye, not as proven by image generation.
+
+### 591 — Find/Replace: preferred bordered chrome, keyboard discoverability, existing top-right placement (user decision, 2026-09-07)
+
+⬜ READY — queue only; coordinate with 589 and the focus-routing repair 585.
+
+**Authoritative reference.** `references/find-replace-chrome.png` is the crop
+the user explicitly preferred AFTER the keyboard-first remake. Preserve its
+clear bordered fields, subtle lavender surface, thin separators, separate
+match/navigation region and distinct Replace/Replace all controls where the
+world uses bordered panels. The later borderless text-strip mockup is NOT the
+selected chrome. Derive compatible corners from the world's shared treatment.
+
+**Keep keyboard character.** Controls remain clickable, but visible shortcut
+labels teach the existing behavior: replace/next, replace all, switch field,
+close and match case. Source bindings from the active platform/keymap; no
+hardcoded macOS glyphs on Linux. Distinguish labels, editable values, match
+count and actions without tiny crowded hints. Find-only remains compact.
+Keep the EXISTING top-right placement and safe inset, close below the title/menu
+bar; the first mockup's large top gap was rejected. Do not adopt its enlarged
+footprint blindly. Keep matches and surrounding prose readable.
+
+**Verify.** Preserve search/replace semantics and focus, including 585's query
+select-all law. Read docs/config.md, docs/render.md and harness-reach; exercise
+both fields and actual command bindings. Capture empty/no-match/multiple-match,
+find-only/replace and case states across world compositions, widths and DPI
+1/2; assert bounds, shortcut/action correspondence and pixel legibility. Add
+mutation-proven laws and the five-shot vision smoke. Theme identity remains
+data through shared renderers, not one universal screenshot skin.
+
+### 592 — Settings: compact label/value relationships and readable workspace hierarchy (user approval, 2026-09-07)
+
+⬜ READY — queue only; coordinate shared chrome with 589.
+
+**Approved direction.** The user strongly prefers the new Settings layout:
+modest nearby title and identifiable search, category rail beside the active
+category's controls, comfortable row spacing, and a bounded detail-column width
+that keeps values close to labels. Extra window width becomes breathing room,
+not a longer journey between a setting and its value. Remove the remote giant
+SETTINGS label in favor of the integrated hierarchy. The reference's proportions
+are the direction, not hardcoded pixel coordinates or replacement control semantics.
+
+**Worlds / interaction.** Preserve the existing category/detail focus model,
+selected-row control interaction, query, return path, exact editor restoration
+and narrow staged presentation. Express rows, selection, corners and backing
+through each world's Pane/Bars/Diagonal/Ruled vocabulary. Keep relevant key hints
+near the active control, using real bindings. Start with a quiet opaque themed
+workspace ground rather than ghost prose; retain frost only if it contributes
+to that world's authored composition. No blanket removal of ambient effects.
+
+**Verify.** Read DESIGN.md, docs/render.md and harness-reach. Sweep category,
+control kind, focus region, composition family, narrow/wide window, zoom and
+DPI 1/2. Assert label/value proximity, usable controls, no clipping, correct
+focus/selection and unchanged setting behavior. Validate appearance with pixels
+and the standing vision smoke; add mutation-proven laws at shared seams. Final
+theme-specific composition remains a live taste review.
+
 ## Owed to the user — landed work awaiting a live eye
 
 These items have MERGED and left the build queue. Each one still owes the user an answer or
