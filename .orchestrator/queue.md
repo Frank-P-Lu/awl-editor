@@ -243,7 +243,9 @@ decision is which world draws which set, not one global glyph.
 ---
 ### 542 — table editing: row/column palette verbs (user report, 2026-08-30 — "kinda awful to edit"; fruit 1 landed, this is fruit 2)
 
-🔴 BLOCKED — the remaining row/column palette verbs need the user's greenlight
+🟢 GREENLIT 2026-09-06, READY TO BUILD, unclaimed — the user chose "Greenlight the verbs":
+build Insert row above/below, insert column left/right, delete row/column as palette verbs,
+source splices over `markdown/tables.rs`, gated to caret-in-table like `AlignTable`.
 
 Three waves have landed: Tab/Shift-Tab moves between cells and wraps
 across rows, Tab on the final cell appends a scaffold row, Enter
@@ -1328,7 +1330,13 @@ lane trims the same geometry) — one lane may take both.
 ---
 ### 560 — theme picker rhythm: dead rows between the query head and the first row, and a top-heavy oversized hint card (user taste report, 2026-09-01 — "from where the caret is until the first item there's a lot of spacing… kind of weird; the bottom instruction box has too much padding vertically")
 
-🔵 PREMISE FALSE, ORACLE REPAIRED, two taste calls OWED — merged `507dd3b9`
+🔵 Q2 ANSWERED 2026-09-06, Q1 STILL OWED — the user chose the SYMMETRIC, ~one-row-tall
+hint card ("Symmetric and shorter"), overriding the existing pixel law's stated intent
+("clear air above, trim the chin"), which is rewritten with it. Q1 (head gap
+`OVERLAY_QUERY_BEAT` 1.55 vs 1.15–1.25) was NOT answered and remains owed; it moves every
+flat/grouped picker, so do not narrow it on inference.
+
+🔵 PREMISE FALSE, ORACLE REPAIRED — merged `507dd3b9`
 + `ffc17a9c`. The reported "reserved marker row that stays reserved when
 unclamped" does not exist: `resolve_window_and_cue`'s `visible0 >=
 n_items` early return already reserves zero rows whenever the corpus
@@ -1742,7 +1750,10 @@ doubling; option off ⇒ byte-identical render to today.
 ---
 ### 567 — scripts/ cruft sweep: delete six concluded-investigation scripts and five unwired shell laws (user decision, 2026-09-06 — "unused stuff is kinda cruft right… i think i lean delete too")
 
-🟡 IN PROGRESS — claude lane (sonnet, production), branch `item-567`, worktree `.codex/worktrees/item-544-frost-box` — claimed 2026-09-06.
+🟠 PAUSED, PARTIAL — the user cut the wave to two active agents 2026-09-06. The sweep IS
+committed as `8a2b5d48` on branch `item-567` (worktree `.codex/worktrees/item-544-frost-box`)
+but is UNGATED: no reference-check report, no receipt. Resume by verifying the eleven
+deletions against the tree before trusting the commit.
 
 A full audit of `scripts/` (78 tracked files) found the tree largely
 load-bearing — CI-invoked, gate-invoked, or documented entry points — with
@@ -1803,7 +1814,10 @@ Rust doc comment moved).
 ---
 ### 568 — spell suggestions never offer the user's own dictionary words (user report, 2026-09-06 — "add to dictionary, but this new word doesn't really show up in the autocomplete?" — the ⌘-; spell picker is meant; explicitly NOT a completion feature: "we don't need autocomplete")
 
-🟡 IN PROGRESS — claude lane (sonnet, production) with 569, branch `item-568-569`, worktree `.codex/worktrees/item-543-tabledims-frost` — claimed 2026-09-06.
+🟠 PAUSED, PARTIAL — the user cut the wave to two active agents 2026-09-06. Interrupted work
+preserved as WIP `2981af41` on branch `item-568-569` (worktree
+`.codex/worktrees/item-543-tabledims-frost`): the suggest-side merge with five passing tests
+by the lane's own account, UNGATED and unproven. 569's picker is NOT started.
 
 The personal dictionary is check-only. `SpellChecker::check` consults
 `user_words` (src/spell.rs:261), but `suggest`/`suggest_at`
@@ -1833,7 +1847,8 @@ reach the merged list (one owner, no second suggest path).
 ---
 ### 569 — personal dictionary picker: list the words, remove per row (user decision, 2026-09-06 — "richer listing words… something very simple")
 
-🟡 IN PROGRESS — claude lane (sonnet, production) with 568, branch `item-568-569`, worktree `.codex/worktrees/item-543-tabledims-frost` — claimed 2026-09-06.
+🟠 PAUSED, NOT STARTED — the user cut the wave to two active agents 2026-09-06 before this
+half began. 568's partial work sits on branch `item-568-569` (WIP `2981af41`).
 
 `~/.config/awl/dictionary.txt` is user-facing and completely undocumented —
 no UI shows its contents and no doc says it exists; removal is hand-edit
@@ -2001,7 +2016,10 @@ exist off-reveal for the absence assertion to be non-vacuous); a fenced
 ---
 ### 574 — switching buffers must not move the page: key the outline rail's reservation on the working set, not the current buffer (user report + decision, 2026-09-06 — "switching between files actually causes the side bar to resize… it shouldnt jump all over the place at least")
 
-🟡 IN PROGRESS — claude lane (opus, deep), branch `item-574`, worktree `.codex/worktrees/item-541-543-tables` — claimed 2026-09-06.
+🟠 PAUSED, PARTIAL — the user cut the wave to two active agents 2026-09-06. Interrupted work
+preserved as WIP `de8e4786` on branch `item-574` (worktree
+`.codex/worktrees/item-541-543-tables`), 16 files touched, UNGATED and UNVERIFIED — no premise
+check, no laws proven. Read the diff before trusting it.
 
 Reproduced and measured: the adaptive column asks whether to grant the
 margin outline a rail via `outline_wants_rail` (src/render/geometry.rs:697),
@@ -2044,7 +2062,10 @@ wide sweeps nothing.
 ---
 ### 575 — Credits is a reading surface: no caret, no insertion, through every door (user report, 2026-09-06 — "you can type in the credits screen?… i see the cursor in the credits too… i was thinking some kind of readonly surface")
 
-🟡 IN PROGRESS — claude lane (opus, deep), branch `item-575`, worktree `.codex/worktrees/item-536-ornament-sets` — claimed 2026-09-06.
+🟠 PAUSED, PARTIAL — the user cut the wave to two active agents 2026-09-06. Interrupted work
+preserved as WIP `8901084c` on branch `item-575` (worktree
+`.codex/worktrees/item-536-ornament-sets`), 16 files plus a new `src/app/input/text_door.rs`,
+UNGATED and UNVERIFIED — no premise check, no laws proven. Read the diff before trusting it.
 
 Confirmed in pixels and mechanism. Credits opens the bundled document as
 the ACTIVE buffer relocated into its workspace viewport, so the caret
