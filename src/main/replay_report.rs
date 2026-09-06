@@ -17,7 +17,7 @@ pub(crate) struct ReplayResult {
     /// registry, and the one-shot `--keys` capture has to hand it to the
     /// renderer or a replay would place the writing column by the photographed
     /// buffer alone — the very defect the set-level reservation removes.
-    pub(crate) set_wants_outline_rail: bool,
+    pub(crate) wants_rail: bool,
     #[cfg(test)]
     pub(crate) background_buffers: Vec<(crate::buffers::BufferKey, String)>,
     #[allow(dead_code)]

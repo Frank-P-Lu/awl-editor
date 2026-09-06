@@ -151,20 +151,22 @@ pub(super) fn buffers_info(open: usize, buffer: Option<&Buffer>) -> capture::Buf
     }
 }
 
+/// The one-shot `--keys` door's own opts tail. That door does NOT go through
+/// [`fold_capture_state`], so the working set's rail claim
+/// (`ReplayResult::wants_rail`) has to reach the opts on this path too — it is
+/// assigned at the call site rather than taken as a sixth parameter here, which
+/// rustfmt would wrap into six lines of a function already at its length mark.
+/// Without it a replay that opened a second file would place the writing column
+/// by the photographed buffer alone while a `--screenshot-app` run of the same
+/// journey placed it by the room; both doors are held to one answer by
+/// `run::tests::capture_scenarios::both_capture_doors_hold_the_outline_rail_for_the_working_set`.
 pub(super) fn apply_replay_tail(
     opts: &mut capture::CaptureOpts,
     buffers_open: usize,
-    set_wants_outline_rail: bool,
     buffer: &Buffer,
     replay_skips: Vec<crate::replay::SkippedEffect>,
 ) {
     opts.buffers = Some(buffers_info(buffers_open, Some(buffer)));
-    // The ONE-SHOT `--keys` door builds its own opts rather than going through
-    // `fold_capture_state`, so the working set's rail claim has to be carried
-    // here too — otherwise a replay that opened a second file would place the
-    // column by the photographed buffer alone while a `--screenshot-app` run of
-    // the same journey placed it by the room.
-    opts.set_wants_outline_rail = set_wants_outline_rail;
     opts.replay_skips = replay_skips;
 }
 
