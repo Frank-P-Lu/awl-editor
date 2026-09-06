@@ -2059,10 +2059,12 @@ exist off-reveal for the absence assertion to be non-vacuous); a fenced
 ---
 ### 574 — switching buffers must not move the page: key the outline rail's reservation on the working set, not the current buffer (user report + decision, 2026-09-06 — "switching between files actually causes the side bar to resize… it shouldnt jump all over the place at least")
 
-🟠 PAUSED, PARTIAL — the user cut the wave to two active agents 2026-09-06. Interrupted work
-preserved as WIP `de8e4786` on branch `item-574` (worktree
-`.codex/worktrees/item-541-543-tables`), 16 files touched, UNGATED and UNVERIFIED — no premise
-check, no laws proven. Read the diff before trusting it.
+🟡 IN PROGRESS — resumed 2026-09-06 with its original context. Its interrupted work is WIP
+`de8e4786` on branch `item-574` (worktree `.codex/worktrees/item-541-543-tables`), 16 files,
+UNGATED and UNVERIFIED. ⚠️ Real overlap with the new base: 571/573 changed
+`src/render/spans/layout.rs` and `src/render/rects.rs`, so the lane was told to resolve TOWARD
+571/573's shape — one reveal predicate threaded through both the row-scale decision and the
+ornament draw gate — rather than reintroducing a second derivation.
 
 Reproduced and measured: the adaptive column asks whether to grant the
 margin outline a rail via `outline_wants_rail` (src/render/geometry.rs:697),
@@ -2105,10 +2107,11 @@ wide sweeps nothing.
 ---
 ### 575 — Credits is a reading surface: no caret, no insertion, through every door (user report, 2026-09-06 — "you can type in the credits screen?… i see the cursor in the credits too… i was thinking some kind of readonly surface")
 
-🟠 PAUSED, PARTIAL — the user cut the wave to two active agents 2026-09-06. Interrupted work
-preserved as WIP `8901084c` on branch `item-575` (worktree
-`.codex/worktrees/item-536-ornament-sets`), 16 files plus a new `src/app/input/text_door.rs`,
-UNGATED and UNVERIFIED — no premise check, no laws proven. Read the diff before trusting it.
+🟡 IN PROGRESS — resumed 2026-09-06 with its original context, on the new base (main now
+carries 571/573, 566 and the mark raise). Its interrupted work is WIP `8901084c` on branch
+`item-575` (worktree `.codex/worktrees/item-536-ornament-sets`), 16 files plus a new
+`src/app/input/text_door.rs`, UNGATED and UNVERIFIED — the lane was told to read its own diff
+before building on it, since it never reported a premise check.
 
 Confirmed in pixels and mechanism. Credits opens the bundled document as
 the ACTIVE buffer relocated into its workspace viewport, so the caret
