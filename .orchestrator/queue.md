@@ -274,7 +274,8 @@ decision is which world draws which set, not one global glyph.
 ---
 ### 542 — table editing: row/column palette verbs (user report, 2026-08-30 — "kinda awful to edit"; fruit 1 landed, this is fruit 2)
 
-🟢 GREENLIT 2026-09-06, READY TO BUILD, unclaimed — the user chose "Greenlight the verbs":
+🟡 CLAIMED 2026-09-06 — lane `item-542-verbs`, worktree
+`.claude/worktrees/agent-a32d40d785447697c`. The user chose "Greenlight the verbs":
 build Insert row above/below, insert column left/right, delete row/column as palette verbs,
 source splices over `markdown/tables.rs`, gated to caret-in-table like `AlignTable`.
 
@@ -1361,6 +1362,10 @@ lane trims the same geometry) — one lane may take both.
 ---
 ### 560 — theme picker rhythm: dead rows between the query head and the first row, and a top-heavy oversized hint card (user taste report, 2026-09-01 — "from where the caret is until the first item there's a lot of spacing… kind of weird; the bottom instruction box has too much padding vertically")
 
+🟡 CLAIMED 2026-09-06 (HINT-CARD HALF ONLY) — lane `item-560-hint`, worktree
+`.codex/worktrees/item-533`. The head-gap half (Q1) is NOT in scope and stays owed:
+`OVERLAY_QUERY_BEAT` is not to be touched by this lane.
+
 🔵 Q2 ANSWERED 2026-09-06, Q1 STILL OWED — the user chose the SYMMETRIC, ~one-row-tall
 hint card ("Symmetric and shorter"), overriding the existing pixel law's stated intent
 ("clear air above, trim the chin"), which is rewritten with it. Q1 (head gap
@@ -2272,7 +2277,7 @@ claim about "software rendering performance" needs its configuration stated, per
 standing rule that a check runs in one configuration and that configuration is itself an
 untested hypothesis.
 
-### 577 — insertion-door census: every path that can mutate the focused buffer is enrolled at one seam (follow-up to 575's lane report, 2026-09-06)
+### 580 — insertion-door census: every path that can mutate the focused buffer is enrolled at one seam (follow-up to 575's lane report, 2026-09-06)
 
 ⬜ READY (blocked on 575 merging — builds on its wall and `text_door.rs`)
 
@@ -2293,7 +2298,7 @@ watching it go red. Pure unit seam — no capture needed; harness-reach is not i
 
 Worker: engineering tier. Worktree per protocol; claim before code.
 
-### 578 — substitution-leak audit: what else reports about the hidden document while History/Conflict/Credits is up? (follow-up to 575's lane report, 2026-09-06)
+### 581 — substitution-leak audit: what else reports about the hidden document while History/Conflict/Credits is up? (follow-up to 575's lane report, 2026-09-06)
 
 ⬜ READY (after 575 merges; audit-tier per standing policy)
 
