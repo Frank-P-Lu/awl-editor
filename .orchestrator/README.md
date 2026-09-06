@@ -255,8 +255,11 @@ lost a sibling's source to `git add -u`.
 `worker-build.sh` invokes it before every concurrent worker command; the
 canonical native gate invokes the same owner for the root merge train. Above
 its 32 GiB healthy fleet floor it only reads filesystem capacity. Below that floor it
-locks, rechecks, and asks the sole traversal/deletion owner, `scripts/sweep.sh
-1`, for recovery. A post-sweep 24 GiB minimum is an early, truthful failure.
+locks, rechecks, and asks the sole deletion owner, `scripts/sweep.sh 1`, to
+prune THIS worktree's own `target/` and no other — the preflight fires on every
+concurrent worker command and `cargo sweep` takes no lock, so a fleet-wide
+traversal from here deletes fingerprints out from under a sibling lane's live
+compile. A post-sweep 24 GiB minimum is an early, truthful failure.
 The serializer is a kernel advisory lock held through inherited file descriptor
 9. The lock file may persist, but its contents carry no authority; the kernel
 releases ownership when a process exits or is killed.
@@ -893,6 +896,20 @@ times it fires.**
 - **Clean up merged worktrees, then run `scripts/sweep.sh`.** Cargo never
   collects superseded artifacts, so `target/` grows without bound into tens of
   gigabytes. `git worktree remove` removes the checkout, not the branch.
+  ⚠️ **`sweep.sh` prunes only the worktree it is run FROM.** It used to walk
+  every registered worktree, and the victim of that died on `failed to write
+  …/.fingerprint/<crate>/invoked.timestamp` — an ENOENT that reads as its own
+  broken build rather than as another lane's deletion. To reclaim the whole
+  fleet, run it from each worktree, or pass `--all-worktrees` once nothing is
+  building. `scripts/test-sweep.sh` holds that line and runs in
+  `code-health.sh`.
+- **Reap the gate, leave the tree.** `.orchestrator/reap-orphaned-gates.sh`
+  answers a question about the BRANCH — "already merged" — not about the agent,
+  and a merged branch does not mean the lane that produced it has stopped.
+  Retiring its processes is right and the merge train is the natural place to
+  do it, since merging is what orphans a gate in the first place. Running `git
+  worktree remove` on that same tree is not: it has already destroyed a live
+  run, taking the lane's registration and tracked files with it.
 - **Classify suspicious failures before blaming code.** Retry incremental
   failures with `CARGO_INCREMENTAL=0`. For `SIGKILL` with no test failure,
   check memory and rerun the gate alone.
