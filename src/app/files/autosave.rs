@@ -194,6 +194,26 @@ impl App {
         if !self.document.buffer().is_unnamed_fresh() {
             return;
         }
+        // NOTHING TO SAVE YET IS NOT A FAILURE. A fresh document is empty from
+        // the moment it is summoned until its first word, and a naming save can
+        // only refuse it — there is no line to derive a filename from. Reported
+        // through the `Err` arm below, that refusal reads "autosave failed:
+        // empty note: nothing to save yet", which turns an ordinary blank page
+        // into an alarm about a write nobody asked for. So this is a quiet
+        // no-write state: nothing reaches the disk (no litter) and nothing
+        // reaches the notice.
+        //
+        // The version is still recorded as HANDLED, which is what
+        // `record_note_write` means — otherwise `sync_view` would re-arm the
+        // debounce every frame and an untouched blank document would wake the
+        // app forever. An explicit Save still says so out loud
+        // (`finish_manual_save`): a user action that cannot be carried out must
+        // never go silent, and only the unasked-for one must stay quiet.
+        if !self.document.buffer().has_note_title() {
+            self.persistence
+                .record_note_write(naming_key, self.document.buffer().version());
+            return;
+        }
         self.persistence
             .record_note_write(naming_key.clone(), self.document.buffer().version());
         match self.document.save_owned(crate::durable::Owner::Autosave) {

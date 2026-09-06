@@ -59,6 +59,22 @@ impl Buffer {
         self.is_unnamed_fresh() && !self.dirty && self.rope.len_chars() == 0
     }
 
+    /// Is there a TITLE for a naming save to derive a filename from?
+    ///
+    /// `false` is the state every fresh document sits in between the moment it
+    /// is summoned and its first word — empty, or nothing but whitespace. It is
+    /// not a failure and it is not an error condition; it is simply nothing to
+    /// write yet, and the only reason [`Buffer::save`] answers it with an `Err`
+    /// is that its own contract is "a path, or a reason there is none".
+    ///
+    /// The ONE spelling of that question, so a caller that must not treat the
+    /// refusal as a failed write can ask it BEFORE asking for the write, and
+    /// still agree with `save`'s own bail by construction — both route through
+    /// [`first_nonempty_line`], which is what decides what counts as a title.
+    pub(crate) fn has_note_title(&self) -> bool {
+        first_nonempty_line(&self.rope.to_string()).is_some()
+    }
+
     pub(crate) fn fresh_id(&self) -> Option<u64> {
         self.fresh_id
     }

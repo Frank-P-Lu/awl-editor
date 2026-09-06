@@ -82,6 +82,16 @@ impl App {
     /// integer compare — enough to know the tree published for a future
     /// activation has gone stale, and nothing more.
     pub(in crate::app) fn refresh_accessibility(&mut self) {
+        // WHICH DOCUMENT the retained caches describe, before anything reads
+        // them. Every cache below this door is keyed by a `RunTable` REVISION
+        // — the projection's `content_rev`/`shape_rev`, the native projector's
+        // `shape` — and a revision restarts at 1 in each new table, so a swap
+        // can hand them a pair they have already published for a different
+        // document and every incremental gate then answers "nothing changed"
+        // about text that is entirely new. Identity is the missing half of the
+        // key (CLAUDE.md's cache-key discipline); the runtime owns the one
+        // transition that forgets all of it at once.
+        self.frame.note_document_identity(self.document_state().0);
         // The parked activation tree's currency is maintained on EVERY frame,
         // not only the ones with nobody listening. A screen reader may ask for
         // an INITIAL tree again in the middle of a session — macOS does exactly
@@ -114,12 +124,19 @@ impl App {
             && self.whichkey_panel_rows().is_none()
             && !crate::menubar::menu_bar_on()
             && self.frame.notice().text().is_none();
-        let state = self
-            .document
+        quiet_surface && self.frame.published_document_state() == self.document_state()
+    }
+
+    /// The one value naming the live document's exact state — its RunTable's
+    /// identity and content revision — or [`NO_DOCUMENT_STATE`] on the start
+    /// surface, where there is no document to name. The single spelling every
+    /// accessibility cache key is derived from, so the identity half and the
+    /// revision half cannot drift apart between the three callers that ask.
+    fn document_state(&self) -> (u64, u64) {
+        self.document
             .buffer_opt()
             .map(|buffer| buffer.runs().state_key())
-            .unwrap_or(NO_DOCUMENT_STATE);
-        quiet_surface && self.frame.published_document_state() == state
+            .unwrap_or(NO_DOCUMENT_STATE)
     }
 
     /// Build the tree the synchronous activation handler will serve, and park
@@ -131,11 +148,7 @@ impl App {
     pub(in crate::app) fn seed_accessibility_tree(&mut self) {
         let mut projection = self.frame.take_accessibility_projection();
         projection.refresh(&self.semantic_view());
-        let state = self
-            .document
-            .buffer_opt()
-            .map(|buffer| buffer.runs().state_key())
-            .unwrap_or(NO_DOCUMENT_STATE);
+        let state = self.document_state();
         self.frame.seed_accessibility(projection, state);
     }
 
