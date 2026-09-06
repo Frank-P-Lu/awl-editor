@@ -106,14 +106,41 @@ doubling; option off ⇒ byte-identical render to today.
 
 ### 567 — scripts/ cruft sweep: delete six concluded-investigation scripts and five unwired shell laws (user decision, 2026-09-06 — "unused stuff is kinda cruft right… i think i lean delete too")
 
-🟡 CLAIMED 2026-09-07 — lane `item-567`, worktree `.codex/worktrees/item-544-frost-box`.
-The sweep IS committed as `8a2b5d48` but is UNGATED: no reference-check report, no receipt.
-The lane's charge is verification before trust — and specifically, **re-measuring this item's
-own premise rather than inheriting it.** The claim that eleven files have zero references is
-orchestrator-authored, and this board has twice dispatched a lane on an orchestrator
-measurement that dissolved on first contact (once because BSD `strings` has no `-e`, so a
-UTF-16 pass measured nothing and the empty output was read as absence). The lane sweeps the
-tracked tree itself, with a tool it has confirmed searches what it thinks it searches.
+🟢 VERIFIED AND GATED, MERGE PENDING — lane `item-567`, worktree
+`.codex/worktrees/item-544-frost-box`, tip `7c99639a`.
+
+**The premise held exactly, and this time it was re-measured rather than inherited.** The
+lane swept the pre-sweep tree with `git grep -F` after first proving that tool reaches
+hidden paths, and separately ruled out the two ways a basename sweep can miss a live
+reference — glob-shaped paths under `scripts/`, and directory enumeration inside
+`code-health.py` (which filters a tracked-file list and holds no script roster). All eleven
+deletions have zero references outside their own bodies except the three the brief already
+named: `capture-ground-space.sh` and `capture-overlay-header-identity.sh` at
+`docs/render.md:54`/`:164` (the brief said 50/160; the file has since shifted four lines) and
+`test-sccache.sh` at `src/version_law.rs:15`.
+
+`8a2b5d48` was NOT the tip — `2c41d06a` was, a rebase of it with two hunk-header offsets and
+otherwise an identical patch. Content is right: exactly the eleven deletions, no more and no
+fewer, all four riders landed, and every named keep still present (both CI budget twins
+confirmed live in `ci.yml`).
+
+One defect found and fixed: dropping the clause from `version_law.rs`'s module doc left the
+paragraph unwrapped — a 41-column orphan and one line four columns past the 76-column
+ceiling the rest of the file holds. `7c99639a`, wrap only, text unchanged.
+
+Receipt: `native-gate-receipt commit=7c99639a health=pass:323s conventions=mac,linux
+scope=all-targets menubar=full:on unit_tests=4853 unit_shards=6 integration_targets=17`,
+plus `web-smoke: OK`. Both came on retry, for the reason item 593 now records.
+
+⚠️ **The receipt's base is `1bb0e751`, not today's main.** The branch is 2 ahead / 8 behind
+and cannot be fast-forwarded, so the merge train re-gates the combined candidate rather than
+carrying this receipt across. The divergence is provably benign — the sweep's 15 files and
+the 26 files main has changed since are disjoint — but benign is not gated.
+
+**Two corrections this item's own brief got wrong, recorded so they die here:** (a) the brief
+says the only wired shell law is `test-native-gate.sh`; there are TWO — `linux-deps-law.sh`
+is wired at `code-health.sh:70`. The deletions are unaffected. (b) hygiene rider (a)'s stated
+motive is false; see item 594.
 
 A full audit of `scripts/` (78 tracked files) found the tree largely
 load-bearing — CI-invoked, gate-invoked, or documented entry points — with
@@ -915,6 +942,66 @@ DPI 1/2. Assert label/value proximity, usable controls, no clipping, correct
 focus/selection and unchanged setting behavior. Validate appearance with pixels
 and the standing vision smoke; add mutation-proven laws at shared seams. Final
 theme-specific composition remains a live taste review.
+
+### 593 — `sweep.sh 1` prunes every worktree's `target/`, including the ones being built in (found by 567's lane, 2026-09-07; measured, not inferred)
+
+⬜ READY — high priority: this defect corrupts concurrent lanes, which is the exact
+configuration the orchestration layer is built to run.
+
+`scripts/sweep.sh` is the disk preflight's sole deletion owner and
+`.orchestrator/worker-build.sh` fires the preflight on EVERY lane command. The sweep
+traverses and prunes every worktree's `target/` — not only the caller's — so a lane that
+merely starts a build deletes fingerprint files out from under a sibling lane's live
+compile. The victim dies on `failed to write …/.fingerprint/<crate>/invoked.timestamp`
+(ENOENT), which reads as a broken build rather than as another process's deletion.
+
+**Measured, not argued.** 567's lane instrumented one attempt with a `ps` sampler: a
+`sweep.sh 1` launched from `.claude/worktrees/item-586-587` ran 00:51:33–00:52:03 while the
+lane's own build compiled, and that build died on `harfrust-…/invoked.timestamp` immediately
+after. The cost that round was six runs — the native gate went green on attempt 2 and
+web-smoke on attempt 7.
+
+The trigger is a low-disk condition, so the failure is bursty and looks flaky: while free
+space sits under the preflight's floor, every lane command fires a sweep, so an active wave
+has its lanes reliably corrupting each other. One honest early refusal was also observed:
+`disk-preflight: insufficient space after sweep-1d; free_bytes=25336659968
+minimum_bytes=25769803776`.
+
+Mitigated but NOT fixed 2026-09-07: the orchestrator reclaimed the stale `target/` trees of
+every worktree with no live build (26 GB free → 131 GB), which stops the trigger firing
+today. That is headroom, not a repair — the next wave that fills the disk reproduces it.
+
+Build: the sweep must never delete inside a worktree other than its caller's, or must take a
+lock every builder respects. Prefer the narrow fix. Laws: a sweep launched from worktree A
+leaves worktree B's `target/` untouched; the law fails when the traversal is widened back to
+all worktrees. Note the deleted `test-sweep.sh` was one of 567's eleven unwired laws — this
+subject has just earned a law again, so per that item's own recorded decision it gets wired
+into `code-health.sh` at birth rather than left to rot.
+
+---
+
+### 594 — the recurring `scripts/__pycache__/` has two unguarded creators, and the guard that was supposed to stop it cannot (found by 567's lane, 2026-09-07; premise of 567's rider (a) falsified)
+
+⬜ READY — small, and it closes a false premise rather than leaving it in the tree.
+
+Item 567's hygiene rider (a) added `PYTHONDONTWRITEBYTECODE=1` to `code-health.sh`'s
+`python3 scripts/code-health.py` invocation to kill the recurring `scripts/__pycache__/`.
+The flag is harmless and worth keeping as parity, but **its stated motive is false and the
+directory will keep coming back:** `code-health.py` runs as `__main__` and imports no local
+module, so CPython can never write a `.pyc` for it. Confirmed empirically — a full
+`code-health.sh` run produced no `scripts/__pycache__`.
+
+The real creators are the `importlib.util.spec_from_file_location` loaders at
+`scripts/test-native-test-shards.py:14`, `scripts/ground-contrast-measure.py:91`,
+`scripts/ambient-motion-measure.py:35`, and `scripts/test-native-gate.sh:60`.
+`test-native-gate.sh` already guards its two (lines 6 and 55). The two `*-measure.py`
+scripts are unguarded, and both are on 567's explicit keep-list — invoked from
+`render/tests/deckle_ground.rs` and the `capture-*.sh` pair.
+
+Build: guard the two unguarded loaders at their own call sites. Law: after a run of each
+consumer, no `scripts/__pycache__` exists; prove it non-vacuous by removing a guard and
+watching the directory come back. Rider: correct rider (a)'s comment where it states the
+motive, so the next reader is not taught the wrong mechanism.
 
 ## Owed to the user — landed work awaiting a live eye
 
