@@ -418,154 +418,6 @@ work. This brief authorizes the correction, not unrelated background redesigns.
 
 ---
 
-### 583 — blank new document raises an autosave failure (live bug hunt, 2026-09-06)
-
-🟢 MERGED with 584 as `27aa13fa`, EXACT-MAIN RECEIPT OWED — lane `item-583-584`, tip
-`e9f04905`, receipt green on base `610b7c7b`. **Premise reconfirmed on the current build, not
-inherited:** the mutation run reproduced the reported string verbatim out of HEAD's own code.
-
-Mechanism: `viewstate.rs` arms the naming debounce whenever the buffer `is_unnamed_fresh()`
-and a write is owed — true of a blank page from the moment it is summoned. 400 ms later
-`autosave_note` calls `save_owned`, which bails because `first_nonempty_line` returns `None`
-and there is no line to name the file from, and the `Err` arm turns that refusal into a
-sticky notice about a write nobody asked for. `flush_note` is a second door into the same
-refusal on blur/switch/quit.
-
-Fix: `Buffer::has_note_title()` routed through the SAME `first_nonempty_line` the save's own
-bail uses, so the two cannot disagree; `autosave_note` decides the quiet state BEFORE asking
-for the write and records the version as handled, so `sync_view` cannot re-arm the debounce
-forever on a blank page. Deciding before rather than inspecting the error afterwards is what
-keeps a genuine filesystem failure loud — and an explicit ⌘S still reports it. One law sweeps
-content state × the door the write arrives through, and includes a real `UnwritableFs`
-failure that must still be reported. Mutation-proven: removing the gate reddens it by name.
-
-**Observed / reproduce.** In the running macOS app, Kite, create a document
-through File → New document or ⌘N and pause without typing. The notice reads
-“autosave failed: empty note: nothing to save yet — changes remain in editor”.
-Reproduced on two new notes; the warning was also visible during subsequent
-typing. Explicit ⌘S after adding prose reported saved. This establishes a
-false failure for an ordinary empty state, not data loss or a failed disk write.
-The running binary's revision was not recorded; recheck on the current build.
-
-**Build / verify.** Treat a genuinely empty unnamed note as a quiet no-write
-state while preserving real save-error notices. Read docs/platform.md. At the
-live-App scheduling/persistence seam, sweep empty, whitespace-only, first prose,
-delete-back-to-empty and a real filesystem failure. Assert no file litter and
-no failure notice for the empty cases, successful persistence after typing,
-and retained errors for genuine failures. Add a law that fails on the reported
-empty-note behavior; prove the mutation builds and the test runs. Confirm the
-pause/typing journey in a real window; ordinary capture has no autosave clock.
-
----
-
-### 584 — document accessibility text goes stale after creating a new document (live bug hunt, 2026-09-06)
-
-🟢 MERGED with 583 as `27aa13fa`, EXACT-MAIN RECEIPT OWED — same lane and tip.
-
-**Premise TRUE, and proved to be awl's rather than the reading tool's** — which is what this
-item's own brief demanded, and the lane got there by never involving the OS at all. The law
-drives synthetic A/B documents through the real `App` and replays what awl HANDED the
-platform, through the existing `Mirror` oracle over the runtime's single `emit` door. On
-unfixed code the mirror held `["alpha\n","beta\n","gamma\n",""]` while the live document was
-`[""]`. That mismatch is inside awl's own published tree — before AccessKit, before macOS,
-before any reader — so tool caching cannot account for it. The `common_filter`/`Role::TextRun`
-caveat is separately correct and is NOT this defect; its own law still passes.
-
-**This is the cache-key tripwire, one seam over from the renderer's text cache that already
-has a law for it.** Every retained cache under the accessibility runtime keys on a `RunTable`
-revision and none on document identity, and `RunTable::new` restarts `content_rev`/`shape_rev`
-at 1 in every table — so a disk-loaded file and a brand-new document both present `(1,1)`, and
-`sync_runs`' opening `if table.content_rev() == self.content_rev { return false; }` answered
-"nothing changed" about text it had never seen. `RunTable::state_key()` already carried the
-missing identity; nothing read its first element.
-
-Fix: `note_document_identity` routes a change into the EXISTING `invalidate()` — the same door
-a reattach uses, for the same reason: nothing retained may be diffed against. It sits on the
-runtime because that is the one place owning all three stale things at once (the projection's
-revisions and nodes, the projector's child ids, and the `owes_full` debt); a fix inside the
-projection alone would have left the projector's `shape` cache hot. One integer compare per
-frame, so a frame with nobody listening still builds nothing.
-
-**Observed / reproduce.** With an existing prose file open, File → New document
-changed the window/document name to untitled and showed a blank page, but the
-native accessibility readout still returned the old file's text. After typing
-new prose, full accessibility reads returned no document value despite the
-visible text. Selecting the visible sentence through accessibility failed with
-“Could not find the requested text”. Query fields continued reporting values.
-
-**Scope / premise check.** Evidence came through computer-use accessibility
-reads, not a VoiceOver listening test. Later window-control errors were excluded
-from the finding. Reproduce with synthetic A/B documents on a recorded current
-build, and distinguish stale adapter data from tool caching before changing
-product code. Read ACCESSIBILITY.md and the semantic/native bridge owners;
-zero accessible TextRun children is expected and is not this defect.
-
-**Verify.** Exercise new/open/switch/edit at colliding buffer versions, checking
-document text and selection through the native text interface against the actual
-buffer. Add a law at the failing publication/cache seam, mutation-proven, and
-confirm the native journey. A correct semantic snapshot alone cannot prove the
-OS received it. If tooling caused the mismatch, close as premise false with
-the repaired oracle rather than claiming a product fix.
-
----
-
-### 585 — ⌘A in Find selects the underlying document instead of the query (live bug hunt, 2026-09-06)
-
-🟢 MERGED as `92b1b13a`, EXACT-MAIN RECEIPT OWED — lane `item-585`, tip `acff9bba`. Premise
-reproduced at the shared-core seam on a recorded build (`awl 0.12.0` at `8c513232`, rustc
-1.98.0, macOS 26.6.2): a 17-character document came back `selection_range = Some((0, 17))`
-while the query stayed `"beta"`.
-
-**The report was one keystroke; the defect is a routing class.** The find/replace panel's KEY
-door consumes every key and both key drivers gate on it, so `apply_transition` was DOCUMENTED
-as unreachable while the panel is up. That is a claim about KEYS. AppKit answers a menu item's
-key equivalent in `performKeyEquivalent:` BEFORE the key window sees the event, so on macOS ⌘A
-never becomes a winit key at all — it fires Edit ▸ Select all, which `handle_menu_event`
-routes into `App::apply` as an `Action`. The menu/context-menu CLICK and a palette row's
-`Effect::RunAction` arrive the same way. The summoned CARD always had an action-level gate;
-the summoned PANEL had none.
-
-**Both axes of the law are DERIVED, which is what the item asked for and the part most easily
-under-done:** surfaces from `TextField::ALL`, verbs from the Edit menu's own shipped rows
-resolved through the catalog — exactly the set macOS installs real key equivalents for. An
-eighth field fails to COMPILE until someone says how it is summoned; a seventh Edit row enrols
-on its own. A second law cross-checks the roster against the `EDIT_ITEMS` table it is built
-from, so a filter that silently stopped matching is caught rather than quietly shrinking the
-sweep — two independent paths to the same answer.
-
-It carries the **presence companion**, the half this repo has repeatedly watched laws die
-without: "the document did not change" is satisfied by a door that stopped working, by a
-fixture whose buffer was never active, and by a roster that enrolled nobody. So both rosters
-must be non-empty and are named in every failure message, the same verbs are driven with
-NOTHING summoned and required to REACH the document, and each surface must still be standing
-with its field text intact after the refusal.
-
-**No capture door can drive this** — `--keys` and `--screenshot-app` both enter through the
-key drivers the panel's guard already stops, so it is structurally unreachable from every
-chord-replay door. The unit seam is the purest reachable one, per `docs/harness-reach.md`.
-
-**Observed / reproduce.** Open Find with a nonempty query, focus its field,
-press ⌘A, then type replacement text. With query `beta`, typing `alpha`
-produced `betaalpha`; another ⌘A followed by `Z` produced `betaalphaZ`.
-The screenshot showed the entire underlying document selected while the
-accessibility focus remained on Find. Reproduced twice in the running macOS
-app, Kite; record the build when repeating it.
-
-**Build / scope.** Select-all and subsequent editing must belong to the focused
-query, preserving the parked document selection. Read docs/config.md and the
-input-routing owners. Audit the neighboring Find/Replace fields and summoned
-text-entry surfaces for select-all, cut/copy/paste, deletion and undo escaping
-to the document. Derive the surface roster; do not count variants of this
-routing defect as separate fixes. Preserve document editing when no field is up.
-
-**Verify.** Drive the real keymap at the purest shared/live-App seam and assert
-query value, query selection and unchanged document text/selection. Include
-both keymap conventions and both find fields. Add the missing focus-routing
-law and prove it fails with the bypass restored; repeat the visible ⌘A/typing
-journey after the repair.
-
----
-
 ### 588 — list-bullet pairs derive from each world's worn ornament set (carried out of 536's fold, 2026-08-30 decision)
 
 Item 536 assigned all 20 worlds their Nishiki ornament trios (dash/star/underscore) and
@@ -730,6 +582,14 @@ has its lanes reliably corrupting each other. One honest early refusal was also 
 `disk-preflight: insufficient space after sweep-1d; free_bytes=25336659968
 minimum_bytes=25769803776`.
 
+Observed twice on 2026-09-07 alongside this: a lane whose branch had ALREADY MERGED still had
+a detached gate running in its worktree, competing for the same ten cores and driving the host
+to load 43 and later 58. `reap-orphaned-gates.sh` identifies exactly that state — by the
+branch being merged, not by anyone's judgement — and retired 12 gates and 102 processes in one
+pass. That script is deliberately not wired into any automatic teardown, which is right, but
+nothing prompts anyone to RUN it either; the merge train is the natural place, since it is the
+step that makes a lane's gate orphaned in the first place.
+
 Mitigated but NOT fixed 2026-09-07: the orchestrator reclaimed the stale `target/` trees of
 every worktree with no live build (26 GB free → 131 GB), which stops the trigger firing
 today. That is headroom, not a repair — the next wave that fills the disk reproduces it.
@@ -809,6 +669,8 @@ to LF by a removal. Unreachable on awl's shipped platforms and therefore not urg
 contradicts the file-preservation promise the same function otherwise keeps, and the rope's
 whole CRLF discipline is "load normalizes, save restores".
 
+---
+
 ### 597 — three inline-formatting cases that predate 586/587 and have no valid output today (found by that lane, 2026-09-07)
 
 ⬜ READY — small, and filed so they are not rediscovered as regressions of the fix that found
@@ -828,8 +690,6 @@ different threshold.
 Build: decide (a) deliberately — refuse or widen — and give (b) an oracle that does not depend
 on a surviving text event. Laws: each case asserted through the real parser, and each proven
 non-vacuous by restoring today's behaviour and watching it go red.
-
----
 
 ## Owed to the user — landed work awaiting a live eye
 
@@ -907,32 +767,35 @@ this ground's geometry and inherits the same sign-off.
 
 ---
 
-## Green train — the exact-main receipt
+## Green train — the exact-main receipts
 
-Taken on `5d4819e3` with the host quiet (load ~6 on ten cores), HEAD verified unmoved across
-the whole run:
+**Second train, `72e922e1`** — covers 583/584 and 585, taken with HEAD verified unmoved across
+the run:
 
 ```
-native-gate-health status=ok elapsed_seconds=271 mode=real
-native-gate-receipt commit=5d4819e38bb1fcc6847f298acf1888e30d20239e health=pass:271s
-  conventions=mac,linux scope=all-targets menubar=full:on unit_tests=4903 unit_shards=6
+native-gate-health status=ok elapsed_seconds=251 mode=real
+native-gate-receipt commit=72e922e1400def84b1e4983893548186955fc7f5 health=pass:251s
+  conventions=mac,linux scope=all-targets menubar=full:on unit_tests=4917 unit_shards=6
   integration_targets=18
 ```
-plus `scripts/web-smoke.sh` → `==> web-smoke: OK`.
+plus `web-smoke: OK`.
 
-This discharges the receipt owed by 571/573, 567 and 568/569, and covers 586/587 — one
-receipt over the tree they all now share, rather than four receipts over four bases that no
-longer exist. Those seven items leave the board; their decisions are in
-`git log -p -- .orchestrator/queue.md` and their unanswered questions are below.
+**First train, `5d4819e3`** — covered 571/573, 567, 568/569 and 586/587:
+`health=pass:271s conventions=mac,linux scope=all-targets menubar=full:on unit_tests=4903
+unit_shards=6 integration_targets=18`, plus `web-smoke: OK`. Pushed as `a7ad4c68`; **CI run
+34047161907 passed all four gating jobs**, including the hosted-mac pair — the two reds are
+the pinned tolerated `atspi` and `mac (render::tests)`. That hosted arm is the only one that
+has ever seen the virtualised-GPU axis, so it is the half of the verification no local receipt
+can supply.
 
-⚠️ **Hardware bound, restated because a receipt invites forgetting it:** this certifies the
-dev host's real Apple Silicon Metal. Virtualised-GPU behaviour is untested by any local gate,
-a wedge stayed green here while red on hosted macOS for ~140 commits, and CI's lavapipe job
-stayed green through that entire streak. The only arm that has ever seen that axis is CI's
-hosted-mac pair.
+⚠️ **Hardware bound, restated because a green receipt is exactly when it gets forgotten:** a
+local receipt certifies the dev host's real Apple Silicon Metal. A wedge once stayed green
+here while red on hosted macOS for ~140 commits, and CI's lavapipe job stayed green through
+that entire streak, so a software adapter is not a stand-in for that axis.
 
-⚠️ **It also does not cover the two lanes still live** (583/584 and 585). Their merges need
-their own candidate gated.
+⚠️ **Neither receipt covers a live journey.** Three items merged this wave with their live
+confirmation explicitly NOT obtained, because the display was locked; they are in the owed
+section, not silently absorbed into these receipts.
 
 ## Watch — verification that only a future run can supply
 
