@@ -420,16 +420,36 @@ impl TextPipeline {
             return Vec::new();
         }
         // CACHE + CULL: the rule-line SET is a pure function of the text (cached by
-        // reshape version); each frame we just drop the caret's own line (reveal-on-
-        // cursor) and the OFF-SCREEN lines (clipped to nothing anyway). Ascending
-        // order + the same membership on the visible rows => byte-identical render.
+        // reshape version); each frame we just drop the caret's own line AND every
+        // line the active selection touches (reveal-on-cursor, widened the same way
+        // `footnote_marks`/`bare_url_marks` widen theirs — one owner,
+        // `selection_touch_bytes`/`selection_touches`, never re-derived) plus the
+        // OFF-SCREEN lines (clipped to nothing anyway). Ascending order + the same
+        // membership on the visible rows => byte-identical render.
         self.ensure_ornament_lists();
+        let selection_touch = selection_touch_bytes(
+            self.selection,
+            |li| self.line_doc_byte_start(li),
+            |li| {
+                self.buffer
+                    .lines
+                    .get(li)
+                    .map_or(0, |line| line.text().len())
+            },
+        );
         self.ornament_cache
             .rule_lines
             .borrow()
             .iter()
             .copied()
-            .filter(|&li| li != self.cursor_line && self.line_ornament_visible(li))
+            .filter(|&li| {
+                if li == self.cursor_line || !self.line_ornament_visible(li) {
+                    return false;
+                }
+                let start = self.line_doc_byte_start(li);
+                let end = start + self.buffer.lines.get(li).map_or(0, |l| l.text().len());
+                !selection_touches(selection_touch.as_ref(), &(start..end))
+            })
             .collect()
     }
 
