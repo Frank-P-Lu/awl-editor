@@ -300,6 +300,24 @@ impl SpellChecker {
         self.user_words.len()
     }
 
+    /// The personal dictionary's words, alphabetically — the ONE reader the
+    /// "Personal dictionary…" picker builds its rows from
+    /// (`OverlayState::new_user_words`). Sorted here rather than at the call
+    /// site so a picker rebuilt after any add or forget reads the same order
+    /// without ordering logic of its own.
+    pub fn user_words_sorted(&self) -> Vec<String> {
+        let mut words: Vec<String> = self.user_words.iter().cloned().collect();
+        words.sort();
+        words
+    }
+
+    /// Drop `word` from the in-memory personal set, normalized exactly the way
+    /// [`Self::add_user_word`] normalizes on the way in, so a hand-edited file's
+    /// stray casing or whitespace still matches. `true` when something left.
+    pub fn remove_user_word(&mut self, word: &str) -> bool {
+        self.user_words.remove(&word.trim().to_lowercase())
+    }
+
     pub fn misspellings(&self, text: &str) -> Vec<Misspelling> {
         misspelled_spans(text, |w| self.check(w))
     }

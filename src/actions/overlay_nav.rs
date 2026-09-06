@@ -709,14 +709,12 @@ fn accept_value_overlay(ctx: &mut ActionCtx) -> Effect {
         dispose_after_accept(ctx);
         return eff;
     }
-    if ov.kind == crate::overlay::OverlayKind::Assets {
-        // The App removes an asset row only after the requested trash succeeds.
-        return match ov.selected_value() {
-            Some(rel) => Effect::TrashAsset {
-                rel: rel.to_string(),
-            },
-            None => Effect::None,
-        };
+    // THE PER-ROW DESTRUCTIVE ACCEPTS — one owner, because they are one rule:
+    // `↵` retires the HIGHLIGHTED row from a list you stay in, so each returns
+    // WITHOUT `dispose_after_accept` and neither shrinks the list itself. The
+    // App removes the row only once the deletion really happened.
+    if let Some(effect) = row_retiring_accept(ov) {
+        return effect;
     }
     if ov.kind == crate::overlay::OverlayKind::History {
         let eff = match ov.selected_history_id() {
@@ -1091,4 +1089,28 @@ pub(crate) fn preview_overlay(ov: &OverlayState) {
 pub(crate) fn preview_move(ov: &mut OverlayState) {
     preview_overlay(ov);
     ov.reanchor();
+}
+
+/// The effect a per-row DESTRUCTIVE accept arms, or `None` when this card has
+/// no such grammar. Exhaustive over the two members rather than a `matches!`,
+/// so a third stay-open destructive picker declares its effect here instead of
+/// silently falling through to the generic value accept.
+fn row_retiring_accept(ov: &crate::overlay::OverlayState) -> Option<Effect> {
+    let value = match ov.kind {
+        crate::overlay::OverlayKind::Assets | crate::overlay::OverlayKind::UserWords => {
+            ov.selected_value()
+        }
+        _ => return None,
+    };
+    let Some(value) = value else {
+        return Some(Effect::None); // an empty list: a calm no-op, card still up
+    };
+    Some(match ov.kind {
+        crate::overlay::OverlayKind::Assets => Effect::TrashAsset {
+            rel: value.to_string(),
+        },
+        _ => Effect::ForgetUserWord {
+            word: value.to_string(),
+        },
+    })
 }

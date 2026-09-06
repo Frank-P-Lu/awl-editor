@@ -129,6 +129,7 @@ macro_rules! classify_action_family {
             | Action::OpenSpellSuggest
             | Action::OpenHistory
             | Action::OpenAssetClean
+            | Action::OpenUserWords
             | Action::OpenSearchFolder
             | Action::KeepVersion
             | Action::CompareVersion

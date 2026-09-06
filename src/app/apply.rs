@@ -466,6 +466,7 @@ impl App {
             spell_target,
             history_entries,
             assets,
+            user_words,
             row_gates,
             search_root,
             search_corpus,
@@ -495,6 +496,7 @@ impl App {
                 crate::dateformat::today_from_system_clock(),
             ),
             assets,
+            user_words,
             row_gates,
             search_root,
             search_corpus,
@@ -595,6 +597,7 @@ impl App {
             actions::Effect::SettingPathPick { key, path } => self.setting_path_pick(&key, &path),
             actions::Effect::SettingRangeStep { key } => self.setting_range_step(&key),
             actions::Effect::TrashAsset { rel } => self.trash_asset(rel),
+            actions::Effect::ForgetUserWord { word } => self.forget_user_word(&word),
             actions::Effect::TrashFile(path) => {
                 self.trash_buffer(crate::buffers::BufferKey::path(&path));
             }
@@ -701,8 +704,8 @@ impl App {
             // caret in one effect) rather than a generic `OverlayAccept` --
             // nothing arrives here under this kind either.
             Theme | Browse | ProjectBrowse | ExportDest | Command | Spell | Keybindings
-            | Settings | Assets | Rename | InsertLink | KeepName | Context | Conflict | Credits
-            | TableDims | SearchFolder => {}
+            | Settings | Assets | UserWords | Rename | InsertLink | KeepName | Context
+            | Conflict | Credits | TableDims | SearchFolder => {}
         }
     }
 

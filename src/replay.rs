@@ -182,6 +182,12 @@ pub fn classify_for(effect: &Effect, filesystem: FilesystemCapability) -> Classi
             "add_to_dictionary",
             unsupported("the live App alone persists the word and clears its squiggle"),
         ),
+        // The exact inverse of the add above, and the same tier: the live App
+        // alone rewrites the word list and brings the squiggle back.
+        Effect::ForgetUserWord { .. } => c(
+            "forget_user_word",
+            unsupported("the live App alone rewrites the word list and restores its squiggle"),
+        ),
         Effect::RebindCommit { .. } => c(
             "rebind_commit",
             unsupported("the live App alone writes config and reloads the binding"),
@@ -292,6 +298,7 @@ fn accept_class(kind: OverlayKind) -> EffectClass {
         | OverlayKind::Keybindings
         | OverlayKind::Settings
         | OverlayKind::Assets
+        | OverlayKind::UserWords
         | OverlayKind::Rename
         | OverlayKind::InsertLink
         | OverlayKind::KeepName

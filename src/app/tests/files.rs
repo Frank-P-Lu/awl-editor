@@ -62,6 +62,7 @@ fn rescan_file_index_picks_up_a_file_created_after_the_last_scan() {
         history_session_start: None,
         settings_values: Default::default(),
         assets: Vec::new(),
+        user_words: Vec::new(),
         row_gates: Default::default(),
         search_root: std::path::PathBuf::new(),
         search_corpus: Vec::new(),

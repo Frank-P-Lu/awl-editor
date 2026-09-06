@@ -418,6 +418,7 @@ fn palette(cx: &mut Cx) -> Result<CellOut> {
                 crate::dateformat::CAPTURE_PLACEHOLDER_YMD,
             ),
             assets: Vec::new(),
+            user_words: Vec::new(),
             row_gates: Default::default(),
             search_root: std::path::PathBuf::new(),
             search_corpus: Vec::new(),

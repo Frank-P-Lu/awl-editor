@@ -57,6 +57,7 @@ fn surface_contract(kind: crate::overlay::OverlayKind) -> SurfaceContract {
         | K::Keymap
         | K::Keybindings
         | K::Assets
+        | K::UserWords
         | K::Rename
         | K::InsertLink
         | K::KeepName

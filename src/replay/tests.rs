@@ -99,6 +99,9 @@ fn roster() -> Vec<Effect> {
         Effect::TrashAsset {
             rel: "assets/orphan.png".into(),
         },
+        Effect::ForgetUserWord {
+            word: "zorbling".into(),
+        },
         Effect::RenameNoteCommit {
             new_name: "new.md".into(),
         },
@@ -170,6 +173,7 @@ fn every_effect_lands_in_its_documented_bucket() {
         "finish_save",
         "keep_version",
         "add_to_dictionary",
+        "forget_user_word",
         "rebind_commit",
         "rebind_reset",
         "setting_toggle",

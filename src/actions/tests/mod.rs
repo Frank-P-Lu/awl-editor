@@ -669,6 +669,7 @@ macro_rules! classify_delete_flinch {
             | Action::OpenHistory
             | Action::CompareVersion
             | Action::OpenAssetClean
+            | Action::OpenUserWords
             | Action::OpenSearchFolder
             | Action::KeepVersion
             | Action::FinishBuffer
@@ -913,6 +914,7 @@ macro_rules! assert_action_roster {
             | Action::OpenHistory
             | Action::CompareVersion
             | Action::OpenAssetClean
+            | Action::OpenUserWords
             | Action::OpenSearchFolder
             | Action::KeepVersion
             | Action::FinishBuffer
@@ -1053,6 +1055,7 @@ fn command_action_roster() -> Vec<Action> {
         Action::OpenHistory,
         Action::CompareVersion,
         Action::OpenAssetClean,
+        Action::OpenUserWords,
         Action::KeepVersion,
         Action::FinishBuffer,
         Action::ReviewChange,
@@ -1154,6 +1157,8 @@ macro_rules! classify_smoke_command {
         | Action::OpenSettingsMenu
         | Action::OpenKeybindings
         | Action::OpenAssetClean
+        // PERSONAL DICTIONARY: the same shape — a direct summon of its own kind.
+        | Action::OpenUserWords
         // SEARCH IN FOLDER: summons `OverlayKind::SearchFolder` directly,
         // same shape as Asset Clean beside it.
         | Action::OpenSearchFolder

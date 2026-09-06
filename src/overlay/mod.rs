@@ -57,6 +57,7 @@ mod search;
 mod semantic;
 mod state;
 mod table_dims;
+mod user_words;
 pub(crate) mod workspace;
 
 #[allow(unused_imports)] // HERE_LABEL / here_folder_label: read by the row-label laws

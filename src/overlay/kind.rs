@@ -27,6 +27,7 @@ enum_with_all! {
         ExportDest,
         TableDims,
         SearchFolder,
+        UserWords,
     }
 }
 
@@ -70,6 +71,7 @@ impl OverlayKind {
             OverlayKind::ExportDest => "export_dest",
             OverlayKind::TableDims => "table_dims",
             OverlayKind::SearchFolder => "search_folder",
+            OverlayKind::UserWords => "user_words",
         }
     }
 
@@ -94,6 +96,7 @@ impl OverlayKind {
             | OverlayKind::Date
             | OverlayKind::Keymap => ValuePick,
             OverlayKind::Assets
+            | OverlayKind::UserWords
             | OverlayKind::Keybindings
             | OverlayKind::Settings
             | OverlayKind::Conflict
@@ -134,6 +137,7 @@ impl OverlayKind {
             | OverlayKind::Rename
             | OverlayKind::InsertLink
             | OverlayKind::KeepName
+            | OverlayKind::UserWords
             | OverlayKind::TableDims => &[Plain],
             OverlayKind::Assets => &[Asset],
             OverlayKind::SearchFolder => &[SearchHit],
@@ -188,6 +192,7 @@ impl OverlayKind {
             | OverlayKind::Context
             | OverlayKind::ExportDest
             | OverlayKind::TableDims
+            | OverlayKind::UserWords
             | OverlayKind::SearchFolder => false,
         }
     }
@@ -240,6 +245,7 @@ impl OverlayKind {
             | OverlayKind::Context
             | OverlayKind::ExportDest
             | OverlayKind::TableDims
+            | OverlayKind::UserWords
             | OverlayKind::SearchFolder => false,
         }
     }
@@ -310,6 +316,7 @@ impl OverlayKind {
             | OverlayKind::KeepName
             | OverlayKind::Context
             | OverlayKind::TableDims
+            | OverlayKind::UserWords
             | OverlayKind::SearchFolder => false,
         }
     }
@@ -364,6 +371,9 @@ impl OverlayKind {
             // the wrong absence.
             OverlayKind::ExportDest | OverlayKind::ProjectBrowse => "no folders here",
             OverlayKind::Assets => "no unused assets",
+            // Names the ONE door that fills this list, because the file it
+            // mirrors is not otherwise visible anywhere in the product.
+            OverlayKind::UserWords => "no added words — add one from the spell card",
             OverlayKind::Theme
             | OverlayKind::Caret
             | OverlayKind::Dictionary
@@ -417,6 +427,7 @@ impl OverlayKind {
             OverlayKind::Credits => "credits",
             OverlayKind::Settings => "settings",
             OverlayKind::Assets => "unused assets",
+            OverlayKind::UserWords => "personal dictionary",
             OverlayKind::Rename => "rename",
             OverlayKind::InsertLink => "insert link",
             OverlayKind::KeepName => "keep version",
@@ -453,6 +464,7 @@ impl OverlayKind {
             | OverlayKind::KeepName
             | OverlayKind::Context
             | OverlayKind::TableDims
+            | OverlayKind::UserWords
             // The match highlight rides its own dedicated per-row byte-range
             // field (`RowMeta::SearchHit`'s `hl_start`/`hl_end`, threaded
             // through `ViewState::overlay_match_highlights`), never this
@@ -512,6 +524,7 @@ impl OverlayKind {
             | OverlayKind::Spell
             | OverlayKind::Keybindings
             | OverlayKind::Assets
+            | OverlayKind::UserWords
             | OverlayKind::Rename
             | OverlayKind::InsertLink
             | OverlayKind::KeepName

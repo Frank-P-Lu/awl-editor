@@ -163,6 +163,7 @@ Commands are grouped by the same task categories the palette browses.
 |---|---|---|---|---|
 | Spell suggestions… | Summon spelling suggestions for the misspelled word at the caret. | `⌘;` | `Ctrl+;` | Native, browser |
 | Clean unused assets… | Summon the list of orphaned image files under the project, for moving to the trash. | — | — | Native |
+| Personal dictionary… | List the words you have added to spell-check; accept a row to forget that word. | — | — | Native, browser |
 | About | Show the About panel. | — | — | Native, browser |
 | Credits | Open the bundled Credits document in a read-only viewer. | — | — | Native, browser |
 | Lifetime stats | Open the lifetime writing statistics panel. | — | — | Native |
@@ -246,6 +247,14 @@ ordinary text; saving it reloads it live.
 
 Precedence is command-line flag, then file, then default. An absent file and an
 absent key behave identically.
+
+### Personal dictionary file
+
+`dictionary.txt` sits beside `config.toml`, one added word per line. "Add '…'
+to dictionary" in the spell card appends to it; the "Personal dictionary…"
+command lists the words and forgets one per row. Blank lines and `#` comments
+are preserved, so it stays hand-editable. It is global, not per project, and it
+is read at startup only — no network, ever.
 
 <!-- GENERATED:reference-config:BEGIN -->
 ### Keys

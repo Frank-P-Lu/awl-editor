@@ -402,6 +402,7 @@ deadline without a surface).
 | `finish_save` | Unsupported |
 | `flush_writing_streaks` | Applied |
 | `follow_link` | Intercepted |
+| `forget_user_word` | Unsupported |
 | `gulp` | Applied |
 | `insert_date` | Applied |
 | `jump_to_line` | Applied |
@@ -443,6 +444,7 @@ deadline without a surface).
 | `overlay_accept:Spell` | Unsupported |
 | `overlay_accept:TableDims` | Unsupported |
 | `overlay_accept:Theme` | Applied |
+| `overlay_accept:UserWords` | Unsupported |
 | `persist_caret_mode` | Applied |
 | `persist_menu_bar` | Applied |
 | `persist_outline` | Applied |

@@ -111,6 +111,7 @@ impl OverlayKind {
             ],
             OverlayKind::Settings => vec![enter("edit")],
             OverlayKind::Assets => vec![enter("trash"), key("esc", "close")],
+            OverlayKind::UserWords => vec![enter("forget"), key("esc", "close")],
             OverlayKind::Rename => vec![enter("rename"), key("esc", "cancel")],
             OverlayKind::InsertLink => vec![enter("insert link"), key("esc", "cancel")],
             OverlayKind::KeepName => vec![enter("keep"), key("esc", "cancel")],

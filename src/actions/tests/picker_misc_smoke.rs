@@ -909,6 +909,7 @@ fn every_catalog_command_dispatches_without_panicking() {
         history_session_start: None,
         settings_values: crate::settings::SettingsValues::default(),
         assets: vec![],
+        user_words: vec![],
         row_gates: Default::default(),
         search_root: std::path::PathBuf::from("/workspace"),
         search_corpus: vec![("README.md".to_string(), "hello world".to_string())],

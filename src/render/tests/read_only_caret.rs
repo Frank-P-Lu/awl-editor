@@ -103,6 +103,7 @@ fn representative(kind: OverlayKind) -> OverlayState {
         | OverlayKind::Spell
         | OverlayKind::Keybindings
         | OverlayKind::Assets
+        | OverlayKind::UserWords
         | OverlayKind::Rename
         | OverlayKind::InsertLink
         | OverlayKind::KeepName

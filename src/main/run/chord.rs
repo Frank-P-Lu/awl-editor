@@ -20,6 +20,7 @@ struct ReplayActionInputs {
     spell_target: Option<SpellSuggestTarget>,
     history_entries: Vec<crate::history::TimelineRow>,
     assets: Vec<crate::assets::Orphan>,
+    user_words: Vec<String>,
     goto_folders: Vec<(String, bool)>,
     goto_recent_folders: Vec<String>,
     settings_values: crate::settings::SettingsValues,
@@ -150,6 +151,16 @@ impl ReplaySession<'_> {
         } else {
             Vec::new()
         };
+        // The same live checker the squiggles come from, so a `--keys` capture
+        // photographs the real personal dictionary rather than a fixture.
+        let user_words = if matches!(action, Action::OpenUserWords) {
+            self.spell
+                .as_ref()
+                .map(|checker| checker.user_words_sorted())
+                .unwrap_or_default()
+        } else {
+            Vec::new()
+        };
         let (goto_folders, goto_recent_folders) = if matches!(
             action,
             Action::OpenGoto
@@ -184,6 +195,7 @@ impl ReplaySession<'_> {
             spell_target,
             history_entries,
             assets,
+            user_words,
             goto_folders,
             goto_recent_folders,
             settings_values: crate::settings::SettingsValues::gather(
@@ -231,6 +243,7 @@ impl ReplaySession<'_> {
             history_session_start: None,
             settings_values: inputs.settings_values,
             assets: inputs.assets,
+            user_words: inputs.user_words,
             // Headless replay is daemon-free, so Finish file stays hidden.
             row_gates: Default::default(),
             search_root: self.root.clone(),

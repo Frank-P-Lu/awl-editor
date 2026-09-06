@@ -1,5 +1,6 @@
 use super::Command;
 use crate::keymap::Action;
+mod personal_dictionary;
 mod search_folder;
 
 pub(super) static COMMANDS: &[Command] = &[
@@ -87,6 +88,7 @@ pub(super) static COMMANDS: &[Command] = &[
             "Summon the list of orphaned image files under the project, for moving to the trash.",
         ),
     },
+    personal_dictionary::PERSONAL_DICTIONARY,
     search_folder::SEARCH_FOLDER,
     Command {
         name: "Keep version…",

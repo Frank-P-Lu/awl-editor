@@ -102,6 +102,19 @@ impl DocumentSession {
         }
     }
 
+    pub(in crate::app) fn user_words_sorted(&self) -> Vec<String> {
+        self.spell
+            .as_ref()
+            .map(crate::spell::SpellChecker::user_words_sorted)
+            .unwrap_or_default()
+    }
+
+    pub(in crate::app) fn remove_user_word(&mut self, word: &str) -> bool {
+        self.spell
+            .as_mut()
+            .is_some_and(|spell| spell.remove_user_word(word))
+    }
+
     pub(in crate::app) fn add_user_word(&mut self, word: &str) -> bool {
         self.spell
             .as_mut()

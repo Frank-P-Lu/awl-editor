@@ -579,6 +579,7 @@ fn static_material_enrolls_the_complete_overlay_surface_roster() {
             | crate::overlay::OverlayKind::Credits
             | crate::overlay::OverlayKind::Settings
             | crate::overlay::OverlayKind::Assets
+            | crate::overlay::OverlayKind::UserWords
             | crate::overlay::OverlayKind::Rename
             | crate::overlay::OverlayKind::InsertLink
             | crate::overlay::OverlayKind::KeepName

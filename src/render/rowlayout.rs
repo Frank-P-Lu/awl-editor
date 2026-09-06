@@ -401,6 +401,11 @@ mod tests {
                 vec!["photo.png".into(), "a-rather-long-screenshot-name.png".into()],
                 Some("12.3 KB · notes/deeply/nested/assets".chars().count()),
             ),
+            // One column: a word, and no secondary cell at all.
+            OverlayKind::UserWords => (
+                vec!["zorbling".into(), "antidisestablishmentarianism".into()],
+                None,
+            ),
             OverlayKind::Rename => (
                 vec!["a-rather-long-note-title-being-renamed.md".into()],
                 None,

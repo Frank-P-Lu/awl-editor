@@ -213,6 +213,10 @@ pub fn build(kind: OverlayKind, ctx: &BuildCtx) -> Option<OverlayState> {
         // Asset cleaner: the caller-scanned orphan list. ALWAYS summons (like
         // History): an empty list becomes the calm "no unused assets" row.
         OverlayKind::Assets => Some(OverlayState::new_assets(ctx.assets.clone())),
+        // Personal dictionary: the caller-gathered word list. ALWAYS summons,
+        // like the Asset Cleaner above; an empty list becomes the calm row that
+        // names where words come from.
+        OverlayKind::UserWords => Some(OverlayState::new_user_words(ctx.user_words.clone())),
         // Search in folder: the caller-loaded, budget-bounded corpus. ALWAYS
         // summons; an empty query (the summon state) shows the calm "no
         // matches" row until something is typed.

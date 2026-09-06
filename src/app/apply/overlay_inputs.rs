@@ -9,6 +9,7 @@ pub(super) struct OverlayInputs {
     pub(super) spell_target: Option<SpellTarget>,
     pub(super) history_entries: Vec<crate::history::TimelineRow>,
     pub(super) assets: Vec<crate::assets::Orphan>,
+    pub(super) user_words: Vec<String>,
     pub(super) row_gates: crate::commands::RowGates,
     pub(super) search_root: std::path::PathBuf,
     pub(super) search_corpus: Vec<(String, String)>,
@@ -168,6 +169,14 @@ impl App {
         };
         #[cfg(target_arch = "wasm32")]
         let assets = Vec::new();
+        // The live checker's own personal set, gathered only when the picker
+        // was summoned. No filesystem rescan: the file was folded into the
+        // checker at launch and every add/forget keeps the two in step.
+        let user_words = if matches!(action, Action::OpenUserWords) {
+            self.document.user_words_sorted()
+        } else {
+            Vec::new()
+        };
         #[cfg(all(not(target_arch = "wasm32"), not(feature = "mas")))]
         let has_waiter = self
             .document
@@ -206,6 +215,7 @@ impl App {
             spell_target,
             history_entries,
             assets,
+            user_words,
             row_gates: crate::commands::RowGates {
                 has_waiter,
                 change_unresolved: self.change_unresolved(),
