@@ -1882,6 +1882,49 @@ blockquote still shows a legible pair (the degenerate case where first
 line == last line); no mark on non-blockquote lines.
 
 ---
+### 571 — revealed thematic break keeps its ornament-sized row: giant raw `***` and a caret slab 2.2× too tall (user report, 2026-09-06 — "the way the cursor highlights the * is all wrong… like its wayy too tall?"; reproduced headlessly, first try)
+
+Measured on Saltpan (`--theme Saltpan`, caret onto a `***` line): a body row
+is 32px; the thematic-break row is 70.4px — exactly `ornament_scale` 2.2× —
+caret on or off. On reveal the raw `***` shapes at 2.2× body size (33px
+advances vs ~14px body) and the block caret takes the full row: a ~33×70px
+primary-ink slab dwarfing the small high-hung asterisk ink. Same numbers
+for `---`; reproduces in every world (each carries `ornament_scale` ≥
+~2.16) — Saltpan is simply the default.
+
+Mechanism: deliberate machinery with an unconsidered corner.
+`md_line_scale` (src/render/spans/layout.rs:40) grows a confirmed
+thematic-break line to the world's `ornament_scale` so the row fits the
+centered break fleuron `prepare_ornaments` draws off-caret, in lockstep by
+design. But it is a whole-line font+row scale, so the caret-entry reveal
+inherits the ornament's size for the raw markup, and the block caret
+inherits the 70px row. The ornament needed the room; the revealed text
+never did.
+
+DECIDED (user, 2026-09-06 — "yeah exactly no need for ornament room"):
+while the rule line is revealed (caret OR selection touches it — the one
+`wysiwyg_reveals` rule), the ornament is not drawn, so the line drops the
+ornament scale entirely: raw `***`/`---`/`___` at body size, row at body
+height, caret at body caret size. Line-local reflow on reveal is already
+the conceal system's accepted cost, and `refresh_rule_conceal` already
+invalidates `row_geom` on exactly this transition — thread the reveal
+state into the `md_line_scale` decision through its confirmed-rule gate's
+call sites rather than adding a second scale owner. Mind the skip-gate
+tripwire: the reveal set already keys on caret line AND selection
+(`last_conceal_selection`); the scale must key on the same state or a
+selection-only reveal serves a stale tall row.
+
+Laws: caret on a `***` line ⇒ that row's sidecar height equals the body
+row height and revealed advances equal body advances (sweep `***`/`---`/
+`___`); caret off ⇒ height returns to `ornament_scale` × body and the
+ornament draws (presence floor by pixel arithmetic, not just geometry);
+selection touching the line without the caret ⇒ same reveal metrics (the
+skip-gate axis); a `---` inside a fenced code block stays body-height
+throughout (the confirmed_rule gate must keep holding). Verify across a
+second world beside Saltpan so the scale is read from the roster, not
+pinned.
+
+---
 ## Needs specific hardware
 
 🔴 BLOCKED — these journeys require physical environments unavailable to the current orchestration host.
