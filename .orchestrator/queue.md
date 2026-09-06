@@ -106,8 +106,10 @@ doubling; option off ⇒ byte-identical render to today.
 
 ### 567 — scripts/ cruft sweep: delete six concluded-investigation scripts and five unwired shell laws (user decision, 2026-09-06 — "unused stuff is kinda cruft right… i think i lean delete too")
 
-🟢 VERIFIED AND GATED, MERGE PENDING — lane `item-567`, worktree
-`.codex/worktrees/item-544-frost-box`, tip `7c99639a`.
+🟢 MERGED, EXACT-MAIN RECEIPT OWED — landed as merge `8c513232` (lane tip `7c99639a`, worktree
+`.codex/worktrees/item-544-frost-box`). Merge verified as a real two-parent merge; the combined
+candidate compiles clean on `cargo check --all-targets`, which is the check that catches the
+class where git merges a missing per-call-site field cleanly and the tree fails later.
 
 **The premise held exactly, and this time it was re-measured rather than inherited.** The
 lane swept the pre-sweep tree with `git grep -F` after first proving that tool reaches
@@ -202,8 +204,9 @@ Rust doc comment moved).
 
 ### 568 — spell suggestions never offer the user's own dictionary words (user report, 2026-09-06 — "add to dictionary, but this new word doesn't really show up in the autocomplete?" — the ⌘-; spell picker is meant; explicitly NOT a completion feature: "we don't need autocomplete")
 
-🟢 VERIFIED AND GATED, MERGE PENDING — lane `item-568-569`, worktree
-`.codex/worktrees/item-543-tabledims-frost`, tip `5795ebeb`. **The board was stale and the tree
+🟢 MERGED, EXACT-MAIN RECEIPT OWED — landed as merge `a11522ae` (lane tip `5795ebeb`, worktree
+`.codex/worktrees/item-543-tabledims-frost`). Two-parent merge verified; combined candidate
+compiles clean. **The board was stale and the tree
 was right:** fully implemented as `969a1f88`, every Build and Laws clause satisfied.
 
 The premise survives and is one-sided, which is why the bug was invisible: `check` consults
@@ -246,7 +249,7 @@ reach the merged list (one owner, no second suggest path).
 
 ### 569 — personal dictionary picker: list the words, remove per row (user decision, 2026-09-06 — "richer listing words… something very simple")
 
-🟢 VERIFIED AND GATED, MERGE PENDING — same lane, worktree and tip as 568. **This half was not
+🟢 MERGED with 568 as `a11522ae`, EXACT-MAIN RECEIPT OWED — same lane, worktree and tip. **This half was not
 unstarted either:** committed as `5eb70b93`, every clause satisfied. `OverlayKind::UserWords` on
 the Asset Cleaner's grammar, `Effect::ForgetUserWord`, a file rewrite preserving `#` comments,
 blank lines and order, and the two per-row destructive accepts merged into ONE owner
@@ -1111,6 +1114,25 @@ land closer to the page edge than at the 1600×1000 geometry the pixel laws swee
 worth a live look at whether the convergence ever reads as landing inside the page itself at
 common window sizes rather than staying a margin phenomenon. Item 582 (open, above) revises
 this ground's geometry and inherits the same sign-off.
+
+## Not gated — read this before pushing anything
+
+Local `main` carries three merges with **no receipt describing the tree as it stands**: 571/573
+(receipt on candidate `ceb5c252`), 567 (lane receipt on base `1bb0e751`) and 568/569 (lane
+receipt on base `4a0aeeee`). Each lane receipt was green on its own base and the merges are
+verified two-parent merges that compile clean on `cargo check --all-targets` — but a compile is
+not a suite, and a receipt on another base is not a receipt on this one.
+
+The exact-main receipt has been deferred twice on purpose rather than faked. The first attempt
+died because the host was at load 43 on ten cores and `code-health.sh`'s `cpu-spin` probe could
+not see its own spinner; the second was not attempted because the host was at load 52 with
+three lanes live. That probe asserts a deliberately spinning fixture peaks a tracked core, so an
+oversubscribed host makes it structurally incapable of passing — the law is fine and the
+CONFIGURATION is the untested hypothesis, which is this repo's standing hazard reached by
+scheduling rather than by code.
+
+**So: no push, and no one describes main as gated, until the wave drains and the receipt is
+taken on a quiet host.**
 
 ## Watch — verification that only a future run can supply
 
