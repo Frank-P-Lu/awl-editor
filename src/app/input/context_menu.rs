@@ -33,7 +33,7 @@ impl App {
         if let Some(target) = target {
             let state = crate::context_menu::ContextState {
                 has_selection: self.document.buffer().has_selection(),
-                link: false,
+                link: None,
                 heading: false,
                 heading_folded: false,
                 misspelled: false,
@@ -66,7 +66,7 @@ impl App {
                 .is_some();
             let state = crate::context_menu::ContextState {
                 has_selection: false,
-                link: false,
+                link: None,
                 heading: false,
                 heading_folded: false,
                 misspelled: false,
@@ -103,6 +103,15 @@ impl App {
         let byte = self.document.buffer().char_to_byte(idx);
         let text = self.document.buffer().text();
         let misspelled = self.document.spell_suggestion_target(line, col).is_some();
+        // The card's Go-to row names the SAME destination a modifier-click
+        // would open, read off the one follow seam rather than a second
+        // lookup that could answer differently.
+        let followable = self
+            .document
+            .buffer()
+            .is_markdown()
+            .then(|| crate::markdown::followable_at(&text, byte))
+            .flatten();
         if misspelled {
             self.document.set_cursor(idx);
             self.document.clear_mark();
@@ -115,7 +124,7 @@ impl App {
         } else {
             let state = crate::context_menu::ContextState {
                 has_selection: selection_contains,
-                link: crate::markdown::link_at(&text, byte).is_some(),
+                link: followable.as_ref().map(|f| f.raw.as_str()),
                 heading: self.document.buffer().is_markdown()
                     && crate::markdown::headings(&text)
                         .iter()
@@ -143,7 +152,7 @@ impl App {
         self.document.clear_mark();
         let state = crate::context_menu::ContextState {
             has_selection: false,
-            link: false,
+            link: None,
             heading: true,
             heading_folded: self.document.buffer().folds().contains(&line),
             misspelled: false,

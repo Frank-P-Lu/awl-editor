@@ -26,7 +26,7 @@ fn typed_picker(text: &str) -> ViewState {
 fn pointer_menu(text: &str, dpi: f32) -> ViewState {
     let state = crate::context_menu::ContextState {
         has_selection: true,
-        link: false,
+        link: None,
         heading: false,
         heading_folded: false,
         misspelled: false,

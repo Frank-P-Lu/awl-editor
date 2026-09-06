@@ -530,7 +530,7 @@ fn working_set_context_trash_targets_the_parked_row_not_the_active_document() {
     let key = crate::buffers::BufferKey::path(&s.a());
     let state = crate::context_menu::ContextState {
         has_selection: false,
-        link: false,
+        link: None,
         heading: false,
         heading_folded: false,
         misspelled: false,

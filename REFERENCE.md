@@ -79,8 +79,8 @@ Commands are grouped by the same task categories the palette browses.
 | Go to… | Find files, headings, folders, and recent destinations. | `⌘O` | `Ctrl+O` | Native, browser |
 | Search in folder… | Full-text search over every file in the active folder — matching lines grouped by file. | — | — | Native, browser |
 | Last file | Switch to the previously open file; a no-op with nothing to switch back to. | `⌃Tab` | `Ctrl+Tab` | Native, browser |
-| Follow link | Open the caret's markdown link, or jump from a footnote reference to its definition. | `C-c C-o` | — | Native, browser |
-| Copy link destination | Copy the URL of the markdown link under the caret to the kill buffer. | — | — | Native, browser |
+| Follow link | Go where the caret points: a web address opens in your browser, a link to another file opens it here, a footnote jumps to its definition. | `C-c C-o` | — | Native, browser |
+| Copy link destination | Copy the destination under the caret to the kill buffer. | — | — | Native, browser |
 | Search forward | Open incremental search (prefilled from selection or last query), forward. | `⌘F · C-s` | `Ctrl+F` | Native, browser |
 | Search backward | Open incremental search (prefilled from selection or last query), backward. | `⌘⇧F · C-r` | `Ctrl+Shift+F` | Native, browser |
 | Find and replace… | Open the search panel with its replace row revealed. | `⌘R` | `Ctrl+R` | Native, browser |

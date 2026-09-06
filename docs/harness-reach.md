@@ -288,6 +288,36 @@ click-resolution laws. A Verify clause may assert the POST-DROP order through
 its sidecar) after driving `gutter_stack_row_drop` directly — it may not ask
 for a `--screenshot-app` capture of the drag GESTURE itself, which cannot exist.
 
+**The FOLLOW gesture (modifier-click / middle-click on a followable span) is the
+same shape, and its outward tail is a second live-only layer on top.** Three
+distinct claims, three different tiers, and a Verify clause must not ask the
+wrong one for the wrong thing:
+
+1. **Which mouse chord follows, per convention and flavor** — pure
+   (`keymap::platform::active_follow_gestures` / `follows_link`), swept over the
+   whole `Convention x KeymapFlavor x button x modifier` grid in
+   `keymap/tests.rs`. No capture door is involved or needed.
+2. **What a followable span resolves to, and which typed effect carries it** —
+   pure (`markdown::follow::followable_at`, `actions::follow::follow_effect`),
+   enrolled from the underline grammar's own predicate
+   (`MdKind::is_followable`) in `markdown/follow/tests.rs` and
+   `actions/follow/tests.rs`.
+3. **The follow ITSELF, end to end, through a capture door** — reachable, but
+   only through the KEYBOARD door onto the same seam, and only for the LOCAL
+   arm. `Effect::OpenPathAtLine` is Applied at both tiers, so following a
+   relative link is readable from `buffers.active` under `--keys` AND
+   `--screenshot-app`
+   (`run::live_app::tests::following_a_relative_link_lands_the_destination_in_both_drivers_sidecars`).
+   `Effect::FollowLink` is **Intercepted** — the `open`/`xdg-open` spawn is the
+   live-only tail, and a `--screenshot-app` capture that followed an external
+   URL would spawn a real browser, which is exactly what that classification
+   exists to prevent. Assert the external arm at the effect seam; never ask a
+   capture for it.
+
+The PRESS that starts any of this — a real `MouseInput` with modifiers held, the
+hover that turns the pointer into a hand — has no chord on any door and is
+live-only, flagged for human confirmation like every other pointer gesture here.
+
 ### The switch-project Recent lens is EMPTY at every capture door, on purpose
 
 The recent-projects MRU is live-only persisted state, and the headless path

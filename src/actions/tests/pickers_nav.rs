@@ -222,7 +222,7 @@ fn command_palette_enter_dispatches_selected_action() {
 fn context_card_is_an_action_list_not_a_hidden_query() {
     let state = crate::context_menu::ContextState {
         has_selection: false,
-        link: true,
+        link: Some("https://example.com/x"),
         heading: false,
         heading_folded: false,
         misspelled: false,

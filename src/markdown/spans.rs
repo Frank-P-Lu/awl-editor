@@ -11,13 +11,14 @@ mod footnotes;
 mod kind;
 mod markers;
 mod parse;
+pub(super) use detect::bare_url_split; // the ONE bare-URL taming owner; see `follow::tamed`
 pub use detect::{
     LIST_INDENT, ListItem, READING_WPM, SmartPunctKind, apply_smart_punct, fence_line_lang,
     frontmatter_end, is_fence_line, is_thematic_break, list_item, reading_time_min, strike_engaged,
     word_count,
 };
 #[cfg(test)]
-pub(super) use detect::{bare_url_ranges, bare_url_split, smart_punct_ranges, smart_punct_runs};
+pub(super) use detect::{bare_url_ranges, smart_punct_ranges, smart_punct_runs};
 pub use kind::{BreakKind, MdKind, break_kind};
 pub use markers::equals_runs;
 #[cfg(test)]

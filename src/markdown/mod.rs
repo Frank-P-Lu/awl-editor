@@ -105,6 +105,7 @@ pub fn set_inline_images_on(on: bool) {
 }
 
 mod conceal;
+mod follow;
 mod footnotes;
 mod headings;
 mod refs;
@@ -114,6 +115,8 @@ mod table_edit;
 mod tables;
 
 pub use conceal::ConcealKind;
+#[allow(unused_imports)] // Followable: the resolver's return type, a public API surface
+pub use follow::{Destination, Followable, followable_at, go_to_label, resolve_local};
 pub use footnotes::footnote_target_at;
 pub(crate) use footnotes::{OPTIONS as PARSE_OPTIONS, from_events as footnotes_from_events};
 pub use headings::{

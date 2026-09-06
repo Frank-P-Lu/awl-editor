@@ -2032,3 +2032,203 @@ fn accept_alternate_is_not_a_linux_keep_list_member() {
         "the emacs-flavor keep preset (every displaced Ctrl-letter) names no Enter chord either"
     );
 }
+
+// --- the follow gesture's roster ------------------------------------------
+
+/// LAW: the per-platform, per-flavor FOLLOW GESTURE roster, swept over the
+/// whole `Convention × KeymapFlavor` grid rather than a hand-picked cell.
+///
+/// The three claims the round decided, each named where it fails:
+/// - macOS follows on ⌘-click, under EITHER flavor (the keymap flavor is
+///   structurally inert on Mac);
+/// - Linux follows on Ctrl-click, under EITHER flavor — a MOUSE chord, so no
+///   key keep-list rule reaches it;
+/// - middle-click follows ONLY under Linux + `keymap = "emacs"`, exactly like
+///   the Meta and `C-x` key layers, and appears nowhere else.
+#[test]
+fn the_follow_gesture_roster_is_per_convention_and_per_flavor() {
+    use crate::keymap::{FollowGesture, PointerButton, active_follow_gestures};
+    let flat = |c, f| -> Vec<FollowGesture> {
+        active_follow_gestures(c, f)
+            .iter()
+            .flat_map(|t| t.iter().copied())
+            .collect()
+    };
+    for flavor in KeymapFlavor::ALL {
+        let mac = flat(Convention::Mac, flavor);
+        assert_eq!(
+            mac.iter().map(|g| g.label).collect::<Vec<_>>(),
+            ["Cmd-Click"],
+            "Mac/{flavor:?} must offer ⌘-click and nothing else"
+        );
+        assert!(
+            mac.iter()
+                .all(|g| g.button == PointerButton::Primary && g.mods == ModifiersState::SUPER),
+            "Mac/{flavor:?} gestures: {mac:?}"
+        );
+
+        let linux = flat(Convention::Linux, flavor);
+        assert!(
+            linux
+                .iter()
+                .any(|g| g.button == PointerButton::Primary && g.mods == ModifiersState::CONTROL),
+            "Linux/{flavor:?} must follow on Ctrl-click; it offers {linux:?}"
+        );
+        let middle = linux
+            .iter()
+            .any(|g| g.button == PointerButton::Middle && g.mods == ModifiersState::empty());
+        assert_eq!(
+            middle,
+            flavor == KeymapFlavor::Emacs,
+            "middle-click is the emacs flavor's own Linux gesture; Linux/{flavor:?} \
+             offered {linux:?}"
+        );
+    }
+}
+
+/// LAW: the MAC binding appears under NO Linux cell and the Linux bindings
+/// under no Mac cell — the item's own "the Mac binding under none of them"
+/// clause, asserted as a disjointness over the whole grid rather than by
+/// re-reading either table.
+#[test]
+fn no_follow_gesture_crosses_between_the_two_conventions() {
+    use crate::keymap::active_follow_gestures;
+    let flat = |c, f| -> Vec<(crate::keymap::PointerButton, ModifiersState)> {
+        active_follow_gestures(c, f)
+            .iter()
+            .flat_map(|t| t.iter())
+            .map(|g| (g.button, g.mods))
+            .collect()
+    };
+    for flavor in KeymapFlavor::ALL {
+        for other in KeymapFlavor::ALL {
+            let mac = flat(Convention::Mac, flavor);
+            let linux = flat(Convention::Linux, other);
+            assert!(
+                mac.iter().all(|m| !linux.contains(m)),
+                "Mac/{flavor:?} {mac:?} overlaps Linux/{other:?} {linux:?}"
+            );
+        }
+    }
+    // And the direction that matters for a Mac user: Ctrl-click is macOS's own
+    // secondary click, so it must never follow there.
+    for flavor in KeymapFlavor::ALL {
+        assert!(
+            !crate::keymap::follows_link(
+                Convention::Mac,
+                flavor,
+                crate::keymap::PointerButton::Primary,
+                ModifiersState::CONTROL,
+            ),
+            "Mac/{flavor:?} must not spend Ctrl-click, which the OS owns"
+        );
+    }
+}
+
+/// LAW: `follows_link` answers EXACTLY the roster — swept over every
+/// convention × flavor × button × modifier-subset cell, so a gesture that
+/// resolves by accident (a superset of modifiers, a button nobody seeded)
+/// fails here rather than in someone's hand.
+#[test]
+fn follows_link_answers_exactly_the_roster_over_every_modifier_subset() {
+    use crate::keymap::{PointerButton, active_follow_gestures, follows_link};
+    let all_mods = [
+        ModifiersState::empty(),
+        ModifiersState::SHIFT,
+        ModifiersState::CONTROL,
+        ModifiersState::ALT,
+        ModifiersState::SUPER,
+        ModifiersState::CONTROL | ModifiersState::SHIFT,
+        ModifiersState::SUPER | ModifiersState::SHIFT,
+        ModifiersState::CONTROL | ModifiersState::ALT,
+        ModifiersState::SUPER | ModifiersState::ALT | ModifiersState::CONTROL,
+    ];
+    let mut fired = 0usize;
+    for convention in [Convention::Mac, Convention::Linux] {
+        for flavor in KeymapFlavor::ALL {
+            let roster: Vec<_> = active_follow_gestures(convention, flavor)
+                .iter()
+                .flat_map(|t| t.iter().copied())
+                .collect();
+            for button in [PointerButton::Primary, PointerButton::Middle] {
+                for mods in all_mods {
+                    let want = roster.iter().any(|g| g.button == button && g.mods == mods);
+                    fired += usize::from(want);
+                    assert_eq!(
+                        follows_link(convention, flavor, button, mods),
+                        want,
+                        "{convention:?}/{flavor:?} {button:?} {mods:?} against roster {roster:?}"
+                    );
+                }
+            }
+        }
+    }
+    assert!(
+        fired >= 5,
+        "non-vacuity: only {fired} cells followed across the whole grid"
+    );
+}
+
+/// LAW: the KEY seed tables and the POINTER gesture roster enrol on the SAME
+/// gate. Two selection points that answer "is the Linux emacs layer active"
+/// separately could drift the moment a flavor changes; they share
+/// `linux_emacs_layer`, and this asserts the shared answer over the whole grid.
+#[test]
+fn the_key_seed_layer_and_the_pointer_gesture_layer_share_one_gate() {
+    use crate::keymap::{
+        PointerButton, active_follow_gestures, active_seed_tables, linux_emacs_layer,
+    };
+    for convention in [Convention::Mac, Convention::Linux] {
+        for flavor in KeymapFlavor::ALL {
+            let gated = linux_emacs_layer(convention, flavor);
+            let keys_seeded = !active_seed_tables(convention, flavor).is_empty();
+            let middle_seeded = active_follow_gestures(convention, flavor)
+                .iter()
+                .flat_map(|t| t.iter())
+                .any(|g| g.button == PointerButton::Middle);
+            assert_eq!(
+                keys_seeded, gated,
+                "{convention:?}/{flavor:?}: key seed layer disagrees with the shared gate"
+            );
+            assert_eq!(
+                middle_seeded, gated,
+                "{convention:?}/{flavor:?}: the emacs-only pointer gesture disagrees with \
+                 the shared gate the key layers use"
+            );
+        }
+    }
+}
+
+/// LAW: no follow gesture can collide with the Linux keep-list, because the
+/// keep-list is a roster of KEY chords and a mouse chord has no spelling in
+/// that grammar. Asserted rather than argued: every composed keep entry parses
+/// as a key chord, under both flavors and with a user list on top.
+#[test]
+fn the_linux_keep_list_holds_only_key_chords_so_no_mouse_chord_can_collide() {
+    for flavor in ["native", "emacs"] {
+        let mut cfg = crate::config::Config::empty();
+        cfg.keymap = Some(flavor.to_string());
+        cfg.linux_keep_emacs = vec!["C-y".to_string()];
+        let keep = cfg.effective_linux_keep();
+        assert!(
+            !keep.is_empty(),
+            "non-vacuity: {flavor} composed no keep-list"
+        );
+        for entry in &keep {
+            assert!(
+                crate::keyspec::canonical_binding(entry).is_some(),
+                "{flavor}: keep-list entry {entry:?} is not a parsable KEY chord — the \
+                 grammar the mouse gesture is deliberately outside of"
+            );
+        }
+        // The two spellings a mouse gesture would need if it DID flow through
+        // here parse as nothing, which is the structural reason it cannot.
+        for mouse in ["Ctrl-Click", "Mouse-2", "Middle-Click", "Cmd-Click"] {
+            assert!(
+                crate::keyspec::canonical_binding(mouse).is_none(),
+                "{mouse:?} parsed as a key chord — a mouse chord would then be \
+                 reachable by the keep-list after all"
+            );
+        }
+    }
+}

@@ -1237,7 +1237,7 @@ fn heading_context_menu_capture_leaves_the_page_outside_its_footprint_byte_ident
     let buf = Buffer::from_str(HEADING_MENU_FOOTPRINT_DOC);
     let state = crate::context_menu::ContextState {
         has_selection: false,
-        link: false,
+        link: None,
         heading: true,
         heading_folded: false,
         misspelled: false,
@@ -1354,7 +1354,7 @@ fn context_menu_footer_removal_hugs_its_rows_with_no_dead_band_below() {
     let buf = Buffer::from_str(HEADING_MENU_FOOTPRINT_DOC);
     let state = crate::context_menu::ContextState {
         has_selection: false,
-        link: false,
+        link: None,
         heading: true,
         heading_folded: false,
         misspelled: false,

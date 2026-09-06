@@ -215,26 +215,30 @@ impl App {
         }
     }
 
-    /// CMD-CLICK activation: hit-test the char under the pointer. A footnote
-    /// reference uses the shared folded-line jump; a markdown link hands its URL
-    /// to the OS browser through the SAME
-    /// [`App::follow_link`] owner the `C-c C-o` keyboard path uses (so the two can't
-    /// drift). Returns whether a link was followed, so the caller can SWALLOW the
-    /// press — never moving the caret / starting a selection. Reads only. The
-    /// mouse-affordance half of the identity round's "⌘-click Follow link" (the
-    /// keyboard chord stays too).
+    /// THE MODIFIER-CLICK FOLLOW: hit-test the char under the pointer and ask
+    /// the ONE follow seam ([`crate::actions::follow::follow_effect`]) what it
+    /// points at — the same function the `C-c C-o` caret door asks with the
+    /// caret's byte, so the pointer can never open something the keyboard
+    /// would not. The typed effect is carried out through the same
+    /// [`App::apply_live_effect`] interpreter every other effect goes through.
+    /// Returns whether anything was followed, so the caller can SWALLOW the
+    /// press — never moving the caret or starting a selection. Reads only.
     pub(in crate::app) fn follow_link_at_pointer(&mut self) -> bool {
         let byte = self.document.buffer().char_to_byte(self.hit_test_char());
-        let text = self.document.buffer().text();
-        if let Some(line) = crate::markdown::footnote_target_at(&text, byte) {
-            self.jump_to_line(line);
-            true
-        } else if let Some(url) = crate::markdown::link_at(&text, byte) {
-            self.follow_link(&url);
-            true
-        } else {
-            false
+        let effect = crate::actions::follow::follow_effect(self.document.buffer(), byte);
+        if effect == crate::actions::Effect::None {
+            return false;
         }
+        self.apply_live_effect(effect);
+        true
+    }
+
+    /// Is the byte under the pointer followable? Asked off the same seam the
+    /// click uses, so the hand cannot promise a follow the press would not do.
+    pub(in crate::app) fn followable_at_pointer(&self) -> bool {
+        let byte = self.document.buffer().char_to_byte(self.hit_test_char());
+        crate::actions::follow::follow_effect(self.document.buffer(), byte)
+            != crate::actions::Effect::None
     }
 
     pub(in crate::app) fn overlay_hover(&mut self) {
@@ -860,21 +864,19 @@ impl App {
         // where a click would land. Only while no overlay is open (its scrim covers
         // the document).
         let over_fold_chevron = !overlay_open && gpu.pipeline.fold_chevron_hit(px, py).is_some();
+        // The hand appears exactly when a press WOULD follow: the same gesture
+        // predicate the press path asks (`keymap::follows_link`).
         let over_modified_link = self.document.has_active()
             && !overlay_open
             && gpu.pipeline.over_writing_column(px)
             && crate::context_menu::modified_link_hover(
-                self.input
-                    .keyboard
-                    .mods
-                    .state()
-                    .contains(ModifiersState::SUPER),
-                {
-                    let text = self.document.buffer().text();
-                    let byte = self.document.buffer().char_to_byte(self.hit_test_char());
-                    crate::markdown::link_at(&text, byte).is_some()
-                        || crate::markdown::footnote_target_at(&text, byte).is_some()
-                },
+                crate::keymap::follows_link(
+                    crate::convention::Convention::current(),
+                    self.config.keymap_flavor(),
+                    crate::keymap::PointerButton::Primary,
+                    self.input.keyboard.mods.state(),
+                ),
+                self.followable_at_pointer(),
             );
         let ctx = crate::cursor_shape::CursorContext {
             dragging_edge: self.input.pointer.page_resizing,

@@ -66,17 +66,11 @@ pub(super) fn apply_deferred_action(ctx: &mut ActionCtx, action: &Action) -> Opt
         Action::ResolveTakeTheirs => Effect::Persistence(PersistenceEffect::ResolveExternalChange(
             Resolution::TakeTheirs,
         )),
-        Action::FollowLink => {
-            let text = ctx.buffer.text();
-            let byte = ctx.buffer.cursor_byte();
-            if let Some(line) = crate::markdown::footnote_target_at(&text, byte) {
-                Effect::JumpToLine(line)
-            } else {
-                crate::markdown::link_at(&text, byte)
-                    .map(Effect::FollowLink)
-                    .unwrap_or(Effect::None)
-            }
-        }
+        // The CARET door onto the one follow seam. The pointer gesture
+        // (`App::follow_link_at_pointer`) asks the same function with the byte
+        // under the pointer instead of the byte under the caret, so the two
+        // doors cannot resolve a destination differently.
+        Action::FollowLink => super::follow::follow_effect(ctx.buffer, ctx.buffer.cursor_byte()),
         Action::BeginPrefix | Action::Ignore => Effect::None,
         _ => return None,
     };

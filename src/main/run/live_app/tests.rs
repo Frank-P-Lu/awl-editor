@@ -1476,3 +1476,149 @@ fn editing_a_heading_in_and_out_claims_and_releases_the_rail_without_a_switch() 
          should have returned to {plain_alone}, not stayed at {edited_out}"
     );
 }
+
+// --- FOLLOWING A LINK, through both drivers ------------------------------
+
+const NOTE: &str = "/ws/proj/notes/today.md";
+const SIBLING: &str = "/ws/proj/notes/sibling.md";
+
+/// A tiny vault: one note whose FIRST BYTE is inside a relative link, and the
+/// sibling it points at. The link leads the document so the caret's own
+/// opening position is already inside it — no motion chords to keep in sync
+/// with a fixture's layout.
+fn in_vault<T>(body: impl FnOnce() -> T) -> T {
+    let mem = Arc::new(
+        crate::fs::InMemoryFs::new()
+            .with_dir("/cfg")
+            .with_dir("/ws")
+            .with_dir("/ws/proj")
+            .with_dir("/ws/proj/notes")
+            .with_file(
+                std::path::Path::new(NOTE),
+                "[the sibling](sibling.md) is next door.\n",
+            )
+            .with_file(std::path::Path::new(SIBLING), "# Sibling\n\nArrived.\n"),
+    );
+    crate::fs::with_fs(mem, body)
+}
+
+/// The follow chord in the ONE spelling that resolves under BOTH conventions —
+/// `Ctrl+Super` is the convention-agnostic emacs fallback layer
+/// (`both_convention_modifiers_keep_the_data_backed_emacs_fallback`), so this
+/// law drives the same real binding on each of `native-gate.sh`'s two passes
+/// instead of picking a chord one of them displaces.
+fn follow_chords() -> Vec<crate::keyspec::Chord> {
+    crate::keyspec::parse_chords("C-s-c C-s-o").expect("the follow chord parses")
+}
+
+/// One ordinary `--keys` capture of `file` under the vault root — the shared
+/// door all three arms of the law below drive, so the arms differ only in the
+/// document and the chords, never in how the capture was set up.
+fn follow_capture(out: &std::path::Path, file: &str, keys: Vec<crate::keyspec::Chord>) {
+    super::super::capture_screenshot(
+        out.to_path_buf(),
+        Some(PathBuf::from(file)),
+        CaptureOpts::default(),
+        keys,
+        crate::keymap::KeymapState::new(),
+        Some(proj()),
+        None,
+        PathBuf::from("/ws/proj"),
+        cfg(),
+        false,
+    )
+    .expect("the ordinary capture succeeds");
+}
+
+/// LAW: following a RELATIVE link is a typed effect carrying its resolved
+/// destination, and the destination is READABLE FROM THE SIDECAR through both
+/// capture doors — the shared-core `--keys` replay and the real-`App` driver.
+///
+/// The relative arm is deliberately the one under the oracle: it is the arm
+/// whose effect (`OpenPathAtLine`) is Applied at BOTH tiers, so a sidecar can
+/// witness it honestly. The external arm is Intercepted by contract — the OS
+/// opener handoff is the live-only tail — and is asserted at the effect seam
+/// instead (`actions::follow::tests`), never stubbed around here. A capture
+/// that followed an external URL would spawn a browser, which is exactly what
+/// the Intercepted classification exists to prevent.
+#[test]
+fn following_a_relative_link_lands_the_destination_in_both_drivers_sidecars() {
+    let _g = crate::testlock::serial();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl-follow-link-{}", std::process::id())),
+    );
+
+    // ── THE ORDINARY `--keys` DOOR (shared core) ──────────────────────
+    let replay = dir.join("replay.png");
+    let replay_json = in_vault(|| {
+        follow_capture(&replay, NOTE, follow_chords());
+        sidecar(&replay)
+    });
+    assert_eq!(replay_json["driver"].as_str(), Some("replay"));
+    assert_eq!(
+        replay_json["buffers"]["active"].as_str(),
+        Some(SIBLING),
+        "the follow chord opened the link's own destination IN awl; the sidecar \
+         names the arrived-at document, not the one the chord was pressed in"
+    );
+    assert!(
+        replay_json["replay_skips"]
+            .as_array()
+            .is_some_and(|a| a.is_empty()),
+        "a relative follow is Applied end to end — nothing is skipped: {:?}",
+        replay_json["replay_skips"]
+    );
+
+    // ── THE REAL-`App` DRIVER ─────────────────────────────────────────
+    let live = dir.join("live.png");
+    let live_json = in_vault(|| {
+        capture_live_app(
+            live.clone(),
+            LiveAppSpec {
+                file: Some(PathBuf::from(NOTE)),
+                keys: follow_chords(),
+                root: Some(proj()),
+                workspace: None,
+                config: cfg(),
+                canvas: None,
+                dpi: None,
+            },
+        )
+        .expect("the live-App capture needs a GPU adapter");
+        sidecar(&live)
+    });
+    assert_eq!(live_json["driver"].as_str(), Some("live-app"));
+    assert_eq!(
+        live_json["buffers"]["active"].as_str(),
+        Some(SIBLING),
+        "the real App follows to the same destination the shared core resolved"
+    );
+
+    // ── ANTI-VACUITY, both halves. Without these, "we are in sibling.md"
+    // would also pass if the capture had simply never left the file it was
+    // handed, or had opened it for some unrelated reason.
+    //
+    // (a) NO chords at all: the capture stays in the note it was given, so the
+    //     switch above is the chord's doing.
+    let still = dir.join("still.png");
+    let still_json = in_vault(|| {
+        follow_capture(&still, NOTE, Vec::new());
+        sidecar(&still)
+    });
+    assert_eq!(
+        still_json["buffers"]["active"].as_str(),
+        Some(NOTE),
+        "with no chords the capture never leaves the note it was handed"
+    );
+    // (b) The SAME chord in a document with nothing to follow switches nothing.
+    let inert = dir.join("inert.png");
+    let inert_json = in_vault(|| {
+        follow_capture(&inert, SIBLING, follow_chords());
+        sidecar(&inert)
+    });
+    assert_eq!(
+        inert_json["buffers"]["active"].as_str(),
+        Some(SIBLING),
+        "the same chord on plain prose follows nothing and switches nothing"
+    );
+}

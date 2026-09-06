@@ -21,9 +21,14 @@ enum_with_all! {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ContextState {
+pub struct ContextState<'a> {
     pub has_selection: bool,
-    pub link: bool,
+    /// The followable destination under the pointer, exactly as the document
+    /// writes it — `None` when there is nothing to follow. Carries the value
+    /// rather than a bare `bool` so the Go-to row can NAME where it goes: a
+    /// separate flag and a separate destination could disagree, and the row's
+    /// whole point is that they do not.
+    pub link: Option<&'a str>,
     pub heading: bool,
     pub heading_folded: bool,
     pub misspelled: bool,
@@ -32,12 +37,16 @@ pub struct ContextState {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ContextRow {
-    pub label: &'static str,
+    /// Owned, because one row names a destination read out of the document.
+    pub label: String,
     pub action: Action,
 }
 
-fn row(label: &'static str, action: Action) -> ContextRow {
-    ContextRow { label, action }
+fn row(label: impl Into<String>, action: Action) -> ContextRow {
+    ContextRow {
+        label: label.into(),
+        action,
+    }
 }
 
 /// Resolve overlapping document facts to exactly one target. Spelling and the
@@ -47,7 +56,7 @@ pub fn document_target(state: ContextState) -> ContextTarget {
         ContextTarget::Misspelling
     } else if state.has_selection {
         ContextTarget::Selection
-    } else if state.link {
+    } else if state.link.is_some() {
         ContextTarget::Link
     } else if state.heading {
         ContextTarget::Heading
@@ -60,10 +69,18 @@ pub const fn modified_link_hover(command_down: bool, over_link: bool) -> bool {
     command_down && over_link
 }
 
+/// Copy the destination of whatever the caret is inside onto the kill ring —
+/// read through the SAME resolver the Go-to row above and the modifier-click
+/// gesture use (`markdown::followable_at`), so the row that copies a
+/// destination and the row that opens it can never name different ones. A
+/// tamed bare URL copies its whole match; a named link copies its `(dest)`.
 pub fn copy_link_destination(buffer: &mut crate::buffer::Buffer) {
+    if !buffer.is_markdown() {
+        return;
+    }
     let byte = buffer.char_to_byte(buffer.cursor_char());
-    if let Some(url) = crate::markdown::link_at(&buffer.text(), byte) {
-        buffer.set_kill(&url);
+    if let Some(hit) = crate::markdown::followable_at(&buffer.text(), byte) {
+        buffer.set_kill(&hit.raw);
     }
 }
 
@@ -126,8 +143,20 @@ pub fn rows(target: ContextTarget, state: ContextState, platform: Platform) -> V
             row("Paste", Yank),
             row("Select all", SelectAll),
         ],
+        // THE GO-TO ROW — the right-click affordance the follow round exists
+        // for, and it NAMES its destination in the tamed authority the document
+        // itself shows under the hairline (`markdown::go_to_label`, routed
+        // through the one bare-URL taming owner), never the raw URL flood. A
+        // Link target without a destination cannot arise from `document_target`,
+        // which reaches it only when one is present; the fallback keeps a
+        // hand-built `Link` state from producing a label about nothing.
         Link => vec![
-            row("Follow link", FollowLink),
+            row(
+                state
+                    .link
+                    .map_or_else(|| "Go to link".to_string(), crate::markdown::go_to_label),
+                FollowLink,
+            ),
             row("Edit link…", InsertLink),
             row("Copy destination", CopyLinkDestination),
         ],
@@ -178,10 +207,10 @@ pub fn rows(target: ContextTarget, state: ContextState, platform: Platform) -> V
 mod tests {
     use super::*;
 
-    fn state() -> ContextState {
+    fn state() -> ContextState<'static> {
         ContextState {
             has_selection: false,
-            link: false,
+            link: None,
             heading: false,
             heading_folded: false,
             misspelled: false,
@@ -195,7 +224,7 @@ mod tests {
             let s = ContextState {
                 misspelled: bits & 1 != 0,
                 has_selection: bits & 2 != 0,
-                link: bits & 4 != 0,
+                link: (bits & 4 != 0).then_some("https://example.com/x"),
                 heading: bits & 8 != 0,
                 heading_folded: bits & 16 != 0,
                 named_file: true,
@@ -204,7 +233,7 @@ mod tests {
                 ContextTarget::Misspelling
             } else if s.has_selection {
                 ContextTarget::Selection
-            } else if s.link {
+            } else if s.link.is_some() {
                 ContextTarget::Link
             } else if s.heading {
                 ContextTarget::Heading
@@ -224,6 +253,39 @@ mod tests {
                     command_down && over_link
                 );
             }
+        }
+    }
+
+    /// LAW: the right-click affordance on a followable span says GO TO and
+    /// NAMES its destination in the tamed authority — the user's own ask, and
+    /// the reason the state carries the destination rather than a bare flag.
+    /// The label is composed by `markdown::go_to_label`, so the card and the
+    /// rendered line cannot hold two opinions about what the tame form is.
+    #[test]
+    fn the_link_menus_first_row_says_go_to_and_names_the_tamed_destination() {
+        for (dest, want) in [
+            ("https://example.com/deep/path?q=1", "Go to example.com…"),
+            ("https://example.com", "Go to example.com"),
+            ("../notes/plan.md", "Go to ../notes/plan.md"),
+            ("mailto:a@b.co", "Go to a@b.co"),
+        ] {
+            let mut s = state();
+            s.link = Some(dest);
+            assert_eq!(document_target(s), ContextTarget::Link);
+            let got = rows(ContextTarget::Link, s, Platform::Native);
+            let first = got.first().expect("the Link menu carries rows");
+            assert_eq!(first.label, want, "the go-to row's label for {dest:?}");
+            assert_eq!(
+                first.action,
+                Action::FollowLink,
+                "the go-to row fires the SAME catalog action the chord and the \
+                 modifier-click gesture do — no second follow implementation"
+            );
+            assert!(
+                !first.label.contains("deep/path"),
+                "the row must not flood with the raw URL: {:?}",
+                first.label
+            );
         }
     }
 
@@ -288,7 +350,7 @@ mod tests {
                 for bits in 0u8..64 {
                     let s = ContextState {
                         has_selection: bits & 1 != 0,
-                        link: bits & 2 != 0,
+                        link: (bits & 2 != 0).then_some("https://example.com/x"),
                         heading: bits & 4 != 0,
                         heading_folded: bits & 8 != 0,
                         misspelled: bits & 16 != 0,
@@ -341,8 +403,10 @@ mod tests {
     #[test]
     fn filename_menu_carries_reveal_and_copy_path_on_native() {
         let rows = rows(ContextTarget::Filename, state(), Platform::Native);
-        let entries: Vec<(&str, Action)> =
-            rows.iter().map(|r| (r.label, r.action.clone())).collect();
+        let entries: Vec<(&str, Action)> = rows
+            .iter()
+            .map(|r| (r.label.as_str(), r.action.clone()))
+            .collect();
         assert!(
             entries
                 .iter()
