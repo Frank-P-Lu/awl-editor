@@ -28,6 +28,7 @@ mod layout_oracle;
 mod metric_scale;
 mod panel_geometry;
 mod panels;
+mod personal_dictionary_journey;
 mod pickers_faceted;
 mod plan_accessory;
 mod plan_geometry;

@@ -151,8 +151,16 @@ impl ReplaySession<'_> {
         } else {
             Vec::new()
         };
-        // The same live checker the squiggles come from, so a `--keys` capture
-        // photographs the real personal dictionary rather than a fixture.
+        // The replay's OWN checker, and it is ALWAYS EMPTY here: `SpellChecker`
+        // is constructed with no personal dictionary and only the live `App`
+        // ever fills one (`App::load_user_dictionary` is the sole caller of
+        // `set_user_words`). So this arm carries the live gather's SHAPE, not
+        // its content — a tier-1 `--keys` capture photographs an empty word
+        // list whatever `dictionary.txt` holds, and the picker's rows are
+        // reachable only through `--screenshot-app`. That is a decision, not an
+        // oversight: a replay reading the ambient word list would photograph
+        // whoever ran it. `docs/harness-reach.md` records the ceiling and
+        // `capture::tests::personal_dictionary_journey` holds it there.
         let user_words = if matches!(action, Action::OpenUserWords) {
             self.spell
                 .as_ref()
