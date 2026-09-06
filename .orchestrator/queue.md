@@ -9,6 +9,8 @@
 ---
 ### 566 — CI RED: `linux (build + test)` times out at 50 min on main; no Linux verification exists for HEAD
 
+🟡 IN PROGRESS — claude lane (opus, deep), branch `item-566`, worktree `.codex/worktrees/item-546-cassowary-tabs` — claimed 2026-09-06.
+
 🔴 TOP PRIORITY — blocks integration AND blocks the Linux release the user
 asked for on 2026-09-02.
 
@@ -1740,6 +1742,8 @@ doubling; option off ⇒ byte-identical render to today.
 ---
 ### 567 — scripts/ cruft sweep: delete six concluded-investigation scripts and five unwired shell laws (user decision, 2026-09-06 — "unused stuff is kinda cruft right… i think i lean delete too")
 
+🟡 IN PROGRESS — claude lane (sonnet, production), branch `item-567`, worktree `.codex/worktrees/item-544-frost-box` — claimed 2026-09-06.
+
 A full audit of `scripts/` (78 tracked files) found the tree largely
 load-bearing — CI-invoked, gate-invoked, or documented entry points — with
 exactly eleven deletions and two hygiene riders. Git history keeps everything;
@@ -1799,6 +1803,8 @@ Rust doc comment moved).
 ---
 ### 568 — spell suggestions never offer the user's own dictionary words (user report, 2026-09-06 — "add to dictionary, but this new word doesn't really show up in the autocomplete?" — the ⌘-; spell picker is meant; explicitly NOT a completion feature: "we don't need autocomplete")
 
+🟡 IN PROGRESS — claude lane (sonnet, production) with 569, branch `item-568-569`, worktree `.codex/worktrees/item-543-tabledims-frost` — claimed 2026-09-06.
+
 The personal dictionary is check-only. `SpellChecker::check` consults
 `user_words` (src/spell.rs:261), but `suggest`/`suggest_at`
 (src/spell.rs:364) consult `self.dict` — the bundled Hunspell dictionary —
@@ -1826,6 +1832,8 @@ reach the merged list (one owner, no second suggest path).
 
 ---
 ### 569 — personal dictionary picker: list the words, remove per row (user decision, 2026-09-06 — "richer listing words… something very simple")
+
+🟡 IN PROGRESS — claude lane (sonnet, production) with 568, branch `item-568-569`, worktree `.codex/worktrees/item-543-tabledims-frost` — claimed 2026-09-06.
 
 `~/.config/awl/dictionary.txt` is user-facing and completely undocumented —
 no UI shows its contents and no doc says it exists; removal is hand-edit
@@ -1883,6 +1891,8 @@ line == last line); no mark on non-blockquote lines.
 
 ---
 ### 571 — revealed thematic break keeps its ornament-sized row: giant raw `***` and a caret slab 2.2× too tall (user report, 2026-09-06 — "the way the cursor highlights the * is all wrong… like its wayy too tall?"; reproduced headlessly, first try)
+
+🟡 IN PROGRESS — claude lane (sonnet, production) with 573, branch `item-571-573`, worktree `.codex/worktrees/item-533` — claimed 2026-09-06.
 
 Measured on Saltpan (`--theme Saltpan`, caret onto a `***` line): a body row
 is 32px; the thematic-break row is 70.4px — exactly `ornament_scale` 2.2× —
@@ -1962,6 +1972,8 @@ scoped item when not.
 ---
 ### 573 — selection-revealed rule line double-draws: raw `***` AND the break fleuron together (found by 572's first probe, 2026-09-06; reproduced headlessly by pixel arithmetic)
 
+🟡 IN PROGRESS — claude lane (sonnet, production) with 571, branch `item-571-573`, worktree `.codex/worktrees/item-533` — claimed 2026-09-06.
+
 A selection that touches a thematic-break line (caret elsewhere) reveals
 the raw markers — correct since the 2026-07-22 selection-reveal widening —
 but the centered break fleuron still draws on top of the row.
@@ -1988,6 +2000,8 @@ exist off-reveal for the absence assertion to be non-vacuous); a fenced
 
 ---
 ### 574 — switching buffers must not move the page: key the outline rail's reservation on the working set, not the current buffer (user report + decision, 2026-09-06 — "switching between files actually causes the side bar to resize… it shouldnt jump all over the place at least")
+
+🟡 IN PROGRESS — claude lane (opus, deep), branch `item-574`, worktree `.codex/worktrees/item-541-543-tables` — claimed 2026-09-06.
 
 Reproduced and measured: the adaptive column asks whether to grant the
 margin outline a rail via `outline_wants_rail` (src/render/geometry.rs:697),
@@ -2029,6 +2043,8 @@ wide sweeps nothing.
 
 ---
 ### 575 — Credits is a reading surface: no caret, no insertion, through every door (user report, 2026-09-06 — "you can type in the credits screen?… i see the cursor in the credits too… i was thinking some kind of readonly surface")
+
+🟡 IN PROGRESS — claude lane (opus, deep), branch `item-575`, worktree `.codex/worktrees/item-536-ornament-sets` — claimed 2026-09-06.
 
 Confirmed in pixels and mechanism. Credits opens the bundled document as
 the ACTIVE buffer relocated into its workspace viewport, so the caret
