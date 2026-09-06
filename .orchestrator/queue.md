@@ -7,6 +7,53 @@
 ## Ready to build
 
 ---
+### 566 — CI RED: `linux (build + test)` times out at 50 min on main; no Linux verification exists for HEAD
+
+🔴 TOP PRIORITY — blocks integration AND blocks the Linux release the user
+asked for on 2026-09-02.
+
+Run <https://github.com/Frank-P-Lu/awl-editor/actions/runs/33944330308> on `d7315142`
+(2026-09-05): `linux (build + test)` started 06:07:03, was killed 06:57:20 —
+exactly its `timeout-minutes: 50` — mid-`caret_punctuation_pixels`, with live
+`awl` processes reaped as orphans. GitHub reports a timed-out job as
+`cancelled`, so the run reads `cancelled`, not `failure`; per CLAUDE.md that is
+NO VERIFICATION AT ALL, not a soft pass. Every other gating job on that commit
+is green (`mac (build + test, minus render::tests)`, `web`, `mac live-probe`);
+the two red ones (`atspi`, `mac (render::tests)`) are the pinned tolerated pair.
+
+Measured baseline, same job, four preceding green runs: **36m44s, 37m33s,
+37m04s, 36m47s** — a stable ~37 min against a 50 min ceiling. HEAD blew
+through it, so the true cost is unknown and ≥50 min: a jump of ≥13 min, ≥35%.
+
+First suspect window is exactly one item: `9822835a..d7315142` is item 564
+(Kite's living warped-grid tunnel) and nothing else — a `background.wgsl`
+rewrite plus ~1,000 lines of new GPU render tests (`warp_roam.rs` +658,
+`warped_grid.rs` +321; 19 `#[test]`s across the two, 16 device/render
+references in `warp_roam.rs` alone).
+
+**TWO HYPOTHESES, BOTH LIVE, AND THE SAME EVIDENCE FITS EACH — do not pick one
+by reading source.** (a) TEST COST: ~19 new frame-rendering tests, each
+rasterized in software, simply added the minutes. Cheap fix (shard, or raise
+the ceiling with a reason). (b) PRODUCT COST: the new ground is an ANALYTIC
+per-fragment tunnel with harmonics — precisely the shape that is nearly free on
+this host's Metal and expensive in a software rasterizer, and every render test
+draws through whatever ground its world carries, so a slower Kite would tax
+tests far beyond the warp ones. If (b), Kite is slow for real Linux users on
+llvmpipe/software GL and this is a PRODUCT DEFECT wearing a CI costume, not a
+budget question. An earlier reading of this item asserted (a) from the shader
+being loop-free; that inference is recorded here as REJECTED — closed-form is
+not the same as cheap.
+
+⚠️ **No local gate can see this axis** — the dev host is real Apple Silicon
+Metal and CI's `linux` job on Mesa lavapipe is awl's only real-Linux arm. So the
+discriminator is measured ON that job, not here: time the warp tests against the
+suite on lavapipe (or `--bench-frame` per world under it) and compare Kite's
+frame cost to a static-ground world's on the SAME run. Report both numbers in
+the landing note; they decide which repair is legitimate. Raising
+`timeout-minutes` before that measurement would convert a possible product
+defect into a permanently hidden one.
+
+---
 ### 529 — Nishiki-teki: audition a Japanese symbol cabinet, then give each adopted mark one honest purpose (user decision, 2026-08-29)
 
 ✅ COMPLETE — merged as `d8bb4b81`; ambient menu-bar restoration repaired in `1680c7f4`. Independent production audit accepted the derived-face roster and visual outcome; exact-main receipt: health pass, both conventions, forced menu-bar arm, 4,682 unit tests, 16 integration targets; web 16/16.
