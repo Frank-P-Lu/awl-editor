@@ -345,6 +345,58 @@ fn one_line_blockquote_still_shows_a_pair() {
     crate::page::set_page_on(was_page);
 }
 
+/// THE TWO ENDS ARE CULLED INDEPENDENTLY. A block taller than the viewport has
+/// one end on screen and one far off it, and the pair is emitted per END, not
+/// per block — so scrolling from the head of such a quote to its foot trades an
+/// opening mark for a closing one rather than showing both or neither. A cull
+/// that keyed the CLOSING mark off the OPENING one's visibility (the natural
+/// shape when a block is treated as a single ornament) would draw nothing at the
+/// foot of a long quote, which is exactly where the reader needs the close.
+#[test]
+fn long_block_culls_its_two_ends_independently() {
+    let _w = crate::testlock::serial();
+    let was_page = crate::page::page_on();
+    crate::markdown::set_wysiwyg_on(true);
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!("skipping long_block_culls_its_two_ends_independently: no wgpu adapter");
+        crate::page::set_page_on(was_page);
+        return;
+    };
+    crate::page::set_page_on(true);
+    // Far taller than the 800px viewport plus its generous cull margin, so each
+    // end is unambiguously outside the other's band.
+    const QUOTED: usize = 120;
+    let doc = format!("{}\ntail\n", "> a quoted line\n".repeat(QUOTED));
+    let mut v = view(&doc, QUOTED + 1, 0);
+    v.is_markdown = true;
+    p.set_view(&v);
+    assert_eq!(
+        p.quote_block_lines(),
+        vec![(0, QUOTED - 1)],
+        "the fixture is ONE block spanning every quoted line"
+    );
+
+    let sides = |p: &crate::render::TextPipeline| -> Vec<crate::render::rects::QuoteSide> {
+        p.quote_marks().iter().map(|&(_, s)| s).collect()
+    };
+    assert_eq!(
+        sides(&p),
+        vec![crate::render::rects::QuoteSide::Open],
+        "at the HEAD of a viewport-tall quote only the opening mark is on screen"
+    );
+
+    // Park the viewport on the block's foot; the head is now far above it.
+    v.scroll = crate::render::ScrollPos::at_row(QUOTED - 2);
+    p.set_view(&v);
+    assert_eq!(
+        sides(&p),
+        vec![crate::render::rects::QuoteSide::Close],
+        "at the FOOT of the same quote only the closing mark is on screen — the \
+         close is culled on its OWN row, not on the opening mark's"
+    );
+    crate::page::set_page_on(was_page);
+}
+
 #[test]
 fn md_line_scale_keys_off_leading_hash_count() {
     use crate::markdown::heading_scale;

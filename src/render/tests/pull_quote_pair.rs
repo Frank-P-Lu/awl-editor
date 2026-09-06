@@ -260,15 +260,14 @@ fn measure_world(
 /// control.
 #[test]
 fn every_world_draws_both_pull_quote_marks() {
+    // Taken BEFORE the device is reached and held past the drops below: the
+    // shared test GPU's counters move on every render AND every readback, not
+    // only on the call that reached the device first.
     let _g = crate::testlock::serial();
     let Some((device, queue, mut p)) = headless_dqp(W as f32, H as f32) else {
         eprintln!("skipping every_world_draws_both_pull_quote_marks: no wgpu adapter");
         return;
     };
-    // Held across every render AND every readback: the shared test GPU's
-    // counters move on all of them, not only on the call that reached the
-    // device first.
-    let _g = crate::testlock::serial();
     let was_theme = theme::active().name;
     let was_page_on = crate::page::page_on();
     let was_measure = crate::page::measure();
