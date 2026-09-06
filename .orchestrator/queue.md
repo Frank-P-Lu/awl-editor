@@ -1987,6 +1987,47 @@ exist off-reveal for the absence assertion to be non-vacuous); a fenced
 `---` body line draws no fleuron in any state.
 
 ---
+### 574 — switching buffers must not move the page: key the outline rail's reservation on the working set, not the current buffer (user report + decision, 2026-09-06 — "switching between files actually causes the side bar to resize… it shouldnt jump all over the place at least")
+
+Reproduced and measured: the adaptive column asks whether to grant the
+margin outline a rail via `outline_wants_rail` (src/render/geometry.rs:697),
+which requires the CURRENT buffer to have at least one heading. Under width
+pressure the column shifts right by the constant rail appetite
+(`OUTLINE_PREFERRED_CHARS = OUTLINE_MIN_CHARS * 3`, rowlayout). So a headed
+file and an unheaded file sit in different regimes, and switching between
+them jumps the whole page — column, gutter, margins — horizontally; 80px
+measured at a 1200px window at the default measure. Not file length:
+heading presence (long files correlate).
+
+DECIDED: the column belongs to the ROOM, not the document. The rail
+reservation keys on the WORKING SET — if ANY open buffer would want the
+rail (outline on, page on, md, headings present), the reservation holds
+across every buffer switch, and the outline simply draws nothing on a
+buffer with no headings. Column geometry then changes only at moments the
+user caused: open, close, resize, outline/page toggle, measure change. The
+no-payoff guard stays intact — a session where nothing will ever draw a
+rail still reserves none, and the entry-ramp LERP still owns the resize
+axis. Keep ONE owner: the set-level appetite is derived where
+`outline_wants_rail` lives today, not recomputed by callers. Watch the
+live-only classes: the reservation must update when a buffer opens/closes
+or its headings appear/disappear through editing (cache invalidation on
+those transitions, not per-frame rescans of every open buffer).
+
+Explicitly out of scope, recorded: animating the remaining legitimate
+transitions (the deliberately-banked glide) is a separate taste call.
+
+Laws: two-buffer fixture, one headed, one not — `column_left` identical
+before and after the switch in BOTH orders (via `--screenshot-app` driving
+a real buffer switch, the transition an ordinary capture cannot reach —
+docs/harness-reach.md); closing the last headed buffer releases the
+reservation; editing the only heading out of a buffer releases it (and
+typing one in claims it) without a buffer switch; a heading-free session
+is byte-identical to today (the no-payoff guard's own law keeps holding);
+sweep the window-width axis so both the pressure and passthrough regimes
+are exercised — the jump only exists under pressure, and a law that runs
+wide sweeps nothing.
+
+---
 ## Needs specific hardware
 
 🔴 BLOCKED — these journeys require physical environments unavailable to the current orchestration host.
