@@ -95,16 +95,11 @@ pub(super) fn smart_newline(ctx: &mut ActionCtx) -> bool {
 /// live and in replay. The manual palette command; [`auto_align_table_on_row_leave`]
 /// is the same re-pad fired automatically.
 pub(super) fn align_table_at_cursor(ctx: &mut ActionCtx) {
-    if !ctx.buffer.is_markdown() {
-        return;
-    }
-    let text = ctx.buffer.text();
-    let lines: Vec<&str> = text.split('\n').collect();
-    let (cur_line, _) = ctx.buffer.cursor_line_col();
-    let Some((start, end)) = crate::markdown::table_block_lines(&lines, cur_line) else {
-        return; // caret not inside a table — calm no-op
+    let Some(found) = table_block_at_cursor(ctx) else {
+        return; // caret not inside a table (or not markdown) — calm no-op
     };
-    let block = lines[start..end].join("\n");
+    let (start, end) = (found.start, found.end);
+    let block = found.source();
     let aligned = crate::markdown::align_table(&block);
     if aligned == block {
         return; // already aligned — skip the edit so undo stays meaningful
@@ -157,18 +152,14 @@ pub(super) fn align_table_at_cursor(ctx: &mut ActionCtx) {
 /// table, or left untouched when it sits before — a replace strictly ahead of
 /// it can never move it.
 pub(super) fn auto_align_table_on_row_leave(ctx: &mut ActionCtx, row_before: usize) {
-    if !ctx.buffer.is_markdown() {
-        return;
-    }
-    let text = ctx.buffer.text();
-    let lines: Vec<&str> = text.split('\n').collect();
-    if row_before >= lines.len() {
-        return; // the row the caret left no longer exists post-action
-    }
-    let Some((start, end)) = crate::markdown::table_block_lines(&lines, row_before) else {
+    // `row_before` may no longer exist post-action; the gate answers `None` for
+    // an out-of-range line exactly as it does for one that is not a table row.
+    let Some(found) = table_block_at_row(ctx, row_before) else {
         return; // row_before wasn't in a table (or no longer looks like one)
     };
-    let block = lines[start..end].join("\n");
+    let (start, end) = (found.start, found.end);
+    let lines = found.lines();
+    let block = found.source();
     let aligned = crate::markdown::align_table(&block);
     if aligned == block {
         return; // already aligned — skip the edit so undo stays meaningful

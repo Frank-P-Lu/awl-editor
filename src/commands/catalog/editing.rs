@@ -1,9 +1,14 @@
 use super::Command;
 use crate::keymap::Action;
+mod export;
+use export::{EXPORT_HTML, EXPORT_PDF, EXPORT_WORD};
 mod footnotes;
 use footnotes::INSERT_FOOTNOTE;
 mod table;
-use table::INSERT_TABLE;
+use table::{
+    DELETE_COLUMN, DELETE_ROW, INSERT_COLUMN_LEFT, INSERT_COLUMN_RIGHT, INSERT_ROW_ABOVE,
+    INSERT_ROW_BELOW, INSERT_TABLE,
+};
 mod link;
 use link::INSERT_LINK;
 mod move_lines;
@@ -134,37 +139,17 @@ pub(super) static COMMANDS: &[Command] = &[
         ),
     },
     INSERT_FOOTNOTE,
-    Command {
-        name: "Export as Word…",
-        action: Action::ExportWord,
-        native: "",
-        emacs: "",
-        native_only: false,
-        web_only: false,
-        description: Some("Export as `.docx`; markdown buffers only, folder chosen on native."),
-    },
-    Command {
-        name: "Export as HTML…",
-        action: Action::ExportHtml,
-        native: "",
-        emacs: "",
-        native_only: false,
-        web_only: false,
-        description: Some("Export as `.html`; markdown buffers only, folder chosen on native."),
-    },
-    Command {
-        name: "Export as PDF…",
-        action: Action::ExportPdf,
-        native: "",
-        emacs: "",
-        native_only: true,
-        web_only: false,
-        description: Some(
-            "Choose a folder, then export as `.pdf`; markdown buffers only, native builds only.",
-        ),
-    },
+    EXPORT_WORD,
+    EXPORT_HTML,
+    EXPORT_PDF,
     INSERT_LINK,
     INSERT_TABLE,
+    INSERT_ROW_ABOVE,
+    INSERT_ROW_BELOW,
+    INSERT_COLUMN_LEFT,
+    INSERT_COLUMN_RIGHT,
+    DELETE_ROW,
+    DELETE_COLUMN,
     Command {
         name: "Save",
         action: Action::Save,

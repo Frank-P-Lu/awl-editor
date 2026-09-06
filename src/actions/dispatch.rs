@@ -87,7 +87,13 @@ macro_rules! classify_action_family {
             | Action::CheckForUpdates
             | Action::OpenBrowse
             | Action::OpenFolder => ActionFamily::View,
-            Action::AlignTable => ActionFamily::Align,
+            Action::AlignTable
+            | Action::TableInsertRowAbove
+            | Action::TableInsertRowBelow
+            | Action::TableInsertColumnLeft
+            | Action::TableInsertColumnRight
+            | Action::TableDeleteRow
+            | Action::TableDeleteColumn => ActionFamily::Align,
             Action::ToggleBlockquote
             | Action::ToggleBulletList
             | Action::ToggleNumberedList
@@ -169,7 +175,7 @@ fn dispatch_editor_action(ctx: &mut ActionCtx, action: &Action, family: ActionFa
             effect = apply_session_action(ctx, action).expect("session action")
         }
         ActionFamily::View => effect = apply_view_action(ctx, action).expect("view action"),
-        ActionFamily::Align => align_table_at_cursor(ctx),
+        ActionFamily::Align => effect = apply_table_action(ctx, action),
         ActionFamily::Format => {
             effect = apply_format_action(ctx, action).expect("format action");
         }

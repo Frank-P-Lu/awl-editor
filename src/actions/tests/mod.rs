@@ -33,6 +33,10 @@ mod save_feedback;
 mod sentence_motion;
 mod settings_reach;
 mod table_edit;
+/// The six structural row/column verbs at the `apply_transition` seam: the
+/// shared caret-in-table gate, one sealed undo group each, and the refusal
+/// notices.
+mod table_verbs;
 /// The summoned workspace's state, focus and back, in the lifecycle's
 /// own vocabulary. Tier 1, fully capturable (`docs/harness-reach.md`).
 mod workspace;
@@ -686,6 +690,12 @@ macro_rules! classify_delete_flinch {
             | Action::WritingStreaks
             | Action::ConvertLineEndings
             | Action::AlignTable
+            | Action::TableInsertRowAbove
+            | Action::TableInsertRowBelow
+            | Action::TableInsertColumnLeft
+            | Action::TableInsertColumnRight
+            | Action::TableDeleteRow
+            | Action::TableDeleteColumn
             | Action::TagDocumentLanguage
             | Action::ToggleBlockquote
             | Action::ToggleBulletList
@@ -922,6 +932,12 @@ macro_rules! assert_action_roster {
             | Action::WritingStreaks
             | Action::ConvertLineEndings
             | Action::AlignTable
+            | Action::TableInsertRowAbove
+            | Action::TableInsertRowBelow
+            | Action::TableInsertColumnLeft
+            | Action::TableInsertColumnRight
+            | Action::TableDeleteRow
+            | Action::TableDeleteColumn
             | Action::TagDocumentLanguage
             | Action::ToggleBlockquote
             | Action::ToggleBulletList
@@ -1055,6 +1071,12 @@ fn command_action_roster() -> Vec<Action> {
         Action::WritingStreaks,
         Action::ConvertLineEndings,
         Action::AlignTable,
+        Action::TableInsertRowAbove,
+        Action::TableInsertRowBelow,
+        Action::TableInsertColumnLeft,
+        Action::TableInsertColumnRight,
+        Action::TableDeleteRow,
+        Action::TableDeleteColumn,
         Action::TagDocumentLanguage,
         Action::ToggleBlockquote,
         Action::ToggleBulletList,
@@ -1245,6 +1267,12 @@ macro_rules! classify_smoke_command {
         | Action::WritingStreaks
         | Action::ConvertLineEndings
         | Action::AlignTable
+        | Action::TableInsertRowAbove
+        | Action::TableInsertRowBelow
+        | Action::TableInsertColumnLeft
+        | Action::TableInsertColumnRight
+        | Action::TableDeleteRow
+        | Action::TableDeleteColumn
         | Action::TagDocumentLanguage
         | Action::ToggleBlockquote
         | Action::ToggleBulletList

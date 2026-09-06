@@ -1,13 +1,135 @@
-//! GFM table actions: opening and committing the dimension picker, plus the
-//! Enter and Tab source-editing gestures. Insert mirrors `actions/link.rs`'s
-//! shape (a pure transform producing a [`format::FormatResult`], applied as ONE atomic
-//! edit via `Buffer::apply_format`) for the same "same behavior, same code"
-//! reason: an insert-table commit is "replace nothing with a new block, then
-//! land the cursor sensibly", exactly like Insert-link and Insert-footnote.
+//! GFM table actions: the ONE caret-in-table gate ([`table_block_at_row`]),
+//! the structural row/column verbs built on it, opening and committing the
+//! dimension picker, plus the Enter and Tab source-editing gestures. Insert
+//! mirrors `actions/link.rs`'s shape (a pure transform producing a
+//! [`format::FormatResult`], applied as ONE atomic edit via
+//! `Buffer::apply_format`) for the same "same behavior, same code" reason: an
+//! insert-table commit is "replace nothing with a new block, then land the
+//! cursor sensibly", exactly like Insert-link and Insert-footnote.
 
 use super::format::FormatResult;
 use super::*;
+use crate::markdown::{TableRefusal, TableVerb};
 use crate::overlay::OverlayState;
+
+/// THE caret-in-table gate. Every table command asks this one question — is
+/// the buffer markdown, and is `row` inside a GFM table block? — so
+/// Align table, the structural verbs, Enter's row scaffold, Tab's cell walk
+/// and the auto-re-pad can never disagree about where a table starts and ends.
+/// The gate holds the document text it answered against, because the block's
+/// line range is only meaningful against that exact snapshot.
+pub(super) struct TableBlock {
+    text: String,
+    /// First line of the table block (inclusive), as a document line index.
+    pub(super) start: usize,
+    /// One past the table block's last line, as a document line index.
+    pub(super) end: usize,
+}
+
+impl TableBlock {
+    /// The WHOLE document split on `\n`, so `start`/`end` index it directly.
+    pub(super) fn lines(&self) -> Vec<&str> {
+        self.text.split('\n').collect()
+    }
+
+    /// Just the table's own source lines, joined — what the padder and the
+    /// splices take.
+    pub(super) fn source(&self) -> String {
+        self.lines()[self.start..self.end].join("\n")
+    }
+}
+
+/// The table block around document line `row`, or `None` when the buffer is not
+/// markdown or that line is not inside one. The single owner of that predicate.
+pub(super) fn table_block_at_row(ctx: &ActionCtx, row: usize) -> Option<TableBlock> {
+    if !ctx.buffer.is_markdown() {
+        return None;
+    }
+    let text = ctx.buffer.text();
+    let (start, end) = {
+        let lines: Vec<&str> = text.split('\n').collect();
+        crate::markdown::table_block_lines(&lines, row)?
+    };
+    Some(TableBlock { text, start, end })
+}
+
+/// [`table_block_at_row`] at the caret's own line.
+pub(super) fn table_block_at_cursor(ctx: &ActionCtx) -> Option<TableBlock> {
+    table_block_at_row(ctx, ctx.buffer.cursor_line_col().0)
+}
+
+/// What the six structural verbs say when there is no table to work on. A
+/// refusal with something to say rather than the silent no-op an always-listed
+/// palette row would otherwise be — the same reasoning `EXPORT_REQUIRES_MARKDOWN`
+/// records for the Export rows.
+const NO_TABLE_UNDER_CARET: &str = "put the caret in a table first";
+
+fn refusal(message: &str) -> Effect {
+    Effect::Notice(NoticeEffect::Sticky(message.to_string()))
+}
+
+/// Route one table `Action` — Align table and the six structural verbs — to its
+/// owner. The no-wildcard match is what makes a new table action a compile
+/// error here rather than a silently inert palette row.
+pub(super) fn apply_table_action(ctx: &mut ActionCtx, action: &Action) -> Effect {
+    let verb = match action {
+        Action::AlignTable => {
+            align_table_at_cursor(ctx);
+            return Effect::None;
+        }
+        Action::TableInsertRowAbove => TableVerb::InsertRowAbove,
+        Action::TableInsertRowBelow => TableVerb::InsertRowBelow,
+        Action::TableInsertColumnLeft => TableVerb::InsertColumnLeft,
+        Action::TableInsertColumnRight => TableVerb::InsertColumnRight,
+        Action::TableDeleteRow => TableVerb::DeleteRow,
+        Action::TableDeleteColumn => TableVerb::DeleteColumn,
+        other => unreachable!("non-table action routed to the table family: {other:?}"),
+    };
+    apply_table_verb(ctx, verb)
+}
+
+/// Apply one structural verb to the table under the caret as ONE undoable edit.
+///
+/// The splice is pure ([`crate::markdown::table_splice`]) and re-emits the
+/// whole block through the one padder, so the replace is always a REPLACE
+/// (both sides non-empty) — which the undo engine never coalesces, making each
+/// verb its own sealed group exactly like Align table's. The block is already
+/// aligned on the way out, so the auto-re-pad on row-leave finds nothing to do
+/// and cannot fight the splice.
+///
+/// CARET: the pure splice answers with a block-relative line and a LOGICAL
+/// (cell, offset) position rather than a byte offset — the same invariant the
+/// auto-align path relies on, because the re-pad shifts every offset on a row.
+/// It is resolved back to a column on the NEW row via
+/// [`crate::markdown::table_caret_col`].
+fn apply_table_verb(ctx: &mut ActionCtx, verb: TableVerb) -> Effect {
+    let Some(block) = table_block_at_cursor(ctx) else {
+        return refusal(NO_TABLE_UNDER_CARET);
+    };
+    let (cur_line, cur_col) = ctx.buffer.cursor_line_col();
+    let (source, row, caret) = {
+        let lines = block.lines();
+        (
+            lines[block.start..block.end].join("\n"),
+            cur_line - block.start,
+            crate::markdown::locate_table_caret(lines[cur_line], cur_col),
+        )
+    };
+    let splice = match crate::markdown::table_splice(&source, row, caret, verb) {
+        Ok(splice) => splice,
+        Err(why) => return refusal(TableRefusal::message(why)),
+    };
+    let start_char = ctx.buffer.line_col_to_char(block.start, 0);
+    let end_char = ctx.buffer.line_col_to_char(block.end - 1, usize::MAX);
+    ctx.buffer
+        .replace_char_range(start_char, end_char, &splice.text);
+    let new_line = splice.text.split('\n').nth(splice.row).unwrap_or("");
+    let col = crate::markdown::table_caret_col(new_line, splice.caret);
+    ctx.buffer.clear_mark();
+    let at = ctx.buffer.line_col_to_char(block.start + splice.row, col);
+    ctx.buffer.set_cursor(at);
+    Effect::None
+}
 
 fn table_row_source(columns: usize) -> String {
     format!("|{}", " |".repeat(columns.max(1)))
@@ -16,15 +138,15 @@ fn table_row_source(columns: usize) -> String {
 /// Bare Enter inserts a correctly-columned source row immediately below a real
 /// GFM table row. Shift-Enter deliberately bypasses this owner in `actions.rs`.
 pub(super) fn table_newline(ctx: &mut ActionCtx) -> bool {
-    if !ctx.buffer.is_markdown() || ctx.buffer.has_selection() {
+    if ctx.buffer.has_selection() {
         return false;
     }
-    let text = ctx.buffer.text();
-    let lines: Vec<&str> = text.split('\n').collect();
     let (line, _) = ctx.buffer.cursor_line_col();
-    let Some((start, end)) = crate::markdown::table_block_lines(&lines, line) else {
+    let Some(block) = table_block_at_row(ctx, line) else {
         return false;
     };
+    let (start, end) = (block.start, block.end);
+    let lines = block.lines();
     let columns = (start..end)
         .filter(|&row| row != start + 1)
         .map(|row| crate::markdown::split_row_cells(lines[row]).len())
@@ -47,15 +169,12 @@ pub(super) fn table_newline(ctx: &mut ActionCtx) -> bool {
 /// one scaffold row; non-table source and arbitrary selections keep the
 /// established list-indentation behavior.
 pub(super) fn table_tab(ctx: &mut ActionCtx, forward: bool) -> bool {
-    if !ctx.buffer.is_markdown() {
-        return false;
-    }
-    let text = ctx.buffer.text();
-    let lines: Vec<&str> = text.split('\n').collect();
     let (line, col) = ctx.buffer.cursor_line_col();
-    let Some((start, end)) = crate::markdown::table_block_lines(&lines, line) else {
+    let Some(block) = table_block_at_row(ctx, line) else {
         return false;
     };
+    let (start, end) = (block.start, block.end);
+    let lines = block.lines();
     let mut cells = Vec::new();
     for (row, line_text) in lines.iter().enumerate().take(end).skip(start) {
         if row == start + 1 {

@@ -276,6 +276,12 @@ drift into this page silently.
 | Export as PDF… |  |  |
 | Insert link… | ⌘K |  |
 | Insert table… |  |  |
+| Insert row above |  |  |
+| Insert row below |  |  |
+| Insert column left |  |  |
+| Insert column right |  |  |
+| Delete row |  |  |
+| Delete column |  |  |
 | Save | ⌘S | Ctrl+S |
 | Review the change |  |  |
 | Save your version |  |  |

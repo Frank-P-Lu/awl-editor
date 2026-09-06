@@ -161,6 +161,34 @@ pub enum Action {
     /// chord — the palette IS its entry point (like Settings/About); a real
     /// `Action`, independently rebindable via `[keys]`. See `markdown/`.
     AlignTable,
+    /// Palette "Insert row above" / "Insert row below": open one blank source
+    /// row in the GFM table under the caret, above or below the caret's own
+    /// row, as ONE undoable edit. The header and its separator are one
+    /// structural unit — "below" the header means the first BODY row, and
+    /// "above" it is refused with a notice, because a GFM table's header IS
+    /// its first row. Palette-only, like Align table; a real `Action`,
+    /// independently rebindable via `[keys]`. See
+    /// `crate::markdown::table_splice`.
+    TableInsertRowAbove,
+    /// Insert-row-below's counterpart — see [`Action::TableInsertRowAbove`].
+    TableInsertRowBelow,
+    /// Palette "Insert column left" / "Insert column right": splice one blank
+    /// cell into EVERY row of the table under the caret (the header and the
+    /// alignment separator included) beside the caret's own column, as ONE
+    /// undoable edit. Existing columns carry their `:` alignment markers with
+    /// them; the new column takes none.
+    TableInsertColumnLeft,
+    /// Insert-column-left's counterpart — see [`Action::TableInsertColumnLeft`].
+    TableInsertColumnRight,
+    /// Palette "Delete row": remove the caret's own table row as ONE undoable
+    /// edit. Refused with a notice on the header and on its separator (either
+    /// one leaves a run of pipes that is no longer a table); emptying the BODY
+    /// is fine, since a header + separator alone is valid GFM.
+    TableDeleteRow,
+    /// Palette "Delete column": remove the caret's own table column — its cell
+    /// on every row plus its alignment marker — as ONE undoable edit. Refused
+    /// with a notice on a one-column table, which has no column to spare.
+    TableDeleteColumn,
     /// Palette "Tag document language": write a `lang:` frontmatter tag naming
     /// the document's detected CJK language, as ONE undoable edit at byte 0 —
     /// the ONLY door in awl that adds that tag. A calm no-op on a non-markdown
@@ -391,6 +419,12 @@ impl Action {
                 | Action::InsertImageReference(_)
                 | Action::KillRegion
                 | Action::AlignTable
+                | Action::TableInsertRowAbove
+                | Action::TableInsertRowBelow
+                | Action::TableInsertColumnLeft
+                | Action::TableInsertColumnRight
+                | Action::TableDeleteRow
+                | Action::TableDeleteColumn
                 | Action::TagDocumentLanguage
                 | Action::ToggleBlockquote
                 | Action::ToggleBulletList

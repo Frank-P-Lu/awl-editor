@@ -123,6 +123,12 @@ Commands are grouped by the same task categories the palette browses.
 | Insert footnote | Insert a collision-free footnote reference and definition, then type the note. | — | — | Native, browser |
 | Insert link… | Summon the URL prompt for a markdown link: wrap, edit, or insert a link at the caret. | `⌘K` | — | Native, browser |
 | Insert table… | Summon the dimension picker: sculpt rows/columns, then insert a fresh GFM table. | — | — | Native, browser |
+| Insert row above | Open a blank row above the caret's row in the table under the caret. | — | — | Native, browser |
+| Insert row below | Open a blank row below the caret's row in the table under the caret. | — | — | Native, browser |
+| Insert column left | Open a blank column left of the caret's column, in every row of the table. | — | — | Native, browser |
+| Insert column right | Open a blank column right of the caret's column, in every row of the table. | — | — | Native, browser |
+| Delete row | Remove the caret's own row from the table under the caret. | — | — | Native, browser |
+| Delete column | Remove the caret's own column — its cell on every row — from the table. | — | — | Native, browser |
 | Undo | Undo the last edit group. | `⌘Z · C-/` | `Ctrl+Z · C-/` | Native, browser |
 | Redo | Redo the last undone edit group. | `⌘⇧Z` | `Ctrl+Shift+Z` | Native, browser |
 | Copy | Copy the selection to the kill buffer, leaving the text and clearing the mark. | `⌘C` | `Ctrl+C` | Native, browser |
