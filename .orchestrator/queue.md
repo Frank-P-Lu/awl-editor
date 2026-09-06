@@ -1907,7 +1907,14 @@ line == last line); no mark on non-blockquote lines.
 ---
 ### 571 — revealed thematic break keeps its ornament-sized row: giant raw `***` and a caret slab 2.2× too tall (user report, 2026-09-06 — "the way the cursor highlights the * is all wrong… like its wayy too tall?"; reproduced headlessly, first try)
 
-🟡 IN PROGRESS — claude lane (sonnet, production) with 573, branch `item-571-573`, worktree `.codex/worktrees/item-533` — claimed 2026-09-06.
+🟢 MERGED, RECEIPT OWED — landed on main as merge `a7846f7a` (`6b1a98a4` + fmt `0d765228`).
+`build_line_attrs` hoists the reveal predicate above the ornament-scale decision, so a
+revealed rule line drops the ornament's room entirely: raw markers at body size, body-height
+row, body-size caret. Four laws (2 sidecar geometry, 2 real-pixel), each single-mutation
+proven. The lane's own gates were still outstanding when it reported; the merge-train receipt
+on the exact combined candidate is OWED and is deliberately deferred while item 566's Linux
+VM holds the host at load ~400 — a receipt taken there would certify a configuration nobody
+ships.
 
 Measured on Saltpan (`--theme Saltpan`, caret onto a `***` line): a body row
 is 32px; the thematic-break row is 70.4px — exactly `ornament_scale` 2.2× —
@@ -1987,7 +1994,11 @@ scoped item when not.
 ---
 ### 573 — selection-revealed rule line double-draws: raw `***` AND the break fleuron together (found by 572's first probe, 2026-09-06; reproduced headlessly by pixel arithmetic)
 
-🟡 IN PROGRESS — claude lane (sonnet, production) with 571, branch `item-571-573`, worktree `.codex/worktrees/item-533` — claimed 2026-09-06.
+🟢 MERGED, RECEIPT OWED — landed with 571 as merge `a7846f7a`. `rule_lines` now drops every
+line the selection touches, not just the caret's own, so the fleuron stops drawing over the
+revealed raw markers. Both layers read one owner (`selection_touch_bytes` /
+`selection_touches`) rather than re-deriving the reveal state, which is what let them
+disagree. Merge-train receipt OWED — see 571.
 
 A selection that touches a thematic-break line (caret elsewhere) reveals
 the raw markers — correct since the 2026-07-22 selection-reveal widening —
