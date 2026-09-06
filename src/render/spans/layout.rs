@@ -171,9 +171,8 @@ pub(in crate::render) fn build_line_attrs(
         .selection_touch
         .is_some_and(|st| st.start < line_end && line_doc_start < st.end);
     let revealed = !conceal_off_cursor || line_selected;
-    let confirmed_rule = ctx.md
-        && !revealed
-        && line_has_rule_span(ctx.md_spans, line_doc_start, line_end);
+    let confirmed_rule =
+        ctx.md && !revealed && line_has_rule_span(ctx.md_spans, line_doc_start, line_end);
     let scale = md_line_scale(line_text, ctx.md, confirmed_rule);
     // ROW-HEIGHT LEAD (theme-QA round): a heading's row grows a further,
     // DECOUPLED amount beyond `scale` alone gives its font — vertical

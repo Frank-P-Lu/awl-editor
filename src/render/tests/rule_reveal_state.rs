@@ -46,8 +46,7 @@ use super::{headless_dqp, view_md};
 /// whose BODY happens to contain a `---`-shaped line (8) — the confirmed-rule
 /// control that must never grow or draw an ornament, in ANY reveal state,
 /// because the real parse tags it `Code`, never `Rule`.
-const DOC: &str =
-    "intro\n\n---\n\nmore\n\n```\ncode\n---\nmore code\n```\n\nend\n";
+const DOC: &str = "intro\n\n---\n\nmore\n\n```\ncode\n---\nmore code\n```\n\nend\n";
 const RULE_LINE: usize = 2;
 const FENCED_DASH_LINE: usize = 8;
 
@@ -213,9 +212,7 @@ fn revealed_rule_row_drops_to_body_scale_across_the_roster() {
 #[test]
 fn a_fenced_dash_line_stays_body_height_through_every_reveal_state() {
     let _g = crate::testlock::serial();
-    let Some((device, queue, mut p)) =
-        headless_dqp(W as f32, H as f32)
-    else {
+    let Some((device, queue, mut p)) = headless_dqp(W as f32, H as f32) else {
         eprintln!(
             "skipping a_fenced_dash_line_stays_body_height_through_every_reveal_state: no \
              wgpu adapter"
@@ -232,7 +229,10 @@ fn a_fenced_dash_line_stays_body_height_through_every_reveal_state() {
 
     let states = [
         ("caret elsewhere", view_md(DOC, 0, 0)),
-        ("caret on the fenced dash", view_md(DOC, FENCED_DASH_LINE, 0)),
+        (
+            "caret on the fenced dash",
+            view_md(DOC, FENCED_DASH_LINE, 0),
+        ),
         (
             "selection touching the fenced dash",
             view_selecting(0, FENCED_DASH_LINE, FENCED_DASH_LINE),
@@ -274,20 +274,14 @@ const CANVASES: &[(u32, u32)] = &[(1400, 900), (900, 900)];
 /// quantization noise, well under a real glyph edge's step.
 const INK_DIFF_FLOOR: i32 = 24;
 
-fn has_ink(
-    pixels: &[[u8; 4]],
-    w: i64,
-    bg: [u8; 4],
-    x0: i64,
-    x1: i64,
-    y0: i64,
-    y1: i64,
-) -> bool {
+fn has_ink(pixels: &[[u8; 4]], w: i64, bg: [u8; 4], x0: i64, x1: i64, y0: i64, y1: i64) -> bool {
     for y in y0.max(0)..y1 {
         for x in x0.max(0)..x1 {
             let idx = (y * w + x) as usize;
             let Some(p) = pixels.get(idx) else { continue };
-            let diff = (0..3).map(|c| (p[c] as i32 - bg[c] as i32).abs()).sum::<i32>();
+            let diff = (0..3)
+                .map(|c| (p[c] as i32 - bg[c] as i32).abs())
+                .sum::<i32>();
             if diff > INK_DIFF_FLOOR {
                 return true;
             }
@@ -359,17 +353,23 @@ fn selection_touching_a_rule_line_draws_no_fleuron_ink() {
         );
         let (y0, y1) = (top as i64, (top + height).max(top + 32.0) as i64);
 
-        let bg_px = read_pixels(&device, &queue, &{
-            // A throwaway render of the SAME view to sample empty page ground
-            // far from any text, in the same frame's own palette.
-            let (t, v) = offscreen(&device, cw, ch);
-            let mut enc = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("awl rule-reveal bg encoder"),
-            });
-            p.render(&mut enc, &v).expect("render failed");
-            queue.submit(Some(enc.finish()));
-            t
-        }, cw, ch);
+        let bg_px = read_pixels(
+            &device,
+            &queue,
+            &{
+                // A throwaway render of the SAME view to sample empty page ground
+                // far from any text, in the same frame's own palette.
+                let (t, v) = offscreen(&device, cw, ch);
+                let mut enc = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("awl rule-reveal bg encoder"),
+                });
+                p.render(&mut enc, &v).expect("render failed");
+                queue.submit(Some(enc.finish()));
+                t
+            },
+            cw,
+            ch,
+        );
         let bg = bg_px[(10 * cw as i64 + 10) as usize];
 
         // PRESENCE (caret off, no selection): the fleuron really is there.
