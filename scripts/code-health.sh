@@ -62,6 +62,16 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
     echo "  x86_64-unknown-linux-gnu' to close the gap locally." >&2
   fi
 fi
+# The ratchet script's own laws, run before the ratchets themselves so a broken
+# checker is diagnosed rather than believed. It went red on `main` for an
+# unknown stretch precisely because nothing invoked it; 0.76s measured on this
+# host is not a reason to keep it manual.
+RUSTC_WRAPPER= PYTHONDONTWRITEBYTECODE=1 python3 scripts/code-health.py --self-test
+# PYTHONDONTWRITEBYTECODE here is parity with the by-path loaders, NOT the cure
+# for the recurring scripts/__pycache__: CPython writes no bytecode for the
+# script it runs as `__main__`, and code-health.py imports no local module, so
+# this invocation could never have created that directory. Its real creators
+# guard themselves at their own call sites (scripts/test-pycache-guards.sh).
 RUSTC_WRAPPER= PYTHONDONTWRITEBYTECODE=1 python3 scripts/code-health.py
 # The one structural check whose subject is NOT Rust: awl's Linux package names
 # have a single owner (scripts/linux-deps.sh) and no Rust test can see the
@@ -71,6 +81,12 @@ scripts/linux-deps-law.sh
 # A disposable fake Cargo makes both convention failure directions cheap to
 # exercise on every health run; the static audit above pins the command scope.
 scripts/test-native-gate.sh
+# What sweep.sh is allowed to delete. Wired at birth: the previous version of
+# this law was deleted for being unwired, and the defect it now pins — one
+# lane's disk preflight pruning a SIBLING lane's live build — reads as the
+# victim's own broken build.
+scripts/test-sweep.sh
+scripts/test-pycache-guards.sh
 # The scan covers every tracked Rust source file, including native/macOS/wasm/
 # feature-gated paths. Never let a target directory's generated output make a
 # dependency look live. awl has no renamed dependency packages, so the

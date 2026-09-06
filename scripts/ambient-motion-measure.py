@@ -32,6 +32,11 @@ import sys
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ROOT = os.path.dirname(_HERE)
 
+# A by-path load writes scripts/__pycache__ next to the LOADED file, so the
+# guard belongs here rather than in whatever invokes this script: the
+# consumers are hand-run instruments and Rust tests, not one wrapper that
+# could carry PYTHONDONTWRITEBYTECODE for all of them.
+sys.dont_write_bytecode = True
 _spec = importlib.util.spec_from_file_location(
     "awl_ground_contrast_measure", os.path.join(_HERE, "ground-contrast-measure.py")
 )
