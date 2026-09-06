@@ -425,6 +425,7 @@ mod frame;
 mod gpu;
 mod gpu_recovery;
 mod input;
+pub(in crate::app) use input::TextDoor;
 mod lifecycle;
 mod location;
 /// The `about_to_wait` scheduling body: every debounce / settle deadline, the

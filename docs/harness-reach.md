@@ -203,6 +203,27 @@ The macOS arm needs a person to accept or cancel the platform panel. The Linux
 arm needs a real Linux window and pointer click. Neither may be claimed from a
 `--keys` or `--screenshot-app` capture.
 
+### An IME COMMIT has zero `--keys` vocabulary either, and has its own tier-2 door
+
+`--keys` chords replay through the real keymap, and a COMMITTED IME composition
+(`WindowEvent::Ime(Ime::Commit)` — the finalized text of a CJK or dead-key
+composition) never touches the keymap at all. There is no chord that spells it
+on any capture door, tier 1 or tier 2, so for a long time nothing headless could
+drive the one insertion path that bypasses `App::apply`.
+
+`App::commit_ime_headless` (`app/press.rs`, beside `press_spec_headless`) is that
+door. It is a NARROWING rather than a stand-in: it hands the same `winit` event
+to the same `App::on_ime` that `lifecycle.rs`'s `WindowEvent::Ime` arm hands it
+to, so a headless commit and a physical composition are the same code path minus
+the platform input method.
+
+**What it does NOT open.** There is still no `--keys` token and no sidecar for
+it — `--screenshot-app` drives chords only, so a capture cannot photograph a
+frame an IME commit produced. A Verify clause about IME behaviour is a Rust
+assertion on `App` state (`app::tests::read_only_surface` is the worked example),
+not a capture. Composition PREEDIT is a different matter and has its own
+deterministic render hook, `--preedit`.
+
 ### Mouse-drag gestures have zero `--keys` vocabulary
 
 `--keys` chords replay through the real keymap (`keymap.rs` -> `Action`), and

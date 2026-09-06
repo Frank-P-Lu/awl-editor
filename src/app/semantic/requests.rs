@@ -13,7 +13,7 @@
 use super::*;
 
 impl App {
-    pub(super) fn apply_semantic_request(&mut self, request: SemanticRequest) -> bool {
+    pub(in crate::app) fn apply_semantic_request(&mut self, request: SemanticRequest) -> bool {
         match request {
             SemanticRequest::Focus { id } => self.focus_semantic_node(&id),
             SemanticRequest::Click { id } => self.click_semantic_node(&id),
@@ -32,7 +32,10 @@ impl App {
                 true
             }
             SemanticRequest::ReplaceSelectedText { id, value } if id == DOCUMENT_ID => {
-                if !self.document.has_active() {
+                // THE ONE WALL (`app/input/text_door.rs`): an assistive
+                // technology drives exactly the transitions a keyboard drives,
+                // and the keyboard cannot write into a read-only prose surface.
+                if !self.text_door_open(TextDoor::AssistiveReplaceSelection) {
                     return false;
                 }
                 self.document.insert_text(&value);
@@ -41,7 +44,7 @@ impl App {
                 true
             }
             SemanticRequest::SetValue { id, value } if id == DOCUMENT_ID => {
-                if !self.document.has_active() {
+                if !self.text_door_open(TextDoor::AssistiveSetValue) {
                     return false;
                 }
                 let len = self.document.buffer().text().chars().count();

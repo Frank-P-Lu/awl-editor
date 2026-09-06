@@ -53,6 +53,17 @@ pub struct ViewState {
     pub overlay_crisp: bool,
     pub overlay_query: String,
     pub overlay_query_caret: usize,
+    /// **DOES THE OPEN CARD'S HEAD LINE BEHAVE AS A SEARCH FIELD?**
+    ///
+    /// The projection of [`crate::overlay::OverlayKind::offers_query`], whose
+    /// own doc says why one kind answers `false`. `false` parks the query caret:
+    /// the head line still draws (its title is what that line is for on such a
+    /// card), it simply stops advertising an edit the query door refuses.
+    ///
+    /// `true` off an overlay entirely — nothing draws a query caret with no card
+    /// up, so the inert value is the one that keeps every existing frame
+    /// byte-identical.
+    pub overlay_query_field: bool,
     /// The active selection in `overlay_query`, as CHAR indices `(start, end)`
     /// — armed only while a Rename minibuffer's seeded stem-selection hasn't
     /// yet been collapsed (`OverlayState::query`'s own [`crate::textbox::
@@ -334,6 +345,7 @@ impl ViewState {
             overlay_crisp: false,
             overlay_query: String::new(),
             overlay_query_caret: usize::MAX,
+            overlay_query_field: true,
             overlay_query_selection: None,
             overlay_title: String::new(),
             overlay_row_path_splits: false,

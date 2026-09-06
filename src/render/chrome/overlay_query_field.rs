@@ -58,6 +58,16 @@ impl TextPipeline {
         // The field's own PLANNED line box. `None` is the contextual spell
         // popup, which draws no query line at all.
         let field = plan.query_band()?;
+        // …and `None` again on a card whose head line is NOT a field: Credits'
+        // one fixed row names the document beside it, so there is nothing to
+        // search and the query door refuses every character
+        // (`OverlayKind::offers_query`). A caret parked after that title
+        // advertises an edit that cannot happen — the same promise the document
+        // caret makes over a relocated transcript, one region up. The line still
+        // draws; only its caret parks.
+        if !self.overlay_query_field {
+            return None;
+        }
         let m = self.metrics;
         let caret_char = self
             .overlay_query_caret

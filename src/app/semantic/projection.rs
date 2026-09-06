@@ -228,14 +228,10 @@ impl SemanticProjection {
         root.children.push(DOCUMENT_ID.to_string());
         let mut document = SemanticNode::new(DOCUMENT_ID, SemanticRole::Document, String::new());
         document.focusable = true;
-        document.editable = true;
         document.multiline = true;
-        document.actions = vec![
-            SemanticAction::Focus,
-            SemanticAction::SetTextSelection,
-            SemanticAction::ReplaceSelectedText,
-            SemanticAction::SetValue,
-        ];
+        let read_only = view.document_is_read_only();
+        document.editable = !read_only;
+        document.actions = document_actions(read_only);
         self.snapshot.nodes.clear();
         self.snapshot.nodes.push(root);
         self.snapshot.nodes.push(document);
@@ -347,6 +343,11 @@ impl SemanticProjection {
             .unwrap_or_else(|| "Untitled document".to_string());
         let focused = matches!(view.layer(), workspace::Layer::Editor);
         let selection = self.selection(buffer);
+        // The read-only fact is per-FRAME, not per-revision: a reading surface
+        // opens and closes without touching the buffer's content or shape, so
+        // the seed's answer would go stale here. Re-asked every refresh, like
+        // the name and the focus flag beside it.
+        let read_only = view.document_is_read_only();
 
         let mut moved = false;
         if shape_moved {
@@ -369,6 +370,15 @@ impl SemanticProjection {
         }
         if node.selection != Some(selection) {
             node.selection = Some(selection);
+            moved = true;
+        }
+        if node.editable == read_only {
+            node.editable = !read_only;
+            moved = true;
+        }
+        let actions = document_actions(read_only);
+        if node.actions != actions {
+            node.actions = actions;
             moved = true;
         }
         if moved {
@@ -447,4 +457,23 @@ impl SemanticProjection {
         self.stats.nodes_published += count as u64;
         self.changed.clear();
     }
+}
+
+/// **WHAT AN ASSISTIVE TECHNOLOGY MAY DO TO THE DOCUMENT NODE** — one owner,
+/// read by the seed and by every refresh.
+///
+/// A node that advertises an action nothing routes is worse than a node that
+/// advertises nothing (`requests.rs`'s own doc), and while a READ-ONLY prose
+/// surface is up both text-WRITING requests are refused at the one wall
+/// (`App::text_door_open`). So they leave the roster with the refusal, and
+/// `editable` leaves with them: a reader is told the document cannot be written
+/// rather than offered an edit that silently does nothing. Focus and selection
+/// stay — the surface is for reading, and reading is what they are for.
+fn document_actions(read_only: bool) -> Vec<SemanticAction> {
+    let mut actions = vec![SemanticAction::Focus, SemanticAction::SetTextSelection];
+    if !read_only {
+        actions.push(SemanticAction::ReplaceSelectedText);
+        actions.push(SemanticAction::SetValue);
+    }
+    actions
 }

@@ -444,6 +444,15 @@ pub(super) fn settled_viewstate(
     // …and whether that region has prose in it — the capture's own `preview_text`,
     // resolved through the SAME typed request the live App uses.
     vstate.overlay_comparison = opts.preview_text.is_some();
+    // …and whether this card's head line is a search FIELD or only a title —
+    // resolved through the same mode->kind door the shape above uses, never the
+    // mode's own spelling, so a capture and the live App cannot answer it in two
+    // vocabularies.
+    vstate.overlay_query_field = opts
+        .overlay
+        .as_ref()
+        .and_then(|o| crate::overlay::OverlayKind::from_mode(o.mode))
+        .is_none_or(crate::overlay::OverlayKind::offers_query);
     vstate.overlay_detail_focus = opts
         .overlay
         .as_ref()

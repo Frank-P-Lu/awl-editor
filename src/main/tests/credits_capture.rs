@@ -10,6 +10,20 @@ use super::super::*;
 use super::{keyspec, replay_keys};
 use crate::testscratch::ScratchDir;
 
+/// THE ONE FIXTURE WRITE in this file. Both capture-tier laws need the same
+/// quiet document on disk, and the durable-write census counts bare
+/// `std::fs::write` call sites per file — so they share this rather than each
+/// spelling their own.
+fn write_fixture(dir: &ScratchDir) -> PathBuf {
+    let fixture = dir.join("note.md");
+    std::fs::write(
+        &fixture,
+        "# My Notes\n\nSome real prose the user is editing.\n",
+    )
+    .unwrap();
+    fixture
+}
+
 fn credits_buffer() -> Buffer {
     let mut b = Buffer::from_str("# My Notes\n\nSome real prose the user is editing.\n");
     b.set_path(PathBuf::from("/notes/draft.md"));
@@ -161,12 +175,7 @@ fn credits_text_is_present_and_legible_across_a_world_sample() {
     let dir = ScratchDir::new(
         std::env::temp_dir().join(format!("awl-credits-legibility-{}", std::process::id())),
     );
-    let fixture = dir.join("note.md");
-    std::fs::write(
-        &fixture,
-        "# My Notes\n\nSome real prose the user is editing.\n",
-    )
-    .unwrap();
+    let fixture = write_fixture(&dir);
     if capture::build_oracle(&Buffer::from_file(&fixture), &CaptureOpts::default()).is_none() {
         eprintln!("skipping credits legibility capture: no wgpu adapter");
         return;
@@ -296,4 +305,163 @@ fn credits_text_is_present_and_legible_across_a_world_sample() {
     // ended on — `panels.rs`'s own sweep documents why: leaking a non-default
     // world breaks whatever `serial()`-ordered test runs next.
     crate::theme::set_active(entry_world);
+}
+
+/// **THE READING SURFACE DRAWS NO CARET, THROUGH THE PRODUCTION `--keys` SEAM.**
+///
+/// The caret's world-by-world absence is the render tier's law
+/// (`render::tests::read_only_caret`, which isolates the caret's own pixels by
+/// re-rendering with its pipelines emptied, across the whole roster). What only
+/// THIS tier can see is that the production path actually gets there: the real
+/// palette + keymap journey into `Action::OpenCredits`, `App::sync_view`'s own
+/// projection of the family fact, the capture door's re-derivation of it.
+///
+/// Every quantity is a rendered pixel compared to another rendered pixel. The
+/// caret's box comes from the sidecar's `layout.caret` and its row band — a
+/// GEOMETRY question, which is what the sidecar is an oracle for — and the
+/// comparison value is the GROUND of that same rendered row, sampled well clear
+/// of the caret. Both frames park the caret on a BLANK line, so a box that
+/// matches its own row's ground holds no caret and a box that does not, does.
+///
+/// The presence companion is the same probe on the same document with no viewer
+/// open (`Down` parks the caret on the fixture's blank line 1): it must differ
+/// from its ground. Without it, "the box matches the ground" is equally true of
+/// a renderer that stopped drawing carets, a caret that fell off the canvas, and
+/// a capture that photographed the wrong frame.
+#[test]
+fn the_credits_viewer_photographs_no_caret_through_the_real_palette_journey() {
+    let _fs = crate::testlock::serial();
+    let dir = ScratchDir::new(
+        std::env::temp_dir().join(format!("awl-credits-caret-{}", std::process::id())),
+    );
+    let fixture = write_fixture(&dir);
+    if capture::build_oracle(&Buffer::from_file(&fixture), &CaptureOpts::default()).is_none() {
+        eprintln!("skipping credits caret capture: no wgpu adapter");
+        return;
+    }
+
+    /// How many pixels of the caret's own box differ from the GROUND of the
+    /// rendered row it sits on — zero means nothing was drawn there.
+    fn caret_box_ink(png: &std::path::Path) -> usize {
+        let sidecar: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(png.with_extension("json")).unwrap())
+                .unwrap();
+        let caret = &sidecar["layout"]["caret"];
+        let row_index = caret["row"]
+            .as_u64()
+            .expect("the sidecar names the caret row");
+        let row = sidecar["layout"]["rows"]
+            .as_array()
+            .expect("rows")
+            .iter()
+            .find(|r| r["index"].as_u64() == Some(row_index))
+            .expect("the caret's own row is laid out");
+        assert_eq!(
+            row["content"].as_str(),
+            Some(""),
+            "both arms park the caret on a BLANK row, so the row's ground is uniform \
+             and a difference from it can only be the caret"
+        );
+        let x0 = caret["x"].as_f64().expect("caret x") as u32;
+        let top = row["top"].as_f64().expect("row top") as u32;
+        let bottom = top + row["height"].as_f64().expect("row height") as u32;
+        let img = image::open(png).expect("decode PNG").to_rgba8();
+        // The row's own ground, read off THIS render — never an authored colour.
+        let ground = *img.get_pixel(x0 + 120, (top + bottom) / 2);
+        (top..bottom)
+            .flat_map(|y| (x0..x0 + 14).map(move |x| (x, y)))
+            .filter(|&(x, y)| *img.get_pixel(x, y) != ground)
+            .count()
+    }
+
+    let shot = |name: &str, keys: &str| {
+        let png = dir.join(name);
+        capture_screenshot(
+            png.clone(),
+            Some(fixture.clone()),
+            CaptureOpts::default(),
+            keyspec::parse_keys(keys).unwrap(),
+            crate::keymap::KeymapState::new_with_convention(crate::convention::Convention::Mac),
+            Some(dir.to_path_buf()),
+            None,
+            dir.join("notes"),
+            Config::empty(),
+            false,
+        )
+        .expect("capture succeeds");
+        png
+    };
+
+    // PRESENCE: the ordinary document, caret parked on its blank line.
+    let editing = shot("editing.png", "Down");
+    let present = caret_box_ink(&editing);
+    assert!(
+        present > 0,
+        "the ordinary document must draw a caret in its own caret box, or the \
+         absence below proves nothing"
+    );
+
+    // THE SURFACE: the same document, the real palette journey into Credits.
+    let viewing = shot("viewing.png", "s-p c r e d i t s Enter");
+    let sidecar: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(viewing.with_extension("json")).unwrap())
+            .unwrap();
+    assert_eq!(
+        sidecar["overlay"]["mode"], "credits",
+        "the journey really opened the viewer"
+    );
+    let ink = caret_box_ink(&viewing);
+    assert_eq!(
+        ink, 0,
+        "the Credits viewer photographed {ink} caret pixels in its own caret box \
+         (the ordinary document drew {present} there) — a reading surface refuses \
+         every insertion door, so it may not draw the accent that promises one"
+    );
+}
+
+/// **TYPING ON THE CREDITS RAIL DOES NOTHING AT ALL** — driven by real chords
+/// through the real keymap.
+///
+/// Its primary "list" is one fixed row NAMING the document beside it, so a query
+/// could only ever hide that row and leave the reader on `no matches` with the
+/// prose it named still on screen. `OverlayKind::offers_query` is the fact and
+/// `OverlayState::push` — the one door the query grows through — reads it.
+///
+/// `Left` off the content stage returns to that rail, which is where a typed
+/// character used to land.
+#[test]
+fn replay_typing_on_the_credits_rail_filters_nothing() {
+    let mut buffer = credits_buffer();
+    let before_text = buffer.text();
+    let keys = keyspec::parse_keys("s-p c r e d i t s Enter Left z z z").unwrap();
+    let root = PathBuf::from("/notes");
+    let res = replay_keys(&mut buffer, &keys, &[], &root, None, &Config::empty(), None);
+    let card = res.journey.card().expect("the viewer is still up");
+    assert_eq!(card.kind, crate::overlay::OverlayKind::Credits);
+    assert!(
+        !card.detail_focus,
+        "`Left` off the content stage returns to the rail — the stage the typed \
+         characters were aimed at"
+    );
+    assert_eq!(
+        card.query.text(),
+        "",
+        "a card with nothing to search grows no query"
+    );
+    assert_eq!(
+        card.item_strings().len(),
+        1,
+        "its one row must survive: filtering it away would leave a reader on \
+         `no matches` beside the document that row names"
+    );
+    assert_eq!(
+        card.empty_notice(),
+        None,
+        "and so there is no empty state to show"
+    );
+    assert_eq!(
+        buffer.text(),
+        before_text,
+        "and nothing reached the buffer behind it"
+    );
 }

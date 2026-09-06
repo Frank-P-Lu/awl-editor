@@ -195,6 +195,10 @@ mod quote_orientation;
 mod rail_ink_law;
 mod raked_location;
 mod range_rail;
+/// **A READING SURFACE DRAWS NO CARET.** The document caret parks for the whole
+/// read-only prose family; the card's own query caret parks only where there is
+/// nothing to search. Both directions, in rendered pixels, per world.
+mod read_only_caret;
 mod reanchor_crossing_law;
 mod rotated_label;
 mod rotated_location;

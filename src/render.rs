@@ -2574,6 +2574,9 @@ pub struct TextPipeline {
     overlay_crisp: bool,
     overlay_query: String,
     overlay_query_caret: usize,
+    /// Mirror of [`ViewState::overlay_query_field`] — does the open card's head
+    /// line behave as a search field? `false` parks its caret.
+    overlay_query_field: bool,
     overlay_query_selection: Option<(usize, usize)>,
     overlay_title: String,
     overlay_row_path_splits: bool,

@@ -522,6 +522,31 @@ impl TextPipeline {
         // drawing. Only `prepare_caret_block`, when it runs on a one-bit
         // world, repopulates it with this frame's real rect.
         self.caret_invert.prepare(device, queue, width, height, &[]);
+        // A READ-ONLY PROSE SURFACE DRAWS NO CARET. The caret is awl's one
+        // accent and it means "you can write here" (DESIGN §one accent); while
+        // the document layer is relocated into a comparison — Version History's
+        // timeline, the external-change conflict, Credits — nothing on screen
+        // is writable, and every text-insertion door is walled
+        // (`app/input/text_door.rs`). A caret parked in that prose is the
+        // editor promising an edit it will refuse.
+        //
+        // The fact is the SAME one the wall reads, one layer down: both derive
+        // from the comparison roster (`OverlayState::shows_read_only_prose` ->
+        // `ViewState::overlay_comparison` -> this), so the surface that refuses
+        // text and the surface that draws no caret cannot become two different
+        // sets. Asked as `document_is_a_transcript` rather than
+        // `comparison_viewport`, because a transcript parked off-screen on the
+        // narrow stage is just as unwritable as one on it.
+        //
+        // The TRAIL parks with them: it is a live-only motion streak the caret
+        // drags behind it, and a streak left drawing after its caret stopped is
+        // the same promise by another shape.
+        if self.document_is_a_transcript() {
+            self.caret_pipeline.prepare_empty();
+            self.caret_glyph_pipeline.clear();
+            self.caret_trail_pipeline.prepare_empty();
+            return;
+        }
         // DIFF-AS-PREVIEW: the caret is SELECTION-ADJACENT geometry
         // too (quads don't clip to `TextBounds` the way glyphs do), so it reads
         // the SAME `content_clip` every other selection-quad path routes
