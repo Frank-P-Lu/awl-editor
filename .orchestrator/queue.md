@@ -797,6 +797,22 @@ that entire streak, so a software adapter is not a stand-in for that axis.
 confirmation explicitly NOT obtained, because the display was locked; they are in the owed
 section, not silently absorbed into these receipts.
 
+## Scripts-only merges claim no receipt — and this one says so
+
+`e4d2cf71` (593 + 594 + 578) changed eight files: seven under `scripts/` and
+`.orchestrator/README.md`. **No Rust, no shader, no Cargo manifest, no CI workflow** —
+verified by diffing the merge's own name list, not assumed from the subject lines. CLAUDE.md
+is explicit that such a change claims no receipt and must say so, so this one does.
+
+What DOES stand behind it, both stronger than required: the lane's full native gate on its own
+branch tip (`native-gate-receipt commit=c2370fff health=pass:498s conventions=mac,linux
+scope=all-targets menubar=full:on unit_tests=4917 unit_shards=6 integration_targets=18`), and
+an orchestrator run of `code-health.sh` on the MERGED tree confirming the three new arms
+actually execute there — `self-test clean`, `sweep.sh deletes only inside its caller's
+worktree`, `3 by-path loaders leave no scripts/__pycache__` — with the clippy-exception count
+and ratchet baseline unmoved. A law that is wired but does not run is the failure this repo has
+recorded most often; item 567 deleted five laws that nothing ran.
+
 ## Watch — verification that only a future run can supply
 
 **566's oracle: ANSWERED 2026-09-07, and the wiring works.** The item asked whether the linux
