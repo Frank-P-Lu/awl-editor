@@ -2075,6 +2075,43 @@ non-vacuous); the family enrolment derives from the read-only-prose
 roster so a fourth member inherits the laws on arrival.
 
 ---
+### 576 — follow a link: right-click shows "go to", modifier-click opens (user decision, 2026-09-06 — "right click on a link should show 'go to'; and i guess command click should open it too? (what should it be on linux…??? like for each keymap?)")
+
+The followable-span grammar already marks every followable span with one
+underline (named links and tamed bare URLs, one owner) — but nothing
+follows them. Build the follow affordance:
+
+- **Modifier-click opens.** macOS: ⌘-click (decided). Linux: recommend
+  Ctrl-click under BOTH flavors — the platform convention in every editor
+  and browser, and a mouse chord, so it collides with none of the C-c/C-x
+  text-chord rules (the keep-list machinery governs key chords, not mouse
+  chords) — plus middle-click (mouse-2) as the emacs flavor's own follow
+  gesture, seeded Linux-only like the Meta layer, inert on Mac and under
+  native. Route the gesture through the keymap/platform seed-table seam so
+  label surfaces and dispatch read one source; decide there whether the
+  mouse chord is `[keys]`-rebindable or fixed (recommend fixed v1).
+- **Right-click on a followable span** shows the go-to affordance. awl has
+  no context menus by design — keep it summoned and minimal (a one-row
+  card in the overlay family, or the pointer affordance family from the
+  hover work), not a native NSMenu grafted onto the wgpu view (see the
+  muda tripwire). Label: "Go to <destination>" with the tamed authority,
+  never the raw URL flood.
+- **What opens where:** web URLs hand off to the system opener
+  (`open`/`xdg-open` — an outward action at the user's explicit gesture,
+  not a runtime fetch; the zero-network invariant is about awl phoning
+  home, and this is the EDITOR-daemon shape of OS integration). A RELATIVE
+  path to a local file follows IN awl — the Live-Preview model's own move
+  (a vault of notes linking each other). Heading anchors and footnote
+  jumps: deferred, recorded.
+- Verify: the follow gesture produces a typed effect carrying the resolved
+  destination, asserted in the sidecar through both chord replay and the
+  real-App driver; the actual launch is the live-only tail (harness-reach:
+  flag it, do not stub the effect layer around it). Laws: modifier-click
+  on a plain word produces nothing; the same click on each followable kind
+  resolves the destination the underline grammar says it has; Linux seeds
+  appear under the right flavors and the Mac binding under none of them.
+
+---
 ## Needs specific hardware
 
 🔴 BLOCKED — these journeys require physical environments unavailable to the current orchestration host.
