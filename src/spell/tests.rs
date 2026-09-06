@@ -720,6 +720,321 @@ fn real_dictionary_suggests_corrections() {
     );
 }
 
+// ── THE PERSONAL DICTIONARY IS CONSULTED FOR CORRECTIONS, NOT ONLY CHECKS ──
+//
+// `check` has always read `user_words`; `suggest` read the bundled dictionary
+// alone, so a typo one letter off a word the user added on purpose was never
+// offered that word back. Every law below drives the PRODUCTION `suggest` /
+// `suggest_at` — the one path the Cmd-`;` chord, the right-click summon and the
+// "Spell suggestions…" palette row all reach — never a fixture predicate.
+//
+// The enrolment is `DictVariant::ALL`, derived from the roster rather than
+// pinned to `EnUs`: the merge lives above the bundled dictionary, so it must
+// hold for every variant a user can switch to, and a new variant is enrolled by
+// existing.
+
+/// A checker for `variant` with exactly `words` in its personal dictionary.
+fn with_personal(variant: DictVariant, words: &str) -> SpellChecker {
+    let mut sc = SpellChecker::new(variant).expect("bundled dictionary parses");
+    sc.set_user_words(parse_dictionary(words));
+    sc
+}
+
+#[test]
+fn suggest_offers_a_nearby_added_word_through_the_real_suggest_path() {
+    let _g = crate::testlock::serial();
+    for variant in DictVariant::ALL {
+        let sc = with_personal(variant, "zorbling\n");
+        let s = sc.suggest("zorblng"); // one deletion off the added word
+        assert!(
+            s.iter().any(|w| w == "zorbling"),
+            "{}: a typo one edit off an added personal word must be offered: {s:?}",
+            variant.label()
+        );
+    }
+}
+
+#[test]
+fn suggest_excludes_a_distant_added_word_while_still_answering_at_all() {
+    // ⚠️ THE PRESENCE COMPANION IS THE POINT. "the distant word is absent" is
+    // satisfied by a `suggest` that returns an empty list for every input — so
+    // the same call must be shown to have produced real suggestions, and the
+    // same checker must be shown to still offer a NEAR personal word. Without
+    // both, deleting the whole mechanism passes this law.
+    let _g = crate::testlock::serial();
+    for variant in DictVariant::ALL {
+        let sc = with_personal(variant, "zorbling\n");
+        let s = sc.suggest("banan"); // a real typo, nowhere near "zorbling"
+        assert!(
+            !s.is_empty(),
+            "{}: precondition — the bundled dictionary must answer 'banan' at \
+             all, or the absence below proves nothing: {s:?}",
+            variant.label()
+        );
+        assert!(
+            !s.iter().any(|w| w == "zorbling"),
+            "{}: an unrelated personal word must not be offered: {s:?}",
+            variant.label()
+        );
+        assert!(
+            sc.suggest("zorblng").iter().any(|w| w == "zorbling"),
+            "{}: presence companion — the SAME checker still offers the personal \
+             word for a near typo, so the absence above is about distance",
+            variant.label()
+        );
+    }
+}
+
+#[test]
+fn suggest_offers_a_personal_word_at_the_distance_bound_and_not_past_it() {
+    // The bound itself, swept from both sides of `personal::MAX_DISTANCE`
+    // rather than at one hand-picked distance. `zorbling` is 8 chars; each
+    // query below is exactly n deletions from it.
+    let _g = crate::testlock::serial();
+    let at = |n: usize| match n {
+        1 => "zorblng", // one deletion
+        2 => "zorblg",  // two deletions
+        3 => "zorbg",   // three deletions
+        _ => unreachable!(),
+    };
+    for variant in DictVariant::ALL {
+        let sc = with_personal(variant, "zorbling\n");
+        for n in 1..=crate::spell::personal::MAX_DISTANCE {
+            assert!(
+                sc.suggest(at(n)).iter().any(|w| w == "zorbling"),
+                "{}: distance {n} is within the bound and must be offered",
+                variant.label()
+            );
+        }
+        let past = crate::spell::personal::MAX_DISTANCE + 1;
+        assert!(
+            !sc.suggest(at(past)).iter().any(|w| w == "zorbling"),
+            "{}: distance {past} is past the bound and must not be offered",
+            variant.label()
+        );
+    }
+}
+
+#[test]
+fn suggest_recases_a_personal_word_to_match_the_typed_capitalization() {
+    let _g = crate::testlock::serial();
+    for variant in DictVariant::ALL {
+        let sc = with_personal(variant, "zorbling\n");
+        let s = sc.suggest("Zorblng");
+        assert!(
+            s.iter().any(|w| w == "Zorbling"),
+            "{}: a capitalized typo must offer the capitalized personal word, \
+             not the stored lowercase form: {s:?}",
+            variant.label()
+        );
+        assert!(
+            !s.iter().any(|w| w == "zorbling"),
+            "{}: the lowercase form must not ALSO appear once recased: {s:?}",
+            variant.label()
+        );
+        let s = sc.suggest("ZORBLNG");
+        assert!(
+            s.iter().any(|w| w == "ZORBLING"),
+            "{}: an all-caps typo must offer the all-caps personal word: {s:?}",
+            variant.label()
+        );
+        let s = sc.suggest("zorblng");
+        assert!(
+            s.iter().any(|w| w == "zorbling"),
+            "{}: a lowercase typo keeps the stored lowercase form: {s:?}",
+            variant.label()
+        );
+    }
+}
+
+#[test]
+fn suggest_never_ranks_a_personal_near_miss_behind_a_bundled_one() {
+    // DECISION: the user's own vocabulary outranks a bundled guess. This also
+    // guards the `MAX_SUGGESTIONS` cut the Spell card applies AFTER assembly —
+    // a personal word merged in behind the bundled ones could be assembled and
+    // then silently dropped.
+    let _g = crate::testlock::serial();
+    for variant in DictVariant::ALL {
+        // "wrold" is a real bundled-dictionary typo for "world"; the personal
+        // word is a near miss of the same query.
+        let sc = with_personal(variant, "wrolds\n");
+        let s = sc.suggest("wrold");
+        let dict_pos = s.iter().position(|w| w == "world");
+        assert!(
+            dict_pos.is_some(),
+            "{}: precondition — the bundled dictionary still offers 'world', so \
+             there is something to outrank: {s:?}",
+            variant.label()
+        );
+        let personal_pos = s.iter().position(|w| w == "wrolds");
+        assert!(
+            personal_pos.is_some(),
+            "{}: the personal near-miss must appear at all: {s:?}",
+            variant.label()
+        );
+        assert!(
+            personal_pos < dict_pos,
+            "{}: the personal word must not rank behind the bundled one: {s:?}",
+            variant.label()
+        );
+        assert_eq!(
+            personal_pos,
+            Some(0),
+            "{}: and it leads the list, so the picker's MAX_SUGGESTIONS cut \
+             cannot drop it: {s:?}",
+            variant.label()
+        );
+    }
+}
+
+#[test]
+fn suggest_offers_a_personal_word_even_when_the_bundled_dictionary_has_nothing() {
+    // The failure this pins: a merge that only ever APPENDS to a non-empty
+    // bundled list. An invented word the bundled dictionary cannot correct is
+    // exactly the case a personal dictionary exists for.
+    let _g = crate::testlock::serial();
+    for variant in DictVariant::ALL {
+        let sc = with_personal(variant, "qwzzlefrmp\n");
+        let s = sc.suggest("qwzzlefrmb");
+        assert!(
+            s.iter().any(|w| w == "qwzzlefrmp"),
+            "{}: the personal word must be offered on its own: {s:?}",
+            variant.label()
+        );
+    }
+}
+
+#[test]
+fn suggest_never_offers_the_personal_word_the_user_already_typed_correctly() {
+    let _g = crate::testlock::serial();
+    for variant in DictVariant::ALL {
+        let sc = with_personal(variant, "zorbling\nzorblings\n");
+        let s = sc.suggest("zorbling");
+        assert!(
+            !s.iter().any(|w| w == "zorbling"),
+            "{}: an exact match is not a correction: {s:?}",
+            variant.label()
+        );
+        assert!(
+            s.iter().any(|w| w == "zorblings"),
+            "{}: presence companion — a DIFFERENT near personal word is still \
+             offered, so the exclusion above is about the exact match: {s:?}",
+            variant.label()
+        );
+    }
+}
+
+#[test]
+fn every_summon_door_gathers_its_suggestions_from_the_one_owner() {
+    // "ONE OWNER, NO SECOND SUGGEST PATH." The merge lives inside
+    // `SpellChecker::suggest`, so a surface that assembled its own list would
+    // silently lose the personal dictionary again — and nothing about the
+    // Spell card's own shape would look wrong.
+    //
+    // There are exactly two gather sites: the live App's
+    // (`Document::spell_suggestion_target`, reached by both the Cmd-`;` chord
+    // and the "Spell suggestions…" palette row through the SAME
+    // `Action::OpenSpellSuggest`, and by the right-click summon) and the
+    // headless replay's. Each must ask `suggest_at` — the method that folds the
+    // personal words in — and neither may reach past it to the bundled
+    // dictionary's own `dict.suggest`. Compile-time embeds, so this is a pure
+    // string law with no runtime filesystem.
+    for (name, src) in [
+        (
+            "src/app/document/cache.rs",
+            include_str!("../app/document/cache.rs"),
+        ),
+        (
+            "src/main/run/chord.rs",
+            include_str!("../main/run/chord.rs"),
+        ),
+    ] {
+        assert_eq!(
+            src.matches("suggest_at(").count(),
+            1,
+            "{name}: a summon door gathers through exactly one `suggest_at` call"
+        );
+        assert!(
+            !src.contains("dict.suggest("),
+            "{name}: a summon door must never reach past `suggest_at` to the \
+             bundled dictionary — that is how the personal words get lost"
+        );
+    }
+    // And the bundled engine is consulted in exactly one place in the whole
+    // crate: `SpellChecker::suggest`, the merge point itself.
+    assert_eq!(
+        include_str!("../spell.rs")
+            .matches("self.dict.suggest(")
+            .count(),
+        1,
+        "`spell.rs` holds the single bundled-suggestion call the merge wraps"
+    );
+}
+
+#[test]
+fn suggest_at_reaches_the_merged_personal_suggestions() {
+    // `suggest_at` is the seam both summon doors call through
+    // (`main/run/chord.rs` headless, `app/apply/overlay_inputs.rs` live) —
+    // prove the merge survives it, not just the bare `suggest`.
+    let _g = crate::testlock::serial();
+    for variant in DictVariant::ALL {
+        let sc = with_personal(variant, "zorbling\n");
+        let text = "please zorblng now";
+        let t = sc
+            .suggest_at(text, 0, 9, None)
+            .expect("cursor on the misspelling resolves a target");
+        assert_eq!(t.word, "zorblng");
+        assert!(
+            t.suggestions.iter().any(|w| w == "zorbling"),
+            "{}: suggest_at must surface the merged personal word: {:?}",
+            variant.label(),
+            t.suggestions
+        );
+    }
+}
+
+#[test]
+fn the_spell_card_keeps_the_personal_word_after_its_own_truncation() {
+    // The picker truncates to `OverlayKind::MAX_SUGGESTIONS` AFTER assembly.
+    // With enough bundled suggestions to overflow the cut, the personal word
+    // must still be a row — which is only true because the merge is in front.
+    let _g = crate::testlock::serial();
+    let cap = crate::overlay::OverlayKind::MAX_SUGGESTIONS;
+    for variant in DictVariant::ALL {
+        // "colr" is a typo the bundled dictionary answers ten-plus ways on
+        // every variant — the overflow the cut needs — and "colrs" is a
+        // personal word none of them offers.
+        let sc = with_personal(variant, "colrs\n");
+        let word = "colr";
+        let bundled_only = SpellChecker::new(variant)
+            .expect("bundled dictionary parses")
+            .suggest(word);
+        // ⚠️ WITHOUT THIS THE LAW IS VACUOUS: if the bundled dictionary offers
+        // fewer than `cap` corrections the cut never bites, and a merge that
+        // APPENDED would pass too.
+        assert!(
+            bundled_only.len() >= cap,
+            "{}: precondition — the bundled dictionary must overflow the cut \
+             (cap {cap}, got {}); otherwise the truncation is never exercised",
+            variant.label(),
+            bundled_only.len()
+        );
+        let ov = crate::overlay::OverlayState::new_spell(
+            sc.suggest(word),
+            (0, 0, word.chars().count()),
+            word.to_string(),
+        );
+        assert!(
+            ov.rows.iter().any(|r| r.accept == "colrs"),
+            "{}: the personal word must survive the card's own cut (cap {cap}, \
+             {} bundled suggestions): {:?}",
+            variant.label(),
+            bundled_only.len(),
+            ov.rows.iter().map(|r| &r.accept).collect::<Vec<_>>()
+        );
+    }
+}
+
 #[test]
 fn suggest_at_resolves_word_and_suggestions() {
     let _g = crate::testlock::serial();

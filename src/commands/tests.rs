@@ -2602,3 +2602,32 @@ fn c_c_emacs_slot_layer_is_dead_on_linux_under_both_flavors() {
         }
     }
 }
+
+#[test]
+fn every_spell_summon_door_is_the_same_action_and_therefore_one_suggest_path() {
+    // The personal dictionary's near-miss merge lives inside
+    // `SpellChecker::suggest` (see `spell::tests`). What this law pins is that
+    // every door that summons the Spell card is the SAME `Action`, so there is
+    // no second entry point a divergent suggest path could hide behind: the
+    // "Spell suggestions…" palette row, the chord the keymap resolves, and the
+    // right-click context-menu item. `spell::tests::
+    // every_summon_door_gathers_its_suggestions_from_the_one_owner` pins the
+    // other half — that the gather sites reach `suggest_at` and nothing past it.
+    let row = COMMANDS
+        .iter()
+        .find(|c| c.name == "Spell suggestions…")
+        .expect("catalog carries the Spell suggestions row");
+    assert_eq!(row.action, crate::keymap::Action::OpenSpellSuggest);
+    // The chord side, read out of the catalog's own resolver rather than
+    // retyped: the row IS the binding, so the palette and the keyboard cannot
+    // become two doors. (`keymap::tests` pins the other direction — that this
+    // chord resolves to this Action.)
+    assert_eq!(
+        crate::commands::resolved_native(row, crate::convention::Convention::Mac),
+        "Cmd-;"
+    );
+    assert!(
+        include_str!("../app/input/context_menu.rs").contains("Action::OpenSpellSuggest"),
+        "the right-click summon fires the same Action, not its own gather"
+    );
+}

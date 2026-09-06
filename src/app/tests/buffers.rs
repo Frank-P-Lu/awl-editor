@@ -705,6 +705,46 @@ fn right_click_word_summons_spell_suggestions() {
     );
 }
 
+#[test]
+fn right_click_word_summons_a_personal_dictionary_near_miss() {
+    // The same real seam as `right_click_word_summons_spell_suggestions` above,
+    // for the personal dictionary's half: a real `SpellChecker`, a real added
+    // word, and the production `suggest_at` — proving the merge survives all
+    // the way to the Spell overlay the App actually builds. The guard is for
+    // `suggest_at`'s read of the process-global spellcheck toggle.
+    let _g = crate::testlock::serial();
+    let Ok(mut sc) = crate::spell::SpellChecker::new(crate::spell::DictVariant::EnUs) else {
+        return;
+    };
+    sc.set_user_words(crate::spell::parse_dictionary("zorbling\n"));
+    let mut buffer = Buffer::from_str("Please zorblng this.\n");
+    let idx = buffer.line_col_to_char(0, 9);
+    buffer.set_cursor(idx);
+    let (line, col) = buffer.cursor_line_col();
+    let t = sc
+        .suggest_at(&buffer.text(), line, col, buffer.syntax_lang())
+        .expect("a misspelled word under the right-click yields a target");
+    assert!(
+        t.suggestions.iter().any(|w| w == "zorbling"),
+        "the added personal word must be offered: {:?}",
+        t.suggestions
+    );
+    let ov = crate::overlay::OverlayState::new_spell(
+        t.suggestions.clone(),
+        (
+            t.misspelling.line,
+            t.misspelling.start_col,
+            t.misspelling.end_col,
+        ),
+        t.word.clone(),
+    );
+    assert_eq!(ov.kind, crate::overlay::OverlayKind::Spell);
+    assert!(
+        ov.rows.iter().any(|r| r.accept == "zorbling"),
+        "the built Spell overlay must carry the personal word as a row"
+    );
+}
+
 // ── THE OWNED SLOT — every App-level per-buffer field travels ──────────
 // with its buffer because the WHOLE `Entry<BufferExtra>` moves atomically on
 // park/activate, never a field enumerated by hand (`files/active.rs`'s

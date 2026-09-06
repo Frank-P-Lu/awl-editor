@@ -477,8 +477,8 @@ lines = 618
 
 [[file_size_mark]]
 file = "src/spell.rs"
-lines = 962
-reason = "+8: `SPELLCHECK_DEFAULT` and `DictVariant::DEFAULT` — the two fresh-install values this file owns, each now a const its own static is initialised from (`SPELLCHECK_ON`, `ACTIVE_VARIANT`) rather than a bare literal, so the generated reference reads the owner instead of restating `true`/`en_us`."
+lines = 974
+reason = "+8: `SPELLCHECK_DEFAULT` and `DictVariant::DEFAULT` — the two fresh-install values this file owns, each now a const its own static is initialised from (`SPELLCHECK_ON`, `ACTIVE_VARIANT`) rather than a bare literal, so the generated reference reads the owner instead of restating `true`/`en_us`. +14: `suggest` folds the personal (user-added) dictionary's near-miss words in before returning, so the list a correction picker shows is the same list `check` already silences squiggles from — the scan, the distance bound and the precedence rule live in the new `spell/personal.rs` sibling rather than here, so this file grows only by the merge call and its doc."
 
 [[file_size_mark]]
 file = "src/stars.rs"
