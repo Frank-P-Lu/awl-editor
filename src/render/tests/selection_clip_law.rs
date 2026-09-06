@@ -39,7 +39,7 @@
 //! straddle and pass it.
 
 use super::super::*;
-use super::{comparison_view, headless_dqp, headless_pipeline};
+use super::{comparison_view, headless_dqp, headless_pipeline, view};
 
 /// The first document line whose visual row begins strictly BELOW `y` — derived
 /// from the pipeline's own row geometry, so a fixture can never quietly stop
@@ -214,11 +214,26 @@ fn preedit_rect_never_paints_past_the_comparison_viewport() {
     );
 }
 
-/// The caret quad is SELECTION-ADJACENT geometry sharing the same "quads
-/// don't clip to `TextBounds`" problem (see `prepare_caret_layer`'s own doc)
-/// — reads the SAME `content_clip` owner, proven here over a real `prepare()`
-/// pass (not just the geometry function) so the actual uploaded instance
-/// count is what's asserted, mirroring `one_bit.rs`'s `is_drawn()` seam.
+/// **THE CARET PARKS FOR A RELOCATED COMPARISON AT EVERY SCROLL POSITION.**
+///
+/// The caret quad is SELECTION-ADJACENT geometry sharing the same "quads don't
+/// clip to `TextBounds`" problem (see `prepare_caret_layer`'s own doc), and this
+/// used to assert the narrower half of that: a caret whose row had scrolled PAST
+/// the comparison viewport parks on the shared `content_clip`, with an IN-BAND
+/// control that still drew.
+///
+/// That control no longer exists. A relocated document is READ-ONLY prose and
+/// draws no caret at any scroll position — the caret is awl's one accent and
+/// means "you can write here", and every insertion door into a reading surface
+/// is walled. So the clip's caret arm has no subject left inside a comparison,
+/// and the law is re-aimed at the stronger rule that swallowed it. The clip
+/// itself keeps real subjects in this file (the selection band and the preedit
+/// underline above), and the static no-wildcard law below still pins the caret
+/// path to the same owner.
+///
+/// The old in-band control becomes the PRESENCE COMPANION, one step out: the
+/// SAME document at the SAME caret line with no comparison up must draw, or
+/// "parked" would be equally true of a renderer that stopped drawing carets.
 #[test]
 fn caret_parks_when_its_row_scrolls_past_the_comparison_viewport() {
     let _g = crate::testlock::serial();
@@ -230,24 +245,34 @@ fn caret_parks_when_its_row_scrolls_past_the_comparison_viewport() {
     crate::caret::set_mode(crate::caret::CaretMode::Block);
 
     let text = tall_doc(60);
-    // In-band control: the caret on line 1 draws normally.
-    let v_in = comparison_view(&text, 1, 0);
-    p.set_view(&v_in);
+    // PRESENCE: the same document, the same caret line, no comparison up.
+    p.set_view(&view(&text, 1, 0));
     p.settle_caret();
     p.prepare(&device, &queue, 1200, 800).unwrap();
     assert!(
         p.caret_pipeline.is_drawn(),
-        "precondition: an ordinary in-region caret still draws while the document is \
-         relocated into the comparison viewport"
+        "precondition: an ordinary document at this caret line must draw a caret, or \
+         every parked reading below is satisfied by a renderer that draws none"
+    );
+
+    // IN-BAND, relocated: the caret's row sits inside the region and it still
+    // must not draw — the reading surface refuses text, so it shows no accent.
+    p.set_view(&comparison_view(&text, 1, 0));
+    p.settle_caret();
+    p.prepare(&device, &queue, 1200, 800).unwrap();
+    assert!(
+        !p.caret_pipeline.is_drawn(),
+        "a relocated comparison is read-only prose: no caret, even on a row well \
+         inside the region"
     );
     let (_, band_bottom) = p
         .doc_clip_band()
         .expect("precondition: the comparison viewport narrows the document band");
     let past = first_row_below(&p, band_bottom, 60) + 1;
 
-    // Out-of-band: a row past the relocated region's own bottom edge.
-    let v_out = comparison_view(&text, past, 0);
-    p.set_view(&v_out);
+    // Out-of-band: a row past the relocated region's own bottom edge. Parked
+    // for the same reason and, before it, by the shared clip.
+    p.set_view(&comparison_view(&text, past, 0));
     p.settle_caret();
     p.prepare(&device, &queue, 1200, 800).unwrap();
     assert!(
@@ -257,7 +282,7 @@ fn caret_parks_when_its_row_scrolls_past_the_comparison_viewport() {
     );
     assert!(
         !p.caret_glyph_pipeline.is_drawn(),
-        "the morph glyph-silhouette sibling must park too — the SAME clip, not a second one"
+        "the morph glyph-silhouette sibling must park too — the SAME rule, not a second one"
     );
 
     crate::caret::set_mode(crate::caret::CaretMode::Block);

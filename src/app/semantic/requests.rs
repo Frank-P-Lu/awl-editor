@@ -13,7 +13,7 @@
 use super::*;
 
 impl App {
-    pub(super) fn apply_semantic_request(&mut self, request: SemanticRequest) -> bool {
+    pub(in crate::app) fn apply_semantic_request(&mut self, request: SemanticRequest) -> bool {
         match request {
             SemanticRequest::Focus { id } => self.focus_semantic_node(&id),
             SemanticRequest::Click { id } => self.click_semantic_node(&id),

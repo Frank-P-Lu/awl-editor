@@ -38,6 +38,10 @@ mod openable;
 /// integration test.
 #[cfg(not(target_arch = "wasm32"))]
 mod persistence_faults;
+/// TIER 2: A READING SURFACE ACCEPTS NO TEXT. The insertion doors that bypass
+/// `App::apply` — the IME commit, the two assistive document writes — have no
+/// chord vocabulary on any capture door, so this is the purest reachable seam.
+mod read_only_surface;
 /// THE SEMANTIC FOLD'S REACH BOUNDARY: the tree-building path sees a narrow
 /// `SemanticView`, not the live `App`. Native-only, like `crate::app::semantic`.
 #[cfg(not(target_arch = "wasm32"))]

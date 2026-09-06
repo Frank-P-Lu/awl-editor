@@ -69,9 +69,9 @@ impl TextDoor {
     /// something other than the rope.
     fn refused_by_read_only(self) -> bool {
         match self {
-            TextDoor::Ime
-            | TextDoor::AssistiveReplaceSelection
-            | TextDoor::AssistiveSetValue => true,
+            TextDoor::Ime | TextDoor::AssistiveReplaceSelection | TextDoor::AssistiveSetValue => {
+                true
+            }
         }
     }
 }

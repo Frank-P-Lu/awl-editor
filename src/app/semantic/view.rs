@@ -43,6 +43,17 @@ impl SemanticView<'_> {
     pub(super) fn layer(&self) -> workspace::Layer {
         self.workspace_state.layer()
     }
+
+    /// **IS THE DOCUMENT PRESENTED READ-ONLY?** The same family predicate the
+    /// insertion wall and the caret layer read
+    /// (`OverlayState::shows_read_only_prose`), derived from the comparison
+    /// roster — so what an assistive technology is TOLD about the document and
+    /// what the doors actually do cannot come apart.
+    pub(super) fn document_is_read_only(&self) -> bool {
+        self.workspace_state
+            .overlay()
+            .is_some_and(crate::overlay::OverlayState::shows_read_only_prose)
+    }
 }
 
 impl App {
