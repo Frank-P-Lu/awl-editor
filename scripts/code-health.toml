@@ -548,7 +548,7 @@ reason = "Item 527/528: the drawn menu's dropdown plan now threads self.config_k
 lint = "clippy::too_many_lines"
 file = "src/app/viewstate.rs"
 function = "App::sync_view"
-message = "this function has too many lines (272/100)"
+message = "this function has too many lines (273/100)"
 reason = "Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. `sync_view` is the one exhaustive `ViewState` projection site, so each new render datum is spelled out here: the fold chevron's `folded_headings` (its direction needs the real fold set, not merely `fold_tails`'s own key set, so `fold::apply_to_view` takes the buffer's folds at its one call site here) and the summoned picker's secondary location. The document-session extraction replaced direct buffer and cache fields with explicit read projections while preserving that one exhaustive site. +5: the bottom identity's folder label reads the open file's own remembered root instead of the ambient project. +1: the gated pointer-derived resync's one call site, reached after scroll/zoom/the active document settle for the frame. +3: auto-collapses the expanded working-set panel whenever an overlay opens. +1: mirrors the query field's own seeded selection range into `overlay_query_selection`, beside the other query-caret mirrors. +3: mirrors `overlay_asset_preview` from `selected_asset_path()`, beside the other summoned-surface mirrors this function already owns. +1: mirrors overlay_match_highlights from the search picker."
 
 [[clippy_exception]]
@@ -597,7 +597,7 @@ reason = "Existing named owner; decomposition needs a focused follow-up rather t
 lint = "clippy::too_many_lines"
 file = "src/capture/modes.rs"
 function = "settled_viewstate"
-message = "this function has too many lines (236/100)"
+message = "this function has too many lines (241/100)"
 reason = "The snapshot rebuilds secondary picker location from its existing strip. Existing named owner; decomposition needs a focused follow-up rather than metric-only churn. The capture path derives a summoned workspace's shape and whether its comparison region carries prose, because a sidecar records mode rather than shape. +1: mirrors `opts.overlay.query_selection` into `overlay_query_selection` for the headless capture path. +1: mirrors `opts.overlay.asset_preview` into `overlay_asset_preview` for the headless replay path."
 
 [[clippy_exception]]
@@ -828,7 +828,7 @@ reason = "The one exhaustive leak-detection sweep every sticky toggle/global mus
 lint = "clippy::too_many_lines"
 file = "src/render/pipeline_draw.rs"
 function = "TextPipeline::new"
-message = "this function has too many lines (512/100)"
+message = "this function has too many lines (513/100)"
 reason = "The one exhaustive TextPipeline initializer keeps adjacent GPU state transitions together. Four added lines initialize arbitrary two-colour ground/ink endpoints for independent selection and caret pipelines; their shared baked construction lives in SelectionPipeline::new_two_colour. Five added lines initialize the living band's input epoch beside its existing selection-motion state. +2: initializes the streaks card's rect/text-origin fields to `None`, beside the other per-frame HUD state. +8: the format popover's hover-ring pipeline and the inline-image resize-handle's hover-grip pipeline, initialized beside their sibling SelectionPipeline construction sites. +4: the row-drag insertion hairline's own seeded pipeline, beside gutter_stack_plate's construction. +3: seeds the per-mark fold-chevron rotated-label pipeline slots beside the other per-mark construction sites. +4: `panel_query_selection`'s construction and its `overlay_query_selection: None` initializer, beside the other per-frame query-caret state. +1 (492->493): item 540's table-dims card gains one exhaustive field init, overlay_table_dims_hint_w, beside the other per-frame overlay measurements this initializer already owns. +3 (493->496): `gutter_close_hover_plate`'s two-line construction (`SelectionPipeline::new`) plus its field in the exhaustive literal, mirroring `gutter_stack_plate`'s own seeding immediately above it. +9: constructs the asset preview's dedicated pipeline trio (panel/image/text). +3: seeds the table-dims hover ease's initial settled state. +1: initializes overlay_match_highlights to None. +3: seeds the warp roam pose's initial resolved state."
 
 [[clippy_exception]]
@@ -970,7 +970,7 @@ reason = "Existing renderer owner; extraction must preserve adjacent GPU state t
 lint = "clippy::too_many_lines"
 file = "src/main/tests/credits_capture.rs"
 function = "credits_text_is_present_and_legible_across_a_world_sample"
-message = "this function has too many lines (111/100)"
+message = "this function has too many lines (106/100)"
 reason = "Real `capture_screenshot` sweep over a three-world sample (Tawny, Mopoke, Wagtail — the same sample panels.rs uses for this shape of check), asserting both a presence floor (pixel-diff count) and a WCAG AA legibility floor (ink-vs-plate contrast) per world; the coverage is the point, not a setup/assertion split."
 
 [[clippy_exception]]
@@ -1371,7 +1371,7 @@ reason = "The one exhaustive per-theme color sync keeps every pipeline's recolor
 lint = "clippy::too_many_lines"
 file = "src/render/pipeline_geometry.rs"
 function = "TextPipeline::sync_view_fields"
-message = "this function has too many lines (105/100)"
+message = "this function has too many lines (106/100)"
 reason = "The one ViewState-to-pipeline mirror (see the file_size_mark reason above for the full roster it already carries): item 540's table-dims picker adds a single measurement, overlay_table_dims_hint_w, via measure_workspace_hint_text_px -- the same shaper the spell popup's own overlay_spell_w measurement already uses at this seam -- so the card-width geometry function can size itself without a FontSystem in hand. First diagnostic to cross the 100-line clippy floor at this seam (103/100); the mirror stays one function so a new theme/view field is never wired to only some pipelines. +1: mirrors `overlay_asset_preview` from the view beside the pipeline's other per-frame syncs. +1: mirrors overlay_match_highlights from the view."
 
 [[clippy_exception]]
