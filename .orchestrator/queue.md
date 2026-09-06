@@ -698,7 +698,10 @@ this ground's geometry and inherits the same sign-off.
 
 ## Green train — the exact-main receipts
 
-**Third train, `555fa5d6`** — covers 570, 558 and 576, HEAD verified unmoved across the run:
+**Third train, `555fa5d6`** — covers 570, 558 and 576, HEAD verified unmoved across the run.
+Pushed as `afda18f4`; **CI run 34062997740 passed all four gating jobs**, so all three of this
+wave's trains are green locally and on the hosted arms.
+
 
 ```
 native-gate-receipt commit=555fa5d69eb1c78e06f8fb5a0bac24df61706606 health=pass:254s
