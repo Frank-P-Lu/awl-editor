@@ -106,7 +106,19 @@ doubling; option off ⇒ byte-identical render to today.
 
 ### 570 — blockquote pull-quote: the 66 gets its 99 (user report, 2026-09-06 — "the 66s must be followed with 99s… it kinda bothers me"; the blockquote ornament, not smart quotes)
 
-🟡 CLAIMED 2026-09-07, RESUMED — lane `item-570`, worktree `.claude/worktrees/item-570`. The
+🟢 MERGED as `d20cc09a`, EXACT-MAIN RECEIPT OWED; **placement is a taste call now put to the
+user with captures** (see the owed section). Marks raised at merge off the merged tree —
+geometry.rs 1340→1353, layers.rs 1383→1387, rects.rs 1788→1835, all far below their frozen
+baselines. The lane could not raise them itself and correctly did not try: native-gate.sh's
+own failure text says a lane does not edit `code-health.toml` in that mode.
+
+**One correction this item owes its own text:** it claims the quote-orientation law "pins all
+four curly codepoints heavy-bottom in every display face". It does not — `EXPECTED_HEAVY_BOTTOM`
+pins `U+2018`/`U+201C` heavy-bottom and `U+2019`/`U+201D` heavy-**top**, which is what a closing
+mark should be. The orchestrator relayed the wrong version into the lane's brief; the lane
+checked the law rather than the brief and the shipped comment is right.
+
+RESUMED HISTORY — lane `item-570`, worktree `.claude/worktrees/item-570`. The
 first lane was cut off by a usage limit at the exact moment it began mutation proofs, leaving
 its whole round as **staged, uncommitted changes with no commits on the branch**: 9 files,
 ~732 insertions including a new `render/tests/pull_quote_pair.rs`. So the implementation
@@ -191,11 +203,46 @@ scoped item when not.
 
 ### 576 — follow a link: right-click shows "go to", modifier-click opens (user decision, 2026-09-06 — "right click on a link should show 'go to'; and i guess command click should open it too? (what should it be on linux…??? like for each keymap?)")
 
-🟡 CLAIMED 2026-09-07 — lane `item-576`, worktree `.claude/worktrees/item-576`. The lane is told
-to VERIFY this item's own load-bearing premise before relying on it: the recommendation rests
-on mouse chords not flowing through `Config::effective_linux_keep`, which governs key chords.
-If that is false the Linux recommendation changes, and the user's own question — "what should
-it be on linux…??? like for each keymap?" — is owed an answer in the form they asked it.
+🟢 BUILT AND COMMITTED (`a29d8a1b`), GATE OUTSTANDING — lane `item-576`, worktree
+`.claude/worktrees/item-576`, based on `135f9a5c`.
+
+**THIS ITEM'S HEADLINE PREMISE WAS FALSE, and the lane checked before building.** "Nothing
+follows them yet" is wrong three ways: `Action::FollowLink` already existed with a `C-c C-o`
+chord, a palette row and a catalog entry; `App::follow_link` already spawned
+`open`/`xdg-open`/`window.open`; and right-click already summoned a card whose first row was
+"Follow link", with ⌘-click already following on macOS. That is the fourth
+orchestrator-authored premise this board has watched dissolve on first measurement, and it
+closes as **premise largely false, three real gaps found and fixed** rather than as "built the
+affordance".
+
+The three real gaps, all narrower and sharper than the item: **(1) Linux had no follow gesture
+at all** — `SUPER` is ⌘ on Mac and the compositor's key on Linux, so a Linux hand had no
+pointer follow whatsoever, which is exactly the user's own question. **(2) Bare URLs wore the
+underline and followed nothing** — `link_at` runs pulldown without the autolink extension, so a
+plain `https://…` in prose is no `Tag::Link`, and every door answered `None` under a hairline
+the render had already drawn. **(3) A relative link was handed to the OS opener** — `open
+./notes/plan.md` gives a `.md` file to whatever the desktop owns that extension, instead of
+opening it in awl.
+
+**The item's own load-bearing premise HELD and is now a law rather than an argument.**
+`Config::effective_linux_keep` composes strings that every consumer parses through
+`keyspec::parse_chord` into a `(Key, ModifiersState)` pair, and a mouse button has no spelling
+in that grammar. `the_linux_keep_list_holds_only_key_chords_so_no_mouse_chord_can_collide`
+drives the composed keep-list under both flavors plus a user entry, requires every member to
+parse as a key chord, and requires `Ctrl-Click`/`Mouse-2`/`Middle-Click`/`Cmd-Click` to parse
+as none.
+
+Mouse gestures deliberately do NOT go into `active_seed_tables`: its entries are `(&str,
+Action)` chord specs that `parse_binding` consumes and `seeded_chords_for` prints, so a
+`"Mouse-2"` string would fail the first and print a fake key chord in the second. Instead the
+shared gate `linux_emacs_layer(convention, flavor)` was extracted and BOTH selection points
+call it, with a law asserting over the whole grid that the key layers and the pointer gesture
+enrol identically. `keymap::follows_link` is the one predicate the press path and the hover
+cursor both ask, so the pointing hand and the click cannot disagree.
+
+⚠️ **Merge note:** this lane touched `src/render/rects.rs` (one match arm, net −2 lines),
+which item 570 also grew. Re-derive that mark off the merged tree rather than from either
+branch's number.
 
 The followable-span grammar already marks every followable span with one
 underline (named links and tamed bare URLs, one owner) — but nothing
@@ -711,6 +758,25 @@ probe knows how to retire descendants without reaching its own caller. Laws: a
 `code-health.sh` launched from a shell leaves that shell's siblings alive, proven by planting
 one and requiring it to survive; and the law must fail if the group kill is widened back.
 
+### 602 — `Srgb::to_glyphon()` silently drops alpha, so a translucent text colour renders opaque (found by 570's lane while mutating, 2026-09-07)
+
+⬜ READY — small, and it is a product fact rather than a test artifact.
+
+While mutation-proving 570, the lane faded a mark by setting `Srgb { a: 8, .. }` and the law
+stayed GREEN. The law was not at fault: **`Srgb::to_glyphon()` calls `Color::rgb`, which drops
+the alpha channel entirely**, so the fade never reached the renderer at all. The mutation was
+re-done as a colour blend toward the ground and fired correctly.
+
+Why this is worth an item rather than a note: every caller that sets an alpha on a text colour
+is silently getting an opaque one, and nothing says so. Either alpha is meaningful for glyph
+colour — in which case this is a bug and the conversion should carry it — or it is not, in
+which case the type should not accept a value it discards. **Establish which before changing
+anything**, since a roster of callers may be relying on today's behaviour without knowing it.
+
+Laws: whichever way it goes, a colour whose alpha is set must either reach the renderer with
+that alpha or fail to compile. Prove non-vacuity by rendering two colours differing only in
+alpha and requiring the frames to differ (or the code not to build).
+
 ## Owed to the user — landed work awaiting a live eye
 
 These items have MERGED and left the build queue. Each one still owes the user an answer or
@@ -753,6 +819,35 @@ through. They cannot prove the OS received it, or that VoiceOver announces it.
 **585 — Find's edit verbs (merged `92b1b13a`). LIVE CONFIRMATION NOT OBTAINED.** The display
 was locked (`CGSSessionScreenIsLocked = true`), so the visible ⌘A-then-typing journey the item
 asks for was not run and no live evidence is claimed. Owed to a human.
+
+**570 — where the closing 99 hangs (merged, landed as A).** *The closing 99 currently hangs in
+the writing column's right gutter, mirroring the 66, so the pair brackets the column — and on
+a short quote the 99 sits a long way from the words it closes. Should it instead hang
+immediately after the last line's own text?* Captures sent to the user, A over B, in Bowerbird
+and Paperbark, for both a multi-line and a one-line quote. A is symmetric and never collides
+with text at any wrap width; B closes a one-line quote unmistakably but breaks the pair's
+symmetry (66 outside the text, 99 inside it) and on the multi-line case its ink rides above
+the row top and reads as belonging to the row above. Lane's recommendation and the
+orchestrator's: keep A. Reverting to B is NOT one line — it needs a per-mark x on
+`QuoteOrnaments`, about 20 lines — which is why B was prototyped rather than landed alongside.
+
+**576 — the Linux follow gesture, answered in the form the user asked it.** They asked "what
+should it be on linux…??? like for each keymap?" The answer, landed for their judgement:
+**macOS ⌘-click under both flavors** (the flavor is structurally inert on Mac); **Linux
+`native`: Ctrl-click**; **Linux `emacs`: Ctrl-click plus middle-click**. Ctrl-click is what
+every editor and browser on Linux already does, and because it is a MOUSE chord it steps on
+none of the `C-c`/`C-v`/`C-x` rules that make the two Linux keymaps differ at all — which is
+why it can be the same under both and a Linux user need not learn two answers. Middle-click is
+the extra one for emacs hands because mouse-2 is the traditional follow gesture there and awl
+implements no X11 primary-selection paste to collide with. Ctrl-click is deliberately absent
+on macOS, where the OS spends it as the secondary click.
+
+Two things the user may want to overrule, each one line: **middle-click is emacs-only** (it
+collides with nothing under `native` either, and was flavor-gated only so the plain platform
+convention stays plain), and **the gestures are fixed rather than `[keys]`-rebindable**
+(rebinding a mouse chord means inventing a second chord grammar, which is a decision worth
+taking now rather than after that grammar has users). Deferred and recorded, not smuggled in: a
+bare `#heading-anchor` resolves to a calm no-op.
 
 **551 — table selection band (merged `f740749c`, follow-up `db90497e`).** The band now paints
 whole rows. If a spreadsheet-style cell-wise selection is what you actually wanted, say so —
