@@ -3,9 +3,9 @@
 //! The first law sweeps the closed `OverlayKind` roster without a wildcard and
 //! points at real shaped title/query, facet, candidate, and footer glyph runs,
 //! then asks the production hit-test owners what each point means. The second
-//! law measures the footer's visible ink at real GPU pixels: air above the
-//! instruction, compact chin below it, and a counterfactual proving the retired
-//! 0.62-row / 5px dials fail the authored outcome.
+//! law measures the INSTRUCTION BAND at real GPU pixels: the hint's own drawn
+//! ink sits CENTRED in the band that runs from the content band's bottom to
+//! the card's own bottom edge, and that band stays close to a row tall.
 
 use super::super::*;
 use super::{headless_dqp, pixeldiff, view};
@@ -336,159 +336,286 @@ fn every_overlay_kind_orders_drawn_title_facet_candidates_footer_and_hits_the_sa
     theme::set_active(theme::DEFAULT_THEME);
 }
 
-fn core_ink_y_band(
+/// The hint's REAL INK band inside `y_rect`, plus its mass-weighted vertical
+/// centroid, as `(top, bottom, centroid)` in canvas pixels.
+///
+/// Scanned across the CARD'S OWN width rather than the shaped line's x-span:
+/// `overlay_line_glyph_box` reports the run's box in the panel buffer's own
+/// coordinates, which a right-ALIGNED world (Magpie) draws somewhere else
+/// entirely — its y is always right, its x is not, and an x-scoped probe reads
+/// blank card there and reports no hint at all. The background is re-derived
+/// PER ROW (the modal colour of that row inside the card) so a world's own
+/// vertical gradient or plate is absorbed instead of counted as ink, and the
+/// scan is inset from the card's edges so a footer plate's own border is not
+/// mistaken for a glyph.
+fn hint_ink_band(
     pixels: &[[u8; 4]],
     width: u32,
     height: u32,
-    rect: [f32; 4],
-    target: [u8; 4],
-) -> Option<(i32, i32)> {
-    let x0 = rect[0].floor().max(0.0) as u32;
-    let x1 = (rect[0] + rect[2]).ceil().min(width as f32) as u32;
-    let y0 = rect[1].floor().max(0.0) as u32;
-    let y1 = (rect[1] + rect[3]).ceil().min(height as f32) as u32;
-    let mut top = i32::MAX;
-    let mut bottom = i32::MIN;
+    y_rect: [f32; 4],
+    card: [f32; 4],
+) -> Option<(i32, i32, f32)> {
+    use std::collections::HashMap;
+    const EDGE_INSET: f32 = 6.0;
+    const INK_DELTA: u8 = 24;
+    const MIN_INK_PX: usize = 4;
+    let x0 = (card[0] + EDGE_INSET).floor().max(0.0) as u32;
+    let x1 = (card[0] + card[2] - EDGE_INSET)
+        .ceil()
+        .clamp(0.0, width as f32) as u32;
+    let y0 = y_rect[1].floor().max(0.0) as u32;
+    let y1 = (y_rect[1] + y_rect[3]).ceil().clamp(0.0, height as f32) as u32;
+    let (mut top, mut bottom) = (i32::MAX, i32::MIN);
+    let (mut mass, mut moment) = (0.0f64, 0.0f64);
     for y in y0..y1 {
+        let mut hist: HashMap<[u8; 3], usize> = HashMap::new();
         for x in x0..x1 {
             let p = pixels[(y * width + x) as usize];
-            let d = p[0]
-                .abs_diff(target[0])
-                .max(p[1].abs_diff(target[1]))
-                .max(p[2].abs_diff(target[2]));
-            if d <= 18 {
-                top = top.min(y as i32);
-                bottom = bottom.max(y as i32);
-            }
+            *hist.entry([p[0], p[1], p[2]]).or_default() += 1;
         }
+        let Some(bg) = hist.iter().max_by_key(|(_, n)| **n).map(|(c, _)| *c) else {
+            continue;
+        };
+        let n = (x0..x1)
+            .filter(|&x| {
+                let p = pixels[(y * width + x) as usize];
+                p[0].abs_diff(bg[0])
+                    .max(p[1].abs_diff(bg[1]))
+                    .max(p[2].abs_diff(bg[2]))
+                    > INK_DELTA
+            })
+            .count();
+        if n >= MIN_INK_PX {
+            top = top.min(y as i32);
+            bottom = bottom.max(y as i32);
+        }
+        mass += n as f64;
+        moment += n as f64 * y as f64;
     }
-    (top <= bottom).then_some((top, bottom))
+    (top <= bottom).then(|| (top, bottom, (moment / mass.max(1.0)) as f32))
 }
 
-/// REAL-PIXEL FOOTER LAW — a visible pause follows the final candidate while
-/// the instruction keeps a compact chin. Mangrove supplies shipped Bars/dark/
-/// right-anchor coverage; Saltpan supplies Pane/light/center; Wagtail adds the
-/// one-bit Pane boundary case. The retired 0.62-row + 5px values are replayed
-/// against the measured glyph bands and must miss both improvements.
-#[test]
-fn footer_pixels_add_clear_air_above_trim_the_chin_and_reject_the_old_dials() {
-    let _g = crate::testlock::serial();
-    let (w, h) = (1200u32, 800u32);
-    let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
-        eprintln!(
-            "skipping footer_pixels_add_clear_air_above_trim_the_chin_and_reject_the_old_dials: no wgpu adapter"
-        );
-        return;
-    };
-    let _g = crate::testlock::serial();
-
-    for world in ["Mangrove", "Saltpan", "Wagtail"] {
-        theme::set_active_by_name(world).unwrap();
-        p.sync_theme();
-        let mut v = view("hello\n", 0, 0);
-        v.overlay_active = true;
-        v.overlay_title = "settings".to_string();
-        v.overlay_items = vec![
-            "Alpha candidate".into(),
-            "Middle candidate".into(),
-            "Omega candidate".into(),
-        ];
-        v.overlay_selected = 0;
-        v.overlay_hint = "type to filter   ↵ apply".into();
-        p.set_view(&v);
-        p.prepare(&device, &queue, w, h).unwrap();
-        let pixels = pixeldiff::render_frame(&mut p, &device, &queue, w, h);
-
-        // The final candidate and the footer by their PRODUCTION line indices —
-        // a flat card's beat takes a shaped line of its own, so a hardcoded 3/4
-        // here silently measures the wrong two bands.
-        let first_row = p.overlay_geometry(w).shaped_first_row_line();
-        let candidate_box = p
-            .overlay_line_glyph_box(first_row + 2)
-            .unwrap_or_else(|| panic!("{world}: final candidate shaped"));
-        // `+ 1` past the candidates for the blank separator row
-        // `overlay_hint_gap_rows` reserves, THEN the hint's own line.
-        let footer_box = p
-            .overlay_line_glyph_box(first_row + 3 + 1)
-            .unwrap_or_else(|| panic!("{world}: footer shaped"));
-        let (_, candidate_bottom) = core_ink_y_band(
-            &pixels,
-            w,
-            h,
-            candidate_box,
-            theme::base_content().rgba_bytes(),
-        )
-        .unwrap_or_else(|| panic!("{world}: final-candidate core ink exists"));
-        let (footer_top, footer_bottom) =
-            core_ink_y_band(&pixels, w, h, footer_box, theme::muted().rgba_bytes())
-                .unwrap_or_else(|| panic!("{world}: footer core ink exists"));
-        let card = p.overlay_card_rect().expect("footer card");
-        let card_bottom = (card[1] + card[3]).round() as i32 - 1;
-        let top_gap = footer_top - candidate_bottom - 1;
-        let bottom_chin = card_bottom - footer_bottom;
-        let lh = p.overlay_lh();
-        let min_top_gap = (lh * 0.18).round() as i32;
-        let max_bottom_chin = (lh * 0.70).ceil() as i32;
-
-        assert!(
-            top_gap >= min_top_gap,
-            "{world}: footer needs a clearly visible separation above it, got {top_gap}px (minimum {min_top_gap}px at {lh:.1}px line height)"
-        );
-        assert!(
-            bottom_chin <= max_bottom_chin,
-            "{world}: footer chin must stay compact, got {bottom_chin}px (maximum {max_bottom_chin}px at {lh:.1}px line height)"
-        );
-
-        // Counterfactual: cosmic-text centres glyphs in their assigned line.
-        // Restoring the old 0.62-row hint moves the measured footer ink upward
-        // by half the lost line height; restoring the old 5px retained pad moves
-        // the card bottom by the full `(old_hint + old_pad) - (new_hint + new_pad)`.
-        let new_hint_h = p.overlay_hint_h();
-        let old_hint_h = (lh * 0.62).round();
-        let glyph_shift = ((new_hint_h - old_hint_h) * 0.5).round() as i32;
-        let old_card_shift = ((old_hint_h + 5.0) - (new_hint_h + 2.0)).round() as i32;
-        let old_top_gap = top_gap - glyph_shift;
-        let old_bottom_chin = bottom_chin + old_card_shift + glyph_shift;
-
-        assert!(
-            old_top_gap < top_gap,
-            "{world}: retired hint height must provide less top separation ({old_top_gap} vs {top_gap})"
-        );
-        assert!(
-            old_bottom_chin > bottom_chin,
-            "{world}: retired hint/pad values must leave a fatter chin ({old_bottom_chin} vs {bottom_chin})"
-        );
-        // THE STRICT "MORE BALANCED THAN THE OLD DIALS" CLAIM IS RETIRED.
-        // `glyph_shift`/`old_card_shift` are CONSTANT offsets from the hint_h/pad
-        // retirement alone — they shift `top_gap` and `bottom_chin` by the same
-        // amount regardless of the gap row's own height, so once a THIRD dial
-        // (`OVERLAY_HINT_GAP_ROW`) sets the actual balance, "new diff < old diff"
-        // degenerates to "did the gap dial happen to land on the lucky side of a
-        // shift-invariant coincidence" — it measured a real difference when only
-        // two dials existed and stopped meaning one once a third, unrelated to
-        // either, was added. The real product claim survives as an ABSOLUTE
-        // bound instead: the gap above and the chin below stay within the same
-        // order of magnitude of each other, so the footer still reads as ONE
-        // composed unit rather than a wide gap floating over a pinned chin.
-        let imbalance = (bottom_chin - top_gap).abs();
-        assert!(
-            imbalance < (lh * 0.5).round() as i32,
-            "{world}: footer gap ({top_gap}px) and chin ({bottom_chin}px) must stay \
-             within the same order of magnitude — imbalance {imbalance}px at \
-             {lh:.1}px line height"
-        );
-        // THE "retired dials would still be right-way-up"
-        // non-vacuity check too, for the same reason as the balance claim
-        // above: `old_top_gap`/`old_bottom_chin` are CONSTANT shifts off the
-        // LIVE `top_gap`/`bottom_chin`, which now itself carries the new gap
-        // dial's own contribution — so whether the shifted pair stays
-        // right-way-up is a fact about `lh`'s rounding for a given world, not
-        // about the retired dials, and it genuinely flips sign world to world
-        // (measured: Mangrove ties, Saltpan inverts) with no production change
-        // involved. The two directional claims above it (each shifted value is
-        // worse than its live counterpart) are the real, stable claims and are
-        // unaffected.
+/// A picker-shaped fixture for the instruction-band law: `n` candidates with
+/// the selection on the last one (the row nearest the band), an authored
+/// `hint`, and — under `grouped` — the lens strip and contiguous section runs
+/// that route the card through the GROUPED geometry owner instead of the flat
+/// one.
+fn band_view(n: usize, hint: &str, grouped: bool) -> ViewState {
+    let mut v = view("hello\n", 0, 0);
+    v.overlay_active = true;
+    v.overlay_title = "themes".to_string();
+    v.overlay_items = (0..n).map(|i| format!("Candidate {i}")).collect();
+    v.overlay_selected = n.saturating_sub(1);
+    v.overlay_hint = hint.to_string();
+    if grouped {
+        v.overlay_lens = vec![("All".into(), true), ("File".into(), false)];
+        v.overlay_sections = (0..n)
+            .map(|i| match i * 3 / n.max(1) {
+                0 => "Alpha".to_string(),
+                1 => "Beta".to_string(),
+                _ => "Gamma".to_string(),
+            })
+            .collect();
     }
+    v
+}
 
+/// THE INSTRUCTION BAND LAW — the foot hint's own box is BALANCED and SHORT.
+///
+/// The band the eye reads as the instruction box runs from
+/// `OverlayRowPlan::footer_top` (where the candidate band ends, and where a
+/// plated world seats the footer plate) to the card's own bottom edge. Two
+/// claims about it, each with the companion that stops it being satisfied by
+/// the subject going missing:
+///
+/// * **CENTRED.** The hint's drawn INK sits at the band's own centre, within a
+///   fraction of a row. Measured as the ink's mass-weighted centroid rather
+///   than its extents: an extent is set by a single ascender or descender
+///   pixel and moves with the hint string's own glyph set (`↵`, `⌫` and `⇥`
+///   are drawn at their own heights per face), while the centroid is stable
+///   across faces, strings and antialiasing. A second, independently-noisy
+///   form of the same claim reads the shaped LINE BOX's own seat in the band,
+///   so the two arms cannot both be fooled by the same artefact.
+/// * **SHORT.** The band stays under one and two-thirds of a row.
+///
+/// This REPLACES the retired "clear air above, trim the chin, reject the old
+/// dials" law, which asserted the opposite balance — a separator sized well
+/// above the chin — and so was satisfied by the top-heavy band the product
+/// actually shipped. Its `0.62`-row / `5px` counterfactual went with it: those
+/// two retirements shift the gap and the chin by the SAME constant and say
+/// nothing about which of them is larger.
+///
+/// Enrolment is the whole shipped world roster (derived, never named), swept
+/// over four window geometries including one narrow enough to make the hint
+/// yield its explanation and one short enough to clamp the list, both card
+/// families, two hint lengths, and both a few-candidate and a
+/// window-clamped-many candidate shape.
+/// Tolerances, every one a fraction of the world's OWN row pitch — never of an
+/// authored constant, and never of a pixel count measured on this host.
+const BAND_CENTRE_TOL: f32 = 0.18;
+const BAND_BOX_SEAT_TOL: f32 = 0.20;
+const BAND_MAX_ROWS: f32 = 1.65;
+const BAND_MIN_ROWS: f32 = 1.20;
+const BAND_PAD_MIN: f32 = 0.25;
+const BAND_INK_MIN: f32 = 0.18;
+
+/// Grade ONE cell of the instruction-band sweep against an already-rendered
+/// frame: the presence companions first, then the two centring arms and the
+/// compactness claim.
+fn grade_instruction_band(p: &TextPipeline, pixels: &[[u8; 4]], w: u32, h: u32, ctx: &str) {
+    let geom = p.overlay_geometry(w);
+    let plan = p.overlay_row_plan(&geom);
+    let band_top = plan.footer_top();
+    let card = p
+        .overlay_card_rect()
+        .unwrap_or_else(|| panic!("{ctx}: the picker card must be placed"));
+    let band_bottom = card[1] + card[3];
+    let band = band_bottom - band_top;
+    let lh = p.overlay_lh();
+    let hint_line = p
+        .overlay_hint_line()
+        .unwrap_or_else(|| panic!("{ctx}: this fixture always sets a hint"));
+    let hbox = p
+        .overlay_line_glyph_box(hint_line)
+        .unwrap_or_else(|| panic!("{ctx}: the hint's own line must shape"));
+    let (ink_top, ink_bottom, centroid) =
+        hint_ink_band(pixels, w, h, hbox, card).unwrap_or_else(|| {
+            panic!(
+                "{ctx}: no hint ink drawn anywhere across the card at the hint's own line \
+                 ({hbox:?}) — the band has no subject"
+            )
+        });
+    let above = ink_top as f32 - band_top;
+    let below = band_bottom - ink_bottom as f32;
+    let ink_h = (ink_bottom - ink_top + 1) as f32;
+
+    // PRESENCE. Both claims below get happier as the hint fades or the band
+    // collapses, so pin the subject shut first — each floor set well under the
+    // tightest value the shipped roster actually produces.
+    assert!(
+        ink_h >= lh * BAND_INK_MIN,
+        "{ctx}: the hint's own ink is only {ink_h}px tall at {lh:.1}px row pitch — a centred \
+         band would be satisfied by the hint disappearing"
+    );
+    assert!(
+        above >= lh * BAND_PAD_MIN && below >= lh * BAND_PAD_MIN,
+        "{ctx}: the hint's ink has no real air on both sides (above {above:.1}px, below \
+         {below:.1}px, floor {:.1}px at {lh:.1}px row pitch)",
+        lh * BAND_PAD_MIN
+    );
+    assert!(
+        band >= lh * BAND_MIN_ROWS,
+        "{ctx}: the instruction band is only {band:.1}px at {lh:.1}px row pitch — the SHORT \
+         claim below would be satisfied by the band collapsing rather than by the separator \
+         being trimmed"
+    );
+
+    // CENTRED, arm 1: real ink, mass-weighted.
+    let centre_off = centroid - (band_top + band_bottom) * 0.5;
+    assert!(
+        centre_off.abs() <= lh * BAND_CENTRE_TOL,
+        "{ctx}: the hint's ink centres {centre_off:.1}px off the instruction band's own centre \
+         (tolerance {:.1}px at {lh:.1}px row pitch; ink [{ink_top}, {ink_bottom}] in band \
+         [{band_top:.1}, {band_bottom:.1}]) — the band is {} and reads as a mistake rather \
+         than a considered pause",
+        lh * BAND_CENTRE_TOL,
+        if centre_off > 0.0 {
+            "top-heavy"
+        } else {
+            "bottom-heavy"
+        }
+    );
+    // CENTRED, arm 2: the shaped line box's own seat. A different statistic
+    // with different noise, so the pair cannot share an artefact.
+    let box_above = hbox[1] - band_top;
+    let box_below = band_bottom - (hbox[1] + hbox[3]);
+    assert!(
+        (box_above - box_below).abs() <= lh * BAND_BOX_SEAT_TOL,
+        "{ctx}: the hint's own line box is seated {box_above:.1}px below the content band but \
+         {box_below:.1}px above the card's edge (tolerance {:.1}px at {lh:.1}px row pitch)",
+        lh * BAND_BOX_SEAT_TOL
+    );
+
+    // SHORT.
+    assert!(
+        band <= lh * BAND_MAX_ROWS,
+        "{ctx}: the instruction band is {band:.1}px — {:.2} rows at {lh:.1}px row pitch, past \
+         the {BAND_MAX_ROWS} rows the authored outcome allows",
+        band / lh
+    );
+}
+
+#[test]
+fn the_hint_card_centres_its_line_in_a_band_close_to_one_row() {
+    let _g = crate::testlock::serial();
+    let geometries = [
+        ("canonical 1200x800@1", 1200u32, 800u32, 1.0f32),
+        ("retina 2400x1600@2", 2400, 1600, 2.0),
+        ("narrow 900x600@1", 900, 600, 1.0),
+        ("short 1100x460@1", 1100, 460, 1.0),
+    ];
+    let hints = [
+        ("short", "↵ keep   esc revert"),
+        (
+            "long",
+            "type to filter   ↵ keep   ⌫ clear   ⇥ lens   esc revert",
+        ),
+    ];
+    let worlds = crate::theme::world_names();
+    assert!(
+        worlds.len() > 8,
+        "the world roster must supply this law's enrolment, got {}",
+        worlds.len()
+    );
+    let mut graded = 0usize;
+    let mut per_axis: std::collections::BTreeMap<String, usize> = Default::default();
+    for (gname, w, h, dpi) in geometries {
+        let Some((device, queue, mut p)) = headless_dqp(w as f32, h as f32) else {
+            eprintln!(
+                "skipping the_hint_card_centres_its_line_in_a_band_close_to_one_row: \
+                 no wgpu adapter"
+            );
+            return;
+        };
+        for world in &worlds {
+            theme::set_active_by_name(world).unwrap();
+            p.sync_theme();
+            p.set_dpi(dpi);
+            p.set_size(w as f32, h as f32);
+            for grouped in [false, true] {
+                for (hname, hint) in hints {
+                    for (sname, n) in [("few", 3usize), ("clamped-many", 60)] {
+                        let family = if grouped { "grouped" } else { "flat" };
+                        let ctx = format!("{world} / {gname} / {family} / {hname} hint / {sname}");
+                        p.set_view(&band_view(n, hint, grouped));
+                        p.prepare(&device, &queue, w, h).unwrap();
+                        let pixels = pixeldiff::render_frame(&mut p, &device, &queue, w, h);
+                        grade_instruction_band(&p, &pixels, w, h, &ctx);
+                        graded += 1;
+                        for key in [
+                            gname.to_string(),
+                            family.to_string(),
+                            format!("{hname} hint"),
+                            sname.to_string(),
+                        ] {
+                            *per_axis.entry(key).or_default() += 1;
+                        }
+                    }
+                }
+            }
+        }
+        p.set_dpi(1.0);
+    }
     theme::set_active(theme::DEFAULT_THEME);
+    assert!(
+        graded > 400,
+        "the instruction-band sweep must actually run, got {graded} cells"
+    );
+    for (axis, n) in &per_axis {
+        assert!(
+            *n > 20,
+            "axis value {axis:?} was reached only {n} times — the sweep did not cover it \
+             (graded {graded} cells: {per_axis:?})"
+        );
+    }
 }

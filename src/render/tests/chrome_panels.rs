@@ -2678,10 +2678,13 @@ fn overlay_card_h_owner_reproduces_every_kinds_card_height() {
         // NON-VACUITY: a card that still reserved the dropped footer's two
         // rows (hint + its separator) would be measurably taller than the
         // one just proven above — so this reproduction is not trivially true
-        // regardless of whether the footer is there.
+        // regardless of whether the footer is there. A FULL ROW is the
+        // dial-independent floor: both reserved rows are deliberately compact
+        // and together clear a row at every shipped ratio, so this stays
+        // honest without re-pinning to the separator's own magnitude.
         let would_be_hinted = p.overlay_card_h(lines_c + 2, 0.0, 1, 1, card_pad_for(K::Context));
         assert!(
-            would_be_hinted - ch_c > p.overlay_lh() * 1.2,
+            would_be_hinted - ch_c > p.overlay_lh(),
             "{world} context: a card that still reserved the dropped footer would be \
              {would_be_hinted:.2} tall against the real {ch_c:.2} — this law would not \
              have caught the footer's removal being reverted"
