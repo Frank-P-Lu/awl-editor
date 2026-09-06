@@ -850,10 +850,20 @@ their own candidate gated.
 
 ## Watch — verification that only a future run can supply
 
-**566 — the CI wiring's own oracle (repair merged `964bba03`).** The next `linux (build +
-test)` run's `native-gate-env` line must read `budget_source=deadline`, not
-`budget_source=none`. Nothing local can test the `$GITHUB_ENV` hop, so this stays open as a
-thing to read off the next run rather than as work to do.
+**566's oracle: ANSWERED 2026-09-07, and the wiring works.** The item asked whether the linux
+job's `native-gate-env` line would read `budget_source=deadline` rather than
+`budget_source=none`, because nothing local can test the `$GITHUB_ENV` hop. Read out of run
+34039686854's own linux log:
+
+```
+native-gate-env cpus=4 mem_bytes=16766414848 conventions=2 test_threads=2
+  budget_seconds=3686 budget_source=deadline deadline_epoch=1788709583
+```
+
+`budget_source=deadline`, a real 61-minute budget, and `linux (build + test)` green. The
+runner death clock is armed, so an over-run now ends as a readable FAILURE instead of a
+cancellation that verifies nothing and discards the cold `target/`. Nothing further is owed
+here; 566 is closed.
 
 ## Needs specific hardware
 
