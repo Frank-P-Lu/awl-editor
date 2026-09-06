@@ -1738,6 +1738,65 @@ Laws: ladder order pinned against the historical sequence; overflow
 doubling; option off ⇒ byte-identical render to today.
 
 ---
+### 567 — scripts/ cruft sweep: delete six concluded-investigation scripts and five unwired shell laws (user decision, 2026-09-06 — "unused stuff is kinda cruft right… i think i lean delete too")
+
+A full audit of `scripts/` (78 tracked files) found the tree largely
+load-bearing — CI-invoked, gate-invoked, or documented entry points — with
+exactly eleven deletions and two hygiene riders. Git history keeps everything;
+no dangling references may survive the sweep.
+
+**Delete, zero references anywhere:**
+`capture-overlay-chrome-dpi-matrix.sh`, `capture-paperbark-wallpaper.sh`,
+`capture-warp-motion.sh` (evidence captures from concluded investigations) and
+`ci-mac-bisect.sh` (the hosted-mac freeze bisect harness; the wedge it hunted
+is still the tolerated-red pair in ci.yml, and `git log` keeps the tool if the
+hunt reopens).
+
+**Delete, past-tense doc citations only:** `capture-ground-space.sh`
+(docs/render.md:50) and `capture-overlay-header-identity.sh`
+(docs/render.md:160). Each is cited once as the evidence sheet of a finished
+investigation — reword those clauses so no deleted path stays referenced; the
+evidence lives in history.
+
+**Delete, the five unwired shell laws:** `test-sweep.sh`,
+`test-disk-preflight.sh`, `test-reap-orphaned-gates.sh`,
+`test-worker-build.sh`, `test-sccache.sh`. Nothing runs them — the only wired
+shell law is `test-native-gate.sh` (code-health.sh:73). Measured 2026-09-06:
+two of the five are ALREADY red, and both reds are law-rot on healthy
+subjects, not regressions — `test-sccache.sh` pins the literal `5G` while
+`.cargo/config.toml` moved to `10G`; `test-worker-build.sh`'s
+RUST_TEST_THREADS owner-whitelist predates native-gate.sh/code-health.py and
+its `rg --hidden` sweeps `.git/lost-found`. Wiring instead was costed and
+declined: ~40s per gate (the reap law alone runs 30s) plus repairing both
+rotted laws, to guard orchestrator plumbing rather than the product. Recorded
+decision: an unwired law is worse than none — it rots silently and then cries
+wolf; if one of these subjects earns a law again, it gets wired into
+`code-health.sh` at birth, like `test-native-gate.sh`.
+
+**Reference cleanup that makes this Rust-touching:** `src/version_law.rs:15`'s
+module doc names `test-sccache.sh`'s fixture crate among the legitimate
+`0.1.0`s — drop that clause. Full receipt required.
+
+**Hygiene riders:** (a) `code-health.sh`'s `python3 scripts/code-health.py`
+invocation gains `PYTHONDONTWRITEBYTECODE=1` (parity with
+`test-native-gate.sh`; kills the recurring `scripts/__pycache__/`). (b)
+RELEASING.md gains one line naming `scripts/pretag-journeys.py` as the
+pre-tag journey-sweep instrument — CLAUDE.md's pre-tag policy demands the
+sweep, and no doc tells anyone the tool exists.
+
+**Explicitly kept (asked and answered, do not re-audit):** the
+`ci-atspi-budget.sh`/`ci-wedge-budget.sh` near-twins (both live in ci.yml;
+merging is churn), the ground-contrast and ambient-motion capture/measure
+pairs (`ground-contrast-measure.py` is cited by
+`render/tests/deckle_ground.rs`; ambient motion just shipped), the hero
+image trio (site asset pipeline, site/README.md), and `pretag-journeys.py`
+(documented by rider b).
+
+Verify: after the sweep, `rg -l <basename>` for each deleted file returns no
+tracked hits; `scripts/code-health.sh` passes; full native-gate receipt (a
+Rust doc comment moved).
+
+---
 ## Needs specific hardware
 
 🔴 BLOCKED — these journeys require physical environments unavailable to the current orchestration host.
