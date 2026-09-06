@@ -6,9 +6,15 @@ from __future__ import annotations
 import importlib.util
 import json
 import pathlib
+import sys
 import tempfile
 import unittest
 
+# A by-path load writes scripts/__pycache__ next to the LOADED file, so the
+# guard belongs here rather than in whatever invokes this script: the
+# consumers are hand-run instruments and Rust tests, not one wrapper that
+# could carry PYTHONDONTWRITEBYTECODE for all of them.
+sys.dont_write_bytecode = True
 
 SCRIPT = pathlib.Path(__file__).with_name("native-test-shards.py")
 SPEC = importlib.util.spec_from_file_location("native_test_shards", SCRIPT)

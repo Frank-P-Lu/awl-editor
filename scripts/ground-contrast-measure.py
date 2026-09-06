@@ -88,6 +88,11 @@ _ROOT = os.path.dirname(_HERE)
 # it (CLAUDE.md: same behavior => same code). `hero-verify.py` is not an
 # importable identifier, so it is loaded by path; it is guarded by
 # `if __name__ == "__main__"` and runs nothing on import.
+# A by-path load writes scripts/__pycache__ next to the LOADED file, so the
+# guard belongs here rather than in whatever invokes this script: the
+# consumers are hand-run instruments and Rust tests, not one wrapper that
+# could carry PYTHONDONTWRITEBYTECODE for all of them.
+sys.dont_write_bytecode = True
 _spec = importlib.util.spec_from_file_location(
     "awl_hero_verify", os.path.join(_HERE, "hero-verify.py")
 )
