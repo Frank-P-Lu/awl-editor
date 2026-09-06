@@ -12,12 +12,12 @@
 //!
 //! A bare `grep -r 0.1.0` cannot be that law — the repo carries several
 //! LEGITIMATE `0.1.0`s that have nothing to do with awl's own version:
-//! dependency crate versions in `Cargo.lock`, `scripts/test-sccache.sh`'s
-//! disposable fixture crate, `scripts/test-native-gate.sh`'s mocked cargo
-//! output line (testing string matching, not real version equality), and
-//! the literal placeholder strings `updates.rs`/`mac_about/facts.rs` use to
-//! exercise URL-encoding and layout logic. Sweeping all of those into "no
-//! 0.1.0 anywhere" would make the law fail on itself. Instead this pins the
+//! dependency crate versions in `Cargo.lock`, `scripts/test-native-gate.sh`'s
+//! mocked cargo output line (testing string matching, not real version
+//! equality), and the literal placeholder strings
+//! `updates.rs`/`mac_about/facts.rs` use to exercise URL-encoding and layout
+//! logic. Sweeping all of those into "no 0.1.0 anywhere" would make the law
+//! fail on itself. Instead this pins the
 //! ACTUAL version-bearing surfaces to the real, compiled version — which is
 //! a stronger check than a placeholder-string ban: it fails on ANY drift,
 //! not just a reversion to exactly "0.1.0".

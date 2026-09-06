@@ -271,7 +271,9 @@ warns, because it must stay runnable against an older checkout.
 ## 5. Pre-tag checklist
 
 Nothing here is automatic. Work it top to bottom on the exact commit the tag
-will name.
+will name. `scripts/pretag-journeys.py` is the journey-sweep instrument this
+checklist's audit policy requires (CLAUDE.md, "pre-tag: a journey sweep
+across worlds") — run it before step 1.
 
 | # | Step | Done when |
 |---|---|---|

@@ -62,7 +62,7 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
     echo "  x86_64-unknown-linux-gnu' to close the gap locally." >&2
   fi
 fi
-RUSTC_WRAPPER= python3 scripts/code-health.py
+RUSTC_WRAPPER= PYTHONDONTWRITEBYTECODE=1 python3 scripts/code-health.py
 # The one structural check whose subject is NOT Rust: awl's Linux package names
 # have a single owner (scripts/linux-deps.sh) and no Rust test can see the
 # workflows, Dockerfiles and shell scripts that consume it. It runs here because
