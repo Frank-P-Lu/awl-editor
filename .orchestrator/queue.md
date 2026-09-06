@@ -2028,6 +2028,50 @@ are exercised — the jump only exists under pressure, and a law that runs
 wide sweeps nothing.
 
 ---
+### 575 — Credits is a reading surface: no caret, no insertion, through every door (user report, 2026-09-06 — "you can type in the credits screen?… i see the cursor in the credits too… i was thinking some kind of readonly surface")
+
+Confirmed in pixels and mechanism. Credits opens the bundled document as
+the ACTIVE buffer relocated into its workspace viewport, so the caret
+layer draws normally — a block caret parked inside the credits body
+(pixel-verified at the sidecar's own `layout.caret`), plus the workspace
+rail's query caret drawn beside an empty query on a surface with no query
+field. And the intent is already on record — a wildcard-free roster test
+names exactly three kinds asking for READ-ONLY prose (timeline, conflict,
+Credits; overlay/comparison.rs) — but nothing enforces it at the
+insertion doors: `Ime::Commit` (src/app/input/ime.rs:16) inserts into the
+active document gated only on `has_active()`, with no overlay/workspace
+gate. The keymap chord door IS overlay-aware (replayed typing is
+swallowed — verified through both an ordinary capture and
+`--screenshot-app`), which makes the IME door the one ungated insertion
+path and the presumed route of the user's live typing — CONFIRM LIVE, per
+the replay-is-clean-but-user-sees-it rule.
+
+DECIDED SHAPE (the rethink): the caret is the editor's one accent and
+means "you can write here." A read-only surface therefore shows no caret
+anywhere — not in the viewport, not in the rail — and accepts no text
+through ANY door. Build it as a property of the surface, once:
+(a) the read-only prose family's buffer presentation carries the
+read-only fact, and the refusal lives at ONE owner inside the document
+insert seam — never per-caller key filters — so the keymap door, the IME
+door, and any future paste/drop door all hit the same wall;
+(b) the caret layer parks for a read-only presentation (viewport caret
+and the query-less rail caret both);
+(c) reading interactions stay: scroll/arrows/page keys move the pane,
+Esc/Back closes, typing is silently inert — no beep, no toast (calm);
+(d) sweep the FAMILY from the existing roster, not from this item's
+examples: History's timeline and the Conflict comparison get the same
+two-leak audit (insertion doors, caret ink) and enrol in the same laws.
+Selection/copy inside Credits: out of scope v1, recorded.
+
+Laws: typing through BOTH doors leaves the credits bytes identical
+(extend the harness to inject an IME commit if no seam reaches it —
+extend toward reality, don't stub); zero caret ink in the viewport AND
+rail by pixel arithmetic, with the presence companion (an ordinary
+document capture shows caret ink, so the absence assertion is
+non-vacuous); the family enrolment derives from the read-only-prose
+roster so a fourth member inherits the laws on arrival.
+
+---
 ## Needs specific hardware
 
 🔴 BLOCKED — these journeys require physical environments unavailable to the current orchestration host.
