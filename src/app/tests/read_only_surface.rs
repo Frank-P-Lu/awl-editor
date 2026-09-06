@@ -347,7 +347,6 @@ fn only_a_card_with_nothing_to_search_refuses_its_query() {
 /// without touching the buffer's content or shape — so this drives the SAME
 /// projection through open and closed rather than two fresh ones, which is
 /// exactly the staleness the `sync_document` re-ask exists to prevent.
-#[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn the_document_node_stops_advertising_writes_on_a_reading_surface() {
     use crate::semantic::SemanticAction;
