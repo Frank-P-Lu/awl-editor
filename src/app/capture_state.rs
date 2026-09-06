@@ -146,4 +146,10 @@ impl crate::run::CaptureSubject for App {
         let notice = self.frame.notice();
         notice.owned().map(|text| (text, notice.kind()))
     }
+    /// The SAME answer `App::sync_view` hands the live window's own pipeline
+    /// (`ViewState::set_wants_outline_rail`), so a `--screenshot-app` frame
+    /// places the writing column exactly where the running editor does.
+    fn set_wants_outline_rail(&self) -> bool {
+        self.document.parked_wants_rail()
+    }
 }

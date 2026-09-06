@@ -2741,6 +2741,22 @@ pub struct TextPipeline {
     inline_images_latched: bool,
     md_spans: Vec<(std::ops::Range<usize>, crate::markdown::MdKind)>,
     outline_headings: Vec<crate::markdown::Heading>,
+    /// **THE WORKING SET'S HALF OF THE RAIL RESERVATION:** does any open buffer
+    /// OTHER than the one being shaped want the margin outline's rail
+    /// (`crate::buffers::BufferRegistry::backgrounded_wants_rail`)?
+    ///
+    /// The adaptive column belongs to the ROOM, not to the document. Keyed on
+    /// [`Self::outline_headings`] alone, the reservation was a property of
+    /// whichever file was on screen, so switching between a headed file and a
+    /// heading-free one slid the whole page — column, gutter, margins —
+    /// sideways by the rail's appetite. With the set's answer folded in, the
+    /// column moves only when the ROOM changes: a buffer opens or closes, the
+    /// window resizes, the outline/page toggles, the measure changes.
+    ///
+    /// `false` on every pipeline that has no working set behind it (a plain
+    /// capture, a unit fixture), which is what keeps a single-buffer session
+    /// byte-identical.
+    set_wants_outline_rail: bool,
     last_outline_current: Option<usize>,
     syn_lang: Option<crate::syntax::Lang>,
     syn_spans: Vec<(std::ops::Range<usize>, crate::syntax::SynKind)>,

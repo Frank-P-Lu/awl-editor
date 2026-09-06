@@ -694,11 +694,39 @@ impl TextPipeline {
         }
     }
 
+    /// Does the document ON SCREEN have outline rows to draw? The per-buffer
+    /// question, asked of the shaped buffer through the one owner
+    /// ([`crate::outline::document_wants_rail`]) — the DRAW gate
+    /// (`chrome::outline::outline_layout`) asks the very same call, so a rail
+    /// reserved for the room can never make an empty outline draw.
+    pub(in crate::render) fn active_document_wants_rail(&self) -> bool {
+        crate::outline::document_wants_rail(self.md_enabled, !self.outline_headings.is_empty())
+    }
+
+    /// **THE RAIL RESERVATION — THE ONE OWNER, AND IT KEYS ON THE WORKING SET.**
+    /// Whether the adaptive column ([`column::adaptive_column_left`]) should hold
+    /// margin room for the outline's rail. Two room-level facts (the feature is
+    /// on, page mode is on) and one SET-level one: any open buffer would draw
+    /// rows — the active document itself, or one parked behind it
+    /// ([`Self::set_wants_outline_rail`]).
+    ///
+    /// The set half is what makes the column a property of the ROOM. Reserved
+    /// for the current buffer alone, the column sat in one regime for a headed
+    /// file and another for a heading-free one, so merely SWITCHING files slid
+    /// the page sideways by the rail's whole appetite — a jump the reader never
+    /// asked for, and the widest thing on screen moving for a reason nothing on
+    /// screen explained. Holding the reservation across the working set leaves
+    /// the column moving only at moments the user caused: an open, a close, a
+    /// resize, an outline/page toggle, a measure change. A buffer with no
+    /// headings simply draws nothing in the room the set reserved.
+    ///
+    /// The NO-PAYOFF guard is untouched by this: a session where no open buffer
+    /// will ever draw a rail still reserves none, and `adaptive_column_left`
+    /// still refuses a shift too small to clear the outline's own hide floor.
     pub(in crate::render) fn outline_wants_rail(&self) -> bool {
         crate::outline::outline_on()
             && crate::page::page_on()
-            && self.md_enabled
-            && !self.outline_headings.is_empty()
+            && (self.active_document_wants_rail() || self.set_wants_outline_rail)
     }
 
     /// INLINE-IMAGE DRAG-RESIZE (v2) — the DISPLAY WIDTH (px) an image gets from

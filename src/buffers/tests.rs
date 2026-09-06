@@ -244,3 +244,77 @@ fn park_evicts_the_newest_clean_entry_when_it_is_the_only_clean_one() {
         assert!(reg.contains(&keyed(&format!("/f{i}.txt"))));
     }
 }
+
+/// **THE RAIL-APPETITE STAMP is taken over the buffer being parked, and the
+/// aggregate follows every open/close/activate transition.**
+///
+/// The margin outline's rail is reserved for the WORKING SET, so the registry
+/// has to answer "would anything behind the active buffer draw outline rows"
+/// without the renderer rescanning documents it is not shaping. The three
+/// transitions that can change that answer are park (a file opens, or the
+/// reader leaves one), take (a parked file becomes the active one) and remove
+/// (a file closes) — all three are asserted here, and each is asserted against
+/// the AGGREGATE the pipeline actually reads, not against a slot's private
+/// field.
+///
+/// The `.txt` arm is the non-vacuity companion: heading TEXT alone must not
+/// claim a rail, because the outline never draws on a non-markdown buffer. A
+/// stamp that ignored `is_markdown` would pass every other assertion here.
+#[test]
+fn the_registry_stamps_rail_appetite_per_parked_buffer_and_follows_open_close_activate() {
+    let mut reg: BufferRegistry<()> = BufferRegistry::default();
+    let parked = |text: &str, path: &str| {
+        let mut b = Buffer::from_str(text);
+        b.set_path(PathBuf::from(path));
+        Entry {
+            buffer: b,
+            extra: (),
+        }
+    };
+
+    assert!(
+        !reg.backgrounded_wants_rail(),
+        "an empty registry reserves nothing"
+    );
+
+    reg.park(keyed("/plain.md"), parked("just prose\n", "/plain.md"));
+    assert!(
+        !reg.backgrounded_wants_rail(),
+        "a parked markdown buffer with NO heading gives the outline nothing to draw"
+    );
+
+    reg.park(keyed("/heads.md"), parked("# Title\n\nbody\n", "/heads.md"));
+    assert!(
+        reg.backgrounded_wants_rail(),
+        "a parked HEADED markdown buffer claims the rail for the whole room"
+    );
+
+    // ACTIVATION removes the claim from the backgrounded set: the buffer is no
+    // longer behind anything, and the renderer answers for it from its own
+    // shaped headings.
+    let back = reg.take(&keyed("/heads.md")).expect("parked entry");
+    assert_eq!(back.buffer.text(), "# Title\n\nbody\n");
+    assert!(
+        !reg.backgrounded_wants_rail(),
+        "taking the headed buffer forward leaves only the heading-free one parked"
+    );
+
+    // CLOSE releases it too — the same aggregate, reached by the other door.
+    reg.park(keyed("/heads.md"), parked("# Title\n", "/heads.md"));
+    assert!(reg.backgrounded_wants_rail());
+    assert!(reg.remove(&keyed("/heads.md")));
+    assert!(
+        !reg.backgrounded_wants_rail(),
+        "closing the last headed buffer releases the reservation"
+    );
+
+    // A HEADING-SHAPED line in a NON-markdown buffer is not a heading: the
+    // outline is markdown-only, so the room must not hold room for a rail that
+    // can never draw.
+    reg.park(keyed("/notes.txt"), parked("# Title\n", "/notes.txt"));
+    assert!(
+        !reg.backgrounded_wants_rail(),
+        "a .txt buffer whose text happens to start with '#' claims no rail — \
+         `outline::document_wants_rail` asks is_markdown first"
+    );
+}

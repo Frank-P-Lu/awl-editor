@@ -168,7 +168,7 @@ impl TextPipeline {
     /// `None` when the outline is HIDDEN outright — the graceful-hide rule, ANY of:
     /// the feature is OFF ([`crate::outline::outline_on`]); NOT page mode (no margin
     /// to hold it — edge-to-edge stays clean); a non-markdown buffer or a
-    /// heading-free document (`!md_enabled` / `outline_headings.is_empty()`); the
+    /// heading-free document ([`crate::outline::document_wants_rail`] says no); the
     /// margin is too narrow for even a stub title ([`rowlayout::OUTLINE_MIN_CHARS`],
     /// so a narrow window collapses the outline exactly as it collapses the gutter);
     /// or there is no vertical room for even one row above the gutter's reserved
@@ -196,7 +196,11 @@ impl TextPipeline {
         if self.overlay_active {
             return None;
         }
-        if !self.md_enabled || self.outline_headings.is_empty() {
+        // THE DRAW GATE, asked through the one owner the reservation's active
+        // half reads (`TextPipeline::active_document_wants_rail`). The room may
+        // have reserved a rail for a headed buffer parked behind this one; a
+        // buffer with no headings of its own still draws nothing in it.
+        if !self.active_document_wants_rail() {
             return None;
         }
         let label = crate::markdown::type_scale::LABEL;

@@ -57,6 +57,30 @@ pub fn toggle() -> bool {
     OUTLINE_ON.toggle()
 }
 
+/// **THE ONE RULE for "would THIS document give the margin outline rows to
+/// draw"** — a markdown buffer carrying at least one heading, and nothing else.
+///
+/// Deliberately free of every ROOM-level fact ([`outline_on`], page mode, window
+/// width): those are asked once, of the room, by the rail RESERVATION
+/// (`render::geometry::TextPipeline::outline_wants_rail`). What is left is a
+/// question about a DOCUMENT, and three surfaces have to ask it of three
+/// different documents:
+///
+///   * the DRAW gate (`render::chrome::outline::outline_layout`) asks it of the
+///     buffer on screen — no headings, no rows, whatever the room reserved;
+///   * the reservation's ACTIVE half asks it of that same buffer;
+///   * [`crate::buffers::BufferRegistry::park`] asks it of every OTHER open
+///     buffer, so the reservation can be a fact about the WORKING SET rather
+///     than about whichever file the reader happens to be looking at — which is
+///     what stops a buffer switch from sliding the whole page sideways.
+///
+/// Spelled `is_markdown && has_heading` in three places, those three drift the
+/// moment one of them grows a condition; asked here, a new caller inherits the
+/// rule instead of re-deriving it.
+pub fn document_wants_rail(is_markdown: bool, has_heading: bool) -> bool {
+    is_markdown && has_heading
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

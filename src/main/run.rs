@@ -378,6 +378,14 @@ impl<'a> ReplaySession<'a> {
         self.registry.len() + 1
     }
 
+    /// Does any BACKGROUNDED buffer want the margin outline's rail? The working
+    /// set's half of the rail reservation, read off the shared registry's own
+    /// per-slot stamps — the same fact the live `App` reports, from the same
+    /// type. Read by the sidecar fold through `CaptureSubject`.
+    pub(crate) fn set_wants_outline_rail(&self) -> bool {
+        self.registry.backgrounded_wants_rail()
+    }
+
     /// The calm notice this replay is showing, with its kind. Read by the sidecar
     /// fold through `CaptureSubject`.
     pub(crate) fn notice(&self) -> Option<(String, crate::actions::NoticeKind)> {

@@ -74,6 +74,14 @@ pub(crate) trait CaptureSubject {
     /// frame state, an ordinary replay off the notice its own effect interpreter
     /// latched. `None` when nothing is showing.
     fn notice(&self) -> Option<(String, crate::actions::NoticeKind)>;
+    /// **DOES ANY BUFFER BEHIND THE ACTIVE ONE WANT THE MARGIN OUTLINE'S
+    /// RAIL?** The eighth fact, and the first one about the buffers a frame is
+    /// NOT rendering: the adaptive column reserves the rail's room for the
+    /// WORKING SET, so a capture that asked only the photographed buffer would
+    /// place the writing column where the reader would never see it. Both
+    /// drivers keep a `crate::buffers::BufferRegistry` and answer off its own
+    /// per-slot stamps, so the two cannot drift.
+    fn set_wants_outline_rail(&self) -> bool;
 }
 
 /// THE ONE PER-FRAME FOLD: a driven editor's CURRENT state plus its already-built
@@ -129,6 +137,7 @@ pub(crate) fn fold_capture_state(
     opts.gutter_changed = subject.changed_elsewhere();
     opts.notice = subject.notice();
     opts.buffers = Some(buffers_info(subject.buffers_open(), buffer));
+    opts.set_wants_outline_rail = subject.set_wants_outline_rail();
     opts
 }
 
@@ -277,6 +286,13 @@ impl CaptureSubject for super::ReplaySession<'_> {
     /// `App` (`App::set_toast_notice` arms no deadline without a surface).
     fn notice(&self) -> Option<(String, crate::actions::NoticeKind)> {
         super::ReplaySession::notice(self)
+    }
+    /// A replay keeps the SAME `crate::buffers::BufferRegistry` the live App
+    /// does, so it answers this off the same per-slot stamps — a `--keys`
+    /// capture that opened a second file places its column exactly where the
+    /// running editor would.
+    fn set_wants_outline_rail(&self) -> bool {
+        super::ReplaySession::set_wants_outline_rail(self)
     }
 }
 

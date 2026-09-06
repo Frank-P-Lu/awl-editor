@@ -558,6 +558,7 @@ impl TextPipeline {
             inline_images_latched: crate::markdown::inline_images_on(),
             md_spans: Vec::new(),
             outline_headings: Vec::new(),
+            set_wants_outline_rail: false,
             last_outline_current: None,
             syn_lang: None,
             syn_spans: Vec::new(),
