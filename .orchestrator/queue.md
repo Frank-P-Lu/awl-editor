@@ -1942,10 +1942,11 @@ line == last line); no mark on non-blockquote lines.
 `build_line_attrs` hoists the reveal predicate above the ornament-scale decision, so a
 revealed rule line drops the ornament's room entirely: raw markers at body size, body-height
 row, body-size caret. Four laws (2 sidecar geometry, 2 real-pixel), each single-mutation
-proven. The lane's own gates were still outstanding when it reported; the merge-train receipt
-on the exact combined candidate is OWED and is deliberately deferred while item 566's Linux
-VM holds the host at load ~400 — a receipt taken there would certify a configuration nobody
-ships.
+proven. Merge-train receipt on the exact combined candidate (566 + 571/573 + the mark raise):
+`native-gate-receipt commit=ceb5c252 health=pass:239s conventions=mac,linux scope=all-targets
+menubar=full:on unit_tests=4835 unit_shards=6 integration_targets=17`. `rects.rs`'s size mark
+rose 1755 → 1775 with the reason recorded (frozen baseline 2238, so a raise below the
+baseline, not a ceiling breach).
 
 Measured on Saltpan (`--theme Saltpan`, caret onto a `***` line): a body row
 is 32px; the thematic-break row is 70.4px — exactly `ornament_scale` 2.2× —

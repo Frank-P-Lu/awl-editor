@@ -896,6 +896,20 @@ times it fires.**
 - **Classify suspicious failures before blaming code.** Retry incremental
   failures with `CARGO_INCREMENTAL=0`. For `SIGKILL` with no test failure,
   check memory and rerun the gate alone.
+- ‼ **RUNNING `code-health.sh` FROM AN AGENT'S OWN BASH SHELL KILLS THAT SHELL, AND
+  LEAVES ITS GATE ORPHANED AND STILL RUNNING.** `code-health.sh` invokes
+  `test-native-gate.sh`, whose group-kill probe signals whole PROCESS GROUPS — and an
+  agent's tool shell shares a group with the gate it launched, so the probe reaps the
+  caller. Measured 2026-09-06: a lane's first attempt died at **exit 144** mid-probe while
+  its gate kept running unattached, and the orchestrator later found TWO full gates
+  competing for the one arbiter slot, one of them nobody was waiting on. The shell that
+  dies takes the lane's turn with it, so this reads as an unexplained silent lane. Isolate
+  it: `set -m` in **bash** (zsh rejects it in that context) plus a disowned subshell. And
+  when a lane reports an orphaned gate, the orchestrator's job is to kill the process
+  GROUP (`kill -TERM -<pgid>`) — the arbiter's EXIT trap clears the marker on TERM, so the
+  slot frees cleanly — rather than leaving a redundant gate to starve the receipt that
+  actually covers the merge candidate.
+
 - **Terminate only owned processes.** Never kill `awl` by name; stop only the
   exact PID this run created. Identify them with `pgrep -f` plus `ps -ww`:
   macOS `ps -o command=` truncates before arguments like `--user-data-dir`, so
