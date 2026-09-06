@@ -444,8 +444,24 @@ fn intercept_action(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
     if crate::card::dismiss_summoned_card() {
         return Some(Effect::None);
     }
-    let up = ctx.journey.card().is_some();
-    up.then(|| overlay_intercept(ctx, action))
+    if ctx.journey.card().is_some() {
+        return Some(overlay_intercept(ctx, action));
+    }
+    // THE SUMMONED FIND/REPLACE PANEL owns every action while it is up —
+    // the same rule the card above has always had, applied to the OTHER
+    // summoned text-entry surface. The panel's own key door consumes every
+    // KEY, so no keystroke arrives here; an ACTION still does, from every
+    // door that never touches a keymap (a macOS menu-bar key equivalent, a
+    // menu or context-menu click, a palette row's `Effect::RunAction`). Left
+    // ungated, those ran document verbs against the document parked behind
+    // the panel — ⌘A selected the whole buffer while the caret was in the
+    // find field. `search::keys::intercept_action` is the panel's owner of
+    // what a routed action means to it.
+    if ctx.search.is_some() {
+        crate::search::keys::intercept_action(ctx.search, action);
+        return Some(Effect::None);
+    }
+    None
 }
 
 /// The File-menu Export rows stay enabled on every buffer (unlike hiding a row
@@ -731,15 +747,16 @@ fn apply_transition_primary(ctx: &mut ActionCtx, action: &Action, shift: bool) -
         return effect;
     }
 
-    // NOTE — there is deliberately NO search intercept here. While the isearch
-    // panel is open, EVERY key is consumed BEFORE keymap resolution by the ONE
-    // shared interception seam (`crate::search::keys::intercept`) — the live
-    // window's search guard (`app/input/keys.rs`) and the headless replay's
-    // guard (`main/run.rs::replay_keys_mode`) are the same code — so no key
-    // path can reach `apply_transition` with `ctx.search` still `Some`. The old
-    // Action-level Tab/OpenReplace intercept that lived here (the partial
-    // headless mirror from before the seam existed) was retired with it:
-    // same behavior must be same code, not an aligned copy.
+    // NOTE — the search panel's KEY door is not here and must not be. While
+    // the isearch panel is open, EVERY key is consumed BEFORE keymap
+    // resolution by the ONE shared interception seam
+    // (`crate::search::keys::intercept`) — the live window's search guard
+    // (`app/input/keys.rs`) and the headless replay's guard
+    // (`main/run.rs::replay_keys_mode`) are the same code — so no KEY path
+    // reaches `apply_transition` with `ctx.search` still `Some`. An ACTION
+    // does, from the doors that never touch a keymap, and that is the
+    // panel's ACTION door in `intercept_action` above — not a mirror of the
+    // key door, a different vocabulary arriving through a different seam.
 
     if action.is_motion() {
         if shift {

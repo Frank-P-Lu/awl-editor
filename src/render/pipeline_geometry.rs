@@ -356,6 +356,7 @@ impl TextPipeline {
         self.search_editing_replacement = view.search_editing_replacement;
         self.search_query_caret = view.search_query_caret;
         self.search_replacement_caret = view.search_replacement_caret;
+        self.search_field_selection = view.search_field_selection;
         self.popover_model = view.popover.clone();
         // A summoned overlay appears + disappears INSTANTLY (no rise-in / sink-out
         // motion) on every CALM world: the overlay content syncs verbatim from the

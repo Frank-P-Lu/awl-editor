@@ -317,11 +317,32 @@ enum_with_all! {
         PrevMatch,
         ToggleCase,
         FieldSwitch,
+        SelectAllField,
         ReplaceCurrent,
         ReplaceAll,
         Accept,
         Abort,
     }
+}
+
+/// ⌘A selects the WHOLE focused field and leaves the parked document
+/// selection exactly as it was — the affordance the routing repair added,
+/// driven here through the same `intercept` seam as every other one.
+fn assert_select_all_field_drivable(cmd: ModifiersState) {
+    let (mut s, mut b) = open("x.x.x");
+    type_str(&mut s, &mut b, "x");
+    let before = b.selection_range();
+    intercept(&mut s, &mut b, &ch("a"), cmd);
+    assert_eq!(
+        s.as_ref().unwrap().focused_selection(),
+        Some((0, 1)),
+        "SelectAllField selects the whole focused field via \u{2318}A"
+    );
+    assert_eq!(
+        b.selection_range(),
+        before,
+        "SelectAllField must leave the parked document selection alone"
+    );
 }
 
 fn assert_affordance_drivable(affordance: PanelKeyAffordance) {
@@ -385,6 +406,7 @@ fn assert_affordance_drivable(affordance: PanelKeyAffordance) {
                 "FieldSwitch reveals + focuses the replace field"
             );
         }
+        SelectAllField => assert_select_all_field_drivable(cmd),
         ReplaceCurrent => {
             let (mut s, mut b) = open("x.x.x");
             type_str(&mut s, &mut b, "x");
@@ -432,4 +454,120 @@ fn every_panel_key_affordance_is_drivable() {
         assert_affordance_drivable(affordance);
     }
     crate::search::clear_last_query();
+}
+
+// --- THE ROUTED-ACTION DOOR ---------------------------------------------
+
+/// **THE PANEL'S SECOND DOOR CONSUMES EVERY EDIT VERB, AND GIVES SELECT-ALL A
+/// FIELD-SCOPED MEANING — ON BOTH FIELDS.**
+///
+/// `intercept_action` is what a macOS menu-bar key equivalent, a menu or
+/// context-menu click, and a palette row's `Effect::RunAction` reach. Swept
+/// over the Edit menu's OWN roster (`menu::edit_verbs::edit_menu_actions`), because that
+/// is precisely the set AppKit installs real key equivalents for — the door
+/// the defect travelled down. The buffer is passed in and read back so a verb
+/// that reached the rope is caught here, one tier below the App.
+#[test]
+fn the_action_door_keeps_every_edit_verb_inside_the_focused_field() {
+    let _g = crate::testlock::serial();
+    let verbs = crate::menu::edit_verbs::edit_menu_actions();
+    assert!(!verbs.is_empty(), "the Edit-menu verb roster is empty");
+
+    for replacement_focused in [false, true] {
+        for action in &verbs {
+            let (mut s, mut b) = open("alpha beta alpha");
+            type_str(&mut s, &mut b, "beta");
+            if replacement_focused {
+                let st = s.as_mut().unwrap();
+                st.focus_replacement();
+                for c in "gamma".chars() {
+                    st.push_replace_char(c);
+                }
+            }
+            let doc_before = (b.text(), b.version(), b.selection_range());
+            let q_before = s.as_ref().unwrap().query().to_string();
+            let r_before = s.as_ref().unwrap().replacement().to_string();
+
+            crate::search::keys::intercept_action(&mut s, action);
+
+            let st = s.as_ref().expect("the panel stays open");
+            assert_eq!(
+                (b.text(), b.version(), b.selection_range()),
+                doc_before,
+                "{action:?} (replacement focused: {replacement_focused}) reached the \
+                 document behind the panel (verbs swept: {verbs:?})"
+            );
+            assert_eq!(st.query(), q_before, "{action:?} rewrote the query text");
+            assert_eq!(
+                st.replacement(),
+                r_before,
+                "{action:?} rewrote the replacement text"
+            );
+            let expect = if matches!(action, crate::keymap::Action::SelectAll) {
+                let focused = if replacement_focused {
+                    &r_before
+                } else {
+                    &q_before
+                };
+                Some((0, focused.chars().count()))
+            } else {
+                None
+            };
+            assert_eq!(
+                st.focused_selection(),
+                expect,
+                "{action:?} (replacement focused: {replacement_focused}): only \
+                 Select all may arm the focused field"
+            );
+            // The field WITHOUT focus is never touched by either outcome.
+            let unfocused = if replacement_focused {
+                st.query_selection()
+            } else {
+                st.replacement_selection()
+            };
+            assert_eq!(
+                unfocused, None,
+                "{action:?}: the unfocused field must not acquire a selection"
+            );
+        }
+    }
+}
+
+/// **SELECT ALL ON AN EMPTY FIELD ARMS NOTHING** — the "never a zero-width
+/// selection" invariant, asked at the door rather than only at `TextBox`, so
+/// a fresh panel's ⌘A cannot leave a phantom selection the next keystroke
+/// silently "replaces".
+#[test]
+fn select_all_on_an_empty_field_arms_no_selection() {
+    let _g = crate::testlock::serial();
+    let (mut s, b) = open("alpha");
+    crate::search::keys::intercept_action(&mut s, &crate::keymap::Action::SelectAll);
+    assert_eq!(s.as_ref().unwrap().focused_selection(), None);
+    assert_eq!(b.text(), "alpha");
+}
+
+/// **SELECT ALL SPANS THE FIELD IN CHARS, NOT BYTES.** A CJK / combining /
+/// emoji query is multibyte, and a byte length used as a char index would
+/// either panic on the next splice or select a range that is not the field.
+/// The next typed character must replace the WHOLE field regardless.
+#[test]
+fn select_all_then_typing_replaces_a_multibyte_field_whole() {
+    let _g = crate::testlock::serial();
+    for needle in ["日本語", "e\u{0301}te\u{0301}", "🇯🇵🇫🇷", "👍"] {
+        let (mut s, mut b) = open("nothing matches here");
+        type_str(&mut s, &mut b, needle);
+        crate::search::keys::intercept_action(&mut s, &crate::keymap::Action::SelectAll);
+        assert_eq!(
+            s.as_ref().unwrap().focused_selection(),
+            Some((0, needle.chars().count())),
+            "{needle:?}: the span is CHARS, not bytes"
+        );
+        type_str(&mut s, &mut b, "z");
+        assert_eq!(
+            s.as_ref().unwrap().query(),
+            "z",
+            "{needle:?}: typing must replace the whole multibyte field"
+        );
+        assert_eq!(b.text(), "nothing matches here");
+    }
 }

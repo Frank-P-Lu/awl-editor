@@ -182,6 +182,14 @@ impl App {
             search_editing_replacement,
             search_query_caret,
             search_replacement_caret,
+            // Asked of the panel's OWN focus rule (`focused_selection`), the
+            // same one the caret row is derived from, rather than picking a
+            // field here — so the band and the caret can never disagree about
+            // which row is being edited.
+            search_field_selection: self
+                .workspace_state
+                .search()
+                .and_then(|st| st.focused_selection()),
             overlay_active: self.workspace_state.overlay_open(),
             // Carry the alignment FROZEN at summon (`OverlayState::align`)
             // straight through — read verbatim every frame, so a live theme-preview

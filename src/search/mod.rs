@@ -111,6 +111,48 @@ impl SearchState {
         self.query.word_right();
     }
 
+    /// SELECT ALL in the FOCUSED field — the panel's own answer to the
+    /// select-all verb, and the ONE owner both of its doors call: the raw-key
+    /// ⌘A door ([`keys::intercept`]) and the routed-Action door
+    /// ([`keys::intercept_action`], which is where a macOS menu-bar key
+    /// equivalent lands). Pure field state: the query's TEXT is unchanged, so
+    /// this deliberately does NOT recompute or jump — the match set, the
+    /// parked document caret and its parked selection all stay exactly as
+    /// they were, which is the whole point of the verb belonging to the
+    /// field. The subsequent typing/deletion needs nothing added: every
+    /// [`TextBox`] edit op already replaces an active selection.
+    pub fn select_all_focused_field(&mut self) {
+        if self.editing_replacement {
+            self.replacement.select_all();
+        } else {
+            self.query.select_all();
+        }
+    }
+
+    /// The FOCUSED field's active selection as CHAR indices, or `None`. What
+    /// the panel DRAWS (only the focused row carries a visible band) and what
+    /// a law reads back to prove select-all landed in the field rather than
+    /// in the document.
+    pub fn focused_selection(&self) -> Option<(usize, usize)> {
+        if self.editing_replacement {
+            self.replacement.selection_range()
+        } else {
+            self.query.selection_range()
+        }
+    }
+
+    /// The two fields' own selections, named separately so a law can assert
+    /// that the UNFOCUSED field was left alone.
+    #[allow(dead_code)]
+    pub fn query_selection(&self) -> Option<(usize, usize)> {
+        self.query.selection_range()
+    }
+
+    #[allow(dead_code)]
+    pub fn replacement_selection(&self) -> Option<(usize, usize)> {
+        self.replacement.selection_range()
+    }
+
     pub fn query_delete_word_back(&mut self, haystack: &str) {
         self.query.delete_word_back();
         self.recompute(haystack);

@@ -17,6 +17,7 @@ use winit::keyboard::{Key, ModifiersState, NamedKey};
 use super::{Direction, SearchState, StepOutcome};
 use crate::buffer::Buffer;
 use crate::caret::RecoilDir;
+use crate::keymap::Action;
 
 /// Route one key press to the active search surface. Only meaningful while
 /// `*search` is `Some` (both callers gate on that); a `None` search is a no-op.
@@ -43,6 +44,38 @@ pub fn intercept(
         }
         Key::Named(named) => intercept_named(search, buffer, *named, mods, editing_replacement),
         _ => None,
+    }
+}
+
+/// Route one RESOLVED [`Action`] to the active search surface — the panel's
+/// SECOND door, and the one this file did not have.
+///
+/// **Why a second door exists at all.** [`intercept`] above consumes every
+/// KEY, and the two key drivers gate on it, so no KEYSTROKE reaches
+/// `apply_transition` while the panel is up. That was read as "nothing
+/// reaches it", which is a claim about keys wearing the clothes of a claim
+/// about actions. An `Action` also arrives from doors that never touch a
+/// keymap: the macOS menu bar's own key equivalents (AppKit runs
+/// `performKeyEquivalent:` against the main menu BEFORE the key window sees
+/// the event, so ⌘A fires the Edit ▸ Select all item, not a winit key), a
+/// menu or context-menu CLICK, and a palette row's `Effect::RunAction`. Every
+/// one of those lands in `App::apply` → `apply_transition`, where the summoned
+/// find/replace panel had no gate at all and a document verb ran against the
+/// document parked behind the panel.
+///
+/// **The contract**, matching the card's own (`overlay_nav::overlay_intercept`)
+/// exactly rather than inventing a second policy: the panel OWNS every action
+/// while it is up. `SelectAll` is given its field-scoped meaning through the
+/// ONE owner the ⌘A key door also calls; every other action is CONSUMED. That
+/// includes actions a reader may expect to survive a summoned surface (Quit,
+/// Save): the summoned card already swallows those, and making the panel
+/// disagree would be a second policy, not a fix. Widening the carve-out is one
+/// decision to take across BOTH surfaces.
+pub fn intercept_action(search: &mut Option<SearchState>, action: &Action) {
+    if let Action::SelectAll = action
+        && let Some(st) = search.as_mut()
+    {
+        st.select_all_focused_field();
     }
 }
 
@@ -101,6 +134,19 @@ fn intercept_character(
                     Direction::Forward
                 },
             );
+        } else if c.eq_ignore_ascii_case(&'a')
+            && !alt
+            && let Some(st) = search.as_mut()
+        {
+            // ⌘A: SELECT ALL inside the FOCUSED field. The same
+            // `select_all_focused_field` owner the routed-Action door
+            // ([`intercept_action`]) calls, so the raw key and a fired menu
+            // item can never mean two different things. On macOS the Edit
+            // menu's own ⌘A key equivalent normally claims this chord before
+            // the window sees it — this arm is what answers it wherever the
+            // native menu bar is not the one intercepting (a build with the
+            // bar off, and the Super slot on Linux).
+            st.select_all_focused_field();
         } else if c.eq_ignore_ascii_case(&'r')
             && !alt
             && let Some(st) = search.as_mut()

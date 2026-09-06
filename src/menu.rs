@@ -12,6 +12,7 @@ mod native;
 pub use native::{InstalledMenu, install};
 #[cfg(test)]
 mod chord_truth;
+pub mod edit_verbs;
 #[cfg(test)]
 mod ellipsis_law;
 
