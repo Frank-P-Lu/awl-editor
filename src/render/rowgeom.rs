@@ -106,6 +106,12 @@ pub(super) struct RowGeom {
     /// which used to read as "floating" above the heading's ink, especially on a
     /// big H1. Indexed by logical line; dropped with the rest by [`Self::invalidate`].
     line_baselines: std::cell::RefCell<Option<Vec<f32>>>,
+    /// Per LOGICAL line: the buffer-relative top y of that line's **LAST** visual row
+    /// (`line_last_top`) — the wrap-aware counterpart of [`Self::line_tops`], filled
+    /// by the SAME `layout_runs()` walk (last write wins, no extra pass). The
+    /// blockquote pull-quote's CLOSING mark hangs on the block's final row, which is
+    /// the last WRAPPED row of its last logical line, not that line's first.
+    line_last_tops: std::cell::RefCell<Option<Vec<f32>>>,
     /// Full visual-row partition assembled in the SAME shaped-run walk as the
     /// scalar row table. Layout consumers and the report share this owner.
     frame_rows: std::cell::RefCell<Option<Vec<FrameVisualRow>>>,
@@ -148,6 +154,7 @@ impl RowGeom {
             doc_height: std::cell::Cell::new(0.0),
             line_tops: std::cell::RefCell::new(None),
             line_baselines: std::cell::RefCell::new(None),
+            line_last_tops: std::cell::RefCell::new(None),
             frame_rows: std::cell::RefCell::new(None),
             frame_sealed: std::cell::Cell::new(false),
             rows_line: std::cell::Cell::new(None),
@@ -172,6 +179,7 @@ impl RowGeom {
         *self.heights.borrow_mut() = None;
         *self.line_tops.borrow_mut() = None;
         *self.line_baselines.borrow_mut() = None;
+        *self.line_last_tops.borrow_mut() = None;
         *self.frame_rows.borrow_mut() = None;
         self.frame_sealed.set(false);
         // Drop the cursor-line VisualRow memo too: the shaped runs just changed, so
@@ -204,6 +212,7 @@ impl RowGeom {
         // where every viewport cull ACCEPTS it (see `UNSHAPED_LINE_TOP`).
         let mut line_tops: Vec<f32> = vec![UNSHAPED_LINE_TOP; buf.lines.len()];
         let mut line_baselines: Vec<f32> = vec![UNSHAPED_LINE_TOP; buf.lines.len()];
+        let mut line_last_tops: Vec<f32> = vec![UNSHAPED_LINE_TOP; buf.lines.len()];
         let mut line_seen: Vec<bool> = vec![false; buf.lines.len()];
         let mut frame_rows = Vec::new();
         for run in buf.layout_runs() {
@@ -219,6 +228,9 @@ impl RowGeom {
                 logical_line: run.line_i,
                 row: visual_row_from_run(line_text, &run, m.char_width),
             });
+            if let Some(top) = line_last_tops.get_mut(run.line_i) {
+                *top = run.line_top; // last run for this line wins: its LAST visual row
+            }
             if let Some(seen) = line_seen.get_mut(run.line_i)
                 && !*seen
             {
@@ -232,6 +244,7 @@ impl RowGeom {
         *self.heights.borrow_mut() = Some(heights);
         *self.line_tops.borrow_mut() = Some(line_tops);
         *self.line_baselines.borrow_mut() = Some(line_baselines);
+        *self.line_last_tops.borrow_mut() = Some(line_last_tops);
         *self.frame_rows.borrow_mut() = Some(frame_rows);
     }
 
@@ -311,6 +324,20 @@ impl RowGeom {
     pub(super) fn line_first_top(&self, buf: &GlyphBuffer, m: &Metrics, line: usize) -> f32 {
         self.ensure(buf, m);
         self.line_tops
+            .borrow()
+            .as_ref()
+            .and_then(|v| v.get(line).copied())
+            .unwrap_or(UNSHAPED_LINE_TOP)
+    }
+
+    /// Buffer-relative top y (px) of logical `line`'s **LAST** visual row — equal to
+    /// [`Self::line_first_top`] for an unwrapped line, and to the top of the final
+    /// wrapped row otherwise. [`UNSHAPED_LINE_TOP`] for an out-of-range or unshaped
+    /// line, exactly like its first-row sibling, so a caller's viewport cull rejects
+    /// a row whose position is not yet known.
+    pub(super) fn line_last_top(&self, buf: &GlyphBuffer, m: &Metrics, line: usize) -> f32 {
+        self.ensure(buf, m);
+        self.line_last_tops
             .borrow()
             .as_ref()
             .and_then(|v| v.get(line).copied())

@@ -10,6 +10,28 @@ type WashRects = (Vec<[f32; 4]>, Vec<[f32; 4]>, Vec<[f32; 4]>);
 
 mod underlines;
 
+/// A contiguous run of blockquote lines is ONE block, recorded as `(first, last)`
+/// and only ever growing downward — the two ends the hanging pull-quote pair hangs
+/// from. `prev` says whether the PREVIOUS line was a quote too, so a run that
+/// resumes after a gap opens a NEW block instead of swallowing the gap into the
+/// one above it.
+fn push_or_grow_quote_block(quotes: &mut Vec<(usize, usize)>, li: usize, prev: bool) {
+    match quotes.last_mut() {
+        Some(block) if prev => block.1 = li,
+        _ => quotes.push((li, li)),
+    }
+}
+
+/// Which end of a blockquote block a hanging pull-quote mark hangs from. The two
+/// sides differ ONLY in glyph and in x (`geometry::pull_quote_left` /
+/// `geometry::pull_quote_right`) — same face, same scale, same
+/// [`crate::theme::faint`] value, so the pair can never drift apart in weight.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(super) enum QuoteSide {
+    Open,
+    Close,
+}
+
 /// CACHED ORNAMENT LINE LISTS — the cursor-INDEPENDENT set of logical lines that
 /// carry a markdown thematic-break `Rule` span, and the set of unordered-list
 /// (bullet) lines. Both are a pure function of the shaped TEXT, so they are rebuilt
@@ -24,7 +46,9 @@ pub(super) struct OrnamentCache {
     rule_lines: std::cell::RefCell<Vec<usize>>,
     bullet_lines: std::cell::RefCell<Vec<usize>>,
     table_blocks: std::cell::RefCell<Vec<(usize, std::ops::Range<usize>)>>,
-    quote_blocks: std::cell::RefCell<Vec<usize>>,
+    /// `(first line, last line)` per contiguous blockquote BLOCK — the two ends the
+    /// hanging pull-quote pair hangs from (see [`QuoteSide`]).
+    quote_blocks: std::cell::RefCell<Vec<(usize, usize)>>,
     fence_lang_blocks: std::cell::RefCell<Vec<(usize, crate::syntax::Lang)>>,
     /// `(line, char column, source range, display number)` for recognized
     /// references and first-line definition labels. Cursor/selection reveal is
@@ -258,7 +282,7 @@ impl TextPipeline {
         let mut rules = Vec::new();
         let mut bullets = Vec::new();
         let mut tables: Vec<(usize, std::ops::Range<usize>)> = Vec::new();
-        let mut quotes: Vec<usize> = Vec::new();
+        let mut quotes: Vec<(usize, usize)> = Vec::new();
         let mut prev_quote = false;
         let mut fence_langs: Vec<(usize, crate::syntax::Lang)> = Vec::new();
         let mut footnotes = Vec::new();
@@ -321,8 +345,8 @@ impl TextPipeline {
                     ) && r.start < end
                         && r.end > start
                 });
-            if is_quote && !prev_quote {
-                quotes.push(li);
+            if is_quote {
+                push_or_grow_quote_block(&mut quotes, li, prev_quote);
             }
             prev_quote = is_quote;
             if !self.md_spans.is_empty() {
@@ -372,6 +396,16 @@ impl TextPipeline {
             + self
                 .row_geom
                 .line_first_top(&self.buffer, &self.metrics, line)
+    }
+
+    /// Buffer-relative -> absolute top y of logical `line`'s LAST visual row — the
+    /// wrap-aware counterpart of [`Self::line_ornament_top`], read O(1) from the same
+    /// sealed row-geometry walk. The blockquote pull-quote's CLOSING mark hangs here.
+    pub(super) fn line_ornament_last_top(&self, line: usize) -> f32 {
+        self.doc_top()
+            + self
+                .row_geom
+                .line_last_top(&self.buffer, &self.metrics, line)
     }
 
     pub(super) fn line_ornament_baseline(&self, line: usize) -> f32 {
@@ -547,7 +581,16 @@ impl TextPipeline {
         out
     }
 
-    pub(super) fn quote_marks(&self) -> Vec<f32> {
+    /// The visible hanging pull-quote marks: `(row top, side)`, TWO per blockquote
+    /// block — an opening mark on the block's first row and a closing one on its
+    /// last, so a quote never reads permanently unclosed. Each end is culled
+    /// independently, so a block taller than the viewport still shows whichever of
+    /// its two marks is on screen. The closing mark hangs from the last WRAPPED row
+    /// of the block's last logical line ([`Self::line_ornament_last_top`]), not that
+    /// line's first row. A ONE-LINE block yields both marks at the same top; the
+    /// pair is told apart by x, never by y (`geometry::pull_quote_left` /
+    /// `geometry::pull_quote_right`).
+    pub(super) fn quote_marks(&self) -> Vec<(f32, QuoteSide)> {
         if !self.md_enabled || !crate::markdown::wysiwyg_on() || !crate::page::page_on() {
             return Vec::new();
         }
@@ -555,22 +598,26 @@ impl TextPipeline {
             return Vec::new();
         }
         self.ensure_ornament_lists();
-        self.ornament_cache
-            .quote_blocks
-            .borrow()
-            .iter()
-            .copied()
-            .filter(|&li| self.line_ornament_visible(li))
-            .map(|li| self.line_ornament_top(li))
-            .collect()
+        let mut out = Vec::new();
+        for (first, last) in self.ornament_cache.quote_blocks.borrow().iter().copied() {
+            if self.line_ornament_visible(first) {
+                out.push((self.line_ornament_top(first), QuoteSide::Open));
+            }
+            let close_top = self.line_ornament_last_top(last);
+            if self.row_box_visible(close_top, 0.0) {
+                out.push((close_top, QuoteSide::Close));
+            }
+        }
+        out
     }
 
-    /// The FIRST logical line of each contiguous blockquote block, in document order
-    /// (the reshape-cached [`OrnamentCache::quote_blocks`]) — the count of pull-quote
-    /// marks a document produces, INDEPENDENT of page mode / scroll culling. Test
-    /// accessor for the "one mark per block, nested markers coalesce" assertion.
+    /// `(first line, last line)` of each contiguous blockquote block, in document
+    /// order (the reshape-cached [`OrnamentCache::quote_blocks`]) — the blocks a
+    /// document produces a pull-quote PAIR for, INDEPENDENT of page mode / scroll
+    /// culling. Test accessor for the "one pair per block, nested markers coalesce"
+    /// assertion.
     #[cfg(test)]
-    pub(super) fn quote_block_lines(&self) -> Vec<usize> {
+    pub(super) fn quote_block_lines(&self) -> Vec<(usize, usize)> {
         self.ensure_ornament_lists();
         self.ornament_cache.quote_blocks.borrow().clone()
     }

@@ -72,6 +72,19 @@ pub(super) fn pull_quote_left(column_left: f32, text_left: f32, gap: f32, mark_w
     (text_left - gap - mark_w).max(column_left)
 }
 
+/// BLOCKQUOTE pull-quote CLOSING mark x (px) — [`pull_quote_left`] MIRRORED into the
+/// writing column's RIGHT text-pad gutter, so the closing mark sits the same distance
+/// from the text edge as the opening one does on the other flank. Its LEFT edge is a
+/// hair (`gap`) past `text_right` (the wrap edge the quote's own text stops at, so the
+/// text clears it) with its RIGHT edge clamped to `column_right` so it can NEVER
+/// spill out of the page into the right margin. An OVER-WIDE mark clamps and overlaps
+/// the text rather than escaping the page — the same accepted cost, on the same side
+/// of the trade, as its left-hand twin. Pure so the mirror law is unit-testable
+/// without a GPU.
+pub(super) fn pull_quote_right(column_right: f32, text_right: f32, gap: f32, mark_w: f32) -> f32 {
+    (text_right + gap).min(column_right - mark_w)
+}
+
 pub const PAGE_RESIZE_GRAB_PX: Logical = Logical(6.0);
 
 /// A glyph cell whose advance is below this fraction of `metrics.char_width` is

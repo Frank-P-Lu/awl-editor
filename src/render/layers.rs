@@ -58,10 +58,14 @@ pub(crate) fn page_frame_vertical_bounds(
 /// [`super::TextPipeline::prepare_ornaments`].
 const QUOTE_MARK_SCALE: f32 = 2.0;
 
-/// The glyph the pull-quote mark draws — U+201C LEFT DOUBLE QUOTATION MARK (the
-/// pull-quote's opening mark). Shaped in the world's display serif so it reads as
-/// real type, not a symbol-font ornament.
+/// The glyphs the pull-quote PAIR draws — U+201C LEFT DOUBLE QUOTATION MARK opening
+/// the block and U+201D RIGHT DOUBLE QUOTATION MARK closing it. Shaped in the world's
+/// display serif so they read as real type, not symbol-font ornaments, and drawn at
+/// one [`QUOTE_MARK_SCALE`] in one [`theme::faint`] value so the pair cannot drift
+/// apart. `render/tests/quote_orientation.rs` pins both codepoints' outlines
+/// (heavy-bottom "6" / heavy-top "9") in every bundled display face.
 const QUOTE_MARK_GLYPH: char = '\u{201C}';
+const QUOTE_MARK_CLOSE_GLYPH: char = '\u{201D}';
 
 fn fold_tail_text(n: usize) -> String {
     if n == 1 {
