@@ -1555,3 +1555,347 @@ fn summoned_overlays_suppress_the_outline_and_gutter() {
 
     crate::outline::set_outline_on(false);
 }
+
+/// **THE RAIL RESERVATION BELONGS TO THE ROOM, NOT TO THE DOCUMENT — SWEPT
+/// ACROSS THE WHOLE WINDOW-WIDTH AXIS.**
+///
+/// The adaptive column shifts right to seat the margin outline's rail, and the
+/// gate used to be "does the CURRENT buffer have headings". So a headed file and
+/// a heading-free one sat in different regimes and merely SWITCHING between them
+/// slid the whole page — column, gutter, margins — sideways by the rail's
+/// appetite (80px at the default measure on a 1200px window). Keyed on the
+/// working set instead, the column is placed by the ROOM: what any open buffer
+/// would draw, not what the buffer on screen happens to contain.
+///
+/// The law drives the four cells of (active buffer has headings) x (something
+/// else open does), at EVERY width in a swept range, and asserts that the two
+/// cells a buffer switch moves between land on the SAME column. A law run at one
+/// hand-picked window size sweeps nothing here: the jump exists only under width
+/// PRESSURE, and above it the policy is a byte-identical passthrough where every
+/// cell agrees for a reason that has nothing to do with this fix.
+///
+/// So the enrolment is DERIVED from the sweep rather than pinned to a width:
+/// each width is classified by whether the single-buffer headed and
+/// heading-free columns differ there, and the law requires both classes to be
+/// non-empty — naming the widths that enrolled when it fails. Without that, a
+/// regression that removed the pressure regime entirely (say, by never
+/// reserving a rail at all) would leave every assertion trivially true.
+#[test]
+fn the_rail_reservation_is_the_rooms_across_the_whole_window_width_axis() {
+    let _o = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
+    let _page = crate::page::PagePin::snapshot();
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!("skipping the_rail_reservation_is_the_rooms: no wgpu adapter");
+        return;
+    };
+    crate::outline::set_outline_on(true);
+    crate::page::set_page_on(true);
+    crate::page::set_measure(crate::page::DEFAULT_MEASURE);
+
+    let headed = "# Title\n\nprose under it\n\n## Second\n\nmore prose\n";
+    let plain = "just prose, no heading anywhere\n\nanother paragraph\n";
+
+    // One `set_view` per CELL, then the width axis is swept with `set_size`
+    // alone — the column policy reads the window, not the wrap.
+    let column_at = |p: &mut TextPipeline, text: &str, set_claim: bool, w: f32| -> f32 {
+        let mut v = view_md(text, 0, 0);
+        v.set_wants_outline_rail = set_claim;
+        p.set_size(w, 800.0);
+        p.set_view(&v);
+        p.page_geometry().2
+    };
+
+    // The swept axis: every width from a window too narrow to seat the measure
+    // at all, up to one wide enough that the policy is a plain passthrough.
+    // Stepped fine enough to land inside the entry-ramp band rather than
+    // stepping over it.
+    let widths: Vec<f32> = (600..=2400).step_by(25).map(|w| w as f32).collect();
+
+    let mut pressure: Vec<u32> = Vec::new();
+    let mut passthrough: Vec<u32> = Vec::new();
+    for &w in &widths {
+        // The two SINGLE-buffer sessions: what the reader saw before and after a
+        // switch under the old, document-keyed reservation.
+        let headed_alone = column_at(&mut p, headed, false, w);
+        let plain_alone = column_at(&mut p, plain, false, w);
+        // The same two documents in a session where BOTH are open: the room has
+        // a claimant either way, so the column may not move between them.
+        let plain_with_headed_open = column_at(&mut p, plain, true, w);
+        let headed_with_plain_open = column_at(&mut p, headed, true, w);
+
+        assert_eq!(
+            plain_with_headed_open, headed_alone,
+            "at {w}px: switching TO the heading-free buffer while a headed one \
+             stays open must leave the column exactly where the headed buffer \
+             had it ({headed_alone}), not drop back to the heading-free \
+             regime's {plain_alone}"
+        );
+        assert_eq!(
+            headed_with_plain_open, headed_alone,
+            "at {w}px: switching BACK to the headed buffer must land on the \
+             same column too — the reservation is the room's, so it never \
+             depended on which of the two is active"
+        );
+
+        if headed_alone == plain_alone {
+            passthrough.push(w as u32);
+        } else {
+            pressure.push(w as u32);
+        }
+    }
+
+    assert!(
+        !pressure.is_empty(),
+        "the sweep enrolled NO width under rail pressure, so every equality \
+         above was trivially true — the defect this law names cannot exist in \
+         a range where a headed and a heading-free buffer already agree. \
+         Swept {} widths from {}px to {}px; passthrough: {passthrough:?}",
+        widths.len(),
+        widths.first().copied().unwrap_or_default(),
+        widths.last().copied().unwrap_or_default(),
+    );
+    assert!(
+        !passthrough.is_empty(),
+        "the sweep enrolled NO passthrough width, so the wide regime — where \
+         the reservation must stay a byte-identical no-op — went untested. \
+         Pressure widths: {pressure:?}"
+    );
+}
+
+/// **THE ROOM RESERVES; THE DOCUMENT DRAWS.** The companion the sweep above
+/// needs to be honest: holding rail room for a buffer that is not on screen
+/// must not put an empty outline into the margin. `outline_layout` is the ONE
+/// gate every reader (draw, hit-test, frost pills, the sidecar) routes through,
+/// so asking it is asking the pixels.
+///
+/// Both directions are asserted, because either alone is satisfiable by a
+/// broken product: "draws nothing without headings" is satisfied by an outline
+/// that never draws at all, and "draws with headings" by one that ignores the
+/// gate entirely.
+#[test]
+fn a_reserved_rail_draws_nothing_on_a_buffer_with_no_headings_of_its_own() {
+    let _o = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
+    let _page = crate::page::PagePin::snapshot();
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!("skipping a_reserved_rail_draws_nothing: no wgpu adapter");
+        return;
+    };
+    crate::outline::set_outline_on(true);
+    crate::page::set_page_on(true);
+    crate::page::set_measure(40);
+    // Wide enough that the margin comfortably clears the OUTLINE_MIN_CHARS
+    // floor, so a `None` here is the heading gate talking and not the narrow-
+    // margin hide.
+    p.set_size(1900.0, 900.0);
+
+    let mut with_claim = |text: &str| {
+        let mut v = view_md(text, 0, 0);
+        v.set_wants_outline_rail = true;
+        p.set_view(&v);
+        p.outline_visible(900)
+    };
+
+    assert!(
+        !with_claim("just prose, no heading anywhere\n"),
+        "a heading-free buffer draws NO outline even while the room holds a \
+         rail for a headed buffer parked behind it"
+    );
+    assert!(
+        with_claim("# Title\n\nbody\n"),
+        "presence floor: the same room, the same reservation, a buffer that \
+         DOES have a heading — the outline draws"
+    );
+}
+
+/// **THE NO-PAYOFF GUARD IS UNTOUCHED: a room with no claimant reserves
+/// nothing.** The reservation is now a disjunction, and the failure mode of a
+/// disjunction is that one arm quietly becomes always-true. Asserted at the
+/// owner itself (`outline_wants_rail`) rather than through the column, so it
+/// cannot be satisfied by a width that happens to shift for another reason.
+#[test]
+fn a_session_with_no_rail_claimant_anywhere_reserves_no_rail() {
+    let _o = crate::testlock::serial();
+    let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
+    let _page = crate::page::PagePin::snapshot();
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!("skipping a_session_with_no_rail_claimant: no wgpu adapter");
+        return;
+    };
+    crate::outline::set_outline_on(true);
+    crate::page::set_page_on(true);
+    p.set_size(1200.0, 800.0);
+
+    let plain = "just prose, no heading anywhere\n";
+    p.set_view(&view_md(plain, 0, 0));
+    assert!(
+        !p.outline_wants_rail(),
+        "one heading-free buffer, nothing else open: no rail is reserved"
+    );
+
+    // EDITING claims and releases it with no buffer switch at all — the active
+    // half is re-derived from the shaped headings every sync, so there is no
+    // cache to go stale.
+    p.set_view(&view_md("# Now a heading\n\nprose\n", 0, 0));
+    assert!(
+        p.outline_wants_rail(),
+        "typing a heading into the only open buffer claims the rail"
+    );
+    p.set_view(&view_md(plain, 0, 0));
+    assert!(
+        !p.outline_wants_rail(),
+        "editing the only heading back out releases it again"
+    );
+
+    // And the SET half alone is enough, with no headings on screen.
+    let mut claimed = view_md(plain, 0, 0);
+    claimed.set_wants_outline_rail = true;
+    p.set_view(&claimed);
+    assert!(
+        p.outline_wants_rail(),
+        "a headed buffer open BEHIND this one holds the reservation"
+    );
+
+    // Every room-level gate still vetoes both arms.
+    crate::outline::set_outline_on(false);
+    p.set_view(&claimed);
+    assert!(
+        !p.outline_wants_rail(),
+        "the outline being OFF vetoes the set's claim too"
+    );
+    crate::outline::set_outline_on(true);
+    crate::page::set_page_on(false);
+    p.set_view(&claimed);
+    assert!(
+        !p.outline_wants_rail(),
+        "edge-to-edge (page mode off) has no margin to reserve"
+    );
+}
+
+/// Every PRODUCTION `.rs` file under `src/`, minus the test trees — the
+/// population the census below sweeps. Walked from the roster on disk rather
+/// than from a hand-written list, so a new module joins the sweep by existing.
+fn production_sources() -> Vec<(String, String)> {
+    fn walk(dir: &std::path::Path, base: &std::path::Path, out: &mut Vec<(String, String)>) {
+        let mut entries: Vec<_> = std::fs::read_dir(dir)
+            .expect("src/ is readable")
+            .map(|e| e.expect("a readable entry").path())
+            .collect();
+        entries.sort();
+        for path in entries {
+            if path.is_dir() {
+                if path.file_name().is_some_and(|n| n == "tests") {
+                    continue;
+                }
+                walk(&path, base, out);
+                continue;
+            }
+            let is_rust = path.extension().is_some_and(|e| e == "rs");
+            let is_test_file = path.file_name().is_some_and(|n| n == "tests.rs");
+            if !is_rust || is_test_file {
+                continue;
+            }
+            let rel = path
+                .strip_prefix(base)
+                .expect("under src/")
+                .to_string_lossy()
+                .into_owned();
+            out.push((rel, std::fs::read_to_string(&path).expect("readable")));
+        }
+    }
+    let base = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+    let mut out = Vec::new();
+    walk(&base, &base, &mut out);
+    out
+}
+
+/// Per-file count of `needle` in production CODE — comment lines dropped, so a
+/// doc link naming the owner is not mistaken for a caller re-deriving it.
+fn code_hits(needle: &str) -> std::collections::BTreeMap<String, usize> {
+    let mut hits = std::collections::BTreeMap::new();
+    for (rel, text) in production_sources() {
+        let n = text
+            .lines()
+            .filter(|line| {
+                let t = line.trim_start();
+                !(t.starts_with("//") || t.starts_with("*"))
+            })
+            .map(|line| line.matches(needle).count())
+            .sum::<usize>();
+        if n > 0 {
+            hits.insert(rel, n);
+        }
+    }
+    hits
+}
+
+/// **THE RAIL QUESTION HAS EXACTLY THESE DECIDERS — a new caller cannot dodge
+/// the sweep by re-deriving it.**
+///
+/// "Would this document give the margin outline rows to draw" is asked of THREE
+/// different documents by three surfaces (the draw gate, the reservation's
+/// active half, and the registry's stamp for every buffer behind the reader),
+/// and the whole point of `outline::document_wants_rail` is that they ask it in
+/// one place. Spelled inline instead, they drift the moment one grows a
+/// condition — which is exactly how the reservation came to be a property of
+/// whichever file was on screen.
+///
+/// A census rather than a spot-check: the assertion is per-file EQUALITY over
+/// the whole production tree, so a fourth site anywhere fails by name. The
+/// fold-chevron entry is enrolled deliberately and named as a DIFFERENT
+/// question (are there headings to hang a chevron on), not as an exception —
+/// if it ever starts meaning the rail, this law is where that is noticed.
+#[test]
+fn the_rail_appetite_question_has_exactly_the_named_deciders() {
+    let owner = code_hits("document_wants_rail(");
+    assert_eq!(
+        owner.keys().collect::<Vec<_>>(),
+        vec!["buffers.rs", "outline.rs", "render/geometry.rs"],
+        "`document_wants_rail` must be DEFINED in outline.rs and asked in \
+         exactly two places — the registry's per-parked-buffer stamp \
+         (buffers.rs) and the pipeline's active half (render/geometry.rs). \
+         Found: {owner:?}"
+    );
+
+    let raw = code_hits("outline_headings.is_empty()");
+    assert_eq!(
+        raw.keys().collect::<Vec<_>>(),
+        vec!["render/geometry.rs", "render/layers/fold_chevron.rs"],
+        "the RAW heading-presence test belongs to the one owner \
+         (render/geometry.rs's `active_wants_rail`); \
+         render/layers/fold_chevron.rs asks a different question of the same \
+         field (is there a heading to hang a fold chevron on). Any other file \
+         here is a bypass of the rail rule. Found: {raw:?}"
+    );
+
+    let gate = code_hits("active_wants_rail()");
+    assert_eq!(
+        gate.keys().collect::<Vec<_>>(),
+        vec!["render/chrome/outline.rs", "render/geometry.rs"],
+        "the per-document half is read by the DRAW gate \
+         (render/chrome/outline.rs) and by the reservation itself \
+         (render/geometry.rs) and nowhere else — the two must never be able to \
+         disagree about whether this buffer has rows. Found: {gate:?}"
+    );
+
+    // The SET-level half is a private pipeline field, and the only production
+    // read that DECIDES anything is the reservation that combines it with the
+    // active half. The other two sites are pure mirrors, one hop each: the
+    // capture driver's opts onto the ViewState, and the ViewState onto the
+    // pipeline. A consumer that reached the field directly would be placing
+    // geometry off half the rule.
+    let set_reads = code_hits("self.set_wants_outline_rail");
+    assert_eq!(
+        set_reads.keys().collect::<Vec<_>>(),
+        vec![
+            "capture/opts.rs",
+            "render/geometry.rs",
+            "render/pipeline_geometry.rs"
+        ],
+        "the working set's claim is READ only by `outline_wants_rail` \
+         (render/geometry.rs); capture/opts.rs mirrors the driver's answer onto \
+         the ViewState and render/pipeline_geometry.rs mirrors the ViewState \
+         onto the pipeline. Found: {set_reads:?}"
+    );
+}

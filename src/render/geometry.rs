@@ -699,7 +699,7 @@ impl TextPipeline {
     /// ([`crate::outline::document_wants_rail`]) — the DRAW gate
     /// (`chrome::outline::outline_layout`) asks the very same call, so a rail
     /// reserved for the room can never make an empty outline draw.
-    pub(in crate::render) fn active_document_wants_rail(&self) -> bool {
+    pub(in crate::render) fn active_wants_rail(&self) -> bool {
         crate::outline::document_wants_rail(self.md_enabled, !self.outline_headings.is_empty())
     }
 
@@ -726,7 +726,7 @@ impl TextPipeline {
     pub(in crate::render) fn outline_wants_rail(&self) -> bool {
         crate::outline::outline_on()
             && crate::page::page_on()
-            && (self.active_document_wants_rail() || self.set_wants_outline_rail)
+            && (self.active_wants_rail() || self.set_wants_outline_rail)
     }
 
     /// INLINE-IMAGE DRAG-RESIZE (v2) — the DISPLAY WIDTH (px) an image gets from

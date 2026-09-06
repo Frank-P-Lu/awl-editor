@@ -197,10 +197,10 @@ impl TextPipeline {
             return None;
         }
         // THE DRAW GATE, asked through the one owner the reservation's active
-        // half reads (`TextPipeline::active_document_wants_rail`). The room may
+        // half reads (`TextPipeline::active_wants_rail`). The room may
         // have reserved a rail for a headed buffer parked behind this one; a
         // buffer with no headings of its own still draws nothing in it.
-        if !self.active_document_wants_rail() {
+        if !self.active_wants_rail() {
             return None;
         }
         let label = crate::markdown::type_scale::LABEL;
