@@ -33,6 +33,17 @@ pub(in crate::app) struct SemanticView<'a> {
     pub(super) whichkey: Option<Vec<(String, String)>>,
     /// The center notice's text.
     pub(super) notice: Option<String>,
+    /// **WHAT A SIGHTED READER SEES INSTEAD OF THE BUFFER**, when the document
+    /// layer is relocated into a comparison (History/Conflict/Credits) —
+    /// resolved through the SAME dispatch the pixels use
+    /// (`crate::comparison::prose_for`), so the accessibility tree cannot
+    /// describe a different document than the screen shows. `None` covers
+    /// three cases the retained projection treats alike: no overlay is up, the
+    /// open kind shows no comparison at all, and the calm degrade where a
+    /// comparison is requested but its subject cannot be resolved (the render
+    /// side falls back to the buffer in exactly that case too, so this does
+    /// the same) — then the document fold reads the buffer as it always has.
+    pub(super) comparison_text: Option<String>,
 }
 
 impl SemanticView<'_> {
@@ -54,6 +65,12 @@ impl SemanticView<'_> {
             .overlay()
             .is_some_and(crate::overlay::OverlayState::shows_read_only_prose)
     }
+
+    /// The substituted prose text, borrowed. `None` exactly when the document
+    /// fold must read the real buffer instead — see the field's own doc.
+    pub(super) fn comparison_text(&self) -> Option<&str> {
+        self.comparison_text.as_deref()
+    }
 }
 
 impl App {
@@ -69,6 +86,35 @@ impl App {
             card: self.card_content(),
             whichkey: self.whichkey_panel_rows(),
             notice: self.frame.notice().text().map(str::to_string),
+            comparison_text: self.comparison_text_for_semantic(),
         }
+    }
+
+    /// **THE SAME RESOLUTION `ViewState::comparison_transcript` performs for
+    /// the pixels, asked read-only for the accessibility fold.**
+    ///
+    /// `comparison_transcript` cannot be reused directly — it caches into
+    /// `DocumentSession::history_preview`, which needs `&mut self`, and this
+    /// fold is handed only `&App`. So this recomputes the same dispatch
+    /// uncached: the accessibility fold runs only while an assistive
+    /// technology is attached or a `--semantic-json` capture asks for it,
+    /// never on an ordinary frame, so it does not compete with the render
+    /// cache's reason for existing. Both call the ONE producer dispatch
+    /// (`crate::comparison::prose_for`), so a live App and a headless
+    /// `--semantic-json` capture cannot disagree about what the tree shows,
+    /// the same guarantee `prose_for`'s own doc makes for the pixels.
+    fn comparison_text_for_semantic(&self) -> Option<String> {
+        let overlay = self.workspace_state.overlay()?;
+        let request = overlay.comparison_request()?;
+        let buffer = self.document.buffer_opt()?;
+        let current = buffer.text();
+        let (_, transcript, _counts) = crate::comparison::prose_for(
+            overlay,
+            &request,
+            buffer.path(),
+            buffer.is_unnamed_fresh(),
+            &current,
+        )?;
+        Some(transcript)
     }
 }
