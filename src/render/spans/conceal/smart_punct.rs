@@ -5,59 +5,7 @@
 
 use super::*;
 
-/// The three substitute glyphs' real body-text advances in the document face.
-/// Shaped once per face/metric change and threaded into the line-attrs recipe,
-/// so layout and the separately-painted glyph read one measurement owner.
-#[derive(Clone, Copy, Debug)]
-pub(in crate::render) struct SmartPunctAdvances {
-    advances: [f32; 3],
-    forcing_spacing: [f32; 3],
-}
-
-impl SmartPunctAdvances {
-    pub(in crate::render) fn shape(
-        font_system: &mut FontSystem,
-        metrics: Metrics,
-        family: &'static str,
-    ) -> Self {
-        let mut advances = [0.0; 3];
-        let mut forcing_spacing = [0.0; 3];
-        for kind in crate::markdown::SmartPunctKind::ALL {
-            let (_, width) = shape_smart_punct_glyph(
-                font_system,
-                metrics,
-                family,
-                kind,
-                theme::base_content().to_glyphon(),
-            );
-            let index = kind_index(kind);
-            advances[index] = width;
-            forcing_spacing[index] =
-                calibrate_forcing_spacing(font_system, metrics, family, kind, width);
-        }
-        Self {
-            advances,
-            forcing_spacing,
-        }
-    }
-
-    pub(in crate::render) fn advance(self, kind: crate::markdown::SmartPunctKind) -> f32 {
-        self.advances[kind_index(kind)]
-    }
-
-    fn forcing_spacing(self, kind: crate::markdown::SmartPunctKind) -> f32 {
-        self.forcing_spacing[kind_index(kind)]
-    }
-}
-
-impl TextPipeline {
-    pub(in crate::render) fn refresh_smart_punct_advances(&mut self) {
-        self.smart_punct_advances =
-            SmartPunctAdvances::shape(&mut self.font_system, self.metrics, self.shaped_font);
-    }
-}
-
-fn kind_index(kind: crate::markdown::SmartPunctKind) -> usize {
+pub(super) fn kind_index(kind: crate::markdown::SmartPunctKind) -> usize {
     use crate::markdown::SmartPunctKind;
     match kind {
         SmartPunctKind::EnDash => 0,
@@ -78,7 +26,7 @@ fn smart_punct_attrs(family: &'static str, color: glyphon::Color) -> Attrs<'stat
 /// response for the substitute's shaped advance. Cosmic treats the dot triplet
 /// as one cluster but the dash runs as independent clusters, so the active
 /// shaper — not a shared guessed divisor — owns each arm's arithmetic.
-fn calibrate_forcing_spacing(
+pub(super) fn calibrate_forcing_spacing(
     font_system: &mut FontSystem,
     metrics: Metrics,
     family: &'static str,
@@ -197,7 +145,7 @@ pub(super) fn add_smart_punct_conceal_spans(
     lo: usize,
     hi: usize,
     hidden: &Attrs<'static>,
-    advances: SmartPunctAdvances,
+    advances: SubstituteAdvances,
 ) {
     let local_range = (lo - line_doc_start)..(hi - line_doc_start);
     let Some(kind) = smart_punct_kind_for(line_text, local_range) else {

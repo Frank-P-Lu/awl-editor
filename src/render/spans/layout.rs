@@ -42,6 +42,17 @@ pub(in crate::render) fn md_line_scale(line_text: &str, md: bool, confirmed_rule
     1.0
 }
 
+/// The factor by which one line's ROW is taller than its own glyphs ask for:
+/// [`crate::markdown::heading_row_lead`] of the line's heading level, `1.0` for
+/// every other line (body prose, thematic breaks, image rows, list items). THE
+/// divide-out seam — [`crate::render::TextPipeline::caret_band_scale`] reads it
+/// to strip the decoupled lead back off a caret-adjacent band, and it asks the
+/// same [`md_line_heading_level`] that [`build_line_attrs`] asks when it
+/// multiplies the lead IN, so the two can never answer about different levels.
+pub(in crate::render) fn md_line_row_lead(line_text: &str, md: bool) -> f32 {
+    crate::markdown::heading_row_lead(md_line_heading_level(line_text, md))
+}
+
 /// Delegates to [`crate::fold::heading_level`], the one owner — see its own
 /// doc for the exact rule. Kept as a distinct name in this module because
 /// every call site here reads as "the render SIZE half"; the fold half is
@@ -99,7 +110,7 @@ pub(in crate::render) struct LineAttrsCtx<'a> {
     pub(in crate::render) fonts: &'a super::text::ScriptFonts,
     pub(in crate::render) cursor_byte: usize,
     pub(in crate::render) selection_touch: Option<&'a std::ops::Range<usize>>,
-    pub(in crate::render) smart_punct_advances: SmartPunctAdvances,
+    pub(in crate::render) substitute_advances: SubstituteAdvances,
 }
 
 /// Assemble ONE buffer line's complete `AttrsList` from the base doc attrs plus
@@ -240,7 +251,7 @@ pub(in crate::render) fn build_line_attrs(
         row_lh,
         image_force,
         ctx.selection_touch,
-        Some(ctx.smart_punct_advances),
+        Some(ctx.substitute_advances),
     );
     add_list_indent_span(&mut al, line_text, &lb, ctx.base_font_size, row_lh);
     al

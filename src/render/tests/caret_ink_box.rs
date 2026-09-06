@@ -1044,9 +1044,11 @@ fn layers_holds_no_caret_vertical_geometry_of_its_own() {
 /// items/fences/blockquotes/thematic breaks — and found no case where the
 /// caret undershoots. The ink-box CELL form tracks the row's FONT SIZE (the
 /// quantity a caret should track — the row's cap/ascender box, not its full
-/// height including leading); the bar/mono-cell forms track the row's fuller
-/// height (font size × the heading ladder's own row-height lead), if anything
-/// OVERSHOOTING. This law and the two below it pin that confirmed-correct
+/// height including leading), and the bar / mono-cell forms now track that
+/// same quantity through `caret_band_scale`: they used to take the row's
+/// fuller height (font size × the heading ladder's decoupled row-height lead)
+/// and OVERSHOOT their own type by up to 34%, which that sweep did not flag
+/// because it was hunting undershoot. This law and the two below it pin the
 /// outcome — nothing previously measured the CARET's own height against its
 /// row across heading levels (only the ROW's height was pinned, by
 /// `heading_rows_are_taller_and_gated_to_markdown` in `markdown_headings.rs`)
@@ -1126,15 +1128,26 @@ fn heading_cell_caret_grows_with_the_headings_own_font_size_not_the_bare_row_con
 }
 
 /// The MONO-WORLD complement: a mono world's uniform glyph grid never reads an
-/// ink box (every column shares one row-scaled line cell), so the whole caret
-/// depends on `cursor_scale()` alone to track the row. Proves that arm ALSO
-/// clears the bug — a regression here would be invisible to the proportional
-/// law above. Swept at 1x/2x DPI like its sibling; unlike the ink-box form
-/// this one reads no glyph raster at all (`caret_block_h * cursor_scale()` is
-/// pure float arithmetic over row geometry), so its ratio holds tight at
-/// every DPI with no rounding slack needed.
+/// ink box (every column shares one line cell sized by `cursor_scale()`), so
+/// the whole caret depends on that one scale to track the heading. Proves that
+/// arm ALSO clears the bare-constant bug — a regression there would be
+/// invisible to the proportional law above. Swept at 1x/2x DPI like its
+/// sibling; unlike the ink-box form this one reads no glyph raster at all
+/// (`caret_block_h * cursor_scale()` is pure float arithmetic over row
+/// geometry), so its ratio holds tight at every DPI with no rounding slack
+/// needed.
+///
+/// ‼ **THE QUANTITY IT TRACKS IS THE SIZE RUNG, NOT THE ROW.** This law used
+/// to pin `heading_scale × heading_row_lead` — the row's FULL height — and to
+/// call that overshoot confirmed-correct because the sweep behind it was
+/// hunting UNDERSHOOT. It is the wrong quantity: `heading_row_lead` is
+/// decoupled row-only breathing room that no glyph occupies, so a caret scaled
+/// by it stood 34% over its own type on the `###` rung. `caret_band_scale`
+/// divides the lead back out; the sibling laws in
+/// `render/tests/decor_geometry_vs_caret.rs` sweep the whole roster, every
+/// caret form and every band consumer for the same rule.
 #[test]
-fn heading_line_cell_caret_on_a_mono_world_also_tracks_the_row_not_the_bare_constant() {
+fn heading_line_cell_caret_on_a_mono_world_tracks_the_headings_own_size_rung() {
     let _t = crate::testlock::serial();
     let _misc_restore = crate::testlock::misc::TogglesRestore::capture();
     let _g = crate::testlock::serial();
@@ -1164,22 +1177,21 @@ fn heading_line_cell_caret_on_a_mono_world_also_tracks_the_row_not_the_bare_cons
         assert!(
             h1 > h2 && h2 > h3 && h3 > body,
             "dpi={dpi}: the mono LINE-CELL caret (a uniform grid, no ink box) must \
-             still grow with cursor_scale()'s row_height/line_height ratio: \
+             still grow monotonically with the heading ladder's own size rung: \
              body={body} h3={h3} h2={h2} h1={h1}"
         );
         // No additive pad complicates the mono arm (`caret_block_h * cursor_scale()`,
         // `x` has no descender to extend), so this ratio can be pinned tightly
         // against the SAME formula `cursor_scale` reads from, at both DPI tiers.
         for (level, h) in [(1u8, h1), (2, h2), (3, h3)] {
-            let scale = crate::markdown::heading_scale(level);
-            let lead = crate::markdown::heading_row_lead(level);
-            let want = scale * lead;
+            let want = crate::markdown::heading_scale(level);
+            let row = want * crate::markdown::heading_row_lead(level);
             let ratio = h / body;
             assert!(
                 (ratio - want).abs() < 0.05,
-                "dpi={dpi}: h{level} mono cell caret should be ~{want}x the body \
-                 caret (cursor_scale tracks the FULL row incl. the ladder's own \
-                 lead), got {ratio}"
+                "dpi={dpi}: h{level} mono cell caret should be ~{want}x the body caret \
+                 (the heading's own SIZE rung), not {row}x (the row's full height, lead \
+                 and all — decoration no glyph occupies), got {ratio}"
             );
         }
     }

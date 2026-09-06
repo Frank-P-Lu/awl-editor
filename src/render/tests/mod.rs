@@ -60,6 +60,7 @@ mod comparison_composite;
 mod comparison_viewport;
 mod date_picker_ink;
 mod deckle_ground;
+mod decor_geometry_vs_caret;
 mod diagonal_composition;
 /// THE DIAGONAL COMPOSITION IN REAL PIXELS: orientation, line continuity, the
 /// inset attachment band, the fixed name/control lanes, and the room wordmark

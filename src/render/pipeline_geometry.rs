@@ -207,7 +207,7 @@ impl TextPipeline {
         let zoom_changed = (new_metrics.font_size - self.metrics.font_size).abs() > f32::EPSILON;
         self.metrics = new_metrics;
         if zoom_changed {
-            self.refresh_smart_punct_advances();
+            self.refresh_substitute_advances();
             self.buffer
                 .set_metrics(&mut self.font_system, self.metrics.glyph_metrics());
             // The shaping height budget is in (zoomed) pixels, so a zoom change
