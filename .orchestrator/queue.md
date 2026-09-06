@@ -582,6 +582,19 @@ has its lanes reliably corrupting each other. One honest early refusal was also 
 `disk-preflight: insufficient space after sweep-1d; free_bytes=25336659968
 minimum_bytes=25769803776`.
 
+⚠️ **One reported escalation of this item is FALSE and is recorded here so it is not inherited.**
+585's lane reported that "an external sweep removed my worktree mid-run — its registration AND
+tracked files including `Cargo.toml`", and attributed it to this item. It was not `sweep.sh`.
+It was the ORCHESTRATOR running `git worktree remove` on that lane's worktree while the lane
+was still alive and gating, having concluded from `reap-orphaned-gates.sh` that the tree was
+finished because its branch had merged. `sweep.sh` prunes `target/`; it does not remove
+registrations or tracked files. **So the real hazard here is a second one, and it belongs to
+the orchestration layer rather than to the script:** a merged branch does NOT mean the lane
+that produced it has stopped, and `reap-orphaned-gates.sh`'s own criterion ("branch is already
+merged") answers a question about the BRANCH, not about the agent. Retiring the processes was
+right; removing the tree was not, and it destroyed a live run. Whatever fix 593 lands should
+not absorb this, and the merge train wants a rule of its own: reap the gate, leave the tree.
+
 Observed twice on 2026-09-07 alongside this: a lane whose branch had ALREADY MERGED still had
 a detached gate running in its worktree, competing for the same ten cores and driving the host
 to load 43 and later 58. `reap-orphaned-gates.sh` identifies exactly that state — by the
@@ -690,6 +703,47 @@ different threshold.
 Build: decide (a) deliberately — refuse or widen — and give (b) an oracle that does not depend
 on a surviving text event. Laws: each case asserted through the real parser, and each proven
 non-vacuous by restoring today's behaviour and watching it go red.
+
+### 598 — a summoned surface now swallows ⌘Q and ⌘S, and the picker card always did (found by 585's lane, 2026-09-07)
+
+⬜ READY — small, but it is a question about intent rather than a bug with an obvious answer.
+
+585 gave the find/replace panel the same action-level gate the picker card has always had, so
+the panel now consumes every Edit-menu verb while it is up. It also consumes **⌘Q and ⌘S**,
+because that is what the card does and making the panel disagree would have been a SECOND
+policy — the lane inherited the existing contract rather than inventing a third one, which was
+the right call for its own round and is the wrong place to settle this.
+
+The question this exposes: **should a summoned surface block Quit and Save at all?** A picker
+that swallows ⌘Q is plausibly a pre-existing bug that nobody noticed because nobody tried it
+with a picker up. Reverting is one `matches!` carve-out in `search::keys::intercept_action`,
+and whatever is decided applies to BOTH surfaces or the two drift apart again.
+
+Laws: whichever way it goes, the card and the panel must agree by construction rather than by
+coincidence — one owner, swept over the surface roster, so a third summoned surface cannot
+pick a third answer.
+
+---
+
+### 599 — the TextDoor doors still reach the document behind a summoned panel (measured by 585's lane, 2026-09-07; pinned, not fixed)
+
+⬜ READY — the boundary is now visible and law-pinned; this item decides where it should be.
+
+585 closed the ACTION door into the document behind a summoned field. It measured — did not
+assume — that the `TextDoor` doors remain open: an IME commit and two assistive writes still
+reach the parked document while the panel is up. That is the same boundary `read_only_surface`
+already pinned for the picker card, so the two surfaces agree today; a law goes red if that
+silently changes.
+
+Build: decide whether a summoned text-entry surface should own those doors too. It is one
+decision across both surfaces, not two — and it interacts with 580's insertion-door census,
+which is the item that enumerates every path that can mutate the focused buffer at one seam.
+Sequence this AFTER 580 or fold it into that census, rather than closing the same door twice
+in two shapes.
+
+Laws: whatever is decided, the enrolment comes from the door roster rather than a hand-list,
+and the law names what enrolled — 585's own sweep found only 2 of 7 surfaces ever leaked, so
+a law that assumes uniform behaviour across surfaces would be wrong in both directions.
 
 ## Owed to the user — landed work awaiting a live eye
 
