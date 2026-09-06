@@ -2383,3 +2383,126 @@ fn dropping_an_image_with_no_active_document_is_inert() {
         assert!(!app.document.has_active());
     });
 }
+
+/// THE BLANK-NEW-DOCUMENT LAW.
+///
+/// A fresh document is empty from the moment it is summoned until its first
+/// word, and a naming save can only refuse it — there is no line to derive a
+/// filename from. That refusal used to reach the user as "autosave failed:
+/// empty note: nothing to save yet — changes remain in editor", raised by a
+/// debounce nobody armed on purpose, about a document nobody had typed in yet.
+///
+/// The axis swept is the pair the report only saw one half of: the CONTENT
+/// state (never typed, whitespace only, typed, typed then deleted back) crossed
+/// with the DOOR the write arrives through (the debounce and the flush that
+/// blur / switch / quit take). Both doors are `autosave_note`, which is the
+/// point — a gate on one of them would leave the other alarming.
+///
+/// The two things a quiet state must not become are asserted alongside it: no
+/// file may appear for an empty document, and a GENUINE write failure must
+/// still be reported. A gate that silenced everything would pass a law that
+/// only asked about the notice.
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn a_blank_fresh_document_writes_nothing_and_raises_nothing() {
+    #[derive(Clone, Copy, Debug)]
+    enum Door {
+        Debounce,
+        Flush,
+    }
+
+    let _guard = crate::testlock::serial();
+    for door in [Door::Debounce, Door::Flush] {
+        for (content, litter, why) in [
+            ("", 0usize, "never typed in"),
+            ("   \n\t \n", 0, "whitespace only"),
+            ("first prose", 1, "a real first line"),
+            ("typed then deleted", 0, "deleted back to empty"),
+        ] {
+            let root = PathBuf::from(format!("/blank/{door:?}/{}", why.replace(' ', "-")));
+            let mem = Arc::new(crate::fs::InMemoryFs::new().with_dir(&root));
+            crate::fs::with_fs(mem.clone(), || {
+                let mut app = App::new_hermetic(None, root.clone(), Config::empty());
+                app.new_document();
+                if !content.is_empty() {
+                    app.document.set_text(content);
+                }
+                if why == "deleted back to empty" {
+                    app.document.set_text("");
+                }
+                match door {
+                    Door::Debounce => app.autosave_note(),
+                    Door::Flush => app.flush_note(),
+                }
+
+                assert_eq!(
+                    mem.read_dir(&root).map(|d| d.len()).unwrap_or(0),
+                    litter,
+                    "{door:?}/{why}: the wrong number of files landed in the folder",
+                );
+                if litter == 0 {
+                    assert_eq!(
+                        app.frame.notice().text(),
+                        None,
+                        "{door:?}/{why}: a blank page raised a notice about a write \
+                         nobody asked for",
+                    );
+                    assert_eq!(
+                        app.document.buffer().path(),
+                        None,
+                        "{door:?}/{why}: an empty document was given a name",
+                    );
+                } else {
+                    assert_eq!(
+                        app.frame.notice().text(),
+                        None,
+                        "{door:?}/{why}: a SUCCESSFUL autosave is silent chatter",
+                    );
+                    assert!(
+                        app.document.buffer().path().is_some(),
+                        "{door:?}/{why}: typing a first line did not persist the note",
+                    );
+                }
+
+                // The quiet state must stay quiet WITHOUT re-arming: a door
+                // that returned early and left the version unhandled would have
+                // `sync_view` re-arm the debounce every frame, and a blank page
+                // would keep the app awake for as long as it is left open.
+                if litter == 0 {
+                    let key = app.document.active_key().expect("fresh key");
+                    assert!(
+                        !app.persistence
+                            .note_write_owed(&key, app.document.buffer().version()),
+                        "{door:?}/{why}: an empty document is still owed a write it \
+                         can never perform, so the debounce re-arms forever",
+                    );
+                }
+            });
+        }
+    }
+
+    // THE OTHER HALF. A genuine filesystem failure — a document with a real
+    // first line, over a filesystem that refuses writes — must still be
+    // reported. This is what a gate that silenced the whole `Err` arm would
+    // break, and it is the reason the quiet state is decided BEFORE the write
+    // rather than by inspecting its error afterwards.
+    let root = PathBuf::from("/blank/genuine");
+    let mut app = App::new_hermetic(None, root.clone(), Config::empty());
+    app.new_document();
+    app.document.set_text("a real first line over a dead disk");
+    crate::fs::with_fs(Arc::new(crate::fs::UnwritableFs), || app.autosave_note());
+    let notice = app
+        .frame
+        .notice()
+        .text()
+        .map(str::to_string)
+        .unwrap_or_default();
+    assert!(
+        notice.starts_with("autosave failed:"),
+        "a REAL write failure went silent: {notice:?}",
+    );
+    assert!(
+        !notice.contains("empty note"),
+        "the empty-note refusal reached the user as a failure: {notice}",
+    );
+}

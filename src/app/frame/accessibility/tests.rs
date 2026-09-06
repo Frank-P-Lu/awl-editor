@@ -581,3 +581,93 @@ fn the_platform_filters_text_runs_out_of_the_documents_accessible_children() {
          what says so",
     );
 }
+
+/// THE BUFFER-SWAP STALENESS LAW.
+///
+/// Every retained cache under this runtime is keyed by a `RunTable` REVISION —
+/// the projection's `content_rev`/`shape_rev`, the native projector's `shape` —
+/// and a revision restarts at 1 in every new table. So a swap can hand the
+/// projection a pair it has already published for a DIFFERENT document, at
+/// which point every incremental gate answers "nothing changed" about text that
+/// is entirely new. CLAUDE.md's cache-key discipline names this exact failure,
+/// and `open_serves_the_new_files_text_despite_equal_buffer_versions` is the
+/// same defect one seam over, in the renderer's text cache.
+///
+/// The axis swept is the one no law above sweeps: the DOCUMENT, not the edit.
+/// Every arm here lands on a genuine collision — a file loaded from disk and a
+/// brand-new document both start at `content_rev` 1, `shape_rev` 1 — so a
+/// runtime that keys on revisions alone reads a stale hit rather than a miss.
+#[test]
+fn a_document_swap_replaces_the_platforms_text_rather_than_reusing_a_colliding_revision() {
+    use crate::fs::InMemoryFs;
+    for arm in ["new", "new-then-type", "open", "switch-back"] {
+        let _guard = crate::testlock::serial();
+        let _restore = calm_globals_guarded();
+        let a = PathBuf::from("/proj/a.md");
+        let b = PathBuf::from("/proj/b.md");
+        let mem = InMemoryFs::new()
+            .with_dir(PathBuf::from("/proj"))
+            .with_file(&a, "alpha\nbeta\ngamma\n")
+            .with_file(&b, "delta\nepsilon\nzeta\n");
+        let _fs = crate::fs::FsGuard::install(std::sync::Arc::new(mem));
+        let mut app = App::new_hermetic(
+            None,
+            PathBuf::from("/proj"),
+            Config {
+                autosave: Some(false),
+                ..Config::empty()
+            },
+        );
+        assert!(app.load_path(a.clone()), "{arm}: fixture A did not open");
+        let first = truth(&app);
+        app.attach_assistive_technology_for_test();
+        assert_eq!(
+            Mirror::of(&app).run_texts(),
+            first,
+            "{arm}: the fixture never got the FIRST document across",
+        );
+
+        match arm {
+            "new" => app.new_document(),
+            "new-then-type" => {
+                app.new_document();
+                app.refresh_accessibility();
+                for ch in "a fresh page".chars() {
+                    app.document.insert_char(ch);
+                }
+            }
+            "open" => {
+                assert!(app.load_path(b.clone()), "{arm}: fixture B did not open");
+            }
+            "switch-back" => {
+                assert!(app.load_path(b.clone()), "{arm}: fixture B did not open");
+                app.refresh_accessibility();
+                assert!(app.load_path(a.clone()), "{arm}: A did not come back");
+            }
+            _ => unreachable!(),
+        }
+        app.refresh_accessibility();
+
+        let now = truth(&app);
+        if arm != "switch-back" {
+            assert_ne!(
+                now, first,
+                "{arm}: the fixture never changed documents, so nothing was proven",
+            );
+        }
+        let mirror = Mirror::of(&app);
+        assert_eq!(
+            mirror.run_texts(),
+            now,
+            "{arm}: the platform still holds the document awl was showing BEFORE \
+             the swap — a revision that restarted at the retained one read as \
+             'nothing changed'",
+        );
+        assert_eq!(
+            mirror.selection_resolves(),
+            Some(true),
+            "{arm}: the document's selection names run nodes the platform does \
+             not hold",
+        );
+    }
+}

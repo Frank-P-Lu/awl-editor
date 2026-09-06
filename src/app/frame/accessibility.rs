@@ -111,6 +111,12 @@ pub(super) struct AccessibilityRuntime {
     /// revision, so a buffer swap that restarts `version` at 0 cannot be
     /// mistaken for the same document.
     published_state: (u64, u64),
+    /// Which document every retained cache here describes — the projection's
+    /// nodes and revisions, the projector's child ids, and whatever the
+    /// platform is holding. Kept apart from `published_state`'s revision half
+    /// because it answers a different question: not "is the parked tree still
+    /// current" but "is any of this about the same document at all".
+    document_identity: u64,
     /// The focus this runtime last published, so a focus move with no node
     /// change still reaches the platform.
     published_focus: String,
@@ -139,6 +145,7 @@ impl AccessibilityRuntime {
             projection: None,
             projector: crate::semantic::native::TreeProjector::default(),
             published_state: (0, 0),
+            document_identity: 0,
             published_focus: String::new(),
             active: false,
             owes_full: true,
@@ -193,6 +200,28 @@ impl AccessibilityRuntime {
         self.shared.fresh.store(current, Ordering::SeqCst);
     }
 
+    /// Which document the live `App` is now showing.
+    ///
+    /// A DIFFERENT one retires everything retained here in one step, because
+    /// none of it is keyed by document: the projection compares `RunTable`
+    /// revisions, and the native projector compares a shape revision, and both
+    /// restart in every new table. A swap that leaves them alone therefore
+    /// reads a stale HIT rather than a miss — the projection's own "the same
+    /// lines, one re-typed" gate answers "nothing changed" about a document it
+    /// has never seen, and the platform keeps announcing the file the reader
+    /// has already left. Same door as a reattach, for the same reason: nothing
+    /// held may be diffed against.
+    ///
+    /// One integer compare per frame, so a frame with nobody listening still
+    /// pays nothing.
+    pub(super) fn note_document_identity(&mut self, identity: u64) {
+        if self.document_identity == identity {
+            return;
+        }
+        self.document_identity = identity;
+        self.invalidate();
+    }
+
     pub(super) fn published_state(&self) -> (u64, u64) {
         self.published_state
     }
@@ -225,6 +254,10 @@ impl AccessibilityRuntime {
             *slot = Some(projection.snapshot().clone());
         }
         self.published_state = state;
+        // The seeded projection describes THIS document, so the first frame
+        // after it must not read the swap door as a change and throw the
+        // parked tree away.
+        self.document_identity = state.0;
         self.shared.fresh.store(true, Ordering::SeqCst);
         // A tree is parked for the handler to serve, so a first update that
         // finds it was served owes a diff, not another whole document.
@@ -377,6 +410,11 @@ impl FrameRuntime {
     #[cfg(not(target_arch = "wasm32"))]
     pub(in crate::app) fn note_published_tree_currency(&self, current: bool) {
         self.accessibility.note_published_currency(current);
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(in crate::app) fn note_document_identity(&mut self, identity: u64) {
+        self.accessibility.note_document_identity(identity);
     }
 
     #[cfg(not(target_arch = "wasm32"))]
