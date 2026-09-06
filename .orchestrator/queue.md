@@ -8,64 +8,6 @@
 
 ---
 
-### 558 — single open file draws no active plate in the working-set gutter (user report, 2026-09-01 — "when you first open a file, it doesn't seem to be selected?"; behavior confirmed in every capture's own gutter)
-
-🟡 CLAIMED 2026-09-07 — lane `item-558`, worktree `.claude/worktrees/item-558`. **DECIDED — plate it** (user, 2026-09-06, from the lane's side-by-side
-captures: "sure plate it. this means more consistent right?"). The rule becomes
-"the active file is ALWAYS plated" — no lone-file exception. Build: route the
-single-file identity line through the same plate mechanism as multi-file active
-rows (one owner, not a lookalike rect); law sweeps both cells (lone file, fresh
-open among several) per the item's closing clause; the three prior items'
-calm-when-alone reasoning is superseded by this decision. Investigation history:
-merged `53c7b023`. Git history (items
-444/469/515) confirms the unplated single-file identity line is
-DELIBERATE — item 444's own commit: "THE ONE-FILE CONTRACT IS
-STRUCTURAL, NOT A RESEMBLANCE... the plate pipeline is handed no rects,
-not a stack of one that happens to agree"; item 469 chose `muted` ink
-specifically because "a plate-less lone heading has nothing left to
-differentiate against"; item 515 weighed and kept it plate-less. Still
-production-tested today (`a_single_file_block_plates_nothing`). Per the
-item's own framing: deliberate AND it has failed its reader once — a
-taste call, not a bug, so no default behavior changed. Both candidates
-captured headlessly for comparison: unplated (current, RGB ≈29-30,40-
-41,21-22 at the identity row) vs a temporary plated patch (RGB ≈126,
-140,103, matching the multi-file active-row treatment) — captures are
-local-only (`/tmp/gutter-plate-compare/`, not committed); the lane
-describes the pixel diff precisely in its report for the orchestrator
-to relay. **Q: plate the single-file identity line to match multi-file
-active rows, or keep it bare (the documented "calm when nothing to
-distinguish" reasoning)?**
-
-Separately verified (not a taste call): a freshly opened file among
-several already-open files IS plated immediately — no bug, traced to
-`WorkingSet::open` setting `active` unconditionally and `stack_rows`
-re-deriving fresh on every call, no cache/debounce. Landed as a
-mutation-proven law (`workingset::tests::a_freshly_opened_file_among_
-several_is_active_immediately`). Exact-main receipt: health pass:266s,
-both conventions, menubar=full:on, 4729 unit tests, 17 integration
-targets.
-
-With exactly one file open, the identity line shows the bare name — no
-active-row plate — and the user reads that as "not selected." Two-file
-state plates the active row (their own earlier screenshot). Confirmed as
-current behavior incidentally in every capture this session (the
-bottom-left gutter of each PNG shows the lone open file unplated).
-Mechanism neighborhood: the single-file identity line is a separate door
-from the stack (`render/chrome/gutter.rs` — "the identity line is EITHER
-the lone filename or the working set's rows"; it already shares the
-close-mark lane via one mechanism), and `gutter_stack::plate_rects` only
-plates `file.active` STACK rows. Whether the unplated single file is a
-deliberate calm-when-nothing-to-distinguish choice or an omission is for
-the lane to establish from the tree and `git log` — and if deliberate, it
-has failed its reader once, which is data: bring the finding plus a capture
-of each candidate (plated vs not) back to the user for the taste call
-rather than landing either silently. Also establish whether a freshly
-OPENED file among several is plated immediately (the user said "first
-open"; their screenshot is the single-file case — the multi-file
-fresh-open cell is unverified). Law once decided: sweep both cells.
-
----
-
 ### 537 — footnote markers may wear the traditional reference ladder (user decision, 2026-09-01; sequenced AFTER 529 bundles the face)
 
 ⬜ DECIDED, READY — both product decisions landed (user, 2026-09-06): **(a)
@@ -104,67 +46,6 @@ doubling; option off ⇒ byte-identical render to today.
 
 ---
 
-### 570 — blockquote pull-quote: the 66 gets its 99 (user report, 2026-09-06 — "the 66s must be followed with 99s… it kinda bothers me"; the blockquote ornament, not smart quotes)
-
-🟢 MERGED as `d20cc09a`, EXACT-MAIN RECEIPT OWED; **placement is a taste call now put to the
-user with captures** (see the owed section). Marks raised at merge off the merged tree —
-geometry.rs 1340→1353, layers.rs 1383→1387, rects.rs 1788→1835, all far below their frozen
-baselines. The lane could not raise them itself and correctly did not try: native-gate.sh's
-own failure text says a lane does not edit `code-health.toml` in that mode.
-
-**One correction this item owes its own text:** it claims the quote-orientation law "pins all
-four curly codepoints heavy-bottom in every display face". It does not — `EXPECTED_HEAVY_BOTTOM`
-pins `U+2018`/`U+201C` heavy-bottom and `U+2019`/`U+201D` heavy-**top**, which is what a closing
-mark should be. The orchestrator relayed the wrong version into the lane's brief; the lane
-checked the law rather than the brief and the shipped comment is right.
-
-RESUMED HISTORY — lane `item-570`, worktree `.claude/worktrees/item-570`. The
-first lane was cut off by a usage limit at the exact moment it began mutation proofs, leaving
-its whole round as **staged, uncommitted changes with no commits on the branch**: 9 files,
-~732 insertions including a new `render/tests/pull_quote_pair.rs`. So the implementation
-exists and **nothing about it is proven** — no mutation, no gate, no receipt, and no report.
-
-Its design, read out of the file it left rather than out of a claim about it: the closing mark
-hangs in the writing column's RIGHT text-pad gutter (`geometry::pull_quote_right`) on the
-block's LAST visual row, same display face, same layer scale, same `theme::faint` value as the
-opening mark. Its law builds a DIFFERENTIAL pair per world — the document against itself with
-the blockquote lines blanked, line count and row tops preserved — so the page ground and
-whatever per-world pattern bleeds under the column cancel, which a same-image threshold cannot
-do. It pairs presence with contrast for the reason the item demands.
-
-The resuming lane is told to commit first so a second interruption cannot lose it, then to
-verify that work rather than inherit it — the placement in that file's header is a claim, not
-a finding.
-
-The hanging pull-quote mark draws only the OPENING `“` — `QUOTE_MARK_GLYPH`
-(src/render/layers.rs:64), shaped once in the world's display serif and hung
-at `pull_quote_left` on each blockquote block's first line
-(`TextPipeline::quote_marks`, ornaments.rs `QuoteOrnaments`). There is no
-closing counterpart, so every quote in every world reads permanently
-unclosed. Build the `”` (U+201D): same scale, same `theme::faint()` value,
-same display-serif shaping, hung at each block's LAST line. Placement is
-the one open design question the worker resolves and flags for live taste
-confirmation: the typographically honest spot is trailing — mirrored into
-the right margin at the block's end (or hanging after the last line's
-text) — pick by capture comparison across a few worlds, not by argument.
-
-Grounding: the quote-orientation law (render/tests/quote_orientation.rs)
-already pins all four curly codepoints heavy-bottom in every display face,
-so no new font risk; the never-tofu law covers the glyph. Multi-block
-documents get one pair per block (quote_marks already walks blocks).
-
-NOT in scope, recorded so nobody conflates: straight→curly smart-quote
-substitution (typing or render) stays declined per the standing user
-decision — this item closes the ornament's pair, it does not educate quotes.
-
-Laws: every world's blockquote capture shows BOTH marks by pixel presence
-(a presence floor, not just a contrast ratio — the mark must exist to
-pass); open and close share value/scale by arithmetic; a one-line
-blockquote still shows a legible pair (the degenerate case where first
-line == last line); no mark on non-blockquote lines.
-
----
-
 ### 572 — class audit: decorative geometry vs the caret — every row or advance inflated for an ornament, probed against what caret/selection/highlight inherit (user decision, 2026-09-06 — "we should fix this class of bugs yeah?? like ornament + cursor")
 
 Item 571 (rule row's ornament room swallowing the block caret) is one
@@ -198,85 +79,6 @@ oracle). Production audit tier. An audit that finds something ends by
 writing the missing law; the deliverable is the cell table plus laws, with
 each defect it finds either fixed in-item when small or queued as its own
 scoped item when not.
-
----
-
-### 576 — follow a link: right-click shows "go to", modifier-click opens (user decision, 2026-09-06 — "right click on a link should show 'go to'; and i guess command click should open it too? (what should it be on linux…??? like for each keymap?)")
-
-🟢 BUILT AND COMMITTED (`a29d8a1b`), GATE OUTSTANDING — lane `item-576`, worktree
-`.claude/worktrees/item-576`, based on `135f9a5c`.
-
-**THIS ITEM'S HEADLINE PREMISE WAS FALSE, and the lane checked before building.** "Nothing
-follows them yet" is wrong three ways: `Action::FollowLink` already existed with a `C-c C-o`
-chord, a palette row and a catalog entry; `App::follow_link` already spawned
-`open`/`xdg-open`/`window.open`; and right-click already summoned a card whose first row was
-"Follow link", with ⌘-click already following on macOS. That is the fourth
-orchestrator-authored premise this board has watched dissolve on first measurement, and it
-closes as **premise largely false, three real gaps found and fixed** rather than as "built the
-affordance".
-
-The three real gaps, all narrower and sharper than the item: **(1) Linux had no follow gesture
-at all** — `SUPER` is ⌘ on Mac and the compositor's key on Linux, so a Linux hand had no
-pointer follow whatsoever, which is exactly the user's own question. **(2) Bare URLs wore the
-underline and followed nothing** — `link_at` runs pulldown without the autolink extension, so a
-plain `https://…` in prose is no `Tag::Link`, and every door answered `None` under a hairline
-the render had already drawn. **(3) A relative link was handed to the OS opener** — `open
-./notes/plan.md` gives a `.md` file to whatever the desktop owns that extension, instead of
-opening it in awl.
-
-**The item's own load-bearing premise HELD and is now a law rather than an argument.**
-`Config::effective_linux_keep` composes strings that every consumer parses through
-`keyspec::parse_chord` into a `(Key, ModifiersState)` pair, and a mouse button has no spelling
-in that grammar. `the_linux_keep_list_holds_only_key_chords_so_no_mouse_chord_can_collide`
-drives the composed keep-list under both flavors plus a user entry, requires every member to
-parse as a key chord, and requires `Ctrl-Click`/`Mouse-2`/`Middle-Click`/`Cmd-Click` to parse
-as none.
-
-Mouse gestures deliberately do NOT go into `active_seed_tables`: its entries are `(&str,
-Action)` chord specs that `parse_binding` consumes and `seeded_chords_for` prints, so a
-`"Mouse-2"` string would fail the first and print a fake key chord in the second. Instead the
-shared gate `linux_emacs_layer(convention, flavor)` was extracted and BOTH selection points
-call it, with a law asserting over the whole grid that the key layers and the pointer gesture
-enrol identically. `keymap::follows_link` is the one predicate the press path and the hover
-cursor both ask, so the pointing hand and the click cannot disagree.
-
-⚠️ **Merge note:** this lane touched `src/render/rects.rs` (one match arm, net −2 lines),
-which item 570 also grew. Re-derive that mark off the merged tree rather than from either
-branch's number.
-
-The followable-span grammar already marks every followable span with one
-underline (named links and tamed bare URLs, one owner) — but nothing
-follows them. Build the follow affordance:
-
-- **Modifier-click opens.** macOS: ⌘-click (decided). Linux: recommend
-  Ctrl-click under BOTH flavors — the platform convention in every editor
-  and browser, and a mouse chord, so it collides with none of the C-c/C-x
-  text-chord rules (the keep-list machinery governs key chords, not mouse
-  chords) — plus middle-click (mouse-2) as the emacs flavor's own follow
-  gesture, seeded Linux-only like the Meta layer, inert on Mac and under
-  native. Route the gesture through the keymap/platform seed-table seam so
-  label surfaces and dispatch read one source; decide there whether the
-  mouse chord is `[keys]`-rebindable or fixed (recommend fixed v1).
-- **Right-click on a followable span** shows the go-to affordance. awl has
-  no context menus by design — keep it summoned and minimal (a one-row
-  card in the overlay family, or the pointer affordance family from the
-  hover work), not a native NSMenu grafted onto the wgpu view (see the
-  muda tripwire). Label: "Go to <destination>" with the tamed authority,
-  never the raw URL flood.
-- **What opens where:** web URLs hand off to the system opener
-  (`open`/`xdg-open` — an outward action at the user's explicit gesture,
-  not a runtime fetch; the zero-network invariant is about awl phoning
-  home, and this is the EDITOR-daemon shape of OS integration). A RELATIVE
-  path to a local file follows IN awl — the Live-Preview model's own move
-  (a vault of notes linking each other). Heading anchors and footnote
-  jumps: deferred, recorded.
-- Verify: the follow gesture produces a typed effect carrying the resolved
-  destination, asserted in the sidecar through both chord replay and the
-  real-App driver; the actual launch is the live-only tail (harness-reach:
-  flag it, do not stub the effect layer around it). Laws: modifier-click
-  on a plain word produces nothing; the same click on each followable kind
-  resolves the destination the underline grammar says it has; Linux seeds
-  appear under the right flavors and the Mac binding under none of them.
 
 ---
 
@@ -723,6 +525,8 @@ Laws: whatever is decided, the enrolment comes from the door roster rather than 
 and the law names what enrolled — 585's own sweep found only 2 of 7 surfaces ever leaked, so
 a law that assumes uniform behaviour across surfaces would be wrong in both directions.
 
+---
+
 ### 600 — 593's narrowing has two sharp edges left, both named by the lane that made them (2026-09-07)
 
 ⬜ READY — small, and both are consequences of a fix that was correct.
@@ -757,6 +561,8 @@ The fix belongs where the behaviour is already understood — `test-native-gate.
 probe knows how to retire descendants without reaching its own caller. Laws: a
 `code-health.sh` launched from a shell leaves that shell's siblings alive, proven by planting
 one and requiring it to survive; and the law must fail if the group kill is widened back.
+
+---
 
 ### 602 — `Srgb::to_glyphon()` silently drops alpha, so a translucent text colour renders opaque (found by 570's lane while mutating, 2026-09-07)
 
@@ -849,6 +655,14 @@ convention stays plain), and **the gestures are fixed rather than `[keys]`-rebin
 taking now rather than after that grammar has users). Deferred and recorded, not smuggled in: a
 bare `#heading-anchor` resolves to a calm no-op.
 
+**558 — the lone file's plate (merged `6c888d5c`). LIVE LOOK NOT OBTAINED.** The display was
+locked at both ends of that lane's round, so it ran headless captures only and claimed no live
+evidence. The plate is capture-verified in Mulga at RGB 126,140,103 over a 2447-pixel bbox,
+matching the candidate you chose from. What a capture cannot tell you is whether the newly
+plated lone file reads as calm or as busy in ordinary use — that is the whole reason 444, 469
+and 515 left it bare, and it is the one thing worth a live glance now that the decision has
+gone the other way.
+
 **551 — table selection band (merged `f740749c`, follow-up `db90497e`).** The band now paints
 whole rows. If a spreadsheet-style cell-wise selection is what you actually wanted, say so —
 that alternative was flagged, never built.
@@ -884,76 +698,35 @@ this ground's geometry and inherits the same sign-off.
 
 ## Green train — the exact-main receipts
 
-**Second train, `72e922e1`** — covers 583/584 and 585, taken with HEAD verified unmoved across
-the run:
+**Third train, `555fa5d6`** — covers 570, 558 and 576, HEAD verified unmoved across the run:
 
 ```
-native-gate-health status=ok elapsed_seconds=251 mode=real
-native-gate-receipt commit=72e922e1400def84b1e4983893548186955fc7f5 health=pass:251s
-  conventions=mac,linux scope=all-targets menubar=full:on unit_tests=4917 unit_shards=6
+native-gate-receipt commit=555fa5d69eb1c78e06f8fb5a0bac24df61706606 health=pass:254s
+  conventions=mac,linux scope=all-targets menubar=full:on unit_tests=4946 unit_shards=6
   integration_targets=18
 ```
-plus `web-smoke: OK`.
+plus `web-smoke: OK`. Two mark-raising commits sit inside it, both derived from the MERGED
+tree rather than either branch's numbers — which is the check that earned its place here:
+570 grew `rects.rs` to 1835 and 576 trimmed it by two, so neither branch's own figure
+described the tree they came to share, and the merged tree needed no raise for that file at
+all.
 
-**Second train's CI: green.** Run 34050443205 on `c3d26d08` passed all four gating jobs —
-`mac (build + test, minus render::tests)`, `web`, `linux (build + test)` and `mac live-probe` —
-with only the pinned tolerated `atspi` and `mac (render::tests)` red.
+**Second train, `72e922e1`** — covered 583/584 and 585. `health=pass:251s unit_tests=4917`,
+web-smoke OK. Pushed as `c3d26d08`; CI run 34050443205 passed all four gating jobs.
 
-**First train, `5d4819e3`** — covered 571/573, 567, 568/569 and 586/587:
-`health=pass:271s conventions=mac,linux scope=all-targets menubar=full:on unit_tests=4903
-unit_shards=6 integration_targets=18`, plus `web-smoke: OK`. Pushed as `a7ad4c68`; **CI run
-34047161907 passed all four gating jobs**, including the hosted-mac pair — the two reds are
-the pinned tolerated `atspi` and `mac (render::tests)`. That hosted arm is the only one that
-has ever seen the virtualised-GPU axis, so it is the half of the verification no local receipt
-can supply.
+**First train, `5d4819e3`** — covered 571/573, 567, 568/569 and 586/587. `health=pass:271s
+unit_tests=4903`, web-smoke OK. Pushed as `a7ad4c68`; CI run 34047161907 passed all four
+gating jobs, including the hosted-mac pair — the only arm that has ever seen the
+virtualised-GPU axis, and therefore the half of the verification no local receipt supplies.
 
 ⚠️ **Hardware bound, restated because a green receipt is exactly when it gets forgotten:** a
 local receipt certifies the dev host's real Apple Silicon Metal. A wedge once stayed green
 here while red on hosted macOS for ~140 commits, and CI's lavapipe job stayed green through
 that entire streak, so a software adapter is not a stand-in for that axis.
 
-⚠️ **Neither receipt covers a live journey.** Three items merged this wave with their live
-confirmation explicitly NOT obtained, because the display was locked; they are in the owed
-section, not silently absorbed into these receipts.
-
-## The new gate arms have now run somewhere other than here
-
-CLAUDE.md's standing question of any green check is not only "does this law sweep the right
-axis" but **"has this check ever run anywhere but here"** — the other DPI, the other backend,
-the other entry point, the other filter. For 593/594/578's three new `code-health.sh` arms
-that question is now answered rather than assumed.
-
-CI run 34056753311 on `135f9a5c` passed all four gating jobs, and its **Linux** job ran the new
-arms twice — once as the standalone health step, once inside the native full suite:
-
-```
-code-health: self-test clean
-test-sweep: SKIPPED law 4 (cargo-sweep not installed on this host).
-test-sweep: sweep.sh deletes only inside its caller's worktree
-test-pycache-guards: 3 by-path loaders leave no scripts/__pycache__
-```
-
-Two things worth keeping. Laws 1–3 and the self-test really do run on a second platform, so
-they are not dev-host-only. And **law 4 announced its own absence instead of passing
-silently** — its lane predicted exactly this (CI installs no cargo-sweep) and designed the skip
-to be loud and self-describing. A law that skips quietly reads identical to a law that passed,
-and this board has been bitten by that shape more than once.
-
-## Scripts-only merges claim no receipt — and this one says so
-
-`e4d2cf71` (593 + 594 + 578) changed eight files: seven under `scripts/` and
-`.orchestrator/README.md`. **No Rust, no shader, no Cargo manifest, no CI workflow** —
-verified by diffing the merge's own name list, not assumed from the subject lines. CLAUDE.md
-is explicit that such a change claims no receipt and must say so, so this one does.
-
-What DOES stand behind it, both stronger than required: the lane's full native gate on its own
-branch tip (`native-gate-receipt commit=c2370fff health=pass:498s conventions=mac,linux
-scope=all-targets menubar=full:on unit_tests=4917 unit_shards=6 integration_targets=18`), and
-an orchestrator run of `code-health.sh` on the MERGED tree confirming the three new arms
-actually execute there — `self-test clean`, `sweep.sh deletes only inside its caller's
-worktree`, `3 by-path loaders leave no scripts/__pycache__` — with the clippy-exception count
-and ratchet baseline unmoved. A law that is wired but does not run is the failure this repo has
-recorded most often; item 567 deleted five laws that nothing ran.
+⚠️ **No receipt covers a live journey.** Five items merged this wave with live confirmation
+explicitly NOT obtained, because the display was locked; they are in the owed section rather
+than silently absorbed into a green line.
 
 ## Watch — verification that only a future run can supply
 
