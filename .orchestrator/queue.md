@@ -9,10 +9,41 @@
 ---
 ### 566 — CI RED: `linux (build + test)` times out at 50 min on main; no Linux verification exists for HEAD
 
-🟡 IN PROGRESS — claude lane (opus, deep), branch `item-566`, worktree `.codex/worktrees/item-546-cassowary-tabs` — claimed 2026-09-06.
+✅ PREMISE FALSE, CAUSE FOUND, REPAIR LANDED — merged as `964bba03` (`73b4992e`).
+**Both hypotheses on this board were wrong, and the premise was orchestrator-authored** —
+the item blamed item 564 on a commit-window argument and neither arm survived measurement.
 
-🔴 TOP PRIORITY — blocks integration AND blocks the Linux release the user
-asked for on 2026-09-02.
+- **(b) product cost is dead.** On a real software rasterizer (local Docker, Mesa 22.3.6,
+  adapter `llvmpipe (LLVM 15.0.6, 128 bits)`, `PHYSICAL_DEVICE_TYPE_CPU`), Kite ranks
+  **13th of 19 worlds — 1.12x the roster median, 0.59x the most expensive world**, which is
+  Saltpan's plain `Pinstripe`. Two ordinary `Gradient` worlds cost more than the living
+  tunnel. Enrolment was the whole roster, not a chosen pair.
+- **(a) test cost is dead at the claimed magnitude.** The 19 new warp tests cost **~30s**
+  against a 30m42s suite step — ~1.8% of the suite, cheaper per test than the existing
+  `frost` family. At zero they still leave the run over 50 minutes.
+- **The real cause is a third thing neither hypothesis named.**
+  `dtolnay/rust-toolchain@stable` moved rustc 1.98.0 to 1.98.1 between 09-02 and 09-05;
+  `Swatinem/rust-cache` mixes the rustc version into its key, so the whole cache was
+  invalidated. The timing-out run says `No cache found.`; **all sixty visible predecessors
+  restored `full match: true`** — so the 50-minute ceiling had NEVER been exercised cold,
+  and the 35-37 minutes its own comment cited was always the WARM number. Cold cost, from
+  the runs' own step timestamps: 18m59s to reach the suite against 5m01s warm, projected
+  total **54m18s**. Per-test execution did not regress (unchanged shards +4.7-10.4% under
+  the cold compile's load; the shard that gained 27 tests +8.7%, inside that band).
+  Orchestrator verified the toolchain and cache lines independently in both jobs' logs
+  before merging.
+
+Repair: ceiling 50 → 75 (≈38% over the measured cold run); a first-step **runner death
+clock** exporting `AWL_NATIVE_GATE_DEADLINE_EPOCH`, which `native-gate.sh` has always read
+and this job never armed (`budget_source=none` in both logs) — so an over-run now ends as a
+readable FAILURE instead of a cancellation, which verifies nothing AND skips every post
+step, discarding the cold `target/` and making the next run cold too; `cache-on-failure`
+for the red-run half of that hole; and a `native_gate_audit` law holding the wiring in
+place, mutation-proven.
+
+⚠️ **The next CI run is the wiring's own oracle:** the linux job's `native-gate-env` line
+must read `budget_source=deadline`, not `budget_source=none`. Nothing local can test the
+`$GITHUB_ENV` hop.
 
 Run <https://github.com/Frank-P-Lu/awl-editor/actions/runs/33944330308> on `d7315142`
 (2026-09-05): `linux (build + test)` started 06:07:03, was killed 06:57:20 —
@@ -243,7 +274,9 @@ decision is which world draws which set, not one global glyph.
 ---
 ### 542 — table editing: row/column palette verbs (user report, 2026-08-30 — "kinda awful to edit"; fruit 1 landed, this is fruit 2)
 
-🔴 BLOCKED — the remaining row/column palette verbs need the user's greenlight
+🟢 GREENLIT 2026-09-06, READY TO BUILD, unclaimed — the user chose "Greenlight the verbs":
+build Insert row above/below, insert column left/right, delete row/column as palette verbs,
+source splices over `markdown/tables.rs`, gated to caret-in-table like `AlignTable`.
 
 Three waves have landed: Tab/Shift-Tab moves between cells and wraps
 across rows, Tab on the final cell appends a scaffold row, Enter
@@ -1328,7 +1361,13 @@ lane trims the same geometry) — one lane may take both.
 ---
 ### 560 — theme picker rhythm: dead rows between the query head and the first row, and a top-heavy oversized hint card (user taste report, 2026-09-01 — "from where the caret is until the first item there's a lot of spacing… kind of weird; the bottom instruction box has too much padding vertically")
 
-🔵 PREMISE FALSE, ORACLE REPAIRED, two taste calls OWED — merged `507dd3b9`
+🔵 Q2 ANSWERED 2026-09-06, Q1 STILL OWED — the user chose the SYMMETRIC, ~one-row-tall
+hint card ("Symmetric and shorter"), overriding the existing pixel law's stated intent
+("clear air above, trim the chin"), which is rewritten with it. Q1 (head gap
+`OVERLAY_QUERY_BEAT` 1.55 vs 1.15–1.25) was NOT answered and remains owed; it moves every
+flat/grouped picker, so do not narrow it on inference.
+
+🔵 PREMISE FALSE, ORACLE REPAIRED — merged `507dd3b9`
 + `ffc17a9c`. The reported "reserved marker row that stays reserved when
 unclamped" does not exist: `resolve_window_and_cue`'s `visible0 >=
 n_items` early return already reserves zero rows whenever the corpus
@@ -1742,7 +1781,10 @@ doubling; option off ⇒ byte-identical render to today.
 ---
 ### 567 — scripts/ cruft sweep: delete six concluded-investigation scripts and five unwired shell laws (user decision, 2026-09-06 — "unused stuff is kinda cruft right… i think i lean delete too")
 
-🟡 IN PROGRESS — claude lane (sonnet, production), branch `item-567`, worktree `.codex/worktrees/item-544-frost-box` — claimed 2026-09-06.
+🟠 PAUSED, PARTIAL — the user cut the wave to two active agents 2026-09-06. The sweep IS
+committed as `8a2b5d48` on branch `item-567` (worktree `.codex/worktrees/item-544-frost-box`)
+but is UNGATED: no reference-check report, no receipt. Resume by verifying the eleven
+deletions against the tree before trusting the commit.
 
 A full audit of `scripts/` (78 tracked files) found the tree largely
 load-bearing — CI-invoked, gate-invoked, or documented entry points — with
@@ -1803,7 +1845,10 @@ Rust doc comment moved).
 ---
 ### 568 — spell suggestions never offer the user's own dictionary words (user report, 2026-09-06 — "add to dictionary, but this new word doesn't really show up in the autocomplete?" — the ⌘-; spell picker is meant; explicitly NOT a completion feature: "we don't need autocomplete")
 
-🟡 IN PROGRESS — claude lane (sonnet, production) with 569, branch `item-568-569`, worktree `.codex/worktrees/item-543-tabledims-frost` — claimed 2026-09-06.
+🟠 PAUSED, PARTIAL — the user cut the wave to two active agents 2026-09-06. Interrupted work
+preserved as WIP `2981af41` on branch `item-568-569` (worktree
+`.codex/worktrees/item-543-tabledims-frost`): the suggest-side merge with five passing tests
+by the lane's own account, UNGATED and unproven. 569's picker is NOT started.
 
 The personal dictionary is check-only. `SpellChecker::check` consults
 `user_words` (src/spell.rs:261), but `suggest`/`suggest_at`
@@ -1833,7 +1878,8 @@ reach the merged list (one owner, no second suggest path).
 ---
 ### 569 — personal dictionary picker: list the words, remove per row (user decision, 2026-09-06 — "richer listing words… something very simple")
 
-🟡 IN PROGRESS — claude lane (sonnet, production) with 568, branch `item-568-569`, worktree `.codex/worktrees/item-543-tabledims-frost` — claimed 2026-09-06.
+🟠 PAUSED, NOT STARTED — the user cut the wave to two active agents 2026-09-06 before this
+half began. 568's partial work sits on branch `item-568-569` (WIP `2981af41`).
 
 `~/.config/awl/dictionary.txt` is user-facing and completely undocumented —
 no UI shows its contents and no doc says it exists; removal is hand-edit
@@ -1892,7 +1938,15 @@ line == last line); no mark on non-blockquote lines.
 ---
 ### 571 — revealed thematic break keeps its ornament-sized row: giant raw `***` and a caret slab 2.2× too tall (user report, 2026-09-06 — "the way the cursor highlights the * is all wrong… like its wayy too tall?"; reproduced headlessly, first try)
 
-🟡 IN PROGRESS — claude lane (sonnet, production) with 573, branch `item-571-573`, worktree `.codex/worktrees/item-533` — claimed 2026-09-06.
+🟢 MERGED, RECEIPT OWED — landed on main as merge `a7846f7a` (`6b1a98a4` + fmt `0d765228`).
+`build_line_attrs` hoists the reveal predicate above the ornament-scale decision, so a
+revealed rule line drops the ornament's room entirely: raw markers at body size, body-height
+row, body-size caret. Four laws (2 sidecar geometry, 2 real-pixel), each single-mutation
+proven. Merge-train receipt on the exact combined candidate (566 + 571/573 + the mark raise):
+`native-gate-receipt commit=ceb5c252 health=pass:239s conventions=mac,linux scope=all-targets
+menubar=full:on unit_tests=4835 unit_shards=6 integration_targets=17`. `rects.rs`'s size mark
+rose 1755 → 1775 with the reason recorded (frozen baseline 2238, so a raise below the
+baseline, not a ceiling breach).
 
 Measured on Saltpan (`--theme Saltpan`, caret onto a `***` line): a body row
 is 32px; the thematic-break row is 70.4px — exactly `ornament_scale` 2.2× —
@@ -1972,7 +2026,11 @@ scoped item when not.
 ---
 ### 573 — selection-revealed rule line double-draws: raw `***` AND the break fleuron together (found by 572's first probe, 2026-09-06; reproduced headlessly by pixel arithmetic)
 
-🟡 IN PROGRESS — claude lane (sonnet, production) with 571, branch `item-571-573`, worktree `.codex/worktrees/item-533` — claimed 2026-09-06.
+🟢 MERGED, RECEIPT OWED — landed with 571 as merge `a7846f7a`. `rule_lines` now drops every
+line the selection touches, not just the caret's own, so the fleuron stops drawing over the
+revealed raw markers. Both layers read one owner (`selection_touch_bytes` /
+`selection_touches`) rather than re-deriving the reveal state, which is what let them
+disagree. Merge-train receipt OWED — see 571.
 
 A selection that touches a thematic-break line (caret elsewhere) reveals
 the raw markers — correct since the 2026-07-22 selection-reveal widening —
@@ -2001,7 +2059,10 @@ exist off-reveal for the absence assertion to be non-vacuous); a fenced
 ---
 ### 574 — switching buffers must not move the page: key the outline rail's reservation on the working set, not the current buffer (user report + decision, 2026-09-06 — "switching between files actually causes the side bar to resize… it shouldnt jump all over the place at least")
 
-🟡 IN PROGRESS — claude lane (opus, deep), branch `item-574`, worktree `.codex/worktrees/item-541-543-tables` — claimed 2026-09-06.
+🟠 PAUSED, PARTIAL — the user cut the wave to two active agents 2026-09-06. Interrupted work
+preserved as WIP `de8e4786` on branch `item-574` (worktree
+`.codex/worktrees/item-541-543-tables`), 16 files touched, UNGATED and UNVERIFIED — no premise
+check, no laws proven. Read the diff before trusting it.
 
 Reproduced and measured: the adaptive column asks whether to grant the
 margin outline a rail via `outline_wants_rail` (src/render/geometry.rs:697),
@@ -2044,7 +2105,10 @@ wide sweeps nothing.
 ---
 ### 575 — Credits is a reading surface: no caret, no insertion, through every door (user report, 2026-09-06 — "you can type in the credits screen?… i see the cursor in the credits too… i was thinking some kind of readonly surface")
 
-🟡 IN PROGRESS — claude lane (opus, deep), branch `item-575`, worktree `.codex/worktrees/item-536-ornament-sets` — claimed 2026-09-06.
+🟠 PAUSED, PARTIAL — the user cut the wave to two active agents 2026-09-06. Interrupted work
+preserved as WIP `8901084c` on branch `item-575` (worktree
+`.codex/worktrees/item-536-ornament-sets`), 16 files plus a new `src/app/input/text_door.rs`,
+UNGATED and UNVERIFIED — no premise check, no laws proven. Read the diff before trusting it.
 
 Confirmed in pixels and mechanism. Credits opens the bundled document as
 the ACTIVE buffer relocated into its workspace viewport, so the caret
@@ -2128,6 +2192,66 @@ follows them. Build the follow affordance:
   appear under the right flavors and the Mac binding under none of them.
 
 ---
+---
+### 577 — `Install sccache` costs 4m25s on every cold CI run because it builds from source (found by 566's step-timing, 2026-09-06)
+
+`scripts/install-sccache.sh` builds sccache from source. It short-circuits when the pinned
+version is already on PATH, so a warm run pays 0s and this was invisible until item 566
+timed the first cold run in sixty: **4m25s**, the second-largest line in that job's
+pre-suite budget. A prebuilt-tarball path would take ~4 minutes off every cold run, and
+cold runs are now guaranteed to recur — rust-cache's key carries the rustc version, so
+EVERY stable toolchain release produces one.
+
+Not filed as a trivial swap: the script is shared with `release.yml`, so the blast radius
+includes the release pipeline's permanently-unexercised `publish` job, and downloading a
+prebuilt binary is a supply-chain and network-policy call rather than a build-speed one.
+Decide the policy first (pin by digest? verify a checksum? keep source-build as the
+fallback when the tarball 404s?), then implement.
+
+Verify: a cold-cache CI run's `Install sccache` step drops to seconds; the release
+workflow still installs the same pinned version by the same identity check.
+
+---
+### 578 — `code-health.py --self-test` has been failing on main, unnoticed, because no gate runs it (found by 566, 2026-09-06)
+
+`code-health.sh` never invokes `python3 scripts/code-health.py --self-test`, so the
+self-test drifted red on `main` without anyone seeing it: six requirements had been added
+to `native_gate_audit` over time without updating its script fixture (receipt shape,
+`git status --short`, `gate_health_command`, and the three menu-bar arms). Item 566's lane
+repaired the fixture — `code-health: self-test clean` now, including its two new
+mutations — but **left the wiring alone deliberately, because wiring it changes what the
+gate runs, and that is an orchestrator/user call.**
+
+This is the same shape as 567's recorded decision that an unwired law is worse than none:
+it rots silently and then cries wolf. The difference is that this law is not a candidate
+for deletion — it guards the ratchet script that guards everything else.
+
+DECISION OWED: wire `--self-test` into `code-health.sh` (cost: its runtime on every gate,
+measure it first) or accept that it is a manual instrument and say so in the script's own
+header. Do not leave the third state, which is what it has been in.
+
+---
+### 579 — awl renders ~9 fps on a pure software rasterizer, every world (measured by 566, 2026-09-06; predates 564)
+
+Measured on the full roster at 2910x1720 @2x, `--release`, median `queue.submit +
+device.poll` over 300 timed frames, under `llvmpipe (LLVM 15.0.6, 128 bits)`: **82-184 ms
+per frame for every world** — Wagtail 82.2 at the fast end, Saltpan 184.3 at the slow. The
+same binary on this host's Metal renders Kite in 1.310 ms, so lavapipe is ~84x slower
+across the board. This is a property of the whole render, not of any one ground, and it
+predates item 564.
+
+It is recorded rather than actioned because nobody has established that it MATTERS: a
+Linux user on real hardware has a real GPU, and the software path is what a VM, a
+remote-desktop session, or a machine with no working Vulkan driver falls back to. The
+question the Linux release wants answered is whether that fallback is a supported
+configuration or a documented non-target.
+
+⚠️ Do not repair this by measuring on Metal — no local gate sees the axis, and the number
+above is from one arm64 container with Mesa 22.3.6, not from CI's x86_64 lavapipe. Any
+claim about "software rendering performance" needs its configuration stated, per the
+standing rule that a check runs in one configuration and that configuration is itself an
+untested hypothesis.
+
 ## Needs specific hardware
 
 🔴 BLOCKED — these journeys require physical environments unavailable to the current orchestration host.

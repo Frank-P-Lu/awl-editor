@@ -201,6 +201,10 @@ mod rotated_location;
 mod rotated_rail;
 mod row_offset;
 mod row_pitch_dpi_law;
+/// The thematic-break line's ONE reveal rule (caret OR selection touch),
+/// threaded into both the row-scale decision and the ornament draw gate so
+/// the two layers can never disagree from opposite sides.
+mod rule_reveal_state;
 /// The `Ruled` composition: the full `OverlayKind` row-surface sweep, the
 /// Settings workspace (both regions), every `SettingId × SettingKind`,
 /// drawn-equals-clickable at both DPIs, and the pixel laws.
