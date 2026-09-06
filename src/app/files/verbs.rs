@@ -72,6 +72,15 @@ impl App {
     /// cursor, apply, then restore it (shifted by the edit's length delta only when it
     /// sat past the edit), so the caret stays exactly where it was.
     pub(in crate::app) fn write_back_image_width(&mut self, range: (usize, usize), width_px: f32) {
+        // THE CENSUS DOOR (`app/input/text_door.rs`). A drag cannot BEGIN with a
+        // card up — the press is consumed by the card — but the release that
+        // lands here is a separate event, and the conflict card is raised by the
+        // external-change watcher rather than by the user, so the gesture can
+        // outlive the surface's absence. Asking the wall here also gives this
+        // path the `has_active()` guard the `.buffer()` reads below assume.
+        if !self.text_door_open(TextDoor::ImageWidthDrag) {
+            return;
+        }
         if !self.document.buffer().is_markdown() {
             return;
         }
@@ -100,7 +109,14 @@ impl App {
         let saved = self.document.buffer().cursor_char();
         let delta = new_len as isize - (c1 - c0) as isize;
         self.document.seal_undo_group();
-        self.document.replace_char_range(c0, c1, &new_alt);
+        self.write_document_text(
+            TextDoor::ImageWidthDrag,
+            TextEdit::ReplaceRange {
+                start: c0,
+                end: c1,
+                text: &new_alt,
+            },
+        );
         self.document.seal_undo_group();
         let restored = if saved <= c0 {
             saved
@@ -272,7 +288,11 @@ impl App {
         if let Some(path) = path
             && let Some(content) = crate::history::load(&path, id)
         {
-            self.document.set_text(&content);
+            // A NAMED EXEMPTION from the census's wall
+            // (`app/input/text_door.rs`): the timeline pressing this verb IS a
+            // read-only prose surface, so walling it would refuse the one thing
+            // Version History exists to do.
+            self.write_document_text(TextDoor::HistoryRestore, TextEdit::Whole(&content));
             let label = crate::history::version_label(&path, id, crate::history::now_millis());
             if let Some(label) = label {
                 self.set_toast_notice(format!(

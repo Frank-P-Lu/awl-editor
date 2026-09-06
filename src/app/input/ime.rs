@@ -15,16 +15,17 @@ impl App {
             Ime::Preedit(text, _cursor) => self.input.keyboard.preedit = text,
             Ime::Commit(text) => {
                 self.input.keyboard.preedit.clear();
-                // THE ONE WALL (`app/input/text_door.rs`). This door never
-                // resolves through the keymap, so the overlay intercept that
+                // THE CENSUS DOOR (`app/input/text_door.rs`). This door never
+                // resolves through the keymap, so the action intercept that
                 // shuts every chord path cannot see it: a committed composition
                 // arriving while a READ-ONLY prose surface is up would edit the
-                // buffer hidden behind the transcript.
-                if !self.text_door_open(TextDoor::Ime) {
-                    return;
-                }
+                // buffer hidden behind the transcript. Per CHARACTER, so a
+                // commit coalesces into the open undo group exactly as typing
+                // does.
                 for c in text.chars() {
-                    self.document.insert_char(c);
+                    if !self.write_document_text(TextDoor::Ime, TextEdit::Char(c)) {
+                        return;
+                    }
                 }
             }
         }

@@ -33,7 +33,19 @@ use crate::overlay::{OverlayKind, OverlayState};
 use crate::semantic::{DOCUMENT_ID, SemanticRequest};
 use std::sync::Arc;
 
-const DOC: &str = "# My Notes\n\nSome real prose the user is editing.\n";
+const DOC: &str = "# My Notes\n\nSome real prose the user is editing.\n\n![a cat](cat.png)\n";
+
+/// The `![alt](path)` span's DOCUMENT BYTE range — what a settled image
+/// drag-resize hands `App::write_back_image_width`.
+pub(super) fn image_span_in(doc: &str) -> (usize, usize) {
+    const IMG: &str = "![a cat](cat.png)";
+    let start = doc.find(IMG).expect("the fixture carries an inline image");
+    (start, start + IMG.len())
+}
+
+fn image_span() -> (usize, usize) {
+    image_span_in(DOC)
+}
 
 fn seeded() -> crate::fs::InMemoryFs {
     crate::fs::InMemoryFs::new().with_file(PathBuf::from("/proj/draft.md"), DOC)
@@ -119,28 +131,86 @@ fn family() -> Vec<OverlayKind> {
         .collect()
 }
 
-/// Drive one door for real. Wildcard-free, so a door added to the production
-/// roster cannot ride this sweep without someone saying how it is pressed —
-/// which is the difference between a sweep and a list of three tests.
-fn drive(app: &mut App, door: TextDoor, text: &str) {
+/// Drive one door for real. Wildcard-free over the WHOLE census roster
+/// (`app/input/text_door.rs`), so a door added to it cannot ride this sweep
+/// without someone saying how it is pressed — which is the difference between a
+/// sweep and a list of three tests.
+///
+/// Returns whether this door was actually pressed. The named exemptions are the
+/// only ones that answer `false`, and [`gated_doors`] requires exactly that
+/// correspondence, so "not driven" can never quietly become the way a walled
+/// door escapes the sweep.
+pub(super) fn drive(app: &mut App, door: TextDoor, text: &str, image: (usize, usize)) -> bool {
     match door {
+        // The keymap door, driven through the REAL keymap into the REAL
+        // `App::apply` — a claim about production code is a hypothesis, and this
+        // is the one that says a chord cannot reach the rope while a card is up.
+        TextDoor::ActionCore => {
+            app.press_spec_headless("a b c").expect("the spec parses");
+            true
+        }
         // The SAME `winit` event `lifecycle.rs`'s `WindowEvent::Ime` arm hands
         // to the same `App::on_ime` — the harness's IME injection seam, not a
         // stand-in for it (`App::commit_ime_headless`).
-        TextDoor::Ime => app.commit_ime_headless(text),
+        TextDoor::Ime => {
+            app.commit_ime_headless(text);
+            true
+        }
         TextDoor::AssistiveReplaceSelection => {
             app.apply_semantic_request(SemanticRequest::ReplaceSelectedText {
                 id: DOCUMENT_ID.to_string(),
                 value: text.to_string(),
             });
+            true
         }
         TextDoor::AssistiveSetValue => {
             app.apply_semantic_request(SemanticRequest::SetValue {
                 id: DOCUMENT_ID.to_string(),
                 value: text.to_string(),
             });
+            true
         }
+        // The settled drag-resize write-back, given the span the live drag
+        // would have carried. The gesture itself is live-only (a pointer over
+        // real shaped geometry); the write-back is the half that touches text.
+        TextDoor::ImageWidthDrag => {
+            app.write_back_image_width(image, 300.0);
+            true
+        }
+        TextDoor::InsertDate => {
+            app.insert_date();
+            true
+        }
+        // THE NAMED EXEMPTIONS. Each is deliberately outside this sweep, and
+        // `DoorGate::Exempt` carries the reason in production rather than here.
+        TextDoor::HistoryRestore
+        | TextDoor::ConflictTakeTheirs
+        | TextDoor::RelaunchRecoveryAdopt
+        | TextDoor::AccessibilityBench
+        | TextDoor::PersistenceFaultProbe
+        | TextDoor::HeadlessReplay => false,
     }
+}
+
+/// THE SWEEP'S SUBJECT, derived from the production roster: every door whose
+/// gate claims a reading surface stops it. Never a literal list — the whole
+/// point of `TextDoor::gate` is that the roster answers this.
+fn gated_doors() -> Vec<TextDoor> {
+    TextDoor::ALL
+        .into_iter()
+        .filter(|d| d.exemption_reason().is_none())
+        .collect()
+}
+
+/// The doors the WALL itself refuses — the subject a sibling law needs when it
+/// asks the same question of a different summoned surface. Derived from
+/// `TextDoor::gate`, never listed, so the two surfaces cannot end up asking
+/// about different sets.
+pub(super) fn walled_doors() -> Vec<TextDoor> {
+    TextDoor::ALL
+        .into_iter()
+        .filter(|d| d.is_walled())
+        .collect()
 }
 
 /// **THE LAW.** For every door × every family member: the buffer's bytes are
@@ -165,13 +235,23 @@ fn no_door_writes_text_into_a_read_only_prose_surface() {
          over `OverlayKind::ALL`."
     );
 
-    for door in TextDoor::ALL {
+    let gated = gated_doors();
+    assert!(
+        !gated.is_empty(),
+        "no door claims to be gated — the sweep below has no subject"
+    );
+
+    for door in gated {
         // PRESENCE: with nothing summoned, this door really does write. Without
         // this, every refusal below could be a door that silently stopped
         // working.
         let mut open = app();
         let before = open.document.buffer().text();
-        drive(&mut open, door, "字");
+        assert!(
+            drive(&mut open, door, "字", image_span()),
+            "{door:?} claims a gate but `drive` does not press it — a gated door \
+             that this sweep never drives is a door with no law"
+        );
         assert_ne!(
             open.document.buffer().text(),
             before,
@@ -189,7 +269,7 @@ fn no_door_writes_text_into_a_read_only_prose_surface() {
             );
             let before = app.document.buffer().text();
             let version = app.document.buffer().version();
-            drive(&mut app, door, "字");
+            drive(&mut app, door, "字", image_span());
             assert_eq!(
                 app.document.buffer().text(),
                 before,
@@ -239,7 +319,7 @@ fn a_card_that_is_not_a_reading_surface_leaves_the_doors_open() {
             "{kind:?} is outside the family but the App reads it as a reading surface"
         );
         let before = app.document.buffer().text();
-        drive(&mut app, TextDoor::Ime, "字");
+        drive(&mut app, TextDoor::Ime, "字", image_span());
         assert_ne!(
             app.document.buffer().text(),
             before,
