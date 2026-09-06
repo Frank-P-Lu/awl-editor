@@ -420,7 +420,24 @@ work. This brief authorizes the correction, not unrelated background redesigns.
 
 ### 583 — blank new document raises an autosave failure (live bug hunt, 2026-09-06)
 
-⬜ READY — user requested queueing; not dispatched.
+🟢 MERGED with 584 as `27aa13fa`, EXACT-MAIN RECEIPT OWED — lane `item-583-584`, tip
+`e9f04905`, receipt green on base `610b7c7b`. **Premise reconfirmed on the current build, not
+inherited:** the mutation run reproduced the reported string verbatim out of HEAD's own code.
+
+Mechanism: `viewstate.rs` arms the naming debounce whenever the buffer `is_unnamed_fresh()`
+and a write is owed — true of a blank page from the moment it is summoned. 400 ms later
+`autosave_note` calls `save_owned`, which bails because `first_nonempty_line` returns `None`
+and there is no line to name the file from, and the `Err` arm turns that refusal into a
+sticky notice about a write nobody asked for. `flush_note` is a second door into the same
+refusal on blur/switch/quit.
+
+Fix: `Buffer::has_note_title()` routed through the SAME `first_nonempty_line` the save's own
+bail uses, so the two cannot disagree; `autosave_note` decides the quiet state BEFORE asking
+for the write and records the version as handled, so `sync_view` cannot re-arm the debounce
+forever on a blank page. Deciding before rather than inspecting the error afterwards is what
+keeps a genuine filesystem failure loud — and an explicit ⌘S still reports it. One law sweeps
+content state × the door the write arrives through, and includes a real `UnwritableFs`
+failure that must still be reported. Mutation-proven: removing the gate reddens it by name.
 
 **Observed / reproduce.** In the running macOS app, Kite, create a document
 through File → New document or ⌘N and pause without typing. The notice reads
@@ -443,7 +460,31 @@ pause/typing journey in a real window; ordinary capture has no autosave clock.
 
 ### 584 — document accessibility text goes stale after creating a new document (live bug hunt, 2026-09-06)
 
-⬜ READY — user requested queueing; not dispatched.
+🟢 MERGED with 583 as `27aa13fa`, EXACT-MAIN RECEIPT OWED — same lane and tip.
+
+**Premise TRUE, and proved to be awl's rather than the reading tool's** — which is what this
+item's own brief demanded, and the lane got there by never involving the OS at all. The law
+drives synthetic A/B documents through the real `App` and replays what awl HANDED the
+platform, through the existing `Mirror` oracle over the runtime's single `emit` door. On
+unfixed code the mirror held `["alpha\n","beta\n","gamma\n",""]` while the live document was
+`[""]`. That mismatch is inside awl's own published tree — before AccessKit, before macOS,
+before any reader — so tool caching cannot account for it. The `common_filter`/`Role::TextRun`
+caveat is separately correct and is NOT this defect; its own law still passes.
+
+**This is the cache-key tripwire, one seam over from the renderer's text cache that already
+has a law for it.** Every retained cache under the accessibility runtime keys on a `RunTable`
+revision and none on document identity, and `RunTable::new` restarts `content_rev`/`shape_rev`
+at 1 in every table — so a disk-loaded file and a brand-new document both present `(1,1)`, and
+`sync_runs`' opening `if table.content_rev() == self.content_rev { return false; }` answered
+"nothing changed" about text it had never seen. `RunTable::state_key()` already carried the
+missing identity; nothing read its first element.
+
+Fix: `note_document_identity` routes a change into the EXISTING `invalidate()` — the same door
+a reattach uses, for the same reason: nothing retained may be diffed against. It sits on the
+runtime because that is the one place owning all three stale things at once (the projection's
+revisions and nodes, the projector's child ids, and the `owes_full` debt); a fix inside the
+projection alone would have left the projector's `shape` cache hot. One integer compare per
+frame, so a frame with nobody listening still builds nothing.
 
 **Observed / reproduce.** With an existing prose file open, File → New document
 changed the window/document name to untitled and showed a blank page, but the
@@ -787,6 +828,16 @@ rather than buried, both read out of the tree:
   the SOURCE bytes, so padding would show you `"  x  "` for a selected `" x "`. The cost is
   that a foreign renderer reads `` ` x ` `` as `x`. The backtick case IS padded, because there
   the alternative is no span at all.
+
+**583/584 — new-document behaviour (merged `27aa13fa`). LIVE CONFIRMATION DID NOT HAPPEN.**
+The display was locked at both ends of the lane's round — `CGSSessionScreenIsLocked` read
+`<true/>` before it started and again after the gate launched — so it did not run the app and
+claimed no live evidence, which is the correct call: a locked display fails SILENTLY and
+writes successful-looking probe lines while presenting zero frames. Still owed to a human:
+583's pause-then-type journey in a real window (the autosave clock does not exist in ordinary
+capture), and 584's VoiceOver listening test. Stated plainly because the ceiling matters:
+584's laws prove what awl PUBLISHED to the AccessKit adapter at the one door every update goes
+through. They cannot prove the OS received it, or that VoiceOver announces it.
 
 **551 — table selection band (merged `f740749c`, follow-up `db90497e`).** The band now paints
 whole rows. If a spreadsheet-style cell-wise selection is what you actually wanted, say so —
