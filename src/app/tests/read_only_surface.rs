@@ -36,7 +36,7 @@ use std::sync::Arc;
 const DOC: &str = "# My Notes\n\nSome real prose the user is editing.\n";
 
 fn seeded() -> crate::fs::InMemoryFs {
-    crate::fs::InMemoryFs::new().with_file(&PathBuf::from("/proj/draft.md"), DOC)
+    crate::fs::InMemoryFs::new().with_file(PathBuf::from("/proj/draft.md"), DOC)
 }
 
 fn app() -> App {
