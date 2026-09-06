@@ -240,6 +240,51 @@ impl MdKind {
         }
     }
 
+    /// THE FOLLOWABLE-SPAN GRAMMAR'S OWN MEMBERSHIP PREDICATE — is this span
+    /// one a person can FOLLOW? The ONE owner of that fact, read by both halves
+    /// of the affordance so they cannot drift: `render::rects`'s
+    /// `Bucket::LinkUnderline` enrolment (what wears the hairline that PROMISES
+    /// a destination) and [`crate::markdown::follow::followable_at`] (what
+    /// actually resolves one). A hairline over a span nothing follows, or a
+    /// followable span wearing no hairline, is the defect this owner exists to
+    /// make impossible.
+    ///
+    /// NO WILDCARD: a new [`MdKind`] fails to compile here until its author
+    /// consciously answers "can this be followed?", which is the same
+    /// forcing-function [`crate::render::ViewState`]'s exhaustive `sync_view`
+    /// applies to a new view field.
+    pub fn is_followable(self) -> bool {
+        match self {
+            MdKind::LinkText | MdKind::BareUrlText => true,
+            MdKind::Markup
+            | MdKind::ConcealMarkup(_)
+            | MdKind::Heading(_)
+            | MdKind::Bold
+            | MdKind::Italic
+            | MdKind::BoldItalic
+            | MdKind::Code { .. }
+            | MdKind::CodeSyntax { .. }
+            | MdKind::Quote
+            | MdKind::ListMarker
+            | MdKind::Task(_)
+            | MdKind::TaskDone
+            | MdKind::Highlight
+            | MdKind::Strikethrough
+            | MdKind::Rule
+            | MdKind::TablePipe
+            | MdKind::TableSep
+            | MdKind::TableHeader
+            // A footnote REFERENCE is activated by the same `Action::FollowLink`
+            // door, but it is not part of the underline grammar: it wears the
+            // painted number ornament instead of the hairline, and its
+            // destination is a line in this document rather than a place
+            // outside it. `follow::followable_at` keeps that split.
+            | MdKind::FootnoteReference(_)
+            | MdKind::FootnoteDefinition(_)
+            | MdKind::FootnoteText => false,
+        }
+    }
+
     /// True for the three GFM-table structural span kinds ([`MdKind::TablePipe`],
     /// [`MdKind::TableSep`], [`MdKind::TableHeader`]) — used to identify which
     /// document LINES are table rows so the double-space writing-nit is exempted on

@@ -19,8 +19,15 @@ impl App {
         // except the Writing-streaks card, whose own surface PAGES instead
         // of dismissing (see `press_with_card_open`); a press outside it
         // still dismisses, exactly like About/Lifetime everywhere else.
+        // MIDDLE is in this match (and not in the stamp/peek one above): it can
+        // carry the follow gesture, so a summoned card must own it exactly as
+        // it owns a left or right press — otherwise a middle-click would follow
+        // a link in the document hidden behind the card.
         if state == ElementState::Pressed
-            && matches!(button, MouseButton::Left | MouseButton::Right)
+            && matches!(
+                button,
+                MouseButton::Left | MouseButton::Right | MouseButton::Middle
+            )
         {
             if crate::streaks::streaks_open() {
                 let (px, py) = self.input.pointer.cursor_px;
@@ -44,6 +51,16 @@ impl App {
             if state == ElementState::Pressed && self.document.has_active() {
                 let over_writing_column = self.pointer_over_writing_column();
                 self.on_right_press(exit, over_writing_column);
+            }
+            return;
+        }
+        // A NON-PRIMARY button may still be a follow gesture — the Linux emacs
+        // flavor seeds middle-click (mouse-2) the same way it seeds the Meta
+        // and `C-x` key layers, through the one roster in `keymap::platform`.
+        // Inert everywhere else, so this is a no-op on Mac and under `native`.
+        if button == MouseButton::Middle {
+            if state == ElementState::Pressed {
+                self.press_follow_gesture(crate::keymap::PointerButton::Middle);
             }
             return;
         }
@@ -92,6 +109,31 @@ impl App {
         self.request_frame();
     }
 
+    /// THE POINTER DOOR onto the follow affordance, shared by every button that
+    /// can carry one. Asks `keymap::follows_link` — the one selection point over
+    /// the per-convention/per-flavor gesture roster — whether THIS button with
+    /// THESE modifiers follows, and only then reaches the follow seam. Returns
+    /// whether the press was spent following, so the caller swallows it.
+    ///
+    /// The two guards are the ones the ⌘-click affordance has always carried:
+    /// no summoned picker may be up (its scrim owns the press), and the pointer
+    /// must be over the writing column (the margins are not the document).
+    fn press_follow_gesture(&mut self, button: crate::keymap::PointerButton) -> bool {
+        if !self.document.has_active() {
+            return false;
+        }
+        let follows = crate::keymap::follows_link(
+            crate::convention::Convention::current(),
+            self.config.keymap_flavor(),
+            button,
+            self.input.keyboard.mods.state(),
+        );
+        follows
+            && self.workspace_state.pickers_clear()
+            && self.pointer_over_writing_column()
+            && self.follow_link_at_pointer()
+    }
+
     fn on_left_press(&mut self, exit: &dyn schedule::Exit) {
         if self.menubar_press(exit) {
             self.resync_pointer_derived_state();
@@ -111,16 +153,7 @@ impl App {
             self.request_frame();
             return;
         }
-        if self
-            .input
-            .keyboard
-            .mods
-            .state()
-            .contains(ModifiersState::SUPER)
-            && self.workspace_state.pickers_clear()
-            && self.pointer_over_writing_column()
-            && self.follow_link_at_pointer()
-        {
+        if self.press_follow_gesture(crate::keymap::PointerButton::Primary) {
             return;
         }
         if self.workspace_state.popover_holds_attention() {

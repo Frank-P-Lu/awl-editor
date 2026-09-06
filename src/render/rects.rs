@@ -1092,11 +1092,11 @@ impl TextPipeline {
                 crate::markdown::MdKind::Strikethrough => {
                     spans.push((r.clone(), Bucket::Strike));
                 }
-                crate::markdown::MdKind::LinkText | crate::markdown::MdKind::BareUrlText => {
-                    spans.push((r.clone(), Bucket::LinkUnderline));
-                }
                 crate::markdown::MdKind::Code { inline: true } if wysiwyg => {
                     spans.push((r.clone(), Bucket::CodePill));
+                }
+                _ if k.is_followable() => {
+                    spans.push((r.clone(), Bucket::LinkUnderline));
                 }
                 _ => {}
             }

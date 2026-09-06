@@ -190,7 +190,7 @@ fn context_menu_draws_no_teaching_footer_while_the_command_palette_still_teaches
             crate::context_menu::ContextTarget::Selection,
             crate::context_menu::ContextState {
                 has_selection: true,
-                link: false,
+                link: None,
                 heading: false,
                 heading_folded: false,
                 misspelled: false,

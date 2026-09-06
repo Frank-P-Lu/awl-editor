@@ -127,7 +127,7 @@ fn representative_overlay(kind: OverlayKind) -> OverlayState {
                 crate::context_menu::ContextTarget::Body,
                 crate::context_menu::ContextState {
                     has_selection: false,
-                    link: false,
+                    link: None,
                     heading: false,
                     heading_folded: false,
                     misspelled: false,

@@ -61,7 +61,7 @@ const ANCHOR: (f32, f32) = (300.0, 260.0);
 fn context_menu(text: &str, dpi: f32) -> ViewState {
     let state = ContextState {
         has_selection: true,
-        link: false,
+        link: None,
         heading: false,
         heading_folded: false,
         misspelled: false,
@@ -295,7 +295,7 @@ fn every_anchored_target_declines_the_full_takeover() {
     let worlds = ["Magpie", "Wagtail"];
     let state = crate::context_menu::ContextState {
         has_selection: true,
-        link: true,
+        link: Some("https://example.com/x"),
         heading: true,
         heading_folded: false,
         misspelled: true,
@@ -597,7 +597,7 @@ fn context_menu_card_hugs_its_rows_with_no_hint_reserved() {
     let entry = crate::theme::active_index();
     let state = ContextState {
         has_selection: true,
-        link: true,
+        link: Some("https://example.com/x"),
         heading: true,
         heading_folded: false,
         misspelled: true,

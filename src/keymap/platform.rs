@@ -295,6 +295,112 @@ pub(crate) const LINUX_EMACS_CLASSIC_SEED: &[(&str, Action)] = &[
     ("C-x h", Action::SelectAll),
 ];
 
+/// Is the Linux emacs LAYER active — the one gate both seeded rosters below
+/// share, so the key layers and the pointer gesture can never enrol on
+/// different answers to the same question. `Convention::Mac` is structurally
+/// inert (Option keeps typing accented characters there, and ⌘ already carries
+/// every native chord); the `native` flavor seeds nothing anywhere.
+pub(crate) fn linux_emacs_layer(convention: Convention, flavor: KeymapFlavor) -> bool {
+    convention == Convention::Linux && flavor == KeymapFlavor::Emacs
+}
+
+/// A MOUSE chord that follows a followable span. Deliberately its own type
+/// rather than a `&str` in the seed tables above: the `[keys]` grammar and
+/// every seed table are KEY chords, parsed by `keyspec::parse_chord` into a
+/// `(Key, ModifiersState)` pair, and a mouse button has no spelling there. That
+/// separation is also why the Linux keep-list cannot collide with any gesture
+/// here — `Config::effective_linux_keep` composes, and `linux_keeps_chord`
+/// compares, only strings that parse as key chords.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FollowGesture {
+    /// Which physical button. `false` = the primary (left) button, `true` =
+    /// the middle button; kept as a plain enum rather than winit's own so the
+    /// roster stays a pure core fact the label surfaces can read.
+    pub button: PointerButton,
+    /// The modifiers that must be held, EXACTLY — a gesture with extra
+    /// modifiers down is not this gesture.
+    pub mods: ModifiersState,
+    /// How the gesture is NAMED to a reader — carried ON the roster rather
+    /// than composed at each surface, so the first label surface to want it
+    /// reads [`active_follow_gestures`] the way every label surface already
+    /// reads [`active_seed_tables`] through [`seeded_chords_for`]. Today its
+    /// readers are the roster laws, which name what enrolled by this spelling.
+    pub label: &'static str,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PointerButton {
+    Primary,
+    Middle,
+}
+
+/// macOS: ⌘-click, the decided Mac gesture and the platform convention in every
+/// Mac editor. Ctrl-click deliberately has NO entry here — macOS itself spends
+/// Ctrl-click as the secondary click, so claiming it would fight the OS.
+const MAC_FOLLOW: &[FollowGesture] = &[FollowGesture {
+    button: PointerButton::Primary,
+    mods: ModifiersState::SUPER,
+    label: "Cmd-Click",
+}];
+
+/// Linux, BOTH flavors: Ctrl-click. The platform convention in every editor and
+/// browser, and a MOUSE chord — so it collides with none of the `C-c`/`C-x`
+/// text-chord rules, which govern key chords alone. Super-click is not offered:
+/// the compositor usually owns Super.
+const LINUX_FOLLOW: &[FollowGesture] = &[FollowGesture {
+    button: PointerButton::Primary,
+    mods: ModifiersState::CONTROL,
+    label: "Ctrl-Click",
+}];
+
+/// Linux `keymap = "emacs"` only — middle-click (mouse-2), seeded exactly like
+/// the Meta and `C-x` layers above and through the same [`linux_emacs_layer`]
+/// gate. Inert on Mac and under the `native` flavor. Free to claim: awl
+/// implements no X11 primary-selection paste, so nothing else wants mouse-2.
+const LINUX_EMACS_FOLLOW: &[FollowGesture] = &[FollowGesture {
+    button: PointerButton::Middle,
+    mods: ModifiersState::empty(),
+    label: "Middle-Click",
+}];
+
+/// THE FOLLOW GESTURE'S ONE SELECTION POINT — every mouse chord that follows a
+/// followable span under `convention`+`flavor`, in the same shape
+/// [`active_seed_tables`] returns its key layers. Both dispatch (the pointer
+/// press) and every label surface read THIS, so a flavor change moves them
+/// together.
+///
+/// FIXED, not `[keys]`-rebindable: the rebinding grammar spells key chords
+/// only, so making a mouse chord rebindable would mean a second chord grammar
+/// for one gesture. The trade is recorded here rather than left implicit.
+pub(crate) fn active_follow_gestures(
+    convention: Convention,
+    flavor: KeymapFlavor,
+) -> &'static [&'static [FollowGesture]] {
+    match convention {
+        Convention::Mac => &[MAC_FOLLOW],
+        Convention::Linux if linux_emacs_layer(convention, flavor) => {
+            &[LINUX_FOLLOW, LINUX_EMACS_FOLLOW]
+        }
+        Convention::Linux => &[LINUX_FOLLOW],
+    }
+}
+
+/// Does pressing `button` with exactly `mods` held FOLLOW, under
+/// `convention`+`flavor`? The one predicate both the press path and the
+/// hover-cursor affordance ask, so the pointing hand and the click can never
+/// disagree about which chord follows.
+pub(crate) fn follows_link(
+    convention: Convention,
+    flavor: KeymapFlavor,
+    button: PointerButton,
+    mods: ModifiersState,
+) -> bool {
+    active_follow_gestures(convention, flavor)
+        .iter()
+        .flat_map(|table| table.iter())
+        .any(|g| g.button == button && g.mods == mods)
+}
+
 /// THE LABEL-TRUTH ROUND — every SEED TABLE active under `convention`+`flavor`,
 /// in the SAME shape [`super::state::KeymapState::seed_defaults`] loops over for
 /// real dispatch. This is the ONE selection point both the dispatch half (via
@@ -309,7 +415,7 @@ pub(crate) fn active_seed_tables(
     convention: Convention,
     flavor: KeymapFlavor,
 ) -> &'static [&'static [(&'static str, Action)]] {
-    if convention == Convention::Linux && flavor == KeymapFlavor::Emacs {
+    if linux_emacs_layer(convention, flavor) {
         &[LINUX_EMACS_META_SEED, LINUX_EMACS_CLASSIC_SEED]
     } else {
         &[]

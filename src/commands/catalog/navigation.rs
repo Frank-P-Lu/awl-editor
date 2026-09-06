@@ -234,7 +234,8 @@ pub(super) static COMMANDS: &[Command] = &[
         native_only: false,
         web_only: false,
         description: Some(
-            "Open the caret's markdown link, or jump from a footnote reference to its definition.",
+            "Go where the caret points: a web address opens in your browser, a link \
+             to another file opens it here, a footnote jumps to its definition.",
         ),
     },
     Command {
@@ -244,7 +245,7 @@ pub(super) static COMMANDS: &[Command] = &[
         emacs: "",
         native_only: false,
         web_only: false,
-        description: Some("Copy the URL of the markdown link under the caret to the kill buffer."),
+        description: Some("Copy the destination under the caret to the kill buffer."),
     },
     Command {
         name: "Switch theme…",

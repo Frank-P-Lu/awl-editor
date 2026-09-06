@@ -180,7 +180,7 @@ fn context_summon_opens_a_card_if_and_only_if_its_roster_has_rows() {
             for bits in 0u8..64 {
                 let state = crate::context_menu::ContextState {
                     has_selection: bits & 1 != 0,
-                    link: bits & 2 != 0,
+                    link: (bits & 2 != 0).then_some("https://example.com/x"),
                     heading: bits & 4 != 0,
                     heading_folded: bits & 8 != 0,
                     misspelled: bits & 16 != 0,

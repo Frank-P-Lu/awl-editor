@@ -10,6 +10,7 @@ mod dispatch; // exhaustive Action-family classification + routing
 mod edit; // the markdown smart-Enter edit (smart_newline + its pure decision)
 mod effects; // the closed typed-effect vocabulary + transition decoration
 mod flinch; // the caret-feedback triggers (impact_for / recoil_for)
+pub(crate) mod follow; // following a link -- one seam from a resolved destination to a typed effect
 mod format; // the markdown formatting-command toggles (block + inline)
 pub(crate) mod link; // LINKS V2 — Cmd-K insert/edit-link (plan + commit, mirrors format.rs)
 mod motion; // the oracle-aware caret motions + page scroll + search open
