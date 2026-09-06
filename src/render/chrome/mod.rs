@@ -167,6 +167,13 @@ pub(in crate::render) struct PanelShape {
     pub(in crate::render) caret_byte: usize,
     pub(in crate::render) caret_fallback_chars: usize,
     pub(in crate::render) caret_row: f32,
+    /// The FOCUSED field's selection band, already crossed into the shaped
+    /// row's coordinates: `(start, end)` as `(byte, fallback_chars)` pairs of
+    /// exactly the shape `caret_byte`/`caret_fallback_chars` carry, so both
+    /// edges resolve to an x through the SAME glyph scan the caret does.
+    /// `None` with nothing selected — which is every frame but the one right
+    /// after the panel's own select-all.
+    pub(in crate::render) selection_span: Option<((usize, usize), (usize, usize))>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -384,7 +391,11 @@ mod overlay_policy;
 pub(in crate::render) use overlay_policy::*;
 mod overlay_clamp;
 mod panel;
+/// The panel's FIELD SELECTION BAND, split out to keep `panel.rs` under its
+/// production ceiling.
+mod panel_selection;
 pub(in crate::render) use panel::{PANEL_MARGIN, PANEL_PAD};
+use panel_selection::panel_selection_span;
 // The SUMMONED WORKSPACE family: geometry, navigation rail, hit-test, its two
 // regions' shared box arithmetic, and the RELOCATED
 // DOCUMENT VIEWPORT one of them can become (`comparison_viewport`).
@@ -874,14 +885,30 @@ pub(super) fn field_view_window(text: &str, caret_char: usize, cap: usize) -> (S
     let chars: Vec<char> = text.chars().collect();
     let len = chars.len();
     let caret_char = caret_char.min(len);
+    let start = field_view_window_offset(len, caret_char, cap);
     if len <= cap {
         let mut view: String = chars.into_iter().collect();
         view.extend(std::iter::repeat_n(' ', cap - len));
-        return (view, caret_char);
+        return (view, caret_char - start);
     }
-    let start = caret_char.saturating_sub(cap);
     let view: String = chars[start..start + cap].iter().collect();
     (view, caret_char - start)
+}
+
+/// WHERE [`field_view_window`]'s window STARTS, in the field's own CHAR
+/// indices — the scroll rule stated once so a second consumer cannot
+/// re-derive it slightly differently. `len` is the field's char count and
+/// `caret_char` is already clamped into `0..=len` by the caller.
+///
+/// The selection band is that second consumer: a band is a PAIR of field
+/// offsets and has to cross into view coordinates by exactly the arithmetic
+/// the caret crosses by, or a scrolled field paints its highlight beside its
+/// own text.
+pub(super) fn field_view_window_offset(len: usize, caret_char: usize, cap: usize) -> usize {
+    if cap == 0 || len <= cap {
+        return 0;
+    }
+    caret_char.min(len).saturating_sub(cap)
 }
 
 pub(super) fn scroll_window(

@@ -53,6 +53,15 @@ mod read_only_surface;
 mod semantic_reach;
 mod source_audit;
 mod spell;
+/// TIER 2: A SUMMONED TEXT-ENTRY SURFACE OWNS THE EDIT VERBS. The macOS menu
+/// bar's own key equivalents (and a menu/context-menu click) deliver an
+/// `Action` to `App::apply` without ever touching a keymap, so the panel's
+/// key guard never sees them — no chord-replay door can drive this, which is
+/// what makes the live `App` the purest reachable seam.
+/// Native-only, like its `read_only_surface` sibling: `install_search_for_test`
+/// is not compiled for wasm.
+#[cfg(not(target_arch = "wasm32"))]
+mod summoned_field_actions;
 mod which_key;
 /// TIER-2 SWEEP: every setting changed and persisted through the
 /// Settings WORKSPACE's own door, by real chords into the live `App`. Why this

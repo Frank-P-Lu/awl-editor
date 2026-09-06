@@ -37,6 +37,7 @@ impl TextPipeline {
         self.panel_upload_text(
             device, queue, width, height, &shape, card_rect, text_left, text_top,
         )?;
+        self.panel_place_selection(device, queue, (width, height), &shape, text_left, text_top);
         self.panel_place_caret(queue, width, height, caret_x, text_top, shape.caret_row);
         Ok(())
     }
@@ -284,6 +285,29 @@ impl TextPipeline {
                 0.0_f32,
             )
         };
+        // THE SELECTION BAND's own crossing, through the one owner beside
+        // this file (`panel_selection`), asked of the SAME focused field the
+        // caret row above was derived from.
+        let (label, view, field_caret, field_len) = if editing_replacement {
+            let caret = self.search_replacement_caret;
+            (
+                REPLACE_LABEL,
+                &replacement_view,
+                caret,
+                replacement.chars().count(),
+            )
+        } else {
+            let caret = self.search_query_caret;
+            (FIND_LABEL, &query_view, caret, query.chars().count())
+        };
+        let selection_span = panel_selection_span(
+            self.search_field_selection,
+            label,
+            view,
+            field_caret,
+            field_len,
+            field_chars,
+        );
         PanelShape {
             no_match,
             ink,
@@ -291,6 +315,7 @@ impl TextPipeline {
             caret_byte,
             caret_fallback_chars,
             caret_row,
+            selection_span,
         }
     }
 

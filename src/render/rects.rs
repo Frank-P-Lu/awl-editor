@@ -1714,28 +1714,41 @@ impl TextPipeline {
         let card_y = margin + self.menubar_reserve();
         let text_left = card_x + pad;
         let text_top = card_y + pad;
-        let mut caret_x = None;
-        for run in self.panel_buffer.layout_runs() {
-            if run.line_i != caret_row as usize {
-                continue;
-            }
-            for g in run.glyphs.iter() {
-                if g.start == caret_byte {
-                    caret_x = Some(text_left + g.x);
-                    break;
-                }
-            }
-            if caret_x.is_some() {
-                break;
-            }
-        }
-        let caret_x = caret_x.unwrap_or(text_left + m.char_width * fallback_chars as f32);
+        let caret_x = self.panel_glyph_x(caret_row, caret_byte, fallback_chars, text_left);
         (
             [card_x, card_y, card_w, card_h],
             text_left,
             text_top,
             caret_x,
         )
+    }
+
+    /// The physical x of the shaped panel glyph that STARTS at `byte` on row
+    /// `row`, or the hardcoded-pitch fallback `text_left + char_width *
+    /// fallback_chars` when that row has no glyph there.
+    ///
+    /// THE ONE PANEL X LOOKUP: the amber caret and the field's selection band
+    /// both come through here, so a band edge can never be placed by a
+    /// different rule than the caret it sits beside — which is exactly the
+    /// hardcoded-pitch drift `panel_layout`'s own doc guards the caret from.
+    pub(super) fn panel_glyph_x(
+        &self,
+        row: f32,
+        byte: usize,
+        fallback_chars: usize,
+        text_left: f32,
+    ) -> f32 {
+        for run in self.panel_buffer.layout_runs() {
+            if run.line_i != row as usize {
+                continue;
+            }
+            for g in run.glyphs.iter() {
+                if g.start == byte {
+                    return text_left + g.x;
+                }
+            }
+        }
+        text_left + self.metrics.char_width * fallback_chars as f32
     }
 
     /// Underline rectangle(s) for an active IME preedit, in the SAME `[x,y,w,h]`

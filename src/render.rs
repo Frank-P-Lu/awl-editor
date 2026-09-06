@@ -2314,6 +2314,9 @@ pub struct TextPipeline {
     search_editing_replacement: bool,
     search_query_caret: usize,
     search_replacement_caret: usize,
+    /// The focused panel field's selection, CHAR indices into that field —
+    /// `ViewState::search_field_selection`, verbatim (see its doc).
+    search_field_selection: Option<(usize, usize)>,
     /// The selected-ROW highlight quad behind the overlay's chosen candidate
     /// (same rounded SelectionPipeline primitive as match/selection). The band
     /// COLOR comes from the ONE `highlight_treatment` owner: the muted selection

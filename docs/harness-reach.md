@@ -224,6 +224,35 @@ assertion on `App` state (`app::tests::read_only_surface` is the worked example)
 not a capture. Composition PREEDIT is a different matter and has its own
 deterministic render hook, `--preedit`.
 
+### A macOS MENU KEY EQUIVALENT is not a key, and no capture door can spell it
+
+AppKit answers a menu item's key equivalent in `performKeyEquivalent:` against
+the main menu **before** the key window ever sees the event. So on macOS ⌘A is
+not a `winit` key at all: it fires Edit ▸ Select all, and
+`App::handle_menu_event` routes that id into `App::apply` as an `Action`. A
+menu or context-menu CLICK and a palette row's `Effect::RunAction` arrive the
+same way — an `Action` with no keystroke behind it.
+
+Every capture door enters through the key drivers instead. `--keys` (tier 1)
+and `--screenshot-app` (tier 2) both replay chords through the real keymap, and
+a summoned surface's key guard (`search::keys::intercept`) consumes those before
+`apply_transition` — so a capture can never observe what an action-only door
+does while such a surface is up. That gap is exactly where ⌘A-in-Find selected
+the whole document for the life of the panel.
+
+**The tier-2 door.** Drive `App::apply(action, …, Door::Menu)` — or the real
+`App::handle_menu_event(id, …)` where the id → action resolution is itself part
+of the claim — on a live headless `App`, and read the buffer and the surface's
+own field back. `app::tests::summoned_field_actions` is the worked example; its
+verb roster comes from `menu::edit_menu_actions()`, which is the Edit menu's own
+rows, i.e. precisely the set that gets real key equivalents.
+
+**What it does NOT open.** There is no `--keys` token and no sidecar field for a
+fired menu item, so a Verify clause about "⌘A while the panel is up" is a Rust
+assertion on `App` state, never a capture — and the PNG half of such a claim
+(does the field's selection band actually paint?) is a render-tier pixel test
+over `ViewState`, `render::tests::panel_field_selection`.
+
 ### Mouse-drag gestures have zero `--keys` vocabulary
 
 `--keys` chords replay through the real keymap (`keymap.rs` -> `Action`), and

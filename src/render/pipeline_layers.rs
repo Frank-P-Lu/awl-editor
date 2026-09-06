@@ -140,6 +140,10 @@ impl TextPipeline {
             self.float_border.draw(&mut pass);
             self.float_card.draw(&mut pass);
             self.panel_card.draw(&mut pass);
+            // The focused field's selection band: over the card, UNDER the
+            // panel text and caret, exactly where the document's own
+            // selection sits relative to its glyphs.
+            self.panel_query_selection.draw(&mut pass);
             self.panel_caret.draw(&mut pass);
             self.panel_renderer
                 .render(&self.atlas, &self.viewport, &mut pass)

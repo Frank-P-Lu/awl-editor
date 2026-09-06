@@ -393,6 +393,7 @@ impl TextPipeline {
             search_editing_replacement: false,
             search_query_caret: usize::MAX,
             search_replacement_caret: usize::MAX,
+            search_field_selection: None,
             overlay_rows,
             overlay_bars,
             footer_plate_rim,

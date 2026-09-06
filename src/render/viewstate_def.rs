@@ -48,6 +48,16 @@ pub struct ViewState {
     pub search_editing_replacement: bool,
     pub search_query_caret: usize,
     pub search_replacement_caret: usize,
+    /// The active selection inside the find/replace panel's FOCUSED field, as
+    /// CHAR indices `(start, end)` into that field's own text — armed by the
+    /// panel's select-all verb (`SearchState::select_all_focused_field`) and
+    /// collapsed by the next motion or edit. Only the focused row can carry a
+    /// visible band, which is why this is ONE field rather than one per row:
+    /// it is asked of the same `editing_replacement` that already decides
+    /// which row the amber caret rides, so the band and the caret cannot end
+    /// up on different rows. `None` with nothing selected, and off the panel
+    /// entirely — nothing draws a panel band with the panel down.
+    pub search_field_selection: Option<(usize, usize)>,
     pub overlay_active: bool,
     pub overlay_align: Option<theme::CardAnchor>,
     pub overlay_crisp: bool,
@@ -346,6 +356,7 @@ impl ViewState {
             search_editing_replacement: false,
             search_query_caret: usize::MAX,
             search_replacement_caret: usize::MAX,
+            search_field_selection: None,
             overlay_active: false,
             overlay_align: None,
             overlay_crisp: false,

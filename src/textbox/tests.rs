@@ -402,3 +402,57 @@ fn eq_str_impl_matches_plain_string_compare() {
     assert_eq!(tb, "hello");
     assert_ne!(tb, "world");
 }
+
+// --- E. SELECT ALL -------------------------------------------------------
+
+/// **SELECT ALL SPANS THE FIELD IN CHARS AND NEVER ARMS A ZERO-WIDTH RANGE.**
+///
+/// Swept over the SAME Unicode fixture table the parity block above uses, so
+/// the span is proven against CJK, decomposed and precomposed combining
+/// clusters, ZWJ and regional-indicator sequences — not just ASCII, where a
+/// byte length and a char count agree and the bug would be invisible. The
+/// EMPTY field is the invariant's own edge: an armed zero-width selection
+/// would make the next keystroke "replace" nothing while reporting that it
+/// replaced something.
+#[test]
+fn select_all_spans_the_whole_field_in_chars() {
+    let mut empty = TextBox::new();
+    empty.select_all();
+    assert_eq!(
+        empty.selection_range(),
+        None,
+        "an empty field arms no selection (never a zero-width range)"
+    );
+    assert_eq!(empty.caret(), 0);
+
+    for (label, text) in fixtures() {
+        let n = text.chars().count();
+        let mut tb = TextBox::seeded(text);
+        tb.set_caret(0);
+        tb.select_all();
+        assert_eq!(
+            tb.selection_range(),
+            Some((0, n)),
+            "{label}: select-all spans the field in CHARS"
+        );
+        assert_eq!(
+            tb.caret(),
+            n,
+            "{label}: the caret is the active edge, at the end"
+        );
+
+        // The journey the panel's ⌘A exists for: the next keystroke replaces
+        // the field whole, through the ordinary edit rule (no new mechanism).
+        tb.insert('z');
+        assert_eq!(
+            tb.text(),
+            "z",
+            "{label}: typing replaces the whole selection"
+        );
+        assert_eq!(
+            tb.selection_range(),
+            None,
+            "{label}: the selection is spent"
+        );
+    }
+}

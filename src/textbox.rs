@@ -163,6 +163,21 @@ impl TextBox {
         self.anchor = None;
     }
 
+    /// SELECT ALL — anchor at 0, caret at the end, the whole field selected.
+    /// The FIELD-SCOPED answer to the select-all verb: a summoned single-line
+    /// surface owns that verb while it is up, so it can never reach the
+    /// document parked behind it. An EMPTY field arms NO selection (the
+    /// struct doc's "never a zero-width selection" invariant, kept at the
+    /// second place a selection is born rather than papered over by callers),
+    /// so a reader of [`Self::selection_range`] never has to length-test.
+    /// Every EDIT op already replaces an active selection, so the "⌘A then
+    /// type" journey falls out of the existing rules with nothing added.
+    pub fn select_all(&mut self) {
+        let len = self.len_chars();
+        self.caret = len;
+        self.anchor = (len > 0).then_some(0);
+    }
+
     /// The BYTE offset of CHAR index `idx` within `text` (`idx` may equal
     /// `len_chars()`, yielding `text.len()`) — the ONE char->byte conversion
     /// every splice below routes through, so a multibyte field (CJK /
