@@ -104,197 +104,6 @@ doubling; option off ⇒ byte-identical render to today.
 
 ---
 
-### 567 — scripts/ cruft sweep: delete six concluded-investigation scripts and five unwired shell laws (user decision, 2026-09-06 — "unused stuff is kinda cruft right… i think i lean delete too")
-
-🟢 MERGED, EXACT-MAIN RECEIPT OWED — landed as merge `8c513232` (lane tip `7c99639a`, worktree
-`.codex/worktrees/item-544-frost-box`). Merge verified as a real two-parent merge; the combined
-candidate compiles clean on `cargo check --all-targets`, which is the check that catches the
-class where git merges a missing per-call-site field cleanly and the tree fails later.
-
-**The premise held exactly, and this time it was re-measured rather than inherited.** The
-lane swept the pre-sweep tree with `git grep -F` after first proving that tool reaches
-hidden paths, and separately ruled out the two ways a basename sweep can miss a live
-reference — glob-shaped paths under `scripts/`, and directory enumeration inside
-`code-health.py` (which filters a tracked-file list and holds no script roster). All eleven
-deletions have zero references outside their own bodies except the three the brief already
-named: `capture-ground-space.sh` and `capture-overlay-header-identity.sh` at
-`docs/render.md:54`/`:164` (the brief said 50/160; the file has since shifted four lines) and
-`test-sccache.sh` at `src/version_law.rs:15`.
-
-`8a2b5d48` was NOT the tip — `2c41d06a` was, a rebase of it with two hunk-header offsets and
-otherwise an identical patch. Content is right: exactly the eleven deletions, no more and no
-fewer, all four riders landed, and every named keep still present (both CI budget twins
-confirmed live in `ci.yml`).
-
-One defect found and fixed: dropping the clause from `version_law.rs`'s module doc left the
-paragraph unwrapped — a 41-column orphan and one line four columns past the 76-column
-ceiling the rest of the file holds. `7c99639a`, wrap only, text unchanged.
-
-Receipt: `native-gate-receipt commit=7c99639a health=pass:323s conventions=mac,linux
-scope=all-targets menubar=full:on unit_tests=4853 unit_shards=6 integration_targets=17`,
-plus `web-smoke: OK`. Both came on retry, for the reason item 593 now records.
-
-⚠️ **The receipt's base is `1bb0e751`, not today's main.** The branch is 2 ahead / 8 behind
-and cannot be fast-forwarded, so the merge train re-gates the combined candidate rather than
-carrying this receipt across. The divergence is provably benign — the sweep's 15 files and
-the 26 files main has changed since are disjoint — but benign is not gated.
-
-**Two corrections this item's own brief got wrong, recorded so they die here:** (a) the brief
-says the only wired shell law is `test-native-gate.sh`; there are TWO — `linux-deps-law.sh`
-is wired at `code-health.sh:70`. The deletions are unaffected. (b) hygiene rider (a)'s stated
-motive is false; see item 594.
-
-A full audit of `scripts/` (78 tracked files) found the tree largely
-load-bearing — CI-invoked, gate-invoked, or documented entry points — with
-exactly eleven deletions and two hygiene riders. Git history keeps everything;
-no dangling references may survive the sweep.
-
-**Delete, zero references anywhere:**
-`capture-overlay-chrome-dpi-matrix.sh`, `capture-paperbark-wallpaper.sh`,
-`capture-warp-motion.sh` (evidence captures from concluded investigations) and
-`ci-mac-bisect.sh` (the hosted-mac freeze bisect harness; the wedge it hunted
-is still the tolerated-red pair in ci.yml, and `git log` keeps the tool if the
-hunt reopens).
-
-**Delete, past-tense doc citations only:** `capture-ground-space.sh`
-(docs/render.md:50) and `capture-overlay-header-identity.sh`
-(docs/render.md:160). Each is cited once as the evidence sheet of a finished
-investigation — reword those clauses so no deleted path stays referenced; the
-evidence lives in history.
-
-**Delete, the five unwired shell laws:** `test-sweep.sh`,
-`test-disk-preflight.sh`, `test-reap-orphaned-gates.sh`,
-`test-worker-build.sh`, `test-sccache.sh`. Nothing runs them — the only wired
-shell law is `test-native-gate.sh` (code-health.sh:73). Measured 2026-09-06:
-two of the five are ALREADY red, and both reds are law-rot on healthy
-subjects, not regressions — `test-sccache.sh` pins the literal `5G` while
-`.cargo/config.toml` moved to `10G`; `test-worker-build.sh`'s
-RUST_TEST_THREADS owner-whitelist predates native-gate.sh/code-health.py and
-its `rg --hidden` sweeps `.git/lost-found`. Wiring instead was costed and
-declined: ~40s per gate (the reap law alone runs 30s) plus repairing both
-rotted laws, to guard orchestrator plumbing rather than the product. Recorded
-decision: an unwired law is worse than none — it rots silently and then cries
-wolf; if one of these subjects earns a law again, it gets wired into
-`code-health.sh` at birth, like `test-native-gate.sh`.
-
-**Reference cleanup that makes this Rust-touching:** `src/version_law.rs:15`'s
-module doc names `test-sccache.sh`'s fixture crate among the legitimate
-`0.1.0`s — drop that clause. Full receipt required.
-
-**Hygiene riders:** (a) `code-health.sh`'s `python3 scripts/code-health.py`
-invocation gains `PYTHONDONTWRITEBYTECODE=1` (parity with
-`test-native-gate.sh`; kills the recurring `scripts/__pycache__/`). (b)
-RELEASING.md gains one line naming `scripts/pretag-journeys.py` as the
-pre-tag journey-sweep instrument — CLAUDE.md's pre-tag policy demands the
-sweep, and no doc tells anyone the tool exists.
-
-**Explicitly kept (asked and answered, do not re-audit):** the
-`ci-atspi-budget.sh`/`ci-wedge-budget.sh` near-twins (both live in ci.yml;
-merging is churn), the ground-contrast and ambient-motion capture/measure
-pairs (`ground-contrast-measure.py` is cited by
-`render/tests/deckle_ground.rs`; ambient motion just shipped), the hero
-image trio (site asset pipeline, site/README.md), and `pretag-journeys.py`
-(documented by rider b).
-
-Verify: after the sweep, `rg -l <basename>` for each deleted file returns no
-tracked hits; `scripts/code-health.sh` passes; full native-gate receipt (a
-Rust doc comment moved).
-
----
-
-### 568 — spell suggestions never offer the user's own dictionary words (user report, 2026-09-06 — "add to dictionary, but this new word doesn't really show up in the autocomplete?" — the ⌘-; spell picker is meant; explicitly NOT a completion feature: "we don't need autocomplete")
-
-🟢 MERGED, EXACT-MAIN RECEIPT OWED — landed as merge `a11522ae` (lane tip `5795ebeb`, worktree
-`.codex/worktrees/item-543-tabledims-frost`). Two-parent merge verified; combined candidate
-compiles clean. **The board was stale and the tree
-was right:** fully implemented as `969a1f88`, every Build and Laws clause satisfied.
-
-The premise survives and is one-sided, which is why the bug was invisible: `check` consults
-`user_words` (spell.rs:271) while pre-commit `suggest` was `self.dict.suggest(word, &mut out)`
-alone, and nothing ever inserts a user word into `self.dict`. New `spell/personal.rs` runs a
-bounded Levenshtein scan over `user_words`, recases to the typed shape, and `merge_ahead`
-places personal hits AHEAD of bundled ones — load-bearing, because the Spell card truncates
-after assembly. 12 laws, enrolled from `DictVariant::ALL` rather than a named member.
-
-Mutation-proven by the lane, red observed each time: reinstating the bundled-only `suggest`
-reddens **9 of 12**; ranking personal behind bundled reddens the ranking law and the
-post-truncation law.
-
-The personal dictionary is check-only. `SpellChecker::check` consults
-`user_words` (src/spell.rs:261), but `suggest`/`suggest_at`
-(src/spell.rs:364) consult `self.dict` — the bundled Hunspell dictionary —
-alone, so a typo one letter off a word the user added is never offered that
-word as a correction. The add path, storage
-(`~/.config/awl/dictionary.txt`, one word per line, loaded lowercased via
-`set_user_words`) and cache invalidation are all sound; only the suggest
-side is blind.
-
-Build: merge near-miss matches from `user_words` into the suggestion list.
-The set is small (a personal dictionary), so a simple bounded edit-distance
-scan over it is enough — no need to teach spellbook anything. Decisions the
-worker owns: ranking (a personal word at comparable distance should not
-lose to a dict word — it is the user's own vocabulary) and case shape
-(stored words are lowercase; follow the typed word's capitalization the way
-Hunspell suggestions do). Note the picker truncates to
-`OverlayKind::MAX_SUGGESTIONS` after assembly (overlay/state.rs:892) — merge
-before the cut.
-
-Laws: add a word, misspell it nearby ⇒ the added word appears in
-suggestions (through the real `suggest` path, not a fixture predicate); a
-distant added word does not appear; capitalized typo ⇒ capitalized
-suggestion; both the chord picker and the palette "Spell suggestions…" row
-reach the merged list (one owner, no second suggest path).
-
----
-
-### 569 — personal dictionary picker: list the words, remove per row (user decision, 2026-09-06 — "richer listing words… something very simple")
-
-🟢 MERGED with 568 as `a11522ae`, EXACT-MAIN RECEIPT OWED — same lane, worktree and tip. **This half was not
-unstarted either:** committed as `5eb70b93`, every clause satisfied. `OverlayKind::UserWords` on
-the Asset Cleaner's grammar, `Effect::ForgetUserWord`, a file rewrite preserving `#` comments,
-blank lines and order, and the two per-row destructive accepts merged into ONE owner
-(`row_retiring_accept`) rather than two adjacent early-returns saying the same thing. Docs in
-GUIDE/REFERENCE/CAPTURE/harness-reach.
-
-Mutation-proven, red observed: a rewrite that drops comments/blanks reddens three laws; skipping
-the in-memory removal reddens two; a `remove_user_word_row` that reports success without removing
-reddens the row-retirement law.
-
-**Capture clause honoured, checked independently.** No PNG or JSON is committed and no `/Users/`
-appears anywhere in the branch diff. The lane reproduced the capture itself against an explicit
-`--config` and a seeded `--root`, writing outside the tree: `driver: "live-app"`, `mode:
-"user_words"`, `replay_skips: []`, rows gathered from the live checker. Row legibility asserted by
-its own pixel arithmetic — ink 162 against a uniform ground of 191.7. The lane reports its figures
-differ from the commit message's because it ran a different world, and confirms only "real ink",
-not the commit's specific numbers. That is the right way round: a figure owed to a human is read
-out of the product, never out of the report that landed it.
-
-`~/.config/awl/dictionary.txt` is user-facing and completely undocumented —
-no UI shows its contents and no doc says it exists; removal is hand-edit
-only (src/app/files/dictionary.rs:90, deliberate v1). Build a summoned
-picker, very simple: a palette row (working name "Personal dictionary…")
-listing the loaded words, with accept-on-row REMOVING that word — the
-"Clean unused assets…" picker is the exact structural precedent
-(overlay/assets.rs: rows from a summon-time scan, per-row destructive
-accept that keeps the picker open via `remove_asset_row`, effect applied in
-app/apply.rs). Removal rewrites the file preserving what the append path
-already preserves — hand-edited comments, blank lines, order — minus the
-removed line, through `fs::write_atomic`, then invalidates spell caches and
-respells (same tail as `add_to_dictionary`).
-
-Empty state says where words come from ("Add '…' to dictionary" in the
-spell picker). Enrolment: `OverlayKind` roster, the closed
-`COMMAND_TASK_CATEGORIES` table and the commands catalog (the coverage law
-holds the row red until classified). Rider: document the file and the
-picker in GUIDE/REFERENCE (regen-reference.sh if the roster feeds it).
-
-Laws: picker lists exactly the loaded words; removing one respells the
-buffer (a squiggle returns); the file keeps its hand-edited comments across
-a removal; capture the picker via `--screenshot-app` against an explicit
-`--config` (never the ambient one — overlay rows photograph real content).
-
----
-
 ### 570 — blockquote pull-quote: the 66 gets its 99 (user report, 2026-09-06 — "the 66s must be followed with 99s… it kinda bothers me"; the blockquote ornament, not smart quotes)
 
 The hanging pull-quote mark draws only the OPENING `“` — `QUOTE_MARK_GLYPH`
@@ -323,70 +132,6 @@ Laws: every world's blockquote capture shows BOTH marks by pixel presence
 pass); open and close share value/scale by arithmetic; a one-line
 blockquote still shows a legible pair (the degenerate case where first
 line == last line); no mark on non-blockquote lines.
-
----
-
-### 571 — revealed thematic break keeps its ornament-sized row: giant raw `***` and a caret slab 2.2× too tall (user report, 2026-09-06 — "the way the cursor highlights the * is all wrong… like its wayy too tall?"; reproduced headlessly, first try)
-
-🟢 MERGED, EXACT-MAIN RECEIPT OWED — landed on main as merge `a7846f7a` (`6b1a98a4` + fmt
-`0d765228`). The receipt quoted below is the merge-train candidate's, taken at `ceb5c252`;
-main has since taken 574, 575, 542 and 560's hint card, so no receipt describes the tree as
-it now stands. **First attempt 2026-09-07 produced NO RECEIPT and is void on two independent grounds, neither
-of them a defect in the tree:** HEAD moved under the run (`3cf7061b` → `fdf7139d`, a
-concurrent board-only commit), and the host was at load 43 on ten cores with three lane
-builds live, so `code-health.sh`'s `cpu-spin` probe — which asserts that a deliberately
-spinning fixture peaks a tracked core — could not see its own spinner. That is this repo's
-standing hazard in its purest form: the law was fine and the CONFIGURATION it ran under was
-the untested hypothesis. The receipt is re-taken on a quiet host once the lanes are off it,
-and until then no one may describe main as gated.
-`build_line_attrs` hoists the reveal predicate above the ornament-scale decision, so a
-revealed rule line drops the ornament's room entirely: raw markers at body size, body-height
-row, body-size caret. Four laws (2 sidecar geometry, 2 real-pixel), each single-mutation
-proven. Merge-train receipt on the exact combined candidate (566 + 571/573 + the mark raise):
-`native-gate-receipt commit=ceb5c252 health=pass:239s conventions=mac,linux scope=all-targets
-menubar=full:on unit_tests=4835 unit_shards=6 integration_targets=17`. `rects.rs`'s size mark
-rose 1755 → 1775 with the reason recorded (frozen baseline 2238, so a raise below the
-baseline, not a ceiling breach).
-
-Measured on Saltpan (`--theme Saltpan`, caret onto a `***` line): a body row
-is 32px; the thematic-break row is 70.4px — exactly `ornament_scale` 2.2× —
-caret on or off. On reveal the raw `***` shapes at 2.2× body size (33px
-advances vs ~14px body) and the block caret takes the full row: a ~33×70px
-primary-ink slab dwarfing the small high-hung asterisk ink. Same numbers
-for `---`; reproduces in every world (each carries `ornament_scale` ≥
-~2.16) — Saltpan is simply the default.
-
-Mechanism: deliberate machinery with an unconsidered corner.
-`md_line_scale` (src/render/spans/layout.rs:40) grows a confirmed
-thematic-break line to the world's `ornament_scale` so the row fits the
-centered break fleuron `prepare_ornaments` draws off-caret, in lockstep by
-design. But it is a whole-line font+row scale, so the caret-entry reveal
-inherits the ornament's size for the raw markup, and the block caret
-inherits the 70px row. The ornament needed the room; the revealed text
-never did.
-
-DECIDED (user, 2026-09-06 — "yeah exactly no need for ornament room"):
-while the rule line is revealed (caret OR selection touches it — the one
-`wysiwyg_reveals` rule), the ornament is not drawn, so the line drops the
-ornament scale entirely: raw `***`/`---`/`___` at body size, row at body
-height, caret at body caret size. Line-local reflow on reveal is already
-the conceal system's accepted cost, and `refresh_rule_conceal` already
-invalidates `row_geom` on exactly this transition — thread the reveal
-state into the `md_line_scale` decision through its confirmed-rule gate's
-call sites rather than adding a second scale owner. Mind the skip-gate
-tripwire: the reveal set already keys on caret line AND selection
-(`last_conceal_selection`); the scale must key on the same state or a
-selection-only reveal serves a stale tall row.
-
-Laws: caret on a `***` line ⇒ that row's sidecar height equals the body
-row height and revealed advances equal body advances (sweep `***`/`---`/
-`___`); caret off ⇒ height returns to `ornament_scale` × body and the
-ornament draws (presence floor by pixel arithmetic, not just geometry);
-selection touching the line without the caret ⇒ same reveal metrics (the
-skip-gate axis); a `---` inside a fenced code block stays body-height
-throughout (the confirmed_rule gate must keep holding). Verify across a
-second world beside Saltpan so the scale is read from the roster, not
-pinned.
 
 ---
 
@@ -423,40 +168,6 @@ oracle). Production audit tier. An audit that finds something ends by
 writing the missing law; the deliverable is the cell table plus laws, with
 each defect it finds either fixed in-item when small or queued as its own
 scoped item when not.
-
----
-
-### 573 — selection-revealed rule line double-draws: raw `***` AND the break fleuron together (found by 572's first probe, 2026-09-06; reproduced headlessly by pixel arithmetic)
-
-🟢 MERGED, RECEIPT OWED — landed with 571 as merge `a7846f7a`. `rule_lines` now drops every
-line the selection touches, not just the caret's own, so the fleuron stops drawing over the
-revealed raw markers. Both layers read one owner (`selection_touch_bytes` /
-`selection_touches`) rather than re-deriving the reveal state, which is what let them
-disagree. Merge-train receipt taken at `ceb5c252`; the exact-main receipt for today's HEAD — see 571.
-
-A selection that touches a thematic-break line (caret elsewhere) reveals
-the raw markers — correct since the 2026-07-22 selection-reveal widening —
-but the centered break fleuron still draws on top of the row.
-Caret-on-the-line hides it correctly. Evidence, Saltpan: off-state fleuron
-ink at x 586–613 with column left 139.2; in a selection-touch capture the
-adaptive column sat 80px right (left 219.2) and an identical-width ink run
-appears at exactly 666–693 inside the revealed row, alongside the 2.2×
-raw `***`. Mechanism: the selection-reveal decision (`wysiwyg_reveals` +
-`selection_touch_bytes`) was threaded into span/line decisions and the
-table x-ray, but `prepare_ornaments`' hide-while-revealed gate still keys
-on the caret line alone.
-
-Build: thread the same selection-touch state into the ornament layer's
-draw decision — one reveal rule, one owner, no per-layer re-derivation.
-Sequenced WITH 571 (the row-scale fix must key on the identical state or
-the two layers disagree again from the other side).
-
-Laws: selection touching a rule line ⇒ zero fleuron ink in that row's band
-(pixel arithmetic, swept across the adaptive column's positions — the
-probe that caught this moved the column); caret-on keeps hiding it;
-selection cleared ⇒ fleuron returns (presence floor, the ornament must
-exist off-reveal for the absence assertion to be non-vacuous); a fenced
-`---` body line draws no fleuron in any state.
 
 ---
 
@@ -783,85 +494,6 @@ journey after the repair.
 
 ---
 
-### 586 — Bold wraps trailing whitespace and produces literal Markdown (live bug hunt, 2026-09-06)
-
-🟢 MERGED with 587 as `945ceff1`, EXACT-MAIN RECEIPT OWED — lane `item-586-587`, tip
-`c81de2d8`, receipt green on base `3cf7061b`. Two-parent merge verified; candidate compiles
-clean.
-
-**Premise held, measured against the real parser before any edit:** the selection produced
-`**hello world **`, and `md_spans == []` — no bold anywhere, four literal asterisks. The
-mechanism is that CommonMark emphasis is a FLANKING grammar: a closing run with whitespace on
-its inner side is not a close. `InlineKind::delim() -> &'static str` — one fixed delimiter
-string per kind — was the whole model, and the five kinds do not share one grammar. Edge
-whitespace now stays outside the delimiters, in the document, where the user put it; a
-whitespace-only selection is a calm no-op.
-
-**Observed / reproduce.** Paste a document with a body line `hello world `
-(one trailing space). Select that line's contents using line-start then
-⌘⇧Right, press ⌘B, and move down. The line becomes `**hello world **` and
-displays literal asterisks with ordinary text. The identical control without
-the trailing space renders bold. Both arms were exercised in the running
-macOS app, Kite. Preserve exact whitespace in the fixture.
-
-**Build / scope.** Formatting a selection with edge whitespace must produce
-valid emphasis while retaining the original whitespace outside the delimiters.
-Read docs/markdown.md and the shared formatting owner. Audit sibling inline
-formatters according to their own grammar, including leading/trailing spaces,
-tabs, whitespace-only selections, line boundaries and reversed selections;
-do not impose emphasis rules on code spans indiscriminately.
-
-**Verify.** Assert exact resulting text, parsed emphasis coverage of the intended
-content, selection/caret behavior, toggle and undo round trips. Use the existing
-Markdown parser rather than marker presence as the oracle. Add a failing law
-for the trailing-space case and mutation-prove it. Confirm the off-caret live
-preview; apply standing pixel/vision checks if the implementation touches rendering.
-
----
-
-### 587 — Inline Code fails to protect backticks inside the selection (live bug hunt, 2026-09-06)
-
-🟢 MERGED with 586 as `945ceff1`, EXACT-MAIN RECEIPT OWED — same lane and tip.
-
-**Premise held:** the reported selection produced two `Code{inline:true}` spans, `"a "` and
-`" b"`, with `tick` outside both — the user's "two separate code fragments" exactly. A code
-span's fence is a RUN that closes on the first run of its own length, so a single backtick
-around a payload containing a run of 1 closes early. The fence is now the shortest run absent
-from the payload, plus one space per side when the payload's own edge is a backtick; the
-recognizer matches exactly the shape the emitter writes, so a toggle strips whatever fence it
-wrote.
-
-**A third defect neither item named, found in the neighbourhood** — which is why the standing
-policy audits a bug's neighbourhood: `content_is_kind` sampled the payload's MIDPOINT, which
-lands inside a nested construct. Bolding a line holding a code span and pressing the chord
-again sampled the CODE span, read "not bold", and wrapped a second time.
-
-One owner: `InlineKind::grammar()` returns `Prose` or `CodeSpan`, and both doors — dispatch's
-`apply_inline_format` and the popover's `inline_active` — resolve through one `payload_span`,
-with the bypass module-private. Six laws, every one asking the real parser rather than
-counting markers, each mutation-proven with the mutation asserted to apply, to build AND to
-run. Off-caret live preview confirmed by capture against an explicit `--config`/`--root`:
-the fixed code line paints ONE pill where the broken one paints two with `tick` in the gap.
-
-**Observed / reproduce.** Paste a body line containing a space-separated `a`,
-the literal source `` `tick` ``, and `b` (whole line: ``a `tick` b``). Select
-the entire line and press ⌘E, then move down. The preview shows two separate
-code fragments around `a` and `b`, with `tick` outside them. Moving back onto
-the line exposes single-backtick outer delimiters colliding with the existing
-inner pair. Observed in the running macOS app, Kite; reproduce on a recorded
-current build before implementation.
-
-**Build / verify.** Read docs/markdown.md. The shared inline-code formatter must
-choose a delimiter run and any grammar-required padding that preserve the
-selected literal content as one code span. Sweep internal backtick-run lengths,
-backticks at either edge, spaces, empty selections, existing spans and toggle/
-undo paths. Parse the generated Markdown and assert exactly one code span with
-the intended literal payload; marker counting alone is insufficient. Add the
-missing law and prove it fails when single delimiters are restored. Confirm
-the live preview and route every formatting door through the same owner.
-
----
-
 ### 588 — list-bullet pairs derive from each world's worn ornament set (carried out of 536's fold, 2026-08-30 decision)
 
 Item 536 assigned all 20 worlds their Nishiki ornament trios (dash/star/underscore) and
@@ -880,6 +512,8 @@ Laws: every world's bullet pair is drawn from the same adopted union its trio is
 union from the roster, not a named member); no world keeps a bullet from the retired
 vocabulary; the pair stays legible at prose size in both grounds. The visual outcome is a
 taste call owed to the user — deliver a gallery capture across the roster, not an argument.
+
+---
 
 ### 589 — Commands and shared transient chrome: clearer controls within each world's composition (user decision, 2026-09-07)
 
@@ -910,6 +544,8 @@ surface × composition × placement roster, narrow/wide and DPI 1/2; assert
 geometry/state and pixel legibility, add mutation-proven laws and the standing
 five-shot vision smoke. Keep anchor stability and keyboard behavior intact.
 
+---
+
 ### 590 — Insert Link: a clear URL field with keyboard-first commit (user decision, 2026-09-07)
 
 ⬜ READY — queue only; coordinate shared chrome with 589.
@@ -936,6 +572,8 @@ from the real keymap. Sweep composition families, anchors, narrow widths and
 DPI 1/2; pixel-check label/field clarity and no clipping. Add the missing laws,
 mutation-prove them, and include the standing vision smoke. Report final feel
 as requiring the user's live eye, not as proven by image generation.
+
+---
 
 ### 591 — Find/Replace: preferred bordered chrome, keyboard discoverability, existing top-right placement (user decision, 2026-09-07)
 
@@ -965,6 +603,8 @@ find-only/replace and case states across world compositions, widths and DPI
 mutation-proven laws and the five-shot vision smoke. Theme identity remains
 data through shared renderers, not one universal screenshot skin.
 
+---
+
 ### 592 — Settings: compact label/value relationships and readable workspace hierarchy (user approval, 2026-09-07)
 
 ⬜ READY — queue only; coordinate shared chrome with 589.
@@ -991,6 +631,8 @@ DPI 1/2. Assert label/value proximity, usable controls, no clipping, correct
 focus/selection and unchanged setting behavior. Validate appearance with pixels
 and the standing vision smoke; add mutation-proven laws at shared seams. Final
 theme-specific composition remains a live taste review.
+
+---
 
 ### 593 — `sweep.sh 1` prunes every worktree's `target/`, including the ones being built in (found by 567's lane, 2026-09-07; measured, not inferred)
 
@@ -1052,6 +694,8 @@ consumer, no `scripts/__pycache__` exists; prove it non-vacuous by removing a gu
 watching the directory come back. Rider: correct rider (a)'s comment where it states the
 motive, so the next reader is not taught the wrong mechanism.
 
+---
+
 ### 595 — an `overlay_hover_stability_law` failure appeared on one gate arm, once, and could not be reproduced (found by 568/569's lane, 2026-09-07)
 
 ⬜ READY — small, but it is in the class this repo has been bitten by repeatedly.
@@ -1092,6 +736,28 @@ the sentence, and the check is asking the property on both sides of the conditio
 to LF by a removal. Unreachable on awl's shipped platforms and therefore not urgent, but it
 contradicts the file-preservation promise the same function otherwise keeps, and the rope's
 whole CRLF discipline is "load normalizes, save restores".
+
+### 597 — three inline-formatting cases that predate 586/587 and have no valid output today (found by that lane, 2026-09-07)
+
+⬜ READY — small, and filed so they are not rediscovered as regressions of the fix that found
+them. All three PRE-DATE 586/587 and none was introduced by it.
+
+(a) A document backtick immediately OUTSIDE the selection — `` x`y ``, select `y` — has no
+valid output without editing text the user did not select. The honest answers are a refusal
+or a widened edit, and which one is a product decision, not an implementation detail.
+
+(b) `` **`y`** `` — a payload that is entirely a code span — cannot be recognised by any span
+oracle, because awl emits no prose span when no `Event::Text` survives inside. So the toggle
+cannot tell "already bold" from "not bold" here. The fix is a different oracle, not a
+different threshold.
+
+(c) `==` cannot contain a backtick at all: `push_highlight_spans` sees one text event.
+
+Build: decide (a) deliberately — refuse or widen — and give (b) an oracle that does not depend
+on a surviving text event. Laws: each case asserted through the real parser, and each proven
+non-vacuous by restoring today's behaviour and watching it go red.
+
+---
 
 ## Owed to the user — landed work awaiting a live eye
 
@@ -1153,46 +819,34 @@ worth a live look at whether the convergence ever reads as landing inside the pa
 common window sizes rather than staying a margin phenomenon. Item 582 (open, above) revises
 this ground's geometry and inherits the same sign-off.
 
-### 597 — three inline-formatting cases that predate 586/587 and have no valid output today (found by that lane, 2026-09-07)
-
-⬜ READY — small, and filed so they are not rediscovered as regressions of the fix that found
-them. All three PRE-DATE 586/587 and none was introduced by it.
-
-(a) A document backtick immediately OUTSIDE the selection — `` x`y ``, select `y` — has no
-valid output without editing text the user did not select. The honest answers are a refusal
-or a widened edit, and which one is a product decision, not an implementation detail.
-
-(b) `` **`y`** `` — a payload that is entirely a code span — cannot be recognised by any span
-oracle, because awl emits no prose span when no `Event::Text` survives inside. So the toggle
-cannot tell "already bold" from "not bold" here. The fix is a different oracle, not a
-different threshold.
-
-(c) `==` cannot contain a backtick at all: `push_highlight_spans` sees one text event.
-
-Build: decide (a) deliberately — refuse or widen — and give (b) an oracle that does not depend
-on a surviving text event. Laws: each case asserted through the real parser, and each proven
-non-vacuous by restoring today's behaviour and watching it go red.
-
 ---
 
-## Not gated — read this before pushing anything
+## Green train — the exact-main receipt
 
-Local `main` carries three merges with **no receipt describing the tree as it stands**: 571/573
-(receipt on candidate `ceb5c252`), 567 (lane receipt on base `1bb0e751`) and 568/569 (lane
-receipt on base `4a0aeeee`). Each lane receipt was green on its own base and the merges are
-verified two-parent merges that compile clean on `cargo check --all-targets` — but a compile is
-not a suite, and a receipt on another base is not a receipt on this one.
+Taken on `5d4819e3` with the host quiet (load ~6 on ten cores), HEAD verified unmoved across
+the whole run:
 
-The exact-main receipt has been deferred twice on purpose rather than faked. The first attempt
-died because the host was at load 43 on ten cores and `code-health.sh`'s `cpu-spin` probe could
-not see its own spinner; the second was not attempted because the host was at load 52 with
-three lanes live. That probe asserts a deliberately spinning fixture peaks a tracked core, so an
-oversubscribed host makes it structurally incapable of passing — the law is fine and the
-CONFIGURATION is the untested hypothesis, which is this repo's standing hazard reached by
-scheduling rather than by code.
+```
+native-gate-health status=ok elapsed_seconds=271 mode=real
+native-gate-receipt commit=5d4819e38bb1fcc6847f298acf1888e30d20239e health=pass:271s
+  conventions=mac,linux scope=all-targets menubar=full:on unit_tests=4903 unit_shards=6
+  integration_targets=18
+```
+plus `scripts/web-smoke.sh` → `==> web-smoke: OK`.
 
-**So: no push, and no one describes main as gated, until the wave drains and the receipt is
-taken on a quiet host.**
+This discharges the receipt owed by 571/573, 567 and 568/569, and covers 586/587 — one
+receipt over the tree they all now share, rather than four receipts over four bases that no
+longer exist. Those seven items leave the board; their decisions are in
+`git log -p -- .orchestrator/queue.md` and their unanswered questions are below.
+
+⚠️ **Hardware bound, restated because a receipt invites forgetting it:** this certifies the
+dev host's real Apple Silicon Metal. Virtualised-GPU behaviour is untested by any local gate,
+a wedge stayed green here while red on hosted macOS for ~140 commits, and CI's lavapipe job
+stayed green through that entire streak. The only arm that has ever seen that axis is CI's
+hosted-mac pair.
+
+⚠️ **It also does not cover the two lanes still live** (583/584 and 585). Their merges need
+their own candidate gated.
 
 ## Watch — verification that only a future run can supply
 
