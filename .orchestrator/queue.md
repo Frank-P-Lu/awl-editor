@@ -1960,6 +1960,33 @@ each defect it finds either fixed in-item when small or queued as its own
 scoped item when not.
 
 ---
+### 573 — selection-revealed rule line double-draws: raw `***` AND the break fleuron together (found by 572's first probe, 2026-09-06; reproduced headlessly by pixel arithmetic)
+
+A selection that touches a thematic-break line (caret elsewhere) reveals
+the raw markers — correct since the 2026-07-22 selection-reveal widening —
+but the centered break fleuron still draws on top of the row.
+Caret-on-the-line hides it correctly. Evidence, Saltpan: off-state fleuron
+ink at x 586–613 with column left 139.2; in a selection-touch capture the
+adaptive column sat 80px right (left 219.2) and an identical-width ink run
+appears at exactly 666–693 inside the revealed row, alongside the 2.2×
+raw `***`. Mechanism: the selection-reveal decision (`wysiwyg_reveals` +
+`selection_touch_bytes`) was threaded into span/line decisions and the
+table x-ray, but `prepare_ornaments`' hide-while-revealed gate still keys
+on the caret line alone.
+
+Build: thread the same selection-touch state into the ornament layer's
+draw decision — one reveal rule, one owner, no per-layer re-derivation.
+Sequenced WITH 571 (the row-scale fix must key on the identical state or
+the two layers disagree again from the other side).
+
+Laws: selection touching a rule line ⇒ zero fleuron ink in that row's band
+(pixel arithmetic, swept across the adaptive column's positions — the
+probe that caught this moved the column); caret-on keeps hiding it;
+selection cleared ⇒ fleuron returns (presence floor, the ornament must
+exist off-reveal for the absence assertion to be non-vacuous); a fenced
+`---` body line draws no fleuron in any state.
+
+---
 ## Needs specific hardware
 
 🔴 BLOCKED — these journeys require physical environments unavailable to the current orchestration host.
