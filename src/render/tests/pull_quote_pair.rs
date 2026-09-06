@@ -36,9 +36,9 @@
 //! differential reporting frame noise would satisfy every presence floor
 //! below it.
 //!
-//! The enrolment is the roster itself ([`theme::THEMES`], twenty worlds
-//! including Cassowary, which lives in its own module and is missed by any
-//! grep over `worlds.rs`), and every failure names the world and the block that
+//! The enrolment is the roster itself — every world in [`theme::THEMES`],
+//! Cassowary included, whose `Theme` lives in its own module and is missed by
+//! any grep over `worlds.rs`. Every failure names the world and the block that
 //! produced it, so a shrinking sweep is visible rather than silent.
 
 use super::dither::{offscreen, read_pixels};
