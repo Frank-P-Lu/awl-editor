@@ -154,10 +154,17 @@ pub(super) fn buffers_info(open: usize, buffer: Option<&Buffer>) -> capture::Buf
 pub(super) fn apply_replay_tail(
     opts: &mut capture::CaptureOpts,
     buffers_open: usize,
+    set_wants_outline_rail: bool,
     buffer: &Buffer,
     replay_skips: Vec<crate::replay::SkippedEffect>,
 ) {
     opts.buffers = Some(buffers_info(buffers_open, Some(buffer)));
+    // The ONE-SHOT `--keys` door builds its own opts rather than going through
+    // `fold_capture_state`, so the working set's rail claim has to be carried
+    // here too — otherwise a replay that opened a second file would place the
+    // column by the photographed buffer alone while a `--screenshot-app` run of
+    // the same journey placed it by the room.
+    opts.set_wants_outline_rail = set_wants_outline_rail;
     opts.replay_skips = replay_skips;
 }
 

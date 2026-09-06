@@ -12,6 +12,12 @@ pub(crate) struct ReplayResult {
     pub(crate) accept: Option<(crate::overlay::OverlayKind, String)>,
     pub(crate) notice: Option<(String, crate::actions::NoticeKind)>,
     pub(crate) buffers_open: usize,
+    /// Does any BACKGROUNDED buffer want the margin outline's rail? Travels
+    /// beside `buffers_open` because it is the same fact about the same
+    /// registry, and the one-shot `--keys` capture has to hand it to the
+    /// renderer or a replay would place the writing column by the photographed
+    /// buffer alone — the very defect the set-level reservation removes.
+    pub(crate) set_wants_outline_rail: bool,
     #[cfg(test)]
     pub(crate) background_buffers: Vec<(crate::buffers::BufferKey, String)>,
     #[allow(dead_code)]

@@ -300,6 +300,7 @@ impl<'a> ReplaySession<'a> {
 
     fn finish(self) -> ReplayResult {
         let buffers_open = self.registry.len() + 1;
+        let set_wants_outline_rail = self.registry.backgrounded_wants_rail();
         let zoom_out = if self.zoom != crate::range::ZOOM.default {
             Some(self.zoom)
         } else {
@@ -339,6 +340,7 @@ impl<'a> ReplaySession<'a> {
             accept: self.accept,
             notice: self.notice,
             buffers_open,
+            set_wants_outline_rail,
             #[cfg(test)]
             background_buffers: self.registry.text_snapshots(),
             intercepts: self.intercepts,
@@ -535,7 +537,13 @@ fn capture_screenshot(
             .collect(),
         );
     }
-    capture_fold::apply_replay_tail(&mut opts, res.buffers_open, &buffer, res.replay_skips);
+    capture_fold::apply_replay_tail(
+        &mut opts,
+        res.buffers_open,
+        res.set_wants_outline_rail,
+        &buffer,
+        res.replay_skips,
+    );
     capture::capture_with(&out, &buffer, &opts)?;
     println!("wrote {} (+ sidecar .json)", out.display());
     Ok(())
