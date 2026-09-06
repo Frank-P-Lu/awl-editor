@@ -62,4 +62,23 @@ impl App {
     pub(crate) fn press_spec_headless(&mut self, spec: &str) -> anyhow::Result<bool> {
         Ok(self.press_chords_headless(&crate::keyspec::parse_chords(spec)?))
     }
+
+    /// **THE HEADLESS IME-COMMIT DOOR** — the press door's sibling for the one
+    /// input path `--keys` structurally cannot spell.
+    ///
+    /// A chord stream replays through the keymap; a COMMITTED IME composition
+    /// (`WindowEvent::Ime(Ime::Commit)`) never touches the keymap at all, so it
+    /// has no chord vocabulary on any capture door and had no headless driver
+    /// either — which is exactly why it was the one insertion path that outlived
+    /// the overlay intercept shutting every other one.
+    ///
+    /// This is a NARROWING, not a stand-in: it hands the same `winit` event to
+    /// the same `App::on_ime` that `lifecycle.rs`'s `WindowEvent::Ime` arm hands
+    /// it to, so a headless commit and a physical composition are the same code
+    /// path minus the platform input method. `docs/harness-reach.md` records what
+    /// that reaches.
+    #[cfg(test)]
+    pub(crate) fn commit_ime_headless(&mut self, text: &str) {
+        self.on_ime(winit::event::Ime::Commit(text.to_string()));
+    }
 }

@@ -15,7 +15,12 @@ impl App {
             Ime::Preedit(text, _cursor) => self.input.keyboard.preedit = text,
             Ime::Commit(text) => {
                 self.input.keyboard.preedit.clear();
-                if !self.document.has_active() {
+                // THE ONE WALL (`app/input/text_door.rs`). This door never
+                // resolves through the keymap, so the overlay intercept that
+                // shuts every chord path cannot see it: a committed composition
+                // arriving while a READ-ONLY prose surface is up would edit the
+                // buffer hidden behind the transcript.
+                if !self.text_door_open(TextDoor::Ime) {
                     return;
                 }
                 for c in text.chars() {

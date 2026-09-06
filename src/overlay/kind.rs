@@ -474,6 +474,55 @@ impl OverlayKind {
         )
     }
 
+    /// **DOES TYPING ON THIS CARD FILTER ANYTHING?**
+    ///
+    /// Every picker's head line is a search field: a typed character narrows the
+    /// rows and the caret parked at its end says so. One kind has no rows to
+    /// narrow. Credits' "list" is a single fixed row that NAMES the document
+    /// beside it (`OverlayState::new_credits`) — there is nothing to choose, so a
+    /// query can only ever hide the one row and leave the reader on `no matches`
+    /// while the prose it named is still on screen.
+    ///
+    /// The answer is read by BOTH ends of the field, so what is advertised and
+    /// what acts are one fact rather than two that agree today: the query's own
+    /// growth door refuses to accept characters ([`OverlayState::push`]) and the
+    /// renderer draws no caret on the head line
+    /// (`ViewState::overlay_query_field`). A card that answers `false` still
+    /// draws its head line — the title is what that line is FOR here — it simply
+    /// stops pretending to be a field.
+    ///
+    /// Wildcard-free: a new kind must say whether it can be searched.
+    pub fn offers_query(self) -> bool {
+        match self {
+            OverlayKind::Credits => false,
+            OverlayKind::Goto
+            | OverlayKind::Project
+            | OverlayKind::ProjectBrowse
+            | OverlayKind::Browse
+            | OverlayKind::Theme
+            | OverlayKind::Caret
+            | OverlayKind::Dictionary
+            | OverlayKind::CjkLang
+            | OverlayKind::Date
+            | OverlayKind::Keymap
+            | OverlayKind::MoveDest
+            | OverlayKind::ExportDest
+            | OverlayKind::Command
+            | OverlayKind::SearchFolder
+            | OverlayKind::Spell
+            | OverlayKind::Keybindings
+            | OverlayKind::Assets
+            | OverlayKind::Rename
+            | OverlayKind::InsertLink
+            | OverlayKind::KeepName
+            | OverlayKind::Context
+            | OverlayKind::TableDims
+            | OverlayKind::History
+            | OverlayKind::Conflict
+            | OverlayKind::Settings => true,
+        }
+    }
+
     pub const SETTINGS_MARKER_PREFIX: &'static str = "§ ";
 
     pub const HEADING_MARKER_PREFIX: &'static str = "❡ ";

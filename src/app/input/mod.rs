@@ -18,7 +18,10 @@ mod keys;
 mod mouse;
 mod mouse_button;
 mod pointer_sync;
+mod text_door;
 mod wheel;
+
+pub(in crate::app) use text_door::TextDoor;
 
 use drags::ImageDrag;
 #[cfg(test)]

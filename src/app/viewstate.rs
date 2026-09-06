@@ -195,6 +195,11 @@ impl App {
             overlay_crisp: ov.is_some_and(|o| o.kind.keeps_backdrop_crisp()),
             overlay_query: ov.map(|o| o.query.text().to_string()).unwrap_or_default(),
             overlay_query_caret: ov.map(|o| o.query.caret()).unwrap_or(0),
+            // Asked of the KIND's own owner, the same door every other per-kind
+            // question here goes through. `true` with no card up: nothing draws
+            // a query caret then, so the inert answer is the one that leaves
+            // every ordinary frame byte-identical.
+            overlay_query_field: ov.is_none_or(|o| o.kind.offers_query()),
             overlay_query_selection: ov.and_then(|o| o.query.selection_range()),
             overlay_title: ov
                 .filter(|o| o.kind.draws_title_prefix())

@@ -185,6 +185,26 @@ impl OverlayState {
     /// hand the keyboard to a blank region, and what makes `Enter` there fall
     /// through to the ordinary close.
     ///
+    /// **IS THE DOCUMENT LAYER SHOWING READ-ONLY PROSE RIGHT NOW?** — the
+    /// read-only prose FAMILY's one membership predicate.
+    ///
+    /// Derived from the roster rather than pinned to a named member: whichever
+    /// kinds [`Self::comparison_request`]'s wildcard-free match answers for ARE
+    /// the family, so a fourth member inherits every law keyed on this the day it
+    /// compiles. It is a question about this CARD in this state, not about its
+    /// kind — an empty timeline shows the user's own document and is correctly
+    /// not a member.
+    ///
+    /// Two consumers, at opposite ends of the same fact: the caret layer parks
+    /// for it (`TextPipeline::document_is_a_transcript`, the render-side twin
+    /// derived from the same request) and every text-insertion door outside the
+    /// shared action core is refused by it (`App::text_door_open`). The caret is
+    /// awl's one accent and it means "you can write here"; a surface that refuses
+    /// text must not draw one.
+    pub fn shows_read_only_prose(&self) -> bool {
+        self.comparison_request().is_some()
+    }
+
     /// Wildcard-free: a new picker kind must say whether it shows read-only prose.
     pub fn comparison_request(&self) -> Option<ComparisonRequest> {
         match self.kind {

@@ -19,7 +19,17 @@ impl OverlayState {
         self.item_sections.clone()
     }
 
+    /// THE ONE DOOR the query grows through — every typed character, from every
+    /// caller, lands here.
+    ///
+    /// A card whose kind offers no query ([`OverlayKind::offers_query`]) refuses
+    /// silently: nothing to filter, so nothing to type. Calm, per DESIGN — no
+    /// beep, no notice, and the card is left byte-for-byte as it was rather than
+    /// re-`refilter`ed into an identical state.
     pub fn push(&mut self, c: char) {
+        if !self.kind.offers_query() {
+            return;
+        }
         self.query.insert(c);
         self.selected = 0;
         self.scroll = 0;
