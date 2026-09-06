@@ -785,7 +785,7 @@ journey after the repair.
 
 ### 586 — Bold wraps trailing whitespace and produces literal Markdown (live bug hunt, 2026-09-06)
 
-🟢 MERGED with 587 as `bf0dd7e6`, EXACT-MAIN RECEIPT OWED — lane `item-586-587`, tip
+🟢 MERGED with 587 as `945ceff1`, EXACT-MAIN RECEIPT OWED — lane `item-586-587`, tip
 `c81de2d8`, receipt green on base `3cf7061b`. Two-parent merge verified; candidate compiles
 clean.
 
@@ -821,7 +821,7 @@ preview; apply standing pixel/vision checks if the implementation touches render
 
 ### 587 — Inline Code fails to protect backticks inside the selection (live bug hunt, 2026-09-06)
 
-🟢 MERGED with 586 as `bf0dd7e6`, EXACT-MAIN RECEIPT OWED — same lane and tip.
+🟢 MERGED with 586 as `945ceff1`, EXACT-MAIN RECEIPT OWED — same lane and tip.
 
 **Premise held:** the reported selection produced two `Code{inline:true}` spans, `"a "` and
 `" b"`, with `tick` outside both — the user's "two separate code fragments" exactly. A code
@@ -1109,7 +1109,7 @@ was type a PREFIX — `Zorb` for `Zorbling`, four edits away — this does not r
 standing "we don't need autocomplete" decision makes that deliberate. Worth asking before 568
 is called closed.
 
-**586/587 — inline formatting (merged `bf0dd7e6`).** Two calls the lane made and flagged
+**586/587 — inline formatting (merged `945ceff1`).** Two calls the lane made and flagged
 rather than buried, both read out of the tree:
 
 - **A taste call, landed, one line to revert** per this board's standing preference.
