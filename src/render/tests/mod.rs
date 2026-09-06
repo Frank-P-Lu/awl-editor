@@ -194,6 +194,7 @@ mod pixeldiff;
 mod plan_pass_law;
 mod popover;
 pub(in crate::render) mod potoroo_pane;
+mod pull_quote_pair;
 mod query_field;
 mod quote_orientation;
 mod rail_ink_law;

@@ -50,10 +50,12 @@ fn blockquote_marker_conceals_off_caret_and_reveals_on_caret() {
     crate::markdown::set_wysiwyg_on(true);
 }
 
-/// ONE hanging pull-quote mark per contiguous blockquote BLOCK — not per line.
+/// ONE hanging pull-quote PAIR per contiguous blockquote BLOCK — not per line.
 /// Two separate blockquotes yield two blocks; a nested `>>` line stays part of
-/// its contiguous block (the markers coalesce), so it never spawns a second
-/// mark. Asserted via the page/scroll-independent `quote_block_lines` cache.
+/// its contiguous block (the markers coalesce), so it never spawns a third
+/// block. The cached span is `(first line, last line)`: the two ends the pair
+/// hangs from. Asserted via the page/scroll-independent `quote_block_lines`
+/// cache.
 #[test]
 fn blockquote_hanging_mark_is_one_per_block_nested_coalesces() {
     let _w = crate::testlock::serial();
@@ -73,16 +75,16 @@ fn blockquote_hanging_mark_is_one_per_block_nested_coalesces() {
     p.set_view(&v);
     assert_eq!(
         p.quote_block_lines(),
-        vec![0, 5],
-        "one block starting at line 0 (a,b) and one at line 5 (c + nested d)"
+        vec![(0, 1), (5, 6)],
+        "one block spanning lines 0-1 (a,b) and one spanning 5-6 (c + nested d)"
     );
 }
 
-/// The margin PULL-QUOTE mark is PAGE-MODE only (the left margin exists only in
-/// page mode) — `quote_marks` yields a top per visible block in page mode and
-/// NOTHING edge-to-edge (the documented non-page fallback: the concealed marker
-/// alone). Also present regardless of the caret (a block affordance, not
-/// reveal-on-cursor).
+/// The margin PULL-QUOTE marks are PAGE-MODE only (the text-pad gutters they
+/// hang in exist only in page mode) — `quote_marks` yields a PAIR per visible
+/// block in page mode and NOTHING edge-to-edge (the documented non-page
+/// fallback: the concealed marker alone). Also present regardless of the caret
+/// (a block affordance, not reveal-on-cursor).
 #[test]
 fn blockquote_pull_quote_mark_page_mode_only() {
     let _w = crate::testlock::serial();
@@ -100,10 +102,28 @@ fn blockquote_pull_quote_mark_page_mode_only() {
     p.set_view(&v);
 
     crate::page::set_page_on(true);
+    let marks = p.quote_marks();
     assert_eq!(
-        p.quote_marks().len(),
+        marks.len(),
+        4,
+        "page mode: an OPEN + CLOSE pair per visible block (two blocks), present \
+         even with the caret in a block: {marks:?}"
+    );
+    assert_eq!(
+        marks
+            .iter()
+            .filter(|(_, side)| *side == crate::render::rects::QuoteSide::Open)
+            .count(),
         2,
-        "page mode: one hanging mark per visible block, present even with the caret in a block"
+        "one opening mark per block, never two: {marks:?}"
+    );
+    assert_eq!(
+        marks
+            .iter()
+            .filter(|(_, side)| *side == crate::render::rects::QuoteSide::Close)
+            .count(),
+        2,
+        "one closing mark per block — the 66 is followed by its 99: {marks:?}"
     );
 
     crate::page::set_page_on(false);
@@ -179,6 +199,202 @@ fn pull_quote_hangs_in_the_column_gutter_never_the_margin() {
         (wide - column_left).abs() < 1e-4,
         "an over-wide mark clamps to the page edge, never the margin: {wide}"
     );
+}
+
+/// THE MIRROR LAW: the CLOSING pull-quote mark sits exactly as far from the
+/// writing column's RIGHT edge as the opening one sits from its LEFT edge —
+/// `geometry::pull_quote_right` is `pull_quote_left` reflected, so the pair
+/// reads as one ornament bracketing the block rather than as two marks with
+/// unrelated placements. Swept over the whole mark-width axis (including the
+/// over-wide regime where BOTH ends clamp flush to their page edge) and over
+/// several column geometries and clearances, because a mirror that only holds
+/// at one width is not a mirror. Pure, so no GPU is needed.
+#[test]
+fn pull_quote_close_mirrors_open_about_the_column() {
+    use geometry::{pull_quote_left, pull_quote_right};
+    let mut checked = 0usize;
+    for &(column_left, column_width, pad) in &[
+        (240.0_f32, 400.0_f32, 40.0_f32),
+        (0.0, 1200.0, 96.0),
+        (17.5, 333.25, 12.5),
+        (600.0, 220.0, 20.0),
+    ] {
+        let column_right = column_left + column_width;
+        let text_left = column_left + pad;
+        let text_right = column_right - pad;
+        for gap_step in 0..6 {
+            let gap = gap_step as f32 * 2.5;
+            for w_step in 1..=60 {
+                let mark_w = w_step as f32 * 2.5; // 2.5 .. 150, past `pad` on every geometry
+                let l = pull_quote_left(column_left, text_left, gap, mark_w);
+                let r = pull_quote_right(column_right, text_right, gap, mark_w);
+                let inset_left = l - column_left;
+                let inset_right = column_right - (r + mark_w);
+                assert!(
+                    (inset_left - inset_right).abs() < 1e-3,
+                    "asymmetric pair: column {column_left}..{column_right}, pad {pad}, \
+                     gap {gap}, mark_w {mark_w} — opening inset {inset_left}, \
+                     closing inset {inset_right}"
+                );
+                assert!(
+                    r + mark_w <= column_right + 1e-3,
+                    "closing mark spills out of the page into the right margin: \
+                     right edge {} past {column_right} (mark_w {mark_w})",
+                    r + mark_w
+                );
+                if mark_w + gap <= pad {
+                    assert!(
+                        r >= text_right + gap - 1e-3,
+                        "a mark that FITS the gutter must clear the text's own wrap \
+                         edge: {r} < {text_right} + {gap} (mark_w {mark_w})"
+                    );
+                }
+                checked += 1;
+            }
+        }
+    }
+    assert!(
+        checked >= 4 * 6 * 60,
+        "the mirror sweep visited only {checked} cells — the loop bounds moved"
+    );
+}
+
+/// The CLOSING mark hangs from the block's LAST VISUAL row, not from the last
+/// logical line's FIRST row. A one-logical-line blockquote long enough to soft
+/// wrap is the case that separates the two: its opening mark sits on row 0 and
+/// its closing mark a whole row-height lower, on the wrapped tail.
+#[test]
+fn pull_quote_close_hangs_from_the_last_wrapped_row() {
+    let _w = crate::testlock::serial();
+    let was_page = crate::page::page_on();
+    crate::markdown::set_wysiwyg_on(true);
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!("skipping pull_quote_close_hangs_from_the_last_wrapped_row: no wgpu adapter");
+        crate::page::set_page_on(was_page);
+        return;
+    };
+    crate::page::set_page_on(true);
+    let long = format!("> {}\n\ntail\n", "wrapping quote body ".repeat(40));
+    let mut v = view(&long, 2, 0); // caret off the quote line
+    v.is_markdown = true;
+    p.set_view(&v);
+    let rows = p.visual_rows(0).len();
+    assert!(
+        rows > 1,
+        "fixture failed to soft-wrap: the blockquote occupies {rows} visual row(s), \
+         so this law cannot see the difference it names"
+    );
+    let marks = p.quote_marks();
+    assert_eq!(marks.len(), 2, "one pair for the one block: {marks:?}");
+    let open = marks
+        .iter()
+        .find(|(_, s)| *s == crate::render::rects::QuoteSide::Open)
+        .expect("an opening mark")
+        .0;
+    let close = marks
+        .iter()
+        .find(|(_, s)| *s == crate::render::rects::QuoteSide::Close)
+        .expect("a closing mark")
+        .0;
+    assert!(
+        close > open,
+        "the closing mark sits on the block's LAST wrapped row, below the opening \
+         one: open {open}, close {close} over {rows} rows"
+    );
+    let last_row_top = p.doc_top() + p.visual_rows(0).last().expect("rows").line_top;
+    assert!(
+        (close - last_row_top).abs() < 0.5,
+        "the closing mark hangs from the last visual row's top {last_row_top}, not {close}"
+    );
+    crate::page::set_page_on(was_page);
+}
+
+/// THE DEGENERATE CASE: a ONE-LINE blockquote still shows a pair. Both marks
+/// share the row top — they are told apart by x (opposite gutters), never by y
+/// — so a law that distinguishes them by row would report a single mark here.
+#[test]
+fn one_line_blockquote_still_shows_a_pair() {
+    let _w = crate::testlock::serial();
+    let was_page = crate::page::page_on();
+    crate::markdown::set_wysiwyg_on(true);
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!("skipping one_line_blockquote_still_shows_a_pair: no wgpu adapter");
+        crate::page::set_page_on(was_page);
+        return;
+    };
+    crate::page::set_page_on(true);
+    let mut v = view("> alone\n\ntail\n", 2, 0);
+    v.is_markdown = true;
+    p.set_view(&v);
+    assert_eq!(
+        p.quote_block_lines(),
+        vec![(0, 0)],
+        "a one-line block spans one line: its first and last line coincide"
+    );
+    let marks = p.quote_marks();
+    assert_eq!(
+        marks.len(),
+        2,
+        "a one-line block still draws BOTH marks: {marks:?}"
+    );
+    assert_eq!(
+        marks[0].0, marks[1].0,
+        "both marks hang from the one row: {marks:?}"
+    );
+    assert_ne!(marks[0].1, marks[1].1, "one open, one close: {marks:?}");
+    crate::page::set_page_on(was_page);
+}
+
+/// THE TWO ENDS ARE CULLED INDEPENDENTLY. A block taller than the viewport has
+/// one end on screen and one far off it, and the pair is emitted per END, not
+/// per block — so scrolling from the head of such a quote to its foot trades an
+/// opening mark for a closing one rather than showing both or neither. A cull
+/// that keyed the CLOSING mark off the OPENING one's visibility (the natural
+/// shape when a block is treated as a single ornament) would draw nothing at the
+/// foot of a long quote, which is exactly where the reader needs the close.
+#[test]
+fn long_block_culls_its_two_ends_independently() {
+    let _w = crate::testlock::serial();
+    let was_page = crate::page::page_on();
+    crate::markdown::set_wysiwyg_on(true);
+    let Some(mut p) = headless_pipeline() else {
+        eprintln!("skipping long_block_culls_its_two_ends_independently: no wgpu adapter");
+        crate::page::set_page_on(was_page);
+        return;
+    };
+    crate::page::set_page_on(true);
+    // Far taller than the 800px viewport plus its generous cull margin, so each
+    // end is unambiguously outside the other's band.
+    const QUOTED: usize = 120;
+    let doc = format!("{}\ntail\n", "> a quoted line\n".repeat(QUOTED));
+    let mut v = view(&doc, QUOTED + 1, 0);
+    v.is_markdown = true;
+    p.set_view(&v);
+    assert_eq!(
+        p.quote_block_lines(),
+        vec![(0, QUOTED - 1)],
+        "the fixture is ONE block spanning every quoted line"
+    );
+
+    let sides = |p: &crate::render::TextPipeline| -> Vec<crate::render::rects::QuoteSide> {
+        p.quote_marks().iter().map(|&(_, s)| s).collect()
+    };
+    assert_eq!(
+        sides(&p),
+        vec![crate::render::rects::QuoteSide::Open],
+        "at the HEAD of a viewport-tall quote only the opening mark is on screen"
+    );
+
+    // Park the viewport on the block's foot; the head is now far above it.
+    v.scroll = crate::render::ScrollPos::at_row(QUOTED - 2);
+    p.set_view(&v);
+    assert_eq!(
+        sides(&p),
+        vec![crate::render::rects::QuoteSide::Close],
+        "at the FOOT of the same quote only the closing mark is on screen — the \
+         close is culled on its OWN row, not on the opening mark's"
+    );
+    crate::page::set_page_on(was_page);
 }
 
 #[test]
