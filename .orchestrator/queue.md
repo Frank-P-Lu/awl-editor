@@ -2043,8 +2043,11 @@ active document gated only on `has_active()`, with no overlay/workspace
 gate. The keymap chord door IS overlay-aware (replayed typing is
 swallowed — verified through both an ordinary capture and
 `--screenshot-app`), which makes the IME door the one ungated insertion
-path and the presumed route of the user's live typing — CONFIRM LIVE, per
-the replay-is-clean-but-user-sees-it rule.
+path and the presumed route of the user's live typing. No live
+confirmation owed (user waived it, 2026-09-06): the one-owner gate below
+closes every door regardless of which one leaked, and the IME-commit
+injection seam this item adds to the harness proves that door's class
+headlessly — the hypothesis stops mattering once the wall is door-agnostic.
 
 DECIDED SHAPE (the rethink): the caret is the editor's one accent and
 means "you can write here." A read-only surface therefore shows no caret
