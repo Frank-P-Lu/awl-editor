@@ -158,12 +158,22 @@ pub(in crate::render) fn build_line_attrs(
     // stack source-above-image is geometrically impossible with one layout line per
     // row (cosmic-text gives each line ONE vertically-centred baseline), so we lean
     // into the centering rather than fight it.
+    // REVEALED: caret on this line OR the selection touches it — the ONE
+    // `wysiwyg_reveals` rule, read here BEFORE the ornament-scale decision so a
+    // revealed thematic break drops the ornament's reserved room entirely
+    // (raw markup at body size, row at body height) rather than keeping a
+    // whole-line scale the caret-entry reveal never needed.
+    // `prepare_ornaments`/`rule_lines` mirrors this exact caret-or-selection
+    // test for its own draw gate (never the caret line alone), so the two
+    // layers can't disagree about which state a rule line is in.
+    let line_end = line_doc_start + line_text.len();
+    let line_selected = ctx
+        .selection_touch
+        .is_some_and(|st| st.start < line_end && line_doc_start < st.end);
+    let revealed = !conceal_off_cursor || line_selected;
     let confirmed_rule = ctx.md
-        && line_has_rule_span(
-            ctx.md_spans,
-            line_doc_start,
-            line_doc_start + line_text.len(),
-        );
+        && !revealed
+        && line_has_rule_span(ctx.md_spans, line_doc_start, line_end);
     let scale = md_line_scale(line_text, ctx.md, confirmed_rule);
     // ROW-HEIGHT LEAD (theme-QA round): a heading's row grows a further,
     // DECOUPLED amount beyond `scale` alone gives its font — vertical
@@ -204,16 +214,12 @@ pub(in crate::render) fn build_line_attrs(
         ctx.fonts,
     );
     add_symbol_spans(&mut al, line_text, &lb);
-    // SELECTION REVEAL: does the active selection touch THIS line? Same
-    // overlap test `wysiwyg_reveals` uses for a concealable span's own byte
-    // range, applied here to the whole line's range so the LEGACY (pre-
-    // `ConcealKind`) rule/bullet conceal widens identically — a selected
+    // SELECTION REVEAL: `line_selected` (computed above, alongside `revealed`)
+    // is the same overlap test `wysiwyg_reveals` uses for a concealable span's
+    // own byte range, applied here to the whole line's range so the LEGACY
+    // (pre-`ConcealKind`) rule/bullet conceal widens identically — a selected
     // bulleted list reveals its raw `-`/`*`/`+` exactly like a selected
     // heading reveals its raw `#`, never a mixed state on the same line.
-    let line_end = line_doc_start + line_text.len();
-    let line_selected = ctx
-        .selection_touch
-        .is_some_and(|st| st.start < line_end && line_doc_start < st.end);
     // REVEAL-ON-CURSOR: when the caret is off this line AND the selection
     // doesn't touch it, conceal a thematic break's raw `---` (leaving the
     // fleuron) AND a bullet's raw `-` (leaving the depth glyph). Both are
