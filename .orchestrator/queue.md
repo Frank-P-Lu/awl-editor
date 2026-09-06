@@ -229,24 +229,23 @@ workflow still installs the same pinned version by the same identity check.
 
 ---
 
-### 578 — `code-health.py --self-test` has been failing on main, unnoticed, because no gate runs it (found by 566, 2026-09-06)
+### 578 — `code-health.py --self-test` was reported failing on main; it is NOT (premise half-false, corrected 2026-09-07)
 
-`code-health.sh` never invokes `python3 scripts/code-health.py --self-test`, so the
-self-test drifted red on `main` without anyone seeing it: six requirements had been added
-to `native_gate_audit` over time without updating its script fixture (receipt shape,
-`git status --short`, `gate_health_command`, and the three menu-bar arms). Item 566's lane
-repaired the fixture — `code-health: self-test clean` now, including its two new
-mutations — but **left the wiring alone deliberately, because wiring it changes what the
-gate runs, and that is an orchestrator/user call.**
+🟡 CLAIMED 2026-09-07 with 593/594 — lane `item-593`. **Half this item's premise is false, and
+the false half was the headline.** The self-test is not failing: `code-health: self-test
+clean`, exit 0. Item 566's lane had already repaired the fixture, and THIS ITEM'S OWN BODY
+said so — the brief that dispatched it read the title and not the text. Recorded here rather
+than quietly dropped, because "premise false, oracle repaired" and "fixed" read identically on
+a board six weeks later and only one of them means the product changed.
 
-This is the same shape as 567's recorded decision that an unwired law is worse than none:
-it rots silently and then cries wolf. The difference is that this law is not a candidate
-for deletion — it guards the ratchet script that guards everything else.
-
-DECISION OWED: wire `--self-test` into `code-health.sh` (cost: its runtime on every gate,
-measure it first) or accept that it is a manual instrument and say so in the script's own
-header. Do not leave the third state, which is what it has been in.
-
+What survived is the part that was always the real content: **nothing runs it.** So the lane
+measured the cost (0.77 / 0.75 / 0.76 s) and wired it into `scripts/code-health.sh` — the
+thing gates actually call — rather than into `code-health.py`, which is precisely the
+confusion this repo has been bitten by before (the .py carries the structural ratchets but not
+the clippy arms; two lanes once reported clean while main was red on six errors only the .sh
+can see). It runs BEFORE the ratchets it guards. Note `--clippy-only`, which CI's mac job
+uses, returns early and never reaches it; CI's linux job runs the full script, so the new arms
+do run on Linux.
 ---
 
 ### 579 — awl renders ~9 fps on a pure software rasterizer, every world (measured by 566, 2026-09-06; predates 564)
