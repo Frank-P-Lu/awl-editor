@@ -1274,7 +1274,14 @@ Verify: unit tests at the edit seam plus a `--keys` sidecar journey.
 ---
 ### 558 — single open file draws no active plate in the working-set gutter (user report, 2026-09-01 — "when you first open a file, it doesn't seem to be selected?"; behavior confirmed in every capture's own gutter)
 
-🔵 INVESTIGATED, taste call OWED — merged `53c7b023`. Git history (items
+⬜ DECIDED, READY — **plate it** (user, 2026-09-06, from the lane's side-by-side
+captures: "sure plate it. this means more consistent right?"). The rule becomes
+"the active file is ALWAYS plated" — no lone-file exception. Build: route the
+single-file identity line through the same plate mechanism as multi-file active
+rows (one owner, not a lookalike rect); law sweeps both cells (lone file, fresh
+open among several) per the item's closing clause; the three prior items'
+calm-when-alone reasoning is superseded by this decision. Investigation history:
+merged `53c7b023`. Git history (items
 444/469/515) confirms the unplated single-file identity line is
 DELIBERATE — item 444's own commit: "THE ONE-FILE CONTRACT IS
 STRUCTURAL, NOT A RESEMBLANCE... the plate pipeline is handed no rects,
@@ -1756,7 +1763,14 @@ invoke) and any alt-text machinery.
 ---
 ### 537 — footnote markers may wear the traditional reference ladder (user decision, 2026-09-01; sequenced AFTER 529 bundles the face)
 
-🔴 BLOCKED — needs the user's product decisions on per-document versus recycled scope and whether definition-list markers follow the display option. U+2016 coverage remains an engineering verification, not a user decision.
+⬜ DECIDED, READY — both product decisions landed (user, 2026-09-06): **(a)
+per-document ladder scope** — the ladder follows first-reference order across
+the whole document, matching today's numbering; awl has no pages, so per-page
+recycling has nothing coherent to recycle on. **(b) The definition list
+follows the option** — when the ladder is on, definitions wear the same mark
+as their references; pairing them is the ladder's function. U+2016 ‖ coverage
+in the adopted subset remains the lane's engineering verification, enrolled in
+the glyph-presence law before landing.
 
 DECIDED direction, from the user's own connection during 536's heritage
 round: "the daggers were used for footnotes — we still have a chance to
