@@ -2431,6 +2431,122 @@ visual judge `gpt-5.6-sol` xhigh; outcome audit `gpt-5.6-terra` medium. Follow t
 board's claim/worktree protocol and integrate serially with overlapping shader
 work. This brief authorizes the correction, not unrelated background redesigns.
 
+### 583 — blank new document raises an autosave failure (live bug hunt, 2026-09-06)
+
+⬜ READY — user requested queueing; not dispatched.
+
+**Observed / reproduce.** In the running macOS app, Kite, create a document
+through File → New document or ⌘N and pause without typing. The notice reads
+“autosave failed: empty note: nothing to save yet — changes remain in editor”.
+Reproduced on two new notes; the warning was also visible during subsequent
+typing. Explicit ⌘S after adding prose reported saved. This establishes a
+false failure for an ordinary empty state, not data loss or a failed disk write.
+The running binary's revision was not recorded; recheck on the current build.
+
+**Build / verify.** Treat a genuinely empty unnamed note as a quiet no-write
+state while preserving real save-error notices. Read docs/platform.md. At the
+live-App scheduling/persistence seam, sweep empty, whitespace-only, first prose,
+delete-back-to-empty and a real filesystem failure. Assert no file litter and
+no failure notice for the empty cases, successful persistence after typing,
+and retained errors for genuine failures. Add a law that fails on the reported
+empty-note behavior; prove the mutation builds and the test runs. Confirm the
+pause/typing journey in a real window; ordinary capture has no autosave clock.
+
+### 584 — document accessibility text goes stale after creating a new document (live bug hunt, 2026-09-06)
+
+⬜ READY — user requested queueing; not dispatched.
+
+**Observed / reproduce.** With an existing prose file open, File → New document
+changed the window/document name to untitled and showed a blank page, but the
+native accessibility readout still returned the old file's text. After typing
+new prose, full accessibility reads returned no document value despite the
+visible text. Selecting the visible sentence through accessibility failed with
+“Could not find the requested text”. Query fields continued reporting values.
+
+**Scope / premise check.** Evidence came through computer-use accessibility
+reads, not a VoiceOver listening test. Later window-control errors were excluded
+from the finding. Reproduce with synthetic A/B documents on a recorded current
+build, and distinguish stale adapter data from tool caching before changing
+product code. Read ACCESSIBILITY.md and the semantic/native bridge owners;
+zero accessible TextRun children is expected and is not this defect.
+
+**Verify.** Exercise new/open/switch/edit at colliding buffer versions, checking
+document text and selection through the native text interface against the actual
+buffer. Add a law at the failing publication/cache seam, mutation-proven, and
+confirm the native journey. A correct semantic snapshot alone cannot prove the
+OS received it. If tooling caused the mismatch, close as premise false with
+the repaired oracle rather than claiming a product fix.
+
+### 585 — ⌘A in Find selects the underlying document instead of the query (live bug hunt, 2026-09-06)
+
+⬜ READY — user requested queueing; not dispatched.
+
+**Observed / reproduce.** Open Find with a nonempty query, focus its field,
+press ⌘A, then type replacement text. With query `beta`, typing `alpha`
+produced `betaalpha`; another ⌘A followed by `Z` produced `betaalphaZ`.
+The screenshot showed the entire underlying document selected while the
+accessibility focus remained on Find. Reproduced twice in the running macOS
+app, Kite; record the build when repeating it.
+
+**Build / scope.** Select-all and subsequent editing must belong to the focused
+query, preserving the parked document selection. Read docs/config.md and the
+input-routing owners. Audit the neighboring Find/Replace fields and summoned
+text-entry surfaces for select-all, cut/copy/paste, deletion and undo escaping
+to the document. Derive the surface roster; do not count variants of this
+routing defect as separate fixes. Preserve document editing when no field is up.
+
+**Verify.** Drive the real keymap at the purest shared/live-App seam and assert
+query value, query selection and unchanged document text/selection. Include
+both keymap conventions and both find fields. Add the missing focus-routing
+law and prove it fails with the bypass restored; repeat the visible ⌘A/typing
+journey after the repair.
+
+### 586 — Bold wraps trailing whitespace and produces literal Markdown (live bug hunt, 2026-09-06)
+
+⬜ READY — user requested queueing; not dispatched.
+
+**Observed / reproduce.** Paste a document with a body line `hello world `
+(one trailing space). Select that line's contents using line-start then
+⌘⇧Right, press ⌘B, and move down. The line becomes `**hello world **` and
+displays literal asterisks with ordinary text. The identical control without
+the trailing space renders bold. Both arms were exercised in the running
+macOS app, Kite. Preserve exact whitespace in the fixture.
+
+**Build / scope.** Formatting a selection with edge whitespace must produce
+valid emphasis while retaining the original whitespace outside the delimiters.
+Read docs/markdown.md and the shared formatting owner. Audit sibling inline
+formatters according to their own grammar, including leading/trailing spaces,
+tabs, whitespace-only selections, line boundaries and reversed selections;
+do not impose emphasis rules on code spans indiscriminately.
+
+**Verify.** Assert exact resulting text, parsed emphasis coverage of the intended
+content, selection/caret behavior, toggle and undo round trips. Use the existing
+Markdown parser rather than marker presence as the oracle. Add a failing law
+for the trailing-space case and mutation-prove it. Confirm the off-caret live
+preview; apply standing pixel/vision checks if the implementation touches rendering.
+
+### 587 — Inline Code fails to protect backticks inside the selection (live bug hunt, 2026-09-06)
+
+⬜ READY — user requested queueing; not dispatched. Coordinate shared formatter
+edits with 586; integrate overlapping changes serially.
+
+**Observed / reproduce.** Paste a body line containing a space-separated `a`,
+the literal source `` `tick` ``, and `b` (whole line: ``a `tick` b``). Select
+the entire line and press ⌘E, then move down. The preview shows two separate
+code fragments around `a` and `b`, with `tick` outside them. Moving back onto
+the line exposes single-backtick outer delimiters colliding with the existing
+inner pair. Observed in the running macOS app, Kite; reproduce on a recorded
+current build before implementation.
+
+**Build / verify.** Read docs/markdown.md. The shared inline-code formatter must
+choose a delimiter run and any grammar-required padding that preserve the
+selected literal content as one code span. Sweep internal backtick-run lengths,
+backticks at either edge, spaces, empty selections, existing spans and toggle/
+undo paths. Parse the generated Markdown and assert exactly one code span with
+the intended literal payload; marker counting alone is insufficient. Add the
+missing law and prove it fails when single delimiters are restored. Confirm
+the live preview and route every formatting door through the same owner.
+
 ## Needs specific hardware
 
 🔴 BLOCKED — these journeys require physical environments unavailable to the current orchestration host.
