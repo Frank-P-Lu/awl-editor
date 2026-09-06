@@ -221,10 +221,10 @@ impl TextPipeline {
         // Inverse caret shares the after-text slot required by its blend mode.
         self.caret_invert.draw(pass);
         self.caret_glyph_pipeline.draw(pass);
-        // The working set's selected-row plate sits UNDER the gutter's own
-        // glyphs, so the active row's ink reads on top of its band. Zero
-        // instances whenever the stack is absent, which is every single-file
-        // frame.
+        // The active file's plate sits UNDER the gutter's own glyphs, so its
+        // ink reads on top of its band — a working-set row's plate and the
+        // lone identity line's alike. Zero instances whenever the gutter
+        // block itself is not drawn.
         self.gutter_stack_plate.draw(pass);
         // The close-zone hover plate sits UNDER the gutter's glyphs too, for
         // the same reason: the × must read on top of its own highlight. Zero

@@ -2697,9 +2697,9 @@ pub struct TextPipeline {
     /// headless frame (no pointer driver), so the close-mark reveal it drives
     /// is live-pointer-only and unreachable from any capture door.
     gutter_stack_hover: Option<chrome::GutterStackHit>,
-    /// The soft row plate under the working set's ACTIVE row. Holds no instances
-    /// at all unless the stack is drawn, so a single-file frame issues no extra
-    /// draw (`SelectionPipeline::draw` returns early at zero instances).
+    /// The soft plate under the gutter block's ACTIVE FILE — a working-set row's,
+    /// or the lone identity line's. Empty whenever the gutter is not drawn, so
+    /// such a frame issues no extra draw (`SelectionPipeline::draw` early-returns).
     gutter_stack_plate: crate::selection::SelectionPipeline,
     /// The soft square behind the × under the live pointer, drawn only
     /// inside a row's close ZONE — the same rect

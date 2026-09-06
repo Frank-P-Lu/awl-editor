@@ -725,3 +725,231 @@ fn the_lone_identity_lines_right_edge_matches_a_stack_rows_own_right_edge() {
          ({stack_edge}) — opening a second file must never shift where the lane sits"
     );
 }
+
+/// The two cells "the file you are editing is marked" has to hold in: the
+/// lone open file, and a file freshly opened among several. `active` names
+/// which slot of `n` is the current buffer; at `n == 1` there is no working
+/// set at all and the block draws the bare identity line.
+fn active_file_view(n: usize, active: usize) -> ViewState {
+    let roster = ["opening.md", "second.md", "third.md"];
+    let mut v = view(
+        "# A document\n\nSome prose to give the page a body.\n",
+        0,
+        0,
+    );
+    v.zoom = 1.0;
+    v.gutter_project = "notes".to_string();
+    v.gutter_name = roster[active].to_string();
+    if n > 1 {
+        v.gutter_files = roster[..n]
+            .iter()
+            .enumerate()
+            .map(|(at, leaf)| StackRow {
+                leaf: leaf.to_string(),
+                parent: String::new(),
+                active: at == active,
+                kind: crate::workingset::StackRowKind::File,
+            })
+            .collect();
+    }
+    v
+}
+
+/// The interior colour a plate is mostly made of: the MEDIAN interior pixel by
+/// luminance. The label's ink is a minority of a plate's area at every name
+/// length the margin can hold, so the median lands on flat fill — which is
+/// what makes "how far is the extreme from the fill" a question about ink
+/// rather than about which pixel happened to be sampled.
+fn plate_fill_and_ink(px: &[[u8; 4]], plate: [f32; 4]) -> ([u8; 4], f32, usize) {
+    // Inset past the rounded corner's own antialiasing, so every sample is
+    // flat fill or real ink — never an edge blend against the margin beyond
+    // (the failure `one_bit.rs`'s own plate law records for a hand-estimated
+    // span).
+    const INSET: f32 = 5.0;
+    let [x, y, w, h] = plate;
+    let x0 = ((x + INSET) as i64).clamp(0, W as i64 - 1);
+    let x1 = ((x + w - INSET) as i64).clamp(x0 + 1, W as i64);
+    let y0 = ((y + INSET) as i64).clamp(0, H as i64 - 1);
+    let y1 = ((y + h - INSET) as i64).clamp(y0 + 1, H as i64);
+    let mut samples: Vec<[u8; 4]> = Vec::new();
+    for sy in y0..y1 {
+        for sx in x0..x1 {
+            samples.push(px[(sy as u32 * W + sx as u32) as usize]);
+        }
+    }
+    let mut by_lum = samples.clone();
+    by_lum.sort_by_key(|c| c[0] as u32 + c[1] as u32 + c[2] as u32);
+    let fill = by_lum[by_lum.len() / 2];
+    let ink = samples.iter().fold(0.0_f32, |m, c| m.max(dist(*c, fill)));
+    (fill, ink, samples.len())
+}
+
+/// **THE FILE YOU ARE EDITING IS PLATED IN BOTH CELLS, ON EVERY WORLD —
+/// REAL PIXELS.**
+///
+/// The two cells are the ones the user's report and its follow-up name: ONE
+/// file open (the identity line, which used to draw bare — "when you first
+/// open a file, it doesn't seem to be selected?") and a file freshly opened
+/// AMONG SEVERAL (already correct, and swept here so this law cannot be
+/// satisfied by fixing one shape and breaking the other). Both are asserted
+/// through the same production door, `gutter_stack_plate_rect`, so a plate
+/// this law samples is the plate the frame actually filled.
+///
+/// THREE INDEPENDENT FLOORS, because any two of them are jointly satisfiable
+/// by a broken frame:
+///
+/// 1. **PRESENCE, by pixel COUNT and by SEPARATION.** The plate's interior
+///    must be MOSTLY one flat fill (a majority of interior pixels within a
+///    tight radius of the median), and that fill must sit a real distance
+///    from the bare margin beside it at the same rows. A plate washed toward
+///    the page — the four-bytes-from-the-ground failure this repo records —
+///    dies here, and it dies on an absolute count rather than on a ratio
+///    that would only get happier as the wash deepened.
+/// 2. **LEGIBILITY.** The furthest interior pixel from that fill is the
+///    label's own ink, and it must clear a real distance: the ink chosen for
+///    a bare line (`muted`) collapses into `surface_selected` across most of
+///    the roster, so a plate that kept it would photograph a filled band
+///    with nothing written on it.
+/// 3. **FORWARDNESS**, a ratio of two quantities read from ONE frame: the
+///    active row must weigh more against the margin than the block's own
+///    quietest shipped line (the folder heading, drawn `muted` on bare
+///    ground). This is the user's actual complaint, and it is the floor a
+///    plate-shaped-but-invisible treatment cannot buy its way past.
+///
+/// Enrolment is the roster itself (`theme::THEMES`, all of it — Cassowary
+/// included, which lives in its own module and is missed by a grep over
+/// `worlds.rs`), and the count is asserted at the end so a world that
+/// silently stopped enrolling is a failure rather than a smaller sweep.
+#[test]
+fn the_active_file_is_plated_alone_and_among_several_on_every_world() {
+    let _g = crate::testlock::serial();
+    let Some((device, queue, mut p)) = headless_dqp(W as f32, H as f32) else {
+        eprintln!(
+            "skipping the_active_file_is_plated_alone_and_among_several_on_every_world: \
+             no wgpu adapter"
+        );
+        return;
+    };
+    crate::page::set_page_on(true);
+    p.set_dpi(1.0);
+    let _pin = theme::WorldPin::snapshot();
+
+    // Floors set UNDER the roster's own tightest MEASURED value rather than at
+    // round numbers, so each has real room above it and still fires well before
+    // the treatment it guards is gone. The tightest cells measured: uniformity
+    // 0.62 (Mangrove), fill-vs-margin 33.1 (Bilby, the roster's palest plate
+    // against the palest page), ink-vs-fill 134.5 (Mopoke), forwardness 1.75
+    // (Firetail among three). The two failures these are calibrated against
+    // measure far below them: a plate washed to `0x04` alpha reads 3.0 on the
+    // second, and an identity line handed the margin's plain `muted` instead of
+    // the routed plated ink reads 53.7 on the third. Every cell names its own
+    // numbers on failure, so a world that lands under one is legible rather
+    // than mysterious.
+    const FILL_UNIFORMITY: f32 = 0.5;
+    const FILL_VS_MARGIN: f32 = 24.0;
+    const INK_VS_FILL: f32 = 100.0;
+    const FORWARD: f32 = 1.15;
+
+    let mut judged = Vec::new();
+    for (index, world) in theme::THEMES.iter().enumerate() {
+        theme::set_active(index);
+        let world = world.name;
+        // `(files open, which one is active)` — the lone file, and the
+        // newest of three, which is the fresh-open-among-several cell.
+        for (n, active) in [(1usize, 0usize), (3, 2)] {
+            let cell = format!("{world:?} n={n} active={active}");
+            p.set_view(&active_file_view(n, active));
+            let bands = row_bands(&p.gutter_frost_seeds(H));
+            assert_eq!(
+                bands.len(),
+                n + 1,
+                "{cell}: expected the folder heading over {n} identity row(s)"
+            );
+            let plate = p
+                .gutter_stack_plate_rect(H)
+                .unwrap_or_else(|| panic!("{cell}: the active file drew no plate at all"));
+            assert!(
+                plate[2] > 16.0 && plate[3] > 8.0,
+                "{cell}: plate {plate:?} is too small to sample inside its own corners"
+            );
+            let px = render_frame(&device, &queue, &mut p);
+
+            // (1) PRESENCE. The margin reference is read at the SAME rows as
+            // the plate, a plate-width to its left — bare margin the block
+            // never reaches, so a fill that faded into the page has nowhere
+            // to hide.
+            let (fill, ink, total) = plate_fill_and_ink(&px, plate);
+            let uniform = {
+                const INSET: f32 = 5.0;
+                let x0 = ((plate[0] + INSET) as i64).clamp(0, W as i64 - 1);
+                let x1 = ((plate[0] + plate[2] - INSET) as i64).clamp(x0 + 1, W as i64);
+                let y0 = ((plate[1] + INSET) as i64).clamp(0, H as i64 - 1);
+                let y1 = ((plate[1] + plate[3] - INSET) as i64).clamp(y0 + 1, H as i64);
+                let mut near = 0usize;
+                for y in y0..y1 {
+                    for x in x0..x1 {
+                        if dist(px[(y as u32 * W + x as u32) as usize], fill) < 8.0 {
+                            near += 1;
+                        }
+                    }
+                }
+                near as f32 / total as f32
+            };
+            assert!(
+                uniform >= FILL_UNIFORMITY,
+                "{cell}: PRESENCE — only {:.0}% of the plate's interior is one flat fill \
+                 {fill:?}; a plate that is mostly glyph and edge is not a plate",
+                uniform * 100.0
+            );
+            // The reference is the SAME rect one row UP — bare margin the
+            // block's own quiet ink barely touches, twelve pixels away, so a
+            // ground gradient across the margin cannot stand in for a plate.
+            // A single point further to the left CANNOT do this job: the
+            // margin's own ground varies enough across the gutter's width to
+            // report a two-byte wash as a 28-unit "separation".
+            let band0 = bands[0];
+            let above = [plate[0], plate[1] - band0[3], plate[2], plate[3]];
+            let (margin, _, _) = plate_fill_and_ink(&px, above);
+            let sep = dist(fill, margin);
+            assert!(
+                sep >= FILL_VS_MARGIN,
+                "{cell}: PRESENCE — the plate's fill {fill:?} sits only {sep:.1} from the \
+                 bare margin one row above it {margin:?}; a plate washed toward the page \
+                 passes every ratio in this law and photographs as nothing"
+            );
+
+            // (2) LEGIBILITY — the label's own ink, over the fill it sits on.
+            assert!(
+                ink >= INK_VS_FILL,
+                "{cell}: LEGIBILITY — the furthest pixel inside the plate is only {ink:.1} \
+                 from its own fill {fill:?}; the name has vanished into the band that is \
+                 supposed to be marking it"
+            );
+
+            // (3) FORWARDNESS — the ratio, against the block's quietest line.
+            let ground_y = (band0[1] - band0[3] * 3.0).max(0.0) as u32;
+            let ground = px[(ground_y * W + (band0[2] * 0.5) as u32) as usize];
+            let identity = ink_weight(&px, bands[1 + active], ground);
+            let project = ink_weight(&px, band0, ground);
+            assert!(
+                project > 0.0,
+                "{cell}: the folder heading drew no ink — the fixture never reached the margin"
+            );
+            let forward = identity / project.max(1.0);
+            assert!(
+                forward >= FORWARD,
+                "{cell}: the active file reads at {identity:.1} against the block's own \
+                 quietest line at {project:.1} (ratio {forward:.3}) — it does not read as \
+                 the file being edited"
+            );
+        }
+        judged.push(world);
+    }
+    assert_eq!(
+        judged.len(),
+        theme::THEMES.len(),
+        "only {} of {} worlds were judged: {judged:?}",
+        judged.len(),
+        theme::THEMES.len()
+    );
+}

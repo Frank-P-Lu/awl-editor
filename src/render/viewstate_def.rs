@@ -156,10 +156,12 @@ pub struct ViewState {
     /// open under the ACTIVE project root, in stable open order, or EMPTY when
     /// that root holds a single file.
     ///
-    /// Empty is not merely "nothing to draw" — it is the one-file contract. The
-    /// gutter's single-name path is what shipped before this surface existed, so
-    /// an empty vector here routes the frame back through it unchanged rather
-    /// than through a stack of one that happens to look the same.
+    /// Empty is not merely "nothing to draw" — it is the one-file contract: an
+    /// empty vector routes the frame through the gutter's own single-name path
+    /// rather than through a stack of one. That path still marks the file being
+    /// edited, with the same plate and the same routed ink an active stack row
+    /// wears (`render::chrome::gutter_stack`), so what the emptiness changes is
+    /// the block's SHAPE, never whether the reader can see which file is open.
     /// [`crate::workingset::WorkingSet::stack_rows`] is the sole author of that
     /// emptiness.
     pub gutter_files: Vec<crate::workingset::StackRow>,
