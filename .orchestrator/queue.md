@@ -658,6 +658,14 @@ unfiltered, and fails only under a filter** — never failing CI and always fail
 Its disappearance from the arm's own failures list is itself a finding: a red that the
 receipt's own summary did not carry.
 
+**Ruled out 2026-09-07: this is NOT the hosted-mac wedge.** CI's tolerated `mac (render::tests)`
+arm was checked in case the two were one phenomenon. They are not: that arm reports `562
+passed; 588 failed` with passes and failures INTERLEAVED to the last second, which is ordinary
+virtualised-Metal pixel divergence across about half the render suite, not a device loss and
+not a single flaking law. 595's subject failed once on the LINUX arm of a local gate, passed
+on the other two arms of the same run, and passed on all three next run. Different axis,
+different shape.
+
 Build: establish whether this law (and its neighbours in that file) take
 `crate::testlock::serial()` and hold it for the LIFETIME OF THE RESOURCES rather than the
 call — a `TextPipeline` dropped at the closing brace still moves the counters, so a lock a
@@ -832,6 +840,10 @@ native-gate-receipt commit=72e922e1400def84b1e4983893548186955fc7f5 health=pass:
   integration_targets=18
 ```
 plus `web-smoke: OK`.
+
+**Second train's CI: green.** Run 34050443205 on `c3d26d08` passed all four gating jobs —
+`mac (build + test, minus render::tests)`, `web`, `linux (build + test)` and `mac live-probe` —
+with only the pinned tolerated `atspi` and `mac (render::tests)` red.
 
 **First train, `5d4819e3`** — covered 571/573, 567, 568/569 and 586/587:
 `health=pass:271s conventions=mac,linux scope=all-targets menubar=full:on unit_tests=4903
