@@ -73,11 +73,13 @@ pub enum Backdrop {
     Flat,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Elevation {
-    Flat,
-    Recessed,
-    Bordered,
+enum_with_all! {
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    pub enum Elevation {
+        Flat,
+        Recessed,
+        Bordered,
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

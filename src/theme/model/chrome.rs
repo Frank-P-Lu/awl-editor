@@ -7,13 +7,15 @@ pub enum PlacardCorner {
     Auto,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum PlacardInk {
-    Faint,
-    Ghost,
-    Stipple,
-    Muted,
-    Bold,
+enum_with_all! {
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    pub enum PlacardInk {
+        Faint,
+        Ghost,
+        Stipple,
+        Muted,
+        Bold,
+    }
 }
 
 /// Placement applied after the placard's ordinary contained corner anchor.
