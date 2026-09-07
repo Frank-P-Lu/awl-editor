@@ -131,66 +131,6 @@ untested hypothesis.
 
 ---
 
-### 580 — insertion-door census: every path that can mutate the focused buffer is enrolled at one seam (follow-up to 575's lane report, 2026-09-06)
-
-🟡 CLAIMED 2026-09-07 — lane `item-580`, worktree `.claude/worktrees/item-580`, Opus 5 high
-(engineering). Its blocker is cleared; 575 is long merged. The deliverable is the seam that
-makes the NEXT door declare itself, so a `_ =>` arm anywhere in the census match defeats the
-whole item. The lane also decides whether 599 (the `TextDoor` doors still reaching the document
-behind a summoned panel) folds into this seam, and says so either way.
-
-
-⬜ READY (blocked on 575 merging — builds on its wall and `text_door.rs`)
-
-Evidence: 575's lane found TWO insertion doors nobody had listed (assistive
-`ReplaceSelectedText` and `SetValue`) beside the briefed one (`Ime::Commit`). The class
-grows every time a new input capability lands (menu Edit actions, Linux middle-click paste,
-future dictation, daemon/EDITOR writes, drag-drop text if ever), and today a new door
-ships OPEN by default: nothing forces it through 575's wall, so the next one repeats this
-bug on whatever modal surface exists then.
-
-Build: enumerate every code path that inserts or replaces text in the focused buffer from
-an input surface, and route each through the one wall 575 built (or record it as a NAMED
-exemption with a reason — e.g. the capture harness's own replay). Then the census law, per
-"same behavior ⇒ same code": a wildcard-free match over the door roster at the seam, so a
-NEW door fails to enrol until it declares wall-routed or exempt. The law must fail on the
-bug it names: prove non-vacuity by re-opening one existing door (locally, uncommitted) and
-watching it go red. Pure unit seam — no capture needed; harness-reach is not in play.
-
-Worker: engineering tier. Worktree per protocol; claim before code.
-
----
-
-### 581 — substitution-leak audit: what else reports about the hidden document while History/Conflict/Credits is up? (follow-up to 575's lane report, 2026-09-06)
-
-🟡 CLAIMED 2026-09-07 — lane `item-581`, worktree `.claude/worktrees/item-581`, **Sonnet
-medium**, which is this board's standing audit tier rather than an inheritance of the
-orchestrator's model. Both rosters are derived from the code — the overlay set from
-`shows_read_only_prose`, never named — and the audit ends in a law whichever way it comes out.
-
-
-⬜ READY (after 575 merges; audit-tier per standing policy)
-
-Evidence: 575's rail-query leak — typing on Credits filtered the HIDDEN document's rows
-and reported "no matches" about a file the user couldn't see. Bugs cluster: the leak class
-is "a query/filter/status surface answering about the underlying buffer while a
-`TimelineOverComparison` substitution is showing something else." The rail is fixed; its
-siblings are unaudited.
-
-Probe form (state × surface × world, per the spot-check policy): the three roster overlays
-(History, Conflict, Credits — derive the set from `shows_read_only_prose`, never name it)
-× every query/status surface that reads the focused buffer — find & replace, spell
-navigation/suggestions, outline/jump surfaces, palette state lines, the debug HUD's
-buffer readouts — sampled across ≥2 worlds. Assert per cell with sidecar/pixel arithmetic
-via `--screenshot-app` (check docs/harness-reach.md per effect before promising a capture;
-flag any live-only cell for human confirmation instead of claiming it). An audit that
-finds something ends by writing the missing law; if the audit finds nothing, it still ends
-by writing the law that pins the clean state, enrolment derived from the roster.
-
-Worker: audit tier — Sonnet medium on Claude or `gpt-5.6-terra` medium on OpenAI.
-
----
-
 ### 582 — Kite tunnel visual correction: restore the approved bending, folded 3D surface (user report + decision, 2026-09-06)
 
 ⬜ READY — corrective follow-up to 564. Queue only; not dispatched.
@@ -524,28 +464,6 @@ pick a third answer.
 
 ---
 
-### 599 — the TextDoor doors still reach the document behind a summoned panel (measured by 585's lane, 2026-09-07; pinned, not fixed)
-
-⬜ READY — the boundary is now visible and law-pinned; this item decides where it should be.
-
-585 closed the ACTION door into the document behind a summoned field. It measured — did not
-assume — that the `TextDoor` doors remain open: an IME commit and two assistive writes still
-reach the parked document while the panel is up. That is the same boundary `read_only_surface`
-already pinned for the picker card, so the two surfaces agree today; a law goes red if that
-silently changes.
-
-Build: decide whether a summoned text-entry surface should own those doors too. It is one
-decision across both surfaces, not two — and it interacts with 580's insertion-door census,
-which is the item that enumerates every path that can mutate the focused buffer at one seam.
-Sequence this AFTER 580 or fold it into that census, rather than closing the same door twice
-in two shapes.
-
-Laws: whatever is decided, the enrolment comes from the door roster rather than a hand-list,
-and the law names what enrolled — 585's own sweep found only 2 of 7 surfaces ever leaked, so
-a law that assumes uniform behaviour across surfaces would be wrong in both directions.
-
----
-
 ### 600 — 593's narrowing has two sharp edges left, both named by the lane that made them (2026-09-07)
 
 ⬜ READY — small, and both are consequences of a fix that was correct.
@@ -601,6 +519,31 @@ anything**, since a roster of callers may be relying on today's behaviour withou
 Laws: whichever way it goes, a colour whose alpha is set must either reach the renderer with
 that alpha or fail to compile. Prove non-vacuity by rendering two colours differing only in
 alpha and requiring the frames to differ (or the code not to build).
+
+### 603 — what should selecting inside a substituted transcript do? (named by 581's audit, 2026-09-07, and deliberately left unfixed)
+
+⬜ READY — a product decision first, a fix second. Do not treat it as a bug report.
+
+581 closed the accessibility leak: while History, Conflict or Credits substitutes a
+transcript for the pixels, the tree now describes what the reader can see rather than the
+hidden buffer. One door was named and left open rather than quietly widened.
+
+`SemanticRequest::SetTextSelection` on the document node still maps grapheme offsets against
+the REAL buffer regardless of read-only prose. It cannot simply be walled: an existing law,
+`every_advertised_action_drives_a_real_transition`, requires it to keep working because all
+three surfaces advertise `SetTextSelection` as a reading affordance — and a reading surface
+that advertises an action it refuses is worse than one that does not advertise it.
+
+So the question is genuinely a product one: **when an assistive technology asks to select
+text inside a substituted transcript, what should happen?** Plausible answers — select within
+the transcript (needs a transcript-side offset map), advertise the action but scope it to
+nothing, or stop advertising it on read-only prose (which changes what a screen-reader user
+is told the surface can do). Each has a different cost to the reader, and none is obviously
+right.
+
+Laws: whichever is chosen, the three surfaces must agree by construction with enrolment
+derived from `shows_read_only_prose` rather than named, and the advertise/refuse pairing must
+be law-pinned so a surface cannot advertise what it will not do.
 
 ## Owed to the user — landed work awaiting a live eye
 
@@ -717,21 +660,18 @@ this ground's geometry and inherits the same sign-off.
 
 ## Green train — the exact-main receipts
 
-**Third train, `555fa5d6`** — covers 570, 558 and 576, HEAD verified unmoved across the run.
-Pushed as `afda18f4`; **CI run 34062997740 passed all four gating jobs**, so all three of this
-wave's trains are green locally and on the hosted arms.
-
+**Fourth train, `0e195574`** — covers 580 and 581, HEAD verified unmoved across the run:
 
 ```
-native-gate-receipt commit=555fa5d69eb1c78e06f8fb5a0bac24df61706606 health=pass:254s
-  conventions=mac,linux scope=all-targets menubar=full:on unit_tests=4946 unit_shards=6
+native-gate-receipt commit=0e19557466c341138fbc5e7d87295f4e00947020 health=pass:249s
+  conventions=mac,linux scope=all-targets menubar=full:on unit_tests=4953 unit_shards=6
   integration_targets=18
 ```
-plus `web-smoke: OK`. Two mark-raising commits sit inside it, both derived from the MERGED
-tree rather than either branch's numbers — which is the check that earned its place here:
-570 grew `rects.rs` to 1835 and 576 trimmed it by two, so neither branch's own figure
-described the tree they came to share, and the merged tree needed no raise for that file at
-all.
+plus `web-smoke: OK`. No marks raised — 580's census closed a bypass by making four mutators
+module-private, and 581 split `projection.rs` at the ceiling rather than asking for room.
+
+**Third train, `555fa5d6`** — covered 570, 558 and 576. `health=pass:254s unit_tests=4946`,
+web-smoke OK. Pushed as `afda18f4`; CI run 34062997740 passed all four gating jobs.
 
 **Second train, `72e922e1`** — covered 583/584 and 585. `health=pass:251s unit_tests=4917`,
 web-smoke OK. Pushed as `c3d26d08`; CI run 34050443205 passed all four gating jobs.
