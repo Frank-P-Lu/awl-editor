@@ -1370,6 +1370,29 @@ fn nit_underlines_suppress_concealed_rule_lines_sweep() {
             "{variant:?}: on-caret, the control line's nit still shows; the rule line's \
              own nit stays hidden by the pre-existing caret-line exclusion: {ul_on:?}"
         );
+
+        // SELECTION-REVEALED: the caret sits elsewhere while a selection touches
+        // the rule line. The fleuron's own draw gate drops a selection-touched
+        // line exactly as it drops the caret's, so the raw `---` source is on
+        // screen — and a nit tick on visible source is a nit that must draw. The
+        // caret-line exclusion above cannot answer this case, because the caret
+        // is not on that line at all.
+        let mut v_sel = view(&text, 1, 0);
+        v_sel.is_markdown = true;
+        v_sel.selection = Some(((0, 0), (0, 3)));
+        p.set_view(&v_sel);
+        assert!(
+            !p.rule_line_concealed(0),
+            "{variant:?}: selection-touched, the rule line's raw markup must reveal"
+        );
+        let ul_sel = p.nit_underlines();
+        assert_eq!(
+            ul_sel.len(),
+            2,
+            "{variant:?}: a SELECTION-revealed rule line draws its raw source, so its own \
+             trailing-whitespace nit must draw over it alongside the control line's: \
+             {ul_sel:?}"
+        );
     }
     crate::nits::set_nits_on(true);
 }

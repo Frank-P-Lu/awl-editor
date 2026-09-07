@@ -449,19 +449,11 @@ impl TextPipeline {
         self.row_box_visible(self.line_ornament_top(line), 0.0)
     }
 
-    pub(super) fn rule_lines(&self) -> Vec<usize> {
-        if self.md_spans.is_empty() {
-            return Vec::new();
-        }
-        // CACHE + CULL: the rule-line SET is a pure function of the text (cached by
-        // reshape version); each frame we just drop the caret's own line AND every
-        // line the active selection touches (reveal-on-cursor, widened the same way
-        // `footnote_marks`/`bare_url_marks` widen theirs — one owner,
-        // `selection_touch_bytes`/`selection_touches`, never re-derived) plus the
-        // OFF-SCREEN lines (clipped to nothing anyway). Ascending order + the same
-        // membership on the visible rows => byte-identical render.
-        self.ensure_ornament_lists();
-        let selection_touch = selection_touch_bytes(
+    /// The byte extent of every line the ACTIVE SELECTION touches — computed
+    /// ONCE by a caller that is about to ask [`Self::line_is_revealed`] about
+    /// several lines, since deriving it per line re-walks the rope.
+    pub(super) fn selection_touch(&self) -> Option<std::ops::Range<usize>> {
+        selection_touch_bytes(
             self.selection,
             |li| self.line_doc_byte_start(li),
             |li| {
@@ -470,19 +462,50 @@ impl TextPipeline {
                     .get(li)
                     .map_or(0, |line| line.text().len())
             },
-        );
+        )
+    }
+
+    /// THE reveal test for a whole LINE — caret on it, or the selection
+    /// touching it — the same "caret line OR selection touch" rule
+    /// [`super::spans::wysiwyg_reveals`] applies to a span. ONE owner, because
+    /// two readers of a line's reveal state that derive it separately drift:
+    /// the rule ornament's own draw gate and the nit underline's conceal check
+    /// each answer "is this thematic break showing its raw source", and a
+    /// widening applied to one alone leaves a revealed `---` line drawing its
+    /// markup with the nit under it suppressed.
+    pub(super) fn line_is_revealed(
+        &self,
+        li: usize,
+        selection_touch: Option<&std::ops::Range<usize>>,
+    ) -> bool {
+        if li == self.cursor_line {
+            return true;
+        }
+        let start = self.line_doc_byte_start(li);
+        let end = start + self.buffer.lines.get(li).map_or(0, |l| l.text().len());
+        selection_touches(selection_touch, &(start..end))
+    }
+
+    pub(super) fn rule_lines(&self) -> Vec<usize> {
+        if self.md_spans.is_empty() {
+            return Vec::new();
+        }
+        // CACHE + CULL: the rule-line SET is a pure function of the text (cached by
+        // reshape version); each frame we just drop the REVEALED lines
+        // ([`Self::line_is_revealed`] — caret line or selection touch, the one
+        // owner the nit underline's own conceal check reads too) plus the
+        // OFF-SCREEN lines (clipped to nothing anyway). Ascending order + the same
+        // membership on the visible rows => byte-identical render.
+        self.ensure_ornament_lists();
+        let selection_touch = self.selection_touch();
         self.ornament_cache
             .rule_lines
             .borrow()
             .iter()
             .copied()
             .filter(|&li| {
-                if li == self.cursor_line || !self.line_ornament_visible(li) {
-                    return false;
-                }
-                let start = self.line_doc_byte_start(li);
-                let end = start + self.buffer.lines.get(li).map_or(0, |l| l.text().len());
-                !selection_touches(selection_touch.as_ref(), &(start..end))
+                self.line_ornament_visible(li)
+                    && !self.line_is_revealed(li, selection_touch.as_ref())
             })
             .collect()
     }
