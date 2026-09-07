@@ -461,7 +461,7 @@ idle — and it rarely is: two lanes were live while the measurement ran.
 where the operator's judgement currently is** — refuse `--all-worktrees` while the native-gate
 arbiter marker names a live pid, or while any `cargo`/`rustc` runs. About ten lines, and it
 turns "the operator knows nothing is building" from an assumption into an assertion. Deleting
-the mode is second-best and does not touch the larger `incremental` number (item 605). The
+the mode is second-best and does not touch the larger `incremental` number (item 612). The
 status quo, where the safety is a habit, is worst.
 
 ---
@@ -661,7 +661,7 @@ Routing: worker Sonnet high (Claude) or `gpt-5.6-sol` high; outcome audit at the
 
 ---
 
-### 605 — `target/debug/incremental` has no owner and no reclaimer, and it is the biggest disk lever here (measured by 600's lane, 2026-09-07)
+### 612 — `target/debug/incremental` has no owner and no reclaimer, and it is the biggest disk lever here (measured by 600's lane, 2026-09-07)
 
 ⬜ READY — the largest single disk fact on this host, and nothing in the fleet addresses it.
 
@@ -681,7 +681,7 @@ if this door starts reclaiming too.
 
 ---
 
-### 606 — `test-native-gate.sh`'s free-oracle hardcodes 40 GiB, an undeclared coupling to the healthy floor (found by 600's lane, 2026-09-07)
+### 613 — `test-native-gate.sh`'s free-oracle hardcodes 40 GiB, an undeclared coupling to the healthy floor (found by 600's lane, 2026-09-07)
 
 ⬜ READY — small, and it is the "a check runs in one configuration" hazard in miniature.
 
@@ -859,6 +859,25 @@ Routing: worker Sonnet high (Claude) or `gpt-5.6-sol` high; outcome audit at the
 tier.
 
 ---
+
+## Two orchestrators share this board — renumber yourself, never the other
+
+A second orchestrator session works this board. On 2026-09-07 both queued items in the same
+window and **both used 605 and 606**, because this session appended by number without
+re-reading a board that had moved under it. Theirs landed first (`35177829`); mine were the
+duplicates and mine were renumbered to 612 and 613, along with the one cross-reference that
+pointed at the wrong 605.
+
+The rule that prevents it: **re-read the board immediately before choosing an item number, and
+if two numbers collide, the LATER writer renumbers.** Their commit is the tiebreak, not
+seniority and not who noticed. Fix the cross-references in the same commit — a renumber that
+leaves a stale pointer is worse than the collision, because the pointer still resolves to a
+real item and reads as deliberate.
+
+Related and cheaper: this session also spent several turns listing questions the user had
+ALREADY answered through the other session — 603, 568, 570's placement, 576's gestures and
+572's four taste calls were all decided in `35177829` while this one was mid-wave. Read the
+board's own Owed section before telling the user what they owe you.
 
 ## Owed to the user — landed work awaiting a live eye
 
