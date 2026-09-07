@@ -426,7 +426,7 @@ reason = "Overlay composition and ambient resolvers live here because they read 
 
 [[file_size_mark]]
 file = "src/render/rects.rs"
-lines = 1835
+lines = 1822
 reason = "+4: panel_layout reads shared physical PANEL_PAD and PANEL_MARGIN and clamps the content-sized card to narrow-canvas room, matching panel_shape_text fitted rows. +76: `OrnamentCache::bare_url_tails`'s field, its `ensure_ornament_lists` collection arm, and `bare_url_marks()`, beside the other per-frame ornament collections. +7: `MdKind::BareUrlText` joins `MdKind::LinkText` in the bucket-derivation match that feeds `Bucket::LinkUnderline`, so a tamed bare URL draws the same quiet underline a named link already does, through the one shared band/proto pipeline. Item 530's smart-punct ornament collection (smart_punct_marks) and its OrnamentCache::smart_punct_spans field, beside the other per-frame ornament collections this file already owns. +45: the table x-ray selection-band branch in `range_rects`, rebuilding the selection quad against the revealed row's real advances instead of the concealed geometry that collapsed it to a sliver. +20: `rule_lines` computes `selection_touch_bytes` once and widens its per-line filter with `selection_touches`, so a selection touching a thematic-break line drops out of the ornament draw set exactly as the caret's own line already does — the shape `footnote_marks`/`bare_url_marks` use, so the reveal keeps ONE owner instead of a second per-layer derivation. +13: `panel_glyph_x`, the ONE panel x lookup — the amber caret's own glyph scan, lifted out of `panel_layout` so the field's selection band cannot be placed by a different rule than the caret beside it. +47: blockquote blocks recorded as (first, last) via `push_or_grow_quote_block` keyed on the previous quote row, `QuoteSide`, the wrap-aware `line_ornament_last_top`, and `quote_marks` emitting a per-end pair whose two ends cull independently."
 
 [[file_size_mark]]
@@ -518,7 +518,7 @@ reason = "The footer plate earns the notice channel's own one-pixel rim, which i
 
 [[file_size_mark]]
 file = "src/theme/model.rs"
-lines = 778
+lines = 773
 reason = "The exhaustive theme model authors rotated-location treatment and toast anchor as data; shared renderers own both geometries without world-specific branches. +9: CardShape::Chamfered splits cut_px into a top_cut_px/bottom_cut_px pair, so a world can cut only the free edge and keep a docked seam square. +18: `LocationStyle::needs_plan_row` is the one exhaustive answer to whether the row planner reserves a display line for a world's location cue -- `RotatedRail` composes off-card against the room's own wordmark margin and needs no row, `Raked` still anchors its rotated run to that row's own geometry and does, so a future style is a conscious decision here rather than a silently vacated or silently extra row. +13: `Theme::fold_mark()` derives the fold-chevron glyph from `ornament_face` via `theme::ornament::fold_mark_for` — no per-world literal, a new world inherits from its existing ornament classification alone. +3: `bullet_face` preserves each world's approved list bullets while the Nishiki section-break cabinet changes independently."
 
 [[file_size_mark]]
