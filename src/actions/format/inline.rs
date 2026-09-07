@@ -1,7 +1,7 @@
 //! The inline formatting family — ONE owner for how each kind's grammar binds
 //! its delimiters to a payload: choosing them, recognizing them, stripping them.
 
-use super::{ActionCtx, Effect, FormatResult, NoticeEffect, sel_range};
+use super::{Action, ActionCtx, Effect, FormatResult, NoticeEffect, sel_range};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum InlineKind {
@@ -52,6 +52,22 @@ impl InlineKind {
 /// whitespace-only selection is deliberately NOT routed here — that one the
 /// reader can already see.
 const NO_VALID_MARKUP: &str = "markdown can't mark that up";
+
+/// Route one INLINE formatting `Action` to its kind — `apply_table_action`'s
+/// shape. The no-wildcard match is what makes a new [`InlineKind`] a compile
+/// error here rather than a silently inert palette row, and it is why the five
+/// dispatch arms delegate instead of each naming a kind of their own.
+pub(in crate::actions) fn apply_inline_action(ctx: &mut ActionCtx, action: &Action) -> Effect {
+    let kind = match action {
+        Action::Bold => InlineKind::Bold,
+        Action::Italic => InlineKind::Italic,
+        Action::InlineCode => InlineKind::InlineCode,
+        Action::Highlight => InlineKind::Highlight,
+        Action::Strikethrough => InlineKind::Strikethrough,
+        other => unreachable!("non-inline action routed to the inline family: {other:?}"),
+    };
+    apply_inline_format(ctx, kind)
+}
 
 pub(in crate::actions) fn apply_inline_format(ctx: &mut ActionCtx, kind: InlineKind) -> Effect {
     if !ctx.buffer.is_markdown() {
@@ -379,24 +395,18 @@ pub(super) enum InlineToggle {
     NoValidOutput,
 }
 
-/// WOULD THE WRAP THIS COMMAND IS ABOUT TO EMIT ACTUALLY MEAN `kind`?
-///
-/// Asked of the emitted text through the same oracle that recognizes a strip,
-/// so the two directions cannot hold different opinions about what the document
-/// says. Three shapes fail it, and all three predate the fence work:
-///
-/// - a document backtick immediately OUTSIDE a code payload (`` x`y ``, select
-///   `y`) — the flank check below, because no fence length can escape it: the
-///   opening run becomes `n + 1` while the closing stays `n`, at every `n`;
-/// - a `==highlight==` whose payload holds any inline construct — the `==` scan
-///   sees one `Event::Text` at a time and never pairs a marker across a code
-///   span, so the delimiters would sit in the document as literal `=`;
-/// - a prose selection crossing a block boundary, where CommonMark has no
-///   emphasis run to give.
-///
-/// The one shape that PASSES while the parser withholds confirmation is a code
-/// span across a block boundary, and it passes through `content_is_kind`'s own
-/// documented fallback rather than an exception here.
+/// WOULD THE WRAP THIS COMMAND IS ABOUT TO EMIT ACTUALLY MEAN `kind`? Asked of
+/// the emitted text through the same oracle that recognizes a strip, so the two
+/// directions cannot hold different opinions about the document. Three shapes
+/// fail it: a document backtick immediately OUTSIDE a code payload (`` x`y ``,
+/// select `y`) — the flank check below, because no fence escapes it, the opening
+/// run coming out `n + 1` against a closing `n` at every `n`; a `==highlight==`
+/// whose payload holds any inline construct, since the `==` scan sees one
+/// `Event::Text` at a time and never pairs across one; and a prose selection
+/// crossing a block boundary, where CommonMark has no emphasis run to give. The
+/// one shape that PASSES while the parser withholds confirmation is a code span
+/// across a block boundary, through `content_is_kind`'s own documented fallback
+/// rather than an exception here.
 fn wrap_means_kind(
     kind: InlineKind,
     chars: &[char],

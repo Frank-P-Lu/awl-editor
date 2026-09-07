@@ -5,7 +5,7 @@ use super::*;
 mod footnotes;
 mod inline;
 pub(super) use footnotes::apply_insert_footnote;
-pub(super) use inline::apply_inline_format;
+pub(super) use inline::apply_inline_action;
 pub(crate) use inline::{InlineKind, inline_active};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -23,22 +23,6 @@ pub(super) enum BlockKind {
     Task,
     Heading,
     CodeBlock,
-}
-
-/// Route one INLINE formatting `Action` to its kind. The no-wildcard match is
-/// what makes a new inline kind a compile error here rather than a silently
-/// inert palette row — `apply_table_action`'s shape, and the reason the five
-/// dispatch arms delegate rather than each naming a kind of their own.
-pub(super) fn apply_inline_action(ctx: &mut ActionCtx, action: &Action) -> Effect {
-    let kind = match action {
-        Action::Bold => InlineKind::Bold,
-        Action::Italic => InlineKind::Italic,
-        Action::InlineCode => InlineKind::InlineCode,
-        Action::Highlight => InlineKind::Highlight,
-        Action::Strikethrough => InlineKind::Strikethrough,
-        other => unreachable!("non-inline action routed to the inline family: {other:?}"),
-    };
-    apply_inline_format(ctx, kind)
 }
 
 /// Run a BLOCK toggle over the caret line / selection and apply it as one undoable
