@@ -46,48 +46,6 @@ doubling; option off ⇒ byte-identical render to today.
 
 ---
 
-### 572 — class audit: decorative geometry vs the caret — every row or advance inflated for an ornament, probed against what caret/selection/highlight inherit (user decision, 2026-09-06 — "we should fix this class of bugs yeah?? like ornament + cursor")
-
-🟡 CLAIMED 2026-09-07 — lane `item-572`, worktree `.claude/worktrees/item-572`, Opus 5 high
-(engineering). The brief's load-bearing instruction is that the inflation sites are enumerated
-FROM THE CODE and this item's own list only seeds the sweep — a law pinned to named members is
-how an enrolment on this board quietly stopped matching for the life of the law.
-
-
-Item 571 (rule row's ornament room swallowing the block caret) is one
-member of a class, and 545 (smart-punct conceal's giant reserved slot) is
-another — per standing policy, the neighborhood gets audited because bugs
-cluster. The class: any mechanism that grows a ROW's height or a run's
-ADVANCES for a decorative replacement, cross-examined against every
-caret-adjacent treatment drawn from that geometry (block caret, beam
-caret, selection band, spell/nit underlines, link underline, find-match
-wash).
-
-Enumerate the inflation sites from the code rather than from this list —
-known members to seed the sweep, not bound it: the thematic-break
-`ornament_scale` row (571 fixes the reveal; the audit checks selection
-bands and underlines on it too), the heading ladder's DECOUPLED row growth
-(row grows "beyond what its font size alone needs" — does the block caret
-span the decoupled extra, or the em box? a big caret on big text is
-coherent, a caret taller than the heading's own glyphs is not), inline
-image rows (absolute line-height, same decoupling shape), the smart-punct
-reserved slot (545 — what does a selection or block caret over the slot
-look like before/after that fix), zero-width concealed spans (caret x and
-selection band at a collapsed span's boundary), and table x-ray rows.
-
-Probe form per policy: state (caret-on / selection-touch / off) × surface
-(each caret/highlight treatment) × world (sampled across the roster,
-including one dark world and one with a large equalized `ornament_scale`,
-e.g. the 4.6× member), asserting per cell with sidecar geometry AND pixel
-arithmetic — a highlight's drawn box against the row's glyph ink box, not
-just against row metrics (the sidecar is a state oracle, not an appearance
-oracle). Production audit tier. An audit that finds something ends by
-writing the missing law; the deliverable is the cell table plus laws, with
-each defect it finds either fixed in-item when small or queued as its own
-scoped item when not.
-
----
-
 ### 577 — `Install sccache` costs 4m25s on every cold CI run because it builds from source (found by 566's step-timing, 2026-09-06)
 
 `scripts/install-sccache.sh` builds sccache from source. It short-circuits when the pinned
@@ -520,6 +478,8 @@ Laws: whichever way it goes, a colour whose alpha is set must either reach the r
 that alpha or fail to compile. Prove non-vacuity by rendering two colours differing only in
 alpha and requiring the frames to differ (or the code not to build).
 
+---
+
 ### 603 — what should selecting inside a substituted transcript do? (named by 581's audit, 2026-09-07, and deliberately left unfixed)
 
 ⬜ READY — a product decision first, a fix second. Do not treat it as a bug report.
@@ -544,6 +504,8 @@ right.
 Laws: whichever is chosen, the three surfaces must agree by construction with enrolment
 derived from `shows_read_only_prose` rather than named, and the advertise/refuse pairing must
 be law-pinned so a surface cannot advertise what it will not do.
+
+---
 
 ### 604 — three band consumers 572 fixed but did not grade, and one inflation site it did not sweep (named by 572's own lane, 2026-09-07)
 
@@ -573,8 +535,6 @@ one. A sweep that silently shrinks to one world would pass it.
 Laws: grade the two ungraded consumers on the same axis as the other five; sweep the
 thematic-break row against every caret-adjacent treatment the way 572 swept the heading rung;
 give the mono law an exact count derived from its own filtered roster.
-
----
 
 ## A lane-facing note: three lanes lost a gate cycle to the same law
 
@@ -726,6 +686,16 @@ this ground's geometry and inherits the same sign-off.
 ---
 
 ## Green train — the exact-main receipts
+
+**Fifth train, `a7076b32`** — covers 572, HEAD verified unmoved across the run:
+
+```
+native-gate-receipt commit=a7076b323c8ac462399edbb71789b7269ad85887 health=pass:247s
+  conventions=mac,linux scope=all-targets menubar=full:on unit_tests=4964 unit_shards=6
+  integration_targets=18
+```
+plus `web-smoke: OK`. No mark raised — the branch LOWERED `render/geometry.rs` to 1323 after
+`caret_band` moved into its own module.
 
 **Fourth train, `0e195574`** — covers 580 and 581, HEAD verified unmoved across the run.
 Pushed as `297ed802`; **CI run 34072883296 passed all four gating jobs.**
