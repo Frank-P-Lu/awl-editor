@@ -732,6 +732,134 @@ production tier.
 
 ---
 
+### 609 — the theme picker keeps ONE chrome while the document behind it previews each world (user decision from reader feedback, 2026-09-07)
+
+⬜ DECIDED, READY — coordinate with 589 (shared transient chrome): this item is the one
+surface 589's "each world's authored composition" rule does NOT apply to, by decision.
+
+Reader feedback, relayed by the user: "the theme switcher should not jump all over the
+place — it made my boyfriend dizzy". Reproduced with `--keys "Cmd-T C-n…"` from Tawny: every
+arrow re-composes the LIST ITSELF into the previewed world's chrome, because
+`sync_theme_colors` switches `theme::active()` per arrow and the picker reads its
+composition from there like every other overlay. Across a few arrows the list is a plain
+pane at the column's left, then a descending spine on the left with a THEMES placard
+(Mangrove), then chips on the left with a paged "↑ 1 more / ↓ 7 more" window (Galah), then an
+ascending spine on the RIGHT (Magpie), then a ruled list top-right (Kite) — moving corners,
+changing face, row pitch, list style and how many rows are visible, all while the reader is
+trying to hold the selection with their eyes.
+
+**Decision.** The theme picker gets a FIXED chrome for the life of the summon: one simple
+list in one place, the Find/Replace-box grammar the user already prefers
+(`references/find-replace-chrome.png` beside this board), while everything BEHIND it — page,
+prose, margins, ground — previews the world live as today. The list's own surface colours
+may follow the previewed world (that is the preview) but its composition, anchor, face,
+row pitch, page window and selection treatment do not. Frost stays `Footprint`.
+
+Mechanism, not a per-world code path: the picker's chrome reads a PINNED `RenderCaps` /
+composition captured at summon (or a dedicated `ListStyle::Pane`-shaped constant) rather
+than `theme::active().render_caps` per frame — one seam, named, with every other overlay
+still reading the live caps. `effective_list_style()` is where the picker currently asks; do
+not special-case inside the compositions.
+
+Laws: across a full arrow sweep of the roster the picker's card rect, anchor, list style,
+row pitch and visible-row window are identical frame to frame (sidecar + pixel bbox of the
+card), while the page ground behind it changes on every arrow (presence: the frames DO
+differ outside the card); prove non-vacuity by restoring the live-caps read and watching the
+rect law go red on the first non-Pane world. Standing five-shot vision smoke.
+
+Routing: worker `gpt-5.6-sol` high or Sonnet high; visual judge at the production tier.
+Feel is owed to the user's live eye — and to the reader who got dizzy.
+
+---
+
+### 610 — an untagged Chinese note renders as a patchwork of Japanese and Chinese faces (reader feedback, 2026-09-07; decision needed)
+
+⬜ BLOCKED on one user decision (recommendation below) — the mechanism is fully diagnosed.
+
+Reader feedback: "Chinese is kinda weird… Simplified is correct in Bowerbird but not right in
+other themes". Measured: the note is untagged, so every Han run resolves through
+`script::doc_lang_for`, which hands it `cjk_priority.first()` — `ja` by default and in the
+user's own config — so the run shapes in the world's JAPANESE face. Every bundled Japanese
+subset (Zen Maru Gothic, Noto Sans/Serif JP, Klee One, Shippori Mincho) carries the same
+6 356-character JIS set, which LACKS the simplified-only characters: of the sentence
+这是简体中文的一段测试文字骨头直角与其内外开关门说话车站, the JP faces hold
+是体中文的一段文字骨直角与其内外站 and none of 这简测试头开关门说话车. So the shared
+characters draw in the Japanese face with Japanese forms (骨 直 与 内 differ visibly) and the
+rest fall through glyph-by-glyph to whichever face has them (Noto Sans SC bundled, PingFang
+on macOS) — two faces interleaved inside one sentence. Bowerbird only LOOKS right because
+Zen Maru Gothic and Noto Sans SC happen to be close in weight and roundness; the patchwork
+is there too.
+
+This is a design consequence, not a shaping bug: docs/fonts.md records the ja-first tiebreak
+and the retired auto-stamp. The honest fix is in the tiebreak, and it is a product call:
+
+**Recommended (a):** a Han run in a document that contains NO kana anywhere does not resolve
+to `ja` — the tiebreak takes the first non-`ja` entry of `cjk_priority` (`zh-Hans` by
+default). Japanese prose without a single kana does not exist; the one edge is a bare
+kanji-only title, which then draws in a Chinese face and can be tagged. In-memory only,
+per-open, edits nothing — the same contract `dominant_cjk` already keeps. A tagged document
+is unchanged: a tag still wins.
+(b) Change the default `cjk_priority` to `zh-Hans` first — punishes every Japanese note
+with a kanji-only line, worse than (a).
+(c) Do nothing and rely on "Tag document language" — a reader who does not know the
+command sees the patchwork forever.
+
+If (a): laws — an untagged kana-free Han document resolves `ZhHans` in every world (enrol the
+roster from `THEMES`); adding one kana anywhere flips it to `Ja`; a `lang:` tag beats both;
+prove non-vacuity by restoring `cjk_priority.first()` and watching it go red. Pixel companion:
+the test sentence above in one world shapes in ONE family end to end (sidecar
+`font.scripts` plus a per-run family read). Update docs/fonts.md's ladder step (c).
+
+Routing: worker Sonnet high (Claude) or `gpt-5.6-sol` high; outcome audit at the production
+tier.
+
+---
+
+### 611 — "Open in Awl" from the Finder: declare document types and accept the open-documents event (user request, 2026-09-07)
+
+⬜ READY — engineering, two halves, both required; the second is the one that is easy to
+skip and then nothing opens.
+
+The user asked: "finder: open in awl, like right-click on a file and add this option? how do
+we do this?" Today `scripts/package-macos.sh` writes an Info.plist with NO
+`CFBundleDocumentTypes`, so the Finder's Open With menu never lists Awl and it cannot be made
+the default for `.md`; and the app has no handler for the open-documents Apple Event
+(`application:openURLs:` / `openFiles:` — `grep -rn openFiles src` is empty), so even
+`open -a Awl note.md` launches the app without the file. The only live door is the daemon's
+`open <path>` socket line, which the CLI uses.
+
+(1) **Declare the types** in the plist: `CFBundleDocumentTypes` for `net.daringfireball.markdown`,
+`public.plain-text`, `public.text` (and the `.txt`/`.md`/`.markdown` extensions as
+`CFBundleTypeExtensions` for pre-UTType consumers), role Editor, `LSHandlerRank Alternate`
+so Awl is OFFERED without stealing the default. Once declared, right-click ▸ Open With ▸ Awl
+appears for every text file, and "Change All…" makes it the default. Keep the MAS arm's
+entitlements in mind: the sandboxed build needs `com.apple.security.files.user-selected.read-write`
+already present for a picker-chosen file; verify Finder-opened files are covered by the same
+entitlement (they are, as user-selected).
+
+(2) **Accept the event.** winit 0.30 owns the `NSApplicationDelegate` and forwards no
+open-documents event, so install a handler on the delegate winit creates (objc2 subclass or
+method addition on the existing delegate class, the way `mac_chrome` already reaches AppKit)
+that routes each URL into the SAME `DaemonEvent::OpenPath` the socket door already posts via
+`EventLoopProxy` — one open path, never a second. Handle BOTH cases: app already running
+(event arrives on the live loop) and cold launch (the event arrives before the window exists;
+queue it and drain after the first frame, the same shape session restore uses). Honour the
+existing single-instance daemon: a second Finder open must not spawn a second process.
+
+A Finder context-menu item that reads literally "Open in Awl" is a Finder Sync extension or a
+user-installed Quick Action, neither of which awl ships; Open With is the platform's own
+answer and is what the item delivers. Record that in docs/platform.md.
+
+Laws: the plist declares each type by name (a test parses the generated plist); the
+open-path route is one owner (grep-law: no second path from AppKit into `App`); the
+cold-launch queue drains exactly once. Live: Open With from the Finder on a running and on a
+quit Awl, and `open -a Awl file.md` — live-only by nature, flagged for the user.
+
+Routing: worker Sonnet high (Claude) or `gpt-5.6-sol` high; outcome audit at the production
+tier.
+
+---
+
 ## Owed to the user — landed work awaiting a live eye
 
 These items have MERGED and left the build queue. Each one still owes the user an answer or
