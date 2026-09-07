@@ -30,15 +30,15 @@
 //! wide across the roster — 20% to 105% of a hole for the mark to sit
 //! left-aligned in. The footnote number reserved
 //! `line_height * (0.34 + 0.20 * (digits - 1))`, which is NARROWER than a real
-//! two-digit number on six of the twenty worlds (worst: Potoroo, `100` shaping
-//! 30.36px into a 23.68px slot) — an overrun into the following prose, and a
+//! two-digit number on nearly a third of the roster (worst: Potoroo, `100`
+//! shaping 30.36px into a 23.68px slot) — an overrun into the following prose, and a
 //! `debug_assert!` failure in any debug build that opened a document with ten
 //! footnotes. Both are now the substitute's OWN shaped advance, from the same
 //! owner that shapes the ink.
 //!
 //! Enrolment is derived from [`crate::theme::THEMES`] throughout, never from a
-//! named world — `Cassowary` lives in its own module and a grep over
-//! `worlds.rs` alone counts nineteen.
+//! named world — `Cassowary` lives in its own module, so a grep over
+//! `worlds.rs` alone comes up one short of the roster.
 
 use super::super::*;
 use super::dither::{offscreen, read_pixels};
@@ -440,8 +440,8 @@ fn the_row_scaled_caret_forms_track_the_headings_size_rung() {
 ///
 /// It sits ~2.7x above the shipped worst case (about three rows of a 30px ink
 /// box, so a one-pixel threshold difference on another rasterizer cannot reach
-/// it) and ~2x under the defect, which still fails on thirteen of the twenty
-/// worlds by at least `0.083`. A tighter `0.12` left the tightest cell one
+/// it) and ~2x under the defect, which still fails on the large majority of
+/// the roster by at least `0.083`. A tighter `0.12` left the tightest cell one
 /// pixel from red, which is the shape that has taken this repo's pixel laws
 /// down on lavapipe before.
 const BAND_HUG_ALLOWANCE: f32 = 0.18;
