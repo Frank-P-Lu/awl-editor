@@ -56,6 +56,34 @@ impl DocumentSession {
         self.test_active_mut().buffer.start_fresh_doc(root);
     }
 
+    // ── FIXTURE SEEDERS ──────────────────────────────────────────────────
+    //
+    // The four raw text mutators are module-private in `document.rs` so that
+    // production can reach the rope only through `App::write_document_text`
+    // with a named `TextDoor` (see the insertion-door census in
+    // `app/input/text_door.rs`). Rust cannot express "private, plus this one
+    // sibling test tree", but a `#[cfg(test)]` child of `document` CAN see
+    // them — so a fixture seeding a document keeps its plain spelling and
+    // contributes nothing to the production census.
+
+    pub(in crate::app) fn insert_char(&mut self, ch: char) {
+        self.test_active_mut().buffer.insert_char(ch);
+    }
+
+    pub(in crate::app) fn insert_text(&mut self, text: &str) {
+        self.test_active_mut().buffer.insert_text(text);
+    }
+
+    pub(in crate::app) fn replace_char_range(&mut self, start: usize, end: usize, text: &str) {
+        self.test_active_mut()
+            .buffer
+            .replace_char_range(start, end, text);
+    }
+
+    pub(in crate::app) fn set_text(&mut self, text: &str) {
+        self.test_active_mut().buffer.set_text(text);
+    }
+
     fn extra(&self) -> &BufferExtra {
         &self.test_active().extra
     }

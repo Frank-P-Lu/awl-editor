@@ -5,6 +5,11 @@ use anyhow::{Context, bail};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
+/// A NAMED EXEMPTION from the insertion-door census
+/// (`app/input/text_door.rs`): this subprocess opens no surface and is never
+/// reachable from the running editor, so it seeds its payload straight in.
+const SEED: TextDoor = TextDoor::PersistenceFaultProbe;
+
 fn probe_config(history: bool) -> Config {
     Config {
         history: Some(history),
@@ -39,7 +44,7 @@ pub(super) fn run(operation: &str, args: &[PathBuf]) -> anyhow::Result<()> {
     match (operation, args) {
         ("autosave", [target, payload_path]) => {
             let mut app = app_on(target, false);
-            app.document.set_text(&payload(payload_path)?);
+            app.write_document_text(SEED, TextEdit::Whole(&payload(payload_path)?));
             app.autosave_flush();
             println!("persistence-probe autosave complete");
         }
@@ -53,13 +58,13 @@ pub(super) fn run(operation: &str, args: &[PathBuf]) -> anyhow::Result<()> {
         }
         ("export", [source, payload_path]) => {
             let mut app = app_on(source, false);
-            app.document.set_text(&payload(payload_path)?);
+            app.write_document_text(SEED, TextEdit::Whole(&payload(payload_path)?));
             app.export_document(crate::export::Format::Html, None);
             println!("persistence-probe export complete");
         }
         ("export-bytes", [source, payload_path]) => {
             let mut app = app_on(source, false);
-            app.document.set_text(&payload(payload_path)?);
+            app.write_document_text(SEED, TextEdit::Whole(&payload(payload_path)?));
             let bytes = app.export_bytes(crate::export::Format::Html).unwrap();
             std::io::stdout().write_all(&bytes)?;
         }
@@ -67,7 +72,7 @@ pub(super) fn run(operation: &str, args: &[PathBuf]) -> anyhow::Result<()> {
             let body = payload(payload_path)?;
             let bytes = body.len();
             let mut app = app_on(target, true);
-            app.document.set_text(&body);
+            app.write_document_text(SEED, TextEdit::Whole(&body));
             let started = std::time::Instant::now();
             app.manual_save();
             let elapsed_ms = started.elapsed().as_millis();

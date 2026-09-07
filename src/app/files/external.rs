@@ -263,7 +263,11 @@ impl App {
             self.request_frame();
             return;
         };
-        self.document.set_text(&theirs);
+        // A NAMED EXEMPTION from the census's wall
+        // (`app/input/text_door.rs`): the conflict card pressing this verb IS a
+        // read-only prose surface, and this is one of the two resolutions it
+        // exists to offer.
+        self.write_document_text(TextDoor::ConflictTakeTheirs, TextEdit::Whole(&theirs));
         let version = self.document.buffer().version();
         self.document
             .record_document_saved(version, crate::external::Seen::at(&path));
@@ -346,7 +350,13 @@ impl App {
         // The user's text is what awl was holding; the disk's text may have
         // moved again while awl was closed, so it is re-read rather than
         // remembered.
-        self.document.set_text(&record.text);
+        // A NAMED EXEMPTION from the census's wall
+        // (`app/input/text_door.rs`): this runs as a document BECOMES active,
+        // before any card can be up, and puts back text the user already had.
+        self.write_document_text(
+            TextDoor::RelaunchRecoveryAdopt,
+            TextEdit::Whole(&record.text),
+        );
         let theirs = crate::fs::active().read_to_string(path).ok();
         self.persistence
             .set_unresolved(persistence::UnresolvedChange {

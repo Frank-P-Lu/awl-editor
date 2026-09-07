@@ -41,7 +41,13 @@ fn app_with(text: &str) -> App {
         None,
         crate::config::Config::empty(),
     );
-    app.document.set_text(text);
+    // A NAMED EXEMPTION from the insertion-door census
+    // (`app/input/text_door.rs`): this `App` has no window, no overlay and no
+    // user, so there is no reading surface for it to write behind.
+    app.write_document_text(
+        crate::app::TextDoor::AccessibilityBench,
+        crate::app::TextEdit::Whole(text),
+    );
     app
 }
 
@@ -73,7 +79,10 @@ pub(crate) fn run() -> anyhow::Result<()> {
         app.document.set_cursor(caret);
         let mut mono = Vec::with_capacity(KEYSTROKES);
         for _ in 0..KEYSTROKES {
-            app.document.insert_char('x');
+            app.write_document_text(
+                crate::app::TextDoor::AccessibilityBench,
+                crate::app::TextEdit::Char('x'),
+            );
             let start = std::time::Instant::now();
             let snapshot = app.semantic_snapshot();
             let update = crate::semantic::native::tree_update(&snapshot);
@@ -95,7 +104,10 @@ pub(crate) fn run() -> anyhow::Result<()> {
         let mut inc = Vec::with_capacity(KEYSTROKES);
         let mut refresh_only = Vec::with_capacity(KEYSTROKES);
         for _ in 0..KEYSTROKES {
-            app.document.insert_char('x');
+            app.write_document_text(
+                crate::app::TextDoor::AccessibilityBench,
+                crate::app::TextEdit::Char('x'),
+            );
             let start = std::time::Instant::now();
             projection.refresh(&app.semantic_view());
             let split = start.elapsed().as_secs_f64() * 1000.0;

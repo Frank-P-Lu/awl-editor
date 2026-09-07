@@ -21,7 +21,7 @@ mod pointer_sync;
 mod text_door;
 mod wheel;
 
-pub(in crate::app) use text_door::TextDoor;
+pub(in crate::app) use text_door::{TextDoor, TextEdit};
 
 use drags::ImageDrag;
 #[cfg(test)]

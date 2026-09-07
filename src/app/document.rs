@@ -12,6 +12,7 @@ use crate::app::*;
 use std::path::Path;
 
 mod cache;
+mod edit;
 mod entries;
 mod naming;
 #[cfg(not(target_arch = "wasm32"))]
@@ -210,7 +211,11 @@ impl DocumentSession {
             .buffer
     }
 
-    /// The one mutable-buffer loan, fenced to `app/apply.rs` by a source law.
+    /// The one mutable-buffer loan — the insertion-door census' `TextDoor::ActionCore`
+    /// (`app/input/text_door.rs`), fenced to its single `app/apply.rs` call site by a
+    /// source law. Its gate is deliberately one layer up: `actions::intercept_action`
+    /// consumes every action before a buffer verb runs while a card or a summoned field
+    /// is up, at the ACTION level because a menu key equivalent never becomes a key.
     /// `None` is the explicit no-document state; the action core uses an inert
     /// transition buffer solely while the Go-to card is active.
     pub(in crate::app) fn action_buffer_mut(&mut self) -> Option<&mut Buffer> {
@@ -446,34 +451,6 @@ impl DocumentSession {
             .expect("active document")
             .buffer
             .unfold_at(line);
-    }
-    pub(in crate::app) fn insert_char(&mut self, ch: char) {
-        self.active
-            .as_mut()
-            .expect("active document")
-            .buffer
-            .insert_char(ch);
-    }
-    pub(in crate::app) fn insert_text(&mut self, text: &str) {
-        self.active
-            .as_mut()
-            .expect("active document")
-            .buffer
-            .insert_text(text);
-    }
-    pub(in crate::app) fn replace_char_range(&mut self, start: usize, end: usize, text: &str) {
-        self.active
-            .as_mut()
-            .expect("active document")
-            .buffer
-            .replace_char_range(start, end, text);
-    }
-    pub(in crate::app) fn set_text(&mut self, text: &str) {
-        self.active
-            .as_mut()
-            .expect("active document")
-            .buffer
-            .set_text(text);
     }
     pub(in crate::app) fn set_path(&mut self, path: PathBuf) {
         self.active
