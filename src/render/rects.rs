@@ -8,6 +8,7 @@ type FootnoteMark = (usize, usize, std::ops::Range<usize>, usize);
 /// syntax-highlight-span wash rects, in that order.
 type WashRects = (Vec<[f32; 4]>, Vec<[f32; 4]>, Vec<[f32; 4]>);
 
+mod reveal;
 mod underlines;
 
 /// A contiguous run of blockquote lines is ONE block, recorded as `(first, last)`
@@ -447,43 +448,6 @@ impl TextPipeline {
     /// vertical extent (a tall inline image).
     pub(super) fn line_ornament_visible(&self, line: usize) -> bool {
         self.row_box_visible(self.line_ornament_top(line), 0.0)
-    }
-
-    /// The byte extent of every line the ACTIVE SELECTION touches — computed
-    /// ONCE by a caller that is about to ask [`Self::line_is_revealed`] about
-    /// several lines, since deriving it per line re-walks the rope.
-    pub(super) fn selection_touch(&self) -> Option<std::ops::Range<usize>> {
-        selection_touch_bytes(
-            self.selection,
-            |li| self.line_doc_byte_start(li),
-            |li| {
-                self.buffer
-                    .lines
-                    .get(li)
-                    .map_or(0, |line| line.text().len())
-            },
-        )
-    }
-
-    /// THE reveal test for a whole LINE — caret on it, or the selection
-    /// touching it — the same "caret line OR selection touch" rule
-    /// [`super::spans::wysiwyg_reveals`] applies to a span. ONE owner, because
-    /// two readers of a line's reveal state that derive it separately drift:
-    /// the rule ornament's own draw gate and the nit underline's conceal check
-    /// each answer "is this thematic break showing its raw source", and a
-    /// widening applied to one alone leaves a revealed `---` line drawing its
-    /// markup with the nit under it suppressed.
-    pub(super) fn line_is_revealed(
-        &self,
-        li: usize,
-        selection_touch: Option<&std::ops::Range<usize>>,
-    ) -> bool {
-        if li == self.cursor_line {
-            return true;
-        }
-        let start = self.line_doc_byte_start(li);
-        let end = start + self.buffer.lines.get(li).map_or(0, |l| l.text().len());
-        selection_touches(selection_touch, &(start..end))
     }
 
     pub(super) fn rule_lines(&self) -> Vec<usize> {
