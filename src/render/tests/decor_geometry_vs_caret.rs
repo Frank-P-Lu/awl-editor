@@ -280,6 +280,75 @@ impl BandReadings {
     }
 }
 
+/// Grade ONE world's pair of rows, returning the number of consumers checked.
+/// Split out of the sweep so the sweep itself stays readable; the three
+/// families are the three ways a treatment reads the band, and each is paired
+/// with a PRESENCE floor because a treatment that drew nothing on both rows
+/// would satisfy every ratio and every difference claim below it.
+fn grade_one_worlds_band_consumers(
+    world: &str,
+    readings: BandReadings,
+    level: u8,
+    size: f32,
+) -> usize {
+    let rows = readings.rows;
+    assert_eq!(
+        readings.heights.len() + readings.fractions.len() + readings.gaps.len(),
+        BAND_CONSUMERS,
+        "{world}: `BandReadings` answered with a different number of consumers than the \
+         roster arithmetic counts on"
+    );
+    assert!(
+        rows[1] > rows[0] + 1.0,
+        "{world}: the fixture's heading row ({}) must actually be taller than its body \
+         twin ({}) or this sweep proves nothing",
+        rows[1],
+        rows[0]
+    );
+    let mut graded = 0usize;
+    for (name, [body, head]) in readings.heights {
+        assert!(
+            body > 1.0 && head > 1.0,
+            "{world}: `{name}` must actually be drawn on BOTH rows (body={body}, \
+             heading={head}) or its ratio is a claim about two zeroes"
+        );
+        let ratio = head / body;
+        assert!(
+            (ratio - size).abs() < 0.06,
+            "{world}: `{name}` on an h{level} must be {size}x its body value (the size \
+             rung), not {}x (the retired row product): got {ratio} ({head}/{body})",
+            retired_band_scale(level)
+        );
+        graded += 1;
+    }
+    for (name, [body, head]) in readings.fractions {
+        assert!(
+            body > 0.01 && head > 0.01,
+            "{world}: `{name}` must be drawn on BOTH rows (body={body}, heading={head})"
+        );
+        assert!(
+            (head - body).abs() < 0.02,
+            "{world}: `{name}` must sit at the same fraction of the band on an h{level} \
+             ({head}) as on body ({body}) — it rides the band, so the band moving is the \
+             whole change"
+        );
+        graded += 1;
+    }
+    for (name, [body, head]) in readings.gaps {
+        assert!(
+            body.is_finite() && head.is_finite(),
+            "{world}: `{name}` must be drawn on BOTH rows"
+        );
+        assert!(
+            (head - body).abs() < 0.6,
+            "{world}: `{name}` must be the same fixed gap on an h{level} ({head}) as on \
+             body ({body})"
+        );
+        graded += 1;
+    }
+    graded
+}
+
 /// **THE CONSUMER SWEEP.** The scale above is only worth pinning if every
 /// treatment drawn from it actually moved. Each consumer is measured on an
 /// `###` line and on the identical bytes as body prose, in three families by
@@ -333,70 +402,7 @@ fn every_caret_band_consumer_grew_by_the_size_rung_alone() {
             p.prepare(&device, &queue, W, H).unwrap();
             readings.take(&mut p, t.name, slot);
         }
-        let rows = readings.rows;
-        assert_eq!(
-            readings.heights.len() + readings.fractions.len() + readings.gaps.len(),
-            BAND_CONSUMERS,
-            "{}: `BandReadings` answered with a different number of consumers than the \
-             roster arithmetic below counts on",
-            t.name
-        );
-        assert!(
-            rows[1] > rows[0] + 1.0,
-            "{}: the fixture's heading row ({}) must actually be taller than its body \
-             twin ({}) or this sweep proves nothing",
-            t.name,
-            rows[1],
-            rows[0]
-        );
-        for (name, [body, head]) in readings.heights {
-            // PRESENCE: a treatment that drew nothing would satisfy any ratio
-            // claim by being absent from both frames.
-            assert!(
-                body > 1.0 && head > 1.0,
-                "{}: `{name}` must actually be drawn on BOTH rows (body={body}, \
-                 heading={head}) or its ratio is a claim about two zeroes",
-                t.name
-            );
-            let ratio = head / body;
-            assert!(
-                (ratio - size).abs() < 0.06,
-                "{}: `{name}` on an h{level} must be {size}x its body value (the size \
-                 rung), not {}x (the retired row product): got {ratio} ({head}/{body})",
-                t.name,
-                retired_band_scale(level)
-            );
-            graded += 1;
-        }
-        for (name, [body, head]) in readings.fractions {
-            assert!(
-                body > 0.01 && head > 0.01,
-                "{}: `{name}` must be drawn on BOTH rows (body={body}, heading={head})",
-                t.name
-            );
-            assert!(
-                (head - body).abs() < 0.02,
-                "{}: `{name}` must sit at the same fraction of the band on an h{level} \
-                 ({head}) as on body ({body}) — it rides the band, so the band moving \
-                 is the whole change",
-                t.name
-            );
-            graded += 1;
-        }
-        for (name, [body, head]) in readings.gaps {
-            assert!(
-                body.is_finite() && head.is_finite(),
-                "{}: `{name}` must be drawn on BOTH rows",
-                t.name
-            );
-            assert!(
-                (head - body).abs() < 0.6,
-                "{}: `{name}` must be the same fixed gap on an h{level} ({head}) as on \
-                 body ({body})",
-                t.name
-            );
-            graded += 1;
-        }
+        graded += grade_one_worlds_band_consumers(t.name, readings, level, size);
     }
     assert_eq!(
         graded,
