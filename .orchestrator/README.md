@@ -948,7 +948,12 @@ times it fires.**
   ~240 s on this host and `test-native-gate.sh` alone measured **189 s** of that, so a
   lane running it in the foreground under the tool's default timeout is killed partway —
   "mid-probe", with its own harness reaping the command's group, while a gate it had
-  already backgrounded keeps running unattached. That is the whole observed shape, and it
+  already backgrounded keeps running unattached. **And `exit 144` is the agent
+  harness's own code for "this task's shell was killed" — it is not a signal number,
+  and nothing in this repo emits it.** Reproduced twice on 2026-09-07, once by accident
+  and once deliberately: a background task shell sent SIGTERM comes back as `exit 144`.
+  So when a lane reports 144, read its TIMEOUT, not this repo's scripts. That is the
+  whole observed shape, and it
   explains why `set -m` plus a disowned subshell "worked": it detaches from the group the
   timeout killer targets. **So the fix is to give `code-health.sh` an explicit long
   timeout like any other gate** — the subshell dodge merely hides the deadline, and a lane
