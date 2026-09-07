@@ -438,81 +438,34 @@ pick a third answer.
 
 ---
 
-### 600 — the preflight's floors, measured; and a recommendation on `--all-worktrees` (2026-09-07)
+### 600 — `--all-worktrees`: guard it, delete it, or leave the safety a habit? (awaiting the user, 2026-09-07)
 
-🟢 (b) LANDED, MERGE PENDING — lane `item-600`, `718bcb6e`. **(a) is a recommendation for the
-user and the lane did not touch the flag.**
+🔵 **(b) LANDED and receipted in `19c4e2fc`. (a) is a decision the lane deliberately did not
+take.** The floors are now derived from measurement — `MINIMUM_BYTES` unchanged at 24 GiB
+because it is a capacity floor, `HEALTHY_BYTES` down to a derived 27, and every receipt now
+reports what recovery reclaimed.
 
-**(b), measured before tuning.** `cargo sweep --time 1` — the preflight's exact call —
-reclaimed **nothing at all** from every one of six sampled worktrees holding 1.2–25.4 GiB, at
-every threshold from 0 to 60 days. The lane checked the measurement before trusting it, since
-"nothing" is what a broken probe also reports: a scratch crate proves cargo-sweep 0.8.0 does
-clean when it should, and isolates the rule — `--time` keeps whatever the FINGERPRINTS say was
-used inside the window, so the one worktree this door may prune is the one building right now.
+What remains is one question with a measured cost on both sides.
 
-Two structural bounds, neither tunable: `cargo sweep` **never touches
-`target/debug/incremental`** (measured directly), and that directory is **61–69% of every
-`target/` on this host**; the largest sweepable pool anywhere on the fleet was **2.8 GiB**.
+**What the mode costs.** A fleet-wide sweep empties `deps` and `.fingerprint` while leaving
+`incremental` intact — measured, and reproduced in a control. Fourteen of sixteen worktrees on
+this host currently sit in that state, holding about **90 GiB of `target/` that backs no
+build**, each owing a full cold rebuild if resumed. A law stops any tracked script or workflow
+passing the flag; nothing stops a person typing it mid-wave, and 593 already showed what a
+sweep reaching a live sibling does.
 
-So `HEALTHY_BYTES` is now DERIVED rather than authored: `MINIMUM + SWEEP_YIELD`, 24 GiB + a
-measured 3 GiB = 27 GiB, down from an authored 32. **`MINIMUM_BYTES` does not move**, because it
-is a capacity floor that owes nothing to recovery — so refusals do NOT become more frequent,
-which is the opposite of what this item predicted. What the change removes is 5 GiB of band in
-which every worker command took the serialized lock and paid two `du -sk` traversals of a
-multi-gigabyte tree for a recovery that could not arrive. Every receipt now prints
-`sweep_yield_bytes=` and `reclaimed_bytes=`, so the next tuning pass reads numbers off a run
-instead of guessing.
+**What it buys.** One command instead of forty-one, at a moment when the fleet is genuinely
+idle — and it rarely is: two lanes were live while the measurement ran.
 
-**(a) — the recommendation, for the user to decide.** Deleting `--all-worktrees` outright loses
-a real maintenance tool and does not address the larger number. The lane measured what the mode
-actually costs: a fleet-wide sweep leaves `deps` and `.fingerprint` empty while `incremental`
-survives, so **14 of 16 worktrees on this host currently hold ~90 GiB of `target/` that backs
-no build**, each owing a full cold rebuild if resumed. Its recommendation is to **keep the mode
-and put a check where the operator's judgement currently is**: refuse `--all-worktrees` when the
-native-gate arbiter marker names a live pid, or when any `cargo`/`rustc` is running — about ten
-lines, turning "the operator knows nothing is building" from an assumption into an assertion.
-Second-best is deletion; worst is the status quo, where the safety is a habit.
+**The lane's recommendation, which the orchestrator endorses: keep the mode and put a check
+where the operator's judgement currently is** — refuse `--all-worktrees` while the native-gate
+arbiter marker names a live pid, or while any `cargo`/`rustc` runs. About ten lines, and it
+turns "the operator knows nothing is building" from an assumption into an assertion. Deleting
+the mode is second-best and does not touch the larger `incremental` number (item 605). The
+status quo, where the safety is a habit, is worst.
 
 ---
 
-### 601 — `code-health.sh` was reported to reap its own caller's process group. It does NOT. (premise false, oracle repaired, 2026-09-07)
-
-🟢 ORACLE LANDED, MERGE PENDING — lane `item-600`, `fad14311`.
-
-**The premise was orchestrator-authored and false, and the lane measured it three ways rather
-than reading the code and agreeing.** Instrumenting the ONLY group-directed kill in the tree
-(`native-gate.sh`'s `gate_kill_groups`, confirmed by an exhaustive search for `killpg`,
-`os.kill`, `pkill` and negative-pid kills) through a full `code-health.sh` run recorded **554
-group signals across 220 distinct process groups, ZERO aimed at the caller's group and ZERO at
-any gate's own group.** Launching it from a plain shell with a `sleep` planted beside it left
-the sleeper and the shell alive.
-
-**What was actually happening is the clock, and the fix is a BRIEF, not code.** `exit 144` is
-the agent harness's code for "this task's shell was killed" — reproduced twice, once
-deliberately — and is not emitted anywhere in this repo. `code-health.sh` runs ~240 s here and
-420 s cold, with `test-native-gate.sh` alone measuring 189 s. A lane that runs it in the
-foreground under a default tool timeout is killed partway, mid-probe, by ITS OWN harness
-reaping the command's process group — while a gate it had already backgrounded keeps running
-unattached. That is the entire observed shape, and it explains why the `set -m` + disowned
-subshell "worked": it detaches from the group the timeout killer targets, hiding the deadline
-and costing the lane the exit status it was waiting for.
-
-⚠️ **So the standing instruction is: every brief that tells a lane to run `code-health.sh` must
-also name an explicit long timeout**, exactly as the README already does for other gates. The
-subshell dodge is not the fix and should stop being recommended.
-
-What landed is the oracle, not a repair: `test-native-gate.sh` now plants a bystander on every
-health run and requires it to survive, in three layers — a bystander inside the group under
-test cannot report its own death, and neither can a script sharing that group, so the stand-in
-caller gets a process group of its own and the verdict is read from outside. It carries an
-enrolment check (the stand-in's group must differ from the reader's, read off the live process
-table) and two presence floors. Wired at birth, riding the existing `test-native-gate.sh` run.
-
-Mutation 3a is worth keeping: widening the kill to the gate's own group TERMinated the whole
-run at the first probe and **printed nothing at all** — the silent-lane shape itself, and the
-reason the real law had to be scoped to get a named red.
-
----
 
 ### 602 — `Srgb::to_glyphon()` silently drops alpha, so a translucent text colour renders opaque (found by 570's lane while mutating, 2026-09-07)
 
