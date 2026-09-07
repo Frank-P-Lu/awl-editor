@@ -330,6 +330,9 @@ theme-specific composition remains a live taste review.
 
 ### 595 — an `overlay_hover_stability_law` failure appeared on one gate arm, once, and could not be reproduced (found by 568/569's lane, 2026-09-07)
 
+🟡 CLAIMED 2026-09-07 — lane `item-render-laws` with 602 and 604 (one seam: render laws and the
+colour conversion their mutations run through).
+
 ⬜ READY — small, but it is in the class this repo has been bitten by repeatedly.
 
 `render::tests::overlay_hover_stability_law::a_deliberate_world_crossing_can_move_a_stationary_
@@ -365,6 +368,8 @@ declaring it fixed.
 
 ### 596 — two small truths about the personal dictionary that its own docs get wrong (found by 568/569's lane, 2026-09-07)
 
+🟡 CLAIMED 2026-09-07 — lane `item-surface` with 597 and 598.
+
 ⬜ READY — trivial, filed so they are not lost between a merge and a board compression.
 
 (a) `REFERENCE.md` says the dictionary file "is read at startup only". It is also re-read when
@@ -380,6 +385,10 @@ whole CRLF discipline is "load normalizes, save restores".
 ---
 
 ### 597 — three inline-formatting cases that predate 586/587 and have no valid output today (found by that lane, 2026-09-07)
+
+🟡 CLAIMED 2026-09-07 — lane `item-surface` with 596 and 598. Its case (a) is a product decision
+(refuse, or widen the edit beyond the selection); the lane picks the calmer default, lands it,
+and names it for the user rather than parking the item.
 
 ⬜ READY — small, and filed so they are not rediscovered as regressions of the fix that found
 them. All three PRE-DATE 586/587 and none was introduced by it.
@@ -403,6 +412,13 @@ non-vacuous by restoring today's behaviour and watching it go red.
 
 ### 598 — a summoned surface now swallows ⌘Q and ⌘S, and the picker card always did (found by 585's lane, 2026-09-07)
 
+🟡 CLAIMED 2026-09-07 — lane `item-surface` with 596 and 597. **This one carries a product
+question too**, contrary to a summary that listed only 603: should a summoned surface block
+Quit and Save at all? Per this board's standing preference the lane LANDS the obvious default —
+a summoned surface does not swallow ⌘Q or ⌘S — states the revert cost, and awaits the user's
+feedback rather than parking it. Whatever is chosen must apply to the card and the panel by
+construction, or they drift again.
+
 ⬜ READY — small, but it is a question about intent rather than a bug with an obvious answer.
 
 585 gave the find/replace panel the same action-level gate the picker card has always had, so
@@ -424,6 +440,10 @@ pick a third answer.
 
 ### 600 — 593's narrowing has two sharp edges left, both named by the lane that made them (2026-09-07)
 
+🟡 CLAIMED 2026-09-07 — lane `item-plumbing` with 601 (one seam: the scripts every lane runs
+through). Half (a) is a decision, not a defect — the lane measures and RECOMMENDS whether to
+delete `--all-worktrees` outright; it does not delete it unilaterally.
+
 ⬜ READY — small, and both are consequences of a fix that was correct.
 
 (a) **`--all-worktrees` is a loaded gun with a safety.** The fleet-wide sweep survives behind
@@ -444,6 +464,8 @@ now they need to be.
 
 ### 601 — `code-health.sh` reaps its own caller's process group, and the workaround is prose every lane must remember (found by 593's lane, 2026-09-07)
 
+🟡 CLAIMED 2026-09-07 — lane `item-plumbing` with 600.
+
 ⬜ READY — a real fix waiting inside a probe that already exists.
 
 `code-health.sh` group-kills in a way that reaps the process group of whatever launched it.
@@ -460,6 +482,10 @@ one and requiring it to survive; and the law must fail if the group kill is wide
 ---
 
 ### 602 — `Srgb::to_glyphon()` silently drops alpha, so a translucent text colour renders opaque (found by 570's lane while mutating, 2026-09-07)
+
+🟡 CLAIMED 2026-09-07 — lane `item-render-laws` with 595 and 604. Sequenced FIRST in that lane:
+until the alpha question is settled, every contrast/presence mutation in the other two has to
+route around it.
 
 ⬜ READY — small, and it is a product fact rather than a test artifact.
 
@@ -508,6 +534,8 @@ be law-pinned so a surface cannot advertise what it will not do.
 ---
 
 ### 604 — three band consumers 572 fixed but did not grade, and one inflation site it did not sweep (named by 572's own lane, 2026-09-07)
+
+🟡 CLAIMED 2026-09-07 — lane `item-render-laws` with 595 and 602.
 
 ⬜ READY — small, and it exists because the lane said plainly where its own sweep stopped
 rather than letting the enrolment guard imply a completeness it did not have.
