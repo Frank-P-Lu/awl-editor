@@ -772,9 +772,9 @@ Feel is owed to the user's live eye — and to the reader who got dizzy.
 
 ---
 
-### 610 — an untagged Chinese note renders as a patchwork of Japanese and Chinese faces (reader feedback, 2026-09-07; decision needed)
+### 610 — an untagged Chinese note renders as a patchwork of Japanese and Chinese faces; the Han tiebreak grows an evidence tier and Settings gets Auto (reader feedback + user decision, 2026-09-07)
 
-⬜ BLOCKED on one user decision (recommendation below) — the mechanism is fully diagnosed.
+⬜ DECIDED, READY.
 
 Reader feedback: "Chinese is kinda weird… Simplified is correct in Bowerbird but not right in
 other themes". Measured: the note is untagged, so every Han run resolves through
@@ -787,28 +787,50 @@ subset (Zen Maru Gothic, Noto Sans/Serif JP, Klee One, Shippori Mincho) carries 
 characters draw in the Japanese face with Japanese forms (骨 直 与 内 differ visibly) and the
 rest fall through glyph-by-glyph to whichever face has them (Noto Sans SC bundled, PingFang
 on macOS) — two faces interleaved inside one sentence. Bowerbird only LOOKS right because
-Zen Maru Gothic and Noto Sans SC happen to be close in weight and roundness; the patchwork
-is there too.
+Zen Maru Gothic and Noto Sans SC happen to be close in weight and roundness.
 
-This is a design consequence, not a shaping bug: docs/fonts.md records the ja-first tiebreak
-and the retired auto-stamp. The honest fix is in the tiebreak, and it is a product call:
+The gap is structural: `dominant_cjk` (the "intelligent" tier) feeds only the palette's Tag
+document language command, and for a pure-Han note it answers `Han`, never zh-vs-ja — so
+RENDERING has two tiers (tag, then the settings ladder) where the user believed it had three.
 
-**Recommended (a):** a Han run in a document that contains NO kana anywhere does not resolve
-to `ja` — the tiebreak takes the first non-`ja` entry of `cjk_priority` (`zh-Hans` by
-default). Japanese prose without a single kana does not exist; the one edge is a bare
-kanji-only title, which then draws in a Chinese face and can be tagged. In-memory only,
-per-open, edits nothing — the same contract `dominant_cjk` already keeps. A tagged document
-is unchanged: a tag still wins.
-(b) Change the default `cjk_priority` to `zh-Hans` first — punishes every Japanese note
-with a kanji-only line, worse than (a).
-(c) Do nothing and rely on "Tag document language" — a reader who does not know the
-command sees the patchwork forever.
+**Decision (user's model).** Resolution is tag → evidence in the text → setting, and the
+setting's default is **Auto**. The evidence tier is DOCUMENT-scoped (one language per note,
+never a flip mid-sentence), in-memory and per-open, edits nothing — `dominant_cjk`'s own
+contract, widened to answer the question it currently ducks:
 
-If (a): laws — an untagged kana-free Han document resolves `ZhHans` in every world (enrol the
-roster from `THEMES`); adding one kana anywhere flips it to `Ja`; a `lang:` tag beats both;
-prove non-vacuity by restoring `cjk_priority.first()` and watching it go red. Pixel companion:
-the test sentence above in one world shapes in ONE family end to end (sidecar
-`font.scripts` plus a per-run family read). Update docs/fonts.md's ladder step (c).
+1. any kana anywhere → `Ja`;
+2. any SIMPLIFIED-ONLY character (这 们 说 没 …: in GB 2312, in neither JIS X 0208 nor Big5)
+   → `ZhHans`;
+3. any TRADITIONAL-ONLY character (這 們 說 …) → `ZhHant`;
+4. hangul → `Ko`;
+5. nothing decisive (shared characters only) → the setting: **Auto = the current default
+   ladder** (`ja, zh-Hans, zh-Hant, ko`); an explicit ladder replaces step 5 ONLY. It never
+   overrides steps 1–4 — a "Japanese" setting forcing a note full of 这 into a face that has no
+   这 is the patchwork again.
+
+A kanji-only Japanese title stays Japanese (no simplified-only character in it); a Chinese
+note written wholly in shared characters is the one miss, and no real paragraph of simplified
+Chinese manages it. The character tables are GENERATED from Unicode's Unihan data and checked
+in (`script::han_class` or a sibling) — never derived from which font happens to be bundled,
+so the rule cannot move when a subset does. A tagged document is unchanged: the tag still
+wins, and the Tag command now writes what the evidence tier already concluded.
+
+**Settings + config.** The "CJK priority" row gains an **Auto** value and defaults to it;
+config accepts `cjk_priority = "auto"` alongside the explicit list (an absent key is Auto;
+today's default list written out explicitly is honoured as an explicit ladder and reads the
+same as Auto). `frontmatter::cjk_priority()` stays the ONE owner the Settings row, the CJK
+picker and the render ladder all read.
+
+Laws: the untagged test sentence resolves `ZhHans` in every world (enrol the roster from
+`THEMES`); the same sentence with one kana appended resolves `Ja`; its traditional twin
+resolves `ZhHant`; a shared-characters-only note follows the setting, and an explicit
+`ja`-first ladder does NOT override a simplified-only hit; a `lang:` tag beats all of it;
+prove non-vacuity by restoring `cjk_priority.first()` and watching the first law go red.
+Pixel companion: the sentence in one world shapes in ONE family end to end (sidecar
+`font.scripts` plus a per-run family read). The generated tables get a law against the
+Unihan source they were cut from, and a spot-check of a sample of entries against the
+code (the generated-document tripwire in CLAUDE.md). Update docs/fonts.md's ladder and
+docs/config.md's `cjk_priority`.
 
 Routing: worker Sonnet high (Claude) or `gpt-5.6-sol` high; outcome audit at the production
 tier.
