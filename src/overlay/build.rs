@@ -51,9 +51,8 @@ pub fn goto_folder_roster(
 /// Command, plus the buffer-scoped Spell) from the caller-gathered [`BuildCtx`].
 /// Returns `None` for the navigable explorers (Browse / MoveDest / Project) —
 /// those need a directory LEVEL, built by [`browse_level`] — and for an unresolved
-/// Spell target, so those summons stay quiet no-ops. Shared by the live App
-/// (`app.rs`) and the headless replay (`main.rs`) so both summon byte-identical
-/// overlays.
+/// Spell target. Live App and ordinary replay share this construction path;
+/// their caller-gathered inputs may differ.
 pub fn build(kind: OverlayKind, ctx: &BuildCtx) -> Option<OverlayState> {
     match kind {
         // Go-to: the active project's file index. The open/recent tiers + the
@@ -136,8 +135,7 @@ pub fn build(kind: OverlayKind, ctx: &BuildCtx) -> Option<OverlayState> {
                     ctx.config_linux_keep,
                     ctx.config_keymap_flavor,
                 ),
-                // RUNTIME gate: "Finish file" only shows while a daemon `--wait`
-                // client is actively waiting (see `BuildCtx::has_waiter`'s doc).
+                // Conditional rows read the caller's runtime facts (`BuildCtx::row_gates`).
                 crate::commands::visible_hidden_mask(ctx.row_gates),
             );
             // The Recent lens reads the in-memory recently-run MRU (empty in a fresh

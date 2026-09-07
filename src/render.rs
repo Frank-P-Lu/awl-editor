@@ -82,11 +82,7 @@ pub use text::ScriptFontReports;
 
 mod reports;
 
-/// LAYER GEOMETRY — the rect / squiggle builders that turn document + view state
-/// into the instanced quads each draw layer uploads (selection / range / search
-/// rects, the markdown rule quads, the spell squiggles, the IME preedit cells, the
-/// search panel layout). Inherent methods ON [`TextPipeline`] reading its shaped
-/// buffer / cursor / selection state, carved out verbatim. Byte-identical.
+/// Build layer geometry from the shaped document and view state.
 mod rects;
 
 pub(crate) mod livingband;
@@ -96,11 +92,7 @@ pub(crate) mod livingband;
 #[cfg(not(target_arch = "wasm32"))]
 mod image_cache;
 
-/// PER-LAYER PREPARE ORCHESTRATION — the per-frame `prepare_*_layer` steps the
-/// aggregating [`TextPipeline::prepare`] (still in `render.rs`) folds together:
-/// background, document text, animated caret, selection/search, chrome, and spell
-/// underlines. Inherent methods ON [`TextPipeline`] driving its GPU renderers /
-/// pipelines, carved out verbatim. Byte-identical.
+/// Prepare drawing layers for [`TextPipeline::prepare`].
 mod layers;
 
 pub mod perfbench;
@@ -121,10 +113,7 @@ pub mod benchsuite;
 
 pub mod caretbench;
 
-/// The render-relevant editor SNAPSHOT — the [`ViewState`] struct + its canonical
-/// [`ViewState::base`] default, carved out of `render.rs` VERBATIM into a physical
-/// home (pure data, no `&self`, no GPU types — see the module doc). Re-exported
-/// here so `crate::render::ViewState` resolves unchanged for every caller.
+/// Render-relevant editor data and its canonical [`ViewState::base`] defaults.
 mod viewstate_def;
 pub use viewstate_def::{DocSource, FoldTail, ViewState};
 

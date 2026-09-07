@@ -50,42 +50,14 @@ impl App {
         Some(self.document.buffer().visible_line_to_full(filtered))
     }
 
-    /// Multi-click detection: same spot, within the time window (`MULTICLICK_MS`) —
-    /// bump the running click count (wrapping 1/2/3) and stamp `last_click_time` /
-    /// `last_click_px` for the NEXT press, then return the now-current count.
-    /// Shared by a normal document press ([`Self::on_press`]) and a press on the
-    /// draggable page-column edge ([`Self::begin_page_resize_if_hovering`]) so a
-    /// double-click reads the same wherever the pointer lands — one owner, so the
-    /// two can't drift apart on what counts as "a double-click".
+    /// Share click cadence between document presses and page-edge resizing.
     pub(in crate::app) fn bump_click_count(&mut self) -> u32 {
         self.input.pointer.bump_click_count(self.frame.now())
     }
 
-    /// THE PHANTOM-SELECTION-CLICK FIX: whether the pointer has traveled far
-    /// enough from the press position (`press`) to the current position
-    /// (`current`, both PHYSICAL px like `cursor_px`) to treat this `CursorMoved`
-    /// as the start of a REAL text-selection drag, rather than pointer jitter or a
-    /// WYSIWYG reveal reflow relocating glyphs under an otherwise-stationary
-    /// pointer (concealed markup regaining its real advance the instant the caret
-    /// lands on that line — which used to look identical to a drag because the old
-    /// code re-hit-tested on every move regardless of actual travel, so the
-    /// hit-test RESULT drifting was mistaken for pointer motion). Pure
-    /// squared-distance compare against [`DRAG_ARM_SLOP_PX`] (no sqrt needed).
-    /// Deliberately answers ONLY from pixel geometry — never from a hit-test
-    /// result — so it can never be fooled by content reflowing under a still
-    /// pointer. See `App::drag_armed`'s doc in `app.rs` for the wiring.
-    /// Handle a primary-button press inside the writing column: hit-test, set the
-    /// anchor, and (for double / triple clicks) select the word / line under the
-    /// cursor. A press in either PAGE MARGIN is swallowed before hit-testing — the
-    /// gutter is orientation, not document text, and `hit_test` deliberately clamps
-    /// out-of-column x positions to a line endpoint. Without this gate, clicking the
-    /// gutter therefore selected text at the page's left edge. A drag that STARTED in
-    /// the column may still extend into a margin through [`Self::on_drag`].
-    ///
-    /// `shift` is
-    /// whether Shift was held at press time: a SHIFT-CLICK extends the existing
-    /// selection (the standard gesture everywhere — TextEdit/Xcode/browsers/…)
-    /// instead of starting a fresh one, so it must never `clear_mark`.
+    /// Handle a primary press in the writing column. Margin presses are ignored
+    /// because hit testing clamps them to text endpoints; an existing drag may
+    /// still extend into a margin. Shift-click preserves the selection anchor.
     pub(in crate::app) fn on_press(&mut self, shift: bool, over_writing_column: bool) {
         if !over_writing_column {
             return;

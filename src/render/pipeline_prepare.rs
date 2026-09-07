@@ -10,29 +10,14 @@ impl TextPipeline {
         width: u32,
         height: u32,
     ) -> anyhow::Result<()> {
-        // INVARIANT: the document buffer's soft-wrap width must ALWAYS equal the
-        // live page COLUMN width. `column_left()` / `column_width()` and the margin
-        // background are recomputed from the live page state EVERY frame, but the
-        // buffer is only re-wrapped at the scattered `set_size` / `set_dpi` /
-        // `set_text` call sites. Any state flip those sites miss (a page-mode toggle
-        // or measure change that doesn't re-wrap, the width-preserving theme reshape)
-        // leaves the buffer wrapped at a STALE, wider width while the column re-centers
-        // — so the text wraps too wide from the centered left, overflowing the right
-        // edge with NO right margin. Re-deriving here makes divergence impossible at
-        // any window size / DPI. cosmic-text no-ops when the width is unchanged, so a
-        // settled frame stays free.
+        // Keep wrapping aligned with the live column even when a page or theme
+        // change bypasses the setters. Unchanged width does not trigger rewrapping.
         self.sync_wrap_width();
         self.viewport.update(queue, Resolution { width, height });
 
         self.prepare_background_layer(queue, width, height);
-        // THE LAVA-LAMP GROUND: over the flat margin ground, before the washes.
-        // A no-op (draws nothing) for every non-lava world.
         self.prepare_lava_layer(queue, width, height);
-        // TWINKLING STARS: the ambient star field in the margins (zero
-        // instances for every AmbientStyle::None world — byte-identical).
         self.prepare_stars_layer(device, queue, width, height);
-        // THE PAGE FRAME: the thin writing-column frame (zero rects for every
-        // PageFrame::None world, so those stay byte-identical).
         self.prepare_page_frame(device, queue, width, height);
         self.prepare_wash_layer(device, queue, width, height);
         self.prepare_wysiwyg_wash_layer(device, queue, width, height);
@@ -40,23 +25,16 @@ impl TextPipeline {
         // Seal the exact shaped partition glyphon just prepared. Layout reports
         // can only borrow this frame; they never shape or assemble rows.
         self.row_geom.seal_frame(&self.buffer, &self.metrics);
-        // THE X-RAY: stash the caret's table-row floated source BEFORE the caret /
-        // selection layers, so their `col_x_and_advance` redirects onto it (the
-        // concealed doc row is zero-width). A no-op off a table row.
+        // Prepare the floated table source before caret and selection geometry:
+        // their column lookup redirects here from the zero-width concealed row.
         self.prepare_table_xray();
         self.prepare_caret_layer(device, queue, width, height);
         self.prepare_selection_layer(device, queue, width, height);
         self.prepare_ornaments(device, queue, width, height)?;
-        // THE FOLD CHEVRON: rotated-quad arms, drawn OUTSIDE the glyphon ornament
-        // pipeline above because it must turn a quarter turn on fold/unfold and
-        // glyphon 0.11 has no transform (`layers::fold_chevron`'s module doc).
+        // Rotating chevrons need their own quads; glyphon has no transform.
         self.prepare_fold_chevron_marks(device, queue, width, height);
         self.prepare_table_grid(device, queue, width, height)?;
-        // INLINE IMAGES: the tall rows are reserved at reshape (the per-line height
-        // override in `build_line_attrs`); this decodes each visible off-cursor image
-        // (`image_cache`, downscaled), builds the textured quads (fit-to-column,
-        // centered in the reserved row), and the calm missing-file placeholders. All
-        // three layers park empty when off / no images, so a capture is byte-identical.
+        // Image rows were reserved during reshape; populate their visible quads.
         self.prepare_images(device, queue, width, height)?;
         self.prepare_chrome_layer(device, queue, width, height)?;
         self.prepare_spell_layer(device, queue, width, height);

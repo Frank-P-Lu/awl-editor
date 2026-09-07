@@ -290,6 +290,8 @@ impl PointerInput {
         self.drag_armed
     }
 
+    // Measure pointer travel, not hit-test changes: conceal reflow can move
+    // text under a stationary pointer. Coordinates are physical pixels.
     fn exceeds_drag_slop(press: (f32, f32), current: (f32, f32)) -> bool {
         let dx = current.0 - press.0;
         let dy = current.1 - press.1;
