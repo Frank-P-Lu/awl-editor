@@ -913,19 +913,32 @@ times it fires.**
 - **Classify suspicious failures before blaming code.** Retry incremental
   failures with `CARGO_INCREMENTAL=0`. For `SIGKILL` with no test failure,
   check memory and rerun the gate alone.
-- ‼ **RUNNING `code-health.sh` FROM AN AGENT'S OWN BASH SHELL KILLS THAT SHELL, AND
-  LEAVES ITS GATE ORPHANED AND STILL RUNNING.** `code-health.sh` invokes
-  `test-native-gate.sh`, whose group-kill probe signals whole PROCESS GROUPS — and an
-  agent's tool shell shares a group with the gate it launched, so the probe reaps the
-  caller. Measured 2026-09-06: a lane's first attempt died at **exit 144** mid-probe while
-  its gate kept running unattached, and the orchestrator later found TWO full gates
-  competing for the one arbiter slot, one of them nobody was waiting on. The shell that
-  dies takes the lane's turn with it, so this reads as an unexplained silent lane. Isolate
-  it: `set -m` in **bash** (zsh rejects it in that context) plus a disowned subshell. And
-  when a lane reports an orphaned gate, the orchestrator's job is to kill the process
-  GROUP (`kill -TERM -<pgid>`) — the arbiter's EXIT trap clears the marker on TERM, so the
-  slot frees cleanly — rather than leaving a redundant gate to starve the receipt that
-  actually covers the merge candidate.
+- ‼ **`code-health.sh` DOES NOT REAP ITS CALLER'S PROCESS GROUP — THAT MECHANISM WAS
+  MEASURED AND IS FALSE, AND IT IS NOW PINNED SO NOBODY HAS TO RE-DERIVE IT.** The
+  tripwire that stood here said `test-native-gate.sh`'s group-kill probe signals the
+  group an agent's tool shell shares with it. Measured 2026-09-07 by instrumenting the
+  one group-directed `kill` in the tree (`native-gate.sh`'s `gate_kill_groups`) through a
+  full `code-health.sh` run: **554 group signals across 220 distinct process groups,
+  ZERO of them the caller's and zero of them any gate's own** — every target is a phase
+  group `gate_launch` created under `set -m`. A `code-health.sh` launched from a plain
+  bash shell with a `sleep` planted beside it exits 0 and leaves both the sleeper and the
+  shell alive. `scripts/test-native-gate.sh` now plants that sleeper on every health run,
+  in a stand-in caller with a process group of its own, and requires it to survive; a
+  widened group kill turns it red by name.
+
+  **What actually fits the 2026-09-06 evidence is the CLOCK.** `code-health.sh` takes
+  ~240 s on this host and `test-native-gate.sh` alone measured **189 s** of that, so a
+  lane running it in the foreground under the tool's default timeout is killed partway —
+  "mid-probe", with its own harness reaping the command's group, while a gate it had
+  already backgrounded keeps running unattached. That is the whole observed shape, and it
+  explains why `set -m` plus a disowned subshell "worked": it detaches from the group the
+  timeout killer targets. **So the fix is to give `code-health.sh` an explicit long
+  timeout like any other gate** — the subshell dodge merely hides the deadline, and a lane
+  that uses it can no longer read the exit status it was waiting for. When a lane does
+  report an orphaned gate, the orchestrator's job is still to kill the process GROUP
+  (`kill -TERM -<pgid>`) — the arbiter's EXIT trap clears the marker on TERM, so the slot
+  frees cleanly — rather than leaving a redundant gate to starve the receipt that actually
+  covers the merge candidate.
 
 - **Terminate only owned processes.** Never kill `awl` by name; stop only the
   exact PID this run created. Identify them with `pgrep -f` plus `ps -ww`:
