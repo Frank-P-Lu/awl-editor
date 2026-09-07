@@ -186,22 +186,37 @@ impl App {
     /// removal already happened and there is nothing on disk to undo.
     /// Associated fn (no `self`) so it stays a pure path→disk unit, testable
     /// under the `InMemoryFs`.
+    ///
+    /// EVERY KEPT LINE IS COPIED WITH ITS OWN TERMINATOR rather than re-joined
+    /// with `\n`. Splitting and re-joining silently retypes a CRLF word list as
+    /// LF, which is the one preservation promise this function would otherwise
+    /// break — and it is the rope's own rule for documents (load normalizes,
+    /// save restores), which a hand-editable side file has no business
+    /// contradicting. A file with no final newline keeps having none, and a
+    /// mixed-ending file keeps every ending it had.
     fn remove_word_from_dictionary_file(path: &std::path::Path, word: &str) -> std::io::Result<()> {
         let fs = crate::fs::active();
         let Ok(existing) = fs.read_to_string(path) else {
             return Ok(()); // nothing on disk yet — the in-memory drop is the whole edit
         };
-        let trailing_newline = existing.ends_with('\n');
-        let kept: Vec<&str> = existing
-            .lines()
-            .filter(|line| !line.trim().eq_ignore_ascii_case(word))
-            .collect();
-        if kept.len() == existing.lines().count() {
-            return Ok(()); // the word was never a line here — leave the bytes alone
+        let mut out = String::with_capacity(existing.len());
+        let mut removed = false;
+        let mut rest = existing.as_str();
+        while !rest.is_empty() {
+            let end = rest.find('\n').map_or(rest.len(), |i| i + 1);
+            let (line, tail) = rest.split_at(end);
+            // `trim` takes the terminator with the surrounding blanks, so the
+            // comparison is the case-insensitive trimmed-line match the append
+            // path uses to decide a word is already present.
+            if line.trim().eq_ignore_ascii_case(word) {
+                removed = true;
+            } else {
+                out.push_str(line);
+            }
+            rest = tail;
         }
-        let mut out = kept.join("\n");
-        if trailing_newline && !out.is_empty() {
-            out.push('\n');
+        if !removed {
+            return Ok(()); // the word was never a line here — leave the bytes alone
         }
         crate::fs::write_atomic(path, out.as_bytes())
     }
