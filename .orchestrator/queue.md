@@ -8,6 +8,29 @@
 
 ---
 
+### 614 — shorten source commentary and repair stale descriptions (user request, 2026-09-07)
+
+🟡 IN PROGRESS — Codex (codex), branch `codex/614-comment-cleanup`, worktree `.worktrees/614-comment-cleanup`.
+
+The source survey found migration history, repeated call narration, and misleading
+method/module documentation: `on_press` carries a drag-distance helper's description,
+and renderer module comments name preparation's former location. Clean the surveyed
+mouse-input, fresh-document, document-entry, picker-input, and renderer commentary.
+Keep present-tense contracts, units, ordering constraints, cache invalidation reasons,
+and platform hazards; remove historical accounts and explanations already expressed
+by names. Check every rewritten claim against its current owner.
+
+This first slice changes comments only. Picker-specific input types, animation-state
+ownership, and mouse-module decomposition remain follow-up candidates, not changes
+hidden in an editorial pass. The orchestrator implements directly because the scope
+is bounded and already diagnosed.
+
+Verify: review the complete diff; prove all non-comment source lines unchanged;
+run formatting and structural code-health checks. No runtime or appearance changes
+are intended, and no native-suite receipt or live visual verification is claimed.
+
+---
+
 ### 537 — footnote markers may wear the traditional reference ladder (user decision, 2026-09-01; sequenced AFTER 529 bundles the face)
 
 ⬜ DECIDED, READY — both product decisions landed (user, 2026-09-06): **(a)
