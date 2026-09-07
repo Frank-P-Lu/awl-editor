@@ -695,6 +695,43 @@ Build: derive the oracle's value from the floor it is meant to sit above, or ass
 relationship so the coupling fails loudly instead of silently. Law: the oracle's value must
 exceed the healthy floor by a stated margin, and the law fails if the floor is raised past it.
 
+### 608 — a selected bullet row draws its depth ornament AND its revealed raw `-` (user-reported with a screenshot, 2026-09-07)
+
+⬜ READY — small, reproduced headlessly, and the neighbourhood is already audited: the bullet
+ornament is the ONE painted-ornament family that never learned the selection reveal.
+
+Reported as "when selected, the 2nd-level indent changes shape": in a nested list, selecting
+across a child row shows two markers on it — the depth glyph where it always sits and, just
+below and left of it, the raw `-` the selection reveal restored. Reproduced in Bombora and
+Bowerbird with `--keys "C-n C-n S-Down S-Down"` over a four-line list; the marker lane's ink
+on the selected child row widens from the ornament's 7px to the full 25px of a depth-0 lane,
+and the zoom shows the glyph stacked over the dash. The depth-0 rows double too, but there the
+ornament sits on top of the dash and hides it, which is why the child row is the one a reader
+notices.
+
+Cause, read out of the tree: the line-attrs owner (`render/spans/layout.rs`) conceals the raw
+marker only when `conceal_off_cursor && !line_selected`, exactly as its comment promises — "on
+the caret's own line, or any selected line, the raw markup reveals and NO ORNAMENT IS DRAWN".
+The painter does not keep that promise: `bullet_marks` (`render/rects.rs`) skips `li ==
+self.cursor_line` and nothing else, while its siblings `rule_marks`, `footnote_marks` and
+`bare_url_marks` all filter through `selection_touch_bytes`/`selection_touches` as well. The
+selection reveal was widened to the legacy bullet CONCEAL and never to the bullet ORNAMENT.
+
+Fix: route `bullet_marks` through the same `selection_touch_bytes`/`selection_touches` owner
+the other three read — one filter, not a fourth reading of the overlap test — so the ornament
+set and the conceal set are the same set by construction. Laws: extend the existing bullet
+depth/reveal law so that a selection touching a bullet row (caret elsewhere) yields no glyph
+for that row in `bullet_glyphs()` while `bullet_marker_concealed` reads false for it; sweep
+depth 0 and depth 1 and a selection that touches the row without the caret's line moving
+(the `refresh_rule_conceal` skip-gate tripwire in docs/markdown.md); prove non-vacuity by
+restoring the caret-only skip and watching it go red. A pixel companion: the marker lane's
+ink on a selected child row is the dash's alone, no wider than the unselected caret-row lane.
+
+Routing: worker Sonnet medium (Claude) or `gpt-5.6-sol` medium; outcome audit at the
+production tier.
+
+---
+
 ## Owed to the user — landed work awaiting a live eye
 
 These items have MERGED and left the build queue. Each one still owes the user an answer or
