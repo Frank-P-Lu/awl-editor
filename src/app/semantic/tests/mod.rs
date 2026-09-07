@@ -5,6 +5,11 @@ use crate::overlay::{OverlayKind, OverlayState};
 /// file because it renders real frames and reads their pixels back.
 mod passive_roster;
 
+/// The substitution-leak law: the accessibility tree over the read-only-prose
+/// family (History/Conflict/Credits), in its own file for the same reason
+/// `passive_roster` is — a distinct, self-contained roster sweep.
+mod comparison_leak;
+
 fn hermetic() -> App {
     App::new_hermetic(None, PathBuf::from("/"), Config::empty())
 }

@@ -21,6 +21,9 @@
 use super::*;
 use crate::semantic::runs::{Run, RunId};
 
+mod buffer_source;
+mod transcript;
+
 /// Where the retained document nodes sit in `snapshot.nodes`: the root and the
 /// document node first, the runs after them in line order, the surface tail
 /// last. Fixed positions, because a projection that had to SEARCH for the
@@ -76,6 +79,20 @@ pub(crate) struct SemanticProjection {
     resolved: Option<(usize, usize, u64, SemanticSelection)>,
     changed: Vec<String>,
     stats: ProjectionStats,
+    /// Was the CURRENTLY SEEDED tree built from a comparison transcript
+    /// (`true`) or the real buffer (`false`)? Compared against this frame's
+    /// source at the top of [`Self::refresh`]: the two halves keep disjoint
+    /// run identities (a transcript renumbers `RunId`s from zero every
+    /// rebuild; the buffer's are minted once and never reused), so resuming
+    /// either incremental path across a crossing would hand out ids the other
+    /// side never minted. A crossing forces [`Self::invalidate`] instead —
+    /// exactly the reseed an assistive technology reattaching already gets.
+    built_from_transcript: bool,
+    /// The last transcript this projection actually published, so an
+    /// unrelated refresh (a caret blink, a resize) with the SAME comparison
+    /// showing republishes nothing — the transcript's own twin of `content_rev`,
+    /// which has no meaning here because a transcript carries no `RunTable`.
+    last_transcript: Option<String>,
 }
 
 impl Default for SemanticProjection {
@@ -102,6 +119,8 @@ impl SemanticProjection {
             resolved: None,
             changed: Vec::new(),
             stats: ProjectionStats::default(),
+            built_from_transcript: false,
+            last_transcript: None,
         }
     }
 
@@ -141,6 +160,7 @@ impl SemanticProjection {
     pub(crate) fn invalidate(&mut self) {
         self.seeded = false;
         self.resolved = None;
+        self.last_transcript = None;
     }
 
     /// Bring the retained snapshot up to date. The narrow view is the whole
@@ -155,13 +175,27 @@ impl SemanticProjection {
         if !self.document_present {
             self.invalidate();
         }
+        let transcript = view.comparison_text();
+        if self.seeded && self.built_from_transcript != transcript.is_some() {
+            // THE SUBSTITUTION BOUNDARY ITSELF MOVED (buffer <-> comparison),
+            // not just its content — see the field's own doc for why neither
+            // incremental path may resume across it.
+            self.invalidate();
+        }
         let shape_moved = if self.seeded {
-            self.sync_runs(view)
+            match transcript {
+                Some(text) => self.sync_transcript(text),
+                None => self.sync_runs(view),
+            }
         } else {
-            self.seed(view);
+            match transcript {
+                Some(text) => self.seed_transcript(text),
+                None => self.seed(view),
+            }
             true
         };
-        self.sync_document(view, shape_moved);
+        self.built_from_transcript = transcript.is_some();
+        self.sync_document(view, shape_moved, transcript.is_some());
         self.rebuild_tail(view);
         self.document_present = true;
         debug_assert_eq!(
@@ -220,121 +254,19 @@ impl SemanticProjection {
         );
     }
 
-    fn seed(&mut self, view: &SemanticView<'_>) {
-        self.stats.seeds += 1;
-        let buffer = view.buffer().expect("document projection has a buffer");
-        let table = buffer.runs();
-        let mut root = SemanticNode::new(ROOT_ID, SemanticRole::Application, "awl");
-        root.children.push(DOCUMENT_ID.to_string());
-        let mut document = SemanticNode::new(DOCUMENT_ID, SemanticRole::Document, String::new());
-        document.focusable = true;
-        document.multiline = true;
-        let read_only = view.document_is_read_only();
-        document.editable = !read_only;
-        document.actions = document_actions(read_only);
-        self.snapshot.nodes.clear();
-        self.snapshot.nodes.push(root);
-        self.snapshot.nodes.push(document);
-        self.slots.clear();
-        for (line, run) in table.runs().iter().enumerate() {
-            let (slot, node) = self.build_run(buffer, line, *run);
-            self.slots.push(slot);
-            self.snapshot.nodes.push(node);
-        }
-        self.content_rev = table.content_rev();
-        self.shape_rev = table.shape_rev();
-        self.resolved = None;
-        self.seeded = true;
-        self.tail.clear();
-        // A seed is paired with a full tree by its caller; naming every node in
-        // `changed` as well would double-publish the whole document.
-        self.changed.clear();
-    }
-
-    /// Returns whether the run SEQUENCE moved.
-    fn sync_runs(&mut self, view: &SemanticView<'_>) -> bool {
-        let buffer = view.buffer().expect("document projection has a buffer");
-        let table = buffer.runs();
-        if table.content_rev() == self.content_rev {
-            return false;
-        }
-        if table.shape_rev() == self.shape_rev {
-            // The common case: the same lines, one of them re-typed. Only the
-            // marked runs are re-read, and no parent republishes its children.
-            for (line, run) in table.runs().iter().enumerate() {
-                if self.slots[line].rev == run.rev {
-                    continue;
-                }
-                let (slot, node) = self.build_run(buffer, line, *run);
-                self.changed.push(node.id.clone());
-                self.slots[line] = slot;
-                self.snapshot.nodes[RUN_BASE + line] = node;
-            }
-            self.content_rev = table.content_rev();
-            return false;
-        }
-        self.resplice(buffer, table.runs());
-        self.content_rev = table.content_rev();
-        self.shape_rev = table.shape_rev();
-        true
-    }
-
-    /// A line was added or removed. Every run whose id AND rev survived is
-    /// reused untouched — that is what keeps a newline typed at the top of a
-    /// long document from reprojecting the lines below it — and the document
-    /// node republishes its `children`, which is the one list a structural
-    /// change genuinely invalidates.
-    fn resplice(&mut self, buffer: &Buffer, runs: &[Run]) {
-        let mut retained: std::collections::HashMap<RunId, (Slot, SemanticNode)> = self
-            .slots
-            .drain(..)
-            .zip(self.snapshot.nodes.drain(RUN_BASE..))
-            .map(|(slot, node)| (slot.id, (slot, node)))
-            .collect();
-        self.slots.reserve(runs.len());
-        self.snapshot.nodes.reserve(runs.len());
-        for (line, run) in runs.iter().enumerate() {
-            match retained.remove(&run.id) {
-                Some((slot, node)) if slot.rev == run.rev => {
-                    self.slots.push(slot);
-                    self.snapshot.nodes.push(node);
-                }
-                _ => {
-                    let (slot, node) = self.build_run(buffer, line, *run);
-                    self.changed.push(node.id.clone());
-                    self.slots.push(slot);
-                    self.snapshot.nodes.push(node);
-                }
-            }
-        }
-        self.resolved = None;
-        self.stats.children_republished += 1;
-    }
-
-    fn build_run(&mut self, buffer: &Buffer, line: usize, run: Run) -> (Slot, SemanticNode) {
-        let text = buffer.run_text(line);
-        let lengths = crate::semantic::grapheme_lengths(&text);
-        self.stats.runs_rebuilt += 1;
-        self.stats.bytes_read += text.len() as u64;
-        self.stats.graphemes_segmented += lengths.len() as u64;
-        let mut node = SemanticNode::new(
-            crate::semantic::run_node_id(run.id),
-            SemanticRole::Text,
-            "Markdown",
-        );
-        let slot = Slot {
-            id: run.id,
-            rev: run.rev,
-            graphemes: lengths.len(),
-        };
-        node.value = Some(text);
-        node.character_lengths = lengths;
-        (slot, node)
-    }
-
     /// The document node: its name, its focus, its selection, and — only when
     /// the run sequence moved — its children.
-    fn sync_document(&mut self, view: &SemanticView<'_>, shape_moved: bool) {
+    ///
+    /// `transcript_mode` is [`SemanticView::comparison_text`]'s presence,
+    /// threaded down rather than re-asked: **THE PUBLISHED RUNS ARE THE
+    /// SUBSTITUTED PROSE**, not the buffer, whenever it is `true`, so the
+    /// buffer's own cursor/anchor name a position in text nobody on this tree
+    /// can see — reporting it would be exactly the leak this fold exists to
+    /// close, one field over from the run text itself. Zero is inert on both
+    /// sides of the substitution boundary, and matches the caret layer, which
+    /// draws no caret at all over a comparison transcript
+    /// (`TextPipeline::document_is_a_transcript`).
+    fn sync_document(&mut self, view: &SemanticView<'_>, shape_moved: bool, transcript_mode: bool) {
         let buffer = view.buffer().expect("document projection has a buffer");
         let name = buffer
             .path()
@@ -342,7 +274,14 @@ impl SemanticProjection {
             .map(|name| name.to_string_lossy().into_owned())
             .unwrap_or_else(|| "Untitled document".to_string());
         let focused = matches!(view.layer(), workspace::Layer::Editor);
-        let selection = self.selection(buffer);
+        let selection = if transcript_mode {
+            SemanticSelection {
+                anchor: 0,
+                focus: 0,
+            }
+        } else {
+            self.selection(buffer)
+        };
         // The read-only fact is per-FRAME, not per-revision: a reading surface
         // opens and closes without touching the buffer's content or shape, so
         // the seed's answer would go stale here. Re-asked every refresh, like

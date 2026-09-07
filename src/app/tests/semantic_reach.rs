@@ -63,15 +63,29 @@ impl SemanticFile {
 
     /// No wildcard arm: a new roster member cannot join without choosing a
     /// side, and the sweep below will not let a new file stay off the roster.
-    fn path_and_side(self) -> (&'static str, Side) {
+    ///
+    /// One member names SEVERAL paths — [`Self::Projection`] outgrew a single
+    /// file and split into a submodule directory (the buffer path and the
+    /// comparison-transcript path, decomposed at the size ceiling) — because
+    /// the boundary this file holds is about a REACH, not a byte count: the
+    /// `App`/`SemanticView`-naming check below reads every listed path as one
+    /// unit, so a fold split across files is still one fold for this law.
+    fn paths_and_side(self) -> (&'static [&'static str], Side) {
         match self {
-            Self::Mod => ("src/app/semantic/mod.rs", Side::ReadsTheApp),
-            Self::View => ("src/app/semantic/view.rs", Side::ReadsTheApp),
-            Self::Requests => ("src/app/semantic/requests.rs", Side::ReadsTheApp),
-            Self::Bench => ("src/app/semantic/bench.rs", Side::ReadsTheApp),
-            Self::Projection => ("src/app/semantic/projection.rs", Side::FoldOnly),
-            Self::Surfaces => ("src/app/semantic/surfaces.rs", Side::FoldOnly),
-            Self::Passive => ("src/app/semantic/passive.rs", Side::FoldOnly),
+            Self::Mod => (&["src/app/semantic/mod.rs"], Side::ReadsTheApp),
+            Self::View => (&["src/app/semantic/view.rs"], Side::ReadsTheApp),
+            Self::Requests => (&["src/app/semantic/requests.rs"], Side::ReadsTheApp),
+            Self::Bench => (&["src/app/semantic/bench.rs"], Side::ReadsTheApp),
+            Self::Projection => (
+                &[
+                    "src/app/semantic/projection/mod.rs",
+                    "src/app/semantic/projection/buffer_source.rs",
+                    "src/app/semantic/projection/transcript.rs",
+                ],
+                Side::FoldOnly,
+            ),
+            Self::Surfaces => (&["src/app/semantic/surfaces.rs"], Side::FoldOnly),
+            Self::Passive => (&["src/app/semantic/passive.rs"], Side::FoldOnly),
         }
     }
 }
@@ -89,55 +103,82 @@ fn semantic_fold_reads_only_the_narrow_view() {
         .expect("the semantic view's source must be readable");
     assert_eq!(
         struct_field_names(&strip_comments(&view), "SemanticView"),
-        ["document", "workspace_state", "card", "whichkey", "notice"],
+        [
+            "document",
+            "workspace_state",
+            "card",
+            "whichkey",
+            "notice",
+            "comparison_text",
+        ],
         "the semantic view's roster drifted — a new member widens what every \
          fold may read, which is the boundary this file exists to hold"
     );
 
     let mut roster_paths = std::collections::BTreeSet::new();
     for file in SemanticFile::ROSTER {
-        let (relative, side) = file.path_and_side();
-        roster_paths.insert(relative.to_string());
-        let source = std::fs::read_to_string(repo.join(relative))
-            .unwrap_or_else(|e| panic!("{relative} must be readable: {e}"));
-        let code = strip_comments(&source);
+        let (paths, side) = file.paths_and_side();
+        let mut code = String::new();
+        for relative in paths {
+            roster_paths.insert(relative.to_string());
+            let source = std::fs::read_to_string(repo.join(relative))
+                .unwrap_or_else(|e| panic!("{relative} must be readable: {e}"));
+            code.push_str(&strip_comments(&source));
+            code.push('\n');
+        }
         let names_app = names_identifier(&code, "App");
         match side {
             Side::ReadsTheApp => assert!(
                 names_app,
-                "{relative} is on the ReadsTheApp side but never names `App` — \
+                "{paths:?} is on the ReadsTheApp side but never names `App` — \
                  move it to Side::FoldOnly rather than leaving a vacuous roster entry"
             ),
             Side::FoldOnly => {
                 assert!(
                     !names_app,
-                    "{relative} is a fold and must not reach past `SemanticView` — \
+                    "{paths:?} is a fold and must not reach past `SemanticView` — \
                      the whole `App` is read once, in `App::semantic_view`"
                 );
                 assert!(
                     names_identifier(&code, "SemanticView"),
-                    "{relative} is a vacuous fold: it names neither `App` nor \
+                    "{paths:?} is a vacuous fold: it names neither `App` nor \
                      `SemanticView`, so this gate is not guarding it"
                 );
             }
         }
     }
 
-    let mut discovered = std::collections::BTreeSet::new();
-    for entry in std::fs::read_dir(repo.join("src/app/semantic"))
-        .expect("the semantic source directory must be readable")
-    {
-        let path = entry.expect("source entry must be readable").path();
-        if path.is_dir() || !path.extension().is_some_and(|ext| ext == "rs") {
-            continue;
+    // Recurses one level into a submodule directory (`projection/`'s own
+    // buffer/transcript split) — but never into `tests`, which is not
+    // production code and carries no reach obligation of its own.
+    fn collect_rs_files(
+        dir: &std::path::Path,
+        repo: &std::path::Path,
+        out: &mut std::collections::BTreeSet<String>,
+    ) {
+        for entry in std::fs::read_dir(dir).expect("the semantic source directory must be readable")
+        {
+            let path = entry.expect("source entry must be readable").path();
+            if path.is_dir() {
+                if path.file_name().is_some_and(|name| name == "tests") {
+                    continue;
+                }
+                collect_rs_files(&path, repo, out);
+                continue;
+            }
+            if !path.extension().is_some_and(|ext| ext == "rs") {
+                continue;
+            }
+            out.insert(
+                path.strip_prefix(repo)
+                    .expect("source lives under the repo")
+                    .to_string_lossy()
+                    .to_string(),
+            );
         }
-        discovered.insert(
-            path.strip_prefix(&repo)
-                .expect("source lives under the repo")
-                .to_string_lossy()
-                .to_string(),
-        );
     }
+    let mut discovered = std::collections::BTreeSet::new();
+    collect_rs_files(&repo.join("src/app/semantic"), &repo, &mut discovered);
     assert_eq!(
         discovered, roster_paths,
         "the no-wildcard semantic-file roster must cover every production file \
