@@ -687,7 +687,10 @@ this ground's geometry and inherits the same sign-off.
 
 ## Green train — the exact-main receipts
 
-**Fifth train, `a7076b32`** — covers 572, HEAD verified unmoved across the run:
+**Fifth train, `a7076b32`** — covers 572, HEAD verified unmoved across the run. Pushed as
+`2ce630d5`; **CI run 34076734681 passed all four gating jobs** (39 min wall, the linux job the
+long pole at 38m54s — in line with the ~37-minute warm baseline 566 established).
+
 
 ```
 native-gate-receipt commit=a7076b323c8ac462399edbb71789b7269ad85887 health=pass:247s
