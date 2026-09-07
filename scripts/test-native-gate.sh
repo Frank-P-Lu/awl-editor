@@ -104,6 +104,34 @@ printf 'shard %s %s\n' "${AWL_CONVENTION_FORCE:-unset}" "$$" >>"$AWL_NATIVE_GATE
 # `cargo` writes cannot see it at all — and a law reading only those would report
 # an unswept axis as swept the moment the arm stopped going through Cargo.
 printf 'shardbar %s\n' "${AWL_MENU_BAR_FORCE:-unset}" >>"$AWL_NATIVE_GATE_PROBE_LOG"
+# THE TWO-WRITE SHAPE, ON PURPOSE AND WITHOUT A RACE. libtest writes a test's
+# NAME and its RESULT as separate writes with the test running in between; six
+# shards sharing one stdout can therefore complete each other's dangling names.
+# Exactly one shard wins the `mkdir` election and leaves its name unterminated
+# until another shard has written a whole line of its own, so the splice either
+# happens or the gate's per-shard reader prevented it — never "it depends".
+# Inert unless the probe asks for it, so every other probe's output is
+# byte-identical to what it was.
+if [[ -n "${AWL_NATIVE_GATE_PROBE_SPLIT_LINES:-}" ]]; then
+  splice_dir="$(dirname "$AWL_NATIVE_GATE_PROBE_LOG")/splice"
+  mkdir -p "$splice_dir"
+  if mkdir "$splice_dir/leader" 2>/dev/null; then
+    printf 'test probe::the_leaders_own_test ... '
+    : >"$splice_dir/leader-armed"
+    for _ in $(seq 1 200); do
+      [[ -e "$splice_dir/other-done" ]] && break
+      sleep 0.05
+    done
+    printf 'ok\n'
+  else
+    for _ in $(seq 1 200); do
+      [[ -e "$splice_dir/leader-armed" ]] && break
+      sleep 0.05
+    done
+    printf 'test probe::a_follower_shards_test ... ok\n'
+    : >"$splice_dir/other-done"
+  fi
+fi
 printf '\nrunning %s tests\n' "${#selected[@]}"
 printf 'test result: ok. %s passed; 0 failed; 0 ignored; 0 measured\n' "${#selected[@]}"
 # A shard that fails under a forcing — the full-suite arm's own red, which no
@@ -800,6 +828,27 @@ require "shard mutation" "missing="
 refuse "shard mutation" "native-gate-receipt"
 
 echo "test-native-gate: six shards are complete, the one-shard wave knob is live, and deleting one generated prefix refuses by missing test name"
+
+# ── NO SHARD MAY FINISH ANOTHER SHARD'S LINE ──
+# The transcript is the only account anyone reads of a wave, and six shards
+# share one stdout. libtest leaves "test NAME ... " unterminated while the test
+# runs, so a neighbour's whole line can land inside it and the reader is handed
+# a line that names one test and carries another's verdict — a green suite
+# reading as a named test failing, with that name in no `failures:` block at
+# all. The stub above stages exactly that collision without a race, so this
+# probe answers the same way every time.
+rm -rf "$WORK/splice"
+probe shard-lines AWL_NATIVE_GATE_PROBE_SPLIT_LINES=1
+(( probe_status == 0 )) || {
+  echo "test-native-gate: the shard-lines probe failed ($probe_status)" >&2
+  exit 1
+}
+# The negative first: it is the subject, and it names the exact shape.
+refuse "shard lines" \
+  "test probe::the_leaders_own_test ... test probe::a_follower_shards_test ... ok"
+require "shard lines" "test probe::the_leaders_own_test ... ok"
+require "shard lines" "test probe::a_follower_shards_test ... ok"
+echo "test-native-gate: a shard's dangling test name is completed by its own shard, never by a neighbour's verdict"
 
 for failing in mac linux; do
   run_probe "$failing" 23
