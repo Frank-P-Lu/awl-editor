@@ -2,6 +2,20 @@
 
 use super::*;
 
+/// THE ONE CARVE-OUT EVERY SUMMONED SURFACE HONOURS. A summoned surface owns
+/// the input while it is up, which is right for the editing verbs and wrong for
+/// the two that are about the SESSION rather than the document: Quit and Save
+/// belong to the window, not to whatever is standing in front of it, and a
+/// picker that swallows ⌘Q is a dead key with nothing to say for itself.
+///
+/// Read ONCE, ahead of every surface arm in `intercept_action`, so the modal
+/// card, the picker card and the find/replace panel cannot answer it three
+/// different ways — a fourth summoned surface inherits the answer by
+/// construction rather than by remembering to.
+pub(super) fn summoned_surface_defers(action: &Action) -> bool {
+    matches!(action, Action::Quit | Action::Save)
+}
+
 enum ActionFamily {
     Buffer,
     Viewport,

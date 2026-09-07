@@ -5,7 +5,7 @@ use super::*;
 mod footnotes;
 mod inline;
 pub(super) use footnotes::apply_insert_footnote;
-pub(super) use inline::apply_inline_format;
+pub(super) use inline::apply_inline_action;
 pub(crate) use inline::{InlineKind, inline_active};
 
 #[derive(Debug, Clone, PartialEq, Eq)]

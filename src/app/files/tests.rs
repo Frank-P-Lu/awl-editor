@@ -1440,6 +1440,109 @@ fn forgetting_a_word_preserves_the_files_comments_blanks_and_order() {
     });
 }
 
+/// **THE FILE'S OWN LINE ENDINGS SURVIVE A REMOVAL TOO.** Splitting a word list
+/// into lines and re-joining them with `\n` silently retypes a CRLF file as LF
+/// — the one preservation promise this function would otherwise break, and a
+/// contradiction of the rope's own document rule (load normalizes, save
+/// restores). Unreachable on awl's shipped platforms, which is exactly why it
+/// needs a law rather than a reader noticing.
+///
+/// Swept along the axis a single CRLF fixture would miss: which line goes
+/// (first, middle, last), a MIXED-ending file, and a file with no final
+/// newline, where the terminator that must not be invented is the absent one.
+#[test]
+fn forgetting_a_word_preserves_the_files_own_line_endings() {
+    let _sp = crate::testlock::serial();
+    // (file before, file after forgetting "wrold")
+    let cases = [
+        (
+            "# names\r\nzorbling\r\nwrold\r\nquokka\r\n",
+            "# names\r\nzorbling\r\nquokka\r\n",
+        ),
+        ("wrold\r\nzorbling\r\n", "zorbling\r\n"),
+        ("zorbling\r\nwrold\r\n", "zorbling\r\n"),
+        ("zorbling\nwrold\r\nquokka\n", "zorbling\nquokka\n"),
+        ("zorbling\r\nwrold", "zorbling\r\n"),
+        ("zorbling\nwrold\nquokka", "zorbling\nquokka"),
+    ];
+    for (original, want) in cases {
+        crate::fs::with_fs(dictionary_fs(), || {
+            let mut app = app_with_dictionary_file(original.as_bytes());
+            assert!(
+                app.document.spell_check("wrold").unwrap(),
+                "{original:?}: arranged — the word really loaded from this file"
+            );
+            app.forget_user_word("wrold");
+            assert_eq!(
+                crate::fs::active()
+                    .read_to_string(Path::new("/cfg/dictionary.txt"))
+                    .unwrap(),
+                want,
+                "{original:?}: only the forgotten line goes — every other byte, \
+                 line terminators included, is what it was"
+            );
+            assert!(
+                !app.document.spell_check("wrold").unwrap(),
+                "{original:?}: and the word really left the live checker"
+            );
+        });
+    }
+}
+
+/// **THE FILE IS RE-READ WHEN THE DICTIONARY VARIANT SWITCHES, NOT ONLY AT
+/// STARTUP.** `set_dictionary` rebuilds the checker with an empty personal set
+/// and folds the word list back in, so a switch picks up whatever the file says
+/// NOW — which is what `REFERENCE.md` describes and what a hand-edit between
+/// two switches will do.
+///
+/// Asked on BOTH SIDES of the condition and required to DIFFER. "The word is
+/// known after a switch" alone is satisfied by a startup load that already had
+/// it, by a checker that accepts everything, and by a fixture that never wrote
+/// the file — so the same question is asked with no switch in between, and the
+/// pair has to disagree.
+#[test]
+fn the_personal_dictionary_is_re_read_when_the_dictionary_variant_switches() {
+    let _sp = crate::testlock::serial();
+    crate::fs::with_fs(dictionary_fs(), || {
+        let mut app = app_with_dictionary_file(b"zorbling\n");
+        assert!(
+            app.document.spell_check("zorbling").unwrap(),
+            "arranged: startup folded the file in"
+        );
+        assert!(
+            !app.document.spell_check("quibbet").unwrap(),
+            "arranged: the second word is not in the checker yet"
+        );
+
+        // The file grows a word after startup — a hand-edit, or another window.
+        crate::fs::write_atomic(Path::new("/cfg/dictionary.txt"), b"zorbling\nquibbet\n").unwrap();
+
+        // SIDE A — no switch. Nothing re-reads the file, so the new word is
+        // still unknown.
+        let without_switch = app.document.spell_check("quibbet").unwrap();
+
+        // SIDE B — a switch to any OTHER variant in the roster.
+        let other = crate::spell::DictVariant::ALL
+            .into_iter()
+            .find(|v| *v != crate::spell::active_variant())
+            .expect("the dictionary roster holds more than one variant");
+        app.set_dictionary(other);
+        let with_switch = app.document.spell_check("quibbet").unwrap();
+
+        assert!(!without_switch, "side A: no switch, no re-read");
+        assert!(with_switch, "side B: the switch re-read the file");
+        assert_ne!(
+            without_switch, with_switch,
+            "the two sides of the condition must differ — a pair that agrees \
+             means the axis was never exercised, whichever way it answers"
+        );
+        assert!(
+            app.document.spell_check("zorbling").unwrap(),
+            "and the word the file already held survives the rebuild"
+        );
+    });
+}
+
 /// A word the user never added is a calm no-op on disk: the file's bytes are
 /// untouched rather than rewritten into some normalised form.
 #[test]

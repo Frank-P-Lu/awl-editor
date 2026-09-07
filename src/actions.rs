@@ -20,7 +20,7 @@ mod rebind; // the game-style rebind-menu key handling
 pub(crate) mod table; // Insert-table -- open the dimension picker + build its FormatResult
 mod workspace_nav; // the workspace's two-region keys + the Cmd-P deep link
 use deferred::*;
-use dispatch::dispatch_action;
+use dispatch::{dispatch_action, summoned_surface_defers};
 use edit::*;
 pub use effects::*;
 use flinch::*;
@@ -194,11 +194,11 @@ fn apply_format_action(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
         Action::ToggleHeading => apply_block_format(ctx, format::BlockKind::Heading),
         Action::HeadingCycle => format::apply_heading_cycle(ctx),
         Action::ToggleCodeBlock => apply_block_format(ctx, format::BlockKind::CodeBlock),
-        Action::Bold => apply_inline_format(ctx, format::InlineKind::Bold),
-        Action::Italic => apply_inline_format(ctx, format::InlineKind::Italic),
-        Action::InlineCode => apply_inline_format(ctx, format::InlineKind::InlineCode),
-        Action::Highlight => apply_inline_format(ctx, format::InlineKind::Highlight),
-        Action::Strikethrough => apply_inline_format(ctx, format::InlineKind::Strikethrough),
+        Action::Bold
+        | Action::Italic
+        | Action::InlineCode
+        | Action::Highlight
+        | Action::Strikethrough => return Some(format::apply_inline_action(ctx, action)),
         Action::InsertFootnote => format::apply_insert_footnote(ctx),
         Action::TagDocumentLanguage => return Some(tag_document_language(ctx)),
         _ => return None,
@@ -436,6 +436,9 @@ fn intercept_action(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
     if !crate::commands::action_available(action, crate::commands::Platform::current()) {
         return Some(Effect::None);
     }
+    if summoned_surface_defers(action) {
+        return None;
+    }
     if crate::streaks::streaks_open()
         && matches!(action, Action::ForwardChar | Action::BackwardChar)
     {
@@ -448,16 +451,13 @@ fn intercept_action(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
     if ctx.journey.card().is_some() {
         return Some(overlay_intercept(ctx, action));
     }
-    // THE SUMMONED FIND/REPLACE PANEL owns every action while it is up —
-    // the same rule the card above has always had, applied to the OTHER
-    // summoned text-entry surface. The panel's own key door consumes every
-    // KEY, so no keystroke arrives here; an ACTION still does, from every
-    // door that never touches a keymap (a macOS menu-bar key equivalent, a
-    // menu or context-menu click, a palette row's `Effect::RunAction`). Left
-    // ungated, those ran document verbs against the document parked behind
-    // the panel — ⌘A selected the whole buffer while the caret was in the
-    // find field. `search::keys::intercept_action` is the panel's owner of
-    // what a routed action means to it.
+    // THE SUMMONED FIND/REPLACE PANEL owns every remaining action while it is
+    // up, the same rule the card above has. Its own key door consumes every
+    // KEY, so no keystroke arrives here; an ACTION still does, from every door
+    // that never touches a keymap (a macOS menu-bar key equivalent, a menu or
+    // context-menu click, a palette row's `Effect::RunAction`), and left ungated
+    // those ran document verbs against the document parked behind the panel.
+    // `search::keys::intercept_action` is what a routed action means to it.
     if ctx.search.is_some() {
         crate::search::keys::intercept_action(ctx.search, action);
         return Some(Effect::None);

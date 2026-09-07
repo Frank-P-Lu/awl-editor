@@ -355,6 +355,17 @@ pub(super) fn drive_format(
     cursor: usize,
     action: &Action,
 ) -> Buffer {
+    drive_format_effect(src, anchor, cursor, action).0
+}
+
+/// [`drive_format`] with the transition's own [`Effect`] kept, for the laws
+/// about what a command SAYS when it declines to edit.
+pub(super) fn drive_format_effect(
+    src: &str,
+    anchor: Option<usize>,
+    cursor: usize,
+    action: &Action,
+) -> (Buffer, Effect) {
     let mut buffer = Buffer::from_str(src);
     if let Some(a) = anchor {
         buffer.set_cursor(a);
@@ -367,6 +378,7 @@ pub(super) fn drive_format(
     let mut journey = crate::overlay::Journey::default();
     let mut make_overlay = |_k: OverlayKind| -> Option<OverlayState> { None };
     let mut browse_to = |_k: OverlayKind, _r: Option<String>| -> Option<OverlayState> { None };
+    let effect;
     {
         let mut ctx = ActionCtx {
             buffer: &mut buffer,
@@ -379,9 +391,9 @@ pub(super) fn drive_format(
             browse_to: &mut browse_to,
             oracle: None,
         };
-        apply_transition(&mut ctx, action, false).primary();
+        effect = apply_transition(&mut ctx, action, false).primary();
     }
-    buffer
+    (buffer, effect)
 }
 
 /// Drive one action with a CUSTOM `browse_to` (the project explorer tests use

@@ -65,12 +65,12 @@ pub fn intercept(
 ///
 /// **The contract**, matching the card's own (`overlay_nav::overlay_intercept`)
 /// exactly rather than inventing a second policy: the panel OWNS every action
-/// while it is up. `SelectAll` is given its field-scoped meaning through the
-/// ONE owner the ⌘A key door also calls; every other action is CONSUMED. That
-/// includes actions a reader may expect to survive a summoned surface (Quit,
-/// Save): the summoned card already swallows those, and making the panel
-/// disagree would be a second policy, not a fix. Widening the carve-out is one
-/// decision to take across BOTH surfaces.
+/// that reaches it. `SelectAll` is given its field-scoped meaning through the
+/// ONE owner the ⌘A key door also calls; every other action is CONSUMED. Quit
+/// and Save never reach it — they are about the SESSION rather than the
+/// document, and `actions::dispatch::summoned_surface_defers` lets them past
+/// every summoned surface alike one step before this door, deliberately not
+/// repeated here because a second copy is how the two would drift.
 pub fn intercept_action(search: &mut Option<SearchState>, action: &Action) {
     if let Action::SelectAll = action
         && let Some(st) = search.as_mut()

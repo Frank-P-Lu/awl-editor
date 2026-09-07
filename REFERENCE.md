@@ -252,9 +252,10 @@ absent key behave identically.
 
 `dictionary.txt` sits beside `config.toml`, one added word per line. "Add '…'
 to dictionary" in the spell card appends to it; the "Personal dictionary…"
-command lists the words and forgets one per row. Blank lines and `#` comments
-are preserved, so it stays hand-editable. It is global, not per project, and it
-is read at startup only — no network, ever.
+command lists the words and forgets one per row. Blank lines, `#` comments and
+the file's own line endings are preserved, so it stays hand-editable. It is
+global, not per project. awl reads it at startup and again whenever the
+dictionary variant changes — no network, ever.
 
 <!-- GENERATED:reference-config:BEGIN -->
 ### Keys
