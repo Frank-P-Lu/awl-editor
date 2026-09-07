@@ -48,6 +48,12 @@ doubling; option off ⇒ byte-identical render to today.
 
 ### 572 — class audit: decorative geometry vs the caret — every row or advance inflated for an ornament, probed against what caret/selection/highlight inherit (user decision, 2026-09-06 — "we should fix this class of bugs yeah?? like ornament + cursor")
 
+🟡 CLAIMED 2026-09-07 — lane `item-572`, worktree `.claude/worktrees/item-572`, Opus 5 high
+(engineering). The brief's load-bearing instruction is that the inflation sites are enumerated
+FROM THE CODE and this item's own list only seeds the sweep — a law pinned to named members is
+how an enrolment on this board quietly stopped matching for the life of the law.
+
+
 Item 571 (rule row's ornament room swallowing the block caret) is one
 member of a class, and 545 (smart-punct conceal's giant reserved slot) is
 another — per standing policy, the neighborhood gets audited because bugs
@@ -127,6 +133,13 @@ untested hypothesis.
 
 ### 580 — insertion-door census: every path that can mutate the focused buffer is enrolled at one seam (follow-up to 575's lane report, 2026-09-06)
 
+🟡 CLAIMED 2026-09-07 — lane `item-580`, worktree `.claude/worktrees/item-580`, Opus 5 high
+(engineering). Its blocker is cleared; 575 is long merged. The deliverable is the seam that
+makes the NEXT door declare itself, so a `_ =>` arm anywhere in the census match defeats the
+whole item. The lane also decides whether 599 (the `TextDoor` doors still reaching the document
+behind a summoned panel) folds into this seam, and says so either way.
+
+
 ⬜ READY (blocked on 575 merging — builds on its wall and `text_door.rs`)
 
 Evidence: 575's lane found TWO insertion doors nobody had listed (assistive
@@ -149,6 +162,12 @@ Worker: engineering tier. Worktree per protocol; claim before code.
 ---
 
 ### 581 — substitution-leak audit: what else reports about the hidden document while History/Conflict/Credits is up? (follow-up to 575's lane report, 2026-09-06)
+
+🟡 CLAIMED 2026-09-07 — lane `item-581`, worktree `.claude/worktrees/item-581`, **Sonnet
+medium**, which is this board's standing audit tier rather than an inheritance of the
+orchestrator's model. Both rosters are derived from the code — the overlay set from
+`shows_read_only_prose`, never named — and the audit ends in a law whichever way it comes out.
+
 
 ⬜ READY (after 575 merges; audit-tier per standing policy)
 

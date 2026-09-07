@@ -44,6 +44,10 @@ use crate::textbox::TextField;
 use std::sync::Arc;
 
 const DOC: &str = "alpha beta gamma\nbeta again\n";
+/// The same fixture with an inline image, for the one census door that needs
+/// something to resize. Kept separate so the Edit-verb sweep above keeps the
+/// exact document its assertions were written against.
+const DOC_WITH_IMAGE: &str = "alpha beta gamma\nbeta again\n![a cat](cat.png)\n";
 const QUERY: &str = "beta";
 
 fn seeded() -> crate::fs::InMemoryFs {
@@ -360,38 +364,58 @@ fn the_real_select_all_menu_id_does_not_select_the_document_behind_the_panel() {
 }
 
 /// **THE WALL IS SCOPED TO ROUTED ACTIONS, AND THAT SCOPE IS A MEASURED
-/// DECISION, NOT AN OVERSIGHT.**
+/// DECISION, NOT AN OVERSIGHT — ACROSS THE WHOLE INSERTION-DOOR ROSTER.**
 ///
-/// The doors that bypass `App::apply` altogether — the platform IME's
-/// committed composition and the two assistive document writes — still reach
-/// the document while the find panel is up. That is not a second half of this
-/// item left undone: it is EXACTLY the boundary
-/// `app::tests::read_only_surface` already pinned for the summoned CARD ("a
-/// card that is not a reading surface leaves the doors open"), and the panel
-/// inheriting the same answer is what keeps the two summoned surfaces from
-/// disagreeing. Widening `TextDoor`'s wall from "a read-only prose surface" to
-/// "any summoned surface" is one decision to take across both, with this
-/// measurement in front of whoever takes it — not a drift discovered later.
+/// The doors that bypass `App::apply` altogether still reach the document while
+/// the find panel is up. That is not a second half of this item left undone: it
+/// is EXACTLY the boundary `app::tests::read_only_surface` already pinned for
+/// the summoned CARD ("a card that is not a reading surface leaves the doors
+/// open"), and the panel inheriting the same answer is what keeps the two
+/// summoned surfaces from disagreeing. Widening the wall from "a read-only
+/// prose surface" to "any summoned surface" is one decision to take across
+/// both, with this measurement in front of whoever takes it — and it is not a
+/// pure widening, because a refusal is only the right answer if the commit does
+/// not instead belong in the PANEL'S OWN query.
+///
+/// The subject is DERIVED — `read_only_surface::walled_doors()`, i.e. every
+/// member of the census roster whose gate is the wall — rather than the one
+/// door this pin was first written against. That matters: the census grew the
+/// roster from three doors to five, and a pin that named `Ime` alone would have
+/// gone on reporting a measurement two doors out of date.
 #[test]
 fn the_text_insertion_doors_are_outside_this_wall_and_that_is_pinned() {
-    let _fs = crate::fs::FsGuard::install(Arc::new(seeded()));
+    let _fs = crate::fs::FsGuard::install(Arc::new(
+        crate::fs::InMemoryFs::new().with_file(PathBuf::from("/proj/draft.md"), DOC_WITH_IMAGE),
+    ));
     let _g = crate::testlock::serial();
 
-    let mut app = app();
-    summon(&mut app, TextField::FindQuery);
-    let before = app.document.buffer().text();
-    app.commit_ime_headless("字");
-    assert_ne!(
-        app.document.buffer().text(),
-        before,
-        "an IME commit no longer reaches the document behind the find panel — if \
-         that was deliberate, this pin is what should have been updated with it, \
-         and the summoned CARD's identical boundary (app::tests::read_only_surface) \
-         needs the same decision"
+    let image = super::read_only_surface::image_span_in(DOC_WITH_IMAGE);
+    let walled = super::read_only_surface::walled_doors();
+    assert!(
+        !walled.is_empty(),
+        "the walled roster is empty — no subject"
     );
-    assert_eq!(
-        app.workspace_state.search().map(|s| s.query().to_string()),
-        Some(QUERY.to_string()),
-        "the panel's own query is untouched by that door either way"
-    );
+
+    for door in walled {
+        let mut app = app();
+        summon(&mut app, TextField::FindQuery);
+        let before = app.document.buffer().text();
+        assert!(
+            super::read_only_surface::drive(&mut app, door, "字", image),
+            "{door:?} is walled but this sweep does not know how to press it"
+        );
+        assert_ne!(
+            app.document.buffer().text(),
+            before,
+            "{door:?} no longer reaches the document behind the find panel — if that \
+             was deliberate, this pin is what should have been updated with it, and \
+             the summoned CARD's identical boundary (app::tests::read_only_surface) \
+             needs the same decision"
+        );
+        assert_eq!(
+            app.workspace_state.search().map(|s| s.query().to_string()),
+            Some(QUERY.to_string()),
+            "{door:?}: the panel's own query is untouched by that door either way"
+        );
+    }
 }

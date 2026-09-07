@@ -32,6 +32,11 @@ impl<'a> ReplaySession<'a> {
             // has no headless continuation; permissive replay calmly consumes
             // it after preserving the typed skip in the sidecar.
             actions::Effect::Surface(_) => {}
+            // A NAMED EXEMPTION from the insertion-door census
+            // (`app/input/text_door.rs`, `TextDoor::HeadlessReplay`): a replay
+            // session owns its OWN `Buffer` and never touches
+            // `DocumentSession`, so there is no focused document behind a
+            // summoned surface for it to reach.
             actions::Effect::InsertDate => {
                 let (y, m, d) = crate::dateformat::CAPTURE_PLACEHOLDER_YMD;
                 let text = crate::dateformat::active_format().format(y, m, d);

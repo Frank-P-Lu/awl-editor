@@ -32,23 +32,34 @@ impl App {
                 true
             }
             SemanticRequest::ReplaceSelectedText { id, value } if id == DOCUMENT_ID => {
-                // THE ONE WALL (`app/input/text_door.rs`): an assistive
+                // THE CENSUS DOOR (`app/input/text_door.rs`): an assistive
                 // technology drives exactly the transitions a keyboard drives,
                 // and the keyboard cannot write into a read-only prose surface.
-                if !self.text_door_open(TextDoor::AssistiveReplaceSelection) {
+                if !self.write_document_text(
+                    TextDoor::AssistiveReplaceSelection,
+                    TextEdit::Insert(&value),
+                ) {
                     return false;
                 }
-                self.document.insert_text(&value);
                 self.sync_view(true);
                 self.request_frame();
                 true
             }
             SemanticRequest::SetValue { id, value } if id == DOCUMENT_ID => {
-                if !self.text_door_open(TextDoor::AssistiveSetValue) {
+                if !self.document.has_active() {
                     return false;
                 }
                 let len = self.document.buffer().text().chars().count();
-                self.document.replace_char_range(0, len, &value);
+                if !self.write_document_text(
+                    TextDoor::AssistiveSetValue,
+                    TextEdit::ReplaceRange {
+                        start: 0,
+                        end: len,
+                        text: &value,
+                    },
+                ) {
+                    return false;
+                }
                 self.sync_view(true);
                 self.request_frame();
                 true

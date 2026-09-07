@@ -26,6 +26,14 @@ mod dock_icon;
 mod external;
 mod files;
 mod history;
+/// THE INSERTION-DOOR CENSUS: every production path that edits the focused
+/// buffer's text is enrolled at one seam, declares what gates it, and is named
+/// where it says it lives. Roster and mechanism: `app/input/text_door.rs`.
+/// Native-only for the same reason `read_only_surface` is — two members live in
+/// `crate::app::semantic`, which the wasm build does not compile, and a roster
+/// that differs per platform is a worse thing to be than absent.
+#[cfg(not(target_arch = "wasm32"))]
+mod insertion_census;
 mod lifecycle;
 /// THE LIVE-`App` EVENT→PRESENT TRACE ASSERTION: the picker-navigation
 /// chain read back off the flight recorder's own lines. Native-only — the

@@ -138,8 +138,8 @@ impl App {
 
     /// "Insert Date" (`Effect::InsertDate`): insert TODAY'S date at the caret,
     /// formatted per the active [`crate::dateformat::DateFormat`], as ONE
-    /// undoable edit (`Buffer::insert_text` — sealed on both sides, so it
-    /// never coalesces with adjacent typing). The real wall clock is read
+    /// undoable edit through the census' `TextDoor::InsertDate` (that module's
+    /// own doc says why), sealed both sides. The real wall clock is read
     /// HERE (the live-only half of the seam — `apply_transition` never touches a
     /// clock); the headless `--keys` replay's own `Effect::InsertDate` arm
     /// performs the identical insert against the FIXED
@@ -148,7 +148,7 @@ impl App {
     pub(in crate::app) fn insert_date(&mut self) {
         let fmt = crate::dateformat::active_format();
         let (y, m, d) = crate::dateformat::today_from_system_clock();
-        self.document.insert_text(&fmt.format(y, m, d));
+        self.write_document_text(TextDoor::InsertDate, TextEdit::Insert(&fmt.format(y, m, d)));
     }
 
     /// After a settings toggle, rebuild the STILL-OPEN settings menu's value cells in
