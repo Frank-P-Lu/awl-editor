@@ -132,8 +132,9 @@ pub use refs::{
 #[allow(unused_imports)] // ListItem/READING_WPM: public API surface, no in-crate caller today
 pub use spans::{
     BreakKind, LIST_INDENT, ListItem, MdKind, READING_WPM, SmartPunctKind, apply_smart_punct,
-    break_kind, equals_runs, fence_line_lang, frontmatter_end, is_fence_line, is_thematic_break,
-    list_item, reading_time_min, spans, strike_engaged, word_count,
+    break_kind, emphasis_content_spans, equals_runs, fence_line_lang, frontmatter_end,
+    is_fence_line, is_thematic_break, list_item, reading_time_min, spans, strike_engaged,
+    word_count,
 };
 pub(crate) use table_caret::{locate_table_caret, table_caret_col};
 pub(crate) use table_edit::{TableRefusal, TableVerb, table_splice};

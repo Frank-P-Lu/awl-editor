@@ -4,7 +4,7 @@
 //! code-organization pass).
 
 use super::super::*;
-use super::{drive_act, drive_act_effect, drive_format, drive_newline, md};
+use super::{drive_act, drive_act_effect, drive_format, drive_format_effect, drive_newline, md};
 use crate::overlay::OverlayKind;
 
 #[test]
@@ -1137,4 +1137,52 @@ fn insert_footnote_is_one_undoable_edit_through_the_real_action_seam() {
     assert!(buffer.can_undo());
     buffer.undo();
     assert_eq!(buffer.text(), source, "one undo restores every source byte");
+}
+
+/// **A REFUSED INLINE FORMAT SAYS SO, AND LEAVES THE DOCUMENT ALONE.** Three
+/// shapes have no output the real parser would read as the requested kind — a
+/// document backtick immediately outside a code payload, a `==` payload the
+/// equals scan cannot pair across, and a prose selection crossing a block
+/// boundary. All three used to lay literal delimiter characters into the
+/// document; a silent no-op would be no better, because two of the three are
+/// invisible from the screen. The table verbs' own rule: a refusal with
+/// something to say.
+///
+/// Driven through `apply_transition`, which is the seam a key, a menu item, a
+/// palette row and `--keys` all ride, so this is the effect a person gets.
+#[test]
+fn a_refused_inline_format_shows_a_notice_and_never_edits() {
+    // (document, selection start, selection end, action) — char indices.
+    let cases: &[(&str, usize, usize, Action)] = &[
+        ("x`y", 2, 3, Action::InlineCode),
+        ("a `t` b", 0, 7, Action::Highlight),
+        ("one\n\ntwo", 0, 8, Action::Bold),
+        ("one\n\ntwo", 0, 8, Action::Strikethrough),
+    ];
+    for (src, s, e, action) in cases {
+        let (b, effect) = drive_format_effect(src, Some(*s), *e, action);
+        assert_eq!(
+            effect,
+            Effect::Notice(NoticeEffect::Sticky(
+                "markdown can't mark that up".to_string()
+            )),
+            "{src:?} {action:?}: the refusal has something to say"
+        );
+        assert_eq!(
+            b.text(),
+            *src,
+            "{src:?} {action:?}: the document is untouched"
+        );
+        assert!(
+            !b.can_undo(),
+            "{src:?} {action:?}: and no undo step was spent on an empty edit"
+        );
+    }
+    // PRESENCE COMPANION: the same seam, a selection that CAN be formatted —
+    // no notice, a real edit, one undo step. Without this every refusal above
+    // is satisfied by a command that stopped working.
+    let (b, effect) = drive_format_effect("the quick fox", Some(4), 9, &Action::Bold);
+    assert_eq!(effect, Effect::None, "a wrap that works says nothing");
+    assert_eq!(b.text(), "the **quick** fox");
+    assert!(b.can_undo());
 }

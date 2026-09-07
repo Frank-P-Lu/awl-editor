@@ -1,7 +1,17 @@
 use super::*;
 
+/// The EDIT one press produces, with a refusal read back as "nothing changed" —
+/// so every law written before refusal existed still asserts what it always did.
+/// The refusal itself is asserted by name through [`inline_toggle`] directly.
 fn inl(kind: InlineKind, text: &str, anchor: Option<usize>, cursor: usize) -> FormatResult {
-    inline_toggle(kind, text, anchor, cursor)
+    match inline_toggle(kind, text, anchor, cursor) {
+        InlineToggle::Edit(r) => r,
+        InlineToggle::Nothing | InlineToggle::NoValidOutput => FormatResult {
+            text: text.to_string(),
+            anchor,
+            cursor,
+        },
+    }
 }
 
 #[test]
@@ -280,17 +290,29 @@ fn inline_code_round_trips_multibyte_across_a_blank_line() {
 /// disjoint from same-line content merely FLANKED by two independent code
 /// spans: selecting `" or "` between `` `a` `` and `` `b` `` is
 /// structurally Surrounding (a backtick sits immediately on each side),
-/// but the plain text between them is not itself code and pressing Code
-/// must WRAP it, never merge the two spans into `` `a or b` ``. No `\n`
-/// in the span, so the fallback never engages — this stays on the
-/// existing positive-match path.
+/// but the plain text between them is not itself code, and it must never
+/// be merged into one span with them.
+///
+/// THE EMITTED TEXT IS WHAT MERGED. `` `a`` or ``b` `` reads to the eye as
+/// three runs and parses as ONE code span holding ``a`` or ``b`` — the exact
+/// merge this law is named against, asserted for as long as the assertion
+/// was over the STRING rather than over the parse. A document backtick
+/// immediately outside the payload admits no fence at all (see
+/// [`a_document_backtick_outside_a_code_payload_admits_no_fence`]), so the
+/// honest answer is the refusal.
 #[test]
 fn inline_code_does_not_merge_two_flanking_spans_on_a_single_line() {
     let src = "`a` or `b`";
-    let r = inl(InlineKind::InlineCode, src, Some(3), 7); // " or "
     assert_eq!(
-        r.text, "`a`` or ``b`",
-        "wraps the flanked text in its own pair, never strips/merges"
+        inline_toggle(InlineKind::InlineCode, src, Some(3), 7),
+        InlineToggle::NoValidOutput,
+        "flanked plain text has no fence that keeps it its own span"
+    );
+    assert_eq!(
+        parsed(InlineKind::InlineCode, "`a`` or ``b`"),
+        vec![1..11],
+        "the output this once emitted is ONE span over `a`` or ``b` — the merge \
+         the name forbids, which is why it is no longer emitted"
     );
     assert!(
         !inline_active(InlineKind::InlineCode, src, Some(3), 7),
@@ -643,5 +665,237 @@ fn every_kind_round_trips_a_selection_holding_a_nested_code_span() {
                 a.text
             );
         }
+    }
+}
+
+// --- Refusals: the cases with no output the parser would read as the kind ----
+//
+// Three shapes have never had a valid output, and all three used to emit
+// literal delimiter characters into the document instead. Each law below
+// asserts the refusal AND, separately, WHY it is one — by building the outputs
+// the grammar could have emitted and requiring the real parser to reject every
+// one of them. A refusal pinned without that companion is satisfiable by a
+// command that simply stopped working.
+
+/// The char span `[s, e)` of `doc`, taken as chars, as a String.
+fn take(doc: &str, s: usize, e: usize) -> String {
+    doc.chars().skip(s).take(e - s).collect()
+}
+
+/// **CASE (a): A DOCUMENT BACKTICK IMMEDIATELY OUTSIDE THE PAYLOAD.** Select
+/// `y` in `` x`y `` and there is no code span to be had: the opening fence
+/// fuses with the backtick the document already has, so the run before the
+/// payload is one longer than the run after it — at EVERY fence length, padded
+/// or not. Widening the edit to swallow that backtick would format bytes the
+/// user did not select, so the command refuses.
+///
+/// The companion is the proof, not a restatement: for every fence this grammar
+/// can emit (length 1..=4 × padded or not), the parser is asked whether the
+/// payload ends up inside a code span, and must say no for all of them.
+#[test]
+fn a_document_backtick_outside_a_code_payload_admits_no_fence() {
+    // (document, selection start, selection end) — char indices.
+    let cases: &[(&str, usize, usize)] = &[
+        ("x`y", 2, 3),     // backtick immediately BEFORE
+        ("y`x", 0, 1),     // backtick immediately AFTER
+        ("a``bc`d", 3, 5), // both flanks, runs that cannot pair
+        ("x`y\nz", 2, 5),  // ...and with a newline in the payload, which is the
+                           // one shape `content_is_kind`'s block-boundary
+                           // fallback would otherwise wave through
+    ];
+    for &(doc, s, e) in cases {
+        assert_eq!(
+            inline_toggle(InlineKind::InlineCode, doc, Some(s), e),
+            InlineToggle::NoValidOutput,
+            "{doc:?} {s}..{e}: a flanking document backtick leaves no valid output"
+        );
+        let (head, payload, tail) = (
+            take(doc, 0, s),
+            take(doc, s, e),
+            take(doc, e, doc.chars().count()),
+        );
+        for n in 1..=4usize {
+            for pad in ["", " "] {
+                let f = "`".repeat(n);
+                let out = format!("{head}{f}{pad}{payload}{pad}{f}{tail}");
+                let want = format!("{pad}{payload}{pad}");
+                let covers = parsed(InlineKind::InlineCode, &out)
+                    .into_iter()
+                    .any(|r| out[r].contains(&want));
+                assert!(
+                    !covers,
+                    "{doc:?}: fence {n}{}, {out:?} DOES carry the payload as a code \
+                     span — the refusal is hiding a working output",
+                    if pad.is_empty() { "" } else { " padded" }
+                );
+            }
+        }
+    }
+}
+
+/// **CASE (c): `==` CANNOT HOLD AN INLINE CONSTRUCT.** awl's highlight is a
+/// scan over one `Event::Text` at a time (`push_highlight_spans`), so a code
+/// span, an emphasis run or a link inside the payload splits the run and the
+/// two `==` markers never meet. The delimiters would sit in the document as
+/// literal equals signs, which is what they did.
+///
+/// Swept along the axis the report named only one member of — the report said
+/// "a backtick"; anything that ends a text event does it — plus the hard line
+/// break, which the highlight scan rejects by its own documented rule.
+#[test]
+fn highlight_refuses_a_payload_the_equals_scan_cannot_pair_across() {
+    for payload in [
+        "a `t` b",    // the reported case: an inline code span
+        "`t`",        // ...and one that IS the whole payload
+        "a **b** c",  // an emphasis run splits the text event just the same
+        "a [x](u) b", // so does a link
+        "a\nb",       // and a hard line break, which the scan rejects outright
+    ] {
+        let n = payload.chars().count();
+        assert_eq!(
+            inline_toggle(InlineKind::Highlight, payload, Some(0), n),
+            InlineToggle::NoValidOutput,
+            "{payload:?}: `==` cannot pair across this payload"
+        );
+        let out = format!("=={payload}==");
+        assert!(
+            parsed(InlineKind::Highlight, &out).is_empty(),
+            "{payload:?}: {out:?} carries a Highlight span after all — the \
+             refusal is hiding a working output"
+        );
+    }
+    // PRESENCE COMPANION: the same command over a payload the scan CAN pair
+    // still highlights, so the refusals above are not a dead command.
+    let r = inl(InlineKind::Highlight, "a plain b", Some(0), 9);
+    assert_eq!(r.text, "==a plain b==");
+    wears_exactly(InlineKind::Highlight, &r.text, 2..11);
+}
+
+/// **THE GENERAL RULE THE THREE CASES SHARE.** A wrap is emitted only when the
+/// real parser reads it as the kind that was asked for, so a prose selection
+/// crossing a block boundary — where CommonMark has no emphasis run to give —
+/// refuses rather than laying four literal asterisks across a paragraph break.
+///
+/// The disjoint half matters as much: an INLINE CODE selection across the same
+/// boundary still wraps, because `content_is_kind`'s own documented fallback
+/// recognises what this command wrote. Both halves are asserted here so a
+/// tightening of one cannot silently take the other with it.
+#[test]
+fn a_prose_wrap_across_a_block_boundary_refuses_while_code_still_crosses_one() {
+    for doc in ["one\n\ntwo", "one\n- two", "one\n# two"] {
+        let n = doc.chars().count();
+        for kind in PROSE_KINDS {
+            assert_eq!(
+                inline_toggle(kind, doc, Some(0), n),
+                InlineToggle::NoValidOutput,
+                "{kind:?} {doc:?}: no emphasis run crosses a block boundary"
+            );
+        }
+        let a = inl(InlineKind::InlineCode, doc, Some(0), n);
+        assert_eq!(
+            a.text,
+            format!("`{doc}`"),
+            "{doc:?}: code still crosses the same boundary"
+        );
+        let b = inl(InlineKind::InlineCode, &a.text, a.anchor, a.cursor);
+        assert_eq!(b.text, doc, "{doc:?}: and a second press strips it back");
+    }
+}
+
+// --- Case (b): the oracle that does not need a surviving text event ---------
+
+/// **A PAYLOAD THAT IS ENTIRELY A CODE SPAN IS STILL BOLD.** `markdown::spans`
+/// reports what a byte WEARS, and `` **`y`** `` emits `Event::Code` and no
+/// `Event::Text` at all — so nothing inside it wears `Bold`, and a strip oracle
+/// reading only that list answers "not bold" over content that is, then wraps
+/// again into `` ****`y`**** ``. `emphasis_content_spans` answers the
+/// structural question instead.
+///
+/// The grammar's own delimiter is read off [`InlineKind::grammar`] rather than
+/// typed per kind, so a kind whose delimiter changes cannot fall out of the
+/// sweep. Highlight is absent on purpose — case (c) is why, and it is asserted
+/// there.
+#[test]
+fn a_payload_that_is_entirely_a_code_span_reads_as_already_formatted() {
+    for kind in [
+        InlineKind::Bold,
+        InlineKind::Italic,
+        InlineKind::Strikethrough,
+    ] {
+        let Grammar::Prose(d) = kind.grammar() else {
+            unreachable!("only prose grammars are swept here")
+        };
+        let payload = "`y`";
+        let doc = format!("{d}{payload}{d}");
+        let dl = d.chars().count();
+        let n = doc.chars().count();
+        assert!(
+            crate::markdown::spans(&doc)
+                .iter()
+                .all(|(_, k)| !kind_matches_span(kind, *k)),
+            "{kind:?} {doc:?}: arranged — the styling-span list really does report \
+             no {kind:?} anywhere here, which is the whole difficulty"
+        );
+        assert!(
+            inline_active(kind, &doc, Some(dl), dl + payload.chars().count()),
+            "{kind:?} {doc:?}: the popover button lights on it"
+        );
+        let off = inl(kind, &doc, Some(dl), dl + payload.chars().count());
+        assert_eq!(off.text, payload, "{kind:?} {doc:?}: one press strips it");
+        let back = inl(kind, &off.text, off.anchor, off.cursor);
+        assert_eq!(back.text, doc, "{kind:?}: and the next press puts it back");
+        assert_eq!(
+            (back.anchor, back.cursor),
+            (Some(dl), dl + payload.chars().count()),
+            "{kind:?}: over the same payload"
+        );
+        assert_eq!(
+            inline_toggle(kind, payload, Some(0), payload.chars().count()),
+            InlineToggle::Edit(back),
+            "{kind:?}: wrapping the bare code span is the same edit"
+        );
+        let _ = n;
+    }
+}
+
+/// **THE SAME BLINDNESS, REACHED FROM THE OTHER SIDE: A CONTEXT THAT OUTRANKS
+/// EMPHASIS.** `inline_kind` ranks heading, checked task, link text and quote
+/// ABOVE bold/italic, so a bolded word inside any of them wears the context's
+/// kind and never `Bold`. Same defect as the code-span payload, different
+/// cause, and the same structural oracle answers both — which is why this is
+/// swept here rather than filed as a separate case.
+#[test]
+fn emphasis_inside_a_context_that_outranks_it_still_reads_as_already_formatted() {
+    // (document, payload start, payload end) — char indices over the emphasised
+    // word, one document per outranking context.
+    let cases: &[(&str, usize, usize)] = &[
+        ("[**foo**](u)", 3, 6),   // link text
+        ("# **foo**", 4, 7),      // heading
+        ("> **foo**", 4, 7),      // blockquote
+        ("- [x] **foo**", 8, 11), // a CHECKED task dims the whole line
+    ];
+    for &(doc, s, e) in cases {
+        assert!(
+            crate::markdown::spans(doc)
+                .iter()
+                .all(|(_, k)| !kind_matches_span(InlineKind::Bold, *k)),
+            "{doc:?}: arranged — no Bold styling span here at all"
+        );
+        assert!(
+            inline_active(InlineKind::Bold, doc, Some(s), e),
+            "{doc:?}: B lights on the bolded word"
+        );
+        let off = inl(InlineKind::Bold, doc, Some(s), e);
+        assert_ne!(
+            off.text, doc,
+            "{doc:?}: the press strips rather than wrapping"
+        );
+        assert!(
+            !off.text.contains("****"),
+            "{doc:?} -> {:?}: four asterisks means it wrapped what was already bold",
+            off.text
+        );
+        let back = inl(InlineKind::Bold, &off.text, off.anchor, off.cursor);
+        assert_eq!(back.text, doc, "{doc:?}: and the next press restores it");
     }
 }

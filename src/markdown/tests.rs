@@ -2511,3 +2511,92 @@ fn a_relative_image_alone_is_enough_even_with_only_absolute_links() {
         "see [site](https://example.com) ![pic](assets/pic.png)\n"
     ));
 }
+
+/// **THE STRUCTURAL ORACLE AGREES WITH THE RENDER WALK WHEREVER THE RENDER
+/// WALK CAN SEE, AND SEES WHERE IT CANNOT.**
+///
+/// `spans` reports what a byte WEARS and `emphasis_content_spans` reports which
+/// construct COVERS it. Two failure shapes are worth more than the difference
+/// they exist for: the structural walk drifting from the render walk (a
+/// delimiter width typed twice), and the structural walk reporting nothing at
+/// all, which would make every consumer's "already bold?" quietly permissive.
+/// So the agreement is asserted over a corpus, the presence is required, and
+/// only then is the GAP asserted as a gap.
+#[test]
+fn emphasis_content_spans_agree_with_the_render_walk_and_see_what_it_cannot() {
+    // Every corpus entry carries at least one emphasis-family construct, in a
+    // different nesting: bare, nested, inside a context that outranks
+    // emphasis, and with a frontmatter block shifting every offset.
+    let corpus = [
+        "**b** and *i* and ~~s~~",
+        "***bi*** and **a *i* b**",
+        "[**foo**](u)\n\n# **head**\n\n> *quoted*\n",
+        "- [x] **done** ~~gone~~\n",
+        "---\nlang: en\n---\n\n**after frontmatter**\n",
+    ];
+    let family = |k: MdKind| {
+        matches!(
+            k,
+            MdKind::Bold | MdKind::Italic | MdKind::BoldItalic | MdKind::Strikethrough
+        )
+    };
+    let mut total = 0usize;
+    for doc in corpus {
+        let structural = emphasis_content_spans(doc);
+        assert!(
+            !structural.is_empty(),
+            "{doc:?}: the structural walk reported NOTHING — every entry in this \
+             corpus carries a construct, so an empty answer means the walk, not \
+             the document"
+        );
+        total += structural.len();
+        for (r, k) in spans(doc).into_iter().filter(|(_, k)| family(*k)) {
+            // `BoldItalic` is ONE styled run reported by two structures, so it
+            // must be covered by both — a walk that lost either one would still
+            // satisfy a single-kind check.
+            let wanted: Vec<MdKind> = match k {
+                MdKind::BoldItalic => vec![MdKind::Bold, MdKind::Italic],
+                other => vec![other],
+            };
+            for want in &wanted {
+                assert!(
+                    structural
+                        .iter()
+                        .any(|(s, sk)| sk == want && s.start <= r.start && s.end >= r.end),
+                    "{doc:?}: the render walk styles {r:?} as {k:?} but no {want:?} \
+                     construct covers it: {structural:?}"
+                );
+            }
+        }
+    }
+    assert!(
+        total >= corpus.len(),
+        "presence: {total} constructs enrolled"
+    );
+
+    // THE GAP, which is the reason this walk exists: a payload that is entirely
+    // a code span emits no `Event::Text`, so it wears no Bold while being bold.
+    let doc = "**`y`**";
+    assert!(
+        !spans(doc).iter().any(|(_, k)| family(*k)),
+        "{doc:?}: arranged — the render walk styles nothing in the family here"
+    );
+    assert_eq!(
+        emphasis_content_spans(doc),
+        vec![(2..5, MdKind::Bold)],
+        "{doc:?}: the structural walk still reports the bold construct"
+    );
+
+    // THE SHARED GATE: a single-tilde run is inert in the render, so it must be
+    // inert here too — a second opinion about `~x~` is exactly the divergence
+    // the `==`/`~~` exactly-two rule was written to prevent.
+    assert!(
+        emphasis_content_spans("~x~").is_empty(),
+        "a single-tilde run is not a strike in either walk"
+    );
+    assert_eq!(
+        emphasis_content_spans("~~x~~"),
+        vec![(2..3, MdKind::Strikethrough)],
+        "and an engaged one is"
+    );
+}

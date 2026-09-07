@@ -194,11 +194,11 @@ fn apply_format_action(ctx: &mut ActionCtx, action: &Action) -> Option<Effect> {
         Action::ToggleHeading => apply_block_format(ctx, format::BlockKind::Heading),
         Action::HeadingCycle => format::apply_heading_cycle(ctx),
         Action::ToggleCodeBlock => apply_block_format(ctx, format::BlockKind::CodeBlock),
-        Action::Bold => apply_inline_format(ctx, format::InlineKind::Bold),
-        Action::Italic => apply_inline_format(ctx, format::InlineKind::Italic),
-        Action::InlineCode => apply_inline_format(ctx, format::InlineKind::InlineCode),
-        Action::Highlight => apply_inline_format(ctx, format::InlineKind::Highlight),
-        Action::Strikethrough => apply_inline_format(ctx, format::InlineKind::Strikethrough),
+        Action::Bold
+        | Action::Italic
+        | Action::InlineCode
+        | Action::Highlight
+        | Action::Strikethrough => return Some(format::apply_inline_action(ctx, action)),
         Action::InsertFootnote => format::apply_insert_footnote(ctx),
         Action::TagDocumentLanguage => return Some(tag_document_language(ctx)),
         _ => return None,

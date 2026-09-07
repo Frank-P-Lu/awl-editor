@@ -1,7 +1,7 @@
 //! The inline formatting family — ONE owner for how each kind's grammar binds
 //! its delimiters to a payload: choosing them, recognizing them, stripping them.
 
-use super::{ActionCtx, FormatResult, sel_range};
+use super::{ActionCtx, Effect, FormatResult, NoticeEffect, sel_range};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum InlineKind {
@@ -44,15 +44,32 @@ impl InlineKind {
     }
 }
 
-pub(in crate::actions) fn apply_inline_format(ctx: &mut ActionCtx, kind: InlineKind) {
+/// What a refusal SAYS. Two of the three shapes below are invisible from the
+/// screen — a backtick one character outside the selection, a `==` run the
+/// parser will never pair across an inline construct — so a silent no-op reads
+/// as a dead command. The same reasoning `NO_TABLE_UNDER_CARET` and
+/// `EXPORT_REQUIRES_MARKDOWN` record: a refusal with something to say. The
+/// whitespace-only selection is deliberately NOT routed here — that one the
+/// reader can already see.
+const NO_VALID_MARKUP: &str = "markdown can't mark that up";
+
+pub(in crate::actions) fn apply_inline_format(ctx: &mut ActionCtx, kind: InlineKind) -> Effect {
     if !ctx.buffer.is_markdown() {
-        return;
+        return Effect::None;
     }
     let text = ctx.buffer.text();
     let anchor = ctx.buffer.anchor_char();
     let cursor = ctx.buffer.cursor_char();
-    let r = inline_toggle(kind, &text, anchor, cursor);
-    ctx.buffer.apply_format(&r.text, r.anchor, r.cursor);
+    match inline_toggle(kind, &text, anchor, cursor) {
+        InlineToggle::Edit(r) => {
+            ctx.buffer.apply_format(&r.text, r.anchor, r.cursor);
+            Effect::None
+        }
+        InlineToggle::Nothing => Effect::None,
+        InlineToggle::NoValidOutput => {
+            Effect::Notice(NoticeEffect::Sticky(NO_VALID_MARKUP.to_string()))
+        }
+    }
 }
 
 fn is_word_char(c: char) -> bool {
@@ -273,6 +290,14 @@ fn code_wrap(chars: &[char], ws: usize, we: usize) -> Option<Wrapped> {
 /// Asked at the payload's two ENDS rather than at its midpoint: a nested
 /// construct owns the bytes it covers, so `**a `tick` b**` samples a CODE span in
 /// the middle and would read as "not bold" over content that is.
+///
+/// TWO PARSER VIEWS, not one, because a styling span is not evidence of absence.
+/// `markdown::spans` reports what a byte WEARS, and a byte only wears what a
+/// prose `Event::Text` carried — so `` **`y`** `` (no Text event inside at all)
+/// and a bolded word inside a link or heading (the context outranks emphasis)
+/// both report "not bold" while being bold. `emphasis_content_spans` answers the
+/// structural question for exactly that family. The two are unioned rather than
+/// alternated: `Code`/`Highlight` live only in the first, emphasis in both.
 fn content_is_kind(kind: InlineKind, text: &str, inner: (usize, usize)) -> bool {
     let (ws, we) = inner;
     let ends = [
@@ -280,9 +305,11 @@ fn content_is_kind(kind: InlineKind, text: &str, inner: (usize, usize)) -> bool 
         char_to_byte(text, we.saturating_sub(1)),
     ];
     let spans = crate::markdown::spans(text);
+    let structural = crate::markdown::emphasis_content_spans(text);
     let wears = |b: usize| {
         spans
             .iter()
+            .chain(structural.iter())
             .any(|(r, k)| r.contains(&b) && kind_matches_span(kind, *k))
     };
     if ends.iter().all(|&b| wears(b)) {
@@ -339,19 +366,62 @@ pub(crate) fn inline_active(
         .is_some()
 }
 
+/// What one press of an inline toggle does.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) enum InlineToggle {
+    /// The edit to apply.
+    Edit(FormatResult),
+    /// No edit and nothing to say: a prose selection holding only whitespace,
+    /// which the reader can already see is empty.
+    Nothing,
+    /// No edit, and a REASON worth saying: every output this grammar could emit
+    /// here would be literal characters rather than the construct asked for.
+    NoValidOutput,
+}
+
+/// WOULD THE WRAP THIS COMMAND IS ABOUT TO EMIT ACTUALLY MEAN `kind`?
+///
+/// Asked of the emitted text through the same oracle that recognizes a strip,
+/// so the two directions cannot hold different opinions about what the document
+/// says. Three shapes fail it, and all three predate the fence work:
+///
+/// - a document backtick immediately OUTSIDE a code payload (`` x`y ``, select
+///   `y`) — the flank check below, because no fence length can escape it: the
+///   opening run becomes `n + 1` while the closing stays `n`, at every `n`;
+/// - a `==highlight==` whose payload holds any inline construct — the `==` scan
+///   sees one `Event::Text` at a time and never pairs a marker across a code
+///   span, so the delimiters would sit in the document as literal `=`;
+/// - a prose selection crossing a block boundary, where CommonMark has no
+///   emphasis run to give.
+///
+/// The one shape that PASSES while the parser withholds confirmation is a code
+/// span across a block boundary, and it passes through `content_is_kind`'s own
+/// documented fallback rather than an exception here.
+fn wrap_means_kind(
+    kind: InlineKind,
+    chars: &[char],
+    ws: usize,
+    we: usize,
+    out: &str,
+    payload: (usize, usize),
+) -> bool {
+    if matches!(kind.grammar(), Grammar::CodeSpan)
+        && (chars.get(ws.wrapping_sub(1)) == Some(&'`') || chars.get(we) == Some(&'`'))
+    {
+        return false;
+    }
+    content_is_kind(kind, out, payload)
+}
+
 pub(super) fn inline_toggle(
     kind: InlineKind,
     text: &str,
     anchor: Option<usize>,
     cursor: usize,
-) -> FormatResult {
+) -> InlineToggle {
     let chars: Vec<char> = text.chars().collect();
     let Some((ws, we, want_caret)) = payload_span(kind, &chars, anchor, cursor) else {
-        return FormatResult {
-            text: text.to_string(),
-            anchor,
-            cursor,
-        };
+        return InlineToggle::Nothing;
     };
 
     if let Some(w) = inline_wrap(kind, &chars, text, ws, we) {
@@ -361,7 +431,7 @@ pub(super) fn inline_toggle(
         out.extend_from_slice(&chars[w.outer.1..]);
         let a = w.outer.0;
         let c = a + (w.inner.1 - w.inner.0);
-        return finish_inline(out, a, c);
+        return InlineToggle::Edit(finish_inline(out, a, c));
     }
 
     let (open, close) = delims(kind, &chars[ws..we]);
@@ -372,19 +442,29 @@ pub(super) fn inline_toggle(
     out.extend_from_slice(&close);
     out.extend_from_slice(&chars[we..]);
     let (a, c) = (ws + open.len(), we + open.len());
+    let text: String = out.into_iter().collect();
+    // An EMPTY payload is this command's own `****`/`` `` ``, which no parser
+    // reports as anything — the caret case, exempt by construction rather than
+    // by a threshold.
+    if a < c && !wrap_means_kind(kind, &chars, ws, we, &text, (a, c)) {
+        return InlineToggle::NoValidOutput;
+    }
     if want_caret {
-        FormatResult {
-            text: out.into_iter().collect(),
+        InlineToggle::Edit(FormatResult {
+            text,
             anchor: None,
             cursor: c,
-        }
+        })
     } else {
-        finish_inline(out, a, c)
+        InlineToggle::Edit(finish_inline_text(text, a, c))
     }
 }
 
 fn finish_inline(out: Vec<char>, a: usize, c: usize) -> FormatResult {
-    let text: String = out.into_iter().collect();
+    finish_inline_text(out.into_iter().collect(), a, c)
+}
+
+fn finish_inline_text(text: String, a: usize, c: usize) -> FormatResult {
     if a == c {
         FormatResult {
             text,

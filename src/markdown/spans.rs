@@ -23,4 +23,4 @@ pub use kind::{BreakKind, MdKind, break_kind};
 pub use markers::equals_runs;
 #[cfg(test)]
 pub(super) use markers::push_highlight_spans;
-pub use parse::spans;
+pub use parse::{emphasis_content_spans, spans};
