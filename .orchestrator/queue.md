@@ -8,6 +8,28 @@
 
 ---
 
+### 615 — separate mouse dispatch, selection, surfaces, and scrolling (user request, 2026-09-08)
+
+🟡 IN PROGRESS — Codex (codex), branch `codex/615-mouse`, worktree `.worktrees/615-mouse`.
+
+`app/input/mouse.rs` combines document hit testing and selection, overlay navigation,
+search/menu clicks, cursor feedback, and wheel routing in one oversized module.
+Separate these responsibilities into focused mouse submodules, leaving the event
+entry points and precedence visible in one dispatcher. Preserve gesture ordering,
+selection/undo/fold semantics, redraw scheduling, and existing input-state ownership.
+Shorten historical and repetitive commentary while retaining units and invariants.
+No picker-input or animation-state redesign belongs in this item.
+
+Verify: compare extracted method bodies against base, update source-law enrollment
+for every moved consumer, and run targeted pointer/selection/scroll and ownership
+laws. Independently audit outcomes and add a missing law if the audit finds a gap;
+prove any new headline law with a compiling mutation. Then commit and run the full
+native gate plus wasm smoke before landing. Pointer timing/feel remains live-only;
+no keyboard capture is claimed to verify mouse events. No render geometry or styling
+change is intended.
+
+---
+
 ### 537 — footnote markers may wear the traditional reference ladder (user decision, 2026-09-01; sequenced AFTER 529 bundles the face)
 
 ⬜ DECIDED, READY — both product decisions landed (user, 2026-09-06): **(a)
