@@ -576,6 +576,24 @@ give the mono law an exact count derived from its own filtered roster.
 
 ---
 
+## A lane-facing note: three lanes lost a gate cycle to the same law
+
+`roster_claim_law::no_source_comment_types_the_world_roster_size` reddened **three separate
+lanes** in one session — 570's (`pull_quote_pair.rs` typed "twenty worlds" in the module doc of
+a file whose whole subject is deriving enrolment from the roster), 558's ("nineteen/twenty
+worlds" in comments), and 572's (two sites, one of them a failure message reading "thirteen of
+the twenty worlds"). In 572's case the previous lane's commit was **already red** against a law
+that has been on `main` since 2026-08-26 and is an ancestor of that commit.
+
+The law is right and is doing its job. The cost is discovery: it is a unit test a **filtered**
+`cargo test` never reaches, so a lane meets it only at the full gate, after the work is done —
+and writing "the twenty worlds" in prose is the natural way to describe a sweep. Every lane
+that hit it was writing a comment ABOUT deriving enrolment from the roster.
+
+**So a brief that asks a lane to sweep the world roster should say this outright:** describe
+the roster by asking it, never by typing its size, in comments and failure messages alike. That
+costs a sentence and saves a gate cycle, and gate cycles on this host are ~15 minutes each.
+
 ## Owed to the user — landed work awaiting a live eye
 
 These items have MERGED and left the build queue. Each one still owes the user an answer or
@@ -709,7 +727,9 @@ this ground's geometry and inherits the same sign-off.
 
 ## Green train — the exact-main receipts
 
-**Fourth train, `0e195574`** — covers 580 and 581, HEAD verified unmoved across the run:
+**Fourth train, `0e195574`** — covers 580 and 581, HEAD verified unmoved across the run.
+Pushed as `297ed802`; **CI run 34072883296 passed all four gating jobs.**
+
 
 ```
 native-gate-receipt commit=0e19557466c341138fbc5e7d87295f4e00947020 health=pass:249s
