@@ -254,12 +254,30 @@ lost a sibling's source to `git add -u`.
 `.orchestrator/disk-preflight.sh` is the one serialized disk-recovery door.
 `worker-build.sh` invokes it before every concurrent worker command; the
 canonical native gate invokes the same owner for the root merge train. Above
-its 32 GiB healthy fleet floor it only reads filesystem capacity. Below that floor it
+its 27 GiB healthy fleet floor it only reads filesystem capacity. Below that floor it
 locks, rechecks, and asks the sole deletion owner, `scripts/sweep.sh 1`, to
 prune THIS worktree's own `target/` and no other — the preflight fires on every
 concurrent worker command and `cargo sweep` takes no lock, so a fleet-wide
 traversal from here deletes fingerprints out from under a sibling lane's live
 compile. A post-sweep 24 GiB minimum is an early, truthful failure.
+
+⚠️ **THAT RECOVERY ARM RECLAIMS ALMOST NOTHING, MEASURED, AND THE FLOORS NOW SAY SO.**
+The healthy floor was 32 GiB while the sweep still traversed the fleet; it is now
+derived — `MINIMUM_BYTES` plus `SWEEP_YIELD_BYTES`, the measured ceiling of one
+worktree's `sweep.sh 1`, which is **3 GiB**. Two facts bound it and neither is
+tunable: `cargo sweep --time` keeps every artifact whose fingerprint was used
+inside the window, and the one worktree this door may prune is the one that is
+building right now; and cargo-sweep never touches `target/debug/incremental`,
+measured at **61-69%** of every `target/` on this fleet. Sampled 2026-09-07 across
+worktrees spanning 1.2-25.4 GiB and one to fourteen days old, `--time 1` reclaimed
+**nothing at all**, and so did every threshold up to 60 days; the largest sweepable
+pool anywhere was 2.8 GiB of deps and fingerprints in a lane that had just rebuilt.
+So the practical rule is that **below 24 GiB the preflight refuses, full stop** —
+recovery rescues a run only in the narrow window where the caller itself has gone
+a day idle with its deps intact, which an active lane never has. Every receipt now
+prints `sweep_yield_bytes=` and `reclaimed_bytes=`, so the next tuning pass reads
+numbers off a run instead of remembering. `scripts/test-disk-preflight.sh` pins the
+derivation and runs in `code-health.sh`.
 The serializer is a kernel advisory lock held through inherited file descriptor
 9. The lock file may persist, but its contents carry no authority; the kernel
 releases ownership when a process exits or is killed.

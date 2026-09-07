@@ -86,6 +86,11 @@ scripts/test-native-gate.sh
 # lane's disk preflight pruning a SIBLING lane's live build — reads as the
 # victim's own broken build.
 scripts/test-sweep.sh
+# The floors the preflight refuses at, and the one-owner serializer above them.
+# Wired at birth for the same reason as the line above: this file existed once,
+# unwired, and was deleted for it — and the constants it pins were tuned against
+# a sweep whose reach has since been narrowed to a single worktree.
+scripts/test-disk-preflight.sh
 scripts/test-pycache-guards.sh
 # The scan covers every tracked Rust source file, including native/macOS/wasm/
 # feature-gated paths. Never let a target directory's generated output make a
