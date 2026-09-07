@@ -50,6 +50,21 @@ const H: u32 = 800;
 /// The heading rungs plus body, so every law here states which rung it is on.
 const LEVELS: [u8; 4] = [0, 1, 2, 3];
 
+/// The heading rungs ALONE — [`LEVELS`] without body, for the laws that grade a
+/// rung against its own body twin rather than sweeping all four.
+const HEADING_RUNGS: [u8; 3] = [1, 2, 3];
+
+/// The three caret forms, so a law that sweeps them can ask this array's length
+/// instead of restating it in an assertion.
+const CARET_FORMS: [CaretMode; 3] = [CaretMode::Block, CaretMode::Ibeam, CaretMode::Morph];
+
+/// How many band consumers `every_caret_band_consumer_grew_by_the_size_rung_alone`
+/// grades per world: three HEIGHT readings, one FRACTION, two GAPS. Checked
+/// against `BandReadings`' own bucket lengths inside that sweep, so a consumer
+/// added to the reader without moving this number fails on the first world
+/// rather than quietly widening the roster arithmetic.
+const BAND_CONSUMERS: usize = 6;
+
 /// One `Heading title` line per rung, a blank, then body — the caret parks on
 /// the body line so the heading is off-caret in the states that need it.
 fn heading_doc(level: u8) -> String {
@@ -234,6 +249,20 @@ impl BandReadings {
                 .map(|s| s.y - (band_y + band_h))
                 .unwrap_or(f32::NAN),
         );
+        // THE NIT UNDERLINE hangs under the same band edge the spell squiggle
+        // does, from the same `row_band_for` call, and so answers the same
+        // question one gap apart. It is here because the band's owner fixed it
+        // and nothing graded it: a call-site count forces a NEW consumer into
+        // the sweep and cannot retroactively enrol an old one.
+        Self::push(
+            &mut self.gaps,
+            slot,
+            "nit underline gap under the band",
+            p.nit_underlines()
+                .first()
+                .map(|s| s.y - (band_y + band_h))
+                .unwrap_or(f32::NAN),
+        );
         // THE FOLLOWABLE UNDERLINE IS STRUCTURALLY ABSENT FROM A HEADING ROW,
         // so it cannot join the fraction family: pulldown-cmark stamps a link's
         // text inside an ATX heading as `MdKind::Heading`, never `LinkText`, so
@@ -261,8 +290,9 @@ impl BandReadings {
 ///     rung times their body value — never the retired row product;
 ///   * INSIDE-band consumers (the strike line) sit at a fraction of the band,
 ///     so that fraction must be the SAME on both rows;
-///   * BELOW-band consumers (the spell squiggle) hang a fixed gap under the
-///     band's bottom edge, so that gap must be the same on both rows.
+///   * BELOW-band consumers (the spell squiggle, the nit underline) hang a
+///     fixed gap under the band's bottom edge, so that gap must be the same on
+///     both rows.
 ///
 /// Together the three say: every one of them rides the band, and the band is
 /// the one law above pins. Each reading is the drawn geometry, not a
@@ -279,8 +309,10 @@ fn every_caret_band_consumer_grew_by_the_size_rung_alone() {
     let size = crate::markdown::heading_scale(level);
     // One line carrying every span family a band treatment can enrol: inline
     // code (pill), a strike run, a followable link (underline), a misspelling
-    // (squiggle). The selection and the search wash take plain words.
-    const TAIL: &str = "alpha `code` ~~gone~~ [lnk](u) wrongg\n\nbody\n";
+    // (squiggle), and — appended, so no earlier column moves — a double space
+    // between two words, which is the nit detector's own first rule.
+    const TAIL: &str = "alpha `code` ~~gone~~ [lnk](u) wrongg  tidy\n\nbody\n";
+    crate::nits::set_nits_on(true);
     let mut graded = 0usize;
     for t in theme::THEMES.iter() {
         theme::set_active_by_name(t.name).unwrap();
@@ -302,6 +334,13 @@ fn every_caret_band_consumer_grew_by_the_size_rung_alone() {
             readings.take(&mut p, t.name, slot);
         }
         let rows = readings.rows;
+        assert_eq!(
+            readings.heights.len() + readings.fractions.len() + readings.gaps.len(),
+            BAND_CONSUMERS,
+            "{}: `BandReadings` answered with a different number of consumers than the \
+             roster arithmetic below counts on",
+            t.name
+        );
         assert!(
             rows[1] > rows[0] + 1.0,
             "{}: the fixture's heading row ({}) must actually be taller than its body \
@@ -361,8 +400,9 @@ fn every_caret_band_consumer_grew_by_the_size_rung_alone() {
     }
     assert_eq!(
         graded,
-        theme::THEMES.len() * 5,
-        "five consumers x the whole roster"
+        theme::THEMES.len() * BAND_CONSUMERS,
+        "every band consumer x every world in the roster — worlds enrolled: {:?}",
+        theme::THEMES.iter().map(|t| t.name).collect::<Vec<_>>()
     );
     theme::set_active(theme::DEFAULT_THEME);
     p.sync_theme();
@@ -388,10 +428,12 @@ fn the_row_scaled_caret_forms_track_the_headings_size_rung() {
         "the mono-display roster must be non-empty or the line-cell arm is unswept"
     );
     let mut graded = 0usize;
+    let mut enrolled: Vec<&'static str> = Vec::new();
     for t in theme::THEMES.iter().filter(|t| mono.contains(&t.name)) {
         theme::set_active_by_name(t.name).unwrap();
         p.sync_theme();
-        for mode in [CaretMode::Block, CaretMode::Ibeam, CaretMode::Morph] {
+        enrolled.push(t.name);
+        for mode in CARET_FORMS {
             crate::caret::set_mode(mode);
             let mut heights = Vec::new();
             for level in LEVELS {
@@ -404,7 +446,7 @@ fn the_row_scaled_caret_forms_track_the_headings_size_rung() {
                 let (_cx, _cy, _w, h, ..) = p.caret_geometry();
                 heights.push(h);
             }
-            for level in [1u8, 2, 3] {
+            for level in HEADING_RUNGS {
                 let want = crate::markdown::heading_scale(level);
                 let ratio = heights[level as usize] / heights[0];
                 assert!(
@@ -418,11 +460,264 @@ fn the_row_scaled_caret_forms_track_the_headings_size_rung() {
             }
         }
     }
-    assert!(
-        graded > 0,
-        "at least one mono world x form x rung was graded"
+    assert_eq!(
+        enrolled, mono,
+        "the worlds this sweep actually visited must be the whole filtered roster \
+         `facepitch::mono_display_worlds` answered with, not a prefix of it"
+    );
+    assert_eq!(
+        graded,
+        enrolled.len() * CARET_FORMS.len() * HEADING_RUNGS.len(),
+        "every (mono world x caret form x heading rung) cell must be graded, and the world \
+         axis comes from the filtered roster rather than a floor of one — worlds enrolled: \
+         {enrolled:?}"
     );
     crate::caret::set_mode(CaretMode::Block);
+    theme::set_active(theme::DEFAULT_THEME);
+    p.sync_theme();
+}
+
+// ---------------------------------------------------------------------------
+// The other two row-inflation mechanisms — an x-rayed table row, and a
+// thematic break's ornament room
+// ---------------------------------------------------------------------------
+
+/// A wrapping cell wide enough to force its grid row several lines tall, so the
+/// x-ray carve-out has an inflation worth carving out of.
+const WRAPPING_CELL: &str = "pale eucalyptus-green with a very long description that keeps \
+                             going well past any single column width so it is forced to wrap \
+                             onto several lines";
+
+/// A table whose row 2 wraps to a tall grid row and whose row 3 does not — the
+/// tall row and its own short twin in one document, so the two bands compared
+/// below are read from the same frame's world, page measure and face.
+fn tall_and_short_table() -> String {
+    format!("| World | Ground |\n|-------|--------|\n| Short | {WRAPPING_CELL} |\n| Tiny | ok |\n")
+}
+
+/// **THE X-RAYED TABLE ROW'S BAND.** The third row-inflation mechanism, and the
+/// one [`super::super::TextPipeline::caret_band_scale`] answers with a flat
+/// `1.0`: a GFM row whose cell wraps reserves a tall grid row, while the
+/// revealed source floats over it as ONE body-size line, so a band drawn from
+/// the row's own height would stand a char-wide pillar the full height of the
+/// wrapped cell.
+///
+/// Graded the way the heading rung is graded — against the product's own body
+/// twin rather than an authored constant. The SHORT row in the same table is
+/// that twin: the tall row's extra reserved height must buy its band exactly
+/// nothing. The fixture proves its own subject each time round (the tall row
+/// really is taller), so a table that stopped wrapping cannot make this law
+/// pass by deleting the inflation it exists to police.
+#[test]
+fn an_xrayed_table_rows_band_is_its_short_twins_however_tall_the_grid_row_is() {
+    let _t = crate::testlock::serial();
+    let _page = crate::page::PagePin::snapshot();
+    let _misc = crate::testlock::misc::TogglesRestore::capture();
+    let Some((device, queue, mut p)) = headless_dqp(W as f32, H as f32) else {
+        eprintln!(
+            "skipping an_xrayed_table_rows_band_is_its_short_twins_however_tall_the_grid_row_is: \
+             no adapter"
+        );
+        return;
+    };
+    crate::markdown::set_wysiwyg_on(true);
+    crate::page::set_page_on(true);
+    crate::page::set_measure(40);
+    let text = tall_and_short_table();
+    const TALL: usize = 2;
+    const SHORT: usize = 3;
+
+    // One selection width for both rows, so the only thing that differs between
+    // the two readings is the row's own reserved height.
+    let band_of = |p: &mut TextPipeline, line: usize| -> (f32, f32) {
+        let mut v = view_md(&text, 0, 0); // caret outside the table
+        v.selection = Some(((line, 0), (line, 8)));
+        p.set_view(&v);
+        p.prepare(&device, &queue, W, H).unwrap();
+        let row_h = p
+            .layout_report()
+            .expect("sealed frame is reportable")
+            .rows
+            .iter()
+            .find(|r| r.logical_line == line)
+            .expect("the table row is shaped")
+            .height;
+        let rects = p.range_rects((line, 0), (line, 8));
+        let band_h = rects.first().map(|r| r[3]).unwrap_or(0.0);
+        (row_h, band_h)
+    };
+
+    let mut graded = 0usize;
+    let mut enrolled: Vec<&'static str> = Vec::new();
+    for t in theme::THEMES.iter() {
+        theme::set_active_by_name(t.name).unwrap();
+        p.sync_theme();
+        enrolled.push(t.name);
+        let (tall_row, tall_band) = band_of(&mut p, TALL);
+        let (short_row, short_band) = band_of(&mut p, SHORT);
+
+        // THE SUBJECT IS STILL THERE: without a genuinely inflated row this law
+        // is two identical rows agreeing, which is true of the defect too.
+        assert!(
+            tall_row > short_row + 1.0,
+            "{}: the fixture's wrapped row ({tall_row}) must reserve a genuinely taller grid \
+             row than its short twin ({short_row}) or this sweep proves nothing",
+            t.name
+        );
+        // PRESENCE: an absent band satisfies any equality claim about heights.
+        assert!(
+            tall_band > 1.0 && short_band > 1.0,
+            "{}: both rows must actually draw a band (tall={tall_band}, short={short_band}) \
+             or the comparison is between two zeroes",
+            t.name
+        );
+        assert!(
+            (tall_band - short_band).abs() < 0.6,
+            "{}: the x-rayed tall row's band is {tall_band} against its short twin's \
+             {short_band} — the row was grown for a wrapped grid cell and the band inherited \
+             it, which is the char-wide pillar the carve-out exists to prevent (rows: \
+             tall={tall_row}, short={short_row})",
+            t.name
+        );
+        graded += 1;
+    }
+    assert_eq!(
+        graded,
+        theme::THEMES.len(),
+        "every world in the roster is graded — worlds enrolled: {enrolled:?}"
+    );
+    theme::set_active(theme::DEFAULT_THEME);
+    p.sync_theme();
+}
+
+/// The rule line's own document. Line 1 is a thematic break carrying ONE
+/// trailing space, which is a nit (exactly two trailing spaces would be a
+/// markdown hard break and deliberately is not) — so the row can host a nit
+/// underline as well as a band and a wash.
+const RULE_DOC: &str = "alpha beta\n--- \nomega\n";
+const RULE_LINE: usize = 1;
+
+/// How many caret-adjacent treatments a thematic-break row can actually host:
+/// the selection band, the search wash, and the nit underline. The pill, the
+/// strike and the followable underline all need span families a `---` line has
+/// no room for, and the spell squiggle needs a word.
+const RULE_ROW_CONSUMERS: usize = 3;
+
+/// **THE THEMATIC BREAK'S ORNAMENT ROOM.** The second row-inflation mechanism.
+/// Its owner's doc ARGUES that a revealed rule line drops the ornament's room
+/// entirely, and `rule_reveal_state` pins the row HEIGHT and the glyph
+/// ADVANCES — but nothing pinned the caret-adjacent treatments drawn on that
+/// row, which is where the heading rung's defect lived.
+///
+/// The body twin here is the identical bytes with markdown OFF, so
+/// `md_line_scale` never applies a rule scale at all: the renderer's own answer
+/// for "what do these treatments look like at 1.0x", never a guessed constant.
+/// Non-vacuity comes from the same frame — the UNREVEALED row is measured too
+/// and must be genuinely taller, so a world that stopped inflating its rule row
+/// cannot pass this by having nothing to drop.
+#[test]
+fn a_revealed_thematic_breaks_treatments_are_body_sized_on_every_world() {
+    let _t = crate::testlock::serial();
+    let _misc = crate::testlock::misc::TogglesRestore::capture();
+    let Some((device, queue, mut p)) = headless_dqp(W as f32, H as f32) else {
+        eprintln!(
+            "skipping a_revealed_thematic_breaks_treatments_are_body_sized_on_every_world: \
+             no adapter"
+        );
+        return;
+    };
+    crate::nits::set_nits_on(true);
+
+    // The caret sits on the LAST line throughout: a selection touching the rule
+    // line is what reveals it, and reveal-on-cursor would suppress the nit if
+    // the caret landed there instead.
+    let treatments = |p: &mut TextPipeline, md: bool| -> Vec<(&'static str, f32)> {
+        let mut v = view_md(RULE_DOC, 2, 0);
+        v.is_markdown = md;
+        v.selection = Some(((RULE_LINE, 0), (RULE_LINE, 3)));
+        v.search_matches = vec![((RULE_LINE, 0), (RULE_LINE, 3))];
+        p.set_view(&v);
+        p.prepare(&device, &queue, W, H).unwrap();
+        let vrow = p.visual_rows(RULE_LINE).remove(0);
+        let line_top = p.doc_top() + vrow.line_top;
+        let (band_y, band_h) = p.row_caret_band(RULE_LINE, &vrow, line_top);
+        vec![
+            (
+                "selection band height",
+                p.selection_rects().first().map(|r| r[3]).unwrap_or(0.0),
+            ),
+            (
+                "search wash height",
+                p.search_match_rects().first().map(|r| r[3]).unwrap_or(0.0),
+            ),
+            (
+                "nit underline gap under the band",
+                p.nit_underlines()
+                    .first()
+                    .map(|s| s.y - (band_y + band_h))
+                    .unwrap_or(f32::NAN),
+            ),
+        ]
+    };
+
+    let row_height = |p: &mut TextPipeline, v: &ViewState| -> f32 {
+        p.set_view(v);
+        p.prepare(&device, &queue, W, H).unwrap();
+        p.layout_report()
+            .expect("sealed frame is reportable")
+            .rows
+            .iter()
+            .find(|r| r.logical_line == RULE_LINE)
+            .expect("the rule row is shaped")
+            .height
+    };
+
+    let mut graded = 0usize;
+    let mut enrolled: Vec<&'static str> = Vec::new();
+    for t in theme::THEMES.iter() {
+        theme::set_active_by_name(t.name).unwrap();
+        p.sync_theme();
+        enrolled.push(t.name);
+
+        // THE ROOM EXISTS: caret elsewhere, nothing selected, markdown on.
+        let unrevealed = row_height(&mut p, &view_md(RULE_DOC, 2, 0));
+        let mut plain_view = view_md(RULE_DOC, 2, 0);
+        plain_view.is_markdown = false;
+        let body = row_height(&mut p, &plain_view);
+        assert!(
+            unrevealed > body + 1.0,
+            "{}: the unrevealed rule row ({unrevealed}) must genuinely carry ornament room \
+             over its body twin ({body}) or there is nothing for the reveal to drop",
+            t.name
+        );
+
+        let revealed = treatments(&mut p, true);
+        let twin = treatments(&mut p, false);
+        for ((name, got), (twin_name, want)) in revealed.iter().zip(twin.iter()) {
+            assert_eq!(name, twin_name, "the two arms must read the same consumers");
+            // PRESENCE: a treatment absent from both arms would agree perfectly.
+            assert!(
+                got.is_finite() && want.is_finite() && got.abs() > 0.5 && want.abs() > 0.5,
+                "{}: `{name}` must actually be drawn on BOTH arms (revealed={got}, \
+                 body twin={want}) or their agreement is about two nothings",
+                t.name
+            );
+            assert!(
+                (got - want).abs() < 0.6,
+                "{}: `{name}` on a REVEALED thematic break reads {got} where the identical \
+                 bytes as plain body read {want} — the row's ornament room (unrevealed \
+                 {unrevealed} against body {body}) is still reaching the treatment",
+                t.name
+            );
+            graded += 1;
+        }
+    }
+    assert_eq!(
+        graded,
+        theme::THEMES.len() * RULE_ROW_CONSUMERS,
+        "every (world x reachable treatment) cell must be graded — worlds enrolled: \
+         {enrolled:?}"
+    );
     theme::set_active(theme::DEFAULT_THEME);
     p.sync_theme();
 }
@@ -1062,9 +1357,11 @@ fn every_document_band_still_comes_through_the_one_scale_owner() {
     assert_eq!(
         sites.len(),
         8,
-        "the caret-band owner has {} call sites, not the 8 this file's sweep grades \
+        "the caret-band owner has {} call sites, not the 8 this file's laws account for \
          ({sites:?}) — a new caret-adjacent treatment must be added to \
-         `every_caret_band_consumer_grew_by_the_size_rung_alone` before this count moves",
+         `every_caret_band_consumer_grew_by_the_size_rung_alone` (or, for the x-ray path, \
+         `an_xrayed_table_rows_band_is_its_short_twins_however_tall_the_grid_row_is`) \
+         before this count moves",
         sites.len()
     );
 }
