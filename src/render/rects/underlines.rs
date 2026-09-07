@@ -27,20 +27,29 @@ impl TextPipeline {
                 .is_some_and(|it| !it.ordered && end_col <= it.content)
     }
 
-    /// True when `li` is a concealed thematic-break (`---`/`***`/`___`) line —
-    /// membership drawn from the SAME cached set the rule ORNAMENT itself reads
-    /// ([`Self::rule_lines`]'s underlying [`OrnamentCache::rule_lines`]), so a
-    /// nit can never disagree with the ornament about which lines are showing
-    /// raw source vs. the fleuron. Read raw (no on-screen cull, no caret
-    /// exclusion) because the caller already applies both: the caret's own line
-    /// never reaches this check (it `continue`s earlier), and an off-screen
-    /// proto is culled after this by [`Self::proto_visible`].
-    fn nit_hidden_by_rule_conceal(&self, li: usize) -> bool {
+    /// True when `li` is a thematic-break (`---`/`***`/`___`) line whose source
+    /// is presently CONCEALED under the fleuron — cached membership from the
+    /// same set the rule ORNAMENT reads ([`Self::rule_lines`]'s underlying
+    /// [`OrnamentCache::rule_lines`]), minus the lines that are REVEALED
+    /// through the one owner the ornament's own draw gate uses
+    /// ([`Self::line_is_revealed`]). Both halves matter: membership alone
+    /// suppressed the nit on a SELECTION-revealed rule line, which draws its
+    /// raw `---` source and so has glyphs to tick.
+    ///
+    /// `selection_touch` comes from the caller so the rope walk behind it
+    /// happens once per frame rather than once per proto. The on-screen cull is
+    /// still the caller's ([`Self::proto_visible`], after this check).
+    fn nit_hidden_by_rule_conceal(
+        &self,
+        li: usize,
+        selection_touch: Option<&std::ops::Range<usize>>,
+    ) -> bool {
         if !self.md_enabled || self.md_spans.is_empty() {
             return false;
         }
         self.ensure_ornament_lists();
         self.ornament_cache.rule_lines.borrow().contains(&li)
+            && !self.line_is_revealed(li, selection_touch)
     }
 
     /// True when `li` sits inside a table block ([`ConcealKind::Table`]) that is
@@ -356,6 +365,7 @@ impl TextPipeline {
         let thickness = m.px(NIT_THICKNESS);
         let band_h = thickness + 2.0;
         let protos = self.nit_cache.protos.borrow();
+        let selection_touch = self.selection_touch();
         let mut out = Vec::with_capacity(protos.len());
         for p in protos.iter() {
             if p.line == self.cursor_line {
@@ -364,7 +374,7 @@ impl TextPipeline {
             if self.nit_hidden_by_bullet_glyph(p.line, p.end_col) {
                 continue; // the marker prefix is masked by the bullet glyph
             }
-            if self.nit_hidden_by_rule_conceal(p.line) {
+            if self.nit_hidden_by_rule_conceal(p.line, selection_touch.as_ref()) {
                 continue; // the whole line conceals to the rule ornament — no source glyphs to tick
             }
             if self.nit_hidden_by_table_conceal(p.line) {

@@ -128,6 +128,10 @@ mod frost_width;
 mod geometry;
 mod geometry_reshape;
 mod glide_anchor_law;
+/// The glyph-ink alpha decision: `Srgb::to_glyphon` carries alpha, the
+/// renderer honours it, and no shipped ink is translucent — so the repair
+/// moved no pixel of the product.
+mod glyph_alpha_law;
 /// The GPU program cache: amortised, single-owner, and world-neutral.
 mod gpu_cache_law;
 mod grapheme_click;

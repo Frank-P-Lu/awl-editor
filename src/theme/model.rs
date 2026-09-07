@@ -8,7 +8,9 @@ use super::{
     ornament::{FoldMark, Ornaments, fold_mark_for, ornament_register},
 };
 mod chrome;
-pub use chrome::{PlacardCorner, PlacardInk, PlacardPlacement, SummonedMaterial, TitleStyle};
+pub use chrome::{
+    Elevation, PlacardCorner, PlacardInk, PlacardPlacement, SummonedMaterial, TitleStyle,
+};
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RoleOverrides {
     pub def_fg: Option<Srgb>,
@@ -71,13 +73,6 @@ impl CaretBlockStyle {
 pub enum Backdrop {
     Blur,
     Flat,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Elevation {
-    Flat,
-    Recessed,
-    Bordered,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
