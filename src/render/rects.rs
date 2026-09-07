@@ -686,7 +686,7 @@ impl TextPipeline {
                     doc_top + row.line_top,
                     text_left + x,
                     number,
-                    footnote_number_slot(number, row.line_height),
+                    self.substitute_advances.footnote_slot(number),
                 ))
             })
             .collect()
@@ -744,7 +744,7 @@ impl TextPipeline {
                 Some((
                     doc_top + row.line_top,
                     text_left + x,
-                    bare_url_ellipsis_slot(row.line_height),
+                    self.substitute_advances.ellipsis_slot(),
                 ))
             })
             .collect()
@@ -810,7 +810,7 @@ impl TextPipeline {
                     doc_top + row.line_top,
                     text_left + x,
                     kind,
-                    self.smart_punct_advances.advance(kind),
+                    self.substitute_advances.advance(kind),
                 ))
             })
             .collect()

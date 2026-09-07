@@ -250,7 +250,7 @@ impl TextPipeline {
         let nit_pipeline = SpellUnderlinePipeline::new(device, format, PLACEHOLDER_RGBA);
         let strike_pipeline = SpellUnderlinePipeline::new(device, format, PLACEHOLDER_RGBA);
         let link_underline_pipeline = SpellUnderlinePipeline::new(device, format, PLACEHOLDER_RGBA);
-        let punct = SmartPunctAdvances::shape(&mut font_system, metrics, theme::active().font);
+        let punct = SubstituteAdvances::shape(&mut font_system, metrics, theme::active().font);
         let mut me = Self {
             font_system,
             swash_cache: SwashCache::new(),
@@ -330,7 +330,7 @@ impl TextPipeline {
             caret_affinity: crate::caret::Affinity::Downstream,
             scroll: ScrollPos::default(),
             metrics,
-            smart_punct_advances: punct,
+            substitute_advances: punct,
             format,
             dpi: 1.0,
             window_w: crate::capture::CANVAS_WIDTH as f32,

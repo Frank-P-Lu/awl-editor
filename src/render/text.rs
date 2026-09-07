@@ -813,7 +813,7 @@ impl TextPipeline {
             fonts: &fonts,
             cursor_byte,
             selection_touch: selection_touch.as_ref(),
-            smart_punct_advances: self.smart_punct_advances,
+            substitute_advances: self.substitute_advances,
         };
         let line_attrs = |lt: &str, start: usize, li: usize| {
             build_line_attrs(
@@ -931,7 +931,7 @@ impl TextPipeline {
     /// gate this on "a markdown buffer that actually has a heading" so the common
     /// case never pays for it.
     pub(super) fn restyle_all_lines(&mut self) {
-        self.refresh_smart_punct_advances();
+        self.refresh_substitute_advances();
         self.refresh_table_cache_for_restyle();
         let attrs = self.doc_attrs();
         let fonts = self.cache_script_fonts();
@@ -971,7 +971,7 @@ impl TextPipeline {
             fonts: &fonts,
             cursor_byte,
             selection_touch: selection_touch.as_ref(),
-            smart_punct_advances: self.smart_punct_advances,
+            substitute_advances: self.substitute_advances,
         };
         let mut start = 0usize;
         for li in 0..self.buffer.lines.len() {
@@ -1070,7 +1070,7 @@ impl TextPipeline {
             fonts: &fonts,
             cursor_byte,
             selection_touch: selection_touch.as_ref(),
-            smart_punct_advances: self.smart_punct_advances,
+            substitute_advances: self.substitute_advances,
         };
         let mut changed = false;
         let mut start = 0usize;

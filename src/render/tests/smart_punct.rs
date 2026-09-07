@@ -407,7 +407,7 @@ fn smart_punct_advances_use_each_worlds_body_shaping_no_wildcard() {
             match kind {
                 SmartPunctKind::EnDash | SmartPunctKind::EmDash | SmartPunctKind::Ellipsis => {}
             }
-            let reserve = p.smart_punct_advances.advance(kind);
+            let reserve = p.substitute_advances.advance(kind);
             let body = smart_punct_body_advance(&mut p, kind);
             assert_eq!(
                 reserve, body,

@@ -2,10 +2,9 @@
 
 use super::*;
 
-const ELLIPSIS: char = '…';
-
 /// The document source owns each horizontal slot (forced via
-/// `render::spans::conceal::bare_url_ellipsis_slot`); this batch only supplies
+/// [`crate::render::spans::SubstituteAdvances::ellipsis_slot`], the same
+/// measurement this batch's own glyph is shaped from); this batch only supplies
 /// the visible ink. Unlike [`super::footnotes::FootnoteNumbers`] there is no
 /// payload to distinguish marks by — every mark paints the SAME glyph, so one
 /// shaped buffer serves every mark (no per-value dedup loop needed).
@@ -19,24 +18,19 @@ impl BareUrlEllipses {
     pub(super) fn shape(pipeline: &mut TextPipeline, metrics: Metrics) -> Self {
         let marks = pipeline.bare_url_marks();
         let color = theme::muted().to_glyphon();
-        let glyph_metrics = GlyphMetrics::new(metrics.font_size, metrics.line_height);
-        let attrs = Attrs::new()
-            .family(Family::Name(theme::active().font))
-            .color(color);
-        let mut buffer = GlyphBuffer::new(&mut pipeline.font_system, glyph_metrics);
-        buffer.set_size(
+        let family = pipeline.shaped_font;
+        // The tamed tail's "…" IS the smart-punctuation ellipsis — one
+        // codepoint, painted for one reason — so it comes through that
+        // roster's own shaping door rather than a second opinion about the
+        // face and size. The reserved slot reads the SAME measurement
+        // (`SubstituteAdvances::ellipsis_slot`).
+        let (buffer, _) = super::super::spans::shape_smart_punct_glyph(
             &mut pipeline.font_system,
-            Some(metrics.line_height * 2.0),
-            Some(metrics.line_height),
+            metrics,
+            family,
+            crate::markdown::SmartPunctKind::Ellipsis,
+            color,
         );
-        buffer.set_text(
-            &mut pipeline.font_system,
-            &ELLIPSIS.to_string(),
-            &attrs,
-            Shaping::Advanced,
-            None,
-        );
-        buffer.shape_until_scroll(&mut pipeline.font_system, false);
         Self {
             marks,
             glyph: buffer,

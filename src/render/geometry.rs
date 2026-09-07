@@ -1169,41 +1169,6 @@ impl TextPipeline {
         pick_row(&rows, self.cursor_col).line_height
     }
 
-    pub(super) fn cursor_scale(&self) -> f32 {
-        self.caret_band_scale(self.cursor_line, self.cursor_row_height())
-            .max(1.0)
-    }
-
-    /// THE ONE OWNER of "how tall is the caret-height BAND on line `li`, as a
-    /// multiple of the base line height" — shared by the resting caret
-    /// ([`Self::cursor_scale`]) AND the selection / squiggle / nit row-band
-    /// builders ([`super::TextPipeline::row_band_for`]), so the highlight over a
-    /// character is always the SAME height the caret would draw there.
-    ///
-    /// `1.0` on body text; the heading scale (`row_height / line_height`, e.g. 1.6)
-    /// on a heading row so a heading's selection is as tall as its glyphs. IMAGE
-    /// LINE (the caption model, WYSIWYG on): `1.0` — a BODY-height band, NOT the
-    /// tall reserved row. The revealed source is body-size and the caret sizes to
-    /// it ([`Self::cursor_row_height`]'s doc); a row-scaled band would balloon into
-    /// a char-wide × whole-image-height PILLAR (the reported selection bug). The
-    /// band's vertical CENTRING still uses the full (tall) `row_height` at the call
-    /// site, exactly where cosmic-text centres the source glyphs, so the body-height
-    /// band lands ON the caption — the same anchor the caret + caption scrim use.
-    pub(super) fn caret_band_scale(&self, li: usize, row_height: f32) -> f32 {
-        if crate::markdown::wysiwyg_on() && self.line_is_inline_image(li) {
-            return 1.0;
-        }
-        // THE X-RAY table row: the caret (or an active selection) rides the
-        // FLOATED body-size source, not the (possibly tall, wrapped-cell) grid
-        // row — so the band sizes to the source line, exactly like the image
-        // caption model above.
-        if self.xray.iter().any(|x| x.line == li) {
-            return 1.0;
-        }
-        let lh = self.metrics.line_height;
-        if lh > 0.0 { row_height / lh } else { 1.0 }
-    }
-
     /// Char column on a shaped run whose caret cell contains `target_x`, snapped
     /// to a grapheme-cluster boundary. A pointer inside a cell resolves to the
     /// nearer edge of it, the natural caret placement.
@@ -1343,6 +1308,11 @@ impl TextPipeline {
 /// document viewport deliberately does NOT move, and the direct-manipulation
 /// affordances that describe it.
 mod page;
+
+/// THE CARET-HEIGHT BAND every caret-adjacent treatment on a document row is
+/// drawn from, and the one place a row's DECORATIVE height is told apart from
+/// the height its own glyphs asked for.
+mod caret_band;
 
 /// The pure PAGE-COLUMN PLACEMENT policy — where the writing column's left edge
 /// sits under width pressure, and the authored `Logical` pads it is measured from.

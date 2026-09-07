@@ -22,20 +22,9 @@ pub(in crate::render) fn is_bare_url_tail(line_text: &str, local_start: usize) -
     )
 }
 
-/// Width reserved for the single painted "…" ellipsis glyph that substitutes a
-/// concealed bare-URL TAIL — the render-only affordance for "there is more
-/// hidden here", mirroring [`super::footnotes::footnote_number_slot`]'s
-/// reserved-slot precedent but for ONE fixed glyph rather than a variable digit
-/// count. A pure function of the row metric alone (no rasterizer-specific pixel
-/// constant), so it scales across DPI/zoom/heading rows identically to every
-/// other conceal-forced slot. `render::layers::ornaments::bare_url`'s
-/// `debug_assert!` proves this stays generous enough for the real shaped glyph.
-pub(in crate::render) fn bare_url_ellipsis_slot(line_height: f32) -> f32 {
-    line_height * 0.9
-}
-
 /// Force a concealed bare-URL TAIL span's leading scalar to the reserved
-/// ellipsis slot ([`bare_url_ellipsis_slot`]) and zero-width the rest; a SCHEME
+/// ellipsis slot ([`SubstituteAdvances::ellipsis_slot`] — the substitute's own
+/// shaped advance, never a row-metric fraction) and zero-width the rest; a SCHEME
 /// span (or anything [`is_bare_url_tail`] doesn't recognize) is left for the
 /// generic uniform collapse in [`super::add_wysiwyg_conceal_spans`] — returning
 /// `false` so the caller falls through to it. Mirrors
@@ -49,7 +38,7 @@ pub(super) fn add_bare_url_conceal_spans(
     lo: usize,
     hi: usize,
     hidden: &Attrs<'static>,
-    line_height: f32,
+    advances: SubstituteAdvances,
 ) -> bool {
     if !is_bare_url_tail(line_text, lo - line_doc_start) {
         return false;
@@ -60,7 +49,7 @@ pub(super) fn add_bare_url_conceal_spans(
         .map_or(0, char::len_utf8);
     let first_end = (lo + first_len).min(hi);
     if first_end > lo {
-        let slot = bare_url_ellipsis_slot(line_height);
+        let slot = advances.ellipsis_slot();
         let forcing = hidden
             .clone()
             .letter_spacing(slot / CONCEAL_ZERO_WIDTH_FONT_SIZE);

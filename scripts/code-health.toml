@@ -387,7 +387,7 @@ reason = "`--bench-theme-burst` uses shared `assert_reshape_witness` checks: eve
 
 [[file_size_mark]]
 file = "src/render/geometry.rs"
-lines = 1353
+lines = 1323
 reason = "+29: `image_handle_mark_rect`, a pure function centering the drawn resize-handle grip exactly on the point the image resize hit-test itself arms — one owner for both, so the visible grip and the clickable zone can never drift apart. +7: corrected `assemble_glyph_xs`'s doc, which wrongly claimed Monaspace's tilde ligatures were AAT/`morx`-driven and unsuppressable; the font has no `morx` table at all (item 552). +22: `xray_x_span`, `row_x_span`'s counterpart reading a table x-ray row's real `glyph_xs` instead of the concealed doc row, so a selection-touched row's band can be rebuilt against what is actually on screen. +20: `active_wants_rail` and the documented `outline_wants_rail` — the one owner of the rail reservation, now keyed on the ROOM (feature on, page mode on, and any open buffer wanting rows) rather than on whichever file is on screen; reserving per buffer slid the whole page sideways on every switch. +13: `pull_quote_right` mirrors `pull_quote_left` into the writing column's right text-pad gutter — pure arithmetic, so the mirror law needs no GPU and sweeps 1440 geometry cells."
 
 [[file_size_mark]]

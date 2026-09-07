@@ -15,37 +15,27 @@ impl FootnoteNumbers {
     pub(super) fn shape(pipeline: &mut TextPipeline, metrics: Metrics) -> Self {
         let marks = pipeline.footnote_marks();
         let color = theme::muted().to_glyphon();
-        let glyph_metrics = GlyphMetrics::new(metrics.font_size * 0.68, metrics.line_height);
-        let attrs = Attrs::new()
-            .family(Family::Name(theme::active().font))
-            .color(color);
+        let family = pipeline.shaped_font;
         let mut distinct = Vec::new();
         for (_, _, number, _) in &marks {
             if !distinct.contains(number) {
                 distinct.push(*number);
             }
         }
+        // ONE shaping door with the reserved slot's own measurement
+        // (`render::spans::shape_footnote_number`), so the ink and the room
+        // made for it cannot be shaped at different sizes or in different
+        // faces.
         let glyphs = distinct
             .into_iter()
             .map(|number| {
-                let mut buffer = GlyphBuffer::new(&mut pipeline.font_system, glyph_metrics);
-                buffer.set_size(
+                let (buffer, width) = super::super::spans::shape_footnote_number(
                     &mut pipeline.font_system,
-                    Some(metrics.line_height * 2.0),
-                    Some(metrics.line_height),
+                    metrics,
+                    family,
+                    number,
+                    color,
                 );
-                buffer.set_text(
-                    &mut pipeline.font_system,
-                    &number.to_string(),
-                    &attrs,
-                    Shaping::Advanced,
-                    None,
-                );
-                buffer.shape_until_scroll(&mut pipeline.font_system, false);
-                let width = buffer
-                    .layout_runs()
-                    .map(|run| run.line_w)
-                    .fold(0.0f32, f32::max);
                 (number, buffer, width)
             })
             .collect();

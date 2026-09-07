@@ -2046,7 +2046,7 @@ pub struct TextPipeline {
     caret_affinity: crate::caret::Affinity,
     scroll: ScrollPos,
     metrics: Metrics,
-    smart_punct_advances: SmartPunctAdvances,
+    substitute_advances: SubstituteAdvances,
     /// The swap-chain/capture target format, from construction — kept so a
     /// pipeline grown LAZILY after `new()` (`fold_chevron_labels`) can build
     /// with the same format every other pipeline here was built with.
