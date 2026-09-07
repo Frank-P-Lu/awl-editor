@@ -508,7 +508,7 @@ alpha and requiring the frames to differ (or the code not to build).
 
 ### 603 — what should selecting inside a substituted transcript do? (named by 581's audit, 2026-09-07, and deliberately left unfixed)
 
-⬜ READY — a product decision first, a fix second. Do not treat it as a bug report.
+⬜ DECIDED, READY (user, 2026-09-07): **select within the transcript.** A selection asked for inside a substituted transcript selects that transcript's text — the first of the three options below, the one that needs a transcript-side offset map. The action stays advertised; it is never scoped to nothing. The user's own words: it should select what you selected.
 
 581 closed the accessibility leak: while History, Conflict or Credits substitutes a
 transcript for the pixels, the tree now describes what the reader can see rather than the
@@ -582,21 +582,104 @@ that hit it was writing a comment ABOUT deriving enrolment from the roster.
 the roster by asking it, never by typing its size, in comments and failure messages alike. That
 costs a sentence and saves a gate cycle, and gate cycles on this host are ~15 minutes each.
 
+### 605 — the close-mark zone and both plates are placed by a char-count estimate, and a proportional face puts them left of the × (user-reported with a screenshot, 2026-09-07)
+
+⬜ READY — a user-reported bug, so audit its neighbourhood: the active-row plate shares the
+estimate and the same drift.
+
+Reported with a screenshot: in a right-aligned stack over a proportional face, hovering a
+15-character name lit a plate a full plate-width to the LEFT of the ×, and the active-row
+plate ran past the × on the same side. Cause, read out of the tree: `close_hover_plate_rect`
+and `close_zone` (`render/chrome/gutter_stack.rs`) derive the ink's left edge as
+`right − (chars + 2) × label_char_w`, with `label_char_w = CHAR_WIDTH × LABEL` — the fixed
+nominal advance in `render.rs`, never the shaped label's width. Right alignment pins the real
+right edge, so in a proportional face the estimate overshoots left by the per-glyph shortfall
+summed over the name; the drift grows with name length and with how narrow the face runs.
+`plate_rects` uses the same estimate. Because the hover plate and the hit-test are
+deliberately ONE rect, this is a hit bug, not a cosmetic one: on a long name a click on the ×
+glyph itself lands in Switch, and the lit box off to the left is the place that would close.
+
+Why the law missed it: `the_lone_row_close_mark_reveals_on_real_pixels_only_over_the_hovered_zone`
+(`render/tests/gutter_stack_pixels.rs`) sweeps two name lengths in Saltpan only, and pads the
+mark lane 6px to tolerate "estimate/shaping slop on a proportional face" — the face axis was
+never swept, and the pad was set under the slop it was meant to expose.
+
+Fix: ONE owner reads the ink's left edge off the shaped `gutter_buffer`'s layout run (the
+row's first glyph x, or right edge minus `line_w`), consumed by the zone, the hover plate, the
+active plate and the hit-test alike; the char-count estimate survives only for the BUDGET
+(`avail_chars`), where a count is the right question. Laws: enrol the whole world roster
+(derived from `THEMES`, not a named world) × both name lengths; assert the zone's left edge
+against the ×'s real first-glyph x within an antialiasing tolerance; retire the 6px pad, or
+justify it against a measured maximum; prove non-vacuity by restoring the estimate under one
+proportional face and watching the law go red. Name the world in the failure message.
+
+Routing: worker Sonnet high (Claude) or `gpt-5.6-sol` high; outcome audit at the production
+tier. Read docs/render.md (rowlayout) and this file's test-lock tripwire before touching the
+pixel law — it renders on the shared device.
+
+---
+
+### 606 — 570's closing 99 moves to B: after the last line's own text (user decision, 2026-09-07)
+
+⬜ DECIDED, READY. The user saw the A/B captures (Paperbark and Bowerbird, one-line and
+multi-line) and chose B. Per-world was asked and declined: where a closing mark sits is a
+typographic rule, not a world identity — one answer, twenty worlds. Reopen only if a live
+look across the roster disagrees.
+
+What to build: a per-mark x on `QuoteOrnaments` (`render/layers/ornaments.rs`) — the "about
+20 lines" 570's lane costed when it prototyped B as a capture rather than landing it. The 99
+hangs one gap after the last visual row's shaped ink, on that row's own baseline. Two things
+the prototype captures show and this item must fix rather than inherit: (a) on the multi-line
+case the 99 rode above the row and read as belonging to the row above — anchor it to the last
+row's baseline the way the 66 is anchored to the first row's. **The user said this in their own
+words on seeing the captures: "some of the 99s look a tad too tall, it should be closer to the
+baseline, just a little bit"** — so the vertical placement is a taste target, not just a
+geometry fix, and the lane should offer two or three drops as captures rather than pick one. The user then showed a reference (a pull-quote in chat, not on disk): the 66 hangs in the left margin with its top near the first line's cap height; the 99 follows the last word after a gap of about half an em, with its ink sitting between that line's x-height and cap height — a little above the baseline, never above the line's own top. That is the target;
+(b) at the widest wrap the
+trailing 99 must yield inside the column rather than escape past the text edge — clamp,
+never overflow. The 66 stays where it is.
+
+Laws: 99's x = last-row ink right + gap, on every world and at narrow and wide wrap; its y
+band overlaps the last row's band and no other row's; a presence floor on the glyph's ink so
+a mark that failed to paint cannot pass. Deliver A-vs-B captures across the roster for the
+live eye; the feel is owed to the user, not proven by capture.
+
+Routing: worker Sonnet high (Claude) or `gpt-5.6-sol` high; visual judge at the production tier.
+
+---
+
+### 607 — follow gestures: middle-click under both Linux flavors, and the gestures rebindable (user decision, 2026-09-07)
+
+⬜ DECIDED, READY. Two calls 576 left one line from the user, both now taken the other way.
+
+**(a) Middle-click follows under Linux `native` as well as `emacs`.** It collided with nothing
+under `native` and was flavor-gated only to keep the platform convention plain; the user
+wants it present. Ctrl-click stays on Linux under both flavors; ⌘-click on Mac stays;
+Ctrl-click stays absent on macOS, where the OS spends it as the secondary click.
+
+**(b) The gestures become `[keys]`-rebindable.** This is the decision 576 said was worth taking
+before the grammar had users; it is taken. Rebinding a mouse chord means a second chord
+grammar: extend `keyspec::parse_chord` (or a sibling owner beside it) to spell `click`,
+`middle-click` and `right-click` with the same modifier prefixes keys use (`C-click`,
+`M-click`, `s-click`), routed through `keymap::platform::active_follow_gestures` as the ONE
+selection point, listed on every label surface the key bindings already reach, and
+documented in docs/config.md. The keep-list stays untouched: a mouse chord remains outside
+it by construction, and the law that says so stays.
+
+Laws: every default gesture in the roster round-trips through the parser; a `[keys] follow =
+"…"` line replaces the defaults per platform and the label surfaces report it; a chord the
+grammar cannot spell keeps the default and prints a note naming the line, the same shape a
+bad key chord already gets. Keep the deferred `#heading-anchor` no-op deferred.
+
+Routing: worker Sonnet high (Claude) or `gpt-5.6-sol` high; outcome audit at the production tier.
+
+---
+
 ## Owed to the user — landed work awaiting a live eye
 
 These items have MERGED and left the build queue. Each one still owes the user an answer or
 a live look, which landing does not discharge. Full context is in
 `git log -p -- .orchestrator/queue.md`.
-
-**568 — personal spell suggestions (gated on `item-568-569`, merge pending).** Two decisions in
-`src/spell/personal.rs` are the user's to confirm, quoted from the source rather than from a
-commit message: `pub(super) const MAX_DISTANCE: usize = 2;` and the ranking rule that "a
-personal near-miss is the user's OWN vocabulary, added deliberately, so it must never lose a
-slot to a bundled guess". **The risk worth naming:** the fix offers a personal word only when
-the typed word is already flagged misspelled AND within 2 edits. If what the user actually did
-was type a PREFIX — `Zorb` for `Zorbling`, four edits away — this does not reach it, and the
-standing "we don't need autocomplete" decision makes that deliberate. Worth asking before 568
-is called closed.
 
 **586/587 — inline formatting (merged `945ceff1`).** Two calls the lane made and flagged
 rather than buried, both read out of the tree:
@@ -625,35 +708,6 @@ through. They cannot prove the OS received it, or that VoiceOver announces it.
 was locked (`CGSSessionScreenIsLocked = true`), so the visible ⌘A-then-typing journey the item
 asks for was not run and no live evidence is claimed. Owed to a human.
 
-**570 — where the closing 99 hangs (merged, landed as A).** *The closing 99 currently hangs in
-the writing column's right gutter, mirroring the 66, so the pair brackets the column — and on
-a short quote the 99 sits a long way from the words it closes. Should it instead hang
-immediately after the last line's own text?* Captures sent to the user, A over B, in Bowerbird
-and Paperbark, for both a multi-line and a one-line quote. A is symmetric and never collides
-with text at any wrap width; B closes a one-line quote unmistakably but breaks the pair's
-symmetry (66 outside the text, 99 inside it) and on the multi-line case its ink rides above
-the row top and reads as belonging to the row above. Lane's recommendation and the
-orchestrator's: keep A. Reverting to B is NOT one line — it needs a per-mark x on
-`QuoteOrnaments`, about 20 lines — which is why B was prototyped rather than landed alongside.
-
-**576 — the Linux follow gesture, answered in the form the user asked it.** They asked "what
-should it be on linux…??? like for each keymap?" The answer, landed for their judgement:
-**macOS ⌘-click under both flavors** (the flavor is structurally inert on Mac); **Linux
-`native`: Ctrl-click**; **Linux `emacs`: Ctrl-click plus middle-click**. Ctrl-click is what
-every editor and browser on Linux already does, and because it is a MOUSE chord it steps on
-none of the `C-c`/`C-v`/`C-x` rules that make the two Linux keymaps differ at all — which is
-why it can be the same under both and a Linux user need not learn two answers. Middle-click is
-the extra one for emacs hands because mouse-2 is the traditional follow gesture there and awl
-implements no X11 primary-selection paste to collide with. Ctrl-click is deliberately absent
-on macOS, where the OS spends it as the secondary click.
-
-Two things the user may want to overrule, each one line: **middle-click is emacs-only** (it
-collides with nothing under `native` either, and was flavor-gated only so the plain platform
-convention stays plain), and **the gestures are fixed rather than `[keys]`-rebindable**
-(rebinding a mouse chord means inventing a second chord grammar, which is a decision worth
-taking now rather than after that grammar has users). Deferred and recorded, not smuggled in: a
-bare `#heading-anchor` resolves to a calm no-op.
-
 **558 — the lone file's plate (merged `6c888d5c`). LIVE LOOK NOT OBTAINED.** The display was
 locked at both ends of that lane's round, so it ran headless captures only and claimed no live
 evidence. The plate is capture-verified in Mulga at RGB 126,140,103 over a 2447-pixel bbox,
@@ -661,24 +715,6 @@ matching the candidate you chose from. What a capture cannot tell you is whether
 plated lone file reads as calm or as busy in ordinary use — that is the whole reason 444, 469
 and 515 left it bare, and it is the one thing worth a live glance now that the decision has
 gone the other way.
-
-**572 — four visible changes, none of them seen live (branch gated, merge pending).** The lane
-read these out of the tree rather than out of a commit message, and ran no live probe:
-
-- **A new authored constant nobody has looked at.** `FOOTNOTE_NUMBER_GAP = 0.10`
-  (`render/spans/conceal/substitutes.rs`) is the gap after a painted footnote number as a
-  fraction of the body row — 3.2px at Tawny's line height, visible in every world. The retired
-  formula's implicit gap VARIED across the roster; this is uniform. Its doc claims it sits
-  inside the retired spread of 0.76–4.63px and that was confirmed against the tree, but it is
-  still a taste default chosen by arithmetic rather than by eye.
-- **Every band on a heading row is now shorter** — 13% on `#`, 21% on `##`, 25% on `###`.
-  Selection, find-match wash, code pill, strike, link/spell/nit underlines, mono caret,
-  insertion bar. This is the fix, and it is the kind of change that is right in the numbers and
-  still wants a glance. Revert is one line in `render/geometry/caret_band.rs`.
-- **Tamed bare URLs get visibly tighter** — the "…" slot narrows by up to 14.76px on Mulga.
-  Footnote slots move in both directions.
-- **A table cell holding a bare URL now shows its raw source** where it used to collapse into
-  a hole nothing painted into.
 
 **551 — table selection band (merged `f740749c`, follow-up `db90497e`).** The band now paints
 whole rows. If a spreadsheet-style cell-wise selection is what you actually wanted, say so —
