@@ -4,7 +4,7 @@
 //! `actions::tests` (2026-07 code-organization pass).
 
 use super::super::*;
-use super::{drive, drive_eff, settings_drive, settings_drive_zoom, settings_overlay};
+use super::{drive, drive_act, drive_eff, settings_drive, settings_drive_zoom, settings_overlay};
 use crate::overlay::OverlayKind;
 
 #[test]
@@ -1758,5 +1758,144 @@ fn the_foot_hint_names_what_left_right_actually_do_on_every_settings_row() {
         seams > 0,
         "the sweep must have crossed at least one ordinary row, or the seam arm — the \
          reported defect's own arm — was never graded"
+    );
+}
+
+// --- The one carve-out every summoned surface honours ------------------------
+
+/// Which summoned surface is standing while an action is routed. The picker
+/// arm is parameterised by `OverlayKind` rather than by a representative, so a
+/// new picker enrols in the sweep below the day it is added.
+#[derive(Debug, Clone, Copy)]
+enum Summoned {
+    Card(OverlayKind),
+    FindPanel,
+    /// One of the three flags `card::dismiss_summoned_card` owns. Named by the
+    /// setter it stands up, because these are process globals rather than
+    /// state a `ctx` carries.
+    ModalCard(&'static str),
+}
+
+fn set_modal_card(which: &str, open: bool) {
+    match which {
+        "about" => crate::about::set_open(open),
+        "lifetime" => crate::lifetime::set_open(open),
+        "streaks" => crate::streaks::set_open(open),
+        other => unreachable!("unknown modal card: {other}"),
+    }
+}
+
+/// Route `action` through `apply_transition` with `surface` standing, and hand
+/// back the effect plus the document's own selection afterwards. The globals a
+/// `ModalCard` sets are cleared before returning, so a failing assertion in the
+/// caller cannot leave one behind.
+fn drive_under_summoned(surface: Summoned, action: &Action) -> (Effect, Option<(usize, usize)>) {
+    let mut buffer = Buffer::from_str("alpha beta gamma\n");
+    let mut shift = false;
+    let mut zoom = 1.0;
+    let mut search = match surface {
+        Summoned::FindPanel => Some(crate::search::SearchState::start_with_query(
+            0,
+            crate::search::Direction::Forward,
+            "beta",
+            "alpha beta gamma\n",
+        )),
+        _ => None,
+    };
+    let mut journey = match surface {
+        Summoned::Card(kind) => crate::overlay::Journey::seeded(Some(OverlayState::new(
+            kind,
+            vec!["one".to_string(), "two".to_string()],
+            vec![],
+            vec![],
+        ))),
+        _ => crate::overlay::Journey::default(),
+    };
+    if let Summoned::ModalCard(which) = surface {
+        set_modal_card(which, true);
+    }
+    let mut make_overlay = |_k: OverlayKind| -> Option<OverlayState> { None };
+    let mut browse_to = |_k: OverlayKind, _r: Option<String>| -> Option<OverlayState> { None };
+    let effect = {
+        let mut ctx = ActionCtx {
+            buffer: &mut buffer,
+            shift_selecting: &mut shift,
+            zoom: &mut zoom,
+            search: &mut search,
+            scroll_page_lines: 1,
+            journey: &mut journey,
+            make_overlay: &mut make_overlay,
+            browse_to: &mut browse_to,
+            oracle: None,
+        };
+        apply_transition(&mut ctx, action, false).primary()
+    };
+    if let Summoned::ModalCard(which) = surface {
+        set_modal_card(which, false);
+    }
+    (effect, buffer.selection_range())
+}
+
+/// **QUIT AND SAVE ARE ABOUT THE SESSION, NOT THE DOCUMENT, SO NO SUMMONED
+/// SURFACE SWALLOWS THEM — AND ALL OF THEM AGREE BY CONSTRUCTION.**
+///
+/// A summoned surface owning the input is right for the editing verbs and
+/// wrong for these two: ⌘Q with a picker up was a dead key with nothing to say
+/// for itself, and the panel inherited that contract the day it grew an
+/// action-level gate. One predicate, `summoned_surface_defers`, is read ahead
+/// of every surface arm in `intercept_action`, so the modal card, the picker
+/// card and the find/replace panel cannot answer three different ways.
+///
+/// ENROLMENT is derived: every `OverlayKind::ALL` picker, the panel, and the
+/// three flags `card::dismiss_summoned_card` owns. The PRESENCE COMPANION is
+/// the half that keeps it honest — each surface is separately required to
+/// still swallow `SelectAll`, so "Quit got through" cannot be satisfied by a
+/// gate that stopped intercepting anything at all.
+#[test]
+fn no_summoned_surface_swallows_quit_or_save() {
+    let _g = crate::testlock::serial();
+
+    let mut surfaces: Vec<Summoned> = OverlayKind::ALL
+        .iter()
+        .copied()
+        .map(Summoned::Card)
+        .collect();
+    surfaces.push(Summoned::FindPanel);
+    surfaces.extend(["about", "lifetime", "streaks"].map(Summoned::ModalCard));
+    assert!(
+        surfaces.len() > OverlayKind::ALL.len(),
+        "enrolment: the sweep must reach past the picker roster ({} surfaces)",
+        surfaces.len()
+    );
+
+    for surface in &surfaces {
+        assert_eq!(
+            drive_under_summoned(*surface, &Action::Quit).0,
+            Effect::Quit,
+            "{surface:?} swallowed Quit (surfaces swept: {})",
+            surfaces.len()
+        );
+        assert_eq!(
+            drive_under_summoned(*surface, &Action::Save).0,
+            Effect::Persistence(PersistenceEffect::Save(SaveKind::Manual)),
+            "{surface:?} swallowed Save (surfaces swept: {})",
+            surfaces.len()
+        );
+        // PRESENCE: the surface really is intercepting. `SelectAll` is an Edit
+        // verb, so it must NOT reach the document behind the surface.
+        assert_eq!(
+            drive_under_summoned(*surface, &Action::SelectAll).1,
+            None,
+            "{surface:?}: Select all reached the document behind the surface, so \
+             the two assertions above prove nothing about a gate"
+        );
+    }
+    // ...and with nothing summoned, `SelectAll` DOES reach it, so the presence
+    // check above is a statement about the surfaces and not about the verb.
+    let mut open = Buffer::from_str("alpha beta gamma\n");
+    drive_act(&mut open, &Action::SelectAll);
+    assert!(
+        open.selection_range().is_some(),
+        "with nothing summoned, Select all must still select the document"
     );
 }
