@@ -545,6 +545,37 @@ Laws: whichever is chosen, the three surfaces must agree by construction with en
 derived from `shows_read_only_prose` rather than named, and the advertise/refuse pairing must
 be law-pinned so a surface cannot advertise what it will not do.
 
+### 604 — three band consumers 572 fixed but did not grade, and one inflation site it did not sweep (named by 572's own lane, 2026-09-07)
+
+⬜ READY — small, and it exists because the lane said plainly where its own sweep stopped
+rather than letting the enrolment guard imply a completeness it did not have.
+
+572 made one owner of the caret-band scale, so every consumer got the fix. Its grading law
+`every_caret_band_consumer_grew_by_the_size_rung_alone` grades **five** of them — selection
+band, find-match wash, code pill, strike fraction, spell gap. The **nit underline** and the
+**x-ray table-row band** read the same owner, are fixed by it, and are graded by nothing and
+explained by nothing; the item's own text named "spell/nit underlines" and "table x-ray rows".
+The link underline is honestly pinned as structurally absent from a heading row (pulldown
+stamps a heading's link text `Heading`, not `LinkText`) with an assertion saying so — that one
+is answered, not missing.
+
+The 8-call-site enrolment guard forces NEW consumers into the sweep. It does not retroactively
+enrol these two, which is exactly the gap a call-site count cannot see.
+
+Also unswept: the **thematic-break `ornament_scale` row**. Its module doc argues the room is
+dropped on reveal, and that argument is asserted rather than law-tested — item 571 fixed the
+reveal, and nothing pins the selection band and underlines on that row.
+
+And one enrolment that is derived but not pinned to a number: the mono-world band law asserts
+only `graded > 0` rather than an exact cell count, the single enrolment in that file without
+one. A sweep that silently shrinks to one world would pass it.
+
+Laws: grade the two ungraded consumers on the same axis as the other five; sweep the
+thematic-break row against every caret-adjacent treatment the way 572 swept the heading rung;
+give the mono law an exact count derived from its own filtered roster.
+
+---
+
 ## Owed to the user — landed work awaiting a live eye
 
 These items have MERGED and left the build queue. Each one still owes the user an answer or
@@ -624,6 +655,24 @@ matching the candidate you chose from. What a capture cannot tell you is whether
 plated lone file reads as calm or as busy in ordinary use — that is the whole reason 444, 469
 and 515 left it bare, and it is the one thing worth a live glance now that the decision has
 gone the other way.
+
+**572 — four visible changes, none of them seen live (branch gated, merge pending).** The lane
+read these out of the tree rather than out of a commit message, and ran no live probe:
+
+- **A new authored constant nobody has looked at.** `FOOTNOTE_NUMBER_GAP = 0.10`
+  (`render/spans/conceal/substitutes.rs`) is the gap after a painted footnote number as a
+  fraction of the body row — 3.2px at Tawny's line height, visible in every world. The retired
+  formula's implicit gap VARIED across the roster; this is uniform. Its doc claims it sits
+  inside the retired spread of 0.76–4.63px and that was confirmed against the tree, but it is
+  still a taste default chosen by arithmetic rather than by eye.
+- **Every band on a heading row is now shorter** — 13% on `#`, 21% on `##`, 25% on `###`.
+  Selection, find-match wash, code pill, strike, link/spell/nit underlines, mono caret,
+  insertion bar. This is the fix, and it is the kind of change that is right in the numbers and
+  still wants a glance. Revert is one line in `render/geometry/caret_band.rs`.
+- **Tamed bare URLs get visibly tighter** — the "…" slot narrows by up to 14.76px on Mulga.
+  Footnote slots move in both directions.
+- **A table cell holding a bare URL now shows its raw source** where it used to collapse into
+  a hole nothing painted into.
 
 **551 — table selection band (merged `f740749c`, follow-up `db90497e`).** The band now paints
 whole rows. If a spreadsheet-style cell-wise selection is what you actually wanted, say so —
