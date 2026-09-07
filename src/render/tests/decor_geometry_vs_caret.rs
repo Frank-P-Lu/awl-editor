@@ -427,6 +427,25 @@ fn the_row_scaled_caret_forms_track_the_headings_size_rung() {
     p.sync_theme();
 }
 
+/// How much looser than its own body row a heading's band may hug its ink. The
+/// two ratios either side of it are both READ FROM THE FRAME — a backend that
+/// rasterizes a glyph edge one row differently moves them together — but this
+/// slack is authored, so it is calibrated from three measured figures at the
+/// tightest cell on the roster (Saltpan `##`, DPI 1, this host's Metal):
+///
+///   * the shipped reading: band/ink `1.233` against a body `1.167`, `+0.066`;
+///   * the reading the retired defect produces at that same cell: `1.533`,
+///     `+0.366`;
+///   * the floor between them: `0.18`.
+///
+/// It sits ~2.7x above the shipped worst case (about three rows of a 30px ink
+/// box, so a one-pixel threshold difference on another rasterizer cannot reach
+/// it) and ~2x under the defect, which still fails on thirteen of the twenty
+/// worlds by at least `0.083`. A tighter `0.12` left the tightest cell one
+/// pixel from red, which is the shape that has taken this repo's pixel laws
+/// down on lavapipe before.
+const BAND_HUG_ALLOWANCE: f32 = 0.18;
+
 /// **REAL PIXELS.** The geometry laws above are arithmetic over the emitters;
 /// this one is arithmetic over the frame. The selection band's DRAWN vertical
 /// extent is recovered by differencing two rendered frames (a one-character
@@ -515,9 +534,8 @@ fn a_headings_selection_band_hugs_its_ink_as_tightly_as_body_does() {
             ratios[level as usize] = band_h / ink_h;
         }
         for level in [1u8, 2, 3] {
-            // The body row's own hug, plus a small allowance for the raster
-            // rounding a bigger glyph cell picks up.
-            let floor = ratios[0] + 0.12;
+            // The body row's own hug, plus the allowance below.
+            let floor = ratios[0] + BAND_HUG_ALLOWANCE;
             assert!(
                 ratios[level as usize] <= floor,
                 "{} h{level}: the drawn selection band is {:.3}x the heading's own ink \
@@ -818,6 +836,127 @@ fn a_painted_substitutes_slot_never_scales_with_the_row_it_lands_on() {
     );
     theme::set_active(theme::DEFAULT_THEME);
     p.sync_theme();
+}
+
+/// **AN ORNAMENT-LESS RENDERER LEAVES ITS SOURCE VISIBLE, FOR ALL THREE
+/// FAMILIES.** A table GRID cell shapes its own buffer and has no ornament
+/// layer, so it passes `None` for the reserved advances — and a substitute
+/// family that collapsed anyway would force a hole nothing ever paints into.
+/// Smart punctuation already followed that rule and was already lawed; the
+/// footnote number and the tamed bare URL's "…" now follow it too and are
+/// lawed here. Enrolment is the PARSE's own answer over the cell, never a
+/// hand-picked byte list, and the match is exhaustive so a fourth substitute
+/// family joins this sweep by failing to compile.
+#[test]
+fn a_table_grid_cell_keeps_every_substitute_family_visible() {
+    use crate::markdown::ConcealKind;
+    let _t = crate::testlock::serial();
+    let _world = theme::WorldPin::snapshot();
+    crate::markdown::set_wysiwyg_on(true);
+    let Some((device, queue, mut p)) = headless_dqp(W as f32, H as f32) else {
+        eprintln!("skipping a_table_grid_cell_keeps_every_substitute_family_visible: no adapter");
+        return;
+    };
+    let cell = "note[^1] see https://example.com/deep and wait... now";
+    let doc = format!("| Mark |\n| --- |\n| {cell} |\n\npark\n\n[^1]: def\n");
+    let mut v = view(&doc, 4, 0);
+    v.is_markdown = true;
+    p.set_view(&v);
+    p.prepare(&device, &queue, W, H).unwrap();
+    assert!(
+        p.table_cell_lines_drawn().contains(&2),
+        "the body row must be submitted as real grid-cell text"
+    );
+    let cache = p.table_grid_cache.entries.borrow();
+    let (_, grid) = cache.first().expect("one shaped table grid");
+    let (_, _, body, _) = grid
+        .cells
+        .iter()
+        .find(|(_, _, buffer, _)| buffer.lines.first().is_some_and(|line| line.text() == cell))
+        .expect("the body cell carrying all three substitute families is shaped");
+    let line = &body.lines[0];
+    let mut seen: Vec<&'static str> = Vec::new();
+    for (range, kind) in crate::markdown::spans(cell) {
+        let crate::markdown::MdKind::ConcealMarkup(ck) = kind else {
+            continue;
+        };
+        let family = match ck {
+            ConcealKind::Footnote => "footnote",
+            ConcealKind::BareUrl => "bare url",
+            ConcealKind::SmartPunct => "smart punct",
+            ConcealKind::Heading
+            | ConcealKind::Emphasis
+            | ConcealKind::Code
+            | ConcealKind::Highlight
+            | ConcealKind::Strikethrough
+            | ConcealKind::Fence
+            | ConcealKind::Frontmatter
+            | ConcealKind::Table
+            | ConcealKind::Image
+            | ConcealKind::Link
+            | ConcealKind::Blockquote => continue,
+        };
+        let attrs = line.attrs_list().get_span(range.start);
+        // The product's own "is this concealed" predicate (`TextPipeline::concealed_at`):
+        // a zero-ALPHA span. A `ConcealMarkup` run that is merely dim still carries
+        // real ink, which is the visible state this law is about.
+        assert!(
+            attrs.color_opt.is_none_or(|c| c.a() != 0),
+            "{family} at {range:?}: a grid cell has no ornament layer, so its source keeps \
+             real ink rather than concealing to a hole nothing paints into (got {:?})",
+            attrs.color_opt
+        );
+        assert!(
+            attrs.metrics_opt.is_none(),
+            "{family} at {range:?}: a grid cell's source keeps full body metrics — a collapse \
+             here forces an advance nothing ever paints into"
+        );
+        if !seen.contains(&family) {
+            seen.push(family);
+        }
+    }
+    seen.sort_unstable();
+    assert_eq!(
+        seen,
+        ["bare url", "smart punct"],
+        "the two substitute families a grid cell can REACH must both be graded (found \
+         {seen:?}) or this law grades only whichever one it happened to parse"
+    );
+    // THE THIRD FAMILY IS STRUCTURALLY OUT OF REACH HERE, pinned rather than
+    // skipped silently. `cell_inline_attrs` parses the cell SUBSTRING alone, and
+    // a footnote reference only becomes one when its definition is in the same
+    // parse — so a cell's `[^1]` stays literal text and never reaches the
+    // substitute door at all. The same bytes inside a whole document do enrol,
+    // which is what makes this an isolation property rather than a broken
+    // fixture. If cell parsing ever gains document context, this flips and the
+    // family joins the sweep above.
+    let cell_footnotes = crate::markdown::spans(cell)
+        .iter()
+        .filter(|(_, k)| {
+            matches!(
+                k,
+                crate::markdown::MdKind::ConcealMarkup(ConcealKind::Footnote)
+            )
+        })
+        .count();
+    let doc_footnotes = crate::markdown::spans(&doc)
+        .iter()
+        .filter(|(_, k)| {
+            matches!(
+                k,
+                crate::markdown::MdKind::ConcealMarkup(ConcealKind::Footnote)
+            )
+        })
+        .count();
+    assert_eq!(
+        cell_footnotes, 0,
+        "a grid cell parsed in isolation carries no footnote reference span"
+    );
+    assert!(
+        doc_footnotes > 0,
+        "the SAME bytes in a whole document must carry one, or the isolation claim \
+         above is really a broken fixture"
+    );
 }
 
 /// **THE CELL THAT WAS ALREADY RIGHT, NOW PINNED.** A nested list item's

@@ -4,7 +4,7 @@
 use super::*;
 
 /// The document source owns each horizontal slot (forced via
-/// `render::spans::conceal::SmartPunctAdvances`); this batch supplies the
+/// [`crate::render::spans::SubstituteAdvances`]); this batch supplies the
 /// visible ink from that same shaping owner. Distinct GLYPHS — at most three,
 /// the whole [`crate::markdown::SmartPunctKind`] roster — are shaped once and
 /// shared by every mark of that kind, the

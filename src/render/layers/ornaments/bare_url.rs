@@ -3,7 +3,8 @@
 use super::*;
 
 /// The document source owns each horizontal slot (forced via
-/// `render::spans::conceal::bare_url_ellipsis_slot`); this batch only supplies
+/// [`crate::render::spans::SubstituteAdvances::ellipsis_slot`], the same
+/// measurement this batch's own glyph is shaped from); this batch only supplies
 /// the visible ink. Unlike [`super::footnotes::FootnoteNumbers`] there is no
 /// payload to distinguish marks by — every mark paints the SAME glyph, so one
 /// shaped buffer serves every mark (no per-value dedup loop needed).
