@@ -1,22 +1,7 @@
-//! src/app/document/entries.rs — REACHING AN ENTRY THAT IS NOT THE ACTIVE ONE.
+//! Close-time access to active and parked entries.
 //!
-//! Every other file in this directory speaks about `self.active`. This one is
-//! the deliberate exception, and it exists because CLOSING a file is the first
-//! product verb that must act on a buffer the reader is not looking at.
-//!
-//! The registry could always *drop* a parked entry — [`crate::buffers::BufferRegistry::take`]
-//! has removed one since the module was written — but dropping is not closing.
-//! Closing has to answer three questions about a buffer whose state lives
-//! behind `registry`'s private field: is it holding text that is not on disk,
-//! what did awl last see at its path, and what bytes would it write. Those
-//! answers are read out HERE, in one borrow each, so the removal owner cannot
-//! ask half the question, act, and ask the rest against state its own action
-//! changed.
-//!
-//! Nothing here removes anything on its own except [`DocumentSession::discard`],
-//! which is the single door: it drops the registry entry and the working-set
-//! row TOGETHER, for the same reason `open_path` adds them together — the drawn
-//! order and the parked buffers must not be able to disagree.
+//! Read unsaved state, disk baseline, and save bytes before removal. Discarding
+//! an entry removes its registry entry and working-set row together.
 
 use super::*;
 
@@ -49,15 +34,9 @@ impl CloseRelease {
 }
 
 impl DocumentSession {
-    /// THE ONE UNSAVED RULE, asked of ANY entry rather than only the active one.
-    ///
-    /// `App::is_document_dirty` used to spell this inline against `self.active`,
-    /// which made "is there unsaved text here" an active-buffer-only question by
-    /// construction. It is not: a parked buffer holds unsaved text exactly the
-    /// same way, and the whole point of a removal owner is that it must not
-    /// discard one. Active unnamed-fresh dirty display additionally consults
-    /// `PersistenceRuntime`; a parked Fresh entry is conservatively unsaved
-    /// until a successful naming write gives it a document baseline.
+    /// Shared unsaved rule for active and parked entries. Active Fresh dirty
+    /// display also consults `PersistenceRuntime`; parked Fresh entries remain
+    /// unsaved until naming establishes a baseline, unless discardably empty.
     fn entry_unsaved(entry: &crate::buffers::Entry<BufferExtra>) -> bool {
         if entry.buffer.is_discardable_empty_fresh() {
             return false;

@@ -1,18 +1,9 @@
-//! src/app/files/document.rs — the FRESH DOCUMENT buffer-swap (Cmd-N /
-//! `open::new_document`'s buffer-swap half). The old two-desk
-//! project-flip command that used to live in this file (with it, the
-//! notes-desk scratch-restore helper) — there is now exactly ONE active
-//! folder (`App::root`), so there is nothing to flip between. Split out of the
-//! former `app/files.rs` monolith and renamed from `notes.rs`.
+//! Fresh-document activation and caret placement after navigation.
 
 use crate::app::*;
 
 impl App {
-    /// Swap in a fresh, unnamed document buffer as the active buffer — the
-    /// buffer-swap half of Cmd-N (`open::new_document`). The caller has NOT
-    /// changed the root: a fresh document is created IN the current active
-    /// folder (`self.root`), never a separate notes home. Parks the leaving
-    /// buffer under its key.
+    /// Park the current buffer and activate an unnamed document in the current folder.
     pub(super) fn start_fresh_document(&mut self) {
         // WRITING STREAKS: sample the LEAVING buffer's word-delta before it is
         // replaced by the fresh document (the anchor is reset below), so words
